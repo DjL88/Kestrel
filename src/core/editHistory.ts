@@ -35,10 +35,16 @@ function classify(before: Snapshot, after: Snapshot): EditKind {
 }
 
 export function recordEdit(frame: PhotoFrame, patch: Snapshot, at: number): PhotoFrame {
-  // Explicit empty split baseline survives JSON save/reopen. Otherwise the
-  // new unsplit state would look like an older checkpoint missing split data.
+  // Preserve legacy two-frame projects when adding an unrelated edit:
+  // old catalogues stored a top-level splitFrames flag, not formatSplits.
+  // Record a real per-format baseline (or an explicit empty one) so Undo,
+  // Redo and checkpoint jumps can restore their state after JSON reopening.
+  const legacyOffset = typeof frame.splitPanOffset === 'number' && Number.isFinite(frame.splitPanOffset)
+    ? Math.max(-25, Math.min(25, frame.splitPanOffset)) : 0;
+  const effectiveFormatSplits = frame.formatSplits ??
+    (frame.splitFrames === true ? { 'orig-3x2': { enabled: true, offset: legacyOffset } } : {});
   const before: Snapshot = { edit: frame.edit, framing: frame.framing, overlay: frame.overlay,
-    formatSplits: frame.formatSplits ?? {} };
+    formatSplits: effectiveFormatSplits };
   const after = { ...before, ...patch };
   if (JSON.stringify(before) === JSON.stringify(after)) return frame;
   const history = frame.editHistory;
