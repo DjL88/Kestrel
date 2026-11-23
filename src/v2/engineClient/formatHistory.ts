@@ -100,8 +100,15 @@ export function recordFormatSetChange(
   }
   const ids = new Set([...old.disabled, ...next.disabled, ...(old.enabled ?? []), ...(next.enabled ?? [])]);
   for (const id of ids) {
-    if (old.disabled.includes(id) !== next.disabled.includes(id)) {
-      history = append(history, { formatId: id, kind: next.disabled.includes(id) ? 'hidden' : 'shown', at });
+    const wasDisabled = old.disabled.includes(id);
+    const nowDisabled = next.disabled.includes(id);
+    // Built-ins can also start disabled by default and be explicitly opted in.
+    const wasEnabledByChoice = old.enabled?.includes(id) === true;
+    const nowEnabledByChoice = next.enabled?.includes(id) === true;
+    if (wasDisabled !== nowDisabled || (!wasDisabled && !nowDisabled && wasEnabledByChoice !== nowEnabledByChoice)) {
+      history = append(history, {
+        formatId: id, kind: nowDisabled || (!nowEnabledByChoice && wasEnabledByChoice) ? 'hidden' : 'shown', at,
+      });
     }
   }
   return history;
