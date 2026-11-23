@@ -136,8 +136,36 @@ export default function Canvas({
       zoomRef.current = next;
       setZoomRef.current(next);
     };
+    // Safari on macOS exposes a separate magnification gesture rather than Ctrl+wheel.
+    // Keep the handler scoped to the photo stage, not the whole document.
+    let safariStartZoom = zoomRef.current;
+    const onGestureStart = (event: Event) => {
+      event.preventDefault();
+      safariStartZoom = zoomRef.current;
+    };
+    const onGestureChange = (event: Event) => {
+      event.preventDefault();
+      const gesture = event as Event & { scale?: number; clientX?: number; clientY?: number };
+      if (!Number.isFinite(gesture.scale) || !gesture.scale || gesture.scale <= 0) return;
+      const rect = stage.getBoundingClientRect();
+      const next = Math.max(0.25, Math.min(8, safariStartZoom * gesture.scale));
+      const x = (gesture.clientX ?? rect.left + rect.width / 2) - rect.left;
+      const y = (gesture.clientY ?? rect.top + rect.height / 2) - rect.top;
+      zoomAnchor.current = { x, y, left: stage.scrollLeft, top: stage.scrollTop, zoom: zoomRef.current };
+      zoomRef.current = next;
+      setZoomRef.current(next);
+    };
+    const onGestureEnd = (event: Event) => { event.preventDefault(); };
     stage.addEventListener('wheel', onWheel, { passive: false });
-    return () => stage.removeEventListener('wheel', onWheel);
+    stage.addEventListener('gesturestart', onGestureStart, { passive: false });
+    stage.addEventListener('gesturechange', onGestureChange, { passive: false });
+    stage.addEventListener('gestureend', onGestureEnd, { passive: false });
+    return () => {
+      stage.removeEventListener('wheel', onWheel);
+      stage.removeEventListener('gesturestart', onGestureStart);
+      stage.removeEventListener('gesturechange', onGestureChange);
+      stage.removeEventListener('gestureend', onGestureEnd);
+    };
   }, []);
 
   useLayoutEffect(() => {
