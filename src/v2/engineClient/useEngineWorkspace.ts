@@ -43,7 +43,8 @@ import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
 import { planExport } from './exportOps';
 import { TEMPLATES_KEY, addTemplate, deleteTemplate, overlayFromTemplate, readTemplates, renameTemplate, type OverlayTemplate } from './overlayTemplates';
-import { addFormat, applyFormats, readFormats, removeFormat, toggleFormat, validCustomSize } from './formatOps';
+import { addFormat, applyFormats, readFormats, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize } from './formatOps';
+import { patchVideoZoom } from './videoZoomOps';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, toggleMask } from './maskOps';
 import { createSubjectMask, framingKey } from '../../core/maskTypes';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFraming';
@@ -64,9 +65,8 @@ import { surfaceBridge } from './surfaceBridge';
 /** Actions that change a photo's edit, sizes, overlay, masks or assist state. They are not connected to the real
  * recipe yet, so they say so instead of silently changing sample data. */
 const NOT_CONNECTED = [
-  'setActiveGroup', 'addEditGroup', 'renameEditGroup', 'toggleSizeLinked',
+  'setActiveGroup', 'addEditGroup', 'renameEditGroup',
   'toggleSplitFrames', 'setSplitPanOffset',
-  'updateVideoZoom',
 ] as const satisfies readonly (keyof WorkspaceActions)[];
 
 /** What the export needs to draw the overlay exactly as the canvas does, read from the latest render. */
@@ -568,6 +568,24 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     return true;
   }, [mutate]);
 
+  /** Flip a format between paper-clipped to the active edit group and independent. Only that one photo's choice changes. */
+  const toggleSizeLinked = useCallback((photoId: string, sizeId: string) => {
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+    if (!frame) return;
+    const next = toggleSizeLinkedRaw(frame.sizeLinked, sizeId);
+    const at = Date.now();
+    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, sizeLinked: next } : entry)) }));
+  }, [mutate]);
+
+  /** Change a photo's video pan/zoom (Ken Burns) settings. Only the given fields change; the rest are kept. */
+  const updateVideoZoom = useCallback((photoId: string, patch: Parameters<typeof patchVideoZoom>[1]) => {
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+    if (!frame) return;
+    const next = patchVideoZoom(frame.videoZoom, patch);
+    const at = Date.now();
+    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, videoZoom: next } : entry)) }));
+  }, [mutate]);
+
   /** Find the subject on this device and add it (or, for the background, its inverse) as a mask with no adjustments yet.
    * Sky, painted and area masks need tools V2 does not have, so they say so instead of adding a layer that does nothing. */
   const addMask = useCallback(async (photoId: string, type: 'subject' | 'sky' | 'background' | 'brush' | 'area') => {
@@ -960,6 +978,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     renameOverlayTemplate: (templateId, name) => updateTemplates(renameTemplate(templates, templateId, name)),
     deleteOverlayTemplate: (templateId) => updateTemplates(deleteTemplate(templates, templateId)),
     toggleSizeEnabled: (photoId, sizeId) => changeFormats(photoId, (raw) => toggleFormat(raw, sizeId)),
+    toggleSizeLinked,
+    updateVideoZoom,
     addCustomSize: (photoId, label, width, height) => {
       if (!validCustomSize(width, height)) { setNotice('That size is not usable. Use whole pixels, from 1 to 20,000.'); return; }
       const id = `custom-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 10)}`;
