@@ -1,10 +1,9 @@
 /**
  * Firestore ledger for the Cloud Processing gate: `cloud_jobs/{jobId}` and `cloud_usage/{accountId}`.
  * A job document holds ids, kind, byte count, status and the time of the person's consent. Never photo bytes, file
- * names, EXIF or upload URLs. The quota reserve is one transaction, so concurrent requests cannot overspend it.
- * Not wired into server.ts yet: there is no real runner, so production keeps answering CLOUD_NOT_CONFIGURED.
+ * names, EXIF or upload URLs. Quota reservation and conditional job status updates use Firestore transactions.
  */
-import type { CloudJobRecord, CloudLedger } from './cloudJobs.ts';
+import type { CloudJobRecord, CloudLedger, CloudStatus } from './cloudJobs.ts';
 import type { FirestoreLike } from './firestoreStore.ts';
 
 const JOBS = 'cloud_jobs';
@@ -27,11 +26,13 @@ export class FirestoreCloudLedger implements CloudLedger {
     });
   }
 
-  async refund(accountId: string): Promise<void> {
+  async refund(accountId: string, reservedAtMs: number): Promise<void> {
     await this.db.runTransaction(async (tx) => {
       const ref = this.db.collection(USAGE).doc(accountId);
-      const snap = await tx.get(ref);
-      if (snap.exists) tx.update(ref, { used: Math.max(Number(snap.data()!.used ?? 0) - 1, 0) });
+      const usage = (await tx.get(ref)).data();
+      if (typeof usage?.periodStartMs === 'number' && reservedAtMs >= usage.periodStartMs) {
+        tx.update(ref, { used: Math.max(Number(usage.used ?? 0) - 1, 0) });
+      }
     });
   }
 
@@ -45,5 +46,14 @@ export class FirestoreCloudLedger implements CloudLedger {
     if (!snap.exists) return undefined;
     const d = snap.data()!;
     return { jobId: String(d.jobId), accountId: String(d.accountId), kind: d.kind as CloudJobRecord['kind'], inputBytes: Number(d.inputBytes), status: d.status as CloudJobRecord['status'], createdAtMs: Number(d.createdAtMs), consentAtMs: Number(d.consentAtMs) };
+  }
+
+  async transition(jobId: string, from: CloudStatus, to: CloudStatus): Promise<boolean> {
+    return this.db.runTransaction(async (tx) => {
+      const ref = this.db.collection(JOBS).doc(jobId);
+      if ((await tx.get(ref)).data()?.status !== from) return false;
+      tx.update(ref, { status: to });
+      return true;
+    });
   }
 }

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { describeDeepReviewForTest as describeDeepReview, suggestDeepReviewLook } from './deepVisionReview.ts';
+import { describeDeepReviewForTest as describeDeepReview, suggestDeepReviewLook, candidatesForSuggestedLook } from './deepVisionReview.ts';
 import { LIFT_SUBJECT_BLUR_BACKGROUND } from '../../engine/looks';
 import type { SubjectDetectActionResult } from '../../engine/subjectDetectAction';
 
@@ -63,5 +63,27 @@ describe('suggestDeepReviewLook', () => {
   it('refuses a Look when no subject is found or the detector is unsure', () => {
     assert.equal(suggestDeepReviewLook(result({ finding: null })), null);
     assert.equal(suggestDeepReviewLook(result({ trust: { frameId: 'f1', decision: null, confidence: 'low', score: 20, reason: 'subjectSoft' } })), null);
+  });
+});
+
+describe('candidatesForSuggestedLook', () => {
+  it('returns no candidate for a conflicting or uncertain detection', () => {
+    const conflicting = result({ corroboration: { state: 'conflict', reading: 'aircraft', detector: 'bird' } });
+    const uncertain = result({ trust: { frameId: 'f1', decision: null, confidence: 'low', score: 20, reason: 'subjectSoft' } });
+    assert.deepEqual(candidatesForSuggestedLook(suggestDeepReviewLook(conflicting)), []);
+    assert.deepEqual(candidatesForSuggestedLook(suggestDeepReviewLook(uncertain)), []);
+  });
+
+  it('returns exactly one grounded proposal without applying or changing the Look', () => {
+    const look = suggestDeepReviewLook(result({}));
+    assert.ok(look);
+    const before = structuredClone(look);
+    const candidates = candidatesForSuggestedLook(look);
+    assert.equal(candidates.length, 1);
+    assert.equal(candidates[0].look, look);
+    assert.equal(candidates[0].id, look.id);
+    assert.deepEqual(look, before);
+    assert.equal(Object.hasOwn(candidates[0], 'applied'), false);
+    assert.equal(Object.hasOwn(candidates[0], 'pixels'), false);
   });
 });

@@ -1,4 +1,6 @@
-import { applyFormats } from './formatOps';
+import { applyFormats, applySizeLinked } from './formatOps';
+import { readVideoZoom } from './videoZoomOps';
+import { readSplitFrames, readSplitPanOffset } from './splitFrameOps';
 import { describeHistory } from './historySteps';
 import type { PhotoFrame, ShootDescriptor } from '../../core/types';
 import { computeCullCounts } from '../../core/cullingEngine';
@@ -8,6 +10,7 @@ import { editToRecipe } from './recipeMap';
 import { readOverlay } from './overlayOps';
 import { masksToLayers } from './maskOps';
 import { readCrops } from './cropOps';
+import { readBoard } from './boardOps';
 import type { AutoRun } from './runAuto';
 import type { AssistSuggestion, EditRecipe, PhotoHistogram } from '../ui/contract';
 import type { Task } from '../../core/taskStore';
@@ -75,8 +78,12 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
   const { assist, watermarkAuto, histogram, pixelSize } = extras;
   const { exif } = frame;
   // The UI's sample group carries a made-up look. A real photo starts from its own edit: neutral until the person edits it.
+  const board = readBoard(frame.boardPositions);
   const crops = readCrops(frame.sizeCrops);
-  const groups = createEditGroups(false).map((group) => ({ ...group, name: 'Edit group 1', recipe: editToRecipe(frame.edit), overlay: readOverlay(frame.overlay) }));
+  const groups = createEditGroups(false).map((group) => ({
+    ...group, name: 'Edit group 1', recipe: { ...editToRecipe(frame.edit), lookId: frame.appliedLookId ?? 'natural-raw' }, overlay: readOverlay(frame.overlay),
+    splitFrames: readSplitFrames(frame.splitFrames), splitPanOffset: readSplitPanOffset(frame.splitPanOffset),
+  }));
   const thumb = urls?.thumb ?? BLANK_IMAGE;
   return {
     id: frame.id,
@@ -107,8 +114,8 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     ...(exif.width && exif.height ? { pixelSize: { width: exif.width, height: exif.height } } : pixelSize ? { pixelSize } : {}),
     activeGroupId: groups[0].id,
     editGroups: groups,
-    sizes: applyFormats(createDefaultSizes(), frame.formats).map((size) => { const crop = crops[size.id]; return crop ? { ...size, crop } : size; }),
-    videoZoom: { enabled: false, focalX: 50, focalY: 50, direction: 'in', durationSec: 6 },
+    sizes: applySizeLinked(applyFormats(createDefaultSizes(), frame.formats).map((size) => { const crop = crops[size.id]; const at = board[size.id]; return { ...size, ...(crop ? { crop } : {}), ...(at ? { boardX: at.x, boardY: at.y } : {}) }; }), frame.sizeLinked),
+    videoZoom: readVideoZoom(frame.videoZoom),
     masks: masksToLayers(frame.edit?.masks),
     ...(frame.burstGroupId && frame.burstCount > 1 ? { burst: { groupId: frame.burstGroupId, index: frame.burstIndex, count: frame.burstCount, ungrouped: Boolean(frame.burstUngrouped), ...(typeof frame.cullScore === 'number' ? { score: frame.cullScore } : {}) } } : {}),
     ...(describeHistory(frame.editHistory) ? { editHistory: describeHistory(frame.editHistory) } : {}),
