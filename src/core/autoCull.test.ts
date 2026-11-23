@@ -288,3 +288,12 @@ test('contradictory overlapping scans cannot auto-keep a disputed photograph', (
     }
   }
 });
+
+
+test('unknown detector labels abstain even when confidence and sharpness are high', () => {
+  for (const label of ['unknown', ' UNKNOWN ', 'unidentified', 'unrecognised', 'unrecognized', 'other', 'none', 'n/a']) {
+    const result = scoreWithSubject(baseResult, { label, score: 0.99, size: 900, sharpness: 30 });
+    assert.deepEqual([result.decision, result.confidence, result.reason], [null, 'low', 'noSubject'], label);
+  }
+  assert.equal(scoreWithSubject(baseResult, { label: 'bird', score: 0.99, size: 900, sharpness: 30 }).decision, 'keep');
+});
