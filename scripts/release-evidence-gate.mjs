@@ -8,6 +8,7 @@
  * This validates evidence provenance; it DOES NOT run or certify UAT itself.
  */
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { createReadStream } from 'node:fs';
 import { lstat, readFile, realpath } from 'node:fs/promises';
 import { dirname, isAbsolute, resolve, relative, sep } from 'node:path';
@@ -88,6 +89,28 @@ export async function checkReleaseEvidence(manifest, root) {
   return errors;
 }
 
+/**
+ * Independently bind a claimed UAT release SHA to the source checkout.
+ * A manifest alone is untrusted; a clean exact HEAD is a separate release gate.
+ * Untracked UAT evidence/logs are allowed; altered tracked source is not.
+ */
+export function checkReleaseCheckout(sha, root = process.cwd()) {
+  if (typeof sha !== 'string' || !SHA40.test(sha)) return ['Invalid release commit SHA'];
+  try {
+    const head = execFileSync('git', ['-C', root, 'rev-parse', '--verify', 'HEAD'], {
+      encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    if (head.toLowerCase() !== sha.toLowerCase()) {
+      return [`Checkout HEAD ${head} does not match release commit ${sha}`];
+    }
+    const dirty = execFileSync('git', ['-C', root, 'status', '--porcelain', '--untracked-files=no'], {
+      encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    if (dirty) return ['Checkout contains modified tracked files'];
+    return [];
+  } catch { return ['Cannot verify local git checkout']; }
+}
+
 export async function checkManifestFile(filename) {
   const manifestPath = resolve(filename);
   const stat = await lstat(manifestPath);
@@ -97,6 +120,16 @@ export async function checkManifestFile(filename) {
   return checkReleaseEvidence(manifest, base);
 }
 
+/**
+ * User-facing release command. Check manifest evidence AND exact clean checkout.
+ * Call from repository root; no environment bypass for the CLI.
+ */
+export async function checkReleaseCommand(filename, checkout = process.cwd()) {
+  const errors = await checkManifestFile(filename);
+  const manifest = JSON.parse(await readFile(resolve(filename), 'utf8'));
+  return [...errors, ...checkReleaseCheckout(manifest.releaseSha, checkout)];
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const filename = process.argv[2];
   if (!filename) {
@@ -104,7 +137,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     process.exitCode = 2;
   } else {
     try {
-      const errors = await checkManifestFile(filename);
+      const errors = await checkReleaseCommand(filename);
       if (errors.length) {
         console.error(JSON.stringify({ ready: false, errors }, null, 2));
         process.exitCode = 1;
