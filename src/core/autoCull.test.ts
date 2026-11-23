@@ -297,3 +297,23 @@ test('unknown detector labels abstain even when confidence and sharpness are hig
   }
   assert.equal(scoreWithSubject(baseResult, { label: 'bird', score: 0.99, size: 900, sharpness: 30 }).decision, 'keep');
 });
+
+
+test('equal-scored auto-keepers are selected deterministically regardless of worker arrival order', () => {
+  const frames = generateDemoShootFrames(3).map(frame => ({ ...frame, isDemo: false, burstGroupId: null, decision: 'unreviewed' as const }));
+  const suggestions: CullSuggestion[] = frames.map(frame => ({ frameId: frame.id, decision: 'keep', confidence: 'high', score: 92, reason: 'subjectSharp' }));
+  const chosen = (items: CullSuggestion[]) => limitAutoKeepers(items, frames, 1).filter(item => item.confidence === 'high').map(item => item.frameId);
+  const expected = [...frames.map(frame => frame.id)].sort((a, b) => a.localeCompare(b))[0];
+  assert.deepEqual(chosen(suggestions), [expected]);
+  assert.deepEqual(chosen([...suggestions].reverse()), [expected]);
+});
+
+test('fractional, negative, nonfinite and unsafe keeper budgets never auto-keep', () => {
+  const frames = generateDemoShootFrames(2).map(frame => ({ ...frame, isDemo: false, burstGroupId: null, decision: 'unreviewed' as const }));
+  const suggestions: CullSuggestion[] = frames.map(frame => ({ frameId: frame.id, decision: 'keep', confidence: 'high', score: 95, reason: 'subjectSharp' }));
+  for (const budget of [0.5, 1.5, -1, NaN, Infinity, -Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+    const result = limitAutoKeepers(suggestions, frames, budget);
+    assert.equal(result.filter(item => item.confidence === 'high').length, 0, String(budget));
+  }
+  assert.equal(limitAutoKeepers(suggestions, frames, 1).filter(item => item.confidence === 'high').length, 1);
+});
