@@ -30,6 +30,15 @@ test('Pro-tagged features are disabled by default even for paid and offline-paid
   }
 });
 
+test('stale Pro-only Admin rules cannot lock Basic text and watermark overlays', () => {
+  const oldFlags = {
+    overlayText: { default: false, kill: true, rules: [] },
+    watermarkCustom: { default: false, rules: [{ audience: { kind: 'plan' as const, plan: 'pro' as const }, enabled: true }] },
+  };
+  assert.equal(featureAvailable('overlayText', basic, { flags: oldFlags }), true);
+  assert.equal(featureAvailable('watermarkCustom', basic, { flags: oldFlags }), true);
+});
+
 test('an explicit verified Admin rule can enable a Pro feature for Pro or a named Basic trial', () => {
   const flags = { smartCulling: { default: false, rules: [
     { audience: { kind: 'plan' as const, plan: 'pro' as const }, enabled: true },
