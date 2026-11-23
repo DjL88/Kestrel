@@ -96,7 +96,7 @@ describe('runLook', () => {
       },
     });
     assert.deepEqual(renders, [
-      { masks: 1, texture: 0.25, sharpen: 0 },
+      { masks: 1, texture: 0.25, sharpen: undefined },
       { masks: 1, texture: 0.25, sharpen: 0.15 },
     ]);
     assert.equal(result.combinedMasks.length, 1);
