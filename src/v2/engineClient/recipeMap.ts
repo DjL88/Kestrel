@@ -6,7 +6,7 @@ import type { EditRecipe } from '../ui/contract';
  * exposure in 0.4 EV steps, colour -2 = black and white). The engine is the source of truth: the UI recipe shown for a
  * photo is always derived from its PhotoEdit, so what the sliders say is what the pixels do.
  *
- * Not in PhotoEdit yet, so not applied: tint, luminance noise reduction, AI RAW denoise, upscale, detail recovery and
+ * Not in PhotoEdit yet, so not applied: tint, luminance noise reduction, AI RAW denoise, detail recovery and
  * lens correction. Changing one of those changes nothing and the caller is told (UNMAPPED_KEYS).
  */
 export const NEUTRAL_RECIPE: EditRecipe = {
@@ -15,7 +15,7 @@ export const NEUTRAL_RECIPE: EditRecipe = {
   upscaleFactor: 1, detailRecovery: 0, lensCorrection: false,
 };
 
-export const UNMAPPED_KEYS = ['tint', 'denoiseRawAi', 'denoiseLuminance', 'upscaleFactor', 'detailRecovery', 'lensCorrection'] as const satisfies readonly (keyof EditRecipe)[];
+export const UNMAPPED_KEYS = ['tint', 'denoiseRawAi', 'denoiseLuminance', 'detailRecovery', 'lensCorrection'] as const satisfies readonly (keyof EditRecipe)[];
 
 const EV_PER_STEP = 0.4;
 const SLIDER_PER_STEP = 50; // one engine step is 50 slider points
@@ -40,6 +40,7 @@ export function editToRecipe(edit: PhotoEdit | undefined): EditRecipe {
     clarity: toSlider(edit.clarity),
     sharpen: toSlider(edit.sharpen),
     denoiseColour: toSlider(edit.denoise),
+    upscaleFactor: edit.upscale ?? 1,
   };
 }
 
@@ -57,6 +58,7 @@ export function applyRecipePatch(edit: PhotoEdit | undefined, patch: Partial<Edi
   if (patch.clarity !== undefined) next.clarity = toStep(patch.clarity);
   if (patch.sharpen !== undefined) next.sharpen = round(clamp(patch.sharpen, 0, 100) / SLIDER_PER_STEP, 4);
   if (patch.denoiseColour !== undefined) next.denoise = round(clamp(patch.denoiseColour, 0, 100) / SLIDER_PER_STEP, 4);
+  if (patch.upscaleFactor !== undefined) { if (patch.upscaleFactor === 2 || patch.upscaleFactor === 4) next.upscale = patch.upscaleFactor; else delete next.upscale; }
   const neutral = (value: unknown, base: unknown) => value === undefined || value === base;
   const unmapped = UNMAPPED_KEYS.filter((key) => !neutral(patch[key], NEUTRAL_RECIPE[key]));
   return { edit: next, unmapped };

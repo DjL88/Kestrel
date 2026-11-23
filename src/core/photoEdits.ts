@@ -33,6 +33,8 @@ export interface PhotoEdit {
   sharpen?: number;
   /** Colour noise reduction, 0 (off) to 2. Runs first, on the original pixels, before tone and sharpening. */
   denoise?: number;
+  /** Export-time enlargement: 2 or 4 times the picture's own size, by the deterministic resampler (no model, nothing uploaded). Absent = off. */
+  upscale?: 2 | 4;
   /** Local adjustments. They run after the whole-photo edit, in order. */
   masks?: Mask[];
 }
@@ -52,7 +54,7 @@ export function isNeutralTone(edit: PhotoEdit): boolean {
 export const NOISE_CONTROL = { key: 'denoise', label: 'Noise reduction' } as const;
 
 export function isNeutralEdit(edit: PhotoEdit): boolean {
-  return !edit.denoise && isNeutralTone(edit) && DETAIL_CONTROLS.every(({ key }) => !edit[key]) && !hasActiveMasks(edit.masks);
+  return !edit.denoise && !edit.upscale && isNeutralTone(edit) && DETAIL_CONTROLS.every(({ key }) => !edit[key]) && !hasActiveMasks(edit.masks);
 }
 
 /** Nothing to keep: neutral, and no masks at all (an empty mask is still kept so it can be adjusted). */

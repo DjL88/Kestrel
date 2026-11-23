@@ -10,6 +10,7 @@ import type { CropTransform, OverlaySettings } from '../ui/contract';
 import { effectiveOutputSize } from '../ui/utils/studioMath';
 import { anchoredBox, cropPlacement, referenceScale, watermarkBox } from './exportLayout';
 import { planBorderFrame } from './borderFrameLayout';
+import { upscaleCanvasInPlace, upscaleFactorFor } from './upscaleCanvas';
 import { cappedContinuousLayout, continuousExportLayout, numberedSectionFilename } from './continuousExport';
 
 /** Everything the overlay needs, resolved by the caller from the same description the canvas draws. */
@@ -202,10 +203,12 @@ export async function renderV2Export(
   const framing = frame.framing ?? DEFAULT_FRAMING;
   const { width: fw, height: fh } = framedSize(source.naturalWidth, source.naturalHeight, framing);
   const requested = continuousExportLayout(size.width, size.height, sectionCount);
-  const out = effectiveOutputSize({ width: requested.width, height: requested.height, crop }, { width: fw, height: fh });
+  const limit = maxCanvasPixels({ userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints });
+  // Upscale (2x or 4x, chosen on the photo) lifts the "never larger than the picture" cap by that factor, only when the size asks for more pixels.
+  const up = upscaleFactorFor(frame.edit?.upscale, Math.max(requested.width / fw, requested.height / fh) * crop.zoom, fw, fh, limit);
+  const out = effectiveOutputSize({ width: requested.width, height: requested.height, crop }, { width: fw * up, height: fh * up });
   const layout = cappedContinuousLayout(out.width, out.height, sectionCount);
   const wasCapped = out.capped || layout.width !== requested.width || layout.height !== requested.height;
-  const limit = maxCanvasPixels({ userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints });
   if (layout.width * layout.height > limit) throw new Error(`This device cannot safely export ${layout.width} × ${layout.height} px. Choose a smaller size or export on a desktop. No smaller file was substituted.`);
   // Edit only as many pixels as the output can show: the cover fit times the zoom, never above the picture's own size.
   const needed = Math.max(layout.width / fw, layout.height / fh) * crop.zoom;
@@ -215,6 +218,8 @@ export async function renderV2Export(
   try {
     drawFramedPhoto(source, picture, framing, { scale });
     await applyCanvasExportEdit(picture, frame.edit ?? DEFAULT_EDIT, signal, Math.max(fw, fh) * scale, { aspect: fh / fw, view: { x: 0, y: 0, w: 1, h: 1 } });
+    signal?.throwIfAborted();
+    if (up !== 1 && scale >= 1) await upscaleCanvasInPlace(picture, up, signal);
     signal?.throwIfAborted();
     output.width = layout.width; output.height = layout.height;
     drawContinuousInsideBorders(output, picture, crop, sectionCount);

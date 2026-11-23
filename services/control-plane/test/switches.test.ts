@@ -77,11 +77,11 @@ test('safe copy off stops uploads only; learning off stops sharing but never blo
     assert.equal(r.status, 503); assert.equal(r.body.error.code, 'LEARNING_DISABLED');
     await sw('learning-signal', true);
     assert.equal((await h.call('POST', '/v1/me/learning-consent', { token: h.user.token, body: { consent: true } })).status, 200);
-    assert.equal((await h.call('POST', '/v1/learning/signals', { token: h.user.token, body: sig })).status, 200);
+    assert.equal((await h.call('POST', '/v1/learning/signals', { token: h.user.token, body: sig })).status, 410, 'legacy unscoped intake is retired (LEARNING_SCOPE_REQUIRED)');
     await sw('learning-signal', false);
-    assert.equal((await h.call('POST', '/v1/learning/signals', { token: h.user.token, body: sig })).status, 503);
+    assert.equal((await h.call('POST', '/v1/learning/signals', { token: h.user.token, body: sig })).status, 410);
     const out = await h.call('POST', '/v1/me/learning-consent', { token: h.user.token, body: { consent: false } });
-    assert.equal(out.status, 200); assert.equal(out.body.deleted, 1, 'opting out still deletes while the switch is off');
+    assert.equal(out.status, 200); assert.equal(out.body.deleted, 0, 'nothing is stored by the retired intake; opting out still succeeds while the switch is off');
   } finally { await h.close(); }
 });
 
