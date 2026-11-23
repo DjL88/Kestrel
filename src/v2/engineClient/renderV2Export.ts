@@ -54,6 +54,38 @@ function draw(canvas: HTMLCanvasElement, picture: HTMLCanvasElement, crop: CropT
   context.restore();
 }
 
+/** Each split output is a complete frame with its own non-occluding border.
+ * First render ONE uninterrupted photograph across the two INNER viewports;
+ * then distribute adjacent halves into the reserved image areas. The border
+ * never obscures pixels and no photo is developed twice at the seam. */
+function drawContinuousInsideBorders(output: HTMLCanvasElement, picture: HTMLCanvasElement, crop: CropTransform, sectionCount: 1 | 2) {
+  if (sectionCount === 1 || !(crop.borderWidth && crop.borderWidth > 0)) {
+    draw(output, picture, crop);
+    return;
+  }
+  const sectionWidth = output.width / sectionCount;
+  const geometry = planBorderFrame(sectionWidth, output.height, picture.width, picture.height,
+    { borderPercent: crop.borderWidth, fit: 'cover' });
+  const { inner } = geometry;
+  const joined = document.createElement('canvas');
+  try {
+    joined.width = inner.width * sectionCount;
+    joined.height = inner.height;
+    draw(joined, picture, { ...crop, borderWidth: 0 });
+    const context = output.getContext('2d');
+    if (!context) throw new Error('Continuous border canvas is unavailable');
+    context.fillStyle = crop.borderColour ?? '#ffffff';
+    context.fillRect(0, 0, output.width, output.height);
+    for (let i = 0; i < sectionCount; i += 1) {
+      context.drawImage(joined, i * inner.width, 0, inner.width, inner.height,
+        i * sectionWidth + inner.x, inner.y, inner.width, inner.height);
+    }
+  } finally {
+    joined.width = 0;
+    joined.height = 0;
+  }
+}
+
 function setSpacing(context: CanvasRenderingContext2D, px: number) {
   if ('letterSpacing' in context) (context as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = `${px}px`;
 }
@@ -181,7 +213,7 @@ export async function renderV2Export(
     await applyCanvasExportEdit(picture, frame.edit ?? DEFAULT_EDIT, signal, Math.max(fw, fh) * scale, { aspect: fh / fw, view: { x: 0, y: 0, w: 1, h: 1 } });
     signal?.throwIfAborted();
     output.width = layout.width; output.height = layout.height;
-    draw(output, picture, crop);
+    drawContinuousInsideBorders(output, picture, crop, sectionCount);
     if (overlay) {
       await Promise.all(overlay.rows.map((row) => document.fonts?.load(`${row.weight} 16px ${row.family}`).catch(() => [])));
       signal?.throwIfAborted();
