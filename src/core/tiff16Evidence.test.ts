@@ -133,6 +133,17 @@ describe('completed TIFF structural evidence', () => {
     const result = inspectTiff16Structure(aliased);
     assert.equal(result.ok, false);
   });
+  it('rejects a linked second image directory rather than certifying an ambiguous page', () => {
+    const multiPage = fixture();
+    const view = new DataView(multiPage.buffer);
+    const ifd = view.getUint32(4, true);
+    const count = view.getUint16(ifd, true);
+    view.setUint32(ifd + 2 + count * 12, 480, true);
+    const result = inspectTiff16Structure(multiPage);
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.match(result.reason, /multi-page/i);
+    assert.deepEqual(inspectTiff16Structure(fixture()), { ok: true, width: 4, height: 3, samples: 3 });
+  });
   it('rejects a strip aliased onto the TIFF directory', () => {
     const aliased = fixture();
     new DataView(aliased.buffer).setUint32(10 + 5 * 12 + 8, 20, true);
