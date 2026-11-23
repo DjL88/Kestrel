@@ -22,13 +22,7 @@ import { runEngineTask } from './taskManager';
  * (`enhancementVerifier.ts`), so a step that deliberately softens the background is judged on whether it
  * protected the subject, not on the background change it was asked to make.
  *
- * NOT yet done: each step still renders from the Look's ORIGINAL input image rather than chaining onto
- * the previous step's actual pixel output, so "do this, THEN that" today means "apply these edits
- * together as one combined pass", not a true multi-pass pipeline where step 2 sees step 1's result. A
- * single combined pass is enough to express every Look below (they are all one coherent whole-photo +
- * subject edit), but a Look whose later step genuinely depends on an earlier step's rendered pixels
- * (rather than just a different numeric target) would need that chaining built first.
- */
+ * Each candidate renders the accumulated accepted recipe against the original source. A failed\n * step is excluded, so the final pixels always match the accepted combined recipe.\n */
 
 export interface LookStep {
   /** Shown in the task manager and to the person reviewing what a Look did. */
@@ -81,6 +75,9 @@ export interface LookResult {
   look: Pick<Look, 'id' | 'name'>;
   steps: LookStepResult[];
   finalPixels: Pixels;
+  /** The full accepted recipe that produced finalPixels, not just the final step. */
+  combinedEdit: Partial<PhotoEdit>;
+  combinedMasks: Mask[];
 }
 
 /** Scales every numeric field of an edit object by `scale`, leaving any non-numeric field (such as
@@ -95,18 +92,16 @@ function scaleLocalEdit<T extends object>(edit: T, scale: number): T {
   return scaled as T;
 }
 
-/** Runs a Look's steps in order, each one rendered, verified and retried at reduced strength on
- * overshoot - `denoiseAction.ts`'s single-action loop, generalised to a named sequence of steps that can
- * each touch different PhotoEdit fields and each judge itself against the subject or the whole frame.
- *
- * Every step is verified against `input.original`, not the previous step's output: steps are not yet
- * chained renders (see the file-level limitation above), and a step's own action should be judged on
- * its own result, not inherit a penalty from an earlier step that failed to settle. `finalPixels` on the
- * returned result is still the LAST step's actual render, for whatever the caller shows the person. */
+/** Render each step as part of the accumulated accepted recipe. The render adapter
+ * receives the whole edit and all accepted masks, always against the same original
+ * source. Never return the pixels of only the last isolated step. A rejected step
+ * cannot silently alter the final image. */
 export async function runLook(look: Look, input: LookRenderInput, runner: EngineRunner = 'device'): Promise<LookResult> {
-  const maxRetries = input.maxRetriesPerStep ?? 2;
+  const maxRetries = Math.max(0, Math.min(10, Math.floor(input.maxRetriesPerStep ?? 2)));
   const results: LookStepResult[] = [];
   let finalPixels = input.original;
+  let combinedEdit: Partial<PhotoEdit> = {};
+  let combinedMasks: Mask[] = [];
 
   for (const step of look.steps) {
     const stepResult = await runEngineTask(step.capability, runner, `${look.name}: ${step.label}`, async () => {
@@ -115,15 +110,16 @@ export async function runLook(look: Look, input: LookRenderInput, runner: Engine
       let masks: Mask[] = [];
       let verification: CourseCorrection = { ok: false, reasons: [], suggestedStrengthScale: 1 };
       let attempts = 0;
-      let after = input.original;
+      let after = finalPixels;
 
       for (; attempts <= maxRetries; attempts += 1) {
         masks = [];
         if (input.subject && subjectEdit) {
           const mask = createSubjectMask(input.subject.maskId, input.subject.grid, input.subject.framingKey, input.subject.confidence, input.subject.detail);
-          masks = [{ ...mask, edit: { ...mask.edit, ...subjectEdit } }];
+          masks = [{ ...mask, id: `${mask.id}-look-${results.length}`, edit: { ...mask.edit, ...subjectEdit } }];
         }
-        after = await input.render(background, masks);
+        const candidateEdit = { ...combinedEdit, ...background };
+        after = await input.render(candidateEdit, [...combinedMasks, ...masks]);
         const detailScope = input.subject && subjectEdit ? 'subject' : 'frame';
         verification = verifyEdit(input.original, after, input.subject?.alpha, detailScope);
         if (verification.ok || attempts === maxRetries) break;
@@ -134,10 +130,14 @@ export async function runLook(look: Look, input: LookRenderInput, runner: Engine
     });
 
     results.push({ label: step.label, edit: stepResult.edit, masks: stepResult.masks, verification: stepResult.verification, attempts: stepResult.attempts });
-    finalPixels = stepResult.pixels;
+    if (stepResult.verification.ok) {
+      combinedEdit = { ...combinedEdit, ...stepResult.edit };
+      combinedMasks = [...combinedMasks, ...stepResult.masks];
+      finalPixels = stepResult.pixels;
+    }
   }
 
-  return { look: { id: look.id, name: look.name }, steps: results, finalPixels };
+  return { look: { id: look.id, name: look.name }, steps: results, finalPixels, combinedEdit, combinedMasks };
 }
 
 /** Builds a Look a person saved from the editor - same shape the engine itself uses, so a hand-made Look
