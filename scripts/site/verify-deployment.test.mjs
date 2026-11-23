@@ -239,3 +239,47 @@ test('both Version 2 editor URLs must serve the same exact compiled HTML', t => 
   assert.match(runLive(root, { ...pages, '/editor/demo-v2': stale }).stderr, /Live editor HTML differs/);
   assert.match(runLive(root, { ...pages, '/editor/demo-v2.html': stale }).stderr, /Live editor HTML differs/);
 });
+
+test('live verification requires a bare HTTPS origin and rejects URL confusion', t => {
+  const root = fixture();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  for (const url of [
+    'http://demo.example.test',
+    'https://user:secret@demo.example.test',
+    'https://demo.example.test/editor',
+    'https://demo.example.test/?release=old',
+    'https://demo.example.test/#editor',
+  ]) {
+    const result = run(root, '--live-url=' + url);
+    assert.notEqual(result.status, 0, url);
+    assert.match(result.stderr, /Live URL must/, url);
+  }
+});
+
+test('live verification rejects a redirected response even when content matches', t => {
+  const root = fixture();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const pages = {
+    '/': landing,
+    '/oauth-callback.html': callback,
+    '/privacy.html': privacy,
+    [iconPath]: icon,
+    '/editor/demo-editor.html': demo('InFlight editor demonstration'),
+    '/editor/assets/demo.js': bundle,
+  };
+  const stub = `globalThis.fetch = async url => {
+    const pages = ${JSON.stringify(pages)};
+    const body = pages[new URL(url).pathname];
+    const response = new Response(body ?? null, { status: body === undefined ? 404 : 200 });
+    if (new URL(url).pathname === '/editor/demo-editor.html') {
+      Object.defineProperty(response, 'redirected', { value: true });
+    }
+    return response;
+  };`;
+  const result = spawnSync(process.execPath, [
+    '--import=data:text/javascript,' + encodeURIComponent(stub),
+    script, '--root=' + root, '--live-url=https://demo.example.test',
+  ], { encoding: 'utf8' });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Live Firebase path redirected: \\/editor\\/demo-editor\\.html/);
+});
