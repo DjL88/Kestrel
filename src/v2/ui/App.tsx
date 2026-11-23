@@ -1,3 +1,4 @@
+import { stepFrom } from './utils/swipe';
 import React, { useEffect, useRef, useState } from 'react';
 import type { PanelId } from './contract';
 import { useWorkspace } from './stub';
@@ -24,7 +25,11 @@ import TasksPanel from './panels/TasksPanel';
 import ExportDialog from './dialogs/ExportDialog';
 import SettingsDialog from './dialogs/SettingsDialog';
 import ShortcutGuide from './dialogs/ShortcutGuide';
-import { effectiveKeymap, loadKeymap, resolveCommand } from './commands/keymap';
+import CommandPalette from './dialogs/CommandPalette';
+import { effectiveKeymap, loadKeymap, saveKeymap, type SavedKeymap } from './commands/keymap';
+import { loadPad, resolveWithPad, savePad, type PadProfile } from './commands/pad';
+import KeyboardSettings from './dialogs/KeyboardSettings';
+import type { CommandDefinition } from './commands/registry';
 
 const IS_MAC = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
 
@@ -49,7 +54,12 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   const { setActivePanel } = actions;
   const hasOverlays = store.features.overlayText || store.features.watermarkCustom;
   const [shortcutGuideOpen, setShortcutGuideOpen] = useState(false);
-  const keymap = React.useMemo(() => { const saved = loadKeymap(); return effectiveKeymap(saved.preset, saved.overrides); }, []);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [savedKeymap, setSavedKeymap] = useState<SavedKeymap>(loadKeymap);
+  const keymap = React.useMemo(() => effectiveKeymap(savedKeymap.preset, savedKeymap.overrides), [savedKeymap]);
+  const [pad, setPad] = useState<PadProfile>(loadPad);
+  const changePad = React.useCallback((next: PadProfile) => { savePad(next); setPad(next); }, []);
+  const changeKeymap = React.useCallback((next: SavedKeymap) => { saveKeymap(next); setSavedKeymap(next); }, []);
   const [moreOpen, setMoreOpen] = useState(false);
   const sheetDragY = useRef<number | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(() =>
@@ -81,6 +91,33 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
     return () => clearTimeout(t);
   }, [store.lastActionNotice, actions]);
 
+  // One dispatch for every command id, shared by the keydown handler below and the command search dialog,
+  // so "what Cmd/Ctrl+K can run" and "what the keyboard shortcut runs" never drift apart.
+  const runCommand = React.useCallback((command: CommandDefinition) => {
+    const ids = store.selectedPhotoIds.length > 0 ? store.selectedPhotoIds : activePhoto ? [activePhoto.id] : [];
+    switch (command.id) {
+      case 'help.toggle': setShortcutGuideOpen((open) => !open); break;
+      case 'app.commandSearch': setCommandPaletteOpen((open) => !open); break;
+      case 'photo.flag': if (ids.length) actions.toggleFlag(ids); break;
+      case 'photo.rate0': case 'photo.rate1': case 'photo.rate2':
+      case 'photo.rate3': case 'photo.rate4': case 'photo.rate5':
+        if (ids.length) actions.setRating(ids, Number(command.id.slice(-1)));
+        break;
+      case 'photo.next': window.dispatchEvent(new CustomEvent('inflight:photo-step', { detail: { delta: 1 } })); break;
+      case 'photo.prev': window.dispatchEvent(new CustomEvent('inflight:photo-step', { detail: { delta: -1 } })); break;
+      case 'view.grid': actions.setGridViewOpen(!store.gridViewOpen); break;
+      case 'view.compare': actions.setCompareMode(!store.compareMode); break;
+      case 'view.fullscreen': actions.toggleFullScreen(); break;
+      case 'edit.undo': actions.undo(); break;
+      case 'edit.redo': actions.redo(); break;
+      case 'edit.copy': actions.copyRecipe(); break;
+      case 'edit.paste': actions.pasteRecipe(); break;
+      case 'edit.selectAll': actions.selectAllPhotos(); break;
+      case 'file.export': actions.setExportOpen(true); break;
+      case 'app.settings': actions.setSettingsOpen(true); break;
+    }
+  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, activePhoto, actions]);
+
   // Desktop keyboard shortcuts + suppress browser Ctrl/Cmd+A inside editor workspace
   useEffect(() => {
     if (store.screen !== 'editor') return;
@@ -91,36 +128,20 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         target?.tagName === 'INPUT' ||
         target?.tagName === 'TEXTAREA' ||
         target?.tagName === 'SELECT' ||
+        // A slider keeps the arrow keys (the Compare handle, range inputs).
+        target?.getAttribute('role') === 'slider' ||
         Boolean(target?.isContentEditable);
-      const command = resolveCommand({ event: e, keymap, isMac: IS_MAC, inField });
+      const command = resolveWithPad({ event: e, keymap, pad, isMac: IS_MAC, inField });
       if (!command) return;
       // While the guide is open only it, Export, Settings and Edit commands act; photo and view keys wait.
       if (shortcutGuideOpen && (command.group === 'photos' || command.group === 'view')) return;
-      const ids = store.selectedPhotoIds.length > 0 ? store.selectedPhotoIds : activePhoto ? [activePhoto.id] : [];
       e.preventDefault();
-      switch (command.id) {
-        case 'help.toggle': setShortcutGuideOpen((open) => !open); break;
-        case 'photo.flag': if (ids.length) actions.toggleFlag(ids); break;
-        case 'photo.rate0': case 'photo.rate1': case 'photo.rate2':
-        case 'photo.rate3': case 'photo.rate4': case 'photo.rate5':
-          if (ids.length) actions.setRating(ids, Number(command.id.slice(-1)));
-          break;
-        case 'view.grid': actions.setGridViewOpen(!store.gridViewOpen); break;
-        case 'view.compare': actions.setCompareMode(!store.compareMode); break;
-        case 'view.fullscreen': actions.toggleFullScreen(); break;
-        case 'edit.undo': actions.undo(); break;
-        case 'edit.redo': actions.redo(); break;
-        case 'edit.copy': actions.copyRecipe(); break;
-        case 'edit.paste': actions.pasteRecipe(); break;
-        case 'edit.selectAll': actions.selectAllPhotos(); break;
-        case 'file.export': actions.setExportOpen(true); break;
-        case 'app.settings': actions.setSettingsOpen(true); break;
-      }
+      runCommand(command);
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [store.screen, store.selectedPhotoIds, store.gridViewOpen, store.compareMode, activePhoto, actions, shortcutGuideOpen, keymap]);
+  }, [store.screen, shortcutGuideOpen, keymap, pad, runCommand]);
 
   const renderPanelContent = (panelId: PanelId) => {
     switch (panelId) {
@@ -293,6 +314,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
       ) : (
         <>
           <TopBar
+            keymap={keymap}
             photoName={activePhoto ? `${activePhoto.title} · ${activePhoto.filename}` : 'No photo'}
             assistMode={store.assistMode}
             theme={store.settings.theme}
@@ -384,6 +406,13 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
               ) : (
                 <Canvas
                   PhotoSurface={store.PhotoSurface}
+                  onOpenFormats={() => actions.setActivePanel('formats')}
+                  onDuplicateSize={(sizeId) => activePhoto && actions.duplicateSize(activePhoto.id, sizeId)}
+                  onRemoveSize={(sizeId) => activePhoto && actions.removeSize(activePhoto.id, sizeId)}
+                  onStepPhoto={(delta) => {
+                    const next = stepFrom(store.photos, activePhoto?.id, delta);
+                    if (next) actions.selectPhoto(next.id);
+                  }}
                   photo={activePhoto}
                   activeSizeId={store.activeSizeId}
                   selectedSizeIds={store.selectedSizeIds}
@@ -439,6 +468,8 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                 onToggleFlag={actions.toggleFlag}
                 onSetRating={actions.setRating}
                 onSetDecision={actions.setDecision}
+                onSetBurstGrouped={actions.setBurstGrouped}
+                onRemovePhotos={actions.removePhotos}
                 onPasteRecipe={actions.pasteRecipe}
                 onApplyLook={actions.applyLook}
                 onImport={actions.importPhotos}
@@ -617,6 +648,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         open={store.settingsOpen}
         activeTab={store.settingsTab}
         accountPanel={accountPanel}
+        keyboardPanel={<KeyboardSettings saved={savedKeymap} isMac={IS_MAC} onChange={changeKeymap} pad={pad} onPadChange={changePad} />}
         settings={store.settings}
         assistMode={store.assistMode}
         onSetAssistMode={actions.setAssistMode}
@@ -632,6 +664,15 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
 
       {shortcutGuideOpen && store.screen === 'editor' && (
         <ShortcutGuide keymap={keymap} isMac={IS_MAC} onClose={() => setShortcutGuideOpen(false)} />
+      )}
+
+      {commandPaletteOpen && store.screen === 'editor' && (
+        <CommandPalette
+          keymap={keymap}
+          isMac={IS_MAC}
+          onRunCommand={runCommand}
+          onClose={() => setCommandPaletteOpen(false)}
+        />
       )}
 
       {/* Quiet non-intrusive action confirmation toast */}

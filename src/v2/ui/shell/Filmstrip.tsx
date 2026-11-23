@@ -1,3 +1,4 @@
+import { planFilmstrip } from '../../engineClient/burstGroups';
 import React, { useEffect, useRef, useState } from 'react';
 import type { AssistMode, LookPreset, Photo } from '../contract';
 import { STRINGS } from '../strings';
@@ -28,6 +29,8 @@ interface FilmstripProps {
   onToggleFlag: (photoIds: string[]) => void;
   onSetRating: (photoIds: string[], rating: number) => void;
   onSetDecision: (photoIds: string[], decision: 'unreviewed' | 'keep' | 'reject') => void;
+  onSetBurstGrouped: (burstGroupId: string, grouped: boolean) => void;
+  onRemovePhotos: (photoIds: string[]) => void;
   onPasteRecipe: () => void;
   onApplyLook: (photoId: string, lookId: string) => void;
   onImport: () => void;
@@ -59,6 +62,8 @@ export default function Filmstrip({
   onToggleFlag,
   onSetRating,
   onSetDecision,
+  onSetBurstGrouped,
+  onRemovePhotos,
   onPasteRecipe,
   onApplyLook,
   onImport,
@@ -67,8 +72,10 @@ export default function Filmstrip({
   onExportSelected,
 }: FilmstripProps) {
   const [searchOpen, setSearchOpen] = useState(false);
+  const [expandedBursts, setExpandedBursts] = useState<Set<string>>(() => new Set());
   const [minimumRating, setMinimumRating] = useState(0);
   const [tileMenu, setTileMenu] = useState<{ x: number; y: number; photoId: string } | null>(null);
+  const [removeConfirm, setRemoveConfirm] = useState<string[] | null>(null);
   const resizeStart = useRef<{ y: number; h: number } | null>(null);
   const longPressTimer = useRef<number | null>(null);
   const touchPress = useRef<{ pointerId: number; x: number; y: number; photoId: string } | null>(null);
@@ -139,6 +146,26 @@ export default function Filmstrip({
   }, [tileMenu]);
 
   const visiblePhotos = filterPhotos(photos, filter, search).filter((photo) => photo.rating >= minimumRating);
+  // Next and previous photo (a macro pad dial or command search) step through the photos shown here, so the filter and rating filter are respected.
+  const stepRef = useRef({ visiblePhotos, activePhoto, onSelectPhoto });
+  stepRef.current = { visiblePhotos, activePhoto, onSelectPhoto };
+  useEffect(() => {
+    const onStep = (event: Event) => {
+      const delta = (event as CustomEvent<{ delta?: number }>).detail?.delta;
+      if (delta !== 1 && delta !== -1) return;
+      const { visiblePhotos: list, activePhoto: current, onSelectPhoto: select } = stepRef.current;
+      if (list.length === 0) return;
+      const index = list.findIndex((photo) => photo.id === current?.id);
+      const next = list[Math.min(list.length - 1, Math.max(0, index < 0 ? (delta === 1 ? 0 : list.length - 1) : index + delta))];
+      if (next && next.id !== current?.id) select(next.id);
+    };
+    window.addEventListener('inflight:photo-step', onStep);
+    return () => window.removeEventListener('inflight:photo-step', onStep);
+  }, []);
+  const openIds = new Set<string>([...selectedPhotoIds, ...(activePhoto ? [activePhoto.id] : [])]);
+  const items = planFilmstrip(visiblePhotos, expandedBursts, openIds);
+  const planCoverId = (list: typeof items, groupId: string) => { const controls = list.find((entry) => entry.type === 'controls' && entry.groupId === groupId); return controls && controls.type === 'controls' ? controls.cover.id : undefined; };
+  const setBurstOpen = (groupId: string, open: boolean) => setExpandedBursts((current) => { const next = new Set(current); if (open) next.add(groupId); else next.delete(groupId); return next; });
   const flaggedCount = photos.filter((p) => p.decision === 'keep').length;
   const setAsideCount = photos.filter((p) => p.decision === 'reject').length;
 
@@ -374,7 +401,22 @@ export default function Filmstrip({
               aria-multiselectable="true"
               className="flex h-full items-center gap-2.5 overflow-x-auto inflight-scroll px-3 py-2"
             >
-              {visiblePhotos.map((photo) => {
+              {items.map((item) => {
+                if (item.type === 'controls') {
+                  return (
+                    <div key={`burst-${item.groupId}`} role="group" aria-label={STRINGS.bursts.controls(item.count)} className="flex h-full w-40 shrink-0 flex-col justify-center gap-1.5 rounded-[var(--radius-md)] border border-dashed border-[var(--brand-accent-border)] bg-[var(--bg-surface)] p-2">
+                      <p className="text-[11px] font-semibold text-[var(--text-primary)]">{STRINGS.bursts.controls(item.count)}</p>
+                      <button type="button" disabled={!item.best} title={item.best ? undefined : STRINGS.bursts.flagBestNotRanked}
+                        onClick={() => { if (item.best) onSetDecision([item.best.id], 'keep'); }}
+                        className="min-h-8 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[11px] font-medium text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50">{STRINGS.bursts.flagBest}</button>
+                      {!item.best && <span className="text-[10px] leading-tight text-[var(--text-muted)]">{STRINGS.bursts.flagBestNotRanked}</span>}
+                      <button type="button" onClick={() => onSetBurstGrouped(item.groupId, false)} className="min-h-8 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[11px] font-medium text-[var(--text-primary)]">{STRINGS.bursts.split}</button>
+                      <button type="button" onClick={() => { onSelectPhoto(item.cover.id); setBurstOpen(item.groupId, false); }} className="min-h-8 rounded-[var(--radius-sm)] px-2 text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{STRINGS.bursts.collapse}</button>
+                    </div>
+                  );
+                }
+                const photo = item.photo;
+                const stack = item.stack;
                 const isActive = activePhoto?.id === photo.id;
                 const isSelected = selectedPhotoIds.includes(photo.id);
                 const flagged = photo.decision === 'keep';
@@ -407,6 +449,18 @@ export default function Filmstrip({
                         : 'border-[var(--border-subtle)] bg-[var(--bg-input)] hover:border-[var(--border-default)]'
                     }`}
                   >
+                    {stack && (
+                      <button
+                        type="button"
+                        aria-expanded={stack.expanded}
+                        aria-label={stack.expanded ? STRINGS.bursts.hide : STRINGS.bursts.show(stack.count)}
+                        title={stack.expanded ? STRINGS.bursts.hide : STRINGS.bursts.show(stack.count)}
+                        onClick={(event) => { event.stopPropagation(); if (stack.expanded) onSelectPhoto(planCoverId(items, stack.groupId) ?? photo.id); setBurstOpen(stack.groupId, !stack.expanded); }}
+                        className="absolute left-1 top-1 z-10 min-h-9 rounded bg-[var(--bg-scrim)] px-2 text-[10px] font-semibold text-white"
+                      >
+                        {STRINGS.bursts.badge(stack.count)}{!stack.expanded ? ' ▸' : ''}
+                      </button>
+                    )}
                     <button
                       type="button"
                       aria-label={`More actions for ${photo.filename}`}
@@ -494,7 +548,11 @@ export default function Filmstrip({
       )}
 
       {/* V2 photo / multi-selection context menu: actions reuse the editor store. */}
-      {tileMenu && (
+      {tileMenu && (() => {
+        const menuTargetIds = selectedPhotoIds.includes(tileMenu.photoId) ? selectedPhotoIds : [tileMenu.photoId];
+        const menuTargetsAllSetAside = menuTargetIds.length > 0 &&
+          menuTargetIds.every((id) => photos.find((p) => p.id === id)?.decision === 'reject');
+        return (
         <div
           role="menu"
           aria-label="Photo actions"
@@ -538,6 +596,27 @@ export default function Filmstrip({
             className="flex w-full px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             Return to review
           </button>
+          {photos.find((p) => p.id === tileMenu.photoId)?.burst?.ungrouped && (
+            <button type="button" role="menuitem"
+              onClick={() => {
+                const groupId = photos.find((p) => p.id === tileMenu.photoId)?.burst?.groupId;
+                if (groupId) onSetBurstGrouped(groupId, true);
+                setTileMenu(null);
+              }}
+              className="flex w-full px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+              {STRINGS.bursts.regroup}
+            </button>
+          )}
+          {menuTargetsAllSetAside && (
+            <button type="button" role="menuitem"
+              onClick={() => {
+                setRemoveConfirm(menuTargetIds);
+                setTileMenu(null);
+              }}
+              className="flex w-full px-3 py-2 text-left text-xs text-[var(--status-danger,#e5484d)] hover:bg-[var(--bg-surface-hover)]">
+              Remove {menuTargetIds.length > 1 ? `${menuTargetIds.length} photos` : 'photo'}…
+            </button>
+          )}
           <div className="border-t border-[var(--border-subtle)] px-3 py-2">
             <span className="mb-1 block text-[11px] text-[var(--text-secondary)]">Rating</span>
             <div className="flex flex-wrap gap-1" role="group" aria-label="Set photo rating">
@@ -598,6 +677,37 @@ export default function Filmstrip({
             <BrandIcon name="export" size={14} />
             <span>Export selected…</span>
           </button>
+        </div>
+        );
+      })()}
+
+      {/* Confirm before Trash: reversible (Undo brings it straight back), but still asks first like V1. */}
+      {removeConfirm && (
+        <div role="alertdialog" aria-modal="true" aria-labelledby="remove-photos-title" aria-describedby="remove-photos-body"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-scrim)] p-4"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <div className="w-full max-w-md space-y-4 rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-panel)]">
+            <h2 id="remove-photos-title" className="text-base font-bold text-[var(--text-primary)]">
+              {removeConfirm.length > 1 ? `Remove ${removeConfirm.length} photos?` : 'Remove this photo?'}
+            </h2>
+            <p id="remove-photos-body" className="text-sm leading-relaxed text-[var(--text-secondary)]">
+              This takes {removeConfirm.length > 1 ? 'these set-aside photos' : 'this set-aside photo'} out of InFlight's catalogue. Your original file on disk is never touched, and Undo (Cmd/Ctrl+Z) brings it straight back.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button type="button" autoFocus onClick={() => setRemoveConfirm(null)}
+                className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-4 text-xs font-medium text-[var(--text-primary)]">
+                Keep photo{removeConfirm.length > 1 ? 's' : ''}
+              </button>
+              <button type="button" onClick={() => {
+                  onRemovePhotos(removeConfirm);
+                  setRemoveConfirm(null);
+                }}
+                className="min-h-10 rounded-[var(--radius-md)] bg-[var(--status-danger,#e5484d)] px-4 text-xs font-semibold text-white">
+                Remove
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>

@@ -1,3 +1,4 @@
+import { applyFormats } from './formatOps';
 import { describeHistory } from './historySteps';
 import type { PhotoFrame, ShootDescriptor } from '../../core/types';
 import { computeCullCounts } from '../../core/cullingEngine';
@@ -106,9 +107,10 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     ...(exif.width && exif.height ? { pixelSize: { width: exif.width, height: exif.height } } : pixelSize ? { pixelSize } : {}),
     activeGroupId: groups[0].id,
     editGroups: groups,
-    sizes: createDefaultSizes().map((size) => { const crop = crops[size.id]; return crop ? { ...size, crop } : size; }),
+    sizes: applyFormats(createDefaultSizes(), frame.formats).map((size) => { const crop = crops[size.id]; return crop ? { ...size, crop } : size; }),
     videoZoom: { enabled: false, focalX: 50, focalY: 50, direction: 'in', durationSec: 6 },
     masks: masksToLayers(frame.edit?.masks),
+    ...(frame.burstGroupId && frame.burstCount > 1 ? { burst: { groupId: frame.burstGroupId, index: frame.burstIndex, count: frame.burstCount, ungrouped: Boolean(frame.burstUngrouped), ...(typeof frame.cullScore === 'number' ? { score: frame.cullScore } : {}) } } : {}),
     ...(describeHistory(frame.editHistory) ? { editHistory: describeHistory(frame.editHistory) } : {}),
     ...(watermarkAuto ? { watermarkAuto } : {}),
     ...(histogram ? { histogram } : {}),

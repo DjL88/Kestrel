@@ -1,3 +1,4 @@
+import { stepFrom, swipeIntent } from '../utils/swipe';
 import React, { useEffect, useRef, useState } from 'react';
 import type {
   CropTransform,
@@ -44,6 +45,12 @@ interface CanvasProps {
   isFullScreen: boolean;
   calmView: boolean;
   onSelectSize: (sizeId: string, modifiers?: { ctrl?: boolean }) => void;
+  /** Phone swipe left or right on the photo: go to the next (1) or previous (-1) photo. */
+  onStepPhoto?: (delta: 1 | -1) => void;
+  /** The small action bar by the format: open the Formats tool, duplicate or delete this format. */
+  onOpenFormats?: () => void;
+  onDuplicateSize?: (sizeId: string) => void;
+  onRemoveSize?: (sizeId: string) => void;
   onSelectAllSizes: (photoId: string) => void;
   onSetLayoutMode: (mode: 'single' | 'all-formats') => void;
   onMoveArtboard: (photoId: string, sizeId: string, boardX: number, boardY: number) => void;
@@ -77,6 +84,10 @@ export default function Canvas({
   isFullScreen,
   calmView,
   onSelectSize,
+  onStepPhoto,
+  onOpenFormats,
+  onDuplicateSize,
+  onRemoveSize,
   onSelectAllSizes,
   onSetLayoutMode,
   onMoveArtboard,
@@ -108,6 +119,9 @@ export default function Canvas({
     observer.observe(stage);
     return () => observer.disconnect();
   }, []);
+  const [holdingOriginal, setHoldingOriginal] = useState(false);
+  const swipeRef = useRef<{ x: number; y: number; t: number; pinched: boolean } | null>(null);
+  const holdRef = useRef<{ timer: number | null; x: number; y: number; active: boolean }>({ timer: null, x: 0, y: 0, active: false });
   const [draggingType, setDraggingType] = useState<'none' | 'pan' | 'crop' | 'text' | 'watermark' | 'board'>('none');
 
   const dragRef = useRef<{
@@ -384,6 +398,13 @@ export default function Canvas({
     }
   };
 
+  /** Press and hold one finger on the photo (still, about half a second) to see the original; let go to see the edit again. */
+  const endHold = () => {
+    if (holdRef.current.timer !== null) window.clearTimeout(holdRef.current.timer);
+    holdRef.current = { timer: null, x: 0, y: 0, active: false };
+    setHoldingOriginal(false);
+  };
+
   const handleTouchDown = (e: React.PointerEvent<HTMLElement>) => {
     if (e.pointerType !== 'touch' || activeSize.kind !== 'photo' || compareMode) return false;
     e.stopPropagation();
@@ -396,13 +417,30 @@ export default function Canvas({
         zoom: activeSize.crop.zoom, panX: activeSize.crop.panX, panY: activeSize.crop.panY,
         centreX: (a.x + b.x) / 2, centreY: (a.y + b.y) / 2,
       };
+      endHold();
+      if (swipeRef.current) swipeRef.current.pinched = true;
     } else if (touchPoints.current.size === 1) {
       handleFramePointerDown(e, 'pan', activeSize, e.currentTarget);
+      swipeRef.current = { x: e.clientX, y: e.clientY, t: performance.now(), pinched: false };
+      endHold();
+      holdRef.current.x = e.clientX; holdRef.current.y = e.clientY;
+      holdRef.current.timer = window.setTimeout(() => {
+        holdRef.current.timer = null;
+        if (touchPoints.current.size !== 1) return;
+        holdRef.current.active = true;
+        dragRef.current = null; setDraggingType('none'); // the hold is not a pan
+        setHoldingOriginal(true);
+        try { navigator.vibrate?.(10); } catch { /* haptics are optional */ }
+      }, 450);
     }
     return true;
   };
   const handleTouchMove = (e: React.PointerEvent<HTMLElement>) => {
     if (!touchPoints.current.has(e.pointerId)) return false;
+    if (holdRef.current.active) return true; // holding to look at the original: do not move the picture
+    if (holdRef.current.timer !== null && Math.hypot(e.clientX - holdRef.current.x, e.clientY - holdRef.current.y) > 8) {
+      window.clearTimeout(holdRef.current.timer); holdRef.current.timer = null;
+    }
     touchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (touchPoints.current.size === 2 && touchGesture.current) {
       const [a, b] = [...touchPoints.current.values()];
@@ -426,6 +464,23 @@ export default function Canvas({
   };
   const handleTouchEnd = (e: React.PointerEvent<HTMLElement>) => {
     if (!touchPoints.current.delete(e.pointerId)) return false;
+    const heldOriginal = holdRef.current.active;
+    endHold();
+    // A clean one-finger flick on an unzoomed photo steps through photos (left/right) or formats (up/down). A pinch, a hold,
+    // crop positioning or a zoomed picture (where a drag moves the picture) never counts.
+    const swipe = swipeRef.current;
+    if (touchPoints.current.size === 0) {
+      swipeRef.current = null;
+      if (swipe && !swipe.pinched && !heldOriginal && revealSizeId !== activeSize.id && activeSize.crop.zoom <= 1) {
+        const intent = swipeIntent(e.clientX - swipe.x, e.clientY - swipe.y, performance.now() - swipe.t);
+        if (intent === 'next-photo') onStepPhoto?.(1);
+        else if (intent === 'previous-photo') onStepPhoto?.(-1);
+        else if (intent === 'next-format' || intent === 'previous-format') {
+          const next = stepFrom(photo.sizes.filter((size) => size.kind === 'photo' && size.enabled), activeSize.id, intent === 'next-format' ? 1 : -1);
+          if (next) onSelectSize(next.id);
+        }
+      }
+    }
     touchGesture.current = null;
     handleGlobalPointerUp();
     if (touchPoints.current.size === 1) {
@@ -437,6 +492,20 @@ export default function Canvas({
       };
       void id;
     }
+    return true;
+  };
+  /** A cancelled touch (the browser interrupted it - an edge gesture, an alert, losing focus) is not a finger lift:
+   * treating it like `handleTouchEnd` would start a fresh one-finger pan from whichever touch happens to remain
+   * tracked, continuing a gesture the person never intended to continue. Clear everything instead. */
+  const handleTouchCancel = (e: React.PointerEvent<HTMLElement>) => {
+    if (!touchPoints.current.has(e.pointerId)) return false;
+    endHold();
+    swipeRef.current = null;
+    touchPoints.current.clear();
+    touchGesture.current = null;
+    dragRef.current = null;
+    setDraggingType('none');
+    setActiveGuides([]);
     return true;
   };
 
@@ -466,6 +535,9 @@ export default function Canvas({
     const overlay = group.overlay;
     return (
       <div className="pointer-events-none absolute inset-0 z-20" style={{ containerType: 'inline-size' }} data-testid="overlay-layer">
+        {(size.crop.borderWidth ?? 0) > 0 && (
+          <div aria-hidden="true" data-testid="format-border" className="absolute inset-0" style={{ boxSizing: 'border-box', border: `${size.crop.borderWidth}cqw solid ${size.crop.borderColour ?? '#ffffff'}` }} />
+        )}
         {/* Magnetic snap guide lines while dragging text or watermark */}
         {interactive &&
           activeGuides.map((guide, idx) =>
@@ -682,7 +754,14 @@ export default function Canvas({
     const cropClip = `inset(${activeSize.crop.insetTop}% ${activeSize.crop.insetRight}% ${activeSize.crop.insetBottom}% ${activeSize.crop.insetLeft}%)`;
 
     if (group.splitFrames && features.splitFrames) {
-      // Split 1 photo seamlessly across 2 equal side-by-side frames
+      // Each pane has the selected format's full aspect ratio. Fit BOTH panes and their
+      // 16px gap into the working area; a single-pane Fit width would overflow on phones.
+      // Account for canvas zoom rather than clipping the second pane off-screen.
+      const splitWidthBudget = stageSize.width > 0
+        ? Math.max(1, ((stageSize.width - 32) / Math.max(0.01, canvasZoom) - 16) / 2)
+        : frameW;
+      const splitFrameW = Math.min(frameW, splitWidthBudget);
+      const splitFrameH = splitFrameW / aspect;
       return (
         <div
           className="m-auto flex items-center gap-4"
@@ -695,7 +774,8 @@ export default function Canvas({
               </span>
               <div
                 onPointerDown={(e) => handleFramePointerDown(e, 'split', activeSize, e.currentTarget)}
-                className="relative h-[340px] w-[280px] cursor-grab overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] active:cursor-grabbing"
+                className="relative cursor-grab overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] active:cursor-grabbing"
+                style={{ width: splitFrameW, height: splitFrameH }}
               >
                 <img
                   src={photo.previewUrl}
@@ -745,6 +825,23 @@ export default function Canvas({
           {activeSize.crop.rotateDeg !== 0 && <span>· {activeSize.crop.rotateDeg}°</span>}
         </div>
 
+        {activeSize.kind === 'photo' && (
+          <div role="toolbar" aria-label="Format actions" data-testid="frame-actions" className="flex items-center gap-1.5">
+            {([
+              { label: '+ Format', aria: 'Add a format', run: () => onOpenFormats?.(), pressed: undefined },
+              { label: 'Duplicate', aria: 'Duplicate this format', run: () => onDuplicateSize?.(activeSize.id), pressed: undefined },
+              { label: 'Compare', aria: 'Compare before and after', run: () => onToggleCompare(), pressed: compareMode },
+              { label: 'Delete', aria: 'Delete this format', run: () => onRemoveSize?.(activeSize.id), pressed: undefined },
+            ] as const).map((action) => (
+              <button key={action.aria} type="button" aria-label={action.aria} aria-pressed={action.pressed}
+                disabled={action.aria === 'Compare before and after' && Boolean(group.splitFrames)}
+                onClick={action.run}
+                className="min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40 aria-pressed:border-[var(--brand-accent)] aria-pressed:text-[var(--brand-accent)] max-md:min-h-11">
+                {action.label}
+              </button>
+            ))}
+          </div>
+        )}
         {activeSize.kind === 'photo' && !compareMode && <button type="button" aria-pressed={revealing} onClick={() => setRevealSizeId(revealing ? null : activeSize.id)} className="sm:hidden rounded border border-[var(--border-default)] px-3 py-2 text-xs font-medium">{revealing ? 'Done repositioning' : 'Crop / reposition'}</button>}
         <div className="relative flex items-center gap-3">
           {/* Primary photo frame */}
@@ -759,13 +856,15 @@ export default function Canvas({
             }}
             onPointerMove={(e) => { if (e.pointerType === 'touch') { e.stopPropagation(); handleTouchMove(e); } }}
             onPointerUp={(e) => { if (e.pointerType === 'touch') { e.stopPropagation(); handleTouchEnd(e); } }}
-            onPointerCancel={(e) => { if (e.pointerType === 'touch') { e.stopPropagation(); handleTouchEnd(e); } }}
+            onPointerCancel={(e) => { if (e.pointerType === 'touch') { e.stopPropagation(); handleTouchCancel(e); } }}
             onDoubleClick={() => { if (activeSize.kind === 'photo' && !compareMode) setRevealSizeId(revealing ? null : activeSize.id); }}
             title={activeSize.kind === 'photo' ? STRINGS.canvas.cropHintTitle : undefined}
             className={`relative ${revealing ? 'overflow-visible ring-2 ring-[var(--brand-accent)]' : 'overflow-hidden'} rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] select-none ${
               activeSize.kind === 'video' ? 'cursor-crosshair' : revealing ? 'cursor-move' : 'cursor-grab active:cursor-grabbing'
             }`}
-            style={{ width: frameW, height: frameH, touchAction: 'none' }}
+            // Touch scrolling/zooming is only suppressed while this frame can actually run a photo pinch/pan
+            // gesture - elsewhere (video, compare) the surrounding page must keep scrolling normally.
+            style={{ width: frameW, height: frameH, touchAction: activeSize.kind === 'photo' && !compareMode ? 'none' : 'auto' }}
           >
             {revealing && (
               <div
@@ -785,7 +884,10 @@ export default function Canvas({
                 after={renderSurface('edited', `${photo.title} edited`, { transform: buildImageTransform(activeSize.crop) }, filterCss)}
               />
             ) : (
-              renderSurface('edited', photo.title, { transform: buildImageTransform(activeSize.crop), clipPath: cropClip }, filterCss)
+              renderSurface(holdingOriginal ? 'original' : 'edited', holdingOriginal ? `${photo.title} original` : photo.title, { transform: buildImageTransform(activeSize.crop), clipPath: cropClip }, holdingOriginal ? 'none' : filterCss)
+            )}
+            {holdingOriginal && (
+              <span role="status" className="pointer-events-none absolute left-2 top-2 z-30 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[11px] font-semibold text-white">Showing the original. Let go to see your edit.</span>
             )}
 
             </div>

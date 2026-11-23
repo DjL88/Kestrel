@@ -93,6 +93,13 @@ function SliderRow({
   );
 }
 
+type AdvancedGroup = 'light' | 'tone' | 'colour' | 'detail';
+const ADVANCED_GROUPS: Array<{ id: AdvancedGroup; label: string }> = [
+  { id: 'light', label: 'Light' }, { id: 'tone', label: 'Tone' }, { id: 'colour', label: 'Colour' }, { id: 'detail', label: 'Detail' },
+];
+/** On a phone only one group of sliders shows at a time (the pill tabs choose it); from 768px wide every slider shows, as before. */
+const phoneGroupClass = (active: AdvancedGroup, group: AdvancedGroup) => (active === group ? '' : 'max-md:hidden');
+
 export default function AdjustPanel({
   photo,
   selectedPhotoCount,
@@ -105,9 +112,20 @@ export default function AdjustPanel({
   onResetPhoto,
 }: AdjustPanelProps) {
   const [activeTab, setActiveTab] = React.useState<'looks' | 'advanced'>('looks');
+  const [advancedGroup, setAdvancedGroup] = React.useState<AdvancedGroup>('light');
   const [pendingLookId, setPendingLookId] = React.useState<string | null>(null);
   const [pendingPhotoId, setPendingPhotoId] = React.useState<string | null>(null);
   const selectedLookId = pendingPhotoId === photo?.id ? pendingLookId : null;
+  const previousPhotoId = React.useRef(photo?.id);
+  React.useEffect(() => {
+    if (previousPhotoId.current !== photo?.id) {
+      previousPhotoId.current = photo?.id;
+      // Hover previews are temporary: never carry one photo's Look into another.
+      setPendingLookId(null);
+      setPendingPhotoId(null);
+      onHoverLook(null);
+    }
+  }, [photo?.id, onHoverLook]);
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">Select a photo to adjust tone and colour.</p>;
   }
@@ -204,8 +222,20 @@ export default function AdjustPanel({
 
       </div>
       <div role="tabpanel" id="adjust-advanced-panel" aria-labelledby="adjust-advanced-tab" hidden={activeTab !== 'advanced'}>
+      {/* Phone: one group of sliders at a time, chosen by pill tabs. Hidden from 768px wide. */}
+      <div role="tablist" aria-label="Adjustment groups" className="mb-3 flex items-center gap-1.5 md:hidden">
+        {ADVANCED_GROUPS.map((entry) => (
+          <button key={entry.id} type="button" role="tab" aria-selected={advancedGroup === entry.id} onClick={() => setAdvancedGroup(entry.id)}
+            className={`min-h-11 flex-1 rounded-full border px-3 text-xs font-medium ${advancedGroup === entry.id ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'}`}>
+            {entry.label}
+          </button>
+        ))}
+        <button type="button" aria-label={STRINGS.adjust.resetPhoto} onClick={() => onResetPhoto(photo.id)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-[var(--border-subtle)] text-[var(--text-muted)]">
+          <BrandIcon name="restore" size={14} />
+        </button>
+      </div>
       {/* Light & Tone (Exposure up to ±5 stops + i hover lightboxes) */}
-      <section aria-labelledby="light-tone-heading" className="space-y-3 border-t border-[var(--border-subtle)] pt-4">
+      <section aria-labelledby="light-tone-heading" className={`space-y-3 border-t border-[var(--border-subtle)] pt-4 ${advancedGroup === 'light' || advancedGroup === 'tone' ? '' : 'max-md:hidden'}`}>
         <div className="flex items-center justify-between">
           <h3 id="light-tone-heading" className="text-xs font-semibold text-[var(--text-primary)]">
             {STRINGS.adjust.lightToneHeading}
@@ -220,7 +250,7 @@ export default function AdjustPanel({
           </button>
         </div>
 
-        <SliderRow
+        <div className={phoneGroupClass(advancedGroup, 'light')}><SliderRow
           id="slider-exposure"
           label="Exposure"
           tooltip={STRINGS.adjust.tooltips.exposure}
@@ -233,8 +263,8 @@ export default function AdjustPanel({
           rightHint="+5 EV"
           calmView={calmView}
           onChange={(v) => onUpdateRecipe(photo.id, { exposure: v })}
-        />
-        <SliderRow
+        /></div>
+        <div className={phoneGroupClass(advancedGroup, 'tone')}><SliderRow
           id="slider-highlights"
           label="Highlights"
           tooltip={STRINGS.adjust.tooltips.highlights}
@@ -243,8 +273,8 @@ export default function AdjustPanel({
           max={100}
           calmView={calmView}
           onChange={(v) => onUpdateRecipe(photo.id, { highlights: v })}
-        />
-        <SliderRow
+        /></div>
+        <div className={phoneGroupClass(advancedGroup, 'tone')}><SliderRow
           id="slider-shadows"
           label="Shadows"
           tooltip={STRINGS.adjust.tooltips.shadows}
@@ -253,8 +283,8 @@ export default function AdjustPanel({
           max={100}
           calmView={calmView}
           onChange={(v) => onUpdateRecipe(photo.id, { shadows: v })}
-        />
-        <SliderRow
+        /></div>
+        <div className={phoneGroupClass(advancedGroup, 'light')}><SliderRow
           id="slider-contrast"
           label="Contrast"
           tooltip={STRINGS.adjust.tooltips.contrast}
@@ -263,8 +293,8 @@ export default function AdjustPanel({
           max={100}
           calmView={calmView}
           onChange={(v) => onUpdateRecipe(photo.id, { contrast: v })}
-        />
-        <SliderRow
+        /></div>
+        <div className={phoneGroupClass(advancedGroup, 'tone')}><SliderRow
           id="slider-whites"
           label="Whites"
           tooltip={STRINGS.adjust.tooltips.whites}
@@ -273,8 +303,8 @@ export default function AdjustPanel({
           max={100}
           calmView={calmView}
           onChange={(v) => onUpdateRecipe(photo.id, { whites: v })}
-        />
-        <SliderRow
+        /></div>
+        <div className={phoneGroupClass(advancedGroup, 'tone')}><SliderRow
           id="slider-blacks"
           label="Blacks"
           tooltip={STRINGS.adjust.tooltips.blacks}
@@ -283,16 +313,16 @@ export default function AdjustPanel({
           max={100}
           calmView={calmView}
           onChange={(v) => onUpdateRecipe(photo.id, { blacks: v })}
-        />
+        /></div>
       </section>
 
       {/* Colour & Clarity */}
-      <section aria-labelledby="colour-heading" className="space-y-3 border-t border-[var(--border-subtle)] pt-4">
+      <section aria-labelledby="colour-heading" className={`space-y-3 border-t border-[var(--border-subtle)] pt-4 ${advancedGroup === 'colour' || advancedGroup === 'detail' ? '' : 'max-md:hidden'}`}>
         <h3 id="colour-heading" className="text-xs font-semibold text-[var(--text-primary)]">
           {STRINGS.adjust.colourHeading}
         </h3>
 
-        <SliderRow
+        <div className={phoneGroupClass(advancedGroup, 'colour')}><SliderRow
           id="slider-temperature"
           label="Temperature"
           tooltip={STRINGS.adjust.tooltips.temperature}
@@ -303,8 +333,8 @@ export default function AdjustPanel({
           rightHint={cvdGuidance ? 'Warmer (Amber)' : 'Warm'}
           calmView={calmView}
           onChange={(v) => onUpdateRecipe(photo.id, { temperature: v })}
-        />
-        <SliderRow
+        /></div>
+        <div className={phoneGroupClass(advancedGroup, 'colour')}><SliderRow
           id="slider-tint"
           label="Tint"
           tooltip={STRINGS.adjust.tooltips.tint}
@@ -315,8 +345,8 @@ export default function AdjustPanel({
           rightHint={cvdGuidance ? 'Magenta bias' : undefined}
           calmView={calmView}
           onChange={(v) => onUpdateRecipe(photo.id, { tint: v })}
-        />
-        <SliderRow
+        /></div>
+        <div className={phoneGroupClass(advancedGroup, 'colour')}><SliderRow
           id="slider-vibrance"
           label="Vibrance"
           tooltip={STRINGS.adjust.tooltips.vibrance}
@@ -325,8 +355,8 @@ export default function AdjustPanel({
           max={100}
           calmView={calmView}
           onChange={(v) => onUpdateRecipe(photo.id, { vibrance: v })}
-        />
-        <SliderRow
+        /></div>
+        <div className={phoneGroupClass(advancedGroup, 'colour')}><SliderRow
           id="slider-saturation"
           label="Saturation"
           tooltip={STRINGS.adjust.tooltips.saturation}
@@ -335,8 +365,8 @@ export default function AdjustPanel({
           max={100}
           calmView={calmView}
           onChange={(v) => onUpdateRecipe(photo.id, { saturation: v })}
-        />
-        <SliderRow
+        /></div>
+        <div className={phoneGroupClass(advancedGroup, 'detail')}><SliderRow
           id="slider-clarity"
           label="Clarity"
           tooltip={STRINGS.adjust.tooltips.clarity}
@@ -345,8 +375,8 @@ export default function AdjustPanel({
           max={100}
           calmView={calmView}
           onChange={(v) => onUpdateRecipe(photo.id, { clarity: v })}
-        />
-        <SliderRow
+        /></div>
+        <div className={phoneGroupClass(advancedGroup, 'detail')}><SliderRow
           id="slider-sharpen"
           label="Sharpen"
           tooltip={STRINGS.adjust.tooltips.sharpen}
@@ -355,7 +385,7 @@ export default function AdjustPanel({
           max={100}
           calmView={calmView}
           onChange={(v) => onUpdateRecipe(photo.id, { sharpen: v })}
-        />
+        /></div>
       </section>
       </div>
     </div>

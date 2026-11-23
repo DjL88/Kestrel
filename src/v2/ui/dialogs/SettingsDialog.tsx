@@ -1,3 +1,5 @@
+import { LANGUAGES, languageOption, type LanguageCode } from '../../../core/locale';
+import { chooseLanguage, language } from '../../../i18n/messages';
 import { StorageConnections } from './StorageConnections';
 import React, { useState } from 'react';
 import type {
@@ -21,6 +23,8 @@ interface SettingsDialogProps {
   open: boolean;
   activeTab: SettingsTabId;
   accountPanel?: React.ReactNode;
+  /** The Keyboard tab: key set, rebinding and clashes. */
+  keyboardPanel?: React.ReactNode;
   settings: WorkspaceSettings;
   /** The mode that is on now. It is chosen here and shown by the flag at the bottom of the tool rail. */
   assistMode: AssistMode;
@@ -46,23 +50,13 @@ const TABS: Array<{ id: SettingsTabId; label: string; icon: BrandIconName }> = [
   { id: 'privacy', label: STRINGS.settings.tabs.privacy, icon: 'info' },
 ];
 
-const SHORTCUTS = [
-  { keys: 'F', action: 'Flag / Unflag selected photo(s)' },
-  { keys: '1 – 5', action: 'Assign 1 to 5 star rating' },
-  { keys: '⌘Z / ⇧⌘Z', action: 'Undo / Redo adjustment' },
-  { keys: '⌘C / ⌘V', action: 'Copy / Paste adjustments' },
-  { keys: '⌘A', action: 'Select all photos in filmstrip' },
-  { keys: 'G', action: 'Toggle All Photos grid view' },
-  { keys: '\\', action: 'Compare Before & After' },
-  { keys: '⌘E', action: 'Open Export dialog' },
-];
-
 export default function SettingsDialog({
   assistMode,
   onSetAssistMode,
   open,
   activeTab,
   accountPanel,
+  keyboardPanel,
   settings,
   onClose,
   onSelectTab,
@@ -459,16 +453,7 @@ export default function SettingsDialog({
             {activeTab === 'keyboard' && (
               <div className="space-y-3">
                 <p className="text-xs text-[var(--text-secondary)]">{STRINGS.settings.keyboard.intro}</p>
-                <div className="divide-y divide-[var(--border-subtle)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)]">
-                  {SHORTCUTS.map((s) => (
-                    <div key={s.keys} className="flex items-center justify-between px-3.5 py-2.5 text-xs">
-                      <span className="text-[var(--text-primary)]">{s.action}</span>
-                      <kbd className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-0.5 font-mono text-[11px] text-[var(--text-secondary)]">
-                        {s.keys}
-                      </kbd>
-                    </div>
-                  ))}
-                </div>
+                {keyboardPanel}
               </div>
             )}
 
@@ -513,20 +498,20 @@ export default function SettingsDialog({
                   </p>
                 </div>
                 <select
-                  value={settings.language}
-                  aria-label="Display language"
-                  onChange={(e) =>
-                    onUpdateSettings({
-                      language: e.target.value as WorkspaceSettings['language'],
-                    })
-                  }
+                  value={language}
+                  aria-label={STRINGS.settings.language.label}
+                  onChange={(e) => chooseLanguage(e.target.value as LanguageCode)}
                   className="h-10 w-full max-w-xs rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-primary)]"
                 >
-                  <option value="en-GB">English (United Kingdom) — Default</option>
-                  <option value="en-US">English (United States)</option>
-                  <option value="de-DE">Deutsch</option>
-                  <option value="fr-FR">Français</option>
+                  {LANGUAGES.map((option) => (
+                    <option key={option.code} value={option.code}>
+                      {option.nativeName}{option.status === 'source' ? STRINGS.settings.language.defaultSuffix : option.status === 'draft' ? STRINGS.settings.language.draftSuffix : ''}
+                    </option>
+                  ))}
                 </select>
+                {languageOption(language).status === 'draft' && (
+                  <p className="text-xs text-[var(--text-secondary)]">{STRINGS.settings.language.draftNote}</p>
+                )}
               </div>
             )}
           </div>

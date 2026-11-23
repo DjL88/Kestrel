@@ -31,6 +31,7 @@ export const PRESETS: Record<PresetId, { label: string; keymap: Keymap }> = {
       'edit.selectAll': 'Mod+KeyA',
       'file.export': 'Mod+KeyE',
       'app.settings': 'Mod+Comma',
+      'app.commandSearch': 'Mod+KeyK',
     },
   },
   lightroom: {
@@ -49,6 +50,7 @@ export const PRESETS: Record<PresetId, { label: string; keymap: Keymap }> = {
       'edit.selectAll': 'Mod+KeyA',
       'file.export': 'Mod+Shift+KeyE',
       'app.settings': 'Mod+Comma',
+      'app.commandSearch': 'Mod+KeyK',
     },
   },
 };
@@ -132,6 +134,26 @@ export function resolveCommand({ event, keymap, isMac, inField }: ResolveInput):
   if (inField && !command.worksInFields) return null;
   if (event.repeat && !command.allowRepeat) return null;
   return command;
+}
+
+/** Sets one command's chord. A chord equal to the preset's own is stored as no override, so switching presets stays clean. */
+export function withChord(saved: SavedKeymap, id: CommandId, chord: string): SavedKeymap {
+  const overrides: Overrides = { ...saved.overrides };
+  if (chord !== '' && PRESETS[saved.preset].keymap[id] === chord) delete overrides[id];
+  else overrides[id] = chord;
+  return { ...saved, overrides };
+}
+
+/** Puts one command back to its preset chord. */
+export function withoutOverride(saved: SavedKeymap, id: CommandId): SavedKeymap {
+  const overrides: Overrides = { ...saved.overrides };
+  delete overrides[id];
+  return { ...saved, overrides };
+}
+
+/** Other commands that already use this chord in the keymap in force. */
+export function commandsUsing(keymap: Keymap, chord: string, except: CommandId): CommandId[] {
+  return COMMANDS.filter((command) => command.id !== except && keymap[command.id] === chord).map((command) => command.id);
 }
 
 const STORAGE_KEY = 'inflight-v2-keymap';

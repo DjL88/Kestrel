@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { applyCullConfidence, applyDecisionWithHistory, redoDecision, undoDecision } from '../../core/cullingEngine';
+import { applyCullConfidence, applyDecisionWithHistory, redoDecision, removeFromLibrary, undoDecision } from '../../core/cullingEngine';
 import { jumpToStep, recordEdit, stepEdit } from '../../core/editHistory';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { sameRecipe } from '../../core/naturalAuto';
@@ -17,7 +17,7 @@ import { useBackgroundDevelop } from '../../useBackgroundDevelop';
 import { useSpeciesScan } from '../../useSpeciesScan';
 import { isDesktopApp } from '../../providers/desktopShell';
 import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
-import { loadLocalFileListShoot } from '../../providers/localShootLoader';
+import { loadLocalFileListShoot, rehydrateLocalFramesFromStore } from '../../providers/localShootLoader';
 import type { EditRecipe, HubViewState, OverlaySettings, PhotoHistogram, WatermarkPreset, Project, TaskInfo, WorkspaceActions, WorkspaceStore } from '../ui/contract';
 import { useWorkspace } from '../ui/stub';
 import { EngineSurface } from './EngineSurface';
@@ -40,6 +40,7 @@ import { runV2Denoise } from './runDenoise';
 import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
 import { planExport } from './exportOps';
+import { addFormat, applyFormats, readFormats, removeFormat, toggleFormat, validCustomSize } from './formatOps';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, toggleMask } from './maskOps';
 import { createSubjectMask, framingKey } from '../../core/maskTypes';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFraming';
@@ -59,8 +60,8 @@ import { surfaceBridge } from './surfaceBridge';
 /** Actions that change a photo's edit, sizes, overlay, masks or assist state. They are not connected to the real
  * recipe yet, so they say so instead of silently changing sample data. */
 const NOT_CONNECTED = [
-  'setActiveGroup', 'addEditGroup', 'renameEditGroup', 'toggleSizeEnabled', 'toggleSizeLinked',
-  'addCustomSize', 'toggleSplitFrames', 'setSplitPanOffset',
+  'setActiveGroup', 'addEditGroup', 'renameEditGroup', 'toggleSizeLinked',
+  'toggleSplitFrames', 'setSplitPanOffset',
   'updateVideoZoom',
   'reconnectOriginal',
 ] as const satisfies readonly (keyof WorkspaceActions)[];
@@ -219,8 +220,13 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     void catalogue.current!.saveProject(state).catch(() => setNotice('InFlight could not save this project. Your original photos are unchanged.'));
   }, [state, screen]);
 
-  const enterProject = useCallback((next: CullingState) => {
+  const openRequest = useRef(0);
+  useEffect(() => () => { openRequest.current += 1; }, []);
+
+  const enterProject = useCallback((next: CullingState, restored?: BrowserPreviewProvider) => {
+    openRequest.current += 1;
     provider.current!.clear();
+    if (restored) provider.current = restored;
     thumbs.current = { generation: thumbs.current.generation + 1, requested: new Set(), queue: [], active: 0 };
     setUrls({});
     setAssists({});
@@ -228,6 +234,30 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     setState(next);
     setScreen('editor');
   }, []);
+
+  const openProject = useCallback(async (id: string) => {
+    const request = ++openRequest.current;
+    const store = catalogue.current!;
+    const restored = new BrowserPreviewProvider();
+    setHubState('loading');
+    try {
+      const project = await store.loadProject(id);
+      if (request !== openRequest.current) return;
+      if (!project) throw new Error('Missing project');
+      // Restore stored Blobs and register native path readers. Opening the
+      // catalogue does not require a connected drive or a full RAW decode.
+      await rehydrateLocalFramesFromStore(project.frames, restored, store, { checkPaths: false });
+      if (request !== openRequest.current) return;
+      enterProject(project, restored);
+    } catch {
+      if (request === openRequest.current) {
+        setHubState('ready');
+        setNotice('That project could not be opened.');
+      }
+    } finally {
+      if (provider.current !== restored) restored.clear();
+    }
+  }, [enterProject]);
 
   // Thumbnails: a few at a time, so a large project does not start thousands of reads at once. Each photo is asked for
   // once; a read in flight is never thrown away when more photos arrive, only when the project changes (generation).
@@ -279,6 +309,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   const decide = useCallback((ids: string[], decision: CullDecision) => {
     mutate((current) => ids.reduce((next, id) => applyDecisionWithHistory(next, id, decision, { allowAdvance: false }), current));
+  }, [mutate]);
+
+  // Moves already set-aside (rejected) photos to Trash. removeFromLibrary (shared with V1) ignores any id that
+  // is not currently rejected, so this never deletes a kept or unreviewed photo by mistake. The removal itself is
+  // written to the same undoStack that per-photo Undo already reads, so Cmd/Ctrl+Z brings it straight back.
+  const removePhotos = useCallback((ids: string[]) => {
+    mutate((current) => removeFromLibrary(current, ids));
+    setSelected((current) => current.filter((id) => !ids.includes(id)));
   }, [mutate]);
 
   const activeFrame = state?.frames.find((frame) => frame.id === activeId) ?? null;
@@ -494,6 +532,18 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     }));
   }, [mutate]);
 
+  /** Change a photo's format set. Returns false when the change was refused (nothing is saved). `crops` may also rewrite the saved crops. */
+  const changeFormats = useCallback((photoId: string, change: (raw: unknown) => ReturnType<typeof readFormats> | undefined, crops?: (raw: unknown) => unknown): boolean => {
+    const current = stateRef.current;
+    const frame = current?.frames.find((candidate) => candidate.id === photoId);
+    if (!current || !frame) return false;
+    const next = change(frame.formats);
+    if (!next) return false;
+    const at = Date.now();
+    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, formats: next, ...(crops ? { sizeCrops: crops(entry.sizeCrops) } : {}) } : entry)) }));
+    return true;
+  }, [mutate]);
+
   /** Find the subject on this device and add it (or, for the background, its inverse) as a mask with no adjustments yet.
    * Sky, painted and area masks need tools V2 does not have, so they say so instead of adding a layer that does nothing. */
   const addMask = useCallback(async (photoId: string, type: 'subject' | 'sky' | 'background' | 'brush' | 'area') => {
@@ -659,7 +709,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, [loadHub]);
 
   const real: Partial<WorkspaceActions> = {
-    openProject: (id) => { void catalogue.current!.loadProject(id).then((loaded) => { if (loaded) enterProject(loaded); else setNotice('That project could not be opened.'); }); },
+    openProject: (id) => { void openProject(id); },
     createProject: (name) => {
       const created = createEmptyProject(`project-${newId()}`, name.trim() || 'Untitled project');
       void catalogue.current!.saveProject(created).then(() => enterProject(created), () => setNotice('InFlight could not create the project.'));
@@ -724,6 +774,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     selectAllPhotos: () => setSelected((stateRef.current?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frame.id)),
     clearSelection: () => setSelected(activeId ? [activeId] : []),
     setDecision: (ids, decision) => decide(ids, decision),
+    removePhotos: (ids) => removePhotos(ids),
     toggleFlag: (ids) => mutate((current) => ids.reduce((next, id) => {
       const frame = next.frames.find((candidate) => candidate.id === id);
       return frame ? applyDecisionWithHistory(next, id, frame.decision === 'keep' ? 'unreviewed' : 'keep', { allowAdvance: false }) : next;
@@ -771,6 +822,28 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
     dismissAssistSuggestion: (photoId) => setAssists((current) => (current[photoId] ? { ...current, [photoId]: { ...current[photoId], dismissed: true } } : current)),
     runDeepVisionReview: (photoId) => runDeepVisionReviewAction(photoId),
+    toggleSizeEnabled: (photoId, sizeId) => changeFormats(photoId, (raw) => toggleFormat(raw, sizeId)),
+    addCustomSize: (photoId, label, width, height) => {
+      if (!validCustomSize(width, height)) { setNotice('That size is not usable. Use whole pixels, from 1 to 20,000.'); return; }
+      const id = `custom-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 10)}`;
+      if (!changeFormats(photoId, (raw) => addFormat(raw, label, width, height, id))) { setNotice('This photo already has the most formats it can hold.'); return; }
+      stub.actions.setActiveSize(id);
+    },
+    duplicateSize: (photoId, sizeId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      const source = applyFormats(createDefaultSizes(), frame?.formats).find((size) => size.id === sizeId);
+      if (!frame || !source) return;
+      const id = `custom-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 10)}`;
+      if (!changeFormats(photoId, (raw) => addFormat(raw, `${source.label} copy`, source.width, source.height, id), (crops) => { const own = readCrops(crops)[sizeId]; return own ? { ...readCrops(crops), [id]: own } : readCrops(crops); })) { setNotice('This photo already has the most formats it can hold.'); return; }
+      stub.actions.setActiveSize(id);
+    },
+    removeSize: (photoId, sizeId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      const remaining = applyFormats(createDefaultSizes(), frame?.formats).filter((size) => size.kind === 'photo' && size.enabled && size.id !== sizeId);
+      if (!remaining.length) { setNotice('A photo needs at least one format.'); return; }
+      changeFormats(photoId, (raw) => removeFormat(raw, sizeId), (crops) => { const next = { ...readCrops(crops) }; if (sizeId.startsWith('custom-')) delete next[sizeId]; return next; });
+      if (stub.store.activeSizeId === sizeId) stub.actions.setActiveSize(remaining[0].id);
+    },
     updateSizeCrop: (photoId, sizeId, patch) => {
       const selectedSizes = stub.store.selectedSizeIds;
       changeCrops(photoId, selectedSizes.length > 1 && selectedSizes.includes(sizeId) ? selectedSizes : [sizeId], (crop) => patchCrop(crop, patch));
@@ -831,6 +904,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     resetPhotoEdits: (photoId) => editFrames(editTargets(photoId), () => undefined),
     copyRecipe: () => setClipboard(editToRecipe(activeFrame?.edit)),
     pasteRecipe: () => { if (clipboard && activeId) applyPatch(editTargets(activeId), clipboard); },
+    setBurstGrouped: (burstGroupId, grouped) => mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.burstGroupId === burstGroupId ? { ...frame, burstUngrouped: grouped ? undefined : true } : frame)) })),
     jumpToEditStep: (photoId, cursor) => mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === photoId ? jumpToStep(frame, cursor) : frame)) })),
     undo: () => {
       if (activeFrame?.editHistory && activeFrame.editHistory.cursor > 0) mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === activeFrame.id ? stepEdit(frame, -1) : frame)) }));
@@ -850,7 +924,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stub.actions, stub.store.looks, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, backToProjects, decide, importPhotos, loadHub]);
+    [stub.actions, stub.store.looks, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: [...INITIAL_WATERMARKS, ...watermarkLibrary], auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], { assist: assists[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id] })), [state?.frames, urls, assists, watermarkAuto, histograms, pixelSizes]);

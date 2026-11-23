@@ -94,6 +94,8 @@ export interface PhotoFrame {
    * informational (sort/review), never changes `decision` on its own. */
   cullConfidence?: 'high' | 'medium' | 'low';
   cullScore?: number;
+  /** The person chose to see this burst's frames one by one (set on every frame of the burst). Never changes a decision. */
+  burstUngrouped?: boolean;
   burstGroupId: string | null;
   burstIndex: number;
   burstCount: number;
@@ -109,6 +111,8 @@ export interface PhotoFrame {
   /** The V2 crop for each format of this photo (zoom, position, flips, rotation), by format id. The shape belongs to src/v2, which
    * validates it on read; core only keeps it with the photo. Each format has its own crop and never affects another photo. */
   sizeCrops?: unknown;
+  /** This photo's own format set: built-in formats switched off and custom or duplicated formats. Read with `readFormats` (v2 engineClient). */
+  formats?: unknown;
   /** Set when the photo was removed from the library. The original file is never touched, and Restore clears this. */
   removedAt?: number;
 }

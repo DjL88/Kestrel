@@ -1,12 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { AssistMode, DockPosition, PanelId, ThemeMode } from '../contract';
 import { STRINGS } from '../strings';
+import { chordLabel, type Keymap } from '../commands/keymap';
 import BrandIcon, { BrandLogo, assistModeIconName } from '../icons/BrandIcon';
 
 interface TopBarProps {
   /** The File, Edit and View menus. Off in the interface: the desktop app has them natively. */
   showMenus?: boolean;
   photoName: string;
+  /**
+   * The same effective keymap App.tsx's dispatcher runs, lifted down as a prop rather than
+   * loaded independently here. Before this, TopBar re-read the saved keymap itself and only
+   * refreshed on focus/focusin/storage, while App.tsx's dispatcher (prior to #976) didn't
+   * refresh at all - a same-tab rebind could show a shortcut here that the editor wouldn't
+   * actually run. One source of truth removes that drift by construction.
+   */
+  keymap: Keymap;
   assistMode: AssistMode;
   theme: ThemeMode;
   activePanel: PanelId | null;
@@ -42,6 +51,7 @@ type OpenMenu = 'file' | 'edit' | 'view' | null;
 export default function TopBar({
   showMenus = false,
   photoName,
+  keymap: shortcutMap,
   assistMode,
   theme,
   activePanel,
@@ -73,6 +83,7 @@ export default function TopBar({
 }: TopBarProps) {
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const isMac = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
 
   useEffect(() => {
     if (!openMenu) return;
@@ -328,14 +339,14 @@ export default function TopBar({
       <div className="flex shrink-0 items-center gap-1 md:gap-3">
         <div role="group" aria-label="Edit history" className="flex md:hidden">
           {([
-            { icon: 'undo', label: STRINGS.topBar.editActions.undo, enabled: canUndo, action: onUndo },
-            { icon: 'refresh', label: STRINGS.topBar.editActions.redo, enabled: canRedo, action: onRedo },
-          ] as const).map(({ icon, label, enabled, action }) => (
+            { icon: 'undo', label: STRINGS.topBar.editActions.undo, shortcut: shortcutMap['edit.undo'], enabled: canUndo, action: onUndo },
+            { icon: 'refresh', label: STRINGS.topBar.editActions.redo, shortcut: shortcutMap['edit.redo'], enabled: canRedo, action: onRedo },
+          ] as const).map(({ icon, label, shortcut, enabled, action }) => (
             <button
               key={icon}
               type="button"
               aria-label={label}
-              title={label}
+              title={`${label} (${chordLabel(shortcut, isMac)})`}
               disabled={!enabled}
               onClick={action}
               className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] disabled:opacity-40"

@@ -99,6 +99,10 @@ export interface CropTransform {
   flipH: boolean;
   flipV: boolean;
   rotateDeg: number; // 0 | 90 | 180 | 270
+  /** A border round this format, as a share of the format's width (0 to 10). Saved with the format; the export draws the same. */
+  borderWidth?: number;
+  /** The border colour as #rrggbb. */
+  borderColour?: string;
 }
 
 export interface VideoZoomConfig {
@@ -252,6 +256,8 @@ export interface Photo {
   sizes: SizePreset[];
   videoZoom: VideoZoomConfig;
   masks: MaskLayer[];
+  /** Set when this photo was shot in a burst with others. `ungrouped` is the person's choice to see its frames one by one. */
+  burst?: { groupId: string; index: number; count: number; ungrouped: boolean; score?: number };
   /** The photo's recorded edit steps (oldest first) and where it stands now. Absent until it has been edited. */
   editHistory?: { steps: { label: string; at: number }[]; cursor: number };
   /** The picture's size in real pixels, when the file says. Used for the true 100% zoom. */
@@ -441,6 +447,9 @@ export interface WorkspaceActions {
   selectAllPhotos: () => void;
   clearSelection: () => void;
   setDecision: (photoIds: string[], decision: DecisionState) => void;
+  /** Moves already set-aside (rejected) photos into Trash. The catalogue entry is removed; InFlight's stored copies
+   * go with it, but the original file on disk is never touched. Reversible with the normal per-photo Undo. */
+  removePhotos: (photoIds: string[]) => void;
   toggleFlag: (photoIds: string[]) => void;
   setRating: (photoIds: string[], rating: number) => void;
   correctSpeciesName: (photoId: string, name: string) => void;
@@ -486,6 +495,10 @@ export interface WorkspaceActions {
   rotateSelectedSizes: (photoId: string) => void;
   resetSizeCrop: (photoId: string, sizeId: string) => void;
   addCustomSize: (photoId: string, label: string, width: number, height: number) => void;
+  /** A copy of a format (same size and crop) as a new format on this photo. */
+  duplicateSize: (photoId: string, sizeId: string) => void;
+  /** Delete a format: a custom one is removed, a built-in one is switched off. A photo always keeps at least one. */
+  removeSize: (photoId: string, sizeId: string) => void;
   toggleSplitFrames: (photoId: string) => void;
   setSplitPanOffset: (photoId: string, offset: number) => void;
   updateVideoZoom: (photoId: string, patch: Partial<VideoZoomConfig>) => void;
@@ -532,6 +545,8 @@ export interface WorkspaceActions {
   moveFloatingPanel: (panelId: PanelId, x: number, y: number) => void;
   resetPanelLayout: () => void;
   setBottomTab: (tab: 'filmstrip' | 'info') => void;
+  /** Show a burst as one stack (true) or as its individual photos (false). Nothing is deleted or decided either way. */
+  setBurstGrouped: (burstGroupId: string, grouped: boolean) => void;
   /** Restore a photo to how it was after this many edit steps (0 is the original). Later steps stay available. */
   jumpToEditStep: (photoId: string, cursor: number) => void;
   setFilmstripCollapsed: (collapsed: boolean) => void;
