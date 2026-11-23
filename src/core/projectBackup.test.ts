@@ -140,7 +140,7 @@ test('restore refuses conflicting original byte identities on a virtual copy', (
   const copy = createVirtualCopy(project.frames[0], project.frames, 'copy-sha');
   copy.originalSha256 = 'b'.repeat(64);
   project.frames.push(copy);
-  assert.throws(() => restoreProjectBackup(encodeProjectBackup(project), 'restored'), /invalid photo links/);
+  assert.throws(() => restoreProjectBackup(encodeProjectBackup(project), 'restored'), /conflicting original byte identities/);
 
   // A virtual copy must never bypass this check by reusing the same stable key.
   copy.originalSha256 = project.frames[0].originalSha256;
@@ -178,4 +178,20 @@ test('same-key matching hashes survive backup roundtrip; legacy missing hashes r
   const legacy = restoreProjectBackup(encodeProjectBackup(project), 'legacy');
   assert.equal(legacy.frames[1].originalSha256, undefined);
   assert.equal(legacy.frames[0].originalSha256, 'c'.repeat(64));
+});
+
+
+test('portable restore rejects fractional and unsafe catalogue sequence and burst indices', () => {
+  const project = createDemoShootState(2);
+  const baseline = encodeProjectBackup(project);
+  for (const field of ['sequenceIndex', 'burstIndex', 'burstCount'] as const) {
+    for (const invalid of [0.5, -0.5, Number.MAX_SAFE_INTEGER + 1]) {
+      const damaged = JSON.parse(baseline);
+      damaged.project.frames[0][field] = invalid;
+      assert.throws(() => restoreProjectBackup(JSON.stringify(damaged), 'restored'), /invalid catalogue data/,
+        `${field}=${invalid}`);
+    }
+  }
+  const restored = restoreProjectBackup(baseline, 'restored');
+  assert.deepEqual(restored.frames.map(frame => frame.sequenceIndex), project.frames.map(frame => frame.sequenceIndex));
 });
