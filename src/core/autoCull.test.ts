@@ -356,3 +356,15 @@ test('consolidated G05 tie-breaks are stable, camera rating wins, and inputs rem
     assert.equal(limitAutoKeepers(suggestions, frames, budget).filter((item) => item.confidence === 'high').length, 0);
   }
 });
+
+test('malformed worker frame IDs cannot displace a valid keeper', () => {
+  const frames = generateDemoShootFrames(2).map((frame) => ({
+    ...frame, isDemo: false, burstGroupId: null, decision: 'unreviewed' as const,
+  }));
+  const valid: CullSuggestion = { frameId: frames[0].id, decision: 'keep', confidence: 'high', score: 95, reason: 'subjectSharp' };
+  for (const malformed of [null, undefined, 42, {}]) {
+    const invalid = { ...valid, frameId: malformed } as unknown as CullSuggestion;
+    const result = limitAutoKeepers([invalid, valid], frames, 1);
+    assert.deepEqual(result.filter((item) => item.confidence === 'high').map((item) => item.frameId), [valid.frameId]);
+  }
+});
