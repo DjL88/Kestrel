@@ -8,6 +8,8 @@ export const source = {
   // Top Bar
   topBar: {
     backToProjects: 'Back to projects',
+    backShort: 'Back',
+    applicationMenus: 'Application menus',
     fileMenu: 'File',
     editMenu: 'Edit',
     viewMenu: 'View',
