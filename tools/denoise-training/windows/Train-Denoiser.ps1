@@ -121,7 +121,7 @@ $candidates = Import-Csv (Join-Path $Work "photos.csv") |
   Sort-Object { [int]$_.iso } -Descending
 $tried = $false
 foreach ($photo in ($candidates | Select-Object -First 5)) {
-  $picture = Join-Path $Work ("before-after-" + [IO.Path]::GetFileNameWithoutExtension($photo.path) + ".png")
+  $picture = Join-Path $Work ("before-after-" + [IO.Path]::GetFileNameWithoutExtension($photo.path) + "-" + [Guid]::NewGuid().ToString("N") + ".png")
   & $Python (Join-Path $Tools "try_model.py") (Join-Path $Work "model\denoise.onnx") $photo.path $picture
   if ($LASTEXITCODE -eq 0) { $tried = $true; Start-Process $picture; break }
 }
