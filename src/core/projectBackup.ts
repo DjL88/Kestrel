@@ -65,6 +65,10 @@ function frameIsValid(value: unknown): value is PhotoFrame {
     !number(value.sequenceIndex, 0) || !oneOf(value.decision, decisions) || !oneOf(value.sourceKind, sources) ||
     !nullableKey(value.burstGroupId) || !number(value.burstIndex, 0) || !number(value.burstCount, 0) ||
     typeof value.isDemo !== 'boolean' || !record(value.exif)) return false;
+  // A damaged fingerprint must never be promoted into a trusted restored original.
+  // Older projects may legitimately have no fingerprint and must be reverified on reconnect.
+  if (value.originalSha256 !== undefined &&
+      (typeof value.originalSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(value.originalSha256))) return false;
   if (value.rating !== undefined && (!number(value.rating, 0, 5) || !Number.isInteger(value.rating))) return false;
   if (value.removedAt !== undefined && !number(value.removedAt, 0)) return false;
   if (value.tags !== undefined && (!Array.isArray(value.tags) || value.tags.length > 24 || !value.tags.every(text))) return false;
