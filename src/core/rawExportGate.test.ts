@@ -30,6 +30,12 @@ describe('RAW 16-bit export provenance gate', () => {
     assert.equal(requireProvenRaw16Export({ ...verified, decodedFromOriginal: false }).allowed, false);
     assert.equal(requireProvenRaw16Export({ ...verified, outputIccProfile: null }).allowed, false);
   });
+  it('rejects invalid decoded dimensions rather than trusting a 16-bit label', () => {
+    for (const dimension of [0, -1, 0.5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.MAX_SAFE_INTEGER + 1]) {
+      assert.equal(requireProvenRaw16Export({ ...verified, width: dimension }).allowed, false, `width ${dimension}`);
+      assert.equal(requireProvenRaw16Export({ ...verified, height: dimension }).allowed, false, `height ${dimension}`);
+    }
+  });
   it('allows fully evidenced 16-bit or float developed data only', () => {
     assert.equal(requireProvenRaw16Export(verified).allowed, true);
     assert.equal(requireProvenRaw16Export({ ...verified, precision: 'float32' }).allowed, true);
