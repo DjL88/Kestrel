@@ -91,6 +91,25 @@ describe('runLook', () => {
     assert.equal(calls, 0);
   });
 
+  it('rejects renderer output with wrong dimensions or RGBA buffer length', async () => {
+    const original = flat(16, [120, 120, 120]);
+    const look = createCustomLook('shape', 'Shape', 'validate render', [
+      { label: 'Exposure', capability: 'denoise', background: { exposure: 0.1 } },
+    ]);
+    const invalid: Pixels[] = [
+      flat(8, [121, 121, 121]),
+      { ...flat(16, [121, 121, 121]), data: new Uint8ClampedArray(4) },
+      { ...flat(16, [121, 121, 121]), width: 8, height: 32 },
+    ];
+    for (const output of invalid) {
+      let calls = 0;
+      await assert.rejects(runLook(look, {
+        original, render: async () => { calls++; return output; },
+      }), RangeError);
+      assert.equal(calls, 1);
+    }
+  });
+
   it('runs a single-step Look that passes verification on the first attempt', async () => {
     const original = flat(16, [120, 120, 120]);
     const render = async () => flat(16, [121, 121, 121]); // barely changed
