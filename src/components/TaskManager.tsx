@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore, useState, useRef } from 'react';
 import { AlertTriangle, CheckCircle2, Clock, Loader2, RotateCcw, X } from './icons/KestrelUIIcons';
+import { drawerTabTarget } from './taskDrawerKeyboard';
 import { exportBatchQueue } from '../core/exportBatchQueue';
 import { taskHealth, tasks, tasksNeedAttention, type Health, type Task } from '../core/taskStore';
 import { libraryText as t } from '../i18n/areas/library';
@@ -29,6 +30,7 @@ export function TaskManager({ inline = false }: { inline?: boolean } = {}) {
   const [at, setAt] = useState(() => Date.now());
   const root = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLButtonElement>(null);
+  const drawer = useRef<HTMLElement>(null);
   useEffect(() => { if (!list.length) setOpen(false); }, [list.length]);
   // Work that finished a moment ago stays in view briefly, then the button goes away so it never sits over other controls.
   const recent = tasksNeedAttention(list, at);
@@ -51,6 +53,23 @@ export function TaskManager({ inline = false }: { inline?: boolean } = {}) {
       document.removeEventListener('keydown', escape, true);
     };
   }, [open]);
+  // The compact drawer is modal for keyboard users; desktop remains a popover.
+  useEffect(() => {
+    if (!open || !window.matchMedia('(max-width: 639px)').matches) return;
+    const controls = () => Array.from(drawer.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])
+      .filter((button) => button.getClientRects().length > 0);
+    controls()[0]?.focus({ preventScroll: true });
+    const contain = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab' || !window.matchMedia('(max-width: 639px)').matches) return;
+      const stops = controls();
+      const target = drawerTabTarget(stops.indexOf(document.activeElement as HTMLButtonElement), stops.length, event.shiftKey);
+      if (target === null) return;
+      event.preventDefault();
+      stops[target]?.focus({ preventScroll: true });
+    };
+    document.addEventListener('keydown', contain, true);
+    return () => document.removeEventListener('keydown', contain, true);
+  }, [open]);
   // Look again every second, so a task that stops moving is noticed and a finished one is let go.
   useEffect(() => {
     if (!list.length) return;
@@ -65,7 +84,7 @@ export function TaskManager({ inline = false }: { inline?: boolean } = {}) {
   const summary = first ? `${first.title}, ${label(first)}` : word;
   const others = running > 1 ? running - 1 : 0;
   const panel = open && (
-    <section aria-label={t.tasks.tasks} className={`absolute right-2 top-full mt-1 max-h-[65dvh] overflow-y-auto overscroll-contain w-80 max-w-[calc(100vw-1rem)] rounded-xl border border-white/15 bg-kestrel-raised p-3 text-sm text-zinc-100 shadow-lg max-sm:fixed max-sm:inset-y-0 max-sm:left-auto max-sm:right-0 max-sm:top-0 max-sm:mt-0 max-sm:max-h-none max-sm:w-[90vw] max-sm:max-w-none max-sm:rounded-none max-sm:rounded-l-xl max-sm:pt-[max(0.75rem,env(safe-area-inset-top))] max-sm:z-[110] max-sm:task-tray-in`}>
+    <section ref={drawer} role="dialog" aria-modal={undefined} aria-label={t.tasks.tasks} className={`absolute right-2 top-full mt-1 max-h-[65dvh] overflow-y-auto overscroll-contain w-80 max-w-[calc(100vw-1rem)] rounded-xl border border-white/15 bg-kestrel-raised p-3 text-sm text-zinc-100 shadow-lg max-sm:fixed max-sm:inset-y-0 max-sm:left-auto max-sm:right-0 max-sm:top-0 max-sm:mt-0 max-sm:max-h-none max-sm:w-[90vw] max-sm:max-w-none max-sm:rounded-none max-sm:rounded-l-xl max-sm:pt-[max(0.75rem,env(safe-area-inset-top))] max-sm:z-[110] max-sm:task-tray-in`}>
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="font-medium">{t.tasks.tasks}</h2>
         <div className="flex shrink-0 items-center gap-1">
