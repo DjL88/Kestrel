@@ -77,12 +77,19 @@ test('working with your own photos is never gated, whatever the rules say', () =
   }
 });
 
-test('the compiled defaults reproduce today exactly: free on for all, paid on for Pro only', () => {
+test('compiled defaults keep Basic overlays available and all Pro features off until Admin enables them', () => {
   const free = accessCapabilities({ plan: 'free', licence: 'unlicensed', cloud: 'none', online: false, cachedLocalLicence: false });
   const paid = accessCapabilities({ plan: 'paid', licence: 'active', cloud: 'none', online: false, cachedLocalLicence: true });
   for (const name of FEATURE_NAMES) {
-    assert.equal(featureAvailable(name, paid), true, name);
+    assert.equal(featureAvailable(name, paid), COMPILED_FLAGS[name].default, name);
     assert.equal(featureAvailable(name, free), COMPILED_FLAGS[name].default, name);
+  }
+  for (const name of ['overlayText', 'watermarkCustom'] as const) {
+    assert.equal(featureAvailable(name, free), true, name);
+  }
+  for (const name of ['smartCulling', 'speciesId', 'onlineAi', 'cloudAssist'] as const) {
+    assert.deepEqual(COMPILED_FLAGS[name], { default: false, rules: [] });
+    assert.equal(featureAvailable(name, paid), false, name);
   }
 });
 
