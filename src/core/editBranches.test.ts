@@ -195,3 +195,35 @@ test('legacy versions without persisted edit groups do not erase newly created g
   const back = switchEditVersion(live, ROOT_VERSION_ID);
   assert.deepEqual(back.v2EditGroups, currentGroups);
 });
+
+
+test('fork an earlier split checkpoint and switch back without losing independent frame counts', () => {
+  let original = source();
+  const two = { 'orig-3x2': { enabled: true, offset: 3 } };
+  const three = { 'orig-3x2': { enabled: true, offset: 3, count: 3 } };
+  original = recordEdit(original, { formatSplits: two }, 1000);
+  original = recordEdit(original, { formatSplits: three }, 2000);
+  const fork = forkEditCheckpoint(original, 1, 'fork-two-frames', 3000);
+  assert.deepEqual(fork.formatSplits, two, 'fork chooses recorded earlier two-frame state');
+  assert.deepEqual(original.formatSplits, three, 'parent keeps its three-frame state');
+  const branchThree = recordEdit(fork, { formatSplits: three }, 4000);
+  const back = switchEditVersion(branchThree, ROOT_VERSION_ID);
+  assert.deepEqual(back.formatSplits, three);
+  assert.deepEqual(switchEditVersion(back, 'fork-two-frames').formatSplits, three);
+  assert.equal(back.originalSha256, original.originalSha256);
+  assert.equal(back.sourcePath, original.sourcePath);
+});
+
+test('a pre-migration fork with no split checkpoint does not invent earlier frame counts', () => {
+  let original = source();
+  original = recordEdit(original, { edit: { exposure: 1, warmth: 0, colour: 0 } }, 1000);
+  const legacy = JSON.parse(JSON.stringify(original)) as PhotoFrame;
+  for (const step of legacy.editHistory!.steps) {
+    delete (step.before as { formatSplits?: unknown }).formatSplits;
+    delete (step.after as { formatSplits?: unknown }).formatSplits;
+  }
+  legacy.formatSplits = { 'ig-portrait': { enabled: true, offset: 0, count: 3 } };
+  const fork = forkEditCheckpoint(legacy, 0, 'fork-legacy-split', 2000);
+  assert.deepEqual(fork.formatSplits, legacy.formatSplits);
+  assert.equal(fork.originalSha256, original.originalSha256);
+});
