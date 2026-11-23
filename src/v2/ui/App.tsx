@@ -24,6 +24,7 @@ import AssistPanel from './panels/AssistPanel';
 import InfoPanel from './panels/InfoPanel';
 import TasksPanel from './panels/TasksPanel';
 import ExportDialog from './dialogs/ExportDialog';
+import RemovedPhotosDialog from './dialogs/RemovedPhotosDialog';
 import SettingsDialog from './dialogs/SettingsDialog';
 import ShortcutGuide from './dialogs/ShortcutGuide';
 import CommandPalette from './dialogs/CommandPalette';
@@ -376,6 +377,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             onBack={actions.backToProjects}
             onSetAssistMode={actions.setAssistMode}
             onExport={() => actions.setExportOpen(true)}
+            onOpenRemoved={() => actions.setRemovedOpen(true)}
             onOpenSettings={() => actions.setSettingsOpen(true)}
             onImport={actions.importPhotos}
             onUndo={actions.undo}
@@ -694,6 +696,13 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         selectedPhotoIds={store.selectedPhotoIds}
         onClose={() => actions.setExportOpen(false)}
         onExport={actions.runExport}
+      />
+
+      <RemovedPhotosDialog
+        open={store.removedOpen}
+        photos={store.removedPhotos}
+        onRestore={actions.restorePhotos}
+        onClose={() => actions.setRemovedOpen(false)}
       />
 
       <SettingsDialog
