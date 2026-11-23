@@ -297,3 +297,19 @@ test('unknown detector labels abstain even when confidence and sharpness are hig
   }
   assert.equal(scoreWithSubject(baseResult, { label: 'bird', score: 0.99, size: 900, sharpness: 30 }).decision, 'keep');
 });
+
+
+test('ambiguous subject label prefixes never become confident keepers', () => {
+  for (const label of ['unknown bird', 'Unidentified: aircraft', 'other (animal)', 'none / bird', 'n/a bird']) {
+    const result = scoreWithSubject(baseResult, { label, score: 0.99, size: 900, sharpness: 30 });
+    assert.deepEqual([result.decision, result.confidence, result.reason], [null, 'low', 'noSubject'], label);
+  }
+  assert.equal(scoreWithSubject(baseResult, { label: 'bird', score: 0.99, size: 900, sharpness: 30 }).decision, 'keep');
+});
+
+test('runtime-invalid preview pixel inputs fail closed without throwing', () => {
+  for (const pixels of [null, undefined, [], new Uint8Array(96 * 96 * 4), {}]) {
+    const result = scorePreview('bad-input', pixels as Uint8ClampedArray, 96, 96);
+    assert.deepEqual([result.decision, result.confidence, result.reason], [null, 'low', 'unavailable']);
+  }
+});
