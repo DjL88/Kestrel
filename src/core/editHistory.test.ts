@@ -97,3 +97,16 @@ test('legacy snapshots with no overlay keep current overlays rather than erasing
   assert.deepEqual(stepEdit(legacy, -1).overlay, { textX: 62 });
   assert.deepEqual(jumpToStep(legacy, 0).overlay, { textX: 62 });
 });
+
+test('rapid bulk template or watermark change never absorbs a distinct neighbouring image edit', () => {
+  const base = { id: 'both', overlay: { textEnabled: false } } as PhotoFrame;
+  const colour = recordEdit(base, { edit: { exposure: 1, warmth: 0, colour: 0 } }, 1000);
+  const overlay = recordEdit(colour, { overlay: { textEnabled: true } }, 1200);
+  assert.equal(overlay.editHistory?.steps.length, 2, 'two separately reversible user intentions');
+  const back = stepEdit(overlay, -1);
+  assert.deepEqual(back.overlay, { textEnabled: false });
+  assert.equal(back.edit?.exposure, 1);
+  const first = stepEdit(back, -1);
+  assert.equal(first.edit, undefined);
+  assert.deepEqual(first.overlay, { textEnabled: false });
+});
