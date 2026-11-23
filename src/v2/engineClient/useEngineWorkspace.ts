@@ -49,7 +49,8 @@ import { runDeepVisionReview } from './deepVisionReview';
 import { planExport } from './exportOps';
 import { verifyExactOriginalCopy } from './verifiedOriginalCopy';
 import { buildRawMasterFile } from './rawMasterExport';
-import { TEMPLATES_KEY, addTemplate, deleteTemplate, overlayFromTemplate, readTemplates, renameTemplate, type OverlayTemplate } from './overlayTemplates';
+import { TEMPLATES_KEY, addTemplate, deleteTemplate, readTemplates, renameTemplate, type OverlayTemplate } from './overlayTemplates';
+import { applyOverlayTemplateToProject, changePhotoOverlay } from './overlayHistory';
 import { addFormat, applyFormats, ORIGINAL_FORMAT_ID, readFormats, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize, setOriginalOutputSize, resetOriginalOutputSize } from './formatOps';
 import { patchVideoZoom } from './videoZoomOps';
 import { setFormatSplitOffset, toggleFormatSplit } from './formatSplitOps';
@@ -571,15 +572,19 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     }
   }, [can]);
 
-  /** The text and watermark overlay lives with the photo (saved, backed up and exported with the project). It is not an
-   * edit, so it has no place in the edit history. */
+  /** Text and watermark overlays stay with the photograph and are reversible in its saved history. */
   const changeOverlay = useCallback((photoId: string, change: (overlay: OverlaySettings) => OverlaySettings) => {
     const at = Date.now();
-    mutate((current) => ({
-      ...current,
-      shoot: { ...current.shoot, lastUpdatedAt: at },
-      frames: current.frames.map((frame) => (frame.id === photoId ? { ...frame, overlay: change(readOverlay(frame.overlay)) } : frame)),
-    }));
+    mutate((current) => {
+      let changed = false;
+      const frames = current.frames.map((frame) => {
+        if (frame.id !== photoId) return frame;
+        const next = changePhotoOverlay(frame, change, at);
+        if (next !== frame) changed = true;
+        return next;
+      });
+      return changed ? { ...current, shoot: { ...current.shoot, lastUpdatedAt: at }, frames } : current;
+    });
   }, [mutate]);
 
   // 'auto' watermark: light or dark from the pixels behind it, using the same measure as the export (src/core/watermark.ts).
@@ -1216,8 +1221,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const template = templates.find((entry) => entry.id === templateId);
       if (!template || !photoIds.length) return;
       const at = Date.now();
-      mutate((current) => ({ ...current, shoot: { ...current.shoot, lastUpdatedAt: at }, frames: current.frames.map((frame) => (photoIds.includes(frame.id) ? { ...frame, overlay: overlayFromTemplate(template) } : frame)) }));
-      setNotice(`Applied "${template.name}" to ${photoIds.length} photo${photoIds.length === 1 ? '' : 's'}. Undo is not available for this; apply another template or edit the overlay to change it.`);
+      const preview = stateRef.current ? applyOverlayTemplateToProject(stateRef.current, template, photoIds, at) : null;
+      if (!preview || !preview.changed) { setNotice('That overlay template is already applied to the selected photographs.'); return; }
+      mutate((current) => applyOverlayTemplateToProject(current, template, photoIds, at).state);
+      setNotice(`Applied "${template.name}" to ${preview.changed} photograph${preview.changed === 1 ? '' : 's'}. Each has an Undo checkpoint in its own History.`);
     },
     renameOverlayTemplate: (templateId, name) => updateTemplates(renameTemplate(templates, templateId, name)),
     deleteOverlayTemplate: (templateId) => updateTemplates(deleteTemplate(templates, templateId)),
