@@ -11,7 +11,7 @@ import { checkOriginalPaths } from './originalPathStatus';
 import { isDesktopApp } from './desktopShell';
 import { appCopiesAvailable, copyIntoAppStorage } from './appStorageCopies';
 import { headBlob, materialize, openLinkedRange, type RangeBlob } from './rangeBlob';
-import { hashOriginalBytes } from '../core/originalFileIdentity';
+import { hashOriginalBytes, isSameOriginalBytes } from '../core/originalFileIdentity';
 
 const SUPPORTED_EXTENSIONS = new Set(PHOTO_EXTENSIONS);
 
@@ -383,19 +383,50 @@ export async function rehydrateLocalFramesFromStore(
   /** checkPaths false: skip the on-disk check here so the project can open at once; run linkedOriginalsAvailable after. */
   options: { checkPaths?: boolean } = {},
 ): Promise<boolean> {
-  // Photos that stayed on the disk are linked again from their saved path, so nothing has to be copied or re-picked.
-  for (const frame of frames) {
-    if (frame.sourcePath && !previewProvider.hasBlob(frame.stableKey)) {
-      previewProvider.registerLinked(frame.stableKey, {
-        read: linkedReader(frame.sourcePath, frame.filename, lastModifiedOf(frame.stableKey), sizeOf(frame.stableKey) || undefined),
-        openRange: linkedRangeOpener(frame.sourcePath, sizeOf(frame.stableKey) || undefined),
-        size: sizeOf(frame.stableKey), lastModified: lastModifiedOf(frame.stableKey),
-      });
-    }
-  }
-  const missing = [...new Set(frames.filter((frame) => !frame.isDemo).map((frame) => frame.stableKey))]
-    .filter((key) => !previewProvider.hasBlob(key));
+  // A saved path is only a location hint. Never expose a linked reader until its
+  // bytes match the saved SHA-256, even if filename, size and mtime are identical.
+  // Legacy projects without a fingerprint remain visible but require a safe reselect.
   let allFound = true;
+  for (const frame of frames) {
+    if (!frame.sourcePath || previewProvider.hasBlob(frame.stableKey)) continue;
+    let verified = false;
+    if (isDesktopApp() && typeof frame.originalSha256 === 'string') {
+      try {
+        const { stat } = await import('@tauri-apps/plugin-fs');
+        const before = await stat(frame.sourcePath);
+        const expectedSize = sizeOf(frame.stableKey);
+        if (before.size > 0 && (!expectedSize || before.size === expectedSize)) {
+          const range = await openLinkedRange(frame.sourcePath, before.size);
+          try {
+            const digest = await hashOriginalBytes(range.blob);
+            const after = await stat(frame.sourcePath);
+            verified = isSameOriginalBytes(frame.originalSha256, digest) &&
+              after.size === before.size &&
+              !(before.mtime && after.mtime && before.mtime.getTime() !== after.mtime.getTime());
+          } finally {
+            await range.close();
+          }
+        }
+      } catch {
+        verified = false;
+        // Missing NAS, denied access, short read or changed file: retain edits,
+        // but never silently relink to unverified bytes.
+      }
+    }
+    if (!verified) {
+      allFound = false;
+      continue;
+    }
+    previewProvider.registerLinked(frame.stableKey, {
+      read: linkedReader(frame.sourcePath, frame.filename, lastModifiedOf(frame.stableKey), sizeOf(frame.stableKey) || undefined),
+      openRange: linkedRangeOpener(frame.sourcePath, sizeOf(frame.stableKey) || undefined),
+      size: sizeOf(frame.stableKey), lastModified: lastModifiedOf(frame.stableKey),
+    });
+  }
+  const linkedKeys = new Set(frames.filter((frame) => frame.sourcePath).map((frame) => frame.stableKey));
+  const missing = [...new Set(frames.filter((frame) => !frame.isDemo).map((frame) => frame.stableKey))]
+    // A stored thumbnail or legacy cache must not be mistaken for verified original bytes.
+    .filter((key) => !linkedKeys.has(key) && !previewProvider.hasBlob(key));
   for (let offset = 0; offset < missing.length; offset += 12) {
     const restored = await Promise.all(missing.slice(offset, offset + 12).map(async (key) => {
       const blob = await store.loadLocalFileBlob(key);

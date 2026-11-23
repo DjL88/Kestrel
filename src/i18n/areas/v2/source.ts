@@ -247,13 +247,6 @@ export const source = {
   // Formats Panel (renamed from Sizes)
   formats: {
     heading: 'Formats',
-    borderPlacement: 'Border placement',
-    borderAllSides: 'All sides',
-    borderTopBottom: 'Top and bottom',
-    borderLeftRight: 'Left and right',
-    borderFitWhole: 'Fit whole photo',
-    recentBorderColours: 'Recently used border colours',
-    recentColours: 'Recent colours',
     editGroupsHeading: 'Edit Groups',
     addEditGroup: 'Add edit group',
     editGroupHint: 'Chain formats together to share one edit, or create a second group with its own look or text overlay.',
@@ -262,6 +255,13 @@ export const source = {
     cropZoomHeading: 'Custom Crop & Framing',
     zoomLabel: 'Frame zoom',
     borderLabel: 'Border',
+    borderPlacementLabel: 'Border placement',
+    borderPlacementAll: 'All sides',
+    borderPlacementHorizontal: 'Top and bottom',
+    borderPlacementVertical: 'Left and right',
+    borderPlacementAuto: 'Fit whole photo',
+    recentBorderColoursGroup: 'Recently used border colours',
+    recentBorderColours: 'Recent colours',
     borderNone: 'None',
     borderColourLabel: 'Border colour',
     borderWhite: 'White',
@@ -412,13 +412,15 @@ export const source = {
     originalStatusOffline: 'Original not connected — local preview active',
   },
 
-  // Tasks Panel
+  // Mobile navigation and drawer labels
   mobile: {
     toolBar: 'Mobile studio tools',
     more: 'More',
     moreTools: 'More tools',
     closeDrawer: 'Close mobile drawer',
   },
+
+  // Tasks Panel
   tasks: {
     heading: 'Background Tasks',
     empty: 'No background tasks running. InFlight is idle.',
