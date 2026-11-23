@@ -38,6 +38,12 @@ export function planExport(request: ExportRequest, frames: readonly ExportFrameI
   // A removedAt value of 0 is still a removed photograph, not a live one.
   const chosen = frames.filter((frame) => request.photoIds.includes(frame.id) && frame.removedAt == null);
   if (!chosen.length) return { error: 'Choose at least one photo to export.' };
+  // Export jobs carry frame IDs, not immutable byte references. If two live
+  // catalogue entries share an ID, resolving it later could select the wrong
+  // photo (including when the user requested exact original bytes).
+  if (new Set(chosen.map((frame) => frame.id)).size !== chosen.length) {
+    return { error: 'Two selected photos have the same identity. Resolve the duplicate before exporting.' };
+  }
   const allSizes = chosen.flatMap((frame) => applyFormats(sizes, frame.formats));
   const picked = [...new Map(allSizes.filter((size) => size.kind === 'photo' && request.sizeIds.includes(size.id)).map((size) => [size.id, size])).values()];
   if (variants.length && !picked.length) return { error: 'Choose at least one size to export.' };
