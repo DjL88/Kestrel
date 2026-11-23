@@ -168,17 +168,22 @@ test('Original shape follows the imported photograph, never a fixed 3:2 preset',
   assert.equal(unknown.ratioLabel, 'Unknown');
 });
 
-test('Original can be resized only as output canvas, reset to import, and hidden without deletion', () => {
-  const formats = setOriginalOutputSize(undefined, 2000, 3000)!;
-  const original = applyFormats(createDefaultSizes(), formats, { width: 8256, height: 5504 })[0];
-  assert.deepEqual([original.width, original.height, original.ratioLabel], [2000, 3000, '2:3']);
-  const reset = resetOriginalOutputSize(formats);
-  const restored = applyFormats(createDefaultSizes(), reset, { width: 8256, height: 5504 })[0];
-  assert.equal(restored.width, 8256);
-  const hidden = removeFormat(reset, 'orig-3x2');
+test('Original cannot be resized; legacy overrides are ignored, but hiding and restoring works', () => {
+  assert.equal(setOriginalOutputSize(undefined, 2000, 3000), undefined);
+  const legacy = { disabled: [], custom: [], originalSize: { width: 2000, height: 3000 } };
+  const original = applyFormats(createDefaultSizes(), legacy, { width: 8256, height: 5504 })[0];
+  assert.deepEqual([original.width, original.height, original.ratioLabel], [8256, 5504, '3:2']);
+  const unknown = applyFormats(createDefaultSizes(), legacy)[0];
+  assert.equal(unknown.enabled, false);
+  assert.equal(unknown.ratioLabel, 'Unknown');
+  const reset = resetOriginalOutputSize(legacy);
+  assert.equal(reset.originalSize, undefined);
+  const hidden = removeFormat(legacy, 'orig-3x2');
   const item = applyFormats(createDefaultSizes(), hidden, { width: 8256, height: 5504 })[0];
   assert.equal(item.enabled, false);
   assert.equal(item.id, 'orig-3x2');
+  const shown = toggleFormat(hidden, 'orig-3x2', true);
+  assert.equal(applyFormats(createDefaultSizes(), shown, { width: 8256, height: 5504 })[0].enabled, true);
 });
 
 test('3:2 is a separate optional format', () => {
