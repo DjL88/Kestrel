@@ -18,3 +18,10 @@ test('mismatched before and subject data cannot produce edit or subject findings
   assert.ok(report.palette.length > 0);
   assert.equal(report.findings.some(f => f.id === 'editChange' || f.id === 'subjectColour'), false);
 });
+
+test('non-finite subject confidence never produces subject colour advice', () => {
+  const subject = new Float32Array([1, Number.NaN, 0, Number.POSITIVE_INFINITY]);
+  const report = checkColour({ after: photo(), subject });
+  assert.ok(report.palette.length > 0);
+  assert.equal(report.findings.some(f => f.id === 'subjectColour'), false);
+});
