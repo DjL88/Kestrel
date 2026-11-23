@@ -786,3 +786,57 @@ test('?v2 Look preview belongs only to its selected photo, never the next one', 
   await strip.getByRole('option').nth(0).click();
   await expect(root.getByRole('group', { name: 'Look preview actions' })).toHaveCount(0);
 });
+
+test('V2 reconnects a browser original after its session blob is lost (file reselect)', async ({ page }) => {
+  // Same technique as tests/catalogue-storage.spec.ts's "unstored originals" case: make the IndexedDB write that
+  // would store the photo's blob fail, so after a reload the frame's metadata survives but its blob does not,
+  // reproducing exactly the "moved, renamed, or a browser session that lost its blob" case reconnectOriginal covers.
+  await page.addInitScript(() => {
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (value, key) {
+      if (this.name === 'localFiles' && sessionStorage.getItem('v2-fail-photo-storage') === 'yes') {
+        throw new DOMException('Storage full', 'QuotaExceededError');
+      }
+      return put.call(this, value, key);
+    };
+  });
+  const choose = async (testId: string, names: string[]) => page.evaluate(({ testId, names }) => {
+    const png = atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+    const bytes = Uint8Array.from(png, (character) => character.charCodeAt(0));
+    const data = new DataTransfer();
+    // A fixed lastModified, same on both the import and the later reselect, so the two picks produce the exact
+    // same stableKey (local-file://name::size::lastModified) regardless of when each step actually runs.
+    for (const name of names) data.items.add(new File([bytes], name, { type: 'image/png', lastModified: 1700000000000 }));
+    const input = document.querySelector<HTMLInputElement>(`[data-testid="${testId}"]`)!;
+    input.files = data.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }, { testId, names });
+
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Relink check');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+
+  await page.evaluate(() => sessionStorage.setItem('v2-fail-photo-storage', 'yes'));
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await choose('v2-file-input', ['lost-original.png']);
+  const strip = root.getByRole('listbox', { name: 'Project photographs' });
+  await expect(strip.getByRole('option')).toHaveCount(1);
+  await page.evaluate(() => sessionStorage.removeItem('v2-fail-photo-storage'));
+
+  // Leave and reopen: the project's own record survives (it was never the thing that failed to store), but the
+  // blob does not, so the original now reads as not connected, exactly as if the file had moved or the browser
+  // had cleared its storage.
+  await root.getByRole('button', { name: /back|projects/i }).first().click();
+  await page.reload();
+  await root.getByRole('button', { name: 'Relink check' }).first().click();
+
+  const banner = root.getByRole('status').filter({ hasText: 'Original not connected' });
+  await expect(banner).toBeVisible();
+  await banner.getByRole('button', { name: 'Reconnect folder' }).click();
+  await choose('v2-relink-input', ['lost-original.png']);
+
+  await expect(banner).toHaveCount(0);
+  await expect(root.getByRole('status').filter({ hasText: 'Reconnected 1 photo' })).toBeVisible();
+});

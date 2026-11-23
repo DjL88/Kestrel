@@ -17,7 +17,7 @@ import { useBackgroundDevelop } from '../../useBackgroundDevelop';
 import { useSpeciesScan } from '../../useSpeciesScan';
 import { isDesktopApp } from '../../providers/desktopShell';
 import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
-import { loadLocalFileListShoot, rehydrateLocalFramesFromStore } from '../../providers/localShootLoader';
+import { getLocalFileKey, loadLocalFileListShoot, rehydrateLocalFramesFromStore } from '../../providers/localShootLoader';
 import type { EditRecipe, HubViewState, OverlaySettings, PhotoHistogram, WatermarkPreset, Project, TaskInfo, WorkspaceActions, WorkspaceStore } from '../ui/contract';
 import { useWorkspace } from '../ui/stub';
 import { EngineSurface } from './EngineSurface';
@@ -65,7 +65,6 @@ const NOT_CONNECTED = [
   'setActiveGroup', 'addEditGroup', 'renameEditGroup', 'toggleSizeLinked',
   'toggleSplitFrames', 'setSplitPanOffset',
   'updateVideoZoom',
-  'reconnectOriginal',
 ] as const satisfies readonly (keyof WorkspaceActions)[];
 
 /** What the export needs to draw the overlay exactly as the canvas does, read from the latest render. */
@@ -138,6 +137,21 @@ async function pickFiles(): Promise<Array<File | PickedPhoto> | null> {
   });
 }
 
+/** Pick replacement files for originals the catalogue can no longer read (moved, renamed, or the browser session
+ * lost its blob). Browser-only: desktop's own folder-relink is a separate, not-yet-wired path (see reconnectOriginal). */
+async function pickReselectFiles(): Promise<File[] | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.multiple = true; input.accept = PHOTO_ACCEPT; input.hidden = true;
+    input.setAttribute('data-testid', 'v2-relink-input');
+    document.body.appendChild(input);
+    const done = (files: File[] | null) => { input.remove(); resolve(files); };
+    input.addEventListener('change', () => done(input.files?.length ? Array.from(input.files) : null));
+    input.addEventListener('cancel', () => done(null));
+    input.click();
+  });
+}
+
 /**
  * The V2 store backed by the real catalogue. Connected now: projects (create, open, back), importing photos with the
  * real loader and Task Manager, thumbnails and previews from the preview provider, flag (= keep), reject, rating,
@@ -185,6 +199,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const exportEnv = useRef<ExportEnv>({ fonts: [], presets: [], auto: {}, textAllowed: false, markAllowed: false });
   useEffect(() => { surfaceBridge.set(state?.frames ?? [], provider.current); }, [state?.frames]);
   const importController = useRef<AbortController | null>(null);
+  const relinking = useRef(false);
   const taskList = useSyncExternalStore(tasks.subscribe, tasks.list, tasks.list);
   // The core task store keeps only the last few finished tasks. V2 keeps them in a Completed tab for 4 hours.
   const [taskHistory, setTaskHistory] = useState<Record<string, TaskInfo>>({});
@@ -708,6 +723,70 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     }
   }, []);
 
+  /**
+   * Reconnect originals the catalogue can no longer read (moved, renamed, or a browser session that lost its blob),
+   * reusing the same verified primitives App.tsx's reconnectFileSelection already uses: getLocalFileKey to identify a
+   * picked file, BrowserPreviewProvider.hasBlob/registerBlob and BrowserCatalogueStore.saveLocalFileBlob to store it.
+   * Browser/web, sourceKind 'file' originals only: matches every picked file against every frame still missing its
+   * original (not just the one clicked), exactly as App.tsx's whole-project reselect does. Desktop's own folder
+   * relink (Tauri fs, path-based) is a separate flow and is not wired here; this says so rather than doing nothing.
+   */
+  const reconnectOriginal = useCallback(() => {
+    if (relinking.current) return;
+    if (isDesktopApp()) {
+      setNotice('Reconnecting a moved or renamed original on the desktop app is not wired into V2 yet. Nothing was changed.');
+      return;
+    }
+    relinking.current = true;
+    void (async () => {
+      try {
+        const files = await pickReselectFiles();
+        if (!files?.length) return;
+        const target = stateRef.current;
+        const projectId = target?.shoot.id;
+        if (!target || !projectId) return;
+        const expected = new Set(target.frames.filter((frame) => !frame.removedAt && frame.sourceKind === 'file').map((frame) => frame.stableKey));
+        const recoveredIds: string[] = [];
+        for (const file of files) {
+          if (stateRef.current?.shoot.id !== projectId) return;
+          const key = getLocalFileKey(file);
+          if (!expected.has(key) || provider.current!.hasBlob(key)) continue;
+          await catalogue.current!.saveLocalFileBlob(key, file);
+          if (stateRef.current?.shoot.id !== projectId) return;
+          provider.current!.registerBlob(key, file);
+          const frame = target.frames.find((candidate) => candidate.stableKey === key);
+          if (frame) recoveredIds.push(frame.id);
+        }
+        if (!recoveredIds.length) { setNotice('Those files did not match a missing original in this project.'); return; }
+        // Let the matched photos' thumbnail and preview be re-read now a blob exists for them.
+        setUrls((current) => {
+          const next = { ...current };
+          for (const id of recoveredIds) delete next[id];
+          return next;
+        });
+        for (const id of recoveredIds) {
+          thumbs.current.requested.delete(id);
+          const frame = target.frames.find((candidate) => candidate.id === id);
+          if (frame) thumbs.current.queue.push(frame);
+        }
+        pumpThumbnails();
+        if (activeId && recoveredIds.includes(activeId)) {
+          const frame = target.frames.find((candidate) => candidate.id === activeId);
+          if (frame) provider.current!.getFullPreviewUrl(frame, 'selected').then(
+            (preview) => setUrls((current) => ({ ...current, [frame.id]: { ...current[frame.id], preview } })),
+            () => { /* the thumbnail refetch already covers failure */ },
+          );
+        }
+        const stillMissing = [...expected].filter((key) => !provider.current!.hasBlob(key)).length;
+        setNotice(stillMissing
+          ? `Reconnected ${recoveredIds.length} photo${recoveredIds.length === 1 ? '' : 's'}. ${stillMissing} more still need their file selected.`
+          : `Reconnected ${recoveredIds.length} photo${recoveredIds.length === 1 ? '' : 's'}.`);
+      } finally {
+        relinking.current = false;
+      }
+    })();
+  }, [pumpThumbnails, activeId]);
+
   const backToProjects = useCallback(async () => {
     const current = stateRef.current;
     if (current) { try { await catalogue.current!.saveProject(current); } catch { /* the save effect already reported it */ } }
@@ -716,6 +795,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, [loadHub]);
 
   const real: Partial<WorkspaceActions> = {
+    reconnectOriginal: () => reconnectOriginal(),
     openProject: (id) => { void openProject(id); },
     createProject: (name) => {
       const created = createEmptyProject(`project-${newId()}`, name.trim() || 'Untitled project');
@@ -948,7 +1028,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub]);
+    [stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: [...INITIAL_WATERMARKS, ...watermarkLibrary], auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], { assist: assists[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id] })), [state?.frames, urls, assists, watermarkAuto, histograms, pixelSizes]);
