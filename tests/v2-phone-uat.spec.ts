@@ -100,3 +100,26 @@ test('a swipe down on the tool sheet header closes it', async ({ page }) => {
   await page.mouse.up();
   await expect(handle).toHaveCount(0);
 });
+
+test('press and hold the photo shows the original; letting go shows the edit again; a drag still pans', async ({ page, context }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const studio = await importPhoto(page);
+  const frame = studio.getByTestId('canvas-frame');
+  await expect(frame).toBeVisible();
+  const box = (await frame.boundingBox())!;
+  const x = box.x + box.width / 2, y = box.y + box.height / 2;
+  const cdp = await context.newCDPSession(page);
+  const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', px = x, py = y) =>
+    cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: px, y: py }] });
+  await touch('touchStart');
+  await page.waitForTimeout(700);
+  await expect(studio.getByRole('status').filter({ hasText: 'Showing the original' })).toBeVisible();
+  await touch('touchEnd');
+  await expect(studio.getByRole('status').filter({ hasText: 'Showing the original' })).toHaveCount(0);
+  // A quick touch that moves is a drag, not a hold.
+  await touch('touchStart');
+  await touch('touchMove', x + 30, y + 10);
+  await page.waitForTimeout(700);
+  await expect(studio.getByRole('status').filter({ hasText: 'Showing the original' })).toHaveCount(0);
+  await touch('touchEnd');
+});
