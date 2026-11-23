@@ -100,7 +100,7 @@ test('legacy snapshots with no overlay keep current overlays rather than erasing
 
 test('rapid bulk template or watermark change never absorbs a distinct neighbouring image edit', () => {
   const base = { id: 'both', overlay: { textEnabled: false } } as PhotoFrame;
-  const colour = recordEdit(base, { edit: { exposure: 1, warmth: 0, colour: 0 } }, 1000);
+  const colour = recordEdit(base, { edit: { exposure: 1, warmth: 0, colour: 0, contrast: 0.3 } }, 1000);
   const overlay = recordEdit(colour, { overlay: { textEnabled: true } }, 1200);
   assert.equal(overlay.editHistory?.steps.length, 2, 'two separately reversible user intentions');
   const back = stepEdit(overlay, -1);
