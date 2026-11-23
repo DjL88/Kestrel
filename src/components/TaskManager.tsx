@@ -86,6 +86,13 @@ export function TaskManager({ inline = false }: { inline?: boolean } = {}) {
                 <button type="button" onClick={() => tasks.cancel(task.id)} aria-label={t.tasks.cancelTask(task.title)} title={t.tasks.cancel}
                   className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-zinc-300 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300"><X className="h-4 w-4" aria-hidden="true" /></button>
               )}
+              {task.state !== 'running' && (
+                <button type="button" onClick={() => tasks.dismissFinished(task.id)}
+                  aria-label={`${t.tasks.clearFinished}: ${task.title}`} title={t.tasks.clearFinished}
+                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-zinc-300 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              )}
             </div>
             {task.state === 'running' && task.total ? <progress aria-label={task.title} className="block w-full" value={task.done} max={task.total} /> : null}
             <p className="break-words text-xs text-zinc-400">{label(task)}{task.detail ? ` · ${task.detail}` : ''}</p>
