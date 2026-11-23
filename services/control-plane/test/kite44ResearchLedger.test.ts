@@ -37,9 +37,9 @@ test('individual photo exclusion and account revocation both deny', async () => 
   await ledger.excludePhoto('userA','wildlife','child',true);
   assert.equal(await ledger.appendShadow('userA','wildlife','child',record), false);
   assert.equal(await ledger.appendShadow('userA','wildlife','bird',record), true);
-  await db.collection('learning_consent').doc('userA').set({consent:false});
+  assert.equal(await ledger.revokeAndDelete('userA'), 1);
   assert.equal(await ledger.appendShadow('userA','wildlife','bird',record), false);
-  assert.equal((await db.collection('kite44_shadow_signals').get()).size,1);
+  assert.equal((await db.collection('kite44_shadow_signals').get()).size,0);
 });
 test('no cross-account project sharing', async () => {
   const { db, ledger } = make();
@@ -67,4 +67,40 @@ test('concurrent writes and consent withdrawal obey transaction order', async ()
   ]);
   assert.equal(results[0],true);
   assert.equal(results[2],false);
+});
+
+test('turning off a project removes previously shared shadows but not other projects', async () => {
+  const { db, ledger } = make();
+  await db.collection('learning_consent').doc('userA').set({ consent: true });
+  await ledger.setProjectSharing('userA', 'family', true);
+  await ledger.setProjectSharing('userA', 'wildlife', true);
+  assert.equal(await ledger.appendShadow('userA','family','album1',record),true);
+  assert.equal(await ledger.appendShadow('userA','wildlife','bird1',record),true);
+  assert.equal(await ledger.setProjectSharing('userA','family',false),1);
+  assert.equal(await ledger.appendShadow('userA','family','album2',record),false);
+  assert.equal((await db.collection('kite44_shadow_signals').get()).size,1);
+});
+
+test('excluding a photo removes its prior shadows and preserves other photos', async () => {
+  const { db, ledger } = make();
+  await db.collection('learning_consent').doc('userA').set({ consent: true });
+  await ledger.setProjectSharing('userA','wildlife',true);
+  assert.equal(await ledger.appendShadow('userA','wildlife','bird1',record),true);
+  assert.equal(await ledger.appendShadow('userA','wildlife','bird2',record),true);
+  assert.equal(await ledger.excludePhoto('userA','wildlife','bird1',true),1);
+  assert.equal(await ledger.appendShadow('userA','wildlife','bird1',record),false);
+  assert.equal((await db.collection('kite44_shadow_signals').get()).size,1);
+});
+
+test('revoking one person leaves another account’s records intact', async () => {
+  const { db, ledger } = make();
+  for (const subject of ['userA','userB']) {
+    await db.collection('learning_consent').doc(subject).set({consent:true});
+    await ledger.setProjectSharing(subject,'wildlife',true);
+    assert.equal(await ledger.appendShadow(subject,'wildlife','bird',record),true);
+  }
+  assert.equal(await ledger.revokeAndDelete('userA'),1);
+  assert.equal((await db.collection('kite44_shadow_signals').get()).size,1);
+  assert.equal(await ledger.appendShadow('userA','wildlife','bird',record),false);
+  assert.equal(await ledger.appendShadow('userB','wildlife','bird',record),true);
 });
