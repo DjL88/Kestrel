@@ -180,3 +180,29 @@ test('favicon gate rejects missing, mismatched and HTML-fallback icon assets', t
   assert.match(runLive(root, { [iconPath]: icon.replace('M0 0', 'M1 1') }).stderr, /asset differs from the verified local build/);
   assert.match(runLive(root, { '/': landing.replace(iconLink, '') }).stderr, /favicon missing/);
 });
+
+
+test('rejects a changed live homepage even when editor and favicon references match', () => {
+  const root = fixture();
+  try {
+    const changed = landing.replace('Privacy</a>', 'Privacy notice</a>');
+    const result = runLive(root, { '/': changed });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Live website page differs from the verified local build: \/$/m);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('rejects changed live OAuth callback and privacy content', () => {
+  const root = fixture();
+  try {
+    for (const [path, changed] of [
+      ['/oauth-callback.html', callback + '<!-- outdated -->'],
+      ['/privacy.html', privacy + '<!-- outdated -->'],
+    ]) {
+      const result = runLive(root, { [path]: changed });
+      assert.notEqual(result.status, 0, path);
+      assert.match(result.stderr, /Live website page differs from the verified local build/);
+      assert.ok(result.stderr.includes(path));
+    }
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
