@@ -29,8 +29,11 @@ export default function CommandPalette({ keymap, isMac, onRunCommand, onClose }:
     const runnable = COMMANDS.filter((command) => command.id !== 'app.commandSearch');
     const needle = query.trim().toLowerCase();
     if (!needle) return runnable;
-    return runnable.filter((command) => command.label.toLowerCase().includes(needle));
-  }, [query]);
+    return runnable.filter((command) =>
+      command.label.toLowerCase().includes(needle) ||
+      chordLabel(keymap[command.id], isMac).toLowerCase().includes(needle)
+    );
+  }, [query, keymap, isMac]);
 
   useEffect(() => {
     setHighlighted((index) => (matches.length === 0 ? 0 : Math.min(index, matches.length - 1)));
@@ -102,7 +105,7 @@ export default function CommandPalette({ keymap, isMac, onRunCommand, onClose }:
           className="max-h-[50vh] space-y-0.5 overflow-y-auto text-sm"
         >
           {matches.length === 0 && (
-            <li className="px-2 py-3 text-[var(--text-secondary)]">No matching command.</li>
+            <li className="px-2 py-3 text-[var(--text-secondary)]">No matching commands. Try a tool name or keyboard shortcut.</li>
           )}
           {matches.map((command, index) => (
             <li key={command.id} id={`v2-command-option-${command.id}`} role="option" aria-selected={index === highlighted}>
