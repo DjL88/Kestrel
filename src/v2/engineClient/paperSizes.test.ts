@@ -33,3 +33,21 @@ test('orientation swaps a chosen paper canvas, not photograph pixels', () => {
   const landscape = paperDimensions('A3', 'landscape');
   assert.deepEqual(landscape, { width: portrait.height, height: portrait.width });
 });
+
+test('unknown paper preset fails closed instead of reading an absent size', () => {
+  for (const preset of ['A0', 'custom', '__proto__', 'constructor', 'toString', '']) {
+    assert.throws(() => paperDimensions(preset as 'A4', 'portrait'), {
+      name: 'RangeError', message: 'Unknown paper preset',
+    });
+  }
+});
+
+test('unknown orientation fails closed instead of silently selecting landscape', () => {
+  for (const orientation of ['', 'sideways', 'LANDSCAPE', undefined, null]) {
+    assert.throws(() => paperDimensions('A4', orientation as 'portrait'), {
+      name: 'RangeError', message: 'Unknown paper orientation',
+    });
+  }
+  assert.deepEqual(paperDimensions('A4', 'portrait'), { width: 210, height: 297 });
+  assert.deepEqual(paperDimensions('A4', 'landscape'), { width: 297, height: 210 });
+});
