@@ -62,13 +62,14 @@ function frameFor(file: PickedPhoto, stableKey: string, idx: number, exif: ExifM
 async function importLinkedWithoutFullRead(
   file: PickedPhoto & { path: string }, stableKey: string,
   previewProvider: BrowserPreviewProvider, uncachedPreviewKeys: string[],
-): Promise<ExifMetadata | null> {
+): Promise<{ exif: ExifMetadata; originalSha256: string } | null> {
   // Reading the first 1 MiB doubles as a check that ranged reading works on this drive. If opening or reading fails
   // (an unusual share, an older app permission), the whole file is read instead: a photo is never dropped for it.
   let range: Awaited<ReturnType<typeof openLinkedRange>> | null = null;
   let source: Blob | RangeBlob | null = null;
   let head: Blob | null = null;
   let exif: ExifMetadata;
+  let originalSha256: string;
   try {
     range = await openLinkedRange(file.path, file.size);
     head = await headBlob(range.blob);
@@ -88,6 +89,14 @@ async function importLinkedWithoutFullRead(
       if (whole.size !== file.size || whole.lastModified !== file.lastModified) return null;
       source = whole;
       head = await headBlob(whole);
+    }
+    // Fingerprint exact bytes before exposing a linked original or cached preview.
+    // RangeBlob hashes in bounded 1 MiB slices and rejects truncated reads.
+    try {
+      originalSha256 = await hashOriginalBytes(source);
+    } catch {
+      // A failed or short ranged read cannot establish identity; do not register the photo.
+      return null;
     }
     previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified, file.size), openRange: linkedRangeOpener(file.path, file.size), size: file.size, lastModified: file.lastModified });
     try {
@@ -109,7 +118,7 @@ async function importLinkedWithoutFullRead(
   } catch {
     return null;
   }
-  return exif;
+  return { exif, originalSha256 };
 }
 
 export async function loadLocalFileListShoot(
@@ -157,9 +166,9 @@ export async function loadLocalFileListShoot(
         if (file.path && isDesktopApp()) {
           // Stays where it is on the disk: nothing is copied into the app, and it is read again when needed.
           // Only the embedded preview and the EXIF are read here, not the whole RAW (about 3 MB of a 29 MB NEF).
-          const exif = await importLinkedWithoutFullRead(file as PickedPhoto & { path: string }, stableKey, previewProvider, uncachedPreviewKeys);
-          if (exif === null) return null;
-          return frameFor(file, stableKey, idx, exif);
+          const imported = await importLinkedWithoutFullRead(file as PickedPhoto & { path: string }, stableKey, previewProvider, uncachedPreviewKeys);
+          if (imported === null) return null;
+          return { ...frameFor(file, stableKey, idx, imported.exif), originalSha256: imported.originalSha256 };
         }
         let opened: File;
         let originalSha256: string | undefined;
