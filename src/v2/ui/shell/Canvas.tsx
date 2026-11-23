@@ -1,3 +1,4 @@
+import { stepFrom, swipeIntent } from '../utils/swipe';
 import React, { useEffect, useRef, useState } from 'react';
 import type {
   CropTransform,
@@ -44,6 +45,8 @@ interface CanvasProps {
   isFullScreen: boolean;
   calmView: boolean;
   onSelectSize: (sizeId: string, modifiers?: { ctrl?: boolean }) => void;
+  /** Phone swipe left or right on the photo: go to the next (1) or previous (-1) photo. */
+  onStepPhoto?: (delta: 1 | -1) => void;
   onSelectAllSizes: (photoId: string) => void;
   onSetLayoutMode: (mode: 'single' | 'all-formats') => void;
   onMoveArtboard: (photoId: string, sizeId: string, boardX: number, boardY: number) => void;
@@ -77,6 +80,7 @@ export default function Canvas({
   isFullScreen,
   calmView,
   onSelectSize,
+  onStepPhoto,
   onSelectAllSizes,
   onSetLayoutMode,
   onMoveArtboard,
@@ -109,6 +113,7 @@ export default function Canvas({
     return () => observer.disconnect();
   }, []);
   const [holdingOriginal, setHoldingOriginal] = useState(false);
+  const swipeRef = useRef<{ x: number; y: number; t: number; pinched: boolean } | null>(null);
   const holdRef = useRef<{ timer: number | null; x: number; y: number; active: boolean }>({ timer: null, x: 0, y: 0, active: false });
   const [draggingType, setDraggingType] = useState<'none' | 'pan' | 'crop' | 'text' | 'watermark' | 'board'>('none');
 
@@ -406,8 +411,10 @@ export default function Canvas({
         centreX: (a.x + b.x) / 2, centreY: (a.y + b.y) / 2,
       };
       endHold();
+      if (swipeRef.current) swipeRef.current.pinched = true;
     } else if (touchPoints.current.size === 1) {
       handleFramePointerDown(e, 'pan', activeSize, e.currentTarget);
+      swipeRef.current = { x: e.clientX, y: e.clientY, t: performance.now(), pinched: false };
       endHold();
       holdRef.current.x = e.clientX; holdRef.current.y = e.clientY;
       holdRef.current.timer = window.setTimeout(() => {
@@ -450,7 +457,23 @@ export default function Canvas({
   };
   const handleTouchEnd = (e: React.PointerEvent<HTMLElement>) => {
     if (!touchPoints.current.delete(e.pointerId)) return false;
+    const heldOriginal = holdRef.current.active;
     endHold();
+    // A clean one-finger flick on an unzoomed photo steps through photos (left/right) or formats (up/down). A pinch, a hold,
+    // crop positioning or a zoomed picture (where a drag moves the picture) never counts.
+    const swipe = swipeRef.current;
+    if (touchPoints.current.size === 0) {
+      swipeRef.current = null;
+      if (swipe && !swipe.pinched && !heldOriginal && revealSizeId !== activeSize.id && activeSize.crop.zoom <= 1) {
+        const intent = swipeIntent(e.clientX - swipe.x, e.clientY - swipe.y, performance.now() - swipe.t);
+        if (intent === 'next-photo') onStepPhoto?.(1);
+        else if (intent === 'previous-photo') onStepPhoto?.(-1);
+        else if (intent === 'next-format' || intent === 'previous-format') {
+          const next = stepFrom(photo.sizes.filter((size) => size.kind === 'photo' && size.enabled), activeSize.id, intent === 'next-format' ? 1 : -1);
+          if (next) onSelectSize(next.id);
+        }
+      }
+    }
     touchGesture.current = null;
     handleGlobalPointerUp();
     if (touchPoints.current.size === 1) {
@@ -470,6 +493,7 @@ export default function Canvas({
   const handleTouchCancel = (e: React.PointerEvent<HTMLElement>) => {
     if (!touchPoints.current.has(e.pointerId)) return false;
     endHold();
+    swipeRef.current = null;
     touchPoints.current.clear();
     touchGesture.current = null;
     dragRef.current = null;

@@ -123,3 +123,56 @@ test('press and hold the photo shows the original; letting go shows the edit aga
   await expect(studio.getByRole('status').filter({ hasText: 'Showing the original' })).toHaveCount(0);
   await touch('touchEnd');
 });
+
+test('swipe on the photo: left or right steps through photos, up or down through formats; a pinch-free flick only', async ({ page, context }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/?v2');
+  const studio = page.locator('.inflight-v2');
+  await expect(studio.getByText('No projects yet')).toBeVisible();
+  await studio.getByRole('button', { name: 'New project' }).first().tap();
+  await page.getByLabel('Project name', { exact: true }).fill('Swipe');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().tap();
+  const png = await page.evaluate(() => {
+    const c = document.createElement('canvas'); c.width = 240; c.height = 160;
+    c.getContext('2d')!.fillRect(0, 0, 240, 160);
+    return c.toDataURL('image/png').split(',')[1];
+  });
+  const picker = page.waitForEvent('filechooser');
+  await studio.getByRole('button', { name: 'Import', exact: true }).tap();
+  await (await picker).setFiles(['swipe-a.png', 'swipe-b.png', 'swipe-c.png'].map((name) => ({ name, mimeType: 'image/png', buffer: Buffer.from(png, 'base64') })));
+  const options = studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option');
+  await expect(options).toHaveCount(3);
+  const frame = studio.getByTestId('canvas-frame');
+  await expect(frame).toBeVisible();
+  const box = (await frame.boundingBox())!;
+  const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+  const cdp = await context.newCDPSession(page);
+  const flick = async (dx: number, dy: number) => {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: cx, y: cy }] });
+    for (const step of [0.25, 0.5, 0.75, 1]) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: cx + dx * step, y: cy + dy * step }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForTimeout(700);
+  };
+  const selectedName = async () => ((await options.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-selected')))).indexOf('true'));
+  await flick(-110, 0); // the first photo is active before anything is selected
+  await expect.poll(selectedName).toBe(1);
+  await flick(-110, 0);
+  await expect.poll(selectedName).toBe(2);
+  await flick(-110, 0); // the last photo: no wrap
+  await expect.poll(selectedName).toBe(2);
+  await flick(110, 0);
+  await expect.poll(selectedName).toBe(1);
+  // A short or slanted drag is not a swipe.
+  await flick(-30, 0);
+  await expect.poll(selectedName).toBe(1);
+  await flick(-100, 90);
+  await expect.poll(selectedName).toBe(1);
+  // Up and down change the format, not the photo.
+  const label = async () => ((await studio.getByTestId('canvas-frame').locator('xpath=../../div[1]/span[1]').textContent()) ?? '').trim();
+  const before = await label();
+  await flick(0, -110);
+  await expect.poll(label).not.toBe(before);
+  await expect.poll(selectedName).toBe(1);
+  await flick(0, 110);
+  await expect.poll(label).toBe(before);
+});
