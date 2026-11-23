@@ -132,6 +132,17 @@ export async function runLook(look: Look, input: LookRenderInput, runner: Engine
       }
     }
   }
+  // A subject-only adjustment must not silently become a no-op when detection is absent.
+  if (!input.subject && look.steps.some(step => step.subject && Object.keys(step.subject).length > 0)) {
+    throw new RangeError('Look requires a subject selection for subject adjustments');
+  }
+  if (input.subject) {
+    const { alpha } = input.subject;
+    if (alpha.length !== input.original.width * input.original.height ||
+        alpha.some(value => !Number.isFinite(value) || value < 0 || value > 1)) {
+      throw new RangeError('Look subject alpha must match original pixels and contain values from 0 to 1');
+    }
+  }
   if (input.maxRetriesPerStep !== undefined && (!Number.isInteger(input.maxRetriesPerStep) || input.maxRetriesPerStep < 0)) {
     throw new RangeError('Look retry count must be a non-negative integer');
   }
