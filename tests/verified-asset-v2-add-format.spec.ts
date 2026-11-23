@@ -38,10 +38,11 @@ test('V2 Add format creates a separate local format and preserves Original on re
   await expect(originalWidth).toHaveValue('600');
   await expect(originalHeight).toHaveValue('450');
 
-  await workspace.getByRole('button', { name: /back|projects/i }).first().click();
-  await expect(workspace.getByText('1 photo', { exact: true })).toBeVisible();
+  await workspace.getByRole('button', { name: 'Back to projects', exact: true }).click();
+  const project = workspace.getByRole('button', { name: 'Format persistence', exact: true });
+  await expect(project).toBeVisible();
   await page.reload();
-  await workspace.getByRole('button', { name: /Open studio/ }).first().click();
+  await project.click();
   await addFormat.click();
   await customLabel.locator('xpath=ancestor::form').getByRole('button', { name: 'Cancel' }).click();
   await expect(customToggle).toBeVisible();
