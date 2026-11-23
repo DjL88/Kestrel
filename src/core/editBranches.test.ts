@@ -166,3 +166,32 @@ test('old edit-only fork remains truthful about unrecorded overlay state', () =>
   const fork = forkEditCheckpoint(legacy, 0, 'fork-legacy', 2000);
   assert.deepEqual(fork.overlay, { text: 'recent credit' }, 'do not invent an old watermark');
 });
+
+test('version branches restore distinct persisted Edit Group choices instead of leaking the active branch', () => {
+  const sourceGroup = {
+    activeId: 'group-primary',
+    groups: [{ id: 'group-primary', name: 'Natural', edit: { exposure: 0.5, warmth: 0, colour: 1 } }],
+  };
+  const original = { ...edited(), v2EditGroups: sourceGroup };
+  const fork = forkEditCheckpoint(original, 1, 'fork-groups', 4000);
+  const forkGroup = {
+    activeId: 'group-crop',
+    groups: [{ id: 'group-crop', name: 'Social', edit: { exposure: -0.5, warmth: 1, colour: 0 } }],
+  };
+  const modifiedFork = { ...fork, v2EditGroups: forkGroup };
+  const back = switchEditVersion(modifiedFork, ROOT_VERSION_ID);
+  assert.deepEqual(back.v2EditGroups, sourceGroup);
+  assert.deepEqual(switchEditVersion(back, 'fork-groups').v2EditGroups, forkGroup);
+  assert.equal(back.originalSha256, original.originalSha256);
+});
+
+test('legacy versions without persisted edit groups do not erase newly created group settings', () => {
+  const old = forkEditCheckpoint(edited(), 1, 'fork-old', 4000);
+  const currentGroups = {
+    activeId: 'group-primary',
+    groups: [{ id: 'group-primary', name: 'My edit', edit: { exposure: 0.2, warmth: 0, colour: 0 } }],
+  };
+  const live = { ...old, v2EditGroups: currentGroups };
+  const back = switchEditVersion(live, ROOT_VERSION_ID);
+  assert.deepEqual(back.v2EditGroups, currentGroups);
+});
