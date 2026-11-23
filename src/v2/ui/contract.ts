@@ -18,7 +18,7 @@ export interface PhotoHistogram {
 }
 export type TileState = 'importing' | 'analysing' | 'ready' | 'unavailable';
 export type AssistMode = 'solo' | 'copilot' | 'autopilot';
-export type ThemeMode = 'dark' | 'light';
+export type ThemeMode = 'dark' | 'light' | 'auto';
 export type PanelId =
   | 'copilot'
   | 'adjust'
