@@ -1,6 +1,7 @@
 import type { FocusPoint } from './exportFraming';
 import type { PhotoSearchEvidence } from './photoSearch';
 import type { EditHistory } from './editHistory';
+import type { EditVersionTree } from './editBranches';
 import type { PhotoFraming } from './photoFraming';
 import type { PhotoEdit } from './photoEdits';
 
@@ -68,6 +69,8 @@ export interface PhotoFrame {
   decision: CullDecision;
   edit?: PhotoEdit;
   editHistory?: EditHistory;
+  /** Saved non-destructive edit versions; only recipes/metadata, never original pixels. */
+  editVersions?: EditVersionTree;
   /** Per-format action history, validated at the V2 boundary. */
   formatHistory?: unknown;
   /** Edit recipe when the user last requested a file download, stored locally. */
