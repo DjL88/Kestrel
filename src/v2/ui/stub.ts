@@ -1620,6 +1620,21 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
+    setSplitFrameCount: (photoId, sizeId, count) => {
+      if (![1, 2, 3].includes(count)) return;
+      logAction('setSplitFrameCount', { photoId, sizeId, count });
+      updatePhotoById(photoId, (photo) => {
+        if (!photo.sizes.some((size) => size.id === sizeId && size.kind === 'photo')) return photo;
+        const formatSplits = { ...(photo.formatSplits ?? {}) };
+        if (count === 1) delete formatSplits[sizeId];
+        else formatSplits[sizeId] = {
+          enabled: true, offset: formatSplits[sizeId]?.offset ?? 0,
+          ...(count === 3 ? { count: 3 as const } : {}),
+        };
+        return { ...photo, formatSplits };
+      });
+    },
+
     setSplitPanOffset: (photoId, offset) => {
       updatePhotoById(photoId, (photo) => ({
         ...photo,
