@@ -29,17 +29,18 @@ function requireText(path) {
   if (!existsSync(path) || !statSync(path).isFile()) throw new Error('Required website file missing: ' + path);
   return readFileSync(path, 'utf8');
 }
-const editorPath = '/editor/demo-editor.html';
+const editorPaths = { 'demo-editor': '/editor/demo-editor.html', 'demo-v2': '/editor/demo-v2.html' };
 const callbackPath = '/oauth-callback.html';
 const privacyPath = '/privacy.html';
-const embedsEditor = html => /<iframe\b[^>]*\ssrc=["']\/?editor\/demo-editor\.html["']/i.test(html);
+/** Which compiled editor the homepage embeds: the Version 2 demo (preferred) or the current editor. */
+const embeddedEditor = html => (/<iframe\b[^>]*\ssrc=["']\/?editor\/demo-v2\.html["']/i.test(html) ? 'demo-v2' : /<iframe\b[^>]*\ssrc=["']\/?editor\/demo-editor\.html["']/i.test(html) ? 'demo-editor' : null);
 
 function builtAssets(html) {
   const root = [...html.matchAll(/<div\b[^>]*>/gi)].find(([tag]) => /\sid=["']root["']/i.test(tag));
   if (!root || !/\sdata-demo-editor(?=\s|[=>])/i.test(root[0])) {
     throw new Error('The compiled editor entry point is missing its demo editor marker.');
   }
-  if (/\ssrc=["']\/src\/demo\/main\.tsx/.test(html)) {
+  if (/\ssrc=["']\/src\/demo\/(?:v2\/)?main\.tsx/.test(html)) {
     throw new Error('Found a development entry point, not the compiled website editor.');
   }
   const references = [...html.matchAll(/<(script|link)\b[^>]*?\s(src|href)=["']([^"']+)["']/gi)]
@@ -68,11 +69,12 @@ async function main() {
   if (!requireText(join(dir, callbackPath.slice(1))).includes('Finishing sign-in')) {
     throw new Error('The sign-in callback page is not the expected page: ' + callbackPath);
   }
-  if (!embedsEditor(landing)) {
+  const embedded = embeddedEditor(landing);
+  if (!embedded) {
     throw new Error('The homepage does not embed the compiled photo editor.');
   }
-  const demo = requireText(join(dir, 'editor', 'demo-editor.html'));
-  const assets = builtAssets(demo);
+  // The owner's Demo Studio still uses demo-editor.html, so it must stay compiled whichever one the homepage shows.
+  const assets = [...new Set((embedded === 'demo-v2' ? ['demo-editor', 'demo-v2'] : ['demo-editor']).flatMap((name) => builtAssets(requireText(join(dir, 'editor', name + '.html')))))].sort();
   for (const asset of assets) {
     const file = join(dir, asset.slice(1));
     if (!existsSync(file) || !statSync(file).isFile() || statSync(file).size === 0) {
@@ -90,7 +92,7 @@ async function main() {
   }
   const base = new URL(liveUrl);
   if (base.protocol !== 'https:') throw new Error('Live URL must use HTTPS.');
-  for (const suffix of ['/', editorPath, callbackPath, privacyPath, ...assets]) {
+  for (const suffix of ['/', editorPaths[embedded], callbackPath, privacyPath, ...assets]) {
     const uri = new URL(suffix, base);
     uri.searchParams.set('kestrel-health-check', String(Date.now()));
     const response = await fetch(uri, { signal: AbortSignal.timeout(15_000), headers: { accept: 'text/html,application/javascript,text/css,*/*' } });
@@ -99,10 +101,10 @@ async function main() {
     if (!data.trim() || data.includes('Page Not Found') || (assets.includes(suffix) && /^\s*(?:<!doctype html|<html)\b/i.test(data))) {
       throw new Error('Live Firebase path returned a missing or wrong asset: ' + uri.pathname);
     }
-    if (suffix === '/' && !embedsEditor(data)) {
+    if (suffix === '/' && !embeddedEditor(data)) {
       throw new Error('Live homepage is stale: no compiled-editor iframe.');
     }
-    if (suffix === editorPath) {
+    if (suffix === editorPaths[embedded]) {
       const liveAssets = builtAssets(data);
       if (liveAssets.length !== assets.length || assets.some((asset, index) => asset !== liveAssets[index])) {
         throw new Error('The live editor page refers to a different set of compiled assets.');
