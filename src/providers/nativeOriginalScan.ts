@@ -107,13 +107,28 @@ export async function verifyScannedOriginalMatches(
   expected: readonly { stableKey: string; originalSha256?: string }[],
   open: (path: string) => Promise<ScannedOriginalRead>,
 ): Promise<{ matches: Map<string, string>; rejected: string[] }> {
-  const saved = new Map(expected.map(frame => [frame.stableKey, frame.originalSha256]));
+  const saved = new Map<string, string | undefined>();
+  const conflicting = new Set<string>();
+  for (const frame of expected) {
+    if (saved.has(frame.stableKey) && saved.get(frame.stableKey) !== frame.originalSha256) conflicting.add(frame.stableKey);
+    saved.set(frame.stableKey, frame.originalSha256);
+  }
+  // A duplicate catalogue identity must never be resolved by last-write-wins.
+  const claimedPaths = new Map<string, string>();
+  const disputedPaths = new Set<string>();
+  for (const [key, path] of suggested) {
+    const normalized = path.replace(/\\/g, '/').toLowerCase();
+    const prior = claimedPaths.get(normalized);
+    if (prior && prior !== key) disputedPaths.add(normalized);
+    claimedPaths.set(normalized, key);
+  }
   const matches = new Map<string, string>();
   const rejected: string[] = [];
   // Sequential bounded reads avoid exhausting network shares with many large NEFs.
   for (const [key, path] of suggested) {
     const fingerprint = saved.get(key);
-    if (typeof fingerprint !== 'string' || !/^[a-f0-9]{64}$/.test(fingerprint)) {
+    if (conflicting.has(key) || disputedPaths.has(path.replace(/\\/g, '/').toLowerCase()) ||
+        typeof fingerprint !== 'string' || !/^[a-f0-9]{64}$/.test(fingerprint)) {
       rejected.push(key); // Legacy or damaged identity: require explicit re-import, not a guessed reconnect.
       continue;
     }

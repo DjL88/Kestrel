@@ -174,3 +174,45 @@ test('same-size substituted bytes, missing SHA and connected/reserved paths cann
   assert.equal(result.matches.size, 0);
   assert.deepEqual(result.rejected, ['bad', 'legacy', 'reserved']);
 });
+
+test('conflicting fingerprints for one stable key never reach the file reader', async () => {
+  const bytes = new Blob([new Uint8Array([1, 2, 3])]);
+  const sha = createHash('sha256').update(new Uint8Array(await bytes.arrayBuffer())).digest('hex');
+  let reads = 0;
+  const result = await verifyScannedOriginalMatches(
+    new Map([['same', '/backup/BIRD.NEF']]),
+    [{ stableKey: 'same', originalSha256: sha }, { stableKey: 'same', originalSha256: 'f'.repeat(64) }],
+    async () => { reads++; return { bytes, unchanged: async () => true, close: async () => {} }; },
+  );
+  assert.equal(reads, 0);
+  assert.equal(result.matches.size, 0);
+  assert.deepEqual(result.rejected, ['same']);
+});
+
+test('two catalogue identities cannot claim one path even with valid identical bytes', async () => {
+  const bytes = new Blob([new Uint8Array([1, 2, 3])]);
+  const sha = createHash('sha256').update(new Uint8Array(await bytes.arrayBuffer())).digest('hex');
+  let reads = 0;
+  const result = await verifyScannedOriginalMatches(
+    new Map([['first', '/NAS/BIRD.NEF'], ['second', '/nas/BIRD.NEF']]),
+    [{ stableKey: 'first', originalSha256: sha }, { stableKey: 'second', originalSha256: sha }],
+    async () => { reads++; return { bytes, unchanged: async () => true, close: async () => {} }; },
+  );
+  assert.equal(reads, 0);
+  assert.equal(result.matches.size, 0);
+  assert.deepEqual(result.rejected, ['first', 'second']);
+});
+
+test('unique verified original remains eligible and closes the reader', async () => {
+  const bytes = new Blob([new Uint8Array([1, 2, 3])]);
+  const sha = createHash('sha256').update(new Uint8Array(await bytes.arrayBuffer())).digest('hex');
+  let closes = 0;
+  const result = await verifyScannedOriginalMatches(
+    new Map([['unique', '/backup/BIRD.NEF']]),
+    [{ stableKey: 'unique', originalSha256: sha }],
+    async () => ({ bytes, unchanged: async () => true, close: async () => { closes++; } }),
+  );
+  assert.equal(result.matches.get('unique'), '/backup/BIRD.NEF');
+  assert.deepEqual(result.rejected, []);
+  assert.equal(closes, 1);
+});
