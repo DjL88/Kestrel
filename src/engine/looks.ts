@@ -148,12 +148,12 @@ export async function runLook(look: Look, input: LookRenderInput, runner: Engine
   }
   if (input.subject) {
     const { alpha } = input.subject;
-    if (alpha.length !== pixelCount ||
+    if (!(alpha instanceof Float32Array) || alpha.length !== pixelCount ||
         alpha.some(value => !Number.isFinite(value) || value < 0 || value > 1)) {
       throw new RangeError('Look subject alpha must match original pixels and contain values from 0 to 1');
     }
   }
-  if (input.maxRetriesPerStep !== undefined && (!Number.isInteger(input.maxRetriesPerStep) || input.maxRetriesPerStep < 0)) {
+  if (input.maxRetriesPerStep !== undefined && (!Number.isSafeInteger(input.maxRetriesPerStep) || input.maxRetriesPerStep < 0 || input.maxRetriesPerStep > 20)) {
     throw new RangeError('Look retry count must be a non-negative integer');
   }
   const maxRetries = input.maxRetriesPerStep ?? 2;
