@@ -68,6 +68,14 @@ describe('completed TIFF structural evidence', () => {
     v.setUint32(10 + 5 * 12 + 8, 300, true);
     assert.match(inspectTiff16Structure(aliased).ok ? '' : (inspectTiff16Structure(aliased) as { ok: false; reason: string }).reason, /overlap/i);
   });
+  it('rejects ICC offsets that alias the TIFF header or directory', () => {
+    for (const offset of [0, 4, 20, 120]) {
+      const aliased = fixture();
+      // ICC tag is the eleventh directory entry in the synthetic fixture.
+      new DataView(aliased.buffer).setUint32(10 + 10 * 12 + 8, offset, true);
+      assert.equal(inspectTiff16Structure(aliased).ok, false, `ICC offset ${offset}`);
+    }
+  });
   it('rejects a strip aliased onto the TIFF directory', () => {
     const aliased = fixture();
     new DataView(aliased.buffer).setUint32(10 + 5 * 12 + 8, 20, true);
