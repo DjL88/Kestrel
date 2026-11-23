@@ -52,4 +52,16 @@ describe('completed TIFF structural evidence', () => {
     const outOfBounds = fixture(); new DataView(outOfBounds.buffer).setUint32(4, 500, true);
     assert.equal(inspectTiff16Structure(outOfBounds).ok, false);
   });
+  it('rejects an ICC profile aliased onto raster bytes', () => {
+    const aliased = fixture();
+    const v = new DataView(aliased.buffer);
+    // Move the single strip to overlap the ICC region, retaining its expected byte count.
+    v.setUint32(10 + 5 * 12 + 8, 300, true);
+    assert.match(inspectTiff16Structure(aliased).ok ? '' : (inspectTiff16Structure(aliased) as { ok: false; reason: string }).reason, /overlap/i);
+  });
+  it('rejects a strip aliased onto the TIFF directory', () => {
+    const aliased = fixture();
+    new DataView(aliased.buffer).setUint32(10 + 5 * 12 + 8, 20, true);
+    assert.equal(inspectTiff16Structure(aliased).ok, false);
+  });
 });
