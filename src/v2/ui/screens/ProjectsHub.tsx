@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import type { HubViewState, Project, ThemeMode } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon, { BrandLogo } from '../icons/BrandIcon';
+import { useLicence } from '../../../providers/licenceStore';
+import { footerKiteLogo } from '../footerKiteLogo';
 
 interface ProjectsHubProps {
   projects: Project[];
@@ -32,6 +34,10 @@ export default function ProjectsHub({
   onToggleTheme,
   onSetHubState,
 }: ProjectsHubProps) {
+  // Account status is a verified licence decision, not a self-reported Pro UI flag.
+  const licence = useLicence();
+  const hasVerifiedPro = (licence.status === 'valid' || licence.status === 'account') && licence.access.pro;
+  const footerLogo = footerKiteLogo(theme, hasVerifiedPro);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'edited' | 'name' | 'photos' | 'flagged'>('edited');
   const [failedCovers, setFailedCovers] = useState<string[]>([]);
@@ -273,8 +279,16 @@ export default function ProjectsHub({
       </main>
       <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3 text-xs text-[var(--text-secondary)] sm:px-10">
         <div className="flex flex-wrap items-center gap-3">
-          <BrandIcon name="bird" size={17}/>
-          <span>InFlight</span>
+          <img
+            src={footerLogo}
+            alt=""
+            aria-hidden="true"
+            width={74}
+            height={34}
+            className="h-[34px] w-[74px] shrink-0 object-contain"
+            data-testid="inflight-footer-kite"
+          />
+          <span className="font-semibold text-[var(--text-primary)]">InFlight</span>
           <a href="/privacy.html" className="underline-offset-2 hover:underline">{STRINGS.hub.privacyLink}</a>
         </div>
         <button type="button" onClick={onToggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
