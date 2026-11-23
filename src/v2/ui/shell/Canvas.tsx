@@ -938,32 +938,32 @@ export default function Canvas({
                     type="button"
                     aria-label={`Drag ${name} crop corner`}
                     onPointerDown={(e) => handleFramePointerDown(e, `scale-${id}`, activeSize, e.currentTarget.closest('[data-testid="crop-ghost"]') as HTMLElement)}
-                    className={`absolute z-20 h-3.5 w-3.5 rounded-sm border-2 border-white bg-[var(--bg-scrim)] shadow hover:bg-[var(--brand-accent)] ${place}`}
+                    className={`pointer-events-auto absolute z-20 h-3.5 w-3.5 rounded-sm border-2 border-white bg-[var(--bg-scrim)] shadow hover:bg-[var(--brand-accent)] ${place}`}
                   />
                 ))}
                 <button
                   type="button"
                   aria-label="Drag top crop edge"
                   onPointerDown={(e) => handleFramePointerDown(e, 'scale-top', activeSize, e.currentTarget.closest('[data-testid="crop-ghost"]') as HTMLElement)}
-                  className="absolute left-1/2 top-1 z-20 h-1.5 w-12 -translate-x-1/2 cursor-ns-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
+                  className="pointer-events-auto absolute left-1/2 top-1 z-20 h-1.5 w-12 -translate-x-1/2 cursor-ns-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
                 />
                 <button
                   type="button"
                   aria-label="Drag bottom crop edge"
                   onPointerDown={(e) => handleFramePointerDown(e, 'scale-bottom', activeSize, e.currentTarget.closest('[data-testid="crop-ghost"]') as HTMLElement)}
-                  className="absolute bottom-1 left-1/2 z-20 h-1.5 w-12 -translate-x-1/2 cursor-ns-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
+                  className="pointer-events-auto absolute bottom-1 left-1/2 z-20 h-1.5 w-12 -translate-x-1/2 cursor-ns-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
                 />
                 <button
                   type="button"
                   aria-label="Drag left crop edge"
                   onPointerDown={(e) => handleFramePointerDown(e, 'scale-left', activeSize, e.currentTarget.closest('[data-testid="crop-ghost"]') as HTMLElement)}
-                  className="absolute left-1 top-1/2 z-20 h-12 w-1.5 -translate-y-1/2 cursor-ew-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
+                  className="pointer-events-auto absolute left-1 top-1/2 z-20 h-12 w-1.5 -translate-y-1/2 cursor-ew-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
                 />
                 <button
                   type="button"
                   aria-label="Drag right crop edge"
                   onPointerDown={(e) => handleFramePointerDown(e, 'scale-right', activeSize, e.currentTarget.closest('[data-testid="crop-ghost"]') as HTMLElement)}
-                  className="absolute right-1 top-1/2 z-20 h-12 w-1.5 -translate-y-1/2 cursor-ew-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
+                  className="pointer-events-auto absolute right-1 top-1/2 z-20 h-12 w-1.5 -translate-y-1/2 cursor-ew-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
                 />
                 </div>
               </div>
