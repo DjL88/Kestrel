@@ -77,3 +77,13 @@ export function applyRecipePatch(edit: PhotoEdit | undefined, patch: Partial<Edi
   const unmapped = UNMAPPED_KEYS.filter((key) => !neutral(patch[key], NEUTRAL_RECIPE[key]));
   return { edit: next, unmapped };
 }
+
+/**
+ * A Look hover is a temporary, non-persistent edit of the actual renderer.
+ * Apply from the photo's current recipe, not from an already edited raster:
+ * FrameImage draws the candidate from the same source as Apply/export.
+ * Returning the same reference when nothing is hovered avoids redraws.
+ */
+export function previewLookEdit(edit: PhotoEdit | undefined, lookDelta?: Partial<EditRecipe>): PhotoEdit | undefined {
+  return lookDelta ? applyRecipePatch(edit, lookDelta).edit : edit;
+}
