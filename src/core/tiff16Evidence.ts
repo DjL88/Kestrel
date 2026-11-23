@@ -18,7 +18,7 @@ export function inspectTiff16Structure(bytes: Uint8Array): { ok: true; width: nu
   if (!inRange(ifd, 2)) return fail('TIFF directory is out of bounds.');
   const count = u16(ifd);
   if (count > 256 || !inRange(ifd + 2, count * 12 + 4)) return fail('TIFF directory is malformed.');
-  const tags = new Map<number, { type: number; count: number; offset: number }>();
+  // Only certify a single image: a linked second IFD could carry a different\n  // raster or thumbnail, making the verified dimensions ambiguous.\n  if (u32(ifd + 2 + count * 12) !== 0) return fail('Multi-page TIFF is not supported for RAW16 evidence.');\n  const tags = new Map<number, { type: number; count: number; offset: number }>();
   for (let i = 0; i < count; i++) {
     const at = ifd + 2 + i * 12;
     const tag = u16(at);
