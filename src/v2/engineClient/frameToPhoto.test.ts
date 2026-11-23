@@ -185,8 +185,8 @@ test('a saved split belongs only to its selected output format, not the whole ph
 
 test('older photo-wide split is migrated visually to Original only, preserving the offset', () => {
   const photo = frameToPhoto(frame({ splitFrames: true, splitPanOffset: -8 }), undefined);
-  assert.deepEqual(photo.formatSplits, { 'orig-3x2': { enabled: true, offset: -8 } });
   assert.equal(photo.formatSplits?.['ig-portrait'], undefined);
+  assert.deepEqual(photo.formatSplits, { 'orig-3x2': { enabled: true, offset: -8 } });
 });
 
 test('an explicitly empty per-format split selection disables the legacy photo-wide split', () => {
