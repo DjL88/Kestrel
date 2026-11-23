@@ -5,7 +5,7 @@ import { createEmptyProject } from './projects';
 import { encodeProjectBackup, restoreProjectBackup } from './projectBackup';
 
 test('the wizard starts with both helpers on, and old projects keep them off', () => {
-  assert.deepEqual(WIZARD_DEFAULTS, { autoCull: true, autoEdit: true });
+  assert.deepEqual(WIZARD_DEFAULTS, { autoCull: true, autoEdit: true, pilotMode: 'solo' });
   assert.deepEqual(parseSettings(undefined), LEGACY_SETTINGS);
   assert.deepEqual(parseSettings({ autoCull: true, autoEdit: 'yes' }), { autoCull: true, autoEdit: false });
   assert.deepEqual(parseSettings('nope'), LEGACY_SETTINGS);
@@ -29,4 +29,15 @@ test('a new project carries its target and settings, and a backup keeps them', (
 test('a project made without options keeps the default target and no settings', () => {
   const project = createEmptyProject('p', 'Old style');
   assert.equal(project.settings, undefined);
+});
+
+test('per-project pilot mode roundtrips through project backup and invalid values are discarded', () => {
+  const project = createEmptyProject('p', 'Wildlife', {
+    keeperTarget: 20, settings: { autoCull: true, autoEdit: true, pilotMode: 'autopilot' },
+  });
+  const restored = restoreProjectBackup(encodeProjectBackup(project), 'restored');
+  assert.equal(restored.settings?.pilotMode, 'autopilot');
+  assert.equal(restored.keeperTarget, 20);
+  assert.equal(parseSettings({ autoCull: true, autoEdit: true, pilotMode: 'unsupported' }).pilotMode, undefined);
+  assert.equal(parseSettings({ autoCull: true, autoEdit: true, pilotMode: 'copilot' }).pilotMode, 'copilot');
 });
