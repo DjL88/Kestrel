@@ -30,10 +30,10 @@ test('stale and duplicate selected IDs are removed even on an unavailable target
     available, selected: ['deleted', 'portrait', 'portrait', 'gone', 'story'], active: 'deleted', target: 'missing', ctrl: true,
   }), { active: 'portrait', selected: ['portrait', 'story'] });
 });
-test('invalid anchor falls back to a live selection for Shift range', () => {
+test('deleted Shift anchor selects target only rather than an unrelated range', () => {
   assert.deepEqual(chooseFormatSelection({
     available, selected: ['deleted', 'portrait'], active: 'deleted', target: 'story', shift: true,
-  }), { active: 'story', selected: ['portrait', 'wide', 'story'] });
+  }), { active: 'story', selected: ['story'] });
 });
 test('Ctrl+Shift preserves existing order, excludes stale IDs and adds each range member once', () => {
   assert.deepEqual(chooseFormatSelection({
@@ -57,5 +57,16 @@ test('blank catalogue IDs never become active or selected', () => {
 test('duplicate catalogue IDs do not distort shift selection ranges', () => {
   assert.deepEqual(chooseFormatSelection({
     available: ['original', 'portrait', 'portrait', 'wide'], selected: ['original'], active: 'original', target: 'wide', shift: true,
+  }), { active: 'wide', selected: ['original', 'portrait', 'wide'] });
+});
+
+test('deleted anchor with Ctrl+Shift preserves independent live picks without phantom range', () => {
+  assert.deepEqual(chooseFormatSelection({
+    available, selected: ['deleted', 'story', 'story'], active: 'deleted', target: 'portrait', shift: true, ctrl: true,
+  }), { active: 'portrait', selected: ['story', 'portrait'] });
+});
+test('valid Shift anchor retains the contiguous range after cleaning stale selected IDs', () => {
+  assert.deepEqual(chooseFormatSelection({
+    available, selected: ['deleted', 'story'], active: 'original', target: 'wide', shift: true,
   }), { active: 'wide', selected: ['original', 'portrait', 'wide'] });
 });
