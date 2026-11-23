@@ -377,7 +377,13 @@ export default function ProjectsHub({
             {projectCreateError && <p role="alert" className="text-xs text-[var(--semantic-danger)]">{projectCreateError}</p>}
             <button
               type="button"
-              onClick={() => { setModalOpen(false); onCreateFromFolder(); }}
+              onClick={() => {
+                const keeperTarget = parseTarget(keeperTargetInput);
+                if (keeperTarget === null) { setProjectCreateError('Enter a target from 1 to 9,999 photographs.'); return; }
+                onCreateFromFolder({ keeperTarget, settings: { ...WIZARD_DEFAULTS, pilotMode: projectPilotMode } });
+                setProjectCreateError('');
+                setModalOpen(false);
+              }}
               className="flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] text-xs font-medium text-[var(--text-primary)]"
             >
               <BrandIcon name="folder" size={16} />
