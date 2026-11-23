@@ -45,9 +45,18 @@ let version = 0;
 const setStatus = (projectId: string, status: BackupStatus) => { statuses.set(projectId, status); version += 1; listeners.forEach((listener) => listener()); };
 
 /** A successful local recovery copy is independent of an optional source copy. */
-async function writeSnapshot(connector: import('../core/storageConnectors').StorageConnector,
+export async function writeSnapshot(connector: import('../core/storageConnectors').StorageConnector,
   projectId: string, name: string, payload: Uint8Array): Promise<void> {
   await connector.put(name, payload, '');
+  // A successful put only confirms the transport accepted the bytes. Disk-full,
+  // interrupted NAS writes and misbehaving connectors can leave a truncated file.
+  // Never advance the backup clock or prune older recovery copies until the
+  // stored snapshot can be read back byte-for-byte.
+  const stored = await connector.get(name);
+  if (!stored || stored.byteLength !== payload.byteLength ||
+      stored.some((byte, index) => byte !== payload[index])) {
+    throw new Error('Backup verification failed: saved bytes differ from the project snapshot. Older backups were preserved.');
+  }
   // Retention is best effort; never report a valid backup as failed because
   // an old copy could not be removed from a disconnected drive.
   try {
