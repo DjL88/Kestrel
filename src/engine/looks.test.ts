@@ -34,6 +34,32 @@ describe('createCustomLook', () => {
 });
 
 describe('runLook', () => {
+  it('rejects invalid original RGBA metadata before rendering even for an empty Look', async () => {
+    const valid = flat(16, [120, 120, 120]);
+    const invalid: Pixels[] = [
+      { ...valid, width: 0 },
+      { ...valid, height: -1 },
+      { ...valid, width: 1.5 },
+      { ...valid, width: Number.NaN },
+      { ...valid, width: Number.POSITIVE_INFINITY },
+      { ...valid, width: Number.MAX_SAFE_INTEGER },
+      { ...valid, data: new Uint8ClampedArray(12) },
+      { ...valid, data: new Uint8Array(valid.data) as unknown as Uint8ClampedArray },
+    ];
+    let calls = 0;
+    const look = createCustomLook('empty', 'Empty', 'no steps', []);
+    for (const original of invalid) {
+      await assert.rejects(runLook(look, {
+        original, render: async () => { calls++; return valid; },
+      }), RangeError);
+    }
+    assert.equal(calls, 0);
+    const result = await runLook(look, { original: valid, render: async () => { calls++; return valid; } });
+    assert.equal(calls, 0);
+    assert.equal(result.finalPixels, valid);
+    assert.deepEqual(result.combinedEdit, {});
+  });
+
   it('rejects non-finite whole-photo and subject adjustments without rendering', async () => {
     const original = flat(16, [120, 120, 120]);
     let calls = 0;
@@ -67,7 +93,7 @@ describe('runLook', () => {
     const look = createCustomLook('subject', 'Subject', 'mask validation', [
       { label: 'Subject clarity', capability: 'mask', background: {}, subject: { clarity: 0.2 } },
     ]);
-    const invalid = [new Float32Array(4), new Float32Array(256).fill(Number.NaN),
+    const invalid = [new Uint8Array(256).fill(1) as unknown as Float32Array, new Float64Array(256).fill(1) as unknown as Float32Array, new Float32Array(4), new Float32Array(256).fill(Number.NaN),
       new Float32Array(256).fill(Number.POSITIVE_INFINITY), new Float32Array(256).fill(-0.1),
       new Float32Array(256).fill(1.1)];
     for (const alpha of invalid) {
@@ -85,29 +111,33 @@ describe('runLook', () => {
     const look = createCustomLook('retry', 'Retry', 'retry validation', [
       { label: 'Edit', capability: 'denoise', background: { denoise: 0.2 } },
     ]);
-    for (const maxRetriesPerStep of [-1, 1.5, Number.POSITIVE_INFINITY]) {
+    for (const maxRetriesPerStep of [-1, 1.5, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER, 21]) {
       await assert.rejects(runLook(look, { original, maxRetriesPerStep, render: async () => { calls++; return original; } }), RangeError);
     }
     assert.equal(calls, 0);
+    const bounded = await runLook(look, { original, maxRetriesPerStep: 20, render: async () => original });
+    assert.equal(bounded.steps.length, 1);
   });
 
-  it('rejects renderer output with wrong dimensions or RGBA buffer length', async () => {
+  it('rejects malformed renderer output rather than accepting or persisting a Look', async () => {
     const original = flat(16, [120, 120, 120]);
-    const look = createCustomLook('shape', 'Shape', 'validate render', [
-      { label: 'Exposure', capability: 'denoise', background: { exposure: 0.1 } },
+    const look = createCustomLook('invalid-render', 'Invalid render', 'pixel contract', [
+      { label: 'Step', capability: 'denoise', background: { denoise: 0.2 } },
     ]);
     const invalid: Pixels[] = [
-      flat(8, [121, 121, 121]),
-      { ...flat(16, [121, 121, 121]), data: new Uint8ClampedArray(4) },
-      { ...flat(16, [121, 121, 121]), width: 8, height: 32 },
+      { ...original, width: 8 },
+      { ...original, height: 8 },
+      { ...original, width: Number.NaN },
+      { ...original, data: new Uint8ClampedArray(12) },
+      { ...original, data: new Uint8Array(16 * 16 * 4) as unknown as Uint8ClampedArray },
     ];
-    for (const output of invalid) {
-      let calls = 0;
+    let calls = 0;
+    for (const pixels of invalid) {
       await assert.rejects(runLook(look, {
-        original, render: async () => { calls++; return output; },
+        original, render: async () => { calls++; return pixels; },
       }), RangeError);
-      assert.equal(calls, 1);
     }
+    assert.equal(calls, invalid.length);
   });
 
   it('runs a single-step Look that passes verification on the first attempt', async () => {

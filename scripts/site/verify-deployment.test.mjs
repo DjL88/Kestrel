@@ -241,19 +241,60 @@ test('both Version 2 editor URLs must serve the same exact compiled HTML', t => 
   assert.match(runLive(root, { ...pages, '/editor/demo-v2.html': stale }).stderr, /Live editor HTML differs/);
 });
 
-
-test('live admin is byte-identical to the locally verified release', () => {
+test('live verification requires a bare HTTPS origin and rejects URL confusion', t => {
   const root = fixture();
-  try {
-    const valid = runLive(root, {});
-    assert.equal(valid.status, 0, valid.stderr);
-    for (const stale of ['<h1>Old Admin</h1>', '<!doctype html><html><body>SPA fallback</body></html>', '']) {
-      const result = runLive(root, { '/admin.html': stale });
-      assert.notEqual(result.status, 0, 'stale or empty admin must fail');
-      assert.match(result.stderr, /Live website page differs from the verified local build: \/admin\.html|missing or wrong asset/);
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  for (const url of [
+    'http://demo.example.test',
+    'https://user:secret@demo.example.test',
+    'https://demo.example.test/editor',
+    'https://demo.example.test/?release=old',
+    'https://demo.example.test/#editor',
+  ]) {
+    const result = run(root, '--live-url=' + url);
+    assert.notEqual(result.status, 0, url);
+    assert.match(result.stderr, /Live URL must/, url);
+  }
+});
+
+test('live verification rejects a redirected response even when content matches', t => {
+  const root = fixture();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const pages = {
+    '/': landing,
+    '/admin.html': '<h1>Admin</h1>',
+    '/oauth-callback.html': callback,
+    '/privacy.html': privacy,
+    [iconPath]: icon,
+    '/editor/demo-editor.html': demo('InFlight editor demonstration'),
+    '/editor/assets/demo.js': bundle,
+  };
+  const stub = `globalThis.fetch = async url => {
+    const pages = ${JSON.stringify(pages)};
+    const body = pages[new URL(url).pathname];
+    const response = new Response(body ?? null, { status: body === undefined ? 404 : 200 });
+    if (new URL(url).pathname === '/editor/demo-editor.html') {
+      Object.defineProperty(response, 'redirected', { value: true });
     }
-    const missing = runLive(root, { '/admin.html': undefined });
-    assert.notEqual(missing.status, 0);
-    assert.match(missing.stderr, /path failed \(404\): \/admin\.html/);
-  } finally { rmSync(root, { recursive: true, force: true }); }
+    return response;
+  };`;
+  const result = spawnSync(process.execPath, [
+    '--import=data:text/javascript,' + encodeURIComponent(stub),
+    script, '--root=' + root, '--live-url=https://demo.example.test',
+  ], { encoding: 'utf8' });
+  assert.notEqual(result.status, 0);
+  assert.ok(result.stderr.includes('Live Firebase path redirected: /editor/demo-editor.html'), result.stderr);
+});
+
+
+test('live admin page must match the locally verified release byte for byte', t => {
+  const root = fixture();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  assert.equal(runLive(root, {}).status, 0);
+  for (const stale of ['<h1>Old Admin</h1>', '<!doctype html><html>Fallback</html>', '']) {
+    const result = runLive(root, { '/admin.html': stale });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Live website page differs|missing or wrong asset/);
+  }
+  assert.match(runLive(root, { '/admin.html': undefined }).stderr, /path failed \(404\): \/admin\.html/);
 });

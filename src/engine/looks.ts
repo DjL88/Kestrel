@@ -118,6 +118,16 @@ function mergeLookMasks(existing: Mask[], incoming: Mask[]): Mask[] {
  * Each trial is rendered as the cumulative accepted recipe against the original pixels. Rejected
  * steps never enter the cumulative recipe. finalPixels therefore represents all accepted steps. */
 export async function runLook(look: Look, input: LookRenderInput, runner: EngineRunner = 'device'): Promise<LookResult> {
+  // The verifier must never compare pixels against a malformed source frame.
+  // Validate before allocating masks or calling any renderer (including empty Looks).
+  const { width, height, data } = input.original;
+  const pixelCount = width * height;
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) ||
+      width <= 0 || height <= 0 || !Number.isSafeInteger(pixelCount) ||
+      !Number.isSafeInteger(pixelCount * 4) ||
+      !(data instanceof Uint8ClampedArray) || data.length !== pixelCount * 4) {
+    throw new RangeError('Look original must contain valid dimensions and RGBA pixels');
+  }
   // Refuse malformed recipes before any render: NaN/Infinity can poison pixel maths
   // and must never enter an accepted, persistent edit recipe.
   for (const step of look.steps) {
@@ -138,13 +148,13 @@ export async function runLook(look: Look, input: LookRenderInput, runner: Engine
   }
   if (input.subject) {
     const { alpha } = input.subject;
-    if (alpha.length !== input.original.width * input.original.height ||
+    if (!(alpha instanceof Float32Array) || alpha.length !== pixelCount ||
         alpha.some(value => !Number.isFinite(value) || value < 0 || value > 1)) {
       throw new RangeError('Look subject alpha must match original pixels and contain values from 0 to 1');
     }
   }
-  if (input.maxRetriesPerStep !== undefined && (!Number.isInteger(input.maxRetriesPerStep) || input.maxRetriesPerStep < 0)) {
-    throw new RangeError('Look retry count must be a non-negative integer');
+  if (input.maxRetriesPerStep !== undefined && (!Number.isSafeInteger(input.maxRetriesPerStep) || input.maxRetriesPerStep < 0 || input.maxRetriesPerStep > 20)) {
+    throw new RangeError('Look retry count must be an integer from 0 to 20');
   }
   const maxRetries = input.maxRetriesPerStep ?? 2;
   const results: LookStepResult[] = [];
@@ -170,9 +180,13 @@ export async function runLook(look: Look, input: LookRenderInput, runner: Engine
         }
         candidateMasks = mergeLookMasks(acceptedMasks, masks);
         after = await input.render({ ...acceptedEdit, ...background }, candidateMasks);
-        if (after.width !== input.original.width || after.height !== input.original.height ||
-            after.data.length !== input.original.data.length) {
-          throw new RangeError('Look renderer must return the original dimensions and RGBA buffer length');
+        // Verification compares matching RGBA pixels. Never accept a truncated,
+        // resized or malformed render as evidence of a safe, undoable recipe.
+        const expectedLength = input.original.width * input.original.height * 4;
+        if (!Number.isSafeInteger(expectedLength) || expectedLength <= 0 ||
+            after.width !== input.original.width || after.height !== input.original.height ||
+            !(after.data instanceof Uint8ClampedArray) || after.data.length !== expectedLength) {
+          throw new RangeError('Look renderer returned invalid pixel dimensions or RGBA data');
         }
         const detailScope = input.subject && subjectEdit ? 'subject' : 'frame';
         verification = verifyEdit(input.original, after, input.subject?.alpha, detailScope);
