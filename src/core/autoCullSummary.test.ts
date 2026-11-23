@@ -28,3 +28,28 @@ test('remaining photos are counted for review when score is uncertain or a targe
     total: 5, automaticKeep: 1, automaticDuplicate: 1, otherHighReject: 0, needReview: 3,
   });
 });
+
+test('repeat high-confidence worker results count one photo, not multiple keepers', () => {
+  assert.deepEqual(summarizeCullSuggestions([
+    item('bird', 'keep', 'high', 'subjectSharp'),
+    item('bird', 'keep', 'high', 'subjectSharp'),
+  ]), { total: 1, automaticKeep: 1, automaticDuplicate: 0, otherHighReject: 0, needReview: 0 });
+});
+
+test('conflicting worker results stay review-only regardless of message order', () => {
+  const confident = item('bird', 'keep', 'high', 'subjectSharp');
+  for (const conflicting of [
+    item('bird', null, 'low', 'noSubject'),
+    item('bird', 'reject', 'high', 'duplicate'),
+  ]) {
+    for (const results of [
+      [confident, conflicting],
+      [conflicting, confident],
+      [confident, conflicting, confident],
+    ]) {
+      assert.deepEqual(summarizeCullSuggestions(results), {
+        total: 1, automaticKeep: 0, automaticDuplicate: 0, otherHighReject: 0, needReview: 1,
+      });
+    }
+  }
+});
