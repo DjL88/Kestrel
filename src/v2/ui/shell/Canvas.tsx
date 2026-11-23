@@ -439,6 +439,18 @@ export default function Canvas({
     }
     return true;
   };
+  /** A cancelled touch (the browser interrupted it - an edge gesture, an alert, losing focus) is not a finger lift:
+   * treating it like `handleTouchEnd` would start a fresh one-finger pan from whichever touch happens to remain
+   * tracked, continuing a gesture the person never intended to continue. Clear everything instead. */
+  const handleTouchCancel = (e: React.PointerEvent<HTMLElement>) => {
+    if (!touchPoints.current.has(e.pointerId)) return false;
+    touchPoints.current.clear();
+    touchGesture.current = null;
+    dragRef.current = null;
+    setDraggingType('none');
+    setActiveGuides([]);
+    return true;
+  };
 
   const handleGlobalPointerUp = () => {
     if (!dragRef.current) return;
@@ -759,13 +771,15 @@ export default function Canvas({
             }}
             onPointerMove={(e) => { if (e.pointerType === 'touch') { e.stopPropagation(); handleTouchMove(e); } }}
             onPointerUp={(e) => { if (e.pointerType === 'touch') { e.stopPropagation(); handleTouchEnd(e); } }}
-            onPointerCancel={(e) => { if (e.pointerType === 'touch') { e.stopPropagation(); handleTouchEnd(e); } }}
+            onPointerCancel={(e) => { if (e.pointerType === 'touch') { e.stopPropagation(); handleTouchCancel(e); } }}
             onDoubleClick={() => { if (activeSize.kind === 'photo' && !compareMode) setRevealSizeId(revealing ? null : activeSize.id); }}
             title={activeSize.kind === 'photo' ? STRINGS.canvas.cropHintTitle : undefined}
             className={`relative ${revealing ? 'overflow-visible ring-2 ring-[var(--brand-accent)]' : 'overflow-hidden'} rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] select-none ${
               activeSize.kind === 'video' ? 'cursor-crosshair' : revealing ? 'cursor-move' : 'cursor-grab active:cursor-grabbing'
             }`}
-            style={{ width: frameW, height: frameH, touchAction: 'none' }}
+            // Touch scrolling/zooming is only suppressed while this frame can actually run a photo pinch/pan
+            // gesture - elsewhere (video, compare) the surrounding page must keep scrolling normally.
+            style={{ width: frameW, height: frameH, touchAction: activeSize.kind === 'photo' && !compareMode ? 'none' : 'auto' }}
           >
             {revealing && (
               <div
