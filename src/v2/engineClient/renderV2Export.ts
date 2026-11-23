@@ -9,7 +9,7 @@ import type { PhotoFrame } from '../../core/types';
 import type { CropTransform, OverlaySettings } from '../ui/contract';
 import { effectiveOutputSize } from '../ui/utils/studioMath';
 import { anchoredBox, cropPlacement, referenceScale, watermarkBox } from './exportLayout';
-import { cappedContinuousLayout, continuousExportLayout } from './continuousExport';
+import { cappedContinuousLayout, continuousExportLayout, numberedSectionFilename } from './continuousExport';
 
 /** Everything the overlay needs, resolved by the caller from the same description the canvas draws. */
 export interface OverlayDraw {
@@ -213,8 +213,7 @@ export async function renderV2Export(
         if (!blob || blob.type !== mimeType || blob.size === 0) {
           throw new Error(`Could not encode split section ${section.index} at ${section.width} × ${section.height} pixels.`);
         }
-        const suffix = sectionCount === 2 ? `-${String(section.index).padStart(2, '0')}-of-02` : '';
-        const sectionName = suffix ? name.replace(/(\.[^.]+)$/, `${suffix}$1`) : name;
+        const sectionName = numberedSectionFilename(name, section.index, sectionCount);
         sections.push(datedExport(blob, sectionName, date));
       } finally {
         piece.width = 0; piece.height = 0;
