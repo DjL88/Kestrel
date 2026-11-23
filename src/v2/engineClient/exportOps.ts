@@ -13,6 +13,16 @@ export type ExportPlan = { jobs: ExportJob[]; originals: string[]; summary: stri
 const SAFE_PREFIX = /[\\/:*?"<>|\u0000-\u001f]/g;
 const DESTINATIONS = ['local-zip', 'local-individual'] as const;
 
+/** Shrinks width/height so the longer side is at most `maxEdge`, keeping the aspect ratio. Never upscales: a size
+ * already at or under the cap is returned unchanged. `maxEdge` of 0, undefined or non-finite means no cap. */
+function capLongestEdge(size: { width: number; height: number }, maxEdge: number | undefined): { width: number; height: number } {
+  if (!maxEdge || !Number.isFinite(maxEdge) || maxEdge <= 0) return size;
+  const longest = Math.max(size.width, size.height);
+  if (longest <= maxEdge) return size;
+  const scale = maxEdge / longest;
+  return { width: Math.max(1, Math.round(size.width * scale)), height: Math.max(1, Math.round(size.height * scale)) };
+}
+
 /**
  * Turns a V2 export request into one render job per photo and size, or says plainly what cannot be exported yet.
  * Anything the exported file would not honour is refused rather than dropped, so the file always matches what was asked for.
@@ -34,6 +44,8 @@ export function planExport(request: ExportRequest, frames: readonly ExportFrameI
   const quality = format === 'jpeg' ? request.jpegQuality ?? 0.94 : 1;
   if (variants.length && (format !== 'jpeg' && format !== 'png')) return { error: 'Choose JPEG or PNG.' };
   if (variants.length && (!Number.isFinite(quality) || quality < 0 || quality > 1)) return { error: 'Choose a JPEG quality from 0 to 100%.' };
+  const maxEdge = request.maxLongestEdgePx;
+  if (maxEdge !== undefined && (!Number.isFinite(maxEdge) || maxEdge < 0)) return { error: 'Choose a valid maximum size, or leave it at full size.' };
   const jobs: ExportJob[] = [];
   for (const frame of variants.length ? chosen : []) {
     const crops = readCrops(frame.sizeCrops);
@@ -41,8 +53,9 @@ export function planExport(request: ExportRequest, frames: readonly ExportFrameI
     const own = new Map(applyFormats(sizes, frame.formats).map((size) => [size.id, size]));
     for (const size of picked.filter((entry) => own.get(entry.id)?.enabled === true)) {
       if (!Number.isInteger(size.width) || !Number.isInteger(size.height) || size.width < 1 || size.height < 1) return { error: `${size.label} has no usable size.` };
-      jobs.push({ frameId: frame.id, variants, size: { width: size.width, height: size.height }, crop: crops[size.id] ?? { ...DEFAULT_CROP }, format: {
-        id: size.id, label: size.label, width: size.width, height: size.height, fit: 'fill', quality, format,
+      const capped = capLongestEdge({ width: size.width, height: size.height }, maxEdge);
+      jobs.push({ frameId: frame.id, variants, size: capped, crop: crops[size.id] ?? { ...DEFAULT_CROP }, format: {
+        id: size.id, label: size.label, width: capped.width, height: capped.height, fit: 'fill', quality, format,
         prefix: `${size.id.replace(SAFE_PREFIX, '_').slice(0, 24)}_`,
       } });
     }
