@@ -35,6 +35,7 @@ import { applyCanvasPhotoEdit } from '../../core/canvasEdit';
 import { DEFAULT_EDIT as EMPTY_EDIT } from '../../core/photoEdits';
 import { DEFAULT_CROP, flipCrop, patchCrop, rotateCrop } from './cropOps';
 import { readCrops } from './cropOps';
+import { recordFormatCrop, recordFormatSetChange, recordFormatLink } from './formatHistory';
 import { addRow, alignOverlays, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps';
 import { frameToPhoto, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
@@ -661,8 +662,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       frames: current.frames.map((frame) => {
         if (frame.id !== photoId) return frame;
         const crops = readCrops(frame.sizeCrops);
-        for (const id of sizeIds) crops[id] = change(crops[id]);
-        return { ...frame, sizeCrops: crops };
+        let formatHistory = frame.formatHistory;
+        for (const id of sizeIds) {
+          const before = crops[id] ?? DEFAULT_CROP;
+          const after = change(crops[id]);
+          crops[id] = after;
+          formatHistory = recordFormatCrop(formatHistory, id, before, after, at);
+        }
+        return { ...frame, sizeCrops: crops, formatHistory };
       }),
     }));
   }, [mutate]);
@@ -675,7 +682,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const next = change(frame.formats);
     if (!next) return false;
     const at = Date.now();
-    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, formats: next, ...(crops ? { sizeCrops: crops(entry.sizeCrops) } : {}) } : entry)) }));
+    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, formats: next,
+      formatHistory: recordFormatSetChange(entry.formatHistory, entry.formats, next, at, entry.editHistory?.cursor ?? 0),
+      ...(crops ? { sizeCrops: crops(entry.sizeCrops) } : {}) } : entry)) }));
     return true;
   }, [mutate]);
 
