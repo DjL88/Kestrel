@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createSocialDraft } from './socialDraft.ts';
+import { createSocialDraft } from './socialDraft';
 
 test('makes an offline-only draft from explicitly shareable pet and project facts', () => {
   const draft = createSocialDraft({
