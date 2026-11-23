@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/;
+const SEMVER = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
 /** Read just the [package] version, not dependency versions in Cargo.toml. */
 export function cargoPackageVersion(toml) {
@@ -29,7 +29,7 @@ export function verifyVersions({ web, tauri, cargo, tag }) {
   if (new Set(versions.map((entry) => entry[1])).size !== 1) {
     throw new Error(`Desktop release versions differ: ${versions.map(([name, value]) => `${name}=${value}`).join(', ')}`);
   }
-  if (tag && tag !== `v${web}`) {
+  if (tag !== undefined && tag !== `v${web}`) {
     throw new Error(`Git release tag ${tag} does not match application v${web}.`);
   }
   return web;
@@ -48,7 +48,7 @@ export function checkRepositoryVersions(root, tag) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    const version = checkRepositoryVersions(resolve(fileURLToPath(new URL('..', import.meta.url))), process.env.KESTREL_RELEASE_TAG || undefined);
+    const version = checkRepositoryVersions(resolve(fileURLToPath(new URL('..', import.meta.url))), process.env.KESTREL_RELEASE_TAG);
     process.stdout.write(`Kestrel versions match: v${version}\n`);
   } catch (error) {
     process.stderr.write(`Kestrel release blocked: ${error.message}\n`);
