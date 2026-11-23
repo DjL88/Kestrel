@@ -43,6 +43,7 @@ import { moveArtboard } from './boardOps';
 import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
 import { planExport } from './exportOps';
+import { verifyExactOriginalCopy } from './verifiedOriginalCopy';
 import { TEMPLATES_KEY, addTemplate, deleteTemplate, overlayFromTemplate, readTemplates, renameTemplate, type OverlayTemplate } from './overlayTemplates';
 import { addFormat, applyFormats, readFormats, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize } from './formatOps';
 import { patchVideoZoom } from './videoZoomOps';
@@ -481,7 +482,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         if (!frame) continue;
         const bytes = frame.isDemo ? undefined : await provider.current!.ensureOriginal(frame.stableKey, 'selected');
         if (!bytes) { missingOriginals.push(frame.filename); continue; }
-        output.push(new File([bytes], uniqueExportFilename(frame.filename, used), { type: bytes.type || 'application/octet-stream', lastModified: Date.now() }));
+        // Never label a replacement, cached JPEG or unverified legacy file as
+        // the exact original: verify its bytes against the digest saved at import.
+        // On mismatch the enclosing catch aborts delivery of the WHOLE batch.
+        const verified = await verifyExactOriginalCopy(bytes, frame.originalSha256, controller.signal);
+        output.push(new File([verified], uniqueExportFilename(frame.filename, used), { type: verified.type || 'application/octet-stream', lastModified: Date.now() }));
         task.progress(output.length);
       }
       if (!exportMayContinue(controller.signal.aborted, task.cancelled, false)) return;
