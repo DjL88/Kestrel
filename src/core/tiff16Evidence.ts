@@ -37,6 +37,19 @@ export function inspectTiff16Structure(bytes: Uint8Array): { ok: true; width: nu
     if (!inRange(start, total)) return null;
     return Array.from({ length: t.count }, (_, i) => t.type === 3 ? u16(start + i * 2) : u32(start + i * 4));
   };
+  // Out-of-line tag arrays must not alias the header or IFD itself. A malformed
+  // BitsPerSample array can otherwise read directory bytes as channel depths.
+  const directoryEndForMetadata = ifd + 2 + count * 12 + 4;
+  for (const [tag, entry] of tags) {
+    if (![3, 4].includes(entry.type)) continue;
+    const byteCount = entry.count * (entry.type === 3 ? 2 : 4);
+    if (byteCount <= 4) continue;
+    const at = u32(entry.offset);
+    if (!inRange(at, byteCount) || at < 8 ||
+        (at < directoryEndForMetadata && ifd < at + byteCount)) {
+      return fail(`TIFF tag ${tag} metadata overlaps the header or image directory, or is out of bounds.`);
+    }
+  }
   const width = values(256)?.[0], height = values(257)?.[0];
   const samples = values(277)?.[0], bits = values(258);
   if (!width || !height || !Number.isSafeInteger(width * height)) return fail('Invalid TIFF dimensions.');
