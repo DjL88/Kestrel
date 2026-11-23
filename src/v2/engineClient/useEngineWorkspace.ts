@@ -409,7 +409,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         const nativeSize = nativeRaster
           ? framedSize(image.naturalWidth, image.naturalHeight, frame.framing ?? DEFAULT_FRAMING)
           : null;
-        const outputSize = nativeSize ?? job.size;
+        // Preserve an explicit export size limit; Original is full decoded size only
+        // when the photographer did not ask for a smaller maximum long edge.
+        const longEdge = nativeSize ? Math.max(nativeSize.width, nativeSize.height) : 0;
+        const scale = nativeSize && request.maxLongestEdgePx && request.maxLongestEdgePx > 0
+          ? Math.min(1, request.maxLongestEdgePx / longEdge) : 1;
+        const outputSize = nativeSize
+          ? { width: Math.max(1, Math.round(nativeSize.width * scale)), height: Math.max(1, Math.round(nativeSize.height * scale)) }
+          : job.size;
         const outputFormat = nativeSize
           ? { ...job.format, width: outputSize.width, height: outputSize.height }
           : job.format;
