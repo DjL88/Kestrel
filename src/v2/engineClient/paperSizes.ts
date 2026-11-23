@@ -1,10 +1,11 @@
 /** ISO 216 paper sizes in millimetres. Physical dimensions become output
  * pixels only with an explicitly chosen resolution. PPI does not modify originals. */
 export type DimensionUnit = 'px' | 'mm' | 'cm' | 'in';
-export type PaperPreset = 'custom' | 'A4' | 'A3' | 'A2' | 'A1';
+export type PaperPreset = 'custom' | 'A7' | 'A6' | 'A5' | 'A4' | 'A3' | 'A2' | 'A1';
 export type PaperOrientation = 'portrait' | 'landscape';
 export interface PixelDimensions { width: number; height: number }
 export const PAPER_MM: Record<Exclude<PaperPreset, 'custom'>, readonly [number, number]> = {
+  A7: [74, 105], A6: [105, 148], A5: [148, 210],
   A4: [210, 297], A3: [297, 420], A2: [420, 594], A1: [594, 841],
 };
 const MAX_PIXEL_SIDE = 20000;
