@@ -41,7 +41,9 @@ export function requireProvenRaw16Export(evidence: RawDecodeEvidence | null | un
   if (!evidence.exportUsesDevelopedPixels) {
     return reject('The export encoder is not connected to the developed RAW pixels.');
   }
-  if (!evidence.decoder?.trim() || !evidence.decoderVersion?.trim()) {
+  if (!evidence.decoder?.trim() || !evidence.decoderVersion?.trim() ||
+      evidence.decoder.trim().toLowerCase() === 'unknown' ||
+      evidence.decoderVersion.trim().toLowerCase() === 'unknown') {
     return reject('The RAW decoder and its version are not recorded.');
   }
   if (!/^[a-f0-9]{64}$/i.test(evidence.originalSha256 ?? '')) {
@@ -54,7 +56,7 @@ export function requireProvenRaw16Export(evidence: RawDecodeEvidence | null | un
   if (evidence.outputFormat !== 'tiff' || evidence.encodedBitsPerChannel !== 16) {
     return reject('A verified 16-bit TIFF encoder is required; an 8-bit canvas or JPEG output cannot qualify.');
   }
-  if (!evidence.outputIccProfile?.trim()) {
+  if (!evidence.outputIccProfile?.trim() || evidence.outputIccProfile.trim().toLowerCase() === 'unknown') {
     return reject('The export colour profile is not recorded.');
   }
   return {
