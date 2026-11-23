@@ -1791,12 +1791,16 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
         background: 'Background',
         brush: 'Brush Mask',
         area: 'Selected Area',
+        gradient: 'Gradient',
       };
       updatePhotoById(photoId, (photo) => ({
         ...photo,
         masks: [
           ...photo.masks,
-          { id: `mask-${Date.now()}`, name: names[type], type, visible: true, feather: 20, edit: {} },
+          { id: `mask-${Date.now()}`, name: names[type], type, visible: true, feather: 20, edit: {},
+            ...(type === 'area' ? { geometry: { kind: 'radial' as const, cx: 0.5, cy: 0.5, rx: 0.25, ry: 0.18, angle: 0 } }
+              : type === 'gradient' ? { geometry: { kind: 'linear' as const, x1: 0.5, y1: 0.12, x2: 0.5, y2: 0.55 } } : {}),
+          },
         ],
       }));
       showNotice(`Added ${names[type]} mask layer`);
@@ -1820,6 +1824,17 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       updatePhotoById(photoId, (photo) => ({
         ...photo,
         masks: photo.masks.map((m) => (m.id === maskId ? { ...m, feather: percent } : m)),
+      }));
+    },
+
+    setMaskGeometry: (photoId, maskId, field, value) => {
+      if (!Number.isFinite(value)) return;
+      updatePhotoById(photoId, (photo) => ({
+        ...photo,
+        masks: photo.masks.map((mask) => {
+          if (mask.id !== maskId || !mask.geometry || !(field in mask.geometry)) return mask;
+          return { ...mask, geometry: { ...mask.geometry, [field]: value } };
+        }),
       }));
     },
 
