@@ -806,6 +806,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
 
     eraseDeviceData: () => { logAction('eraseDeviceData', {}); setStore((prev) => ({ ...prev, lastActionNotice: 'Sample data: nothing was erased.' })); },
 
+    setBurstGrouped: (burstGroupId, grouped) => { logAction('setBurstGrouped', { burstGroupId, grouped }); },
     jumpToEditStep: (photoId, cursor) => { logAction('jumpToEditStep', { photoId, cursor }); },
 
     setHubState: (hubState) => {

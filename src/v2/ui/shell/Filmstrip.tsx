@@ -1,3 +1,4 @@
+import { planFilmstrip } from '../../engineClient/burstGroups';
 import React, { useEffect, useRef, useState } from 'react';
 import type { AssistMode, LookPreset, Photo } from '../contract';
 import { STRINGS } from '../strings';
@@ -28,6 +29,7 @@ interface FilmstripProps {
   onToggleFlag: (photoIds: string[]) => void;
   onSetRating: (photoIds: string[], rating: number) => void;
   onSetDecision: (photoIds: string[], decision: 'unreviewed' | 'keep' | 'reject') => void;
+  onSetBurstGrouped: (burstGroupId: string, grouped: boolean) => void;
   onRemovePhotos: (photoIds: string[]) => void;
   onPasteRecipe: () => void;
   onApplyLook: (photoId: string, lookId: string) => void;
@@ -60,6 +62,7 @@ export default function Filmstrip({
   onToggleFlag,
   onSetRating,
   onSetDecision,
+  onSetBurstGrouped,
   onRemovePhotos,
   onPasteRecipe,
   onApplyLook,
@@ -69,6 +72,7 @@ export default function Filmstrip({
   onExportSelected,
 }: FilmstripProps) {
   const [searchOpen, setSearchOpen] = useState(false);
+  const [expandedBursts, setExpandedBursts] = useState<Set<string>>(() => new Set());
   const [minimumRating, setMinimumRating] = useState(0);
   const [tileMenu, setTileMenu] = useState<{ x: number; y: number; photoId: string } | null>(null);
   const [removeConfirm, setRemoveConfirm] = useState<string[] | null>(null);
@@ -142,6 +146,10 @@ export default function Filmstrip({
   }, [tileMenu]);
 
   const visiblePhotos = filterPhotos(photos, filter, search).filter((photo) => photo.rating >= minimumRating);
+  const openIds = new Set<string>([...selectedPhotoIds, ...(activePhoto ? [activePhoto.id] : [])]);
+  const items = planFilmstrip(visiblePhotos, expandedBursts, openIds);
+  const planCoverId = (list: typeof items, groupId: string) => { const controls = list.find((entry) => entry.type === 'controls' && entry.groupId === groupId); return controls && controls.type === 'controls' ? controls.cover.id : undefined; };
+  const setBurstOpen = (groupId: string, open: boolean) => setExpandedBursts((current) => { const next = new Set(current); if (open) next.add(groupId); else next.delete(groupId); return next; });
   const flaggedCount = photos.filter((p) => p.decision === 'keep').length;
   const setAsideCount = photos.filter((p) => p.decision === 'reject').length;
 
@@ -377,7 +385,22 @@ export default function Filmstrip({
               aria-multiselectable="true"
               className="flex h-full items-center gap-2.5 overflow-x-auto inflight-scroll px-3 py-2"
             >
-              {visiblePhotos.map((photo) => {
+              {items.map((item) => {
+                if (item.type === 'controls') {
+                  return (
+                    <div key={`burst-${item.groupId}`} role="group" aria-label={STRINGS.bursts.controls(item.count)} className="flex h-full w-40 shrink-0 flex-col justify-center gap-1.5 rounded-[var(--radius-md)] border border-dashed border-[var(--brand-accent-border)] bg-[var(--bg-surface)] p-2">
+                      <p className="text-[11px] font-semibold text-[var(--text-primary)]">{STRINGS.bursts.controls(item.count)}</p>
+                      <button type="button" disabled={!item.best} title={item.best ? undefined : STRINGS.bursts.flagBestNotRanked}
+                        onClick={() => { if (item.best) onSetDecision([item.best.id], 'keep'); }}
+                        className="min-h-8 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[11px] font-medium text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50">{STRINGS.bursts.flagBest}</button>
+                      {!item.best && <span className="text-[10px] leading-tight text-[var(--text-muted)]">{STRINGS.bursts.flagBestNotRanked}</span>}
+                      <button type="button" onClick={() => onSetBurstGrouped(item.groupId, false)} className="min-h-8 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[11px] font-medium text-[var(--text-primary)]">{STRINGS.bursts.split}</button>
+                      <button type="button" onClick={() => { onSelectPhoto(item.cover.id); setBurstOpen(item.groupId, false); }} className="min-h-8 rounded-[var(--radius-sm)] px-2 text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{STRINGS.bursts.collapse}</button>
+                    </div>
+                  );
+                }
+                const photo = item.photo;
+                const stack = item.stack;
                 const isActive = activePhoto?.id === photo.id;
                 const isSelected = selectedPhotoIds.includes(photo.id);
                 const flagged = photo.decision === 'keep';
@@ -410,6 +433,18 @@ export default function Filmstrip({
                         : 'border-[var(--border-subtle)] bg-[var(--bg-input)] hover:border-[var(--border-default)]'
                     }`}
                   >
+                    {stack && (
+                      <button
+                        type="button"
+                        aria-expanded={stack.expanded}
+                        aria-label={stack.expanded ? STRINGS.bursts.hide : STRINGS.bursts.show(stack.count)}
+                        title={stack.expanded ? STRINGS.bursts.hide : STRINGS.bursts.show(stack.count)}
+                        onClick={(event) => { event.stopPropagation(); if (stack.expanded) onSelectPhoto(planCoverId(items, stack.groupId) ?? photo.id); setBurstOpen(stack.groupId, !stack.expanded); }}
+                        className="absolute left-1 top-1 z-10 min-h-9 rounded bg-[var(--bg-scrim)] px-2 text-[10px] font-semibold text-white"
+                      >
+                        {STRINGS.bursts.badge(stack.count)}{!stack.expanded ? ' ▸' : ''}
+                      </button>
+                    )}
                     <button
                       type="button"
                       aria-label={`More actions for ${photo.filename}`}
@@ -545,6 +580,17 @@ export default function Filmstrip({
             className="flex w-full px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             Return to review
           </button>
+          {photos.find((p) => p.id === tileMenu.photoId)?.burst?.ungrouped && (
+            <button type="button" role="menuitem"
+              onClick={() => {
+                const groupId = photos.find((p) => p.id === tileMenu.photoId)?.burst?.groupId;
+                if (groupId) onSetBurstGrouped(groupId, true);
+                setTileMenu(null);
+              }}
+              className="flex w-full px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+              {STRINGS.bursts.regroup}
+            </button>
+          )}
           {menuTargetsAllSetAside && (
             <button type="button" role="menuitem"
               onClick={() => {
