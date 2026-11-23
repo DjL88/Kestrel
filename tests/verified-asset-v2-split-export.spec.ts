@@ -201,3 +201,102 @@ test('split export pixels use a separate non-occluding border on each numbered o
     }
   }
 });
+
+
+test('three-frame split returns all three export files and preserves exact one-pass decoded PNG pixels', async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(async () => {
+    // @ts-ignore Loaded from the Vite development server for this real renderer check.
+    const { renderV2Export } = await import('/src/v2/engineClient/renderV2Export.ts');
+    // @ts-ignore Loaded from the Vite development server for this real renderer check.
+    const { DEFAULT_CROP } = await import('/src/v2/engineClient/cropOps.ts');
+    const sourceCanvas = document.createElement('canvas');
+    sourceCanvas.width = 1200;
+    sourceCanvas.height = 640;
+    const sourceContext = sourceCanvas.getContext('2d');
+    if (!sourceContext) throw new Error('Source fixture cannot be drawn');
+    sourceContext.fillStyle = '#223344';
+    sourceContext.fillRect(0, 0, 1200, 640);
+    // Stripes and diagonal edges cross both split seams and expose duplicate
+    // columns, missing sections, and separately-applied crop transforms.
+    for (let x = 0; x < 1200; x += 5) {
+      sourceContext.fillStyle = 'rgb(' + ((x * 3 + 19) % 256) + ',' +
+        ((x * 7 + 101) % 256) + ',' + ((x * 11 + 23) % 256) + ')';
+      sourceContext.fillRect(x, 0, 2, 640);
+    }
+    sourceContext.fillStyle = '#ff004e';
+    sourceContext.fillRect(358, 70, 510, 320);
+    sourceContext.strokeStyle = '#ffffff';
+    sourceContext.lineWidth = 3;
+    sourceContext.beginPath();
+    sourceContext.moveTo(10, 0);
+    sourceContext.lineTo(1190, 640);
+    sourceContext.stroke();
+
+    const image = new Image();
+    image.src = sourceCanvas.toDataURL('image/png');
+    await image.decode();
+    const frame = {
+      id: 'three-frame', filename: 'three-frame-fixture.png', isDemo: true,
+      edit: { exposure: 0.15, warmth: 0, colour: 0 },
+    } as Parameters<typeof renderV2Export>[1];
+    const profile = { id: 'uat', label: 'UAT PNG', prefix: 'uat_', width: 0,
+      height: 0, quality: 1, format: 'png' as const };
+    const crop = { ...DEFAULT_CROP, zoom: 1.15, panX: -8, panY: 3, flipH: true };
+    const date = new Date('2026-11-23T12:00:00.000Z');
+    const combined = await renderV2Export(image, frame, { width: 600, height: 160 },
+      crop, profile, null, date, undefined, 1);
+    const three = await renderV2Export(image, frame, { width: 200, height: 160 },
+      crop, profile, null, date, undefined, 3);
+    const files = three.sections ?? [];
+    if (files.length !== 3) return { files: files.map((f: File) => f.name), wrongSections: files.length };
+
+    const pixels = async (file: File) => {
+      const bitmap = await createImageBitmap(file);
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) throw new Error('Exported PNG could not be inspected');
+        ctx.drawImage(bitmap, 0, 0);
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        return { width: canvas.width, height: canvas.height, data };
+      } finally { bitmap.close(); }
+    };
+    const whole = await pixels(combined.file);
+    const parts = await Promise.all(files.map(pixels));
+    let mismatches = 0;
+    for (let y = 0; y < whole.height; y++) {
+      for (let x = 0; x < whole.width; x++) {
+        const pane = Math.floor(x / 200);
+        const localX = x % 200;
+        const originalIndex = (y * whole.width + x) * 4;
+        const partIndex = (y * parts[pane].width + localX) * 4;
+        for (let channel = 0; channel < 4; channel++) {
+          if (whole.data[originalIndex + channel] !== parts[pane].data[partIndex + channel]) mismatches++;
+        }
+      }
+    }
+    return {
+      files: files.map((file: File) => file.name),
+      firstName: three.file.name,
+      dimensions: parts.map((p) => [p.width, p.height]),
+      combinedDimensions: [whole.width, whole.height],
+      mismatches,
+      capped: three.capped,
+    };
+  });
+  expect(result).toEqual({
+    files: [
+      'uat_three-frame-fixture-01-of-03.png',
+      'uat_three-frame-fixture-02-of-03.png',
+      'uat_three-frame-fixture-03-of-03.png',
+    ],
+    firstName: 'uat_three-frame-fixture-01-of-03.png',
+    dimensions: [[200, 160], [200, 160], [200, 160]],
+    combinedDimensions: [600, 160],
+    mismatches: 0,
+    capped: false,
+  });
+});
