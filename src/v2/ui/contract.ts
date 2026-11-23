@@ -396,6 +396,8 @@ export interface ExportRequest {
 export interface PhotoSurfaceProps {
   photoId: string;
   variant: 'edited' | 'original';
+  /** Non-destructive live preview of a hovered Look. Never stored or applied to original pixels. */
+  lookPreview?: Partial<EditRecipe>;
   alt: string;
   className?: string;
   style?: CSSProperties;

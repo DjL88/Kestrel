@@ -6,8 +6,10 @@ import type { EditRecipe } from '../ui/contract';
  * exposure in 0.4 EV steps, colour -2 = black and white). The engine is the source of truth: the UI recipe shown for a
  * photo is always derived from its PhotoEdit, so what the sliders say is what the pixels do.
  *
- * Not in PhotoEdit yet, so not applied: luminance noise reduction, AI RAW denoise, detail recovery and
- * lens correction. Changing one of those changes nothing and the caller is told (UNMAPPED_KEYS).
+ * Existing fine-detail enhancement uses PhotoEdit.texture, shared by preview and normal export.
+ * It improves the contrast of detail already present; it does not reconstruct missing feathers.
+ * Not in PhotoEdit yet: luminance noise reduction, AI RAW denoise and optical lens-profile correction.
+ * Those controls remain unsupported (UNMAPPED_KEYS) until real implementations exist.
  */
 export const NEUTRAL_RECIPE: EditRecipe = {
   lookId: 'natural-raw', exposure: 0, highlights: 0, shadows: 0, contrast: 0, whites: 0, blacks: 0, temperature: 0, tint: 0,
@@ -15,7 +17,7 @@ export const NEUTRAL_RECIPE: EditRecipe = {
   upscaleFactor: 1, detailRecovery: 0, lensCorrection: false,
 };
 
-export const UNMAPPED_KEYS = ['denoiseRawAi', 'denoiseLuminance', 'detailRecovery', 'lensCorrection'] as const satisfies readonly (keyof EditRecipe)[];
+export const UNMAPPED_KEYS = ['denoiseRawAi', 'denoiseLuminance', 'lensCorrection'] as const satisfies readonly (keyof EditRecipe)[];
 
 const EV_PER_STEP = 0.4;
 const SLIDER_PER_STEP = 50; // one engine step is 50 slider points
@@ -41,6 +43,7 @@ export function editToRecipe(edit: PhotoEdit | undefined): EditRecipe {
     clarity: toSlider(edit.clarity),
     sharpen: toSlider(edit.sharpen),
     denoiseColour: toSlider(edit.denoise),
+    detailRecovery: round(clamp((edit.texture ?? 0) * SLIDER_PER_STEP, 0, 100), 2),
     upscaleFactor: edit.upscale ?? 1,
   };
 }
@@ -64,8 +67,23 @@ export function applyRecipePatch(edit: PhotoEdit | undefined, patch: Partial<Edi
   if (patch.clarity !== undefined) next.clarity = toStep(patch.clarity);
   if (patch.sharpen !== undefined) next.sharpen = round(clamp(patch.sharpen, 0, 100) / SLIDER_PER_STEP, 4);
   if (patch.denoiseColour !== undefined) next.denoise = round(clamp(patch.denoiseColour, 0, 100) / SLIDER_PER_STEP, 4);
+  if (patch.detailRecovery !== undefined && Number.isFinite(patch.detailRecovery)) {
+    const texture = round(clamp(patch.detailRecovery, 0, 100) / SLIDER_PER_STEP, 4);
+    if (texture === 0) delete next.texture;
+    else next.texture = texture;
+  }
   if (patch.upscaleFactor !== undefined) { if (patch.upscaleFactor === 2 || patch.upscaleFactor === 4) next.upscale = patch.upscaleFactor; else delete next.upscale; }
   const neutral = (value: unknown, base: unknown) => value === undefined || value === base;
   const unmapped = UNMAPPED_KEYS.filter((key) => !neutral(patch[key], NEUTRAL_RECIPE[key]));
   return { edit: next, unmapped };
+}
+
+/**
+ * A Look hover is a temporary, non-persistent edit of the actual renderer.
+ * Apply from the photo's current recipe, not from an already edited raster:
+ * FrameImage draws the candidate from the same source as Apply/export.
+ * Returning the same reference when nothing is hovered avoids redraws.
+ */
+export function previewLookEdit(edit: PhotoEdit | undefined, lookDelta?: Partial<EditRecipe>): PhotoEdit | undefined {
+  return lookDelta ? applyRecipePatch(edit, lookDelta).edit : edit;
 }

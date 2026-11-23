@@ -1,6 +1,7 @@
 import { LANGUAGES, languageOption, type LanguageCode } from '../../../core/locale';
 import { chooseLanguage, language } from '../../../i18n/messages';
 import { StorageConnections } from './StorageConnections';
+import { aiProviderControl, cacheCapControl } from '../../engineClient/realSettingsControls';
 import React, { useState } from 'react';
 import type {
   AiProviderConfig,
@@ -410,8 +411,11 @@ export default function SettingsDialog({
                 <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
                   {STRINGS.settings.aiProviders.intro}
                 </p>
+                {accountPanel && <p id="v2-real-ai-unavailable" role="status" className="text-xs leading-relaxed text-[var(--text-secondary)]">These external AI connections are not implemented in this workspace. The preview's Connect button did not verify an account or key, so it is disabled here.</p>}
                 <div className="space-y-2">
-                  {settings.aiProviders.map((prov) => (
+                  {settings.aiProviders.map((prov) => {
+                    const connection = aiProviderControl(prov, Boolean(accountPanel));
+                    return (
                     <div
                       key={prov.id}
                       className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3.5"
@@ -429,32 +433,33 @@ export default function SettingsDialog({
                           {prov.description}
                         </p>
                         <p className="mt-1 font-mono text-[10px] text-[var(--text-muted)]">
-                          {prov.modelLabel}
+                          {connection.modelLabel}
                         </p>
                       </div>
                       <button
                         type="button"
-                        disabled={prov.id === 'local'}
+                        disabled={connection.disabled}
+                        aria-describedby={accountPanel && prov.id !== 'local' ? 'v2-real-ai-unavailable' : undefined}
+                        data-testid={`v2-ai-provider-${prov.id}`}
                         onClick={() => onToggleAiProvider(prov.id)}
                         className={`h-8 shrink-0 rounded-[var(--radius-sm)] px-3 text-xs font-semibold transition-colors disabled:opacity-60 ${
-                          prov.connected
+                          connection.connected
                             ? 'border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)]'
                             : 'bg-[var(--brand-accent)] text-[var(--text-on-accent)]'
                         }`}
                       >
-                        {prov.id === 'local'
-                          ? 'Built-in'
-                          : prov.connected
-                          ? STRINGS.settings.aiProviders.disconnect
-                          : STRINGS.settings.aiProviders.connect}
+                        {connection.buttonText}
                       </button>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
-                <div>
-                  <p className="text-[11px] font-medium text-[var(--text-muted)]">Bring your own: also works with a model you run yourself</p>
-                  <WorksWith items={[{ id: 'ollama', name: 'Ollama' }, { id: 'lmstudio', name: 'LM Studio' }]} />
-                </div>
+                {accountPanel
+                  ? <p className="text-[11px] text-[var(--text-muted)]">Self-hosted and bring-your-own AI model connections are planned, but are not configured through this workspace yet. Local editing remains available.</p>
+                  : <div>
+                    <p className="text-[11px] font-medium text-[var(--text-muted)]">Bring your own: also works with a model you run yourself</p>
+                    <WorksWith items={[{ id: 'ollama', name: 'Ollama' }, { id: 'lmstudio', name: 'LM Studio' }]} />
+                  </div>}
               </div>
             )}
 
@@ -467,7 +472,7 @@ export default function SettingsDialog({
                       {STRINGS.settings.storage.localCacheHeading}
                     </h3>
                     <span className="font-mono text-xs text-[var(--brand-accent)] tabular-nums">
-                      {settings.localCacheLimitGb} GB cap
+                      {accountPanel ? 'Not configured' : `${settings.localCacheLimitGb} GB cap`}
                     </span>
                   </div>
                   <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
@@ -479,9 +484,13 @@ export default function SettingsDialog({
                     max={100}
                     step={5}
                     value={settings.localCacheLimitGb}
+                    disabled={cacheCapControl(Boolean(accountPanel)).disabled}
+                    aria-describedby={accountPanel ? 'v2-cache-unavailable' : undefined}
+                    data-testid="v2-cache-cap-control"
                     onChange={(e) => onUpdateSettings({ localCacheLimitGb: Number(e.target.value) })}
-                    className="inflight-slider"
+                    className="inflight-slider disabled:cursor-not-allowed disabled:opacity-50"
                   />
+                  {accountPanel && <p id="v2-cache-unavailable" role="status" className="text-[11px] text-[var(--text-secondary)]">{cacheCapControl(true).description}</p>}
                 </section>
 
                 <StorageConnections />

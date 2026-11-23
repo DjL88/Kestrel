@@ -4,6 +4,12 @@ import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import InfoPopover from '../shell/InfoPopover';
 import { getActiveGroup } from '../utils/studioMath';
+import { UNMAPPED_KEYS } from '../../engineClient/recipeMap';
+
+/** A displayed Enhance control is enabled only if the real engine can honour its value. */
+const unsupported = (key: keyof EditRecipe): boolean =>
+  (UNMAPPED_KEYS as readonly (keyof EditRecipe)[]).includes(key);
+const unsupportedHelp = 'Unavailable: this control does not yet change the photograph or export.';
 
 interface EnhancePanelProps {
   photo: Photo | null;
@@ -29,6 +35,9 @@ export default function EnhancePanel({
 
   return (
     <div className="space-y-5">
+      <p id="v2-enhance-unavailable" role="status" className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
+        Unavailable adjustments are disabled until they affect both the photograph and its export.
+      </p>
       {/* Noise Reduction */}
       <section className="space-y-3">
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">
@@ -64,8 +73,13 @@ export default function EnhancePanel({
             type="button"
             role="switch"
             aria-checked={recipe.denoiseRawAi}
+            aria-label={STRINGS.enhance.rawAiDenoise}
+            aria-describedby="v2-enhance-unavailable"
+            data-testid="v2-enhance-raw-ai"
+            disabled={unsupported('denoiseRawAi')}
+            title={unsupported('denoiseRawAi') ? unsupportedHelp : undefined}
             onClick={() => onUpdateRecipe(photo.id, { denoiseRawAi: !recipe.denoiseRawAi })}
-            className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${
+            className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
               recipe.denoiseRawAi
                 ? 'bg-[var(--brand-accent)] text-[var(--text-on-accent)]'
                 : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
@@ -93,6 +107,10 @@ export default function EnhancePanel({
           <input
             id="denoise-luma"
             type="range"
+            data-testid="v2-enhance-luminance"
+            disabled={unsupported('denoiseLuminance')}
+            aria-describedby="v2-enhance-unavailable"
+            title={unsupported('denoiseLuminance') ? unsupportedHelp : undefined}
             min={0}
             max={100}
             value={recipe.denoiseLuminance}
@@ -157,10 +175,10 @@ export default function EnhancePanel({
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1 text-xs text-[var(--text-primary)]">
-              <label htmlFor="detail-recovery">{STRINGS.enhance.detailRecovery}</label>
+              <label htmlFor="detail-recovery">Texture (existing detail)</label>
               <InfoPopover
-                title={STRINGS.enhance.detailRecovery}
-                body={STRINGS.enhance.tooltips.detailRecovery}
+                title="Texture (existing detail)"
+                body="Adds contrast to fine detail that is already present. It cannot restore missing detail or invent feathers."
               />
             </span>
             {!calmView && (
@@ -172,6 +190,7 @@ export default function EnhancePanel({
           <input
             id="detail-recovery"
             type="range"
+            data-testid="v2-enhance-texture"
             min={0}
             max={100}
             value={recipe.detailRecovery}
@@ -189,8 +208,13 @@ export default function EnhancePanel({
             type="button"
             role="switch"
             aria-checked={recipe.lensCorrection}
+            aria-label={STRINGS.enhance.lensCorrection}
+            aria-describedby="v2-enhance-unavailable"
+            data-testid="v2-enhance-lens-correction"
+            disabled={unsupported('lensCorrection')}
+            title={unsupported('lensCorrection') ? unsupportedHelp : undefined}
             onClick={() => onUpdateRecipe(photo.id, { lensCorrection: !recipe.lensCorrection })}
-            className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${
+            className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
               recipe.lensCorrection
                 ? 'bg-[var(--brand-accent)] text-[var(--text-on-accent)]'
                 : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
