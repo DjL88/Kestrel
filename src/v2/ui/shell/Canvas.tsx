@@ -47,6 +47,10 @@ interface CanvasProps {
   onSelectSize: (sizeId: string, modifiers?: { ctrl?: boolean }) => void;
   /** Phone swipe left or right on the photo: go to the next (1) or previous (-1) photo. */
   onStepPhoto?: (delta: 1 | -1) => void;
+  /** The small action bar by the format: open the Formats tool, duplicate or delete this format. */
+  onOpenFormats?: () => void;
+  onDuplicateSize?: (sizeId: string) => void;
+  onRemoveSize?: (sizeId: string) => void;
   onSelectAllSizes: (photoId: string) => void;
   onSetLayoutMode: (mode: 'single' | 'all-formats') => void;
   onMoveArtboard: (photoId: string, sizeId: string, boardX: number, boardY: number) => void;
@@ -81,6 +85,9 @@ export default function Canvas({
   calmView,
   onSelectSize,
   onStepPhoto,
+  onOpenFormats,
+  onDuplicateSize,
+  onRemoveSize,
   onSelectAllSizes,
   onSetLayoutMode,
   onMoveArtboard,
@@ -818,6 +825,23 @@ export default function Canvas({
           {activeSize.crop.rotateDeg !== 0 && <span>· {activeSize.crop.rotateDeg}°</span>}
         </div>
 
+        {activeSize.kind === 'photo' && (
+          <div role="toolbar" aria-label="Format actions" data-testid="frame-actions" className="flex items-center gap-1.5">
+            {([
+              { label: '+ Format', aria: 'Add a format', run: () => onOpenFormats?.(), pressed: undefined },
+              { label: 'Duplicate', aria: 'Duplicate this format', run: () => onDuplicateSize?.(activeSize.id), pressed: undefined },
+              { label: 'Compare', aria: 'Compare before and after', run: () => onToggleCompare(), pressed: compareMode },
+              { label: 'Delete', aria: 'Delete this format', run: () => onRemoveSize?.(activeSize.id), pressed: undefined },
+            ] as const).map((action) => (
+              <button key={action.aria} type="button" aria-label={action.aria} aria-pressed={action.pressed}
+                disabled={action.aria === 'Compare before and after' && Boolean(group.splitFrames)}
+                onClick={action.run}
+                className="min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40 aria-pressed:border-[var(--brand-accent)] aria-pressed:text-[var(--brand-accent)] max-md:min-h-11">
+                {action.label}
+              </button>
+            ))}
+          </div>
+        )}
         {activeSize.kind === 'photo' && !compareMode && <button type="button" aria-pressed={revealing} onClick={() => setRevealSizeId(revealing ? null : activeSize.id)} className="sm:hidden rounded border border-[var(--border-default)] px-3 py-2 text-xs font-medium">{revealing ? 'Done repositioning' : 'Crop / reposition'}</button>}
         <div className="relative flex items-center gap-3">
           {/* Primary photo frame */}

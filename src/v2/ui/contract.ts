@@ -495,6 +495,10 @@ export interface WorkspaceActions {
   rotateSelectedSizes: (photoId: string) => void;
   resetSizeCrop: (photoId: string, sizeId: string) => void;
   addCustomSize: (photoId: string, label: string, width: number, height: number) => void;
+  /** A copy of a format (same size and crop) as a new format on this photo. */
+  duplicateSize: (photoId: string, sizeId: string) => void;
+  /** Delete a format: a custom one is removed, a built-in one is switched off. A photo always keeps at least one. */
+  removeSize: (photoId: string, sizeId: string) => void;
   toggleSplitFrames: (photoId: string) => void;
   setSplitPanOffset: (photoId: string, offset: number) => void;
   updateVideoZoom: (photoId: string, patch: Partial<VideoZoomConfig>) => void;
