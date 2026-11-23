@@ -111,6 +111,19 @@ export function inspectTiff16Structure(bytes: Uint8Array): { ok: true; width: nu
   if (pixelRanges.some(([start, end]) => start < iccAt + icc.count && iccAt < end)) {
     return fail('TIFF ICC profile overlaps pixel data.');
   }
+  // The ICC payload must be independent of out-of-line SHORT/LONG tag tables,
+  // not merely independent of the raster and image directory.
+  for (const [tag, entry] of tags) {
+    if (![3, 4].includes(entry.type)) continue;
+    const width = entry.type === 3 ? 2 : 4;
+    const length = entry.count * width;
+    if (!Number.isSafeInteger(length) || length <= 4) continue;
+    const at = u32(entry.offset);
+    if (!inRange(at, length)) return fail('TIFF tag metadata is out of bounds.');
+    if (iccAt < at + length && at < iccAt + icc.count) {
+      return fail(`TIFF ICC profile overlaps tag ${tag} metadata.`);
+    }
+  }
   const directoryEnd = ifd + 2 + count * 12 + 4;
   if (iccAt < directoryEnd && ifd < iccAt + icc.count) {
     return fail('TIFF ICC profile overlaps the image directory.');
