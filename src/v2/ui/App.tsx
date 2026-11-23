@@ -297,6 +297,26 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   const activePanelState = store.activePanel ? store.panels[store.activePanel] : null;
   const activePanelVisible = Boolean(store.activePanel && activePanelState?.visible);
 
+  // On wide screens, detached panels are independent of the active dock/rail tab.
+  // Compact desktop and tablet layouts show only one floating panel at a time.
+  const [wideWorkspace, setWideWorkspace] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 1200px)').matches
+  );
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 1200px)');
+    const update = () => setWideWorkspace(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+  const floatingPanelIds = (Object.keys(store.panels) as PanelId[])
+    .filter((id) => store.panels[id].visible && store.panels[id].dock === 'float');
+  const shownFloatingPanelIds = wideWorkspace
+    ? floatingPanelIds
+    : floatingPanelIds.includes(store.activePanel as PanelId)
+      ? [store.activePanel as PanelId]
+      : floatingPanelIds.slice(-1);
+
   return (
     <FeaturePlanContext.Provider value={store.featurePlan}>
       <HiddenProContext.Provider value={hiddenPro}>
@@ -523,21 +543,25 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
               </DockPanel>
             )}
 
-            {/* Floating panel (desktop/tablet only) */}
-            {!isMobile && activePanelVisible && store.activePanel && activePanelState?.dock === 'float' && (
-              <DockPanel
-                panelId={store.activePanel}
-                title={PANEL_TITLES[store.activePanel]}
-                dock="float"
-                floatX={activePanelState.floatX}
-                floatY={activePanelState.floatY}
-                onSetDock={(dock) => actions.setPanelDock(store.activePanel!, dock)}
-                onMoveFloat={(x, y) => actions.moveFloatingPanel(store.activePanel!, x, y)}
-                onClose={() => actions.setActivePanel(null)}
-              >
-                {renderPanelContent(store.activePanel)}
-              </DockPanel>
-            )}
+            {/* Undocked windows: independent on large displays, one on compact screens. */}
+            {!isMobile && shownFloatingPanelIds.map((panelId) => {
+              const state = store.panels[panelId];
+              return (
+                <DockPanel
+                  key={panelId}
+                  panelId={panelId}
+                  title={PANEL_TITLES[panelId]}
+                  dock="float"
+                  floatX={state.floatX}
+                  floatY={state.floatY}
+                  onSetDock={(dock) => actions.setPanelDock(panelId, dock)}
+                  onMoveFloat={(x, y) => actions.moveFloatingPanel(panelId, x, y)}
+                  onClose={() => actions.setPanelVisible(panelId, false)}
+                >
+                  {renderPanelContent(panelId)}
+                </DockPanel>
+              );
+            })}
           </div>
 
           {/* Mobile tool bar (<= 767px): four large targets, like Lightroom; everything else lives in More. */}
