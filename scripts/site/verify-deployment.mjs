@@ -32,8 +32,8 @@ function requireText(path) {
 const editorPaths = { 'demo-editor': '/editor/demo-editor.html', 'demo-v2': '/editor/demo-v2.html' };
 const callbackPath = '/oauth-callback.html';
 const privacyPath = '/privacy.html';
-/** Which compiled editor the homepage embeds: the Version 2 demo (preferred) or the current editor. */
-const embeddedEditor = html => (/<iframe\b[^>]*\ssrc=["']\/?editor\/demo-v2\.html["']/i.test(html) ? 'demo-v2' : /<iframe\b[^>]*\ssrc=["']\/?editor\/demo-editor\.html["']/i.test(html) ? 'demo-editor' : null);
+/** Which compiled editor the homepage embeds: the Version 2 demo or the original Demo Studio editor. */
+const embeddedEditor = html => (/<iframe\b[^>]*\ssrc=["']\/?editor\/demo-v2(?:\.html)?["']/i.test(html) ? 'demo-v2' : /<iframe\b[^>]*\ssrc=["']\/?editor\/demo-editor(?:\.html)?["']/i.test(html) ? 'demo-editor' : null);
 
 function builtAssets(html) {
   const root = [...html.matchAll(/<div\b[^>]*>/gi)].find(([tag]) => /\sid=["']root["']/i.test(tag));
@@ -74,7 +74,9 @@ async function main() {
     throw new Error('The homepage does not embed the compiled photo editor.');
   }
   // The owner's Demo Studio still uses demo-editor.html, so it must stay compiled whichever one the homepage shows.
-  const assets = [...new Set((embedded === 'demo-v2' ? ['demo-editor', 'demo-v2'] : ['demo-editor']).flatMap((name) => builtAssets(requireText(join(dir, 'editor', name + '.html')))))].sort();
+  const editorNames = embedded === 'demo-v2' ? ['demo-editor', 'demo-v2'] : ['demo-editor'];
+  const localEntries = new Map(editorNames.map(name => [editorPaths[name], builtAssets(requireText(join(dir, 'editor', name + '.html')))]));
+  const assets = [...new Set([...localEntries.values()].flat())].sort();
   for (const asset of assets) {
     const file = join(dir, asset.slice(1));
     if (!existsSync(file) || !statSync(file).isFile() || statSync(file).size === 0) {
@@ -92,27 +94,37 @@ async function main() {
   }
   const base = new URL(liveUrl);
   if (base.protocol !== 'https:') throw new Error('Live URL must use HTTPS.');
-  for (const suffix of ['/', editorPaths[embedded], callbackPath, privacyPath, ...assets]) {
+  if (embedded === 'demo-v2') localEntries.set('/editor/demo-v2', localEntries.get(editorPaths['demo-v2']));
+  for (const suffix of ['/', ...localEntries.keys(), callbackPath, privacyPath, ...assets]) {
     const uri = new URL(suffix, base);
     uri.searchParams.set('kestrel-health-check', String(Date.now()));
     const response = await fetch(uri, { signal: AbortSignal.timeout(15_000), headers: { accept: 'text/html,application/javascript,text/css,*/*' } });
     if (!response.ok) throw new Error('Live Firebase path failed (' + response.status + '): ' + uri.pathname);
+    if (assets.includes(suffix)) {
+      const body = Buffer.from(await response.arrayBuffer());
+      if (!body.length || /^\s*(?:<!doctype html|<html)\b/i.test(body.subarray(0, 512).toString('utf8'))) {
+        throw new Error('Live Firebase path returned a missing or wrong asset: ' + uri.pathname);
+      }
+      if (!body.equals(readFileSync(join(dir, suffix.slice(1))))) {
+        throw new Error('Live compiled editor asset differs from the verified local build: ' + uri.pathname);
+      }
+      continue;
+    }
     const data = await response.text();
-    if (!data.trim() || data.includes('Page Not Found') || (assets.includes(suffix) && /^\s*(?:<!doctype html|<html)\b/i.test(data))) {
+    if (!data.trim() || data.includes('Page Not Found')) {
       throw new Error('Live Firebase path returned a missing or wrong asset: ' + uri.pathname);
     }
-    if (suffix === '/' && !embeddedEditor(data)) {
-      throw new Error('Live homepage is stale: no compiled-editor iframe.');
+    if (suffix === '/' && embeddedEditor(data) !== embedded) {
+      throw new Error('Live homepage is stale: expected the ' + embedded + ' editor iframe.');
     }
-    if (suffix === editorPaths[embedded]) {
-      // Compare with the page that was just built locally, not with every editor's assets together.
-      const expected = builtAssets(requireText(join(dir, 'editor', embedded + '.html')));
+    const expected = localEntries.get(suffix);
+    if (expected) {
       const liveAssets = builtAssets(data);
       if (liveAssets.length !== expected.length || expected.some((asset, index) => asset !== liveAssets[index])) {
-        throw new Error('The live editor page refers to a different set of compiled assets.');
+        throw new Error('The live editor page refers to a different set of compiled assets: ' + uri.pathname);
       }
     }
   }
-  console.log('Live Firebase PASS: current homepage, actual editor and compiled assets are reachable.');
+  console.log('Live Firebase PASS: homepage and editor entries match the verified build, and referenced assets match byte for byte.');
 }
 main().catch(error => { console.error('WEBSITE NOT READY: ' + (error instanceof Error ? error.message : String(error))); process.exitCode = 1; });
