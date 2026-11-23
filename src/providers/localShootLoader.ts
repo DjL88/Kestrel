@@ -98,27 +98,28 @@ async function importLinkedWithoutFullRead(
       // A failed or short ranged read cannot establish identity; do not register the photo.
       return null;
     }
+    // A HEIF's EXIF item can sit anywhere in the file, so a HEIC (a few megabytes) is read whole for it.
+    exif = await parseImageExif(isHeifFile(file.name) ? await materialize(source) : head, file.name);
+    // A NAS file may be replaced or still copying while we hash or parse it.
+    // Reject before registering any linked reader or offline preview, not afterwards.
+    try {
+      const { stat } = await import('@tauri-apps/plugin-fs');
+      const after = await stat(file.path);
+      const modified = after.mtime ? after.mtime.getTime() : 0;
+      if (after.size !== file.size || (file.lastModified && modified && modified !== file.lastModified)) return null;
+    } catch {
+      return null;
+    }
     previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified, file.size), openRange: linkedRangeOpener(file.path, file.size), size: file.size, lastModified: file.lastModified });
     try {
       if (!await previewProvider.cacheOfflinePreviews(stableKey, file.name, source)) uncachedPreviewKeys.push(stableKey);
     } catch {
       uncachedPreviewKeys.push(stableKey);
     }
-    // A HEIF's EXIF item can sit anywhere in the file, so a HEIC (a few megabytes) is read whole for it.
-    exif = await parseImageExif(isHeifFile(file.name) ? await materialize(source) : head, file.name);
+    return { exif, originalSha256 };
   } finally {
     await range?.close().catch(() => undefined);
   }
-  // A file replaced or still being copied while it was read is not the chosen original.
-  try {
-    const { stat } = await import('@tauri-apps/plugin-fs');
-    const after = await stat(file.path);
-    const modified = after.mtime ? after.mtime.getTime() : 0;
-    if (after.size !== file.size || (file.lastModified && modified && Math.abs(modified - file.lastModified) > 0)) return null;
-  } catch {
-    return null;
-  }
-  return { exif, originalSha256 };
 }
 
 export async function loadLocalFileListShoot(
