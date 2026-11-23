@@ -1344,12 +1344,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       }));
     },
     undo: () => {
-      if (activeFrame?.editHistory && activeFrame.editHistory.cursor > 0) mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === activeFrame.id ? stepEdit(frame, -1) : frame)) }));
+      if (activeFrame?.editHistory && activeFrame.editHistory.cursor > 0) mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === activeFrame.id ? syncEditGroup(stepEdit(frame, -1)) : frame)) }));
       else mutate(undoDecision);
     },
     redo: () => {
       const history = activeFrame?.editHistory;
-      if (history && history.cursor < history.steps.length) mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === activeFrame.id ? stepEdit(frame, 1) : frame)) }));
+      if (history && history.cursor < history.steps.length) mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === activeFrame.id ? syncEditGroup(stepEdit(frame, 1)) : frame)) }));
       else mutate(redoDecision);
     },
     cancelTask: (id) => { tasks.cancel(Number(id)); },
