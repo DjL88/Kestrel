@@ -7,7 +7,13 @@ import type { CullSuggestion } from './autoCull';
  */
 export function summarizeCullSuggestions(results: readonly CullSuggestion[]) {
   const byFrame = new Map<string, 'keep' | 'duplicate' | 'otherReject' | 'review'>();
+  let unidentified = 0;
   for (const result of results) {
+    // Without a stable identity we cannot safely deduplicate or auto-decide.
+    if (typeof result.frameId !== 'string' || !result.frameId.trim()) {
+      unidentified++;
+      continue;
+    }
     // A malformed worker score is not evidence of a confident decision.
     const validScore = Number.isFinite(result.score) && result.score >= 0 && result.score <= 100;
     const outcome = validScore && result.confidence === 'high' && result.decision === 'keep'
@@ -26,10 +32,10 @@ export function summarizeCullSuggestions(results: readonly CullSuggestion[]) {
   const automaticDuplicate = values.filter((outcome) => outcome === 'duplicate').length;
   const otherHighReject = values.filter((outcome) => outcome === 'otherReject').length;
   return {
-    total: values.length,
+    total: values.length + unidentified,
     automaticKeep,
     automaticDuplicate,
     otherHighReject,
-    needReview: values.length - automaticKeep - automaticDuplicate - otherHighReject,
+    needReview: values.length + unidentified - automaticKeep - automaticDuplicate - otherHighReject,
   };
 }
