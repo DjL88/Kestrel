@@ -40,6 +40,7 @@ import { runV2Denoise } from './runDenoise';
 import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
 import { planExport } from './exportOps';
+import { TEMPLATES_KEY, addTemplate, deleteTemplate, overlayFromTemplate, readTemplates, renameTemplate, type OverlayTemplate } from './overlayTemplates';
 import { addFormat, applyFormats, readFormats, removeFormat, toggleFormat, validCustomSize } from './formatOps';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, toggleMask } from './maskOps';
 import { createSubjectMask, framingKey } from '../../core/maskTypes';
@@ -165,6 +166,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [deviceFonts, setDeviceFonts] = useState<string[]>(loadSavedDeviceFonts);
   const [watermarkStore, setWatermarkStore] = useState<StoredWatermark[]>(loadStored);
   const [watermarkLibrary, setWatermarkLibrary] = useState<WatermarkPreset[]>([]);
+  const [templates, setTemplates] = useState<OverlayTemplate[]>(() => { try { return readTemplates(localStorage.getItem(TEMPLATES_KEY)); } catch { return []; } });
+  const updateTemplates = useCallback((next: OverlayTemplate[]) => { setTemplates(next); try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(next)); } catch { setNotice('InFlight could not save the template on this device.'); } }, []);
   const [savedUi, setSavedUi] = useState<SavedUi>(loadUi);
   const [pixelSizes, setPixelSizes] = useState<Record<string, { width: number; height: number }>>({});
   const [histograms, setHistograms] = useState<Record<string, PhotoHistogram>>({});
@@ -822,6 +825,23 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
     dismissAssistSuggestion: (photoId) => setAssists((current) => (current[photoId] ? { ...current, [photoId]: { ...current[photoId], dismissed: true } } : current)),
     runDeepVisionReview: (photoId) => runDeepVisionReviewAction(photoId),
+    saveOverlayTemplate: (photoId, name) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      if (!frame) return;
+      const next = addTemplate(templates, name, readOverlay(frame.overlay), `tpl-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 12)}`, Date.now());
+      if (!next) { setNotice(name.trim() ? 'You have saved the most templates you can. Delete one first.' : 'Give the template a name first.'); return; }
+      updateTemplates(next);
+      setNotice(`Saved the template "${next[next.length - 1].name}" on this device.`);
+    },
+    applyOverlayTemplate: (templateId, photoIds) => {
+      const template = templates.find((entry) => entry.id === templateId);
+      if (!template || !photoIds.length) return;
+      const at = Date.now();
+      mutate((current) => ({ ...current, shoot: { ...current.shoot, lastUpdatedAt: at }, frames: current.frames.map((frame) => (photoIds.includes(frame.id) ? { ...frame, overlay: overlayFromTemplate(template) } : frame)) }));
+      setNotice(`Applied "${template.name}" to ${photoIds.length} photo${photoIds.length === 1 ? '' : 's'}. Undo is not available for this; apply another template or edit the overlay to change it.`);
+    },
+    renameOverlayTemplate: (templateId, name) => updateTemplates(renameTemplate(templates, templateId, name)),
+    deleteOverlayTemplate: (templateId) => updateTemplates(deleteTemplate(templates, templateId)),
     toggleSizeEnabled: (photoId, sizeId) => changeFormats(photoId, (raw) => toggleFormat(raw, sizeId)),
     addCustomSize: (photoId, label, width, height) => {
       if (!validCustomSize(width, height)) { setNotice('That size is not usable. Use whole pixels, from 1 to 20,000.'); return; }
@@ -924,7 +944,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stub.actions, stub.store.looks, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub]);
+    [stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: [...INITIAL_WATERMARKS, ...watermarkLibrary], auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], { assist: assists[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id] })), [state?.frames, urls, assists, watermarkAuto, histograms, pixelSizes]);
@@ -934,6 +954,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     settings: mergeSettings(stub.store.settings, savedUi.settings),
     assistMode: savedUi.assistMode ?? stub.store.assistMode,
     watermarkPresets: [...INITIAL_WATERMARKS, ...watermarkLibrary],
+    overlayTemplates: templates.map(({ id, name }) => ({ id, name })),
     features: featureAccess(can),
     featurePlan: featurePlan(),
     screen, hubState, projects,
@@ -948,7 +969,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clipboardRecipe: clipboard,
     PhotoSurface: EngineSurface,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
-  }), [stub.store, can, savedUi, deviceFonts, watermarkLibrary, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, activeId, selected, taskList, taskHistory, clock, notice]);
+  }), [stub.store, can, savedUi, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, activeId, selected, taskList, taskHistory, clock, notice]);
 
   return { store, actions };
 }

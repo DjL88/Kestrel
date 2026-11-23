@@ -240,6 +240,12 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             onCutOutWatermark={actions.cutOutWatermark}
             onMakeWatermarkVariant={actions.makeWatermarkVariant}
             onDeleteWatermark={actions.deleteWatermark}
+            templates={store.overlayTemplates}
+            selectedPhotoIds={store.selectedPhotoIds}
+            onSaveTemplate={actions.saveOverlayTemplate}
+            onApplyTemplate={actions.applyOverlayTemplate}
+            onRenameTemplate={actions.renameOverlayTemplate}
+            onDeleteTemplate={actions.deleteOverlayTemplate}
           />
         );
       case 'assist':
