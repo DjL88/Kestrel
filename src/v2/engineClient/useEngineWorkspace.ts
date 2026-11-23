@@ -11,6 +11,7 @@ import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '..
 import { eraseDeviceData } from './eraseDeviceData';
 import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
 import { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
+import { projectCoverBlob } from './projectCover';
 import { scanForCulling } from '../../providers/browserAutoCull';
 import { useAccess } from '../../providers/useAccess';
 import { useBackgroundDevelop } from '../../useBackgroundDevelop';
@@ -226,15 +227,27 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, [taskList]);
   useEffect(() => { const timer = window.setInterval(() => setClock(Date.now()), 60_000); return () => window.clearInterval(timer); }, []);
 
+  const hubCoverUrls = useRef<string[]>([]);
+  useEffect(() => () => { hubCoverUrls.current.forEach((url) => URL.revokeObjectURL(url)); hubCoverUrls.current = []; }, []);
   const loadHub = useCallback(async () => {
     setHubState('loading');
+    const nextUrls: string[] = [];
     try {
       const store = catalogue.current!;
       const shoots = (await store.listProjects()).filter((shoot: ShootDescriptor) => !shoot.inbox);
-      const loaded = await Promise.all(shoots.map(async (shoot) => shootToProject(shoot, (await store.loadProject(shoot.id))?.frames ?? [])));
+      const loaded = await Promise.all(shoots.map(async (shoot) => {
+        const frames = (await store.loadProject(shoot.id))?.frames ?? [];
+        const cover = await projectCoverBlob(frames);
+        const url = cover ? URL.createObjectURL(cover) : '';
+        if (url) nextUrls.push(url);
+        return shootToProject(shoot, frames, url);
+      }));
+      hubCoverUrls.current.forEach((url) => URL.revokeObjectURL(url));
+      hubCoverUrls.current = nextUrls;
       setProjects(loaded);
       setHubState(loaded.length ? 'ready' : 'empty');
     } catch {
+      nextUrls.forEach((url) => URL.revokeObjectURL(url));
       setHubState('error');
     }
   }, []);
