@@ -319,3 +319,10 @@ test('favicon must be a local approved asset, never an external or protocol-rela
   assert.equal(runLive(root, { '/': landing.replace('assets/brand/inflight/app-icons/favicon.svg',
     'https://elsewhere.example/assets/brand/inflight/app-icons/favicon.svg') }).status === 0, false);
 });
+
+
+test('release verifier source never contains an escaped newline between favicon predicates', () => {
+  const source = readFileSync(script, 'utf8');
+  assert.equal(source.includes('||\\n      new URL('), false,
+    'a literal backslash-n outside a string breaks JavaScript parsing');
+});
