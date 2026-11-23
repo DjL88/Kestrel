@@ -185,6 +185,8 @@ export const source = {
     splitFrameRemove: 'Merge to 1 frame',
     frameLeft: 'Frame 1',
     frameRight: 'Frame 2',
+    splitCropTitle: 'Double-click to crop the shared photograph',
+    cropResizeLabel: 'Resize photograph within fixed output frame',
     zoomVideoHint: 'Click anywhere on the image to place the focal zoom pin',
     dragCropHint: 'Drag a corner or edge to crop (the shape stays) · Double-click to position the picture · Drag to move the format',
     cropHintTitle: 'Drag a corner to crop. Double-click to see the whole picture and position it. Drag to move the format.',

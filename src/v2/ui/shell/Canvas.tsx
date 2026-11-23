@@ -844,7 +844,7 @@ export default function Canvas({
               <div
                 onPointerDown={(e) => handleFramePointerDown(e, 'split', activeSize, e.currentTarget)}
                 onDoubleClick={() => setRevealSizeId(activeSize.id)}
-                title="Double-click to crop the shared photograph"
+                title={STRINGS.canvas.splitCropTitle}
                 className="relative cursor-grab overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] active:cursor-grabbing"
                 style={{ width: splitFrameW, height: splitFrameH }}
               >
@@ -931,7 +931,7 @@ export default function Canvas({
               >
                 <div className="h-full w-full opacity-35">{renderSurface('edited', '', {}, filterCss)}</div>
                 {/* Handles follow the visible IMAGE bounds, not the stationary export frame. */}
-                <div className="contents pointer-events-auto" aria-label="Resize photograph within fixed output frame">
+                <div className="contents pointer-events-auto" aria-label={STRINGS.canvas.cropResizeLabel}>
                 {([['tl', 'top left', 'left-1 top-1 cursor-nwse-resize'], ['tr', 'top right', 'right-1 top-1 cursor-nesw-resize'], ['bl', 'bottom left', 'bottom-1 left-1 cursor-nesw-resize'], ['br', 'bottom right', 'bottom-1 right-1 cursor-nwse-resize']] as const).map(([id, name, place]) => (
                   <button
                     key={id}
