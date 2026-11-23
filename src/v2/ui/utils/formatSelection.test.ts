@@ -70,3 +70,39 @@ test('valid Shift anchor retains the contiguous range after cleaning stale selec
     available, selected: ['deleted', 'story'], active: 'original', target: 'wide', shift: true,
   }), { active: 'wide', selected: ['original', 'portrait', 'wide'] });
 });
+
+test('selection gestures never mutate the caller catalogue or selected arrays', () => {
+  const board = ['original', 'portrait', 'portrait', 'wide'];
+  const selected = ['deleted', 'portrait', 'portrait'];
+  const boardBefore = [...board];
+  const selectedBefore = [...selected];
+  chooseFormatSelection({ available: board, selected, active: 'deleted', target: 'wide', shift: true, ctrl: true });
+  assert.deepEqual(board, boardBefore);
+  assert.deepEqual(selected, selectedBefore);
+});
+
+test('all gesture combinations keep selections unique and limited to live catalogue IDs', () => {
+  const boards = [
+    [],
+    ['original', 'portrait', 'wide'],
+    ['', 'original', 'original', 'portrait', '  '],
+  ];
+  for (const board of boards) {
+    const live = new Set(board.filter((id) => id.trim().length > 0));
+    for (const active of ['original', 'portrait', 'deleted', '']) {
+      for (const target of ['original', 'portrait', 'deleted', '', '  ']) {
+        for (const shift of [false, true]) {
+          for (const ctrl of [false, true]) {
+            const result = chooseFormatSelection({
+              available: board, selected: ['deleted', 'portrait', 'portrait', ''], active, target, shift, ctrl,
+            });
+            assert.equal(new Set(result.selected).size, result.selected.length);
+            assert.ok(result.selected.every((id) => live.has(id)));
+            assert.ok(result.active === '' || live.has(result.active));
+            if (live.has(target)) assert.equal(result.active, target);
+          }
+        }
+      }
+    }
+  }
+});
