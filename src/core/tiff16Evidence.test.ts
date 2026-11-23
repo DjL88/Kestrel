@@ -91,6 +91,18 @@ describe('completed TIFF structural evidence', () => {
     aliased.set([97, 99, 115, 112], 136);
     assert.equal(inspectTiff16Structure(aliased).ok, false);
   });
+  it('rejects ICC bytes aliasing out-of-line BitsPerSample even when ICC header is plausible', () => {
+    const aliased = fixture();
+    const view = new DataView(aliased.buffer);
+    // ICC starts before the out-of-line 3xSHORT bit-depth table at byte 200.
+    // It avoids both the directory and raster, isolating the metadata collision.
+    view.setUint32(10 + 10 * 12 + 8, 192, true);
+    view.setUint32(192, 128, false);
+    aliased.set([97, 99, 115, 112], 228);
+    const result = inspectTiff16Structure(aliased);
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.match(result.reason, /ICC.*tag 258 metadata/i);
+  });
   it('rejects raster strips overlapping out-of-line strip table metadata', () => {
     const aliased = fixture();
     const v = new DataView(aliased.buffer);
