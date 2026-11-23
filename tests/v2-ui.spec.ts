@@ -664,12 +664,22 @@ test('?v2 masks are real: Subject is found on this device, its sliders change th
   await root.getByRole('button', { name: 'New project' }).first().click();
   await page.getByLabel(/name/i).first().fill('Real mask check');
   await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
-  // A bright, sharp-edged shape on a plain dark background: the subject, and the background around it.
+  // A bright subject on a dark background with controlled colour speckle in both.
   const image = await page.evaluate(() => {
     const canvas = document.createElement('canvas'); canvas.width = 480; canvas.height = 320;
     const ctx = canvas.getContext('2d')!; ctx.fillStyle = '#2a3340'; ctx.fillRect(0, 0, 480, 320);
     const g = ctx.createRadialGradient(240, 160, 10, 240, 160, 90); g.addColorStop(0, '#f2d9a0'); g.addColorStop(1, '#b8863c');
     ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(240, 160, 90, 70, 0, 0, Math.PI * 2); ctx.fill();
+    const data = ctx.getImageData(0, 0, 480, 320);
+    for (let y = 0; y < 320; y++) {
+      for (let x = 0; x < 480; x++) {
+        const offset = (y * 480 + x) * 4;
+        const speckle = (x + y) % 2 === 0 ? 8 : -8;
+        data.data[offset] += speckle;
+        data.data[offset + 2] -= speckle;
+      }
+    }
+    ctx.putImageData(data, 0, 0);
     return canvas.toDataURL('image/png').split(',')[1];
   });
   const chooser = page.waitForEvent('filechooser');
@@ -702,6 +712,26 @@ test('?v2 masks are real: Subject is found on this device, its sliders change th
   await expect.poll(() => luma(0.5, 0.5), { timeout: 20000 }).toBeGreaterThan(subject0 - 20);
   await root.getByRole('button', { name: 'Show Subject' }).click();
   await expect.poll(() => luma(0.5, 0.5), { timeout: 20000 }).toBeLessThan(subject0 - 60);
+  await exposure.fill('0');
+  await expect.poll(() => luma(0.5, 0.5)).toBeGreaterThan(subject0 - 20);
+  const chromaVariation = (fx: number, fy: number) => frame.locator('canvas, img').first().evaluate((element, [x, y]) => {
+    const source = element as HTMLCanvasElement | HTMLImageElement;
+    const probe = document.createElement('canvas');
+    probe.width = source instanceof HTMLImageElement ? source.naturalWidth : source.width;
+    probe.height = source instanceof HTMLImageElement ? source.naturalHeight : source.height;
+    const ctx = probe.getContext('2d')!;
+    ctx.drawImage(source, 0, 0);
+    const row = ctx.getImageData(Math.round(probe.width * x), Math.round(probe.height * y), 12, 1).data;
+    let variation = 0;
+    for (let i = 4; i < row.length; i += 4) variation += Math.abs((row[i] - row[i + 2]) - (row[i - 4] - row[i - 2]));
+    return variation / 11;
+  }, [fx, fy]);
+  const subjectChroma = await chromaVariation(0.5, 0.5);
+  const backgroundChroma = await chromaVariation(0.05, 0.05);
+  expect(subjectChroma).toBeGreaterThan(10);
+  await root.getByRole('slider', { name: 'Subject Colour denoise' }).fill('2');
+  await expect.poll(() => chromaVariation(0.5, 0.5)).toBeLessThan(subjectChroma * 0.8);
+  expect(await chromaVariation(0.05, 0.05)).toBeCloseTo(backgroundChroma, 0);
   // Deleting removes the layer and the edit.
   await root.getByRole('button', { name: 'Delete Subject' }).click();
   await expect(root.getByRole('button', { name: /Hide Subject|Show Subject/ })).toHaveCount(0);
