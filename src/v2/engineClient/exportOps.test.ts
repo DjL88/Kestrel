@@ -76,7 +76,7 @@ test('original file plus edited counts both', () => {
   assert.equal(plan.summary, '1 photo × 1 size + 1 original file = 2 files');
 });
 
-test('plans JPEG/PNG Original exports before decoding, preserves an explicit size and excludes unverified RAW', () => {
+test('plans JPEG/PNG Original exports before decoding without trusting legacy output overrides, and excludes unverified RAW', () => {
   const originals = [size('orig-3x2')];
   const plan = planExport(request({ sizeIds: ['orig-3x2'], photoIds: ['p1', 'p2', 'p3'] }), [
     { id: 'p1', filename: 'bird.PNG' },
@@ -85,7 +85,7 @@ test('plans JPEG/PNG Original exports before decoding, preserves an explicit siz
   ], originals);
   assert.ok('jobs' in plan);
   assert.deepEqual(plan.jobs.map((job) => job.frameId), ['p1', 'p2']);
-  assert.deepEqual(plan.jobs[1].size, { width: 440, height: 330 });
+  assert.deepEqual(plan.jobs[1].size, { width: 1, height: 1 }); // Pending decode: legacy originalSize is not proof of imported dimensions.
 });
 
 test('choosing nothing at all is refused with a plain message', () => {
@@ -331,14 +331,27 @@ test('the Original output format follows each imported photograph rather than a 
   ]);
 });
 
-test('an Original canvas override changes only its output, not its imported dimensions', () => {
+test('a legacy Original canvas override cannot replace the imported dimensions', () => {
   const source = [{
     id: 'p1', filename: 'image.jpg', exif: { width: 8256, height: 5504 },
     formats: { disabled: [], custom: [], originalSize: { width: 2400, height: 1600 } },
   }];
   const plan = planExport(request({ photoIds: ['p1'], sizeIds: ['orig-3x2'] }), source, createDefaultSizes());
   assert.ok('jobs' in plan);
-  assert.deepEqual(plan.jobs[0].size, { width: 2400, height: 1600 });
+  assert.deepEqual(plan.jobs[0].size, { width: 8256, height: 5504 });
+});
+
+test('a separate custom format can export a resized copy without changing Original', () => {
+  const source = [{
+    id: 'p1', filename: 'image.jpg', exif: { width: 8256, height: 5504 },
+    formats: { disabled: [], custom: [{ id: 'custom-small', label: 'Small copy', width: 2400, height: 1600 }] },
+  }];
+  const plan = planExport(request({ photoIds: ['p1'], sizeIds: ['orig-3x2', 'custom-small'] }), source, createDefaultSizes());
+  assert.ok('jobs' in plan);
+  assert.deepEqual(plan.jobs.map((job) => ({ id: job.format.id, size: job.size })), [
+    { id: 'orig-3x2', size: { width: 8256, height: 5504 } },
+    { id: 'custom-small', size: { width: 2400, height: 1600 } },
+  ]);
 });
 
 test('unknown imported dimensions do not silently use invented 3000 by 2000 Original', () => {
