@@ -89,7 +89,7 @@ test('rejects an unbuilt Vite development editor', () => {
 test('accepts the current live entry and rejects stale HTML even if its assets are still hosted', () => {
   const root = fixture();
   try {
-    const current = runLive(root, { '/editor/demo-editor.html': demo('A different display name', './assets/demo.js') });
+    const current = runLive(root, { '/editor/demo-editor.html': demo('InFlight editor demonstration') });
     assert.equal(current.status, 0, current.stderr);
     assert.match(current.stdout, /Live Firebase PASS/);
     assert.match(runLive(root, {
@@ -115,7 +115,7 @@ test('checks both public Demo Editor routes and rejects a stale homepage or the 
   assert.equal(valid.status, 0, valid.stderr);
   assert.match(runLive(root, { ...pages, '/': landing }).stderr, /expected the demo-v2 editor iframe/);
   assert.match(runLive(root, { ...pages, '/editor/demo-v2': undefined }).stderr, /path failed \(404\): \/editor\/demo-v2/);
-  assert.match(runLive(root, { ...pages, '/editor/demo-v2': demo('Demo Studio') }).stderr, /different set of compiled assets: \/editor\/demo-v2/);
+  assert.match(runLive(root, { ...pages, '/editor/demo-v2': demo('Demo Studio') }).stderr, /Live editor HTML differs from the verified local build: \/editor\/demo-v2/);
   assert.match(runLive(root, { ...pages, '/editor/demo-editor.html': undefined }).stderr, /path failed \(404\): \/editor\/demo-editor\.html/);
 });
 
@@ -205,4 +205,37 @@ test('rejects changed live OAuth callback and privacy content', () => {
       assert.ok(result.stderr.includes(path));
     }
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+
+test('rejects stale editor HTML even when referenced compiled assets match', t => {
+  const root = fixture();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const original = demo('InFlight editor demonstration');
+  assert.equal(runLive(root, { '/editor/demo-editor.html': original }).status, 0);
+  for (const stale of [
+    original.replace('InFlight editor demonstration', 'Outdated editor'),
+    original.replace('<body>', '<body data-release="stale">'),
+    original.replace('type="module"', 'type="text/javascript"'),
+  ]) {
+    const result = runLive(root, { '/editor/demo-editor.html': stale });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Live editor HTML differs from the verified local build/);
+  }
+});
+
+test('both Version 2 editor URLs must serve the same exact compiled HTML', t => {
+  const root = fixture();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const v2Landing = landing.replace('demo-editor.html', 'demo-v2');
+  const v2 = demo('Version 2', '/editor/assets/v2.js');
+  writeFileSync(join(root, 'index.html'), v2Landing);
+  writeFileSync(join(root, 'editor', 'demo-v2.html'), v2);
+  writeFileSync(join(root, 'editor', 'assets', 'v2.js'), bundle);
+  const pages = { '/': v2Landing, '/editor/demo-editor.html': demo('InFlight editor demonstration'),
+    '/editor/demo-v2.html': v2, '/editor/demo-v2': v2, '/editor/assets/v2.js': bundle };
+  assert.equal(runLive(root, pages).status, 0);
+  const stale = v2.replace('<body>', '<body data-stale="true">');
+  assert.match(runLive(root, { ...pages, '/editor/demo-v2': stale }).stderr, /Live editor HTML differs/);
+  assert.match(runLive(root, { ...pages, '/editor/demo-v2.html': stale }).stderr, /Live editor HTML differs/);
 });
