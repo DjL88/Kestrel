@@ -7,6 +7,7 @@ const verified: RawDecodeEvidence = {
   originalSha256: 'a'.repeat(64), width: 8256, height: 5504,
   decodedFromOriginal: true, exportUsesDevelopedPixels: true,
   outputIccProfile: 'sRGB IEC61966-2.1', compression: 'unknown',
+  outputFormat: 'tiff', encodedBitsPerChannel: 16,
 };
 
 describe('RAW 16-bit export provenance gate', () => {
@@ -31,6 +32,15 @@ describe('RAW 16-bit export provenance gate', () => {
   it('allows fully evidenced 16-bit or float developed data only', () => {
     expect(requireProvenRaw16Export(verified).allowed).toBe(true);
     expect(requireProvenRaw16Export({ ...verified, precision: 'float32' }).allowed).toBe(true);
+  });
+  it('refuses an 8-bit encoder even with a genuine 16-bit RAW intermediate', () => {
+    expect(requireProvenRaw16Export({ ...verified, encodedBitsPerChannel: 8 }).allowed).toBe(false);
+    expect(requireProvenRaw16Export({ ...verified, encodedBitsPerChannel: 'unknown' }).allowed).toBe(false);
+  });
+  it('refuses PNG/JPEG and unknown containers even when labelled 16-bit', () => {
+    for (const outputFormat of ['png', 'jpeg', 'unknown'] as const) {
+      expect(requireProvenRaw16Export({ ...verified, outputFormat }).allowed).toBe(false);
+    }
   });
   it('does not assume HE/HE-star support from a claimed compression mode', () => {
     expect(requireProvenRaw16Export({ ...verified, compression: 'he', decodedFromOriginal: false }).allowed).toBe(false);
