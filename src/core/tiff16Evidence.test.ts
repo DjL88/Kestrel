@@ -91,6 +91,26 @@ describe('completed TIFF structural evidence', () => {
     aliased.set([97, 99, 115, 112], 136);
     assert.equal(inspectTiff16Structure(aliased).ok, false);
   });
+  it('rejects raster strips overlapping out-of-line strip table metadata', () => {
+    const aliased = fixture();
+    const v = new DataView(aliased.buffer);
+    // Replace the single strip-offset tag with a two-element offset table.
+    // Two strips each hold a different row span, with valid total raster bytes.
+    // The first raster deliberately aliases the strip-offset table itself.
+    const stripTag = 10 + 5 * 12;
+    v.setUint32(stripTag + 4, 2, true);
+    v.setUint32(stripTag + 8, 400, true);
+    v.setUint32(400, 400, true);
+    v.setUint32(404, 440, true);
+    v.setUint32(10 + 7 * 12 + 8, 2, true); // rows per strip
+    const byteCountsTag = 10 + 8 * 12;
+    v.setUint32(byteCountsTag + 4, 2, true);
+    v.setUint32(byteCountsTag + 8, 408, true);
+    v.setUint32(408, 48, true);
+    v.setUint32(412, 24, true);
+    const result = inspectTiff16Structure(aliased);
+    assert.equal(result.ok, false);
+  });
   it('rejects a strip aliased onto the TIFF directory', () => {
     const aliased = fixture();
     new DataView(aliased.buffer).setUint32(10 + 5 * 12 + 8, 20, true);
