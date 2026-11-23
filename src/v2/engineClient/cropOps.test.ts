@@ -40,3 +40,11 @@ test('a border is kept within 0 to 10 percent and a valid colour; anything else 
   assert.equal(sanitiseCrop(undefined).borderWidth, 0);
   assert.equal(patchCrop(undefined, { borderWidth: 2, borderColour: '#000000' }).borderColour, '#000000');
 });
+
+test('each format safely retains a border placement without leaking malformed values', () => {
+  for (const placement of ['all', 'horizontal', 'vertical', 'auto'] as const) {
+    assert.equal(sanitiseCrop({ borderPlacement: placement }).borderPlacement, placement);
+  }
+  assert.equal(sanitiseCrop({ borderPlacement: 'inset;overflow:hidden' }).borderPlacement, 'all');
+  assert.equal(patchCrop(undefined, { borderPlacement: 'vertical', borderColour: '#DDCCAA' }).borderPlacement, 'vertical');
+});
