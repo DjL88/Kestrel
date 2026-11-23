@@ -80,6 +80,10 @@ export interface LookStepResult {
 export interface LookResult {
   look: Pick<Look, 'id' | 'name'>;
   steps: LookStepResult[];
+  /** The final whole-photo recipe containing only verified, accepted Look steps. Consumers may apply it as one undoable edit. */
+  combinedEdit: Partial<PhotoEdit>;
+  /** The subject masks accepted into the same final rendering; rejected attempts never appear here. */
+  combinedMasks: Mask[];
   finalPixels: Pixels;
 }
 
@@ -93,6 +97,18 @@ function scaleLocalEdit<T extends object>(edit: T, scale: number): T {
     if (typeof value === 'number') scaled[key] = value * scale;
   }
   return scaled as T;
+}
+
+/** A Look has one subject selection. Reusing its id in later steps must update the
+ * same layer rather than stack duplicate masks (which would apply earlier adjustments twice). */
+function mergeLookMasks(existing: Mask[], incoming: Mask[]): Mask[] {
+  const merged = [...existing];
+  for (const mask of incoming) {
+    const index = merged.findIndex(previous => previous.id === mask.id);
+    if (index < 0) merged.push(mask);
+    else merged[index] = { ...merged[index], edit: { ...merged[index].edit, ...mask.edit } };
+  }
+  return merged;
 }
 
 /** Runs a Look's steps in order, each one rendered, verified and retried at reduced strength on
@@ -116,6 +132,7 @@ export async function runLook(look: Look, input: LookRenderInput, runner: Engine
       let verification: CourseCorrection = { ok: false, reasons: [], suggestedStrengthScale: 1 };
       let attempts = 0;
       let after = input.original;
+      let candidateMasks: Mask[] = [];
 
       for (; attempts <= maxRetries; attempts += 1) {
         masks = [];
@@ -123,25 +140,32 @@ export async function runLook(look: Look, input: LookRenderInput, runner: Engine
           const mask = createSubjectMask(input.subject.maskId, input.subject.grid, input.subject.framingKey, input.subject.confidence, input.subject.detail);
           masks = [{ ...mask, edit: { ...mask.edit, ...subjectEdit } }];
         }
-        after = await input.render({ ...acceptedEdit, ...background }, [...acceptedMasks, ...masks]);
+        candidateMasks = mergeLookMasks(acceptedMasks, masks);
+        after = await input.render({ ...acceptedEdit, ...background }, candidateMasks);
         const detailScope = input.subject && subjectEdit ? 'subject' : 'frame';
         verification = verifyEdit(input.original, after, input.subject?.alpha, detailScope);
         if (verification.ok || attempts === maxRetries) break;
         background = scaleLocalEdit(background, verification.suggestedStrengthScale);
         if (subjectEdit) subjectEdit = scaleLocalEdit(subjectEdit, verification.suggestedStrengthScale);
       }
-      return { edit: background, masks, verification, attempts: attempts + 1, pixels: after };
+      return { edit: background, masks, candidateMasks, verification, attempts: attempts + 1, pixels: after };
     });
 
     results.push({ label: step.label, edit: stepResult.edit, masks: stepResult.masks, verification: stepResult.verification, attempts: stepResult.attempts });
     if (stepResult.verification.ok) {
       acceptedEdit = { ...acceptedEdit, ...stepResult.edit };
-      acceptedMasks = [...acceptedMasks, ...stepResult.masks];
+      acceptedMasks = stepResult.candidateMasks;
       finalPixels = stepResult.pixels;
     }
   }
 
-  return { look: { id: look.id, name: look.name }, steps: results, finalPixels };
+  return {
+    look: { id: look.id, name: look.name },
+    steps: results,
+    combinedEdit: acceptedEdit,
+    combinedMasks: acceptedMasks,
+    finalPixels,
+  };
 }
 
 /** Builds a Look a person saved from the editor - same shape the engine itself uses, so a hand-made Look

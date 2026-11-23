@@ -62,6 +62,8 @@ describe('runLook', () => {
     assert.equal(result.steps.length, 2);
     assert.deepEqual(renders, [{ denoise: 0.3 }, { denoise: 0.3, texture: 0.2 }]);
     assert.ok(result.steps.every((step) => step.verification.ok));
+    assert.deepEqual(result.combinedEdit, { denoise: 0.3, texture: 0.2 });
+    assert.deepEqual(result.combinedMasks, []);
   });
 
   it('applies a subject-only edit via a mask, verified with detailScope "subject"', async () => {
@@ -74,6 +76,32 @@ describe('runLook', () => {
     assert.equal(result.steps[0].masks.length, 1);
     assert.equal(result.steps[0].masks[0].edit.texture, 0.3);
     assert.equal(result.steps[0].masks[0].edit.sharpen, 0.2);
+    assert.deepEqual(result.combinedEdit, { texture: -0.3 });
+    assert.equal(result.combinedMasks.length, 1);
+    assert.equal(result.combinedMasks[0].edit.sharpen, 0.2);
+  });
+
+  it('composes repeated subject adjustments into one mask and renders the accepted recipe', async () => {
+    const original = flat(16, [120, 120, 120]);
+    const renders: Array<{ masks: number; texture?: number; sharpen?: number }> = [];
+    const look = createCustomLook('layered', 'Layered subject', 'two subject edits', [
+      { label: 'Texture', capability: 'mask', background: {}, subject: { texture: 0.25 } },
+      { label: 'Sharpen', capability: 'mask', background: {}, subject: { sharpen: 0.15 } },
+    ]);
+    const result = await runLook(look, {
+      original, subject: subjectInput,
+      render: async (_edit, masks) => {
+        renders.push({ masks: masks.length, texture: masks[0]?.edit.texture, sharpen: masks[0]?.edit.sharpen });
+        return flat(16, [121, 121, 121]);
+      },
+    });
+    assert.deepEqual(renders, [
+      { masks: 1, texture: 0.25, sharpen: 0 },
+      { masks: 1, texture: 0.25, sharpen: 0.15 },
+    ]);
+    assert.equal(result.combinedMasks.length, 1);
+    assert.equal(result.combinedMasks[0].edit.texture, 0.25);
+    assert.equal(result.combinedMasks[0].edit.sharpen, 0.15);
   });
 
   it('retries a step at reduced strength on overshoot, then moves on to the next step unaffected by the first step\'s failure', async () => {
@@ -97,6 +125,25 @@ describe('runLook', () => {
     assert.equal(result.steps[1].attempts, 1); // rejected first step never enters the recipe
     assert.equal(result.steps[1].verification.ok, true);
     assert.equal(calls, 4);
+    assert.deepEqual(result.combinedEdit, { texture: 0.1 }); // rejected denoise absent
+    assert.deepEqual(result.combinedMasks, []);
+    assert.deepEqual(result.finalPixels.data, flat(16, [121, 121, 121]).data);
+  });
+
+  it('returns an empty accepted recipe and original pixels when every candidate fails verification', async () => {
+    const original = flat(16, [120, 120, 120]);
+    const look = createCustomLook('reject', 'Rejected Look', 'unsafe edit', [
+      { label: 'Overexpose', capability: 'denoise', background: { denoise: 1 } },
+    ]);
+    const result = await runLook(look, {
+      original,
+      render: async () => flat(16, [250, 250, 250]),
+      maxRetriesPerStep: 0,
+    });
+    assert.equal(result.steps[0].verification.ok, false);
+    assert.deepEqual(result.combinedEdit, {});
+    assert.deepEqual(result.combinedMasks, []);
+    assert.equal(result.finalPixels, original);
   });
 
   it('runs the real built-in lift-subject-blur-background Look end to end', async () => {
