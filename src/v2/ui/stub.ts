@@ -607,8 +607,8 @@ function createDefaultPanels(): Record<PanelId, PanelLayoutState> {
 }
 
 export const DEFAULT_FEATURE_PLAN: Record<FeatureKey, 'basic' | 'pro'> = {
-  watermarkCustom: 'pro',
-  overlayText: 'pro',
+  watermarkCustom: 'basic',
+  overlayText: 'basic',
   smartCulling: 'pro',
   speciesId: 'pro',
   onlineAi: 'pro',
@@ -620,10 +620,11 @@ export const DEFAULT_FEATURE_PLAN: Record<FeatureKey, 'basic' | 'pro'> = {
 export const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
   watermarkCustom: true,
   overlayText: true,
-  smartCulling: true,
-  speciesId: true,
-  onlineAi: true,
-  cloudAssist: true,
+  // The standalone UI stub has no signed Admin flags; don't imply Pro access.
+  smartCulling: false,
+  speciesId: false,
+  onlineAi: false,
+  cloudAssist: false,
   zoomVideo: true,
   splitFrames: true,
 };
