@@ -465,7 +465,7 @@ export interface WorkspaceActions {
   backToProjects: () => void;
   createProject: (name: string, options?: { keeperTarget?: number; settings?: import('../../core/projectSettings').ProjectSettings }) => void;
   /** Pick a folder (on this device, an external drive or a synced cloud folder) and make a project of its photos. */
-  createProjectFromFolder: () => void;
+  createProjectFromFolder: (options?: { keeperTarget?: number; settings?: import('../../core/projectSettings').ProjectSettings }) => void;
   renameProject: (projectId: string, name: string) => void;
   archiveProject: (projectId: string, archived: boolean) => void;
   /** Removes InFlight's catalogue entry and its stored copies. Original files are never touched. */
