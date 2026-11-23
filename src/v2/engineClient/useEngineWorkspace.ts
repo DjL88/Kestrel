@@ -51,7 +51,7 @@ import { verifyExactOriginalCopy } from './verifiedOriginalCopy';
 import { buildRawMasterFile } from './rawMasterExport';
 import { TEMPLATES_KEY, addTemplate, deleteTemplate, readTemplates, renameTemplate, type OverlayTemplate } from './overlayTemplates';
 import { applyOverlayTemplateToProject, changePhotoOverlay } from './overlayHistory';
-import { addFormat, applyFormats, ORIGINAL_FORMAT_ID, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize, setOriginalOutputSize, resetOriginalOutputSize } from './formatOps';
+import { type FormatSet, addFormat, applyFormats, ORIGINAL_FORMAT_ID, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize, setOriginalOutputSize, resetOriginalOutputSize } from './formatOps';
 import { patchVideoZoom } from './videoZoomOps';
 import { setFormatSplitOffset, setSplitFrameCount as writeSplitFrameCount, toggleFormatSplit } from './formatSplitOps';
 import { readSplitPanOffset } from './splitFrameOps';
@@ -710,7 +710,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, [mutate]);
 
   /** Change a photo's format set. Returns false when the change was refused (nothing is saved). `crops` may also rewrite the saved crops. */
-  const changeFormats = useCallback((photoId: string, change: (raw: unknown) => ReturnType<typeof readFormats> | undefined, crops?: (raw: unknown) => unknown): boolean => {
+  const changeFormats = useCallback((photoId: string, change: (raw: unknown) => FormatSet | undefined, crops?: (raw: unknown) => unknown): boolean => {
     const current = stateRef.current;
     const frame = current?.frames.find((candidate) => candidate.id === photoId);
     if (!current || !frame) return false;
