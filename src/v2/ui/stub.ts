@@ -1867,14 +1867,27 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
 
     setPanelDock: (panelId, dock: DockPosition) => {
       logAction('setPanelDock', { panelId, dock });
-      setStore((prev) => ({
-        ...prev,
-        activePanel: panelId,
-        panels: {
-          ...prev.panels,
-          [panelId]: { ...prev.panels[panelId], visible: true, dock },
-        },
-      }));
+      setStore((prev) => {
+        const current = prev.panels[panelId];
+        let floatX = current.floatX;
+        let floatY = current.floatY;
+        if (dock === 'float' && current.dock !== 'float' && typeof window !== 'undefined') {
+          const width = window.innerWidth;
+          const existing = Object.values(prev.panels).filter((panel) => panel.dock === 'float' && panel.visible).length;
+          const columns = width >= 1200 ? Math.max(1, Math.floor((width - 24) / 340)) : 1;
+          const slot = width >= 1200 ? existing : 0;
+          floatX = Math.max(12, Math.min(width - 332, 12 + (slot % columns) * 340));
+          floatY = Math.max(58, Math.min(window.innerHeight - 160, 88 + Math.floor(slot / columns) * 46));
+        }
+        return {
+          ...prev,
+          activePanel: panelId,
+          panels: {
+            ...prev.panels,
+            [panelId]: { ...current, visible: true, dock, floatX, floatY },
+          },
+        };
+      });
     },
 
     moveFloatingPanel: (panelId, floatX, floatY) => {
