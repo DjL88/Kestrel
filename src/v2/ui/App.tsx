@@ -2,6 +2,7 @@ import { stepFrom } from './utils/swipe';
 import React, { useEffect, useRef, useState } from 'react';
 import type { PanelId } from './contract';
 import { useWorkspace } from './stub';
+import { resolveTheme } from './themePreference';
 import { STRINGS } from './strings';
 import BrandIcon, { assistModeIconName } from './icons/BrandIcon';
 import ProjectsHub from './screens/ProjectsHub';
@@ -55,6 +56,30 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   accountPanel?: React.ReactNode;
 } = {}) {
   const { store, actions } = useStore();
+  const [systemDark, setSystemDark] = useState(() =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-color-scheme: dark)').matches : false);
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const update = () => setSystemDark(media.matches);
+    update();
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', update);
+      return () => media.removeEventListener('change', update);
+    }
+    // Compatibility with older WebKit versions in the desktop shell.
+    media.addListener?.(update);
+    return () => media.removeListener?.(update);
+  }, []);
+  const activeTheme = resolveTheme(store.settings.theme, systemDark);
+  useEffect(() => {
+    const favicon = document.querySelector<HTMLLinkElement>('link[data-inflight-theme-icon]');
+    if (favicon) favicon.href = activeTheme === 'dark' ? '/brand/favicon-dark.svg' : '/brand/favicon-light.svg';
+    const theme = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if (theme) theme.content = activeTheme === 'dark' ? '#0e1116' : '#f8f6f2';
+  }, [activeTheme]);
+
   const { setActivePanel } = actions;
   const hasOverlays = store.features.overlayText || store.features.watermarkCustom;
   const hiddenPro = React.useMemo(() => hiddenProFeatures(store.featurePlan, store.features, store.settings.hideProFeatures), [store.featurePlan, store.features, store.settings.hideProFeatures]);
@@ -323,7 +348,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
       <HiddenProContext.Provider value={hiddenPro}>
     <div
       className="inflight-v2 fixed inset-0 flex flex-col overflow-hidden bg-[var(--bg-app)] text-[var(--text-primary)] font-[family-name:var(--font-sans)]"
-      data-v2-theme={store.settings.theme}
+      data-v2-theme={activeTheme}
       onDragOver={(e) => {
         if (store.screen === 'editor' && Array.from(e.dataTransfer.types).includes('Files')) {
           e.preventDefault();
@@ -347,7 +372,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         <ProjectsHub
           projects={store.projects}
           hubState={store.hubState}
-          theme={store.settings.theme}
+          theme={activeTheme}
           onOpenProject={actions.openProject}
           onCreateProject={actions.createProject}
           onCreateFromFolder={actions.createProjectFromFolder}
@@ -356,7 +381,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
           onDeleteProject={actions.deleteProject}
           onOpenSettings={() => actions.setSettingsOpen(true, 'appearance')}
           onToggleTheme={() =>
-            actions.updateSettings({ theme: store.settings.theme === 'dark' ? 'light' : 'dark' })
+            actions.updateSettings({ theme: activeTheme === 'dark' ? 'light' : 'dark' })
           }
           onSetHubState={actions.setHubState}
         />
@@ -366,7 +391,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             keymap={keymap}
             photoName={activePhoto ? `${activePhoto.title} · ${activePhoto.filename}` : 'No photo'}
             assistMode={store.assistMode}
-            theme={store.settings.theme}
+            theme={activeTheme}
             activePanel={store.activePanel}
             canUndo={store.canUndo}
             canRedo={store.canRedo}
@@ -393,7 +418,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             onDockActivePanel={(dock) => store.activePanel && actions.setPanelDock(store.activePanel, dock)}
             onResetLayout={actions.resetPanelLayout}
             onToggleTheme={() =>
-              actions.updateSettings({ theme: store.settings.theme === 'dark' ? 'light' : 'dark' })
+              actions.updateSettings({ theme: activeTheme === 'dark' ? 'light' : 'dark' })
             }
             onToggleDemoUnavailable={actions.toggleDemoUnavailable}
           />
