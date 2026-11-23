@@ -45,7 +45,7 @@ import { runDeepVisionReview } from './deepVisionReview';
 import { planExport } from './exportOps';
 import { verifyExactOriginalCopy } from './verifiedOriginalCopy';
 import { TEMPLATES_KEY, addTemplate, deleteTemplate, overlayFromTemplate, readTemplates, renameTemplate, type OverlayTemplate } from './overlayTemplates';
-import { addFormat, applyFormats, readFormats, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize } from './formatOps';
+import { addFormat, applyFormats, readFormats, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize, setOriginalOutputSize, resetOriginalOutputSize } from './formatOps';
 import { patchVideoZoom } from './videoZoomOps';
 import { setFormatSplitOffset, toggleFormatSplit } from './formatSplitOps';
 import { readSplitPanOffset } from './splitFrameOps';
@@ -1139,6 +1139,13 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     updateVideoZoom,
     toggleSplitFrames,
     setSplitPanOffset,
+    setOriginalOutputSize: (photoId, width, height) => {
+      if (!validCustomSize(width, height)) { setNotice('Use whole pixels between 1 and 20,000 for the Original output canvas.'); return; }
+      changeFormats(photoId, (raw) => setOriginalOutputSize(raw, width, height));
+    },
+    resetOriginalOutputSize: (photoId) => {
+      changeFormats(photoId, resetOriginalOutputSize);
+    },
     addCustomSize: (photoId, label, width, height) => {
       if (!validCustomSize(width, height)) { setNotice('That size is not usable. Use whole pixels, from 1 to 20,000.'); return; }
       const id = `custom-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 10)}`;
