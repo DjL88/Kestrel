@@ -454,10 +454,12 @@ export default function SettingsDialog({
                     );
                   })}
                 </div>
-                <div>
-                  <p className="text-[11px] font-medium text-[var(--text-muted)]">Bring your own: also works with a model you run yourself</p>
-                  <WorksWith items={[{ id: 'ollama', name: 'Ollama' }, { id: 'lmstudio', name: 'LM Studio' }]} />
-                </div>
+                {accountPanel
+                  ? <p className="text-[11px] text-[var(--text-muted)]">Self-hosted and bring-your-own AI model connections are planned, but are not configured through this workspace yet. Local editing remains available.</p>
+                  : <div>
+                    <p className="text-[11px] font-medium text-[var(--text-muted)]">Bring your own: also works with a model you run yourself</p>
+                    <WorksWith items={[{ id: 'ollama', name: 'Ollama' }, { id: 'lmstudio', name: 'LM Studio' }]} />
+                  </div>}
               </div>
             )}
 
