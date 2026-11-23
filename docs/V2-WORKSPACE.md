@@ -176,19 +176,21 @@ Intended behaviour: Basic gets an InFlight watermark. A backend toggle opens cus
 
 **Open for the engine worker:** the task-manager request/result shape that device and cloud calls share; the decision maker's score and tiers; recipe format with masks; where learning is stored. See also `docs/AI-INTEGRATION.md` (one engine API, top-three candidates).
 
-## 16. Gap analysis: V2 interface against V1 (22 Nov 2026)
+## 16. Gap analysis: V2 interface against V1 (22 Nov 2026; P0 status refreshed 23 Nov)
+
+**UAT status note:** The P0 rows below report implementation present on current main and remaining validation, not a release pass. Earlier P1/P2 rows further below are a historical 22 Nov baseline and can also be stale; check source and merged PRs before opening duplicate work.
 
 Method: V1 = the current Library and Editor (`src/App.tsx`, `src/components/*`, `docs/PRODUCT-SPEC.md` section 3). V2 = `src/v2/ui` on the real catalogue through `src/v2/engineClient`. Status words: **Done** (real, tested), **Partial** (works but narrower than V1), **Stub** (shown but not connected, or fake), **Missing** (not in V2). Priority: **P0** blocks daily use or breaks a non-negotiable, **P1** expected by V1 users, **P2** later. "Intentional" means the owner moved or dropped it (File/Edit/View, Assist as a separate tool, mode switch in the header).
 
 ### P0: V2 cannot replace V1 until these work
 | Area | V1 | V2 now | Gap |
 |---|---|---|---|
-| Export | Wizard: full-size PNG/JPEG master, social sizes, before/after, zip or folder, destinations, proof preview, never reduces resolution silently | Dialog is shown, `runExport` is **Stub** (does nothing) | Whole export; shared overlay and watermark renderer so the file matches the canvas |
-| Crop, rotate, straighten | Saved in the recipe (`PhotoFraming`), used by export | Crop and sizes are CSS-only, not saved (**Stub**) | Save framing; size copies (`createCropCopy`) |
-| Masks | Subject, area and brush masks with blend and halo-free edges (`MaskPanel`) | Masks panel **Stub** | Connect to the engine mask pipeline |
-| Remove and restore photos | Remove from library, Removed photos panel, restore | **Missing** (photos cannot be removed) | Remove, undo and restore, never touching originals |
-| Missing originals | Relink banner and relink flow, never attach the wrong file | Shows "Original not connected" but `reconnectOriginal` is **Stub** | Relink |
-| Histogram | Real, from the preview pixels | **Fake**: seeded curve from the sliders (`buildHistogramData`) | Replace with the real histogram (must not mislead) |
+| Export | Wizard: PNG/JPEG masters, before/after, ZIP or individual files, correct crops and watermark | **Implemented on main**: local ZIP/individual delivery, exact-original copy, PNG/JPEG quality and rendered crop, text and watermark (#935, #940, #981) | **UAT gate**: re-test merged #981 head on desktop/phone, original byte identity, cancellation and canvas/export parity; cloud/share destinations remain unavailable; longest-edge control #991 is draft |
+| Crop, rotate, straighten | Saved per-format framing, used by export | **Implemented in V2**: per-photo format/crop state and exported framing; format on/off/custom/duplicate/delete and frame action bar (#986) | **UAT gate**: visual pan/crop and split/export parity on desktop and touch; adjoining split-format board #990 is draft |
+| Masks | Subject, area and brush with blend and halo-free edges | **Partial**: Subject and Background masks use real engine and persist; unsupported Sky/Brush/Eraser/Area controls are disabled rather than faked (#941) | Add only verified capabilities; inspect fine edges and mask export on actual photographs; do not claim unsupported mask tools work |
+| Remove and restore photos | Remove from library, Removed photos panel, restore | **Partial**: Set aside, remove to Trash and Restore via Undo now work (#966), leaving the original untouched | Confirm deletion/restore paths and larger-library recovery in UAT before calling this V1-parity |
+| Missing originals | Restore persisted originals, relink moved/lost files without attaching wrong bytes | **Partial**: previously saved browser originals rehydrate after project reopen (#984); manual browser reselect remains draft #979 | **P0 HOLD**: selected replacement must be verified by content SHA-256, wrong bytes refused, cached thumbnail must not masquerade as connected original; desktop folder relink is separate |
+| Histogram | Real pixel-based histogram, no misleading seeded curve | **Implemented**: reads actual preview pixels (#892), not slider-seeded sample data | Confirm RAW/large-photo preview fidelity and histogram refresh during edits on a real desktop and mobile device |
 
 ### P1: V1 behaviour people rely on
 | Area | V1 | V2 now |
