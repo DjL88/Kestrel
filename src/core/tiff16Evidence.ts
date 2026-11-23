@@ -108,6 +108,7 @@ export function inspectTiff16Structure(bytes: Uint8Array): { ok: true; width: nu
   }
   // A well-formed ICC profile starts with its byte size and acsp signature.
   const iccAt = u32(icc.offset);
+  if (iccAt < 8) return fail('TIFF ICC profile overlaps the file header.');
   if (pixelRanges.some(([start, end]) => start < iccAt + icc.count && iccAt < end)) {
     return fail('TIFF ICC profile overlaps pixel data.');
   }
