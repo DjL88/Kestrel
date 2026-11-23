@@ -10,11 +10,14 @@ const sha = 'a'.repeat(40);
 async function fixture(t) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'inflight-release-evidence-'));
   t.after(() => rm(root, { recursive: true, force: true }));
-  await writeFile(path.join(root, 'proof.txt'), 'UAT executed at a fixed SHA');
-  const hash = createHash('sha256').update('UAT executed at a fixed SHA').digest('hex');
-  const checks = Object.fromEntries(REQUIRED_GATES.map(k => [k, {
-    status: 'PASS', releaseSha: sha, evidence: [{ path: 'proof.txt', sha256: hash }],
-  }]));
+  const proof = 'UAT executed at a fixed SHA';
+  const hash = createHash('sha256').update(proof).digest('hex');
+  const checks = Object.fromEntries(await Promise.all(REQUIRED_GATES.map(async k => {
+    await writeFile(path.join(root, k + '.txt'), proof);
+    return [k, {
+      status: 'PASS', releaseSha: sha, evidence: [{ path: k + '.txt', sha256: hash }],
+    }];
+  })));
   const manifest = { releaseSha: sha, unresolvedHoldPrs: [], releaseBlockers: [], checks };
   return { root, manifest, hash };
 }
@@ -41,7 +44,7 @@ test('HOLD, not-run, missing evidence and SHA drift all block release', async t 
 
 test('evidence modification, missing files and forged hashes are rejected', async t => {
   const { root, manifest } = await fixture(t);
-  await writeFile(path.join(root, 'proof.txt'), 'changed');
+  await writeFile(path.join(root, 'lint.txt'), 'changed');
   assert.ok((await checkReleaseEvidence(manifest, root)).some(e => e.includes('SHA-256 mismatch')));
   manifest.checks.lint.evidence = [{ path: 'missing.txt', sha256: 'f'.repeat(64) }];
   assert.ok((await checkReleaseEvidence(manifest, root)).some(e => e.includes('lint:')));
@@ -70,4 +73,11 @@ test('invalid manifest and missing SHA are rejected', async t => {
   manifest.releaseSha = 'main';
   assert.ok((await checkReleaseEvidence(manifest, root)).some(e => e.includes('40-character')));
   await assert.rejects(checkManifestFile(path.join(root, 'missing.json')));
+});
+
+test('reusing one generic log for independent gates is refused', async t => {
+  const { root, manifest } = await fixture(t);
+  manifest.checks.unit.evidence = [...manifest.checks.lint.evidence];
+  const errors = await checkReleaseEvidence(manifest, root);
+  assert.ok(errors.some(e => e.includes('evidence path reused')));
 });
