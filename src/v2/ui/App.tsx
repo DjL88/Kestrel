@@ -247,6 +247,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             onSetOriginalOutputSize={actions.setOriginalOutputSize}
             onResetOriginalOutputSize={actions.resetOriginalOutputSize}
             onToggleSplitFrames={actions.toggleSplitFrames}
+            onSetSplitFrameCount={actions.setSplitFrameCount}
             onUpdateVideoZoom={actions.updateVideoZoom}
           />
         );
