@@ -30,7 +30,9 @@ import CommandPalette from './dialogs/CommandPalette';
 import { effectiveKeymap, loadKeymap, saveKeymap, type SavedKeymap } from './commands/keymap';
 import { loadPad, resolveWithPad, savePad, type PadProfile } from './commands/pad';
 import KeyboardSettings from './dialogs/KeyboardSettings';
-import type { CommandDefinition } from './commands/registry';
+import { commandById, type CommandDefinition } from './commands/registry';
+import { useNativeMenu } from './commands/useNativeMenu';
+import type { MenuAction } from './commands/menuMap';
 
 const IS_MAC = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
 
@@ -120,6 +122,22 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
       case 'app.settings': actions.setSettingsOpen(true); break;
     }
   }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, activePhoto, actions]);
+
+  // The desktop app's native menu (File, Edit, Photo, View, Settings). Some of its accelerators (Cmd/Ctrl+E, +A, +O, +M)
+  // are taken before the page sees the key, so the menu choice must run the action itself.
+  useNativeMenu((action: MenuAction) => {
+    const ids = store.selectedPhotoIds.length > 0 ? store.selectedPhotoIds : activePhoto ? [activePhoto.id] : [];
+    const inEditor = store.screen === 'editor';
+    switch (action.kind) {
+      case 'command': if (inEditor) runCommand(commandById(action.id)); break;
+      case 'rate': if (inEditor && ids.length) actions.setRating(ids, action.rating); break;
+      case 'decision': if (inEditor && ids.length) actions.setDecision(ids, action.value); break;
+      case 'import': actions.importPhotos(); break;
+      case 'deselectAll': if (inEditor) actions.clearSelection(); break;
+      case 'toggleFilmstrip': if (inEditor) actions.setFilmstripCollapsed(!store.filmstripCollapsed); break;
+      case 'settings': actions.setSettingsOpen(true, action.tab); break;
+    }
+  });
 
   // Desktop keyboard shortcuts + suppress browser Ctrl/Cmd+A inside editor workspace
   useEffect(() => {
