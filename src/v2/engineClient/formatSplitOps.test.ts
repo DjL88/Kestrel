@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFormatSplits, toggleFormatSplit, isFormatSplit, setFormatSplitOffset, formatSplitOffset } from './formatSplitOps.ts';
+import { readFormatSplits, toggleFormatSplit, isFormatSplit, setFormatSplitOffset, formatSplitOffset, splitFrameCount, setSplitFrameCount } from './formatSplitOps.ts';
 
 test('split selected A4 only, not Original or Instagram', () => {
   const splits = toggleFormatSplit(undefined, 'custom-a4p');
@@ -24,4 +24,23 @@ test('split offset is saved only for that format', () => {
 test('malformed state cannot create hidden splits or runaway offsets', () => {
   assert.deepEqual(readFormatSplits({ foo: { enabled: 'true' }, '../invalid': {enabled:true}, good: { enabled: true, offset: 999 } }), {good: {enabled:true,offset:25}});
   assert.equal(formatSplitOffset(setFormatSplitOffset({good: {enabled: true,offset:0}}, 'good', Infinity), 'good'), 0);
+});
+
+test('three-frame selection survives serialisation and keeps existing format offsets', () => {
+  const split = setSplitFrameCount(toggleFormatSplit(undefined, 'custom-a4p'), 'custom-a4p', 3);
+  assert.equal(splitFrameCount(split, 'custom-a4p'), 3);
+  const moved = setFormatSplitOffset(split, 'custom-a4p', 12);
+  assert.equal(splitFrameCount(JSON.parse(JSON.stringify(moved)), 'custom-a4p'), 3);
+  assert.equal(formatSplitOffset(moved, 'custom-a4p'), 12);
+  assert.equal(splitFrameCount(moved, 'orig-3x2'), 1);
+  const two = setSplitFrameCount(moved, 'custom-a4p', 2);
+  assert.equal(splitFrameCount(two, 'custom-a4p'), 2);
+  assert.equal('count' in two['custom-a4p'], false);
+  assert.equal(splitFrameCount(setSplitFrameCount(two, 'custom-a4p', 1), 'custom-a4p'), 1);
+});
+test('legacy splits stay two-frame and malformed counts cannot create extra frames', () => {
+  assert.equal(splitFrameCount({ print: { enabled: true, offset: 0 } }, 'print'), 2);
+  assert.equal(splitFrameCount({ print: { enabled: true, count: 99, offset: 0 } }, 'print'), 2);
+  assert.equal(splitFrameCount({ print: { enabled: true, count: '3', offset: 0 } }, 'print'), 2);
+  assert.deepEqual(setSplitFrameCount({ print: { enabled: true, offset: 0 } }, '../bad', 3), { print: { enabled: true, offset: 0 } });
 });
