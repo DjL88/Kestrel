@@ -1296,7 +1296,11 @@ export default function Canvas({
       {/* Stage */}
       <div
         ref={stageRef}
-        onClick={(e) => { if (canvasLayoutMode === 'all-formats' && e.target === e.currentTarget) onClearSizeSelection(); }}
+        onClick={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (revealSizeId) setRevealSizeId(null); // Clicking outside the image accepts and exits crop mode.
+          if (canvasLayoutMode === 'all-formats') onClearSizeSelection();
+        }}
         className="relative flex flex-1 overflow-auto inflight-scroll p-2 sm:p-6"
         style={{
           // A quiet, theme-aware working-area grid; artboards and exported images are unaffected.
