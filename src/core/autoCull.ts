@@ -131,9 +131,15 @@ export function limitAutoKeepers(
     }
   }
   const accepted = new Set<string>();
-  for (const result of [...suggestions].sort((a, b) => b.score - a.score)) {
+  const rating = (id: string) => {
+    const frame = byId.get(id);
+    const value = frame?.rating ?? frame?.exif.rating ?? 0;
+    return Number.isInteger(value) && value >= 1 && value <= 5 ? value : 0;
+  };
+  for (const result of [...suggestions].sort((a, b) => rating(b.frameId) - rating(a.frameId) || b.score - a.score)) {
     if (!Number.isFinite(result.score) || result.score < 0 || result.score > 100 ||
-        result.decision !== 'keep' || result.confidence !== 'high' || accepted.size >= safeRemaining) continue;
+        result.decision !== 'keep' || result.confidence !== 'high' || accepted.size >= safeRemaining ||
+        typeof result.frameId !== 'string' || !result.frameId.trim()) continue;
     // A stale scan result cannot reserve keeper headroom for a photo that was
     // removed or manually reviewed while the scan was running.
     const frame = byId.get(result.frameId);

@@ -104,20 +104,25 @@ test('a photo starts with a neutral recipe and its own edit is what the sliders 
   assert.equal(edited.temperature, 50);
 });
 
-test('Auto shows as one Co-pilot suggestion only when it found a safe change, and nothing is invented otherwise', async () => {
+test('Co-pilot shows only rendered alternatives and marks only the matching edit as applied', async () => {
   const { assistCritiqueFor, recipeDelta } = await import('./frameToPhoto.ts');
   assert.deepEqual(assistCritiqueFor(undefined).suggestions, []);
   const plan = { base: { exposure: 0, warmth: 0, colour: 0 }, proposal: { exposure: 1, warmth: 0, colour: 0 }, measured: { colourWarnings: ['Colour looks strong.'] }, species: { reason: 'Species colour not used.' } };
-  const run = (improved: boolean) => ({ plan, headline: 'Auto found a change.', detail: ['Subject lightness 20%.', 'Species colour not used.', 'Raised exposure.'], improved }) as never;
-  const shown = assistCritiqueFor({ run: run(true), applied: false, dismissed: false });
-  assert.equal(shown.suggestions.length, 1);
+  const candidates = [{ id: 'natural', edit: plan.proposal, summary: 'Raised exposure.', after: 'rendered-natural' },
+    { id: 'balanced', edit: { ...plan.proposal, exposure: 0.5 }, summary: 'Softened contrast.', after: 'rendered-balanced' }];
+  const run = (rendered: typeof candidates) => ({ plan, headline: 'Auto found a change.', detail: ['Subject lightness 20%.', 'Species colour not used.'],
+    before: 'rendered-current', candidates: rendered }) as never;
+  const shown = assistCritiqueFor({ run: run(candidates), dismissed: [] });
+  assert.equal(shown.suggestions.length, 2);
   assert.equal(shown.suggestions[0].summary, 'Raised exposure.');
   assert.deepEqual(shown.suggestions[0].recipeDelta, { exposure: 0.4 });
+  assert.deepEqual(shown.suggestions[0].comparison, { before: 'rendered-current', after: 'rendered-natural' });
   assert.equal(shown.colourConfidence, 'Species colour not used. Colour looks strong.');
   assert.equal(shown.kelvinEstimate, 'Not measured');
-  assert.equal(assistCritiqueFor({ run: run(true), applied: true, dismissed: false }).suggestions[0].applied, true);
-  assert.deepEqual(assistCritiqueFor({ run: run(true), applied: false, dismissed: true }).suggestions, []);
-  assert.deepEqual(assistCritiqueFor({ run: run(false), applied: false, dismissed: false }).suggestions, []);
+  assert.deepEqual(assistCritiqueFor({ run: run(candidates), dismissed: [] }, plan.proposal).suggestions.map(s => [s.id, s.applied]), [['natural', true]]);
+  assert.deepEqual(assistCritiqueFor({ run: run(candidates), dismissed: ['balanced'] }).suggestions.map(s => s.id), ['natural']);
+  assert.deepEqual(assistCritiqueFor({ run: run(candidates), dismissed: [] }, { ...plan.base, exposure: -1 }).suggestions, []);
+  assert.deepEqual(assistCritiqueFor({ run: run([]), dismissed: [] }).suggestions, []);
   assert.deepEqual(recipeDelta(undefined, undefined), {});
 });
 

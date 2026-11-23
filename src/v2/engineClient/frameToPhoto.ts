@@ -15,6 +15,9 @@ import { masksToLayers } from './maskOps';
 import { readCrops } from './cropOps';
 import { readBoard } from './boardOps';
 import type { AutoRun } from './runAuto';
+import { sameRecipe } from '../../core/naturalAuto';
+import { DEFAULT_EDIT } from '../../core/photoEdits';
+import { STRINGS } from '../ui/strings';
 import type { AssistSuggestion, EditRecipe, PhotoHistogram } from '../ui/contract';
 import type { Task } from '../../core/taskStore';
 
@@ -22,7 +25,12 @@ import type { Task } from '../../core/taskStore';
 export const BLANK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 /** What Auto found for a photo, and what the person has done with it. */
-export interface AssistState { run: AutoRun; applied: boolean; dismissed: boolean }
+export interface AssistState { run: AutoRun; dismissed: string[] }
+
+export function matchesAutoSource(run: AutoRun, frame: PhotoFrame): boolean {
+  return frame.removedAt == null && run.source.stableKey === frame.stableKey &&
+    run.source.originalSha256 === frame.originalSha256 && run.source.framing === frame.framing;
+}
 
 /** Only the sliders Auto would move, in the UI's units. */
 export function recipeDelta(base: Parameters<typeof editToRecipe>[0], proposal: Parameters<typeof editToRecipe>[0]): Partial<EditRecipe> {
@@ -30,17 +38,21 @@ export function recipeDelta(base: Parameters<typeof editToRecipe>[0], proposal: 
   return Object.fromEntries((Object.keys(after) as (keyof EditRecipe)[]).filter((key) => before[key] !== after[key]).map((key) => [key, after[key]])) as Partial<EditRecipe>;
 }
 
-export function assistCritiqueFor(assist: AssistState | undefined): Photo['assistCritique'] {
+export function assistCritiqueFor(assist: AssistState | undefined, currentEdit = DEFAULT_EDIT): Photo['assistCritique'] {
   if (!assist) return { subjectNote: '', colourConfidence: '', kelvinEstimate: '', suggestions: [] };
   const { run } = assist;
-  const suggestions: AssistSuggestion[] = run.improved && !assist.dismissed ? [{
-    id: 'natural-auto',
-    title: 'Natural Auto',
-    summary: run.detail.slice(2).join(' ') || run.headline,
-    colourReadout: run.plan.species.reason,
-    applied: assist.applied,
-    recipeDelta: recipeDelta(run.plan.base, run.plan.proposal),
-  }] : [];
+  const matching = run.candidates.find((candidate) => candidate.edit === currentEdit);
+  const available = matching ? [matching] : sameRecipe(run.plan.base, currentEdit) ? run.candidates : [];
+  const suggestions: AssistSuggestion[] = available.filter((candidate) => !assist.dismissed.includes(candidate.id))
+    .map((candidate) => ({
+      id: candidate.id,
+      title: STRINGS.copilot.treatments[candidate.id],
+      summary: candidate.summary || run.headline,
+      colourReadout: run.plan.species.reason,
+      applied: candidate === matching,
+      recipeDelta: recipeDelta(run.plan.base, candidate.edit),
+      comparison: { before: run.before, after: candidate.after },
+    }));
   return {
     subjectNote: run.headline,
     colourConfidence: [run.detail[1], ...run.plan.measured.colourWarnings].filter(Boolean).join(' '),
@@ -138,7 +150,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     ...(frame.formatHistory ? { formatHistory: readFormatHistory(frame.formatHistory).events.map(({ formatId, kind, at, parentFormatId, forkEditCursor }) => ({ formatId, kind, at, ...(parentFormatId ? { parentFormatId } : {}), ...(forkEditCursor !== undefined ? { forkEditCursor } : {}) })) } : {}),
     ...(watermarkAuto ? { watermarkAuto } : {}),
     ...(histogram ? { histogram } : {}),
-    assistCritique: assistCritiqueFor(assist),
+    assistCritique: assistCritiqueFor(assist && matchesAutoSource(assist.run, frame) ? assist : undefined, frame.edit),
   };
 }
 

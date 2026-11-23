@@ -11,10 +11,12 @@ import { openSensorWorkingRaster } from './rawWorkingRaster';
  * picture the editor frames (the developed RAW, turned to match the camera's preview where that was needed), so the
  * crop lands in the same place. Refuses, in plain words, edits it cannot carry yet; never drops one.
  */
-export async function exportRaw16Tiff(original: Blob, filename: string, shown: HTMLImageElement, edit: PhotoEdit, framing: PhotoFraming | undefined, metadata?: TiffExportMetadata | null): Promise<Blob> {
+export async function exportRaw16Tiff(original: Blob, filename: string, shown: HTMLImageElement, edit: PhotoEdit, framing: PhotoFraming | undefined, metadata?: TiffExportMetadata | null, options?: { originalSha256: string; signal?: AbortSignal }): Promise<Blob> {
+  options?.signal?.throwIfAborted();
   const blocker = master16Blocker(edit, framing);
   if (blocker) throw new Error(blocker);
-  const { image: picture } = await openSensorWorkingRaster(original, filename);
+  const { image: picture } = await openSensorWorkingRaster(original, filename, undefined, options?.originalSha256);
+  options?.signal?.throwIfAborted();
   const bitmap = await createImageBitmap(shown);
   let turn: number;
   try {
@@ -30,6 +32,7 @@ export async function exportRaw16Tiff(original: Blob, filename: string, shown: H
   }
   // If both framing and orientation are identity, reuse the working picture.
   // A real crop, quarter-turn or straighten still allocates its own result.
+  options?.signal?.throwIfAborted();
   const framed = frameRgb16(picture, framing ?? DEFAULT_FRAMING, turn / 90, true);
   editRgb16(framed, edit);
   return encodeTiff16(framed, metadata);

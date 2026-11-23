@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { applyCullConfidence, applyDecisionWithHistory, redoDecision, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
+import { applyDecisionWithHistory, redoDecision, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
 import { jumpToStep, recordEdit, stepEdit } from '../../core/editHistory';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { sameRecipe } from '../../core/naturalAuto';
@@ -37,15 +37,17 @@ import { DEFAULT_CROP, flipCrop, patchCrop, rotateCrop } from './cropOps';
 import { readCrops } from './cropOps';
 import { recordFormatCrop, recordFormatSetChange, recordFormatLink } from './formatHistory';
 import { addRow, alignOverlays, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps';
-import { frameToPhoto, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
+import { frameToPhoto, matchesAutoSource, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
 import { commitAutoEdit } from './commitAutoEdit';
+import { commitAutoCull } from './commitAutoCull';
 import { runV2Denoise } from './runDenoise';
 import { moveArtboard } from './boardOps';
 import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
 import { planExport } from './exportOps';
 import { verifyExactOriginalCopy } from './verifiedOriginalCopy';
+import { buildRawMasterFile } from './rawMasterExport';
 import { TEMPLATES_KEY, addTemplate, deleteTemplate, overlayFromTemplate, readTemplates, renameTemplate, type OverlayTemplate } from './overlayTemplates';
 import { addFormat, applyFormats, ORIGINAL_FORMAT_ID, readFormats, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize, setOriginalOutputSize, resetOriginalOutputSize } from './formatOps';
 import { patchVideoZoom } from './videoZoomOps';
@@ -200,6 +202,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useEffect(() => { let live = true; void toPresets(watermarkStore).then((presets) => { if (live) setWatermarkLibrary(presets); }); return () => { live = false; }; }, [watermarkStore]);
   const updateWatermarks = useCallback((next: StoredWatermark[]) => { setWatermarkStore(next); saveStored(next); }, []);
   const [assists, setAssists] = useState<Record<string, AssistState>>({});
+  const [autoRequest, setAutoRequest] = useState<{ photoId: string; sequence: number } | null>(null);
+  const lastAutoRequest = useRef(0);
   const cullController = useRef<AbortController | null>(null);
   const [importing, setImporting] = useState(false);
   const [removedOpen, setRemovedOpen] = useState(false);
@@ -421,9 +425,34 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
    * says how many photos look like rejects or duplicates so the person can look at them. */
   /** Export edited photos at the chosen sizes, as a zip or one file at a time. Overlay, watermark, crops, before images and
    * video are refused by planExport until the renderer honours them, so a file always matches what was asked for. */
+  const rawMasterRunning = useRef(false);
   const runExportAction = useCallback(async (request: ExportRequest) => {
     const current = stateRef.current;
     if (!current) return;
+    if (request.rawMaster) {
+      const matches = current.frames.filter((frame) => frame.id === request.photoIds[0] && frame.removedAt == null);
+      if (request.photoIds.length !== 1 || matches.length !== 1) { setNotice('Select one RAW photo to export its TIFF.'); return; }
+      if (rawMasterRunning.current) { setNotice('A RAW TIFF is already being prepared.'); return; }
+      rawMasterRunning.current = true;
+      const controller = new AbortController();
+      const task = tasks.start('Preparing the 16-bit RAW TIFF', { cancel: () => controller.abort() });
+      try {
+        const file = await buildRawMasterFile(matches[0], provider.current!, controller.signal);
+        controller.signal.throwIfAborted();
+        downloadExport(file, file.name);
+        task.finish('Saved the 16-bit RAW TIFF.');
+        setNotice('Saved the 16-bit RAW TIFF.');
+      } catch (reason) {
+        if (!controller.signal.aborted) {
+          const message = reason instanceof Error ? reason.message : 'Could not save a 16-bit RAW TIFF.';
+          task.fail(message);
+          setNotice(message);
+        }
+      } finally {
+        rawMasterRunning.current = false;
+      }
+      return;
+    }
     const plan = planExport(request, current.frames, createDefaultSizes());
     if ('error' in plan) { setNotice(plan.error); return; }
     const controller = new AbortController();
@@ -515,26 +544,23 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!current) return;
     if (!can('smartCulling')) { setNotice('Auto-cull is part of InFlight Pro.'); return; }
     if (cullController.current) { setNotice('Auto-cull is already running.'); return; }
-    const candidates = current.frames.filter((frame) => !frame.removedAt && frame.decision === 'unreviewed' && !frame.isDemo && !frame.virtualCopy);
+    const candidates = current.frames.filter((frame) => frame.removedAt == null && frame.decision === 'unreviewed' && !frame.isDemo && !frame.virtualCopy);
     if (!candidates.length) { setNotice('Every photo already has a decision, so there is nothing to cull.'); return; }
     const controller = new AbortController();
     cullController.current = controller;
     const task = tasks.start('Auto-cull and analyse', { total: candidates.length, cancel: () => controller.abort() });
     const projectKey = current.shoot.id;
+    const requestId = openRequest.current;
     try {
-      const results = await scanForCulling(candidates, current.frames, provider.current!, current.keeperTarget, controller.signal,
+      const results = await scanForCulling(candidates, current.frames, provider.current!, null, controller.signal,
         (count) => { if (!controller.signal.aborted) task.progress(count); },
         () => { if (!controller.signal.aborted) setNotice('The subject detector is not available, so Auto-cull used sharpness and exposure only and is less certain.'); });
-      if (controller.signal.aborted) return;
-      const keepers = results.filter((result) => result.confidence === 'high' && result.decision === 'keep').map((result) => result.frameId);
-      const lookWorse = results.filter((result) => result.decision === 'reject').length;
+      if (controller.signal.aborted || requestId !== openRequest.current) return;
       setState((latest) => {
-        if (!latest || latest.shoot.id !== projectKey) return latest;
-        const scored = applyCullConfidence(latest, results.map((result) => ({ frameId: result.frameId, confidence: result.confidence, score: result.score })));
-        return keepers.reduce((next, id) => (next.frames.find((frame) => frame.id === id)?.decision === 'unreviewed'
-          ? applyDecisionWithHistory(next, id, 'keep', { allowAdvance: false }) : next), scored);
+        if (!latest || latest.shoot.id !== projectKey || requestId !== openRequest.current || controller.signal.aborted) return latest;
+        return commitAutoCull(latest, candidates, results);
       });
-      const summary = `Auto-cull looked at ${results.length} photo${results.length === 1 ? '' : 's'} and flagged ${keepers.length} likely keeper${keepers.length === 1 ? '' : 's'}. ${lookWorse ? `${lookWorse} look like rejects or duplicates; none were rejected, so look at them yourself. ` : ''}Photos it was unsure about were left for you.`;
+      const summary = `Auto-cull checked ${candidates.length} photo${candidates.length === 1 ? '' : 's'}. Review the flags in the filmstrip. You can undo the whole pass in one step.`;
       task.finish(summary);
       setNotice(summary);
     } catch {
@@ -792,39 +818,64 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     }, () => task.fail('Denoise failed.')).finally(() => denoiseInFlight.current.delete(photoId));
   }, [can, editFrames]);
 
-  const applyAuto = useCallback((frameId: string) => {
+  const applyAuto = useCallback((frameId: string, candidateId?: string) => {
     const assist = assists[frameId];
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === frameId);
     if (!assist || !frame) return;
-    if (!sameRecipe(frame.edit ?? DEFAULT_EDIT, assist.run.plan.base)) { setNotice('This photo changed since Auto looked at it. Open it again to get a fresh suggestion.'); return; }
-    editFrames([frameId], () => assist.run.plan.proposal);
-    setAssists((current) => ({ ...current, [frameId]: { ...assist, applied: true } }));
+    const candidate = candidateId ? assist.run.candidates.find((item) => item.id === candidateId) : assist.run.candidates[0];
+    if (!candidate || assist.dismissed.includes(candidate.id)) return;
+    const valid = (latest: PhotoFrame) => matchesAutoSource(assist.run, latest) && sameRecipe(latest.edit ?? DEFAULT_EDIT, assist.run.plan.base);
+    if (!valid(frame)) { setNotice('The photo changed after this suggestion was made. Wait for a fresh check.'); return; }
+    editFrames([frameId], (latest) => valid(latest) ? candidate.edit : latest.edit);
   }, [assists, editFrames]);
 
   // Co-pilot and Auto-pilot look at the photo on the canvas, on this device, one at a time. Solo never does.
   const assistMode = savedUi.assistMode ?? stub.store.assistMode;
   const assistProjectId = state?.shoot.id;
+  const ongoingLocalReview = savedUi.settings.ongoingCritique ?? stub.store.settings.ongoingCritique;
   useEffect(() => {
-    if (screen !== 'editor' || assistMode === 'solo' || !assistProjectId || !activeFrame || assists[activeFrame.id]) return;
+    if (screen !== 'editor' || !assistProjectId || !activeFrame || activeFrame.removedAt != null) return;
     const frame = activeFrame;
+    const manual = autoRequest?.photoId === frame.id && autoRequest.sequence > lastAutoRequest.current;
+    if (!manual && assistMode === 'solo') return;
+    const previous = assists[frame.id];
+    if (!manual && previous && matchesAutoSource(previous.run, frame) &&
+        (sameRecipe(previous.run.plan.base, frame.edit ?? DEFAULT_EDIT) ||
+         previous.run.candidates.some((candidate) => candidate.edit === frame.edit))) return;
+    if (!manual && previous && !ongoingLocalReview) return;
     const request = openRequest.current;
     const controller = new AbortController();
-    const task = tasks.start('Checking the photo and colour', { cancel: () => controller.abort() });
     const isCurrent = () => !controller.signal.aborted && request === openRequest.current;
-    runAuto(frame, provider.current!, controller.signal).then((run) => {
-      if (!isCurrent()) { tasks.cancel(task.id); return; }
-      if (!run) { task.finish('Could not analyse this photo.'); return; }
-      task.finish(run.headline);
-      if (assistMode === 'autopilot' && run.improved) {
-        const at = Date.now();
-        mutate((current) => isCurrent() ? commitAutoEdit(current, assistProjectId, frame, run.plan.proposal, at) : current);
-      }
-      setAssists((current) => ({ ...current, [frame.id]: { run, applied: false, dismissed: false } }));
-    }, () => { if (isCurrent()) task.fail('Checking the photo failed.'); else tasks.cancel(task.id); });
-    return () => { controller.abort(); tasks.cancel(task.id); };
-    // Analyse the selected photo once, unless the request was stopped. Editing a slider doesn't restart it.
+    let taskId: number | undefined;
+    const timer = window.setTimeout(() => {
+      if (!isCurrent()) return;
+      if (manual) lastAutoRequest.current = autoRequest.sequence;
+      const task = tasks.start('Checking the photo and colour', { cancel: () => controller.abort() });
+      taskId = task.id;
+      runAuto(frame, provider.current!, controller.signal).then((run) => {
+        if (!isCurrent()) { tasks.cancel(task.id); return; }
+        if (!run) { task.finish('Could not analyse this photo.'); return; }
+        task.finish(run.headline);
+        setAssists((current) => {
+          // Keep a small recent set of rendered comparisons across a large shoot.
+          const recent = Object.entries(current).filter(([id]) => id !== frame.id).slice(-11);
+          return { ...Object.fromEntries(recent), [frame.id]: { run, dismissed: [] } };
+        });
+        if (!manual && assistMode === 'autopilot' && run.improved) {
+          const at = Date.now();
+          mutate((current) => isCurrent() ? commitAutoEdit(current, assistProjectId, frame, run.plan.proposal, at) : current);
+        }
+      }, () => { if (isCurrent()) task.fail('Checking the photo failed.'); else tasks.cancel(task.id); });
+    }, manual ? 0 : 550);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+      if (taskId !== undefined) tasks.cancel(taskId);
+    };
+    // Recheck a settled recipe, source or framing change without rerunning a completed matching analysis.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [screen, assistMode, assistProjectId, activeFrame?.id, mutate]);
+  }, [screen, assistMode, assistProjectId, activeFrame?.id, activeFrame?.edit, activeFrame?.framing,
+    activeFrame?.stableKey, activeFrame?.originalSha256, activeFrame?.removedAt, ongoingLocalReview, autoRequest, mutate]);
 
   // The person asked for this (Co-pilot/Assist "deep review" or refresh button); it is not the automatic
   // per-photo pass above. Wired to the real engine (src/engine/subjectDetectAction.ts, lookSuggestions.ts)
@@ -1128,9 +1179,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     setMaskEdit: (photoId, maskId, key, value) => editMasks(photoId, (masks) => setMaskEdit(masks, maskId, key, value)),
     setMaskFeather: (photoId, maskId, percent) => editMasks(photoId, (masks) => setMaskFeather(masks, maskId, percent)),
     runExport: (request) => { void runExportAction(request); },
-    applyAssistSuggestion: (photoId) => applyAuto(photoId),
+    applyAssistSuggestion: applyAuto,
+    requestLocalAuto: (photoId) => setAutoRequest((last) => ({ photoId, sequence: (last?.sequence ?? 0) + 1 })),
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
-    dismissAssistSuggestion: (photoId) => setAssists((current) => (current[photoId] ? { ...current, [photoId]: { ...current[photoId], dismissed: true } } : current)),
+    dismissAssistSuggestion: (photoId, suggestionId) => setAssists((current) => (current[photoId]
+      ? { ...current, [photoId]: { ...current[photoId], dismissed: [...current[photoId].dismissed, suggestionId] } } : current)),
     runDeepVisionReview: (photoId) => runDeepVisionReviewAction(photoId),
     saveOverlayTemplate: (photoId, name) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
@@ -1273,8 +1326,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: [...INITIAL_WATERMARKS, ...watermarkLibrary], auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => {
-    const suggestion = assists[frame.id];
-    const assist = suggestion && frame.edit === suggestion.run.plan.proposal ? { ...suggestion, applied: true } : suggestion;
+    const assist = assists[frame.id];
     return frameToPhoto(frame, urls[frame.id], { assist, watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed });
   }), [state?.frames, urls, assists, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes]);
   // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo

@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 import { mosaic, withPreview } from './rawFixture';
+import { proveTiff16 } from '../src/core/tiff16Proof';
 test('V2 background engine replaces a synthetic embedded RAW preview with developed sensor pixels', async ({ page }) => {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
@@ -29,4 +31,30 @@ test('V2 background engine replaces a synthetic embedded RAW preview with develo
   await page.reload();
   await root.getByRole('button', { name: /Open studio/ }).first().click();
   await expect.poll(dimensions, { timeout: 30_000 }).toEqual([64, 96]);
+});
+
+test('V2 writes a structurally verified 16-bit TIFF from a synthetic RAW original', async ({ page }) => {
+  await page.goto('/?v2');
+  const studio = page.locator('.inflight-v2');
+  await studio.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel('Project name', { exact: true }).fill('V2 RAW TIFF');
+  await studio.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  await studio.getByRole('button', { name: 'Import', exact: true }).waitFor();
+  await studio.evaluate((target, base64) => {
+    const dataTransfer = new DataTransfer();
+    const bytes = Uint8Array.from(atob(base64), char => char.charCodeAt(0));
+    dataTransfer.items.add(new File([bytes], 'synthetic-z8.dng', { type: 'application/octet-stream' }));
+    target.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
+  }, Buffer.from(mosaic).toString('base64'));
+  await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  await studio.getByRole('button', { name: 'Export', exact: true }).first().click();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    studio.getByRole('button', { name: 'Save 16-bit RAW TIFF' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('synthetic-z8_16bit.tif');
+  const bytes = Uint8Array.from(await readFile((await download.path())!));
+  const proof = proveTiff16(bytes.buffer);
+  expect([proof.width, proof.height]).toEqual([64, 96]);
+  expect(proof.iccBytes).toBeGreaterThan(128);
 });

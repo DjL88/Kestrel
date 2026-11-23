@@ -204,7 +204,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             onOpenSettings={() => actions.setSettingsOpen(true, 'assistance')}
             onRunDeepVisionReview={actions.runDeepVisionReview}
             onApplySuggestion={actions.applyAssistSuggestion}
-            onApplyAll={actions.applyAllAssistSuggestions}
+            onRequestLocalAuto={actions.requestLocalAuto}
             onDismissSuggestion={actions.dismissAssistSuggestion}
           />
         );
