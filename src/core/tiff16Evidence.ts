@@ -83,6 +83,7 @@ export function inspectTiff16Structure(bytes: Uint8Array): { ok: true; width: nu
     return fail('TIFF has no bounded embedded ICC profile payload.');
   }
   // A well-formed ICC profile starts with its byte size and acsp signature.
+  const directoryEnd = ifd + 2 + count * 12 + 4;
   const iccAt = u32(icc.offset);
   // A profile stored inside the TIFF header or directory is metadata aliasing,
   // not independent ICC evidence, even when its signature happens to match.
@@ -92,7 +93,6 @@ export function inspectTiff16Structure(bytes: Uint8Array): { ok: true; width: nu
   if (pixelRanges.some(([start, end]) => start < iccAt + icc.count && iccAt < end)) {
     return fail('TIFF ICC profile overlaps pixel data.');
   }
-  const directoryEnd = ifd + 2 + count * 12 + 4;
   if (pixelRanges.some(([start, end]) => start < directoryEnd && ifd < end)) {
     return fail('TIFF pixel data overlaps the image directory.');
   }
