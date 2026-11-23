@@ -208,9 +208,9 @@ export default function Filmstrip({
       )}
 
       {/* Dock Header Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 border-b border-[var(--border-subtle)]">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 px-3 py-1.5 border-b border-[var(--border-subtle)]">
         {/* Left: Filmstrip / Info tabs + Import + Auto-Cull & Analyse */}
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex min-w-0 w-full items-center gap-2 overflow-x-auto inflight-scroll pb-1 md:w-auto md:max-w-full">
           <div
             role="tablist"
             aria-label="Bottom dock views"
@@ -274,7 +274,7 @@ export default function Filmstrip({
         </div>
 
         {/* Right: Multi-select batch actions OR Search + All/Flagged filter + Hide toggle */}
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 w-full items-center gap-2 overflow-x-auto inflight-scroll pb-1 md:ml-auto md:w-auto md:max-w-full">
           {selectedPhotoIds.length > 1 && (
             <div className="flex items-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--brand-accent-soft)] px-2 py-1 text-xs text-[var(--brand-accent)]">
               <span className="font-semibold tabular-nums">
