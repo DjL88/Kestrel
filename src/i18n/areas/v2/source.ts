@@ -418,7 +418,7 @@ export const source = {
   // Export Dialog
   exportDialog: {
     heading: 'Export & Share',
-    subtitle: 'Deliver crisp images and Zoom MP4 clips to local folders, social channels, or connected drives.',
+    subtitle: 'Choose the photos, sizes and files to download.',
     destinationHeading: 'Destination',
     destLocalZip: 'Download ZIP bundle',
     destLocalFiles: 'Download individual files',
@@ -427,7 +427,9 @@ export const source = {
     socialQuickSelect: 'Quick-select by platform',
     selectAllFor: (platform: string) => `Select all for ${platform}`,
     variantsHeading: 'Include versions',
-    variantBefore: 'Before: unedited, developed to JPEG (not the original file)',
+    fileFormat: 'File format',
+    jpegQuality: 'JPEG quality',
+    variantBefore: (format: string) => `Before: unedited, developed to ${format} (not the original file)`,
     variantOriginal: 'Original file: exact copy, as shot',
     variantAfter: 'After (edited)',
     variantOverlay: 'With text overlay',

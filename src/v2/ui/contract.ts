@@ -356,6 +356,8 @@ export interface WorkspaceSettings {
 }
 
 export interface ExportRequest {
+  fileFormat?: 'jpeg' | 'png';
+  jpegQuality?: number;
   destination: ExportDestination;
   groupIds: string[];
   sizeIds: string[];

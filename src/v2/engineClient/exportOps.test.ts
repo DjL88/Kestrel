@@ -79,6 +79,22 @@ test('choosing nothing at all is refused with a plain message', () => {
   assert.ok('error' in planExport(request({ includeAfter: false }), frames, [size('a')]));
 });
 
+test('honours the requested encoder and JPEG quality while retaining legacy defaults', () => {
+  for (const [options, format, quality] of [
+    [{}, 'jpeg', 0.94],
+    [{ fileFormat: 'jpeg', jpegQuality: 0.61 }, 'jpeg', 0.61],
+    [{ fileFormat: 'png', jpegQuality: 0.61 }, 'png', 1],
+  ] as const) {
+    const plan = planExport(request(options), frames, [size('a')]);
+    assert.ok('jobs' in plan);
+    for (const job of plan.jobs) {
+      assert.equal(job.format.format, format);
+      assert.equal(job.format.quality, quality);
+    }
+  }
+  assert.ok('error' in planExport(request({ jpegQuality: NaN }), frames, [size('a')]));
+});
+
 test('a custom format exports only for the photo that has it, and a format a photo switched off is skipped for it', () => {
   const custom = { disabled: [], custom: [{ id: 'custom-abc123', label: 'Poster', width: 2400, height: 3000 }] };
   const withCustom = [{ id: 'p1', filename: 'one.jpg', formats: custom }, { id: 'p2', filename: 'two.jpg' }];

@@ -30,6 +30,7 @@ test('?v2 a format border shows on the canvas and is drawn in the exported file,
 
   await root.getByRole('button', { name: /^Export/ }).first().click();
   const dialog = page.getByRole('dialog', { name: /export/i });
+  await dialog.getByRole('button', { name: /Download individual files/i }).click();
   const sizes = dialog.locator('.grid.grid-cols-2 button[aria-pressed="true"]');
   const names = (await sizes.allTextContents()).filter((text) => !text.includes(shown));
   for (const name of names) await dialog.locator('.grid.grid-cols-2 button[aria-pressed="true"]', { hasText: name }).first().click();
