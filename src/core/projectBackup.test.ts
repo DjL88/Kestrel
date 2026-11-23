@@ -153,3 +153,29 @@ test('restore refuses conflicting original byte identities on a virtual copy', (
   const legacy = restoreProjectBackup(encodeProjectBackup(project), 'legacy');
   assert.equal(legacy.frames[1].originalSha256, undefined);
 });
+
+test('restore rejects conflicting SHA-256 for the same original stable key even without virtual copies', () => {
+  const project = createDemoShootState(2);
+  const first = project.frames[0];
+  const second = project.frames[1];
+  first.originalSha256 = 'a'.repeat(64);
+  second.stableKey = first.stableKey;
+  second.originalSha256 = 'b'.repeat(64);
+  assert.throws(
+    () => restoreProjectBackup(encodeProjectBackup(project), 'restored'),
+    /conflicting original byte identities/,
+  );
+});
+
+test('same-key matching hashes survive backup roundtrip; legacy missing hashes remain unverified', () => {
+  const project = createDemoShootState(2);
+  project.frames[0].originalSha256 = 'c'.repeat(64);
+  project.frames[1].stableKey = project.frames[0].stableKey;
+  project.frames[1].originalSha256 = 'c'.repeat(64);
+  const restored = restoreProjectBackup(encodeProjectBackup(project), 'restored');
+  assert.deepEqual(restored.frames.map((frame) => frame.originalSha256), ['c'.repeat(64), 'c'.repeat(64)]);
+  delete project.frames[1].originalSha256;
+  const legacy = restoreProjectBackup(encodeProjectBackup(project), 'legacy');
+  assert.equal(legacy.frames[1].originalSha256, undefined);
+  assert.equal(legacy.frames[0].originalSha256, 'c'.repeat(64));
+});
