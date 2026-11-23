@@ -38,3 +38,16 @@ test('uncertain-label abstention never mutates the detector result or frame scor
   assert.deepEqual(original, base);
   assert.deepEqual(finding, { label: 'unknown—bird', score: 0.99, size: 400, sharpness: 22 });
 });
+
+test('direct subject judgement abstains on punctuated unknown labels without affecting named detections', () => {
+  const metrics = { score: 0.99, size: 600, sharpness: 25 };
+  for (const label of ['unknown.bird', 'UNKNOWN：bird', 'unidentified…aircraft', 'other—dog', 'n/a.bird']) {
+    const actual = judgeSubject({ ...metrics, label });
+    assert.deepEqual(actual, { decision: null, confidence: 'low', score: 35, reason: 'noSubject' }, label);
+  }
+  for (const label of ['bird', 'dog', 'aircraft', 'otherworldly bird']) {
+    const actual = judgeSubject({ ...metrics, label });
+    assert.equal(actual.decision, 'keep', label);
+    assert.equal(actual.reason, 'subjectSharp', label);
+  }
+});
