@@ -10,7 +10,7 @@ import { messages } from './i18n/messages';
 import { useOpenedFiles } from './providers/useOpenedFiles';
 import { pickFolderNatively, pickedFromFile, pickedKey, linkedReader, linkedRangeOpener, type PickedPhoto } from './providers/linkedOriginals';
 import { checkOriginalPaths } from './providers/originalPathStatus';
-import { scanOriginalFolder, matchScannedOriginals, verifyScannedOriginalMatches } from './providers/nativeOriginalScan';
+import { scanOriginalFolder, matchScannedOriginalsBySha } from './providers/nativeOriginalScan';
 import { openLinkedRange } from './providers/rangeBlob';
 import { splitDropped } from './core/dropSplit';
 import { useAccess } from './providers/useAccess';
@@ -1972,28 +1972,21 @@ export default function App() {
         .map(record => record.sourcePath);
       const scan = missing.length ? await scanOriginalFolder(folder, fs.readDir, fs.stat,
         new Set(missing.map(record => record.filename.toLowerCase()))) : { files: [], truncated: false, skippedDirectories: 0 };
-      const { matches, ambiguous } = matchScannedOriginals(missing, scan.files, connectedPaths);
       const candidateByPath = new Map(scan.files.map(file => [file.path, file]));
-      // Recheck candidates before changing a link. A removable drive can
-      // change between scanning the folder and applying the matches.
-      const candidatePaths = await checkOriginalPaths([...matches.values()], async path => {
-        const file = candidateByPath.get(path)!;
-        const info = await fs.stat(path);
-        return { isFile: info.isFile && !info.isSymlink && info.size === file.size && info.mtime?.getTime() === file.lastModified };
-      });
-      if (stateRef.current.shoot.id !== projectId) return;
-      const currentFrames = stateRef.current.frames;
-      const eligibleKeys = new Set(currentFrames.filter(frame => !frame.removedAt && frame.sourceKind === 'file' &&
-        frame.sourcePath === expected.get(frame.stableKey)?.sourcePath).map(frame => frame.stableKey));
-      // Filename, size and modified time only shortlist a candidate. Verify the
-      // exact saved SHA-256 before changing ANY linked path or photo identity.
-      const verified = await verifyScannedOriginalMatches(
-        new Map([...matches].filter(([key, path]) => eligibleKeys.has(key) && candidatePaths.get(path) === 'available')),
-        [...expected.values()],
+      // A copied NAS backup may have a new modified time but identical bytes.
+      // Narrow by camera name and size, then admit ONLY a unique full SHA-256 match.
+      const { matches, ambiguous } = await matchScannedOriginalsBySha(
+        missing.map(record => ({ ...record, originalSha256: expected.get(record.stableKey)?.originalSha256 })),
+        scan.files,
+        connectedPaths,
         async path => {
-          const candidate = candidateByPath.get(path)!;
+          const file = candidateByPath.get(path)!;
           const before = await fs.stat(path);
-          const range = await openLinkedRange(path, candidate.size);
+          if (!before.isFile || before.isSymlink || before.size !== file.size ||
+              (before.mtime && before.mtime.getTime() !== file.lastModified)) {
+            throw new Error('Candidate changed after folder scan.');
+          }
+          const range = await openLinkedRange(path, before.size);
           return {
             bytes: range.blob,
             unchanged: async () => {
@@ -2005,9 +1998,11 @@ export default function App() {
           };
         },
       );
-      // The person may have switched projects while a large NAS original was hashed.
       if (stateRef.current.shoot.id !== projectId) return;
-      const replacements = verified.matches;
+      const currentFrames = stateRef.current.frames;
+      const eligibleKeys = new Set(currentFrames.filter(frame => !frame.removedAt && frame.sourceKind === 'file' &&
+        frame.sourcePath === expected.get(frame.stableKey)?.sourcePath).map(frame => frame.stableKey));
+      const replacements = new Map([...matches].filter(([key]) => eligibleKeys.has(key)));
       const preview = previewProviderRef.current!;
       for (const [key, path] of replacements) {
         const frame = expected.get(key)!;
