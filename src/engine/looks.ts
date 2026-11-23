@@ -170,6 +170,14 @@ export async function runLook(look: Look, input: LookRenderInput, runner: Engine
         }
         candidateMasks = mergeLookMasks(acceptedMasks, masks);
         after = await input.render({ ...acceptedEdit, ...background }, candidateMasks);
+        // Verification compares matching RGBA pixels. Never accept a truncated,
+        // resized or malformed render as evidence of a safe, undoable recipe.
+        const expectedLength = input.original.width * input.original.height * 4;
+        if (!Number.isSafeInteger(expectedLength) || expectedLength <= 0 ||
+            after.width !== input.original.width || after.height !== input.original.height ||
+            !(after.data instanceof Uint8ClampedArray) || after.data.length !== expectedLength) {
+          throw new RangeError('Look renderer returned invalid pixel dimensions or RGBA data');
+        }
         const detailScope = input.subject && subjectEdit ? 'subject' : 'frame';
         verification = verifyEdit(input.original, after, input.subject?.alpha, detailScope);
         if (verification.ok || attempts === maxRetries) break;
