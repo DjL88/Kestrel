@@ -170,6 +170,10 @@ export async function runLook(look: Look, input: LookRenderInput, runner: Engine
         }
         candidateMasks = mergeLookMasks(acceptedMasks, masks);
         after = await input.render({ ...acceptedEdit, ...background }, candidateMasks);
+        if (after.width !== input.original.width || after.height !== input.original.height ||
+            after.data.length !== input.original.data.length) {
+          throw new RangeError('Look renderer must return the original dimensions and RGBA buffer length');
+        }
         const detailScope = input.subject && subjectEdit ? 'subject' : 'frame';
         verification = verifyEdit(input.original, after, input.subject?.alpha, detailScope);
         if (verification.ok || attempts === maxRetries) break;
