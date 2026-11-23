@@ -26,8 +26,9 @@ export function toggleFormatSplit(raw: unknown, sizeId: string): FormatSplits {
   const current = readFormatSplits(raw);
   if (!validId(sizeId)) return current;
   if (current[sizeId]) {
-    const { [sizeId]: _removed, ...other } = current;
-    return other;
+    const remaining = { ...current };
+    delete remaining[sizeId];
+    return remaining;
   }
   return { ...current, [sizeId]: { enabled: true, offset: 0 } };
 }
