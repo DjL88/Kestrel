@@ -17,7 +17,7 @@ export function scorePreview(frameId: string, pixels: Uint8ClampedArray, width: 
   // Check dimensions before allocating the luminance buffer (including overflow).
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) ||
       width < 64 || height < 64 || width * height > 16_777_216 ||
-      pixels.length !== width * height * 4) {
+      !(pixels instanceof Uint8ClampedArray) || pixels.length !== width * height * 4) {
     return { frameId, decision: null, confidence: 'low', score: 0, reason: 'unavailable' };
   }
   // Alpha is not exposure. Even a partly transparent canvas can make the
@@ -79,11 +79,11 @@ export function judgeSubject(found: SubjectFinding | null): Pick<CullSuggestion,
   // respect TypeScript types. Non-finite or out-of-range metrics must never
   // manufacture a high-confidence keeper (or propagate a NaN score).
   if (found && (typeof found.label !== 'string' || found.label.trim().length === 0 ||
-      /^(?:unknown|unidentified|unrecognised|unrecognized|other|none|n\/a)(?:\s|$)/i.test(found.label.trim()) ||
+      /^(?:unknown|unidentified|unrecognised|unrecognized|other|none|n\/a)(?:$|[\s:;,_/()\-])/i.test(found.label.trim()) ||
       /[\u0000-\u001f\u007f]/.test(found.label) ||
       !Number.isFinite(found.score) || found.score < 0 || found.score > 1 ||
-      !Number.isFinite(found.size) || found.size <= 0 ||
-      !Number.isFinite(found.sharpness) || found.sharpness < 0)) {
+      !Number.isSafeInteger(found.size) || found.size <= 0 ||
+      !Number.isFinite(found.sharpness) || found.sharpness < 0 || found.sharpness > 1_000_000)) {
     return { decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
   }
   const real = found && ((found.score >= 0.45 && found.size >= 120) || found.score >= 0.7);
@@ -109,7 +109,7 @@ export function limitAutoKeepers(
   suggestions: CullSuggestion[], frames: PhotoFrame[], remainingKeepers: number,
 ): CullSuggestion[] {
   // A corrupt or non-finite keeper target must fail closed, never grant unlimited auto-keeps.
-  const safeRemaining = Number.isFinite(remainingKeepers) ? Math.max(0, Math.floor(remainingKeepers)) : 0;
+  const safeRemaining = Number.isSafeInteger(remainingKeepers) && remainingKeepers >= 0 ? remainingKeepers : 0;
   // Distinct originals with duplicate catalogue IDs must not receive automatic keeps.
   const ambiguousIds = new Set<string>();
   const byId = new Map<string, PhotoFrame>();
@@ -137,7 +137,7 @@ export function limitAutoKeepers(
     const value = frame?.rating ?? frame?.exif.rating ?? 0;
     return Number.isInteger(value) && value >= 1 && value <= 5 ? value : 0;
   };
-  for (const result of [...suggestions].sort((a, b) => rating(b.frameId) - rating(a.frameId) || b.score - a.score)) {
+  for (const result of [...suggestions].sort((a, b) => rating(b.frameId) - rating(a.frameId) || b.score - a.score || String(a.frameId ?? '').localeCompare(String(b.frameId ?? '')))) {
     if (!Number.isFinite(result.score) || result.score < 0 || result.score > 100 ||
         result.decision !== 'keep' || result.confidence !== 'high' || accepted.size >= safeRemaining ||
         typeof result.frameId !== 'string' || !result.frameId.trim()) continue;
