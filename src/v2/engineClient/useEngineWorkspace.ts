@@ -1100,11 +1100,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         window.location.reload();
       })().catch(() => setNotice('InFlight could not erase this device. Nothing else was changed.'));
     },
-    createProjectFromFolder: () => {
+    createProjectFromFolder: (options) => {
       void pickFolderFiles().then(async (files) => {
         if (!files?.length) return;
         const folder = (files[0] as File & { webkitRelativePath?: string }).webkitRelativePath?.split('/')[0];
-        const created = createEmptyProject(`project-${newId()}`, folder?.trim() || 'Untitled project');
+        const created = createEmptyProject(`project-${newId()}`, folder?.trim() || 'Untitled project', options);
         try { await catalogue.current!.saveProject(created); } catch { setNotice('InFlight could not create the project.'); return; }
         enterProject(created);
         // The editor state lands on the next render; wait for it before adding the photos.
