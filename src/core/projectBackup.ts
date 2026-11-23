@@ -138,7 +138,11 @@ export function restoreProjectBackup(contents: string, id: string, now = Date.no
   if (ids.size !== frames.length || frames.some((frame) => {
     if (!frame.virtualCopy) return false;
     const original = ids.get(frame.virtualCopy.originalFrameId);
-    return !original || original.virtualCopy || original.stableKey !== frame.stableKey;
+    return !original || original.virtualCopy || original.stableKey !== frame.stableKey ||
+      // A copied edit must not silently become associated with different original bytes.
+      // Legacy records missing a fingerprint remain disconnected until independently reverified.
+      (typeof original.originalSha256 === 'string' && typeof frame.originalSha256 === 'string' &&
+        original.originalSha256 !== frame.originalSha256);
   })) throw new Error('The project backup contains invalid photo links.');
   const existingId = (value: unknown) => text(value) && ids.has(value) ? value : null;
   return {
