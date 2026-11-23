@@ -50,10 +50,10 @@ describe('describeDeepReview', () => {
 
 describe('suggestDeepReviewLook', () => {
   it('offers the existing Look only for a trusted sharp subject', () => {
-    assert.equal(suggestDeepReviewLook(result({}))?.id, LIFT_SUBJECT_BLUR_BACKGROUND.id);
+    assert.equal(suggestDeepReviewLook(result({}), true)?.id, LIFT_SUBJECT_BLUR_BACKGROUND.id);
   });
 
-  it('refuses a Look when the scene reading contradicts the detector', () => {
+  it('does not treat a detector box as a usable pixel mask', () => {\n    assert.equal(suggestDeepReviewLook(result({})), null);\n    assert.equal(suggestDeepReviewLook(result({}), false), null);\n  });\n\n  it('refuses a Look when the scene reading contradicts the detector', () => {
     const conflicting = result({ corroboration: { state: 'conflict', reading: 'aircraft', detector: 'bird' } });
     assert.equal(suggestDeepReviewLook(conflicting), null);
     assert.match(describeDeepReview(conflicting, suggestDeepReviewLook(conflicting)), /unresolved/);
@@ -75,7 +75,7 @@ describe('candidatesForSuggestedLook', () => {
   });
 
   it('returns exactly one grounded proposal without applying or changing the Look', () => {
-    const look = suggestDeepReviewLook(result({}));
+    const look = suggestDeepReviewLook(result({}), true);
     assert.ok(look);
     const before = structuredClone(look);
     const candidates = candidatesForSuggestedLook(look);
