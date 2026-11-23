@@ -140,7 +140,7 @@ test('restore refuses conflicting original byte identities on a virtual copy', (
   const copy = createVirtualCopy(project.frames[0], project.frames, 'copy-sha');
   copy.originalSha256 = 'b'.repeat(64);
   project.frames.push(copy);
-  assert.throws(() => restoreProjectBackup(encodeProjectBackup(project), 'restored'), /invalid photo links/);
+  assert.throws(() => restoreProjectBackup(encodeProjectBackup(project), 'restored'), /conflicting original byte identities/);
 
   // A virtual copy must never bypass this check by reusing the same stable key.
   copy.originalSha256 = project.frames[0].originalSha256;
@@ -178,4 +178,20 @@ test('same-key matching hashes survive backup roundtrip; legacy missing hashes r
   const legacy = restoreProjectBackup(encodeProjectBackup(project), 'legacy');
   assert.equal(legacy.frames[1].originalSha256, undefined);
   assert.equal(legacy.frames[0].originalSha256, 'c'.repeat(64));
+});
+
+
+
+test('restore rejects stable-key collisions regardless of record order', () => {
+  const project = createDemoShootState(3);
+  const key = project.frames[0].stableKey;
+  project.frames.forEach((frame, index) => {
+    frame.stableKey = key;
+    frame.originalSha256 = (index === 2 ? 'b' : 'a').repeat(64);
+  });
+  const original = [...project.frames];
+  for (const order of [[0, 1, 2], [2, 1, 0], [1, 2, 0]]) {
+    project.frames = order.map((index) => original[index]);
+    assert.throws(() => restoreProjectBackup(encodeProjectBackup(project), 'restored'), /conflicting original byte identities/);
+  }
 });
