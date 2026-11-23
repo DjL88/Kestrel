@@ -34,6 +34,35 @@ describe('createCustomLook', () => {
 });
 
 describe('runLook', () => {
+  it('rejects non-finite whole-photo and subject adjustments without rendering', async () => {
+    const original = flat(16, [120, 120, 120]);
+    let calls = 0;
+    const render = async () => { calls++; return original; };
+    for (const [background, subject] of [
+      [{ exposure: Number.NaN }, undefined],
+      [{ contrast: Number.POSITIVE_INFINITY }, undefined],
+      [{}, { sharpen: Number.NEGATIVE_INFINITY }],
+    ] as const) {
+      const look = createCustomLook('invalid', 'Invalid', 'non-finite input', [
+        { label: 'Invalid adjustment', capability: 'mask', background, subject },
+      ]);
+      await assert.rejects(runLook(look, { original, render }), RangeError);
+    }
+    assert.equal(calls, 0);
+  });
+
+  it('refuses invalid retry counts before rendering', async () => {
+    const original = flat(16, [120, 120, 120]);
+    let calls = 0;
+    const look = createCustomLook('retry', 'Retry', 'retry validation', [
+      { label: 'Edit', capability: 'denoise', background: { denoise: 0.2 } },
+    ]);
+    for (const maxRetriesPerStep of [-1, 1.5, Number.POSITIVE_INFINITY]) {
+      await assert.rejects(runLook(look, { original, maxRetriesPerStep, render: async () => { calls++; return original; } }), RangeError);
+    }
+    assert.equal(calls, 0);
+  });
+
   it('runs a single-step Look that passes verification on the first attempt', async () => {
     const original = flat(16, [120, 120, 120]);
     const render = async () => flat(16, [121, 121, 121]); // barely changed
