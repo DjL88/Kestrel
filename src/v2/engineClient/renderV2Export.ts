@@ -9,6 +9,7 @@ import type { PhotoFrame } from '../../core/types';
 import type { CropTransform, OverlaySettings } from '../ui/contract';
 import { effectiveOutputSize } from '../ui/utils/studioMath';
 import { anchoredBox, cropPlacement, referenceScale, watermarkBox } from './exportLayout';
+import { planBorderFrame } from './borderFrameLayout';
 import { cappedContinuousLayout, continuousExportLayout, numberedSectionFilename } from './continuousExport';
 
 /** Everything the overlay needs, resolved by the caller from the same description the canvas draws. */
@@ -30,12 +31,22 @@ const LINE = 1.375; // Tailwind `leading-snug`, as the canvas uses.
 function draw(canvas: HTMLCanvasElement, picture: HTMLCanvasElement, crop: CropTransform) {
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Canvas unavailable');
-  const place = cropPlacement(canvas.width, canvas.height, { width: picture.width, height: picture.height }, crop);
+  // Keep the chosen output size constant. The border occupies its OWN area,
+  // and the photograph's crop/pan/flip/rotate is applied inside the smaller viewport.
+  const border = crop.borderWidth ?? 0;
+  const geometry = planBorderFrame(canvas.width, canvas.height, picture.width, picture.height,
+    { borderPercent: border, fit: 'cover' });
+  if (border > 0) {
+    context.fillStyle = crop.borderColour ?? '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  const inner = geometry.inner;
+  const place = cropPlacement(inner.width, inner.height, { width: picture.width, height: picture.height }, crop);
   context.save();
   context.beginPath();
-  context.rect(place.clip.x, place.clip.y, place.clip.width, place.clip.height);
+  context.rect(inner.x + place.clip.x, inner.y + place.clip.y, place.clip.width, place.clip.height);
   context.clip();
-  context.translate(canvas.width / 2 + place.translateX, canvas.height / 2 + place.translateY);
+  context.translate(inner.x + inner.width / 2 + place.translateX, inner.y + inner.height / 2 + place.translateY);
   context.rotate(place.rotateRad);
   context.scale(place.scaleX, place.scaleY);
   context.imageSmoothingQuality = 'high';
@@ -43,21 +54,36 @@ function draw(canvas: HTMLCanvasElement, picture: HTMLCanvasElement, crop: CropT
   context.restore();
 }
 
-/** The format's border: a band of the chosen colour just inside the edge, as a share of the width, the same rule the canvas uses. */
-export function drawBorder(canvas: HTMLCanvasElement, crop: CropTransform) {
-  const percent = crop.borderWidth ?? 0;
-  if (!(percent > 0)) return;
-  const context = canvas.getContext('2d');
-  if (!context) return;
-  const t = Math.min(Math.round(canvas.width * percent / 100), Math.floor(Math.min(canvas.width, canvas.height) / 2));
-  if (t < 1) return;
-  context.save();
-  context.fillStyle = crop.borderColour ?? '#ffffff';
-  context.fillRect(0, 0, canvas.width, t);
-  context.fillRect(0, canvas.height - t, canvas.width, t);
-  context.fillRect(0, t, t, canvas.height - 2 * t);
-  context.fillRect(canvas.width - t, t, t, canvas.height - 2 * t);
-  context.restore();
+/** Each split output is a complete frame with its own non-occluding border.
+ * First render ONE uninterrupted photograph across the two INNER viewports;
+ * then distribute adjacent halves into the reserved image areas. The border
+ * never obscures pixels and no photo is developed twice at the seam. */
+function drawContinuousInsideBorders(output: HTMLCanvasElement, picture: HTMLCanvasElement, crop: CropTransform, sectionCount: 1 | 2) {
+  if (sectionCount === 1 || !(crop.borderWidth && crop.borderWidth > 0)) {
+    draw(output, picture, crop);
+    return;
+  }
+  const sectionWidth = output.width / sectionCount;
+  const geometry = planBorderFrame(sectionWidth, output.height, picture.width, picture.height,
+    { borderPercent: crop.borderWidth, fit: 'cover' });
+  const { inner } = geometry;
+  const joined = document.createElement('canvas');
+  try {
+    joined.width = inner.width * sectionCount;
+    joined.height = inner.height;
+    draw(joined, picture, { ...crop, borderWidth: 0 });
+    const context = output.getContext('2d');
+    if (!context) throw new Error('Continuous border canvas is unavailable');
+    context.fillStyle = crop.borderColour ?? '#ffffff';
+    context.fillRect(0, 0, output.width, output.height);
+    for (let i = 0; i < sectionCount; i += 1) {
+      context.drawImage(joined, i * inner.width, 0, inner.width, inner.height,
+        i * sectionWidth + inner.x, inner.y, inner.width, inner.height);
+    }
+  } finally {
+    joined.width = 0;
+    joined.height = 0;
+  }
 }
 
 function setSpacing(context: CanvasRenderingContext2D, px: number) {
@@ -187,8 +213,7 @@ export async function renderV2Export(
     await applyCanvasExportEdit(picture, frame.edit ?? DEFAULT_EDIT, signal, Math.max(fw, fh) * scale, { aspect: fh / fw, view: { x: 0, y: 0, w: 1, h: 1 } });
     signal?.throwIfAborted();
     output.width = layout.width; output.height = layout.height;
-    draw(output, picture, crop);
-    drawBorder(output, crop);
+    drawContinuousInsideBorders(output, picture, crop, sectionCount);
     if (overlay) {
       await Promise.all(overlay.rows.map((row) => document.fonts?.load(`${row.weight} 16px ${row.family}`).catch(() => [])));
       signal?.throwIfAborted();
