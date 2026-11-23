@@ -686,7 +686,7 @@ export default function Canvas({
       // 16px gap into the working area; a single-pane Fit width would overflow on phones.
       // Account for canvas zoom rather than clipping the second pane off-screen.
       const splitWidthBudget = stageSize.width > 0
-        ? Math.max(1, (stageSize.width - 32 - 16) / (2 * Math.max(0.01, canvasZoom)))
+        ? Math.max(1, ((stageSize.width - 32) / Math.max(0.01, canvasZoom) - 16) / 2)
         : frameW;
       const splitFrameW = Math.min(frameW, splitWidthBudget);
       const splitFrameH = splitFrameW / aspect;
