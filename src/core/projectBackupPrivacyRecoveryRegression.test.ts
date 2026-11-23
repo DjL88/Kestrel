@@ -6,13 +6,17 @@ import { encodeProjectBackup, restoreProjectBackup } from './projectBackup';
 test('portable backup never exports local OCR/search evidence, including after cold reopen', () => {
   const project = createDemoShootState(1);
   const frame = project.frames[0];
-  frame.searchEvidence = { privateText: 'private registration on original' } as typeof frame.searchEvidence;
+  frame.searchEvidence = {
+    schema: 1, sourceStableKey: 'fixture-original', modelRevision: 'fixture-v1', indexedAt: 1000,
+    ocr: [{ value: 'private registration on original', status: 'confirmed' }], subjects: [],
+  };
+  const originalEvidence = structuredClone(frame.searchEvidence);
   const bytes = new TextEncoder().encode(encodeProjectBackup(project));
   const saved = new TextDecoder().decode(bytes);
   assert.equal(saved.includes('private registration on original'), false);
   const restored = restoreProjectBackup(saved, 'offline-copy', 1000);
   assert.equal(restored.frames[0].searchEvidence, undefined);
-  assert.equal(project.frames[0].searchEvidence, frame.searchEvidence);
+  assert.deepEqual(project.frames[0].searchEvidence, originalEvidence);
 });
 
 test('portable restore requires local source reauthorisation rather than trusting saved file access', () => {
