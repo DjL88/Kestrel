@@ -170,6 +170,15 @@ function meanChroma(pixels: Pixels): number {
 }
 
 export function checkColour({ after, before, subject, blackAndWhite = false }: ColourCheckInput): ColourReport {
+  // A truncated or mismatched preview cannot support a trustworthy colour claim.
+  // Fail closed rather than describing a palette assembled from unrelated pixels.
+  const validPixels = (pixels: Pixels) => Number.isSafeInteger(pixels.width)
+    && Number.isSafeInteger(pixels.height)
+    && pixels.width > 0 && pixels.height > 0
+    && pixels.width * pixels.height * 4 === pixels.data.length;
+  if (!validPixels(after)) return { palette: [], findings: [], monochrome: false };
+  if (before && (!validPixels(before) || before.width !== after.width || before.height !== after.height)) before = undefined;
+  if (subject && subject.length !== after.width * after.height) subject = undefined;
   const { data } = after;
   const pixelCount = Math.floor(data.length / 4);
   if (pixelCount === 0) return { palette: [], findings: [], monochrome: false };
