@@ -1,14 +1,123 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CLOUD_KINDS, MemoryCloudLedger, MemoryCloudRunner } from '../src/cloudJobs.ts';
-import { startHarness } from './helpers.ts';
+import { MemorySpendGuard } from '../src/spendGuard.ts';
+import { startHarness, type Harness } from './helpers.ts';
 
 async function harness() {
   const runner = new MemoryCloudRunner(); const ledger = new MemoryCloudLedger();
-  const h = await startHarness(undefined, undefined, { cloud: { runner, ledger, jobsPerPeriod: 5, maxInputBytes: 120_000_000 } });
-  return { h, runner, ledger };
+  const spend = new MemorySpendGuard();
+  const h = await startHarness(undefined, undefined, {
+    cloud: { runner, ledger, jobsPerPeriod: 5, maxInputBytes: 120_000_000 },
+    spend: { guard: spend, ceilingPence: 100, cloudJobPence: 3, aiCallPence: 1 },
+  });
+  return { h, runner, ledger, spend };
 }
-const create = (h: any, kind = 'denoise') => h.call('POST', '/v1/cloud/jobs', { token: h.user.token, body: { kind, inputBytes: 30_000_000, userConsent: true } });
+const create = (h: Harness, kind = 'denoise', token = h.user.token) =>
+  h.call('POST', '/v1/cloud/jobs', { token, body: { kind, inputBytes: 30_000_000, userConsent: true } });
+
+function checkpoint() {
+  let release!: () => void;
+  const reached = new Promise<void>((resolve) => { release = resolve; });
+  return { reached, release };
+}
+
+test('concurrent start requests submit only one Cloud Run execution', { timeout: 5_000 }, async (t) => {
+  const { h, runner } = await harness();
+  t.after(() => h.close());
+  const { jobId } = (await create(h)).body;
+  runner.simulateUpload(jobId);
+  const bothChecking = checkpoint();
+  const inputPresent = runner.inputPresent.bind(runner);
+  let checks = 0;
+  runner.inputPresent = async (id) => {
+    if (++checks === 2) bothChecking.release();
+    await bothChecking.reached;
+    return inputPresent(id);
+  };
+
+  const start = () => h.call('POST', `/v1/cloud/jobs/${jobId}/start`, { token: h.user.token });
+  const responses = await Promise.all([start(), start()]);
+  assert.deepEqual(responses.map((r) => [r.status, r.body.status]), [[200, 'running'], [200, 'running']]);
+  assert.equal(runner.starts, 1);
+});
+
+test('losing the dispatch acknowledgement does not let a retry submit another execution', async (t) => {
+  const { h, runner } = await harness();
+  t.after(() => h.close());
+  const { jobId } = (await create(h)).body;
+  runner.simulateUpload(jobId);
+  const submit = runner.start.bind(runner);
+  runner.start = async (id) => {
+    await submit(id);
+    throw new Error('Connection closed before the response arrived');
+  };
+
+  const start = () => h.call('POST', `/v1/cloud/jobs/${jobId}/start`, { token: h.user.token });
+  assert.equal((await start()).status, 502);
+  assert.equal((await start()).body.status, 'running');
+  assert.equal(runner.starts, 1);
+});
+
+test('concurrent failure polls cannot refund another job or the next month', { timeout: 5_000 }, async (t) => {
+  const { h, runner, ledger, spend } = await harness();
+  t.after(() => h.close());
+  const november = Date.UTC(2026, 10, 30, 23, 59);
+  h.clock.now = november;
+  const token = (await h.app.issueSession(h.user.accountId, 'user')).accessToken;
+  const call = (method: 'GET' | 'POST', path: string) => h.call(method, path, { token });
+  const { jobId } = (await create(h, 'denoise', token)).body;
+  const path = `/v1/cloud/jobs/${jobId}`;
+  runner.simulateUpload(jobId);
+  assert.equal((await call('POST', `${path}/start`)).status, 200);
+  runner.failJob(jobId, 'runner failure');
+
+  h.clock.now += 2 * 60_000;
+  assert.equal((await create(h, 'denoise', token)).status, 200);
+  const bothPolling = checkpoint();
+  const poll = runner.poll.bind(runner);
+  let polls = 0;
+  runner.poll = async (id) => {
+    if (++polls === 2) bothPolling.release();
+    await bothPolling.reached;
+    return poll(id);
+  };
+
+  const results = await Promise.all([call('GET', path), call('GET', path)]);
+  assert.deepEqual(results.map((r) => r.body.status), ['failed', 'failed']);
+  assert.equal(ledger.used(h.user.accountId), 1);
+  assert.equal(await spend.spent(november), 0);
+  assert.equal(await spend.spent(h.clock.now), 3);
+});
+
+test('a poll with a stale runner result cannot reopen a finished job', { timeout: 5_000 }, async (t) => {
+  const { h, runner, ledger } = await harness();
+  const resultRead = checkpoint();
+  const finishComplete = checkpoint();
+  t.after(() => { finishComplete.release(); return h.close(); });
+  const { jobId } = (await create(h)).body;
+  const path = `/v1/cloud/jobs/${jobId}`;
+  runner.simulateUpload(jobId);
+  assert.equal((await h.call('POST', `${path}/start`, { token: h.user.token })).status, 200);
+  runner.completeJob(jobId);
+  const poll = runner.poll.bind(runner);
+  runner.poll = async (id) => {
+    const stale = await poll(id);
+    resultRead.release();
+    await finishComplete.reached;
+    return stale;
+  };
+
+  const pending = h.call('GET', path, { token: h.user.token });
+  await resultRead.reached;
+  const finished = await h.call('POST', `${path}/finish`, { token: h.user.token });
+  finishComplete.release();
+  assert.equal(finished.status, 200);
+  const status = await pending;
+  assert.equal(status.body.status, 'finished');
+  assert.equal(status.body.resultUrl, undefined);
+  assert.equal(ledger.record(jobId)?.status, 'finished');
+});
 
 test('job kinds are the engine capability names: denoise, upscale, mask', async () => {
   assert.deepEqual([...CLOUD_KINDS], ['denoise', 'upscale', 'mask']);
