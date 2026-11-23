@@ -1,4 +1,5 @@
 import { safeExportName } from './exportPlace';
+import { hashOriginalBytes, isSameOriginalBytes } from './originalFileIdentity';
 import { uniqueExportFilename } from './exportNaming';
 import type { PhotoFrame } from './types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
@@ -47,7 +48,7 @@ export function planOriginalCopies(frames: readonly Pick<PhotoFrame, 'id' | 'fil
 }
 
 export async function copyUnchangedOriginal(
-  frame: Pick<PhotoFrame, 'filename' | 'stableKey' | 'isDemo'>,
+  frame: Pick<PhotoFrame, 'filename' | 'stableKey' | 'isDemo' | 'originalSha256'>,
   provider: Pick<BrowserPreviewProvider, 'ensureOriginal' | 'originalInfo'>,
   filename: string,
   signal?: AbortSignal,
@@ -64,6 +65,12 @@ export async function copyUnchangedOriginal(
     throw new Error(`Reconnect ${frame.filename} to save its actual original file. A cached preview is not enough.`);
   if (expected && original.size !== expected.size)
     throw new Error(`The original ${frame.filename} changed while being read. Reconnect and check it before copying.`);
+  // Filename, length, modified time and a provider's cached blob are NOT original-byte evidence.
+  // Refuse to package a substituted NEF/JPEG even when its metadata matches perfectly.
+  if (!frame.originalSha256 || !isSameOriginalBytes(frame.originalSha256, await hashOriginalBytes(original, signal))) {
+    throw new Error(`The original ${frame.filename} has no matching SHA-256 fingerprint. Reconnect or re-import the genuine original before copying.`);
+  }
+  signal?.throwIfAborted();
   const stamp = expected?.lastModified;
   const lastModified = typeof stamp === 'number' && Number.isFinite(stamp) && stamp > 0
     ? stamp : (original instanceof File ? original.lastModified : Date.now());
