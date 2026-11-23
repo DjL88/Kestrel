@@ -7,6 +7,7 @@
 import type { FirestoreLike } from './firestoreStore.ts';
 
 export const monthKey = (nowMs: number) => new Date(nowMs).toISOString().slice(0, 7);
+export const firestoreSpendRef = (db: FirestoreLike, nowMs: number) => db.collection('spend_ledger').doc(monthKey(nowMs));
 
 export interface SpendGuard {
   /** Atomically adds `pence` to this month's total if it stays within the ceiling. */
@@ -26,7 +27,7 @@ export class MemorySpendGuard implements SpendGuard {
 /** `spend_ledger/{YYYY-MM}`: one running total per month, changed only inside a transaction. */
 export class FirestoreSpendGuard implements SpendGuard {
   constructor(private readonly db: FirestoreLike) {}
-  private ref(nowMs: number) { return this.db.collection('spend_ledger').doc(monthKey(nowMs)); }
+  private ref(nowMs: number) { return firestoreSpendRef(this.db, nowMs); }
   async reserve(nowMs: number, pence: number, ceiling: number) {
     return this.db.runTransaction(async (tx) => {
       const snap = await tx.get(this.ref(nowMs));

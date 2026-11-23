@@ -83,6 +83,21 @@ test('the client uses the real job API and removes temporary objects after colle
   assert.equal(ledger.record(runner.jobId)?.status, 'finished');
 });
 
+test('the client retries a transient status failure without starting the job again', async (t) => {
+  const { runner, ledger, transfers, connection } = await setup(t);
+  const originalPoll = runner.poll.bind(runner);
+  let attempts = 0;
+  runner.poll = async (id) => {
+    if (++attempts === 1) throw new Error('Firestore temporarily unavailable');
+    return originalPoll(id);
+  };
+  assert.equal(await (await runCloudJob(connection, job)).text(), 'fixture result');
+  assert.equal(attempts, 3);
+  assert.equal(runner.starts, 1);
+  assert.deepEqual(transfers, ['upload', 'download']);
+  assert.equal(ledger.record(runner.jobId)?.status, 'finished');
+});
+
 test('a switched-off cloud or an invalid session sends no bytes to storage', async (t) => {
   const { server, runner, transfers, connection } = await setup(t);
   await assert.rejects(runCloudJob(connection, { ...job, userConsent: false }), /approval/);

@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CLOUD_KINDS, MemoryCloudLedger, MemoryCloudRunner } from '../src/cloudJobs.ts';
-import { MemorySpendGuard } from '../src/spendGuard.ts';
+import { FirestoreCloudLedger } from '../src/cloudLedgerFirestore.ts';
+import { FirestoreSpendGuard, MemorySpendGuard } from '../src/spendGuard.ts';
 import { startHarness, type Harness } from './helpers.ts';
+import { MemoryFirestore } from './memoryFirestore.ts';
 
 async function harness() {
   const runner = new MemoryCloudRunner(); const ledger = new MemoryCloudLedger();
@@ -88,6 +90,44 @@ test('concurrent failure polls cannot refund another job or the next month', { t
   assert.equal(ledger.used(h.user.accountId), 1);
   assert.equal(await spend.spent(november), 0);
   assert.equal(await spend.spent(h.clock.now), 3);
+});
+
+test('an interrupted Firestore failure settlement rolls back and the next HTTP poll settles it', async (t) => {
+  const db = new MemoryFirestore();
+  const ledger = new FirestoreCloudLedger(db);
+  const spend = new FirestoreSpendGuard(db);
+  const runner = new MemoryCloudRunner();
+  const h = await startHarness(undefined, undefined, {
+    cloud: {
+      runner, ledger, jobsPerPeriod: 2, maxInputBytes: 120_000_000,
+      settleFailed: (id, legacyPence) => ledger.settleFailed(id, legacyPence),
+    },
+    spend: { guard: spend, ceilingPence: 100, cloudJobPence: 3, aiCallPence: 1 },
+  });
+  t.after(() => h.close());
+  const { jobId } = (await create(h)).body;
+  const path = `/v1/cloud/jobs/${jobId}`;
+  runner.simulateUpload(jobId);
+  assert.equal((await h.call('POST', `${path}/start`, { token: h.user.token })).status, 200);
+  runner.failJob(jobId, 'runner failure');
+
+  const runTransaction = db.runTransaction.bind(db);
+  db.runTransaction = (body) => runTransaction(async (tx) => {
+    await body(tx);
+    throw new Error('staging Firestore commit interrupted');
+  });
+  assert.equal((await h.call('GET', path, { token: h.user.token })).status, 500);
+  assert.equal((await ledger.get(jobId))?.status, 'running');
+  assert.equal(db.peek('cloud_usage', h.user.accountId)?.used, 1);
+  assert.equal(await spend.spent(h.clock.now), 3);
+
+  db.runTransaction = runTransaction;
+  const retried = await h.call('GET', path, { token: h.user.token });
+  assert.equal(retried.status, 200);
+  assert.equal(retried.body.status, 'failed');
+  assert.equal((await ledger.get(jobId))?.status, 'failed');
+  assert.equal(db.peek('cloud_usage', h.user.accountId)?.used, 0);
+  assert.equal(await spend.spent(h.clock.now), 0);
 });
 
 test('a poll with a stale runner result cannot reopen a finished job', { timeout: 5_000 }, async (t) => {

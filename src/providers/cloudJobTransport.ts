@@ -121,8 +121,15 @@ export async function runCloudJob(connection: CloudJobConnection, job: CloudJob)
       start = await request(`${path}/start`, 'POST', signal);
     }
     if (!start.ok) throw new Error('Cloud processing did not start.');
+    let canRetryStatus = true;
     for (;;) {
       const response = await request(path, 'GET', signal);
+      if (response.status >= 500 && canRetryStatus) {
+        canRetryStatus = false;
+        void response.body?.cancel().catch(() => undefined);
+        await waitForNextPoll(interval, signal);
+        continue;
+      }
       if (!response.ok) throw new Error('Cloud processing status is unavailable.');
       const status = object(await response.json());
       if (status.jobId !== id || status.kind !== job.kind) throw new Error('Cloud processing returned a different job.');

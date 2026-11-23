@@ -10,7 +10,9 @@ export type CloudStatus = 'awaiting-upload' | 'running' | 'ready' | 'failed' | '
 
 export interface CloudJobRecord { jobId: string; accountId: string; kind: CloudKind; inputBytes: number; status: CloudStatus; createdAtMs: number;
   /** When the person said yes to this upload (every job carries its own consent, never a standing one). */
-  consentAtMs: number }
+  consentAtMs: number;
+  /** Estimated spend reserved for this job. Older job records did not store it. */
+  spendPence?: number }
 
 export interface CloudRunner {
   /** A short-lived signed upload URL into the private bucket. Throws if the job cannot be started. */
@@ -40,6 +42,8 @@ export interface CloudLedger {
 
 export interface CloudOptions {
   runner: CloudRunner; ledger: CloudLedger; jobsPerPeriod: number; maxInputBytes: number;
+  /** A shared store can commit the failed status and both refunds in one transaction. */
+  settleFailed?: (jobId: string, legacySpendPence: number) => Promise<boolean>;
   /** A job still running this long after it was created is treated as failed (a crashed runner writes no marker). Default 30 minutes. */
   maxJobMs?: number;
 }
@@ -84,7 +88,10 @@ export class MemoryCloudLedger implements CloudLedger {
     const c = this.counts.get(accountId);
     if (c && reservedAtMs >= c.start && c.used > 0) c.used--;
   }
-  async put(r: CloudJobRecord) { const { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs } = r; this.jobs.set(jobId, { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs }); }
+  async put(r: CloudJobRecord) {
+    const { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, spendPence } = r;
+    this.jobs.set(jobId, { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, ...(spendPence === undefined ? {} : { spendPence }) });
+  }
   async get(jobId: string) { const r = this.jobs.get(jobId); return r ? { ...r } : undefined; }
   async transition(jobId: string, from: CloudStatus, to: CloudStatus) {
     const record = this.jobs.get(jobId);
