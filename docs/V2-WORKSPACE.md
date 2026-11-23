@@ -256,10 +256,26 @@ The owner answered the ten "small things" and added items 11 to 27 plus three ex
 Logos for drives (Dropbox, Google Drive, OneDrive, NAS), social platforms and camera brands. **Third-party logos must be the official assets used under each brand's guidelines, not redrawn** (OneDrive, OpenAI and Amazon S3 still use neutral icons for that reason; camera brand logos need the same permission check). Until an official asset is added, the neutral icon stays.
 
 ### Risks and open points
-- Split semantics (16, 17) change how size copies and the All Formats board store data (`createCropCopy` links); needs a short design note before code.
+- Split semantics (16, 17) change how size copies and the All Formats board store data (`createCropCopy` links); needs a short design note before code. **Design note added below (23 Nov 2026, overnight checkin).**
 - Crop and borders must be in the recipe and the export together, or the file will not match the canvas.
 - Social text and Looks that call a vision model are Pro and consent-gated; the Basic path is a plain template (camera, lens, settings, date) with no AI.
 - Firestore corrections library and any cloud call are backend work and need owner approval before anything is deployed.
+
+### Split-frame board representation — design note (23 Nov 2026, overnight checkin)
+
+Read against the real V2 source (no code changed by this note) to settle item 17's "a split shows on the All Formats board as two adjoining photos, can be split again, and a split belongs to the selected photo only" before anyone builds it.
+
+**The ownership half of this is already correct, no model change needed.** `splitFrames` lives on `EditGroup` (`src/v2/ui/contract.ts`), and `EditGroup` lives inside `Photo.editGroups`, one array per photo (`contract.ts` ~line 250). Nothing routes it through `SizePreset` or any shared/global table, so splitting one photo's active group can never carry to another photo or to a different format on the same photo merely by switching `activeSizeId` — that guarantee is structural, not something the next PR needs to add.
+
+**The real gap is purely in rendering.** `renderAllFormatsBoard()` in `src/v2/ui/shell/Canvas.tsx` (~line 877) draws exactly one card per enabled `SizePreset`, keyed on `size.id`, positioned by that size's own `boardX`/`boardY`. It has no branch for `group.splitFrames`: today, splitting a format only changes what `renderSingleArtboard()` draws in single-photo view (the two-pane layout #961 is currently sizing); the All Formats board still shows that same format as one tile.
+
+Proposed shape for whoever picks this up:
+1. In `renderAllFormatsBoard()`, when `group.splitFrames && features.splitFrames` is true for a given `size`, render **two** cards instead of one — keyed `${size.id}-a` / `${size.id}-b` — sharing that size's single `boardX`/`boardY` position. Offset the second card by `cardW + gap` in the render only (inline style), the same way the two panes are laid out side by side in `renderSingleArtboard`. Do **not** add a second stored position: the pair must always move together, so a drag on either card's header still writes back to the one `{boardX, boardY}` for `size.id` (via the existing `onMoveArtboard(photoId, sizeId, x, y)`), never to two independently-drifting positions.
+2. Both cards read `isSelected`/`isPrimary` and route click/double-click/select exactly as today, using the real `size.id` — never a synthetic per-pane id — so export, undo, the selection array and keyboard focus (all keyed by `size.id`) are untouched by this being cosmetically two cards.
+3. "Can be split again" from the board needs no new flag: wire the same toggle button used in `renderSingleArtboard` (`onToggleSplitFrames(photo.id)`, ~line 864) onto the board card's header, scoped to the photo that owns it.
+4. Export stays keyed by `SizePreset`, one file per size (`renderV2Export.ts`, #935/#940) — the two-card board view is a display of the same underlying size, not two exportable copies. Nothing here should spawn an export-time "pane" concept.
+
+Edge cases the implementer should test once a real checkout is available (desktop and phone board drag, both panes staying aligned across a reflow; switching formats while split is active; selecting one pane vs. the other). No `contract.ts` field addition is required for this; it is a `Canvas.tsx`-only change.
 
 ## 18. Frontend worker handover (22 Nov 2026, end of session)
 
