@@ -299,7 +299,10 @@ export default function SettingsDialog({
                         onClick={() => onSignInStub('apple')}
                         className="h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
                       >
-                        {STRINGS.settings.account.continueApple}
+                        <span className="inline-flex items-center justify-center gap-2">
+                          <OfficialMark id="apple" className="h-4 w-4 shrink-0" />
+                          <span>{STRINGS.settings.account.continueApple}</span>
+                        </span>
                       </button>
                     </div>
 
