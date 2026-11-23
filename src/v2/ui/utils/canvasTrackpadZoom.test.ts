@@ -38,3 +38,9 @@ test('zoom in and out retains the pointer image coordinate when unclamped', () =
   const zoomed = zoomAnchorScroll(original, 120, 1, 1.5);
   assert.equal(zoomAnchorScroll(zoomed, 120, 1.5, 1), original);
 });
+
+test('finite extreme anchor arithmetic fails closed instead of producing Infinity', () => {
+  assert.equal(zoomAnchorScroll(Number.MAX_VALUE, 100, 0.25, 8), Number.MAX_VALUE);
+  assert.equal(zoomAnchorScroll(Number.MAX_VALUE, Number.MAX_VALUE, 1, 2), Number.MAX_VALUE);
+  assert.equal(zoomAnchorScroll(42, Number.MAX_VALUE, 0.25, 8), 42);
+});
