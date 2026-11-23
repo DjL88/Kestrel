@@ -60,3 +60,15 @@ test('recipeAt reads a past recipe without changing anything', () => {
   assert.equal(recipeAt({ cursor: 0, steps: [] }, 0), undefined);
   assert.equal(frame.editHistory?.cursor, 3);
 });
+
+test('long histories record compaction rather than misrepresenting earliest checkpoint as import', () => {
+  let frame = { id: 'long-history' } as PhotoFrame;
+  for (let i = 0; i < 65; i++) {
+    frame = recordEdit(frame, { edit: { exposure: i / 100, warmth: 0, colour: 0 } }, 1000 + i * 1000);
+  }
+  assert.equal(frame.editHistory?.steps.length, 60);
+  assert.equal(frame.editHistory?.discarded, 5);
+  assert.equal(frame.editHistory?.cursor, 60);
+  const earliest = recipeAt(frame.editHistory!, 0);
+  assert.ok((earliest?.edit?.exposure ?? 0) > 0, 'retained step zero is NOT original');
+});
