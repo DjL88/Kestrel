@@ -247,6 +247,9 @@ test('?v2 Co-pilot checks the photo on this device, suggests Auto, and applying 
   await expect(verdict.first()).toBeVisible({ timeout: 60000 });
   const apply = root.getByRole('button', { name: 'Apply suggested recipe' });
   if (await apply.count()) {
+    // Each suggestion now leads with a real before/after preview (owner backlog item 20: previews
+    // instead of paragraphs), not only the text verdict checked above.
+    await expect(root.locator('img[alt^="Preview: "]').first()).toBeVisible();
     await apply.click();
     await expect(root.getByRole('button', { name: 'Apply suggested recipe' })).toHaveCount(0);
   } else {
