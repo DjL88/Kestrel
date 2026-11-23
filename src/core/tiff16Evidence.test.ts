@@ -68,6 +68,29 @@ describe('completed TIFF structural evidence', () => {
     v.setUint32(10 + 5 * 12 + 8, 300, true);
     assert.match(inspectTiff16Structure(aliased).ok ? '' : (inspectTiff16Structure(aliased) as { ok: false; reason: string }).reason, /overlap/i);
   });
+  it('rejects raster bytes that alias the TIFF header or BitsPerSample metadata', () => {
+    const header = fixture();
+    new DataView(header.buffer).setUint32(10 + 5 * 12 + 8, 0, true);
+    const headerResult = inspectTiff16Structure(header);
+    assert.equal(headerResult.ok, false);
+    if (!headerResult.ok) assert.match(headerResult.reason, /header/i);
+
+    const bits = fixture();
+    new DataView(bits.buffer).setUint32(10 + 5 * 12 + 8, 200, true);
+    const bitsResult = inspectTiff16Structure(bits);
+    assert.equal(bitsResult.ok, false);
+    if (!bitsResult.ok) assert.match(bitsResult.reason, /bit-depth metadata/i);
+  });
+  it('rejects an ICC payload whose declared span overlaps the image directory', () => {
+    const aliased = fixture();
+    // The IFD starts at 8 and ends beyond 128; a profile beginning at 100
+    // cannot be independent of its directory even if its signature looks valid.
+    const view = new DataView(aliased.buffer);
+    view.setUint32(10 + 10 * 12 + 8, 100, true);
+    view.setUint32(100, 128, false);
+    aliased.set([97, 99, 115, 112], 136);
+    assert.equal(inspectTiff16Structure(aliased).ok, false);
+  });
   it('rejects a strip aliased onto the TIFF directory', () => {
     const aliased = fixture();
     new DataView(aliased.buffer).setUint32(10 + 5 * 12 + 8, 20, true);
