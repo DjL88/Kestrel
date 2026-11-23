@@ -4,15 +4,15 @@ test('All Formats: Shift range, Cmd/Ctrl toggle and blank-space clear control th
   await page.goto('/?v2&stub=1&autostart=1');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: /All formats/ }).click();
-  const original = root.getByTestId('artboard-orig-3x2').getByRole('button', { name: /Select/ });
-  const wide = root.getByTestId('artboard-yt-wide').getByRole('button', { name: /Select/ });
+  const original = root.getByTestId('format-pair-orig-3x2').getByRole('button', { name: /Select/ });
+  const wide = root.getByTestId('format-pair-yt-wide').getByRole('button', { name: /Select/ });
   const toolbar = root.getByTestId('selected-format-toolbar');
 
   await original.click();
   await expect(root.getByTestId('selected-format-count')).toHaveText('1 selected');
   await wide.click({ modifiers: ['Shift'] });
   await expect(root.getByTestId('selected-format-count')).toHaveText('3 selected');
-  await expect(root.getByTestId('artboard-ig-portrait').getByRole('button', { name: /Select/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(root.getByTestId('format-pair-ig-portrait').getByRole('button', { name: /Select/ })).toHaveAttribute('aria-pressed', 'true');
 
   await wide.click({ modifiers: [process.platform === 'darwin' ? 'Meta' : 'Control'] });
   await expect(root.getByTestId('selected-format-count')).toHaveText('2 selected');
@@ -30,8 +30,8 @@ test('All Formats: dragging a selected tile moves the selected group together', 
   await root.getByRole('button', { name: /All formats/ }).click();
   await root.getByRole('button', { name: 'Select all' }).click();
 
-  const one = root.getByTestId('artboard-orig-3x2');
-  const two = root.getByTestId('artboard-ig-portrait');
+  const one = root.getByTestId('format-pair-orig-3x2');
+  const two = root.getByTestId('format-pair-ig-portrait');
   const firstBefore = await one.boundingBox();
   const secondBefore = await two.boundingBox();
   const header = await one.locator('.cursor-grab').first().boundingBox();
