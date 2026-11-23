@@ -17,10 +17,12 @@ export function chooseFormatSelection({
   const liveAvailable = [...new Set(available.filter((id) => typeof id === 'string' && id.trim().length > 0))];
   const valid = new Set(liveAvailable);
   const cleanSelected = [...new Set(selected.filter((id) => valid.has(id)))];
-  const cleanActive = valid.has(active) ? active : (cleanSelected[0] ?? liveAvailable[0] ?? '');
+  const anchorIsLive = valid.has(active);
+  const cleanActive = anchorIsLive ? active : (cleanSelected[0] ?? liveAvailable[0] ?? '');
   if (!valid.has(target)) return { active: cleanActive, selected: cleanSelected };
   if (shift) {
-    const anchor = liveAvailable.indexOf(cleanActive);
+    // A deleted anchor must not silently expand a range from an unrelated format.
+    const anchor = anchorIsLive ? liveAvailable.indexOf(active) : -1;
     const index = liveAvailable.indexOf(target);
     const range = liveAvailable.slice(Math.min(anchor < 0 ? index : anchor, index), Math.max(anchor < 0 ? index : anchor, index) + 1);
     return { active: target, selected: ctrl ? [...new Set([...cleanSelected, ...range])] : [...new Set(range)] };
