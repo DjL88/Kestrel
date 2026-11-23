@@ -52,6 +52,7 @@ import { createSubjectMask, framingKey, hasActiveMasks } from '../../core/maskTy
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFraming';
 import { GUIDED_RENDER_EDGE } from '../../core/subjectGuide';
 import { detectSubjectGuided } from '../../providers/subjectDetector';
+import { judgeSubject } from '../../core/autoCull';
 import { archiveExports, downloadExport, loadExportSource } from '../../providers/browserExport';
 import { toProfile } from '../../core/exportFormats';
 import { renderV2Export, type OverlayDraw } from './renderV2Export';
@@ -669,13 +670,25 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const { width, height } = framedSize(image.naturalWidth, image.naturalHeight, framing);
       const framed = document.createElement('canvas');
       drawFramedPhoto(image, framed, framing, { scale: Math.min(1, GUIDED_RENDER_EDGE / Math.max(width, height)) });
-      const { grid, assessment, detail } = await detectSubjectGuided(framed);
+      const { grid, assessment, detail, boxFinding } = await detectSubjectGuided(framed);
       if (!assessment.usable) { task.finish('No clear subject'); setNotice(assessment.reason); return; }
       const mask = { ...createSubjectMask(newId(), grid, framingKey(framing), assessment.confidence, detail), invert: type === 'background', feather: 0.5 };
       // Re-read the photo: its edit may have changed while the subject was being found.
       editFrames([photoId], (latest) => ({ ...(latest.edit ?? DEFAULT_EDIT), masks: [...(latest.edit?.masks ?? []), mask] }));
       task.finish(assessment.reason);
-      setNotice(`Added the ${type} mask. It changes nothing until you move one of its sliders.`);
+      // Advisory only: the segmentation model's own usability check above is the sole gate on creating this
+      // mask, same as before - this never blocks or changes the mask. When the guided path actually steered
+      // it with a detector box, additionally run that box through this capability's real trust gate
+      // (autoCull.ts's judgeSubject, the same score/size/sharpness logic engine/subjectDetectAction.ts uses
+      // for exactly this question), and fold its verdict into the notice so a low-confidence find is said
+      // plainly rather than only ever reading "Added". `judgeSubject`'s decision is cull vocabulary (keep a
+      // photo vs. not), re-read here only for its confidence word, never as a reason to discard a mask.
+      // Named "detector" confidence to keep it distinct from `assessment.confidence` above (the outline's
+      // own edge-clarity reading, already folded into the stored mask) - the two measure different things.
+      const trustNote = boxFinding
+        ? `, ${judgeSubject({ label: boxFinding.detection.label, score: boxFinding.detection.score, size: Math.max(boxFinding.detection.box.w, boxFinding.detection.box.h), sharpness: boxFinding.sharpness }).confidence}-confidence detection`
+        : '';
+      setNotice(`Added the ${type} mask${trustNote}. It changes nothing until you move one of its sliders.`);
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : 'Could not find the subject.';
       task.fail(message); setNotice(message);
