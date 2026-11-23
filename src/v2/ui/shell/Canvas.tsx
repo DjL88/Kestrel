@@ -259,8 +259,13 @@ export default function Canvas({
   }
 
   const group: EditGroup = getActiveGroup(photo);
-  // Compare shows the original and the edit side by side across one frame; a split spans two frames, so it is off then.
-  const splitFor = (sizeId: string) => features.splitFrames && photo.formatSplits?.[sizeId]?.enabled === true;
+  // An individual format may have one, two, or three continuous export frames.
+  // Keep the canvas' pane count derived from the SAME saved metadata as exportOps.
+  const splitCountFor = (sizeId: string): 1 | 2 | 3 => {
+    const split = photo.formatSplits?.[sizeId];
+    return !features.splitFrames || !split?.enabled ? 1 : split.count === 3 ? 3 : 2;
+  };
+  const splitFor = (sizeId: string) => splitCountFor(sizeId) > 1;
   const splitOffsetFor = (sizeId: string) => photo.formatSplits?.[sizeId]?.offset ?? 0;
   const compareMode = compareRequested && !splitFor(activeSizeId);
   const enabledSizes = photo.sizes.filter((s) => s.enabled);
@@ -909,11 +914,11 @@ export default function Canvas({
     // Keep the entire split composition visible while editing its shared crop.
     // Previously entering crop mode dropped back to one frame and hid the other.
     if (splitFor(activeSize.id)) {
-      // Each pane has the selected format's full aspect ratio. Fit BOTH panes and their
-      // 16px gap into the working area; a single-pane Fit width would overflow on phones.
-      // Account for canvas zoom rather than clipping the second pane off-screen.
+      // Each pane retains the selected format's full aspect ratio. Fit all two or
+      // three panes plus their gaps into the stage without hiding the last one.
+      const sectionCount = splitCountFor(activeSize.id);
       const splitWidthBudget = stageSize.width > 0
-        ? Math.max(1, ((stageSize.width - 32) / Math.max(0.01, canvasZoom) - 16) / 2)
+        ? Math.max(1, ((stageSize.width - 32) / Math.max(0.01, canvasZoom) - 16 * (sectionCount - 1)) / sectionCount)
         : frameW;
       const splitFrameW = Math.min(frameW, splitWidthBudget);
       const splitFrameH = splitFrameW / aspect;
@@ -922,10 +927,10 @@ export default function Canvas({
           className="m-auto flex items-center gap-4"
           style={{ zoom: canvasZoom }}
         >
-          {[0, 1].map((paneIdx) => (
+          {Array.from({ length: sectionCount }, (_, paneIdx) => paneIdx).map((paneIdx) => (
             <div key={paneIdx} className="flex flex-col items-center gap-2">
               <span className="text-[11px] font-medium text-[var(--text-muted)]">
-                {paneIdx === 0 ? STRINGS.canvas.frameLeft : STRINGS.canvas.frameRight} · 1:1
+                {sectionCount === 2 ? (paneIdx === 0 ? STRINGS.canvas.frameLeft : STRINGS.canvas.frameRight) : `Frame ${paneIdx + 1} of ${sectionCount}`} · 1:1
               </span>
               <div
                 onPointerDown={(e) => handleFramePointerDown(e, revealing ? 'pan' : 'split', activeSize, e.currentTarget)}
@@ -939,13 +944,14 @@ export default function Canvas({
                   alt={`${photo.title} — Frame ${paneIdx + 1}`}
                   referrerPolicy="no-referrer"
                   draggable={false}
-                  className="h-full w-[200%] max-w-none object-cover select-none"
+                  className="h-full max-w-none object-cover select-none"
                   style={{
+                    width: `${sectionCount * 100}%`,
                     filter: compareMode ? 'none' : filterCss,
-                    transform: `translate(${paneIdx === 0 ? splitOffsetFor(activeSize.id) + activeSize.crop.panX : -50 + splitOffsetFor(activeSize.id) + activeSize.crop.panX}%, ${activeSize.crop.panY}%) rotate(${activeSize.crop.rotateDeg}deg) scale(${(activeSize.crop.flipH ? -1 : 1) * activeSize.crop.zoom}, ${(activeSize.crop.flipV ? -1 : 1) * activeSize.crop.zoom})`,
+                    transform: `translate(${-(paneIdx * 100 / sectionCount) + splitOffsetFor(activeSize.id) + activeSize.crop.panX}%, ${activeSize.crop.panY}%) rotate(${activeSize.crop.rotateDeg}deg) scale(${(activeSize.crop.flipH ? -1 : 1) * activeSize.crop.zoom}, ${(activeSize.crop.flipV ? -1 : 1) * activeSize.crop.zoom})`,
                   }}
                 />)}
-                {paneIdx === 1 && renderOverlaysInsideFrame(activeSize, true)}
+                {paneIdx === sectionCount - 1 && renderOverlaysInsideFrame(activeSize, true)}
               </div>
             </div>
           ))}
@@ -1131,7 +1137,7 @@ export default function Canvas({
           const cardH = aspect < 0.7 ? 270 : 210;
           const cardW = Math.round(clamp(cardH * aspect, 145, 340));
 
-          const panes = splitFor(size.id) ? [0, 1] : [0];
+          const panes = Array.from({ length: splitCountFor(size.id) }, (_, paneIdx) => paneIdx);
           return (
             <div key={size.id} className="flex items-start gap-1" data-testid={`format-pair-${size.id}`} style={{ transform: `translate(${boardPlacements[`${photo.id}:${size.id}`]?.x ?? size.boardX}px, ${boardPlacements[`${photo.id}:${size.id}`]?.y ?? size.boardY}px)` }}>
             {panes.map((paneIdx) => (
@@ -1154,7 +1160,7 @@ export default function Canvas({
                 <div className="flex items-center gap-1.5 min-w-0">
                   <BrandIcon name="grip" size={12} className="text-[var(--text-muted)]" />
                   <span className="truncate text-[11px] font-semibold text-[var(--text-primary)]">
-                    {size.label}{panes.length === 2 ? ` · ${paneIdx + 1}/2` : ''}
+                    {size.label}{panes.length > 1 ? ` · ${paneIdx + 1}/${panes.length}` : ''}
                   </span>
                 </div>
                 <span className="shrink-0 font-mono text-[10px] text-[var(--text-muted)] tabular-nums">
@@ -1165,7 +1171,7 @@ export default function Canvas({
               {/* Artboard image viewport */}
               <button
                 type="button"
-                aria-label={`Select ${size.label}${panes.length === 2 ? ` frame ${paneIdx + 1}` : '' } format${isSelected ? ' (selected)' : ''}`}
+                aria-label={`Select ${size.label}${panes.length > 1 ? ` frame ${paneIdx + 1} of ${panes.length}` : ''} format${isSelected ? ' (selected)' : ''}`}
                 aria-pressed={isSelected}
                 onPointerDown={(e) => { if (e.pointerType !== 'touch') handleArtboardPointerDown(e, size); }}
                 onClick={(e) => handleArtboardClick(e, size.id)}
@@ -1182,11 +1188,12 @@ export default function Canvas({
                   alt={`${photo.title} — ${size.label}`}
                   referrerPolicy="no-referrer"
                   draggable={false}
-                  className={panes.length === 2 ? 'h-full w-[200%] max-w-none object-cover' : 'h-full w-full object-cover'}
+                  className={panes.length > 1 ? 'h-full max-w-none object-cover' : 'h-full w-full object-cover'}
                   style={{
+                    ...(panes.length > 1 ? { width: `${panes.length * 100}%` } : {}),
                     filter: compareMode ? 'none' : filterCss,
-                    transform: panes.length === 2
-                      ? `translate(${paneIdx === 0 ? splitOffsetFor(size.id) + size.crop.panX : -50 + splitOffsetFor(size.id) + size.crop.panX}%, ${size.crop.panY}%) rotate(${size.crop.rotateDeg}deg) scale(${(size.crop.flipH ? -1 : 1) * size.crop.zoom}, ${(size.crop.flipV ? -1 : 1) * size.crop.zoom})`
+                    transform: panes.length > 1
+                      ? `translate(${-(paneIdx * 100 / panes.length) + splitOffsetFor(size.id) + size.crop.panX}%, ${size.crop.panY}%) rotate(${size.crop.rotateDeg}deg) scale(${(size.crop.flipH ? -1 : 1) * size.crop.zoom}, ${(size.crop.flipV ? -1 : 1) * size.crop.zoom})`
                       : buildImageTransform(size.crop),
                   }}
                 />)}
