@@ -13,7 +13,8 @@ test('has no clashing chords in any built-in preset', () => {
 
 test('gives every command a chord in the InFlight preset', () => {
     const map = effectiveKeymap('inflight');
-    for (const command of COMMANDS) assert.ok(map[command.id], command.id);
+    // Next and previous photo are for a macro pad dial for now: arrow keys would fight the Compare slider.
+  for (const command of COMMANDS.filter((c) => c.id !== 'photo.next' && c.id !== 'photo.prev')) assert.ok(map[command.id], command.id);
   });
 
 test('reads Cmd as Mod on a Mac and Ctrl as Mod elsewhere', () => {

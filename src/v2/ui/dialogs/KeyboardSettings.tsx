@@ -4,19 +4,24 @@ import {
   PRESETS, chordLabel, commandsUsing, effectiveKeymap, eventChord, findConflicts, isPresetId, withChord, withoutOverride,
   type PresetId, type SavedKeymap,
 } from '../commands/keymap';
+import { DEFAULT_PAD, PAD_SLOTS, PAD_SLOT_LABELS, padClashes, padSlotFor, withPadChord, withPadCommand, type PadProfile, type PadSlot } from '../commands/pad';
 
 interface KeyboardSettingsProps {
   saved: SavedKeymap;
   isMac: boolean;
   onChange: (next: SavedKeymap) => void;
+  pad: PadProfile;
+  onPadChange: (next: PadProfile) => void;
 }
 
 const GROUPS: CommandGroup[] = ['photos', 'view', 'edit', 'app'];
 const buttonClass = 'min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2.5 text-xs text-[var(--text-primary)] disabled:opacity-40';
 
 /** Settings > Keyboard: pick a keymap, change or clear any command's key, reset. A clash is shown in words and never resolved by guessing. */
-export default function KeyboardSettings({ saved, isMac, onChange }: KeyboardSettingsProps) {
+export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadChange }: KeyboardSettingsProps) {
   const [capturing, setCapturing] = useState<CommandId | null>(null);
+  const [learning, setLearning] = useState<PadSlot | null>(null);
+  const [lastKey, setLastKey] = useState<{ chord: string; slot: PadSlot | null } | null>(null);
   const keymap = effectiveKeymap(saved.preset, saved.overrides);
   const conflicts = findConflicts(keymap);
   const labelOf = (id: CommandId) => COMMANDS.find((command) => command.id === id)?.label ?? id;
@@ -36,6 +41,34 @@ export default function KeyboardSettings({ saved, isMac, onChange }: KeyboardSet
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);
   }, [capturing, isMac, onChange, saved]);
+
+  // Learn the key a pad sends for one slot: the next key pressed is that slot's key. Esc cancels.
+  useEffect(() => {
+    if (!learning) return;
+    const onKey = (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.key === 'Escape') { setLearning(null); return; }
+      const chord = eventChord(event, isMac);
+      if (!chord) return;
+      onPadChange(withPadChord(pad, learning, chord));
+      setLearning(null);
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, [learning, isMac, onPadChange, pad]);
+
+  // Shows the last key InFlight received while this tab is open, so a pad's real behaviour can be checked.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const chord = eventChord(event, isMac);
+      if (chord) setLastKey({ chord, slot: padSlotFor(event, pad, isMac) });
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isMac, pad]);
+
+  const padProblems = padClashes(pad, keymap);
 
   return (
     <div className="space-y-4">
@@ -92,6 +125,48 @@ export default function KeyboardSettings({ saved, isMac, onChange }: KeyboardSet
         </section>
       ))}
       {Object.keys(conflicts).length === 0 && <p className="text-xs text-[var(--text-secondary)]">No clashes.</p>}
+      <section aria-labelledby="v2-pad-title" className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
+        <h3 id="v2-pad-title" className="text-xs font-semibold text-[var(--text-primary)]">Macro pad and dials</h3>
+        <p className="text-xs text-[var(--text-secondary)]">
+          A pad or dial sends keys, like a keyboard. For each slot, say which key it sends (Learn, then press it on the pad) and what it should do.
+          The starting keys match the SinLoon pad set-up from InFlight Version 1. TourBox and other pads that send keys work the same way; TourBox has not been tested on a real device.
+        </p>
+        <p aria-live="polite" data-testid="pad-last-key" className="text-xs text-[var(--text-secondary)]">
+          {lastKey
+            ? `Last key received: ${chordLabel(lastKey.chord, isMac)}${lastKey.slot ? ` (${PAD_SLOT_LABELS[lastKey.slot]})` : ' (not a pad slot)'}`
+            : 'Press a key on your pad to check it arrives.'}
+        </p>
+        {padProblems.map((problem) => (
+          <p key={problem.slot} role="alert" className="text-xs text-[var(--status-danger,#e5484d)]">
+            Clash: {PAD_SLOT_LABELS[problem.slot]} sends {chordLabel(problem.chord, isMac)}, which is also {problem.other.length ? `the keyboard key for ${problem.other.map(labelOf).join(', ')}` : 'sent by another slot'}. Neither runs until you change one.
+          </p>
+        ))}
+        <div className="divide-y divide-[var(--border-subtle)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)]">
+          {PAD_SLOTS.map((slot) => (
+            <div key={slot} className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2 text-xs">
+              <span className="text-[var(--text-primary)]">{PAD_SLOT_LABELS[slot]}</span>
+              <span className="flex flex-wrap items-center gap-1.5">
+                <select
+                  aria-label={`Action for ${PAD_SLOT_LABELS[slot]}`}
+                  value={pad[slot].command ?? ''}
+                  onChange={(e) => onPadChange(withPadCommand(pad, slot, (e.target.value || null) as CommandId | null))}
+                  className="h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]"
+                >
+                  <option value="">Nothing</option>
+                  {COMMANDS.map((command) => <option key={command.id} value={command.id}>{command.label}</option>)}
+                </select>
+                <kbd className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-0.5 font-mono text-[11px] text-[var(--text-secondary)]">
+                  {learning === slot ? 'Press a key…' : chordLabel(pad[slot].chord, isMac)}
+                </kbd>
+                <button type="button" className={buttonClass} aria-label={`Learn the key for ${PAD_SLOT_LABELS[slot]}`} onClick={() => setLearning(learning === slot ? null : slot)}>
+                  {learning === slot ? 'Cancel' : 'Learn'}
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+        <button type="button" className={buttonClass} onClick={() => onPadChange(DEFAULT_PAD)}>Reset pad to the starting set-up</button>
+      </section>
     </div>
   );
 }
