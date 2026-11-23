@@ -10,7 +10,10 @@ const script = fileURLToPath(new URL('./verify-deployment.mjs', import.meta.url)
 const privacy = '<h1>InFlight privacy</h1>';
 const callback = '<p id="m">Finishing sign-in…</p>';
 const bundle = 'console.log("editor")';
-const landing = '<iframe src="editor/demo-editor.html"></iframe><a href="/privacy">Privacy</a>';
+const iconPath = '/assets/brand/inflight/app-icons/favicon.svg';
+const icon = '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0"/></svg>';
+const iconLink = '<link rel="icon" type="image/svg+xml" href="assets/brand/inflight/app-icons/favicon.svg">';
+const landing = iconLink + '<iframe src="editor/demo-editor.html"></iframe><a href="/privacy">Privacy</a>';
 const demo = (title, entry = '/editor/assets/demo.js') =>
   `<html><title>${title}</title><body><div id="root" data-demo-editor></div><script type="module" src="${entry}"></script></body></html>`;
 
@@ -22,6 +25,8 @@ function fixture() {
   writeFileSync(join(root, 'admin.html'), '<h1>Admin</h1>');
   writeFileSync(join(root, 'oauth-callback.html'), callback);
   writeFileSync(join(root, 'privacy.html'), privacy);
+  mkdirSync(join(root, 'assets', 'brand', 'inflight', 'app-icons'), { recursive: true });
+  writeFileSync(join(root, iconPath.slice(1)), icon);
   writeFileSync(join(editor, 'demo-editor.html'), demo('InFlight editor demonstration'));
   writeFileSync(join(editor, 'assets', 'demo.js'), bundle);
   return root;
@@ -35,6 +40,7 @@ function runLive(root, overrides) {
     '/': landing,
     '/oauth-callback.html': callback,
     '/privacy.html': privacy,
+    [iconPath]: icon,
     '/editor/demo-editor.html': demo('Demo Studio'),
     '/editor/assets/demo.js': bundle,
     ...overrides,
@@ -141,14 +147,14 @@ test('fails closed when the privacy page is missing or the homepage does not lin
     rmSync(join(root, 'privacy.html'));
     assert.match(run(root).stderr, /Required website file missing/);
     writeFileSync(join(root, 'privacy.html'), privacy);
-    writeFileSync(join(root, 'index.html'), '<iframe src="editor/demo-editor.html"></iframe>');
+    writeFileSync(join(root, 'index.html'), iconLink + '<iframe src="editor/demo-editor.html"></iframe>');
     assert.match(run(root).stderr, /privacy page is missing or the homepage does not link/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
 test('a homepage that embeds the Version 2 demo needs that demo compiled too, and still needs the current editor', () => {
   const root = fixture();
-  writeFileSync(join(root, 'index.html'), '<iframe src="editor/demo-v2.html"></iframe><a href="/privacy">Privacy</a>');
+  writeFileSync(join(root, 'index.html'), iconLink + '<iframe src="editor/demo-v2.html"></iframe><a href="/privacy">Privacy</a>');
   let result = run(root);
   assert.notEqual(result.status, 0, 'demo-v2.html is missing');
   assert.match(result.stderr + result.stdout, /demo-v2\.html/);
@@ -157,4 +163,20 @@ test('a homepage that embeds the Version 2 demo needs that demo compiled too, an
   assert.equal(result.status, 0, result.stderr + result.stdout);
   rmSync(join(root, 'editor', 'demo-editor.html'));
   assert.notEqual(run(root).status, 0, 'the owner Demo Studio editor must stay compiled');
+});
+
+
+test('favicon gate rejects missing, mismatched and HTML-fallback icon assets', t => {
+  const root = fixture();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  assert.equal(run(root).status, 0);
+  writeFileSync(join(root, 'index.html'), landing.replace(iconLink, ''));
+  assert.match(run(root).stderr, /favicon missing/);
+  writeFileSync(join(root, 'index.html'), landing);
+  rmSync(join(root, iconPath.slice(1)));
+  assert.match(run(root).stderr, /Required website file missing/);
+  writeFileSync(join(root, iconPath.slice(1)), icon);
+  assert.match(runLive(root, { [iconPath]: '<!doctype html><html></html>' }).stderr, /missing or wrong asset/);
+  assert.match(runLive(root, { [iconPath]: icon.replace('M0 0', 'M1 1') }).stderr, /asset differs from the verified local build/);
+  assert.match(runLive(root, { '/': landing.replace(iconLink, '') }).stderr, /favicon missing/);
 });
