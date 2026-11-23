@@ -1,3 +1,4 @@
+import { stepFrom } from './utils/swipe';
 import React, { useEffect, useRef, useState } from 'react';
 import type { PanelId } from './contract';
 import { useWorkspace } from './stub';
@@ -397,6 +398,10 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
               ) : (
                 <Canvas
                   PhotoSurface={store.PhotoSurface}
+                  onStepPhoto={(delta) => {
+                    const next = stepFrom(store.photos, activePhoto?.id, delta);
+                    if (next) actions.selectPhoto(next.id);
+                  }}
                   photo={activePhoto}
                   activeSizeId={store.activeSizeId}
                   selectedSizeIds={store.selectedSizeIds}
