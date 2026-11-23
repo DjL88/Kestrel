@@ -91,6 +91,27 @@ describe('runLook', () => {
     assert.equal(calls, 0);
   });
 
+  it('rejects malformed renderer output rather than accepting or persisting a Look', async () => {
+    const original = flat(16, [120, 120, 120]);
+    const look = createCustomLook('invalid-render', 'Invalid render', 'pixel contract', [
+      { label: 'Step', capability: 'denoise', background: { denoise: 0.2 } },
+    ]);
+    const invalid: Pixels[] = [
+      { ...original, width: 8 },
+      { ...original, height: 8 },
+      { ...original, width: Number.NaN },
+      { ...original, data: new Uint8ClampedArray(12) },
+      { ...original, data: new Uint8Array(16 * 16 * 4) as unknown as Uint8ClampedArray },
+    ];
+    let calls = 0;
+    for (const pixels of invalid) {
+      await assert.rejects(runLook(look, {
+        original, render: async () => { calls++; return pixels; },
+      }), RangeError);
+    }
+    assert.equal(calls, invalid.length);
+  });
+
   it('runs a single-step Look that passes verification on the first attempt', async () => {
     const original = flat(16, [120, 120, 120]);
     const render = async () => flat(16, [121, 121, 121]); // barely changed
