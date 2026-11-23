@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 import { createDemoShootState } from '../src/core/cullingEngine';
 import { recordEdit } from '../src/core/editHistory';
@@ -24,18 +25,26 @@ test('desktop backup before deletion handles cancellation and failure, then wait
     };
     let pickerCalls = 0;
     w.__TAURI_INTERNALS__ = {
-      invoke: async (command: string, args: unknown, options?: { headers: Record<string, string> }) => {
+      invoke: async (command: string, args: unknown) => {
         if (command === 'plugin:dialog|save') {
           pickerCalls++;
           return pickerCalls === 1 ? null : '/synthetic-volume/fixture.kestrel.json';
         }
-        if (command === 'plugin:fs|write_file') {
-          if (pickerCalls === 2) throw new Error('Synthetic volume disconnected');
-          w.__backupBytes = Array.from(args as Uint8Array);
-          w.__backupPath = decodeURIComponent(options!.headers.path);
-          await new Promise<void>((resolve) => { w.__finishBackup = resolve; });
-          return;
+        if (command === 'plugin:fs|open') {
+          const { path, options } = args as { path: string; options: { createNew?: boolean } };
+          if (!options.createNew) throw new Error('Expected exclusive file creation');
+          w.__backupPath = path;
+          w.__backupBytes = [];
+          return 7;
         }
+        if (command === 'plugin:fs|write') {
+          if (pickerCalls === 2) throw new Error('Synthetic volume disconnected');
+          const { data } = args as { data: Uint8Array };
+          if (!w.__backupBytes.length) await new Promise<void>((resolve) => { w.__finishBackup = resolve; });
+          w.__backupBytes.push(...data);
+          return data.byteLength;
+        }
+        if (command === 'plugin:resources|close' || command === 'plugin:fs|remove') return;
         if (command !== 'plugin:opener|reveal_item_in_dir') throw new Error(`Unexpected native command: ${command}`);
       },
     };
@@ -87,17 +96,15 @@ test('a portable backup restores the photo’s undo and redo controls', async ({
   });
   await expect(page.getByText('Backup fixture (restored)', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
-  const actions = page.getByRole('toolbar', { name: 'Editor actions' });
-  const undo = actions.getByRole('button', { name: 'Undo', exact: true });
-  const redo = actions.getByRole('button', { name: 'Redo', exact: true });
-  await expect(undo).toBeEnabled();
-  await expect(redo).toBeDisabled();
-  await undo.click();
-  await expect(undo).toBeDisabled();
-  await expect(redo).toBeEnabled();
-  await redo.click();
-  await expect(undo).toBeEnabled();
-  await expect(redo).toBeDisabled();
+  await page.getByRole('tab', { name: 'History' }).click();
+  const history = page.getByRole('tabpanel', { name: 'History' });
+  const original = history.getByRole('button', { name: /Original/ });
+  const edited = history.getByRole('listitem').nth(1).getByRole('button');
+  await expect(edited).toHaveAttribute('aria-current', 'step');
+  await original.click();
+  await expect(original).toHaveAttribute('aria-current', 'step');
+  await edited.click();
+  await expect(edited).toHaveAttribute('aria-current', 'step');
 });
 
 
@@ -139,6 +146,7 @@ test('originals reconnected to a restored catalogue stay available after reopeni
   const { demoVariant: _demoVariant, ...template } = createDemoShootState(1).frames[0];
   project.frames = [{
     ...template, id: 'relink-photo', filename, stableKey: `local-file://${filename}::${bytes.length}::${lastModified}`,
+    originalSha256: createHash('sha256').update(Buffer.from(bytes)).digest('hex'),
     isDemo: false, sourceKind: 'file', decision: 'unreviewed',
   }];
   await page.locator('input[type="file"][accept=".json,application/json"]').setInputFiles({
