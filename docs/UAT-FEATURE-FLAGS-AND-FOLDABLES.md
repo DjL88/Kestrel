@@ -45,9 +45,9 @@ Also check duplicate rules OFF/ON tie (OFF), expired trials, app min-version, em
 
 Automated **viewport approximations** can use:
 ```bash
-npm run test:e2e:dev -- --grep "adaptive form factor"
+npx playwright test --config=playwright.adaptive.config.ts
 ```
-The new `tests/verified-asset-v2-adaptive.spec.ts` visits a V2 sample shoot, selects a photograph, then changes viewport size *without reloading*, checks selection persistence, visible canvas and small-screen navigation, and captures 390/820/1080px reference screenshots. It also verifies the mobile More menu is reachable. It runs under both the desktop and phone Chromium projects.
+The separate `playwright.adaptive.config.ts` executes Chromium Android touch, unfolded-foldable Chromium touch, WebKit iPhone-like touch and WebKit iPad-like touch project profiles. It needs both Chromium and WebKit browser binaries installed. The new `tests/verified-asset-v2-adaptive.spec.ts` visits a V2 sample shoot, selects a photograph, then changes viewport size *without reloading*, checks selection persistence, visible canvas and small-screen navigation, and captures 390/820/1080px reference screenshots. It also verifies the mobile More menu is reachable. It runs under both the desktop and phone Chromium projects.
 
 | Profile | CSS viewport | Required check |
 |---|---|---|
