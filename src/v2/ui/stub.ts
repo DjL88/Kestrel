@@ -1565,6 +1565,20 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
+    setOriginalOutputSize: (photoId, width, height) => {
+      if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1 || width > 20000 || height > 20000) return;
+      updatePhotoById(photoId, (photo) => ({
+        ...photo,
+        sizes: photo.sizes.map((size) => size.id === 'orig-3x2'
+          ? { ...size, width, height, ratioLabel: `${width}×${height}` }
+          : size),
+      }));
+    },
+    resetOriginalOutputSize: (photoId) => {
+      // The prototype has no imported source file. The connected engine
+      // restores measured/recorded original dimensions instead.
+      updatePhotoById(photoId, (photo) => photo);
+    },
     addCustomSize: (photoId, label, width, height) => {
       logAction('addCustomSize', { photoId, label, width, height });
       const id = `custom-${Date.now()}`;
