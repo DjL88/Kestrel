@@ -47,14 +47,15 @@ const setStatus = (projectId: string, status: BackupStatus) => { statuses.set(pr
 /** A successful local recovery copy is independent of an optional source copy. */
 export async function writeSnapshot(connector: import('../core/storageConnectors').StorageConnector,
   projectId: string, name: string, payload: Uint8Array): Promise<void> {
-  // Keep a private expected snapshot: callers and asynchronous connectors may reuse\n  // or mutate their input buffer while a slow device/NAS write is in progress.\n  const expected = payload.slice();\n  await connector.put(name, expected.slice(), '');
-  // A successful put only confirms the transport accepted the bytes. Disk-full,
-  // interrupted NAS writes and misbehaving connectors can leave a truncated file.
-  // Never advance the backup clock or prune older recovery copies until the
-  // stored snapshot can be read back byte-for-byte.
+  // Freeze the expected bytes before awaiting a connector. Neither the caller nor
+  // a storage provider may redefine what counts as a verified snapshot.
+  const expected = payload.slice();
+  await connector.put(name, expected.slice(), '');
+  // A successful put alone does not prove a complete durable write.
+  // Retention is forbidden until a separate read matches the frozen snapshot.
   const stored = await connector.get(name);
-  if (!stored || stored.byteLength !== payload.byteLength ||
-      stored.some((byte, index) => byte !== payload[index])) {
+  if (!stored || stored.byteLength !== expected.byteLength ||
+      stored.some((byte, index) => byte !== expected[index])) {
     throw new Error('Backup verification failed: saved bytes differ from the project snapshot. Older backups were preserved.');
   }
   // Retention is best effort; never report a valid backup as failed because
