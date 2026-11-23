@@ -134,6 +134,19 @@ export function restoreProjectBackup(contents: string, id: string, now = Date.no
     !oneOf(filter, filters) || !text(searchQuery) || !number(keeperTarget, 1, 9999) || typeof autoAdvance !== 'boolean') {
     throw new Error('The project backup has missing or invalid catalogue data.');
   }
+  // A stableKey denotes one original source. A damaged or hand-edited backup
+  // must not let two records with that key claim different original bytes,
+  // even when neither record is a virtual copy. Unknown legacy hashes are
+  // not evidence of equality and must be verified again when relinking.
+  const hashesByStableKey = new Map<string, string>();
+  for (const frame of frames as PhotoFrame[]) {
+    if (!frame.originalSha256) continue;
+    const prior = hashesByStableKey.get(frame.stableKey);
+    if (prior && prior !== frame.originalSha256) {
+      throw new Error('The project backup contains conflicting original byte identities.');
+    }
+    hashesByStableKey.set(frame.stableKey, frame.originalSha256);
+  }
   const ids = new Map(frames.map((frame) => [frame.id, frame]));
   if (ids.size !== frames.length || frames.some((frame) => {
     if (!frame.virtualCopy) return false;
