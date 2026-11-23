@@ -695,6 +695,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
         { id: 'nas', name: 'Local NAS (SMB / WebDAV)', status: 'connected', accountLabel: 'smb://nas.local/Photos' },
       ],
       localCacheLimitGb: 25,
+      hideProFeatures: false,
     },
     activePanel: 'adjust',
     panels: createDefaultPanels(),

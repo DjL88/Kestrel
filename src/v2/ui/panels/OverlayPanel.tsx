@@ -9,7 +9,7 @@ import type {
   WatermarkPreset,
 } from '../contract';
 import { STRINGS } from '../strings';
-import ProBadge from '../shell/ProBadge';
+import ProBadge, { useProHidden } from '../shell/ProBadge';
 import FontPicker from './FontPicker';
 import WatermarkLibrary from './WatermarkLibrary';
 import BrandIcon from '../icons/BrandIcon';
@@ -111,6 +111,8 @@ export default function OverlayPanel({
   onMakeWatermarkVariant,
   onDeleteWatermark,
 }: OverlayPanelProps) {
+  const hideTextTab = useProHidden('overlayText');
+  const hideMarkTab = useProHidden('watermarkCustom');
   const [templateName, setTemplateName] = useState('');
   const [subTab, setSubTab] = useState<'text' | 'watermark'>('text');
 
@@ -130,6 +132,10 @@ export default function OverlayPanel({
     onUpdateRow(photo.id, row.id, { fields: next });
   };
 
+  // A tab the person asked not to see (a locked Pro one) is taken out, not greyed; the other opens in its place.
+  const textTabGone = hideTextTab && !features.overlayText;
+  const markTabGone = hideMarkTab && !features.watermarkCustom;
+  const activeSub: 'text' | 'watermark' = textTabGone ? 'watermark' : markTabGone ? 'text' : subTab;
   const targets = selectedPhotoIds.length > 0 ? selectedPhotoIds : [photo.id];
 
   return (
@@ -166,12 +172,13 @@ export default function OverlayPanel({
       </section>
 
       {/* Text / Watermark Sub-tabs */}
-      <div className="grid grid-cols-2 gap-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-0.5">
+      <div className={`grid gap-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-0.5 ${textTabGone || markTabGone ? 'grid-cols-1' : 'grid-cols-2'}`}>
+        {!textTabGone && (
         <button
           type="button"
           onClick={() => setSubTab('text')}
           className={`inline-flex h-8 items-center justify-center gap-1.5 rounded text-xs font-medium transition-colors ${
-            subTab === 'text'
+            activeSub === 'text'
               ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]'
               : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
           }`}
@@ -179,11 +186,13 @@ export default function OverlayPanel({
           <BrandIcon name="text" size={14} />
           <span>{STRINGS.overlays.tabText}</span>
         </button>
+        )}
+        {!markTabGone && (
         <button
           type="button"
           onClick={() => setSubTab('watermark')}
           className={`inline-flex h-8 items-center justify-center gap-1.5 rounded text-xs font-medium transition-colors ${
-            subTab === 'watermark'
+            activeSub === 'watermark'
               ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]'
               : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
           }`}
@@ -191,6 +200,7 @@ export default function OverlayPanel({
           <BrandIcon name="watermark" size={14} />
           <span>{STRINGS.overlays.tabWatermark}</span>
         </button>
+        )}
       </div>
 
       {/* Suggested-Snapping & Clean Alignment Bar (applies to both Text & Watermark) */}
@@ -246,7 +256,7 @@ export default function OverlayPanel({
       </div>
 
       {/* TEXT TAB */}
-      {subTab === 'text' && (
+      {activeSub === 'text' && (
         <div className="space-y-4">
           {!features.overlayText ? (
             <p className="flex items-center gap-2 text-xs text-[var(--text-muted)]"><ProBadge feature="overlayText" />{STRINGS.pro.lockedHint}</p>
@@ -464,7 +474,7 @@ export default function OverlayPanel({
       )}
 
       {/* WATERMARK TAB */}
-      {subTab === 'watermark' && (
+      {activeSub === 'watermark' && (
         <div className="space-y-4">
           {!features.watermarkCustom ? (
             <p className="flex items-center gap-2 text-xs text-[var(--text-muted)]"><ProBadge feature="watermarkCustom" />{STRINGS.pro.lockedHint}</p>

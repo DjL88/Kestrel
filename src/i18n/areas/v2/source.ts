@@ -465,6 +465,8 @@ export const source = {
       themeLabel: 'Interface theme',
       dark: 'Dark studio',
       light: 'Light studio',
+      hideProLabel: 'Hide Pro features',
+      hideProDesc: 'Leaves out the Pro features your plan does not include, including tools that are only Pro, so they are not a constant reminder. They come back if you switch this off or upgrade.',
       calmViewLabel: 'Calm View',
       calmViewDesc: 'Hides secondary badges, numeric readouts, and motion for a calmer ADHD/Autism-friendly workspace.',
       densityLabel: 'Touch & control comfort',

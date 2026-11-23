@@ -81,6 +81,8 @@ export default function Rail({
   ];
 
   const items = allItems.filter((item) => !hiddenPanels.includes(item.id));
+  // A tool the person hid is taken off the rail (not greyed). It stays in the Panels & layout menu, which lists `items`, so it can be shown again.
+  const railItems = items.filter((item) => panels[item.id]?.visible !== false);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -98,7 +100,7 @@ export default function Rail({
         className={`hidden md:flex w-[var(--rail-width)] shrink-0 flex-col items-center justify-between ${hand === 'left' ? 'border-l' : 'border-r'} border-[var(--border-subtle)] bg-[var(--bg-surface)] py-2 select-none`}
       >
         <div className="flex w-full flex-col items-center gap-0.5 overflow-y-auto inflight-scroll px-1.5">
-          {items.map((item) => {
+          {railItems.map((item) => {
             const isActive = activePanel === item.id;
             const isHidden = !panels[item.id]?.visible;
             return (
