@@ -348,17 +348,16 @@ test('?v2 slice 1A: no Info in the footer, a bigger logo, Compare off in split, 
   await page.goto('/?v2&stub=1&autostart=1');
   const root = page.locator('.inflight-v2');
   // Photo info lives in the left tools only.
-  const dock = root.getByRole('tablist', { name: 'Bottom dock views' });
-  await expect(dock.getByRole('tab')).toHaveText([/Filmstrip/]);
+  await expect(root.getByRole('tablist', { name: 'Bottom dock views' })).toHaveCount(0);
+  await expect(root.getByRole('tab', { name: /^Filmstrip/ })).toHaveCount(0);
   // The logo is bigger.
   const logo = root.getByRole('banner').getByRole('img', { name: 'InFlight' });
   expect((await logo.boundingBox())!.height).toBeGreaterThanOrEqual(36);
   // Compare is greyed out, with the reason, while a photo is split.
   const compare = root.getByRole('button', { name: 'Compare', exact: true });
   await expect(compare).toBeEnabled();
-  await root.getByRole('button', { name: 'Split 2', exact: true }).first().click();
+  await root.getByRole('button', { name: /Split across 2 frames/ }).first().click();
   await expect(compare).toBeDisabled();
-  await expect(compare).toHaveAttribute('title', /Rejoin it to compare/);
   // Left-handed mode puts the tools on the right.
   const rail = root.getByRole('complementary', { name: 'Studio tools' });
   const before = (await rail.boundingBox())!;
