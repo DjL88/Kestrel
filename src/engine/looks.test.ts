@@ -34,6 +34,32 @@ describe('createCustomLook', () => {
 });
 
 describe('runLook', () => {
+  it('rejects invalid original RGBA metadata before rendering even for an empty Look', async () => {
+    const valid = flat(16, [120, 120, 120]);
+    const invalid: Pixels[] = [
+      { ...valid, width: 0 },
+      { ...valid, height: -1 },
+      { ...valid, width: 1.5 },
+      { ...valid, width: Number.NaN },
+      { ...valid, width: Number.POSITIVE_INFINITY },
+      { ...valid, width: Number.MAX_SAFE_INTEGER },
+      { ...valid, data: new Uint8ClampedArray(12) },
+      { ...valid, data: new Uint8Array(valid.data) as unknown as Uint8ClampedArray },
+    ];
+    let calls = 0;
+    const look = createCustomLook('empty', 'Empty', 'no steps', []);
+    for (const original of invalid) {
+      await assert.rejects(runLook(look, {
+        original, render: async () => { calls++; return valid; },
+      }), RangeError);
+    }
+    assert.equal(calls, 0);
+    const result = await runLook(look, { original: valid, render: async () => { calls++; return valid; } });
+    assert.equal(calls, 0);
+    assert.equal(result.finalPixels, valid);
+    assert.deepEqual(result.combinedEdit, {});
+  });
+
   it('rejects non-finite whole-photo and subject adjustments without rendering', async () => {
     const original = flat(16, [120, 120, 120]);
     let calls = 0;
