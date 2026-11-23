@@ -105,11 +105,11 @@ export default function ProjectsHub({
                   className="h-10 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] pl-9 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
                 />
               </div>
-              <label className="sr-only" htmlFor="project-sort">Sort projects</label>
+              <label className="sr-only" htmlFor="project-sort">{STRINGS.hub.sortProjects}</label>
               <select id="project-sort" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
                 className="h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]">
-                <option value="edited">Last edited</option><option value="name">Name A–Z</option>
-                <option value="photos">Most photos</option><option value="flagged">Most flagged</option>
+                <option value="edited">{STRINGS.hub.sortEdited}</option><option value="name">{STRINGS.hub.sortName}</option>
+                <option value="photos">{STRINGS.hub.sortPhotos}</option><option value="flagged">{STRINGS.hub.sortFlagged}</option>
               </select>
               <button type="button" onClick={() => setModalOpen(true)}
                 className="inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-3 text-xs font-semibold text-[var(--text-on-accent)] hover:bg-[var(--brand-accent-hover)]">
@@ -275,7 +275,7 @@ export default function ProjectsHub({
         <div className="flex flex-wrap items-center gap-3">
           <BrandIcon name="bird" size={17}/>
           <span>InFlight</span>
-          <a href="/privacy.html" className="underline-offset-2 hover:underline">Privacy</a>
+          <a href="/privacy.html" className="underline-offset-2 hover:underline">{STRINGS.hub.privacyLink}</a>
         </div>
         <button type="button" onClick={onToggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
           className="inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 hover:bg-[var(--bg-surface-hover)]">

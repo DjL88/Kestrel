@@ -121,6 +121,12 @@ export const source = {
   // Projects Hub
   hub: {
     heading: 'Projects',
+    sortProjects: 'Sort projects',
+    sortEdited: 'Last edited',
+    sortName: 'Name A–Z',
+    sortPhotos: 'Most photos',
+    sortFlagged: 'Most flagged',
+    privacyLink: 'Privacy',
     subheading: 'Offline-first projects with local fast copies and optional cloud sync.',
     newProject: 'New project',
     searchPlaceholder: 'Search projects…',
