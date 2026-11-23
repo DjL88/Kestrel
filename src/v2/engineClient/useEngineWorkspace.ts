@@ -189,6 +189,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const updateTemplates = useCallback((next: OverlayTemplate[]) => { setTemplates(next); try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(next)); } catch { setNotice('InFlight could not save the template on this device.'); } }, []);
   const [savedUi, setSavedUi] = useState<SavedUi>(loadUi);
   const [pixelSizes, setPixelSizes] = useState<Record<string, { width: number; height: number }>>({});
+  const [verifiedRasterSizes, setVerifiedRasterSizes] = useState<Record<string, { width: number; height: number }>>({});
   const [histograms, setHistograms] = useState<Record<string, PhotoHistogram>>({});
   const [watermarkAuto, setWatermarkAuto] = useState<Record<string, 'light-on-dark' | 'dark-on-light'>>({});
   useEffect(() => { let live = true; void toPresets(watermarkStore).then((presets) => { if (live) setWatermarkLibrary(presets); }); return () => { live = false; }; }, [watermarkStore]);
@@ -344,6 +345,26 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, [mutate]);
 
   const activeFrame = state?.frames.find((frame) => frame.id === activeId) ?? null;
+  // Measure the original only when the user opens an ordinary JPEG/PNG photo.
+  // Do NOT promote a RAW embedded JPEG, EXIF or a cached review preview to native.
+  const activeRasterKey = activeFrame ? `${activeFrame.stableKey}|${activeFrame.originalSha256 ?? ''}` : null;
+  useEffect(() => {
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === activeId);
+    if (!frame || !activeRasterKey || frame.isDemo || !/\\.(?:jpe?g|png)$/i.test(frame.filename) ||
+        verifiedRasterSizes[activeRasterKey]) return;
+    let live = true;
+    void loadVerifiedRasterOriginalForExport(frame, provider.current!).then(
+      (image) => {
+        if (live) setVerifiedRasterSizes((current) => ({
+          ...current, [activeRasterKey]: { width: image.naturalWidth, height: image.naturalHeight },
+        }));
+      },
+      () => { /* Remain at an unverified preview size; never invent native pixels. */ },
+    );
+    return () => { live = false; };
+    // Depends on source identity, not editing controls or unstable frame objects.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, activeRasterKey]);
   const editTargets = (photoId: string) => (selected.includes(photoId) ? selected : [photoId]);
   const editFrames = useCallback((ids: string[], change: (frame: PhotoFrame) => PhotoEdit | undefined) => {
     const at = Date.now();
@@ -1079,8 +1100,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     },
     renameOverlayTemplate: (templateId, name) => updateTemplates(renameTemplate(templates, templateId, name)),
     deleteOverlayTemplate: (templateId) => updateTemplates(deleteTemplate(templates, templateId)),
-    toggleSizeEnabled: (photoId, sizeId) => changeFormats(photoId, (raw) => toggleFormat(raw, sizeId,
-      applyFormats(createDefaultSizes(), undefined).find((size) => size.id === sizeId)?.enabled ?? true)),
+    toggleSizeEnabled: (photoId, sizeId) => changeFormats(photoId, (raw) => toggleFormat(raw, sizeId)),
     toggleSizeLinked,
     updateVideoZoom,
     toggleSplitFrames,
@@ -1194,7 +1214,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     [stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: [...INITIAL_WATERMARKS, ...watermarkLibrary], auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
-  const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], { assist: assists[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed })), [state?.frames, urls, assists, watermarkAuto, histograms, pixelSizes]);
+  const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], { assist: assists[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed })), [state?.frames, urls, assists, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes]);
   // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo
   // (ROADMAP.md, "Removed photos panel" next item). Thumbnails are not fetched for them; the filename is enough
   // to recognise one in a short list, and restoring returns it to the normal, already-thumbnailed photo list.
