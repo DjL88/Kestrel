@@ -136,7 +136,7 @@ export function limitAutoKeepers(
     const value = frame?.rating ?? frame?.exif.rating ?? 0;
     return Number.isInteger(value) && value >= 1 && value <= 5 ? value : 0;
   };
-  for (const result of [...suggestions].sort((a, b) => rating(b.frameId) - rating(a.frameId) || b.score - a.score || a.frameId.localeCompare(b.frameId))) {
+  for (const result of [...suggestions].sort((a, b) => rating(b.frameId) - rating(a.frameId) || b.score - a.score || String(a.frameId ?? '').localeCompare(String(b.frameId ?? '')))) {
     if (!Number.isFinite(result.score) || result.score < 0 || result.score > 100 ||
         result.decision !== 'keep' || result.confidence !== 'high' || accepted.size >= safeRemaining ||
         typeof result.frameId !== 'string' || !result.frameId.trim()) continue;
