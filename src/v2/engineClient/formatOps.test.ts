@@ -9,11 +9,30 @@ test('a photo with no stored formats has the built-in list unchanged', () => {
   assert.deepEqual(readFormats('x'), { disabled: [], custom: [] });
 });
 
-test('switching a built-in off and on is reversible, and only that photo changes', () => {
-  const off = toggleFormat(undefined, 'ig-portrait');
-  assert.equal(applyFormats(createDefaultSizes(), off).find((size) => size.id === 'ig-portrait')?.enabled, false);
-  const on = toggleFormat(off, 'ig-portrait');
-  assert.equal(applyFormats(createDefaultSizes(), on).find((size) => size.id === 'ig-portrait')?.enabled, true);
+test('built-in opt-in starts hidden, can be enabled then switched off again on one photo', () => {
+  const defaults = createDefaultSizes();
+  assert.equal(applyFormats(defaults, undefined).find((size) => size.id === 'ig-portrait')?.enabled, false);
+  const on = toggleFormat(undefined, 'ig-portrait', false);
+  assert.equal(applyFormats(defaults, on).find((size) => size.id === 'ig-portrait')?.enabled, true);
+  const off = toggleFormat(on, 'ig-portrait', false);
+  assert.equal(applyFormats(defaults, off).find((size) => size.id === 'ig-portrait')?.enabled, false);
+  assert.equal(applyFormats(defaults, undefined).find((size) => size.id === 'ig-portrait')?.enabled, false);
+  assert.deepEqual(readFormats(off), { disabled: ['ig-portrait'], custom: [] });
+});
+
+test('Original remains enabled by default but can be explicitly toggled off and on', () => {
+  const off = toggleFormat(undefined, 'orig-3x2', true);
+  assert.equal(applyFormats(createDefaultSizes(), off).find((size) => size.id === 'orig-3x2')?.enabled, false);
+  const on = toggleFormat(off, 'orig-3x2', true);
+  assert.equal(applyFormats(createDefaultSizes(), on).find((size) => size.id === 'orig-3x2')?.enabled, true);
+});
+
+test('legacy disabled lists and user-selected opt-in formats survive a save/reopen', () => {
+  const stored = JSON.parse(JSON.stringify(toggleFormat({disabled:['orig-3x2'],custom:[]}, 'ig-square', false)));
+  const sizes = applyFormats(createDefaultSizes(), stored);
+  assert.equal(sizes.find((size) => size.id === 'orig-3x2')?.enabled, false);
+  assert.equal(sizes.find((size) => size.id === 'ig-square')?.enabled, true);
+  assert.equal(sizes.find((size) => size.id === 'ig-portrait')?.enabled, false);
 });
 
 test('a custom format is added with a plain ratio, switched off, and removed for good', () => {
