@@ -53,7 +53,7 @@ import { TEMPLATES_KEY, addTemplate, deleteTemplate, readTemplates, renameTempla
 import { applyOverlayTemplateToProject, changePhotoOverlay } from './overlayHistory';
 import { addFormat, applyFormats, ORIGINAL_FORMAT_ID, readFormats, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize, setOriginalOutputSize, resetOriginalOutputSize } from './formatOps';
 import { patchVideoZoom } from './videoZoomOps';
-import { setFormatSplitOffset, toggleFormatSplit } from './formatSplitOps';
+import { setFormatSplitOffset, setSplitFrameCount as writeSplitFrameCount, toggleFormatSplit } from './formatSplitOps';
 import { readSplitPanOffset } from './splitFrameOps';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, toggleMask } from './maskOps';
 import { verifyFrameMasks } from './maskVerify';
@@ -750,6 +750,24 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, formatSplits: next } : entry)) }));
   }, [mutate, stub.store.activeSizeId]);
 
+  /** One format's persisted 1/2/3 continuous split, used by both V2 canvas and export planner. */
+  const setSplitFrameCount = useCallback((photoId: string, sizeId: string, count: 1 | 2 | 3) => {
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
+    if (!frame || ![1, 2, 3].includes(count)) return;
+    const sizes = applyFormats(createDefaultSizes(), frame.formats);
+    if (!sizes.some((size) => size.id === sizeId && size.kind === 'photo')) {
+      setNotice('Choose an existing photo format before splitting it.');
+      return;
+    }
+    const current = frame.formatSplits ?? (frame.splitFrames === true
+      ? { 'orig-3x2': { enabled: true, offset: readSplitPanOffset(frame.splitPanOffset) } } : undefined);
+    const next = writeSplitFrameCount(current, sizeId, count);
+    const at = Date.now();
+    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at },
+      frames: state.frames.map((entry) => entry.id === photoId ? { ...entry, formatSplits: next } : entry) }));
+    setNotice(count === 1 ? 'Format rejoined into one frame.' : `Format will export as ${count} continuous frames.`);
+  }, [mutate]);
+
   /** Move both halves together inside this format's two-section composition. */
   const setSplitPanOffset = useCallback((photoId: string, offset: number) => {
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
@@ -1239,6 +1257,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     toggleSizeLinked,
     updateVideoZoom,
     toggleSplitFrames,
+    setSplitFrameCount,
     setSplitPanOffset,
     setOriginalOutputSize: (photoId, width, height) => {
       if (!validCustomSize(width, height)) { setNotice('Use whole pixels between 1 and 20,000 for the Original output canvas.'); return; }
