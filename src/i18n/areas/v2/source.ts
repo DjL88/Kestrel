@@ -253,6 +253,15 @@ export const source = {
   // Formats Panel (renamed from Sizes)
   formats: {
     heading: 'Formats',
+    originalHeading: 'Original — permanent format',
+    originalVisibility: 'Hide with the checkbox; never deleted',
+    originalHelp: 'Defaults to the imported dimensions when known. Changing the output canvas does not change your imported file. Add the separate 3:2 format below if needed.',
+    originalWidth: 'Width (px)',
+    originalHeight: 'Height (px)',
+    originalWidthLabel: 'Original output width',
+    originalHeightLabel: 'Original output height',
+    originalApply: 'Apply size',
+    originalReset: 'Reset to imported',
     editGroupsHeading: 'Edit Groups',
     addEditGroup: 'Add edit group',
     editGroupHint: 'Chain formats together to share one edit, or create a second group with its own look or text overlay.',
