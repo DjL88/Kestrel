@@ -1146,3 +1146,18 @@ Counts: a=136, b=0 (all candidates turned out to be on main or were merged in th
 ## 20 November 2026 — live workspace feedback / prototype acceptance
 
 The owner's direct feedback requests a single calm two-row photographic workspace, per-tab right-click Dock/Undock/Hide/Show with draggable and resizable floating panes, visible menu ownership, a small Before/After near zoom and full screen, reversible burst grouping, shared selection actions, and no compulsory undecided-photo popups. Background RAW tasks and editing previews must remain responsive when changing screens. Actual installed-app acceptance (Windows/Mac/mobile/tablet, translated locales, real Nikon RAWs) must still be run before claims of full completion.
+
+## Public download website — Demo Editor release parity (owner requirement, 23 November 2026)
+
+**Status: ROADMAP / NOT IMPLEMENTED.** The public app-download website hosts the Demo Editor at `https://kestrel-hosting-kestrel.web.app/editor/demo-v2`. It must match the **latest successfully published website/app editor release**, **not** the latest GitHub `main` commit or an unverified preview branch. The website demo is a product showcase for visitors considering downloading InFlight; it is not a separate editing product or a development preview.
+
+**Implementation requirements:**
+
+1. **Single published editor artefact:** reuse the actual published editor build/components and styling for the download-site demo; select safe `demo` mode through runtime configuration. Avoid copying or independently maintaining V2 UI code. The app installer and web demo may have platform-specific capabilities; label genuinely unavailable features rather than simulating them as working.
+2. **Authoritative deployment manifest:** on verified successful Firebase Hosting publication, write immutable release identity (release/build ID, source commit SHA, deployed timestamp and asset hash). The public demo and published web editor must resolve to the same release ID; do not infer publication from GitHub merges.
+3. **Atomic promotion and rollback:** stage and smoke-test both the website and demo before switching the live release pointer. A failed or partially deployed build must leave the previous working demo in place. Rollback must restore the previous matched build.
+4. **Demo safety and accessibility:** ship a small licensed/sample photo catalogue with resettable local-only edits; no real project/original access, no user cloud upload, no sign-in requirement, no billing, and no fabricated model output. Preserve responsive phone/tablet/desktop UX, keyboard accessibility, light/dark/system theme, and colour-blind-safe labels.
+5. **Automated parity gate:** after deployment, assert the public download site's demo and published editor report identical release IDs and core UI assets; run smoke checks for launch, sample project, cull/edit, before/after, formats, export behaviour/limitations and responsive layouts. Report PASS/FAIL/NOT RUN; block promotion on a mismatch.
+6. **Footer and discoverability:** show the real published version/build ID in the demo footer beside the approved kite brand mark, theme switch and Privacy/Terms links; keep a clear download-app route back to the website.
+
+**Acceptance:** a change merged into `main` but not published does **not** appear in the website demo; a successful published release updates the demo without manual copying; a failed publish leaves the last working version; release identity and test evidence are inspectable. **No deployment or cloud spend authorised by this roadmap entry.**
