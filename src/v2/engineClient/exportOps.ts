@@ -1,6 +1,6 @@
 import { applyFormats } from './formatOps';
 import { fullResolutionRasterFormat } from '../../core/rawFormats';
-import { isFormatSplit, formatSplitOffset } from './formatSplitOps';
+import { splitFrameCount, formatSplitOffset } from './formatSplitOps';
 import type { ExportFormat } from '../../core/exportFormats';
 import { readCrops, DEFAULT_CROP } from './cropOps';
 import { framedSize, DEFAULT_FRAMING, type PhotoFraming } from '../../core/photoFraming';
@@ -9,7 +9,7 @@ import type { CropTransform, ExportRequest, SizePreset } from '../ui/contract';
 export interface ExportFrameInfo { id: string; filename: string; isDemo?: boolean; removedAt?: number; sizeCrops?: unknown; formats?: unknown; formatSplits?: unknown; splitFrames?: unknown; splitPanOffset?: unknown; exif?: { width?: number; height?: number }; framing?: PhotoFraming }
 /** 'edited' is the photo with its recipe (and overlay if asked). 'unedited' is the same framing with no edit at all, developed to JPEG: it is not the original file. */
 export type ExportVariant = 'edited' | 'unedited';
-export interface ExportJob { frameId: string; format: ExportFormat; size: { width: number; height: number }; crop: CropTransform; variants: ExportVariant[]; /** One source image spread over two adjoining output canvases. */ sections?: 2 }
+export interface ExportJob { frameId: string; format: ExportFormat; size: { width: number; height: number }; crop: CropTransform; variants: ExportVariant[]; /** One source image spread over two adjoining output canvases. */ sections?: 2 | 3 }
 /** `originals` are photos whose exact original bytes are to be copied, never a developed or preview file. */
 export type ExportPlan = { jobs: ExportJob[]; originals: string[]; summary: string } | { error: string };
 
@@ -80,7 +80,7 @@ export function planExport(request: ExportRequest, frames: readonly ExportFrameI
       if (!size?.enabled) continue;
       if (!Number.isInteger(size.width) || !Number.isInteger(size.height) || size.width < 1 || size.height < 1) return { error: `${size.label} has no usable size.` };
       const splitState = frame.formatSplits ?? (frame.splitFrames === true ? { 'orig-3x2': { enabled: true, offset: frame.splitPanOffset ?? 0 } } : undefined);
-      const sections = isFormatSplit(splitState, size.id) ? 2 : 1;
+      const sections = splitFrameCount(splitState, size.id);
       // The cap applies to the COMPLETE composition, not each panel in isolation.
       // Otherwise two 1080px panels could defeat a 1200px export limit.
       const combined = capLongestEdge({ width: size.width * sections, height: size.height }, maxEdge);
@@ -91,7 +91,7 @@ export function planExport(request: ExportRequest, frames: readonly ExportFrameI
       const crop = crops[size.id] ?? { ...DEFAULT_CROP };
       const offset = formatSplitOffset(splitState, size.id);
       const movedCrop = offset === 0 ? crop : { ...crop, panX: Math.max(-50, Math.min(50, crop.panX + offset)) };
-      jobs.push({ frameId: frame.id, variants, size: capped, crop: movedCrop, ...(sections === 2 ? { sections: 2 as const } : {}), format: {
+      jobs.push({ frameId: frame.id, variants, size: capped, crop: movedCrop, ...(sections > 1 ? { sections: sections as 2 | 3 } : {}), format: {
         id: size.id, label: size.label, width: capped.width, height: capped.height, fit: 'fill', quality, format,
         prefix: `${size.id.replace(SAFE_PREFIX, '_').slice(0, 24)}_`,
       } });
@@ -105,6 +105,6 @@ export function planExport(request: ExportRequest, frames: readonly ExportFrameI
     ? `${chosen.length} photo${chosen.length === 1 ? '' : 's'} × ${picked.length} size${picked.length === 1 ? '' : 's'}${variants.length > 1 ? ' × before and after' : request.includeBefore ? ' (unedited)' : ''}`
     : `${jobs.length} size version${jobs.length === 1 ? '' : 's'} across ${chosen.length} photo${chosen.length === 1 ? '' : 's'}${variants.length > 1 ? ' × before and after' : request.includeBefore ? ' (unedited)' : ''}`;
   const parts = [developed, originals.length ? `${originals.length} original file${originals.length === 1 ? '' : 's'}` : ''].filter(Boolean);
-  const splitJobs = jobs.filter((job) => job.sections === 2).length;
+  const splitJobs = jobs.filter((job) => (job.sections ?? 1) > 1).length;
   return { jobs, originals, summary: `${parts.join(' + ')}${splitJobs ? ` (${splitJobs} split format${splitJobs === 1 ? '' : 's'})` : ''} = ${files} file${files === 1 ? '' : 's'}` };
 }
