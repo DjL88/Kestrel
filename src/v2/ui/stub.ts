@@ -1575,9 +1575,13 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
     resetOriginalOutputSize: (photoId) => {
-      // The prototype has no imported source file. The connected engine
-      // restores measured/recorded original dimensions instead.
-      updatePhotoById(photoId, (photo) => photo);
+      // Only restore a size that the prototype actually knows. Never invent
+      // a 3:2 shape as a supposed imported original.
+      updatePhotoById(photoId, (photo) => photo.pixelSize
+        ? { ...photo, sizes: photo.sizes.map((size) => size.id === 'orig-3x2'
+          ? { ...size, width: photo.pixelSize!.width, height: photo.pixelSize!.height,
+            ratioLabel: `${photo.pixelSize!.width}×${photo.pixelSize!.height}` } : size) }
+        : photo);
     },
     addCustomSize: (photoId, label, width, height) => {
       logAction('addCustomSize', { photoId, label, width, height });
