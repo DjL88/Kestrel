@@ -72,14 +72,15 @@ test('bad sizes and bad stored values are refused or dropped, never trusted', ()
   assert.equal(ratioLabelFor(1234, 777), '1234×777');
 });
 
-test('a newly imported photo starts with one enabled photo format, not three automatic social variants', () => {
-  const active = applyFormats(createDefaultSizes(), undefined).filter((size) => size.enabled && size.kind === 'photo');
+test('a photo with known dimensions starts with one enabled photo format and no automatic social variants', () => {
+  const dimensions = { width: 8256, height: 5504 };
+  const active = applyFormats(createDefaultSizes(), undefined, dimensions).filter((size) => size.enabled && size.kind === 'photo');
   assert.deepEqual(active.map((size) => size.id), ['orig-3x2']);
   // User-created format stays enabled and independent for only the chosen photo.
   const personal = addFormat(undefined, 'A4 print', 2480, 3508, 'custom-a4p')!;
-  assert.deepEqual(applyFormats(createDefaultSizes(), personal).filter((size) => size.enabled && size.kind === 'photo')
+  assert.deepEqual(applyFormats(createDefaultSizes(), personal, dimensions).filter((size) => size.enabled && size.kind === 'photo')
     .map((size) => size.id), ['orig-3x2', 'custom-a4p']);
-  assert.deepEqual(applyFormats(createDefaultSizes(), undefined).filter((size) => size.enabled && size.kind === 'photo')
+  assert.deepEqual(applyFormats(createDefaultSizes(), undefined, dimensions).filter((size) => size.enabled && size.kind === 'photo')
     .map((size) => size.id), ['orig-3x2']);
 });
 
