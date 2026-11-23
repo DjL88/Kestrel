@@ -81,6 +81,29 @@ describe('runLook', () => {
     assert.equal(result.combinedMasks[0].edit.sharpen, 0.2);
   });
 
+  it('composes repeated subject adjustments into one mask and renders the accepted recipe', async () => {
+    const original = flat(16, [120, 120, 120]);
+    const renders: Array<{ masks: number; texture?: number; sharpen?: number }> = [];
+    const look = createCustomLook('layered', 'Layered subject', 'two subject edits', [
+      { label: 'Texture', capability: 'mask', background: {}, subject: { texture: 0.25 } },
+      { label: 'Sharpen', capability: 'mask', background: {}, subject: { sharpen: 0.15 } },
+    ]);
+    const result = await runLook(look, {
+      original, subject: subjectInput,
+      render: async (_edit, masks) => {
+        renders.push({ masks: masks.length, texture: masks[0]?.edit.texture, sharpen: masks[0]?.edit.sharpen });
+        return flat(16, [121, 121, 121]);
+      },
+    });
+    assert.deepEqual(renders, [
+      { masks: 1, texture: 0.25, sharpen: 0 },
+      { masks: 1, texture: 0.25, sharpen: 0.15 },
+    ]);
+    assert.equal(result.combinedMasks.length, 1);
+    assert.equal(result.combinedMasks[0].edit.texture, 0.25);
+    assert.equal(result.combinedMasks[0].edit.sharpen, 0.15);
+  });
+
   it('retries a step at reduced strength on overshoot, then moves on to the next step unaffected by the first step\'s failure', async () => {
     let calls = 0;
     const original = flat(16, [120, 120, 120]);
