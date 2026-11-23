@@ -17,6 +17,9 @@ interface RailProps {
   onSetPanelVisible: (panelId: PanelId, visible: boolean) => void;
   onSetPanelDock: (panelId: PanelId, dock: DockPosition) => void;
   onOpenSettings: () => void;
+  /** Show every photo of the project at once. Sits at the foot of the tools, above Tasks. */
+  onOpenAllPhotos?: () => void;
+  allPhotosOpen?: boolean;
   /** Tools that are not offered on this plan are left out of the rail altogether. */
   hiddenPanels?: PanelId[];
   /** 'left' puts the rail on the right (left-handed mode). */
@@ -42,6 +45,8 @@ export default function Rail({
   onSetPanelVisible,
   onSetPanelDock,
   onOpenSettings,
+  onOpenAllPhotos,
+  allPhotosOpen = false,
   hiddenPanels = [],
   hand = 'right',
 }: RailProps) {
@@ -132,6 +137,22 @@ export default function Rail({
         </div>
 
         <div className="w-full space-y-0.5 border-t border-[var(--border-subtle)] px-1.5 pt-2">
+          {onOpenAllPhotos && (
+            <button
+              type="button"
+              onClick={onOpenAllPhotos}
+              aria-pressed={allPhotosOpen}
+              title="Show all photos at once"
+              aria-label="All photos"
+              data-testid="all-photos-button"
+              className={`flex w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] py-2 text-[10px] font-medium transition-colors ${
+                allPhotosOpen ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <BrandIcon name="image" size={18} />
+              <span>All photos</span>
+            </button>
+          )}
           <TasksWheel running={runningTaskCount} percent={taskProgress} active={activePanel === 'tasks'} onClick={onOpenTasks} />
           <button
             type="button"

@@ -37,6 +37,7 @@ import { addRow, alignOverlays, patchOverlay, readOverlay, removeRow, updateRow 
 import { frameToPhoto, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
 import { runV2Denoise } from './runDenoise';
+import { moveArtboard } from './boardOps';
 import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
 import { planExport } from './exportOps';
@@ -872,6 +873,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const selectedSizes = stub.store.selectedSizeIds;
       changeCrops(photoId, selectedSizes.length > 1 && selectedSizes.includes(sizeId) ? selectedSizes : [sizeId], (crop) => patchCrop(crop, patch));
     },
+    moveSizeArtboard: (photoId, sizeId, boardX, boardY) => mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === photoId ? { ...frame, boardPositions: moveArtboard(frame.boardPositions, sizeId, boardX, boardY) } : frame)) })),
+    resetArtboardPositions: (photoId) => mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === photoId ? { ...frame, boardPositions: undefined } : frame)) })),
     resetSizeCrop: (photoId, sizeId) => changeCrops(photoId, [sizeId], () => ({ ...DEFAULT_CROP })),
     flipSelectedSizes: (photoId, axis) => changeCrops(photoId, stub.store.selectedSizeIds, (crop) => flipCrop(crop, axis)),
     rotateSelectedSizes: (photoId) => changeCrops(photoId, stub.store.selectedSizeIds, (crop) => rotateCrop(crop)),
@@ -923,9 +926,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     denoisePhoto,
     applyLook: (photoId, lookId) => {
       const look = stub.store.looks.find((entry) => entry.id === lookId);
-      if (look) applyPatch(editTargets(photoId), look.recipeDelta);
+      if (!look) return;
+      const targets = editTargets(photoId);
+      applyPatch(targets, look.recipeDelta);
+      mutate((current) => ({ ...current, frames: current.frames.map((frame) => (targets.includes(frame.id) ? { ...frame, appliedLookId: lookId } : frame)) }));
     },
-    resetPhotoEdits: (photoId) => editFrames(editTargets(photoId), () => undefined),
+    resetPhotoEdits: (photoId) => { const targets = editTargets(photoId); editFrames(targets, () => undefined); mutate((current) => ({ ...current, frames: current.frames.map((frame) => (targets.includes(frame.id) ? { ...frame, appliedLookId: undefined } : frame)) })); },
     copyRecipe: () => setClipboard(editToRecipe(activeFrame?.edit)),
     pasteRecipe: () => { if (clipboard && activeId) applyPatch(editTargets(activeId), clipboard); },
     setBurstGrouped: (burstGroupId, grouped) => mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.burstGroupId === burstGroupId ? { ...frame, burstUngrouped: grouped ? undefined : true } : frame)) })),

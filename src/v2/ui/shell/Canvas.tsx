@@ -16,6 +16,7 @@ import type {
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import CompareSplit from './CompareSplit';
+import { captureElement, screenshotName } from '../utils/captureElement';
 import {
   buildPreviewFilterCss,
   cropPanLimits,
@@ -107,6 +108,25 @@ export default function Canvas({
 }: CanvasProps) {
   const [activeGuides, setActiveGuides] = useState<SnapGuide[]>([]);
   const stageRef = useRef<HTMLDivElement>(null);
+  const [shotNote, setShotNote] = useState<string | null>(null);
+  /** Saves what is on the canvas right now, as seen: the edit, crop, overlays, grid and compare split. */
+  const grabScreenshot = async () => {
+    const stage = stageRef.current;
+    if (!stage || !photo) return;
+    setShotNote('Taking the screenshot…');
+    try {
+      const blob = await captureElement(stage);
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = screenshotName(photo.title || photo.filename, new Date());
+      document.body.appendChild(link); link.click(); link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
+      setShotNote('Screenshot saved to your downloads.');
+    } catch (error) {
+      setShotNote(error instanceof Error ? error.message : 'The screenshot could not be taken.');
+    }
+    window.setTimeout(() => setShotNote(null), 5000);
+  };
   const [stageSize, setStageSize] = useState({ width: 660, height: 470 });
   const touchPoints = useRef(new Map<number, { x: number; y: number }>());
   const touchGesture = useRef<{ distance: number; zoom: number; panX: number; panY: number; centreX: number; centreY: number } | null>(null);
@@ -825,23 +845,7 @@ export default function Canvas({
           {activeSize.crop.rotateDeg !== 0 && <span>· {activeSize.crop.rotateDeg}°</span>}
         </div>
 
-        {activeSize.kind === 'photo' && (
-          <div role="toolbar" aria-label="Format actions" data-testid="frame-actions" className="flex items-center gap-1.5">
-            {([
-              { label: '+ Format', aria: 'Add a format', run: () => onOpenFormats?.(), pressed: undefined },
-              { label: 'Duplicate', aria: 'Duplicate this format', run: () => onDuplicateSize?.(activeSize.id), pressed: undefined },
-              { label: 'Compare', aria: 'Compare before and after', run: () => onToggleCompare(), pressed: compareMode },
-              { label: 'Delete', aria: 'Delete this format', run: () => onRemoveSize?.(activeSize.id), pressed: undefined },
-            ] as const).map((action) => (
-              <button key={action.aria} type="button" aria-label={action.aria} aria-pressed={action.pressed}
-                disabled={action.aria === 'Compare before and after' && Boolean(group.splitFrames)}
-                onClick={action.run}
-                className="min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40 aria-pressed:border-[var(--brand-accent)] aria-pressed:text-[var(--brand-accent)] max-md:min-h-11">
-                {action.label}
-              </button>
-            ))}
-          </div>
-        )}
+        {activeSize.kind === 'photo' && renderFormatActions([activeSize.id])}
         {activeSize.kind === 'photo' && !compareMode && <button type="button" aria-pressed={revealing} onClick={() => setRevealSizeId(revealing ? null : activeSize.id)} className="sm:hidden rounded border border-[var(--border-default)] px-3 py-2 text-xs font-medium">{revealing ? 'Done repositioning' : 'Crop / reposition'}</button>}
         <div className="relative flex items-center gap-3">
           {/* Primary photo frame */}
@@ -976,6 +980,26 @@ export default function Canvas({
     );
   };
 
+  /** Add format, Duplicate, Compare and Delete. Delete and Duplicate act on every format in `targets`. */
+  const renderFormatActions = (targets: string[]) => (
+          <div role="toolbar" aria-label="Format actions" data-testid="frame-actions" className="flex items-center gap-1.5">
+            {([
+              { label: 'Add format', icon: 'frame-add', aria: 'Add a format', run: () => onOpenFormats?.(), pressed: undefined },
+              { label: 'Duplicate', icon: 'copy', aria: 'Duplicate this format', run: () => targets.forEach((id) => onDuplicateSize?.(id)), pressed: undefined },
+              { label: 'Compare', icon: 'compare', aria: 'Compare before and after', run: () => onToggleCompare(), pressed: compareMode },
+              { label: 'Delete', icon: 'trash', aria: 'Delete this format', run: () => targets.forEach((id) => onRemoveSize?.(id)), pressed: undefined },
+            ] as const).map((action) => (
+              <button key={action.aria} type="button" aria-label={action.aria} aria-pressed={action.pressed}
+                disabled={action.aria === 'Compare before and after' && Boolean(group.splitFrames)}
+                title={action.aria === 'Compare before and after' ? (group.splitFrames ? STRINGS.canvas.compareDisabledSplit : STRINGS.topBar.viewActions.compareBeforeAfter) : undefined}
+                onClick={action.run}
+                className="min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40 aria-pressed:border-[var(--brand-accent)] aria-pressed:text-[var(--brand-accent)] max-md:min-h-11">
+                <span className="inline-flex items-center gap-1.5"><BrandIcon name={action.icon} size={13} />{action.label}</span>
+              </button>
+            ))}
+          </div>
+  );
+
   const renderAllFormatsBoard = () => {
     const boardSizes = enabledSizes.length > 0 ? enabledSizes : [activeSize];
     return (
@@ -1104,6 +1128,7 @@ export default function Canvas({
             <button
               type="button"
               onClick={() => onSetLayoutMode('all-formats')}
+              title="Drag artboard title bars to arrange · Ctrl/Cmd-click formats to edit as a group · Double-click to focus"
               className={`inline-flex h-7 items-center gap-1.5 rounded px-2 text-[11px] font-medium transition-colors whitespace-nowrap ${
                 canvasLayoutMode === 'all-formats'
                   ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]'
@@ -1195,37 +1220,21 @@ export default function Canvas({
               <span className="hidden sm:inline">{group.splitFrames ? 'Merged: Off' : 'Split 2'}</span>
             </button>
           )}
-          <button
-            type="button"
-            aria-pressed={gridMode !== 'off'}
-            title={STRINGS.canvas.gridTitle(gridMode)}
-            aria-label={STRINGS.canvas.gridTitle(gridMode)}
-            data-testid="grid-toggle"
-            onClick={() => setGridMode((mode) => (mode === 'off' ? '3x3' : mode === '3x3' ? '4x4' : 'off'))}
-            className={`inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] px-2 text-[11px] font-medium whitespace-nowrap ${
-              gridMode !== 'off' ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            <BrandIcon name="grid" size={13} />
-            <span className="hidden sm:inline">{gridMode === 'off' ? 'Grid' : gridMode === '3x3' ? '3×3' : '4×4'}</span>
-          </button>
-          <button
-            type="button"
-            aria-pressed={compareMode}
-            disabled={group.splitFrames}
-            title={group.splitFrames ? STRINGS.canvas.compareDisabledSplit : STRINGS.topBar.viewActions.compareBeforeAfter}
-            onClick={onToggleCompare}
-            className={`inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] px-2 text-[11px] font-medium transition-colors whitespace-nowrap ${
-              compareMode
-                ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
-            } disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent`}
-          >
-            <BrandIcon name="compare" size={13} />
-            <span className="hidden sm:inline">Compare</span>
-          </button>
         </div>
       </div>
+
+      {canvasLayoutMode === 'all-formats' && selectedSizeIds.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/60 px-3 py-1.5" data-testid="board-format-actions">
+          <span className="text-[11px] text-[var(--text-muted)]">{selectedSizeIds.length === 1 ? '1 format selected' : `${selectedSizeIds.length} formats selected`}</span>
+          {renderFormatActions(selectedSizeIds)}
+        </div>
+      )}
+
+      {canvasLayoutMode === 'single' && group.splitFrames && features.splitFrames && activeSize.kind === 'photo' && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/60 px-3 py-1.5" data-testid="split-format-actions">
+          {renderFormatActions([activeSize.id])}
+        </div>
+      )}
 
       {/* Warning banners: Original Unavailable OR Text Overlay Overflow */}
       {(!photo.originalConnected || overflowIssues.length > 0) && (
@@ -1287,19 +1296,22 @@ export default function Canvas({
         {canvasLayoutMode === 'all-formats' ? renderAllFormatsBoard() : renderSingleArtboard()}
 
         {/* Subtle bottom-left interaction hint */}
-        {!calmView && (
-          <p className="pointer-events-none absolute bottom-3 left-4 hidden lg:block text-[11px] text-[var(--text-muted)]">
-            {canvasLayoutMode === 'all-formats'
-              ? 'Drag artboard title bars to arrange · Ctrl/Cmd-click formats to edit as a group · Double-click to focus'
-              : activeSize.kind === 'video'
+        {!calmView && canvasLayoutMode === 'single' && (
+          <p data-capture-ignore className="pointer-events-none absolute bottom-3 left-4 hidden lg:block text-[11px] text-[var(--text-muted)]">
+            {activeSize.kind === 'video'
               ? STRINGS.canvas.zoomVideoHint
               : STRINGS.canvas.dragCropHint}
           </p>
         )}
 
+        {shotNote && (
+          <p role="status" data-capture-ignore className="absolute bottom-14 right-3 z-30 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 py-1 text-[11px] text-[var(--text-primary)] shadow">{shotNote}</p>
+        )}
+
         {/* BottomRightCluster: Zoom controls, Grid View toggle, and ONE Full Screen button */}
         <div
           aria-label="Canvas viewport controls"
+          data-capture-ignore
           className="absolute bottom-3 right-3 z-30 flex items-center gap-1 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)]/95 p-1 shadow-[var(--shadow-popover)] backdrop-blur-sm"
         >
           <button
@@ -1333,12 +1345,28 @@ export default function Canvas({
 
           <button
             type="button"
-            title={STRINGS.canvas.gridViewToggle}
-            aria-label={STRINGS.canvas.gridViewToggle}
-            onClick={onToggleGridView}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
+            aria-pressed={gridMode !== 'off'}
+            title={STRINGS.canvas.gridTitle(gridMode)}
+            aria-label={STRINGS.canvas.gridTitle(gridMode)}
+            data-testid="grid-toggle"
+            onClick={() => setGridMode((mode) => (mode === 'off' ? '3x3' : mode === '3x3' ? '4x4' : 'off'))}
+            className={`inline-flex h-8 min-w-8 items-center justify-center gap-1 rounded-[var(--radius-sm)] px-1.5 text-[11px] font-medium ${
+              gridMode !== 'off' ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
+            }`}
           >
             <BrandIcon name="grid" size={15} />
+            {gridMode !== 'off' && <span>{gridMode === '3x3' ? '3×3' : '4×4'}</span>}
+          </button>
+
+          <button
+            type="button"
+            title="Grab screenshot: saves what you see on the canvas, with the edit, crop, overlays and grid"
+            aria-label="Grab screenshot"
+            data-testid="grab-screenshot"
+            onClick={() => void grabScreenshot()}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
+          >
+            <BrandIcon name="save" size={15} />
           </button>
 
           <button

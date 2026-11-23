@@ -371,6 +371,8 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
               onSetPanelVisible={actions.setPanelVisible}
               onSetPanelDock={actions.setPanelDock}
               onOpenSettings={() => actions.setSettingsOpen(true)}
+              onOpenAllPhotos={() => actions.setGridViewOpen(!store.gridViewOpen)}
+              allPhotosOpen={store.gridViewOpen}
             />
 
             {/* Left-docked panel (desktop/tablet only) */}

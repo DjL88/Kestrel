@@ -206,51 +206,32 @@ export default function Filmstrip({
       )}
 
       {/* Dock Header Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 border-b border-[var(--border-subtle)]">
+      <div className="flex flex-nowrap items-center justify-between gap-2 overflow-x-auto px-3 py-1.5 border-b border-[var(--border-subtle)] inflight-scroll">
         {/* Left: Filmstrip / Info tabs + Import + Auto-Cull & Analyse */}
         <div className="flex items-center gap-2 min-w-0">
-          <div
-            role="tablist"
-            aria-label="Bottom dock views"
-            className="inline-flex rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-0.5"
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={bottomTab === 'filmstrip' && !collapsed}
-              onClick={() => onSetBottomTab('filmstrip')}
-              className={`h-7 rounded px-2.5 text-xs font-medium transition-colors whitespace-nowrap ${
-                bottomTab === 'filmstrip' && !collapsed
-                  ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              Filmstrip ({photos.length})
-            </button>
-          </div>
 
           <button
             type="button"
             onClick={onImport}
-            className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 text-xs font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
+            className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
           >
-            <BrandIcon name="image-plus" size={14} />
+            <BrandIcon name="image-plus" size={13} />
             <span>{STRINGS.filmstrip.importPhotos}</span>
           </button>
 
           <button type="button" onClick={onImportFolder}
-            className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
+            className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[11px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
             title="Add photographs from a folder">
-            <BrandIcon name="folder-open" size={14} />
+            <BrandIcon name="folder-open" size={13} />
             <span>Folder</span>
           </button>
 
           <button
             type="button"
             onClick={onRunAutoCull}
-            className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--brand-accent-soft)] px-2.5 text-xs font-medium text-[var(--brand-accent)] transition-colors hover:bg-[var(--brand-accent)] hover:text-[var(--text-on-accent)] whitespace-nowrap"
+            className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] bg-[var(--brand-accent-soft)] px-2 text-[11px] font-medium text-[var(--brand-accent)] transition-colors hover:bg-[var(--brand-accent)] hover:text-[var(--text-on-accent)] whitespace-nowrap"
           >
-            <BrandIcon name="find-subject" size={14} />
+            <BrandIcon name="find-subject" size={13} />
             <span>
               {STRINGS.filmstrip.autoCull}
               {assistMode === 'autopilot' ? ' · Auto' : ''}
