@@ -191,7 +191,9 @@ export default function Canvas({
 
   const group: EditGroup = getActiveGroup(photo);
   // Compare shows the original and the edit side by side across one frame; a split spans two frames, so it is off then.
-  const compareMode = compareRequested && !group.splitFrames;
+  const splitFor = (sizeId: string) => features.splitFrames && photo.formatSplits?.[sizeId]?.enabled === true;
+  const splitOffsetFor = (sizeId: string) => photo.formatSplits?.[sizeId]?.offset ?? 0;
+  const compareMode = compareRequested && !splitFor(activeSizeId);
   const enabledSizes = photo.sizes.filter((s) => s.enabled);
   const activeSize: SizePreset =
     photo.sizes.find((s) => s.id === activeSizeId) ?? enabledSizes[0] ?? photo.sizes[0];
@@ -240,7 +242,7 @@ export default function Canvas({
       origB = size.crop.panY;
       setDraggingType('pan');
     } else if (kind === 'split') {
-      origA = group.splitPanOffset;
+      origA = splitOffsetFor(size.id);
       setDraggingType('pan');
     } else if (kind === 'text') {
       origA = group.overlay.textX;
@@ -819,7 +821,7 @@ export default function Canvas({
 
     const cropClip = `inset(${activeSize.crop.insetTop}% ${activeSize.crop.insetRight}% ${activeSize.crop.insetBottom}% ${activeSize.crop.insetLeft}%)`;
 
-    if (group.splitFrames && features.splitFrames) {
+    if (splitFor(activeSize.id)) {
       // Each pane has the selected format's full aspect ratio. Fit BOTH panes and their
       // 16px gap into the working area; a single-pane Fit width would overflow on phones.
       // Account for canvas zoom rather than clipping the second pane off-screen.
@@ -851,9 +853,7 @@ export default function Canvas({
                   className="h-full w-[200%] max-w-none object-cover select-none"
                   style={{
                     filter: compareMode ? 'none' : filterCss,
-                    transform: `translateX(${
-                      paneIdx === 0 ? group.splitPanOffset : -50 + group.splitPanOffset
-                    }%) scale(${activeSize.crop.zoom})`,
+                    transform: `translate(${paneIdx === 0 ? splitOffsetFor(activeSize.id) + activeSize.crop.panX : -50 + splitOffsetFor(activeSize.id) + activeSize.crop.panX}%, ${activeSize.crop.panY}%) rotate(${activeSize.crop.rotateDeg}deg) scale(${(activeSize.crop.flipH ? -1 : 1) * activeSize.crop.zoom}, ${(activeSize.crop.flipV ? -1 : 1) * activeSize.crop.zoom})`,
                   }}
                 />
                 {paneIdx === 1 && renderOverlaysInsideFrame(activeSize, true)}
@@ -946,8 +946,8 @@ export default function Canvas({
 
             </div>
 
-            {/* Aspect-locked crop handles: pulling any edge or corner in zooms the picture, the window keeps the format's shape */}
-            {!compareMode && activeSize.kind === 'photo' && (
+            {/* Double-click/Crop enters non-destructive crop mode: the photograph moves behind a fixed format canvas. */}
+            {revealing && !compareMode && activeSize.kind === 'photo' && (
               <>
                 {([['tl', 'top left', 'left-1 top-1 cursor-nwse-resize'], ['tr', 'top right', 'right-1 top-1 cursor-nesw-resize'], ['bl', 'bottom left', 'bottom-1 left-1 cursor-nesw-resize'], ['br', 'bottom right', 'bottom-1 right-1 cursor-nwse-resize']] as const).map(([id, name, place]) => (
                   <button
@@ -1046,7 +1046,7 @@ export default function Canvas({
           const cardH = aspect < 0.7 ? 270 : 210;
           const cardW = Math.round(clamp(cardH * aspect, 145, 340));
 
-          const panes = group.splitFrames && features.splitFrames ? [0, 1] : [0];
+          const panes = splitFor(size.id) ? [0, 1] : [0];
           return (
             <div key={size.id} className="flex items-start gap-1" data-testid={`format-pair-${size.id}`} style={{ transform: `translate(${boardPlacements[`${photo.id}:${size.id}`]?.x ?? size.boardX}px, ${boardPlacements[`${photo.id}:${size.id}`]?.y ?? size.boardY}px)` }}>
             {panes.map((paneIdx) => (
@@ -1100,7 +1100,7 @@ export default function Canvas({
                   style={{
                     filter: compareMode ? 'none' : filterCss,
                     transform: panes.length === 2
-                      ? `translateX(${paneIdx === 0 ? group.splitPanOffset : -50 + group.splitPanOffset}%) scale(${size.crop.zoom})`
+                      ? `translate(${paneIdx === 0 ? splitOffsetFor(size.id) + size.crop.panX : -50 + splitOffsetFor(size.id) + size.crop.panX}%, ${size.crop.panY}%) rotate(${size.crop.rotateDeg}deg) scale(${(size.crop.flipH ? -1 : 1) * size.crop.zoom}, ${(size.crop.flipV ? -1 : 1) * size.crop.zoom})`
                       : buildImageTransform(size.crop),
                   }}
                 />
@@ -1237,7 +1237,7 @@ export default function Canvas({
               }, disabled: selectedSizeIds.length !== 1 || activeSize.kind !== 'photo' || compareMode, pressed: revealSizeId === selectedSizeIds[0] },
               { icon: 'arrows-horizontal', label: 'Flip selected formats', run: () => onFlipSizes(photo.id, 'horizontal'), disabled: false, pressed: false },
               { icon: 'rotate', label: 'Rotate selected formats', run: () => onRotateSizes(photo.id), disabled: false, pressed: false },
-              { icon: 'compare', label: 'Compare', run: onToggleCompare, disabled: selectedSizeIds.length !== 1 || group.splitFrames, pressed: compareMode },
+              { icon: 'compare', label: 'Compare', run: onToggleCompare, disabled: selectedSizeIds.length !== 1 || splitFor(activeSize.id), pressed: compareMode },
               { icon: 'trash', label: 'Delete selected format', run: () => onRemoveSize?.(selectedSizeIds[0]), disabled: selectedSizeIds.length !== 1 || !onRemoveSize, pressed: false },
             ] as const).map((action) => (
               <button
