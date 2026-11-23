@@ -1,7 +1,7 @@
 import React from 'react';
 import type { AssistMode, FeatureKey, Photo } from '../contract';
 import { STRINGS } from '../strings';
-import ProBadge from '../shell/ProBadge';
+import ProBadge, { useProHidden } from '../shell/ProBadge';
 import BrandIcon, { assistModeIconName } from '../icons/BrandIcon';
 
 interface CoPilotPanelProps {
@@ -32,11 +32,15 @@ export default function CoPilotPanel({
   onApplyAll,
   onDismissSuggestion,
 }: CoPilotPanelProps) {
+  const hiddenOnline = useProHidden('onlineAi');
+  const hiddenCloud = useProHidden('cloudAssist');
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">Select a photo to run Flight Analysis.</p>;
   }
 
   const reviewAvailable = features.onlineAi || features.cloudAssist;
+  // The person asked not to see Pro features and online review is one this account does not have: leave the whole block out.
+  const hideReview = !reviewAvailable && hiddenOnline && hiddenCloud;
   const reviewPending = reviewing;
   const suggestions = photo.assistCritique.suggestions;
   const unappliedCount = suggestions.filter((s) => !s.applied).length;
@@ -71,6 +75,8 @@ export default function CoPilotPanel({
 
       {/* Renamed Deep Vision Review CTA */}
       <div className="space-y-2">
+        {!hideReview && (
+        <>
         <button
           type="button"
           disabled={!reviewAvailable || reviewPending}
@@ -92,6 +98,8 @@ export default function CoPilotPanel({
         <p id="copilot-review-status" role="status" aria-live="polite" className="text-[11px] text-[var(--text-secondary)]">
           {reviewPending ? 'Review in progress. Existing suggestions remain available; nothing has been applied.' : !reviewAvailable ? 'Online review is unavailable. Your photos and existing local edits remain usable offline.' : 'Review is optional. Suggestions are not applied without your choice.'}
         </p>
+        </>
+        )}
         {ongoingCritique && (
           <p className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)]">
             <BrandIcon name="ready" size={13} className="text-[var(--semantic-success)]" />

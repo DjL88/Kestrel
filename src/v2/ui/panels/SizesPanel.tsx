@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { CropTransform, FeatureKey, Photo, VideoZoomConfig } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
+import { useProHidden } from '../shell/ProBadge';
 import InfoPopover from '../shell/InfoPopover';
 import { getActiveGroup } from '../utils/studioMath';
 
@@ -46,6 +47,7 @@ export default function SizesPanel({
   onToggleSplitFrames,
   onUpdateVideoZoom,
 }: SizesPanelProps) {
+  const hideVideoPro = useProHidden('zoomVideo');
   const [addingCustom, setAddingCustom] = useState(false);
   const [customLabel, setCustomLabel] = useState('');
   const [customW, setCustomW] = useState(2400);
@@ -211,7 +213,7 @@ export default function SizesPanel({
         )}
 
         <div className="space-y-1.5">
-          {photo.sizes.map((size) => {
+          {photo.sizes.filter((size) => !(size.kind === 'video' && !features.zoomVideo && hideVideoPro)).map((size) => {
             const isSelected = selectedSizeIds.includes(size.id);
             const isVideoLocked = size.kind === 'video' && !features.zoomVideo;
             return (

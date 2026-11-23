@@ -341,6 +341,8 @@ export interface WorkspaceSettings {
   /** Which side the tool rail is on. 'left' mode puts it on the right so a pencil or a left hand does not catch it. */
   hand: 'right' | 'left';
   cvdGuidance: boolean;
+  /** Basic accounts only: leave locked Pro features (and their badges) out of the interface. */
+  hideProFeatures: boolean;
   ongoingCritique: boolean;
   defaultAssistMode: AssistMode;
   language: 'en-GB' | 'en-US' | 'de-DE' | 'fr-FR';

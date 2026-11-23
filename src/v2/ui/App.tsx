@@ -5,7 +5,8 @@ import { useWorkspace } from './stub';
 import { STRINGS } from './strings';
 import BrandIcon, { assistModeIconName } from './icons/BrandIcon';
 import ProjectsHub from './screens/ProjectsHub';
-import { FeaturePlanContext } from './shell/ProBadge';
+import { canHidePro, hiddenProFeatures, panelsHiddenByPro } from '../engineClient/proVisibility';
+import { FeaturePlanContext, HiddenProContext } from './shell/ProBadge';
 import TopBar from './shell/TopBar';
 import Rail from './shell/Rail';
 import DockPanel from './shell/DockPanel';
@@ -53,6 +54,8 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   const { store, actions } = useStore();
   const { setActivePanel } = actions;
   const hasOverlays = store.features.overlayText || store.features.watermarkCustom;
+  const hiddenPro = React.useMemo(() => hiddenProFeatures(store.featurePlan, store.features, store.settings.hideProFeatures), [store.featurePlan, store.features, store.settings.hideProFeatures]);
+  const proChoiceOffered = canHidePro(store.featurePlan, store.features);
   const [shortcutGuideOpen, setShortcutGuideOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [savedKeymap, setSavedKeymap] = useState<SavedKeymap>(loadKeymap);
@@ -278,6 +281,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
 
   return (
     <FeaturePlanContext.Provider value={store.featurePlan}>
+      <HiddenProContext.Provider value={hiddenPro}>
     <div
       className="inflight-v2 fixed inset-0 flex flex-col overflow-hidden bg-[var(--bg-app)] text-[var(--text-primary)] font-[family-name:var(--font-sans)]"
       data-v2-theme={store.settings.theme}
@@ -358,7 +362,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
           <div className={`relative flex min-h-0 flex-1 overflow-hidden ${store.settings.hand === 'left' ? 'flex-row-reverse' : ''}`}>
             <Rail
               hand={store.settings.hand}
-              hiddenPanels={hasOverlays ? [] : ['overlays']}
+              hiddenPanels={[...(hasOverlays ? [] : ['overlays' as const]), ...panelsHiddenByPro(hiddenPro)]}
               assistMode={store.assistMode}
               activePanel={store.activePanel}
               panels={store.panels}
@@ -583,7 +587,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                   { id: 'settings', label: 'Settings', icon: 'settings' as const },
                 ] as const
               )
-                .filter((item) => item.id !== 'overlays' || hasOverlays)
+                .filter((item) => (item.id !== 'overlays' || hasOverlays) && !panelsHiddenByPro(hiddenPro).includes(item.id as never))
                 .map((item) => (
                   <button
                     key={item.id}
@@ -664,6 +668,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         onToggleAiProvider={actions.toggleAiProvider}
         onToggleStorageConnector={actions.toggleStorageConnector}
         onEraseDeviceData={actions.eraseDeviceData}
+        proChoiceOffered={proChoiceOffered}
       />
 
       {shortcutGuideOpen && store.screen === 'editor' && (
@@ -692,6 +697,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         </div>
       )}
     </div>
+      </HiddenProContext.Provider>
     </FeaturePlanContext.Provider>
   );
 }

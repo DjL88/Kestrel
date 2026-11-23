@@ -37,6 +37,8 @@ interface SettingsDialogProps {
   onToggleAiProvider: (id: AiProviderConfig['id']) => void;
   onToggleStorageConnector: (id: StorageConnector['id']) => void;
   onEraseDeviceData: () => void;
+  /** True on a Basic account: show the Hide Pro features choice. */
+  proChoiceOffered?: boolean;
 }
 
 const TABS: Array<{ id: SettingsTabId; label: string; icon: BrandIconName }> = [
@@ -66,6 +68,7 @@ export default function SettingsDialog({
   onToggleAiProvider,
   onToggleStorageConnector,
   onEraseDeviceData,
+  proChoiceOffered = false,
 }: SettingsDialogProps) {
   const [eraseText, setEraseText] = useState('');
   const [email, setEmail] = useState('');
@@ -196,6 +199,30 @@ export default function SettingsDialog({
                     {settings.calmView ? 'On' : 'Off'}
                   </button>
                 </section>
+
+                {/* Basic accounts only: leave locked Pro features out of the interface so they are not a constant reminder. */}
+                {proChoiceOffered && (
+                  <section className="flex items-start justify-between gap-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-4">
+                    <div>
+                      <h3 id="hide-pro-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.settings.appearance.hideProLabel}</h3>
+                      <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">{STRINGS.settings.appearance.hideProDesc}</p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={settings.hideProFeatures}
+                      aria-labelledby="hide-pro-title"
+                      onClick={() => onUpdateSettings({ hideProFeatures: !settings.hideProFeatures })}
+                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                        settings.hideProFeatures
+                          ? 'bg-[var(--brand-accent)] text-[var(--text-on-accent)]'
+                          : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
+                      }`}
+                    >
+                      {settings.hideProFeatures ? 'On' : 'Off'}
+                    </button>
+                  </section>
+                )}
 
                 <section className="space-y-2">
                   <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.hand.label}</h3>

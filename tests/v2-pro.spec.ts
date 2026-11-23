@@ -154,3 +154,12 @@ test('Pro: an overlay is saved as a template on this device, kept after a reload
   await page.locator('.inflight-v2').getByRole('button', { name: 'Delete Wildlife credit' }).click();
   await expect(page.locator('.inflight-v2').getByText('No templates yet.')).toBeVisible();
 });
+
+test('Pro: the Hide Pro features choice is not offered to an account that has Pro, and nothing is hidden', async ({ page }) => {
+  const root = await openProject(page, 'Pro account check', '#304050');
+  await expect(root.getByRole('button', { name: 'Overlays', exact: true }).first()).toBeVisible();
+  await root.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('tab', { name: 'Appearance' }).or(page.getByRole('button', { name: 'Appearance' })).first().click();
+  await expect(page.getByRole('switch', { name: 'Calm View' }).or(page.getByRole('switch').first())).toBeVisible();
+  await expect(page.getByRole('switch', { name: 'Hide Pro features' })).toHaveCount(0);
+});

@@ -7,6 +7,10 @@ import { STRINGS } from '../strings';
 /** Which plan each feature belongs to. Provided once by the app; a feature that is Basic shows no badge. */
 export const FeaturePlanContext = createContext<Partial<Record<FeatureKey, 'basic' | 'pro'>>>({});
 
+/** Locked Pro features the person asked not to see (Settings > Appearance > Hide Pro features). Their badges, buttons and notes are left out. */
+export const HiddenProContext = createContext<readonly FeatureKey[]>([]);
+export const useProHidden = (feature: FeatureKey): boolean => useContext(HiddenProContext).includes(feature);
+
 /**
  * The InFlight Pro badge, from the brand pack. It is the word "Pro" drawn in the badge, and it always comes with the
  * words "Part of InFlight Pro" for screen readers and as a tooltip, so it never relies on colour. Shows only for Pro
@@ -14,7 +18,8 @@ export const FeaturePlanContext = createContext<Partial<Record<FeatureKey, 'basi
  */
 export default function ProBadge({ feature, className = '' }: { feature: FeatureKey; className?: string }) {
   const plan = useContext(FeaturePlanContext)[feature];
-  if (plan !== 'pro') return null;
+  const hidden = useProHidden(feature);
+  if (plan !== 'pro' || hidden) return null;
   return (
     <span className={`inline-flex shrink-0 items-center ${className}`} title={STRINGS.pro.partOf}>
       <img src={proDark} alt="" aria-hidden="true" className="v2-pro-dark h-4 w-auto" draggable={false} />

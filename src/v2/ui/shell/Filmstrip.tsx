@@ -2,7 +2,7 @@ import { planFilmstrip } from '../../engineClient/burstGroups';
 import React, { useEffect, useRef, useState } from 'react';
 import type { AssistMode, LookPreset, Photo } from '../contract';
 import { STRINGS } from '../strings';
-import ProBadge from './ProBadge';
+import ProBadge, { useProHidden } from './ProBadge';
 import BrandIcon from '../icons/BrandIcon';
 import { filterPhotos } from '../utils/studioMath';
 
@@ -71,6 +71,7 @@ export default function Filmstrip({
   onRunAutoCull,
   onExportSelected,
 }: FilmstripProps) {
+  const hideAutoCull = useProHidden('smartCulling');
   const [searchOpen, setSearchOpen] = useState(false);
   const [expandedBursts, setExpandedBursts] = useState<Set<string>>(() => new Set());
   const [minimumRating, setMinimumRating] = useState(0);
@@ -245,6 +246,7 @@ export default function Filmstrip({
             <span>Folder</span>
           </button>
 
+          {!hideAutoCull && (
           <button
             type="button"
             onClick={onRunAutoCull}
@@ -257,6 +259,7 @@ export default function Filmstrip({
             </span>
             <ProBadge feature="smartCulling" />
           </button>
+          )}
         </div>
 
         {/* Right: Multi-select batch actions OR Search + All/Flagged filter + Hide toggle */}
