@@ -93,3 +93,51 @@ test('fingerprint refuses byte source whose size mutates while being read', asyn
   };
   await assert.rejects(hashOriginalBytes(changing), /changed during fingerprint/);
 });
+
+test('fingerprint stops before consuming a chunk when source size changes during its read', async () => {
+  let calls = 0;
+  const source = {
+    size: 4,
+    slice() {
+      calls++;
+      this.size = 5;
+      return { arrayBuffer: async () => new Uint8Array([1, 2, 3, 4]).buffer };
+    },
+  };
+  await assert.rejects(hashOriginalBytes(source), /changed during fingerprint/);
+  assert.equal(calls, 1);
+});
+
+test('fingerprint refuses cancellation while final ranged read is pending', async () => {
+  const controller = new AbortController();
+  let reads = 0;
+  const source = {
+    size: 3,
+    slice() {
+      reads++;
+      return { arrayBuffer: async () => {
+        controller.abort();
+        return new Uint8Array([1, 2, 3]).buffer;
+      } };
+    },
+  };
+  await assert.rejects(hashOriginalBytes(source, controller.signal), /cancelled/);
+  assert.equal(reads, 1);
+});
+
+test('fingerprint does not request subsequent chunks after a changed first chunk', async () => {
+  const originalSize = 1024 * 1024 + 3;
+  let reads = 0;
+  const source = {
+    size: originalSize,
+    slice(start: number, end: number) {
+      reads++;
+      return { arrayBuffer: async () => {
+        this.size++;
+        return new Uint8Array(end - start).buffer;
+      } };
+    },
+  };
+  await assert.rejects(hashOriginalBytes(source), /changed during fingerprint/);
+  assert.equal(reads, 1);
+});

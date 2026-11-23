@@ -17,6 +17,8 @@ export async function hashOriginalBytes(blob: OriginalByteSource, signal?: Abort
     if (signal?.aborted) throw new Error('Original fingerprint cancelled.');
     const end = Math.min(offset + CHUNK_BYTES, size);
     const bytes = new Uint8Array(await blob.slice(offset, end).arrayBuffer());
+    if (blob.size !== size) throw new Error('Original byte length changed during fingerprint.');
+    if (signal?.aborted) throw new Error('Original fingerprint cancelled.');
     if (bytes.byteLength !== end - offset) {
       throw new Error('Original ended before the expected bytes; fingerprint refused.');
     }
