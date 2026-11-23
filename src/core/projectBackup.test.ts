@@ -116,3 +116,19 @@ test('Brightness adjustments survive portable backups and old backups remain com
   const legacy = restoreProjectBackup(JSON.stringify(older), 'old');
   assert.equal(legacy.frames[0].edit?.brightness, undefined, 'older projects remain neutral by default');
 });
+
+test('portable restore rejects corrupt original SHA-256 and preserves legacy missing fingerprint', () => {
+  const project = createDemoShootState(1);
+  const digest = 'a'.repeat(64);
+  project.frames[0].originalSha256 = digest;
+  const valid = encodeProjectBackup(project);
+  assert.equal(restoreProjectBackup(valid, 'restored').frames[0].originalSha256, digest);
+  for (const invalid of ['', 'unknown', 'A'.repeat(64), 'f'.repeat(63), 'z'.repeat(64), 123, null]) {
+    const damaged = JSON.parse(valid);
+    damaged.project.frames[0].originalSha256 = invalid;
+    assert.throws(() => restoreProjectBackup(JSON.stringify(damaged), 'restored'), /invalid catalogue data/, String(invalid));
+  }
+  const legacy = JSON.parse(valid);
+  delete legacy.project.frames[0].originalSha256;
+  assert.equal(restoreProjectBackup(JSON.stringify(legacy), 'restored').frames[0].originalSha256, undefined);
+});
