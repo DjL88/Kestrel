@@ -133,7 +133,8 @@ export function restoreProjectBackup(contents: string, id: string, now = Date.no
   }
   const { shoot, frames, selectedFrameId, compareRightFrameId, filter, searchQuery, keeperTarget, autoAdvance } = envelope.project;
   if (!descriptorIsValid(shoot) || !Array.isArray(frames) || !frames.every(frameIsValid) ||
-    !oneOf(filter, filters) || !text(searchQuery) || !number(keeperTarget, 1, 9999) || typeof autoAdvance !== 'boolean') {
+    !oneOf(filter, filters) || !text(searchQuery) || !number(keeperTarget, 1, 9999) ||
+    !Number.isSafeInteger(keeperTarget) || typeof autoAdvance !== 'boolean') {
     throw new Error('The project backup has missing or invalid catalogue data.');
   }
   // A stableKey denotes one original source. A damaged or hand-edited backup
