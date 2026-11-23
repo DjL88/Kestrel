@@ -132,6 +132,13 @@ async function main() {
     if (suffix === '/' && embeddedEditor(data) !== embedded) {
       throw new Error('Live homepage is stale: expected the ' + embedded + ' editor iframe.');
     }
+    // HTML pages are release artifacts too: matching script names is insufficient.
+    if (suffix === '/' || suffix === callbackPath || suffix === privacyPath) {
+      const localPath = suffix === '/' ? 'index.html' : suffix.slice(1);
+      if (data !== requireText(join(dir, localPath))) {
+        throw new Error('Live website page differs from the verified local build: ' + suffix);
+      }
+    }
     const expected = localEntries.get(suffix);
     if (expected) {
       const liveAssets = builtAssets(data);
