@@ -18,7 +18,7 @@ export function parseSavedUi(raw: string | null): SavedUi {
     const entry = value as Record<string, unknown>;
     const source = (entry.settings && typeof entry.settings === 'object' ? entry.settings : {}) as Record<string, unknown>;
     const settings: SavedUi['settings'] = {};
-    if (source.theme === 'dark' || source.theme === 'light') settings.theme = source.theme;
+    if (source.theme === 'dark' || source.theme === 'light' || source.theme === 'auto') settings.theme = source.theme;
     if (typeof source.calmView === 'boolean') settings.calmView = source.calmView;
     if (source.touchDensity === 'comfortable' || source.touchDensity === 'compact') settings.touchDensity = source.touchDensity;
     if (typeof source.cvdGuidance === 'boolean') settings.cvdGuidance = source.cvdGuidance;

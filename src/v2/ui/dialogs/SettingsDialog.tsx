@@ -146,7 +146,20 @@ export default function SettingsDialog({
                   <h3 className="text-xs font-semibold text-[var(--text-primary)]">
                     {STRINGS.settings.appearance.themeLabel}
                   </h3>
-                  <div className="grid grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-3 gap-2.5">
+                    <button
+                      type="button"
+                      aria-pressed={settings.theme === 'auto'}
+                      onClick={() => onUpdateSettings({ theme: 'auto' })}
+                      className={`flex items-center gap-2.5 rounded-[var(--radius-md)] border p-3 text-left transition-colors ${
+                        settings.theme === 'auto'
+                          ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--text-primary)]'
+                          : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'
+                      }`}
+                    >
+                      <BrandIcon name="clock" size={18} />
+                      <span className="text-xs font-semibold">Auto</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => onUpdateSettings({ theme: 'dark' })}
