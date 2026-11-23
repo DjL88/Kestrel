@@ -46,7 +46,9 @@ test('edits made during a slow folder backup remain due and restore from the nex
   const written: string[] = [];
   const folder = {
     async getDirectoryHandle() { return folder; },
-    async getFileHandle() { return { async createWritable() { return {
+    async getFileHandle() { return {
+      async getFile() { return new Blob([written.at(-1) ?? ""]); },
+      async createWritable() { return {
       async write(bytes: Uint8Array) { written.push(new TextDecoder().decode(bytes)); if (written.length === 1) { started.resolve(); await release.promise; } },
       async close() {},
     }; } }; },
@@ -99,7 +101,9 @@ function folderAt(path: string): FileSystemDirectoryHandle {
       return folderAt(child);
     },
     async getFileHandle(name: string) {
-      return { async createWritable() {
+      return {
+        async getFile() { return new Blob([await readFile(join(path, name))]); },
+        async createWritable() {
         let pending: Uint8Array;
         return {
           async write(bytes: Uint8Array) { pending = bytes; },

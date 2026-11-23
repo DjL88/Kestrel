@@ -260,14 +260,14 @@ export default function SizesPanel({
               ref={customLabelInput}
               value={customLabel}
               onChange={(e) => setCustomLabel(e.target.value)}
-              placeholder="Format label (e.g. A3 Print)"
+              placeholder={STRINGS.formats.formatLabelPlaceholder}
               className="h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]"
             />
             <div className="grid grid-cols-2 gap-2">
               <label className="space-y-1 text-[11px] text-[var(--text-secondary)]">
                 <span>Size</span>
                 <select
-                  aria-label="Paper size"
+                  aria-label={STRINGS.formats.paperSizeLabel}
                   value={paperPreset}
                   onChange={(e) => handlePaperPreset(e.target.value as PaperPreset)}
                   className="h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]"
@@ -284,7 +284,7 @@ export default function SizesPanel({
                 <select
                   value={paperOrientation}
                   onChange={(e) => changeOrientation(e.target.value as PaperOrientation)}
-                  aria-label="Canvas orientation"
+                  aria-label={STRINGS.formats.canvasOrientationLabel}
                   className="h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]"
                 >
                   <option value="portrait">Portrait</option>
@@ -592,7 +592,7 @@ export default function SizesPanel({
             <BrandIcon name="split-panorama" size={15} />
             {STRINGS.formats.splitHeading} · {activeSize.label}
           </h3>
-          <div role="group" aria-label="Number of continuous frames" className="grid grid-cols-3 gap-1.5">
+          <div role="group" aria-label={STRINGS.formats.splitFrameCount} className="grid grid-cols-3 gap-1.5">
             {([1, 2, 3] as const).map((count) => (
               <button
                 key={count}
@@ -606,13 +606,12 @@ export default function SizesPanel({
                     : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                 }`}
               >
-                {count === 1 ? 'Rejoin (1)' : `${count} frames`}
+                {STRINGS.formats.splitFrameChoice(count)}
               </button>
             ))}
           </div>
           <p className="text-[11px] text-[var(--text-muted)]">
-            One continuous photo across {activeSplitCount === 1 ? 'one frame' : `${activeSplitCount} adjacent frames`}.
-            Each frame is exported as its own numbered image. Your original stays unchanged.
+            {STRINGS.formats.splitFrameHelp(activeSplitCount)}
           </p>
         </section>
       )}

@@ -1,8 +1,9 @@
 import { createContext, useContext } from 'react';
 import type { FeatureKey } from '../contract';
-import proDark from '../../../assets/brand/pro/inflight-pro-badge-dark.svg';
-import proLight from '../../../assets/brand/pro/inflight-pro-badge-light.svg';
 import { STRINGS } from '../strings';
+
+const proDark = new URL('../../../assets/brand/pro/inflight-pro-badge-dark.svg', import.meta.url).href;
+const proLight = new URL('../../../assets/brand/pro/inflight-pro-badge-light.svg', import.meta.url).href;
 
 /** Which plan each feature belongs to. Provided once by the app; a feature that is Basic shows no badge. */
 export const FeaturePlanContext = createContext<Partial<Record<FeatureKey, 'basic' | 'pro'>>>({});
