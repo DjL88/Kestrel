@@ -241,6 +241,8 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             onRotateSizes={actions.rotateSelectedSizes}
             onResetSizeCrop={actions.resetSizeCrop}
             onAddCustomSize={actions.addCustomSize}
+            onSetOriginalOutputSize={actions.setOriginalOutputSize}
+            onResetOriginalOutputSize={actions.resetOriginalOutputSize}
             onToggleSplitFrames={actions.toggleSplitFrames}
             onUpdateVideoZoom={actions.updateVideoZoom}
           />

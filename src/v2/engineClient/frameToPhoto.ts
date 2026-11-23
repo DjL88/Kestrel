@@ -1,4 +1,4 @@
-import { applyFormats, applySizeLinked, ratioLabelFor } from './formatOps';
+import { applyFormats, applySizeLinked } from './formatOps';
 import { framedSize, DEFAULT_FRAMING } from '../../core/photoFraming';
 import { readVideoZoom } from './videoZoomOps';
 import { readSplitFrames, readSplitPanOffset } from './splitFrameOps';
@@ -84,6 +84,12 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     verifiedOriginalSize.width > 0 && verifiedOriginalSize.height > 0
     ? framedSize(verifiedOriginalSize.width, verifiedOriginalSize.height, frame.framing ?? DEFAULT_FRAMING) : null;
   const { exif } = frame;
+  // Recorded sensor dimensions are evidence for the *format shape*, not proof
+  // that a preview-only RAW has full native pixels available to export.
+  const reportedSize = exif.width && exif.height && Number.isSafeInteger(exif.width) &&
+    Number.isSafeInteger(exif.height) && exif.width > 0 && exif.height > 0
+    ? framedSize(exif.width, exif.height, frame.framing ?? DEFAULT_FRAMING) : null;
+  const originalFormatSize = nativeSize ?? reportedSize;
   // The UI's sample group carries a made-up look. A real photo starts from its own edit: neutral until the person edits it.
   const board = readBoard(frame.boardPositions);
   const crops = readCrops(frame.sizeCrops);
@@ -121,7 +127,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     ...(nativeSize ? { pixelSize: { width: nativeSize.width, height: nativeSize.height } } : exif.width && exif.height ? { pixelSize: { width: exif.width, height: exif.height } } : pixelSize ? { pixelSize } : {}),
     activeGroupId: groups[0].id,
     editGroups: groups,
-    sizes: applySizeLinked(applyFormats(createDefaultSizes(), frame.formats).map((size) => { const crop = crops[size.id]; const at = board[size.id]; const native = size.id === 'orig-3x2' && nativeSize ? { label: 'Original', width: nativeSize.width, height: nativeSize.height, ratioLabel: ratioLabelFor(nativeSize.width, nativeSize.height) } : {}; return { ...size, ...native, ...(crop ? { crop } : {}), ...(at ? { boardX: at.x, boardY: at.y } : {}) }; }), frame.sizeLinked),
+    sizes: applySizeLinked(applyFormats(createDefaultSizes(), frame.formats, originalFormatSize).map((size) => { const crop = crops[size.id]; const at = board[size.id]; return { ...size, ...(crop ? { crop } : {}), ...(at ? { boardX: at.x, boardY: at.y } : {}) }; }), frame.sizeLinked),
     formatSplits: frame.formatSplits === undefined && frame.splitFrames === true
       ? { 'orig-3x2': { enabled: true, offset: readSplitPanOffset(frame.splitPanOffset) } }
       : readFormatSplits(frame.formatSplits),

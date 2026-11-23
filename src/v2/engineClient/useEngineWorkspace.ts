@@ -47,7 +47,7 @@ import { runDeepVisionReview } from './deepVisionReview';
 import { planExport } from './exportOps';
 import { verifyExactOriginalCopy } from './verifiedOriginalCopy';
 import { TEMPLATES_KEY, addTemplate, deleteTemplate, overlayFromTemplate, readTemplates, renameTemplate, type OverlayTemplate } from './overlayTemplates';
-import { addFormat, applyFormats, readFormats, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize } from './formatOps';
+import { addFormat, applyFormats, readFormats, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize, setOriginalOutputSize, resetOriginalOutputSize } from './formatOps';
 import { patchVideoZoom } from './videoZoomOps';
 import { setFormatSplitOffset, toggleFormatSplit } from './formatSplitOps';
 import { readSplitPanOffset } from './splitFrameOps';
@@ -443,7 +443,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         const image = nativeRaster
           ? await loadVerifiedRasterOriginalForExport(frame, provider.current!)
           : await loadExportSource(frame, provider.current!);
-        const nativeSize = nativeRaster
+        // The photographer may deliberately set a different Original output
+        // canvas. In that case respect its own persisted dimensions, while still
+        // loading real raster pixels instead of a cached preview.
+        const nativeSize = nativeRaster && !readFormats(frame.formats).originalSize
           ? framedSize(image.naturalWidth, image.naturalHeight, frame.framing ?? DEFAULT_FRAMING)
           : null;
         // Preserve an explicit export size limit; Original is full decoded size only
@@ -1146,11 +1149,18 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     },
     renameOverlayTemplate: (templateId, name) => updateTemplates(renameTemplate(templates, templateId, name)),
     deleteOverlayTemplate: (templateId) => updateTemplates(deleteTemplate(templates, templateId)),
-    toggleSizeEnabled: (photoId, sizeId) => changeFormats(photoId, (raw) => toggleFormat(raw, sizeId)),
+    toggleSizeEnabled: (photoId, sizeId) => changeFormats(photoId, (raw) => toggleFormat(raw, sizeId, createDefaultSizes().find((size) => size.id === sizeId)?.enabled ?? true)),
     toggleSizeLinked,
     updateVideoZoom,
     toggleSplitFrames,
     setSplitPanOffset,
+    setOriginalOutputSize: (photoId, width, height) => {
+      if (!validCustomSize(width, height)) { setNotice('Use whole pixels between 1 and 20,000 for the Original output canvas.'); return; }
+      changeFormats(photoId, (raw) => setOriginalOutputSize(raw, width, height));
+    },
+    resetOriginalOutputSize: (photoId) => {
+      changeFormats(photoId, resetOriginalOutputSize);
+    },
     addCustomSize: (photoId, label, width, height) => {
       if (!validCustomSize(width, height)) { setNotice('That size is not usable. Use whole pixels, from 1 to 20,000.'); return; }
       const id = `custom-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 10)}`;
@@ -1159,7 +1169,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     },
     duplicateSize: (photoId, sizeId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
-      const source = applyFormats(createDefaultSizes(), frame?.formats).find((size) => size.id === sizeId);
+      const source = applyFormats(createDefaultSizes(), frame?.formats,
+        frame?.exif.width && frame.exif.height ? framedSize(frame.exif.width, frame.exif.height, frame.framing ?? DEFAULT_FRAMING) : null).find((size) => size.id === sizeId);
       if (!frame || !source) return;
       const id = `custom-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 10)}`;
       if (!changeFormats(photoId, (raw) => addFormat(raw, `${source.label} copy`, source.width, source.height, id), (crops) => { const own = readCrops(crops)[sizeId]; return own ? { ...readCrops(crops), [id]: own } : readCrops(crops); })) { setNotice('This photo already has the most formats it can hold.'); return; }
@@ -1167,7 +1178,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     },
     removeSize: (photoId, sizeId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
-      const remaining = applyFormats(createDefaultSizes(), frame?.formats).filter((size) => size.kind === 'photo' && size.enabled && size.id !== sizeId);
+      const remaining = applyFormats(createDefaultSizes(), frame?.formats,
+        frame?.exif.width && frame.exif.height ? framedSize(frame.exif.width, frame.exif.height, frame.framing ?? DEFAULT_FRAMING) : null).filter((size) => size.kind === 'photo' && size.enabled && size.id !== sizeId);
       if (!remaining.length) { setNotice('A photo needs at least one format.'); return; }
       changeFormats(photoId, (raw) => removeFormat(raw, sizeId), (crops) => { const next = { ...readCrops(crops) }; if (sizeId.startsWith('custom-')) delete next[sizeId]; return next; });
       if (stub.store.activeSizeId === sizeId) stub.actions.setActiveSize(remaining[0].id);

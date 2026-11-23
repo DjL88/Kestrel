@@ -187,14 +187,28 @@ export const INITIAL_WATERMARKS: WatermarkPreset[] = [
 export function createDefaultSizes(): SizePreset[] {
   return [
     {
-      id: 'orig-3x2',
-      label: 'Original 3:2',
+      id: 'orig-3x2', // Historic saved ID: now means ORIGINAL, not a 3:2 preset.
+      label: 'Original',
+      platform: 'print',
+      width: 1,
+      height: 1,
+      ratioLabel: 'Unknown',
+      kind: 'photo',
+      enabled: true,
+      linked: true,
+      crop: { ...DEFAULT_CROP },
+      boardX: 0,
+      boardY: 0,
+    },
+    {
+      id: 'format-3x2',
+      label: '3:2',
       platform: 'print',
       width: 3000,
       height: 2000,
       ratioLabel: '3:2',
       kind: 'photo',
-      enabled: true,
+      enabled: false,
       linked: true,
       crop: { ...DEFAULT_CROP },
       boardX: 0,
@@ -1551,6 +1565,24 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
+    setOriginalOutputSize: (photoId, width, height) => {
+      if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1 || width > 20000 || height > 20000) return;
+      updatePhotoById(photoId, (photo) => ({
+        ...photo,
+        sizes: photo.sizes.map((size) => size.id === 'orig-3x2'
+          ? { ...size, width, height, ratioLabel: `${width}×${height}` }
+          : size),
+      }));
+    },
+    resetOriginalOutputSize: (photoId) => {
+      // Only restore a size that the prototype actually knows. Never invent
+      // a 3:2 shape as a supposed imported original.
+      updatePhotoById(photoId, (photo) => photo.pixelSize
+        ? { ...photo, sizes: photo.sizes.map((size) => size.id === 'orig-3x2'
+          ? { ...size, width: photo.pixelSize!.width, height: photo.pixelSize!.height,
+            ratioLabel: `${photo.pixelSize!.width}×${photo.pixelSize!.height}` } : size) }
+        : photo);
+    },
     addCustomSize: (photoId, label, width, height) => {
       logAction('addCustomSize', { photoId, label, width, height });
       const id = `custom-${Date.now()}`;

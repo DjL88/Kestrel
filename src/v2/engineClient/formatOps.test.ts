@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { DEFAULT_CROP } from './cropOps.ts';
-import { addFormat, applyFormats, applySizeLinked, isSizeLinked, newCustomId, ratioLabelFor, readFormats, readSizeLinked, removeFormat, swapFormatOrientation, toggleFormat, toggleSizeLinked } from './formatOps.ts';
+import { addFormat, applyFormats, applySizeLinked, isSizeLinked, newCustomId, ratioLabelFor, readFormats, readSizeLinked, setOriginalOutputSize, resetOriginalOutputSize, removeFormat, swapFormatOrientation, toggleFormat, toggleSizeLinked } from './formatOps.ts';
 import { createDefaultSizes } from '../ui/stub.ts';
 import type { CropTransform, SizePreset } from '../ui/contract.ts';
 
@@ -30,9 +30,9 @@ test('built-in opt-in starts hidden, can be enabled then switched off again on o
 
 test('Original remains enabled by default but can be explicitly toggled off and on', () => {
   const off = toggleFormat(undefined, 'orig-3x2', true);
-  assert.equal(applyFormats(createDefaultSizes(), off).find((size) => size.id === 'orig-3x2')?.enabled, false);
+  assert.equal(applyFormats(createDefaultSizes(), off, { width: 8256, height: 5504 }).find((size) => size.id === 'orig-3x2')?.enabled, false);
   const on = toggleFormat(off, 'orig-3x2', true);
-  assert.equal(applyFormats(createDefaultSizes(), on).find((size) => size.id === 'orig-3x2')?.enabled, true);
+  assert.equal(applyFormats(createDefaultSizes(), on, { width: 8256, height: 5504 }).find((size) => size.id === 'orig-3x2')?.enabled, true);
 });
 
 test('legacy disabled lists and user-selected opt-in formats survive a save/reopen', () => {
@@ -151,4 +151,40 @@ test('rotate format on a square leaves its width, height and ratio label unchang
   assert.equal(swapped.width, 480);
   assert.equal(swapped.height, 480);
   assert.equal(swapped.ratioLabel, '1:1');
+});
+
+test('Original shape follows the imported photograph, never a fixed 3:2 preset', () => {
+  const defaults = createDefaultSizes();
+  for (const native of [{ width: 8256, height: 5504 }, { width: 4000, height: 3000 }, { width: 3000, height: 4000 }]) {
+    const original = applyFormats(defaults, undefined, native).find((size) => size.id === 'orig-3x2')!;
+    assert.equal(original.label, 'Original');
+    assert.equal(original.width, native.width);
+    assert.equal(original.height, native.height);
+    assert.equal(original.enabled, true);
+  }
+  const unknown = applyFormats(defaults, undefined).find((size) => size.id === 'orig-3x2')!;
+  assert.equal(unknown.enabled, false);
+  assert.equal(unknown.ratioLabel, 'Unknown');
+});
+
+test('Original can be resized only as output canvas, reset to import, and hidden without deletion', () => {
+  const formats = setOriginalOutputSize(undefined, 2000, 3000)!;
+  const original = applyFormats(createDefaultSizes(), formats, { width: 8256, height: 5504 })[0];
+  assert.deepEqual([original.width, original.height, original.ratioLabel], [2000, 3000, '2:3']);
+  const reset = resetOriginalOutputSize(formats);
+  const restored = applyFormats(createDefaultSizes(), reset, { width: 8256, height: 5504 })[0];
+  assert.equal(restored.width, 8256);
+  const hidden = removeFormat(reset, 'orig-3x2');
+  const item = applyFormats(createDefaultSizes(), hidden, { width: 8256, height: 5504 })[0];
+  assert.equal(item.enabled, false);
+  assert.equal(item.id, 'orig-3x2');
+});
+
+test('3:2 is a separate optional format', () => {
+  const defaults = createDefaultSizes();
+  const extra = defaults.find((size) => size.id === 'format-3x2')!;
+  assert.equal(extra.enabled, false);
+  assert.deepEqual([extra.width, extra.height], [3000, 2000]);
+  const enabled = toggleFormat(undefined, 'format-3x2', false);
+  assert.equal(applyFormats(defaults, enabled, { width: 4000, height: 3000 }).find((size) => size.id === 'format-3x2')?.enabled, true);
 });
