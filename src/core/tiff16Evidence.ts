@@ -40,7 +40,7 @@ export function inspectTiff16Structure(bytes: Uint8Array): { ok: true; width: nu
   if (!samples || samples < 1 || samples > 4 || !bits || bits.length !== samples || bits.some(bit => bit !== 16)) {
     return fail('TIFF does not declare 16 bits for every channel.');
   }
-  // Only certify a conservative, interleaved, uncompressed strip layout.
+  // RGB needs three colour samples; a fourth requires a declared extra channel.\n  // Without this, two-channel data can masquerade as RGB and unlabelled alpha as colour.\n  if (samples === 2) return fail('Two-channel data cannot be certified as RGB TIFF.');\n  if (samples === 4) {\n    const extra = values(338);\n    if (!extra || extra.length !== 1 || ![1, 2].includes(extra[0])) {\n      return fail('Four-channel RGB TIFF needs a declared associated or unassociated alpha sample.');\n    }\n  }\n  // Only certify a conservative, interleaved, uncompressed strip layout.
   // Tags alone are not sufficient: the declared raster bytes must actually exist.
   if (values(259)?.[0] !== 1 || values(284)?.[0] !== 1 ||
       values(262)?.[0] !== (samples === 1 ? 1 : 2)) {
