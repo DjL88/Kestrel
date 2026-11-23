@@ -4,6 +4,7 @@ import { STRINGS } from '../strings';
 import BrandIcon, { BrandLogo } from '../icons/BrandIcon';
 import { useLicence } from '../../../providers/licenceStore';
 import { footerKiteLogo } from '../footerKiteLogo';
+import { DEFAULT_TARGET, parseTarget, WIZARD_DEFAULTS, type ProjectPilotMode } from '../../../core/projectSettings';
 
 interface ProjectsHubProps {
   projects: Project[];
@@ -43,6 +44,9 @@ export default function ProjectsHub({
   const [failedCovers, setFailedCovers] = useState<string[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [projectName, setProjectName] = useState('');
+  const [keeperTargetInput, setKeeperTargetInput] = useState(String(DEFAULT_TARGET));
+  const [projectPilotMode, setProjectPilotMode] = useState<ProjectPilotMode>('solo');
+  const [projectCreateError, setProjectCreateError] = useState('');
 
   const [showArchived, setShowArchived] = useState(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
@@ -61,8 +65,14 @@ export default function ProjectsHub({
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!projectName.trim()) return;
-    onCreateProject(projectName);
+    const keeperTarget = parseTarget(keeperTargetInput);
+    if (keeperTarget === null) { setProjectCreateError('Enter a target from 1 to 9,999 photographs.'); return; }
+    onCreateProject(projectName.trim(), {
+      keeperTarget,
+      settings: { ...WIZARD_DEFAULTS, pilotMode: projectPilotMode },
+    });
     setProjectName('');
+    setProjectCreateError('');
     setModalOpen(false);
   };
 
@@ -337,6 +347,34 @@ export default function ProjectsHub({
                 className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-primary)]"
               />
             </div>
+            <div className="space-y-1.5">
+              <label htmlFor="project-keeper-target" className="text-xs font-medium text-[var(--text-secondary)]">Target final photographs</label>
+              <input id="project-keeper-target" type="number" min={1} max={9999} step={1} required value={keeperTargetInput}
+                onChange={(e) => { setKeeperTargetInput(e.target.value); setProjectCreateError(''); }}
+                className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-primary)]" />
+              <p className="text-[11px] text-[var(--text-muted)]">A review target, not an automatic deletion limit. You decide which photos to keep.</p>
+            </div>
+            <fieldset className="space-y-2">
+              <legend className="text-xs font-medium text-[var(--text-secondary)]">Pilot mode for this project</legend>
+              {([
+                ['solo', 'Solo', 'You control every edit. No automatic suggestions.'],
+                ['copilot', 'Co-Pilot', 'InFlight suggests edits; you choose what to apply.'],
+                ['autopilot', 'Auto-Pilot', 'InFlight can apply eligible local automatic edits; you can undo them.'],
+              ] as const).map(([value, label, description]) => (
+                <label key={value} className="flex cursor-pointer items-start gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2">
+                  <input type="radio" name="project-pilot-mode" value={value} checked={projectPilotMode === value}
+                    onChange={() => setProjectPilotMode(value)} className="mt-0.5 accent-[var(--brand-accent)]"/>
+                  <span className="text-xs text-[var(--text-primary)]"><strong>{label}</strong><span className="mt-0.5 block text-[11px] text-[var(--text-secondary)]">{description}</span></span>
+                </label>
+              ))}
+            </fieldset>
+            <fieldset className="space-y-1.5">
+              <legend className="text-xs font-medium text-[var(--text-secondary)]">Optional cloud and learning</legend>
+              <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]"><input type="checkbox" disabled /> Share learning statistics with Kite44 — unavailable until consent is connected</label>
+              <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]"><input type="checkbox" disabled /> Upload/backup to Pro Cloud — unavailable until sign-in and cloud backup work</label>
+              <p className="text-[11px] text-[var(--text-muted)]">Both are off. No photos or data are uploaded when you create a project.</p>
+            </fieldset>
+            {projectCreateError && <p role="alert" className="text-xs text-[var(--semantic-danger)]">{projectCreateError}</p>}
             <button
               type="button"
               onClick={() => { setModalOpen(false); onCreateFromFolder(); }}
