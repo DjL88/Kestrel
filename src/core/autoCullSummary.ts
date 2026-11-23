@@ -8,9 +8,9 @@ import type { CullSuggestion } from './autoCull';
 export function summarizeCullSuggestions(results: readonly CullSuggestion[]) {
   const byFrame = new Map<string, 'keep' | 'duplicate' | 'otherReject' | 'review'>();
   for (const result of results) {
-    const outcome = result.confidence === 'high' && result.decision === 'keep'
+    // A malformed worker score is not evidence of a confident decision.\n    const validScore = Number.isFinite(result.score) && result.score >= 0 && result.score <= 100;\n    const outcome = validScore && result.confidence === 'high' && result.decision === 'keep'
       ? 'keep'
-      : result.confidence === 'high' && result.decision === 'reject'
+      : validScore && result.confidence === 'high' && result.decision === 'reject'
         ? result.reason === 'duplicate' ? 'duplicate' : 'otherReject'
         : 'review';
     const previous = byFrame.get(result.frameId);
