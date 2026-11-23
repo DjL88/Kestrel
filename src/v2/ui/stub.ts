@@ -1612,11 +1612,22 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
 
     toggleSplitFrames: (photoId) => {
       logAction('toggleSplitFrames', { photoId });
-      updatePhotoById(photoId, (photo) => ({
-        ...photo,
-        editGroups: photo.editGroups.map((g) =>
-          g.id === photo.activeGroupId ? { ...g, splitFrames: !g.splitFrames } : g
-        ),
+      setStore((prev) => ({
+        ...prev,
+        photos: prev.photos.map((photo) => {
+          if (photo.id !== photoId) return photo;
+          const sizeId = prev.activeSizeId || photo.sizes[0]?.id;
+          if (!sizeId) return photo;
+          const current = photo.formatSplits?.[sizeId]?.enabled === true;
+          const formatSplits = { ...(photo.formatSplits ?? {}) };
+          if (current) delete formatSplits[sizeId];
+          else formatSplits[sizeId] = { enabled: true, offset: 0 };
+          return {
+            ...photo, formatSplits,
+            editGroups: photo.editGroups.map((g) =>
+              g.id === photo.activeGroupId ? { ...g, splitFrames: !current } : g),
+          };
+        }),
       }));
     },
 
@@ -1631,7 +1642,10 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
           enabled: true, offset: formatSplits[sizeId]?.offset ?? 0,
           ...(count === 3 ? { count: 3 as const } : {}),
         };
-        return { ...photo, formatSplits };
+        return { ...photo, formatSplits,
+          editGroups: photo.editGroups.map((g) => g.id === photo.activeGroupId
+            ? { ...g, splitFrames: count > 1 } : g),
+        };
       });
     },
 
