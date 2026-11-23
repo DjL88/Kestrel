@@ -28,7 +28,7 @@ The Pro keys above are the V2 feature-gate keys. Other advanced services may hav
 3. Set the **default to Off**. Add an **On** rule with audience **Pro** to enable it only for eligible Pro accounts. For a Basic tester, choose a scoped user or Basic trial rule instead, if intended.
 4. Save. The control plane stores the flag set in the Firestore-backed `feature_flags` setting when the deployment uses Firestore, then distributes a *signed* public flag document and per-account flag decisions in signed device grants.
 
-No flag entered = Pro feature off. Deleted flag = Pro feature off. An invalid or expired rule must not turn it on. A signed rule can remain cached offline while valid; revocation is not guaranteed to reach an offline device immediately. The public flag document is refreshed on the app's configured schedule (currently about once per day), and individual grant flags refresh as new verified grants are issued.
+Basic overlay features are never gated, even by a stale previous Pro-only Firestore rule; remove old `overlayText` or `watermarkCustom` flag records from Admin to avoid misleading configuration. No flag entered = Pro feature off. Deleted flag = Pro feature off. An invalid or expired rule must not turn it on. A signed rule can remain cached offline while valid; revocation is not guaranteed to reach an offline device immediately. The public flag document is refreshed on the app's configured schedule (currently about once per day), and individual grant flags refresh as new verified grants are issued.
 
 **Safety:** Basic import, edit, export and local backup are never licence-gated. Do not add automatic Pro-true fallback rules. Keep the development preview out of the V2 access map.
 
