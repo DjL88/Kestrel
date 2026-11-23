@@ -262,6 +262,7 @@ test('live verification rejects a redirected response even when content matches'
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const pages = {
     '/': landing,
+    '/admin.html': '<h1>Admin</h1>',
     '/oauth-callback.html': callback,
     '/privacy.html': privacy,
     [iconPath]: icon,
