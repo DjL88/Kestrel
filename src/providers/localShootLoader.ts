@@ -69,6 +69,7 @@ async function importLinkedWithoutFullRead(
   let source: Blob | RangeBlob | null = null;
   let head: Blob | null = null;
   let exif: ExifMetadata;
+  let originalSha256: string;
   try {
     range = await openLinkedRange(file.path, file.size);
     head = await headBlob(range.blob);
@@ -91,7 +92,6 @@ async function importLinkedWithoutFullRead(
     }
     // Fingerprint exact bytes before exposing a linked original or cached preview.
     // RangeBlob hashes in bounded 1 MiB slices and rejects truncated reads.
-    let originalSha256: string;
     try {
       originalSha256 = await hashOriginalBytes(source);
     } catch {
