@@ -1,3 +1,5 @@
+import { hashOriginalBytes, isSameOriginalBytes, type OriginalByteSource } from '../core/originalFileIdentity';
+
 /**
  * Bounded recursive directory scan for native desktop relinking.
  * Metadata only: never opens or copies original image bytes.
@@ -86,4 +88,114 @@ export function matchScannedOriginals(
     } else if (possible.length > 1) ambiguous.push(frame.stableKey);
   }
   return { matches, ambiguous };
+}
+
+/**
+ * Metadata narrows the relink candidates, but never proves they are the same photograph.
+ * Read candidates in bounded SHA-256 chunks before changing a catalogue path. Keeping
+ * verification injectable makes wrong-byte and disconnected-NAS paths testable offline.
+ */
+export interface ScannedOriginalRead {
+  bytes: OriginalByteSource;
+  /** Confirm source size/time did not change during fingerprinting. */
+  unchanged(): Promise<boolean>;
+  close(): Promise<void>;
+}
+
+export async function verifyScannedOriginalMatches(
+  suggested: ReadonlyMap<string, string>,
+  expected: readonly { stableKey: string; originalSha256?: string }[],
+  open: (path: string) => Promise<ScannedOriginalRead>,
+): Promise<{ matches: Map<string, string>; rejected: string[] }> {
+  const saved = new Map(expected.map(frame => [frame.stableKey, frame.originalSha256]));
+  const matches = new Map<string, string>();
+  const rejected: string[] = [];
+  // Sequential bounded reads avoid exhausting network shares with many large NEFs.
+  for (const [key, path] of suggested) {
+    const fingerprint = saved.get(key);
+    if (typeof fingerprint !== 'string' || !/^[a-f0-9]{64}$/.test(fingerprint)) {
+      rejected.push(key); // Legacy or damaged identity: require explicit re-import, not a guessed reconnect.
+      continue;
+    }
+    let opened: ScannedOriginalRead | undefined;
+    try {
+      opened = await open(path);
+      const actual = await hashOriginalBytes(opened.bytes);
+      if (isSameOriginalBytes(fingerprint, actual) && await opened.unchanged()) matches.set(key, path);
+      else rejected.push(key);
+    } catch {
+      // Missing NAS, read error, short range or changing original: leave edits and old path intact.
+      rejected.push(key);
+    } finally {
+      if (opened) await opened.close().catch(() => undefined);
+    }
+  }
+  return { matches, rejected };
+}
+
+/**
+ * Reconnect a moved/restored folder by SHA, not its timestamp. A backup may
+ * preserve exact bytes while changing mtime; equally, an attacker or NAS may
+ * replace bytes without changing the metadata. A unique matching digest is
+ * decisive, and duplicate matching paths stay ambiguous rather than guessed.
+ */
+export async function matchScannedOriginalsBySha(
+  expected: readonly { stableKey: string; filename: string; size: number; originalSha256?: string }[],
+  candidates: readonly ScannedOriginal[],
+  connectedPaths: readonly string[],
+  open: (path: string) => Promise<ScannedOriginalRead>,
+): Promise<{ matches: Map<string, string>; ambiguous: string[]; rejected: string[] }> {
+  const pathKey = (path: string) => path.replace(/\\/g, '/').toLowerCase();
+  const reserved = new Set(connectedPaths.map(pathKey));
+  const matches = new Map<string, string>();
+  const ambiguous: string[] = [], rejected: string[] = [];
+  // Each candidate original is read at most once per folder reselect, even if
+  // several camera frames have the same filename and dimensions.
+  const digests = new Map<string, string | null>();
+  async function digestFor(candidate: ScannedOriginal): Promise<string | null> {
+    if (digests.has(candidate.path)) return digests.get(candidate.path)!;
+    let opened: ScannedOriginalRead | undefined;
+    let digest: string | null = null;
+    try {
+      opened = await open(candidate.path);
+      const actual = await hashOriginalBytes(opened.bytes);
+      if (await opened.unchanged()) digest = actual;
+    } catch {
+      // A disappearing file or corrupt range cannot serve as a replacement.
+    } finally {
+      if (opened) await opened.close().catch(() => undefined);
+    }
+    digests.set(candidate.path, digest);
+    return digest;
+  }
+
+  const byPath = new Map<string, string>();
+  for (const frame of expected) {
+    if (!/^[a-f0-9]{64}$/.test(frame.originalSha256 ?? '') ||
+        !Number.isSafeInteger(frame.size) || frame.size <= 0) {
+      rejected.push(frame.stableKey);
+      continue;
+    }
+    const possible = candidates.filter(file =>
+      file.name.toLowerCase() === frame.filename.toLowerCase() &&
+      file.size === frame.size && !reserved.has(pathKey(file.path)));
+    const valid: string[] = [];
+    for (const candidate of possible) {
+      if (await digestFor(candidate) === frame.originalSha256) valid.push(candidate.path);
+    }
+    if (valid.length !== 1) {
+      (valid.length > 1 ? ambiguous : rejected).push(frame.stableKey);
+      continue;
+    }
+    const chosen = valid[0], previous = byPath.get(pathKey(chosen));
+    if (previous && previous !== frame.stableKey) {
+      matches.delete(previous);
+      if (!ambiguous.includes(previous)) ambiguous.push(previous);
+      ambiguous.push(frame.stableKey);
+    } else {
+      matches.set(frame.stableKey, chosen);
+      byPath.set(pathKey(chosen), frame.stableKey);
+    }
+  }
+  return { matches, ambiguous, rejected };
 }

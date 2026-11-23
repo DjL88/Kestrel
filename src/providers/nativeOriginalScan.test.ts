@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { matchScannedOriginals, scanOriginalFolder } from './nativeOriginalScan';
+import { matchScannedOriginals, scanOriginalFolder, verifyScannedOriginalMatches } from './nativeOriginalScan';
+import { createHash } from 'node:crypto';
 
 test('nested camera folders recover mixed camera brands without reading photo bytes', async () => {
   const folders: Record<string, { name: string; isFile: boolean; isDirectory: boolean }[]> = {
@@ -69,4 +70,52 @@ test('a connected original cannot also be assigned to a missing photo', () => {
   const result = matchScannedOriginals(expected, [candidate], ['d:\\Photos\\IMG.NEF']);
   assert.equal(result.matches.size, 0);
   assert.deepEqual(result.ambiguous, ['a']);
+});
+
+
+test('desktop reselect refuses an equal-name, equal-size, equal-mtime replacement with wrong bytes', async () => {
+  const original = new Blob([new Uint8Array([1, 2, 3, 4])]);
+  const replacement = new Blob([new Uint8Array([1, 2, 3, 5])]);
+  const sha = createHash('sha256').update(new Uint8Array(await original.arrayBuffer())).digest('hex');
+  const metadata = [{ stableKey: 'file-a', filename: 'A.NEF', size: 4, lastModified: 123 }];
+  const candidates = [{ path: '/nas/A.NEF', name: 'A.NEF', size: 4, lastModified: 123 }];
+  const proposed = matchScannedOriginals(metadata, candidates).matches;
+  assert.equal(proposed.size, 1, 'metadata initially suggests one match');
+  let closed = 0;
+  const read = async () => ({ bytes: replacement, unchanged: async () => true, close: async () => { closed++; } });
+  const verified = await verifyScannedOriginalMatches(proposed, [{ stableKey: 'file-a', originalSha256: sha }], read);
+  assert.equal(verified.matches.size, 0);
+  assert.deepEqual(verified.rejected, ['file-a']);
+  assert.equal(closed, 1);
+});
+
+test('desktop relink accepts identical bytes and closes the range', async () => {
+  const bytes = new Blob([new Uint8Array([8, 7, 6, 5])]);
+  const sha = createHash('sha256').update(new Uint8Array(await bytes.arrayBuffer())).digest('hex');
+  let closed = false;
+  const result = await verifyScannedOriginalMatches(new Map([['a', '/restored/A.NEF']]),
+    [{ stableKey: 'a', originalSha256: sha }], async () => ({
+      bytes, unchanged: async () => true, close: async () => { closed = true; },
+    }));
+  assert.equal(result.matches.get('a'), '/restored/A.NEF');
+  assert.deepEqual(result.rejected, []);
+  assert.equal(closed, true);
+});
+
+test('missing fingerprints, disconnected drives, and files changed during hashing cannot reconnect', async () => {
+  const candidate = new Map([['legacy', '/nas/legacy.NEF'], ['changed', '/nas/changed.NEF'], ['offline', '/nas/offline.NEF']]);
+  const bytes = new Blob([new Uint8Array([1, 2, 3])]);
+  const sha = createHash('sha256').update(new Uint8Array(await bytes.arrayBuffer())).digest('hex');
+  const opened: string[] = [], closed: string[] = [];
+  const result = await verifyScannedOriginalMatches(candidate,
+    [{ stableKey: 'legacy' }, { stableKey: 'changed', originalSha256: sha }, { stableKey: 'offline', originalSha256: sha }],
+    async path => {
+      opened.push(path);
+      if (path.includes('offline')) throw new Error('NAS disconnected');
+      return { bytes, unchanged: async () => false, close: async () => { closed.push(path); } };
+    });
+  assert.equal(result.matches.size, 0);
+  assert.deepEqual(result.rejected, ['legacy', 'changed', 'offline']);
+  assert.deepEqual(opened, ['/nas/changed.NEF', '/nas/offline.NEF']);
+  assert.deepEqual(closed, ['/nas/changed.NEF']);
 });

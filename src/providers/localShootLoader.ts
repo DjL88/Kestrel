@@ -110,7 +110,7 @@ async function importLinkedWithoutFullRead(
     } catch {
       return null;
     }
-    previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified, file.size), openRange: linkedRangeOpener(file.path, file.size), size: file.size, lastModified: file.lastModified });
+    previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified, file.size, originalSha256!), openRange: linkedRangeOpener(file.path, file.size, originalSha256!), size: file.size, lastModified: file.lastModified });
     try {
       if (!await previewProvider.cacheOfflinePreviews(stableKey, file.name, source)) uncachedPreviewKeys.push(stableKey);
     } catch {
@@ -182,13 +182,13 @@ export async function loadLocalFileListShoot(
           }
           // A metadata key is only a lookup hint, NOT proof of byte identity.
           // Hash browser originals as they are imported so later reselects can be checked.
-          if (!file.path) originalSha256 = await hashOriginalBytes(opened, options.signal);
+          originalSha256 = await hashOriginalBytes(opened, options.signal);
         } catch {
           return null;
         }
         if (file.path) {
           // Stays where it is on the disk: nothing is copied into the app, and it is read again when needed.
-          previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified, file.size), openRange: linkedRangeOpener(file.path, file.size), size: file.size, lastModified: file.lastModified });
+          previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified, file.size, originalSha256!), openRange: linkedRangeOpener(file.path, file.size, originalSha256!), size: file.size, lastModified: file.lastModified });
           try {
             if (!await previewProvider.cacheOfflinePreviews(stableKey, file.name, opened)) uncachedPreviewKeys.push(stableKey);
           } catch {
@@ -200,7 +200,7 @@ export async function loadLocalFileListShoot(
           const copy = !file.reconnectable && appCopiesAvailable() ? await copyIntoAppStorage(stableKey, opened, file.name) : null;
           if (copy) {
             copiedPaths.set(stableKey, copy);
-            previewProvider.registerLinked(stableKey, { read: linkedReader(copy, file.name, file.lastModified, file.size), openRange: linkedRangeOpener(copy, file.size), size: file.size, lastModified: file.lastModified });
+            previewProvider.registerLinked(stableKey, { read: linkedReader(copy, file.name, file.lastModified, file.size, originalSha256!), openRange: linkedRangeOpener(copy, file.size, originalSha256!), size: file.size, lastModified: file.lastModified });
             try {
               if (!await previewProvider.cacheOfflinePreviews(stableKey, file.name, opened)) uncachedPreviewKeys.push(stableKey);
             } catch {
@@ -419,8 +419,8 @@ export async function rehydrateLocalFramesFromStore(
       continue;
     }
     previewProvider.registerLinked(frame.stableKey, {
-      read: linkedReader(frame.sourcePath, frame.filename, lastModifiedOf(frame.stableKey), sizeOf(frame.stableKey) || undefined),
-      openRange: linkedRangeOpener(frame.sourcePath, sizeOf(frame.stableKey) || undefined),
+      read: linkedReader(frame.sourcePath, frame.filename, lastModifiedOf(frame.stableKey), sizeOf(frame.stableKey) || undefined, frame.originalSha256!),
+      openRange: linkedRangeOpener(frame.sourcePath, sizeOf(frame.stableKey) || undefined, frame.originalSha256!),
       size: sizeOf(frame.stableKey), lastModified: lastModifiedOf(frame.stableKey),
     });
   }

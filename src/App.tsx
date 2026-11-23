@@ -10,7 +10,8 @@ import { messages } from './i18n/messages';
 import { useOpenedFiles } from './providers/useOpenedFiles';
 import { pickFolderNatively, pickedFromFile, pickedKey, linkedReader, linkedRangeOpener, type PickedPhoto } from './providers/linkedOriginals';
 import { checkOriginalPaths } from './providers/originalPathStatus';
-import { scanOriginalFolder, matchScannedOriginals } from './providers/nativeOriginalScan';
+import { scanOriginalFolder, matchScannedOriginals, verifyScannedOriginalMatches } from './providers/nativeOriginalScan';
+import { openLinkedRange } from './providers/rangeBlob';
 import { splitDropped } from './core/dropSplit';
 import { useAccess } from './providers/useAccess';
 import { loadLicence } from './providers/licenceStore';
@@ -1984,15 +1985,36 @@ export default function App() {
       const currentFrames = stateRef.current.frames;
       const eligibleKeys = new Set(currentFrames.filter(frame => !frame.removedAt && frame.sourceKind === 'file' &&
         frame.sourcePath === expected.get(frame.stableKey)?.sourcePath).map(frame => frame.stableKey));
-      const replacements = new Map([...matches].filter(([key, path]) =>
-        eligibleKeys.has(key) && candidatePaths.get(path) === 'available'));
+      // Filename, size and modified time only shortlist a candidate. Verify the
+      // exact saved SHA-256 before changing ANY linked path or photo identity.
+      const verified = await verifyScannedOriginalMatches(
+        new Map([...matches].filter(([key, path]) => eligibleKeys.has(key) && candidatePaths.get(path) === 'available')),
+        [...expected.values()],
+        async path => {
+          const candidate = candidateByPath.get(path)!;
+          const before = await fs.stat(path);
+          const range = await openLinkedRange(path, candidate.size);
+          return {
+            bytes: range.blob,
+            unchanged: async () => {
+              const after = await fs.stat(path);
+              return after.size === before.size &&
+                !(before.mtime && after.mtime && before.mtime.getTime() !== after.mtime.getTime());
+            },
+            close: range.close,
+          };
+        },
+      );
+      // The person may have switched projects while a large NAS original was hashed.
+      if (stateRef.current.shoot.id !== projectId) return;
+      const replacements = verified.matches;
       const preview = previewProviderRef.current!;
       for (const [key, path] of replacements) {
         const frame = expected.get(key)!;
         const parts = key.split('::');
         preview.registerLinked(key, {
-          read: linkedReader(path, frame.filename, Number(parts.at(-1)) || 0, Number(parts.at(-2)) || undefined),
-          openRange: linkedRangeOpener(path, Number(parts.at(-2)) || undefined),
+          read: linkedReader(path, frame.filename, Number(parts.at(-1)) || 0, Number(parts.at(-2)) || undefined, frame.originalSha256!),
+          openRange: linkedRangeOpener(path, Number(parts.at(-2)) || undefined, frame.originalSha256!),
           size: Number(parts.at(-2)) || 0, lastModified: Number(parts.at(-1)) || 0,
         });
         preview.retryLinkedOriginal(key);

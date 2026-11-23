@@ -1,4 +1,6 @@
 import { openLinkedRange, type RangeBlob } from './rangeBlob';
+import { hashOriginalBytes, isSameOriginalBytes } from '../core/originalFileIdentity';
+import { sha256Plain } from '../core/sha256';
 import { originalSourceKey } from '../core/originalSourceKey';
 import { PHOTO_EXTENSIONS } from '../core/rawFormats';
 import { isDesktopApp } from './desktopShell';
@@ -58,8 +60,13 @@ export function linkedSourceMatches(expectedSize: number | undefined, actualSize
   return Number.isSafeInteger(expectedSize) && expectedSize > 0 && expectedSize === actualSize;
 }
 
+/** Compare the bytes actually read, not the file's mutable name/size/time metadata. */
+export function linkedBytesMatchImportedOriginal(bytes: Uint8Array, expectedOriginalSha256: string): boolean {
+  return isSameOriginalBytes(expectedOriginalSha256, sha256Plain(bytes));
+}
+
 /** Reader for a photo already in a project, given its saved path and the name, size and time it had when added. */
-export function linkedReader(path: string, name: string, lastModified: number, expectedSize?: number): () => Promise<File> {
+export function linkedReader(path: string, name: string, lastModified: number, expectedSize: number | undefined, expectedOriginalSha256: string): () => Promise<File> {
   return async () => {
     const fs = await import('@tauri-apps/plugin-fs');
     // A path can be reused by a different photo after a card is reimported.
@@ -73,6 +80,11 @@ export function linkedReader(path: string, name: string, lastModified: number, e
     if (before.size !== after.size || bytes.byteLength !== after.size ||
         (before.mtime && after.mtime && before.mtime.getTime() !== after.mtime.getTime())) {
       throw new Error('Linked original changed during reading. Retry or reconnect the original.');
+    }
+    // Rechecking the bytes at use time closes the gap after import/reconnect:
+    // size and mtime can be identical for a substituted original.
+    if (!linkedBytesMatchImportedOriginal(bytes, expectedOriginalSha256)) {
+      throw new Error('Linked original bytes do not match the imported SHA-256. Reconnect the genuine original.');
     }
     return new File([bytes], name, { lastModified });
   };
@@ -89,7 +101,7 @@ export interface LinkedRange {
  * Ranged reader for a linked original: only the bytes asked for are read (a RAW's embedded preview is a few MB of a
  * 30-60 MB file, which matters on external drives and network shares). Same identity rule as linkedReader.
  */
-export function linkedRangeOpener(path: string, expectedSize?: number): () => Promise<LinkedRange> {
+export function linkedRangeOpener(path: string, expectedSize: number | undefined, expectedOriginalSha256: string): () => Promise<LinkedRange> {
   return async () => {
     const fs = await import('@tauri-apps/plugin-fs');
     const before = await fs.stat(path);
@@ -102,7 +114,17 @@ export function linkedRangeOpener(path: string, expectedSize?: number): () => Pr
       close: range.close,
       verify: async () => {
         const after = await fs.stat(path);
-        return after.size === before.size && !(before.mtime && after.mtime && before.mtime.getTime() !== after.mtime.getTime());
+        if (after.size !== before.size ||
+            (before.mtime && after.mtime && before.mtime.getTime() !== after.mtime.getTime())) return false;
+        try {
+          // The preview has not been displayed yet. Authenticate the entire ranged
+          // original before returning it, not just its JPEG header or file metadata.
+          const actual = await hashOriginalBytes(range.blob);
+          const final = await fs.stat(path);
+          return isSameOriginalBytes(expectedOriginalSha256, actual) &&
+            final.size === before.size &&
+            !(before.mtime && final.mtime && before.mtime.getTime() !== final.mtime.getTime());
+        } catch { return false; }
       },
     };
   };
