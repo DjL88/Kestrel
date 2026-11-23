@@ -45,3 +45,17 @@ test('empty available list cannot create a phantom selection', () => {
     available: [], selected: ['removed'], active: 'removed', target: 'removed', shift: true,
   }), { active: '', selected: [] });
 });
+
+test('blank catalogue IDs never become active or selected', () => {
+  assert.deepEqual(chooseFormatSelection({
+    available: ['', '  ', 'original'], selected: ['', '  ', 'original'], active: '', target: '', ctrl: true,
+  }), { active: 'original', selected: ['original'] });
+  assert.deepEqual(chooseFormatSelection({
+    available: ['', '  '], selected: [''], active: '', target: '  ', shift: true,
+  }), { active: '', selected: [] });
+});
+test('duplicate catalogue IDs do not distort shift selection ranges', () => {
+  assert.deepEqual(chooseFormatSelection({
+    available: ['original', 'portrait', 'portrait', 'wide'], selected: ['original'], active: 'original', target: 'wide', shift: true,
+  }), { active: 'wide', selected: ['original', 'portrait', 'wide'] });
+});
