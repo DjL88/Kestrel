@@ -922,12 +922,47 @@ export default function Canvas({
           >
             {revealing && (
               <div
-                aria-hidden="true"
                 data-testid="crop-ghost"
-                className="pointer-events-none absolute left-1/2 top-1/2 opacity-35"
+                className="pointer-events-none absolute left-1/2 top-1/2 z-20 border border-dashed border-white/80 shadow-[0_0_0_1px_rgba(0,0,0,.7)]"
                 style={{ width: ghost.width, height: ghost.height, transform: `translate(calc(-50% + ${(activeSize.crop.panX / 100) * frameW}px), calc(-50% + ${(activeSize.crop.panY / 100) * frameH}px)) scale(${activeSize.crop.flipH ? -1 : 1}, ${activeSize.crop.flipV ? -1 : 1})` }}
               >
-                {renderSurface('edited', '', {}, filterCss)}
+                <div className="h-full w-full opacity-35">{renderSurface('edited', '', {}, filterCss)}</div>
+                {/* Handles follow the visible IMAGE bounds, not the stationary export frame. */}
+                <div className="contents pointer-events-auto" aria-label="Resize photograph within fixed output frame">
+                {([['tl', 'top left', 'left-1 top-1 cursor-nwse-resize'], ['tr', 'top right', 'right-1 top-1 cursor-nesw-resize'], ['bl', 'bottom left', 'bottom-1 left-1 cursor-nesw-resize'], ['br', 'bottom right', 'bottom-1 right-1 cursor-nwse-resize']] as const).map(([id, name, place]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-label={`Drag ${name} crop corner`}
+                    onPointerDown={(e) => handleFramePointerDown(e, `scale-${id}`, activeSize, e.currentTarget.closest('[data-testid="crop-ghost"]') as HTMLElement)}
+                    className={`absolute z-20 h-3.5 w-3.5 rounded-sm border-2 border-white bg-[var(--bg-scrim)] shadow hover:bg-[var(--brand-accent)] ${place}`}
+                  />
+                ))}
+                <button
+                  type="button"
+                  aria-label="Drag top crop edge"
+                  onPointerDown={(e) => handleFramePointerDown(e, 'scale-top', activeSize, e.currentTarget.closest('[data-testid="crop-ghost"]') as HTMLElement)}
+                  className="absolute left-1/2 top-1 z-20 h-1.5 w-12 -translate-x-1/2 cursor-ns-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
+                />
+                <button
+                  type="button"
+                  aria-label="Drag bottom crop edge"
+                  onPointerDown={(e) => handleFramePointerDown(e, 'scale-bottom', activeSize, e.currentTarget.closest('[data-testid="crop-ghost"]') as HTMLElement)}
+                  className="absolute bottom-1 left-1/2 z-20 h-1.5 w-12 -translate-x-1/2 cursor-ns-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
+                />
+                <button
+                  type="button"
+                  aria-label="Drag left crop edge"
+                  onPointerDown={(e) => handleFramePointerDown(e, 'scale-left', activeSize, e.currentTarget.closest('[data-testid="crop-ghost"]') as HTMLElement)}
+                  className="absolute left-1 top-1/2 z-20 h-12 w-1.5 -translate-y-1/2 cursor-ew-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
+                />
+                <button
+                  type="button"
+                  aria-label="Drag right crop edge"
+                  onPointerDown={(e) => handleFramePointerDown(e, 'scale-right', activeSize, e.currentTarget.closest('[data-testid="crop-ghost"]') as HTMLElement)}
+                  className="absolute right-1 top-1/2 z-20 h-12 w-1.5 -translate-y-1/2 cursor-ew-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
+                />
+                </div>
               </div>
             )}
             <div className={revealing ? 'absolute inset-0 overflow-hidden' : 'contents'}>
@@ -945,45 +980,6 @@ export default function Canvas({
             )}
 
             </div>
-
-            {/* Double-click/Crop enters non-destructive crop mode: the photograph moves behind a fixed format canvas. */}
-            {revealing && !compareMode && activeSize.kind === 'photo' && (
-              <>
-                {([['tl', 'top left', 'left-1 top-1 cursor-nwse-resize'], ['tr', 'top right', 'right-1 top-1 cursor-nesw-resize'], ['bl', 'bottom left', 'bottom-1 left-1 cursor-nesw-resize'], ['br', 'bottom right', 'bottom-1 right-1 cursor-nwse-resize']] as const).map(([id, name, place]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    aria-label={`Drag ${name} crop corner`}
-                    onPointerDown={(e) => handleFramePointerDown(e, `scale-${id}`, activeSize, e.currentTarget.parentElement)}
-                    className={`absolute z-20 h-3.5 w-3.5 rounded-sm border-2 border-white bg-[var(--bg-scrim)] shadow hover:bg-[var(--brand-accent)] ${place}`}
-                  />
-                ))}
-                <button
-                  type="button"
-                  aria-label="Drag top crop edge"
-                  onPointerDown={(e) => handleFramePointerDown(e, 'scale-top', activeSize, e.currentTarget.parentElement)}
-                  className="absolute left-1/2 top-1 z-20 h-1.5 w-12 -translate-x-1/2 cursor-ns-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
-                />
-                <button
-                  type="button"
-                  aria-label="Drag bottom crop edge"
-                  onPointerDown={(e) => handleFramePointerDown(e, 'scale-bottom', activeSize, e.currentTarget.parentElement)}
-                  className="absolute bottom-1 left-1/2 z-20 h-1.5 w-12 -translate-x-1/2 cursor-ns-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
-                />
-                <button
-                  type="button"
-                  aria-label="Drag left crop edge"
-                  onPointerDown={(e) => handleFramePointerDown(e, 'scale-left', activeSize, e.currentTarget.parentElement)}
-                  className="absolute left-1 top-1/2 z-20 h-12 w-1.5 -translate-y-1/2 cursor-ew-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
-                />
-                <button
-                  type="button"
-                  aria-label="Drag right crop edge"
-                  onPointerDown={(e) => handleFramePointerDown(e, 'scale-right', activeSize, e.currentTarget.parentElement)}
-                  className="absolute right-1 top-1/2 z-20 h-12 w-1.5 -translate-y-1/2 cursor-ew-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
-                />
-              </>
-            )}
 
             {/* Video Zoom MP4 Focal Pin */}
             {activeSize.kind === 'video' && features.zoomVideo && (
