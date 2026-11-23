@@ -27,6 +27,7 @@ import type {
   WorkspaceStore,
 } from './contract';
 import { buildHistogramData, computeMultiSelection, getActiveGroup } from './utils/studioMath';
+import { chooseFormatSelection } from './utils/formatSelection';
 
 const DEFAULT_CROP: CropTransform = {
   zoom: 1,
@@ -695,6 +696,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
         { id: 'nas', name: 'Local NAS (SMB / WebDAV)', status: 'connected', accountLabel: 'smb://nas.local/Photos' },
       ],
       localCacheLimitGb: 25,
+      hideProFeatures: false,
     },
     activePanel: 'adjust',
     panels: createDefaultPanels(),
@@ -1354,31 +1356,28 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     setActiveSize: (sizeId, modifiers) => {
       logAction('setActiveSize', { sizeId, modifiers });
       setStore((prev) => {
-        if (modifiers?.ctrl) {
-          const exists = prev.selectedSizeIds.includes(sizeId);
-          const next = exists
-            ? prev.selectedSizeIds.filter((id) => id !== sizeId)
-            : [...prev.selectedSizeIds, sizeId];
-          return {
-            ...prev,
-            activeSizeId: sizeId,
-            selectedSizeIds: next.length > 0 ? next : [sizeId],
-          };
-        }
-        return {
-          ...prev,
-          activeSizeId: sizeId,
-          selectedSizeIds: [sizeId],
-        };
+        const photo = prev.photos.find((candidate) => candidate.id === prev.activePhotoId);
+        // Real V2 catalogue photos live in the engine adapter, not in this sample-store
+        // photo list. The canvas supplies its live ordered format ids for Shift range selection.
+        const available = modifiers?.available ?? photo?.sizes.filter((size) => size.enabled).map((size) => size.id) ?? [];
+        const selectable = available.includes(sizeId) ? available : [...available, sizeId];
+        const result = chooseFormatSelection({
+          available: selectable, selected: prev.selectedSizeIds, active: prev.activeSizeId,
+          target: sizeId, shift: modifiers?.shift, ctrl: modifiers?.ctrl,
+        });
+        return { ...prev, activeSizeId: result.active, selectedSizeIds: result.selected };
       });
     },
 
-    selectAllEnabledSizes: (photoId) => {
+    clearSizeSelection: () => {
+      setStore((prev) => ({ ...prev, selectedSizeIds: [] }));
+    },
+
+    selectAllEnabledSizes: (photoId, availableIds) => {
       logAction('selectAllEnabledSizes', { photoId });
       setStore((prev) => {
         const photo = prev.photos.find((p) => p.id === photoId);
-        if (!photo) return prev;
-        const enabledIds = photo.sizes.filter((s) => s.enabled).map((s) => s.id);
+        const enabledIds = [...(availableIds ?? photo?.sizes.filter((s) => s.enabled).map((s) => s.id) ?? [])];
         return {
           ...prev,
           selectedSizeIds: enabledIds.length > 0 ? enabledIds : [prev.activeSizeId],
@@ -1868,14 +1867,27 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
 
     setPanelDock: (panelId, dock: DockPosition) => {
       logAction('setPanelDock', { panelId, dock });
-      setStore((prev) => ({
-        ...prev,
-        activePanel: panelId,
-        panels: {
-          ...prev.panels,
-          [panelId]: { ...prev.panels[panelId], visible: true, dock },
-        },
-      }));
+      setStore((prev) => {
+        const current = prev.panels[panelId];
+        let floatX = current.floatX;
+        let floatY = current.floatY;
+        if (dock === 'float' && current.dock !== 'float' && typeof window !== 'undefined') {
+          const width = window.innerWidth;
+          const existing = Object.values(prev.panels).filter((panel) => panel.dock === 'float' && panel.visible).length;
+          const columns = width >= 1200 ? Math.max(1, Math.floor((width - 24) / 340)) : 1;
+          const slot = width >= 1200 ? existing : 0;
+          floatX = Math.max(12, Math.min(width - 332, 12 + (slot % columns) * 340));
+          floatY = Math.max(58, Math.min(window.innerHeight - 160, 88 + Math.floor(slot / columns) * 46));
+        }
+        return {
+          ...prev,
+          activePanel: panelId,
+          panels: {
+            ...prev.panels,
+            [panelId]: { ...current, visible: true, dock, floatX, floatY },
+          },
+        };
+      });
     },
 
     moveFloatingPanel: (panelId, floatX, floatY) => {

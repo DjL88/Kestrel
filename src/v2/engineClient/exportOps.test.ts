@@ -125,3 +125,32 @@ test('PNG export counts only enabled formats on each photo, never the whole sele
   })), [size('a')]);
   assert.deepEqual(none, { error: 'None of the selected sizes is enabled on the chosen photos.' });
 });
+
+test('a longest-edge cap shrinks a bigger format proportionally, keeping aspect ratio', () => {
+  // size('a') is 1080x1350 (4:5). Longer side 1350 capped to 900 -> scale 2/3 -> 720x900.
+  const plan = planExport(request({ photoIds: ['p1'], sizeIds: ['a'], maxLongestEdgePx: 900 }), frames, [size('a')]);
+  assert.ok('jobs' in plan);
+  assert.deepEqual(plan.jobs[0].size, { width: 720, height: 900 });
+  assert.equal(plan.jobs[0].format.width, 720);
+  assert.equal(plan.jobs[0].format.height, 900);
+});
+
+test('a longest-edge cap never upscales a format already within it', () => {
+  const plan = planExport(request({ photoIds: ['p1'], sizeIds: ['a'], maxLongestEdgePx: 4000 }), frames, [size('a')]);
+  assert.ok('jobs' in plan);
+  assert.deepEqual(plan.jobs[0].size, { width: 1080, height: 1350 });
+});
+
+test('no cap, a zero cap and an unset cap all mean full size', () => {
+  for (const maxLongestEdgePx of [undefined, 0] as const) {
+    const plan = planExport(request({ photoIds: ['p1'], sizeIds: ['a'], maxLongestEdgePx }), frames, [size('a')]);
+    assert.ok('jobs' in plan);
+    assert.deepEqual(plan.jobs[0].size, { width: 1080, height: 1350 });
+  }
+});
+
+test('a negative or non-finite cap is refused with a plain message, not silently ignored', () => {
+  for (const maxLongestEdgePx of [-1, NaN, Infinity]) {
+    assert.ok('error' in planExport(request({ sizeIds: ['a'], maxLongestEdgePx }), frames, [size('a')]));
+  }
+});

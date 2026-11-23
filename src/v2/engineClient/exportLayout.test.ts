@@ -24,19 +24,21 @@ test('zoom, pan, flips, rotation and insets follow the canvas transform', () => 
   assert.deepEqual(place.clip, { x: 100, y: 25, width: 800, height: 450 });
 });
 
-test('a box anchored at an edge stays inside the frame and is centred at 50%', () => {
+test('a box is anchored by its own centre, continuously across the whole frame', () => {
   const frame = { width: 1000, height: 800 };
-  assert.deepEqual(anchoredBox(frame, 0, 50, { width: 200, height: 100 }), { x: 0, y: 350, width: 200, height: 100 });
-  assert.deepEqual(anchoredBox(frame, 100, 50, { width: 200, height: 100 }), { x: 800, y: 350, width: 200, height: 100 });
+  // At x%, the box's centre - not an edge - sits at x% of the frame width; a box can extend past the
+  // frame edge when anchored at 0% or 100%, same as the canvas's fixed-centre translate(-50%, -50%).
+  assert.deepEqual(anchoredBox(frame, 0, 50, { width: 200, height: 100 }), { x: -100, y: 350, width: 200, height: 100 });
+  assert.deepEqual(anchoredBox(frame, 100, 50, { width: 200, height: 100 }), { x: 900, y: 350, width: 200, height: 100 });
   assert.equal(anchoredBox(frame, 50, 50, { width: 200, height: 100 }).x, 400);
 });
 
-test('the watermark scales about its anchor and keeps that point fixed', () => {
+test('the watermark scales about its own centre and keeps that point fixed', () => {
   const frame = { width: 1000, height: 800 };
   const natural = { width: 200, height: 50 };
   const full = watermarkBox(frame, { watermarkX: 80, watermarkY: 90, watermarkScale: 100 }, natural);
   const half = watermarkBox(frame, { watermarkX: 80, watermarkY: 90, watermarkScale: 50 }, natural);
-  close(full.x + 0.8 * full.width, half.x + 0.8 * half.width);
+  close(full.x + full.width / 2, half.x + half.width / 2);
   close(half.width, 100);
   close(half.y + half.height / 2, 720);
 });

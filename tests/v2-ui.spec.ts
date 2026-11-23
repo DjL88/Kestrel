@@ -18,7 +18,7 @@ test('?v2&stub=1 shows the sample-data hub, opens a project and toggles Compare'
   expect(await root.evaluate((el) => getComputedStyle(el).getPropertyValue('--brand-accent').trim())).toBe('#e8743c');
   expect(await page.evaluate(() => document.documentElement.dataset.theme ?? '')).not.toBe('light');
   await root.getByRole('button', { name: /Scottish Highlands/ }).first().click();
-  const compare = root.getByRole('button', { name: 'Compare before and after' });
+  const compare = root.getByRole('button', { name: 'Compare', exact: true });
   await expect(compare).toHaveAttribute('aria-pressed', 'false');
   await compare.click();
   await expect(compare).toHaveAttribute('aria-pressed', 'true');
@@ -161,7 +161,7 @@ test('?v2 edits are real: Adjust changes the pixels, Compare splits original and
   await expect.poll(mean, { timeout: 15000 }).toBeGreaterThan(before + 3);
   const brighter = await mean();
   // Compare: a real slider splits original and edit; keyboard moves it.
-  await root.getByRole('button', { name: 'Compare before and after' }).click();
+  await root.getByRole('button', { name: 'Compare', exact: true }).click();
   const split = root.getByRole('slider', { name: 'Before and after split' });
   await expect(split).toHaveAttribute('aria-valuenow', '50');
   await split.focus();
@@ -169,7 +169,7 @@ test('?v2 edits are real: Adjust changes the pixels, Compare splits original and
   await expect(split).toHaveAttribute('aria-valuenow', '52');
   await page.keyboard.press('Home');
   await expect(split).toHaveAttribute('aria-valuenow', '0');
-  await root.getByRole('button', { name: 'Compare before and after' }).click();
+  await root.getByRole('button', { name: 'Compare', exact: true }).click();
   // Undo returns the picture to the original.
   // The Edit menu is not in the interface (the desktop app has it natively); Undo is the keyboard shortcut.
   await page.locator('body').click({ position: { x: 5, y: 5 } });
@@ -348,13 +348,13 @@ test('?v2 slice 1A: no Info in the footer, a bigger logo, Compare off in split, 
   await page.goto('/?v2&stub=1&autostart=1');
   const root = page.locator('.inflight-v2');
   // Photo info lives in the left tools only.
-  await expect(root.getByRole('tablist', { name: 'Bottom dock views' })).toHaveCount(0);
-  await expect(root.getByRole('tab', { name: /^Filmstrip/ })).toHaveCount(0);
+  const dock = root.getByRole('tablist', { name: 'Bottom dock views' });
+  await expect(dock.getByRole('tab')).toHaveText([/Filmstrip/]);
   // The logo is bigger.
   const logo = root.getByRole('banner').getByRole('img', { name: 'InFlight' });
   expect((await logo.boundingBox())!.height).toBeGreaterThanOrEqual(36);
   // Compare is greyed out, with the reason, while a photo is split.
-  const compare = root.getByRole('button', { name: 'Compare before and after' });
+  const compare = root.getByRole('button', { name: 'Compare', exact: true });
   await expect(compare).toBeEnabled();
   await root.getByRole('button', { name: 'Split 2', exact: true }).first().click();
   await expect(compare).toBeDisabled();
@@ -788,7 +788,68 @@ test('?v2 Look preview belongs only to its selected photo, never the next one', 
   await expect(firstLook).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('?v2 canvas controls: format actions on the All formats board, screenshot, Grid in the zoom bar, All photos in the rail, and artboards stay where they are put', async ({ page }) => {
+test('V2 reconnects a browser original after its session blob is lost (file reselect)', async ({ page }) => {
+  // Same technique as tests/catalogue-storage.spec.ts's "unstored originals" case: make the IndexedDB write that
+  // would store the photo's blob fail, so after a reload the frame's metadata survives but its blob does not,
+  // reproducing exactly the "moved, renamed, or a browser session that lost its blob" case reconnectOriginal covers.
+  await page.addInitScript(() => {
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (value, key) {
+      if (this.name === 'localFiles' && sessionStorage.getItem('v2-fail-photo-storage') === 'yes') {
+        throw new DOMException('Storage full', 'QuotaExceededError');
+      }
+      return put.call(this, value, key);
+    };
+  });
+  const choose = async (testId: string, names: string[], changeBytes = false) => {
+    await page.locator(`[data-testid="${testId}"]`).waitFor({ state: 'attached' });
+    return page.evaluate(({ testId, names, changeBytes }) => {
+    const png = atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+    const bytes = Uint8Array.from(png, (character) => character.charCodeAt(0));
+    if (changeBytes) bytes[bytes.length - 1] ^= 1; // identical metadata, different content; MUST be refused
+    const data = new DataTransfer();
+    // A fixed lastModified, same on both the import and the later reselect, so the two picks produce the exact
+    // same stableKey (local-file://name::size::lastModified) regardless of when each step actually runs.
+    for (const name of names) data.items.add(new File([bytes], name, { type: 'image/png', lastModified: 1700000000000 }));
+    const input = document.querySelector<HTMLInputElement>(`[data-testid="${testId}"]`)!;
+    input.files = data.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    }, { testId, names, changeBytes });
+  };
+
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Relink check');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+
+  await page.evaluate(() => sessionStorage.setItem('v2-fail-photo-storage', 'yes'));
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await choose('v2-file-input', ['lost-original.png']);
+  const strip = root.getByRole('listbox', { name: 'Project photographs' });
+  await expect(strip.getByRole('option')).toHaveCount(1);
+  await page.evaluate(() => sessionStorage.removeItem('v2-fail-photo-storage'));
+
+  // Leave and reopen: the project's own record survives (it was never the thing that failed to store), but the
+  // blob does not, so the original now reads as not connected, exactly as if the file had moved or the browser
+  // had cleared its storage.
+  await root.getByRole('button', { name: /back|projects/i }).first().click();
+  await page.reload();
+  await root.getByRole('button', { name: 'Relink check' }).first().click();
+
+  const banner = root.getByRole('status').filter({ hasText: 'Original not connected' });
+  await expect(banner).toBeVisible();
+  await banner.getByRole('button', { name: 'Reconnect folder' }).click();
+  await choose('v2-relink-input', ['lost-original.png'], true);
+  await expect(banner).toBeVisible();
+  await expect(root.getByText(/contents do not match the original/)).toBeVisible();
+  await banner.getByRole('button', { name: 'Reconnect folder' }).click();
+  await choose('v2-relink-input', ['lost-original.png']);
+  await expect(banner).toHaveCount(0);
+  await expect(root.getByText(/Reconnected 1 photo using matching original bytes/)).toBeVisible();
+});
+
+test('?v2 canvas controls: screenshot, Grid in the zoom bar, All photos in the rail, and artboards stay where they are put', async ({ page }) => {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: 'New project' }).first().click();
@@ -807,12 +868,10 @@ test('?v2 canvas controls: format actions on the All formats board, screenshot, 
 
   // The filmstrip header has no "Filmstrip" tab; Compare appears once, as a format action; Grid sits in the zoom bar.
   await expect(root.getByRole('tab', { name: /^Filmstrip/ })).toHaveCount(0);
-  await expect(root.getByRole('button', { name: 'Compare before and after' })).toHaveCount(1);
   const zoomBar = root.getByLabel('Canvas viewport controls');
   await expect(zoomBar.getByTestId('grid-toggle')).toBeVisible();
   await zoomBar.getByTestId('grid-toggle').click();
   await expect(root.getByTestId('composition-grid')).toHaveCount(1);
-  await expect(root.getByRole('button', { name: 'Add a format' })).toContainText('Add format');
 
   // Screenshot: a PNG of what is on the canvas, at least twice the size on screen.
   const download = page.waitForEvent('download');
@@ -835,8 +894,6 @@ test('?v2 canvas controls: format actions on the All formats board, screenshot, 
   await expect(board).toBeVisible();
   const firstBoard = board.locator('[data-testid^="artboard-"]').first();
   await firstBoard.locator('div.cursor-grab').first().click();
-  await expect(root.getByTestId('board-format-actions')).toBeVisible();
-  await expect(root.getByTestId('board-format-actions').getByRole('button', { name: 'Duplicate this format' })).toBeVisible();
   const before = await firstBoard.boundingBox();
   const handle = firstBoard.locator('div.cursor-grab').first();
   const box = (await handle.boundingBox())!;

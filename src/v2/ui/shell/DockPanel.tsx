@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { DockPosition, PanelId } from '../contract';
 import BrandIcon from '../icons/BrandIcon';
 
@@ -54,7 +55,7 @@ export default function DockPanel({
 
   const isFloat = dock === 'float';
 
-  return (
+  const pane = (
     <section
       aria-label={`${title} panel`}
       data-panel-id={panelId}
@@ -142,4 +143,12 @@ export default function DockPanel({
       <div className="flex-1 overflow-y-auto inflight-scroll p-4">{children}</div>
     </section>
   );
+
+  // A floating panel must sit outside the clipped flex workspace. Keep it
+  // inside the V2 root so inherited theme variables and keyboard events work.
+  // Docked panels remain in normal layout and reserve their original space.
+  const portalHost = isFloat && typeof document !== 'undefined'
+    ? document.querySelector('.inflight-v2')
+    : null;
+  return portalHost ? createPortal(pane, portalHost) : pane;
 }

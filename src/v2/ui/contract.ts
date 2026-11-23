@@ -341,6 +341,8 @@ export interface WorkspaceSettings {
   /** Which side the tool rail is on. 'left' mode puts it on the right so a pencil or a left hand does not catch it. */
   hand: 'right' | 'left';
   cvdGuidance: boolean;
+  /** Basic accounts only: leave locked Pro features (and their badges) out of the interface. */
+  hideProFeatures: boolean;
   ongoingCritique: boolean;
   defaultAssistMode: AssistMode;
   language: 'en-GB' | 'en-US' | 'de-DE' | 'fr-FR';
@@ -368,6 +370,10 @@ export interface ExportRequest {
   includeVideo: boolean;
   /** Copy the exact original file (as shot). Never a developed or preview file. */
   includeOriginal?: boolean;
+  /** Shrink the longer side of an edited/unedited size to this many pixels, keeping its aspect ratio. Never upscales: a
+   * format already smaller than this is exported at its own size. Unset or 0 means full size (no cap). Never applies to
+   * the exact original file. */
+  maxLongestEdgePx?: number;
   photoIds: string[];
 }
 
@@ -487,8 +493,9 @@ export interface WorkspaceActions {
   setActiveGroup: (photoId: string, groupId: string) => void;
   addEditGroup: (photoId: string) => void;
   renameEditGroup: (photoId: string, groupId: string, name: string) => void;
-  setActiveSize: (sizeId: string, modifiers?: { ctrl?: boolean }) => void;
-  selectAllEnabledSizes: (photoId: string) => void;
+  setActiveSize: (sizeId: string, modifiers?: { ctrl?: boolean; shift?: boolean; available?: readonly string[] }) => void;
+  clearSizeSelection: () => void;
+  selectAllEnabledSizes: (photoId: string, availableIds?: readonly string[]) => void;
   setCanvasLayoutMode: (mode: 'single' | 'all-formats') => void;
   moveSizeArtboard: (photoId: string, sizeId: string, boardX: number, boardY: number) => void;
   resetArtboardPositions: (photoId: string) => void;

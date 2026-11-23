@@ -238,15 +238,17 @@ test('crop zoom and insets use up pixels, and an unknown picture size caps nothi
 
 test('with the box size known, the centre, the edges and the gap to the other overlay all snap exactly', () => {
   const geometry = { box: { w: 40, h: 10 }, peer: { left: 8, right: 48, top: 80, bottom: 90 }, gap: { x: 1.5, y: 2 } };
-  // Centre: an anchor of 50% puts the box centre at the frame centre (the anchor runs from the left edge to the right edge).
+  // The stored position is always the centre of the box.
   assert.equal(snapOverlayPosition(49, 30, { x: 0, y: 0, visible: false }, true, 3.2, geometry).x, 50);
-  // Left margin: the box's left edge lands on 8%.
-  const left = snapOverlayPosition(12, 30, { x: 0, y: 0, visible: false }, true, 3.2, geometry);
-  assert.ok(Math.abs(left.x - 8 / (1 - 0.4)) < 0.1, `x was ${left.x}`);
-  // Space above the other overlay: the box's bottom edge sits one gap above the peer's top edge (80 - 2 = 78).
+  // Left safe edge: 8% + half the 40%-wide box = centre at 28%.
+  const left = snapOverlayPosition(27, 30, { x: 0, y: 0, visible: false }, true, 3.2, geometry);
+  assert.equal(left.x, 28);
+  assert.equal(left.x - geometry.box.w / 2, 8);
+  assert.ok(left.guides.some((guide) => guide.label === 'Left margin'));
+  // Bottom edge sits 2% above the peer's top at 80%: centre = 80 - 2 - 10/2 = 73%.
   const above = snapOverlayPosition(30, 74.5, { x: 0, y: 0, visible: false }, true, 3.2, geometry);
-  const bottomEdge = above.y + (100 - above.y) * 0.1;
-  assert.ok(Math.abs(bottomEdge - 78) < 0.2, `bottom edge was ${bottomEdge}`);
+  assert.equal(above.y, 73);
+  assert.equal(above.y + geometry.box.h / 2, 78);
   assert.ok(above.guides.some((guide) => guide.label === 'Space above'));
   // Without geometry the old snapping is unchanged.
   assert.equal(snapOverlayPosition(49, 30, { x: 0, y: 0, visible: false }, true).x, 50);
@@ -288,4 +290,44 @@ test('crop pan bounds reject invalid zoom and missing source dimensions safely',
   assert.deepEqual(bounds, { x: 0, y: 0 });
   const invalid = cropPanLimits({ width: 0, height: 0 }, { width: 0, height: 0 }, -10);
   assert.ok(Number.isFinite(invalid.x) && Number.isFinite(invalid.y));
+});
+
+
+test('overlay centre anchor stays continuous across 35% and 65% while dragging', () => {
+  const geometry = { box: { w: 20, h: 10 }, peer: null, gap: { x: 1, y: 1 } };
+  for (const x of [34.9, 35, 35.1, 64.9, 65, 65.1]) {
+    const position = snapOverlayPosition(x, 42, { x: 50, y: 50, visible: false }, false, 3.2, geometry);
+    assert.equal(position.x, Number(x.toFixed(1)));
+    // A fixed centre anchor gives continuous left and right edges.
+    assert.equal(Number((position.x - geometry.box.w / 2).toFixed(1)), Number((x - 10).toFixed(1)));
+  }
+});
+
+test('overlay geometry snaps the box centre to its safe left and right edges', () => {
+  const geometry = { box: { w: 20, h: 10 }, peer: null, gap: { x: 1, y: 1 } };
+  const left = snapOverlayPosition(17, 42, { x: 50, y: 50, visible: false }, true, 3.2, geometry);
+  const right = snapOverlayPosition(83, 42, { x: 50, y: 50, visible: false }, true, 3.2, geometry);
+  assert.equal(left.x, 18); // left edge = 8
+  assert.equal(right.x, 82); // right edge = 92
+  assert.ok(left.guides.some((guide) => guide.label === 'Left margin'));
+  assert.ok(right.guides.some((guide) => guide.label === 'Right margin'));
+});
+
+
+test('measured overlay safe margins snap edges, never the box centre', () => {
+  const geometry = { box: { w: 20, h: 10 }, peer: null, gap: { x: 1, y: 1 } };
+  const peer = { x: 50, y: 50, visible: false };
+  // At 8%, the box would extend left to -2%; it must not snap its centre to 8%.
+  const nearLeft = snapOverlayPosition(8.2, 8.2, peer, true, 1, geometry);
+  assert.equal(nearLeft.x, 8.2);
+  assert.equal(nearLeft.y, 8.2);
+  assert.ok(!nearLeft.guides.some((guide) => guide.label === 'Left safe margin' || guide.label === 'Top safe margin'));
+  // The actual 8% safe edges are at centres 18% and 13% respectively.
+  const safe = snapOverlayPosition(17.5, 12.5, peer, true, 1, geometry);
+  assert.equal(safe.x, 18);
+  assert.equal(safe.y, 13);
+  assert.ok(safe.guides.some((guide) => guide.label === 'Left margin'));
+  assert.ok(safe.guides.some((guide) => guide.label === 'Top margin'));
+  // Legacy callers without geometry still snap their point to 8%.
+  assert.equal(snapOverlayPosition(8.2, 8.2, peer, true, 1).x, 8);
 });

@@ -45,14 +45,15 @@ interface CanvasProps {
   canvasZoom: number;
   isFullScreen: boolean;
   calmView: boolean;
-  onSelectSize: (sizeId: string, modifiers?: { ctrl?: boolean }) => void;
+  onSelectSize: (sizeId: string, modifiers?: { ctrl?: boolean; shift?: boolean; available?: readonly string[] }) => void;
+  onClearSizeSelection: () => void;
   /** Phone swipe left or right on the photo: go to the next (1) or previous (-1) photo. */
   onStepPhoto?: (delta: 1 | -1) => void;
   /** The small action bar by the format: open the Formats tool, duplicate or delete this format. */
   onOpenFormats?: () => void;
   onDuplicateSize?: (sizeId: string) => void;
   onRemoveSize?: (sizeId: string) => void;
-  onSelectAllSizes: (photoId: string) => void;
+  onSelectAllSizes: (photoId: string, availableIds?: readonly string[]) => void;
   onSetLayoutMode: (mode: 'single' | 'all-formats') => void;
   onMoveArtboard: (photoId: string, sizeId: string, boardX: number, boardY: number) => void;
   onResetArtboards: (photoId: string) => void;
@@ -66,7 +67,6 @@ interface CanvasProps {
   onReconnectOriginal: (photoId: string) => void;
   onToggleCompare: () => void;
   onSetZoom: (zoom: number) => void;
-  onToggleGridView: () => void;
   onToggleFullScreen: () => void;
 }
 
@@ -85,6 +85,7 @@ export default function Canvas({
   isFullScreen,
   calmView,
   onSelectSize,
+  onClearSizeSelection,
   onStepPhoto,
   onOpenFormats,
   onDuplicateSize,
@@ -103,7 +104,6 @@ export default function Canvas({
   onReconnectOriginal,
   onToggleCompare,
   onSetZoom,
-  onToggleGridView,
   onToggleFullScreen,
 }: CanvasProps) {
   const [activeGuides, setActiveGuides] = useState<SnapGuide[]>([]);
@@ -160,6 +160,8 @@ export default function Canvas({
     origSizes?: number[];
     origScale?: number;
     rect?: DOMRect;
+    boardStarts?: Array<{ sizeId: string; x: number; y: number }>;
+    moved?: boolean;
   } | null>(null);
   // Double-click a format to reveal the whole picture as a ghost and position it under the crop window.
   const [revealSizeId, setRevealSizeId] = useState<string | null>(null);
@@ -167,6 +169,11 @@ export default function Canvas({
   const [gridMode, setGridMode] = useState<'off' | '3x3' | '4x4'>('off');
   // A plain drag moves the format on the canvas, like a design tool. Session only: it is where it sits, not part of the edit.
   const [frameOffsets, setFrameOffsets] = useState<Record<string, { x: number; y: number }>>({});
+  // The real engine currently exposes neutral default board coordinates on each render.
+  // Keep this project's board arrangement stable within the editing session instead of snapping
+  // tiles back after every catalogue refresh. Persistence to the project file is a separate change.
+  const [boardPlacements, setBoardPlacements] = useState<Record<string, { x: number; y: number }>>({});
+  const ignoreBoardClick = useRef(false);
   useEffect(() => {
     if (!revealSizeId) return;
     const leave = (event: KeyboardEvent) => { if (event.key === 'Escape' || event.key === 'Enter') setRevealSizeId(null); };
@@ -313,6 +320,28 @@ export default function Canvas({
     };
   };
 
+  const handleArtboardPointerDown = (e: React.PointerEvent<HTMLElement>, size: SizePreset) => {
+    if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey) return;
+    // On a board, dragging an already-selected tile moves the whole selection together.
+    const targets = selectedSizeIds.includes(size.id) ? selectedSizeIds : [size.id];
+    if (!selectedSizeIds.includes(size.id)) onSelectSize(size.id);
+    handleFramePointerDown(e, 'board', size);
+    if (dragRef.current) {
+      dragRef.current.boardStarts = targets.flatMap((sizeId) => {
+        const current = photo.sizes.find((item) => item.id === sizeId);
+        if (!current) return [];
+        const pos = boardPlacements[`${photo.id}:${sizeId}`] ?? { x: current.boardX, y: current.boardY };
+        return [{ sizeId, ...pos }];
+      });
+    }
+  };
+
+  const handleArtboardClick = (e: React.MouseEvent<HTMLElement>, sizeId: string) => {
+    e.stopPropagation();
+    if (ignoreBoardClick.current) { ignoreBoardClick.current = false; return; }
+    onSelectSize(sizeId, { ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey, available: enabledSizes.map((size) => size.id) });
+  };
+
   const handleGlobalPointerMove = (e: React.PointerEvent<HTMLElement>) => {
     const drag = dragRef.current;
     if (!drag) return;
@@ -351,12 +380,17 @@ export default function Canvas({
     } else if (drag.kind === 'split') {
       onSetSplitPanOffset(photo.id, Math.round(clamp(drag.origA + (dx / width) * 60, -25, 25)));
     } else if (drag.kind === 'board') {
-      onMoveArtboard(
-        photo.id,
-        drag.sizeId,
-        drag.origA + dx / canvasZoom,
-        drag.origB + dy / canvasZoom
-      );
+      if (!drag.moved && Math.hypot(dx, dy) < 3) return;
+      drag.moved = true;
+      const updates = (drag.boardStarts ?? []).map(({ sizeId, x, y }) => ({
+        sizeId, x: x + dx / canvasZoom, y: y + dy / canvasZoom,
+      }));
+      setBoardPlacements((prior) => {
+        const next = { ...prior };
+        for (const item of updates) next[`${photo.id}:${item.sizeId}`] = { x: item.x, y: item.y };
+        return next;
+      });
+      for (const item of updates) onMoveArtboard(photo.id, item.sizeId, item.x, item.y);
     } else if (drag.kind === 'crop-top') {
       onUpdateCrop(photo.id, drag.sizeId, {
         insetTop: Math.round(clamp(drag.origA + (dy / height) * 100, 0, 30)),
@@ -531,6 +565,12 @@ export default function Canvas({
 
   const handleGlobalPointerUp = () => {
     if (!dragRef.current) return;
+    if (dragRef.current.kind === 'board' && dragRef.current.moved) {
+      ignoreBoardClick.current = true;
+      // The click generated by this same pointer-up may still fire. Do not suppress
+      // a later, intentional click after the drag has finished.
+      window.setTimeout(() => { ignoreBoardClick.current = false; }, 0);
+    }
     dragRef.current = null;
     setDraggingType('none');
     setActiveGuides([]);
@@ -620,7 +660,10 @@ export default function Canvas({
                     padding: `${cqw(8)} ${cqw(12)}`,
                     left: `${overlay.textX}%`,
                     top: `${overlay.textY}%`,
-                    transform: `translate(-${overlay.textX}%, -50%)`,
+                    // A fixed-centre anchor (translate always -50%, never -X%) keeps the physical point
+                    // under the pointer continuous as textX crosses 35%/65% - the old translate(-X%, -50%)
+                    // jumped because the anchor itself moved with X.
+                    transform: 'translate(-50%, -50%)',
                     backgroundColor: overlay.textScrim
                       ? overlay.textColour === 'light'
                         ? 'rgba(10, 12, 16, 0.62)'
@@ -683,8 +726,11 @@ export default function Canvas({
               padding: `${cqw(4)} ${cqw(10)}`,
               left: `${overlay.watermarkX}%`,
               top: `${overlay.watermarkY}%`,
-              transformOrigin: `${overlay.watermarkX}% 50%`,
-              transform: `translate(-${overlay.watermarkX}%, -50%) scale(${
+              // Fixed-centre anchor and scale origin, for the same reason as the text overlay above: the
+              // box's own centre stays the reference point for both position and resize, not a point that
+              // slides to wherever watermarkX currently is.
+              transformOrigin: '50% 50%',
+              transform: `translate(-50%, -50%) scale(${
                 overlay.watermarkScale / 100
               })`,
               opacity: overlay.watermarkOpacity / 100,
@@ -845,8 +891,6 @@ export default function Canvas({
           {activeSize.crop.rotateDeg !== 0 && <span>· {activeSize.crop.rotateDeg}°</span>}
         </div>
 
-        {activeSize.kind === 'photo' && renderFormatActions([activeSize.id])}
-        {activeSize.kind === 'photo' && !compareMode && <button type="button" aria-pressed={revealing} onClick={() => setRevealSizeId(revealing ? null : activeSize.id)} className="sm:hidden rounded border border-[var(--border-default)] px-3 py-2 text-xs font-medium">{revealing ? 'Done repositioning' : 'Crop / reposition'}</button>}
         <div className="relative flex items-center gap-3">
           {/* Primary photo frame */}
           <div
@@ -858,9 +902,15 @@ export default function Canvas({
               // In reveal mode a drag positions the picture under the crop window; otherwise it moves the format on the canvas.
               handleFramePointerDown(e, revealing ? 'pan' : 'move-frame', activeSize, e.currentTarget);
             }}
-            onPointerMove={(e) => { if (e.pointerType === 'touch') { e.stopPropagation(); handleTouchMove(e); } }}
-            onPointerUp={(e) => { if (e.pointerType === 'touch') { e.stopPropagation(); handleTouchEnd(e); } }}
-            onPointerCancel={(e) => { if (e.pointerType === 'touch') { e.stopPropagation(); handleTouchCancel(e); } }}
+            /* Only claim a touch move/up/cancel that this frame's own pinch/pan/swipe gesture is tracking
+               (started by handleTouchDown above). A one-finger drag that began on a child overlay (text,
+               watermark, a resize handle) captures the pointer on that child element, not here, so its
+               move/up events still bubble up through this frame; stopping them unconditionally for every
+               touch pointer swallowed the drag before handleGlobalPointerMove/Up ever saw it, leaving the
+               overlay visually stuck at its starting position. */
+            onPointerMove={(e) => { if (e.pointerType === 'touch' && touchPoints.current.has(e.pointerId)) { e.stopPropagation(); handleTouchMove(e); } }}
+            onPointerUp={(e) => { if (e.pointerType === 'touch' && touchPoints.current.has(e.pointerId)) { e.stopPropagation(); handleTouchEnd(e); } }}
+            onPointerCancel={(e) => { if (e.pointerType === 'touch' && touchPoints.current.has(e.pointerId)) { e.stopPropagation(); handleTouchCancel(e); } }}
             onDoubleClick={() => { if (activeSize.kind === 'photo' && !compareMode) setRevealSizeId(revealing ? null : activeSize.id); }}
             title={activeSize.kind === 'photo' ? STRINGS.canvas.cropHintTitle : undefined}
             className={`relative ${revealing ? 'overflow-visible ring-2 ring-[var(--brand-accent)]' : 'overflow-hidden'} rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] select-none ${
@@ -980,31 +1030,12 @@ export default function Canvas({
     );
   };
 
-  /** Add format, Duplicate, Compare and Delete. Delete and Duplicate act on every format in `targets`. */
-  const renderFormatActions = (targets: string[]) => (
-          <div role="toolbar" aria-label="Format actions" data-testid="frame-actions" className="flex items-center gap-1.5">
-            {([
-              { label: 'Add format', icon: 'frame-add', aria: 'Add a format', run: () => onOpenFormats?.(), pressed: undefined },
-              { label: 'Duplicate', icon: 'copy', aria: 'Duplicate this format', run: () => targets.forEach((id) => onDuplicateSize?.(id)), pressed: undefined },
-              { label: 'Compare', icon: 'compare', aria: 'Compare before and after', run: () => onToggleCompare(), pressed: compareMode },
-              { label: 'Delete', icon: 'trash', aria: 'Delete this format', run: () => targets.forEach((id) => onRemoveSize?.(id)), pressed: undefined },
-            ] as const).map((action) => (
-              <button key={action.aria} type="button" aria-label={action.aria} aria-pressed={action.pressed}
-                disabled={action.aria === 'Compare before and after' && Boolean(group.splitFrames)}
-                title={action.aria === 'Compare before and after' ? (group.splitFrames ? STRINGS.canvas.compareDisabledSplit : STRINGS.topBar.viewActions.compareBeforeAfter) : undefined}
-                onClick={action.run}
-                className="min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40 aria-pressed:border-[var(--brand-accent)] aria-pressed:text-[var(--brand-accent)] max-md:min-h-11">
-                <span className="inline-flex items-center gap-1.5"><BrandIcon name={action.icon} size={13} />{action.label}</span>
-              </button>
-            ))}
-          </div>
-  );
-
   const renderAllFormatsBoard = () => {
     const boardSizes = enabledSizes.length > 0 ? enabledSizes : [activeSize];
     return (
       <div
         data-testid="all-formats-board"
+        onClick={(e) => { if (e.target === e.currentTarget) onClearSizeSelection(); }}
         className="m-auto flex flex-wrap items-center justify-center gap-6 p-6"
         style={{ zoom: canvasZoom }}
       >
@@ -1015,13 +1046,13 @@ export default function Canvas({
           const cardH = aspect < 0.7 ? 270 : 210;
           const cardW = Math.round(clamp(cardH * aspect, 145, 340));
 
+          const panes = group.splitFrames && features.splitFrames ? [0, 1] : [0];
           return (
+            <div key={size.id} className="flex items-start gap-1" data-testid={`format-pair-${size.id}`} style={{ transform: `translate(${boardPlacements[`${photo.id}:${size.id}`]?.x ?? size.boardX}px, ${boardPlacements[`${photo.id}:${size.id}`]?.y ?? size.boardY}px)` }}>
+            {panes.map((paneIdx) => (
             <div
-              key={size.id}
-              data-testid={`artboard-${size.id}`}
-              style={{
-                transform: `translate(${size.boardX}px, ${size.boardY}px)`,
-              }}
+              key={`${size.id}-${paneIdx}`}
+              data-testid={`artboard-${size.id}-${paneIdx}`}
               className={`flex flex-col rounded-[var(--radius-md)] border bg-[var(--bg-surface)] shadow-[var(--shadow-panel)] transition-colors ${
                 isSelected
                   ? 'border-[var(--brand-accent)] ring-1 ring-[var(--brand-accent)]'
@@ -1030,16 +1061,15 @@ export default function Canvas({
             >
               {/* Movable artboard header */}
               <div
-                onPointerDown={(e) => {
-                  onSelectSize(size.id, { ctrl: e.ctrlKey || e.metaKey });
-                  handleFramePointerDown(e, 'board', size);
-                }}
+                onPointerDown={(e) => handleArtboardPointerDown(e, size)}
+                onClick={(e) => handleArtboardClick(e, size.id)}
+                style={{ touchAction: 'none' }}
                 className="flex cursor-grab items-center justify-between gap-2 border-b border-[var(--border-subtle)] px-2.5 py-1.5 active:cursor-grabbing"
               >
                 <div className="flex items-center gap-1.5 min-w-0">
                   <BrandIcon name="grip" size={12} className="text-[var(--text-muted)]" />
                   <span className="truncate text-[11px] font-semibold text-[var(--text-primary)]">
-                    {size.label}
+                    {size.label}{panes.length === 2 ? ` · ${paneIdx + 1}/2` : ''}
                   </span>
                 </div>
                 <span className="shrink-0 font-mono text-[10px] text-[var(--text-muted)] tabular-nums">
@@ -1050,8 +1080,10 @@ export default function Canvas({
               {/* Artboard image viewport */}
               <button
                 type="button"
-                aria-label={`Select ${size.label} format${isSelected ? ' (selected)' : ''}`}
-                onClick={(e) => onSelectSize(size.id, { ctrl: e.ctrlKey || e.metaKey })}
+                aria-label={`Select ${size.label}${panes.length === 2 ? ` frame ${paneIdx + 1}` : '' } format${isSelected ? ' (selected)' : ''}`}
+                aria-pressed={isSelected}
+                onPointerDown={(e) => { if (e.pointerType !== 'touch') handleArtboardPointerDown(e, size); }}
+                onClick={(e) => handleArtboardClick(e, size.id)}
                 onDoubleClick={() => {
                   onSelectSize(size.id);
                   onSetLayoutMode('single');
@@ -1064,13 +1096,15 @@ export default function Canvas({
                   alt={`${photo.title} — ${size.label}`}
                   referrerPolicy="no-referrer"
                   draggable={false}
-                  className="h-full w-full object-cover"
+                  className={panes.length === 2 ? 'h-full w-[200%] max-w-none object-cover' : 'h-full w-full object-cover'}
                   style={{
                     filter: compareMode ? 'none' : filterCss,
-                    transform: buildImageTransform(size.crop),
+                    transform: panes.length === 2
+                      ? `translateX(${paneIdx === 0 ? group.splitPanOffset : -50 + group.splitPanOffset}%) scale(${size.crop.zoom})`
+                      : buildImageTransform(size.crop),
                   }}
                 />
-                {renderOverlaysInsideFrame(size, false)}
+                {paneIdx === panes.length - 1 && renderOverlaysInsideFrame(size, false)}
                 {size.kind === 'video' && (
                   <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-[var(--bg-scrim)] px-1.5 py-0.5 text-[10px] font-medium text-white">
                     <BrandIcon name="video-zoom" size={11} />
@@ -1090,16 +1124,13 @@ export default function Canvas({
                 </span>
               </div>
             </div>
+            ))}
+            </div>
           );
         })}
       </div>
     );
   };
-
-  const selectionScopeLabel =
-    selectedSizeIds.length > 1
-      ? `Group (${selectedSizeIds.length} formats)`
-      : `Individual (${activeSize.ratioLabel})`;
 
   return (
     <main
@@ -1144,14 +1175,19 @@ export default function Canvas({
             <>
               <button
                 type="button"
-                onClick={() => onSelectAllSizes(photo.id)}
+                onClick={() => onSelectAllSizes(photo.id, enabledSizes.map((size) => size.id))}
                 className="h-7 rounded-[var(--radius-sm)] px-2 text-[11px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] whitespace-nowrap"
               >
                 Select all
               </button>
               <button
                 type="button"
-                onClick={() => onResetArtboards(photo.id)}
+                onClick={() => {
+                  setBoardPlacements((prior) => Object.fromEntries(
+                    Object.entries(prior).filter(([key]) => !key.startsWith(`${photo.id}:`))
+                  ));
+                  onResetArtboards(photo.id);
+                }}
                 className="h-7 rounded-[var(--radius-sm)] px-2 text-[11px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] whitespace-nowrap"
               >
                 Tidy board
@@ -1179,62 +1215,47 @@ export default function Canvas({
           )}
         </div>
 
-        {/* Individual vs Group transform actions */}
-        <div className="flex items-center gap-1.5">
-          {!calmView && (
-            <span className="hidden xl:inline text-[11px] text-[var(--text-muted)] mr-1">
-              Target: <strong className="font-medium text-[var(--text-secondary)]">{selectionScopeLabel}</strong>
+        {/* Fixed contextual actions: never cover a photo or artboard. */}
+        {selectedSizeIds.length > 0 && (
+          <div
+            role="toolbar"
+            aria-label="Selected format actions"
+            data-testid="selected-format-toolbar"
+            className="flex min-w-0 items-center gap-1 overflow-x-auto inflight-scroll"
+          >
+            <span data-testid="selected-format-count" className="shrink-0 px-1 text-[11px] text-[var(--text-muted)]">
+              {selectedSizeIds.length === 1 ? '1 selected' : `${selectedSizeIds.length} selected`}
             </span>
-          )}
-          <button
-            type="button"
-            title="Flip selected format(s) horizontally"
-            aria-label="Flip horizontally"
-            onClick={() => onFlipSizes(photo.id, 'horizontal')}
-            className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] px-2 text-[11px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] whitespace-nowrap"
-          >
-            <BrandIcon name="arrows-horizontal" size={13} />
-            <span className="hidden sm:inline">Flip H</span>
-          </button>
-          <button
-            type="button"
-            title="Rotate selected format(s) 90°"
-            aria-label="Rotate 90 degrees"
-            onClick={() => onRotateSizes(photo.id)}
-            className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] px-2 text-[11px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] whitespace-nowrap"
-          >
-            <BrandIcon name="rotate" size={13} />
-            <span className="hidden sm:inline">Rotate</span>
-          </button>
-          {features.splitFrames && canvasLayoutMode === 'single' && (
-            <button
-              type="button"
-              onClick={() => onToggleSplitFrames(photo.id)}
-              className={`inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] px-2 text-[11px] font-medium transition-colors whitespace-nowrap ${
-                group.splitFrames
-                  ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              <BrandIcon name="split-panorama" size={13} />
-              <span className="hidden sm:inline">{group.splitFrames ? 'Merged: Off' : 'Split 2'}</span>
-            </button>
-          )}
-        </div>
+            {([
+              { icon: 'image-plus', label: 'Add format', run: () => onOpenFormats?.(), disabled: !onOpenFormats, pressed: false },
+              { icon: 'copy', label: 'Duplicate format', run: () => onDuplicateSize?.(selectedSizeIds[0]), disabled: selectedSizeIds.length !== 1 || !onDuplicateSize, pressed: false },
+              { icon: 'crop', label: 'Crop / reposition', run: () => {
+                const id = selectedSizeIds[0];
+                onSelectSize(id);
+                onSetLayoutMode('single');
+                setRevealSizeId((current) => current === id ? null : id);
+              }, disabled: selectedSizeIds.length !== 1 || activeSize.kind !== 'photo' || compareMode, pressed: revealSizeId === selectedSizeIds[0] },
+              { icon: 'arrows-horizontal', label: 'Flip selected formats', run: () => onFlipSizes(photo.id, 'horizontal'), disabled: false, pressed: false },
+              { icon: 'rotate', label: 'Rotate selected formats', run: () => onRotateSizes(photo.id), disabled: false, pressed: false },
+              { icon: 'compare', label: 'Compare', run: onToggleCompare, disabled: selectedSizeIds.length !== 1 || group.splitFrames, pressed: compareMode },
+              { icon: 'trash', label: 'Delete selected format', run: () => onRemoveSize?.(selectedSizeIds[0]), disabled: selectedSizeIds.length !== 1 || !onRemoveSize, pressed: false },
+            ] as const).map((action) => (
+              <button
+                key={action.label}
+                type="button"
+                title={action.label}
+                aria-label={action.label}
+                aria-pressed={action.pressed}
+                disabled={action.disabled}
+                onClick={action.run}
+                className="inline-flex h-9 min-w-9 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40 aria-pressed:bg-[var(--brand-accent-soft)] aria-pressed:text-[var(--brand-accent)] max-md:h-11 max-md:min-w-11"
+              >
+                <BrandIcon name={action.icon} size={16} />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-
-      {canvasLayoutMode === 'all-formats' && selectedSizeIds.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/60 px-3 py-1.5" data-testid="board-format-actions">
-          <span className="text-[11px] text-[var(--text-muted)]">{selectedSizeIds.length === 1 ? '1 format selected' : `${selectedSizeIds.length} formats selected`}</span>
-          {renderFormatActions(selectedSizeIds)}
-        </div>
-      )}
-
-      {canvasLayoutMode === 'single' && group.splitFrames && features.splitFrames && activeSize.kind === 'photo' && (
-        <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/60 px-3 py-1.5" data-testid="split-format-actions">
-          {renderFormatActions([activeSize.id])}
-        </div>
-      )}
 
       {/* Warning banners: Original Unavailable OR Text Overlay Overflow */}
       {(!photo.originalConnected || overflowIssues.length > 0) && (
@@ -1279,6 +1300,7 @@ export default function Canvas({
       {/* Stage */}
       <div
         ref={stageRef}
+        onClick={(e) => { if (canvasLayoutMode === 'all-formats' && e.target === e.currentTarget) onClearSizeSelection(); }}
         className="relative flex flex-1 overflow-auto inflight-scroll p-2 sm:p-6"
         style={{
           // A quiet, theme-aware working-area grid; artboards and exported images are unaffected.
@@ -1338,24 +1360,22 @@ export default function Canvas({
             onClick={() => onSetZoom(canvasZoom * 1.25)}
             className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
-            <BrandIcon name="zoom-in" size={14} />
+            <BrandIcon name="plus" size={14} />
           </button>
 
           <div className="mx-0.5 h-5 w-px bg-[var(--border-subtle)]" aria-hidden="true" />
 
           <button
             type="button"
-            aria-pressed={gridMode !== 'off'}
+            data-testid="grid-toggle"
             title={STRINGS.canvas.gridTitle(gridMode)}
             aria-label={STRINGS.canvas.gridTitle(gridMode)}
-            data-testid="grid-toggle"
-            onClick={() => setGridMode((mode) => (mode === 'off' ? '3x3' : mode === '3x3' ? '4x4' : 'off'))}
-            className={`inline-flex h-8 min-w-8 items-center justify-center gap-1 rounded-[var(--radius-sm)] px-1.5 text-[11px] font-medium ${
-              gridMode !== 'off' ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
-            }`}
+            aria-pressed={gridMode !== 'off'}
+            onClick={() => setGridMode((mode) => mode === 'off' ? '3x3' : mode === '3x3' ? '4x4' : 'off')}
+            className="inline-flex h-8 min-w-8 items-center justify-center gap-1 rounded-[var(--radius-sm)] px-1 text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] aria-pressed:text-[var(--brand-accent)]"
           >
             <BrandIcon name="grid" size={15} />
-            {gridMode !== 'off' && <span>{gridMode === '3x3' ? '3×3' : '4×4'}</span>}
+            {gridMode !== 'off' && <span className="text-[10px] font-semibold">{gridMode === '3x3' ? '3×3' : '4×4'}</span>}
           </button>
 
           <button

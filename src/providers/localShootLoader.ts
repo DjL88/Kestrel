@@ -11,6 +11,7 @@ import { checkOriginalPaths } from './originalPathStatus';
 import { isDesktopApp } from './desktopShell';
 import { appCopiesAvailable, copyIntoAppStorage } from './appStorageCopies';
 import { headBlob, materialize, openLinkedRange, type RangeBlob } from './rangeBlob';
+import { hashOriginalBytes } from '../core/originalFileIdentity';
 
 const SUPPORTED_EXTENSIONS = new Set(PHOTO_EXTENSIONS);
 
@@ -161,6 +162,7 @@ export async function loadLocalFileListShoot(
           return frameFor(file, stableKey, idx, exif);
         }
         let opened: File;
+        let originalSha256: string | undefined;
         try {
           opened = await file.read();
           // A file that changed while being opened is not the chosen original.
@@ -168,6 +170,9 @@ export async function loadLocalFileListShoot(
           if (opened.size !== file.size || opened.lastModified !== file.lastModified) {
             throw new Error('Photo changed while being imported.');
           }
+          // A metadata key is only a lookup hint, NOT proof of byte identity.
+          // Hash browser originals as they are imported so later reselects can be checked.
+          if (!file.path) originalSha256 = await hashOriginalBytes(opened, options.signal);
         } catch {
           return null;
         }
@@ -207,7 +212,8 @@ export async function loadLocalFileListShoot(
 
         const exif = await parseImageExif(opened, file.name);
         const copiedTo = copiedPaths.get(stableKey);
-        return frameFor(copiedTo ? { ...file, path: copiedTo } : file, stableKey, idx, exif);
+        const frame = frameFor(copiedTo ? { ...file, path: copiedTo } : file, stableKey, idx, exif);
+        return originalSha256 ? { ...frame, originalSha256 } : frame;
       },
       // A slow 29 MB NEF must not delay ready neighbours in its 4-file
       // import lane. Watched batches are deliberately all-or-nothing.

@@ -5,7 +5,8 @@ import { useWorkspace } from './stub';
 import { STRINGS } from './strings';
 import BrandIcon, { assistModeIconName } from './icons/BrandIcon';
 import ProjectsHub from './screens/ProjectsHub';
-import { FeaturePlanContext } from './shell/ProBadge';
+import { canHidePro, hiddenProFeatures, panelsHiddenByPro } from '../engineClient/proVisibility';
+import { FeaturePlanContext, HiddenProContext } from './shell/ProBadge';
 import TopBar from './shell/TopBar';
 import Rail from './shell/Rail';
 import DockPanel from './shell/DockPanel';
@@ -29,7 +30,9 @@ import CommandPalette from './dialogs/CommandPalette';
 import { effectiveKeymap, loadKeymap, saveKeymap, type SavedKeymap } from './commands/keymap';
 import { loadPad, resolveWithPad, savePad, type PadProfile } from './commands/pad';
 import KeyboardSettings from './dialogs/KeyboardSettings';
-import type { CommandDefinition } from './commands/registry';
+import { commandById, type CommandDefinition } from './commands/registry';
+import { useNativeMenu } from './commands/useNativeMenu';
+import type { MenuAction } from './commands/menuMap';
 
 const IS_MAC = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
 
@@ -53,6 +56,8 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   const { store, actions } = useStore();
   const { setActivePanel } = actions;
   const hasOverlays = store.features.overlayText || store.features.watermarkCustom;
+  const hiddenPro = React.useMemo(() => hiddenProFeatures(store.featurePlan, store.features, store.settings.hideProFeatures), [store.featurePlan, store.features, store.settings.hideProFeatures]);
+  const proChoiceOffered = canHidePro(store.featurePlan, store.features);
   const [shortcutGuideOpen, setShortcutGuideOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [savedKeymap, setSavedKeymap] = useState<SavedKeymap>(loadKeymap);
@@ -117,6 +122,22 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
       case 'app.settings': actions.setSettingsOpen(true); break;
     }
   }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, activePhoto, actions]);
+
+  // The desktop app's native menu (File, Edit, Photo, View, Settings). Some of its accelerators (Cmd/Ctrl+E, +A, +O, +M)
+  // are taken before the page sees the key, so the menu choice must run the action itself.
+  useNativeMenu((action: MenuAction) => {
+    const ids = store.selectedPhotoIds.length > 0 ? store.selectedPhotoIds : activePhoto ? [activePhoto.id] : [];
+    const inEditor = store.screen === 'editor';
+    switch (action.kind) {
+      case 'command': if (inEditor) runCommand(commandById(action.id)); break;
+      case 'rate': if (inEditor && ids.length) actions.setRating(ids, action.rating); break;
+      case 'decision': if (inEditor && ids.length) actions.setDecision(ids, action.value); break;
+      case 'import': actions.importPhotos(); break;
+      case 'deselectAll': if (inEditor) actions.clearSelection(); break;
+      case 'toggleFilmstrip': if (inEditor) actions.setFilmstripCollapsed(!store.filmstripCollapsed); break;
+      case 'settings': actions.setSettingsOpen(true, action.tab); break;
+    }
+  });
 
   // Desktop keyboard shortcuts + suppress browser Ctrl/Cmd+A inside editor workspace
   useEffect(() => {
@@ -276,8 +297,29 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   const activePanelState = store.activePanel ? store.panels[store.activePanel] : null;
   const activePanelVisible = Boolean(store.activePanel && activePanelState?.visible);
 
+  // On wide screens, detached panels are independent of the active dock/rail tab.
+  // Compact desktop and tablet layouts show only one floating panel at a time.
+  const [wideWorkspace, setWideWorkspace] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 1200px)').matches
+  );
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 1200px)');
+    const update = () => setWideWorkspace(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+  const floatingPanelIds = (Object.keys(store.panels) as PanelId[])
+    .filter((id) => store.panels[id].visible && store.panels[id].dock === 'float');
+  const shownFloatingPanelIds = wideWorkspace
+    ? floatingPanelIds
+    : floatingPanelIds.includes(store.activePanel as PanelId)
+      ? [store.activePanel as PanelId]
+      : floatingPanelIds.slice(-1);
+
   return (
     <FeaturePlanContext.Provider value={store.featurePlan}>
+      <HiddenProContext.Provider value={hiddenPro}>
     <div
       className="inflight-v2 fixed inset-0 flex flex-col overflow-hidden bg-[var(--bg-app)] text-[var(--text-primary)] font-[family-name:var(--font-sans)]"
       data-v2-theme={store.settings.theme}
@@ -358,7 +400,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
           <div className={`relative flex min-h-0 flex-1 overflow-hidden ${store.settings.hand === 'left' ? 'flex-row-reverse' : ''}`}>
             <Rail
               hand={store.settings.hand}
-              hiddenPanels={hasOverlays ? [] : ['overlays']}
+              hiddenPanels={[...(hasOverlays ? [] : ['overlays' as const]), ...panelsHiddenByPro(hiddenPro)]}
               assistMode={store.assistMode}
               activePanel={store.activePanel}
               panels={store.panels}
@@ -434,6 +476,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                   isFullScreen={store.isFullScreen}
                   calmView={store.settings.calmView}
                   onSelectSize={actions.setActiveSize}
+                  onClearSizeSelection={actions.clearSizeSelection}
                   onSelectAllSizes={actions.selectAllEnabledSizes}
                   onSetLayoutMode={actions.setCanvasLayoutMode}
                   onMoveArtboard={actions.moveSizeArtboard}
@@ -448,7 +491,6 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                   onReconnectOriginal={actions.reconnectOriginal}
                   onToggleCompare={() => actions.setCompareMode(!store.compareMode)}
                   onSetZoom={actions.setCanvasZoom}
-                  onToggleGridView={() => actions.setGridViewOpen(true)}
                   onToggleFullScreen={actions.toggleFullScreen}
                 />
               )}
@@ -503,21 +545,25 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
               </DockPanel>
             )}
 
-            {/* Floating panel (desktop/tablet only) */}
-            {!isMobile && activePanelVisible && store.activePanel && activePanelState?.dock === 'float' && (
-              <DockPanel
-                panelId={store.activePanel}
-                title={PANEL_TITLES[store.activePanel]}
-                dock="float"
-                floatX={activePanelState.floatX}
-                floatY={activePanelState.floatY}
-                onSetDock={(dock) => actions.setPanelDock(store.activePanel!, dock)}
-                onMoveFloat={(x, y) => actions.moveFloatingPanel(store.activePanel!, x, y)}
-                onClose={() => actions.setActivePanel(null)}
-              >
-                {renderPanelContent(store.activePanel)}
-              </DockPanel>
-            )}
+            {/* Undocked windows: independent on large displays, one on compact screens. */}
+            {!isMobile && shownFloatingPanelIds.map((panelId) => {
+              const state = store.panels[panelId];
+              return (
+                <DockPanel
+                  key={panelId}
+                  panelId={panelId}
+                  title={PANEL_TITLES[panelId]}
+                  dock="float"
+                  floatX={state.floatX}
+                  floatY={state.floatY}
+                  onSetDock={(dock) => actions.setPanelDock(panelId, dock)}
+                  onMoveFloat={(x, y) => actions.moveFloatingPanel(panelId, x, y)}
+                  onClose={() => actions.setPanelVisible(panelId, false)}
+                >
+                  {renderPanelContent(panelId)}
+                </DockPanel>
+              );
+            })}
           </div>
 
           {/* Mobile tool bar (<= 767px): four large targets, like Lightroom; everything else lives in More. */}
@@ -585,7 +631,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                   { id: 'settings', label: 'Settings', icon: 'settings' as const },
                 ] as const
               )
-                .filter((item) => item.id !== 'overlays' || hasOverlays)
+                .filter((item) => (item.id !== 'overlays' || hasOverlays) && !panelsHiddenByPro(hiddenPro).includes(item.id as never))
                 .map((item) => (
                   <button
                     key={item.id}
@@ -666,6 +712,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         onToggleAiProvider={actions.toggleAiProvider}
         onToggleStorageConnector={actions.toggleStorageConnector}
         onEraseDeviceData={actions.eraseDeviceData}
+        proChoiceOffered={proChoiceOffered}
       />
 
       {shortcutGuideOpen && store.screen === 'editor' && (
@@ -694,6 +741,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         </div>
       )}
     </div>
+      </HiddenProContext.Provider>
     </FeaturePlanContext.Provider>
   );
 }
