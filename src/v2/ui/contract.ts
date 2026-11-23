@@ -493,8 +493,9 @@ export interface WorkspaceActions {
   setActiveGroup: (photoId: string, groupId: string) => void;
   addEditGroup: (photoId: string) => void;
   renameEditGroup: (photoId: string, groupId: string, name: string) => void;
-  setActiveSize: (sizeId: string, modifiers?: { ctrl?: boolean }) => void;
-  selectAllEnabledSizes: (photoId: string) => void;
+  setActiveSize: (sizeId: string, modifiers?: { ctrl?: boolean; shift?: boolean; available?: readonly string[] }) => void;
+  clearSizeSelection: () => void;
+  selectAllEnabledSizes: (photoId: string, availableIds?: readonly string[]) => void;
   setCanvasLayoutMode: (mode: 'single' | 'all-formats') => void;
   moveSizeArtboard: (photoId: string, sizeId: string, boardX: number, boardY: number) => void;
   resetArtboardPositions: (photoId: string) => void;

@@ -454,6 +454,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                   isFullScreen={store.isFullScreen}
                   calmView={store.settings.calmView}
                   onSelectSize={actions.setActiveSize}
+                  onClearSizeSelection={actions.clearSizeSelection}
                   onSelectAllSizes={actions.selectAllEnabledSizes}
                   onSetLayoutMode={actions.setCanvasLayoutMode}
                   onMoveArtboard={actions.moveSizeArtboard}
@@ -468,7 +469,6 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                   onReconnectOriginal={actions.reconnectOriginal}
                   onToggleCompare={() => actions.setCompareMode(!store.compareMode)}
                   onSetZoom={actions.setCanvasZoom}
-                  onToggleGridView={() => actions.setGridViewOpen(true)}
                   onToggleFullScreen={actions.toggleFullScreen}
                 />
               )}
