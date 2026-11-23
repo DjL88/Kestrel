@@ -40,17 +40,17 @@ test('Subscriber can upload and use cloud AI only while active, paid and online'
   assert.equal(accessCapabilities({ ...base, cloud: 'cancelled' }).cloudAi, false);
 });
 
-test('Cloud retention stays download-only for 365 days after paid entitlement ends', () => {
+test('V2 cloud remains download-only for 90 days after the verified paid-through date', () => {
   const paidThrough = NOW - 10 * DAY;
   const base = { plan: 'subscriber' as const, licence: 'active' as const, cachedLocalLicence: true, online: true, cloud: 'cancelled' as const, nowMs: NOW, cloudPaidThroughMs: paidThrough, cloudQuotaBytes: 50_000_000_000 };
   const result = accessCapabilities(base);
-  assert.equal(CLOUD_READ_ONLY_DAYS, 365);
-  assert.equal(result.cloudReadOnlyUntilMs, paidThrough + 365 * DAY);
+  assert.equal(CLOUD_READ_ONLY_DAYS, 90);
+  assert.equal(result.cloudReadOnlyUntilMs, paidThrough + 90 * DAY);
   assert.equal(result.cloudDownloads, true);
   assert.equal(result.cloudUploads, false);
   assert.equal(result.cloudAi, false);
-  assert.equal(accessCapabilities({ ...base, nowMs: paidThrough + 365 * DAY }).cloudDownloads, true);
-  assert.equal(accessCapabilities({ ...base, nowMs: paidThrough + 365 * DAY + 1 }).cloudDownloads, false);
+  assert.equal(accessCapabilities({ ...base, nowMs: paidThrough + 90 * DAY }).cloudDownloads, true);
+  assert.equal(accessCapabilities({ ...base, nowMs: paidThrough + 90 * DAY + 1 }).cloudDownloads, false);
   assert.equal(accessCapabilities({ ...base, online: false }).cloudDownloads, false);
   assert.equal(accessCapabilities({ ...base, cloud: 'none' }).cloudDownloads, false);
 });
@@ -80,4 +80,50 @@ test('Older stored entitlement snapshots remain migratable and local content sta
   assert.equal(result.localProjectAccess, true);
   assert.equal(result.cloudDownloads, false);
   assert.deepEqual(PROPOSED_UK_PRICES, { localPence: 2900, currency: 'GBP' });
+});
+
+test('legacy plan-less active cloud cannot authorise upload or AI without a verified subscription', () => {
+  const legacy = { licence: 'active' as const, cloud: 'active' as const,
+    online: true, cachedLocalLicence: true, cloudQuotaBytes: 1_000_000_000,
+    nowMs: NOW };
+  for (const patch of [
+    {},
+    { cloudPaidThroughMs: NOW + DAY },
+    { plan: 'paid' as const, cloudPaidThroughMs: NOW + DAY },
+    { plan: 'subscriber' as const, cloudPaidThroughMs: undefined },
+  ]) {
+    const result = accessCapabilities({ ...legacy, ...patch });
+    assert.equal(result.cloudUploads, false, JSON.stringify(patch));
+    assert.equal(result.cloudAi, false, JSON.stringify(patch));
+    assert.equal(result.cloudQuotaBytes, null, JSON.stringify(patch));
+  }
+  assert.equal(accessCapabilities({ ...legacy, plan: 'subscriber', cloudPaidThroughMs: NOW + DAY }).cloudUploads, true);
+});
+
+test('expired Pro Cloud subscription does not lock local recovery and exports, and read-only does not require active editor licence', () => {
+  const subscription = { plan: 'subscriber' as const, licence: 'unlicensed' as const,
+    cloud: 'cancelled' as const, online: true, cachedLocalLicence: false,
+    cloudPaidThroughMs: NOW - 10 * DAY, nowMs: NOW,
+    cloudQuotaBytes: 50 * 1_000_000_000 };
+  const result = accessCapabilities(subscription);
+  assert.equal(result.cloudUploads, false);
+  assert.equal(result.cloudAi, false);
+  assert.equal(result.cloudDownloads, true, 'read-only retained files remain downloadable');
+  assert.equal(result.fullEditor, false);
+  assert.equal(result.localDataExport, true);
+  assert.equal(result.localBackups, true);
+  assert.equal(result.localProjectAccess, true);
+  assert.equal(accessCapabilities({ ...subscription, nowMs: NOW + 100 * DAY }).cloudDownloads, false);
+});
+
+test('invalid timestamps and unknown plans never turn on cloud capability', () => {
+  const base = { licence: 'active' as const, cloud: 'active' as const, online: true,
+    cachedLocalLicence: true, cloudQuotaBytes: 1000 };
+  for (const time of [undefined, Number.NaN, -1, Infinity, 1.25]) {
+    const r = accessCapabilities({ ...base, plan: 'subscriber', nowMs: NOW,
+      cloudPaidThroughMs: time });
+    assert.equal(r.cloudUploads, false);
+  }
+  assert.equal(accessCapabilities({ ...base, plan: 'subscriber', nowMs: undefined,
+    cloudPaidThroughMs: NOW + 1000 }).cloudUploads, false);
 });
