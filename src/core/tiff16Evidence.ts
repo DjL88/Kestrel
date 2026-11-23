@@ -86,6 +86,18 @@ export function inspectTiff16Structure(bytes: Uint8Array): { ok: true; width: nu
       return fail('TIFF pixel data overlaps channel bit-depth metadata.');
     }
   }
+  // Out-of-line TIFF tag arrays are metadata too: raster strips must not
+  // masquerade as strip tables or other SHORT/LONG tag values.
+  for (const [tag, entry] of tags) {
+    if (![3, 4].includes(entry.type)) continue;
+    const byteCount = entry.count * (entry.type === 3 ? 2 : 4);
+    if (!Number.isSafeInteger(byteCount) || byteCount <= 4) continue;
+    const at = u32(entry.offset);
+    if (!inRange(at, byteCount)) return fail('TIFF tag metadata is out of bounds.');
+    if (pixelRanges.some(([start, end]) => start < at + byteCount && at < end)) {
+      return fail(`TIFF pixel data overlaps tag ${tag} metadata.`);
+    }
+  }
   pixelRanges.sort((a, b) => a[0] - b[0]);
   if (pixelRanges.some((range, i) => i > 0 && range[0] < pixelRanges[i - 1][1])) {
     return fail('TIFF pixel strips overlap; raster bytes are not independent.');
