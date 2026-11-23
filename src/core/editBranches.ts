@@ -142,7 +142,7 @@ export function forkEditCheckpoint(
   // again without inventing a historical source image.
   const selected = history.steps.length
     ? recipeAt(history, cursor)
-    : { edit: frame.edit, framing: frame.framing };
+    : { edit: frame.edit, framing: frame.framing, overlay: frame.overlay };
   if (!selected) return frame;
   const forkHistory: EditHistory = {
     ...history,
@@ -151,6 +151,8 @@ export function forkEditCheckpoint(
   };
   const forked = restore(frame, {
     ...capture(frame), edit: copy(selected.edit), framing: copy(selected.framing),
+    // Old saved checkpoints lacked overlays. Retain the live overlay rather than guessing history.
+    overlay: 'overlay' in selected ? copy(selected.overlay) : copy(frame.overlay),
     editHistory: forkHistory, focusPoint: undefined,
   });
   const next: EditVersion = {
