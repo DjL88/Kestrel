@@ -958,7 +958,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     },
     renameOverlayTemplate: (templateId, name) => updateTemplates(renameTemplate(templates, templateId, name)),
     deleteOverlayTemplate: (templateId) => updateTemplates(deleteTemplate(templates, templateId)),
-    toggleSizeEnabled: (photoId, sizeId) => changeFormats(photoId, (raw) => toggleFormat(raw, sizeId)),
+    toggleSizeEnabled: (photoId, sizeId) => changeFormats(photoId, (raw) => toggleFormat(raw, sizeId,
+      applyFormats(createDefaultSizes(), undefined).find((size) => size.id === sizeId)?.enabled ?? true)),
     addCustomSize: (photoId, label, width, height) => {
       if (!validCustomSize(width, height)) { setNotice('That size is not usable. Use whole pixels, from 1 to 20,000.'); return; }
       const id = `custom-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 10)}`;
