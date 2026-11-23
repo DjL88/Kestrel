@@ -5,7 +5,8 @@ import { STRINGS } from '../strings';
 interface HistoryPanelProps {
   photo: Photo | null;
   activeSizeId: string;
-  onJumpToStep: (photoId: string, cursor: number) => void;
+  onForkFromStep: (photoId: string, cursor: number) => void;
+  onSwitchVersion: (photoId: string, versionId: string) => void;
 }
 
 const FORMAT_EVENTS: Readonly<Record<string, string>> = STRINGS.history.formatEvents;
@@ -15,20 +16,50 @@ function timeOf(at: number): string {
 }
 
 /**
- * Real, recorded activity only. Photo-wide edits are the shared recipe and
- * remain interactive; per-format activity is separate and currently read-only.
- * We do not show old photos as if they were historical render snapshots.
+ * Real recorded activity only. Clicking a shared edit checkpoint now creates
+ * an independent branch; per-format activity remains read-only. No synthetic
+ * historical thumbnails are shown as if they were old rendered snapshots.
  */
-export default function HistoryPanel({ photo, activeSizeId, onJumpToStep }: HistoryPanelProps) {
+export default function HistoryPanel({ photo, activeSizeId, onForkFromStep, onSwitchVersion }: HistoryPanelProps) {
   if (!photo) return <p className="text-xs text-[var(--text-muted)]">{STRINGS.history.noPhoto}</p>;
   const format = photo.sizes.find(s => s.id === activeSizeId);
   const events = photo.formatHistory?.filter(e => e.formatId === activeSizeId) ?? [];
   const ordered = [...events].sort((a, b) => a.at - b.at);
   const history = photo.editHistory;
-  const rows = history ? [{ label: STRINGS.history.original, at: undefined as number | undefined }, ...history.steps] : [];
+  const versions = photo.editVersions?.versions ?? [{
+    id: 'version-original', label: STRINGS.history.editVersionRoot,
+    parentId: null, forkCursor: 0, createdAt: 0,
+  }];
+  const activeVersionId = photo.editVersions?.activeId ?? 'version-original';
+  const versionNames = new Map(versions.map((version) => [version.id, version.label]));
+  const rows = history ? [{ label: history.originalAvailable === false ? STRINGS.history.earliestSaved : STRINGS.history.original, at: undefined as number | undefined }, ...history.steps] : [];
 
   return (
     <div className="space-y-5">
+      <section className="space-y-2" aria-label={STRINGS.history.editVersionHeading}>
+        <label htmlFor="inflight-history-version" className="block text-xs font-semibold text-[var(--text-primary)]">
+          {STRINGS.history.editVersionHeading}
+        </label>
+        <select
+          id="inflight-history-version"
+          value={activeVersionId}
+          onChange={(event) => onSwitchVersion(photo.id, event.target.value)}
+          aria-label={STRINGS.history.editVersionSelect}
+          className="min-h-11 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-primary)]"
+        >
+          {versions.map((version) => (
+            <option key={version.id} value={version.id}>
+              {version.label}{version.parentId
+                ? ` — ${STRINGS.history.editVersionParent(
+                    versionNames.get(version.parentId) ?? STRINGS.history.editVersionRoot,
+                    version.forkCursor,
+                  )}`
+                : ''}
+            </option>
+          ))}
+        </select>
+        <p className="text-[11px] text-[var(--text-secondary)]">{STRINGS.history.forkCheckpointHint}</p>
+      </section>
       <section className="space-y-2" aria-label={STRINGS.history.formatRegion}>
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">
           {STRINGS.history.formatHeading(format?.label ?? STRINGS.history.selectedFormat)}
@@ -80,7 +111,7 @@ export default function HistoryPanel({ photo, activeSizeId, onJumpToStep }: Hist
                   <button
                     type="button"
                     aria-current={current ? 'step' : undefined}
-                    onClick={() => onJumpToStep(photo.id, cursor)}
+                    onClick={() => onForkFromStep(photo.id, cursor)}
                     className={`flex min-h-10 w-full items-center justify-between gap-3 rounded-[var(--radius-sm)] border px-3 text-left text-xs ${
                       current
                         ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--text-primary)]'
@@ -88,6 +119,7 @@ export default function HistoryPanel({ photo, activeSizeId, onJumpToStep }: Hist
                     } ${later ? 'text-[var(--text-muted)]' : 'text-[var(--text-primary)]'}`}
                   >
                     <span className="font-medium">{row.label}{current ? ` · ${STRINGS.history.now}` : later ? ` · ${STRINGS.history.undone}` : ''}</span>
+                    <span className="shrink-0 text-[10px] font-semibold text-[var(--brand-accent)]">{STRINGS.history.forkFromCheckpoint}</span>
                     {row.at !== undefined && <span className="font-mono text-[10px] text-[var(--text-muted)]">{timeOf(row.at)}</span>}
                   </button>
                 </li>
