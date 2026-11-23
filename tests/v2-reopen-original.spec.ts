@@ -17,9 +17,12 @@ test('reopening a project restores the original for byte-identical offline expor
     return canvas.toDataURL().split(',')[1];
   });
   const bytes = Buffer.from(encoded, 'base64');
-  const picking = page.waitForEvent('filechooser');
-  await studio.getByRole('button', { name: 'Import', exact: true }).first().click();
-  await (await picking).setFiles([{ name: 'bird.png', mimeType: 'image/png', buffer: bytes }]);
+  await studio.getByRole('button', { name: 'Import', exact: true }).first().waitFor();
+  await studio.evaluate((target, base64) => {
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(new File([Uint8Array.from(atob(base64), char => char.charCodeAt(0))], 'bird.png', { type: 'image/png' }));
+    target.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
+  }, encoded);
   await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
   await studio.getByRole('button', { name: 'Back to projects' }).first().click();
   await expect(studio.getByRole('button', { name: 'Reopen originals', exact: true }).first()).toBeVisible();

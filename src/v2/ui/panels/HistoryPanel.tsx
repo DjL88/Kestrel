@@ -8,12 +8,7 @@ interface HistoryPanelProps {
   onJumpToStep: (photoId: string, cursor: number) => void;
 }
 
-const FORMAT_EVENTS: Record<string, string> = {
-  created: 'Format created', crop: 'Crop / framing adjusted',
-  hidden: 'Format hidden', shown: 'Format shown', removed: 'Format removed',
-  linked: 'Linked to shared edits', unlinked: 'Unlinked from shared edits',
-  size: 'Canvas dimensions changed',
-};
+const FORMAT_EVENTS: Readonly<Record<string, string>> = STRINGS.history.formatEvents;
 
 function timeOf(at: number): string {
   return new Date(at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -34,44 +29,44 @@ export default function HistoryPanel({ photo, activeSizeId, onJumpToStep }: Hist
 
   return (
     <div className="space-y-5">
-      <section className="space-y-2" aria-label="This format's history">
+      <section className="space-y-2" aria-label={STRINGS.history.formatRegion}>
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">
-          {format?.label ?? 'Selected format'} — format history
+          {STRINGS.history.formatHeading(format?.label ?? STRINGS.history.selectedFormat)}
         </h3>
         <p className="text-[11px] text-[var(--text-secondary)]">
           {activeSizeId === 'orig-3x2'
-            ? 'Original is the permanent starting branch. It can be hidden but not deleted.'
-            : 'This format keeps its own crop and layout history. Linked edits are shared with the photograph.'}
+            ? STRINGS.history.originalFormatHelp
+            : STRINGS.history.formatHelp}
         </p>
-        <ol className="space-y-1.5" aria-label="Recorded format actions">
+        <ol className="space-y-1.5" aria-label={STRINGS.history.recordedFormatActions}>
           {activeSizeId === 'orig-3x2' && (
             <li className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2 text-xs">
-              Original — imported photograph
+              {STRINGS.history.importedOriginal}
             </li>
           )}
           {ordered.map((event, i) => (
             <li key={`${event.at}-${event.kind}-${i}`}
               className="flex justify-between gap-3 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2 text-xs">
               <span>
-                {FORMAT_EVENTS[event.kind] ?? 'Format changed'}
+                {FORMAT_EVENTS[event.kind] ?? STRINGS.history.formatChanged}
                 {event.kind === 'created' && event.parentFormatId
-                  ? ` · Forked from ${event.parentFormatId === 'orig-3x2' ? 'Original' : event.parentFormatId} at shared edit ${event.forkEditCursor ?? 0}`
+                  ? ` · ${STRINGS.history.fromFormat(event.parentFormatId === 'orig-3x2' ? STRINGS.history.originalFormatName : event.parentFormatId, event.forkEditCursor ?? 0)}`
                   : ''}
               </span>
               <span className="shrink-0 font-mono text-[10px] text-[var(--text-muted)]">{timeOf(event.at)}</span>
             </li>
           ))}
           {!ordered.length && activeSizeId !== 'orig-3x2' && (
-            <li className="text-xs text-[var(--text-muted)]">No format changes recorded yet. Existing projects may predate this timeline.</li>
+            <li className="text-xs text-[var(--text-muted)]">{STRINGS.history.formatEmpty}</li>
           )}
         </ol>
-        <p className="text-[11px] text-[var(--text-muted)]">Format actions are recorded from this version onwards. Historical previews and restoring format checkpoints are not yet available.</p>
+        <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.history.formatReadOnly}</p>
       </section>
 
-      <section className="space-y-2 border-t border-[var(--border-subtle)] pt-4" aria-label="Shared photo edit history">
-        <h3 className="text-xs font-semibold text-[var(--text-primary)]">Shared photo edits</h3>
+      <section className="space-y-2 border-t border-[var(--border-subtle)] pt-4" aria-label={STRINGS.history.sharedRegion}>
+        <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.history.sharedHeading}</h3>
         <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-          Photo-wide edits and masks are shared with linked formats. Select a step to restore the shared recipe.
+          {STRINGS.history.sharedHelp}
         </p>
         {!history || !rows.length ? (
           <p className="text-xs text-[var(--text-muted)]">{STRINGS.history.empty}</p>

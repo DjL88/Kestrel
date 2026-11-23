@@ -23,6 +23,13 @@ const extensionOf = (filename: string) => /\.([a-z0-9]+)$/i.exec(filename)?.[1].
 export const rawFormatOf = (filename: string): RawFormat | undefined => BY_EXT.get(extensionOf(filename));
 export const isRawPreviewFile = (filename: string) => BY_EXT.has(extensionOf(filename));
 
+/** Browser image formats eligible for verified, full-size Original export. */
+export function fullResolutionRasterFormat(filename: string): 'jpeg' | 'png' | null {
+  const extension = extensionOf(filename);
+  if (extension === 'jpg' || extension === 'jpeg') return 'jpeg';
+  return extension === 'png' ? 'png' : null;
+}
+
 /** "CR3 Embedded Preview", for the info panel. */
 export const rawPreviewLabel = (filename: string) => `${extensionOf(filename).toUpperCase()} Embedded Preview`;
 

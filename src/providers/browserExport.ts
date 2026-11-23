@@ -1,4 +1,5 @@
-import { isRawPreviewFile } from '../core/rawFormats';
+import { fullResolutionRasterFormat, isRawPreviewFile } from '../core/rawFormats';
+import { hashOriginalBytes, isSameOriginalBytes } from '../core/originalFileIdentity';
 import { beforeAfterCanvasSize, beforeAfterPanelProfile } from '../core/beforeAfterPlan';
 import { exportText as exportCopy } from '../i18n/areas/export';
 import { embedRasterXmp } from '../core/rasterXmp';
@@ -133,10 +134,11 @@ export async function loadExportSource(
 export async function loadVerifiedRasterOriginalForExport(
   frame: PhotoFrame,
   provider: Pick<BrowserPreviewProvider, 'ensureOriginal'>,
+  signal?: AbortSignal,
 ): Promise<HTMLImageElement> {
-  const ext = frame.filename.split('.').at(-1)?.toLowerCase();
-  const expected = ext === 'jpg' || ext === 'jpeg' ? 'jpeg' : ext === 'png' ? 'png' : null;
+  const expected = fullResolutionRasterFormat(frame.filename);
   if (!expected || frame.isDemo) throw new Error('Native Original dimensions are only verified for connected JPEG and PNG originals.');
+  signal?.throwIfAborted();
   const original = await provider.ensureOriginal(frame.stableKey, 'selected');
   if (!original) throw new Error(`Reconnect ${frame.filename} before exporting its full-resolution Original.`);
   // Content sniffing prevents a renamed thumbnail or wrong-format file from
@@ -145,9 +147,14 @@ export async function loadVerifiedRasterOriginalForExport(
   const jpeg = header.length >= 3 && header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff;
   const png = header.length >= 8 && [137, 80, 78, 71, 13, 10, 26, 10].every((n, i) => header[i] === n);
   if (expected === 'jpeg' ? !jpeg : !png) throw new Error(`The connected original for ${frame.filename} is not a valid ${expected.toUpperCase()} file.`);
+  if (!frame.originalSha256) throw new Error(`Import ${frame.filename} again to verify its identity before exporting at Original size.`);
+  if (!isSameOriginalBytes(frame.originalSha256, await hashOriginalBytes(original, signal))) {
+    throw new Error(`The connected file differs from the imported ${frame.filename}. Original-size export was stopped.`);
+  }
   const url = URL.createObjectURL(original);
   try {
     const image = await loadImage(url);
+    signal?.throwIfAborted();
     if (!Number.isSafeInteger(image.naturalWidth) || !Number.isSafeInteger(image.naturalHeight) ||
         image.naturalWidth < 1 || image.naturalHeight < 1) {
       throw new Error(`Could not decode the original image dimensions of ${frame.filename}.`);

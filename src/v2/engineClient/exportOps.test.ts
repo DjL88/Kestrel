@@ -76,6 +76,18 @@ test('original file plus edited counts both', () => {
   assert.equal(plan.summary, '1 photo × 1 size + 1 original file = 2 files');
 });
 
+test('plans JPEG/PNG Original exports before decoding, preserves an explicit size and excludes unverified RAW', () => {
+  const originals = [size('orig-3x2')];
+  const plan = planExport(request({ sizeIds: ['orig-3x2'], photoIds: ['p1', 'p2', 'p3'] }), [
+    { id: 'p1', filename: 'bird.PNG' },
+    { id: 'p2', filename: 'dog.JPEG', formats: { originalSize: { width: 440, height: 330 } } },
+    { id: 'p3', filename: 'bird.NEF' },
+  ], originals);
+  assert.ok('jobs' in plan);
+  assert.deepEqual(plan.jobs.map((job) => job.frameId), ['p1', 'p2']);
+  assert.deepEqual(plan.jobs[1].size, { width: 440, height: 330 });
+});
+
 test('choosing nothing at all is refused with a plain message', () => {
   assert.ok('error' in planExport(request({ includeAfter: false }), frames, [size('a')]));
 });
