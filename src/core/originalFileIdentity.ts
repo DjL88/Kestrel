@@ -3,7 +3,9 @@ import { Sha256Stream } from './sha256';
 /** A content fingerprint of the EXACT original bytes, computed one bounded slice at a time.
  * Browser File/Blob.slice works without secure-context crypto.subtle and avoids a second
  * full-size buffer for high-resolution RAW originals. */
-export async function hashOriginalBytes(blob: Blob, signal?: AbortSignal): Promise<string> {
+export type OriginalByteSource = { size: number; slice(start: number, end: number): { arrayBuffer(): Promise<ArrayBuffer> } };
+
+export async function hashOriginalBytes(blob: OriginalByteSource, signal?: AbortSignal): Promise<string> {
   const sha = new Sha256Stream();
   const CHUNK_BYTES = 1024 * 1024;
   for (let offset = 0; offset < blob.size || (offset === 0 && blob.size === 0); offset += CHUNK_BYTES) {
