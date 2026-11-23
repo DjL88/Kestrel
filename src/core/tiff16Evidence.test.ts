@@ -81,6 +81,18 @@ describe('completed TIFF structural evidence', () => {
     assert.equal(bitsResult.ok, false);
     if (!bitsResult.ok) assert.match(bitsResult.reason, /bit-depth metadata/i);
   });
+  it('rejects ICC data aliasing the TIFF header without claiming colour fidelity', () => {
+    const aliased = fixture();
+    const view = new DataView(aliased.buffer);
+    // Keep a plausible bounded ICC header while borrowing the TIFF signature.
+    view.setUint32(10 + 10 * 12 + 8, 0, true);
+    view.setUint32(0, 128, false);
+    aliased.set([97, 99, 115, 112], 36);
+    const result = inspectTiff16Structure(aliased);
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.match(result.reason, /header|signature/i);
+    assert.deepEqual(inspectTiff16Structure(fixture()), { ok: true, width: 4, height: 3, samples: 3 });
+  });
   it('rejects an ICC payload whose declared span overlaps the image directory', () => {
     const aliased = fixture();
     // The IFD starts at 8 and ends beyond 128; a profile beginning at 100
