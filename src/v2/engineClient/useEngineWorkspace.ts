@@ -38,6 +38,7 @@ import { readCrops } from './cropOps';
 import { addRow, alignOverlays, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps';
 import { frameToPhoto, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
+import { commitAutoEdit } from './commitAutoEdit';
 import { runV2Denoise } from './runDenoise';
 import { moveArtboard } from './boardOps';
 import { accountConnection } from '../../providers/licenceStore';
@@ -198,7 +199,6 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useEffect(() => { let live = true; void toPresets(watermarkStore).then((presets) => { if (live) setWatermarkLibrary(presets); }); return () => { live = false; }; }, [watermarkStore]);
   const updateWatermarks = useCallback((next: StoredWatermark[]) => { setWatermarkStore(next); saveStored(next); }, []);
   const [assists, setAssists] = useState<Record<string, AssistState>>({});
-  const autoInFlight = useRef(new Set<string>());
   const cullController = useRef<AbortController | null>(null);
   const [importing, setImporting] = useState(false);
   const [removedOpen, setRemovedOpen] = useState(false);
@@ -790,23 +790,29 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, [assists, editFrames]);
 
   // Co-pilot and Auto-pilot look at the photo on the canvas, on this device, one at a time. Solo never does.
-  const assistMode = stub.store.assistMode;
+  const assistMode = savedUi.assistMode ?? stub.store.assistMode;
+  const assistProjectId = state?.shoot.id;
   useEffect(() => {
-    if (screen !== 'editor' || assistMode === 'solo' || !activeFrame || assists[activeFrame.id] || autoInFlight.current.has(activeFrame.id)) return;
+    if (screen !== 'editor' || assistMode === 'solo' || !assistProjectId || !activeFrame || assists[activeFrame.id]) return;
     const frame = activeFrame;
-    autoInFlight.current.add(frame.id);
-    const task = tasks.start('Checking the photo and colour');
-    runAuto(frame, provider.current!).then((run) => {
+    const request = openRequest.current;
+    const controller = new AbortController();
+    const task = tasks.start('Checking the photo and colour', { cancel: () => controller.abort() });
+    const isCurrent = () => !controller.signal.aborted && request === openRequest.current;
+    runAuto(frame, provider.current!, controller.signal).then((run) => {
+      if (!isCurrent()) { tasks.cancel(task.id); return; }
       if (!run) { task.finish('Could not analyse this photo.'); return; }
       task.finish(run.headline);
-      const untouched = !frame.edit && !frame.editHistory?.steps.length;
-      const apply = assistMode === 'autopilot' && run.improved && untouched;
-      setAssists((current) => ({ ...current, [frame.id]: { run, applied: apply, dismissed: false } }));
-      if (apply) editFrames([frame.id], () => run.plan.proposal);
-    }, () => task.fail('Checking the photo failed.')).finally(() => autoInFlight.current.delete(frame.id));
-    // Runs once per photo and mode; `assists` guards repeats.
+      if (assistMode === 'autopilot' && run.improved) {
+        const at = Date.now();
+        mutate((current) => isCurrent() ? commitAutoEdit(current, assistProjectId, frame, run.plan.proposal, at) : current);
+      }
+      setAssists((current) => ({ ...current, [frame.id]: { run, applied: false, dismissed: false } }));
+    }, () => { if (isCurrent()) task.fail('Checking the photo failed.'); else tasks.cancel(task.id); });
+    return () => { controller.abort(); tasks.cancel(task.id); };
+    // Analyse the selected photo once, unless the request was stopped. Editing a slider doesn't restart it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [screen, assistMode, activeFrame?.id]);
+  }, [screen, assistMode, assistProjectId, activeFrame?.id, mutate]);
 
   // The person asked for this (Co-pilot/Assist "deep review" or refresh button); it is not the automatic
   // per-photo pass above. Wired to the real engine (src/engine/subjectDetectAction.ts, lookSuggestions.ts)
@@ -1245,7 +1251,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     [stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: [...INITIAL_WATERMARKS, ...watermarkLibrary], auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
-  const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], { assist: assists[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed })), [state?.frames, urls, assists, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes]);
+  const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => {
+    const suggestion = assists[frame.id];
+    const assist = suggestion && frame.edit === suggestion.run.plan.proposal ? { ...suggestion, applied: true } : suggestion;
+    return frameToPhoto(frame, urls[frame.id], { assist, watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed });
+  }), [state?.frames, urls, assists, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes]);
   // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo
   // (ROADMAP.md, "Removed photos panel" next item). Thumbnails are not fetched for them; the filename is enough
   // to recognise one in a short list, and restoring returns it to the normal, already-thumbnailed photo list.
@@ -1254,7 +1264,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     ...stub.store,
     fonts: mergeFonts(deviceFonts),
     settings: mergeSettings(stub.store.settings, savedUi.settings),
-    assistMode: savedUi.assistMode ?? stub.store.assistMode,
+    assistMode,
     watermarkPresets: [...INITIAL_WATERMARKS, ...watermarkLibrary],
     overlayTemplates: templates.map(({ id, name }) => ({ id, name })),
     features: featureAccess(can),
@@ -1273,7 +1283,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clipboardRecipe: clipboard,
     PhotoSurface: EngineSurface,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
-  }), [stub.store, can, savedUi, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice]);
+  }), [stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice]);
 
   return { store, actions };
 }
