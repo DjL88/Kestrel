@@ -104,6 +104,10 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ] as const;
 
+const SEASON_CONTEXT = /\\b(?:in|from|during|throughout)\\s+(?:the\\s+)?(spring|summer|autumn|fall|winter)(?:\\s+(?:of\\s+)?((?:19|20)\\d{2}))?\\b/i;
+const SEASON_MONTHS: Record<Season, readonly number[]> = { spring: [3, 4, 5], summer: [6, 7, 8], autumn: [9, 10, 11], winter: [12, 1, 2] };
+export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
+
 const DATE_CONTEXT = /\b(?:from|in|during|around|throughout|for)\s+(?:the\s+month\s+of\s+)?(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)(?:\s+(?:of\s+)?((?:19|20)\d{2}))?\b/i;
 const DATE_YEAR = /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+((?:19|20)\d{2})\b/i;
 const DATE_SHORT = /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/i;
@@ -122,6 +126,7 @@ function normalise(value: string): string {
 
 export interface ParsedPhotoSearch {
   terms: string[];
+  season?: Season; // meteorological seasons (Northern Hemisphere)
   month?: number; // 1 through 12
   year?: number; // only when explicitly requested
   exactMonthOnly: boolean;
@@ -131,13 +136,20 @@ export function parsePhotoSearch(query: string): ParsedPhotoSearch {
   const raw = normalise(query).slice(0, 240);
   let rest = raw;
   let month: number | undefined, year: number | undefined;
+  let season: Season | undefined;
+  const seasonHit = SEASON_CONTEXT.exec(raw);
+  if (seasonHit) {
+    season = seasonHit[1] === 'fall' ? 'autumn' : seasonHit[1] as Season;
+    year = seasonHit[2] ? Number(seasonHit[2]) : undefined;
+    rest = raw.slice(0, seasonHit.index) + ' ' + raw.slice(seasonHit.index + seasonHit[0].length);
+  }
   // A modal 'may contain' is not a date. Short shorthand ('Kingfisher May') is.
-  const hit = DATE_CONTEXT.exec(raw) ?? DATE_YEAR.exec(raw) ??
-    (raw.split(/\s+/).length <= 3 && !/\bmay\s+(?:contain|have|show|be)\b/.test(raw) ? DATE_SHORT.exec(raw) : null);
+  const hit = !season && (DATE_CONTEXT.exec(rest) ?? DATE_YEAR.exec(rest) ??
+    (rest.split(/\s+/).length <= 3 && !/\bmay\s+(?:contain|have|show|be)\b/.test(rest) ? DATE_SHORT.exec(rest) : null));
   if (hit) {
     month = MONTHS.findIndex((name) => name.toLowerCase().startsWith(hit[1].slice(0, 3))) + 1;
     year = hit[2] ? Number(hit[2]) : undefined;
-    rest = raw.slice(0, hit.index) + ' ' + raw.slice(hit.index + hit[0].length);
+    rest = rest.slice(0, hit.index) + ' ' + rest.slice(hit.index + hit[0].length);
   }
   if (year === undefined) {
     const y = /\b(?:in|from|during)\s+((?:19|20)\d{2})\b/.exec(rest);
@@ -148,6 +160,7 @@ export function parsePhotoSearch(query: string): ParsedPhotoSearch {
     .map((word) => word.length > 5 && word.endsWith('s') && !word.endsWith('ss') ? word.slice(0, -1) : word);
   return {
     terms: [...new Set(terms)],
+    ...(season ? { season } : {}),
     ...(month ? { month } : {}),
     ...(year ? { year } : {}),
     exactMonthOnly: /\b(?:only|strictly|exactly|just)\b/.test(raw),
@@ -155,12 +168,19 @@ export function parsePhotoSearch(query: string): ParsedPhotoSearch {
 }
 
 function monthKind(frame: PhotoFrame, parsed: ParsedPhotoSearch): 'primary' | 'nearby' | 'none' {
-  if (parsed.month === undefined && parsed.year === undefined) return 'primary';
+  if (parsed.month === undefined && parsed.season === undefined && parsed.year === undefined) return 'primary';
   const ms = frame.exif.capturedAtMs;
   if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0 || ms > 8.64e15) return 'none';
   const date = new Date(ms);
   if (Number.isNaN(date.getTime())) return 'none';
   const observedMonth = date.getUTCMonth() + 1, observedYear = date.getUTCFullYear();
+  if (parsed.season) {
+    if (!SEASON_MONTHS[parsed.season].includes(observedMonth)) return 'none';
+    if (parsed.year === undefined) return 'primary';
+    // Winter 2026 is December 2026 through February 2027.
+    const seasonYear = parsed.season === 'winter' && observedMonth < 3 ? observedYear - 1 : observedYear;
+    return seasonYear === parsed.year ? 'primary' : 'none';
+  }
   if (parsed.month === undefined) return observedYear === parsed.year ? 'primary' : 'none';
   if (observedMonth === parsed.month && (parsed.year === undefined || observedYear === parsed.year)) return 'primary';
   if (parsed.exactMonthOnly) return 'none';
