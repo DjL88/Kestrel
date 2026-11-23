@@ -32,6 +32,17 @@ function requireText(path) {
 const editorPaths = { 'demo-editor': '/editor/demo-editor.html', 'demo-v2': '/editor/demo-v2.html' };
 const callbackPath = '/oauth-callback.html';
 const privacyPath = '/privacy.html';
+const faviconPath = '/assets/brand/inflight/app-icons/favicon.svg';
+function faviconHref(html) {
+  const tag = [...html.matchAll(/<link\b[^>]*>/gi)].map(m => m[0]).find(tag => /\brel=["']icon["']/i.test(tag));
+  return tag?.match(/\bhref=["']([^"']+)["']/i)?.[1] ?? null;
+}
+function requireFavicon(html) {
+  const href = faviconHref(html);
+  if (!href || new URL(href, 'https://kestrel.invalid/').pathname !== faviconPath || /[?#]/.test(href)) {
+    throw new Error('Homepage favicon missing or not the approved brand asset: ' + String(href));
+  }
+}
 /** Which compiled editor the homepage embeds: the Version 2 demo or the original Demo Studio editor. */
 const embeddedEditor = html => (/<iframe\b[^>]*\ssrc=["']\/?editor\/demo-v2(?:\.html)?["']/i.test(html) ? 'demo-v2' : /<iframe\b[^>]*\ssrc=["']\/?editor\/demo-editor(?:\.html)?["']/i.test(html) ? 'demo-editor' : null);
 
@@ -69,6 +80,9 @@ async function main() {
   if (!requireText(join(dir, callbackPath.slice(1))).includes('Finishing sign-in')) {
     throw new Error('The sign-in callback page is not the expected page: ' + callbackPath);
   }
+  requireFavicon(landing);
+  const favicon = requireText(join(dir, faviconPath.slice(1)));
+  if (!/<svg\b/i.test(favicon) || !/<\/svg>/i.test(favicon)) throw new Error('Brand favicon is not a valid SVG document.');
   const embedded = embeddedEditor(landing);
   if (!embedded) {
     throw new Error('The homepage does not embed the compiled photo editor.');
@@ -95,12 +109,12 @@ async function main() {
   const base = new URL(liveUrl);
   if (base.protocol !== 'https:') throw new Error('Live URL must use HTTPS.');
   if (embedded === 'demo-v2') localEntries.set('/editor/demo-v2', localEntries.get(editorPaths['demo-v2']));
-  for (const suffix of ['/', ...localEntries.keys(), callbackPath, privacyPath, ...assets]) {
+  for (const suffix of ['/', ...localEntries.keys(), callbackPath, privacyPath, faviconPath, ...assets]) {
     const uri = new URL(suffix, base);
     uri.searchParams.set('kestrel-health-check', String(Date.now()));
     const response = await fetch(uri, { signal: AbortSignal.timeout(15_000), headers: { accept: 'text/html,application/javascript,text/css,*/*' } });
     if (!response.ok) throw new Error('Live Firebase path failed (' + response.status + '): ' + uri.pathname);
-    if (assets.includes(suffix)) {
+    if (assets.includes(suffix) || suffix === faviconPath) {
       const body = Buffer.from(await response.arrayBuffer());
       if (!body.length || /^\s*(?:<!doctype html|<html)\b/i.test(body.subarray(0, 512).toString('utf8'))) {
         throw new Error('Live Firebase path returned a missing or wrong asset: ' + uri.pathname);
@@ -114,6 +128,7 @@ async function main() {
     if (!data.trim() || data.includes('Page Not Found')) {
       throw new Error('Live Firebase path returned a missing or wrong asset: ' + uri.pathname);
     }
+    if (suffix === '/') requireFavicon(data);
     if (suffix === '/' && embeddedEditor(data) !== embedded) {
       throw new Error('Live homepage is stale: expected the ' + embedded + ' editor iframe.');
     }
