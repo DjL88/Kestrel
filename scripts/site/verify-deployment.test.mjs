@@ -323,6 +323,6 @@ test('favicon must be a local approved asset, never an external or protocol-rela
 
 test('release verifier source never contains an escaped newline between favicon predicates', () => {
   const source = readFileSync(script, 'utf8');
-  assert.doesNotMatch(source, /\|\|\\\\n\s+new URL\(/,
+  assert.equal(source.includes('||\\n      new URL('), false,
     'a literal backslash-n outside a string breaks JavaScript parsing');
 });
