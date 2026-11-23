@@ -138,3 +138,21 @@ test('finished tasks stay for 4 hours and are then dropped, newest first, with r
   assert.deepEqual(shown.map((task) => task.id), ['1', 'newest', 'older-new']);
   assert.deepEqual(visibleTasks([], [done('x', COMPLETED_KEEP_MS - 1)], now).map((task) => task.id), ['x']);
 });
+
+test('a saved split belongs only to its selected output format, not the whole photograph', () => {
+  const photo = frameToPhoto(frame({ formatSplits: { 'ig-portrait': { enabled: true, offset: 12 } } }), undefined);
+  assert.equal(photo.formatSplits?.['ig-portrait']?.enabled, true);
+  assert.equal(photo.formatSplits?.['ig-portrait']?.offset, 12);
+  assert.equal(photo.formatSplits?.['orig-3x2'], undefined);
+});
+
+test('older photo-wide split is migrated visually to Original only, preserving the offset', () => {
+  const photo = frameToPhoto(frame({ splitFrames: true, splitPanOffset: -8 }), undefined);
+  assert.deepEqual(photo.formatSplits, { 'orig-3x2': { enabled: true, offset: -8 } });
+  assert.equal(photo.formatSplits?.['ig-portrait'], undefined);
+});
+
+test('an explicitly empty per-format split selection disables the legacy photo-wide split', () => {
+  const photo = frameToPhoto(frame({ splitFrames: true, splitPanOffset: 12, formatSplits: {} }), undefined);
+  assert.deepEqual(photo.formatSplits, {});
+});
