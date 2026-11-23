@@ -1,3 +1,5 @@
+import { LANGUAGES, languageOption, type LanguageCode } from '../../../core/locale';
+import { chooseLanguage, language } from '../../../i18n/messages';
 import { StorageConnections } from './StorageConnections';
 import React, { useState } from 'react';
 import type {
@@ -513,20 +515,20 @@ export default function SettingsDialog({
                   </p>
                 </div>
                 <select
-                  value={settings.language}
-                  aria-label="Display language"
-                  onChange={(e) =>
-                    onUpdateSettings({
-                      language: e.target.value as WorkspaceSettings['language'],
-                    })
-                  }
+                  value={language}
+                  aria-label={STRINGS.settings.language.label}
+                  onChange={(e) => chooseLanguage(e.target.value as LanguageCode)}
                   className="h-10 w-full max-w-xs rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-primary)]"
                 >
-                  <option value="en-GB">English (United Kingdom) — Default</option>
-                  <option value="en-US">English (United States)</option>
-                  <option value="de-DE">Deutsch</option>
-                  <option value="fr-FR">Français</option>
+                  {LANGUAGES.map((option) => (
+                    <option key={option.code} value={option.code}>
+                      {option.nativeName}{option.status === 'source' ? STRINGS.settings.language.defaultSuffix : option.status === 'draft' ? STRINGS.settings.language.draftSuffix : ''}
+                    </option>
+                  ))}
                 </select>
+                {languageOption(language).status === 'draft' && (
+                  <p className="text-xs text-[var(--text-secondary)]">{STRINGS.settings.language.draftNote}</p>
+                )}
               </div>
             )}
           </div>
