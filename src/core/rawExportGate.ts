@@ -18,6 +18,10 @@ export interface RawDecodeEvidence {
   /** Colour management metadata for the export encoder, not a browser display profile guess. */
   outputIccProfile: string | null;
   compression: RawCompression;
+  /** Encoder-confirmed output container; canvas PNG/JPEG is not a 16-bit TIFF. */
+  outputFormat: 'tiff' | 'png' | 'jpeg' | 'unknown';
+  /** Actual samples written per channel, not the precision of an earlier intermediate. */
+  encodedBitsPerChannel: 8 | 16 | 'unknown';
 }
 
 export type Raw16ExportDecision =
@@ -46,6 +50,9 @@ export function requireProvenRaw16Export(evidence: RawDecodeEvidence | null | un
   if (!Number.isSafeInteger(evidence.width) || evidence.width <= 0 ||
       !Number.isSafeInteger(evidence.height) || evidence.height <= 0) {
     return reject('The decoded image dimensions are invalid.');
+  }
+  if (evidence.outputFormat !== 'tiff' || evidence.encodedBitsPerChannel !== 16) {
+    return reject('A verified 16-bit TIFF encoder is required; an 8-bit canvas or JPEG output cannot qualify.');
   }
   if (!evidence.outputIccProfile?.trim()) {
     return reject('The export colour profile is not recorded.');
