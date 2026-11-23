@@ -698,3 +698,39 @@ test('?v2 export: Original file is the exact bytes, and Before + After is a zip 
   await again.getByRole('button', { name: /export bundle/i }).click();
   expect((await zipped).suggestedFilename()).toMatch(/\.zip$/);
 });
+
+test('?v2 Look preview belongs only to its selected photo, never the next one', async ({ page }) => {
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Look photo-switch check');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  const images = await page.evaluate(() => ['#47617a', '#997b54'].map((colour) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 200; canvas.height = 140;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = colour; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/png').split(',')[1];
+  }));
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles(images.map((image, i) => ({
+    name: `look-${i + 1}.png`, mimeType: 'image/png', buffer: Buffer.from(image, 'base64'),
+  })));
+  const strip = root.getByRole('listbox', { name: 'Project photographs' });
+  await expect(strip.getByRole('option')).toHaveCount(2);
+  const looksTab = root.getByRole('tab', { name: 'Curated Looks' });
+  if (!(await looksTab.isVisible())) await root.getByRole('button', { name: 'Adjust', exact: true }).first().click();
+  await looksTab.click();
+  const looksPanel = root.getByRole('tabpanel', { name: 'Curated Looks' });
+  const firstLook = looksPanel.getByRole('button').first();
+  await firstLook.click();
+  await expect(root.getByRole('group', { name: 'Look preview actions' })).toBeVisible();
+  await expect(firstLook).toHaveAttribute('aria-pressed', 'true');
+  // Switching photos must dismiss the pending choice without applying it to either photo.
+  await strip.getByRole('option').nth(1).click();
+  await expect(root.getByRole('group', { name: 'Look preview actions' })).toHaveCount(0);
+  await expect(firstLook).toHaveAttribute('aria-pressed', 'false');
+  await strip.getByRole('option').nth(0).click();
+  await expect(root.getByRole('group', { name: 'Look preview actions' })).toHaveCount(0);
+});
