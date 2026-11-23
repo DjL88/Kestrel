@@ -25,3 +25,19 @@ test('an unavailable format never changes the current selection', () => {
   assert.deepEqual(chooseFormatSelection({ available, selected: ['portrait'], active: 'portrait', target: 'missing', shift: true }),
     { active: 'portrait', selected: ['portrait'] });
 });
+test('Ctrl/Cmd selection drops deleted formats and repeated persisted IDs', () => {
+  assert.deepEqual(chooseFormatSelection({ available, selected: ['deleted', 'original', 'original', 'wide'], active: 'original', target: 'story', ctrl: true }),
+    { active: 'story', selected: ['original', 'wide', 'story'] });
+  assert.deepEqual(chooseFormatSelection({ available, selected: ['deleted', 'wide', 'wide'], active: 'wide', target: 'wide', ctrl: true }),
+    { active: 'wide', selected: [] });
+});
+test('Ctrl/Cmd+Shift deduplicates IDs in board and saved selection', () => {
+  assert.deepEqual(chooseFormatSelection({ available: ['original', 'portrait', 'portrait', 'wide'], selected: ['deleted', 'wide', 'wide'], active: 'original', target: 'portrait', ctrl: true, shift: true }),
+    { active: 'portrait', selected: ['wide', 'original', 'portrait'] });
+});
+test('missing shift anchor selects target only, never an unrelated range', () => {
+  assert.deepEqual(chooseFormatSelection({ available, selected: ['deleted', 'story'], active: 'deleted', target: 'portrait', shift: true }),
+    { active: 'portrait', selected: ['portrait'] });
+  assert.deepEqual(chooseFormatSelection({ available, selected: ['deleted', 'story'], active: 'deleted', target: 'portrait', shift: true, ctrl: true }),
+    { active: 'portrait', selected: ['story', 'portrait'] });
+});
