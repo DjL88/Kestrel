@@ -281,6 +281,12 @@ export default function ProjectsHub({
         <div className="flex flex-wrap items-center gap-3">
           <img
             src={footerLogo}
+            onError={(event) => {
+              // Firebase Hosting can serve the site but rewrite V2 app asset URLs.
+              // Fall back to the existing, publicly hosted owner-supplied kite logo.
+              const fallback = `/assets/brand/inflight/svg/logo/inflight-logo-horizontal-${theme === 'dark' ? 'dark' : 'light'}.svg`;
+              if (event.currentTarget.getAttribute('src') !== fallback) event.currentTarget.src = fallback;
+            }}
             alt=""
             aria-hidden="true"
             width={74}
