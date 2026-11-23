@@ -106,3 +106,22 @@ test('a custom format exports only for the photo that has it, and a format a pho
   assert.ok('jobs' in skipped);
   assert.deepEqual(skipped.jobs.map((job) => job.frameId), ['p2']);
 });
+
+test('PNG export counts only enabled formats on each photo, never the whole selection grid', () => {
+  const custom = { disabled: [], custom: [{ id: 'custom-abc123', label: 'Poster', width: 2400, height: 3000 }] };
+  const partial = [
+    { id: 'p1', filename: 'one.jpg', formats: custom },
+    { id: 'p2', filename: 'two.jpg', formats: { disabled: ['a'], custom: [] } },
+  ];
+  const plan = planExport(request({ fileFormat: 'png', sizeIds: ['a', 'custom-abc123'] }), partial, [size('a')]);
+  assert.ok('jobs' in plan);
+  assert.equal(plan.jobs.length, 2);
+  assert.deepEqual(plan.jobs.map((job) => job.frameId), ['p1', 'p1']);
+  assert.ok(plan.jobs.every((job) => job.format.format === 'png' && job.format.quality === 1));
+  assert.equal(plan.summary, '2 size versions across 2 photos = 2 files');
+
+  const none = planExport(request({ sizeIds: ['a'] }), partial.map((frame) => ({
+    ...frame, formats: { disabled: ['a'], custom: [] },
+  })), [size('a')]);
+  assert.deepEqual(none, { error: 'None of the selected sizes is enabled on the chosen photos.' });
+});
