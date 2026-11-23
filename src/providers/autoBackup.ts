@@ -47,7 +47,7 @@ const setStatus = (projectId: string, status: BackupStatus) => { statuses.set(pr
 /** A successful local recovery copy is independent of an optional source copy. */
 export async function writeSnapshot(connector: import('../core/storageConnectors').StorageConnector,
   projectId: string, name: string, payload: Uint8Array): Promise<void> {
-  await connector.put(name, payload, '');
+  // Keep a private expected snapshot: callers and asynchronous connectors may reuse\n  // or mutate their input buffer while a slow device/NAS write is in progress.\n  const expected = payload.slice();\n  await connector.put(name, expected.slice(), '');
   // A successful put only confirms the transport accepted the bytes. Disk-full,
   // interrupted NAS writes and misbehaving connectors can leave a truncated file.
   // Never advance the backup clock or prune older recovery copies until the

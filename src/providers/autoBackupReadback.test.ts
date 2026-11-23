@@ -48,3 +48,45 @@ for (const failure of ['truncated', 'missing', 'corrupted'] as const) {
     assert.deepEqual(counts(), { listed: 0, removed: 0 });
   });
 }
+
+test('async connector cannot change the expected bytes by mutating its put buffer', async () => {
+  const backing = memoryConnector();
+  let retentionCalls = 0;
+  const connector: StorageConnector = {
+    ...backing,
+    put: async (path, bytes, etag) => {
+      bytes[0] ^= 1;
+      await backing.put(path, bytes, etag);
+    },
+    list: async (prefix) => { retentionCalls++; return backing.list(prefix); },
+  };
+  const original = payload.slice();
+  const name = backupName(projectId, new Date('2026-11-23T21:31:00Z'));
+  await assert.rejects(writeSnapshot(connector, projectId, name, original), /Backup verification failed/);
+  assert.deepEqual(original, payload, 'the caller-owned payload must remain unchanged');
+  assert.equal(retentionCalls, 0, 'a corrupted snapshot cannot trigger retention');
+});
+
+test('caller buffer mutation during an awaited write cannot redefine a verified backup', async () => {
+  const backing = memoryConnector();
+  let startWrite!: () => void;
+  let finishWrite!: () => void;
+  const started = new Promise<void>((resolve) => { startWrite = resolve; });
+  const proceed = new Promise<void>((resolve) => { finishWrite = resolve; });
+  const connector: StorageConnector = {
+    ...backing,
+    put: async (path, bytes, etag) => {
+      startWrite();
+      await proceed;
+      await backing.put(path, bytes, etag);
+    },
+  };
+  const mutable = payload.slice();
+  const name = backupName(projectId, new Date('2026-11-23T21:32:00Z'));
+  const pending = writeSnapshot(connector, projectId, name, mutable);
+  await started;
+  mutable.fill(0);
+  finishWrite();
+  await pending;
+  assert.deepEqual(await backing.get(name), payload, 'snapshot must reflect bytes at invocation');
+});
