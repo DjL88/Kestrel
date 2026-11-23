@@ -78,7 +78,7 @@ export interface PhotoExtras { pixelSize?: { width: number; height: number }; /*
 
 export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, extras: PhotoExtras = {}): Photo {
   const { assist, watermarkAuto, histogram, pixelSize, verifiedOriginalSize } = extras;
-  const nativeSize = verifiedOriginalSize && /\\.(?:jpe?g|png)$/i.test(frame.filename) &&
+  const nativeSize = verifiedOriginalSize && /\.(?:jpe?g|png)$/i.test(frame.filename) &&
     Number.isSafeInteger(verifiedOriginalSize.width) && Number.isSafeInteger(verifiedOriginalSize.height) &&
     verifiedOriginalSize.width > 0 && verifiedOriginalSize.height > 0
     ? framedSize(verifiedOriginalSize.width, verifiedOriginalSize.height, frame.framing ?? DEFAULT_FRAMING) : null;
@@ -117,7 +117,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
       dimensions: exif.width && exif.height ? `${exif.width} × ${exif.height}` : NOT_RECORDED,
       colourProfile: NOT_RECORDED,
     },
-    ...(nativeSize ? { pixelSize: nativeSize } : exif.width && exif.height ? { pixelSize: { width: exif.width, height: exif.height } } : pixelSize ? { pixelSize } : {}),
+    ...(nativeSize ? { pixelSize: { width: nativeSize.width, height: nativeSize.height } } : exif.width && exif.height ? { pixelSize: { width: exif.width, height: exif.height } } : pixelSize ? { pixelSize } : {}),
     activeGroupId: groups[0].id,
     editGroups: groups,
     sizes: applySizeLinked(applyFormats(createDefaultSizes(), frame.formats).map((size) => { const crop = crops[size.id]; const at = board[size.id]; const native = size.id === 'orig-3x2' && nativeSize ? { label: 'Original', width: nativeSize.width, height: nativeSize.height, ratioLabel: ratioLabelFor(nativeSize.width, nativeSize.height) } : {}; return { ...size, ...native, ...(crop ? { crop } : {}), ...(at ? { boardX: at.x, boardY: at.y } : {}) }; }), frame.sizeLinked),
