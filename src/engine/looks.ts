@@ -118,6 +118,23 @@ function mergeLookMasks(existing: Mask[], incoming: Mask[]): Mask[] {
  * Each trial is rendered as the cumulative accepted recipe against the original pixels. Rejected
  * steps never enter the cumulative recipe. finalPixels therefore represents all accepted steps. */
 export async function runLook(look: Look, input: LookRenderInput, runner: EngineRunner = 'device'): Promise<LookResult> {
+  // Refuse malformed recipes before any render: NaN/Infinity can poison pixel maths
+  // and must never enter an accepted, persistent edit recipe.
+  for (const step of look.steps) {
+    for (const value of Object.values(step.background)) {
+      if (typeof value === 'number' && !Number.isFinite(value)) {
+        throw new RangeError('Look contains a non-finite whole-photo adjustment');
+      }
+    }
+    for (const value of Object.values(step.subject ?? {})) {
+      if (typeof value === 'number' && !Number.isFinite(value)) {
+        throw new RangeError('Look contains a non-finite subject adjustment');
+      }
+    }
+  }
+  if (input.maxRetriesPerStep !== undefined && (!Number.isInteger(input.maxRetriesPerStep) || input.maxRetriesPerStep < 0)) {
+    throw new RangeError('Look retry count must be a non-negative integer');
+  }
   const maxRetries = input.maxRetriesPerStep ?? 2;
   const results: LookStepResult[] = [];
   let finalPixels = input.original;
