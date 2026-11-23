@@ -694,7 +694,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!frame) return;
     const next = toggleSizeLinkedRaw(frame.sizeLinked, sizeId);
     const at = Date.now();
-    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, sizeLinked: next } : entry)) }));
+    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, sizeLinked: next, formatHistory: recordFormatLink(entry.formatHistory, sizeId, next[sizeId] ?? true, at) } : entry)) }));
   }, [mutate]);
 
   /** Change a photo's video pan/zoom (Ken Burns) settings. Only the given fields change; the rest are kept. */
