@@ -91,7 +91,13 @@ async function importLinkedWithoutFullRead(
     }
     // Fingerprint exact bytes before exposing a linked original or cached preview.
     // RangeBlob hashes in bounded 1 MiB slices and rejects truncated reads.
-    const originalSha256 = await hashOriginalBytes(source);
+    let originalSha256: string;
+    try {
+      originalSha256 = await hashOriginalBytes(source);
+    } catch {
+      // A failed or short ranged read cannot establish identity; do not register the photo.
+      return null;
+    }
     previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified, file.size), openRange: linkedRangeOpener(file.path, file.size), size: file.size, lastModified: file.lastModified });
     try {
       if (!await previewProvider.cacheOfflinePreviews(stableKey, file.name, source)) uncachedPreviewKeys.push(stableKey);
