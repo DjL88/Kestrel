@@ -1,7 +1,7 @@
 import type { CropTransform } from '../ui/contract';
 
 export const MAX_CROP_ZOOM = 8;
-export const DEFAULT_CROP: CropTransform = { zoom: 1, panX: 0, panY: 0, insetTop: 0, insetRight: 0, insetBottom: 0, insetLeft: 0, flipH: false, flipV: false, rotateDeg: 0, borderWidth: 0, borderColour: '#ffffff' };
+export const DEFAULT_CROP: CropTransform = { zoom: 1, panX: 0, panY: 0, insetTop: 0, insetRight: 0, insetBottom: 0, insetLeft: 0, flipH: false, flipV: false, rotateDeg: 0, borderWidth: 0, borderColour: '#ffffff', borderPlacement: 'all' };
 export const MAX_BORDER_PERCENT = 10;
 const HEX_COLOUR = /^#[0-9a-f]{6}$/i;
 
@@ -21,6 +21,7 @@ export function sanitiseCrop(raw: unknown): CropTransform {
     rotateDeg: ROTATIONS.includes(value.rotateDeg as number) ? (value.rotateDeg as number) : 0,
     borderWidth: num(value.borderWidth, 0, 0, MAX_BORDER_PERCENT),
     borderColour: typeof value.borderColour === 'string' && HEX_COLOUR.test(value.borderColour) ? value.borderColour.toLowerCase() : '#ffffff',
+    borderPlacement: value.borderPlacement === 'horizontal' || value.borderPlacement === 'vertical' || value.borderPlacement === 'auto' ? value.borderPlacement : 'all',
   };
 }
 
