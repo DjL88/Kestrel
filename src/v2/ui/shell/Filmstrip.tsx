@@ -420,7 +420,7 @@ export default function Filmstrip({
               {items.map((item) => {
                 if (item.type === 'controls') {
                   return (
-                    <div key={`burst-${item.groupId}`} role="group" aria-label={STRINGS.bursts.controls(item.count)} className={`${photoView === 'tiles' ? 'h-full w-full' : 'h-full w-40 shrink-0'} flex flex-col justify-center gap-1.5 rounded-[var(--radius-md)] border border-dashed border-[var(--brand-accent-border)] bg-[var(--bg-surface)] p-2">
+                    <div key={`burst-${item.groupId}`} role="group" aria-label={STRINGS.bursts.controls(item.count)} className={`${photoView === 'tiles' ? 'h-full w-full' : 'h-full w-40 shrink-0'} flex flex-col justify-center gap-1.5 rounded-[var(--radius-md)] border border-dashed border-[var(--brand-accent-border)] bg-[var(--bg-surface)] p-2`}>
                       <p className="text-[11px] font-semibold text-[var(--text-primary)]">{STRINGS.bursts.controls(item.count)}</p>
                       <button type="button" disabled={!item.best} title={item.best ? undefined : STRINGS.bursts.flagBestNotRanked}
                         onClick={() => { if (item.best) onSetDecision([item.best.id], 'keep'); }}
