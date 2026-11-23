@@ -78,13 +78,19 @@ export async function runDeepVisionReview(frame: PhotoFrame, provider: BrowserPr
   });
   if (signal?.aborted) return null;
 
-  const suggestedLook = suggestLookForPhoto(detection.trust, Boolean(detection.finding));
+  // A conflicting scene reading makes a subject-specific Look unsafe to propose,\n  // even when the box detector alone rated the subject highly.\n  const suggestedLook = suggestDeepReviewLook(detection);
   // The current engine supplies at most one defensible Look. Do not pad to three
   // with invented alternatives; a later ranked engine result can extend this list.
   const candidates: DeepVisionCandidate[] = suggestedLook
     ? [{ id: suggestedLook.id, look: suggestedLook, label: suggestedLook.name, description: suggestedLook.description }]
     : [];
   return { detection, suggestedLook, candidates, summary: describeDeepReview(detection, suggestedLook) };
+}
+
+/** A disagreement is not permission to offer a subject-aware edit. */
+export function suggestDeepReviewLook(detection: SubjectDetectActionResult): Look | null {
+  if (detection.corroboration.state === 'conflict') return null;
+  return suggestLookForPhoto(detection.trust, Boolean(detection.finding));
 }
 
 /** Exported for testing only - the rest of this file needs a browser (Image/canvas/Worker) and has no
