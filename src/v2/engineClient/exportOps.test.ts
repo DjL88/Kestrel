@@ -276,3 +276,31 @@ test('selection containing only removedAt zero refuses even exact original expor
     assert.deepEqual(plan, { error: 'Choose at least one photo to export.' });
   }
 });
+
+test('duplicate live catalogue IDs fail closed for both exact originals and edited output', () => {
+  const ambiguous = [
+    { id: 'p1', filename: 'bird-original-1.nef' },
+    { id: 'p1', filename: 'bird-other-2.nef' },
+  ];
+  for (const overrides of [
+    { includeOriginal: true, includeAfter: false, sizeIds: [] },
+    { includeOriginal: true, includeAfter: true, sizeIds: ['a'] },
+    { includeOriginal: false, includeAfter: true, sizeIds: ['a'] },
+  ]) {
+    const plan = planExport(request({ ...overrides, photoIds: ['p1'] }), ambiguous, [size('a')]);
+    assert.ok('error' in plan);
+    assert.match(plan.error, /same identity/);
+  }
+});
+
+test('a removed duplicate does not block one unambiguous live original', () => {
+  const frames = [
+    { id: 'p1', filename: 'live.nef' },
+    { id: 'p1', filename: 'removed.nef', removedAt: 0 },
+  ];
+  const plan = planExport(request({
+    photoIds: ['p1'], includeOriginal: true, includeAfter: false, sizeIds: [],
+  }), frames, []);
+  assert.ok('jobs' in plan);
+  assert.deepEqual(plan.originals, ['p1']);
+});
