@@ -346,3 +346,12 @@ test('unknown imported dimensions do not silently use invented 3000 by 2000 Orig
     [{ id: 'p1', filename: 'unknown.NEF' }], createDefaultSizes());
   assert.ok('error' in plan);
 });
+
+test('three-frame split plans three adjacent outputs and preserves format crop', () => {
+  const chosen = [{ id: 'three', filename: 'bird.jpg', isDemo: true, formatSplits: { a: { enabled: true, offset: 7, count: 3 } } }];
+  const plan = planExport(request(), chosen, [size('a')]);
+  assert.ok('jobs' in plan);
+  assert.equal(plan.jobs.length, 1);
+  assert.equal(plan.jobs[0].sections, 3);
+  assert.equal(plan.jobs[0].crop.panX, 7);
+});
