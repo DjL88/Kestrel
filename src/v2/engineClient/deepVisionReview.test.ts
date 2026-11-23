@@ -53,7 +53,12 @@ describe('suggestDeepReviewLook', () => {
     assert.equal(suggestDeepReviewLook(result({}), true)?.id, LIFT_SUBJECT_BLUR_BACKGROUND.id);
   });
 
-  it('does not treat a detector box as a usable pixel mask', () => {\n    assert.equal(suggestDeepReviewLook(result({})), null);\n    assert.equal(suggestDeepReviewLook(result({}), false), null);\n  });\n\n  it('refuses a Look when the scene reading contradicts the detector', () => {
+  it('does not treat a detector box as a usable pixel mask', () => {
+    assert.equal(suggestDeepReviewLook(result({})), null);
+    assert.equal(suggestDeepReviewLook(result({}), false), null);
+  });
+
+  it('refuses a Look when the scene reading contradicts the detector', () => {
     const conflicting = result({ corroboration: { state: 'conflict', reading: 'aircraft', detector: 'bird' } });
     assert.equal(suggestDeepReviewLook(conflicting), null);
     assert.match(describeDeepReview(conflicting, suggestDeepReviewLook(conflicting)), /unresolved/);
