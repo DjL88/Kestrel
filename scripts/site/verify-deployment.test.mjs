@@ -158,3 +158,29 @@ test('a homepage that embeds the Version 2 demo needs that demo compiled too, an
   rmSync(join(root, 'editor', 'demo-editor.html'));
   assert.notEqual(run(root).status, 0, 'the owner Demo Studio editor must stay compiled');
 });
+
+
+test('live homepage must match the exact approved local HTML, not just its editor iframe', () => {
+  const root = fixture();
+  try {
+    const changed = landing.replace('Privacy</a>', 'Updated privacy link</a>');
+    const result = runLive(root, { '/': changed });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Live website page differs from the verified local build: \/$/m);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('live sign-in callback and privacy content must match the approved local release', () => {
+  const root = fixture();
+  try {
+    for (const [path, altered] of [
+      ['/oauth-callback.html', callback + '<!-- stale callback -->'],
+      ['/privacy.html', privacy + '<!-- stale policy -->'],
+    ]) {
+      const result = runLive(root, { [path]: altered });
+      assert.notEqual(result.status, 0, path);
+      assert.match(result.stderr, /Live website page differs from the verified local build/);
+      assert.ok(result.stderr.includes(path));
+    }
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
