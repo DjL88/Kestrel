@@ -17,5 +17,8 @@ export function zoomAnchorScroll(
   scroll: number, pointerOffset: number, previousZoom: number, nextZoom: number,
 ): number {
   if (!Number.isFinite(scroll) || !Number.isFinite(pointerOffset) || !Number.isFinite(previousZoom) || previousZoom <= 0 || !Number.isFinite(nextZoom) || nextZoom <= 0) return Number.isFinite(scroll) ? Math.max(0, scroll) : 0;
-  return Math.max(0, (scroll + pointerOffset) * nextZoom / previousZoom - pointerOffset);
+  const anchored = (scroll + pointerOffset) * (nextZoom / previousZoom) - pointerOffset;
+  // Finite inputs can still overflow during multiplication. Preserve the last
+  // usable scroll instead of handing Infinity to the DOM scroll position.
+  return Number.isFinite(anchored) ? Math.max(0, anchored) : Math.max(0, scroll);
 }
