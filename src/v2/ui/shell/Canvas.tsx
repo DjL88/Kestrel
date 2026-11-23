@@ -694,7 +694,14 @@ export default function Canvas({
     const cropClip = `inset(${activeSize.crop.insetTop}% ${activeSize.crop.insetRight}% ${activeSize.crop.insetBottom}% ${activeSize.crop.insetLeft}%)`;
 
     if (group.splitFrames && features.splitFrames) {
-      // Split 1 photo seamlessly across 2 equal side-by-side frames
+      // Each pane has the selected format's full aspect ratio. Fit BOTH panes and their
+      // 16px gap into the working area; a single-pane Fit width would overflow on phones.
+      // Account for canvas zoom rather than clipping the second pane off-screen.
+      const splitWidthBudget = stageSize.width > 0
+        ? Math.max(1, ((stageSize.width - 32) / Math.max(0.01, canvasZoom) - 16) / 2)
+        : frameW;
+      const splitFrameW = Math.min(frameW, splitWidthBudget);
+      const splitFrameH = splitFrameW / aspect;
       return (
         <div
           className="m-auto flex items-center gap-4"
@@ -707,7 +714,8 @@ export default function Canvas({
               </span>
               <div
                 onPointerDown={(e) => handleFramePointerDown(e, 'split', activeSize, e.currentTarget)}
-                className="relative h-[340px] w-[280px] cursor-grab overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] active:cursor-grabbing"
+                className="relative cursor-grab overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] active:cursor-grabbing"
+                style={{ width: splitFrameW, height: splitFrameH }}
               >
                 <img
                   src={photo.previewUrl}
