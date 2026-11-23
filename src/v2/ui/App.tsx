@@ -26,7 +26,8 @@ import ExportDialog from './dialogs/ExportDialog';
 import SettingsDialog from './dialogs/SettingsDialog';
 import ShortcutGuide from './dialogs/ShortcutGuide';
 import CommandPalette from './dialogs/CommandPalette';
-import { effectiveKeymap, loadKeymap, resolveCommand, saveKeymap, type SavedKeymap } from './commands/keymap';
+import { effectiveKeymap, loadKeymap, saveKeymap, type SavedKeymap } from './commands/keymap';
+import { loadPad, resolveWithPad, savePad, type PadProfile } from './commands/pad';
 import KeyboardSettings from './dialogs/KeyboardSettings';
 import type { CommandDefinition } from './commands/registry';
 
@@ -56,6 +57,8 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [savedKeymap, setSavedKeymap] = useState<SavedKeymap>(loadKeymap);
   const keymap = React.useMemo(() => effectiveKeymap(savedKeymap.preset, savedKeymap.overrides), [savedKeymap]);
+  const [pad, setPad] = useState<PadProfile>(loadPad);
+  const changePad = React.useCallback((next: PadProfile) => { savePad(next); setPad(next); }, []);
   const changeKeymap = React.useCallback((next: SavedKeymap) => { saveKeymap(next); setSavedKeymap(next); }, []);
   const [moreOpen, setMoreOpen] = useState(false);
   const sheetDragY = useRef<number | null>(null);
@@ -100,6 +103,8 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
       case 'photo.rate3': case 'photo.rate4': case 'photo.rate5':
         if (ids.length) actions.setRating(ids, Number(command.id.slice(-1)));
         break;
+      case 'photo.next': window.dispatchEvent(new CustomEvent('inflight:photo-step', { detail: { delta: 1 } })); break;
+      case 'photo.prev': window.dispatchEvent(new CustomEvent('inflight:photo-step', { detail: { delta: -1 } })); break;
       case 'view.grid': actions.setGridViewOpen(!store.gridViewOpen); break;
       case 'view.compare': actions.setCompareMode(!store.compareMode); break;
       case 'view.fullscreen': actions.toggleFullScreen(); break;
@@ -123,8 +128,10 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         target?.tagName === 'INPUT' ||
         target?.tagName === 'TEXTAREA' ||
         target?.tagName === 'SELECT' ||
+        // A slider keeps the arrow keys (the Compare handle, range inputs).
+        target?.getAttribute('role') === 'slider' ||
         Boolean(target?.isContentEditable);
-      const command = resolveCommand({ event: e, keymap, isMac: IS_MAC, inField });
+      const command = resolveWithPad({ event: e, keymap, pad, isMac: IS_MAC, inField });
       if (!command) return;
       // While the guide is open only it, Export, Settings and Edit commands act; photo and view keys wait.
       if (shortcutGuideOpen && (command.group === 'photos' || command.group === 'view')) return;
@@ -134,7 +141,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [store.screen, shortcutGuideOpen, keymap, runCommand]);
+  }, [store.screen, shortcutGuideOpen, keymap, pad, runCommand]);
 
   const renderPanelContent = (panelId: PanelId) => {
     switch (panelId) {
@@ -641,7 +648,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         open={store.settingsOpen}
         activeTab={store.settingsTab}
         accountPanel={accountPanel}
-        keyboardPanel={<KeyboardSettings saved={savedKeymap} isMac={IS_MAC} onChange={changeKeymap} />}
+        keyboardPanel={<KeyboardSettings saved={savedKeymap} isMac={IS_MAC} onChange={changeKeymap} pad={pad} onPadChange={changePad} />}
         settings={store.settings}
         assistMode={store.assistMode}
         onSetAssistMode={actions.setAssistMode}

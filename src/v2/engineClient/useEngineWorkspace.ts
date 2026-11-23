@@ -17,7 +17,7 @@ import { useBackgroundDevelop } from '../../useBackgroundDevelop';
 import { useSpeciesScan } from '../../useSpeciesScan';
 import { isDesktopApp } from '../../providers/desktopShell';
 import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
-import { loadLocalFileListShoot } from '../../providers/localShootLoader';
+import { loadLocalFileListShoot, rehydrateLocalFramesFromStore } from '../../providers/localShootLoader';
 import type { EditRecipe, HubViewState, OverlaySettings, PhotoHistogram, WatermarkPreset, Project, TaskInfo, WorkspaceActions, WorkspaceStore } from '../ui/contract';
 import { useWorkspace } from '../ui/stub';
 import { EngineSurface } from './EngineSurface';
@@ -220,8 +220,13 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     void catalogue.current!.saveProject(state).catch(() => setNotice('InFlight could not save this project. Your original photos are unchanged.'));
   }, [state, screen]);
 
-  const enterProject = useCallback((next: CullingState) => {
+  const openRequest = useRef(0);
+  useEffect(() => () => { openRequest.current += 1; }, []);
+
+  const enterProject = useCallback((next: CullingState, restored?: BrowserPreviewProvider) => {
+    openRequest.current += 1;
     provider.current!.clear();
+    if (restored) provider.current = restored;
     thumbs.current = { generation: thumbs.current.generation + 1, requested: new Set(), queue: [], active: 0 };
     setUrls({});
     setAssists({});
@@ -229,6 +234,30 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     setState(next);
     setScreen('editor');
   }, []);
+
+  const openProject = useCallback(async (id: string) => {
+    const request = ++openRequest.current;
+    const store = catalogue.current!;
+    const restored = new BrowserPreviewProvider();
+    setHubState('loading');
+    try {
+      const project = await store.loadProject(id);
+      if (request !== openRequest.current) return;
+      if (!project) throw new Error('Missing project');
+      // Restore stored Blobs and register native path readers. Opening the
+      // catalogue does not require a connected drive or a full RAW decode.
+      await rehydrateLocalFramesFromStore(project.frames, restored, store, { checkPaths: false });
+      if (request !== openRequest.current) return;
+      enterProject(project, restored);
+    } catch {
+      if (request === openRequest.current) {
+        setHubState('ready');
+        setNotice('That project could not be opened.');
+      }
+    } finally {
+      if (provider.current !== restored) restored.clear();
+    }
+  }, [enterProject]);
 
   // Thumbnails: a few at a time, so a large project does not start thousands of reads at once. Each photo is asked for
   // once; a read in flight is never thrown away when more photos arrive, only when the project changes (generation).
@@ -680,7 +709,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, [loadHub]);
 
   const real: Partial<WorkspaceActions> = {
-    openProject: (id) => { void catalogue.current!.loadProject(id).then((loaded) => { if (loaded) enterProject(loaded); else setNotice('That project could not be opened.'); }); },
+    openProject: (id) => { void openProject(id); },
     createProject: (name) => {
       const created = createEmptyProject(`project-${newId()}`, name.trim() || 'Untitled project');
       void catalogue.current!.saveProject(created).then(() => enterProject(created), () => setNotice('InFlight could not create the project.'));
@@ -895,7 +924,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stub.actions, stub.store.looks, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, backToProjects, decide, importPhotos, loadHub]);
+    [stub.actions, stub.store.looks, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: [...INITIAL_WATERMARKS, ...watermarkLibrary], auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], { assist: assists[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id] })), [state?.frames, urls, assists, watermarkAuto, histograms, pixelSizes]);

@@ -146,6 +146,22 @@ export default function Filmstrip({
   }, [tileMenu]);
 
   const visiblePhotos = filterPhotos(photos, filter, search).filter((photo) => photo.rating >= minimumRating);
+  // Next and previous photo (a macro pad dial or command search) step through the photos shown here, so the filter and rating filter are respected.
+  const stepRef = useRef({ visiblePhotos, activePhoto, onSelectPhoto });
+  stepRef.current = { visiblePhotos, activePhoto, onSelectPhoto };
+  useEffect(() => {
+    const onStep = (event: Event) => {
+      const delta = (event as CustomEvent<{ delta?: number }>).detail?.delta;
+      if (delta !== 1 && delta !== -1) return;
+      const { visiblePhotos: list, activePhoto: current, onSelectPhoto: select } = stepRef.current;
+      if (list.length === 0) return;
+      const index = list.findIndex((photo) => photo.id === current?.id);
+      const next = list[Math.min(list.length - 1, Math.max(0, index < 0 ? (delta === 1 ? 0 : list.length - 1) : index + delta))];
+      if (next && next.id !== current?.id) select(next.id);
+    };
+    window.addEventListener('inflight:photo-step', onStep);
+    return () => window.removeEventListener('inflight:photo-step', onStep);
+  }, []);
   const openIds = new Set<string>([...selectedPhotoIds, ...(activePhoto ? [activePhoto.id] : [])]);
   const items = planFilmstrip(visiblePhotos, expandedBursts, openIds);
   const planCoverId = (list: typeof items, groupId: string) => { const controls = list.find((entry) => entry.type === 'controls' && entry.groupId === groupId); return controls && controls.type === 'controls' ? controls.cover.id : undefined; };
