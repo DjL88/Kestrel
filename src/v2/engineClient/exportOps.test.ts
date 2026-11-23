@@ -368,3 +368,18 @@ test('three-frame split plans three adjacent outputs and preserves format crop',
   assert.equal(plan.jobs[0].sections, 3);
   assert.equal(plan.jobs[0].crop.panX, 7);
 });
+
+
+test('three-frame Original uses imported dimensions, not legacy resized metadata, for every exported section', () => {
+  const source = [{
+    id: 'p1', filename: 'bird.png', exif: { width: 4000, height: 3000 },
+    formats: { disabled: [], custom: [], originalSize: { width: 800, height: 600 } },
+    formatSplits: { 'orig-3x2': { enabled: true, offset: 0, count: 3 } },
+  }];
+  const plan = planExport(request({ photoIds: ['p1'], sizeIds: ['orig-3x2'] }), source, createDefaultSizes());
+  assert.ok('jobs' in plan);
+  assert.equal(plan.jobs.length, 1);
+  assert.equal(plan.jobs[0].sections, 3);
+  assert.deepEqual(plan.jobs[0].size, { width: 4000, height: 3000 });
+  assert.match(plan.summary, /= 3 files$/);
+});

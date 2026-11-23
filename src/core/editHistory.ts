@@ -3,7 +3,7 @@ import { DETAIL_CONTROLS, TONE_CONTROLS, type PhotoEdit } from './photoEdits';
 import type { PhotoFraming } from './photoFraming';
 
 /** Overlays are metadata, never pixel replacements. Old history snapshots may not have this field. */
-type Snapshot = { edit?: PhotoEdit; framing?: PhotoFraming; overlay?: PhotoFrame['overlay'] };
+type Snapshot = { edit?: PhotoEdit; framing?: PhotoFraming; overlay?: PhotoFrame['overlay']; formatSplits?: PhotoFrame['formatSplits'] };
 export type EditKind = 'light' | 'warmth' | 'colour' | 'adjustments' | 'tone' | 'detail' | 'mask' | 'crop' | 'rotation' | 'straighten';
 
 export const MAX_EDIT_HISTORY_STEPS = 60;
@@ -24,7 +24,8 @@ function classify(before: Snapshot, after: Snapshot): EditKind {
   if (JSON.stringify(before.edit?.masks ?? []) !== JSON.stringify(after.edit?.masks ?? [])) return 'mask';
   // Reuse the existing validated 'adjustments' kind for backwards-compatible backups.
   // The UI recognises an overlay-only step from its snapshots and labels it accordingly.
-  if (JSON.stringify(before.overlay) !== JSON.stringify(after.overlay)) return 'adjustments';
+  if (JSON.stringify(before.overlay) !== JSON.stringify(after.overlay) ||
+      JSON.stringify(before.formatSplits) !== JSON.stringify(after.formatSplits)) return 'adjustments';
   const fields = (['exposure', 'warmth', 'colour', ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key), 'denoise'] as const).filter((field) =>
     (before.edit?.[field] ?? 0) !== (after.edit?.[field] ?? 0));
   if (fields.length !== 1) return 'adjustments';
@@ -34,7 +35,10 @@ function classify(before: Snapshot, after: Snapshot): EditKind {
 }
 
 export function recordEdit(frame: PhotoFrame, patch: Snapshot, at: number): PhotoFrame {
-  const before: Snapshot = { edit: frame.edit, framing: frame.framing, overlay: frame.overlay };
+  // Explicit empty split baseline survives JSON save/reopen. Otherwise the
+  // new unsplit state would look like an older checkpoint missing split data.
+  const before: Snapshot = { edit: frame.edit, framing: frame.framing, overlay: frame.overlay,
+    formatSplits: frame.formatSplits ?? {} };
   const after = { ...before, ...patch };
   if (JSON.stringify(before) === JSON.stringify(after)) return frame;
   const history = frame.editHistory;
@@ -43,10 +47,13 @@ export function recordEdit(frame: PhotoFrame, patch: Snapshot, at: number): Phot
   const last = steps.at(-1);
   const isOverlayChange = JSON.stringify(before.overlay) !== JSON.stringify(after.overlay);
   const lastOverlayChange = last && JSON.stringify(last.before.overlay) !== JSON.stringify(last.after.overlay);
+  const isSplitChange = JSON.stringify(before.formatSplits) !== JSON.stringify(after.formatSplits);
+  const lastSplitChange = last && JSON.stringify(last.before.formatSplits) !== JSON.stringify(last.after.formatSplits);
   // Both use the backwards-compatible 'adjustments' kind, but a watermark must
   // never swallow a separate tone/edit step when the person acts quickly.
   if (last && history?.cursor === history?.steps.length && last.kind === kind &&
-      isOverlayChange === lastOverlayChange && at >= last.at && at - last.at < 550) {
+      isOverlayChange === lastOverlayChange && !isSplitChange && !lastSplitChange &&
+      at >= last.at && at - last.at < 550) {
     steps.pop();
     if (JSON.stringify(last.before) !== JSON.stringify(after)) steps.push({ kind, before: last.before, after, at });
   } else {
@@ -69,6 +76,8 @@ export function stepEdit(frame: PhotoFrame, direction: -1 | 1): PhotoFrame {
     ...frame, edit: recipe.edit, framing: recipe.framing,
     // A pre-migration step recorded no overlay: keep the current one, never manufacture an old state.
     ...('overlay' in recipe ? { overlay: recipe.overlay } : {}),
+    // Older checkpoints without split metadata cannot invent an old state.
+    ...('formatSplits' in recipe ? { formatSplits: recipe.formatSplits } : {}),
     focusPoint: JSON.stringify(frame.framing) === JSON.stringify(recipe.framing) ? frame.focusPoint : undefined,
     editHistory: { ...history, cursor: history.cursor + direction },
   };
@@ -91,6 +100,8 @@ export function jumpToStep(frame: PhotoFrame, cursor: number): PhotoFrame {
   return {
     ...frame, edit: recipe.edit, framing: recipe.framing,
     ...('overlay' in recipe ? { overlay: recipe.overlay } : {}),
+    // Older checkpoints without split metadata cannot invent an old state.
+    ...('formatSplits' in recipe ? { formatSplits: recipe.formatSplits } : {}),
     focusPoint: JSON.stringify(frame.framing) === JSON.stringify(recipe.framing) ? frame.focusPoint : undefined,
     editHistory: { ...history, cursor: at },
   };

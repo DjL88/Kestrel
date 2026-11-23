@@ -110,3 +110,54 @@ test('rapid bulk template or watermark change never absorbs a distinct neighbour
   assert.equal(first.edit, undefined);
   assert.deepEqual(first.overlay, { textEnabled: false });
 });
+
+
+test('one, two and three per-format frames are separately undoable after JSON save/reopen', () => {
+  const source = { id: 'photo', overlay: { textEnabled: true }, edit: { exposure: 0.3, warmth: 0, colour: 0 } } as PhotoFrame;
+  const two = { 'orig-3x2': { enabled: true, offset: 3 } };
+  const three = { 'orig-3x2': { enabled: true, offset: 3, count: 3 } };
+  let frame = recordEdit(source, { formatSplits: two }, 1000);
+  frame = recordEdit(frame, { formatSplits: three }, 1100);
+  frame = recordEdit(frame, { formatSplits: {} }, 1200);
+  assert.equal(frame.editHistory?.steps.length, 3, 'three clicks are three discrete changes, not a coalesced slider');
+  frame = JSON.parse(JSON.stringify(frame)) as PhotoFrame;
+  frame = stepEdit(frame, -1);
+  assert.deepEqual(frame.formatSplits, three);
+  frame = stepEdit(frame, -1);
+  assert.deepEqual(frame.formatSplits, two);
+  frame = stepEdit(frame, -1);
+  assert.deepEqual(frame.formatSplits, {});
+  assert.equal(frame.edit?.exposure, 0.3, 'split history must not change the photo-wide edit');
+  assert.deepEqual(frame.overlay, { textEnabled: true }, 'split history must not erase a watermark');
+  frame = stepEdit(frame, 1);
+  assert.deepEqual(frame.formatSplits, two);
+  frame = stepEdit(frame, 1);
+  assert.deepEqual(frame.formatSplits, three);
+  frame = stepEdit(frame, 1);
+  assert.deepEqual(frame.formatSplits, {});
+});
+
+test('split actions cannot merge with nearby tone edits and earlier checkpoint forks restore exact frames', () => {
+  let frame = { id: 'unrelated' } as PhotoFrame;
+  frame = recordEdit(frame, { edit: { exposure: 1, warmth: 0, colour: 0 } }, 1000);
+  frame = recordEdit(frame, { formatSplits: { 'ig-portrait': { enabled: true, offset: 4, count: 3 } } }, 1100);
+  assert.equal(frame.editHistory?.steps.length, 2);
+  const beforeSplit = jumpToStep(frame, 1);
+  assert.deepEqual(beforeSplit.formatSplits, {});
+  assert.equal(beforeSplit.edit?.exposure, 1);
+  assert.deepEqual(jumpToStep(frame, 2).formatSplits, { 'ig-portrait': { enabled: true, offset: 4, count: 3 } });
+});
+
+test('pre-migration history with no split snapshots preserves current layout on Undo and timeline jumps', () => {
+  let frame = { id: 'legacy' } as PhotoFrame;
+  frame = recordEdit(frame, { edit: { exposure: 1, warmth: 0, colour: 0 } }, 1000);
+  const legacy = JSON.parse(JSON.stringify(frame)) as PhotoFrame;
+  for (const step of legacy.editHistory!.steps) {
+    delete (step.before as { formatSplits?: unknown }).formatSplits;
+    delete (step.after as { formatSplits?: unknown }).formatSplits;
+  }
+  const currentSplit = { 'orig-3x2': { enabled: true, offset: 0, count: 3 } };
+  legacy.formatSplits = currentSplit;
+  assert.deepEqual(stepEdit(legacy, -1).formatSplits, currentSplit);
+  assert.deepEqual(jumpToStep(legacy, 0).formatSplits, currentSplit);
+});

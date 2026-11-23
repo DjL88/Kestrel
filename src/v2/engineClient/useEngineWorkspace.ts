@@ -51,9 +51,9 @@ import { verifyExactOriginalCopy } from './verifiedOriginalCopy';
 import { buildRawMasterFile } from './rawMasterExport';
 import { TEMPLATES_KEY, addTemplate, deleteTemplate, readTemplates, renameTemplate, type OverlayTemplate } from './overlayTemplates';
 import { applyOverlayTemplateToProject, changePhotoOverlay } from './overlayHistory';
-import { addFormat, applyFormats, ORIGINAL_FORMAT_ID, readFormats, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize, setOriginalOutputSize, resetOriginalOutputSize } from './formatOps';
+import { addFormat, applyFormats, ORIGINAL_FORMAT_ID, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize, setOriginalOutputSize, resetOriginalOutputSize } from './formatOps';
 import { patchVideoZoom } from './videoZoomOps';
-import { setFormatSplitOffset, toggleFormatSplit } from './formatSplitOps';
+import { setFormatSplitOffset, setSplitFrameCount as writeSplitFrameCount, toggleFormatSplit } from './formatSplitOps';
 import { readSplitPanOffset } from './splitFrameOps';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, toggleMask } from './maskOps';
 import { verifyFrameMasks } from './maskVerify';
@@ -473,10 +473,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         const image = nativeRaster
           ? await loadVerifiedRasterOriginalForExport(frame, provider.current!, controller.signal)
           : await loadExportSource(frame, provider.current!);
-        // The photographer may deliberately set a different Original output
-        // canvas. In that case respect its own persisted dimensions, while still
-        // loading real raster pixels instead of a cached preview.
-        const nativeSize = nativeRaster && !readFormats(frame.formats).originalSize
+        // Original always uses the full decoded raster's actual dimensions.
+        // Older projects can contain a legacy originalSize override, but that
+        // value must NEVER resize or override the immutable Original format.
+        // A photographer can use a Custom format for an alternative output.
+        const nativeSize = nativeRaster
           ? framedSize(image.naturalWidth, image.naturalHeight, frame.framing ?? DEFAULT_FRAMING)
           : null;
         // Preserve an explicit export size limit; Original is full decoded size only
@@ -740,6 +741,18 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, videoZoom: next } : entry)) }));
   }, [mutate]);
 
+  /** Save each split/rejoin or pan-offset as a genuinely undoable edit. Older
+   * projects used a photo-wide splitFrames flag with no per-format record:
+   * capture its effective two-frame state before changing it, so Undo restores
+   * that layout rather than an invented empty baseline. */
+  const recordSplitChange = (entry: PhotoFrame, next: ReturnType<typeof writeSplitFrameCount>, at: number): PhotoFrame => {
+    const legacy = entry.splitFrames === true
+      ? { 'orig-3x2': { enabled: true, offset: readSplitPanOffset(entry.splitPanOffset) } }
+      : {};
+    const before = entry.formatSplits ?? legacy;
+    return recordEdit({ ...entry, formatSplits: before }, { formatSplits: next }, at);
+  };
+
   /** Split only the active FORMAT; other outputs of the photo are unaffected. */
   const toggleSplitFrames = useCallback((photoId: string) => {
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
@@ -747,8 +760,26 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!frame || !sizeId) return;
     const next = toggleFormatSplit(frame.formatSplits ?? (frame.splitFrames === true ? { 'orig-3x2': { enabled: true, offset: readSplitPanOffset(frame.splitPanOffset) } } : undefined), sizeId);
     const at = Date.now();
-    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, formatSplits: next } : entry)) }));
+    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? recordSplitChange(entry, next, at) : entry)) }));
   }, [mutate, stub.store.activeSizeId]);
+
+  /** One format's persisted 1/2/3 continuous split, used by both V2 canvas and export planner. */
+  const setSplitFrameCount = useCallback((photoId: string, sizeId: string, count: 1 | 2 | 3) => {
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
+    if (!frame || ![1, 2, 3].includes(count)) return;
+    const sizes = applyFormats(createDefaultSizes(), frame.formats);
+    if (!sizes.some((size) => size.id === sizeId && size.kind === 'photo')) {
+      setNotice('Choose an existing photo format before splitting it.');
+      return;
+    }
+    const current = frame.formatSplits ?? (frame.splitFrames === true
+      ? { 'orig-3x2': { enabled: true, offset: readSplitPanOffset(frame.splitPanOffset) } } : undefined);
+    const next = writeSplitFrameCount(current, sizeId, count);
+    const at = Date.now();
+    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at },
+      frames: state.frames.map((entry) => entry.id === photoId ? recordSplitChange(entry, next, at) : entry) }));
+    setNotice(count === 1 ? 'Format rejoined into one frame.' : `Format will export as ${count} continuous frames.`);
+  }, [mutate]);
 
   /** Move both halves together inside this format's two-section composition. */
   const setSplitPanOffset = useCallback((photoId: string, offset: number) => {
@@ -757,7 +788,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!frame || !sizeId) return;
     const next = setFormatSplitOffset(frame.formatSplits ?? (frame.splitFrames === true ? { 'orig-3x2': { enabled: true, offset: readSplitPanOffset(frame.splitPanOffset) } } : undefined), sizeId, offset);
     const at = Date.now();
-    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, formatSplits: next } : entry)) }));
+    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? recordSplitChange(entry, next, at) : entry)) }));
   }, [mutate, stub.store.activeSizeId]);
 
   /** Reuse actual area/gradient masks from the shared engine. Sky detection and brush painting are intentionally gated. */
@@ -1239,6 +1270,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     toggleSizeLinked,
     updateVideoZoom,
     toggleSplitFrames,
+    setSplitFrameCount,
     setSplitPanOffset,
     setOriginalOutputSize: (photoId, width, height) => {
       if (!validCustomSize(width, height)) { setNotice('Use whole pixels between 1 and 20,000 for the Original output canvas.'); return; }
