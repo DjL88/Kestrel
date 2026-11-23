@@ -20,6 +20,7 @@ steps:
       - --region=${_REGION}
       - --project=$PROJECT_ID
       - --platform=managed
+      - --service-account=v2proto-runtime@$PROJECT_ID.iam.gserviceaccount.com
       - --allow-unauthenticated
       - --set-env-vars=V2PROTO_GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}
       - --set-secrets=V2PROTO_COOKIE_SECRET=v2proto-cookie-secret:latest,V2PROTO_OWNER_EMAILS=kcp-admin-emails:latest
