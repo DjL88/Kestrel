@@ -44,3 +44,16 @@ test('actual changes to photo text and watermark appear in History, not a fake g
   const back = jumpToStep(withOverlay, 0);
   assert.deepEqual(back.overlay, { textEnabled: false });
 });
+
+
+test('split/rejoin steps are labelled accurately, without pretending to change image pixels', () => {
+  let current = recordEdit(frame, { formatSplits: { 'orig-3x2': { enabled: true, offset: 0 } } }, 1000);
+  current = recordEdit(current, { formatSplits: { 'orig-3x2': { enabled: true, offset: 0, count: 3 } } }, 1100);
+  current = recordEdit(current, { formatSplits: {} }, 1200);
+  const info = describeHistory(current.editHistory)!;
+  assert.deepEqual(info.steps.map(step => step.label), [
+    'Split or rejoin frames', 'Split or rejoin frames', 'Split or rejoin frames',
+  ]);
+  assert.equal(info.cursor, 3);
+  assert.deepEqual(jumpToStep(current, 2).formatSplits, { 'orig-3x2': { enabled: true, offset: 0, count: 3 } });
+});
