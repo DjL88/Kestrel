@@ -279,7 +279,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
           />
         );
       case 'history':
-        return <HistoryPanel photo={activePhoto} onJumpToStep={actions.jumpToEditStep} />;
+        return <HistoryPanel photo={activePhoto} activeSizeId={store.activeSizeId} onJumpToStep={actions.jumpToEditStep} />;
       case 'info':
         return (
           <InfoPanel
