@@ -504,6 +504,9 @@ export default function Canvas({
     const overlay = group.overlay;
     return (
       <div className="pointer-events-none absolute inset-0 z-20" style={{ containerType: 'inline-size' }} data-testid="overlay-layer">
+        {(size.crop.borderWidth ?? 0) > 0 && (
+          <div aria-hidden="true" data-testid="format-border" className="absolute inset-0" style={{ boxSizing: 'border-box', border: `${size.crop.borderWidth}cqw solid ${size.crop.borderColour ?? '#ffffff'}` }} />
+        )}
         {/* Magnetic snap guide lines while dragging text or watermark */}
         {interactive &&
           activeGuides.map((guide, idx) =>
