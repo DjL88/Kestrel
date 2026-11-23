@@ -256,6 +256,8 @@ export interface Photo {
   sizes: SizePreset[];
   videoZoom: VideoZoomConfig;
   masks: MaskLayer[];
+  /** Set when this photo was shot in a burst with others. `ungrouped` is the person's choice to see its frames one by one. */
+  burst?: { groupId: string; index: number; count: number; ungrouped: boolean; score?: number };
   /** The photo's recorded edit steps (oldest first) and where it stands now. Absent until it has been edited. */
   editHistory?: { steps: { label: string; at: number }[]; cursor: number };
   /** The picture's size in real pixels, when the file says. Used for the true 100% zoom. */
@@ -539,6 +541,8 @@ export interface WorkspaceActions {
   moveFloatingPanel: (panelId: PanelId, x: number, y: number) => void;
   resetPanelLayout: () => void;
   setBottomTab: (tab: 'filmstrip' | 'info') => void;
+  /** Show a burst as one stack (true) or as its individual photos (false). Nothing is deleted or decided either way. */
+  setBurstGrouped: (burstGroupId: string, grouped: boolean) => void;
   /** Restore a photo to how it was after this many edit steps (0 is the original). Later steps stay available. */
   jumpToEditStep: (photoId: string, cursor: number) => void;
   setFilmstripCollapsed: (collapsed: boolean) => void;

@@ -840,6 +840,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     resetPhotoEdits: (photoId) => editFrames(editTargets(photoId), () => undefined),
     copyRecipe: () => setClipboard(editToRecipe(activeFrame?.edit)),
     pasteRecipe: () => { if (clipboard && activeId) applyPatch(editTargets(activeId), clipboard); },
+    setBurstGrouped: (burstGroupId, grouped) => mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.burstGroupId === burstGroupId ? { ...frame, burstUngrouped: grouped ? undefined : true } : frame)) })),
     jumpToEditStep: (photoId, cursor) => mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === photoId ? jumpToStep(frame, cursor) : frame)) })),
     undo: () => {
       if (activeFrame?.editHistory && activeFrame.editHistory.cursor > 0) mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === activeFrame.id ? stepEdit(frame, -1) : frame)) }));

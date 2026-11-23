@@ -360,6 +360,18 @@ export const source = {
     safeNote: 'Every colour note includes objective Kelvin, tint, and tonal readings so you never have to guess by eye alone.',
   },
 
+  bursts: {
+    badge: (n: number) => `Burst of ${n}`,
+    show: (n: number) => `Show the ${n} frames in this burst`,
+    hide: 'Collapse this burst into one stack',
+    controls: (n: number) => `Burst of ${n} frames`,
+    flagBest: 'Flag the best',
+    flagBestNotRanked: 'Not ranked yet. Run Auto-cull & Analyse to find the best frame.',
+    best: 'Best',
+    split: 'Split into individual photos',
+    collapse: 'Collapse',
+    regroup: 'Group this burst again',
+  },
   history: {
     heading: 'History',
     intro: 'Every edit you made to this photo. Choose a step to go back to it. Later steps stay in the list, so you can come forward again.',
