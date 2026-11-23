@@ -295,5 +295,5 @@ test('live admin page must match the locally verified release byte for byte', t 
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /Live website page differs|missing or wrong asset/);
   }
-  assert.match(runLive(root, { '/admin.html': undefined }).stderr, /path failed \\(404\\): \\/admin\\.html/);
+  assert.match(runLive(root, { '/admin.html': undefined }).stderr, /path failed \(404\): \/admin\.html/);
 });
