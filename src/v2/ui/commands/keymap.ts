@@ -31,6 +31,7 @@ export const PRESETS: Record<PresetId, { label: string; keymap: Keymap }> = {
       'edit.selectAll': 'Mod+KeyA',
       'file.export': 'Mod+KeyE',
       'app.settings': 'Mod+Comma',
+      'app.commandSearch': 'Mod+KeyK',
     },
   },
   lightroom: {
@@ -49,6 +50,7 @@ export const PRESETS: Record<PresetId, { label: string; keymap: Keymap }> = {
       'edit.selectAll': 'Mod+KeyA',
       'file.export': 'Mod+Shift+KeyE',
       'app.settings': 'Mod+Comma',
+      'app.commandSearch': 'Mod+KeyK',
     },
   },
 };

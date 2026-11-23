@@ -18,7 +18,8 @@ export type CommandId =
   | 'edit.copy' | 'edit.paste'
   | 'edit.selectAll'
   | 'file.export'
-  | 'app.settings';
+  | 'app.settings'
+  | 'app.commandSearch';
 
 export type CommandGroup = 'photos' | 'view' | 'edit' | 'app';
 
@@ -52,6 +53,7 @@ export const COMMANDS: readonly CommandDefinition[] = [
   { id: 'edit.selectAll', group: 'edit', label: 'Select all photos', worksInFields: false, allowRepeat: false },
   { id: 'file.export', group: 'app', label: 'Export', worksInFields: true, allowRepeat: false },
   { id: 'app.settings', group: 'app', label: 'Settings', worksInFields: true, allowRepeat: false },
+  { id: 'app.commandSearch', group: 'app', label: 'Find a command', worksInFields: true, allowRepeat: false },
 ];
 
 export const COMMAND_GROUP_LABELS: Record<CommandGroup, string> = {

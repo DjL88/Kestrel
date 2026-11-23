@@ -60,3 +60,11 @@ test('shows platform wording', () => {
     assert.equal(chordLabel('Mod+KeyE', false), 'Ctrl+E');
     assert.equal(chordLabel(undefined, false), 'Not set');
   });
+
+test('Cmd/Ctrl+K opens command search, including while typing', () => {
+    const map = effectiveKeymap('inflight');
+    assert.equal(map['app.commandSearch'], 'Mod+KeyK');
+    assert.equal(resolveCommand({ event: key({ code: 'KeyK', key: 'k', ctrlKey: true }), keymap: map, isMac: false, inField: false })?.id, 'app.commandSearch');
+    assert.equal(resolveCommand({ event: key({ code: 'KeyK', key: 'k', ctrlKey: true }), keymap: map, isMac: false, inField: true })?.id, 'app.commandSearch');
+    assert.deepEqual(findConflicts(map), {});
+  });
