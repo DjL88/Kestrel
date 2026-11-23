@@ -308,6 +308,9 @@ export async function loadDirectoryHandleShoot(
       chunk.map(async (entry, offset) => {
         const idx = i + offset + 1;
         const stableKey = `folder://${entry.relativePath}`;
+        // Folder permissions can expire between sessions. Record the exact original bytes
+        // before exposing a preview so a later reselect cannot attach a different file.
+        const originalSha256 = await hashOriginalBytes(entry.file);
         previewProvider.registerBlob(stableKey, entry.file);
 
         const exif = await parseImageExif(entry.file, entry.name);
@@ -327,6 +330,7 @@ export async function loadDirectoryHandleShoot(
           exif,
           isDemo: false,
           sourceKind: 'directory-handle',
+          originalSha256,
         };
         return frame;
       })
