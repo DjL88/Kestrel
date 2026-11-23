@@ -1277,7 +1277,16 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       setDeviceFonts((current) => { const next = [...new Set([...current, name])]; saveDeviceFonts(next); return next; });
     },
     updateSettings: (patch) => setSavedUi((current) => { const next: SavedUi = { ...current, settings: { ...current.settings, ...patch } }; saveUi(next); return next; }),
-    setAssistMode: (mode) => setSavedUi((current) => { const next: SavedUi = { ...current, assistMode: mode, settings: { ...current.settings, defaultAssistMode: mode } }; saveUi(next); return next; }),
+    setAssistMode: (mode) => {
+      if (stateRef.current?.settings?.pilotMode) {
+        mutate((current) => ({ ...current,
+          shoot: { ...current.shoot, lastUpdatedAt: Date.now() },
+          settings: { ...current.settings!, pilotMode: mode },
+        }));
+        return;
+      }
+      setSavedUi((current) => { const next: SavedUi = { ...current, assistMode: mode, settings: { ...current.settings, defaultAssistMode: mode } }; saveUi(next); return next; });
+    },
     importWatermarkImage: async () => {
       const picked = await pickImageFile();
       if (!picked) return null;
