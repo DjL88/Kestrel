@@ -129,6 +129,8 @@ export interface PhotoFrame {
    * `readSplitFrames`/`readSplitPanOffset` (v2 engineClient); core only keeps it with the photo. */
   splitFrames?: unknown;
   splitPanOffset?: unknown;
+  /** Individual output formats selected for a linked two-pane split. */
+  formatSplits?: unknown;
   /** Set when the photo was removed from the library. The original file is never touched, and Restore clears this. */
   removedAt?: number;
 }
