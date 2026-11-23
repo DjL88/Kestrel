@@ -441,6 +441,9 @@ export interface WorkspaceActions {
   selectAllPhotos: () => void;
   clearSelection: () => void;
   setDecision: (photoIds: string[], decision: DecisionState) => void;
+  /** Moves already set-aside (rejected) photos into Trash. The catalogue entry is removed; InFlight's stored copies
+   * go with it, but the original file on disk is never touched. Reversible with the normal per-photo Undo. */
+  removePhotos: (photoIds: string[]) => void;
   toggleFlag: (photoIds: string[]) => void;
   setRating: (photoIds: string[], rating: number) => void;
   correctSpeciesName: (photoId: string, name: string) => void;

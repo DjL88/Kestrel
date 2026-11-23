@@ -439,6 +439,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                 onToggleFlag={actions.toggleFlag}
                 onSetRating={actions.setRating}
                 onSetDecision={actions.setDecision}
+                onRemovePhotos={actions.removePhotos}
                 onPasteRecipe={actions.pasteRecipe}
                 onApplyLook={actions.applyLook}
                 onImport={actions.importPhotos}

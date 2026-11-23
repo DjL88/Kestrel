@@ -67,6 +67,54 @@ test('?v2 runs on the real catalogue: create, import, flag, rate, reload and the
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('button', { name: 'Unflag real-1.png' })).toBeVisible();
 });
 
+test('?v2 Remove only offers itself once a photo is set aside, asks first, and Undo brings it straight back', async ({ page }) => {
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Remove and restore check');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  const images = await page.evaluate(() => Array.from({ length: 2 }, (_, i) => {
+    const canvas = document.createElement('canvas'); canvas.width = 180; canvas.height = 130;
+    const ctx = canvas.getContext('2d')!; ctx.fillStyle = ['#586b82', '#776c56'][i]; ctx.fillRect(0, 0, 180, 130);
+    return canvas.toDataURL('image/png').split(',')[1];
+  }));
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles(images.map((img, i) => ({ name: `rm-${i + 1}.png`, mimeType: 'image/png', buffer: Buffer.from(img, 'base64') })));
+  const strip = root.getByRole('listbox', { name: 'Project photographs' });
+  await expect(strip.getByRole('option')).toHaveCount(2);
+
+  // Right-click an unreviewed photo: no Remove action is offered yet.
+  const first = strip.getByRole('option').first();
+  await first.click({ button: 'right' });
+  const menu = root.getByRole('menu', { name: 'Photo actions' });
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: /^Remove/ })).toHaveCount(0);
+
+  // Set it aside, then Remove becomes available; it asks for confirmation before touching the catalogue.
+  await menu.getByRole('menuitem', { name: 'Reject / set aside' }).click();
+  await first.click({ button: 'right' });
+  const menu2 = root.getByRole('menu', { name: 'Photo actions' });
+  await menu2.getByRole('menuitem', { name: /^Remove/ }).click();
+  const confirm = root.getByRole('alertdialog', { name: 'Remove this photo?' });
+  await expect(confirm).toBeVisible();
+  await expect(confirm.getByText("Your original file on disk is never touched")).toBeVisible();
+  await confirm.getByRole('button', { name: 'Keep photo' }).click();
+  await expect(confirm).toHaveCount(0);
+  await expect(strip.getByRole('option')).toHaveCount(2);
+
+  // Confirm for real this time: the catalogue entry goes to Trash, never the original file.
+  await first.click({ button: 'right' });
+  await root.getByRole('menu', { name: 'Photo actions' }).getByRole('menuitem', { name: /^Remove/ }).click();
+  await root.getByRole('alertdialog', { name: 'Remove this photo?' }).getByRole('button', { name: 'Remove' }).click();
+  await expect(strip.getByRole('option')).toHaveCount(1);
+
+  // Undo is the same per-photo Undo as any other edit, and brings the removed photo straight back.
+  await page.locator('body').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('Control+z');
+  await expect(strip.getByRole('option')).toHaveCount(2);
+});
+
 test('?v2 edits are real: Adjust changes the pixels, Compare splits original and edit, undo restores', async ({ page }) => {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
