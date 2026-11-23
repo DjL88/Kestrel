@@ -408,6 +408,7 @@ export async function rehydrateLocalFramesFromStore(
           }
         }
       } catch {
+        verified = false;
         // Missing NAS, denied access, short read or changed file: retain edits,
         // but never silently relink to unverified bytes.
       }
@@ -422,8 +423,10 @@ export async function rehydrateLocalFramesFromStore(
       size: sizeOf(frame.stableKey), lastModified: lastModifiedOf(frame.stableKey),
     });
   }
+  const linkedKeys = new Set(frames.filter((frame) => frame.sourcePath).map((frame) => frame.stableKey));
   const missing = [...new Set(frames.filter((frame) => !frame.isDemo).map((frame) => frame.stableKey))]
-    .filter((key) => !previewProvider.hasBlob(key));
+    // A stored thumbnail or legacy cache must not be mistaken for verified original bytes.
+    .filter((key) => !linkedKeys.has(key) && !previewProvider.hasBlob(key));
   for (let offset = 0; offset < missing.length; offset += 12) {
     const restored = await Promise.all(missing.slice(offset, offset + 12).map(async (key) => {
       const blob = await store.loadLocalFileBlob(key);
