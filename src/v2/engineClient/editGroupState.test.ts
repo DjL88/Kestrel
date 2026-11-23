@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { PhotoFrame } from '../../core/types';
+import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { addSavedEditGroup, readEditGroups, renameSavedEditGroup, selectSavedEditGroup, syncEditGroup } from './editGroupState';
 
 function frame(): PhotoFrame {
   return { id: 'photo-a', stableKey: 'original-a', filename: 'test.jpg', sequenceIndex: 0,
-    decision: 'unreviewed', edit: { exposure: 0.2 } } as PhotoFrame;
+    decision: 'unreviewed', edit: { ...DEFAULT_EDIT, exposure: 0.2 } } as PhotoFrame;
 }
 
 test('add, rename and select edit groups survive catalogue JSON roundtrip', () => {
@@ -26,10 +27,10 @@ test('add, rename and select edit groups survive catalogue JSON roundtrip', () =
 test('switching groups preserves independently edited recipes and never alters identity', () => {
   const original = frame();
   const second = addSavedEditGroup(original, 'group-second')!;
-  const editedSecond = syncEditGroup({ ...second, edit: { exposure: 1.1 } });
+  const editedSecond = syncEditGroup({ ...second, edit: { ...DEFAULT_EDIT, exposure: 1.1 } });
   const first = selectSavedEditGroup(editedSecond, 'group-primary')!;
   assert.equal(first.edit?.exposure, 0.2);
-  const editedFirst = syncEditGroup({ ...first, edit: { exposure: -0.6 } });
+  const editedFirst = syncEditGroup({ ...first, edit: { ...DEFAULT_EDIT, exposure: -0.6 } });
   const restored = selectSavedEditGroup(editedFirst, 'group-second')!;
   assert.equal(restored.edit?.exposure, 1.1);
   assert.equal(selectSavedEditGroup(restored, 'group-primary')!.edit?.exposure, -0.6);
