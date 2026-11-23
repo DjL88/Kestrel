@@ -40,6 +40,29 @@ export function inspectTiff16Structure(bytes: Uint8Array): { ok: true; width: nu
   if (!samples || samples < 1 || samples > 4 || !bits || bits.length !== samples || bits.some(bit => bit !== 16)) {
     return fail('TIFF does not declare 16 bits for every channel.');
   }
+  // Only certify a conservative, interleaved, uncompressed strip layout.
+  // Tags alone are not sufficient: the declared raster bytes must actually exist.
+  if (values(259)?.[0] !== 1 || values(284)?.[0] !== 1 ||
+      values(262)?.[0] !== (samples === 1 ? 1 : 2)) {
+    return fail('Unsupported TIFF compression, planar layout or colour interpretation.');
+  }
+  const stripOffsets = values(273), stripSizes = values(279);
+  const rowsPerStrip = values(278)?.[0];
+  if (!stripOffsets || !stripSizes || !rowsPerStrip ||
+      stripOffsets.length !== stripSizes.length ||
+      stripOffsets.length !== Math.ceil(height / rowsPerStrip)) {
+    return fail('TIFF pixel strips are missing or inconsistent.');
+  }
+  const bytesPerRow = width * samples * 2;
+  if (!Number.isSafeInteger(bytesPerRow)) return fail('TIFF raster size is unsafe.');
+  for (let i = 0; i < stripOffsets.length; i++) {
+    const rows = Math.min(rowsPerStrip, height - i * rowsPerStrip);
+    const expected = rows * bytesPerRow;
+    if (!Number.isSafeInteger(expected) || stripSizes[i] !== expected ||
+        !inRange(stripOffsets[i], stripSizes[i])) {
+      return fail('TIFF pixel strip bytes are absent, truncated or inconsistent.');
+    }
+  }
   const icc = tags.get(34675);
   if (!icc || ![1, 7].includes(icc.type) || icc.count < 128 || !inRange(u32(icc.offset), icc.count)) {
     return fail('TIFF has no bounded embedded ICC profile payload.');
