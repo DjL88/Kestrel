@@ -176,3 +176,31 @@ test('swipe on the photo: left or right steps through photos, up or down through
   await flick(0, 110);
   await expect.poll(label).toBe(before);
 });
+
+test('Advanced Edits on a phone shows one group of sliders per pill; a wide screen shows them all', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const studio = await importPhoto(page);
+  const tools = studio.getByRole('navigation', { name: 'Mobile studio tools' });
+  await tools.getByRole('button', { name: 'Adjust' }).tap();
+  await studio.getByRole('tab', { name: 'Advanced Edits' }).tap();
+  const groups = studio.getByRole('tablist', { name: 'Adjustment groups' });
+  await expect(groups.getByRole('tab', { name: 'Light' })).toHaveAttribute('aria-selected', 'true');
+  await expect(studio.getByRole('slider', { name: 'Exposure' })).toBeVisible();
+  await expect(studio.getByRole('slider', { name: 'Contrast' })).toBeVisible();
+  await expect(studio.getByRole('slider', { name: 'Highlights' })).toBeHidden();
+  await expect(studio.getByRole('slider', { name: 'Temperature' })).toBeHidden();
+  await groups.getByRole('tab', { name: 'Tone' }).tap();
+  await expect(studio.getByRole('slider', { name: 'Highlights' })).toBeVisible();
+  await expect(studio.getByRole('slider', { name: 'Exposure' })).toBeHidden();
+  await groups.getByRole('tab', { name: 'Colour' }).tap();
+  await expect(studio.getByRole('slider', { name: 'Temperature' })).toBeVisible();
+  await groups.getByRole('tab', { name: 'Detail' }).tap();
+  await expect(studio.getByRole('slider', { name: 'Clarity' })).toBeVisible();
+  await expect(studio.getByRole('slider', { name: 'Temperature' })).toBeHidden();
+  // From 768px wide the pills go away and every slider shows, as before.
+  await page.setViewportSize({ width: 1024, height: 768 });
+  if (!(await studio.getByRole('tab', { name: 'Advanced Edits' }).isVisible())) await studio.getByRole('button', { name: 'Adjust' }).first().click();
+  await studio.getByRole('tab', { name: 'Advanced Edits' }).click();
+  await expect(groups).toBeHidden();
+  for (const name of ['Exposure', 'Highlights', 'Temperature', 'Clarity']) await expect(studio.getByRole('slider', { name })).toBeVisible();
+});
