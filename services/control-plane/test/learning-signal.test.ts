@@ -4,7 +4,7 @@ import { MemoryLearningSink } from '../src/learningSignal.ts';
 import { sha256Hex } from '../src/crypto.ts';
 import { startHarness } from './helpers.ts';
 
-const signal = { source: 'gemini', capability: 'exposure', action: 'edited', candidateRank: 2, proposal: { exposure: 0.3, shadows: 0.5 }, final: { exposure: 0.2, shadows: 0.5 }, appVersion: '26.11.2' };
+const signal = { source: 'gemini' as const, capability: 'exposure' as const, action: 'edited' as const, candidateRank: 2, proposal: { exposure: 0.3, shadows: 0.5 }, final: { exposure: 0.2, shadows: 0.5 }, appVersion: '26.11.2' };
 
 async function harness() {
   const sink = new MemoryLearningSink();
