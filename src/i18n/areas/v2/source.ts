@@ -412,6 +412,14 @@ export const source = {
     originalStatusOffline: 'Original not connected — local preview active',
   },
 
+  // Mobile navigation and drawer labels
+  mobile: {
+    toolBar: 'Mobile studio tools',
+    more: 'More',
+    moreTools: 'More tools',
+    closeDrawer: 'Close mobile drawer',
+  },
+
   // Tasks Panel
   tasks: {
     heading: 'Background Tasks',
