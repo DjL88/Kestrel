@@ -1,6 +1,7 @@
 import { stepFrom, swipeIntent } from '../utils/swipe';
 import { cropHandleZoom, type CropHandleSide } from '../utils/cropHandleZoom';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { nextCanvasZoom, zoomAnchorScroll } from '../utils/canvasTrackpadZoom';
 import type {
   CropTransform,
   EditGroup,
@@ -109,6 +110,45 @@ export default function Canvas({
 }: CanvasProps) {
   const [activeGuides, setActiveGuides] = useState<SnapGuide[]>([]);
   const stageRef = useRef<HTMLDivElement>(null);
+  const zoomRef = useRef(canvasZoom);
+  zoomRef.current = canvasZoom;
+  const setZoomRef = useRef(onSetZoom);
+  setZoomRef.current = onSetZoom;
+  const zoomAnchor = useRef<{ x: number; y: number; left: number; top: number; zoom: number } | null>(null);
+
+  // Chromium (including Windows precision touchpads) delivers pinch as Ctrl+wheel.
+  // Listen non-passively so only a gesture over the canvas suppresses browser page zoom.
+  // Normal two-finger scrolling remains the browser's native stage scroll.
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      if (event.target instanceof Element && event.target.closest('button, input, textarea, select, [contenteditable="true"]')) return;
+      event.preventDefault();
+      const rect = stage.getBoundingClientRect();
+      const next = nextCanvasZoom(zoomRef.current, event.deltaY, event.deltaMode);
+      if (next === zoomRef.current) return;
+      zoomAnchor.current = {
+        x: event.clientX - rect.left, y: event.clientY - rect.top,
+        left: stage.scrollLeft, top: stage.scrollTop, zoom: zoomRef.current,
+      };
+      zoomRef.current = next;
+      setZoomRef.current(next);
+    };
+    stage.addEventListener('wheel', onWheel, { passive: false });
+    return () => stage.removeEventListener('wheel', onWheel);
+  }, []);
+
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    const anchor = zoomAnchor.current;
+    if (!stage || !anchor || anchor.zoom === canvasZoom) return;
+    stage.scrollLeft = zoomAnchorScroll(anchor.left, anchor.x, anchor.zoom, canvasZoom);
+    stage.scrollTop = zoomAnchorScroll(anchor.top, anchor.y, anchor.zoom, canvasZoom);
+    zoomAnchor.current = null;
+  }, [canvasZoom]);
+
   const [shotNote, setShotNote] = useState<string | null>(null);
   /** Saves what is on the canvas right now, as seen: the edit, crop, overlays, grid and compare split. */
   const grabScreenshot = async () => {
