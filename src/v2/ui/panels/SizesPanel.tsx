@@ -57,6 +57,7 @@ export default function SizesPanel({
   const [customPpi, setCustomPpi] = useState(300);
   const [paperPreset, setPaperPreset] = useState<PaperPreset>('custom');
   const [paperOrientation, setPaperOrientation] = useState<PaperOrientation>('portrait');
+  const [recentBorderColours, setRecentBorderColours] = useState<string[]>([]);
 
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">Select a photo to manage export formats.</p>;
@@ -66,6 +67,10 @@ export default function SizesPanel({
   const activeSize = photo.sizes.find((s) => s.id === activeSizeId) ?? photo.sizes[0];
 
   const pixelDimensions = dimensionPixels(customW, customH, customUnit, customPpi);
+  const chooseBorderColour = (colour: string) => {
+    onUpdateSizeCrop(photo.id, activeSize.id, { borderColour: colour });
+    setRecentBorderColours((previous) => [colour, ...previous.filter((entry) => entry !== colour)].slice(0, 5));
+  };
   const handlePaperPreset = (preset: PaperPreset) => {
     setPaperPreset(preset);
     if (preset !== 'custom') {
@@ -469,13 +474,24 @@ export default function SizesPanel({
             onChange={(e) => onUpdateSizeCrop(photo.id, activeSize.id, { borderWidth: Number(e.target.value) })}
             className="inflight-slider"
           />
-          <div role="group" aria-label={STRINGS.formats.borderColourLabel} className="flex items-center gap-2">
-            {([['#ffffff', STRINGS.formats.borderWhite], ['#000000', STRINGS.formats.borderBlack]] as const).map(([hex, name]) => (
+          <label className="flex items-center justify-between gap-2 text-xs text-[var(--text-secondary)]">
+            <span>Border placement</span>
+            <select aria-label="Border placement" value={activeSize.crop.borderPlacement ?? 'all'}
+              onChange={(e) => onUpdateSizeCrop(photo.id, activeSize.id, { borderPlacement: e.target.value as CropTransform['borderPlacement'] })}
+              className="h-8 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-2 text-xs text-[var(--text-primary)]">
+              <option value="all">All sides</option>
+              <option value="horizontal">Top and bottom</option>
+              <option value="vertical">Left and right</option>
+              <option value="auto">Fit whole photo</option>
+            </select>
+          </label>
+          <div role="group" aria-label={STRINGS.formats.borderColourLabel} className="flex flex-wrap items-center gap-2">
+            {([['#ffffff', STRINGS.formats.borderWhite], ['#000000', STRINGS.formats.borderBlack], ['#f3f1e9', 'Warm white'], ['#383d43', 'Charcoal'], ['#d8cbb9', 'Sand'], ['#193c45', 'Deep teal']] as const).map(([hex, name]) => (
               <button
                 key={hex}
                 type="button"
                 aria-pressed={(activeSize.crop.borderColour ?? '#ffffff') === hex}
-                onClick={() => onUpdateSizeCrop(photo.id, activeSize.id, { borderColour: hex })}
+                onClick={() => chooseBorderColour(hex)}
                 className={`inline-flex min-h-8 items-center gap-1.5 rounded-[var(--radius-sm)] border px-2.5 text-[11px] font-medium ${(activeSize.crop.borderColour ?? '#ffffff') === hex ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'}`}
               >
                 <span aria-hidden="true" className="h-3 w-3 rounded-full border border-[var(--border-default)]" style={{ background: hex }} />
@@ -486,10 +502,27 @@ export default function SizesPanel({
               type="color"
               aria-label={STRINGS.formats.borderColourLabel}
               value={activeSize.crop.borderColour ?? '#ffffff'}
-              onChange={(e) => onUpdateSizeCrop(photo.id, activeSize.id, { borderColour: e.target.value })}
+              onChange={(e) => chooseBorderColour(e.target.value)}
               className="h-8 w-10 cursor-pointer rounded border border-[var(--border-subtle)] bg-transparent p-0.5"
             />
           </div>
+          {recentBorderColours.length > 0 && (
+            <div role="group" aria-label="Recently used border colours" className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] text-[var(--text-secondary)]">Recent colours</span>
+              {recentBorderColours.map((hex) => (
+                <button
+                  key={hex}
+                  type="button"
+                  onClick={() => chooseBorderColour(hex)}
+                  aria-label={`Reuse border colour ${hex}`}
+                  aria-pressed={(activeSize.crop.borderColour ?? '#ffffff') === hex}
+                  title={hex}
+                  className="h-7 w-7 rounded-full border-2 border-[var(--border-default)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
+                  style={{ backgroundColor: hex }}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

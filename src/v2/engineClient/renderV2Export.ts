@@ -35,8 +35,8 @@ function draw(canvas: HTMLCanvasElement, picture: HTMLCanvasElement, crop: CropT
   // and the photograph's crop/pan/flip/rotate is applied inside the smaller viewport.
   const border = crop.borderWidth ?? 0;
   const geometry = planBorderFrame(canvas.width, canvas.height, picture.width, picture.height,
-    { borderPercent: border, fit: 'cover' });
-  if (border > 0) {
+    { placement: crop.borderPlacement ?? 'all', borderPercent: border, fit: crop.borderPlacement === 'auto' ? 'contain' : 'cover' });
+  if (border > 0 || crop.borderPlacement === 'auto') {
     context.fillStyle = crop.borderColour ?? '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
   }
@@ -50,7 +50,11 @@ function draw(canvas: HTMLCanvasElement, picture: HTMLCanvasElement, crop: CropT
   context.rotate(place.rotateRad);
   context.scale(place.scaleX, place.scaleY);
   context.imageSmoothingQuality = 'high';
-  context.drawImage(picture, -place.drawWidth / 2, -place.drawHeight / 2, place.drawWidth, place.drawHeight);
+  // Automatic fit is letterboxing, not an image crop. Keep the entire source
+  // visible and allow unused frame space to show the selected border colour.
+  const drawWidth = crop.borderPlacement === 'auto' ? geometry.photo.width : place.drawWidth;
+  const drawHeight = crop.borderPlacement === 'auto' ? geometry.photo.height : place.drawHeight;
+  context.drawImage(picture, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
   context.restore();
 }
 
@@ -59,13 +63,13 @@ function draw(canvas: HTMLCanvasElement, picture: HTMLCanvasElement, crop: CropT
  * then distribute adjacent halves into the reserved image areas. The border
  * never obscures pixels and no photo is developed twice at the seam. */
 function drawContinuousInsideBorders(output: HTMLCanvasElement, picture: HTMLCanvasElement, crop: CropTransform, sectionCount: 1 | 2) {
-  if (sectionCount === 1 || !(crop.borderWidth && crop.borderWidth > 0)) {
+  if (sectionCount === 1 || (!(crop.borderWidth && crop.borderWidth > 0) && crop.borderPlacement !== 'auto')) {
     draw(output, picture, crop);
     return;
   }
   const sectionWidth = output.width / sectionCount;
   const geometry = planBorderFrame(sectionWidth, output.height, picture.width, picture.height,
-    { borderPercent: crop.borderWidth, fit: 'cover' });
+    { placement: crop.borderPlacement ?? 'all', borderPercent: crop.borderWidth, fit: crop.borderPlacement === 'auto' ? 'contain' : 'cover' });
   const { inner } = geometry;
   const joined = document.createElement('canvas');
   try {
