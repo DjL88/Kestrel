@@ -29,6 +29,7 @@ interface SizesPanelProps {
   onSetOriginalOutputSize: (photoId: string, width: number, height: number) => void;
   onResetOriginalOutputSize: (photoId: string) => void;
   onToggleSplitFrames: (photoId: string) => void;
+  onSetSplitFrameCount: (photoId: string, sizeId: string, count: 1 | 2 | 3) => void;
   onUpdateVideoZoom: (photoId: string, patch: Partial<VideoZoomConfig>) => void;
 }
 
@@ -53,7 +54,7 @@ export default function SizesPanel({
   onAddCustomSize,
   onSetOriginalOutputSize,
   onResetOriginalOutputSize,
-  onToggleSplitFrames,
+  onSetSplitFrameCount,
   onUpdateVideoZoom,
 }: SizesPanelProps) {
   const hideVideoPro = useProHidden('zoomVideo');
@@ -83,6 +84,8 @@ export default function SizesPanel({
 
   const group = getActiveGroup(photo);
   const activeSize = photo.sizes.find((s) => s.id === activeSizeId) ?? photo.sizes[0];
+  const activeSplit = photo.formatSplits?.[activeSize.id];
+  const activeSplitCount: 1 | 2 | 3 = activeSplit?.enabled ? (activeSplit.count === 3 ? 3 : 2) : 1;
 
   const pixelDimensions = dimensionPixels(customW, customH, customUnit, customPpi);
   const chooseBorderColour = (colour: string) => {
@@ -582,27 +585,35 @@ export default function SizesPanel({
         </div>
       </section>
 
-      {/* Split Panorama / 2 Equal Frames */}
-      {features.splitFrames && (
+      {/* One per-format continuous composition: real saved frames and matching export plan. */}
+      {features.splitFrames && activeSize.kind === 'photo' && (
         <section className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
-          <h3 className="text-xs font-semibold text-[var(--text-primary)]">
+          <h3 className="flex items-center gap-2 text-xs font-semibold text-[var(--text-primary)]">
+            <BrandIcon name="split-panorama" size={15} />
             {STRINGS.formats.splitHeading} · {activeSize.label}
           </h3>
-          <button
-            type="button"
-            onClick={() => onToggleSplitFrames(photo.id)}
-            className={`flex w-full items-center justify-between gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-xs font-medium transition-colors ${
-              photo.formatSplits?.[activeSize.id]?.enabled === true
-                ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            <span className="flex items-center gap-2">
-              <BrandIcon name="split-panorama" size={15} />
-              <span>{STRINGS.formats.splitToggle}</span>
-            </span>
-            <span>{photo.formatSplits?.[activeSize.id]?.enabled === true ? 'On' : 'Off'}</span>
-          </button>
+          <div role="group" aria-label="Number of continuous frames" className="grid grid-cols-3 gap-1.5">
+            {([1, 2, 3] as const).map((count) => (
+              <button
+                key={count}
+                type="button"
+                aria-pressed={activeSplitCount === count}
+                disabled={!activeSize.enabled}
+                onClick={() => onSetSplitFrameCount(photo.id, activeSize.id, count)}
+                className={`min-h-11 rounded-[var(--radius-md)] border px-2 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                  activeSplitCount === count
+                    ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
+                    : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                {count === 1 ? 'Rejoin (1)' : `${count} frames`}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-[var(--text-muted)]">
+            One continuous photo across {activeSplitCount === 1 ? 'one frame' : `${activeSplitCount} adjacent frames`}.
+            Each frame is exported as its own numbered image. Your original stays unchanged.
+          </p>
         </section>
       )}
 
