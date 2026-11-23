@@ -23,7 +23,7 @@ function sessionToken(email) {
   return payload + '.' + sign(payload);
 }
 function activeSession(request) {
-  const match = /(?:^|;\s*)v2proto_session=([^;]+)/.exec(request.headers.cookie || '');
+  const match = /(?:^|;\s*)__session=([^;]+)/.exec(request.headers.cookie || '');
   if (!match) return false;
   const [data, signature, extra] = match[1].split('.');
   if (!data || !signature || extra) return false;
@@ -84,7 +84,7 @@ const server = createServer(async (req, res) => {
       const { credential } = JSON.parse(Buffer.concat(chunks).toString());
       const owner = await verifiedOwnerIdToken(credential);
       if (!owner) { send(res, 403, 'Not authorised'); return; }
-      send(res, 200, 'OK', 'text/plain; charset=utf-8', { 'Set-Cookie': 'v2proto_session=' + sessionToken(owner) + '; Path=/V2Proto; Max-Age=43200; Secure; HttpOnly; SameSite=Lax' });
+      send(res, 200, 'OK', 'text/plain; charset=utf-8', { 'Set-Cookie': '__session=' + sessionToken(owner) + '; Path=/V2Proto; Max-Age=43200; Secure; HttpOnly; SameSite=Lax' });
     } catch { send(res, 403, 'Not authorised'); }
     return;
   }
@@ -95,7 +95,7 @@ const server = createServer(async (req, res) => {
     return;
   }
   if (pathname === rootPath + '/signout') {
-    send(res, 302, '', 'text/plain; charset=utf-8', { Location: '/V2Proto/', 'Set-Cookie': 'v2proto_session=; Path=/V2Proto; Max-Age=0; Secure; HttpOnly; SameSite=Lax' });
+    send(res, 302, '', 'text/plain; charset=utf-8', { Location: '/V2Proto/', 'Set-Cookie': '__session=; Path=/V2Proto; Max-Age=0; Secure; HttpOnly; SameSite=Lax' });
     return;
   }
   let decoded;
