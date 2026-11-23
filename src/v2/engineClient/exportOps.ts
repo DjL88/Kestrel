@@ -30,6 +30,10 @@ export function planExport(request: ExportRequest, frames: readonly ExportFrameI
   const picked = [...new Map(allSizes.filter((size) => size.kind === 'photo' && request.sizeIds.includes(size.id)).map((size) => [size.id, size])).values()];
   if (variants.length && !picked.length) return { error: 'Choose at least one size to export.' };
 
+  const format = request.fileFormat ?? 'jpeg';
+  const quality = format === 'jpeg' ? request.jpegQuality ?? 0.94 : 1;
+  if (variants.length && (format !== 'jpeg' && format !== 'png')) return { error: 'Choose JPEG or PNG.' };
+  if (variants.length && (!Number.isFinite(quality) || quality < 0 || quality > 1)) return { error: 'Choose a JPEG quality from 0 to 100%.' };
   const jobs: ExportJob[] = [];
   for (const frame of variants.length ? chosen : []) {
     const crops = readCrops(frame.sizeCrops);
@@ -38,13 +42,18 @@ export function planExport(request: ExportRequest, frames: readonly ExportFrameI
     for (const size of picked.filter((entry) => own.get(entry.id)?.enabled === true)) {
       if (!Number.isInteger(size.width) || !Number.isInteger(size.height) || size.width < 1 || size.height < 1) return { error: `${size.label} has no usable size.` };
       jobs.push({ frameId: frame.id, variants, size: { width: size.width, height: size.height }, crop: crops[size.id] ?? { ...DEFAULT_CROP }, format: {
-        id: size.id, label: size.label, width: size.width, height: size.height, fit: 'fill', quality: 0.94, format: 'jpeg',
+        id: size.id, label: size.label, width: size.width, height: size.height, fit: 'fill', quality, format,
         prefix: `${size.id.replace(SAFE_PREFIX, '_').slice(0, 24)}_`,
       } });
     }
   }
   const originals = request.includeOriginal ? chosen.map((frame) => frame.id) : [];
+  if (variants.length && !jobs.length && !originals.length) return { error: 'None of the selected sizes is enabled on the chosen photos.' };
   const files = jobs.length * variants.length + originals.length;
-  const parts = [variants.length ? `${chosen.length} photo${chosen.length === 1 ? '' : 's'} × ${picked.length} size${picked.length === 1 ? '' : 's'}${variants.length > 1 ? ' × before and after' : request.includeBefore ? ' (unedited)' : ''}` : '', originals.length ? `${originals.length} original file${originals.length === 1 ? '' : 's'}` : ''].filter(Boolean);
+  const completeGrid = jobs.length === chosen.length * picked.length;
+  const developed = !jobs.length ? '' : completeGrid
+    ? `${chosen.length} photo${chosen.length === 1 ? '' : 's'} × ${picked.length} size${picked.length === 1 ? '' : 's'}${variants.length > 1 ? ' × before and after' : request.includeBefore ? ' (unedited)' : ''}`
+    : `${jobs.length} size version${jobs.length === 1 ? '' : 's'} across ${chosen.length} photo${chosen.length === 1 ? '' : 's'}${variants.length > 1 ? ' × before and after' : request.includeBefore ? ' (unedited)' : ''}`;
+  const parts = [developed, originals.length ? `${originals.length} original file${originals.length === 1 ? '' : 's'}` : ''].filter(Boolean);
   return { jobs, originals, summary: `${parts.join(' + ')} = ${files} file${files === 1 ? '' : 's'}` };
 }

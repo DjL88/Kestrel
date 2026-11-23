@@ -644,8 +644,6 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         open={store.exportOpen}
         photo={activePhoto}
         selectedPhotoIds={store.selectedPhotoIds}
-        storageConnectors={store.settings.storageConnectors}
-        features={store.features}
         onClose={() => actions.setExportOpen(false)}
         onExport={actions.runExport}
       />

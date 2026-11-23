@@ -52,6 +52,7 @@ import { toProfile } from '../../core/exportFormats';
 import { renderV2Export, type OverlayDraw } from './renderV2Export';
 import { formatOverlayRowText } from '../ui/utils/studioMath';
 import { loadImage } from '../../providers/loadImage';
+import { deliverExport, describeExport } from './exportDelivery';
 import { uniqueExportFilename } from '../../core/exportNaming';
 import { exportMayContinue } from '../../core/exportCancellation';
 import type { ExportRequest } from '../ui/contract';
@@ -406,13 +407,16 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         output.push(new File([bytes], uniqueExportFilename(frame.filename, used), { type: bytes.type || 'application/octet-stream', lastModified: Date.now() }));
         task.progress(output.length);
       }
-      const missingNote = !missingOriginals.length ? '' : ` Original file not exported for ${missingOriginals.slice(0, 3).join(', ')}${missingOriginals.length > 3 ? ` and ${missingOriginals.length - 3} more` : ''}: the original is not connected. Reconnect it to export it. Nothing was substituted.`;
-      if (!output.length) { task.fail('Nothing to export'); return; }
-      if (!exportMayContinue(controller.signal.aborted, task.cancelled, false)) return; // Stop never publishes partial results.
-      if (request.destination === 'local-zip' && output.length > 1) downloadExport(await archiveExports(output), `inflight-export-${started.toISOString().slice(0, 10)}.zip`);
-      else for (const file of output) downloadExport(file, file.name);
-      task.finish(`Exported ${output.length} file${output.length === 1 ? '' : 's'}`);
-      setNotice(`Exported ${plan.summary}.${cappedCount ? ` ${cappedCount} ${cappedCount === 1 ? 'file is' : 'files are'} smaller than the size asked for, because the photo has fewer pixels.` : ''} Your originals are unchanged.${missingNote}`);
+      if (!exportMayContinue(controller.signal.aborted, task.cancelled, false)) return;
+      const result = describeExport(output.length, missingOriginals);
+      if (!output.length) {
+        task.fail(result);
+        setNotice(result);
+        return;
+      }
+      await deliverExport(output, request.destination, started, controller.signal, archiveExports, downloadExport);
+      task.finish(result);
+      setNotice(`${result}${cappedCount ? ` ${cappedCount} ${cappedCount === 1 ? 'file is' : 'files are'} smaller than the size asked for, because the photo has fewer pixels.` : ''} Your originals are unchanged.`);
     } catch (reason) {
       if (!controller.signal.aborted && !task.cancelled) { const message = reason instanceof Error ? reason.message : 'Export failed.'; task.fail(message); setNotice(message); }
     } finally {

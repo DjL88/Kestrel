@@ -2,10 +2,8 @@ import React, { useState } from 'react';
 import type {
   ExportDestination,
   ExportRequest,
-  FeatureKey,
   Photo,
   SocialPlatform,
-  StorageConnector,
 } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon, { SocialLogo, type BrandIconName } from '../icons/BrandIcon';
@@ -14,18 +12,16 @@ interface ExportDialogProps {
   open: boolean;
   photo: Photo | null;
   selectedPhotoIds: string[];
-  storageConnectors: StorageConnector[];
-  features: Record<FeatureKey, boolean>;
   onClose: () => void;
   onExport: (request: ExportRequest) => void;
 }
 
 const SOCIAL_PLATFORMS: Array<{ id: SocialPlatform; label: string; sizeIds: string[] }> = [
-  { id: 'instagram', label: 'Instagram', sizeIds: ['ig-portrait', 'ig-square', 'ig-story', 'video-zoom'] },
+  { id: 'instagram', label: 'Instagram', sizeIds: ['ig-portrait', 'ig-square', 'ig-story'] },
   { id: 'youtube', label: 'YouTube', sizeIds: ['yt-wide', 'orig-3x2'] },
   { id: 'x', label: 'X', sizeIds: ['x-feed', 'orig-3x2'] },
   { id: 'linkedin', label: 'LinkedIn', sizeIds: ['x-feed', 'ig-square'] },
-  { id: 'tiktok', label: 'TikTok', sizeIds: ['ig-story', 'video-zoom'] },
+  { id: 'tiktok', label: 'TikTok', sizeIds: ['ig-story'] },
   { id: 'pinterest', label: 'Pinterest', sizeIds: ['ig-portrait'] },
 ];
 
@@ -33,11 +29,11 @@ export default function ExportDialog({
   open,
   photo,
   selectedPhotoIds,
-  storageConnectors,
-  features,
   onClose,
   onExport,
 }: ExportDialogProps) {
+  const [fileFormat, setFileFormat] = useState<'jpeg' | 'png'>('jpeg');
+  const [jpegQuality, setJpegQuality] = useState(94);
   const [destination, setDestination] = useState<ExportDestination>('local-zip');
   const [selectedSizeIds, setSelectedSizeIds] = useState<string[]>(['orig-3x2', 'ig-portrait', 'yt-wide']);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(['group-primary']);
@@ -45,7 +41,6 @@ export default function ExportDialog({
   const [includeAfter, setIncludeAfter] = useState(true);
   const [includeOverlay, setIncludeOverlay] = useState(true);
   const [includeWatermark, setIncludeWatermark] = useState(false);
-  const [includeVideo, setIncludeVideo] = useState(false);
   const [includeOriginal, setIncludeOriginal] = useState(false);
 
   if (!open || !photo) return null;
@@ -64,26 +59,18 @@ export default function ExportDialog({
 
   const selectAllForPlatform = (platform: (typeof SOCIAL_PLATFORMS)[number]) => {
     setSelectedSizeIds((prev) => Array.from(new Set([...prev, ...platform.sizeIds])));
-    if (platform.sizeIds.includes('video-zoom') && features.zoomVideo) {
-      setIncludeVideo(true);
-    }
   };
 
   const destinations: Array<{ id: ExportDestination; label: string; icon: BrandIconName; sub: string }> = [
     { id: 'local-zip', label: STRINGS.exportDialog.destLocalZip, icon: 'archive', sub: 'Single tidy archive' },
     { id: 'local-individual', label: STRINGS.exportDialog.destLocalFiles, icon: 'hard-drive', sub: 'Save directly to folder' },
-    { id: 'share', label: STRINGS.exportDialog.destShare, icon: 'export', sub: 'Device share sheet / social' },
-    ...storageConnectors.filter((c) => c.status === 'connected').map((c) => ({
-      id: c.id as ExportDestination,
-      label: c.name,
-      icon: (c.id === 'nas' ? 'server' : 'cloud') as BrandIconName,
-      sub: c.accountLabel || 'Connected',
-    })),
   ];
 
   const handleSubmit = () => {
     onExport({
       destination,
+      fileFormat,
+      jpegQuality: jpegQuality / 100,
       groupIds: selectedGroupIds,
       sizeIds: selectedSizeIds,
       includeBefore,
@@ -91,7 +78,7 @@ export default function ExportDialog({
       includeAfter,
       includeOverlay,
       includeWatermark,
-      includeVideo,
+      includeVideo: false,
       photoIds: selectedPhotoIds.length > 0 ? selectedPhotoIds : [photo.id],
     });
   };
@@ -222,7 +209,7 @@ export default function ExportDialog({
               </div>
 
               <div className="grid grid-cols-2 gap-1.5 pt-1">
-                {photo.sizes.map((size) => {
+                {photo.sizes.filter((size) => size.kind === 'photo').map((size) => {
                   const checked = selectedSizeIds.includes(size.id);
                   return (
                     <button
@@ -246,6 +233,27 @@ export default function ExportDialog({
               </div>
             </section>
 
+            {(includeBefore || includeAfter) && (
+              <section className="space-y-2 border-t border-[var(--border-subtle)] pt-4 text-xs">
+                <label className="flex items-center justify-between">
+                  {STRINGS.exportDialog.fileFormat}
+                  <select className="rounded bg-[var(--bg-input)] p-2" value={fileFormat}
+                    onChange={(event) => setFileFormat(event.target.value === 'png' ? 'png' : 'jpeg')}>
+                    <option value="jpeg">JPEG</option>
+                    <option value="png">PNG</option>
+                  </select>
+                </label>
+                {fileFormat === 'jpeg' && (
+                  <label className="flex flex-wrap items-center justify-between gap-2">
+                    {STRINGS.exportDialog.jpegQuality}
+                    <input type="range" min="1" max="100" value={jpegQuality} aria-label={STRINGS.exportDialog.jpegQuality}
+                      onChange={(event) => setJpegQuality(Number(event.target.value))} />
+                    <output>{jpegQuality}%</output>
+                  </label>
+                )}
+              </section>
+            )}
+
             {/* Versions */}
             <section className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
               <h3 className="text-xs font-semibold text-[var(--text-primary)]">
@@ -253,14 +261,11 @@ export default function ExportDialog({
               </h3>
               <div className="space-y-1.5">
                 {[
-                  { label: STRINGS.exportDialog.variantBefore, val: includeBefore, set: setIncludeBefore },
+                  { label: STRINGS.exportDialog.variantBefore(fileFormat.toUpperCase()), val: includeBefore, set: setIncludeBefore },
                   { label: STRINGS.exportDialog.variantAfter, val: includeAfter, set: setIncludeAfter },
                   { label: STRINGS.exportDialog.variantOriginal, val: includeOriginal, set: setIncludeOriginal },
                   { label: STRINGS.exportDialog.variantOverlay, val: includeOverlay, set: setIncludeOverlay },
                   { label: STRINGS.exportDialog.variantWatermark, val: includeWatermark, set: setIncludeWatermark },
-                  ...(features.zoomVideo
-                    ? [{ label: STRINGS.exportDialog.variantVideo, val: includeVideo, set: setIncludeVideo }]
-                    : []),
                 ].map((item) => (
                   <button
                     key={item.label}
@@ -299,7 +304,7 @@ export default function ExportDialog({
             </button>
             <button
               type="button"
-              disabled={selectedSizeIds.length === 0 && !includeVideo}
+              disabled={(!includeBefore && !includeAfter && !includeOriginal) || ((includeBefore || includeAfter) && !photo.sizes.some((size) => size.kind === 'photo' && selectedSizeIds.includes(size.id)))}
               onClick={handleSubmit}
               className="inline-flex min-h-10 items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-4 text-xs font-semibold text-[var(--text-on-accent)] transition-colors hover:bg-[var(--brand-accent-hover)] disabled:opacity-50"
             >

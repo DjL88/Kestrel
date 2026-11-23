@@ -192,9 +192,10 @@ export async function renderV2Export(
       if (overlay.watermark) drawMark(output, overlay);
     }
     const name = exportFilename(frame.filename, profile, !frame.isDemo && isRawPreviewFile(frame.filename));
-    const blob = await new Promise<Blob | null>((resolve) => output.toBlob(resolve, 'image/jpeg', profile.quality));
+    const mimeType = profile.format === 'png' ? 'image/png' : 'image/jpeg';
+    const blob = await new Promise<Blob | null>((resolve) => output.toBlob(resolve, mimeType, profile.format === 'jpeg' ? profile.quality : undefined));
     signal?.throwIfAborted();
-    if (!blob || blob.type !== 'image/jpeg' || blob.size === 0) throw new Error(`Could not encode ${name} at ${out.width} × ${out.height} px.`);
+    if (!blob || blob.type !== mimeType || blob.size === 0) throw new Error(`Could not encode ${name} at ${out.width} × ${out.height} px.`);
     return { file: datedExport(blob, name, date), width: out.width, height: out.height, capped: out.capped };
   } finally {
     picture.width = 0; picture.height = 0; output.width = 0; output.height = 0;

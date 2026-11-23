@@ -107,6 +107,7 @@ test('Pro: the text overlay is drawn into the exported file, and left out when t
   const exportOnce = async (withOverlay: boolean) => {
     await root.getByRole('button', { name: /^Export/ }).first().click();
     const dialog = page.getByRole('dialog', { name: /export/i });
+    await dialog.getByRole('button', { name: /Download individual files/i }).click();
     const sizes = dialog.locator('.grid.grid-cols-2 button[aria-pressed="true"]');
     const names = await sizes.allTextContents();
     for (const name of names.slice(1)) await dialog.locator('.grid.grid-cols-2 button[aria-pressed="true"]', { hasText: name }).first().click();

@@ -583,6 +583,7 @@ test('?v2 export draws the size copy as the canvas shows it: capped at the pictu
   await root.getByRole('button', { name: 'Flip horizontally' }).click();
   await root.getByRole('button', { name: /^Export/ }).first().click();
   const dialog = page.getByRole('dialog', { name: /export/i });
+  await dialog.getByRole('button', { name: /Download individual files/i }).click();
   // Keep one format: the one that was flipped.
   const sizes = dialog.locator('.grid.grid-cols-2 button[aria-pressed="true"]');
   // The list shrinks as formats are switched off, so read every name first.
@@ -730,9 +731,12 @@ test('?v2 export: Original file is the exact bytes, and Before + After is a zip 
   const original = page.waitForEvent('download', { timeout: 60000 });
   await dialog.getByRole('button', { name: /export bundle/i }).click();
   const originalDownload = await original;
-  expect(originalDownload.suggestedFilename()).toBe('variants-1.png');
+  expect(originalDownload.suggestedFilename()).toMatch(/\.zip$/);
   const { readFileSync } = await import('node:fs');
-  expect(readFileSync((await originalDownload.path())!).toString('base64')).toBe(image);
+  const { unzipSync } = await import('fflate');
+  const entries = unzipSync(readFileSync((await originalDownload.path())!));
+  expect(Object.keys(entries)).toEqual(['variants-1.png']);
+  expect(Buffer.from(entries['variants-1.png']).toString('base64')).toBe(image);
   // Before and After together (original off).
   await page.waitForTimeout(500);
   if (!(await page.getByRole('dialog', { name: /export/i }).isVisible())) await root.getByRole('button', { name: /^Export/ }).first().click();
