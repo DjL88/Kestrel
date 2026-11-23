@@ -55,9 +55,9 @@ import { addFormat, applyFormats, ORIGINAL_FORMAT_ID, readFormats, removeFormat,
 import { patchVideoZoom } from './videoZoomOps';
 import { setFormatSplitOffset, toggleFormatSplit } from './formatSplitOps';
 import { readSplitPanOffset } from './splitFrameOps';
-import { canAddMask, removeMask, setMaskEdit, setMaskFeather, toggleMask } from './maskOps';
+import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, toggleMask } from './maskOps';
 import { verifyFrameMasks } from './maskVerify';
-import { createSubjectMask, framingKey, hasActiveMasks } from '../../core/maskTypes';
+import { createMask, createSubjectMask, framingKey, hasActiveMasks } from '../../core/maskTypes';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFraming';
 import { GUIDED_RENDER_EDGE } from '../../core/subjectGuide';
 import { detectSubjectGuided } from '../../providers/subjectDetector';
@@ -760,14 +760,20 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, formatSplits: next } : entry)) }));
   }, [mutate, stub.store.activeSizeId]);
 
-  /** Find the subject on this device and add it (or, for the background, its inverse) as a mask with no adjustments yet.
-   * Sky, painted and area masks need tools V2 does not have, so they say so instead of adding a layer that does nothing. */
-  const addMask = useCallback(async (photoId: string, type: 'subject' | 'sky' | 'background' | 'brush' | 'area') => {
-    if (type === 'sky') { setNotice('Sky masks are not available yet: there is no sky detector. Use Subject or Background.'); return; }
-    if (type !== 'subject' && type !== 'background') { setNotice('Painted and area masks need drawing tools that V2 does not have yet. Use Subject or Background.'); return; }
+  /** Reuse actual area/gradient masks from the shared engine. Sky detection and brush painting are intentionally gated. */
+  const addMask = useCallback(async (photoId: string, type: 'subject' | 'sky' | 'background' | 'brush' | 'area' | 'gradient') => {
+    if (type === 'sky') { setNotice('Sky detection is unavailable. Add a manual Gradient instead.'); return; }
+    if (type === 'brush') { setNotice('Brush painting is not connected to the canvas yet. Use an adjustable Oval or Gradient.'); return; }
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && !candidate.removedAt);
     if (!frame) return;
     if (!canAddMask(frame.edit?.masks)) { setNotice('This photo has the most masks it can hold. Remove one first.'); return; }
+    if (type === 'area' || type === 'gradient') {
+      const shape = createMask(type === 'area' ? 'radial' : 'linear', newId());
+      editFrames([photoId], (latest) => canAddMask(latest.edit?.masks)
+        ? ({ ...(latest.edit ?? DEFAULT_EDIT), masks: [...(latest.edit?.masks ?? []), shape] }) : latest.edit);
+      setNotice(`Added an adjustable ${type === 'area' ? 'Oval area' : 'Gradient'} mask. Expand its layer to position it, then move an adjustment slider to affect the photograph. Undo is available.`);
+      return;
+    }
     if (maskInFlight.current.has(photoId)) return;
     maskInFlight.current.add(photoId);
     const task = tasks.start(type === 'subject' ? 'Finding the subject' : 'Finding the background');
@@ -1202,6 +1208,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     removeMaskLayer: (photoId, maskId) => editMasks(photoId, (masks) => removeMask(masks, maskId)),
     setMaskEdit: (photoId, maskId, key, value) => editMasks(photoId, (masks) => setMaskEdit(masks, maskId, key, value)),
     setMaskFeather: (photoId, maskId, percent) => editMasks(photoId, (masks) => setMaskFeather(masks, maskId, percent)),
+    setMaskGeometry: (photoId, maskId, field, value) => editMasks(photoId, (masks) => setMaskGeometry(masks, maskId, field, value)),
     runExport: (request) => { void runExportAction(request); },
     applyAssistSuggestion: applyAuto,
     requestLocalAuto: (photoId) => setAutoRequest((last) => ({ photoId, sequence: (last?.sequence ?? 0) + 1 })),
