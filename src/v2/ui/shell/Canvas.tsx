@@ -198,7 +198,8 @@ export default function Canvas({
   };
   const [stageSize, setStageSize] = useState({ width: 660, height: 470 });
   const touchPoints = useRef(new Map<number, { x: number; y: number }>());
-  const touchGesture = useRef<{ distance: number; zoom: number; panX: number; panY: number; centreX: number; centreY: number } | null>(null);
+  const touchGesture = useRef<{ distance: number; zoom: number; panX: number; panY: number; centreX: number; centreY: number; lastCentreX: number; lastCentreY: number } | null>(null);
+  const touchPan = useRef<{ x: number; y: number } | null>(null);
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage || typeof ResizeObserver === 'undefined') return;
@@ -540,15 +541,22 @@ export default function Canvas({
     touchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (touchPoints.current.size === 2) {
       const [a, b] = [...touchPoints.current.values()];
+      const centreX = (a.x + b.x) / 2, centreY = (a.y + b.y) / 2;
+      const editingCrop = revealSizeId === activeSize.id;
       touchGesture.current = {
         distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
-        zoom: activeSize.crop.zoom, panX: activeSize.crop.panX, panY: activeSize.crop.panY,
-        centreX: (a.x + b.x) / 2, centreY: (a.y + b.y) / 2,
+        zoom: editingCrop ? activeSize.crop.zoom : zoomRef.current,
+        panX: activeSize.crop.panX, panY: activeSize.crop.panY,
+        centreX, centreY, lastCentreX: centreX, lastCentreY: centreY,
       };
+      dragRef.current = null;
+      touchPan.current = null;
       endHold();
       if (swipeRef.current) swipeRef.current.pinched = true;
     } else if (touchPoints.current.size === 1) {
-      handleFramePointerDown(e, 'pan', activeSize, e.currentTarget);
+      // A touch outside explicit Crop mode is navigation ONLY: never write into the export recipe.
+      if (revealSizeId === activeSize.id) handleFramePointerDown(e, 'pan', activeSize, e.currentTarget);
+      touchPan.current = { x: e.clientX, y: e.clientY };
       swipeRef.current = { x: e.clientX, y: e.clientY, t: performance.now(), pinched: false };
       endHold();
       holdRef.current.x = e.clientX; holdRef.current.y = e.clientY;
@@ -573,20 +581,53 @@ export default function Canvas({
     if (touchPoints.current.size === 2 && touchGesture.current) {
       const [a, b] = [...touchPoints.current.values()];
       const start = touchGesture.current;
-      const zoom = clamp(start.zoom * Math.hypot(a.x - b.x, a.y - b.y) / start.distance, 1, MAX_CROP_ZOOM);
-      const rect = e.currentTarget.getBoundingClientRect();
       const centreX = (a.x + b.x) / 2;
       const centreY = (a.y + b.y) / 2;
-      const focalX = (start.centreX - rect.left) / Math.max(1, rect.width) - 0.5;
-      const focalY = (start.centreY - rect.top) / Math.max(1, rect.height) - 0.5;
-      const limits = panLimits(activeSize, zoom);
-      onUpdateCrop(photo.id, activeSize.id, {
-        zoom: Number(zoom.toFixed(3)),
-        panX: clamp(start.panX + (centreX - start.centreX) / Math.max(1, rect.width) * 100 + (start.zoom - zoom) * focalX * 100, -limits.x, limits.x),
-        panY: clamp(start.panY + (centreY - start.centreY) / Math.max(1, rect.height) * 100 + (start.zoom - zoom) * focalY * 100, -limits.y, limits.y),
-      });
+      if (revealSizeId === activeSize.id) {
+        // Only explicit Crop mode is permitted to change the saved image transformation.
+        const zoom = clamp(start.zoom * Math.hypot(a.x - b.x, a.y - b.y) / start.distance, 1, MAX_CROP_ZOOM);
+        const rect = e.currentTarget.getBoundingClientRect();
+        const focalX = (start.centreX - rect.left) / Math.max(1, rect.width) - 0.5;
+        const focalY = (start.centreY - rect.top) / Math.max(1, rect.height) - 0.5;
+        const limits = panLimits(activeSize, zoom);
+        onUpdateCrop(photo.id, activeSize.id, {
+          zoom: Number(zoom.toFixed(3)),
+          panX: clamp(start.panX + (centreX - start.centreX) / Math.max(1, rect.width) * 100 + (start.zoom - zoom) * focalX * 100, -limits.x, limits.x),
+          panY: clamp(start.panY + (centreY - start.centreY) / Math.max(1, rect.height) * 100 + (start.zoom - zoom) * focalY * 100, -limits.y, limits.y),
+        });
+      } else {
+        // Pinch-to-view with a stable focal point. Move the scrollable *viewport* rather
+        // than the photo, so the fitted crop/export stay byte-for-byte unchanged.
+        const stage = stageRef.current;
+        if (stage) {
+          const next = clamp(start.zoom * Math.hypot(a.x - b.x, a.y - b.y) / start.distance, 0.25, 8);
+          stage.scrollLeft -= centreX - start.lastCentreX;
+          stage.scrollTop -= centreY - start.lastCentreY;
+          start.lastCentreX = centreX;
+          start.lastCentreY = centreY;
+          if (Math.abs(next - zoomRef.current) > 0.002) {
+            const rect = stage.getBoundingClientRect();
+            zoomAnchor.current = {
+              x: centreX - rect.left, y: centreY - rect.top,
+              left: stage.scrollLeft, top: stage.scrollTop, zoom: zoomRef.current,
+            };
+            zoomRef.current = next;
+            setZoomRef.current(next);
+          }
+        }
+      }
     } else if (touchPoints.current.size === 1) {
-      handleGlobalPointerMove(e);
+      if (revealSizeId === activeSize.id) {
+        handleGlobalPointerMove(e);
+      } else {
+        const previous = touchPan.current;
+        const stage = stageRef.current;
+        if (previous && stage && zoomRef.current > 1.01) {
+          stage.scrollLeft -= e.clientX - previous.x;
+          stage.scrollTop -= e.clientY - previous.y;
+        }
+        touchPan.current = { x: e.clientX, y: e.clientY };
+      }
     }
     return true;
   };
@@ -599,7 +640,7 @@ export default function Canvas({
     const swipe = swipeRef.current;
     if (touchPoints.current.size === 0) {
       swipeRef.current = null;
-      if (swipe && !swipe.pinched && !heldOriginal && revealSizeId !== activeSize.id && activeSize.crop.zoom <= 1) {
+      if (swipe && !swipe.pinched && !heldOriginal && revealSizeId !== activeSize.id && zoomRef.current <= 1.01) {
         const intent = swipeIntent(e.clientX - swipe.x, e.clientY - swipe.y, performance.now() - swipe.t);
         if (intent === 'next-photo') onStepPhoto?.(1);
         else if (intent === 'previous-photo') onStepPhoto?.(-1);
@@ -612,13 +653,17 @@ export default function Canvas({
     touchGesture.current = null;
     handleGlobalPointerUp();
     if (touchPoints.current.size === 1) {
-      const [id, point] = [...touchPoints.current.entries()][0];
-      dragRef.current = {
-        kind: 'pan', sizeId: activeSize.id, startX: point.x, startY: point.y,
-        origA: activeSize.crop.panX, origB: activeSize.crop.panY, crop: activeSize.crop,
-        rect: e.currentTarget.getBoundingClientRect(),
-      };
-      void id;
+      const [, point] = [...touchPoints.current.entries()][0];
+      touchPan.current = { x: point.x, y: point.y };
+      if (revealSizeId === activeSize.id) {
+        dragRef.current = {
+          kind: 'pan', sizeId: activeSize.id, startX: point.x, startY: point.y,
+          origA: activeSize.crop.panX, origB: activeSize.crop.panY, crop: activeSize.crop,
+          rect: e.currentTarget.getBoundingClientRect(),
+        };
+      }
+    } else {
+      touchPan.current = null;
     }
     return true;
   };
@@ -631,6 +676,7 @@ export default function Canvas({
     swipeRef.current = null;
     touchPoints.current.clear();
     touchGesture.current = null;
+    touchPan.current = null;
     dragRef.current = null;
     setDraggingType('none');
     setActiveGuides([]);
