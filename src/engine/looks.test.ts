@@ -65,6 +65,38 @@ describe('runLook', () => {
     assert.ok(result.steps.every((s) => s.verification.ok));
   });
 
+  it('renders both accepted steps as one cumulative recipe rather than only the last step', async () => {
+    const original = flat(16, [120, 120, 120]);
+    const seen: Array<{ denoise?: number; texture?: number }> = [];
+    const render = async (edit: { denoise?: number; texture?: number }) => {
+      seen.push({ ...edit });
+      return flat(16, [120 + Math.round((edit.denoise ?? 0) * 2 + (edit.texture ?? 0) * 2), 120, 120]);
+    };
+    const look = createCustomLook('composed', 'Composed', '', [
+      { label: 'First', capability: 'denoise', background: { denoise: 0.5 } },
+      { label: 'Second', capability: 'denoise', background: { texture: 0.5 } },
+    ]);
+    const result = await runLook(look, { original, render });
+    assert.deepEqual(seen, [{ denoise: 0.5 }, { denoise: 0.5, texture: 0.5 }]);
+    assert.deepEqual(result.combinedEdit, { denoise: 0.5, texture: 0.5 });
+    assert.equal(result.finalPixels.data[0], 122);
+  });
+
+  it('does not include a rejected step in final pixels or the accepted recipe', async () => {
+    const original = flat(16, [120, 120, 120]);
+    const render = async (edit: { denoise?: number; texture?: number }) =>
+      flat(16, [edit.denoise ? 250 : edit.texture ? 121 : 120, 120, 120]);
+    const look = createCustomLook('reject', 'Reject', '', [
+      { label: 'Rejected', capability: 'denoise', background: { denoise: 1 } },
+      { label: 'Accepted', capability: 'denoise', background: { texture: 0.2 } },
+    ]);
+    const result = await runLook(look, { original, render, maxRetriesPerStep: 1 });
+    assert.equal(result.steps[0].verification.ok, false);
+    assert.equal(result.steps[1].verification.ok, true);
+    assert.equal(result.finalPixels.data[0], 121);
+    assert.deepEqual(result.combinedEdit, { texture: 0.2 });
+  });
+
   it('applies a subject-only edit via a mask, verified with detailScope "subject"', async () => {
     const original = flat(16, [120, 120, 120]);
     const render = async () => flat(16, [121, 121, 121]);
