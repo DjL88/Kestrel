@@ -141,6 +141,12 @@ async function main() {
     }
     const expected = localEntries.get(suffix);
     if (expected) {
+      // The editor HTML itself is a release artifact. Asset-list equality does
+      // not detect stale inline configuration, security attributes or markup.
+      const canonical = suffix === '/editor/demo-v2' ? editorPaths['demo-v2'] : suffix;
+      if (data !== requireText(join(dir, canonical.slice(1)))) {
+        throw new Error('Live editor HTML differs from the verified local build: ' + suffix);
+      }
       const liveAssets = builtAssets(data);
       if (liveAssets.length !== expected.length || expected.some((asset, index) => asset !== liveAssets[index])) {
         throw new Error('The live editor page refers to a different set of compiled assets: ' + uri.pathname);
