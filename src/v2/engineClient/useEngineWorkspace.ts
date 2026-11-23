@@ -40,6 +40,7 @@ import { runV2Denoise } from './runDenoise';
 import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
 import { planExport } from './exportOps';
+import { addFormat, applyFormats, readFormats, removeFormat, toggleFormat, validCustomSize } from './formatOps';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, toggleMask } from './maskOps';
 import { createSubjectMask, framingKey } from '../../core/maskTypes';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFraming';
@@ -59,8 +60,8 @@ import { surfaceBridge } from './surfaceBridge';
 /** Actions that change a photo's edit, sizes, overlay, masks or assist state. They are not connected to the real
  * recipe yet, so they say so instead of silently changing sample data. */
 const NOT_CONNECTED = [
-  'setActiveGroup', 'addEditGroup', 'renameEditGroup', 'toggleSizeEnabled', 'toggleSizeLinked',
-  'addCustomSize', 'toggleSplitFrames', 'setSplitPanOffset',
+  'setActiveGroup', 'addEditGroup', 'renameEditGroup', 'toggleSizeLinked',
+  'toggleSplitFrames', 'setSplitPanOffset',
   'updateVideoZoom',
   'reconnectOriginal',
 ] as const satisfies readonly (keyof WorkspaceActions)[];
@@ -502,6 +503,18 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     }));
   }, [mutate]);
 
+  /** Change a photo's format set. Returns false when the change was refused (nothing is saved). `crops` may also rewrite the saved crops. */
+  const changeFormats = useCallback((photoId: string, change: (raw: unknown) => ReturnType<typeof readFormats> | undefined, crops?: (raw: unknown) => unknown): boolean => {
+    const current = stateRef.current;
+    const frame = current?.frames.find((candidate) => candidate.id === photoId);
+    if (!current || !frame) return false;
+    const next = change(frame.formats);
+    if (!next) return false;
+    const at = Date.now();
+    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, formats: next, ...(crops ? { sizeCrops: crops(entry.sizeCrops) } : {}) } : entry)) }));
+    return true;
+  }, [mutate]);
+
   /** Find the subject on this device and add it (or, for the background, its inverse) as a mask with no adjustments yet.
    * Sky, painted and area masks need tools V2 does not have, so they say so instead of adding a layer that does nothing. */
   const addMask = useCallback(async (photoId: string, type: 'subject' | 'sky' | 'background' | 'brush' | 'area') => {
@@ -780,6 +793,28 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
     dismissAssistSuggestion: (photoId) => setAssists((current) => (current[photoId] ? { ...current, [photoId]: { ...current[photoId], dismissed: true } } : current)),
     runDeepVisionReview: (photoId) => runDeepVisionReviewAction(photoId),
+    toggleSizeEnabled: (photoId, sizeId) => changeFormats(photoId, (raw) => toggleFormat(raw, sizeId)),
+    addCustomSize: (photoId, label, width, height) => {
+      if (!validCustomSize(width, height)) { setNotice('That size is not usable. Use whole pixels, from 1 to 20,000.'); return; }
+      const id = `custom-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 10)}`;
+      if (!changeFormats(photoId, (raw) => addFormat(raw, label, width, height, id))) { setNotice('This photo already has the most formats it can hold.'); return; }
+      stub.actions.setActiveSize(id);
+    },
+    duplicateSize: (photoId, sizeId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      const source = applyFormats(createDefaultSizes(), frame?.formats).find((size) => size.id === sizeId);
+      if (!frame || !source) return;
+      const id = `custom-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 10)}`;
+      if (!changeFormats(photoId, (raw) => addFormat(raw, `${source.label} copy`, source.width, source.height, id), (crops) => { const own = readCrops(crops)[sizeId]; return own ? { ...readCrops(crops), [id]: own } : readCrops(crops); })) { setNotice('This photo already has the most formats it can hold.'); return; }
+      stub.actions.setActiveSize(id);
+    },
+    removeSize: (photoId, sizeId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      const remaining = applyFormats(createDefaultSizes(), frame?.formats).filter((size) => size.kind === 'photo' && size.enabled && size.id !== sizeId);
+      if (!remaining.length) { setNotice('A photo needs at least one format.'); return; }
+      changeFormats(photoId, (raw) => removeFormat(raw, sizeId), (crops) => { const next = { ...readCrops(crops) }; if (sizeId.startsWith('custom-')) delete next[sizeId]; return next; });
+      if (stub.store.activeSizeId === sizeId) stub.actions.setActiveSize(remaining[0].id);
+    },
     updateSizeCrop: (photoId, sizeId, patch) => {
       const selectedSizes = stub.store.selectedSizeIds;
       changeCrops(photoId, selectedSizes.length > 1 && selectedSizes.includes(sizeId) ? selectedSizes : [sizeId], (crop) => patchCrop(crop, patch));

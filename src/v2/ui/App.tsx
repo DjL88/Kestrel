@@ -399,6 +399,9 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
               ) : (
                 <Canvas
                   PhotoSurface={store.PhotoSurface}
+                  onOpenFormats={() => actions.setActivePanel('formats')}
+                  onDuplicateSize={(sizeId) => activePhoto && actions.duplicateSize(activePhoto.id, sizeId)}
+                  onRemoveSize={(sizeId) => activePhoto && actions.removeSize(activePhoto.id, sizeId)}
                   onStepPhoto={(delta) => {
                     const next = stepFrom(store.photos, activePhoto?.id, delta);
                     if (next) actions.selectPhoto(next.id);

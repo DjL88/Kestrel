@@ -78,3 +78,15 @@ test('original file plus edited counts both', () => {
 test('choosing nothing at all is refused with a plain message', () => {
   assert.ok('error' in planExport(request({ includeAfter: false }), frames, [size('a')]));
 });
+
+test('a custom format exports only for the photo that has it, and a format a photo switched off is skipped for it', () => {
+  const custom = { disabled: [], custom: [{ id: 'custom-abc123', label: 'Poster', width: 2400, height: 3000 }] };
+  const withCustom = [{ id: 'p1', filename: 'one.jpg', formats: custom }, { id: 'p2', filename: 'two.jpg' }];
+  const plan = planExport(request({ sizeIds: ['custom-abc123'] }), withCustom, [size('a')]);
+  assert.ok('jobs' in plan);
+  assert.deepEqual(plan.jobs.map((job) => job.frameId), ['p1']);
+  const off = [{ id: 'p1', filename: 'one.jpg', formats: { disabled: ['a'], custom: [] } }, { id: 'p2', filename: 'two.jpg' }];
+  const skipped = planExport(request({ sizeIds: ['a'] }), off, [size('a')]);
+  assert.ok('jobs' in skipped);
+  assert.deepEqual(skipped.jobs.map((job) => job.frameId), ['p2']);
+});

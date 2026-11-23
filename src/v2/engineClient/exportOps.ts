@@ -1,8 +1,9 @@
+import { applyFormats } from './formatOps';
 import type { ExportFormat } from '../../core/exportFormats';
 import { readCrops, DEFAULT_CROP } from './cropOps';
 import type { CropTransform, ExportRequest, SizePreset } from '../ui/contract';
 
-export interface ExportFrameInfo { id: string; filename: string; removedAt?: number; sizeCrops?: unknown }
+export interface ExportFrameInfo { id: string; filename: string; removedAt?: number; sizeCrops?: unknown; formats?: unknown }
 /** 'edited' is the photo with its recipe (and overlay if asked). 'unedited' is the same framing with no edit at all, developed to JPEG: it is not the original file. */
 export type ExportVariant = 'edited' | 'unedited';
 export interface ExportJob { frameId: string; format: ExportFormat; size: { width: number; height: number }; crop: CropTransform; variants: ExportVariant[] }
@@ -25,13 +26,16 @@ export function planExport(request: ExportRequest, frames: readonly ExportFrameI
 
   const chosen = frames.filter((frame) => request.photoIds.includes(frame.id) && !frame.removedAt);
   if (!chosen.length) return { error: 'Choose at least one photo to export.' };
-  const picked = sizes.filter((size) => size.kind === 'photo' && request.sizeIds.includes(size.id));
+  const allSizes = chosen.flatMap((frame) => applyFormats(sizes, frame.formats));
+  const picked = [...new Map(allSizes.filter((size) => size.kind === 'photo' && request.sizeIds.includes(size.id)).map((size) => [size.id, size])).values()];
   if (variants.length && !picked.length) return { error: 'Choose at least one size to export.' };
 
   const jobs: ExportJob[] = [];
   for (const frame of variants.length ? chosen : []) {
     const crops = readCrops(frame.sizeCrops);
-    for (const size of picked) {
+    // A photo exports the formats it has: its own custom formats exist only on it, and one it has switched off is skipped.
+    const own = new Map(applyFormats(sizes, frame.formats).map((size) => [size.id, size]));
+    for (const size of picked.filter((entry) => own.get(entry.id)?.enabled !== false)) {
       if (!Number.isInteger(size.width) || !Number.isInteger(size.height) || size.width < 1 || size.height < 1) return { error: `${size.label} has no usable size.` };
       jobs.push({ frameId: frame.id, variants, size: { width: size.width, height: size.height }, crop: crops[size.id] ?? { ...DEFAULT_CROP }, format: {
         id: size.id, label: size.label, width: size.width, height: size.height, fit: 'fill', quality: 0.94, format: 'jpeg',

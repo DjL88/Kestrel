@@ -1409,6 +1409,20 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       showNotice('Aligned all format boards neatly');
     },
 
+    duplicateSize: (photoId, sizeId) => {
+      logAction('duplicateSize', { photoId, sizeId });
+      const id = `custom-${Date.now()}`;
+      updatePhotoById(photoId, (photo) => {
+        const source = photo.sizes.find((s) => s.id === sizeId);
+        return source ? { ...photo, sizes: [...photo.sizes, { ...source, id, label: `${source.label} copy`, platform: 'custom' as const, enabled: true }] } : photo;
+      });
+      setStore((prev) => ({ ...prev, activeSizeId: id, selectedSizeIds: [id] }));
+    },
+    removeSize: (photoId, sizeId) => {
+      logAction('removeSize', { photoId, sizeId });
+      updatePhotoById(photoId, (photo) => (photo.sizes.filter((s) => s.kind === 'photo' && s.enabled && s.id !== sizeId).length
+        ? { ...photo, sizes: sizeId.startsWith('custom-') ? photo.sizes.filter((s) => s.id !== sizeId) : photo.sizes.map((s) => (s.id === sizeId ? { ...s, enabled: false } : s)) } : photo));
+    },
     toggleSizeEnabled: (photoId, sizeId) => {
       logAction('toggleSizeEnabled', { photoId, sizeId });
       updatePhotoById(photoId, (photo) => {
