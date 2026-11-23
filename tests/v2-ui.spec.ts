@@ -691,8 +691,8 @@ test('?v2 masks are real: Subject is found on this device, its sliders change th
   // A new mask changes nothing until a slider moves. Settle, then read the subject (middle) and the background (corner).
   await page.waitForTimeout(1500);
   const subject0 = await luma(0.5, 0.5), back0 = await luma(0.05, 0.05);
-  await root.getByRole('button', { name: /^Subject/ }).first().click();
   const exposure = root.getByRole('slider', { name: 'Subject Exposure' });
+  if (!(await exposure.isVisible())) await root.getByRole('button', { name: /^Subject/ }).first().click();
   await exposure.fill('-1.5');
   await expect.poll(() => luma(0.5, 0.5), { timeout: 20000 }).toBeLessThan(subject0 - 60);
   // The background is outside the mask: it is not darkened with the subject.
