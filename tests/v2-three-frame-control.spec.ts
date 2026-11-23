@@ -35,6 +35,18 @@ test('V2 three-frame selection updates the real catalogue, board and saved proje
   await expect(three.locator('[data-testid^="artboard-orig-3x2-"]')).toHaveCount(3);
   await expect(three.getByText('Original · 3/3')).toBeVisible();
 
+  // A narrow portrait viewport must keep all three frames reachable without
+  // squeezing their aspect or clipping the final numbered artboard.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(async () => {
+    const frames = await three.locator('[data-testid^="artboard-orig-3x2-"]').all();
+    const boxes = await Promise.all(frames.map(frame => frame.boundingBox()));
+    const stage = await root.getByTestId('all-formats-board').boundingBox();
+    return boxes.length === 3 && boxes.every(box => box && stage &&
+      box.x >= stage.x - 1 && box.x + box.width <= stage.x + stage.width + 1);
+  }).toBe(true);
+  await page.setViewportSize({ width: 1280, height: 800 });
+
   await root.getByRole('button', { name: 'Back to projects' }).click();
   await page.reload();
   await root.getByRole('button', { name: /Open studio/ }).first().click();
