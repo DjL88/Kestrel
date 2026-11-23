@@ -247,6 +247,13 @@ export const source = {
   // Formats Panel (renamed from Sizes)
   formats: {
     heading: 'Formats',
+    borderPlacement: 'Border placement',
+    borderAllSides: 'All sides',
+    borderTopBottom: 'Top and bottom',
+    borderLeftRight: 'Left and right',
+    borderFitWhole: 'Fit whole photo',
+    recentBorderColours: 'Recently used border colours',
+    recentColours: 'Recent colours',
     editGroupsHeading: 'Edit Groups',
     addEditGroup: 'Add edit group',
     editGroupHint: 'Chain formats together to share one edit, or create a second group with its own look or text overlay.',
@@ -406,6 +413,12 @@ export const source = {
   },
 
   // Tasks Panel
+  mobile: {
+    toolBar: 'Mobile studio tools',
+    more: 'More',
+    moreTools: 'More tools',
+    closeDrawer: 'Close mobile drawer',
+  },
   tasks: {
     heading: 'Background Tasks',
     empty: 'No background tasks running. InFlight is idle.',

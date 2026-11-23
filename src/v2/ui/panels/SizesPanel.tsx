@@ -475,14 +475,14 @@ export default function SizesPanel({
             className="inflight-slider"
           />
           <label className="flex items-center justify-between gap-2 text-xs text-[var(--text-secondary)]">
-            <span>Border placement</span>
-            <select aria-label="Border placement" value={activeSize.crop.borderPlacement ?? 'all'}
+            <span>{STRINGS.formats.borderPlacement}</span>
+            <select aria-label={STRINGS.formats.borderPlacement} value={activeSize.crop.borderPlacement ?? 'all'}
               onChange={(e) => onUpdateSizeCrop(photo.id, activeSize.id, { borderPlacement: e.target.value as CropTransform['borderPlacement'] })}
               className="h-8 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-2 text-xs text-[var(--text-primary)]">
-              <option value="all">All sides</option>
-              <option value="horizontal">Top and bottom</option>
-              <option value="vertical">Left and right</option>
-              <option value="auto">Fit whole photo</option>
+              <option value="all">{STRINGS.formats.borderAllSides}</option>
+              <option value="horizontal">{STRINGS.formats.borderTopBottom}</option>
+              <option value="vertical">{STRINGS.formats.borderLeftRight}</option>
+              <option value="auto">{STRINGS.formats.borderFitWhole}</option>
             </select>
           </label>
           <div role="group" aria-label={STRINGS.formats.borderColourLabel} className="flex flex-wrap items-center gap-2">
@@ -507,8 +507,8 @@ export default function SizesPanel({
             />
           </div>
           {recentBorderColours.length > 0 && (
-            <div role="group" aria-label="Recently used border colours" className="flex flex-wrap items-center gap-2">
-              <span className="text-[11px] text-[var(--text-secondary)]">Recent colours</span>
+            <div role="group" aria-label={STRINGS.formats.recentBorderColours} className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] text-[var(--text-secondary)]">{STRINGS.formats.recentColours}</span>
               {recentBorderColours.map((hex) => (
                 <button
                   key={hex}

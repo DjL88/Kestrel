@@ -8,7 +8,7 @@ import { join } from 'node:path';
  * a V2 component instead of the i18n area (src/i18n/areas/v2). The count may only go DOWN: move words into the area and
  * lower BASELINE in the same change. It is a heuristic (it cannot see every string), so a pass does not prove a screen is translated.
  */
-const BASELINE = 178; // lower it as words move into the area (measured 23 Nov 2026)
+const BASELINE = 172; // lower it as words move into the area (measured 23 Nov 2026)
 
 const ROOT = join(import.meta.dirname, 'ui');
 
