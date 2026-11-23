@@ -1,5 +1,6 @@
 import { applyFormats, applySizeLinked } from './formatOps';
 import { readVideoZoom } from './videoZoomOps';
+import { readSplitFrames, readSplitPanOffset } from './splitFrameOps';
 import { describeHistory } from './historySteps';
 import type { PhotoFrame, ShootDescriptor } from '../../core/types';
 import { computeCullCounts } from '../../core/cullingEngine';
@@ -79,7 +80,10 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
   // The UI's sample group carries a made-up look. A real photo starts from its own edit: neutral until the person edits it.
   const board = readBoard(frame.boardPositions);
   const crops = readCrops(frame.sizeCrops);
-  const groups = createEditGroups(false).map((group) => ({ ...group, name: 'Edit group 1', recipe: { ...editToRecipe(frame.edit), lookId: frame.appliedLookId ?? 'natural-raw' }, overlay: readOverlay(frame.overlay) }));
+  const groups = createEditGroups(false).map((group) => ({
+    ...group, name: 'Edit group 1', recipe: { ...editToRecipe(frame.edit), lookId: frame.appliedLookId ?? 'natural-raw' }, overlay: readOverlay(frame.overlay),
+    splitFrames: readSplitFrames(frame.splitFrames), splitPanOffset: readSplitPanOffset(frame.splitPanOffset),
+  }));
   const thumb = urls?.thumb ?? BLANK_IMAGE;
   return {
     id: frame.id,

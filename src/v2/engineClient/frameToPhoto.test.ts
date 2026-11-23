@@ -71,6 +71,21 @@ test('a photo\'s stored linked overrides change only the formats they name', () 
   assert.equal(unlinked.linked, false);
 });
 
+test('a photo with no stored split state starts as one pane, centred', () => {
+  const group = frameToPhoto(frame(), undefined).editGroups[0];
+  assert.equal(group.splitFrames, false);
+  assert.equal(group.splitPanOffset, 0);
+});
+
+test('a photo\'s stored split state is read through and kept in range', () => {
+  const group = frameToPhoto(frame({ splitFrames: true, splitPanOffset: 15 }), undefined).editGroups[0];
+  assert.equal(group.splitFrames, true);
+  assert.equal(group.splitPanOffset, 15);
+  const damaged = frameToPhoto(frame({ splitFrames: 'yes', splitPanOffset: 999 }), undefined).editGroups[0];
+  assert.equal(damaged.splitFrames, false);
+  assert.equal(damaged.splitPanOffset, 25);
+});
+
 test('tasks keep their progress and a failure is shown as failed, not as cancelled', () => {
   const base = { id: 7, title: 'Adding 10 photos', done: 4, total: 10, startedAt: 0, updatedAt: 0 };
   assert.deepEqual(taskToInfo({ ...base, state: 'running' }), { id: '7', label: 'Adding 10 photos', detail: '4 of 10', progress: 40, status: 'running' });
