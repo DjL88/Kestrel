@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { CropTransform, FeatureKey, Photo, VideoZoomConfig } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
@@ -24,6 +24,8 @@ interface SizesPanelProps {
   onRotateSizes: (photoId: string) => void;
   onResetSizeCrop: (photoId: string, sizeId: string) => void;
   onAddCustomSize: (photoId: string, label: string, width: number, height: number) => void;
+  onSetOriginalOutputSize: (photoId: string, width: number, height: number) => void;
+  onResetOriginalOutputSize: (photoId: string) => void;
   onToggleSplitFrames: (photoId: string) => void;
   onUpdateVideoZoom: (photoId: string, patch: Partial<VideoZoomConfig>) => void;
 }
@@ -45,6 +47,8 @@ export default function SizesPanel({
   onRotateSizes,
   onResetSizeCrop,
   onAddCustomSize,
+  onSetOriginalOutputSize,
+  onResetOriginalOutputSize,
   onToggleSplitFrames,
   onUpdateVideoZoom,
 }: SizesPanelProps) {
@@ -58,6 +62,13 @@ export default function SizesPanel({
   const [paperPreset, setPaperPreset] = useState<PaperPreset>('custom');
   const [paperOrientation, setPaperOrientation] = useState<PaperOrientation>('portrait');
   const [recentBorderColours, setRecentBorderColours] = useState<string[]>([]);
+  const originalFormat = photo?.sizes.find((size) => size.id === 'orig-3x2');
+  const [originalW, setOriginalW] = useState(0);
+  const [originalH, setOriginalH] = useState(0);
+  useEffect(() => {
+    setOriginalW(originalFormat?.width ?? 0);
+    setOriginalH(originalFormat?.height ?? 0);
+  }, [photo?.id, originalFormat?.width, originalFormat?.height]);
 
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">Select a photo to manage export formats.</p>;
@@ -191,6 +202,43 @@ export default function SizesPanel({
             <span>{STRINGS.formats.customSizeAdd}</span>
           </button>
         </div>
+
+        {originalFormat && (
+          <form
+            className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              onSetOriginalOutputSize(photo.id, originalW, originalH);
+            }}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-[var(--text-primary)]">Original — permanent format</span>
+              <span className="text-[11px] text-[var(--text-muted)]">Hide with the checkbox; never deleted</span>
+            </div>
+            <p className="text-[11px] text-[var(--text-secondary)]">
+              Defaults to the imported dimensions when known. Changing the output canvas does not change your imported file. Add the separate 3:2 format below if needed.
+            </p>
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="flex flex-col gap-1 text-[11px] text-[var(--text-secondary)]">
+                Width (px)
+                <input type="number" min="1" max="20000" step="1" value={originalW}
+                  aria-label="Original output width" onChange={(event) => setOriginalW(Number(event.target.value))}
+                  className="h-9 w-28 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 font-mono text-xs text-[var(--text-primary)]" />
+              </label>
+              <label className="flex flex-col gap-1 text-[11px] text-[var(--text-secondary)]">
+                Height (px)
+                <input type="number" min="1" max="20000" step="1" value={originalH}
+                  aria-label="Original output height" onChange={(event) => setOriginalH(Number(event.target.value))}
+                  className="h-9 w-28 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 font-mono text-xs text-[var(--text-primary)]" />
+              </label>
+              <button type="submit"
+                disabled={!Number.isSafeInteger(originalW) || !Number.isSafeInteger(originalH) || originalW < 1 || originalH < 1 || originalW > 20000 || originalH > 20000}
+                className="h-9 rounded-[var(--radius-sm)] bg-[var(--brand-accent)] px-3 text-xs font-semibold text-[var(--text-on-accent)] disabled:opacity-40">Apply size</button>
+              <button type="button" onClick={() => onResetOriginalOutputSize(photo.id)}
+                className="h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs text-[var(--text-secondary)]">Reset to imported</button>
+            </div>
+          </form>
+        )}
 
         {addingCustom && (
           <form
