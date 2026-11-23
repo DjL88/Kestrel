@@ -838,8 +838,9 @@ export default function Canvas({
 
     const cropClip = `inset(${activeSize.crop.insetTop}% ${activeSize.crop.insetRight}% ${activeSize.crop.insetBottom}% ${activeSize.crop.insetLeft}%)`;
 
-    // Double-click either pane to edit the one shared crop; exiting restores the split.
-    if (splitFor(activeSize.id) && !revealing) {
+    // Keep the entire split composition visible while editing its shared crop.
+    // Previously entering crop mode dropped back to one frame and hid the other.
+    if (splitFor(activeSize.id)) {
       // Each pane has the selected format's full aspect ratio. Fit BOTH panes and their
       // 16px gap into the working area; a single-pane Fit width would overflow on phones.
       // Account for canvas zoom rather than clipping the second pane off-screen.
@@ -859,10 +860,10 @@ export default function Canvas({
                 {paneIdx === 0 ? STRINGS.canvas.frameLeft : STRINGS.canvas.frameRight} · 1:1
               </span>
               <div
-                onPointerDown={(e) => handleFramePointerDown(e, 'split', activeSize, e.currentTarget)}
-                onDoubleClick={() => setRevealSizeId(activeSize.id)}
+                onPointerDown={(e) => handleFramePointerDown(e, revealing ? 'pan' : 'split', activeSize, e.currentTarget)}
+                onDoubleClick={() => setRevealSizeId((current) => current === activeSize.id ? null : activeSize.id)}
                 title={STRINGS.canvas.splitCropTitle}
-                className="relative cursor-grab overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] active:cursor-grabbing"
+                className={`relative cursor-grab overflow-hidden rounded-[var(--radius-md)] border bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] active:cursor-grabbing ${revealing ? "border-[var(--semantic-warning)] ring-2 ring-[var(--semantic-warning)]" : "border-[var(--border-default)]"}`}
                 style={{ width: splitFrameW, height: splitFrameH }}
               >
                 {inBorderFrame(activeSize, <img
