@@ -16,6 +16,7 @@ import type {
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import CompareSplit from './CompareSplit';
+import { captureElement, screenshotName } from '../utils/captureElement';
 import {
   buildPreviewFilterCss,
   cropPanLimits,
@@ -107,6 +108,25 @@ export default function Canvas({
 }: CanvasProps) {
   const [activeGuides, setActiveGuides] = useState<SnapGuide[]>([]);
   const stageRef = useRef<HTMLDivElement>(null);
+  const [shotNote, setShotNote] = useState<string | null>(null);
+  /** Saves what is on the canvas right now, as seen: the edit, crop, overlays, grid and compare split. */
+  const grabScreenshot = async () => {
+    const stage = stageRef.current;
+    if (!stage || !photo) return;
+    setShotNote('Taking the screenshot…');
+    try {
+      const blob = await captureElement(stage);
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = screenshotName(photo.title || photo.filename, new Date());
+      document.body.appendChild(link); link.click(); link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
+      setShotNote('Screenshot saved to your downloads.');
+    } catch (error) {
+      setShotNote(error instanceof Error ? error.message : 'The screenshot could not be taken.');
+    }
+    window.setTimeout(() => setShotNote(null), 5000);
+  };
   const [stageSize, setStageSize] = useState({ width: 660, height: 470 });
   const touchPoints = useRef(new Map<number, { x: number; y: number }>());
   const touchGesture = useRef<{ distance: number; zoom: number; panX: number; panY: number; centreX: number; centreY: number } | null>(null);
@@ -1139,6 +1159,7 @@ export default function Canvas({
             <button
               type="button"
               onClick={() => onSetLayoutMode('all-formats')}
+              title="Drag artboard title bars to arrange · Ctrl/Cmd-click formats to edit as a group · Double-click to focus"
               className={`inline-flex h-7 items-center gap-1.5 rounded px-2 text-[11px] font-medium transition-colors whitespace-nowrap ${
                 canvasLayoutMode === 'all-formats'
                   ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]'
@@ -1297,19 +1318,22 @@ export default function Canvas({
         {canvasLayoutMode === 'all-formats' ? renderAllFormatsBoard() : renderSingleArtboard()}
 
         {/* Subtle bottom-left interaction hint */}
-        {!calmView && (
-          <p className="pointer-events-none absolute bottom-3 left-4 hidden lg:block text-[11px] text-[var(--text-muted)]">
-            {canvasLayoutMode === 'all-formats'
-              ? 'Drag artboard title bars to arrange · Ctrl/Cmd-click formats to edit as a group · Double-click to focus'
-              : activeSize.kind === 'video'
+        {!calmView && canvasLayoutMode === 'single' && (
+          <p data-capture-ignore className="pointer-events-none absolute bottom-3 left-4 hidden lg:block text-[11px] text-[var(--text-muted)]">
+            {activeSize.kind === 'video'
               ? STRINGS.canvas.zoomVideoHint
               : STRINGS.canvas.dragCropHint}
           </p>
         )}
 
+        {shotNote && (
+          <p role="status" data-capture-ignore className="absolute bottom-14 right-3 z-30 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 py-1 text-[11px] text-[var(--text-primary)] shadow">{shotNote}</p>
+        )}
+
         {/* BottomRightCluster: Zoom controls, Grid View toggle, and ONE Full Screen button */}
         <div
           aria-label="Canvas viewport controls"
+          data-capture-ignore
           className="absolute bottom-3 right-3 z-30 flex items-center gap-1 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)]/95 p-1 shadow-[var(--shadow-popover)] backdrop-blur-sm"
         >
           <button
@@ -1352,6 +1376,17 @@ export default function Canvas({
           >
             <BrandIcon name="grid" size={15} />
             {gridMode !== 'off' && <span className="text-[10px] font-semibold">{gridMode === '3x3' ? '3×3' : '4×4'}</span>}
+          </button>
+
+          <button
+            type="button"
+            title="Grab screenshot: saves what you see on the canvas, with the edit, crop, overlays and grid"
+            aria-label="Grab screenshot"
+            data-testid="grab-screenshot"
+            onClick={() => void grabScreenshot()}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
+          >
+            <BrandIcon name="save" size={15} />
           </button>
 
           <button

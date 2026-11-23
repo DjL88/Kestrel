@@ -83,10 +83,13 @@ export async function runDeepVisionReview(frame: PhotoFrame, provider: BrowserPr
   const suggestedLook = suggestDeepReviewLook(detection);
   // The current engine supplies at most one defensible Look. Do not pad to three
   // with invented alternatives; a later ranked engine result can extend this list.
-  const candidates: DeepVisionCandidate[] = suggestedLook
-    ? [{ id: suggestedLook.id, look: suggestedLook, label: suggestedLook.name, description: suggestedLook.description }]
-    : [];
+  const candidates = candidatesForSuggestedLook(suggestedLook);
   return { detection, suggestedLook, candidates, summary: describeDeepReview(detection, suggestedLook) };
+}
+
+/** A candidate is only a proposal. Never create filler Looks or mutate an edit here. */
+export function candidatesForSuggestedLook(look: Look | null): DeepVisionCandidate[] {
+  return look ? [{ id: look.id, look, label: look.name, description: look.description }] : [];
 }
 
 /** A disagreement is not permission to offer a subject-aware edit. */

@@ -21,6 +21,7 @@ export const source = {
       newProject: 'New project',
       importPhotos: 'Import photos',
       exportSelected: 'Export…',
+      removedPhotos: 'Removed photos…',
       settings: 'Settings…',
       backToProjects: 'Close project',
     },
@@ -450,6 +451,17 @@ export const source = {
     groupsHeading: 'Edit groups & formats',
     startExport: 'Export bundle',
     cancel: 'Cancel',
+  },
+
+  // Removed photos (Trash) Dialog
+  removedDialog: {
+    heading: (count: number) => (count === 1 ? 'Removed photos (1)' : `Removed photos (${count})`),
+    intro: 'Taken out of this project. The original file on disk was never touched, moved or deleted.',
+    nothing: 'Nothing removed right now.',
+    restore: 'Restore',
+    restoreAll: 'Restore all',
+    close: 'Close',
+    restorePhoto: (filename: string) => `Restore ${filename}`,
   },
 
   // Settings Dialog (7 Tabs)

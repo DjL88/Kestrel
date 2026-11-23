@@ -28,6 +28,7 @@ interface TopBarProps {
   onBack: () => void;
   onSetAssistMode: (mode: AssistMode) => void;
   onExport: () => void;
+  onOpenRemoved: () => void;
   onOpenSettings: () => void;
   onImport: () => void;
   onUndo: () => void;
@@ -64,6 +65,7 @@ export default function TopBar({
   onBack,
   onSetAssistMode,
   onExport,
+  onOpenRemoved,
   onOpenSettings,
   onImport,
   onUndo,
@@ -165,6 +167,12 @@ export default function TopBar({
                   label={STRINGS.topBar.fileActions.exportSelected}
                   shortcut="⌘E"
                   onClick={() => runAndClose(onExport)}
+                />
+                <div className="my-1 h-px bg-[var(--border-subtle)]" />
+                <MenuItem
+                  icon="restore"
+                  label={STRINGS.topBar.fileActions.removedPhotos}
+                  onClick={() => runAndClose(onOpenRemoved)}
                 />
                 <div className="my-1 h-px bg-[var(--border-subtle)]" />
                 <MenuItem

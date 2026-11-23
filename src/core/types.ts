@@ -113,8 +113,22 @@ export interface PhotoFrame {
   /** The V2 crop for each format of this photo (zoom, position, flips, rotation), by format id. The shape belongs to src/v2, which
    * validates it on read; core only keeps it with the photo. Each format has its own crop and never affects another photo. */
   sizeCrops?: unknown;
+  /** The V2 Curated Look last applied to this photo, so the panel can say which one it is. Cleared by Reset. Display only: the look's effect is in `edit`. */
+  appliedLookId?: string;
+  /** Where each format's artboard sits on the V2 "All formats" board, by format id. Validated on read by `readBoard` (v2 engineClient). */
+  boardPositions?: unknown;
   /** This photo's own format set: built-in formats switched off and custom or duplicated formats. Read with `readFormats` (v2 engineClient). */
   formats?: unknown;
+  /** Per-format "linked" overrides (paper-clipped to the active edit group vs independent), by format id. The shape belongs
+   * to src/v2, which validates it on read with `readSizeLinked`; core only keeps it with the photo. */
+  sizeLinked?: unknown;
+  /** This photo's video pan/zoom (Ken Burns) settings, when it is a video. The shape belongs to src/v2, which validates it
+   * on read with `readVideoZoom` (v2 engineClient); core only keeps it with the photo. */
+  videoZoom?: unknown;
+  /** Whether this photo's edit is split into two panes, and how far each is panned. Validated on read by
+   * `readSplitFrames`/`readSplitPanOffset` (v2 engineClient); core only keeps it with the photo. */
+  splitFrames?: unknown;
+  splitPanOffset?: unknown;
   /** Set when the photo was removed from the library. The original file is never touched, and Restore clears this. */
   removedAt?: number;
 }
