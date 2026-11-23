@@ -93,7 +93,7 @@ describe('runLook', () => {
     const look = createCustomLook('subject', 'Subject', 'mask validation', [
       { label: 'Subject clarity', capability: 'mask', background: {}, subject: { clarity: 0.2 } },
     ]);
-    const invalid = [new Float32Array(4), new Float32Array(256).fill(Number.NaN),
+    const invalid = [new Uint8Array(256).fill(1) as unknown as Float32Array, new Float64Array(256).fill(1) as unknown as Float32Array, new Float32Array(4), new Float32Array(256).fill(Number.NaN),
       new Float32Array(256).fill(Number.POSITIVE_INFINITY), new Float32Array(256).fill(-0.1),
       new Float32Array(256).fill(1.1)];
     for (const alpha of invalid) {
@@ -111,10 +111,12 @@ describe('runLook', () => {
     const look = createCustomLook('retry', 'Retry', 'retry validation', [
       { label: 'Edit', capability: 'denoise', background: { denoise: 0.2 } },
     ]);
-    for (const maxRetriesPerStep of [-1, 1.5, Number.POSITIVE_INFINITY]) {
+    for (const maxRetriesPerStep of [-1, 1.5, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER, 21]) {
       await assert.rejects(runLook(look, { original, maxRetriesPerStep, render: async () => { calls++; return original; } }), RangeError);
     }
     assert.equal(calls, 0);
+    const bounded = await runLook(look, { original, maxRetriesPerStep: 20, render });
+    assert.equal(bounded.steps.length, 1);
   });
 
   it('rejects malformed renderer output rather than accepting or persisting a Look', async () => {
