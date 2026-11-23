@@ -53,3 +53,21 @@ test('conflicting worker results stay review-only regardless of message order', 
     }
   }
 });
+
+test('malformed high-confidence worker scores remain review-only, including duplicate claims', () => {
+  for (const score of [NaN, Infinity, -Infinity, -1, 101]) {
+    for (const decision of ['keep', 'reject'] as const) {
+      const result: CullSuggestion = { ...item('uncertain', decision, 'high', decision === 'keep' ? 'subjectSharp' : 'duplicate'), score };
+      assert.deepEqual(summarizeCullSuggestions([result]), {
+        total: 1, automaticKeep: 0, automaticDuplicate: 0, otherHighReject: 0, needReview: 1,
+      }, String(score));
+      assert.deepEqual(summarizeCullSuggestions([
+        item('uncertain', 'keep', 'high', 'subjectSharp'), result,
+      ]), { total: 1, automaticKeep: 0, automaticDuplicate: 0, otherHighReject: 0, needReview: 1 });
+    }
+  }
+  assert.deepEqual(summarizeCullSuggestions([
+    { ...item('valid', 'keep', 'high', 'subjectSharp'), score: 100 },
+    { ...item('valid-reject', 'reject', 'high', 'duplicate'), score: 0 },
+  ]), { total: 2, automaticKeep: 1, automaticDuplicate: 1, otherHighReject: 0, needReview: 0 });
+});
