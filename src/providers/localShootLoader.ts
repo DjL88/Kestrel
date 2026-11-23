@@ -430,9 +430,21 @@ export async function rehydrateLocalFramesFromStore(
     .filter((key) => !linkedKeys.has(key) && !previewProvider.hasBlob(key));
   for (let offset = 0; offset < missing.length; offset += 12) {
     const restored = await Promise.all(missing.slice(offset, offset + 12).map(async (key) => {
-      const blob = await store.loadLocalFileBlob(key);
-      if (blob) previewProvider.registerBlob(key, blob);
-      return Boolean(blob);
+      // A stableKey is only filename/size/mtime metadata. Even IndexedDB's
+      // persisted blob may be stale or replaced with different bytes.
+      const candidates = frames.filter((frame) => !frame.isDemo && frame.stableKey === key);
+      const expected = [...new Set(candidates.map((frame) => frame.originalSha256))];
+      if (expected.length !== 1 || typeof expected[0] !== 'string') return false;
+      try {
+        const blob = await store.loadLocalFileBlob(key);
+        if (!blob || !isSameOriginalBytes(expected[0], await hashOriginalBytes(blob))) return false;
+        previewProvider.registerBlob(key, blob);
+        return true;
+      } catch {
+        // Corrupt storage, quota/permission failures and truncated reads must
+        // leave the project and all edit recipes intact, with original offline.
+        return false;
+      }
     }));
     if (restored.some((found) => !found)) allFound = false;
   }
