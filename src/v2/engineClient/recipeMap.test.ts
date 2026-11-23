@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isNeutralEdit } from '../../core/photoEdits.ts';
+import { applyDetail, isNeutralEdit } from '../../core/photoEdits.ts';
 import { applyRecipePatch, editToRecipe, NEUTRAL_RECIPE } from './recipeMap.ts';
 
 test('a photo with no edit shows a neutral recipe, never invented adjustments', () => {
@@ -60,4 +60,41 @@ test('upscale is a real edit: it maps both ways, is not "unmapped", and a neutra
   assert.equal(isNeutralEdit(two.edit), false, 'an upscaled photo counts as edited, so it is kept and undoable');
   assert.equal('upscale' in applyRecipePatch(two.edit, { upscaleFactor: 1 }).edit, false);
   assert.equal(editToRecipe(undefined).upscaleFactor, 1);
+});
+
+test('V2 existing-detail control round-trips through the real texture edit and can be reset', () => {
+  const added = applyRecipePatch(undefined, { detailRecovery: 55 });
+  assert.equal(added.edit.texture, 1.1);
+  assert.deepEqual(added.unmapped, []);
+  assert.equal(editToRecipe(added.edit).detailRecovery, 55);
+  assert.equal(isNeutralEdit(added.edit), false, 'a real texture edit is undoable');
+  const removed = applyRecipePatch(added.edit, { detailRecovery: 0 });
+  assert.equal(removed.edit.texture, undefined);
+  assert.equal(editToRecipe(removed.edit).detailRecovery, 0);
+  assert.equal(isNeutralEdit(removed.edit), true);
+});
+
+test('texture changes actual sampled pixels, not merely a visible slider', () => {
+  const width = 30;
+  const height = 30;
+  const source = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const i = (y * width + x) * 4;
+    const luminance = Math.floor(x / 5) % 2 ? 180 : 60;
+    source[i] = source[i + 1] = source[i + 2] = luminance;
+    source[i + 3] = 255;
+  }
+  const edited = new Uint8ClampedArray(source);
+  const { edit } = applyRecipePatch(undefined, { detailRecovery: 80 });
+  applyDetail(edited, width, height, edit, Math.max(width, height));
+  assert.notDeepEqual(edited, source, 'texture changes sampled pixels in the shared editing maths');
+});
+
+test('non-existent engines stay honestly unavailable while output upscale and texture work', () => {
+  assert.deepEqual(
+    applyRecipePatch(undefined, {
+      detailRecovery: 80, denoiseRawAi: true, denoiseLuminance: 20, lensCorrection: true, upscaleFactor: 2,
+    }).unmapped,
+    ['denoiseRawAi', 'denoiseLuminance', 'lensCorrection'],
+  );
 });
