@@ -442,7 +442,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         const image = nativeRaster
           ? await loadVerifiedRasterOriginalForExport(frame, provider.current!)
           : await loadExportSource(frame, provider.current!);
-        const nativeSize = nativeRaster
+        // The photographer may deliberately set a different Original output
+        // canvas. In that case respect its own persisted dimensions, while still
+        // loading real raster pixels instead of a cached preview.
+        const nativeSize = nativeRaster && !readFormats(frame.formats).originalSize
           ? framedSize(image.naturalWidth, image.naturalHeight, frame.framing ?? DEFAULT_FRAMING)
           : null;
         // Preserve an explicit export size limit; Original is full decoded size only
@@ -1131,7 +1134,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     },
     renameOverlayTemplate: (templateId, name) => updateTemplates(renameTemplate(templates, templateId, name)),
     deleteOverlayTemplate: (templateId) => updateTemplates(deleteTemplate(templates, templateId)),
-    toggleSizeEnabled: (photoId, sizeId) => changeFormats(photoId, (raw) => toggleFormat(raw, sizeId)),
+    toggleSizeEnabled: (photoId, sizeId) => changeFormats(photoId, (raw) => toggleFormat(raw, sizeId, createDefaultSizes().find((size) => size.id === sizeId)?.enabled ?? true)),
     toggleSizeLinked,
     updateVideoZoom,
     toggleSplitFrames,
