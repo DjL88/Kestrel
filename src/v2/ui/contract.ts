@@ -99,6 +99,10 @@ export interface CropTransform {
   flipH: boolean;
   flipV: boolean;
   rotateDeg: number; // 0 | 90 | 180 | 270
+  /** A border round this format, as a share of the format's width (0 to 10). Saved with the format; the export draws the same. */
+  borderWidth?: number;
+  /** The border colour as #rrggbb. */
+  borderColour?: string;
 }
 
 export interface VideoZoomConfig {

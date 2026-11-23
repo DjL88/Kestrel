@@ -42,6 +42,23 @@ function draw(canvas: HTMLCanvasElement, picture: HTMLCanvasElement, crop: CropT
   context.restore();
 }
 
+/** The format's border: a band of the chosen colour just inside the edge, as a share of the width, the same rule the canvas uses. */
+export function drawBorder(canvas: HTMLCanvasElement, crop: CropTransform) {
+  const percent = crop.borderWidth ?? 0;
+  if (!(percent > 0)) return;
+  const context = canvas.getContext('2d');
+  if (!context) return;
+  const t = Math.min(Math.round(canvas.width * percent / 100), Math.floor(Math.min(canvas.width, canvas.height) / 2));
+  if (t < 1) return;
+  context.save();
+  context.fillStyle = crop.borderColour ?? '#ffffff';
+  context.fillRect(0, 0, canvas.width, t);
+  context.fillRect(0, canvas.height - t, canvas.width, t);
+  context.fillRect(0, t, t, canvas.height - 2 * t);
+  context.fillRect(canvas.width - t, t, t, canvas.height - 2 * t);
+  context.restore();
+}
+
 function setSpacing(context: CanvasRenderingContext2D, px: number) {
   if ('letterSpacing' in context) (context as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = `${px}px`;
 }
@@ -167,6 +184,7 @@ export async function renderV2Export(
     signal?.throwIfAborted();
     output.width = out.width; output.height = out.height;
     draw(output, picture, crop);
+    drawBorder(output, crop);
     if (overlay) {
       await Promise.all(overlay.rows.map((row) => document.fonts?.load(`${row.weight} 16px ${row.family}`).catch(() => [])));
       signal?.throwIfAborted();

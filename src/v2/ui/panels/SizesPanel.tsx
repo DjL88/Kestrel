@@ -359,6 +359,44 @@ export default function SizesPanel({
             className="inflight-slider"
           />
         </div>
+
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs">
+            <label htmlFor="format-border-slider" className="text-[var(--text-secondary)]">{STRINGS.formats.borderLabel} ({activeSize.ratioLabel})</label>
+            <span className="font-mono text-[11px] text-[var(--text-secondary)] tabular-nums">{(activeSize.crop.borderWidth ?? 0) > 0 ? `${activeSize.crop.borderWidth}%` : STRINGS.formats.borderNone}</span>
+          </div>
+          <input
+            id="format-border-slider"
+            type="range"
+            min={0}
+            max={10}
+            step={0.5}
+            value={activeSize.crop.borderWidth ?? 0}
+            onChange={(e) => onUpdateSizeCrop(photo.id, activeSize.id, { borderWidth: Number(e.target.value) })}
+            className="inflight-slider"
+          />
+          <div role="group" aria-label={STRINGS.formats.borderColourLabel} className="flex items-center gap-2">
+            {([['#ffffff', STRINGS.formats.borderWhite], ['#000000', STRINGS.formats.borderBlack]] as const).map(([hex, name]) => (
+              <button
+                key={hex}
+                type="button"
+                aria-pressed={(activeSize.crop.borderColour ?? '#ffffff') === hex}
+                onClick={() => onUpdateSizeCrop(photo.id, activeSize.id, { borderColour: hex })}
+                className={`inline-flex min-h-8 items-center gap-1.5 rounded-[var(--radius-sm)] border px-2.5 text-[11px] font-medium ${(activeSize.crop.borderColour ?? '#ffffff') === hex ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'}`}
+              >
+                <span aria-hidden="true" className="h-3 w-3 rounded-full border border-[var(--border-default)]" style={{ background: hex }} />
+                {name}
+              </button>
+            ))}
+            <input
+              type="color"
+              aria-label={STRINGS.formats.borderColourLabel}
+              value={activeSize.crop.borderColour ?? '#ffffff'}
+              onChange={(e) => onUpdateSizeCrop(photo.id, activeSize.id, { borderColour: e.target.value })}
+              className="h-8 w-10 cursor-pointer rounded border border-[var(--border-subtle)] bg-transparent p-0.5"
+            />
+          </div>
+        </div>
       </section>
 
       {/* Split Panorama / 2 Equal Frames */}
