@@ -7,13 +7,23 @@
  */
 export type CropHandleSide = 'top' | 'bottom' | 'left' | 'right' | 'tl' | 'tr' | 'bl' | 'br';
 
+const SIDES: readonly CropHandleSide[] = ['top', 'bottom', 'left', 'right', 'tl', 'tr', 'bl', 'br'];
+
 export function cropHandleZoom(
   side: CropHandleSide, dx: number, dy: number,
   width: number, height: number, startingZoom: number,
   maximumZoom = 8,
 ): number {
-  const x = Number.isFinite(dx) && Number.isFinite(width) && width > 0 ? dx / width : 0;
-  const y = Number.isFinite(dy) && Number.isFinite(height) && height > 0 ? dy / height : 0;
+  const maximum = Number.isFinite(maximumZoom) ? Math.max(1, maximumZoom) : 8;
+  const base = Number.isFinite(startingZoom) ? Math.max(1, startingZoom) : 1;
+  const unchanged = Math.min(maximum, base);
+  // Invalid pointer samples and geometry are not a drag. Never convert a bad
+  // coordinate into a zero delta or allow overflowing ratios into the recipe.
+  if (!SIDES.includes(side) || ![dx, dy, width, height].every(Number.isFinite)
+    || width <= 0 || height <= 0) return unchanged;
+  const x = dx / width;
+  const y = dy / height;
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return unchanged;
   const outward = side === 'top' ? -y
     : side === 'bottom' ? y
     : side === 'left' ? -x
@@ -22,7 +32,6 @@ export function cropHandleZoom(
     : side === 'tr' ? (x - y) / 2
     : side === 'bl' ? (-x + y) / 2
     : (x + y) / 2;
-  const base = Number.isFinite(startingZoom) ? Math.max(1, startingZoom) : 1;
-  const maximum = Number.isFinite(maximumZoom) ? Math.max(1, maximumZoom) : 8;
+  if (!Number.isFinite(outward)) return unchanged;
   return Math.max(1, Math.min(maximum, base / Math.max(0.05, 1 - outward)));
 }

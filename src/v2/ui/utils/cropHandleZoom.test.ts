@@ -32,3 +32,26 @@ test('outward drag is bounded at the 8x limit and handles bad geometry without N
   assert.equal(cropHandleZoom('br', 800, 800, 500, 500, 7), 8);
   assert.equal(cropHandleZoom('top', 0, NaN, 0, 0, 1.2), 1.2);
 });
+
+test('invalid pointer samples and dimensions never change a crop zoom', () => {
+  for (const value of [NaN, Infinity, -Infinity]) {
+    assert.equal(cropHandleZoom('left', value, 0, 500, 500, 2), 2);
+    assert.equal(cropHandleZoom('top', 0, value, 500, 500, 2), 2);
+    assert.equal(cropHandleZoom('right', 25, 0, value, 500, 2), 2);
+    assert.equal(cropHandleZoom('bottom', 0, 25, 500, value, 2), 2);
+  }
+  assert.equal(cropHandleZoom('br', 20, 20, 0, 500, 2), 2);
+  assert.equal(cropHandleZoom('br', 20, 20, 500, -1, 2), 2);
+});
+
+test('overflowing normalised pointer coordinates are ignored, not clamped to a false zoom', () => {
+  assert.equal(cropHandleZoom('br', 1e308, 1e308, 1e-308, 1e-308, 2), 2);
+  assert.equal(cropHandleZoom('tl', -1e308, -1e308, 1e-308, 1e-308, 2), 2);
+  assert.equal(cropHandleZoom('br', 1e308, 1e308, 1, 1, 2), 2);
+});
+
+test('invalid handle identifiers and limits cannot produce invalid zoom', () => {
+  assert.equal(cropHandleZoom('unknown' as 'br', 20, 20, 500, 500, 2), 2);
+  assert.equal(cropHandleZoom('br', 0, 0, 500, 500, 9, 4), 4);
+  assert.equal(cropHandleZoom('br', 0, 0, 500, 500, NaN, NaN), 1);
+});
