@@ -114,7 +114,7 @@ async function main() {
     throw new Error('Live URL must be a bare HTTPS origin without credentials, path, query or fragment.');
   }
   if (embedded === 'demo-v2') localEntries.set('/editor/demo-v2', localEntries.get(editorPaths['demo-v2']));
-  for (const suffix of ['/', ...localEntries.keys(), callbackPath, privacyPath, faviconPath, ...assets]) {
+  for (const suffix of ['/', '/admin.html', ...localEntries.keys(), callbackPath, privacyPath, faviconPath, ...assets]) {
     const uri = new URL(suffix, base);
     uri.searchParams.set('kestrel-health-check', String(Date.now()));
     const response = await fetch(uri, { signal: AbortSignal.timeout(15_000), headers: { accept: 'text/html,application/javascript,text/css,*/*' } });
@@ -139,7 +139,7 @@ async function main() {
       throw new Error('Live homepage is stale: expected the ' + embedded + ' editor iframe.');
     }
     // HTML pages are release artifacts too: matching script names is insufficient.
-    if (suffix === '/' || suffix === callbackPath || suffix === privacyPath) {
+    if (suffix === '/' || suffix === '/admin.html' || suffix === callbackPath || suffix === privacyPath) {
       const localPath = suffix === '/' ? 'index.html' : suffix.slice(1);
       if (data !== requireText(join(dir, localPath))) {
         throw new Error('Live website page differs from the verified local build: ' + suffix);
