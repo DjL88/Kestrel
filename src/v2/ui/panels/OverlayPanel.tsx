@@ -36,6 +36,12 @@ interface OverlayPanelProps {
   onMakeWatermarkVariant: (presetId: string, slot: 'dark' | 'light') => Promise<void>;
   onDeleteWatermark: (presetId: string) => void;
   onHasDeviceFont: (fontName: string) => boolean;
+  templates: Array<{ id: string; name: string }>;
+  selectedPhotoIds: string[];
+  onSaveTemplate: (photoId: string, name: string) => void;
+  onApplyTemplate: (templateId: string, photoIds: string[]) => void;
+  onRenameTemplate: (templateId: string, name: string) => void;
+  onDeleteTemplate: (templateId: string) => void;
 }
 
 const ANCHORS: Array<{ id: OverlayAnchor; x: number; y: number }> = [
@@ -82,6 +88,12 @@ function Switch({ on, label, onToggle }: { on: boolean; label: string; onToggle:
 }
 
 export default function OverlayPanel({
+  templates,
+  selectedPhotoIds,
+  onSaveTemplate,
+  onApplyTemplate,
+  onRenameTemplate,
+  onDeleteTemplate,
   photo,
   fonts,
   watermarkPresets,
@@ -99,6 +111,7 @@ export default function OverlayPanel({
   onMakeWatermarkVariant,
   onDeleteWatermark,
 }: OverlayPanelProps) {
+  const [templateName, setTemplateName] = useState('');
   const [subTab, setSubTab] = useState<'text' | 'watermark'>('text');
 
   if (!photo) {
@@ -117,8 +130,41 @@ export default function OverlayPanel({
     onUpdateRow(photo.id, row.id, { fields: next });
   };
 
+  const targets = selectedPhotoIds.length > 0 ? selectedPhotoIds : [photo.id];
+
   return (
     <div className="space-y-4">
+      <section aria-labelledby="overlay-templates-title" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
+        <h3 id="overlay-templates-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.overlays.templatesHeading}</h3>
+        <p className="text-[11px] leading-snug text-[var(--text-muted)]">{STRINGS.overlays.templatesIntro}</p>
+        <form
+          className="flex gap-1.5"
+          onSubmit={(e) => { e.preventDefault(); onSaveTemplate(photo.id, templateName); setTemplateName(''); }}
+        >
+          <label htmlFor="overlay-template-name" className="sr-only">{STRINGS.overlays.templateNameLabel}</label>
+          <input id="overlay-template-name" type="text" maxLength={40} value={templateName} onChange={(e) => setTemplateName(e.target.value)} placeholder={STRINGS.overlays.templateNameLabel}
+            className="h-10 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2.5 text-xs text-[var(--text-primary)]" />
+          <button type="submit" className="min-h-10 shrink-0 rounded-[var(--radius-sm)] bg-[var(--brand-accent)] px-3 text-[11px] font-semibold text-[var(--text-on-accent)]">{STRINGS.overlays.templateSave}</button>
+        </form>
+        {templates.length === 0 ? (
+          <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.overlays.templatesNone}</p>
+        ) : (
+          <ul aria-label={STRINGS.overlays.templatesHeading} className="space-y-1.5">
+            {templates.map((template) => (
+              <li key={template.id} className="flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-1.5">
+                <span className="min-w-0 flex-1 truncate px-1 text-xs font-medium text-[var(--text-primary)]">{template.name}</span>
+                <button type="button" aria-label={`${STRINGS.overlays.templateApply(targets.length)}: ${template.name}`} onClick={() => onApplyTemplate(template.id, targets)}
+                  className="min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[11px] font-medium text-[var(--text-primary)]">{STRINGS.overlays.templateApply(targets.length)}</button>
+                <button type="button" aria-label={`${STRINGS.overlays.templateRename} ${template.name}`} onClick={() => { const next = window.prompt(STRINGS.overlays.templateNameLabel, template.name); if (next !== null) onRenameTemplate(template.id, next); }}
+                  className="min-h-9 rounded-[var(--radius-sm)] px-2 text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{STRINGS.overlays.templateRename}</button>
+                <button type="button" aria-label={`${STRINGS.overlays.templateDelete} ${template.name}`} onClick={() => onDeleteTemplate(template.id)}
+                  className="min-h-9 rounded-[var(--radius-sm)] px-2 text-[11px] text-[var(--status-danger,#e5484d)]">{STRINGS.overlays.templateDelete}</button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       {/* Text / Watermark Sub-tabs */}
       <div className="grid grid-cols-2 gap-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-0.5">
         <button

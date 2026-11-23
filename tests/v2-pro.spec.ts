@@ -131,3 +131,25 @@ test('Pro: the text overlay is drawn into the exported file, and left out when t
   expect(await exportOnce(true)).toBeGreaterThan(200);
   expect(await exportOnce(false)).toBeLessThan(20);
 });
+
+test('Pro: an overlay is saved as a template on this device, kept after a reload, applied to the selected photos, and deleted', async ({ page }) => {
+  const root = await openProject(page, 'Template check', '#406080');
+  await root.getByRole('button', { name: 'Overlays', exact: true }).first().click();
+  await expect(root.getByText('No templates yet.')).toBeVisible();
+  await root.getByLabel('Template name').fill('Wildlife credit');
+  await root.getByRole('button', { name: 'Save current overlay as a template' }).click();
+  const list = root.getByRole('list', { name: 'Templates' });
+  await expect(list.getByText('Wildlife credit')).toBeVisible();
+
+  // Kept on this device: still there after a reload and a reopen of the project.
+  await page.reload();
+  await page.locator('.inflight-v2').getByRole('button', { name: /Template check/ }).first().click();
+  await page.locator('.inflight-v2').getByRole('button', { name: 'Overlays', exact: true }).first().click();
+  await expect(page.locator('.inflight-v2').getByRole('list', { name: 'Templates' }).getByText('Wildlife credit')).toBeVisible();
+
+  await page.locator('.inflight-v2').getByRole('button', { name: /Apply to this photo: Wildlife credit/ }).click();
+  await expect(page.locator('.inflight-v2').getByText(/Applied "Wildlife credit" to 1 photo/)).toBeVisible();
+
+  await page.locator('.inflight-v2').getByRole('button', { name: 'Delete Wildlife credit' }).click();
+  await expect(page.locator('.inflight-v2').getByText('No templates yet.')).toBeVisible();
+});

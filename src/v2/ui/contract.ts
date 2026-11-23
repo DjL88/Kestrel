@@ -401,6 +401,8 @@ export interface WorkspaceStore {
   hoveredLookId: string | null;
   fonts: FontOption[];
   watermarkPresets: WatermarkPreset[];
+  /** Saved overlay templates on this device (name only; the layout stays inside the store). */
+  overlayTemplates: Array<{ id: string; name: string }>;
   tasks: TaskInfo[];
   /** Photos whose deep vision review is running right now (empty when none). */
   reviewingPhotoIds: string[];
@@ -494,6 +496,12 @@ export interface WorkspaceActions {
   flipSelectedSizes: (photoId: string, axis: 'horizontal' | 'vertical') => void;
   rotateSelectedSizes: (photoId: string) => void;
   resetSizeCrop: (photoId: string, sizeId: string) => void;
+  /** Save this photo's text overlay and watermark layout as a named template on this device. */
+  saveOverlayTemplate: (photoId: string, name: string) => void;
+  /** Give each of these photos the template's overlay (a copy; later changes to the photo do not change the template). */
+  applyOverlayTemplate: (templateId: string, photoIds: string[]) => void;
+  renameOverlayTemplate: (templateId: string, name: string) => void;
+  deleteOverlayTemplate: (templateId: string) => void;
   addCustomSize: (photoId: string, label: string, width: number, height: number) => void;
   /** A copy of a format (same size and crop) as a new format on this photo. */
   duplicateSize: (photoId: string, sizeId: string) => void;

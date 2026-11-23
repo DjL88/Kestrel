@@ -306,6 +306,14 @@ export const source = {
 
   // Overlays Panel
   overlays: {
+    templatesHeading: 'Templates',
+    templatesIntro: 'Save this photo\'s text and watermark layout, then apply it to other photos in one go. Saved on this device.',
+    templateNameLabel: 'Template name',
+    templateSave: 'Save current overlay as a template',
+    templateApply: (n: number) => (n === 1 ? 'Apply to this photo' : `Apply to ${n} selected photos`),
+    templateRename: 'Rename',
+    templateDelete: 'Delete',
+    templatesNone: 'No templates yet.',
     heading: 'Overlays',
     tabText: 'Text',
     tabWatermark: 'Watermark',

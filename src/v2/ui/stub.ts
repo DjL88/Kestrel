@@ -643,6 +643,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     hoveredLookId: null,
     fonts: INITIAL_FONTS,
     watermarkPresets: INITIAL_WATERMARKS,
+    overlayTemplates: [],
     tasks: INITIAL_TASKS,
     reviewingPhotoIds: [],
     settings: {
@@ -1409,6 +1410,10 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       showNotice('Aligned all format boards neatly');
     },
 
+    saveOverlayTemplate: (photoId, name) => { logAction('saveOverlayTemplate', { photoId, name }); },
+    applyOverlayTemplate: (templateId, photoIds) => { logAction('applyOverlayTemplate', { templateId, photoIds }); },
+    renameOverlayTemplate: (templateId, name) => { logAction('renameOverlayTemplate', { templateId, name }); },
+    deleteOverlayTemplate: (templateId) => { logAction('deleteOverlayTemplate', { templateId }); },
     duplicateSize: (photoId, sizeId) => {
       logAction('duplicateSize', { photoId, sizeId });
       const id = `custom-${Date.now()}`;
