@@ -12,7 +12,11 @@ const LABEL: Record<EditKind, string> = {
 export function describeHistory(history: EditHistory | undefined): HistoryInfo | undefined {
   if (!history || !history.steps.length) return undefined;
   return {
-    steps: history.steps.map((step) => ({ label: LABEL[step.kind] ?? 'Edit', at: step.at })),
+    steps: history.steps.map((step) => ({
+      label: JSON.stringify(step.before.overlay) !== JSON.stringify(step.after.overlay)
+        ? 'Text and watermark' : LABEL[step.kind] ?? 'Edit',
+      at: step.at,
+    })),
     cursor: history.cursor,
     // Old 60-step catalogues have no counter: assume truncated when full.
     originalAvailable: history.discarded === 0 ||

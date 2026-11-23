@@ -72,3 +72,41 @@ test('long histories record compaction rather than misrepresenting earliest chec
   const earliest = recipeAt(frame.editHistory!, 0);
   assert.ok((earliest?.edit?.exposure ?? 0) > 0, 'retained step zero is NOT original');
 });
+
+
+test('overlay-only steps survive JSON reload, Undo, Redo and branching edits', () => {
+  const original = { id: 'overlay', overlay: { textEnabled: false, textX: 12 } } as PhotoFrame;
+  const edited = recordEdit(original, { overlay: { textEnabled: true, textX: 74 } }, 1000);
+  assert.equal(edited.editHistory?.steps[0].kind, 'adjustments');
+  assert.equal(edited.editHistory?.cursor, 1);
+  const back = stepEdit(JSON.parse(JSON.stringify(edited)) as PhotoFrame, -1);
+  assert.deepEqual(back.overlay, original.overlay);
+  const forward = stepEdit(back, 1);
+  assert.deepEqual(forward.overlay, { textEnabled: true, textX: 74 });
+  assert.equal(forward.id, original.id);
+  const another = recordEdit(back, { overlay: { textEnabled: true, textX: 20 } }, 3000);
+  assert.equal(another.editHistory?.steps.length, 1, 'later undone steps are discarded when a new edit begins');
+  assert.deepEqual(another.overlay, { textEnabled: true, textX: 20 });
+});
+
+test('legacy snapshots with no overlay keep current overlays rather than erasing them', () => {
+  let frame = { id: 'old-catalogue' } as PhotoFrame;
+  frame = recordEdit(frame, { edit: { exposure: 1, warmth: 0, colour: 0 } }, 1000);
+  const legacy = JSON.parse(JSON.stringify(frame)) as PhotoFrame;
+  legacy.overlay = { textX: 62 };
+  assert.deepEqual(stepEdit(legacy, -1).overlay, { textX: 62 });
+  assert.deepEqual(jumpToStep(legacy, 0).overlay, { textX: 62 });
+});
+
+test('rapid bulk template or watermark change never absorbs a distinct neighbouring image edit', () => {
+  const base = { id: 'both', overlay: { textEnabled: false } } as PhotoFrame;
+  const colour = recordEdit(base, { edit: { exposure: 1, warmth: 0, colour: 0, contrast: 0.3 } }, 1000);
+  const overlay = recordEdit(colour, { overlay: { textEnabled: true } }, 1200);
+  assert.equal(overlay.editHistory?.steps.length, 2, 'two separately reversible user intentions');
+  const back = stepEdit(overlay, -1);
+  assert.deepEqual(back.overlay, { textEnabled: false });
+  assert.equal(back.edit?.exposure, 1);
+  const first = stepEdit(back, -1);
+  assert.equal(first.edit, undefined);
+  assert.deepEqual(first.overlay, { textEnabled: false });
+});

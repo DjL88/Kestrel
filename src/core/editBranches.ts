@@ -13,7 +13,7 @@ export type BranchSnapshot = Pick<PhotoFrame,
   'edit' | 'editHistory' | 'framing' | 'focusPoint' | 'sizeCrops' |
   'formats' | 'formatHistory' | 'sizeLinked' | 'overlay' |
   'boardPositions' | 'appliedLookId' | 'formatSplits' | 'splitFrames' |
-  'splitPanOffset' | 'videoZoom'>;
+  'splitPanOffset' | 'videoZoom' | 'v2EditGroups'>;
 
 export interface EditVersion {
   id: string;
@@ -42,6 +42,7 @@ function capture(frame: PhotoFrame): BranchSnapshot {
   return {
     edit: copy(frame.edit),
     editHistory: copy(frame.editHistory),
+    v2EditGroups: copy(frame.v2EditGroups),
     framing: copy(frame.framing),
     focusPoint: copy(frame.focusPoint),
     sizeCrops: copy(frame.sizeCrops),
@@ -66,6 +67,8 @@ function restore(frame: PhotoFrame, snapshot: BranchSnapshot): PhotoFrame {
     ...frame,
     edit: copy(snapshot.edit),
     editHistory: copy(snapshot.editHistory),
+    // Older versions had no group snapshots: retain their live groups rather than erasing them.
+    v2EditGroups: snapshot.v2EditGroups === undefined ? frame.v2EditGroups : copy(snapshot.v2EditGroups),
     framing: copy(snapshot.framing),
     focusPoint: copy(snapshot.focusPoint),
     sizeCrops: copy(snapshot.sizeCrops),
@@ -142,7 +145,7 @@ export function forkEditCheckpoint(
   // again without inventing a historical source image.
   const selected = history.steps.length
     ? recipeAt(history, cursor)
-    : { edit: frame.edit, framing: frame.framing };
+    : { edit: frame.edit, framing: frame.framing, overlay: frame.overlay };
   if (!selected) return frame;
   const forkHistory: EditHistory = {
     ...history,
@@ -151,6 +154,8 @@ export function forkEditCheckpoint(
   };
   const forked = restore(frame, {
     ...capture(frame), edit: copy(selected.edit), framing: copy(selected.framing),
+    // Old saved checkpoints lacked overlays. Retain the live overlay rather than guessing history.
+    overlay: 'overlay' in selected ? copy(selected.overlay) : copy(frame.overlay),
     editHistory: forkHistory, focusPoint: undefined,
   });
   const next: EditVersion = {

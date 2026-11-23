@@ -138,3 +138,60 @@ test('a damaged saved branch cannot rewrite the identity or source path of the p
   assert.equal(switched.originalSha256, live.originalSha256);
   assert.equal(switched.rating, 4);
 });
+
+
+test('forking an overlay checkpoint restores its recorded state without rewriting the parent', () => {
+  const initial = source();
+  const first = recordEdit(initial, { overlay: { text: 'credit one' } }, 1000);
+  const second = recordEdit(first, { overlay: { text: 'credit two' } }, 2000);
+  const fork = forkEditCheckpoint(second, 1, 'fork-overlay', 3000);
+  assert.deepEqual(fork.overlay, { text: 'credit one' });
+  assert.deepEqual(second.overlay, { text: 'credit two' });
+  const returned = switchEditVersion(fork, ROOT_VERSION_ID);
+  assert.deepEqual(returned.overlay, { text: 'credit two' });
+  assert.deepEqual(switchEditVersion(returned, 'fork-overlay').overlay, { text: 'credit one' });
+  assert.equal(fork.originalSha256, initial.originalSha256);
+  assert.equal(fork.sourcePath, initial.sourcePath);
+});
+
+test('old edit-only fork remains truthful about unrecorded overlay state', () => {
+  let old = source();
+  old = recordEdit(old, { edit: { exposure: 0.3, warmth: 0, colour: 0 } }, 1000);
+  const legacy = JSON.parse(JSON.stringify(old)) as PhotoFrame;
+  legacy.editHistory!.steps = legacy.editHistory!.steps.map(step => ({
+    ...step, before: { edit: step.before.edit, framing: step.before.framing },
+    after: { edit: step.after.edit, framing: step.after.framing },
+  }));
+  legacy.overlay = { text: 'recent credit' };
+  const fork = forkEditCheckpoint(legacy, 0, 'fork-legacy', 2000);
+  assert.deepEqual(fork.overlay, { text: 'recent credit' }, 'do not invent an old watermark');
+});
+
+test('version branches restore distinct persisted Edit Group choices instead of leaking the active branch', () => {
+  const sourceGroup = {
+    activeId: 'group-primary',
+    groups: [{ id: 'group-primary', name: 'Natural', edit: { exposure: 0.5, warmth: 0, colour: 1 } }],
+  };
+  const original = { ...edited(), v2EditGroups: sourceGroup };
+  const fork = forkEditCheckpoint(original, 1, 'fork-groups', 4000);
+  const forkGroup = {
+    activeId: 'group-crop',
+    groups: [{ id: 'group-crop', name: 'Social', edit: { exposure: -0.5, warmth: 1, colour: 0 } }],
+  };
+  const modifiedFork = { ...fork, v2EditGroups: forkGroup };
+  const back = switchEditVersion(modifiedFork, ROOT_VERSION_ID);
+  assert.deepEqual(back.v2EditGroups, sourceGroup);
+  assert.deepEqual(switchEditVersion(back, 'fork-groups').v2EditGroups, forkGroup);
+  assert.equal(back.originalSha256, original.originalSha256);
+});
+
+test('legacy versions without persisted edit groups do not erase newly created group settings', () => {
+  const old = forkEditCheckpoint(edited(), 1, 'fork-old', 4000);
+  const currentGroups = {
+    activeId: 'group-primary',
+    groups: [{ id: 'group-primary', name: 'My edit', edit: { exposure: 0.2, warmth: 0, colour: 0 } }],
+  };
+  const live = { ...old, v2EditGroups: currentGroups };
+  const back = switchEditVersion(live, ROOT_VERSION_ID);
+  assert.deepEqual(back.v2EditGroups, currentGroups);
+});

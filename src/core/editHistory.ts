@@ -2,7 +2,8 @@ import type { PhotoFrame } from './types';
 import { DETAIL_CONTROLS, TONE_CONTROLS, type PhotoEdit } from './photoEdits';
 import type { PhotoFraming } from './photoFraming';
 
-type Snapshot = { edit?: PhotoEdit; framing?: PhotoFraming };
+/** Overlays are metadata, never pixel replacements. Old history snapshots may not have this field. */
+type Snapshot = { edit?: PhotoEdit; framing?: PhotoFraming; overlay?: PhotoFrame['overlay'] };
 export type EditKind = 'light' | 'warmth' | 'colour' | 'adjustments' | 'tone' | 'detail' | 'mask' | 'crop' | 'rotation' | 'straighten';
 
 export const MAX_EDIT_HISTORY_STEPS = 60;
@@ -21,6 +22,9 @@ function classify(before: Snapshot, after: Snapshot): EditKind {
     return 'crop';
   }
   if (JSON.stringify(before.edit?.masks ?? []) !== JSON.stringify(after.edit?.masks ?? [])) return 'mask';
+  // Reuse the existing validated 'adjustments' kind for backwards-compatible backups.
+  // The UI recognises an overlay-only step from its snapshots and labels it accordingly.
+  if (JSON.stringify(before.overlay) !== JSON.stringify(after.overlay)) return 'adjustments';
   const fields = (['exposure', 'warmth', 'colour', ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key), 'denoise'] as const).filter((field) =>
     (before.edit?.[field] ?? 0) !== (after.edit?.[field] ?? 0));
   if (fields.length !== 1) return 'adjustments';
@@ -30,14 +34,19 @@ function classify(before: Snapshot, after: Snapshot): EditKind {
 }
 
 export function recordEdit(frame: PhotoFrame, patch: Snapshot, at: number): PhotoFrame {
-  const before = { edit: frame.edit, framing: frame.framing };
+  const before: Snapshot = { edit: frame.edit, framing: frame.framing, overlay: frame.overlay };
   const after = { ...before, ...patch };
   if (JSON.stringify(before) === JSON.stringify(after)) return frame;
   const history = frame.editHistory;
   const steps = history ? history.steps.slice(0, history.cursor) : [];
   const kind = classify(before, after);
   const last = steps.at(-1);
-  if (last && history?.cursor === history?.steps.length && last.kind === kind && at >= last.at && at - last.at < 550) {
+  const isOverlayChange = JSON.stringify(before.overlay) !== JSON.stringify(after.overlay);
+  const lastOverlayChange = last && JSON.stringify(last.before.overlay) !== JSON.stringify(last.after.overlay);
+  // Both use the backwards-compatible 'adjustments' kind, but a watermark must
+  // never swallow a separate tone/edit step when the person acts quickly.
+  if (last && history?.cursor === history?.steps.length && last.kind === kind &&
+      isOverlayChange === lastOverlayChange && at >= last.at && at - last.at < 550) {
     steps.pop();
     if (JSON.stringify(last.before) !== JSON.stringify(after)) steps.push({ kind, before: last.before, after, at });
   } else {
@@ -58,6 +67,8 @@ export function stepEdit(frame: PhotoFrame, direction: -1 | 1): PhotoFrame {
   const recipe = direction === -1 ? step.before : step.after;
   return {
     ...frame, edit: recipe.edit, framing: recipe.framing,
+    // A pre-migration step recorded no overlay: keep the current one, never manufacture an old state.
+    ...('overlay' in recipe ? { overlay: recipe.overlay } : {}),
     focusPoint: JSON.stringify(frame.framing) === JSON.stringify(recipe.framing) ? frame.focusPoint : undefined,
     editHistory: { ...history, cursor: history.cursor + direction },
   };
@@ -79,6 +90,7 @@ export function jumpToStep(frame: PhotoFrame, cursor: number): PhotoFrame {
   if (!recipe || at === history.cursor) return frame;
   return {
     ...frame, edit: recipe.edit, framing: recipe.framing,
+    ...('overlay' in recipe ? { overlay: recipe.overlay } : {}),
     focusPoint: JSON.stringify(frame.framing) === JSON.stringify(recipe.framing) ? frame.focusPoint : undefined,
     editHistory: { ...history, cursor: at },
   };
