@@ -57,6 +57,8 @@ export interface AppOptions {
   cloud?: CloudOptions;
   /** Opt-in learning signal. Absent in production until approved: the routes then answer 503. */
   learning?: LearningSink;
+  /** Always-available authenticated withdrawal/deletion sink when new research intake is disabled. */
+  learningWithdrawal?: Pick<LearningSink, 'setConsent' | 'deleteBySubject'>;
   /** Managed safe copy (opt-in backup). Absent in production until a bucket exists and is approved: routes answer 503. */
   safeCopy?: SafeCopyOptions;
   /** Hard monthly ceiling on metered spend (Gemini, cloud jobs). Absent: no guard (development and tests). */
@@ -854,8 +856,10 @@ export function createApp(options: AppOptions) {
       handler: async (req) => {
         const claims = await bearer(req);
         const body = parseJson(Schemas.AiConsentRequest, req.rawBody);
-        const sink = options.learning;
-        if (!sink) throw new ApiError(503, 'LEARNING_NOT_CONFIGURED', 'Sharing corrections is not set up on this server.');
+        // Collection is optional, but signed-in users must still be able to
+        // withdraw and erase research records when collection is switched OFF.
+        const sink = body.consent ? options.learning : (options.learningWithdrawal ?? options.learning);
+        if (!sink) throw new ApiError(503, 'LEARNING_NOT_CONFIGURED', 'Research consent storage is not available on this server.');
         // Opting in needs the switch on; opting OUT (and the deletion that goes with it) always works.
         if (body.consent && !(await switchOn('learning-signal'))) throw new ApiError(503, 'LEARNING_DISABLED', 'Sharing corrections is switched off for now.', true);
         const subject = learningSubject(claims.sub);

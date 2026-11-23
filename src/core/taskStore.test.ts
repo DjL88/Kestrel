@@ -26,6 +26,19 @@ test('cancelling stops the job, marks it cancelled, and the job can tell', () =>
   assert.equal(store.list()[0].state, 'cancelled', 'a cancelled task stays cancelled');
 });
 
+test('cancelled handle stays cancelled after task history is trimmed or cleared', () => {
+  const store = createTaskStore();
+  const stopped = store.start('Long-running export', { cancel: () => {} });
+  assert.equal(store.cancel(stopped.id), true);
+  for (let i = 0; i < 12; i++) store.start(`Later job ${i}`).finish();
+  assert.equal(store.list().some(task => task.id === stopped.id), false, 'old cancelled task was trimmed');
+  assert.equal(stopped.cancelled, true, 'a still-held worker handle must remember cancellation');
+  const recent = store.start('Another export', { cancel: () => {} });
+  store.cancel(recent.id);
+  store.clearFinished();
+  assert.equal(recent.cancelled, true, 'clearing UI history cannot restart a cancelled worker');
+});
+
 test('a task that cannot be cancelled says so, and a finished one cannot be cancelled', () => {
   const store = createTaskStore();
   const fixed = store.start('Saving');
