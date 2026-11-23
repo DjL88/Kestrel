@@ -1,36 +1,57 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { accessCapabilities } from './commercialAccess.ts';
-import { FEATURE_NAMES, featureAvailable } from './features.ts';
+import { COMPILED_FLAGS, FEATURE_NAMES, FEATURES, featureAvailable } from './features.ts';
 
-const free = accessCapabilities({ plan: 'free', licence: 'unlicensed', cloud: 'none', online: false, cachedLocalLicence: false });
+const basic = accessCapabilities({ plan: 'free', licence: 'unlicensed', cloud: 'none', online: false, cachedLocalLicence: false });
 const paid = accessCapabilities({ plan: 'paid', licence: 'active', cloud: 'none', online: false, cachedLocalLicence: true });
 const offlinePaid = accessCapabilities({ plan: 'paid', licence: 'unverified', cloud: 'none', online: false, cachedLocalLicence: true });
 const cancelledCloud = accessCapabilities({ plan: 'paid', licence: 'active', cloud: 'cancelled', online: true, cachedLocalLicence: true });
 
-test('Free includes everyday editing, natural Auto, subject detection, masks and full-size export', () => {
-  assert.deepEqual(FEATURE_NAMES.filter((name) => featureAvailable(name, free)).sort(),
-    ['autoTab', 'basicEditing', 'cropAndStraighten', 'export', 'import', 'localBackup', 'macroPad', 'masks', 'splitFrames', 'subjectDetection', 'watermark', 'zoomVideo']);
+const proKeys = FEATURE_NAMES.filter((name) => FEATURES[name] === 'paid');
+
+test('Basic includes overlays, custom watermarks and all local photographic essentials', () => {
+  assert.deepEqual(FEATURE_NAMES.filter((name) => featureAvailable(name, basic)).sort(),
+    ['autoTab', 'basicEditing', 'cropAndStraighten', 'export', 'import', 'localBackup', 'macroPad', 'masks',
+      'overlayText', 'splitFrames', 'subjectDetection', 'watermark', 'watermarkCustom', 'zoomVideo']);
 });
 
-test('Pro adds advanced classification and automation instead of withholding photo fidelity', () => {
-  for (const name of ['speciesId', 'onlineAi', 'smartCulling', 'overlayText', 'watermarkCustom', 'cloudAssist'] as const) assert.equal(featureAvailable(name, free), false, name);
-  for (const name of ['masks', 'subjectDetection', 'autoTab', 'export', 'localBackup'] as const) assert.equal(featureAvailable(name, free), true, name);
-});
-
-test('Paid opens every feature, including offline with a cached licence', () => {
-  for (const name of FEATURE_NAMES) {
-    assert.equal(featureAvailable(name, paid), true, name);
-    assert.equal(featureAvailable(name, offlinePaid), true, name);
+test('Pro-tagged features are disabled by default even for paid and offline-paid accounts', () => {
+  assert.deepEqual(proKeys.sort(), ['cloudAssist', 'onlineAi', 'smartCulling', 'speciesId']);
+  for (const name of proKeys) {
+    assert.equal(COMPILED_FLAGS[name].default, false, name);
+    assert.deepEqual(COMPILED_FLAGS[name].rules, [], name);
+    for (const account of [basic, paid, offlinePaid, cancelledCloud]) {
+      assert.equal(featureAvailable(name, account), false, name);
+    }
+  }
+  for (const name of ['overlayText', 'watermarkCustom', 'export', 'localBackup'] as const) {
+    assert.equal(featureAvailable(name, basic), true, name);
   }
 });
 
-test('ending the cloud subscription never takes away a Paid licence', () => {
-  for (const name of FEATURE_NAMES) assert.equal(featureAvailable(name, cancelledCloud), true, name);
+test('an explicit verified Admin rule can enable a Pro feature for Pro or a named Basic trial', () => {
+  const flags = { smartCulling: { default: false, rules: [
+    { audience: { kind: 'plan' as const, plan: 'pro' as const }, enabled: true },
+  ] } };
+  assert.equal(featureAvailable('smartCulling', basic, { flags }), false);
+  assert.equal(featureAvailable('smartCulling', paid, { flags }), true);
+  assert.equal(featureAvailable('smartCulling', offlinePaid, { flags }), true);
+  const trial = { smartCulling: { default: false, rules: [
+    { audience: { kind: 'plan' as const, plan: 'basic' as const }, enabled: true, trial: true },
+  ] } };
+  assert.equal(featureAvailable('smartCulling', basic, { flags: trial }), true);
 });
 
-test('local recovery is never gated, even on Free', () => {
-  assert.equal(free.localBackups, true);
-  assert.equal(free.localDataExport, true);
-  assert.equal(free.localProjectAccess, true);
+test('cloud cancellation never removes local Basic tools and never self-enables Pro', () => {
+  for (const name of FEATURE_NAMES.filter((name) => FEATURES[name] === 'free')) {
+    assert.equal(featureAvailable(name, cancelledCloud), true, name);
+  }
+  assert.equal(featureAvailable('cloudAssist', cancelledCloud), false);
+});
+
+test('local recovery remains available without a licence or Admin flags', () => {
+  assert.equal(basic.localBackups, true);
+  assert.equal(basic.localDataExport, true);
+  assert.equal(basic.localProjectAccess, true);
 });
