@@ -51,7 +51,7 @@ import { verifyExactOriginalCopy } from './verifiedOriginalCopy';
 import { buildRawMasterFile } from './rawMasterExport';
 import { TEMPLATES_KEY, addTemplate, deleteTemplate, readTemplates, renameTemplate, type OverlayTemplate } from './overlayTemplates';
 import { applyOverlayTemplateToProject, changePhotoOverlay } from './overlayHistory';
-import { addFormat, applyFormats, ORIGINAL_FORMAT_ID, readFormats, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize, setOriginalOutputSize, resetOriginalOutputSize } from './formatOps';
+import { addFormat, applyFormats, ORIGINAL_FORMAT_ID, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize, setOriginalOutputSize, resetOriginalOutputSize } from './formatOps';
 import { patchVideoZoom } from './videoZoomOps';
 import { setFormatSplitOffset, setSplitFrameCount as writeSplitFrameCount, toggleFormatSplit } from './formatSplitOps';
 import { readSplitPanOffset } from './splitFrameOps';
@@ -473,10 +473,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         const image = nativeRaster
           ? await loadVerifiedRasterOriginalForExport(frame, provider.current!, controller.signal)
           : await loadExportSource(frame, provider.current!);
-        // The photographer may deliberately set a different Original output
-        // canvas. In that case respect its own persisted dimensions, while still
-        // loading real raster pixels instead of a cached preview.
-        const nativeSize = nativeRaster && !readFormats(frame.formats).originalSize
+        // Original always uses the full decoded raster's actual dimensions.
+        // Older projects can contain a legacy originalSize override, but that
+        // value must NEVER resize or override the immutable Original format.
+        // A photographer can use a Custom format for an alternative output.
+        const nativeSize = nativeRaster
           ? framedSize(image.naturalWidth, image.naturalHeight, frame.framing ?? DEFAULT_FRAMING)
           : null;
         // Preserve an explicit export size limit; Original is full decoded size only
