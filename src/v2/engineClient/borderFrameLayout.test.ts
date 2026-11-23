@@ -43,7 +43,7 @@ test('bad border sizes or dimensions never create invalid geometry', () => {
   assert.throws(() => planBorderFrame(0, 100, 100, 100));
   assert.throws(() => planBorderFrame(100, 100, 100, 100, { borderPercent: 11 }));
   assert.throws(() => planBorderFrame(100, 100, 100, 100, { borderPercent: Number.NaN }));
-  assert.throws(() => planBorderFrame(2, 2, 100, 100, { borderPercent: 10 }));
+  assert.throws(() => planBorderFrame(10, 1, 100, 100, { borderPercent: 10 }));
 });
 
 test('cover remains explicit and does not use background bars', () => {
