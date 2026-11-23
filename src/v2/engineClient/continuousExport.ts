@@ -22,3 +22,12 @@ export function cappedContinuousLayout(combinedWidth: number, height: number, co
   const sectionWidth = Math.floor(combinedWidth / count);
   return continuousExportLayout(sectionWidth, height, count);
 }
+
+/** Keep ordering visible on disk while retaining the requested JPEG/PNG extension. */
+export function numberedSectionFilename(filename: string, section: number, count: 1 | 2): string {
+  if (count === 1) return filename;
+  if (!Number.isInteger(section) || section < 1 || section > count || !/\\.[a-zA-Z0-9]{2,5}$/.test(filename)) {
+    throw new RangeError('Split output requires a numbered section and a recognised filename extension.');
+  }
+  return filename.replace(/(\\.[^.]+)$/, `-${String(section).padStart(2, '0')}-of-${String(count).padStart(2, '0')}$1`);
+}
