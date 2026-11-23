@@ -1134,10 +1134,17 @@ export default function Canvas({
           const isSelected = selectedSizeIds.includes(size.id);
           const isPrimary = activeSizeId === size.id;
           const aspect = size.width / Math.max(1, size.height);
-          const cardH = aspect < 0.7 ? 270 : 210;
-          const cardW = Math.round(clamp(cardH * aspect, 145, 340));
-
+          const targetH = aspect < 0.7 ? 270 : 210;
           const panes = Array.from({ length: splitCountFor(size.id) }, (_, paneIdx) => paneIdx);
+          // On 320/390px screens a three-frame composition must not hide its
+          // last pane outside the stage. Scale its preview cards together,
+          // preserving the selected format's aspect rather than stretching it.
+          const idealW = Math.round(clamp(targetH * aspect, 145, 340));
+          const availableW = stageSize.width > 0
+            ? Math.max(64, Math.floor((stageSize.width - 48 - (panes.length - 1) * 4) / panes.length))
+            : idealW;
+          const cardW = panes.length > 1 ? Math.min(idealW, availableW) : idealW;
+          const cardH = panes.length > 1 ? Math.round(cardW / aspect) : targetH;
           return (
             <div key={size.id} className="flex items-start gap-1" data-testid={`format-pair-${size.id}`} style={{ transform: `translate(${boardPlacements[`${photo.id}:${size.id}`]?.x ?? size.boardX}px, ${boardPlacements[`${photo.id}:${size.id}`]?.y ?? size.boardY}px)` }}>
             {panes.map((paneIdx) => (
