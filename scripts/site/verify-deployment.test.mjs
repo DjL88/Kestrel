@@ -121,3 +121,16 @@ test('fails closed when the privacy page is missing or the homepage does not lin
     assert.match(run(root).stderr, /privacy page is missing or the homepage does not link/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test('a homepage that embeds the Version 2 demo needs that demo compiled too, and still needs the current editor', () => {
+  const root = fixture();
+  writeFileSync(join(root, 'index.html'), '<iframe src="editor/demo-v2.html"></iframe><a href="/privacy">Privacy</a>');
+  let result = run(root);
+  assert.notEqual(result.status, 0, 'demo-v2.html is missing');
+  assert.match(result.stderr + result.stdout, /demo-v2\.html/);
+  writeFileSync(join(root, 'editor', 'demo-v2.html'), demo('InFlight editor demonstration'));
+  result = run(root);
+  assert.equal(result.status, 0, result.stderr + result.stdout);
+  rmSync(join(root, 'editor', 'demo-editor.html'));
+  assert.notEqual(run(root).status, 0, 'the owner Demo Studio editor must stay compiled');
+});

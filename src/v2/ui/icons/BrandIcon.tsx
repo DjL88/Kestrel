@@ -157,13 +157,16 @@ interface BrandIconProps {
   label?: string;
 }
 
+/** Icons live in the public folder; behind a base path (the website demo is served from /editor/) they move with it. */
+const withBase = (path: string | undefined) => (path && path.startsWith('/') ? `${import.meta.env?.BASE_URL ?? '/'}${path.slice(1)}` : path);
+
 export default function BrandIcon({
   name,
   size = 18,
   className = '',
   label,
 }: BrandIconProps) {
-  const src = ALL_ICON_PATHS[name];
+  const src = withBase(ALL_ICON_PATHS[name]);
   return (
     <span
       role={label ? 'img' : undefined}

@@ -82,3 +82,7 @@ service, using rights-cleared owner samples. The website GET check does not
 establish these authenticated backend operations. Record PASS/FAIL/NOT RUN
 against the same source commit and deployed build. Do not publish photo bytes,
 private paths or API keys through source control.
+
+
+## Public homepage demo is now Version 2 (23 Nov 2026)
+`site/index.html` embeds `/editor/demo-v2.html` (entry `demo-v2.html` → `src/demo/v2/main.tsx`, `useDemoWorkspace`): the real V2 workspace and engine on a fixed set of photographs (the owner's published photos from `/v1/demo/photos`, else the bundled sample illustrations, labelled as such). It uses the visitor's own browser catalogue (one project, "InFlight demo", reused on later visits); nothing is uploaded or reaches the owner. Importing, exporting, projects, sign-in and the cloud actions are switched off and say so. The owner's Demo Studio (`/admin`) still uses the current editor (`demo-editor.html`), so both are built by `npm run build:site-editor` and both are checked by `scripts/site/verify-deployment.mjs`. Not done: applying the owner's saved edit recipe to each published photo on open; an automated browser test of the built demo (it was checked by hand in the browser against `serve-site.mjs`).
