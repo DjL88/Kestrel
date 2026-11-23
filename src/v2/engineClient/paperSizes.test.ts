@@ -3,7 +3,10 @@ import test from 'node:test';
 import { dimensionPixels, paperDimensions, PAPER_MM } from './paperSizes.ts';
 
 test('ISO sizes are the published A-series dimensions, not approximations', () => {
-  assert.deepEqual(PAPER_MM, { A4: [210, 297], A3: [297, 420], A2: [420, 594], A1: [594, 841] });
+  assert.deepEqual(PAPER_MM, { A7: [74, 105], A6: [105, 148], A5: [148, 210], A4: [210, 297], A3: [297, 420], A2: [420, 594], A1: [594, 841] });
+  assert.deepEqual(paperDimensions('A7', 'portrait'), { width: 74, height: 105 });
+  assert.deepEqual(paperDimensions('A6', 'landscape'), { width: 148, height: 105 });
+  assert.deepEqual(paperDimensions('A5', 'portrait'), { width: 148, height: 210 });
   assert.deepEqual(paperDimensions('A4', 'portrait'), { width: 210, height: 297 });
   assert.deepEqual(paperDimensions('A4', 'landscape'), { width: 297, height: 210 });
   assert.deepEqual(paperDimensions('A1', 'portrait'), { width: 594, height: 841 });
