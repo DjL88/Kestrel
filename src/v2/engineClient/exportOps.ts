@@ -63,7 +63,10 @@ export function planExport(request: ExportRequest, frames: readonly ExportFrameI
       // The cap applies to the COMPLETE composition, not each panel in isolation.
       // Otherwise two 1080px panels could defeat a 1200px export limit.
       const combined = capLongestEdge({ width: size.width * sections, height: size.height }, maxEdge);
-      const capped = { width: Math.max(1, Math.floor(combined.width / sections)), height: combined.height };
+      if (size.width * sections > 20000 || combined.width < sections) {
+        return { error: `${size.label} split is too wide for a safe export at these dimensions. Choose a smaller format or a larger output limit.` };
+      }
+      const capped = { width: Math.floor(combined.width / sections), height: combined.height };
       const crop = crops[size.id] ?? { ...DEFAULT_CROP };
       const offset = formatSplitOffset(splitState, size.id);
       const movedCrop = offset === 0 ? crop : { ...crop, panX: Math.max(-50, Math.min(50, crop.panX + offset)) };
