@@ -1338,7 +1338,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         ...current,
         shoot: { ...current.shoot, lastUpdatedAt: at },
         frames: current.frames.map((frame) =>
-          frame.id === photoId ? forkEditCheckpoint(frame, cursor, versionId, at) : frame),
+          frame.id === photoId ? syncEditGroup(forkEditCheckpoint(frame, cursor, versionId, at)) : frame),
       }));
     },
     switchEditVersion: (photoId, versionId) => {
@@ -1347,16 +1347,16 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         ...current,
         shoot: { ...current.shoot, lastUpdatedAt: at },
         frames: current.frames.map((frame) =>
-          frame.id === photoId ? switchVersionInCatalogue(frame, versionId) : frame),
+          frame.id === photoId ? syncEditGroup(switchVersionInCatalogue(frame, versionId)) : frame),
       }));
     },
     undo: () => {
-      if (activeFrame?.editHistory && activeFrame.editHistory.cursor > 0) mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === activeFrame.id ? stepEdit(frame, -1) : frame)) }));
+      if (activeFrame?.editHistory && activeFrame.editHistory.cursor > 0) mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === activeFrame.id ? syncEditGroup(stepEdit(frame, -1)) : frame)) }));
       else mutate(undoDecision);
     },
     redo: () => {
       const history = activeFrame?.editHistory;
-      if (history && history.cursor < history.steps.length) mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === activeFrame.id ? stepEdit(frame, 1) : frame)) }));
+      if (history && history.cursor < history.steps.length) mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === activeFrame.id ? syncEditGroup(stepEdit(frame, 1)) : frame)) }));
       else mutate(redoDecision);
     },
     cancelTask: (id) => { tasks.cancel(Number(id)); },
