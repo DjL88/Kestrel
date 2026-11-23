@@ -298,3 +298,24 @@ test('live admin page must match the locally verified release byte for byte', t 
   }
   assert.match(runLive(root, { '/admin.html': undefined }).stderr, /path failed \(404\): \/admin\.html/);
 });
+
+test('favicon must be a local approved asset, never an external or protocol-relative URL', t => {
+  const root = fixture();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  assert.equal(run(root).status, 0);
+  for (const malicious of [
+    'https://elsewhere.example/assets/brand/inflight/app-icons/favicon.svg',
+    '//elsewhere.example/assets/brand/inflight/app-icons/favicon.svg',
+    'http://elsewhere.example/assets/brand/inflight/app-icons/favicon.svg',
+    '/assets/brand/inflight/app-icons/favicon.svg?cache=old',
+    '/assets/brand/inflight/app-icons/favicon.svg#different',
+  ]) {
+    writeFileSync(join(root, 'index.html'), landing.replace('assets/brand/inflight/app-icons/favicon.svg', malicious));
+    const local = run(root);
+    assert.notEqual(local.status, 0, malicious);
+    assert.match(local.stderr, /favicon missing or not the approved brand asset/, malicious);
+  }
+  writeFileSync(join(root, 'index.html'), landing);
+  assert.equal(runLive(root, { '/': landing.replace('assets/brand/inflight/app-icons/favicon.svg',
+    'https://elsewhere.example/assets/brand/inflight/app-icons/favicon.svg') }).status === 0, false);
+});
