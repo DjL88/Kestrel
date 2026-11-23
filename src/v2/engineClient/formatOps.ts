@@ -80,3 +80,30 @@ export function removeFormat(raw: unknown, id: string): FormatSet {
 }
 
 export const newCustomId = (seed: string) => `custom-${seed.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12).padEnd(3, '0')}`;
+
+/**
+ * Rotate format / swap width and height: changes the output canvas's own orientation (4:3 landscape <-> 3:4
+ * portrait, A4 portrait <-> A4 landscape), never the photograph's pixels or EXIF orientation - that stays
+ * rotateCrop's job (a different, separately-labelled command). Width and height swap; ratioLabel is
+ * recomputed from the new pair so a label like "4:3" correctly becomes "3:4" rather than staying stale.
+ *
+ * zoom resets to DEFAULT_CROP.zoom (1): renderV2Export's own cover-fit formula - `max(out.w/fw, out.h/fh) *
+ * zoom` - already scales to whichever frame it is given, so zoom=1 is a valid, fully-covering fit for the
+ * *new* width/height just as it was for the old ones, with no letterboxing and no guessed-at correction
+ * factor. panX/panY (the focal point), the inset/flip/rotate/border fields, and everything else about the
+ * format (id, label, platform, kind, enabled, linked, board position) are left exactly as they were - the
+ * owner's spec: keep the subject's focal point as much as possible and let the photographer reposition and
+ * zoom afterwards, rather than this function inventing a "perfectly preserving" zoom from geometry it
+ * cannot see from here (the actual pixel/crop-rect math lives in renderV2Export.ts and Canvas.tsx, not in
+ * any file this function touches).
+ */
+export function swapFormatOrientation(size: SizePreset): SizePreset {
+  const width = size.height, height = size.width;
+  return {
+    ...size,
+    width,
+    height,
+    ratioLabel: ratioLabelFor(width, height),
+    crop: { ...size.crop, zoom: DEFAULT_CROP.zoom },
+  };
+}
