@@ -160,20 +160,20 @@ test('verified PNG portrait aspect comes from decoded pixels, not the fixed 3:2 
   assert.equal(original.ratioLabel, '3:4');
 });
 
-test('RAW image or unverified ordinary image does not accept unproven native-size override', () => {
+test('Original uses the recorded shape but RAW previews are not proof of export pixel fidelity', () => {
   const unverified = frameToPhoto(frame({ filename: 'Robin.jpg', exif: { width: 1200, height: 800 } }), undefined);
   const raw = frameToPhoto(frame({ filename: 'Z8.NEF', exif: { width: 8256, height: 5504 } }), undefined, {
     verifiedOriginalSize: { width: 8256, height: 5504 },
   });
-  assert.equal(unverified.sizes.find((size) => size.id === 'orig-3x2')?.width, 3000);
-  assert.equal(raw.sizes.find((size) => size.id === 'orig-3x2')?.width, 3000);
+  assert.equal(unverified.sizes.find((size) => size.id === 'orig-3x2')?.width, 1200);
+  assert.equal(raw.sizes.find((size) => size.id === 'orig-3x2')?.width, 8256);
 });
 
 test('invalid raster dimensions are never accepted for the Original frame', () => {
   const photo = frameToPhoto(frame({ filename: 'Robin.jpg' }), undefined, {
     verifiedOriginalSize: { width: Number.NaN, height: 0 },
   });
-  assert.equal(photo.sizes.find((size) => size.id === 'orig-3x2')?.width, 3000);
+  assert.equal(photo.sizes.find((size) => size.id === 'orig-3x2')?.enabled, false);
 });
 
 test('a saved split belongs only to its selected output format, not the whole photograph', () => {
