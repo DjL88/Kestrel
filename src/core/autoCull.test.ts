@@ -317,3 +317,20 @@ test('fractional, negative, nonfinite and unsafe keeper budgets never auto-keep'
   }
   assert.equal(limitAutoKeepers(suggestions, frames, 1).filter(item => item.confidence === 'high').length, 1);
 });
+
+
+test('malformed scan IDs cannot crash deterministic sorting or displace a valid keeper', () => {
+  const frames = generateDemoShootFrames(2).map(frame => ({ ...frame, isDemo: false, burstGroupId: null, decision: 'unreviewed' as const }));
+  const valid: CullSuggestion = { frameId: frames[0].id, decision: 'keep', confidence: 'high', score: 95, reason: 'subjectSharp' };
+  for (const malformed of [null, undefined, 42, {}]) {
+    const broken = { ...valid, frameId: malformed } as unknown as CullSuggestion;
+    const result = limitAutoKeepers([broken, valid], frames, 1);
+    assert.deepEqual(result.filter(item => item.confidence === 'high' && item.frameId === valid.frameId).map(item => item.frameId), [valid.frameId]);
+  }
+});
+
+test('camera ratings take precedence over equal-confidence sharpness scores', () => {
+  const frames = generateDemoShootFrames(2).map((frame, index) => ({ ...frame, isDemo: false, burstGroupId: null, decision: 'unreviewed' as const, rating: index === 0 ? 5 : 1 }));
+  const suggestions: CullSuggestion[] = frames.map((frame, index) => ({ frameId: frame.id, decision: 'keep', confidence: 'high', score: index === 0 ? 80 : 99, reason: 'subjectSharp' }));
+  assert.deepEqual(limitAutoKeepers(suggestions, frames, 1).filter(item => item.confidence === 'high').map(item => item.frameId), [frames[0].id]);
+});
