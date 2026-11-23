@@ -21,7 +21,7 @@ test('ordinary one-panel export retains its original dimensions', () => {
 test('bad dimensions and too-wide combined canvases fail clearly', () => {
   for (const width of [0, -1, NaN, Infinity, 1.5, 20001]) assert.throws(() => continuousExportLayout(width, 1000, 2));
   assert.throws(() => continuousExportLayout(10001, 1000, 2));
-  assert.throws(() => continuousExportLayout(1080, 1350, 3 as never));
+  assert.throws(() => continuousExportLayout(1080, 1350, 4 as never));
 });
 
 test('numbered files keep the right extension and left-to-right order', async () => {
@@ -31,4 +31,14 @@ test('numbered files keep the right extension and left-to-right order', async ()
   assert.equal(numberedSectionFilename('a.png', 1, 1), 'a.png');
   assert.throws(() => numberedSectionFilename('a.jpg', 3, 2));
   assert.throws(() => numberedSectionFilename('a', 1, 2));
+});
+
+test('three panels share one uninterrupted canvas and keep numbered file order', async () => {
+  const layout = continuousExportLayout(1080, 1350, 3);
+  assert.equal(layout.width, 3240);
+  assert.deepEqual(layout.sections.map(s => [s.index, s.x, s.width]), [[1, 0, 1080], [2, 1080, 1080], [3, 2160, 1080]]);
+  assert.deepEqual(cappedContinuousLayout(3001, 1350, 3).sections.map(s => s.x), [0, 1000, 2000]);
+  const { numberedSectionFilename } = await import('./continuousExport.ts');
+  assert.equal(numberedSectionFilename('bird.png', 3, 3), 'bird-03-of-03.png');
+  assert.throws(() => continuousExportLayout(7000, 1350, 3));
 });
