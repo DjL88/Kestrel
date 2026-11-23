@@ -60,6 +60,11 @@ export function linkedSourceMatches(expectedSize: number | undefined, actualSize
   return Number.isSafeInteger(expectedSize) && expectedSize > 0 && expectedSize === actualSize;
 }
 
+/** Compare the bytes actually read, not the file's mutable name/size/time metadata. */
+export function linkedBytesMatchImportedOriginal(bytes: Uint8Array, expectedOriginalSha256: string): boolean {
+  return isSameOriginalBytes(expectedOriginalSha256, sha256Plain(bytes));
+}
+
 /** Reader for a photo already in a project, given its saved path and the name, size and time it had when added. */
 export function linkedReader(path: string, name: string, lastModified: number, expectedSize: number | undefined, expectedOriginalSha256: string): () => Promise<File> {
   return async () => {
@@ -78,7 +83,7 @@ export function linkedReader(path: string, name: string, lastModified: number, e
     }
     // Rechecking the bytes at use time closes the gap after import/reconnect:
     // size and mtime can be identical for a substituted original.
-    if (!isSameOriginalBytes(expectedOriginalSha256, sha256Plain(bytes))) {
+    if (!linkedBytesMatchImportedOriginal(bytes, expectedOriginalSha256)) {
       throw new Error('Linked original bytes do not match the imported SHA-256. Reconnect the genuine original.');
     }
     return new File([bytes], name, { lastModified });
