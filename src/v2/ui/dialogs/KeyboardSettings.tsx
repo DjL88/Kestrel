@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { COMMANDS, COMMAND_GROUP_LABELS, type CommandGroup, type CommandId } from '../commands/registry';
 import {
-  PRESETS, chordLabel, commandsUsing, effectiveKeymap, eventChord, findConflicts, isPresetId, withChord, withoutOverride,
+  PRESETS, chordLabel, commandsUsing, effectiveKeymap, eventChord, exportKeymap, findConflicts, importKeymap, isPresetId, withChord, withoutOverride,
   type PresetId, type SavedKeymap,
 } from '../commands/keymap';
 import { DEFAULT_PAD, PAD_SLOTS, PAD_SLOT_LABELS, padClashes, padSlotFor, withPadChord, withPadCommand, type PadProfile, type PadSlot } from '../commands/pad';
@@ -22,6 +22,32 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
   const [capturing, setCapturing] = useState<CommandId | null>(null);
   const [learning, setLearning] = useState<PadSlot | null>(null);
   const [lastKey, setLastKey] = useState<{ chord: string; slot: PadSlot | null } | null>(null);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
+  const importInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleExport = () => {
+    const blob = new Blob([exportKeymap(saved)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `kestrel-keymap-${PRESETS[saved.preset].label.toLowerCase()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportFile = async (file: File) => {
+    const result = importKeymap(await file.text());
+    if (!result.ok) {
+      setImportMessage(result.error);
+      return;
+    }
+    onChange(result.keymap);
+    setImportMessage(
+      result.dropped.length === 0
+        ? `Imported. Key set: ${PRESETS[result.keymap.preset].label}.`
+        : `Imported. Key set: ${PRESETS[result.keymap.preset].label}. Not recognised and skipped: ${result.dropped.join(', ')}.`
+    );
+  };
   const keymap = effectiveKeymap(saved.preset, saved.overrides);
   const conflicts = findConflicts(keymap);
   const labelOf = (id: CommandId) => COMMANDS.find((command) => command.id === id)?.label ?? id;
@@ -85,10 +111,26 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
         <button type="button" className={buttonClass} disabled={Object.keys(saved.overrides).length === 0} onClick={() => onChange({ ...saved, overrides: {} })}>
           Reset all my changes
         </button>
+        <button type="button" className={buttonClass} onClick={handleExport}>Export keymap</button>
+        <button type="button" className={buttonClass} onClick={() => { setImportMessage(null); importInputRef.current?.click(); }}>Import keymap</button>
+        <input
+          ref={importInputRef}
+          type="file"
+          accept="application/json"
+          hidden
+          data-testid="v2-keymap-import-input"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            if (file) void handleImportFile(file);
+          }}
+        />
       </div>
+      {importMessage && <p role="status" className="text-xs text-[var(--text-secondary)]">{importMessage}</p>}
       <p className="text-xs text-[var(--text-secondary)]">
         Change a key, then press the new one. Esc cancels. If two commands share a key, neither runs until you fix it.
         Capture One and Photo Mechanic key sets are not here yet: they must be checked against each vendor's own documentation first.
+        Export keymap saves your key set and changes as a file you can keep or share; Import keymap reads one back.
       </p>
       {GROUPS.map((group) => (
         <section key={group} aria-labelledby={`v2-keys-${group}`} className="space-y-1">

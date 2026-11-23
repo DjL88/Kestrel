@@ -160,20 +160,31 @@ const STORAGE_KEY = 'inflight-v2-keymap';
 
 export interface SavedKeymap { preset: PresetId; overrides: Overrides }
 
+/**
+ * Keeps only overrides that are safe to apply: a known command id, with either the empty string
+ * (deliberately unbound) or a chord string short enough to be real. Anything else is dropped and
+ * named, rather than failing the whole keymap over one stale or corrupted entry.
+ */
+function sanitizeOverrides(raw: unknown): { overrides: Overrides; dropped: string[] } {
+  const known = new Set<string>(COMMANDS.map((command) => command.id));
+  const overrides: Overrides = {};
+  const dropped: string[] = [];
+  if (raw && typeof raw === 'object') {
+    for (const [id, chord] of Object.entries(raw as Record<string, unknown>)) {
+      if (known.has(id) && typeof chord === 'string' && chord.length < 40) overrides[id as CommandId] = chord;
+      else dropped.push(id);
+    }
+  }
+  return { overrides, dropped };
+}
+
 export function loadKeymap(): SavedKeymap {
   const fallback: SavedKeymap = { preset: DEFAULT_PRESET, overrides: {} };
   try {
     const raw = typeof localStorage === 'undefined' ? null : localStorage.getItem(STORAGE_KEY);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as { preset?: unknown; overrides?: unknown };
-    const known = new Set<string>(COMMANDS.map((command) => command.id));
-    const overrides: Overrides = {};
-    if (parsed.overrides && typeof parsed.overrides === 'object') {
-      for (const [id, chord] of Object.entries(parsed.overrides as Record<string, unknown>)) {
-        if (known.has(id) && typeof chord === 'string' && chord.length < 40) overrides[id as CommandId] = chord;
-      }
-    }
-    return { preset: isPresetId(parsed.preset) ? parsed.preset : DEFAULT_PRESET, overrides };
+    return { preset: isPresetId(parsed.preset) ? parsed.preset : DEFAULT_PRESET, overrides: sanitizeOverrides(parsed.overrides).overrides };
   } catch {
     return fallback;
   }
@@ -181,4 +192,45 @@ export function loadKeymap(): SavedKeymap {
 
 export function saveKeymap(saved: SavedKeymap): void {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(saved)); } catch { /* Not remembered on this device. */ }
+}
+
+const KEYMAP_EXPORT_KIND = 'kestrel-keymap';
+const KEYMAP_EXPORT_VERSION = 1;
+
+interface KeymapExportFile { kind: typeof KEYMAP_EXPORT_KIND; version: typeof KEYMAP_EXPORT_VERSION; preset: PresetId; overrides: Overrides }
+
+/** A shareable, human-readable keymap file: the saved keymap wrapped with a kind and version, so a file from
+ * somewhere else, or a future format, is caught explicitly on import instead of silently read as empty. */
+export function exportKeymap(saved: SavedKeymap): string {
+  const file: KeymapExportFile = { kind: KEYMAP_EXPORT_KIND, version: KEYMAP_EXPORT_VERSION, preset: saved.preset, overrides: saved.overrides };
+  return JSON.stringify(file, null, 2);
+}
+
+export type ImportKeymapResult =
+  | { ok: true; keymap: SavedKeymap; dropped: string[] }
+  | { ok: false; error: string };
+
+/**
+ * Reads a keymap file written by exportKeymap. Unlike loadKeymap's own on-device cache, an import is a decision
+ * the person just made by choosing a file, so a wrong-kind, wrong-version or malformed file is refused with a
+ * plain reason - never silently treated as "no changes" (CLAUDE.md: never silently discard a decision). An
+ * individual unknown command id or corrupted chord is dropped and named in `dropped` rather than failing the
+ * whole import.
+ */
+export function importKeymap(raw: string): ImportKeymapResult {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { ok: false, error: 'That file is not valid JSON.' };
+  }
+  if (typeof parsed !== 'object' || parsed === null) return { ok: false, error: 'That file is not a keymap export.' };
+  const candidate = parsed as Partial<KeymapExportFile>;
+  if (candidate.kind !== KEYMAP_EXPORT_KIND) return { ok: false, error: 'That file is not a Kestrel keymap export.' };
+  if (candidate.version !== KEYMAP_EXPORT_VERSION) {
+    return { ok: false, error: `This keymap was saved in a format (${JSON.stringify(candidate.version)}) this version of Kestrel does not read.` };
+  }
+  if (!isPresetId(candidate.preset)) return { ok: false, error: 'That file does not name a key set Kestrel knows.' };
+  const { overrides, dropped } = sanitizeOverrides(candidate.overrides);
+  return { ok: true, keymap: { preset: candidate.preset, overrides }, dropped };
 }

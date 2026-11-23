@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { COMMANDS } from './registry';
-import { PRESETS, commandsUsing, withChord, withoutOverride, chordLabel, effectiveKeymap, eventChord, findConflicts, resolveCommand } from './keymap';
+import { PRESETS, commandsUsing, withChord, withoutOverride, chordLabel, effectiveKeymap, eventChord, exportKeymap, findConflicts, importKeymap, resolveCommand } from './keymap';
 
 const key = (init: Partial<KeyboardEvent> & { code: string; key: string }) => init;
 
@@ -84,4 +84,41 @@ test('assigning a chord another command uses is allowed but reported, never sile
   const map = effectiveKeymap(saved.preset, saved.overrides);
   assert.deepEqual(commandsUsing(map, 'KeyF', 'view.grid'), ['photo.flag']);
   assert.deepEqual(Object.values(findConflicts(map))[0].sort(), ['photo.flag', 'view.grid']);
+});
+
+test('a keymap exports and re-imports to the exact same keymap', () => {
+  const saved = withChord({ preset: 'lightroom' as const, overrides: {} }, 'photo.flag', 'KeyP');
+  const result = importKeymap(exportKeymap(saved));
+  assert.ok(result.ok);
+  if (result.ok) {
+    assert.deepEqual(result.keymap, saved);
+    assert.deepEqual(result.dropped, []);
+  }
+});
+
+test('import refuses a file that is not JSON, not a keymap export, or from a newer format version', () => {
+  assert.deepEqual(importKeymap('not json'), { ok: false, error: 'That file is not valid JSON.' });
+  assert.deepEqual(importKeymap('null'), { ok: false, error: 'That file is not a keymap export.' });
+  assert.deepEqual(importKeymap('[]'), { ok: false, error: 'That file is not a Kestrel keymap export.' });
+  assert.deepEqual(importKeymap(JSON.stringify({ foo: 'bar' })), { ok: false, error: 'That file is not a Kestrel keymap export.' });
+  const future = importKeymap(JSON.stringify({ kind: 'kestrel-keymap', version: 99, preset: 'inflight', overrides: {} }));
+  assert.equal(future.ok, false);
+  const badPreset = importKeymap(JSON.stringify({ kind: 'kestrel-keymap', version: 1, preset: 'photomechanic', overrides: {} }));
+  assert.deepEqual(badPreset, { ok: false, error: 'That file does not name a key set Kestrel knows.' });
+});
+
+test('import drops an unknown command id or an overlong chord, and names what it dropped, without failing the rest', () => {
+  const overrides = { 'photo.flag': 'KeyP', 'not.a.real.command': 'KeyX', 'view.grid': 'x'.repeat(40) };
+  const result = importKeymap(JSON.stringify({ kind: 'kestrel-keymap', version: 1, preset: 'inflight', overrides }));
+  assert.ok(result.ok);
+  if (result.ok) {
+    assert.deepEqual(result.keymap.overrides, { 'photo.flag': 'KeyP' });
+    assert.deepEqual(result.dropped.sort(), ['not.a.real.command', 'view.grid']);
+  }
+});
+
+test('import keeps a deliberately unbound command (the empty-string override)', () => {
+  const result = importKeymap(JSON.stringify({ kind: 'kestrel-keymap', version: 1, preset: 'inflight', overrides: { 'view.grid': '' } }));
+  assert.ok(result.ok);
+  if (result.ok) assert.deepEqual(result.keymap.overrides, { 'view.grid': '' });
 });
