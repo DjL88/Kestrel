@@ -139,7 +139,7 @@ export async function runLook(look: Look, input: LookRenderInput, runner: Engine
   if (input.subject) {
     const { alpha } = input.subject;
     if (alpha.length !== input.original.width * input.original.height ||
-        Array.from(alpha).some(value => !Number.isFinite(value) || value < 0 || value > 1)) {
+        alpha.some(value => !Number.isFinite(value) || value < 0 || value > 1)) {
       throw new RangeError('Look subject alpha must match original pixels and contain values from 0 to 1');
     }
   }
