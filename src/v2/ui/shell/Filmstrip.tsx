@@ -516,7 +516,7 @@ export default function Filmstrip({
                     </button>
 
                     {/* Tile footer: filename + flag toggle */}
-                    <div className="flex h-7 shrink-0 items-center justify-between gap-1 px-2">
+                    <div className="flex h-9 shrink-0 items-center justify-between gap-1 px-1">
                       <span className="truncate font-mono text-[10px] text-[var(--text-secondary)]">
                         {photo.filename}
                       </span>
@@ -527,7 +527,7 @@ export default function Filmstrip({
                           e.stopPropagation();
                           onToggleFlag([photo.id]);
                         }}
-                        className={`inline-flex h-5 w-5 items-center justify-center rounded transition-colors ${
+                        className={`inline-flex min-h-9 min-w-9 items-center justify-center rounded transition-colors focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)] ${
                           flagged
                             ? 'text-[var(--brand-accent)]'
                             : 'text-[var(--text-muted)] opacity-60 hover:opacity-100 hover:text-[var(--text-primary)]'
