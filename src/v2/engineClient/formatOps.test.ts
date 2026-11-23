@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { addFormat, applyFormats, applySizeLinked, isSizeLinked, newCustomId, ratioLabelFor, readFormats, readSizeLinked, removeFormat, toggleFormat, toggleSizeLinked } from './formatOps.ts';
+import { DEFAULT_CROP } from './cropOps.ts';
+import { addFormat, applyFormats, applySizeLinked, isSizeLinked, newCustomId, ratioLabelFor, readFormats, readSizeLinked, removeFormat, swapFormatOrientation, toggleFormat, toggleSizeLinked } from './formatOps.ts';
 import { createDefaultSizes } from '../ui/stub.ts';
+import type { CropTransform, SizePreset } from '../ui/contract.ts';
+
+const size = (cropOverrides: Partial<CropTransform> = {}): SizePreset => ({
+  id: 'ig-portrait', label: 'Instagram Portrait', platform: 'instagram', width: 1080, height: 1350,
+  ratioLabel: '4:5', kind: 'photo', enabled: true, linked: true, boardX: 0, boardY: 0,
+  crop: { ...DEFAULT_CROP, panX: 10, panY: -5, flipV: true, rotateDeg: 90, borderWidth: 2, ...cropOverrides },
+});
 
 test('a photo with no stored formats has the built-in list unchanged', () => {
   const defaults = createDefaultSizes();
@@ -72,4 +80,45 @@ test('applySizeLinked only changes formats with a stored override', () => {
   const other = applied.find((size) => size.id !== 'ig-portrait');
   const original = sizes.find((size) => size.id === other?.id);
   assert.equal(other?.linked, original?.linked);
+});
+
+test('rotate format swaps width, height and the ratio label, never the id, platform or board position', () => {
+  const swapped = swapFormatOrientation(size());
+  assert.equal(swapped.width, 1350);
+  assert.equal(swapped.height, 1080);
+  assert.equal(swapped.ratioLabel, '5:4');
+  assert.equal(swapped.id, 'ig-portrait');
+  assert.equal(swapped.platform, 'instagram');
+  assert.equal(swapped.boardX, 0);
+  assert.equal(swapped.boardY, 0);
+});
+
+test('rotate format resets zoom to the safe fit baseline but never touches the focal point, flips, photo rotation or border', () => {
+  const swapped = swapFormatOrientation(size({ zoom: 2.4 }));
+  assert.equal(swapped.crop.zoom, DEFAULT_CROP.zoom);
+  assert.equal(swapped.crop.panX, 10);
+  assert.equal(swapped.crop.panY, -5);
+  assert.equal(swapped.crop.flipV, true);
+  assert.equal(swapped.crop.flipH, false);
+  // rotateDeg is the photograph's own 90-degree rotate command - a different, separately-labelled thing from
+  // the canvas orientation this function swaps - and must survive untouched.
+  assert.equal(swapped.crop.rotateDeg, 90);
+  assert.equal(swapped.crop.borderWidth, 2);
+  assert.equal(swapped.crop.borderColour, DEFAULT_CROP.borderColour);
+});
+
+test('rotate format is its own inverse: swapping twice returns the original width, height and ratio label', () => {
+  const original = size();
+  const twice = swapFormatOrientation(swapFormatOrientation(original));
+  assert.equal(twice.width, original.width);
+  assert.equal(twice.height, original.height);
+  assert.equal(twice.ratioLabel, original.ratioLabel);
+});
+
+test('rotate format on a square leaves its width, height and ratio label unchanged', () => {
+  const square = { ...size(), width: 480, height: 480, ratioLabel: '1:1' };
+  const swapped = swapFormatOrientation(square);
+  assert.equal(swapped.width, 480);
+  assert.equal(swapped.height, 480);
+  assert.equal(swapped.ratioLabel, '1:1');
 });
