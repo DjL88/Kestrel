@@ -74,7 +74,7 @@ gcloud builds triggers create github \
   --service-account="projects/kestrel-hosting/serviceAccounts/$BUILDER" \
   --substitutions="_GOOGLE_CLIENT_ID=$CLIENT_ID" \
   --description="Publish approved InFlight V2 main commits to private Cloud Run" \
-  --require-approval
+  --no-require-approval
 
 # First deploy — this deliberately uses the same trigger as subsequent deploys.
 gcloud builds triggers run inflight-v2proto-main --branch=main --region=global
@@ -108,7 +108,7 @@ curl -is "$BASE/V2Proto/session" | head -n 15
 
 Expected unauthenticated: sign-in HTML for the first URL; **401** for asset; no session disclosure from a GET. In an incognito browser, verify an unapproved Google account stays denied; owner Google sign-in opens the actual full V2 workspace. Then verify a built asset's anonymous GET returns 401 even after discovering its path in the owner's HTML. Verify logout and 12-hour expiry; mobile Safari and Chrome; refresh, import and export; Cloud Run logs must not record tokens.
 
-For automatic release proof: merge an approved harmless V2-only commit to `main`, approve the pending Cloud Build (if approvals enabled), and verify the new short SHA in Cloud Build, the Cloud Run revision, and a private authenticated browser session. Rejected/HOLD PRs must never merge just to publish.
+For automatic release proof: merge an approved harmless V2-only commit to `main`, verify the new short SHA in Cloud Build, the Cloud Run revision, and a private authenticated browser session. Rejected/HOLD PRs must never merge just to publish.
 
 ## Operational notes and limits
 
