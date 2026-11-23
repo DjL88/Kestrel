@@ -186,6 +186,13 @@ export default function Filmstrip({
     resizeStart.current = null;
   };
 
+  const handleResizeKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    // Match the pointer direction: moving the separator upwards makes the dock taller.
+    onSetHeight(height + (event.key === 'ArrowUp' ? 24 : -24));
+  };
+
 
   return (
     <section
@@ -198,10 +205,15 @@ export default function Filmstrip({
           role="separator"
           aria-orientation="horizontal"
           aria-label="Resize bottom panel"
+          aria-valuenow={height}
+          aria-valuetext={`${height} pixels high; use Up or Down arrow keys to resize`}
+          tabIndex={0}
+          onKeyDown={handleResizeKeyDown}
           onPointerDown={handleResizeDown}
           onPointerMove={handleResizeMove}
           onPointerUp={handleResizeUp}
-          className="flex h-2 w-full cursor-ns-resize items-center justify-center hover:bg-[var(--brand-accent-soft)]"
+          onPointerCancel={handleResizeUp}
+          className="flex h-2 w-full cursor-ns-resize items-center justify-center hover:bg-[var(--brand-accent-soft)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
         >
           <span className="h-0.5 w-10 rounded-full bg-[var(--border-default)]" />
         </div>
