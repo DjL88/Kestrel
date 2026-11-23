@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { COMMANDS } from './registry';
-import { PRESETS, chordLabel, effectiveKeymap, eventChord, findConflicts, resolveCommand } from './keymap';
+import { PRESETS, commandsUsing, withChord, withoutOverride, chordLabel, effectiveKeymap, eventChord, findConflicts, resolveCommand } from './keymap';
 
 const key = (init: Partial<KeyboardEvent> & { code: string; key: string }) => init;
 
@@ -68,3 +68,19 @@ test('Cmd/Ctrl+K opens command search, including while typing', () => {
     assert.equal(resolveCommand({ event: key({ code: 'KeyK', key: 'k', ctrlKey: true }), keymap: map, isMac: false, inField: true })?.id, 'app.commandSearch');
     assert.deepEqual(findConflicts(map), {});
   });
+
+test('a chord equal to the preset default is stored as no override; reset removes an override', () => {
+  const base = { preset: 'inflight' as const, overrides: {} };
+  const changed = withChord(base, 'photo.flag', 'KeyP');
+  assert.deepEqual(changed.overrides, { 'photo.flag': 'KeyP' });
+  assert.deepEqual(withChord(changed, 'photo.flag', 'KeyF').overrides, {});
+  assert.deepEqual(withoutOverride(changed, 'photo.flag').overrides, {});
+  assert.deepEqual(withChord(base, 'view.grid', '').overrides, { 'view.grid': '' });
+});
+
+test('assigning a chord another command uses is allowed but reported, never silently resolved', () => {
+  const saved = withChord({ preset: 'inflight', overrides: {} }, 'view.grid', 'KeyF');
+  const map = effectiveKeymap(saved.preset, saved.overrides);
+  assert.deepEqual(commandsUsing(map, 'KeyF', 'view.grid'), ['photo.flag']);
+  assert.deepEqual(Object.values(findConflicts(map))[0].sort(), ['photo.flag', 'view.grid']);
+});
