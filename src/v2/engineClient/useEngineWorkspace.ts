@@ -53,7 +53,7 @@ import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFr
 import { GUIDED_RENDER_EDGE } from '../../core/subjectGuide';
 import { detectSubjectGuided } from '../../providers/subjectDetector';
 import { judgeSubject } from '../../core/autoCull';
-import { archiveExports, downloadExport, loadExportSource } from '../../providers/browserExport';
+import { archiveExports, downloadExport, loadExportSource, loadVerifiedRasterOriginalForExport } from '../../providers/browserExport';
 import { toProfile } from '../../core/exportFormats';
 import { renderV2Export, type OverlayDraw } from './renderV2Export';
 import { formatOverlayRowText } from '../ui/utils/studioMath';
@@ -400,14 +400,26 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         if (!exportMayContinue(controller.signal.aborted, task.cancelled, false)) return;
         const frame = current.frames.find((candidate) => candidate.id === job.frameId);
         if (!frame) continue;
-        const image = await loadExportSource(frame, provider.current!);
+        // For JPEG/PNG 'Original', read the verified connected source bytes.
+        // A preview (especially a RAW embedded JPEG) cannot establish native size.
+        const nativeRaster = job.format.id === 'orig-3x2' && /\\.(?:jpe?g|png)$/i.test(frame.filename) && !frame.isDemo;
+        const image = nativeRaster
+          ? await loadVerifiedRasterOriginalForExport(frame, provider.current!)
+          : await loadExportSource(frame, provider.current!);
+        const nativeSize = nativeRaster
+          ? framedSize(image.naturalWidth, image.naturalHeight, frame.framing ?? DEFAULT_FRAMING)
+          : null;
+        const outputSize = nativeSize ?? job.size;
+        const outputFormat = nativeSize
+          ? { ...job.format, width: outputSize.width, height: outputSize.height }
+          : job.format;
         const env = exportEnv.current;
         for (const variant of job.variants) {
           if (!exportMayContinue(controller.signal.aborted, task.cancelled, false)) return;
           // The unedited copy has no recipe and no overlay: the same framing, developed, and plainly labelled in its name.
           const unedited = variant === 'unedited';
           const overlayDraw = unedited ? null : await buildOverlayDraw(frame, request, env);
-          const { file: rendered, capped } = await renderV2Export(image, unedited ? { ...frame, edit: DEFAULT_EDIT } : frame, job.size, job.crop, toProfile(job.format), overlayDraw, started, controller.signal);
+          const { file: rendered, capped } = await renderV2Export(image, unedited ? { ...frame, edit: DEFAULT_EDIT } : frame, outputSize, job.crop, toProfile(outputFormat), overlayDraw, started, controller.signal);
           if (capped) cappedCount += 1;
           const base = unedited ? rendered.name.replace(/(\.[^.]+)?$/, '-unedited$1') : rendered.name;
           const name = uniqueExportFilename(base, used);
