@@ -29,7 +29,7 @@ import { assetUrl, cutOut, importWatermark, loadStored, makeVariant, saveStored,
 import { watermarkToneForPixels } from '../../core/watermark';
 import { INITIAL_WATERMARKS, createDefaultSizes } from '../ui/stub';
 import { toPhotoHistogram } from './histogram';
-import { isHeifFile, isRawPreviewFile } from '../../core/rawFormats';
+import { fullResolutionRasterFormat, isHeifFile, isRawPreviewFile } from '../../core/rawFormats';
 import { loadUi, mergeSettings, saveUi, type SavedUi } from './uiSettings';
 import { applyCanvasPhotoEdit } from '../../core/canvasEdit';
 import { DEFAULT_EDIT as EMPTY_EDIT } from '../../core/photoEdits';
@@ -47,7 +47,7 @@ import { runDeepVisionReview } from './deepVisionReview';
 import { planExport } from './exportOps';
 import { verifyExactOriginalCopy } from './verifiedOriginalCopy';
 import { TEMPLATES_KEY, addTemplate, deleteTemplate, overlayFromTemplate, readTemplates, renameTemplate, type OverlayTemplate } from './overlayTemplates';
-import { addFormat, applyFormats, readFormats, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize, setOriginalOutputSize, resetOriginalOutputSize } from './formatOps';
+import { addFormat, applyFormats, ORIGINAL_FORMAT_ID, readFormats, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize, setOriginalOutputSize, resetOriginalOutputSize } from './formatOps';
 import { patchVideoZoom } from './videoZoomOps';
 import { setFormatSplitOffset, toggleFormatSplit } from './formatSplitOps';
 import { readSplitPanOffset } from './splitFrameOps';
@@ -366,18 +366,18 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const activeRasterKey = activeFrame ? `${activeFrame.stableKey}|${activeFrame.originalSha256 ?? ''}` : null;
   useEffect(() => {
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === activeId);
-    if (!frame || !activeRasterKey || frame.isDemo || !/\\.(?:jpe?g|png)$/i.test(frame.filename) ||
+    if (!frame || !activeRasterKey || frame.isDemo || !fullResolutionRasterFormat(frame.filename) ||
         verifiedRasterSizes[activeRasterKey]) return;
-    let live = true;
-    void loadVerifiedRasterOriginalForExport(frame, provider.current!).then(
+    const controller = new AbortController();
+    void loadVerifiedRasterOriginalForExport(frame, provider.current!, controller.signal).then(
       (image) => {
-        if (live) setVerifiedRasterSizes((current) => ({
+        if (!controller.signal.aborted) setVerifiedRasterSizes((current) => ({
           ...current, [activeRasterKey]: { width: image.naturalWidth, height: image.naturalHeight },
         }));
       },
       () => { /* Remain at an unverified preview size; never invent native pixels. */ },
     );
-    return () => { live = false; };
+    return () => controller.abort();
     // Depends on source identity, not editing controls or unstable frame objects.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, activeRasterKey]);
@@ -439,9 +439,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         if (!frame) continue;
         // For JPEG/PNG 'Original', read the verified connected source bytes.
         // A preview (especially a RAW embedded JPEG) cannot establish native size.
-        const nativeRaster = job.format.id === 'orig-3x2' && /\\.(?:jpe?g|png)$/i.test(frame.filename) && !frame.isDemo;
+        const nativeRaster = job.format.id === ORIGINAL_FORMAT_ID && fullResolutionRasterFormat(frame.filename) && !frame.isDemo;
         const image = nativeRaster
-          ? await loadVerifiedRasterOriginalForExport(frame, provider.current!)
+          ? await loadVerifiedRasterOriginalForExport(frame, provider.current!, controller.signal)
           : await loadExportSource(frame, provider.current!);
         // The photographer may deliberately set a different Original output
         // canvas. In that case respect its own persisted dimensions, while still
@@ -451,11 +451,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           : null;
         // Preserve an explicit export size limit; Original is full decoded size only
         // when the photographer did not ask for a smaller maximum long edge.
-        const longEdge = nativeSize ? Math.max(nativeSize.width, nativeSize.height) : 0;
+        const longEdge = nativeSize ? Math.max(nativeSize.width * (job.sections ?? 1), nativeSize.height) : 0;
         const scale = nativeSize && request.maxLongestEdgePx && request.maxLongestEdgePx > 0
           ? Math.min(1, request.maxLongestEdgePx / longEdge) : 1;
         const outputSize = nativeSize
-          ? { width: Math.max(1, Math.round(nativeSize.width * scale)), height: Math.max(1, Math.round(nativeSize.height * scale)) }
+          ? { width: Math.max(1, Math.floor(nativeSize.width * scale)), height: Math.max(1, Math.floor(nativeSize.height * scale)) }
           : job.size;
         const outputFormat = nativeSize
           ? { ...job.format, width: outputSize.width, height: outputSize.height }

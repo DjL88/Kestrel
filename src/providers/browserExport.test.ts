@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createDemoShootState } from '../core/cullingEngine';
 import { EXPORT_PROFILES } from '../core/exportProfiles';
+import { hashOriginalBytes } from '../core/originalFileIdentity';
 import { drawCropQuickly, loadExportSource, loadVerifiedRasterOriginalForExport, renderExport, renderExportPreview } from './browserExport';
 
 test('cancelling an export skips unused canvas work and discards an encoded result', async (t) => {
@@ -412,7 +413,7 @@ test('native JPEG Original decodes connected bytes and refuses cached preview di
   }
   Object.defineProperty(globalThis, 'Image', { configurable: true, value: ImageStub });
   const bytes = new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), 'rest of photo'], { type: 'image/jpeg' });
-  const frame = { ...createDemoShootState(1).frames[0], filename: 'Nikon-Z8.jpg', isDemo: false, stableKey: 'verified-jpeg' };
+  const frame = { ...createDemoShootState(1).frames[0], filename: 'Nikon-Z8.JPG', isDemo: false, stableKey: 'verified-jpeg', originalSha256: await hashOriginalBytes(bytes) };
   let readCount = 0;
   const result = await loadVerifiedRasterOriginalForExport(frame, {
     ensureOriginal: async (key, priority) => {
@@ -437,4 +438,14 @@ test('native Original refuses preview-only RAW, missing files and incorrect file
     provide(new Blob(['not a JPEG'], { type: 'image/jpeg' }))), /not a valid JPEG/);
   await assert.rejects(loadVerifiedRasterOriginalForExport({ ...frame, filename: 'photo.png' },
     provide(new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: 'image/png' }))), /not a valid PNG/);
+});
+
+test('native Original rejects a same-format replacement of identical byte length and an unfingerprinted original', async () => {
+  const header = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+  const original = new Blob([header, 'first']);
+  const replacement = new Blob([header, 'other']);
+  const frame = { ...createDemoShootState(1).frames[0], filename: 'bird.PNG', isDemo: false, originalSha256: await hashOriginalBytes(original) };
+  assert.equal(original.size, replacement.size);
+  await assert.rejects(loadVerifiedRasterOriginalForExport(frame, { ensureOriginal: async () => replacement }), /differs from the imported bird.PNG/);
+  await assert.rejects(loadVerifiedRasterOriginalForExport({ ...frame, originalSha256: undefined }, { ensureOriginal: async () => original }), /Import bird.PNG again/);
 });

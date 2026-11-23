@@ -1,11 +1,12 @@
 import { applyFormats } from './formatOps';
+import { fullResolutionRasterFormat } from '../../core/rawFormats';
 import { isFormatSplit, formatSplitOffset } from './formatSplitOps';
 import type { ExportFormat } from '../../core/exportFormats';
 import { readCrops, DEFAULT_CROP } from './cropOps';
 import { framedSize, DEFAULT_FRAMING, type PhotoFraming } from '../../core/photoFraming';
 import type { CropTransform, ExportRequest, SizePreset } from '../ui/contract';
 
-export interface ExportFrameInfo { id: string; filename: string; removedAt?: number; sizeCrops?: unknown; formats?: unknown; formatSplits?: unknown; splitFrames?: unknown; splitPanOffset?: unknown; exif?: { width?: number; height?: number }; framing?: PhotoFraming }
+export interface ExportFrameInfo { id: string; filename: string; isDemo?: boolean; removedAt?: number; sizeCrops?: unknown; formats?: unknown; formatSplits?: unknown; splitFrames?: unknown; splitPanOffset?: unknown; exif?: { width?: number; height?: number }; framing?: PhotoFraming }
 /** 'edited' is the photo with its recipe (and overlay if asked). 'unedited' is the same framing with no edit at all, developed to JPEG: it is not the original file. */
 export type ExportVariant = 'edited' | 'unedited';
 export interface ExportJob { frameId: string; format: ExportFormat; size: { width: number; height: number }; crop: CropTransform; variants: ExportVariant[]; /** One source image spread over two adjoining output canvases. */ sections?: 2 }
@@ -53,7 +54,11 @@ export function planExport(request: ExportRequest, frames: readonly ExportFrameI
   if (new Set(chosen.map((frame) => frame.id)).size !== chosen.length) {
     return { error: 'Two selected photos have the same identity. Resolve the duplicate before exporting.' };
   }
-  const allSizes = chosen.flatMap((frame) => applyFormats(sizes, frame.formats, importedDimensions(frame)));
+  // Original JPEG/PNG jobs can resolve their dimensions from verified pixels at render time.
+  const pendingRasterSize = { width: 1, height: 1 };
+  const sizesFor = (frame: ExportFrameInfo) => applyFormats(sizes, frame.formats, importedDimensions(frame) ??
+    (!frame.isDemo && fullResolutionRasterFormat(frame.filename) ? pendingRasterSize : null));
+  const allSizes = chosen.flatMap(sizesFor);
   const picked = [...new Map(allSizes.filter((size) => size.kind === 'photo' && request.sizeIds.includes(size.id)).map((size) => [size.id, size])).values()];
   if (variants.length && !picked.length) return { error: 'Choose at least one size to export.' };
 
@@ -67,7 +72,7 @@ export function planExport(request: ExportRequest, frames: readonly ExportFrameI
   for (const frame of variants.length ? chosen : []) {
     const crops = readCrops(frame.sizeCrops);
     // A photo exports the formats it has: its own custom formats exist only on it, and one it has switched off is skipped.
-    const own = new Map(applyFormats(sizes, frame.formats).map((size) => [size.id, size]));
+    const own = new Map(sizesFor(frame).map((size) => [size.id, size]));
     for (const selected of picked) {
       // Identical format IDs may be saved with different dimensions on each photo.
       // Resolve from this photo, never use the last matching size from another frame.

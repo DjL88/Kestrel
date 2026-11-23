@@ -158,7 +158,7 @@ export default function SettingsDialog({
                       }`}
                     >
                       <BrandIcon name="clock" size={18} />
-                      <span className="text-xs font-semibold">Auto</span>
+                      <span className="text-xs font-semibold">{STRINGS.settings.appearance.auto}</span>
                     </button>
                     <button
                       type="button"

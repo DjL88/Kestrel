@@ -62,7 +62,7 @@ test('canvas frame only blocks touch scrolling while a photo pinch/pan gesture c
   const studio = await importPhoto(page);
   const frame = studio.getByTestId('canvas-frame');
   await expect(frame).toHaveCSS('touch-action', 'none');
-  await studio.getByRole('button', { name: 'Compare before & after' }).tap();
+  await studio.getByRole('main').getByRole('button', { name: 'Compare', exact: true }).tap();
   await expect(frame).toHaveCSS('touch-action', 'auto');
 });
 
@@ -167,11 +167,14 @@ test('swipe on the photo: left or right steps through photos, up or down through
   await expect.poll(selectedName).toBe(1);
   await flick(-100, 90);
   await expect.poll(selectedName).toBe(1);
-  // Up and down change the format, not the photo.
+  // Only Original is enabled on import. Add a second format to this photo before cycling sizes.
+  await studio.getByRole('navigation', { name: 'Mobile studio tools' }).getByRole('button', { name: 'Formats', exact: true }).tap();
+  await studio.getByRole('button', { name: 'Include Instagram Portrait', exact: true }).tap();
+  await studio.getByRole('button', { name: 'Close mobile drawer', exact: true }).tap();
   const label = async () => ((await studio.getByTestId('canvas-frame').locator('xpath=../../div[1]/span[1]').textContent()) ?? '').trim();
   const before = await label();
   await flick(0, -110);
-  await expect.poll(label).not.toBe(before);
+  await expect.poll(label).toBe('Instagram Portrait');
   await expect.poll(selectedName).toBe(1);
   await flick(0, 110);
   await expect.poll(label).toBe(before);
