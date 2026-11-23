@@ -104,7 +104,7 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ] as const;
 
-const SEASON_CONTEXT = /\\b(?:in|from|during|throughout)\\s+(?:the\\s+)?(spring|summer|autumn|fall|winter)(?:\\s+(?:of\\s+)?((?:19|20)\\d{2}))?\\b/i;
+const SEASON_CONTEXT = /\b(?:in|from|during|throughout)\s+(?:the\s+)?(spring|summer|autumn|fall|winter)(?:\s+(?:of\s+)?((?:19|20)\d{2}))?\b/i;
 const SEASON_MONTHS: Record<Season, readonly number[]> = { spring: [3, 4, 5], summer: [6, 7, 8], autumn: [9, 10, 11], winter: [12, 1, 2] };
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 
