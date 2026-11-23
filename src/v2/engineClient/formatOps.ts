@@ -7,7 +7,7 @@ import type { SizePreset } from '../ui/contract';
  * can come from an older build or a damaged file.
  */
 export interface CustomFormat { id: string; label: string; width: number; height: number }
-export interface FormatSet { disabled: string[]; custom: CustomFormat[]; /** Explicit opt-in for built-ins disabled by default. */ enabled?: string[]; /** Optional canvas-size override; does NOT alter the source image. */ originalSize?: { width: number; height: number } }
+export interface FormatSet { disabled: string[]; custom: CustomFormat[]; /** Explicit opt-in for built-ins disabled by default. */ enabled?: string[]; /** Legacy output-size override, retained only for reading old project metadata; never applied to Original. */ originalSize?: { width: number; height: number } }
 
 export const EMPTY_FORMATS: FormatSet = { disabled: [], custom: [] };
 export const MAX_CUSTOM_FORMATS = 24;
@@ -51,15 +51,15 @@ export function ratioLabelFor(width: number, height: number): string {
 /**
  * The historical 'orig-3x2' identifier remains for saved crop/board data.
  * It now means Original, NOT a mandatory 3:2 crop. The size is taken from the
- * imported file's known dimensions unless the photographer explicitly changes
- * this export canvas. No metadata = no invented 3000×2000 original.
+ * imported file's known dimensions, never a saved output override.
+ * No metadata = no invented 3000×2000 original.
  */
 export const ORIGINAL_FORMAT_ID = 'orig-3x2';
 export const THREE_TWO_FORMAT_ID = 'format-3x2';
 
-export function setOriginalOutputSize(raw: unknown, width: number, height: number): FormatSet | undefined {
-  if (!validCustomSize(width, height)) return undefined;
-  return { ...readFormats(raw), originalSize: { width, height } };
+/** Original cannot be resized. Add a separate custom format for another output size. */
+export function setOriginalOutputSize(_raw: unknown, _width: number, _height: number): FormatSet | undefined {
+  return undefined;
 }
 
 export function resetOriginalOutputSize(raw: unknown): FormatSet {
@@ -73,7 +73,8 @@ export function applyFormats(
   nativeSize?: { width: number; height: number } | null,
 ): SizePreset[] {
   const formats = readFormats(raw);
-  const original = formats.originalSize ?? (nativeSize && validCustomSize(nativeSize.width, nativeSize.height) ? nativeSize : null);
+  // A legacy originalSize is deliberately ignored: Original always represents imported pixels.
+  const original = nativeSize && validCustomSize(nativeSize.width, nativeSize.height) ? nativeSize : null;
   const base = defaults.map((size) => ({
     ...size,
     ...(size.id === ORIGINAL_FORMAT_ID ? {
