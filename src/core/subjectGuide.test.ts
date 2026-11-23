@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { GUIDED_GRID_MAX, GUIDED_GRID_MIN, GUIDE_MIN_SIDE, guideRegion, guidedGridSize } from './subjectGuide';
+import { GUIDED_GRID_MAX, GUIDED_GRID_MIN, GUIDE_MIN_SIDE, guideRegion, guidedGridSize, maskAgreesWithDetection } from './subjectGuide';
 
 const W = 2400, H = 1600;
 
@@ -49,4 +49,18 @@ test('the guided grid is finer for small subjects and never beyond the cap', () 
   const portrait = guidedGridSize(1.5, { x: 0, y: 0, w: 0.1, h: 0.1 });
   assert.ok(portrait.h > portrait.w, 'a portrait photo (height / width above 1) has its long side down the grid');
   assert.ok(small.w > small.h, 'a landscape photo has its long side across the grid');
+});
+
+test('segmentation must corroborate the detection before the guided crop is used', () => {
+  const crop = { x: 300, y: 120, w: 80, h: 40 };
+  const detection = { x: 330, y: 135, w: 20, h: 10 };
+  const mask = (...cells: Array<[number, number]>) => {
+    const map = new Float32Array(64);
+    for (const [x, y] of cells) map[y * 8 + x] = 0.95;
+    return map;
+  };
+  assert.equal(maskAgreesWithDetection(mask([3, 3], [4, 3], [4, 4], [5, 4]), 8, crop, detection), true, 'keeps a wing beyond the box');
+  assert.equal(maskAgreesWithDetection(mask([6, 2], [6, 3], [7, 3]), 8, crop, detection), false, 'separate object');
+  assert.equal(maskAgreesWithDetection(mask([3, 3], [6, 2], [6, 3], [7, 3]), 8, crop, detection), false, 'incidental overlap');
+  assert.equal(maskAgreesWithDetection(mask(), 8, crop, detection), false, 'empty crop');
 });
