@@ -12,6 +12,7 @@ import type { Photo, Project, TaskInfo, TileState } from '../ui/contract';
 import { createDefaultSizes, createEditGroups } from '../ui/stub';
 import { editToRecipe } from './recipeMap';
 import { readOverlay } from './overlayOps';
+import { readEditGroups } from './editGroupState';
 import { masksToLayers } from './maskOps';
 import { readCrops } from './cropOps';
 import { readBoard } from './boardOps';
@@ -106,9 +107,15 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
   // The UI's sample group carries a made-up look. A real photo starts from its own edit: neutral until the person edits it.
   const board = readBoard(frame.boardPositions);
   const crops = readCrops(frame.sizeCrops);
-  const groups = createEditGroups(false).map((group) => ({
-    ...group, name: 'Edit group 1', recipe: { ...editToRecipe(frame.edit), lookId: frame.appliedLookId ?? 'natural-raw' }, overlay: readOverlay(frame.overlay),
-    splitFrames: readSplitFrames(frame.splitFrames), splitPanOffset: readSplitPanOffset(frame.splitPanOffset),
+  const savedGroups = readEditGroups(frame);
+  const groups = savedGroups.groups.map((saved) => ({
+    ...createEditGroups(false)[0],
+    id: saved.id,
+    name: saved.name,
+    recipe: { ...editToRecipe(saved.edit), lookId: saved.id === savedGroups.activeId ? frame.appliedLookId ?? 'natural-raw' : 'natural-raw' },
+    overlay: readOverlay(frame.overlay),
+    splitFrames: readSplitFrames(frame.splitFrames),
+    splitPanOffset: readSplitPanOffset(frame.splitPanOffset),
   }));
   const thumb = urls?.thumb ?? BLANK_IMAGE;
   return {
@@ -138,7 +145,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
       colourProfile: NOT_RECORDED,
     },
     ...(nativeSize ? { pixelSize: { width: nativeSize.width, height: nativeSize.height } } : exif.width && exif.height ? { pixelSize: { width: exif.width, height: exif.height } } : pixelSize ? { pixelSize } : {}),
-    activeGroupId: groups[0].id,
+    activeGroupId: savedGroups.activeId,
     editGroups: groups,
     sizes: applySizeLinked(applyFormats(createDefaultSizes(), frame.formats, originalFormatSize).map((size) => { const crop = crops[size.id]; const at = board[size.id]; return { ...size, ...(crop ? { crop } : {}), ...(at ? { boardX: at.x, boardY: at.y } : {}) }; }), frame.sizeLinked),
     formatSplits: frame.formatSplits === undefined && frame.splitFrames === true
