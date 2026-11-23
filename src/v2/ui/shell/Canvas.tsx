@@ -597,9 +597,6 @@ export default function Canvas({
     const overlay = group.overlay;
     return (
       <div className="pointer-events-none absolute inset-0 z-20" style={{ containerType: 'inline-size' }} data-testid="overlay-layer">
-        {(size.crop.borderWidth ?? 0) > 0 && (
-          <div aria-hidden="true" data-testid="format-border" className="absolute inset-0" style={{ boxSizing: 'border-box', border: `${size.crop.borderWidth}cqw solid ${size.crop.borderColour ?? '#ffffff'}` }} />
-        )}
         {/* Magnetic snap guide lines while dragging text or watermark */}
         {interactive &&
           activeGuides.map((guide, idx) =>
@@ -784,6 +781,23 @@ export default function Canvas({
         className="h-full w-full object-cover" style={{ ...style, filter }} />
     );
 
+  /** Border claims space WITHIN the output size, without hiding photo pixels.
+   * CSS percentage padding resolves against the frame width on all four sides,
+   * matching the export layout's per-width border geometry. */
+  const inBorderFrame = (size: SizePreset, content: React.ReactNode) => {
+    const rawPercent = Math.max(0, Math.min(10, size.crop.borderWidth ?? 0));
+    const percent = Math.min(rawPercent, (size.height / Math.max(1, size.width)) * 49);
+    return (
+      <div
+        data-testid="image-inside-border"
+        className="absolute inset-0 box-border"
+        style={{ backgroundColor: percent > 0 ? size.crop.borderColour ?? '#ffffff' : undefined, padding: `${percent}%` }}
+      >
+        <div className="h-full w-full overflow-hidden">{content}</div>
+      </div>
+    );
+  };
+
   /** The artboard on screen, in pixels, at Fit. */
   const artboardFrame = (size: SizePreset) => {
     const aspect = size.width / Math.max(1, size.height);
@@ -848,7 +862,7 @@ export default function Canvas({
                 className="relative cursor-grab overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] active:cursor-grabbing"
                 style={{ width: splitFrameW, height: splitFrameH }}
               >
-                <img
+                {inBorderFrame(activeSize, <img
                   src={photo.previewUrl}
                   alt={`${photo.title} — Frame ${paneIdx + 1}`}
                   referrerPolicy="no-referrer"
@@ -858,7 +872,7 @@ export default function Canvas({
                     filter: compareMode ? 'none' : filterCss,
                     transform: `translate(${paneIdx === 0 ? splitOffsetFor(activeSize.id) + activeSize.crop.panX : -50 + splitOffsetFor(activeSize.id) + activeSize.crop.panX}%, ${activeSize.crop.panY}%) rotate(${activeSize.crop.rotateDeg}deg) scale(${(activeSize.crop.flipH ? -1 : 1) * activeSize.crop.zoom}, ${(activeSize.crop.flipV ? -1 : 1) * activeSize.crop.zoom})`,
                   }}
-                />
+                />)}
                 {paneIdx === 1 && renderOverlaysInsideFrame(activeSize, true)}
               </div>
             </div>
@@ -970,14 +984,14 @@ export default function Canvas({
             )}
             <div className={revealing ? 'absolute inset-0 overflow-hidden' : 'contents'}>
             {/* Before / After split comparison or single view */}
-            {compareMode ? (
+            {inBorderFrame(activeSize, compareMode ? (
               <CompareSplit
                 before={renderSurface('original', `${photo.title} original`, { transform: buildImageTransform(activeSize.crop) }, 'none')}
                 after={renderSurface('edited', `${photo.title} edited`, { transform: buildImageTransform(activeSize.crop) }, filterCss)}
               />
             ) : (
               renderSurface(holdingOriginal ? 'original' : 'edited', holdingOriginal ? `${photo.title} original` : photo.title, { transform: buildImageTransform(activeSize.crop), clipPath: cropClip }, holdingOriginal ? 'none' : filterCss)
-            )}
+            ))}
             {holdingOriginal && (
               <span role="status" className="pointer-events-none absolute left-2 top-2 z-30 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[11px] font-semibold text-white">Showing the original. Let go to see your edit.</span>
             )}
@@ -1091,7 +1105,7 @@ export default function Canvas({
                 className="relative overflow-hidden bg-[var(--bg-canvas)] text-left"
                 style={{ width: cardW, height: cardH }}
               >
-                <img
+                {inBorderFrame(size, <img
                   src={photo.previewUrl}
                   alt={`${photo.title} — ${size.label}`}
                   referrerPolicy="no-referrer"
@@ -1103,7 +1117,7 @@ export default function Canvas({
                       ? `translate(${paneIdx === 0 ? splitOffsetFor(size.id) + size.crop.panX : -50 + splitOffsetFor(size.id) + size.crop.panX}%, ${size.crop.panY}%) rotate(${size.crop.rotateDeg}deg) scale(${(size.crop.flipH ? -1 : 1) * size.crop.zoom}, ${(size.crop.flipV ? -1 : 1) * size.crop.zoom})`
                       : buildImageTransform(size.crop),
                   }}
-                />
+                />)}
                 {paneIdx === panes.length - 1 && renderOverlaysInsideFrame(size, false)}
                 {size.kind === 'video' && (
                   <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-[var(--bg-scrim)] px-1.5 py-0.5 text-[10px] font-medium text-white">
