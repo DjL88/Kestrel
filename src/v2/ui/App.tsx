@@ -571,7 +571,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
           {/* Mobile tool bar (<= 767px): four large targets, like Lightroom; everything else lives in More. */}
           {isMobile && (
             <nav
-              aria-label="Mobile studio tools"
+              aria-label={STRINGS.mobile.toolBar}
               className="flex min-h-16 shrink-0 items-stretch justify-around border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1 pb-[env(safe-area-inset-bottom)]"
             >
               {(
@@ -612,7 +612,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" />
                 </svg>
-                <span>More</span>
+                <span>{STRINGS.mobile.more}</span>
               </button>
             </nav>
           )}
@@ -620,7 +620,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
           {isMobile && moreOpen && (
             <div
               role="dialog"
-              aria-label="More tools"
+              aria-label={STRINGS.mobile.moreTools}
               className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 grid grid-cols-3 gap-2 rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-panel)]"
             >
               {(
@@ -671,7 +671,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                 </h2>
                 <button
                   type="button"
-                  aria-label="Close mobile drawer"
+                  aria-label={STRINGS.mobile.closeDrawer}
                   onClick={() => actions.setActivePanel(null)}
                   className="inline-flex h-11 w-11 items-center justify-center rounded text-[var(--text-muted)]"
                 >
