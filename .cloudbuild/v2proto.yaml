@@ -8,7 +8,7 @@ substitutions:
 steps:
   - name: node:22
     entrypoint: sh
-    args: ['-c', 'npm ci --include=optional && npm run lint && npm test && npm run build']
+    args: ['-c', 'npm ci --include=optional && npm run lint && npm test && node --test services/v2proto/server.test.mjs && npm run build']
   - name: gcr.io/cloud-builders/docker
     args: ['build', '-f', 'services/v2proto/Dockerfile', '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/v2proto:$SHORT_SHA', '.']
   - name: gcr.io/cloud-builders/docker
