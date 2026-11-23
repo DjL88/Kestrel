@@ -412,7 +412,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const plan = planExport(request, current.frames, createDefaultSizes());
     if ('error' in plan) { setNotice(plan.error); return; }
     const controller = new AbortController();
-    const task = tasks.start(`Exporting ${plan.summary}`, { total: plan.jobs.reduce((sum, job) => sum + job.variants.length, 0) + plan.originals.length, cancel: () => controller.abort() });
+    const task = tasks.start(`Exporting ${plan.summary}`, { total: plan.jobs.reduce((sum, job) => sum + job.variants.length * (job.sections ?? 1), 0) + plan.originals.length, cancel: () => controller.abort() });
     const output: File[] = [];
     const used = new Set<string>();
     let cappedCount = 0;
@@ -448,12 +448,15 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           // The unedited copy has no recipe and no overlay: the same framing, developed, and plainly labelled in its name.
           const unedited = variant === 'unedited';
           const overlayDraw = unedited ? null : await buildOverlayDraw(frame, request, env);
-          const { file: rendered, capped } = await renderV2Export(image, unedited ? { ...frame, edit: DEFAULT_EDIT } : frame, outputSize, job.crop, toProfile(outputFormat), overlayDraw, started, controller.signal);
-          if (capped) cappedCount += 1;
-          const base = unedited ? rendered.name.replace(/(\.[^.]+)?$/, '-unedited$1') : rendered.name;
-          const name = uniqueExportFilename(base, used);
-          output.push(name === rendered.name ? rendered : new File([rendered], name, { type: rendered.type, lastModified: rendered.lastModified }));
-          task.progress(output.length);
+          const result = await renderV2Export(image, unedited ? { ...frame, edit: DEFAULT_EDIT } : frame, outputSize, job.crop, toProfile(outputFormat), overlayDraw, started, controller.signal, job.sections ?? 1);
+          const renderedFiles = result.sections ?? [result.file];
+          if (result.capped) cappedCount += renderedFiles.length;
+          for (const rendered of renderedFiles) {
+            const base = unedited ? rendered.name.replace(/(\.[^.]+)?$/, '-unedited$1') : rendered.name;
+            const name = uniqueExportFilename(base, used);
+            output.push(name === rendered.name ? rendered : new File([rendered], name, { type: rendered.type, lastModified: rendered.lastModified }));
+            task.progress(output.length);
+          }
         }
       }
       // Exact original files: the bytes as shot, never a developed or preview file. A photo whose original is not connected is

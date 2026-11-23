@@ -51,3 +51,37 @@ test('cover remains explicit and does not use background bars', () => {
   assert.deepEqual(out.photo, out.output);
   assert.deepEqual(out.bands, []);
 });
+
+test('inside solid border reserves a photo viewport instead of overlaying source pixels', () => {
+  const layout = planBorderFrame(1080, 1350, 4000, 3000, { borderPercent: 5, fit: 'cover' });
+  assert.deepEqual(layout.output, { x: 0, y: 0, width: 1080, height: 1350 });
+  assert.deepEqual(layout.inner, { x: 54, y: 54, width: 972, height: 1242 });
+  assert.deepEqual(layout.photo, layout.inner);
+  assert.equal(layout.bands.length, 4);
+  // No output pixel is outside the constant 1080 × 1350 format.
+  assert.ok(layout.bands.every((rect) => rect.x >= 0 && rect.y >= 0 &&
+    rect.x + rect.width <= layout.output.width && rect.y + rect.height <= layout.output.height));
+});
+
+test('a zero-width border preserves the full photo viewport for ordinary export', () => {
+  const layout = planBorderFrame(2160, 1350, 6000, 4000, { borderPercent: 0, fit: 'cover' });
+  assert.deepEqual(layout.inner, layout.output);
+  assert.equal(layout.bands.length, 0);
+});
+
+test('two split panel interiors sample adjacent pixels without duplicated content at a seam', () => {
+  const one = planBorderFrame(1080, 1350, 4000, 3000, { borderPercent: 5, fit: 'cover' });
+  const fullInnerWidth = one.inner.width * 2;
+  const samples = [0, 1].map((index) => ({
+    sourceX: index * one.inner.width,
+    destinationX: index * 1080 + one.inner.x,
+    width: one.inner.width,
+    y: one.inner.y,
+  }));
+  assert.deepEqual(samples, [
+    { sourceX: 0, destinationX: 54, width: 972, y: 54 },
+    { sourceX: 972, destinationX: 1134, width: 972, y: 54 },
+  ]);
+  assert.equal(samples[1].sourceX, samples[0].sourceX + samples[0].width);
+  assert.equal(samples[1].sourceX + samples[1].width, fullInnerWidth);
+});

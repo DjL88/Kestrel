@@ -82,6 +82,21 @@ gcloud builds triggers run inflight-v2proto-main --branch=main --region=global
 
 **Approval setting:** `--require-approval` is deliberate initially. Once successful automatic releases are validated, recreate/update the trigger without approval if you want every main merge to appear automatically. Do not disable the guard until a reviewer has checked the generated image and the authenticated/anonymous tests.
 
+## Enable account and cloud access inside V2Proto
+
+The owner sign-in at the private gateway opens the workspace. InFlight's Settings → Account uses its own Firebase sign-in and signed Pro grant. To enable these in the private build, set these public substitutions on the staging Cloud Build trigger and run the usual reviewed build.
+
+| Cloud Build substitution | Value |
+| --- | --- |
+| `_REQUIRE_ONLINE_CONFIG` | `true` for the staging build that exercises accounts and cloud jobs |
+| `_FIREBASE_API_KEY`, `_FIREBASE_AUTH_DOMAIN`, `_FIREBASE_PROJECT_ID`, `_FIREBASE_APP_ID` | SDK configuration for the authorised Firebase web app |
+| `_CONTROL_PLANE_URL` | Staging control plane HTTPS URL |
+| `_GRANT_KEYS` | Staging control plane's pinned Ed25519 **public** grant key in `keyId=base64` form |
+
+Set the staging control plane's `firebase_project_id` to the same Firebase Auth project and add the Hosting domain to that project's authorised domains. Use the setup and grant verification steps in [Kestrel hosting on Google Cloud](../infra/gcp/README.md). Keep signing secrets and the gateway owner allow-list in Secret Manager.
+
+An online-required build stops if the settings are missing or the control-plane URL or grant pin is invalid. The default substitutions still allow offline builds. For staging acceptance, sign in through Settings → Account with a verified test identity that has a staging Pro grant, then run a cloud action on a synthetic image and check the Cloud Run execution and cleanup.
+
 ## Connect the existing Firebase Hosting URL (once)
 
 Only after Cloud Run service is healthy and serving its own private sign-in page:

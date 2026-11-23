@@ -9,6 +9,8 @@ import type { PhotoFrame } from '../../core/types';
 import type { CropTransform, OverlaySettings } from '../ui/contract';
 import { effectiveOutputSize } from '../ui/utils/studioMath';
 import { anchoredBox, cropPlacement, referenceScale, watermarkBox } from './exportLayout';
+import { planBorderFrame } from './borderFrameLayout';
+import { cappedContinuousLayout, continuousExportLayout, numberedSectionFilename } from './continuousExport';
 
 /** Everything the overlay needs, resolved by the caller from the same description the canvas draws. */
 export interface OverlayDraw {
@@ -22,19 +24,29 @@ export interface OverlayDraw {
   contrast: 'light-on-dark' | 'dark-on-light';
 }
 
-export interface V2RenderResult { file: File; width: number; height: number; capped: boolean }
+export interface V2RenderResult { file: File; width: number; height: number; capped: boolean; /** Files in left-to-right order when exporting a continuous split. */ sections?: File[] }
 
 const LINE = 1.375; // Tailwind `leading-snug`, as the canvas uses.
 
 function draw(canvas: HTMLCanvasElement, picture: HTMLCanvasElement, crop: CropTransform) {
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Canvas unavailable');
-  const place = cropPlacement(canvas.width, canvas.height, { width: picture.width, height: picture.height }, crop);
+  // Keep the chosen output size constant. The border occupies its OWN area,
+  // and the photograph's crop/pan/flip/rotate is applied inside the smaller viewport.
+  const border = crop.borderWidth ?? 0;
+  const geometry = planBorderFrame(canvas.width, canvas.height, picture.width, picture.height,
+    { borderPercent: border, fit: 'cover' });
+  if (border > 0) {
+    context.fillStyle = crop.borderColour ?? '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  const inner = geometry.inner;
+  const place = cropPlacement(inner.width, inner.height, { width: picture.width, height: picture.height }, crop);
   context.save();
   context.beginPath();
-  context.rect(place.clip.x, place.clip.y, place.clip.width, place.clip.height);
+  context.rect(inner.x + place.clip.x, inner.y + place.clip.y, place.clip.width, place.clip.height);
   context.clip();
-  context.translate(canvas.width / 2 + place.translateX, canvas.height / 2 + place.translateY);
+  context.translate(inner.x + inner.width / 2 + place.translateX, inner.y + inner.height / 2 + place.translateY);
   context.rotate(place.rotateRad);
   context.scale(place.scaleX, place.scaleY);
   context.imageSmoothingQuality = 'high';
@@ -42,21 +54,36 @@ function draw(canvas: HTMLCanvasElement, picture: HTMLCanvasElement, crop: CropT
   context.restore();
 }
 
-/** The format's border: a band of the chosen colour just inside the edge, as a share of the width, the same rule the canvas uses. */
-export function drawBorder(canvas: HTMLCanvasElement, crop: CropTransform) {
-  const percent = crop.borderWidth ?? 0;
-  if (!(percent > 0)) return;
-  const context = canvas.getContext('2d');
-  if (!context) return;
-  const t = Math.min(Math.round(canvas.width * percent / 100), Math.floor(Math.min(canvas.width, canvas.height) / 2));
-  if (t < 1) return;
-  context.save();
-  context.fillStyle = crop.borderColour ?? '#ffffff';
-  context.fillRect(0, 0, canvas.width, t);
-  context.fillRect(0, canvas.height - t, canvas.width, t);
-  context.fillRect(0, t, t, canvas.height - 2 * t);
-  context.fillRect(canvas.width - t, t, t, canvas.height - 2 * t);
-  context.restore();
+/** Each split output is a complete frame with its own non-occluding border.
+ * First render ONE uninterrupted photograph across the two INNER viewports;
+ * then distribute adjacent halves into the reserved image areas. The border
+ * never obscures pixels and no photo is developed twice at the seam. */
+function drawContinuousInsideBorders(output: HTMLCanvasElement, picture: HTMLCanvasElement, crop: CropTransform, sectionCount: 1 | 2) {
+  if (sectionCount === 1 || !(crop.borderWidth && crop.borderWidth > 0)) {
+    draw(output, picture, crop);
+    return;
+  }
+  const sectionWidth = output.width / sectionCount;
+  const geometry = planBorderFrame(sectionWidth, output.height, picture.width, picture.height,
+    { borderPercent: crop.borderWidth, fit: 'cover' });
+  const { inner } = geometry;
+  const joined = document.createElement('canvas');
+  try {
+    joined.width = inner.width * sectionCount;
+    joined.height = inner.height;
+    draw(joined, picture, { ...crop, borderWidth: 0 });
+    const context = output.getContext('2d');
+    if (!context) throw new Error('Continuous border canvas is unavailable');
+    context.fillStyle = crop.borderColour ?? '#ffffff';
+    context.fillRect(0, 0, output.width, output.height);
+    for (let i = 0; i < sectionCount; i += 1) {
+      context.drawImage(joined, i * inner.width, 0, inner.width, inner.height,
+        i * sectionWidth + inner.x, inner.y, inner.width, inner.height);
+    }
+  } finally {
+    joined.width = 0;
+    joined.height = 0;
+  }
 }
 
 function setSpacing(context: CanvasRenderingContext2D, px: number) {
@@ -164,17 +191,20 @@ function drawMark(canvas: HTMLCanvasElement, input: OverlayDraw) {
  */
 export async function renderV2Export(
   source: HTMLImageElement, frame: PhotoFrame, size: { width: number; height: number }, crop: CropTransform,
-  profile: ExportProfile, overlay: OverlayDraw | null, date: Date, signal?: AbortSignal,
+  profile: ExportProfile, overlay: OverlayDraw | null, date: Date, signal?: AbortSignal, sectionCount: 1 | 2 = 1,
 ): Promise<V2RenderResult> {
   signal?.throwIfAborted();
   if (!(source.naturalWidth > 0) || !(source.naturalHeight > 0)) throw new Error(`Cannot export ${frame.filename}: the decoded source has invalid pixel dimensions. Reconnect or redevelop the original.`);
   const framing = frame.framing ?? DEFAULT_FRAMING;
   const { width: fw, height: fh } = framedSize(source.naturalWidth, source.naturalHeight, framing);
-  const out = effectiveOutputSize({ ...size, crop }, { width: fw, height: fh });
+  const requested = continuousExportLayout(size.width, size.height, sectionCount);
+  const out = effectiveOutputSize({ width: requested.width, height: requested.height, crop }, { width: fw, height: fh });
+  const layout = cappedContinuousLayout(out.width, out.height, sectionCount);
+  const wasCapped = out.capped || layout.width !== requested.width || layout.height !== requested.height;
   const limit = maxCanvasPixels({ userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints });
-  if (out.width * out.height > limit) throw new Error(`This device cannot safely export ${out.width} × ${out.height} px. Choose a smaller size or export on a desktop. No smaller file was substituted.`);
+  if (layout.width * layout.height > limit) throw new Error(`This device cannot safely export ${layout.width} × ${layout.height} px. Choose a smaller size or export on a desktop. No smaller file was substituted.`);
   // Edit only as many pixels as the output can show: the cover fit times the zoom, never above the picture's own size.
-  const needed = Math.max(out.width / fw, out.height / fh) * crop.zoom;
+  const needed = Math.max(layout.width / fw, layout.height / fh) * crop.zoom;
   const scale = Math.min(1, needed, fitScale(fw, fh, limit));
   const picture = document.createElement('canvas');
   const output = document.createElement('canvas');
@@ -182,9 +212,8 @@ export async function renderV2Export(
     drawFramedPhoto(source, picture, framing, { scale });
     await applyCanvasExportEdit(picture, frame.edit ?? DEFAULT_EDIT, signal, Math.max(fw, fh) * scale, { aspect: fh / fw, view: { x: 0, y: 0, w: 1, h: 1 } });
     signal?.throwIfAborted();
-    output.width = out.width; output.height = out.height;
-    draw(output, picture, crop);
-    drawBorder(output, crop);
+    output.width = layout.width; output.height = layout.height;
+    drawContinuousInsideBorders(output, picture, crop, sectionCount);
     if (overlay) {
       await Promise.all(overlay.rows.map((row) => document.fonts?.load(`${row.weight} 16px ${row.family}`).catch(() => [])));
       signal?.throwIfAborted();
@@ -193,10 +222,30 @@ export async function renderV2Export(
     }
     const name = exportFilename(frame.filename, profile, !frame.isDemo && isRawPreviewFile(frame.filename));
     const mimeType = profile.format === 'png' ? 'image/png' : 'image/jpeg';
-    const blob = await new Promise<Blob | null>((resolve) => output.toBlob(resolve, mimeType, profile.format === 'jpeg' ? profile.quality : undefined));
-    signal?.throwIfAborted();
-    if (!blob || blob.type !== mimeType || blob.size === 0) throw new Error(`Could not encode ${name} at ${out.width} × ${out.height} px.`);
-    return { file: datedExport(blob, name, date), width: out.width, height: out.height, capped: out.capped };
+    // Every section is cut from this SAME fully edited canvas. Never develop or
+    // crop the photograph separately for each side of the seam.
+    const sections: File[] = [];
+    for (const section of layout.sections) {
+      signal?.throwIfAborted();
+      const piece = document.createElement('canvas');
+      try {
+        piece.width = section.width; piece.height = section.height;
+        const context = piece.getContext('2d');
+        if (!context) throw new Error('Canvas unavailable for split export.');
+        context.drawImage(output, section.x, 0, section.width, section.height, 0, 0, section.width, section.height);
+        const blob = await new Promise<Blob | null>((resolve) => piece.toBlob(resolve, mimeType, profile.format === 'jpeg' ? profile.quality : undefined));
+        signal?.throwIfAborted();
+        if (!blob || blob.type !== mimeType || blob.size === 0) {
+          throw new Error(`Could not encode split section ${section.index} at ${section.width} × ${section.height} pixels.`);
+        }
+        const sectionName = numberedSectionFilename(name, section.index, sectionCount);
+        sections.push(datedExport(blob, sectionName, date));
+      } finally {
+        piece.width = 0; piece.height = 0;
+      }
+    }
+    return { file: sections[0], width: layout.sectionWidth, height: layout.height, capped: wasCapped,
+      ...(sectionCount === 2 ? { sections } : {}) };
   } finally {
     picture.width = 0; picture.height = 0; output.width = 0; output.height = 0;
   }
