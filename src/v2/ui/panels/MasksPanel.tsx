@@ -1,5 +1,5 @@
 import React from 'react';
-import type { MaskLayer, Photo, WorkspaceStore } from '../contract';
+import type { MaskGeometryField, MaskLayer, Photo, WorkspaceStore } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon, { type BrandIconName } from '../icons/BrandIcon';
 import { MASK_SLIDERS } from '../../engineClient/maskOps';
@@ -13,6 +13,7 @@ interface MasksPanelProps {
   onRemoveMaskLayer: (photoId: string, maskId: string) => void;
   onSetMaskEdit: (photoId: string, maskId: string, key: string, value: number) => void;
   onSetMaskFeather: (photoId: string, maskId: string, percent: number) => void;
+  onSetMaskGeometry: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
 }
 
 export default function MasksPanel({
@@ -24,8 +25,21 @@ export default function MasksPanel({
   onRemoveMaskLayer,
   onSetMaskEdit,
   onSetMaskFeather,
+  onSetMaskGeometry,
 }: MasksPanelProps) {
   const [openId, setOpenId] = React.useState<string | null>(null);
+  const seen = React.useRef<{ photoId: string; ids: string[] } | null>(null);
+  React.useEffect(() => {
+    if (!photo) { seen.current = null; return; }
+    const ids = photo.masks.map(layer => layer.id);
+    if (seen.current?.photoId === photo.id) {
+      const newlyAdded = ids.find(id => !seen.current!.ids.includes(id));
+      if (newlyAdded) setOpenId(newlyAdded);
+    } else {
+      setOpenId(null);
+    }
+    seen.current = { photoId: photo.id, ids };
+  }, [photo?.id, photo?.masks]);
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">Select a photo to manage masks.</p>;
   }
@@ -39,7 +53,8 @@ export default function MasksPanel({
   const manualTools: Array<{ id: WorkspaceStore['activeMaskTool']; label: string; icon: BrandIconName }> = [
     { id: 'brush', label: STRINGS.masks.brush, icon: 'brush' },
     { id: 'eraser', label: STRINGS.masks.eraser, icon: 'eraser' },
-    { id: 'area', label: STRINGS.masks.selectArea, icon: 'select-area' },
+    { id: 'area', label: 'Oval area', icon: 'select-area' },
+    { id: 'gradient', label: 'Gradient', icon: 'mountain' },
   ];
 
   return (
@@ -48,7 +63,7 @@ export default function MasksPanel({
         {STRINGS.masks.subtitle}
       </p>
 
-      <p role="status" className="text-[11px] leading-relaxed text-[var(--text-muted)]">Subject and Background masks work on this device. Sky and manual painting are not connected yet.</p>
+      <p role="status" className="text-[11px] leading-relaxed text-[var(--text-muted)]">Subject, Background, adjustable Oval and Gradient masks use the real editor. Sky detection and brush painting are not connected yet.</p>
 
       {/* Auto-detect mask triggers */}
       <div className="space-y-2">
@@ -87,14 +102,19 @@ export default function MasksPanel({
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">
           {STRINGS.masks.manualToolsHeading}
         </h3>
-        <div className="grid grid-cols-3 gap-1.5">
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
           {manualTools.map((tool) => (
             <button
               key={tool.id}
               type="button"
-              disabled
-              title="Manual mask painting is not connected to the canvas yet"
-              onClick={() => onSetMaskTool(tool.id)}
+              disabled={tool.id === 'brush' || tool.id === 'eraser'}
+              title={tool.id === 'brush' || tool.id === 'eraser'
+                ? 'Painting is not connected to the photograph yet'
+                : 'Add a real adjustable mask. Expand its layer to position and resize it.'}
+              onClick={() => {
+                onSetMaskTool(tool.id);
+                if (tool.id === 'area' || tool.id === 'gradient') onAddMaskLayer(photo.id, tool.id);
+              }}
               className={`disabled:cursor-not-allowed disabled:opacity-50 flex flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] border py-2.5 text-[11px] font-medium transition-colors ${
                 activeMaskTool === tool.id
                   ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
@@ -149,6 +169,42 @@ export default function MasksPanel({
                 </div>
                 {expanded && (
                   <div className="space-y-2 border-t border-[var(--border-subtle)] px-2.5 py-2.5">
+                    {layer.geometry && (() => {
+                      const shape = layer.geometry;
+                      const geometryRows: Array<{ key: MaskGeometryField; label: string; value: number; min: number; max: number; step: number }> = shape.kind === 'radial'
+                        ? [
+                          { key: 'cx', label: 'Centre left / right', value: shape.cx, min: 0, max: 1, step: 0.01 },
+                          { key: 'cy', label: 'Centre up / down', value: shape.cy, min: 0, max: 1, step: 0.01 },
+                          { key: 'rx', label: 'Half width', value: shape.rx, min: 0.01, max: 1, step: 0.01 },
+                          { key: 'ry', label: 'Half height', value: shape.ry, min: 0.01, max: 1, step: 0.01 },
+                          { key: 'angle', label: 'Rotate (degrees)', value: shape.angle, min: -180, max: 180, step: 1 },
+                        ] : [
+                          { key: 'x1', label: 'Start left / right', value: shape.x1, min: 0, max: 1, step: 0.01 },
+                          { key: 'y1', label: 'Start up / down', value: shape.y1, min: 0, max: 1, step: 0.01 },
+                          { key: 'x2', label: 'End left / right', value: shape.x2, min: 0, max: 1, step: 0.01 },
+                          { key: 'y2', label: 'End up / down', value: shape.y2, min: 0, max: 1, step: 0.01 },
+                        ];
+                      return <fieldset className="space-y-2 border-b border-[var(--border-subtle)] pb-3">
+                        <legend className="text-[11px] font-semibold text-[var(--text-primary)]">
+                          {shape.kind === 'radial' ? 'Oval position and size' : 'Gradient direction'}
+                        </legend>
+                        <p className="text-[11px] text-[var(--text-secondary)]">Positions use the whole photograph (0–100%). Oval radii are measured against the photo width. Move an adjustment slider below to see the effect. Every change is undoable.</p>
+                        {geometryRows.map(row => (
+                          <label key={row.key} className="block space-y-1 text-[11px] text-[var(--text-secondary)]">
+                            <span className="flex justify-between gap-2">
+                              <span>{row.label}</span>
+                              <span className="font-mono tabular-nums">{row.key === 'angle' ? `${row.value}°` : `${Math.round(row.value * 100)}%`}</span>
+                            </span>
+                            <input type="range" className="inflight-slider"
+                              data-testid={`v2-mask-geometry-${row.key}`}
+                              aria-label={`${layer.name} ${row.label}`}
+                              min={row.min} max={row.max} step={row.step} value={row.value}
+                              onChange={event => onSetMaskGeometry(photo.id, layer.id, row.key, Number(event.target.value))}
+                            />
+                          </label>
+                        ))}
+                      </fieldset>;
+                    })()}
                     {MASK_SLIDERS.map((slider) => (
                       <label key={slider.key} className="block space-y-1 text-[11px] text-[var(--text-secondary)]">
                         <span className="flex justify-between"><span>{slider.label}</span><span className="font-mono tabular-nums">{(layer.edit[slider.key] ?? 0).toFixed(2)}</span></span>
@@ -176,7 +232,7 @@ export default function MasksPanel({
       </div>
 
       <p className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-2.5 text-[11px] leading-relaxed text-[var(--text-muted)]">
-        Subject and Background are found on this device. Sky, brush and area masks are not available yet.
+        Subject/Background detection and adjustable Oval/Gradient masks work on this device. Automatic Sky detection and Brush/Eraser painting remain unavailable.
       </p>
     </div>
   );

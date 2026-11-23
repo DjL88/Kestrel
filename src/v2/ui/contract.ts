@@ -205,10 +205,19 @@ export interface EditGroup {
   splitPanOffset: number; // -25 to 25 (%)
 }
 
+/** Coordinates in the framed photograph (0–1), shared with the actual mask engine. */
+export type MaskGeometry =
+  | { kind: 'radial'; cx: number; cy: number; rx: number; ry: number; angle: number }
+  | { kind: 'linear'; x1: number; y1: number; x2: number; y2: number };
+
+export type MaskGeometryField = 'cx' | 'cy' | 'rx' | 'ry' | 'angle' | 'x1' | 'y1' | 'x2' | 'y2';
+
 export interface MaskLayer {
   id: string;
   name: string;
-  type: 'subject' | 'sky' | 'background' | 'brush' | 'area';
+  type: 'subject' | 'sky' | 'background' | 'brush' | 'area' | 'gradient';
+  /** Present only for genuine editable oval/gradient masks; never fabricated for detected subjects. */
+  geometry?: MaskGeometry;
   visible: boolean;
   /** Edge softness, 0 to 100. */
   feather: number;
@@ -450,7 +459,7 @@ export interface WorkspaceStore {
   removedOpen: boolean;
   settingsOpen: boolean;
   settingsTab: SettingsTabId;
-  activeMaskTool: 'subject' | 'sky' | 'background' | 'brush' | 'eraser' | 'area';
+  activeMaskTool: 'subject' | 'sky' | 'background' | 'brush' | 'eraser' | 'area' | 'gradient';
   canUndo: boolean;
   canRedo: boolean;
   clipboardRecipe: EditRecipe | null;
@@ -563,13 +572,14 @@ export interface WorkspaceActions {
   /** True when a font of this name is installed on this device. */
   hasDeviceFont: (fontName: string) => boolean;
 
-  // Masks (placeholder engine hook)
+  // Genuine non-destructive masks; brush painting still requires canvas coordinate integration.
   setActiveMaskTool: (tool: WorkspaceStore['activeMaskTool']) => void;
   addMaskLayer: (photoId: string, type: MaskLayer['type']) => void;
   toggleMaskLayer: (photoId: string, maskId: string) => void;
   removeMaskLayer: (photoId: string, maskId: string) => void;
   setMaskEdit: (photoId: string, maskId: string, key: string, value: number) => void;
   setMaskFeather: (photoId: string, maskId: string, percent: number) => void;
+  setMaskGeometry: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
 
   // Tasks & Export
   cancelTask: (taskId: string) => void;

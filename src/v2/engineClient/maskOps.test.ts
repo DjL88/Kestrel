@@ -1,14 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createMask, createSubjectMask, MAX_MASKS, validMasks, hasActiveMasks, type Mask } from '../../core/maskTypes.ts';
-import { canAddMask, masksToLayers, removeMask, setMaskEdit, setMaskFeather, toggleMask } from './maskOps.ts';
+import { canAddMask, masksToLayers, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, toggleMask } from './maskOps.ts';
+import { applyMasks, fullContext, maskAlpha } from '../../core/masks.ts';
+import { recordEdit, stepEdit } from '../../core/editHistory.ts';
+import type { PhotoFrame } from '../../core/types.ts';
 
 const grid = { w: 1, h: 1, data: 'AA==' };
 const subject = (id: string, invert = false): Mask => ({ ...createSubjectMask(id, grid, 'k', 'high'), invert });
 
 test('layers are read from the masks: a subject, its inverse as the background, and shapes as areas', () => {
   const layers = masksToLayers([subject('a'), subject('b', true), createMask('linear', 'c'), createMask('brush', 'd')]);
-  assert.deepEqual(layers.map((layer) => [layer.name, layer.type]), [['Subject', 'subject'], ['Background', 'background'], ['Gradient', 'area'], ['Brush mask', 'brush']]);
+  assert.deepEqual(layers.map((layer) => [layer.name, layer.type]), [['Subject', 'subject'], ['Background', 'background'], ['Gradient', 'gradient'], ['Brush mask', 'brush']]);
   assert.equal(masksToLayers(undefined).length, 0);
 });
 
@@ -47,4 +50,64 @@ test('removing a mask drops a limit that pointed at it, and everything stays a v
 test('the number of masks is limited', () => {
   assert.equal(canAddMask(Array.from({ length: MAX_MASKS }, (_, i) => subject(String(i)))), false);
   assert.equal(canAddMask([]), true);
+});
+
+test('manual oval and gradient shapes expose their real saved geometry in the UI', () => {
+  const oval = createMask('radial', 'oval');
+  const gradient = createMask('linear', 'gradient');
+  const layers = masksToLayers([oval, gradient]);
+  assert.equal(layers[0].type, 'area');
+  assert.deepEqual(layers[0].geometry, { kind: 'radial', cx: 0.5, cy: 0.5, rx: 0.25, ry: 0.18, angle: 0 });
+  assert.equal(layers[1].type, 'gradient');
+  assert.deepEqual(layers[1].geometry, { kind: 'linear', x1: 0.5, y1: 0.12, x2: 0.5, y2: 0.55 });
+  assert.ok(validMasks([oval, gradient]));
+});
+
+test('geometry sliders are bounded, mask-specific and always persist as a valid mask', () => {
+  let masks = [createMask('radial', 'oval'), createMask('linear', 'gradient')];
+  masks = setMaskGeometry(masks, 'oval', 'cx', 2);
+  masks = setMaskGeometry(masks, 'oval', 'ry', 0);
+  masks = setMaskGeometry(masks, 'oval', 'angle', 333);
+  masks = setMaskGeometry(masks, 'gradient', 'x2', -1);
+  assert.equal(masks[0].kind, 'radial');
+  if (masks[0].kind === 'radial') {
+    assert.equal(masks[0].cx, 1);
+    assert.equal(masks[0].ry, 0.01);
+    assert.equal(masks[0].angle, 180);
+  }
+  if (masks[1].kind === 'linear') assert.equal(masks[1].x2, 0);
+  assert.deepEqual(setMaskGeometry(masks, 'oval', 'x1', 0.4), masks, 'do not change oval with gradient-only field');
+  assert.deepEqual(setMaskGeometry(masks, 'gradient', 'cx', 0.4), masks, 'do not change gradient with oval-only field');
+  assert.deepEqual(setMaskGeometry(masks, 'oval', 'cx', NaN), masks, 'refuse NaN');
+  assert.ok(validMasks(masks), 'no invalid values can enter the catalogue');
+});
+
+test('manual oval adjustments change genuine rendered pixels and undo after JSON save/reopen', () => {
+  let masks = setMaskEdit([createMask('radial', 'area')], 'area', 'exposure', 1);
+  masks = setMaskGeometry(masks, 'area', 'cx', 0.35);
+  masks = setMaskGeometry(masks, 'area', 'cy', 0.45);
+  const alpha = maskAlpha(masks[0], 32, 32, fullContext(32, 32));
+  assert.ok(alpha[14 * 32 + 11] > alpha[31 * 32 + 31], 'reposition changes mask alpha');
+  const pixels = new Uint8ClampedArray(32 * 32 * 4);
+  for (let i = 0; i < pixels.length; i += 4) { pixels[i] = pixels[i + 1] = pixels[i + 2] = 70; pixels[i + 3] = 255; }
+  const before = new Uint8ClampedArray(pixels);
+  applyMasks(pixels, 32, 32, masks, fullContext(32, 32));
+  assert.ok(pixels[(14 * 32 + 11) * 4] > before[(14 * 32 + 11) * 4], 'real pixel engine applies the adjustment');
+  assert.equal(pixels[(31 * 32 + 31) * 4], before[(31 * 32 + 31) * 4], 'outside the oval stays unchanged');
+  const frame = { id: 'photo', originalSha256: 'a'.repeat(64) } as PhotoFrame;
+  const edited = recordEdit(frame, { edit: { exposure: 0, warmth: 0, colour: 0, masks } }, 1000);
+  const reopened = JSON.parse(JSON.stringify(edited)) as PhotoFrame;
+  const undone = stepEdit(reopened, -1);
+  assert.equal(undone.edit, undefined);
+  assert.equal(undone.originalSha256, frame.originalSha256);
+  assert.ok(validMasks(stepEdit(undone, 1).edit?.masks));
+});
+
+test('manual gradient has true directional alpha rather than an inert UI-only label', () => {
+  const gradient = createMask('linear', 'g');
+  const alpha = maskAlpha(gradient, 20, 20, fullContext(20, 20));
+  assert.notEqual(alpha[1 * 20 + 10], alpha[18 * 20 + 10]);
+  const changed = setMaskGeometry([gradient], 'g', 'y2', 0.9);
+  assert.ok(validMasks(changed));
+  assert.notDeepEqual(changed, [gradient]);
 });

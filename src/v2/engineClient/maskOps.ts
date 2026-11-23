@@ -1,5 +1,5 @@
 import { LOCAL_KEYS, MAX_MASKS, type LocalKey, type Mask } from '../../core/maskTypes';
-import type { MaskLayer } from '../ui/contract';
+import type { MaskGeometryField, MaskLayer } from '../ui/contract';
 
 /** The sliders a mask offers in V2. Each is a real local control; the range is the core's own (-2 to 2, sharpen from 0). */
 export const MASK_SLIDERS = [
@@ -11,7 +11,7 @@ export const MASK_SLIDERS = [
   { key: 'sharpen', label: 'Sharpen', min: 0, max: 2, step: 0.05 },
 ] as const satisfies readonly { key: LocalKey; label: string; min: number; max: number; step: number }[];
 
-const layerType = (mask: Mask): MaskLayer['type'] => (mask.kind === 'subject' ? (mask.invert ? 'background' : 'subject') : mask.kind === 'brush' ? 'brush' : 'area');
+const layerType = (mask: Mask): MaskLayer['type'] => (mask.kind === 'subject' ? (mask.invert ? 'background' : 'subject') : mask.kind === 'brush' ? 'brush' : mask.kind === 'linear' ? 'gradient' : 'area');
 const layerName = (mask: Mask): string => (mask.kind === 'subject' ? (mask.invert ? 'Background' : 'Subject') : mask.kind === 'brush' ? 'Brush mask' : mask.kind === 'linear' ? 'Gradient' : 'Round area');
 
 /** The masks stored on a photo, as the layers the interface lists. Nothing is invented: names and values come from the masks. */
@@ -19,6 +19,8 @@ export function masksToLayers(masks: readonly Mask[] | undefined): MaskLayer[] {
   return (masks ?? []).map((mask) => ({
     id: mask.id, name: layerName(mask), type: layerType(mask), visible: !mask.hidden,
     feather: Math.round(mask.feather * 100), edit: { ...mask.edit } as Record<string, number>,
+    ...(mask.kind === 'radial' ? { geometry: { kind: 'radial' as const, cx: mask.cx, cy: mask.cy, rx: mask.rx, ry: mask.ry, angle: mask.angle ?? 0 } }
+      : mask.kind === 'linear' ? { geometry: { kind: 'linear' as const, x1: mask.x1, y1: mask.y1, x2: mask.x2, y2: mask.y2 } } : {}),
   }));
 }
 
@@ -46,3 +48,29 @@ export function setMaskEdit(masks: readonly Mask[] | undefined, id: string, key:
 /** Edge softness from the panel's 0 to 100 scale to the mask's 0 to 1. */
 export const setMaskFeather = (masks: readonly Mask[] | undefined, id: string, percent: number): Mask[] =>
   change(masks, id, (mask) => ({ ...mask, feather: Number.isFinite(percent) ? Math.min(1, Math.max(0, percent / 100)) : mask.feather }));
+
+/** Edit a genuine mask shape in the framed photo's coordinate space.
+ * Invalid values/kind mismatches have no effect; the saved recipe is the
+ * same one used by preview, masks and exported pixels. */
+export function setMaskGeometry(
+  masks: readonly Mask[] | undefined, id: string, field: MaskGeometryField, value: number,
+): Mask[] {
+  if (!Number.isFinite(value)) return [...(masks ?? [])];
+  return change(masks, id, (mask) => {
+    if (mask.kind === 'radial') {
+      if (!(['cx', 'cy', 'rx', 'ry', 'angle'] as string[]).includes(field)) return mask;
+      const bounded = field === 'angle'
+        ? Math.max(-180, Math.min(180, Math.round(value)))
+        : field === 'rx' || field === 'ry'
+          ? Math.max(0.01, Math.min(1, Math.round(value * 1000) / 1000))
+          : Math.max(0, Math.min(1, Math.round(value * 1000) / 1000));
+      return { ...mask, [field]: bounded };
+    }
+    if (mask.kind === 'linear') {
+      if (!(['x1', 'y1', 'x2', 'y2'] as string[]).includes(field)) return mask;
+      const bounded = Math.max(0, Math.min(1, Math.round(value * 1000) / 1000));
+      return { ...mask, [field]: bounded };
+    }
+    return mask;
+  });
+}
