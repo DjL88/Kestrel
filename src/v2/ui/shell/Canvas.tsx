@@ -787,13 +787,17 @@ export default function Canvas({
   const inBorderFrame = (size: SizePreset, content: React.ReactNode) => {
     const rawPercent = Math.max(0, Math.min(10, size.crop.borderWidth ?? 0));
     const percent = Math.min(rawPercent, (size.height / Math.max(1, size.width)) * 49);
+    const placement = size.crop.borderPlacement ?? 'all';
+    const horizontal = placement === 'all' || placement === 'horizontal';
+    const vertical = placement === 'all' || placement === 'vertical';
+    const padding = placement === 'auto' ? 0 : `${horizontal ? percent : 0}% ${vertical ? percent : 0}%`;
     return (
       <div
         data-testid="image-inside-border"
         className="absolute inset-0 box-border"
-        style={{ backgroundColor: percent > 0 ? size.crop.borderColour ?? '#ffffff' : undefined, padding: `${percent}%` }}
+        style={{ backgroundColor: percent > 0 || placement === 'auto' ? size.crop.borderColour ?? '#ffffff' : undefined, padding }}
       >
-        <div className="h-full w-full overflow-hidden">{content}</div>
+        <div className={`h-full w-full overflow-hidden ${placement === 'auto' ? '[&_img]:object-contain' : ''}`}>{content}</div>
       </div>
     );
   };
