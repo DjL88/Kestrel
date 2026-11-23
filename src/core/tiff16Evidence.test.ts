@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { inspectTiff16Structure } from './tiff16Evidence';
 
-function fixture(bits = [16, 16, 16], icc = true): Uint8Array {
+function fixture(bits = [16, 16, 16], icc = true, declaredAlpha = false): Uint8Array {
   const bytes = new Uint8Array(512);
   const v = new DataView(bytes.buffer);
   bytes[0] = 73; bytes[1] = 73;
@@ -14,6 +14,7 @@ function fixture(bits = [16, 16, 16], icc = true): Uint8Array {
     [279, 4, 1, 4 * 3 * bits.length * 2], [284, 3, 1, 1],
   ];
   if (icc) entries.push([34675, 7, 128, 256]);
+  if (declaredAlpha) entries.push([338, 3, 1, 2]);
   v.setUint16(8, entries.length, true);
   entries.forEach(([tag, type, count, value], i) => {
     const at = 10 + i * 12;
@@ -30,7 +31,15 @@ describe('completed TIFF structural evidence', () => {
   it('accepts bounded classic TIFF with 16-bit channels and ICC header', () => {
     assert.deepEqual(inspectTiff16Structure(fixture()), { ok: true, width: 4, height: 3, samples: 3 });
   });
-  it('refuses two-channel pseudo-RGB and undeclared four-channel alpha', () => {\n    assert.equal(inspectTiff16Structure(fixture([16, 16])).ok, false);\n    assert.equal(inspectTiff16Structure(fixture([16, 16, 16, 16])).ok, false);\n  });\n  it('rejects 8-bit channel, absent ICC, JPEG and truncated IFD', () => {
+  it('refuses two-channel pseudo-RGB and undeclared four-channel alpha', () => {
+    assert.equal(inspectTiff16Structure(fixture([16, 16])).ok, false);
+    assert.equal(inspectTiff16Structure(fixture([16, 16, 16, 16])).ok, false);
+  });
+  it('accepts four-channel RGB16 only with a declared unassociated alpha channel', () => {
+    assert.deepEqual(inspectTiff16Structure(fixture([16, 16, 16, 16], true, true)),
+      { ok: true, width: 4, height: 3, samples: 4 });
+  });
+  it('rejects 8-bit channel, absent ICC, JPEG and truncated IFD', () => {
     assert.equal(inspectTiff16Structure(fixture([16, 8, 16])).ok, false);
     assert.equal(inspectTiff16Structure(fixture([16, 16, 16], false)).ok, false);
     assert.equal(inspectTiff16Structure(new Uint8Array([255, 216, 255])).ok, false);
