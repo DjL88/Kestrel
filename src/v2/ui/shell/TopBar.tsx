@@ -75,9 +75,23 @@ export default function TopBar({
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   // Match the same saved preset and overrides used by the workspace key handler.
-  const shortcutMap = React.useMemo(() => {
+  const [shortcutMap, setShortcutMap] = useState(() => {
     const saved = loadKeymap();
     return effectiveKeymap(saved.preset, saved.overrides);
+  });
+  // Settings can change the saved preset while the studio stays mounted.
+  // Refresh on return to the window and on changes from another tab.
+  useEffect(() => {
+    const refreshShortcuts = () => {
+      const saved = loadKeymap();
+      setShortcutMap(effectiveKeymap(saved.preset, saved.overrides));
+    };
+    window.addEventListener('focus', refreshShortcuts);
+    window.addEventListener('storage', refreshShortcuts);
+    return () => {
+      window.removeEventListener('focus', refreshShortcuts);
+      window.removeEventListener('storage', refreshShortcuts);
+    };
   }, []);
   const isMac = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
 
