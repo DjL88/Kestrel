@@ -261,6 +261,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             onRemoveMaskLayer={actions.removeMaskLayer}
             onSetMaskEdit={actions.setMaskEdit}
             onSetMaskFeather={actions.setMaskFeather}
+            onSetMaskGeometry={actions.setMaskGeometry}
           />
         );
       case 'enhance':
