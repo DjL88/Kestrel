@@ -73,4 +73,20 @@ describe('completed TIFF structural evidence', () => {
     new DataView(aliased.buffer).setUint32(10 + 5 * 12 + 8, 20, true);
     assert.equal(inspectTiff16Structure(aliased).ok, false);
   });
+  it('rejects raster strips aliased onto the TIFF header', () => {
+    const aliased = fixture();
+    new DataView(aliased.buffer).setUint32(10 + 5 * 12 + 8, 0, true);
+    assert.match((inspectTiff16Structure(aliased) as { ok: false; reason: string }).reason, /header/i);
+  });
+  it('rejects raster strips aliased onto out-of-line BitsPerSample values', () => {
+    const aliased = fixture();
+    new DataView(aliased.buffer).setUint32(10 + 5 * 12 + 8, 200, true);
+    assert.match((inspectTiff16Structure(aliased) as { ok: false; reason: string }).reason, /bit-depth metadata/i);
+  });
+  it('rejects an ICC profile whose declared payload overlaps the image directory', () => {
+    const aliased = fixture();
+    // ICC offset points inside IFD; structural refusal is required, even if header is invalid.
+    new DataView(aliased.buffer).setUint32(10 + 10 * 12 + 8, 100, true);
+    assert.equal(inspectTiff16Structure(aliased).ok, false);
+  });
 });
