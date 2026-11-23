@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { requireProvenRaw16Export, type RawDecodeEvidence } from './rawExportGate';
+import { requireProvenRaw16Export, requireRaw16ExportForOriginal, type RawDecodeEvidence } from './rawExportGate';
 
 const verified: RawDecodeEvidence = {
   sourceKind: 'full-raw-decode', precision: 'uint16',
@@ -46,5 +46,24 @@ describe('RAW 16-bit export provenance gate', () => {
   it('does not assume HE/HE-star support from a claimed compression mode', () => {
     assert.equal(requireProvenRaw16Export({ ...verified, compression: 'he', decodedFromOriginal: false }).allowed, false);
     assert.equal(requireProvenRaw16Export({ ...verified, compression: 'he-star', sourceKind: 'embedded-preview' }).allowed, false);
+  });
+});
+
+describe('RAW export bound to selected original identity', () => {
+  it('accepts independently verified matching SHA-256, case-insensitively', () => {
+    assert.equal(requireRaw16ExportForOriginal(verified, 'A'.repeat(64)).allowed, true);
+  });
+  it('refuses stale developed pixels belonging to another original', () => {
+    const result = requireRaw16ExportForOriginal(verified, 'b'.repeat(64));
+    assert.equal(result.allowed, false);
+    if (!result.allowed) assert.match(result.reason, /different original/);
+  });
+  it('fails closed when selected original identity is absent or invalid', () => {
+    for (const identity of [null, undefined, '', 'a'.repeat(63), 'z'.repeat(64)]) {
+      assert.equal(requireRaw16ExportForOriginal(verified, identity).allowed, false);
+    }
+  });
+  it('still refuses previews even if the selected original hash matches', () => {
+    assert.equal(requireRaw16ExportForOriginal({ ...verified, sourceKind: 'embedded-preview' }, 'a'.repeat(64)).allowed, false);
   });
 });

@@ -63,3 +63,24 @@ export function requireProvenRaw16Export(evidence: RawDecodeEvidence | null | un
     decoder: evidence.decoder, iccProfile: evidence.outputIccProfile,
   };
 }
+
+/**
+ * Bind a verified RAW export decision to the original selected for this job.
+ * Decoder evidence alone may belong to an earlier photo or a stale cache entry.
+ * The expected hash must come from the independently verified original identity,
+ * never from the evidence being checked.
+ */
+export function requireRaw16ExportForOriginal(
+  evidence: RawDecodeEvidence | null | undefined,
+  expectedOriginalSha256: string | null | undefined,
+): Raw16ExportDecision {
+  const decision = requireProvenRaw16Export(evidence);
+  if (!decision.allowed) return decision;
+  if (!/^[a-f0-9]{64}$/i.test(expectedOriginalSha256 ?? '')) {
+    return { allowed: false, reason: 'The selected original has no verified SHA-256 identity.' };
+  }
+  if (decision.originalSha256.toLowerCase() !== expectedOriginalSha256!.toLowerCase()) {
+    return { allowed: false, reason: 'The developed RAW pixels belong to a different original.' };
+  }
+  return decision;
+}
