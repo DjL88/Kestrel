@@ -149,4 +149,21 @@ describe('completed TIFF structural evidence', () => {
     new DataView(aliased.buffer).setUint32(10 + 5 * 12 + 8, 20, true);
     assert.equal(inspectTiff16Structure(aliased).ok, false);
   });
+  it('rejects out-of-line bit-depth metadata aliased onto the TIFF directory or header', () => {
+    const directory = fixture();
+    const view = new DataView(directory.buffer);
+    view.setUint32(10 + 2 * 12 + 8, 20, true);
+    const directoryResult = inspectTiff16Structure(directory);
+    assert.equal(directoryResult.ok, false);
+    if (!directoryResult.ok) assert.match(directoryResult.reason, /tag 258 metadata overlaps/i);
+
+    const header = fixture();
+    new DataView(header.buffer).setUint32(10 + 2 * 12 + 8, 4, true);
+    const headerResult = inspectTiff16Structure(header);
+    assert.equal(headerResult.ok, false);
+    if (!headerResult.ok) assert.match(headerResult.reason, /tag 258 metadata overlaps/i);
+
+    assert.deepEqual(inspectTiff16Structure(fixture()), { ok: true, width: 4, height: 3, samples: 3 });
+  });
+
 });
