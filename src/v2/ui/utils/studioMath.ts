@@ -266,15 +266,15 @@ export function snapOverlayPosition(
     return { x: Number(xClamped.toFixed(1)), y: Number(yClamped.toFixed(1)), guides: [] };
   }
 
+  // Without measured box geometry, retain the legacy point-based safe margins.
+  // With geometry, safe margins must be measured at the box edges, not its centre.
   const xTargets: Array<{ value: number; label: string }> = [
-    { value: 8, label: 'Left safe margin' },
+    ...(!geometry ? [{ value: 8, label: 'Left safe margin' }, { value: 92, label: 'Right safe margin' }] : []),
     { value: 50, label: 'Centre X' },
-    { value: 92, label: 'Right safe margin' },
   ];
   const yTargets: Array<{ value: number; label: string }> = [
-    { value: 8, label: 'Top safe margin' },
+    ...(!geometry ? [{ value: 8, label: 'Top safe margin' }, { value: 92, label: 'Bottom safe margin' }] : []),
     { value: 50, label: 'Centre Y' },
-    { value: 92, label: 'Bottom safe margin' },
   ];
 
   if (peer.visible) {
