@@ -28,6 +28,7 @@ interface FilmstripProps {
   onToggleFlag: (photoIds: string[]) => void;
   onSetRating: (photoIds: string[], rating: number) => void;
   onSetDecision: (photoIds: string[], decision: 'unreviewed' | 'keep' | 'reject') => void;
+  onRemovePhotos: (photoIds: string[]) => void;
   onPasteRecipe: () => void;
   onApplyLook: (photoId: string, lookId: string) => void;
   onImport: () => void;
@@ -59,6 +60,7 @@ export default function Filmstrip({
   onToggleFlag,
   onSetRating,
   onSetDecision,
+  onRemovePhotos,
   onPasteRecipe,
   onApplyLook,
   onImport,
@@ -69,6 +71,7 @@ export default function Filmstrip({
   const [searchOpen, setSearchOpen] = useState(false);
   const [minimumRating, setMinimumRating] = useState(0);
   const [tileMenu, setTileMenu] = useState<{ x: number; y: number; photoId: string } | null>(null);
+  const [removeConfirm, setRemoveConfirm] = useState<string[] | null>(null);
   const resizeStart = useRef<{ y: number; h: number } | null>(null);
   const longPressTimer = useRef<number | null>(null);
   const touchPress = useRef<{ pointerId: number; x: number; y: number; photoId: string } | null>(null);
@@ -494,7 +497,11 @@ export default function Filmstrip({
       )}
 
       {/* V2 photo / multi-selection context menu: actions reuse the editor store. */}
-      {tileMenu && (
+      {tileMenu && (() => {
+        const menuTargetIds = selectedPhotoIds.includes(tileMenu.photoId) ? selectedPhotoIds : [tileMenu.photoId];
+        const menuTargetsAllSetAside = menuTargetIds.length > 0 &&
+          menuTargetIds.every((id) => photos.find((p) => p.id === id)?.decision === 'reject');
+        return (
         <div
           role="menu"
           aria-label="Photo actions"
@@ -538,6 +545,16 @@ export default function Filmstrip({
             className="flex w-full px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             Return to review
           </button>
+          {menuTargetsAllSetAside && (
+            <button type="button" role="menuitem"
+              onClick={() => {
+                setRemoveConfirm(menuTargetIds);
+                setTileMenu(null);
+              }}
+              className="flex w-full px-3 py-2 text-left text-xs text-[var(--status-danger,#e5484d)] hover:bg-[var(--bg-surface-hover)]">
+              Remove {menuTargetIds.length > 1 ? `${menuTargetIds.length} photos` : 'photo'}…
+            </button>
+          )}
           <div className="border-t border-[var(--border-subtle)] px-3 py-2">
             <span className="mb-1 block text-[11px] text-[var(--text-secondary)]">Rating</span>
             <div className="flex flex-wrap gap-1" role="group" aria-label="Set photo rating">
@@ -598,6 +615,37 @@ export default function Filmstrip({
             <BrandIcon name="export" size={14} />
             <span>Export selected…</span>
           </button>
+        </div>
+        );
+      })()}
+
+      {/* Confirm before Trash: reversible (Undo brings it straight back), but still asks first like V1. */}
+      {removeConfirm && (
+        <div role="alertdialog" aria-modal="true" aria-labelledby="remove-photos-title" aria-describedby="remove-photos-body"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-scrim)] p-4"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <div className="w-full max-w-md space-y-4 rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-panel)]">
+            <h2 id="remove-photos-title" className="text-base font-bold text-[var(--text-primary)]">
+              {removeConfirm.length > 1 ? `Remove ${removeConfirm.length} photos?` : 'Remove this photo?'}
+            </h2>
+            <p id="remove-photos-body" className="text-sm leading-relaxed text-[var(--text-secondary)]">
+              This takes {removeConfirm.length > 1 ? 'these set-aside photos' : 'this set-aside photo'} out of InFlight's catalogue. Your original file on disk is never touched, and Undo (Cmd/Ctrl+Z) brings it straight back.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button type="button" autoFocus onClick={() => setRemoveConfirm(null)}
+                className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-4 text-xs font-medium text-[var(--text-primary)]">
+                Keep photo{removeConfirm.length > 1 ? 's' : ''}
+              </button>
+              <button type="button" onClick={() => {
+                  onRemovePhotos(removeConfirm);
+                  setRemoveConfirm(null);
+                }}
+                className="min-h-10 rounded-[var(--radius-md)] bg-[var(--status-danger,#e5484d)] px-4 text-xs font-semibold text-white">
+                Remove
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>

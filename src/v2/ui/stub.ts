@@ -863,6 +863,17 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       });
     },
 
+    removePhotos: (photoIds) => {
+      logAction('removePhotos', { photoIds });
+      setStore((prev) => {
+        const idSet = new Set(photoIds);
+        const photos = prev.photos.filter((p) => !idSet.has(p.id));
+        const selectedPhotoIds = prev.selectedPhotoIds.filter((id) => !idSet.has(id));
+        const activePhotoId = idSet.has(prev.activePhotoId ?? '') ? photos[0]?.id ?? null : prev.activePhotoId;
+        return { ...prev, photos, selectedPhotoIds, activePhotoId };
+      });
+    },
+
     toggleFlag: (photoIds) => {
       logAction('toggleFlag', { photoIds });
       setStore((prev) => {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { applyCullConfidence, applyDecisionWithHistory, redoDecision, undoDecision } from '../../core/cullingEngine';
+import { applyCullConfidence, applyDecisionWithHistory, redoDecision, removeFromLibrary, undoDecision } from '../../core/cullingEngine';
 import { jumpToStep, recordEdit, stepEdit } from '../../core/editHistory';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { sameRecipe } from '../../core/naturalAuto';
@@ -279,6 +279,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   const decide = useCallback((ids: string[], decision: CullDecision) => {
     mutate((current) => ids.reduce((next, id) => applyDecisionWithHistory(next, id, decision, { allowAdvance: false }), current));
+  }, [mutate]);
+
+  // Moves already set-aside (rejected) photos to Trash. removeFromLibrary (shared with V1) ignores any id that
+  // is not currently rejected, so this never deletes a kept or unreviewed photo by mistake. The removal itself is
+  // written to the same undoStack that per-photo Undo already reads, so Cmd/Ctrl+Z brings it straight back.
+  const removePhotos = useCallback((ids: string[]) => {
+    mutate((current) => removeFromLibrary(current, ids));
+    setSelected((current) => current.filter((id) => !ids.includes(id)));
   }, [mutate]);
 
   const activeFrame = state?.frames.find((frame) => frame.id === activeId) ?? null;
@@ -724,6 +732,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     selectAllPhotos: () => setSelected((stateRef.current?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frame.id)),
     clearSelection: () => setSelected(activeId ? [activeId] : []),
     setDecision: (ids, decision) => decide(ids, decision),
+    removePhotos: (ids) => removePhotos(ids),
     toggleFlag: (ids) => mutate((current) => ids.reduce((next, id) => {
       const frame = next.frames.find((candidate) => candidate.id === id);
       return frame ? applyDecisionWithHistory(next, id, frame.decision === 'keep' ? 'unreviewed' : 'keep', { allowAdvance: false }) : next;
