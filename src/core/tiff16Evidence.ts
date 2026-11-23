@@ -74,6 +74,18 @@ export function inspectTiff16Structure(bytes: Uint8Array): { ok: true; width: nu
     }
     pixelRanges.push([stripOffsets[i], stripOffsets[i] + stripSizes[i]]);
   }
+  // A raster cannot borrow bytes from the header or out-of-line channel metadata.
+  if (pixelRanges.some(([start, end]) => start < 8 && end > 0)) {
+    return fail('TIFF pixel data overlaps the file header.');
+  }
+  const bitsTag = tags.get(258);
+  if (bitsTag && bitsTag.count * (bitsTag.type === 3 ? 2 : 4) > 4) {
+    const bitsAt = u32(bitsTag.offset);
+    const bitsEnd = bitsAt + bitsTag.count * (bitsTag.type === 3 ? 2 : 4);
+    if (pixelRanges.some(([start, end]) => start < bitsEnd && bitsAt < end)) {
+      return fail('TIFF pixel data overlaps channel bit-depth metadata.');
+    }
+  }
   pixelRanges.sort((a, b) => a[0] - b[0]);
   if (pixelRanges.some((range, i) => i > 0 && range[0] < pixelRanges[i - 1][1])) {
     return fail('TIFF pixel strips overlap; raster bytes are not independent.');
@@ -88,6 +100,9 @@ export function inspectTiff16Structure(bytes: Uint8Array): { ok: true; width: nu
     return fail('TIFF ICC profile overlaps pixel data.');
   }
   const directoryEnd = ifd + 2 + count * 12 + 4;
+  if (iccAt < directoryEnd && ifd < iccAt + icc.count) {
+    return fail('TIFF ICC profile overlaps the image directory.');
+  }
   if (pixelRanges.some(([start, end]) => start < directoryEnd && ifd < end)) {
     return fail('TIFF pixel data overlaps the image directory.');
   }
