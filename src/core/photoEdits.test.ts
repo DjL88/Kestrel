@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyPhotoEdit, DEFAULT_EDIT } from './photoEdits';
+import { editRgb16, master16Blocker } from './master16';
 
 test('as-shot settings preserve source pixels exactly', () => {
   const source = new Uint8ClampedArray([20, 130, 243, 128, 255, 80, 0, 255]);
@@ -24,6 +25,22 @@ test('warmth changes red and blue in opposite directions', () => {
   assert.ok(pixels[0] > 100);
   assert.equal(pixels[1], 100);
   assert.ok(pixels[2] < 100);
+});
+
+test('tint shifts green against red and blue in both 8-bit edits and 16-bit TIFF pixels', () => {
+  for (const tint of [-2, 2]) {
+    const edit = { ...DEFAULT_EDIT, tint };
+    const rgba = new Uint8ClampedArray([100, 100, 100, 128]);
+    const data = new Uint16Array([25_700, 25_700, 25_700]);
+    applyPhotoEdit(rgba, edit);
+    assert.equal(master16Blocker(edit, undefined), null);
+    editRgb16({ width: 1, height: 1, data }, edit);
+    assert.equal(rgba[0], rgba[2]);
+    assert.equal(rgba[3], 128);
+    assert.equal(Math.sign(rgba[0] - rgba[1]), Math.sign(tint));
+    for (let c = 0; c < 3; c += 1) assert.ok(Math.abs(data[c] / 257 - rgba[c]) < 0.6);
+  }
+  assert.match(master16Blocker({ ...DEFAULT_EDIT, tint: 2.1 }, undefined) ?? '', /tint/);
 });
 
 const pixel = (value: number, edit: Partial<typeof DEFAULT_EDIT>) => {

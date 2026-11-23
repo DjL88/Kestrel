@@ -71,7 +71,7 @@ export function thumbRgb16(image: Rgb16Image): Thumb {
 
 /** Why this edit cannot go through the 16-bit export yet, in plain words, or null when it can. */
 const EXPORT_EDIT_KEYS = new Set([
-  'exposure', 'warmth', 'colour', 'brightness', 'contrast', 'highlights',
+  'exposure', 'warmth', 'tint', 'colour', 'brightness', 'contrast', 'highlights',
   'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity',
   'sharpen', 'denoise', 'masks',
 ]);
@@ -89,7 +89,7 @@ export function master16Blocker(edit: PhotoEdit | undefined, framing: PhotoFrami
     for (const key of EXPORT_EDIT_KEYS) {
       if (key === 'masks') continue;
       const value = edit[key as keyof PhotoEdit];
-      if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value))) {
+      if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || (key === 'tint' && Math.abs(value) > 2))) {
         return `The saved "${key}" adjustment is invalid, so no 16-bit TIFF was made.`;
       }
     }

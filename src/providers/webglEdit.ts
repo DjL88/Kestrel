@@ -12,7 +12,8 @@ void main() {
 const FRAGMENT = `#version 300 es
 precision highp float;
 uniform sampler2D src;
-uniform float gain, brightness, warmth, colour, contrast, highlights, shadows, blackPoint, whitePoint, vibrance;
+uniform vec3 channelGain;
+uniform float brightness, colour, contrast, highlights, shadows, blackPoint, whitePoint, vibrance;
 in vec2 uv;
 out vec4 outColour;
 
@@ -27,7 +28,7 @@ float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 
 void main() {
   vec4 texel = texture(src, uv);
-  vec3 c = toLinear(texel.rgb) * gain * vec3(1.0 + warmth, 1.0, 1.0 - warmth);
+  vec3 c = toLinear(texel.rgb) * channelGain;
   if (highlights != 0.0 || shadows != 0.0 || blackPoint != 0.0 || whitePoint != 1.0) {
     c = (c - blackPoint) / (whitePoint - blackPoint);
     float perceived = toEncoded(vec3(luma(c))).r;
@@ -173,8 +174,9 @@ export function renderEditOnGpu(target: HTMLCanvasElement, edit: PhotoEdit, imag
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, target);
     const params = editParams(edit);
+    gl.uniform3f(gl.getUniformLocation(program, 'channelGain'), ...params.channelGain);
     for (const [name, value] of Object.entries({
-      gain: params.gain, brightness: params.brightness, warmth: params.warmth, colour: params.colour, contrast: params.contrast,
+      brightness: params.brightness, colour: params.colour, contrast: params.contrast,
       highlights: params.highlights, shadows: params.shadows, blackPoint: params.blackPoint,
       whitePoint: params.whitePoint, vibrance: params.vibrance,
     })) gl.uniform1f(gl.getUniformLocation(program, name), value);

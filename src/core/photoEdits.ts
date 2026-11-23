@@ -20,6 +20,8 @@ export interface PhotoEdit {
   exposure: number;
   warmth: number;
   colour: number;
+  /** Green to magenta, -2 to 2. Absent in older projects = neutral. */
+  tint?: number;
   /** Perceptual midtone adjustment, distinct from exposure EV. Absent in older projects = neutral. */
   brightness?: number;
   contrast?: number;
@@ -48,7 +50,7 @@ export const EDIT_CHOICES = [
 ] as const;
 
 export function isNeutralTone(edit: PhotoEdit): boolean {
-  return edit.exposure === 0 && edit.warmth === 0 && edit.colour === 0 && TONE_CONTROLS.every(({ key }) => !edit[key]);
+  return edit.exposure === 0 && edit.warmth === 0 && edit.colour === 0 && !edit.tint && TONE_CONTROLS.every(({ key }) => !edit[key]);
 }
 
 export const NOISE_CONTROL = { key: 'denoise', label: 'Noise reduction' } as const;
@@ -92,12 +94,15 @@ const smoothstep = (low: number, high: number, x: number) => {
 
 /** Shader-ready constants. The CPU path and the GPU shader both read these, so they cannot drift apart. */
 export function editParams(edit: PhotoEdit) {
+  const gain = 2 ** (edit.exposure * 0.4);
+  const warmth = edit.warmth * 0.08;
+  const tint = (edit.tint ?? 0) * 0.12;
   return {
-    gain: 2 ** (edit.exposure * 0.4),
+    // On a neutral pixel, balance the magenta gains against green's linear luma weight.
+    channelGain: [gain * (1 + warmth) * (1 + tint), gain * (1 - tint * (0.2848 / 0.7152)), gain * (1 - warmth) * (1 + tint)] as const,
     // A bounded monotonic midtone curve: pure black and white stay in place,
     // unlike exposure which multiplies scene-linear light in EV stops.
     brightness: (edit.brightness ?? 0) * 0.11,
-    warmth: edit.warmth * 0.08,
     // Colour -2 is fully monochrome. Other slider positions keep their existing scale.
     colour: edit.colour === -2 ? -1 : edit.colour * 0.2,
     contrast: 1 + (edit.contrast ?? 0) * 0.35,
@@ -257,10 +262,10 @@ export function decodeEncoded(value: number): number {
  * source of the maths for 8-bit previews and higher-precision exports alike; the GPU shader mirrors it.
  */
 function tonePixel(red: number, green: number, blue: number, p: EditParams, out: Float32Array): void {
-  const { gain, brightness, warmth, colour, contrast, highlights, shadows, blackPoint, whitePoint, vibrance } = p;
-  red *= gain * (1 + warmth);
-  green *= gain;
-  blue *= gain * (1 - warmth);
+  const { channelGain, brightness, colour, contrast, highlights, shadows, blackPoint, whitePoint, vibrance } = p;
+  red *= channelGain[0];
+  green *= channelGain[1];
+  blue *= channelGain[2];
   if (highlights !== 0 || shadows !== 0 || blackPoint !== 0 || whitePoint !== 1) {
     const range = whitePoint - blackPoint;
     red = (red - blackPoint) / range;

@@ -33,7 +33,7 @@ test('V2 background engine replaces a synthetic embedded RAW preview with develo
   await expect.poll(dimensions, { timeout: 30_000 }).toEqual([64, 96]);
 });
 
-test('V2 writes a structurally verified 16-bit TIFF from a synthetic RAW original', async ({ page }) => {
+test('V2 writes structurally verified 16-bit TIFFs with and without the Tint edit', async ({ page }, testInfo) => {
   await page.goto('/?v2');
   const studio = page.locator('.inflight-v2');
   await studio.getByRole('button', { name: 'New project' }).first().click();
@@ -47,14 +47,43 @@ test('V2 writes a structurally verified 16-bit TIFF from a synthetic RAW origina
     target.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
   }, Buffer.from(mosaic).toString('base64'));
   await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
-  await studio.getByRole('button', { name: 'Export', exact: true }).first().click();
-  const [download] = await Promise.all([
-    page.waitForEvent('download'),
-    studio.getByRole('button', { name: 'Save 16-bit RAW TIFF' }).click(),
-  ]);
-  expect(download.suggestedFilename()).toBe('synthetic-z8_16bit.tif');
-  const bytes = Uint8Array.from(await readFile((await download.path())!));
-  const proof = proveTiff16(bytes.buffer);
-  expect([proof.width, proof.height]).toEqual([64, 96]);
-  expect(proof.iccBytes).toBeGreaterThan(128);
+  const saveTiff = async () => {
+    await studio.getByRole('button', { name: 'Export', exact: true }).first().click();
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      studio.getByRole('button', { name: 'Save 16-bit RAW TIFF' }).click(),
+    ]);
+    expect(download.suggestedFilename()).toBe('synthetic-z8_16bit.tif');
+    const bytes = Uint8Array.from(await readFile((await download.path())!));
+    const proof = proveTiff16(bytes.buffer);
+    expect([proof.width, proof.height]).toEqual([64, 96]);
+    expect(proof.iccBytes).toBeGreaterThan(128);
+    const view = new DataView(bytes.buffer);
+    const directory = view.getUint32(4, true);
+    for (let i = 0; i < view.getUint16(directory, true); i += 1) {
+      const tag = directory + 2 + i * 12;
+      if (view.getUint16(tag, true) === 273) {
+        return new DataView(bytes.buffer, view.getUint32(tag + 8, true), proof.width * proof.height * 6);
+      }
+    }
+    throw new Error('The TIFF has no pixel strip.');
+  };
+  const neutral = await saveTiff();
+  await studio.getByRole('button', { name: 'Adjust', exact: true }).click();
+  await studio.getByRole('tab', { name: 'Advanced Edits' }).click();
+  const phone = testInfo.project.name === 'phone';
+  if (phone) await studio.getByRole('tab', { name: 'Colour', exact: true }).click();
+  const tint = studio.getByRole('slider', { name: 'Tint' });
+  await expect(tint).toHaveValue('0');
+  await tint.fill('80');
+  await expect(tint).toHaveValue('80');
+  if (phone) await studio.getByRole('button', { name: 'Close mobile drawer' }).click();
+  const magenta = await saveTiff();
+  let expectedDirection = 0;
+  for (let i = 0; i < neutral.byteLength; i += 6) {
+    if (magenta.getUint16(i, true) > neutral.getUint16(i, true) &&
+        magenta.getUint16(i + 2, true) < neutral.getUint16(i + 2, true) &&
+        magenta.getUint16(i + 4, true) > neutral.getUint16(i + 4, true)) expectedDirection += 1;
+  }
+  expect(expectedDirection).toBeGreaterThan(64 * 96 / 2);
 });

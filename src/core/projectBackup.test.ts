@@ -68,7 +68,7 @@ test('a backup keeps kind, tags, automatic tags and declined names, and rejects 
 
 test('portable backups preserve the edit cursor and can undo back to an untouched photo', () => {
   const project = createDemoShootState(1);
-  const edit = { ...DEFAULT_EDIT, exposure: 0.5 };
+  const edit = { ...DEFAULT_EDIT, exposure: 0.5, tint: -0.4 };
   const framing = { turns: 0, straighten: 0, ratio: 1, x: 0.5, y: 0.5 };
   const toned = recordEdit(project.frames[0], { edit }, 1000);
   const cropped = recordEdit(toned, { framing }, 2000);
@@ -89,6 +89,7 @@ test('portable backups preserve the edit cursor and can undo back to an untouche
   for (const damage of [
     (history: Record<string, any>) => { history.cursor = 3; },
     (history: Record<string, any>) => { history.steps[0].before = { edit: { exposure: 100 } }; },
+    (history: Record<string, any>) => { history.steps[0].after.edit.tint = 3; },
   ]) {
     const broken = JSON.parse(encodeProjectBackup(project));
     damage(broken.project.frames[0].editHistory);
