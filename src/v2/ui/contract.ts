@@ -264,6 +264,8 @@ export interface Photo {
   burst?: { groupId: string; index: number; count: number; ungrouped: boolean; score?: number };
   /** The photo's recorded edit steps (oldest first) and where it stands now. Absent until it has been edited. */
   editHistory?: { steps: { label: string; at: number }[]; cursor: number };
+  /** Actual recorded format actions; missing means pre-history, not a fabricated event. */
+  formatHistory?: { formatId: string; kind: string; at: number; parentFormatId?: string; forkEditCursor?: number }[];
   /** The picture's size in real pixels, when the file says. Used for the true 100% zoom. */
   pixelSize?: { width: number; height: number };
   /** Measured from the picture as it is now. Absent until measured; the interface shows nothing rather than a guess. */
