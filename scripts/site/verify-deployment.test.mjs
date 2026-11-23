@@ -41,7 +41,7 @@ function runLive(root, overrides) {
     '/oauth-callback.html': callback,
     '/privacy.html': privacy,
     [iconPath]: icon,
-    '/editor/demo-editor.html': demo('Demo Studio'),
+    '/editor/demo-editor.html': demo('InFlight editor demonstration'),
     '/editor/assets/demo.js': bundle,
     ...overrides,
   };
@@ -95,7 +95,7 @@ test('accepts the current live entry and rejects stale HTML even if its assets a
     assert.match(runLive(root, {
       '/editor/demo-editor.html': demo('Demo Studio', '/editor/assets/older.js'),
       '/editor/assets/older.js': bundle,
-    }).stderr, /different set of compiled assets/);
+    }).stderr, /Live editor HTML differs from the verified local build/);
     assert.match(runLive(root, { '/editor/assets/demo.js': '<!doctype html><html></html>' }).stderr, /missing or wrong asset/);
     assert.match(runLive(root, { '/editor/assets/demo.js': bundle.replace('editor', 'changed') }).stderr, /asset differs from the verified local build/);
   } finally { rmSync(root, { recursive: true, force: true }); }
