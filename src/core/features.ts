@@ -25,10 +25,10 @@ export const FEATURES = {
   speciesId: 'paid',
   onlineAi: 'paid',
   smartCulling: 'paid',
-  // V2 workspace. Pro = it enhances the photo or costs money to run. Zoom video and split frames are Basic for now; the
-  // key exists so they can be gated later without an app change.
-  overlayText: 'paid',
-  watermarkCustom: 'paid',
+  // Text overlays and custom watermarks are Basic while the editor is being tested.
+  // Advanced/online features remain Pro and are OFF until enabled in Firestore Admin flags.
+  overlayText: 'free',
+  watermarkCustom: 'free',
   cloudAssist: 'paid',
   zoomVideo: 'free',
   splitFrames: 'free',
@@ -45,14 +45,14 @@ export const NEVER_GATED: ReadonlySet<Feature> = new Set<Feature>(['import', 'ba
 
 /**
  * The flags this build ships with, derived from the table above. They apply whenever no verified rules have arrived
- * (offline, signed out, first run), and they equal today's behaviour exactly: free features on for everyone, paid
- * features on for Pro only.
+ * (offline, signed out, first run). Basic features work for everyone; Pro features stay OFF for *all*
+ * plans until an administrator explicitly enables them using a signed Firestore feature flag.
  */
 export const COMPILED_FLAGS: FlagSet = Object.fromEntries(FEATURE_NAMES.map((name) => [
   name,
   FEATURES[name] === 'free'
     ? { default: true, rules: [] }
-    : { default: false, rules: [{ audience: { kind: 'plan' as const, plan: 'pro' as const }, enabled: true }] },
+    : { default: false, rules: [] },
 ]));
 
 export interface FeatureContext {
