@@ -41,7 +41,12 @@ export function recordEdit(frame: PhotoFrame, patch: Snapshot, at: number): Phot
   const steps = history ? history.steps.slice(0, history.cursor) : [];
   const kind = classify(before, after);
   const last = steps.at(-1);
-  if (last && history?.cursor === history?.steps.length && last.kind === kind && at >= last.at && at - last.at < 550) {
+  const isOverlayChange = JSON.stringify(before.overlay) !== JSON.stringify(after.overlay);
+  const lastOverlayChange = last && JSON.stringify(last.before.overlay) !== JSON.stringify(last.after.overlay);
+  // Both use the backwards-compatible 'adjustments' kind, but a watermark must
+  // never swallow a separate tone/edit step when the person acts quickly.
+  if (last && history?.cursor === history?.steps.length && last.kind === kind &&
+      isOverlayChange === lastOverlayChange && at >= last.at && at - last.at < 550) {
     steps.pop();
     if (JSON.stringify(last.before) !== JSON.stringify(after)) steps.push({ kind, before: last.before, after, at });
   } else {
