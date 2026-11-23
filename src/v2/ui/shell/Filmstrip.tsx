@@ -94,7 +94,7 @@ export default function Filmstrip({
   }, []);
 
   const startLongPress = (event: React.PointerEvent<HTMLElement>, photoId: string) => {
-    if (event.pointerType !== 'touch' || !event.isPrimary) return;
+    if ((event.pointerType !== 'touch' && event.pointerType !== 'pen') || !event.isPrimary || event.button !== 0) return;
     cancelLongPress();
     suppressTouchClick.current = false;
     const { pointerId, clientX: x, clientY: y } = event;
@@ -136,7 +136,7 @@ export default function Filmstrip({
       event.preventDefault();
       event.stopImmediatePropagation();
     };
-    // A held touch can emit a compatibility mousedown on release. Only a new press dismisses the menu.
+    // A held touch or stylus can emit a compatibility mousedown on release. Only a new press dismisses the menu.
     window.addEventListener('pointerdown', close);
     window.addEventListener('keydown', onEscape);
     window.addEventListener('click', suppressReleaseClick, true);
