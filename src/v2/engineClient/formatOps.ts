@@ -7,7 +7,7 @@ import type { SizePreset } from '../ui/contract';
  * can come from an older build or a damaged file.
  */
 export interface CustomFormat { id: string; label: string; width: number; height: number }
-export interface FormatSet { disabled: string[]; custom: CustomFormat[]; /** Explicit opt-in for built-ins disabled by default. */ enabled?: string[] }
+export interface FormatSet { disabled: string[]; custom: CustomFormat[]; /** Explicit opt-in for built-ins disabled by default. */ enabled?: string[]; /** Optional canvas-size override; does NOT alter the source image. */ originalSize?: { width: number; height: number } }
 
 export const EMPTY_FORMATS: FormatSet = { disabled: [], custom: [] };
 export const MAX_CUSTOM_FORMATS = 24;
@@ -34,7 +34,10 @@ export function readFormats(raw: unknown): FormatSet {
     if (custom.length >= MAX_CUSTOM_FORMATS) break;
   }
   const enabled = Array.isArray(value.enabled) ? [...new Set(value.enabled.filter(isId))].filter((id) => !disabled.includes(id)) : [];
-  return { disabled, custom, ...(enabled.length ? { enabled } : {}) };
+  const original = value.originalSize as Record<string, unknown> | undefined;
+  const originalSize = original && validCustomSize(Number(original.width), Number(original.height))
+    ? { width: Number(original.width), height: Number(original.height) } : undefined;
+  return { disabled, custom, ...(enabled.length ? { enabled } : {}), ...(originalSize ? { originalSize } : {}) };
 }
 
 const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
@@ -45,11 +48,44 @@ export function ratioLabelFor(width: number, height: number): string {
   return w <= 21 && h <= 21 ? `${w}:${h}` : `${width}×${height}`;
 }
 
-/** The built-in formats with this photo's switches applied, followed by its custom ones. */
-export function applyFormats(defaults: readonly SizePreset[], raw: unknown): SizePreset[] {
+/**
+ * The historical 'orig-3x2' identifier remains for saved crop/board data.
+ * It now means Original, NOT a mandatory 3:2 crop. The size is taken from the
+ * imported file's known dimensions unless the photographer explicitly changes
+ * this export canvas. No metadata = no invented 3000×2000 original.
+ */
+export const ORIGINAL_FORMAT_ID = 'orig-3x2';
+export const THREE_TWO_FORMAT_ID = 'format-3x2';
+
+export function setOriginalOutputSize(raw: unknown, width: number, height: number): FormatSet | undefined {
+  if (!validCustomSize(width, height)) return undefined;
+  return { ...readFormats(raw), originalSize: { width, height } };
+}
+
+export function resetOriginalOutputSize(raw: unknown): FormatSet {
+  const { originalSize: _unused, ...rest } = readFormats(raw);
+  return rest;
+}
+
+/** The built-ins with this photo's switches applied, followed by its custom ones. */
+export function applyFormats(
+  defaults: readonly SizePreset[], raw: unknown,
+  nativeSize?: { width: number; height: number } | null,
+): SizePreset[] {
   const formats = readFormats(raw);
-  const base = defaults.map((size) => ({ ...size, enabled: !formats.disabled.includes(size.id) &&
-    (formats.enabled?.includes(size.id) === true || size.enabled) }));
+  const original = formats.originalSize ?? (nativeSize && validCustomSize(nativeSize.width, nativeSize.height) ? nativeSize : null);
+  const base = defaults.map((size) => ({
+    ...size,
+    ...(size.id === ORIGINAL_FORMAT_ID ? {
+      label: 'Original',
+      width: original?.width ?? 1,
+      height: original?.height ?? 1,
+      ratioLabel: original ? ratioLabelFor(original.width, original.height) : 'Unknown',
+    } : {}),
+    enabled: !formats.disabled.includes(size.id) &&
+      (formats.enabled?.includes(size.id) === true || size.enabled) &&
+      (size.id !== ORIGINAL_FORMAT_ID || !!original),
+  }));
   const extra: SizePreset[] = formats.custom.map((custom, index) => ({
     id: custom.id, label: custom.label, platform: 'custom', width: custom.width, height: custom.height,
     ratioLabel: ratioLabelFor(custom.width, custom.height), kind: 'photo', enabled: !formats.disabled.includes(custom.id), linked: true,
