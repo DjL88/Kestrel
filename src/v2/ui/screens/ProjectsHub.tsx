@@ -12,7 +12,7 @@ interface ProjectsHubProps {
   theme: ThemeMode;
   onOpenProject: (projectId: string) => void;
   onCreateProject: (name: string, options?: { keeperTarget?: number; settings?: import('../../../core/projectSettings').ProjectSettings }) => void;
-  onCreateFromFolder: () => void;
+  onCreateFromFolder: (options?: { keeperTarget?: number; settings?: import('../../../core/projectSettings').ProjectSettings }) => void;
   onRenameProject: (projectId: string, name: string) => void;
   onArchiveProject: (projectId: string, archived: boolean) => void;
   onDeleteProject: (projectId: string) => void;
