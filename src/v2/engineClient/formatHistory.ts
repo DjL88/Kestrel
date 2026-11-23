@@ -98,7 +98,7 @@ export function recordFormatSetChange(
   for (const id of oldCustom.keys()) if (!newCustom.has(id)) {
     history = append(history, { formatId: id, kind: 'removed', at });
   }
-  const ids = new Set([...old.disabled, ...next.disabled, ...old.enabled ?? [], ...next.enabled ?? []]);
+  const ids = new Set([...old.disabled, ...next.disabled, ...(old.enabled ?? []), ...(next.enabled ?? [])]);
   for (const id of ids) {
     if (old.disabled.includes(id) !== next.disabled.includes(id)) {
       history = append(history, { formatId: id, kind: next.disabled.includes(id) ? 'hidden' : 'shown', at });
