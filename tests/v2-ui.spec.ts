@@ -115,6 +115,51 @@ test('?v2 Remove only offers itself once a photo is set aside, asks first, and U
   await expect(strip.getByRole('option')).toHaveCount(2);
 });
 
+test('?v2 Removed photos panel browses Trash and restores without using Undo', async ({ page }) => {
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Removed panel check');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  const image = await page.evaluate(() => {
+    const canvas = document.createElement('canvas'); canvas.width = 180; canvas.height = 130;
+    const ctx = canvas.getContext('2d')!; ctx.fillStyle = '#4a6150'; ctx.fillRect(0, 0, 180, 130);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles([{ name: 'panel-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
+  const strip = root.getByRole('listbox', { name: 'Project photographs' });
+  await expect(strip.getByRole('option')).toHaveCount(1);
+
+  // Before anything is removed, the panel says so plainly instead of showing an empty list with no explanation.
+  await root.getByRole('button', { name: 'File' }).click();
+  await root.getByRole('menuitem', { name: 'Removed photos…' }).click();
+  const emptyPanel = root.getByRole('dialog', { name: 'Removed photos (0)' });
+  await expect(emptyPanel).toBeVisible();
+  await expect(emptyPanel.getByText('Nothing removed right now.')).toBeVisible();
+  await emptyPanel.getByRole('button', { name: 'Close' }).click();
+
+  // Set the photo aside and remove it to Trash.
+  const first = strip.getByRole('option').first();
+  await first.click({ button: 'right' });
+  await root.getByRole('menu', { name: 'Photo actions' }).getByRole('menuitem', { name: 'Reject / set aside' }).click();
+  await first.click({ button: 'right' });
+  await root.getByRole('menu', { name: 'Photo actions' }).getByRole('menuitem', { name: /^Remove/ }).click();
+  await root.getByRole('alertdialog', { name: 'Remove this photo?' }).getByRole('button', { name: 'Remove' }).click();
+  await expect(strip.getByRole('option')).toHaveCount(0);
+
+  // The Removed photos panel lists it by filename and restores it, with no Undo involved.
+  await root.getByRole('button', { name: 'File' }).click();
+  await root.getByRole('menuitem', { name: 'Removed photos…' }).click();
+  const panel = root.getByRole('dialog', { name: 'Removed photos (1)' });
+  await expect(panel).toBeVisible();
+  await expect(panel.getByText('panel-1.png')).toBeVisible();
+  await panel.getByRole('button', { name: 'Restore panel-1.png' }).click();
+  await expect(root.getByRole('dialog', { name: 'Removed photos (0)' })).toBeVisible();
+  await expect(strip.getByRole('option')).toHaveCount(1);
+});
+
 test('?v2 edits are real: Adjust changes the pixels, Compare splits original and edit, undo restores', async ({ page }) => {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');

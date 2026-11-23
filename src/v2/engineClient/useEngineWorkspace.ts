@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { applyCullConfidence, applyDecisionWithHistory, redoDecision, removeFromLibrary, undoDecision } from '../../core/cullingEngine';
+import { applyCullConfidence, applyDecisionWithHistory, redoDecision, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
 import { jumpToStep, recordEdit, stepEdit } from '../../core/editHistory';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { sameRecipe } from '../../core/naturalAuto';
@@ -194,6 +194,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const autoInFlight = useRef(new Set<string>());
   const cullController = useRef<AbortController | null>(null);
   const [importing, setImporting] = useState(false);
+  const [removedOpen, setRemovedOpen] = useState(false);
   const stateRef = useRef<CullingState | null>(null);
   stateRef.current = state;
   const maskInFlight = useRef(new Set<string>());
@@ -894,6 +895,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clearSelection: () => setSelected(activeId ? [activeId] : []),
     setDecision: (ids, decision) => decide(ids, decision),
     removePhotos: (ids) => removePhotos(ids),
+    setRemovedOpen: (open) => setRemovedOpen(open),
+    restorePhotos: (ids) => {
+      mutate((current) => restoreRemoved(current, ids));
+    },
     toggleFlag: (ids) => mutate((current) => ids.reduce((next, id) => {
       const frame = next.frames.find((candidate) => candidate.id === id);
       return frame ? applyDecisionWithHistory(next, id, frame.decision === 'keep' ? 'unreviewed' : 'keep', { allowAdvance: false }) : next;
@@ -1064,6 +1069,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: [...INITIAL_WATERMARKS, ...watermarkLibrary], auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], { assist: assists[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed })), [state?.frames, urls, assists, watermarkAuto, histograms, pixelSizes]);
+  // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo
+  // (ROADMAP.md, "Removed photos panel" next item). Thumbnails are not fetched for them; the filename is enough
+  // to recognise one in a short list, and restoring returns it to the normal, already-thumbnailed photo list.
+  const removedPhotos = useMemo(() => removedFrames(state?.frames ?? []).map((frame) => frameToPhoto(frame, urls[frame.id], {})), [state?.frames, urls]);
   const store: WorkspaceStore = useMemo(() => ({
     ...stub.store,
     fonts: mergeFonts(deviceFonts),
@@ -1076,6 +1085,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     screen, hubState, projects,
     activeProjectId: state?.shoot.id ?? null,
     photos,
+    removedPhotos,
+    removedOpen,
     activePhotoId: activeId,
     selectedPhotoIds: selected,
     reviewingPhotoIds: reviewingIds,
@@ -1085,7 +1096,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clipboardRecipe: clipboard,
     PhotoSurface: EngineSurface,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
-  }), [stub.store, can, savedUi, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, activeId, selected, taskList, taskHistory, clock, notice]);
+  }), [stub.store, can, savedUi, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice]);
 
   return { store, actions };
 }
