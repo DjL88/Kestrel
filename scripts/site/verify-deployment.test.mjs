@@ -281,5 +281,18 @@ test('live verification rejects a redirected response even when content matches'
     script, '--root=' + root, '--live-url=https://demo.example.test',
   ], { encoding: 'utf8' });
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /Live Firebase path redirected: \\/editor\\/demo-editor\\.html/);
+  assert.ok(result.stderr.includes('Live Firebase path redirected: /editor/demo-editor.html'), result.stderr);
+});
+
+
+test('live admin page must match the locally verified release byte for byte', t => {
+  const root = fixture();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  assert.equal(runLive(root, {}).status, 0);
+  for (const stale of ['<h1>Old Admin</h1>', '<!doctype html><html>Fallback</html>', '']) {
+    const result = runLive(root, { '/admin.html': stale });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Live website page differs|missing or wrong asset/);
+  }
+  assert.match(runLive(root, { '/admin.html': undefined }).stderr, /path failed \\(404\\): \\/admin\\.html/);
 });
