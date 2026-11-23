@@ -82,7 +82,7 @@ export function TaskManager({ inline = false }: { inline?: boolean } = {}) {
                   <RotateCcw className="h-4 w-4" aria-hidden="true" />{t.tasks.retry}
                 </button>
               )}
-              {task.state === 'running' && (
+              {task.state === 'running' && task.cancellable && (
                 <button type="button" onClick={() => tasks.cancel(task.id)} aria-label={t.tasks.cancelTask(task.title)} title={t.tasks.cancel}
                   className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-zinc-300 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300"><X className="h-4 w-4" aria-hidden="true" /></button>
               )}

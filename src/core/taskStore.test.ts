@@ -16,6 +16,7 @@ test('cancelling stops the job, marks it cancelled, and the job can tell', () =>
   let aborted = false;
   const task = store.start('Auto-cull', { cancel: () => { aborted = true; } });
   assert.equal(task.cancelled, false);
+  assert.equal(store.list()[0].cancellable, true, 'a running cancellable task offers Stop');
   assert.equal(store.cancel(task.id), true);
   assert.equal(aborted, true);
   assert.equal(task.cancelled, true);
@@ -28,6 +29,7 @@ test('cancelling stops the job, marks it cancelled, and the job can tell', () =>
 test('a task that cannot be cancelled says so, and a finished one cannot be cancelled', () => {
   const store = createTaskStore();
   const fixed = store.start('Saving');
+  assert.equal(store.list()[0].cancellable, false, 'a job without a cancel callback must not offer Stop');
   assert.equal(store.cancel(fixed.id), false);
   const done = store.start('Export', { cancel: () => {} });
   done.finish();
