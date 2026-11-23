@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { applyDecisionWithHistory, redoDecision, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
-import { jumpToStep, recordEdit, stepEdit } from '../../core/editHistory';
+import { recordEdit, stepEdit } from '../../core/editHistory';
+import { forkEditCheckpoint, switchEditVersion as switchVersionInCatalogue } from '../../core/editBranches';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { sameRecipe } from '../../core/naturalAuto';
 import { newId } from '../../core/ids';
@@ -1303,7 +1304,27 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     copyRecipe: () => setClipboard(editToRecipe(activeFrame?.edit)),
     pasteRecipe: () => { if (clipboard && activeId) applyPatch(editTargets(activeId), clipboard); },
     setBurstGrouped: (burstGroupId, grouped) => mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.burstGroupId === burstGroupId ? { ...frame, burstUngrouped: grouped ? undefined : true } : frame)) })),
-    jumpToEditStep: (photoId, cursor) => mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === photoId ? jumpToStep(frame, cursor) : frame)) })),
+    // Clicking an earlier step makes a NEW version; the parent and all its
+    // later edit steps remain untouched and can be reopened from History.
+    jumpToEditStep: (photoId, cursor) => {
+      const versionId = `fork-${newId()}`;
+      const at = Date.now();
+      mutate((current) => ({
+        ...current,
+        shoot: { ...current.shoot, lastUpdatedAt: at },
+        frames: current.frames.map((frame) =>
+          frame.id === photoId ? forkEditCheckpoint(frame, cursor, versionId, at) : frame),
+      }));
+    },
+    switchEditVersion: (photoId, versionId) => {
+      const at = Date.now();
+      mutate((current) => ({
+        ...current,
+        shoot: { ...current.shoot, lastUpdatedAt: at },
+        frames: current.frames.map((frame) =>
+          frame.id === photoId ? switchVersionInCatalogue(frame, versionId) : frame),
+      }));
+    },
     undo: () => {
       if (activeFrame?.editHistory && activeFrame.editHistory.cursor > 0) mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === activeFrame.id ? stepEdit(frame, -1) : frame)) }));
       else mutate(undoDecision);
