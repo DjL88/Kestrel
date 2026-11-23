@@ -1,4 +1,5 @@
 import { stepFrom, swipeIntent } from '../utils/swipe';
+import { cropHandleZoom, type CropHandleSide } from '../utils/cropHandleZoom';
 import React, { useEffect, useRef, useState } from 'react';
 import type {
   CropTransform,
@@ -363,14 +364,12 @@ export default function Canvas({
     } else if (drag.kind === 'move-frame') {
       setFrameOffsets((current) => ({ ...current, [drag.sizeId]: { x: drag.origA + dx / canvasZoom, y: drag.origB + dy / canvasZoom } }));
     } else if (drag.kind.startsWith('scale-') && drag.crop) {
-      // Aspect-locked crop: the window keeps the format's shape, so pulling a handle in zooms the picture about the opposite
-      // edge or corner, which stays where it is. Pulling out zooms back out, never past the picture's edges.
-      const side = drag.kind.slice('scale-'.length);
-      const fx = side === 'left' ? dx / width : side === 'right' ? -dx / width : 0;
-      const fy = side === 'top' ? dy / height : side === 'bottom' ? -dy / height : 0;
-      const corner: Record<string, [number, number]> = { tl: [dx / width, dy / height], tr: [-dx / width, dy / height], bl: [dx / width, -dy / height], br: [-dx / width, -dy / height] };
-      const inward = corner[side] ? (corner[side][0] + corner[side][1]) / 2 : fx + fy;
-      const zoom = clamp(drag.crop.zoom / Math.max(0.05, 1 - inward), 1, MAX_CROP_ZOOM);
+      // Aspect-locked crop: pulling the image bounds out zooms in, and pushing inward zooms out.
+      // The opposite edge/corner remains the anchor, and zoom never drops below fit.
+      const side = drag.kind.slice('scale-'.length) as CropHandleSide;
+      // Handles sit on the IMAGE bounds: pulling outward must enlarge the
+      // image; the former inward-positive maths inverted every corner/edge.
+      const zoom = cropHandleZoom(side, dx, dy, width, height, drag.crop.zoom, MAX_CROP_ZOOM);
       const anchors: Record<string, [number, number]> = { top: [0, 0.5], bottom: [0, -0.5], left: [0.5, 0], right: [-0.5, 0], tl: [0.5, 0.5], tr: [-0.5, 0.5], bl: [0.5, -0.5], br: [-0.5, -0.5] };
       const [ax, ay] = anchors[side] ?? [0, 0];
       const limits = panLimits(photo.sizes.find((size) => size.id === drag.sizeId) ?? activeSize, zoom);
