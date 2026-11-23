@@ -58,3 +58,32 @@ test('explicitly enabling a default-off format is a recorded visible event', () 
   const off = recordFormatSetChange(history, on, undefined, 2000, 0);
   assert.deepEqual(historyForFormat(off, 'ig-portrait').map(e => e.kind), ['shown', 'hidden']);
 });
+
+test('active format keeps its inherited creation point after 300 subsequent actions', () => {
+  let history = recordFormatSetChange(undefined, undefined, {
+    disabled: [], custom: [{ id: 'custom-keeper', label: 'Portrait', width: 1600, height: 2000 }],
+  }, 1000, 12);
+  for (let i = 0; i < MAX_FORMAT_HISTORY + 50; i++) {
+    history = recordFormatLink(history, 'custom-keeper', i % 2 === 0, 2000 + i);
+  }
+  assert.equal(history.events.length, MAX_FORMAT_HISTORY);
+  const [created] = historyForFormat(history, 'custom-keeper');
+  assert.equal(created.kind, 'created');
+  assert.equal(created.forkEditCursor, 12);
+  assert.equal(created.at, 1000);
+  assert.equal(history.events.at(-1)?.at, 2000 + MAX_FORMAT_HISTORY + 49);
+});
+
+test('removed formats need not retain a permanent creation marker', () => {
+  let history = recordFormatSetChange(undefined, undefined, {
+    disabled: [], custom: [{ id: 'custom-gone', label: 'Temporary', width: 1000, height: 1000 }],
+  }, 1000, 0);
+  history = recordFormatSetChange(history, {
+    disabled: [], custom: [{ id: 'custom-gone', label: 'Temporary', width: 1000, height: 1000 }],
+  }, undefined, 1100, 0);
+  for (let i = 0; i < MAX_FORMAT_HISTORY + 5; i++) {
+    history = recordFormatLink(history, 'orig-3x2', i % 2 === 0, 2000 + i);
+  }
+  assert.equal(history.events.length, MAX_FORMAT_HISTORY);
+  assert.equal(historyForFormat(history, 'custom-gone').some(e => e.kind === 'created'), false);
+});
