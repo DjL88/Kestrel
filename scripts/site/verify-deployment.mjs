@@ -39,7 +39,7 @@ function faviconHref(html) {
 }
 function requireFavicon(html) {
   const href = faviconHref(html);
-  if (!href || new URL(href, 'https://kestrel.invalid/').pathname !== faviconPath || /[?#]/.test(href)) {
+  if (!href || !/^(?:\/assets\/|assets\/)/.test(href) ||\n      new URL(href, 'https://kestrel.invalid/').pathname !== faviconPath || /[?#]/.test(href)) {
     throw new Error('Homepage favicon missing or not the approved brand asset: ' + String(href));
   }
 }
