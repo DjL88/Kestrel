@@ -38,6 +38,7 @@ function run(root, ...args) {
 function runLive(root, overrides) {
   const pages = {
     '/': landing,
+    '/admin.html': '<h1>Admin</h1>',
     '/oauth-callback.html': callback,
     '/privacy.html': privacy,
     [iconPath]: icon,
