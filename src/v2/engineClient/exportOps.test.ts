@@ -348,7 +348,7 @@ test('unknown imported dimensions do not silently use invented 3000 by 2000 Orig
 });
 
 test('three-frame split plans three adjacent outputs and preserves format crop', () => {
-  const chosen = [{ id: 'three', filename: 'bird.jpg', isDemo: true, formatSplits: { a: { enabled: true, offset: 7, count: 3 } } }];
+  const chosen = [{ id: 'p1', filename: 'bird.jpg', isDemo: true, formatSplits: { a: { enabled: true, offset: 7, count: 3 } } }];
   const plan = planExport(request(), chosen, [size('a')]);
   assert.ok('jobs' in plan);
   assert.equal(plan.jobs.length, 1);
