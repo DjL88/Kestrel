@@ -105,6 +105,14 @@ export interface GuidedSubject extends DetectedSubject {
   guide: { label: string; score: number } | null;
   /** The fine, edge-refined outline around the subject, when a cut-out was used. */
   detail: SubjectDetail | null;
+  /** The box detector's own finding (detection, sharpness, coverage), exactly as `objectDetector.ts`'s
+   * `findSubject` returns it - set only when the guided path actually steered the mask (mirrors `guide`'s
+   * own null-on-fallback rule). This is NOT a second detection: it is the same box `guide` summarises, kept
+   * here so a caller can run it through `autoCull.ts`'s real score/size/sharpness trust gate
+   * (`judgeSubject`, the same logic `engine/subjectDetectAction.ts` uses for exactly this question) without
+   * re-detecting anything. Advisory only - this module does not gate mask creation on it;
+   * `assessment.usable` already decides that. */
+  boxFinding: import('./objectDetector').FoundSubject | null;
 }
 
 /**
@@ -127,7 +135,7 @@ export async function detectSubjectGuided(framed: HTMLCanvasElement, options: { 
     context.drawImage(framed, 0, 0, preview.width, preview.height);
     const detected = await detectSubject(preview, options);
     assertSubjectActive(options.signal);
-    return { ...detected, guide: null, detail: null };
+    return { ...detected, guide: null, detail: null, boxFinding: null };
   };
 
   // The outline model is the one that must work; if it can't load, say so now rather than after the detector runs.
@@ -172,6 +180,7 @@ export async function detectSubjectGuided(framed: HTMLCanvasElement, options: { 
     assessment,
     guide: { label: found.detection.label, score: found.detection.score },
     detail,
+    boxFinding: found,
   };
 }
 
