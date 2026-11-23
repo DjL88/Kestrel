@@ -5,12 +5,12 @@
 | Plan | Monthly | Annual | One-off | Included |
 | --- | --- | --- | --- | --- |
 | Basic | Free | — | — | Core editing and local, NAS or connected-drive storage |
-| Pro | £2.99 | £29 | £29 | All editing tools and an account. The subscription includes software updates. The one-off licence covers the purchased major version. |
-| Pro Cloud | £9.99 | £99 | — | Pro, software updates and 100 GB of hosted storage for edited copies |
+| Pro | £2.99 | £29.99 | £29 | All editing tools and an account. The subscription includes software updates. The one-off licence covers the purchased major version. |
+| Pro Cloud | £9.99 | £99.99 | — | Pro, software updates and 100 GB of hosted storage for edited copies |
 
 Pro Cloud customers can add 10 GB for £1 per month. Hosted gallery storage belongs to Pro Cloud. Confirm the cloud-processing allowance for signed-in Pro and Pro Cloud customers before launch.
 
-The storage limit is measured in bytes. The number of edited photos varies with format and compression. A full allowance pauses uploads and shows an account alert. Download and deletion remain available. A renewal failure stops new uploads once the paid period ends. Track retention separately from the paid-through date so existing copies are recoverable under the agreed policy.
+The storage limit is measured in bytes. The number of edited photos varies with format and compression. A full allowance pauses uploads and shows an account alert. Download and deletion remain available. A renewal failure stops new uploads once the verified paid period ends. The payment retry period lasts 21 days before downgrade; it does not extend upload permission. Existing cloud copies remain read-only and downloadable for 90 days after the paid-through date. Expiry of that window never authorises automatic deletion: remote deletion requires prior notice and explicit owner approval through a separately reviewed backend process. Local editing, backups, recovery and export remain available regardless of payment state. Historical 365-day language below describes older migration proposals, not the V2 launch contract.
 
 ### Cloud gallery
 
