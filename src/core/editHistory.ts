@@ -10,6 +10,8 @@ export const MAX_EDIT_HISTORY_STEPS = 60;
 export interface EditHistory {
   cursor: number;
   steps: { kind: EditKind; before: Snapshot; after: Snapshot; at: number }[];
+  /** Number of older edit steps compacted away; step zero is then NOT the imported Original. */
+  discarded?: number;
 }
 
 function classify(before: Snapshot, after: Snapshot): EditKind {
@@ -41,8 +43,10 @@ export function recordEdit(frame: PhotoFrame, patch: Snapshot, at: number): Phot
   } else {
     steps.push({ kind, before, after, at });
   }
+  const discarded = Math.max(0, history?.discarded ?? 0) + Math.max(0, steps.length - MAX_EDIT_HISTORY_STEPS);
   const retained = steps.slice(-MAX_EDIT_HISTORY_STEPS);
-  return { ...frame, ...after, focusPoint: before.framing === after.framing ? frame.focusPoint : undefined, editHistory: { steps: retained, cursor: retained.length } };
+  return { ...frame, ...after, focusPoint: before.framing === after.framing ? frame.focusPoint : undefined,
+    editHistory: { steps: retained, cursor: retained.length, ...(discarded ? { discarded } : {}) } };
 }
 
 export function stepEdit(frame: PhotoFrame, direction: -1 | 1): PhotoFrame {
