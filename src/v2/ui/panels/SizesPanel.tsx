@@ -5,6 +5,7 @@ import BrandIcon from '../icons/BrandIcon';
 import { useProHidden } from '../shell/ProBadge';
 import InfoPopover from '../shell/InfoPopover';
 import { getActiveGroup } from '../utils/studioMath';
+import { dimensionPixels, paperDimensions, type DimensionUnit, type PaperOrientation, type PaperPreset } from '../../engineClient/paperSizes';
 
 interface SizesPanelProps {
   photo: Photo | null;
@@ -52,6 +53,10 @@ export default function SizesPanel({
   const [customLabel, setCustomLabel] = useState('');
   const [customW, setCustomW] = useState(2400);
   const [customH, setCustomH] = useState(1600);
+  const [customUnit, setCustomUnit] = useState<DimensionUnit>('px');
+  const [customPpi, setCustomPpi] = useState(300);
+  const [paperPreset, setPaperPreset] = useState<PaperPreset>('custom');
+  const [paperOrientation, setPaperOrientation] = useState<PaperOrientation>('portrait');
 
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">Select a photo to manage export formats.</p>;
@@ -60,10 +65,28 @@ export default function SizesPanel({
   const group = getActiveGroup(photo);
   const activeSize = photo.sizes.find((s) => s.id === activeSizeId) ?? photo.sizes[0];
 
+  const pixelDimensions = dimensionPixels(customW, customH, customUnit, customPpi);
+  const handlePaperPreset = (preset: PaperPreset) => {
+    setPaperPreset(preset);
+    if (preset !== 'custom') {
+      const size = paperDimensions(preset, paperOrientation);
+      setCustomUnit('mm');
+      setCustomW(size.width);
+      setCustomH(size.height);
+    }
+  };
+  const changeOrientation = (orientation: PaperOrientation) => {
+    if (paperOrientation !== orientation) {
+      setCustomW(customH);
+      setCustomH(customW);
+    }
+    setPaperOrientation(orientation);
+  };
   const handleCreateCustom = (e: React.FormEvent) => {
     e.preventDefault();
-    if (customW < 100 || customH < 100) return;
-    onAddCustomSize(photo.id, customLabel, customW, customH);
+    if (!pixelDimensions) return;
+    onAddCustomSize(photo.id, customLabel.trim() || (paperPreset !== 'custom' ? `${paperPreset} ${paperOrientation}` : `${pixelDimensions.width}×${pixelDimensions.height}`),
+      pixelDimensions.width, pixelDimensions.height);
     setCustomLabel('');
     setAddingCustom(false);
   };
@@ -177,23 +200,91 @@ export default function SizesPanel({
               className="h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]"
             />
             <div className="grid grid-cols-2 gap-2">
-              <input
-                type="number"
-                min={100}
-                value={customW}
-                onChange={(e) => setCustomW(Number(e.target.value))}
-                aria-label="Width in pixels"
-                className="h-8 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 font-mono text-xs text-[var(--text-primary)]"
-              />
-              <input
-                type="number"
-                min={100}
-                value={customH}
-                onChange={(e) => setCustomH(Number(e.target.value))}
-                aria-label="Height in pixels"
-                className="h-8 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 font-mono text-xs text-[var(--text-primary)]"
-              />
+              <label className="space-y-1 text-[11px] text-[var(--text-secondary)]">
+                <span>Size</span>
+                <select
+                  aria-label="Paper size"
+                  value={paperPreset}
+                  onChange={(e) => handlePaperPreset(e.target.value as PaperPreset)}
+                  className="h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]"
+                >
+                  <option value="custom">Custom</option>
+                  <option value="A4">A4 (210 × 297 mm)</option>
+                  <option value="A3">A3 (297 × 420 mm)</option>
+                  <option value="A2">A2 (420 × 594 mm)</option>
+                  <option value="A1">A1 (594 × 841 mm)</option>
+                </select>
+              </label>
+              <label className="space-y-1 text-[11px] text-[var(--text-secondary)]">
+                <span>Orientation</span>
+                <select
+                  value={paperOrientation}
+                  onChange={(e) => changeOrientation(e.target.value as PaperOrientation)}
+                  aria-label="Canvas orientation"
+                  className="h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]"
+                >
+                  <option value="portrait">Portrait</option>
+                  <option value="landscape">Landscape</option>
+                </select>
+              </label>
             </div>
+            <div className="grid grid-cols-3 gap-2">
+              <label className="space-y-1 text-[11px] text-[var(--text-secondary)]">
+                <span>Width</span>
+                <input
+                  type="number" min={customUnit === 'px' ? 100 : 0.1} step={customUnit === 'px' ? 1 : 'any'}
+                  value={customW}
+                  onChange={(e) => { setCustomW(Number(e.target.value)); setPaperPreset('custom'); }}
+                  aria-label={`Width in ${customUnit}`}
+                  className="h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 font-mono text-xs text-[var(--text-primary)]"
+                />
+              </label>
+              <label className="space-y-1 text-[11px] text-[var(--text-secondary)]">
+                <span>Height</span>
+                <input
+                  type="number" min={customUnit === 'px' ? 100 : 0.1} step={customUnit === 'px' ? 1 : 'any'}
+                  value={customH}
+                  onChange={(e) => { setCustomH(Number(e.target.value)); setPaperPreset('custom'); }}
+                  aria-label={`Height in ${customUnit}`}
+                  className="h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 font-mono text-xs text-[var(--text-primary)]"
+                />
+              </label>
+              <label className="space-y-1 text-[11px] text-[var(--text-secondary)]">
+                <span>Units</span>
+                <select
+                  aria-label="Size units" value={customUnit}
+                  onChange={(e) => {
+                    const next = e.target.value as DimensionUnit;
+                    const inches = customUnit === 'mm' ? 1 / 25.4 : customUnit === 'cm' ? 1 / 2.54 : customUnit === 'px' ? 1 / customPpi : 1;
+                    const factor = next === 'mm' ? 25.4 : next === 'cm' ? 2.54 : next === 'px' ? customPpi : 1;
+                    setCustomW(Number((customW * inches * factor).toFixed(next === 'px' ? 0 : 3)));
+                    setCustomH(Number((customH * inches * factor).toFixed(next === 'px' ? 0 : 3)));
+                    setCustomUnit(next);
+                    setPaperPreset('custom');
+                  }}
+                  className="h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]"
+                >
+                  <option value="px">px</option><option value="mm">mm</option>
+                  <option value="cm">cm</option><option value="in">in</option>
+                </select>
+              </label>
+            </div>
+            {customUnit !== 'px' && (
+              <label className="flex items-center justify-between gap-2 text-[11px] text-[var(--text-secondary)]">
+                <span>Print resolution (PPI)</span>
+                <input
+                  type="number" min={1} max={2400} step={1} value={customPpi}
+                  onChange={(e) => setCustomPpi(Number(e.target.value))}
+                  aria-label="Print resolution in pixels per inch"
+                  className="h-8 w-24 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 font-mono text-xs text-[var(--text-primary)]"
+                />
+              </label>
+            )}
+            <p aria-live="polite" className="text-[11px] text-[var(--text-secondary)]">
+              {pixelDimensions
+                ? `Output canvas: ${pixelDimensions.width} × ${pixelDimensions.height} pixels. This does not add detail to a low-resolution photograph.`
+                : 'Choose a size of 100 to 20,000 pixels per side and a valid PPI.'}
+            </p>
             <div className="flex justify-end gap-1.5">
               <button
                 type="button"
@@ -204,7 +295,8 @@ export default function SizesPanel({
               </button>
               <button
                 type="submit"
-                className="h-7 rounded bg-[var(--brand-accent)] px-2.5 text-xs font-semibold text-[var(--text-on-accent)]"
+                disabled={!pixelDimensions}
+                className="h-7 rounded bg-[var(--brand-accent)] px-2.5 text-xs font-semibold text-[var(--text-on-accent)] disabled:opacity-50"
               >
                 Add format
               </button>
