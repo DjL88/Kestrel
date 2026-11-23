@@ -118,6 +118,16 @@ function mergeLookMasks(existing: Mask[], incoming: Mask[]): Mask[] {
  * Each trial is rendered as the cumulative accepted recipe against the original pixels. Rejected
  * steps never enter the cumulative recipe. finalPixels therefore represents all accepted steps. */
 export async function runLook(look: Look, input: LookRenderInput, runner: EngineRunner = 'device'): Promise<LookResult> {
+  // The verifier must never compare pixels against a malformed source frame.
+  // Validate before allocating masks or calling any renderer (including empty Looks).
+  const { width, height, data } = input.original;
+  const pixelCount = width * height;
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) ||
+      width <= 0 || height <= 0 || !Number.isSafeInteger(pixelCount) ||
+      !Number.isSafeInteger(pixelCount * 4) ||
+      !(data instanceof Uint8ClampedArray) || data.length !== pixelCount * 4) {
+    throw new RangeError('Look original must contain valid dimensions and RGBA pixels');
+  }
   // Refuse malformed recipes before any render: NaN/Infinity can poison pixel maths
   // and must never enter an accepted, persistent edit recipe.
   for (const step of look.steps) {
@@ -138,7 +148,7 @@ export async function runLook(look: Look, input: LookRenderInput, runner: Engine
   }
   if (input.subject) {
     const { alpha } = input.subject;
-    if (alpha.length !== input.original.width * input.original.height ||
+    if (alpha.length !== pixelCount ||
         alpha.some(value => !Number.isFinite(value) || value < 0 || value > 1)) {
       throw new RangeError('Look subject alpha must match original pixels and contain values from 0 to 1');
     }
