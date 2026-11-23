@@ -145,7 +145,8 @@ export function forkEditCheckpoint(
   // again without inventing a historical source image.
   const selected = history.steps.length
     ? recipeAt(history, cursor)
-    : { edit: frame.edit, framing: frame.framing, overlay: frame.overlay };
+    : { edit: frame.edit, framing: frame.framing, overlay: frame.overlay,
+      formatSplits: frame.formatSplits };
   if (!selected) return frame;
   const forkHistory: EditHistory = {
     ...history,
@@ -156,6 +157,10 @@ export function forkEditCheckpoint(
     ...capture(frame), edit: copy(selected.edit), framing: copy(selected.framing),
     // Old saved checkpoints lacked overlays. Retain the live overlay rather than guessing history.
     overlay: 'overlay' in selected ? copy(selected.overlay) : copy(frame.overlay),
+    // New edit checkpoints include the exact split state. Earlier catalogues
+    // had no such evidence: retain the current layout rather than fabricating
+    // an old one. This mirrors the existing overlay compatibility rule.
+    formatSplits: 'formatSplits' in selected ? copy(selected.formatSplits) : copy(frame.formatSplits),
     editHistory: forkHistory, focusPoint: undefined,
   });
   const next: EditVersion = {
