@@ -25,7 +25,8 @@ import ExportDialog from './dialogs/ExportDialog';
 import SettingsDialog from './dialogs/SettingsDialog';
 import ShortcutGuide from './dialogs/ShortcutGuide';
 import CommandPalette from './dialogs/CommandPalette';
-import { effectiveKeymap, loadKeymap, resolveCommand } from './commands/keymap';
+import { resolveCommand } from './commands/keymap';
+import { useLiveKeymap } from './commands/useLiveKeymap';
 import type { CommandDefinition } from './commands/registry';
 
 const IS_MAC = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
@@ -52,7 +53,9 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   const hasOverlays = store.features.overlayText || store.features.watermarkCustom;
   const [shortcutGuideOpen, setShortcutGuideOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  const keymap = React.useMemo(() => { const saved = loadKeymap(); return effectiveKeymap(saved.preset, saved.overrides); }, []);
+  // Shared with TopBar's shortcut tooltips: a same-tab Settings > Keyboard change must reach
+  // the actual dispatcher, not just the label (see useLiveKeymap's doc comment for the bug this fixes).
+  const keymap = useLiveKeymap();
   const [moreOpen, setMoreOpen] = useState(false);
   const sheetDragY = useRef<number | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(() =>

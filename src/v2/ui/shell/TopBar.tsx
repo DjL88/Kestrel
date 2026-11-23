@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { AssistMode, DockPosition, PanelId, ThemeMode } from '../contract';
 import { STRINGS } from '../strings';
-import { chordLabel, effectiveKeymap, loadKeymap } from '../commands/keymap';
+import { chordLabel } from '../commands/keymap';
+import { useLiveKeymap } from '../commands/useLiveKeymap';
 import BrandIcon, { BrandLogo, assistModeIconName } from '../icons/BrandIcon';
 
 interface TopBarProps {
@@ -74,28 +75,9 @@ export default function TopBar({
 }: TopBarProps) {
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  // Match the same saved preset and overrides used by the workspace key handler.
-  const [shortcutMap, setShortcutMap] = useState(() => {
-    const saved = loadKeymap();
-    return effectiveKeymap(saved.preset, saved.overrides);
-  });
-  // Settings can change the saved preset while the studio stays mounted.
-  // Focus returning to a studio control also refreshes same-tab changes: the
-  // browser's storage event only fires in other tabs, not the writing tab.
-  useEffect(() => {
-    const refreshShortcuts = () => {
-      const saved = loadKeymap();
-      setShortcutMap(effectiveKeymap(saved.preset, saved.overrides));
-    };
-    window.addEventListener('focus', refreshShortcuts);
-    window.addEventListener('focusin', refreshShortcuts);
-    window.addEventListener('storage', refreshShortcuts);
-    return () => {
-      window.removeEventListener('focus', refreshShortcuts);
-      window.removeEventListener('focusin', refreshShortcuts);
-      window.removeEventListener('storage', refreshShortcuts);
-    };
-  }, []);
+  // The same live keymap App.tsx's dispatcher uses, so a tooltip can never promise a shortcut
+  // the editor won't actually run (see useLiveKeymap's doc comment).
+  const shortcutMap = useLiveKeymap();
   const isMac = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
 
   useEffect(() => {
