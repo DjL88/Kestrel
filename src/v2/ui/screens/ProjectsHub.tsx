@@ -33,6 +33,8 @@ export default function ProjectsHub({
   onSetHubState,
 }: ProjectsHubProps) {
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<'edited' | 'name' | 'photos' | 'flagged'>('edited');
+  const [failedCovers, setFailedCovers] = useState<string[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [projectName, setProjectName] = useState('');
 
@@ -44,7 +46,11 @@ export default function ProjectsHub({
 
   const filtered = projects
     .filter((p) => Boolean(p.archived) === showArchived)
-    .filter((p) => `${p.name} ${p.folderPath}`.toLowerCase().includes(search.trim().toLowerCase()));
+    .filter((p) => `${p.name} ${p.folderPath}`.toLowerCase().includes(search.trim().toLowerCase()))
+    .sort((a, b) => sortBy === 'name' ? a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+      : sortBy === 'photos' ? b.photoCount - a.photoCount
+      : sortBy === 'flagged' ? b.flaggedCount - a.flaggedCount
+      : (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0));
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,41 +68,12 @@ export default function ProjectsHub({
           <BrandLogo height={44} />
         </div>
 
-        <nav className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)] sm:gap-6">
-          <button
-            type="button"
-            onClick={() => onSetHubState('ready')}
-            className="hidden whitespace-nowrap transition-colors hover:text-[var(--text-primary)] sm:inline-flex"
-          >
-            Library
-          </button>
-          <button
-            type="button"
-            onClick={onToggleTheme}
-            className="hidden items-center gap-1.5 whitespace-nowrap transition-colors hover:text-[var(--text-primary)] sm:inline-flex"
-          >
-            <BrandIcon name={theme === 'dark' ? 'theme-light' : 'theme-dark'} size={15} />
-            <span>{theme === 'dark' ? 'Light theme' : 'Dark theme'}</span>
-          </button>
-          <button
-            type="button"
-            aria-label="Settings"
-            onClick={onOpenSettings}
-            className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--radius-sm)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
-          >
-            <BrandIcon name="settings" size={15} />
-            <span className="hidden sm:inline">Settings</span>
+        <nav className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
+          <button type="button" aria-label="Settings" onClick={onOpenSettings}
+            className="inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-sm)] px-2 hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]">
+            <BrandIcon name="settings" size={17} /><span className="hidden sm:inline">Settings</span>
           </button>
         </nav>
-
-        <button
-          type="button"
-          onClick={() => setModalOpen(true)}
-          className="inline-flex h-10 items-center gap-2 rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-4 text-xs font-semibold text-[var(--text-on-accent)] transition-colors hover:bg-[var(--brand-accent-hover)] whitespace-nowrap shrink-0"
-        >
-          <BrandIcon name="plus" size={15} />
-          <span>{STRINGS.hub.newProject}</span>
-        </button>
       </header>
 
       {/* Main Content */}
@@ -112,8 +89,8 @@ export default function ProjectsHub({
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="relative">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative min-w-0 flex-1 sm:flex-none">
                 <BrandIcon
                   name="search"
                   size={15}
@@ -125,9 +102,19 @@ export default function ProjectsHub({
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder={STRINGS.hub.searchPlaceholder}
                   aria-label={STRINGS.hub.searchPlaceholder}
-                  className="h-10 w-60 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] pl-9 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+                  className="h-10 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] pl-9 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
                 />
               </div>
+              <label className="sr-only" htmlFor="project-sort">Sort projects</label>
+              <select id="project-sort" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                className="h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]">
+                <option value="edited">Last edited</option><option value="name">Name A–Z</option>
+                <option value="photos">Most photos</option><option value="flagged">Most flagged</option>
+              </select>
+              <button type="button" onClick={() => setModalOpen(true)}
+                className="inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-3 text-xs font-semibold text-[var(--text-on-accent)] hover:bg-[var(--brand-accent-hover)]">
+                <BrandIcon name="plus" size={15}/>{STRINGS.hub.newProject}
+              </button>
             </div>
           </div>
 
@@ -209,12 +196,16 @@ export default function ProjectsHub({
                     onClick={() => onOpenProject(project.id)}
                     className="relative aspect-[16/10] w-full overflow-hidden bg-[var(--bg-canvas)] text-left"
                   >
-                    <img
-                      src={project.coverUrl}
-                      alt={project.name}
-                      referrerPolicy="no-referrer"
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                    />
+                    {project.coverUrl && !failedCovers.includes(project.id) ? (
+                      <img src={project.coverUrl} alt={`Cover photograph for ${project.name}`}
+                        referrerPolicy="no-referrer" onError={() => setFailedCovers((ids) => ids.includes(project.id) ? ids : [...ids, project.id])}
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+                    ) : (
+                      <span className="flex h-full flex-col items-center justify-center gap-2 text-[var(--text-secondary)]">
+                        <BrandIcon name="folder-open" size={30}/>
+                        <span className="text-xs">Cover unavailable · Open studio</span>
+                      </span>
+                    )}
                   </button>
                   <div className="flex flex-1 flex-col justify-between p-4">
                     <div>
@@ -280,6 +271,18 @@ export default function ProjectsHub({
           )}
         </div>
       </main>
+      <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3 text-xs text-[var(--text-secondary)] sm:px-10">
+        <div className="flex flex-wrap items-center gap-3">
+          <BrandIcon name="bird" size={17}/>
+          <span>InFlight</span>
+          <a href="/privacy.html" className="underline-offset-2 hover:underline">Privacy</a>
+        </div>
+        <button type="button" onClick={onToggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+          className="inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 hover:bg-[var(--bg-surface-hover)]">
+          <BrandIcon name={theme === 'dark' ? 'theme-light' : 'theme-dark'} size={16}/>
+          {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+        </button>
+      </footer>
 
       {/* Create Project Modal */}
       {modalOpen && (
