@@ -53,6 +53,24 @@ export function readFormatHistory(raw: unknown): FormatHistory {
   return { version: 1, events };
 }
 
+/**
+ * Compact older routine events without losing the first point of an ACTIVE
+ * format branch. The Original is an implicit permanent root. Removed branches
+ * may age out normally; no deleted user photo bytes are retained.
+ */
+export function trimFormatHistory(events: readonly FormatHistoryEvent[]): FormatHistoryEvent[] {
+  if (events.length <= MAX_FORMAT_HISTORY) return [...events];
+  const active = new Map<string, number>();
+  events.forEach((event, index) => {
+    if (event.kind === 'created') active.set(event.formatId, index);
+    if (event.kind === 'removed') active.delete(event.formatId);
+  });
+  const preserved = new Set([...active.values()].slice(-MAX_FORMAT_HISTORY));
+  const selected = new Set(preserved);
+  for (let i = events.length - 1; i >= 0 && selected.size < MAX_FORMAT_HISTORY; i--) selected.add(i);
+  return events.filter((_event, index) => selected.has(index));
+}
+
 function append(raw: unknown, event: FormatHistoryEvent): FormatHistory {
   const history = readFormatHistory(raw);
   const events = history.events;
@@ -62,9 +80,9 @@ function append(raw: unknown, event: FormatHistoryEvent): FormatHistory {
     && event.at >= last.at && event.at - last.at < 550) {
     const combined = { ...event, before: last.before };
     if (JSON.stringify(combined.before) === JSON.stringify(combined.after)) return { version: 1, events: events.slice(0, -1) };
-    return { version: 1, events: [...events.slice(0, -1), combined] };
+    return { version: 1, events: trimFormatHistory([...events.slice(0, -1), combined]) };
   }
-  return { version: 1, events: [...events, event].slice(-MAX_FORMAT_HISTORY) };
+  return { version: 1, events: trimFormatHistory([...events, event]) };
 }
 
 export function recordFormatCrop(
