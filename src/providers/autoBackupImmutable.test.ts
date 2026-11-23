@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { memoryConnector, type StorageConnector } from '../core/storageConnectors';
+import { backupName } from '../core/autoBackup';
 import { writeSnapshot } from './autoBackup';
 
 test('caller changes during an asynchronous put do not cause false corruption or alter the stored snapshot', async () => {
@@ -20,12 +21,13 @@ test('caller changes during an asynchronous put do not cause false corruption or
     list: async (prefix) => { retention++; return backing.list(prefix); },
   };
   const source = new Uint8Array([1, 2, 3, 4]);
-  const pending = writeSnapshot(connector, 'immutable-test', 'backup.kestrel.json', source);
+  const name = backupName('immutable-test', new Date());
+  const pending = writeSnapshot(connector, 'immutable-test', name, source);
   await enteredPut;
   source.fill(9);
   release();
   await pending;
-  assert.deepEqual(await backing.get('backup.kestrel.json'), new Uint8Array([1, 2, 3, 4]));
+  assert.deepEqual(await backing.get(name), new Uint8Array([1, 2, 3, 4]));
   assert.equal(retention, 1);
 });
 
@@ -42,7 +44,8 @@ test('wrong stored bytes fail closed even if caller mutates to match them', asyn
     list: async (prefix) => { retention++; return backing.list(prefix); },
   };
   const original = new Uint8Array([1, 2, 3, 4]);
-  await assert.rejects(writeSnapshot(connector, 'immutable-test', 'bad.kestrel.json', original), /Backup verification failed/);
+  const name = backupName('immutable-test', new Date());
+  await assert.rejects(writeSnapshot(connector, 'immutable-test', name, original), /Backup verification failed/);
   assert.equal(retention, 0);
   assert.deepEqual(original, new Uint8Array([1, 2, 3, 4]));
 });

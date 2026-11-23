@@ -6,8 +6,9 @@ import type { Photo } from '../ui/contract';
 import SizesPanel from '../ui/panels/SizesPanel';
 import { createDefaultSizes, createEditGroups, DEFAULT_FEATURES } from '../ui/stub';
 
-const chosen = createDefaultSizes().find(size => size.kind === 'photo' && size.enabled);
-assert.ok(chosen, 'The workspace must have at least one enabled photo format');
+const defaultPhotoFormat = createDefaultSizes().find(size => size.kind === 'photo' && size.enabled);
+assert.ok(defaultPhotoFormat, 'The workspace must have at least one enabled photo format');
+const chosen = defaultPhotoFormat;
 const editGroup = createEditGroups(false)[0];
 
 function render(count: 1 | 2 | 3, enabled = true): string {

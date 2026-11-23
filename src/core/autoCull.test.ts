@@ -302,7 +302,7 @@ test('ambiguous subject labels and control characters never create confident kee
   const valid = { label: 'bird', score: 0.98, size: 500, sharpness: 24 };
   for (const label of [
     'unknown bird', 'Unidentified aircraft', 'unrecognised animal',
-    'other species', 'none detected', 'n/a bird', 'bird\\nunknown', 'bird\\u0000',
+    'other species', 'none detected', 'n/a bird', 'bird\nunknown', 'bird\u0000',
   ]) {
     const result = scoreWithSubject(baseResult, { ...valid, label });
     assert.deepEqual([result.decision, result.confidence, result.reason],
