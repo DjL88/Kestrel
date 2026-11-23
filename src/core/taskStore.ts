@@ -9,6 +9,8 @@ export interface Task {
   id: number;
   title: string;
   state: TaskState;
+  /** A Stop control is only available when the job registered a cancellation callback. */
+  cancellable?: boolean;
   done: number;
   total: number | null;
   detail?: string;
@@ -59,7 +61,7 @@ export function createTaskStore(now: () => number = Date.now) {
   return {
     start(title: string, options: { total?: number | null; cancel?: () => void } = {}): TaskHandle {
       const id = nextId++;
-      tasks = [...tasks, { id, title, state: 'running', done: 0, total: options.total ?? null, startedAt: now(), updatedAt: now() }];
+      tasks = [...tasks, { id, title, state: 'running', cancellable: typeof options.cancel === 'function', done: 0, total: options.total ?? null, startedAt: now(), updatedAt: now() }];
       if (options.cancel) cancels.set(id, options.cancel);
       emit();
       return {
