@@ -32,15 +32,19 @@ export function cropPlacement(width: number, height: number, picture: { width: n
   };
 }
 
-/** Where a box sits when the canvas anchors it at (x%, y%): `left: X%` with `translate(-X%, -50%)`, so it stays inside the frame at both edges. */
+/** Where a box sits when the canvas anchors it at (x%, y%): `left: X%` with `translate(-50%, -50%)`, so the
+ * box's own centre - not one of its edges - sits at (x%, y%) of the frame. This must mirror Canvas.tsx's
+ * fixed-centre transform exactly, or the exported image places text/watermark somewhere other than where
+ * the canvas showed it (the saved X% is the centre's position either way; only the offset used to go from
+ * that centre to the box's top-left corner changed, from an X%-scaled offset to a flat half-width one). */
 export function anchoredBox(frame: { width: number; height: number }, xPercent: number, yPercent: number, box: { width: number; height: number }): Rect {
-  return { x: (xPercent / 100) * frame.width - (xPercent / 100) * box.width, y: (yPercent / 100) * frame.height - box.height / 2, width: box.width, height: box.height };
+  return { x: (xPercent / 100) * frame.width - box.width / 2, y: (yPercent / 100) * frame.height - box.height / 2, width: box.width, height: box.height };
 }
 
-/** The watermark box: anchored like text, then scaled about its anchor point (`transform-origin: X% 50%`). */
+/** The watermark box: anchored like text, then scaled about its own centre (`transform-origin: 50% 50%`), matching Canvas.tsx. */
 export function watermarkBox(frame: { width: number; height: number }, overlay: Pick<OverlaySettings, 'watermarkX' | 'watermarkY' | 'watermarkScale'>, natural: { width: number; height: number }): Rect {
   const scale = overlay.watermarkScale / 100;
   const share = overlay.watermarkX / 100;
   const width = natural.width * scale;
-  return { x: share * frame.width - share * width, y: (overlay.watermarkY / 100) * frame.height - (natural.height * scale) / 2, width, height: natural.height * scale };
+  return { x: share * frame.width - width / 2, y: (overlay.watermarkY / 100) * frame.height - (natural.height * scale) / 2, width, height: natural.height * scale };
 }

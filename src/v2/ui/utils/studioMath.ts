@@ -266,15 +266,15 @@ export function snapOverlayPosition(
     return { x: Number(xClamped.toFixed(1)), y: Number(yClamped.toFixed(1)), guides: [] };
   }
 
+  // Without measured box geometry, retain the legacy point-based safe margins.
+  // With geometry, safe margins must be measured at the box edges, not its centre.
   const xTargets: Array<{ value: number; label: string }> = [
-    { value: 8, label: 'Left safe margin' },
+    ...(!geometry ? [{ value: 8, label: 'Left safe margin' }, { value: 92, label: 'Right safe margin' }] : []),
     { value: 50, label: 'Centre X' },
-    { value: 92, label: 'Right safe margin' },
   ];
   const yTargets: Array<{ value: number; label: string }> = [
-    { value: 8, label: 'Top safe margin' },
+    ...(!geometry ? [{ value: 8, label: 'Top safe margin' }, { value: 92, label: 'Bottom safe margin' }] : []),
     { value: 50, label: 'Centre Y' },
-    { value: 92, label: 'Bottom safe margin' },
   ];
 
   if (peer.visible) {
@@ -293,31 +293,40 @@ export function snapOverlayPosition(
   // 50%. With the box's real size, its edges and the gap to the other overlay can be snapped exactly too.
   if (geometry) {
     const { box, peer, gap } = geometry;
-    const xFor = (leftEdge: number) => leftEdge / Math.max(0.01, 1 - box.w / 100);
-    const yFor = (topEdge: number) => topEdge / Math.max(0.01, 1 - box.h / 100);
-    xTargets.push({ value: xFor(8), label: 'Left margin' }, { value: (92 - box.w) / Math.max(0.01, 1 - box.w / 100), label: 'Right margin' });
-    yTargets.push({ value: yFor(8), label: 'Top margin' }, { value: (92 - box.h) / Math.max(0.01, 1 - box.h / 100), label: 'Bottom margin' });
+    // The stored position is the box centre, not a moving left/right anchor.
+    // Express edge and peer alignment targets in centre coordinates so crossing
+    // 35% or 65% never changes the physical point being dragged.
+    const xFor = (leftEdge: number) => leftEdge + box.w / 2;
+    const yFor = (topEdge: number) => topEdge + box.h / 2;
+    xTargets.push({ value: xFor(8), label: 'Left margin' }, { value: xFor(92 - box.w), label: 'Right margin' });
+    yTargets.push({ value: yFor(8), label: 'Top margin' }, { value: yFor(92 - box.h), label: 'Bottom margin' });
     if (peer) {
       xTargets.push(
         { value: xFor(peer.right + gap.x), label: 'Space beside' },
-        { value: (peer.left - gap.x - box.w) / Math.max(0.01, 1 - box.w / 100), label: 'Space beside' },
+        { value: xFor(peer.left - gap.x - box.w), label: 'Space beside' },
         { value: xFor(peer.left), label: 'Edges aligned' }
       );
       yTargets.push(
         { value: yFor(peer.bottom + gap.y), label: 'Space below' },
-        { value: (peer.top - gap.y - box.h) / Math.max(0.01, 1 - box.h / 100), label: 'Space above' },
+        { value: yFor(peer.top - gap.y - box.h), label: 'Space above' },
         { value: yFor(peer.top), label: 'Edges aligned' }
       );
     }
   }
 
+  // A target only replaces the current best when it is strictly closer than the best found so far: on an
+  // exact tie (two targets the same distance away, e.g. a peer sitting right on the frame's safe margin)
+  // the earlier, more fundamental target (safe margin, centre) keeps the guide label rather than whichever
+  // peer-alignment target happens to be pushed last. `threshold` is the acceptance ceiling, independent of
+  // the running best distance, so a later target outside the threshold can never register just because it
+  // is the first one checked.
   let bestX = xClamped;
   let bestXGuide: SnapGuide | null = null;
-  let minDx = threshold;
+  let bestXDist = Infinity;
   for (const t of xTargets) {
     const d = Math.abs(xClamped - t.value);
-    if (d <= minDx) {
-      minDx = d;
+    if (d <= threshold && d < bestXDist) {
+      bestXDist = d;
       bestX = t.value;
       bestXGuide = { axis: 'x', percent: t.value, label: t.label };
     }
@@ -325,11 +334,11 @@ export function snapOverlayPosition(
 
   let bestY = yClamped;
   let bestYGuide: SnapGuide | null = null;
-  let minDy = threshold;
+  let bestYDist = Infinity;
   for (const t of yTargets) {
     const d = Math.abs(yClamped - t.value);
-    if (d <= minDy) {
-      minDy = d;
+    if (d <= threshold && d < bestYDist) {
+      bestYDist = d;
       bestY = t.value;
       bestYGuide = { axis: 'y', percent: t.value, label: t.label };
     }

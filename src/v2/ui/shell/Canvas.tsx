@@ -600,7 +600,10 @@ export default function Canvas({
                     padding: `${cqw(8)} ${cqw(12)}`,
                     left: `${overlay.textX}%`,
                     top: `${overlay.textY}%`,
-                    transform: `translate(-${overlay.textX}%, -50%)`,
+                    // A fixed-centre anchor (translate always -50%, never -X%) keeps the physical point
+                    // under the pointer continuous as textX crosses 35%/65% - the old translate(-X%, -50%)
+                    // jumped because the anchor itself moved with X.
+                    transform: 'translate(-50%, -50%)',
                     backgroundColor: overlay.textScrim
                       ? overlay.textColour === 'light'
                         ? 'rgba(10, 12, 16, 0.62)'
@@ -663,8 +666,11 @@ export default function Canvas({
               padding: `${cqw(4)} ${cqw(10)}`,
               left: `${overlay.watermarkX}%`,
               top: `${overlay.watermarkY}%`,
-              transformOrigin: `${overlay.watermarkX}% 50%`,
-              transform: `translate(-${overlay.watermarkX}%, -50%) scale(${
+              // Fixed-centre anchor and scale origin, for the same reason as the text overlay above: the
+              // box's own centre stays the reference point for both position and resize, not a point that
+              // slides to wherever watermarkX currently is.
+              transformOrigin: '50% 50%',
+              transform: `translate(-50%, -50%) scale(${
                 overlay.watermarkScale / 100
               })`,
               opacity: overlay.watermarkOpacity / 100,
@@ -854,9 +860,15 @@ export default function Canvas({
               // In reveal mode a drag positions the picture under the crop window; otherwise it moves the format on the canvas.
               handleFramePointerDown(e, revealing ? 'pan' : 'move-frame', activeSize, e.currentTarget);
             }}
-            onPointerMove={(e) => { if (e.pointerType === 'touch') { e.stopPropagation(); handleTouchMove(e); } }}
-            onPointerUp={(e) => { if (e.pointerType === 'touch') { e.stopPropagation(); handleTouchEnd(e); } }}
-            onPointerCancel={(e) => { if (e.pointerType === 'touch') { e.stopPropagation(); handleTouchCancel(e); } }}
+            /* Only claim a touch move/up/cancel that this frame's own pinch/pan/swipe gesture is tracking
+               (started by handleTouchDown above). A one-finger drag that began on a child overlay (text,
+               watermark, a resize handle) captures the pointer on that child element, not here, so its
+               move/up events still bubble up through this frame; stopping them unconditionally for every
+               touch pointer swallowed the drag before handleGlobalPointerMove/Up ever saw it, leaving the
+               overlay visually stuck at its starting position. */
+            onPointerMove={(e) => { if (e.pointerType === 'touch' && touchPoints.current.has(e.pointerId)) { e.stopPropagation(); handleTouchMove(e); } }}
+            onPointerUp={(e) => { if (e.pointerType === 'touch' && touchPoints.current.has(e.pointerId)) { e.stopPropagation(); handleTouchEnd(e); } }}
+            onPointerCancel={(e) => { if (e.pointerType === 'touch' && touchPoints.current.has(e.pointerId)) { e.stopPropagation(); handleTouchCancel(e); } }}
             onDoubleClick={() => { if (activeSize.kind === 'photo' && !compareMode) setRevealSizeId(revealing ? null : activeSize.id); }}
             title={activeSize.kind === 'photo' ? STRINGS.canvas.cropHintTitle : undefined}
             className={`relative ${revealing ? 'overflow-visible ring-2 ring-[var(--brand-accent)]' : 'overflow-hidden'} rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] select-none ${
