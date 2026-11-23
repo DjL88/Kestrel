@@ -254,7 +254,7 @@ export async function renderV2Export(
       }
     }
     return { file: sections[0], width: layout.sectionWidth, height: layout.height, capped: wasCapped,
-      ...(sectionCount === 2 ? { sections } : {}) };
+      ...(sectionCount > 1 ? { sections } : {}) };
   } finally {
     picture.width = 0; picture.height = 0; output.width = 0; output.height = 0;
   }
