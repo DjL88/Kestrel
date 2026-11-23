@@ -132,3 +132,70 @@ export async function verifyScannedOriginalMatches(
   }
   return { matches, rejected };
 }
+
+/**
+ * Reconnect a moved/restored folder by SHA, not its timestamp. A backup may
+ * preserve exact bytes while changing mtime; equally, an attacker or NAS may
+ * replace bytes without changing the metadata. A unique matching digest is
+ * decisive, and duplicate matching paths stay ambiguous rather than guessed.
+ */
+export async function matchScannedOriginalsBySha(
+  expected: readonly { stableKey: string; filename: string; size: number; originalSha256?: string }[],
+  candidates: readonly ScannedOriginal[],
+  connectedPaths: readonly string[],
+  open: (path: string) => Promise<ScannedOriginalRead>,
+): Promise<{ matches: Map<string, string>; ambiguous: string[]; rejected: string[] }> {
+  const pathKey = (path: string) => path.replace(/\\/g, '/').toLowerCase();
+  const reserved = new Set(connectedPaths.map(pathKey));
+  const matches = new Map<string, string>();
+  const ambiguous: string[] = [], rejected: string[] = [];
+  // Each candidate original is read at most once per folder reselect, even if
+  // several camera frames have the same filename and dimensions.
+  const digests = new Map<string, string | null>();
+  async function digestFor(candidate: ScannedOriginal): Promise<string | null> {
+    if (digests.has(candidate.path)) return digests.get(candidate.path)!;
+    let opened: ScannedOriginalRead | undefined;
+    let digest: string | null = null;
+    try {
+      opened = await open(candidate.path);
+      const actual = await hashOriginalBytes(opened.bytes);
+      if (await opened.unchanged()) digest = actual;
+    } catch {
+      // A disappearing file or corrupt range cannot serve as a replacement.
+    } finally {
+      if (opened) await opened.close().catch(() => undefined);
+    }
+    digests.set(candidate.path, digest);
+    return digest;
+  }
+
+  const byPath = new Map<string, string>();
+  for (const frame of expected) {
+    if (!/^[a-f0-9]{64}$/.test(frame.originalSha256 ?? '') ||
+        !Number.isSafeInteger(frame.size) || frame.size <= 0) {
+      rejected.push(frame.stableKey);
+      continue;
+    }
+    const possible = candidates.filter(file =>
+      file.name.toLowerCase() === frame.filename.toLowerCase() &&
+      file.size === frame.size && !reserved.has(pathKey(file.path)));
+    const valid: string[] = [];
+    for (const candidate of possible) {
+      if (await digestFor(candidate) === frame.originalSha256) valid.push(candidate.path);
+    }
+    if (valid.length !== 1) {
+      (valid.length > 1 ? ambiguous : rejected).push(frame.stableKey);
+      continue;
+    }
+    const chosen = valid[0], previous = byPath.get(pathKey(chosen));
+    if (previous && previous !== frame.stableKey) {
+      matches.delete(previous);
+      if (!ambiguous.includes(previous)) ambiguous.push(previous);
+      ambiguous.push(frame.stableKey);
+    } else {
+      matches.set(frame.stableKey, chosen);
+      byPath.set(pathKey(chosen), frame.stableKey);
+    }
+  }
+  return { matches, ambiguous, rejected };
+}
