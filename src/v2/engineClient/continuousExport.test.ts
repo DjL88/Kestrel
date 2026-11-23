@@ -23,3 +23,12 @@ test('bad dimensions and too-wide combined canvases fail clearly', () => {
   assert.throws(() => continuousExportLayout(10001, 1000, 2));
   assert.throws(() => continuousExportLayout(1080, 1350, 3 as never));
 });
+
+test('numbered files keep the right extension and left-to-right order', async () => {
+  const { numberedSectionFilename } = await import('./continuousExport.ts');
+  assert.equal(numberedSectionFilename('ig_photo.jpg', 1, 2), 'ig_photo-01-of-02.jpg');
+  assert.equal(numberedSectionFilename('ig_photo.jpg', 2, 2), 'ig_photo-02-of-02.jpg');
+  assert.equal(numberedSectionFilename('a.png', 1, 1), 'a.png');
+  assert.throws(() => numberedSectionFilename('a.jpg', 3, 2));
+  assert.throws(() => numberedSectionFilename('a', 1, 2));
+});
