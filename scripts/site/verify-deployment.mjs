@@ -117,6 +117,14 @@ async function main() {
     if (suffix === '/' && embeddedEditor(data) !== embedded) {
       throw new Error('Live homepage is stale: expected the ' + embedded + ' editor iframe.');
     }
+    // HTML and sign-in/privacy pages are release artifacts too. Matching asset names alone
+    // cannot prove the live site is the build being approved for publication.
+    if (suffix === '/' || suffix === callbackPath || suffix === privacyPath) {
+      const localPath = suffix === '/' ? 'index.html' : suffix.slice(1);
+      if (data !== requireText(join(dir, localPath))) {
+        throw new Error('Live website page differs from the verified local build: ' + suffix);
+      }
+    }
     const expected = localEntries.get(suffix);
     if (expected) {
       const liveAssets = builtAssets(data);
