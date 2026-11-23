@@ -38,8 +38,8 @@ export function subscriptionLifecycle(
   const readOnlyUntil = known ? paidThroughMs + CLOUD_READ_ONLY_DAYS_V2 * DAY_MS : null;
   const safe = known && Number.isSafeInteger(retryUntil) && Number.isSafeInteger(readOnlyUntil);
   const paid = safe && nowMs <= paidThroughMs;
-  const retry = safe && !paid && nowMs <= retryUntil;
-  const readable = safe && nowMs <= readOnlyUntil;
+  const retry = safe && !paid && retryUntil !== null && nowMs <= retryUntil;
+  const readable = safe && readOnlyUntil !== null && nowMs <= readOnlyUntil;
   return {
     phase: !safe ? 'unknown' : paid ? 'paid' : retry ? 'retry_grace' : 'downgraded',
     cloudUploadsAllowed: paid,

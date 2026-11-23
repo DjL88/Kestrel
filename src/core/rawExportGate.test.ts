@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
 import { requireProvenRaw16Export, type RawDecodeEvidence } from './rawExportGate';
 
 const verified: RawDecodeEvidence = {
@@ -12,38 +13,38 @@ const verified: RawDecodeEvidence = {
 
 describe('RAW 16-bit export provenance gate', () => {
   it('fails closed when evidence is absent', () => {
-    expect(requireProvenRaw16Export(null).allowed).toBe(false);
+    assert.equal(requireProvenRaw16Export(null).allowed, false);
   });
-  it.each(['embedded-preview', 'browser-raster', 'external-raster', 'unknown'] as const)(
-    'rejects %s even at full sensor dimensions', sourceKind => {
-      expect(requireProvenRaw16Export({ ...verified, sourceKind }).allowed).toBe(false);
-    },
-  );
+  for (const sourceKind of ['embedded-preview', 'browser-raster', 'external-raster', 'unknown'] as const) {
+    it(`rejects ${sourceKind} even at full sensor dimensions`, () => {
+      assert.equal(requireProvenRaw16Export({ ...verified, sourceKind }).allowed, false);
+    });
+  }
   it('rejects 8-bit canvas pixels and disconnected export bridges', () => {
-    expect(requireProvenRaw16Export({ ...verified, precision: 'rgba8' }).allowed).toBe(false);
-    expect(requireProvenRaw16Export({ ...verified, exportUsesDevelopedPixels: false }).allowed).toBe(false);
+    assert.equal(requireProvenRaw16Export({ ...verified, precision: 'rgba8' }).allowed, false);
+    assert.equal(requireProvenRaw16Export({ ...verified, exportUsesDevelopedPixels: false }).allowed, false);
   });
   it('requires original hash, decoder identity, verified decode and ICC metadata', () => {
-    expect(requireProvenRaw16Export({ ...verified, originalSha256: null }).allowed).toBe(false);
-    expect(requireProvenRaw16Export({ ...verified, decoderVersion: null }).allowed).toBe(false);
-    expect(requireProvenRaw16Export({ ...verified, decodedFromOriginal: false }).allowed).toBe(false);
-    expect(requireProvenRaw16Export({ ...verified, outputIccProfile: null }).allowed).toBe(false);
+    assert.equal(requireProvenRaw16Export({ ...verified, originalSha256: null }).allowed, false);
+    assert.equal(requireProvenRaw16Export({ ...verified, decoderVersion: null }).allowed, false);
+    assert.equal(requireProvenRaw16Export({ ...verified, decodedFromOriginal: false }).allowed, false);
+    assert.equal(requireProvenRaw16Export({ ...verified, outputIccProfile: null }).allowed, false);
   });
   it('allows fully evidenced 16-bit or float developed data only', () => {
-    expect(requireProvenRaw16Export(verified).allowed).toBe(true);
-    expect(requireProvenRaw16Export({ ...verified, precision: 'float32' }).allowed).toBe(true);
+    assert.equal(requireProvenRaw16Export(verified).allowed, true);
+    assert.equal(requireProvenRaw16Export({ ...verified, precision: 'float32' }).allowed, true);
   });
   it('refuses an 8-bit encoder even with a genuine 16-bit RAW intermediate', () => {
-    expect(requireProvenRaw16Export({ ...verified, encodedBitsPerChannel: 8 }).allowed).toBe(false);
-    expect(requireProvenRaw16Export({ ...verified, encodedBitsPerChannel: 'unknown' }).allowed).toBe(false);
+    assert.equal(requireProvenRaw16Export({ ...verified, encodedBitsPerChannel: 8 }).allowed, false);
+    assert.equal(requireProvenRaw16Export({ ...verified, encodedBitsPerChannel: 'unknown' }).allowed, false);
   });
   it('refuses PNG/JPEG and unknown containers even when labelled 16-bit', () => {
     for (const outputFormat of ['png', 'jpeg', 'unknown'] as const) {
-      expect(requireProvenRaw16Export({ ...verified, outputFormat }).allowed).toBe(false);
+      assert.equal(requireProvenRaw16Export({ ...verified, outputFormat }).allowed, false);
     }
   });
   it('does not assume HE/HE-star support from a claimed compression mode', () => {
-    expect(requireProvenRaw16Export({ ...verified, compression: 'he', decodedFromOriginal: false }).allowed).toBe(false);
-    expect(requireProvenRaw16Export({ ...verified, compression: 'he-star', sourceKind: 'embedded-preview' }).allowed).toBe(false);
+    assert.equal(requireProvenRaw16Export({ ...verified, compression: 'he', decodedFromOriginal: false }).allowed, false);
+    assert.equal(requireProvenRaw16Export({ ...verified, compression: 'he-star', sourceKind: 'embedded-preview' }).allowed, false);
   });
 });
