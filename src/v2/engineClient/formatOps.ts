@@ -7,7 +7,7 @@ import type { SizePreset } from '../ui/contract';
  * can come from an older build or a damaged file.
  */
 export interface CustomFormat { id: string; label: string; width: number; height: number }
-export interface FormatSet { disabled: string[]; custom: CustomFormat[] }
+export interface FormatSet { disabled: string[]; custom: CustomFormat[]; /** Explicit opt-in for built-ins disabled by default. */ enabled?: string[] }
 
 export const EMPTY_FORMATS: FormatSet = { disabled: [], custom: [] };
 export const MAX_CUSTOM_FORMATS = 24;
@@ -33,7 +33,8 @@ export function readFormats(raw: unknown): FormatSet {
     custom.push({ id: item.id, label: label || `${width}×${height}`, width, height });
     if (custom.length >= MAX_CUSTOM_FORMATS) break;
   }
-  return { disabled, custom };
+  const enabled = Array.isArray(value.enabled) ? [...new Set(value.enabled.filter(isId))].filter((id) => !disabled.includes(id)) : [];
+  return { disabled, custom, ...(enabled.length ? { enabled } : {}) };
 }
 
 const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
@@ -47,7 +48,8 @@ export function ratioLabelFor(width: number, height: number): string {
 /** The built-in formats with this photo's switches applied, followed by its custom ones. */
 export function applyFormats(defaults: readonly SizePreset[], raw: unknown): SizePreset[] {
   const formats = readFormats(raw);
-  const base = defaults.map((size) => (formats.disabled.includes(size.id) ? { ...size, enabled: false } : size));
+  const base = defaults.map((size) => ({ ...size, enabled: !formats.disabled.includes(size.id) &&
+    (formats.enabled?.includes(size.id) === true || size.enabled) }));
   const extra: SizePreset[] = formats.custom.map((custom, index) => ({
     id: custom.id, label: custom.label, platform: 'custom', width: custom.width, height: custom.height,
     ratioLabel: ratioLabelFor(custom.width, custom.height), kind: 'photo', enabled: !formats.disabled.includes(custom.id), linked: true,
@@ -56,9 +58,14 @@ export function applyFormats(defaults: readonly SizePreset[], raw: unknown): Siz
   return [...base, ...extra];
 }
 
-export function toggleFormat(raw: unknown, id: string): FormatSet {
+/** Toggle without losing a built-in's original default (including opt-in presets). */
+export function toggleFormat(raw: unknown, id: string, defaultEnabled = true): FormatSet {
   const formats = readFormats(raw);
-  return { ...formats, disabled: formats.disabled.includes(id) ? formats.disabled.filter((entry) => entry !== id) : [...formats.disabled, id] };
+  const isEnabled = !formats.disabled.includes(id) && (formats.enabled?.includes(id) === true || defaultEnabled);
+  const enabled = (formats.enabled ?? []).filter((entry) => entry !== id);
+  if (isEnabled) return { ...formats, disabled: [...formats.disabled, id], ...(enabled.length ? { enabled } : { enabled: undefined }) };
+  const nextEnabled = defaultEnabled ? enabled : [...enabled, id];
+  return { ...formats, disabled: formats.disabled.filter((entry) => entry !== id), ...(nextEnabled.length ? { enabled: nextEnabled } : { enabled: undefined }) };
 }
 
 export function validCustomSize(width: number, height: number): boolean {
@@ -75,8 +82,8 @@ export function addFormat(raw: unknown, label: string, width: number, height: nu
 /** Delete: a custom format is removed; a built-in is switched off (it can be switched back on in the Formats panel). */
 export function removeFormat(raw: unknown, id: string): FormatSet {
   const formats = readFormats(raw);
-  if (formats.custom.some((custom) => custom.id === id)) return { ...formats, custom: formats.custom.filter((custom) => custom.id !== id), disabled: formats.disabled.filter((entry) => entry !== id) };
-  return formats.disabled.includes(id) ? formats : { ...formats, disabled: [...formats.disabled, id] };
+  if (formats.custom.some((custom) => custom.id === id)) return { ...formats, custom: formats.custom.filter((custom) => custom.id !== id), disabled: formats.disabled.filter((entry) => entry !== id), enabled: formats.enabled?.filter((entry) => entry !== id) };
+  return { ...formats, disabled: formats.disabled.includes(id) ? formats.disabled : [...formats.disabled, id], enabled: formats.enabled?.filter((entry) => entry !== id) };
 }
 
 export const newCustomId = (seed: string) => `custom-${seed.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12).padEnd(3, '0')}`;
