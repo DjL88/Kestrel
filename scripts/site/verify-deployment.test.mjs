@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 const script = fileURLToPath(new URL('./verify-deployment.mjs', import.meta.url));
 const privacy = '<h1>InFlight privacy</h1>';
 const callback = '<p id="m">Finishing sign-in…</p>';
+const bundle = 'console.log("editor")';
 const landing = '<iframe src="editor/demo-editor.html"></iframe><a href="/privacy">Privacy</a>';
 const demo = (title, entry = '/editor/assets/demo.js') =>
   `<html><title>${title}</title><body><div id="root" data-demo-editor></div><script type="module" src="${entry}"></script></body></html>`;
@@ -22,11 +23,31 @@ function fixture() {
   writeFileSync(join(root, 'oauth-callback.html'), callback);
   writeFileSync(join(root, 'privacy.html'), privacy);
   writeFileSync(join(editor, 'demo-editor.html'), demo('InFlight editor demonstration'));
-  writeFileSync(join(editor, 'assets', 'demo.js'), 'console.log("editor")');
+  writeFileSync(join(editor, 'assets', 'demo.js'), bundle);
   return root;
 }
 function run(root, ...args) {
   return spawnSync(process.execPath, [script, '--root=' + root, ...args], { encoding: 'utf8' });
+}
+
+function runLive(root, overrides) {
+  const pages = {
+    '/': landing,
+    '/oauth-callback.html': callback,
+    '/privacy.html': privacy,
+    '/editor/demo-editor.html': demo('Demo Studio'),
+    '/editor/assets/demo.js': bundle,
+    ...overrides,
+  };
+  const stub = `globalThis.fetch = async url => {
+    const pages = ${JSON.stringify(pages)};
+    const body = pages[new URL(url).pathname];
+    return new Response(body ?? null, { status: body === undefined ? 404 : 200 });
+  };`;
+  return spawnSync(process.execPath, [
+    '--import=data:text/javascript,' + encodeURIComponent(stub), script, '--root=' + root,
+    '--live-url=https://demo.example.test',
+  ], { encoding: 'utf8' });
 }
 
 test('accepts complete compiled editor assets but never claims remote deployment', () => {
@@ -61,32 +82,35 @@ test('rejects an unbuilt Vite development editor', () => {
 
 test('accepts the current live entry and rejects stale HTML even if its assets are still hosted', () => {
   const root = fixture();
-  const runLive = (entry, asset = 'console.log("editor")') => {
-    const pages = {
-      '/': landing,
-      '/oauth-callback.html': callback,
-      '/privacy.html': privacy,
-      '/editor/demo-editor.html': demo('A different display name', entry),
-      '/editor/assets/demo.js': asset,
-      '/editor/assets/older.js': 'console.log("old editor")',
-    };
-    const stub = `globalThis.fetch = async url => {
-      const pages = ${JSON.stringify(pages)};
-      const body = pages[new URL(url).pathname];
-      return new Response(body ?? null, { status: body === undefined ? 404 : 200 });
-    };`;
-    return spawnSync(process.execPath, [
-      '--import=data:text/javascript,' + encodeURIComponent(stub), script, '--root=' + root,
-      '--live-url=https://demo.example.test',
-    ], { encoding: 'utf8' });
-  };
   try {
-    const current = runLive('./assets/demo.js');
+    const current = runLive(root, { '/editor/demo-editor.html': demo('A different display name', './assets/demo.js') });
     assert.equal(current.status, 0, current.stderr);
     assert.match(current.stdout, /Live Firebase PASS/);
-    assert.match(runLive('/editor/assets/older.js').stderr, /different set of compiled assets/);
-    assert.match(runLive('/editor/assets/demo.js', '<!doctype html><html></html>').stderr, /missing or wrong asset/);
+    assert.match(runLive(root, {
+      '/editor/demo-editor.html': demo('Demo Studio', '/editor/assets/older.js'),
+      '/editor/assets/older.js': bundle,
+    }).stderr, /different set of compiled assets/);
+    assert.match(runLive(root, { '/editor/assets/demo.js': '<!doctype html><html></html>' }).stderr, /missing or wrong asset/);
+    assert.match(runLive(root, { '/editor/assets/demo.js': bundle.replace('editor', 'changed') }).stderr, /asset differs from the verified local build/);
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('checks both public Demo Editor routes and rejects a stale homepage or the wrong editor in the clean route', t => {
+  const root = fixture();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const v2Landing = landing.replace('demo-editor.html', 'demo-v2');
+  const v2 = demo('Version 2', '/editor/assets/v2.js');
+  writeFileSync(join(root, 'index.html'), v2Landing);
+  writeFileSync(join(root, 'editor', 'demo-v2.html'), v2);
+  writeFileSync(join(root, 'editor', 'assets', 'v2.js'), bundle);
+  const pages = { '/': v2Landing, '/editor/demo-v2.html': v2, '/editor/demo-v2': v2, '/editor/assets/v2.js': bundle };
+
+  const valid = runLive(root, pages);
+  assert.equal(valid.status, 0, valid.stderr);
+  assert.match(runLive(root, { ...pages, '/': landing }).stderr, /expected the demo-v2 editor iframe/);
+  assert.match(runLive(root, { ...pages, '/editor/demo-v2': undefined }).stderr, /path failed \(404\): \/editor\/demo-v2/);
+  assert.match(runLive(root, { ...pages, '/editor/demo-v2': demo('Demo Studio') }).stderr, /different set of compiled assets: \/editor\/demo-v2/);
+  assert.match(runLive(root, { ...pages, '/editor/demo-editor.html': undefined }).stderr, /path failed \(404\): \/editor\/demo-editor\.html/);
 });
 
 test('fails closed when the sign-in callback page is missing or wrong', () => {
