@@ -79,10 +79,10 @@ export function judgeSubject(found: SubjectFinding | null): Pick<CullSuggestion,
   // respect TypeScript types. Non-finite or out-of-range metrics must never
   // manufacture a high-confidence keeper (or propagate a NaN score).
   if (found && (typeof found.label !== 'string' || found.label.trim().length === 0 ||
-      /^(unknown|unidentified|unrecognised|unrecognized|other|none|n\/a)$/i.test(found.label.trim()) ||
+      /^(?:unknown|unidentified|unrecognised|unrecognized|other|none|n\/a)(?:\b|[\s:;,_-])/i.test(found.label.trim()) ||
       !Number.isFinite(found.score) || found.score < 0 || found.score > 1 ||
-      !Number.isFinite(found.size) || found.size <= 0 ||
-      !Number.isFinite(found.sharpness) || found.sharpness < 0)) {
+      !Number.isFinite(found.size) || found.size <= 0 || !Number.isSafeInteger(found.size) ||
+      !Number.isFinite(found.sharpness) || found.sharpness < 0 || found.sharpness > 1_000_000)) {
     return { decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
   }
   const real = found && ((found.score >= 0.45 && found.size >= 120) || found.score >= 0.7);
