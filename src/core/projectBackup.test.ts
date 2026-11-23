@@ -132,3 +132,24 @@ test('portable restore rejects corrupt original SHA-256 and preserves legacy mis
   delete legacy.project.frames[0].originalSha256;
   assert.equal(restoreProjectBackup(JSON.stringify(legacy), 'restored').frames[0].originalSha256, undefined);
 });
+
+
+test('restore refuses conflicting original byte identities on a virtual copy', () => {
+  const project = createDemoShootState(1);
+  project.frames[0].originalSha256 = 'a'.repeat(64);
+  const copy = createVirtualCopy(project.frames[0], project.frames, 'copy-sha');
+  copy.originalSha256 = 'b'.repeat(64);
+  project.frames.push(copy);
+  assert.throws(() => restoreProjectBackup(encodeProjectBackup(project), 'restored'), /invalid photo links/);
+
+  // A virtual copy must never bypass this check by reusing the same stable key.
+  copy.originalSha256 = project.frames[0].originalSha256;
+  const restored = restoreProjectBackup(encodeProjectBackup(project), 'restored');
+  assert.equal(restored.frames[1].originalSha256, 'a'.repeat(64));
+
+  // Older catalogues did not always record hashes. They may be restored, but
+  // source bytes still need to be independently verified before any relink.
+  delete copy.originalSha256;
+  const legacy = restoreProjectBackup(encodeProjectBackup(project), 'legacy');
+  assert.equal(legacy.frames[1].originalSha256, undefined);
+});
