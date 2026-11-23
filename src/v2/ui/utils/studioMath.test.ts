@@ -238,15 +238,17 @@ test('crop zoom and insets use up pixels, and an unknown picture size caps nothi
 
 test('with the box size known, the centre, the edges and the gap to the other overlay all snap exactly', () => {
   const geometry = { box: { w: 40, h: 10 }, peer: { left: 8, right: 48, top: 80, bottom: 90 }, gap: { x: 1.5, y: 2 } };
-  // Centre: an anchor of 50% puts the box centre at the frame centre (the anchor runs from the left edge to the right edge).
+  // The stored position is always the centre of the box.
   assert.equal(snapOverlayPosition(49, 30, { x: 0, y: 0, visible: false }, true, 3.2, geometry).x, 50);
-  // Left margin: the box's left edge lands on 8%.
-  const left = snapOverlayPosition(12, 30, { x: 0, y: 0, visible: false }, true, 3.2, geometry);
-  assert.ok(Math.abs(left.x - 8 / (1 - 0.4)) < 0.1, `x was ${left.x}`);
-  // Space above the other overlay: the box's bottom edge sits one gap above the peer's top edge (80 - 2 = 78).
+  // Left safe edge: 8% + half the 40%-wide box = centre at 28%.
+  const left = snapOverlayPosition(27, 30, { x: 0, y: 0, visible: false }, true, 3.2, geometry);
+  assert.equal(left.x, 28);
+  assert.equal(left.x - geometry.box.w / 2, 8);
+  assert.ok(left.guides.some((guide) => guide.label === 'Left margin'));
+  // Bottom edge sits 2% above the peer's top at 80%: centre = 80 - 2 - 10/2 = 73%.
   const above = snapOverlayPosition(30, 74.5, { x: 0, y: 0, visible: false }, true, 3.2, geometry);
-  const bottomEdge = above.y + (100 - above.y) * 0.1;
-  assert.ok(Math.abs(bottomEdge - 78) < 0.2, `bottom edge was ${bottomEdge}`);
+  assert.equal(above.y, 73);
+  assert.equal(above.y + geometry.box.h / 2, 78);
   assert.ok(above.guides.some((guide) => guide.label === 'Space above'));
   // Without geometry the old snapping is unchanged.
   assert.equal(snapOverlayPosition(49, 30, { x: 0, y: 0, visible: false }, true).x, 50);
