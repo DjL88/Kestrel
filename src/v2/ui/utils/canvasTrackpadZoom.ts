@@ -1,7 +1,7 @@
 /** Desktop precision-touchpad pinch is exposed as a ctrlKey wheel event by Chromium.
  * Keep ordinary two-finger scrolling native; only a zoom-modified wheel is handled. */
 export function trackpadZoomFactor(deltaY: number, deltaMode: number): number {
-  if (!Number.isFinite(deltaY)) return 1;
+  if (!Number.isFinite(deltaY) || !Number.isInteger(deltaMode) || deltaMode < 0 || deltaMode > 2) return 1;
   const pixels = deltaY * (deltaMode === 1 ? 16 : deltaMode === 2 ? 600 : 1);
   return Math.exp(-Math.max(-120, Math.min(120, pixels)) * 0.008);
 }
@@ -16,6 +16,6 @@ export function nextCanvasZoom(current: number, deltaY: number, deltaMode = 0): 
 export function zoomAnchorScroll(
   scroll: number, pointerOffset: number, previousZoom: number, nextZoom: number,
 ): number {
-  if (!Number.isFinite(previousZoom) || previousZoom <= 0 || !Number.isFinite(nextZoom)) return scroll;
+  if (!Number.isFinite(scroll) || !Number.isFinite(pointerOffset) || !Number.isFinite(previousZoom) || previousZoom <= 0 || !Number.isFinite(nextZoom) || nextZoom <= 0) return Number.isFinite(scroll) ? Math.max(0, scroll) : 0;
   return Math.max(0, (scroll + pointerOffset) * nextZoom / previousZoom - pointerOffset);
 }
