@@ -51,13 +51,46 @@ export class Kite44ResearchLedger {
    * An authenticated owner can approve a project for SHADOW contributions only.
    * Never use this to approve customer photo or crop uploads.
    */
-  async setProjectSharing(subject: string, projectId: string, allowed: boolean) {
-    const ref = this.db.collection('kite44_project_policies').doc(this.key(subject, projectId));
-    await ref.set({ subject, allowShadow: allowed === true });
+  /**
+   * Delete in bounded batches AFTER revoking a policy. Later arrivals cannot
+   * pass the live transactional permission check. Do not store raw project IDs.
+   */
+  private async purge(field: 'subject' | 'projectKey' | 'photoKey', value: string): Promise<number> {
+    let total = 0;
+    for (;;) {
+      const count = await this.db.runTransaction(async tx => {
+        const collection = this.db.collection('kite44_shadow_signals');
+        const matches = await tx.get(collection.where(field, '==', value).limit(200));
+        for (const doc of matches.docs) tx.delete(collection.doc(doc.id));
+        return matches.size;
+      });
+      total += count;
+      if (count < 200) return total;
+    }
   }
-  async excludePhoto(subject: string, projectId: string, photoId: string, excluded: boolean) {
-    const ref = this.db.collection('kite44_photo_exclusions').doc(this.key(subject, projectId, photoId));
-    await ref.set({ subject, excluded: excluded === true });
+
+  async setProjectSharing(subject: string, projectId: string, allowed: boolean): Promise<number> {
+    const projectKey = this.key(subject, projectId);
+    await this.db.collection('kite44_project_policies').doc(projectKey)
+      .set({ subject, allowShadow: allowed === true });
+    return allowed ? 0 : this.purge('projectKey', projectKey);
+  }
+
+  async excludePhoto(subject: string, projectId: string, photoId: string, excluded: boolean): Promise<number> {
+    const photoKey = this.key(subject, projectId, photoId);
+    await this.db.collection('kite44_photo_exclusions').doc(photoKey)
+      .set({ subject, excluded: excluded === true });
+    return excluded ? this.purge('photoKey', photoKey) : 0;
+  }
+
+  /**
+   * This must be called by the future authenticated withdrawal route, rather
+   * than merely setting the legacy account flag to false. The legacy learning
+   * sink also needs its own existing deleteBySubject call.
+   */
+  async revokeAndDelete(subject: string): Promise<number> {
+    await this.db.collection('learning_consent').doc(subject).set({ consent: false });
+    return this.purge('subject', subject);
   }
   /**
    * Return false without writing whenever any consent is absent or revoked.
@@ -69,11 +102,13 @@ export class Kite44ResearchLedger {
     const account = this.db.collection('learning_consent').doc(subject);
     const project = this.db.collection('kite44_project_policies').doc(this.key(subject, projectId));
     const photo = this.db.collection('kite44_photo_exclusions').doc(this.key(subject, projectId, photoId));
+    const projectKey = this.key(subject, projectId);
+    const photoKey = this.key(subject, projectId, photoId);
     const out = this.db.collection('kite44_shadow_signals').doc(uuid());
     return this.db.runTransaction(async tx => {
       const [a,p,f] = await Promise.all([tx.get(account), tx.get(project), tx.get(photo)]);
       if (a.data()?.consent !== true || p.data()?.allowShadow !== true || f.data()?.excluded === true) return false;
-      tx.create(out, { ...record, subject });
+      tx.create(out, { ...record, subject, projectKey, photoKey });
       return true;
     });
   }
