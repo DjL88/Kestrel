@@ -314,13 +314,19 @@ export function snapOverlayPosition(
     }
   }
 
+  // A target only replaces the current best when it is strictly closer than the best found so far: on an
+  // exact tie (two targets the same distance away, e.g. a peer sitting right on the frame's safe margin)
+  // the earlier, more fundamental target (safe margin, centre) keeps the guide label rather than whichever
+  // peer-alignment target happens to be pushed last. `threshold` is the acceptance ceiling, independent of
+  // the running best distance, so a later target outside the threshold can never register just because it
+  // is the first one checked.
   let bestX = xClamped;
   let bestXGuide: SnapGuide | null = null;
-  let minDx = threshold;
+  let bestXDist = Infinity;
   for (const t of xTargets) {
     const d = Math.abs(xClamped - t.value);
-    if (d <= minDx) {
-      minDx = d;
+    if (d <= threshold && d < bestXDist) {
+      bestXDist = d;
       bestX = t.value;
       bestXGuide = { axis: 'x', percent: t.value, label: t.label };
     }
@@ -328,11 +334,11 @@ export function snapOverlayPosition(
 
   let bestY = yClamped;
   let bestYGuide: SnapGuide | null = null;
-  let minDy = threshold;
+  let bestYDist = Infinity;
   for (const t of yTargets) {
     const d = Math.abs(yClamped - t.value);
-    if (d <= minDy) {
-      minDy = d;
+    if (d <= threshold && d < bestYDist) {
+      bestYDist = d;
       bestY = t.value;
       bestYGuide = { axis: 'y', percent: t.value, label: t.label };
     }
