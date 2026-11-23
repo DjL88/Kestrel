@@ -68,25 +68,85 @@ describe('completed TIFF structural evidence', () => {
     v.setUint32(10 + 5 * 12 + 8, 300, true);
     assert.match(inspectTiff16Structure(aliased).ok ? '' : (inspectTiff16Structure(aliased) as { ok: false; reason: string }).reason, /overlap/i);
   });
+  it('rejects raster bytes that alias the TIFF header or BitsPerSample metadata', () => {
+    const header = fixture();
+    new DataView(header.buffer).setUint32(10 + 5 * 12 + 8, 0, true);
+    const headerResult = inspectTiff16Structure(header);
+    assert.equal(headerResult.ok, false);
+    if (!headerResult.ok) assert.match(headerResult.reason, /header/i);
+
+    const bits = fixture();
+    new DataView(bits.buffer).setUint32(10 + 5 * 12 + 8, 200, true);
+    const bitsResult = inspectTiff16Structure(bits);
+    assert.equal(bitsResult.ok, false);
+    if (!bitsResult.ok) assert.match(bitsResult.reason, /bit-depth metadata/i);
+  });
+  it('rejects ICC data aliasing the TIFF header without claiming colour fidelity', () => {
+    const aliased = fixture();
+    const view = new DataView(aliased.buffer);
+    // ICC offset zero aliases the signature; reject before parsing profile bytes.
+    view.setUint32(10 + 10 * 12 + 8, 0, true);
+    const result = inspectTiff16Structure(aliased);
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.match(result.reason, /ICC profile overlaps the file header/i);
+    assert.deepEqual(inspectTiff16Structure(fixture()), { ok: true, width: 4, height: 3, samples: 3 });
+  });
+  it('rejects an ICC payload whose declared span overlaps the image directory', () => {
+    const aliased = fixture();
+    // The IFD starts at 8 and ends beyond 128; a profile beginning at 100
+    // cannot be independent of its directory even if its signature looks valid.
+    const view = new DataView(aliased.buffer);
+    view.setUint32(10 + 10 * 12 + 8, 100, true);
+    view.setUint32(100, 128, false);
+    aliased.set([97, 99, 115, 112], 136);
+    assert.equal(inspectTiff16Structure(aliased).ok, false);
+  });
+  it('rejects ICC bytes aliasing out-of-line BitsPerSample even when ICC header is plausible', () => {
+    const aliased = fixture();
+    const view = new DataView(aliased.buffer);
+    // ICC starts before the out-of-line 3xSHORT bit-depth table at byte 200.
+    // It avoids both the directory and raster, isolating the metadata collision.
+    view.setUint32(10 + 10 * 12 + 8, 192, true);
+    view.setUint32(192, 128, false);
+    aliased.set([97, 99, 115, 112], 228);
+    const result = inspectTiff16Structure(aliased);
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.match(result.reason, /ICC.*tag 258 metadata/i);
+  });
+  it('rejects raster strips overlapping out-of-line strip table metadata', () => {
+    const aliased = fixture();
+    const v = new DataView(aliased.buffer);
+    // Replace the single strip-offset tag with a two-element offset table.
+    // Two strips each hold a different row span, with valid total raster bytes.
+    // The first raster deliberately aliases the strip-offset table itself.
+    const stripTag = 10 + 5 * 12;
+    v.setUint32(stripTag + 4, 2, true);
+    v.setUint32(stripTag + 8, 400, true);
+    v.setUint32(400, 400, true);
+    v.setUint32(404, 456, true);
+    v.setUint32(10 + 7 * 12 + 8, 2, true); // rows per strip
+    const byteCountsTag = 10 + 8 * 12;
+    v.setUint32(byteCountsTag + 4, 2, true);
+    v.setUint32(byteCountsTag + 8, 408, true);
+    v.setUint32(408, 48, true);
+    v.setUint32(412, 24, true);
+    const result = inspectTiff16Structure(aliased);
+    assert.equal(result.ok, false);
+  });
+  it('rejects a linked second image directory rather than certifying an ambiguous page', () => {
+    const multiPage = fixture();
+    const view = new DataView(multiPage.buffer);
+    const ifd = view.getUint32(4, true);
+    const count = view.getUint16(ifd, true);
+    view.setUint32(ifd + 2 + count * 12, 480, true);
+    const result = inspectTiff16Structure(multiPage);
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.match(result.reason, /multi-page/i);
+    assert.deepEqual(inspectTiff16Structure(fixture()), { ok: true, width: 4, height: 3, samples: 3 });
+  });
   it('rejects a strip aliased onto the TIFF directory', () => {
     const aliased = fixture();
     new DataView(aliased.buffer).setUint32(10 + 5 * 12 + 8, 20, true);
-    assert.equal(inspectTiff16Structure(aliased).ok, false);
-  });
-  it('rejects raster strips aliased onto the TIFF header', () => {
-    const aliased = fixture();
-    new DataView(aliased.buffer).setUint32(10 + 5 * 12 + 8, 0, true);
-    assert.match((inspectTiff16Structure(aliased) as { ok: false; reason: string }).reason, /header/i);
-  });
-  it('rejects raster strips aliased onto out-of-line BitsPerSample values', () => {
-    const aliased = fixture();
-    new DataView(aliased.buffer).setUint32(10 + 5 * 12 + 8, 200, true);
-    assert.match((inspectTiff16Structure(aliased) as { ok: false; reason: string }).reason, /bit-depth metadata/i);
-  });
-  it('rejects an ICC profile whose declared payload overlaps the image directory', () => {
-    const aliased = fixture();
-    // ICC offset points inside IFD; structural refusal is required, even if header is invalid.
-    new DataView(aliased.buffer).setUint32(10 + 10 * 12 + 8, 100, true);
     assert.equal(inspectTiff16Structure(aliased).ok, false);
   });
 });

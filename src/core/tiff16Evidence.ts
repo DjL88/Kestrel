@@ -18,6 +18,9 @@ export function inspectTiff16Structure(bytes: Uint8Array): { ok: true; width: nu
   if (!inRange(ifd, 2)) return fail('TIFF directory is out of bounds.');
   const count = u16(ifd);
   if (count > 256 || !inRange(ifd + 2, count * 12 + 4)) return fail('TIFF directory is malformed.');
+  // Only certify a single image: a linked second IFD could carry a different
+  // raster or thumbnail, making the verified dimensions ambiguous.
+  if (u32(ifd + 2 + count * 12) !== 0) return fail('Multi-page TIFF is not supported for RAW16 evidence.');
   const tags = new Map<number, { type: number; count: number; offset: number }>();
   for (let i = 0; i < count; i++) {
     const at = ifd + 2 + i * 12;
@@ -74,19 +77,33 @@ export function inspectTiff16Structure(bytes: Uint8Array): { ok: true; width: nu
     }
     pixelRanges.push([stripOffsets[i], stripOffsets[i] + stripSizes[i]]);
   }
+  // A raster cannot borrow bytes from the header or out-of-line channel metadata.
+  if (pixelRanges.some(([start, end]) => start < 8 && end > 0)) {
+    return fail('TIFF pixel data overlaps the file header.');
+  }
+  const bitsTag = tags.get(258);
+  if (bitsTag && bitsTag.count * (bitsTag.type === 3 ? 2 : 4) > 4) {
+    const bitsAt = u32(bitsTag.offset);
+    const bitsEnd = bitsAt + bitsTag.count * (bitsTag.type === 3 ? 2 : 4);
+    if (pixelRanges.some(([start, end]) => start < bitsEnd && bitsAt < end)) {
+      return fail('TIFF pixel data overlaps channel bit-depth metadata.');
+    }
+  }
+  // Out-of-line TIFF tag arrays are metadata too: raster strips must not
+  // masquerade as strip tables or other SHORT/LONG tag values.
+  for (const [tag, entry] of tags) {
+    if (![3, 4].includes(entry.type)) continue;
+    const byteCount = entry.count * (entry.type === 3 ? 2 : 4);
+    if (!Number.isSafeInteger(byteCount) || byteCount <= 4) continue;
+    const at = u32(entry.offset);
+    if (!inRange(at, byteCount)) return fail('TIFF tag metadata is out of bounds.');
+    if (pixelRanges.some(([start, end]) => start < at + byteCount && at < end)) {
+      return fail(`TIFF pixel data overlaps tag ${tag} metadata.`);
+    }
+  }
   pixelRanges.sort((a, b) => a[0] - b[0]);
   if (pixelRanges.some((range, i) => i > 0 && range[0] < pixelRanges[i - 1][1])) {
     return fail('TIFF pixel strips overlap; raster bytes are not independent.');
-  }
-  // A strip must not reuse header or out-of-line channel metadata as raster bytes.
-  if (pixelRanges.some(([start]) => start < 8)) return fail('TIFF pixel strip overlaps the file header.');
-  const bitTag = tags.get(258);
-  if (bitTag && bitTag.count * 2 > 4) {
-    const bitStart = u32(bitTag.offset);
-    const bitEnd = bitStart + bitTag.count * 2;
-    if (pixelRanges.some(([start, end]) => start < bitEnd && bitStart < end)) {
-      return fail('TIFF pixel strip overlaps channel bit-depth metadata.');
-    }
   }
   const icc = tags.get(34675);
   if (!icc || ![1, 7].includes(icc.type) || icc.count < 128 || !inRange(u32(icc.offset), icc.count)) {
@@ -94,11 +111,25 @@ export function inspectTiff16Structure(bytes: Uint8Array): { ok: true; width: nu
   }
   // A well-formed ICC profile starts with its byte size and acsp signature.
   const iccAt = u32(icc.offset);
+  if (iccAt < 8) return fail('TIFF ICC profile overlaps the file header.');
   if (pixelRanges.some(([start, end]) => start < iccAt + icc.count && iccAt < end)) {
     return fail('TIFF ICC profile overlaps pixel data.');
   }
+  // The ICC payload must be independent of out-of-line SHORT/LONG tag tables,
+  // not merely independent of the raster and image directory.
+  for (const [tag, entry] of tags) {
+    if (![3, 4].includes(entry.type)) continue;
+    const width = entry.type === 3 ? 2 : 4;
+    const length = entry.count * width;
+    if (!Number.isSafeInteger(length) || length <= 4) continue;
+    const at = u32(entry.offset);
+    if (!inRange(at, length)) return fail('TIFF tag metadata is out of bounds.');
+    if (iccAt < at + length && at < iccAt + icc.count) {
+      return fail(`TIFF ICC profile overlaps tag ${tag} metadata.`);
+    }
+  }
   const directoryEnd = ifd + 2 + count * 12 + 4;
-  if (ifd < iccAt + icc.count && iccAt < directoryEnd) {
+  if (iccAt < directoryEnd && ifd < iccAt + icc.count) {
     return fail('TIFF ICC profile overlaps the image directory.');
   }
   if (pixelRanges.some(([start, end]) => start < directoryEnd && ifd < end)) {
