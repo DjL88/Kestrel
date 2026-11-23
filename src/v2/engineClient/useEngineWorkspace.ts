@@ -72,12 +72,11 @@ import { exportMayContinue } from '../../core/exportCancellation';
 import type { ExportRequest } from '../ui/contract';
 import { applyRecipePatch, editToRecipe } from './recipeMap';
 import { surfaceBridge } from './surfaceBridge';
+import { addSavedEditGroup, renameSavedEditGroup, selectSavedEditGroup, syncEditGroup } from './editGroupState';
 
 /** Actions that change a photo's edit, sizes, overlay, masks or assist state. They are not connected to the real
  * recipe yet, so they say so instead of silently changing sample data. */
-const NOT_CONNECTED = [
-  'setActiveGroup', 'addEditGroup', 'renameEditGroup',
-] as const satisfies readonly (keyof WorkspaceActions)[];
+const NOT_CONNECTED = [] as const satisfies readonly (keyof WorkspaceActions)[];
 
 /** What the export needs to draw the overlay exactly as the canvas does, read from the latest render. */
 interface ExportEnv { fonts: ReturnType<typeof mergeFonts>; presets: WatermarkPreset[]; auto: Record<string, 'light-on-dark' | 'dark-on-light'>; textAllowed: boolean; markAllowed: boolean }
@@ -395,7 +394,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       frames: current.frames.map((frame) => {
         if (!ids.includes(frame.id)) return frame;
         const edit = change(frame);
-        return recordEdit(frame, { edit: edit && !isEmptyEdit(edit) ? edit : undefined }, at);
+        return syncEditGroup(recordEdit(frame, { edit: edit && !isEmptyEdit(edit) ? edit : undefined }, at));
       }),
     }));
   }, [mutate]);
@@ -1066,6 +1065,25 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, [loadHub]);
 
   const real: Partial<WorkspaceActions> = {
+    addEditGroup: (photoId) => {
+      const id = `group-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 24)}`;
+      const frame = stateRef.current?.frames.find((item) => item.id === photoId);
+      if (!frame || !addSavedEditGroup(frame, id)) { setNotice('Could not add another edit group.'); return; }
+      mutate((current) => ({ ...current, shoot: { ...current.shoot, lastUpdatedAt: Date.now() },
+        frames: current.frames.map((item) => item.id === photoId ? addSavedEditGroup(item, id) ?? item : item) }));
+    },
+    setActiveGroup: (photoId, groupId) => {
+      const frame = stateRef.current?.frames.find((item) => item.id === photoId);
+      if (!frame || !selectSavedEditGroup(frame, groupId)) { setNotice('That edit group is unavailable.'); return; }
+      mutate((current) => ({ ...current, shoot: { ...current.shoot, lastUpdatedAt: Date.now() },
+        frames: current.frames.map((item) => item.id === photoId ? selectSavedEditGroup(item, groupId) ?? item : item) }));
+    },
+    renameEditGroup: (photoId, groupId, name) => {
+      const frame = stateRef.current?.frames.find((item) => item.id === photoId);
+      if (!frame || !renameSavedEditGroup(frame, groupId, name)) { setNotice('Choose a group name between 1 and 80 characters.'); return; }
+      mutate((current) => ({ ...current, shoot: { ...current.shoot, lastUpdatedAt: Date.now() },
+        frames: current.frames.map((item) => item.id === photoId ? renameSavedEditGroup(item, groupId, name) ?? item : item) }));
+    },
     reconnectOriginal: () => reconnectOriginal(),
     openProject: (id) => { void openProject(id); },
     createProject: (name) => {
