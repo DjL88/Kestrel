@@ -108,7 +108,7 @@ export function limitAutoKeepers(
   suggestions: CullSuggestion[], frames: PhotoFrame[], remainingKeepers: number,
 ): CullSuggestion[] {
   // A corrupt or non-finite keeper target must fail closed, never grant unlimited auto-keeps.
-  const safeRemaining = Number.isFinite(remainingKeepers) ? Math.max(0, Math.floor(remainingKeepers)) : 0;
+  const safeRemaining = Number.isSafeInteger(remainingKeepers) && remainingKeepers >= 0 ? remainingKeepers : 0;
   // Distinct originals with duplicate catalogue IDs must not receive automatic keeps.
   const ambiguousIds = new Set<string>();
   const byId = new Map<string, PhotoFrame>();
@@ -136,7 +136,7 @@ export function limitAutoKeepers(
     const value = frame?.rating ?? frame?.exif.rating ?? 0;
     return Number.isInteger(value) && value >= 1 && value <= 5 ? value : 0;
   };
-  for (const result of [...suggestions].sort((a, b) => rating(b.frameId) - rating(a.frameId) || b.score - a.score)) {
+  for (const result of [...suggestions].sort((a, b) => rating(b.frameId) - rating(a.frameId) || b.score - a.score || a.frameId.localeCompare(b.frameId))) {
     if (!Number.isFinite(result.score) || result.score < 0 || result.score > 100 ||
         result.decision !== 'keep' || result.confidence !== 'high' || accepted.size >= safeRemaining ||
         typeof result.frameId !== 'string' || !result.frameId.trim()) continue;
