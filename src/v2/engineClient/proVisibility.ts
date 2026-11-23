@@ -17,7 +17,7 @@ export const hiddenProFeatures = (plan: Plan, access: Access, hide: boolean): Fe
 /** The Pro features a tool is made of. A tool whose every feature is hidden has nothing left to show, so it leaves the tool rail
  * (and the mobile More sheet) entirely instead of being greyed out. A tool with any other content stays. */
 export const PANEL_PRO_FEATURES: Partial<Record<PanelId, readonly FeatureKey[]>> = {
-  overlays: ['overlayText', 'watermarkCustom'],
+  // Overlays are now Basic, so hiding locked Pro tools must never hide this panel.
 };
 
 export function panelsHiddenByPro(hidden: readonly FeatureKey[]): PanelId[] {
