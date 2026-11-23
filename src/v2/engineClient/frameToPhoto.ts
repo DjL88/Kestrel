@@ -1,4 +1,5 @@
-import { applyFormats, applySizeLinked } from './formatOps';
+import { applyFormats, applySizeLinked, ratioLabelFor } from './formatOps';
+import { framedSize, DEFAULT_FRAMING } from '../../core/photoFraming';
 import { readVideoZoom } from './videoZoomOps';
 import { readSplitFrames, readSplitPanOffset } from './splitFrameOps';
 import { readFormatSplits } from './formatSplitOps';
@@ -73,10 +74,14 @@ export function tileStateFor(urls: FrameUrls | undefined): TileState {
  * not record says "Not recorded" (or is left empty), never an invented value. The edit, size and mask parts start as the
  * UI's neutral defaults; they are connected to the real recipe in a later step.
  */
-export interface PhotoExtras { pixelSize?: { width: number; height: number }; assist?: AssistState; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram; originalConnected?: boolean }
+export interface PhotoExtras { pixelSize?: { width: number; height: number }; /** Measured from a connected, decoded JPEG/PNG original, not EXIF or a preview. */ verifiedOriginalSize?: { width: number; height: number }; assist?: AssistState; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram; originalConnected?: boolean }
 
 export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, extras: PhotoExtras = {}): Photo {
-  const { assist, watermarkAuto, histogram, pixelSize } = extras;
+  const { assist, watermarkAuto, histogram, pixelSize, verifiedOriginalSize } = extras;
+  const nativeSize = verifiedOriginalSize && /\\.(?:jpe?g|png)$/i.test(frame.filename) &&
+    Number.isSafeInteger(verifiedOriginalSize.width) && Number.isSafeInteger(verifiedOriginalSize.height) &&
+    verifiedOriginalSize.width > 0 && verifiedOriginalSize.height > 0
+    ? framedSize(verifiedOriginalSize.width, verifiedOriginalSize.height, frame.framing ?? DEFAULT_FRAMING) : null;
   const { exif } = frame;
   // The UI's sample group carries a made-up look. A real photo starts from its own edit: neutral until the person edits it.
   const board = readBoard(frame.boardPositions);
@@ -112,10 +117,10 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
       dimensions: exif.width && exif.height ? `${exif.width} × ${exif.height}` : NOT_RECORDED,
       colourProfile: NOT_RECORDED,
     },
-    ...(exif.width && exif.height ? { pixelSize: { width: exif.width, height: exif.height } } : pixelSize ? { pixelSize } : {}),
+    ...(nativeSize ? { pixelSize: nativeSize } : exif.width && exif.height ? { pixelSize: { width: exif.width, height: exif.height } } : pixelSize ? { pixelSize } : {}),
     activeGroupId: groups[0].id,
     editGroups: groups,
-    sizes: applySizeLinked(applyFormats(createDefaultSizes(), frame.formats).map((size) => { const crop = crops[size.id]; const at = board[size.id]; return { ...size, ...(crop ? { crop } : {}), ...(at ? { boardX: at.x, boardY: at.y } : {}) }; }), frame.sizeLinked),
+    sizes: applySizeLinked(applyFormats(createDefaultSizes(), frame.formats).map((size) => { const crop = crops[size.id]; const at = board[size.id]; const native = size.id === 'orig-3x2' && nativeSize ? { label: 'Original', width: nativeSize.width, height: nativeSize.height, ratioLabel: ratioLabelFor(nativeSize.width, nativeSize.height) } : {}; return { ...size, ...native, ...(crop ? { crop } : {}), ...(at ? { boardX: at.x, boardY: at.y } : {}) }; }), frame.sizeLinked),
     formatSplits: frame.formatSplits === undefined && frame.splitFrames === true
       ? { 'orig-3x2': { enabled: true, offset: readSplitPanOffset(frame.splitPanOffset) } }
       : readFormatSplits(frame.formatSplits),

@@ -46,8 +46,10 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
   if (env.KCP_CLOUD_PROCESSING_BUCKET && env.KCP_CLOUD_RUNNER_JOB) {
     const bucket = await open(env.KCP_CLOUD_PROCESSING_BUCKET);
     const trigger = new CloudRunJobTrigger(env.KCP_CLOUD_RUNNER_JOB, deps.token ?? (() => metadataAccessToken()));
+    const ledger = new FirestoreCloudLedger(db);
     out.cloud = {
-      runner: new GcsCloudRunner(bucket, trigger), ledger: new FirestoreCloudLedger(db),
+      runner: new GcsCloudRunner(bucket, trigger), ledger,
+      settleFailed: (jobId, legacySpendPence) => ledger.settleFailed(jobId, legacySpendPence),
       jobsPerPeriod: whole(env, 'KCP_CLOUD_JOBS_PER_PERIOD', 50, 100_000),
       maxInputBytes: whole(env, 'KCP_CLOUD_MAX_INPUT_BYTES', 120_000_000, 2_000_000_000),
     };

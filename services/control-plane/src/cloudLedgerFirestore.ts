@@ -5,6 +5,7 @@
  */
 import type { CloudJobRecord, CloudLedger, CloudStatus } from './cloudJobs.ts';
 import type { FirestoreLike } from './firestoreStore.ts';
+import { firestoreSpendRef } from './spendGuard.ts';
 
 const JOBS = 'cloud_jobs';
 const USAGE = 'cloud_usage';
@@ -37,15 +38,23 @@ export class FirestoreCloudLedger implements CloudLedger {
   }
 
   async put(record: CloudJobRecord): Promise<void> {
-    const { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs } = record;
-    await this.db.collection(JOBS).doc(jobId).set({ jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs });
+    const { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, spendPence } = record;
+    await this.db.collection(JOBS).doc(jobId).set({
+      jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs,
+      ...(spendPence === undefined ? {} : { spendPence }),
+    });
   }
 
   async get(jobId: string): Promise<CloudJobRecord | undefined> {
     const snap = await this.db.collection(JOBS).doc(jobId).get();
     if (!snap.exists) return undefined;
     const d = snap.data()!;
-    return { jobId: String(d.jobId), accountId: String(d.accountId), kind: d.kind as CloudJobRecord['kind'], inputBytes: Number(d.inputBytes), status: d.status as CloudJobRecord['status'], createdAtMs: Number(d.createdAtMs), consentAtMs: Number(d.consentAtMs) };
+    return {
+      jobId: String(d.jobId), accountId: String(d.accountId), kind: d.kind as CloudJobRecord['kind'],
+      inputBytes: Number(d.inputBytes), status: d.status as CloudJobRecord['status'],
+      createdAtMs: Number(d.createdAtMs), consentAtMs: Number(d.consentAtMs),
+      ...(typeof d.spendPence === 'number' ? { spendPence: d.spendPence } : {}),
+    };
   }
 
   async transition(jobId: string, from: CloudStatus, to: CloudStatus): Promise<boolean> {
@@ -53,6 +62,29 @@ export class FirestoreCloudLedger implements CloudLedger {
       const ref = this.db.collection(JOBS).doc(jobId);
       if ((await tx.get(ref)).data()?.status !== from) return false;
       tx.update(ref, { status: to });
+      return true;
+    });
+  }
+
+  /** An interrupted commit leaves the job running, so the next poll can retry the full settlement. */
+  async settleFailed(jobId: string, legacySpendPence: number): Promise<boolean> {
+    return this.db.runTransaction(async (tx) => {
+      const jobRef = this.db.collection(JOBS).doc(jobId);
+      const job = (await tx.get(jobRef)).data();
+      if (job?.status !== 'running') return false;
+
+      const reservedAtMs = Number(job.createdAtMs);
+      const reservedPence = typeof job.spendPence === 'number' ? job.spendPence : legacySpendPence;
+      const usageRef = this.db.collection(USAGE).doc(String(job.accountId));
+      const usage = (await tx.get(usageRef)).data();
+      const spendRef = firestoreSpendRef(this.db, reservedAtMs);
+      const spend = reservedPence > 0 ? (await tx.get(spendRef)).data() : undefined;
+
+      tx.update(jobRef, { status: 'failed' });
+      if (typeof usage?.periodStartMs === 'number' && reservedAtMs >= usage.periodStartMs) {
+        tx.update(usageRef, { used: Math.max(Number(usage.used ?? 0) - 1, 0) });
+      }
+      if (spend) tx.update(spendRef, { pence: Math.max(Number(spend.pence ?? 0) - reservedPence, 0) });
       return true;
     });
   }

@@ -19,7 +19,7 @@ import { emailHashOf, giftEntitlement } from './entitlement.ts';
 import { googleKeysFromNetwork, verifyGoogleIdToken, GOOGLE_CERTS_URL, type GoogleKeys } from './googleIdToken.ts';
 import { APPLE_ISSUER, APPLE_KEYS_URL, FIREBASE_KEYS_URL, firebaseIssuer, oidcKeysFromNetwork, verifyOidcIdToken, type OidcKeys } from './oidcIdToken.ts';
 import { UK_VAT_THRESHOLD_PENCE, UK_VAT_WARNING_PENCE } from './commerce/turnover.ts';
-import { CLOUD_KINDS, DEFAULT_MAX_JOB_MS, type CloudOptions } from './cloudJobs.ts';
+import { CLOUD_KINDS, DEFAULT_MAX_JOB_MS, type CloudJobRecord, type CloudOptions } from './cloudJobs.ts';
 import { LEARNING_ACTIONS, LEARNING_CAPABILITIES, LEARNING_SOURCES, type LearningSink } from './learningSignal.ts';
 import { SAFE_COPY_LEVELS, SAFE_COPY_MAX_BYTES, safeCopyKey, type SafeCopyOptions } from './safeCopy.ts';
 import type { SpendOptions } from './spendGuard.ts';
@@ -425,7 +425,8 @@ export function createApp(options: AppOptions) {
     const cloud = await cloudGate(claims.sub);
     if (body.inputBytes > cloud.maxInputBytes) throw new ApiError(413, 'CLOUD_INPUT_TOO_LARGE', 'This file is larger than cloud processing accepts.');
     const reservedAtMs = now();
-    const refundSpend = await reserveSpend(options.spend?.cloudJobPence ?? 0, reservedAtMs).catch(async (e) => { await audit(claims.sub, 'cloud.job.create', 'denied', 'spend ceiling'); throw e; });
+    const spendPence = options.spend?.cloudJobPence ?? 0;
+    const refundSpend = await reserveSpend(spendPence, reservedAtMs).catch(async (e) => { await audit(claims.sub, 'cloud.job.create', 'denied', 'spend ceiling'); throw e; });
     if (!(await cloud.ledger.reserve(claims.sub, reservedAtMs, cloud.jobsPerPeriod, QUOTA_PERIOD_MS))) {
       await refundSpend();
       await audit(claims.sub, 'cloud.job.create', 'denied', 'quota');
@@ -434,7 +435,11 @@ export function createApp(options: AppOptions) {
     const jobId = uuid();
     try {
       const upload = await cloud.runner.createUpload(jobId, body.inputBytes);
-      await cloud.ledger.put({ jobId, accountId: claims.sub, kind: body.kind, inputBytes: body.inputBytes, status: 'awaiting-upload', createdAtMs: reservedAtMs, consentAtMs: reservedAtMs });
+      await cloud.ledger.put({
+        jobId, accountId: claims.sub, kind: body.kind, inputBytes: body.inputBytes,
+        status: 'awaiting-upload', createdAtMs: reservedAtMs, consentAtMs: reservedAtMs,
+        ...(options.spend ? { spendPence } : {}),
+      });
       await audit(claims.sub, 'cloud.job.create', 'allowed', `${body.kind} ${jobId}`);
       return { status: 200, body: { jobId, uploadUrl: upload.uploadUrl, expiresAtMs: upload.expiresAtMs } };
     } catch (error) {
@@ -450,6 +455,15 @@ export function createApp(options: AppOptions) {
     // Someone else's job is indistinguishable from a missing one.
     if (!options.cloud || !record || record.accountId !== claims.sub) throw new ApiError(404, 'NOT_FOUND', 'No such job.');
     return { cloud: options.cloud, record };
+  }
+
+  async function settleFailedCloudJob(cloud: CloudOptions, record: CloudJobRecord): Promise<boolean> {
+    const legacySpendPence = options.spend?.cloudJobPence ?? 0;
+    if (cloud.settleFailed) return cloud.settleFailed(record.jobId, legacySpendPence);
+    if (!(await cloud.ledger.transition(record.jobId, 'running', 'failed'))) return false;
+    await cloud.ledger.refund(record.accountId, record.createdAtMs);
+    await options.spend?.guard.refund(record.createdAtMs, record.spendPence ?? legacySpendPence);
+    return true;
   }
 
   /** A stable pseudonym, so withdrawal can delete a person's signals without the store holding their account id. */
@@ -779,11 +793,10 @@ export function createApp(options: AppOptions) {
           if (p.state !== 'running') {
             // The job has ended: the input goes now, not at finish or at the lifecycle backstop.
             await cloud.runner.deleteInput(record.jobId);
-            if (await cloud.ledger.transition(record.jobId, 'running', p.state)) {
-              if (p.state === 'failed') {
-                await cloud.ledger.refund(record.accountId, record.createdAtMs);
-                if (options.spend) await options.spend.guard.refund(record.createdAtMs, options.spend.cloudJobPence);
-              }
+            const changed = p.state === 'failed'
+              ? await settleFailedCloudJob(cloud, record)
+              : await cloud.ledger.transition(record.jobId, 'running', p.state);
+            if (changed) {
               await audit(record.accountId, 'cloud.job.end', 'allowed', `${record.jobId} ${p.state}`);
             }
             status = (await cloud.ledger.get(record.jobId))?.status ?? 'finished';
