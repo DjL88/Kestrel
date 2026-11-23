@@ -134,7 +134,7 @@ test('invalid or fractional keeper budgets never auto-accept beyond the safe int
     assert.equal(result.filter((item) => item.confidence === 'high').length, 0, String(budget));
     assert.equal(result.every((item) => item.decision === 'keep' && item.confidence === 'medium'), true);
   }
-  assert.equal(limitAutoKeepers(suggestions, photos, 1.9).filter((item) => item.confidence === 'high').length, 1);
+  assert.equal(limitAutoKeepers(suggestions, photos, 1.9).filter((item) => item.confidence === 'high').length, 0);
   assert.equal(limitAutoKeepers(suggestions, photos, 2).filter((item) => item.confidence === 'high').length, 2);
 });
 
@@ -310,5 +310,49 @@ test('ambiguous subject labels and control characters never create confident kee
   }
   for (const label of ['bird', 'aeroplane', 'red kite']) {
     assert.equal(scoreWithSubject(baseResult, { ...valid, label }).decision, 'keep', label);
+  }
+});
+
+test('consolidated G05 uncertain prefixes and detector measurements fail closed', () => {
+  const valid = { label: 'bird', score: 0.9, size: 250, sharpness: 20 };
+  for (const label of ['unknown: bird', 'unidentified/aircraft', 'other (animal)', 'none-subject', 'n/a: bird']) {
+    const result = scoreWithSubject(baseResult, { ...valid, label });
+    assert.deepEqual([result.decision, result.confidence, result.reason], [null, 'low', 'noSubject'], label);
+  }
+  for (const size of [0.5, 120.5, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.equal(scoreWithSubject(baseResult, { ...valid, size }).decision, null);
+  }
+  assert.equal(scoreWithSubject(baseResult, { ...valid, sharpness: 1_000_001 }).decision, null);
+  for (const label of ['bird', 'aircraft', 'dog']) {
+    assert.equal(scoreWithSubject(baseResult, { ...valid, label }).decision, 'keep', label);
+  }
+});
+
+test('consolidated G05 invalid runtime pixel inputs stay review-only', () => {
+  for (const pixels of [null, undefined, [], {}, new Uint8Array(96 * 96 * 4)]) {
+    const result = scorePreview('invalid', pixels as Uint8ClampedArray, 96, 96);
+    assert.deepEqual([result.decision, result.confidence, result.reason], [null, 'low', 'unavailable']);
+  }
+});
+
+test('consolidated G05 tie-breaks are stable, camera rating wins, and inputs remain unchanged', () => {
+  const frames = generateDemoShootFrames(3).map((frame, index) => ({
+    ...frame, isDemo: false, burstGroupId: null, decision: 'unreviewed' as const, rating: index === 2 ? 5 : 1,
+  }));
+  const suggestions: CullSuggestion[] = frames.map((frame) => ({
+    frameId: frame.id, decision: 'keep', confidence: 'high', score: 90, reason: 'subjectSharp',
+  }));
+  const original = suggestions.map((item) => ({ ...item }));
+  for (const input of [suggestions, [...suggestions].reverse()]) {
+    assert.deepEqual(limitAutoKeepers(input, frames, 1).filter((item) => item.confidence === 'high').map((item) => item.frameId), [frames[2].id]);
+  }
+  assert.deepEqual(suggestions, original);
+  const equalFrames = frames.map((frame) => ({ ...frame, rating: 1 }));
+  const expected = [...frames.map((frame) => frame.id)].sort((a, b) => a.localeCompare(b))[0];
+  for (const input of [suggestions, [...suggestions].reverse()]) {
+    assert.deepEqual(limitAutoKeepers(input, equalFrames, 1).filter((item) => item.confidence === 'high').map((item) => item.frameId), [expected]);
+  }
+  for (const budget of [-1, NaN, Infinity, 0.5, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.equal(limitAutoKeepers(suggestions, frames, budget).filter((item) => item.confidence === 'high').length, 0);
   }
 });
