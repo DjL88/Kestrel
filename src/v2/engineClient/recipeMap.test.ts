@@ -106,6 +106,7 @@ test('hover Look preview edits real pixels without storing or mutating the curre
   const hovered = previewLookEdit(original, suggestion);
   assert.ok(hovered);
   assert.notStrictEqual(hovered, original, 'hover produces a temporary recipe');
+  assert.deepEqual(hovered, applyRecipePatch(original, suggestion).edit, 'hover and Apply must render the same chosen recipe');
   assert.equal(original.exposure, savedExposure, 'saved recipe is unchanged');
   assert.equal(hovered.exposure, -3, 'the candidate uses requested Look values');
   assert.equal(hovered.colour, -2, 'monochrome preview is a real edit');
