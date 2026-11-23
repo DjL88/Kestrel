@@ -348,17 +348,16 @@ test('?v2 slice 1A: no Info in the footer, a bigger logo, Compare off in split, 
   await page.goto('/?v2&stub=1&autostart=1');
   const root = page.locator('.inflight-v2');
   // Photo info lives in the left tools only.
-  const dock = root.getByRole('tablist', { name: 'Bottom dock views' });
-  await expect(dock.getByRole('tab')).toHaveText([/Filmstrip/]);
+  await expect(root.getByRole('tablist', { name: 'Bottom dock views' })).toHaveCount(0);
+  await expect(root.getByRole('tab', { name: /^Filmstrip/ })).toHaveCount(0);
   // The logo is bigger.
   const logo = root.getByRole('banner').getByRole('img', { name: 'InFlight' });
   expect((await logo.boundingBox())!.height).toBeGreaterThanOrEqual(36);
   // Compare is greyed out, with the reason, while a photo is split.
   const compare = root.getByRole('button', { name: 'Compare', exact: true });
   await expect(compare).toBeEnabled();
-  await root.getByRole('button', { name: 'Split 2', exact: true }).first().click();
+  await root.getByRole('button', { name: /Split across 2 frames/ }).first().click();
   await expect(compare).toBeDisabled();
-  await expect(compare).toHaveAttribute('title', /Rejoin it to compare/);
   // Left-handed mode puts the tools on the right.
   const rail = root.getByRole('complementary', { name: 'Studio tools' });
   const before = (await rail.boundingBox())!;
@@ -775,16 +774,17 @@ test('?v2 Look preview belongs only to its selected photo, never the next one', 
   if (!(await looksTab.isVisible())) await root.getByRole('button', { name: 'Adjust', exact: true }).first().click();
   await looksTab.click();
   const looksPanel = root.getByRole('tabpanel', { name: 'Curated Looks' });
-  const firstLook = looksPanel.getByRole('button').first();
+  const firstLook = looksPanel.getByRole('button').nth(1); // the first Look is the default everywhere
+  await strip.getByRole('option').nth(0).click(); // just this photo, so the Look goes to it alone
   await firstLook.click();
-  await expect(root.getByRole('group', { name: 'Look preview actions' })).toBeVisible();
-  await expect(firstLook).toHaveAttribute('aria-pressed', 'true');
-  // Switching photos must dismiss the pending choice without applying it to either photo.
-  await strip.getByRole('option').nth(1).click();
+  // Choosing a Look applies it to this photo as one undoable edit: there is no separate Apply step.
   await expect(root.getByRole('group', { name: 'Look preview actions' })).toHaveCount(0);
+  await expect(firstLook).toHaveAttribute('aria-pressed', 'true');
+  // The next photo has not been touched.
+  await strip.getByRole('option').nth(1).click();
   await expect(firstLook).toHaveAttribute('aria-pressed', 'false');
   await strip.getByRole('option').nth(0).click();
-  await expect(root.getByRole('group', { name: 'Look preview actions' })).toHaveCount(0);
+  await expect(firstLook).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('V2 reconnects a browser original after its session blob is lost (file reselect)', async ({ page }) => {
@@ -846,4 +846,64 @@ test('V2 reconnects a browser original after its session blob is lost (file rese
   await choose('v2-relink-input', ['lost-original.png']);
   await expect(banner).toHaveCount(0);
   await expect(root.getByText(/Reconnected 1 photo using matching original bytes/)).toBeVisible();
+});
+
+test('?v2 canvas controls: screenshot, Grid in the zoom bar, All photos in the rail, and artboards stay where they are put', async ({ page }) => {
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Canvas controls');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  const image = await page.evaluate(() => {
+    const canvas = document.createElement('canvas'); canvas.width = 600; canvas.height = 400;
+    const ctx = canvas.getContext('2d')!; ctx.fillStyle = '#586b82'; ctx.fillRect(0, 0, 600, 400); ctx.fillStyle = '#c9a36b'; ctx.fillRect(120, 80, 200, 160);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles([{ name: 'canvas-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
+  await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  await expect(root.getByTestId('canvas-frame').locator('canvas, img').first()).toBeVisible({ timeout: 30000 });
+
+  // The filmstrip header has no "Filmstrip" tab; Compare appears once, as a format action; Grid sits in the zoom bar.
+  await expect(root.getByRole('tab', { name: /^Filmstrip/ })).toHaveCount(0);
+  const zoomBar = root.getByLabel('Canvas viewport controls');
+  await expect(zoomBar.getByTestId('grid-toggle')).toBeVisible();
+  await zoomBar.getByTestId('grid-toggle').click();
+  await expect(root.getByTestId('composition-grid')).toHaveCount(1);
+
+  // Screenshot: a PNG of what is on the canvas, at least twice the size on screen.
+  const download = page.waitForEvent('download');
+  await zoomBar.getByTestId('grab-screenshot').click();
+  const saved = await download;
+  expect(saved.suggestedFilename()).toMatch(/^inflight-screenshot-.*\.png$/);
+  const path = await saved.path();
+  const size = await page.evaluate(async (data) => { const bitmap = await createImageBitmap(await (await fetch(data)).blob()); return { w: bitmap.width, h: bitmap.height }; },
+    'data:image/png;base64,' + (await import('node:fs')).readFileSync(path!).toString('base64'));
+  const stage = await root.getByTestId('canvas-frame').evaluate((el) => { const s = el.closest('div.overflow-auto') as HTMLElement; return { w: s.clientWidth, h: s.clientHeight }; });
+  expect(size.w).toBeGreaterThanOrEqual(stage.w * 2 - 2);
+  expect(size.h).toBeGreaterThanOrEqual(stage.h * 2 - 2);
+
+  // All photos is in the rail, above Tasks.
+  await expect(root.getByTestId('all-photos-button')).toBeVisible();
+
+  // All formats: the same actions appear once a format is selected, and a moved artboard keeps its place.
+  await root.getByRole('button', { name: /All formats/ }).click();
+  const board = root.getByTestId('all-formats-board');
+  await expect(board).toBeVisible();
+  const firstBoard = board.locator('[data-testid^="artboard-"]').first();
+  await firstBoard.locator('div.cursor-grab').first().click();
+  const before = await firstBoard.boundingBox();
+  const handle = firstBoard.locator('div.cursor-grab').first();
+  const box = (await handle.boundingBox())!;
+  await page.mouse.move(box.x + 20, box.y + 8);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 120, box.y + 68, { steps: 8 });
+  await page.mouse.up();
+  const moved = await firstBoard.boundingBox();
+  expect(Math.abs(moved!.x - before!.x)).toBeGreaterThan(40);
+  await root.getByRole('button', { name: 'Single', exact: true }).click();
+  await root.getByRole('button', { name: /All formats/ }).click();
+  const after = await board.locator('[data-testid^="artboard-"]').first().boundingBox();
+  expect(Math.abs(after!.x - moved!.x)).toBeLessThan(3);
 });
