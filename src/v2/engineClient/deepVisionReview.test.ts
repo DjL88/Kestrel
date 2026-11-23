@@ -50,7 +50,12 @@ describe('describeDeepReview', () => {
 
 describe('suggestDeepReviewLook', () => {
   it('offers the existing Look only for a trusted sharp subject', () => {
-    assert.equal(suggestDeepReviewLook(result({}))?.id, LIFT_SUBJECT_BLUR_BACKGROUND.id);
+    assert.equal(suggestDeepReviewLook(result({}), true)?.id, LIFT_SUBJECT_BLUR_BACKGROUND.id);
+  });
+
+  it('does not treat a detector box as a usable pixel mask', () => {
+    assert.equal(suggestDeepReviewLook(result({})), null);
+    assert.equal(suggestDeepReviewLook(result({}), false), null);
   });
 
   it('refuses a Look when the scene reading contradicts the detector', () => {
@@ -75,7 +80,7 @@ describe('candidatesForSuggestedLook', () => {
   });
 
   it('returns exactly one grounded proposal without applying or changing the Look', () => {
-    const look = suggestDeepReviewLook(result({}));
+    const look = suggestDeepReviewLook(result({}), true);
     assert.ok(look);
     const before = structuredClone(look);
     const candidates = candidatesForSuggestedLook(look);

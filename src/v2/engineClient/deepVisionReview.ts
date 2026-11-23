@@ -80,7 +80,9 @@ export async function runDeepVisionReview(frame: PhotoFrame, provider: BrowserPr
 
   // A conflicting scene reading makes a subject-specific Look unsafe to propose,
   // even when the box detector alone rated the subject highly.
-  const suggestedLook = suggestDeepReviewLook(detection);
+  // A detector box is not a usable subject mask. Until a real mask is supplied
+  // by the editing pipeline, a subject-local Look cannot be previewed honestly.
+  const suggestedLook = suggestDeepReviewLook(detection, false);
   // The current engine supplies at most one defensible Look. Do not pad to three
   // with invented alternatives; a later ranked engine result can extend this list.
   const candidates = candidatesForSuggestedLook(suggestedLook);
