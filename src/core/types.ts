@@ -61,6 +61,8 @@ export interface PhotoFrame {
   id: string;
   /** Stable catalogue identifier (relative path / deterministic key across relinks) */
   stableKey: string;
+  /** SHA-256 of the originally imported file bytes; required to authenticate browser reselects. Older projects may not have this. */
+  originalSha256?: string;
   filename: string;
   sequenceIndex: number;
   decision: CullDecision;
