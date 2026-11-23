@@ -1,13 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { AssistMode, DockPosition, PanelId, ThemeMode } from '../contract';
 import { STRINGS } from '../strings';
-import { chordLabel, effectiveKeymap, loadKeymap } from '../commands/keymap';
+import { chordLabel, type Keymap } from '../commands/keymap';
 import BrandIcon, { BrandLogo, assistModeIconName } from '../icons/BrandIcon';
 
 interface TopBarProps {
   /** The File, Edit and View menus. Off in the interface: the desktop app has them natively. */
   showMenus?: boolean;
   photoName: string;
+  /**
+   * The same effective keymap App.tsx's dispatcher runs, lifted down as a prop rather than
+   * loaded independently here. Before this, TopBar re-read the saved keymap itself and only
+   * refreshed on focus/focusin/storage, while App.tsx's dispatcher (prior to #976) didn't
+   * refresh at all - a same-tab rebind could show a shortcut here that the editor wouldn't
+   * actually run. One source of truth removes that drift by construction.
+   */
+  keymap: Keymap;
   assistMode: AssistMode;
   theme: ThemeMode;
   activePanel: PanelId | null;
@@ -43,6 +51,7 @@ type OpenMenu = 'file' | 'edit' | 'view' | null;
 export default function TopBar({
   showMenus = false,
   photoName,
+  keymap: shortcutMap,
   assistMode,
   theme,
   activePanel,
@@ -74,28 +83,6 @@ export default function TopBar({
 }: TopBarProps) {
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  // Match the same saved preset and overrides used by the workspace key handler.
-  const [shortcutMap, setShortcutMap] = useState(() => {
-    const saved = loadKeymap();
-    return effectiveKeymap(saved.preset, saved.overrides);
-  });
-  // Settings can change the saved preset while the studio stays mounted.
-  // Focus returning to a studio control also refreshes same-tab changes: the
-  // browser's storage event only fires in other tabs, not the writing tab.
-  useEffect(() => {
-    const refreshShortcuts = () => {
-      const saved = loadKeymap();
-      setShortcutMap(effectiveKeymap(saved.preset, saved.overrides));
-    };
-    window.addEventListener('focus', refreshShortcuts);
-    window.addEventListener('focusin', refreshShortcuts);
-    window.addEventListener('storage', refreshShortcuts);
-    return () => {
-      window.removeEventListener('focus', refreshShortcuts);
-      window.removeEventListener('focusin', refreshShortcuts);
-      window.removeEventListener('storage', refreshShortcuts);
-    };
-  }, []);
   const isMac = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
 
   useEffect(() => {
