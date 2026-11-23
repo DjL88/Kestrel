@@ -6,6 +6,9 @@ substitutions:
   _SERVICE: inflight-v2proto
   _GOOGLE_CLIENT_ID: REPLACE_WITH_EXISTING_ADMIN_GOOGLE_OAUTH_CLIENT_ID
 steps:
+  - name: node:22
+    entrypoint: sh
+    args: ['-c', 'npm ci --include=optional && npm run lint && npm test && npm run build']
   - name: gcr.io/cloud-builders/docker
     args: ['build', '-f', 'services/v2proto/Dockerfile', '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/v2proto:$SHORT_SHA', '.']
   - name: gcr.io/cloud-builders/docker
