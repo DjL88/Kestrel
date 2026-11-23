@@ -241,3 +241,15 @@ test('original bytes remain one untouched file even if a developed format is spl
   assert.deepEqual(plan.originals, ['p1']);
   assert.match(plan.summary, /= 3 files$/);
 });
+
+test('split planning refuses an impossible combined canvas or a sub-two-pixel size cap', () => {
+  const photo = [{ id: 'p1', filename: 'a.jpg', formatSplits: { a: { enabled: true, offset: 0 } } }];
+  const tooWide = planExport(request({ photoIds: ['p1'], sizeIds: ['a'] }), photo,
+    [size('a', { width: 12000, height: 2000 })]);
+  assert.ok('error' in tooWide);
+  assert.match(tooWide.error, /too wide/);
+  const tiny = planExport(request({ photoIds: ['p1'], sizeIds: ['a'], maxLongestEdgePx: 1 }), photo,
+    [size('a')]);
+  assert.ok('error' in tiny);
+  assert.match(tiny.error, /too wide/);
+});
