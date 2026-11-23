@@ -42,7 +42,7 @@ function recipeIsValid(value: unknown): boolean {
   const edit = value.edit;
   if (edit !== undefined && (!record(edit) || !number(edit.exposure, -12.5, 12.5) ||
     !number(edit.warmth, -2, 2) || !number(edit.colour, -2, 2) ||
-    ['brightness', 'contrast', 'highlights', 'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity', 'sharpen'].some((key) =>
+    ['brightness', 'tint', 'contrast', 'highlights', 'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity', 'sharpen'].some((key) =>
       edit[key] !== undefined && !number(edit[key], -2, 2)) ||
     (edit.denoise !== undefined && !number(edit.denoise, 0, 2)) ||
     (edit.masks !== undefined && !validMasks(edit.masks)))) return false;

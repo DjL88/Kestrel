@@ -25,7 +25,7 @@ const GLOBAL_CONTROLS = [
   'highlights', 'shadows', 'whites', 'blacks', 'vibrance',
 ] as const;
 
-const UNSUPPORTED_CONTROLS = ['texture', 'clarity', 'sharpen', 'denoise'] as const;
+const UNSUPPORTED_CONTROLS = ['tint', 'texture', 'clarity', 'sharpen', 'denoise'] as const;
 
 export function nativeRawMasterRecipe(frame: Pick<PhotoFrame, 'edit' | 'framing'>): NativeRawMasterRecipe {
   const edit: PhotoEdit = frame.edit ?? { exposure: 0, warmth: 0, colour: 0 };

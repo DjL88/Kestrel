@@ -6,7 +6,7 @@ import type { EditRecipe } from '../ui/contract';
  * exposure in 0.4 EV steps, colour -2 = black and white). The engine is the source of truth: the UI recipe shown for a
  * photo is always derived from its PhotoEdit, so what the sliders say is what the pixels do.
  *
- * Not in PhotoEdit yet, so not applied: tint, luminance noise reduction, AI RAW denoise, detail recovery and
+ * Not in PhotoEdit yet, so not applied: luminance noise reduction, AI RAW denoise, detail recovery and
  * lens correction. Changing one of those changes nothing and the caller is told (UNMAPPED_KEYS).
  */
 export const NEUTRAL_RECIPE: EditRecipe = {
@@ -15,7 +15,7 @@ export const NEUTRAL_RECIPE: EditRecipe = {
   upscaleFactor: 1, detailRecovery: 0, lensCorrection: false,
 };
 
-export const UNMAPPED_KEYS = ['tint', 'denoiseRawAi', 'denoiseLuminance', 'detailRecovery', 'lensCorrection'] as const satisfies readonly (keyof EditRecipe)[];
+export const UNMAPPED_KEYS = ['denoiseRawAi', 'denoiseLuminance', 'detailRecovery', 'lensCorrection'] as const satisfies readonly (keyof EditRecipe)[];
 
 const EV_PER_STEP = 0.4;
 const SLIDER_PER_STEP = 50; // one engine step is 50 slider points
@@ -30,6 +30,7 @@ export function editToRecipe(edit: PhotoEdit | undefined): EditRecipe {
     ...NEUTRAL_RECIPE,
     exposure: round(edit.exposure * EV_PER_STEP, 2),
     temperature: toSlider(edit.warmth),
+    tint: toSlider(edit.tint),
     saturation: edit.colour === -2 ? -100 : toSlider(edit.colour),
     contrast: toSlider(edit.contrast),
     highlights: toSlider(edit.highlights),
@@ -48,6 +49,11 @@ export function applyRecipePatch(edit: PhotoEdit | undefined, patch: Partial<Edi
   const next: PhotoEdit = { exposure: 0, warmth: 0, colour: 0, ...edit };
   if (patch.exposure !== undefined) next.exposure = round(clamp(patch.exposure, -5, 5) / EV_PER_STEP, 4);
   if (patch.temperature !== undefined) next.warmth = toStep(patch.temperature);
+  if (patch.tint !== undefined && Number.isFinite(patch.tint)) {
+    const tint = toStep(patch.tint);
+    if (tint === 0) delete next.tint;
+    else next.tint = tint;
+  }
   if (patch.saturation !== undefined) next.colour = patch.saturation <= -100 ? -2 : toStep(patch.saturation);
   if (patch.contrast !== undefined) next.contrast = toStep(patch.contrast);
   if (patch.highlights !== undefined) next.highlights = toStep(patch.highlights);

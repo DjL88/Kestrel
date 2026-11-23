@@ -21,7 +21,7 @@ test('slider values reach the engine edit in its own units', () => {
 });
 
 test('what the sliders say comes back unchanged (round trip)', () => {
-  const patch = { exposure: -1.2, temperature: -30, tint: 0, highlights: -40, shadows: 22, whites: 6, blacks: -8, vibrance: 18, saturation: 14, clarity: 16, contrast: 14 };
+  const patch = { exposure: -1.2, temperature: -30, tint: 22, highlights: -40, shadows: 22, whites: 6, blacks: -8, vibrance: 18, saturation: 14, clarity: 16, contrast: 14 };
   const back = editToRecipe(applyRecipePatch(undefined, patch).edit);
   for (const [key, value] of Object.entries(patch)) assert.ok(Math.abs((back as never as Record<string, number>)[key] - value) < 0.011, `${key}: ${(back as never as Record<string, number>)[key]} vs ${value}`);
 });
@@ -39,13 +39,17 @@ test('an all-neutral patch leaves a neutral edit, and masks already on the photo
 });
 
 test('controls the engine cannot apply yet are reported, not silently ignored', () => {
-  assert.deepEqual(applyRecipePatch(undefined, { tint: 10, lensCorrection: true, denoiseLuminance: 30, upscaleFactor: 2 }).unmapped, ['tint', 'denoiseLuminance', 'lensCorrection']);
+  assert.deepEqual(applyRecipePatch(undefined, { lensCorrection: true, denoiseLuminance: 30, upscaleFactor: 2 }).unmapped, ['denoiseLuminance', 'lensCorrection']);
   assert.deepEqual(applyRecipePatch(undefined, { contrast: 10, lookId: 'x' }).unmapped, []);
 });
 
 test('values outside the slider range are held inside it', () => {
   assert.equal(applyRecipePatch(undefined, { exposure: 9 }).edit.exposure, 12.5);
   assert.equal(applyRecipePatch(undefined, { contrast: 400 }).edit.contrast, 2);
+  const { edit, unmapped } = applyRecipePatch(undefined, { tint: -120 });
+  assert.equal(edit.tint, -2);
+  assert.deepEqual(unmapped, []);
+  assert.equal(applyRecipePatch(edit, { tint: 0 }).edit.tint, undefined);
 });
 
 test('upscale is a real edit: it maps both ways, is not "unmapped", and a neutral factor removes it', () => {
