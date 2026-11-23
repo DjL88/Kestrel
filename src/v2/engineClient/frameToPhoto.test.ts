@@ -51,6 +51,26 @@ test('a project counts live photos and flagged photos, and ignores removed ones'
   assert.equal(project.name, 'Moor');
 });
 
+test('a photo with no stored video zoom gets the neutral default, switched off', () => {
+  const photo = frameToPhoto(frame(), undefined);
+  assert.deepEqual(photo.videoZoom, { enabled: false, focalX: 50, focalY: 50, direction: 'in', durationSec: 6 });
+});
+
+test('a photo\'s stored video zoom is read and made valid', () => {
+  const photo = frameToPhoto(frame({ videoZoom: { enabled: true, focalX: 20, focalY: 80, direction: 'out', durationSec: 12 } }), undefined);
+  assert.deepEqual(photo.videoZoom, { enabled: true, focalX: 20, focalY: 80, direction: 'out', durationSec: 12 });
+  const damaged = frameToPhoto(frame({ videoZoom: { enabled: true, focalX: 500, direction: 'sideways' } }), undefined);
+  assert.equal(damaged.videoZoom.focalX, 100);
+  assert.equal(damaged.videoZoom.direction, 'in');
+});
+
+test('a photo\'s stored linked overrides change only the formats they name', () => {
+  const linked = frameToPhoto(frame(), undefined).sizes[0];
+  const unlinked = frameToPhoto(frame({ sizeLinked: { [linked.id]: false } }), undefined).sizes[0];
+  assert.equal(unlinked.id, linked.id);
+  assert.equal(unlinked.linked, false);
+});
+
 test('tasks keep their progress and a failure is shown as failed, not as cancelled', () => {
   const base = { id: 7, title: 'Adding 10 photos', done: 4, total: 10, startedAt: 0, updatedAt: 0 };
   assert.deepEqual(taskToInfo({ ...base, state: 'running' }), { id: '7', label: 'Adding 10 photos', detail: '4 of 10', progress: 40, status: 'running' });
