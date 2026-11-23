@@ -223,6 +223,7 @@ export interface AssistSuggestion {
   colourReadout: string;
   applied: boolean;
   recipeDelta: Partial<EditRecipe>;
+  comparison?: { before: string; after: string };
 }
 
 export interface PhotoExif {
@@ -364,6 +365,8 @@ export interface WorkspaceSettings {
 }
 
 export interface ExportRequest {
+  /** Standalone, photo-wide TIFF made from the selected sensor RAW. */
+  rawMaster?: boolean;
   fileFormat?: 'jpeg' | 'png';
   jpegQuality?: number;
   destination: ExportDestination;
@@ -484,6 +487,7 @@ export interface WorkspaceActions {
   setAssistMode: (mode: AssistMode) => void;
   runDeepVisionReview: (photoId: string) => void;
   applyAssistSuggestion: (photoId: string, suggestionId: string) => void;
+  requestLocalAuto?: (photoId: string) => void;
   applyAllAssistSuggestions: (photoId: string) => void;
   dismissAssistSuggestion: (photoId: string, suggestionId: string) => void;
 

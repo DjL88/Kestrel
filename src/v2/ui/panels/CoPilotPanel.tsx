@@ -1,17 +1,8 @@
 import React from 'react';
-import type { AssistMode, AssistSuggestion, FeatureKey, LookPreset, Photo } from '../contract';
+import type { AssistMode, FeatureKey, Photo } from '../contract';
 import { STRINGS } from '../strings';
 import ProBadge, { useProHidden } from '../shell/ProBadge';
 import BrandIcon, { assistModeIconName } from '../icons/BrandIcon';
-import { buildPreviewFilterCss, getActiveGroup } from '../utils/studioMath';
-
-/** A suggestion's recipeDelta, previewed the same honest way a Curated Look is already previewed on
- * hover (studioMath.ts's `buildPreviewFilterCss`): a fast CSS-filter approximation on the same preview
- * image, not a claim of exact RAW-accurate pixels. Wrapping it as a LookPreset only reuses that existing,
- * already-trusted function; nothing here is saved as, or offered as, a real Look. */
-function suggestionAsLook(suggestion: AssistSuggestion): LookPreset {
-  return { id: suggestion.id, name: suggestion.title, category: 'suggestion', description: suggestion.summary, previewFilter: '', recipeDelta: suggestion.recipeDelta };
-}
 
 interface CoPilotPanelProps {
   photo: Photo | null;
@@ -24,8 +15,8 @@ interface CoPilotPanelProps {
   /** The mode is chosen in Settings, not here. */
   onOpenSettings: () => void;
   onRunDeepVisionReview: (photoId: string) => void;
+  onRequestLocalAuto?: (photoId: string) => void;
   onApplySuggestion: (photoId: string, suggestionId: string) => void;
-  onApplyAll: (photoId: string) => void;
   onDismissSuggestion: (photoId: string, suggestionId: string) => void;
 }
 
@@ -37,8 +28,8 @@ export default function CoPilotPanel({
   reviewing = false,
   onOpenSettings,
   onRunDeepVisionReview,
+  onRequestLocalAuto,
   onApplySuggestion,
-  onApplyAll,
   onDismissSuggestion,
 }: CoPilotPanelProps) {
   const hiddenOnline = useProHidden('onlineAi');
@@ -52,7 +43,6 @@ export default function CoPilotPanel({
   const hideReview = !reviewAvailable && hiddenOnline && hiddenCloud;
   const reviewPending = reviewing;
   const suggestions = photo.assistCritique.suggestions;
-  const unappliedCount = suggestions.filter((s) => !s.applied).length;
 
   return (
     <div className="space-y-4">
@@ -84,6 +74,12 @@ export default function CoPilotPanel({
 
       {/* Renamed Deep Vision Review CTA */}
       <div className="space-y-2">
+        {onRequestLocalAuto && (
+          <button type="button" onClick={() => onRequestLocalAuto(photo.id)}
+            className="w-full min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-left text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            {STRINGS.copilot.localReviewButton}
+          </button>
+        )}
         {!hideReview && (
         <>
         <button
@@ -151,20 +147,11 @@ export default function CoPilotPanel({
           <h3 className="text-xs font-semibold text-[var(--text-primary)]">
             {STRINGS.copilot.suggestionsHeading}
           </h3>
-          {unappliedCount > 0 && (
-            <button
-              type="button"
-              onClick={() => onApplyAll(photo.id)}
-              className="text-[11px] font-semibold text-[var(--brand-accent)] hover:underline"
-            >
-              {STRINGS.copilot.applyAllSuggestions}
-            </button>
-          )}
         </div>
 
         {suggestions.length === 0 ? (
           <p className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3 text-xs text-[var(--text-muted)]">
-            {reviewPending ? 'Waiting for the review. Nothing has been applied.' : reviewAvailable ? 'No suggestions yet. You can request a review when ready.' : 'No suggestions available offline. Continue editing with the local tools.'}
+            {reviewPending ? STRINGS.copilot.waitingForReview : STRINGS.copilot.noLocalSuggestions}
           </p>
         ) : (
           <div className="space-y-2">
@@ -173,18 +160,19 @@ export default function CoPilotPanel({
                 key={sug.id}
                 className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3"
               >
-                {/* A real before/after preview leads each suggestion (owner backlog item 20: previews
-                    instead of paragraphs), the same fast CSS-filter approximation already trusted for a
-                    Curated Look's hover preview - not a claim of exact RAW-accurate pixels. */}
-                <div className="flex items-center gap-2">
-                  <div className="flex shrink-0 overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border-subtle)]">
-                    <img src={photo.previewUrl} alt="" aria-hidden="true" draggable={false}
-                      style={{ filter: buildPreviewFilterCss(getActiveGroup(photo).recipe) }}
-                      className="h-12 w-12 object-cover" />
-                    <img src={photo.previewUrl} alt={`Preview: ${sug.title}`} draggable={false}
-                      style={{ filter: buildPreviewFilterCss(getActiveGroup(photo).recipe, suggestionAsLook(sug)) }}
-                      className="h-12 w-12 border-l border-[var(--border-subtle)] object-cover" />
-                  </div>
+                <div className="space-y-2">
+                  {sug.comparison && (
+                    <div className="grid grid-cols-2 gap-1">
+                      <figure>
+                        <img src={sug.comparison.before} alt="" draggable={false} className="aspect-[4/3] w-full rounded object-contain" />
+                        <figcaption className="text-[10px] text-[var(--text-secondary)]">{STRINGS.copilot.previewBefore}</figcaption>
+                      </figure>
+                      <figure>
+                        <img src={sug.comparison.after} alt={sug.title} draggable={false} className="aspect-[4/3] w-full rounded object-contain" />
+                        <figcaption className="text-[10px] text-[var(--text-secondary)]">{STRINGS.copilot.previewAfter}</figcaption>
+                      </figure>
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-semibold text-[var(--text-primary)]">{sug.title}</p>
                     <p className="line-clamp-2 text-[11px] leading-snug text-[var(--text-secondary)]">{sug.summary}</p>

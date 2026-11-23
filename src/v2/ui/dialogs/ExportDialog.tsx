@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { isRawPreviewFile } from '../../../core/rawFormats';
+import { canDevelopRaw } from '../../../providers/rawDevelop';
 import type {
   ExportDestination,
   ExportRequest,
@@ -46,6 +48,9 @@ export default function ExportDialog({
   const [includeOriginal, setIncludeOriginal] = useState(false);
 
   if (!open || !photo) return null;
+  const photoIds = selectedPhotoIds.length ? selectedPhotoIds : [photo.id];
+  const canRequestRaw = photoIds.length === 1 && photoIds[0] === photo.id &&
+    photo.originalConnected && isRawPreviewFile(photo.filename) && canDevelopRaw();
 
   const toggleSize = (id: string) => {
     setSelectedSizeIds((prev) =>
@@ -72,9 +77,10 @@ export default function ExportDialog({
     : maxSizeChoice === 'custom' ? customMaxSize
     : Number(maxSizeChoice);
 
-  const handleSubmit = () => {
+  const handleSubmit = (rawMaster = false) => {
     onExport({
-      destination,
+      rawMaster,
+      destination: rawMaster ? 'local-individual' : destination,
       fileFormat,
       jpegQuality: jpegQuality / 100,
       groupIds: selectedGroupIds,
@@ -86,7 +92,7 @@ export default function ExportDialog({
       includeWatermark,
       includeVideo: false,
       maxLongestEdgePx,
-      photoIds: selectedPhotoIds.length > 0 ? selectedPhotoIds : [photo.id],
+      photoIds,
     });
   };
 
@@ -165,6 +171,15 @@ export default function ExportDialog({
                 })}
               </div>
             </section>
+            {canRequestRaw && (
+              <section aria-label={STRINGS.exportDialog.rawMasterHeading} className="space-y-2">
+                <button type="button" onClick={() => handleSubmit(true)}
+                  className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                  {STRINGS.exportDialog.rawMasterButton}
+                </button>
+                <p className="text-[11px] text-[var(--text-secondary)]">{STRINGS.exportDialog.rawMasterHelp}</p>
+              </section>
+            )}
 
             {/* Quick-select by social platform */}
             <section className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
@@ -332,7 +347,7 @@ export default function ExportDialog({
             <button
               type="button"
               disabled={(!includeBefore && !includeAfter && !includeOriginal) || ((includeBefore || includeAfter) && !photo.sizes.some((size) => size.kind === 'photo' && selectedSizeIds.includes(size.id)))}
-              onClick={handleSubmit}
+              onClick={() => handleSubmit()}
               className="inline-flex min-h-10 items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-4 text-xs font-semibold text-[var(--text-on-accent)] transition-colors hover:bg-[var(--brand-accent-hover)] disabled:opacity-50"
             >
               <BrandIcon name="export" size={14} />

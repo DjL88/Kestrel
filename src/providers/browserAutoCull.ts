@@ -120,5 +120,5 @@ export async function scanForCulling(
   // Keep the order the photos were given in, whichever finished first.
   const fallbackResults = finaliseCullEvidence(candidates.map((frame) => frame.id),
     outcome, duplicates, baseById, detectorHealthy);
-  return limitAutoKeepers(fallbackResults, all, Math.max(0, goal - all.filter((frame) => !frame.removedAt && frame.decision === 'keep').length));
+  return limitAutoKeepers(fallbackResults, all, Math.max(0, goal - all.filter((frame) => frame.removedAt == null && frame.decision === 'keep').length));
 }
