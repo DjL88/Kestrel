@@ -21,3 +21,16 @@ test('steps are described in order with the cursor, and jumping back keeps later
   assert.equal(describeHistory(back.editHistory)!.cursor, 0);
   assert.equal(describeHistory(back.editHistory)!.steps.length, 2);
 });
+
+test('old long edit histories do not mislabel the earliest saved checkpoint as imported Original', () => {
+  let current = frame;
+  for (let i = 1; i <= 70; i++) {
+    current = recordEdit(current, { edit: { exposure: i / 100 } as never }, i * 1000);
+  }
+  const info = describeHistory(current.editHistory)!;
+  assert.equal(info.steps.length, 60);
+  assert.equal(info.originalAvailable, false);
+  assert.equal(current.editHistory?.discarded, 10);
+  const short = describeHistory(recordEdit(frame, { edit: { exposure: 0.1 } as never }, 1000).editHistory)!;
+  assert.equal(short.originalAvailable, true);
+});

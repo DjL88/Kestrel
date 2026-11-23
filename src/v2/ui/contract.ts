@@ -264,7 +264,12 @@ export interface Photo {
   /** Set when this photo was shot in a burst with others. `ungrouped` is the person's choice to see its frames one by one. */
   burst?: { groupId: string; index: number; count: number; ungrouped: boolean; score?: number };
   /** The photo's recorded edit steps (oldest first) and where it stands now. Absent until it has been edited. */
-  editHistory?: { steps: { label: string; at: number }[]; cursor: number };
+  editHistory?: { steps: { label: string; at: number }[]; cursor: number; originalAvailable?: boolean };
+  /** Saved non-destructive photo-wide edit versions, all using one original. */
+  editVersions?: {
+    activeId: string;
+    versions: { id: string; label: string; parentId: string | null; forkCursor: number; createdAt: number }[];
+  };
   /** Actual recorded format actions; missing means pre-history, not a fabricated event. */
   formatHistory?: { formatId: string; kind: string; at: number; parentFormatId?: string; forkEditCursor?: number }[];
   /** The picture's size in real pixels, when the file says. Used for the true 100% zoom. */
@@ -588,6 +593,8 @@ export interface WorkspaceActions {
   setBurstGrouped: (burstGroupId: string, grouped: boolean) => void;
   /** Restore a photo to how it was after this many edit steps (0 is the original). Later steps stay available. */
   jumpToEditStep: (photoId: string, cursor: number) => void;
+  /** Switch between independent checkpoint-forked versions without touching the source file. */
+  switchEditVersion: (photoId: string, versionId: string) => void;
   setFilmstripCollapsed: (collapsed: boolean) => void;
   setFilmstripHeight: (height: number) => void;
   setFilmstripFilter: (filter: 'all' | 'flagged' | 'set-aside') => void;

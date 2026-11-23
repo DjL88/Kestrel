@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { PhotoFrame } from '../../core/types.ts';
+import { recordEdit } from '../../core/editHistory.ts';
+import { forkEditCheckpoint, ROOT_VERSION_ID, switchEditVersion } from '../../core/editBranches.ts';
 import { BLANK_IMAGE, frameToPhoto, shootToProject, taskToInfo, tileStateFor } from './frameToPhoto.ts';
 
 const frame = (patch: Partial<PhotoFrame> = {}): PhotoFrame => ({
@@ -197,4 +199,33 @@ test('older photo-wide split is migrated visually to Original only, preserving t
 test('an explicitly empty per-format split selection disables the legacy photo-wide split', () => {
   const photo = frameToPhoto(frame({ splitFrames: true, splitPanOffset: 12, formatSplits: {} }), undefined);
   assert.deepEqual(photo.formatSplits, {});
+});
+
+test('History exposes real version lineage after a fork and switch without duplicating the photo', () => {
+  let original = frame({ exif: { width: 4000, height: 3000 } });
+  original = recordEdit(original, { edit: { exposure: 0.2, warmth: 0, colour: 0 } }, 1000);
+  original = recordEdit(original, { edit: { exposure: 0.4, warmth: 0, colour: 0 } }, 2000);
+  const fork = forkEditCheckpoint(original, 1, 'fork-real', 3000);
+  const shown = frameToPhoto(fork, undefined);
+  assert.equal(shown.editVersions?.activeId, 'fork-real');
+  assert.deepEqual(shown.editVersions?.versions.map(v => [v.id, v.parentId]), [
+    [ROOT_VERSION_ID, null], ['fork-real', ROOT_VERSION_ID],
+  ]);
+  assert.equal(shown.editHistory?.cursor, 1);
+  assert.equal(shown.id, original.id);
+  const back = frameToPhoto(switchEditVersion(fork, ROOT_VERSION_ID), undefined);
+  assert.equal(back.id, original.id);
+  assert.equal(back.editVersions?.activeId, ROOT_VERSION_ID);
+  assert.equal(back.editHistory?.steps.length, 2);
+});
+
+test('a fork made at step zero remains visible and can fork again', () => {
+  let original = frame();
+  original = recordEdit(original, { edit: { exposure: 0.1, warmth: 0, colour: 0 } }, 1000);
+  const first = forkEditCheckpoint(original, 0, 'fork-at-start', 2000);
+  const firstPhoto = frameToPhoto(first, undefined);
+  assert.equal(firstPhoto.editHistory?.steps.length, 0);
+  assert.equal(firstPhoto.editHistory?.cursor, 0);
+  const second = forkEditCheckpoint(first, 0, 'fork-from-fork', 3000);
+  assert.equal(frameToPhoto(second, undefined).editVersions?.versions.length, 3);
 });

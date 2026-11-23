@@ -827,6 +827,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
 
     setBurstGrouped: (burstGroupId, grouped) => { logAction('setBurstGrouped', { burstGroupId, grouped }); },
     jumpToEditStep: (photoId, cursor) => { logAction('jumpToEditStep', { photoId, cursor }); },
+    switchEditVersion: (photoId, versionId) => { logAction('switchEditVersion', { photoId, versionId }); },
 
     setHubState: (hubState) => {
       logAction('setHubState', { hubState });

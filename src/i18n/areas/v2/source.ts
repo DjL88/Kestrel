@@ -415,10 +415,11 @@ export const source = {
   },
   history: {
     heading: 'History',
-    intro: 'Every edit you made to this photo. Choose a step to go back to it. Later steps stay in the list, so you can come forward again.',
+    intro: 'Choose a saved edit step to create another version. The existing version and all its later edits stay unchanged.',
     empty: 'No edits yet. When you change this photo, each step will appear here.',
     noPhoto: 'Select a photo to see its history.',
     original: 'Original, no edits',
+    earliestSaved: 'Earliest saved checkpoint (older edits are no longer available)',
     now: 'now',
     undone: 'undone',
     formatRegion: "This format's history",
@@ -445,7 +446,14 @@ export const source = {
     formatReadOnly: 'Format actions are recorded from this version onwards. Historical previews and restoring format checkpoints are not yet available.',
     sharedRegion: 'Shared photo edit history',
     sharedHeading: 'Shared photo edits',
-    sharedHelp: 'Photo-wide edits and masks are shared with linked formats. Select a step to restore the shared recipe.',
+    sharedHelp: 'Select a checkpoint to fork a separate editing version. The parent keeps all its later changes.',
+    editVersionHeading: 'Editing versions',
+    editVersionSelect: 'Choose an editing version',
+    editVersionRoot: 'Version 1',
+    editVersionParent: (parent: string, cursor: number) => `From ${parent} at step ${cursor}`,
+    forkFromCheckpoint: 'Fork from here',
+    forkCheckpointHint: 'Creates an independent editing version; the current version is preserved.',
+
   },
 
   // Info Panel
