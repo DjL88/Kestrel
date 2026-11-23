@@ -1,7 +1,6 @@
 /**
  * Cloud Processing Engine, server side gate (backend item 1). The runner (signed upload URL into a private, encrypted,
- * short-expiry bucket, job execution, input deletion) and the ledger sit behind interfaces. Only in-memory fakes exist:
- * no Google Cloud is touched. Production wiring (Terraform plan, GCS, Firestore) is a later PR the owner must approve.
+ * short-expiry bucket, job execution, input deletion) and the ledger sit behind interfaces.
  * Nothing here stores or logs photo bytes, file names or EXIF: only ids, the job kind and a byte count.
  */
 /** The names are the engine's own capability names (src/engine/types.ts `EngineCapability`), so a cloud runner is a drop-in. */
@@ -31,9 +30,12 @@ export interface CloudRunner {
 export interface CloudLedger {
   /** Atomically takes one job from the account's allowance for the period. False when exhausted. */
   reserve(accountId: string, nowMs: number, limit: number, periodMs: number): Promise<boolean>;
-  refund(accountId: string): Promise<void>;
+  /** Refund the period that held the reservation, if it is still tracked. */
+  refund(accountId: string, reservedAtMs: number): Promise<void>;
   put(record: CloudJobRecord): Promise<void>;
   get(jobId: string): Promise<CloudJobRecord | undefined>;
+  /** Atomically update the status only if it still matches the caller's expected status. */
+  transition(jobId: string, from: CloudStatus, to: CloudStatus): Promise<boolean>;
 }
 
 export interface CloudOptions {
@@ -78,9 +80,18 @@ export class MemoryCloudLedger implements CloudLedger {
     if (c.used >= limit) return false;
     c.used++; return true;
   }
-  async refund(accountId: string) { const c = this.counts.get(accountId); if (c && c.used > 0) c.used--; }
+  async refund(accountId: string, reservedAtMs: number) {
+    const c = this.counts.get(accountId);
+    if (c && reservedAtMs >= c.start && c.used > 0) c.used--;
+  }
   async put(r: CloudJobRecord) { const { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs } = r; this.jobs.set(jobId, { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs }); }
   async get(jobId: string) { const r = this.jobs.get(jobId); return r ? { ...r } : undefined; }
+  async transition(jobId: string, from: CloudStatus, to: CloudStatus) {
+    const record = this.jobs.get(jobId);
+    if (record?.status !== from) return false;
+    this.jobs.set(jobId, { ...record, status: to });
+    return true;
+  }
   used(accountId: string) { return this.counts.get(accountId)?.used ?? 0; }
   record(jobId: string) { return this.jobs.get(jobId); }
 }
