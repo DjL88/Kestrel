@@ -38,10 +38,10 @@ export type Feature = keyof typeof FEATURES;
 export const FEATURE_NAMES = Object.keys(FEATURES) as Feature[];
 
 /**
- * Features no flag can ever switch off: working with your own photos. Originals, ordinary export, local backup and basic
- * editing stay on whatever the control plane says, so a trial ending or a kill switch can never lock someone out of their work.
+ * Features no flag can ever switch off: local essentials and Basic overlays. Originals, ordinary export, local backup,
+ * editing, text overlays and watermarks stay on even if an old Firestore flag still calls overlays Pro.
  */
-export const NEVER_GATED: ReadonlySet<Feature> = new Set<Feature>(['import', 'basicEditing', 'cropAndStraighten', 'export', 'localBackup']);
+export const NEVER_GATED: ReadonlySet<Feature> = new Set<Feature>(['import', 'basicEditing', 'cropAndStraighten', 'export', 'localBackup', 'overlayText', 'watermarkCustom']);
 
 /**
  * The flags this build ships with, derived from the table above. They apply whenever no verified rules have arrived
