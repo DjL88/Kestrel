@@ -103,6 +103,8 @@ export interface CropTransform {
   borderWidth?: number;
   /** The border colour as #rrggbb. */
   borderColour?: string;
+  /** Border placement: all sides, top/bottom, left/right, or aspect-ratio auto-fit. */
+  borderPlacement?: 'all' | 'horizontal' | 'vertical' | 'auto';
 }
 
 export interface VideoZoomConfig {
