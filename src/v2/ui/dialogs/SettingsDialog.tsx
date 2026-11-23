@@ -23,6 +23,8 @@ interface SettingsDialogProps {
   open: boolean;
   activeTab: SettingsTabId;
   accountPanel?: React.ReactNode;
+  /** The Keyboard tab: key set, rebinding and clashes. */
+  keyboardPanel?: React.ReactNode;
   settings: WorkspaceSettings;
   /** The mode that is on now. It is chosen here and shown by the flag at the bottom of the tool rail. */
   assistMode: AssistMode;
@@ -48,23 +50,13 @@ const TABS: Array<{ id: SettingsTabId; label: string; icon: BrandIconName }> = [
   { id: 'privacy', label: STRINGS.settings.tabs.privacy, icon: 'info' },
 ];
 
-const SHORTCUTS = [
-  { keys: 'F', action: 'Flag / Unflag selected photo(s)' },
-  { keys: '1 – 5', action: 'Assign 1 to 5 star rating' },
-  { keys: '⌘Z / ⇧⌘Z', action: 'Undo / Redo adjustment' },
-  { keys: '⌘C / ⌘V', action: 'Copy / Paste adjustments' },
-  { keys: '⌘A', action: 'Select all photos in filmstrip' },
-  { keys: 'G', action: 'Toggle All Photos grid view' },
-  { keys: '\\', action: 'Compare Before & After' },
-  { keys: '⌘E', action: 'Open Export dialog' },
-];
-
 export default function SettingsDialog({
   assistMode,
   onSetAssistMode,
   open,
   activeTab,
   accountPanel,
+  keyboardPanel,
   settings,
   onClose,
   onSelectTab,
@@ -461,16 +453,7 @@ export default function SettingsDialog({
             {activeTab === 'keyboard' && (
               <div className="space-y-3">
                 <p className="text-xs text-[var(--text-secondary)]">{STRINGS.settings.keyboard.intro}</p>
-                <div className="divide-y divide-[var(--border-subtle)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)]">
-                  {SHORTCUTS.map((s) => (
-                    <div key={s.keys} className="flex items-center justify-between px-3.5 py-2.5 text-xs">
-                      <span className="text-[var(--text-primary)]">{s.action}</span>
-                      <kbd className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-0.5 font-mono text-[11px] text-[var(--text-secondary)]">
-                        {s.keys}
-                      </kbd>
-                    </div>
-                  ))}
-                </div>
+                {keyboardPanel}
               </div>
             )}
 

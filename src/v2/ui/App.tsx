@@ -25,7 +25,8 @@ import ExportDialog from './dialogs/ExportDialog';
 import SettingsDialog from './dialogs/SettingsDialog';
 import ShortcutGuide from './dialogs/ShortcutGuide';
 import CommandPalette from './dialogs/CommandPalette';
-import { effectiveKeymap, loadKeymap, resolveCommand } from './commands/keymap';
+import { effectiveKeymap, loadKeymap, resolveCommand, saveKeymap, type SavedKeymap } from './commands/keymap';
+import KeyboardSettings from './dialogs/KeyboardSettings';
 import type { CommandDefinition } from './commands/registry';
 
 const IS_MAC = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
@@ -52,7 +53,9 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   const hasOverlays = store.features.overlayText || store.features.watermarkCustom;
   const [shortcutGuideOpen, setShortcutGuideOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  const keymap = React.useMemo(() => { const saved = loadKeymap(); return effectiveKeymap(saved.preset, saved.overrides); }, []);
+  const [savedKeymap, setSavedKeymap] = useState<SavedKeymap>(loadKeymap);
+  const keymap = React.useMemo(() => effectiveKeymap(savedKeymap.preset, savedKeymap.overrides), [savedKeymap]);
+  const changeKeymap = React.useCallback((next: SavedKeymap) => { saveKeymap(next); setSavedKeymap(next); }, []);
   const [moreOpen, setMoreOpen] = useState(false);
   const sheetDragY = useRef<number | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(() =>
@@ -628,6 +631,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         open={store.settingsOpen}
         activeTab={store.settingsTab}
         accountPanel={accountPanel}
+        keyboardPanel={<KeyboardSettings saved={savedKeymap} isMac={IS_MAC} onChange={changeKeymap} />}
         settings={store.settings}
         assistMode={store.assistMode}
         onSetAssistMode={actions.setAssistMode}
