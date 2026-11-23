@@ -78,7 +78,9 @@ export async function runDeepVisionReview(frame: PhotoFrame, provider: BrowserPr
   });
   if (signal?.aborted) return null;
 
-  // A conflicting scene reading makes a subject-specific Look unsafe to propose,\n  // even when the box detector alone rated the subject highly.\n  const suggestedLook = suggestDeepReviewLook(detection);
+  // A conflicting scene reading makes a subject-specific Look unsafe to propose,
+  // even when the box detector alone rated the subject highly.
+  const suggestedLook = suggestDeepReviewLook(detection);
   // The current engine supplies at most one defensible Look. Do not pad to three
   // with invented alternatives; a later ranked engine result can extend this list.
   const candidates: DeepVisionCandidate[] = suggestedLook
