@@ -307,6 +307,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
       ) : (
         <>
           <TopBar
+            keymap={keymap}
             photoName={activePhoto ? `${activePhoto.title} · ${activePhoto.filename}` : 'No photo'}
             assistMode={store.assistMode}
             theme={store.settings.theme}
