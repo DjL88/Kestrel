@@ -71,3 +71,18 @@ test('malformed high-confidence worker scores remain review-only, including dupl
     { ...item('valid-reject', 'reject', 'high', 'duplicate'), score: 0 },
   ]), { total: 2, automaticKeep: 1, automaticDuplicate: 1, otherHighReject: 0, needReview: 0 });
 });
+
+
+test('unidentified frames cannot become automatic keepers or silently coalesce', () => {
+  const missing = { ...item('placeholder', 'keep', 'high', 'subjectSharp'), frameId: undefined } as unknown as CullSuggestion;
+  const results = [
+    item('', 'keep', 'high', 'subjectSharp'),
+    item('   ', 'reject', 'high', 'duplicate'),
+    missing,
+    item('known', 'keep', 'high', 'subjectSharp'),
+    item('known', 'keep', 'high', 'subjectSharp'),
+  ];
+  assert.deepEqual(summarizeCullSuggestions(results), {
+    total: 4, automaticKeep: 1, automaticDuplicate: 0, otherHighReject: 0, needReview: 3,
+  });
+});
