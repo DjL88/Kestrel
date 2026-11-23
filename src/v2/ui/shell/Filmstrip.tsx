@@ -73,6 +73,7 @@ export default function Filmstrip({
 }: FilmstripProps) {
   const hideAutoCull = useProHidden('smartCulling');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [photoView, setPhotoView] = useState<'filmstrip' | 'tiles'>('filmstrip');
   const [expandedBursts, setExpandedBursts] = useState<Set<string>>(() => new Set());
   const [minimumRating, setMinimumRating] = useState(0);
   const [tileMenu, setTileMenu] = useState<{ x: number; y: number; photoId: string } | null>(null);
@@ -228,6 +229,16 @@ export default function Filmstrip({
             >
               Filmstrip ({photos.length})
             </button>
+          </div>
+
+          <div role="group" aria-label="Photograph browsing view" className="inline-flex rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-0.5">
+            {(['filmstrip', 'tiles'] as const).map((view) => (
+              <button key={view} type="button" aria-pressed={photoView === view}
+                onClick={() => { setPhotoView(view); if (collapsed) onSetCollapsed(false); }}
+                className={`h-7 rounded px-2 text-xs font-medium focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)] ${photoView === view ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}>
+                {view === 'filmstrip' ? 'Filmstrip' : 'Tiles'}
+              </button>
+            ))}
           </div>
 
           <button
@@ -392,7 +403,7 @@ export default function Filmstrip({
 
       {/* Body: Either Filmstrip tiles OR Bottom Info Tab */}
       {!collapsed && (
-        <div style={{ height }} className="v2-filmstrip-body w-full overflow-hidden">
+        <div style={{ height: photoView === 'tiles' ? 'min(72dvh, calc(100dvh - 160px))' : height }} className="v2-filmstrip-body w-full overflow-hidden">
           {visiblePhotos.length === 0 ? (
             <div className="flex h-full items-center justify-center text-xs text-[var(--text-muted)]">
               {STRINGS.filmstrip.nothingMatches}
@@ -402,12 +413,14 @@ export default function Filmstrip({
               role="listbox"
               aria-label="Project photographs"
               aria-multiselectable="true"
-              className="flex h-full items-center gap-2.5 overflow-x-auto inflight-scroll px-3 py-2"
+              className={photoView === 'tiles'
+                ? 'grid h-full auto-rows-[minmax(170px,210px)] grid-cols-[repeat(auto-fill,minmax(min(100%,170px),1fr))] content-start gap-2.5 overflow-y-auto inflight-scroll px-3 py-2'
+                : 'flex h-full items-center gap-2.5 overflow-x-auto inflight-scroll px-3 py-2'}
             >
               {items.map((item) => {
                 if (item.type === 'controls') {
                   return (
-                    <div key={`burst-${item.groupId}`} role="group" aria-label={STRINGS.bursts.controls(item.count)} className="flex h-full w-40 shrink-0 flex-col justify-center gap-1.5 rounded-[var(--radius-md)] border border-dashed border-[var(--brand-accent-border)] bg-[var(--bg-surface)] p-2">
+                    <div key={`burst-${item.groupId}`} role="group" aria-label={STRINGS.bursts.controls(item.count)} className={`${photoView === 'tiles' ? 'h-full w-full' : 'h-full w-40 shrink-0'} flex flex-col justify-center gap-1.5 rounded-[var(--radius-md)] border border-dashed border-[var(--brand-accent-border)] bg-[var(--bg-surface)] p-2">
                       <p className="text-[11px] font-semibold text-[var(--text-primary)]">{STRINGS.bursts.controls(item.count)}</p>
                       <button type="button" disabled={!item.best} title={item.best ? undefined : STRINGS.bursts.flagBestNotRanked}
                         onClick={() => { if (item.best) onSetDecision([item.best.id], 'keep'); }}
@@ -444,7 +457,7 @@ export default function Filmstrip({
                     onPointerMove={moveLongPress}
                     onPointerUp={cancelLongPress}
                     onPointerCancel={cancelLongPress}
-                    className={`group relative flex h-full w-36 shrink-0 flex-col overflow-hidden rounded-[var(--radius-md)] border transition-colors ${
+                    className={`group relative flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--radius-md)] border transition-colors ${photoView === 'tiles' ? 'w-full' : 'w-36 shrink-0'} ${
                       isActive
                         ? 'border-[var(--brand-accent)] bg-[var(--bg-surface-raised)] ring-1 ring-[var(--brand-accent)]'
                         : isSelected
