@@ -69,7 +69,7 @@ export function tileStateFor(urls: FrameUrls | undefined): TileState {
  * not record says "Not recorded" (or is left empty), never an invented value. The edit, size and mask parts start as the
  * UI's neutral defaults; they are connected to the real recipe in a later step.
  */
-export interface PhotoExtras { pixelSize?: { width: number; height: number }; assist?: AssistState; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram }
+export interface PhotoExtras { pixelSize?: { width: number; height: number }; assist?: AssistState; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram; originalConnected?: boolean }
 
 export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, extras: PhotoExtras = {}): Photo {
   const { assist, watermarkAuto, histogram, pixelSize } = extras;
@@ -86,7 +86,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     thumbUrl: thumb,
     state: tileStateFor(urls),
     decision: frame.decision,
-    originalConnected: !urls?.failed,
+    originalConnected: extras.originalConnected ?? !urls?.failed,
     rating: Math.max(0, Math.min(5, Math.round(frame.rating ?? exif.rating ?? 0))),
     speciesLabel: speciesLabelOf(frame),
     category: frame.subjectKind ?? '',

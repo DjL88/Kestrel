@@ -18,6 +18,7 @@ import { useSpeciesScan } from '../../useSpeciesScan';
 import { isDesktopApp } from '../../providers/desktopShell';
 import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
 import { getLocalFileKey, loadLocalFileListShoot, rehydrateLocalFramesFromStore } from '../../providers/localShootLoader';
+import { hashOriginalBytes, isSameOriginalBytes } from '../../core/originalFileIdentity';
 import type { EditRecipe, HubViewState, OverlaySettings, PhotoHistogram, WatermarkPreset, Project, TaskInfo, WorkspaceActions, WorkspaceStore } from '../ui/contract';
 import { useWorkspace } from '../ui/stub';
 import { EngineSurface } from './EngineSurface';
@@ -734,7 +735,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const reconnectOriginal = useCallback(() => {
     if (relinking.current) return;
     if (isDesktopApp()) {
-      setNotice('Reconnecting a moved or renamed original on the desktop app is not wired into V2 yet. Nothing was changed.');
+      setNotice('Desktop folder relinking is not connected to V2 yet. Your original files are unchanged.');
       return;
     }
     relinking.current = true;
@@ -745,24 +746,49 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         const target = stateRef.current;
         const projectId = target?.shoot.id;
         if (!target || !projectId) return;
-        const expected = new Set(target.frames.filter((frame) => !frame.removedAt && frame.sourceKind === 'file').map((frame) => frame.stableKey));
+        const missing = target.frames.filter((frame) =>
+          !frame.removedAt && frame.sourceKind === 'file' && !provider.current!.hasBlob(frame.stableKey)
+        );
         const recoveredIds: string[] = [];
+        let wrongBytes = 0;
+        let legacyWithoutHash = 0;
+        let temporarilyHeld = 0;
         for (const file of files) {
           if (stateRef.current?.shoot.id !== projectId) return;
           const key = getLocalFileKey(file);
-          if (!expected.has(key) || provider.current!.hasBlob(key)) continue;
-          await catalogue.current!.saveLocalFileBlob(key, file);
+          const candidates = missing.filter((frame) => frame.stableKey === key);
+          if (!candidates.length || provider.current!.hasBlob(key)) continue;
+          // File name, size and mtime only identify which catalogue entry to check.
+          // The original's saved full-content fingerprint MUST match before registration or storage.
+          const digests = [...new Set(candidates.map((frame) => frame.originalSha256))];
+          if (digests.length !== 1 || typeof digests[0] !== 'string') {
+            legacyWithoutHash += candidates.length;
+            continue;
+          }
+          const actual = await hashOriginalBytes(file);
+          if (stateRef.current?.shoot.id !== projectId) return;
+          if (!isSameOriginalBytes(digests[0], actual)) {
+            wrongBytes += candidates.length;
+            continue;
+          }
+          let stored = false;
+          try { stored = await catalogue.current!.saveLocalFileBlob(key, file); }
+          catch { /* A quota failure may still allow using the verified file in this session. */ }
           if (stateRef.current?.shoot.id !== projectId) return;
           provider.current!.registerBlob(key, file);
-          const frame = target.frames.find((candidate) => candidate.stableKey === key);
-          if (frame) recoveredIds.push(frame.id);
+          recoveredIds.push(...candidates.map((frame) => frame.id));
+          if (!stored) temporarilyHeld += candidates.length;
         }
-        if (!recoveredIds.length) { setNotice('Those files did not match a missing original in this project.'); return; }
-        // Let the matched photos' thumbnail and preview be re-read now a blob exists for them.
+        if (!recoveredIds.length) {
+          if (wrongBytes) setNotice('Refused the selected file: its contents do not match the original, even though the filename and size may match. Nothing was replaced.');
+          else if (legacyWithoutHash) setNotice('This older project has no recorded original fingerprint, so InFlight cannot safely reconnect it. Import the file as a new photo instead; nothing was replaced.');
+          else setNotice('Those files did not match a missing original in this project.');
+          return;
+        }
         setUrls((current) => {
-          const next = { ...current };
-          for (const id of recoveredIds) delete next[id];
-          return next;
+          const updated = { ...current };
+          for (const id of recoveredIds) delete updated[id];
+          return updated;
         });
         for (const id of recoveredIds) {
           thumbs.current.requested.delete(id);
@@ -774,13 +800,19 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           const frame = target.frames.find((candidate) => candidate.id === activeId);
           if (frame) provider.current!.getFullPreviewUrl(frame, 'selected').then(
             (preview) => setUrls((current) => ({ ...current, [frame.id]: { ...current[frame.id], preview } })),
-            () => { /* the thumbnail refetch already covers failure */ },
+            () => { /* thumbnail reload shows failures without replacing original bytes */ },
           );
         }
-        const stillMissing = [...expected].filter((key) => !provider.current!.hasBlob(key)).length;
-        setNotice(stillMissing
-          ? `Reconnected ${recoveredIds.length} photo${recoveredIds.length === 1 ? '' : 's'}. ${stillMissing} more still need their file selected.`
-          : `Reconnected ${recoveredIds.length} photo${recoveredIds.length === 1 ? '' : 's'}.`);
+        const stillMissing = missing.filter((frame) => !provider.current!.hasBlob(frame.stableKey)).length;
+        setNotice([
+          `Reconnected ${recoveredIds.length} photo${recoveredIds.length === 1 ? '' : 's'} using matching original bytes.`,
+          temporarilyHeld ? `${temporarilyHeld} original${temporarilyHeld === 1 ? ' is' : 's are'} available this session only: device storage could not save ${temporarilyHeld === 1 ? 'it' : 'them'}.` : '',
+          wrongBytes ? `${wrongBytes} mismatched file${wrongBytes === 1 ? ' was' : 's were'} refused.` : '',
+          legacyWithoutHash ? `${legacyWithoutHash} legacy original${legacyWithoutHash === 1 ? ' has' : 's have'} no fingerprint and cannot be verified.` : '',
+          stillMissing ? `${stillMissing} more original${stillMissing === 1 ? ' still needs' : 's still need'} reconnecting.` : '',
+        ].filter(Boolean).join(' '));
+      } catch {
+        setNotice('InFlight could not verify those files. Nothing was replaced.');
       } finally {
         relinking.current = false;
       }
@@ -1031,7 +1063,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     [stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: [...INITIAL_WATERMARKS, ...watermarkLibrary], auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
-  const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], { assist: assists[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id] })), [state?.frames, urls, assists, watermarkAuto, histograms, pixelSizes]);
+  const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], { assist: assists[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed })), [state?.frames, urls, assists, watermarkAuto, histograms, pixelSizes]);
   const store: WorkspaceStore = useMemo(() => ({
     ...stub.store,
     fonts: mergeFonts(deviceFonts),
