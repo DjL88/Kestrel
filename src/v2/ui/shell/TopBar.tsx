@@ -85,6 +85,7 @@ export default function TopBar({
 }: TopBarProps) {
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const menuTriggers = useRef<Partial<Record<Exclude<OpenMenu, null>, HTMLButtonElement | null>>>({});
   const isMac = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
 
   useEffect(() => {
@@ -95,7 +96,11 @@ export default function TopBar({
       }
     };
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpenMenu(null);
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        menuTriggers.current[openMenu]?.focus();
+        setOpenMenu(null);
+      }
     };
     window.addEventListener('mousedown', handleClickOutside);
     window.addEventListener('keydown', handleEsc);
@@ -104,6 +109,28 @@ export default function TopBar({
       window.removeEventListener('keydown', handleEsc);
     };
   }, [openMenu]);
+
+  useEffect(() => {
+    if (!openMenu) return;
+    // Focus the first enabled action rather than leaving keyboard users on a trigger
+    // while its menu has opened over the workspace.
+    const menu = menuRef.current?.querySelector<HTMLElement>('[role="menu"]');
+    menu?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
+  }, [openMenu]);
+
+  const handleMenuKeys = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (!openMenu || (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Home' && event.key !== 'End')) return;
+    const menu = menuRef.current?.querySelector<HTMLElement>('[role="menu"]');
+    if (!menu?.contains(event.target as Node)) return;
+    const actions = Array.from(menu.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
+    if (!actions.length) return;
+    event.preventDefault();
+    const current = actions.indexOf(document.activeElement as HTMLButtonElement);
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? actions.length - 1
+      : event.key === 'ArrowDown' ? (current + 1) % actions.length
+      : (current < 0 ? 0 : current - 1 + actions.length) % actions.length;
+    actions[next]?.focus();
+  };
 
   const runAndClose = (fn: () => void) => {
     fn();
@@ -136,11 +163,13 @@ export default function TopBar({
         </div>
 
         {/* Desktop menus: File, Edit, View */}
-        {showMenus && <nav className="hidden lg:flex items-center gap-1 ml-1" aria-label={STRINGS.topBar.applicationMenus}>
+        {showMenus && <nav onKeyDown={handleMenuKeys} className="hidden lg:flex items-center gap-1 ml-1" aria-label={STRINGS.topBar.applicationMenus}>
           {/* File Menu */}
           <div className="relative">
             <button
               type="button"
+              ref={(node) => { menuTriggers.current.file = node; }}
+              aria-haspopup="menu"
               aria-expanded={openMenu === 'file'}
               onClick={() => setOpenMenu((m) => (m === 'file' ? null : 'file'))}
               className={`h-8 rounded-[var(--radius-sm)] px-2.5 text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
@@ -194,6 +223,8 @@ export default function TopBar({
           <div className="relative">
             <button
               type="button"
+              ref={(node) => { menuTriggers.current.edit = node; }}
+              aria-haspopup="menu"
               aria-expanded={openMenu === 'edit'}
               onClick={() => setOpenMenu((m) => (m === 'edit' ? null : 'edit'))}
               className={`h-8 rounded-[var(--radius-sm)] px-2.5 text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
@@ -263,6 +294,8 @@ export default function TopBar({
           <div className="relative">
             <button
               type="button"
+              ref={(node) => { menuTriggers.current.view = node; }}
+              aria-haspopup="menu"
               aria-expanded={openMenu === 'view'}
               onClick={() => setOpenMenu((m) => (m === 'view' ? null : 'view'))}
               className={`h-8 rounded-[var(--radius-sm)] px-2.5 text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
