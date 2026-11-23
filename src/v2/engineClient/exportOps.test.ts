@@ -154,3 +154,40 @@ test('a negative or non-finite cap is refused with a plain message, not silently
     assert.ok('error' in planExport(request({ sizeIds: ['a'], maxLongestEdgePx }), frames, [size('a')]));
   }
 });
+
+test('same custom format ID uses dimensions from each individual photo, never the last selected photo', () => {
+  const own = [
+    { id: 'p1', filename: 'one.jpg', formats: { disabled: [], custom: [{ id: 'custom-poster', label: 'My poster', width: 1600, height: 2400 }] } },
+    { id: 'p2', filename: 'two.jpg', formats: { disabled: [], custom: [{ id: 'custom-poster', label: 'My poster', width: 3000, height: 2000 }] } },
+  ];
+  const plan = planExport(request({ sizeIds: ['custom-poster'] }), own, [size('a')]);
+  assert.ok('jobs' in plan);
+  assert.deepEqual(plan.jobs.map((job) => ({ photo: job.frameId, size: job.size, format: [job.format.width, job.format.height] })), [
+    { photo: 'p1', size: { width: 1600, height: 2400 }, format: [1600, 2400] },
+    { photo: 'p2', size: { width: 3000, height: 2000 }, format: [3000, 2000] },
+  ]);
+  assert.equal(plan.summary, '2 photos × 1 size = 2 files');
+});
+
+test('per-photo export dimensions also honour longest-edge caps independently', () => {
+  const own = [
+    { id: 'p1', filename: 'one.jpg', formats: { disabled: [], custom: [{ id: 'custom-poster', label: 'Poster', width: 1600, height: 2400 }] } },
+    { id: 'p2', filename: 'two.jpg', formats: { disabled: [], custom: [{ id: 'custom-poster', label: 'Poster', width: 2400, height: 1600 }] } },
+  ];
+  const plan = planExport(request({ sizeIds: ['custom-poster'], maxLongestEdgePx: 1200 }), own, [size('a')]);
+  assert.ok('jobs' in plan);
+  assert.deepEqual(plan.jobs.map((job) => job.size), [
+    { width: 800, height: 1200 }, { width: 1200, height: 800 },
+  ]);
+});
+
+test('disabled matching custom format is not exported just because another photo has the same ID enabled', () => {
+  const own = [
+    { id: 'p1', filename: 'one.jpg', formats: { disabled: ['custom-poster'], custom: [{ id: 'custom-poster', label: 'Poster', width: 1000, height: 1500 }] } },
+    { id: 'p2', filename: 'two.jpg', formats: { disabled: [], custom: [{ id: 'custom-poster', label: 'Poster', width: 2000, height: 3000 }] } },
+  ];
+  const plan = planExport(request({ sizeIds: ['custom-poster'] }), own, [size('a')]);
+  assert.ok('jobs' in plan);
+  assert.deepEqual(plan.jobs.map((job) => job.frameId), ['p2']);
+  assert.deepEqual(plan.jobs[0].size, { width: 2000, height: 3000 });
+});
