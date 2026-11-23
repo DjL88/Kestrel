@@ -469,8 +469,19 @@ export default function SizesPanel({
             onChange={(e) => onUpdateSizeCrop(photo.id, activeSize.id, { borderWidth: Number(e.target.value) })}
             className="inflight-slider"
           />
-          <div role="group" aria-label={STRINGS.formats.borderColourLabel} className="flex items-center gap-2">
-            {([['#ffffff', STRINGS.formats.borderWhite], ['#000000', STRINGS.formats.borderBlack]] as const).map(([hex, name]) => (
+          <label className="flex items-center justify-between gap-2 text-xs text-[var(--text-secondary)]">
+            <span>Border placement</span>
+            <select aria-label="Border placement" value={activeSize.crop.borderPlacement ?? 'all'}
+              onChange={(e) => onUpdateSizeCrop(photo.id, activeSize.id, { borderPlacement: e.target.value as CropTransform['borderPlacement'] })}
+              className="h-8 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-2 text-xs text-[var(--text-primary)]">
+              <option value="all">All sides</option>
+              <option value="horizontal">Top and bottom</option>
+              <option value="vertical">Left and right</option>
+              <option value="auto">Fit whole photo</option>
+            </select>
+          </label>
+          <div role="group" aria-label={STRINGS.formats.borderColourLabel} className="flex flex-wrap items-center gap-2">
+            {([['#ffffff', STRINGS.formats.borderWhite], ['#000000', STRINGS.formats.borderBlack], ['#f3f1e9', 'Warm white'], ['#383d43', 'Charcoal'], ['#d8cbb9', 'Sand'], ['#193c45', 'Deep teal']] as const).map(([hex, name]) => (
               <button
                 key={hex}
                 type="button"
