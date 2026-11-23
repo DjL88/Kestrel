@@ -50,3 +50,11 @@ test('read defensively, bound event count, never invent missing earlier events',
   assert.equal(h.events.length,MAX_FORMAT_HISTORY);
   assert.equal(historyForFormat(undefined,'orig-3x2').length,0);
 });
+
+test('explicitly enabling a default-off format is a recorded visible event', () => {
+  const on = { enabled: ['ig-portrait'], disabled: [], custom: [] };
+  const history = recordFormatSetChange(undefined, undefined, on, 1000, 0);
+  assert.equal(historyForFormat(history, 'ig-portrait')[0].kind, 'shown');
+  const off = recordFormatSetChange(history, on, undefined, 2000, 0);
+  assert.deepEqual(historyForFormat(off, 'ig-portrait').map(e => e.kind), ['shown', 'hidden']);
+});
