@@ -46,6 +46,7 @@ import { TEMPLATES_KEY, addTemplate, deleteTemplate, overlayFromTemplate, readTe
 import { addFormat, applyFormats, readFormats, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize } from './formatOps';
 import { patchVideoZoom } from './videoZoomOps';
 import { setFormatSplitOffset, toggleFormatSplit } from './formatSplitOps';
+import { readSplitPanOffset } from './splitFrameOps';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, toggleMask } from './maskOps';
 import { verifyFrameMasks } from './maskVerify';
 import { createSubjectMask, framingKey, hasActiveMasks } from '../../core/maskTypes';
@@ -659,7 +660,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
     const sizeId = stub.store.activeSizeId;
     if (!frame || !sizeId) return;
-    const next = toggleFormatSplit(frame.formatSplits, sizeId);
+    const next = toggleFormatSplit(frame.formatSplits ?? (frame.splitFrames === true ? { 'orig-3x2': { enabled: true, offset: readSplitPanOffset(frame.splitPanOffset) } } : undefined), sizeId);
     const at = Date.now();
     mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, formatSplits: next } : entry)) }));
   }, [mutate, stub.store.activeSizeId]);
@@ -669,7 +670,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
     const sizeId = stub.store.activeSizeId;
     if (!frame || !sizeId) return;
-    const next = setFormatSplitOffset(frame.formatSplits, sizeId, offset);
+    const next = setFormatSplitOffset(frame.formatSplits ?? (frame.splitFrames === true ? { 'orig-3x2': { enabled: true, offset: readSplitPanOffset(frame.splitPanOffset) } } : undefined), sizeId, offset);
     const at = Date.now();
     mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, formatSplits: next } : entry)) }));
   }, [mutate, stub.store.activeSizeId]);
