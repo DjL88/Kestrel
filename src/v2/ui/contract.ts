@@ -463,7 +463,7 @@ export interface WorkspaceActions {
   // Navigation & Projects
   openProject: (projectId: string) => void;
   backToProjects: () => void;
-  createProject: (name: string) => void;
+  createProject: (name: string, options?: { keeperTarget?: number; settings?: import('../../core/projectSettings').ProjectSettings }) => void;
   /** Pick a folder (on this device, an external drive or a synced cloud folder) and make a project of its photos. */
   createProjectFromFolder: () => void;
   renameProject: (projectId: string, name: string) => void;
