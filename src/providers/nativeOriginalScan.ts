@@ -32,7 +32,7 @@ export async function scanOriginalFolder(
       scanned++;
       // Directory APIs must not be allowed to escape the selected root via malformed names.
       if (entry.isSymlink || !entry.name || entry.name === '.' || entry.name === '..' ||
-          entry.name.includes('/') || entry.name.includes('\\') || entry.name.includes('\\0') ||
+          entry.name.includes('/') || entry.name.includes('\\') || entry.name.includes(String.fromCharCode(0)) ||
           entry.name.includes(':')) continue;
       const path = current.path.replace(/[\\/]+$/, '') + '/' + entry.name;
       if (entry.isDirectory) {
