@@ -36,7 +36,6 @@ export function createTaskStore(now: () => number = Date.now) {
   let tasks: Task[] = [];
   let nextId = 1;
   const cancels = new Map<number, () => void>();
-  const cancelledIds = new Set<number>();
   const listeners = new Set<() => void>();
   const emit = () => listeners.forEach((listener) => listener());
   const update = (id: number, change: Partial<Task>) => {
@@ -61,22 +60,22 @@ export function createTaskStore(now: () => number = Date.now) {
   return {
     start(title: string, options: { total?: number | null; cancel?: () => void } = {}): TaskHandle {
       const id = nextId++;
+      let wasCancelled = false;
       tasks = [...tasks, { id, title, state: 'running', cancellable: typeof options.cancel === 'function', done: 0, total: options.total ?? null, startedAt: now(), updatedAt: now() }];
-      if (options.cancel) cancels.set(id, options.cancel);
+      if (options.cancel) cancels.set(id, () => { wasCancelled = true; options.cancel?.(); });
       emit();
       return {
         id,
         progress: (done, total, detail) => { if (isRunning(id)) update(id, { done, updatedAt: now(), ...(total !== undefined ? { total } : {}), ...(detail !== undefined ? { detail } : {}) }); },
         finish: (detail) => { if (isRunning(id)) { cancels.delete(id); update(id, { state: 'done', endedAt: now(), ...(detail ? { detail } : {}) }); } },
         fail: (message) => { if (isRunning(id)) { cancels.delete(id); update(id, { state: 'failed', endedAt: now(), detail: message }); } },
-        get cancelled() { return cancelledIds.has(id); },
+        get cancelled() { return wasCancelled; },
       };
     },
     /** Stop a running task. Returns false if it was not running or cannot be stopped. */
     cancel(id: number): boolean {
       const stop = cancels.get(id);
       if (!isRunning(id) || !stop) return false;
-      cancelledIds.add(id);
       cancels.delete(id);
       update(id, { state: 'cancelled', endedAt: now() });
       try { stop(); } catch { /* the job is already finishing */ }
@@ -87,7 +86,6 @@ export function createTaskStore(now: () => number = Date.now) {
       if (!tasks.some(task => task.id === id && task.state !== 'running')) return false;
       tasks = tasks.filter(task => task.id !== id);
       cancels.delete(id);
-      cancelledIds.delete(id);
       emit();
       return true;
     },
