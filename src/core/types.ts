@@ -71,6 +71,8 @@ export interface PhotoFrame {
   editHistory?: EditHistory;
   /** Saved non-destructive edit versions; only recipes/metadata, never original pixels. */
   editVersions?: EditVersionTree;
+  /** Persisted V2 edit-group names, selection and non-destructive recipes; validated by readEditGroups. */
+  v2EditGroups?: unknown;
   /** Per-format action history, validated at the V2 boundary. */
   formatHistory?: unknown;
   /** Edit recipe when the user last requested a file download, stored locally. */
