@@ -297,3 +297,28 @@ test('unknown detector labels abstain even when confidence and sharpness are hig
   }
   assert.equal(scoreWithSubject(baseResult, { label: 'bird', score: 0.99, size: 900, sharpness: 30 }).decision, 'keep');
 });
+
+
+test('uncertain detector labels stay review-only even with sharp high-confidence texture', () => {
+  for (const label of ['unknown bird', 'Unknown: aircraft', 'unidentified dog', 'other animal', 'none - subject', 'n/a: subject']) {
+    const result = scoreWithSubject(baseResult, { label, score: 0.99, size: 250, sharpness: 30 });
+    assert.equal(result.decision, null, label);
+    assert.equal(result.confidence, 'low', label);
+    assert.equal(result.reason, 'noSubject', label);
+  }
+});
+
+test('subject measurements must be physical finite integer pixel sizes and bounded sharpness', () => {
+  for (const size of [0.5, 120.5, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.equal(scoreWithSubject(baseResult, { label: 'bird', score: 0.9, size, sharpness: 20 }).decision, null);
+  }
+  assert.equal(scoreWithSubject(baseResult, { label: 'bird', score: 0.9, size: 250, sharpness: 1_000_001 }).decision, null);
+});
+
+test('known aircraft and bird labels remain eligible on valid detector evidence', () => {
+  for (const label of ['aircraft', 'bird', 'dog']) {
+    const result = scoreWithSubject(baseResult, { label, score: 0.9, size: 250, sharpness: 20 });
+    assert.equal(result.decision, 'keep', label);
+    assert.equal(result.reason, 'subjectSharp', label);
+  }
+});
