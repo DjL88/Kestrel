@@ -962,7 +962,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   const backToProjects = useCallback(async () => {
     const current = stateRef.current;
-    if (current) { try { await catalogue.current!.saveProject(current); } catch { /* the save effect already reported it */ } }
+    if (current) {
+      try { await catalogue.current!.saveProject(current); }
+      catch {
+        // A failed final save must not discard edits that only exist in memory.
+        setNotice('This project could not be saved. You are still in the editor with your changes. Check device storage and try again.');
+        return;
+      }
+    }
     setState(null); setScreen('hub'); setSelected([]);
     await loadHub();
   }, [loadHub]);
