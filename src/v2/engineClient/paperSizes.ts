@@ -12,6 +12,14 @@ const MAX_PIXEL_SIDE = 20000;
 const MM_PER_INCH = 25.4;
 
 export function paperDimensions(preset: Exclude<PaperPreset, 'custom'>, orientation: PaperOrientation): PixelDimensions {
+  // UI select values are not a trust boundary: restored projects and runtime
+  // callers can supply unknown values despite TypeScript's static union.
+  if (!Object.prototype.hasOwnProperty.call(PAPER_MM, preset)) {
+    throw new RangeError('Unknown paper preset');
+  }
+  if (orientation !== 'portrait' && orientation !== 'landscape') {
+    throw new RangeError('Unknown paper orientation');
+  }
   const [short, long] = PAPER_MM[preset];
   return orientation === 'portrait' ? { width: short, height: long } : { width: long, height: short };
 }
