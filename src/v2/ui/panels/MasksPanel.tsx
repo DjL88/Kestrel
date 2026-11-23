@@ -188,7 +188,7 @@ export default function MasksPanel({
                         <legend className="text-[11px] font-semibold text-[var(--text-primary)]">
                           {shape.kind === 'radial' ? 'Oval position and size' : 'Gradient direction'}
                         </legend>
-                        <p className="text-[11px] text-[var(--text-secondary)]">Position is relative to the whole photograph. Change an adjustment below to see its effect. All positions are undoable.</p>
+                        <p className="text-[11px] text-[var(--text-secondary)]">Positions use the whole photograph (0–100%). Oval radii are measured against the photo width. Move an adjustment slider below to see the effect. Every change is undoable.</p>
                         {geometryRows.map(row => (
                           <label key={row.key} className="block space-y-1 text-[11px] text-[var(--text-secondary)]">
                             <span className="flex justify-between gap-2">
