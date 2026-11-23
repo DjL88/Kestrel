@@ -92,6 +92,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   const changePad = React.useCallback((next: PadProfile) => { savePad(next); setPad(next); }, []);
   const changeKeymap = React.useCallback((next: SavedKeymap) => { saveKeymap(next); setSavedKeymap(next); }, []);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [addingFormatFor, setAddingFormatFor] = useState<string | null>(null);
   const sheetDragY = useRef<number | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
@@ -240,6 +241,8 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             onFlipSizes={actions.flipSelectedSizes}
             onRotateSizes={actions.rotateSelectedSizes}
             onResetSizeCrop={actions.resetSizeCrop}
+            addingCustom={activePhoto != null && addingFormatFor === activePhoto.id}
+            onSetAddingCustom={(open) => setAddingFormatFor(open ? activePhoto?.id ?? null : null)}
             onAddCustomSize={actions.addCustomSize}
             onSetOriginalOutputSize={actions.setOriginalOutputSize}
             onResetOriginalOutputSize={actions.resetOriginalOutputSize}
@@ -485,7 +488,10 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
               ) : (
                 <Canvas
                   PhotoSurface={store.PhotoSurface}
-                  onOpenFormats={() => actions.setActivePanel('formats')}
+                  onOpenFormats={activePhoto ? () => {
+                    actions.setPanelVisible('formats', true);
+                    setAddingFormatFor(activePhoto.id);
+                  } : undefined}
                   onDuplicateSize={(sizeId) => activePhoto && actions.duplicateSize(activePhoto.id, sizeId)}
                   onRemoveSize={(sizeId) => activePhoto && actions.removeSize(activePhoto.id, sizeId)}
                   onStepPhoto={(delta) => {

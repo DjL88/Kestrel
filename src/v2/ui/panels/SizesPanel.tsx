@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { CropTransform, FeatureKey, Photo, VideoZoomConfig } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
@@ -23,6 +23,8 @@ interface SizesPanelProps {
   onFlipSizes: (photoId: string, axis: 'horizontal' | 'vertical') => void;
   onRotateSizes: (photoId: string) => void;
   onResetSizeCrop: (photoId: string, sizeId: string) => void;
+  addingCustom: boolean;
+  onSetAddingCustom: (open: boolean) => void;
   onAddCustomSize: (photoId: string, label: string, width: number, height: number) => void;
   onSetOriginalOutputSize: (photoId: string, width: number, height: number) => void;
   onResetOriginalOutputSize: (photoId: string) => void;
@@ -46,6 +48,8 @@ export default function SizesPanel({
   onFlipSizes,
   onRotateSizes,
   onResetSizeCrop,
+  addingCustom,
+  onSetAddingCustom,
   onAddCustomSize,
   onSetOriginalOutputSize,
   onResetOriginalOutputSize,
@@ -53,7 +57,10 @@ export default function SizesPanel({
   onUpdateVideoZoom,
 }: SizesPanelProps) {
   const hideVideoPro = useProHidden('zoomVideo');
-  const [addingCustom, setAddingCustom] = useState(false);
+  const customLabelInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (addingCustom) customLabelInput.current?.focus();
+  }, [addingCustom]);
   const [customLabel, setCustomLabel] = useState('');
   const [customW, setCustomW] = useState(2400);
   const [customH, setCustomH] = useState(1600);
@@ -104,7 +111,7 @@ export default function SizesPanel({
     onAddCustomSize(photo.id, customLabel.trim() || (paperPreset !== 'custom' ? `${paperPreset} ${paperOrientation}` : `${pixelDimensions.width}×${pixelDimensions.height}`),
       pixelDimensions.width, pixelDimensions.height);
     setCustomLabel('');
-    setAddingCustom(false);
+    onSetAddingCustom(false);
   };
 
   return (
@@ -195,7 +202,7 @@ export default function SizesPanel({
           <h3 className="text-xs font-semibold text-[var(--text-primary)]">Export formats</h3>
           <button
             type="button"
-            onClick={() => setAddingCustom((v) => !v)}
+            onClick={() => onSetAddingCustom(!addingCustom)}
             className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--brand-accent)]"
           >
             <BrandIcon name="plus" size={12} />
@@ -203,7 +210,7 @@ export default function SizesPanel({
           </button>
         </div>
 
-        {originalFormat && (
+        {originalFormat && !addingCustom && (
           <form
             className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3"
             onSubmit={(event) => {
@@ -247,6 +254,7 @@ export default function SizesPanel({
           >
             <input
               type="text"
+              ref={customLabelInput}
               value={customLabel}
               onChange={(e) => setCustomLabel(e.target.value)}
               placeholder="Format label (e.g. A3 Print)"
@@ -341,7 +349,7 @@ export default function SizesPanel({
             <div className="flex justify-end gap-1.5">
               <button
                 type="button"
-                onClick={() => setAddingCustom(false)}
+                onClick={() => onSetAddingCustom(false)}
                 className="h-7 rounded px-2 text-xs text-[var(--text-muted)]"
               >
                 Cancel
