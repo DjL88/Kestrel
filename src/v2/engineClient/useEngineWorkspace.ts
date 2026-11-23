@@ -1154,7 +1154,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     },
     duplicateSize: (photoId, sizeId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
-      const source = applyFormats(createDefaultSizes(), frame?.formats).find((size) => size.id === sizeId);
+      const source = applyFormats(createDefaultSizes(), frame?.formats,
+        frame?.exif.width && frame.exif.height ? framedSize(frame.exif.width, frame.exif.height, frame.framing ?? DEFAULT_FRAMING) : null).find((size) => size.id === sizeId);
       if (!frame || !source) return;
       const id = `custom-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 10)}`;
       if (!changeFormats(photoId, (raw) => addFormat(raw, `${source.label} copy`, source.width, source.height, id), (crops) => { const own = readCrops(crops)[sizeId]; return own ? { ...readCrops(crops), [id]: own } : readCrops(crops); })) { setNotice('This photo already has the most formats it can hold.'); return; }
@@ -1162,7 +1163,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     },
     removeSize: (photoId, sizeId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
-      const remaining = applyFormats(createDefaultSizes(), frame?.formats).filter((size) => size.kind === 'photo' && size.enabled && size.id !== sizeId);
+      const remaining = applyFormats(createDefaultSizes(), frame?.formats,
+        frame?.exif.width && frame.exif.height ? framedSize(frame.exif.width, frame.exif.height, frame.framing ?? DEFAULT_FRAMING) : null).filter((size) => size.kind === 'photo' && size.enabled && size.id !== sizeId);
       if (!remaining.length) { setNotice('A photo needs at least one format.'); return; }
       changeFormats(photoId, (raw) => removeFormat(raw, sizeId), (crops) => { const next = { ...readCrops(crops) }; if (sizeId.startsWith('custom-')) delete next[sizeId]; return next; });
       if (stub.store.activeSizeId === sizeId) stub.actions.setActiveSize(remaining[0].id);
