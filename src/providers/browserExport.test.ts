@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createDemoShootState } from '../core/cullingEngine';
 import { EXPORT_PROFILES } from '../core/exportProfiles';
-import { drawCropQuickly, loadExportSource, renderExport, renderExportPreview } from './browserExport';
+import { drawCropQuickly, loadExportSource, loadVerifiedRasterOriginalForExport, renderExport, renderExportPreview } from './browserExport';
 
 test('cancelling an export skips unused canvas work and discards an encoded result', async (t) => {
   const controller = new AbortController();
@@ -387,4 +387,54 @@ test('concurrent RAW edit and export requests share one sensor decode and reuse 
   const third = await loadExportSource(frame, provider, 'selected', decoder);
   assert.equal(third.src, 'blob:current-sensor');
   assert.equal(calls, 1, 'subsequent edits must reuse the developed pixels');
+});
+
+test('native JPEG Original decodes connected bytes and refuses cached preview dimensions', async (t) => {
+  const previousImage = Object.getOwnPropertyDescriptor(globalThis, 'Image');
+  const create = URL.createObjectURL, revoke = URL.revokeObjectURL;
+  const revoked: string[] = [];
+  t.after(() => {
+    if (previousImage) Object.defineProperty(globalThis, 'Image', previousImage);
+    else Reflect.deleteProperty(globalThis, 'Image');
+    URL.createObjectURL = create;
+    URL.revokeObjectURL = revoke;
+  });
+  URL.createObjectURL = () => 'blob:verified-original';
+  URL.revokeObjectURL = (url) => { revoked.push(url); };
+  class ImageStub {
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    naturalWidth = 8256;
+    naturalHeight = 5504;
+    private address = '';
+    get src() { return this.address; }
+    set src(value: string) { this.address = value; queueMicrotask(() => this.onload?.()); }
+  }
+  Object.defineProperty(globalThis, 'Image', { configurable: true, value: ImageStub });
+  const bytes = new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), 'rest of photo'], { type: 'image/jpeg' });
+  const frame = { ...createDemoShootState(1).frames[0], filename: 'Nikon-Z8.jpg', isDemo: false, stableKey: 'verified-jpeg' };
+  let readCount = 0;
+  const result = await loadVerifiedRasterOriginalForExport(frame, {
+    ensureOriginal: async (key, priority) => {
+      assert.equal(key, 'verified-jpeg'); assert.equal(priority, 'selected'); readCount++;
+      return bytes;
+    },
+  } as Parameters<typeof loadVerifiedRasterOriginalForExport>[1]);
+  assert.equal(result.naturalWidth, 8256);
+  assert.equal(result.naturalHeight, 5504);
+  assert.equal(readCount, 1);
+  assert.deepEqual(revoked, ['blob:verified-original']);
+});
+
+test('native Original refuses preview-only RAW, missing files and incorrect file signatures', async () => {
+  const frame = { ...createDemoShootState(1).frames[0], isDemo: false, stableKey: 'reconnected' };
+  const provide = (value: Blob | undefined) => ({
+    ensureOriginal: async () => value,
+  }) as Parameters<typeof loadVerifiedRasterOriginalForExport>[1];
+  await assert.rejects(loadVerifiedRasterOriginalForExport({ ...frame, filename: 'Z8.NEF' }, provide(new Blob(['raw']))), /only verified for connected JPEG and PNG/);
+  await assert.rejects(loadVerifiedRasterOriginalForExport({ ...frame, filename: 'photo.png' }, provide(undefined)), /Reconnect photo.png/);
+  await assert.rejects(loadVerifiedRasterOriginalForExport({ ...frame, filename: 'photo.jpg' },
+    provide(new Blob(['not a JPEG'], { type: 'image/jpeg' }))), /not a valid JPEG/);
+  await assert.rejects(loadVerifiedRasterOriginalForExport({ ...frame, filename: 'photo.png' },
+    provide(new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: 'image/png' }))), /not a valid PNG/);
 });

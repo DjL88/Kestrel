@@ -125,6 +125,39 @@ export async function loadExportSource(
   return loadImage(url);
 }
 
+/**
+ * An editable Original-size JPEG/PNG export must use the original file bytes,
+ * not a scaled thumbnail, offline review cache or an unverified EXIF width.
+ * RAW/HEIF is deliberately excluded until its decoder provides real provenance.
+ */
+export async function loadVerifiedRasterOriginalForExport(
+  frame: PhotoFrame,
+  provider: Pick<BrowserPreviewProvider, 'ensureOriginal'>,
+): Promise<HTMLImageElement> {
+  const ext = frame.filename.split('.').at(-1)?.toLowerCase();
+  const expected = ext === 'jpg' || ext === 'jpeg' ? 'jpeg' : ext === 'png' ? 'png' : null;
+  if (!expected || frame.isDemo) throw new Error('Native Original dimensions are only verified for connected JPEG and PNG originals.');
+  const original = await provider.ensureOriginal(frame.stableKey, 'selected');
+  if (!original) throw new Error(`Reconnect ${frame.filename} before exporting its full-resolution Original.`);
+  // Content sniffing prevents a renamed thumbnail or wrong-format file from
+  // being accepted merely because its filename or MIME metadata looks right.
+  const header = new Uint8Array(await original.slice(0, 12).arrayBuffer());
+  const jpeg = header.length >= 3 && header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff;
+  const png = header.length >= 8 && [137, 80, 78, 71, 13, 10, 26, 10].every((n, i) => header[i] === n);
+  if (expected === 'jpeg' ? !jpeg : !png) throw new Error(`The connected original for ${frame.filename} is not a valid ${expected.toUpperCase()} file.`);
+  const url = URL.createObjectURL(original);
+  try {
+    const image = await loadImage(url);
+    if (!Number.isSafeInteger(image.naturalWidth) || !Number.isSafeInteger(image.naturalHeight) ||
+        image.naturalWidth < 1 || image.naturalHeight < 1) {
+      throw new Error(`Could not decode the original image dimensions of ${frame.filename}.`);
+    }
+    return image;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 export interface ExportExtras {
   /** Where to centre a crop. Falls back to the photo's saved focus point, then the middle. */
   focus?: FocusPoint;
