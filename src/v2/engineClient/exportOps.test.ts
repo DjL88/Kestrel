@@ -253,3 +253,26 @@ test('split planning refuses an impossible combined canvas or a sub-two-pixel si
   assert.ok('error' in tiny);
   assert.match(tiny.error, /too wide/);
 });
+
+test('removedAt zero is still removed: no developed export and no original copy', () => {
+  const zeroRemoved = [
+    { id: 'p1', filename: 'zero-removed.jpg', removedAt: 0 },
+    { id: 'p2', filename: 'kept.jpg' },
+  ];
+  const plan = planExport(request({ includeOriginal: true, photoIds: ['p1', 'p2'], sizeIds: ['a'] }), zeroRemoved, [size('a')]);
+  assert.ok('jobs' in plan);
+  assert.deepEqual(plan.jobs.map((job) => job.frameId), ['p2']);
+  assert.deepEqual(plan.originals, ['p2']);
+  assert.equal(plan.summary, '1 photo × 1 size + 1 original file = 2 files');
+});
+
+test('selection containing only removedAt zero refuses even exact original export', () => {
+  const zeroRemoved = [{ id: 'p1', filename: 'removed.nef', removedAt: 0 }];
+  for (const overrides of [
+    { includeOriginal: true, includeAfter: false, sizeIds: [] },
+    { includeOriginal: false, includeAfter: true, sizeIds: ['a'] },
+  ]) {
+    const plan = planExport(request({ ...overrides, photoIds: ['p1'] }), zeroRemoved, [size('a')]);
+    assert.deepEqual(plan, { error: 'Choose at least one photo to export.' });
+  }
+});
