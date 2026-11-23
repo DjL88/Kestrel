@@ -35,7 +35,8 @@ export function planExport(request: ExportRequest, frames: readonly ExportFrameI
   const variants: ExportVariant[] = [...(request.includeBefore ? ['unedited' as const] : []), ...(request.includeAfter ? ['edited' as const] : [])];
   if (!variants.length && !request.includeOriginal) return { error: 'Choose what to export: the edited photo, the unedited photo, or the original file.' };
 
-  const chosen = frames.filter((frame) => request.photoIds.includes(frame.id) && !frame.removedAt);
+  // A removedAt value of 0 is still a removed photograph, not a live one.
+  const chosen = frames.filter((frame) => request.photoIds.includes(frame.id) && frame.removedAt == null);
   if (!chosen.length) return { error: 'Choose at least one photo to export.' };
   const allSizes = chosen.flatMap((frame) => applyFormats(sizes, frame.formats));
   const picked = [...new Map(allSizes.filter((size) => size.kind === 'photo' && request.sizeIds.includes(size.id)).map((size) => [size.id, size])).values()];
