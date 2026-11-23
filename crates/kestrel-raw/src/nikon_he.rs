@@ -279,6 +279,7 @@ mod tests {
             }
             decoded += 1;
         }
+        assert!(decoded > 0, "KESTREL_RAW_SAMPLES was set, but no Nikon HE/HE* NEFs were found; RAW fidelity evidence cannot pass with zero fixtures");
         eprintln!("High Efficiency files decoded from sensor data: {decoded}");
     }
 }
