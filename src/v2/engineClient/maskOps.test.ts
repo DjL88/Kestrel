@@ -6,7 +6,7 @@ import { applyMasks, fullContext, maskAlpha } from '../../core/masks.ts';
 import { recordEdit, stepEdit } from '../../core/editHistory.ts';
 import type { PhotoFrame } from '../../core/types.ts';
 
-const grid = { w: 1, h: 1, data: 'AA==' };
+const grid = { w: 8, h: 8, data: btoa('\x00'.repeat(64)) };
 const subject = (id: string, invert = false): Mask => ({ ...createSubjectMask(id, grid, 'k', 'high'), invert });
 
 test('layers are read from the masks: a subject, its inverse as the background, and shapes as areas', () => {
@@ -110,4 +110,14 @@ test('manual gradient has true directional alpha rather than an inert UI-only la
   const changed = setMaskGeometry([gradient], 'g', 'y2', 0.9);
   assert.ok(validMasks(changed));
   assert.notDeepEqual(changed, [gradient]);
+});
+
+
+test('local colour denoise is stored on the selected layer and can be reset', () => {
+  const layers = [subject('bird'), subject('background', true)];
+  const masks = setMaskEdit(layers, 'background', 'denoise', 1.2);
+  assert.ok(validMasks(masks));
+  assert.equal(masksToLayers(masks)[1].edit.denoise, 1.2);
+  assert.equal(masks[0], layers[0]);
+  assert.deepEqual(setMaskEdit(masks, 'background', 'denoise', 0)[1].edit, {});
 });

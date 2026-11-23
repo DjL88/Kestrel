@@ -9,6 +9,7 @@ export const MASK_SLIDERS = [
   { key: 'colour', label: 'Colour', min: -2, max: 2, step: 0.05 },
   { key: 'clarity', label: 'Clarity', min: -2, max: 2, step: 0.05 },
   { key: 'sharpen', label: 'Sharpen', min: 0, max: 2, step: 0.05 },
+  { key: 'denoise', label: 'Colour denoise', min: 0, max: 2, step: 0.05 },
 ] as const satisfies readonly { key: LocalKey; label: string; min: number; max: number; step: number }[];
 
 const layerType = (mask: Mask): MaskLayer['type'] => (mask.kind === 'subject' ? (mask.invert ? 'background' : 'subject') : mask.kind === 'brush' ? 'brush' : mask.kind === 'linear' ? 'gradient' : 'area');
