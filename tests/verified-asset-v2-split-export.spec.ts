@@ -13,6 +13,7 @@ const variants = [
   { name: 'zoom and reposition', rotateDeg: 0, flipH: false, flipV: false, zoom: 1.3, panX: -12, panY: 7 },
   { name: 'flipped and panned', rotateDeg: 0, flipH: true, flipV: true, zoom: 1.1, panX: 8, panY: -6 },
   { name: 'rotated 90 degrees', rotateDeg: 90, flipH: false, flipV: false, zoom: 1.2, panX: 6, panY: -4 },
+  { name: 'rotated 180 degrees', rotateDeg: 180, flipH: false, flipV: true, zoom: 1.15, panX: -5, panY: 3 },
   { name: 'rotated 270 degrees and flipped', rotateDeg: 270, flipH: true, flipV: false, zoom: 1.1, panX: -4, panY: 6 },
 ] as const;
 
