@@ -101,7 +101,7 @@ describe('completed TIFF structural evidence', () => {
     v.setUint32(stripTag + 4, 2, true);
     v.setUint32(stripTag + 8, 400, true);
     v.setUint32(400, 400, true);
-    v.setUint32(404, 440, true);
+    v.setUint32(404, 456, true);
     v.setUint32(10 + 7 * 12 + 8, 2, true); // rows per strip
     const byteCountsTag = 10 + 8 * 12;
     v.setUint32(byteCountsTag + 4, 2, true);
