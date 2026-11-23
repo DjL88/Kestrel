@@ -3,6 +3,8 @@
  * capabilities; it is NEVER proof of cloud entitlement or permission.
  * Cloud APIs must independently enforce every request server-side.
  */
+import { CLOUD_READ_ONLY_DAYS_V2 } from './subscriptionLifecyclePolicy';
+
 export type LicenceState = 'active' | 'trial' | 'unverified' | 'unlicensed';
 export type CloudState = 'active' | 'past_due' | 'cancelled' | 'none';
 /** User-visible product tiers: Basic and lifetime Pro only. */
@@ -44,7 +46,8 @@ export interface Capabilities {
   requiresLicenceVerification: boolean;
 }
 
-export const CLOUD_READ_ONLY_DAYS = 365;
+/** UI-only V2 cloud read-only window. No automatic cloud deletion is authorised. */
+export const CLOUD_READ_ONLY_DAYS = CLOUD_READ_ONLY_DAYS_V2;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function validTime(value: number | undefined): value is number {
@@ -52,16 +55,18 @@ function validTime(value: number | undefined): value is number {
 }
 
 /**
- * A stopped cloud subscription is read-only for 365 days after the last paid
- * period. Downloads cease after that date, but remote deletion is a SEPARATE
- * scheduled backend action requiring prior notice and an export route.
+ * A stopped V2 cloud subscription stays downloadable for 90 days from the
+ * verified paid-through date. This display policy never authorises deletion.
+ * Remote deletion needs prior notice and explicit owner approval, independently
+ * implemented and enforced by the backend.
  *
  * No locally stored files or edits are ever deleted by this policy.
  */
 export function accessCapabilities(snapshot: AccessSnapshot): Capabilities {
   const paidVerified = snapshot.licence === 'active' ||
     (snapshot.licence === 'unverified' && snapshot.cachedLocalLicence);
-  // Backwards-compatible legacy snapshot without a plan.
+  // Historical snapshots without an explicit plan may recover local editor access,
+  // but can NEVER claim cloud permissions without verified subscription evidence.
   const tier: Plan = snapshot.plan ?? (paidVerified ? 'paid' : 'free');
   const fullEditor = paidVerified && tier !== 'free';
   const now = validTime(snapshot.nowMs) ? snapshot.nowMs : null;
@@ -71,16 +76,18 @@ export function accessCapabilities(snapshot: AccessSnapshot): Capabilities {
   const withinRetention = now !== null && retentionValid && now <= readOnlyUntil;
   const eligibleSubscription = tier === 'subscriber' && fullEditor;
 
-  // Only historical subscriber records have a paid-through cloud period.
-  // Basic and one-off Pro have no monthly tier; optional BYO storage is separate.
-  const legacy = snapshot.plan === undefined;
-  const currentlyPaid = legacy
-    ? snapshot.cloud === 'active'
-    : snapshot.cloud === 'active' && paidThrough !== null && now !== null && now <= paidThrough;
-  const upload = snapshot.online && fullEditor && (legacy || eligibleSubscription) && currentlyPaid;
+  // A legacy/plan-less record, even one saying "active", can never
+  // self-assert a cloud grant. The backend must supply a verified plan,
+  // paid-through timestamp and independent server-side authorisation.
+  const currentlyPaid = snapshot.cloud === 'active' &&
+    paidThrough !== null && now !== null && now <= paidThrough;
+  const upload = snapshot.online && fullEditor && eligibleSubscription && currentlyPaid;
   const quotaValid = typeof snapshot.cloudQuotaBytes === 'number' &&
     Number.isSafeInteger(snapshot.cloudQuotaBytes) && snapshot.cloudQuotaBytes >= 0;
-  const readOnly = eligibleSubscription && snapshot.cloud !== 'none' && withinRetention;
+  // Reading previously uploaded data during the retention period must not
+  // depend on a live editor licence. Subscription identity and account ownership
+  // are still enforced on every server request.
+  const readOnly = tier === 'subscriber' && snapshot.cloud !== 'none' && withinRetention;
 
   return {
     localEditing: true,
@@ -92,7 +99,7 @@ export function accessCapabilities(snapshot: AccessSnapshot): Capabilities {
     cloudDownloads: snapshot.online && (upload || readOnly),
     cloudAi: upload, // Provider consent and allowance still checked by the backend.
     cloudQuotaBytes: upload && quotaValid ? snapshot.cloudQuotaBytes! : null,
-    cloudReadOnlyUntilMs: eligibleSubscription && retentionValid ? readOnlyUntil : null,
+    cloudReadOnlyUntilMs: tier === 'subscriber' && retentionValid ? readOnlyUntil : null,
     requiresLicenceVerification: tier !== 'free' && snapshot.licence === 'unverified' && !snapshot.cachedLocalLicence,
   };
 }
