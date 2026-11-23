@@ -39,11 +39,21 @@ test('an all-neutral patch leaves a neutral edit, and masks already on the photo
 });
 
 test('controls the engine cannot apply yet are reported, not silently ignored', () => {
-  assert.deepEqual(applyRecipePatch(undefined, { tint: 10, lensCorrection: true, denoiseLuminance: 30 }).unmapped, ['tint', 'denoiseLuminance', 'lensCorrection']);
+  assert.deepEqual(applyRecipePatch(undefined, { tint: 10, lensCorrection: true, denoiseLuminance: 30, upscaleFactor: 2 }).unmapped, ['tint', 'denoiseLuminance', 'lensCorrection']);
   assert.deepEqual(applyRecipePatch(undefined, { contrast: 10, lookId: 'x' }).unmapped, []);
 });
 
 test('values outside the slider range are held inside it', () => {
   assert.equal(applyRecipePatch(undefined, { exposure: 9 }).edit.exposure, 12.5);
   assert.equal(applyRecipePatch(undefined, { contrast: 400 }).edit.contrast, 2);
+});
+
+test('upscale is a real edit: it maps both ways, is not "unmapped", and a neutral factor removes it', () => {
+  const two = applyRecipePatch(undefined, { upscaleFactor: 2 });
+  assert.equal(two.edit.upscale, 2);
+  assert.deepEqual(two.unmapped, []);
+  assert.equal(editToRecipe(two.edit).upscaleFactor, 2);
+  assert.equal(isNeutralEdit(two.edit), false, 'an upscaled photo counts as edited, so it is kept and undoable');
+  assert.equal('upscale' in applyRecipePatch(two.edit, { upscaleFactor: 1 }).edit, false);
+  assert.equal(editToRecipe(undefined).upscaleFactor, 1);
 });
