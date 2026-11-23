@@ -9,6 +9,7 @@ import type { PhotoFrame } from '../../core/types';
 import type { CropTransform, OverlaySettings } from '../ui/contract';
 import { effectiveOutputSize } from '../ui/utils/studioMath';
 import { anchoredBox, cropPlacement, referenceScale, watermarkBox } from './exportLayout';
+import { cappedContinuousLayout, continuousExportLayout, numberedSectionFilename } from './continuousExport';
 
 /** Everything the overlay needs, resolved by the caller from the same description the canvas draws. */
 export interface OverlayDraw {
@@ -22,7 +23,7 @@ export interface OverlayDraw {
   contrast: 'light-on-dark' | 'dark-on-light';
 }
 
-export interface V2RenderResult { file: File; width: number; height: number; capped: boolean }
+export interface V2RenderResult { file: File; width: number; height: number; capped: boolean; /** Files in left-to-right order when exporting a continuous split. */ sections?: File[] }
 
 const LINE = 1.375; // Tailwind `leading-snug`, as the canvas uses.
 
@@ -164,17 +165,20 @@ function drawMark(canvas: HTMLCanvasElement, input: OverlayDraw) {
  */
 export async function renderV2Export(
   source: HTMLImageElement, frame: PhotoFrame, size: { width: number; height: number }, crop: CropTransform,
-  profile: ExportProfile, overlay: OverlayDraw | null, date: Date, signal?: AbortSignal,
+  profile: ExportProfile, overlay: OverlayDraw | null, date: Date, signal?: AbortSignal, sectionCount: 1 | 2 = 1,
 ): Promise<V2RenderResult> {
   signal?.throwIfAborted();
   if (!(source.naturalWidth > 0) || !(source.naturalHeight > 0)) throw new Error(`Cannot export ${frame.filename}: the decoded source has invalid pixel dimensions. Reconnect or redevelop the original.`);
   const framing = frame.framing ?? DEFAULT_FRAMING;
   const { width: fw, height: fh } = framedSize(source.naturalWidth, source.naturalHeight, framing);
-  const out = effectiveOutputSize({ ...size, crop }, { width: fw, height: fh });
+  const requested = continuousExportLayout(size.width, size.height, sectionCount);
+  const out = effectiveOutputSize({ width: requested.width, height: requested.height, crop }, { width: fw, height: fh });
+  const layout = cappedContinuousLayout(out.width, out.height, sectionCount);
+  const wasCapped = out.capped || layout.width !== requested.width || layout.height !== requested.height;
   const limit = maxCanvasPixels({ userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints });
-  if (out.width * out.height > limit) throw new Error(`This device cannot safely export ${out.width} × ${out.height} px. Choose a smaller size or export on a desktop. No smaller file was substituted.`);
+  if (layout.width * layout.height > limit) throw new Error(`This device cannot safely export ${layout.width} × ${layout.height} px. Choose a smaller size or export on a desktop. No smaller file was substituted.`);
   // Edit only as many pixels as the output can show: the cover fit times the zoom, never above the picture's own size.
-  const needed = Math.max(out.width / fw, out.height / fh) * crop.zoom;
+  const needed = Math.max(layout.width / fw, layout.height / fh) * crop.zoom;
   const scale = Math.min(1, needed, fitScale(fw, fh, limit));
   const picture = document.createElement('canvas');
   const output = document.createElement('canvas');
@@ -182,7 +186,7 @@ export async function renderV2Export(
     drawFramedPhoto(source, picture, framing, { scale });
     await applyCanvasExportEdit(picture, frame.edit ?? DEFAULT_EDIT, signal, Math.max(fw, fh) * scale, { aspect: fh / fw, view: { x: 0, y: 0, w: 1, h: 1 } });
     signal?.throwIfAborted();
-    output.width = out.width; output.height = out.height;
+    output.width = layout.width; output.height = layout.height;
     draw(output, picture, crop);
     drawBorder(output, crop);
     if (overlay) {
@@ -193,10 +197,30 @@ export async function renderV2Export(
     }
     const name = exportFilename(frame.filename, profile, !frame.isDemo && isRawPreviewFile(frame.filename));
     const mimeType = profile.format === 'png' ? 'image/png' : 'image/jpeg';
-    const blob = await new Promise<Blob | null>((resolve) => output.toBlob(resolve, mimeType, profile.format === 'jpeg' ? profile.quality : undefined));
-    signal?.throwIfAborted();
-    if (!blob || blob.type !== mimeType || blob.size === 0) throw new Error(`Could not encode ${name} at ${out.width} × ${out.height} px.`);
-    return { file: datedExport(blob, name, date), width: out.width, height: out.height, capped: out.capped };
+    // Every section is cut from this SAME fully edited canvas. Never develop or
+    // crop the photograph separately for each side of the seam.
+    const sections: File[] = [];
+    for (const section of layout.sections) {
+      signal?.throwIfAborted();
+      const piece = document.createElement('canvas');
+      try {
+        piece.width = section.width; piece.height = section.height;
+        const context = piece.getContext('2d');
+        if (!context) throw new Error('Canvas unavailable for split export.');
+        context.drawImage(output, section.x, 0, section.width, section.height, 0, 0, section.width, section.height);
+        const blob = await new Promise<Blob | null>((resolve) => piece.toBlob(resolve, mimeType, profile.format === 'jpeg' ? profile.quality : undefined));
+        signal?.throwIfAborted();
+        if (!blob || blob.type !== mimeType || blob.size === 0) {
+          throw new Error(`Could not encode split section ${section.index} at ${section.width} × ${section.height} pixels.`);
+        }
+        const sectionName = numberedSectionFilename(name, section.index, sectionCount);
+        sections.push(datedExport(blob, sectionName, date));
+      } finally {
+        piece.width = 0; piece.height = 0;
+      }
+    }
+    return { file: sections[0], width: layout.sectionWidth, height: layout.height, capped: wasCapped,
+      ...(sectionCount === 2 ? { sections } : {}) };
   } finally {
     picture.width = 0; picture.height = 0; output.width = 0; output.height = 0;
   }
