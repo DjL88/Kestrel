@@ -21,7 +21,27 @@ test('Ctrl/Cmd+Shift adds a range without discarding independent selections', ()
   assert.deepEqual(chooseFormatSelection({ available, selected: ['story'], active: 'original', target: 'wide', shift: true, ctrl: true }).selected,
     ['story', 'original', 'portrait', 'wide']);
 });
-test('an unavailable format never changes the current selection', () => {
+test('an unavailable format never changes a valid current selection', () => {
   assert.deepEqual(chooseFormatSelection({ available, selected: ['portrait'], active: 'portrait', target: 'missing', shift: true }),
     { active: 'portrait', selected: ['portrait'] });
+});
+test('stale and duplicate selected IDs are removed even on an unavailable target', () => {
+  assert.deepEqual(chooseFormatSelection({
+    available, selected: ['deleted', 'portrait', 'portrait', 'gone', 'story'], active: 'deleted', target: 'missing', ctrl: true,
+  }), { active: 'portrait', selected: ['portrait', 'story'] });
+});
+test('invalid anchor falls back to a live selection for Shift range', () => {
+  assert.deepEqual(chooseFormatSelection({
+    available, selected: ['deleted', 'portrait'], active: 'deleted', target: 'story', shift: true,
+  }), { active: 'story', selected: ['portrait', 'wide', 'story'] });
+});
+test('Ctrl+Shift preserves existing order, excludes stale IDs and adds each range member once', () => {
+  assert.deepEqual(chooseFormatSelection({
+    available, selected: ['story', 'deleted', 'story', 'portrait'], active: 'original', target: 'wide', shift: true, ctrl: true,
+  }), { active: 'wide', selected: ['story', 'portrait', 'original', 'wide'] });
+});
+test('empty available list cannot create a phantom selection', () => {
+  assert.deepEqual(chooseFormatSelection({
+    available: [], selected: ['removed'], active: 'removed', target: 'removed', shift: true,
+  }), { active: '', selected: [] });
 });
