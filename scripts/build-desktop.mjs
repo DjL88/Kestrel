@@ -5,14 +5,17 @@
  * The existing fetch script fails closed on missing bytes or SHA-256 mismatch.
  */
 import { spawnSync } from 'node:child_process';
+import { assertReleaseBuildArgs, assertChildSucceeded } from './build-desktop-guard.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+try {
+assertReleaseBuildArgs(process.argv.slice(2));
 const prepared = spawnSync(npm, ['run', 'model:species'], { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' });
-if (prepared.status !== 0) process.exit(prepared.status || 1);
+assertChildSucceeded(prepared, 'Species model preparation');
 const result = spawnSync(npx, ['tauri', 'build', ...process.argv.slice(2)], {
   cwd: root,
   stdio: 'inherit',
@@ -25,4 +28,8 @@ const result = spawnSync(npx, ['tauri', 'build', ...process.argv.slice(2)], {
     KESTREL_DESKTOP_BUILD: '1',
   },
 });
-process.exit(result.status || (result.error ? 1 : 0));
+assertChildSucceeded(result, 'Tauri release build');
+} catch (error) {
+  console.error('DESKTOP RELEASE BLOCKED: ' + (error instanceof Error ? error.message : String(error)));
+  process.exitCode = 1;
+}
