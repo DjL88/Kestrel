@@ -14,14 +14,15 @@ export function chooseFormatSelection({
   available, selected, active, target, shift = false, ctrl = false,
 }: FormatSelectionInput): { active: string; selected: string[] } {
   // A stale catalogue selection must never resurrect deleted formats or duplicate IDs.
-  const valid = new Set(available);
+  const liveAvailable = [...new Set(available.filter((id) => typeof id === 'string' && id.trim().length > 0))];
+  const valid = new Set(liveAvailable);
   const cleanSelected = [...new Set(selected.filter((id) => valid.has(id)))];
-  const cleanActive = valid.has(active) ? active : (cleanSelected[0] ?? available[0] ?? '');
+  const cleanActive = valid.has(active) ? active : (cleanSelected[0] ?? liveAvailable[0] ?? '');
   if (!valid.has(target)) return { active: cleanActive, selected: cleanSelected };
   if (shift) {
-    const anchor = available.indexOf(cleanActive);
-    const index = available.indexOf(target);
-    const range = available.slice(Math.min(anchor < 0 ? index : anchor, index), Math.max(anchor < 0 ? index : anchor, index) + 1);
+    const anchor = liveAvailable.indexOf(cleanActive);
+    const index = liveAvailable.indexOf(target);
+    const range = liveAvailable.slice(Math.min(anchor < 0 ? index : anchor, index), Math.max(anchor < 0 ? index : anchor, index) + 1);
     return { active: target, selected: ctrl ? [...new Set([...cleanSelected, ...range])] : [...new Set(range)] };
   }
   return {
