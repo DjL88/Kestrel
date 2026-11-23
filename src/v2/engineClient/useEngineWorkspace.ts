@@ -741,6 +741,18 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, videoZoom: next } : entry)) }));
   }, [mutate]);
 
+  /** Save each split/rejoin or pan-offset as a genuinely undoable edit. Older
+   * projects used a photo-wide splitFrames flag with no per-format record:
+   * capture its effective two-frame state before changing it, so Undo restores
+   * that layout rather than an invented empty baseline. */
+  const recordSplitChange = (entry: PhotoFrame, next: ReturnType<typeof writeSplitFrameCount>, at: number): PhotoFrame => {
+    const legacy = entry.splitFrames === true
+      ? { 'orig-3x2': { enabled: true, offset: readSplitPanOffset(entry.splitPanOffset) } }
+      : {};
+    const before = entry.formatSplits ?? legacy;
+    return recordEdit({ ...entry, formatSplits: before }, { formatSplits: next }, at);
+  };
+
   /** Split only the active FORMAT; other outputs of the photo are unaffected. */
   const toggleSplitFrames = useCallback((photoId: string) => {
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
@@ -748,7 +760,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!frame || !sizeId) return;
     const next = toggleFormatSplit(frame.formatSplits ?? (frame.splitFrames === true ? { 'orig-3x2': { enabled: true, offset: readSplitPanOffset(frame.splitPanOffset) } } : undefined), sizeId);
     const at = Date.now();
-    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, formatSplits: next } : entry)) }));
+    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? recordSplitChange(entry, next, at) : entry)) }));
   }, [mutate, stub.store.activeSizeId]);
 
   /** One format's persisted 1/2/3 continuous split, used by both V2 canvas and export planner. */
@@ -765,7 +777,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const next = writeSplitFrameCount(current, sizeId, count);
     const at = Date.now();
     mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at },
-      frames: state.frames.map((entry) => entry.id === photoId ? { ...entry, formatSplits: next } : entry) }));
+      frames: state.frames.map((entry) => entry.id === photoId ? recordSplitChange(entry, next, at) : entry) }));
     setNotice(count === 1 ? 'Format rejoined into one frame.' : `Format will export as ${count} continuous frames.`);
   }, [mutate]);
 
@@ -776,7 +788,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!frame || !sizeId) return;
     const next = setFormatSplitOffset(frame.formatSplits ?? (frame.splitFrames === true ? { 'orig-3x2': { enabled: true, offset: readSplitPanOffset(frame.splitPanOffset) } } : undefined), sizeId, offset);
     const at = Date.now();
-    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, formatSplits: next } : entry)) }));
+    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? recordSplitChange(entry, next, at) : entry)) }));
   }, [mutate, stub.store.activeSizeId]);
 
   /** Reuse actual area/gradient masks from the shared engine. Sky detection and brush painting are intentionally gated. */
