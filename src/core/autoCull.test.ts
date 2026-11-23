@@ -297,3 +297,18 @@ test('unknown detector labels abstain even when confidence and sharpness are hig
   }
   assert.equal(scoreWithSubject(baseResult, { label: 'bird', score: 0.99, size: 900, sharpness: 30 }).decision, 'keep');
 });
+
+test('ambiguous subject labels and control characters never create confident keepers', () => {
+  const valid = { label: 'bird', score: 0.98, size: 500, sharpness: 24 };
+  for (const label of [
+    'unknown bird', 'Unidentified aircraft', 'unrecognised animal',
+    'other species', 'none detected', 'n/a bird', 'bird\\nunknown', 'bird\\u0000',
+  ]) {
+    const result = scoreWithSubject(baseResult, { ...valid, label });
+    assert.deepEqual([result.decision, result.confidence, result.reason],
+      [null, 'low', 'noSubject'], JSON.stringify(label));
+  }
+  for (const label of ['bird', 'aeroplane', 'red kite']) {
+    assert.equal(scoreWithSubject(baseResult, { ...valid, label }).decision, 'keep', label);
+  }
+});
