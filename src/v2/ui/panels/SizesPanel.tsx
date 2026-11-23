@@ -212,30 +212,30 @@ export default function SizesPanel({
             }}
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-[var(--text-primary)]">Original — permanent format</span>
-              <span className="text-[11px] text-[var(--text-muted)]">Hide with the checkbox; never deleted</span>
+              <span className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.formats.originalHeading}</span>
+              <span className="text-[11px] text-[var(--text-muted)]">{STRINGS.formats.originalVisibility}</span>
             </div>
             <p className="text-[11px] text-[var(--text-secondary)]">
-              Defaults to the imported dimensions when known. Changing the output canvas does not change your imported file. Add the separate 3:2 format below if needed.
+              {STRINGS.formats.originalHelp}
             </p>
             <div className="flex flex-wrap items-end gap-2">
               <label className="flex flex-col gap-1 text-[11px] text-[var(--text-secondary)]">
-                Width (px)
+                {STRINGS.formats.originalWidth}
                 <input type="number" min="1" max="20000" step="1" value={originalW}
-                  aria-label="Original output width" onChange={(event) => setOriginalW(Number(event.target.value))}
+                  aria-label={STRINGS.formats.originalWidthLabel} onChange={(event) => setOriginalW(Number(event.target.value))}
                   className="h-9 w-28 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 font-mono text-xs text-[var(--text-primary)]" />
               </label>
               <label className="flex flex-col gap-1 text-[11px] text-[var(--text-secondary)]">
-                Height (px)
+                {STRINGS.formats.originalHeight}
                 <input type="number" min="1" max="20000" step="1" value={originalH}
-                  aria-label="Original output height" onChange={(event) => setOriginalH(Number(event.target.value))}
+                  aria-label={STRINGS.formats.originalHeightLabel} onChange={(event) => setOriginalH(Number(event.target.value))}
                   className="h-9 w-28 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 font-mono text-xs text-[var(--text-primary)]" />
               </label>
               <button type="submit"
                 disabled={!Number.isSafeInteger(originalW) || !Number.isSafeInteger(originalH) || originalW < 1 || originalH < 1 || originalW > 20000 || originalH > 20000}
-                className="h-9 rounded-[var(--radius-sm)] bg-[var(--brand-accent)] px-3 text-xs font-semibold text-[var(--text-on-accent)] disabled:opacity-40">Apply size</button>
+                className="h-9 rounded-[var(--radius-sm)] bg-[var(--brand-accent)] px-3 text-xs font-semibold text-[var(--text-on-accent)] disabled:opacity-40">{STRINGS.formats.originalApply}</button>
               <button type="button" onClick={() => onResetOriginalOutputSize(photo.id)}
-                className="h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs text-[var(--text-secondary)]">Reset to imported</button>
+                className="h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs text-[var(--text-secondary)]">{STRINGS.formats.originalReset}</button>
             </div>
           </form>
         )}
