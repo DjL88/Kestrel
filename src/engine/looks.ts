@@ -80,6 +80,10 @@ export interface LookStepResult {
 export interface LookResult {
   look: Pick<Look, 'id' | 'name'>;
   steps: LookStepResult[];
+  /** The final whole-photo recipe containing only verified, accepted Look steps. Consumers may apply it as one undoable edit. */
+  combinedEdit: Partial<PhotoEdit>;
+  /** The subject masks accepted into the same final rendering; rejected attempts never appear here. */
+  combinedMasks: Mask[];
   finalPixels: Pixels;
 }
 
@@ -141,7 +145,13 @@ export async function runLook(look: Look, input: LookRenderInput, runner: Engine
     }
   }
 
-  return { look: { id: look.id, name: look.name }, steps: results, finalPixels };
+  return {
+    look: { id: look.id, name: look.name },
+    steps: results,
+    combinedEdit: acceptedEdit,
+    combinedMasks: acceptedMasks,
+    finalPixels,
+  };
 }
 
 /** Builds a Look a person saved from the editor - same shape the engine itself uses, so a hand-made Look
