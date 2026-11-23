@@ -4,6 +4,7 @@ import { readVideoZoom } from './videoZoomOps';
 import { readSplitFrames, readSplitPanOffset } from './splitFrameOps';
 import { readFormatSplits } from './formatSplitOps';
 import { describeHistory } from './historySteps';
+import { readFormatHistory } from './formatHistory';
 import type { PhotoFrame, ShootDescriptor } from '../../core/types';
 import { computeCullCounts } from '../../core/cullingEngine';
 import type { Photo, Project, TaskInfo, TileState } from '../ui/contract';
@@ -128,6 +129,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     masks: masksToLayers(frame.edit?.masks),
     ...(frame.burstGroupId && frame.burstCount > 1 ? { burst: { groupId: frame.burstGroupId, index: frame.burstIndex, count: frame.burstCount, ungrouped: Boolean(frame.burstUngrouped), ...(typeof frame.cullScore === 'number' ? { score: frame.cullScore } : {}) } } : {}),
     ...(describeHistory(frame.editHistory) ? { editHistory: describeHistory(frame.editHistory) } : {}),
+    ...(frame.formatHistory ? { formatHistory: readFormatHistory(frame.formatHistory).events.map(({ formatId, kind, at, parentFormatId, forkEditCursor }) => ({ formatId, kind, at, ...(parentFormatId ? { parentFormatId } : {}), ...(forkEditCursor !== undefined ? { forkEditCursor } : {}) })) } : {}),
     ...(watermarkAuto ? { watermarkAuto } : {}),
     ...(histogram ? { histogram } : {}),
     assistCritique: assistCritiqueFor(assist),
