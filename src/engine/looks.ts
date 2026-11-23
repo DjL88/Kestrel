@@ -22,9 +22,9 @@ import { runEngineTask } from './taskManager';
  * (`enhancementVerifier.ts`), so a step that deliberately softens the background is judged on whether it
  * protected the subject, not on the background change it was asked to make.
  *
- * NOT yet done: each step still renders from the Look's ORIGINAL input image rather than chaining onto
- * the previous step's actual pixel output, so "do this, THEN that" today means "apply these edits
- * together as one combined pass", not a true multi-pass pipeline where step 2 sees step 1's result. A
+ * Each accepted step is accumulated into a combined recipe rendered against the ORIGINAL image, rather than chaining onto
+ * the previous step's pixels. "Do this, THEN that" means "apply these edits together as one
+ * combined pass", not a true multi-pass pipeline where step 2 sees step 1's result. A
  * single combined pass is enough to express every Look below (they are all one coherent whole-photo +
  * subject edit), but a Look whose later step genuinely depends on an earlier step's rendered pixels
  * (rather than just a different numeric target) would need that chaining built first.
@@ -99,14 +99,14 @@ function scaleLocalEdit<T extends object>(edit: T, scale: number): T {
  * overshoot - `denoiseAction.ts`'s single-action loop, generalised to a named sequence of steps that can
  * each touch different PhotoEdit fields and each judge itself against the subject or the whole frame.
  *
- * Every step is verified against `input.original`, not the previous step's output: steps are not yet
- * chained renders (see the file-level limitation above), and a step's own action should be judged on
- * its own result, not inherit a penalty from an earlier step that failed to settle. `finalPixels` on the
- * returned result is still the LAST step's actual render, for whatever the caller shows the person. */
+ * Each trial is rendered as the cumulative accepted recipe against the original pixels. Rejected
+ * steps never enter the cumulative recipe. finalPixels therefore represents all accepted steps. */
 export async function runLook(look: Look, input: LookRenderInput, runner: EngineRunner = 'device'): Promise<LookResult> {
   const maxRetries = input.maxRetriesPerStep ?? 2;
   const results: LookStepResult[] = [];
   let finalPixels = input.original;
+  let acceptedEdit: Partial<PhotoEdit> = {};
+  let acceptedMasks: Mask[] = [];
 
   for (const step of look.steps) {
     const stepResult = await runEngineTask(step.capability, runner, `${look.name}: ${step.label}`, async () => {
@@ -123,7 +123,7 @@ export async function runLook(look: Look, input: LookRenderInput, runner: Engine
           const mask = createSubjectMask(input.subject.maskId, input.subject.grid, input.subject.framingKey, input.subject.confidence, input.subject.detail);
           masks = [{ ...mask, edit: { ...mask.edit, ...subjectEdit } }];
         }
-        after = await input.render(background, masks);
+        after = await input.render({ ...acceptedEdit, ...background }, [...acceptedMasks, ...masks]);
         const detailScope = input.subject && subjectEdit ? 'subject' : 'frame';
         verification = verifyEdit(input.original, after, input.subject?.alpha, detailScope);
         if (verification.ok || attempts === maxRetries) break;
@@ -134,7 +134,11 @@ export async function runLook(look: Look, input: LookRenderInput, runner: Engine
     });
 
     results.push({ label: step.label, edit: stepResult.edit, masks: stepResult.masks, verification: stepResult.verification, attempts: stepResult.attempts });
-    finalPixels = stepResult.pixels;
+    if (stepResult.verification.ok) {
+      acceptedEdit = { ...acceptedEdit, ...stepResult.edit };
+      acceptedMasks = [...acceptedMasks, ...stepResult.masks];
+      finalPixels = stepResult.pixels;
+    }
   }
 
   return { look: { id: look.id, name: look.name }, steps: results, finalPixels };
