@@ -57,6 +57,7 @@ import { setFormatSplitOffset, setSplitFrameCount as writeSplitFrameCount, toggl
 import { readSplitPanOffset } from './splitFrameOps';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, toggleMask } from './maskOps';
 import { verifyFrameMasks } from './maskVerify';
+import { commitSubjectMask, subjectMaskTarget } from './subjectMaskCommit';
 import { createMask, createSubjectMask, framingKey, hasActiveMasks } from '../../core/maskTypes';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFraming';
 import { GUIDED_RENDER_EDGE } from '../../core/subjectGuide';
@@ -795,8 +796,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const addMask = useCallback(async (photoId: string, type: 'subject' | 'sky' | 'background' | 'brush' | 'area' | 'gradient') => {
     if (type === 'sky') { setNotice('Sky detection is unavailable. Add a manual Gradient instead.'); return; }
     if (type === 'brush') { setNotice('Brush painting is not connected to the canvas yet. Use an adjustable Oval or Gradient.'); return; }
-    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && !candidate.removedAt);
-    if (!frame) return;
+    const project = stateRef.current;
+    const frame = project?.frames.find((candidate) => candidate.id === photoId && !candidate.removedAt);
+    if (!project || !frame) return;
     if (!canAddMask(frame.edit?.masks)) { setNotice('This photo has the most masks it can hold. Remove one first.'); return; }
     if (type === 'area' || type === 'gradient') {
       const shape = createMask(type === 'area' ? 'radial' : 'linear', newId());
@@ -805,8 +807,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       setNotice(`Added an adjustable ${type === 'area' ? 'Oval area' : 'Gradient'} mask. Expand its layer to position it, then move an adjustment slider to affect the photograph. Undo is available.`);
       return;
     }
-    if (maskInFlight.current.has(photoId)) return;
-    maskInFlight.current.add(photoId);
+    const jobKey = JSON.stringify([project.shoot.id, photoId]);
+    if (maskInFlight.current.has(jobKey)) return;
+    maskInFlight.current.add(jobKey);
     const task = tasks.start(type === 'subject' ? 'Finding the subject' : 'Finding the background');
     try {
       const image = await loadExportSource(frame, provider.current!);
@@ -817,8 +820,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const { grid, assessment, detail, boxFinding } = await detectSubjectGuided(framed);
       if (!assessment.usable) { task.finish('No clear subject'); setNotice(assessment.reason); return; }
       const mask = { ...createSubjectMask(newId(), grid, framingKey(framing), assessment.confidence, detail), invert: type === 'background', feather: 0.5 };
-      // Re-read the photo: its edit may have changed while the subject was being found.
-      editFrames([photoId], (latest) => ({ ...(latest.edit ?? DEFAULT_EDIT), masks: [...(latest.edit?.masks ?? []), mask] }));
+      const latest = stateRef.current;
+      if (!latest || !subjectMaskTarget(latest, project.shoot.id, frame)) {
+        task.finish('Photo or editing context changed');
+        setNotice('The mask was discarded because the photo changed or its layers are full. Try detecting the subject again.');
+        return;
+      }
+      const at = Date.now();
+      mutate(current => commitSubjectMask(current, project.shoot.id, frame, mask, at));
       task.finish(assessment.reason);
       // Advisory only: the segmentation model's own usability check above is the sole gate on creating this
       // mask, same as before - this never blocks or changes the mask. When the guided path actually steered
@@ -837,9 +846,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const message = reason instanceof Error ? reason.message : 'Could not find the subject.';
       task.fail(message); setNotice(message);
     } finally {
-      maskInFlight.current.delete(photoId);
+      maskInFlight.current.delete(jobKey);
     }
-  }, [editFrames]);
+  }, [editFrames, mutate]);
   const editMasks = useCallback((photoId: string, change: (masks: ReturnType<typeof removeMask>) => ReturnType<typeof removeMask>) =>
     editFrames([photoId], (frame) => ({ ...(frame.edit ?? DEFAULT_EDIT), masks: change(frame.edit?.masks ?? []) })), [editFrames]);
 
