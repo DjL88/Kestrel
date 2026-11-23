@@ -161,3 +161,15 @@ test('pre-migration history with no split snapshots preserves current layout on 
   assert.deepEqual(stepEdit(legacy, -1).formatSplits, currentSplit);
   assert.deepEqual(jumpToStep(legacy, 0).formatSplits, currentSplit);
 });
+
+
+test('ordinary edits never erase a legacy two-frame format when formatSplits was absent', () => {
+  const legacy = { id: 'old-split', splitFrames: true, splitPanOffset: 11 } as PhotoFrame;
+  const edited = recordEdit(legacy, { edit: { exposure: 0.5, warmth: 0, colour: 0 } }, 1000);
+  const expected = { 'orig-3x2': { enabled: true, offset: 11 } };
+  assert.deepEqual(edited.formatSplits, expected);
+  const restored = JSON.parse(JSON.stringify(edited)) as PhotoFrame;
+  assert.deepEqual(stepEdit(restored, -1).formatSplits, expected);
+  assert.deepEqual(stepEdit(restored, 1).formatSplits, expected);
+  assert.deepEqual(jumpToStep(restored, 0).formatSplits, expected);
+});
