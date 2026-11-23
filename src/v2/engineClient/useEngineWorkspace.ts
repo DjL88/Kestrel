@@ -830,7 +830,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, [assists, editFrames]);
 
   // Co-pilot and Auto-pilot look at the photo on the canvas, on this device, one at a time. Solo never does.
-  const assistMode = savedUi.assistMode ?? stub.store.assistMode;
+  const assistMode = state?.settings?.pilotMode ?? savedUi.assistMode ?? stub.store.assistMode;
   const assistProjectId = state?.shoot.id;
   const ongoingLocalReview = savedUi.settings.ongoingCritique ?? stub.store.settings.ongoingCritique;
   useEffect(() => {
@@ -1086,8 +1086,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     },
     reconnectOriginal: () => reconnectOriginal(),
     openProject: (id) => { void openProject(id); },
-    createProject: (name) => {
-      const created = createEmptyProject(`project-${newId()}`, name.trim() || 'Untitled project');
+    createProject: (name, options) => {
+      const created = createEmptyProject(`project-${newId()}`, name.trim() || 'Untitled project', options);
       void catalogue.current!.saveProject(created).then(() => enterProject(created), () => setNotice('InFlight could not create the project.'));
     },
     eraseDeviceData: () => {
