@@ -61,13 +61,14 @@ describe('suggestDeepReviewLook', () => {
   it('refuses a Look when the scene reading contradicts the detector', () => {
     const conflicting = result({ corroboration: { state: 'conflict', reading: 'aircraft', detector: 'bird' } });
     assert.equal(suggestDeepReviewLook(conflicting), null);
+    assert.equal(suggestDeepReviewLook(conflicting, true), null);
     assert.match(describeDeepReview(conflicting, suggestDeepReviewLook(conflicting)), /unresolved/);
     assert.doesNotMatch(describeDeepReview(conflicting, suggestDeepReviewLook(conflicting)), /Suggested:/);
   });
 
   it('refuses a Look when no subject is found or the detector is unsure', () => {
-    assert.equal(suggestDeepReviewLook(result({ finding: null })), null);
-    assert.equal(suggestDeepReviewLook(result({ trust: { frameId: 'f1', decision: null, confidence: 'low', score: 20, reason: 'subjectSoft' } })), null);
+    assert.equal(suggestDeepReviewLook(result({ finding: null }), true), null);
+    assert.equal(suggestDeepReviewLook(result({ trust: { frameId: 'f1', decision: null, confidence: 'low', score: 20, reason: 'subjectSoft' } }), true), null);
   });
 });
 

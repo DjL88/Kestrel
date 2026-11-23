@@ -95,8 +95,10 @@ export function candidatesForSuggestedLook(look: Look | null): DeepVisionCandida
 }
 
 /** A disagreement is not permission to offer a subject-aware edit. */
-export function suggestDeepReviewLook(detection: SubjectDetectActionResult): Look | null {
-  if (detection.corroboration.state === 'conflict') return null;
+export function suggestDeepReviewLook(detection: SubjectDetectActionResult, hasUsableSubjectMask = false): Look | null {
+  // A detector box is not a pixel mask. Only explicit, usable mask evidence
+  // permits a subject-local Look; uncertainty and scene disagreement still veto it.
+  if (!hasUsableSubjectMask || detection.corroboration.state === 'conflict') return null;
   return suggestLookForPhoto(detection.trust, Boolean(detection.finding));
 }
 
