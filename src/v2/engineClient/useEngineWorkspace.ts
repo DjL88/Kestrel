@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { applyCullConfidence, applyDecisionWithHistory, redoDecision, removeFromLibrary, undoDecision } from '../../core/cullingEngine';
+import { applyCullConfidence, applyDecisionWithHistory, redoDecision, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
 import { jumpToStep, recordEdit, stepEdit } from '../../core/editHistory';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { sameRecipe } from '../../core/naturalAuto';
@@ -43,9 +43,12 @@ import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
 import { planExport } from './exportOps';
 import { TEMPLATES_KEY, addTemplate, deleteTemplate, overlayFromTemplate, readTemplates, renameTemplate, type OverlayTemplate } from './overlayTemplates';
-import { addFormat, applyFormats, readFormats, removeFormat, toggleFormat, validCustomSize } from './formatOps';
+import { addFormat, applyFormats, readFormats, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize } from './formatOps';
+import { patchVideoZoom } from './videoZoomOps';
+import { setSplitPanOffset as setSplitPanOffsetRaw, toggleSplitFrames as toggleSplitFramesRaw } from './splitFrameOps';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, toggleMask } from './maskOps';
-import { createSubjectMask, framingKey } from '../../core/maskTypes';
+import { verifyFrameMasks } from './maskVerify';
+import { createSubjectMask, framingKey, hasActiveMasks } from '../../core/maskTypes';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFraming';
 import { GUIDED_RENDER_EDGE } from '../../core/subjectGuide';
 import { detectSubjectGuided } from '../../providers/subjectDetector';
@@ -64,9 +67,7 @@ import { surfaceBridge } from './surfaceBridge';
 /** Actions that change a photo's edit, sizes, overlay, masks or assist state. They are not connected to the real
  * recipe yet, so they say so instead of silently changing sample data. */
 const NOT_CONNECTED = [
-  'setActiveGroup', 'addEditGroup', 'renameEditGroup', 'toggleSizeLinked',
-  'toggleSplitFrames', 'setSplitPanOffset',
-  'updateVideoZoom',
+  'setActiveGroup', 'addEditGroup', 'renameEditGroup',
 ] as const satisfies readonly (keyof WorkspaceActions)[];
 
 /** What the export needs to draw the overlay exactly as the canvas does, read from the latest render. */
@@ -195,6 +196,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const autoInFlight = useRef(new Set<string>());
   const cullController = useRef<AbortController | null>(null);
   const [importing, setImporting] = useState(false);
+  const [removedOpen, setRemovedOpen] = useState(false);
   const stateRef = useRef<CullingState | null>(null);
   stateRef.current = state;
   const maskInFlight = useRef(new Set<string>());
@@ -541,6 +543,52 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [histogramKey]);
 
+  // Once the active photo's masks settle (debounced, same idea as the histogram above but a real pixel
+  // render so it waits for a pause rather than running on every drag tick), run them through the real
+  // verified-and-retried engine action (maskVerify.ts's verifyFrameMasks -> engine/maskAction.ts) instead
+  // of trusting whatever a slider was left at. Scoped to the one open photo, same boundary the histogram
+  // and watermark-tone checks already draw. A mask whose effect held up changes nothing here (attempts
+  // === 1, the common case); one that did not is written back at the strength that actually passed, with
+  // a plain notice - never left silently at a value the check could not confirm.
+  const maskVerifyKey = activeFrame && hasActiveMasks(activeFrame.edit?.masks) ? `${activeFrame.id}|${JSON.stringify(activeFrame.edit!.masks)}` : null;
+  const maskVerifyRunning = useRef<string | null>(null);
+  useEffect(() => {
+    if (!maskVerifyKey || !activeFrame) return;
+    let live = true;
+    const frame = activeFrame;
+    const photoId = frame.id;
+    const key = maskVerifyKey;
+    const timer = window.setTimeout(() => {
+      if (!live || maskVerifyRunning.current === key) return;
+      maskVerifyRunning.current = key;
+      (async () => {
+        try {
+          const image = await loadExportSource(frame, provider.current!);
+          if (!live) return;
+          const outcome = await verifyFrameMasks(image, frame);
+          // Only the one case worth acting on: the engine actually had to scale something down. A first-try
+          // pass (attempts === 1) is the masks already held up - nothing to write back or tell anyone.
+          if (!live || !outcome || outcome.attempts <= 1) return;
+          // Re-read: the photo (or its masks) may have changed again while this ran. If so, a newer run
+          // will judge the newer masks; this stale result is dropped rather than overwriting it.
+          const latest = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+          if (!latest || JSON.stringify(latest.edit?.masks ?? []) !== JSON.stringify(frame.edit?.masks ?? [])) return;
+          editFrames([photoId], (current) => ({ ...(current.edit ?? DEFAULT_EDIT), masks: outcome.masks }));
+          setNotice(outcome.verification.ok
+            ? `A mask's strength was reduced to keep its effect plausible${outcome.verification.reasons.length ? `: ${outcome.verification.reasons.join(' ')}` : '.'}`
+            : `A mask's effect still looked too strong after retrying, so it was left at the gentlest version tried${outcome.verification.reasons.length ? `: ${outcome.verification.reasons.join(' ')}` : '.'}`);
+        } catch {
+          // A safety net, not a blocker: if the check itself fails, editing continues with whatever the
+          // sliders already show, same as any other best-effort engine capability.
+        } finally {
+          if (maskVerifyRunning.current === key) maskVerifyRunning.current = null;
+        }
+      })();
+    }, 500);
+    return () => { live = false; window.clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maskVerifyKey]);
+
   /** Each format's crop lives with the photo (saved, backed up, used by the export). It is not an edit, so it is not in edit history. */
   const changeCrops = useCallback((photoId: string, sizeIds: string[], change: (crop: ReturnType<typeof readCrops>[string] | undefined) => ReturnType<typeof readCrops>[string]) => {
     const at = Date.now();
@@ -566,6 +614,42 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const at = Date.now();
     mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, formats: next, ...(crops ? { sizeCrops: crops(entry.sizeCrops) } : {}) } : entry)) }));
     return true;
+  }, [mutate]);
+
+  /** Flip a format between paper-clipped to the active edit group and independent. Only that one photo's choice changes. */
+  const toggleSizeLinked = useCallback((photoId: string, sizeId: string) => {
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+    if (!frame) return;
+    const next = toggleSizeLinkedRaw(frame.sizeLinked, sizeId);
+    const at = Date.now();
+    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, sizeLinked: next } : entry)) }));
+  }, [mutate]);
+
+  /** Change a photo's video pan/zoom (Ken Burns) settings. Only the given fields change; the rest are kept. */
+  const updateVideoZoom = useCallback((photoId: string, patch: Parameters<typeof patchVideoZoom>[1]) => {
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+    if (!frame) return;
+    const next = patchVideoZoom(frame.videoZoom, patch);
+    const at = Date.now();
+    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, videoZoom: next } : entry)) }));
+  }, [mutate]);
+
+  /** Flip the photo's (single, synthetic) edit group between one pane and a split, two-pane view. */
+  const toggleSplitFrames = useCallback((photoId: string) => {
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+    if (!frame) return;
+    const next = toggleSplitFramesRaw(frame.splitFrames);
+    const at = Date.now();
+    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, splitFrames: next } : entry)) }));
+  }, [mutate]);
+
+  /** How far each pane is panned when split, as a percentage (-25 to 25). */
+  const setSplitPanOffset = useCallback((photoId: string, offset: number) => {
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+    if (!frame) return;
+    const next = setSplitPanOffsetRaw(offset);
+    const at = Date.now();
+    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, splitPanOffset: next } : entry)) }));
   }, [mutate]);
 
   /** Find the subject on this device and add it (or, for the background, its inverse) as a mask with no adjustments yet.
@@ -895,6 +979,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clearSelection: () => setSelected(activeId ? [activeId] : []),
     setDecision: (ids, decision) => decide(ids, decision),
     removePhotos: (ids) => removePhotos(ids),
+    setRemovedOpen: (open) => setRemovedOpen(open),
+    restorePhotos: (ids) => {
+      mutate((current) => restoreRemoved(current, ids));
+    },
     toggleFlag: (ids) => mutate((current) => ids.reduce((next, id) => {
       const frame = next.frames.find((candidate) => candidate.id === id);
       return frame ? applyDecisionWithHistory(next, id, frame.decision === 'keep' ? 'unreviewed' : 'keep', { allowAdvance: false }) : next;
@@ -961,6 +1049,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     deleteOverlayTemplate: (templateId) => updateTemplates(deleteTemplate(templates, templateId)),
     toggleSizeEnabled: (photoId, sizeId) => changeFormats(photoId, (raw) => toggleFormat(raw, sizeId,
       applyFormats(createDefaultSizes(), undefined).find((size) => size.id === sizeId)?.enabled ?? true)),
+    toggleSizeLinked,
+    updateVideoZoom,
+    toggleSplitFrames,
+    setSplitPanOffset,
     addCustomSize: (photoId, label, width, height) => {
       if (!validCustomSize(width, height)) { setNotice('That size is not usable. Use whole pixels, from 1 to 20,000.'); return; }
       const id = `custom-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 10)}`;
@@ -1071,6 +1163,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: [...INITIAL_WATERMARKS, ...watermarkLibrary], auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], { assist: assists[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed })), [state?.frames, urls, assists, watermarkAuto, histograms, pixelSizes]);
+  // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo
+  // (ROADMAP.md, "Removed photos panel" next item). Thumbnails are not fetched for them; the filename is enough
+  // to recognise one in a short list, and restoring returns it to the normal, already-thumbnailed photo list.
+  const removedPhotos = useMemo(() => removedFrames(state?.frames ?? []).map((frame) => frameToPhoto(frame, urls[frame.id], {})), [state?.frames, urls]);
   const store: WorkspaceStore = useMemo(() => ({
     ...stub.store,
     fonts: mergeFonts(deviceFonts),
@@ -1083,6 +1179,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     screen, hubState, projects,
     activeProjectId: state?.shoot.id ?? null,
     photos,
+    removedPhotos,
+    removedOpen,
     activePhotoId: activeId,
     selectedPhotoIds: selected,
     reviewingPhotoIds: reviewingIds,
@@ -1092,7 +1190,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clipboardRecipe: clipboard,
     PhotoSurface: EngineSurface,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
-  }), [stub.store, can, savedUi, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, activeId, selected, taskList, taskHistory, clock, notice]);
+  }), [stub.store, can, savedUi, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice]);
 
   return { store, actions };
 }

@@ -428,6 +428,10 @@ export interface WorkspaceStore {
   canvasZoom: number; // 0.5 to 3.0
   isFullScreen: boolean;
   exportOpen: boolean;
+  /** Photos moved to Trash (removed from the catalogue, original untouched) that can be browsed and restored
+   * without walking back through per-photo Undo. Empty once nothing is removed. */
+  removedPhotos: Photo[];
+  removedOpen: boolean;
   settingsOpen: boolean;
   settingsTab: SettingsTabId;
   activeMaskTool: 'subject' | 'sky' | 'background' | 'brush' | 'eraser' | 'area';
@@ -554,6 +558,11 @@ export interface WorkspaceActions {
   clearCompletedTasks: () => void;
   setExportOpen: (open: boolean) => void;
   runExport: (request: ExportRequest) => void;
+
+  /** Open or close the Removed photos panel (browse Trash and restore without Undo). */
+  setRemovedOpen: (open: boolean) => void;
+  /** Brings photos back from Trash into the catalogue. Ignores any id that is not currently removed. */
+  restorePhotos: (photoIds: string[]) => void;
 
   // Shell Layout & View Controls
   setActivePanel: (panelId: PanelId | null) => void;

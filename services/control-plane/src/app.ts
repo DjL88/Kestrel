@@ -369,12 +369,12 @@ export function createApp(options: AppOptions) {
   }
 
   /** Reserve estimated metered spend; refuse with 503 when the month's ceiling would be passed. Returns the refund. */
-  async function reserveSpend(pence: number): Promise<() => Promise<void>> {
+  async function reserveSpend(pence: number, reservedAtMs = now()): Promise<() => Promise<void>> {
     const sp = options.spend;
     if (!sp) return async () => undefined;
-    if (!(await sp.guard.reserve(now(), pence, sp.ceilingPence))) throw new ApiError(503, 'SPEND_CEILING_REACHED', 'This month\'s spending limit for the online helper and cloud processing has been reached. Local work is unaffected.', true);
+    if (!(await sp.guard.reserve(reservedAtMs, pence, sp.ceilingPence))) throw new ApiError(503, 'SPEND_CEILING_REACHED', 'This month\'s spending limit for the online helper and cloud processing has been reached. Local work is unaffected.', true);
     let done = false;
-    return async () => { if (done) return; done = true; await sp.guard.refund(now(), pence); };
+    return async () => { if (done) return; done = true; await sp.guard.refund(reservedAtMs, pence); };
   }
 
   async function aiCall<T>(req: Request, work: (provider: AiProvider, image: string) => Promise<T>): Promise<T> {
@@ -424,8 +424,9 @@ export function createApp(options: AppOptions) {
     if (body.userConsent !== true) throw new ApiError(400, 'CONSENT_REQUIRED', 'InFlight needs your permission before sending a photo to be processed.');
     const cloud = await cloudGate(claims.sub);
     if (body.inputBytes > cloud.maxInputBytes) throw new ApiError(413, 'CLOUD_INPUT_TOO_LARGE', 'This file is larger than cloud processing accepts.');
-    const refundSpend = await reserveSpend(options.spend?.cloudJobPence ?? 0).catch(async (e) => { await audit(claims.sub, 'cloud.job.create', 'denied', 'spend ceiling'); throw e; });
-    if (!(await cloud.ledger.reserve(claims.sub, now(), cloud.jobsPerPeriod, QUOTA_PERIOD_MS))) {
+    const reservedAtMs = now();
+    const refundSpend = await reserveSpend(options.spend?.cloudJobPence ?? 0, reservedAtMs).catch(async (e) => { await audit(claims.sub, 'cloud.job.create', 'denied', 'spend ceiling'); throw e; });
+    if (!(await cloud.ledger.reserve(claims.sub, reservedAtMs, cloud.jobsPerPeriod, QUOTA_PERIOD_MS))) {
       await refundSpend();
       await audit(claims.sub, 'cloud.job.create', 'denied', 'quota');
       throw new ApiError(429, 'CLOUD_QUOTA_EXHAUSTED', 'This account has used its cloud processing allowance for this period.');
@@ -433,11 +434,11 @@ export function createApp(options: AppOptions) {
     const jobId = uuid();
     try {
       const upload = await cloud.runner.createUpload(jobId, body.inputBytes);
-      await cloud.ledger.put({ jobId, accountId: claims.sub, kind: body.kind, inputBytes: body.inputBytes, status: 'awaiting-upload', createdAtMs: now(), consentAtMs: now() });
+      await cloud.ledger.put({ jobId, accountId: claims.sub, kind: body.kind, inputBytes: body.inputBytes, status: 'awaiting-upload', createdAtMs: reservedAtMs, consentAtMs: reservedAtMs });
       await audit(claims.sub, 'cloud.job.create', 'allowed', `${body.kind} ${jobId}`);
       return { status: 200, body: { jobId, uploadUrl: upload.uploadUrl, expiresAtMs: upload.expiresAtMs } };
     } catch (error) {
-      await cloud.ledger.refund(claims.sub); // A job that never started costs nothing.
+      await cloud.ledger.refund(claims.sub, reservedAtMs); // A job that never started costs nothing.
       await refundSpend();
       await cloud.runner.deleteInput(jobId).catch(() => undefined);
       throw new ApiError(502, 'CLOUD_RUNNER_FAILED', 'Cloud processing could not start. Nothing was uploaded or charged.', true);
@@ -769,7 +770,7 @@ export function createApp(options: AppOptions) {
       method: 'GET', path: '/v1/cloud/jobs/:id', summary: 'Status of one of your cloud processing jobs; a signed result URL once ready', auth: 'user',
       handler: async (req, params) => {
         const { cloud, record } = await cloudJobOwned(req, params.id!);
-        let current = record;
+        let status = record.status;
         let resultUrl: string | undefined;
         if (record.status === 'running') {
           let p = await cloud.runner.poll(record.jobId);
@@ -778,17 +779,22 @@ export function createApp(options: AppOptions) {
           if (p.state !== 'running') {
             // The job has ended: the input goes now, not at finish or at the lifecycle backstop.
             await cloud.runner.deleteInput(record.jobId);
-            current = { ...record, status: p.state };
-            await cloud.ledger.put(current);
-            if (p.state === 'failed') { await cloud.ledger.refund(record.accountId); if (options.spend) await options.spend.guard.refund(now(), options.spend.cloudJobPence); } // a failed job costs nothing; the status change makes this happen once
-            await audit(record.accountId, 'cloud.job.end', 'allowed', `${record.jobId} ${p.state}`);
+            if (await cloud.ledger.transition(record.jobId, 'running', p.state)) {
+              if (p.state === 'failed') {
+                await cloud.ledger.refund(record.accountId, record.createdAtMs);
+                if (options.spend) await options.spend.guard.refund(record.createdAtMs, options.spend.cloudJobPence);
+              }
+              await audit(record.accountId, 'cloud.job.end', 'allowed', `${record.jobId} ${p.state}`);
+            }
+            status = (await cloud.ledger.get(record.jobId))?.status ?? 'finished';
           }
-          if (p.state === 'ready') resultUrl = p.resultUrl;
+          if (status === 'ready' && p.state === 'ready') resultUrl = p.resultUrl;
         } else if (record.status === 'ready') {
           const p = await cloud.runner.poll(record.jobId);
-          if (p.state === 'ready') resultUrl = p.resultUrl;
+          status = (await cloud.ledger.get(record.jobId))?.status ?? 'finished';
+          if (status === 'ready' && p.state === 'ready') resultUrl = p.resultUrl;
         }
-        return { status: 200, body: { jobId: current.jobId, status: current.status, kind: current.kind, ...(resultUrl ? { resultUrl } : {}), ...(current.status === 'failed' ? { failure: 'CLOUD_JOB_FAILED' } : {}) } };
+        return { status: 200, body: { jobId: record.jobId, status, kind: record.kind, ...(resultUrl ? { resultUrl } : {}), ...(status === 'failed' ? { failure: 'CLOUD_JOB_FAILED' } : {}) } };
       },
     },
     {
@@ -798,8 +804,16 @@ export function createApp(options: AppOptions) {
         const cloud = await cloudGate(record.accountId);
         if (record.status !== 'awaiting-upload') return { status: 200, body: { jobId: record.jobId, status: record.status } };
         if (!(await cloud.runner.inputPresent(record.jobId))) throw new ApiError(409, 'CLOUD_INPUT_MISSING', 'The upload has not arrived yet.', true);
-        await cloud.runner.start(record.jobId, record.kind);
-        await cloud.ledger.put({ ...record, status: 'running' });
+        if (!(await cloud.ledger.transition(record.jobId, 'awaiting-upload', 'running'))) {
+          const current = await cloud.ledger.get(record.jobId);
+          return { status: 200, body: { jobId: record.jobId, status: current?.status ?? 'finished' } };
+        }
+        // Cloud Run can accept a dispatch even if its response is lost. Keep the claim so a retry cannot send it again.
+        try {
+          await cloud.runner.start(record.jobId, record.kind);
+        } catch {
+          throw new ApiError(502, 'CLOUD_RUNNER_FAILED', 'Cloud processing could not be confirmed.', true);
+        }
         return { status: 200, body: { jobId: record.jobId, status: 'running' } };
       },
     },
@@ -807,9 +821,9 @@ export function createApp(options: AppOptions) {
       method: 'POST', path: '/v1/cloud/jobs/:id/finish', summary: 'Result collected or job cancelled: deletes the input and the result now (idempotent)', auth: 'user',
       handler: async (req, params) => {
         const { cloud, record } = await cloudJobOwned(req, params.id!);
+        await cloud.ledger.put({ ...record, status: 'finished' });
         await cloud.runner.deleteInput(record.jobId);
         await cloud.runner.deleteResult(record.jobId);
-        await cloud.ledger.put({ ...record, status: 'finished' });
         return { status: 200, body: { jobId: record.jobId, inputDeleted: true } };
       },
     },

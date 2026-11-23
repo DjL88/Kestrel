@@ -87,3 +87,36 @@ export function removeFormat(raw: unknown, id: string): FormatSet {
 }
 
 export const newCustomId = (seed: string) => `custom-${seed.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12).padEnd(3, '0')}`;
+
+/**
+ * Per-format "linked" overrides (paper-clipped to the active edit group vs independent), keyed by format id. A format with
+ * no entry is linked — that is every format's starting state — so the map only needs to record the ones the person has
+ * unlinked or deliberately relinked, and a damaged or stale value just falls back to "linked" rather than losing formats.
+ */
+export type SizeLinkedSet = Record<string, boolean>;
+
+export function readSizeLinked(raw: unknown): SizeLinkedSet {
+  if (!raw || typeof raw !== 'object') return {};
+  const result: SizeLinkedSet = {};
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (isId(id) && typeof value === 'boolean') result[id] = value;
+  }
+  return result;
+}
+
+export function isSizeLinked(raw: unknown, id: string): boolean {
+  const linked = readSizeLinked(raw);
+  return id in linked ? linked[id] : true;
+}
+
+export function toggleSizeLinked(raw: unknown, id: string): SizeLinkedSet {
+  const linked = readSizeLinked(raw);
+  const next = id in linked ? !linked[id] : false;
+  return { ...linked, [id]: next };
+}
+
+/** Applies this photo's linked overrides to a list of sizes (built-in defaults plus any custom formats). */
+export function applySizeLinked(sizes: readonly SizePreset[], raw: unknown): SizePreset[] {
+  const linked = readSizeLinked(raw);
+  return sizes.map((size) => (size.id in linked ? { ...size, linked: linked[size.id] } : size));
+}

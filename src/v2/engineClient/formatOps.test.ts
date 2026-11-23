@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { addFormat, applyFormats, newCustomId, ratioLabelFor, readFormats, removeFormat, toggleFormat } from './formatOps.ts';
+import { addFormat, applyFormats, applySizeLinked, isSizeLinked, newCustomId, ratioLabelFor, readFormats, readSizeLinked, removeFormat, toggleFormat, toggleSizeLinked } from './formatOps.ts';
 import { createDefaultSizes } from '../ui/stub.ts';
 
 test('a photo with no stored formats has the built-in list unchanged', () => {
@@ -73,4 +73,33 @@ test('a newly imported photo starts with one enabled photo format, not three aut
     .map((size) => size.id), ['orig-3x2', 'custom-a4p']);
   assert.deepEqual(applyFormats(createDefaultSizes(), undefined).filter((size) => size.enabled && size.kind === 'photo')
     .map((size) => size.id), ['orig-3x2']);
+});
+
+test('every format starts linked, with no stored overrides', () => {
+  assert.deepEqual(readSizeLinked(undefined), {});
+  assert.equal(isSizeLinked(undefined, 'ig-portrait'), true);
+  assert.equal(isSizeLinked('not an object', 'ig-portrait'), true);
+});
+
+test('toggling linked is reversible and only touches the one format', () => {
+  const unlinked = toggleSizeLinked(undefined, 'ig-portrait');
+  assert.equal(isSizeLinked(unlinked, 'ig-portrait'), false);
+  assert.equal(isSizeLinked(unlinked, 'yt-wide'), true);
+  const relinked = toggleSizeLinked(unlinked, 'ig-portrait');
+  assert.equal(isSizeLinked(relinked, 'ig-portrait'), true);
+});
+
+test('bad stored linked values are dropped, never trusted', () => {
+  const damaged = readSizeLinked({ 'ig-portrait': 'yes', 'yt-wide': false, '': true, [`x`.repeat(90)]: true });
+  assert.deepEqual(damaged, { 'yt-wide': false });
+});
+
+test('applySizeLinked only changes formats with a stored override', () => {
+  const sizes = applyFormats(createDefaultSizes(), undefined);
+  const unlinked = toggleSizeLinked(undefined, 'ig-portrait');
+  const applied = applySizeLinked(sizes, unlinked);
+  assert.equal(applied.find((size) => size.id === 'ig-portrait')?.linked, false);
+  const other = applied.find((size) => size.id !== 'ig-portrait');
+  const original = sizes.find((size) => size.id === other?.id);
+  assert.equal(other?.linked, original?.linked);
 });

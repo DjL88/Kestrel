@@ -1,8 +1,17 @@
 import React from 'react';
-import type { AssistMode, FeatureKey, Photo } from '../contract';
+import type { AssistMode, AssistSuggestion, FeatureKey, LookPreset, Photo } from '../contract';
 import { STRINGS } from '../strings';
 import ProBadge, { useProHidden } from '../shell/ProBadge';
 import BrandIcon, { assistModeIconName } from '../icons/BrandIcon';
+import { buildPreviewFilterCss, getActiveGroup } from '../utils/studioMath';
+
+/** A suggestion's recipeDelta, previewed the same honest way a Curated Look is already previewed on
+ * hover (studioMath.ts's `buildPreviewFilterCss`): a fast CSS-filter approximation on the same preview
+ * image, not a claim of exact RAW-accurate pixels. Wrapping it as a LookPreset only reuses that existing,
+ * already-trusted function; nothing here is saved as, or offered as, a real Look. */
+function suggestionAsLook(suggestion: AssistSuggestion): LookPreset {
+  return { id: suggestion.id, name: suggestion.title, category: 'suggestion', description: suggestion.summary, previewFilter: '', recipeDelta: suggestion.recipeDelta };
+}
 
 interface CoPilotPanelProps {
   photo: Photo | null;
@@ -164,10 +173,23 @@ export default function CoPilotPanel({
                 key={sug.id}
                 className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3"
               >
-                <p className="text-xs font-semibold text-[var(--text-primary)]">{sug.title}</p>
-                <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-secondary)]">
-                  {sug.summary}
-                </p>
+                {/* A real before/after preview leads each suggestion (owner backlog item 20: previews
+                    instead of paragraphs), the same fast CSS-filter approximation already trusted for a
+                    Curated Look's hover preview - not a claim of exact RAW-accurate pixels. */}
+                <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border-subtle)]">
+                    <img src={photo.previewUrl} alt="" aria-hidden="true" draggable={false}
+                      style={{ filter: buildPreviewFilterCss(getActiveGroup(photo).recipe) }}
+                      className="h-12 w-12 object-cover" />
+                    <img src={photo.previewUrl} alt={`Preview: ${sug.title}`} draggable={false}
+                      style={{ filter: buildPreviewFilterCss(getActiveGroup(photo).recipe, suggestionAsLook(sug)) }}
+                      className="h-12 w-12 border-l border-[var(--border-subtle)] object-cover" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-semibold text-[var(--text-primary)]">{sug.title}</p>
+                    <p className="line-clamp-2 text-[11px] leading-snug text-[var(--text-secondary)]">{sug.summary}</p>
+                  </div>
+                </div>
                 <p className="mt-1.5 font-mono text-[10px] text-[var(--text-muted)]">
                   {sug.colourReadout}
                 </p>

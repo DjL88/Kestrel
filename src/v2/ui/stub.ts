@@ -709,6 +709,8 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     canvasZoom: 1,
     isFullScreen: false,
     exportOpen: false,
+    removedPhotos: [],
+    removedOpen: false,
     settingsOpen: false,
     settingsTab: 'appearance',
     activeMaskTool: 'subject',
@@ -1816,6 +1818,17 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     setExportOpen: (exportOpen) => {
       logAction('setExportOpen', { exportOpen });
       setStore((prev) => ({ ...prev, exportOpen }));
+    },
+
+    setRemovedOpen: (removedOpen) => {
+      logAction('setRemovedOpen', { removedOpen });
+      setStore((prev) => ({ ...prev, removedOpen }));
+    },
+
+    // The sample workspace has no Trash of its own; a real project's removed photos come from useEngineWorkspace,
+    // which overrides this action. Kept here only so the demo store satisfies WorkspaceActions.
+    restorePhotos: (photoIds) => {
+      logAction('restorePhotos', { photoIds });
     },
 
     runExport: (request: ExportRequest) => {
