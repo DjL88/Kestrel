@@ -101,3 +101,18 @@ describe('verifyEdit', () => {
     assert.equal(result.ok, false);
   });
 });
+
+it('rejects local detail loss even when most of the frame retains structure',()=>{
+  const before=checkerboard(128,[90,90,90],[170,170,170]);
+  const after={...before,data:before.data.slice()};
+  for(let y=0;y<32;y++) for(let x=0;x<32;x++) {
+    const i=(y*128+x)*4;
+    after.data.fill(130,i,i+3);
+  }
+  assert.equal(verifyEdit(before,after).ok,false);
+});
+it('rejects malformed comparison geometry and subject coverage',()=>{
+  const before=flat(32,[120,120,120]);
+  assert.equal(verifyEdit(before,flat(16,[120,120,120])).ok,false);
+  assert.equal(verifyEdit(before,before,new Float32Array(1)).ok,false);
+});
