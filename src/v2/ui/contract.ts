@@ -171,7 +171,7 @@ export interface LookPreset {
 
 export interface OverlayTextRow {
   id: string;
-  fields: Array<'camera' | 'lens' | 'aperture' | 'shutter' | 'iso' | 'focalLength' | 'species' | 'custom'>;
+  fields: Array<'camera' | 'lens' | 'aperture' | 'shutter' | 'iso' | 'focalLength' | 'capturedAt' | 'fileFormat' | 'fileSizeMb' | 'dimensions' | 'colourProfile' | 'filename' | 'species' | 'custom'>;
   customText: string;
   fontId: string;
   sizePx: number;

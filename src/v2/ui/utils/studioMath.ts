@@ -11,6 +11,7 @@ import type {
   Photo,
   SizePreset,
 } from '../contract';
+import { composeOverlayText } from './overlayMetadata';
 
 export function getActiveGroup(photo: Photo): EditGroup {
   return (
@@ -79,37 +80,7 @@ export function buildPreviewFilterCss(
  * Renders a single OverlayTextRow using photo EXIF & species metadata.
  */
 export function formatOverlayRowText(row: OverlayTextRow, photo: Photo): string {
-  const tokens: string[] = [];
-  for (const field of row.fields) {
-    switch (field) {
-      case 'camera':
-        tokens.push(photo.exif.camera);
-        break;
-      case 'lens':
-        tokens.push(photo.exif.lens);
-        break;
-      case 'aperture':
-        tokens.push(photo.exif.aperture);
-        break;
-      case 'shutter':
-        tokens.push(photo.exif.shutter);
-        break;
-      case 'iso':
-        tokens.push(`ISO ${photo.exif.iso}`);
-        break;
-      case 'focalLength':
-        tokens.push(photo.exif.focalLength);
-        break;
-      case 'species':
-        if (photo.speciesLabel) tokens.push(photo.speciesLabel);
-        break;
-      case 'custom':
-        if (row.customText.trim()) tokens.push(row.customText.trim());
-        break;
-    }
-  }
-  const joined = tokens.join('  ·  ');
-  return row.uppercase ? joined.toUpperCase() : joined;
+  return composeOverlayText(row, photo);
 }
 
 export interface OverlayOverflowIssue {

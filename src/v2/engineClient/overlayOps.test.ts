@@ -50,3 +50,9 @@ test('a watermark starts on auto contrast, and an explicit choice is kept', () =
   assert.equal(readOverlay({ watermarkContrast: 'light-on-dark' }).watermarkContrast, 'light-on-dark');
   assert.equal(readOverlay({ watermarkContrast: 'weird' }).watermarkContrast, 'auto');
 });
+
+test('extended photo metadata fields persist in selection order, without duplicates or unknown fields', () => {
+  const overlay = readOverlay({ rows: [{ id: 'r', fields: ['capturedAt', 'filename', 'capturedAt', 'dimensions', 'privatePath', 'colourProfile'] }] });
+  assert.deepEqual(overlay.rows[0].fields, ['capturedAt', 'filename', 'dimensions', 'colourProfile']);
+  assert.deepEqual(readOverlay(JSON.parse(JSON.stringify(overlay))).rows[0].fields, overlay.rows[0].fields);
+});
