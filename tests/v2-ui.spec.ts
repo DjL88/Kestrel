@@ -1012,3 +1012,25 @@ test('?v2 canvas controls: screenshot, Grid in the zoom bar, All photos in the r
   const after = await board.locator('[data-testid^="artboard-"]').first().boundingBox();
   expect(Math.abs(after!.x - moved!.x)).toBeLessThan(3);
 });
+
+
+test('?v2 renames a real edit group and preserves the name after reopening', async ({ page }) => {
+  await page.goto('/?v2');
+  await importGenerated(page, 'Edit group rename check', 1);
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'Formats', exact: true }).first().click();
+  await root.getByRole('button', { name: 'Add edit group', exact: true }).click();
+  await root.getByRole('button', { name: 'Rename Edit group 2', exact: true }).click();
+  const name = root.getByRole('textbox', { name: 'Rename', exact: true });
+  await name.fill('  ');
+  await expect(root.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
+  await name.fill('Wildlife print');
+  await name.press('Enter');
+  await expect(root.getByRole('button', { name: 'Rename Wildlife print', exact: true })).toBeVisible();
+  await root.getByRole('button', { name: 'Back to projects' }).click();
+  await expect(root.getByText('1 photo', { exact: true })).toBeVisible();
+  await page.reload();
+  await root.getByRole('button', { name: /Open studio/ }).first().click();
+  await root.getByRole('button', { name: 'Formats', exact: true }).first().click();
+  await expect(root.getByRole('button', { name: 'Rename Wildlife print', exact: true })).toBeVisible();
+});
