@@ -1,3 +1,4 @@
+import { useConnectivity } from '../providers/useConnectivity';
 import { useEffect, useRef, useState } from 'react';
 import type { Session, SignInProvider } from '../core/cloudInterfaces';
 import { signInOptions } from '../core/signInOptions';
@@ -13,11 +14,12 @@ import { projectsText as t } from '../i18n/areas/projects';
 
 
 const field = 'block min-h-11 w-full rounded-md border border-[var(--account-border,#ffffff26)] bg-[var(--account-field,#0000004d)] px-3 text-sm text-[var(--account-foreground,#f4f4f5)]';
-const action = 'min-h-11 rounded-md border border-[var(--account-border,#ffffff26)] px-3 text-sm text-[var(--account-foreground,#f4f4f5)] hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300';
+const action = 'min-h-11 rounded-md border border-[var(--account-border,#ffffff26)] px-3 text-sm text-[var(--account-foreground,#f4f4f5)] hover:bg-white/8 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-sky-300';
 const storageSize = new Intl.NumberFormat(undefined, { style: 'unit', unit: 'gigabyte', unitDisplay: 'short', maximumFractionDigits: 2 });
 
 export function AccountAndLicenceSettings() {
   const licence = useLicence();
+  const offline = useConnectivity() === 'offline';
   const [key, setKey] = useState('');
   const [note, setNote] = useState<{ text: string; good: boolean } | null>(null);
   const [account, setAccount] = useState<Session | null>(null);
@@ -48,6 +50,7 @@ export function AccountAndLicenceSettings() {
 
   /** Signing in only creates a record. This asks whether the account has a purchase or gift, and says so plainly either way. */
   async function linkLicence() {
+    if (offline) return;
     const token = await firebaseAuth.idToken(true).catch(() => null);
     if (!token) { setAccountNote('Could not check Pro online. You can keep using InFlight.'); return; }
     const result = await activateFromAccount(token);
@@ -82,7 +85,7 @@ export function AccountAndLicenceSettings() {
     setAiStatus(null);
     setCloudUsage(null);
     setAiNote(null);
-    if (!account) { setAiBusy(false); return; }
+    if (!account || offline) { setAiBusy(false); return; }
     setAiBusy(true);
     void (async () => {
       try {
@@ -101,10 +104,10 @@ export function AccountAndLicenceSettings() {
     return () => { ++aiRequest.current; };
   // aiServer is build-time fixed; a change of signed-in identity must refresh consent.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account?.accountId]);
+  }, [account?.accountId, offline]);
 
   async function changeAiConsent(consent: boolean) {
-    if (!account || !aiStatus || aiBusy) return;
+    if (offline || !account || !aiStatus || aiBusy) return;
     const request = ++aiRequest.current;
     setAiBusy(true);
     setAiNote(null);
@@ -127,7 +130,7 @@ export function AccountAndLicenceSettings() {
   }
 
   async function retryAiConsent() {
-    if (!account || aiBusy) return;
+    if (offline || !account || aiBusy) return;
     const request = ++aiRequest.current;
     setAiStatus(null);
     setAiBusy(true);
@@ -147,6 +150,7 @@ export function AccountAndLicenceSettings() {
   }
 
   function chooseSignIn(provider: SignInProvider) {
+    if (offline) return;
     return runAccountAction(async () => {
       setAccount(await firebaseAuth.signIn(provider));
       await linkLicence();
@@ -154,6 +158,7 @@ export function AccountAndLicenceSettings() {
   }
 
   function emailAction(kind: 'in' | 'create' | 'reset') {
+    if (offline) return;
     return runAccountAction(async () => {
       if (kind === 'reset') {
         await firebaseAuth.sendPasswordReset(email);
@@ -168,6 +173,7 @@ export function AccountAndLicenceSettings() {
   }
 
   function resendVerification() {
+    if (offline) return;
     return runAccountAction(async () => {
       const result = await resendAccountVerification();
       if (result === 'already_verified') await linkLicence();
@@ -199,12 +205,13 @@ export function AccountAndLicenceSettings() {
     <div className="space-y-6">
       <section aria-labelledby="account-h" className="space-y-3">
         <h3 id="account-h" className="font-medium text-[var(--account-foreground,#f4f4f5)]">Account (optional)</h3>
+        {offline && <p role="status">{t.connections.health.offline} · {t.connections.advice.offline}</p>}
         {account ? (
           <>
             <p role="status">Signed in with {account.provider === 'apple' ? 'Apple' : account.provider === 'password' ? 'email' : 'Google'}{account.email ? ` as ${account.email}` : ''}.</p>
             <div className="flex flex-wrap gap-2">
-              <button type="button" className={action} disabled={accountBusy} onClick={() => void runAccountAction(linkLicence)}>Check Pro online</button>
-              {account.provider === 'password' && <button type="button" className={action} disabled={accountBusy} onClick={() => void resendVerification()}>Resend verification email</button>}
+              <button type="button" className={action} disabled={offline || accountBusy} onClick={() => void runAccountAction(linkLicence)}>Check Pro online</button>
+              {account.provider === 'password' && <button type="button" className={action} disabled={offline || accountBusy} onClick={() => void resendVerification()}>Resend verification email</button>}
               <button type="button" className={action} disabled={accountBusy} onClick={() => void chooseSignOut()}>Sign out</button>
             </div>
           </>
@@ -213,7 +220,7 @@ export function AccountAndLicenceSettings() {
             <p>Signing in lets you manage optional account features, including the online AI helper when available. Importing, culling, editing and exporting never need an account.</p>
             <div className="flex flex-wrap gap-2">
               {signInOptions(signInPlatform(), isSignInConfigured()).map((option) => (
-                <button key={option.provider} type="button" className={`${action} inline-flex items-center gap-2 disabled:opacity-60`} disabled={accountBusy || !option.available} aria-describedby={option.reason ? 'account-reason' : undefined} onClick={() => void chooseSignIn(option.provider)}><SignInMark provider={option.provider === 'apple' ? 'apple' : 'google'} />{option.label}</button>
+                <button key={option.provider} type="button" className={`${action} inline-flex items-center gap-2 disabled:opacity-60`} disabled={offline || accountBusy || !option.available} aria-describedby={option.reason ? 'account-reason' : undefined} onClick={() => void chooseSignIn(option.provider)}><SignInMark provider={option.provider === 'apple' ? 'apple' : 'google'} />{option.label}</button>
               ))}
             </div>
             {isSignInConfigured() && (
@@ -225,9 +232,9 @@ export function AccountAndLicenceSettings() {
                   <input className={`${field} mt-1`} type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" />
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  <button type="submit" className={action} disabled={accountBusy || !email.trim() || !password}>Sign in</button>
-                  <button type="button" className={action} disabled={accountBusy || !email.trim() || !password} onClick={() => void emailAction('create')}>Create account</button>
-                  <button type="button" className={action} disabled={accountBusy || !email.trim()} onClick={() => void emailAction('reset')}>Reset password</button>
+                  <button type="submit" className={action} disabled={offline || accountBusy || !email.trim() || !password}>Sign in</button>
+                  <button type="button" className={action} disabled={offline || accountBusy || !email.trim() || !password} onClick={() => void emailAction('create')}>Create account</button>
+                  <button type="button" className={action} disabled={offline || accountBusy || !email.trim()} onClick={() => void emailAction('reset')}>Reset password</button>
                 </div>
               </form>
             )}
@@ -248,7 +255,7 @@ export function AccountAndLicenceSettings() {
               <input type="checkbox" aria-label="Allow optional online Gemini helper"
                 className="h-5 w-5 accent-sky-300"
                 checked={aiStatus?.consent === true}
-                disabled={aiBusy || !aiStatus}
+                disabled={offline || aiBusy || !aiStatus}
                 onChange={(event) => void changeAiConsent(event.target.checked)} />
               <span>{aiBusy ? 'Checking online setting…' : aiStatus?.consent === true ? 'Allowed for this account' :
                 aiStatus ? 'Off for this account' : 'Waiting for the account setting'}</span>
@@ -257,7 +264,7 @@ export function AccountAndLicenceSettings() {
               <p className="text-xs text-[var(--account-muted,#a1a1aa)]">Your current plan does not include the hosted helper. Changing this preference does not buy a plan.</p>
             )}
             {!aiBusy && !aiStatus && (
-              <button type="button" className={action} onClick={() => void retryAiConsent()}>
+              <button type="button" className={action} disabled={offline} onClick={() => void retryAiConsent()}>
                 Check online AI setting again
               </button>
             )}
@@ -295,7 +302,7 @@ export function AccountAndLicenceSettings() {
         ) : (
           <button type="button" className={action} onClick={() => { setNote(null); void removeLicence(); }}>{t.licence.removeKey}</button>
         )}
-        {licence.status !== 'valid' && !isMobileShell() && (
+        {licence.status !== 'valid' && !isMobileShell() && !offline && (
           <a href="https://kestrel-hosting-kestrel.web.app/#pricing" target="_blank" rel="noopener noreferrer"
             className={`${action} inline-flex items-center`}
             onClick={(event) => {
