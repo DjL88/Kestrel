@@ -1,5 +1,6 @@
 /** Pixel geometry for a whole split composition, without resampling originals. */
-export type SplitFrameCount = 1 | 2 | 3;
+import type { SplitFrameCount } from './formatSplitOps';
+export type { SplitFrameCount };
 export interface SplitCompositionGeometry {
   frameCount: SplitFrameCount;
   frameWidth: number;
@@ -12,7 +13,7 @@ export interface SplitCompositionGeometry {
 export function splitCompositionGeometry(
   frameWidth: number, frameHeight: number, frameCount: SplitFrameCount,
 ): SplitCompositionGeometry | undefined {
-  if (![1, 2, 3].includes(frameCount) ||
+  if (![1, 2, 3, 4, 5].includes(frameCount) ||
       !Number.isSafeInteger(frameWidth) || !Number.isSafeInteger(frameHeight) ||
       frameWidth < 1 || frameHeight < 1 ||
       frameWidth > 20000 || frameHeight > 20000 ||

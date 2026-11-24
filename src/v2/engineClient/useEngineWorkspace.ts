@@ -57,7 +57,7 @@ import { TEMPLATES_KEY, addTemplate, deleteTemplate, readTemplates, renameTempla
 import { applyOverlayTemplateToProject, changePhotoOverlay } from './overlayHistory';
 import { type FormatSet, addFormat, applyFormats, ORIGINAL_FORMAT_ID, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize, setOriginalOutputSize, resetOriginalOutputSize } from './formatOps';
 import { patchVideoZoom } from './videoZoomOps';
-import { setFormatSplitOffset, setSplitFrameCount as writeSplitFrameCount, toggleFormatSplit } from './formatSplitOps';
+import { isSplitFrameCount, setFormatSplitOffset, setSplitFrameCount as writeSplitFrameCount, toggleFormatSplit, type SplitFrameCount } from './formatSplitOps';
 import { readSplitPanOffset } from './splitFrameOps';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, toggleMask } from './maskOps';
 import { verifyFrameMasks } from './maskVerify';
@@ -446,6 +446,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useBackgroundDevelop({
     projectId: state?.shoot.id ?? '', frames: state?.frames ?? [], provider: provider.current,
     active: screen === 'editor' && Boolean(state) && !importing, onScreen: activeId,
+    // Keep the camera's as-shot white with the photo, so Temperature can show kelvin. Never changes an edit.
+    onAsShotWhite: (stableKey, white) => setState((current) => (current ? { ...current, frames: current.frames.map((frame) =>
+      frame.stableKey === stableKey && (frame.asShotWhite?.kelvin !== white.kelvin || frame.asShotWhite?.duv !== white.duv)
+        ? { ...frame, asShotWhite: white } : frame) } : current)),
   });
 
   // Subject and species are named quietly on this device after photos are added (the species name is a suggestion the
@@ -788,9 +792,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, [mutate, stub.store.activeSizeId]);
 
   /** One format's persisted 1/2/3 continuous split, used by both V2 canvas and export planner. */
-  const setSplitFrameCount = useCallback((photoId: string, sizeId: string, count: 1 | 2 | 3) => {
+  const setSplitFrameCount = useCallback((photoId: string, sizeId: string, count: SplitFrameCount) => {
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
-    if (!frame || ![1, 2, 3].includes(count)) return;
+    if (!frame || !isSplitFrameCount(count)) return;
     const sizes = applyFormats(createDefaultSizes(), frame.formats);
     if (!sizes.some((size) => size.id === sizeId && size.kind === 'photo')) {
       setNotice('Choose an existing photo format before splitting it.');

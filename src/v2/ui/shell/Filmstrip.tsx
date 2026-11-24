@@ -2,6 +2,7 @@ import { planFilmstrip } from '../../engineClient/burstGroups';
 import React, { useEffect, useRef, useState } from 'react';
 import type { AssistMode, LookPreset, Photo } from '../contract';
 import { STRINGS } from '../strings';
+import { PHOTO_DRAG_TYPE, draggedPhotoIds } from '../utils/photoDrag';
 import ProBadge, { useProHidden } from './ProBadge';
 import BrandIcon from '../icons/BrandIcon';
 import { filterPhotos } from '../utils/studioMath';
@@ -16,7 +17,7 @@ interface FilmstripProps {
   height: number;
   filter: 'all' | 'flagged' | 'set-aside';
   search: string;
-  calmView: boolean;
+  quietBadges: boolean;
   looks: LookPreset[];
   hasClipboardRecipe: boolean;
   onSetBottomTab: (tab: 'filmstrip' | 'info') => void;
@@ -38,6 +39,8 @@ interface FilmstripProps {
   onRunAutoCull: () => void;
   onExportSelected: () => void;
   onCreateCollage?: (photoIds: string[]) => void;
+  /** Composing a collage: photos drag onto its windows, and editing-only tools (Auto-Cull) are not offered. */
+  collageMode?: boolean;
 }
 
 export default function Filmstrip({
@@ -50,7 +53,7 @@ export default function Filmstrip({
   height,
   filter,
   search,
-  calmView,
+  quietBadges,
   looks,
   hasClipboardRecipe,
   onSetBottomTab,
@@ -72,6 +75,7 @@ export default function Filmstrip({
   onRunAutoCull,
   onExportSelected,
   onCreateCollage,
+  collageMode = false,
 }: FilmstripProps) {
   const hideAutoCull = useProHidden('smartCulling');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -282,7 +286,7 @@ export default function Filmstrip({
             <span>{STRINGS.filmstripLabels.label10}</span>
           </button>
 
-          {!hideAutoCull && (
+          {!hideAutoCull && !collageMode && (
           <button
             type="button"
             onClick={onRunAutoCull}
@@ -470,6 +474,13 @@ export default function Filmstrip({
                     key={photo.id}
                     role="option"
                     aria-selected={isSelected}
+                    draggable={collageMode}
+                    onDragStart={collageMode ? (event) => {
+                      cancelLongPress();
+                      event.dataTransfer.effectAllowed = 'copy';
+                      event.dataTransfer.setData(PHOTO_DRAG_TYPE, JSON.stringify(draggedPhotoIds(photo.id, selectedPhotoIds)));
+                      event.dataTransfer.setData('text/plain', photo.filename);
+                    } : undefined}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -546,7 +557,10 @@ export default function Filmstrip({
                           {STRINGS.tier[photo.tier]}
                         </span>
                       )}
-                      {(photo.state !== 'ready' || !calmView) && (
+                      {/* Fewer badges hides the Ready label from view only: the state stays in the button's name. */}
+                      {photo.state === 'ready' && quietBadges ? (
+                        <span className="sr-only">{stateLabel}</span>
+                      ) : (
                         <span
                           className={`absolute left-1.5 bottom-1.5 rounded px-1.5 py-0.5 text-[9px] font-semibold ${
                             photo.state === 'unavailable'

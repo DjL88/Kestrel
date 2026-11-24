@@ -74,3 +74,59 @@ test('exports an inclusive range in album order and rejects invalid or excessive
   }
   assert.throws(() => collageExportPages(doc, true), /40/);
 });
+
+test('a new page size re-lays every page for its shape and keeps photographs and framing', async () => {
+  const { changeCollageFormat, setCollageSlotFraming, collageShapes } = await import('./collage');
+  let doc = createCollage(['a', 'b', 'c'], 'square');
+  assert.equal(collagePage(doc).template, 'triptych');
+  // Square: three side-by-side columns.
+  assert.ok(collagePage(doc).slots.every((slot) => slot.height > slot.width));
+  doc = setCollageSlotFraming(doc, collagePage(doc).slots[1].id, { zoom: 2, panX: 0.5 });
+  const ids = collagePage(doc).slots.map((slot) => slot.id);
+  const story = changeCollageFormat(doc, 'story');
+  // A tall story page turns the columns into rows instead of stretching them.
+  assert.ok(collagePage(story).slots.every((slot) => slot.width > slot.height));
+  assert.deepEqual(collagePage(story).slots.map((slot) => slot.id), ids);
+  assert.deepEqual(collagePage(story).slots.map((slot) => slot.photoId), ['a', 'b', 'c']);
+  assert.equal(collagePage(story).slots[1].zoom, 2);
+  assert.deepEqual(readCollage(JSON.parse(JSON.stringify(story))), story);
+  // Going back restores the original geometry.
+  const back = changeCollageFormat(story, 'square');
+  assert.deepEqual(back.pages[0].slots.map(({ x, y, width, height }) => ({ x, y, width, height })),
+    collageShapes('triptych', 1).map(({ x, y, width, height }) => ({ x, y, width, height })));
+});
+
+test('angled split turns on its side on a tall page and still reopens', async () => {
+  const { changeCollageFormat } = await import('./collage');
+  const doc = changeCollageFormat(createCollage(['a', 'b'], 'square'), 'a4-portrait');
+  assert.equal(collagePage(doc).template, 'diagonal');
+  assert.ok(collagePage(doc).slots.every((slot) => slot.width > slot.height && slot.clip));
+  assert.ok(readCollage(JSON.parse(JSON.stringify(doc))));
+});
+
+test('window framing is clamped, resets to centred, and invalid saved framing is refused', async () => {
+  const { setCollageSlotFraming, placeCollagePhoto, collageSlotPlacement } = await import('./collage');
+  let doc = createCollage(['a']);
+  const slot = collagePage(doc).slots[0].id;
+  doc = setCollageSlotFraming(doc, slot, { zoom: 50, panX: -9, panY: 0.25 });
+  assert.deepEqual({ zoom: collagePage(doc).slots[0].zoom, panX: collagePage(doc).slots[0].panX }, { zoom: 8, panX: -1 });
+  doc = placeCollagePhoto(doc, slot, 'b');
+  assert.equal('zoom' in collagePage(doc).slots[0], false);
+  const bad = JSON.parse(JSON.stringify(doc));
+  bad.pages[0].slots[0].zoom = 0.5;
+  assert.equal(readCollage(bad), null);
+  // A 3:2 photo in a square window, centred: wider than the window, cropped evenly both sides.
+  const placed = collageSlotPlacement(1.5, 1, {});
+  assert.deepEqual(placed, { width: 1.5, height: 1, left: -0.25, top: 0 });
+  // Pan to the far right shows the right-hand edge of the picture.
+  assert.equal(collageSlotPlacement(1.5, 1, { panX: 1 }).left, -0.5);
+});
+
+test('photographs dropped on a page fill its empty windows in order', async () => {
+  const { fillEmptyCollageSlots } = await import('./collage');
+  let doc = createCollage([], 'square');
+  doc = replaceCollagePhoto(doc, collagePage(doc).slots[1].id, 'kept');
+  const { doc: filled, placed } = fillEmptyCollageSlots(doc, ['x', 'y', 'z']);
+  assert.equal(placed, 2);
+  assert.deepEqual(collagePage(filled).slots.map((slot) => slot.photoId), ['x', 'kept', 'y']);
+});

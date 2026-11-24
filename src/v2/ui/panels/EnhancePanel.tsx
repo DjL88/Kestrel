@@ -13,7 +13,7 @@ const unsupportedHelp = 'Unavailable: this control does not yet change the photo
 
 interface EnhancePanelProps {
   photo: Photo | null;
-  calmView: boolean;
+  hideReadouts: boolean;
   onUpdateRecipe: (photoId: string, patch: Partial<EditRecipe>) => void;
   onDenoise?: (photoId: string) => void;
   /** Whether this plan includes cloud processing. */
@@ -22,13 +22,13 @@ interface EnhancePanelProps {
 
 export default function EnhancePanel({
   photo,
-  calmView,
+  hideReadouts,
   onUpdateRecipe,
   onDenoise,
   cloudEnabled = false,
 }: EnhancePanelProps) {
   if (!photo) {
-    return <p className="text-xs text-[var(--text-muted)]">Select a photo to enhance detail and denoise.</p>;
+    return <p className="text-xs text-[var(--text-muted)]">{STRINGS.panelWords.selectToEnhance}</p>;
   }
 
   const recipe = getActiveGroup(photo).recipe;
@@ -36,7 +36,7 @@ export default function EnhancePanel({
   return (
     <div className="space-y-5">
       <p id="v2-enhance-unavailable" role="status" className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
-        Unavailable adjustments are disabled until they affect both the photograph and its export.
+        {STRINGS.panelWords.unavailableNote}
       </p>
       {/* Noise Reduction */}
       <section className="space-y-3">
@@ -98,7 +98,7 @@ export default function EnhancePanel({
                 body={STRINGS.enhance.tooltips.luminanceDenoise}
               />
             </span>
-            {!calmView && (
+            {!hideReadouts && (
               <span className="font-mono text-[11px] text-[var(--text-secondary)] tabular-nums">
                 {recipe.denoiseLuminance}
               </span>
@@ -125,7 +125,7 @@ export default function EnhancePanel({
                 body={STRINGS.enhance.tooltips.colourDenoise}
               />
             </span>
-            {!calmView && (
+            {!hideReadouts && (
               <span className="font-mono text-[11px] text-[var(--text-secondary)] tabular-nums">
                 {recipe.denoiseColour}
               </span>
@@ -172,13 +172,13 @@ export default function EnhancePanel({
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1 text-xs text-[var(--text-primary)]">
-              <label htmlFor="detail-recovery">Texture (existing detail)</label>
+              <label htmlFor="detail-recovery">{STRINGS.panelWords.texture}</label>
               <InfoPopover
-                title="Texture (existing detail)"
+                title={STRINGS.panelWords.texture}
                 body="Adds contrast to fine detail that is already present. It cannot restore missing detail or invent feathers."
               />
             </span>
-            {!calmView && (
+            {!hideReadouts && (
               <span className="font-mono text-[11px] text-[var(--text-secondary)] tabular-nums">
                 {recipe.detailRecovery}
               </span>

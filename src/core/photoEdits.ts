@@ -15,6 +15,8 @@ export const DETAIL_CONTROLS = [
   { key: 'sharpen', label: 'Sharpening' },
 ] as const;
 export type ToneKey = (typeof TONE_CONTROLS)[number]['key'];
+import { isNeutralWhiteBalance, whiteBalanceGains, type WhiteBalanceEdit } from './asShotWhite';
+import { applyCurveLut, curveLut, isNeutralCurve, isNeutralMixer, mixerParams, mixPixel, type ColourMixer, type CurvePoint } from './curveMixer';
 
 export interface PhotoEdit {
   exposure: number;
@@ -39,6 +41,12 @@ export interface PhotoEdit {
   denoiseLuminance?: number;
   /** Export-time enlargement: 2 or 4 times the picture's own size, by the deterministic resampler (no model, nothing uploaded). Absent = off. */
   upscale?: 2 | 4;
+  /** Tone curve points on display-encoded values, applied to each channel after contrast. Absent = straight line. */
+  curve?: CurvePoint[];
+  /** Hue, saturation and luminance for eight colour bands. Absent = untouched. */
+  mixer?: ColourMixer;
+  /** White balance in kelvin against the camera's as-shot estimate (RAW only). Multiplies with Warmth and Tint. */
+  whiteBalance?: WhiteBalanceEdit;
   /** Local adjustments. They run after the whole-photo edit, in order. */
   masks?: Mask[];
 }
@@ -52,7 +60,8 @@ export const EDIT_CHOICES = [
 ] as const;
 
 export function isNeutralTone(edit: PhotoEdit): boolean {
-  return edit.exposure === 0 && edit.warmth === 0 && edit.colour === 0 && !edit.tint && TONE_CONTROLS.every(({ key }) => !edit[key]);
+  return edit.exposure === 0 && edit.warmth === 0 && edit.colour === 0 && !edit.tint && TONE_CONTROLS.every(({ key }) => !edit[key])
+    && isNeutralCurve(edit.curve) && isNeutralMixer(edit.mixer) && isNeutralWhiteBalance(edit.whiteBalance);
 }
 
 export const NOISE_CONTROL = { key: 'denoise', label: 'Noise reduction' } as const;
@@ -99,9 +108,10 @@ export function editParams(edit: PhotoEdit) {
   const gain = 2 ** (edit.exposure * 0.4);
   const warmth = edit.warmth * 0.08;
   const tint = (edit.tint ?? 0) * 0.12;
+  const wb = isNeutralWhiteBalance(edit.whiteBalance) ? [1, 1, 1] : whiteBalanceGains(edit.whiteBalance!.asShotK, edit.whiteBalance!.kelvin);
   return {
     // On a neutral pixel, balance the magenta gains against green's linear luma weight.
-    channelGain: [gain * (1 + warmth) * (1 + tint), gain * (1 - tint * (0.2848 / 0.7152)), gain * (1 - warmth) * (1 + tint)] as const,
+    channelGain: [gain * wb[0] * (1 + warmth) * (1 + tint), gain * wb[1] * (1 - tint * (0.2848 / 0.7152)), gain * wb[2] * (1 - warmth) * (1 + tint)] as const,
     // A bounded monotonic midtone curve: pure black and white stay in place,
     // unlike exposure which multiplies scene-linear light in EV stops.
     brightness: (edit.brightness ?? 0) * 0.11,
@@ -113,6 +123,9 @@ export function editParams(edit: PhotoEdit) {
     blackPoint: -(edit.blacks ?? 0) * 0.02,
     whitePoint: 1 - (edit.whites ?? 0) * 0.08,
     vibrance: (edit.vibrance ?? 0) * 0.3,
+    // Only a valid, non-neutral curve or mixer is used; a malformed saved value is ignored rather than guessed at.
+    curve: !isNeutralCurve(edit.curve) ? curveLut(edit.curve as CurvePoint[]) : null,
+    mixer: !isNeutralMixer(edit.mixer) ? mixerParams(edit.mixer as ColourMixer) : null,
   };
 }
 export type EditParams = ReturnType<typeof editParams>;
@@ -264,7 +277,7 @@ export function decodeEncoded(value: number): number {
  * source of the maths for 8-bit previews and higher-precision exports alike; the GPU shader mirrors it.
  */
 function tonePixel(red: number, green: number, blue: number, p: EditParams, out: Float32Array): void {
-  const { channelGain, brightness, colour, contrast, highlights, shadows, blackPoint, whitePoint, vibrance } = p;
+  const { channelGain, brightness, colour, contrast, highlights, shadows, blackPoint, whitePoint, vibrance, curve, mixer } = p;
   red *= channelGain[0];
   green *= channelGain[1];
   blue *= channelGain[2];
@@ -302,11 +315,23 @@ function tonePixel(red: number, green: number, blue: number, p: EditParams, out:
     const chroma = high > 0 ? (high - Math.min(red, green, blue)) / high : 0;
     saturation += vibrance * (1 - Math.min(1, chroma));
   }
-  out[0] = encodeLinear(luminance + (red - luminance) * saturation);
-  out[1] = encodeLinear(luminance + (green - luminance) * saturation);
-  out[2] = encodeLinear(luminance + (blue - luminance) * saturation);
+  red = luminance + (red - luminance) * saturation;
+  green = luminance + (green - luminance) * saturation;
+  blue = luminance + (blue - luminance) * saturation;
+  if (mixer) {
+    mixPixel(red, green, blue, mixer, out, encodeLinear);
+    red = out[0];
+    green = out[1];
+    blue = out[2];
+  }
+  out[0] = encodeLinear(red);
+  out[1] = encodeLinear(green);
+  out[2] = encodeLinear(blue);
   if (contrast !== 1) {
     for (let c = 0; c < 3; c += 1) out[c] = Math.min(1, Math.max(0, 0.5 + (out[c] - 0.5) * contrast));
+  }
+  if (curve) {
+    for (let c = 0; c < 3; c += 1) out[c] = applyCurveLut(out[c], curve);
   }
 }
 

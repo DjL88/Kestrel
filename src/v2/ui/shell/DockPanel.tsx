@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { DockPosition, PanelId } from '../contract';
 import BrandIcon from '../icons/BrandIcon';
+import { STRINGS } from '../strings';
 
 interface DockPanelProps {
   panelId: PanelId;
@@ -57,7 +58,7 @@ export default function DockPanel({
 
   const pane = (
     <section
-      aria-label={`${title} panel`}
+      aria-label={STRINGS.shellLabels.panelLabel(title)}
       data-panel-id={panelId}
       data-dock={dock}
       className={
@@ -92,8 +93,8 @@ export default function DockPanel({
         <div className="flex items-center gap-0.5 shrink-0">
           <button
             type="button"
-            title="Dock left"
-            aria-label={`Dock ${title} left`}
+            title={STRINGS.rail.dockLeft}
+            aria-label={STRINGS.shellLabels.dockLeftLabel(title)}
             onClick={() => onSetDock('left')}
             className={`inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-xs)] text-[10px] font-semibold transition-colors ${
               dock === 'left'
@@ -105,8 +106,8 @@ export default function DockPanel({
           </button>
           <button
             type="button"
-            title="Dock right"
-            aria-label={`Dock ${title} right`}
+            title={STRINGS.rail.dockRight}
+            aria-label={STRINGS.shellLabels.dockRightLabel(title)}
             onClick={() => onSetDock('right')}
             className={`inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-xs)] text-[10px] font-semibold transition-colors ${
               dock === 'right'
@@ -118,8 +119,8 @@ export default function DockPanel({
           </button>
           <button
             type="button"
-            title="Float window"
-            aria-label={`Float ${title} panel`}
+            title={STRINGS.rail.floatPanel}
+            aria-label={STRINGS.shellLabels.floatLabel(title)}
             onClick={() => onSetDock('float')}
             className={`inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-xs)] transition-colors ${
               dock === 'float'

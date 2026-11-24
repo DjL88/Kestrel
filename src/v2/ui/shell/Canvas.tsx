@@ -18,6 +18,7 @@ import type {
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import CompareSplit from './CompareSplit';
+import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
 import { captureElement, screenshotName } from '../utils/captureElement';
 import { DOCKED, clampDockOffset, isDocked, nudgeDockOffset, parseDockOffset, snapDockOffset, type DockOffset } from '../utils/floatingDock';
 import {
@@ -47,7 +48,7 @@ interface CanvasProps {
   compareMode: boolean;
   canvasZoom: number;
   isFullScreen: boolean;
-  calmView: boolean;
+  hideHints: boolean;
   onSelectSize: (sizeId: string, modifiers?: { ctrl?: boolean; shift?: boolean; available?: readonly string[] }) => void;
   onClearSizeSelection: () => void;
   /** Phone swipe left or right on the photo: go to the next (1) or previous (-1) photo. */
@@ -64,6 +65,8 @@ interface CanvasProps {
   onFlipSizes: (photoId: string, axis: 'horizontal' | 'vertical') => void;
   onRotateSizes: (photoId: string) => void;
   onToggleSplitFrames: (photoId: string) => void;
+  /** Set the active format's number of continuous frames (1 rejoins, up to 5). */
+  onSetSplitFrameCount?: (photoId: string, sizeId: string, count: SplitFrameCount) => void;
   onSetSplitPanOffset: (photoId: string, offset: number) => void;
   onUpdateVideoZoom: (photoId: string, patch: Partial<VideoZoomConfig>) => void;
   onUpdateOverlay: (photoId: string, patch: Partial<OverlaySettings>) => void;
@@ -88,7 +91,7 @@ export default function Canvas({
   compareMode: compareRequested,
   canvasZoom,
   isFullScreen,
-  calmView,
+  hideHints,
   onSelectSize,
   onClearSizeSelection,
   onStepPhoto,
@@ -103,6 +106,7 @@ export default function Canvas({
   onFlipSizes,
   onRotateSizes,
   onToggleSplitFrames,
+  onSetSplitFrameCount,
   onSetSplitPanOffset,
   onUpdateVideoZoom,
   onUpdateOverlay,
@@ -112,7 +116,14 @@ export default function Canvas({
   onToggleFullScreen,
 }: CanvasProps) {
   const [activeGuides, setActiveGuides] = useState<SnapGuide[]>([]);
-  const stageRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  // The stage and the canvas column only exist once a photo is open. Canvas often mounts first with no photo (a new or
+  // empty project), so the listeners and size observer below must follow the elements themselves, not the first render:
+  // with a one-off effect they were never attached, a trackpad pinch zoomed the whole page (menus and all), and Fit used
+  // a made-up 660×470 stage, so the photo ran off the side of phones and portrait tablets.
+  const [stageEl, setStageEl] = useState<HTMLDivElement | null>(null);
+  const [columnEl, setColumnEl] = useState<HTMLElement | null>(null);
+  const attachStage = (el: HTMLDivElement | null) => { stageRef.current = el; setStageEl(el); };
   const zoomRef = useRef(canvasZoom);
   zoomRef.current = canvasZoom;
   const setZoomRef = useRef(onSetZoom);
@@ -120,20 +131,24 @@ export default function Canvas({
   const zoomAnchor = useRef<{ x: number; y: number; left: number; top: number; zoom: number } | null>(null);
 
   // Chromium (including Windows precision touchpads) delivers pinch as Ctrl+wheel.
-  // Listen non-passively so only a gesture over the canvas suppresses browser page zoom.
+  // Listen non-passively on the whole canvas column (the photo, the margin round it and the bar above it), so a pinch
+  // anywhere over the canvas zooms the photo and never the page. Side panels and the filmstrip keep browser behaviour.
   // Normal two-finger scrolling remains the browser's native stage scroll.
   useEffect(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
+    const stage = stageEl;
+    const column = columnEl;
+    if (!stage || !column) return;
     const onWheel = (event: WheelEvent) => {
       if (!event.ctrlKey && !event.metaKey) return;
-      if (event.target instanceof Element && event.target.closest('button, input, textarea, select, [contenteditable="true"]')) return;
+      // A text or number field keeps its own Ctrl+wheel. Over a toolbar button the pinch still zooms the photo.
+      if (event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
       event.preventDefault();
       const rect = stage.getBoundingClientRect();
       const next = nextCanvasZoom(zoomRef.current, event.deltaY, event.deltaMode);
       if (next === zoomRef.current) return;
       zoomAnchor.current = {
-        x: event.clientX - rect.left, y: event.clientY - rect.top,
+        // A pinch over the bar above the stage anchors on the nearest point of the stage.
+        x: clamp(event.clientX - rect.left, 0, rect.width), y: clamp(event.clientY - rect.top, 0, rect.height),
         left: stage.scrollLeft, top: stage.scrollTop, zoom: zoomRef.current,
       };
       zoomRef.current = next;
@@ -152,24 +167,24 @@ export default function Canvas({
       if (!Number.isFinite(gesture.scale) || !gesture.scale || gesture.scale <= 0) return;
       const rect = stage.getBoundingClientRect();
       const next = Math.max(0.25, Math.min(8, safariStartZoom * gesture.scale));
-      const x = (gesture.clientX ?? rect.left + rect.width / 2) - rect.left;
-      const y = (gesture.clientY ?? rect.top + rect.height / 2) - rect.top;
+      const x = clamp((gesture.clientX ?? rect.left + rect.width / 2) - rect.left, 0, rect.width);
+      const y = clamp((gesture.clientY ?? rect.top + rect.height / 2) - rect.top, 0, rect.height);
       zoomAnchor.current = { x, y, left: stage.scrollLeft, top: stage.scrollTop, zoom: zoomRef.current };
       zoomRef.current = next;
       setZoomRef.current(next);
     };
     const onGestureEnd = (event: Event) => { event.preventDefault(); };
-    stage.addEventListener('wheel', onWheel, { passive: false });
-    stage.addEventListener('gesturestart', onGestureStart, { passive: false });
-    stage.addEventListener('gesturechange', onGestureChange, { passive: false });
-    stage.addEventListener('gestureend', onGestureEnd, { passive: false });
+    column.addEventListener('wheel', onWheel, { passive: false });
+    column.addEventListener('gesturestart', onGestureStart, { passive: false });
+    column.addEventListener('gesturechange', onGestureChange, { passive: false });
+    column.addEventListener('gestureend', onGestureEnd, { passive: false });
     return () => {
-      stage.removeEventListener('wheel', onWheel);
-      stage.removeEventListener('gesturestart', onGestureStart);
-      stage.removeEventListener('gesturechange', onGestureChange);
-      stage.removeEventListener('gestureend', onGestureEnd);
+      column.removeEventListener('wheel', onWheel);
+      column.removeEventListener('gesturestart', onGestureStart);
+      column.removeEventListener('gesturechange', onGestureChange);
+      column.removeEventListener('gestureend', onGestureEnd);
     };
-  }, []);
+  }, [stageEl, columnEl]);
 
   useLayoutEffect(() => {
     const stage = stageRef.current;
@@ -251,15 +266,18 @@ export default function Canvas({
   const touchPoints = useRef(new Map<number, { x: number; y: number }>());
   const touchGesture = useRef<{ distance: number; zoom: number; panX: number; panY: number; centreX: number; centreY: number; lastCentreX: number; lastCentreY: number } | null>(null);
   const touchPan = useRef<{ x: number; y: number } | null>(null);
+  /** A mouse or pen dragging the empty stage to move round a zoomed-in photo. */
+  const marginPan = useRef<{ id: number; x: number; y: number; left: number; top: number } | null>(null);
+  const [marginPanning, setMarginPanning] = useState(false);
   useEffect(() => {
-    const stage = stageRef.current;
+    const stage = stageEl;
     if (!stage || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(([entry]) => {
       if (entry) setStageSize({ width: entry.contentRect.width, height: entry.contentRect.height });
     });
     observer.observe(stage);
     return () => observer.disconnect();
-  }, []);
+  }, [stageEl]);
   const [holdingOriginal, setHoldingOriginal] = useState(false);
   const swipeRef = useRef<{ x: number; y: number; t: number; pinched: boolean } | null>(null);
   const holdRef = useRef<{ timer: number | null; x: number; y: number; active: boolean }>({ timer: null, x: 0, y: 0, active: false });
@@ -286,6 +304,9 @@ export default function Canvas({
   } | null>(null);
   // Double-click a format to reveal the whole picture as a ghost and position it under the crop window.
   const [revealSizeId, setRevealSizeId] = useState<string | null>(null);
+  // One frame of a split composition, selected so it can be removed (button or Delete key).
+  const [selectedPane, setSelectedPane] = useState<{ sizeId: string; index: number } | null>(null);
+  const paneDown = useRef<{ x: number; y: number } | null>(null);
   // A composition grid over the frame (thirds or quarters) to help place things. Never exported.
   const [gridMode, setGridMode] = useState<'off' | '3x3' | '4x4'>('off');
   // A plain drag moves the format on the canvas, like a design tool. Session only: it is where it sits, not part of the edit.
@@ -313,9 +334,15 @@ export default function Canvas({
   const group: EditGroup = getActiveGroup(photo);
   // An individual format may have one, two, or three continuous export frames.
   // Keep the canvas' pane count derived from the SAME saved metadata as exportOps.
-  const splitCountFor = (sizeId: string): 1 | 2 | 3 => {
+  const splitCountFor = (sizeId: string): SplitFrameCount => {
     const split = photo.formatSplits?.[sizeId];
-    return !features.splitFrames || !split?.enabled ? 1 : split.count === 3 ? 3 : 2;
+    return !features.splitFrames || !split?.enabled ? 1 : split.count ?? 2;
+  };
+  /** Add one frame (up to five), or remove one; the composition stays one continuous picture. */
+  const changeSplitCount = (sizeId: string, count: number) => {
+    if (count < 1 || count > MAX_SPLIT_FRAMES) return;
+    if (onSetSplitFrameCount) onSetSplitFrameCount(photo.id, sizeId, count as SplitFrameCount);
+    else if ((count > 1) !== splitFor(sizeId)) onToggleSplitFrames(photo.id);
   };
   const splitFor = (sizeId: string) => splitCountFor(sizeId) > 1;
   const splitOffsetFor = (sizeId: string) => photo.formatSplits?.[sizeId]?.offset ?? 0;
@@ -585,7 +612,14 @@ export default function Canvas({
     setHoldingOriginal(false);
   };
 
-  const handleTouchDown = (e: React.PointerEvent<HTMLElement>) => {
+  /** The single photo frame. A pinch can start with a finger in the margin round it, so crop maths always measure the
+   * frame itself rather than whichever element received the touch. */
+  const frameElement = (fallback: HTMLElement) =>
+    (stageRef.current?.querySelector('[data-testid="canvas-frame"]') as HTMLElement | null) ?? fallback;
+
+  /** `fromMargin`: the finger landed in the empty stage round the photo, not on it. It still pinches, pans and swipes the
+   * view, but it never starts positioning the picture in Crop mode. */
+  const handleTouchDown = (e: React.PointerEvent<HTMLElement>, fromMargin = false) => {
     if (e.pointerType !== 'touch' || activeSize.kind !== 'photo' || compareMode) return false;
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -606,7 +640,7 @@ export default function Canvas({
       if (swipeRef.current) swipeRef.current.pinched = true;
     } else if (touchPoints.current.size === 1) {
       // A touch outside explicit Crop mode is navigation ONLY: never write into the export recipe.
-      if (revealSizeId === activeSize.id) handleFramePointerDown(e, 'pan', activeSize, e.currentTarget);
+      if (revealSizeId === activeSize.id && !fromMargin) handleFramePointerDown(e, 'pan', activeSize, frameElement(e.currentTarget));
       touchPan.current = { x: e.clientX, y: e.clientY };
       swipeRef.current = { x: e.clientX, y: e.clientY, t: performance.now(), pinched: false };
       endHold();
@@ -637,7 +671,7 @@ export default function Canvas({
       if (revealSizeId === activeSize.id) {
         // Only explicit Crop mode is permitted to change the saved image transformation.
         const zoom = clamp(start.zoom * Math.hypot(a.x - b.x, a.y - b.y) / start.distance, 1, MAX_CROP_ZOOM);
-        const rect = e.currentTarget.getBoundingClientRect();
+        const rect = frameElement(e.currentTarget).getBoundingClientRect();
         const focalX = (start.centreX - rect.left) / Math.max(1, rect.width) - 0.5;
         const focalY = (start.centreY - rect.top) / Math.max(1, rect.height) - 0.5;
         const limits = panLimits(activeSize, zoom);
@@ -710,7 +744,7 @@ export default function Canvas({
         dragRef.current = {
           kind: 'pan', sizeId: activeSize.id, startX: point.x, startY: point.y,
           origA: activeSize.crop.panX, origB: activeSize.crop.panY, crop: activeSize.crop,
-          rect: e.currentTarget.getBoundingClientRect(),
+          rect: frameElement(e.currentTarget).getBoundingClientRect(),
         };
       }
     } else {
@@ -745,6 +779,48 @@ export default function Canvas({
     dragRef.current = null;
     setDraggingType('none');
     setActiveGuides([]);
+  };
+
+  // The empty stage round the photo. On touch it takes the same pinch, pan and swipe as the photo, so a pinch that starts
+  // in the margin zooms the photo instead of the page. With a mouse or pen, dragging it moves round a zoomed-in photo,
+  // as one finger does on a tablet. Controls, overlays, the photo frame and the All formats cards keep their own gestures.
+  const stageGestures = canvasLayoutMode === 'single' && activeSize.kind === 'photo' && !compareMode && !splitFor(activeSize.id);
+  const isStageMargin = (e: React.PointerEvent<HTMLElement>) => {
+    const target = e.target as Element | null;
+    if (!target || target === e.currentTarget) return true;
+    if (!target.closest('[data-stage-margin]')) return false;
+    return !target.closest('button, a, input, select, textarea, [role="slider"], [data-overlay], [data-testid="canvas-frame"]');
+  };
+  const handleStagePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!stageGestures || !isStageMargin(e)) return;
+    if (e.pointerType === 'touch') { handleTouchDown(e, true); return; }
+    const stage = e.currentTarget;
+    if (e.button !== 0 || (stage.scrollWidth <= stage.clientWidth + 1 && stage.scrollHeight <= stage.clientHeight + 1)) return;
+    e.preventDefault();
+    stage.setPointerCapture(e.pointerId);
+    marginPan.current = { id: e.pointerId, x: e.clientX, y: e.clientY, left: stage.scrollLeft, top: stage.scrollTop };
+    setMarginPanning(true);
+  };
+  const handleStagePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'touch') {
+      if (touchPoints.current.has(e.pointerId)) { e.stopPropagation(); handleTouchMove(e); }
+      return;
+    }
+    const pan = marginPan.current;
+    if (!pan || pan.id !== e.pointerId) return;
+    e.stopPropagation();
+    e.currentTarget.scrollLeft = pan.left - (e.clientX - pan.x);
+    e.currentTarget.scrollTop = pan.top - (e.clientY - pan.y);
+  };
+  const handleStagePointerEnd = (e: React.PointerEvent<HTMLDivElement>, cancelled: boolean) => {
+    if (e.pointerType === 'touch') {
+      if (touchPoints.current.has(e.pointerId)) { e.stopPropagation(); if (cancelled) handleTouchCancel(e); else handleTouchEnd(e); }
+      return;
+    }
+    if (marginPan.current?.id !== e.pointerId) return;
+    e.stopPropagation();
+    marginPan.current = null;
+    setMarginPanning(false);
   };
 
   const handleVideoPinDrop = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -1015,26 +1091,73 @@ export default function Canvas({
       // three panes plus their gaps into the stage without hiding the last one.
       const sectionCount = splitCountFor(activeSize.id);
       const splitWidthBudget = stageSize.width > 0
-        ? Math.max(1, ((stageSize.width - 32) / Math.max(0.01, canvasZoom) - 16 * (sectionCount - 1)) / sectionCount)
+        ? Math.max(1, ((stageSize.width - 32) / Math.max(0.01, canvasZoom) - 16 * (sectionCount - 1) - (sectionCount < MAX_SPLIT_FRAMES ? 56 : 0)) / sectionCount)
         : frameW;
       const splitFrameW = Math.min(frameW, splitWidthBudget);
       const splitFrameH = splitFrameW / aspect;
+      const paneSelected = (paneIdx: number) => selectedPane?.sizeId === activeSize.id && selectedPane.index === paneIdx;
+      const removePane = () => { setSelectedPane(null); changeSplitCount(activeSize.id, sectionCount - 1); };
+      const scaleHandle = (id: 'tl' | 'tr' | 'bl' | 'br', place: string) => (
+        <button
+          key={id}
+          type="button"
+          aria-label={STRINGS.canvas.splitResizeHandle}
+          title={STRINGS.canvas.splitResizeHandle}
+          data-testid={`split-scale-${id}`}
+          onPointerDown={(e) => handleFramePointerDown(e, `scale-${id}`, activeSize, e.currentTarget.closest('[data-testid="split-composition"]') as HTMLElement)}
+          className={`absolute z-30 h-4 w-4 rounded-sm border-2 border-white bg-[var(--bg-scrim)] shadow hover:bg-[var(--brand-accent)] ${place}`}
+        />
+      );
       return (
         <div
-          className="m-auto flex items-center gap-4"
+          data-testid="split-composition"
+          className="relative m-auto flex items-center gap-4"
           style={{ zoom: canvasZoom }}
+          onClick={(e) => { if (e.target === e.currentTarget) setSelectedPane(null); }}
         >
+          {revealing && (<>
+            {scaleHandle('tl', '-left-2 top-6 cursor-nwse-resize')}
+            {scaleHandle('tr', '-right-2 top-6 cursor-nesw-resize')}
+            {scaleHandle('bl', '-left-2 -bottom-2 cursor-nesw-resize')}
+            {scaleHandle('br', '-right-2 -bottom-2 cursor-nwse-resize')}
+          </>)}
           {Array.from({ length: sectionCount }, (_, paneIdx) => paneIdx).map((paneIdx) => (
             <div key={paneIdx} className="flex flex-col items-center gap-2">
-              <span className="text-[11px] font-medium text-[var(--text-muted)]">
-                {sectionCount === 2 ? (paneIdx === 0 ? STRINGS.canvas.frameLeft : STRINGS.canvas.frameRight) : `Frame ${paneIdx + 1} of ${sectionCount}`} · 1:1
+              <span className="flex h-6 items-center gap-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                {sectionCount === 2 ? (paneIdx === 0 ? STRINGS.canvas.frameLeft : STRINGS.canvas.frameRight) : `Frame ${paneIdx + 1} of ${sectionCount}`} · {activeSize.ratioLabel}
+                {paneSelected(paneIdx) && (
+                  <button
+                    type="button"
+                    data-testid="split-frame-remove"
+                    onClick={removePane}
+                    aria-label={STRINGS.canvas.splitFrameDelete(paneIdx + 1, sectionCount)}
+                    title={STRINGS.canvas.splitFrameDelete(paneIdx + 1, sectionCount)}
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[var(--semantic-danger)] hover:text-[var(--text-primary)]"
+                  >
+                    <BrandIcon name="trash" size={12} />
+                  </button>
+                )}
               </span>
               <div
-                onPointerDown={(e) => handleFramePointerDown(e, revealing ? 'pan' : 'split', activeSize, e.currentTarget)}
+                role="button"
+                tabIndex={0}
+                aria-pressed={paneSelected(paneIdx)}
+                aria-label={STRINGS.canvas.splitFrameSelect(paneIdx + 1, sectionCount)}
+                data-testid={`split-frame-${paneIdx}`}
+                onPointerDown={(e) => { paneDown.current = { x: e.clientX, y: e.clientY }; handleFramePointerDown(e, revealing ? 'pan' : 'split', activeSize, e.currentTarget); }}
+                onClick={(e) => {
+                  const down = paneDown.current;
+                  if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) return;
+                  setSelectedPane(paneSelected(paneIdx) ? null : { sizeId: activeSize.id, index: paneIdx });
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedPane({ sizeId: activeSize.id, index: paneIdx }); }
+                  else if ((e.key === 'Delete' || e.key === 'Backspace') && paneSelected(paneIdx)) { e.preventDefault(); e.stopPropagation(); removePane(); }
+                }}
                 onDoubleClick={() => setRevealSizeId((current) => current === activeSize.id ? null : activeSize.id)}
                 title={STRINGS.canvas.splitCropTitle}
-                className={`relative cursor-grab overflow-hidden rounded-[var(--radius-md)] border bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] active:cursor-grabbing ${revealing ? "border-[var(--semantic-warning)] ring-2 ring-[var(--semantic-warning)]" : "border-[var(--border-default)]"}`}
-                style={{ width: splitFrameW, height: splitFrameH }}
+                className={`relative cursor-grab overflow-hidden rounded-[var(--radius-md)] border bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent)] active:cursor-grabbing ${revealing ? "border-[var(--semantic-warning)] ring-2 ring-[var(--semantic-warning)]" : paneSelected(paneIdx) ? 'border-[var(--brand-accent)] ring-2 ring-[var(--brand-accent)]' : "border-[var(--border-default)]"}`}
+                style={{ width: splitFrameW, height: splitFrameH, touchAction: 'none' }}
               >
                 {inBorderFrame(activeSize, <img
                   src={photo.previewUrl}
@@ -1052,12 +1175,25 @@ export default function Canvas({
               </div>
             </div>
           ))}
+          {sectionCount < MAX_SPLIT_FRAMES && (
+            <button
+              type="button"
+              data-testid="split-frame-add"
+              onClick={() => changeSplitCount(activeSize.id, sectionCount + 1)}
+              title={STRINGS.canvas.splitFrameAddMore(sectionCount + 1)}
+              aria-label={STRINGS.canvas.splitFrameAddMore(sectionCount + 1)}
+              className="mt-8 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] shadow-md transition-colors hover:border-[var(--brand-accent)] hover:text-[var(--brand-accent)]"
+            >
+              <BrandIcon name="frame-add" size={18} />
+            </button>
+          )}
         </div>
       );
     }
 
     return (
       <div
+        data-stage-margin
         className="relative m-auto flex flex-col items-center gap-2"
         style={{ zoom: canvasZoom, transform: offset ? `translate(${offset.x}px, ${offset.y}px)` : undefined }}
       >
@@ -1083,7 +1219,7 @@ export default function Canvas({
           {activeSize.crop.rotateDeg !== 0 && <span>· {activeSize.crop.rotateDeg}°</span>}
         </div>
 
-        <div className="relative flex items-center gap-3">
+        <div data-stage-margin className="relative flex items-center gap-3">
           {/* Primary photo frame */}
           <div
             data-testid="canvas-frame"
@@ -1205,7 +1341,7 @@ export default function Canvas({
           {features.splitFrames && (
             <button
               type="button"
-              onClick={() => onToggleSplitFrames(photo.id)}
+              onClick={() => changeSplitCount(activeSize.id, 2)}
               title={STRINGS.canvas.splitFrameAdd}
               aria-label={STRINGS.canvas.splitFrameAdd}
               className="hidden sm:flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] shadow-md transition-colors hover:border-[var(--brand-accent)] hover:text-[var(--brand-accent)]"
@@ -1331,13 +1467,14 @@ export default function Canvas({
 
   return (
     <main
+      ref={setColumnEl}
       onPointerMove={handleGlobalPointerMove}
       onPointerUp={handleGlobalPointerUp}
       onPointerCancel={handleGlobalPointerUp}
       className="relative flex flex-1 flex-col overflow-hidden bg-[var(--bg-canvas)]"
     >
       {/* Top Canvas Bar: View mode (Single vs All Formats Side-by-Side) + Per-selection Flip/Rotate/Compare */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/75 px-3 py-1.5 backdrop-blur-sm">
+      <div className="v2-canvas-bar flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/75 px-3 py-1.5 backdrop-blur-sm">
         <div className="flex items-center gap-1.5">
           {/* Single vs All-Formats Side-by-Side Board */}
           <div className="inline-flex rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-0.5">
@@ -1498,14 +1635,21 @@ export default function Canvas({
           the picture is zoomed and scrolled. */}
       <div ref={viewportRef} className="relative flex min-h-0 min-w-0 flex-1">
       <div
-        ref={stageRef}
+        ref={attachStage}
+        data-testid="canvas-stage"
+        onPointerDown={handleStagePointerDown}
+        onPointerMove={handleStagePointerMove}
+        onPointerUp={(e) => handleStagePointerEnd(e, false)}
+        onPointerCancel={(e) => handleStagePointerEnd(e, true)}
         onClick={(e) => {
           if (e.target !== e.currentTarget) return;
           if (revealSizeId) setRevealSizeId(null); // Clicking outside the image accepts and exits crop mode.
           if (canvasLayoutMode === 'all-formats') onClearSizeSelection();
         }}
-        className="relative flex flex-1 overflow-auto inflight-scroll p-2 sm:p-6"
+        className={`relative flex flex-1 overflow-auto inflight-scroll p-2 sm:p-6 ${marginPanning ? 'cursor-grabbing' : stageGestures && canvasZoom > 1.01 ? 'cursor-grab' : ''}`}
         style={{
+          // The page itself never pinch-zooms over the photo or its margin: the canvas takes that gesture.
+          touchAction: stageGestures ? 'none' : undefined,
           // A quiet, theme-aware working-area grid; artboards and exported images are unaffected.
           backgroundImage: 'radial-gradient(circle, var(--border-default) 0.7px, transparent 0.9px)',
           backgroundSize: '22px 22px',
@@ -1522,7 +1666,7 @@ export default function Canvas({
 
       </div>
         {/* Subtle bottom-left interaction hint */}
-        {!calmView && canvasLayoutMode === 'single' && (
+        {!hideHints && canvasLayoutMode === 'single' && (
           <p data-capture-ignore className="pointer-events-none absolute bottom-3 left-4 right-80 hidden truncate lg:block text-[11px] text-[var(--text-muted)]">
             {activeSize.kind === 'video'
               ? STRINGS.canvas.zoomVideoHint

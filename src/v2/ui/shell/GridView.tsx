@@ -166,7 +166,7 @@ export default function GridView({
                     />
                     {active && (
                       <span className="absolute left-2 top-2 rounded bg-[var(--bg-scrim)] px-1.5 py-0.5 text-[10px] font-medium text-white">
-                        Active
+                        {STRINGS.shellLabels.activePhoto}
                       </span>
                     )}
                     <span className="absolute bottom-2 left-2 rounded bg-[var(--bg-scrim)] px-1.5 py-0.5 text-[10px] font-medium text-white">

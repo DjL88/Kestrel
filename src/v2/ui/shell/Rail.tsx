@@ -12,7 +12,7 @@ interface RailProps {
   taskProgress: number;
   onOpenTasks: () => void;
   onOpenModeSettings: () => void;
-  calmView: boolean;
+  quietBadges: boolean;
   onSelectPanel: (panelId: PanelId) => void;
   onSetPanelVisible: (panelId: PanelId, visible: boolean) => void;
   onSetPanelDock: (panelId: PanelId, dock: DockPosition) => void;
@@ -40,7 +40,7 @@ export default function Rail({
   taskProgress,
   onOpenTasks,
   onOpenModeSettings,
-  calmView,
+  quietBadges,
   onSelectPanel,
   onSetPanelVisible,
   onSetPanelDock,
@@ -100,11 +100,11 @@ export default function Rail({
   return (
     <>
       <aside
-        aria-label="Studio tools"
+        aria-label={STRINGS.shellLabels.studioTools}
         onContextMenu={handleContextMenu}
-        className={`hidden md:flex w-[var(--rail-width)] shrink-0 flex-col items-center justify-between ${hand === 'left' ? 'border-l' : 'border-r'} border-[var(--border-subtle)] bg-[var(--bg-surface)] py-2 select-none`}
+        className={`v2-rail inflight-scroll hidden md:flex w-[var(--rail-width)] shrink-0 flex-col items-center justify-between ${hand === 'left' ? 'border-l' : 'border-r'} border-[var(--border-subtle)] bg-[var(--bg-surface)] py-2 select-none`}
       >
-        <div className="flex w-full flex-col items-center gap-0.5 overflow-y-auto inflight-scroll px-1.5">
+        <div className="v2-rail-tools flex w-full flex-col items-center gap-0.5 overflow-y-auto inflight-scroll px-1.5">
           {railItems.map((item) => {
             const isActive = activePanel === item.id;
             const isHidden = !panels[item.id]?.visible;
@@ -124,8 +124,8 @@ export default function Rail({
                 }`}
               >
                 <BrandIcon name={item.icon} size={18} />
-                <span className="truncate max-w-full leading-tight">{item.label}</span>
-                {false && runningTaskCount > 0 && !calmView && (
+                <span className="v2-rail-label truncate max-w-full leading-tight">{item.label}</span>
+                {false && runningTaskCount > 0 && !quietBadges && (
                   <span
                     aria-label={`${runningTaskCount} running tasks`}
                     className="absolute right-1.5 top-1.5 min-w-[16px] rounded-full bg-[var(--brand-accent)] px-1 text-center text-[9px] font-bold text-[var(--text-on-accent)] tabular-nums"
@@ -138,21 +138,21 @@ export default function Rail({
           })}
         </div>
 
-        <div className="w-full space-y-0.5 border-t border-[var(--border-subtle)] px-1.5 pt-2">
+        <div className="v2-rail-footer w-full space-y-0.5 border-t border-[var(--border-subtle)] px-1.5 pt-2">
           {onOpenAllPhotos && (
             <button
               type="button"
               onClick={onOpenAllPhotos}
               aria-pressed={allPhotosOpen}
-              title="Show all photos at once"
-              aria-label="All photos"
+              title={STRINGS.shellLabels.allPhotosTitle}
+              aria-label={STRINGS.shellLabels.allPhotos}
               data-testid="all-photos-button"
               className={`flex w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] py-2 text-[10px] font-medium transition-colors ${
                 allPhotosOpen ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
               }`}
             >
               <BrandIcon name="image" size={18} />
-              <span>All photos</span>
+              <span className="v2-rail-label">{STRINGS.shellLabels.allPhotos}</span>
             </button>
           )}
           <TasksWheel running={runningTaskCount} percent={taskProgress} active={activePanel === 'tasks'} onClick={onOpenTasks} />
@@ -165,7 +165,7 @@ export default function Rail({
             className="flex w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] border border-[var(--brand-accent-border)] bg-[var(--brand-accent-soft)] py-1.5 text-[10px] font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface-hover)]"
           >
             <BrandIcon name={assistModeIconName(assistMode)} size={16} className="text-[var(--brand-accent)]" />
-            <span className="truncate leading-tight">{modeLabel}</span>
+            <span className="v2-rail-label truncate leading-tight">{modeLabel}</span>
           </button>
           <button
             type="button"
@@ -174,7 +174,7 @@ export default function Rail({
             className="flex w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] py-2 text-[10px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
             <BrandIcon name="settings" size={18} />
-            <span>{STRINGS.rail.settings}</span>
+            <span className="v2-rail-label">{STRINGS.rail.settings}</span>
           </button>
         </div>
       </aside>
@@ -266,7 +266,7 @@ function TasksWheel({ running, percent, active, onClick }: { running: number; pe
         </svg>
         <span className="relative text-[11px] font-bold tabular-nums text-[var(--text-primary)]">{running}</span>
       </span>
-      <span>{STRINGS.rail.tasks}</span>
+      <span className="v2-rail-label">{STRINGS.rail.tasks}</span>
     </button>
   );
 }

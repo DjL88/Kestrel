@@ -172,6 +172,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
       : readFormatSplits(frame.formatSplits),
     videoZoom: readVideoZoom(frame.videoZoom),
     masks: masksToLayers(frame.edit?.masks),
+    ...(frame.asShotWhite ? { asShotKelvin: Math.round(frame.asShotWhite.kelvin) } : {}),
     ...(frame.burstGroupId && frame.burstCount > 1 ? { burst: { groupId: frame.burstGroupId, index: frame.burstIndex, count: frame.burstCount, ungrouped: Boolean(frame.burstUngrouped), ...(typeof frame.cullScore === 'number' ? { score: frame.cullScore } : {}) } } : {}),
     ...(describeHistory(frame.editHistory)
       ? { editHistory: describeHistory(frame.editHistory) }

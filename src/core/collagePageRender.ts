@@ -27,7 +27,8 @@ export async function renderCollagePage(doc: CollageDocument, page: CollagePage,
     const warning=printResolutionMessage(ppi,300);if(warning)throw new Error(warning);
    }
    const x=bx+tw*(slot.x+page.gap/2)/100,y=by+th*(slot.y+page.gap/2)/100;
-   const crop=coverCrop(source.width,source.height,w,h);
+   // The window's framing (zoom and position); the editor previews the same geometry (collageSlotPlacement).
+   const crop=coverCrop(source.width,source.height,w,h,slot.zoom??1,slot.panX??0,slot.panY??0);
    ctx.save();
    try{
     ctx.translate(x+w/2,y+h/2);ctx.rotate(slot.angle*Math.PI/180);ctx.translate(-w/2,-h/2);

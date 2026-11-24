@@ -17,11 +17,11 @@ export default function CollageExportDialog({document:doc,onClose,onExport}:Prop
  React.useEffect(()=>{closeRef.current?.focus();},[]);
  return <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4" onKeyDown={e=>{if(e.key==='Escape'&&!busy)onClose();}}>
   <section role="dialog" aria-modal="true" aria-labelledby="collage-export-title" className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-xl bg-[var(--bg-surface)] p-5 text-[var(--text-primary)] space-y-4">
-   <div className="flex justify-between items-center"><h2 id="collage-export-title" className="text-lg font-semibold">Export collage</h2><button ref={closeRef} type="button" disabled={busy} onClick={onClose}>Close</button></div>
+   <div className="flex justify-between items-center"><h2 id="collage-export-title" className="text-lg font-semibold">{STRINGS.collageExport.title}</h2><button ref={closeRef} type="button" disabled={busy} onClick={onClose}>{STRINGS.collageExport.close}</button></div>
    <p className="text-sm">{COLLAGE_FORMATS[doc.format].label}</p>
-   <fieldset className="space-y-2" disabled={busy}><legend className="font-medium">Pages</legend>
-    <label className="flex items-center gap-2 min-h-10"><input type="radio" name="collage-pages" checked={mode==='current'} onChange={()=>setMode('current')}/>Current page</label>
-    <label className="flex items-center gap-2 min-h-10"><input type="radio" name="collage-pages" disabled={doc.pages.length>MAX_COLLAGE_EXPORT_PAGES} checked={mode==='all'} onChange={()=>setMode('all')}/>All {doc.pages.length} pages</label>
+   <fieldset className="space-y-2" disabled={busy}><legend className="font-medium">{STRINGS.collageExport.pages}</legend>
+    <label className="flex items-center gap-2 min-h-10"><input type="radio" name="collage-pages" checked={mode==='current'} onChange={()=>setMode('current')}/>{STRINGS.collageExport.currentPage}</label>
+    <label className="flex items-center gap-2 min-h-10"><input type="radio" name="collage-pages" disabled={doc.pages.length>MAX_COLLAGE_EXPORT_PAGES} checked={mode==='all'} onChange={()=>setMode('all')}/>{STRINGS.collageExport.allPages(doc.pages.length)}</label>
     {doc.pages.length>1 && <label className="flex items-center gap-2 min-h-10"><input type="radio" name="collage-pages" checked={mode==='range'} onChange={()=>setMode('range')}/>{STRINGS.collage.pageRange}</label>}
     {mode==='range' && <div className="flex gap-3">
       <label>{STRINGS.collage.firstPage}<input className="ml-2 w-16 rounded border p-1" type="number" min="1" max={doc.pages.length} value={first||''} onChange={e=>setFirst(Number(e.target.value))}/></label>
@@ -29,11 +29,11 @@ export default function CollageExportDialog({document:doc,onClose,onExport}:Prop
     </div>}
     {(invalidRange||doc.pages.length>MAX_COLLAGE_EXPORT_PAGES)&&<p role="status">{STRINGS.collage.rangeHelp(MAX_COLLAGE_EXPORT_PAGES)}</p>}
    </fieldset>
-   <label className="block font-medium">File format<select disabled={busy} className="block mt-2 w-full rounded border bg-[var(--bg-surface)] p-2" value={format} onChange={e=>setFormat(e.target.value as CollageExportRequest['format'])}>{paper?<option value="pdf">Photo album PDF</option>:<><option value="jpeg">JPEG</option><option value="png">PNG</option></>}</select></label>
-   <p className="text-sm text-[var(--text-secondary)]">{format==='pdf'?'RGB photo-lab PDF, 300 PPI, 3 mm bleed and trim boxes. Not CMYK or certified PDF/X.':multiple?'Pages are numbered and delivered together in one ZIP file.':'One full-size image file.'} Connected, verified JPEG and PNG originals are currently supported. RAW and HEIF originals are not yet supported for collage export.</p>
+   <label className="block font-medium">{STRINGS.collageExport.fileFormat}<select disabled={busy} className="block mt-2 w-full rounded border bg-[var(--bg-surface)] p-2" value={format} onChange={e=>setFormat(e.target.value as CollageExportRequest['format'])}>{paper?<option value="pdf">{STRINGS.collageExport.albumPdf}</option>:<><option value="jpeg">JPEG</option><option value="png">PNG</option></>}</select></label>
+   <p className="text-sm text-[var(--text-secondary)]">{format==='pdf'?STRINGS.collageExport.pdfNote:multiple?STRINGS.collageExport.zipNote:STRINGS.collageExport.singleNote} {STRINGS.collageExport.originalsNote}</p>
    {error&&<p role="alert" className="text-sm">{error}</p>}
-   {!onExport&&<p role="status">Export is unavailable in this workspace.</p>}
-   <button type="button" className="w-full min-h-11 rounded bg-[var(--brand-accent)] font-semibold text-[var(--text-on-accent)] disabled:opacity-50" disabled={busy||!onExport||invalidRange||(format==='pdf'&&!paper)} onClick={async()=>{if(!onExport)return;setBusy(true);setError('');try{await onExport({format,allPages:mode==='all',...(mode==='range'?{range:{first,last}}:{})});onClose();}catch(reason){setError(reason instanceof Error?reason.message:'Export failed.');}finally{setBusy(false);}}}>{busy?'Preparing export…':'Export'}</button>
+   {!onExport&&<p role="status">{STRINGS.collageExport.unavailable}</p>}
+   <button type="button" className="w-full min-h-11 rounded bg-[var(--brand-accent)] font-semibold text-[var(--text-on-accent)] disabled:opacity-50" disabled={busy||!onExport||invalidRange||(format==='pdf'&&!paper)} onClick={async()=>{if(!onExport)return;setBusy(true);setError('');try{await onExport({format,allPages:mode==='all',...(mode==='range'?{range:{first,last}}:{})});onClose();}catch(reason){setError(reason instanceof Error?reason.message:STRINGS.collageExport.failed);}finally{setBusy(false);}}}>{busy?STRINGS.collageExport.preparing:STRINGS.collageExport.export}</button>
   </section>
  </div>;
 }

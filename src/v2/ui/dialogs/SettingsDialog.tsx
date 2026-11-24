@@ -2,7 +2,9 @@ import { LANGUAGES, languageOption, type LanguageCode } from '../../../core/loca
 import { chooseLanguage, language } from '../../../i18n/messages';
 import { StorageConnections } from './StorageConnections';
 import { aiProviderControl, cacheCapControl } from '../../engineClient/realSettingsControls';
-import React, { useState } from 'react';
+import { calmViewOn, calmViewPatch } from '../../engineClient/uiSettings';
+import React, { useRef, useState } from 'react';
+import { useDialogFocus } from '../utils/dialogFocus';
 import type {
   AiProviderConfig,
   AssistMode,
@@ -41,6 +43,13 @@ interface SettingsDialogProps {
   proChoiceOffered?: boolean;
 }
 
+const CALM_PARTS: Array<{ key: 'calmMotion' | 'calmBadges' | 'calmHints' | 'calmReadouts'; label: string; desc: string }> = [
+  { key: 'calmMotion', label: STRINGS.settings.appearance.calmMotionLabel, desc: STRINGS.settings.appearance.calmMotionDesc },
+  { key: 'calmBadges', label: STRINGS.settings.appearance.calmBadgesLabel, desc: STRINGS.settings.appearance.calmBadgesDesc },
+  { key: 'calmHints', label: STRINGS.settings.appearance.calmHintsLabel, desc: STRINGS.settings.appearance.calmHintsDesc },
+  { key: 'calmReadouts', label: STRINGS.settings.appearance.calmReadoutsLabel, desc: STRINGS.settings.appearance.calmReadoutsDesc },
+];
+
 const TABS: Array<{ id: SettingsTabId; label: string; icon: BrandIconName }> = [
   { id: 'appearance', label: STRINGS.settings.tabs.appearance, icon: 'palette' },
   { id: 'account', label: STRINGS.settings.tabs.account, icon: 'account' },
@@ -74,6 +83,9 @@ export default function SettingsDialog({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  const panelRef = useRef<HTMLDivElement>(null);
+  const onDialogKeyDown = useDialogFocus(open, panelRef, onClose);
+
   if (!open) return null;
 
   const handleEmailSignIn = (e: React.FormEvent) => {
@@ -88,13 +100,14 @@ export default function SettingsDialog({
     <div
       role="dialog"
       aria-modal="true"
+      onKeyDown={onDialogKeyDown}
       aria-labelledby="settings-dialog-title"
       className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-scrim)] p-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex h-[82vh] max-h-[680px] w-full max-w-3xl flex-col overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]">
+      <div ref={panelRef} tabIndex={-1} className="flex h-[82vh] max-h-[680px] w-full max-w-3xl flex-col overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-6 py-4">
           <h2 id="settings-dialog-title" className="text-base font-bold text-[var(--text-primary)]">
@@ -102,7 +115,7 @@ export default function SettingsDialog({
           </h2>
           <button
             type="button"
-            aria-label="Close settings"
+            aria-label={STRINGS.settingsMore.closeSettings}
             onClick={onClose}
             className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
@@ -114,7 +127,7 @@ export default function SettingsDialog({
         <div className="flex flex-1 flex-col overflow-hidden sm:flex-row">
           <nav
             role="tablist"
-            aria-label="Settings sections"
+            aria-label={STRINGS.settingsMore.sections}
             className="flex shrink-0 gap-1 overflow-x-auto border-b border-[var(--border-subtle)] bg-[var(--bg-input)] p-2 sm:w-48 sm:flex-col sm:border-b-0 sm:border-r"
           >
             {TABS.map((tab) => {
@@ -188,29 +201,56 @@ export default function SettingsDialog({
                   </div>
                 </section>
 
-                {/* Calm View toggle (lives here, NOT in TopBar) */}
-                <section className="flex items-start justify-between gap-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-4">
-                  <div>
-                    <h3 className="text-xs font-semibold text-[var(--text-primary)]">
-                      {STRINGS.settings.appearance.calmViewLabel}
-                    </h3>
-                    <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
-                      {STRINGS.settings.appearance.calmViewDesc}
-                    </p>
+                {/* Calm View (lives here, NOT in TopBar or Assistance): a preset, with each of its parts adjustable below. */}
+                <section className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 id="calm-view-title" className="text-xs font-semibold text-[var(--text-primary)]">
+                        {STRINGS.settings.appearance.calmViewLabel}
+                      </h3>
+                      <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
+                        {STRINGS.settings.appearance.calmViewDesc}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={calmViewOn(settings)}
+                      aria-labelledby="calm-view-title"
+                      onClick={() => onUpdateSettings(calmViewPatch(!calmViewOn(settings)))}
+                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                        calmViewOn(settings)
+                          ? 'bg-[var(--brand-accent)] text-[var(--text-on-accent)]'
+                          : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
+                      }`}
+                    >
+                      {calmViewOn(settings) ? STRINGS.settings.appearance.on : STRINGS.settings.appearance.off}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={settings.calmView}
-                    onClick={() => onUpdateSettings({ calmView: !settings.calmView })}
-                    className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                      settings.calmView
-                        ? 'bg-[var(--brand-accent)] text-[var(--text-on-accent)]'
-                        : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
-                    }`}
-                  >
-                    {settings.calmView ? 'On' : 'Off'}
-                  </button>
+                  <ul className="mt-3 divide-y divide-[var(--border-subtle)] border-t border-[var(--border-subtle)]">
+                    {CALM_PARTS.map((part) => (
+                      <li key={part.key} className="flex items-start justify-between gap-4 py-2.5">
+                        <div>
+                          <p id={`calm-${part.key}`} className="text-xs font-medium text-[var(--text-primary)]">{part.label}</p>
+                          <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)]">{part.desc}</p>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={settings[part.key]}
+                          aria-labelledby={`calm-${part.key}`}
+                          onClick={() => onUpdateSettings({ [part.key]: !settings[part.key] })}
+                          className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                            settings[part.key]
+                              ? 'border-[var(--brand-accent-border)] bg-[var(--brand-accent-soft)] text-[var(--text-primary)]'
+                              : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)]'
+                          }`}
+                        >
+                          {settings[part.key] ? STRINGS.settings.appearance.on : STRINGS.settings.appearance.off}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                 </section>
 
                 {/* Basic accounts only: leave locked Pro features out of the interface so they are not a constant reminder. */}
@@ -411,7 +451,7 @@ export default function SettingsDialog({
                 <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
                   {STRINGS.settings.aiProviders.intro}
                 </p>
-                {accountPanel && <p id="v2-real-ai-unavailable" role="status" className="text-xs leading-relaxed text-[var(--text-secondary)]">These external AI connections are not implemented in this workspace. The preview's Connect button did not verify an account or key, so it is disabled here.</p>}
+                {accountPanel && <p id="v2-real-ai-unavailable" role="status" className="text-xs leading-relaxed text-[var(--text-secondary)]">{STRINGS.settingsMore.aiNotImplemented}</p>}
                 <div className="space-y-2">
                   {settings.aiProviders.map((prov) => {
                     const connection = aiProviderControl(prov, Boolean(accountPanel));
@@ -455,9 +495,9 @@ export default function SettingsDialog({
                   })}
                 </div>
                 {accountPanel
-                  ? <p className="text-[11px] text-[var(--text-muted)]">Self-hosted and bring-your-own AI model connections are planned, but are not configured through this workspace yet. Local editing remains available.</p>
+                  ? <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.settingsMore.aiPlanned}</p>
                   : <div>
-                    <p className="text-[11px] font-medium text-[var(--text-muted)]">Bring your own: also works with a model you run yourself</p>
+                    <p className="text-[11px] font-medium text-[var(--text-muted)]">{STRINGS.settingsMore.byoAi}</p>
                     <WorksWith items={[{ id: 'ollama', name: 'Ollama' }, { id: 'lmstudio', name: 'LM Studio' }]} />
                   </div>}
               </div>
@@ -472,7 +512,7 @@ export default function SettingsDialog({
                       {STRINGS.settings.storage.localCacheHeading}
                     </h3>
                     <span className="font-mono text-xs text-[var(--brand-accent)] tabular-nums">
-                      {accountPanel ? 'Not configured' : `${settings.localCacheLimitGb} GB cap`}
+                      {accountPanel ? STRINGS.settingsMore.notConfigured : STRINGS.settingsMore.cacheCap(settings.localCacheLimitGb)}
                     </span>
                   </div>
                   <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
@@ -495,7 +535,7 @@ export default function SettingsDialog({
 
                 <StorageConnections />
                 <div>
-                    <p className="text-[11px] font-medium text-[var(--text-muted)]">Bring your own storage: also works with</p>
+                    <p className="text-[11px] font-medium text-[var(--text-muted)]">{STRINGS.settingsMore.byoStorage}</p>
                     <WorksWith items={[{ id: 'synology', name: 'Synology' }, { id: 'qnap', name: 'QNAP' }, { id: 'nextcloud', name: 'Nextcloud' }, { id: 'owncloud', name: 'ownCloud' }, { id: 'backblaze', name: 'Backblaze B2' }]} />
                 </div>
                 <p className="pt-1 text-[11px] text-[var(--text-muted)]">
@@ -516,27 +556,27 @@ export default function SettingsDialog({
             {activeTab === 'privacy' && (
               <div className="space-y-5">
                 <div>
-                  <h3 className="text-xs font-semibold text-[var(--text-primary)]">Your photos stay yours</h3>
+                  <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.settingsMore.privacyHeading}</h3>
                   <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
-                    InFlight works fully offline. Original files are never changed, moved or uploaded. Nothing leaves this device unless you turn on an optional feature and consent to it.{' '}
-                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-medium text-[var(--brand-accent)] underline">Read the privacy policy</a> (draft, not yet lawyer-reviewed).
+                    {STRINGS.settingsMore.privacyBody}{' '}
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-medium text-[var(--brand-accent)] underline">{STRINGS.settingsMore.privacyLink}</a> {STRINGS.settingsMore.privacyDraft}
                   </p>
                 </div>
                 <section aria-labelledby="erase-device-title" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
-                  <h3 id="erase-device-title" className="text-xs font-semibold text-[var(--text-primary)]">Erase everything on this device</h3>
+                  <h3 id="erase-device-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.settingsMore.eraseHeading}</h3>
                   <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-                    Removes every project, edit, preview and saved choice InFlight keeps in this browser or app, then restarts it. Your original photo files are not touched. This cannot be undone.
+                    {STRINGS.settingsMore.eraseBody}
                   </p>
-                  <label htmlFor="erase-confirm" className="block text-xs font-medium text-[var(--text-secondary)]">Type ERASE to confirm</label>
+                  <label htmlFor="erase-confirm" className="block text-xs font-medium text-[var(--text-secondary)]">{STRINGS.settingsMore.eraseConfirm}</label>
                   <input id="erase-confirm" type="text" autoComplete="off" value={eraseText} onChange={(e) => setEraseText(e.target.value)} className="h-11 w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)]" />
-                  <button type="button" disabled={eraseText.trim() !== 'ERASE'} onClick={onEraseDeviceData} className="min-h-11 rounded-[var(--radius-md)] bg-[var(--status-danger,#e5484d)] px-4 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Erase this device</button>
+                  <button type="button" disabled={eraseText.trim() !== 'ERASE'} onClick={onEraseDeviceData} className="min-h-11 rounded-[var(--radius-md)] bg-[var(--status-danger,#e5484d)] px-4 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">{STRINGS.settingsMore.eraseButton}</button>
                 </section>
                 <section aria-labelledby="erase-account-title" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
-                  <h3 id="erase-account-title" className="text-xs font-semibold text-[var(--text-primary)]">Forget me: account data held by InFlight</h3>
+                  <h3 id="erase-account-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.settingsMore.forgetHeading}</h3>
                   <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-                    If you have signed in, bought a licence, used optional cloud help, or sent a message, InFlight holds a small amount of data about you on its servers. Turning off “help improve suggestions” already deletes what you shared. To have the rest erased, send a request with the email you signed in with. InFlight does not yet have a one-tap server erase, so this goes to a person, and you will be told what, if anything, must be kept (for example payment records the law requires).
+                    {STRINGS.settingsMore.forgetBody}
                   </p>
-                  <a href="/#contact" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-[var(--radius-md)] border border-[var(--border-default)] px-4 text-xs font-medium text-[var(--text-primary)]">Ask InFlight to erase my account data</a>
+                  <a href="/#contact" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-[var(--radius-md)] border border-[var(--border-default)] px-4 text-xs font-medium text-[var(--text-primary)]">{STRINGS.settingsMore.forgetLink}</a>
                 </section>
               </div>
             )}

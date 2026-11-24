@@ -1,14 +1,25 @@
 import { localise, type AreaEntry, type AreaTranslations } from '../../localise';
 import { source } from './source';
+import { enUS } from './en-US';
+import { enCA } from './en-CA';
+import { cy } from './cy';
+import { gd } from './gd';
+import { ga } from './ga';
+import { fr } from './fr';
+import { de } from './de';
+import { es } from './es';
+import { nl } from './nl';
+import { it } from './it';
+import { pt } from './pt';
+import { da } from './da';
+import { sv } from './sv';
+import { nb } from './nb';
+import { fi } from './fi';
+import { is } from './is';
 
-/**
- * Translations by language code. NOT registered in `AREAS` yet: the completeness test needs every full language to have a file,
- * and the V2 words have not been translated. Register `v2Area` in `src/i18n/areas/index.ts` once every language has its file.
- */
-/** Translations by language code. Empty until each language is translated; untranslated words show in British English. */
-const translations: AreaTranslations<typeof source> = {};
+const translations: AreaTranslations<typeof source> = { 'en-US': enUS, 'en-CA': enCA, cy, gd, ga, fr, de, es, nl, it, pt, da, sv, nb, fi, is };
 
-/** The V2 workspace's words in the session's language. */
+/** The V2 workspace's words (projects hub, studio shell, panels, dialogs, collage) in the session's language. */
 export const v2Text = localise(source, translations);
 
 export const v2Area = { name: 'v2', source, translations } satisfies AreaEntry;

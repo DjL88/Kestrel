@@ -665,6 +665,12 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     settings: {
       theme: 'dark',
       calmView: false,
+      // Calmer by default for everyone: less movement and no Ready badge on every finished photo.
+      // Hints and slider numbers stay, because new users need the hints and many people rely on exact values.
+      calmMotion: true,
+      calmBadges: true,
+      calmHints: false,
+      calmReadouts: false,
       touchDensity: 'comfortable',
       hand: 'right',
       cvdGuidance: false,
@@ -1633,7 +1639,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     },
 
     setSplitFrameCount: (photoId, sizeId, count) => {
-      if (![1, 2, 3].includes(count)) return;
+      if (![1, 2, 3, 4, 5].includes(count)) return;
       logAction('setSplitFrameCount', { photoId, sizeId, count });
       updatePhotoById(photoId, (photo) => {
         if (!photo.sizes.some((size) => size.id === sizeId && size.kind === 'photo')) return photo;
@@ -1641,7 +1647,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
         if (count === 1) delete formatSplits[sizeId];
         else formatSplits[sizeId] = {
           enabled: true, offset: formatSplits[sizeId]?.offset ?? 0,
-          ...(count === 3 ? { count: 3 as const } : {}),
+          ...(count >= 3 ? { count: count as 3 | 4 | 5 } : {}),
         };
         return { ...photo, formatSplits,
           editGroups: photo.editGroups.map((g) => g.id === photo.activeGroupId

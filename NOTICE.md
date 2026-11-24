@@ -103,6 +103,10 @@ paid release**; this note records the question and is not legal advice.
 | `lucide-react` | ISC | Icons |
 | `onnxruntime-web` | MIT | Runs the local, offline ML models (subject/species detection) in the browser/webview — no data leaves the device for this |
 | `@fontsource/inter`, `@fontsource/plus-jakarta-sans`, `@fontsource/atkinson-hyperlegible` | SIL OFL-1.1 | Bundled fonts. Atkinson Hyperlegible is designed by the Braille Institute for readability — keep its attribution if it's ever promoted in marketing as an accessibility feature. |
+| `@fontsource/caveat`, `@fontsource/cormorant-garamond`, `@fontsource/dm-sans`, `@fontsource/fraunces`, `@fontsource/jetbrains-mono`, `@fontsource/lora`, `@fontsource/oswald`, `@fontsource/outfit`, `@fontsource/playfair-display` | SIL OFL-1.1 | Bundled V2 favourite fonts for watermark and overlay text, so text looks the same offline and in exports (`src/v2/V2Root.tsx`, `src/demo/v2/main.tsx`). The OFL requires its licence text (each package's `LICENSE`) to accompany redistributed fonts; that applies to the three fonts above too. |
+| `lottie-web` (`lottie_light` player only) | MIT | Launch animation in `src/components/Splash.tsx`, loaded on demand |
+| `firebase` | Apache-2.0 | Optional sign-in (`src/providers/firebaseAuth.ts`), loaded on demand only when sign-in is configured |
+| `@anthropic-ai/sdk` | Apache-2.0 | Optional bring-your-own-key AI review (`src/providers/aiProviders.ts`), loaded on demand and used only when a person adds their own key |
 | `@tailwindcss/vite`, `tailwindcss`, `autoprefixer` | MIT | Styling (build-time) |
 
 Dev-only tooling (not shipped in the app: `typescript`, `tsx`, `@playwright/test`,

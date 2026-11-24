@@ -152,6 +152,12 @@ export interface EditRecipe {
   upscaleFactor: 1 | 2 | 4;
   detailRecovery: number; // 0 to 100
   lensCorrection: boolean;
+  /** Tone curve points [input, output], 0 to 1 on display values. Absent = straight line. */
+  toneCurve?: Array<[number, number]>;
+  /** Colour mixer: eight bands (red, orange, yellow, green, aqua, blue, purple, magenta), each -100 to 100. Absent = untouched. */
+  colourMixer?: { hue: number[]; saturation: number[]; luminance: number[] };
+  /** White balance in kelvin against the camera's as-shot estimate (RAW photos only). Absent = as shot. */
+  whiteBalance?: { asShotK: number; kelvin: number };
 }
 
 export interface LookPreset {
@@ -269,9 +275,11 @@ export interface Photo {
   editGroups: EditGroup[];
   sizes: SizePreset[];
   /** A split belongs to one output format, never every copy of this photo. */
-  formatSplits?: Record<string, { enabled: boolean; offset: number; count?: 3 }>;
+  formatSplits?: Record<string, { enabled: boolean; offset: number; count?: 3 | 4 | 5 }>;
   videoZoom: VideoZoomConfig;
   masks: MaskLayer[];
+  /** The camera's as-shot white in kelvin, estimated by InFlight's RAW decoder. Absent for JPEGs and older developments. */
+  asShotKelvin?: number;
   /** Set when this photo was shot in a burst with others. `ungrouped` is the person's choice to see its frames one by one. */
   burst?: { groupId: string; index: number; count: number; ungrouped: boolean; score?: number };
   /** The photo's recorded edit steps (oldest first) and where it stands now. Absent until it has been edited. */
@@ -371,7 +379,16 @@ export interface StorageConnector {
 
 export interface WorkspaceSettings {
   theme: ThemeMode;
+  /** Calm View, the preset. Switching it sets the parts below together; each part can then be changed on its own. */
   calmView: boolean;
+  /** Less movement: no slides, fades or spinners in the workspace (the operating system's reduce-motion setting does the same). */
+  calmMotion: boolean;
+  /** Fewer badges: leave out the Ready label on finished photos. Labels that need action always show. */
+  calmBadges: boolean;
+  /** Fewer hints: hide the tips drawn on the canvas. */
+  calmHints: boolean;
+  /** Hide the numbers beside sliders. Separate from the preset, because many people find exact values calming. */
+  calmReadouts: boolean;
   touchDensity: 'comfortable' | 'compact';
   /** Which side the tool rail is on. 'left' mode puts it on the right so a pencil or a left hand does not catch it. */
   hand: 'right' | 'left';
@@ -571,8 +588,8 @@ export interface WorkspaceActions {
   /** Delete a format: a custom one is removed, a built-in one is switched off. A photo always keeps at least one. */
   removeSize: (photoId: string, sizeId: string) => void;
   toggleSplitFrames: (photoId: string) => void;
-  /** One photo's selected format: 1 rejoins, 2/3 export adjacent continuous frames. */
-  setSplitFrameCount: (photoId: string, sizeId: string, count: 1 | 2 | 3) => void;
+  /** One photo's selected format: 1 rejoins, 2 to 5 export adjacent continuous frames. */
+  setSplitFrameCount: (photoId: string, sizeId: string, count: 1 | 2 | 3 | 4 | 5) => void;
   setSplitPanOffset: (photoId: string, offset: number) => void;
   updateVideoZoom: (photoId: string, patch: Partial<VideoZoomConfig>) => void;
 
