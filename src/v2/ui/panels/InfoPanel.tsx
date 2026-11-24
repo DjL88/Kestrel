@@ -74,7 +74,8 @@ export default function InfoPanel({
               key={n}
               type="button"
               aria-label={STRINGS.panelWords.rateStars(n)}
-              onClick={() => onSetRating([photo.id], n)}
+              aria-pressed={n === photo.rating}
+              onClick={() => onSetRating([photo.id], n === photo.rating ? 0 : n)}
               className="p-1"
             >
               <BrandIcon

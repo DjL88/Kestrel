@@ -479,12 +479,10 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
               runningTaskCount={runningTaskCount}
               taskProgress={runningTaskCount ? store.tasks.filter((t) => t.status === 'running').reduce((sum, t) => sum + t.progress, 0) / runningTaskCount : 0}
               onOpenTasks={() => actions.setActivePanel(store.activePanel === 'tasks' ? null : 'tasks')}
-              onOpenModeSettings={() => actions.setSettingsOpen(true, 'assistance')}
               quietBadges={store.settings.calmBadges}
               onSelectPanel={actions.setActivePanel}
               onSetPanelVisible={actions.setPanelVisible}
               onSetPanelDock={actions.setPanelDock}
-              onOpenSettings={() => actions.setSettingsOpen(true)}
               onOpenAllPhotos={() => actions.setGridViewOpen(!store.gridViewOpen)}
               allPhotosOpen={store.gridViewOpen}
             />}

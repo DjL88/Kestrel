@@ -11,12 +11,10 @@ interface RailProps {
   /** Average progress of running tasks, 0 to 100. */
   taskProgress: number;
   onOpenTasks: () => void;
-  onOpenModeSettings: () => void;
   quietBadges: boolean;
   onSelectPanel: (panelId: PanelId) => void;
   onSetPanelVisible: (panelId: PanelId, visible: boolean) => void;
   onSetPanelDock: (panelId: PanelId, dock: DockPosition) => void;
-  onOpenSettings: () => void;
   /** Show every photo of the project at once. Sits at the foot of the tools, above Tasks. */
   onOpenAllPhotos?: () => void;
   allPhotosOpen?: boolean;
@@ -39,12 +37,10 @@ export default function Rail({
   runningTaskCount,
   taskProgress,
   onOpenTasks,
-  onOpenModeSettings,
   quietBadges,
   onSelectPanel,
   onSetPanelVisible,
   onSetPanelDock,
-  onOpenSettings,
   onOpenAllPhotos,
   allPhotosOpen = false,
   hiddenPanels = [],
@@ -156,26 +152,6 @@ export default function Rail({
             </button>
           )}
           <TasksWheel running={runningTaskCount} percent={taskProgress} active={activePanel === 'tasks'} onClick={onOpenTasks} />
-          <button
-            type="button"
-            onClick={onOpenModeSettings}
-            title={STRINGS.modeFlag.label(modeLabel)}
-            aria-label={STRINGS.modeFlag.label(modeLabel)}
-            data-testid="mode-flag"
-            className="flex w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] border border-[var(--brand-accent-border)] bg-[var(--brand-accent-soft)] py-1.5 text-[10px] font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface-hover)]"
-          >
-            <BrandIcon name={assistModeIconName(assistMode)} size={16} className="text-[var(--brand-accent)]" />
-            <span className="v2-rail-label truncate leading-tight">{modeLabel}</span>
-          </button>
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            aria-label={STRINGS.rail.settings}
-            className="flex w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] py-2 text-[10px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
-          >
-            <BrandIcon name="settings" size={18} />
-            <span className="v2-rail-label">{STRINGS.rail.settings}</span>
-          </button>
         </div>
       </aside>
 
