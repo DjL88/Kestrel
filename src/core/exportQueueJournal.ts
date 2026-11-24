@@ -121,6 +121,12 @@ export function createExportQueueJournal(storage: ExportQueueStorage, prefix = '
         if (!await verifyOutput(current.items[receipt.index], receipt))
           throw new Error('Previously exported file changed or disappeared; manual recovery required.');
       }
+      // The checkpoint may have been replaced, paused or removed while the
+      // asynchronous verification was reading the originals/destination.
+      // Never return a pending plan derived from an obsolete checkpoint.
+      const latest = this.load<Recipe>(id);
+      if (!latest || JSON.stringify(latest) !== JSON.stringify(current))
+        throw new Error('Export checkpoint changed during verification; resume again.');
       const completed = new Set(current.receipts.map(r => r.index));
       return { checkpoint: current, pending: current.items.map((_, i) => i).filter(i => !completed.has(i)) };
     },
