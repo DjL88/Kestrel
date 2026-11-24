@@ -1012,3 +1012,35 @@ test('?v2 canvas controls: screenshot, Grid in the zoom bar, All photos in the r
   const after = await board.locator('[data-testid^="artboard-"]').first().boundingBox();
   expect(Math.abs(after!.x - moved!.x)).toBeLessThan(3);
 });
+
+
+test('V2 edit group rename is persisted in the real catalogue', async ({ page }) => {
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Edit group rename check');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  const image = await page.evaluate(() => {
+    const canvas = document.createElement('canvas'); canvas.width = 180; canvas.height = 130;
+    canvas.getContext('2d')!.fillRect(0, 0, 180, 130);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles([{ name: 'group.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
+  await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  await root.getByRole('button', { name: 'Formats', exact: true }).first().click();
+  await root.getByRole('button', { name: 'Add edit group', exact: true }).click();
+  await root.getByRole('button', { name: /^Rename / }).click();
+  const input = root.getByRole('textbox', { name: 'Edit Groups' });
+  await input.fill(' ');
+  await expect(root.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
+  await input.fill('  Print finish  ');
+  await root.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(root.getByRole('button', { name: /^Print finish/ })).toHaveAttribute('aria-pressed', 'true');
+  await root.getByRole('button', { name: /back to projects/i }).first().click();
+  await page.reload();
+  await root.getByRole('button', { name: /Open studio/ }).first().click();
+  await root.getByRole('button', { name: 'Formats', exact: true }).first().click();
+  await expect(root.getByRole('button', { name: /^Print finish/ })).toBeVisible();
+});
