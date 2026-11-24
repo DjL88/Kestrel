@@ -46,3 +46,21 @@ test('?v2 settings: Privacy has a guarded erase-this-device and a forget-me requ
   await expect(erase).toBeEnabled();
   await expect(page.getByRole('link', { name: 'Ask InFlight to erase my account data' })).toHaveAttribute('href', '/#contact');
 });
+
+
+test('project hub offers a persistent compact list and retains project actions', async ({ page }) => {
+  await page.goto('/?v2&stub=1');
+  const hub = page.locator('.inflight-v2');
+  const compact = hub.getByRole('button', { name: 'Compact', exact: true });
+  const cards = hub.locator('[data-project-layout]');
+  await expect(compact).toHaveAttribute('aria-pressed', 'true');
+  await expect(cards).toHaveAttribute('data-project-layout', 'compact');
+  await compact.click();
+  await expect(cards).toHaveAttribute('data-project-layout', 'cards');
+  await page.reload();
+  await expect(cards).toHaveAttribute('data-project-layout', 'cards');
+  await compact.click();
+  await expect(cards).toHaveAttribute('data-project-layout', 'compact');
+  await hub.getByRole('button', { name: /^Project actions for / }).first().click();
+  await expect(hub.getByRole('menuitem', { name: 'Rename' })).toBeVisible();
+});
