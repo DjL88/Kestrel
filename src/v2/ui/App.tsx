@@ -1,3 +1,4 @@
+import { useServiceReachability } from '../../providers/useServiceReachability';
 import { useConnectivity } from '../../providers/useConnectivity';
 import { projectsText } from '../../i18n/areas/projects';
 import { stepFrom } from './utils/swipe';
@@ -57,12 +58,16 @@ const PANEL_TITLES: Record<PanelId, string> = {
   tasks: STRINGS.tasks.heading,
 };
 
-export default function App({ useStore = useWorkspace, accountPanel }: {
+export default function App({ useStore = useWorkspace, accountPanel, serviceBase }: {
   useStore?: typeof useWorkspace;
   accountPanel?: React.ReactNode;
+  serviceBase?: string;
 } = {}) {
   const { store, actions } = useStore();
   const connectivity = useConnectivity();
+  const service = useServiceReachability(serviceBase);
+  const health = projectsText.connections.health;
+  const serviceLabel = service.state === 'reachable' ? health.ok : service.state === 'unreachable' ? health.error : health.unknown;
   const [systemDark, setSystemDark] = useState(() =>
     typeof window !== 'undefined' && typeof window.matchMedia === 'function'
       ? window.matchMedia('(prefers-color-scheme: dark)').matches : false);
@@ -422,6 +427,17 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         <div role="status" data-testid="offline-status" className="flex shrink-0 items-center gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1 text-xs text-[var(--text-secondary)]">
           <BrandIcon name="alert" size={14} />
           <span>{projectsText.connections.health.offline} · {projectsText.connections.advice.offline}</span>
+        </div>
+      )}
+      {serviceBase && connectivity !== 'offline' && (
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1 text-xs text-[var(--text-secondary)]">
+          <span role="status" data-testid="service-reachability">
+            {['InFlight API', serviceLabel].join(' · ')}
+          </span>
+          <button type="button" disabled={service.state === 'checking'} aria-busy={service.state === 'checking'}
+            onClick={service.check} className="rounded px-2 py-1 hover:bg-[var(--bg-surface-hover)] disabled:opacity-50">
+            {projectsText.connections.check}
+          </button>
         </div>
       )}
       {store.screen === 'hub' ? (
