@@ -863,7 +863,16 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const task = tasks.start(connection ? 'Denoising (cloud, with this device as backup)' : 'Denoising on this device');
     runV2Denoise(frame, provider.current!, connection ? { connection, online: navigator.onLine !== false } : null).then((outcome) => {
       if (!outcome) { task.finish('Could not denoise this photo.'); return; }
-      if (outcome.verified) editFrames([photoId], (current) => ({ ...(current.edit ?? DEFAULT_EDIT), denoise: outcome.strength }));
+      const valid = (current: PhotoFrame) => sameRecipe(current.edit ?? DEFAULT_EDIT, frame.edit ?? DEFAULT_EDIT) && framingKey(current.framing) === framingKey(frame.framing);
+      const latest = stateRef.current?.frames.find(candidate => candidate.id === photoId);
+      if (!latest || !valid(latest)) { task.finish('Photo changed; denoise was not applied.'); setNotice('Photo changed; run denoise again.'); return; }
+      if (outcome.verified) editFrames([photoId], (current) => {
+        if (!valid(current)) return current.edit;
+        const edit = current.edit ?? DEFAULT_EDIT;
+        const id = `auto-denoise-${photoId}`;
+        const masks = (edit.masks ?? []).filter(mask => mask.id !== id && mask.id !== `${id}-background`);
+        return { ...edit, denoise: outcome.strength, masks: [...masks, ...outcome.masks] };
+      });
       task.finish(outcome.verified ? outcome.notes[0] : outcome.notes.join(' '));
       setNotice(outcome.verified ? outcome.notes[0] : `Left as it was. ${outcome.notes.join(' ')}`);
     }, () => task.fail('Denoise failed.')).finally(() => denoiseInFlight.current.delete(photoId));
