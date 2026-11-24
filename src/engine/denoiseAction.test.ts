@@ -103,3 +103,22 @@ it('reduces strength after protected detail loss and accepts only a verified ret
   assert.ok(strengths[1]<strengths[0]);
   assert.equal(result.masks[1].edit.denoise,strengths[1]);
 });
+
+it('retries when the composed saved recipe fails its additional quality check', async () => {
+  const original = flat(16, [120,120,120]);
+  let calls = 0;
+  const result = await runDenoiseAction({ original, backgroundDenoise: 1, render: async () => original,
+    verifyCandidate: () => ++calls === 1
+      ? { ok: false, reasons: ['Individual lost detail'], suggestedStrengthScale: 0.5 }
+      : { ok: true, reasons: [], suggestedStrengthScale: 1 },
+  });
+  assert.equal(result.attempts, 2);
+  assert.equal(result.edit.denoise, 0.5);
+});
+it('cancellation after rendering prevents a verified recipe from escaping', async () => {
+  const controller = new AbortController();
+  const original = flat(16, [120,120,120]);
+  await assert.rejects(runDenoiseAction({ original, backgroundDenoise: 1, signal: controller.signal,
+    render: async () => { controller.abort(); return original; },
+  }), /abort/i);
+});
