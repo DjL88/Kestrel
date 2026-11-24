@@ -10,8 +10,9 @@ import type { PhotoFrame } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import { loadImage } from '../../providers/loadImage';
 import { loadExportSource, loadVerifiedRasterOriginalForExport } from '../../providers/browserExport';
-import { fullResolutionRasterFormat } from '../../core/rawFormats';
-import { loadDenoiseSource } from './denoiseSource';
+import { fullResolutionRasterFormat, isRawPreviewFile } from '../../core/rawFormats';
+import { decodeHeifForDisplay } from '../../providers/heifDecode';
+import { loadDenoiseSource, loadVerifiedAdditionalDenoiseSource } from './denoiseSource';
 import { unionSubjectGrid } from '../../core/subjectUnion';
 import { detectSubjectInstances } from '../../providers/multiSubjectDetector';
 import { estimateNoiseSigma, luminanceStrengthFor } from '../../core/noiseEstimate';
@@ -59,8 +60,16 @@ export async function runV2Denoise(
   const source = await loadDenoiseSource(frame, provider,
     () => fullResolutionRasterFormat(frame.filename)
       ? loadVerifiedRasterOriginalForExport(frame, provider, signal)
-      : loadExportSource(frame, provider), loadImage, signal);
-  if (!source) return null;
+      : isRawPreviewFile(frame.filename) ? loadExportSource(frame, provider)
+      : loadVerifiedAdditionalDenoiseSource(frame, provider.verifiedOriginalReader(frame.stableKey), async (bytes, kind) => {
+          const picture = kind === 'heif' ? await decodeHeifForDisplay(bytes) : bytes.slice(0, bytes.size, 'image/webp');
+          signal?.throwIfAborted();
+          const url = URL.createObjectURL(picture);
+          try { return await loadImage(url); }
+          finally { URL.revokeObjectURL(url); }
+        }, signal), loadImage, signal);
+  if (!source || !Number.isSafeInteger(source.naturalWidth) || !Number.isSafeInteger(source.naturalHeight) ||
+      source.naturalWidth <= 0 || source.naturalHeight <= 0) return null;
   const framing = frame.framing ?? DEFAULT_FRAMING;
   const edge = Math.max(source.naturalWidth, source.naturalHeight);
   const canvas = document.createElement('canvas');
