@@ -113,7 +113,7 @@ export function planExport(request: ExportRequest, frames: readonly ExportFrameI
     }
   }
   const originals = request.includeOriginal ? chosen.map((frame) => frame.id) : [];
-  if (developedRequested && !jobs.length && !originals.length) return { error: 'None of the selected sizes is enabled on the chosen photos.' };
+  if (developedRequested && !jobs.length) return { error: 'None of the selected sizes is enabled on the chosen photos.' };
   const files = jobs.reduce((sum, job) => sum + (job.sections ?? 1) * job.variants.length, 0) + originals.length;
   const completeGrid = jobs.length === chosen.length * picked.length;
   const developed = !jobs.length ? '' : completeGrid

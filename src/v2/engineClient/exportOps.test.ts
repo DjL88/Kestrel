@@ -401,3 +401,15 @@ test('exports the saved group recipes after reopening and a single before and ex
   assert.deepEqual(plan.originals, ['p1']);
   assert.ok('error' in planExport({ ...options, groupIds: ['missing'] }, [frame], [size('a')]));
 });
+
+
+test('mixed original and developed exports refuse a request with every chosen format disabled', () => {
+  const disabled = [{ id: 'p1', filename: 'bird.jpg', formats: { disabled: ['a'], custom: [] } }];
+  for (const variant of [{ includeAfter: true, includeBefore: false }, { includeAfter: false, includeBefore: true }]) {
+    const plan = planExport(request({ photoIds: ['p1'], sizeIds: ['a'], includeOriginal: true, ...variant }), disabled, [size('a')]);
+    assert.deepEqual(plan, { error: 'None of the selected sizes is enabled on the chosen photos.' });
+  }
+  const originals = planExport(request({ photoIds: ['p1'], sizeIds: [], includeOriginal: true, includeAfter: false }), disabled, [size('a')]);
+  assert.ok('jobs' in originals);
+  assert.deepEqual(originals.originals, ['p1']);
+});
