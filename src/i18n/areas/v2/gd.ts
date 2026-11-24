@@ -29,6 +29,8 @@ export const gd: AreaTranslation<typeof source> = {
     label19: 'Cuir na roghainnean ann',
     label20: 'Cuir Coltas air',
     label21: 'Thoir air falbh',
+    label22: 'Tagh Coltas…',
+    label23: 'Às-phortaich na thagh thu…',
   },
   brandName: 'InFlight',
   collage: {

@@ -28,6 +28,8 @@ export const is: AreaTranslation<typeof source> = {
     label19: 'Líma stillingar',
     label20: 'Nota Look',
     label21: 'Fjarlægja',
+    label22: 'Veldu Look…',
+    label23: 'Flytja út valdar…',
   },
   brandName: 'InFlight',
   collage: {

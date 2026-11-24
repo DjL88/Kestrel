@@ -28,6 +28,8 @@ export const cy: AreaTranslation<typeof source> = {
     label19: 'Gludo gosodiadau',
     label20: 'Rhoi Golwg',
     label21: 'Tynnu',
+    label22: 'Dewiswch Olwg…',
+    label23: 'Allforio’r rhai a ddewiswyd…',
   },
   brandName: 'InFlight',
   collage: {

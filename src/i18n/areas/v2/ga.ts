@@ -31,6 +31,8 @@ export const ga: AreaTranslation<typeof source> = {
     label19: 'Greamaigh socruithe',
     label20: 'Cuir Stíl i bhfeidhm',
     label21: 'Bain',
+    label22: 'Roghnaigh Stíl…',
+    label23: 'Easpórtáil an rogha…',
   },
   brandName: 'InFlight',
   collage: {

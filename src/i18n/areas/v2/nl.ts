@@ -28,6 +28,8 @@ export const nl: AreaTranslation<typeof source> = {
     label19: 'Instellingen plakken',
     label20: 'Look toepassen',
     label21: 'Verwijderen',
+    label22: 'Kies een Look…',
+    label23: 'Selectie exporteren…',
   },
   brandName: 'InFlight',
   collage: {

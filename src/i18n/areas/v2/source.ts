@@ -25,6 +25,8 @@ export const source = {
     label19: "Paste settings",
     label20: "Apply Look",
     label21: "Remove",
+    label22: "Choose a Look…",
+    label23: "Export selected…",
   },
   brandName: 'InFlight',
   collage: {

@@ -29,6 +29,8 @@ export const fi: AreaTranslation<typeof source> = {
     label19: 'Liitä asetukset',
     label20: 'Käytä Lookia',
     label21: 'Poista',
+    label22: 'Valitse Look…',
+    label23: 'Vie valitut…',
   },
   brandName: 'InFlight',
   collage: {
