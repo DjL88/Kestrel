@@ -253,3 +253,18 @@ test('deterministic ZIP capacity failure cannot offer unsafe repeated retry', as
   assert.equal(scheduler.canRetryFailed(ticket.taskId), false);
   assert.equal(await scheduler.retryFailed(ticket.taskId), null);
 });
+
+test('coalesced child-stage updates flush all final results even at a frozen clock', async () => {
+  const store = createTaskStore(() => 1_000);
+  const scheduler = createEngineScheduler({
+    taskStore: store, limits: {cpu:1,gpu:1,io:1}, now: () => 1_000,
+  });
+  const ticket = await scheduler.submit(batch('A hundred thumbnails', 100, async (_, __, ctx) => {
+    ctx.stage('Rendering thumbnail');
+  }, {kind:'thumbnail', resource:'io'}));
+  assert.equal(await ticket.finished, 'done');
+  const record = store.list().find(task => task.id === ticket.taskId)!;
+  assert.equal(record.done, 100);
+  assert.equal(record.items?.length, 100);
+  assert.equal(record.items?.filter(item => item.state === 'done').length, 100);
+});
