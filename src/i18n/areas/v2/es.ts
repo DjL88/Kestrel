@@ -889,6 +889,10 @@ export const es: AreaTranslation<typeof source> = {
     deleteBody: 'Esto elimina de este dispositivo el proyecto, sus ediciones y las vistas previas guardadas por InFlight. Sus archivos de fotos originales nunca se tocan. No se puede deshacer; archívelo si quizá lo quiera recuperar.',
     keepProject: 'Conservar el proyecto',
     deleteProject: 'Eliminar el proyecto',
+    layoutLabel: 'Vista de proyectos',
+    layoutList: 'Lista',
+    layoutTiles: 'Mosaico',
+    collageTag: 'Collage',
   },
   panelWords: {
     selectToAdjust: 'Seleccione una foto para ajustar el tono y el color.',

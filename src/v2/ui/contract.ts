@@ -316,7 +316,10 @@ export interface Project {
   id: string;
   name: string;
   updatedAt: string;
+  /** The project's best favourite, at review size. Empty when no picture is cached on this device. */
   coverUrl: string;
+  /** Up to three further favourites, thumbnail size, shown beside the cover in the list view. */
+  sampleUrls?: string[];
   photoCount: number;
   flaggedCount: number;
   localCopyStatus: 'synced' | 'offline-ready' | 'pending';

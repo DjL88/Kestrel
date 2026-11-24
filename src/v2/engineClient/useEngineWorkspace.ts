@@ -15,7 +15,7 @@ import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '..
 import { eraseDeviceData } from './eraseDeviceData';
 import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
 import { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
-import { projectCoverBlob } from './projectCover';
+import { projectPreviewBlobs } from './projectCover';
 import { scanForCulling } from '../../providers/browserAutoCull';
 import { useAccess } from '../../providers/useAccess';
 import { useBackgroundDevelop } from '../../useBackgroundDevelop';
@@ -265,10 +265,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const shoots = (await store.listProjects()).filter((shoot: ShootDescriptor) => !shoot.inbox);
       const loaded = await Promise.all(shoots.map(async (shoot) => {
         const frames = (await store.loadProject(shoot.id))?.frames ?? [];
-        const cover = await projectCoverBlob(frames);
-        const url = cover ? URL.createObjectURL(cover) : '';
-        if (url) nextUrls.push(url);
-        return shootToProject(shoot, frames, url);
+        // The best favourites at review size, developed from the RAW where that is cached. Never the original itself.
+        const previews = await projectPreviewBlobs(frames);
+        const url = previews.cover ? URL.createObjectURL(previews.cover) : '';
+        const samples = previews.samples.map((blob) => URL.createObjectURL(blob));
+        nextUrls.push(...(url ? [url] : []), ...samples);
+        return shootToProject(shoot, frames, url, samples);
       }));
       hubCoverUrls.current.forEach((url) => URL.revokeObjectURL(url));
       hubCoverUrls.current = nextUrls;

@@ -889,6 +889,10 @@ export const is: AreaTranslation<typeof source> = {
     deleteBody: 'Þetta fjarlægir verkefnið, breytingar þess og forskoðanir sem InFlight geymir úr þessu tæki. Upprunalegu myndskránum þínum er aldrei hreyft. Þetta er ekki hægt að afturkalla; settu það frekar í geymslu ef þú vilt kannski fá það aftur.',
     keepProject: 'Halda verkefninu',
     deleteProject: 'Eyða verkefninu',
+    layoutLabel: 'Útlit verkefna',
+    layoutList: 'Listi',
+    layoutTiles: 'Reitir',
+    collageTag: 'Klippimynd',
   },
   panelWords: {
     selectToAdjust: 'Veldu mynd til að stilla tóna og liti.',

@@ -889,6 +889,10 @@ export const de: AreaTranslation<typeof source> = {
     deleteBody: 'Dadurch werden das Projekt, seine Bearbeitungen und die von InFlight gespeicherten Vorschauen von diesem Gerät entfernt. Ihre Original-Fotodateien werden nie angerührt. Das lässt sich nicht rückgängig machen; archivieren Sie es lieber, wenn Sie es vielleicht zurückhaben möchten.',
     keepProject: 'Projekt behalten',
     deleteProject: 'Projekt löschen',
+    layoutLabel: 'Projektansicht',
+    layoutList: 'Liste',
+    layoutTiles: 'Kacheln',
+    collageTag: 'Collage',
   },
   panelWords: {
     selectToAdjust: 'Wählen Sie ein Foto, um Ton und Farbe anzupassen.',

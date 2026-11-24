@@ -889,6 +889,10 @@ export const nb: AreaTranslation<typeof source> = {
     deleteBody: 'Dette fjerner prosjektet, redigeringene og forhåndsvisningene InFlight har lagret, fra denne enheten. De originale bildefilene dine blir aldri rørt. Det kan ikke angres; arkiver det heller hvis du kanskje vil ha det tilbake.',
     keepProject: 'Behold prosjektet',
     deleteProject: 'Slett prosjektet',
+    layoutLabel: 'Prosjektvisning',
+    layoutList: 'Liste',
+    layoutTiles: 'Ruter',
+    collageTag: 'Collage',
   },
   panelWords: {
     selectToAdjust: 'Velg et bilde for å justere tone og farge.',

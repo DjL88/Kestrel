@@ -206,7 +206,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
   };
 }
 
-export function shootToProject(shoot: ShootDescriptor, frames: readonly PhotoFrame[], coverUrl = ''): Project {
+export function shootToProject(shoot: ShootDescriptor, frames: readonly PhotoFrame[], coverUrl = '', sampleUrls: readonly string[] = []): Project {
   const live = frames.filter((frame) => !frame.removedAt);
   return {
     id: shoot.id,
@@ -214,6 +214,7 @@ export function shootToProject(shoot: ShootDescriptor, frames: readonly PhotoFra
     name: shoot.title,
     updatedAt: new Date(shoot.lastUpdatedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
     coverUrl,
+    sampleUrls: [...sampleUrls],
     photoCount: computeCullCounts(live as PhotoFrame[]).all,
     flaggedCount: live.filter((frame) => frame.decision === 'keep').length,
     localCopyStatus: 'offline-ready',

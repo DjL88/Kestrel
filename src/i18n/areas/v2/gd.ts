@@ -890,6 +890,10 @@ export const gd: AreaTranslation<typeof source> = {
     deleteBody: 'Bheir seo am pròiseact, na deasachaidhean aige agus na ro-sheallaidhean a ghlèidh InFlight air falbh on uidheam seo. Cha bhuinear ris na faidhlichean dhealbhan tùsail agad idir. Cha ghabh seo neo-dhèanamh; cuir san tasglann e na àite ma dh’fhaoidte gum bi thu ga iarraidh air ais.',
     keepProject: 'Cùm am pròiseact',
     deleteProject: 'Sguab às am pròiseact',
+    layoutLabel: 'Co-dhealbhachd nam pròiseactan',
+    layoutList: 'Liosta',
+    layoutTiles: 'Leacan',
+    collageTag: 'Colaids',
   },
   panelWords: {
     selectToAdjust: 'Tagh dealbh gus tòna is dath a ghleusadh.',

@@ -889,6 +889,10 @@ export const nl: AreaTranslation<typeof source> = {
     deleteBody: 'Hiermee verwijdert u het project, de bewerkingen en de door InFlight opgeslagen voorbeelden van dit apparaat. Uw originele fotobestanden worden nooit aangeraakt. Dit kan niet ongedaan worden gemaakt; archiveer het liever als u het misschien terug wilt.',
     keepProject: 'Project houden',
     deleteProject: 'Project verwijderen',
+    layoutLabel: 'Projectweergave',
+    layoutList: 'Lijst',
+    layoutTiles: 'Tegels',
+    collageTag: 'Collage',
   },
   panelWords: {
     selectToAdjust: 'Selecteer een foto om toon en kleur aan te passen.',
