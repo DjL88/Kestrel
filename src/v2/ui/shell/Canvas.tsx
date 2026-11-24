@@ -116,7 +116,14 @@ export default function Canvas({
   onToggleFullScreen,
 }: CanvasProps) {
   const [activeGuides, setActiveGuides] = useState<SnapGuide[]>([]);
-  const stageRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  // The stage and the canvas column only exist once a photo is open. Canvas often mounts first with no photo (a new or
+  // empty project), so the listeners and size observer below must follow the elements themselves, not the first render:
+  // with a one-off effect they were never attached, a trackpad pinch zoomed the whole page (menus and all), and Fit used
+  // a made-up 660×470 stage, so the photo ran off the side of phones and portrait tablets.
+  const [stageEl, setStageEl] = useState<HTMLDivElement | null>(null);
+  const [columnEl, setColumnEl] = useState<HTMLElement | null>(null);
+  const attachStage = (el: HTMLDivElement | null) => { stageRef.current = el; setStageEl(el); };
   const zoomRef = useRef(canvasZoom);
   zoomRef.current = canvasZoom;
   const setZoomRef = useRef(onSetZoom);
@@ -124,20 +131,24 @@ export default function Canvas({
   const zoomAnchor = useRef<{ x: number; y: number; left: number; top: number; zoom: number } | null>(null);
 
   // Chromium (including Windows precision touchpads) delivers pinch as Ctrl+wheel.
-  // Listen non-passively so only a gesture over the canvas suppresses browser page zoom.
+  // Listen non-passively on the whole canvas column (the photo, the margin round it and the bar above it), so a pinch
+  // anywhere over the canvas zooms the photo and never the page. Side panels and the filmstrip keep browser behaviour.
   // Normal two-finger scrolling remains the browser's native stage scroll.
   useEffect(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
+    const stage = stageEl;
+    const column = columnEl;
+    if (!stage || !column) return;
     const onWheel = (event: WheelEvent) => {
       if (!event.ctrlKey && !event.metaKey) return;
-      if (event.target instanceof Element && event.target.closest('button, input, textarea, select, [contenteditable="true"]')) return;
+      // A text or number field keeps its own Ctrl+wheel. Over a toolbar button the pinch still zooms the photo.
+      if (event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
       event.preventDefault();
       const rect = stage.getBoundingClientRect();
       const next = nextCanvasZoom(zoomRef.current, event.deltaY, event.deltaMode);
       if (next === zoomRef.current) return;
       zoomAnchor.current = {
-        x: event.clientX - rect.left, y: event.clientY - rect.top,
+        // A pinch over the bar above the stage anchors on the nearest point of the stage.
+        x: clamp(event.clientX - rect.left, 0, rect.width), y: clamp(event.clientY - rect.top, 0, rect.height),
         left: stage.scrollLeft, top: stage.scrollTop, zoom: zoomRef.current,
       };
       zoomRef.current = next;
@@ -156,24 +167,24 @@ export default function Canvas({
       if (!Number.isFinite(gesture.scale) || !gesture.scale || gesture.scale <= 0) return;
       const rect = stage.getBoundingClientRect();
       const next = Math.max(0.25, Math.min(8, safariStartZoom * gesture.scale));
-      const x = (gesture.clientX ?? rect.left + rect.width / 2) - rect.left;
-      const y = (gesture.clientY ?? rect.top + rect.height / 2) - rect.top;
+      const x = clamp((gesture.clientX ?? rect.left + rect.width / 2) - rect.left, 0, rect.width);
+      const y = clamp((gesture.clientY ?? rect.top + rect.height / 2) - rect.top, 0, rect.height);
       zoomAnchor.current = { x, y, left: stage.scrollLeft, top: stage.scrollTop, zoom: zoomRef.current };
       zoomRef.current = next;
       setZoomRef.current(next);
     };
     const onGestureEnd = (event: Event) => { event.preventDefault(); };
-    stage.addEventListener('wheel', onWheel, { passive: false });
-    stage.addEventListener('gesturestart', onGestureStart, { passive: false });
-    stage.addEventListener('gesturechange', onGestureChange, { passive: false });
-    stage.addEventListener('gestureend', onGestureEnd, { passive: false });
+    column.addEventListener('wheel', onWheel, { passive: false });
+    column.addEventListener('gesturestart', onGestureStart, { passive: false });
+    column.addEventListener('gesturechange', onGestureChange, { passive: false });
+    column.addEventListener('gestureend', onGestureEnd, { passive: false });
     return () => {
-      stage.removeEventListener('wheel', onWheel);
-      stage.removeEventListener('gesturestart', onGestureStart);
-      stage.removeEventListener('gesturechange', onGestureChange);
-      stage.removeEventListener('gestureend', onGestureEnd);
+      column.removeEventListener('wheel', onWheel);
+      column.removeEventListener('gesturestart', onGestureStart);
+      column.removeEventListener('gesturechange', onGestureChange);
+      column.removeEventListener('gestureend', onGestureEnd);
     };
-  }, []);
+  }, [stageEl, columnEl]);
 
   useLayoutEffect(() => {
     const stage = stageRef.current;
@@ -255,15 +266,18 @@ export default function Canvas({
   const touchPoints = useRef(new Map<number, { x: number; y: number }>());
   const touchGesture = useRef<{ distance: number; zoom: number; panX: number; panY: number; centreX: number; centreY: number; lastCentreX: number; lastCentreY: number } | null>(null);
   const touchPan = useRef<{ x: number; y: number } | null>(null);
+  /** A mouse or pen dragging the empty stage to move round a zoomed-in photo. */
+  const marginPan = useRef<{ id: number; x: number; y: number; left: number; top: number } | null>(null);
+  const [marginPanning, setMarginPanning] = useState(false);
   useEffect(() => {
-    const stage = stageRef.current;
+    const stage = stageEl;
     if (!stage || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(([entry]) => {
       if (entry) setStageSize({ width: entry.contentRect.width, height: entry.contentRect.height });
     });
     observer.observe(stage);
     return () => observer.disconnect();
-  }, []);
+  }, [stageEl]);
   const [holdingOriginal, setHoldingOriginal] = useState(false);
   const swipeRef = useRef<{ x: number; y: number; t: number; pinched: boolean } | null>(null);
   const holdRef = useRef<{ timer: number | null; x: number; y: number; active: boolean }>({ timer: null, x: 0, y: 0, active: false });
@@ -598,7 +612,14 @@ export default function Canvas({
     setHoldingOriginal(false);
   };
 
-  const handleTouchDown = (e: React.PointerEvent<HTMLElement>) => {
+  /** The single photo frame. A pinch can start with a finger in the margin round it, so crop maths always measure the
+   * frame itself rather than whichever element received the touch. */
+  const frameElement = (fallback: HTMLElement) =>
+    (stageRef.current?.querySelector('[data-testid="canvas-frame"]') as HTMLElement | null) ?? fallback;
+
+  /** `fromMargin`: the finger landed in the empty stage round the photo, not on it. It still pinches, pans and swipes the
+   * view, but it never starts positioning the picture in Crop mode. */
+  const handleTouchDown = (e: React.PointerEvent<HTMLElement>, fromMargin = false) => {
     if (e.pointerType !== 'touch' || activeSize.kind !== 'photo' || compareMode) return false;
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -619,7 +640,7 @@ export default function Canvas({
       if (swipeRef.current) swipeRef.current.pinched = true;
     } else if (touchPoints.current.size === 1) {
       // A touch outside explicit Crop mode is navigation ONLY: never write into the export recipe.
-      if (revealSizeId === activeSize.id) handleFramePointerDown(e, 'pan', activeSize, e.currentTarget);
+      if (revealSizeId === activeSize.id && !fromMargin) handleFramePointerDown(e, 'pan', activeSize, frameElement(e.currentTarget));
       touchPan.current = { x: e.clientX, y: e.clientY };
       swipeRef.current = { x: e.clientX, y: e.clientY, t: performance.now(), pinched: false };
       endHold();
@@ -650,7 +671,7 @@ export default function Canvas({
       if (revealSizeId === activeSize.id) {
         // Only explicit Crop mode is permitted to change the saved image transformation.
         const zoom = clamp(start.zoom * Math.hypot(a.x - b.x, a.y - b.y) / start.distance, 1, MAX_CROP_ZOOM);
-        const rect = e.currentTarget.getBoundingClientRect();
+        const rect = frameElement(e.currentTarget).getBoundingClientRect();
         const focalX = (start.centreX - rect.left) / Math.max(1, rect.width) - 0.5;
         const focalY = (start.centreY - rect.top) / Math.max(1, rect.height) - 0.5;
         const limits = panLimits(activeSize, zoom);
@@ -723,7 +744,7 @@ export default function Canvas({
         dragRef.current = {
           kind: 'pan', sizeId: activeSize.id, startX: point.x, startY: point.y,
           origA: activeSize.crop.panX, origB: activeSize.crop.panY, crop: activeSize.crop,
-          rect: e.currentTarget.getBoundingClientRect(),
+          rect: frameElement(e.currentTarget).getBoundingClientRect(),
         };
       }
     } else {
@@ -758,6 +779,48 @@ export default function Canvas({
     dragRef.current = null;
     setDraggingType('none');
     setActiveGuides([]);
+  };
+
+  // The empty stage round the photo. On touch it takes the same pinch, pan and swipe as the photo, so a pinch that starts
+  // in the margin zooms the photo instead of the page. With a mouse or pen, dragging it moves round a zoomed-in photo,
+  // as one finger does on a tablet. Controls, overlays, the photo frame and the All formats cards keep their own gestures.
+  const stageGestures = canvasLayoutMode === 'single' && activeSize.kind === 'photo' && !compareMode && !splitFor(activeSize.id);
+  const isStageMargin = (e: React.PointerEvent<HTMLElement>) => {
+    const target = e.target as Element | null;
+    if (!target || target === e.currentTarget) return true;
+    if (!target.closest('[data-stage-margin]')) return false;
+    return !target.closest('button, a, input, select, textarea, [role="slider"], [data-overlay], [data-testid="canvas-frame"]');
+  };
+  const handleStagePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!stageGestures || !isStageMargin(e)) return;
+    if (e.pointerType === 'touch') { handleTouchDown(e, true); return; }
+    const stage = e.currentTarget;
+    if (e.button !== 0 || (stage.scrollWidth <= stage.clientWidth + 1 && stage.scrollHeight <= stage.clientHeight + 1)) return;
+    e.preventDefault();
+    stage.setPointerCapture(e.pointerId);
+    marginPan.current = { id: e.pointerId, x: e.clientX, y: e.clientY, left: stage.scrollLeft, top: stage.scrollTop };
+    setMarginPanning(true);
+  };
+  const handleStagePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'touch') {
+      if (touchPoints.current.has(e.pointerId)) { e.stopPropagation(); handleTouchMove(e); }
+      return;
+    }
+    const pan = marginPan.current;
+    if (!pan || pan.id !== e.pointerId) return;
+    e.stopPropagation();
+    e.currentTarget.scrollLeft = pan.left - (e.clientX - pan.x);
+    e.currentTarget.scrollTop = pan.top - (e.clientY - pan.y);
+  };
+  const handleStagePointerEnd = (e: React.PointerEvent<HTMLDivElement>, cancelled: boolean) => {
+    if (e.pointerType === 'touch') {
+      if (touchPoints.current.has(e.pointerId)) { e.stopPropagation(); if (cancelled) handleTouchCancel(e); else handleTouchEnd(e); }
+      return;
+    }
+    if (marginPan.current?.id !== e.pointerId) return;
+    e.stopPropagation();
+    marginPan.current = null;
+    setMarginPanning(false);
   };
 
   const handleVideoPinDrop = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -1130,6 +1193,7 @@ export default function Canvas({
 
     return (
       <div
+        data-stage-margin
         className="relative m-auto flex flex-col items-center gap-2"
         style={{ zoom: canvasZoom, transform: offset ? `translate(${offset.x}px, ${offset.y}px)` : undefined }}
       >
@@ -1155,7 +1219,7 @@ export default function Canvas({
           {activeSize.crop.rotateDeg !== 0 && <span>· {activeSize.crop.rotateDeg}°</span>}
         </div>
 
-        <div className="relative flex items-center gap-3">
+        <div data-stage-margin className="relative flex items-center gap-3">
           {/* Primary photo frame */}
           <div
             data-testid="canvas-frame"
@@ -1403,6 +1467,7 @@ export default function Canvas({
 
   return (
     <main
+      ref={setColumnEl}
       onPointerMove={handleGlobalPointerMove}
       onPointerUp={handleGlobalPointerUp}
       onPointerCancel={handleGlobalPointerUp}
@@ -1570,14 +1635,21 @@ export default function Canvas({
           the picture is zoomed and scrolled. */}
       <div ref={viewportRef} className="relative flex min-h-0 min-w-0 flex-1">
       <div
-        ref={stageRef}
+        ref={attachStage}
+        data-testid="canvas-stage"
+        onPointerDown={handleStagePointerDown}
+        onPointerMove={handleStagePointerMove}
+        onPointerUp={(e) => handleStagePointerEnd(e, false)}
+        onPointerCancel={(e) => handleStagePointerEnd(e, true)}
         onClick={(e) => {
           if (e.target !== e.currentTarget) return;
           if (revealSizeId) setRevealSizeId(null); // Clicking outside the image accepts and exits crop mode.
           if (canvasLayoutMode === 'all-formats') onClearSizeSelection();
         }}
-        className="relative flex flex-1 overflow-auto inflight-scroll p-2 sm:p-6"
+        className={`relative flex flex-1 overflow-auto inflight-scroll p-2 sm:p-6 ${marginPanning ? 'cursor-grabbing' : stageGestures && canvasZoom > 1.01 ? 'cursor-grab' : ''}`}
         style={{
+          // The page itself never pinch-zooms over the photo or its margin: the canvas takes that gesture.
+          touchAction: stageGestures ? 'none' : undefined,
           // A quiet, theme-aware working-area grid; artboards and exported images are unaffected.
           backgroundImage: 'radial-gradient(circle, var(--border-default) 0.7px, transparent 0.9px)',
           backgroundSize: '22px 22px',
