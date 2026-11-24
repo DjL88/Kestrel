@@ -69,8 +69,10 @@ test('V2 writes structurally verified 16-bit TIFFs with and without the Tint edi
     throw new Error('The TIFF has no pixel strip.');
   };
   const neutral = await saveTiff();
-  await studio.getByRole('button', { name: 'Adjust', exact: true }).click();
-  await studio.getByRole('tab', { name: 'Advanced Edits' }).click();
+  // Adjust opens with the photo; its rail button toggles, so only open it if it is not already showing.
+  const advancedTab = studio.getByRole('tab', { name: 'Advanced Edits' });
+  if (!(await advancedTab.isVisible())) await studio.getByRole('button', { name: 'Adjust', exact: true }).click();
+  await advancedTab.click();
   const phone = testInfo.project.name === 'phone';
   if (phone) await studio.getByRole('tab', { name: 'Colour', exact: true }).click();
   const tint = studio.getByRole('slider', { name: 'Tint' });

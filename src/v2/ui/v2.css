@@ -4,6 +4,15 @@
 .inflight-v2 :focus-visible { outline: 2px solid var(--brand-accent); outline-offset: 2px; }
 .inflight-v2 button, .inflight-v2 [role="button"] { cursor: pointer; }
 
+/* Native drop-down menus follow the V2 theme. The current app forces every select dark (so Windows never draws light
+   text on a light popup); in V2 the light and system-light themes must open a light menu in the page's own colours. */
+.inflight-v2 select { color-scheme: dark; }
+.inflight-v2[data-v2-theme="light"] select { color-scheme: light; }
+.inflight-v2 select option, .inflight-v2 select optgroup {
+  background-color: var(--bg-surface-raised);
+  color: var(--text-primary);
+}
+
 .inflight-v2 input[type="range"].inflight-slider {
   -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 999px;
   background: var(--border-default); outline: none;

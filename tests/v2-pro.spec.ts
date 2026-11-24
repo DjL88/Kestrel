@@ -113,7 +113,7 @@ test('Pro: the text overlay is drawn into the exported file, and left out when t
     for (const name of names.slice(1)) await dialog.locator('.grid.grid-cols-2 button[aria-pressed="true"]', { hasText: name }).first().click();
     if (!withOverlay) await dialog.getByRole('button', { name: 'With text overlay' }).first().click();
     const downloading = page.waitForEvent('download', { timeout: 60000 });
-    await dialog.getByRole('button', { name: /export bundle/i }).click();
+    await dialog.getByRole('button', { name: /^Save files$/i }).click();
     const download = await downloading;
     const { readFileSync } = await import('node:fs');
     const base64 = readFileSync(await download.path()).toString('base64');

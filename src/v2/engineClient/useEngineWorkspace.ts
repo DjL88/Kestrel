@@ -41,7 +41,7 @@ import { DEFAULT_CROP, flipCrop, patchCrop, rotateCrop } from './cropOps';
 import { readCrops } from './cropOps';
 import { recordFormatCrop, recordFormatSetChange, recordFormatLink } from './formatHistory';
 import { addRow, alignOverlays, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps';
-import { frameToPhoto, matchesAutoSource, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
+import { frameToPhoto, matchesAutoSource, originalFormatSize, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
 import { commitAutoEdit } from './commitAutoEdit';
 import { commitAutoCull } from './commitAutoCull';
@@ -203,6 +203,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [savedUi, setSavedUi] = useState<SavedUi>(loadUi);
   const [pixelSizes, setPixelSizes] = useState<Record<string, { width: number; height: number }>>({});
   const [verifiedRasterSizes, setVerifiedRasterSizes] = useState<Record<string, { width: number; height: number }>>({});
+  const verifiedRasterRef = useRef(verifiedRasterSizes);
+  verifiedRasterRef.current = verifiedRasterSizes;
+  /** The formats this photo has, worked out exactly as the canvas shows them (decoded size first, then EXIF). */
+  const liveFormatsOf = (frame: PhotoFrame | undefined) => applyFormats(createDefaultSizes(), frame?.formats,
+    frame ? originalFormatSize(frame, verifiedRasterRef.current[`${frame.stableKey}|${frame.originalSha256 ?? ''}`]) : null);
   const [histograms, setHistograms] = useState<Record<string, PhotoHistogram>>({});
   const [watermarkAuto, setWatermarkAuto] = useState<Record<string, 'light-on-dark' | 'dark-on-light'>>({});
   useEffect(() => { let live = true; void toPresets(watermarkStore).then((presets) => { if (live) setWatermarkLibrary(presets); }); return () => { live = false; }; }, [watermarkStore]);
@@ -1465,7 +1470,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     setMaskEdit: (photoId, maskId, key, value) => editMasks(photoId, (masks) => setMaskEdit(masks, maskId, key, value)),
     setMaskFeather: (photoId, maskId, percent) => editMasks(photoId, (masks) => setMaskFeather(masks, maskId, percent)),
     setMaskGeometry: (photoId, maskId, field, value) => editMasks(photoId, (masks) => setMaskGeometry(masks, maskId, field, value)),
-    runExport: (request) => { void runExportAction(request); },
+    // As in the owner's design: starting an export closes the dialog; progress and the result continue in Tasks.
+    runExport: (request) => { stub.actions.setExportOpen(false); void runExportAction(request); },
     applyAssistSuggestion: applyAuto,
     requestLocalAuto: (photoId) => setAutoRequest((last) => ({ photoId, sequence: (last?.sequence ?? 0) + 1 })),
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
@@ -1512,8 +1518,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     },
     duplicateSize: (photoId, sizeId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
-      const source = applyFormats(createDefaultSizes(), frame?.formats,
-        frame?.exif.width && frame.exif.height ? framedSize(frame.exif.width, frame.exif.height, frame.framing ?? DEFAULT_FRAMING) : null).find((size) => size.id === sizeId);
+      const source = liveFormatsOf(frame).find((size) => size.id === sizeId);
       if (!frame || !source) return;
       const id = `custom-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 10)}`;
       if (!changeFormats(photoId, (raw) => addFormat(raw, `${source.label} copy`, source.width, source.height, id), (crops) => { const own = readCrops(crops)[sizeId]; return own ? { ...readCrops(crops), [id]: own } : readCrops(crops); })) { setNotice('This photo already has the most formats it can hold.'); return; }
@@ -1521,8 +1526,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     },
     removeSize: (photoId, sizeId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
-      const remaining = applyFormats(createDefaultSizes(), frame?.formats,
-        frame?.exif.width && frame.exif.height ? framedSize(frame.exif.width, frame.exif.height, frame.framing ?? DEFAULT_FRAMING) : null).filter((size) => size.kind === 'photo' && size.enabled && size.id !== sizeId);
+      const remaining = liveFormatsOf(frame).filter((size) => size.kind === 'photo' && size.enabled && size.id !== sizeId);
       if (!remaining.length) { setNotice('A photo needs at least one format.'); return; }
       changeFormats(photoId, (raw) => removeFormat(raw, sizeId), (crops) => { const next = { ...readCrops(crops) }; if (sizeId.startsWith('custom-')) delete next[sizeId]; return next; });
       if (stub.store.activeSizeId === sizeId) stub.actions.setActiveSize(remaining[0].id);

@@ -1,8 +1,13 @@
 name: Release desktop apps
 
-# Push a tag such as v0.1.1 to build signed update files for every desktop system and publish them as a GitHub release.
-# Unsigned beta builds: no secrets needed. When the updater is switched on, add TAURI_SIGNING_PRIVATE_KEY to the env of the
-# tauri-action step and `--config '{"bundle":{"createUpdaterArtifacts":true}}'` to args (see docs/DESKTOP.md).
+# Push a tag such as v0.1.1 to build every desktop system and publish them as a draft GitHub release.
+# Signing switches itself on from the repository secrets that exist (scripts/release-signing.mjs):
+#   update files: TAURI_SIGNING_PRIVATE_KEY (+ optional TAURI_SIGNING_PRIVATE_KEY_PASSWORD)
+#   macOS: APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY; notarising adds APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID
+#   Windows: Azure Trusted Signing (AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID, AZURE_SIGNING_ENDPOINT,
+#            AZURE_SIGNING_ACCOUNT, AZURE_SIGNING_PROFILE) or a certificate file (WINDOWS_CERTIFICATE, WINDOWS_CERTIFICATE_PASSWORD)
+# With no secrets the builds are unsigned and the release says so. A half-configured part stops the release.
+# Owner steps: docs/DESKTOP.md, "Signing and notarising checklist".
 on:
   push:
     tags: ['v*']
@@ -47,12 +52,57 @@ jobs:
         run: |
           node --test scripts/check-release-version.test.mjs
           node scripts/check-release-version.mjs
+      - name: Import Windows certificate file (only when its secrets exist)
+        id: wincert
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if (-not $env:WINDOWS_CERTIFICATE -or -not $env:WINDOWS_CERTIFICATE_PASSWORD) { exit 0 }
+          $path = Join-Path $env:RUNNER_TEMP 'kestrel-signing.pfx'
+          [IO.File]::WriteAllBytes($path, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $path -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          Remove-Item $path
+          "thumbprint=$($cert.Thumbprint)" >> $env:GITHUB_OUTPUT
+      - name: Install Azure Trusted Signing client (only when its secrets exist)
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        run: |
+          if [ -n "$AZURE_CLIENT_ID" ]; then cargo install trusted-signing-cli --locked; fi
+      - name: Choose signing from the secrets that exist
+        id: signing
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SIGNING_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+          AZURE_SIGNING_ACCOUNT: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
+          AZURE_SIGNING_PROFILE: ${{ secrets.AZURE_SIGNING_PROFILE }}
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_CERTIFICATE_THUMBPRINT: ${{ steps.wincert.outputs.thumbprint }}
+        run: |
+          node --test scripts/release-signing.test.mjs
+          node scripts/release-signing.mjs
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: Kestrel ${{ github.ref_name }}
-          releaseBody: Desktop builds. Unsigned by Apple and Microsoft until signing is set up.
+          releaseBody: ${{ steps.signing.outputs.release_note }}
           releaseDraft: true
-          args: ${{ matrix.args }}
+          args: ${{ matrix.args }} ${{ steps.signing.outputs.args }}

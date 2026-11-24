@@ -23,10 +23,13 @@ test('?v2 a format border shows on the canvas and is drawn in the exported file,
   const shown = ((await root.getByTestId('canvas-frame').locator('xpath=../../div[1]/span[1]').textContent()) ?? '').trim();
 
   await root.getByRole('button', { name: 'Formats' }).first().click();
-  await expect(root.getByTestId('format-border')).toHaveCount(0);
+  // Since #1048 the border is space reserved around the photo (padding in the border colour), not a layer painted over it.
+  const inset = root.getByTestId('image-inside-border').first();
+  await expect(inset).toHaveCSS('padding-top', '0px');
   await root.locator('#format-border-slider').fill('10');
   await root.getByRole('button', { name: 'Black' }).click();
-  await expect(root.getByTestId('format-border').first()).toBeVisible();
+  await expect(inset).toHaveCSS('background-color', 'rgb(0, 0, 0)');
+  await expect(inset).not.toHaveCSS('padding-top', '0px');
 
   await root.getByRole('button', { name: /^Export/ }).first().click();
   const dialog = page.getByRole('dialog', { name: /export/i });
@@ -35,7 +38,7 @@ test('?v2 a format border shows on the canvas and is drawn in the exported file,
   const names = (await sizes.allTextContents()).filter((text) => !text.includes(shown));
   for (const name of names) await dialog.locator('.grid.grid-cols-2 button[aria-pressed="true"]', { hasText: name }).first().click();
   const downloading = page.waitForEvent('download', { timeout: 60000 });
-  await dialog.getByRole('button', { name: /export bundle/i }).click();
+  await dialog.getByRole('button', { name: /^Save files$/i }).click();
   const path = await (await downloading).path();
   const { readFileSync } = await import('node:fs');
   const result = await page.evaluate(async (data) => {

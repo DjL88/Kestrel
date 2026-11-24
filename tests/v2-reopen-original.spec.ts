@@ -37,7 +37,7 @@ test('reopening a project restores the original for byte-identical offline expor
   await dialog.getByRole('button', { name: /After \(edited\)/ }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download', { timeout: 10000 }),
-    dialog.getByRole('button', { name: /export bundle/i }).click(),
+    dialog.getByRole('button', { name: /^Save files$/i }).click(),
   ]);
   expect(download.suggestedFilename()).toBe('bird.png');
   expect(await readFile((await download.path())!)).toEqual(bytes);
