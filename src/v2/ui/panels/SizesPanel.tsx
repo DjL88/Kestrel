@@ -15,6 +15,7 @@ interface SizesPanelProps {
   features: Record<FeatureKey, boolean>;
   onSetActiveGroup: (photoId: string, groupId: string) => void;
   onAddEditGroup: (photoId: string) => void;
+  onRenameEditGroup: (photoId: string, groupId: string, name: string) => void;
   onSetActiveSize: (sizeId: string, modifiers?: { ctrl?: boolean }) => void;
   onSetCanvasLayoutMode: (mode: 'single' | 'all-formats') => void;
   onToggleSizeEnabled: (photoId: string, sizeId: string) => void;
@@ -41,6 +42,7 @@ export default function SizesPanel({
   features,
   onSetActiveGroup,
   onAddEditGroup,
+  onRenameEditGroup,
   onSetActiveSize,
   onSetCanvasLayoutMode,
   onToggleSizeEnabled,
@@ -57,6 +59,8 @@ export default function SizesPanel({
   onSetSplitFrameCount,
   onUpdateVideoZoom,
 }: SizesPanelProps) {
+  const [rename, setRename] = useState<{ photoId: string; groupId: string; name: string } | null>(null);
+  useEffect(() => setRename(null), [photo?.id, photo?.activeGroupId]);
   const hideVideoPro = useProHidden('zoomVideo');
   const customLabelInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -182,6 +186,7 @@ export default function SizesPanel({
               <button
                 key={g.id}
                 type="button"
+                aria-pressed={isCurrent}
                 onClick={() => onSetActiveGroup(photo.id, g.id)}
                 className={`flex w-full items-center justify-between gap-2 rounded-[var(--radius-sm)] border px-2.5 py-2 text-left text-xs transition-colors ${
                   isCurrent
@@ -196,6 +201,29 @@ export default function SizesPanel({
               </button>
             );
           })}
+          {rename?.photoId === photo.id && rename.groupId === group.id ? (
+            <form className="space-y-2" onSubmit={(event) => {
+              event.preventDefault();
+              const name = rename.name.trim();
+              if (!name || name.length > 80) return;
+              onRenameEditGroup(photo.id, group.id, name);
+              setRename(null);
+            }}>
+              <input autoFocus type="text" required maxLength={80} value={rename.name}
+                aria-label={STRINGS.formats.editGroupsHeading}
+                onChange={(event) => setRename({ ...rename, name: event.target.value })}
+                className="h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2 text-xs text-[var(--text-primary)]" />
+              <div className="flex gap-2">
+                <button type="submit" disabled={!rename.name.trim() || rename.name.trim() === group.name}
+                  className="h-8 rounded px-3 text-xs font-semibold text-[var(--brand-accent)] disabled:opacity-40">{STRINGS.panelWords.save}</button>
+                <button type="button" onClick={() => setRename(null)} className="h-8 rounded px-3 text-xs text-[var(--text-secondary)]">{STRINGS.panelWords.cancel}</button>
+              </div>
+            </form>
+          ) : (
+            <button type="button" onClick={() => setRename({ photoId: photo.id, groupId: group.id, name: group.name })}
+              aria-label={`${STRINGS.hubMore.rename} ${group.name}`}
+              className="h-8 rounded px-2 text-xs font-semibold text-[var(--brand-accent)]">{STRINGS.hubMore.rename}</button>
+          )}
         </div>
       </section>
 
