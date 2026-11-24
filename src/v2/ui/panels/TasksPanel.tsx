@@ -36,7 +36,11 @@ export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCo
     const timer = window.setInterval(() => setClock(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, [tasks]);
-  const running = tasks.filter(task => active(task.status));
+  const running = tasks.filter(task => active(task.status)).sort((a, b) => {
+    const weight = (status: TaskInfo['status']) => status === 'running' ? 0 : status === 'queued' ? 1 : 2;
+    return weight(a.status) - weight(b.status) || (b.priority ?? 0) - (a.priority ?? 0);
+  });
+  const queuedOrder = running.filter(task => task.status === 'queued').map(task => Number(task.id));
   const finished = tasks.filter(task => !active(task.status));
   const shown = tab === 'active' ? running : finished;
   const canPauseAny = running.some(task => task.pauseable && task.status !== 'paused');
@@ -80,6 +84,7 @@ export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCo
         const canResume = Boolean(task.pauseable && task.status === 'paused');
         const canPrioritise = task.status === 'queued' || task.status === 'running';
         const seconds = timing(task, clock);
+        const queueIndex = queuedOrder.indexOf(taskId);
         return (
           <article key={task.id} className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3">
             <div className="flex flex-wrap items-start justify-between gap-2">
@@ -119,6 +124,10 @@ export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCo
                 className={controlStyle} aria-label={`Resume ${task.label}`}>Resume</button>}
               {canPrioritise && task.pauseable && <button type="button" onClick={() => engineScheduler.jumpQueue(taskId)}
                 className={controlStyle} aria-label={`Move ${task.label} to the front of the queue`}>Jump the queue</button>}
+              {queueIndex > 0 && <button type="button" onClick={() => engineScheduler.reorder([taskId, queuedOrder[queueIndex - 1]])}
+                className={controlStyle} aria-label={`Move ${task.label} up one queue position`}>Move up</button>}
+              {queueIndex >= 0 && queueIndex < queuedOrder.length - 1 && <button type="button" onClick={() => engineScheduler.reorder([queuedOrder[queueIndex + 1], taskId])}
+                className={controlStyle} aria-label={`Move ${task.label} down one queue position`}>Move down</button>}
               {active(task.status) && task.cancellable !== false && (
                 <button type="button" onClick={() => onCancelTask(task.id)} className={controlStyle}
                   aria-label={`Cancel ${task.label}`}>{STRINGS.tasks.cancel}</button>
