@@ -2,6 +2,7 @@ import { createSubjectMask, type Mask, type SubjectGrid, type SubjectDetail } fr
 import type { Pixels } from '../core/colourCheck';
 import type { PhotoEdit } from '../core/photoEdits';
 import { verifyEdit, type CourseCorrection } from './enhancementVerifier';
+import { regionalDetailEvidence } from './regionalDetailGuard';
 import { runEngineTask } from './taskManager';
 
 /**
@@ -90,10 +91,16 @@ export async function runDenoiseAction(input: DenoiseActionInput): Promise<Denoi
         : [];
       const after = await input.render(edit, masks);
       verification = verifyEdit(input.original, after, input.subject?.alpha);
+      if (input.subject && input.subject.alpha.length === input.original.width * input.original.height && after.width === input.original.width && after.height === input.original.height && after.data.length === input.original.data.length) {
+        const evidence = regionalDetailEvidence(input.original, after, input.subject.alpha);
+        if (evidence.regions && (evidence.ratio < 0.75 || evidence.worstRegion < 0.6)) {
+          verification = { ok: false, reasons: [...verification.reasons, 'Denoise removed too much structure from a protected subject.'], suggestedStrengthScale: Math.min(0.5, verification.suggestedStrengthScale) };
+        }
+      }
       if (verification.ok || attempts === maxRetries) break;
       background = Math.max(0, background * verification.suggestedStrengthScale);
       subject = Math.max(0, subject * verification.suggestedStrengthScale);
     }
-    return { edit, masks, verification, attempts: attempts + 1 };
+    return { edit: verification.ok ? edit : {}, masks: verification.ok ? masks : [], verification, attempts: attempts + 1 };
   });
 }
