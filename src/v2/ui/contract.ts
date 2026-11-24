@@ -597,6 +597,8 @@ export interface WorkspaceActions {
   clearCompletedTasks: () => void;
   setExportOpen: (open: boolean) => void;
   runExport: (request: ExportRequest) => void;
+  /** Render the collage's actual edited pages: social JPEG/PNG or a physical multi-page RGB photo-lab PDF. */
+  exportCollage?: (type: 'jpeg' | 'png' | 'pdf') => void;
 
   /** Open or close the Removed photos panel (browse Trash and restore without Undo). */
   setRemovedOpen: (open: boolean) => void;
