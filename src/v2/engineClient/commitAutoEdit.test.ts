@@ -64,3 +64,9 @@ test('does not apply an old proposal after the active group or version changes',
     assert.equal(commitAutoEdit(state, 'project', original, proposal, 2000), state);
   }
 });
+
+
+test('Auto-pilot refuses a disputed catalogue ID rather than editing the first match', () => {
+  const state = { ...project(original), frames: [original, { ...original, stableKey: 'another.jpg' }] };
+  assert.equal(commitAutoEdit(state, 'project', original, proposal, 2000), state);
+});
