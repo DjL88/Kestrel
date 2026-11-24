@@ -11,6 +11,8 @@ import { PHOTO_ACCEPT } from '../../core/rawFormats';
 import { appendProjectPhotos, applyImportBursts, createEmptyProject, setArchived } from '../../core/projects';
 import { tasks } from '../../core/taskStore';
 import { engineScheduler } from '../../core/engineScheduler';
+import { prioritizePhotoProcessing } from '../../core/photoProcessingOrder';
+import { orderImportCandidates, readImportPriority } from './importPriority';
 import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '../../core/types';
 import { eraseDeviceData } from './eraseDeviceData';
 import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
@@ -533,8 +535,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!current) return;
     if (!can('smartCulling')) { setNotice('Auto-cull is part of InFlight Pro.'); return; }
     if (cullController.current) { setNotice('Auto-cull is already running.'); return; }
-    const candidates = current.frames.filter(frame =>
-      frame.removedAt == null && frame.decision === 'unreviewed' && !frame.isDemo && !frame.virtualCopy);
+    const candidates = prioritizePhotoProcessing(current.frames.filter(frame =>
+      frame.removedAt == null && frame.decision === 'unreviewed' && !frame.isDemo && !frame.virtualCopy));
     if (!candidates.length) { setNotice('Every photo already has a decision, so there is nothing to cull.'); return; }
     const controller = new AbortController();
     cullController.current = controller;
@@ -1050,6 +1052,29 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const sourceProvider = provider.current!;
     const sourceCatalogue = catalogue.current!;
     try {
+      // A bounded, metadata-only pass identifies camera favourites before
+      // expensive reads; never use its result as proof of original identity.
+      const candidates = [...additions].sort((a,b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+        .map((file, index) => ({ file, index }));
+      const metadata = new Map<number, Awaited<ReturnType<typeof readImportPriority>>>();
+      const preflight = await engineScheduler.submit({
+        title: 'Finding in-camera favourites', kind: 'import', resource: 'io', priority: 4,
+        items: candidates, snapshot: { projectKey, importId },
+        itemId: item => pickedKey(item.file), itemLabel: item => item.file.name,
+        retryable: false,
+        runItem: async (item, _, ctx) => {
+          const info = await readImportPriority(item.file, ctx.signal);
+          ctx.checkCancelled();
+          metadata.set(item.index, info);
+        },
+      });
+      const stopPreflight = () => preflight.cancel();
+      controller.signal.addEventListener('abort', stopPreflight, { once: true });
+      if (controller.signal.aborted) preflight.cancel();
+      const preflightOutcome = await preflight.finished;
+      controller.signal.removeEventListener('abort', stopPreflight);
+      if (preflightOutcome === 'cancelled' || controller.signal.aborted || stateRef.current?.shoot.id !== projectKey) return;
+      const ordered = orderImportCandidates(candidates, metadata);
       // An actual scheduler item for each photograph: complete the original
       // fingerprint, preview and catalogue registration before advancing.
       // Unlike a visibility-only bulk task, this releases the CPU slot at each
@@ -1057,7 +1082,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const ticket = await engineScheduler.submit({
         title: `Adding ${additions.length} photo${additions.length === 1 ? '' : 's'}`,
         kind: 'import', resource: 'cpu', priority: 4, pauseable: additions.length > 1,
-        items: additions.map((file, index) => ({ file, index })),
+        items: ordered,
         // Source file handles are intentionally NOT copied into the journal or
         // snapshot; a picker token cannot be persisted as a verified original.
         snapshot: { projectKey, importId },
