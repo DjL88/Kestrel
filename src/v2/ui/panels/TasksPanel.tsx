@@ -28,6 +28,41 @@ function timing(task: TaskInfo, clock: number) {
 }
 
 const controlStyle = 'inline-flex min-h-11 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-active)] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-40';
+
+/** Closed details never mount thousands of rows. An expanded list grows in
+ * bounded chunks so 1,695-photo shoots do not freeze a narrow mobile panel. */
+function TaskItemDetails({ items }: { items: NonNullable<TaskInfo['items']> }) {
+  const [expanded, setExpanded] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(60);
+  const displayed = expanded ? items.slice(0, visibleCount) : [];
+  return (
+    <details onToggle={event => setExpanded(event.currentTarget.open)}
+      className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] p-2">
+      <summary className="min-h-11 cursor-pointer py-3 text-xs font-medium text-[var(--text-primary)]">
+        Show {items.length} individual photographs or outputs
+      </summary>
+      {expanded && (
+        <>
+          <ul className="max-h-64 space-y-1 overflow-y-auto" aria-label="Individual processing items">
+            {displayed.map(item => (
+              <li key={item.id} className="flex flex-wrap justify-between gap-2 border-t border-[var(--border-subtle)] py-2 text-xs">
+                <span className="min-w-0 break-all text-[var(--text-primary)]">{item.label}</span>
+                <span className="text-[var(--text-secondary)]">{stateLabel(item.state)}</span>
+                {item.detail && <span className="w-full break-words text-[var(--text-secondary)]">{item.detail}</span>}
+              </li>
+            ))}
+          </ul>
+          {visibleCount < items.length && (
+            <button type="button" className={controlStyle}
+              onClick={() => setVisibleCount(count => Math.min(items.length, count + 60))}>
+              Show next {Math.min(60, items.length - visibleCount)} of {items.length}
+            </button>
+          )}
+        </>
+      )}
+    </details>
+  );
+}
 export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCompleted }: TasksPanelProps) {
   const [tab, setTab] = useState<'active' | 'completed'>('active');
   const [clock, setClock] = useState(Date.now);
@@ -101,22 +136,7 @@ export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCo
             {task.stage && <p className="break-words text-xs text-[var(--text-secondary)]">Stage: {task.stage}</p>}
             {task.detail && <p role={task.status === 'failed' ? 'alert' : undefined} className="break-words text-xs text-[var(--text-secondary)]">{task.detail}</p>}
             {seconds && <p className="text-xs tabular-nums text-[var(--text-muted)]">{seconds}</p>}
-            {task.items && task.items.length > 0 && (
-              <details className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] p-2">
-                <summary className="min-h-11 cursor-pointer py-3 text-xs font-medium text-[var(--text-primary)]">
-                  Show {task.items.length} individual photographs or outputs
-                </summary>
-                <ul className="max-h-64 space-y-1 overflow-y-auto" aria-label="Individual processing items">
-                  {task.items.map(item => (
-                    <li key={item.id} className="flex flex-wrap justify-between gap-2 border-t border-[var(--border-subtle)] py-2 text-xs">
-                      <span className="min-w-0 break-all text-[var(--text-primary)]">{item.label}</span>
-                      <span className="text-[var(--text-secondary)]">{stateLabel(item.state)}</span>
-                      {item.detail && <span className="w-full break-words text-[var(--text-secondary)]">{item.detail}</span>}
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            )}
+            {task.items && task.items.length > 0 && <TaskItemDetails items={task.items} />}
             <div className="flex flex-wrap items-center gap-2">
               {canPause && <button type="button" onClick={() => engineScheduler.pause(taskId)}
                 className={controlStyle} aria-label={`Pause ${task.label}`}>Pause</button>}
