@@ -39,7 +39,7 @@ function measure(pixels:Uint8ClampedArray,alpha:Float32Array,width:number){
 }
 /** Conservative individual tone and detail proposals, using the existing Natural Auto measurements.
  * Existing user masks are not altered or stacked over. Unknown capture ISO is not evidence of clean detail. */
-export function proposeGroupSubjectAuto(source:Uint8ClampedArray,width:number,height:number,global:PhotoEdit,subjects:readonly Subject[],ids:readonly string[],highIso:boolean, observations:readonly PhotographyObservation[]=[]):PhotoEdit {
+export function proposeGroupSubjectAuto(source:Uint8ClampedArray,width:number,height:number,global:PhotoEdit,subjects:readonly Subject[],ids:readonly string[],highIso:boolean, observations?:readonly PhotographyObservation[], captureIso?:number):PhotoEdit {
   if(source.length!==width*height*4 || global.masks?.length || ids.length!==subjects.length || new Set(ids).size!==ids.length) return global;
   const alpha=regions(subjects,width,height);if(!alpha)return global;
   const preview=renderRecipePreview(source,width,height,global);
@@ -52,10 +52,10 @@ export function proposeGroupSubjectAuto(source:Uint8ClampedArray,width:number,he
     // Measure the actual prospective global look, not a separately invented sharpening score.
     // Natural Auto already distinguishes textured, smooth and noise-dominated blocks.
     // Do not sharpen if global detail settings are active or the subject is clipping.
-    if(!highIso && !global.sharpen && !global.texture && !global.clarity && !global.denoise &&
+    if(observations !== undefined && typeof captureIso==='number' && Number.isFinite(captureIso) && captureIso>0 && captureIso<1600 && !highIso && !global.sharpen && !global.texture && !global.clarity && !global.denoise &&
         m.pairs>=64 && m.texture>=2 && m.clipped<.005 && m.black<.05 && m.mean>=.25 && m.mean<=.8) {
       const assessment=naturalAuto({pixels:preview,width,height,segmentation:{grid:subjects[i].grid,confidence:'high'},
-        photographyObservations:observations});
+        photographyObservations:observations,iso:captureIso});
       if(assessment.scene.reference==='subject' && assessment.subjectEdit?.sharpen===.2) edit.sharpen=.1;
     }
     if(Object.keys(edit).length)masks.push({...subjects[i],id:ids[i],edit});
