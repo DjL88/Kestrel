@@ -1,6 +1,6 @@
 # InFlight user guide — V2 workspace
 
-This guide is being updated for InFlight's single photography workspace. The Projects section below describes the current V2 interface; the remaining panels will be documented separately. Some controls vary by device or licence.
+This guide is being updated for InFlight's single photography workspace. The Projects and Import sections below describe the current V2 interface; the remaining panels will be documented separately. Some controls vary by device or licence.
 
 ## Projects
 
@@ -15,11 +15,23 @@ In the photography workspace, use **Import** to choose photographs. As the photo
 
 Before deleting a project or removing a photograph, read the confirmation carefully. Project decisions and edits are separate from the original files, but removing a project can still discard catalogue information.
 
+## Import
+
+Open a photography project and choose **Import** to select photographs from your device. Your original files stay where they are; InFlight keeps references and separate editing information.
+
+As photographs become available, select one in the filmstrip to begin reviewing it. You do not need to wait for every photograph to finish processing. Keep the source drive connected while importing, and check any messages about files that could not be read.
+
+A RAW photograph may initially be shown using its embedded preview. A preview is not proof that the full RAW has been developed, and it cannot replace the original for a full-resolution export.
+
 ## Tutorial cards
 
 ### Projects
 
 Choose **New project**, give your project a name and create it. Open an existing project to carry on with your photographs.
+
+### Import
+
+Choose **Import** and select your photographs. When a photograph becomes available in the filmstrip, select it to start reviewing.
 
 ## Earlier V1 workflow reference
 
