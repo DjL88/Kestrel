@@ -1003,22 +1003,38 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const timer = window.setTimeout(() => {
       if (!isCurrent()) return;
       if (manual) lastAutoRequest.current = autoRequest.sequence;
-      const task = tasks.start('Checking the photo and colour', { cancel: () => controller.abort() });
-      taskId = task.id;
-      runAuto(frame, provider.current!, controller.signal).then((run) => {
-        if (!isCurrent()) { tasks.cancel(task.id); return; }
-        if (!run) { task.finish('Could not analyse this photo.'); return; }
-        task.finish(run.headline);
-        setAssists((current) => {
-          // Keep a small recent set of rendered comparisons across a large shoot.
-          const recent = Object.entries(current).filter(([id]) => id !== frame.id).slice(-11);
-          return { ...Object.fromEntries(recent), [frame.id]: { run, dismissed: [] } };
-        });
-        if (!manual && assistMode === 'autopilot' && run.improved) {
-          const at = Date.now();
-          mutate((current) => isCurrent() ? commitAutoEdit(current, assistProjectId, frame, run.plan.proposal, at) : current);
-        }
-      }, () => { if (isCurrent()) task.fail('Checking the photo failed.'); else tasks.cancel(task.id); });
+      void engineScheduler.submit({
+        title: 'Checking ' + frame.filename + ' and colour',
+        kind: 'auto-edit', resource: 'cpu', priority: manual ? 20 : 8, pauseable: false,
+        items: [{ id: frame.id, name: frame.filename }],
+        snapshot: { projectId: assistProjectId, frameId: frame.id, edit: frame.edit ?? DEFAULT_EDIT },
+        itemId: item => item.id, itemLabel: item => item.name,
+        runItem: async (_, __, ctx) => {
+          ctx.stage('Analysing exposure, colour and scene');
+          const run = await runAuto(frame, provider.current!, ctx.signal);
+          ctx.checkCancelled();
+          if (!isCurrent()) return;
+          if (!run) return;
+          ctx.commitIfCurrent(() => setAssists(current => {
+            if (!isCurrent()) return current;
+            const recent = Object.entries(current).filter(([id]) => id !== frame.id).slice(-11);
+            return { ...Object.fromEntries(recent), [frame.id]: { run, dismissed: [] } };
+          }));
+          if (!manual && assistMode === 'autopilot' && run.improved) {
+            const at = Date.now();
+            ctx.commitIfCurrent(() => mutate(current =>
+              isCurrent() && !ctx.signal.aborted
+                ? commitAutoEdit(current, assistProjectId, frame, run.plan.proposal, at) : current));
+          }
+        },
+      }).then(ticket => {
+        taskId = ticket.taskId;
+        controller.signal.addEventListener('abort', () => ticket.cancel(), { once: true });
+        if (controller.signal.aborted) ticket.cancel();
+        return ticket.finished;
+      }).catch(() => {
+        if (isCurrent()) setNotice('Could not analyse this photograph. Open Tasks for details.');
+      });
     }, manual ? 0 : 550);
     return () => {
       window.clearTimeout(timer);
@@ -1040,13 +1056,30 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!frame || deepVisionInFlight.current.has(photoId)) return;
     deepVisionInFlight.current.add(photoId);
     setReviewingIds((current) => [...current, photoId]);
-    const task = tasks.start('Running a deep vision review');
-    runDeepVisionReview(frame, provider.current!).then((result) => {
-      if (!result) { task.finish('Could not run a deep review on this photo.'); setNotice('Could not run a deep review on this photo.'); return; }
-      task.finish(result.summary);
-      setNotice(result.summary);
-    }, () => { task.fail('Deep vision review failed.'); setNotice('The deep vision review failed.'); })
-      .finally(() => { deepVisionInFlight.current.delete(photoId); setReviewingIds((current) => current.filter((id) => id !== photoId)); });
+    void engineScheduler.submit({
+      title: 'Running a deep vision review',
+      kind: 'vision', resource: 'gpu', priority: 15, pauseable: false,
+      items: [{ id: photoId, name: frame.filename }],
+      snapshot: { frameId: frame.id, stableKey: frame.stableKey },
+      itemId: item => item.id, itemLabel: item => item.name,
+      runItem: async (_, __, ctx) => {
+        ctx.stage('Examining subjects and photographic quality');
+        const result = await runDeepVisionReview(frame, provider.current!);
+        ctx.checkCancelled();
+        if (!result) throw new Error('The deep vision review returned no usable result.');
+        // The review is advisory. Do not publish stale observations after
+        // deletion, a project switch or a source relink.
+        const current = stateRef.current?.frames.find(item => item.id === photoId);
+        if (current?.stableKey !== frame.stableKey || current?.removedAt != null) return;
+        ctx.commitIfCurrent(() => setNotice(result.summary));
+      },
+    }).then(ticket => ticket.finished).then(result => {
+      if (result === 'failed') setNotice('Deep vision review failed. Open Tasks for details.');
+    }).catch(error => setNotice(error instanceof Error ? error.message : 'Could not queue deep vision review.'))
+      .finally(() => {
+        deepVisionInFlight.current.delete(photoId);
+        setReviewingIds(current => current.filter(id => id !== photoId));
+      });
   }, []);
 
   const importPhotos = useCallback(async (suppliedPicks?: Array<File | PickedPhoto> | null) => {
