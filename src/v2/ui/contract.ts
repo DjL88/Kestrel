@@ -151,6 +151,10 @@ export interface EditRecipe {
   upscaleFactor: 1 | 2 | 4;
   detailRecovery: number; // 0 to 100
   lensCorrection: boolean;
+  /** Tone curve points [input, output], 0 to 1 on display values. Absent = straight line. */
+  toneCurve?: Array<[number, number]>;
+  /** Colour mixer: eight bands (red, orange, yellow, green, aqua, blue, purple, magenta), each -100 to 100. Absent = untouched. */
+  colourMixer?: { hue: number[]; saturation: number[]; luminance: number[] };
 }
 
 export interface LookPreset {

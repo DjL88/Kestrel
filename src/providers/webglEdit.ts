@@ -1,4 +1,7 @@
+import { CURVE_LUT_SIZE, MIXER_HUE_DEGREES, MIXER_LUMINANCE_EV, MIXER_SATURATION } from '../core/curveMixer';
 import { DETAIL_CORE, detailParams, editParams, hasDetail, type PhotoEdit } from '../core/photoEdits';
+
+const CURVE_VEC4S = Math.ceil(CURVE_LUT_SIZE / 4);
 
 const VERTEX = `#version 300 es
 in vec2 p;
@@ -14,6 +17,10 @@ precision highp float;
 uniform sampler2D src;
 uniform vec3 channelGain;
 uniform float brightness, colour, contrast, highlights, shadows, blackPoint, whitePoint, vibrance;
+// Tone curve: the same CURVE_LUT_SIZE table the CPU reads, four entries per vec4. Colour mixer: 24 values, six vec4s.
+uniform bool useCurve, useMixer;
+uniform vec4 curveLut[${CURVE_VEC4S}];
+uniform vec4 mixerP[6];
 in vec2 uv;
 out vec4 outColour;
 
@@ -25,6 +32,57 @@ vec3 toEncoded(vec3 v) {
   return mix(1.055 * pow(v, vec3(1.0 / 2.4)) - 0.055, v * 12.92, lessThanEqual(v, vec3(0.0031308)));
 }
 float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+float curveAt(int i) { return curveLut[i / 4][i % 4]; }
+float applyCurve(float v) {
+  float at = clamp(v, 0.0, 1.0) * float(${CURVE_LUT_SIZE - 1});
+  int low = min(int(floor(at)), ${CURVE_LUT_SIZE - 2});
+  return mix(curveAt(low), curveAt(low + 1), at - float(low));
+}
+float mixerAt(int i) { return mixerP[i / 4][i % 4]; }
+// Mirrors mixPixel in src/core/curveMixer.ts: band and greyness judged on display values, change made on linear HSV.
+float hueOf(vec3 c, float high, float delta) {
+  float hue;
+  if (high == c.r) hue = 60.0 * mod((c.g - c.b) / delta, 6.0);
+  else if (high == c.g) hue = 60.0 * ((c.b - c.r) / delta + 2.0);
+  else hue = 60.0 * ((c.r - c.g) / delta + 4.0);
+  return hue < 0.0 ? hue + 360.0 : hue;
+}
+vec3 mixColour(vec3 c) {
+  c = max(c, vec3(0.0));
+  vec3 e = toEncoded(c);
+  float eHigh = max(e.r, max(e.g, e.b));
+  float eDelta = eHigh - min(e.r, min(e.g, e.b));
+  float guard = smoothstep(0.02, 0.15, eHigh > 0.0 ? eDelta / eHigh : 0.0);
+  float high = max(c.r, max(c.g, c.b));
+  float delta = high - min(c.r, min(c.g, c.b));
+  if (guard == 0.0 || delta <= 0.0) return c;
+  float seen = hueOf(e, eHigh, eDelta);
+  float centres[9] = float[9](0.0, 30.0, 60.0, 120.0, 180.0, 240.0, 270.0, 300.0, 360.0);
+  int index = 7;
+  for (int i = 0; i < 7; i++) { if (seen >= centres[i] && seen < centres[i + 1]) { index = i; break; } }
+  float t = (seen - centres[index]) / (centres[index + 1] - centres[index]);
+  t = t * t * (3.0 - 2.0 * t);
+  int next = (index + 1) % 8;
+  float hueShift = mix(mixerAt(index), mixerAt(next), t) * guard;
+  float satShift = mix(mixerAt(8 + index), mixerAt(8 + next), t) * guard;
+  float lumShift = mix(mixerAt(16 + index), mixerAt(16 + next), t) * guard;
+  float hue = hueOf(c, high, delta);
+  float sat = delta / high;
+  float newHue = mod(hue + hueShift * ${MIXER_HUE_DEGREES.toFixed(1)}, 360.0);
+  float newSat = clamp(sat * (1.0 + satShift * ${MIXER_SATURATION.toFixed(2)}), 0.0, 1.0);
+  float value = high * exp2(lumShift * ${MIXER_LUMINANCE_EV.toFixed(2)});
+  float chroma = value * newSat;
+  float h = newHue / 60.0;
+  float x = chroma * (1.0 - abs(mod(h, 2.0) - 1.0));
+  vec3 rgb;
+  if (h < 1.0) rgb = vec3(chroma, x, 0.0);
+  else if (h < 2.0) rgb = vec3(x, chroma, 0.0);
+  else if (h < 3.0) rgb = vec3(0.0, chroma, x);
+  else if (h < 4.0) rgb = vec3(0.0, x, chroma);
+  else if (h < 5.0) rgb = vec3(x, 0.0, chroma);
+  else rgb = vec3(chroma, 0.0, x);
+  return rgb + vec3(value - chroma);
+}
 
 void main() {
   vec4 texel = texture(src, uv);
@@ -55,8 +113,10 @@ void main() {
     saturation += vibrance * (1.0 - min(1.0, chroma));
   }
   c = vec3(y) + (c - vec3(y)) * saturation;
+  if (useMixer) c = mixColour(c);
   vec3 e = toEncoded(c);
   if (contrast != 1.0) e = clamp(0.5 + (e - 0.5) * contrast, 0.0, 1.0);
+  if (useCurve) e = vec3(applyCurve(e.r), applyCurve(e.g), applyCurve(e.b));
   outColour = vec4(e, texel.a);
 }`;
 
@@ -180,6 +240,14 @@ export function renderEditOnGpu(target: HTMLCanvasElement, edit: PhotoEdit, imag
       highlights: params.highlights, shadows: params.shadows, blackPoint: params.blackPoint,
       whitePoint: params.whitePoint, vibrance: params.vibrance,
     })) gl.uniform1f(gl.getUniformLocation(program, name), value);
+    gl.uniform1i(gl.getUniformLocation(program, 'useCurve'), params.curve ? 1 : 0);
+    if (params.curve) {
+      const padded = new Float32Array(CURVE_VEC4S * 4);
+      padded.set(params.curve);
+      gl.uniform4fv(gl.getUniformLocation(program, 'curveLut'), padded);
+    }
+    gl.uniform1i(gl.getUniformLocation(program, 'useMixer'), params.mixer ? 1 : 0);
+    if (params.mixer) gl.uniform4fv(gl.getUniformLocation(program, 'mixerP'), params.mixer);
     if (detail) {
       // Pass 1 renders the tone edit into a texture, and pass 2 adds detail while reading its mipmaps.
       const { toneTexture, framebuffer, detailProgram } = gpu;
