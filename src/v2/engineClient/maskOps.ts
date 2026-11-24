@@ -13,7 +13,14 @@ export const MASK_SLIDERS = [
 ] as const satisfies readonly { key: LocalKey; label: string; min: number; max: number; step: number }[];
 
 const layerType = (mask: Mask): MaskLayer['type'] => (mask.kind === 'subject' ? (mask.invert ? 'background' : 'subject') : mask.kind === 'brush' ? 'brush' : mask.kind === 'linear' ? 'gradient' : 'area');
-const layerName = (mask: Mask): string => (mask.kind === 'subject' ? (mask.invert ? 'Background' : 'Subject') : mask.kind === 'brush' ? 'Brush mask' : mask.kind === 'linear' ? 'Gradient' : 'Round area');
+const layerName = (mask: Mask): string => {
+  if (mask.kind === 'subject' && mask.id.startsWith('auto-denoise-')) {
+    const instance = /-instance-(\d+)-([a-zA-Z0-9]+)$/.exec(mask.id);
+    if (instance && !mask.invert) return `Subject ${instance[1]} · ${instance[2][0].toUpperCase() + instance[2].slice(1)}`;
+    return mask.invert ? 'Background · Denoise' : 'All subjects · Denoise';
+  }
+  return mask.kind === 'subject' ? (mask.invert ? 'Background' : 'Subject') : mask.kind === 'brush' ? 'Brush mask' : mask.kind === 'linear' ? 'Gradient' : 'Round area';
+};
 
 /** The masks stored on a photo, as the layers the interface lists. Nothing is invented: names and values come from the masks. */
 export function masksToLayers(masks: readonly Mask[] | undefined): MaskLayer[] {
