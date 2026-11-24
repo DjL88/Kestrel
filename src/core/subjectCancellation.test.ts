@@ -39,3 +39,17 @@ test('invalid budgets are refused and abort immediately after listener registrat
   assert.throws(() => boundedSubjectGuide(Promise.resolve('x'), 0), RangeError);
   assert.throws(() => boundedSubjectGuide(Promise.resolve('x'), Number.NaN), RangeError);
 });
+
+
+test('already stopped or invalid requests still consume a late detector failure', async () => {
+  const controller = new AbortController();
+  controller.abort();
+  let reject!: (reason: Error) => void;
+  const late = new Promise<string>((_resolve, fail) => { reject = fail; });
+  await assert.rejects(boundedSubjectGuide(late, 100, controller.signal), { name: 'AbortError' });
+  reject(new Error('late model failure'));
+  const invalid = Promise.reject(new Error('model rejected before invalid budget check'));
+  assert.throws(() => boundedSubjectGuide(invalid, 0), RangeError);
+  // Node's test runner treats an unhandled rejection as a failed test.
+  await new Promise(resolve => setImmediate(resolve));
+});
