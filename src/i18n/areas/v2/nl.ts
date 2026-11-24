@@ -554,6 +554,11 @@ export const nl: AreaTranslation<typeof source> = {
     label: (mode) => `${mode} staat aan. Wijzig dit in Instellingen.`,
   },
   exportDialog: {
+    overlayText: 'tekstoverlay',
+    overlayWatermark: 'watermerk',
+    overlaysAsOnCanvas: (what) => `Wordt overgenomen zoals op het canvas: ${what}. Wijzig dit bij Overlays.`,
+    noOverlaysOnCanvas: 'Er staat geen tekst of watermerk op het canvas. Voeg ze toe bij Overlays.',
+    frameFiles: (count) => `${count} kaders`,
     destFolder: 'Opslaan in een map',
     folderHelp: 'Kies één map voor de hele reeks',
     saveFiles: 'Bestanden opslaan',

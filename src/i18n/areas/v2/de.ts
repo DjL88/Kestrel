@@ -554,6 +554,11 @@ export const de: AreaTranslation<typeof source> = {
     label: (mode) => `${mode} ist aktiv. Ändern Sie das in den Einstellungen.`,
   },
   exportDialog: {
+    overlayText: 'Textoverlay',
+    overlayWatermark: 'Wasserzeichen',
+    overlaysAsOnCanvas: (what) => `Wie auf der Arbeitsfläche platziert: ${what}. Änderungen nehmen Sie unter „Overlays“ vor.`,
+    noOverlaysOnCanvas: 'Auf der Arbeitsfläche befinden sich weder Text noch Wasserzeichen. Fügen Sie diese unter „Overlays“ hinzu.',
+    frameFiles: (count) => `${count} Teilbilder`,
     destFolder: 'In einem Ordner speichern',
     folderHelp: 'Einen Ordner für den ganzen Stapel wählen',
     saveFiles: 'Dateien speichern',

@@ -37,6 +37,20 @@ test('V2 dynamic messages preserve counts, dimensions and screen-reader compare 
   }
 });
 
+test('export translations preserve frame counts and the names of canvas overlays', () => {
+  for (const { code } of LANGUAGES) {
+    const words = localiseFor(source, v2Area.translations, code);
+    const dialog = words.exportDialog;
+    const overlays = new Intl.ListFormat(code).format([dialog.overlayText, dialog.overlayWatermark]);
+    assert.ok(dialog.overlaysAsOnCanvas(overlays).includes(overlays), `${code}: canvas overlay names lost`);
+    assert.match(dialog.frameFiles(5), /5/, `${code}: export frame count lost`);
+    if (!code.startsWith('en') && !code.includes('-')) {
+      const missing = missingKeys(source.exportDialog, v2Area.translations[code]?.exportDialog);
+      assert.deepEqual(missing, [], `${code}: export phrases left in English`);
+    }
+  }
+});
+
 test('every full language translates every V2 phrase', () => {
   for (const { code } of LANGUAGES) {
     if (code.startsWith('en') || code.includes('-')) continue;

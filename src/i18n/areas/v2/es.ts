@@ -554,6 +554,11 @@ export const es: AreaTranslation<typeof source> = {
     label: (mode) => `${mode} está activado. Cámbielo en Ajustes.`,
   },
   exportDialog: {
+    overlayText: 'superposición de texto',
+    overlayWatermark: 'marca de agua',
+    overlaysAsOnCanvas: (what) => `Se añade tal como aparece en el lienzo: ${what}. Puedes cambiarlo en Superposiciones.`,
+    noOverlaysOnCanvas: 'El lienzo no contiene texto ni marca de agua. Puedes añadirlos en Superposiciones.',
+    frameFiles: (count) => `${count} marcos`,
     destFolder: 'Guardar en una carpeta',
     folderHelp: 'Elija una carpeta para todo el lote',
     saveFiles: 'Guardar archivos',

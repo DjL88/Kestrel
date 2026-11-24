@@ -554,6 +554,11 @@ export const cy: AreaTranslation<typeof source> = {
     label: (mode) => `Mae ${mode} ymlaen. Newidiwch hyn yn y Gosodiadau.`,
   },
   exportDialog: {
+    overlayText: 'troshaen testun',
+    overlayWatermark: 'dyfrnod',
+    overlaysAsOnCanvas: (what) => `Ychwanegir fel y maent ar y cynfas: ${what}. Gwnewch newidiadau yn Troshaenau.`,
+    noOverlaysOnCanvas: 'Nid oes testun na dyfrnod ar y cynfas. Ychwanegwch nhw yn Troshaenau.',
+    frameFiles: (count) => `${count} ffrâm`,
     destFolder: 'Cadw i ffolder',
     folderHelp: 'Dewiswch un ffolder ar gyfer y swp cyfan',
     saveFiles: 'Cadw ffeiliau',

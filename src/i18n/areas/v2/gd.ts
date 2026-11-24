@@ -555,6 +555,11 @@ export const gd: AreaTranslation<typeof source> = {
     label: (mode) => `Tha ${mode} air. Atharraich e sna Roghainnean.`,
   },
   exportDialog: {
+    overlayText: 'tar-chòmhdach teacsa',
+    overlayWatermark: 'comharra-uisge',
+    overlaysAsOnCanvas: (what) => `Thèid na leanas a chur ris mar a tha iad air a’ chanabhas: ${what}. Atharraich iad ann an Tar-chòmhdachaidhean.`,
+    noOverlaysOnCanvas: 'Chan eil teacsa no comharra-uisge air a’ chanabhas. Cuir ris iad ann an Tar-chòmhdachaidhean.',
+    frameFiles: (count) => `${count} frèamaichean`,
     destFolder: 'Sàbhail gu pasgan',
     folderHelp: 'Tagh aon phasgan airson na baidse air fad',
     saveFiles: 'Sàbhail faidhlichean',

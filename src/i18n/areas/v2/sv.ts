@@ -554,6 +554,11 @@ export const sv: AreaTranslation<typeof source> = {
     label: (mode) => `${mode} är på. Ändra det i Inställningar.`,
   },
   exportDialog: {
+    overlayText: 'textöverlägg',
+    overlayWatermark: 'vattenstämpel',
+    overlaysAsOnCanvas: (what) => `Läggs till precis som på arbetsytan: ${what}. Ändra dem under Överlägg.`,
+    noOverlaysOnCanvas: 'Det finns ingen text eller vattenstämpel på arbetsytan. Lägg till dem under Överlägg.',
+    frameFiles: (count) => `${count} bildrutor`,
     destFolder: 'Spara i en mapp',
     folderHelp: 'Välj en mapp för hela omgången',
     saveFiles: 'Spara filer',

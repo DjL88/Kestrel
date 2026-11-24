@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useDialogFocus } from '../utils/dialogFocus';
+import { activeLanguage } from '../../../core/locale';
 import { isRawPreviewFile } from '../../../core/rawFormats';
 import { isDesktopApp, isMobileShell } from '../../../providers/desktopShell';
 import { canDevelopRaw } from '../../../providers/rawDevelop';
@@ -347,7 +348,9 @@ export default function ExportDialog({
                 ))}
               </div>
               <p className="px-2 text-[11px] text-[var(--text-secondary)]" data-testid="export-overlay-note">
-                {canvasOverlays.length ? STRINGS.exportDialog.overlaysAsOnCanvas(canvasOverlays.join(' and ')) : STRINGS.exportDialog.noOverlaysOnCanvas}
+                {canvasOverlays.length
+                  ? STRINGS.exportDialog.overlaysAsOnCanvas(new Intl.ListFormat(activeLanguage()).format(canvasOverlays))
+                  : STRINGS.exportDialog.noOverlaysOnCanvas}
               </p>
             </section>
           </div>
