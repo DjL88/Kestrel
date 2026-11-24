@@ -38,3 +38,32 @@ test('failure of an earlier model does not deadlock the inference queue', async 
   await assert.rejects(run(async () => { throw new Error('WASM unavailable'); }), /WASM unavailable/);
   assert.equal(await run(async () => 'next photograph'), 'next photograph');
 });
+
+
+test('Stop rejects a waiting caller immediately without releasing the model barrier', async () => {
+  const run = createSerialInferenceQueue();
+  let finish!: () => void;
+  const hold = new Promise<void>(resolve => { finish = resolve; });
+  const first = run(async () => { await hold; return 'first'; });
+  const controller = new AbortController();
+  let started = false;
+  const waiting = run(async () => { throw Error('must not start'); }, controller.signal);
+  controller.abort();
+  try {
+    await assert.rejects(waiting, { name: 'AbortError' });
+    const third = run(async () => { started = true; return 'third'; });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.equal(started, false);
+    finish();
+    assert.equal(await third, 'third');
+    assert.equal(await first, 'first');
+  } finally { finish(); }
+});
+
+test('late result from a running model is discarded after Stop', async () => {
+  const run = createSerialInferenceQueue();
+  const controller = new AbortController();
+  const result = run(async () => { controller.abort(); return 'stale'; }, controller.signal);
+  await assert.rejects(result, { name: 'AbortError' });
+  assert.equal(await run(async () => 'next'), 'next');
+});
