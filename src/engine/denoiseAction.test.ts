@@ -77,6 +77,29 @@ describe('runDenoiseAction', () => {
     assert.equal(calls, 3); // initial attempt + 2 retries
     assert.equal(result.attempts, 3);
     assert.equal(result.verification.ok, false);
-    assert.ok(result.edit.denoise! < 1);
+    assert.deepEqual(result.edit, {});
+    assert.deepEqual(result.masks, []);
   });
+});
+
+it('reduces strength after protected detail loss and accepts only a verified retry', async () => {
+  const original = flat(64, [130,130,130]);
+  for (let y=0;y<64;y++) for(let x=0;x<64;x++) {
+    const i=(y*64+x)*4;
+    original.data.fill(x%4<2?90:170,i,i+3);
+  }
+  const strengths:number[]=[];
+  const result=await runDenoiseAction({
+    original, backgroundDenoise: 1.6,
+    subject:{maskId:'s',grid,framingKey:'f',confidence:'high',alpha:new Float32Array(4096).fill(1)},
+    render:async (_edit,masks)=>{
+      const strength=masks[1].edit.denoise!;
+      strengths.push(strength);
+      return strength>0.4?flat(64,[130,130,130]):original;
+    },
+  });
+  assert.equal(result.verification.ok,true);
+  assert.equal(result.attempts,2);
+  assert.ok(strengths[1]<strengths[0]);
+  assert.equal(result.masks[1].edit.denoise,strengths[1]);
 });
