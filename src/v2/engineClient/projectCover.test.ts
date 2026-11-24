@@ -26,3 +26,17 @@ test('an available keeper remains preferred and removed photos cannot be covers'
   assert.equal(read.length,1);
   assert.ok(read[0].includes('keeper.NEF'));
 });
+
+test('favourite ratings choose the project cover before lower-rated keepers', async () => {
+  const frames = [{...photo('low'), rating: 1}, {...photo('top'), rating: 5}];
+  const read: string[] = [];
+  const blob = new Blob(['cached'], {type:'image/jpeg'});
+  assert.equal(await projectCoverBlob(frames, async key => { read.push(key); return blob; }), blob);
+  assert.ok(read[0].includes('top.NEF'));
+});
+test('set-aside photos are a last resort even if they have a higher rating', async () => {
+  const frames = [{...photo('rejected','reject'), rating:5}, {...photo('other','unreviewed'), rating:2}];
+  const read: string[] = [];
+  await projectCoverBlob(frames, async key => { read.push(key); return new Blob(['cached'], {type:'image/jpeg'}); });
+  assert.ok(read[0].includes('other.NEF'));
+});

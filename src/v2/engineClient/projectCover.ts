@@ -7,8 +7,10 @@ export async function projectCoverBlob(
   loadPreview: (key: string) => Promise<Blob | null> = loadOfflinePreview,
 ): Promise<Blob | null> {
   const live = frames.filter((frame) => frame.removedAt == null);
-  const keepers = live.filter(frame => frame.decision === 'keep');
-  const others = live.filter(frame => frame.decision !== 'keep');
+  const rating = (frame: PhotoFrame) => Number.isInteger(frame.rating) && frame.rating! >= 1 && frame.rating! <= 5 ? frame.rating! : 0;
+  const keepers = live.filter(frame => frame.decision === 'keep').sort((a, b) => rating(b) - rating(a));
+  const others = live.filter(frame => frame.decision !== 'keep').sort((a, b) =>
+    Number(a.decision === 'reject') - Number(b.decision === 'reject') || rating(b) - rating(a));
   // Reserve some of the bounded lookup budget for other photos in case all
   // saved keepers are offline or their derived thumbnails have been evicted.
   const keeperBudget = Math.min(keepers.length, 12 - Math.min(4, others.length));
