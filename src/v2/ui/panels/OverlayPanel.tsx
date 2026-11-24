@@ -290,7 +290,7 @@ export default function OverlayPanel({
                       </ul>
                       <button
                         type="button"
-                        onClick={() => onUpdateOverlay(photo.id, { rows: fitOverlayRows(overlay, photo), textOffsetX: 0 })}
+                        onClick={() => onUpdateOverlay(photo.id, { rows: fitOverlayRows({ ...overlay, textOffsetX: 0, textOffsetY: 0 }, photo), textOffsetX: 0, textOffsetY: 0 })}
                         className="rounded-[var(--radius-xs)] bg-[var(--brand-accent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-on-accent)]"
                       >
                         {STRINGS.overlays.overflowFit}
