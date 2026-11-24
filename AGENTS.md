@@ -12,3 +12,7 @@ This repository has **one product contract and one live coordination board**. Th
 8. **Keep one simple experience:** Import → Review → Improve → Export → Reopen. One Library/Review/Edit workspace, one Settings home and one progress vocabulary, with accessible, calm, human-language UI across platforms.
 
 Read [CLAUDE.md](CLAUDE.md) as the detailed implementation and test policy; the filename is historical and the rules are **not Claude-only**. Existing [PR #416](https://github.com/DjL88/Kestrel/pull/416) owns important import/flow paths, and [PR #417](https://github.com/DjL88/Kestrel/pull/417) owns Nikon evidence documentation; always check their live status before changes.
+
+## Worker implementation briefs
+
+Read [docs/worker-tasks/README.md](docs/worker-tasks/README.md) and the assigned task brief before implementing a grouped deliverable. These prompts supplement the product contract; they do not replace #1138 priorities or #890 live claims. Verify current main, follow the brief's acceptance criteria, and implement the next unblocked slice. Do not infer completion from a brief or duplicate another worker's claim.
