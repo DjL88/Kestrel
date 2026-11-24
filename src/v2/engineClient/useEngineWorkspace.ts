@@ -523,9 +523,13 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         itemId: item => item.id, itemLabel: item => item.label,
         runItem: async (_, __, ctx) => {
           ctx.stage('Scanning photographs and gathering shoot-wide evidence');
+          ctx.setSubitems(candidates.map(frame => ({ id: frame.id, label: frame.filename })));
           const results = await scanForCulling(candidates, current.frames, provider.current!, null,
             ctx.signal, count => ctx.reportProgress(count, candidates.length, `${count} of ${candidates.length} analysed`),
-            () => ctx.commitIfCurrent(() => setNotice('The subject detector is unavailable. Auto-cull used sharpness and exposure only and is less certain.')));
+            () => ctx.commitIfCurrent(() => setNotice('The subject detector is unavailable. Auto-cull used sharpness and exposure only and is less certain.')),
+            (frameId, stage) => ctx.updateSubitem(frameId,
+              stage === 'analysing' ? 'running' : 'done',
+              stage === 'unavailable' ? 'Subject detection unavailable; review recommended' : stage));
           ctx.checkCancelled();
           if (requestId !== openRequest.current || stateRef.current?.shoot.id !== projectKey) return;
           ctx.stage('Applying review suggestions without changing manual flags');
