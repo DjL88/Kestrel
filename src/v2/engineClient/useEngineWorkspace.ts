@@ -624,6 +624,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           ctx.commitIfCurrent(() => setNotice(summary));
         },
       });
+      controller.signal.addEventListener('abort', () => ticket.cancel(), { once: true });
+      if (controller.signal.aborted) ticket.cancel();
       const result = await ticket.finished;
       if (result === 'failed') setNotice('Auto-cull failed. No new decisions were applied. Open Tasks for details.');
     } catch (reason) {
