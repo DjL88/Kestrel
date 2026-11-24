@@ -48,7 +48,7 @@ export function setMaskEdit(masks: readonly Mask[] | undefined, id: string, key:
   const clamped = Math.round(Math.min(slider.max, Math.max(slider.min, value)) * 100) / 100;
   return change(masks, id, (mask) => {
     const edit = { ...mask.edit };
-    if (clamped === 0) delete edit[slider.key]; else edit[slider.key] = clamped;
+    if (clamped === 0 && !(slider.key === 'denoise' && /-instance-\d+-[a-zA-Z0-9]+$/.test(mask.id) && mask.id.startsWith('auto-denoise-'))) delete edit[slider.key]; else edit[slider.key] = clamped;
     return { ...mask, edit };
   });
 }
