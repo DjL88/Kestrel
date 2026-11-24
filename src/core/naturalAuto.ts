@@ -1,3 +1,5 @@
+import type { PhotographyObservation } from './photographyKnowledge';
+import { preservationPolicy } from './photographyPolicy';
 import { applyDetail, applyPhotoEdit, isNeutralEdit, type PhotoEdit } from './photoEdits';
 import { applyMasks, fullContext } from './masks';
 import { assessAutoQuality } from './autoQualityGate';
@@ -32,6 +34,8 @@ export interface NaturalAutoInput {
    * full-resolution shadow lift would show grain.
    */
   iso?: number | null;
+  /** Explicit or confidently observed photographic context; absent means no extra restrictions. */
+  photographyObservations?: readonly PhotographyObservation[];
 }
 
 export type GlobalAutoEdit = Pick<PhotoEdit, 'exposure' | 'warmth'> &
@@ -428,6 +432,24 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
 
   scene.kind = lowKey ? 'low-key' : subdued ? 'subdued' : brightBackground ? 'bright-background' :
     edit.exposure > 0 ? 'underexposed' : edit.exposure < 0 ? 'overexposed' : edit.contrast > 0 ? 'flat' : 'balanced';
+  // Knowledge policies may suppress measured suggestions, never invent an adjustment.
+  const { preserveLight, preserveDark, preserveSoft } = preservationPolicy(input.photographyObservations);
+  if (preserveLight && edit.warmth !== 0) {
+    edit.warmth = 0;
+    notes.push('Photography guidance preserves intentional lighting colour.');
+  }
+  if (preserveDark) {
+    if (edit.exposure > 0) edit.exposure = 0;
+    if (edit.shadows > 0) edit.shadows = 0;
+    delete subjectEdit.shadows;
+    scene.kind = 'low-key';
+    notes.push('Photography guidance preserves intentional darkness.');
+  }
+  if (preserveSoft) {
+    if (edit.contrast > 0) edit.contrast = 0;
+    delete subjectEdit.sharpen;
+    notes.push('Photography guidance preserves soft texture and tonal transitions.');
+  }
   const globalChanged = Object.values(edit).some((v) => v !== 0);
   const localChanged = Object.keys(subjectEdit).length > 0;
   const abstained = !globalChanged && !localChanged;
