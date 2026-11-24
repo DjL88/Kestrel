@@ -90,6 +90,10 @@ export async function scheduleV2PhotoExports(input: {
     resource: 'gpu', // full-resolution canvas / denoise must not allocate concurrently
     priority: 1,
     pauseable: units.length > 1,
+    // Only exclusive createNew destination saves can guarantee a failed write
+    // did not overwrite or ambiguously commit an earlier photo. Browser
+    // downloads and ZIP assembly require a fresh deliberate export instead.
+    retryable: folder !== null,
     items: scheduledUnits,
     snapshot,
     itemId: item => item.id,
