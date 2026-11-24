@@ -33,7 +33,7 @@ export async function renderCollagePage(doc: CollageDocument, page: CollagePage,
     ctx.translate(x+w/2,y+h/2);ctx.rotate(slot.angle*Math.PI/180);ctx.translate(-w/2,-h/2);
     ctx.beginPath();
     if(slot.clip){
-     const points=slot.clip.slice(8,-1).split(',').map(pair=>pair.trim().split(/\\s+/).map(parseFloat));
+     const points=slot.clip.slice(8,-1).split(',').map(pair=>pair.trim().split(/\s+/).map(parseFloat));
      points.forEach(([px,py],i)=>i?ctx.lineTo(px*w/100,py*h/100):ctx.moveTo(px*w/100,py*h/100));ctx.closePath();
     }else ctx.rect(0,0,w,h);
     ctx.clip();ctx.imageSmoothingQuality='high';ctx.drawImage(source.image,crop.x,crop.y,crop.width,crop.height);
@@ -42,7 +42,7 @@ export async function renderCollagePage(doc: CollageDocument, page: CollagePage,
  }
  if(page.caption){
   const px=tw*.025;ctx.font='600 '+px+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillStyle=page.captionColour;
-  const lines=page.caption.split('\\n').flatMap(line=>{
+  const lines=page.caption.split('\n').flatMap(line=>{
    const out:string[]=[];let part='';for(const ch of line){if(part&&ctx.measureText(part+ch).width>tw*.9){out.push(part);part='';}part+=ch;}out.push(part);return out;
   });
   if(lines.length*px*1.2>th*.8)throw new Error('Page caption is too long for this layout.');
