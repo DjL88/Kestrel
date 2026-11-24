@@ -578,8 +578,6 @@ export const sv: AreaTranslation<typeof source> = {
     variantBefore: (format) => `Före: oredigerad, framkallad till ${format} (inte originalfilen)`,
     variantOriginal: 'Originalfil: exakt kopia, som den togs',
     variantAfter: 'Efter (redigerad)',
-    variantOverlay: 'Med textöverlägg',
-    variantWatermark: 'Med vattenstämpel',
     variantVideo: 'Video (zoom-MP4)',
     groupsHeading: 'Redigeringsgrupper och format',
     rawMasterHeading: 'RAW-TIFF',

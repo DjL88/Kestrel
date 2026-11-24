@@ -579,8 +579,6 @@ export const fi: AreaTranslation<typeof source> = {
     variantBefore: (format) => `Ennen: muokkaamaton, kehitetty muotoon ${format} (ei alkuperäinen tiedosto)`,
     variantOriginal: 'Alkuperäinen tiedosto: tarkka kopio sellaisenaan',
     variantAfter: 'Jälkeen (muokattu)',
-    variantOverlay: 'Tekstipeiton kanssa',
-    variantWatermark: 'Vesileiman kanssa',
     variantVideo: 'Video (zoom-MP4)',
     groupsHeading: 'Muokkausryhmät ja formaatit',
     rawMasterHeading: 'RAW-TIFF',

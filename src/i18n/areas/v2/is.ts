@@ -578,8 +578,6 @@ export const is: AreaTranslation<typeof source> = {
     variantBefore: (format) => `Fyrir: óbreytt, framkölluð í ${format} (ekki upprunalega skráin)`,
     variantOriginal: 'Upprunaleg skrá: nákvæmt afrit, eins og tekið',
     variantAfter: 'Eftir (breytt)',
-    variantOverlay: 'Með textayfirlagi',
-    variantWatermark: 'Með vatnsmerki',
     variantVideo: 'Myndskeið (aðdráttur MP4)',
     groupsHeading: 'Breytingahópar og snið',
     rawMasterHeading: 'RAW-TIFF',

@@ -578,8 +578,6 @@ export const cy: AreaTranslation<typeof source> = {
     variantBefore: (format) => `Cyn: heb ei olygu, wedi’i ddatblygu i ${format} (nid y ffeil wreiddiol)`,
     variantOriginal: 'Ffeil wreiddiol: copi union, fel y’i tynnwyd',
     variantAfter: 'Wedyn (wedi’i olygu)',
-    variantOverlay: 'Gyda throshaen testun',
-    variantWatermark: 'Gyda dyfrnod',
     variantVideo: 'Fideo (MP4 chwyddo)',
     groupsHeading: 'Grwpiau golygu a fformatau',
     rawMasterHeading: 'TIFF RAW',

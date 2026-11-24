@@ -581,8 +581,6 @@ export const ga: AreaTranslation<typeof source> = {
     variantBefore: (format) => `Roimh: gan eagarthóireacht, forbartha go ${format} (ní an bunchomhad)`,
     variantOriginal: 'Bunchomhad: cóip chruinn, mar a tógadh é',
     variantAfter: 'I ndiaidh (curtha in eagar)',
-    variantOverlay: 'Le forleagan téacs',
-    variantWatermark: 'Le comhartha uisce',
     variantVideo: 'Físeán (MP4 zúmála)',
     groupsHeading: 'Grúpaí eagarthóireachta agus formáidí',
     rawMasterHeading: 'TIFF RAW',
