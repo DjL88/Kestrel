@@ -106,6 +106,7 @@ export function TaskManager({ inline = false }: { inline?: boolean } = {}) {
   const health = taskHealth(list, Math.max(at, ...list.map((task) => task.updatedAt)));
   const { word, classes, Icon } = HEALTH[health];
   const running = list.filter((task) => task.state === 'running').length;
+  const resources = engineScheduler.resourceStatus();
   const first = list.find((task) => task.state === 'running');
   const summary = first ? `${first.title}, ${label(first)}` : word;
   const others = running > 1 ? running - 1 : 0;
@@ -127,6 +128,13 @@ export function TaskManager({ inline = false }: { inline?: boolean } = {}) {
           <button type="button" onClick={() => engineScheduler.pauseAll()} className="min-h-11 rounded-md border border-white/15 px-3 text-xs">Pause all</button>
           <button type="button" onClick={() => engineScheduler.resumeAll()} className="min-h-11 rounded-md border border-white/15 px-3 text-xs">Resume all</button>
         </div>
+      )}
+      {list.some(task => task.state === 'running' || task.state === 'queued') && (
+        <p className="mb-3 text-xs text-zinc-400">
+          InFlight slots: {resources.active.cpu} CPU · {resources.active.gpu} GPU · {resources.active.io} I/O.
+          {' '}{resources.measured ? 'Device resource readings available.' :
+            'OS usage unavailable; heavy processing is limited conservatively.'}
+        </p>
       )}
       <ul className="space-y-3">
         {list.map((task) => (
