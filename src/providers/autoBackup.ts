@@ -1,4 +1,5 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { engineScheduler } from '../core/engineScheduler';
 import { afterAttempt, afterChange, backupFolder, backupName, backupsToDelete, dueForBackup, type BackupClock } from '../core/autoBackup';
 import type { Health } from '../core/connections';
 import { encodeProjectBackup } from '../core/projectBackup';
@@ -71,27 +72,35 @@ export async function writeSnapshot(connector: import('../core/storageConnectors
  * (or to the chosen backup location) when writable. This works on phones
  * connected to a network source just as it does on desktop.
  */
+/** One verified destination write is an indivisible scheduler boundary.
+ * Do not interrupt put/readback/retention halfway through, and do not hold an
+ * I/O reservation while waiting for the next destination. */
+export type BackupAdmission = <T>(work: () => Promise<T>) => Promise<T>;
+const backgroundAdmission: BackupAdmission = work =>
+  engineScheduler.runInSlot('io', new AbortController().signal, work, -10);
+
 export async function backUpNow(state: CullingState, connectionId: string, now = new Date(),
-  recovery = { openDeviceRecovery, openSourceRecovery }): Promise<BackupStatus> {
+  recovery = { openDeviceRecovery, openSourceRecovery },
+  admit: BackupAdmission = backgroundAdmission): Promise<BackupStatus> {
   const projectId = state.shoot.id;
   const name = backupName(projectId, now);
   const payload = new TextEncoder().encode(encodeProjectBackup(state));
-  const local = await recovery.openDeviceRecovery();
+  const local = await admit(() => recovery.openDeviceRecovery());
   let localOk = false;
   let localError = '';
   if ('problem' in local) localError = local.message;
   else {
-    try { await writeSnapshot(local.connector, projectId, name, payload); localOk = true; }
+    try { await admit(() => writeSnapshot(local.connector, projectId, name, payload)); localOk = true; }
     catch (error) { localError = error instanceof Error ? error.message : 'Device storage is unavailable.'; }
   }
 
   // Source and optional connection access are best effort. A missing,
   // disconnected or read-only folder must never interrupt normal editing.
-  const source = await recovery.openSourceRecovery(state).catch(() => ({ problem: 'missing' as const, message: 'Photo source recovery is temporarily unavailable.' }));
+  const source = await admit(() => recovery.openSourceRecovery(state)).catch(() => ({ problem: 'missing' as const, message: 'Photo source recovery is temporarily unavailable.' }));
   const failed: string[] = [];
   let selected: Awaited<ReturnType<typeof openConnection>> | null = null;
   if (connectionId !== LOCAL_RECOVERY_TARGET) {
-    try { selected = await openConnection(connectionId); }
+    try { selected = await admit(() => openConnection(connectionId)); }
     catch { failed.push('Chosen backup location is temporarily unavailable.'); }
   }
   const extra: Array<{ connector: import('../core/storageConnectors').StorageConnector; to: string }> = [];
@@ -102,7 +111,7 @@ export async function backUpNow(state: CullingState, connectionId: string, now =
   let extraOk = 0;
   if (selected && 'problem' in selected) failed.push('Chosen backup location is temporarily unavailable.');
   for (const target of extra) {
-    try { await writeSnapshot(target.connector, projectId, name, payload); extraOk++; }
+    try { await admit(() => writeSnapshot(target.connector, projectId, name, payload)); extraOk++; }
     catch (error) { failed.push(`${target.to}: ${error instanceof Error ? error.message : 'Not writable'}`); }
   }
 
