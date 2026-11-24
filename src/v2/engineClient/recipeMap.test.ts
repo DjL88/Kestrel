@@ -39,7 +39,7 @@ test('an all-neutral patch leaves a neutral edit, and masks already on the photo
 });
 
 test('controls the engine cannot apply yet are reported, not silently ignored', () => {
-  assert.deepEqual(applyRecipePatch(undefined, { lensCorrection: true, denoiseLuminance: 30, upscaleFactor: 2 }).unmapped, ['denoiseLuminance', 'lensCorrection']);
+  assert.deepEqual(applyRecipePatch(undefined, { lensCorrection: true, denoiseLuminance: 30, upscaleFactor: 2 }).unmapped, ['lensCorrection']);
   assert.deepEqual(applyRecipePatch(undefined, { contrast: 10, lookId: 'x' }).unmapped, []);
 });
 
@@ -95,7 +95,7 @@ test('non-existent engines stay honestly unavailable while output upscale and te
     applyRecipePatch(undefined, {
       detailRecovery: 80, denoiseRawAi: true, denoiseLuminance: 20, lensCorrection: true, upscaleFactor: 2,
     }).unmapped,
-    ['denoiseRawAi', 'denoiseLuminance', 'lensCorrection'],
+    ['denoiseRawAi', 'lensCorrection'],
   );
 });
 
