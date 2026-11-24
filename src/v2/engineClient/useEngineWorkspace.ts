@@ -62,6 +62,7 @@ import { isSplitFrameCount, setFormatSplitOffset, setSplitFrameCount as writeSpl
 import { readSplitPanOffset } from './splitFrameOps';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskLimit, toggleMask } from './maskOps';
 import { verifyFrameMasks } from './maskVerify';
+import { maskVerificationKey, commitVerifiedMasks } from './maskVerificationCommit';
 import { commitSubjectMask, subjectMaskTarget } from './subjectMaskCommit';
 import { createMask, createSubjectMask, framingKey, hasActiveMasks } from '../../core/maskTypes';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFraming';
@@ -686,42 +687,37 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // and watermark-tone checks already draw. A mask whose effect held up changes nothing here (attempts
   // === 1, the common case); one that did not is written back at the strength that actually passed, with
   // a plain notice - never left silently at a value the check could not confirm.
-  const maskVerifyKey = activeFrame && hasActiveMasks(activeFrame.edit?.masks) ? `${activeFrame.id}|${JSON.stringify(activeFrame.edit!.masks)}` : null;
-  const maskVerifyRunning = useRef<string | null>(null);
+  const maskVerifyKey = activeFrame && projectId && hasActiveMasks(activeFrame.edit?.masks)
+    ? maskVerificationKey(projectId, activeFrame) : null;
   useEffect(() => {
-    if (!maskVerifyKey || !activeFrame) return;
-    let live = true;
+    if (!maskVerifyKey || !activeFrame || !projectId) return;
+    const controller = new AbortController();
     const frame = activeFrame;
-    const photoId = frame.id;
-    const key = maskVerifyKey;
+    const capturedProject = projectId;
+    const sourceProvider = provider.current!;
     const timer = window.setTimeout(() => {
-      if (!live || maskVerifyRunning.current === key) return;
-      maskVerifyRunning.current = key;
       (async () => {
         try {
-          const image = await loadExportSource(frame, provider.current!);
-          if (!live) return;
-          const outcome = await verifyFrameMasks(image, frame);
-          // Only the one case worth acting on: the engine actually had to scale something down. A first-try
-          // pass (attempts === 1) is the masks already held up - nothing to write back or tell anyone.
-          if (!live || !outcome || outcome.attempts <= 1) return;
-          // Re-read: the photo (or its masks) may have changed again while this ran. If so, a newer run
-          // will judge the newer masks; this stale result is dropped rather than overwriting it.
-          const latest = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
-          if (!latest || JSON.stringify(latest.edit?.masks ?? []) !== JSON.stringify(frame.edit?.masks ?? [])) return;
-          editFrames([photoId], (current) => ({ ...(current.edit ?? DEFAULT_EDIT), masks: outcome.masks }));
+          const image = await loadExportSource(frame, sourceProvider);
+          if (controller.signal.aborted) return;
+          const outcome = await verifyFrameMasks(image, frame, controller.signal);
+          if (controller.signal.aborted || !outcome || outcome.attempts <= 1) return;
+          const currentState = stateRef.current;
+          const latest = currentState?.frames.find(candidate => candidate.id === frame.id);
+          if (!latest || currentState?.shoot.id !== capturedProject ||
+              maskVerificationKey(capturedProject, latest) !== maskVerifyKey) return;
+          const at = Date.now();
+          mutate(current => controller.signal.aborted ? current :
+            commitVerifiedMasks(current, capturedProject, frame, outcome.masks, at));
           setNotice(outcome.verification.ok
-            ? `A mask's strength was reduced to keep its effect plausible${outcome.verification.reasons.length ? `: ${outcome.verification.reasons.join(' ')}` : '.'}`
-            : `A mask's effect still looked too strong after retrying, so it was left at the gentlest version tried${outcome.verification.reasons.length ? `: ${outcome.verification.reasons.join(' ')}` : '.'}`);
+            ? `A mask's strength was reduced to keep its effect plausible.`
+            : `A mask's effect still looked too strong after retrying, so it was left at the gentlest version tried${outcome.verification.reasons.length ? ': ' + outcome.verification.reasons.join(' ') : '.'}`);
         } catch {
-          // A safety net, not a blocker: if the check itself fails, editing continues with whatever the
-          // sliders already show, same as any other best-effort engine capability.
-        } finally {
-          if (maskVerifyRunning.current === key) maskVerifyRunning.current = null;
+          // A failed safety check must not block the manual editor.
         }
       })();
     }, 500);
-    return () => { live = false; window.clearTimeout(timer); };
+    return () => { controller.abort(); window.clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [maskVerifyKey]);
 
