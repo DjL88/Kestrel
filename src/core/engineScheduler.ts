@@ -260,7 +260,10 @@ export function createEngineScheduler(options: {
               job.handle.transition('queued', `${countDone(job)} of ${job.items.length} completed; waiting for processing slot`);
             } else finishJob(job);
           }
-          pump();
+          // Yield one event-loop turn at a photograph boundary. Even when
+          // every individual item returns synchronously, a 300-photo import
+          // must let canvas interaction, keyboard and touch events paint.
+          setTimeout(pump, 0);
         }
       })();
     }
