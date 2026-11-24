@@ -147,6 +147,8 @@ export const Schemas = {
   }),
   DeactivateRequest: z.object({ licenceKey: z.string().min(10).max(2000), activationId: z.string().min(1).max(64) }).strict(),
   AccountActivateRequest: z.object({ deviceHash: Hex64, platform: Platform, appVersion: Version }).strict(),
+  AccountDevicesRequest: z.object({ deviceHash: Hex64 }).strict(),
+  AccountDeviceReleaseRequest: z.object({ deviceHash: Hex64, activationId: z.string().min(1).max(64) }).strict(),
   ActivateResponse: z.object({ grant: SignedEnvelopeSchema, activationId: z.string() }),
   EntitlementsResponse: z.object({
     plans: z.array(z.object({ licenceId: z.string(), plan: z.string(), status: z.string(), managedAi: z.boolean(), offlineGraceDays: z.number(), majorVersion: z.number(), paid: z.boolean(), source: z.string() })),
@@ -541,6 +543,12 @@ export function createApp(options: AppOptions) {
     return manifest;
   }
 
+  // Device management and activation must select exactly the same account-owned Pro licence.
+  async function effectiveAccountLicence(accountId: string, at: number) {
+    const usable = (await store.listLicencesForAccount(accountId)).filter(l => licenceIsUsable(l, at) && l.plan !== 'free');
+    return usable.sort((a, b) => Number(b.paid) - Number(a.paid) || b.majorVersion - a.majorVersion)[0];
+  }
+
   const routes: Route[] = [
     { method: 'GET', path: '/healthz', summary: 'Liveness', auth: 'none', handler: () => ({ status: 200, body: { ok: true } }) },
 
@@ -668,8 +676,7 @@ export function createApp(options: AppOptions) {
         if (!activateLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
         const body = parseJson(Schemas.AccountActivateRequest, req.rawBody);
         const t = now();
-        const usable = (await store.listLicencesForAccount(claims.sub)).filter((l) => licenceIsUsable(l, t) && l.plan !== 'free');
-        const licence = usable.sort((a, b) => Number(b.paid) - Number(a.paid) || b.majorVersion - a.majorVersion)[0];
+        const licence = await effectiveAccountLicence(claims.sub, t);
         if (!licence) throw new ApiError(403, 'NO_LICENCE', 'This account has no Pro licence yet. Your local work is unaffected.');
         const outcome = await store.activateDevice({
           licenceId: licence.licenceId, planIfNew: licence.plan, deviceHash: body.deviceHash, platform: body.platform,
@@ -684,6 +691,40 @@ export function createApp(options: AppOptions) {
         };
         await audit(claims.sub, 'device.activate.account', 'allowed', outcome.activationId);
         return { status: 200, body: { grant: signEnvelope(grant, config.signingKey), activationId: outcome.activationId } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/me/devices', summary: 'List devices for the signed-in account’s current Pro licence without activating this device', auth: 'user',
+      body: Schemas.AccountDevicesRequest, response: Schemas.LicenceStatusResponse,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        if (!activateLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
+        const body = parseJson(Schemas.AccountDevicesRequest, req.rawBody);
+        const licence = await effectiveAccountLicence(claims.sub, now());
+        if (!licence) return { status: 200, body: { status: 'unknown', validUntilMs: null, maxDevices: 0, devices: [] } };
+        const devices = await store.listActivationsForLicence(licence.licenceId);
+        return { status: 200, body: {
+          status: 'active', validUntilMs: licence.validUntilMs, maxDevices: licence.maxDevices,
+          devices: devices.map(d => ({ activationId: d.activationId, platform: d.platform, appVersion: d.appVersion,
+            lastSeenMs: d.lastSeenMs, thisDevice: d.deviceHash === body.deviceHash })),
+        } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/me/devices/deactivate', summary: 'Free another device on the signed-in account’s current Pro licence', auth: 'user',
+      body: Schemas.AccountDeviceReleaseRequest, response: z.object({ deactivated: z.boolean() }),
+      handler: async (req) => {
+        const claims = await bearer(req);
+        if (!activateLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
+        const body = parseJson(Schemas.AccountDeviceReleaseRequest, req.rawBody);
+        const licence = await effectiveAccountLicence(claims.sub, now());
+        const device = licence && (await store.listActivationsForLicence(licence.licenceId)).find(d => d.activationId === body.activationId);
+        // Never accept a licence/account id from the client or disclose other accounts' devices.
+        if (!device) throw new ApiError(404, 'NOT_FOUND', 'That device is not using this account’s current Pro licence.');
+        if (device.deviceHash === body.deviceHash) throw new ApiError(400, 'CURRENT_DEVICE', 'Choose another device to free its slot.');
+        if (!(await store.deactivateDevice(device.activationId))) throw new ApiError(404, 'NOT_FOUND', 'That device is no longer using this licence.');
+        await audit(claims.sub, 'device.deactivate.account', 'allowed', device.activationId);
+        return { status: 200, body: { deactivated: true } };
       },
     },
     {

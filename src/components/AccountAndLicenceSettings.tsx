@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { Session, SignInProvider } from '../core/cloudInterfaces';
 import { signInOptions } from '../core/signInOptions';
 import { firebaseAuth, isSignInConfigured, signInPlatform, resendAccountVerification } from '../providers/firebaseAuth';
-import { activateFromAccount, consumeExpiredAccountNotice, leaveAccount, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
+import { accountLicenceDevices, activateFromAccount, consumeExpiredAccountNotice, freeAccountLicenceDevice, leaveAccount, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
+import type { LicenceStatus } from '../providers/licenceSync';
 import { isDesktopApp, isMobileShell } from '../providers/desktopShell';
 import { parseControlPlaneUrl } from '../core/licenceOnline';
 import { readAccountOnlineSettings, setAccountAiConsent, type AccountCloudUsage, type ManagedAiConsentStatus } from '../providers/accountAiConsent';
@@ -33,6 +34,8 @@ export function AccountAndLicenceSettings() {
   const aiRequest = useRef(0);
   const aiServer = parseControlPlaneUrl(import.meta.env.VITE_KESTREL_CONTROL_PLANE_URL);
   const [accountBusy, setAccountBusy] = useState(false);
+  const [accountDevices, setAccountDevices] = useState<LicenceStatus | null>(null);
+  useEffect(() => { setAccountDevices(null); }, [account?.accountId]);
   const accountAction = useRef(false);
 
   async function runAccountAction(action: () => Promise<void>) {
@@ -57,7 +60,7 @@ export function AccountAndLicenceSettings() {
     const text: Record<typeof result, string | null> = {
       pro: 'InFlight Pro is active on this device through your account.',
       free: 'Signed in. This account has no Pro licence yet, and signing in does not change what InFlight can do.',
-      limit: 'This account\'s Pro licence is already on its maximum number of devices. Free one from another device and try again.',
+      limit: 'This account\'s Pro licence is already on its maximum number of devices. Use Show account devices to free another device, then check Pro again.',
       revoked: 'This account\'s Pro licence is no longer active. Your local work is unaffected.',
       unreachable: 'Signed in, but the licence service could not be reached or the email is not verified yet. Check your email, then sign in again. InFlight keeps working.',
       not_set_up: 'This build is missing its online licence settings.',
@@ -181,6 +184,30 @@ export function AccountAndLicenceSettings() {
     });
   }
 
+  function showAccountDevices() {
+    if (offline || !account) return;
+    return runAccountAction(async () => {
+      const token = await firebaseAuth.idToken(true);
+      const devices = token ? await accountLicenceDevices(token) : null;
+      setAccountDevices(devices);
+      if (!devices) setAccountNote('Could not check your account devices. Try again when online.');
+    });
+  }
+
+  function releaseAccountDevice(activationId: string) {
+    if (offline || !account || !accountDevices?.devices.some(d => d.activationId === activationId && !d.thisDevice)) return;
+    if (!window.confirm('Free this device slot? That device may keep using its offline grant until it expires. Your photographs and edits are unchanged.')) return;
+    return runAccountAction(async () => {
+      const token = await firebaseAuth.idToken(true);
+      if (!token || !(await freeAccountLicenceDevice(token, activationId))) {
+        setAccountNote('Could not confirm that the device slot was freed. Check the list again.');
+        return;
+      }
+      setAccountDevices(await accountLicenceDevices(token));
+      setAccountNote('Device slot freed. Choose Check Pro online to activate this device.');
+    });
+  }
+
   function chooseSignOut() {
     return runAccountAction(async () => {
       await firebaseAuth.signOut();
@@ -191,6 +218,7 @@ export function AccountAndLicenceSettings() {
       setAiNote(null);
       leaveAccount();
       setAccount(null);
+      setAccountDevices(null);
       setAccountNote('Signed out of InFlight.');
     });
   }
@@ -213,7 +241,24 @@ export function AccountAndLicenceSettings() {
               <button type="button" className={action} disabled={offline || accountBusy} onClick={() => void runAccountAction(linkLicence)}>Check Pro online</button>
               {account.provider === 'password' && <button type="button" className={action} disabled={offline || accountBusy} onClick={() => void resendVerification()}>Resend verification email</button>}
               <button type="button" className={action} disabled={accountBusy} onClick={() => void chooseSignOut()}>Sign out</button>
+              <button type="button" className={action} disabled={offline || accountBusy} onClick={() => void showAccountDevices()}>Show account devices</button>
             </div>
+            {!offline && accountDevices && (
+              <section aria-label="Account Pro devices" className="space-y-2 rounded-lg border border-[var(--account-border,#ffffff1a)] p-3">
+                <h4 className="font-medium">Account Pro devices</h4>
+                {accountDevices.status === 'unknown' ? <p>No active account Pro licence.</p> : <>
+                  <p>{accountDevices.devices.length} of {accountDevices.maxDevices} device slots in use.</p>
+                  <ul className="space-y-2">
+                    {accountDevices.devices.map(device => (
+                      <li key={device.activationId} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--account-border,#ffffff1a)] px-3 py-2">
+                        <span>{device.platform}{device.thisDevice ? ' · This device' : ''}<span className="block text-xs">{device.appVersion} · Last seen {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(device.lastSeenMs)}</span></span>
+                        {!device.thisDevice && <button type="button" className={action} disabled={accountBusy} aria-label={'Free ' + device.platform + ' device'} onClick={() => void releaseAccountDevice(device.activationId)}>Free device</button>}
+                      </li>
+                    ))}
+                  </ul>
+                </>}
+              </section>
+            )}
           </>
         ) : (
           <>
