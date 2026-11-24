@@ -343,6 +343,10 @@ export function createEngineScheduler(options: {
   return {
     submit, pause, resume, jumpQueue, reorder,
     cancel: (id: number) => store.cancel(id),
+    canRetryFailed: (id: number) => {
+      const job = jobs.get(id) ?? failedJobs.get(id);
+      return Boolean(job && job.items.some(item => item.state === 'failed' && !item.uncertain));
+    },
     retryFailed: async (id: number) => {
       const job = jobs.get(id) ?? failedJobs.get(id);
       const ticket = await job?.retry() ?? null;
