@@ -8,6 +8,8 @@ import footerKiteLight from '../../../assets/brand/mark/inflight-kite-light.svg'
 import { isDesktopApp, isMobileShell } from '../../../providers/desktopShell';
 
 /** The published privacy policy. It is not bundled into the app, so a relative link would lead nowhere in the desktop app. */
+const HUB_LAYOUT_KEY = 'inflight-v2-hub-layout';
+
 const PRIVACY_URL = 'https://kestrel-hosting-kestrel.web.app/privacy.html';
 
 interface ProjectsHubProps {
@@ -41,6 +43,14 @@ export default function ProjectsHub({
 }: ProjectsHubProps) {
   const footerLogo = theme === 'dark' ? footerKiteDark : footerKiteLight;
   const [search, setSearch] = useState('');
+  const [compact, setCompact] = useState(() => {
+    try { return window.localStorage.getItem(HUB_LAYOUT_KEY) !== 'cards'; } catch { return true; }
+  });
+  const changeLayout = () => {
+    const next = !compact;
+    setCompact(next);
+    try { window.localStorage.setItem(HUB_LAYOUT_KEY, next ? 'compact' : 'cards'); } catch { /* session preference still works */ }
+  };
   const [sortBy, setSortBy] = useState<ProjectSort>('edited');
   const [failedCovers, setFailedCovers] = useState<string[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
@@ -117,6 +127,11 @@ export default function ProjectsHub({
                 />
               </div>
               <SortMenu value={sortBy} onChange={setSortBy} />
+              <button type="button" aria-pressed={compact} onClick={changeLayout}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-primary)]">
+                <BrandIcon name="grid" size={15} />
+                {STRINGS.settings.appearance.compact}
+              </button>
               <button type="button" onClick={() => setModalOpen(true)}
                 className="inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-3 text-xs font-semibold text-[var(--text-on-accent)] hover:bg-[var(--brand-accent-hover)]">
                 <BrandIcon name="plus" size={15}/>{STRINGS.hub.newProject}
@@ -191,20 +206,20 @@ export default function ProjectsHub({
             <p className="text-sm text-[var(--text-muted)]">{STRINGS.hubMore.nothingArchived}</p>
           )}
           {hubState === 'ready' && filtered.length > 0 && (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+            <div data-project-layout={compact ? "compact" : "cards"} className={compact ? "grid grid-cols-1 gap-3 lg:grid-cols-2" : "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5"}>
               {filtered.map((project) => (
                 <article
                   key={project.id}
-                  className="group flex flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] transition-colors hover:border-[var(--brand-accent-border)]"
+                  className={`group flex min-w-0 ${compact ? "flex-row items-stretch" : "flex-col"} rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] transition-colors hover:border-[var(--brand-accent-border)]`}
                 >
                   <button
                     type="button"
                     onClick={() => onOpenProject(project.id)}
-                    className="relative aspect-[16/9] w-full overflow-hidden bg-[var(--bg-canvas)] text-left"
+                    className={`relative shrink-0 overflow-hidden bg-[var(--bg-canvas)] text-left ${compact ? "w-[30%] max-w-40 rounded-l-[var(--radius-lg)]" : "aspect-[16/9] w-full rounded-t-[var(--radius-lg)]"}`}
                   >
                     {project.coverUrl && !failedCovers.includes(project.id) ? (
                       <img src={project.coverUrl} alt={STRINGS.hubMore.coverAlt(project.name)}
-                        referrerPolicy="no-referrer" onError={() => setFailedCovers((ids) => ids.includes(project.id) ? ids : [...ids, project.id])}
+                        loading="lazy" referrerPolicy="no-referrer" onError={() => setFailedCovers((ids) => ids.includes(project.id) ? ids : [...ids, project.id])}
                         className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
                     ) : (
                       <span className="flex h-full flex-col items-center justify-center gap-2 text-[var(--text-secondary)]">
@@ -213,7 +228,7 @@ export default function ProjectsHub({
                       </span>
                     )}
                   </button>
-                  <div className="flex flex-1 flex-col justify-between p-3">
+                  <div className="flex min-w-0 flex-1 flex-col justify-between p-3">
                     <div>
                       <button
                         type="button"
@@ -231,7 +246,7 @@ export default function ProjectsHub({
                       </p>
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between border-t border-[var(--border-subtle)] pt-3">
+                    <div className={`flex flex-wrap items-center justify-between gap-1 border-t border-[var(--border-subtle)] ${compact ? "mt-2 pt-1" : "mt-4 pt-3"}`}>
                       <span className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)]">
                         <BrandIcon
                           name={project.localCopyStatus === 'synced' ? 'cloud' : 'hard-drive'}
