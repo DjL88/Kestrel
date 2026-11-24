@@ -63,8 +63,7 @@ import { scanForCulling } from './providers/browserAutoCull';
 import { createImportCullPreflight, type ImportCullPreflight } from './providers/importCullPreflight';
 import { settleImportObservation } from './core/importCullHandoff';
 import type { ImportCullCache } from './core/importCullCache';
-import { limitAutoKeepers } from './core/autoCull';
-import { backgroundCullCandidates, backgroundCullMoves, backgroundDevelopTargets } from './core/backgroundAutoPolicy';
+import { planBackgroundCull, backgroundCullCandidates, backgroundDevelopTargets } from './core/backgroundAutoPolicy';
 import { beginCullScan, advanceCullScan, endCullScan, type CullScanProgress } from './core/cullScanProgress';
 import { commitCompletedAutoResult } from './core/progressiveAutoCommit';
 import { prioritizePhotoProcessing } from './core/photoProcessingOrder';
@@ -1003,7 +1002,7 @@ export default function App() {
             setLiveCullScan((prev) => endCullScan(prev, projectId, scanRunId));
           }, { once: true });
           try {
-            const results = await scanForCulling(candidates, snapshot.frames, provider, snapshot.keeperTarget,
+            const results = await scanForCulling(candidates, snapshot.frames, provider, null,
               controller.signal, (count) => task.progress(count), undefined,
               (frameId, stage) => {
                 if (!alive() || leavingRef.current) return;
@@ -1013,22 +1012,16 @@ export default function App() {
             // Recheck the LIVE catalogue: user decisions, crops and history made while
             // the detector ran always win over delayed automated results.
             const latest = stateRef.current;
-            const remaining = Math.max(0, latest.keeperTarget -
-              latest.frames.filter((frame) => !frame.removedAt && frame.decision === 'keep').length);
-            const limited = limitAutoKeepers(results, latest.frames, remaining);
             const moves = latest.settings?.autoCull
-              ? backgroundCullMoves(latest.frames, limited, imported).filter((item) =>
-                  !(editingRef.current && item.frameId === latest.selectedFrameId))
+              ? planBackgroundCull(latest.frames, candidates, results, imported, latest.keeperTarget,
+                  editingRef.current ? latest.selectedFrameId : undefined).moves
               : [];
             snapshot = applyAutoCullDecisions(latest, moves);
             setCullingState((prev) => {
               if (prev.shoot.id !== projectId || controller.signal.aborted || !prev.settings?.autoCull) return prev;
-              const spare = Math.max(0, prev.keeperTarget -
-                prev.frames.filter((frame) => !frame.removedAt && frame.decision === 'keep').length);
-              const currentResults = limitAutoKeepers(results, prev.frames, spare);
-              const decisions = backgroundCullMoves(prev.frames, currentResults, imported).filter((item) =>
-                !(editingRef.current && item.frameId === prev.selectedFrameId));
-              const scored = applyCullConfidence(prev, results.map((item) => ({
+              const { limited, moves: decisions } = planBackgroundCull(prev.frames, candidates, results, imported,
+                prev.keeperTarget, editingRef.current ? prev.selectedFrameId : undefined);
+              const scored = applyCullConfidence(prev, limited.map((item) => ({
                 frameId: item.frameId, confidence: item.confidence, score: item.score,
               })));
               return applyAutoCullDecisions(scored, decisions);

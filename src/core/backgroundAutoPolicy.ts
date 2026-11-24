@@ -1,4 +1,4 @@
-import type { CullSuggestion } from './autoCull';
+import { countOriginalKeepers, limitAutoKeepers, type CullSuggestion } from './autoCull';
 import { isEmptyEdit } from './photoEdits';
 import type { PhotoFrame } from './types';
 
@@ -47,4 +47,32 @@ export function backgroundDevelopTargets(frames: readonly PhotoFrame[], imported
   for (const frame of frames) counts.set(frame.id, (counts.get(frame.id) ?? 0) + 1);
   return new Set(frames.filter((frame) => imported.has(frame.id) && counts.get(frame.id) === 1 &&
     frame.decision === 'keep' && untouchedForBackgroundAuto(frame)).map((frame) => frame.id));
+}
+
+/** Finalise a completed import scan against live sources and decisions BEFORE
+ * allocating limited keeper slots. An edited/removed/replaced frame or a
+ * photo currently being edited must not consume the next eligible slot. */
+export function planBackgroundCull(
+  frames: readonly PhotoFrame[], examined: readonly PhotoFrame[], results: readonly CullSuggestion[],
+  imported: ReadonlySet<string>, target: number, editingFrameId?: string | null,
+) {
+  const sources = new Map<string, PhotoFrame>();
+  const ambiguous = new Set<string>();
+  for (const frame of examined) {
+    if (sources.has(frame.id)) ambiguous.add(frame.id);
+    sources.set(frame.id, frame);
+  }
+  const live = new Map<string, PhotoFrame>();
+  for (const frame of frames) {
+    if (live.has(frame.id)) ambiguous.add(frame.id);
+    live.set(frame.id, frame);
+  }
+  const eligible = results.filter(result => {
+    const before = sources.get(result.frameId), current = live.get(result.frameId);
+    return !!before && !!current && !ambiguous.has(result.frameId) && imported.has(result.frameId) &&
+      result.frameId !== editingFrameId && current.decision === 'unreviewed' && untouchedForBackgroundAuto(current) &&
+      before.stableKey === current.stableKey && before.originalSha256 === current.originalSha256;
+  });
+  const limited = limitAutoKeepers(eligible, [...frames], Math.max(0, target - countOriginalKeepers(frames)));
+  return { limited, moves: backgroundCullMoves(frames, limited, imported) };
 }
