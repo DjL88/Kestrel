@@ -893,20 +893,30 @@ test('V2 reconnects a browser original after its session blob is lost (file rese
       return put.call(this, value, key);
     };
   });
-  const choose = async (testId: string, names: string[], changeBytes = false) => {
-    await page.locator(`[data-testid="${testId}"]`).waitFor({ state: 'attached' });
-    return page.evaluate(({ testId, names, changeBytes }) => {
-    const png = atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
-    const bytes = Uint8Array.from(png, (character) => character.charCodeAt(0));
-    if (changeBytes) bytes[bytes.length - 1] ^= 1; // identical metadata, different content; MUST be refused
-    const data = new DataTransfer();
-    // A fixed lastModified, same on both the import and the later reselect, so the two picks produce the exact
-    // same stableKey (local-file://name::size::lastModified) regardless of when each step actually runs.
-    for (const name of names) data.items.add(new File([bytes], name, { type: 'image/png', lastModified: 1700000000000 }));
-    const input = document.querySelector<HTMLInputElement>(`[data-testid="${testId}"]`)!;
-    input.files = data.files;
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    }, { testId, names, changeBytes });
+  // V2 creates its file picker on demand (no input stays on the page). Catch it when it opens and hand it files with a
+  // fixed lastModified, so the import and the later reselect have the same stableKey (name::size::lastModified).
+  await page.addInitScript(() => {
+    const click = HTMLInputElement.prototype.click;
+    HTMLInputElement.prototype.click = function () {
+      if (this.type === 'file' && sessionStorage.getItem('v2-intercept-picker') === 'yes') { (window as unknown as { __picker?: HTMLInputElement }).__picker = this; return; }
+      return click.call(this);
+    };
+  });
+  const choose = async (open: () => Promise<void>, names: string[], changeBytes = false) => {
+    await page.evaluate(() => { sessionStorage.setItem('v2-intercept-picker', 'yes'); delete (window as unknown as { __picker?: HTMLInputElement }).__picker; });
+    await open();
+    await page.waitForFunction(() => Boolean((window as unknown as { __picker?: HTMLInputElement }).__picker));
+    await page.evaluate(({ names, changeBytes }) => {
+      const png = atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+      const bytes = Uint8Array.from(png, (character) => character.charCodeAt(0));
+      if (changeBytes) bytes[bytes.length - 1] ^= 1; // identical metadata, different content; MUST be refused
+      const data = new DataTransfer();
+      for (const name of names) data.items.add(new File([bytes], name, { type: 'image/png', lastModified: 1700000000000 }));
+      const input = (window as unknown as { __picker: HTMLInputElement }).__picker;
+      input.files = data.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      sessionStorage.removeItem('v2-intercept-picker');
+    }, { names, changeBytes });
   };
 
   await page.goto('/?v2');
@@ -916,8 +926,7 @@ test('V2 reconnects a browser original after its session blob is lost (file rese
   await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
 
   await page.evaluate(() => sessionStorage.setItem('v2-fail-photo-storage', 'yes'));
-  await root.getByRole('button', { name: /^Import/ }).first().click();
-  await choose('v2-file-input', ['lost-original.png']);
+  await choose(() => root.getByRole('button', { name: /^Import/ }).first().click(), ['lost-original.png']);
   const strip = root.getByRole('listbox', { name: 'Project photographs' });
   await expect(strip.getByRole('option')).toHaveCount(1);
   await page.evaluate(() => sessionStorage.removeItem('v2-fail-photo-storage'));
@@ -931,12 +940,10 @@ test('V2 reconnects a browser original after its session blob is lost (file rese
 
   const banner = root.getByRole('status').filter({ hasText: 'Original not connected' });
   await expect(banner).toBeVisible();
-  await banner.getByRole('button', { name: 'Reconnect folder' }).click();
-  await choose('v2-relink-input', ['lost-original.png'], true);
+  await choose(() => banner.getByRole('button', { name: 'Reconnect folder' }).click(), ['lost-original.png'], true);
   await expect(banner).toBeVisible();
   await expect(root.getByText(/contents do not match the original/)).toBeVisible();
-  await banner.getByRole('button', { name: 'Reconnect folder' }).click();
-  await choose('v2-relink-input', ['lost-original.png']);
+  await choose(() => banner.getByRole('button', { name: 'Reconnect folder' }).click(), ['lost-original.png']);
   await expect(banner).toHaveCount(0);
   await expect(root.getByText(/Reconnected 1 photo using matching original bytes/)).toBeVisible();
 });
