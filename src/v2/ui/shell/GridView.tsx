@@ -1,3 +1,4 @@
+import ViewportThumbnail from './ViewportThumbnail';
 import React from 'react';
 import type { Photo } from '../contract';
 import { STRINGS } from '../strings';
@@ -6,6 +7,7 @@ import { filterPhotos } from '../utils/studioMath';
 
 interface GridViewProps {
   photos: Photo[];
+  requestThumbnail?: (id: string) => () => void;
   activePhotoId: string | null;
   selectedPhotoIds: string[];
   filter: 'all' | 'flagged' | 'set-aside';
@@ -21,6 +23,7 @@ interface GridViewProps {
 
 export default function GridView({
   photos,
+  requestThumbnail,
   activePhotoId,
   selectedPhotoIds,
   filter,
@@ -156,10 +159,7 @@ export default function GridView({
                     onDoubleClick={() => onOpenInEditor(photo.id)}
                     className="relative aspect-[3/2] w-full overflow-hidden bg-[var(--bg-canvas)] text-left"
                   >
-                    <img
-                      src={photo.thumbUrl}
-                      alt={photo.title}
-                      referrerPolicy="no-referrer"
+                    <ViewportThumbnail photo={photo} request={requestThumbnail}
                       className={`h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03] ${
                         photo.state === 'unavailable' ? 'opacity-65' : ''
                       }`}
