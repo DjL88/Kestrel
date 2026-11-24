@@ -31,11 +31,19 @@ export async function eraseDeviceData(deps: EraseDeps): Promise<EraseResult> {
     try {
       const keys: string[] = [];
       for (let index = 0; index < storage.length; index += 1) { const key = storage.key(index); if (key && isDeviceKey(key)) keys.push(key); }
-      for (const key of keys) { storage.removeItem(key); result.keysRemoved += 1; }
+      let failed = false;
+      for (const key of keys) {
+        try { storage.removeItem(key); result.keysRemoved += 1; } catch { failed = true; }
+      }
+      if (failed) result.problems.push('Some saved settings could not be removed.');
     } catch { result.problems.push('Some saved settings could not be removed.'); }
   }
   for (const name of deps.deleteDatabases ?? []) {
-    try { await deps.deleteDatabase?.(name); result.databasesDeleted += 1; } catch { result.problems.push(`Could not delete ${name}.`); }
+    try {
+      if (!deps.deleteDatabase) throw new Error('Database deletion unavailable');
+      await deps.deleteDatabase(name);
+      result.databasesDeleted += 1;
+    } catch { result.problems.push(`Could not delete ${name}.`); }
   }
   return result;
 }
