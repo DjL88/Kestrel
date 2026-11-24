@@ -93,6 +93,10 @@ test('legacy snapshots with no overlay keep current overlays rather than erasing
   let frame = { id: 'old-catalogue' } as PhotoFrame;
   frame = recordEdit(frame, { edit: { exposure: 1, warmth: 0, colour: 0 } }, 1000);
   const legacy = JSON.parse(JSON.stringify(frame)) as PhotoFrame;
+  for (const step of legacy.editHistory!.steps) {
+    delete step.before.overlayRecorded;
+    delete step.after.overlayRecorded;
+  }
   legacy.overlay = { textX: 62 };
   assert.deepEqual(stepEdit(legacy, -1).overlay, { textX: 62 });
   assert.deepEqual(jumpToStep(legacy, 0).overlay, { textX: 62 });
@@ -172,4 +176,14 @@ test('ordinary edits never erase a legacy two-frame format when formatSplits was
   assert.deepEqual(stepEdit(restored, -1).formatSplits, expected);
   assert.deepEqual(stepEdit(restored, 1).formatSplits, expected);
   assert.deepEqual(jumpToStep(restored, 0).formatSplits, expected);
+});
+
+
+test('first overlay can be undone, redone and restored to an empty checkpoint after JSON reopen', () => {
+  const frame = { id: 'first-overlay' } as PhotoFrame;
+  const added = recordEdit(frame, { overlay: { textEnabled: true, textX: 60 } }, 1000);
+  const reopened = JSON.parse(JSON.stringify(added)) as PhotoFrame;
+  assert.equal(stepEdit(reopened, -1).overlay, undefined);
+  assert.deepEqual(stepEdit(stepEdit(reopened, -1), 1).overlay, added.overlay);
+  assert.equal(jumpToStep(reopened, 0).overlay, undefined);
 });
