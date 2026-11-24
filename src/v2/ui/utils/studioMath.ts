@@ -156,13 +156,20 @@ export function detectOverlayOverflow(
   return issues;
 }
 
-/** The rows scaled down together, just enough for the widest to fit inside the safe width. Unchanged when it already fits. */
-export function fitOverlayRows(overlay: OverlaySettings, photo: Photo): OverlayTextRow[] {
-  const safeWidth = (overlay.textLayoutMode === 'cover-full' ? 92 : 84) - Math.abs(overlay.textOffsetX);
+/** Fit the estimated width and height of every enabled format, preserving row proportions where the minimum permits. */
+export function fitOverlayRows(overlay: OverlaySettings, photo: Photo, sizes: SizePreset[] = photo.sizes ?? []): OverlayTextRow[] {
+  if (!overlay.rows.length) return overlay.rows;
+  const full = overlay.textLayoutMode === 'cover-full';
+  const safeWidth = (full ? 92 : 84) - Math.abs(overlay.textOffsetX || 0);
+  const safeHeight = (full ? 88 : 45) - Math.abs(overlay.textOffsetY || 0);
   const widest = Math.max(...overlay.rows.map((row) => rowWidthPercent(row, formatOverlayRowText(row, photo))));
-  if (!(widest > safeWidth) || safeWidth <= 0) return overlay.rows;
-  const factor = safeWidth / widest;
-  return overlay.rows.map((row) => ({ ...row, sizePx: Math.max(8, Math.floor(row.sizePx * factor)) }));
+  const height = overlay.rows.reduce((sum, row) => sum + row.sizePx * LINE_HEIGHT / REFERENCE_FRAME_WIDTH, 0) * 100;
+  const shapes = sizes.filter((size) => size.enabled && size.width > 0 && size.height > 0).map((size) => size.width / size.height);
+  const tallest = height * Math.max(0, ...shapes);
+  if (safeWidth <= 0 || safeHeight <= 0) return overlay.rows;
+  const factor = Math.min(1, widest > 0 ? safeWidth / widest : 1, tallest > 0 ? safeHeight / tallest : 1);
+  if (factor >= 1) return overlay.rows;
+  return overlay.rows.map((row) => ({ ...row, sizePx: Math.max(8, Math.floor(row.sizePx * factor)), letterSpacing: Math.round(row.letterSpacing * factor * 10) / 10 }));
 }
 
 /**
