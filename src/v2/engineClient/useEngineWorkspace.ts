@@ -1470,7 +1470,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     setMaskEdit: (photoId, maskId, key, value) => editMasks(photoId, (masks) => setMaskEdit(masks, maskId, key, value)),
     setMaskFeather: (photoId, maskId, percent) => editMasks(photoId, (masks) => setMaskFeather(masks, maskId, percent)),
     setMaskGeometry: (photoId, maskId, field, value) => editMasks(photoId, (masks) => setMaskGeometry(masks, maskId, field, value)),
-    runExport: (request) => { void runExportAction(request); },
+    // As in the owner's design: starting an export closes the dialog; progress and the result continue in Tasks.
+    runExport: (request) => { stub.actions.setExportOpen(false); void runExportAction(request); },
     applyAssistSuggestion: applyAuto,
     requestLocalAuto: (photoId) => setAutoRequest((last) => ({ photoId, sequence: (last?.sequence ?? 0) + 1 })),
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
