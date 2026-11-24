@@ -384,11 +384,11 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
                 {COLLAGE_CAPTION_FONTS.map(font => <option key={font} value={font}>{font}</option>)}
               </select>
             </label>
-            <label className="block text-xs font-medium">{STRINGS.overlays.resizeText} · {captionStyle.size}%
+            <label className="block text-xs font-medium">{STRINGS.canvas.resizeText} · {captionStyle.size}%
               <input type="range" min="1" max="6" step="0.25" value={captionStyle.size}
                 className="mt-1 w-full" onChange={(e) => setCaptionStyle({ size: Number(e.target.value) })} />
             </label>
-            <label className="block text-xs font-medium">{STRINGS.overlays.positionHeading} · {captionStyle.position}%
+            <label className="block text-xs font-medium">{STRINGS.panelWords.centreUpDown} · {captionStyle.position}%
               <input type="range" min="0" max="100" step="5" value={captionStyle.position}
                 className="mt-1 w-full" onChange={(e) => setCaptionStyle({ position: Number(e.target.value) })} />
             </label>
