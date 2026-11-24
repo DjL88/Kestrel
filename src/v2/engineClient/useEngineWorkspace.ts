@@ -1143,6 +1143,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       } catch (error) {
         const message = controller.signal.aborted ? 'Collage export cancelled.' : error instanceof Error ? error.message : 'Collage export failed.';
         task.fail(message); setNotice(message);
+        throw new Error(message);
       } finally { collageExportRunning.current = false; }
     },
     addEditGroup: (photoId) => {
