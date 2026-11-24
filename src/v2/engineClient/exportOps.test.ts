@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { planExport } from './exportOps.ts';
+import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { DEFAULT_CROP } from './cropOps.ts';
 import { createDefaultSizes } from '../ui/stub.ts';
 import type { ExportRequest, SizePreset } from '../ui/contract.ts';
@@ -51,7 +52,7 @@ test('nothing selected gives a plain message', () => {
 test('before and after plans both variants per file; the unedited one is never called the original', () => {
   const plan = planExport(request({ includeBefore: true, photoIds: ['p1'], sizeIds: ['a'] }), frames, [size('a')]);
   assert.ok('jobs' in plan);
-  assert.deepEqual(plan.jobs[0].variants, ['unedited', 'edited']);
+  assert.deepEqual(plan.jobs[0].variants.map(variant => variant.kind), ['unedited', 'edited']);
   assert.match(plan.summary, /before and after = 2 files/);
   assert.equal(plan.originals.length, 0);
 });
@@ -59,7 +60,7 @@ test('before and after plans both variants per file; the unedited one is never c
 test('unedited alone is planned as unedited only', () => {
   const plan = planExport(request({ includeBefore: true, includeAfter: false, photoIds: ['p1'], sizeIds: ['a'] }), frames, [size('a')]);
   assert.ok('jobs' in plan);
-  assert.deepEqual(plan.jobs[0].variants, ['unedited']);
+  assert.deepEqual(plan.jobs[0].variants.map(variant => variant.kind), ['unedited']);
 });
 
 test('original file alone needs no size and plans one exact copy per photo', () => {
@@ -382,4 +383,21 @@ test('three-frame Original uses imported dimensions, not legacy resized metadata
   assert.equal(plan.jobs[0].sections, 3);
   assert.deepEqual(plan.jobs[0].size, { width: 4000, height: 3000 });
   assert.match(plan.summary, /= 3 files$/);
+});
+
+test('exports the saved group recipes after reopening and a single before and exact original', () => {
+  const frame = { id: 'p1', filename: 'bird.jpg', edit: { ...DEFAULT_EDIT, exposure: 1 },
+    v2EditGroups: { activeId: 'warm', groups: [
+      { id: 'warm', name: 'Warm', edit: DEFAULT_EDIT },
+      { id: 'cool', name: 'Cool/blue', edit: { ...DEFAULT_EDIT, exposure: -1 } },
+    ] } };
+  const options = request({ photoIds: ['p1'], sizeIds: ['a'], groupIds: ['cool', 'warm'], includeBefore: true, includeOriginal: true });
+  const plan = planExport(options, [JSON.parse(JSON.stringify(frame))], [size('a')]);
+  assert.ok('jobs' in plan);
+  assert.deepEqual(plan.jobs[0].variants.map(v => [v.kind, v.edit.exposure, v.suffix]), [
+    ['unedited', DEFAULT_EDIT.exposure, '-unedited'], ['edited', 1, '-Warm'], ['edited', -1, '-Cool_blue'],
+  ]);
+  assert.match(plan.summary, /= 4 files$/);
+  assert.deepEqual(plan.originals, ['p1']);
+  assert.ok('error' in planExport({ ...options, groupIds: ['missing'] }, [frame], [size('a')]));
 });

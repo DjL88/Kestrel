@@ -1,3 +1,4 @@
+import { chooseDesktopExportFolder } from '../../providers/desktopShell';
 import type { ExportDestination } from '../ui/contract';
 
 export function describeExport(count: number, missingOriginals: readonly string[]): string {
@@ -10,18 +11,31 @@ export function describeExport(count: number, missingOriginals: readonly string[
 
 export async function deliverExport(
   files: File[], destination: ExportDestination, started: Date, signal: AbortSignal,
-  archive: (files: File[]) => Promise<Blob>, download: (blob: Blob, name: string) => void,
+  archive: (files: File[]) => Promise<Blob>, download: (blob: Blob, name: string, signal: AbortSignal) => Promise<boolean>,
+  chooseFolder = chooseDesktopExportFolder,
 ) {
   signal.throwIfAborted();
   if (destination === 'local-zip') {
     const zip = await archive(files);
     signal.throwIfAborted();
-    download(zip, `inflight-export-${started.toISOString().slice(0, 10)}.zip`);
-  } else if (destination === 'local-individual') {
+    return await download(zip, `inflight-export-${started.toISOString().slice(0, 10)}.zip`, signal) ? files.length : 0;
+  } else if (destination === 'local-individual' || destination === 'local-folder') {
+    const folder = destination === 'local-folder' ? await chooseFolder() : null;
+    if (destination === 'local-folder' && !folder) return 0;
+    let delivered = 0;
     for (const file of files) {
       signal.throwIfAborted();
-      download(file, file.name);
+      try {
+        if (folder) await folder.save(file, '', signal);
+        else if (!await download(file, file.name, signal)) break;
+        delivered++;
+      } catch (reason) {
+        if (signal.aborted) throw reason;
+        const detail = reason instanceof Error ? reason.message : 'Write failed.';
+        throw new Error(`Saved ${delivered} of ${files.length} files. Could not save ${file.name}. ${detail}`);
+      }
     }
+    return delivered;
   } else {
     throw new Error('Choose a local download destination.');
   }

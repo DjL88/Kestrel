@@ -479,6 +479,14 @@ export async function renderExport(
   }
 }
 
+/** Complete the selected native save or hand the file to the browser download manager. */
+export async function saveExportFile(blob: Blob, name: string, signal: AbortSignal): Promise<boolean> {
+  signal.throwIfAborted();
+  if (isDesktopApp()) return saveWithDialog(blob, name, true, signal);
+  downloadInBrowser(blob, name);
+  return true;
+}
+
 export function downloadExport(blob: Blob, name: string) {
   if (isDesktopApp()) {
     // The desktop app has no browser download bar, so it asks where to save. If that fails, fall back to a browser download.

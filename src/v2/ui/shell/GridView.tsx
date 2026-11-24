@@ -39,7 +39,7 @@ export default function GridView({
 
   return (
     <section
-      aria-label="All photos grid view"
+      aria-label={STRINGS.photoGrid.allPhotosGridView}
       className="flex flex-1 flex-col overflow-hidden bg-[var(--bg-canvas)]"
     >
       {/* Header bar */}
@@ -117,7 +117,7 @@ export default function GridView({
             className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--bg-surface-active)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
           >
             <BrandIcon name="close" size={13} />
-            <span>Back to canvas</span>
+            <span>{STRINGS.photoGrid.backToCanvas}</span>
           </button>
         </div>
       </div>

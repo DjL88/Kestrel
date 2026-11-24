@@ -11,6 +11,16 @@ export interface ExclusiveWriteHandle {
   close(): Promise<void>;
 }
 
+export async function requireEmptyExportHandle<T extends ExclusiveWriteHandle & { stat(): Promise<{ size: number }> }>(handle: T): Promise<T> {
+  try {
+    if ((await handle.stat()).size !== 0) throw new Error('Choose a new file name. This file already contains data.');
+    return handle;
+  } catch (reason) {
+    await handle.close();
+    throw reason;
+  }
+}
+
 export async function writeExclusiveBlob(
   blob: Blob,
   openExclusive: () => Promise<ExclusiveWriteHandle>,

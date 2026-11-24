@@ -43,5 +43,6 @@ export function coverCrop(sourceWidth:number,sourceHeight:number,width:number,he
   if(![sourceWidth,sourceHeight,width,height,zoom,panX,panY].every(Number.isFinite)||Math.min(sourceWidth,sourceHeight,width,height)<=0) throw new Error('Invalid image geometry');
   const scale=Math.max(width/sourceWidth,height/sourceHeight)*clamp(zoom,1,8);
   const w=sourceWidth*scale,h=sourceHeight*scale;
-  return {x:(width-w)*(1+clamp(panX,-1,1))/2,y:(height-h)*(1+clamp(panY,-1,1))/2,width:w,height:h};
+  const offset = (travel: number, pan: number) => pan <= -1 ? 0 : travel * (1 + clamp(pan, -1, 1)) / 2;
+  return { x: offset(width - w, panX), y: offset(height - h, panY), width: w, height: h };
 }

@@ -6,7 +6,7 @@ import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits
 import { sameRecipe } from '../../core/naturalAuto';
 import { newId } from '../../core/ids';
 import { exportCollage } from './exportCollage';
-import { createCollage, readCollage } from '../../core/collage';
+import { createCollage, MAX_COLLAGE_SELECTION, readCollage } from '../../core/collage';
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
 import { appendProjectPhotos, applyImportBursts, createEmptyProject, setArchived } from '../../core/projects';
 import { tasks } from '../../core/taskStore';
@@ -65,7 +65,7 @@ import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFr
 import { GUIDED_RENDER_EDGE } from '../../core/subjectGuide';
 import { detectSubjectGuided } from '../../providers/subjectDetector';
 import { judgeSubject } from '../../core/autoCull';
-import { archiveExports, downloadExport, loadExportSource, loadVerifiedRasterOriginalForExport } from '../../providers/browserExport';
+import { archiveExports, saveExportFile, loadExportSource, loadVerifiedRasterOriginalForExport } from '../../providers/browserExport';
 import { toProfile } from '../../core/exportFormats';
 import { renderV2Export, type OverlayDraw } from './renderV2Export';
 import { formatOverlayRowText } from '../ui/utils/studioMath';
@@ -425,25 +425,33 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         ? { ...frame, ...patch, ...(frame.subjectKind && patch.subjectKind ? { subjectKind: frame.subjectKind } : {}) } : frame) } : current)),
   });
 
-  /** Scores every undecided photo on this device. It flags only high-confidence keepers; it never rejects anything, and
-   * says how many photos look like rejects or duplicates so the person can look at them. */
-  /** Export edited photos at the chosen sizes, as a zip or one file at a time. Overlay, watermark, crops, before images and
-   * video are refused by planExport until the renderer honours them, so a file always matches what was asked for. */
-  const rawMasterRunning = useRef(false);
+  const activePhotoExport = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (activePhotoExport.current !== null) {
+      tasks.cancel(activePhotoExport.current);
+      activePhotoExport.current = null;
+    }
+  }, [projectId]);
   const runExportAction = useCallback(async (request: ExportRequest) => {
     const current = stateRef.current;
     if (!current) return;
+    if (activePhotoExport.current !== null) { setNotice('An export is already running.'); return; }
+    const sourceProvider = provider.current!;
+    const env = exportEnv.current;
     if (request.rawMaster) {
       const matches = current.frames.filter((frame) => frame.id === request.photoIds[0] && frame.removedAt == null);
       if (request.photoIds.length !== 1 || matches.length !== 1) { setNotice('Select one RAW photo to export its TIFF.'); return; }
-      if (rawMasterRunning.current) { setNotice('A RAW TIFF is already being prepared.'); return; }
-      rawMasterRunning.current = true;
       const controller = new AbortController();
       const task = tasks.start('Preparing the 16-bit RAW TIFF', { cancel: () => controller.abort() });
+      activePhotoExport.current = task.id;
       try {
-        const file = await buildRawMasterFile(matches[0], provider.current!, controller.signal);
+        const file = await buildRawMasterFile(matches[0], sourceProvider, controller.signal);
         controller.signal.throwIfAborted();
-        downloadExport(file, file.name);
+        if (!await saveExportFile(file, file.name, controller.signal)) {
+          tasks.cancel(task.id);
+          setNotice('Save cancelled.');
+          return;
+        }
         task.finish('Saved the 16-bit RAW TIFF.');
         setNotice('Saved the 16-bit RAW TIFF.');
       } catch (reason) {
@@ -453,7 +461,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           setNotice(message);
         }
       } finally {
-        rawMasterRunning.current = false;
+        if (activePhotoExport.current === task.id) activePhotoExport.current = null;
       }
       return;
     }
@@ -461,6 +469,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if ('error' in plan) { setNotice(plan.error); return; }
     const controller = new AbortController();
     const task = tasks.start(`Exporting ${plan.summary}`, { total: plan.jobs.reduce((sum, job) => sum + job.variants.length * (job.sections ?? 1), 0) + plan.originals.length, cancel: () => controller.abort() });
+    activePhotoExport.current = task.id;
     const output: File[] = [];
     const used = new Set<string>();
     let cappedCount = 0;
@@ -474,8 +483,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         // A preview (especially a RAW embedded JPEG) cannot establish native size.
         const nativeRaster = job.format.id === ORIGINAL_FORMAT_ID && fullResolutionRasterFormat(frame.filename) && !frame.isDemo;
         const image = nativeRaster
-          ? await loadVerifiedRasterOriginalForExport(frame, provider.current!, controller.signal)
-          : await loadExportSource(frame, provider.current!);
+          ? await loadVerifiedRasterOriginalForExport(frame, sourceProvider, controller.signal)
+          : await loadExportSource(frame, sourceProvider);
         // Original always uses the full decoded raster's actual dimensions.
         // Older projects can contain a legacy originalSize override, but that
         // value must NEVER resize or override the immutable Original format.
@@ -494,17 +503,16 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         const outputFormat = nativeSize
           ? { ...job.format, width: outputSize.width, height: outputSize.height }
           : job.format;
-        const env = exportEnv.current;
         for (const variant of job.variants) {
           if (!exportMayContinue(controller.signal.aborted, task.cancelled, false)) return;
           // The unedited copy has no recipe and no overlay: the same framing, developed, and plainly labelled in its name.
-          const unedited = variant === 'unedited';
+          const unedited = variant.kind === 'unedited';
           const overlayDraw = unedited ? null : await buildOverlayDraw(frame, request, env);
-          const result = await renderV2Export(image, unedited ? { ...frame, edit: DEFAULT_EDIT } : frame, outputSize, job.crop, toProfile(outputFormat), overlayDraw, started, controller.signal, job.sections ?? 1);
+          const result = await renderV2Export(image, { ...frame, edit: variant.edit }, outputSize, job.crop, toProfile(outputFormat), overlayDraw, started, controller.signal, job.sections ?? 1);
           const renderedFiles = result.sections ?? [result.file];
           if (result.capped) cappedCount += renderedFiles.length;
           for (const rendered of renderedFiles) {
-            const base = unedited ? rendered.name.replace(/(\.[^.]+)?$/, '-unedited$1') : rendered.name;
+            const base = rendered.name.replace(/(\.[^.]+)?$/, (extension) => variant.suffix + extension);
             const name = uniqueExportFilename(base, used);
             output.push(name === rendered.name ? rendered : new File([rendered], name, { type: rendered.type, lastModified: rendered.lastModified }));
             task.progress(output.length);
@@ -518,7 +526,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         if (!exportMayContinue(controller.signal.aborted, task.cancelled, false)) return;
         const frame = current.frames.find((candidate) => candidate.id === frameId);
         if (!frame) continue;
-        const bytes = frame.isDemo ? undefined : await provider.current!.ensureOriginal(frame.stableKey, 'selected');
+        const bytes = frame.isDemo ? undefined : await sourceProvider.ensureOriginal(frame.stableKey, 'selected');
         if (!bytes) { missingOriginals.push(frame.filename); continue; }
         // Never label a replacement, cached JPEG or unverified legacy file as
         // the exact original: verify its bytes against the digest saved at import.
@@ -534,12 +542,19 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         setNotice(result);
         return;
       }
-      await deliverExport(output, request.destination, started, controller.signal, archiveExports, downloadExport);
+      const saved = await deliverExport(output, request.destination, started, controller.signal, archiveExports, saveExportFile);
+      if (saved < output.length) {
+        const message = `Save cancelled. Exported ${saved} of ${output.length} files.`;
+        tasks.cancel(task.id);
+        setNotice(message);
+        return;
+      }
       task.finish(result);
       setNotice(`${result}${cappedCount ? ` ${cappedCount} ${cappedCount === 1 ? 'file is' : 'files are'} smaller than the size asked for, because the photo has fewer pixels.` : ''} Your originals are unchanged.`);
     } catch (reason) {
       if (!controller.signal.aborted && !task.cancelled) { const message = reason instanceof Error ? reason.message : 'Export failed.'; task.fail(message); setNotice(message); }
     } finally {
+      if (activePhotoExport.current === task.id) activePhotoExport.current = null;
       task.fail('Stopped'); // does nothing if the task already finished or was cancelled
     }
   }, []);
@@ -1146,7 +1161,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         if (openRequest.current !== requestGeneration || stateRef.current?.shoot.id !== sourceProjectId) {
           throw new Error('The open project changed during export. Nothing was downloaded.');
         }
-        downloadExport(result.blob, result.name);
+        if (!await saveExportFile(result.blob, result.name, controller.signal)) {
+          tasks.cancel(task.id);
+          throw new Error('Collage export cancelled.');
+        }
         task.finish('Export prepared.');
         setNotice('Collage export prepared. Your originals are unchanged.');
       } catch (error) {
@@ -1187,6 +1205,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const chosen = new Set(photoIds);
       const selectedFrames = source.frames.filter((frame) => chosen.has(frame.id) && frame.removedAt == null);
       if (!selectedFrames.length) { setNotice('Select at least one photograph to make a collage.'); return; }
+      if (selectedFrames.length > MAX_COLLAGE_SELECTION) { setNotice(`Choose up to ${MAX_COLLAGE_SELECTION} photographs per collage.`); return; }
       // A new project references the same verified original keys but has independent saved recipes.
       // Keep source frames and edits untouched; do not move or delete source photographs.
       const projectId = `project-${newId()}`;
@@ -1208,18 +1227,19 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     },
     browseCollageProjectPhotos: async (sourceProjectId) => {
       const source = await catalogue.current!.loadProject(sourceProjectId);
-      return (source?.frames ?? []).filter((frame) => frame.removedAt == null)
+      if (!source) throw new Error('Could not open the source project.');
+      return source.frames.filter((frame) => frame.removedAt == null)
         .map((frame) => ({ id: frame.id, filename: frame.filename }));
     },
     addCollageProjectPhotos: async (sourceProjectId, photoIds) => {
       const target = stateRef.current;
       if (!target?.shoot.collage || sourceProjectId === target.shoot.id) return;
       const source = await catalogue.current!.loadProject(sourceProjectId);
-      if (!source) { setNotice('Could not open the source project.'); return; }
+      if (!source) throw new Error('Could not open the source project.');
       const chosen = new Set(photoIds);
       const already = new Set(target.frames.filter((frame) => frame.removedAt == null).map((frame) => frame.stableKey));
       const incoming = source.frames.filter((frame) => frame.removedAt == null && chosen.has(frame.id) && !already.has(frame.stableKey));
-      if (!incoming.length) { setNotice('Those photographs are already in the collage, or could not be found.'); return; }
+      if (!incoming.length) throw new Error('Those photographs are already in the collage, or could not be found.');
       const currentId = target.shoot.id;
       const idMap = new Map(incoming.map((frame) => [frame.id, `${currentId}-${newId()}`]));
       const frames = incoming.map((frame, i) => ({
@@ -1227,18 +1247,18 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         virtualCopy: frame.virtualCopy && idMap.has(frame.virtualCopy.originalFrameId)
           ? { ...frame.virtualCopy, originalFrameId: idMap.get(frame.virtualCopy.originalFrameId)! } : undefined,
       }));
-      const updated = { ...target, frames: [...target.frames, ...frames],
-        shoot: { ...target.shoot, totalFrames: target.frames.length + frames.length, lastUpdatedAt: Date.now() } };
-      try {
-        await catalogue.current!.saveProject(updated);
-        if (stateRef.current?.shoot.id !== currentId) return;
-        await rehydrateLocalFramesFromStore(frames, provider.current!, catalogue.current!, { checkPaths: false });
-        if (stateRef.current?.shoot.id !== currentId) return;
-        setState(updated);
-        setNotice(`Added ${frames.length} photograph${frames.length === 1 ? '' : 's'} from the other project. Your source project is unchanged.`);
-      } catch {
-        setNotice('Could not add those photographs. The source project is unchanged.');
-      }
+      if (stateRef.current?.shoot.id !== currentId) return;
+      await rehydrateLocalFramesFromStore(frames, provider.current!, catalogue.current!, { checkPaths: false });
+      // Merge with the latest project. An edit, import or page change can complete during either read.
+      mutate((current) => {
+        if (current.shoot.id !== currentId) return current;
+        const present = new Set(current.frames.filter(frame => frame.removedAt == null).map(frame => frame.stableKey));
+        const added = frames.filter(frame => !present.has(frame.stableKey)).map((frame, i) =>
+          ({ ...frame, sequenceIndex: current.frames.length + i + 1 }));
+        if (!added.length) return current;
+        const combined = [...current.frames, ...added];
+        return { ...current, frames: combined, shoot: { ...current.shoot, totalFrames: combined.length, lastUpdatedAt: Date.now() } };
+      });
     },
     updateCollage: (document) => {
       if (!readCollage(document)) { setNotice('That collage layout could not be saved.'); return; }

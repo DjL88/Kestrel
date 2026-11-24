@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { isRawPreviewFile } from '../../../core/rawFormats';
+import { isDesktopApp, isMobileShell } from '../../../providers/desktopShell';
 import { canDevelopRaw } from '../../../providers/rawDevelop';
 import type {
   ExportDestination,
@@ -39,8 +40,8 @@ export default function ExportDialog({
   const [maxSizeChoice, setMaxSizeChoice] = useState<'full' | '4096' | '2560' | '1920' | 'custom'>('full');
   const [customMaxSize, setCustomMaxSize] = useState(1920);
   const [destination, setDestination] = useState<ExportDestination>('local-zip');
-  const [selectedSizeIds, setSelectedSizeIds] = useState<string[]>(['orig-3x2', 'ig-portrait', 'yt-wide']);
-  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(['group-primary']);
+  const [chosenSizes, setChosenSizes] = useState<string[] | null>(null);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(() => photo ? [photo.activeGroupId] : []);
   const [includeBefore, setIncludeBefore] = useState(false);
   const [includeAfter, setIncludeAfter] = useState(true);
   const [includeOverlay, setIncludeOverlay] = useState(true);
@@ -48,14 +49,16 @@ export default function ExportDialog({
   const [includeOriginal, setIncludeOriginal] = useState(false);
 
   if (!open || !photo) return null;
+  const enabledFormats = photo.sizes.filter(size => size.kind === 'photo' && size.enabled);
+  const initialSize = enabledFormats.find(size => size.id === 'orig-3x2') ?? enabledFormats[0];
+  const selectedSizeIds = chosenSizes?.filter(id => enabledFormats.some(size => size.id === id))
+    ?? (initialSize ? [initialSize.id] : []);
   const photoIds = selectedPhotoIds.length ? selectedPhotoIds : [photo.id];
   const canRequestRaw = photoIds.length === 1 && photoIds[0] === photo.id &&
     photo.originalConnected && isRawPreviewFile(photo.filename) && canDevelopRaw();
 
   const toggleSize = (id: string) => {
-    setSelectedSizeIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
+    setChosenSizes(selectedSizeIds.includes(id) ? selectedSizeIds.filter(item => item !== id) : [...selectedSizeIds, id]);
   };
 
   const toggleGroup = (id: string) => {
@@ -65,12 +68,15 @@ export default function ExportDialog({
   };
 
   const selectAllForPlatform = (platform: (typeof SOCIAL_PLATFORMS)[number]) => {
-    setSelectedSizeIds((prev) => Array.from(new Set([...prev, ...platform.sizeIds])));
+    setChosenSizes([...new Set([...selectedSizeIds, ...platform.sizeIds.filter(id => enabledFormats.some(size => size.id === id))])]);
   };
 
+  const socialPlatforms = SOCIAL_PLATFORMS.filter(platform => enabledFormats.some(size => size.platform === platform.id && platform.sizeIds.includes(size.id)));
+  const nativeFolder = isDesktopApp() && !isMobileShell();
   const destinations: Array<{ id: ExportDestination; label: string; icon: BrandIconName; sub: string }> = [
     { id: 'local-zip', label: STRINGS.exportDialog.destLocalZip, icon: 'archive', sub: 'Single tidy archive' },
-    { id: 'local-individual', label: STRINGS.exportDialog.destLocalFiles, icon: 'hard-drive', sub: 'Save directly to folder' },
+    nativeFolder ? { id: 'local-folder', label: STRINGS.exportDialog.destFolder, icon: 'folder', sub: STRINGS.exportDialog.folderHelp }
+      : { id: 'local-individual', label: STRINGS.exportDialog.destLocalFiles, icon: 'hard-drive', sub: STRINGS.exportDialog.individualHelp },
   ];
 
   const maxLongestEdgePx = maxSizeChoice === 'full' ? undefined
@@ -83,7 +89,7 @@ export default function ExportDialog({
       destination: rawMaster ? 'local-individual' : destination,
       fileFormat,
       jpegQuality: jpegQuality / 100,
-      groupIds: selectedGroupIds,
+      groupIds: photoIds.length === 1 ? selectedGroupIds : [],
       sizeIds: selectedSizeIds,
       includeBefore,
       includeOriginal,
@@ -181,13 +187,12 @@ export default function ExportDialog({
               </section>
             )}
 
-            {/* Quick-select by social platform */}
-            <section className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
+            {socialPlatforms.length > 0 && <section className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
               <h3 className="text-xs font-semibold text-[var(--text-primary)]">
                 {STRINGS.exportDialog.socialQuickSelect}
               </h3>
               <div className="grid grid-cols-2 gap-1.5">
-                {SOCIAL_PLATFORMS.map((sp) => (
+                {socialPlatforms.map((sp) => (
                   <button
                     key={sp.id}
                     type="button"
@@ -199,7 +204,7 @@ export default function ExportDialog({
                   </button>
                 ))}
               </div>
-            </section>
+            </section>}
           </div>
 
           {/* Right column: Edit Groups, Formats & Variants */}
@@ -209,7 +214,7 @@ export default function ExportDialog({
                 {STRINGS.exportDialog.groupsHeading}
               </h3>
               <div className="space-y-1.5">
-                {photo.editGroups.map((g) => {
+                {photoIds.length > 1 ? <p className="text-xs text-[var(--text-secondary)]">{STRINGS.exportDialog.batchActiveGroup}</p> : photo.editGroups.map((g) => {
                   const checked = selectedGroupIds.includes(g.id);
                   return (
                     <button
@@ -231,7 +236,7 @@ export default function ExportDialog({
               </div>
 
               <div className="grid grid-cols-2 gap-1.5 pt-1">
-                {photo.sizes.filter((size) => size.kind === 'photo').map((size) => {
+                {enabledFormats.map((size) => {
                   const checked = selectedSizeIds.includes(size.id);
                   return (
                     <button
@@ -333,8 +338,8 @@ export default function ExportDialog({
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-3.5">
           <span className="text-xs text-[var(--text-secondary)] tabular-nums">
             {selectedPhotoIds.length || 1} {(selectedPhotoIds.length || 1) === 1 ? 'photo' : 'photos'} · {selectedSizeIds.length}{' '}
-            {selectedSizeIds.length === 1 ? 'format' : 'formats'} · {selectedGroupIds.length}{' '}
-            {selectedGroupIds.length === 1 ? 'group' : 'groups'}
+            {selectedSizeIds.length === 1 ? 'format' : 'formats'} · {photoIds.length > 1 ? 1 : selectedGroupIds.length}{' '}
+            {photoIds.length > 1 || selectedGroupIds.length === 1 ? 'group' : 'groups'}
           </span>
           <div className="flex items-center gap-2">
             <button
@@ -346,12 +351,12 @@ export default function ExportDialog({
             </button>
             <button
               type="button"
-              disabled={(!includeBefore && !includeAfter && !includeOriginal) || ((includeBefore || includeAfter) && !photo.sizes.some((size) => size.kind === 'photo' && selectedSizeIds.includes(size.id)))}
+              disabled={(!includeBefore && !includeAfter && !includeOriginal) || ((includeBefore || includeAfter) && !photo.sizes.some((size) => size.kind === 'photo' && size.enabled && selectedSizeIds.includes(size.id)))}
               onClick={() => handleSubmit()}
               className="inline-flex min-h-10 items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-4 text-xs font-semibold text-[var(--text-on-accent)] transition-colors hover:bg-[var(--brand-accent-hover)] disabled:opacity-50"
             >
               <BrandIcon name="export" size={14} />
-              <span>{STRINGS.exportDialog.startExport}</span>
+              <span>{destination === 'local-zip' ? STRINGS.exportDialog.startExport : STRINGS.exportDialog.saveFiles}</span>
             </button>
           </div>
         </div>

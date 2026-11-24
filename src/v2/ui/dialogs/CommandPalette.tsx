@@ -1,3 +1,4 @@
+import { STRINGS } from '../strings';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { COMMANDS, type CommandDefinition } from '../commands/registry';
 import { chordLabel, type Keymap } from '../commands/keymap';
@@ -80,7 +81,7 @@ export default function CommandPalette({ keymap, isMac, onRunCommand, onClose }:
       <section
         role="dialog"
         aria-modal="true"
-        aria-label="Command search"
+        aria-label={STRINGS.commandSearch.commandSearch}
         className="w-full max-w-md rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-3 text-[var(--text-primary)] shadow-[var(--shadow-popover)]"
       >
         <input
@@ -89,8 +90,8 @@ export default function CommandPalette({ keymap, isMac, onRunCommand, onClose }:
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Find a command or shortcut"
-          aria-label="Find a command or shortcut"
+          placeholder={STRINGS.commandSearch.findACommandOrShortcut}
+          aria-label={STRINGS.commandSearch.findACommandOrShortcut}
           role="combobox"
           aria-expanded="true"
           aria-controls="v2-command-palette-list"
@@ -101,11 +102,11 @@ export default function CommandPalette({ keymap, isMac, onRunCommand, onClose }:
         <ul
           id="v2-command-palette-list"
           role="listbox"
-          aria-label="Matching commands"
+          aria-label={STRINGS.commandSearch.matchingCommands}
           className="max-h-[50vh] space-y-0.5 overflow-y-auto text-sm"
         >
           {matches.length === 0 && (
-            <li className="px-2 py-3 text-[var(--text-secondary)]">No matching commands. Try a tool name or keyboard shortcut.</li>
+            <li className="px-2 py-3 text-[var(--text-secondary)]">{STRINGS.commandSearch.noMatches}</li>
           )}
           {matches.map((command, index) => (
             <li key={command.id} id={`v2-command-option-${command.id}`} role="option" aria-selected={index === highlighted}>
