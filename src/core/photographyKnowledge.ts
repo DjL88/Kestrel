@@ -1,7 +1,8 @@
 // Provisional editorial guidance; not calibrated model weights.
+import { citationsFor } from './photographyKnowledgeSources';
 export const photographyKnowledge = {
   "schemaVersion": 1,
-  "version": "1.0.0-draft",
+  "version": "1.1.0-draft",
   "status": "not-calibrated",
   "sources": [
     {
@@ -62,7 +63,7 @@ export const photographyKnowledge = {
       "id": "subject.white-bird",
       "dimension": "subject",
       "label": "white bird",
-      "guidance": "Protect white feather highlights",
+      "guidance": "Protect white feather highlights; slightly darker whites usually show more texture than bright ones",
       "kind": "editorial_guidance",
       "status": "provisional",
       "sourceIds": [
@@ -74,7 +75,7 @@ export const photographyKnowledge = {
       "id": "subject.black-bird",
       "dimension": "subject",
       "label": "black bird",
-      "guidance": "Recover useful shadow detail without greying plumage",
+      "guidance": "Recover useful shadow detail without greying plumage; expect noise if the frame was dark",
       "kind": "editorial_guidance",
       "status": "provisional",
       "sourceIds": [
@@ -1106,7 +1107,7 @@ export const photographyKnowledge = {
       "id": "lighting.underexposure",
       "dimension": "lighting",
       "label": "underexposure",
-      "guidance": "Limit recovery by noise",
+      "guidance": "Lift mid-tones with exposure first, then shadows gently; stop when noise or banding appears and keep the scene dark if it was meant to be",
       "kind": "editorial_guidance",
       "status": "provisional",
       "sourceIds": [
@@ -1118,11 +1119,77 @@ export const photographyKnowledge = {
       "id": "lighting.overexposure",
       "dimension": "lighting",
       "label": "overexposure",
-      "guidance": "Recover only available information",
+      "guidance": "Recover only available information: compress near-clipped highlights, never paint in detail, and accept small clipped areas",
       "kind": "editorial_guidance",
       "status": "provisional",
       "sourceIds": [
         "cambridge",
+        "darktable"
+      ]
+    },
+    {
+      "id": "lighting.clipped-highlights",
+      "dimension": "lighting",
+      "label": "clipped highlights",
+      "guidance": "Treat fully clipped areas as lost: bring near-white tones down only until they hold detail, borrow colour only from close unclipped neighbours in small areas, and never clone or paint highlights",
+      "kind": "editorial_guidance",
+      "status": "provisional",
+      "sourceIds": [
+        "darktable"
+      ]
+    },
+    {
+      "id": "lighting.clipped-colour-channel",
+      "dimension": "lighting",
+      "label": "clipped colour channel",
+      "guidance": "Expect a hue shift where one channel clipped (often magenta in white feathers or sky); rebuild from unclipped channels before warming or cooling",
+      "kind": "editorial_guidance",
+      "status": "provisional",
+      "sourceIds": [
+        "darktable"
+      ]
+    },
+    {
+      "id": "lighting.underexposed-raw",
+      "dimension": "lighting",
+      "label": "underexposed raw",
+      "guidance": "A modest raw lift is normal; on larger lifts reduce noise before sharpening and stop before shadows turn grey or blotchy",
+      "kind": "editorial_guidance",
+      "status": "provisional",
+      "sourceIds": [
+        "darktable"
+      ]
+    },
+    {
+      "id": "lighting.high-iso-shadows",
+      "dimension": "lighting",
+      "label": "high ISO shadows",
+      "guidance": "Reduce noise first, then sharpen only strong edges; judge at full size and leave flat sky and shadow areas unsharpened",
+      "kind": "editorial_guidance",
+      "status": "provisional",
+      "sourceIds": [
+        "darktable"
+      ]
+    },
+    {
+      "id": "lighting.bright-background",
+      "dimension": "lighting",
+      "label": "bright background",
+      "guidance": "Lift the subject locally with an edge-aware mask rather than raising global exposure and losing the sky",
+      "kind": "editorial_guidance",
+      "status": "provisional",
+      "sourceIds": [
+        "darktable"
+      ]
+    },
+    {
+      "id": "lighting.high-dynamic-range",
+      "dimension": "lighting",
+      "label": "high dynamic range",
+      "guidance": "Compress the overall range first, then recover shadows and highlights gently; keep bright areas brighter than dark ones and watch subject edges for halos",
+      "kind": "editorial_guidance",
+      "status": "provisional",
+      "sourceIds": [
         "darktable"
       ]
     },
@@ -1386,12 +1453,15 @@ export const photographyKnowledge = {
     "no-unintended-subject-crop",
     "export-parity"
   ],
-  "note": "Source IDs are research leads, not verified individual claim citations. Guidance is conditional, not objective ground truth. Never apply fixed slider values from labels alone."
+  "note": "Source IDs are research leads, not verified individual claim citations. Guidance is conditional, not objective ground truth. Never apply fixed slider values from labels alone. Checked, paraphrased per-rule citations live in photographyKnowledgeSources.ts; a rule without one there is house practice."
 } as const;
 export type PhotographyDimension = typeof photographyKnowledge.rules[number]['dimension'];
 export type PhotographyObservation = { dimension: PhotographyDimension; label: string; confidence: number };
 export function resolvePhotographyGuidance(observations: readonly PhotographyObservation[], minimumConfidence = 0.8) {
   if (!Number.isFinite(minimumConfidence) || minimumConfidence < 0 || minimumConfidence > 1) throw new RangeError('Invalid confidence threshold');
   const ids = new Set(observations.filter(o => Number.isFinite(o.confidence) && o.confidence >= minimumConfidence && o.confidence <= 1).map(o => o.dimension + '.' + o.label.trim().toLowerCase().replaceAll(' ', '-')));
-  return { version: photographyKnowledge.version, rules: photographyKnowledge.rules.filter(r => ids.has(r.id)), hardGates: photographyKnowledge.hardGates };
+  const rules = photographyKnowledge.rules.filter(r => ids.has(r.id));
+  // Checked citations travel with each rule so advice can say where it comes from, or that it is house practice.
+  const citations = Object.fromEntries(rules.map(r => [r.id, citationsFor(r.id)]));
+  return { version: photographyKnowledge.version, rules, hardGates: photographyKnowledge.hardGates, citations };
 }
