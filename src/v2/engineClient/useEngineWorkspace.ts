@@ -445,27 +445,29 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (request.rawMaster) {
       const matches = current.frames.filter((frame) => frame.id === request.photoIds[0] && frame.removedAt == null);
       if (request.photoIds.length !== 1 || matches.length !== 1) { setNotice('Select one RAW photo to export its TIFF.'); return; }
-      const controller = new AbortController();
-      const task = tasks.start('Preparing the 16-bit RAW TIFF', { cancel: () => controller.abort() });
-      activePhotoExport.current = task.id;
       try {
-        const file = await buildRawMasterFile(matches[0], sourceProvider, controller.signal);
-        controller.signal.throwIfAborted();
-        if (!await saveExportFile(file, file.name, controller.signal)) {
-          tasks.cancel(task.id);
-          setNotice('Save cancelled.');
-          return;
-        }
-        task.finish('Saved the 16-bit RAW TIFF.');
-        setNotice('Saved the 16-bit RAW TIFF.');
+        const frame = structuredClone(matches[0]);
+        const ticket = await engineScheduler.submit({
+          title: 'Preparing 16-bit RAW TIFF', kind: 'raw', resource: 'gpu', priority: 10,
+          pauseable: false, items: [{ id: frame.id, name: frame.filename }],
+          snapshot: { frameId: frame.id, originalSha256: frame.originalSha256 },
+          itemId: item => item.id, itemLabel: item => item.name,
+          runItem: async (_, __, ctx) => {
+            ctx.stage('Developing verified RAW sensor data to 16-bit');
+            const file = await buildRawMasterFile(frame, sourceProvider, ctx.signal);
+            ctx.checkCancelled();
+            ctx.stage('Saving TIFF master');
+            if (!await saveExportFile(file, file.name, ctx.signal))
+              throw new DOMException('Save cancelled.', 'AbortError');
+            ctx.acknowledgeCommitted();
+            ctx.commitIfCurrent(() => setNotice('Saved the 16-bit RAW TIFF. Your original is unchanged.'));
+          },
+        });
+        const result = await ticket.finished;
+        if (result === 'failed') setNotice('RAW TIFF export failed. Open Tasks for the source or save error.');
+        else if (result === 'cancelled') setNotice('RAW TIFF export cancelled.');
       } catch (reason) {
-        if (!controller.signal.aborted) {
-          const message = reason instanceof Error ? reason.message : 'Could not save a 16-bit RAW TIFF.';
-          task.fail(message);
-          setNotice(message);
-        }
-      } finally {
-        if (activePhotoExport.current === task.id) activePhotoExport.current = null;
+        setNotice(reason instanceof Error ? reason.message : 'Could not queue a 16-bit RAW TIFF.');
       }
       return;
     }
