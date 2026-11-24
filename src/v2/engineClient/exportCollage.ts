@@ -1,4 +1,4 @@
-import { collagePage, readCollage } from '../../core/collage';
+import { COLLAGE_FORMATS, collagePage, readCollage } from '../../core/collage';
 import { renderCollagePage, encodeCollagePage } from '../../core/collagePageRender';
 import { collagePdf, type PdfRasterPage } from '../../core/collagePdf';
 import { planCollagePrint } from '../../core/collagePrint';
@@ -18,8 +18,7 @@ export async function exportCollage(state:CullingState, provider:BrowserPreviewP
  const plan=print?planCollagePrint(doc.format):null;
  // A social format is measured in pixels, not physical print dimensions.
  // A print PDF must have a real paper size for its trim/bleed geometry.
- const paper=doc.format==='a4-portrait'||doc.format==='a4-landscape'||
-   doc.format==='a5-portrait'||doc.format==='12x12-album';
+ const paper=COLLAGE_FORMATS[doc.format].unit==='mm';
  if(print&&!paper)throw new Error('Choose an album paper size before exporting a print PDF.');
  if(!print&&paper)throw new Error('Choose a social canvas size for JPEG/PNG, or choose PDF for a printed album.');
  const pages=request.allPages?doc.pages:[collagePage(doc)];
@@ -41,7 +40,7 @@ export async function exportCollage(state:CullingState, provider:BrowserPreviewP
    // it is genuinely decoded, then downsampled for the required composition.
    // The print renderer subsequently checks the *actual* developed pixel count.
    const scaledForDevice=fitScale(size.width,size.height,limit);
-   const longestEdge=print?Infinity:Math.max(1080, ...pages.map(p=>p.slots.length ? Math.max(1080, 1920) : 1080));
+   const longestEdge=print?Infinity:Math.max(COLLAGE_FORMATS[doc.format].width,COLLAGE_FORMATS[doc.format].height);
    const scale=Math.min(scaledForDevice,print?1:Math.min(1,longestEdge*1.5/Math.max(size.width,size.height)));
    const picture=document.createElement('canvas');
    try{
