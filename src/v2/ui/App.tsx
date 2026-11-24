@@ -355,6 +355,16 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
       ? [store.activePanel as PanelId]
       : floatingPanelIds.slice(-1);
 
+  // Safari's trackpad pinch over the panels, toolbars or filmstrip zoomed the whole page, so the menus slid about and
+  // out of reach. The canvas handles its own pinch (it zooms the photo); everywhere else the gesture is simply ignored.
+  // Browser zoom from the keyboard and the system's zoom and text size are untouched.
+  useEffect(() => {
+    const stopPageZoom = (event: Event) => event.preventDefault();
+    const events = ['gesturestart', 'gesturechange', 'gestureend'] as const;
+    events.forEach((name) => document.addEventListener(name, stopPageZoom, { passive: false }));
+    return () => events.forEach((name) => document.removeEventListener(name, stopPageZoom));
+  }, []);
+
   return (
     <FeaturePlanContext.Provider value={store.featurePlan}>
       <HiddenProContext.Provider value={hiddenPro}>
