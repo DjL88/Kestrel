@@ -2,15 +2,19 @@ import React from 'react';
 import type { Photo } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
+import ColourWordsList from './ColourWordsList';
 
 interface AssistPanelProps {
   photo: Photo | null;
+  /** Colour-vision support (Settings, Assistance): show the colour check in words. */
+  cvdGuidance?: boolean;
   onRefreshReview: (photoId: string) => void;
   onApplySuggestion: (photoId: string, suggestionId: string) => void;
 }
 
 export default function AssistPanel({
   photo,
+  cvdGuidance = false,
   onRefreshReview,
   onApplySuggestion,
 }: AssistPanelProps) {
@@ -49,6 +53,7 @@ export default function AssistPanel({
         <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
           {photo.assistCritique.colourConfidence}
         </p>
+        {cvdGuidance && photo.assistCritique.colourCheck && <ColourWordsList words={photo.assistCritique.colourCheck} />}
         <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
           {STRINGS.assist.safeNote}
         </p>

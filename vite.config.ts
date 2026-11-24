@@ -8,7 +8,7 @@ import {offlineBuild} from './offline-build.ts';
 // Stamp the source revision into the shipped UI so an older Windows installer
 // cannot appear identical to a newer Mac app merely because versions match.
 const buildRevision = (() => {
-  try { return execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: __dirname, encoding: 'utf8' }).trim(); }
+  try { return execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: import.meta.dirname, encoding: 'utf8' }).trim(); }
   catch { return 'unavailable'; }
 })();
 const buildTimestamp = new Date().toISOString();
@@ -25,7 +25,7 @@ export default defineConfig(() => {
     optimizeDeps: { include: ['onnxruntime-web/wasm'] },
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(import.meta.dirname, '.'),
       },
     },
     server: {

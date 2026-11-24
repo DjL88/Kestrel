@@ -231,6 +231,12 @@ export const source = {
     modalNamePlaceholder: 'e.g. Skye Wildlife — Autumn',
     modalCreate: 'Create project',
     modalCancel: 'Cancel',
+    kindQuestion: 'What are you making?',
+    kindPhotoShootTitle: 'Photo shoot',
+    kindPhotoShootBody: 'Edit some photos: cull, develop and export a set of pictures',
+    kindCollageTitle: 'Collage or album',
+    kindCollageBody: 'Lay several photos out on pages, posters or posts',
+    kindSelected: 'Selected',
     demoStateLabel: 'View state:',
   },
 
@@ -271,6 +277,8 @@ export const source = {
     compareDisabledSplit: 'Compare is not available while a photo is split across two frames. Rejoin it to compare.',
     zoomToFit: 'Fit to window',
     zoomTo100: 'Show at 100% (one picture pixel per screen pixel)',
+    zoomBarMove: 'Move the zoom controls',
+    zoomBarMoveTitle: 'Drag to move the zoom controls anywhere over the canvas. Double-click, or press Home, to put them back in the corner.',
     compareSplitLabel: 'Before and after split',
     compareSplitValue: (pct: number) => `${pct}% shows the original, ${100 - pct}% shows the edit`,
     beforeLabel: 'Before',
@@ -490,7 +498,7 @@ export const source = {
     opinionHeading: 'Current photo critique',
     refreshReview: 'Re-check current edits',
     applyRecommendation: 'Apply tweak',
-    safeNote: 'Every colour note includes objective Kelvin, tint, and tonal readings so you never have to guess by eye alone.',
+    safeNote: 'Colour notes come from measuring the photo itself on this device, not from how it looks on your screen.',
   },
 
   bursts: {
@@ -677,7 +685,7 @@ export const source = {
     assistance: {
       defaultModeLabel: 'Default Flight mode for new projects',
       cvdLabel: 'Colour-vision support',
-      cvdDesc: 'Adds plain-English colour drift descriptions and objective warm/cool indicators next to colour controls.',
+      cvdDesc: 'Names the main colours in each photo in words, and points out colour casts, very strong colours and red and green areas that many colour-blind people find hard to tell apart. Also labels the ends of the Temperature and Tint sliders. Off unless you turn it on.',
       ongoingLabel: 'Ongoing edit critique',
       ongoingDesc: 'Continuously updates Assist guidance whenever you adjust sliders.',
     },

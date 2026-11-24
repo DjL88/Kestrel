@@ -17,6 +17,7 @@ import { masksToLayers } from './maskOps';
 import { readCrops } from './cropOps';
 import { readBoard } from './boardOps';
 import type { AutoRun } from './runAuto';
+import { colourWarningSentences, colourWords } from './colourWords';
 import { sameRecipe } from '../../core/naturalAuto';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { STRINGS } from '../ui/strings';
@@ -57,7 +58,9 @@ export function assistCritiqueFor(assist: AssistState | undefined, currentEdit =
     }));
   return {
     subjectNote: run.headline,
-    colourConfidence: [run.detail[1], ...run.plan.measured.colourWarnings].filter(Boolean).join(' '),
+    // The warnings are said in words from the colour check, never as the check's internal codes.
+    colourConfidence: [run.detail[1], ...colourWarningSentences(run.colour)].filter(Boolean).join(' '),
+    colourCheck: run.colour ? colourWords(run.colour) : undefined,
     kelvinEstimate: 'Not measured',
     suggestions,
   };
@@ -91,19 +94,35 @@ export function tileStateFor(urls: FrameUrls | undefined): TileState {
  */
 export interface PhotoExtras { pixelSize?: { width: number; height: number }; /** Measured from a connected, decoded JPEG/PNG original, not EXIF or a preview. */ verifiedOriginalSize?: { width: number; height: number }; assist?: AssistState; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram; originalConnected?: boolean }
 
-export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, extras: PhotoExtras = {}): Photo {
-  const { assist, watermarkAuto, histogram, pixelSize, verifiedOriginalSize } = extras;
-  const nativeSize = verifiedOriginalSize && /\.(?:jpe?g|png)$/i.test(frame.filename) &&
+/** Decoded JPEG/PNG pixel size (after framing), or null when not measured. */
+function verifiedFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { width: number; height: number }): { width: number; height: number } | null {
+  return verifiedOriginalSize && /\.(?:jpe?g|png)$/i.test(frame.filename) &&
     Number.isSafeInteger(verifiedOriginalSize.width) && Number.isSafeInteger(verifiedOriginalSize.height) &&
     verifiedOriginalSize.width > 0 && verifiedOriginalSize.height > 0
     ? framedSize(verifiedOriginalSize.width, verifiedOriginalSize.height, frame.framing ?? DEFAULT_FRAMING) : null;
+}
+
+/**
+ * The Original format's shape: decoded JPEG/PNG pixels when known, otherwise recorded EXIF dimensions. Everything that
+ * asks "which formats does this photo have?" (the canvas, Duplicate, Delete) must use this one rule, or a photo without
+ * EXIF dimensions shows Original on the canvas while the actions think it is switched off.
+ */
+export function originalFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { width: number; height: number }): { width: number; height: number } | null {
+  const nativeSize = verifiedFormatSize(frame, verifiedOriginalSize);
   const { exif } = frame;
   // Recorded sensor dimensions are evidence for the *format shape*, not proof
   // that a preview-only RAW has full native pixels available to export.
   const reportedSize = exif.width && exif.height && Number.isSafeInteger(exif.width) &&
     Number.isSafeInteger(exif.height) && exif.width > 0 && exif.height > 0
     ? framedSize(exif.width, exif.height, frame.framing ?? DEFAULT_FRAMING) : null;
-  const originalFormatSize = nativeSize ?? reportedSize;
+  return nativeSize ?? reportedSize;
+}
+
+export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, extras: PhotoExtras = {}): Photo {
+  const { assist, watermarkAuto, histogram, pixelSize, verifiedOriginalSize } = extras;
+  const { exif } = frame;
+  const nativeSize = verifiedFormatSize(frame, verifiedOriginalSize);
+  const originalSize = originalFormatSize(frame, verifiedOriginalSize);
   // The UI's sample group carries a made-up look. A real photo starts from its own edit: neutral until the person edits it.
   const board = readBoard(frame.boardPositions);
   const crops = readCrops(frame.sizeCrops);
@@ -147,7 +166,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     ...(nativeSize ? { pixelSize: { width: nativeSize.width, height: nativeSize.height } } : exif.width && exif.height ? { pixelSize: { width: exif.width, height: exif.height } } : pixelSize ? { pixelSize } : {}),
     activeGroupId: savedGroups.activeId,
     editGroups: groups,
-    sizes: applySizeLinked(applyFormats(createDefaultSizes(), frame.formats, originalFormatSize).map((size) => { const crop = crops[size.id]; const at = board[size.id]; return { ...size, ...(crop ? { crop } : {}), ...(at ? { boardX: at.x, boardY: at.y } : {}) }; }), frame.sizeLinked),
+    sizes: applySizeLinked(applyFormats(createDefaultSizes(), frame.formats, originalSize).map((size) => { const crop = crops[size.id]; const at = board[size.id]; return { ...size, ...(crop ? { crop } : {}), ...(at ? { boardX: at.x, boardY: at.y } : {}) }; }), frame.sizeLinked),
     formatSplits: frame.formatSplits === undefined && frame.splitFrames === true
       ? { 'orig-3x2': { enabled: true, offset: readSplitPanOffset(frame.splitPanOffset) } }
       : readFormatSplits(frame.formatSplits),
