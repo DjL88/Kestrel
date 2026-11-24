@@ -8,7 +8,7 @@ import type { EditRecipe } from '../ui/contract';
  *
  * Existing fine-detail enhancement uses PhotoEdit.texture, shared by preview and normal export.
  * It improves the contrast of detail already present; it does not reconstruct missing feathers.
- * Not in PhotoEdit yet: luminance noise reduction, AI RAW denoise and optical lens-profile correction.
+ * Not in PhotoEdit yet: AI RAW denoise and optical lens-profile correction.
  * Those controls remain unsupported (UNMAPPED_KEYS) until real implementations exist.
  */
 export const NEUTRAL_RECIPE: EditRecipe = {
@@ -17,7 +17,7 @@ export const NEUTRAL_RECIPE: EditRecipe = {
   upscaleFactor: 1, detailRecovery: 0, lensCorrection: false,
 };
 
-export const UNMAPPED_KEYS = ['denoiseRawAi', 'denoiseLuminance', 'lensCorrection'] as const satisfies readonly (keyof EditRecipe)[];
+export const UNMAPPED_KEYS = ['denoiseRawAi', 'lensCorrection'] as const satisfies readonly (keyof EditRecipe)[];
 
 const EV_PER_STEP = 0.4;
 const SLIDER_PER_STEP = 50; // one engine step is 50 slider points
@@ -43,6 +43,7 @@ export function editToRecipe(edit: PhotoEdit | undefined): EditRecipe {
     clarity: toSlider(edit.clarity),
     sharpen: toSlider(edit.sharpen),
     denoiseColour: toSlider(edit.denoise),
+    denoiseLuminance: toSlider(edit.denoiseLuminance),
     detailRecovery: round(clamp((edit.texture ?? 0) * SLIDER_PER_STEP, 0, 100), 2),
     upscaleFactor: edit.upscale ?? 1,
   };
@@ -66,6 +67,11 @@ export function applyRecipePatch(edit: PhotoEdit | undefined, patch: Partial<Edi
   if (patch.vibrance !== undefined) next.vibrance = toStep(patch.vibrance);
   if (patch.clarity !== undefined) next.clarity = toStep(patch.clarity);
   if (patch.sharpen !== undefined) next.sharpen = round(clamp(patch.sharpen, 0, 100) / SLIDER_PER_STEP, 4);
+  if (patch.denoiseLuminance !== undefined && Number.isFinite(patch.denoiseLuminance)) {
+    const value = round(clamp(patch.denoiseLuminance, 0, 100) / SLIDER_PER_STEP, 4);
+    if (value === 0) delete next.denoiseLuminance;
+    else next.denoiseLuminance = value;
+  }
   if (patch.denoiseColour !== undefined) next.denoise = round(clamp(patch.denoiseColour, 0, 100) / SLIDER_PER_STEP, 4);
   if (patch.detailRecovery !== undefined && Number.isFinite(patch.detailRecovery)) {
     const texture = round(clamp(patch.detailRecovery, 0, 100) / SLIDER_PER_STEP, 4);

@@ -30,7 +30,6 @@ test('unsupported enhancements are visibly and accessibly disabled in the real e
   const html = render();
   for (const [tag, id] of [
     ['button', 'v2-enhance-raw-ai'],
-    ['input', 'v2-enhance-luminance'],
     ['button', 'v2-enhance-lens-correction'],
   ] as const) {
     const control = taggedElement(html, tag, id);
@@ -44,6 +43,7 @@ test('real texture edit remains enabled and is named honestly', () => {
   const html = render();
   const texture = taggedElement(html, 'input', 'v2-enhance-texture');
   assert.doesNotMatch(texture, /disabled(?:="")?/);
+  assert.doesNotMatch(taggedElement(html, 'input', 'v2-enhance-luminance'), /disabled(?:="")?/);
   assert.match(html, /Texture \(existing detail\)/);
   assert.match(html, /id="denoise-colour"/);
   assert.match(html, /Output scale/);
