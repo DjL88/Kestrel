@@ -218,3 +218,29 @@ export async function matchScannedOriginalsBySha(
   }
   return { matches, ambiguous, rejected };
 }
+
+/** An existing path is not proof of identity. Only an explicit reconnect
+ * hashes the existing linked files, sequentially and without holding whole
+ * RAWs in memory. A substituted file at the old path must be eligible for
+ * recovery from the selected backup folder. No catalogue mutations here. */
+export async function resolveNativeOriginalRelinks(
+  expected: readonly { stableKey: string; filename: string; sourcePath: string; size: number; originalSha256?: string }[],
+  availablePaths: ReadonlySet<string>,
+  scan: (wantedNames: ReadonlySet<string>) => Promise<ScanResult>,
+  openCurrent: (path: string) => Promise<ScannedOriginalRead>,
+  openCandidate: (candidate: ScannedOriginal) => Promise<ScannedOriginalRead>,
+): Promise<{ connected: Map<string, string>; missing: string[]; matches: Map<string, string>; ambiguous: string[]; truncated: boolean; skippedDirectories: number }> {
+  const suggested = new Map(expected.filter(frame => availablePaths.has(frame.sourcePath)).map(frame => [frame.stableKey, frame.sourcePath]));
+  const checked = await verifyScannedOriginalMatches(suggested, expected, openCurrent);
+  const unresolved = expected.filter(frame => !checked.matches.has(frame.stableKey));
+  if (!unresolved.length) return { connected: checked.matches, missing: [], matches: new Map(), ambiguous: [], truncated: false, skippedDirectories: 0 };
+  const found = await scan(new Set(unresolved.map(frame => frame.filename.toLowerCase())));
+  const byPath = new Map(found.files.map(file => [file.path, file]));
+  const candidates = await matchScannedOriginalsBySha(unresolved, found.files, [...checked.matches.values()], path => {
+    const file = byPath.get(path);
+    if (!file) throw new Error('Candidate no longer belongs to the selected folder scan.');
+    return openCandidate(file);
+  });
+  return { connected: checked.matches, missing: unresolved.map(frame => frame.stableKey), matches: candidates.matches,
+    ambiguous: candidates.ambiguous, truncated: found.truncated, skippedDirectories: found.skippedDirectories };
+}
