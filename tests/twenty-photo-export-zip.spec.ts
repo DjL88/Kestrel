@@ -41,9 +41,9 @@ test('20 imported photographs can be selected, edited and downloaded as a comple
   const last = page.getByRole('button', { name: 'Select keeper-20.png' });
   await expect(last).toBeVisible();
   await last.click({ modifiers: ['Shift'] });
-  await expect(page.getByText('20 selected', { exact: true })).toBeVisible();
+  await expect(page.getByText('20 selected', { exact: true }).locator('visible=true').first()).toBeVisible();
 
-  await page.getByRole('button', { name: 'Edit selected' }).click();
+  await page.getByRole('button', { name: 'Edit selected' }).locator('visible=true').first().click();
   const action = page.getByRole('button', { name: 'Export 20', exact: true });
   await expect(action).toBeVisible();
   await action.click();

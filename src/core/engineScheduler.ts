@@ -349,6 +349,7 @@ export function createEngineScheduler(options: {
     let resolveFinished!: (result: 'done' | 'failed' | 'cancelled') => void;
     const finished = new Promise<'done' | 'failed' | 'cancelled'>(resolve => { resolveFinished = resolve; });
     let job!: WorkBatch;
+    let retryInFlight = false;
     const handle = store.enqueue(definition.title, {
       total: items.length, location: definition.location ?? 'local', priority: definition.priority ?? 0,
       pauseable: definition.pauseable !== false && items.length > 1,
@@ -384,8 +385,21 @@ export function createEngineScheduler(options: {
       },
       retry: async () => {
         const failures = items.filter(item => item.state === 'failed' && !item.uncertain);
-        if (!failures.length || job.active || job.cancelled) return null;
-        return submit({ ...definition, title: `${definition.title} — retry failed`, items: failures.map(item => item.input) });
+        // A recoverable batch must retain its original fingerprint and verify
+        // every completed output before retrying. Submitting only failures
+        // with the old journal key mismatches the saved fingerprint.
+        if (!failures.length || jobs.has(job.id) || job.cancelled || retryInFlight) return null;
+        if (recovery && items.some(item => item.uncertain || (item.state !== 'done' && item.state !== 'failed'))) return null;
+        retryInFlight = true;
+        try {
+          const ticket = await submit({ ...definition, title: `${definition.title} — retry failed`,
+            snapshot, items: recovery ? definition.items : failures.map(item => item.input) });
+          failedJobs.delete(job.id);
+          return ticket;
+        } catch (error) {
+          retryInFlight = false;
+          throw error;
+        }
       },
       finish: result => {
         if (!jobs.has(handle.id)) return;
@@ -450,7 +464,7 @@ export function createEngineScheduler(options: {
     cancel: (id: number) => store.cancel(id),
     canRetryFailed: (id: number) => {
       const job = jobs.get(id) ?? failedJobs.get(id);
-      return Boolean(job && job.items.some(item => item.state === 'failed' && !item.uncertain));
+      return Boolean(job && !jobs.has(id) && job.items.some(item => item.state === 'failed' && !item.uncertain));
     },
     retryFailed: async (id: number) => {
       const job = jobs.get(id) ?? failedJobs.get(id);

@@ -15,7 +15,7 @@ import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '..
 import { eraseDeviceData } from './eraseDeviceData';
 import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
 import { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
-import { projectCoverBlob } from './projectCover';
+import { projectPreviewBlobs } from './projectCover';
 import { scanForCulling } from '../../providers/browserAutoCull';
 import { useAccess } from '../../providers/useAccess';
 import { useBackgroundDevelop } from '../../useBackgroundDevelop';
@@ -36,6 +36,7 @@ import { watermarkToneForPixels } from '../../core/watermark';
 import { INITIAL_WATERMARKS, createDefaultSizes } from '../ui/stub';
 import { toPhotoHistogram } from './histogram';
 import { fullResolutionRasterFormat, isHeifFile, isRawPreviewFile } from '../../core/rawFormats';
+import { rawSensorSize } from '../../core/rawSensorSize';
 import { loadUi, mergeSettings, saveUi, type SavedUi } from './uiSettings';
 import { applyCanvasPhotoEdit } from '../../core/canvasEdit';
 import { DEFAULT_EDIT as EMPTY_EDIT } from '../../core/photoEdits';
@@ -265,10 +266,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const shoots = (await store.listProjects()).filter((shoot: ShootDescriptor) => !shoot.inbox);
       const loaded = await Promise.all(shoots.map(async (shoot) => {
         const frames = (await store.loadProject(shoot.id))?.frames ?? [];
-        const cover = await projectCoverBlob(frames);
-        const url = cover ? URL.createObjectURL(cover) : '';
-        if (url) nextUrls.push(url);
-        return shootToProject(shoot, frames, url);
+        // The best favourites at review size, developed from the RAW where that is cached. Never the original itself.
+        const previews = await projectPreviewBlobs(frames);
+        const url = previews.cover ? URL.createObjectURL(previews.cover) : '';
+        const samples = previews.samples.map((blob) => URL.createObjectURL(blob));
+        nextUrls.push(...(url ? [url] : []), ...samples);
+        return shootToProject(shoot, frames, url, samples);
       }));
       hubCoverUrls.current.forEach((url) => URL.revokeObjectURL(url));
       hubCoverUrls.current = nextUrls;
@@ -406,6 +409,31 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // Moves already set-aside (rejected) photos to Trash. removeFromLibrary (shared with V1) ignores any id that
   // is not currently rejected, so this never deletes a kept or unreviewed photo by mistake. The removal itself is
   // written to the same undoStack that per-photo Undo already reads, so Cmd/Ctrl+Z brings it straight back.
+  // RAWs imported before the sensor-size reader (or whose EXIF had no size) landed as a 1x1 Original: read the
+  // recorded size from the original's own IFDs in the background, once per photo, and record it.
+  const rawSizeTried = useRef(new Set<string>());
+  const rawSizeWaiting = (state?.frames ?? []).filter((frame) => !frame.removedAt && !frame.isDemo && isRawPreviewFile(frame.filename)
+    && !(frame.exif.width && frame.exif.height) && !rawSizeTried.current.has(frame.id)).map((frame) => frame.id).join(',');
+  useEffect(() => {
+    if (!rawSizeWaiting || !provider.current) return;
+    let live = true;
+    void (async () => {
+      for (const id of rawSizeWaiting.split(',')) {
+        if (!live) return;
+        rawSizeTried.current.add(id);
+        const frame = stateRef.current?.frames.find((candidate) => candidate.id === id);
+        if (!frame) continue;
+        const original = await provider.current!.ensureOriginal(frame.stableKey, 'background').catch(() => undefined);
+        if (!original || !live) continue;
+        const size = await original.slice(0, 2 << 20).arrayBuffer().then((buffer) => rawSensorSize(new Uint8Array(buffer))).catch(() => null);
+        if (!size || !live) continue;
+        mutate((current) => ({ ...current, frames: current.frames.map((item) => item.id === id && !(item.exif.width && item.exif.height)
+          ? { ...item, exif: { ...item.exif, width: size.width, height: size.height } } : item) }));
+      }
+    })();
+    return () => { live = false; };
+  }, [rawSizeWaiting, mutate]);
+
   const removePhotos = useCallback((ids: string[]) => {
     mutate((current) => removeFromLibrary(current, ids));
     setSelected((current) => current.filter((id) => !ids.includes(id)));
@@ -930,7 +958,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             const edit = current.edit ?? DEFAULT_EDIT;
             const id = `auto-denoise-${photoId}`;
             const masks = (edit.masks ?? []).filter(mask => mask.id !== id && mask.id !== `${id}-background`);
-            return { ...edit, denoise: outcome.strength, masks: [...masks, ...outcome.masks] };
+            return { ...edit, denoise: outcome.strength, ...(outcome.luminance > 0 ? { denoiseLuminance: outcome.luminance } : {}), masks: [...masks, ...outcome.masks] };
           }));
         }
         ctx.commitIfCurrent(() => setNotice(outcome.verified ? outcome.notes[0] : `Left as it was. ${outcome.notes.join(' ')}`));

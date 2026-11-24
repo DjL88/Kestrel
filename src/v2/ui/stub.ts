@@ -306,6 +306,8 @@ export function createDefaultOverlay(enabled = false): OverlaySettings {
     textEnabled: enabled,
     textLayoutMode: 'as-is',
     textPosition: 'bottom-left',
+    textPlacement: 'anchor',
+    textAlign: 'left',
     textX: 8,
     textY: 90,
     textOffsetX: 0,
@@ -337,12 +339,14 @@ export function createDefaultOverlay(enabled = false): OverlaySettings {
     watermarkEnabled: false,
     watermarkPresetId: 'wm-inflight',
     watermarkPosition: 'bottom-right',
+    watermarkPlacement: 'anchor',
     watermarkX: 92,
     watermarkY: 90,
     watermarkOpacity: 74,
     watermarkScale: 100,
     watermarkContrast: 'light-on-dark',
     snapEnabled: true,
+    edgeMargin: 4,
   };
 }
 
@@ -540,6 +544,7 @@ const INITIAL_PROJECTS: Project[] = [
     name: 'Scottish Highlands — Autumn Wildlife',
     updatedAt: 'Today · 10:18',
     coverUrl: '/v2-sample/kestrel.jpg',
+    sampleUrls: ['/v2-sample/stag.jpg', '/v2-sample/glencoe.jpg', '/v2-sample/lighthouse.jpg'],
     photoCount: 20,
     flaggedCount: 6,
     localCopyStatus: 'offline-ready',
@@ -550,6 +555,7 @@ const INITIAL_PROJECTS: Project[] = [
     name: 'Isle of Skye — Headland Light',
     updatedAt: 'Yesterday · 19:40',
     coverUrl: '/v2-sample/lighthouse.jpg',
+    sampleUrls: ['/v2-sample/glencoe.jpg'],
     photoCount: 48,
     flaggedCount: 11,
     localCopyStatus: 'synced',
@@ -1690,49 +1696,31 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
 
     alignOverlaysCleanly: (photoId, layout) => {
       logAction('alignOverlaysCleanly', { photoId, layout });
-      const presets = {
-        'stacked-left': {
-          textPosition: 'bottom-left' as const,
-          textX: 8,
-          textY: 90,
-          watermarkPosition: 'bottom-left' as const,
-          watermarkX: 8,
-          watermarkY: 78,
-        },
-        'stacked-right': {
-          textPosition: 'bottom-right' as const,
-          textX: 92,
-          textY: 90,
-          watermarkPosition: 'bottom-right' as const,
-          watermarkX: 92,
-          watermarkY: 78,
-        },
-        'opposite-bottom': {
-          textPosition: 'bottom-left' as const,
-          textX: 8,
-          textY: 90,
-          watermarkPosition: 'bottom-right' as const,
-          watermarkX: 92,
-          watermarkY: 90,
-        },
-        'centred-pair': {
-          textPosition: 'bottom-center' as const,
-          textX: 50,
-          textY: 88,
-          watermarkPosition: 'bottom-center' as const,
-          watermarkX: 50,
-          watermarkY: 76,
-        },
-      };
+      const position = `bottom-${layout}` as const;
       updatePhotoById(photoId, (photo) => ({
         ...photo,
         editGroups: photo.editGroups.map((g) =>
           g.id === photo.activeGroupId
-            ? { ...g, overlay: { ...g.overlay, ...presets[layout], textOffsetX: 0, textOffsetY: 0 } }
+            ? { ...g, overlay: { ...g.overlay, textPosition: position, textPlacement: 'anchor' as const, textAlign: layout, watermarkPosition: position, watermarkPlacement: 'anchor' as const, textOffsetX: 0, textOffsetY: 0 } }
             : g
         ),
       }));
       showNotice('Aligned text overlay and watermark cleanly');
+    },
+
+    moveOverlayRow: (photoId, rowId, direction) => {
+      updatePhotoById(photoId, (photo) => ({
+        ...photo,
+        editGroups: photo.editGroups.map((g) => {
+          if (g.id !== photo.activeGroupId) return g;
+          const rows = [...g.overlay.rows];
+          const from = rows.findIndex((r) => r.id === rowId);
+          const to = from + direction;
+          if (from < 0 || to < 0 || to >= rows.length) return g;
+          [rows[from], rows[to]] = [rows[to], rows[from]];
+          return { ...g, overlay: { ...g.overlay, rows } };
+        }),
+      }));
     },
 
     addOverlayRow: (photoId) => {
@@ -1743,7 +1731,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
           if (g.id !== photo.activeGroupId) return g;
           const newRow: OverlayTextRow = {
             id: `row-${Date.now()}`,
-            fields: ['species'],
+            fields: [],
             customText: '',
             fontId: 'playfair',
             sizePx: 14,
@@ -1802,6 +1790,9 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     cutOutWatermark: async () => null,
     makeWatermarkVariant: async () => undefined,
     deleteWatermark: () => undefined,
+    addTextWatermark: () => null,
+    addWatermarkVersion: async () => false,
+    setWatermarkSlot: () => undefined,
     listDeviceFonts: async () => ['Avenir Next', 'Baskerville', 'Futura', 'Gill Sans', 'Helvetica Neue', 'Optima'],
     hasDeviceFont: (fontName) => ['avenir next', 'baskerville', 'futura', 'gill sans', 'helvetica neue', 'optima'].includes(fontName.trim().toLowerCase()),
     addCustomFont: (fontName) => {

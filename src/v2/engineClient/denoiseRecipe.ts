@@ -18,9 +18,11 @@ export function renderDenoiseRecipe(source: Pixels, edit: PhotoEdit): Pixels {
 
 /** The workspace replaces only the two automatic group layers. Existing
  * individual overrides and manual adjustments keep their exact recipe/order. */
-export function composeDenoiseRecipe(base: PhotoEdit | undefined, id: string, strength: number, masks: Mask[]): PhotoEdit {
+export function composeDenoiseRecipe(base: PhotoEdit | undefined, id: string, strength: number, masks: Mask[], lumaPerStrength = 0): PhotoEdit {
   const edit = base ?? DEFAULT_EDIT;
-  return { ...edit, denoise: strength, masks: [
+  // Luminance (grain) denoise moves with the verified strength, so a detail-loss correction reduces both together.
+  const luma = Math.round(Math.min(2, strength * lumaPerStrength) * 1e4) / 1e4;
+  return { ...edit, denoise: strength, ...(luma > 0 ? { denoiseLuminance: luma } : {}), masks: [
     ...(edit.masks ?? []).filter(mask => mask.id !== id && mask.id !== id + '-background'),
     ...masks,
   ] };

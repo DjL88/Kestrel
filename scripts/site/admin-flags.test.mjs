@@ -75,3 +75,29 @@ test('locale preview distinguishes authored variant, fallback and incomplete dra
   assert.equal(messagePreview(source, {title:'Wartung',body:'Cloud ist nicht verfügbar.'}, 'de').locale, 'de');
   assert.throws(() => messagePreview(source, {title:'Wartung',body:''}, 'de'));
 });
+
+
+import { readStatus, SERVICES } from '../../site/assets/service-status.mjs';
+const statusTime = 1_800_000_000_000;
+const validStatus = () => ({schemaVersion:1,updatedAt:statusTime,
+  services:Object.fromEntries(Object.keys(SERVICES).map(key=>[key,'operational'])),
+  incidents:[{id:'incident-1',state:'investigating',title:'Cloud delay',message:'Investigating',services:['processing'],updatedAt:statusTime}]});
+test('public status refuses missing or malformed snapshots and stale health', () => {
+  assert.equal(readStatus(null,statusTime).freshness,'unavailable');
+  const valid = validStatus();
+  assert.equal(readStatus(valid,statusTime).services.processing,'operational');
+  const old = readStatus(valid,statusTime+16*60_000);
+  assert.equal(old.freshness,'stale');
+  assert.equal(old.services.processing,'unknown');
+  assert.equal(old.incidents.length,1);
+  assert.equal(readStatus({...valid,updatedAt:statusTime+120_000},statusTime).freshness,'unavailable');
+  assert.equal(readStatus({...valid,services:{...valid.services,processing:'invalid'}},statusTime).freshness,'unavailable');
+});
+test('status feed validates incident ids, timestamps and maintenance windows', () => {
+  const valid = validStatus(), incident = valid.incidents[0];
+  assert.equal(readStatus({...valid,incidents:[incident,incident]},statusTime).freshness,'unavailable');
+  assert.equal(readStatus({...valid,incidents:[{...incident,services:['wrong']}]},statusTime).freshness,'unavailable');
+  assert.equal(readStatus({...valid,incidents:[{...incident,state:'scheduled',startsAt:100,endsAt:90}]},statusTime).freshness,'unavailable');
+  const maintenance = readStatus({...valid,incidents:[{...incident,state:'scheduled',startsAt:statusTime+1000,endsAt:statusTime+2000}]},statusTime);
+  assert.equal(maintenance.incidents[0].state,'scheduled');
+});

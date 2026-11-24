@@ -17,8 +17,25 @@ export function createVirtualCopy(source: PhotoFrame, frames: readonly PhotoFram
     burstGroupId: null,
     burstIndex: 1,
     burstCount: 1,
+    // A copy begins at the source's CURRENT recipe, not its previous
+    // branches or delivery receipts. The original identity stays shared.
     editHistory: undefined,
-    edit: source.edit ? { ...source.edit } : undefined,
+    editVersions: undefined,
+    formatHistory: undefined,
+    lastExport: undefined,
+    edit: source.edit ? structuredClone(source.edit) : undefined,
+    framing: structuredClone(source.framing),
+    overlay: structuredClone(source.overlay),
+    v2EditGroups: structuredClone(source.v2EditGroups),
+    sizeCrops: structuredClone(source.sizeCrops),
+    sizeLinked: structuredClone(source.sizeLinked),
+    formats: structuredClone(source.formats),
+    boardPositions: structuredClone(source.boardPositions),
+    videoZoom: structuredClone(source.videoZoom),
+    splitFrames: structuredClone(source.splitFrames),
+    splitPanOffset: structuredClone(source.splitPanOffset),
+    formatSplits: structuredClone(source.formatSplits),
+    removedAt: undefined,
     virtualCopy: { originalFrameId: rootId, number: next },
   };
 }

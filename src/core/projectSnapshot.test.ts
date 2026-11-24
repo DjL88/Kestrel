@@ -100,3 +100,33 @@ test('identity and project id survive saving and reading, and bad ones are refus
   const bad = JSON.parse(JSON.stringify(snap)); bad.photos[0].identity = 5;
   assert.equal(parseSnapshot(JSON.stringify(bad)), null);
 });
+
+
+test('verified bytes match across renamed paths but reject conflicting same-name and same-key originals', () => {
+  const hash = 'a'.repeat(64), other = 'b'.repeat(64);
+  const snap = buildSnapshot('Birds', [shot('old', 'DSC_1.NEF', 5000, { originalSha256: hash, rating: 5 })], new Date());
+  const parsed = parseSnapshot(JSON.stringify(snap))!;
+  const renamed = shot('new', 'renamed.NEF', 5000, { originalSha256: hash });
+  assert.equal(applySnapshot([renamed], parsed)[0].rating, 5);
+  for (const target of [shot('old', 'DSC_1.NEF', 5000, { originalSha256: other }), shot('new', 'DSC_1.NEF', 5000), shot('old', 'DSC_1.NEF', 5000)]) {
+    assert.equal(planApply([target], parsed).matching, 0);
+    assert.equal(applySnapshot([target], parsed)[0], target);
+  }
+});
+
+test('ambiguous legacy capture identity and duplicate local originals are not silently matched', () => {
+  const snap = buildSnapshot('Birds', [shot('old', 'DSC_1.NEF', 5000, { rating: 5 }), shot('other', 'DSC_1.NEF', 5000, { rating: 1 })], new Date());
+  const here = [shot('new', 'DSC_1.NEF', 5000)];
+  assert.equal(planApply(here, snap).matching, 0);
+  const single = buildSnapshot('Birds', [shot('old', 'DSC_1.NEF', 5000, { rating: 5 })], new Date());
+  assert.equal(planApply([...here, shot('second', 'DSC_1.NEF', 5000)], single).matching, 0);
+  assert.equal(planApply([shot('old', 'DSC_1.NEF', 5000, { removedAt: 0 })], single).matching, 0);
+});
+
+
+test('a legacy remote record cannot be applied to two local records via different match routes', () => {
+  const snap = buildSnapshot('Birds', [shot('old', 'DSC_1.NEF', 5000, { rating: 5 })], new Date());
+  const here = [shot('old', 'renamed.NEF', 5001), shot('new', 'DSC_1.NEF', 5000)];
+  assert.equal(planApply(here, snap).matching, 0);
+  assert.deepEqual(applySnapshot(here, snap), here);
+});

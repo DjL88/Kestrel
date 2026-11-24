@@ -33,7 +33,7 @@ test('900px tablet view never covers the photo with default Photo Info; editor r
   // All show/hide controls live inside View and closing Photo Info returns focus there.
   const viewMenu = page.locator('header summary[aria-label="View · show or hide"]');
   await viewMenu.click();
-  await page.getByRole('checkbox', { name: 'Photo info' }).check();
+  await page.getByRole('checkbox', { name: 'Photo info', exact: true }).check();
   await expect(page.locator('aside[aria-label="Photo info"]')).toBeVisible();
   await page.getByRole('button', { name: 'Close photo info' }).click();
   await expect(page.locator('aside[aria-label="Photo info"]')).toHaveCount(0);

@@ -15,6 +15,7 @@ interface SizesPanelProps {
   features: Record<FeatureKey, boolean>;
   onSetActiveGroup: (photoId: string, groupId: string) => void;
   onAddEditGroup: (photoId: string) => void;
+  onRenameEditGroup: (photoId: string, groupId: string, name: string) => void;
   onSetActiveSize: (sizeId: string, modifiers?: { ctrl?: boolean }) => void;
   onSetCanvasLayoutMode: (mode: 'single' | 'all-formats') => void;
   onToggleSizeEnabled: (photoId: string, sizeId: string) => void;
@@ -41,6 +42,7 @@ export default function SizesPanel({
   features,
   onSetActiveGroup,
   onAddEditGroup,
+  onRenameEditGroup,
   onSetActiveSize,
   onSetCanvasLayoutMode,
   onToggleSizeEnabled,
@@ -57,6 +59,8 @@ export default function SizesPanel({
   onSetSplitFrameCount,
   onUpdateVideoZoom,
 }: SizesPanelProps) {
+  const [rename, setRename] = useState<{ photoId: string; groupId: string; name: string } | null>(null);
+  useEffect(() => setRename(null), [photo?.id, photo?.activeGroupId]);
   const hideVideoPro = useProHidden('zoomVideo');
   const customLabelInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -79,7 +83,7 @@ export default function SizesPanel({
   }, [photo?.id, originalFormat?.width, originalFormat?.height]);
 
   if (!photo) {
-    return <p className="text-xs text-[var(--text-muted)]">Select a photo to manage export formats.</p>;
+    return <p className="text-xs text-[var(--text-muted)]">{STRINGS.formats.noPhoto}</p>;
   }
 
   const group = getActiveGroup(photo);
@@ -122,10 +126,10 @@ export default function SizesPanel({
       {/* Side-by-side All Formats Board switch */}
       <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-semibold text-[var(--text-primary)]">Canvas view</span>
+          <span className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.formats.canvasViewHeading}</span>
           <InfoPopover
-            title="All Formats Board"
-            body="View every active size export side-by-side on one canvas, move boards around freely, and zoom in to inspect details."
+            title={STRINGS.formats.boardTitle}
+            body={STRINGS.formats.boardHelp}
           />
         </div>
         <div className="mt-2 grid grid-cols-2 gap-1.5">
@@ -139,7 +143,7 @@ export default function SizesPanel({
             }`}
           >
             <BrandIcon name="image" size={14} />
-            <span>Single focus</span>
+            <span>{STRINGS.formats.singleFocus}</span>
           </button>
           <button
             type="button"
@@ -151,7 +155,7 @@ export default function SizesPanel({
             }`}
           >
             <BrandIcon name="all-sizes" size={14} />
-            <span>All side-by-side</span>
+            <span>{STRINGS.formats.allSideBySide}</span>
           </button>
         </div>
       </div>
@@ -163,7 +167,7 @@ export default function SizesPanel({
             <h3 className="text-xs font-semibold text-[var(--text-primary)]">
               {STRINGS.formats.editGroupsHeading}
             </h3>
-            <InfoPopover title="Edit Groups" body={STRINGS.formats.editGroupHint} />
+            <InfoPopover title={STRINGS.formats.editGroupsHeading} body={STRINGS.formats.editGroupHint} />
           </div>
           <button
             type="button"
@@ -182,6 +186,7 @@ export default function SizesPanel({
               <button
                 key={g.id}
                 type="button"
+                aria-pressed={isCurrent}
                 onClick={() => onSetActiveGroup(photo.id, g.id)}
                 className={`flex w-full items-center justify-between gap-2 rounded-[var(--radius-sm)] border px-2.5 py-2 text-left text-xs transition-colors ${
                   isCurrent
@@ -196,13 +201,36 @@ export default function SizesPanel({
               </button>
             );
           })}
+          {rename?.photoId === photo.id && rename.groupId === group.id ? (
+            <form className="space-y-2" onSubmit={(event) => {
+              event.preventDefault();
+              const name = rename.name.trim();
+              if (!name || name.length > 80) return;
+              onRenameEditGroup(photo.id, group.id, name);
+              setRename(null);
+            }}>
+              <input autoFocus type="text" required maxLength={80} value={rename.name}
+                aria-label={STRINGS.formats.editGroupsHeading}
+                onChange={(event) => setRename({ ...rename, name: event.target.value })}
+                className="h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2 text-xs text-[var(--text-primary)]" />
+              <div className="flex gap-2">
+                <button type="submit" disabled={!rename.name.trim() || rename.name.trim() === group.name}
+                  className="h-8 rounded px-3 text-xs font-semibold text-[var(--brand-accent)] disabled:opacity-40">{STRINGS.panelWords.save}</button>
+                <button type="button" onClick={() => setRename(null)} className="h-8 rounded px-3 text-xs text-[var(--text-secondary)]">{STRINGS.panelWords.cancel}</button>
+              </div>
+            </form>
+          ) : (
+            <button type="button" onClick={() => setRename({ photoId: photo.id, groupId: group.id, name: group.name })}
+              aria-label={`${STRINGS.hubMore.rename} ${group.name}`}
+              className="h-8 rounded px-2 text-xs font-semibold text-[var(--brand-accent)]">{STRINGS.hubMore.rename}</button>
+          )}
         </div>
       </section>
 
       {/* Format Presets List */}
       <section className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold text-[var(--text-primary)]">Export formats</h3>
+          <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.formats.exportFormatsHeading}</h3>
           <button
             type="button"
             onClick={() => onSetAddingCustom(!addingCustom)}
@@ -265,14 +293,14 @@ export default function SizesPanel({
             />
             <div className="grid grid-cols-2 gap-2">
               <label className="space-y-1 text-[11px] text-[var(--text-secondary)]">
-                <span>Size</span>
+                <span>{STRINGS.formats.customSizeLabel}</span>
                 <select
                   aria-label={STRINGS.formats.paperSizeLabel}
                   value={paperPreset}
                   onChange={(e) => handlePaperPreset(e.target.value as PaperPreset)}
                   className="h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]"
                 >
-                  <option value="custom">Custom</option>
+                  <option value="custom">{STRINGS.formats.sizeCustom}</option>
                   <option value="A4">A4 (210 × 297 mm)</option>
                   <option value="A3">A3 (297 × 420 mm)</option>
                   <option value="A2">A2 (420 × 594 mm)</option>
@@ -280,21 +308,21 @@ export default function SizesPanel({
                 </select>
               </label>
               <label className="space-y-1 text-[11px] text-[var(--text-secondary)]">
-                <span>Orientation</span>
+                <span>{STRINGS.formats.orientationLabel}</span>
                 <select
                   value={paperOrientation}
                   onChange={(e) => changeOrientation(e.target.value as PaperOrientation)}
                   aria-label={STRINGS.formats.canvasOrientationLabel}
                   className="h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]"
                 >
-                  <option value="portrait">Portrait</option>
-                  <option value="landscape">Landscape</option>
+                  <option value="portrait">{STRINGS.formats.orientationPortrait}</option>
+                  <option value="landscape">{STRINGS.formats.orientationLandscape}</option>
                 </select>
               </label>
             </div>
             <div className="grid grid-cols-3 gap-2">
               <label className="space-y-1 text-[11px] text-[var(--text-secondary)]">
-                <span>Width</span>
+                <span>{STRINGS.formats.customWidth}</span>
                 <input
                   type="number" min={customUnit === 'px' ? 100 : 0.1} step={customUnit === 'px' ? 1 : 'any'}
                   value={customW}
@@ -304,7 +332,7 @@ export default function SizesPanel({
                 />
               </label>
               <label className="space-y-1 text-[11px] text-[var(--text-secondary)]">
-                <span>Height</span>
+                <span>{STRINGS.formats.customHeight}</span>
                 <input
                   type="number" min={customUnit === 'px' ? 100 : 0.1} step={customUnit === 'px' ? 1 : 'any'}
                   value={customH}
@@ -314,9 +342,9 @@ export default function SizesPanel({
                 />
               </label>
               <label className="space-y-1 text-[11px] text-[var(--text-secondary)]">
-                <span>Units</span>
+                <span>{STRINGS.formats.unitsLabel}</span>
                 <select
-                  aria-label="Size units" value={customUnit}
+                  aria-label={STRINGS.formats.unitsAria} value={customUnit}
                   onChange={(e) => {
                     const next = e.target.value as DimensionUnit;
                     const inches = customUnit === 'mm' ? 1 / 25.4 : customUnit === 'cm' ? 1 / 2.54 : customUnit === 'px' ? 1 / customPpi : 1;
@@ -335,11 +363,11 @@ export default function SizesPanel({
             </div>
             {customUnit !== 'px' && (
               <label className="flex items-center justify-between gap-2 text-[11px] text-[var(--text-secondary)]">
-                <span>Print resolution (PPI)</span>
+                <span>{STRINGS.formats.ppiLabel}</span>
                 <input
                   type="number" min={1} max={2400} step={1} value={customPpi}
                   onChange={(e) => setCustomPpi(Number(e.target.value))}
-                  aria-label="Print resolution in pixels per inch"
+                  aria-label={STRINGS.formats.ppiAria}
                   className="h-8 w-24 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 font-mono text-xs text-[var(--text-primary)]"
                 />
               </label>
@@ -450,8 +478,8 @@ export default function SizesPanel({
               {STRINGS.formats.cropZoomHeading}
             </h3>
             <InfoPopover
-              title="Individual vs Group Format Edits"
-              body="When 1 format is selected, flip, rotate, and crop apply ONLY to that format. Ctrl/Cmd-click multiple formats to edit them together as a group."
+              title={STRINGS.formats.groupEditsTitle}
+              body={STRINGS.formats.groupEditsHelp}
             />
           </div>
           <button
@@ -474,7 +502,7 @@ export default function SizesPanel({
             }`}
           >
             <BrandIcon name="arrows-horizontal" size={13} />
-            <span>Flip H</span>
+            <span>{STRINGS.formats.flipH}</span>
           </button>
           <button
             type="button"
@@ -486,7 +514,7 @@ export default function SizesPanel({
             }`}
           >
             <BrandIcon name="arrows-horizontal" size={13} className="rotate-90" />
-            <span>Flip V</span>
+            <span>{STRINGS.formats.flipV}</span>
           </button>
           <button
             type="button"
@@ -679,10 +707,10 @@ export default function SizesPanel({
 
           <div className="flex items-center justify-between text-[11px] text-[var(--text-muted)]">
             <span>
-              Focal pin: <strong className="font-mono text-[var(--text-secondary)]">{photo.videoZoom.focalX}%, {photo.videoZoom.focalY}%</strong>
+              {STRINGS.formats.focalPin} <strong className="font-mono text-[var(--text-secondary)]">{photo.videoZoom.focalX}%, {photo.videoZoom.focalY}%</strong>
             </span>
             <label className="flex items-center gap-1.5">
-              <span>Length</span>
+              <span>{STRINGS.formats.videoDuration}</span>
               <select
                 value={photo.videoZoom.durationSec}
                 onChange={(e) => onUpdateVideoZoom(photo.id, { durationSec: Number(e.target.value) })}
