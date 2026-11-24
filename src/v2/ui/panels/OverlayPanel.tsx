@@ -15,6 +15,7 @@ import WatermarkLibrary from './WatermarkLibrary';
 import BrandIcon from '../icons/BrandIcon';
 import InfoPopover from '../shell/InfoPopover';
 import { detectOverlayOverflow, fitOverlayRows, formatOverlayRowText, getActiveGroup } from '../utils/studioMath';
+import { OVERLAY_FIELDS, isOverlayField, overlayFieldChoices, overlayFieldText } from '../utils/overlayMetadata';
 
 /** The words a row will say on this photo (or a pangram when it has nothing yet), so a font is judged on real text. */
 const sampleText = (photo: Photo, row: OverlayTextRow) => formatOverlayRowText(row, photo).trim() || STRINGS.panelWords.sampleText;
@@ -31,7 +32,7 @@ interface OverlayPanelProps {
   onRemoveRow: (photoId: string, rowId: string) => void;
   onAddCustomFont: (fontName: string) => void;
   onListDeviceFonts: () => Promise<string[] | null>;
-  onImportWatermark: () => Promise<string | null>;
+  onImportWatermark: (usage: import('../contract').WatermarkUsage) => Promise<string | null>;
   onCutOutWatermark: (presetId: string, slot: 'dark' | 'light', tolerance: number, commit: boolean) => Promise<{ url: string; tooMuch: boolean } | null>;
   onMakeWatermarkVariant: (presetId: string, slot: 'dark' | 'light') => Promise<void>;
   onDeleteWatermark: (presetId: string) => void;
@@ -56,16 +57,6 @@ const ANCHORS: Array<{ id: OverlayAnchor; x: number; y: number }> = [
   { id: 'bottom-right', x: 92, y: 90 },
 ];
 
-const FIELD_CHOICES: Array<{ id: OverlayTextRow['fields'][number]; label: string }> = [
-  { id: 'camera', label: 'Camera' },
-  { id: 'lens', label: 'Lens' },
-  { id: 'aperture', label: 'Aperture' },
-  { id: 'shutter', label: 'Shutter' },
-  { id: 'iso', label: 'ISO' },
-  { id: 'focalLength', label: 'Focal' },
-  { id: 'species', label: 'Subject' },
-  { id: 'custom', label: 'Custom' },
-];
 
 function Switch({ on, label, onToggle }: { on: boolean; label: string; onToggle: () => void }) {
   return (
@@ -115,6 +106,7 @@ export default function OverlayPanel({
   const hideMarkTab = useProHidden('watermarkCustom');
   const [templateName, setTemplateName] = useState('');
   const [subTab, setSubTab] = useState<'text' | 'watermark'>('text');
+  const [overflowOpen, setOverflowOpen] = React.useState(false);
 
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">{STRINGS.panelWords.selectToOverlay}</p>;
@@ -123,7 +115,6 @@ export default function OverlayPanel({
   const group = getActiveGroup(photo);
   const overlay = group.overlay;
   const overflowIssues = detectOverlayOverflow(overlay, photo, photo.sizes);
-  const [overflowOpen, setOverflowOpen] = React.useState(false);
 
 
   const toggleField = (row: OverlayTextRow, field: OverlayTextRow['fields'][number]) => {
@@ -290,7 +281,7 @@ export default function OverlayPanel({
                       </ul>
                       <button
                         type="button"
-                        onClick={() => onUpdateOverlay(photo.id, { rows: fitOverlayRows(overlay, photo), textOffsetX: 0 })}
+                        onClick={() => onUpdateOverlay(photo.id, { rows: fitOverlayRows({ ...overlay, textOffsetX: 0, textOffsetY: 0 }, photo), textOffsetX: 0, textOffsetY: 0 })}
                         className="rounded-[var(--radius-xs)] bg-[var(--brand-accent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-on-accent)]"
                       >
                         {STRINGS.overlays.overflowFit}
@@ -371,26 +362,23 @@ export default function OverlayPanel({
                         )}
                       </div>
 
-                      {/* Data field toggles */}
+                      {/* Ordered field picker: only fields recorded for this photo can be added. Saved missing fields stay removable. */}
                       <div className="flex flex-wrap gap-1">
-                        {FIELD_CHOICES.map((fc) => {
-                          const on = row.fields.includes(fc.id);
-                          return (
-                            <button
-                              key={fc.id}
-                              type="button"
-                              onClick={() => toggleField(row, fc.id)}
-                              className={`rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                                on
-                                  ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                                  : 'bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                              }`}
-                            >
-                              {fc.label}
-                            </button>
-                          );
+                        {row.fields.map((field) => {
+                          const label = OVERLAY_FIELDS.find(([id]) => id === field)?.[1] ?? field;
+                          const value = overlayFieldText(field, photo, row.customText);
+                          return <button key={field} type="button" title={value || label}
+                            aria-label={`Remove ${label} from row ${idx + 1}`}
+                            className="rounded bg-[var(--brand-accent-soft)] px-2 py-1 text-[10px] text-[var(--brand-accent)]"
+                            onClick={() => toggleField(row, field)}>{label} ×</button>;
                         })}
                       </div>
+                      <select aria-label={`Add metadata field to row ${idx + 1}`} value=""
+                        className="min-h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2 text-xs"
+                        onChange={event => { const field = event.target.value; if (isOverlayField(field) && !row.fields.includes(field)) toggleField(row, field); }}>
+                        <option value="" disabled>{'＋ Add a field'}</option>
+                        {overlayFieldChoices(photo, row.fields).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+                      </select>
 
                       {row.fields.includes('custom') && (
                         <input

@@ -130,3 +130,19 @@ test('photographs dropped on a page fill its empty windows in order', async () =
   assert.equal(placed, 2);
   assert.deepEqual(collagePage(filled).slots.map((slot) => slot.photoId), ['x', 'kept', 'y']);
 });
+
+test('template changes preserve independent framing even when the same photo appears twice and moves to another page', async () => {
+  const { setCollageSlotFraming } = await import('./collage');
+  let doc = createCollage(['a','b','a','d']);
+  doc = setCollageSlotFraming(doc, doc.pages[0].slots[0].id, { zoom: 2, panX: 0.5 });
+  doc = setCollageSlotFraming(doc, doc.pages[0].slots[2].id, { zoom: 3, panY: -0.5 });
+  assert.equal(changeCollageTemplate(doc, 'grid'), doc);
+  const changed = changeCollageTemplate(doc, 'diagonal');
+  assert.equal(changed.pages.length, 2);
+  assert.equal(changed.pages[0].slots[0].zoom, 2);
+  assert.equal(changed.pages[0].slots[0].panX, 0.5);
+  assert.equal(changed.pages[1].slots[0].photoId, 'a');
+  assert.equal(changed.pages[1].slots[0].zoom, 3);
+  assert.equal(changed.pages[1].slots[0].panY, -0.5);
+  assert.deepEqual(readCollage(JSON.parse(JSON.stringify(changed))), changed);
+});

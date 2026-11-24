@@ -48,3 +48,11 @@ export function watermarkBox(frame: { width: number; height: number }, overlay: 
   const width = natural.width * scale;
   return { x: share * frame.width - width / 2, y: (overlay.watermarkY / 100) * frame.height - (natural.height * scale) / 2, width, height: natural.height * scale };
 }
+
+/** Match the preview's contain box, without stretching panoramic or portrait artwork. */
+export function fitWatermarkArtwork(frameWidth: number, naturalWidth: number, naturalHeight: number): { width: number; height: number } {
+  if (!(frameWidth > 0 && naturalWidth > 0 && naturalHeight > 0)) return { width: 0, height: 0 };
+  const k = referenceScale(frameWidth);
+  const scale = Math.min(180 * k / naturalWidth, 36 * k / naturalHeight);
+  return { width: naturalWidth * scale, height: naturalHeight * scale };
+}

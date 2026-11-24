@@ -55,7 +55,7 @@ import { canonicalJson } from '../core/signedEnvelope';
 import { decideAccountAccess } from '../core/licenceOnline';
 import { sha256Hex } from '../core/signedEnvelope';
 
-async function accountSetup(mode: 'no_licence' | 'grant' | 'limit' | 'down' | 'badsig', beforeGrant?: () => Promise<void>) {
+async function accountSetup(mode: 'no_licence' | 'grant' | 'limit' | 'down' | 'badsig' | 'authfail', beforeGrant?: () => Promise<void>) {
   const pair = await webcrypto.subtle.generateKey({ name: 'Ed25519' }, true, ['sign', 'verify']) as CryptoKeyPair;
   const b64 = (b: ArrayBuffer) => Buffer.from(b).toString('base64');
   const grantKeys = { k1: b64(await webcrypto.subtle.exportKey('raw', pair.publicKey)) };
@@ -68,7 +68,7 @@ async function accountSetup(mode: 'no_licence' | 'grant' | 'limit' | 'down' | 'b
   const fetchImpl = async (url: string, init: RequestInit) => {
     calls.push(`${url.replace('https://licences.example.test', '')} ${(init.headers as Record<string, string>).authorization ?? ''}`.trim());
     if (mode === 'down') throw new Error('offline');
-    if (url.endsWith('/v1/auth/firebase')) return json(200, { accessToken: 'session-token' });
+    if (url.endsWith('/v1/auth/firebase')) return mode === 'authfail' ? json(401, { error: { code: 'AUTH_INVALID' } }) : json(200, { accessToken: 'session-token' });
     if (mode === 'no_licence') return json(403, { error: { code: 'NO_LICENCE', message: 'none' } });
     if (mode === 'limit') return json(409, { error: { code: 'DEVICE_LIMIT', message: 'full' } });
     if (beforeGrant) await beforeGrant();
@@ -77,7 +77,7 @@ async function accountSetup(mode: 'no_licence' | 'grant' | 'limit' | 'down' | 'b
     return json(200, { grant: { payload, keyId: 'k1', signature }, activationId: 'act_1' });
   };
   const options = { baseUrl: 'https://licences.example.test', grantKeys, storage, fetch: fetchImpl as unknown as typeof fetch, now: () => now, platform: 'macos' as const, appVersion: '1.0.0', randomId: () => 'acct-device' };
-  return { sync: new LicenceSync(options), reload: () => new LicenceSync(options), calls, now };
+  return { sync: new LicenceSync(options), reload: () => new LicenceSync(options), calls, now, setMode: (next: typeof mode) => { mode = next; } };
 }
 
 test('signing in with no licence on the account stays Free', async () => {
@@ -133,4 +133,17 @@ test('the account session is kept in memory for cloud processing, is not stored,
   assert.equal(env.reload().accountConnection(), null, 'a restarted app has no session until it signs in again');
   env.sync.forgetAccount();
   assert.equal(env.sync.accountConnection(), null);
+});
+
+test('a failed fresh identity exchange cannot retain a previous account session', async () => {
+  const env = await accountSetup('grant');
+  await env.sync.activateAccount('first-identity');
+  assert.equal(env.sync.accountConnection()?.session, 'session-token');
+  env.setMode('authfail');
+  const pending = env.sync.activateAccount('second-identity');
+  assert.equal(env.sync.accountConnection(), null, 'old bearer is not exposed during the new exchange');
+  assert.equal(await pending, null);
+  assert.equal(env.sync.accountConnection(), null, 'a rejected exchange cannot restore the old bearer');
+  // An existing offline signed grant is not silently deleted on network/auth failure.
+  assert.equal((await env.reload().storedAccountStanding())?.kind, 'active');
 });

@@ -1,8 +1,8 @@
 import type { OverlayAnchor, OverlaySettings, OverlayTextRow } from '../ui/contract';
 import { createDefaultOverlay } from '../ui/stub';
+import { isOverlayField } from '../ui/utils/overlayMetadata';
 
 const ANCHORS: readonly OverlayAnchor[] = ['top-left', 'top-center', 'top-right', 'middle-left', 'middle-center', 'middle-right', 'bottom-left', 'bottom-center', 'bottom-right'];
-const FIELDS = ['camera', 'lens', 'aperture', 'shutter', 'iso', 'focalLength', 'species', 'custom'] as const;
 const WEIGHTS = [400, 500, 600, 700] as const;
 
 const num = (value: unknown, fallback: number, min: number, max: number) => (typeof value === 'number' && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback);
@@ -11,7 +11,7 @@ function readRow(raw: unknown, fallback: OverlayTextRow): OverlayTextRow | null 
   if (!raw || typeof raw !== 'object') return null;
   const row = raw as Record<string, unknown>;
   if (typeof row.id !== 'string' || !row.id) return null;
-  const fields = Array.isArray(row.fields) ? row.fields.filter((field): field is OverlayTextRow['fields'][number] => (FIELDS as readonly unknown[]).includes(field)) : fallback.fields;
+  const fields = Array.isArray(row.fields) ? [...new Set(row.fields.filter(isOverlayField))] : fallback.fields;
   return {
     id: row.id,
     fields,

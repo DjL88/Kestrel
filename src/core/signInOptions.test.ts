@@ -13,3 +13,9 @@ test('sign-in is available only on the configured web build, and says why otherw
   assert.match(signInOptions('web', false)[0]!.reason!, /not set up/);
   assert.match(signInOptions('desktop', true)[0]!.reason!, /not built yet/);
 });
+
+test('configured native users are told about the email alternative without claiming native OAuth works', () => {
+  for (const platform of ['desktop', 'ios', 'android'] as const) {
+    assert.ok(signInOptions(platform, true).every((o) => !o.available && o.reason?.includes('email and password')));
+  }
+});

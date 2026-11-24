@@ -34,3 +34,20 @@ test('key matching is case-insensitive by prefix only', () => {
   assert.equal(isDeviceKey('Kestrel.abc'), true);
   assert.equal(isDeviceKey('my-kestrel'), false);
 });
+
+test('one failed setting does not prevent other private settings being removed', async () => {
+  const storage = fakeStorage({ 'kestrel.first': '1', 'inflight.second': '2', 'other': '3' });
+  const result = await eraseDeviceData({ clearCatalogue: async () => {}, storages: [{
+    get length() { return storage.length; }, key: storage.key,
+    removeItem(key) { if (key === 'kestrel.first') throw new Error('locked'); storage.removeItem(key); },
+  }] });
+  assert.equal(result.keysRemoved, 1);
+  assert.equal(storage.map.has('inflight.second'), false);
+  assert.equal(storage.map.has('other'), true);
+  assert.equal(result.problems.length, 1);
+});
+test('unavailable database deletion is not counted as success', async () => {
+  const result = await eraseDeviceData({ clearCatalogue: async () => {}, storages: [], deleteDatabases: ['inflight-vault'] });
+  assert.equal(result.databasesDeleted, 0);
+  assert.equal(result.problems.length, 1);
+});

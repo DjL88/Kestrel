@@ -1,6 +1,7 @@
 import type { AuthProvider, Session, SignInProvider } from '../core/cloudInterfaces';
 import type { SignInPlatform } from '../core/signInOptions';
 import { isDesktopApp } from './desktopShell';
+import { friendlyAuthError } from '../core/authError';
 
 /** Public web configuration from Firebase. These are identifiers, not secrets (see docs/BACKEND.md). */
 const env = import.meta.env;
@@ -40,23 +41,26 @@ const providerOf = (user: import('firebase/auth').User): SignInProvider =>
   user.providerData.some((p) => p.providerId === 'apple.com') ? 'apple'
     : user.providerData.some((p) => p.providerId === 'password') ? 'password' : 'google';
 
-const friendly = (error: unknown): string => {
-  const code = (error as { code?: string })?.code ?? '';
-  if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') return 'Sign-in was cancelled. Nothing changed.';
-  if (code === 'auth/popup-blocked') return 'Your browser blocked the sign-in window. Allow pop-ups for this page and try again.';
-  if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') return 'That email and password do not match. Check them or reset your password.';
-  if (code === 'auth/email-already-in-use') return 'There is already an account with that email. Sign in instead, or reset your password.';
-  if (code === 'auth/weak-password') return 'Choose a longer password (at least 6 characters).';
-  if (code === 'auth/invalid-email') return 'That does not look like an email address.';
-  if (code === 'auth/too-many-requests') return 'Too many attempts. Wait a few minutes and try again.';
-  if (code === 'auth/network-request-failed') return 'Could not reach the sign-in service. Check your connection; InFlight still works offline.';
-  return 'Sign-in did not complete. Nothing changed and InFlight still works without an account.';
-};
+
 
 /** Email and password work in the browser and, unlike pop-ups, would also work in the installed apps; the apps still wait on their own Settings wiring. */
 async function withAuth<T>(run: (a: Awaited<ReturnType<typeof firebase>>) => Promise<T>): Promise<T> {
   if (!isSignInConfigured()) throw new Error('Sign-in is not set up in this build.');
-  try { return await run(await firebase()); } catch (error) { throw new Error(friendly(error)); }
+  try { return await run(await firebase()); } catch (error) { throw new Error(friendlyAuthError(error)); }
+}
+
+/** Request a fresh verification email for the current signed-in user, never an arbitrary address. */
+export function resendAccountVerification(): Promise<'already_verified' | 'sent'> {
+  return withAuth(async ({ auth, instance }) => {
+    await instance.authStateReady();
+    const user = instance.currentUser;
+    if (!user) throw new Error('Sign in again before requesting verification.');
+    await auth.reload(user);
+    if (instance.currentUser?.uid !== user.uid) throw new Error('The account changed. Sign in again.');
+    if (user.emailVerified) return 'already_verified';
+    await auth.sendEmailVerification(user);
+    return 'sent';
+  });
 }
 
 export const firebaseAuth: AuthProvider = {
@@ -69,7 +73,7 @@ export const firebaseAuth: AuthProvider = {
   sendPasswordReset: (email) => withAuth(({ auth, instance }) => auth.sendPasswordResetEmail(instance, email.trim())),
   async signIn(provider) {
     if (!isSignInConfigured()) throw new Error('Sign-in is not set up in this build.');
-    if (signInPlatform() !== 'web') throw new Error('Sign-in on the installed apps is not built yet. You can sign in from the web version.');
+    if (signInPlatform() !== 'web') throw new Error('Google and Apple sign-in are not built for installed apps yet. Use email and password here, or sign in on the web.');
     try {
       const { auth, instance } = await firebase();
       const chosen = provider === 'apple' ? new auth.OAuthProvider('apple.com') : new auth.GoogleAuthProvider();
@@ -77,7 +81,7 @@ export const firebaseAuth: AuthProvider = {
       const result = await auth.signInWithPopup(instance, chosen);
       return toSession(result.user, provider);
     } catch (error) {
-      throw new Error(friendly(error));
+      throw new Error(friendlyAuthError(error));
     }
   },
   async signOut() {

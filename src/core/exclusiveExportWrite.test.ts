@@ -85,3 +85,24 @@ test('a mobile picker returning an existing file cannot truncate, write or unlin
     async () => assert.fail('Existing file removed')), /already contains data/);
   assert.ok(closed);
 });
+
+test('premature stream completion never confirms a truncated export', async () => {
+  class ShortBlob extends Blob {
+    stream() { return new Blob(['short']).stream(); }
+  }
+  let removed = false;
+  await assert.rejects(writeExclusiveBlob(new ShortBlob(['longer original']), async () => ({
+    async write(bytes) { return bytes.byteLength; }, async close() {},
+  }), async () => { removed = true; }), /ended before all expected bytes/);
+  assert.equal(removed, true);
+});
+test('a failed stream open cleans up the exclusively opened destination', async () => {
+  class BrokenBlob extends Blob {
+    stream(): ReturnType<Blob['stream']> { throw new Error('stream unavailable'); }
+  }
+  let closed = false, removed = false;
+  await assert.rejects(writeExclusiveBlob(new BrokenBlob(['image']), async () => ({
+    async write(bytes) { return bytes.byteLength; }, async close() { closed = true; },
+  }), async () => { removed = true; }), /stream unavailable/);
+  assert.ok(closed && removed);
+});

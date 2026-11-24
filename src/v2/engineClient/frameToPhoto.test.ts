@@ -238,3 +238,13 @@ test('a fork made at step zero remains visible and can fork again', () => {
   const second = forkEditCheckpoint(first, 0, 'fork-from-fork', 3000);
   assert.equal(frameToPhoto(second, undefined).editVersions?.versions.length, 3);
 });
+
+test('file info reads recorded import byte count and verified raster dimensions, not preview sizes', () => {
+  const raster = frame({ filename: 'bird.jpg', stableKey: 'local-file://bird.jpg::22500000::123', exif: { width: 400, height: 300 } });
+  const photo = frameToPhoto(raster, undefined, { verifiedOriginalSize: { width: 6000, height: 4000 }, pixelSize: { width: 400, height: 300 } });
+  assert.equal(photo.exif.fileSizeMb, 22.5);
+  assert.equal(photo.exif.dimensions, '6000 × 4000');
+  assert.equal(frameToPhoto(frame({stableKey:'unknown::12300000::456'}), undefined).exif.fileSizeMb, 0);
+  assert.equal(frameToPhoto(frame({rating: NaN, exif:{iso:-1, capturedAtMs: Infinity}}), undefined).rating, 0);
+  assert.equal(frameToPhoto(frame({exif:{iso:-1, capturedAtMs:Infinity}}), undefined).exif.capturedAt, 'Not recorded');
+});
