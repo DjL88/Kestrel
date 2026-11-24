@@ -13,6 +13,11 @@ export type EngineResource = 'cpu' | 'gpu' | 'io';
 export type EngineKind = 'import' | 'raw' | 'preview' | 'thumbnail' | 'cull' | 'detect' | 'mask' |
   'denoise' | 'auto-edit' | 'vision' | 'export' | 'collage' | 'backup' | 'other';
 export type ItemState = TaskItemInfo['state'];
+/** Deterministic unsafe-to-retry failure (e.g. a ZIP that exceeds device capacity).
+ * The person must change settings and create a fresh task. */
+export class NonRetryableTaskError extends Error {
+  constructor(message: string) { super(message); this.name = 'NonRetryableTaskError'; }
+}
 export interface DeviceLimits { cpu: number; gpu: number; io: number }
 export interface JobJournal {
   getItem(key: string): string | null;
@@ -279,6 +284,7 @@ export function createEngineScheduler(options: {
             }
           }
         } catch (error) {
+          if (error instanceof NonRetryableTaskError) item.uncertain = true;
           // A cancelled native save picker is cancellation, not a failed image.
           if (error instanceof DOMException && error.name === 'AbortError' && !job.cancelled)
             store.cancel(job.id);
