@@ -203,6 +203,7 @@ export function taskToInfo(task: Task): TaskInfo {
     stage: task.stage,
     location: task.location,
     pauseable: task.pauseable,
+    cancellable: task.cancellable,
     priority: task.priority,
     startedAt: task.startedAt,
     items: task.items,
