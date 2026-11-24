@@ -32,6 +32,9 @@ export interface TaskHandle {
   fail(message: string): void;
   readonly cancelled: boolean;
   /** Scheduler-only transitions. These never revive a terminal task. */
+}
+/** Extended handle used by the scheduler; legacy engine stubs only need TaskHandle. */
+export interface SchedulerTaskHandle extends TaskHandle {
   transition(state: 'queued' | 'running' | 'paused', detail?: string): void;
   patch(change: Pick<Partial<Task>, 'stage' | 'location' | 'priority' | 'items' | 'pauseable' | 'detail'>): void;
 }
@@ -63,7 +66,7 @@ export function createTaskStore(now: () => number = Date.now) {
   };
   const register = (title: string, state: 'queued' | 'running', options: {
     total?: number | null; cancel?: () => void; pauseable?: boolean; location?: TaskLocation; priority?: number;
-  } = {}): TaskHandle => {
+  } = {}): SchedulerTaskHandle => {
     const id = nextId++;
     let wasCancelled = false;
     tasks = [...tasks, {
@@ -104,7 +107,7 @@ export function createTaskStore(now: () => number = Date.now) {
     start(title: string, options: { total?: number | null; cancel?: () => void; pauseable?: boolean; location?: TaskLocation; priority?: number } = {}): TaskHandle {
       return register(title, 'running', options);
     },
-    enqueue(title: string, options: { total?: number | null; cancel?: () => void; pauseable?: boolean; location?: TaskLocation; priority?: number } = {}): TaskHandle {
+    enqueue(title: string, options: { total?: number | null; cancel?: () => void; pauseable?: boolean; location?: TaskLocation; priority?: number } = {}): SchedulerTaskHandle {
       return register(title, 'queued', options);
     },
     cancel(id: number): boolean {
