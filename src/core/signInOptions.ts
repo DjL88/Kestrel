@@ -12,7 +12,7 @@ export interface SignInOption { provider: SignInProvider; label: string; availab
 export function signInOptions(platform: SignInPlatform, configured: boolean): SignInOption[] {
   const reason = !configured
     ? 'Sign-in is not set up in this build.'
-    : platform === 'web' ? undefined : 'Google and Apple sign-in are not built for installed apps yet. Use email and password here, or sign in on the web.';
+    : platform === 'web' ? undefined : 'Google and Apple sign-in are not built yet for installed apps. Use email and password here, or sign in on the web.';
   const available = reason === undefined;
   return [
     { provider: 'google', label: 'Continue with Google', available, reason },

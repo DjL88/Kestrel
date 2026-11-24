@@ -106,13 +106,13 @@ export default function WatermarkLibrary({ presets, selectedId, onSelect, onImpo
         })}
       </div>
       <label className="block space-y-1 text-xs text-[var(--text-secondary)]">
-        <span>Where should this watermark be used?</span>
-        <select aria-label="Watermark appearance" value={usage} onChange={(event) => setUsage(event.target.value as WatermarkUsage)}
+        <span>{STRINGS.watermarks.usagePrompt}</span>
+        <select aria-label={STRINGS.watermarks.usageLabel} value={usage} onChange={(event) => setUsage(event.target.value as WatermarkUsage)}
           className="w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2 py-2 text-xs text-[var(--text-primary)]">
-          <option value="auto">Choose automatically from the artwork</option>
-          <option value="dark">Light artwork on dark photos</option>
-          <option value="light">Dark artwork on light photos</option>
-          <option value="both">Same artwork on both backgrounds</option>
+          <option value="auto">{STRINGS.watermarks.usageAuto}</option>
+          <option value="dark">{STRINGS.watermarks.usageDark}</option>
+          <option value="light">{STRINGS.watermarks.usageLight}</option>
+          <option value="both">{STRINGS.watermarks.usageBoth}</option>
         </select>
       </label>
       <button type="button" disabled={importing} onClick={async () => {
