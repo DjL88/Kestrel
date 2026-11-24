@@ -1,0 +1,16 @@
+DINOv2 ViT-S/14 (image embeddings for burst grouping)
+
+Model: facebook/dinov2-small (Meta AI), https://huggingface.co/facebook/dinov2-small
+Code and weights: https://github.com/facebookresearch/dinov2 , released under the Apache License 2.0.
+Paper: Oquab et al., "DINOv2: Learning Robust Visual Features without Supervision", 2023.
+
+InFlight ships an fp16 ONNX conversion (public/models/dinov2-small-fp16.onnx) made from the original safetensors
+(sha256 ae1e99fcefd534ed978cdeb8326f08030c96e28b7a81ffcbc98a857c84d14be1) with PyTorch and ONNX tools. The output is
+the layer-normed CLS embedding, L2-normalised. Verified against the original: cosine similarity >= 0.99999 and
+identical nearest neighbours on the verification set. No weights were retrained or changed in meaning.
+
+Apache License 2.0: https://www.apache.org/licenses/LICENSE-2.0
+Copyright (c) Meta Platforms, Inc. and affiliates.
+
+Release gate: confirm the LICENSE file in github.com/facebookresearch/dinov2 still states Apache-2.0 for the weights
+(some third-party mirrors label older copies CC-BY-NC; use Meta's own release only).
