@@ -79,6 +79,7 @@ export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCo
   const finished = tasks.filter(task => !active(task.status));
   const shown = tab === 'active' ? running : finished;
   const canPauseAny = running.some(task => task.pauseable && task.status !== 'paused');
+  const resources = engineScheduler.resourceStatus();
 
   const tabButton = (id: 'active' | 'completed', label: string, count: number) => (
     <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
@@ -93,6 +94,14 @@ export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCo
         {tabButton('active', STRINGS.tasks.tabActive, running.length)}
         {tabButton('completed', STRINGS.tasks.tabCompleted, finished.length)}
       </div>
+      {tab === 'active' && running.length > 0 && (
+        <p className="text-xs text-[var(--text-secondary)]">
+          InFlight processing slots: {resources.active.cpu} CPU · {resources.active.gpu} GPU · {resources.active.io} I/O.
+          {' '}{resources.measured ? 'Using device-provided resource readings.' :
+            'Actual system usage is unavailable; conservative scheduling is active.'}
+          {resources.blockedReason ? ` Waiting: ${resources.blockedReason}.` : ''}
+        </p>
+      )}
       {tab === 'active' && running.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" className={controlStyle} disabled={!canPauseAny}
