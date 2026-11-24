@@ -191,7 +191,43 @@ export class LicenceSync {
     } catch { return null; }
   }
 
-  /** Signing out forgets the account grant on this device. (The slot is freed from the key or the admin console.) */
+  /** Device management uses a fresh verified identity, without activating or replacing the offline grant.
+   * A sign-out or another activation invalidates an in-flight result. The bearer never leaves this method. */
+  private async accountDeviceRequest(idToken: string, path: '/v1/me/devices' | '/v1/me/devices/deactivate', activationId?: string) {
+    if (!this.configured || !idToken.trim()) return null;
+    const checkId = this.accountCheck;
+    try {
+      const session = await this.post('/v1/auth/firebase', { credential: idToken });
+      if (checkId !== this.accountCheck || session.status !== 200 || typeof session.json?.accessToken !== 'string' || !session.json.accessToken.trim()) return null;
+      const deviceHash = await this.deviceHash();
+      if (checkId !== this.accountCheck) return null;
+      const reply = await this.post(path, { deviceHash, ...(activationId === undefined ? {} : { activationId }) }, session.json.accessToken);
+      return checkId === this.accountCheck && reply.status === 200 ? reply.json : null;
+    } catch { return null; }
+  }
+
+  async accountDevices(idToken: string): Promise<LicenceStatus | null> {
+    const data = await this.accountDeviceRequest(idToken, '/v1/me/devices');
+    if (!data || !['active', 'unknown'].includes(data.status) || !Number.isSafeInteger(data.maxDevices) || data.maxDevices < 0 ||
+        (data.validUntilMs !== null && !Number.isSafeInteger(data.validUntilMs)) || !Array.isArray(data.devices)) return null;
+    if (data.devices.some((d: unknown) => {
+      if (!d || typeof d !== 'object') return true;
+      const device = d as Partial<LicenceDevice>;
+      return typeof device.activationId !== 'string' || !device.activationId || device.activationId.length > 64 ||
+        typeof device.platform !== 'string' || typeof device.appVersion !== 'string' ||
+        !Number.isSafeInteger(device.lastSeenMs) || typeof device.thisDevice !== 'boolean';
+    })) return null;
+    if (data.status === 'unknown' && (data.devices.length !== 0 || data.maxDevices !== 0)) return null;
+    return { status: data.status, validUntilMs: data.validUntilMs, maxDevices: data.maxDevices, devices: data.devices };
+  }
+
+  async releaseAccountDevice(idToken: string, activationId: string): Promise<boolean> {
+    if (!activationId || activationId.length > 64) return false;
+    const result = await this.accountDeviceRequest(idToken, '/v1/me/devices/deactivate', activationId);
+    return result?.deactivated === true;
+  }
+
+  /** Signing out forgets the account grant on this device. (The slot can be freed from another signed-in device.) */
   forgetAccount(): void {
     ++this.accountCheck;
     this.session = null;
