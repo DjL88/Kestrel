@@ -476,7 +476,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // One photograph / output variant per scheduler item. Unlike a ZIP, local
     // individual and exclusive-folder saves have safe, confirmed file boundaries.
     // The snapshot survives edits made while the batch is waiting in the queue.
-    if (request.destination === 'local-individual' || request.destination === 'local-folder') {
+    if (request.destination === 'local-zip' || request.destination === 'local-individual' || request.destination === 'local-folder') {
       const count = photoExportUnits(plan, current.frames).length;
       const submittedEnv = structuredClone(env);
       try {
@@ -496,96 +496,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       }
       return;
     }
-    const controller = new AbortController();
-    const task = tasks.start(`Exporting ${plan.summary}`, { total: plan.jobs.reduce((sum, job) => sum + job.variants.length * (job.sections ?? 1), 0) + plan.originals.length, cancel: () => controller.abort() });
-    activePhotoExport.current = task.id;
-    const output: File[] = [];
-    const used = new Set<string>();
-    let cappedCount = 0;
-    const started = new Date();
-    try {
-      for (const job of plan.jobs) {
-        if (!exportMayContinue(controller.signal.aborted, task.cancelled, false)) return;
-        const frame = current.frames.find((candidate) => candidate.id === job.frameId);
-        if (!frame) continue;
-        // For JPEG/PNG 'Original', read the verified connected source bytes.
-        // A preview (especially a RAW embedded JPEG) cannot establish native size.
-        const nativeRaster = job.format.id === ORIGINAL_FORMAT_ID && fullResolutionRasterFormat(frame.filename) && !frame.isDemo;
-        const image = nativeRaster
-          ? await loadVerifiedRasterOriginalForExport(frame, sourceProvider, controller.signal)
-          : await loadExportSource(frame, sourceProvider);
-        // Original always uses the full decoded raster's actual dimensions.
-        // Older projects can contain a legacy originalSize override, but that
-        // value must NEVER resize or override the immutable Original format.
-        // A photographer can use a Custom format for an alternative output.
-        const nativeSize = nativeRaster
-          ? framedSize(image.naturalWidth, image.naturalHeight, frame.framing ?? DEFAULT_FRAMING)
-          : null;
-        // Preserve an explicit export size limit; Original is full decoded size only
-        // when the photographer did not ask for a smaller maximum long edge.
-        const longEdge = nativeSize ? Math.max(nativeSize.width * (job.sections ?? 1), nativeSize.height) : 0;
-        const scale = nativeSize && request.maxLongestEdgePx && request.maxLongestEdgePx > 0
-          ? Math.min(1, request.maxLongestEdgePx / longEdge) : 1;
-        const outputSize = nativeSize
-          ? { width: Math.max(1, Math.floor(nativeSize.width * scale)), height: Math.max(1, Math.floor(nativeSize.height * scale)) }
-          : job.size;
-        const outputFormat = nativeSize
-          ? { ...job.format, width: outputSize.width, height: outputSize.height }
-          : job.format;
-        for (const variant of job.variants) {
-          if (!exportMayContinue(controller.signal.aborted, task.cancelled, false)) return;
-          // The unedited copy has no recipe and no overlay: the same framing, developed, and plainly labelled in its name.
-          const unedited = variant.kind === 'unedited';
-          const overlayDraw = unedited ? null : await buildOverlayDraw(frame, request, env);
-          const result = await renderV2Export(image, { ...frame, edit: variant.edit }, outputSize, job.crop, toProfile(outputFormat), overlayDraw, started, controller.signal, job.sections ?? 1);
-          const renderedFiles = result.sections ?? [result.file];
-          if (result.capped) cappedCount += renderedFiles.length;
-          for (const rendered of renderedFiles) {
-            const base = rendered.name.replace(/(\.[^.]+)?$/, (extension) => variant.suffix + extension);
-            const name = uniqueExportFilename(base, used);
-            output.push(name === rendered.name ? rendered : new File([rendered], name, { type: rendered.type, lastModified: rendered.lastModified }));
-            task.progress(output.length);
-          }
-        }
-      }
-      // Exact original files: the bytes as shot, never a developed or preview file. A photo whose original is not connected is
-      // skipped and named; nothing is substituted.
-      const missingOriginals: string[] = [];
-      for (const frameId of plan.originals) {
-        if (!exportMayContinue(controller.signal.aborted, task.cancelled, false)) return;
-        const frame = current.frames.find((candidate) => candidate.id === frameId);
-        if (!frame) continue;
-        const bytes = frame.isDemo ? undefined : await sourceProvider.ensureOriginal(frame.stableKey, 'selected');
-        if (!bytes) { missingOriginals.push(frame.filename); continue; }
-        // Never label a replacement, cached JPEG or unverified legacy file as
-        // the exact original: verify its bytes against the digest saved at import.
-        // On mismatch the enclosing catch aborts delivery of the WHOLE batch.
-        const verified = await verifyExactOriginalCopy(bytes, frame.originalSha256, controller.signal);
-        output.push(new File([verified], uniqueExportFilename(frame.filename, used), { type: verified.type || 'application/octet-stream', lastModified: Date.now() }));
-        task.progress(output.length);
-      }
-      if (!exportMayContinue(controller.signal.aborted, task.cancelled, false)) return;
-      const result = describeExport(output.length, missingOriginals);
-      if (!output.length) {
-        task.fail(result);
-        setNotice(result);
-        return;
-      }
-      const saved = await deliverExport(output, request.destination, started, controller.signal, archiveExports, saveExportFile);
-      if (saved < output.length) {
-        const message = `Save cancelled. Exported ${saved} of ${output.length} files.`;
-        tasks.cancel(task.id);
-        setNotice(message);
-        return;
-      }
-      task.finish(result);
-      setNotice(`${result}${cappedCount ? ` ${cappedCount} ${cappedCount === 1 ? 'file is' : 'files are'} smaller than the size asked for, because the photo has fewer pixels.` : ''} Your originals are unchanged.`);
-    } catch (reason) {
-      if (!controller.signal.aborted && !task.cancelled) { const message = reason instanceof Error ? reason.message : 'Export failed.'; task.fail(message); setNotice(message); }
-    } finally {
-      if (activePhotoExport.current === task.id) activePhotoExport.current = null;
-      task.fail('Stopped'); // does nothing if the task already finished or was cancelled
-    }
+    setNotice('That export destination is unavailable. Choose a local ZIP, separate files or a desktop folder.');
   }, []);
 
   const runAutoCull = useCallback(async () => {
