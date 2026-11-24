@@ -48,6 +48,7 @@ import { moveArtboard } from './boardOps';
 import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
 import { planExport } from './exportOps';
+import { exportCollage as renderCollageExport, type CollageExportType } from './collageExport';
 import { verifyExactOriginalCopy } from './verifiedOriginalCopy';
 import { buildRawMasterFile } from './rawMasterExport';
 import { TEMPLATES_KEY, addTemplate, deleteTemplate, readTemplates, renameTemplate, type OverlayTemplate } from './overlayTemplates';
@@ -429,6 +430,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   /** Export edited photos at the chosen sizes, as a zip or one file at a time. Overlay, watermark, crops, before images and
    * video are refused by planExport until the renderer honours them, so a file always matches what was asked for. */
   const rawMasterRunning = useRef(false);
+  const collageExportRunning = useRef(false);
   const runExportAction = useCallback(async (request: ExportRequest) => {
     const current = stateRef.current;
     if (!current) return;
@@ -540,6 +542,47 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (!controller.signal.aborted && !task.cancelled) { const message = reason instanceof Error ? reason.message : 'Export failed.'; task.fail(message); setNotice(message); }
     } finally {
       task.fail('Stopped'); // does nothing if the task already finished or was cancelled
+    }
+  }, []);
+
+  const exportCollageAction = useCallback(async (type: CollageExportType) => {
+    const current = stateRef.current;
+    const document = readCollage(current?.shoot.collage);
+    if (!current || !document) { setNotice('Open a collage project before exporting pages.'); return; }
+    if (collageExportRunning.current) { setNotice('A collage export is already running.'); return; }
+    collageExportRunning.current = true;
+    const controller = new AbortController();
+    const projectId = current.shoot.id;
+    const request = openRequest.current;
+    const task = tasks.start(type === 'pdf' ? 'Rendering album PDF' : 'Rendering collage pages',
+      { total: document.pages.length, cancel: () => controller.abort() });
+    try {
+      const files = await renderCollageExport(document, current.frames, provider.current!, type, controller.signal,
+        (finished) => {
+          if (request !== openRequest.current || stateRef.current?.shoot.id !== projectId) controller.abort();
+          if (!controller.signal.aborted) task.progress(finished);
+        });
+      controller.signal.throwIfAborted();
+      if (request !== openRequest.current || stateRef.current?.shoot.id !== projectId) throw new Error('The open project changed during export.');
+      if (files.length === 1) downloadExport(files[0], files[0].name);
+      else {
+        const archive = await archiveExports(files);
+        controller.signal.throwIfAborted();
+        downloadExport(archive, `inflight-collage-${new Date().toISOString().slice(0, 10)}.zip`);
+      }
+      const summary = type === 'pdf'
+        ? 'Multi-page RGB photo album PDF exported at 300 PPI with 3 mm bleed and physical trim boxes.'
+        : `Exported ${files.length} full-size collage page${files.length === 1 ? '' : 's'}.`;
+      task.finish(summary);
+      setNotice(`${summary} Original photographs are unchanged.`);
+    } catch (reason) {
+      if (!controller.signal.aborted && !task.cancelled) {
+        const message = reason instanceof Error ? reason.message : 'Could not export the collage.';
+        task.fail(message);
+        setNotice(message);
+      }
+    } finally {
+      collageExportRunning.current = false;
     }
   }, []);
 
@@ -1211,6 +1254,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         setNotice('Could not add those photographs. The source project is unchanged.');
       }
     },
+    exportCollage: (type) => { void exportCollageAction(type); },
     updateCollage: (document) => {
       if (!readCollage(document)) { setNotice('That collage layout could not be saved.'); return; }
       mutate((current) => current.shoot.collage ? {
@@ -1492,7 +1536,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
+    [stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, exportCollageAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: [...INITIAL_WATERMARKS, ...watermarkLibrary], auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => {
