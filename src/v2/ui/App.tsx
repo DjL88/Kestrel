@@ -252,6 +252,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             features={store.features}
             onSetActiveGroup={actions.setActiveGroup}
             onAddEditGroup={actions.addEditGroup}
+            onRenameEditGroup={actions.renameEditGroup}
             onSetActiveSize={actions.setActiveSize}
             onSetCanvasLayoutMode={actions.setCanvasLayoutMode}
             onToggleSizeEnabled={actions.toggleSizeEnabled}
