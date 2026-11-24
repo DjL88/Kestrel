@@ -184,6 +184,12 @@ export const source = {
 
   // Watermark library
   watermarks: {
+    usagePrompt: "Where should this watermark be used?",
+    usageLabel: "Watermark appearance",
+    usageAuto: "Choose automatically from the artwork",
+    usageDark: "Light artwork on dark photos",
+    usageLight: "Dark artwork on light photos",
+    usageBoth: "Same artwork on both backgrounds",
     add: 'Add a watermark image',
     none: 'None yet',
     forDark: 'On dark photos',
@@ -291,6 +297,25 @@ export const source = {
 
   // Canvas
   canvas: {
+    selectPhoto: "Select a photograph from the filmstrip to begin editing.",
+    resizeText: "Resize text",
+    resizeWatermark: "Resize watermark",
+    dragTopEdge: "Drag top crop edge",
+    dragBottomEdge: "Drag bottom crop edge",
+    dragLeftEdge: "Drag left crop edge",
+    dragRightEdge: "Drag right crop edge",
+    showingOriginal: "Showing the original. Let go to see your edit.",
+    selectAllFormats: "Select all",
+    tidyBoard: "Tidy board",
+    selectedFormatActions: "Selected format actions",
+    previewingLook: "Previewing look:",
+    viewportControls: "Canvas viewport controls",
+    zoomIn: "Zoom in",
+    zoomOut: "Zoom out",
+    screenshotTitle: "Grab screenshot: saves what you see on the canvas, with the edit, crop, overlays and grid",
+    screenshot: "Grab screenshot",
+    singleView: "Single",
+    boardArrangeTitle: "Drag artboard title bars to arrange · Ctrl/Cmd-click formats to edit as a group · Double-click to focus",
     originalUnavailableTitle: 'Original not connected, preview only',
     originalUnavailableBody: 'Adjustments still save to your recipe. Reconnect the source drive before full-resolution export.',
     reconnectOriginal: 'Reconnect folder',
