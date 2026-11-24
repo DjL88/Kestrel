@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { applyDecisionWithHistory, redoDecision, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
+import { applyDecisionWithHistory, assignBurstGroups, redoDecision, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
 import { recordEdit, stepEdit } from '../../core/editHistory';
 import { forkEditCheckpoint, switchEditVersion as switchVersionInCatalogue } from '../../core/editBranches';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
@@ -10,6 +10,7 @@ import { createCollage, MAX_COLLAGE_SELECTION, readCollage } from '../../core/co
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
 import { appendProjectPhotos, applyImportBursts, createEmptyProject, setArchived } from '../../core/projects';
 import { tasks } from '../../core/taskStore';
+import { engineScheduler } from '../../core/engineScheduler';
 import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '../../core/types';
 import { eraseDeviceData } from './eraseDeviceData';
 import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
@@ -71,6 +72,7 @@ import { renderV2Export, type OverlayDraw } from './renderV2Export';
 import { formatOverlayRowText } from '../ui/utils/studioMath';
 import { loadImage } from '../../providers/loadImage';
 import { deliverExport, describeExport } from './exportDelivery';
+import { scheduleV2PhotoExports, photoExportUnits } from './scheduledPhotoExport';
 import { uniqueExportFilename } from '../../core/exportNaming';
 import { exportMayContinue } from '../../core/exportCancellation';
 import type { ExportRequest } from '../ui/contract';
@@ -223,7 +225,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [taskHistory, setTaskHistory] = useState<Record<string, TaskInfo>>({});
   const [clock, setClock] = useState(() => Date.now());
   useEffect(() => {
-    const finished = taskList.filter((task) => task.state !== 'running');
+    const finished = taskList.filter((task) => task.state === 'done' || task.state === 'failed' || task.state === 'cancelled');
     if (!finished.length) return;
     setTaskHistory((current) => {
       let changed = false;
@@ -276,7 +278,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     openRequest.current += 1;
     provider.current!.clear();
     if (restored) provider.current = restored;
-    thumbs.current = { generation: thumbs.current.generation + 1, requested: new Set(), queue: [], active: 0 };
+    thumbs.current.ticket?.cancel();
+    thumbs.current = { generation: thumbs.current.generation + 1, requested: new Set<string>(), queue: [] as PhotoFrame[], active: 0, ticket: null };
     setUrls({});
     setAssists({});
     setSelected(next.selectedFrameId ? [next.selectedFrameId] : []);
@@ -310,22 +313,46 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   // Thumbnails: a few at a time, so a large project does not start thousands of reads at once. Each photo is asked for
   // once; a read in flight is never thrown away when more photos arrive, only when the project changes (generation).
-  const thumbs = useRef({ generation: 0, requested: new Set<string>(), queue: [] as PhotoFrame[], active: 0 });
+  const thumbs = useRef({
+    generation: 0, requested: new Set<string>(), queue: [] as PhotoFrame[],
+    active: 0, ticket: null as import('../../core/engineScheduler').SchedulerTicket | null,
+  });
   const pumpThumbnails = useCallback(() => {
     const book = thumbs.current;
-    while (book.active < THUMBNAIL_WORKERS && book.queue.length) {
-      const frame = book.queue.shift()!;
-      const generation = book.generation;
-      book.active += 1;
-      provider.current!.getThumbnailUrl(frame, 'visible').then(
-        (thumb) => {
-          if (generation !== thumbs.current.generation) return;
-          // An empty address means the original cannot be read (not connected, or not stored): say so, never "Importing".
-          setUrls((current) => (current[frame.id]?.thumb ? current : { ...current, [frame.id]: thumb ? { ...current[frame.id], thumb } : { ...current[frame.id], failed: true } }));
-        },
-        () => { if (generation === thumbs.current.generation) setUrls((current) => ({ ...current, [frame.id]: { ...current[frame.id], failed: true } })); },
-      ).finally(() => { if (generation === thumbs.current.generation) { thumbs.current.active -= 1; pumpThumbnails(); } });
-    }
+    if (book.active || !book.queue.length) return;
+    const frames = book.queue.splice(0);
+    const generation = book.generation;
+    book.active = 1;
+    const sourceProvider = provider.current!;
+    void engineScheduler.submit({
+      title: `Preparing ${frames.length} thumbnails`, kind: 'thumbnail', resource: 'io',
+      priority: 1, pauseable: frames.length > 1, items: frames,
+      snapshot: { generation, keys: frames.map(frame => frame.stableKey) },
+      itemId: frame => frame.id, itemLabel: frame => frame.filename,
+      runItem: async (frame, _, ctx) => {
+        ctx.stage('Reading and scaling this photograph');
+        const thumb = await sourceProvider.getThumbnailUrl(frame, 'visible');
+        ctx.checkCancelled();
+        if (generation !== thumbs.current.generation) return;
+        if (!thumb) {
+          ctx.commitIfCurrent(() => setUrls(current =>
+            ({ ...current, [frame.id]: { ...current[frame.id], failed: true } })));
+          throw new Error(`Could not create the thumbnail for ${frame.filename}. Reconnect the original and retry.`);
+        }
+        ctx.commitIfCurrent(() => setUrls(current => current[frame.id]?.thumb ? current
+          : { ...current, [frame.id]: { ...current[frame.id], thumb } }));
+      },
+    }).then(ticket => {
+      book.ticket = ticket;
+      return ticket.finished;
+    }).catch(() => {
+      // Individual file failures are shown in the task and unavailable tile.
+    }).finally(() => {
+      if (generation !== thumbs.current.generation) return;
+      book.active = 0;
+      book.ticket = null;
+      pumpThumbnails();
+    });
   }, []);
   const projectId = state?.shoot.id;
   const frameCount = state?.frames.length ?? 0;
@@ -435,128 +462,66 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const runExportAction = useCallback(async (request: ExportRequest) => {
     const current = stateRef.current;
     if (!current) return;
-    if (activePhotoExport.current !== null) { setNotice('An export is already running.'); return; }
+    if (activePhotoExport.current !== null && request.destination !== 'local-individual' && request.destination !== 'local-folder') {
+      setNotice('An export is already running.'); return;
+    }
     const sourceProvider = provider.current!;
     const env = exportEnv.current;
     if (request.rawMaster) {
       const matches = current.frames.filter((frame) => frame.id === request.photoIds[0] && frame.removedAt == null);
       if (request.photoIds.length !== 1 || matches.length !== 1) { setNotice('Select one RAW photo to export its TIFF.'); return; }
-      const controller = new AbortController();
-      const task = tasks.start('Preparing the 16-bit RAW TIFF', { cancel: () => controller.abort() });
-      activePhotoExport.current = task.id;
       try {
-        const file = await buildRawMasterFile(matches[0], sourceProvider, controller.signal);
-        controller.signal.throwIfAborted();
-        if (!await saveExportFile(file, file.name, controller.signal)) {
-          tasks.cancel(task.id);
-          setNotice('Save cancelled.');
-          return;
-        }
-        task.finish('Saved the 16-bit RAW TIFF.');
-        setNotice('Saved the 16-bit RAW TIFF.');
+        const frame = structuredClone(matches[0]);
+        const ticket = await engineScheduler.submit({
+          title: 'Preparing 16-bit RAW TIFF', kind: 'raw', resource: 'gpu', priority: 10,
+          pauseable: false, items: [{ id: frame.id, name: frame.filename }],
+          snapshot: { frameId: frame.id, originalSha256: frame.originalSha256 },
+          itemId: item => item.id, itemLabel: item => item.name,
+          runItem: async (_, __, ctx) => {
+            ctx.stage('Developing verified RAW sensor data to 16-bit');
+            const file = await buildRawMasterFile(frame, sourceProvider, ctx.signal);
+            ctx.checkCancelled();
+            ctx.stage('Saving TIFF master');
+            if (!await saveExportFile(file, file.name, ctx.signal))
+              throw new DOMException('Save cancelled.', 'AbortError');
+            ctx.acknowledgeCommitted();
+            ctx.commitIfCurrent(() => setNotice('Saved the 16-bit RAW TIFF. Your original is unchanged.'));
+          },
+        });
+        const result = await ticket.finished;
+        if (result === 'failed') setNotice('RAW TIFF export failed. Open Tasks for the source or save error.');
+        else if (result === 'cancelled') setNotice('RAW TIFF export cancelled.');
       } catch (reason) {
-        if (!controller.signal.aborted) {
-          const message = reason instanceof Error ? reason.message : 'Could not save a 16-bit RAW TIFF.';
-          task.fail(message);
-          setNotice(message);
-        }
-      } finally {
-        if (activePhotoExport.current === task.id) activePhotoExport.current = null;
+        setNotice(reason instanceof Error ? reason.message : 'Could not queue a 16-bit RAW TIFF.');
       }
       return;
     }
     const plan = planExport(request, current.frames, createDefaultSizes());
     if ('error' in plan) { setNotice(plan.error); return; }
-    const controller = new AbortController();
-    const task = tasks.start(`Exporting ${plan.summary}`, { total: plan.jobs.reduce((sum, job) => sum + job.variants.length * (job.sections ?? 1), 0) + plan.originals.length, cancel: () => controller.abort() });
-    activePhotoExport.current = task.id;
-    const output: File[] = [];
-    const used = new Set<string>();
-    let cappedCount = 0;
-    const started = new Date();
-    try {
-      for (const job of plan.jobs) {
-        if (!exportMayContinue(controller.signal.aborted, task.cancelled, false)) return;
-        const frame = current.frames.find((candidate) => candidate.id === job.frameId);
-        if (!frame) continue;
-        // For JPEG/PNG 'Original', read the verified connected source bytes.
-        // A preview (especially a RAW embedded JPEG) cannot establish native size.
-        const nativeRaster = job.format.id === ORIGINAL_FORMAT_ID && fullResolutionRasterFormat(frame.filename) && !frame.isDemo;
-        const image = nativeRaster
-          ? await loadVerifiedRasterOriginalForExport(frame, sourceProvider, controller.signal)
-          : await loadExportSource(frame, sourceProvider);
-        // Original always uses the full decoded raster's actual dimensions.
-        // Older projects can contain a legacy originalSize override, but that
-        // value must NEVER resize or override the immutable Original format.
-        // A photographer can use a Custom format for an alternative output.
-        const nativeSize = nativeRaster
-          ? framedSize(image.naturalWidth, image.naturalHeight, frame.framing ?? DEFAULT_FRAMING)
-          : null;
-        // Preserve an explicit export size limit; Original is full decoded size only
-        // when the photographer did not ask for a smaller maximum long edge.
-        const longEdge = nativeSize ? Math.max(nativeSize.width * (job.sections ?? 1), nativeSize.height) : 0;
-        const scale = nativeSize && request.maxLongestEdgePx && request.maxLongestEdgePx > 0
-          ? Math.min(1, request.maxLongestEdgePx / longEdge) : 1;
-        const outputSize = nativeSize
-          ? { width: Math.max(1, Math.floor(nativeSize.width * scale)), height: Math.max(1, Math.floor(nativeSize.height * scale)) }
-          : job.size;
-        const outputFormat = nativeSize
-          ? { ...job.format, width: outputSize.width, height: outputSize.height }
-          : job.format;
-        for (const variant of job.variants) {
-          if (!exportMayContinue(controller.signal.aborted, task.cancelled, false)) return;
-          // The unedited copy has no recipe and no overlay: the same framing, developed, and plainly labelled in its name.
-          const unedited = variant.kind === 'unedited';
-          const overlayDraw = unedited ? null : await buildOverlayDraw(frame, request, env);
-          const result = await renderV2Export(image, { ...frame, edit: variant.edit }, outputSize, job.crop, toProfile(outputFormat), overlayDraw, started, controller.signal, job.sections ?? 1);
-          const renderedFiles = result.sections ?? [result.file];
-          if (result.capped) cappedCount += renderedFiles.length;
-          for (const rendered of renderedFiles) {
-            const base = rendered.name.replace(/(\.[^.]+)?$/, (extension) => variant.suffix + extension);
-            const name = uniqueExportFilename(base, used);
-            output.push(name === rendered.name ? rendered : new File([rendered], name, { type: rendered.type, lastModified: rendered.lastModified }));
-            task.progress(output.length);
-          }
-        }
+    // One photograph / output variant per scheduler item. Unlike a ZIP, local
+    // individual and exclusive-folder saves have safe, confirmed file boundaries.
+    // The snapshot survives edits made while the batch is waiting in the queue.
+    if (request.destination === 'local-zip' || request.destination === 'local-individual' || request.destination === 'local-folder') {
+      const count = photoExportUnits(plan, current.frames).length;
+      const submittedEnv = structuredClone(env);
+      try {
+        const ticket = await scheduleV2PhotoExports({
+          request, plan, frames: current.frames, provider: sourceProvider,
+          buildOverlay: (frame, submittedRequest) => buildOverlayDraw(frame, submittedRequest, submittedEnv),
+        });
+        if (!ticket) { setNotice('No folder was selected. Nothing was exported.'); return; }
+        setNotice(`Queued ${count} export ${count === 1 ? 'output' : 'outputs'}. You can edit while they process; open Tasks to pause, prioritise or cancel.`);
+        void ticket.finished.then(result => {
+          if (result === 'done') setNotice(`Exported ${count} ${count === 1 ? 'output' : 'outputs'}. Your originals are unchanged.`);
+          else if (result === 'failed') setNotice('Some export outputs failed. Open Tasks for each photograph and Retry failed. Files already saved remain in place.');
+          else setNotice('Export stopped. Files already saved remain in place.');
+        });
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : 'Could not queue this export.');
       }
-      // Exact original files: the bytes as shot, never a developed or preview file. A photo whose original is not connected is
-      // skipped and named; nothing is substituted.
-      const missingOriginals: string[] = [];
-      for (const frameId of plan.originals) {
-        if (!exportMayContinue(controller.signal.aborted, task.cancelled, false)) return;
-        const frame = current.frames.find((candidate) => candidate.id === frameId);
-        if (!frame) continue;
-        const bytes = frame.isDemo ? undefined : await sourceProvider.ensureOriginal(frame.stableKey, 'selected');
-        if (!bytes) { missingOriginals.push(frame.filename); continue; }
-        // Never label a replacement, cached JPEG or unverified legacy file as
-        // the exact original: verify its bytes against the digest saved at import.
-        // On mismatch the enclosing catch aborts delivery of the WHOLE batch.
-        const verified = await verifyExactOriginalCopy(bytes, frame.originalSha256, controller.signal);
-        output.push(new File([verified], uniqueExportFilename(frame.filename, used), { type: verified.type || 'application/octet-stream', lastModified: Date.now() }));
-        task.progress(output.length);
-      }
-      if (!exportMayContinue(controller.signal.aborted, task.cancelled, false)) return;
-      const result = describeExport(output.length, missingOriginals);
-      if (!output.length) {
-        task.fail(result);
-        setNotice(result);
-        return;
-      }
-      const saved = await deliverExport(output, request.destination, started, controller.signal, archiveExports, saveExportFile);
-      if (saved < output.length) {
-        const message = `Save cancelled. Exported ${saved} of ${output.length} files.`;
-        tasks.cancel(task.id);
-        setNotice(message);
-        return;
-      }
-      task.finish(result);
-      setNotice(`${result}${cappedCount ? ` ${cappedCount} ${cappedCount === 1 ? 'file is' : 'files are'} smaller than the size asked for, because the photo has fewer pixels.` : ''} Your originals are unchanged.`);
-    } catch (reason) {
-      if (!controller.signal.aborted && !task.cancelled) { const message = reason instanceof Error ? reason.message : 'Export failed.'; task.fail(message); setNotice(message); }
-    } finally {
-      if (activePhotoExport.current === task.id) activePhotoExport.current = null;
-      task.fail('Stopped'); // does nothing if the task already finished or was cancelled
+      return;
     }
+    setNotice('That export destination is unavailable. Choose a local ZIP, separate files or a desktop folder.');
   }, []);
 
   const runAutoCull = useCallback(async () => {
@@ -564,29 +529,51 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!current) return;
     if (!can('smartCulling')) { setNotice('Auto-cull is part of InFlight Pro.'); return; }
     if (cullController.current) { setNotice('Auto-cull is already running.'); return; }
-    const candidates = current.frames.filter((frame) => frame.removedAt == null && frame.decision === 'unreviewed' && !frame.isDemo && !frame.virtualCopy);
+    const candidates = current.frames.filter(frame =>
+      frame.removedAt == null && frame.decision === 'unreviewed' && !frame.isDemo && !frame.virtualCopy);
     if (!candidates.length) { setNotice('Every photo already has a decision, so there is nothing to cull.'); return; }
     const controller = new AbortController();
     cullController.current = controller;
-    const task = tasks.start('Auto-cull and analyse', { total: candidates.length, cancel: () => controller.abort() });
     const projectKey = current.shoot.id;
     const requestId = openRequest.current;
     try {
-      const results = await scanForCulling(candidates, current.frames, provider.current!, null, controller.signal,
-        (count) => { if (!controller.signal.aborted) task.progress(count); },
-        () => { if (!controller.signal.aborted) setNotice('The subject detector is not available, so Auto-cull used sharpness and exposure only and is less certain.'); });
-      if (controller.signal.aborted || requestId !== openRequest.current) return;
-      setState((latest) => {
-        if (!latest || latest.shoot.id !== projectKey || requestId !== openRequest.current || controller.signal.aborted) return latest;
-        return commitAutoCull(latest, candidates, results);
+      // Keeper selection requires all shoot-wide evidence, so it is one
+      // non-pauseable unit. Per-photo progress is real; cancellation prevents
+      // a late scan-wide decision from changing the catalogue.
+      const ticket = await engineScheduler.submit({
+        title: 'Auto-cull and analyse',
+        kind: 'cull', resource: 'cpu', priority: 5, pauseable: false,
+        items: [{ id: projectKey, label: candidates.length + ' photos' }],
+        snapshot: { projectKey, requestId, candidates: candidates.map(frame => frame.id) },
+        itemId: item => item.id, itemLabel: item => item.label,
+        runItem: async (_, __, ctx) => {
+          ctx.stage('Scanning photographs and gathering shoot-wide evidence');
+          ctx.setSubitems(candidates.map(frame => ({ id: frame.id, label: frame.filename })));
+          const results = await scanForCulling(candidates, current.frames, provider.current!, null,
+            ctx.signal, count => ctx.reportProgress(count, candidates.length, `${count} of ${candidates.length} analysed`),
+            () => ctx.commitIfCurrent(() => setNotice('The subject detector is unavailable. Auto-cull used sharpness and exposure only and is less certain.')),
+            (frameId, stage) => ctx.updateSubitem(frameId,
+              stage === 'analysing' ? 'running' : 'done',
+              stage === 'unavailable' ? 'Subject detection unavailable; review recommended' : stage));
+          ctx.checkCancelled();
+          if (requestId !== openRequest.current || stateRef.current?.shoot.id !== projectKey) return;
+          ctx.stage('Applying review suggestions without changing manual flags');
+          ctx.commitIfCurrent(() => setState(latest => {
+            if (!latest || latest.shoot.id !== projectKey || requestId !== openRequest.current || ctx.signal.aborted) return latest;
+            return commitAutoCull(latest, candidates, results);
+          }));
+          const summary = `Auto-cull checked ${candidates.length} photo${candidates.length === 1 ? '' : 's'}. Review the flags in the filmstrip. You can undo the whole pass in one step.`;
+          ctx.commitIfCurrent(() => setNotice(summary));
+        },
       });
-      const summary = `Auto-cull checked ${candidates.length} photo${candidates.length === 1 ? '' : 's'}. Review the flags in the filmstrip. You can undo the whole pass in one step.`;
-      task.finish(summary);
-      setNotice(summary);
-    } catch {
-      if (!controller.signal.aborted) { task.fail('Auto-cull failed.'); setNotice('Auto-cull failed. No photo was changed.'); }
+      controller.signal.addEventListener('abort', () => ticket.cancel(), { once: true });
+      if (controller.signal.aborted) ticket.cancel();
+      const result = await ticket.finished;
+      if (result === 'failed') setNotice('Auto-cull failed. No new decisions were applied. Open Tasks for details.');
+    } catch (reason) {
+      setNotice(reason instanceof Error ? reason.message : 'Auto-cull could not be queued.');
     } finally {
-      task.fail('Auto-cull stopped.'); // does nothing once finished or cancelled
+      controller.abort();
       if (cullController.current === controller) cullController.current = null;
     }
   }, [can]);
@@ -827,44 +814,53 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const jobKey = JSON.stringify([project.shoot.id, photoId]);
     if (maskInFlight.current.has(jobKey)) return;
     maskInFlight.current.add(jobKey);
-    const task = tasks.start(type === 'subject' ? 'Finding the subject' : 'Finding the background');
-    try {
-      const image = await loadExportSource(frame, provider.current!);
-      const framing = frame.framing ?? DEFAULT_FRAMING;
-      const { width, height } = framedSize(image.naturalWidth, image.naturalHeight, framing);
-      const framed = document.createElement('canvas');
-      drawFramedPhoto(image, framed, framing, { scale: Math.min(1, GUIDED_RENDER_EDGE / Math.max(width, height)) });
-      const { grid, assessment, detail, boxFinding } = await detectSubjectGuided(framed);
-      if (!assessment.usable) { task.finish('No clear subject'); setNotice(assessment.reason); return; }
-      const mask = { ...createSubjectMask(newId(), grid, framingKey(framing), assessment.confidence, detail), invert: type === 'background', feather: 0.5 };
-      const latest = stateRef.current;
-      if (!latest || !subjectMaskTarget(latest, project.shoot.id, frame)) {
-        task.finish('Photo or editing context changed');
-        setNotice('The mask was discarded because the photo changed or its layers are full. Try detecting the subject again.');
-        return;
-      }
-      const at = Date.now();
-      mutate(current => commitSubjectMask(current, project.shoot.id, frame, mask, at));
-      task.finish(assessment.reason);
-      // Advisory only: the segmentation model's own usability check above is the sole gate on creating this
-      // mask, same as before - this never blocks or changes the mask. When the guided path actually steered
-      // it with a detector box, additionally run that box through this capability's real trust gate
-      // (autoCull.ts's judgeSubject, the same score/size/sharpness logic engine/subjectDetectAction.ts uses
-      // for exactly this question), and fold its verdict into the notice so a low-confidence find is said
-      // plainly rather than only ever reading "Added". `judgeSubject`'s decision is cull vocabulary (keep a
-      // photo vs. not), re-read here only for its confidence word, never as a reason to discard a mask.
-      // Named "detector" confidence to keep it distinct from `assessment.confidence` above (the outline's
-      // own edge-clarity reading, already folded into the stored mask) - the two measure different things.
-      const trustNote = boxFinding
-        ? `, ${judgeSubject({ label: boxFinding.detection.label, score: boxFinding.detection.score, size: Math.max(boxFinding.detection.box.w, boxFinding.detection.box.h), sharpness: boxFinding.sharpness }).confidence}-confidence detection`
-        : '';
-      setNotice(`Added the ${type} mask${trustNote}. It changes nothing until you move one of its sliders.`);
-    } catch (reason) {
-      const message = reason instanceof Error ? reason.message : 'Could not find the subject.';
-      task.fail(message); setNotice(message);
-    } finally {
-      maskInFlight.current.delete(jobKey);
-    }
+    // Subject and background detection share the GPU queue with export and
+    // denoise. This one-photo job cannot pause mid-model; Cancel prevents its
+    // eventual result from changing the current photograph.
+    void engineScheduler.submit({
+      title: type === 'subject' ? 'Finding the subject' : 'Finding the background',
+      kind: 'mask', resource: 'gpu', priority: 18,
+      pauseable: false, items: [{ id: photoId, name: frame.filename }],
+      snapshot: { projectId: project.shoot.id, photoId, framing: frame.framing },
+      itemId: item => item.id, itemLabel: item => item.name,
+      runItem: async (_, __, ctx) => {
+        ctx.stage('Detecting subject edges on this device');
+        const image = await loadExportSource(frame, provider.current!);
+        ctx.checkCancelled();
+        const framing = frame.framing ?? DEFAULT_FRAMING;
+        const { width, height } = framedSize(image.naturalWidth, image.naturalHeight, framing);
+        const framed = document.createElement('canvas');
+        drawFramedPhoto(image, framed, framing, { scale: Math.min(1, GUIDED_RENDER_EDGE / Math.max(width, height)) });
+        const { grid, assessment, detail, boxFinding } = await detectSubjectGuided(framed);
+        ctx.checkCancelled();
+        if (!assessment.usable) {
+          ctx.commitIfCurrent(() => setNotice(assessment.reason));
+          return;
+        }
+        const mask = {
+          ...createSubjectMask(newId(), grid, framingKey(framing), assessment.confidence, detail),
+          invert: type === 'background', feather: 0.5,
+        };
+        const latest = stateRef.current;
+        if (!latest || !subjectMaskTarget(latest, project.shoot.id, frame)) {
+          ctx.commitIfCurrent(() => setNotice('The mask was discarded because the photo changed or its layers are full. Try detecting the subject again.'));
+          return;
+        }
+        const at = Date.now();
+        ctx.stage('Saving a reversible mask');
+        ctx.commitIfCurrent(() => mutate(current =>
+          ctx.signal.aborted ? current : commitSubjectMask(current, project.shoot.id, frame, mask, at)));
+        const trustNote = boxFinding
+          ? `, ${judgeSubject({ label: boxFinding.detection.label, score: boxFinding.detection.score,
+              size: Math.max(boxFinding.detection.box.w, boxFinding.detection.box.h),
+              sharpness: boxFinding.sharpness }).confidence}-confidence detection`
+          : '';
+        ctx.commitIfCurrent(() => setNotice(`Added the ${type} mask${trustNote}. It changes nothing until you move one of its sliders.`));
+      },
+    }).then(ticket => ticket.finished).then(result => {
+      if (result === 'failed') setNotice('Subject detection failed. Open Tasks for details.');
+    }).catch(reason => setNotice(reason instanceof Error ? reason.message : 'Could not queue subject detection.'))
+      .finally(() => { maskInFlight.current.delete(jobKey); });
   }, [editFrames, mutate]);
   const editMasks = useCallback((photoId: string, change: (masks: ReturnType<typeof removeMask>) => ReturnType<typeof removeMask>) =>
     editFrames([photoId], (frame) => ({ ...(frame.edit ?? DEFAULT_EDIT), masks: change(frame.edit?.masks ?? []) })), [editFrames]);
@@ -873,26 +869,48 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // upload a working-size copy for this one job; otherwise, or if the cloud fails or does not verify, it runs on this device.
   const denoiseInFlight = useRef(new Set<string>());
   const denoisePhoto = useCallback((photoId: string) => {
-    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+    const frame = stateRef.current?.frames.find(candidate => candidate.id === photoId);
     if (!frame || denoiseInFlight.current.has(photoId)) return;
     denoiseInFlight.current.add(photoId);
+    // Existing explicit cloud opt-in is preserved. A local fallback is labelled
+    // with the runner that actually returned, never as a successful cloud job.
     const connection = can('cloudAssist') ? accountConnection() : null;
-    const task = tasks.start(connection ? 'Denoising (cloud, with this device as backup)' : 'Denoising on this device');
-    runV2Denoise(frame, provider.current!, connection ? { connection, online: navigator.onLine !== false } : null).then((outcome) => {
-      if (!outcome) { task.finish('Could not denoise this photo.'); return; }
-      const valid = (current: PhotoFrame) => sameRecipe(current.edit ?? DEFAULT_EDIT, frame.edit ?? DEFAULT_EDIT) && framingKey(current.framing) === framingKey(frame.framing);
-      const latest = stateRef.current?.frames.find(candidate => candidate.id === photoId);
-      if (!latest || !valid(latest)) { task.finish('Photo changed; denoise was not applied.'); setNotice('Photo changed; run denoise again.'); return; }
-      if (outcome.verified) editFrames([photoId], (current) => {
-        if (!valid(current)) return current.edit;
-        const edit = current.edit ?? DEFAULT_EDIT;
-        const id = `auto-denoise-${photoId}`;
-        const masks = (edit.masks ?? []).filter(mask => mask.id !== id && mask.id !== `${id}-background`);
-        return { ...edit, denoise: outcome.strength, masks: [...masks, ...outcome.masks] };
-      });
-      task.finish(outcome.verified ? outcome.notes[0] : outcome.notes.join(' '));
-      setNotice(outcome.verified ? outcome.notes[0] : `Left as it was. ${outcome.notes.join(' ')}`);
-    }, () => task.fail('Denoise failed.')).finally(() => denoiseInFlight.current.delete(photoId));
+    void engineScheduler.submit({
+      title: 'Denoising ' + frame.filename,
+      kind: 'denoise', resource: 'gpu', priority: 12, location: 'local',
+      pauseable: false, items: [{ id: photoId, name: frame.filename }],
+      snapshot: { photoId, edit: frame.edit ?? DEFAULT_EDIT },
+      itemId: item => item.id, itemLabel: item => item.name,
+      runItem: async (_, __, ctx) => {
+        ctx.stage('Denoising and checking detail');
+        const outcome = await runV2Denoise(frame, provider.current!,
+          connection ? { connection, online: navigator.onLine !== false } : null, ctx.signal);
+        ctx.checkCancelled();
+        if (!outcome) throw new Error('Denoise could not process the source photograph.');
+        ctx.setLocation(outcome.runner === 'cloud-processing' ? 'cloud' : 'local');
+        const valid = (current: PhotoFrame) => sameRecipe(current.edit ?? DEFAULT_EDIT, frame.edit ?? DEFAULT_EDIT) &&
+          framingKey(current.framing) === framingKey(frame.framing);
+        const latest = stateRef.current?.frames.find(candidate => candidate.id === photoId);
+        if (!latest || !valid(latest)) {
+          ctx.commitIfCurrent(() => setNotice('Photo changed; no denoise result was applied. Run denoise again.'));
+          return;
+        }
+        if (outcome.verified) {
+          ctx.stage('Applying verified reversible adjustments');
+          ctx.commitIfCurrent(() => editFrames([photoId], current => {
+            if (!valid(current)) return current.edit;
+            const edit = current.edit ?? DEFAULT_EDIT;
+            const id = `auto-denoise-${photoId}`;
+            const masks = (edit.masks ?? []).filter(mask => mask.id !== id && mask.id !== `${id}-background`);
+            return { ...edit, denoise: outcome.strength, masks: [...masks, ...outcome.masks] };
+          }));
+        }
+        ctx.commitIfCurrent(() => setNotice(outcome.verified ? outcome.notes[0] : `Left as it was. ${outcome.notes.join(' ')}`));
+      },
+    }).then(ticket => ticket.finished).then(result => {
+      if (result === 'failed') setNotice('Denoise did not finish. Open Tasks for the failure detail.');
+    }).catch(reason => setNotice(reason instanceof Error ? reason.message : 'Denoise could not be queued.'))
+      .finally(() => { denoiseInFlight.current.delete(photoId); });
   }, [can, editFrames]);
 
   const applyAuto = useCallback((frameId: string, candidateId?: string) => {
@@ -927,22 +945,38 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const timer = window.setTimeout(() => {
       if (!isCurrent()) return;
       if (manual) lastAutoRequest.current = autoRequest.sequence;
-      const task = tasks.start('Checking the photo and colour', { cancel: () => controller.abort() });
-      taskId = task.id;
-      runAuto(frame, provider.current!, controller.signal).then((run) => {
-        if (!isCurrent()) { tasks.cancel(task.id); return; }
-        if (!run) { task.finish('Could not analyse this photo.'); return; }
-        task.finish(run.headline);
-        setAssists((current) => {
-          // Keep a small recent set of rendered comparisons across a large shoot.
-          const recent = Object.entries(current).filter(([id]) => id !== frame.id).slice(-11);
-          return { ...Object.fromEntries(recent), [frame.id]: { run, dismissed: [] } };
-        });
-        if (!manual && assistMode === 'autopilot' && run.improved) {
-          const at = Date.now();
-          mutate((current) => isCurrent() ? commitAutoEdit(current, assistProjectId, frame, run.plan.proposal, at) : current);
-        }
-      }, () => { if (isCurrent()) task.fail('Checking the photo failed.'); else tasks.cancel(task.id); });
+      void engineScheduler.submit({
+        title: 'Checking ' + frame.filename + ' and colour',
+        kind: 'auto-edit', resource: 'cpu', priority: manual ? 20 : 8, pauseable: false,
+        items: [{ id: frame.id, name: frame.filename }],
+        snapshot: { projectId: assistProjectId, frameId: frame.id, edit: frame.edit ?? DEFAULT_EDIT },
+        itemId: item => item.id, itemLabel: item => item.name,
+        runItem: async (_, __, ctx) => {
+          ctx.stage('Analysing exposure, colour and scene');
+          const run = await runAuto(frame, provider.current!, ctx.signal);
+          ctx.checkCancelled();
+          if (!isCurrent()) return;
+          if (!run) return;
+          ctx.commitIfCurrent(() => setAssists(current => {
+            if (!isCurrent()) return current;
+            const recent = Object.entries(current).filter(([id]) => id !== frame.id).slice(-11);
+            return { ...Object.fromEntries(recent), [frame.id]: { run, dismissed: [] } };
+          }));
+          if (!manual && assistMode === 'autopilot' && run.improved) {
+            const at = Date.now();
+            ctx.commitIfCurrent(() => mutate(current =>
+              isCurrent() && !ctx.signal.aborted
+                ? commitAutoEdit(current, assistProjectId, frame, run.plan.proposal, at) : current));
+          }
+        },
+      }).then(ticket => {
+        taskId = ticket.taskId;
+        controller.signal.addEventListener('abort', () => ticket.cancel(), { once: true });
+        if (controller.signal.aborted) ticket.cancel();
+        return ticket.finished;
+      }).catch(() => {
+        if (isCurrent()) setNotice('Could not analyse this photograph. Open Tasks for details.');
+      });
     }, manual ? 0 : 550);
     return () => {
       window.clearTimeout(timer);
@@ -964,13 +998,30 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!frame || deepVisionInFlight.current.has(photoId)) return;
     deepVisionInFlight.current.add(photoId);
     setReviewingIds((current) => [...current, photoId]);
-    const task = tasks.start('Running a deep vision review');
-    runDeepVisionReview(frame, provider.current!).then((result) => {
-      if (!result) { task.finish('Could not run a deep review on this photo.'); setNotice('Could not run a deep review on this photo.'); return; }
-      task.finish(result.summary);
-      setNotice(result.summary);
-    }, () => { task.fail('Deep vision review failed.'); setNotice('The deep vision review failed.'); })
-      .finally(() => { deepVisionInFlight.current.delete(photoId); setReviewingIds((current) => current.filter((id) => id !== photoId)); });
+    void engineScheduler.submit({
+      title: 'Running a deep vision review',
+      kind: 'vision', resource: 'gpu', priority: 15, pauseable: false,
+      items: [{ id: photoId, name: frame.filename }],
+      snapshot: { frameId: frame.id, stableKey: frame.stableKey },
+      itemId: item => item.id, itemLabel: item => item.name,
+      runItem: async (_, __, ctx) => {
+        ctx.stage('Examining subjects and photographic quality');
+        const result = await runDeepVisionReview(frame, provider.current!);
+        ctx.checkCancelled();
+        if (!result) throw new Error('The deep vision review returned no usable result.');
+        // The review is advisory. Do not publish stale observations after
+        // deletion, a project switch or a source relink.
+        const current = stateRef.current?.frames.find(item => item.id === photoId);
+        if (current?.stableKey !== frame.stableKey || current?.removedAt != null) return;
+        ctx.commitIfCurrent(() => setNotice(result.summary));
+      },
+    }).then(ticket => ticket.finished).then(result => {
+      if (result === 'failed') setNotice('Deep vision review failed. Open Tasks for details.');
+    }).catch(error => setNotice(error instanceof Error ? error.message : 'Could not queue deep vision review.'))
+      .finally(() => {
+        deepVisionInFlight.current.delete(photoId);
+        setReviewingIds(current => current.filter(id => id !== photoId));
+      });
   }, []);
 
   const importPhotos = useCallback(async (suppliedPicks?: Array<File | PickedPhoto> | null) => {
@@ -987,46 +1038,73 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const controller = new AbortController();
     importController.current = controller;
     setImporting(true);
-    const task = tasks.start(`Adding ${additions.length} photo${additions.length === 1 ? '' : 's'}`, { total: additions.length, cancel: () => controller.abort() });
     const importId = newId().slice(0, 8);
     const sequenceBase = target.frames.reduce((max, frame) => Math.max(max, frame.sequenceIndex), 0);
-    const appended = new Set<string>();
-    let waiting: PhotoFrame[] = [];
-    let lastShown = 0;
-    const show = () => {
-      if (!waiting.length) return;
-      const batch = waiting; waiting = [];
-      for (const frame of batch) appended.add(frame.stableKey);
-      lastShown = Date.now();
-      setState((current) => (current && current.shoot.id === projectKey ? appendProjectPhotos(current, batch, importId, { sequenceBase }) : current));
-    };
+    const importedFrames: PhotoFrame[] = [];
+    let initialImportFinished = false;
+    const warnings: string[] = [];
+    const sourceProvider = provider.current!;
+    const sourceCatalogue = catalogue.current!;
     try {
-      const result = await loadLocalFileListShoot(additions, provider.current!, catalogue.current!,
-        ({ loaded, total }) => task.progress(loaded, total),
-        { allowPartial: true, signal: controller.signal, onFrameReady: (frame) => {
-          if (controller.signal.aborted) return;
-          waiting.push(frame);
-          if (waiting.length >= 24 || Date.now() - lastShown > 1200 || appended.size < 8) show();
-        } });
-      waiting = [];
-      if (!result.frames.length) {
-        if (result.stopped) task.finish('Stopped before any photo was added.');
-        else { task.fail('None of those files could be read as photos.'); setNotice('None of those files could be read as photos. Nothing was changed.'); }
-        return;
+      // An actual scheduler item for each photograph: complete the original
+      // fingerprint, preview and catalogue registration before advancing.
+      // Unlike a visibility-only bulk task, this releases the CPU slot at each
+      // boundary so someone can continue editing while 300 files import.
+      const ticket = await engineScheduler.submit({
+        title: `Adding ${additions.length} photo${additions.length === 1 ? '' : 's'}`,
+        kind: 'import', resource: 'cpu', priority: 4, pauseable: additions.length > 1,
+        items: additions.map((file, index) => ({ file, index })),
+        // Source file handles are intentionally NOT copied into the journal or
+        // snapshot; a picker token cannot be persisted as a verified original.
+        snapshot: { projectKey, importId },
+        itemId: item => pickedKey(item.file), itemLabel: item => item.file.name,
+        runItem: async (item, _, ctx) => {
+          ctx.stage('Reading and fingerprinting the original');
+          const result = await loadLocalFileListShoot([item.file], sourceProvider, sourceCatalogue,
+            undefined, { allowPartial: true, signal: ctx.signal });
+          ctx.checkCancelled();
+          if (!result.frames.length) throw new Error(`Could not import ${item.file.name}. Check the original and try again.`);
+          if (result.failedNames.length) throw new Error(`Could not read ${result.failedNames.join(', ')}.`);
+          // A one-photo loader has index one. Give each imported frame its
+          // distinct stable project index before inserting it into React.
+          const frames = result.frames.map(frame => ({
+            ...frame, id: `file-${item.index + 1}-${frame.filename}`,
+            sequenceIndex: item.index + 1,
+          }));
+          if (result.unstoredKeys.length) warnings.push(`${item.file.name} could not be stored for reopening. Relink it when needed.`);
+          ctx.stage('Saving the photograph in this project');
+          ctx.commitIfCurrent(() => {
+            if (stateRef.current?.shoot.id !== projectKey || ctx.signal.aborted) return;
+            importedFrames.push(...frames);
+            setState(current => {
+              if (!current || current.shoot.id !== projectKey || ctx.signal.aborted) return current;
+              const updated = appendProjectPhotos(current, frames, importId, { sequenceBase });
+              // Failed-only retry can happen long after the initial batch
+              // finished; recompute burst relationships for that newly added
+              // photograph, but not for every file in a 300-photo import.
+              return initialImportFinished
+                ? applyImportBursts(updated, assignBurstGroups([...importedFrames].sort((a, b) => a.sequenceIndex - b.sequenceIndex)), importId)
+                : updated;
+            });
+          });
+        },
+      });
+      controller.signal.addEventListener('abort', () => ticket.cancel(), { once: true });
+      if (controller.signal.aborted) ticket.cancel();
+      const outcome = await ticket.finished;
+      initialImportFinished = true;
+      if (importedFrames.length && stateRef.current?.shoot.id === projectKey) {
+        const grouped = assignBurstGroups([...importedFrames].sort((a, b) => a.sequenceIndex - b.sequenceIndex));
+        setState(current => current && current.shoot.id === projectKey
+          ? applyImportBursts(current, grouped, importId) : current);
       }
-      setState((current) => (current && current.shoot.id === projectKey
-        ? applyImportBursts(appendProjectPhotos(current, result.frames.filter((frame) => !appended.has(frame.stableKey)), importId, { sequenceBase }), result.frames, importId)
-        : current));
-      task.finish(result.stopped ? `Stopped. ${result.frames.length} added.` : result.failedNames.length ? `${result.frames.length} added, ${result.failedNames.length} could not be read.` : undefined);
-      const warnings: string[] = [];
-      if (result.failedNames.length) warnings.push(`${result.failedNames.length} file${result.failedNames.length === 1 ? '' : 's'} could not be read: ${result.failedNames.slice(0, 3).join(', ')}.`);
-      if (result.unstoredKeys.length) warnings.push('Some originals are held for this session only. Reconnect them next time you open the project.');
-      if (warnings.length) setNotice(warnings.join(' '));
-    } catch {
-      task.fail('Adding photos failed.');
-      setNotice('Adding photos failed. Your original files were not changed.');
+      if (outcome === 'failed') setNotice(`Some photographs could not be imported. ${importedFrames.length} were added. Open Tasks to retry failed photographs only.`);
+      else if (outcome === 'cancelled') setNotice(`Import stopped. ${importedFrames.length} photographs were added; originals are unchanged.`);
+      else if (warnings.length) setNotice(warnings.slice(0, 3).join(' '));
+    } catch (reason) {
+      setNotice(reason instanceof Error ? reason.message : 'Adding photos failed. Your originals were not changed.');
     } finally {
-      task.fail('Stopped before finishing.'); // does nothing once finished
+      controller.abort();
       if (importController.current === controller) importController.current = null;
       setImporting(false);
     }
@@ -1148,28 +1226,41 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (!current) throw new Error('Open a collage before exporting its pages.');
       if (collageExportRunning.current) throw new Error('A collage export is already running.');
       collageExportRunning.current = true;
-      const controller = new AbortController();
+      // The same document, photo edit recipes and page settings are retained
+      // throughout the queued job; later edits cannot silently alter the output.
+      const source = structuredClone(current);
+      const submitted = structuredClone(request);
       const sourceProjectId = current.shoot.id;
       const requestGeneration = openRequest.current;
-      const task = tasks.start('Exporting collage', { total: request.allPages ? current.shoot.collage?.pages.length ?? 1 : 1, cancel: () => controller.abort() });
       try {
-        const result = await exportCollage(current, provider.current!, request, controller.signal, (done, total) => {
-          if (openRequest.current !== requestGeneration || stateRef.current?.shoot.id !== sourceProjectId) controller.abort();
-          if (!controller.signal.aborted) task.progress(done, total);
+        const ticket = await engineScheduler.submit({
+          title: 'Exporting collage', kind: 'collage', resource: 'gpu', priority: 2,
+          pauseable: false, items: [{ id: sourceProjectId, label: 'Collage pages and destination' }],
+          snapshot: { projectId: sourceProjectId, request: submitted },
+          itemId: item => item.id, itemLabel: item => item.label,
+          runItem: async (_, __, ctx) => {
+            ctx.stage('Rendering all selected pages at print or social resolution');
+            const result = await exportCollage(source, provider.current!, submitted, ctx.signal, (done, total) => {
+              if (openRequest.current !== requestGeneration || stateRef.current?.shoot.id !== sourceProjectId)
+                throw new Error('The project changed during collage export. Nothing was downloaded.');
+              ctx.reportProgress(done, total, `${done} of ${total} pages rendered`);
+            });
+            ctx.checkCancelled();
+            if (openRequest.current !== requestGeneration || stateRef.current?.shoot.id !== sourceProjectId)
+              throw new Error('The project changed during collage export. Nothing was downloaded.');
+            ctx.stage('Confirming the native collage save');
+            if (!await saveExportFile(result.blob, result.name, ctx.signal))
+              throw new DOMException('The collage save was cancelled.', 'AbortError');
+            ctx.acknowledgeCommitted();
+            ctx.commitIfCurrent(() => setNotice('Collage export prepared. Your originals are unchanged.'));
+          },
         });
-        controller.signal.throwIfAborted();
-        if (openRequest.current !== requestGeneration || stateRef.current?.shoot.id !== sourceProjectId) {
-          throw new Error('The open project changed during export. Nothing was downloaded.');
-        }
-        if (!await saveExportFile(result.blob, result.name, controller.signal)) {
-          tasks.cancel(task.id);
-          throw new Error('Collage export cancelled.');
-        }
-        task.finish('Export prepared.');
-        setNotice('Collage export prepared. Your originals are unchanged.');
+        const outcome = await ticket.finished;
+        if (outcome === 'failed') throw new Error('Collage export failed. Open Tasks to view the error.');
+        if (outcome === 'cancelled') throw new Error('Collage export cancelled. Previously delivered files remain unchanged.');
       } catch (error) {
-        const message = controller.signal.aborted ? 'Collage export cancelled.' : error instanceof Error ? error.message : 'Collage export failed.';
-        task.fail(message); setNotice(message);
+        const message = error instanceof Error ? error.message : 'Collage export failed.';
+        setNotice(message);
         throw new Error(message);
       } finally { collageExportRunning.current = false; }
     },
@@ -1570,7 +1661,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     activePhotoId: activeId,
     selectedPhotoIds: selected,
     reviewingPhotoIds: reviewingIds,
-    tasks: visibleTasks(taskList.filter((task) => task.state === 'running').map(taskToInfo), Object.values(taskHistory), clock),
+    tasks: visibleTasks(taskList.filter((task) => task.state === 'running' || task.state === 'queued' || task.state === 'paused').map(taskToInfo), Object.values(taskHistory), clock),
     canUndo: Boolean(state?.undoStack.length) || (activeFrame?.editHistory?.cursor ?? 0) > 0,
     canRedo: Boolean(state?.redoStack.length) || (activeFrame?.editHistory ? activeFrame.editHistory.cursor < activeFrame.editHistory.steps.length : false),
     clipboardRecipe: clipboard,
