@@ -79,6 +79,14 @@ export default function Filmstrip({
   /** A phone-only batch selection mode; desktop keeps modifier-key multi-selection. */
   const [touchSelectionMode, setTouchSelectionMode] = useState(false);
   useEffect(() => { if (!onCreateCollage) setTouchSelectionMode(false); }, [onCreateCollage]);
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const desktop = window.matchMedia('(min-width: 768px)');
+    const reset = () => { if (desktop.matches) setTouchSelectionMode(false); };
+    reset();
+    desktop.addEventListener('change', reset);
+    return () => desktop.removeEventListener('change', reset);
+  }, []);
   const [expandedBursts, setExpandedBursts] = useState<Set<string>>(() => new Set());
   const [minimumRating, setMinimumRating] = useState(0);
   const [tileMenu, setTileMenu] = useState<{ x: number; y: number; photoId: string } | null>(null);
