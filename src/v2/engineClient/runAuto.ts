@@ -1,3 +1,7 @@
+import { proposeGroupSubjectAuto, groupSubjectSafe } from '../../core/groupSubjectAuto';
+import type { InstanceFinding } from '../../providers/multiSubjectDetector';
+import { detectSubjectInstances } from '../../providers/multiSubjectDetector';
+import { unionSubjectGrid } from '../../core/subjectUnion';
 import { speciesReference } from '../../core/speciesKnowledge';
 import { observationsFromFrame, preservationPolicy } from '../../core/photographyPolicy';
 import { mergeAutoSuggestion } from '../../core/autoEnhance';
@@ -18,7 +22,6 @@ import { identifySubject } from '../../providers/autoSpecies';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import { loadImage } from '../../providers/loadImage';
 import { loadExportSource } from '../../providers/browserExport';
-import { detectSubjectGuided } from '../../providers/subjectDetector';
 import { editorText as t } from '../../i18n/areas/editor';
 import { renderAutoCandidates, type AutoCandidate } from './renderAutoCandidates';
 
@@ -74,15 +77,42 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
 
   let segmentation: { grid: SubjectGrid; confidence: 'high' | 'medium' | 'low'; detail?: SubjectDetail | null } | null = null;
   let species: SpeciesGuess | null = null;
+  let instanceCount = 0;
+  let subjectInstances: InstanceFinding[] = [];
+  let instanceCoverageUnavailable = false;
   if (category !== 'landscape') {
     try {
       const guide = document.createElement('canvas');
       drawFramedPhoto(source, guide, framing, { scale: Math.min(1, GUIDED_RENDER_EDGE / edge) });
-      const detection = await withTimeout(detectSubjectGuided(guide), 12000, () => { throw new Error('Subject analysis timed out'); });
-      if (detection.assessment.usable) segmentation = { grid: detection.grid, confidence: detection.assessment.confidence, detail: detection.detail };
-    } catch { /* No usable subject outline: Auto then works on the whole frame and says so. */ }
+      const controller = new AbortController();
+      const cancel = () => controller.abort();
+      signal?.addEventListener('abort', cancel, { once: true });
+      try {
+        if (signal?.aborted) controller.abort();
+        const instances = await withTimeout(detectSubjectInstances(guide, framingKey(framing), controller.signal), 12000, () => {
+          controller.abort();
+          return [];
+        });
+        instanceCount = instances.length;
+        subjectInstances = instances;
+        if (instances.length > 1) {
+          segmentation = { grid: unionSubjectGrid(instances.map(i => i.mask), guide.height / guide.width),
+            confidence: instances.every(i => i.mask.confidence === 'high') ? 'high' : 'medium' };
+        } else if (instances.length === 1) {
+          const mask = instances[0].mask;
+          segmentation = { grid: mask.grid, confidence: mask.confidence, detail: mask.detail };
+        } else {
+          // The detector cannot distinguish no subjects from incomplete instance coverage.
+          // Never substitute a dominant-subject mask after that uncertainty.
+          instanceCoverageUnavailable = true;
+        }
+      } finally {
+        controller.abort();
+        signal?.removeEventListener('abort', cancel);
+      }
+    } catch { segmentation = null; instanceCoverageUnavailable = true; }
     if (signal?.aborted) return null;
-    if (segmentation && category === 'wildlife' && !frame.subjectDisputed) species = await withTimeout(identifySubject(analysisCanvas), 15000, () => null);
+    if (instanceCount === 1 && segmentation && category === 'wildlife' && !frame.subjectDisputed) species = await withTimeout(identifySubject(analysisCanvas), 15000, () => null);
   }
   if (signal?.aborted) return null;
 
@@ -114,7 +144,7 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
       }
     }
   }
-  if (segmentation && !policy.preserveDark) {
+  if (instanceCount === 1 && segmentation && !policy.preserveDark) {
     const local = proposeSubjectAwareAuto({
       pixels: analysis.data, width: analysis.width, height: analysis.height, edit: global, subjectKind: category,
       segmentation, maskId: newId(), framingKey: framingKey(framing), extra: natural.subjectEdit,
@@ -127,6 +157,28 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
       }
     }
   }
+  if (instanceCount > 1 && segmentation && !policy.preserveDark) {
+    const subjects = subjectInstances.map(i => i.mask);
+    const local = proposeGroupSubjectAuto(analysis.data, analysis.width, analysis.height, global, subjects,
+      subjects.map(() => newId()), (frame.exif?.iso ?? 0) >= 1600);
+    if (local !== global) {
+      const subjectPlan = planAuto({ ...input, proposal: local });
+      if (subjectPlan.verdict.kind === 'improved' && (subjectPlan.proposal.masks?.length ?? 0) > (base.masks?.length ?? 0)) {
+        recipes.push({ id: 'subject', edit: subjectPlan.proposal, summary: describeEdit(subjectPlan.proposal, true) });
+        plan = subjectPlan;
+      }
+    }
+  }
+  if (instanceCount > 1 && segmentation) {
+    const subjects = subjectInstances.map(i => i.mask);
+    for (let i = recipes.length - 1; i >= 0; i--) {
+      if (!groupSubjectSafe(analysis.data, analysis.width, analysis.height, base, recipes[i].edit, subjects)) recipes.splice(i, 1);
+    }
+    if (!recipes.some(r => r.edit === plan.proposal)) {
+      if (recipes.some(r => r.edit === naturalPlan.proposal)) plan = naturalPlan;
+      else plan = { ...naturalPlan, proposal: base, verdict: { kind: 'cannot-improve-safely', reason: 'No preferred recipe passed every detected subject check' } };
+    }
+  }
   const rendered = recipes.length ? renderAutoCandidates(analysisCanvas, base, recipes) : { before: '', candidates: [] };
   if (!rendered.candidates.some((candidate) => candidate.edit === plan.proposal)
     && rendered.candidates.some((candidate) => candidate.edit === naturalPlan.proposal)) {
@@ -135,8 +187,9 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   const described = describePlan(plan);
   const reference = segmentation?.confidence === 'high' ? speciesReference(species) : null;
   const improved = rendered.candidates.some((candidate) => candidate.edit === plan.proposal);
+  const coverageNote = instanceCount > 1 && segmentation ? 'Multiple detected subjects were checked individually for clipping and shadow loss. Local tone edits require reliable non-overlapping masks; species colour correction was withheld.' : instanceCoverageUnavailable ? 'Complete subject coverage was unavailable; only whole-frame suggestions were considered.' : null;
   return {
-    ...rendered, plan, improved, detail: reference ? [...described.detail, 'Species reference (not a measured colour target): ' + reference.features] : described.detail,
+    ...rendered, plan, improved, detail: [...described.detail, ...(coverageNote ? [coverageNote] : []), ...(reference ? ['Species reference (not a measured colour target): ' + reference.features] : [])],
     headline: rendered.candidates.length ? 'Checked edit suggestions are ready to preview.'
       : recipes.length ? 'No visibly different edit passed the checks.' : described.headline,
     source: { stableKey: frame.stableKey, originalSha256: frame.originalSha256, framing: frame.framing },
