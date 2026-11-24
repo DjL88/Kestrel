@@ -146,3 +146,19 @@ test('template changes preserve independent framing even when the same photo app
   assert.equal(changed.pages[1].slots[0].panY, -0.5);
   assert.deepEqual(readCollage(JSON.parse(JSON.stringify(changed))), changed);
 });
+
+test('collage caption design survives save, duplication, format and template changes', async () => {
+  const { modifyCollagePage, collageCaptionStyle, collageCaptionGeometry, changeCollageFormat } = await import('./collage');
+  const captionStyle = { font: 'serif' as const, size: 4, position: 25 };
+  let doc = modifyCollagePage(createCollage(['a','b','c']), { caption: 'Wildlife', captionStyle });
+  doc = changeCollageTemplate(doc, 'grid');
+  doc = changeCollageFormat(doc, 'story');
+  doc = duplicateCollagePage(doc);
+  const restored = readCollage(JSON.parse(JSON.stringify(doc)))!;
+  assert.deepEqual(restored.pages.map(p => p.captionStyle), [captionStyle, captionStyle]);
+  assert.notEqual(doc.pages[0].captionStyle, doc.pages[1].captionStyle);
+  assert.deepEqual(collageCaptionStyle(undefined), { font:'sans-serif', size:2.5, position:100 });
+  assert.deepEqual(collageCaptionStyle({font:'url(bad)',size:999,position:-1}), {font:'sans-serif',size:6,position:0});
+  const g = collageCaptionGeometry(1000, 2000, captionStyle);
+  assert.deepEqual([g.x,g.y,g.width,g.height,g.fontPx,g.position],[50,60,900,1880,40,25]);
+});
