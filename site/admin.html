@@ -38,7 +38,7 @@
 <div id="console" hidden>
   <nav class="tabs" aria-label="Console sections">
     <a href="#overview">Overview</a><a href="#licensees">Licensees and devices</a><a href="#grant">Grant Pro</a><a href="#issue">Issue a key</a>
-    <a href="#demo-studio">Demo Studio</a><a href="#switches">Switches</a><a href="#flags">Flags</a><a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#price-review">Price review</a><a href="#audit">Audit log</a>
+    <a href="#demo-studio">Demo Studio</a><a href="#switches">Switches</a><a href="#flags">Flags</a><a href="#monitoring">Monitoring</a><a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#price-review">Price review</a><a href="#audit">Audit log</a>
   </nav>
 
   <section id="overview" class="panel" aria-labelledby="overview-title">
@@ -133,6 +133,25 @@
       </fieldset>
       <div class="row"><button>Save flag</button><button type="button" id="flag-reset" class="quiet">Clear the form</button></div>
     </form>
+  </section>
+
+  <section id="monitoring" class="panel" aria-labelledby="monitoring-title">
+    <h2 id="monitoring-title">Monitoring and alerts</h2>
+    <p><strong>Live monitoring: not connected.</strong> Phone notifications: not configured.</p>
+    <p class="muted">Rehearse proposed alert rules using synthetic examples. This does not query production, send a push notification or record an incident.</p>
+    <div class="scroll"><table>
+      <caption>Proposed starting rules — not active</caption>
+      <thead><tr><th scope="col">Signal</th><th scope="col">Threshold</th></tr></thead>
+      <tbody id="monitoring-rules"></tbody>
+    </table></div>
+    <form id="monitoring-rehearsal">
+      <label>Test scenario
+        <select name="scenario"><option value="normal">Normal traffic</option><option value="surge">Traffic surge</option><option value="outage">API failures</option><option value="budget">Budget exceeded</option></select>
+      </label>
+      <div class="row"><button>Rehearse alert</button><button type="button" id="monitoring-clear" class="quiet">Clear rehearsal</button></div>
+    </form>
+    <p id="monitoring-result" role="status" aria-live="polite">No rehearsal run.</p>
+    <ul id="monitoring-alerts"></ul>
   </section>
 
   <section id="usage" class="panel" aria-labelledby="usage-title">
