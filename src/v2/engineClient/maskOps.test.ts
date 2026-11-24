@@ -121,3 +121,18 @@ test('local colour denoise is stored on the selected layer and can be reset', ()
   assert.equal(masks[0], layers[0]);
   assert.deepEqual(setMaskEdit(masks, 'background', 'denoise', 0)[1].edit, {});
 });
+
+test('automatic subject layers stay independently editable after recipe reopen', () => {
+  const id = 'auto-denoise-photo';
+  const masks = [subject(id + '-instance-1-dog'), subject(id + '-instance-2-dog'), subject(id + '-instance-3-dog'), subject(id + '-background', true), subject(id)];
+  const reopened = JSON.parse(JSON.stringify(masks)) as Mask[];
+  assert.ok(validMasks(reopened));
+  assert.deepEqual(masksToLayers(reopened).map(layer => layer.name), [
+    'Subject 1 · Dog', 'Subject 2 · Dog', 'Subject 3 · Dog', 'Background · Denoise', 'All subjects · Denoise',
+  ]);
+  const edited = setMaskEdit(reopened, id + '-instance-2-dog', 'exposure', 0.5);
+  assert.equal(edited[1].edit.exposure, 0.5);
+  assert.equal(edited[0].edit.exposure, undefined);
+  assert.equal(edited[2].edit.exposure, undefined);
+  assert.equal(edited[4].edit.exposure, undefined);
+});
