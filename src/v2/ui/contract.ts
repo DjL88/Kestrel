@@ -478,6 +478,8 @@ export interface WorkspaceActions {
   createProject: (name: string, kind?: 'photography' | 'collage') => void;
   createCollageFromSelection?: (photoIds: string[]) => void;
   updateCollage?: (document: import('../../core/collage').CollageDocument) => void;
+  browseCollageProjectPhotos?: (sourceProjectId: string) => Promise<Array<{ id: string; filename: string }>>;
+  addCollageProjectPhotos?: (sourceProjectId: string, photoIds: string[]) => Promise<void>;
   /** Pick a folder (on this device, an external drive or a synced cloud folder) and make a project of its photos. */
   createProjectFromFolder: () => void;
   renameProject: (projectId: string, name: string) => void;
