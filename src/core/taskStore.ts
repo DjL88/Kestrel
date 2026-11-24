@@ -100,11 +100,12 @@ export function createTaskStore(now: () => number = Date.now) {
         update(id, { state: next, updatedAt: now(), ...(detail !== undefined ? { detail } : {}) });
       },
       patch: change => {
-        const current = find(id);
+        const current: Task | undefined = find(id);
+        const live: boolean = active(current);
         // Cancellation is terminal, but an already-confirmed native save may
         // still report its final child state after its destination responds.
         // Never allow cancelled work to change its stage, status or settings.
-        if (active(current)) update(id, { ...change, updatedAt: now() });
+        if (live) update(id, { ...change, updatedAt: now() });
         else if (current?.state === 'cancelled' && change.items !== undefined)
           update(id, { items: change.items, updatedAt: now() });
       },

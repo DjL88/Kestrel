@@ -34,6 +34,8 @@ test('300-photo import stays queued while an interactive edit jumps ahead at the
   assert.equal(store.list().find(t => t.id === edit.taskId)?.state, 'queued');
   release();
   assert.equal(await edit.finished, 'done');
+  // The import resumes on the scheduler's next tick, not synchronously with the edit's completion.
+  await until(() => order.length >= 3, 'import resumed after the edit');
   assert.deepEqual(order.slice(0, 3), ['import:1', 'edit:1', 'import:2']);
   assert.equal(await ingest.finished, 'done');
   assert.equal(store.list().find(t => t.id === ingest.taskId)?.done, 300);
