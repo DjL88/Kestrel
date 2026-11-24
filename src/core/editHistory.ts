@@ -3,7 +3,7 @@ import { DETAIL_CONTROLS, TONE_CONTROLS, type PhotoEdit } from './photoEdits';
 import type { PhotoFraming } from './photoFraming';
 
 /** Overlays are metadata, never pixel replacements. Old history snapshots may not have this field. */
-type Snapshot = { edit?: PhotoEdit; framing?: PhotoFraming; overlay?: PhotoFrame['overlay']; formatSplits?: PhotoFrame['formatSplits'] };
+type Snapshot = { overlayRecorded?: true; edit?: PhotoEdit; framing?: PhotoFraming; overlay?: PhotoFrame['overlay']; formatSplits?: PhotoFrame['formatSplits'] };
 export type EditKind = 'light' | 'warmth' | 'colour' | 'adjustments' | 'tone' | 'detail' | 'mask' | 'crop' | 'rotation' | 'straighten';
 
 export const MAX_EDIT_HISTORY_STEPS = 60;
@@ -43,7 +43,7 @@ export function recordEdit(frame: PhotoFrame, patch: Snapshot, at: number): Phot
     ? Math.max(-25, Math.min(25, frame.splitPanOffset)) : 0;
   const effectiveFormatSplits = frame.formatSplits ??
     (frame.splitFrames === true ? { 'orig-3x2': { enabled: true, offset: legacyOffset } } : {});
-  const before: Snapshot = { edit: frame.edit, framing: frame.framing, overlay: frame.overlay,
+  const before: Snapshot = { overlayRecorded: true, edit: frame.edit, framing: frame.framing, overlay: frame.overlay,
     formatSplits: effectiveFormatSplits };
   const after = { ...before, ...patch };
   if (JSON.stringify(before) === JSON.stringify(after)) return frame;
@@ -67,7 +67,8 @@ export function recordEdit(frame: PhotoFrame, patch: Snapshot, at: number): Phot
   }
   const discarded = Math.max(0, history?.discarded ?? 0) + Math.max(0, steps.length - MAX_EDIT_HISTORY_STEPS);
   const retained = steps.slice(-MAX_EDIT_HISTORY_STEPS);
-  return { ...frame, ...after, focusPoint: before.framing === after.framing ? frame.focusPoint : undefined,
+  const { overlayRecorded: _recorded, ...live } = after;
+  return { ...frame, ...live, focusPoint: before.framing === after.framing ? frame.focusPoint : undefined,
     editHistory: { steps: retained, cursor: retained.length, ...(discarded ? { discarded } : {}) } };
 }
 
@@ -81,7 +82,7 @@ export function stepEdit(frame: PhotoFrame, direction: -1 | 1): PhotoFrame {
   return {
     ...frame, edit: recipe.edit, framing: recipe.framing,
     // A pre-migration step recorded no overlay: keep the current one, never manufacture an old state.
-    ...('overlay' in recipe ? { overlay: recipe.overlay } : {}),
+    ...((recipe.overlayRecorded === true || 'overlay' in recipe) ? { overlay: recipe.overlay } : {}),
     // Older checkpoints without split metadata cannot invent an old state.
     ...('formatSplits' in recipe ? { formatSplits: recipe.formatSplits } : {}),
     focusPoint: JSON.stringify(frame.framing) === JSON.stringify(recipe.framing) ? frame.focusPoint : undefined,
@@ -105,7 +106,7 @@ export function jumpToStep(frame: PhotoFrame, cursor: number): PhotoFrame {
   if (!recipe || at === history.cursor) return frame;
   return {
     ...frame, edit: recipe.edit, framing: recipe.framing,
-    ...('overlay' in recipe ? { overlay: recipe.overlay } : {}),
+    ...((recipe.overlayRecorded === true || 'overlay' in recipe) ? { overlay: recipe.overlay } : {}),
     // Older checkpoints without split metadata cannot invent an old state.
     ...('formatSplits' in recipe ? { formatSplits: recipe.formatSplits } : {}),
     focusPoint: JSON.stringify(frame.framing) === JSON.stringify(recipe.framing) ? frame.focusPoint : undefined,
