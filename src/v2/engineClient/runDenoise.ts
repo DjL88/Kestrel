@@ -13,6 +13,19 @@ import { loadExportSource } from '../../providers/browserExport';
 import { loadDenoiseSource } from './denoiseSource';
 import { unionSubjectGrid } from '../../core/subjectUnion';
 import { detectSubjectInstances } from '../../providers/multiSubjectDetector';
+import { estimateNoiseSigma, luminanceStrengthFor } from '../../core/noiseEstimate';
+
+/** Noise at full size: a centre crop of up to 1024 px drawn 1:1 from the picture being edited. */
+function measureFullSizeNoise(source: HTMLImageElement): number | null {
+  const size = Math.min(1024, source.naturalWidth, source.naturalHeight);
+  if (size < 64) return null;
+  const crop = document.createElement('canvas');
+  crop.width = size; crop.height = size;
+  const ctx = crop.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.drawImage(source, (source.naturalWidth - size) / 2, (source.naturalHeight - size) / 2, size, size, 0, 0, size, size);
+  return estimateNoiseSigma(ctx.getImageData(0, 0, size, size).data, size, size);
+}
 
 /** Longest edge of the picture denoise works on, and the only thing ever sent to the cloud (never the original). */
 export const DENOISE_WORKING_EDGE = 1600;
@@ -24,6 +37,8 @@ export interface DenoiseOutcome {
   runner: 'cloud-processing' | 'device';
   /** The strength that passed the quality check (it may be lower than asked). */
   strength: number;
+  /** Luminance (grain) denoise that passed with it, 0-2. */
+  luminance: number;
   masks: Mask[];
   verified: boolean;
   notes: string[];
@@ -51,10 +66,17 @@ export async function runV2Denoise(
   if (!context || canvas.width < 16 || canvas.height < 16) return null;
   const image = context.getImageData(0, 0, canvas.width, canvas.height);
   const original: Pixels = { data: new Uint8ClampedArray(image.data), width: image.width, height: image.height };
+  // Noise is judged at full size (a 1:1 centre crop), where the photographer sees it; the downscaled working copy hides it.
+  const sigma = measureFullSizeNoise(source);
+  const luminance = luminanceStrengthFor(sigma);
+  if (sigma !== null && luminance === 0) {
+    return { runner: 'device', strength: 0, luminance: 0, masks: [], verified: false, notes: [`No visible noise was measured at full size (σ ${sigma.toFixed(1)}), so nothing was changed.`] };
+  }
   const existing = frame.edit?.masks ?? [];
   const id = `auto-denoise-${frame.id}`;
   const previousBackground = existing.find(mask => mask.id === `${id}-background`);
   const asked = previousBackground?.edit.denoise ?? (frame.edit?.denoise && frame.edit.denoise > 0 ? frame.edit.denoise : DEFAULT_DENOISE_STRENGTH);
+  const lumaPerStrength = asked > 0 ? luminance / asked : 0;
   const remaining = existing.filter(mask => mask.id !== id && mask.id !== `${id}-background`);
   let subjects = remaining.filter((mask): mask is Extract<Mask, { kind: 'subject' }> =>
     mask.kind === 'subject' && !mask.hidden && !mask.invert && !mask.limit &&
@@ -97,12 +119,12 @@ export async function runV2Denoise(
   } : undefined;
   if (!subject && (previousBackground || subjects.length)) {
     // Do not replace an established protected recipe with global smoothing.
-    return { runner: 'device', strength: 0, masks: [], verified: false, notes: ['Subject protection could not be rebuilt safely. Existing edits were kept.'] };
+    return { runner: 'device', strength: 0, luminance: 0, masks: [], verified: false, notes: ['Subject protection could not be rebuilt safely. Existing edits were kept.'] };
   }
   const baseline = renderDenoiseRecipe(original, frame.edit ?? DEFAULT_EDIT);
   const render = async (edit: Partial<PhotoEdit>, masks: Mask[]): Promise<Pixels> => {
     signal?.throwIfAborted();
-    return renderDenoiseRecipe(original, composeDenoiseRecipe(frame.edit, id, edit.denoise ?? 0, [...newLayers, ...masks]));
+    return renderDenoiseRecipe(original, composeDenoiseRecipe(frame.edit, id, edit.denoise ?? 0, [...newLayers, ...masks], lumaPerStrength));
   };
   // Remote filtering of already edited pixels is not equivalent to applying a
   // reversible denoise recipe to the original. Keep composed recipes local.
@@ -129,5 +151,5 @@ export async function runV2Denoise(
   if (subject) notes.unshift(`Denoised on this device with combined subject protection (${subjects.length} mask${subjects.length === 1 ? '' : 's'}).`);
   else if (detectionUnavailable) notes.unshift('No reliable subject masks were available; denoise used a global setting.');
   if (!result.verification.ok) notes.push('The composed recipe did not pass the quality check. Existing edits were kept.');
-  return { runner: response.runner === 'cloud-processing' ? 'cloud-processing' : 'device', strength, masks: subject ? [...newLayers, ...result.masks] : result.masks, verified: result.verification.ok, notes };
+  return { runner: response.runner === 'cloud-processing' ? 'cloud-processing' : 'device', strength, luminance: Math.round(Math.min(2, strength * lumaPerStrength) * 1e4) / 1e4, masks: subject ? [...newLayers, ...result.masks] : result.masks, verified: result.verification.ok, notes };
 }
