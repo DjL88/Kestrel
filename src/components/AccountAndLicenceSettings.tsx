@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Session, SignInProvider } from '../core/cloudInterfaces';
 import { signInOptions } from '../core/signInOptions';
-import { firebaseAuth, isSignInConfigured, signInPlatform } from '../providers/firebaseAuth';
+import { firebaseAuth, isSignInConfigured, signInPlatform, resendAccountVerification } from '../providers/firebaseAuth';
 import { activateFromAccount, consumeExpiredAccountNotice, leaveAccount, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
 import { isDesktopApp, isMobileShell } from '../providers/desktopShell';
 import { parseControlPlaneUrl } from '../core/licenceOnline';
@@ -162,8 +162,16 @@ export function AccountAndLicenceSettings() {
       }
       setAccount(await (kind === 'in' ? firebaseAuth.signInWithEmail(email, password) : firebaseAuth.createAccount(email, password)));
       setPassword('');
-      if (kind === 'create') setAccountNote('Check your email to verify the address, then check Pro.');
+      if (kind === 'create') setAccountNote('Check your email to verify the address, then check Pro. If nothing arrives, use Resend verification email.');
       else await linkLicence();
+    });
+  }
+
+  function resendVerification() {
+    return runAccountAction(async () => {
+      const result = await resendAccountVerification();
+      if (result === 'already_verified') await linkLicence();
+      else setAccountNote('Verification email sent. Open the link, then choose Check Pro online.');
     });
   }
 
@@ -196,6 +204,7 @@ export function AccountAndLicenceSettings() {
             <p role="status">Signed in with {account.provider === 'apple' ? 'Apple' : account.provider === 'password' ? 'email' : 'Google'}{account.email ? ` as ${account.email}` : ''}.</p>
             <div className="flex flex-wrap gap-2">
               <button type="button" className={action} disabled={accountBusy} onClick={() => void runAccountAction(linkLicence)}>Check Pro online</button>
+              {account.provider === 'password' && <button type="button" className={action} disabled={accountBusy} onClick={() => void resendVerification()}>Resend verification email</button>}
               <button type="button" className={action} disabled={accountBusy} onClick={() => void chooseSignOut()}>Sign out</button>
             </div>
           </>
