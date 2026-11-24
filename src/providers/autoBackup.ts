@@ -61,8 +61,16 @@ export async function writeSnapshot(connector: import('../core/storageConnectors
   // Retention is best effort; never report a valid backup as failed because
   // an old copy could not be removed from a disconnected drive.
   try {
-    for (const expired of backupsToDelete(await connector.list(backupFolder(projectId)), projectId))
-      await connector.remove(expired);
+    const listed = await connector.list(backupFolder(projectId));
+    // A stale listing or a clock-skewed device must not delete the freshly
+    // verified recovery snapshot. Defer pruning until it appears among the
+    // retained snapshots; keeping extra history is safer than losing edits.
+    if (listed.includes(name)) {
+      const expired = backupsToDelete(listed, projectId);
+      if (!expired.includes(name)) {
+        for (const old of expired) await connector.remove(old);
+      }
+    }
   } catch { /* Older snapshots may remain. */ }
 }
 
