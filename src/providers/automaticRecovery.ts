@@ -23,8 +23,8 @@ export function sharedOriginalFolder(paths: readonly (string | undefined)[]): st
   // A source path must identify a file, not a directory or a traversing alias.
   // Never choose an automatic backup destination from ambiguous catalogue paths.
   if (!paths.length || paths.some(path => {
-    if (!path || !/[/\\\\]/.test(path) || /[\\u0000-\\u001f\\u007f]/.test(path) || /[/\\\\]$/.test(path)) return true;
-    return path.split(/[/\\\\]/).some(segment => segment === '.' || segment === '..');
+    if (!path || !/[/\\]/.test(path) || /[\u0000-\u001f\u007f]/.test(path) || /[/\\]$/.test(path)) return true;
+    return path.split(/[/\\]/).some(segment => segment === '.' || segment === '..');
   })) return null;
   const folders = paths.map(path => path!.slice(0, Math.max(path!.lastIndexOf('/'), path!.lastIndexOf('\\'))));
   const first = folders[0];
