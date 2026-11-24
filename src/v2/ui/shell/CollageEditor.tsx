@@ -1,23 +1,31 @@
 import React from 'react';
-import type { Photo, PhotoSurfaceProps } from '../contract';
+import type { Photo, PhotoSurfaceProps, Project } from '../contract';
 import type { CollageDocument, CollageFormat, CollageTemplate } from '../../../core/collage';
 import { addCollagePage, changeCollageTemplate, collagePage, COLLAGE_FORMATS, COLLAGE_TEMPLATES, deleteCollagePage, duplicateCollagePage, modifyCollagePage, replaceCollagePhoto } from '../../../core/collage';
 
 interface Props {
   document: CollageDocument;
   photos: Photo[];
+  projects: Project[];
+  onBrowseProject?: (projectId: string) => Promise<Array<{ id: string; filename: string }>>;
+  onAddFromProject?: (projectId: string, photoIds: string[]) => Promise<void>;
   PhotoSurface?: React.ComponentType<PhotoSurfaceProps>;
   onChange: (document: CollageDocument) => void;
   onEditPhoto: (photoId: string) => void;
   onImport: () => void;
 }
 const field = 'rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-2 text-sm text-[var(--text-primary)]';
-export default function CollageEditor({ document: doc, photos, PhotoSurface, onChange, onEditPhoto, onImport }: Props) {
+export default function CollageEditor({ document: doc, photos, projects, onBrowseProject, onAddFromProject, PhotoSurface, onChange, onEditPhoto, onImport }: Props) {
   const page = collagePage(doc);
   const format = COLLAGE_FORMATS[doc.format];
   const aspect = format.width / format.height;
   const [activeSlot, setActiveSlot] = React.useState<string | null>(null);
   const [showLayouts, setShowLayouts] = React.useState(false);
+  const [sourceProject, setSourceProject] = React.useState('');
+  const [sourcePhotos, setSourcePhotos] = React.useState<Array<{ id: string; filename: string }>>([]);
+  const [sourceSelection, setSourceSelection] = React.useState<string[]>([]);
+  const [sourceSearch, setSourceSearch] = React.useState('');
+  const [sourceLoading, setSourceLoading] = React.useState(false);
   const slot = page.slots.find((item) => item.id === activeSlot) ?? page.slots[0];
   const photo = photos.find((item) => item.id === slot?.photoId);
   const setPage = (patch: Parameters<typeof modifyCollagePage>[1]) => onChange(modifyCollagePage(doc, patch));
@@ -103,6 +111,8 @@ export default function CollageEditor({ document: doc, photos, PhotoSurface, onC
             </label>
             {photo && <button type="button" className={`w-full ${field}`} onClick={() => onEditPhoto(photo.id)}>Edit this photograph</button>}
             <button type="button" className={`w-full ${field}`} onClick={onImport}>Import more photos</button>
+            {onBrowseProject && onAddFromProject && projects.length > 0 && <button type="button" className={`w-full ${field}`}
+              onClick={() => setSourceProject(projects[0].id)}>Choose from another project</button>}
             <p className="text-xs text-[var(--text-muted)]">A photograph can be used in several windows and on different pages. Edits update every appearance without changing the original.</p>
           </div>
           <p className="border-t border-[var(--border-default)] pt-3 text-xs text-[var(--text-secondary)]">
@@ -111,6 +121,45 @@ export default function CollageEditor({ document: doc, photos, PhotoSurface, onC
           </p>
         </aside>
       </div>
+      {sourceProject && onBrowseProject && onAddFromProject && <div role="dialog" aria-modal="true" aria-label="Choose photographs from another project"
+        className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-3">
+        <div className="flex max-h-[85dvh] w-full max-w-xl flex-col gap-3 rounded-xl bg-[var(--bg-surface)] p-4 text-[var(--text-primary)]">
+          <div className="flex items-center justify-between"><strong>Choose existing photographs</strong>
+            <button type="button" onClick={() => {setSourceProject(''); setSourcePhotos([]); setSourceSelection([]);}} className={field}>Close</button>
+          </div>
+          <label className="text-sm">Source project
+            <select className={`mt-1 w-full ${field}`} value={sourceProject} onChange={(e) => {
+              setSourceProject(e.target.value); setSourcePhotos([]); setSourceSelection([]);
+            }}>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+          </label>
+          <button type="button" className={field} disabled={sourceLoading} onClick={async () => {
+            setSourceLoading(true);
+            try { setSourcePhotos(await onBrowseProject(sourceProject)); setSourceSelection([]); }
+            catch { setSourcePhotos([]); }
+            finally { setSourceLoading(false); }
+          }}>{sourceLoading ? 'Reading photographs…' : 'Browse photographs'}</button>
+          {sourcePhotos.length > 0 && <>
+            <input className={field} type="search" placeholder="Search filenames" aria-label="Search source photographs"
+              value={sourceSearch} onChange={(e) => setSourceSearch(e.target.value)}/>
+            <div className="min-h-0 flex-1 space-y-1 overflow-auto" role="group" aria-label="Available photographs">
+              {sourcePhotos.filter((p) => p.filename.toLowerCase().includes(sourceSearch.toLowerCase())).map((item) => (
+                <label key={item.id} className="flex min-h-10 items-center gap-3 border-b border-[var(--border-subtle)] py-1 text-sm">
+                  <input type="checkbox" checked={sourceSelection.includes(item.id)} onChange={(e) => setSourceSelection((prev) =>
+                    e.target.checked ? [...prev, item.id] : prev.filter((id) => id !== item.id))}/>
+                  <span className="truncate">{item.filename}</span>
+                </label>
+              ))}
+            </div>
+          </>}
+          <button type="button" className="min-h-11 rounded bg-[var(--brand-accent)] px-4 font-semibold text-[var(--text-on-accent)]"
+            disabled={!sourceSelection.length || sourceLoading} onClick={async () => {
+              setSourceLoading(true);
+              try { await onAddFromProject(sourceProject, sourceSelection); setSourceProject(''); setSourcePhotos([]); setSourceSelection([]); }
+              finally { setSourceLoading(false); }
+            }}>Add {sourceSelection.length} to collage library</button>
+          <p className="text-xs text-[var(--text-secondary)]">These photographs are referenced in this collage; the original project is not moved or changed.</p>
+        </div>
+      </div>}
     </section>
   );
 }
