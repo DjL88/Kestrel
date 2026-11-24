@@ -143,6 +143,8 @@ export interface PhotoFrame {
 }
 
 export interface ShootDescriptor {
+  /** Absent on legacy photography projects. */
+  projectType?: 'photography' | 'collage' | 'album';
   id: string;
   title: string;
   sourceKind: 'demo' | 'local-files' | 'local-folder';
@@ -170,6 +172,8 @@ export interface DecisionHistoryEntry {
 }
 
 export interface CullingState {
+  /** Non-destructive layout referencing only this project's frame IDs. */
+  composition?: import('./composition').Composition;
   /** Helpers chosen when the project was created. Absent on projects made before the wizard. */
   settings?: import('./projectSettings').ProjectSettings;
   shoot: ShootDescriptor;
