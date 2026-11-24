@@ -10,6 +10,7 @@ import type { PhotoFrame } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import { loadExportSource, loadVerifiedRasterOriginalForExport } from '../../providers/browserExport';
 import { assembleAlbumPdf, type PdfRasterPage } from '../../core/collagePdf';
+import { verifyExactOriginalCopy } from './verifiedOriginalCopy';
 
 type Output = 'png' | 'jpeg' | 'pdf';
 interface PageLayout { width: number; height: number; bleedX: number; bleedY: number; trimWidth: number; trimHeight: number }
@@ -60,15 +61,19 @@ function labelLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: numbe
   }
   return lines;
 }
-async function sourceForPrint(frame: PhotoFrame, provider: BrowserPreviewProvider, signal: AbortSignal): Promise<HTMLImageElement> {
+async function sourceForPrint(frame: PhotoFrame, provider: BrowserPreviewProvider, output: Output, signal: AbortSignal): Promise<HTMLImageElement> {
   signal.throwIfAborted();
   if (!frame.isDemo && fullResolutionRasterFormat(frame.filename)) {
     return loadVerifiedRasterOriginalForExport(frame, provider, signal);
   }
+  if (frame.isDemo && output !== 'pdf') return loadExportSource(frame, provider, 'selected');
   if (frame.isDemo || isHeifFile(frame.filename)) {
     throw new Error(`${frame.filename} has no verified full-resolution decoder for collage export. Use a connected JPEG/PNG or a genuinely developed RAW.`);
   }
   if (!isRawPreviewFile(frame.filename)) throw new Error(`Cannot verify the full-resolution source for ${frame.filename}.`);
+  const bytes = await provider.ensureOriginal(frame.stableKey, 'selected');
+  if (!bytes) throw new Error(`Reconnect the RAW original ${frame.filename} before collage export.`);
+  await verifyExactOriginalCopy(bytes, frame.originalSha256, signal);
   const image = await loadExportSource(frame, provider, 'selected');
   if (!provider.isDeveloped(frame.stableKey)) {
     throw new Error(`${frame.filename} is only an embedded RAW preview. Develop the original RAW before exporting a collage.`);
@@ -96,7 +101,7 @@ export async function renderCollagePage(
       const frame = frames.find((candidate) => candidate.id === slot.photoId && candidate.removedAt == null);
       if (!frame) throw new Error('A collage page references a missing photograph. Replace it before exporting.');
       const box = slotBounds(slot, page, l);
-      const original = await sourceForPrint(frame, provider, signal);
+      const original = await sourceForPrint(frame, provider, output, signal);
       const framing = frame.framing ?? DEFAULT_FRAMING;
       const { width: fw, height: fh } = framedSize(original.naturalWidth, original.naturalHeight, framing);
       if (!(fw > 0 && fh > 0)) throw new Error(`Invalid decoded image size for ${frame.filename}.`);
@@ -160,6 +165,7 @@ export async function exportCollage(
   signal: AbortSignal, onPage?: (complete: number) => void,
 ): Promise<File[]> {
   if (!doc.pages.length) throw new Error('Add a page before exporting.');
+  if (doc.pages.length > 40) throw new Error('Large albums need a streaming PDF export. Export up to 40 pages at a time on this device.');
   const format = COLLAGE_FORMATS[doc.format];
   const isPrint = format.unit === 'mm';
   if (isPrint !== (output === 'pdf')) throw new Error(isPrint ? 'Print pages must export as PDF.' : 'Choose a physical page size for a print PDF.');
