@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { DEFAULT_FRAMING } from './photoFraming';
 import { DEFAULT_EDIT } from './photoEdits';
-import { backgroundCullCandidates, backgroundCullMoves, backgroundDevelopTargets } from './backgroundAutoPolicy';
+import { backgroundCullCandidates, backgroundCullMoves, backgroundDevelopTargets, planBackgroundCull } from './backgroundAutoPolicy';
 import type { CullSuggestion } from './autoCull';
 import type { PhotoFrame } from './types';
 
@@ -73,4 +73,23 @@ test('epoch-zero removed photos never receive unattended culling or development'
   assert.deepEqual([...backgroundDevelopTargets(frames, imported)], ['active-keeper']);
   assert.equal(removed.removedAt, 0);
   assert.equal(removedKeeper.removedAt, 0);
+});
+
+
+test('live import quota ignores virtual keepers and allocates after filtering stale or edited photos', () => {
+  const examined = ['edited', 'editing-now', 'changed', 'removed', 'safe', 'lower'].map(id => make(id));
+  const live = [
+    make('original-kept', 'keep'),
+    { ...make('variant', 'keep'), virtualCopy: { originalFrameId: 'original-kept', number: 1 } },
+    { ...examined[0], edit: { ...DEFAULT_EDIT, exposure: 0.4 } },
+    examined[1],
+    { ...examined[2], originalSha256: 'a'.repeat(64) },
+    { ...examined[3], removedAt: 0 },
+    examined[4], examined[5],
+  ];
+  const results = examined.map((frame, index) => ({ ...suggestion(frame.id, 'keep'), score: 100 - index }));
+  const plan = planBackgroundCull(live, examined, results, new Set(examined.map(frame => frame.id)), 2, 'editing-now');
+  assert.deepEqual(plan.moves, [{ frameId: 'safe', decision: 'keep' }]);
+  assert.deepEqual(plan.limited.map(result => [result.frameId, result.confidence]), [['safe', 'high'], ['lower', 'medium']]);
+  assert.deepEqual(planBackgroundCull(live, examined, results, new Set(examined.map(frame => frame.id)), 1).moves, []);
 });

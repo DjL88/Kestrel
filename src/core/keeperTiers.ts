@@ -1,4 +1,4 @@
-import type { CullSuggestion } from './autoCull';
+import { countOriginalKeepers, isCullOriginal, type CullSuggestion } from './autoCull';
 import type { PhotoFrame } from './types';
 
 /**
@@ -16,7 +16,7 @@ export function planKeeperTier(
   tier: KeeperTier,
 ): { frameId: string; decision: 'keep' }[] {
   if (!Number.isSafeInteger(target) || target < 1 || target > 9999) return [];
-  const remaining = Math.max(0, target - frames.filter((frame) => frame.removedAt == null && frame.decision === 'keep').length);
+  const remaining = Math.max(0, target - countOriginalKeepers(frames));
   if (!remaining) return [];
 
   const byId = new Map<string, PhotoFrame>();
@@ -26,7 +26,7 @@ export function planKeeperTier(
     else byId.set(frame.id, frame);
   }
   const occupied = new Set(frames
-    .filter((frame) => frame.removedAt == null && frame.decision === 'keep' && frame.burstGroupId)
+    .filter((frame) => isCullOriginal(frame) && frame.decision === 'keep' && frame.burstGroupId)
     .map((frame) => frame.burstGroupId!));
   const claimed = new Set<string>();
   const choices: { frameId: string; decision: 'keep' }[] = [];
@@ -42,7 +42,7 @@ export function planKeeperTier(
     if (choices.length >= remaining) break;
     if (claimed.has(result.frameId) || ambiguous.has(result.frameId)) continue;
     const frame = byId.get(result.frameId);
-    if (!frame || frame.removedAt != null || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) continue;
+    if (!frame || !isCullOriginal(frame) || frame.decision !== 'unreviewed') continue;
     if (frame.burstGroupId && occupied.has(frame.burstGroupId)) continue;
     claimed.add(result.frameId);
     if (frame.burstGroupId) occupied.add(frame.burstGroupId);
