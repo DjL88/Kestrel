@@ -851,7 +851,7 @@ export default function Canvas({
                 className="pointer-events-none absolute inset-y-0 z-30 border-l border-dashed border-[var(--brand-accent)]"
                 style={{ left: `${guide.percent}%` }}
               >
-                <span className="absolute top-2 left-1.5 rounded bg-[var(--brand-accent)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--text-on-accent)] whitespace-nowrap">
+                <span className="absolute top-2 left-1.5 rounded bg-[var(--brand-accent)] px-1.5 py-0.5 text-[0.5625rem] font-semibold text-[var(--text-on-accent)] whitespace-nowrap">
                   {guide.label}
                 </span>
               </div>
@@ -861,7 +861,7 @@ export default function Canvas({
                 className="pointer-events-none absolute inset-x-0 z-30 border-t border-dashed border-[var(--brand-accent)]"
                 style={{ top: `${guide.percent}%` }}
               >
-                <span className="absolute right-2 -top-5 rounded bg-[var(--brand-accent)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--text-on-accent)] whitespace-nowrap">
+                <span className="absolute right-2 -top-5 rounded bg-[var(--brand-accent)] px-1.5 py-0.5 text-[0.5625rem] font-semibold text-[var(--text-on-accent)] whitespace-nowrap">
                   {guide.label}
                 </span>
               </div>
@@ -883,6 +883,7 @@ export default function Canvas({
                 : undefined
             }
             data-overlay="text"
+            data-artwork
             title={interactive ? 'Drag to reposition text overlay (snaps to watermark & safe margins)' : undefined}
             className={`group/overlay z-20 select-none ${
               overlay.textLayoutMode === 'cover-full'
@@ -962,6 +963,7 @@ export default function Canvas({
                 : undefined
             }
             data-overlay="watermark"
+            data-artwork
             title={interactive ? 'Drag to reposition watermark (snaps cleanly to text overlay)' : undefined}
             className={`group/overlay absolute z-20 select-none rounded text-right ${
               interactive ? 'pointer-events-auto cursor-move ring-1 ring-transparent hover:ring-[var(--brand-accent)]' : 'pointer-events-none'
@@ -1123,7 +1125,7 @@ export default function Canvas({
           </>)}
           {Array.from({ length: sectionCount }, (_, paneIdx) => paneIdx).map((paneIdx) => (
             <div key={paneIdx} className="flex flex-col items-center gap-2">
-              <span className="flex h-6 items-center gap-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+              <span className="flex h-6 items-center gap-1.5 text-[0.6875rem] font-medium text-[var(--text-muted)]">
                 {sectionCount === 2 ? (paneIdx === 0 ? STRINGS.canvas.frameLeft : STRINGS.canvas.frameRight) : `Frame ${paneIdx + 1} of ${sectionCount}`} · {activeSize.ratioLabel}
                 {paneSelected(paneIdx) && (
                   <button
@@ -1197,7 +1199,7 @@ export default function Canvas({
         className="relative m-auto flex flex-col items-center gap-2"
         style={{ zoom: canvasZoom, transform: offset ? `translate(${offset.x}px, ${offset.y}px)` : undefined }}
       >
-        <div className="v2-canvas-meta flex items-center gap-2 text-[11px] text-[var(--text-muted)]">
+        <div className="v2-canvas-meta flex items-center gap-2 text-[0.6875rem] text-[var(--text-muted)]">
           <span className="font-medium text-[var(--text-secondary)]">{activeSize.label}</span>
           <span aria-hidden="true">·</span>
           <span className="font-mono tabular-nums">
@@ -1208,7 +1210,7 @@ export default function Canvas({
               role="status"
               data-testid="size-cap-warning"
               title={STRINGS.canvas.sizeCappedLong(output.requestedWidth, output.requestedHeight, output.width, output.height)}
-              className="inline-flex items-center gap-1 rounded border border-[var(--semantic-warning)] bg-[var(--semantic-warning-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-primary)]"
+              className="inline-flex items-center gap-1 rounded border border-[var(--semantic-warning)] bg-[var(--semantic-warning-soft)] px-1.5 py-0.5 text-[0.625rem] font-semibold text-[var(--text-primary)]"
             >
               <BrandIcon name="alert" size={11} />
               {STRINGS.canvas.sizeCapped(output.requestedWidth, output.requestedHeight)}
@@ -1304,7 +1306,7 @@ export default function Canvas({
               renderSurface(holdingOriginal ? 'original' : 'edited', holdingOriginal ? `${photo.title} original` : photo.title, { transform: buildImageTransform(activeSize.crop), clipPath: cropClip }, holdingOriginal ? 'none' : filterCss)
             ))}
             {holdingOriginal && (
-              <span role="status" className="pointer-events-none absolute left-2 top-2 z-30 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[11px] font-semibold text-white">Showing the original. Let go to see your edit.</span>
+              <span role="status" className="pointer-events-none absolute left-2 top-2 z-30 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[0.6875rem] font-semibold text-white">Showing the original. Let go to see your edit.</span>
             )}
 
             </div>
@@ -1318,7 +1320,7 @@ export default function Canvas({
                 <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)] shadow-lg">
                   <BrandIcon name="focal-point" size={20} />
                 </div>
-                <span className="mt-1 block rounded bg-[var(--bg-scrim)] px-1.5 py-0.5 text-center text-[10px] font-medium text-white whitespace-nowrap">
+                <span className="mt-1 block rounded bg-[var(--bg-scrim)] px-1.5 py-0.5 text-center text-[0.625rem] font-medium text-white whitespace-nowrap">
                   {photo.videoZoom.direction === 'in' ? 'Zoom in' : 'Zoom out'} · {photo.videoZoom.durationSec}s
                 </span>
               </div>
@@ -1399,11 +1401,11 @@ export default function Canvas({
               >
                 <div className="flex items-center gap-1.5 min-w-0">
                   <BrandIcon name="grip" size={12} className="text-[var(--text-muted)]" />
-                  <span className="truncate text-[11px] font-semibold text-[var(--text-primary)]">
+                  <span className="truncate text-[0.6875rem] font-semibold text-[var(--text-primary)]">
                     {size.label}{panes.length > 1 ? ` · ${paneIdx + 1}/${panes.length}` : ''}
                   </span>
                 </div>
-                <span className="shrink-0 font-mono text-[10px] text-[var(--text-muted)] tabular-nums">
+                <span className="shrink-0 font-mono text-[0.625rem] text-[var(--text-muted)] tabular-nums">
                   {size.ratioLabel}
                 </span>
               </div>
@@ -1439,7 +1441,7 @@ export default function Canvas({
                 />)}
                 {paneIdx === panes.length - 1 && renderOverlaysInsideFrame(size, false)}
                 {size.kind === 'video' && (
-                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-[var(--bg-scrim)] px-1.5 py-0.5 text-[10px] font-medium text-white">
+                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-[var(--bg-scrim)] px-1.5 py-0.5 text-[0.625rem] font-medium text-white">
                     <BrandIcon name="video-zoom" size={11} />
                     MP4
                   </span>
@@ -1447,7 +1449,7 @@ export default function Canvas({
               </button>
 
               {/* Footer indicators */}
-              <div className="flex items-center justify-between px-2.5 py-1 text-[10px] text-[var(--text-muted)]">
+              <div className="flex items-center justify-between px-2.5 py-1 text-[0.625rem] text-[var(--text-muted)]">
                 <span>
                   {size.crop.flipH ? 'Flipped H' : size.crop.flipV ? 'Flipped V' : 'Normal'}
                   {size.crop.rotateDeg ? ` · ${size.crop.rotateDeg}°` : ''}
@@ -1481,7 +1483,7 @@ export default function Canvas({
             <button
               type="button"
               onClick={() => onSetLayoutMode('single')}
-              className={`inline-flex h-7 items-center gap-1.5 rounded px-2 text-[11px] font-medium transition-colors whitespace-nowrap ${
+              className={`inline-flex h-7 items-center gap-1.5 rounded px-2 text-[0.6875rem] font-medium transition-colors whitespace-nowrap ${
                 canvasLayoutMode === 'single'
                   ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
@@ -1494,7 +1496,7 @@ export default function Canvas({
               type="button"
               onClick={() => onSetLayoutMode('all-formats')}
               title="Drag artboard title bars to arrange · Ctrl/Cmd-click formats to edit as a group · Double-click to focus"
-              className={`inline-flex h-7 items-center gap-1.5 rounded px-2 text-[11px] font-medium transition-colors whitespace-nowrap ${
+              className={`inline-flex h-7 items-center gap-1.5 rounded px-2 text-[0.6875rem] font-medium transition-colors whitespace-nowrap ${
                 canvasLayoutMode === 'all-formats'
                   ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
@@ -1510,7 +1512,7 @@ export default function Canvas({
               <button
                 type="button"
                 onClick={() => onSelectAllSizes(photo.id, enabledSizes.map((size) => size.id))}
-                className="h-7 rounded-[var(--radius-sm)] px-2 text-[11px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] whitespace-nowrap"
+                className="h-7 rounded-[var(--radius-sm)] px-2 text-[0.6875rem] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] whitespace-nowrap"
               >
                 Select all
               </button>
@@ -1522,7 +1524,7 @@ export default function Canvas({
                   ));
                   onResetArtboards(photo.id);
                 }}
-                className="h-7 rounded-[var(--radius-sm)] px-2 text-[11px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] whitespace-nowrap"
+                className="h-7 rounded-[var(--radius-sm)] px-2 text-[0.6875rem] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] whitespace-nowrap"
               >
                 Tidy board
               </button>
@@ -1536,7 +1538,7 @@ export default function Canvas({
                   key={s.id}
                   type="button"
                   onClick={() => onSelectSize(s.id)}
-                  className={`h-7 rounded-[var(--radius-sm)] px-2 text-[11px] font-medium transition-colors whitespace-nowrap ${
+                  className={`h-7 rounded-[var(--radius-sm)] px-2 text-[0.6875rem] font-medium transition-colors whitespace-nowrap ${
                     activeSize.id === s.id
                       ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                       : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
@@ -1557,7 +1559,7 @@ export default function Canvas({
             data-testid="selected-format-toolbar"
             className="flex min-w-0 items-center gap-1 overflow-x-auto inflight-scroll"
           >
-            <span data-testid="selected-format-count" className="shrink-0 px-1 text-[11px] text-[var(--text-muted)]">
+            <span data-testid="selected-format-count" className="shrink-0 px-1 text-[0.6875rem] text-[var(--text-muted)]">
               {selectedSizeIds.length === 1 ? '1 selected' : `${selectedSizeIds.length} selected`}
             </span>
             {([
@@ -1609,7 +1611,7 @@ export default function Canvas({
               <button
                 type="button"
                 onClick={() => onReconnectOriginal(photo.id)}
-                className="inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 text-[11px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
+                className="inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
               >
                 <BrandIcon name="relink" size={13} />
                 <span>{STRINGS.canvas.reconnectOriginal}</span>
@@ -1667,7 +1669,7 @@ export default function Canvas({
       </div>
         {/* Subtle bottom-left interaction hint */}
         {!hideHints && canvasLayoutMode === 'single' && (
-          <p data-capture-ignore className="pointer-events-none absolute bottom-3 left-4 right-80 hidden truncate lg:block text-[11px] text-[var(--text-muted)]">
+          <p data-capture-ignore className="pointer-events-none absolute bottom-3 left-4 right-80 hidden truncate lg:block text-[0.6875rem] text-[var(--text-muted)]">
             {activeSize.kind === 'video'
               ? STRINGS.canvas.zoomVideoHint
               : STRINGS.canvas.dragCropHint}
@@ -1675,7 +1677,7 @@ export default function Canvas({
         )}
 
         {shotNote && (
-          <p role="status" data-capture-ignore className="absolute bottom-14 right-3 z-30 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 py-1 text-[11px] text-[var(--text-primary)] shadow">{shotNote}</p>
+          <p role="status" data-capture-ignore className="absolute bottom-14 right-3 z-30 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 py-1 text-[0.6875rem] text-[var(--text-primary)] shadow">{shotNote}</p>
         )}
 
         {/* BottomRightCluster: Zoom controls, Grid View toggle, and ONE Full Screen button */}
@@ -1723,7 +1725,7 @@ export default function Canvas({
             title={actualPercent === 100 ? STRINGS.canvas.zoomToFit : STRINGS.canvas.zoomTo100}
             data-testid="zoom-percent"
             onClick={toggleActualSize}
-            className="h-8 min-w-[46px] rounded-[var(--radius-sm)] px-1.5 font-mono text-[11px] font-medium text-[var(--text-primary)] tabular-nums hover:bg-[var(--bg-surface-hover)]"
+            className="h-8 min-w-[46px] rounded-[var(--radius-sm)] px-1.5 font-mono text-[0.6875rem] font-medium text-[var(--text-primary)] tabular-nums hover:bg-[var(--bg-surface-hover)]"
           >
             {actualPercent}%
           </button>
@@ -1748,7 +1750,7 @@ export default function Canvas({
             className="inline-flex h-8 min-w-8 items-center justify-center gap-1 rounded-[var(--radius-sm)] px-1 text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] aria-pressed:text-[var(--brand-accent)]"
           >
             <BrandIcon name="grid" size={15} />
-            {gridMode !== 'off' && <span className="text-[10px] font-semibold">{gridMode === '3x3' ? '3×3' : '4×4'}</span>}
+            {gridMode !== 'off' && <span className="text-[0.625rem] font-semibold">{gridMode === '3x3' ? '3×3' : '4×4'}</span>}
           </button>
 
           <button

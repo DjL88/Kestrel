@@ -223,13 +223,13 @@ export default function ProjectsHub({
                         {project.kind === 'collage' ? 'Collage · ' : ''}{STRINGS.hub.photosCount(project.photoCount)} ·{' '}
                         {STRINGS.hub.flaggedCount(project.flaggedCount)} · {project.updatedAt}
                       </p>
-                      <p className="mt-1 truncate font-mono text-[11px] text-[var(--text-muted)]">
+                      <p className="mt-1 truncate font-mono text-[0.6875rem] text-[var(--text-muted)]">
                         {project.folderPath}
                       </p>
                     </div>
 
                     <div className="mt-4 flex items-center justify-between border-t border-[var(--border-subtle)] pt-3">
-                      <span className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)]">
+                      <span className="flex items-center gap-1.5 text-[0.6875rem] text-[var(--text-secondary)]">
                         <BrandIcon
                           name={project.localCopyStatus === 'synced' ? 'cloud' : 'hard-drive'}
                           size={13}
@@ -336,7 +336,7 @@ export default function ProjectsHub({
                       <span className="text-sm font-semibold text-[var(--text-primary)]">{title}</span>
                       <span className="block text-xs leading-snug text-[var(--text-secondary)]">{description}</span>
                       {selected && (
-                        <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-[var(--brand-accent)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-on-accent)]">
+                        <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-[var(--brand-accent)] px-2 py-0.5 text-[0.625rem] font-semibold text-[var(--text-on-accent)]">
                           <BrandIcon name="check" size={11} />{STRINGS.hub.kindSelected}
                         </span>
                       )}
@@ -369,7 +369,7 @@ export default function ProjectsHub({
               <BrandIcon name="folder" size={16} />
               <span>{STRINGS.hubMore.fromFolder}</span>
             </button>
-            <p className="text-[11px] leading-snug text-[var(--text-muted)]">{STRINGS.hubMore.fromFolderNote}</p>
+            <p className="text-[0.6875rem] leading-snug text-[var(--text-muted)]">{STRINGS.hubMore.fromFolderNote}</p>
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"

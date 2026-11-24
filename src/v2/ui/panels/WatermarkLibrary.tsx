@@ -20,9 +20,9 @@ function Swatch({ url, onDark, label }: { url?: string; onDark: boolean; label: 
   return (
     <span className="flex flex-col items-center gap-0.5">
       <span className="grid h-10 w-14 place-items-center overflow-hidden rounded-[var(--radius-xs)] border border-[var(--border-subtle)]" style={{ background: onDark ? '#14171F' : '#F4F1EA' }}>
-        {url ? <img src={url} alt="" className="max-h-8 max-w-[3.25rem] object-contain" draggable={false} /> : <span className="text-[9px]" style={{ color: onDark ? '#B3B9C5' : '#4a4f5a' }}>{STRINGS.watermarks.none}</span>}
+        {url ? <img src={url} alt="" className="max-h-8 max-w-[3.25rem] object-contain" draggable={false} /> : <span className="text-[0.5625rem]" style={{ color: onDark ? '#B3B9C5' : '#4a4f5a' }}>{STRINGS.watermarks.none}</span>}
       </span>
-      <span className="text-[10px] text-[var(--text-secondary)]">{label}</span>
+      <span className="text-[0.625rem] text-[var(--text-secondary)]">{label}</span>
     </span>
   );
 }
@@ -59,7 +59,7 @@ export default function WatermarkLibrary({ presets, selectedId, onSelect, onImpo
             <div key={preset.id} className={`rounded-[var(--radius-sm)] border ${selected ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]' : 'border-[var(--border-subtle)] bg-[var(--bg-input)]'}`}>
               <button type="button" aria-pressed={selected} onClick={() => onSelect(preset.id)} className="flex w-full flex-col px-2.5 py-2 text-left">
                 <span className="text-xs font-semibold text-[var(--text-primary)]">{preset.label}</span>
-                {!isImage && <span className="mt-0.5 font-mono text-[10px] text-[var(--text-secondary)]">{preset.text} {preset.subtext ? `· ${preset.subtext}` : ''}</span>}
+                {!isImage && <span className="mt-0.5 font-mono text-[0.625rem] text-[var(--text-secondary)]">{preset.text} {preset.subtext ? `· ${preset.subtext}` : ''}</span>}
               </button>
               {isImage && (
                 <div className="space-y-2 px-2.5 pb-2.5">
@@ -70,30 +70,30 @@ export default function WatermarkLibrary({ presets, selectedId, onSelect, onImpo
                   <div className="flex flex-wrap gap-1">
                     {([['dark', STRINGS.watermarks.removeBgDark, preset.forDarkUrl], ['light', STRINGS.watermarks.removeBgLight, preset.forLightUrl]] as const).map(([slot, label, url]) => url && (
                       <button key={slot} type="button" onClick={() => startEditing(preset, slot)}
-                        className="rounded-[var(--radius-xs)] border border-[var(--border-default)] px-2 py-1 text-[11px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">{label}</button>
+                        className="rounded-[var(--radius-xs)] border border-[var(--border-default)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">{label}</button>
                     ))}
-                    {!preset.forDarkUrl && <button type="button" onClick={() => void onMakeVariant(preset.id, 'dark')} className="rounded-[var(--radius-xs)] border border-[var(--border-default)] px-2 py-1 text-[11px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">{STRINGS.watermarks.makeLight}</button>}
-                    {!preset.forLightUrl && <button type="button" onClick={() => void onMakeVariant(preset.id, 'light')} className="rounded-[var(--radius-xs)] border border-[var(--border-default)] px-2 py-1 text-[11px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">{STRINGS.watermarks.makeDark}</button>}
-                    <button type="button" onClick={() => onDelete(preset.id)} className="rounded-[var(--radius-xs)] px-2 py-1 text-[11px] font-medium text-[var(--semantic-danger)] hover:bg-[var(--bg-surface-hover)]">{STRINGS.watermarks.delete}</button>
+                    {!preset.forDarkUrl && <button type="button" onClick={() => void onMakeVariant(preset.id, 'dark')} className="rounded-[var(--radius-xs)] border border-[var(--border-default)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">{STRINGS.watermarks.makeLight}</button>}
+                    {!preset.forLightUrl && <button type="button" onClick={() => void onMakeVariant(preset.id, 'light')} className="rounded-[var(--radius-xs)] border border-[var(--border-default)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">{STRINGS.watermarks.makeDark}</button>}
+                    <button type="button" onClick={() => onDelete(preset.id)} className="rounded-[var(--radius-xs)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--semantic-danger)] hover:bg-[var(--bg-surface-hover)]">{STRINGS.watermarks.delete}</button>
                   </div>
                   {editing?.id === preset.id && (
                     <div className="space-y-2 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] p-2" data-testid="cutout-editor">
-                      <p className="text-[11px] text-[var(--text-secondary)]">{STRINGS.watermarks.removeBgHelp}</p>
+                      <p className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.watermarks.removeBgHelp}</p>
                       <div className="grid h-24 place-items-center overflow-hidden rounded-[var(--radius-xs)]" style={{ background: checker }}>
                         {preview ? <img src={preview.url} alt={STRINGS.watermarks.previewAlt} className="max-h-20 max-w-full object-contain" draggable={false} data-testid="cutout-preview" /> : <span role="status" className="text-xs text-[var(--text-secondary)]">{STRINGS.watermarks.working}</span>}
                       </div>
-                      <label className="flex items-center gap-2 text-[11px] text-[var(--text-secondary)]">
+                      <label className="flex items-center gap-2 text-[0.6875rem] text-[var(--text-secondary)]">
                         <span className="shrink-0">{STRINGS.watermarks.tolerance}</span>
                         <input type="range" min={0} max={100} value={tolerance} aria-label={STRINGS.watermarks.tolerance} className="inflight-slider"
                           onChange={(event) => { const value = Number(event.target.value); setTolerance(value); void preparePreview(preset.id, editing.slot, value); }} />
                         <span className="w-8 text-right font-mono tabular-nums">{tolerance}</span>
                       </label>
-                      {preview?.tooMuch && <p role="status" className="text-[11px] text-[var(--text-primary)]">{STRINGS.watermarks.tooMuch}</p>}
+                      {preview?.tooMuch && <p role="status" className="text-[0.6875rem] text-[var(--text-primary)]">{STRINGS.watermarks.tooMuch}</p>}
                       <div className="flex gap-1.5">
                         <button type="button" disabled={busy || !preview || preview.tooMuch} data-testid="cutout-apply"
                           onClick={async () => { await onCutOut(preset.id, editing.slot, tolerance, true); setEditing(null); setPreview(null); }}
-                          className="rounded-[var(--radius-xs)] bg-[var(--brand-accent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-on-accent)] disabled:opacity-50">{STRINGS.watermarks.apply}</button>
-                        <button type="button" onClick={() => { setEditing(null); setPreview(null); }} className="rounded-[var(--radius-xs)] border border-[var(--border-default)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-primary)]">{STRINGS.watermarks.cancel}</button>
+                          className="rounded-[var(--radius-xs)] bg-[var(--brand-accent)] px-2.5 py-1 text-[0.6875rem] font-semibold text-[var(--text-on-accent)] disabled:opacity-50">{STRINGS.watermarks.apply}</button>
+                        <button type="button" onClick={() => { setEditing(null); setPreview(null); }} className="rounded-[var(--radius-xs)] border border-[var(--border-default)] px-2.5 py-1 text-[0.6875rem] font-medium text-[var(--text-primary)]">{STRINGS.watermarks.cancel}</button>
                       </div>
                     </div>
                   )}
@@ -107,7 +107,7 @@ export default function WatermarkLibrary({ presets, selectedId, onSelect, onImpo
         className="flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
         <BrandIcon name="plus" size={13} />{STRINGS.watermarks.add}
       </button>
-      <p className="text-[11px] leading-snug text-[var(--text-secondary)]">{STRINGS.watermarks.localNote}</p>
+      <p className="text-[0.6875rem] leading-snug text-[var(--text-secondary)]">{STRINGS.watermarks.localNote}</p>
     </div>
   );
 }

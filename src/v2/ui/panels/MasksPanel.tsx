@@ -63,7 +63,7 @@ export default function MasksPanel({
         {STRINGS.masks.subtitle}
       </p>
 
-      <p role="status" className="text-[11px] leading-relaxed text-[var(--text-muted)]">{STRINGS.panelWords.maskStatus}</p>
+      <p role="status" className="text-[0.6875rem] leading-relaxed text-[var(--text-muted)]">{STRINGS.panelWords.maskStatus}</p>
 
       {/* Auto-detect mask triggers */}
       <div className="space-y-2">
@@ -115,7 +115,7 @@ export default function MasksPanel({
                 onSetMaskTool(tool.id);
                 if (tool.id === 'area' || tool.id === 'gradient') onAddMaskLayer(photo.id, tool.id);
               }}
-              className={`disabled:cursor-not-allowed disabled:opacity-50 flex flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] border py-2.5 text-[11px] font-medium transition-colors ${
+              className={`disabled:cursor-not-allowed disabled:opacity-50 flex flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] border py-2.5 text-[0.6875rem] font-medium transition-colors ${
                 activeMaskTool === tool.id
                   ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                   : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -134,7 +134,7 @@ export default function MasksPanel({
           Active layers ({photo.masks.length})
         </h3>
         <div className="space-y-1.5">
-          {photo.masks.length === 0 && <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.panelWords.noMasks}</p>}
+          {photo.masks.length === 0 && <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.panelWords.noMasks}</p>}
           {photo.masks.map((layer) => {
             const expanded = openId === layer.id;
             return (
@@ -156,7 +156,7 @@ export default function MasksPanel({
                     className="min-w-0 flex-1 truncate text-left text-xs text-[var(--text-primary)]"
                   >
                     <span className={layer.visible ? '' : 'opacity-50'}>{layer.name}</span>
-                    <span className="ml-2 text-[10px] text-[var(--text-muted)]">{Object.keys(layer.edit).length ? `${Object.keys(layer.edit).length} adjusted` : 'no adjustments'}</span>
+                    <span className="ml-2 text-[0.625rem] text-[var(--text-muted)]">{Object.keys(layer.edit).length ? `${Object.keys(layer.edit).length} adjusted` : 'no adjustments'}</span>
                   </button>
                   <button
                     type="button"
@@ -185,12 +185,12 @@ export default function MasksPanel({
                           { key: 'y2', label: STRINGS.panelWords.endUpDown, value: shape.y2, min: 0, max: 1, step: 0.01 },
                         ];
                       return <fieldset className="space-y-2 border-b border-[var(--border-subtle)] pb-3">
-                        <legend className="text-[11px] font-semibold text-[var(--text-primary)]">
+                        <legend className="text-[0.6875rem] font-semibold text-[var(--text-primary)]">
                           {shape.kind === 'radial' ? STRINGS.panelWords.ovalPosition : STRINGS.panelWords.gradientDirection}
                         </legend>
-                        <p className="text-[11px] text-[var(--text-secondary)]">{STRINGS.panelWords.geometryNote}</p>
+                        <p className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.panelWords.geometryNote}</p>
                         {geometryRows.map(row => (
-                          <label key={row.key} className="block space-y-1 text-[11px] text-[var(--text-secondary)]">
+                          <label key={row.key} className="block space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
                             <span className="flex justify-between gap-2">
                               <span>{row.label}</span>
                               <span className="font-mono tabular-nums">{row.key === 'angle' ? `${row.value}°` : `${Math.round(row.value * 100)}%`}</span>
@@ -206,7 +206,7 @@ export default function MasksPanel({
                       </fieldset>;
                     })()}
                     {MASK_SLIDERS.map((slider) => (
-                      <label key={slider.key} className="block space-y-1 text-[11px] text-[var(--text-secondary)]">
+                      <label key={slider.key} className="block space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
                         <span className="flex justify-between"><span>{slider.label}</span><span className="font-mono tabular-nums">{(layer.edit[slider.key] ?? 0).toFixed(2)}</span></span>
                         <input
                           type="range" className="inflight-slider" aria-label={`${layer.name} ${slider.label}`}
@@ -215,7 +215,7 @@ export default function MasksPanel({
                         />
                       </label>
                     ))}
-                    <label className="block space-y-1 text-[11px] text-[var(--text-secondary)]">
+                    <label className="block space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
                       <span className="flex justify-between"><span>{STRINGS.masks.feather}</span><span className="font-mono tabular-nums">{layer.feather}</span></span>
                       <input
                         type="range" className="inflight-slider" aria-label={`${layer.name} ${STRINGS.masks.feather}`}
@@ -231,7 +231,7 @@ export default function MasksPanel({
         </div>
       </div>
 
-      <p className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-2.5 text-[11px] leading-relaxed text-[var(--text-muted)]">
+      <p className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-2.5 text-[0.6875rem] leading-relaxed text-[var(--text-muted)]">
         Subject/Background detection and adjustable Oval/Gradient masks work on this device. Automatic Sky detection and Brush/Eraser painting remain unavailable.
       </p>
     </div>

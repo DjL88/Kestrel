@@ -5,6 +5,7 @@ import { aiProviderControl, cacheCapControl } from '../../engineClient/realSetti
 import { calmViewOn, calmViewPatch } from '../../engineClient/uiSettings';
 import React, { useRef, useState } from 'react';
 import { useDialogFocus } from '../utils/dialogFocus';
+import ReadingSettings from './ReadingSettings';
 import { isDesktopApp, isMobileShell } from '../../../providers/desktopShell';
 
 /** The published privacy policy. It is not bundled into the app, so a relative link would lead nowhere in the desktop app. */
@@ -205,6 +206,9 @@ export default function SettingsDialog({
                   </div>
                 </section>
 
+                {/* Text size, typeface and spacing: the device's display settings, shared with the previous app. */}
+                <ReadingSettings />
+
                 {/* Calm View (lives here, NOT in TopBar or Assistance): a preset, with each of its parts adjustable below. */}
                 <section className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-4">
                   <div className="flex items-start justify-between gap-4">
@@ -283,7 +287,7 @@ export default function SettingsDialog({
 
                 <section className="space-y-2">
                   <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.hand.label}</h3>
-                  <p className="text-[11px] leading-snug text-[var(--text-secondary)]">{STRINGS.hand.help}</p>
+                  <p className="text-[0.6875rem] leading-snug text-[var(--text-secondary)]">{STRINGS.hand.help}</p>
                   <div role="radiogroup" aria-label={STRINGS.hand.label} className="grid grid-cols-2 gap-2">
                     {(['right', 'left'] as const).map((side) => (
                       <button
@@ -371,7 +375,7 @@ export default function SettingsDialog({
                         {STRINGS.settings.account.emailHeading}
                       </p>
                       <div className="space-y-1">
-                        <label htmlFor="acc-email" className="text-[11px] text-[var(--text-secondary)]">
+                        <label htmlFor="acc-email" className="text-[0.6875rem] text-[var(--text-secondary)]">
                           {STRINGS.settings.account.emailLabel}
                         </label>
                         <input
@@ -385,7 +389,7 @@ export default function SettingsDialog({
                         />
                       </div>
                       <div className="space-y-1">
-                        <label htmlFor="acc-pass" className="text-[11px] text-[var(--text-secondary)]">
+                        <label htmlFor="acc-pass" className="text-[0.6875rem] text-[var(--text-secondary)]">
                           {STRINGS.settings.account.passwordLabel}
                         </label>
                         <input
@@ -473,10 +477,10 @@ export default function SettingsDialog({
                       )}
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-semibold text-[var(--text-primary)]">{prov.name}</p>
-                        <p className="mt-0.5 text-[11px] text-[var(--text-secondary)]">
+                        <p className="mt-0.5 text-[0.6875rem] text-[var(--text-secondary)]">
                           {prov.description}
                         </p>
-                        <p className="mt-1 font-mono text-[10px] text-[var(--text-muted)]">
+                        <p className="mt-1 font-mono text-[0.625rem] text-[var(--text-muted)]">
                           {connection.modelLabel}
                         </p>
                       </div>
@@ -499,9 +503,9 @@ export default function SettingsDialog({
                   })}
                 </div>
                 {accountPanel
-                  ? <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.settingsMore.aiPlanned}</p>
+                  ? <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.settingsMore.aiPlanned}</p>
                   : <div>
-                    <p className="text-[11px] font-medium text-[var(--text-muted)]">{STRINGS.settingsMore.byoAi}</p>
+                    <p className="text-[0.6875rem] font-medium text-[var(--text-muted)]">{STRINGS.settingsMore.byoAi}</p>
                     <WorksWith items={[{ id: 'ollama', name: 'Ollama' }, { id: 'lmstudio', name: 'LM Studio' }]} />
                   </div>}
               </div>
@@ -534,15 +538,15 @@ export default function SettingsDialog({
                     onChange={(e) => onUpdateSettings({ localCacheLimitGb: Number(e.target.value) })}
                     className="inflight-slider disabled:cursor-not-allowed disabled:opacity-50"
                   />
-                  {accountPanel && <p id="v2-cache-unavailable" role="status" className="text-[11px] text-[var(--text-secondary)]">{cacheCapControl(true).description}</p>}
+                  {accountPanel && <p id="v2-cache-unavailable" role="status" className="text-[0.6875rem] text-[var(--text-secondary)]">{cacheCapControl(true).description}</p>}
                 </section>
 
                 <StorageConnections />
                 <div>
-                    <p className="text-[11px] font-medium text-[var(--text-muted)]">{STRINGS.settingsMore.byoStorage}</p>
+                    <p className="text-[0.6875rem] font-medium text-[var(--text-muted)]">{STRINGS.settingsMore.byoStorage}</p>
                     <WorksWith items={[{ id: 'synology', name: 'Synology' }, { id: 'qnap', name: 'QNAP' }, { id: 'nextcloud', name: 'Nextcloud' }, { id: 'owncloud', name: 'ownCloud' }, { id: 'backblaze', name: 'Backblaze B2' }]} />
                 </div>
-                <p className="pt-1 text-[11px] text-[var(--text-muted)]">
+                <p className="pt-1 text-[0.6875rem] text-[var(--text-muted)]">
                   {STRINGS.settings.storage.inflightCloudNote}
                 </p>
               </div>

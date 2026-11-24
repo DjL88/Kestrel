@@ -81,7 +81,7 @@ export function ToneCurveControl({ recipe, onChange }: Props) {
           <InfoPopover title={T.curve.heading} body={T.curve.help} />
         </div>
         <button type="button" onClick={() => { set(STRAIGHT); setSelected(null); }}
-          className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--brand-accent)]">
+          className="inline-flex items-center gap-1 text-[0.6875rem] font-medium text-[var(--text-muted)] hover:text-[var(--brand-accent)]">
           <BrandIcon name="restore" size={12} />
           <span>{T.curve.reset}</span>
         </button>
@@ -110,7 +110,7 @@ export function ToneCurveControl({ recipe, onChange }: Props) {
       <div role="group" aria-label={T.curve.presetsLabel} className="flex flex-wrap gap-1.5">
         {(Object.keys(CURVE_PRESETS) as CurvePresetId[]).map((id) => (
           <button key={id} type="button" onClick={() => { set(CURVE_PRESETS[id]); setSelected(null); }}
-            className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-input)] px-2.5 py-1 text-[11px] text-[var(--text-secondary)] hover:border-[var(--border-default)]">
+            className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-input)] px-2.5 py-1 text-[0.6875rem] text-[var(--text-secondary)] hover:border-[var(--border-default)]">
             {T.curve[id]}
           </button>
         ))}
@@ -143,7 +143,7 @@ export function ColourMixerControl({ recipe, calmView, onChange }: Props) {
           <InfoPopover title={T.mixer.heading} body={T.mixer.help} />
         </div>
         <button type="button" onClick={() => onChange({ colourMixer: undefined })}
-          className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--brand-accent)]">
+          className="inline-flex items-center gap-1 text-[0.6875rem] font-medium text-[var(--text-muted)] hover:text-[var(--brand-accent)]">
           <BrandIcon name="restore" size={12} />
           <span>{T.mixer.reset}</span>
         </button>
@@ -151,7 +151,7 @@ export function ColourMixerControl({ recipe, calmView, onChange }: Props) {
       <div role="radiogroup" aria-label={T.mixer.bandsLabel} className="grid grid-cols-4 gap-1">
         {BANDS.map((name, i) => (
           <button key={name} type="button" role="radio" aria-checked={band === i} onClick={() => setBand(i)}
-            className={`flex min-h-11 flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] border px-1 text-[10px] leading-none ${band === i ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--text-primary)]' : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'}`}>
+            className={`flex min-h-11 flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] border px-1 text-[0.625rem] leading-none ${band === i ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--text-primary)]' : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'}`}>
             <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: SWATCH[name] }} />
             <span>{T.mixer.bands[name]}{changed(i) && <span aria-hidden="true"> •</span>}</span>
             {changed(i) && <span className="sr-only">{T.mixer.changed}</span>}
@@ -170,7 +170,7 @@ export function ColourMixerControl({ recipe, calmView, onChange }: Props) {
               </div>
               {!calmView && (
                 <button type="button" onClick={() => setValue(row.key, 0)}
-                  className="font-mono text-[11px] text-[var(--text-secondary)] tabular-nums hover:text-[var(--brand-accent)]">
+                  className="font-mono text-[0.6875rem] text-[var(--text-secondary)] tabular-nums hover:text-[var(--brand-accent)]">
                   {`${value > 0 ? '+' : ''}${Math.round(value)}`}
                 </button>
               )}
@@ -201,7 +201,7 @@ export function KelvinControl({ recipe, asShotK, calmView, onChange }: Props & {
         </div>
         {!calmView && (
           <button type="button" onClick={() => set(asShotK)}
-            className="font-mono text-[11px] text-[var(--text-secondary)] tabular-nums hover:text-[var(--brand-accent)]">
+            className="font-mono text-[0.6875rem] text-[var(--text-secondary)] tabular-nums hover:text-[var(--brand-accent)]">
             {formatK(value)}
           </button>
         )}
@@ -209,7 +209,7 @@ export function KelvinControl({ recipe, asShotK, calmView, onChange }: Props & {
       <input id="slider-kelvin" type="range" min={KELVIN_LOW} max={KELVIN_HIGH} step={50}
         value={Math.min(KELVIN_HIGH, Math.max(KELVIN_LOW, value))} aria-valuetext={formatK(value)}
         onChange={(e) => set(Number(e.target.value))} className="inflight-slider" />
-      <div className="flex items-center justify-between text-[10px] text-[var(--text-muted)]">
+      <div className="flex items-center justify-between text-[0.625rem] text-[var(--text-muted)]">
         <span>{T.kelvin.cooler}</span>
         <span>{T.kelvin.asShot.replace('{k}', Math.round(asShotK).toLocaleString('en-GB'))}</span>
         <span>{T.kelvin.warmer}</span>
