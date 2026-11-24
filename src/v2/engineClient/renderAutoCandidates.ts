@@ -1,4 +1,5 @@
 import { applyCanvasPhotoEdit } from '../../core/canvasEdit';
+import { assessAutoMaskIsolation } from '../../core/autoMaskIsolation';
 import { superviseAutoRender } from '../../core/autoRenderSupervisor';
 import { fullContext, maskAlpha } from '../../core/masks';
 import type { Mask } from '../../core/maskTypes';
@@ -46,8 +47,22 @@ export function renderAutoCandidates(
   const safe = recipes.filter(recipe => {
     const pixels = render(recipe.edit);
     const review = superviseAutoRender({data: referenceFull,width: canvas.width,height: canvas.height}, {data: pixels,width: canvas.width,height: canvas.height}, alpha);
-    if (!review.safe) rejected.push(review.reason);
-    return review.safe;
+    if (!review.safe) { rejected.push(review.reason); return false; }
+    const existing = new Set((base.masks ?? []).map(mask => mask.id));
+    const added = (recipe.edit.masks ?? []).filter(mask => !existing.has(mask.id));
+    if (added.length) {
+      // Only subject-local, non-inverted Auto masks are supported here.
+      // Existing manual layers stay in both renders, unchanged.
+      if (added.some(mask => mask.kind !== 'subject' || mask.invert || mask.limit)) {
+        rejected.push('Automatic mask scope could not be verified');
+        return false;
+      }
+      const without = render({...recipe.edit, masks: (recipe.edit.masks ?? []).filter(mask => existing.has(mask.id))});
+      const isolation = assessAutoMaskIsolation({data: without,width: canvas.width,height: canvas.height},
+        {data: pixels,width: canvas.width,height: canvas.height}, alpha);
+      if (!isolation.safe) { rejected.push(isolation.reason); return false; }
+    }
+    return true;
   });
   canvas.width = Math.max(1, Math.round(source.width * scale));
   canvas.height = Math.max(1, Math.round(source.height * scale));
