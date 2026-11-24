@@ -304,14 +304,15 @@ test('?v2 marks Pro features with the Pro badge, and leaves Basic features unmar
   await expect(root.getByRole('button', { name: /Deep Vision Review/ }).getByText('Part of InFlight Pro')).toHaveCount(1);
 });
 
-test('?v2 chrome: icons load, no File/Edit/View or mode switch in the header, the mode shows as a flag and is set in Settings', async ({ page }) => {
+test('?v2 chrome: icons load, File/Edit/View menus but no mode switch in the header, the mode shows as a flag and is set in Settings', async ({ page }) => {
   const missing: string[] = [];
   page.on('response', (response) => { if (response.url().includes('/v2-icons/') && response.status() >= 400) missing.push(response.url()); });
   await page.goto('/?v2&stub=1');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: /Scottish Highlands/ }).first().click();
   const header = root.getByRole('banner');
-  await expect(header.getByRole('navigation', { name: 'Application menus' })).toHaveCount(0);
+  // Owner decision 24 Nov 2026: keep File/Edit/View (wide screens) so V2-only actions such as Removed photos have a way in.
+  await expect(header.getByRole('navigation', { name: 'Application menus' })).toBeVisible();
   await expect(header.getByRole('radiogroup', { name: /assist mode/i })).toHaveCount(0);
   await expect(header.getByRole('button', { name: 'Back to projects' })).toBeVisible();
   // Assist and Co-pilot are one tool: there is no separate Assist in the rail.
