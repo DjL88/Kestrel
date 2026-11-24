@@ -1,3 +1,4 @@
+import { observationsFromFrame } from '../core/photographyPolicy';
 import { naturalAuto, stageNaturalRecipe } from '../core/naturalAuto';
 import { DEFAULT_EDIT, isEmptyEdit, type PhotoEdit } from '../core/photoEdits';
 import { recordEdit } from '../core/editHistory';
@@ -39,7 +40,7 @@ export async function suggestKeeperAutoEdits(
         canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
         ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
         const source = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-        const { edit } = naturalAuto({ pixels: source, width: canvas.width, height: canvas.height, iso: frame.exif?.iso });
+        const { edit } = naturalAuto({ pixels: source, width: canvas.width, height: canvas.height, iso: frame.exif?.iso, photographyObservations: observationsFromFrame(frame) });
         const suggestion = { ...DEFAULT_EDIT, ...edit };
         if (!isEmptyEdit(suggestion)) {
           // A suggestion is not proof of improvement: render it and check for clipping, colour shift, crunchy
