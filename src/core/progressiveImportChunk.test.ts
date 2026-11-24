@@ -55,3 +55,26 @@ test('a failed worker stops later per-photo announcements', async () => {
   await Promise.resolve();
   assert.deepEqual(seen, [], 'late completion after failure cannot enter the displayed project');
 });
+
+
+test('a sibling finishing in the same microtask turn as a failure is not announced', async () => {
+  const failed = deferred<string | null>();
+  const late = deferred<string | null>();
+  const ready: string[] = [];
+  const chunk = completeImportChunk(['failed', 'late'], (_entry, i) =>
+    i === 0 ? failed.promise : late.promise, photo => ready.push(photo));
+  failed.reject(new Error('original was disconnected'));
+  late.resolve('must-not-publish');
+  await assert.rejects(chunk, /disconnected/);
+  assert.deepEqual(ready, []);
+});
+
+test('a throwing publication callback closes the gate before another worker can publish', async () => {
+  const ready: string[] = [];
+  const chunk = completeImportChunk(['first', 'second'], async photo => photo, photo => {
+    ready.push(photo);
+    throw new Error('project closed');
+  });
+  await assert.rejects(chunk, /project closed/);
+  assert.deepEqual(ready, ['first']);
+});
