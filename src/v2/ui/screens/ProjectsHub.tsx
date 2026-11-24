@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import type { HubViewState, Project, ThemeMode } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon, { BrandLogo } from '../icons/BrandIcon';
-import { useLicence } from '../../../providers/licenceStore';
-import { footerKiteLogo } from '../footerKiteLogo';
+import footerKiteDark from '../../../assets/brand/mark/inflight-kite-dark.svg';
+import footerKiteLight from '../../../assets/brand/mark/inflight-kite-light.svg';
 
 interface ProjectsHubProps {
   projects: Project[];
@@ -34,10 +34,7 @@ export default function ProjectsHub({
   onToggleTheme,
   onSetHubState,
 }: ProjectsHubProps) {
-  // Account status is a verified licence decision, not a self-reported Pro UI flag.
-  const licence = useLicence();
-  const hasVerifiedPro = (licence.status === 'valid' || licence.status === 'account') && licence.access.pro;
-  const footerLogo = footerKiteLogo(theme, hasVerifiedPro);
+  const footerLogo = theme === 'dark' ? footerKiteDark : footerKiteLight;
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'edited' | 'name' | 'photos' | 'flagged'>('edited');
   const [failedCovers, setFailedCovers] = useState<string[]>([]);
@@ -278,21 +275,15 @@ export default function ProjectsHub({
           )}
         </div>
       </main>
-      <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3 text-xs text-[var(--text-secondary)] sm:px-10">
+      <footer className="flex min-h-[80px] shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3 text-xs text-[var(--text-secondary)] sm:px-10">
         <div className="flex flex-wrap items-center gap-3">
           <img
             src={footerLogo}
-            onError={(event) => {
-              // Firebase Hosting can serve the site but rewrite V2 app asset URLs.
-              // Fall back to the existing, publicly hosted owner-supplied kite logo.
-              const fallback = '/assets/brand/inflight/app-icons/favicon.svg';
-              if (event.currentTarget.getAttribute('src') !== fallback) event.currentTarget.src = fallback;
-            }}
             alt=""
             aria-hidden="true"
-            width={70}
-            height={32}
-            className="h-8 w-[70px] shrink-0 object-contain"
+            width={116}
+            height={52}
+            className="h-12 w-[106px] shrink-0 object-contain sm:h-[52px] sm:w-[116px]"
             data-testid="inflight-footer-kite"
           />
           <span className="font-semibold text-[var(--text-primary)]">InFlight</span>
