@@ -9,7 +9,7 @@ import type { PhotoFrame } from '../../core/types';
 import type { CropTransform, OverlaySettings } from '../ui/contract';
 import { effectiveUpscaleOutputSize } from '../ui/utils/studioMath';
 import type { SplitFrameCount } from './formatSplitOps';
-import { anchoredBox, cropPlacement, referenceScale, watermarkBox } from './exportLayout';
+import { anchoredBox, cropPlacement, referenceScale, watermarkBox, fitWatermarkArtwork } from './exportLayout';
 import { planBorderFrame } from './borderFrameLayout';
 import { upscaleCanvasInPlace } from './upscaleCanvas';
 import { cappedContinuousLayout, continuousExportLayout, numberedSectionFilename } from './continuousExport';
@@ -153,7 +153,8 @@ function drawMark(canvas: HTMLCanvasElement, input: OverlayDraw) {
   context.globalAlpha = overlay.watermarkOpacity / 100;
   if (input.mark.kind === 'image') {
     const { image } = input.mark;
-    const height = 36 * k, width = Math.min(180 * k, height * (image.naturalWidth / image.naturalHeight));
+    const { width, height } = fitWatermarkArtwork(canvas.width, image.naturalWidth, image.naturalHeight);
+    if (!width || !height) { context.restore(); return; }
     const box = watermarkBox(canvas, overlay, { width: width + padX * 2, height: height + padY * 2 });
     const s = overlay.watermarkScale / 100;
     context.drawImage(image, box.x + padX * s, box.y + padY * s, width * s, height * s);

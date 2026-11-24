@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { DEFAULT_CROP } from './cropOps.ts';
-import { anchoredBox, cropPlacement, referenceScale, watermarkBox } from './exportLayout.ts';
+import { anchoredBox, cropPlacement, referenceScale, watermarkBox, fitWatermarkArtwork } from './exportLayout.ts';
 
 const close = (actual: number, expected: number) => assert.ok(Math.abs(actual - expected) < 1e-9, `${actual} vs ${expected}`);
 
@@ -45,4 +45,11 @@ test('the watermark scales about its own centre and keeps that point fixed', () 
 
 test('sizes scale from the 660 px reference frame', () => {
   close(referenceScale(1320), 2);
+});
+
+test('watermark artwork retains its aspect ratio inside the preview limits', () => {
+  assert.deepEqual(fitWatermarkArtwork(660, 1000, 100), { width: 180, height: 18 });
+  assert.deepEqual(fitWatermarkArtwork(660, 100, 100), { width: 36, height: 36 });
+  assert.deepEqual(fitWatermarkArtwork(1320, 100, 200), { width: 36, height: 72 });
+  assert.deepEqual(fitWatermarkArtwork(660, 0, 0), { width: 0, height: 0 });
 });
