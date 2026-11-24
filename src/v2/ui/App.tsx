@@ -25,6 +25,7 @@ import OverlayPanel from './panels/OverlayPanel';
 import AssistPanel from './panels/AssistPanel';
 import InfoPanel from './panels/InfoPanel';
 import TasksPanel from './panels/TasksPanel';
+import CollageExportDialog from './dialogs/CollageExportDialog';
 import ExportDialog from './dialogs/ExportDialog';
 import RemovedPhotosDialog from './dialogs/RemovedPhotosDialog';
 import SettingsDialog from './dialogs/SettingsDialog';
@@ -149,7 +150,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
       case 'edit.copy': actions.copyRecipe(); break;
       case 'edit.paste': actions.pasteRecipe(); break;
       case 'edit.selectAll': actions.selectAllPhotos(); break;
-      case 'file.export': if (!store.collage) actions.setExportOpen(true); break;
+      case 'file.export': actions.setExportOpen(true); break;
       case 'app.settings': actions.setSettingsOpen(true); break;
     }
   }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, activePhoto, actions]);
@@ -412,7 +413,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             filmstripCollapsed={store.filmstripCollapsed}
             onBack={actions.backToProjects}
             onSetAssistMode={actions.setAssistMode}
-            onExport={() => store.collage ? window.alert('Collage export is not enabled yet. The photo Export command only exports individual photographs.') : actions.setExportOpen(true)}
+            onExport={() => actions.setExportOpen(true)}
             onOpenRemoved={() => actions.setRemovedOpen(true)}
             onOpenSettings={() => actions.setSettingsOpen(true)}
             onImport={actions.importPhotos}
@@ -574,7 +575,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                 onImportFolder={actions.importFolder}
                 onRunAutoCull={actions.runAutoCull}
                 onCreateCollage={store.collage ? undefined : actions.createCollageFromSelection}
-                onExportSelected={() => store.collage ? window.alert('Collage export is not enabled yet. The photo Export command only exports individual photographs.') : actions.setExportOpen(true)}
+                onExportSelected={() => actions.setExportOpen(true)}
               />
             </div>
 
@@ -737,8 +738,9 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
       )}
 
       {/* Global Dialogs */}
+      {store.collage && store.exportOpen && <CollageExportDialog key={store.activeProjectId} document={store.collage} onClose={() => actions.setExportOpen(false)} onExport={actions.exportCollage} />}
       <ExportDialog
-        open={store.exportOpen}
+        open={store.exportOpen && !store.collage}
         photo={activePhoto}
         selectedPhotoIds={store.selectedPhotoIds}
         onClose={() => actions.setExportOpen(false)}

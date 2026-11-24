@@ -477,6 +477,7 @@ export interface WorkspaceActions {
   backToProjects: () => void;
   createProject: (name: string, kind?: 'photography' | 'collage') => void;
   createCollageFromSelection?: (photoIds: string[]) => void;
+  exportCollage?: (request: import('../engineClient/exportCollage').CollageExportRequest) => Promise<void>;
   updateCollage?: (document: import('../../core/collage').CollageDocument) => void;
   browseCollageProjectPhotos?: (sourceProjectId: string) => Promise<Array<{ id: string; filename: string }>>;
   addCollageProjectPhotos?: (sourceProjectId: string, photoIds: string[]) => Promise<void>;
