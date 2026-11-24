@@ -117,3 +117,25 @@ test('hover Look preview edits real pixels without storing or mutating the curre
   assert.strictEqual(previewLookEdit(original, undefined), original, 'leaving a Look restores the exact existing edit');
   assert.strictEqual(previewLookEdit(undefined, undefined), undefined, 'unedited photos stay neutral');
 });
+
+test('the tone curve reaches the engine and reads back; a straight or broken curve is stored as none', () => {
+  const curve: Array<[number, number]> = [[0, 0], [0.25, 0.2], [0.75, 0.82], [1, 1]];
+  const { edit } = applyRecipePatch(undefined, { toneCurve: curve });
+  assert.deepEqual(edit.curve, curve);
+  assert.deepEqual(editToRecipe(edit).toneCurve, curve);
+  assert.equal(applyRecipePatch(edit, { toneCurve: [[0, 0], [1, 1]] }).edit.curve, undefined);
+  assert.equal(applyRecipePatch(edit, { toneCurve: [[0.6, 0], [0.4, 1]] }).edit.curve, undefined);
+  assert.equal(applyRecipePatch(edit, { toneCurve: undefined }).edit.curve, undefined);
+  assert.equal(editToRecipe(undefined).toneCurve, undefined);
+});
+
+test('the colour mixer maps slider points to engine steps and back', () => {
+  const zero = () => Array(8).fill(0);
+  const saturation = zero(); saturation[5] = -60; // blue band
+  const { edit } = applyRecipePatch(undefined, { colourMixer: { hue: zero(), saturation, luminance: zero() } });
+  assert.equal(edit.mixer?.saturation[5], -1.2);
+  assert.deepEqual(editToRecipe(edit).colourMixer?.saturation, saturation);
+  assert.equal(applyRecipePatch(edit, { colourMixer: { hue: zero(), saturation: zero(), luminance: zero() } }).edit.mixer, undefined);
+  const wild = zero(); wild[0] = 500;
+  assert.equal(applyRecipePatch(undefined, { colourMixer: { hue: wild, saturation: zero(), luminance: zero() } }).edit.mixer?.hue[0], 2, 'clamped');
+});

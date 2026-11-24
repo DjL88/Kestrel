@@ -511,6 +511,26 @@ Take these in order. Each item is accepted on real, rights-cleared RAW files (Ni
   - **Engineering gates:** bounded-memory tiled/overlap implementation suitable for 45 MP Z8 and phones; deterministic seams, cancellation, accurate output dimensions, proper ICC/EXIF treatment, identical photo framing/crop, and full-resolution 16-bit TIFF plus JPEG parity without 8-bit round trips for the TIFF. Confirm originals byte-identical and that no upscale happens implicitly. Test Windows/Mac/web/phone using identical source and recipe before marking VERIFIED.
 
 
+### Gap-closing plan against the major editors (owner approved, 24 Nov 2026)
+Source: the gap analysis against Lightroom, Capture One, DxO, ON1, Topaz, Excire, Photo Mechanic and the AI cullers (Claude Doc "Kestrel gap analysis vs major photo editors", 24 Nov). The owner asked to close every gap and start now. Items already owned by other threads are **not** repeated here: RAW deep denoise and lens correction, collage, gestures and mobile, the editing settings library, colour-vision and neurodivergent accessibility, signed installers, the browser-test baseline. Each item is one small PR with PASS/FAIL/NOT RUN; nothing is claimed as parity without the benchmark (G1).
+
+| # | Gap | What closes it | Accepted when | Status |
+| --- | --- | --- | --- | --- |
+| G1 | No measured quality against DxO, Lightroom, Topaz | Blind benchmark on 20 to 30 rights-cleared Z8/Z5II frames (ISO 3,200 to 25,600, white plumage, backlit feathers), extending `scripts/truedetail_shoot_benchmark.py`: 100% crops on eye, feather and background, noise and halo metrics, blind ranking | Every quality row of the gap matrix has a number, PASS or FAIL | **Waiting for the owner's frames** and trial copies of DxO and Topaz |
+| G2 | No tone curve | `PhotoEdit.curve`: monotone cubic on display values, per channel after contrast; CPU, GPU, 16-bit TIFF, backup; V2 graph with draggable and keyboard-movable points and plain-word presets | Preview and export agree; undoable; malformed curves refused | **Built 24 Nov** (this PR) |
+| G3 | No colour mixer (HSL) | `PhotoEdit.mixer`: eight bands, hue, saturation, luminance; bands chosen on display values, change made on linear light; greys untouched | Only the chosen band changes; preview and export agree | **Built 24 Nov** (this PR) |
+| G4 | White balance not in Kelvin | Read the camera's as-shot white balance from the RAW (rawler) and show Temperature in K and Tint, mapped onto the existing linear channel gains; JPEGs keep relative warmth and say so | A Z8 NEF shows its as-shot K; Auto WB and an eyedropper on a neutral patch | Next |
+| G5 | Editor sees 8 bits | P1.1 remainder: RGBA16F canvas, ICC (sRGB, Display P3, Adobe RGB) embedded in exports | Sky lifts show no banding; screen-to-export within a stated tolerance | Planned |
+| G6 | No per-camera capture sharpening or mild deblur | Capture sharpening tuned for Z8 and Z5II, non-generative deconvolution for slight motion blur | No halos or waxy texture in G1 | Planned, after G1 |
+| G7 | Mask coverage | Sky, colour range, luminosity, linear and radial gradients, add and subtract, on-canvas overlay toggled by a key | Each mask says its confidence; overlay never colour-only | Planned |
+| G8 | No healing | Non-generative clone and patch for dust, twigs and perch clutter, stored in the recipe | Reversible; no generated pixels | Planned |
+| G9 | Wildlife culling not measured | Best frame in the burst by eye and head sharpness on the bird, burst stacks in the V2 filmstrip, recall on a Lightroom-rated owner shoot | Recall and wrong-pick rate reported; uncertain bursts stay unflagged | Planned (needs an owner shoot) |
+| G10 | Switching cost from Lightroom | Lightroom catalogue import (ratings, flags, keywords, collections) via `tools/lightroom/read_lrcat.py` | 1,000-photo catalogue, no wrong links, originals untouched | Planned |
+| G11 | No offline search | Natural-language and species search with the CLIP and BioCLIP models already shipped | "Dipper on a rock" finds the frames; unknown stays unknown | Planned |
+| G12 | Ingest speed and RAW clipping unproven | Time 500 NEFs against Photo Mechanic on Windows; true RAW-channel histogram and clipping shown in words and icons | Numbers published | Planned |
+
+Order: G2 and G3 (done), G4, G5, then G7, G8, G10, G11, G12; G6 and G9 wait for G1's frames and an owner shoot.
+
 ### Hosting on Google Cloud (owner request, 20 Nov)
 - **Phase 1: LIVE (20 Nov).** Project `kestrel-hosting` (owner's billing account, GBP), everything in `europe-west2` (London), created with `infra/gcp` from Cloud Shell (19 resources; state in `gs://kestrel-hosting-kestrel-tfstate/hosting/`, private).
   - **Website:** https://kestrel-hosting-kestrel.web.app (Firebase Hosting): Kestrel symbol and brand type, the visitor's platform suggested first in words, "Coming soon" from `latest.json`. Custom domain: later.

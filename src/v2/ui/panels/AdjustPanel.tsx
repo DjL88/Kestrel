@@ -4,6 +4,7 @@ import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import InfoPopover from '../shell/InfoPopover';
 import { getActiveGroup } from '../utils/studioMath';
+import { ColourMixerControl, ToneCurveControl } from './CurveMixerControls';
 
 interface AdjustPanelProps {
   photo: Photo | null;
@@ -373,6 +374,14 @@ export default function AdjustPanel({
           calmView={calmView}
           onChange={(v) => onUpdateRecipe(photo.id, { sharpen: v })}
         /></div>
+      </section>
+
+      {/* Tone curve (Tone group on a phone) and colour mixer (Colour group on a phone) */}
+      <section aria-label={STRINGS.adjust.curve.heading} className={`space-y-3 border-t border-[var(--border-subtle)] pt-4 ${phoneGroupClass(advancedGroup, 'tone')}`}>
+        <ToneCurveControl recipe={recipe} calmView={calmView} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
+      </section>
+      <section aria-label={STRINGS.adjust.mixer.heading} className={`space-y-3 border-t border-[var(--border-subtle)] pt-4 ${phoneGroupClass(advancedGroup, 'colour')}`}>
+        <ColourMixerControl recipe={recipe} calmView={calmView} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
       </section>
       </div>
     </div>
