@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { memoryConnector, type StorageConnector } from '../core/storageConnectors';
 import { backupFolder, backupName } from '../core/autoBackup';
-import { writeSnapshot } from './autoBackup';
+import { backUpNow, writeSnapshot } from './autoBackup';
+import { LOCAL_RECOVERY_TARGET, type RecoveryLocation } from './automaticRecovery';
+import { createDemoShootState } from '../core/cullingEngine';
 
 const projectId = 'readback-recovery';
 const payload = new TextEncoder().encode('{"format":"kestrel-project","version":1}');
@@ -89,4 +91,40 @@ test('caller buffer mutation during an awaited write cannot redefine a verified 
   finishWrite();
   await pending;
   assert.deepEqual(await backing.get(name), payload, 'snapshot must reflect bytes at invocation');
+});
+
+test('configured source disconnect preserves device snapshot and reports retryable partial success', async () => {
+  const project = createDemoShootState(1);
+  const local = memoryConnector();
+  const source = memoryConnector();
+  const now = new Date('2026-11-24T06:15:00Z');
+  let available = false;
+  const recovery = {
+    openDeviceRecovery: async (): Promise<RecoveryLocation> => ({ connector: local, to: 'On this device' }),
+    openSourceRecovery: async (): Promise<RecoveryLocation> => available
+      ? { connector: source, to: 'Photo folder' }
+      : { problem: 'missing', message: 'Disconnected' },
+  };
+  const partial = await backUpNow(project, LOCAL_RECOVERY_TARGET, now, recovery);
+  assert.equal(partial.state, 'partial');
+  assert.match(partial.message ?? '', /retry/);
+  const name = backupName(project.shoot.id, now);
+  assert.ok(await local.get(name));
+  available = true;
+  const retried = await backUpNow(project, LOCAL_RECOVERY_TARGET, now, recovery);
+  assert.equal(retried.state, 'ok');
+  assert.deepEqual(await source.get(name), await local.get(name));
+});
+
+test('no eligible source is a successful device-only backup, but a thrown source opener is partial', async () => {
+  const project = createDemoShootState(1);
+  const local = memoryConnector();
+  const openDeviceRecovery = async (): Promise<RecoveryLocation> => ({ connector: local, to: 'On this device' });
+  const now = new Date('2026-11-24T06:16:00Z');
+  assert.equal((await backUpNow(project, LOCAL_RECOVERY_TARGET, now, {
+    openDeviceRecovery, openSourceRecovery: async () => null,
+  })).state, 'ok');
+  assert.equal((await backUpNow(project, LOCAL_RECOVERY_TARGET, now, {
+    openDeviceRecovery, openSourceRecovery: async () => { throw new Error('offline'); },
+  })).state, 'partial');
 });
