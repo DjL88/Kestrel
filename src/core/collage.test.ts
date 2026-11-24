@@ -35,3 +35,20 @@ test('reject invalid persisted shapes; social pixels are distinct from physical 
   assert.equal(COLLAGE_FORMATS.square.unit, 'px');
   assert.equal(COLLAGE_FORMATS['a4-portrait'].unit, 'mm');
 });
+
+test('ten filmstrip photographs are distributed over three editable four-up pages', () => {
+  const chosen = Array.from({ length: 10 }, (_, index) => `image-${index + 1}`);
+  const doc = createCollage(chosen);
+  assert.equal(doc.pages.length, 3);
+  assert.equal(doc.pages[0].slots.length, 4);
+  assert.deepEqual(doc.pages.flatMap(page => page.slots.map(slot => slot.photoId).filter((id): id is string => Boolean(id))), chosen);
+  assert.equal(doc.activePageId, doc.pages[0].id);
+  assert.deepEqual(readCollage(JSON.parse(JSON.stringify(doc))), doc);
+});
+test('changing from four-up to angled two-window layout retains the overflow photograph references', () => {
+  const chosen = ['dog-1','dog-2','dog-3','dog-4'];
+  const doc = changeCollageTemplate(createCollage(chosen), 'diagonal');
+  assert.equal(doc.pages.length, 2);
+  assert.deepEqual(doc.pages.flatMap(page => page.slots.map(slot => slot.photoId).filter(Boolean)), chosen);
+  assert.deepEqual(readCollage(JSON.parse(JSON.stringify(doc))), doc);
+});
