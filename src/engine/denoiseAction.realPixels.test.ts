@@ -2,9 +2,9 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { runDenoiseAction } from './denoiseAction.ts';
 import { applyNoiseReduction } from '../core/noiseReduction';
-import { applyMasks, fullContext } from '../core/masks';
-import { DEFAULT_EDIT, type PhotoEdit } from '../core/photoEdits';
-import type { Mask } from '../core/maskTypes';
+import { applyMasks, fullContext, maskAlpha } from '../core/masks';
+import { DEFAULT_EDIT, blendEncoded8, type PhotoEdit } from '../core/photoEdits';
+import { createSubjectMask, type Mask } from '../core/maskTypes';
 import type { Pixels } from '../core/colourCheck';
 
 /**
@@ -67,4 +67,28 @@ describe('runDenoiseAction against the real pixel engines', () => {
     // Either it passed (the fixture wasn't extreme enough) or it retried at a strictly lower strength.
     if (!result.verification.ok) assert.ok(result.edit.denoise! < 2);
   });
+});
+
+it('blends independent denoise results once across a soft subject edge', () => {
+  const original = noisyPhoto(32);
+  const grid = { w: 8, h: 8, data: btoa(String.fromCharCode(...Array.from({ length: 64 }, (_, i) => Math.round((i % 8) * 255 / 7)))) };
+  const subject = createSubjectMask('auto-denoise-test', grid, 'test', 'high');
+  subject.edit.denoise = 0.4;
+  const background: Mask = { ...subject, id: subject.id + '-background', invert: true, edit: { denoise: 1.6 } };
+  const context = fullContext(original.width, original.height);
+  const alpha = maskAlpha(subject, original.width, original.height, context);
+  assert.ok(alpha.some(value => value > 0 && value < 1));
+  const low = applyNoiseReduction(original.data, original.width, original.height, { ...DEFAULT_EDIT, denoise: 0.4 });
+  const high = applyNoiseReduction(original.data, original.width, original.height, { ...DEFAULT_EDIT, denoise: 1.6 });
+  assert.notDeepEqual(low, high);
+  const actual = new Uint8ClampedArray(original.data);
+  applyMasks(actual, original.width, original.height, [background, subject], context);
+  const expected = new Uint8ClampedArray(original.data);
+  for (let i = 0; i < alpha.length; i++) {
+    for (let c = 0; c < 3; c++) {
+      const j = i * 4 + c;
+      expected[j] = blendEncoded8(high[j], low[j], alpha[i]);
+    }
+  }
+  assert.deepEqual(actual, expected);
 });

@@ -204,7 +204,34 @@ export function effectiveAlpha(mask: Mask, masks: readonly Mask[], width: number
 /** Apply local adjustments. Each mask runs the normal edit maths on a copy and blends it in by its strength. */
 export function applyMasks(pixels: Uint8ClampedArray, width: number, height: number, masks: Mask[] | undefined, context: MaskContext): void {
   if (!masks || !hasActiveMasks(masks)) return;
-  for (const mask of masks) {
+  // Auto-denoise pairs are adjacent, complementary and denoise-only. Render
+  // both strengths from the same pre-pair pixels, then mix once in linear light.
+  // If a user edits either shape or adds other adjustments, use ordinary masks.
+  for (let index = 0; index < masks.length; index += 1) {
+    const mask = masks[index];
+    const subject = masks[index + 1];
+    if (mask.kind === 'subject' && subject?.kind === 'subject' &&
+        mask.id === subject.id + '-background' &&
+        mask.invert && !subject.invert && !mask.hidden && !subject.hidden &&
+        !mask.limit && !subject.limit &&
+        mask.feather === subject.feather && mask.framingKey === subject.framingKey &&
+        JSON.stringify(mask.grid) === JSON.stringify(subject.grid) &&
+        JSON.stringify(mask.detail) === JSON.stringify(subject.detail) &&
+        JSON.stringify(mask.strokes) === JSON.stringify(subject.strokes) &&
+        Object.keys(mask.edit).every(key => key === 'denoise') &&
+        Object.keys(subject.edit).every(key => key === 'denoise')) {
+      const alpha = maskAlpha(subject, width, height, context);
+      const backgroundPixels = applyNoiseReduction(pixels, width, height, { exposure: 0, warmth: 0, colour: 0, denoise: mask.edit.denoise } as PhotoEdit);
+      const subjectPixels = applyNoiseReduction(pixels, width, height, { exposure: 0, warmth: 0, colour: 0, denoise: subject.edit.denoise } as PhotoEdit);
+      for (let i = 0; i < alpha.length; i += 1) {
+        const j = i * 4;
+        for (let channel = 0; channel < 3; channel += 1) {
+          pixels[j + channel] = blendEncoded8(backgroundPixels[j + channel], subjectPixels[j + channel], alpha[i]);
+        }
+      }
+      index += 1;
+      continue;
+    }
     if (!maskIsActive(mask)) continue;
     const alpha = effectiveAlpha(mask, masks, width, height, context);
     const local = { exposure: 0, warmth: 0, colour: 0, ...mask.edit } as PhotoEdit;

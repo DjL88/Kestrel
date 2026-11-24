@@ -81,9 +81,12 @@ export async function runDenoiseAction(input: DenoiseActionInput): Promise<Denoi
     let attempts = 0;
 
     for (; attempts <= maxRetries; attempts += 1) {
-      edit = { denoise: background };
+      edit = { denoise: input.subject ? 0 : background };
       masks = input.subject
-        ? [subjectDenoiseMask(input.subject.maskId, input.subject.grid, input.subject.framingKey, input.subject.confidence, subject, input.subject.detail)]
+        ? [
+          { ...subjectDenoiseMask(`${input.subject.maskId}-background`, input.subject.grid, input.subject.framingKey, input.subject.confidence, background, input.subject.detail), invert: true },
+          subjectDenoiseMask(input.subject.maskId, input.subject.grid, input.subject.framingKey, input.subject.confidence, subject, input.subject.detail),
+        ]
         : [];
       const after = await input.render(edit, masks);
       verification = verifyEdit(input.original, after, input.subject?.alpha);

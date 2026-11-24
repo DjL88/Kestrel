@@ -59,9 +59,12 @@ describe('runDenoiseAction', () => {
       backgroundDenoise: 1, original, render,
       subject: { maskId: 's1', grid, framingKey: 'f1', confidence: 'high', alpha: new Float32Array(16 * 16).fill(1) },
     });
-    assert.equal(result.masks.length, 1);
-    assert.equal(result.masks[0].edit.denoise, 0.4);
-    assert.equal(result.edit.denoise, 1);
+    assert.equal(result.masks.length, 2);
+    assert.equal(result.masks[0].invert, true);
+    assert.equal(result.masks[0].edit.denoise, 1);
+    assert.equal(result.masks[1].invert, false);
+    assert.equal(result.masks[1].edit.denoise, 0.4);
+    assert.equal(result.edit.denoise, 0);
   });
 
   it('retries at a reduced strength when the result over-smooths, then stops at maxRetries', async () => {
