@@ -1474,7 +1474,7 @@ export default function Canvas({
       className="relative flex flex-1 flex-col overflow-hidden bg-[var(--bg-canvas)]"
     >
       {/* Top Canvas Bar: View mode (Single vs All Formats Side-by-Side) + Per-selection Flip/Rotate/Compare */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/75 px-3 py-1.5 backdrop-blur-sm">
+      <div className="v2-canvas-bar flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/75 px-3 py-1.5 backdrop-blur-sm">
         <div className="flex items-center gap-1.5">
           {/* Single vs All-Formats Side-by-Side Board */}
           <div className="inline-flex rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-0.5">
