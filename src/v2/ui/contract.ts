@@ -317,7 +317,15 @@ export interface TaskInfo {
   label: string;
   detail: string;
   progress: number; // 0 to 100
-  status: 'running' | 'done' | 'cancelled' | 'failed';
+  status: import('../../core/taskStore').TaskState;
+  done?: number;
+  total?: number | null;
+  stage?: string;
+  location?: import('../../core/taskStore').TaskLocation;
+  pauseable?: boolean;
+  priority?: number;
+  startedAt?: number;
+  items?: readonly import('../../core/taskStore').TaskItemInfo[];
   /** When it finished (ms since 1970). Finished tasks stay in the Completed tab for 4 hours or until deleted. */
   endedAt?: number;
 }
