@@ -66,6 +66,40 @@ test('a trackpad pinch anywhere over the canvas zooms the photo, not the page', 
   expect(await page.evaluate(() => (window as unknown as { pageZoomAllowed: number }).pageZoomAllowed)).toBe(0);
 });
 
+test('a trackpad pinch over the menus, panels and filmstrip zooms nothing', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Trackpad pinch (Ctrl+wheel) is a desktop gesture.');
+  // Owner decision: pinch zoom is allowed on the canvas only, never on the studio's own interface.
+  await page.addInitScript(() => {
+    (window as unknown as { pageZoomAllowed: number }).pageZoomAllowed = 0;
+    window.addEventListener('wheel', (event) => { if (event.ctrlKey && !event.defaultPrevented) (window as unknown as { pageZoomAllowed: number }).pageZoomAllowed += 1; });
+  });
+  await page.goto('/?v2');
+  await expect(page.locator('.inflight-v2').getByText('No projects yet')).toBeVisible();
+  const pinchAt = async (x: number, y: number) => {
+    await page.mouse.move(x, y);
+    await page.keyboard.down('Control');
+    await page.mouse.wheel(0, -120);
+    await page.keyboard.up('Control');
+  };
+  // The Projects screen, before any photo is open.
+  await pinchAt(200, 120);
+  expect(await page.evaluate(() => (window as unknown as { pageZoomAllowed: number }).pageZoomAllowed)).toBe(0);
+  const studio = await openPhoto(page);
+  // Fit settles once the stage has been measured.
+  await expect.poll(async () => { const a = await zoomPercent(page); await page.waitForTimeout(300); return a === await zoomPercent(page); }).toBe(true);
+  const before = await zoomPercent(page);
+  for (const target of [
+    studio.getByRole('banner', { name: 'InFlight studio header' }),
+    studio.getByRole('complementary', { name: 'Studio tools' }),
+    studio.getByRole('listbox', { name: 'Project photographs' }),
+  ]) {
+    const box = (await target.boundingBox())!;
+    await pinchAt(box.x + Math.min(20, box.width / 2), box.y + box.height / 2);
+  }
+  expect(await page.evaluate(() => (window as unknown as { pageZoomAllowed: number }).pageZoomAllowed)).toBe(0);
+  expect(await zoomPercent(page)).toBe(before);
+});
+
 test('a mouse drag on the empty stage moves round a zoomed-in photo', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Mouse gesture.');
   await openPhoto(page);
