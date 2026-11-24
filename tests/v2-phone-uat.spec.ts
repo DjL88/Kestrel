@@ -168,9 +168,13 @@ test('swipe on the photo: left or right steps through photos, up or down through
   await flick(-100, 90);
   await expect.poll(selectedName).toBe(1);
   // Only Original is enabled on import. Add a second format to this photo before cycling sizes.
-  await studio.getByRole('navigation', { name: 'Mobile studio tools' }).getByRole('button', { name: 'Formats', exact: true }).tap();
-  await studio.getByRole('button', { name: 'Include Instagram Portrait', exact: true }).tap();
-  await studio.getByRole('button', { name: 'Close mobile drawer', exact: true }).tap();
+  // These are clicks, not taps: after the raw CDP touch sequences above, Chrome's touch emulation drops Playwright's
+  // synthetic taps on other elements. Real-phone taps after swiping are on the device test checklist.
+  await studio.getByRole('navigation', { name: 'Mobile studio tools' }).getByRole('button', { name: 'Formats', exact: true }).click();
+  const include = studio.getByRole('button', { name: 'Include Instagram Portrait', exact: true });
+  await include.click();
+  await expect(include).toHaveAttribute('aria-pressed', 'true');
+  await studio.getByRole('button', { name: 'Close mobile drawer', exact: true }).click();
   const label = async () => ((await studio.getByTestId('canvas-frame').locator('xpath=../../div[1]/span[1]').textContent()) ?? '').trim();
   const before = await label();
   await flick(0, -110);
