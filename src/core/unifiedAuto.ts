@@ -1,3 +1,4 @@
+import { preservationPolicy } from './photographyPolicy';
 import type { PhotoEdit } from './photoEdits';
 import { checkColour } from './colourCheck';
 import {
@@ -96,25 +97,27 @@ export interface PlanInput {
   natural: NaturalAutoResult;
   segmentation?: NaturalAutoInput['segmentation'];
   species?: SpeciesGuess | null;
+  photographyObservations?: NaturalAutoInput['photographyObservations'];
 }
 
 /** Build, check and judge the one recipe. Pure: nothing is applied here. */
 export function planAuto(input: PlanInput): AutoPlan {
   const { pixels, width, height, base, natural, segmentation } = input;
   const notes: string[] = [];
+  const policy = preservationPolicy(input.photographyObservations);
   const { warnings, warmLight } = colourWarningsOf(pixels, width, height);
   let measured = measure(natural.scene, warnings);
 
   const weights = segmentation && segmentation.confidence !== 'low' ? subjectWeights(segmentation.grid, width, height) : null;
   const species = speciesColourCheck({
     pixels, width, height, subject: segmentation?.confidence === 'high' ? weights : null,
-    species: input.species ?? null, warmLight,
+    species: policy.preserveLight ? null : input.species ?? null, warmLight,
   });
 
   let proposal: PhotoEdit = { ...input.proposal };
   // A dark photo must get a real lift, not a token one. The gate below still decides whether it is safe.
   const wasUnits = Number(proposal.exposure ?? 0) - Number(base.exposure ?? 0);
-  const lifted = darkLift(measured, wasUnits);
+  const lifted = policy.preserveDark ? wasUnits : darkLift(measured, wasUnits);
   if (lifted > wasUnits) {
     proposal.exposure = Math.round((Number(base.exposure ?? 0) + lifted) * 10) / 10;
     notes.push('The subject is dark, so exposure goes up.');
