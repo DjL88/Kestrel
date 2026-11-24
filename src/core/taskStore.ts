@@ -99,7 +99,15 @@ export function createTaskStore(now: () => number = Date.now) {
         if (!active(find(id))) return;
         update(id, { state: next, updatedAt: now(), ...(detail !== undefined ? { detail } : {}) });
       },
-      patch: change => { if (active(find(id))) update(id, { ...change, updatedAt: now() }); },
+      patch: change => {
+        const current = find(id);
+        // Cancellation is terminal, but an already-confirmed native save may
+        // still report its final child state after its destination responds.
+        // Never allow cancelled work to change its stage, status or settings.
+        if (active(current)) update(id, { ...change, updatedAt: now() });
+        else if (current?.state === 'cancelled' && change.items !== undefined)
+          update(id, { items: change.items, updatedAt: now() });
+      },
       get cancelled() { return wasCancelled; },
     };
   };
