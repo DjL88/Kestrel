@@ -113,3 +113,18 @@ test('completed export never claims verified success after original or output ch
     async () => true, async () => false), /changed or disappeared/);
   assert.equal(journal.load('batch_01')?.state, 'completed');
 });
+
+
+test('resume rejects a checkpoint changed or removed while sources are being verified', async () => {
+  const { journal } = setup();
+  journal.save(plan());
+  await assert.rejects(journal.pendingForExplicitResume('batch_01', async () => {
+    journal.receipt('batch_01', { index: 0, relativePath: 'Master/bird.tif', outputSha256: hash });
+    return true;
+  }, async () => true), /checkpoint changed/);
+  assert.equal(journal.load('batch_01')?.receipts.length, 1);
+  await assert.rejects(journal.pendingForExplicitResume('batch_01', async () => {
+    journal.remove('batch_01');
+    return true;
+  }, async () => true), /checkpoint changed/);
+});
