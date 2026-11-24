@@ -31,6 +31,7 @@ import { EngineSurface } from './EngineSurface';
 import { featureAccess, featurePlan } from './featureMap';
 import { hasDeviceFont, listDeviceFonts, loadSavedDeviceFonts, mergeFonts, saveDeviceFonts } from './fonts';
 import { assetUrl, cutOut, importWatermark, loadStored, makeVariant, saveStored, toPresets, type StoredWatermark } from './watermarkLibrary';
+import { replaceWatermarkIfUnchanged } from './watermarkMutation';
 import { watermarkToneForPixels } from '../../core/watermark';
 import { INITIAL_WATERMARKS, createDefaultSizes } from '../ui/stub';
 import { toPhotoHistogram } from './histogram';
@@ -198,6 +199,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [clipboard, setClipboard] = useState<EditRecipe | null>(null);
   const [deviceFonts, setDeviceFonts] = useState<string[]>(loadSavedDeviceFonts);
   const [watermarkStore, setWatermarkStore] = useState<StoredWatermark[]>(loadStored);
+  const watermarkStoreRef = useRef(watermarkStore);
   const [watermarkLibrary, setWatermarkLibrary] = useState<WatermarkPreset[]>([]);
   const [templates, setTemplates] = useState<OverlayTemplate[]>(() => { try { return readTemplates(localStorage.getItem(TEMPLATES_KEY)); } catch { return []; } });
   const updateTemplates = useCallback((next: OverlayTemplate[]) => { setTemplates(next); try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(next)); } catch { setNotice('InFlight could not save the template on this device.'); } }, []);
@@ -212,7 +214,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [histograms, setHistograms] = useState<Record<string, PhotoHistogram>>({});
   const [watermarkAuto, setWatermarkAuto] = useState<Record<string, 'light-on-dark' | 'dark-on-light'>>({});
   useEffect(() => { let live = true; void toPresets(watermarkStore).then((presets) => { if (live) setWatermarkLibrary(presets); }); return () => { live = false; }; }, [watermarkStore]);
-  const updateWatermarks = useCallback((next: StoredWatermark[]) => { setWatermarkStore(next); saveStored(next); }, []);
+  const updateWatermarks = useCallback((change: (current: StoredWatermark[]) => StoredWatermark[]) => {
+    const current = watermarkStoreRef.current;
+    const next = change(current);
+    if (next === current) return;
+    watermarkStoreRef.current = next;
+    setWatermarkStore(next);
+    saveStored(next);
+  }, []);
   const [assists, setAssists] = useState<Record<string, AssistState>>({});
   const [autoRequest, setAutoRequest] = useState<{ photoId: string; sequence: number } | null>(null);
   const lastAutoRequest = useRef(0);
@@ -1576,27 +1585,35 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (!picked) return null;
       try {
         const entry = await importWatermark(picked, picked.name.replace(/\.[^.]+$/, ''), `wm-${newId().slice(0, 8)}`);
-        updateWatermarks([...watermarkStore, entry]);
+        updateWatermarks((current) => [...current, entry]);
         return entry.id;
       } catch (error) { setNotice(error instanceof Error ? error.message : 'That image could not be added.'); return null; }
     },
     cutOutWatermark: async (presetId, slot, tolerance, commit) => {
-      const entry = watermarkStore.find((candidate) => candidate.id === presetId);
+      const entry = watermarkStoreRef.current.find((candidate) => candidate.id === presetId);
       if (!entry) return null;
       const result = await cutOut(entry, slot, tolerance, commit).catch(() => null);
       if (!result) return null;
-      if (commit && !result.tooMuch) updateWatermarks(watermarkStore.map((candidate) => (candidate.id === presetId ? result.entry : candidate)));
+      if (commit && !result.tooMuch) {
+        let applied = false;
+        updateWatermarks((current) => {
+          const next = replaceWatermarkIfUnchanged(current, entry, result.entry);
+          applied = next !== current;
+          return next;
+        });
+        if (!applied) { setNotice('The watermark changed while this edit was processing. Please try again.'); return null; }
+      }
       if (result.tooMuch) setNotice('The background is not one flat colour, so it was left as it is. Try a plain background.');
       return { url: result.url, tooMuch: result.tooMuch };
     },
     makeWatermarkVariant: async (presetId, slot) => {
-      const entry = watermarkStore.find((candidate) => candidate.id === presetId);
+      const entry = watermarkStoreRef.current.find((candidate) => candidate.id === presetId);
       const next = entry ? await makeVariant(entry, slot).catch(() => null) : null;
-      if (next) updateWatermarks(watermarkStore.map((candidate) => (candidate.id === presetId ? next : candidate)));
+      if (next && entry) updateWatermarks((current) => replaceWatermarkIfUnchanged(current, entry, next));
       else setNotice('That version could not be made.');
     },
     deleteWatermark: (presetId) => {
-      updateWatermarks(watermarkStore.filter((candidate) => candidate.id !== presetId));
+      updateWatermarks((current) => current.filter((candidate) => candidate.id !== presetId));
       // Photos that used it fall back to the first built-in watermark; nothing else about them changes.
       mutate((current) => ({ ...current, frames: current.frames.map((frame) => { const overlay = readOverlay(frame.overlay); return overlay.watermarkPresetId === presetId ? { ...frame, overlay: { ...overlay, watermarkPresetId: INITIAL_WATERMARKS[0].id } } : frame; }) }));
     },
