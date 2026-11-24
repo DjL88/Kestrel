@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createTaskStore } from './taskStore.ts';
-import { createEngineScheduler, limitsForDevice, type BatchDefinition } from './engineScheduler.ts';
+import { createEngineScheduler, limitsForDevice, NonRetryableTaskError, type BatchDefinition } from './engineScheduler.ts';
 
 const pause = (ms = 1) => new Promise(resolve => setTimeout(resolve, ms));
 async function until(check: () => boolean, reason: string, tries = 1000) {
@@ -241,4 +241,15 @@ test('measured insufficient available RAM blocks even priority jobs until pressu
   assert.equal(store.list().find(task => task.id === ticket.taskId)?.state, 'queued');
   scheduler.updateResourceSample({cpu:0.1,availableMemoryBytes: 2*1024**3,availableGpuBytes:3*1024**3,availableDiskBytes:3*1024**3});
   assert.equal(await ticket.finished, 'done');
+});
+
+test('deterministic ZIP capacity failure cannot offer unsafe repeated retry', async () => {
+  const { scheduler, store } = build();
+  const ticket = await scheduler.submit(batch('Oversized ZIP', 1, async () => {
+    throw new NonRetryableTaskError('ZIP needs more memory than permitted.');
+  }));
+  assert.equal(await ticket.finished, 'failed');
+  assert.match(store.list().find(task => task.id === ticket.taskId)?.items?.[0].detail ?? '', /more memory/);
+  assert.equal(scheduler.canRetryFailed(ticket.taskId), false);
+  assert.equal(await scheduler.retryFailed(ticket.taskId), null);
 });
