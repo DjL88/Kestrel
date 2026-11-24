@@ -1,3 +1,4 @@
+import {speciesColourCheck} from './speciesPalette';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {speciesReference} from './speciesKnowledge';
@@ -25,4 +26,13 @@ test('pack rejects unverified or unknown rules',async()=>{
   assert.equal(await validatePhotographyPack(encode(pack),signature,async()=>false),null);
   assert.ok(await validatePhotographyPack(encode(pack),signature,async()=>true));
   assert.equal(await validatePhotographyPack(encode({...pack,rules:[{id:'unknown',guidance:'test'},...pack.rules.slice(1)]}),signature,async()=>true),null);
+});
+
+test('invalid species confidence and malformed masks abstain before colour correction',()=>{
+  const pixels=new Uint8ClampedArray(64*4).fill(255);
+  const subject=new Float32Array(64).fill(1);
+  const input={pixels,subject,width:8,height:8,warmLight:false,species:{common:'European robin',probability:.95,runnerUp:.01}};
+  for (const probability of [NaN,Infinity,1.1,-1]) assert.equal(speciesColourCheck({...input,species:{...input.species,probability}}).status,'abstained');
+  assert.equal(speciesColourCheck({...input,subject:new Float32Array(2)}).status,'abstained');
+  assert.equal(speciesColourCheck({...input,pixels:new Uint8ClampedArray(2)}).status,'abstained');
 });
