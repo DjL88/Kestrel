@@ -22,3 +22,24 @@ test('explicit dark intent survives unified exposure fallback', () => {
   const plan=planAuto({pixels,width:32,height:32,base:DEFAULT_EDIT,proposal:{...DEFAULT_EDIT,...natural.edit},natural,photographyObservations});
   assert.ok((plan.proposal.exposure ?? 0) <= (DEFAULT_EDIT.exposure ?? 0));
 });
+
+test('visual evidence must match source identity and cannot establish artistic intent', () => {
+  const sha='a'.repeat(64);
+  const frame={stableKey:'photo-1',originalSha256:sha,searchEvidence:{
+    schema:1 as const, sourceStableKey:'photo-1',sourceSha256:sha,modelRevision:'fixture',indexedAt:1,
+    ocr:[{value:'silhouette',status:'confirmed' as const}],
+    subjects:[{value:'person',status:'supported' as const},{value:'sunset',status:'supported' as const}],
+  }};
+  assert.deepEqual(preservationPolicy(observationsFromFrame(frame)),{preserveLight:false,preserveDark:false,preserveSoft:true});
+  assert.equal(preservationPolicy(observationsFromFrame({...frame,originalSha256:'b'.repeat(64)})).preserveSoft,false);
+  assert.equal(preservationPolicy(observationsFromFrame({...frame,stableKey:'other'})).preserveSoft,false);
+  assert.equal(preservationPolicy(observationsFromFrame({...frame,subjectDisputed:true})).preserveSoft,false);
+  assert.equal(preservationPolicy(observationsFromFrame({...frame,searchEvidence:{...frame.searchEvidence,subjects:[{value:'person',status:'needs-review'}]}})).preserveSoft,false);
+});
+test('explicit knowledge labels match independently across dimensions',()=>{
+  const rules=observationsFromFrame({tags:['White bird','Snow','Golden hour','Negative space']});
+  assert.ok(rules.some(r=>r.dimension==='subject' && r.label==='white bird'));
+  assert.ok(rules.some(r=>r.dimension==='scene' && r.label==='snow'));
+  assert.ok(rules.some(r=>r.dimension==='composition' && r.label==='negative space'));
+  assert.equal(preservationPolicy(rules).preserveLight,true);
+});
