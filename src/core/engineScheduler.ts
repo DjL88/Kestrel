@@ -198,7 +198,7 @@ export function createEngineScheduler(options: {
           if (job.cancelled) throw new Error('Job cancelled.');
         },
         commitIfCurrent(commit) {
-          if (job.cancelled || controller.signal.aborted || item.state !== 'running') return false;
+          if (job.cancelled || controller.signal.aborted || (item.state !== 'running' && !item.confirmed)) return false;
           commit();
           return true;
         },
