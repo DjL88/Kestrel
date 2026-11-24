@@ -2,6 +2,7 @@ import { stepFrom, swipeIntent } from '../utils/swipe';
 import { cropHandleZoom, type CropHandleSide } from '../utils/cropHandleZoom';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { nextCanvasZoom, zoomAnchorScroll } from '../utils/canvasTrackpadZoom';
+import { maxCanvasPixels } from '../../../core/exportLimits';
 import type {
   CropTransform,
   EditGroup,
@@ -26,7 +27,7 @@ import {
   cropPanLimits,
   clamp,
   detectOverlayOverflow,
-  effectiveOutputSize,
+  effectiveUpscaleOutputSize,
   formatOverlayRowText,
   getActiveGroup,
   snapOverlayPosition,
@@ -1063,8 +1064,9 @@ export default function Canvas({
     const { frameW, frameH } = artboardFrame(activeSize);
     return Math.max(frameW / photo.pixelSize.width, frameH / photo.pixelSize.height);
   })();
-  // The format's real output size: never more pixels than the picture has.
-  const output = effectiveOutputSize(activeSize, photo.pixelSize);
+  // Match the export's source cap and device-bounded upscale admission.
+  const pixelLimit = maxCanvasPixels(typeof navigator === 'undefined' ? { userAgent: '' } : navigator);
+  const output = effectiveUpscaleOutputSize(activeSize, photo.pixelSize, activeSize.kind === 'photo' ? group.recipe.upscaleFactor : 1, pixelLimit);
   const actualPercent = fitScale ? Math.round(fitScale * canvasZoom * 100) : Math.round(canvasZoom * 100);
   const toggleActualSize = () => {
     if (!fitScale) { onSetZoom(1); return; }
@@ -1203,6 +1205,9 @@ export default function Canvas({
           <span className="font-mono tabular-nums">
             {output.width}×{output.height} ({activeSize.ratioLabel})
           </span>
+          {output.factor > 1 && (
+            <span data-testid="output-upscale-factor" className="rounded border border-[var(--border-default)] px-1.5 py-0.5 font-mono tabular-nums">{output.factor}×</span>
+          )}
           {output.capped && (
             <span
               role="status"

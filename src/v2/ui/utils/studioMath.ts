@@ -436,6 +436,26 @@ export function effectiveOutputSize(
   return { width, height: Math.max(1, Math.round(width / aspect)), capped: true, ...requested };
 }
 
+/** The chosen scale is used only when requested pixels need it and the enlarged source fits the device. */
+export function upscaleFactorFor(chosen: 1 | 2 | 4 | undefined, neededScale: number, width: number, height: number, pixelLimit: number): 1 | 2 | 4 {
+  if ((chosen !== 2 && chosen !== 4) || !(neededScale > 1)) return 1;
+  return width * height * chosen * chosen <= pixelLimit ? chosen : 1;
+}
+
+/** Shared canvas/export dimensions. Keep fixed format sizes fixed; upscale lifts the source cap, not the requested size. */
+export function effectiveUpscaleOutputSize(
+  size: Parameters<typeof effectiveOutputSize>[0],
+  pixelSize: Parameters<typeof effectiveOutputSize>[1],
+  chosen: 1 | 2 | 4 | undefined,
+  pixelLimit: number,
+): OutputSize & { factor: 1 | 2 | 4 } {
+  const factor = pixelSize && pixelSize.width > 0 && pixelSize.height > 0
+    ? upscaleFactorFor(chosen, Math.max(size.width / pixelSize.width, size.height / pixelSize.height) * (size.crop?.zoom ?? 1), pixelSize.width, pixelSize.height, pixelLimit)
+    : 1;
+  const source = pixelSize ? { width: pixelSize.width * factor, height: pixelSize.height * factor } : undefined;
+  return { ...effectiveOutputSize(size, source), factor };
+}
+
 /** Bounds for moving the source under one format's fixed-aspect crop window.
  * Always use the format being dragged, not the currently selected format.
  * Values are percentages of the format frame; a source with unknown dimensions
