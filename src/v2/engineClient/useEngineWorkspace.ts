@@ -10,6 +10,7 @@ import { createCollage, MAX_COLLAGE_SELECTION, readCollage } from '../../core/co
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
 import { appendProjectPhotos, applyImportBursts, createEmptyProject, setArchived } from '../../core/projects';
 import { tasks } from '../../core/taskStore';
+import { engineScheduler } from '../../core/engineScheduler';
 import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '../../core/types';
 import { eraseDeviceData } from './eraseDeviceData';
 import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
@@ -899,26 +900,48 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // upload a working-size copy for this one job; otherwise, or if the cloud fails or does not verify, it runs on this device.
   const denoiseInFlight = useRef(new Set<string>());
   const denoisePhoto = useCallback((photoId: string) => {
-    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+    const frame = stateRef.current?.frames.find(candidate => candidate.id === photoId);
     if (!frame || denoiseInFlight.current.has(photoId)) return;
     denoiseInFlight.current.add(photoId);
+    // Existing explicit cloud opt-in is preserved. A local fallback is labelled
+    // with the runner that actually returned, never as a successful cloud job.
     const connection = can('cloudAssist') ? accountConnection() : null;
-    const task = tasks.start(connection ? 'Denoising (cloud, with this device as backup)' : 'Denoising on this device');
-    runV2Denoise(frame, provider.current!, connection ? { connection, online: navigator.onLine !== false } : null).then((outcome) => {
-      if (!outcome) { task.finish('Could not denoise this photo.'); return; }
-      const valid = (current: PhotoFrame) => sameRecipe(current.edit ?? DEFAULT_EDIT, frame.edit ?? DEFAULT_EDIT) && framingKey(current.framing) === framingKey(frame.framing);
-      const latest = stateRef.current?.frames.find(candidate => candidate.id === photoId);
-      if (!latest || !valid(latest)) { task.finish('Photo changed; denoise was not applied.'); setNotice('Photo changed; run denoise again.'); return; }
-      if (outcome.verified) editFrames([photoId], (current) => {
-        if (!valid(current)) return current.edit;
-        const edit = current.edit ?? DEFAULT_EDIT;
-        const id = `auto-denoise-${photoId}`;
-        const masks = (edit.masks ?? []).filter(mask => mask.id !== id && mask.id !== `${id}-background`);
-        return { ...edit, denoise: outcome.strength, masks: [...masks, ...outcome.masks] };
-      });
-      task.finish(outcome.verified ? outcome.notes[0] : outcome.notes.join(' '));
-      setNotice(outcome.verified ? outcome.notes[0] : `Left as it was. ${outcome.notes.join(' ')}`);
-    }, () => task.fail('Denoise failed.')).finally(() => denoiseInFlight.current.delete(photoId));
+    void engineScheduler.submit({
+      title: 'Denoising ' + frame.filename,
+      kind: 'denoise', resource: 'gpu', priority: 12, location: 'local',
+      pauseable: false, items: [{ id: photoId, name: frame.filename }],
+      snapshot: { photoId, edit: frame.edit ?? DEFAULT_EDIT },
+      itemId: item => item.id, itemLabel: item => item.name,
+      runItem: async (_, __, ctx) => {
+        ctx.stage('Denoising and checking detail');
+        const outcome = await runV2Denoise(frame, provider.current!,
+          connection ? { connection, online: navigator.onLine !== false } : null, ctx.signal);
+        ctx.checkCancelled();
+        if (!outcome) throw new Error('Denoise could not process the source photograph.');
+        ctx.setLocation(outcome.runner === 'cloud-processing' ? 'cloud' : 'local');
+        const valid = (current: PhotoFrame) => sameRecipe(current.edit ?? DEFAULT_EDIT, frame.edit ?? DEFAULT_EDIT) &&
+          framingKey(current.framing) === framingKey(frame.framing);
+        const latest = stateRef.current?.frames.find(candidate => candidate.id === photoId);
+        if (!latest || !valid(latest)) {
+          ctx.commitIfCurrent(() => setNotice('Photo changed; no denoise result was applied. Run denoise again.'));
+          return;
+        }
+        if (outcome.verified) {
+          ctx.stage('Applying verified reversible adjustments');
+          ctx.commitIfCurrent(() => editFrames([photoId], current => {
+            if (!valid(current)) return current.edit;
+            const edit = current.edit ?? DEFAULT_EDIT;
+            const id = `auto-denoise-${photoId}`;
+            const masks = (edit.masks ?? []).filter(mask => mask.id !== id && mask.id !== `${id}-background`);
+            return { ...edit, denoise: outcome.strength, masks: [...masks, ...outcome.masks] };
+          }));
+        }
+        ctx.commitIfCurrent(() => setNotice(outcome.verified ? outcome.notes[0] : `Left as it was. ${outcome.notes.join(' ')}`));
+      },
+    }).then(ticket => ticket.finished).then(result => {
+      if (result === 'failed') setNotice('Denoise did not finish. Open Tasks for the failure detail.');
+    }).catch(reason => setNotice(reason instanceof Error ? reason.message : 'Denoise could not be queued.'))
+      .finally(() => { denoiseInFlight.current.delete(photoId); });
   }, [can, editFrames]);
 
   const applyAuto = useCallback((frameId: string, candidateId?: string) => {
