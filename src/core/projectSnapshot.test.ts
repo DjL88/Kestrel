@@ -130,3 +130,26 @@ test('a legacy remote record cannot be applied to two local records via differen
   assert.equal(planApply(here, snap).matching, 0);
   assert.deepEqual(applySnapshot(here, snap), here);
 });
+
+
+test('sync refuses malformed editing data before applying it to the local catalogue', () => {
+  const snapshot = buildSnapshot('Birds', [frame('a', { rating: 4 }), frame('b')], new Date());
+  const row = snapshot.photos[1];
+  const edit = { exposure: 0, warmth: 0, colour: 0 };
+  const framing = { ratio: null, turns: 0, straighten: 0, x: 0.5, y: 0.5 };
+  for (const patch of [
+    { decision: ['keep'] },
+    { edit: 'invalid' }, { edit: { ...edit, exposure: 999 } },
+    { edit: { ...edit, masks: 'invalid' } }, { edit: { ...edit, denoise: -1 } },
+    { framing: { ...framing, turns: 0.5 } }, { framing: null },
+    { focusPoint: { x: 0.5, y: 2 } }, { focusPoint: [0.5, 0.5] },
+    { subjectKind: 'unknown' },
+  ]) {
+    assert.equal(parseSnapshot(JSON.stringify({ ...snapshot, photos: [snapshot.photos[0], { ...row, ...patch }] })), null);
+  }
+  const good = { ...snapshot, photos: [snapshot.photos[0], {
+    ...row, edit, framing, focusPoint: { x: 0.25, y: 0.75 }, subjectKind: 'wildlife',
+  }] };
+  assert.deepEqual(parseSnapshot(JSON.stringify(good)), good);
+  assert.equal(applySnapshot([frame('b')], parseSnapshot(JSON.stringify(good))!)[0].edit?.exposure, 0);
+});
