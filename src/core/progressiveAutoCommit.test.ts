@@ -18,7 +18,7 @@ function project(frames: PhotoFrame[], autoEdit = true): CullingState {
   };
 }
 const update = (frameId: string, exposure = 0.4) => ({
-  projectId: 'shoot-a', frameId, edit: { ...DEFAULT_EDIT, exposure }, at: 1000,
+  projectId: 'shoot-a', frameId, stableKey: frameId, edit: { ...DEFAULT_EDIT, exposure }, at: 1000,
 });
 
 test('the first successful keeper develops immediately; later frames need not finish', () => {
@@ -78,4 +78,15 @@ test('a finished recipe is fully undoable, with all unrelated frames untouched',
   assert.strictEqual(after.frames[1], original.frames[1]);
   const stale = commitCompletedAutoResult(after, update('one', -0.6));
   assert.strictEqual(stale, after, 'a completed Auto pass may not run again on edited history');
+});
+
+
+test('late progressive Auto cannot apply to a relinked or replaced original', () => {
+  const source = frame('bird');
+  for (const changed of [{ ...source, stableKey: 'replacement' }, { ...source, originalSha256: 'b'.repeat(64) }]) {
+    const state = project([changed]);
+    assert.strictEqual(commitCompletedAutoResult(state, update('bird')), state);
+  }
+  const verified = project([{ ...source, originalSha256: 'a'.repeat(64) }]);
+  assert.notStrictEqual(commitCompletedAutoResult(verified, { ...update('bird'), originalSha256: 'a'.repeat(64) }), verified);
 });
