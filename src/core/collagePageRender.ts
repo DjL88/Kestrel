@@ -1,4 +1,4 @@
-import { COLLAGE_FORMATS, type CollageDocument, type CollagePage } from './collage';
+import { COLLAGE_FORMATS, windowFraming, type CollageDocument, type CollagePage } from './collage';
 import { coverCrop } from './composition';
 import { planCollagePrint, printSlotResolution, printResolutionMessage } from './collagePrint';
 import { maxCanvasPixels } from './exportLimits';
@@ -22,12 +22,13 @@ export async function renderCollagePage(doc: CollageDocument, page: CollagePage,
   const source=await load(slot.photoId);
   try{
    const w=tw*Math.max(1,slot.width-page.gap)/100,h=th*Math.max(1,slot.height-page.gap)/100;
+   const framing=windowFraming(slot);
    if(print&&plan){
-    const ppi=printSlotResolution(source,{width:w/tw*plan.trimWidthMm,height:h/th*plan.trimHeightMm});
+    const ppi=printSlotResolution(source,{width:w/tw*plan.trimWidthMm,height:h/th*plan.trimHeightMm})/framing.zoom;
     const warning=printResolutionMessage(ppi,300);if(warning)throw new Error(warning);
    }
    const x=bx+tw*(slot.x+page.gap/2)/100,y=by+th*(slot.y+page.gap/2)/100;
-   const crop=coverCrop(source.width,source.height,w,h);
+   const crop=coverCrop(source.width,source.height,w,h,framing.zoom,framing.panX,framing.panY);
    ctx.save();
    try{
     ctx.translate(x+w/2,y+h/2);ctx.rotate(slot.angle*Math.PI/180);ctx.translate(-w/2,-h/2);
