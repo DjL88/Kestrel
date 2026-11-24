@@ -31,7 +31,8 @@ export interface ExportBatchTicket {
   readonly done: Promise<ExportBatchResult>;
   cancel(): boolean;
 }
-export type ExportTaskStore = Pick<typeof tasks, 'start' | 'cancel' | 'list' | 'dismissFinished'>;
+export type ExportTaskStore = Pick<typeof tasks, 'start' | 'cancel' | 'list' | 'dismissFinished'> &
+  Partial<Pick<typeof tasks, 'enqueue'>>;
 const invalid = /[\\/:*?"<>|\u0000-\u001f]/;
 
 export function exportFolderName(value: string): string {
@@ -130,9 +131,17 @@ export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
           }
           return true;
         };
-        handle = taskStore.start(title, { total: items.length, cancel });
-        if (startIndex > 0) handle.progress(startIndex, items.length, `${startIndex} already saved`);
+        // The legacy export adapter still uses its own execution lane, but it
+        // must report waiting as QUEUED, not pretend to be using CPU or GPU.
+        // This preserves older injected TaskStore tests without inventing work.
+        handle = taskStore.enqueue
+          ? taskStore.enqueue(title, { total: items.length, cancel, pauseable: false })
+          : taskStore.start(title, { total: items.length, cancel });
         pending.set(id, async () => {
+          if (handle && 'transition' in handle && typeof handle.transition === 'function') {
+            handle.transition('running');
+          }
+          if (startIndex > 0) handle?.progress(startIndex, items.length, `${startIndex} already saved`);
           if (controller.signal.aborted || handle?.cancelled) {
             finished = true;
             handle?.fail('Export cancelled before it started.');
