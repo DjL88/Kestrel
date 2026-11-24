@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { applyDecisionWithHistory, redoDecision, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
+import { applyDecisionWithHistory, assignBurstGroups, redoDecision, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
 import { recordEdit, stepEdit } from '../../core/editHistory';
 import { forkEditCheckpoint, switchEditVersion as switchVersionInCatalogue } from '../../core/editBranches';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
@@ -1041,6 +1041,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const importId = newId().slice(0, 8);
     const sequenceBase = target.frames.reduce((max, frame) => Math.max(max, frame.sequenceIndex), 0);
     const importedFrames: PhotoFrame[] = [];
+    let initialImportFinished = false;
     const warnings: string[] = [];
     const sourceProvider = provider.current!;
     const sourceCatalogue = catalogue.current!;
@@ -1075,17 +1076,27 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           ctx.commitIfCurrent(() => {
             if (stateRef.current?.shoot.id !== projectKey || ctx.signal.aborted) return;
             importedFrames.push(...frames);
-            setState(current => current && current.shoot.id === projectKey && !ctx.signal.aborted
-              ? appendProjectPhotos(current, frames, importId, { sequenceBase }) : current);
+            setState(current => {
+              if (!current || current.shoot.id !== projectKey || ctx.signal.aborted) return current;
+              const updated = appendProjectPhotos(current, frames, importId, { sequenceBase });
+              // Failed-only retry can happen long after the initial batch
+              // finished; recompute burst relationships for that newly added
+              // photograph, but not for every file in a 300-photo import.
+              return initialImportFinished
+                ? applyImportBursts(updated, assignBurstGroups([...importedFrames].sort((a, b) => a.sequenceIndex - b.sequenceIndex)), importId)
+                : updated;
+            });
           });
         },
       });
       controller.signal.addEventListener('abort', () => ticket.cancel(), { once: true });
       if (controller.signal.aborted) ticket.cancel();
       const outcome = await ticket.finished;
+      initialImportFinished = true;
       if (importedFrames.length && stateRef.current?.shoot.id === projectKey) {
+        const grouped = assignBurstGroups([...importedFrames].sort((a, b) => a.sequenceIndex - b.sequenceIndex));
         setState(current => current && current.shoot.id === projectKey
-          ? applyImportBursts(current, importedFrames, importId) : current);
+          ? applyImportBursts(current, grouped, importId) : current);
       }
       if (outcome === 'failed') setNotice(`Some photographs could not be imported. ${importedFrames.length} were added. Open Tasks to retry failed photographs only.`);
       else if (outcome === 'cancelled') setNotice(`Import stopped. ${importedFrames.length} photographs were added; originals are unchanged.`);
