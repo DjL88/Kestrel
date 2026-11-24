@@ -71,6 +71,7 @@ import { renderV2Export, type OverlayDraw } from './renderV2Export';
 import { formatOverlayRowText } from '../ui/utils/studioMath';
 import { loadImage } from '../../providers/loadImage';
 import { deliverExport, describeExport } from './exportDelivery';
+import { scheduleV2PhotoExports, photoExportUnits } from './scheduledPhotoExport';
 import { uniqueExportFilename } from '../../core/exportNaming';
 import { exportMayContinue } from '../../core/exportCancellation';
 import type { ExportRequest } from '../ui/contract';
@@ -435,7 +436,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const runExportAction = useCallback(async (request: ExportRequest) => {
     const current = stateRef.current;
     if (!current) return;
-    if (activePhotoExport.current !== null) { setNotice('An export is already running.'); return; }
+    if (activePhotoExport.current !== null && request.destination !== 'local-individual' && request.destination !== 'local-folder') {
+      setNotice('An export is already running.'); return;
+    }
     const sourceProvider = provider.current!;
     const env = exportEnv.current;
     if (request.rawMaster) {
@@ -467,6 +470,29 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     }
     const plan = planExport(request, current.frames, createDefaultSizes());
     if ('error' in plan) { setNotice(plan.error); return; }
+    // One photograph / output variant per scheduler item. Unlike a ZIP, local
+    // individual and exclusive-folder saves have safe, confirmed file boundaries.
+    // The snapshot survives edits made while the batch is waiting in the queue.
+    if (request.destination === 'local-individual' || request.destination === 'local-folder') {
+      const count = photoExportUnits(plan, current.frames).length;
+      const submittedEnv = structuredClone(env);
+      try {
+        const ticket = await scheduleV2PhotoExports({
+          request, plan, frames: current.frames, provider: sourceProvider,
+          buildOverlay: (frame, submittedRequest) => buildOverlayDraw(frame, submittedRequest, submittedEnv),
+        });
+        if (!ticket) { setNotice('No folder was selected. Nothing was exported.'); return; }
+        setNotice(`Queued ${count} export ${count === 1 ? 'output' : 'outputs'}. You can edit while they process; open Tasks to pause, prioritise or cancel.`);
+        void ticket.finished.then(result => {
+          if (result === 'done') setNotice(`Exported ${count} ${count === 1 ? 'output' : 'outputs'}. Your originals are unchanged.`);
+          else if (result === 'failed') setNotice('Some export outputs failed. Open Tasks for each photograph and Retry failed. Files already saved remain in place.');
+          else setNotice('Export stopped. Files already saved remain in place.');
+        });
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : 'Could not queue this export.');
+      }
+      return;
+    }
     const controller = new AbortController();
     const task = tasks.start(`Exporting ${plan.summary}`, { total: plan.jobs.reduce((sum, job) => sum + job.variants.length * (job.sections ?? 1), 0) + plan.originals.length, cancel: () => controller.abort() });
     activePhotoExport.current = task.id;
