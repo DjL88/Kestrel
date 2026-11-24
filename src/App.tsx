@@ -10,7 +10,7 @@ import { messages } from './i18n/messages';
 import { useOpenedFiles } from './providers/useOpenedFiles';
 import { pickFolderNatively, pickedFromFile, pickedKey, linkedReader, linkedRangeOpener, type PickedPhoto } from './providers/linkedOriginals';
 import { checkOriginalPaths } from './providers/originalPathStatus';
-import { scanOriginalFolder, matchScannedOriginalsBySha } from './providers/nativeOriginalScan';
+import { scanOriginalFolder, resolveNativeOriginalRelinks } from './providers/nativeOriginalScan';
 import { openLinkedRange } from './providers/rangeBlob';
 import { splitDropped } from './core/dropSplit';
 import { useAccess } from './providers/useAccess';
@@ -1956,45 +1956,46 @@ export default function App() {
       const expectedRecords = [...expected.values()].map((frame) => {
         const parts = frame.stableKey.split('::');
         return { stableKey: frame.stableKey, filename: frame.filename, sourcePath: frame.sourcePath!,
-          size: Number(parts.at(-2)) || 0, lastModified: Number(parts.at(-1)) || 0 };
+          size: Number(parts.at(-2)) || 0, originalSha256: frame.originalSha256 };
       });
       const currentPaths = await checkOriginalPaths(expectedRecords.map(record => record.sourcePath), fs.stat);
       if (stateRef.current.shoot.id !== projectId) return;
-      const missing = expectedRecords.filter(record => currentPaths.get(record.sourcePath) !== 'available');
-      const connectedPaths = expectedRecords.filter(record => currentPaths.get(record.sourcePath) === 'available')
-        .map(record => record.sourcePath);
-      const scan = missing.length ? await scanOriginalFolder(folder, fs.readDir, fs.stat,
-        new Set(missing.map(record => record.filename.toLowerCase()))) : { files: [], truncated: false, skippedDirectories: 0 };
-      const candidateByPath = new Map(scan.files.map(file => [file.path, file]));
-      // A copied NAS backup may have a new modified time but identical bytes.
-      // Narrow by camera name and size, then admit ONLY a unique full SHA-256 match.
-      const { matches, ambiguous } = await matchScannedOriginalsBySha(
-        missing.map(record => ({ ...record, originalSha256: expected.get(record.stableKey)?.originalSha256 })),
-        scan.files,
-        connectedPaths,
-        async path => {
-          const file = candidateByPath.get(path)!;
-          const before = await fs.stat(path);
-          if (!before.isFile || before.isSymlink || before.size !== file.size ||
-              (before.mtime && before.mtime.getTime() !== file.lastModified)) {
-            throw new Error('Candidate changed after folder scan.');
-          }
-          const range = await openLinkedRange(path, before.size);
-          return {
-            bytes: range.blob,
-            unchanged: async () => {
-              const after = await fs.stat(path);
-              return after.size === before.size &&
-                !(before.mtime && after.mtime && before.mtime.getTime() !== after.mtime.getTime());
-            },
-            close: range.close,
-          };
-        },
+      // Path existence is only a cheap prefilter. On explicit reconnect, prove
+      // the bytes at the existing link as well as any replacement, so an
+      // overwritten file cannot prevent recovery from a genuine backup.
+      const openVerifiedRange = async (path: string, scanned?: { size: number; lastModified: number }) => {
+        if (stateRef.current.shoot.id !== projectId) throw new Error('Project changed during reconnect.');
+        const before = await fs.stat(path);
+        if (!before.isFile || before.isSymlink || (scanned && (before.size !== scanned.size ||
+            (before.mtime && before.mtime.getTime() !== scanned.lastModified)))) {
+          throw new Error('Candidate changed before verification.');
+        }
+        const range = await openLinkedRange(path, before.size);
+        return {
+          bytes: range.blob,
+          unchanged: async () => {
+            const after = await fs.stat(path);
+            return stateRef.current.shoot.id === projectId && after.isFile && !after.isSymlink &&
+              after.size === before.size && !(before.mtime && after.mtime && before.mtime.getTime() !== after.mtime.getTime());
+          },
+          close: range.close,
+        };
+      };
+      const scan = await resolveNativeOriginalRelinks(
+        expectedRecords,
+        new Set([...currentPaths].filter(([, status]) => status === 'available').map(([path]) => path)),
+        names => stateRef.current.shoot.id === projectId
+          ? scanOriginalFolder(folder, fs.readDir, fs.stat, names)
+          : Promise.resolve({ files: [], truncated: false, skippedDirectories: 0 }),
+        path => openVerifiedRange(path),
+        file => openVerifiedRange(file.path, file),
       );
+      const { matches, ambiguous, missing, connected } = scan;
       if (stateRef.current.shoot.id !== projectId) return;
       const currentFrames = stateRef.current.frames;
       const eligibleKeys = new Set(currentFrames.filter(frame => !frame.removedAt && frame.sourceKind === 'file' &&
-        frame.sourcePath === expected.get(frame.stableKey)?.sourcePath).map(frame => frame.stableKey));
+        frame.sourcePath === expected.get(frame.stableKey)?.sourcePath &&
+        frame.originalSha256 === expected.get(frame.stableKey)?.originalSha256).map(frame => frame.stableKey));
       const replacements = new Map([...matches].filter(([key]) => eligibleKeys.has(key)));
       const preview = previewProviderRef.current!;
       for (const [key, path] of replacements) {
@@ -2008,15 +2009,18 @@ export default function App() {
         preview.retryLinkedOriginal(key);
       }
       for (const record of expectedRecords) {
-        if (eligibleKeys.has(record.stableKey) && currentPaths.get(record.sourcePath) === 'available' &&
-            preview.isOfflineFallback(record.stableKey)) preview.retryLinkedOriginal(record.stableKey);
+        if (!eligibleKeys.has(record.stableKey) || replacements.has(record.stableKey)) continue;
+        // A failed verification must evict any held full original or development.
+        // A successfully verified reconnected drive also replaces offline review.
+        if (!connected.has(record.stableKey) || preview.isOfflineFallback(record.stableKey)) preview.retryLinkedOriginal(record.stableKey);
       }
-      const remaining = missing.filter(record => eligibleKeys.has(record.stableKey) && !replacements.has(record.stableKey)).length;
+      const remaining = missing.filter(key => eligibleKeys.has(key) && !replacements.has(key)).length;
       const recovered = replacements.size;
       setCullingState((previous) => previous.shoot.id !== projectId ? previous : {
         ...previous, frames: previous.frames.map(frame => {
           const path = replacements.get(frame.stableKey);
-          return path && frame.sourcePath === expected.get(frame.stableKey)?.sourcePath ? { ...frame, sourcePath: path } : frame;
+          return path && frame.sourcePath === expected.get(frame.stableKey)?.sourcePath &&
+            frame.originalSha256 === expected.get(frame.stableKey)?.originalSha256 ? { ...frame, sourcePath: path } : frame;
         }),
         shoot: { ...previous.shoot, needsFileReselect: remaining > 0 },
       });
