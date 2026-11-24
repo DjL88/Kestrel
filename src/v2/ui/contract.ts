@@ -602,7 +602,7 @@ export interface WorkspaceActions {
   updateOverlayRow: (photoId: string, rowId: string, patch: Partial<OverlayTextRow>) => void;
   removeOverlayRow: (photoId: string, rowId: string) => void;
   /** Opens the file picker and adds the chosen image to the watermark library. Resolves to the new watermark's id. */
-  importWatermarkImage: () => Promise<string | null>;
+  importWatermarkImage: (usage?: WatermarkUsage) => Promise<string | null>;
   /** Removes a flat background from a watermark's artwork. With commit false it only previews (a picture on transparency). */
   cutOutWatermark: (presetId: string, slot: 'dark' | 'light', tolerance: number, commit: boolean) => Promise<{ url: string; tooMuch: boolean } | null>;
   /** Makes the missing version (white for dark photos, black for light photos) from the one that exists. */
@@ -671,3 +671,6 @@ export interface WorkspaceActions {
   toggleStorageConnector: (connectorId: StorageConnector['id']) => void;
   clearNotice: () => void;
 }
+
+/** Background suitability chosen when importing watermark artwork. */
+export type WatermarkUsage = 'auto' | 'dark' | 'light' | 'both';
