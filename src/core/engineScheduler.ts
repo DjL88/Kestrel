@@ -6,7 +6,7 @@
  * runItem must resolve only after its save or catalogue commit has succeeded.
  * Async engine results must be applied through commitIfCurrent.
  */
-import { tasks, type TaskHandle, type TaskItemInfo, type TaskLocation } from './taskStore.ts';
+import { tasks, type SchedulerTaskHandle, type TaskItemInfo, type TaskLocation } from './taskStore.ts';
 
 export type EngineResource = 'cpu' | 'gpu' | 'io';
 export type EngineKind = 'import' | 'raw' | 'preview' | 'thumbnail' | 'cull' | 'detect' | 'mask' |
@@ -83,7 +83,7 @@ interface WorkBatch {
   active: boolean;
   cancelled: boolean;
   controller: AbortController | null;
-  handle: TaskHandle;
+  handle: SchedulerTaskHandle;
   items: WorkItem<unknown>[];
   manualProgress: boolean;
   work(index: number, ctx: ScheduledContext): Promise<void>;
