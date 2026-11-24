@@ -117,7 +117,7 @@ export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCo
         const canRetry = task.status === 'failed' && engineScheduler.canRetryFailed(taskId);
         const canPause = Boolean(task.pauseable && (task.status === 'running' || task.status === 'queued'));
         const canResume = Boolean(task.pauseable && task.status === 'paused');
-        const canPrioritise = task.status === 'queued' || task.status === 'running';
+        const canPrioritise = task.status === 'queued' || (task.status === 'running' && Boolean(task.pauseable));
         const seconds = timing(task, clock);
         const queueIndex = queuedOrder.indexOf(taskId);
         return (
@@ -142,13 +142,13 @@ export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCo
                 className={controlStyle} aria-label={`Pause ${task.label}`}>Pause</button>}
               {canResume && <button type="button" onClick={() => engineScheduler.resume(taskId)}
                 className={controlStyle} aria-label={`Resume ${task.label}`}>Resume</button>}
-              {canPrioritise && task.pauseable && <button type="button" onClick={() => engineScheduler.jumpQueue(taskId)}
+              {canPrioritise && <button type="button" onClick={() => engineScheduler.jumpQueue(taskId)}
                 className={controlStyle} aria-label={`Move ${task.label} to the front of the queue`}>Jump the queue</button>}
               {queueIndex > 0 && <button type="button" onClick={() => engineScheduler.reorder([taskId, queuedOrder[queueIndex - 1]])}
                 className={controlStyle} aria-label={`Move ${task.label} up one queue position`}>Move up</button>}
               {queueIndex >= 0 && queueIndex < queuedOrder.length - 1 && <button type="button" onClick={() => engineScheduler.reorder([queuedOrder[queueIndex + 1], taskId])}
                 className={controlStyle} aria-label={`Move ${task.label} down one queue position`}>Move down</button>}
-              {active(task.status) && task.cancellable !== false && (
+              {active(task.status) && task.cancellable === true && (
                 <button type="button" onClick={() => onCancelTask(task.id)} className={controlStyle}
                   aria-label={`Cancel ${task.label}`}>{STRINGS.tasks.cancel}</button>
               )}
