@@ -87,3 +87,12 @@ test('removed formats need not retain a permanent creation marker', () => {
   assert.equal(history.events.length, MAX_FORMAT_HISTORY);
   assert.equal(historyForFormat(history, 'custom-gone').some(e => e.kind === 'created'), false);
 });
+
+test('oversized saved histories compact valid events without dropping the active format fork', () => {
+  const created = {formatId:'custom-keeper',kind:'created',at:1000,parentFormatId:ORIGINAL_BRANCH_ID,forkEditCursor:12};
+  const events = [created,...Array.from({length:MAX_FORMAT_HISTORY+10},(_,i)=>({formatId:'custom-keeper',kind:'linked',at:2000+i})),...Array.from({length:MAX_FORMAT_HISTORY},()=>null)];
+  const reopened = readFormatHistory({version:1,events});
+  assert.equal(reopened.events.length,MAX_FORMAT_HISTORY);
+  assert.deepEqual(reopened.events[0],created);
+  assert.equal(reopened.events.at(-1)?.at,2000+MAX_FORMAT_HISTORY+9);
+});
