@@ -116,8 +116,8 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
             <p className="text-xs text-[var(--text-muted)]">A photograph can be used in several windows and on different pages. Edits update every appearance without changing the original.</p>
           </div>
           <p className="border-t border-[var(--border-default)] pt-3 text-xs text-[var(--text-secondary)]">
-            {printing ? 'Print layout selected. Press-ready PDF export requires a full-resolution render, bleed and margin checks; it is not enabled yet.' :
-              'Social layout selected. High-resolution page export is being connected; this canvas is a preview.'}
+            {printing ? 'Print layout selected. Export a 300 DPI RGB PDF with 3 mm bleed using verified JPEG or PNG originals. Not certified PDF/X.' :
+              'Social layout selected. Use Export for full-size JPEG or PNG pages from verified originals.'}
           </p>
         </aside>
       </div>
