@@ -1,4 +1,5 @@
 import type { PhotoFrame } from './types';
+import { recipeIsValid } from './recipeValidation';
 
 /**
  * What follows a photo between devices through a sync folder: the decision, rating, tags and edit, matched by the photo's
@@ -57,7 +58,7 @@ export function parseSnapshot(text: string): ProjectSnapshot | null {
       if (!row || typeof row !== 'object' || Array.isArray(row)) return null;
       const photo = row as Record<string, unknown>;
       if (typeof photo.key !== 'string' || !photo.key || photo.key.length > 1024 ||
-        seen.has(photo.key) || !['keep', 'reject', 'unreviewed'].includes(String(photo.decision)) ||
+        seen.has(photo.key) || typeof photo.decision !== 'string' || !['keep', 'reject', 'unreviewed'].includes(photo.decision) ||
         Object.keys(photo).some((field) => field !== 'key' && field !== 'identity' && field !== 'originalSha256' && !FIELDS.includes(field as typeof FIELDS[number]))) return null;
       if (photo.identity !== undefined && (typeof photo.identity !== 'string' || photo.identity.length > 400)) return null;
       if (photo.originalSha256 !== undefined && (typeof photo.originalSha256 !== 'string' || !SHA.test(photo.originalSha256))) return null;
@@ -81,7 +82,16 @@ export function parseSnapshot(text: string): ProjectSnapshot | null {
           Object.keys(record).every((key) => key !== '__proto__' && key !== 'constructor' &&
             key !== 'prototype' && safeJson(record[key], depth + 1));
       }
-      if (!safeJson(photo)) return null;
+      if (!safeJson(photo) || !recipeIsValid(photo)) return null;
+      if (photo.subjectKind !== undefined && (typeof photo.subjectKind !== 'string' ||
+        !['wildlife', 'people', 'landscape', 'other'].includes(photo.subjectKind))) return null;
+      const focus = photo.focusPoint;
+      if (focus !== undefined) {
+        if (!focus || typeof focus !== 'object' || Array.isArray(focus)) return null;
+        const point = focus as Record<string, unknown>;
+        if (typeof point.x !== 'number' || point.x < 0 || point.x > 1 ||
+            typeof point.y !== 'number' || point.y < 0 || point.y > 1) return null;
+      }
       seen.add(photo.key);
       photos.push(photo as unknown as SyncedPhoto);
     }
