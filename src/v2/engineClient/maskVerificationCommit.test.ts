@@ -30,3 +30,9 @@ test('valid correction preserves concurrent global adjustments and rating',()=>{
   assert.equal(state.frames[0].edit?.exposure,0.5);
   assert.deepEqual(state.frames[0].edit?.masks,[corrected]);
 });
+
+
+test('verification cannot choose between duplicate catalogue IDs', () => {
+  const state = { ...project(source), frames: [source, { ...source, stableKey: 'other.nef' }] };
+  assert.equal(commitVerifiedMasks(state, 'p', source, [corrected], 3000), state);
+});
