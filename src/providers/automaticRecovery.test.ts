@@ -9,3 +9,15 @@ test('uses the parent folder only for a homogeneous set of linked originals', ()
   assert.equal(sharedOriginalFolder(['/photos/a.nef', undefined]), null);
   assert.equal(sharedOriginalFolder([]), null);
 });
+
+test('refuses ambiguous source paths instead of selecting an adjacent backup destination', () => {
+  for (const unsafe of [
+    '/photos/day/', '/photos/day/../other.nef', '/photos/./one.nef',
+    '/photos/day/one.nef\u0000', '/photos/day/one.nef\n',
+    'C:\\\\Photos\\\\..\\\\other.nef', 'C:\\\\Photos\\\\',
+  ]) {
+    assert.equal(sharedOriginalFolder([unsafe]), null, `unsafe path: ${JSON.stringify(unsafe)}`);
+  }
+  assert.equal(sharedOriginalFolder(['/photos/day/one.nef', '/photos/day/two.nef']), '/photos/day');
+  assert.equal(sharedOriginalFolder(['C:\\\\Photos\\\\one.nef', 'C:\\\\Photos\\\\two.nef']), 'C:\\\\Photos');
+});
