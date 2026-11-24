@@ -294,3 +294,49 @@ test('intersected local denoise only acts where both masks overlap', () => {
     'inside the first oval but outside intersection is unchanged');
   assert.ok(result.some((value, i) => value !== base[i]), 'the intersecting region is denoised');
 });
+
+
+test('partial brush strokes refine the fine outline independently of conflicting coarse detection', () => {
+  const detail = { region: { x: 0, y: 0, w: 1, h: 1 }, grid: encodedGrid(32, 32, () => 1) };
+  const a = createSubjectMask('a', encodedGrid(16, 16, () => 0), 'k', 'high', detail);
+  const b = createSubjectMask('b', encodedGrid(16, 16, () => 1), 'k', 'high', detail);
+  const strokes = [createBrushStroke([0.5, 0.5], 0.2, true, false)];
+  const first = maskAlpha({ ...a, strokes }, W, H, ctx);
+  const second = maskAlpha({ ...b, strokes }, W, H, ctx);
+  assert.deepEqual(first, second, 'erase must operate on the fine outline, not the conflicting coarse grid');
+  assert.ok(at(first, 50, 40) < 0.05);
+  assert.ok(at(first, 5, 5) > 0.99);
+  assert.ok(first.some(value => value > 0.05 && value < 0.95), 'soft brush transition survives');
+});
+
+test('painting over a fine outline does not erase already selected pixels', () => {
+  const detail = { region: { x: 0, y: 0, w: 1, h: 1 }, grid: encodedGrid(32, 32, () => 1) };
+  const mask = createSubjectMask('a', encodedGrid(16, 16, () => 0), 'k', 'high', detail);
+  const painted = { ...mask, strokes: [createBrushStroke([0.5, 0.5], 0.2, false, false)] };
+  assert.deepEqual(maskAlpha(painted, W, H, ctx), maskAlpha(mask, W, H, ctx));
+});
+
+test('a very thin panorama and very tall crop retain finite brush alpha', () => {
+  const mask: Mask = { ...createMask('brush', 'b'), kind: 'brush', strokes: [createBrushStroke([0.5, 0.5], 0.3, false, false)] };
+  for (const aspect of [0.00001, 100000]) {
+    const alpha = maskAlpha(mask, 11, 11, { aspect, view: { x: 0, y: 0, w: 1, h: 1 } });
+    assert.ok(alpha.every(v => Number.isFinite(v) && v >= 0 && v <= 1));
+    assert.ok(alpha[60] > 0.9, 'centre remains painted');
+  }
+});
+
+test('fine brush edits survive JSON reopen and give the same alpha in an equivalent zoomed region', () => {
+  const detail = { region: { x: 0, y: 0, w: 1, h: 1 }, grid: encodedGrid(32, 32, () => 1) };
+  const base = createSubjectMask('s', encodedGrid(16, 16, () => 0), 'k', 'high', detail);
+  const mask = { ...base, strokes: [
+    createBrushStroke([0.5, 0.5], 0.16, true, false),
+    createBrushStroke([0.5, 0.5], 0.06, false, false),
+  ] };
+  const reopened = JSON.parse(JSON.stringify(mask)) as Mask;
+  assert.ok(validMasks([reopened]));
+  const full = maskAlpha(mask, W, H, ctx);
+  const zoom = maskAlpha(reopened, 50, 40, { aspect: H / W, view: { x: 0.25, y: 0.25, w: 0.5, h: 0.5 } });
+  for (let y = 0; y < 40; y++) for (let x = 0; x < 50; x++) {
+    assert.ok(Math.abs(zoom[y * 50 + x] - full[(y + 20) * W + x + 25]) < 1e-5);
+  }
+});
