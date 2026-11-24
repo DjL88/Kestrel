@@ -13,6 +13,7 @@ import { tasks } from '../../core/taskStore';
 import { engineScheduler } from '../../core/engineScheduler';
 import { prioritizePhotoProcessing } from '../../core/photoProcessingOrder';
 import { orderImportCandidates, readImportPriority } from './importPriority';
+import { ThumbnailDemand } from './thumbnailDemand';
 import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '../../core/types';
 import { eraseDeviceData } from './eraseDeviceData';
 import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
@@ -108,7 +109,7 @@ async function buildOverlayDraw(frame: PhotoFrame, request: ExportRequest, env: 
   };
 }
 
-const THUMBNAIL_WORKERS = 4;
+const THUMBNAIL_BATCH = 8;
 
 async function pickImageFile(): Promise<File | null> {
   return new Promise((resolve) => {
@@ -281,7 +282,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     provider.current!.clear();
     if (restored) provider.current = restored;
     thumbs.current.ticket?.cancel();
-    thumbs.current = { generation: thumbs.current.generation + 1, requested: new Set<string>(), queue: [] as PhotoFrame[], active: 0, ticket: null };
+    if (thumbs.current.timer !== null) clearTimeout(thumbs.current.timer);
+    thumbs.current = { generation: thumbs.current.generation + 1, demand: new ThumbnailDemand(), active: 0, ticket: null, timer: null };
+    // New project gets a distinct demand registry even if frame IDs repeat.
     setUrls({});
     setAssists({});
     setSelected(next.selectedFrameId ? [next.selectedFrameId] : []);
@@ -313,64 +316,83 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     }
   }, [enterProject]);
 
-  // Thumbnails: a few at a time, so a large project does not start thousands of reads at once. Each photo is asked for
-  // once; a read in flight is never thrown away when more photos arrive, only when the project changes (generation).
+  // Only viewport demand and the selected photograph may schedule thumbnail
+  // work. Never turn the whole project into a thumbnail queue.
   const thumbs = useRef({
-    generation: 0, requested: new Set<string>(), queue: [] as PhotoFrame[],
-    active: 0, ticket: null as import('../../core/engineScheduler').SchedulerTicket | null,
+    generation: 0, demand: new ThumbnailDemand(), active: 0,
+    ticket: null as import('../../core/engineScheduler').SchedulerTicket | null,
+    timer: null as ReturnType<typeof setTimeout> | null,
   });
   const pumpThumbnails = useCallback(() => {
     const book = thumbs.current;
-    if (book.active || !book.queue.length) return;
-    const frames = book.queue.splice(0);
-    const generation = book.generation;
-    book.active = 1;
-    const sourceProvider = provider.current!;
-    void engineScheduler.submit({
-      title: `Preparing ${frames.length} thumbnails`, kind: 'thumbnail', resource: 'io',
-      priority: 1, pauseable: frames.length > 1, items: frames,
-      snapshot: { generation, keys: frames.map(frame => frame.stableKey) },
-      itemId: frame => frame.id, itemLabel: frame => frame.filename,
-      runItem: async (frame, _, ctx) => {
-        ctx.stage('Reading and scaling this photograph');
-        const thumb = await sourceProvider.getThumbnailUrl(frame, 'visible');
-        ctx.checkCancelled();
-        if (generation !== thumbs.current.generation) return;
-        if (!thumb) {
-          ctx.commitIfCurrent(() => setUrls(current =>
-            ({ ...current, [frame.id]: { ...current[frame.id], failed: true } })));
-          throw new Error(`Could not create the thumbnail for ${frame.filename}. Reconnect the original and retry.`);
-        }
-        ctx.commitIfCurrent(() => setUrls(current => current[frame.id]?.thumb ? current
-          : { ...current, [frame.id]: { ...current[frame.id], thumb } }));
-      },
-    }).then(ticket => {
-      book.ticket = ticket;
-      return ticket.finished;
-    }).catch(() => {
-      // Individual file failures are shown in the task and unavailable tile.
-    }).finally(() => {
-      if (generation !== thumbs.current.generation) return;
-      book.active = 0;
-      book.ticket = null;
-      pumpThumbnails();
-    });
+    if (book.active || book.timer !== null) return;
+    // Coalesce observer callbacks into a small batch, not one task per tile.
+    book.timer = setTimeout(() => {
+      book.timer = null;
+      if (book !== thumbs.current || book.active) return;
+      const current = stateRef.current;
+      if (!current) return;
+      const byId = new Map(current.frames.filter(frame => !frame.removedAt).map(frame => [frame.id, frame]));
+      const ids = book.demand.next(THUMBNAIL_BATCH, current.selectedFrameId);
+      const frames = ids.flatMap(id => { const frame = byId.get(id); return frame ? [frame] : []; });
+      for (const id of ids) if (!byId.has(id)) book.demand.mark(id);
+      if (!frames.length) return;
+      book.active = 1;
+      const sourceProvider = provider.current!;
+      const generation = book.generation;
+      void engineScheduler.submit({
+        title: 'Preparing visible thumbnails', kind: 'thumbnail', resource: 'io',
+        priority: 1, pauseable: frames.length > 1, items: frames,
+        snapshot: { generation, keys: frames.map(frame => frame.stableKey) },
+        itemId: frame => frame.id, itemLabel: frame => frame.filename,
+        runItem: async (frame, _, ctx) => {
+          // A rapid scroll may have moved this tile away while waiting.
+          if (book !== thumbs.current || !book.demand.has(frame.id)) return;
+          book.demand.mark(frame.id);
+          ctx.stage('Reading and scaling this photograph');
+          try {
+            const priority = stateRef.current?.selectedFrameId === frame.id ? 'selected' : 'visible';
+            const thumb = await sourceProvider.getThumbnailUrl(frame, priority);
+            ctx.checkCancelled();
+            if (book !== thumbs.current) return;
+            if (!thumb) throw new Error('Thumbnail unavailable');
+            ctx.commitIfCurrent(() => setUrls(current =>
+              ({ ...current, [frame.id]: { ...current[frame.id], thumb, failed: false } })));
+          } catch (error) {
+            if (ctx.signal.aborted) { book.demand.invalidate(frame.id); throw error; }
+            if (book === thumbs.current) ctx.commitIfCurrent(() => setUrls(current =>
+              ({ ...current, [frame.id]: { ...current[frame.id], failed: true } })));
+            throw error;
+          }
+        },
+      }).then(ticket => {
+        if (book !== thumbs.current) ticket.cancel();
+        else book.ticket = ticket;
+        return ticket.finished;
+      }).catch(() => {
+        // Individual failures stay visible; a reconnect can invalidate them.
+        for (const frame of frames) book.demand.mark(frame.id);
+      }).finally(() => {
+        if (book !== thumbs.current) return;
+        book.active = 0;
+        book.ticket = null;
+        if (book.demand.next(1).length) pumpThumbnails();
+      });
+    }, 16);
   }, []);
-  const projectId = state?.shoot.id;
-  const frameCount = state?.frames.length ?? 0;
-  useEffect(() => {
-    if (!projectId) return;
+  const requestThumbnail = useCallback((id: string) => {
     const book = thumbs.current;
-    for (const frame of stateRef.current?.frames ?? []) {
-      if (frame.removedAt || book.requested.has(frame.id)) continue;
-      book.requested.add(frame.id);
-      book.queue.push(frame);
-    }
+    const release = book.demand.retain(id);
     pumpThumbnails();
-  }, [projectId, frameCount, pumpThumbnails]);
+    return release;
+  }, [pumpThumbnails]);
+  const projectId = state?.shoot.id;
 
   // The photo on the canvas gets the larger preview, ahead of the queue.
   const activeId = state?.selectedFrameId ?? state?.frames.find((frame) => !frame.removedAt)?.id ?? null;
+  useEffect(() => {
+    if (activeId && projectId && screen === 'editor') return requestThumbnail(activeId);
+  }, [activeId, projectId, screen, requestThumbnail]);
   useEffect(() => {
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === activeId);
     if (!frame || urls[frame.id]?.preview) return;
@@ -381,7 +403,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     );
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId]);
+  }, [activeId, projectId]);
 
   const mutate = useCallback((change: (current: CullingState) => CullingState) => setState((current) => (current ? change(current) : current)), []);
 
@@ -1206,9 +1228,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           return updated;
         });
         for (const id of recoveredIds) {
-          thumbs.current.requested.delete(id);
-          const frame = target.frames.find((candidate) => candidate.id === id);
-          if (frame) thumbs.current.queue.push(frame);
+          thumbs.current.demand.invalidate(id);
         }
         pumpThumbnails();
         if (activeId && recoveredIds.includes(activeId)) {
@@ -1244,12 +1264,16 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         return;
       }
     }
+    thumbs.current.ticket?.cancel();
+    if (thumbs.current.timer !== null) clearTimeout(thumbs.current.timer);
+    thumbs.current = { generation: thumbs.current.generation + 1, demand: new ThumbnailDemand(), active: 0, ticket: null, timer: null };
     setState(null); setScreen('hub'); setSelected([]);
     await loadHub();
   }, [loadHub]);
 
   const collageExportRunning = useRef(false);
   const real: Partial<WorkspaceActions> = {
+    requestThumbnail,
     exportCollage: async (request) => {
       const current = stateRef.current;
       if (!current) throw new Error('Open a collage before exporting its pages.');
