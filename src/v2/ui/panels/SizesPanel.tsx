@@ -29,7 +29,7 @@ interface SizesPanelProps {
   onSetOriginalOutputSize: (photoId: string, width: number, height: number) => void;
   onResetOriginalOutputSize: (photoId: string) => void;
   onToggleSplitFrames: (photoId: string) => void;
-  onSetSplitFrameCount: (photoId: string, sizeId: string, count: 1 | 2 | 3) => void;
+  onSetSplitFrameCount: (photoId: string, sizeId: string, count: 1 | 2 | 3 | 4 | 5) => void;
   onUpdateVideoZoom: (photoId: string, patch: Partial<VideoZoomConfig>) => void;
 }
 
@@ -85,7 +85,7 @@ export default function SizesPanel({
   const group = getActiveGroup(photo);
   const activeSize = photo.sizes.find((s) => s.id === activeSizeId) ?? photo.sizes[0];
   const activeSplit = photo.formatSplits?.[activeSize.id];
-  const activeSplitCount: 1 | 2 | 3 = activeSplit?.enabled ? (activeSplit.count === 3 ? 3 : 2) : 1;
+  const activeSplitCount: 1 | 2 | 3 | 4 | 5 = activeSplit?.enabled ? (activeSplit.count ?? 2) : 1;
 
   const pixelDimensions = dimensionPixels(customW, customH, customUnit, customPpi);
   const chooseBorderColour = (colour: string) => {
@@ -592,12 +592,15 @@ export default function SizesPanel({
             <BrandIcon name="split-panorama" size={15} />
             {STRINGS.formats.splitHeading} · {activeSize.label}
           </h3>
-          <div role="group" aria-label={STRINGS.formats.splitFrameCount} className="grid grid-cols-3 gap-1.5">
-            {([1, 2, 3] as const).map((count) => (
+          <p className="text-[11px] font-medium text-[var(--text-secondary)]">{STRINGS.formats.splitFrameCount}</p>
+          <div role="group" aria-label={STRINGS.formats.splitFrameCount} className="grid grid-cols-5 gap-1.5">
+            {([1, 2, 3, 4, 5] as const).map((count) => (
               <button
                 key={count}
                 type="button"
                 aria-pressed={activeSplitCount === count}
+                aria-label={STRINGS.formats.splitFrameChoice(count)}
+                title={STRINGS.formats.splitFrameChoice(count)}
                 disabled={!activeSize.enabled}
                 onClick={() => onSetSplitFrameCount(photo.id, activeSize.id, count)}
                 className={`min-h-11 rounded-[var(--radius-md)] border px-2 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
@@ -606,7 +609,7 @@ export default function SizesPanel({
                     : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                 }`}
               >
-                {STRINGS.formats.splitFrameChoice(count)}
+                {count}
               </button>
             ))}
           </div>

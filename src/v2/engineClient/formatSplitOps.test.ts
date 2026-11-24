@@ -44,3 +44,20 @@ test('legacy splits stay two-frame and malformed counts cannot create extra fram
   assert.equal(splitFrameCount({ print: { enabled: true, count: '3', offset: 0 } }, 'print'), 2);
   assert.deepEqual(setSplitFrameCount({ print: { enabled: true, offset: 0 } }, '../bad', 3), { print: { enabled: true, offset: 0 } });
 });
+
+test('a format can be split across four or five frames, and the count survives saving', () => {
+  const five = setSplitFrameCount(undefined, 'orig-3x2', 5);
+  assert.equal(splitFrameCount(JSON.parse(JSON.stringify(five)), 'orig-3x2'), 5);
+  assert.equal(splitFrameCount(setSplitFrameCount(five, 'orig-3x2', 4), 'orig-3x2'), 4);
+  // Six or more is refused rather than silently clamped.
+  assert.deepEqual(setSplitFrameCount(five, 'orig-3x2', 6 as never), five);
+  assert.equal(splitFrameCount({ 'orig-3x2': { enabled: true, offset: 0, count: 9 } }, 'orig-3x2'), 2);
+});
+
+test('removing a frame keeps the saved offset, and removing one of two rejoins the format', () => {
+  let splits = setFormatSplitOffset(setSplitFrameCount(undefined, 'ig-portrait', 5), 'ig-portrait', -8);
+  splits = setSplitFrameCount(splits, 'ig-portrait', 4);
+  assert.equal(splitFrameCount(splits, 'ig-portrait'), 4);
+  assert.equal(formatSplitOffset(splits, 'ig-portrait'), -8);
+  assert.deepEqual(setSplitFrameCount(setSplitFrameCount(splits, 'ig-portrait', 2), 'ig-portrait', 1), {});
+});

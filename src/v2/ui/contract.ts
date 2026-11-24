@@ -268,7 +268,7 @@ export interface Photo {
   editGroups: EditGroup[];
   sizes: SizePreset[];
   /** A split belongs to one output format, never every copy of this photo. */
-  formatSplits?: Record<string, { enabled: boolean; offset: number; count?: 3 }>;
+  formatSplits?: Record<string, { enabled: boolean; offset: number; count?: 3 | 4 | 5 }>;
   videoZoom: VideoZoomConfig;
   masks: MaskLayer[];
   /** Set when this photo was shot in a burst with others. `ungrouped` is the person's choice to see its frames one by one. */
@@ -568,8 +568,8 @@ export interface WorkspaceActions {
   /** Delete a format: a custom one is removed, a built-in one is switched off. A photo always keeps at least one. */
   removeSize: (photoId: string, sizeId: string) => void;
   toggleSplitFrames: (photoId: string) => void;
-  /** One photo's selected format: 1 rejoins, 2/3 export adjacent continuous frames. */
-  setSplitFrameCount: (photoId: string, sizeId: string, count: 1 | 2 | 3) => void;
+  /** One photo's selected format: 1 rejoins, 2 to 5 export adjacent continuous frames. */
+  setSplitFrameCount: (photoId: string, sizeId: string, count: 1 | 2 | 3 | 4 | 5) => void;
   setSplitPanOffset: (photoId: string, offset: number) => void;
   updateVideoZoom: (photoId: string, patch: Partial<VideoZoomConfig>) => void;
 

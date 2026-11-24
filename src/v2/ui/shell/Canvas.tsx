@@ -18,6 +18,7 @@ import type {
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import CompareSplit from './CompareSplit';
+import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
 import { captureElement, screenshotName } from '../utils/captureElement';
 import {
   buildPreviewFilterCss,
@@ -63,6 +64,8 @@ interface CanvasProps {
   onFlipSizes: (photoId: string, axis: 'horizontal' | 'vertical') => void;
   onRotateSizes: (photoId: string) => void;
   onToggleSplitFrames: (photoId: string) => void;
+  /** Set the active format's number of continuous frames (1 rejoins, up to 5). */
+  onSetSplitFrameCount?: (photoId: string, sizeId: string, count: SplitFrameCount) => void;
   onSetSplitPanOffset: (photoId: string, offset: number) => void;
   onUpdateVideoZoom: (photoId: string, patch: Partial<VideoZoomConfig>) => void;
   onUpdateOverlay: (photoId: string, patch: Partial<OverlaySettings>) => void;
@@ -100,6 +103,7 @@ export default function Canvas({
   onFlipSizes,
   onRotateSizes,
   onToggleSplitFrames,
+  onSetSplitFrameCount,
   onSetSplitPanOffset,
   onUpdateVideoZoom,
   onUpdateOverlay,
@@ -235,6 +239,9 @@ export default function Canvas({
   } | null>(null);
   // Double-click a format to reveal the whole picture as a ghost and position it under the crop window.
   const [revealSizeId, setRevealSizeId] = useState<string | null>(null);
+  // One frame of a split composition, selected so it can be removed (button or Delete key).
+  const [selectedPane, setSelectedPane] = useState<{ sizeId: string; index: number } | null>(null);
+  const paneDown = useRef<{ x: number; y: number } | null>(null);
   // A composition grid over the frame (thirds or quarters) to help place things. Never exported.
   const [gridMode, setGridMode] = useState<'off' | '3x3' | '4x4'>('off');
   // A plain drag moves the format on the canvas, like a design tool. Session only: it is where it sits, not part of the edit.
@@ -262,9 +269,15 @@ export default function Canvas({
   const group: EditGroup = getActiveGroup(photo);
   // An individual format may have one, two, or three continuous export frames.
   // Keep the canvas' pane count derived from the SAME saved metadata as exportOps.
-  const splitCountFor = (sizeId: string): 1 | 2 | 3 => {
+  const splitCountFor = (sizeId: string): SplitFrameCount => {
     const split = photo.formatSplits?.[sizeId];
-    return !features.splitFrames || !split?.enabled ? 1 : split.count === 3 ? 3 : 2;
+    return !features.splitFrames || !split?.enabled ? 1 : split.count ?? 2;
+  };
+  /** Add one frame (up to five), or remove one; the composition stays one continuous picture. */
+  const changeSplitCount = (sizeId: string, count: number) => {
+    if (count < 1 || count > MAX_SPLIT_FRAMES) return;
+    if (onSetSplitFrameCount) onSetSplitFrameCount(photo.id, sizeId, count as SplitFrameCount);
+    else if ((count > 1) !== splitFor(sizeId)) onToggleSplitFrames(photo.id);
   };
   const splitFor = (sizeId: string) => splitCountFor(sizeId) > 1;
   const splitOffsetFor = (sizeId: string) => photo.formatSplits?.[sizeId]?.offset ?? 0;
@@ -964,26 +977,73 @@ export default function Canvas({
       // three panes plus their gaps into the stage without hiding the last one.
       const sectionCount = splitCountFor(activeSize.id);
       const splitWidthBudget = stageSize.width > 0
-        ? Math.max(1, ((stageSize.width - 32) / Math.max(0.01, canvasZoom) - 16 * (sectionCount - 1)) / sectionCount)
+        ? Math.max(1, ((stageSize.width - 32) / Math.max(0.01, canvasZoom) - 16 * (sectionCount - 1) - (sectionCount < MAX_SPLIT_FRAMES ? 56 : 0)) / sectionCount)
         : frameW;
       const splitFrameW = Math.min(frameW, splitWidthBudget);
       const splitFrameH = splitFrameW / aspect;
+      const paneSelected = (paneIdx: number) => selectedPane?.sizeId === activeSize.id && selectedPane.index === paneIdx;
+      const removePane = () => { setSelectedPane(null); changeSplitCount(activeSize.id, sectionCount - 1); };
+      const scaleHandle = (id: 'tl' | 'tr' | 'bl' | 'br', place: string) => (
+        <button
+          key={id}
+          type="button"
+          aria-label={STRINGS.canvas.splitResizeHandle}
+          title={STRINGS.canvas.splitResizeHandle}
+          data-testid={`split-scale-${id}`}
+          onPointerDown={(e) => handleFramePointerDown(e, `scale-${id}`, activeSize, e.currentTarget.closest('[data-testid="split-composition"]') as HTMLElement)}
+          className={`absolute z-30 h-4 w-4 rounded-sm border-2 border-white bg-[var(--bg-scrim)] shadow hover:bg-[var(--brand-accent)] ${place}`}
+        />
+      );
       return (
         <div
-          className="m-auto flex items-center gap-4"
+          data-testid="split-composition"
+          className="relative m-auto flex items-center gap-4"
           style={{ zoom: canvasZoom }}
+          onClick={(e) => { if (e.target === e.currentTarget) setSelectedPane(null); }}
         >
+          {revealing && (<>
+            {scaleHandle('tl', '-left-2 top-6 cursor-nwse-resize')}
+            {scaleHandle('tr', '-right-2 top-6 cursor-nesw-resize')}
+            {scaleHandle('bl', '-left-2 -bottom-2 cursor-nesw-resize')}
+            {scaleHandle('br', '-right-2 -bottom-2 cursor-nwse-resize')}
+          </>)}
           {Array.from({ length: sectionCount }, (_, paneIdx) => paneIdx).map((paneIdx) => (
             <div key={paneIdx} className="flex flex-col items-center gap-2">
-              <span className="text-[11px] font-medium text-[var(--text-muted)]">
-                {sectionCount === 2 ? (paneIdx === 0 ? STRINGS.canvas.frameLeft : STRINGS.canvas.frameRight) : `Frame ${paneIdx + 1} of ${sectionCount}`} · 1:1
+              <span className="flex h-6 items-center gap-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                {sectionCount === 2 ? (paneIdx === 0 ? STRINGS.canvas.frameLeft : STRINGS.canvas.frameRight) : `Frame ${paneIdx + 1} of ${sectionCount}`} · {activeSize.ratioLabel}
+                {paneSelected(paneIdx) && (
+                  <button
+                    type="button"
+                    data-testid="split-frame-remove"
+                    onClick={removePane}
+                    aria-label={STRINGS.canvas.splitFrameDelete(paneIdx + 1, sectionCount)}
+                    title={STRINGS.canvas.splitFrameDelete(paneIdx + 1, sectionCount)}
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[var(--semantic-danger)] hover:text-[var(--text-primary)]"
+                  >
+                    <BrandIcon name="trash" size={12} />
+                  </button>
+                )}
               </span>
               <div
-                onPointerDown={(e) => handleFramePointerDown(e, revealing ? 'pan' : 'split', activeSize, e.currentTarget)}
+                role="button"
+                tabIndex={0}
+                aria-pressed={paneSelected(paneIdx)}
+                aria-label={STRINGS.canvas.splitFrameSelect(paneIdx + 1, sectionCount)}
+                data-testid={`split-frame-${paneIdx}`}
+                onPointerDown={(e) => { paneDown.current = { x: e.clientX, y: e.clientY }; handleFramePointerDown(e, revealing ? 'pan' : 'split', activeSize, e.currentTarget); }}
+                onClick={(e) => {
+                  const down = paneDown.current;
+                  if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) return;
+                  setSelectedPane(paneSelected(paneIdx) ? null : { sizeId: activeSize.id, index: paneIdx });
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedPane({ sizeId: activeSize.id, index: paneIdx }); }
+                  else if ((e.key === 'Delete' || e.key === 'Backspace') && paneSelected(paneIdx)) { e.preventDefault(); e.stopPropagation(); removePane(); }
+                }}
                 onDoubleClick={() => setRevealSizeId((current) => current === activeSize.id ? null : activeSize.id)}
                 title={STRINGS.canvas.splitCropTitle}
-                className={`relative cursor-grab overflow-hidden rounded-[var(--radius-md)] border bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] active:cursor-grabbing ${revealing ? "border-[var(--semantic-warning)] ring-2 ring-[var(--semantic-warning)]" : "border-[var(--border-default)]"}`}
-                style={{ width: splitFrameW, height: splitFrameH }}
+                className={`relative cursor-grab overflow-hidden rounded-[var(--radius-md)] border bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent)] active:cursor-grabbing ${revealing ? "border-[var(--semantic-warning)] ring-2 ring-[var(--semantic-warning)]" : paneSelected(paneIdx) ? 'border-[var(--brand-accent)] ring-2 ring-[var(--brand-accent)]' : "border-[var(--border-default)]"}`}
+                style={{ width: splitFrameW, height: splitFrameH, touchAction: 'none' }}
               >
                 {inBorderFrame(activeSize, <img
                   src={photo.previewUrl}
@@ -1001,6 +1061,18 @@ export default function Canvas({
               </div>
             </div>
           ))}
+          {sectionCount < MAX_SPLIT_FRAMES && (
+            <button
+              type="button"
+              data-testid="split-frame-add"
+              onClick={() => changeSplitCount(activeSize.id, sectionCount + 1)}
+              title={STRINGS.canvas.splitFrameAddMore(sectionCount + 1)}
+              aria-label={STRINGS.canvas.splitFrameAddMore(sectionCount + 1)}
+              className="mt-8 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] shadow-md transition-colors hover:border-[var(--brand-accent)] hover:text-[var(--brand-accent)]"
+            >
+              <BrandIcon name="frame-add" size={18} />
+            </button>
+          )}
         </div>
       );
     }
@@ -1154,7 +1226,7 @@ export default function Canvas({
           {features.splitFrames && (
             <button
               type="button"
-              onClick={() => onToggleSplitFrames(photo.id)}
+              onClick={() => changeSplitCount(activeSize.id, 2)}
               title={STRINGS.canvas.splitFrameAdd}
               aria-label={STRINGS.canvas.splitFrameAdd}
               className="hidden sm:flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] shadow-md transition-colors hover:border-[var(--brand-accent)] hover:text-[var(--brand-accent)]"

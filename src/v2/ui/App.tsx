@@ -534,6 +534,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                   onFlipSizes={actions.flipSelectedSizes}
                   onRotateSizes={actions.rotateSelectedSizes}
                   onToggleSplitFrames={actions.toggleSplitFrames}
+                  onSetSplitFrameCount={actions.setSplitFrameCount}
                   onSetSplitPanOffset={actions.setSplitPanOffset}
                   onUpdateVideoZoom={actions.updateVideoZoom}
                   onUpdateOverlay={actions.updateOverlay}
