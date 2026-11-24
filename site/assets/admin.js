@@ -4,6 +4,8 @@
 
 import { KNOWN_FLAGS, NEVER_GATED, fieldsFromRule, flagFromForm, ruleSummary } from './admin-flags.js';
 
+import { RULES, SCENARIOS, evaluateSample, rehearseDelivery } from './admin-monitoring.mjs';
+
 const $ = id => document.getElementById(id);
 const status = $('status');
 let token;
@@ -87,6 +89,7 @@ function signOut(message = '') {
   token = undefined;
   sendDemoEditorSession();
   localTaxes = {};
+  clearMonitoringRehearsal();
   $('console').hidden = true;
   $('sign-out').hidden = true;
   $('who').textContent = '';
@@ -259,6 +262,33 @@ act($('copy-key'), 'click', async () => {
   await navigator.clipboard.writeText($('issued-key').value);
   say('Key copied.');
 });
+
+// ---- Monitoring rehearsal (no live connection or sending) -------------------------------------------------------
+function clearMonitoringRehearsal() {
+  $('monitoring-rehearsal').reset();
+  $('monitoring-result').textContent = 'No rehearsal run.';
+  $('monitoring-alerts').replaceChildren();
+}
+$('monitoring-rules').replaceChildren(...RULES.map(rule => {
+  const row = el('tr');
+  cell(row, rule.label); cell(row, rule.threshold);
+  return row;
+}));
+act($('monitoring-rehearsal'), 'submit', async () => {
+  if (!token) return;
+  const scenario = $('monitoring-rehearsal').elements.scenario.value;
+  const sample = Object.hasOwn(SCENARIOS, scenario) ? SCENARIOS[scenario] : null;
+  const result = evaluateSample(sample);
+  $('monitoring-alerts').replaceChildren(...rehearseDelivery(result.alerts).map(alert =>
+    el('li', alert.severity + ': ' + alert.message + ' ' + alert.delivery)));
+  $('monitoring-result').textContent = result.state !== 'evaluated'
+    ? 'Synthetic sample unavailable or incomplete.'
+    : 'Synthetic sample: ' + sample.requests + ' requests in 15 minutes, expected ' + sample.baseline +
+      ', ' + sample.errors + ' server errors, ' + sample.budgetPercent + '% of budget. ' +
+      (result.alerts.length ? result.alerts.length + ' proposed alert(s).' : 'No rule triggered.') +
+      ' No live data or push delivery.';
+});
+act($('monitoring-clear'), 'click', async () => { clearMonitoringRehearsal(); });
 
 async function loadUsage() {
   const u = await api('admin/usage');
