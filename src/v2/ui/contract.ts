@@ -597,6 +597,8 @@ export interface WorkspaceActions {
   clearCompletedTasks: () => void;
   setExportOpen: (open: boolean) => void;
   runExport: (request: ExportRequest) => void;
+  /** Export the actual composed pages, not a screenshot. Social pages are JPEG/PNG, print pages are RGB PDF. */
+  exportCollage?: (output: 'jpeg' | 'png' | 'pdf') => void;
 
   /** Open or close the Removed photos panel (browse Trash and restore without Undo). */
   setRemovedOpen: (open: boolean) => void;
