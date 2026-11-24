@@ -85,9 +85,15 @@ export function newCollagePage(template: CollageTemplate = 'triptych', photoIds:
     slots: shapes[template].map((shape, i) => ({ ...shape, id: nextId(), photoId: photoIds[i] ?? null })) };
 }
 export function createCollage(photoIds: readonly string[] = [], format: CollageFormat = 'square'): CollageDocument {
-  const template: CollageTemplate = photoIds.length === 2 ? 'diagonal' : photoIds.length === 4 ? 'grid' : 'triptych';
-  const first = newCollagePage(template, photoIds);
-  return { version: 1, format, pages: [first], activePageId: first.id };
+  // Populate as many pages as necessary. The photos do not disappear from the
+  // composition just because the chosen template has fewer windows.
+  const template: CollageTemplate = photoIds.length === 2 ? 'diagonal' : photoIds.length >= 4 ? 'grid' : 'triptych';
+  const pageSize = shapes[template].length;
+  const pages = photoIds.length
+    ? Array.from({ length: Math.ceil(photoIds.length / pageSize) }, (_, index) =>
+      newCollagePage(template, photoIds.slice(index * pageSize, (index + 1) * pageSize)))
+    : [newCollagePage(template)];
+  return { version: 1, format, pages, activePageId: pages[0].id };
 }
 export function collagePage(doc: CollageDocument): CollagePage {
   return doc.pages.find((p) => p.id === doc.activePageId) ?? doc.pages[0];
@@ -101,9 +107,20 @@ export function replaceCollagePhoto(doc: CollageDocument, slotId: string, photoI
 }
 export function changeCollageTemplate(doc: CollageDocument, template: CollageTemplate): CollageDocument {
   const old = collagePage(doc);
-  const next = newCollagePage(template, old.slots.map((s) => s.photoId).filter((id): id is string => id !== null));
-  return { ...doc, pages: doc.pages.map((p) => p.id === old.id ? { ...next, id: old.id, background: old.background, gap: old.gap,
-    caption: old.caption, captionColour: old.captionColour } : p) };
+  const assigned = old.slots.map((slot) => slot.photoId).filter((id): id is string => id !== null);
+  const capacity = shapes[template].length;
+  const redesigned = newCollagePage(template, assigned.slice(0, capacity));
+  const overflow = assigned.slice(capacity);
+  // Smaller layouts create following pages for extra photographs, without
+  // overwriting the layout, assignments or captions on other existing pages.
+  const extraPages = Array.from({ length: Math.ceil(overflow.length / capacity) }, (_, index) => {
+    const page = newCollagePage(template, overflow.slice(index * capacity, (index + 1) * capacity));
+    return { ...page, background: old.background, gap: old.gap, captionColour: old.captionColour };
+  });
+  const pages = doc.pages.flatMap((p) => p.id === old.id
+    ? [{ ...redesigned, id: old.id, background: old.background, gap: old.gap,
+      caption: old.caption, captionColour: old.captionColour }, ...extraPages] : [p]);
+  return { ...doc, pages };
 }
 export function addCollagePage(doc: CollageDocument, template: CollageTemplate = 'triptych'): CollageDocument {
   const page = newCollagePage(template);
