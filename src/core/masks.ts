@@ -21,7 +21,9 @@ const smoothstep = (low: number, high: number, x: number) => {
 };
 
 const BRUSH_WIDTH = 384;
-const brushCache = new WeakMap<Mask, { aspect: number; rows: number; grid: Float32Array; touched: Float32Array }>();
+type BrushGrid = { aspect: number; cols: number; rows: number; scale: Float32Array; floor: Float32Array };
+const brushCache = new WeakMap<Mask, BrushGrid>();
+const subjectCache = new WeakMap<object, Uint8Array>();
 const detailCache = new WeakMap<object, Float32Array>();
 
 /** The subject's fine outline, decoded once per mask. */
@@ -57,83 +59,92 @@ function decodeGrid(data: string, count: number): Uint8Array {
   return bytes;
 }
 
-/** Fill the brush grid from a detected subject, resampled smoothly to the brush resolution. */
-function seedFromSubject(grid: Float32Array, rows: number, subject: Extract<Mask, { kind: 'subject' }>['grid']) {
-  const bytes = decodeGrid(subject.data, subject.w * subject.h);
-  const at = (x: number, y: number) => bytes[Math.min(subject.h - 1, y) * subject.w + Math.min(subject.w - 1, x)] / 255;
-  for (let y = 0; y < rows; y += 1) {
-    const fy = Math.min(subject.h - 1.001, Math.max(0, ((y + 0.5) / rows) * subject.h - 0.5));
-    const y0 = Math.floor(fy);
-    const ty = fy - y0;
-    for (let x = 0; x < BRUSH_WIDTH; x += 1) {
-      const fx = Math.min(subject.w - 1.001, Math.max(0, ((x + 0.5) / BRUSH_WIDTH) * subject.w - 0.5));
-      const x0 = Math.floor(fx);
-      const tx = fx - x0;
-      grid[y * BRUSH_WIDTH + x] = (at(x0, y0) * (1 - tx) + at(x0 + 1, y0) * tx) * (1 - ty) + (at(x0, y0 + 1) * (1 - tx) + at(x0 + 1, y0 + 1) * tx) * ty;
-    }
+/** Sample the original detection directly: avoid resampling fine edges through a brush raster. */
+function sampleSubject(subject: Extract<Mask, { kind: 'subject' }>['grid'], nx: number, ny: number): number {
+  let bytes = subjectCache.get(subject);
+  if (!bytes) {
+    bytes = decodeGrid(subject.data, subject.w * subject.h);
+    subjectCache.set(subject, bytes);
   }
+  return sampleRaster(bytes, subject.w, subject.h, nx, ny) / 255;
 }
 
-function brushGrid(mask: Extract<Mask, { kind: 'brush' | 'subject' }>, aspect: number) {
+function sampleRaster(values: ArrayLike<number>, cols: number, rows: number, nx: number, ny: number): number {
+  const fx = Math.max(0, Math.min(cols - 1, nx * cols - 0.5));
+  const fy = Math.max(0, Math.min(rows - 1, ny * rows - 0.5));
+  const x = Math.floor(fx), y = Math.floor(fy);
+  const tx = fx - x, ty = fy - y;
+  const right = Math.min(cols - 1, x + 1), bottom = Math.min(rows - 1, y + 1);
+  return (values[y * cols + x] * (1 - tx) + values[y * cols + right] * tx) * (1 - ty)
+    + (values[bottom * cols + x] * (1 - tx) + values[bottom * cols + right] * tx) * ty;
+}
+
+/**
+ * Paint and erase compose into max(original * scale, floor). Store those two
+ * coefficients, not a painted copy of the coarse detection. This lets the
+ * photographer refine the actual fine outline even when it disagrees with the
+ * coarse grid, and keeps partial brush edges from introducing coarse pixels.
+ */
+function brushGrid(mask: Extract<Mask, { kind: 'brush' | 'subject' }>, aspect: number): BrushGrid {
   const cached = brushCache.get(mask);
   if (cached && cached.aspect === aspect) return cached;
-  const rows = Math.max(1, Math.round(BRUSH_WIDTH * aspect));
-  const grid = new Float32Array(BRUSH_WIDTH * rows);
-  // How strongly brush strokes touched each cell, so a fine subject outline gives way to the person's own strokes.
-  const touched = new Float32Array(BRUSH_WIDTH * rows);
-  if (mask.kind === 'subject') seedFromSubject(grid, rows, mask.grid);
+  // Bound the long edge even for exceptionally tall or wide crops.
+  const cols = Math.max(1, Math.round(BRUSH_WIDTH / Math.max(1, aspect)));
+  const rows = Math.max(1, Math.round(BRUSH_WIDTH * Math.min(1, aspect)));
+  const scale = new Float32Array(cols * rows).fill(1);
+  const floor = new Float32Array(cols * rows);
   const dab = (cx: number, cy: number, radius: number, erase: boolean) => {
-    const rGrid = radius * BRUSH_WIDTH;
-    const x0 = Math.max(0, Math.floor(cx * BRUSH_WIDTH - rGrid));
-    const x1 = Math.min(BRUSH_WIDTH - 1, Math.ceil(cx * BRUSH_WIDTH + rGrid));
-    const y0 = Math.max(0, Math.floor(cy * rows - rGrid));
-    const y1 = Math.min(rows - 1, Math.ceil(cy * rows + rGrid));
+    const rx = radius * cols;
+    const ry = radius * rows / aspect;
+    const x0 = Math.max(0, Math.floor(cx * cols - rx));
+    const x1 = Math.min(cols - 1, Math.ceil(cx * cols + rx));
+    const y0 = Math.max(0, Math.floor(cy * rows - ry));
+    const y1 = Math.min(rows - 1, Math.ceil(cy * rows + ry));
     for (let y = y0; y <= y1; y += 1) for (let x = x0; x <= x1; x += 1) {
-      const d = Math.hypot(x + 0.5 - cx * BRUSH_WIDTH, y + 0.5 - cy * rows) / rGrid;
+      const d = Math.hypot((x + 0.5 - cx * cols) / rx, (y + 0.5 - cy * rows) / ry);
       if (d >= 1) continue;
       const strength = 1 - smoothstep(0.45, 1, d);
-      const index = y * BRUSH_WIDTH + x;
-      grid[index] = erase ? grid[index] * (1 - strength) : Math.max(grid[index], strength);
-      touched[index] = Math.max(touched[index], strength);
+      const index = y * cols + x;
+      if (erase) {
+        scale[index] *= 1 - strength;
+        floor[index] *= 1 - strength;
+      } else {
+        floor[index] = Math.max(floor[index], strength);
+      }
     }
   };
   for (const stroke of mask.strokes) {
     const { points, radius, erase } = stroke;
     if (points.length < 2) continue;
     dab(points[0], points[1], radius, erase);
-    const spacing = Math.max(radius * 0.3, 0.002);
+    const spacing = Math.max(radius * 0.3, 0.002, Math.max(1, aspect) / (BRUSH_WIDTH * 4));
     for (let i = 2; i < points.length; i += 2) {
       const dx = points[i] - points[i - 2];
       const dy = (points[i + 1] - points[i - 1]) * aspect;
       const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / spacing));
-      for (let s = 1; s <= steps; s += 1) {
-        const t = s / steps;
-        dab(points[i - 2] + (points[i] - points[i - 2]) * t, points[i - 1] + (points[i + 1] - points[i - 1]) * t, radius, erase);
+      for (let j = 1; j <= steps; j += 1) {
+        const t = j / steps;
+        dab(points[i - 2] + dx * t, points[i - 1] + (points[i + 1] - points[i - 1]) * t, radius, erase);
       }
     }
   }
-  const made = { aspect, rows, grid, touched };
+  const made = { aspect, cols, rows, scale, floor };
   brushCache.set(mask, made);
   return made;
 }
 
-function sampleBrush(made: { rows: number; grid: Float32Array; touched: Float32Array }, nx: number, ny: number, layer: 'grid' | 'touched' = 'grid'): number {
-  const fx = Math.min(BRUSH_WIDTH - 1.001, Math.max(0, nx * BRUSH_WIDTH - 0.5));
-  const fy = Math.min(made.rows - 1.001, Math.max(0, ny * made.rows - 0.5));
-  const x = Math.floor(fx);
-  const y = Math.floor(fy);
-  const tx = fx - x;
-  const ty = fy - y;
-  const values = layer === 'grid' ? made.grid : made.touched;
-  const at = (xx: number, yy: number) => values[Math.min(made.rows - 1, yy) * BRUSH_WIDTH + Math.min(BRUSH_WIDTH - 1, xx)];
-  return (at(x, y) * (1 - tx) + at(x + 1, y) * tx) * (1 - ty) + (at(x, y + 1) * (1 - tx) + at(x + 1, y + 1) * tx) * ty;
+function refineBrush(made: BrushGrid | null, base: number, nx: number, ny: number): number {
+  if (!made) return base;
+  const scale = sampleRaster(made.scale, made.cols, made.rows, nx, ny);
+  const floor = sampleRaster(made.floor, made.cols, made.rows, nx, ny);
+  return Math.max(base * scale, floor);
 }
 
 /** Mask strength, 0 to 1, for every pixel of a canvas that shows `context.view`. */
 export function maskAlpha(mask: Mask, width: number, height: number, context: MaskContext): Float32Array {
   const alpha = new Float32Array(width * height);
   const { aspect, view } = context;
-  const brush = mask.kind === 'brush' || mask.kind === 'subject' ? brushGrid(mask, aspect) : null;
+  const brush = (mask.kind === 'brush' || mask.kind === 'subject') && mask.strokes.length ? brushGrid(mask, aspect) : null;
   let dx = 0;
   let dy = 0;
   let lengthSquared = 1;
@@ -172,15 +183,11 @@ export function maskAlpha(mask: Mask, width: number, height: number, context: Ma
         const d = Math.hypot(localX / mask.rx, localY / mask.ry);
         a = 1 - smoothstep(inner, 1, d);
       } else if (mask.kind === 'subject') {
-        let value = sampleBrush(brush!, nx, ny);
         const fine = mask.detail ? sampleDetail(mask.detail, nx, ny) : null;
-        if (fine !== null) {
-          const stroke = mask.strokes.length ? sampleBrush(brush!, nx, ny, 'touched') : 0;
-          value = fine + (value - fine) * stroke;
-        }
+        const value = refineBrush(brush, fine ?? sampleSubject(mask.grid, nx, ny), nx, ny);
         a = smoothstep(0.5 - soften, 0.5 + soften, value);
       } else {
-        a = sampleBrush(brush!, nx, ny);
+        a = refineBrush(brush, 0, nx, ny);
       }
       alpha[y * width + x] = mask.invert ? 1 - a : a;
     }
