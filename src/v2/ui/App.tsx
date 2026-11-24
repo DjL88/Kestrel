@@ -319,8 +319,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             selectedPhotoIds={store.selectedPhotoIds}
             onSaveTemplate={actions.saveOverlayTemplate}
             onApplyTemplate={actions.applyOverlayTemplate}
-            onRenameTemplate={actions.renameOverlayTemplate}
-            onDeleteTemplate={actions.deleteOverlayTemplate}
+            onManageTemplates={() => actions.setSettingsOpen(true, 'presets')}
           />
         );
       case 'assist':
@@ -803,6 +802,9 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
       <SettingsDialog
         open={store.settingsOpen}
         activeTab={store.settingsTab}
+        templates={store.overlayTemplates}
+        onRenameTemplate={actions.renameOverlayTemplate}
+        onDeleteTemplate={actions.deleteOverlayTemplate}
         accountPanel={accountPanel}
         keyboardPanel={<KeyboardSettings saved={savedKeymap} isMac={IS_MAC} onChange={changeKeymap} pad={pad} onPadChange={changePad} />}
         settings={store.settings}
