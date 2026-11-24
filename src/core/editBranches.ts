@@ -98,10 +98,24 @@ export function readEditVersions(raw: unknown): EditVersionTree | undefined {
       || !Number.isSafeInteger(version.forkCursor) || version.forkCursor < 0
       || !Number.isSafeInteger(version.createdAt) || version.createdAt < 0
       || (version.parentId !== null && !validId(version.parentId))
-      || !version.snapshot || typeof version.snapshot !== 'object') return undefined;
+      || !version.snapshot || typeof version.snapshot !== 'object' || Array.isArray(version.snapshot)) return undefined;
     seen.add(version.id);
   }
   if (!seen.has(tree.activeId)) return undefined;
+  const byId = new Map(tree.versions.map(version => [version.id, version]));
+  if (byId.get(ROOT_VERSION_ID)?.parentId !== null) return undefined;
+  // A valid lineage must terminate at the permanent root. Refuse missing
+  // parents, disconnected roots and cycles before restoring any snapshot.
+  for (const version of tree.versions) {
+    let current: EditVersion | undefined = version;
+    const chain = new Set<string>();
+    while (current && current.id !== ROOT_VERSION_ID) {
+      if (chain.has(current.id) || current.parentId === null) return undefined;
+      chain.add(current.id);
+      current = byId.get(current.parentId);
+    }
+    if (!current) return undefined;
+  }
   return tree as EditVersionTree;
 }
 
