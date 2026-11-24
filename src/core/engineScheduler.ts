@@ -61,6 +61,9 @@ export interface BatchDefinition<Item, Snapshot = undefined> {
   location?: TaskLocation;
   /** Only offer pause when a photo or stage boundary genuinely exists. */
   pauseable?: boolean;
+  /** Disable retries when a destination cannot prove an absent/rolled-back write.
+   * Native createNew folder writes may enable this; browser downloads may not. */
+  retryable?: boolean;
   recovery?: {
     key: string;
     journal: JobJournal;
@@ -94,6 +97,7 @@ interface WorkBatch {
   resource: EngineResource;
   reservation: Reservation;
   pauseable: boolean;
+  retryable: boolean;
   paused: boolean;
   pauseRequested: boolean;
   active: boolean;
@@ -391,7 +395,7 @@ export function createEngineScheduler(options: {
     job = {
       id: handle.id, order: ++sequence, priority: definition.priority ?? 0,
       resource: definition.resource ?? 'cpu', reservation: estimatedReservation(definition.resource ?? 'cpu', definition.reservation),
-      pauseable: definition.pauseable !== false && items.length > 1,
+      pauseable: definition.pauseable !== false && items.length > 1, retryable: definition.retryable !== false,
       active: false, paused: false, pauseRequested: false, cancelled: false, controller: null,
       handle, items: items as WorkItem<unknown>[], manualProgress: false, lastItemPublishedAt: Number.NEGATIVE_INFINITY,
       work: (index, ctx) => definition.runItem(items[index].input, snapshot, ctx),
@@ -403,7 +407,7 @@ export function createEngineScheduler(options: {
       },
       retry: async () => {
         const failures = items.filter(item => item.state === 'failed' && !item.uncertain);
-        if (!failures.length || job.active || job.cancelled) return null;
+        if (!job.retryable || !failures.length || job.active || job.cancelled) return null;
         return submit({ ...definition, title: `${definition.title} — retry failed`, items: failures.map(item => item.input) });
       },
       finish: result => {
@@ -469,7 +473,7 @@ export function createEngineScheduler(options: {
     cancel: (id: number) => store.cancel(id),
     canRetryFailed: (id: number) => {
       const job = jobs.get(id) ?? failedJobs.get(id);
-      return Boolean(job && job.items.some(item => item.state === 'failed' && !item.uncertain));
+      return Boolean(job?.retryable && job.items.some(item => item.state === 'failed' && !item.uncertain));
     },
     retryFailed: async (id: number) => {
       const job = jobs.get(id) ?? failedJobs.get(id);
