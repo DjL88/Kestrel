@@ -82,12 +82,52 @@ pub fn develop_jpeg(bytes: &[u8]) -> Result<Vec<u8>, String> {
     JpegEncoder::new_with_quality(&mut out, 95)
         .encode_image(&rgb)
         .map_err(|error| format!("The developed picture could not be saved: {error}"))?;
-    Ok(out)
+    Ok(match crate::scene_develop::as_shot_white(&raw) {
+        Some((kelvin, duv)) => with_as_shot_comment(out, kelvin, duv),
+        None => out,
+    })
+}
+
+/// The text the app looks for (`src/core/asShotWhite.ts`). Kept short and versioned so it can change safely.
+pub const AS_SHOT_PREFIX: &str = "InFlight-AsShotWhite/1 ";
+
+/// Put the camera's as-shot white (an estimate, see `scene_develop::as_shot_white`) in a JPEG comment right after the
+/// start-of-image marker, so the desktop app and the WebAssembly build hand it to the editor with no new interface.
+/// Comments never change the pixels.
+pub fn with_as_shot_comment(jpeg: Vec<u8>, kelvin: f32, duv: f32) -> Vec<u8> {
+    if jpeg.len() < 2 || jpeg[0] != 0xFF || jpeg[1] != 0xD8 {
+        return jpeg;
+    }
+    let text = format!("{AS_SHOT_PREFIX}K={:.0} Duv={:.4}", kelvin, duv);
+    let length = (text.len() + 2) as u16;
+    let mut out = Vec::with_capacity(jpeg.len() + text.len() + 4);
+    out.extend_from_slice(&jpeg[..2]);
+    out.extend_from_slice(&[0xFF, 0xFE]);
+    out.extend_from_slice(&length.to_be_bytes());
+    out.extend_from_slice(text.as_bytes());
+    out.extend_from_slice(&jpeg[2..]);
+    out
 }
 
 #[cfg(test)]
 mod tests {
     use super::develop_jpeg as develop;
+
+    #[test]
+    fn as_shot_comment_is_added_after_start_of_image_and_leaves_the_picture_alone() {
+        let picture = image::RgbImage::from_pixel(8, 8, image::Rgb([120, 90, 60]));
+        let mut jpeg = Vec::new();
+        image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, 95).encode_image(&picture).unwrap();
+        let tagged = super::with_as_shot_comment(jpeg.clone(), 5480.4, 0.00213);
+        assert_eq!(&tagged[..4], &[0xFF, 0xD8, 0xFF, 0xFE]);
+        let text = "InFlight-AsShotWhite/1 K=5480 Duv=0.0021";
+        assert_eq!(u16::from_be_bytes([tagged[4], tagged[5]]) as usize, text.len() + 2);
+        assert_eq!(&tagged[6..6 + text.len()], text.as_bytes());
+        let a = image::load_from_memory(&jpeg).unwrap().to_rgb8();
+        let b = image::load_from_memory(&tagged).unwrap().to_rgb8();
+        assert_eq!(a.as_raw(), b.as_raw());
+        assert_eq!(super::with_as_shot_comment(vec![1, 2, 3], 5000.0, 0.0), vec![1, 2, 3], "not a JPEG: untouched");
+    }
 
     /// Real camera files are not kept in the repository. Point KESTREL_RAW_SAMPLES at a folder holding some to run these.
     fn samples() -> Option<std::path::PathBuf> {
