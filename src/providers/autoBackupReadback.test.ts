@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { memoryConnector, type StorageConnector } from '../core/storageConnectors';
 import { backupFolder, backupName } from '../core/autoBackup';
-import { backUpNow, writeSnapshot } from './autoBackup';
+import { backUpNow, writeSnapshot, type BackupAdmission } from './autoBackup';
 import { LOCAL_RECOVERY_TARGET, type RecoveryLocation } from './automaticRecovery';
 import { createDemoShootState } from '../core/cullingEngine';
 
@@ -127,4 +127,34 @@ test('no eligible source is a successful device-only backup, but a thrown source
   assert.equal((await backUpNow(project, LOCAL_RECOVERY_TARGET, now, {
     openDeviceRecovery, openSourceRecovery: async () => { throw new Error('offline'); },
   })).state, 'partial');
+});
+
+test('recovery destinations release scheduler admission between verified writes', async () => {
+  const project = createDemoShootState(1);
+  const events: string[] = [];
+  let active = false;
+  const admit: BackupAdmission = async work => {
+    assert.equal(active, false, 'must not hold nested reservations');
+    active = true; events.push('enter');
+    try { return await work(); }
+    finally { active = false; events.push('exit'); }
+  };
+  const target = (label: string): StorageConnector => {
+    const backing = memoryConnector();
+    return {
+      ...backing,
+      put: async (...args) => { assert.equal(active, true); events.push(label + ':put'); return backing.put(...args); },
+      get: async (...args) => { assert.equal(active, true); events.push(label + ':verify'); return backing.get(...args); },
+      list: async (...args) => { assert.equal(active, true); events.push(label + ':retention'); return backing.list(...args); },
+    };
+  };
+  const local = target('local'), source = target('source');
+  const result = await backUpNow(project, LOCAL_RECOVERY_TARGET, new Date('2026-11-24T07:00:00Z'), {
+    openDeviceRecovery: async () => { assert.equal(active, true); return { connector: local, to: 'On this device' }; },
+    openSourceRecovery: async () => { assert.equal(active, true); return { connector: source, to: 'Photo folder' }; },
+  }, admit);
+  assert.equal(result.state, 'ok');
+  assert.deepEqual(events, ['enter','exit','enter','local:put','local:verify','local:retention','exit',
+    'enter','exit','enter','source:put','source:verify','source:retention','exit']);
+  assert.equal(active, false);
 });
