@@ -278,6 +278,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             onSetMaskEdit={actions.setMaskEdit}
             onSetMaskFeather={actions.setMaskFeather}
             onSetMaskGeometry={actions.setMaskGeometry}
+            onSetMaskLimit={actions.setMaskLimit}
           />
         );
       case 'enhance':

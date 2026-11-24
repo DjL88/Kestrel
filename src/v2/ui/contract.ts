@@ -226,6 +226,8 @@ export interface MaskLayer {
   type: 'subject' | 'sky' | 'background' | 'brush' | 'area' | 'gradient';
   /** Present only for genuine editable oval/gradient masks; never fabricated for detected subjects. */
   geometry?: MaskGeometry;
+  /** Restrict this layer to, or subtract, another layer's saved shape. */
+  limit?: { id: string; mode: 'intersect' | 'subtract' };
   visible: boolean;
   /** Edge softness, 0 to 100. */
   feather: number;
@@ -620,6 +622,7 @@ export interface WorkspaceActions {
   setMaskEdit: (photoId: string, maskId: string, key: string, value: number) => void;
   setMaskFeather: (photoId: string, maskId: string, percent: number) => void;
   setMaskGeometry: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
+  setMaskLimit: (photoId: string, maskId: string, limit: MaskLayer['limit'] | null) => void;
 
   // Tasks & Export
   cancelTask: (taskId: string) => void;
