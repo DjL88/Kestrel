@@ -1,4 +1,4 @@
-import { countOriginalKeepers, isCullOriginal, type CullSuggestion } from './autoCull';
+import { countOriginalKeepers, hasReliableKeepEvidence, isCullOriginal, type CullSuggestion } from './autoCull';
 import type { PhotoFrame } from './types';
 
 /**
@@ -30,11 +30,13 @@ export function planKeeperTier(
     .map((frame) => frame.burstGroupId!));
   const claimed = new Set<string>();
   const choices: { frameId: string; decision: 'keep' }[] = [];
+  // Find More must not resurrect a disputed observation by filtering out the
+  // review-only row first. Preserve the same conservative boundary as Auto.
+  const disputed = new Set(results.filter(result => !hasReliableKeepEvidence(result)).map(result => result.frameId));
   const eligible = [...results].filter((result) =>
-    result.decision === 'keep' &&
+    hasReliableKeepEvidence(result) && !disputed.has(result.frameId) &&
     (result.confidence === 'high' || (tier !== 'best' && result.confidence === 'medium')) &&
-    Number.isFinite(result.score) && result.score >= scoreFloor[tier] && result.score <= 100 &&
-    result.reason !== 'unavailable' && result.reason !== 'duplicate' && result.reason !== 'flat');
+    result.score >= scoreFloor[tier]);
   // Stable ties regardless of import order, and no extra selection within a
   // burst that already has a keeper (manual or from a previous scan).
   eligible.sort((a, b) => b.score - a.score || a.frameId.localeCompare(b.frameId));
