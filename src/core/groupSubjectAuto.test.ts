@@ -32,3 +32,18 @@ test('invalid group evidence cannot pass the candidate gate',()=>{
   assert.equal(groupSubjectSafe(pixels,w,h,DEFAULT_EDIT,DEFAULT_EDIT,[a,{...b,confidence:'low'}]),false);
   assert.equal(groupSubjectSafe(pixels,w,h,DEFAULT_EDIT,DEFAULT_EDIT,[a,b]),true);
 });
+
+test('adaptive detail requires known ISO and explicit policy; soft intent suppresses sharpening',()=>{
+  const textured=new Uint8ClampedArray(w*h*4);
+  for(let i=0;i<w*h;i++){
+    const x=i%w,y=Math.floor(i/w),v=x<24?((x+y)%2?100:150):130;
+    textured[4*i]=textured[4*i+1]=textured[4*i+2]=v;textured[4*i+3]=255;
+  }
+  const propose=(highIso:boolean,observations?:Parameters<typeof proposeGroupSubjectAuto>[7],iso?:number)=>
+    proposeGroupSubjectAuto(textured,w,h,DEFAULT_EDIT,[a,b],['x','y'],highIso,observations,iso);
+  assert.equal(propose(false,[],100).masks?.find(m=>m.id==='x')?.edit.sharpen,.1);
+  assert.ok(!propose(false,[],100).masks?.find(m=>m.id==='y')?.edit.sharpen);
+  for(const result of [propose(false),propose(false,[]),propose(true,[],3200),propose(false,[{dimension:'composition',label:'motion blur',confidence:1}],100)]){
+    assert.ok(!result.masks?.some(m=>m.edit.sharpen));
+  }
+});
