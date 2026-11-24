@@ -17,6 +17,7 @@ import { masksToLayers } from './maskOps';
 import { readCrops } from './cropOps';
 import { readBoard } from './boardOps';
 import type { AutoRun } from './runAuto';
+import { colourWarningSentences, colourWords } from './colourWords';
 import { sameRecipe } from '../../core/naturalAuto';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { STRINGS } from '../ui/strings';
@@ -57,7 +58,9 @@ export function assistCritiqueFor(assist: AssistState | undefined, currentEdit =
     }));
   return {
     subjectNote: run.headline,
-    colourConfidence: [run.detail[1], ...run.plan.measured.colourWarnings].filter(Boolean).join(' '),
+    // The warnings are said in words from the colour check, never as the check's internal codes.
+    colourConfidence: [run.detail[1], ...colourWarningSentences(run.colour)].filter(Boolean).join(' '),
+    colourCheck: run.colour ? colourWords(run.colour) : undefined,
     kelvinEstimate: 'Not measured',
     suggestions,
   };
