@@ -1,6 +1,6 @@
 # Photography knowledge engine / Kite44
 
-Offline master: src/core/photographyKnowledge.ts. Draft editorial guidance is not objective ground truth, nor verified source-by-source. Verify references and calibrate with photographers before promotion. The resolver returns matched advice, not pixel edits. No production deployment or data collection is enabled.
+Offline master: src/core/photographyKnowledge.ts. Checked, paraphrased per-rule sources and the exposure-recovery order: [EDITING-KNOWLEDGE-SOURCES.md](EDITING-KNOWLEDGE-SOURCES.md). Draft editorial guidance is not objective ground truth, nor verified source-by-source. Verify references and calibrate with photographers before promotion. The resolver returns matched advice, not pixel edits. No production deployment or data collection is enabled.
 
 ## Storage
 Git is authoritative. Publish reviewed immutable packs to Firestore photographyKnowledgeVersions/{version} with a separate signed active manifest, using admin-only writes and read-only client access. Keep large payloads in signed Cloud Storage objects if needed. Validate schema, signature, digest, compatible engine version and size before atomic local activation; retain bundled fallback and last known good version. Never require network for editing. Persist pack version and actual recipe in project catalogue, not original bytes.
