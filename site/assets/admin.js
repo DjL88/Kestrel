@@ -96,6 +96,8 @@ function signOut(message = '') {
   $('message-list').replaceChildren();
   $('issued').hidden = true;
   $('issued-key').value = '';
+  $('grant-form').reset();
+  $('grant-result').textContent = '';
   globalThis.google?.accounts?.id?.disableAutoSelect?.();
   say(message);
 }
@@ -158,7 +160,8 @@ async function loadOverview() {
   ];
   $('overview-list').replaceChildren(...facts.map(([k, v]) => { const d = el('div'); d.append(el('dt', k), el('dd', String(v))); return d; }));
   $('issue-form').querySelector('button').disabled = !o.licenceIssuing;
-  if (!o.licenceIssuing) $('issue-form').querySelector('button').title = 'This server does not have the licence-issuing key.';
+  $('issue-unavailable').hidden = !!o.licenceIssuing;
+  $('issue-form').querySelector('button').title = o.licenceIssuing ? '' : 'This server does not have the licence-issuing key.';
 }
 
 let licences = [];
@@ -218,6 +221,23 @@ act($('revoke-key-form'), 'submit', async () => {
   const result = await api('admin/licences/revoke-by-key', { licenceKey });
   await Promise.all([loadLicensees(), loadAudit()]);
   say('Licence ' + result.licenceId + ' revoked' + (result.wasKnown ? '.' : ', before any device used it.'));
+});
+
+act($('grant-form'), 'submit', async () => {
+  const form = $('grant-form');
+  const f = form.elements;
+  $('grant-result').textContent = '';
+  const body = { email: f.email.value.trim(), plan: 'paid', majorVersion: Number(f.majorVersion.value), managedAi: f.managedAi.checked };
+  if (f.note.value.trim()) body.note = f.note.value.trim();
+  if (f.validDays.value) body.validDays = Number(f.validDays.value);
+  const session = token;
+  const result = await api('admin/licences/grant', body);
+  if (!session || token !== session) return;
+  form.reset();
+  const message = !result.created ? 'A Pro grant already exists for that address and version.' :
+    result.attachedNow ? 'Free Pro granted to the existing account.' : 'Free Pro granted. It will attach when the recipient signs in with the verified address.';
+  $('grant-result').textContent = message;
+  await Promise.allSettled([loadOverview(), loadLicensees(), loadAudit()]);
 });
 
 act($('issue-form'), 'submit', async () => {
