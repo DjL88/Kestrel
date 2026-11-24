@@ -32,7 +32,8 @@ test.describe('compact portrait export', () => {
     const size = dialog.getByRole('checkbox', { name: /Post · 4:5/ });
     await expect(size).toBeVisible();
     await size.check();
-    await dialog.getByRole('checkbox', { name: 'Full size · PNG' }).uncheck();
+    // A first export defaults to Full size · JPEG (PhotoExportPanel's default choice), so untick that one.
+    await dialog.getByRole('checkbox', { name: /^Full size · JPEG/ }).uncheck();
     await expect(dialog.getByRole('button', { name: 'Prepare 1 file' })).toBeVisible();
 
     await dialog.getByRole('tab', { name: 'Advanced', exact: true }).click();
@@ -50,7 +51,8 @@ test('shared social size shows three destination icons and prepares one output f
   const dialog = await openCompact(page, ['ig-45', 'fb-45', 'tt-45']);
   const checkbox = dialog.getByRole('checkbox', { name: /Post · 4:5/ });
   await expect(checkbox).toBeChecked();
-  const row = dialog.locator('label').filter({ has: checkbox });
+  // `has` is resolved inside each label, so it must not start from the dialog again.
+  const row = dialog.locator('label').filter({ has: page.getByRole('checkbox', { name: /Post · 4:5/ }) });
   await expect(row.locator('svg')).toHaveCount(3);
   await expect(dialog.getByRole('button', { name: 'Prepare 1 file' })).toBeVisible();
 });

@@ -9,6 +9,8 @@ export interface SyncedPhoto extends Synced {
   key: string;
   /** Name and capture time, which stay the same however the photo was imported (the key can differ between a file and a folder import). */
   identity?: string;
+  /** Verified original bytes, when available; never a preview hash. */
+  originalSha256?: string;
 }
 export interface ProjectSnapshot { format: 'kestrel-project-sync'; version: 1; title: string; savedAt: string; projectId?: string; photos: SyncedPhoto[] }
 
@@ -18,17 +20,19 @@ export function identityOf(frame: Pick<PhotoFrame, 'filename' | 'exif'>): string
   return typeof taken === 'number' && Number.isFinite(taken) ? `${frame.filename.toLowerCase()}|${taken}` : null;
 }
 
+const SHA = /^[a-f0-9]{64}$/;
 const FIELDS = ['decision', 'rating', 'tags', 'autoTags', 'declinedTags', 'subjectKind', 'edit', 'framing', 'focusPoint'] as const;
 
 export function buildSnapshot(title: string, frames: PhotoFrame[], now: Date, projectId?: string): ProjectSnapshot {
   const photos: SyncedPhoto[] = [];
   const seen = new Set<string>();
   for (const frame of frames) {
-    if (frame.removedAt || frame.virtualCopy || frame.isDemo || seen.has(frame.stableKey)) continue;
+    if (frame.removedAt != null || frame.virtualCopy || frame.isDemo || seen.has(frame.stableKey)) continue;
     seen.add(frame.stableKey);
     const photo: SyncedPhoto = { key: frame.stableKey, decision: frame.decision };
     const identity = identityOf(frame);
     if (identity) photo.identity = identity;
+    if (typeof frame.originalSha256 === 'string' && SHA.test(frame.originalSha256)) photo.originalSha256 = frame.originalSha256;
     for (const field of FIELDS) if (frame[field] !== undefined) (photo as unknown as Record<string, unknown>)[field] = frame[field];
     photos.push(photo);
   }
@@ -54,8 +58,9 @@ export function parseSnapshot(text: string): ProjectSnapshot | null {
       const photo = row as Record<string, unknown>;
       if (typeof photo.key !== 'string' || !photo.key || photo.key.length > 1024 ||
         seen.has(photo.key) || !['keep', 'reject', 'unreviewed'].includes(String(photo.decision)) ||
-        Object.keys(photo).some((field) => field !== 'key' && field !== 'identity' && !FIELDS.includes(field as typeof FIELDS[number]))) return null;
+        Object.keys(photo).some((field) => field !== 'key' && field !== 'identity' && field !== 'originalSha256' && !FIELDS.includes(field as typeof FIELDS[number]))) return null;
       if (photo.identity !== undefined && (typeof photo.identity !== 'string' || photo.identity.length > 400)) return null;
+      if (photo.originalSha256 !== undefined && (typeof photo.originalSha256 !== 'string' || !SHA.test(photo.originalSha256))) return null;
       if (photo.rating !== undefined &&
         (!Number.isInteger(photo.rating) || (photo.rating as number) < 0 || (photo.rating as number) > 5)) return null;
       for (const field of ['tags', 'autoTags', 'declinedTags'] as const) {
@@ -90,21 +95,57 @@ export function parseSnapshot(text: string): ProjectSnapshot | null {
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
-/** Finds the snapshot's entry for a photo here: by key first, then by name and capture time. */
-function matcher(snapshot: ProjectSnapshot) {
-  const byKey = new Map(snapshot.photos.map((photo) => [photo.key, photo]));
-  const byIdentity = new Map<string, SyncedPhoto>();
-  for (const photo of snapshot.photos) if (photo.identity && !byIdentity.has(photo.identity)) byIdentity.set(photo.identity, photo);
-  return (frame: PhotoFrame): SyncedPhoto | undefined => {
-    if (frame.removedAt || frame.virtualCopy) return undefined;
+/** Only unique candidates on BOTH sides are eligible. Known byte identity
+ * outranks names, timestamps and stable paths; legacy metadata remains
+ * usable only when neither side has a fingerprint and the match is unique. */
+function uniqueIndex<T>(rows: readonly T[], key: (row: T) => string | null | undefined) {
+  const index = new Map<string, T | null>();
+  for (const row of rows) {
+    const k = key(row);
+    if (k) index.set(k, index.has(k) ? null : row);
+  }
+  return index;
+}
+function matcher(frames: readonly PhotoFrame[], snapshot: ProjectSnapshot) {
+  const eligible = frames.filter(frame => frame.removedAt == null && !frame.virtualCopy && !frame.isDemo);
+  const byKey = uniqueIndex(snapshot.photos, photo => photo.key);
+  const byHash = uniqueIndex(snapshot.photos, photo => photo.originalSha256);
+  const byIdentity = uniqueIndex(snapshot.photos, photo => photo.identity);
+  const localKey = uniqueIndex(eligible, frame => frame.stableKey);
+  const localHash = uniqueIndex(eligible, frame => frame.originalSha256);
+  const localIdentity = uniqueIndex(eligible, identityOf);
+  const candidate = (frame: PhotoFrame): SyncedPhoto | undefined => {
+    if (frame.removedAt != null || frame.virtualCopy || frame.isDemo) return undefined;
+    const exact = localKey.get(frame.stableKey) === frame ? byKey.get(frame.stableKey) : undefined;
+    if (frame.originalSha256 !== undefined) {
+      if (!SHA.test(frame.originalSha256)) return undefined;
+      if (exact?.originalSha256 === frame.originalSha256) return exact;
+      const hash = frame.originalSha256;
+      return localHash.get(hash) === frame ? byHash.get(hash) ?? undefined : undefined;
+    }
+    // Do not replace an exact-key mismatch with a weaker filename/time match.
+    if (exact) return exact.originalSha256 === undefined ? exact : undefined;
     const identity = identityOf(frame);
-    return byKey.get(frame.stableKey) ?? (identity ? byIdentity.get(identity) : undefined);
+    const legacy = identity && localIdentity.get(identity) === frame ? byIdentity.get(identity) : undefined;
+    return legacy && legacy.originalSha256 === undefined ? legacy : undefined;
+  };
+  const matches = new Map<PhotoFrame, SyncedPhoto>();
+  const count = new Map<SyncedPhoto, number>();
+  for (const frame of eligible) {
+    const match = candidate(frame);
+    if (!match) continue;
+    matches.set(frame, match);
+    count.set(match, (count.get(match) ?? 0) + 1);
+  }
+  return (frame: PhotoFrame) => {
+    const match = matches.get(frame);
+    return match && count.get(match) === 1 ? match : undefined;
   };
 }
 
 /** What loading a snapshot would do, counted before anything changes. */
 export function planApply(frames: PhotoFrame[], snapshot: ProjectSnapshot) {
-  const find = matcher(snapshot);
+  const find = matcher(frames, snapshot);
   let matching = 0, changed = 0;
   const used = new Set<SyncedPhoto>();
   for (const frame of frames) {
@@ -119,7 +160,7 @@ export function planApply(frames: PhotoFrame[], snapshot: ProjectSnapshot) {
 
 /** Apply a snapshot to the photos it matches. Photos not in it are left exactly as they are. */
 export function applySnapshot(frames: PhotoFrame[], snapshot: ProjectSnapshot): PhotoFrame[] {
-  const find = matcher(snapshot);
+  const find = matcher(frames, snapshot);
   return frames.map((frame) => {
     const photo = find(frame);
     if (!photo) return frame;

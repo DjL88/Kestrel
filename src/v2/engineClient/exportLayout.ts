@@ -41,12 +41,29 @@ export function anchoredBox(frame: { width: number; height: number }, xPercent: 
   return { x: (xPercent / 100) * frame.width - box.width / 2, y: (yPercent / 100) * frame.height - box.height / 2, width: box.width, height: box.height };
 }
 
+/** Leave a small page-relative margin even when a saved centre is near the edge. */
+export const OVERLAY_SAFE_MARGIN = 4;
+export function safeAnchoredBox(frame: { width: number; height: number }, xPercent: number, yPercent: number, box: { width: number; height: number }): Rect {
+  const raw = anchoredBox(frame, xPercent, yPercent, box);
+  const safe = (position: number, length: number, extent: number) => {
+    const margin = extent * OVERLAY_SAFE_MARGIN / 100;
+    return Math.max(margin, Math.min(extent - margin - length, position));
+  };
+  return { ...raw, x: safe(raw.x, raw.width, frame.width), y: safe(raw.y, raw.height, frame.height) };
+}
+
+/** CSS equivalent of safeAnchoredBox: translate relative to the box, using container units for the frame.
+ * Scale is about the unscaled box centre; its rendered extent determines the margin. */
+export function safeOverlayTransform(xPercent: number, yPercent: number, scale = 1): string {
+  const axis = (p: number, unit: 'cqw' | 'cqh') =>
+    `clamp(calc(${OVERLAY_SAFE_MARGIN - p}${unit} + ${(scale - 1) * 50}%), -50%, calc(${100 - OVERLAY_SAFE_MARGIN - p}${unit} - ${(scale + 1) * 50}%))`;
+  return `translate(${axis(xPercent, 'cqw')}, ${axis(yPercent, 'cqh')}) scale(${scale})`;
+}
+
 /** The watermark box: anchored like text, then scaled about its own centre (`transform-origin: 50% 50%`), matching Canvas.tsx. */
 export function watermarkBox(frame: { width: number; height: number }, overlay: Pick<OverlaySettings, 'watermarkX' | 'watermarkY' | 'watermarkScale'>, natural: { width: number; height: number }): Rect {
   const scale = overlay.watermarkScale / 100;
-  const share = overlay.watermarkX / 100;
-  const width = natural.width * scale;
-  return { x: share * frame.width - width / 2, y: (overlay.watermarkY / 100) * frame.height - (natural.height * scale) / 2, width, height: natural.height * scale };
+  return safeAnchoredBox(frame, overlay.watermarkX, overlay.watermarkY, { width: natural.width * scale, height: natural.height * scale });
 }
 
 /** Match the preview's contain box, without stretching panoramic or portrait artwork. */
