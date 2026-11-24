@@ -1,10 +1,12 @@
 # Kestrel brand kit
 
+> **Historical.** The product is now InFlight. The current mark, app icons and splash come from the InFlight brand pack: see [inflight/InFlight_Brand_Pack_review-v2.2.md](inflight/InFlight_Brand_Pack_review-v2.2.md), `src/assets/brand/` and `public/assets/brand/inflight/`. The Kestrel kit below is kept as a record of the earlier direction.
+
 ![Kestrel wordmark](kestrel-lockup.svg)
 
 A right-facing kestrel crosses a split K. The copper wing and wine-crimson underside sit between the dusk-blue and wine diagonals. The mark uses flat vector shapes and retains the swept wing and hooked beak from the original direction — this refresh keeps that idea and moves the palette and type out of bright app-icon tones into something closer to a premium camera brand: deeper, more muted, more editorial.
 
-- [App icon and favicon](../../src/assets/kestrel-mark.svg)
+- App icon and favicon: the Kestrel mark file was removed; the app now uses the [InFlight favicon](../../public/assets/brand/inflight/app-icons/favicon.svg)
 - [Full-colour symbol on transparent background](kestrel-symbol.svg)
 - [Ink symbol on transparent background](kestrel-symbol-ink.svg)
 - [Wordmark on the dark surface](kestrel-lockup.svg)
@@ -50,4 +52,4 @@ No new font files are introduced — all three are already bundled via `@fontsou
 
 ## Splash animation
 
-`src/assets/splash/kestrel-k-splash.json` drives the launch animation in `src/components/Splash.tsx`, read by the app's own small lottie-reader (`src/core/lottieLite.ts` — not the full Lottie library; it understands flat filled paths/rects with position, scale and opacity keyframes, nothing else). The five kestrel-mark shapes draw in with a staggered, slightly overshooting entrance (scale/position settle past their final value before easing back) across 2.0 s, then the app holds the finished mark briefly before fading to the app. Automated tests, reduced-motion and a tap/key all still skip or shorten it exactly as before — none of that logic changed, only the shapes and keyframe values inside the JSON file.
+The launch animation is now the InFlight kite: `src/assets/brand/splash/inflight-splash-{dark,light,pro-dark,pro-light}.json`, played by `src/components/Splash.tsx` with the `lottie-web` light player, loaded on demand (not a small in-house reader; that earlier `lottieLite` reader and the Kestrel splash file no longer exist). When it shows, and for how long, lives in `src/core/splashRules.ts`: once per session, skipped for automated runs, a still logo instead of the animation with reduced motion, and any tap or key skips it. If the player cannot load, the app is never held back.
