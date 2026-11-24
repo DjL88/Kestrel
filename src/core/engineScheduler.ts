@@ -27,6 +27,8 @@ interface StoredCheckpoint {
 export interface ScheduledContext {
   readonly signal: AbortSignal;
   stage(stage: string): void;
+  /** Report real sub-stage/photo counts for one-shot engines such as culling. */
+  reportProgress(done: number, total: number, detail?: string): void;
   /** Reflect the verified processing runner, including cloud-to-local fallback. */
   setLocation(location: TaskLocation): void;
   /** Prevent cancelled, superseded or stale asynchronous engine results from applying. */
@@ -83,6 +85,7 @@ interface WorkBatch {
   controller: AbortController | null;
   handle: TaskHandle;
   items: WorkItem<unknown>[];
+  manualProgress: boolean;
   work(index: number, ctx: ScheduledContext): Promise<void>;
   saveCheckpoint(): void;
   retry(): Promise<SchedulerTicket | null>;
@@ -117,6 +120,7 @@ export function createEngineScheduler(options: {
   });
   const countDone = (job: WorkBatch) => job.items.filter(item => item.state === 'done').length;
   const publishProgress = (job: WorkBatch) => {
+    if (job.manualProgress) { updateItems(job); return; }
     const done = countDone(job);
     job.handle.progress(done, job.items.length, `${done} of ${job.items.length} completed`);
     updateItems(job);
@@ -162,6 +166,12 @@ export function createEngineScheduler(options: {
             item.detail = stage;
             job.handle.patch({ stage, detail: `${item.label}: ${stage}` });
             updateItems(job);
+          }
+        },
+        reportProgress(done, total, detail) {
+          if (!job.cancelled && !controller.signal.aborted) {
+            job.manualProgress = true;
+            job.handle.progress(done, total, detail);
           }
         },
         setLocation(location) { if (!job.cancelled && !controller.signal.aborted) job.handle.patch({ location }); },
@@ -275,7 +285,7 @@ export function createEngineScheduler(options: {
       id: handle.id, order: ++sequence, priority: definition.priority ?? 0,
       resource: definition.resource ?? 'cpu', pauseable: definition.pauseable !== false && items.length > 1,
       active: false, paused: false, pauseRequested: false, cancelled: false, controller: null,
-      handle, items: items as WorkItem<unknown>[],
+      handle, items: items as WorkItem<unknown>[], manualProgress: false,
       work: (index, ctx) => definition.runItem(items[index].input, snapshot, ctx),
       saveCheckpoint: () => {
         if (!recovery) return;
