@@ -275,3 +275,24 @@ it('rejects completion when a previously receipted output changes during the bat
     .resume('changed-output', h.adapter)).toBeNull();
   expect(dispatch.load('changed-output')?.state).toBe('completed');
 });
+
+
+describe('stop after durable publication', () => {
+  it('records the verified file before pausing, then resumes only remaining items', async () => {
+    const h = harness();
+    const dispatch = createJournalledExportDispatch(h.storage, h.queue);
+    let ticket: ExportBatchTicket;
+    const adapter = { ...h.adapter, publishAtomic: async (...args: Parameters<typeof h.adapter.publishAtomic>) => {
+      const sha = await h.adapter.publishAtomic(...args);
+      ticket.cancel();
+      return sha;
+    }};
+    ticket = dispatch.submit(plan('stopped-after-publish'), adapter);
+    expect(await ticket.done).toBe('cancelled');
+    expect(dispatch.load('stopped-after-publish')?.receipts).toHaveLength(1);
+    expect(h.published).toEqual(['one.jpg']);
+    const resumed = await dispatch.resume('stopped-after-publish', h.adapter);
+    expect(await resumed?.done).toBe('completed');
+    expect(h.published).toEqual(['one.jpg', 'two.jpg']);
+  });
+});
