@@ -368,3 +368,41 @@ test('malformed worker frame IDs cannot displace a valid keeper', () => {
     assert.deepEqual(result.filter((item) => item.confidence === 'high').map((item) => item.frameId), [valid.frameId]);
   }
 });
+
+
+test('G05: 300-frame shoot respects 20 total keepers, camera ratings and distinct bursts', () => {
+  const frames = generateDemoShootFrames(300).map((frame, index) => ({
+    ...frame, isDemo: false, virtualCopy: undefined,
+    decision: index === 0 ? 'keep' as const : 'unreviewed' as const,
+    burstGroupId: 'burst-' + Math.floor(index / 5),
+    rating: index === 299 ? 5 : 0,
+  }));
+  const suggestions: CullSuggestion[] = frames.map((frame, index) => ({
+    frameId: frame.id, decision: 'keep', confidence: 'high',
+    score: 99 - (index % 20), reason: 'subjectSharp',
+  }));
+  const select = (input: CullSuggestion[]) => limitAutoKeepers(input, frames, 19)
+    .filter(item => item.decision === 'keep' && item.confidence === 'high')
+    .map(item => item.frameId).sort();
+  const chosen = select(suggestions);
+  assert.equal(chosen.length, 19);
+  assert.deepEqual(select([...suggestions].reverse()), chosen);
+  assert.ok(chosen.includes(frames[299].id));
+  const selectedFrames = frames.filter(frame => chosen.includes(frame.id));
+  assert.equal(new Set(selectedFrames.map(frame => frame.burstGroupId)).size, 19);
+  assert.ok(selectedFrames.every(frame => frame.burstGroupId !== frames[0].burstGroupId));
+});
+
+test('G05: insufficient trustworthy distinct bursts leave keeper capacity unused', () => {
+  const frames = generateDemoShootFrames(30).map((frame, index) => ({
+    ...frame, isDemo: false, virtualCopy: undefined, decision: 'unreviewed' as const,
+    burstGroupId: 'burst-' + Math.floor(index / 10),
+  }));
+  const suggestions: CullSuggestion[] = frames.map((frame, index) => scoreWithSubject(
+    { frameId: frame.id, decision: 'keep', confidence: 'high', score: 95, reason: 'clearDetail' },
+    { label: index < 20 ? 'dog' : 'unknown animal', score: 0.98, size: 500, sharpness: 24 },
+  ));
+  const result = limitAutoKeepers(suggestions, frames, 20);
+  assert.equal(result.filter(item => item.decision === 'keep' && item.confidence === 'high').length, 2);
+  assert.ok(result.slice(20).every(item => item.decision === null && item.confidence === 'low'));
+});
