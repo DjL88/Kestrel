@@ -1,5 +1,6 @@
 import { searchPhotoCollection } from './photoSearch';
 import { sameCaptureCamera, sameCaptureSourceFolder, safeBurstGapMs } from './burstIdentity';
+import { LOOK_ALIKE_ABOVE, SCENE_CHANGE_BELOW, decodeEmbedding, similarity } from './visualSimilarity';
 import { matchesRating } from './ratingFilter';
 import type {
   CullCounts,
@@ -114,10 +115,16 @@ function mulberry32(seed: number): () => number {
 /**
  * Groups consecutive frames into bursts when capture timestamps are available
  * and within maxGapMs (default 1500ms). Single frames keep burstGroupId = null.
+ *
+ * `similarityOf` (optional, from on-device image embeddings) only refines that: a frame whose picture clearly differs
+ * from the previous one starts a new burst even inside the time window (a real scene change), and two look-alike
+ * frames from the same camera and folder may join when either has no capture time. Without it, or when it returns
+ * null for a pair, grouping is exactly the time-based result.
  */
 export function assignBurstGroups(
   frames: PhotoFrame[],
-  maxGapMs: number = DEFAULT_BURST_GAP_MS
+  maxGapMs: number = DEFAULT_BURST_GAP_MS,
+  similarityOf?: (a: PhotoFrame, b: PhotoFrame) => number | null,
 ): PhotoFrame[] {
   if (frames.length === 0) return [];
   const safeGapMs = safeBurstGapMs(maxGapMs);
@@ -143,19 +150,19 @@ export function assignBurstGroups(
     const prev = currentCluster[currentCluster.length - 1];
     const prevTs = prev.exif.capturedAtMs;
     const currTs = frame.exif.capturedAtMs;
+    // Two cameras can shoot within the same millisecond window; do not
+    // mistake interleaved Z8/Z5II captures for a single burst.
+    // Missing camera tags must not bridge two different known cameras.
+    // Separate folders, NAS shares or relinked sources must not form one burst.
+    const sameSource = sameCaptureCamera(frame.exif.camera, currentCluster.map((member) => member.exif.camera))
+      && sameCaptureSourceFolder(frame, currentCluster);
+    const timed = typeof prevTs === 'number' && typeof currTs === 'number';
+    const look = similarityOf ? similarityOf(prev, frame) : null;
+    const withinTime = timed && currTs - prevTs >= 0 && currTs - prevTs <= safeGapMs;
+    const sceneChange = look !== null && look < SCENE_CHANGE_BELOW;
+    const lookAlikeUntimed = !timed && look !== null && look >= LOOK_ALIKE_ABOVE;
 
-    if (
-      typeof prevTs === 'number' &&
-      typeof currTs === 'number' &&
-      currTs - prevTs >= 0 &&
-      currTs - prevTs <= safeGapMs
-      // Two cameras can shoot within the same millisecond window; do not
-      // mistake interleaved Z8/Z5II captures for a single burst.
-      // Missing camera tags must not bridge two different known cameras.
-      && sameCaptureCamera(frame.exif.camera, currentCluster.map((member) => member.exif.camera))
-      // Separate folders, NAS shares or relinked sources must not form one burst.
-      && sameCaptureSourceFolder(frame, currentCluster)
-    ) {
+    if (sameSource && ((withinTime && !sceneChange) || lookAlikeUntimed)) {
       currentCluster.push(frame);
     } else {
       clusters.push(currentCluster);
@@ -198,6 +205,25 @@ export function assignBurstGroups(
   }
 
   return result;
+}
+
+/**
+ * Regroups a whole project using the time rules plus any stored image embeddings. Returns null when nothing would
+ * change, so callers write nothing. Decisions, ratings, edits and "show frames separately" are untouched: only the
+ * burst fields and sequence numbers come from the regroup, exactly as at import.
+ */
+export function regroupBurstsWithEmbeddings(frames: PhotoFrame[]): PhotoFrame[] | null {
+  if (frames.length < 2) return null;
+  const vectors = new Map(frames.map((frame) => [frame.id, decodeEmbedding(frame.visualEmbedding)]));
+  if (![...vectors.values()].some(Boolean)) return null;
+  const regrouped = assignBurstGroups([...frames].sort((a, b) => a.sequenceIndex - b.sequenceIndex), DEFAULT_BURST_GAP_MS,
+    (a, b) => similarity(vectors.get(a.id) ?? null, vectors.get(b.id) ?? null));
+  const before = new Map(frames.map((frame) => [frame.id, frame]));
+  const changed = regrouped.some((frame) => {
+    const old = before.get(frame.id)!;
+    return old.burstGroupId !== frame.burstGroupId || old.burstCount !== frame.burstCount || old.burstIndex !== frame.burstIndex;
+  });
+  return changed ? regrouped : null;
 }
 
 /**

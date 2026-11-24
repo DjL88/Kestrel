@@ -112,6 +112,8 @@ build tooling or a plugin SDK separately.
 
 ## Machine-learning models
 
+- **Burst grouping (DINOv2 ViT-S/14 image embeddings, Apache-2.0, Meta)**: `public/models/dinov2-small-fp16.onnx`,
+  shipped with every build. fp16 conversion of `facebook/dinov2-small`; notice in `docs/notices/dinov2.txt`; ship it alongside.
 - **Category gate (CLIP ViT-B/32 image encoder, MIT)**: `public/models/clip-vit-b32-vision-uint8.onnx`,
   shipped in desktop installers. Notice text in `docs/notices/clip.txt`; ship it alongside.
 - **Species suggestions (BioCLIP, MIT)** — already documented in full, including

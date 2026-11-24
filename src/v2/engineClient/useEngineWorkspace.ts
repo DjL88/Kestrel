@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { applyDecisionWithHistory, assignBurstGroups, redoDecision, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
+import { applyDecisionWithHistory, assignBurstGroups, redoDecision, regroupBurstsWithEmbeddings, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
 import { recordEdit, stepEdit } from '../../core/editHistory';
 import { forkEditCheckpoint, switchEditVersion as switchVersionInCatalogue } from '../../core/editBranches';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
@@ -20,6 +20,7 @@ import { scanForCulling } from '../../providers/browserAutoCull';
 import { useAccess } from '../../providers/useAccess';
 import { useBackgroundDevelop } from '../../useBackgroundDevelop';
 import { useSpeciesScan } from '../../useSpeciesScan';
+import { useVisualGrouping } from './useVisualGrouping';
 import { isDesktopApp } from '../../providers/desktopShell';
 import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
 import { getLocalFileKey, loadLocalFileListShoot, rehydrateLocalFramesFromStore } from '../../providers/localShootLoader';
@@ -455,6 +456,19 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     onResult: (frameId, patch) => setState((current) => (current ? { ...current, frames: current.frames.map((frame) =>
       frame.id === frameId && !frame.removedAt && !frame.speciesChecked && !frame.tags?.length && !frame.subjectNames?.length
         ? { ...frame, ...patch, ...(frame.subjectKind && patch.subjectKind ? { subjectKind: frame.subjectKind } : {}) } : frame) } : current)),
+  });
+
+  // Bursts are refined quietly on this device from image embeddings (DINOv2): a real scene change splits a burst, and
+  // look-alike frames without capture times group. Never changes a decision; paused while photos are being imported.
+  useVisualGrouping({
+    projectId: state?.shoot.id ?? '', frames: state?.frames ?? [], provider: provider.current,
+    active: screen === 'editor' && Boolean(state) && !importing, onScreen: activeId,
+    onEmbedded: (frameId, embedding) => setState((current) => (current ? { ...current, frames: current.frames.map((frame) =>
+      frame.id === frameId ? { ...frame, visualEmbedding: embedding } : frame) } : current)),
+    onBatchDone: () => setState((current) => {
+      const regrouped = current ? regroupBurstsWithEmbeddings(current.frames) : null;
+      return current && regrouped ? { ...current, frames: regrouped } : current;
+    }),
   });
 
   const activePhotoExport = useRef<number | null>(null);
