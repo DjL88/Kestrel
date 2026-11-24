@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { addRow, alignOverlays, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps.ts';
+import { addRow, alignOverlays, anchorOverlay, moveRow, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps.ts';
 
 test('a photo with no stored overlay has text and watermark off', () => {
   for (const raw of [undefined, null, 'x', 5, []]) {
@@ -38,10 +38,60 @@ test('rows can be added, changed and removed, and adding a row switches text on'
 test('patching keeps the overlay valid, and a clean alignment resets the offsets', () => {
   const moved = patchOverlay(readOverlay(undefined), { textOffsetX: 30, watermarkScale: 999 });
   assert.equal(moved.watermarkScale, 160);
-  const aligned = alignOverlays(moved, 'opposite-bottom');
+  const aligned = alignOverlays(moved, 'right');
   assert.equal(aligned.textOffsetX, 0);
   assert.equal(aligned.watermarkPosition, 'bottom-right');
-  assert.equal(aligned.watermarkX, 92);
+  assert.equal(aligned.textPosition, 'bottom-right');
+  assert.equal(aligned.textAlign, 'right');
+  assert.equal(aligned.textPlacement, 'anchor');
+  assert.equal(aligned.watermarkPlacement, 'anchor');
+});
+
+test('stacking left, centre or right puts both boxes at the bottom on that side', () => {
+  for (const side of ['left', 'center', 'right'] as const) {
+    const aligned = alignOverlays(readOverlay(undefined), side);
+    assert.equal(aligned.textPosition, `bottom-${side}`);
+    assert.equal(aligned.watermarkPosition, `bottom-${side}`);
+    assert.equal(aligned.textAlign, side);
+  }
+});
+
+test('choosing a place on the grid anchors that box and lines its words up with the side', () => {
+  const dragged = patchOverlay(readOverlay(undefined), { textPlacement: 'free', textX: 40, textY: 30 });
+  assert.equal(dragged.textPlacement, 'free');
+  const placed = anchorOverlay(dragged, 'text', 'top-right');
+  assert.equal(placed.textPlacement, 'anchor');
+  assert.equal(placed.textPosition, 'top-right');
+  assert.equal(placed.textAlign, 'right');
+  const mark = anchorOverlay(dragged, 'watermark', 'middle-left');
+  assert.equal(mark.watermarkPlacement, 'anchor');
+  assert.equal(mark.watermarkPosition, 'middle-left');
+});
+
+test('older overlays: a box still on a grid place is anchored, a dragged one stays free', () => {
+  assert.equal(readOverlay({ textX: 8, textY: 90 }).textPlacement, 'anchor');
+  assert.equal(readOverlay({ watermarkX: 92, watermarkY: 90 }).watermarkPlacement, 'anchor');
+  assert.equal(readOverlay({ textX: 37.5, textY: 61 }).textPlacement, 'free');
+  assert.equal(readOverlay({ textPosition: 'top-center' }).textAlign, 'center');
+  assert.equal(readOverlay({ edgeMargin: 99 }).edgeMargin, 12);
+  assert.equal(readOverlay(undefined).edgeMargin, 4);
+});
+
+test('any number of rows up to the bound, new rows start empty, and rows can be reordered', () => {
+  let overlay = readOverlay(undefined);
+  for (let i = 0; i < 20; i += 1) overlay = addRow(overlay, `row-${i}`);
+  assert.equal(overlay.rows.length, 12);
+  assert.deepEqual(overlay.rows.at(-1)?.fields, []);
+  const first = overlay.rows[0].id, second = overlay.rows[1].id;
+  overlay = moveRow(overlay, second, -1);
+  assert.deepEqual([overlay.rows[0].id, overlay.rows[1].id], [second, first]);
+  assert.deepEqual(moveRow(overlay, second, -1).rows.map((row) => row.id), overlay.rows.map((row) => row.id), 'the first row cannot move up');
+  assert.equal(readOverlay({ rows: Array.from({ length: 40 }, (_, i) => ({ id: `r${i}`, fields: ['camera'] })) }).rows.length, 12);
+});
+
+test('new metadata fields are kept, unknown ones dropped, and a field appears once', () => {
+  const overlay = readOverlay({ rows: [{ id: 'a', fields: ['capturedAt', 'category', 'filename', 'capturedAt', 'bogus'] }] });
+  assert.deepEqual(overlay.rows[0].fields, ['capturedAt', 'category', 'filename']);
 });
 
 test('a watermark starts on auto contrast, and an explicit choice is kept', () => {
