@@ -16,7 +16,7 @@ import type { ExportJob, ExportPlan } from './exportOps';
 /** Each photo/format/edit-group is one restartable-at-a-boundary scheduler unit.
  * Split formats remain one atomic unit containing 2-3 delivered panels. */
 export type ScheduledPhotoUnit =
-  | { id: string; label: string; frameId: string; kind: 'developed'; jobIndex: number; variantIndex: number }
+  | { id: string; label: string; frameId: string; kind: 'developed'; jobIndex: number; variantIndex: number; panelIndex: number }
   | { id: string; label: string; frameId: string; kind: 'original' };
 
 export type ConfirmedExportPlan = Extract<ExportPlan, { jobs: ExportJob[] }>;
@@ -24,11 +24,12 @@ export function photoExportUnits(plan: ConfirmedExportPlan, frames: readonly Pic
   const names = new Map(frames.map(frame => [frame.id, frame.filename]));
   return [
     ...plan.jobs.flatMap((job, jobIndex) =>
-      job.variants.map((variant, variantIndex): ScheduledPhotoUnit => ({
-        id: `developed:${jobIndex}:${variantIndex}`,
-        frameId: job.frameId, kind: 'developed', jobIndex, variantIndex,
-        label: `${names.get(job.frameId) ?? job.frameId} · ${job.format.label} · ${variant.kind === 'unedited' ? 'Unedited' : 'Edited'}${variant.suffix}`,
-      }))),
+      job.variants.flatMap((variant, variantIndex) =>
+        Array.from({ length: job.sections ?? 1 }, (_, panelIndex): ScheduledPhotoUnit => ({
+          id: `developed:${jobIndex}:${variantIndex}:${panelIndex}`,
+          frameId: job.frameId, kind: 'developed', jobIndex, variantIndex, panelIndex,
+          label: `${names.get(job.frameId) ?? job.frameId} · ${job.format.label} · ${variant.kind === 'unedited' ? 'Unedited' : 'Edited'}${variant.suffix}${job.sections ? ` · panel ${panelIndex + 1} of ${job.sections}` : ''}`,
+        })))),
     ...plan.originals.map((frameId, index): ScheduledPhotoUnit => ({
       id: `original:${index}`, kind: 'original', frameId,
       label: `${names.get(frameId) ?? frameId} · exact original`,
@@ -124,7 +125,9 @@ export async function scheduleV2PhotoExports(input: {
           overlay, started, ctx.signal, job.sections ?? 1,
         );
         ctx.checkCancelled();
-        files = (result.sections ?? [result.file]).map(rendered => {
+        const selectedPanel = (result.sections ?? [result.file])[item.panelIndex];
+        if (!selectedPanel) throw new Error('A requested split panel was not rendered.');
+        files = [selectedPanel].map(rendered => {
           const base = rendered.name.replace(/(\.[^.]+)?$/, extension => variant.suffix + extension);
           return new File([rendered], base, { type: rendered.type, lastModified: rendered.lastModified });
         });
