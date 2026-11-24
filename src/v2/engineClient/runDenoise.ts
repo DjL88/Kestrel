@@ -9,6 +9,8 @@ import type { Pixels } from '../../core/colourCheck';
 import type { PhotoFrame } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import { loadImage } from '../../providers/loadImage';
+import { loadExportSource } from '../../providers/browserExport';
+import { loadDenoiseSource } from './denoiseSource';
 import { unionSubjectGrid } from '../../core/subjectUnion';
 import { detectSubjectInstances } from '../../providers/multiSubjectDetector';
 
@@ -32,15 +34,15 @@ export type CloudAccess = { connection: CloudConnection; online: boolean } | nul
 
 /**
  * Denoise one photo: asks the cloud first when the person is signed in and online (their press of the button is the
- * consent for this one job), and otherwise, or on any failure or unverified result, runs on this device. Uses only a
- * working-size preview, never the original. Nothing is applied here: the caller stores the returned recipe.
+ * consent for this one job), and otherwise, or on any failure or unverified result, runs on this device. Uses a sensor-developed RAW source when required, then reduces it to a
+ * working-size preview; never sends original bytes. Nothing is applied here: the caller stores the returned recipe.
  */
 export async function runV2Denoise(
   frame: PhotoFrame, provider: BrowserPreviewProvider, cloud: CloudAccess, signal?: AbortSignal,
 ): Promise<DenoiseOutcome | null> {
-  const url = await provider.getFullPreviewUrl(frame, 'selected');
-  if (!url || signal?.aborted) return null;
-  const source = await loadImage(url);
+  const source = await loadDenoiseSource(frame, provider,
+    () => loadExportSource(frame, provider), loadImage, signal);
+  if (!source) return null;
   const framing = frame.framing ?? DEFAULT_FRAMING;
   const edge = Math.max(source.naturalWidth, source.naturalHeight);
   const canvas = document.createElement('canvas');
