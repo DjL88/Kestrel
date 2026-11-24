@@ -7,6 +7,7 @@ import { effectiveAlpha } from './masks';
 import { blendSrgb16 } from './linearRgb16';
 import { noiseStrength } from './noiseReduction';
 import { denoiseChromaRgb16 } from './chromaDenoise16';
+import { isDenoisePair, denoiseMembers, applySubjectDenoise16 } from './subjectDenoise16';
 
 /**
  * InFlight's 16-bit export. The RAW decoder's full-size 16-bit picture (display-encoded sRGB, as it was before the editor's
@@ -271,9 +272,25 @@ export function applyToneMasksRgb16(image: Rgb16Image, masks: readonly Mask[] | 
   const { width, height, data } = image;
   // 256k pixels = about 4 MiB temporary RGBA floats + 1 MiB alpha.
   const rows = Math.max(1, Math.floor(262144 / width));
-  for (const mask of masks) {
+  const groups = new Map<string, Mask[]>();
+  const consumed = new Set<string>();
+  for (let i = 0; i + 1 < masks.length; i++) {
+    const group = masks[i+1];
+    if (!isDenoisePair(masks[i], group)) continue;
+    const members = denoiseMembers(group, masks);
+    groups.set(group.id, members);
+    members.forEach(member => consumed.add(member.id));
+  }
+  for (let index = 0; index < masks.length; index++) {
+    const mask = masks[index], subject = masks[index+1];
+    if (isDenoisePair(mask, subject)) {
+      applySubjectDenoise16(image, mask, subject, groups.get(subject.id) ?? [], masks, detailBandPixels);
+      index++;
+      continue;
+    }
     if (!maskIsActive(mask)) continue;
     const local: PhotoEdit = { exposure: 0, warmth: 0, colour: 0, ...mask.edit };
+    if (consumed.has(mask.id)) delete local.denoise;
     if (hasDetail(local) || noiseStrength(local.denoise) > 0) {
       applyDetailMaskRgb16(image, mask, masks, local, detailBandPixels);
       continue;
