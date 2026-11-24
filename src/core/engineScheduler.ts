@@ -27,6 +27,8 @@ interface StoredCheckpoint {
 export interface ScheduledContext {
   readonly signal: AbortSignal;
   stage(stage: string): void;
+  /** Reflect the verified processing runner, including cloud-to-local fallback. */
+  setLocation(location: TaskLocation): void;
   /** Prevent cancelled, superseded or stale asynchronous engine results from applying. */
   commitIfCurrent(commit: () => void): boolean;
   checkCancelled(): void;
@@ -162,6 +164,7 @@ export function createEngineScheduler(options: {
             updateItems(job);
           }
         },
+        setLocation(location) { if (!job.cancelled && !controller.signal.aborted) job.handle.patch({ location }); },
         checkCancelled() {
           controller.signal.throwIfAborted();
           if (job.cancelled) throw new Error('Job cancelled.');
