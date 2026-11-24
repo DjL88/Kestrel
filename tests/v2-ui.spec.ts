@@ -243,17 +243,21 @@ test('?v2 Co-pilot checks the photo on this device, suggests Auto, and applying 
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
   // The verdict is always written in words (in the merged Co-pilot panel), whatever it is, and comes from the measured values.
   await root.getByRole('button', { name: 'Co-pilot', exact: true }).first().click();
-  const verdict = root.getByText(/Auto applied|Looks good|Cannot improve this safely|gentler version/);
+  const panel = root.getByRole('region', { name: 'Co-pilot panel' });
+  const verdict = panel.getByRole('heading', { name: 'Recommended adjustments' }).or(panel.getByText(/Looks good|Cannot improve this safely/));
   await expect(verdict.first()).toBeVisible({ timeout: 60000 });
-  const apply = root.getByRole('button', { name: 'Apply suggested recipe' });
-  if (await apply.count()) {
-    // Each suggestion now leads with a real before/after preview (owner backlog item 20: previews
-    // instead of paragraphs), not only the text verdict checked above.
-    await expect(root.locator('img[alt^="Preview: "]').first()).toBeVisible();
-    await apply.click();
-    await expect(root.getByRole('button', { name: 'Apply suggested recipe' })).toHaveCount(0);
+  const suggestion = panel.getByRole('figure', { name: 'Suggested edit' });
+  await expect(suggestion.or(panel.getByText(/Looks good|Cannot improve/)).first()).toBeVisible({ timeout: 60000 });
+  if (await suggestion.count()) {
+    // Each suggestion leads with a real rendered preview (owner backlog item 20), and says what it does in words.
+    await expect(suggestion.first().getByRole('img')).toBeVisible();
+    const apply = panel.getByRole('button', { name: 'Apply', exact: true });
+    await apply.first().click();
+    // One edit: History shows the original and exactly one step after applying.
+    await root.getByRole('button', { name: 'History' }).first().click();
+    await expect(root.getByRole('list', { name: 'History' }).getByRole('button')).toHaveCount(2);
   } else {
-    await expect(root.getByText(/Looks good|Cannot improve/).first()).toBeVisible();
+    await expect(panel.getByText(/Looks good|Cannot improve/).first()).toBeVisible();
   }
 });
 
