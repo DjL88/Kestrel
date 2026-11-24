@@ -41,6 +41,7 @@ export type SettingsTabId =
   | 'storage'
   | 'keyboard'
   | 'language'
+  | 'presets'
   | 'privacy';
 
 export type FeatureKey =

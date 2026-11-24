@@ -29,6 +29,9 @@ interface SettingsDialogProps {
   open: boolean;
   activeTab: SettingsTabId;
   accountPanel?: React.ReactNode;
+  templates?: ReadonlyArray<{ id: string; name: string }>;
+  onRenameTemplate?: (id: string, name: string) => void;
+  onDeleteTemplate?: (id: string) => void;
   /** The Keyboard tab: key set, rebinding and clashes. */
   keyboardPanel?: React.ReactNode;
   settings: WorkspaceSettings;
@@ -62,6 +65,7 @@ const TABS: Array<{ id: SettingsTabId; label: string; icon: BrandIconName }> = [
   { id: 'storage', label: STRINGS.settings.tabs.storage, icon: 'hard-drive' },
   { id: 'keyboard', label: STRINGS.settings.tabs.keyboard, icon: 'keyboard' },
   { id: 'language', label: STRINGS.settings.tabs.language, icon: 'language' },
+  { id: 'presets', label: STRINGS.overlays.templatesHeading, icon: 'grid' },
   { id: 'privacy', label: STRINGS.settings.tabs.privacy, icon: 'info' },
 ];
 
@@ -71,6 +75,9 @@ export default function SettingsDialog({
   open,
   activeTab,
   accountPanel,
+  templates = [],
+  onRenameTemplate,
+  onDeleteTemplate,
   keyboardPanel,
   settings,
   onClose,
@@ -589,6 +596,33 @@ export default function SettingsDialog({
                   <a href="/#contact" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-[var(--radius-md)] border border-[var(--border-default)] px-4 text-xs font-medium text-[var(--text-primary)]">{STRINGS.settingsMore.forgetLink}</a>
                 </section>
               </div>
+            )}
+
+            {activeTab === 'presets' && (
+              <section className="space-y-3" aria-labelledby="settings-template-heading">
+                <h3 id="settings-template-heading" className="text-sm font-semibold text-[var(--text-primary)]">{STRINGS.overlays.templatesHeading}</h3>
+                <p className="text-xs text-[var(--text-secondary)]">{STRINGS.overlays.templatesIntro}</p>
+                {templates.length === 0 && <p className="text-xs text-[var(--text-muted)]">{STRINGS.overlays.templatesNone}</p>}
+                {templates.map(template => (
+                  <form key={template.id + ':' + template.name} className="flex flex-wrap items-center gap-2 rounded border border-[var(--border-default)] p-2"
+                    onSubmit={e => {
+                      e.preventDefault();
+                      const value = new FormData(e.currentTarget).get('name');
+                      if (typeof value === 'string' && value.trim()) onRenameTemplate?.(template.id, value);
+                    }}>
+                    <label className="min-w-0 flex-1 text-xs text-[var(--text-secondary)]">{STRINGS.overlays.templateNameLabel}
+                      <input name="name" defaultValue={template.name} required maxLength={40}
+                        aria-label={`${STRINGS.overlays.templateNameLabel}: ${template.name}`}
+                        className="mt-1 h-10 w-full rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2 text-[var(--text-primary)]" />
+                    </label>
+                    <button type="submit" disabled={!onRenameTemplate} aria-label={`${STRINGS.overlays.templateRename} ${template.name}`}
+                      className="min-h-10 rounded border border-[var(--border-default)] px-3 text-xs">{STRINGS.overlays.templateRename}</button>
+                    <button type="button" disabled={!onDeleteTemplate} aria-label={`${STRINGS.overlays.templateDelete} ${template.name}`}
+                      className="min-h-10 rounded px-3 text-xs text-[var(--status-danger,#e5484d)]"
+                      onClick={() => onDeleteTemplate?.(template.id)}>{STRINGS.overlays.templateDelete}</button>
+                  </form>
+                ))}
+              </section>
             )}
 
             {/* 7. LANGUAGE */}
