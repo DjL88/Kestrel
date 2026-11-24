@@ -10,6 +10,7 @@ import type { PhotoFrame } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import { loadImage } from '../../providers/loadImage';
 import { unionSubjectGrid } from '../../core/subjectUnion';
+import { detectSubjectInstances } from '../../providers/multiSubjectDetector';
 
 /** Longest edge of the picture denoise works on, and the only thing ever sent to the cloud (never the original). */
 export const DENOISE_WORKING_EDGE = 1600;
@@ -58,9 +59,21 @@ export async function runV2Denoise(
   const existing = frame.edit?.masks ?? [];
   const id = `auto-denoise-${frame.id}`;
   const remaining = existing.filter(mask => mask.id !== id && mask.id !== `${id}-background`);
-  const subjects = remaining.filter((mask): mask is Extract<Mask, { kind: 'subject' }> =>
+  let subjects = remaining.filter((mask): mask is Extract<Mask, { kind: 'subject' }> =>
     mask.kind === 'subject' && !mask.hidden && !mask.invert && !mask.limit &&
     mask.confidence !== 'low' && mask.framingKey === framingKey(framing));
+  let detectionUnavailable = false;
+  if (!subjects.length && remaining.length + 2 <= MAX_MASKS) {
+    try {
+      const instances = await detectSubjectInstances(canvas, framingKey(framing), signal);
+      subjects = instances.map(instance => instance.mask);
+      detectionUnavailable = !subjects.length;
+    } catch {
+      signal?.throwIfAborted();
+      detectionUnavailable = true;
+    }
+  }
+  signal?.throwIfAborted();
   const aspect = original.height / original.width;
   const single = subjects.length === 1 && subjects[0].strokes.length === 0 && subjects[0].feather === 0.5;
   const combined = subjects.length && remaining.length + 2 <= MAX_MASKS
@@ -81,6 +94,8 @@ export async function runV2Denoise(
   const notes = response.runner === 'cloud-processing'
     ? ['Denoised in the InFlight cloud from a working-size copy, checked on this device.']
     : [cloud ? 'The cloud was not used for this one, so it ran on this device.' : 'Denoised on this device.'];
+  if (subject) notes.unshift(`Denoised on this device with combined subject protection (${subjects.length} mask${subjects.length === 1 ? '' : 's'}).`);
+  else if (detectionUnavailable) notes.unshift('No reliable subject masks were available; denoise used a global setting.');
   if (!result.verification.ok) notes.push('It could not be made to pass the quality check, so the gentlest setting tried is shown.');
   return { runner: response.runner === 'cloud-processing' ? 'cloud-processing' : 'device', strength, masks: result.masks, verified: result.verification.ok, notes };
 }
