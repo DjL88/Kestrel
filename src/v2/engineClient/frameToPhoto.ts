@@ -69,6 +69,15 @@ export function assistCritiqueFor(assist: AssistState | undefined, currentEdit =
 export interface FrameUrls { thumb?: string; preview?: string; failed?: boolean }
 
 const NOT_RECORDED = 'Not recorded';
+const positive = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0;
+
+/** Only the two known import identity schemes encode the original byte count. */
+export function recordedFileSizeMb(key: string): number {
+  if (!/^local-(?:file|linked):\/\//.test(key)) return 0;
+  const parts = /::(\d+)::\d+$/.exec(key);
+  const bytes = parts ? Number(parts[1]) : 0;
+  return Number.isSafeInteger(bytes) && bytes > 0 ? bytes / 1_000_000 : 0;
+}
 
 const titleOf = (filename: string) => filename.replace(/\.[^./\\]+$/, '');
 const extensionOf = (filename: string) => /\.([^./\\]+)$/.exec(filename)?.[1]?.toUpperCase();
@@ -123,6 +132,9 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
   const { exif } = frame;
   const nativeSize = verifiedFormatSize(frame, verifiedOriginalSize);
   const originalSize = originalFormatSize(frame, verifiedOriginalSize);
+  const recordedDimensions = nativeSize && verifiedOriginalSize ? verifiedOriginalSize : positive(exif.width) && positive(exif.height) && Number.isSafeInteger(exif.width) && Number.isSafeInteger(exif.height) ? { width: exif.width, height: exif.height } : null;
+  const rating = frame.rating ?? exif.rating ?? 0;
+  const captured = typeof exif.capturedAtMs === 'number' && Number.isFinite(new Date(exif.capturedAtMs).getTime()) ? new Date(exif.capturedAtMs).toLocaleString('en-GB') : NOT_RECORDED;
   // The UI's sample group carries a made-up look. A real photo starts from its own edit: neutral until the person edits it.
   const board = readBoard(frame.boardPositions);
   const crops = readCrops(frame.sizeCrops);
@@ -146,7 +158,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     state: tileStateFor(urls),
     decision: frame.decision,
     originalConnected: extras.originalConnected ?? !urls?.failed,
-    rating: Math.max(0, Math.min(5, Math.round(frame.rating ?? exif.rating ?? 0))),
+    rating: Number.isFinite(rating) ? Math.max(0, Math.min(5, Math.round(rating))) : 0,
     speciesLabel: speciesLabelOf(frame),
     category: frame.subjectKind ?? '',
     sharpnessScore: frame.cullScore ?? 0,
@@ -155,12 +167,12 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
       lens: exif.lens ?? NOT_RECORDED,
       aperture: exif.apertureF ? `f/${exif.apertureF}` : NOT_RECORDED,
       shutter: exif.shutterSpeed ?? NOT_RECORDED,
-      iso: exif.iso ?? 0,
+      iso: positive(exif.iso) ? exif.iso : 0,
       focalLength: exif.focalLengthMm ? `${exif.focalLengthMm}mm` : NOT_RECORDED,
-      capturedAt: exif.capturedAtMs ? new Date(exif.capturedAtMs).toLocaleString('en-GB') : NOT_RECORDED,
+      capturedAt: captured,
       fileFormat: exif.formatLabel ?? extensionOf(frame.filename) ?? NOT_RECORDED,
-      fileSizeMb: 0,
-      dimensions: exif.width && exif.height ? `${exif.width} × ${exif.height}` : NOT_RECORDED,
+      fileSizeMb: recordedFileSizeMb(frame.stableKey),
+      dimensions: recordedDimensions ? `${recordedDimensions.width} × ${recordedDimensions.height}` : NOT_RECORDED,
       colourProfile: NOT_RECORDED,
     },
     ...(nativeSize ? { pixelSize: { width: nativeSize.width, height: nativeSize.height } } : exif.width && exif.height ? { pixelSize: { width: exif.width, height: exif.height } } : pixelSize ? { pixelSize } : {}),
