@@ -48,3 +48,9 @@ test('each format safely retains a border placement without leaking malformed va
   assert.equal(sanitiseCrop({ borderPlacement: 'inset;overflow:hidden' }).borderPlacement, 'all');
   assert.equal(patchCrop(undefined, { borderPlacement: 'vertical', borderColour: '#DDCCAA' }).borderPlacement, 'vertical');
 });
+
+test('invalid and inherited format keys are discarded on reopen', () => {
+  const stored = readCrops(JSON.parse('{"__proto__":{"zoom":3},"constructor":{"zoom":2},"bad/id":{"zoom":5},"ig-portrait":{"zoom":2}}'));
+  assert.deepEqual(Object.keys(stored), ['ig-portrait']);
+  assert.equal(stored['ig-portrait'].zoom, 2);
+});
