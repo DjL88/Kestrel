@@ -41,8 +41,10 @@
   }
 }
 /* Calm View > Less movement: the same as the operating system's reduce-motion setting, chosen inside InFlight. */
+/* `transition: none`, as the device setting does app-wide (index.css), so a change shows in the same frame: a near-zero
+   duration still leaves one frame where sizes and positions read as the old values. */
 .inflight-v2[data-v2-motion="calm"] *, .inflight-v2[data-v2-motion="calm"] *::before, .inflight-v2[data-v2-motion="calm"] *::after {
-  animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition: none !important;
   scroll-behavior: auto !important;
 }
 

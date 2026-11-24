@@ -5,6 +5,10 @@ import { aiProviderControl, cacheCapControl } from '../../engineClient/realSetti
 import { calmViewOn, calmViewPatch } from '../../engineClient/uiSettings';
 import React, { useRef, useState } from 'react';
 import { useDialogFocus } from '../utils/dialogFocus';
+import { isDesktopApp, isMobileShell } from '../../../providers/desktopShell';
+
+/** The published privacy policy. It is not bundled into the app, so a relative link would lead nowhere in the desktop app. */
+const PRIVACY_URL = 'https://kestrel-hosting-kestrel.web.app/privacy.html';
 import type {
   AiProviderConfig,
   AssistMode,
@@ -559,7 +563,13 @@ export default function SettingsDialog({
                   <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.settingsMore.privacyHeading}</h3>
                   <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
                     {STRINGS.settingsMore.privacyBody}{' '}
-                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-medium text-[var(--brand-accent)] underline">{STRINGS.settingsMore.privacyLink}</a> {STRINGS.settingsMore.privacyDraft}
+                    <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="font-medium text-[var(--brand-accent)] underline"
+                      onClick={(event) => {
+                        // The policy page is part of the website, not the app build. On the desktop app it opens in the system browser.
+                        if (!isDesktopApp() || isMobileShell()) return;
+                        event.preventDefault();
+                        void import('@tauri-apps/plugin-opener').then(({ openUrl }) => openUrl(PRIVACY_URL)).catch(() => undefined);
+                      }}>{STRINGS.settingsMore.privacyLink}</a> {STRINGS.settingsMore.privacyDraft}
                   </p>
                 </div>
                 <section aria-labelledby="erase-device-title" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
