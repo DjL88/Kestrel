@@ -240,3 +240,14 @@ test('damaged branch graphs cannot restore disconnected or cyclic versions', () 
   const noRoot = {...tree,versions:tree.versions.filter(v=>v.id!==ROOT_VERSION_ID)};
   assert.equal(readEditVersions(noRoot),undefined);
 });
+
+
+test('forking the first overlay checkpoint after reopening restores no overlay', async () => {
+  const { recordEdit } = await import('./editHistory');
+  const { forkEditCheckpoint, switchEditVersion } = await import('./editBranches');
+  const base = { id: 'first-overlay' } as import('./types').PhotoFrame;
+  const changed = recordEdit(base, { overlay: { textEnabled: true, textX: 60 } }, 1000);
+  const fork = forkEditCheckpoint(JSON.parse(JSON.stringify(changed)), 0, 'without-overlay', 2000);
+  assert.equal(fork.overlay, undefined);
+  assert.deepEqual(switchEditVersion(fork, 'version-original').overlay, changed.overlay);
+});
