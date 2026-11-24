@@ -21,7 +21,8 @@ test('ordinary one-panel export retains its original dimensions', () => {
 test('bad dimensions and too-wide combined canvases fail clearly', () => {
   for (const width of [0, -1, NaN, Infinity, 1.5, 20001]) assert.throws(() => continuousExportLayout(width, 1000, 2));
   assert.throws(() => continuousExportLayout(10001, 1000, 2));
-  assert.throws(() => continuousExportLayout(1080, 1350, 4 as never));
+  assert.throws(() => continuousExportLayout(1080, 1350, 6 as never));
+  assert.equal(continuousExportLayout(1080, 1350, 5).sections.length, 5);
 });
 
 test('numbered files keep the right extension and left-to-right order', async () => {

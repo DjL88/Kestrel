@@ -26,7 +26,7 @@ test('V2 three-frame selection updates the real catalogue, board and saved proje
 
   await root.getByRole('button', { name: 'Formats', exact: true }).first().click();
   const selector = root.getByRole('group', { name: 'Number of continuous frames' });
-  await expect(selector.getByRole('button', { name: 'Rejoin (1)' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(selector.getByRole('button', { name: 'Rejoin into 1 frame' })).toHaveAttribute('aria-pressed', 'true');
   await selector.getByRole('button', { name: '3 frames' }).click();
   await expect(selector.getByRole('button', { name: '3 frames' })).toHaveAttribute('aria-pressed', 'true');
 
@@ -61,6 +61,6 @@ test('V2 three-frame selection updates the real catalogue, board and saved proje
   await page.locator('body').click({ position: { x: 5, y: 5 } });
   await page.keyboard.press('Control+z');
   await expect(reopened.getByRole('button', { name: '3 frames' })).toHaveAttribute('aria-pressed', 'true');
-  await reopened.getByRole('button', { name: 'Rejoin (1)' }).click();
-  await expect(reopened.getByRole('button', { name: 'Rejoin (1)' })).toHaveAttribute('aria-pressed', 'true');
+  await reopened.getByRole('button', { name: 'Rejoin into 1 frame' }).click();
+  await expect(reopened.getByRole('button', { name: 'Rejoin into 1 frame' })).toHaveAttribute('aria-pressed', 'true');
 });

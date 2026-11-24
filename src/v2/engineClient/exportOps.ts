@@ -12,7 +12,7 @@ import type { CropTransform, ExportRequest, SizePreset } from '../ui/contract';
 export interface ExportFrameInfo extends Pick<PhotoFrame, 'edit' | 'v2EditGroups'> { id: string; filename: string; isDemo?: boolean; removedAt?: number; sizeCrops?: unknown; formats?: unknown; formatSplits?: unknown; splitFrames?: unknown; splitPanOffset?: unknown; exif?: { width?: number; height?: number }; framing?: PhotoFraming }
 /** 'edited' is the photo with its recipe (and overlay if asked). 'unedited' is the same framing with no edit at all, developed to JPEG: it is not the original file. */
 export interface ExportVariant { kind: 'edited' | 'unedited'; edit: PhotoEdit; suffix: string }
-export interface ExportJob { frameId: string; format: ExportFormat; size: { width: number; height: number }; crop: CropTransform; variants: ExportVariant[]; /** One source image spread over two adjoining output canvases. */ sections?: 2 | 3 }
+export interface ExportJob { frameId: string; format: ExportFormat; size: { width: number; height: number }; crop: CropTransform; variants: ExportVariant[]; /** One source image spread over two adjoining output canvases. */ sections?: 2 | 3 | 4 | 5 }
 /** `originals` are photos whose exact original bytes are to be copied, never a developed or preview file. */
 export type ExportPlan = { jobs: ExportJob[]; originals: string[]; summary: string } | { error: string };
 
@@ -106,7 +106,7 @@ export function planExport(request: ExportRequest, frames: readonly ExportFrameI
       const crop = crops[size.id] ?? { ...DEFAULT_CROP };
       const offset = formatSplitOffset(splitState, size.id);
       const movedCrop = offset === 0 ? crop : { ...crop, panX: Math.max(-50, Math.min(50, crop.panX + offset)) };
-      jobs.push({ frameId: frame.id, variants, size: capped, crop: movedCrop, ...(sections > 1 ? { sections: sections as 2 | 3 } : {}), format: {
+      jobs.push({ frameId: frame.id, variants, size: capped, crop: movedCrop, ...(sections > 1 ? { sections: sections as 2 | 3 | 4 | 5 } : {}), format: {
         id: size.id, label: size.label, width: capped.width, height: capped.height, fit: 'fill', quality, format,
         prefix: `${size.id.replace(SAFE_PREFIX, '_').slice(0, 24)}_`,
       } });

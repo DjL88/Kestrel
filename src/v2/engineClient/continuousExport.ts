@@ -1,14 +1,15 @@
+import { isSplitFrameCount, type SplitFrameCount } from './formatSplitOps';
 /** Geometry shared by the one-render, consecutive-frame export.
  * All panels sample the SAME completed canvas, so seam pixels are adjacent.
- * Supports one, two or three adjacent sections from one continuous render. */
+ * Supports one to five adjacent sections from one continuous render. */
 export interface ContinuousSection { index: number; x: number; y: 0; width: number; height: number }
 export interface ContinuousExportLayout {
   width: number; height: number; sectionWidth: number; sections: ContinuousSection[];
 }
-export function continuousExportLayout(sectionWidth: number, height: number, count: 1 | 2 | 3): ContinuousExportLayout {
+export function continuousExportLayout(sectionWidth: number, height: number, count: SplitFrameCount): ContinuousExportLayout {
   if (![sectionWidth, height].every(v => Number.isSafeInteger(v) && v > 0 && v <= 20000) ||
-      (count !== 1 && count !== 2 && count !== 3) || sectionWidth * count > 20000) {
-    throw new RangeError('Split output must have one, two or three positive sections within the export canvas limit.');
+      !isSplitFrameCount(count) || sectionWidth * count > 20000) {
+    throw new RangeError('Split output must have one to five positive sections within the export canvas limit.');
   }
   const width = sectionWidth * count;
   return {
@@ -18,13 +19,13 @@ export function continuousExportLayout(sectionWidth: number, height: number, cou
 }
 /** If an output must shrink to fit source detail, shrink the combined canvas
  * together and divide it exactly. Never render panels at different scales. */
-export function cappedContinuousLayout(combinedWidth: number, height: number, count: 1 | 2 | 3): ContinuousExportLayout {
+export function cappedContinuousLayout(combinedWidth: number, height: number, count: SplitFrameCount): ContinuousExportLayout {
   const sectionWidth = Math.floor(combinedWidth / count);
   return continuousExportLayout(sectionWidth, height, count);
 }
 
 /** Keep ordering visible on disk while retaining the requested JPEG/PNG extension. */
-export function numberedSectionFilename(filename: string, section: number, count: 1 | 2 | 3): string {
+export function numberedSectionFilename(filename: string, section: number, count: SplitFrameCount): string {
   if (count === 1) return filename;
   if (!Number.isInteger(section) || section < 1 || section > count || !/\.[a-zA-Z0-9]{2,5}$/.test(filename)) {
     throw new RangeError('Split output requires a numbered section and a recognised filename extension.');
