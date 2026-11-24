@@ -149,7 +149,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
       case 'edit.copy': actions.copyRecipe(); break;
       case 'edit.paste': actions.pasteRecipe(); break;
       case 'edit.selectAll': actions.selectAllPhotos(); break;
-      case 'file.export': if (!store.collage) actions.setExportOpen(true); break;
+      case 'file.export': if (store.collage) actions.exportCollage?.(store.collage.format.startsWith('a') || store.collage.format === '12x12-album' ? 'pdf' : 'jpeg'); else actions.setExportOpen(true); break;
       case 'app.settings': actions.setSettingsOpen(true); break;
     }
   }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, activePhoto, actions]);
@@ -412,7 +412,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             filmstripCollapsed={store.filmstripCollapsed}
             onBack={actions.backToProjects}
             onSetAssistMode={actions.setAssistMode}
-            onExport={() => store.collage ? window.alert('Collage export is not enabled yet. The photo Export command only exports individual photographs.') : actions.setExportOpen(true)}
+            onExport={() => store.collage ? actions.exportCollage?.(store.collage.format.startsWith('a') || store.collage.format === '12x12-album' ? 'pdf' : 'jpeg') : actions.setExportOpen(true)}
             onOpenRemoved={() => actions.setRemovedOpen(true)}
             onOpenSettings={() => actions.setSettingsOpen(true)}
             onImport={actions.importPhotos}
@@ -479,7 +479,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                   onBrowseProject={actions.browseCollageProjectPhotos} onAddFromProject={actions.addCollageProjectPhotos} PhotoSurface={store.PhotoSurface}
                   onChange={(next) => actions.updateCollage?.(next)}
                   onEditPhoto={(id) => { actions.selectPhoto(id); setCollageEditingId(id); }}
-                  onImport={actions.importPhotos} />
+                  onImport={actions.importPhotos} onExportPages={actions.exportCollage} />
               ) : store.gridViewOpen ? (
                 <GridView
                   photos={store.photos}
@@ -574,7 +574,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                 onImportFolder={actions.importFolder}
                 onRunAutoCull={actions.runAutoCull}
                 onCreateCollage={store.collage ? undefined : actions.createCollageFromSelection}
-                onExportSelected={() => store.collage ? window.alert('Collage export is not enabled yet. The photo Export command only exports individual photographs.') : actions.setExportOpen(true)}
+                onExportSelected={() => store.collage ? actions.exportCollage?.(store.collage.format.startsWith('a') || store.collage.format === '12x12-album' ? 'pdf' : 'jpeg') : actions.setExportOpen(true)}
               />
             </div>
 
