@@ -102,6 +102,7 @@ interface WorkBatch {
   handle: SchedulerTaskHandle;
   items: WorkItem<unknown>[];
   manualProgress: boolean;
+  lastItemPublishedAt: number;
   subitems?: TaskItemInfo[];
   work(index: number, ctx: ScheduledContext): Promise<void>;
   saveCheckpoint(): void;
@@ -173,10 +174,20 @@ export function createEngineScheduler(options: {
   let highest = 100;
   let pausedAll = false;
 
-  const updateItems = (job: WorkBatch, detail?: string) => job.handle.patch({
-    items: job.subitems ?? job.items.map(({ id, label, state, detail: explanation }) => ({ id, label, state, ...(explanation ? { detail: explanation } : {}) })),
-    ...(detail !== undefined ? { detail } : {}),
-  });
+  const updateItems = (job: WorkBatch, detail?: string, force = false) => {
+    // A 1,695-photo import can emit thousands of tiny stage updates.
+    // Building a fresh 1,695-element array on *every* stage is quadratic.
+    // Progress/headers remain live; publish child details at most every 80ms,
+    // and always flush before finishing, pausing or cancelling a job.
+    const at = now();
+    if (!force && at - job.lastItemPublishedAt < 80) return;
+    job.lastItemPublishedAt = at;
+    job.handle.patch({
+      items: job.subitems ?? job.items.map(({ id, label, state, detail: explanation }) =>
+        ({ id, label, state, ...(explanation ? { detail: explanation } : {}) })),
+      ...(detail !== undefined ? { detail } : {}),
+    });
+  };
   const countDone = (job: WorkBatch) => job.items.filter(item => item.state === 'done').length;
   const publishProgress = (job: WorkBatch) => {
     if (job.manualProgress) { updateItems(job); return; }
@@ -185,6 +196,7 @@ export function createEngineScheduler(options: {
     updateItems(job);
   };
   const finishJob = (job: WorkBatch) => {
+    updateItems(job, undefined, true);
     if (job.cancelled) return job.finish('cancelled');
     const failed = job.items.filter(item => item.state === 'failed');
     if (failed.length) {
@@ -236,7 +248,7 @@ export function createEngineScheduler(options: {
         setSubitems(subitems) {
           if (job.cancelled || controller.signal.aborted) return;
           job.subitems = subitems.map(sub => ({ ...sub, state: 'queued' }));
-          updateItems(job);
+          updateItems(job, undefined, true);
         },
         updateSubitem(id, state, detail) {
           if (job.cancelled || controller.signal.aborted || !job.subitems) return;
@@ -307,6 +319,7 @@ export function createEngineScheduler(options: {
             if ((job.paused || job.pauseRequested || pausedAll) && job.items.some(item => item.state === 'queued')) {
               job.paused = true;
               job.pauseRequested = false;
+              updateItems(job, undefined, true);
               job.handle.transition('paused', `${countDone(job)} of ${job.items.length} completed; paused at a safe boundary`);
             } else if (job.items.some(item => item.state === 'queued')) {
               job.handle.transition('queued', `${countDone(job)} of ${job.items.length} completed; waiting for processing slot`);
@@ -362,7 +375,7 @@ export function createEngineScheduler(options: {
         job.cancelled = true;
         job.controller?.abort();
         for (const item of job.items) if (item.state === 'queued') item.state = 'cancelled';
-        updateItems(job);
+        updateItems(job, undefined, true);
         if (!job.active) job.finish('cancelled');
         pump();
       },
@@ -380,7 +393,7 @@ export function createEngineScheduler(options: {
       resource: definition.resource ?? 'cpu', reservation: estimatedReservation(definition.resource ?? 'cpu', definition.reservation),
       pauseable: definition.pauseable !== false && items.length > 1,
       active: false, paused: false, pauseRequested: false, cancelled: false, controller: null,
-      handle, items: items as WorkItem<unknown>[], manualProgress: false,
+      handle, items: items as WorkItem<unknown>[], manualProgress: false, lastItemPublishedAt: Number.NEGATIVE_INFINITY,
       work: (index, ctx) => definition.runItem(items[index].input, snapshot, ctx),
       saveCheckpoint: () => {
         if (!recovery) return;
