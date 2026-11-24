@@ -85,9 +85,15 @@ export function newCollagePage(template: CollageTemplate = 'triptych', photoIds:
     slots: shapes[template].map((shape, i) => ({ ...shape, id: nextId(), photoId: photoIds[i] ?? null })) };
 }
 export function createCollage(photoIds: readonly string[] = [], format: CollageFormat = 'square'): CollageDocument {
-  const template: CollageTemplate = photoIds.length === 2 ? 'diagonal' : photoIds.length === 4 ? 'grid' : 'triptych';
-  const first = newCollagePage(template, photoIds);
-  return { version: 1, format, pages: [first], activePageId: first.id };
+  // A selection of more than four photographs becomes a paged collage, not a single
+  // layout that silently loses every photograph beyond its last available window.
+  const template: CollageTemplate = photoIds.length === 2 ? 'diagonal' : photoIds.length >= 4 ? 'grid' : 'triptych';
+  const pageSize = shapes[template].length;
+  const pages = photoIds.length
+    ? Array.from({ length: Math.ceil(photoIds.length / pageSize) }, (_, index) =>
+      newCollagePage(template, photoIds.slice(index * pageSize, (index + 1) * pageSize)))
+    : [newCollagePage(template)];
+  return { version: 1, format, pages, activePageId: pages[0].id };
 }
 export function collagePage(doc: CollageDocument): CollagePage {
   return doc.pages.find((p) => p.id === doc.activePageId) ?? doc.pages[0];
@@ -101,9 +107,20 @@ export function replaceCollagePhoto(doc: CollageDocument, slotId: string, photoI
 }
 export function changeCollageTemplate(doc: CollageDocument, template: CollageTemplate): CollageDocument {
   const old = collagePage(doc);
-  const next = newCollagePage(template, old.slots.map((s) => s.photoId).filter((id): id is string => id !== null));
-  return { ...doc, pages: doc.pages.map((p) => p.id === old.id ? { ...next, id: old.id, background: old.background, gap: old.gap,
-    caption: old.caption, captionColour: old.captionColour } : p) };
+  const photoIds = old.slots.map((s) => s.photoId).filter((id): id is string => id !== null);
+  const capacity = shapes[template].length;
+  const next = newCollagePage(template, photoIds.slice(0, capacity));
+  const rest = photoIds.slice(capacity);
+  // If a four-window page becomes a two-window layout, keep its remaining photos
+  // in a following page rather than silently dropping either choice.
+  const overflow = Array.from({ length: Math.ceil(rest.length / capacity) }, (_, i) =>
+    newCollagePage(template, rest.slice(i * capacity, (i + 1) * capacity)));
+  const pages = doc.pages.flatMap((p) => p.id === old.id
+    ? [{ ...next, id: old.id, background: old.background, gap: old.gap,
+      caption: old.caption, captionColour: old.captionColour }, ...overflow.map((page) => ({ ...page,
+      background: old.background, gap: old.gap, captionColour: old.captionColour }))]
+    : [p]);
+  return { ...doc, pages };
 }
 export function addCollagePage(doc: CollageDocument, template: CollageTemplate = 'triptych'): CollageDocument {
   const page = newCollagePage(template);
