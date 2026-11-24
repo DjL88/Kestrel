@@ -1,4 +1,5 @@
-import { engineScheduler, type SchedulerTicket } from '../../core/engineScheduler';
+import { engineScheduler, NonRetryableTaskError, type SchedulerTicket } from '../../core/engineScheduler';
+import { requireZipCapacity, zipMemoryLimit } from '../../core/exportArchiveBudget';
 import { isHeifFile, isRawPreviewFile, fullResolutionRasterFormat } from '../../core/rawFormats';
 import { DEFAULT_FRAMING, framedSize } from '../../core/photoFraming';
 import { ORIGINAL_FORMAT_ID } from './formatOps';
@@ -71,6 +72,13 @@ export async function scheduleV2PhotoExports(input: {
     ? [...units, { id: 'archive:delivery', frameId: '', kind: 'archive', label: 'Assemble and save complete ZIP' }]
     : units;
   const zipFiles = new Map<string, File>();
+  const nav = typeof navigator === 'undefined' ? null : navigator as Navigator & { deviceMemory?: number };
+  const zipBudget = zipMemoryLimit({
+    mobile: Boolean(nav && /Android|iPhone|iPad/i.test(nav.userAgent)),
+    deviceMemoryGiB: nav?.deviceMemory,
+  });
+  let zippedBytes = 0;
+  let zipLimitExceeded = false;
   const names = new Set<string>();
   const reservedNames = new Map<string, string>();
   const started = new Date();
@@ -88,6 +96,8 @@ export async function scheduleV2PhotoExports(input: {
     itemLabel: item => item.label,
     runItem: async (item, submitted, ctx) => {
       if (item.kind === 'archive') {
+        if (zipLimitExceeded) throw new NonRetryableTaskError(
+          'The selected ZIP exceeded safe device memory. Start a smaller ZIP or save individual files to a desktop folder.');
         ctx.stage('Preparing complete ZIP archive');
         if (zipFiles.size !== units.length)
           throw new Error(`The archive is missing ${units.length - zipFiles.size} output files. Retry failed render items before delivering the ZIP.`);
@@ -100,6 +110,8 @@ export async function scheduleV2PhotoExports(input: {
         ctx.acknowledgeCommitted();
         return;
       }
+      if (zipLimitExceeded) throw new NonRetryableTaskError(
+        'The ZIP is too large for safe memory use. Create a smaller batch or export to a folder.');
       ctx.stage('Checking original and output settings');
       const frame = submitted.frames.find(candidate => candidate.id === item.frameId);
       if (!frame) throw new Error('The selected photograph is missing from this export snapshot.');
@@ -162,6 +174,12 @@ export async function scheduleV2PhotoExports(input: {
         if (isZip) {
           // A ZIP is one destination write. Intermediate images are rendered,
           // not falsely labelled as individually saved or recoverable.
+          try { zippedBytes = requireZipCapacity(zippedBytes, output.size, zipBudget); }
+          catch (reason) {
+            zipLimitExceeded = true;
+            zipFiles.clear(); // release references to large intermediate files
+            throw new NonRetryableTaskError(reason instanceof Error ? reason.message : 'ZIP memory limit reached.');
+          }
           zipFiles.set(item.id, output);
         } else {
           ctx.stage(`Saving ${name}`);
