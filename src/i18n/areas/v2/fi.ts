@@ -1025,4 +1025,10 @@ export const fi: AreaTranslation<typeof source> = {
     forgetBody: 'Jos olet kirjautunut, ostanut lisenssin, käyttänyt valinnaista pilviapua tai lähettänyt viestin, InFlight säilyttää palvelimillaan hieman tietoja sinusta. Kun poistat käytöstä ”auta parantamaan ehdotuksia”, jakamasi tiedot poistetaan jo. Jos haluat loput poistetuiksi, lähetä pyyntö sähköpostiosoitteesta, jolla kirjauduit. InFlightissa ei vielä ole yhden napautuksen palvelinpoistoa, joten pyynnön käsittelee ihminen, ja sinulle kerrotaan, mitä mahdollisesti on säilytettävä (esimerkiksi lain vaatimat maksutiedot).',
     forgetLink: 'Pyydä InFlightia poistamaan tilitietoni',
   },
+  crash: {
+    title: "Tämä näkymä lakkasi toimimasta",
+    body: "Kuvasi ja muokkauksesi ovat tallessa: InFlight ei koskaan muuta alkuperäisiä tiedostojasi. Lataa uudelleen jatkaaksesi ja lähetä alla olevat tiedot, jos tämä toistuu.",
+    reload: "Lataa InFlight uudelleen",
+    details: "Tiedot",
+  },
 };
