@@ -500,6 +500,8 @@ export interface WorkspaceActions {
   setHubState: (state: HubViewState) => void;
 
   // Photos, Culling & Selection
+  /** Retain a thumbnail while a browsing tile is visible; release on exit. */
+  requestThumbnail?: (photoId: string) => () => void;
   selectPhoto: (photoId: string, modifiers?: { ctrl?: boolean; shift?: boolean }) => void;
   selectAllPhotos: () => void;
   clearSelection: () => void;
