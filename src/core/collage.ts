@@ -12,6 +12,32 @@ export interface CollageSlot {
    * from one edge of the picture to the other (0 is centred). Omitted means centred and filled. */
   zoom?: number; panX?: number; panY?: number;
 }
+export const COLLAGE_CAPTION_FONTS = ['sans-serif', 'serif', 'monospace'] as const;
+export type CollageCaptionFont = typeof COLLAGE_CAPTION_FONTS[number];
+export interface CollageCaptionStyle {
+  font: CollageCaptionFont;
+  /** Font size as a percentage of the page width. */
+  size: number;
+  /** Vertical position in the available safe area: 0 top, 50 middle, 100 bottom. */
+  position: number;
+}
+export const DEFAULT_COLLAGE_CAPTION_STYLE: CollageCaptionStyle = { font: 'sans-serif', size: 2.5, position: 100 };
+export function collageCaptionStyle(raw: unknown): CollageCaptionStyle {
+  const style = raw && typeof raw === 'object' ? raw as Partial<CollageCaptionStyle> : {};
+  const bounded = (value: unknown, fallback: number, min: number, max: number) =>
+    typeof value === 'number' && Number.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
+  return {
+    font: COLLAGE_CAPTION_FONTS.includes(style.font as CollageCaptionFont) ? style.font! : 'sans-serif',
+    size: bounded(style.size, 2.5, 1, 6),
+    position: bounded(style.position, 100, 0, 100),
+  };
+}
+/** Shared safe area and line height for canvas and editor, in output page pixels. */
+export function collageCaptionGeometry(width: number, height: number, raw: unknown) {
+  const style = collageCaptionStyle(raw);
+  return { ...style, x: width * .05, y: height * .03, width: width * .9, height: height * .94,
+    fontPx: width * style.size / 100, lineHeight: 1.2 };
+}
 export interface CollagePage {
   id: string;
   template: CollageTemplate;
@@ -20,6 +46,7 @@ export interface CollagePage {
   gap: number;
   caption: string;
   captionColour: string;
+  captionStyle?: CollageCaptionStyle;
 }
 export interface CollageDocument {
   version: 1;
@@ -166,11 +193,11 @@ export function changeCollageTemplate(doc: CollageDocument, template: CollageTem
   // overwriting the layout, assignments or captions on other existing pages.
   const extraPages = Array.from({ length: Math.ceil(overflow.length / capacity) }, (_, index) => {
     const page = pageWithFraming(overflow.slice(index * capacity, (index + 1) * capacity));
-    return { ...page, background: old.background, gap: old.gap, captionColour: old.captionColour };
+    return { ...page, background: old.background, gap: old.gap, captionColour: old.captionColour, ...(old.captionStyle ? { captionStyle: { ...old.captionStyle } } : {}) };
   });
   const pages = doc.pages.flatMap((p) => p.id === old.id
     ? [{ ...redesigned, id: old.id, background: old.background, gap: old.gap,
-      caption: old.caption, captionColour: old.captionColour }, ...extraPages] : [p]);
+      caption: old.caption, captionColour: old.captionColour, ...(old.captionStyle ? { captionStyle: { ...old.captionStyle } } : {}) }, ...extraPages] : [p]);
   return { ...doc, pages };
 }
 export function addCollagePage(doc: CollageDocument, template: CollageTemplate = 'triptych'): CollageDocument {
@@ -235,7 +262,7 @@ export function collageSlotPlacement(imageAspect: number, windowAspect: number, 
 export function duplicateCollagePage(doc: CollageDocument): CollageDocument {
   if (doc.pages.length >= MAX_COLLAGE_PAGES) return doc;
   const old = collagePage(doc);
-  const copy = { ...old, id: nextId(), slots: old.slots.map((s) => ({ ...s, id: nextId() })) };
+  const copy = { ...old, ...(old.captionStyle ? { captionStyle: { ...old.captionStyle } } : {}), id: nextId(), slots: old.slots.map((s) => ({ ...s, id: nextId() })) };
   const index = doc.pages.findIndex((p) => p.id === old.id);
   const pages = doc.pages.slice();
   pages.splice(index + 1, 0, copy);
@@ -263,7 +290,9 @@ export function readCollage(value: unknown): CollageDocument | null {
       [s.panX, s.panY].every((v) => v === undefined || (Number.isFinite(v) && v >= -1 && v <= 1))))) return null;
   if (new Set(doc.pages.map(p => p.id)).size !== doc.pages.length || doc.pages.some(p => new Set(p.slots.map(s => s.id)).size !== p.slots.length)) return null;
   if (!doc.activePageId || !doc.pages.some((p) => p.id === doc.activePageId)) return null;
-  return doc as CollageDocument;
+  // Old pages deliberately retain their original serialised shape.
+  return { ...doc, pages: doc.pages.map(page => page.captionStyle === undefined ? page :
+    { ...page, captionStyle: collageCaptionStyle(page.captionStyle) }) } as CollageDocument;
 }
 
 /** One-based page numbers, including both ends, as displayed in the editor. */
