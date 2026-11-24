@@ -13,9 +13,10 @@ interface Props {
   onChange: (document: CollageDocument) => void;
   onEditPhoto: (photoId: string) => void;
   onImport: () => void;
+  onExportPages?: (type: 'jpeg' | 'png' | 'pdf') => void;
 }
 const field = 'rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-2 text-sm text-[var(--text-primary)]';
-export default function CollageEditor({ document: doc, photos, projects, onBrowseProject, onAddFromProject, PhotoSurface, onChange, onEditPhoto, onImport }: Props) {
+export default function CollageEditor({ document: doc, photos, projects, onBrowseProject, onAddFromProject, PhotoSurface, onChange, onEditPhoto, onImport, onExportPages }: Props) {
   const page = collagePage(doc);
   const format = COLLAGE_FORMATS[doc.format];
   const aspect = format.width / format.height;
@@ -26,6 +27,8 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
   const [sourceSelection, setSourceSelection] = React.useState<string[]>([]);
   const [sourceSearch, setSourceSearch] = React.useState('');
   const [sourceLoading, setSourceLoading] = React.useState(false);
+  const [showExport, setShowExport] = React.useState(false);
+  const [socialFormat, setSocialFormat] = React.useState<'jpeg' | 'png'>('jpeg');
   const slot = page.slots.find((item) => item.id === activeSlot) ?? page.slots[0];
   const photo = photos.find((item) => item.id === slot?.photoId);
   const setPage = (patch: Parameters<typeof modifyCollagePage>[1]) => onChange(modifyCollagePage(doc, patch));
@@ -45,6 +48,8 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
         </div>
         <button type="button" className={field} onClick={() => { onChange(addCollagePage(doc, page.template)); setActiveSlot(null); }}>+ Page</button>
         <button type="button" className={field} onClick={() => onChange(duplicateCollagePage(doc))}>Duplicate page</button>
+        {onExportPages && <button type="button" className="min-h-10 rounded bg-[var(--brand-accent)] px-3 text-sm font-semibold text-[var(--text-on-accent)]"
+          onClick={() => setShowExport((open) => !open)} aria-expanded={showExport}>Export pages</button>}
         <button type="button" className={field} disabled={doc.pages.length === 1} onClick={() => { onChange(deleteCollagePage(doc)); setActiveSlot(null); }}
           aria-label="Delete current page">Delete page</button>
       </div>
@@ -115,9 +120,26 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
               onClick={() => setSourceProject(projects[0].id)}>Choose from another project</button>}
             <p className="text-xs text-[var(--text-muted)]">A photograph can be used in several windows and on different pages. Edits update every appearance without changing the original.</p>
           </div>
+          {showExport && onExportPages && <div className="space-y-3 rounded-lg border border-[var(--border-default)] p-3" aria-label="Collage export settings">
+            <strong className="text-sm">{printing ? 'Printed photo album' : 'Social media carousel'}</strong>
+            {!printing && <label className="block text-xs">Page format
+              <select className={`mt-1 w-full ${field}`} value={socialFormat}
+                onChange={(e) => setSocialFormat(e.target.value as 'jpeg' | 'png')}>
+                <option value="jpeg">JPEG · high quality</option><option value="png">PNG · lossless</option>
+              </select>
+            </label>}
+            <p className="text-xs text-[var(--text-secondary)]">
+              {printing ? 'Multi-page RGB PDF at 300 PPI, with 3 mm bleed and physical trim boxes. A photo below print resolution stops the export; this is not CMYK or PDF/X.' :
+                `${doc.pages.length} page${doc.pages.length === 1 ? '' : 's'} at ${format.width} × ${format.height} pixels. A multi-page export downloads as one ZIP.`}
+            </p>
+            <button type="button" onClick={() => onExportPages(printing ? 'pdf' : socialFormat)}
+              className="min-h-11 w-full rounded bg-[var(--brand-accent)] px-3 text-sm font-semibold text-[var(--text-on-accent)]">
+              {printing ? 'Export print PDF' : `Export ${doc.pages.length} ${socialFormat.toUpperCase()} page${doc.pages.length === 1 ? '' : 's'}`}
+            </button>
+          </div>}
           <p className="border-t border-[var(--border-default)] pt-3 text-xs text-[var(--text-secondary)]">
-            {printing ? 'Print layout selected. Press-ready PDF export requires a full-resolution render, bleed and margin checks; it is not enabled yet.' :
-              'Social layout selected. High-resolution page export is being connected; this canvas is a preview.'}
+            {printing ? 'The original photos remain unchanged. Check your lab’s required colour profile and safe margins before ordering.' :
+              'Images are composed from verified edited photo data, not enlarged screenshots.'}
           </p>
         </aside>
       </div>
