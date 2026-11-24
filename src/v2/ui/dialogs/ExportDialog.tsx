@@ -45,18 +45,26 @@ export default function ExportDialog({
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(() => photo ? [photo.activeGroupId] : []);
   const [includeBefore, setIncludeBefore] = useState(false);
   const [includeAfter, setIncludeAfter] = useState(true);
-  const [includeOverlay, setIncludeOverlay] = useState(true);
-  const [includeWatermark, setIncludeWatermark] = useState(false);
   const [includeOriginal, setIncludeOriginal] = useState(false);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const onDialogKeyDown = useDialogFocus(open && !!photo, panelRef, onClose);
 
   if (!open || !photo) return null;
+  // Export the formats the canvas shows: every switched-on photo format, each as it is framed and split there.
   const enabledFormats = photo.sizes.filter(size => size.kind === 'photo' && size.enabled);
-  const initialSize = enabledFormats.find(size => size.id === 'orig-3x2') ?? enabledFormats[0];
   const selectedSizeIds = chosenSizes?.filter(id => enabledFormats.some(size => size.id === id))
-    ?? (initialSize ? [initialSize.id] : []);
+    ?? enabledFormats.map(size => size.id);
+  const frameCount = (sizeId: string) => {
+    const split = photo.formatSplits?.[sizeId];
+    return split?.enabled ? split.count ?? 2 : 1;
+  };
+  // Text and watermark are placed on the canvas, so the export carries exactly what is shown there.
+  const activeOverlay = photo.editGroups.find((g) => g.id === photo.activeGroupId)?.overlay;
+  const canvasOverlays = [
+    activeOverlay?.textEnabled ? STRINGS.exportDialog.overlayText : '',
+    activeOverlay?.watermarkEnabled ? STRINGS.exportDialog.overlayWatermark : '',
+  ].filter(Boolean);
   const photoIds = selectedPhotoIds.length ? selectedPhotoIds : [photo.id];
   const canRequestRaw = photoIds.length === 1 && photoIds[0] === photo.id &&
     photo.originalConnected && isRawPreviewFile(photo.filename) && canDevelopRaw();
@@ -98,8 +106,8 @@ export default function ExportDialog({
       includeBefore,
       includeOriginal,
       includeAfter,
-      includeOverlay,
-      includeWatermark,
+      includeOverlay: true,
+      includeWatermark: true,
       includeVideo: false,
       maxLongestEdgePx,
       photoIds,
@@ -255,7 +263,12 @@ export default function ExportDialog({
                           : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'
                       }`}
                     >
-                      <span className="truncate">{size.label}</span>
+                      <span className="min-w-0">
+                        <span className="block truncate">{size.label}</span>
+                        <span className="block font-mono text-[10px] text-[var(--text-muted)]">
+                          {size.width}×{size.height}{frameCount(size.id) > 1 ? ` · ${STRINGS.exportDialog.frameFiles(frameCount(size.id))}` : ''}
+                        </span>
+                      </span>
                       <span className="font-mono text-[10px] text-[var(--text-muted)] shrink-0">
                         {size.ratioLabel}
                       </span>
@@ -316,8 +329,6 @@ export default function ExportDialog({
                   { label: STRINGS.exportDialog.variantBefore(fileFormat.toUpperCase()), val: includeBefore, set: setIncludeBefore },
                   { label: STRINGS.exportDialog.variantAfter, val: includeAfter, set: setIncludeAfter },
                   { label: STRINGS.exportDialog.variantOriginal, val: includeOriginal, set: setIncludeOriginal },
-                  { label: STRINGS.exportDialog.variantOverlay, val: includeOverlay, set: setIncludeOverlay },
-                  { label: STRINGS.exportDialog.variantWatermark, val: includeWatermark, set: setIncludeWatermark },
                 ].map((item) => (
                   <button
                     key={item.label}
@@ -335,6 +346,9 @@ export default function ExportDialog({
                   </button>
                 ))}
               </div>
+              <p className="px-2 text-[11px] text-[var(--text-secondary)]" data-testid="export-overlay-note">
+                {canvasOverlays.length ? STRINGS.exportDialog.overlaysAsOnCanvas(canvasOverlays.join(' and ')) : STRINGS.exportDialog.noOverlaysOnCanvas}
+              </p>
             </section>
           </div>
         </div>

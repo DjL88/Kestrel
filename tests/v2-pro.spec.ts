@@ -100,7 +100,7 @@ test('Pro: Auto-Cull scores the photos on this device and never rejects', async 
   await expect(root.getByText(/were rejected|has been rejected/)).toHaveCount(0);
 });
 
-test('Pro: the text overlay is drawn into the exported file, and left out when the export asks for no overlay', async ({ page }) => {
+test('Pro: the text overlay on the canvas is drawn into the exported file, and left out once it is switched off on the canvas', async ({ page }) => {
   const root = await openProject(page, 'Overlay export check', '#586b82');
   await root.getByRole('button', { name: 'Overlays', exact: true }).first().click();
   await root.locator('div').filter({ hasText: /^Show text overlay on this photo/ }).getByRole('switch').first().click();
@@ -111,13 +111,16 @@ test('Pro: the text overlay is drawn into the exported file, and left out when t
     const sizes = dialog.locator('.grid.grid-cols-2 button[aria-pressed="true"]');
     const names = await sizes.allTextContents();
     for (const name of names.slice(1)) await dialog.locator('.grid.grid-cols-2 button[aria-pressed="true"]', { hasText: name }).first().click();
-    if (!withOverlay) await dialog.getByRole('button', { name: 'With text overlay' }).first().click();
+    // Export carries what the canvas shows; it has no overlay switch of its own.
+    await expect(dialog.getByTestId('export-overlay-note')).toContainText(withOverlay ? 'text overlay' : 'No text or watermark');
     const downloading = page.waitForEvent('download', { timeout: 60000 });
     await dialog.getByRole('button', { name: /^Save files$/i }).click();
     const download = await downloading;
     const { readFileSync } = await import('node:fs');
     const base64 = readFileSync(await download.path()).toString('base64');
-    await dialog.getByRole('button', { name: 'Close export dialog' }).click();
+    // The dialog closes itself once the file is saved; close it only if it is still open.
+    const close = dialog.getByRole('button', { name: 'Close export dialog' });
+    if (await close.isVisible()) await close.click();
     // Count pixels that are clearly not the plain photo colour.
     return page.evaluate(async (data) => {
       const bitmap = await createImageBitmap(await (await fetch(`data:image/jpeg;base64,${data}`)).blob());
@@ -130,6 +133,10 @@ test('Pro: the text overlay is drawn into the exported file, and left out when t
     }, base64);
   };
   expect(await exportOnce(true)).toBeGreaterThan(200);
+  // Switching the text off on the canvas leaves it out of the file.
+  const textSwitch = root.locator('div').filter({ hasText: /^Show text overlay on this photo/ }).getByRole('switch').first();
+  if (!(await textSwitch.isVisible())) await root.getByRole('button', { name: 'Overlays', exact: true }).first().click();
+  await textSwitch.click();
   expect(await exportOnce(false)).toBeLessThan(20);
 });
 
