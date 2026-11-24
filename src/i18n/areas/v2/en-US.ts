@@ -46,7 +46,7 @@ export const enUS: AreaTranslation<typeof source> = {
   assist: {
     subtitle: 'Plain-English guidance designed for low-confidence and color-blind workflows.',
     colourConfidenceHeading: 'Color & Tone Reassurance',
-    safeNote: 'Every color note includes objective Kelvin, tint, and tonal readings so you never have to guess by eye alone.',
+    safeNote: 'Color notes come from measuring the photo itself on this device, not from how it looks on your screen.',
   },
   bursts: {
     flagBestNotRanked: 'Not ranked yet. Run Auto-cull & Analyze to find the best frame.',
@@ -54,7 +54,7 @@ export const enUS: AreaTranslation<typeof source> = {
   settings: {
     assistance: {
       cvdLabel: 'Color-vision support',
-      cvdDesc: 'Adds plain-English color drift descriptions and objective warm/cool indicators next to color controls.',
+      cvdDesc: 'Names the main colors in each photo in words, and points out color casts, very strong colors and red and green areas that many colorblind people find hard to tell apart. Also labels the ends of the Temperature and Tint sliders. Off unless you turn it on.',
     },
   },
 };

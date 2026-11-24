@@ -1,8 +1,21 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
+
+/** New photos start with only Original on; switch on the formats these checks select, as a photographer would. */
+async function includeFormats(root: Locator, labels: string[]) {
+  await root.getByRole('button', { name: 'Formats', exact: true }).first().click();
+  for (const label of labels) {
+    const toggle = root.getByRole('button', { name: `Include ${label}`, exact: true });
+    if ((await toggle.getAttribute('aria-pressed')) !== 'true') await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  }
+  const close = root.getByRole('button', { name: 'Close Formats panel' });
+  if (await close.isVisible()) await close.click();
+}
 
 test('All Formats: Shift range, Cmd/Ctrl toggle and blank-space clear control the fixed toolbar', async ({ page }) => {
   await page.goto('/?v2&stub=1&autostart=1');
   const root = page.locator('.inflight-v2');
+  await includeFormats(root, ['Instagram Portrait', 'YouTube / Widescreen']);
   await root.getByRole('button', { name: /All formats/ }).click();
   const original = root.getByTestId('format-pair-orig-3x2').getByRole('button', { name: /Select/ });
   const wide = root.getByTestId('format-pair-yt-wide').getByRole('button', { name: /Select/ });
@@ -27,6 +40,7 @@ test('All Formats: Shift range, Cmd/Ctrl toggle and blank-space clear control th
 test('All Formats: dragging a selected tile moves the selected group together', async ({ page }) => {
   await page.goto('/?v2&stub=1&autostart=1');
   const root = page.locator('.inflight-v2');
+  await includeFormats(root, ['Instagram Portrait']);
   await root.getByRole('button', { name: /All formats/ }).click();
   await root.getByRole('button', { name: 'Select all' }).click();
 

@@ -3,12 +3,15 @@ import type { AssistMode, FeatureKey, Photo } from '../contract';
 import { STRINGS } from '../strings';
 import ProBadge, { useProHidden } from '../shell/ProBadge';
 import BrandIcon, { assistModeIconName } from '../icons/BrandIcon';
+import ColourWordsList from './ColourWordsList';
 
 interface CoPilotPanelProps {
   photo: Photo | null;
   assistMode: AssistMode;
   features: Record<FeatureKey, boolean>;
   ongoingCritique: boolean;
+  /** Colour-vision support (Settings, Assistance): show the colour check in words. */
+  cvdGuidance?: boolean;
   /** True while this photo's deep vision review is running. */
   reviewing?: boolean;
   onSetAssistMode: (mode: AssistMode) => void;
@@ -25,6 +28,7 @@ export default function CoPilotPanel({
   assistMode,
   features,
   ongoingCritique,
+  cvdGuidance = false,
   reviewing = false,
   onOpenSettings,
   onRunDeepVisionReview,
@@ -138,6 +142,7 @@ export default function CoPilotPanel({
         <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
           {photo.assistCritique.colourConfidence || STRINGS.copilot.nothingYet}
         </p>
+        {cvdGuidance && photo.assistCritique.colourCheck && <ColourWordsList words={photo.assistCritique.colourCheck} />}
         <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">{STRINGS.assist.safeNote}</p>
       </section>
 

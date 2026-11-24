@@ -2,7 +2,7 @@ import path from 'node:path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, loadEnv } from 'vite';
-import { parseControlPlaneUrl, parsePinnedKeys } from './src/core/licenceOnline';
+import { parseControlPlaneUrl, parsePinnedKeys } from './src/core/licenceOnline.ts';
 
 const onlineSettings = [
   'VITE_FIREBASE_API_KEY',
@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
     throw new Error('V2PROTO_REQUIRE_ONLINE_CONFIG must be true or false.');
   }
   if (onlineRequired === 'true') {
-    const env = loadEnv(mode, __dirname);
+    const env = loadEnv(mode, import.meta.dirname);
     const missing = onlineSettings.filter((name) => !env[name]?.trim());
     if (missing.length) throw new Error(`V2Proto online configuration missing: ${missing.join(', ')}`);
     if (!parseControlPlaneUrl(env.VITE_KESTREL_CONTROL_PLANE_URL)) {
@@ -38,7 +38,7 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'out/v2proto',
       emptyOutDir: true,
-      rollupOptions: { input: { index: path.resolve(__dirname, 'v2-proto.html') } },
+      rollupOptions: { input: { index: path.resolve(import.meta.dirname, 'v2-proto.html') } },
     },
   };
 });
