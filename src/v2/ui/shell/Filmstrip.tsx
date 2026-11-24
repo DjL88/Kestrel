@@ -78,6 +78,7 @@ export default function Filmstrip({
   const [photoView, setPhotoView] = useState<'filmstrip' | 'tiles'>('filmstrip');
   /** A phone-only batch selection mode; desktop keeps modifier-key multi-selection. */
   const [touchSelectionMode, setTouchSelectionMode] = useState(false);
+  useEffect(() => { if (!onCreateCollage) setTouchSelectionMode(false); }, [onCreateCollage]);
   const [expandedBursts, setExpandedBursts] = useState<Set<string>>(() => new Set());
   const [minimumRating, setMinimumRating] = useState(0);
   const [tileMenu, setTileMenu] = useState<{ x: number; y: number; photoId: string } | null>(null);
@@ -238,6 +239,25 @@ export default function Filmstrip({
             ))}
           </div>
 
+          <button type="button" aria-pressed={touchSelectionMode}
+            aria-label={touchSelectionMode ? 'Finish selecting photographs' : 'Select multiple photographs'}
+            onClick={() => {
+              if (touchSelectionMode) onClearSelection();
+              else if (collapsed) onSetCollapsed(false);
+              setTouchSelectionMode((mode) => !mode);
+            }}
+            className={`inline-flex min-h-10 shrink-0 items-center rounded px-3 text-xs font-semibold md:hidden
+              ${touchSelectionMode ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border border-[var(--border-default)] text-[var(--text-primary)]'}`}>
+            {touchSelectionMode ? `Done · ${selectedPhotoIds.length}` : 'Select'}
+          </button>
+          {touchSelectionMode && selectedPhotoIds.length > 1 && onCreateCollage && (
+            <button type="button" aria-label={`Make collage from ${selectedPhotoIds.length} selected photographs`}
+              onClick={() => { setTouchSelectionMode(false); onCreateCollage(selectedPhotoIds); }}
+              className="inline-flex min-h-10 shrink-0 items-center rounded bg-[var(--brand-accent)] px-3 text-xs font-semibold text-[var(--text-on-accent)] md:hidden">
+              Make collage · {selectedPhotoIds.length}
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onImport}
@@ -272,16 +292,6 @@ export default function Filmstrip({
 
         {/* Right: Multi-select batch actions OR Search + All/Flagged filter + Hide toggle */}
         <div className="flex shrink-0 items-center gap-2">
-          <button type="button" aria-pressed={touchSelectionMode}
-            aria-label={touchSelectionMode ? 'Finish selecting photographs' : 'Select multiple photographs'}
-            onClick={() => {
-              if (touchSelectionMode) onClearSelection();
-              setTouchSelectionMode((mode) => !mode);
-            }}
-            className={`inline-flex min-h-10 shrink-0 items-center rounded px-3 text-xs font-semibold md:hidden
-              ${touchSelectionMode ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border border-[var(--border-default)] text-[var(--text-primary)]'}`}>
-            {touchSelectionMode ? `Done · ${selectedPhotoIds.length}` : 'Select'}
-          </button>
           {selectedPhotoIds.length > 1 && (
             <div className="flex items-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--brand-accent-soft)] px-2 py-1 text-xs text-[var(--brand-accent)]">
               <span className="font-semibold tabular-nums">
