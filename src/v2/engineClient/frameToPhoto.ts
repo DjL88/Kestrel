@@ -197,7 +197,15 @@ export function taskToInfo(task: Task): TaskInfo {
     label: task.title,
     detail: task.detail ?? (task.total ? `${task.done} of ${task.total}` : ''),
     progress,
-    status: task.state === 'running' ? 'running' : task.state,
+    status: task.state,
+    done: task.done,
+    total: task.total,
+    stage: task.stage,
+    location: task.location,
+    pauseable: task.pauseable,
+    priority: task.priority,
+    startedAt: task.startedAt,
+    items: task.items,
     ...(task.endedAt !== undefined ? { endedAt: task.endedAt } : {}),
   };
 }
