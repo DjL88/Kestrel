@@ -1273,28 +1273,41 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (!current) throw new Error('Open a collage before exporting its pages.');
       if (collageExportRunning.current) throw new Error('A collage export is already running.');
       collageExportRunning.current = true;
-      const controller = new AbortController();
+      // The same document, photo edit recipes and page settings are retained
+      // throughout the queued job; later edits cannot silently alter the output.
+      const source = structuredClone(current);
+      const submitted = structuredClone(request);
       const sourceProjectId = current.shoot.id;
       const requestGeneration = openRequest.current;
-      const task = tasks.start('Exporting collage', { total: request.allPages ? current.shoot.collage?.pages.length ?? 1 : 1, cancel: () => controller.abort() });
       try {
-        const result = await exportCollage(current, provider.current!, request, controller.signal, (done, total) => {
-          if (openRequest.current !== requestGeneration || stateRef.current?.shoot.id !== sourceProjectId) controller.abort();
-          if (!controller.signal.aborted) task.progress(done, total);
+        const ticket = await engineScheduler.submit({
+          title: 'Exporting collage', kind: 'collage', resource: 'gpu', priority: 2,
+          pauseable: false, items: [{ id: sourceProjectId, label: 'Collage pages and destination' }],
+          snapshot: { projectId: sourceProjectId, request: submitted },
+          itemId: item => item.id, itemLabel: item => item.label,
+          runItem: async (_, __, ctx) => {
+            ctx.stage('Rendering all selected pages at print or social resolution');
+            const result = await exportCollage(source, provider.current!, submitted, ctx.signal, (done, total) => {
+              if (openRequest.current !== requestGeneration || stateRef.current?.shoot.id !== sourceProjectId)
+                throw new Error('The project changed during collage export. Nothing was downloaded.');
+              ctx.reportProgress(done, total, `${done} of ${total} pages rendered`);
+            });
+            ctx.checkCancelled();
+            if (openRequest.current !== requestGeneration || stateRef.current?.shoot.id !== sourceProjectId)
+              throw new Error('The project changed during collage export. Nothing was downloaded.');
+            ctx.stage('Confirming the native collage save');
+            if (!await saveExportFile(result.blob, result.name, ctx.signal))
+              throw new DOMException('The collage save was cancelled.', 'AbortError');
+            ctx.acknowledgeCommitted();
+            ctx.commitIfCurrent(() => setNotice('Collage export prepared. Your originals are unchanged.'));
+          },
         });
-        controller.signal.throwIfAborted();
-        if (openRequest.current !== requestGeneration || stateRef.current?.shoot.id !== sourceProjectId) {
-          throw new Error('The open project changed during export. Nothing was downloaded.');
-        }
-        if (!await saveExportFile(result.blob, result.name, controller.signal)) {
-          tasks.cancel(task.id);
-          throw new Error('Collage export cancelled.');
-        }
-        task.finish('Export prepared.');
-        setNotice('Collage export prepared. Your originals are unchanged.');
+        const outcome = await ticket.finished;
+        if (outcome === 'failed') throw new Error('Collage export failed. Open Tasks to view the error.');
+        if (outcome === 'cancelled') throw new Error('Collage export cancelled. Previously delivered files remain unchanged.');
       } catch (error) {
-        const message = controller.signal.aborted ? 'Collage export cancelled.' : error instanceof Error ? error.message : 'Collage export failed.';
-        task.fail(message); setNotice(message);
+        const message = error instanceof Error ? error.message : 'Collage export failed.';
+        setNotice(message);
         throw new Error(message);
       } finally { collageExportRunning.current = false; }
     },
