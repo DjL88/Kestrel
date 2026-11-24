@@ -6,9 +6,9 @@ import { v2Area } from './index';
 import { source } from './source';
 
 /**
- * Migration baseline: every supported language can render V2 while its dictionaries
- * are being ported. This is NOT a translation-completeness or native-review gate.
- * Register v2Area in the strict AREAS completeness suite only when locale files exist.
+ * Every supported language can render V2 with a British English fallback. Completeness is enforced separately: v2Area is
+ * registered in AREAS, so `src/core/locale.test.ts` fails if any full language leaves a V2 phrase in English. This is
+ * not a native-review gate; every non-English V2 file is a draft.
  */
 test('V2 stays in the shared translation system with a British English fallback', () => {
   assert.equal(v2Area.name, 'v2');
@@ -37,12 +37,9 @@ test('V2 dynamic messages preserve counts, dimensions and screen-reader compare 
   }
 });
 
-test('V2 missing translations remain explicitly detectable until migration completes', () => {
+test('every full language translates every V2 phrase', () => {
   for (const { code } of LANGUAGES) {
-    const missing = missingKeys(source, v2Area.translations[code]);
-    if (!code.startsWith('en')) {
-      // As locales are migrated, this count shrinks; it must not be hidden by fallback.
-      assert.ok(Array.isArray(missing), `${code}: missing-key inventory unavailable`);
-    }
+    if (code.startsWith('en') || code.includes('-')) continue;
+    assert.deepEqual(missingKeys(source, v2Area.translations[code]), [], `${code}: V2 phrases left in English`);
   }
 });

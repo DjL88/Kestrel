@@ -125,7 +125,7 @@ export default function ExportDialog({
           </div>
           <button
             type="button"
-            aria-label="Close export dialog"
+            aria-label={STRINGS.shellLabels.closeExport}
             onClick={onClose}
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >

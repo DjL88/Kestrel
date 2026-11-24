@@ -102,7 +102,7 @@ export default function SettingsDialog({
           </h2>
           <button
             type="button"
-            aria-label="Close settings"
+            aria-label={STRINGS.settingsMore.closeSettings}
             onClick={onClose}
             className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
@@ -114,7 +114,7 @@ export default function SettingsDialog({
         <div className="flex flex-1 flex-col overflow-hidden sm:flex-row">
           <nav
             role="tablist"
-            aria-label="Settings sections"
+            aria-label={STRINGS.settingsMore.sections}
             className="flex shrink-0 gap-1 overflow-x-auto border-b border-[var(--border-subtle)] bg-[var(--bg-input)] p-2 sm:w-48 sm:flex-col sm:border-b-0 sm:border-r"
           >
             {TABS.map((tab) => {
@@ -411,7 +411,7 @@ export default function SettingsDialog({
                 <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
                   {STRINGS.settings.aiProviders.intro}
                 </p>
-                {accountPanel && <p id="v2-real-ai-unavailable" role="status" className="text-xs leading-relaxed text-[var(--text-secondary)]">These external AI connections are not implemented in this workspace. The preview's Connect button did not verify an account or key, so it is disabled here.</p>}
+                {accountPanel && <p id="v2-real-ai-unavailable" role="status" className="text-xs leading-relaxed text-[var(--text-secondary)]">{STRINGS.settingsMore.aiNotImplemented}</p>}
                 <div className="space-y-2">
                   {settings.aiProviders.map((prov) => {
                     const connection = aiProviderControl(prov, Boolean(accountPanel));
@@ -455,9 +455,9 @@ export default function SettingsDialog({
                   })}
                 </div>
                 {accountPanel
-                  ? <p className="text-[11px] text-[var(--text-muted)]">Self-hosted and bring-your-own AI model connections are planned, but are not configured through this workspace yet. Local editing remains available.</p>
+                  ? <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.settingsMore.aiPlanned}</p>
                   : <div>
-                    <p className="text-[11px] font-medium text-[var(--text-muted)]">Bring your own: also works with a model you run yourself</p>
+                    <p className="text-[11px] font-medium text-[var(--text-muted)]">{STRINGS.settingsMore.byoAi}</p>
                     <WorksWith items={[{ id: 'ollama', name: 'Ollama' }, { id: 'lmstudio', name: 'LM Studio' }]} />
                   </div>}
               </div>
@@ -472,7 +472,7 @@ export default function SettingsDialog({
                       {STRINGS.settings.storage.localCacheHeading}
                     </h3>
                     <span className="font-mono text-xs text-[var(--brand-accent)] tabular-nums">
-                      {accountPanel ? 'Not configured' : `${settings.localCacheLimitGb} GB cap`}
+                      {accountPanel ? STRINGS.settingsMore.notConfigured : STRINGS.settingsMore.cacheCap(settings.localCacheLimitGb)}
                     </span>
                   </div>
                   <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
@@ -495,7 +495,7 @@ export default function SettingsDialog({
 
                 <StorageConnections />
                 <div>
-                    <p className="text-[11px] font-medium text-[var(--text-muted)]">Bring your own storage: also works with</p>
+                    <p className="text-[11px] font-medium text-[var(--text-muted)]">{STRINGS.settingsMore.byoStorage}</p>
                     <WorksWith items={[{ id: 'synology', name: 'Synology' }, { id: 'qnap', name: 'QNAP' }, { id: 'nextcloud', name: 'Nextcloud' }, { id: 'owncloud', name: 'ownCloud' }, { id: 'backblaze', name: 'Backblaze B2' }]} />
                 </div>
                 <p className="pt-1 text-[11px] text-[var(--text-muted)]">
@@ -516,27 +516,27 @@ export default function SettingsDialog({
             {activeTab === 'privacy' && (
               <div className="space-y-5">
                 <div>
-                  <h3 className="text-xs font-semibold text-[var(--text-primary)]">Your photos stay yours</h3>
+                  <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.settingsMore.privacyHeading}</h3>
                   <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
-                    InFlight works fully offline. Original files are never changed, moved or uploaded. Nothing leaves this device unless you turn on an optional feature and consent to it.{' '}
-                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-medium text-[var(--brand-accent)] underline">Read the privacy policy</a> (draft, not yet lawyer-reviewed).
+                    {STRINGS.settingsMore.privacyBody}{' '}
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-medium text-[var(--brand-accent)] underline">{STRINGS.settingsMore.privacyLink}</a> {STRINGS.settingsMore.privacyDraft}
                   </p>
                 </div>
                 <section aria-labelledby="erase-device-title" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
-                  <h3 id="erase-device-title" className="text-xs font-semibold text-[var(--text-primary)]">Erase everything on this device</h3>
+                  <h3 id="erase-device-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.settingsMore.eraseHeading}</h3>
                   <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-                    Removes every project, edit, preview and saved choice InFlight keeps in this browser or app, then restarts it. Your original photo files are not touched. This cannot be undone.
+                    {STRINGS.settingsMore.eraseBody}
                   </p>
-                  <label htmlFor="erase-confirm" className="block text-xs font-medium text-[var(--text-secondary)]">Type ERASE to confirm</label>
+                  <label htmlFor="erase-confirm" className="block text-xs font-medium text-[var(--text-secondary)]">{STRINGS.settingsMore.eraseConfirm}</label>
                   <input id="erase-confirm" type="text" autoComplete="off" value={eraseText} onChange={(e) => setEraseText(e.target.value)} className="h-11 w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)]" />
-                  <button type="button" disabled={eraseText.trim() !== 'ERASE'} onClick={onEraseDeviceData} className="min-h-11 rounded-[var(--radius-md)] bg-[var(--status-danger,#e5484d)] px-4 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Erase this device</button>
+                  <button type="button" disabled={eraseText.trim() !== 'ERASE'} onClick={onEraseDeviceData} className="min-h-11 rounded-[var(--radius-md)] bg-[var(--status-danger,#e5484d)] px-4 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">{STRINGS.settingsMore.eraseButton}</button>
                 </section>
                 <section aria-labelledby="erase-account-title" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
-                  <h3 id="erase-account-title" className="text-xs font-semibold text-[var(--text-primary)]">Forget me: account data held by InFlight</h3>
+                  <h3 id="erase-account-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.settingsMore.forgetHeading}</h3>
                   <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-                    If you have signed in, bought a licence, used optional cloud help, or sent a message, InFlight holds a small amount of data about you on its servers. Turning off “help improve suggestions” already deletes what you shared. To have the rest erased, send a request with the email you signed in with. InFlight does not yet have a one-tap server erase, so this goes to a person, and you will be told what, if anything, must be kept (for example payment records the law requires).
+                    {STRINGS.settingsMore.forgetBody}
                   </p>
-                  <a href="/#contact" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-[var(--radius-md)] border border-[var(--border-default)] px-4 text-xs font-medium text-[var(--text-primary)]">Ask InFlight to erase my account data</a>
+                  <a href="/#contact" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-[var(--radius-md)] border border-[var(--border-default)] px-4 text-xs font-medium text-[var(--text-primary)]">{STRINGS.settingsMore.forgetLink}</a>
                 </section>
               </div>
             )}

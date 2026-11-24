@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { STRINGS } from '../strings';
 import { COMMANDS, COMMAND_GROUP_LABELS, type CommandGroup, type CommandId } from '../commands/registry';
 import {
   PRESETS, chordLabel, commandsUsing, effectiveKeymap, eventChord, exportKeymap, findConflicts, importKeymap, isPresetId, withChord, withoutOverride,
@@ -44,8 +45,8 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
     onChange(result.keymap);
     setImportMessage(
       result.dropped.length === 0
-        ? `Imported. Key set: ${PRESETS[result.keymap.preset].label}.`
-        : `Imported. Key set: ${PRESETS[result.keymap.preset].label}. Not recognised and skipped: ${result.dropped.join(', ')}.`
+        ? STRINGS.keyboardKeys.imported(PRESETS[result.keymap.preset].label)
+        : STRINGS.keyboardKeys.importedSkipped(PRESETS[result.keymap.preset].label, result.dropped.join(', '))
     );
   };
   const keymap = effectiveKeymap(saved.preset, saved.overrides);
@@ -99,7 +100,7 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <label htmlFor="v2-keymap-preset" className="text-xs font-medium text-[var(--text-secondary)]">Key set</label>
+        <label htmlFor="v2-keymap-preset" className="text-xs font-medium text-[var(--text-secondary)]">{STRINGS.keyboardKeys.keySet}</label>
         <select
           id="v2-keymap-preset"
           value={saved.preset}
@@ -109,10 +110,10 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
           {(Object.keys(PRESETS) as PresetId[]).map((id) => <option key={id} value={id}>{PRESETS[id].label}</option>)}
         </select>
         <button type="button" className={buttonClass} disabled={Object.keys(saved.overrides).length === 0} onClick={() => onChange({ ...saved, overrides: {} })}>
-          Reset all my changes
+          {STRINGS.keyboardKeys.resetAll}
         </button>
-        <button type="button" className={buttonClass} onClick={handleExport}>Export keymap</button>
-        <button type="button" className={buttonClass} onClick={() => { setImportMessage(null); importInputRef.current?.click(); }}>Import keymap</button>
+        <button type="button" className={buttonClass} onClick={handleExport}>{STRINGS.keyboardKeys.exportKeymap}</button>
+        <button type="button" className={buttonClass} onClick={() => { setImportMessage(null); importInputRef.current?.click(); }}>{STRINGS.keyboardKeys.importKeymap}</button>
         <input
           ref={importInputRef}
           type="file"
@@ -128,9 +129,7 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
       </div>
       {importMessage && <p role="status" className="text-xs text-[var(--text-secondary)]">{importMessage}</p>}
       <p className="text-xs text-[var(--text-secondary)]">
-        Change a key, then press the new one. Esc cancels. If two commands share a key, neither runs until you fix it.
-        Capture One and Photo Mechanic key sets are not here yet: they must be checked against each vendor's own documentation first.
-        Export keymap saves your key set and changes as a file you can keep or share; Import keymap reads one back.
+        {STRINGS.keyboardKeys.help}
       </p>
       {GROUPS.map((group) => (
         <section key={group} aria-labelledby={`v2-keys-${group}`} className="space-y-1">
@@ -143,21 +142,21 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
               return (
                 <div key={command.id} className="space-y-1 px-3.5 py-2">
                   <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                    <span className="text-[var(--text-primary)]">{command.label}{changed ? ' (changed)' : ''}</span>
+                    <span className="text-[var(--text-primary)]">{command.label}{changed ? STRINGS.keyboardKeys.changedSuffix : ''}</span>
                     <span className="flex items-center gap-1.5">
                       <kbd className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-0.5 font-mono text-[11px] text-[var(--text-secondary)]">
-                        {capturing === command.id ? 'Press a key…' : chordLabel(chord, isMac)}
+                        {capturing === command.id ? STRINGS.keyboardKeys.pressAKey : chordLabel(chord, isMac)}
                       </kbd>
-                      <button type="button" className={buttonClass} aria-label={`Change key for ${command.label}`} onClick={() => setCapturing(capturing === command.id ? null : command.id)}>
-                        {capturing === command.id ? 'Cancel' : 'Change'}
+                      <button type="button" className={buttonClass} aria-label={STRINGS.keyboardKeys.changeLabel(command.label)} onClick={() => setCapturing(capturing === command.id ? null : command.id)}>
+                        {capturing === command.id ? STRINGS.keyboardKeys.cancel : STRINGS.keyboardKeys.change}
                       </button>
-                      <button type="button" className={buttonClass} aria-label={`Clear key for ${command.label}`} disabled={!chord} onClick={() => onChange(withChord(saved, command.id, ''))}>Clear</button>
-                      {changed && <button type="button" className={buttonClass} aria-label={`Reset key for ${command.label}`} onClick={() => onChange(withoutOverride(saved, command.id))}>Reset</button>}
+                      <button type="button" className={buttonClass} aria-label={STRINGS.keyboardKeys.clearLabel(command.label)} disabled={!chord} onClick={() => onChange(withChord(saved, command.id, ''))}>{STRINGS.keyboardKeys.clear}</button>
+                      {changed && <button type="button" className={buttonClass} aria-label={STRINGS.keyboardKeys.resetLabel(command.label)} onClick={() => onChange(withoutOverride(saved, command.id))}>{STRINGS.keyboardKeys.reset}</button>}
                     </span>
                   </div>
                   {clash.length > 0 && (
                     <p role="alert" className="text-xs text-[var(--status-danger,#e5484d)]">
-                      Clash: this key is also used for {clash.map(labelOf).join(', ')}. Neither runs until you change one.
+                      {STRINGS.keyboardKeys.clash(clash.map(labelOf).join(', '))}
                     </p>
                   )}
                 </div>
@@ -166,21 +165,22 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
           </div>
         </section>
       ))}
-      {Object.keys(conflicts).length === 0 && <p className="text-xs text-[var(--text-secondary)]">No clashes.</p>}
+      {Object.keys(conflicts).length === 0 && <p className="text-xs text-[var(--text-secondary)]">{STRINGS.keyboardKeys.noClashes}</p>}
       <section aria-labelledby="v2-pad-title" className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
-        <h3 id="v2-pad-title" className="text-xs font-semibold text-[var(--text-primary)]">Macro pad and dials</h3>
+        <h3 id="v2-pad-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.keyboardKeys.padHeading}</h3>
         <p className="text-xs text-[var(--text-secondary)]">
-          A pad or dial sends keys, like a keyboard. For each slot, say which key it sends (Learn, then press it on the pad) and what it should do.
-          The starting keys match the SinLoon pad set-up from InFlight Version 1. TourBox and other pads that send keys work the same way; TourBox has not been tested on a real device.
+          {STRINGS.keyboardKeys.padHelp}
         </p>
         <p aria-live="polite" data-testid="pad-last-key" className="text-xs text-[var(--text-secondary)]">
           {lastKey
-            ? `Last key received: ${chordLabel(lastKey.chord, isMac)}${lastKey.slot ? ` (${PAD_SLOT_LABELS[lastKey.slot]})` : ' (not a pad slot)'}`
-            : 'Press a key on your pad to check it arrives.'}
+            ? (lastKey.slot ? STRINGS.keyboardKeys.lastKey(chordLabel(lastKey.chord, isMac), PAD_SLOT_LABELS[lastKey.slot]) : STRINGS.keyboardKeys.lastKeyNoSlot(chordLabel(lastKey.chord, isMac)))
+            : STRINGS.keyboardKeys.pressPadKey}
         </p>
         {padProblems.map((problem) => (
           <p key={problem.slot} role="alert" className="text-xs text-[var(--status-danger,#e5484d)]">
-            Clash: {PAD_SLOT_LABELS[problem.slot]} sends {chordLabel(problem.chord, isMac)}, which is also {problem.other.length ? `the keyboard key for ${problem.other.map(labelOf).join(', ')}` : 'sent by another slot'}. Neither runs until you change one.
+            {problem.other.length
+              ? STRINGS.keyboardKeys.padClashKeyboard(PAD_SLOT_LABELS[problem.slot], chordLabel(problem.chord, isMac), problem.other.map(labelOf).join(', '))
+              : STRINGS.keyboardKeys.padClashSlot(PAD_SLOT_LABELS[problem.slot], chordLabel(problem.chord, isMac))}
           </p>
         ))}
         <div className="divide-y divide-[var(--border-subtle)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)]">
@@ -189,25 +189,25 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
               <span className="text-[var(--text-primary)]">{PAD_SLOT_LABELS[slot]}</span>
               <span className="flex flex-wrap items-center gap-1.5">
                 <select
-                  aria-label={`Action for ${PAD_SLOT_LABELS[slot]}`}
+                  aria-label={STRINGS.keyboardKeys.actionLabel(PAD_SLOT_LABELS[slot])}
                   value={pad[slot].command ?? ''}
                   onChange={(e) => onPadChange(withPadCommand(pad, slot, (e.target.value || null) as CommandId | null))}
                   className="h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]"
                 >
-                  <option value="">Nothing</option>
+                  <option value="">{STRINGS.keyboardKeys.nothing}</option>
                   {COMMANDS.map((command) => <option key={command.id} value={command.id}>{command.label}</option>)}
                 </select>
                 <kbd className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-0.5 font-mono text-[11px] text-[var(--text-secondary)]">
-                  {learning === slot ? 'Press a key…' : chordLabel(pad[slot].chord, isMac)}
+                  {learning === slot ? STRINGS.keyboardKeys.pressAKey : chordLabel(pad[slot].chord, isMac)}
                 </kbd>
-                <button type="button" className={buttonClass} aria-label={`Learn the key for ${PAD_SLOT_LABELS[slot]}`} onClick={() => setLearning(learning === slot ? null : slot)}>
-                  {learning === slot ? 'Cancel' : 'Learn'}
+                <button type="button" className={buttonClass} aria-label={STRINGS.keyboardKeys.learnLabel(PAD_SLOT_LABELS[slot])} onClick={() => setLearning(learning === slot ? null : slot)}>
+                  {learning === slot ? STRINGS.keyboardKeys.cancel : STRINGS.keyboardKeys.learn}
                 </button>
               </span>
             </div>
           ))}
         </div>
-        <button type="button" className={buttonClass} onClick={() => onPadChange(DEFAULT_PAD)}>Reset pad to the starting set-up</button>
+        <button type="button" className={buttonClass} onClick={() => onPadChange(DEFAULT_PAD)}>{STRINGS.keyboardKeys.resetPad}</button>
       </section>
     </div>
   );

@@ -41,7 +41,7 @@ export default function MasksPanel({
     seen.current = { photoId: photo.id, ids };
   }, [photo?.id, photo?.masks]);
   if (!photo) {
-    return <p className="text-xs text-[var(--text-muted)]">Select a photo to manage masks.</p>;
+    return <p className="text-xs text-[var(--text-muted)]">{STRINGS.panelWords.selectToMask}</p>;
   }
 
   const autoTools: Array<{ id: MaskLayer['type']; label: string; icon: BrandIconName }> = [
@@ -53,8 +53,8 @@ export default function MasksPanel({
   const manualTools: Array<{ id: WorkspaceStore['activeMaskTool']; label: string; icon: BrandIconName }> = [
     { id: 'brush', label: STRINGS.masks.brush, icon: 'brush' },
     { id: 'eraser', label: STRINGS.masks.eraser, icon: 'eraser' },
-    { id: 'area', label: 'Oval area', icon: 'select-area' },
-    { id: 'gradient', label: 'Gradient', icon: 'mountain' },
+    { id: 'area', label: STRINGS.panelWords.ovalArea, icon: 'select-area' },
+    { id: 'gradient', label: STRINGS.panelWords.gradient, icon: 'mountain' },
   ];
 
   return (
@@ -63,7 +63,7 @@ export default function MasksPanel({
         {STRINGS.masks.subtitle}
       </p>
 
-      <p role="status" className="text-[11px] leading-relaxed text-[var(--text-muted)]">Subject, Background, adjustable Oval and Gradient masks use the real editor. Sky detection and brush painting are not connected yet.</p>
+      <p role="status" className="text-[11px] leading-relaxed text-[var(--text-muted)]">{STRINGS.panelWords.maskStatus}</p>
 
       {/* Auto-detect mask triggers */}
       <div className="space-y-2">
@@ -76,7 +76,7 @@ export default function MasksPanel({
               key={tool.id}
               type="button"
               disabled={tool.id === 'sky'}
-              title={tool.id === 'sky' ? 'Sky detection is not available yet' : undefined}
+              title={tool.id === 'sky' ? STRINGS.panelWords.skyUnavailable : undefined}
               onClick={() => {
                 onSetMaskTool(tool.id);
                 onAddMaskLayer(photo.id, tool.id);
@@ -109,8 +109,8 @@ export default function MasksPanel({
               type="button"
               disabled={tool.id === 'brush' || tool.id === 'eraser'}
               title={tool.id === 'brush' || tool.id === 'eraser'
-                ? 'Painting is not connected to the photograph yet'
-                : 'Add a real adjustable mask. Expand its layer to position and resize it.'}
+                ? STRINGS.panelWords.paintingUnavailable
+                : STRINGS.panelWords.addShapeMask}
               onClick={() => {
                 onSetMaskTool(tool.id);
                 if (tool.id === 'area' || tool.id === 'gradient') onAddMaskLayer(photo.id, tool.id);
@@ -134,7 +134,7 @@ export default function MasksPanel({
           Active layers ({photo.masks.length})
         </h3>
         <div className="space-y-1.5">
-          {photo.masks.length === 0 && <p className="text-[11px] text-[var(--text-muted)]">No masks yet. Detect the subject or select the background to start.</p>}
+          {photo.masks.length === 0 && <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.panelWords.noMasks}</p>}
           {photo.masks.map((layer) => {
             const expanded = openId === layer.id;
             return (
@@ -160,7 +160,7 @@ export default function MasksPanel({
                   </button>
                   <button
                     type="button"
-                    aria-label={`Delete ${layer.name}`}
+                    aria-label={STRINGS.panelWords.deleteMask(layer.name)}
                     onClick={() => onRemoveMaskLayer(photo.id, layer.id)}
                     className="text-[var(--text-muted)] hover:text-[var(--semantic-danger)]"
                   >
@@ -173,22 +173,22 @@ export default function MasksPanel({
                       const shape = layer.geometry;
                       const geometryRows: Array<{ key: MaskGeometryField; label: string; value: number; min: number; max: number; step: number }> = shape.kind === 'radial'
                         ? [
-                          { key: 'cx', label: 'Centre left / right', value: shape.cx, min: 0, max: 1, step: 0.01 },
-                          { key: 'cy', label: 'Centre up / down', value: shape.cy, min: 0, max: 1, step: 0.01 },
-                          { key: 'rx', label: 'Half width', value: shape.rx, min: 0.01, max: 1, step: 0.01 },
-                          { key: 'ry', label: 'Half height', value: shape.ry, min: 0.01, max: 1, step: 0.01 },
-                          { key: 'angle', label: 'Rotate (degrees)', value: shape.angle, min: -180, max: 180, step: 1 },
+                          { key: 'cx', label: STRINGS.panelWords.centreLeftRight, value: shape.cx, min: 0, max: 1, step: 0.01 },
+                          { key: 'cy', label: STRINGS.panelWords.centreUpDown, value: shape.cy, min: 0, max: 1, step: 0.01 },
+                          { key: 'rx', label: STRINGS.panelWords.halfWidth, value: shape.rx, min: 0.01, max: 1, step: 0.01 },
+                          { key: 'ry', label: STRINGS.panelWords.halfHeight, value: shape.ry, min: 0.01, max: 1, step: 0.01 },
+                          { key: 'angle', label: STRINGS.panelWords.rotateDegrees, value: shape.angle, min: -180, max: 180, step: 1 },
                         ] : [
-                          { key: 'x1', label: 'Start left / right', value: shape.x1, min: 0, max: 1, step: 0.01 },
-                          { key: 'y1', label: 'Start up / down', value: shape.y1, min: 0, max: 1, step: 0.01 },
-                          { key: 'x2', label: 'End left / right', value: shape.x2, min: 0, max: 1, step: 0.01 },
-                          { key: 'y2', label: 'End up / down', value: shape.y2, min: 0, max: 1, step: 0.01 },
+                          { key: 'x1', label: STRINGS.panelWords.startLeftRight, value: shape.x1, min: 0, max: 1, step: 0.01 },
+                          { key: 'y1', label: STRINGS.panelWords.startUpDown, value: shape.y1, min: 0, max: 1, step: 0.01 },
+                          { key: 'x2', label: STRINGS.panelWords.endLeftRight, value: shape.x2, min: 0, max: 1, step: 0.01 },
+                          { key: 'y2', label: STRINGS.panelWords.endUpDown, value: shape.y2, min: 0, max: 1, step: 0.01 },
                         ];
                       return <fieldset className="space-y-2 border-b border-[var(--border-subtle)] pb-3">
                         <legend className="text-[11px] font-semibold text-[var(--text-primary)]">
-                          {shape.kind === 'radial' ? 'Oval position and size' : 'Gradient direction'}
+                          {shape.kind === 'radial' ? STRINGS.panelWords.ovalPosition : STRINGS.panelWords.gradientDirection}
                         </legend>
-                        <p className="text-[11px] text-[var(--text-secondary)]">Positions use the whole photograph (0–100%). Oval radii are measured against the photo width. Move an adjustment slider below to see the effect. Every change is undoable.</p>
+                        <p className="text-[11px] text-[var(--text-secondary)]">{STRINGS.panelWords.geometryNote}</p>
                         {geometryRows.map(row => (
                           <label key={row.key} className="block space-y-1 text-[11px] text-[var(--text-secondary)]">
                             <span className="flex justify-between gap-2">

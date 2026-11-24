@@ -122,7 +122,7 @@ export default function AdjustPanel({
     }
   }, [photo?.id, onHoverLook]);
   if (!photo) {
-    return <p className="text-xs text-[var(--text-muted)]">Select a photo to adjust tone and colour.</p>;
+    return <p className="text-xs text-[var(--text-muted)]">{STRINGS.panelWords.selectToAdjust}</p>;
   }
 
   const group = getActiveGroup(photo);
@@ -136,20 +136,20 @@ export default function AdjustPanel({
         </div>
       )}
 
-      <div role="tablist" aria-label="Adjust tools" className="grid grid-cols-2 gap-1 rounded-[var(--radius-sm)] bg-[var(--bg-input)] p-1">
+      <div role="tablist" aria-label={STRINGS.panelWords.adjustTools} className="grid grid-cols-2 gap-1 rounded-[var(--radius-sm)] bg-[var(--bg-input)] p-1">
         <button type="button" role="tab" id="adjust-looks-tab" aria-selected={activeTab === 'looks'}
           aria-controls="adjust-looks-panel" tabIndex={activeTab === 'looks' ? 0 : -1}
           onClick={() => setActiveTab('looks')}
           onKeyDown={(e) => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); setActiveTab('advanced'); e.currentTarget.parentElement?.querySelector<HTMLButtonElement>('#adjust-advanced-tab')?.focus(); } }}
           className={`rounded-[var(--radius-sm)] px-2 py-2 text-xs font-medium ${activeTab === 'looks' ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
-          Curated Looks
+          {STRINGS.adjust.looksHeading}
         </button>
         <button type="button" role="tab" id="adjust-advanced-tab" aria-selected={activeTab === 'advanced'}
           aria-controls="adjust-advanced-panel" tabIndex={activeTab === 'advanced' ? 0 : -1}
           onClick={() => { onHoverLook(null); setActiveTab('advanced'); }}
           onKeyDown={(e) => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); onHoverLook(null); setActiveTab('looks'); e.currentTarget.parentElement?.querySelector<HTMLButtonElement>('#adjust-looks-tab')?.focus(); } }}
           className={`rounded-[var(--radius-sm)] px-2 py-2 text-xs font-medium ${activeTab === 'advanced' ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
-          Advanced Edits
+          {STRINGS.panelWords.advancedEdits}
         </button>
       </div>
       <div role="tabpanel" id="adjust-looks-panel" aria-labelledby="adjust-looks-tab" hidden={activeTab !== 'looks'}>
@@ -210,7 +210,7 @@ export default function AdjustPanel({
       </div>
       <div role="tabpanel" id="adjust-advanced-panel" aria-labelledby="adjust-advanced-tab" hidden={activeTab !== 'advanced'}>
       {/* Phone: one group of sliders at a time, chosen by pill tabs. Hidden from 768px wide. */}
-      <div role="tablist" aria-label="Adjustment groups" className="mb-3 flex items-center gap-1.5 md:hidden">
+      <div role="tablist" aria-label={STRINGS.panelWords.adjustmentGroups} className="mb-3 flex items-center gap-1.5 md:hidden">
         {ADVANCED_GROUPS.map((entry) => (
           <button key={entry.id} type="button" role="tab" aria-selected={advancedGroup === entry.id} onClick={() => setAdvancedGroup(entry.id)}
             className={`min-h-11 flex-1 rounded-full border px-3 text-xs font-medium ${advancedGroup === entry.id ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'}`}>
@@ -328,8 +328,8 @@ export default function AdjustPanel({
           value={recipe.tint}
           min={-100}
           max={100}
-          leftHint={cvdGuidance ? 'Green bias' : undefined}
-          rightHint={cvdGuidance ? 'Magenta bias' : undefined}
+          leftHint={cvdGuidance ? STRINGS.panelWords.greenBias : undefined}
+          rightHint={cvdGuidance ? STRINGS.panelWords.magentaBias : undefined}
           calmView={calmView}
           onChange={(v) => onUpdateRecipe(photo.id, { tint: v })}
         /></div>

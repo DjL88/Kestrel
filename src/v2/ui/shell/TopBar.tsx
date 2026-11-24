@@ -145,7 +145,7 @@ export default function TopBar({
   return (
     <header
       className="relative z-40 flex h-[var(--topbar-height)] shrink-0 items-center justify-between gap-1 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 md:gap-4 md:px-4"
-      aria-label="InFlight studio header"
+      aria-label={STRINGS.shellLabels.studioHeader}
     >
       {/* Left zone: Back button + InFlight logo + File / Edit / View desktop menus */}
       <div className="flex min-w-0 items-center gap-2 md:gap-3" ref={menuRef}>
@@ -381,7 +381,7 @@ export default function TopBar({
       </div>
 
       <div className="flex shrink-0 items-center gap-1 md:gap-3">
-        <div role="group" aria-label="Edit history" className="flex md:hidden">
+        <div role="group" aria-label={STRINGS.shellLabels.editHistory} className="flex md:hidden">
           {([
             { icon: 'undo', label: STRINGS.topBar.editActions.undo, shortcut: shortcutMap['edit.undo'], enabled: canUndo, action: onUndo },
             { icon: 'refresh', label: STRINGS.topBar.editActions.redo, shortcut: shortcutMap['edit.redo'], enabled: canRedo, action: onRedo },

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { STRINGS } from '../strings';
 import { PROVIDERS, type Health, type ProviderKind } from '../../../core/connections';
 import { CLOUD_DRIVES, isCloudDrive } from '../../../core/cloudDrive';
 import type { S3Settings } from '../../../core/storageConnectors';
@@ -17,7 +18,8 @@ import { CloudStorageForm } from '../../../components/CloudStorageForm';
  * Dropbox, Google Drive and OneDrive. Each shows a plain word for its health as well as an icon.
  */
 const HEALTH_WORD: Record<Health, string> = {
-  unknown: 'Not checked', ok: 'Connected', 'needs-signin': 'Sign in again', offline: 'Offline', missing: 'Not found', error: 'Problem',
+  unknown: STRINGS.storagePlaces.health.unknown, ok: STRINGS.storagePlaces.health.ok, 'needs-signin': STRINGS.storagePlaces.health.needsSignin,
+  offline: STRINGS.storagePlaces.health.offline, missing: STRINGS.storagePlaces.health.missing, error: STRINGS.storagePlaces.health.error,
 };
 const WORKS_WITH: Partial<Record<ProviderKind, readonly { id?: BrandIconId; name: string }[]>> = {
   webdav: [{ id: 'synology', name: 'Synology' }, { id: 'qnap', name: 'QNAP' }, { id: 'nextcloud', name: 'Nextcloud' }, { id: 'owncloud', name: 'ownCloud' }],
@@ -41,11 +43,11 @@ export function StorageConnections() {
     try {
       const picked = await pickSyncFolder();
       if (picked === 'cancelled') return;
-      if (picked === 'unsupported') { setNote('This browser cannot pick a folder. Use the desktop app, or a NAS or cloud option.'); return; }
+      if (picked === 'unsupported') { setNote(STRINGS.storagePlaces.noFolderPicker); return; }
       const created = addConnection('folder', label || picked.name, picked.name, { handle: picked.handle, path: picked.path });
       done();
       await checkConnection(created.id);
-    } catch { setNote('That folder could not be opened.'); }
+    } catch { setNote(STRINGS.storagePlaces.folderFailed); }
   }
 
   async function signIn(kind: 'dropbox' | 'googledrive' | 'onedrive', reconnectId?: string) {
@@ -54,28 +56,28 @@ export function StorageConnections() {
       const tokens = await signInToCloudDrive(kind);
       if (reconnectId) { rememberTokens(reconnectId, tokens); await checkConnection(reconnectId); }
       else {
-        const created = addConnection(kind, label || CLOUD_DRIVES[kind].name, `${CLOUD_DRIVES[kind].name} · InFlight folder`, { tokens });
+        const created = addConnection(kind, label || CLOUD_DRIVES[kind].name, STRINGS.storagePlaces.cloudFolderDetail(CLOUD_DRIVES[kind].name), { tokens });
         done();
         await checkConnection(created.id);
       }
-    } catch (error) { setNote(error instanceof Error ? error.message : 'That sign-in did not finish.'); }
+    } catch (error) { setNote(error instanceof Error ? error.message : STRINGS.storagePlaces.signInFailed); }
     setBusy(null);
   }
 
   return (
     <section className="space-y-2" aria-labelledby="v2-connections-title">
       <div className="flex items-center justify-between gap-2">
-        <h3 id="v2-connections-title" className="text-xs font-semibold text-[var(--text-primary)]">Where your work lives</h3>
+        <h3 id="v2-connections-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.storagePlaces.heading}</h3>
         <div className="flex gap-2">
-          {list.length > 0 && <button type="button" className={button} onClick={() => void checkAllConnections()}>Check all</button>}
-          <button type="button" className={button} aria-expanded={adding !== null} onClick={() => { setAdding(adding ? null : 'folder'); setNote(null); }}>Add a place</button>
+          {list.length > 0 && <button type="button" className={button} onClick={() => void checkAllConnections()}>{STRINGS.storagePlaces.checkAll}</button>}
+          <button type="button" className={button} aria-expanded={adding !== null} onClick={() => { setAdding(adding ? null : 'folder'); setNote(null); }}>{STRINGS.storagePlaces.addPlace}</button>
         </div>
       </div>
-      <p className="text-[11px] text-[var(--text-muted)]">Folders, a NAS, your own cloud storage, Dropbox, Google Drive or OneDrive. Your originals are never changed; InFlight stores links, previews and recipes.</p>
+      <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.storagePlaces.intro}</p>
 
-      {list.length === 0 && !adding && <p className="text-xs text-[var(--text-secondary)]">Nothing connected yet.</p>}
+      {list.length === 0 && !adding && <p className="text-xs text-[var(--text-secondary)]">{STRINGS.storagePlaces.nothingYet}</p>}
 
-      <ul className="space-y-2" aria-label="Connected places">
+      <ul className="space-y-2" aria-label={STRINGS.storagePlaces.listLabel}>
         {list.map((connection) => {
           const health = reports[connection.id]?.health ?? 'unknown';
           return (
@@ -89,9 +91,9 @@ export function StorageConnections() {
               </div>
               <div className="flex items-center gap-2">
                 <span role="status" className="text-[11px] text-[var(--text-secondary)]">{HEALTH_WORD[health]}{reports[connection.id]?.message && health !== 'ok' ? `: ${reports[connection.id]!.message}` : ''}</span>
-                <button type="button" className={button} disabled={busy === connection.id} onClick={async () => { setBusy(connection.id); await checkConnection(connection.id); setBusy(null); }}>Check</button>
-                {(health === 'needs-signin') && isCloudDrive(connection.kind) && <button type="button" className={button} onClick={() => void signIn(connection.kind as 'dropbox', connection.id)}>Sign in again</button>}
-                <button type="button" className={button} onClick={() => removeConnection(connection.id)} aria-label={`Remove ${connection.label}`}>Remove</button>
+                <button type="button" className={button} disabled={busy === connection.id} onClick={async () => { setBusy(connection.id); await checkConnection(connection.id); setBusy(null); }}>{STRINGS.storagePlaces.check}</button>
+                {(health === 'needs-signin') && isCloudDrive(connection.kind) && <button type="button" className={button} onClick={() => void signIn(connection.kind as 'dropbox', connection.id)}>{STRINGS.storagePlaces.signInAgain}</button>}
+                <button type="button" className={button} onClick={() => removeConnection(connection.id)} aria-label={STRINGS.storagePlaces.removeLabel(connection.label)}>{STRINGS.storagePlaces.remove}</button>
               </div>
             </li>
           );
@@ -99,8 +101,8 @@ export function StorageConnections() {
       </ul>
 
       {adding && (
-        <div className="space-y-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3 text-xs text-[var(--text-secondary)]" role="group" aria-label="Add a place">
-          <div role="radiogroup" aria-label="Kind of place" className="space-y-1">
+        <div className="space-y-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3 text-xs text-[var(--text-secondary)]" role="group" aria-label={STRINGS.storagePlaces.addPlace}>
+          <div role="radiogroup" aria-label={STRINGS.storagePlaces.kindLabel} className="space-y-1">
             {PROVIDERS.map((provider) => {
               const cloud = isCloudDrive(provider.kind);
               const available = cloud ? cloudDriveAvailable(provider.kind as 'dropbox') : provider.available;
@@ -119,10 +121,10 @@ export function StorageConnections() {
               );
             })}
           </div>
-          <label className="block text-[var(--text-primary)]">Name it
+          <label className="block text-[var(--text-primary)]">{STRINGS.storagePlaces.nameIt}
             <input className="mt-1 block h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 text-xs" value={label} onChange={(event) => setLabel(event.target.value)} />
           </label>
-          {adding === 'folder' && <button type="button" className={button} onClick={() => void addFolder()}>Choose a folder</button>}
+          {adding === 'folder' && <button type="button" className={button} onClick={() => void addFolder()}>{STRINGS.storagePlaces.chooseFolder}</button>}
           {adding === 'webdav' && (
             <WebDavForm onCancel={() => setAdding(null)} onSaved={(settings, remember) => {
               const url = new URL(settings.url);
@@ -140,10 +142,10 @@ export function StorageConnections() {
           )}
           {isCloudDrive(adding) && (
             <div className="space-y-2">
-              <p className="text-[11px] text-[var(--text-muted)]">InFlight opens {CLOUD_DRIVES[adding].name}'s own sign-in page. It never sees your password and can only see its own InFlight folder.</p>
+              <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.storagePlaces.cloudNote(CLOUD_DRIVES[adding].name)}</p>
               <button type="button" className={`${button} inline-flex items-center gap-2`} disabled={busy === adding} onClick={() => void signIn(adding as 'dropbox')}>
                 {(adding === 'dropbox' || adding === 'googledrive') && <BrandIcon id={adding} className="h-4 w-4" />}
-                Sign in with {CLOUD_DRIVES[adding].name}
+                {STRINGS.storagePlaces.signInWith(CLOUD_DRIVES[adding].name)}
               </button>
             </div>
           )}
