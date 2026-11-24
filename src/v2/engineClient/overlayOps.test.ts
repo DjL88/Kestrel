@@ -70,3 +70,12 @@ test('extended photo metadata fields persist in selection order, without duplica
   assert.deepEqual(overlay.rows[0].fields, ['capturedAt', 'filename', 'dimensions', 'colourProfile']);
   assert.deepEqual(readOverlay(JSON.parse(JSON.stringify(overlay))).rows[0].fields, overlay.rows[0].fields);
 });
+
+test('duplicate stored row IDs cannot cause one edit to change multiple text rows', () => {
+  const overlay = readOverlay({ rows: [{ id: 'same', fields: ['camera'] }, { id: 'same', fields: ['lens'] }, { id: ' ' }] });
+  assert.equal(overlay.rows.length, 1);
+  assert.deepEqual(overlay.rows[0].fields, ['camera']);
+  assert.equal(addRow(overlay, 'same'), overlay);
+  assert.equal(addRow(overlay, ' '), overlay);
+  assert.equal(updateRow(overlay, 'same', { sizePx: 32 }).rows[0].sizePx, 32);
+});

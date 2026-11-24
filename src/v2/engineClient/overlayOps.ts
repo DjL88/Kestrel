@@ -10,7 +10,7 @@ const num = (value: unknown, fallback: number, min: number, max: number) => (typ
 function readRow(raw: unknown, fallback: OverlayTextRow): OverlayTextRow | null {
   if (!raw || typeof raw !== 'object') return null;
   const row = raw as Record<string, unknown>;
-  if (typeof row.id !== 'string' || !row.id) return null;
+  if (typeof row.id !== 'string' || !row.id.trim()) return null;
   const fields = Array.isArray(row.fields) ? [...new Set(row.fields.filter(isOverlayField))] : fallback.fields;
   return {
     id: row.id,
@@ -33,6 +33,12 @@ export function readOverlay(raw: unknown): OverlaySettings {
   const value = raw as Record<string, unknown>;
   const anchor = (candidate: unknown, fallback: OverlayAnchor) => ((ANCHORS as readonly unknown[]).includes(candidate) ? (candidate as OverlayAnchor) : fallback);
   const rows = Array.isArray(value.rows) ? value.rows.map((row) => readRow(row, base.rows[0])).filter((row): row is OverlayTextRow => row !== null) : base.rows;
+  const seen = new Set<string>();
+  const uniqueRows = rows.filter(row => {
+    if (seen.has(row.id)) return false;
+    seen.add(row.id);
+    return true;
+  });
   return {
     ...base,
     textEnabled: value.textEnabled === true,
@@ -42,7 +48,7 @@ export function readOverlay(raw: unknown): OverlaySettings {
     textOffsetX: num(value.textOffsetX, 0, -40, 40), textOffsetY: num(value.textOffsetY, 0, -40, 40),
     textColour: value.textColour === 'dark' ? 'dark' : 'light',
     textScrim: value.textScrim !== false,
-    rows,
+    rows: uniqueRows,
     watermarkEnabled: value.watermarkEnabled === true,
     watermarkPresetId: typeof value.watermarkPresetId === 'string' ? value.watermarkPresetId : base.watermarkPresetId,
     watermarkPosition: anchor(value.watermarkPosition, base.watermarkPosition),
@@ -57,6 +63,7 @@ export function readOverlay(raw: unknown): OverlaySettings {
 export const patchOverlay = (overlay: OverlaySettings, patch: Partial<OverlaySettings>): OverlaySettings => readOverlay({ ...overlay, ...patch });
 
 export function addRow(overlay: OverlaySettings, id: string): OverlaySettings {
+  if (!id.trim() || overlay.rows.some(row => row.id === id)) return overlay;
   const row: OverlayTextRow = { id, fields: ['species'], customText: '', fontId: 'playfair', sizePx: 14, weight: 500, uppercase: false, letterSpacing: 0.2 };
   return { ...overlay, textEnabled: true, rows: [...overlay.rows, row] };
 }
