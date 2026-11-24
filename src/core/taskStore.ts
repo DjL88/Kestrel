@@ -36,7 +36,7 @@ export interface TaskHandle {
 /** Extended handle used by the scheduler; legacy engine stubs only need TaskHandle. */
 export interface SchedulerTaskHandle extends TaskHandle {
   transition(state: 'queued' | 'running' | 'paused', detail?: string): void;
-  patch(change: Pick<Partial<Task>, 'stage' | 'location' | 'priority' | 'items' | 'pauseable' | 'detail'>): void;
+  patch(change: Pick<Partial<Task>, 'stage' | 'location' | 'priority' | 'items' | 'pauseable' | 'cancellable' | 'detail'>): void;
 }
 const KEEP_FINISHED = 5;
 const KEEP_FAILED = 5;
@@ -44,7 +44,7 @@ const KEEP_FAILED = 5;
 export function createTaskStore(now: () => number = Date.now) {
   let tasks: Task[] = [];
   let nextId = 1;
-  const cancels = new Map<number, { markCancelled: () => void; stop: () => void }>();
+  const cancels = new Map<number, { markCancelled: () => void; stop: () => void; canCancel?: () => boolean }>();
   const listeners = new Set<() => void>();
   const emit = () => listeners.forEach(listener => listener());
   const active = (task: Task | undefined): task is Task => Boolean(task && (task.state === 'queued' || task.state === 'paused' || task.state === 'running'));
@@ -65,7 +65,7 @@ export function createTaskStore(now: () => number = Date.now) {
     emit();
   };
   const register = (title: string, state: 'queued' | 'running', options: {
-    total?: number | null; cancel?: () => void; pauseable?: boolean; location?: TaskLocation; priority?: number;
+    total?: number | null; cancel?: () => void; canCancel?: () => boolean; pauseable?: boolean; location?: TaskLocation; priority?: number;
   } = {}): SchedulerTaskHandle => {
     const id = nextId++;
     let wasCancelled = false;
@@ -75,7 +75,7 @@ export function createTaskStore(now: () => number = Date.now) {
       location: options.location ?? 'local', priority: options.priority ?? 0,
       startedAt: now(), updatedAt: now(),
     }];
-    if (options.cancel) cancels.set(id, { markCancelled: () => { wasCancelled = true; }, stop: options.cancel });
+    if (options.cancel) cancels.set(id, { markCancelled: () => { wasCancelled = true; }, stop: options.cancel, canCancel: options.canCancel });
     emit();
     return {
       id,
@@ -112,15 +112,15 @@ export function createTaskStore(now: () => number = Date.now) {
     };
   };
   return {
-    start(title: string, options: { total?: number | null; cancel?: () => void; pauseable?: boolean; location?: TaskLocation; priority?: number } = {}): TaskHandle {
+    start(title: string, options: { total?: number | null; cancel?: () => void; canCancel?: () => boolean; pauseable?: boolean; location?: TaskLocation; priority?: number } = {}): TaskHandle {
       return register(title, 'running', options);
     },
-    enqueue(title: string, options: { total?: number | null; cancel?: () => void; pauseable?: boolean; location?: TaskLocation; priority?: number } = {}): SchedulerTaskHandle {
+    enqueue(title: string, options: { total?: number | null; cancel?: () => void; canCancel?: () => boolean; pauseable?: boolean; location?: TaskLocation; priority?: number } = {}): SchedulerTaskHandle {
       return register(title, 'queued', options);
     },
     cancel(id: number): boolean {
       const stop = cancels.get(id);
-      if (!active(find(id)) || !stop) return false;
+      if (!active(find(id)) || !stop || stop.canCancel?.() === false) return false;
       cancels.delete(id);
       stop.markCancelled();
       update(id, { state: 'cancelled', endedAt: now(), updatedAt: now() });
