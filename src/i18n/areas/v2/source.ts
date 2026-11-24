@@ -490,7 +490,7 @@ export const source = {
     opinionHeading: 'Current photo critique',
     refreshReview: 'Re-check current edits',
     applyRecommendation: 'Apply tweak',
-    safeNote: 'Every colour note includes objective Kelvin, tint, and tonal readings so you never have to guess by eye alone.',
+    safeNote: 'Colour notes come from measuring the photo itself on this device, not from how it looks on your screen.',
   },
 
   bursts: {
@@ -677,7 +677,7 @@ export const source = {
     assistance: {
       defaultModeLabel: 'Default Flight mode for new projects',
       cvdLabel: 'Colour-vision support',
-      cvdDesc: 'Adds plain-English colour drift descriptions and objective warm/cool indicators next to colour controls.',
+      cvdDesc: 'Names the main colours in each photo in words, and points out colour casts, very strong colours and red and green areas that many colour-blind people find hard to tell apart. Also labels the ends of the Temperature and Tint sliders. Off unless you turn it on.',
       ongoingLabel: 'Ongoing edit critique',
       ongoingDesc: 'Continuously updates Assist guidance whenever you adjust sliders.',
     },

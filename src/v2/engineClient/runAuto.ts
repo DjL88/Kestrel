@@ -16,6 +16,7 @@ import { GUIDED_RENDER_EDGE } from '../../core/subjectGuide';
 import type { SubjectDetail, SubjectGrid } from '../../core/maskTypes';
 import type { PhotoFrame } from '../../core/types';
 import { describePlan, planAuto, type AutoPlan } from '../../core/unifiedAuto';
+import { checkColour, type ColourReport } from '../../core/colourCheck';
 import type { SpeciesGuess } from '../../core/speciesPalette';
 import { newId } from '../../core/ids';
 import { identifySubject } from '../../providers/autoSpecies';
@@ -35,6 +36,8 @@ export interface AutoRun {
   before: string;
   candidates: AutoCandidate[];
   source: Pick<PhotoFrame, 'stableKey' | 'originalSha256' | 'framing'>;
+  /** The colour check of the same framed, unedited preview that Auto measured (the same pixels as its colour warnings). */
+  colour?: ColourReport;
 }
 
 export function subjectKindOf(frame: Pick<PhotoFrame, 'subjectKind' | 'tags' | 'subjectNames'>): InsightSubjectKind {
@@ -198,5 +201,6 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
     headline: rendered.candidates.length ? 'Checked edit suggestions are ready to preview.'
       : recipes.length ? 'No visibly different edit passed the checks.' : described.headline,
     source: { stableKey: frame.stableKey, originalSha256: frame.originalSha256, framing: frame.framing },
+    colour: checkColour({ after: { data: analysis.data, width: analysis.width, height: analysis.height } }),
   };
 }
