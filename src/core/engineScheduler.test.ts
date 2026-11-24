@@ -148,3 +148,46 @@ test('pause all preserves completed work until resume all', async () => {
   assert.equal(await a.finished, 'done');
   assert.deepEqual(jobs, [1, 2, 3]);
 });
+
+test('a confirmed native save remains checkpointed when cancel is requested during the write boundary', async () => {
+  const { scheduler } = build();
+  const persisted = new Map<string, string>();
+  let release!: () => void;
+  const saving = new Promise<void>(resolve => { release = resolve; });
+  let entered = false;
+  const ticket = await scheduler.submit(batch('Save outputs', 2, async (n, _, ctx) => {
+    if (n !== 1) throw new Error('Cancelled batch must not start the next export.');
+    entered = true;
+    await saving;
+    // Simulate a native destination which has just durably acknowledged its
+    // write even though the person pressed cancel while the save was pending.
+    ctx.acknowledgeCommitted();
+  }, {
+    recovery: { key: 'confirmed-save', journal: {
+      getItem: key => persisted.get(key) ?? null,
+      setItem: (key, value) => { persisted.set(key, value); },
+    }, verifyCompleted: async () => true },
+  }));
+  await until(() => entered, 'entered native write');
+  assert.equal(ticket.cancel(), true);
+  release();
+  assert.equal(await ticket.finished, 'cancelled');
+  const checkpoint = JSON.parse(persisted.get('confirmed-save')!);
+  assert.deepEqual(checkpoint.completed, ['1'], 'the native-acknowledged file must not be exported twice after restart');
+});
+
+test('scan-wide jobs expose individual photo stage updates without applying partial decisions', async () => {
+  const { scheduler, store } = build();
+  const ticket = await scheduler.submit(batch('Cull complete shoot', 1, async (_, __, ctx) => {
+    ctx.setSubitems([{id: 'dog-one', label: 'dog-1.jpg'}, {id: 'dog-two', label: 'dog-2.jpg'}]);
+    ctx.updateSubitem('dog-one', 'running', 'analysing');
+    ctx.reportProgress(1, 2, 'Analysed first dog');
+    ctx.updateSubitem('dog-one', 'done', 'analysed');
+    ctx.updateSubitem('dog-two', 'done', 'analysed');
+    ctx.reportProgress(2, 2, 'All evidence gathered');
+  }, { kind: 'cull', pauseable: false }));
+  assert.equal(await ticket.finished, 'done');
+  const task = store.list().find(t => t.id === ticket.taskId)!;
+  assert.equal(task.total, 2);
+  assert.deepEqual(task.items?.map(item => [item.id, item.state]), [['dog-one','done'],['dog-two','done']]);
+});
