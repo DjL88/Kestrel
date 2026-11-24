@@ -4,11 +4,12 @@ import { applyNoiseReduction } from '../../core/noiseReduction';
 import { applyMasks, fullContext, maskAlpha } from '../../core/masks';
 import { DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto } from '../../core/photoFraming';
-import { framingKey, MAX_MASKS, type Mask } from '../../core/maskTypes';
+import { createSubjectMask, framingKey, MAX_MASKS, type Mask } from '../../core/maskTypes';
 import type { Pixels } from '../../core/colourCheck';
 import type { PhotoFrame } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import { loadImage } from '../../providers/loadImage';
+import { unionSubjectGrid } from '../../core/subjectUnion';
 
 /** Longest edge of the picture denoise works on, and the only thing ever sent to the cloud (never the original). */
 export const DENOISE_WORKING_EDGE = 1600;
@@ -55,12 +56,20 @@ export async function runV2Denoise(
   };
   const asked = frame.edit?.denoise && frame.edit.denoise > 0 ? frame.edit.denoise : DEFAULT_DENOISE_STRENGTH;
   const existing = frame.edit?.masks ?? [];
-  const subjectMask = existing.find((mask): mask is Extract<Mask, { kind: 'subject' }> => mask.kind === 'subject' && !mask.hidden && !mask.invert && !mask.limit && !mask.strokes.length && mask.confidence !== 'low' && mask.framingKey === framingKey(framing));
   const id = `auto-denoise-${frame.id}`;
   const remaining = existing.filter(mask => mask.id !== id && mask.id !== `${id}-background`);
-  const subject = subjectMask && remaining.length + 2 <= MAX_MASKS ? {
-    maskId: id, grid: subjectMask.grid, framingKey: subjectMask.framingKey, confidence: subjectMask.confidence, detail: subjectMask.detail,
-    alpha: maskAlpha({ ...subjectMask, feather: 0.5 }, original.width, original.height, fullContext(original.width, original.height)),
+  const subjects = remaining.filter((mask): mask is Extract<Mask, { kind: 'subject' }> =>
+    mask.kind === 'subject' && !mask.hidden && !mask.invert && !mask.limit &&
+    mask.confidence !== 'low' && mask.framingKey === framingKey(framing));
+  const aspect = original.height / original.width;
+  const single = subjects.length === 1 && subjects[0].strokes.length === 0 && subjects[0].feather === 0.5;
+  const combined = subjects.length && remaining.length + 2 <= MAX_MASKS
+    ? single ? subjects[0] : createSubjectMask(id, unionSubjectGrid(subjects, aspect), framingKey(framing),
+      subjects.every(mask => mask.confidence === 'high') ? 'high' : 'medium')
+    : undefined;
+  const subject = combined ? {
+    maskId: id, grid: combined.grid, framingKey: combined.framingKey, confidence: combined.confidence, detail: combined.detail,
+    alpha: maskAlpha(combined, original.width, original.height, fullContext(original.width, original.height)),
   } : undefined;
   const attempt = cloud && !subject
     ? createCloudProcessingAttempt(cloud.connection, { online: cloud.online, signedIn: true, userConsent: true }, signal)
