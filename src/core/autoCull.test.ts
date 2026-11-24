@@ -406,3 +406,21 @@ test('G05: insufficient trustworthy distinct bursts leave keeper capacity unused
   assert.equal(result.filter(item => item.decision === 'keep' && item.confidence === 'high').length, 2);
   assert.ok(result.slice(20).every(item => item.decision === null && item.confidence === 'low'));
 });
+
+test('G05 duplicate confident evidence returns the strongest result regardless of arrival order', () => {
+  const frames = generateDemoShootFrames(2).map(frame => ({
+    ...frame, isDemo: false, virtualCopy: undefined, burstGroupId: null,
+    decision: 'unreviewed' as const, rating: 0,
+  }));
+  const weak: CullSuggestion = { frameId: frames[0].id, decision: 'keep', confidence: 'high', score: 65, reason: 'clearDetail' };
+  const strong: CullSuggestion = { ...weak, score: 97, reason: 'subjectSharp' };
+  const competitor: CullSuggestion = { ...weak, frameId: frames[1].id, score: 70 };
+  for (const input of [[weak, competitor, strong], [strong, competitor, weak]]) {
+    const result = limitAutoKeepers(input, frames, 1);
+    assert.deepEqual(result.filter(item => item.confidence === 'high'), [strong]);
+    assert.equal(result.find(item => item.frameId === competitor.frameId)?.score, 70);
+  }
+  const conflict: CullSuggestion = { ...weak, decision: null, confidence: 'low', reason: 'noSubject' };
+  const result = limitAutoKeepers([strong, conflict, competitor], frames, 1);
+  assert.deepEqual(result.filter(item => item.confidence === 'high'), [competitor]);
+});

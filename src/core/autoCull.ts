@@ -131,23 +131,23 @@ export function limitAutoKeepers(
       uncertainIds.add(result.frameId);
     }
   }
-  const accepted = new Set<string>();
+  const accepted = new Map<string, CullSuggestion>();
   const rating = (id: string) => {
     const frame = byId.get(id);
     const value = frame?.rating ?? frame?.exif.rating ?? 0;
     return Number.isInteger(value) && value >= 1 && value <= 5 ? value : 0;
   };
-  for (const result of [...suggestions].sort((a, b) => rating(b.frameId) - rating(a.frameId) || b.score - a.score || String(a.frameId ?? '').localeCompare(String(b.frameId ?? '')))) {
+  for (const result of [...suggestions].sort((a, b) => rating(b.frameId) - rating(a.frameId) || b.score - a.score || String(a.frameId ?? '').localeCompare(String(b.frameId ?? '')) || a.reason.localeCompare(b.reason))) {
     if (!Number.isFinite(result.score) || result.score < 0 || result.score > 100 ||
         result.decision !== 'keep' || result.confidence !== 'high' || accepted.size >= safeRemaining ||
         typeof result.frameId !== 'string' || !result.frameId.trim()) continue;
     // A stale scan result cannot reserve keeper headroom for a photo that was
     // removed or manually reviewed while the scan was running.
     const frame = byId.get(result.frameId);
-    if (!frame || uncertainIds.has(result.frameId) || ambiguousIds.has(result.frameId) || frame.removedAt != null || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) continue;
+    if (accepted.has(result.frameId) || !frame || uncertainIds.has(result.frameId) || ambiguousIds.has(result.frameId) || frame.removedAt != null || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) continue;
     const burst = frame.burstGroupId;
     if (burst && occupied.has(burst)) continue;
-    accepted.add(result.frameId);
+    accepted.set(result.frameId, result);
     if (burst) occupied.add(burst);
   }
   // Stale scans may contain duplicate suggestions for the same frame. Never expose
@@ -163,8 +163,8 @@ export function limitAutoKeepers(
     }
     if (accepted.has(result.frameId) && !emitted.has(result.frameId)) {
       emitted.add(result.frameId);
-      return result;
+      return { ...accepted.get(result.frameId)! };
     }
-    return { ...result, confidence: 'medium', score: 79 };
+    return { ...result, confidence: 'medium', score: Math.min(result.score, 79) };
   });
 }
