@@ -126,15 +126,16 @@ export function deleteCollagePage(doc: CollageDocument): CollageDocument {
 export function readCollage(value: unknown): CollageDocument | null {
   if (!value || typeof value !== 'object') return null;
   const doc = value as Partial<CollageDocument>;
-  if (doc.version !== 1 || !doc.format || !(doc.format in COLLAGE_FORMATS) || !Array.isArray(doc.pages) ||
+  if (doc.version !== 1 || !doc.format || !Object.hasOwn(COLLAGE_FORMATS, doc.format) || !Array.isArray(doc.pages) ||
       doc.pages.length === 0 || doc.pages.length > 200) return null;
-  if (!doc.pages.every((page) => page && typeof page.id === 'string' && page.template in shapes &&
+  if (!doc.pages.every((page) => page && typeof page.id === 'string' && Object.hasOwn(shapes, page.template) &&
     typeof page.background === 'string' && /^#[0-9a-fA-F]{6}$/.test(page.background) &&
     typeof page.gap === 'number' && Number.isFinite(page.gap) && page.gap >= 0 && page.gap <= 12 &&
     typeof page.caption === 'string' && page.caption.length <= 1000 &&
     typeof page.captionColour === 'string' && /^#[0-9a-fA-F]{6}$/.test(page.captionColour) &&
     Array.isArray(page.slots) && page.slots.length <= 12 && page.slots.every((s) => s && typeof s.id === 'string' &&
-      (s.photoId === null || typeof s.photoId === 'string') && [s.x,s.y,s.width,s.height,s.angle].every(Number.isFinite)))) return null;
+      (s.photoId === null || typeof s.photoId === 'string') && [s.x,s.y,s.width,s.height,s.angle].every(Number.isFinite) && s.x >= 0 && s.y >= 0 && s.width > 0 && s.height > 0 && s.x+s.width <= 100 && s.y+s.height <= 100 && Math.abs(s.angle) <= 180 && (s.clip === undefined || s.clip === polygonA || s.clip === polygonB)))) return null;
+  if (new Set(doc.pages.map(p => p.id)).size !== doc.pages.length || doc.pages.some(p => new Set(p.slots.map(s => s.id)).size !== p.slots.length)) return null;
   if (!doc.activePageId || !doc.pages.some((p) => p.id === doc.activePageId)) return null;
   return doc as CollageDocument;
 }
