@@ -223,7 +223,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [taskHistory, setTaskHistory] = useState<Record<string, TaskInfo>>({});
   const [clock, setClock] = useState(() => Date.now());
   useEffect(() => {
-    const finished = taskList.filter((task) => task.state !== 'running');
+    const finished = taskList.filter((task) => task.state === 'done' || task.state === 'failed' || task.state === 'cancelled');
     if (!finished.length) return;
     setTaskHistory((current) => {
       let changed = false;
@@ -1570,7 +1570,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     activePhotoId: activeId,
     selectedPhotoIds: selected,
     reviewingPhotoIds: reviewingIds,
-    tasks: visibleTasks(taskList.filter((task) => task.state === 'running').map(taskToInfo), Object.values(taskHistory), clock),
+    tasks: visibleTasks(taskList.filter((task) => task.state === 'running' || task.state === 'queued' || task.state === 'paused').map(taskToInfo), Object.values(taskHistory), clock),
     canUndo: Boolean(state?.undoStack.length) || (activeFrame?.editHistory?.cursor ?? 0) > 0,
     canRedo: Boolean(state?.redoStack.length) || (activeFrame?.editHistory ? activeFrame.editHistory.cursor < activeFrame.editHistory.steps.length : false),
     clipboardRecipe: clipboard,
