@@ -178,6 +178,7 @@ export function shootToProject(shoot: ShootDescriptor, frames: readonly PhotoFra
   const live = frames.filter((frame) => !frame.removedAt);
   return {
     id: shoot.id,
+    kind: shoot.collage ? 'collage' : 'photography',
     name: shoot.title,
     updatedAt: new Date(shoot.lastUpdatedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
     coverUrl,
