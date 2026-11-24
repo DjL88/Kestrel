@@ -114,7 +114,7 @@ function matcher(frames: readonly PhotoFrame[], snapshot: ProjectSnapshot) {
   const localKey = uniqueIndex(eligible, frame => frame.stableKey);
   const localHash = uniqueIndex(eligible, frame => frame.originalSha256);
   const localIdentity = uniqueIndex(eligible, identityOf);
-  return (frame: PhotoFrame): SyncedPhoto | undefined => {
+  const candidate = (frame: PhotoFrame): SyncedPhoto | undefined => {
     if (frame.removedAt != null || frame.virtualCopy || frame.isDemo) return undefined;
     const exact = localKey.get(frame.stableKey) === frame ? byKey.get(frame.stableKey) : undefined;
     if (frame.originalSha256 !== undefined) {
@@ -128,6 +128,18 @@ function matcher(frames: readonly PhotoFrame[], snapshot: ProjectSnapshot) {
     const identity = identityOf(frame);
     const legacy = identity && localIdentity.get(identity) === frame ? byIdentity.get(identity) : undefined;
     return legacy && legacy.originalSha256 === undefined ? legacy : undefined;
+  };
+  const matches = new Map<PhotoFrame, SyncedPhoto>();
+  const count = new Map<SyncedPhoto, number>();
+  for (const frame of eligible) {
+    const match = candidate(frame);
+    if (!match) continue;
+    matches.set(frame, match);
+    count.set(match, (count.get(match) ?? 0) + 1);
+  }
+  return (frame: PhotoFrame) => {
+    const match = matches.get(frame);
+    return match && count.get(match) === 1 ? match : undefined;
   };
 }
 
