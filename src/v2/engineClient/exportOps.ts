@@ -29,6 +29,21 @@ function capLongestEdge(size: { width: number; height: number }, maxEdge: number
   return { width: Math.max(1, Math.round(size.width * scale)), height: Math.max(1, Math.round(size.height * scale)) };
 }
 
+/**
+ * The pixel size an Original export asks for: the picture's own size times the edit's Output scale (2× doubles it), then
+ * held under the person's longest-edge limit across the whole (possibly split) composition. The renderer still enlarges
+ * only when the device can hold the result; otherwise it exports at the picture's own size and reports the cap.
+ */
+export function originalExportSize(
+  base: { width: number; height: number }, factor: 1 | 2 | 4 | undefined, sections: number, maxEdge: number | undefined,
+): { width: number; height: number } {
+  const f = factor === 2 || factor === 4 ? factor : 1;
+  const width = base.width * f, height = base.height * f;
+  const longest = Math.max(width * Math.max(1, sections), height);
+  const scale = maxEdge && Number.isFinite(maxEdge) && maxEdge > 0 ? Math.min(1, maxEdge / longest) : 1;
+  return { width: Math.max(1, Math.floor(width * scale)), height: Math.max(1, Math.floor(height * scale)) };
+}
+
 /** A recorded shape, never proof that an embedded JPEG has full RAW sensor pixels. */
 function importedDimensions(frame: ExportFrameInfo): { width: number; height: number } | null {
   const width = frame.exif?.width, height = frame.exif?.height;

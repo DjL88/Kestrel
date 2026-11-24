@@ -20,6 +20,7 @@ import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import CompareSplit from './CompareSplit';
 import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
+import { ORIGINAL_FORMAT_ID } from '../../engineClient/formatOps';
 import { captureElement, screenshotName } from '../utils/captureElement';
 import { DOCKED, clampDockOffset, isDocked, nudgeDockOffset, parseDockOffset, snapDockOffset, type DockOffset } from '../utils/floatingDock';
 import {
@@ -1066,9 +1067,13 @@ export default function Canvas({
     const { frameW, frameH } = artboardFrame(activeSize);
     return Math.max(frameW / photo.pixelSize.width, frameH / photo.pixelSize.height);
   })();
-  // Match the export's source cap and device-bounded upscale admission.
+  // Match the export's source cap and device-bounded upscale admission. Original follows the Output scale (2× doubles it);
+  // a fixed-size format keeps its size and the scale only lets the picture fill it.
   const pixelLimit = maxCanvasPixels(typeof navigator === 'undefined' ? { userAgent: '' } : navigator);
-  const output = effectiveUpscaleOutputSize(activeSize, photo.pixelSize, activeSize.kind === 'photo' ? group.recipe.upscaleFactor : 1, pixelLimit);
+  const chosenScale = activeSize.kind === 'photo' ? group.recipe.upscaleFactor : 1;
+  const requestedSize = activeSize.id === ORIGINAL_FORMAT_ID && (chosenScale === 2 || chosenScale === 4)
+    ? { ...activeSize, width: activeSize.width * chosenScale, height: activeSize.height * chosenScale } : activeSize;
+  const output = effectiveUpscaleOutputSize(requestedSize, photo.pixelSize, chosenScale, pixelLimit);
   const actualPercent = fitScale ? Math.round(fitScale * canvasZoom * 100) : Math.round(canvasZoom * 100);
   const toggleActualSize = () => {
     if (!fitScale) { onSetZoom(1); return; }
@@ -1208,7 +1213,12 @@ export default function Canvas({
             {output.width}×{output.height} ({activeSize.ratioLabel})
           </span>
           {output.factor > 1 && (
-            <span data-testid="output-upscale-factor" className="rounded border border-[var(--border-default)] px-1.5 py-0.5 font-mono tabular-nums">{output.factor}×</span>
+            <span data-testid="output-upscale-factor" title={STRINGS.canvas.outputScaled(output.factor)} className="rounded border border-[var(--brand-accent-border)] bg-[var(--brand-accent-soft)] px-1.5 py-0.5 font-mono tabular-nums text-[var(--brand-accent)]">{output.factor}×</span>
+          )}
+          {output.factor === 1 && (chosenScale === 2 || chosenScale === 4) && (
+            <span data-testid="output-scale-unused" title={STRINGS.canvas.outputScaleUnusedLong(chosenScale)} className="rounded border border-[var(--border-subtle)] px-1.5 py-0.5 text-[10px] text-[var(--text-muted)]">
+              {STRINGS.canvas.outputScaleUnused(chosenScale)}
+            </span>
           )}
           {output.capped && (
             <span
