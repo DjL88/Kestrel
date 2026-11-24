@@ -98,6 +98,11 @@ export interface PhotoFrame {
   declinedTags?: string[];
   /** Set once the species model has looked at this photo, so it is not looked at again. */
   speciesChecked?: boolean;
+  /**
+   * On-device image embedding (DINOv2), used only to refine burst grouping. Absent until the background pass runs.
+   * A cache: anything malformed is ignored by `decodeEmbedding`, never a reason to refuse a restore.
+   */
+  visualEmbedding?: import('./visualSimilarity').StoredEmbedding;
   /** How confident the last auto-cull scan was in this photo, and its score (0-100). Set when a scan looks at the
    * photo, whether or not its suggestion was applied; absent for a photo no scan has looked at yet. Purely
    * informational (sort/review), never changes `decision` on its own. */
