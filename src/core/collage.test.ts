@@ -162,3 +162,31 @@ test('collage caption design survives save, duplication, format and template cha
   const g = collageCaptionGeometry(1000, 2000, captionStyle);
   assert.deepEqual([g.x,g.y,g.width,g.height,g.fontPx,g.position],[50,60,900,1880,40,25]);
 });
+
+
+test('custom collage windows retain their photo references and page-relative geometry on reopen, duplicate and size changes', async () => {
+  const { addCollageWindow, removeCollageWindow, setCollageWindowGeometry, changeCollageFormat } = await import('./collage');
+  const original = createCollage(['a','b','c']);
+  let doc = addCollageWindow(original);
+  const id = collagePage(doc).slots.at(-1)!.id;
+  doc = setCollageWindowGeometry(doc, id, { x: 20, y: 30, width: 50, height: 40, angle: 15 });
+  doc = replaceCollagePhoto(doc, id, 'a');
+  assert.equal(removeCollageWindow(doc,id), doc);
+  const before = collagePage(doc).slots.at(-1)!;
+  const reopened = readCollage(JSON.parse(JSON.stringify(doc)))!;
+  assert.deepEqual(collagePage(changeCollageFormat(reopened,'story')).slots.at(-1), before);
+  assert.equal(collagePage(duplicateCollagePage(reopened)).customLayout,true);
+  assert.deepEqual(collagePage(doc).slots.slice(0,3).map(s=>s.photoId), ['a','b','c']);
+  doc = replaceCollagePhoto(doc,id,null);
+  assert.equal(collagePage(removeCollageWindow(doc,id)).slots.length,3);
+});
+test('custom window resizing stays within the page and built-in layout can be restored', async () => {
+  const { addCollageWindow, setCollageWindowGeometry } = await import('./collage');
+  let doc = addCollageWindow(createCollage(['a']));
+  const id = collagePage(doc).slots.at(-1)!.id;
+  doc = setCollageWindowGeometry(doc,id,{ x: 999, y: -5, width: 1000, height: 0, angle: 500 });
+  const slot = collagePage(doc).slots.at(-1)!;
+  assert.deepEqual([slot.x,slot.y,slot.width,slot.height,slot.angle],[0,0,100,5,180]);
+  assert.equal(collagePage(changeCollageTemplate(doc,'triptych')).customLayout,undefined);
+  assert.equal(collagePage(changeCollageTemplate(doc,'triptych')).slots.length,3);
+});
