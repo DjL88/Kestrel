@@ -147,6 +147,13 @@ resource "google_billing_budget" "monthly" {
   threshold_rules { threshold_percent = 0.5 }
   threshold_rules { threshold_percent = 0.9 }
   threshold_rules { threshold_percent = 1.0 }
+  dynamic "all_updates_rule" {
+    for_each = var.phase2_monitoring ? [1] : []
+    content {
+      monitoring_notification_channels = [google_monitoring_notification_channel.inflight_owner[0].name]
+      disable_default_iam_recipients = false
+    }
+  }
   depends_on = [google_project_service.enabled]
 }
 
