@@ -1,3 +1,4 @@
+import type { ColourWords } from '../engineClient/colourWords';
 import type { ComponentType, CSSProperties } from 'react';
 
 // Single Contract File for InFlight UI Shell
@@ -293,6 +294,8 @@ export interface Photo {
   assistCritique: {
     subjectNote: string;
     colourConfidence: string;
+    /** The colour check in words (main colours and findings). Shown only with the Colour-vision support setting on. */
+    colourCheck?: ColourWords;
     kelvinEstimate: string;
     suggestions: AssistSuggestion[];
   };

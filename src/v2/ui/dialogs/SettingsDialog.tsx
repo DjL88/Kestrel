@@ -637,6 +637,7 @@ function SettingSwitch({
         type="button"
         role="switch"
         aria-checked={checked}
+        aria-label={title}
         onClick={onToggle}
         className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
           checked

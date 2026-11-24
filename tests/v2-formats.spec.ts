@@ -23,10 +23,10 @@ test('?v2 the frame action bar adds, duplicates and deletes formats for real, an
 
   const caption = () => root.getByTestId('canvas-frame').locator('xpath=../../div[1]/span[1]');
   const original = ((await caption().textContent()) ?? '').trim();
-  const bar = root.getByRole('toolbar', { name: 'Format actions' });
+  const bar = root.getByRole('toolbar', { name: 'Selected format actions' });
   await expect(bar).toBeVisible();
 
-  await bar.getByRole('button', { name: 'Duplicate this format' }).click();
+  await bar.getByRole('button', { name: 'Duplicate format' }).click();
   await expect(caption()).toContainText(`${original} copy`);
 
   // The copy is a real format of this photo: it is in the export list.
@@ -34,9 +34,9 @@ test('?v2 the frame action bar adds, duplicates and deletes formats for real, an
   await expect(page.getByRole('dialog', { name: /export/i }).getByText(`${original} copy`)).toBeVisible();
   await page.getByRole('button', { name: 'Close export dialog' }).click();
 
-  await bar.getByRole('button', { name: 'Delete this format' }).click();
+  await bar.getByRole('button', { name: 'Delete selected format' }).click();
   await expect(caption()).not.toContainText('copy');
 
-  await bar.getByRole('button', { name: 'Add a format' }).click();
+  await bar.getByRole('button', { name: 'Add format' }).click();
   await expect(root.getByRole('heading', { name: 'Formats' }).first()).toBeVisible();
 });

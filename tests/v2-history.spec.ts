@@ -40,8 +40,13 @@ test('?v2 History lists real edit steps; choosing Original goes back and the lat
   await root.getByRole('tab', { name: 'Advanced Edits' }).click();
   await expect(exposure).toHaveValue('0');
 
+  // Since #1113 choosing an earlier step forks a new editing version; the later step stays in Version 1.
   await root.getByRole('button', { name: 'History' }).first().click();
-  await steps.nth(1).click();
+  const versions = root.getByRole('combobox', { name: 'Choose an editing version' });
+  await expect(versions.getByRole('option')).toHaveCount(2);
+  await versions.selectOption({ label: 'Version 1' });
+  await expect(steps).toHaveCount(2);
+  await expect(steps.nth(1)).toHaveAttribute('aria-current', 'step');
   await root.getByRole('button', { name: 'Adjust' }).first().click();
   await root.getByRole('tab', { name: 'Advanced Edits' }).click();
   await expect(exposure).toHaveValue('1');

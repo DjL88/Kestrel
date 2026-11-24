@@ -5,7 +5,10 @@ import { chordLabel, type Keymap } from '../commands/keymap';
 import BrandIcon, { BrandLogo, assistModeIconName } from '../icons/BrandIcon';
 
 interface TopBarProps {
-  /** The File, Edit and View menus. Off in the interface: the desktop app has them natively. */
+  /**
+   * The File, Edit and View menus (wide screens only). On by default: the desktop app's native menu is the older V1
+   * menu and has no V2 actions such as Removed photos, so hiding these left those actions with no way in.
+   */
   showMenus?: boolean;
   photoName: string;
   /**
@@ -50,7 +53,7 @@ interface TopBarProps {
 type OpenMenu = 'file' | 'edit' | 'view' | null;
 
 export default function TopBar({
-  showMenus = false,
+  showMenus = true,
   photoName,
   keymap: shortcutMap,
   assistMode,

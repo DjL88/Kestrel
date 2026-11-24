@@ -673,7 +673,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       calmReadouts: false,
       touchDensity: 'comfortable',
       hand: 'right',
-      cvdGuidance: true,
+      cvdGuidance: false,
       ongoingCritique: true,
       defaultAssistMode: 'copilot',
       language: 'en-GB',

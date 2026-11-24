@@ -19,6 +19,7 @@ import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import CompareSplit from './CompareSplit';
 import { captureElement, screenshotName } from '../utils/captureElement';
+import { DOCKED, clampDockOffset, isDocked, nudgeDockOffset, parseDockOffset, snapDockOffset, type DockOffset } from '../utils/floatingDock';
 import {
   buildPreviewFilterCss,
   cropPanLimits,
@@ -71,6 +72,8 @@ interface CanvasProps {
   onSetZoom: (zoom: number) => void;
   onToggleFullScreen: () => void;
 }
+
+const ZOOM_BAR_STORAGE_KEY = 'inflight.v2.zoomBarOffset';
 
 export default function Canvas({
   PhotoSurface,
@@ -176,6 +179,54 @@ export default function Canvas({
     stage.scrollTop = zoomAnchorScroll(anchor.top, anchor.y, anchor.zoom, canvasZoom);
     zoomAnchor.current = null;
   }, [canvasZoom]);
+
+  // The zoom bar stays fixed over the canvas. It can be undocked: drag its grip (or use the arrow keys on it) to move
+  // it anywhere over the canvas; double-click the grip, press Home on it, or drop it near the corner to dock it again.
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const zoomBarRef = useRef<HTMLDivElement>(null);
+  const zoomBarDrag = useRef<{ pointerId: number; x: number; y: number; start: DockOffset } | null>(null);
+  const [zoomBarOffset, setZoomBarOffset] = useState<DockOffset>(() => {
+    try { return parseDockOffset(window.localStorage.getItem(ZOOM_BAR_STORAGE_KEY)); } catch { return DOCKED; }
+  });
+  const clampZoomBar = (offset: DockOffset): DockOffset => {
+    const area = viewportRef.current?.getBoundingClientRect();
+    const bar = zoomBarRef.current?.getBoundingClientRect();
+    return area && bar ? clampDockOffset(offset, area, bar) : offset;
+  };
+  const saveZoomBarOffset = (offset: DockOffset) => {
+    setZoomBarOffset(offset);
+    try { window.localStorage.setItem(ZOOM_BAR_STORAGE_KEY, JSON.stringify(offset)); } catch { /* the place is a convenience only */ }
+  };
+  const startZoomBarDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (event.button !== 0) return;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    zoomBarDrag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, start: zoomBarOffset };
+  };
+  const moveZoomBar = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    const drag = zoomBarDrag.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    setZoomBarOffset(clampZoomBar({ right: drag.start.right - (event.clientX - drag.x), bottom: drag.start.bottom - (event.clientY - drag.y) }));
+  };
+  const endZoomBarDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    const drag = zoomBarDrag.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    zoomBarDrag.current = null;
+    saveZoomBarOffset(snapDockOffset(clampZoomBar({ right: drag.start.right - (event.clientX - drag.x), bottom: drag.start.bottom - (event.clientY - drag.y) })));
+  };
+  // A window or panel resize never leaves the undocked bar out of sight.
+  useEffect(() => {
+    const area = viewportRef.current;
+    if (!area || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => setZoomBarOffset((offset) => {
+      const next = clampZoomBar(offset);
+      return next.right === offset.right && next.bottom === offset.bottom ? offset : next;
+    }));
+    observer.observe(area);
+    return () => observer.disconnect();
+  }, []);
 
   const [shotNote, setShotNote] = useState<string | null>(null);
   /** Saves what is on the canvas right now, as seen: the edit, crop, overlays, grid and compare split. */
@@ -1443,7 +1494,9 @@ export default function Canvas({
         </div>
       )}
 
-      {/* Stage */}
+      {/* Stage, with the controls that float over it. They sit outside the scrolling stage, so they stay put when
+          the picture is zoomed and scrolled. */}
+      <div ref={viewportRef} className="relative flex min-h-0 min-w-0 flex-1">
       <div
         ref={stageRef}
         onClick={(e) => {
@@ -1467,9 +1520,10 @@ export default function Canvas({
 
         {canvasLayoutMode === 'all-formats' ? renderAllFormatsBoard() : renderSingleArtboard()}
 
+      </div>
         {/* Subtle bottom-left interaction hint */}
         {!hideHints && canvasLayoutMode === 'single' && (
-          <p data-capture-ignore className="pointer-events-none absolute bottom-3 left-4 hidden lg:block text-[11px] text-[var(--text-muted)]">
+          <p data-capture-ignore className="pointer-events-none absolute bottom-3 left-4 right-80 hidden truncate lg:block text-[11px] text-[var(--text-muted)]">
             {activeSize.kind === 'video'
               ? STRINGS.canvas.zoomVideoHint
               : STRINGS.canvas.dragCropHint}
@@ -1484,8 +1538,33 @@ export default function Canvas({
         <div
           aria-label="Canvas viewport controls"
           data-capture-ignore
-          className="absolute bottom-3 right-3 z-30 flex items-center gap-1 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)]/95 p-1 shadow-[var(--shadow-popover)] backdrop-blur-sm"
+          ref={zoomBarRef}
+          role="toolbar"
+          data-testid="canvas-viewport-controls"
+          data-docked={isDocked(zoomBarOffset) ? 'true' : 'false'}
+          className="absolute z-30 flex items-center gap-1 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)]/95 p-1 shadow-[var(--shadow-popover)] backdrop-blur-sm"
+          style={{ right: 12 + zoomBarOffset.right, bottom: 12 + zoomBarOffset.bottom }}
         >
+          <button
+            type="button"
+            data-testid="zoom-bar-grip"
+            aria-label={STRINGS.canvas.zoomBarMove}
+            title={STRINGS.canvas.zoomBarMoveTitle}
+            onPointerDown={startZoomBarDrag}
+            onPointerMove={moveZoomBar}
+            onPointerUp={endZoomBarDrag}
+            onPointerCancel={endZoomBarDrag}
+            onDoubleClick={() => saveZoomBarOffset(DOCKED)}
+            onKeyDown={(event) => {
+              const next = nudgeDockOffset(zoomBarOffset, event.key);
+              if (!next) return;
+              event.preventDefault();
+              saveZoomBarOffset(clampZoomBar(next));
+            }}
+            className="inline-flex h-8 w-5 cursor-grab touch-none items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] active:cursor-grabbing"
+          >
+            <BrandIcon name="grip" size={14} />
+          </button>
           <button
             type="button"
             aria-label="Zoom out"

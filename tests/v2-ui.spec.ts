@@ -243,17 +243,21 @@ test('?v2 Co-pilot checks the photo on this device, suggests Auto, and applying 
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
   // The verdict is always written in words (in the merged Co-pilot panel), whatever it is, and comes from the measured values.
   await root.getByRole('button', { name: 'Co-pilot', exact: true }).first().click();
-  const verdict = root.getByText(/Auto applied|Looks good|Cannot improve this safely|gentler version/);
+  const panel = root.getByRole('region', { name: 'Co-pilot panel' });
+  const verdict = panel.getByRole('heading', { name: 'Recommended adjustments' }).or(panel.getByText(/Looks good|Cannot improve this safely/));
   await expect(verdict.first()).toBeVisible({ timeout: 60000 });
-  const apply = root.getByRole('button', { name: 'Apply suggested recipe' });
-  if (await apply.count()) {
-    // Each suggestion now leads with a real before/after preview (owner backlog item 20: previews
-    // instead of paragraphs), not only the text verdict checked above.
-    await expect(root.locator('img[alt^="Preview: "]').first()).toBeVisible();
-    await apply.click();
-    await expect(root.getByRole('button', { name: 'Apply suggested recipe' })).toHaveCount(0);
+  const suggestion = panel.getByRole('figure', { name: 'Suggested edit' });
+  await expect(suggestion.or(panel.getByText(/Looks good|Cannot improve/)).first()).toBeVisible({ timeout: 60000 });
+  if (await suggestion.count()) {
+    // Each suggestion leads with a real rendered preview (owner backlog item 20), and says what it does in words.
+    await expect(suggestion.first().getByRole('img')).toBeVisible();
+    const apply = panel.getByRole('button', { name: 'Apply', exact: true });
+    await apply.first().click();
+    // One edit: History shows the original and exactly one step after applying.
+    await root.getByRole('button', { name: 'History' }).first().click();
+    await expect(root.getByRole('list', { name: 'History' }).getByRole('button')).toHaveCount(2);
   } else {
-    await expect(root.getByText(/Looks good|Cannot improve/).first()).toBeVisible();
+    await expect(panel.getByText(/Looks good|Cannot improve/).first()).toBeVisible();
   }
 });
 
@@ -300,14 +304,15 @@ test('?v2 marks Pro features with the Pro badge, and leaves Basic features unmar
   await expect(root.getByRole('button', { name: /Deep Vision Review/ }).getByText('Part of InFlight Pro')).toHaveCount(1);
 });
 
-test('?v2 chrome: icons load, no File/Edit/View or mode switch in the header, the mode shows as a flag and is set in Settings', async ({ page }) => {
+test('?v2 chrome: icons load, File/Edit/View menus but no mode switch in the header, the mode shows as a flag and is set in Settings', async ({ page }) => {
   const missing: string[] = [];
   page.on('response', (response) => { if (response.url().includes('/v2-icons/') && response.status() >= 400) missing.push(response.url()); });
   await page.goto('/?v2&stub=1');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: /Scottish Highlands/ }).first().click();
   const header = root.getByRole('banner');
-  await expect(header.getByRole('navigation', { name: 'Application menus' })).toHaveCount(0);
+  // Owner decision 24 Nov 2026: keep File/Edit/View (wide screens) so V2-only actions such as Removed photos have a way in.
+  await expect(header.getByRole('navigation', { name: 'Application menus' })).toBeVisible();
   await expect(header.getByRole('radiogroup', { name: /assist mode/i })).toHaveCount(0);
   await expect(header.getByRole('button', { name: 'Back to projects' })).toBeVisible();
   // Assist and Co-pilot are one tool: there is no separate Assist in the rail.
@@ -356,7 +361,7 @@ test('?v2 font picker: favourites shown in their own typeface, a sample of real 
   await expect(root.getByRole('listbox', { name: 'Fonts' }).getByRole('button', { name: /Futura/ }).first()).toBeVisible();
 });
 
-test('?v2 on the Free plan the Overlays tool is not offered at all', async ({ page }) => {
+test('?v2 on the Free plan the Overlays tool is offered (basic overlays are free since #1224)', async ({ page }) => {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: 'New project' }).first().click();
@@ -367,8 +372,8 @@ test('?v2 on the Free plan the Overlays tool is not offered at all', async ({ pa
   await root.getByRole('button', { name: /^Import/ }).first().click();
   await (await chooser).setFiles([{ name: 'ov-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
-  // Text and watermark are Pro, so the tool is left out of the rail rather than shown locked.
-  await expect(root.getByRole('complementary', { name: 'Studio tools' }).getByRole('button', { name: 'Overlays' })).toHaveCount(0);
+  // Text and watermark overlays are never gated (#1224), so Free shows the tool like every other basic tool.
+  await expect(root.getByRole('complementary', { name: 'Studio tools' }).getByRole('button', { name: 'Overlays' })).toBeVisible();
   await expect(root.getByRole('complementary', { name: 'Studio tools' }).getByRole('button', { name: 'Adjust' })).toBeVisible();
 });
 
@@ -455,6 +460,13 @@ test('?v2 slice 1A: the histogram is measured, the zoom % jumps to 100%, and int
 test('?v2 overlay text is the same share of the frame in every format and at every zoom (a true reflection of size)', async ({ page }) => {
   await page.goto('/?v2&stub=1&autostart=1');
   const root = page.locator('.inflight-v2');
+  // New photos start with only Original on (formats are chosen up front); switch on two more for the board.
+  await root.getByRole('button', { name: 'Formats', exact: true }).first().click();
+  for (const label of ['Instagram Portrait', 'YouTube / Widescreen']) {
+    const toggle = root.getByRole('button', { name: `Include ${label}`, exact: true });
+    if ((await toggle.getAttribute('aria-pressed')) !== 'true') await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  }
   await root.getByRole('button', { name: 'Overlays', exact: true }).first().click();
   const text = root.locator('div').filter({ hasText: /^Show text overlay on this photo/ }).getByRole('switch').first();
   await text.click();
@@ -491,6 +503,11 @@ test('?v2 a format is capped at the photo\'s own pixels, with a small warning', 
   await root.getByRole('button', { name: /^Import/ }).first().click();
   await (await chooser).setFiles([{ name: 'cap-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  // New photos start with only Original (never capped); switch on the 3000×2000 3:2 format and show it.
+  await root.getByRole('button', { name: 'Formats', exact: true }).first().click();
+  const include = root.getByRole('button', { name: 'Include 3:2', exact: true });
+  if ((await include.getAttribute('aria-pressed')) !== 'true') await include.click();
+  await root.getByRole('button', { name: '3:2 3:2', exact: true }).click();
   const warning = root.getByTestId('size-cap-warning');
   await expect(warning).toContainText('Smaller than 3000×2000', { timeout: 30000 });
   await expect(root.getByText('1500×1000 (3:2)')).toBeVisible();
@@ -501,31 +518,34 @@ test('?v2 crop: corners keep the format\'s shape, double-click shows the whole p
   await page.goto('/?v2&stub=1&autostart=1');
   const root = page.locator('.inflight-v2');
   const frame = root.getByTestId('canvas-frame');
-  const zoomOf = () => frame.locator('img').first().evaluate((img) => { const m = new DOMMatrixReadOnly(getComputedStyle(img).transform === 'none' ? undefined : getComputedStyle(img).transform); return m.a; });
+  // The crop zoom as the photographer sees it: the Formats panel's Frame zoom value (kept open so the layout stays put).
+  await root.getByRole('button', { name: 'Formats', exact: true }).first().click();
+  const zoomOf = async () => Number(await root.getByRole('slider', { name: /Frame zoom/ }).first().inputValue());
   const before = (await frame.boundingBox())!;
   expect(await zoomOf()).toBeCloseTo(1, 1);
-  // Pull the top-left corner in: the picture zooms, and the frame keeps exactly the same shape and size.
+  // Crop handles live on the picture while in crop mode (double-click or Crop / reposition); the format frame stays put.
+  await expect(root.getByTestId('crop-ghost')).toHaveCount(0);
+  await frame.dblclick({ position: { x: 200, y: 150 } });
+  await expect(root.getByTestId('crop-ghost')).toBeVisible();
   const corner = root.getByRole('button', { name: 'Drag top left crop corner' });
+  // Pull the picture's top-left corner outwards: the picture zooms, and the frame keeps exactly the same shape and size.
   const c = (await corner.boundingBox())!;
   await page.mouse.move(c.x + c.width / 2, c.y + c.height / 2);
   await page.mouse.down();
-  await page.mouse.move(c.x + 90, c.y + 60, { steps: 6 });
+  await page.mouse.move(c.x - 90, c.y - 60, { steps: 6 });
   await page.mouse.up();
   expect(await zoomOf()).toBeGreaterThan(1.05);
   const after = (await frame.boundingBox())!;
   expect(Math.abs(after.width - before.width)).toBeLessThan(1);
   expect(Math.abs(after.height - before.height)).toBeLessThan(1);
-  // Pulling it back out returns toward fit, never below it.
+  // Pushing it back in returns toward fit, never below it.
   const c2 = (await corner.boundingBox())!;
   await page.mouse.move(c2.x + c2.width / 2, c2.y + c2.height / 2);
   await page.mouse.down();
-  await page.mouse.move(c2.x - 200, c2.y - 150, { steps: 6 });
+  await page.mouse.move(c2.x + 400, c2.y + 300, { steps: 6 });
   await page.mouse.up();
   expect(await zoomOf()).toBeGreaterThanOrEqual(0.99);
-  // Double-click shows the whole picture as a ghost; Escape leaves it.
-  await expect(root.getByTestId('crop-ghost')).toHaveCount(0);
-  await frame.dblclick({ position: { x: 200, y: 150 } });
-  await expect(root.getByTestId('crop-ghost')).toBeVisible();
+  // Escape leaves crop mode.
   await page.keyboard.press('Escape');
   await expect(root.getByTestId('crop-ghost')).toHaveCount(0);
   // Outside that mode, a plain drag moves the format on the canvas.
@@ -629,7 +649,7 @@ test('?v2 export draws the size copy as the canvas shows it: capped at the pictu
   // The flip applies to the format on the canvas: remember which one that is and export only it.
   const shown = ((await root.getByTestId('canvas-frame').locator('xpath=../../div[1]/span[1]').textContent()) ?? '').trim();
   expect(shown).not.toBe('');
-  await root.getByRole('button', { name: 'Flip horizontally' }).click();
+  await root.getByRole('button', { name: 'Flip selected formats' }).click();
   await root.getByRole('button', { name: /^Export/ }).first().click();
   const dialog = page.getByRole('dialog', { name: /export/i });
   await dialog.getByRole('button', { name: /Download individual files/i }).click();
@@ -639,7 +659,7 @@ test('?v2 export draws the size copy as the canvas shows it: capped at the pictu
   const names = (await sizes.allTextContents()).filter((text) => !text.includes(shown));
   for (const name of names) await dialog.locator('.grid.grid-cols-2 button[aria-pressed="true"]', { hasText: name }).first().click();
   const downloading = page.waitForEvent('download', { timeout: 60000 });
-  await dialog.getByRole('button', { name: /export bundle/i }).click();
+  await dialog.getByRole('button', { name: /^Save files$/i }).click();
   const download = await downloading;
   expect(download.suggestedFilename()).toMatch(/\.jpg$/);
   const path = await download.path();
@@ -880,20 +900,30 @@ test('V2 reconnects a browser original after its session blob is lost (file rese
       return put.call(this, value, key);
     };
   });
-  const choose = async (testId: string, names: string[], changeBytes = false) => {
-    await page.locator(`[data-testid="${testId}"]`).waitFor({ state: 'attached' });
-    return page.evaluate(({ testId, names, changeBytes }) => {
-    const png = atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
-    const bytes = Uint8Array.from(png, (character) => character.charCodeAt(0));
-    if (changeBytes) bytes[bytes.length - 1] ^= 1; // identical metadata, different content; MUST be refused
-    const data = new DataTransfer();
-    // A fixed lastModified, same on both the import and the later reselect, so the two picks produce the exact
-    // same stableKey (local-file://name::size::lastModified) regardless of when each step actually runs.
-    for (const name of names) data.items.add(new File([bytes], name, { type: 'image/png', lastModified: 1700000000000 }));
-    const input = document.querySelector<HTMLInputElement>(`[data-testid="${testId}"]`)!;
-    input.files = data.files;
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    }, { testId, names, changeBytes });
+  // V2 creates its file picker on demand (no input stays on the page). Catch it when it opens and hand it files with a
+  // fixed lastModified, so the import and the later reselect have the same stableKey (name::size::lastModified).
+  await page.addInitScript(() => {
+    const click = HTMLInputElement.prototype.click;
+    HTMLInputElement.prototype.click = function () {
+      if (this.type === 'file' && sessionStorage.getItem('v2-intercept-picker') === 'yes') { (window as unknown as { __picker?: HTMLInputElement }).__picker = this; return; }
+      return click.call(this);
+    };
+  });
+  const choose = async (open: () => Promise<void>, names: string[], changeBytes = false) => {
+    await page.evaluate(() => { sessionStorage.setItem('v2-intercept-picker', 'yes'); delete (window as unknown as { __picker?: HTMLInputElement }).__picker; });
+    await open();
+    await page.waitForFunction(() => Boolean((window as unknown as { __picker?: HTMLInputElement }).__picker));
+    await page.evaluate(({ names, changeBytes }) => {
+      const png = atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+      const bytes = Uint8Array.from(png, (character) => character.charCodeAt(0));
+      if (changeBytes) bytes[bytes.length - 1] ^= 1; // identical metadata, different content; MUST be refused
+      const data = new DataTransfer();
+      for (const name of names) data.items.add(new File([bytes], name, { type: 'image/png', lastModified: 1700000000000 }));
+      const input = (window as unknown as { __picker: HTMLInputElement }).__picker;
+      input.files = data.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      sessionStorage.removeItem('v2-intercept-picker');
+    }, { names, changeBytes });
   };
 
   await page.goto('/?v2');
@@ -903,8 +933,7 @@ test('V2 reconnects a browser original after its session blob is lost (file rese
   await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
 
   await page.evaluate(() => sessionStorage.setItem('v2-fail-photo-storage', 'yes'));
-  await root.getByRole('button', { name: /^Import/ }).first().click();
-  await choose('v2-file-input', ['lost-original.png']);
+  await choose(() => root.getByRole('button', { name: /^Import/ }).first().click(), ['lost-original.png']);
   const strip = root.getByRole('listbox', { name: 'Project photographs' });
   await expect(strip.getByRole('option')).toHaveCount(1);
   await page.evaluate(() => sessionStorage.removeItem('v2-fail-photo-storage'));
@@ -918,12 +947,10 @@ test('V2 reconnects a browser original after its session blob is lost (file rese
 
   const banner = root.getByRole('status').filter({ hasText: 'Original not connected' });
   await expect(banner).toBeVisible();
-  await banner.getByRole('button', { name: 'Reconnect folder' }).click();
-  await choose('v2-relink-input', ['lost-original.png'], true);
+  await choose(() => banner.getByRole('button', { name: 'Reconnect folder' }).click(), ['lost-original.png'], true);
   await expect(banner).toBeVisible();
   await expect(root.getByText(/contents do not match the original/)).toBeVisible();
-  await banner.getByRole('button', { name: 'Reconnect folder' }).click();
-  await choose('v2-relink-input', ['lost-original.png']);
+  await choose(() => banner.getByRole('button', { name: 'Reconnect folder' }).click(), ['lost-original.png']);
   await expect(banner).toHaveCount(0);
   await expect(root.getByText(/Reconnected 1 photo using matching original bytes/)).toBeVisible();
 });

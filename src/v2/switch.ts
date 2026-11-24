@@ -1,6 +1,7 @@
 /**
- * The switch for the Version 2 workspace. While it is built, the current Library and Editor stay the default.
- * `?v2` (or `?v2=1`) turns it on and remembers that on this device; `?v2=0` turns it off again.
+ * The switch for the Version 2 workspace. V2 is the product (owner decision, 24 Nov 2026), so it is the default.
+ * `?v2=0` opens the previous Library and Editor and remembers that on this device, until V1 is retired;
+ * `?v2` (or `?v2=1`) switches back.
  */
 export const V2_STORAGE_KEY = 'inflight.v2';
 
@@ -11,7 +12,7 @@ export function resolveV2Switch(search: string, stored: string | null): { enable
     const off = value === '0' || value === 'false' || value === 'off';
     return { enabled: !off, remember: off ? 'off' : 'on' };
   }
-  return { enabled: stored === 'on', remember: null };
+  return { enabled: stored !== 'off', remember: null };
 }
 
 export function v2Enabled(): boolean {
