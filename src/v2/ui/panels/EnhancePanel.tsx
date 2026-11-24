@@ -108,9 +108,6 @@ export default function EnhancePanel({
             id="denoise-luma"
             type="range"
             data-testid="v2-enhance-luminance"
-            disabled={unsupported('denoiseLuminance')}
-            aria-describedby="v2-enhance-unavailable"
-            title={unsupported('denoiseLuminance') ? unsupportedHelp : undefined}
             min={0}
             max={100}
             value={recipe.denoiseLuminance}
