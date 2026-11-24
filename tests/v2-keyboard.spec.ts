@@ -27,8 +27,9 @@ test('?v2 Settings > Keyboard: change a key, it works and is remembered, a clash
   await root.getByRole('button', { name: 'Change key for All photos (grid view)' }).click();
   await page.keyboard.press('y');
   await expect(root.getByText('No clashes.')).toBeVisible();
+  // Escape closes Settings (no shortcut capture is running, so it is not swallowed by the recorder).
   await page.keyboard.press('Escape');
-  await root.getByRole('button', { name: /close settings/i }).first().click().catch(() => undefined);
+  await expect(page.getByRole('dialog', { name: 'Settings' })).toHaveCount(0);
   await page.keyboard.press('g');
   await expect(page.getByLabel('All photos grid view')).toHaveCount(0);
   await page.keyboard.press('y');

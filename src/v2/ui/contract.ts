@@ -379,7 +379,16 @@ export interface StorageConnector {
 
 export interface WorkspaceSettings {
   theme: ThemeMode;
+  /** Calm View, the preset. Switching it sets the parts below together; each part can then be changed on its own. */
   calmView: boolean;
+  /** Less movement: no slides, fades or spinners in the workspace (the operating system's reduce-motion setting does the same). */
+  calmMotion: boolean;
+  /** Fewer badges: leave out the Ready label on finished photos. Labels that need action always show. */
+  calmBadges: boolean;
+  /** Fewer hints: hide the tips drawn on the canvas. */
+  calmHints: boolean;
+  /** Hide the numbers beside sliders. Separate from the preset, because many people find exact values calming. */
+  calmReadouts: boolean;
   touchDensity: 'comfortable' | 'compact';
   /** Which side the tool rail is on. 'left' mode puts it on the right so a pencil or a left hand does not catch it. */
   hand: 'right' | 'left';

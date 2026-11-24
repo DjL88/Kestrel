@@ -14,7 +14,7 @@ const photo = {
 
 const render = () => renderToStaticMarkup(React.createElement(EnhancePanel, {
   photo,
-  calmView: false,
+  hideReadouts: false,
   onUpdateRecipe: () => {},
   onDenoise: () => {},
 }));

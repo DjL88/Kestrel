@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { PanelId } from './contract';
 import { useWorkspace } from './stub';
 import { resolveTheme } from './themePreference';
+import { noticeDurationMs, noticeNeedsDismiss } from './utils/noticeTiming';
 import { STRINGS } from './strings';
 import BrandIcon, { assistModeIconName } from './icons/BrandIcon';
 import ProjectsHub from './screens/ProjectsHub';
@@ -122,12 +123,16 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   const hoveredLook = store.looks.find((l) => l.id === store.hoveredLookId) ?? null;
   const runningTaskCount = store.tasks.filter((t) => t.status === 'running').length;
 
-  // Auto-dismiss quiet action notice
+  // Action messages: a problem waits until it is dismissed; a confirmation stays long enough to read, and pauses
+  // while the pointer or focus is on it. Calm View never hides them (it only quietens the rest of the workspace).
+  const [noticePaused, setNoticePaused] = useState(false);
+  const noticeSticky = store.lastActionNotice ? noticeNeedsDismiss(store.lastActionNotice) : false;
   useEffect(() => {
-    if (!store.lastActionNotice) return;
-    const t = window.setTimeout(() => actions.clearNotice(), 3200);
+    if (!store.lastActionNotice || noticeSticky || noticePaused) return;
+    const t = window.setTimeout(() => actions.clearNotice(), noticeDurationMs(store.lastActionNotice));
     return () => clearTimeout(t);
-  }, [store.lastActionNotice, actions]);
+  }, [store.lastActionNotice, noticeSticky, noticePaused, actions]);
+  useEffect(() => { setNoticePaused(false); }, [store.lastActionNotice]);
 
   // One dispatch for every command id, shared by the keydown handler below and the command search dialog,
   // so "what Cmd/Ctrl+K can run" and "what the keyboard shortcut runs" never drift apart.
@@ -226,7 +231,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             selectedPhotoCount={store.selectedPhotoIds.length}
             looks={store.looks}
             cvdGuidance={store.settings.cvdGuidance}
-            calmView={store.settings.calmView}
+            hideReadouts={store.settings.calmReadouts}
             onUpdateRecipe={actions.updateRecipe}
             onApplyLook={actions.applyLook}
             onHoverLook={actions.setHoveredLook}
@@ -279,7 +284,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         return (
           <EnhancePanel
             photo={activePhoto}
-            calmView={store.settings.calmView}
+            hideReadouts={store.settings.calmReadouts}
             onUpdateRecipe={actions.updateRecipe}
             onDenoise={actions.denoisePhoto}
             cloudEnabled={store.features.cloudAssist}
@@ -379,6 +384,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
     <div
       className="inflight-v2 fixed inset-0 flex flex-col overflow-hidden bg-[var(--bg-app)] text-[var(--text-primary)] font-[family-name:var(--font-sans)]"
       data-v2-theme={activeTheme}
+      data-v2-motion={store.settings.calmMotion ? 'calm' : undefined}
       onDragOver={(e) => {
         if (store.screen === 'editor' && Array.from(e.dataTransfer.types).includes('Files')) {
           e.preventDefault();
@@ -467,7 +473,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
               taskProgress={runningTaskCount ? store.tasks.filter((t) => t.status === 'running').reduce((sum, t) => sum + t.progress, 0) / runningTaskCount : 0}
               onOpenTasks={() => actions.setActivePanel(store.activePanel === 'tasks' ? null : 'tasks')}
               onOpenModeSettings={() => actions.setSettingsOpen(true, 'assistance')}
-              calmView={store.settings.calmView}
+              quietBadges={store.settings.calmBadges}
               onSelectPanel={actions.setActivePanel}
               onSetPanelVisible={actions.setPanelVisible}
               onSetPanelDock={actions.setPanelDock}
@@ -543,7 +549,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                   compareMode={store.compareMode}
                   canvasZoom={store.canvasZoom}
                   isFullScreen={store.isFullScreen}
-                  calmView={store.settings.calmView}
+                  hideHints={store.settings.calmHints}
                   onSelectSize={actions.setActiveSize}
                   onClearSizeSelection={actions.clearSizeSelection}
                   onSelectAllSizes={actions.selectAllEnabledSizes}
@@ -575,7 +581,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                 height={store.filmstripHeight}
                 filter={store.filmstripFilter}
                 search={store.filmstripSearch}
-                calmView={store.settings.calmView}
+                quietBadges={store.settings.calmBadges}
                 looks={store.looks}
                 hasClipboardRecipe={Boolean(store.clipboardRecipe)}
                 onSetBottomTab={actions.setBottomTab}
@@ -808,16 +814,30 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         />
       )}
 
-      {/* Quiet non-intrusive action confirmation toast */}
-      {store.lastActionNotice && !store.settings.calmView && (
+      {/* Action message: quiet, readable, and never gone before it can be read. */}
+      {store.lastActionNotice && (
         <div
-          role="status"
-          aria-live="polite"
-          className={`pointer-events-none fixed right-4 z-50 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-3.5 py-2 text-xs font-medium text-[var(--text-primary)] shadow-[var(--shadow-popover)] ${
-            isMobile ? 'bottom-20' : 'bottom-4'
-          }`}
+          role={noticeSticky ? 'alert' : 'status'}
+          aria-live={noticeSticky ? 'assertive' : 'polite'}
+          onMouseEnter={() => setNoticePaused(true)}
+          onMouseLeave={() => setNoticePaused(false)}
+          onFocus={() => setNoticePaused(true)}
+          onBlur={() => setNoticePaused(false)}
+          className={`fixed right-4 z-50 flex max-w-[min(28rem,calc(100vw-2rem))] items-start gap-2 rounded-[var(--radius-md)] border bg-[var(--bg-surface-raised)] py-2 pl-3.5 pr-1.5 text-xs font-medium text-[var(--text-primary)] shadow-[var(--shadow-popover)] ${
+            noticeSticky ? 'border-[var(--semantic-warning)]' : 'border-[var(--border-default)]'
+          } ${isMobile ? 'bottom-20' : 'bottom-4'}`}
         >
-          {store.lastActionNotice}
+          {noticeSticky && <BrandIcon name="alert" size={14} className="mt-0.5 shrink-0 text-[var(--semantic-warning)]" />}
+          <span className="min-w-0 flex-1 py-0.5 leading-relaxed">{store.lastActionNotice}</span>
+          <button
+            type="button"
+            onClick={() => actions.clearNotice()}
+            aria-label={STRINGS.settings.appearance.dismissNotice}
+            title={STRINGS.settings.appearance.dismissNotice}
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
+          >
+            <BrandIcon name="close" size={12} />
+          </button>
         </div>
       )}
     </div>

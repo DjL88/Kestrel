@@ -48,7 +48,7 @@ interface CanvasProps {
   compareMode: boolean;
   canvasZoom: number;
   isFullScreen: boolean;
-  calmView: boolean;
+  hideHints: boolean;
   onSelectSize: (sizeId: string, modifiers?: { ctrl?: boolean; shift?: boolean; available?: readonly string[] }) => void;
   onClearSizeSelection: () => void;
   /** Phone swipe left or right on the photo: go to the next (1) or previous (-1) photo. */
@@ -91,7 +91,7 @@ export default function Canvas({
   compareMode: compareRequested,
   canvasZoom,
   isFullScreen,
-  calmView,
+  hideHints,
   onSelectSize,
   onClearSizeSelection,
   onStepPhoto,
@@ -1666,7 +1666,7 @@ export default function Canvas({
 
       </div>
         {/* Subtle bottom-left interaction hint */}
-        {!calmView && canvasLayoutMode === 'single' && (
+        {!hideHints && canvasLayoutMode === 'single' && (
           <p data-capture-ignore className="pointer-events-none absolute bottom-3 left-4 right-80 hidden truncate lg:block text-[11px] text-[var(--text-muted)]">
             {activeSize.kind === 'video'
               ? STRINGS.canvas.zoomVideoHint

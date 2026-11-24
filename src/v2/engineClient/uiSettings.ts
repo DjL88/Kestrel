@@ -3,10 +3,21 @@ import type { AssistMode, WorkspaceSettings } from '../ui/contract';
 /** The interface choices kept on this device between sessions (theme, tool side, mode and so on). Never anything about photos. */
 export interface SavedUi {
   assistMode?: AssistMode;
-  settings: Partial<Pick<WorkspaceSettings, 'theme' | 'calmView' | 'touchDensity' | 'cvdGuidance' | 'ongoingCritique' | 'defaultAssistMode' | 'hand' | 'language'>>;
+  settings: Partial<Pick<WorkspaceSettings, 'theme' | 'calmView' | 'calmMotion' | 'calmBadges' | 'calmHints' | 'calmReadouts' | 'touchDensity' | 'cvdGuidance' | 'ongoingCritique' | 'defaultAssistMode' | 'hand' | 'language'>>;
 }
 
 const KEY = 'inflight.v2.ui';
+const CALM_PARTS = ['calmMotion', 'calmBadges', 'calmHints', 'calmReadouts'] as const;
+
+/** Calm View reads as on when all three of its parts are on, whichever way they got there. */
+export function calmViewOn(settings: Pick<WorkspaceSettings, 'calmMotion' | 'calmBadges' | 'calmHints'>): boolean {
+  return settings.calmMotion && settings.calmBadges && settings.calmHints;
+}
+
+/** Switching the Calm View preset. Slider numbers are not part of it: they stay as the person set them. */
+export function calmViewPatch(on: boolean): Pick<WorkspaceSettings, 'calmView' | 'calmMotion' | 'calmBadges' | 'calmHints'> {
+  return { calmView: on, calmMotion: on, calmBadges: on, calmHints: on };
+}
 const MODES: readonly AssistMode[] = ['solo', 'copilot', 'autopilot'];
 const LANGUAGES = ['en-GB', 'en-US', 'de-DE', 'fr-FR'] as const;
 
@@ -20,6 +31,11 @@ export function parseSavedUi(raw: string | null): SavedUi {
     const settings: SavedUi['settings'] = {};
     if (source.theme === 'dark' || source.theme === 'light' || source.theme === 'auto') settings.theme = source.theme;
     if (typeof source.calmView === 'boolean') settings.calmView = source.calmView;
+    // Calm View used to be one switch that hid all four. A record from then keeps exactly what it had.
+    for (const part of CALM_PARTS) {
+      if (typeof source[part] === 'boolean') settings[part] = source[part] as boolean;
+      else if (source.calmView === true) settings[part] = true;
+    }
     if (source.touchDensity === 'comfortable' || source.touchDensity === 'compact') settings.touchDensity = source.touchDensity;
     if (typeof source.cvdGuidance === 'boolean') settings.cvdGuidance = source.cvdGuidance;
     if (typeof source.ongoingCritique === 'boolean') settings.ongoingCritique = source.ongoingCritique;

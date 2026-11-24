@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import { useDialogFocus } from '../utils/dialogFocus';
 import { isRawPreviewFile } from '../../../core/rawFormats';
 import { isDesktopApp, isMobileShell } from '../../../providers/desktopShell';
 import { canDevelopRaw } from '../../../providers/rawDevelop';
@@ -47,6 +48,9 @@ export default function ExportDialog({
   const [includeOverlay, setIncludeOverlay] = useState(true);
   const [includeWatermark, setIncludeWatermark] = useState(false);
   const [includeOriginal, setIncludeOriginal] = useState(false);
+
+  const panelRef = useRef<HTMLDivElement>(null);
+  const onDialogKeyDown = useDialogFocus(open && !!photo, panelRef, onClose);
 
   if (!open || !photo) return null;
   const enabledFormats = photo.sizes.filter(size => size.kind === 'photo' && size.enabled);
@@ -106,13 +110,14 @@ export default function ExportDialog({
     <div
       role="dialog"
       aria-modal="true"
+      onKeyDown={onDialogKeyDown}
       aria-labelledby="export-dialog-title"
       className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-scrim)] p-2 sm:p-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex max-h-[calc(100dvh-1rem)] w-full max-w-3xl flex-col overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)] sm:max-h-[88dvh]">
+      <div ref={panelRef} tabIndex={-1} className="flex max-h-[calc(100dvh-1rem)] w-full max-w-3xl flex-col overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)] sm:max-h-[88dvh]">
         {/* Header */}
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--border-subtle)] px-3 py-2 sm:px-6 sm:py-4">
           <div>

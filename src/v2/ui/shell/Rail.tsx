@@ -12,7 +12,7 @@ interface RailProps {
   taskProgress: number;
   onOpenTasks: () => void;
   onOpenModeSettings: () => void;
-  calmView: boolean;
+  quietBadges: boolean;
   onSelectPanel: (panelId: PanelId) => void;
   onSetPanelVisible: (panelId: PanelId, visible: boolean) => void;
   onSetPanelDock: (panelId: PanelId, dock: DockPosition) => void;
@@ -40,7 +40,7 @@ export default function Rail({
   taskProgress,
   onOpenTasks,
   onOpenModeSettings,
-  calmView,
+  quietBadges,
   onSelectPanel,
   onSetPanelVisible,
   onSetPanelDock,
@@ -125,7 +125,7 @@ export default function Rail({
               >
                 <BrandIcon name={item.icon} size={18} />
                 <span className="v2-rail-label truncate max-w-full leading-tight">{item.label}</span>
-                {false && runningTaskCount > 0 && !calmView && (
+                {false && runningTaskCount > 0 && !quietBadges && (
                   <span
                     aria-label={`${runningTaskCount} running tasks`}
                     className="absolute right-1.5 top-1.5 min-w-[16px] rounded-full bg-[var(--brand-accent)] px-1 text-center text-[9px] font-bold text-[var(--text-on-accent)] tabular-nums"
