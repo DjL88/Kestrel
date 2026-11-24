@@ -122,7 +122,13 @@ test('Co-pilot shows only rendered alternatives and marks only the matching edit
   assert.equal(shown.suggestions[0].summary, 'Raised exposure.');
   assert.deepEqual(shown.suggestions[0].recipeDelta, { exposure: 0.4 });
   assert.deepEqual(shown.suggestions[0].comparison, { before: 'rendered-current', after: 'rendered-natural' });
-  assert.equal(shown.colourConfidence, 'Species colour not used. Colour looks strong.');
+  // Internal finding codes are never shown; warnings come in words from the colour check.
+  assert.equal(shown.colourConfidence, 'Species colour not used.');
+  assert.equal(shown.colourCheck, undefined);
+  const withColour = assistCritiqueFor({ run: { ...(run(candidates) as object), colour: { palette: [{ family: 'red', share: 0.5, strength: 'strong' }], monochrome: false,
+    findings: [{ id: 'clippedColour', severity: 'warning', share: 0.1, families: ['red'] }] } } as never, dismissed: [] });
+  assert.equal(withColour.colourConfidence, 'Species colour not used. Some red areas are too strong to show their detail, so they look flat.');
+  assert.deepEqual(withColour.colourCheck?.palette, ['red, strong: about half or more']);
   assert.equal(shown.kelvinEstimate, 'Not measured');
   assert.deepEqual(assistCritiqueFor({ run: run(candidates), dismissed: [] }, plan.proposal).suggestions.map(s => [s.id, s.applied]), [['natural', true]]);
   assert.deepEqual(assistCritiqueFor({ run: run(candidates), dismissed: ['balanced'] }).suggestions.map(s => s.id), ['natural']);

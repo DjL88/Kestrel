@@ -205,6 +205,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             assistMode={store.assistMode}
             features={store.features}
             ongoingCritique={store.settings.ongoingCritique}
+            cvdGuidance={store.settings.cvdGuidance}
             reviewing={store.reviewingPhotoIds.includes(activePhoto?.id ?? '')}
             onSetAssistMode={actions.setAssistMode}
             onOpenSettings={() => actions.setSettingsOpen(true, 'assistance')}
@@ -311,6 +312,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         return (
           <AssistPanel
             photo={activePhoto}
+            cvdGuidance={store.settings.cvdGuidance}
             onRefreshReview={actions.runDeepVisionReview}
             onApplySuggestion={actions.applyAssistSuggestion}
           />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import type { HubViewState, Project, ThemeMode } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon, { BrandLogo } from '../icons/BrandIcon';
@@ -36,7 +36,7 @@ export default function ProjectsHub({
 }: ProjectsHubProps) {
   const footerLogo = theme === 'dark' ? footerKiteDark : footerKiteLight;
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState<'edited' | 'name' | 'photos' | 'flagged'>('edited');
+  const [sortBy, setSortBy] = useState<ProjectSort>('edited');
   const [failedCovers, setFailedCovers] = useState<string[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [projectName, setProjectName] = useState('');
@@ -109,12 +109,7 @@ export default function ProjectsHub({
                   className="h-10 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] pl-9 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
                 />
               </div>
-              <label className="sr-only" htmlFor="project-sort">{STRINGS.hub.sortProjects}</label>
-              <select id="project-sort" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]">
-                <option value="edited">{STRINGS.hub.sortEdited}</option><option value="name">{STRINGS.hub.sortName}</option>
-                <option value="photos">{STRINGS.hub.sortPhotos}</option><option value="flagged">{STRINGS.hub.sortFlagged}</option>
-              </select>
+              <SortMenu value={sortBy} onChange={setSortBy} />
               <button type="button" onClick={() => setModalOpen(true)}
                 className="inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-3 text-xs font-semibold text-[var(--text-on-accent)] hover:bg-[var(--brand-accent-hover)]">
                 <BrandIcon name="plus" size={15}/>{STRINGS.hub.newProject}
@@ -275,15 +270,15 @@ export default function ProjectsHub({
           )}
         </div>
       </main>
-      <footer className="flex min-h-[80px] shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3 text-xs text-[var(--text-secondary)] sm:px-10">
+      <footer className="flex min-h-[56px] shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3 text-xs text-[var(--text-secondary)] sm:px-10">
         <div className="flex flex-wrap items-center gap-3">
           <img
             src={footerLogo}
             alt=""
             aria-hidden="true"
-            width={116}
-            height={52}
-            className="h-12 w-[106px] shrink-0 object-contain sm:h-[52px] sm:w-[116px]"
+            width={72}
+            height={32}
+            className="h-7 w-[62px] shrink-0 object-contain sm:h-8 sm:w-[72px]"
             data-testid="inflight-footer-kite"
           />
           <span className="font-semibold text-[var(--text-primary)]">InFlight</span>
@@ -315,16 +310,29 @@ export default function ProjectsHub({
               {STRINGS.hub.modalTitle}
             </h2>
             <fieldset className="space-y-2">
-              <legend className="text-xs font-medium text-[var(--text-secondary)]">What are you making?</legend>
-              <div className="grid grid-cols-2 gap-2">
-                {([['photography','Photography','Cull, edit and export a shoot'], ['collage','Collage / album','Compose pages from photographs']] as const).map(([kind,title,description]) => (
-                  <label key={kind} className={`min-h-20 cursor-pointer rounded-lg border p-3 ${projectKind === kind ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]' : 'border-[var(--border-default)]'}`}>
-                    <input type="radio" className="mr-2" name="project-kind" value={kind} checked={projectKind === kind}
-                      onChange={() => setProjectKind(kind)} />
-                    <span className="text-sm font-semibold">{title}</span>
-                    <span className="mt-1 block text-xs text-[var(--text-secondary)]">{description}</span>
-                  </label>
-                ))}
+              <legend className="text-xs font-medium text-[var(--text-secondary)]">{STRINGS.hub.kindQuestion}</legend>
+              <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
+                {([
+                  ['photography', STRINGS.hub.kindPhotoShootTitle, STRINGS.hub.kindPhotoShootBody],
+                  ['collage', STRINGS.hub.kindCollageTitle, STRINGS.hub.kindCollageBody],
+                ] as const).map(([kind, title, description]) => {
+                  const selected = projectKind === kind;
+                  return (
+                    <label key={kind} data-testid={`project-kind-${kind}`}
+                      className={`relative flex cursor-pointer flex-col gap-2 rounded-[var(--radius-lg)] border-2 p-3 transition-colors focus-within:ring-2 focus-within:ring-[var(--brand-accent)] focus-within:ring-offset-1 focus-within:ring-offset-[var(--bg-surface)] ${selected ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]' : 'border-[var(--border-default)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-surface-hover)]'}`}>
+                      <input type="radio" className="sr-only" name="project-kind" value={kind} checked={selected}
+                        onChange={() => setProjectKind(kind)} />
+                      <ProjectKindPicture kind={kind} selected={selected} />
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">{title}</span>
+                      <span className="block text-xs leading-snug text-[var(--text-secondary)]">{description}</span>
+                      {selected && (
+                        <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-[var(--brand-accent)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-on-accent)]">
+                          <BrandIcon name="check" size={11} />{STRINGS.hub.kindSelected}
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
               </div>
             </fieldset>
             <div className="space-y-1.5">
@@ -399,6 +407,142 @@ export default function ProjectsHub({
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A small picture of what each kind of project makes, so the choice reads at a glance:
+ * a row of separate frames for a photo shoot, one page laid out with several photos for a collage or album.
+ * Drawn in the theme's own colours, so it suits light and dark.
+ */
+function ProjectKindPicture({ kind, selected }: { kind: 'photography' | 'collage'; selected: boolean }) {
+  const stroke = selected ? 'var(--brand-accent)' : 'var(--text-muted)';
+  const fill = selected ? 'var(--brand-accent)' : 'var(--text-muted)';
+  return (
+    <svg viewBox="0 0 120 56" aria-hidden="true" className="h-14 w-full rounded-[var(--radius-md)] bg-[var(--bg-input)]" preserveAspectRatio="xMidYMid meet">
+      {kind === 'photography' ? (
+        <g fill="none" stroke={stroke} strokeWidth="1.6" strokeLinejoin="round">
+          {[10, 44, 78].map((x, i) => (
+            <g key={x} opacity={i === 1 ? 1 : 0.6}>
+              <rect x={x} y="12" width="32" height="24" rx="2" />
+              <path d={`M${x + 3} 33 l8 -9 6 6 4 -4 8 7`} />
+              <circle cx={x + 24} cy="18" r="2" fill={fill} stroke="none" />
+            </g>
+          ))}
+          <path d="M10 44 h100" strokeDasharray="3 3" opacity="0.5" />
+          <path d="M56 41 l4 4 8 -8" strokeWidth="2" />
+        </g>
+      ) : (
+        <g fill="none" stroke={stroke} strokeWidth="1.6" strokeLinejoin="round">
+          <rect x="30" y="4" width="60" height="48" rx="2" />
+          <rect x="35" y="9" width="28" height="22" rx="1" fill={fill} fillOpacity="0.25" />
+          <rect x="66" y="9" width="19" height="10" rx="1" fill={fill} fillOpacity="0.4" />
+          <rect x="66" y="22" width="19" height="9" rx="1" fill={fill} fillOpacity="0.25" />
+          <rect x="35" y="34" width="50" height="13" rx="1" fill={fill} fillOpacity="0.4" />
+        </g>
+      )}
+    </svg>
+  );
+}
+
+type ProjectSort = 'edited' | 'name' | 'photos' | 'flagged';
+
+/**
+ * The Projects sort control. A native select opens the operating system's own menu, which on Windows ignores the
+ * page's theme and shape; this list is drawn in the page's colours instead, and keeps select-like keyboard use:
+ * Enter, Space or the arrow keys open it, the arrow keys, Home and End move, Enter or Space choose, Escape closes.
+ */
+function SortMenu({ value, onChange }: { value: ProjectSort; onChange: (value: ProjectSort) => void }) {
+  const options: ReadonlyArray<readonly [ProjectSort, string]> = [
+    ['edited', STRINGS.hub.sortEdited],
+    ['name', STRINGS.hub.sortName],
+    ['photos', STRINGS.hub.sortPhotos],
+    ['flagged', STRINGS.hub.sortFlagged],
+  ];
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const id = useId();
+  const selectedIndex = Math.max(0, options.findIndex(([key]) => key === value));
+
+  useEffect(() => {
+    if (!open) return;
+    listRef.current?.focus();
+    const close = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [open]);
+
+  const show = () => { setActive(selectedIndex); setOpen(true); };
+  const choose = (index: number) => {
+    onChange(options[index][0]);
+    setOpen(false);
+    buttonRef.current?.focus();
+  };
+
+  return (
+    <div ref={rootRef} className="relative shrink-0">
+      <span id={`${id}-label`} className="sr-only">{STRINGS.hub.sortProjects}</span>
+      <button
+        ref={buttonRef}
+        type="button"
+        id="project-sort"
+        data-testid="project-sort"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-labelledby={`${id}-label ${id}-value`}
+        onClick={() => (open ? setOpen(false) : show())}
+        onKeyDown={(event) => {
+          if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) { event.preventDefault(); show(); }
+        }}
+        className={`inline-flex h-10 items-center gap-2 rounded-[var(--radius-md)] border bg-[var(--bg-surface)] pl-3 pr-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] ${open ? 'border-[var(--brand-accent)]' : 'border-[var(--border-default)]'}`}
+      >
+        <BrandIcon name="sort" size={14} />
+        <span id={`${id}-value`} className="whitespace-nowrap">{options[selectedIndex][1]}</span>
+        <BrandIcon name="chevron-down" size={14} />
+      </button>
+      {open && (
+        <ul
+          ref={listRef}
+          role="listbox"
+          tabIndex={-1}
+          aria-labelledby={`${id}-label`}
+          aria-activedescendant={`${id}-option-${active}`}
+          onKeyDown={(event) => {
+            const last = options.length - 1;
+            if (event.key === 'ArrowDown') { event.preventDefault(); setActive((i) => Math.min(last, i + 1)); }
+            else if (event.key === 'ArrowUp') { event.preventDefault(); setActive((i) => Math.max(0, i - 1)); }
+            else if (event.key === 'Home') { event.preventDefault(); setActive(0); }
+            else if (event.key === 'End') { event.preventDefault(); setActive(last); }
+            else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(active); }
+            else if (event.key === 'Escape' || event.key === 'Tab') { if (event.key === 'Escape') event.preventDefault(); setOpen(false); buttonRef.current?.focus(); }
+          }}
+          className="absolute right-0 top-full z-40 mt-1 min-w-full overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] p-1 text-xs text-[var(--text-primary)] shadow-[var(--shadow-popover)] focus:outline-none"
+        >
+          {options.map(([key, label], index) => {
+            const selected = key === value;
+            return (
+              <li
+                key={key}
+                id={`${id}-option-${index}`}
+                role="option"
+                aria-selected={selected}
+                onPointerEnter={() => setActive(index)}
+                onClick={() => choose(index)}
+                className={`flex min-h-9 cursor-pointer items-center gap-2 whitespace-nowrap rounded-[var(--radius-sm)] px-2 ${index === active ? 'bg-[var(--bg-surface-hover)]' : ''} ${selected ? 'font-semibold' : ''}`}
+              >
+                <span className="inline-flex w-4 justify-center text-[var(--brand-accent)]" aria-hidden="true">{selected ? <BrandIcon name="check" size={13} /> : null}</span>
+                {label}
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );

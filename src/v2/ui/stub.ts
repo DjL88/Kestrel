@@ -667,7 +667,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       calmView: false,
       touchDensity: 'comfortable',
       hand: 'right',
-      cvdGuidance: true,
+      cvdGuidance: false,
       ongoingCritique: true,
       defaultAssistMode: 'copilot',
       language: 'en-GB',
