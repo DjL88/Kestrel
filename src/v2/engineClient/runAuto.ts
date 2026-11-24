@@ -1,3 +1,4 @@
+import { speciesReference } from '../../core/speciesKnowledge';
 import { observationsFromFrame, preservationPolicy } from '../../core/photographyPolicy';
 import { mergeAutoSuggestion } from '../../core/autoEnhance';
 import { acceptedAutoChanges } from '../../core/autoSuggestionSummary';
@@ -81,7 +82,7 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
       if (detection.assessment.usable) segmentation = { grid: detection.grid, confidence: detection.assessment.confidence, detail: detection.detail };
     } catch { /* No usable subject outline: Auto then works on the whole frame and says so. */ }
     if (signal?.aborted) return null;
-    if (segmentation && category === 'wildlife') species = await withTimeout(identifySubject(analysisCanvas), 15000, () => null);
+    if (segmentation && category === 'wildlife' && !frame.subjectDisputed) species = await withTimeout(identifySubject(analysisCanvas), 15000, () => null);
   }
   if (signal?.aborted) return null;
 
@@ -132,9 +133,10 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
     plan = naturalPlan;
   }
   const described = describePlan(plan);
+  const reference = segmentation?.confidence === 'high' ? speciesReference(species) : null;
   const improved = rendered.candidates.some((candidate) => candidate.edit === plan.proposal);
   return {
-    ...rendered, plan, improved, detail: described.detail,
+    ...rendered, plan, improved, detail: reference ? [...described.detail, 'Species reference (not a measured colour target): ' + reference.features] : described.detail,
     headline: rendered.candidates.length ? 'Checked edit suggestions are ready to preview.'
       : recipes.length ? 'No visibly different edit passed the checks.' : described.headline,
     source: { stableKey: frame.stableKey, originalSha256: frame.originalSha256, framing: frame.framing },
