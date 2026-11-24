@@ -3,6 +3,29 @@
  * Translations live beside this file; anything left out falls back to British English.
  */
 export const source = {
+  filmstripLabels: {
+    label1: "Filmstrip and photo info dock",
+    label2: "Resize bottom panel",
+    label3: "Photograph browsing view",
+    label4: "Add photographs from a folder",
+    label5: "Minimum photo rating",
+    label6: "Project photographs",
+    label7: "Photo actions",
+    label8: "Set photo rating",
+    label9: "Apply a Look to selected photos",
+    label10: "Folder",
+    label11: "Export",
+    label12: "Make collage",
+    label13: "Rating",
+    label14: "Any",
+    label15: "Flag / unflag",
+    label16: "Make collage from selected",
+    label17: "Reject / set aside",
+    label18: "Return to review",
+    label19: "Paste settings",
+    label20: "Apply Look",
+    label21: "Remove",
+  },
   brandName: 'InFlight',
   collage: {
     pageLimit: (count: number) => `This album has reached its limit of ${count} pages.`,
