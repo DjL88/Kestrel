@@ -8,7 +8,9 @@ import { canAddMask } from './maskOps';
 /** A model result is valid only in the photo and edit context it examined. */
 export function subjectMaskTarget(state: CullingState, projectId: string, source: PhotoFrame): PhotoFrame | undefined {
   if (state.shoot.id !== projectId) return undefined;
-  const frame = state.frames.find(candidate => candidate.id === source.id);
+  const targets = state.frames.filter(candidate => candidate.id === source.id);
+  if (targets.length !== 1) return undefined;
+  const frame = targets[0];
   if (!frame || frame.removedAt != null || frame.stableKey !== source.stableKey ||
       frame.originalSha256 !== source.originalSha256 || framingKey(frame.framing) !== framingKey(source.framing) ||
       readEditGroups(frame).activeId !== readEditGroups(source).activeId ||
