@@ -26,3 +26,10 @@ test('cloud requires explicit consent, eligibility and known budget', () => {
   assert.equal(mayDispatchCloud({...input,estimatedCost:NaN}),false);
   assert.equal(mayDispatchCloud({...input,estimatedCost:3}),false);
 });
+
+test('known capacity shortages take precedence over unknown telemetry', () => {
+  const request = {memoryBytes:256*MiB,gpuBytes:256*MiB,diskBytes:256*MiB};
+  assert.deepEqual(admitBackground({availableDiskBytes:100*MiB},zero,request),{allowed:false,reason:'disk'});
+  assert.deepEqual(admitBackground({availableGpuBytes:100*MiB},zero,request),{allowed:false,reason:'gpu-memory'});
+  assert.deepEqual(admitBackground({availableDiskBytes:1024*MiB},zero,request),{allowed:false,reason:'unknown'});
+});
