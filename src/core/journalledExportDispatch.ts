@@ -106,7 +106,9 @@ export function createJournalledExportDispatch(
           };
           if (!await adapter.verifyOutput(source, receipt))
             throw new Error('Published export could not be verified; manual recovery required.');
-          abortIf(signal);
+          // A successfully published and independently verified output is durable.
+          // Record it even if Stop arrived during publication or verification;
+          // otherwise resume would hit an unreceipted no-overwrite collision.
           // If journal persistence fails after publication, the next explicit
           // attempt must fail safely on the adapter's no-overwrite collision.
           journal.receipt<Recipe>(checkpoint.id, receipt);
