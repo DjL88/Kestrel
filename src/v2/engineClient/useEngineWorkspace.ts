@@ -1168,6 +1168,40 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         .then(() => openProject(created.shoot.id))
         .catch(() => setNotice('InFlight could not save this collage. The source project is unchanged.'));
     },
+    browseCollageProjectPhotos: async (sourceProjectId) => {
+      const source = await catalogue.current!.loadProject(sourceProjectId);
+      return (source?.frames ?? []).filter((frame) => frame.removedAt == null)
+        .map((frame) => ({ id: frame.id, filename: frame.filename }));
+    },
+    addCollageProjectPhotos: async (sourceProjectId, photoIds) => {
+      const target = stateRef.current;
+      if (!target?.shoot.collage || sourceProjectId === target.shoot.id) return;
+      const source = await catalogue.current!.loadProject(sourceProjectId);
+      if (!source) { setNotice('Could not open the source project.'); return; }
+      const chosen = new Set(photoIds);
+      const already = new Set(target.frames.filter((frame) => frame.removedAt == null).map((frame) => frame.stableKey));
+      const incoming = source.frames.filter((frame) => frame.removedAt == null && chosen.has(frame.id) && !already.has(frame.stableKey));
+      if (!incoming.length) { setNotice('Those photographs are already in the collage, or could not be found.'); return; }
+      const currentId = target.shoot.id;
+      const idMap = new Map(incoming.map((frame) => [frame.id, `${currentId}-${newId()}`]));
+      const frames = incoming.map((frame, i) => ({
+        ...frame, id: idMap.get(frame.id)!, sequenceIndex: target.frames.length + i + 1,
+        virtualCopy: frame.virtualCopy && idMap.has(frame.virtualCopy.originalFrameId)
+          ? { ...frame.virtualCopy, originalFrameId: idMap.get(frame.virtualCopy.originalFrameId)! } : undefined,
+      }));
+      const updated = { ...target, frames: [...target.frames, ...frames],
+        shoot: { ...target.shoot, totalFrames: target.frames.length + frames.length, lastUpdatedAt: Date.now() } };
+      try {
+        await catalogue.current!.saveProject(updated);
+        if (stateRef.current?.shoot.id !== currentId) return;
+        await rehydrateLocalFramesFromStore(frames, provider.current!, catalogue.current!, { checkPaths: false });
+        if (stateRef.current?.shoot.id !== currentId) return;
+        setState(updated);
+        setNotice(`Added ${frames.length} photograph${frames.length === 1 ? '' : 's'} from the other project. Your source project is unchanged.`);
+      } catch {
+        setNotice('Could not add those photographs. The source project is unchanged.');
+      }
+    },
     updateCollage: (document) => {
       if (!readCollage(document)) { setNotice('That collage layout could not be saved.'); return; }
       mutate((current) => current.shoot.collage ? {
