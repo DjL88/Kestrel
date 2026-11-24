@@ -3,6 +3,8 @@ import { preservationPolicy } from './photographyPolicy';
 import { applyDetail, applyPhotoEdit, isNeutralEdit, type PhotoEdit } from './photoEdits';
 import { applyMasks, fullContext } from './masks';
 import { assessAutoQuality } from './autoQualityGate';
+import { applyNoiseReduction } from './noiseReduction';
+import { superviseAutoRender } from './autoRenderSupervisor';
 import type { LocalEdit, SubjectGrid } from './maskTypes';
 
 /**
@@ -459,8 +461,9 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
 
 /** Render a recipe on an 8-bit preview with the same CPU maths export uses (tone, detail, masks). */
 export function renderRecipePreview(source: Uint8ClampedArray, width: number, height: number, edit: PhotoEdit): Uint8ClampedArray {
-  const out = new Uint8ClampedArray(source);
+  let out = new Uint8ClampedArray(source);
   if (isNeutralEdit(edit)) return out;
+  out = new Uint8ClampedArray(applyNoiseReduction(out, width, height, edit));
   applyPhotoEdit(out, edit);
   applyDetail(out, width, height, edit, Math.max(width, height));
   applyMasks(out, width, height, edit.masks, fullContext(width, height));
@@ -581,7 +584,10 @@ export function stageNaturalRecipe(
   const before = renderRecipePreview(source, width, height, base);
   for (const [factor, outcome] of [[1, 'full'], [0.5, 'gentler']] as const) {
     const candidate = factor === 1 ? proposal : scaleRecipe(base, proposal, factor);
-    const verdict = assessNaturalAuto(before, renderRecipePreview(source, width, height, candidate), width, height, segmentation);
+    const after = renderRecipePreview(source, width, height, candidate);
+    const naturalGate = assessNaturalAuto(before, after, width, height, segmentation);
+    const weights = segmentation && segmentation.confidence !== 'low' ? subjectWeights(segmentation.grid, width, height) : null;
+    const verdict = naturalGate.safe ? superviseAutoRender({data: before,width,height}, {data: after,width,height}, weights ? [weights] : []) : naturalGate;
     if (verdict.safe) return { edit: candidate, outcome, reason: verdict.reason };
     last = verdict.reason;
   }

@@ -179,17 +179,22 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
       else plan = { ...naturalPlan, proposal: base, verdict: { kind: 'cannot-improve-safely', reason: 'No preferred recipe passed every detected subject check' } };
     }
   }
-  const rendered = recipes.length ? renderAutoCandidates(analysisCanvas, base, recipes) : { before: '', candidates: [] };
+  const rendered = recipes.length ? renderAutoCandidates(analysisCanvas, base, recipes, subjectInstances.map(instance => instance.mask)) : { before: '', candidates: [], rejected: [] };
   if (!rendered.candidates.some((candidate) => candidate.edit === plan.proposal)
     && rendered.candidates.some((candidate) => candidate.edit === naturalPlan.proposal)) {
     plan = naturalPlan;
+  }
+  if (!rendered.candidates.some(candidate => candidate.edit === plan.proposal)) {
+    // Never leave a preferred plan pointing at a rejected render. A surviving
+    // alternative remains preview-only unless it was the checked preferred plan.
+    plan = { ...plan, proposal: base, verdict: { kind: 'cannot-improve-safely', reason: rendered.rejected[0] ?? 'No preferred rendered edit passed all checks' } };
   }
   const described = describePlan(plan);
   const reference = segmentation?.confidence === 'high' ? speciesReference(species) : null;
   const improved = rendered.candidates.some((candidate) => candidate.edit === plan.proposal);
   const coverageNote = instanceCount > 1 && segmentation ? 'Multiple detected subjects were checked individually for clipping and shadow loss. Local tone edits require reliable non-overlapping masks; species colour correction was withheld.' : instanceCoverageUnavailable ? 'Complete subject coverage was unavailable; only whole-frame suggestions were considered.' : null;
   return {
-    ...rendered, plan, improved, detail: [...described.detail, ...(coverageNote ? [coverageNote] : []), ...(reference ? ['Species reference (not a measured colour target): ' + reference.features] : [])],
+    ...rendered, plan, improved, detail: [...described.detail, ...rendered.rejected.map(reason => 'A rendered suggestion was withheld: ' + reason), ...(coverageNote ? [coverageNote] : []), ...(reference ? ['Species reference (not a measured colour target): ' + reference.features] : [])],
     headline: rendered.candidates.length ? 'Checked edit suggestions are ready to preview.'
       : recipes.length ? 'No visibly different edit passed the checks.' : described.headline,
     source: { stableKey: frame.stableKey, originalSha256: frame.originalSha256, framing: frame.framing },
