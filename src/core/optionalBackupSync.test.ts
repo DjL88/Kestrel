@@ -76,3 +76,22 @@ it('retry after publication acknowledgement loss returns the verified successor 
   files.get('kestrel/backups/birds/objects/' + resumed.sha256 + '.json')!.bytes = enc.encode('bad');
   await assert.rejects(publishBackup(remote, 'birds', next, first), /did not verify/);
 });
+
+
+it('refuses a provider returning the wrong object key or missing revision token', async () => {
+  const { remote } = fixture();
+  const anchor = await publishBackup(remote, 'birds', enc.encode('one'), null);
+  const wrongHead: BackupRemote = { ...remote, read: async key => {
+    const item = await remote.read(key);
+    return item && key.endsWith('/head.json') ? { ...item, etag: '' } : item;
+  }};
+  await assert.rejects(readVerifiedBackup(wrongHead, 'birds', anchor), /head identity/);
+  await assert.rejects(publishBackup(wrongHead, 'birds', enc.encode('two'), anchor), /head identity/);
+  const wrongBlob: BackupRemote = { ...remote, read: async key => {
+    const item = await remote.read(key);
+    return item && key.includes('/objects/') ? { ...item, key: 'wrong/key' } : item;
+  }};
+  await assert.rejects(readVerifiedBackup(wrongBlob, 'birds', anchor), /verification failed/);
+  await assert.rejects(publishBackup(wrongBlob, 'birds', enc.encode('two'), anchor), /did not verify/);
+  assert.deepEqual((await readVerifiedBackup(remote, 'birds', anchor))?.anchor, anchor);
+});
