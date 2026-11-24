@@ -4,7 +4,7 @@ import { DEFAULT_FRAMING, framedSize } from '../../core/photoFraming';
 import { ORIGINAL_FORMAT_ID } from './formatOps';
 import { toProfile } from '../../core/exportFormats';
 import { renderV2Export, type OverlayDraw } from './renderV2Export';
-import { loadExportSource, loadVerifiedRasterOriginalForExport, saveExportFile } from '../../providers/browserExport';
+import { archiveExports, loadExportSource, loadVerifiedRasterOriginalForExport, saveExportFile } from '../../providers/browserExport';
 import { chooseDesktopExportFolder } from '../../providers/desktopShell';
 import { uniqueExportFilename } from '../../core/exportNaming';
 import { verifyExactOriginalCopy } from './verifiedOriginalCopy';
@@ -17,7 +17,8 @@ import type { ExportJob, ExportPlan } from './exportOps';
  * Completed files are never re-rendered on an ordinary pause/resume. */
 export type ScheduledPhotoUnit =
   | { id: string; label: string; frameId: string; kind: 'developed'; jobIndex: number; variantIndex: number; panelIndex: number }
-  | { id: string; label: string; frameId: string; kind: 'original' };
+  | { id: string; label: string; frameId: string; kind: 'original' }
+  | { id: string; label: string; frameId: string; kind: 'archive' };
 
 export type ConfirmedExportPlan = Extract<ExportPlan, { jobs: ExportJob[] }>;
 export function photoExportUnits(plan: ConfirmedExportPlan, frames: readonly Pick<PhotoFrame, 'id' | 'filename'>[]): ScheduledPhotoUnit[] {
@@ -52,8 +53,8 @@ export async function scheduleV2PhotoExports(input: {
   provider: BrowserPreviewProvider;
   buildOverlay: (frame: PhotoFrame, request: ExportRequest) => Promise<OverlayDraw | null>;
 }): Promise<SchedulerTicket | null> {
-  if (input.request.destination !== 'local-individual' && input.request.destination !== 'local-folder')
-    throw new Error('Per-photo background export needs Download each or a desktop folder.');
+  if (!['local-zip', 'local-individual', 'local-folder'].includes(input.request.destination))
+    throw new Error('Choose a supported local export destination.');
   // Ask once, before queuing hundreds of photographs. The exclusive-write
   // destination creates a separate run folder and removes incomplete files.
   const folder = input.request.destination === 'local-folder' ? await chooseDesktopExportFolder() : null;
@@ -65,6 +66,11 @@ export async function scheduleV2PhotoExports(input: {
   };
   const units = photoExportUnits(snapshot.plan, snapshot.frames);
   if (!units.length) throw new Error('No export outputs were selected.');
+  const isZip = snapshot.request.destination === 'local-zip';
+  const scheduledUnits: ScheduledPhotoUnit[] = isZip
+    ? [...units, { id: 'archive:delivery', frameId: '', kind: 'archive', label: 'Assemble and save complete ZIP' }]
+    : units;
+  const zipFiles = new Map<string, File>();
   const names = new Set<string>();
   const reservedNames = new Map<string, string>();
   const started = new Date();
@@ -76,11 +82,24 @@ export async function scheduleV2PhotoExports(input: {
     resource: 'gpu', // full-resolution canvas / denoise must not allocate concurrently
     priority: 1,
     pauseable: units.length > 1,
-    items: units,
+    items: scheduledUnits,
     snapshot,
     itemId: item => item.id,
     itemLabel: item => item.label,
     runItem: async (item, submitted, ctx) => {
+      if (item.kind === 'archive') {
+        ctx.stage('Preparing complete ZIP archive');
+        if (zipFiles.size !== units.length)
+          throw new Error(`The archive is missing ${units.length - zipFiles.size} output files. Retry failed render items before delivering the ZIP.`);
+        const files = units.map(unit => zipFiles.get(unit.id)!);
+        const blob = await archiveExports(files);
+        ctx.checkCancelled();
+        ctx.stage('Saving the complete ZIP archive');
+        if (!await saveExportFile(blob, `inflight-export-${started.toISOString().slice(0, 10)}.zip`, ctx.signal))
+          throw new DOMException('ZIP save cancelled.', 'AbortError');
+        ctx.acknowledgeCommitted();
+        return;
+      }
       ctx.stage('Checking original and output settings');
       const frame = submitted.frames.find(candidate => candidate.id === item.frameId);
       if (!frame) throw new Error('The selected photograph is missing from this export snapshot.');
@@ -140,13 +159,18 @@ export async function scheduleV2PhotoExports(input: {
         let name = reservedNames.get(item.id);
         if (!name) { name = uniqueExportFilename(file.name, names); reservedNames.set(item.id, name); }
         const output = name === file.name ? file : new File([file], name, { type: file.type, lastModified: file.lastModified });
-        ctx.stage(`Saving ${name}`);
-        if (folder) await folder.save(output, '', ctx.signal);
-        else if (!await saveExportFile(output, output.name, ctx.signal))
-          throw new DOMException('Save cancelled. Previously saved outputs remain unchanged.', 'AbortError');
-        // The native destination has acknowledged the completed write. Even
-        // if cancellation now arrives, this item must remain completed.
-        ctx.acknowledgeCommitted();
+        if (isZip) {
+          // A ZIP is one destination write. Intermediate images are rendered,
+          // not falsely labelled as individually saved or recoverable.
+          zipFiles.set(item.id, output);
+        } else {
+          ctx.stage(`Saving ${name}`);
+          if (folder) await folder.save(output, '', ctx.signal);
+          else if (!await saveExportFile(output, output.name, ctx.signal))
+            throw new DOMException('Save cancelled. Previously saved outputs remain unchanged.', 'AbortError');
+          // The destination confirmed this output before the next item starts.
+          ctx.acknowledgeCommitted();
+        }
       }
       ctx.checkCancelled();
     },
