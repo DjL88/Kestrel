@@ -1,6 +1,6 @@
 # InFlight user guide — V2 workspace
 
-This guide is being updated for InFlight's single photography workspace. The Projects and Import sections below describe the current V2 interface; the remaining panels will be documented separately. Some controls vary by device or licence.
+This guide is being updated for InFlight's single photography workspace. The Projects, Import and Filmstrip sections below describe the current V2 interface; the remaining panels will be documented separately. Some controls vary by device or licence.
 
 ## Projects
 
@@ -23,6 +23,15 @@ As photographs become available, select one in the filmstrip to begin reviewing 
 
 A RAW photograph may initially be shown using its embedded preview. A preview is not proof that the full RAW has been developed, and it cannot replace the original for a full-resolution export.
 
+## Filmstrip
+
+The filmstrip along the bottom shows the photographs in your project. Select a thumbnail to review it; look for **Ready to edit** before making adjustments. **Original unavailable** means you need to reconnect the original for full-resolution work.
+
+- Use **All**, **Flagged** or **Set aside** to change which photographs are shown. Flag a photograph you want to keep in your selection; setting one aside is not the same as deleting its original.
+- Choose **Search & filter photos** to search by filename, camera or species and set a minimum star rating. Clear the search, set the rating to **All** and choose **All** photographs to return to the full selection.
+- Hold Ctrl (Windows) or Command (Mac) while selecting thumbnails to select several, or Shift to select a range. On a touch screen, use **Select**, tap the photographs you want, then choose **Done**. The selection count helps you check which photographs a batch action will affect.
+- Drag the upper edge of the filmstrip to resize it, or focus its resize control and use the Up and Down arrow keys. Choose **Hide filmstrip** to make more space for the canvas and **Show filmstrip** to bring it back.
+
 ## Tutorial cards
 
 ### Projects
@@ -32,6 +41,10 @@ Choose **New project**, give your project a name and create it. Open an existing
 ### Import
 
 Choose **Import** and select your photographs. When a photograph becomes available in the filmstrip, select it to start reviewing.
+
+### Filmstrip
+
+Select a photograph in the filmstrip, then use **Flagged** or **Search & filter photos** to find the photographs you want to review. Choose **All** and clear any search or minimum rating to see the whole project again.
 
 ## Earlier V1 workflow reference
 
