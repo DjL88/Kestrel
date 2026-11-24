@@ -183,3 +183,37 @@ export function ColourMixerControl({ recipe, calmView, onChange }: Props) {
     </div>
   );
 }
+
+const KELVIN_LOW = 2500;
+const KELVIN_HIGH = 12000;
+const formatK = (k: number) => `${Math.round(k).toLocaleString('en-GB')} K`;
+
+/** White balance in kelvin, for RAW photos whose decoder estimated the as-shot white. */
+export function KelvinControl({ recipe, asShotK, calmView, onChange }: Props & { asShotK: number }) {
+  const value = recipe.whiteBalance?.kelvin ?? asShotK;
+  const set = (kelvin: number) => onChange({ whiteBalance: Math.round(kelvin) === Math.round(asShotK) ? undefined : { asShotK, kelvin } });
+  return (
+    <div className="space-y-1.5" data-testid="white-balance-kelvin">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1">
+          <label htmlFor="slider-kelvin" className="text-xs font-medium text-[var(--text-primary)]">{T.kelvin.label}</label>
+          <InfoPopover title={T.kelvin.label} body={T.kelvin.help} />
+        </div>
+        {!calmView && (
+          <button type="button" onClick={() => set(asShotK)}
+            className="font-mono text-[11px] text-[var(--text-secondary)] tabular-nums hover:text-[var(--brand-accent)]">
+            {formatK(value)}
+          </button>
+        )}
+      </div>
+      <input id="slider-kelvin" type="range" min={KELVIN_LOW} max={KELVIN_HIGH} step={50}
+        value={Math.min(KELVIN_HIGH, Math.max(KELVIN_LOW, value))} aria-valuetext={formatK(value)}
+        onChange={(e) => set(Number(e.target.value))} className="inflight-slider" />
+      <div className="flex items-center justify-between text-[10px] text-[var(--text-muted)]">
+        <span>{T.kelvin.cooler}</span>
+        <span>{T.kelvin.asShot.replace('{k}', Math.round(asShotK).toLocaleString('en-GB'))}</span>
+        <span>{T.kelvin.warmer}</span>
+      </div>
+    </div>
+  );
+}

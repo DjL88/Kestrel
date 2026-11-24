@@ -3,6 +3,7 @@ import { readCollage } from './collage';
 import { parseSettings } from './projectSettings';
 import { validMasks } from './maskTypes';
 import { validCurve, validMixer } from './curveMixer';
+import { validAsShot, validWhiteBalance } from './asShotWhite';
 import type { CullingState, FilterState, PhotoFrame, ShootDescriptor } from './types';
 import { DEVELOP_VERSION } from './backgroundDevelop';
 
@@ -49,6 +50,7 @@ function recipeIsValid(value: unknown): boolean {
     (edit.denoise !== undefined && !number(edit.denoise, 0, 2)) ||
     (edit.denoiseLuminance !== undefined && !number(edit.denoiseLuminance, 0, 2)) ||
     (edit.curve !== undefined && !validCurve(edit.curve)) || (edit.mixer !== undefined && !validMixer(edit.mixer)) ||
+    (edit.whiteBalance !== undefined && !validWhiteBalance(edit.whiteBalance)) ||
     (edit.masks !== undefined && !validMasks(edit.masks)))) return false;
   const framing = value.framing;
   if (framing !== undefined && (!record(framing) || (framing.ratio !== null && !number(framing.ratio, 0.01, 100)) ||
@@ -82,6 +84,7 @@ function frameIsValid(value: unknown): value is PhotoFrame {
   if (value.subjectDisputed !== undefined && typeof value.subjectDisputed !== 'boolean') return false;
   if (value.cullConfidence !== undefined && !['high', 'medium', 'low'].includes(value.cullConfidence as string)) return false;
   if (value.cullScore !== undefined && !number(value.cullScore, 0, 100)) return false;
+  if (value.asShotWhite !== undefined && !validAsShot(value.asShotWhite)) return false;
   for (const field of ['autoTags', 'declinedTags']) {
     if (value[field] !== undefined && (!Array.isArray(value[field]) || (value[field] as unknown[]).length > 48 || !(value[field] as unknown[]).every(text))) return false;
   }

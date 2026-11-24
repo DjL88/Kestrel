@@ -446,6 +446,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useBackgroundDevelop({
     projectId: state?.shoot.id ?? '', frames: state?.frames ?? [], provider: provider.current,
     active: screen === 'editor' && Boolean(state) && !importing, onScreen: activeId,
+    // Keep the camera's as-shot white with the photo, so Temperature can show kelvin. Never changes an edit.
+    onAsShotWhite: (stableKey, white) => setState((current) => (current ? { ...current, frames: current.frames.map((frame) =>
+      frame.stableKey === stableKey && (frame.asShotWhite?.kelvin !== white.kelvin || frame.asShotWhite?.duv !== white.duv)
+        ? { ...frame, asShotWhite: white } : frame) } : current)),
   });
 
   // Subject and species are named quietly on this device after photos are added (the species name is a suggestion the

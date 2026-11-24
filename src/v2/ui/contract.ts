@@ -156,6 +156,8 @@ export interface EditRecipe {
   toneCurve?: Array<[number, number]>;
   /** Colour mixer: eight bands (red, orange, yellow, green, aqua, blue, purple, magenta), each -100 to 100. Absent = untouched. */
   colourMixer?: { hue: number[]; saturation: number[]; luminance: number[] };
+  /** White balance in kelvin against the camera's as-shot estimate (RAW photos only). Absent = as shot. */
+  whiteBalance?: { asShotK: number; kelvin: number };
 }
 
 export interface LookPreset {
@@ -276,6 +278,8 @@ export interface Photo {
   formatSplits?: Record<string, { enabled: boolean; offset: number; count?: 3 }>;
   videoZoom: VideoZoomConfig;
   masks: MaskLayer[];
+  /** The camera's as-shot white in kelvin, estimated by InFlight's RAW decoder. Absent for JPEGs and older developments. */
+  asShotKelvin?: number;
   /** Set when this photo was shot in a burst with others. `ungrouped` is the person's choice to see its frames one by one. */
   burst?: { groupId: string; index: number; count: number; ungrouped: boolean; score?: number };
   /** The photo's recorded edit steps (oldest first) and where it stands now. Absent until it has been edited. */

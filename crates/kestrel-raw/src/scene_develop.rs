@@ -141,6 +141,64 @@ fn camera_to_srgb(raw: &RawImage) -> [[f32; 3]; 3] {
     pseudo_inverse(rgb2cam)
 }
 
+/// The camera's as-shot white balance as a correlated colour temperature (kelvin) and its distance from the Planckian
+/// locus (Duv, positive = greener, as in ANSI C78.377). Estimated from the file's own white-balance coefficients and
+/// colour matrix: the camera's neutral (1 / coefficients) is taken to CIE XYZ, then to CCT with McCamy's formula and to
+/// Duv in CIE 1960 uv. An estimate, not the camera maker's own figure; None when the metadata is missing, malformed or
+/// gives a white outside 2,000 to 25,000 K or more than 0.05 Duv from the locus, so the app keeps relative warmth rather than show a made-up number.
+pub fn as_shot_white(raw: &RawImage) -> Option<(f32, f32)> {
+    let wb = raw.wb_coeffs;
+    if wb.iter().all(|v| v.is_nan()) {
+        return None;
+    }
+    let wb = validated_wb(wb).ok()?;
+    let (_, matrix) = raw.color_matrix_find_first([
+        Illuminant::D65, Illuminant::D55, Illuminant::D50, Illuminant::Daylight, Illuminant::D75,
+        Illuminant::A, Illuminant::B, Illuminant::C, Illuminant::Flash,
+    ])?;
+    validated_matrix(&matrix).ok()?;
+    let m: [f64; 9] = std::array::from_fn(|i| matrix[i] as f64);
+    let neutral = [1.0 / wb[0] as f64, 1.0 / wb[1] as f64, 1.0 / wb[2] as f64];
+    as_shot_from(&m, neutral)
+}
+
+/// Solve xyz2cam * XYZ = neutral (Cramer's rule, f64), then XYZ to CCT and Duv.
+fn as_shot_from(m: &[f64; 9], neutral: [f64; 3]) -> Option<(f32, f32)> {
+    let det3 = |a: [f64; 9]| a[0] * (a[4] * a[8] - a[5] * a[7]) - a[1] * (a[3] * a[8] - a[5] * a[6]) + a[2] * (a[3] * a[7] - a[4] * a[6]);
+    let det = det3(*m);
+    if !det.is_finite() || det.abs() < 1e-12 {
+        return None;
+    }
+    let column = |c: usize| {
+        let mut a = *m;
+        for r in 0..3 { a[r * 3 + c] = neutral[r]; }
+        det3(a) / det
+    };
+    let (x_, y_, z_) = (column(0), column(1), column(2));
+    let sum = x_ + y_ + z_;
+    if !(sum.is_finite() && sum > 0.0 && y_ > 0.0) {
+        return None;
+    }
+    let (x, y) = (x_ / sum, y_ / sum);
+    let n = (x - 0.3320) / (0.1858 - y);
+    let cct = 449.0 * n.powi(3) + 3525.0 * n.powi(2) + 6823.3 * n + 5520.33;
+    if !(cct.is_finite() && (2000.0..=25000.0).contains(&cct)) {
+        return None;
+    }
+    // CIE 1960 uv of the white and of the Planckian locus at that CCT (Krystek's approximation).
+    let d = -2.0 * x + 12.0 * y + 3.0;
+    let (u, v) = (4.0 * x / d, 6.0 * y / d);
+    let t = cct;
+    let up = (0.860117757 + 1.54118254e-4 * t + 1.28641212e-7 * t * t) / (1.0 + 8.42420235e-4 * t + 7.08145163e-7 * t * t);
+    let vp = (0.317398726 + 4.22806245e-5 * t + 4.20481691e-8 * t * t) / (1.0 - 2.89741816e-5 * t + 1.61456053e-7 * t * t);
+    let duv = ((u - up).powi(2) + (v - vp).powi(2)).sqrt() * if v > vp { 1.0 } else { -1.0 };
+    // Far from the locus a colour temperature means nothing (CIE limits CCT to |Duv| <= 0.05): give no number.
+    if duv.abs() > 0.05 {
+        return None;
+    }
+    Some((cct as f32, duv as f32))
+}
+
 /// Rebuild channels the sensor clipped. `c` is white-balanced camera RGB where each channel saturates at `clip[i]`.
 /// Fully saturated pixels become neutral at the brightest plausible level; partly clipped ones keep the colour
 /// ratios of their unclipped channels. Blends smoothly so there's no visible edge around a blown area.
@@ -502,6 +560,23 @@ pub fn develop_display(raw: &RawImage) -> Result<Option<DynamicImage>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+        #[test]
+    fn as_shot_white_reads_daylight_and_tungsten_from_xyz() {
+        // With an identity "camera" (camera RGB = XYZ), the neutral is the illuminant's own XYZ.
+        let identity = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+        let d65 = super::as_shot_from(&identity, [0.95047, 1.0, 1.08883]).unwrap();
+        assert!((d65.0 - 6504.0).abs() < 60.0, "D65 gave {}", d65.0);
+        assert!(d65.1.abs() < 0.004, "D65 Duv {}", d65.1);
+        let a = super::as_shot_from(&identity, [1.09850, 1.0, 0.35585]).unwrap();
+        assert!((a.0 - 2856.0).abs() < 40.0, "illuminant A gave {}", a.0);
+        // A green-tinted white sits above the locus.
+        let green = super::as_shot_from(&identity, [0.90, 1.0, 1.0]).unwrap();
+        assert!(green.1 > 0.0);
+        // Impossible whites give no number at all, never a guess.
+        assert!(super::as_shot_from(&identity, [0.0, 0.0, 1.0]).is_none());
+        assert!(super::as_shot_from(&[0.0; 9], [1.0, 1.0, 1.0]).is_none());
+    }
 
     #[test]
     fn invalid_white_balance_fails_closed_without_nonfinite_pixels() {
