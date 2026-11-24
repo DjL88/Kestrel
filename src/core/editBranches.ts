@@ -170,7 +170,7 @@ export function forkEditCheckpoint(
   const forked = restore(frame, {
     ...capture(frame), edit: copy(selected.edit), framing: copy(selected.framing),
     // Old saved checkpoints lacked overlays. Retain the live overlay rather than guessing history.
-    overlay: 'overlay' in selected ? copy(selected.overlay) : copy(frame.overlay),
+    overlay: (('overlayRecorded' in selected && selected.overlayRecorded === true) || 'overlay' in selected) ? copy(selected.overlay) : copy(frame.overlay),
     // New edit checkpoints include the exact split state. Earlier catalogues
     // had no such evidence: retain the current layout rather than fabricating
     // an old one. This mirrors the existing overlay compatibility rule.
