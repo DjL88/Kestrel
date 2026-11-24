@@ -38,6 +38,7 @@ import {
 interface CanvasProps {
   /** Engine-supplied renderer; falls back to a plain image. */
   PhotoSurface?: React.ComponentType<PhotoSurfaceProps>;
+  maskGuideId?: string;
   photo: Photo | null;
   activeSizeId: string;
   selectedSizeIds: string[];
@@ -81,6 +82,7 @@ const ZOOM_BAR_STORAGE_KEY = 'inflight.v2.zoomBarOffset';
 
 export default function Canvas({
   PhotoSurface,
+  maskGuideId,
   photo,
   activeSizeId,
   selectedSizeIds,
@@ -1021,7 +1023,7 @@ export default function Canvas({
   /** The photo as pixels: the engine's renderer when there is one, otherwise a plain image with the CSS approximation. */
   const renderSurface = (variant: 'edited' | 'original', alt: string, style: React.CSSProperties, filter: string) =>
     PhotoSurface ? (
-      <PhotoSurface photoId={photo.id} variant={variant} lookPreview={variant === 'edited' ? hoveredLook?.recipeDelta : undefined} alt={alt} className="h-full w-full" style={style} />
+      <PhotoSurface photoId={photo.id} variant={variant} maskGuideId={variant === 'edited' && alt && !compareMode ? maskGuideId : undefined} lookPreview={variant === 'edited' ? hoveredLook?.recipeDelta : undefined} alt={alt} className="h-full w-full" style={style} />
     ) : (
       <img src={photo.previewUrl} alt={alt} referrerPolicy="no-referrer" draggable={false}
         className="h-full w-full object-cover" style={{ ...style, filter }} />

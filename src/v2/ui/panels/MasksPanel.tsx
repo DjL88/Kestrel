@@ -15,6 +15,7 @@ interface MasksPanelProps {
   onSetMaskFeather: (photoId: string, maskId: string, percent: number) => void;
   onSetMaskGeometry: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
   onSetMaskLimit: (photoId: string, maskId: string, limit: MaskLayer['limit'] | null) => void;
+  onPreviewMask?: (selection: { photoId: string; maskId: string } | null) => void;
 }
 
 export default function MasksPanel({
@@ -28,6 +29,7 @@ export default function MasksPanel({
   onSetMaskFeather,
   onSetMaskGeometry,
   onSetMaskLimit,
+  onPreviewMask,
 }: MasksPanelProps) {
   const [openId, setOpenId] = React.useState<string | null>(null);
   const seen = React.useRef<{ photoId: string; ids: string[] } | null>(null);
@@ -42,6 +44,11 @@ export default function MasksPanel({
     }
     seen.current = { photoId: photo.id, ids };
   }, [photo?.id, photo?.masks]);
+  const previewId = photo?.masks.find(layer => layer.id === openId && layer.visible)?.id;
+  React.useEffect(() => {
+    onPreviewMask?.(photo && previewId ? { photoId: photo.id, maskId: previewId } : null);
+    return () => onPreviewMask?.(null);
+  }, [photo?.id, previewId, onPreviewMask]);
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">{STRINGS.panelWords.selectToMask}</p>;
   }

@@ -436,6 +436,8 @@ export interface ExportRequest {
 /** How a photo is drawn. The engine supplies this so the canvas shows real, developed pixels; without it the UI falls back
  * to a plain image with a CSS filter. 'original' is the photo with no edit, 'edited' is with its recipe. */
 export interface PhotoSurfaceProps {
+  /** Editor-only coverage guide, never part of the photo recipe or export. */
+  maskGuideId?: string;
   photoId: string;
   variant: 'edited' | 'original';
   /** Non-destructive live preview of a hovered Look. Never stored or applied to original pixels. */
