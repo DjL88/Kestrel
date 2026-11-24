@@ -76,6 +76,17 @@ export default function Filmstrip({
   const hideAutoCull = useProHidden('smartCulling');
   const [searchOpen, setSearchOpen] = useState(false);
   const [photoView, setPhotoView] = useState<'filmstrip' | 'tiles'>('filmstrip');
+  /** A phone-only batch selection mode; desktop keeps modifier-key multi-selection. */
+  const [touchSelectionMode, setTouchSelectionMode] = useState(false);
+  useEffect(() => { if (!onCreateCollage) setTouchSelectionMode(false); }, [onCreateCollage]);
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const desktop = window.matchMedia('(min-width: 768px)');
+    const reset = () => { if (desktop.matches) setTouchSelectionMode(false); };
+    reset();
+    desktop.addEventListener('change', reset);
+    return () => desktop.removeEventListener('change', reset);
+  }, []);
   const [expandedBursts, setExpandedBursts] = useState<Set<string>>(() => new Set());
   const [minimumRating, setMinimumRating] = useState(0);
   const [tileMenu, setTileMenu] = useState<{ x: number; y: number; photoId: string } | null>(null);
@@ -235,6 +246,25 @@ export default function Filmstrip({
               </button>
             ))}
           </div>
+
+          <button type="button" aria-pressed={touchSelectionMode}
+            aria-label={touchSelectionMode ? 'Finish selecting photographs' : 'Select multiple photographs'}
+            onClick={() => {
+              if (touchSelectionMode) onClearSelection();
+              else if (collapsed) onSetCollapsed(false);
+              setTouchSelectionMode((mode) => !mode);
+            }}
+            className={`inline-flex min-h-10 shrink-0 items-center rounded px-3 text-xs font-semibold md:hidden
+              ${touchSelectionMode ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border border-[var(--border-default)] text-[var(--text-primary)]'}`}>
+            {touchSelectionMode ? `Done · ${selectedPhotoIds.length}` : 'Select'}
+          </button>
+          {touchSelectionMode && selectedPhotoIds.length > 1 && onCreateCollage && (
+            <button type="button" aria-label={`Make collage from ${selectedPhotoIds.length} selected photographs`}
+              onClick={() => { setTouchSelectionMode(false); onCreateCollage(selectedPhotoIds); }}
+              className="inline-flex min-h-10 shrink-0 items-center rounded bg-[var(--brand-accent)] px-3 text-xs font-semibold text-[var(--text-on-accent)] md:hidden">
+              Make collage · {selectedPhotoIds.length}
+            </button>
+          )}
 
           <button
             type="button"
@@ -492,8 +522,8 @@ export default function Filmstrip({
                       type="button"
                       onClick={(e) =>
                         onSelectPhoto(photo.id, {
-                          ctrl: e.ctrlKey || e.metaKey,
-                          shift: e.shiftKey,
+                          ctrl: touchSelectionMode || e.ctrlKey || e.metaKey,
+                          shift: !touchSelectionMode && e.shiftKey,
                         })
                       }
                       className="relative flex-1 w-full overflow-hidden bg-[var(--bg-canvas)] text-left"

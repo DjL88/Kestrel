@@ -1130,13 +1130,22 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const real: Partial<WorkspaceActions> = {
     exportCollage: async (request) => {
       const current = stateRef.current;
-      if (!current || collageExportRunning.current) return;
+      if (!current) throw new Error('Open a collage before exporting its pages.');
+      if (collageExportRunning.current) throw new Error('A collage export is already running.');
       collageExportRunning.current = true;
       const controller = new AbortController();
+      const sourceProjectId = current.shoot.id;
+      const requestGeneration = openRequest.current;
       const task = tasks.start('Exporting collage', { total: request.allPages ? current.shoot.collage?.pages.length ?? 1 : 1, cancel: () => controller.abort() });
       try {
-        const result = await exportCollage(current, provider.current!, request, controller.signal, (done, total) => task.progress(done, total));
+        const result = await exportCollage(current, provider.current!, request, controller.signal, (done, total) => {
+          if (openRequest.current !== requestGeneration || stateRef.current?.shoot.id !== sourceProjectId) controller.abort();
+          if (!controller.signal.aborted) task.progress(done, total);
+        });
         controller.signal.throwIfAborted();
+        if (openRequest.current !== requestGeneration || stateRef.current?.shoot.id !== sourceProjectId) {
+          throw new Error('The open project changed during export. Nothing was downloaded.');
+        }
         downloadExport(result.blob, result.name);
         task.finish('Export prepared.');
         setNotice('Collage export prepared. Your originals are unchanged.');
