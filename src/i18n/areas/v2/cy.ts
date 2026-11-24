@@ -939,6 +939,10 @@ export const cy: AreaTranslation<typeof source> = {
     deleteBody: 'Mae hyn yn tynnu’r prosiect, ei olygiadau a rhagolygon InFlight sydd wedi’u storio oddi ar y ddyfais hon. Ni chyffyrddir byth â’ch ffeiliau lluniau gwreiddiol. Does dim modd ei ddadwneud; archifwch ef yn lle hynny os efallai y byddwch ei eisiau’n ôl.',
     keepProject: 'Cadw’r prosiect',
     deleteProject: 'Dileu’r prosiect',
+    layoutLabel: 'Cynllun y prosiectau',
+    layoutList: 'Rhestr',
+    layoutTiles: 'Teils',
+    collageTag: 'Collage',
   },
   panelWords: {
     selectToAdjust: 'Dewiswch lun i addasu’r tôn a’r lliw.',

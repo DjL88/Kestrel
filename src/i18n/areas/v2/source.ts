@@ -1003,6 +1003,10 @@ export const source = {
     deleteBody: 'This removes the project, its edits and InFlight’s stored previews from this device. Your original photo files are never touched. It cannot be undone; archive it instead if you may want it back.',
     keepProject: 'Keep project',
     deleteProject: 'Delete project',
+    layoutLabel: 'Project layout',
+    layoutList: 'List',
+    layoutTiles: 'Tiles',
+    collageTag: 'Collage',
   },
 
   // Words inside the studio panels

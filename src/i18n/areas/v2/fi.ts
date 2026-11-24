@@ -940,6 +940,10 @@ export const fi: AreaTranslation<typeof source> = {
     deleteBody: 'Tämä poistaa tältä laitteelta projektin, sen muokkaukset ja InFlightin tallentamat esikatselut. Alkuperäisiin kuvatiedostoihisi ei kosketa. Tätä ei voi perua; arkistoi projekti, jos saatat haluta sen takaisin.',
     keepProject: 'Säilytä projekti',
     deleteProject: 'Poista projekti',
+    layoutLabel: 'Projektien asettelu',
+    layoutList: 'Luettelo',
+    layoutTiles: 'Ruudut',
+    collageTag: 'Kollaasi',
   },
   panelWords: {
     selectToAdjust: 'Valitse kuva säätääksesi sävyjä ja värejä.',

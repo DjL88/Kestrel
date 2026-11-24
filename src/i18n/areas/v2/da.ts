@@ -939,6 +939,10 @@ export const da: AreaTranslation<typeof source> = {
     deleteBody: 'Dette fjerner projektet, dets redigeringer og InFlights gemte forhåndsvisninger fra denne enhed. Dine originale fotofiler røres aldrig. Det kan ikke fortrydes; arkivér det i stedet, hvis du måske vil have det tilbage.',
     keepProject: 'Behold projektet',
     deleteProject: 'Slet projektet',
+    layoutLabel: 'Projektvisning',
+    layoutList: 'Liste',
+    layoutTiles: 'Felter',
+    collageTag: 'Collage',
   },
   panelWords: {
     selectToAdjust: 'Vælg et foto for at justere tone og farve.',

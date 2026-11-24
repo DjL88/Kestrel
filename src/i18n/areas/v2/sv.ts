@@ -939,6 +939,10 @@ export const sv: AreaTranslation<typeof source> = {
     deleteBody: 'Detta tar bort projektet, dess redigeringar och InFlights sparade förhandsvisningar från den här enheten. Dina ursprungliga fotofiler rörs aldrig. Det går inte att ångra; arkivera det i stället om du kanske vill ha tillbaka det.',
     keepProject: 'Behåll projektet',
     deleteProject: 'Ta bort projektet',
+    layoutLabel: 'Projektvy',
+    layoutList: 'Lista',
+    layoutTiles: 'Rutor',
+    collageTag: 'Collage',
   },
   panelWords: {
     selectToAdjust: 'Välj ett foto för att justera ton och färg.',

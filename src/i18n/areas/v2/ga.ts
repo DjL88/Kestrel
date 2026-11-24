@@ -942,6 +942,10 @@ export const ga: AreaTranslation<typeof source> = {
     deleteBody: 'Baintear leis seo an tionscadal, a chuid eagarthóireachta agus na réamhamhairc atá stóráilte ag InFlight den ghléas seo. Ní bhaintear riamh le do bhunchomhaid grianghraf. Ní féidir é a chealú; cartlannaigh é ina ionad má dhéanfá é a iarraidh ar ais.',
     keepProject: 'Coinnigh an tionscadal',
     deleteProject: 'Scrios an tionscadal',
+    layoutLabel: 'Leagan amach na dtionscadal',
+    layoutList: 'Liosta',
+    layoutTiles: 'Tíleanna',
+    collageTag: 'Colláis',
   },
   panelWords: {
     selectToAdjust: 'Roghnaigh grianghraf chun ton agus dath a choigeartú.',
