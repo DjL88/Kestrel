@@ -343,3 +343,19 @@ test('local release gate rejects HTML fallback in compiled JS and CSS assets', t
   writeFileSync(css, 'body { color: black; }');
   assert.equal(run(root).status, 0);
 });
+
+
+test('a valid local bundle cannot conceal an unverified extra script', t => {
+  const root = fixture();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const entry = join(root, 'editor', 'demo-editor.html');
+  for (const url of ['https://elsewhere.example/extra.js', '//elsewhere.example/extra.js', '/extra.js', '/editor/assets/demo.js?stale=1', '']) {
+    writeFileSync(entry, demo('InFlight editor demonstration').replace('</body>', '<script src="' + url + '"></script></body>'));
+    const result = run(root);
+    assert.notEqual(result.status, 0, url);
+    assert.match(result.stderr, /Unverified compiled editor script/);
+  }
+  writeFileSync(join(root, 'editor', 'assets', 'extra.js'), bundle);
+  writeFileSync(entry, demo('InFlight editor demonstration').replace('</body>', '<script src="./assets/extra.js"></script></body>'));
+  assert.equal(run(root).status, 0);
+});

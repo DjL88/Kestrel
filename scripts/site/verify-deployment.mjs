@@ -55,6 +55,13 @@ function builtAssets(html) {
   if (/\ssrc=["']\/src\/demo\/(?:v2\/)?main\.tsx/.test(html)) {
     throw new Error('Found a development entry point, not the compiled website editor.');
   }
+  // Every external script reference must belong to the verified local build.
+  // A valid local bundle must not hide an additional unverified entry point.
+  for (const [, url] of html.matchAll(/<script\b[^>]*?\ssrc=["']([^"']*)["']/gi)) {
+    if (!/^(?:\/editor\/|\.\/)?assets\/[a-z0-9_.\/-]+\.js$/i.test(url) || url.includes('..')) {
+      throw new Error('Unverified compiled editor script: ' + url);
+    }
+  }
   const references = [...html.matchAll(/<(script|link)\b[^>]*?\s(src|href)=["']([^"']+)["']/gi)]
     .map(([, tag, attribute, url]) => ({
       isScript: tag.toLowerCase() === 'script' && attribute.toLowerCase() === 'src',
