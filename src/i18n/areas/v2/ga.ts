@@ -557,6 +557,11 @@ export const ga: AreaTranslation<typeof source> = {
     label: (mode) => `Tá ${mode} ar siúl. Athraigh é sna Socruithe.`,
   },
   exportDialog: {
+    overlayText: 'forleagan téacs',
+    overlayWatermark: 'comhartha uisce',
+    overlaysAsOnCanvas: (what) => `Cuirfear leis iad mar atá siad ar an gcanbhás: ${what}. Athraigh iad in Forleagain.`,
+    noOverlaysOnCanvas: 'Níl téacs ná comhartha uisce ar an gcanbhás. Cuir leo in Forleagain iad.',
+    frameFiles: (count) => `${count} fhráma`,
     destFolder: 'Sábháil i bhfillteán',
     folderHelp: 'Roghnaigh fillteán amháin don bhaisc iomlán',
     saveFiles: 'Sábháil comhaid',

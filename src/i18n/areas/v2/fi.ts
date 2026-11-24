@@ -555,6 +555,11 @@ export const fi: AreaTranslation<typeof source> = {
     label: (mode) => `${mode} on käytössä. Muuta sitä Asetuksissa.`,
   },
   exportDialog: {
+    overlayText: 'tekstipeittokuva',
+    overlayWatermark: 'vesileima',
+    overlaysAsOnCanvas: (what) => `Lisätään kankaan mukaisesti: ${what}. Muokkaa niitä kohdassa Peittokuvat.`,
+    noOverlaysOnCanvas: 'Kankaalla ei ole tekstiä eikä vesileimaa. Lisää ne kohdassa Peittokuvat.',
+    frameFiles: (count) => `${count} kehystä`,
     destFolder: 'Tallenna kansioon',
     folderHelp: 'Valitse yksi kansio koko erälle',
     saveFiles: 'Tallenna tiedostot',

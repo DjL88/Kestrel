@@ -1,9 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { copyFile, mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { audit, inventory } from './audit-ui.mjs';
 
 test('detects visible, accessible and runtime messages without inventing translation coverage', () => {
@@ -20,7 +21,7 @@ test('detects visible, accessible and runtime messages without inventing transla
 });
 
 test('recursive audit excludes dictionaries and is deterministic', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'kestrel-i18n-audit-'));
+  const root = await mkdtemp(join(tmpdir(), 'kestrel i18n audit-'));
   try {
     await mkdir(join(root, 'components'));
     await mkdir(join(root, 'i18n'));
@@ -31,7 +32,9 @@ test('recursive audit excludes dictionaries and is deterministic', async () => {
     assert.deepEqual(first, await audit(root));
     assert.equal(first.length, 2);
     assert.deepEqual(first.map(x => x.file), ['components/Review.tsx', 'core.ts']);
-    const cli = spawnSync(process.execPath, ['tools/i18n/audit-ui.mjs', '--json', '--src', root], { encoding: 'utf8' });
+    const script = join(root, 'audit-ui.mjs');
+    await copyFile(fileURLToPath(new URL('./audit-ui.mjs', import.meta.url)), script);
+    const cli = spawnSync(process.execPath, [script, '--json', '--src', root], { encoding: 'utf8' });
     assert.equal(cli.status, 0, cli.stderr);
     assert.equal(JSON.parse(cli.stdout).count, 2);
     assert.match(JSON.parse(cli.stdout).limitations, /not verified/);

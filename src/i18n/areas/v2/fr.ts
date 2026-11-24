@@ -554,6 +554,11 @@ export const fr: AreaTranslation<typeof source> = {
     label: (mode) => `${mode} est activé. Modifiez-le dans les Paramètres.`,
   },
   exportDialog: {
+    overlayText: 'superposition de texte',
+    overlayWatermark: 'filigrane',
+    overlaysAsOnCanvas: (what) => `Ajout à l’identique d’après le canevas : ${what}. Utilisez Superpositions pour les modifier.`,
+    noOverlaysOnCanvas: 'Le canevas ne comporte ni texte ni filigrane. Ajoutez-les dans Superpositions.',
+    frameFiles: (count) => `${count} images`,
     destFolder: 'Enregistrer dans un dossier',
     folderHelp: 'Choisissez un seul dossier pour tout le lot',
     saveFiles: 'Enregistrer les fichiers',

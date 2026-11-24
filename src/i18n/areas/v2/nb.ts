@@ -554,6 +554,11 @@ export const nb: AreaTranslation<typeof source> = {
     label: (mode) => `${mode} er på. Endre det i Innstillinger.`,
   },
   exportDialog: {
+    overlayText: 'tekstoverlegg',
+    overlayWatermark: 'vannmerke',
+    overlaysAsOnCanvas: (what) => `Legges til slik de er plassert på lerretet: ${what}. Endre dem under Overlegg.`,
+    noOverlaysOnCanvas: 'Det er ingen tekst eller vannmerker på lerretet. Legg dem til under Overlegg.',
+    frameFiles: (count) => `${count} rammer`,
     destFolder: 'Lagre i en mappe',
     folderHelp: 'Velg én mappe for hele bunken',
     saveFiles: 'Lagre filer',

@@ -554,6 +554,11 @@ export const pt: AreaTranslation<typeof source> = {
     label: (mode) => `${mode} está ativo. Altere-o nas Definições.`,
   },
   exportDialog: {
+    overlayText: 'sobreposição de texto',
+    overlayWatermark: 'marca de água',
+    overlaysAsOnCanvas: (what) => `Elementos adicionados tal como estão na tela: ${what}. Altere-os em Sobreposições.`,
+    noOverlaysOnCanvas: 'A tela não contém texto nem marca de água. Adicione-os em Sobreposições.',
+    frameFiles: (count) => `${count} molduras`,
     destFolder: 'Guardar numa pasta',
     folderHelp: 'Escolha uma pasta para todo o lote',
     saveFiles: 'Guardar ficheiros',

@@ -554,6 +554,11 @@ export const da: AreaTranslation<typeof source> = {
     label: (mode) => `${mode} er slået til. Skift det i Indstillinger.`,
   },
   exportDialog: {
+    overlayText: 'tekstoverlejring',
+    overlayWatermark: 'vandmærke',
+    overlaysAsOnCanvas: (what) => `Tilføjes som placeret på lærredet: ${what}. Redigér dem under Overlejringer.`,
+    noOverlaysOnCanvas: 'Der er ingen tekst eller vandmærker på lærredet. Tilføj dem under Overlejringer.',
+    frameFiles: (count) => `${count} rammer`,
     destFolder: 'Gem i en mappe',
     folderHelp: 'Vælg én mappe til hele bunken',
     saveFiles: 'Gem filer',

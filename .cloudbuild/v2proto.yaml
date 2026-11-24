@@ -13,7 +13,8 @@ substitutions:
   _CONTROL_PLANE_URL: ''
   _GRANT_KEYS: ''
 steps:
-  - name: node:22
+  # The Firebase web SDK in package-lock.json requires Node 24.12 or newer.
+  - name: node:24-bookworm
     entrypoint: sh
     args: ['-c', 'npm ci --include=optional && npm run lint && npm test && node --test services/v2proto/server.test.mjs && npm run build']
   - name: gcr.io/cloud-builders/docker

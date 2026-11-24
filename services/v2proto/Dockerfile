@@ -1,6 +1,6 @@
 # Build the real (not demo) V2 workspace, then serve all assets via
 # authenticated Cloud Run. No compiled assets are copied to Firebase Hosting.
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --include=optional --no-audit --no-fund
@@ -16,7 +16,7 @@ ARG VITE_KESTREL_CONTROL_PLANE_URL
 ARG VITE_KESTREL_GRANT_KEYS
 RUN npx vite build --config vite.v2proto.config.ts
 
-FROM node:22-alpine
+FROM node:24-alpine
 WORKDIR /app
 COPY --from=build /app/out/v2proto /app/site
 COPY services/v2proto/server.mjs /app/server.mjs

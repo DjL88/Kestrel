@@ -554,6 +554,11 @@ export const is: AreaTranslation<typeof source> = {
     label: (mode) => `Kveikt er á ${mode}. Breyttu því í Stillingum.`,
   },
   exportDialog: {
+    overlayText: 'textayfirlag',
+    overlayWatermark: 'vatnsmerki',
+    overlaysAsOnCanvas: (what) => `Bætt við eins og á striganum: ${what}. Breyttu þeim undir Yfirlög.`,
+    noOverlaysOnCanvas: 'Hvorki texti né vatnsmerki er á striganum. Bættu þeim við undir Yfirlög.',
+    frameFiles: (count) => `${count} rammar`,
     destFolder: 'Vista í möppu',
     folderHelp: 'Veldu eina möppu fyrir alla lotuna',
     saveFiles: 'Vista skrár',

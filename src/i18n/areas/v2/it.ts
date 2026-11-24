@@ -554,6 +554,11 @@ export const it: AreaTranslation<typeof source> = {
     label: (mode) => `${mode} è attivo. Lo cambi nelle Impostazioni.`,
   },
   exportDialog: {
+    overlayText: 'sovrapposizione di testo',
+    overlayWatermark: 'filigrana',
+    overlaysAsOnCanvas: (what) => `Elementi aggiunti come appaiono sulla tela: ${what}. Puoi modificarli in Sovrapposizioni.`,
+    noOverlaysOnCanvas: 'Sulla tela non ci sono testo o filigrana. Aggiungili in Sovrapposizioni.',
+    frameFiles: (count) => `${count} riquadri`,
     destFolder: 'Salva in una cartella',
     folderHelp: 'Scelga una cartella per l’intero lotto',
     saveFiles: 'Salva i file',
