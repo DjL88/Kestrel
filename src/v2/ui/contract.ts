@@ -323,6 +323,7 @@ export interface TaskInfo {
   stage?: string;
   location?: import('../../core/taskStore').TaskLocation;
   pauseable?: boolean;
+  cancellable?: boolean;
   priority?: number;
   startedAt?: number;
   items?: readonly import('../../core/taskStore').TaskItemInfo[];
