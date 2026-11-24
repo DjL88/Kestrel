@@ -14,10 +14,12 @@ export function parseStored(raw: string | null): StoredWatermark[] {
   try {
     const value: unknown = JSON.parse(raw ?? '[]');
     if (!Array.isArray(value)) return [];
+    const seen = new Set<string>();
     return value.flatMap((entry): StoredWatermark[] => {
       if (!entry || typeof entry !== 'object') return [];
       const { id, label, forDark, forLight } = entry as Record<string, unknown>;
-      if (typeof id !== 'string' || !id || typeof label !== 'string') return [];
+      if (typeof id !== 'string' || !id.trim() || typeof label !== 'string' || seen.has(id)) return [];
+      seen.add(id);
       const asset = (candidate: unknown) => (typeof candidate === 'string' && ID.test(candidate) ? candidate : undefined);
       return [{ id, label: label.slice(0, 60), forDark: asset(forDark), forLight: asset(forLight) }];
     });
