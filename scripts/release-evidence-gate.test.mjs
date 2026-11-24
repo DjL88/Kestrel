@@ -58,7 +58,10 @@ test('path traversal, symlinks and symlinked directories cannot present proof', 
   const outside = await mkdtemp(path.join(os.tmpdir(), 'other-release-evidence-'));
   t.after(() => rm(outside, { recursive: true, force: true }));
   await writeFile(path.join(outside, 'proof.txt'), 'UAT executed at a fixed SHA');
-  await symlink(outside, path.join(root, 'linked'));
+  const linked = path.join(root, 'linked');
+  // Windows directory junctions exercise the same realpath check without Developer Mode.
+  await symlink(outside, linked, process.platform === 'win32' ? 'junction' : 'dir');
+  t.after(() => rm(linked, { force: true }));
   manifest.checks.lint.evidence = [{ path: 'linked/proof.txt', sha256: hash }];
   assert.ok((await checkReleaseEvidence(manifest, root)).some(e => e.includes('outside manifest')));
 });

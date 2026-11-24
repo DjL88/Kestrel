@@ -58,9 +58,26 @@ test('manifest must be outside source and is never overwritten', async (t) => {
   await assert.rejects(runIntegrityCommand('baseline', f.originals, f.manifest), { code: 'EEXIST' });
 });
 
-test('symlink cannot silently import a different linked photo or escape source folder', async (t) => {
+test('directory link cannot silently import photos outside the source folder', async (t) => {
   const f = await fixture(t);
-  await symlink(f.photo, path.join(f.originals, 'linked.NEF'));
+  const outside = path.join(f.temp, 'outside');
+  await mkdir(outside);
+  await writeFile(path.join(outside, 'outside.NEF'), 'different original');
+  const linked = path.join(f.originals, 'linked');
+  await symlink(outside, linked, process.platform === 'win32' ? 'junction' : 'dir');
+  t.after(() => rm(linked, { force: true }));
+  await assert.rejects(listOriginals(f.originals), /symbolic link/);
+});
+
+test('file link cannot be counted as a separate original', async (t) => {
+  const f = await fixture(t);
+  try {
+    await symlink(f.photo, path.join(f.originals, 'linked.NEF'), 'file');
+  } catch (error) {
+    if (process.platform !== 'win32' || error.code !== 'EPERM') throw error;
+    t.skip('This Windows account cannot create file symlinks');
+    return;
+  }
   await assert.rejects(listOriginals(f.originals), /symbolic link/);
 });
 

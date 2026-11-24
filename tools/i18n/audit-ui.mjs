@@ -8,6 +8,7 @@
  */
 import { readdir, readFile } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export function inventory(source, file) {
   const findings = [];
@@ -55,7 +56,7 @@ export async function audit(srcRoot) {
   return findings;
 }
 
-const invoked = process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname);
+const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const srcIndex = process.argv.indexOf('--src');
   const root = resolve(srcIndex >= 0 ? process.argv[srcIndex + 1] ?? '' : join(process.cwd(), 'src'));
