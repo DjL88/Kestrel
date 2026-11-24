@@ -1484,7 +1484,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clipboardRecipe: clipboard,
     PhotoSurface: EngineSurface,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
-  }), [stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice]);
+  }), [stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice]);
 
   return { store, actions };
 }
