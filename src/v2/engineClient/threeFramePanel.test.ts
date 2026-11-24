@@ -47,6 +47,7 @@ function render(count: 1 | 2 | 3 | 4 | 5, enabled = true): string {
     onToggleSplitFrames: () => {},
     onSetSplitFrameCount: () => {},
     onUpdateVideoZoom: () => {},
+    onRenameEditGroup: () => {},
   };
   return renderToStaticMarkup(React.createElement(SizesPanel, props));
 }
