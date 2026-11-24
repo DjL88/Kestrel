@@ -591,29 +591,45 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!current) return;
     if (!can('smartCulling')) { setNotice('Auto-cull is part of InFlight Pro.'); return; }
     if (cullController.current) { setNotice('Auto-cull is already running.'); return; }
-    const candidates = current.frames.filter((frame) => frame.removedAt == null && frame.decision === 'unreviewed' && !frame.isDemo && !frame.virtualCopy);
+    const candidates = current.frames.filter(frame =>
+      frame.removedAt == null && frame.decision === 'unreviewed' && !frame.isDemo && !frame.virtualCopy);
     if (!candidates.length) { setNotice('Every photo already has a decision, so there is nothing to cull.'); return; }
     const controller = new AbortController();
     cullController.current = controller;
-    const task = tasks.start('Auto-cull and analyse', { total: candidates.length, cancel: () => controller.abort() });
     const projectKey = current.shoot.id;
     const requestId = openRequest.current;
     try {
-      const results = await scanForCulling(candidates, current.frames, provider.current!, null, controller.signal,
-        (count) => { if (!controller.signal.aborted) task.progress(count); },
-        () => { if (!controller.signal.aborted) setNotice('The subject detector is not available, so Auto-cull used sharpness and exposure only and is less certain.'); });
-      if (controller.signal.aborted || requestId !== openRequest.current) return;
-      setState((latest) => {
-        if (!latest || latest.shoot.id !== projectKey || requestId !== openRequest.current || controller.signal.aborted) return latest;
-        return commitAutoCull(latest, candidates, results);
+      // Keeper selection requires all shoot-wide evidence, so it is one
+      // non-pauseable unit. Per-photo progress is real; cancellation prevents
+      // a late scan-wide decision from changing the catalogue.
+      const ticket = await engineScheduler.submit({
+        title: 'Auto-cull and analyse',
+        kind: 'cull', resource: 'cpu', priority: 5, pauseable: false,
+        items: [{ id: projectKey, label: candidates.length + ' photos' }],
+        snapshot: { projectKey, requestId, candidates: candidates.map(frame => frame.id) },
+        itemId: item => item.id, itemLabel: item => item.label,
+        runItem: async (_, __, ctx) => {
+          ctx.stage('Scanning photographs and gathering shoot-wide evidence');
+          const results = await scanForCulling(candidates, current.frames, provider.current!, null,
+            ctx.signal, count => ctx.reportProgress(count, candidates.length, `${count} of ${candidates.length} analysed`),
+            () => ctx.commitIfCurrent(() => setNotice('The subject detector is unavailable. Auto-cull used sharpness and exposure only and is less certain.')));
+          ctx.checkCancelled();
+          if (requestId !== openRequest.current || stateRef.current?.shoot.id !== projectKey) return;
+          ctx.stage('Applying review suggestions without changing manual flags');
+          ctx.commitIfCurrent(() => setState(latest => {
+            if (!latest || latest.shoot.id !== projectKey || requestId !== openRequest.current || ctx.signal.aborted) return latest;
+            return commitAutoCull(latest, candidates, results);
+          }));
+          const summary = `Auto-cull checked ${candidates.length} photo${candidates.length === 1 ? '' : 's'}. Review the flags in the filmstrip. You can undo the whole pass in one step.`;
+          ctx.commitIfCurrent(() => setNotice(summary));
+        },
       });
-      const summary = `Auto-cull checked ${candidates.length} photo${candidates.length === 1 ? '' : 's'}. Review the flags in the filmstrip. You can undo the whole pass in one step.`;
-      task.finish(summary);
-      setNotice(summary);
-    } catch {
-      if (!controller.signal.aborted) { task.fail('Auto-cull failed.'); setNotice('Auto-cull failed. No photo was changed.'); }
+      const result = await ticket.finished;
+      if (result === 'failed') setNotice('Auto-cull failed. No new decisions were applied. Open Tasks for details.');
+    } catch (reason) {
+      setNotice(reason instanceof Error ? reason.message : 'Auto-cull could not be queued.');
     } finally {
-      task.fail('Auto-cull stopped.'); // does nothing once finished or cancelled
+      controller.abort();
       if (cullController.current === controller) cullController.current = null;
     }
   }, [can]);
