@@ -54,3 +54,13 @@ test('refuses a result from another project open in the meantime', () => {
   const state = project(original);
   assert.equal(commitAutoEdit(state, 'previous-project', original, proposal, 2000), state);
 });
+
+import { addSavedEditGroup } from './editGroupState';
+test('does not apply an old proposal after the active group or version changes', () => {
+  const group = addSavedEditGroup(original, 'second');
+  assert.ok(group);
+  for (const current of [group, { ...original, editVersions: { version: 1 as const, activeId: 'fork', versions: [] } }]) {
+    const state = project(current);
+    assert.equal(commitAutoEdit(state, 'project', original, proposal, 2000), state);
+  }
+});
