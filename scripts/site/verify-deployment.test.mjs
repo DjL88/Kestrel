@@ -326,3 +326,20 @@ test('release verifier source never contains an escaped newline between favicon 
   assert.equal(source.includes('||\\n      new URL('), false,
     'a literal backslash-n outside a string breaks JavaScript parsing');
 });
+
+
+test('local release gate rejects HTML fallback in compiled JS and CSS assets', t => {
+  const root = fixture();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const js = join(root, 'editor', 'assets', 'demo.js');
+  writeFileSync(js, '\uFEFF  <!DOCTYPE html><html>Fallback</html>');
+  assert.match(run(root).stderr, /Local compiled editor asset is an HTML fallback: \/editor\/assets\/demo.js/);
+  writeFileSync(js, bundle);
+  const entry = join(root, 'editor', 'demo-editor.html');
+  writeFileSync(entry, demo('InFlight editor demonstration').replace('</body>', '<link rel="stylesheet" href="/editor/assets/demo.css"></body>'));
+  const css = join(root, 'editor', 'assets', 'demo.css');
+  writeFileSync(css, '<html>Fallback</html>');
+  assert.match(run(root).stderr, /Local compiled editor asset is an HTML fallback: \/editor\/assets\/demo.css/);
+  writeFileSync(css, 'body { color: black; }');
+  assert.equal(run(root).status, 0);
+});

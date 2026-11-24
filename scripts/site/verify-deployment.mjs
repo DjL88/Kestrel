@@ -72,6 +72,9 @@ function builtAssets(html) {
   }
   return [...new Set(assets)].sort();
 }
+function isHtmlFallback(body) {
+  return /^\s*(?:<!doctype html|<html)\b/i.test(body.subarray(0, 512).toString('utf8'));
+}
 async function main() {
   const { root, liveUrl } = options();
   const dir = resolve(root);
@@ -96,6 +99,9 @@ async function main() {
     const file = join(dir, asset.slice(1));
     if (!existsSync(file) || !statSync(file).isFile() || statSync(file).size === 0) {
       throw new Error('Missing or empty compiled editor asset: ' + file);
+    }
+    if (isHtmlFallback(readFileSync(file))) {
+      throw new Error('Local compiled editor asset is an HTML fallback: ' + asset);
     }
   }
   // Google and Dropbox production approval need a public privacy-policy address, and the home page links to it.
@@ -123,7 +129,7 @@ async function main() {
     if (!response.ok) throw new Error('Live Firebase path failed (' + response.status + '): ' + uri.pathname);
     if (assets.includes(suffix) || suffix === faviconPath) {
       const body = Buffer.from(await response.arrayBuffer());
-      if (!body.length || /^\s*(?:<!doctype html|<html)\b/i.test(body.subarray(0, 512).toString('utf8'))) {
+      if (!body.length || isHtmlFallback(body)) {
         throw new Error('Live Firebase path returned a missing or wrong asset: ' + uri.pathname);
       }
       if (!body.equals(readFileSync(join(dir, suffix.slice(1))))) {
