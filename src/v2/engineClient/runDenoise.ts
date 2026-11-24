@@ -1,10 +1,10 @@
 import { runEngineCapability } from '../../engine/engineApi';
 import { createCloudProcessingAttempt, type CloudConnection } from '../../providers/cloudProcessingAttempt';
 import { applyNoiseReduction } from '../../core/noiseReduction';
-import { applyMasks, fullContext } from '../../core/masks';
+import { applyMasks, fullContext, maskAlpha } from '../../core/masks';
 import { DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto } from '../../core/photoFraming';
-import type { Mask } from '../../core/maskTypes';
+import { framingKey, MAX_MASKS, type Mask } from '../../core/maskTypes';
 import type { Pixels } from '../../core/colourCheck';
 import type { PhotoFrame } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
@@ -20,6 +20,7 @@ export interface DenoiseOutcome {
   runner: 'cloud-processing' | 'device';
   /** The strength that passed the quality check (it may be lower than asked). */
   strength: number;
+  masks: Mask[];
   verified: boolean;
   notes: string[];
 }
@@ -30,7 +31,7 @@ export type CloudAccess = { connection: CloudConnection; online: boolean } | nul
 /**
  * Denoise one photo: asks the cloud first when the person is signed in and online (their press of the button is the
  * consent for this one job), and otherwise, or on any failure or unverified result, runs on this device. Uses only a
- * working-size preview, never the original. Nothing is applied here: the caller stores the returned strength.
+ * working-size preview, never the original. Nothing is applied here: the caller stores the returned recipe.
  */
 export async function runV2Denoise(
   frame: PhotoFrame, provider: BrowserPreviewProvider, cloud: CloudAccess, signal?: AbortSignal,
@@ -53,10 +54,18 @@ export async function runV2Denoise(
     return { data, width: original.width, height: original.height };
   };
   const asked = frame.edit?.denoise && frame.edit.denoise > 0 ? frame.edit.denoise : DEFAULT_DENOISE_STRENGTH;
-  const attempt = cloud
+  const existing = frame.edit?.masks ?? [];
+  const subjectMask = existing.find((mask): mask is Extract<Mask, { kind: 'subject' }> => mask.kind === 'subject' && !mask.hidden && !mask.invert && !mask.limit && !mask.strokes.length && mask.confidence !== 'low' && mask.framingKey === framingKey(framing));
+  const id = `auto-denoise-${frame.id}`;
+  const remaining = existing.filter(mask => mask.id !== id && mask.id !== `${id}-background`);
+  const subject = subjectMask && remaining.length + 2 <= MAX_MASKS ? {
+    maskId: id, grid: subjectMask.grid, framingKey: subjectMask.framingKey, confidence: subjectMask.confidence, detail: subjectMask.detail,
+    alpha: maskAlpha({ ...subjectMask, feather: 0.5 }, original.width, original.height, fullContext(original.width, original.height)),
+  } : undefined;
+  const attempt = cloud && !subject
     ? createCloudProcessingAttempt(cloud.connection, { online: cloud.online, signedIn: true, userConsent: true }, signal)
     : undefined;
-  const response = await runEngineCapability({ capability: 'denoise', backgroundDenoise: asked, render, original }, attempt);
+  const response = await runEngineCapability({ capability: 'denoise', backgroundDenoise: asked, render, original, subject }, attempt);
   if (response.capability !== 'denoise') return null;
   const result = response.result;
   const strength = result.edit.denoise ?? 0;
@@ -64,5 +73,5 @@ export async function runV2Denoise(
     ? ['Denoised in the InFlight cloud from a working-size copy, checked on this device.']
     : [cloud ? 'The cloud was not used for this one, so it ran on this device.' : 'Denoised on this device.'];
   if (!result.verification.ok) notes.push('It could not be made to pass the quality check, so the gentlest setting tried is shown.');
-  return { runner: response.runner === 'cloud-processing' ? 'cloud-processing' : 'device', strength, verified: result.verification.ok, notes };
+  return { runner: response.runner === 'cloud-processing' ? 'cloud-processing' : 'device', strength, masks: result.masks, verified: result.verification.ok, notes };
 }
