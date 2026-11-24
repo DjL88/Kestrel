@@ -37,6 +37,7 @@ interface FilmstripProps {
   onImportFolder: () => void;
   onRunAutoCull: () => void;
   onExportSelected: () => void;
+  onCreateCollage?: (photoIds: string[]) => void;
 }
 
 export default function Filmstrip({
@@ -70,6 +71,7 @@ export default function Filmstrip({
   onImportFolder,
   onRunAutoCull,
   onExportSelected,
+  onCreateCollage,
 }: FilmstripProps) {
   const hideAutoCull = useProHidden('smartCulling');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -287,6 +289,8 @@ export default function Filmstrip({
               >
                 Export
               </button>
+              {onCreateCollage && <button type="button" onClick={() => onCreateCollage(selectedPhotoIds)}
+                className="rounded px-1.5 py-0.5 font-medium hover:bg-[var(--bg-surface)]">Make collage</button>}
               <button
                 type="button"
                 onClick={onClearSelection}
@@ -589,6 +593,11 @@ export default function Filmstrip({
             <BrandIcon name="flag" size={14} />
             <span>Flag / unflag</span>
           </button>
+          {onCreateCollage && <button type="button" role="menuitem"
+            onClick={() => { onCreateCollage(selectedPhotoIds.includes(tileMenu.photoId) ? selectedPhotoIds : [tileMenu.photoId]); setTileMenu(null); }}
+            className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            Make collage from selected
+          </button>}
           <button type="button" role="menuitem"
             onClick={() => {
               onSetDecision(selectedPhotoIds.includes(tileMenu.photoId) ? selectedPhotoIds : [tileMenu.photoId], 'reject');
