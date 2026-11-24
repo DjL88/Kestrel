@@ -31,7 +31,7 @@ interface OverlayPanelProps {
   onRemoveRow: (photoId: string, rowId: string) => void;
   onAddCustomFont: (fontName: string) => void;
   onListDeviceFonts: () => Promise<string[] | null>;
-  onImportWatermark: () => Promise<string | null>;
+  onImportWatermark: (usage: import('../contract').WatermarkUsage) => Promise<string | null>;
   onCutOutWatermark: (presetId: string, slot: 'dark' | 'light', tolerance: number, commit: boolean) => Promise<{ url: string; tooMuch: boolean } | null>;
   onMakeWatermarkVariant: (presetId: string, slot: 'dark' | 'light') => Promise<void>;
   onDeleteWatermark: (presetId: string) => void;
