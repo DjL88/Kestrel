@@ -15,9 +15,16 @@ export async function completeImportChunk<Input, Output>(
   let accepting = true;
   try {
     return await Promise.all(entries.map(async (entry, index) => {
-      const finished = await read(entry, index);
-      if (accepting && finished !== null) onReady?.(finished);
-      return finished;
+      try {
+        const finished = await read(entry, index);
+        if (accepting && finished !== null) onReady?.(finished);
+        return finished;
+      } catch (error) {
+        // Close the publication gate in this worker's rejection turn, not
+        // in Promise.all's later finally. Siblings can finish in that gap.
+        accepting = false;
+        throw error;
+      }
     }));
   } finally {
     // A rejected worker cannot publish late completions from its siblings.
