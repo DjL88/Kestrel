@@ -483,6 +483,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                   onImport={actions.importPhotos} />
               ) : store.gridViewOpen ? (
                 <GridView
+                  requestThumbnail={actions.requestThumbnail}
                   photos={store.photos}
                   activePhotoId={store.activePhotoId}
                   selectedPhotoIds={store.selectedPhotoIds}
@@ -545,6 +546,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
               )}
 
               <Filmstrip
+                requestThumbnail={actions.requestThumbnail}
                 photos={store.photos}
                 activePhoto={activePhoto}
                 selectedPhotoIds={store.selectedPhotoIds}
