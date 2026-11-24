@@ -2,6 +2,7 @@ import { MAX_EDIT_HISTORY_STEPS, type EditKind } from './editHistory';
 import { readCollage } from './collage';
 import { parseSettings } from './projectSettings';
 import { validMasks } from './maskTypes';
+import { validCurve, validMixer } from './curveMixer';
 import type { CullingState, FilterState, PhotoFrame, ShootDescriptor } from './types';
 import { DEVELOP_VERSION } from './backgroundDevelop';
 
@@ -47,6 +48,7 @@ function recipeIsValid(value: unknown): boolean {
       edit[key] !== undefined && !number(edit[key], -2, 2)) ||
     (edit.denoise !== undefined && !number(edit.denoise, 0, 2)) ||
     (edit.denoiseLuminance !== undefined && !number(edit.denoiseLuminance, 0, 2)) ||
+    (edit.curve !== undefined && !validCurve(edit.curve)) || (edit.mixer !== undefined && !validMixer(edit.mixer)) ||
     (edit.masks !== undefined && !validMasks(edit.masks)))) return false;
   const framing = value.framing;
   if (framing !== undefined && (!record(framing) || (framing.ratio !== null && !number(framing.ratio, 0.01, 100)) ||

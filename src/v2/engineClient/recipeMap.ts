@@ -1,4 +1,5 @@
 import type { PhotoEdit } from '../../core/photoEdits';
+import { isNeutralCurve, isNeutralMixer, validCurve, validMixer, type ColourMixer, type CurvePoint } from '../../core/curveMixer';
 import type { EditRecipe } from '../ui/contract';
 
 /**
@@ -46,6 +47,10 @@ export function editToRecipe(edit: PhotoEdit | undefined): EditRecipe {
     denoiseLuminance: toSlider(edit.denoiseLuminance),
     detailRecovery: round(clamp((edit.texture ?? 0) * SLIDER_PER_STEP, 0, 100), 2),
     upscaleFactor: edit.upscale ?? 1,
+    ...(validCurve(edit.curve) && !isNeutralCurve(edit.curve) ? { toneCurve: edit.curve.map(([x, y]) => [x, y] as [number, number]) } : {}),
+    ...(validMixer(edit.mixer) && !isNeutralMixer(edit.mixer) ? { colourMixer: {
+      hue: edit.mixer.hue.map(toSlider), saturation: edit.mixer.saturation.map(toSlider), luminance: edit.mixer.luminance.map(toSlider),
+    } } : {}),
   };
 }
 
@@ -79,6 +84,19 @@ export function applyRecipePatch(edit: PhotoEdit | undefined, patch: Partial<Edi
     else next.texture = texture;
   }
   if (patch.upscaleFactor !== undefined) { if (patch.upscaleFactor === 2 || patch.upscaleFactor === 4) next.upscale = patch.upscaleFactor; else delete next.upscale; }
+  if ('toneCurve' in patch) {
+    // A curve that is missing, straight or malformed is stored as no curve at all, never as a guess.
+    const curve = patch.toneCurve?.map(([x, y]) => [round(x, 4), round(y, 4)] as CurvePoint);
+    if (curve && validCurve(curve) && !isNeutralCurve(curve)) next.curve = curve;
+    else delete next.curve;
+  }
+  if ('colourMixer' in patch) {
+    const source = patch.colourMixer;
+    const band = (list: number[] | undefined) => Array.from({ length: 8 }, (_, i) => toStep(Number.isFinite(list?.[i]) ? list![i] : 0));
+    const mixer: ColourMixer | undefined = source ? { hue: band(source.hue), saturation: band(source.saturation), luminance: band(source.luminance) } : undefined;
+    if (mixer && validMixer(mixer) && !isNeutralMixer(mixer)) next.mixer = mixer;
+    else delete next.mixer;
+  }
   const neutral = (value: unknown, base: unknown) => value === undefined || value === base;
   const unmapped = UNMAPPED_KEYS.filter((key) => !neutral(patch[key], NEUTRAL_RECIPE[key]));
   return { edit: next, unmapped };
