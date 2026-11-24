@@ -578,8 +578,6 @@ export const da: AreaTranslation<typeof source> = {
     variantBefore: (format) => `Før: uredigeret, fremkaldt til ${format} (ikke den originale fil)`,
     variantOriginal: 'Original fil: nøjagtig kopi, som optaget',
     variantAfter: 'Efter (redigeret)',
-    variantOverlay: 'Med tekstoverlejring',
-    variantWatermark: 'Med vandmærke',
     variantVideo: 'Video (zoom-MP4)',
     groupsHeading: 'Redigeringsgrupper og formater',
     rawMasterHeading: 'RAW-TIFF',

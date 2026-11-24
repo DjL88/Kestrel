@@ -578,8 +578,6 @@ export const pt: AreaTranslation<typeof source> = {
     variantBefore: (format) => `Antes: sem edição, revelada em ${format} (não o ficheiro original)`,
     variantOriginal: 'Ficheiro original: cópia exata, tal como foi captada',
     variantAfter: 'Depois (editada)',
-    variantOverlay: 'Com texto sobreposto',
-    variantWatermark: 'Com marca de água',
     variantVideo: 'Vídeo (zoom MP4)',
     groupsHeading: 'Grupos de edição e formatos',
     rawMasterHeading: 'TIFF RAW',

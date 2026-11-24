@@ -578,8 +578,6 @@ export const nl: AreaTranslation<typeof source> = {
     variantBefore: (format) => `Voor: onbewerkt, ontwikkeld naar ${format} (niet het originele bestand)`,
     variantOriginal: 'Origineel bestand: exacte kopie, zoals gemaakt',
     variantAfter: 'Na (bewerkt)',
-    variantOverlay: 'Met tekstoverlay',
-    variantWatermark: 'Met watermerk',
     variantVideo: 'Video (zoom-MP4)',
     groupsHeading: 'Bewerkingsgroepen & formaten',
     rawMasterHeading: 'RAW-TIFF',

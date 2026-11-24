@@ -579,8 +579,6 @@ export const gd: AreaTranslation<typeof source> = {
     variantBefore: (format) => `Roimhe: gun deasachadh, air a leasachadh gu ${format} (chan e am faidhle tùsail)`,
     variantOriginal: 'Faidhle tùsail: dearbh lethbhreac, mar a chaidh a thogail',
     variantAfter: 'Às dèidh (air a dheasachadh)',
-    variantOverlay: 'Le tar-chòmhdachadh teacsa',
-    variantWatermark: 'Le comharra-uisge',
     variantVideo: 'Video (MP4 sùm)',
     groupsHeading: 'Buidhnean deasachaidh is fòrmatan',
     rawMasterHeading: 'TIFF RAW',
