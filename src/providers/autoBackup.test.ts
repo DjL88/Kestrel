@@ -5,10 +5,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createDemoShootState } from '../core/cullingEngine';
 import { encodeProjectBackup, restoreProjectBackup } from '../core/projectBackup';
-import { backupFolder, KEEP_BACKUPS } from '../core/autoBackup';
+import { backupFolder, backupName, KEEP_BACKUPS } from '../core/autoBackup';
 import { addConnection, removeConnection } from './connectionStore';
 import { setLocations } from './projectLocations';
-import { backUpNow, backUpProjectNow, maybeBackUp } from './autoBackup';
+import { backUpNow, backUpProjectNow, maybeBackUp, writeSnapshot } from './autoBackup';
 
 /** Node 22 (the CI version) has no localStorage or OPFS: give the code under test both, and clean up. */
 async function stubBrowserStorage(t: { after(fn: () => unknown): void }, withDevice: boolean) {
@@ -214,4 +214,24 @@ test('mobile with a writable NAS source backs up to the app and the source', asy
   const relative = backupFolder(state.shoot.id);
   assert.equal((await readdir(join(localRoot, relative))).length, 1);
   assert.equal((await readdir(join(nasRoot, relative))).length, 1);
+});
+
+
+test('retention preserves a freshly verified snapshot when device clocks or remote listings disagree', async () => {
+  const { memoryConnector } = await import('../core/storageConnectors');
+  const connector = memoryConnector();
+  const projectId = 'clock-skewed';
+  const old = new Date('2026-11-16T09:00:00Z');
+  const fresh = backupName(projectId, old);
+  const payload = new TextEncoder().encode('new local edits');
+  for (let minute = 1; minute <= KEEP_BACKUPS; minute++) {
+    await connector.put(backupName(projectId, new Date(old.getTime() + minute * 60_000)), payload, '');
+  }
+  await writeSnapshot(connector, projectId, fresh, payload);
+  assert.deepEqual(await connector.get(fresh), payload);
+  assert.equal(connector.files.size, KEEP_BACKUPS + 1);
+  const stale = backupName(projectId, new Date(old.getTime() + 120 * 60_000));
+  const incompleteListing = { ...connector, list: async () => [...connector.files.keys()].filter(key => key !== stale) };
+  await writeSnapshot(incompleteListing, projectId, stale, payload);
+  assert.equal(connector.files.size, KEEP_BACKUPS + 2);
 });
