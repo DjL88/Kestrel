@@ -1014,6 +1014,29 @@ test('?v2 canvas controls: screenshot, Grid in the zoom bar, All photos in the r
 });
 
 
+test('?v2 manages saved overlay presets from home settings and persists changes', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (localStorage.getItem('inflight-v2-overlay-templates') === null) {
+      localStorage.setItem('inflight-v2-overlay-templates', JSON.stringify([{id:'tpl-wildlife',name:'Wildlife credit',overlay:{},savedAt:1}]));
+    }
+  });
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'Settings', exact: true }).first().click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('tab', { name: 'Templates' }).click();
+  await dialog.getByRole('textbox', { name: 'Template name: Wildlife credit' }).fill('Bird credit');
+  await dialog.getByRole('button', { name: 'Rename Wildlife credit' }).click();
+  await expect(dialog.getByRole('textbox', { name: 'Template name: Bird credit' })).toHaveValue('Bird credit');
+  await page.reload();
+  await root.getByRole('button', { name: 'Settings', exact: true }).first().click();
+  await dialog.getByRole('tab', { name: 'Templates' }).click();
+  await expect(dialog.getByRole('textbox', { name: 'Template name: Bird credit' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Delete Bird credit' }).click();
+  await expect(dialog.getByText('No templates yet.')).toBeVisible();
+});
+
+
 test('V2 edit group rename is persisted in the real catalogue', async ({ page }) => {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');

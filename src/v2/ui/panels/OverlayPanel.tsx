@@ -41,8 +41,7 @@ interface OverlayPanelProps {
   selectedPhotoIds: string[];
   onSaveTemplate: (photoId: string, name: string) => void;
   onApplyTemplate: (templateId: string, photoIds: string[]) => void;
-  onRenameTemplate: (templateId: string, name: string) => void;
-  onDeleteTemplate: (templateId: string) => void;
+  onManageTemplates: () => void;
 }
 
 const ANCHORS: Array<{ id: OverlayAnchor; x: number; y: number }> = [
@@ -83,8 +82,7 @@ export default function OverlayPanel({
   selectedPhotoIds,
   onSaveTemplate,
   onApplyTemplate,
-  onRenameTemplate,
-  onDeleteTemplate,
+  onManageTemplates,
   photo,
   fonts,
   watermarkPresets,
@@ -132,7 +130,11 @@ export default function OverlayPanel({
   return (
     <div className="space-y-4">
       <section aria-labelledby="overlay-templates-title" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
-        <h3 id="overlay-templates-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.overlays.templatesHeading}</h3>
+        <div className="flex items-center justify-between gap-2">
+          <h3 id="overlay-templates-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.overlays.templatesHeading}</h3>
+          <button type="button" onClick={onManageTemplates} aria-label={`${STRINGS.settings.heading}: ${STRINGS.overlays.templatesHeading}`}
+            className="min-h-10 rounded border border-[var(--border-default)] px-2 text-xs">{STRINGS.settings.heading}</button>
+        </div>
         <p className="text-[11px] leading-snug text-[var(--text-muted)]">{STRINGS.overlays.templatesIntro}</p>
         <form
           className="flex gap-1.5"
@@ -152,10 +154,6 @@ export default function OverlayPanel({
                 <span className="min-w-0 flex-1 truncate px-1 text-xs font-medium text-[var(--text-primary)]">{template.name}</span>
                 <button type="button" aria-label={`${STRINGS.overlays.templateApply(targets.length)}: ${template.name}`} onClick={() => onApplyTemplate(template.id, targets)}
                   className="min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[11px] font-medium text-[var(--text-primary)]">{STRINGS.overlays.templateApply(targets.length)}</button>
-                <button type="button" aria-label={`${STRINGS.overlays.templateRename} ${template.name}`} onClick={() => { const next = window.prompt(STRINGS.overlays.templateNameLabel, template.name); if (next !== null) onRenameTemplate(template.id, next); }}
-                  className="min-h-9 rounded-[var(--radius-sm)] px-2 text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{STRINGS.overlays.templateRename}</button>
-                <button type="button" aria-label={`${STRINGS.overlays.templateDelete} ${template.name}`} onClick={() => onDeleteTemplate(template.id)}
-                  className="min-h-9 rounded-[var(--radius-sm)] px-2 text-[11px] text-[var(--status-danger,#e5484d)]">{STRINGS.overlays.templateDelete}</button>
               </li>
             ))}
           </ul>
