@@ -122,3 +122,11 @@ test('ambiguous legacy capture identity and duplicate local originals are not si
   assert.equal(planApply([...here, shot('second', 'DSC_1.NEF', 5000)], single).matching, 0);
   assert.equal(planApply([shot('old', 'DSC_1.NEF', 5000, { removedAt: 0 })], single).matching, 0);
 });
+
+
+test('a legacy remote record cannot be applied to two local records via different match routes', () => {
+  const snap = buildSnapshot('Birds', [shot('old', 'DSC_1.NEF', 5000, { rating: 5 })], new Date());
+  const here = [shot('old', 'renamed.NEF', 5001), shot('new', 'DSC_1.NEF', 5000)];
+  assert.equal(planApply(here, snap).matching, 0);
+  assert.deepEqual(applySnapshot(here, snap), here);
+});
