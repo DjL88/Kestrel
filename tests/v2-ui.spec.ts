@@ -356,7 +356,7 @@ test('?v2 font picker: favourites shown in their own typeface, a sample of real 
   await expect(root.getByRole('listbox', { name: 'Fonts' }).getByRole('button', { name: /Futura/ }).first()).toBeVisible();
 });
 
-test('?v2 on the Free plan the Overlays tool is not offered at all', async ({ page }) => {
+test('?v2 on the Free plan the Overlays tool is offered (basic overlays are free since #1224)', async ({ page }) => {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: 'New project' }).first().click();
@@ -367,8 +367,8 @@ test('?v2 on the Free plan the Overlays tool is not offered at all', async ({ pa
   await root.getByRole('button', { name: /^Import/ }).first().click();
   await (await chooser).setFiles([{ name: 'ov-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
-  // Text and watermark are Pro, so the tool is left out of the rail rather than shown locked.
-  await expect(root.getByRole('complementary', { name: 'Studio tools' }).getByRole('button', { name: 'Overlays' })).toHaveCount(0);
+  // Text and watermark overlays are never gated (#1224), so Free shows the tool like every other basic tool.
+  await expect(root.getByRole('complementary', { name: 'Studio tools' }).getByRole('button', { name: 'Overlays' })).toBeVisible();
   await expect(root.getByRole('complementary', { name: 'Studio tools' }).getByRole('button', { name: 'Adjust' })).toBeVisible();
 });
 
@@ -455,6 +455,13 @@ test('?v2 slice 1A: the histogram is measured, the zoom % jumps to 100%, and int
 test('?v2 overlay text is the same share of the frame in every format and at every zoom (a true reflection of size)', async ({ page }) => {
   await page.goto('/?v2&stub=1&autostart=1');
   const root = page.locator('.inflight-v2');
+  // New photos start with only Original on (formats are chosen up front); switch on two more for the board.
+  await root.getByRole('button', { name: 'Formats', exact: true }).first().click();
+  for (const label of ['Instagram Portrait', 'YouTube / Widescreen']) {
+    const toggle = root.getByRole('button', { name: `Include ${label}`, exact: true });
+    if ((await toggle.getAttribute('aria-pressed')) !== 'true') await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  }
   await root.getByRole('button', { name: 'Overlays', exact: true }).first().click();
   const text = root.locator('div').filter({ hasText: /^Show text overlay on this photo/ }).getByRole('switch').first();
   await text.click();
@@ -491,6 +498,11 @@ test('?v2 a format is capped at the photo\'s own pixels, with a small warning', 
   await root.getByRole('button', { name: /^Import/ }).first().click();
   await (await chooser).setFiles([{ name: 'cap-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  // New photos start with only Original (never capped); switch on the 3000×2000 3:2 format and show it.
+  await root.getByRole('button', { name: 'Formats', exact: true }).first().click();
+  const include = root.getByRole('button', { name: 'Include 3:2', exact: true });
+  if ((await include.getAttribute('aria-pressed')) !== 'true') await include.click();
+  await root.getByRole('button', { name: '3:2 3:2', exact: true }).click();
   const warning = root.getByTestId('size-cap-warning');
   await expect(warning).toContainText('Smaller than 3000×2000', { timeout: 30000 });
   await expect(root.getByText('1500×1000 (3:2)')).toBeVisible();
@@ -501,31 +513,34 @@ test('?v2 crop: corners keep the format\'s shape, double-click shows the whole p
   await page.goto('/?v2&stub=1&autostart=1');
   const root = page.locator('.inflight-v2');
   const frame = root.getByTestId('canvas-frame');
-  const zoomOf = () => frame.locator('img').first().evaluate((img) => { const m = new DOMMatrixReadOnly(getComputedStyle(img).transform === 'none' ? undefined : getComputedStyle(img).transform); return m.a; });
+  // The crop zoom as the photographer sees it: the Formats panel's Frame zoom value (kept open so the layout stays put).
+  await root.getByRole('button', { name: 'Formats', exact: true }).first().click();
+  const zoomOf = async () => Number(await root.getByRole('slider', { name: /Frame zoom/ }).first().inputValue());
   const before = (await frame.boundingBox())!;
   expect(await zoomOf()).toBeCloseTo(1, 1);
-  // Pull the top-left corner in: the picture zooms, and the frame keeps exactly the same shape and size.
+  // Crop handles live on the picture while in crop mode (double-click or Crop / reposition); the format frame stays put.
+  await expect(root.getByTestId('crop-ghost')).toHaveCount(0);
+  await frame.dblclick({ position: { x: 200, y: 150 } });
+  await expect(root.getByTestId('crop-ghost')).toBeVisible();
   const corner = root.getByRole('button', { name: 'Drag top left crop corner' });
+  // Pull the picture's top-left corner outwards: the picture zooms, and the frame keeps exactly the same shape and size.
   const c = (await corner.boundingBox())!;
   await page.mouse.move(c.x + c.width / 2, c.y + c.height / 2);
   await page.mouse.down();
-  await page.mouse.move(c.x + 90, c.y + 60, { steps: 6 });
+  await page.mouse.move(c.x - 90, c.y - 60, { steps: 6 });
   await page.mouse.up();
   expect(await zoomOf()).toBeGreaterThan(1.05);
   const after = (await frame.boundingBox())!;
   expect(Math.abs(after.width - before.width)).toBeLessThan(1);
   expect(Math.abs(after.height - before.height)).toBeLessThan(1);
-  // Pulling it back out returns toward fit, never below it.
+  // Pushing it back in returns toward fit, never below it.
   const c2 = (await corner.boundingBox())!;
   await page.mouse.move(c2.x + c2.width / 2, c2.y + c2.height / 2);
   await page.mouse.down();
-  await page.mouse.move(c2.x - 200, c2.y - 150, { steps: 6 });
+  await page.mouse.move(c2.x + 400, c2.y + 300, { steps: 6 });
   await page.mouse.up();
   expect(await zoomOf()).toBeGreaterThanOrEqual(0.99);
-  // Double-click shows the whole picture as a ghost; Escape leaves it.
-  await expect(root.getByTestId('crop-ghost')).toHaveCount(0);
-  await frame.dblclick({ position: { x: 200, y: 150 } });
-  await expect(root.getByTestId('crop-ghost')).toBeVisible();
+  // Escape leaves crop mode.
   await page.keyboard.press('Escape');
   await expect(root.getByTestId('crop-ghost')).toHaveCount(0);
   // Outside that mode, a plain drag moves the format on the canvas.
