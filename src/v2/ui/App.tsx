@@ -12,6 +12,7 @@ import TopBar from './shell/TopBar';
 import Rail from './shell/Rail';
 import DockPanel from './shell/DockPanel';
 import Canvas from './shell/Canvas';
+import CollageEditor from './shell/CollageEditor';
 import Filmstrip from './shell/Filmstrip';
 import GridView from './shell/GridView';
 import CoPilotPanel from './panels/CoPilotPanel';
@@ -93,6 +94,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   const changeKeymap = React.useCallback((next: SavedKeymap) => { saveKeymap(next); setSavedKeymap(next); }, []);
   const [moreOpen, setMoreOpen] = useState(false);
   const [addingFormatFor, setAddingFormatFor] = useState<string | null>(null);
+  const [collageEditingId, setCollageEditingId] = useState<string | null>(null);
   const sheetDragY = useRef<number | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
@@ -110,6 +112,8 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
   }, [setActivePanel]);
+
+  useEffect(() => setCollageEditingId(null), [store.activeProjectId]);
 
   const activePhoto =
     store.photos.find((p) => p.id === store.activePhotoId) ?? store.photos[0] ?? null;
@@ -408,7 +412,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             filmstripCollapsed={store.filmstripCollapsed}
             onBack={actions.backToProjects}
             onSetAssistMode={actions.setAssistMode}
-            onExport={() => actions.setExportOpen(true)}
+            onExport={() => store.collage ? window.alert('Collage export is not enabled yet. The photo Export command only exports individual photographs.') : actions.setExportOpen(true)}
             onOpenRemoved={() => actions.setRemovedOpen(true)}
             onOpenSettings={() => actions.setSettingsOpen(true)}
             onImport={actions.importPhotos}
@@ -469,7 +473,13 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
 
             {/* Centre column: Canvas (or GridView) + Bottom Filmstrip/Info Dock */}
             <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-              {store.gridViewOpen ? (
+              {store.collage && collageEditingId && <button type="button" className="min-h-10 shrink-0 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 text-left text-sm font-semibold text-[var(--brand-accent)]" onClick={() => setCollageEditingId(null)}>← Back to collage pages</button>}
+              {store.collage && !collageEditingId ? (
+                <CollageEditor document={store.collage} photos={store.photos} PhotoSurface={store.PhotoSurface}
+                  onChange={(next) => actions.updateCollage?.(next)}
+                  onEditPhoto={(id) => { actions.selectPhoto(id); setCollageEditingId(id); }}
+                  onImport={actions.importPhotos} />
+              ) : store.gridViewOpen ? (
                 <GridView
                   photos={store.photos}
                   activePhotoId={store.activePhotoId}
@@ -562,7 +572,8 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                 onImport={actions.importPhotos}
                 onImportFolder={actions.importFolder}
                 onRunAutoCull={actions.runAutoCull}
-                onExportSelected={() => actions.setExportOpen(true)}
+                onCreateCollage={store.collage ? undefined : actions.createCollageFromSelection}
+                onExportSelected={() => store.collage ? window.alert('Collage export is not enabled yet. The photo Export command only exports individual photographs.') : actions.setExportOpen(true)}
               />
             </div>
 
