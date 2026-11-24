@@ -385,6 +385,7 @@ export default function SizesPanel({
                   type="button"
                   disabled={isVideoLocked}
                   aria-label={`Include ${size.label}`}
+                  aria-pressed={size.enabled}
                   onClick={() => onToggleSizeEnabled(photo.id, size.id)}
                   className="text-[var(--text-secondary)] hover:text-[var(--brand-accent)] disabled:opacity-40"
                 >

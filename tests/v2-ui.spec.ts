@@ -627,7 +627,7 @@ test('?v2 export draws the size copy as the canvas shows it: capped at the pictu
   // The flip applies to the format on the canvas: remember which one that is and export only it.
   const shown = ((await root.getByTestId('canvas-frame').locator('xpath=../../div[1]/span[1]').textContent()) ?? '').trim();
   expect(shown).not.toBe('');
-  await root.getByRole('button', { name: 'Flip horizontally' }).click();
+  await root.getByRole('button', { name: 'Flip selected formats' }).click();
   await root.getByRole('button', { name: /^Export/ }).first().click();
   const dialog = page.getByRole('dialog', { name: /export/i });
   await dialog.getByRole('button', { name: /Download individual files/i }).click();
@@ -637,7 +637,7 @@ test('?v2 export draws the size copy as the canvas shows it: capped at the pictu
   const names = (await sizes.allTextContents()).filter((text) => !text.includes(shown));
   for (const name of names) await dialog.locator('.grid.grid-cols-2 button[aria-pressed="true"]', { hasText: name }).first().click();
   const downloading = page.waitForEvent('download', { timeout: 60000 });
-  await dialog.getByRole('button', { name: /export bundle/i }).click();
+  await dialog.getByRole('button', { name: /^Save files$/i }).click();
   const download = await downloading;
   expect(download.suggestedFilename()).toMatch(/\.jpg$/);
   const path = await download.path();
