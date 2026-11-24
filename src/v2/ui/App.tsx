@@ -149,10 +149,10 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
       case 'edit.copy': actions.copyRecipe(); break;
       case 'edit.paste': actions.pasteRecipe(); break;
       case 'edit.selectAll': actions.selectAllPhotos(); break;
-      case 'file.export': actions.setExportOpen(true); break;
+      case 'file.export': if (!store.collage) actions.setExportOpen(true); break;
       case 'app.settings': actions.setSettingsOpen(true); break;
     }
-  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, activePhoto, actions]);
+  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, activePhoto, actions]);
 
   // The desktop app's native menu (File, Edit, Photo, View, Settings). Some of its accelerators (Cmd/Ctrl+E, +A, +O, +M)
   // are taken before the page sees the key, so the menu choice must run the action itself.
@@ -400,7 +400,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         <>
           <TopBar
             keymap={keymap}
-            photoName={activePhoto ? `${activePhoto.title} · ${activePhoto.filename}` : 'No photo'}
+            photoName={store.collage && !collageEditingId ? `Collage · ${store.collage.pages.length} page${store.collage.pages.length === 1 ? '' : 's'}` : activePhoto ? `${activePhoto.title} · ${activePhoto.filename}` : 'No photo'}
             assistMode={store.assistMode}
             theme={activeTheme}
             activePanel={store.activePanel}
@@ -436,7 +436,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
 
           {/* Main Workspace Row */}
           <div className={`relative flex min-h-0 flex-1 overflow-hidden ${store.settings.hand === 'left' ? 'flex-row-reverse' : ''}`}>
-            <Rail
+            {(!store.collage || collageEditingId) && <Rail
               hand={store.settings.hand}
               hiddenPanels={[...(hasOverlays ? [] : ['overlays' as const]), ...panelsHiddenByPro(hiddenPro)]}
               assistMode={store.assistMode}
@@ -453,7 +453,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
               onOpenSettings={() => actions.setSettingsOpen(true)}
               onOpenAllPhotos={() => actions.setGridViewOpen(!store.gridViewOpen)}
               allPhotosOpen={store.gridViewOpen}
-            />
+            />}
 
             {/* Left-docked panel (desktop/tablet only) */}
             {!isMobile && activePanelVisible && store.activePanel && activePanelState?.dock === 'left' && (
