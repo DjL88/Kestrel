@@ -1,4 +1,4 @@
-import { applyDetail, applyPhotoEdit, blendEncoded8, type PhotoEdit } from './photoEdits';
+import { applyDetail, applyPhotoEdit, blendEncoded8, decodeEncoded, encodeLinear, type PhotoEdit } from './photoEdits';
 import { hasActiveMasks, maskIsActive, type Mask } from './maskTypes';
 import { applyNoiseReduction } from './noiseReduction';
 
@@ -204,29 +204,72 @@ export function effectiveAlpha(mask: Mask, masks: readonly Mask[], width: number
 /** Apply local adjustments. Each mask runs the normal edit maths on a copy and blends it in by its strength. */
 export function applyMasks(pixels: Uint8ClampedArray, width: number, height: number, masks: Mask[] | undefined, context: MaskContext): void {
   if (!masks || !hasActiveMasks(masks)) return;
-  // Auto-denoise pairs are adjacent, complementary and denoise-only. Render
-  // both strengths from the same pre-pair pixels, then mix once in linear light.
-  // If a user edits either shape or adds other adjustments, use ordinary masks.
+  const paired = (background: Mask, subject: Mask | undefined): boolean =>
+    background.kind === 'subject' && subject?.kind === 'subject' &&
+    background.id === subject.id + '-background' &&
+    background.invert && !subject.invert && !background.hidden && !subject.hidden &&
+    !background.limit && !subject.limit &&
+    background.feather === subject.feather && background.framingKey === subject.framingKey &&
+    JSON.stringify(background.grid) === JSON.stringify(subject.grid) &&
+    JSON.stringify(background.detail) === JSON.stringify(subject.detail) &&
+    JSON.stringify(background.strokes) === JSON.stringify(subject.strokes) &&
+    Object.keys(background.edit).every(key => key === 'denoise') &&
+    Object.keys(subject.edit).every(key => key === 'denoise');
+  const overrides = new Map<string, Mask[]>();
+  const consumed = new Set<string>();
+  for (let i = 0; i + 1 < masks.length; i++) {
+    const group = masks[i + 1];
+    if (!paired(masks[i], group) || group.kind !== 'subject') continue;
+    const members = masks.filter(m => m.kind === 'subject' && !m.invert && !m.hidden &&
+      m.framingKey === group.framingKey && m.id.startsWith(group.id + '-instance-') &&
+      m.edit.denoise !== undefined).sort((a, b) => a.id.localeCompare(b.id));
+    overrides.set(group.id, members);
+    members.forEach(m => consumed.add(m.id));
+  }
   for (let index = 0; index < masks.length; index += 1) {
     const mask = masks[index];
     const subject = masks[index + 1];
-    if (mask.kind === 'subject' && subject?.kind === 'subject' &&
-        mask.id === subject.id + '-background' &&
-        mask.invert && !subject.invert && !mask.hidden && !subject.hidden &&
-        !mask.limit && !subject.limit &&
-        mask.feather === subject.feather && mask.framingKey === subject.framingKey &&
-        JSON.stringify(mask.grid) === JSON.stringify(subject.grid) &&
-        JSON.stringify(mask.detail) === JSON.stringify(subject.detail) &&
-        JSON.stringify(mask.strokes) === JSON.stringify(subject.strokes) &&
-        Object.keys(mask.edit).every(key => key === 'denoise') &&
-        Object.keys(subject.edit).every(key => key === 'denoise')) {
+    if (paired(mask, subject)) {
       const alpha = maskAlpha(subject, width, height, context);
-      const backgroundPixels = applyNoiseReduction(pixels, width, height, { exposure: 0, warmth: 0, colour: 0, denoise: mask.edit.denoise } as PhotoEdit);
-      const subjectPixels = applyNoiseReduction(pixels, width, height, { exposure: 0, warmth: 0, colour: 0, denoise: subject.edit.denoise } as PhotoEdit);
-      for (let i = 0; i < alpha.length; i += 1) {
-        const j = i * 4;
-        for (let channel = 0; channel < 3; channel += 1) {
-          pixels[j + channel] = blendEncoded8(backgroundPixels[j + channel], subjectPixels[j + channel], alpha[i]);
+      const filter = (strength: number | undefined) => applyNoiseReduction(pixels, width, height,
+        { exposure: 0, warmth: 0, colour: 0, denoise: strength } as PhotoEdit);
+      const backgroundPixels = filter(mask.edit.denoise);
+      const subjectPixels = filter(subject.edit.denoise);
+      const members = overrides.get(subject.id) ?? [];
+      // For individual overrides, normalize overlapping coverage rather than
+      // filtering the output of another filter. Every candidate sees this same source.
+      if (members.length) {
+        const count = width * height;
+        const total = new Float32Array(count);
+        const coverage = new Float32Array(count);
+        const rgb = new Float32Array(count * 3);
+        const linear = Array.from({ length: 256 }, (_, v) => decodeEncoded(v / 255));
+        for (const member of members) {
+          const a = effectiveAlpha(member, masks, width, height, context);
+          const candidate = filter(member.edit.denoise);
+          for (let i = 0; i < count; i++) {
+            const weight = a[i] * alpha[i];
+            total[i] += weight;
+            coverage[i] = Math.max(coverage[i], weight);
+            for (let c = 0; c < 3; c++) rgb[i * 3 + c] += linear[candidate[i * 4 + c]] * weight;
+          }
+        }
+        for (let i = 0; i < count; i++) {
+          for (let c = 0; c < 3; c++) {
+            const j = i * 4 + c;
+            const base = linear[backgroundPixels[j]] * (1 - alpha[i]) + linear[subjectPixels[j]] * alpha[i];
+            // Overrides replace only the subject contribution, leaving the
+            // complementary background contribution intact.
+            const value = total[i] > 0
+              ? base + coverage[i] * (rgb[i * 3 + c] / total[i] - linear[subjectPixels[j]])
+              : base;
+            pixels[j] = Math.round(encodeLinear(Math.max(0, Math.min(1, value))) * 255);
+          }
+        }
+      } else {
+        for (let i = 0; i < alpha.length; i++) {
+          const j = i * 4;
+          for (let c = 0; c < 3; c++) pixels[j + c] = blendEncoded8(backgroundPixels[j + c], subjectPixels[j + c], alpha[i]);
         }
       }
       index += 1;
@@ -235,9 +278,7 @@ export function applyMasks(pixels: Uint8ClampedArray, width: number, height: num
     if (!maskIsActive(mask)) continue;
     const alpha = effectiveAlpha(mask, masks, width, height, context);
     const local = { exposure: 0, warmth: 0, colour: 0, ...mask.edit } as PhotoEdit;
-    // Denoise the neighbouring source pixels before tone/detail, then composite
-    // only where this mask (including intersection/subtraction) has alpha.
-    // The preview renderer supplies a full image for neighbour-aware masks.
+    if (consumed.has(mask.id)) delete local.denoise;
     const adjusted = local.denoise ? applyNoiseReduction(pixels, width, height, local) : new Uint8ClampedArray(pixels);
     applyPhotoEdit(adjusted, local);
     applyDetail(adjusted, width, height, local, context.imageEdge ?? Math.max(width, height));

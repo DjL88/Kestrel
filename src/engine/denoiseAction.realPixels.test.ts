@@ -92,3 +92,27 @@ it('blends independent denoise results once across a soft subject edge', () => {
   }
   assert.deepEqual(actual, expected);
 });
+
+it('individual overrides use the same source and do not double denoise overlapping subjects', () => {
+  const original = noisyPhoto(32);
+  const grid = { w: 8, h: 8, data: btoa(String.fromCharCode(...new Uint8Array(64).fill(255))) };
+  const group = createSubjectMask('auto-denoise-test', grid, 'test', 'high');
+  group.edit.denoise = 0.4;
+  const background: Mask = { ...group, id: group.id + '-background', invert: true, edit: { denoise: 1.6 } };
+  const a: Mask = { ...group, id: group.id + '-instance-1-dog', edit: { denoise: 0 } };
+  const b: Mask = { ...group, id: group.id + '-instance-2-dog', edit: { denoise: 1.6 } };
+  const context = fullContext(original.width, original.height);
+  const strong = applyNoiseReduction(original.data, original.width, original.height, { ...DEFAULT_EDIT, denoise: 1.6 });
+  const first = new Uint8ClampedArray(original.data);
+  const reversed = new Uint8ClampedArray(original.data);
+  applyMasks(first, original.width, original.height, [a, b, background, group], context);
+  applyMasks(reversed, original.width, original.height, [b, a, background, group], context);
+  assert.deepEqual(first, reversed);
+  for (let j = 0; j < first.length; j += 4) {
+    for (let c = 0; c < 3; c++) assert.ok(Math.abs(first[j + c] - blendEncoded8(original.data[j + c], strong[j + c], 0.5)) <= 1);
+    assert.equal(first[j + 3], original.data[j + 3]);
+  }
+  const zero = new Uint8ClampedArray(original.data);
+  applyMasks(zero, original.width, original.height, [a, background, group], context);
+  assert.deepEqual(zero, original.data);
+});
