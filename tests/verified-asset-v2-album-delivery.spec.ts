@@ -57,7 +57,9 @@ test('reopened group recipes produce distinct pixels, and a collage can reuse th
     }, Array.from(entry![1]));
   };
   expect(await brightness('-Light.png')).toBeGreaterThan(await brightness('-Dark.png'));
-  await dialog.getByRole('button', { name: 'Close export dialog' }).click();
+  // The export dialog now closes itself once the files are saved; close it only if it is still open.
+  const close = dialog.getByRole('button', { name: 'Close export dialog' });
+  if (await close.isVisible()) await close.click();
   await page.getByRole('button', { name: 'Back to projects' }).click();
   await page.getByRole('button', { name: 'Album', exact: true }).click();
   await page.getByRole('button', { name: 'Choose from another project' }).click();

@@ -8,6 +8,9 @@ export interface CollageSlot {
   x: number; y: number; width: number; height: number; angle: number;
   /** Polygon vertices, in percentages of the slot. */
   clip?: string;
+  /** How the photograph sits in its window. Zoom 1 fills the window; pan -1..1 moves
+   * from one edge of the picture to the other (0 is centred). Omitted means centred and filled. */
+  zoom?: number; panX?: number; panY?: number;
 }
 export interface CollagePage {
   id: string;
@@ -36,7 +39,13 @@ export const COLLAGE_FORMATS: Record<CollageFormat, { label: string; width: numb
 };
 const polygonA = 'polygon(0 0, 100% 0, 89% 100%, 0 100%)';
 const polygonB = 'polygon(12% 0, 100% 0, 100% 100%, 0 100%)';
-type SlotShape = Omit<CollageSlot, 'id' | 'photoId'>;
+// The same angled cut turned on its side, for tall pages.
+const polygonAT = 'polygon(0 0, 100% 0, 100% 89%, 0 100%)';
+const polygonBT = 'polygon(0 12%, 100% 0, 100% 100%, 0 100%)';
+const CLIPS = [polygonA, polygonB, polygonAT, polygonBT];
+const TRANSPOSED_CLIP: Record<string, string> = { [polygonA]: polygonAT, [polygonB]: polygonBT };
+type SlotShape = Omit<CollageSlot, 'id' | 'photoId' | 'zoom' | 'panX' | 'panY'>;
+export const MAX_COLLAGE_ZOOM = 8;
 const shapes: Record<CollageTemplate, SlotShape[]> = {
   triptych: [
     { x: 4, y: 6, width: 29, height: 88, angle: 0 },
@@ -74,6 +83,26 @@ const shapes: Record<CollageTemplate, SlotShape[]> = {
     { x: 4, y: 68, width: 92, height: 28, angle: 0 },
   ],
 };
+/** Which way round a layout suits a page. Templates are drawn for a square page;
+ * on a tall or wide page the ones with a clear direction turn on their side, so
+ * columns become rows instead of being stretched into slivers. */
+export function collageOrientation(aspect: number): 'tall' | 'square' | 'wide' {
+  return aspect < 0.8 ? 'tall' : aspect > 1.25 ? 'wide' : 'square';
+}
+const TURN_WHEN: Partial<Record<CollageTemplate, 'tall' | 'wide'>> = {
+  triptych: 'tall', editorial: 'tall', diagonal: 'tall', panorama: 'wide', hero: 'wide',
+};
+export function collageFormatAspect(format: CollageFormat): number {
+  return COLLAGE_FORMATS[format].width / COLLAGE_FORMATS[format].height;
+}
+/** The window shapes of a template on a page of this shape (width ÷ height). */
+export function collageShapes(template: CollageTemplate, aspect = 1): SlotShape[] {
+  const turn = TURN_WHEN[template] !== undefined && TURN_WHEN[template] === collageOrientation(aspect);
+  return shapes[template].map((shape) => !turn ? { ...shape } : {
+    x: shape.y, y: shape.x, width: shape.height, height: shape.width, angle: shape.angle,
+    ...(shape.clip ? { clip: TRANSPOSED_CLIP[shape.clip] } : {}),
+  });
+}
 export const MAX_COLLAGE_PAGES = 200;
 export const MAX_COLLAGE_SELECTION = MAX_COLLAGE_PAGES * shapes.grid.length;
 export const MAX_COLLAGE_EXPORT_PAGES = 40;
@@ -84,9 +113,9 @@ export const COLLAGE_TEMPLATES = (Object.keys(shapes) as CollageTemplate[]).map(
   id, label: ({ triptych: 'Three panels', grid: 'Four-up', editorial: 'Editorial', diagonal: 'Angled split', scattered: 'Scattered prints', hero: 'Hero + details', panorama: 'Story strips' } as Record<CollageTemplate,string>)[id],
   slots: shapes[id].length,
 }));
-export function newCollagePage(template: CollageTemplate = 'triptych', photoIds: readonly string[] = []): CollagePage {
+export function newCollagePage(template: CollageTemplate = 'triptych', photoIds: readonly string[] = [], aspect = 1): CollagePage {
   return { id: nextId(), template, background: '#ffffff', gap: 1.5, caption: '', captionColour: '#202020',
-    slots: shapes[template].map((shape, i) => ({ ...shape, id: nextId(), photoId: photoIds[i] ?? null })) };
+    slots: collageShapes(template, aspect).map((shape, i) => ({ ...shape, id: nextId(), photoId: photoIds[i] ?? null })) };
 }
 export function createCollage(photoIds: readonly string[] = [], format: CollageFormat = 'square'): CollageDocument {
   if (photoIds.length > MAX_COLLAGE_SELECTION) throw new Error(`Choose up to ${MAX_COLLAGE_SELECTION} photographs per collage.`);
@@ -96,8 +125,8 @@ export function createCollage(photoIds: readonly string[] = [], format: CollageF
   const pageSize = shapes[template].length;
   const pages = photoIds.length
     ? Array.from({ length: Math.ceil(photoIds.length / pageSize) }, (_, index) =>
-      newCollagePage(template, photoIds.slice(index * pageSize, (index + 1) * pageSize)))
-    : [newCollagePage(template)];
+      newCollagePage(template, photoIds.slice(index * pageSize, (index + 1) * pageSize), collageFormatAspect(format)))
+    : [newCollagePage(template, [], collageFormatAspect(format))];
   return { version: 1, format, pages, activePageId: pages[0].id };
 }
 export function collagePage(doc: CollageDocument): CollagePage {
@@ -120,12 +149,13 @@ export function changeCollageTemplate(doc: CollageDocument, template: CollageTem
   const old = collagePage(doc);
   const assigned = old.slots.map((slot) => slot.photoId).filter((id): id is string => id !== null);
   const capacity = shapes[template].length;
-  const redesigned = newCollagePage(template, assigned.slice(0, capacity));
+  const aspect = collageFormatAspect(doc.format);
+  const redesigned = newCollagePage(template, assigned.slice(0, capacity), aspect);
   const overflow = assigned.slice(capacity);
   // Smaller layouts create following pages for extra photographs, without
   // overwriting the layout, assignments or captions on other existing pages.
   const extraPages = Array.from({ length: Math.ceil(overflow.length / capacity) }, (_, index) => {
-    const page = newCollagePage(template, overflow.slice(index * capacity, (index + 1) * capacity));
+    const page = newCollagePage(template, overflow.slice(index * capacity, (index + 1) * capacity), aspect);
     return { ...page, background: old.background, gap: old.gap, captionColour: old.captionColour };
   });
   const pages = doc.pages.flatMap((p) => p.id === old.id
@@ -135,8 +165,62 @@ export function changeCollageTemplate(doc: CollageDocument, template: CollageTem
 }
 export function addCollagePage(doc: CollageDocument, template: CollageTemplate = 'triptych'): CollageDocument {
   if (doc.pages.length >= MAX_COLLAGE_PAGES) return doc;
-  const page = newCollagePage(template);
+  const page = newCollagePage(template, [], collageFormatAspect(doc.format));
   return { ...doc, pages: [...doc.pages, page], activePageId: page.id };
+}
+/** A new page size re-lays every page for its shape. Photographs, their framing,
+ * window ids, captions and colours stay; only the window geometry changes. */
+export function changeCollageFormat(doc: CollageDocument, format: CollageFormat): CollageDocument {
+  if (!Object.hasOwn(COLLAGE_FORMATS, format) || format === doc.format) return doc;
+  const aspect = collageFormatAspect(format);
+  return { ...doc, format, pages: doc.pages.map((page) => {
+    const layout = collageShapes(page.template, aspect);
+    if (layout.length !== page.slots.length) return page;
+    return { ...page, slots: page.slots.map((slot, i) => {
+      const { clip: _old, ...kept } = slot;
+      return { ...kept, ...layout[i] };
+    }) };
+  }) };
+}
+/** Zoom and position the photograph inside one window of the active page. */
+export function setCollageSlotFraming(doc: CollageDocument, slotId: string, framing: { zoom?: number; panX?: number; panY?: number }): CollageDocument {
+  const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+  return { ...doc, pages: doc.pages.map((p) => p.id !== doc.activePageId ? p : { ...p, slots: p.slots.map((s) => {
+    if (s.id !== slotId) return s;
+    const zoom = clamp(Number.isFinite(framing.zoom) ? framing.zoom! : s.zoom ?? 1, 1, MAX_COLLAGE_ZOOM);
+    const panX = clamp(Number.isFinite(framing.panX) ? framing.panX! : s.panX ?? 0, -1, 1);
+    const panY = clamp(Number.isFinite(framing.panY) ? framing.panY! : s.panY ?? 0, -1, 1);
+    const { zoom: _z, panX: _x, panY: _y, ...rest } = s;
+    return zoom === 1 && panX === 0 && panY === 0 ? rest : { ...rest, zoom, panX, panY };
+  }) }) };
+}
+/** Put a photograph in a window. A new photograph starts centred and filled. */
+export function placeCollagePhoto(doc: CollageDocument, slotId: string, photoId: string | null): CollageDocument {
+  return setCollageSlotFraming(replaceCollagePhoto(doc, slotId, photoId), slotId, { zoom: 1, panX: 0, panY: 0 });
+}
+/** Several photographs dropped on the page fill its empty windows in order. Extra photographs are not placed. */
+export function fillEmptyCollageSlots(doc: CollageDocument, photoIds: readonly string[]): { doc: CollageDocument; placed: number } {
+  let next = doc;
+  let placed = 0;
+  for (const slot of collagePage(doc).slots) {
+    if (placed >= photoIds.length) break;
+    if (slot.photoId !== null) continue;
+    next = placeCollagePhoto(next, slot.id, photoIds[placed]);
+    placed += 1;
+  }
+  return { doc: next, placed };
+}
+/** Where a photograph sits in its window, as the share of the picture that shows.
+ * Width and height are the picture's size relative to the window (always 1 or more),
+ * left and top its offset (0 or less), all in window units. Preview and export both use this. */
+export function collageSlotPlacement(imageAspect: number, windowAspect: number, slot: Pick<CollageSlot, 'zoom' | 'panX' | 'panY'>) {
+  const zoom = Math.min(MAX_COLLAGE_ZOOM, Math.max(1, slot.zoom ?? 1));
+  const safeImage = imageAspect > 0 && Number.isFinite(imageAspect) ? imageAspect : 1;
+  const safeWindow = windowAspect > 0 && Number.isFinite(windowAspect) ? windowAspect : 1;
+  const width = (safeImage > safeWindow ? safeImage / safeWindow : 1) * zoom;
+  const height = (safeImage > safeWindow ? 1 : safeWindow / safeImage) * zoom;
+  const pan = (value: number | undefined) => Math.min(1, Math.max(-1, value ?? 0));
+  return { width, height, left: ((1 - width) / 2) * (1 + pan(slot.panX)), top: ((1 - height) / 2) * (1 + pan(slot.panY)) };
 }
 export function duplicateCollagePage(doc: CollageDocument): CollageDocument {
   if (doc.pages.length >= MAX_COLLAGE_PAGES) return doc;
@@ -164,7 +248,9 @@ export function readCollage(value: unknown): CollageDocument | null {
     typeof page.caption === 'string' && page.caption.length <= 1000 &&
     typeof page.captionColour === 'string' && /^#[0-9a-fA-F]{6}$/.test(page.captionColour) &&
     Array.isArray(page.slots) && page.slots.length <= 12 && page.slots.every((s) => s && typeof s.id === 'string' &&
-      (s.photoId === null || typeof s.photoId === 'string') && [s.x,s.y,s.width,s.height,s.angle].every(Number.isFinite) && s.x >= 0 && s.y >= 0 && s.width > 0 && s.height > 0 && s.x+s.width <= 100 && s.y+s.height <= 100 && Math.abs(s.angle) <= 180 && (s.clip === undefined || s.clip === polygonA || s.clip === polygonB)))) return null;
+      (s.photoId === null || typeof s.photoId === 'string') && [s.x,s.y,s.width,s.height,s.angle].every(Number.isFinite) && s.x >= 0 && s.y >= 0 && s.width > 0 && s.height > 0 && s.x+s.width <= 100 && s.y+s.height <= 100 && Math.abs(s.angle) <= 180 && (s.clip === undefined || CLIPS.includes(s.clip)) &&
+      (s.zoom === undefined || (Number.isFinite(s.zoom) && s.zoom >= 1 && s.zoom <= MAX_COLLAGE_ZOOM)) &&
+      [s.panX, s.panY].every((v) => v === undefined || (Number.isFinite(v) && v >= -1 && v <= 1))))) return null;
   if (new Set(doc.pages.map(p => p.id)).size !== doc.pages.length || doc.pages.some(p => new Set(p.slots.map(s => s.id)).size !== p.slots.length)) return null;
   if (!doc.activePageId || !doc.pages.some((p) => p.id === doc.activePageId)) return null;
   return doc as CollageDocument;

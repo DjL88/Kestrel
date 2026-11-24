@@ -2,6 +2,7 @@ import { planFilmstrip } from '../../engineClient/burstGroups';
 import React, { useEffect, useRef, useState } from 'react';
 import type { AssistMode, LookPreset, Photo } from '../contract';
 import { STRINGS } from '../strings';
+import { PHOTO_DRAG_TYPE, draggedPhotoIds } from '../utils/photoDrag';
 import ProBadge, { useProHidden } from './ProBadge';
 import BrandIcon from '../icons/BrandIcon';
 import { filterPhotos } from '../utils/studioMath';
@@ -38,6 +39,8 @@ interface FilmstripProps {
   onRunAutoCull: () => void;
   onExportSelected: () => void;
   onCreateCollage?: (photoIds: string[]) => void;
+  /** Composing a collage: photos drag onto its windows, and editing-only tools (Auto-Cull) are not offered. */
+  collageMode?: boolean;
 }
 
 export default function Filmstrip({
@@ -72,6 +75,7 @@ export default function Filmstrip({
   onRunAutoCull,
   onExportSelected,
   onCreateCollage,
+  collageMode = false,
 }: FilmstripProps) {
   const hideAutoCull = useProHidden('smartCulling');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -282,7 +286,7 @@ export default function Filmstrip({
             <span>{STRINGS.filmstripLabels.label10}</span>
           </button>
 
-          {!hideAutoCull && (
+          {!hideAutoCull && !collageMode && (
           <button
             type="button"
             onClick={onRunAutoCull}
@@ -470,6 +474,13 @@ export default function Filmstrip({
                     key={photo.id}
                     role="option"
                     aria-selected={isSelected}
+                    draggable={collageMode}
+                    onDragStart={collageMode ? (event) => {
+                      cancelLongPress();
+                      event.dataTransfer.effectAllowed = 'copy';
+                      event.dataTransfer.setData(PHOTO_DRAG_TYPE, JSON.stringify(draggedPhotoIds(photo.id, selectedPhotoIds)));
+                      event.dataTransfer.setData('text/plain', photo.filename);
+                    } : undefined}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
