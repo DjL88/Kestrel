@@ -15,6 +15,7 @@ interface SizesPanelProps {
   features: Record<FeatureKey, boolean>;
   onSetActiveGroup: (photoId: string, groupId: string) => void;
   onAddEditGroup: (photoId: string) => void;
+  onRenameEditGroup: (photoId: string, groupId: string, name: string) => void;
   onSetActiveSize: (sizeId: string, modifiers?: { ctrl?: boolean }) => void;
   onSetCanvasLayoutMode: (mode: 'single' | 'all-formats') => void;
   onToggleSizeEnabled: (photoId: string, sizeId: string) => void;
@@ -62,6 +63,10 @@ export default function SizesPanel({
   useEffect(() => {
     if (addingCustom) customLabelInput.current?.focus();
   }, [addingCustom]);
+  const [rename, setRename] = useState<{ photoId: string; groupId: string; name: string } | null>(null);
+  const renameInput = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (rename) renameInput.current?.focus(); }, [rename?.photoId, rename?.groupId]);
+  useEffect(() => { setRename(null); }, [photo?.id]);
   const [customLabel, setCustomLabel] = useState('');
   const [customW, setCustomW] = useState(2400);
   const [customH, setCustomH] = useState(1600);
@@ -179,11 +184,12 @@ export default function SizesPanel({
           {photo.editGroups.map((g) => {
             const isCurrent = g.id === group.id;
             return (
+              <div key={g.id} className="flex items-center gap-1">
               <button
-                key={g.id}
                 type="button"
+                aria-pressed={isCurrent}
                 onClick={() => onSetActiveGroup(photo.id, g.id)}
-                className={`flex w-full items-center justify-between gap-2 rounded-[var(--radius-sm)] border px-2.5 py-2 text-left text-xs transition-colors ${
+                className={`flex min-w-0 flex-1 items-center justify-between gap-2 rounded-[var(--radius-sm)] border px-2.5 py-2 text-left text-xs transition-colors ${
                   isCurrent
                     ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--text-primary)]'
                     : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:border-[var(--border-default)]'
@@ -194,8 +200,28 @@ export default function SizesPanel({
                   {g.overlay.textEnabled ? 'Text on' : 'Clean'}
                 </span>
               </button>
+              <button type="button" aria-label={`${STRINGS.hubMore.rename} ${g.name}`} onClick={() => setRename({ photoId: photo.id, groupId: g.id, name: g.name })}
+                className="min-h-11 shrink-0 rounded-[var(--radius-sm)] px-2 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-input)]">
+                {STRINGS.hubMore.rename}
+              </button>
+              </div>
             );
           })}
+          {rename?.photoId === photo.id && photo.editGroups.some(g => g.id === rename.groupId) && (
+            <form className="flex flex-wrap gap-2" onSubmit={event => {
+              event.preventDefault();
+              const name = rename.name.trim();
+              if (!name || name.length > 80) return;
+              onRenameEditGroup(photo.id, rename.groupId, name);
+              setRename(null);
+            }} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setRename(null); } }}>
+              <input ref={renameInput} aria-label={STRINGS.hubMore.rename} value={rename.name} maxLength={80}
+                onChange={event => setRename({ ...rename, name: event.target.value })}
+                className="min-h-11 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2 text-xs text-[var(--text-primary)]" />
+              <button type="submit" disabled={!rename.name.trim()} className="min-h-11 rounded-[var(--radius-sm)] bg-[var(--brand-accent)] px-3 text-xs text-[var(--text-on-accent)] disabled:opacity-40">{STRINGS.panelWords.save}</button>
+              <button type="button" onClick={() => setRename(null)} className="min-h-11 px-2 text-xs text-[var(--text-secondary)]">{STRINGS.panelWords.cancel}</button>
+            </form>
+          )}
         </div>
       </section>
 
