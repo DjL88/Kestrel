@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import type { HubViewState, Project, ThemeMode } from '../contract';
 import { STRINGS } from '../strings';
+import { useDialogFocus } from '../utils/dialogFocus';
 import BrandIcon, { BrandLogo } from '../icons/BrandIcon';
 import footerKiteDark from '../../../assets/brand/mark/inflight-kite-dark.svg';
 import footerKiteLight from '../../../assets/brand/mark/inflight-kite-light.svg';
@@ -44,6 +45,8 @@ export default function ProjectsHub({
   const [failedCovers, setFailedCovers] = useState<string[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [projectName, setProjectName] = useState('');
+  const createPanel = useRef<HTMLFormElement>(null);
+  const onCreateDialogKeyDown = useDialogFocus(modalOpen, createPanel, () => setModalOpen(false));
   const [projectKind, setProjectKind] = useState<'photography' | 'collage'>('photography');
 
   const [showArchived, setShowArchived] = useState(false);
@@ -307,80 +310,84 @@ export default function ProjectsHub({
           role="dialog"
           aria-modal="true"
           aria-labelledby="create-proj-title"
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[var(--bg-scrim)] p-4"
+          onKeyDown={onCreateDialogKeyDown}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-scrim)] p-2 sm:p-4"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) setModalOpen(false);
           }}
         >
           <form
+            ref={createPanel}
+            tabIndex={-1}
             onSubmit={handleCreate}
-            className="max-h-[calc(100dvh-2rem)] w-full max-w-md space-y-4 overflow-y-auto rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-panel)]"
+            className="flex max-h-[calc(100dvh-1rem)] w-full max-w-md flex-col overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)] sm:max-h-[calc(100dvh-2rem)]"
           >
-            <h2 id="create-proj-title" className="text-base font-bold text-[var(--text-primary)]">
+            <h2 id="create-proj-title" className="shrink-0 px-4 py-3 text-base font-bold text-[var(--text-primary)] sm:px-6">
               {STRINGS.hub.modalTitle}
             </h2>
-            <fieldset className="space-y-2">
-              <legend className="text-xs font-medium text-[var(--text-secondary)]">{STRINGS.hub.kindQuestion}</legend>
-              <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
-                {([
-                  ['photography', STRINGS.hub.kindPhotoShootTitle, STRINGS.hub.kindPhotoShootBody],
-                  ['collage', STRINGS.hub.kindCollageTitle, STRINGS.hub.kindCollageBody],
-                ] as const).map(([kind, title, description]) => {
-                  const selected = projectKind === kind;
-                  return (
-                    <label key={kind} data-testid={`project-kind-${kind}`}
-                      className={`relative flex cursor-pointer flex-col gap-2 rounded-[var(--radius-lg)] border-2 p-3 transition-colors focus-within:ring-2 focus-within:ring-[var(--brand-accent)] focus-within:ring-offset-1 focus-within:ring-offset-[var(--bg-surface)] ${selected ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]' : 'border-[var(--border-default)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-surface-hover)]'}`}>
-                      <input type="radio" className="sr-only" name="project-kind" value={kind} checked={selected}
-                        onChange={() => setProjectKind(kind)} />
-                      <ProjectKindPicture kind={kind} selected={selected} />
-                      <span className="text-sm font-semibold text-[var(--text-primary)]">{title}</span>
-                      <span className="block text-xs leading-snug text-[var(--text-secondary)]">{description}</span>
-                      {selected && (
-                        <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-[var(--brand-accent)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-on-accent)]">
-                          <BrandIcon name="check" size={11} />{STRINGS.hub.kindSelected}
-                        </span>
-                      )}
-                    </label>
-                  );
-                })}
+            <div className="min-h-0 space-y-4 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-6">
+              <fieldset className="space-y-2">
+                <legend className="text-xs font-medium text-[var(--text-secondary)]">{STRINGS.hub.kindQuestion}</legend>
+                <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
+                  {([
+                    ['photography', STRINGS.hub.kindPhotoShootTitle, STRINGS.hub.kindPhotoShootBody],
+                    ['collage', STRINGS.hub.kindCollageTitle, STRINGS.hub.kindCollageBody],
+                  ] as const).map(([kind, title, description]) => {
+                    const selected = projectKind === kind;
+                    return (
+                      <label key={kind} data-testid={`project-kind-${kind}`}
+                        className={`relative flex cursor-pointer flex-col gap-2 rounded-[var(--radius-lg)] border-2 p-3 transition-colors focus-within:ring-2 focus-within:ring-[var(--brand-accent)] focus-within:ring-offset-1 focus-within:ring-offset-[var(--bg-surface)] ${selected ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]' : 'border-[var(--border-default)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-surface-hover)]'}`}>
+                        <input type="radio" className="sr-only" name="project-kind" value={kind} checked={selected}
+                          onChange={() => setProjectKind(kind)} />
+                        <ProjectKindPicture kind={kind} selected={selected} />
+                        <span className="text-sm font-semibold text-[var(--text-primary)]">{title}</span>
+                        <span className="block text-xs leading-snug text-[var(--text-secondary)]">{description}</span>
+                        {selected && (
+                          <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-[var(--brand-accent)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-on-accent)]">
+                            <BrandIcon name="check" size={11} />{STRINGS.hub.kindSelected}
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+              <div className="space-y-1.5">
+                <label htmlFor="new-proj-name" className="text-xs font-medium text-[var(--text-secondary)]">
+                  {STRINGS.hub.modalNameLabel}
+                </label>
+                <input
+                  id="new-proj-name"
+                  type="text"
+                  required
+                  value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                  placeholder={STRINGS.hub.modalNamePlaceholder}
+                  className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-base text-[var(--text-primary)] sm:text-sm"
+                />
               </div>
-            </fieldset>
-            <div className="space-y-1.5">
-              <label htmlFor="new-proj-name" className="text-xs font-medium text-[var(--text-secondary)]">
-                {STRINGS.hub.modalNameLabel}
-              </label>
-              <input
-                id="new-proj-name"
-                type="text"
-                autoFocus
-                required
-                value={projectName}
-                onChange={(e) => setProjectName(e.target.value)}
-                placeholder={STRINGS.hub.modalNamePlaceholder}
-                className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-primary)]"
-              />
+              <button
+                type="button"
+                onClick={() => { setModalOpen(false); onCreateFromFolder(); }}
+                disabled={projectKind === 'collage'}
+                className="flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] text-xs font-medium text-[var(--text-primary)]"
+              >
+                <BrandIcon name="folder" size={16} />
+                <span>{STRINGS.hubMore.fromFolder}</span>
+              </button>
+              <p className="text-[11px] leading-snug text-[var(--text-muted)]">{STRINGS.hubMore.fromFolderNote}</p>
             </div>
-            <button
-              type="button"
-              onClick={() => { setModalOpen(false); onCreateFromFolder(); }}
-              disabled={projectKind === 'collage'}
-              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] text-xs font-medium text-[var(--text-primary)]"
-            >
-              <BrandIcon name="folder" size={16} />
-              <span>{STRINGS.hubMore.fromFolder}</span>
-            </button>
-            <p className="text-[11px] leading-snug text-[var(--text-muted)]">{STRINGS.hubMore.fromFolderNote}</p>
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-[var(--border-subtle)] px-4 py-2 sm:px-6">
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
-                className="h-9 rounded-[var(--radius-md)] border border-[var(--border-default)] px-4 text-xs font-medium text-[var(--text-secondary)]"
+                className="min-h-11 rounded-[var(--radius-md)] border border-[var(--border-default)] px-4 text-xs font-medium text-[var(--text-secondary)]"
               >
                 {STRINGS.hub.modalCancel}
               </button>
               <button
                 type="submit"
-                className="h-9 rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-4 text-xs font-semibold text-[var(--text-on-accent)]"
+                className="min-h-11 rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-4 text-xs font-semibold text-[var(--text-on-accent)]"
               >
                 {STRINGS.hub.modalCreate}
               </button>
