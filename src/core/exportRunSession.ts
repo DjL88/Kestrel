@@ -14,6 +14,7 @@ export function createExportRunSession(
     throw new Error('Invalid export run identifier.');
   }
   const folder = exportRunFolder(at, runId);
+  const attempted = new Set<string>();
   return {
     folder,
     async save(file: File, subfolder: string, signal: AbortSignal): Promise<void> {
@@ -22,9 +23,20 @@ export function createExportRunSession(
       if (name !== file.name) throw new Error('The export filename contains unsafe characters.');
       const sub = subfolder ? `${exportFolderName(subfolder)}/` : '';
       const path = `${folder}/${sub}${name}`;
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      signal.throwIfAborted();
-      await connector.put(path, bytes, '');
+      const key = path.normalize('NFC').toLowerCase();
+      if (attempted.has(key)) throw new Error('This destination was already attempted in this export run. Start a new run to retry.');
+      attempted.add(key);
+      let writing = false;
+      try {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        signal.throwIfAborted();
+        writing = true;
+        await connector.put(path, bytes, '');
+      } catch (error) {
+        // Once PUT starts, the remote outcome may be uncertain. Never blindly overwrite it.
+        if (!writing) attempted.delete(key);
+        throw error;
+      }
       // A successful PUT stays saved even if Stop was pressed during it.
       // The queue checks cancellation before starting another output.
     },
