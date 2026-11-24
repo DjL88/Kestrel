@@ -1,8 +1,8 @@
 import { runEngineCapability } from '../../engine/engineApi';
 import { createCloudProcessingAttempt, type CloudConnection } from '../../providers/cloudProcessingAttempt';
-import { applyNoiseReduction } from '../../core/noiseReduction';
-import { applyMasks, fullContext, maskAlpha } from '../../core/masks';
-import { DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
+import { fullContext, maskAlpha } from '../../core/masks';
+import { composeDenoiseRecipe, renderDenoiseRecipe, verifyDenoiseRecipe } from './denoiseRecipe';
+import { isNeutralEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto } from '../../core/photoFraming';
 import { createSubjectMask, framingKey, MAX_MASKS, type Mask } from '../../core/maskTypes';
 import type { Pixels } from '../../core/colourCheck';
@@ -49,12 +49,6 @@ export async function runV2Denoise(
   if (!context || canvas.width < 16 || canvas.height < 16) return null;
   const image = context.getImageData(0, 0, canvas.width, canvas.height);
   const original: Pixels = { data: new Uint8ClampedArray(image.data), width: image.width, height: image.height };
-  const render = async (edit: Partial<PhotoEdit>, masks: Mask[]): Promise<Pixels> => {
-    const full: PhotoEdit = { ...DEFAULT_EDIT, ...edit };
-    const data = full.denoise ? new Uint8ClampedArray(applyNoiseReduction(new Uint8ClampedArray(original.data), original.width, original.height, full)) : new Uint8ClampedArray(original.data);
-    applyMasks(data, original.width, original.height, masks, fullContext(original.width, original.height));
-    return { data, width: original.width, height: original.height };
-  };
   const existing = frame.edit?.masks ?? [];
   const id = `auto-denoise-${frame.id}`;
   const previousBackground = existing.find(mask => mask.id === `${id}-background`);
@@ -103,10 +97,26 @@ export async function runV2Denoise(
     // Do not replace an established protected recipe with global smoothing.
     return { runner: 'device', strength: 0, masks: [], verified: false, notes: ['Subject protection could not be rebuilt safely. Existing edits were kept.'] };
   }
-  const attempt = cloud && !subject
+  const baseline = renderDenoiseRecipe(original, frame.edit ?? DEFAULT_EDIT);
+  const render = async (edit: Partial<PhotoEdit>, masks: Mask[]): Promise<Pixels> => {
+    signal?.throwIfAborted();
+    return renderDenoiseRecipe(original, composeDenoiseRecipe(frame.edit, id, edit.denoise ?? 0, [...newLayers, ...masks]));
+  };
+  // Remote filtering of already edited pixels is not equivalent to applying a
+  // reversible denoise recipe to the original. Keep composed recipes local.
+  const attempt = cloud && !subject && (!frame.edit || isNeutralEdit(frame.edit))
     ? createCloudProcessingAttempt(cloud.connection, { online: cloud.online, signedIn: true, userConsent: true }, signal)
     : undefined;
-  const response = await runEngineCapability({ capability: 'denoise', backgroundDenoise: asked, render, original, subject }, attempt);
+  const request = { capability: 'denoise' as const, backgroundDenoise: asked, render, original: baseline, subject, signal,
+    verifyCandidate: (after: Pixels) => verifyDenoiseRecipe(baseline, after, subjects) };
+  let response = await runEngineCapability(request, attempt);
+  // Even a verified remote raster is not the recipe the editor will save.
+  // Verify the actual local rendering, and retry on-device if it differs.
+  if (response.capability === 'denoise' && response.runner === 'cloud-processing' &&
+      !request.verifyCandidate(await render(response.result.edit, response.result.masks)).ok) {
+    response = await runEngineCapability(request);
+  }
+  signal?.throwIfAborted();
   if (response.capability !== 'denoise') return null;
   const result = response.result;
   const strength = result.edit.denoise ?? 0;
@@ -116,6 +126,6 @@ export async function runV2Denoise(
   if (subject && subjects.length > 0 && !newLayers.length && !remaining.some(mask => subjects.includes(mask as typeof subjects[number]))) notes.push('Individual layers could not fit; combined protection is available.');
   if (subject) notes.unshift(`Denoised on this device with combined subject protection (${subjects.length} mask${subjects.length === 1 ? '' : 's'}).`);
   else if (detectionUnavailable) notes.unshift('No reliable subject masks were available; denoise used a global setting.');
-  if (!result.verification.ok) notes.push('It could not be made to pass the quality check, so the gentlest setting tried is shown.');
+  if (!result.verification.ok) notes.push('The composed recipe did not pass the quality check. Existing edits were kept.');
   return { runner: response.runner === 'cloud-processing' ? 'cloud-processing' : 'device', strength, masks: subject ? [...newLayers, ...result.masks] : result.masks, verified: result.verification.ok, notes };
 }
