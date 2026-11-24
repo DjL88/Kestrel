@@ -1,4 +1,5 @@
 import { MAX_EDIT_HISTORY_STEPS, type EditKind } from './editHistory';
+import { readCollage } from './collage';
 import { parseSettings } from './projectSettings';
 import { validMasks } from './maskTypes';
 import type { CullingState, FilterState, PhotoFrame, ShootDescriptor } from './types';
@@ -160,10 +161,15 @@ export function restoreProjectBackup(contents: string, id: string, now = Date.no
       (typeof original.originalSha256 === 'string' && typeof frame.originalSha256 === 'string' &&
         original.originalSha256 !== frame.originalSha256);
   })) throw new Error('The project backup contains invalid photo links.');
+  const collage = shoot.collage === undefined ? undefined : readCollage(shoot.collage);
+  if (shoot.collage !== undefined && (!collage || collage.pages.some(page => page.slots.some(slot => slot.photoId !== null && !ids.has(slot.photoId))))) {
+    throw new Error('The project backup contains invalid collage layout or photo links.');
+  }
   const existingId = (value: unknown) => text(value) && ids.has(value) ? value : null;
   return {
     shoot: {
       id, title: `${shoot.title} (restored)`, sourceKind: shoot.sourceKind,
+      ...(collage ? { collage } : {}),
       folderName: shoot.folderName, totalFrames: frames.length, createdAt: shoot.createdAt, lastUpdatedAt: now,
       needsFolderRegrant: frames.some((frame) => frame.sourceKind === 'directory-handle'),
       needsFileReselect: frames.some((frame) => frame.sourceKind === 'file'),
