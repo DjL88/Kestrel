@@ -199,13 +199,15 @@ export function maskAlpha(mask: Mask, width: number, height: number, context: Ma
 
 /**
  * A mask's strength once it has been limited by another mask. Only the other mask's own shape is used, never its own
- * limit, so masks cannot loop. A limit that points at a deleted mask is ignored.
+ * limit, so masks cannot loop. A missing or ambiguous limiter disables the affected alpha.
  */
 export function effectiveAlpha(mask: Mask, masks: readonly Mask[], width: number, height: number, context: MaskContext): Float32Array {
   const alpha = maskAlpha(mask, width, height, context);
-  const other = mask.limit ? masks.find((candidate) => candidate.id === mask.limit!.id && candidate.id !== mask.id) : undefined;
-  if (!mask.limit || !other) return alpha;
-  const limiter = maskAlpha(other, width, height, context);
+  if (!mask.limit) return alpha;
+  const candidates = masks.filter(candidate => candidate.id === mask.limit!.id && candidate.id !== mask.id);
+  // A broken restriction must never broaden a previously local edit.
+  if (candidates.length !== 1 || (mask.limit.mode !== 'intersect' && mask.limit.mode !== 'subtract')) return alpha.fill(0);
+  const limiter = maskAlpha(candidates[0], width, height, context);
   for (let i = 0; i < alpha.length; i += 1) alpha[i] *= mask.limit.mode === 'intersect' ? limiter[i] : 1 - limiter[i];
   return alpha;
 }
