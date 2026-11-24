@@ -71,11 +71,12 @@ export async function writeSnapshot(connector: import('../core/storageConnectors
  * (or to the chosen backup location) when writable. This works on phones
  * connected to a network source just as it does on desktop.
  */
-export async function backUpNow(state: CullingState, connectionId: string, now = new Date()): Promise<BackupStatus> {
+export async function backUpNow(state: CullingState, connectionId: string, now = new Date(),
+  recovery = { openDeviceRecovery, openSourceRecovery }): Promise<BackupStatus> {
   const projectId = state.shoot.id;
   const name = backupName(projectId, now);
   const payload = new TextEncoder().encode(encodeProjectBackup(state));
-  const local = await openDeviceRecovery();
+  const local = await recovery.openDeviceRecovery();
   let localOk = false;
   let localError = '';
   if ('problem' in local) localError = local.message;
@@ -86,7 +87,7 @@ export async function backUpNow(state: CullingState, connectionId: string, now =
 
   // Source and optional connection access are best effort. A missing,
   // disconnected or read-only folder must never interrupt normal editing.
-  const source = await openSourceRecovery(state).catch(() => null);
+  const source = await recovery.openSourceRecovery(state).catch(() => ({ problem: 'missing' as const, message: 'Photo source recovery is temporarily unavailable.' }));
   const failed: string[] = [];
   let selected: Awaited<ReturnType<typeof openConnection>> | null = null;
   if (connectionId !== LOCAL_RECOVERY_TARGET) {
@@ -94,7 +95,8 @@ export async function backUpNow(state: CullingState, connectionId: string, now =
     catch { failed.push('Chosen backup location is temporarily unavailable.'); }
   }
   const extra: Array<{ connector: import('../core/storageConnectors').StorageConnector; to: string }> = [];
-  if (source && !('problem' in source)) extra.push(source);
+  if (source && 'problem' in source) failed.push(source.message);
+  else if (source) extra.push(source);
   if (selected && !('problem' in selected)) extra.push({ connector: selected.connector, to: 'Chosen backup location' });
 
   let extraOk = 0;
