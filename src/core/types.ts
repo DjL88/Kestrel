@@ -156,6 +156,8 @@ export interface ShootDescriptor {
   archivedAt?: number;
   /** True for the Quick edits bucket, where single photos are opened without making a project first. */
   inbox?: boolean;
+  /** Optional multi-page collage / print album composition; sources remain ordinary non-destructive frames. */
+  collage?: import('./collage').CollageDocument;
 }
 
 export interface DecisionHistoryEntry {
