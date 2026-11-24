@@ -14,7 +14,7 @@ export const MAX_CUSTOM_FORMATS = 24;
 const MAX_SIDE = 20000;
 const CUSTOM_ID = /^custom-[a-z0-9]{3,40}$/;
 
-const isId = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && value.length <= 80;
+const isId = (value: unknown): value is string => typeof value === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(value) && !Object.hasOwn(Object.prototype, value);
 
 export function readFormats(raw: unknown): FormatSet {
   if (!raw || typeof raw !== 'object') return { disabled: [], custom: [] };
@@ -99,6 +99,7 @@ export function applyFormats(
 /** Toggle without losing a built-in's original default (including opt-in presets). */
 export function toggleFormat(raw: unknown, id: string, defaultEnabled = true): FormatSet {
   const formats = readFormats(raw);
+  if (!isId(id)) return formats;
   const isEnabled = !formats.disabled.includes(id) && (formats.enabled?.includes(id) === true || defaultEnabled);
   const enabled = (formats.enabled ?? []).filter((entry) => entry !== id);
   if (isEnabled) return { ...formats, disabled: [...formats.disabled, id], ...(enabled.length ? { enabled } : { enabled: undefined }) };
@@ -120,6 +121,7 @@ export function addFormat(raw: unknown, label: string, width: number, height: nu
 /** Delete: a custom format is removed; a built-in is switched off (it can be switched back on in the Formats panel). */
 export function removeFormat(raw: unknown, id: string): FormatSet {
   const formats = readFormats(raw);
+  if (!isId(id)) return formats;
   if (formats.custom.some((custom) => custom.id === id)) return { ...formats, custom: formats.custom.filter((custom) => custom.id !== id), disabled: formats.disabled.filter((entry) => entry !== id), enabled: formats.enabled?.filter((entry) => entry !== id) };
   return { ...formats, disabled: formats.disabled.includes(id) ? formats.disabled : [...formats.disabled, id], enabled: formats.enabled?.filter((entry) => entry !== id) };
 }
@@ -144,19 +146,20 @@ export function readSizeLinked(raw: unknown): SizeLinkedSet {
 
 export function isSizeLinked(raw: unknown, id: string): boolean {
   const linked = readSizeLinked(raw);
-  return id in linked ? linked[id] : true;
+  return isId(id) && Object.hasOwn(linked, id) ? linked[id] : true;
 }
 
 export function toggleSizeLinked(raw: unknown, id: string): SizeLinkedSet {
   const linked = readSizeLinked(raw);
-  const next = id in linked ? !linked[id] : false;
+  if (!isId(id)) return linked;
+  const next = Object.hasOwn(linked, id) ? !linked[id] : false;
   return { ...linked, [id]: next };
 }
 
 /** Applies this photo's linked overrides to a list of sizes (built-in defaults plus any custom formats). */
 export function applySizeLinked(sizes: readonly SizePreset[], raw: unknown): SizePreset[] {
   const linked = readSizeLinked(raw);
-  return sizes.map((size) => (size.id in linked ? { ...size, linked: linked[size.id] } : size));
+  return sizes.map((size) => (Object.hasOwn(linked, size.id) ? { ...size, linked: linked[size.id] } : size));
 }
 
 /**

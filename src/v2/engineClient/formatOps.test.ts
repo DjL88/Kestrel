@@ -208,3 +208,12 @@ test('malformed persisted output dimensions are not coerced from booleans or str
   ] });
   assert.deepEqual(formats.custom.map(format => format.id), ['custom-good']);
 });
+
+test('inherited object properties are not format IDs or linked overrides', () => {
+  const damaged = JSON.parse('{"__proto__":false,"constructor":false,"ig-portrait":false}');
+  assert.deepEqual(readSizeLinked(damaged), {'ig-portrait':false});
+  assert.equal(isSizeLinked(damaged, 'constructor'), true);
+  assert.deepEqual(toggleSizeLinked(damaged, '__proto__'), {'ig-portrait':false});
+  assert.deepEqual(toggleFormat(undefined, '__proto__'), {disabled:[],custom:[]});
+  assert.deepEqual(removeFormat(undefined, 'constructor'), {disabled:[],custom:[]});
+});
