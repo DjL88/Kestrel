@@ -4,7 +4,7 @@ import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import InfoPopover from '../shell/InfoPopover';
 import { getActiveGroup } from '../utils/studioMath';
-import { ColourMixerControl, ToneCurveControl } from './CurveMixerControls';
+import { ColourMixerControl, KelvinControl, ToneCurveControl } from './CurveMixerControls';
 
 interface AdjustPanelProps {
   photo: Photo | null;
@@ -310,9 +310,14 @@ export default function AdjustPanel({
           {STRINGS.adjust.colourHeading}
         </h3>
 
+        {photo.asShotKelvin && (
+          <div className={phoneGroupClass(advancedGroup, 'colour')}>
+            <KelvinControl recipe={recipe} asShotK={photo.asShotKelvin} calmView={calmView} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
+          </div>
+        )}
         <div className={phoneGroupClass(advancedGroup, 'colour')}><SliderRow
           id="slider-temperature"
-          label="Temperature"
+          label={photo.asShotKelvin ? STRINGS.adjust.kelvin.warmthLabel : 'Temperature'}
           tooltip={STRINGS.adjust.tooltips.temperature}
           value={recipe.temperature}
           min={-100}

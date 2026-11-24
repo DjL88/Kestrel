@@ -1,5 +1,6 @@
 import { tiffXmpPacket, type TiffExportMetadata } from './tiffExportMetadata';
 import { validCurve, validMixer } from './curveMixer';
+import { validWhiteBalance } from './asShotWhite';
 import { applyDetailRgb16, applyPhotoEditLinear, detailParams, hasDetail, isNeutralTone, type PhotoEdit } from './photoEdits';
 import { cropRectangle, rotationCoverage, type PhotoFraming } from './photoFraming';
 import { THUMB, type Thumb } from './orientMatch';
@@ -76,7 +77,7 @@ export function thumbRgb16(image: Rgb16Image): Thumb {
 const EXPORT_EDIT_KEYS = new Set([
   'exposure', 'warmth', 'tint', 'colour', 'brightness', 'contrast', 'highlights',
   'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity',
-  'sharpen', 'denoise', 'denoiseLuminance', 'masks', 'curve', 'mixer',
+  'sharpen', 'denoise', 'denoiseLuminance', 'masks', 'curve', 'mixer', 'whiteBalance',
 ]);
 
 /** Stop rather than quietly export a future or malformed edit that this
@@ -90,13 +91,14 @@ export function master16Blocker(edit: PhotoEdit | undefined, framing: PhotoFrami
     // A NaN/Infinity or non-number must never silently become black/white
     // archival pixels in a purportedly faithful 16-bit master.
     for (const key of EXPORT_EDIT_KEYS) {
-      if (key === 'masks' || key === 'curve' || key === 'mixer') continue;
+      if (key === 'masks' || key === 'curve' || key === 'mixer' || key === 'whiteBalance') continue;
       const value = edit[key as keyof PhotoEdit];
       if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || (key === 'tint' && Math.abs(value) > 2) || (key === 'denoiseLuminance' && (value < 0 || value > 2)))) {
         return `The saved "${key}" adjustment is invalid, so no 16-bit TIFF was made.`;
       }
     }
     if (edit.curve !== undefined && !validCurve(edit.curve)) return 'The saved tone curve is invalid, so no 16-bit TIFF was made.';
+    if (edit.whiteBalance !== undefined && !validWhiteBalance(edit.whiteBalance)) return 'The saved white balance is invalid, so no 16-bit TIFF was made.';
     if (edit.mixer !== undefined && !validMixer(edit.mixer)) return 'The saved colour mixer is invalid, so no 16-bit TIFF was made.';
     if (edit.masks !== undefined && !validMasks(edit.masks)) {
       return 'One or more saved masks could not be safely included in the 16-bit TIFF.';

@@ -145,7 +145,7 @@ fn camera_to_srgb(raw: &RawImage) -> [[f32; 3]; 3] {
 /// locus (Duv, positive = greener, as in ANSI C78.377). Estimated from the file's own white-balance coefficients and
 /// colour matrix: the camera's neutral (1 / coefficients) is taken to CIE XYZ, then to CCT with McCamy's formula and to
 /// Duv in CIE 1960 uv. An estimate, not the camera maker's own figure; None when the metadata is missing, malformed or
-/// gives a white outside 2,000 to 25,000 K, so the app keeps relative warmth rather than show a made-up number.
+/// gives a white outside 2,000 to 25,000 K or more than 0.05 Duv from the locus, so the app keeps relative warmth rather than show a made-up number.
 pub fn as_shot_white(raw: &RawImage) -> Option<(f32, f32)> {
     let wb = raw.wb_coeffs;
     if wb.iter().all(|v| v.is_nan()) {
@@ -192,6 +192,10 @@ fn as_shot_from(m: &[f64; 9], neutral: [f64; 3]) -> Option<(f32, f32)> {
     let up = (0.860117757 + 1.54118254e-4 * t + 1.28641212e-7 * t * t) / (1.0 + 8.42420235e-4 * t + 7.08145163e-7 * t * t);
     let vp = (0.317398726 + 4.22806245e-5 * t + 4.20481691e-8 * t * t) / (1.0 - 2.89741816e-5 * t + 1.61456053e-7 * t * t);
     let duv = ((u - up).powi(2) + (v - vp).powi(2)).sqrt() * if v > vp { 1.0 } else { -1.0 };
+    // Far from the locus a colour temperature means nothing (CIE limits CCT to |Duv| <= 0.05): give no number.
+    if duv.abs() > 0.05 {
+        return None;
+    }
     Some((cct as f32, duv as f32))
 }
 

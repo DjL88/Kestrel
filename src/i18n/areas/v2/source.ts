@@ -362,6 +362,15 @@ export const source = {
       reset: 'Reset curve',
       removePoint: 'Remove point',
     },
+    kelvin: {
+      label: 'White balance',
+      help: 'Sets the colour of the light in kelvin, as in other editors. Higher numbers make the picture warmer. The as-shot value is InFlight\'s estimate from the camera\'s own white-balance data in the RAW file, not the camera maker\'s figure.',
+      asShot: 'As shot about {k} K (estimated)',
+      reset: 'As shot',
+      warmthLabel: 'Warmth',
+      cooler: 'Cooler',
+      warmer: 'Warmer',
+    },
     mixer: {
       heading: 'Colour mixer',
       help: 'Change one family of colours without touching the others. Greys and whites are never changed.',

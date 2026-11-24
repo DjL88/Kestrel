@@ -114,6 +114,16 @@ mod tests {
     use super::develop_jpeg as develop;
 
     #[test]
+    fn a_white_far_from_any_real_light_gets_no_temperature() {
+        // The synthetic Z 8 DNG's white-balance coefficients are made up: its white lies about 0.09 Duv off the
+        // Planckian locus, where a colour temperature means nothing. It must develop with no as-shot comment.
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/synthetic-z8.dng");
+        let jpeg = develop(&std::fs::read(path).unwrap()).unwrap();
+        assert!(!String::from_utf8_lossy(&jpeg[..200]).contains("InFlight-AsShotWhite"));
+        assert!(image::load_from_memory(&jpeg).is_ok());
+    }
+
+    #[test]
     fn as_shot_comment_is_added_after_start_of_image_and_leaves_the_picture_alone() {
         let picture = image::RgbImage::from_pixel(8, 8, image::Rgb([120, 90, 60]));
         let mut jpeg = Vec::new();

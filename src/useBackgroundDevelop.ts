@@ -6,6 +6,7 @@ import type { BrowserPreviewProvider } from './providers/browserPreviewProvider'
 import { extractRawPreview } from './core/nefPreview';
 import { canDevelopRaw, developRaw, matchPreviewOrientation } from './providers/rawDevelop';
 import { appText as t } from './i18n/areas/app';
+import { readAsShotWhiteFromBlob, type AsShotWhite } from './core/asShotWhite';
 
 const SETTLE_MS = 1500;
 
@@ -15,14 +16,16 @@ interface Options {
   provider: BrowserPreviewProvider | null;
   active: boolean;
   onScreen?: string | null;
+  /** Called with the camera's as-shot white when a development carries one (see core/asShotWhite.ts). */
+  onAsShotWhite?: (stableKey: string, white: AsShotWhite) => void;
 }
 
 /** One resource-bounded scheduler item per genuine RAW sensor development.
  * A paused/cancelled job never applies a late developed image after its
  * source or project changed; the original is never mutated. */
-export function useBackgroundDevelop({ projectId, frames, provider, active, onScreen }: Options) {
-  const latest = useRef({ projectId, frames, provider, active, onScreen });
-  latest.current = { projectId, frames, provider, active, onScreen };
+export function useBackgroundDevelop({ projectId, frames, provider, active, onScreen, onAsShotWhite }: Options) {
+  const latest = useRef({ projectId, frames, provider, active, onScreen, onAsShotWhite });
+  latest.current = { projectId, frames, provider, active, onScreen, onAsShotWhite };
   const running = useRef(false);
   const ticket = useRef<SchedulerTicket | null>(null);
   const stoppedFor = useRef<string | null>(null);
@@ -56,6 +59,8 @@ export function useBackgroundDevelop({ projectId, frames, provider, active, onSc
           ctx.stage('Developing sensor pixels');
           const developed = await developRaw(original, /\.([a-z0-9]+)$/i.exec(frame.filename)?.[1] ?? 'nef');
           ctx.checkCancelled();
+          // Read before orientation matching, which may re-encode the picture and drop the decoder's comment.
+          const white = await readAsShotWhiteFromBlob(developed).catch(() => null);
           const turned = await matchPreviewOrientation(developed, await extractRawPreview(original).catch(() => null));
           ctx.checkCancelled();
           ctx.stage('Saving a verified local preview');
@@ -63,6 +68,7 @@ export function useBackgroundDevelop({ projectId, frames, provider, active, onSc
           // every awaited cache stage: cancellation cannot apply a late result.
           if (!await source.storeDevelopedPicture(frame, original, turned, ctx.signal))
             throw new Error(`The source for ${frame.filename} changed while developing it.`);
+          if (white && latest.current.projectId === id) latest.current.onAsShotWhite?.(frame.stableKey, white);
           ctx.checkCancelled();
           // Let zoom, sliders and touch input paint between RAW photographs.
           await new Promise<void>(resolve => window.setTimeout(resolve, 0));

@@ -139,3 +139,12 @@ test('the colour mixer maps slider points to engine steps and back', () => {
   const wild = zero(); wild[0] = 500;
   assert.equal(applyRecipePatch(undefined, { colourMixer: { hue: wild, saturation: zero(), luminance: zero() } }).edit.mixer?.hue[0], 2, 'clamped');
 });
+
+test('white balance in kelvin reaches the engine and reads back; back to as shot stores nothing', () => {
+  const { edit } = applyRecipePatch(undefined, { whiteBalance: { asShotK: 5480, kelvin: 6500 } });
+  assert.deepEqual(edit.whiteBalance, { asShotK: 5480, kelvin: 6500 });
+  assert.deepEqual(editToRecipe(edit).whiteBalance, { asShotK: 5480, kelvin: 6500 });
+  assert.equal(applyRecipePatch(edit, { whiteBalance: { asShotK: 5480, kelvin: 5480 } }).edit.whiteBalance, undefined);
+  assert.equal(applyRecipePatch(edit, { whiteBalance: undefined }).edit.whiteBalance, undefined);
+  assert.equal(applyRecipePatch(edit, { whiteBalance: { asShotK: 5480, kelvin: 90000 } }).edit.whiteBalance, undefined);
+});
