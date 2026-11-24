@@ -3,6 +3,7 @@ import { cropHandleZoom, type CropHandleSide } from '../utils/cropHandleZoom';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { nextCanvasZoom, zoomAnchorScroll } from '../utils/canvasTrackpadZoom';
 import { maxCanvasPixels } from '../../../core/exportLimits';
+import { safeOverlayTransform } from '../../engineClient/exportLayout';
 import type {
   CropTransform,
   EditGroup,
@@ -401,12 +402,14 @@ export default function Canvas({
       origA = splitOffsetFor(size.id);
       setDraggingType('pan');
     } else if (kind === 'text') {
-      origA = group.overlay.textX;
-      origB = group.overlay.textY;
+      const box = e.currentTarget.getBoundingClientRect();
+      origA = rect?.width ? (box.left + box.width / 2 - rect.left) / rect.width * 100 : group.overlay.textX;
+      origB = rect?.height ? (box.top + box.height / 2 - rect.top) / rect.height * 100 : group.overlay.textY;
       setDraggingType('text');
     } else if (kind === 'watermark') {
-      origA = group.overlay.watermarkX;
-      origB = group.overlay.watermarkY;
+      const box = e.currentTarget.getBoundingClientRect();
+      origA = rect?.width ? (box.left + box.width / 2 - rect.left) / rect.width * 100 : group.overlay.watermarkX;
+      origB = rect?.height ? (box.top + box.height / 2 - rect.top) / rect.height * 100 : group.overlay.watermarkY;
       setDraggingType('watermark');
     } else if (kind === 'board') {
       origA = size.boardX;
@@ -844,7 +847,7 @@ export default function Canvas({
   const renderOverlaysInsideFrame = (size: SizePreset, interactive: boolean) => {
     const overlay = group.overlay;
     return (
-      <div className="pointer-events-none absolute inset-0 z-20" style={{ containerType: 'inline-size' }} data-testid="overlay-layer">
+      <div className="pointer-events-none absolute inset-0 z-20" style={{ containerType: 'size' }} data-testid="overlay-layer">
         {/* Magnetic snap guide lines while dragging text or watermark */}
         {interactive &&
           activeGuides.map((guide, idx) =>
@@ -911,7 +914,7 @@ export default function Canvas({
                     // A fixed-centre anchor (translate always -50%, never -X%) keeps the physical point
                     // under the pointer continuous as textX crosses 35%/65% - the old translate(-X%, -50%)
                     // jumped because the anchor itself moved with X.
-                    transform: 'translate(-50%, -50%)',
+                    transform: safeOverlayTransform(overlay.textX, overlay.textY),
                     backgroundColor: overlay.textScrim
                       ? overlay.textColour === 'light'
                         ? 'rgba(10, 12, 16, 0.62)'
@@ -979,9 +982,7 @@ export default function Canvas({
               // box's own centre stays the reference point for both position and resize, not a point that
               // slides to wherever watermarkX currently is.
               transformOrigin: '50% 50%',
-              transform: `translate(-50%, -50%) scale(${
-                overlay.watermarkScale / 100
-              })`,
+              transform: safeOverlayTransform(overlay.watermarkX, overlay.watermarkY, overlay.watermarkScale / 100),
               opacity: overlay.watermarkOpacity / 100,
               color: effectiveContrast === 'light-on-dark' ? '#F8F6F2' : '#14171F',
               backgroundColor: watermarkImage

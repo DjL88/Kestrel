@@ -31,7 +31,7 @@ test('select two photos, apply monochrome recipe, keep third photo unchanged', a
   await page.getByRole('combobox', { name: 'Recipe for selected photos' }).selectOption('mono-natural');
   await expect(page.getByText('2 of 2 selected photos will change.')).toBeVisible();
   await page.getByRole('button', { name: 'Apply to 2 photos' }).click();
-  await page.getByRole('button', { name: 'Edit selected' }).click();
+  await page.getByRole('button', { name: 'Edit selected' }).locator('visible=true').first().click();
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   await expect(page.getByRole('slider', { name: 'Colour adjustment' })).toHaveValue('-2');
   await page.getByRole('button', { name: 'Collapse filmstrip' }).click();
@@ -41,7 +41,7 @@ test('select two photos, apply monochrome recipe, keep third photo unchanged', a
   await page.getByRole('button', { name: 'Workspace options' }).click();
   await page.getByRole('button', { name: 'Select photos' }).click();
   await page.getByRole('button', { name: 'Select style-3.png' }).click();
-  await page.getByRole('button', { name: 'Edit selected' }).click();
+  await page.getByRole('button', { name: 'Edit selected' }).locator('visible=true').first().click();
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   await expect(page.getByRole('slider', { name: 'Colour adjustment' })).toHaveValue('0');
 });

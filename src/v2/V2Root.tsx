@@ -19,6 +19,7 @@ import '@fontsource/oswald/latin-700.css';
 import '@fontsource/caveat/latin-400.css';
 import '@fontsource/caveat/latin-700.css';
 
+import { parseControlPlaneUrl } from '../core/licenceOnline';
 import { useEffect } from 'react';
 import { AccountAndLicenceSettings } from '../components/AccountAndLicenceSettings';
 import { loadPublicFlags } from '../providers/featureFlagsStore';
@@ -43,5 +44,6 @@ export default function V2Root() {
   return <V2App
     useStore={useSampleStore ? useWorkspace : useEngineWorkspace}
     accountPanel={useSampleStore ? undefined : <AccountAndLicenceSettings />}
+    serviceBase={useSampleStore ? undefined : parseControlPlaneUrl(import.meta.env.VITE_KESTREL_CONTROL_PLANE_URL) ?? undefined}
   />;
 }
