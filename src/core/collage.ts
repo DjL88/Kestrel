@@ -8,6 +8,8 @@ export interface CollageSlot {
   x: number; y: number; width: number; height: number; angle: number;
   /** Polygon vertices, in percentages of the slot. */
   clip?: string;
+  /** Independent window framing; absent in older documents. */
+  zoom?: number; panX?: number; panY?: number;
 }
 export interface CollagePage {
   id: string;
@@ -97,7 +99,19 @@ export function modifyCollagePage(doc: CollageDocument, patch: Partial<Omit<Coll
 }
 export function replaceCollagePhoto(doc: CollageDocument, slotId: string, photoId: string | null): CollageDocument {
   return { ...doc, pages: doc.pages.map((p) => p.id === doc.activePageId
-    ? { ...p, slots: p.slots.map((s) => s.id === slotId ? { ...s, photoId } : s) } : p) };
+    ? { ...p, slots: p.slots.map((s) => s.id === slotId ? { ...s, photoId, zoom: 1, panX: 0, panY: 0 } : s) } : p) };
+}
+export type WindowFraming = { zoom: number; panX: number; panY: number };
+export function windowFraming(slot: CollageSlot): WindowFraming {
+  return { zoom: slot.zoom ?? 1, panX: slot.panX ?? 0, panY: slot.panY ?? 0 };
+}
+export function updateCollageWindow(doc: CollageDocument, slotId: string, patch: Partial<WindowFraming>): CollageDocument {
+  const bounded = (v: number, low: number, high: number, fallback: number) => Number.isFinite(v) ? Math.max(low, Math.min(high, v)) : fallback;
+  return { ...doc, pages: doc.pages.map(p => p.id !== doc.activePageId ? p : { ...p, slots: p.slots.map(s => {
+    if (s.id !== slotId) return s;
+    const before = windowFraming(s), next = { ...before, ...patch };
+    return { ...s, zoom: bounded(next.zoom, 1, 8, before.zoom), panX: bounded(next.panX, -1, 1, before.panX), panY: bounded(next.panY, -1, 1, before.panY) };
+  }) }) };
 }
 export function changeCollageTemplate(doc: CollageDocument, template: CollageTemplate): CollageDocument {
   const old = collagePage(doc);
@@ -134,7 +148,7 @@ export function readCollage(value: unknown): CollageDocument | null {
     typeof page.caption === 'string' && page.caption.length <= 1000 &&
     typeof page.captionColour === 'string' && /^#[0-9a-fA-F]{6}$/.test(page.captionColour) &&
     Array.isArray(page.slots) && page.slots.length <= 12 && page.slots.every((s) => s && typeof s.id === 'string' &&
-      (s.photoId === null || typeof s.photoId === 'string') && [s.x,s.y,s.width,s.height,s.angle].every(Number.isFinite) && s.x >= 0 && s.y >= 0 && s.width > 0 && s.height > 0 && s.x+s.width <= 100 && s.y+s.height <= 100 && Math.abs(s.angle) <= 180 && (s.clip === undefined || s.clip === polygonA || s.clip === polygonB)))) return null;
+      (s.photoId === null || typeof s.photoId === 'string') && [s.x,s.y,s.width,s.height,s.angle].every(Number.isFinite) && s.x >= 0 && s.y >= 0 && s.width > 0 && s.height > 0 && s.x+s.width <= 100 && s.y+s.height <= 100 && Math.abs(s.angle) <= 180 && (s.zoom === undefined || (Number.isFinite(s.zoom) && s.zoom >= 1 && s.zoom <= 8)) && [s.panX,s.panY].every(v => v === undefined || (Number.isFinite(v) && v >= -1 && v <= 1)) && (s.clip === undefined || s.clip === polygonA || s.clip === polygonB)))) return null;
   if (new Set(doc.pages.map(p => p.id)).size !== doc.pages.length || doc.pages.some(p => new Set(p.slots.map(s => s.id)).size !== p.slots.length)) return null;
   if (!doc.activePageId || !doc.pages.some((p) => p.id === doc.activePageId)) return null;
   return doc as CollageDocument;
