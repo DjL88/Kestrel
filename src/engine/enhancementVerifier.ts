@@ -1,3 +1,4 @@
+import { regionalDetailEvidence } from './regionalDetailGuard';
 import { checkColour, toOklab, type ColourFinding, type Pixels } from '../core/colourCheck';
 
 /**
@@ -52,25 +53,6 @@ function medianOklabLightness(pixels: Pixels, alphaMask?: Float32Array, alphaThr
  * deliberately softens the background (src/engine/looks.ts) is judged on whether it preserved SUBJECT
  * detail, not on the background detail it was asked to remove. Without a mask, the whole frame is
  * sampled, as before (plain denoise with no subject has nothing else to judge detail against). */
-function detailRatio(before: Pixels, after: Pixels, alphaMask?: Float32Array, alphaThreshold = 0.5): number {
-  const gradientSum = (pixels: Pixels): number => {
-    let sum = 0, count = 0;
-    for (let y = SAMPLE_STRIDE; y < pixels.height - SAMPLE_STRIDE; y += SAMPLE_STRIDE) {
-      for (let x = SAMPLE_STRIDE; x < pixels.width - SAMPLE_STRIDE; x += SAMPLE_STRIDE) {
-        const i = (y * pixels.width + x) * 4;
-        if (alphaMask && alphaMask[y * pixels.width + x] < alphaThreshold) continue;
-        const right = ((y * pixels.width + x + 1) * 4);
-        const down = (((y + 1) * pixels.width + x) * 4);
-        sum += Math.abs(pixels.data[i] - pixels.data[right]) + Math.abs(pixels.data[i] - pixels.data[down]);
-        count += 1;
-      }
-    }
-    return count ? sum / count : 0;
-  };
-  const beforeDetail = gradientSum(before);
-  return beforeDetail > 0.0001 ? gradientSum(after) / beforeDetail : 1;
-}
-
 const BRIGHTNESS_SHIFT_LIMIT = 0.12; // OKLab L is 0-1; a first-cut "that moved too far" band, not calibrated.
 const DENOISE_DETAIL_FLOOR = 0.55;   // Lost nearly half the local detail: treat as over-smoothed, not just softened.
 
@@ -87,6 +69,11 @@ const DENOISE_DETAIL_FLOOR = 0.55;   // Lost nearly half the local detail: treat
 export function verifyEdit(
   before: Pixels, after: Pixels, subject?: Float32Array, detailScope: 'frame' | 'subject' = 'frame',
 ): CourseCorrection {
+  const valid = (p: Pixels) => Number.isSafeInteger(p.width) && Number.isSafeInteger(p.height) && p.width > 0 && p.height > 0 && p.data.length === p.width * p.height * 4;
+  if (!valid(before) || !valid(after) || before.width !== after.width || before.height !== after.height ||
+      (subject && (subject.length !== before.width * before.height || !subject.every(a => Number.isFinite(a) && a >= 0 && a <= 1)))) {
+    return { ok: false, reasons: ['The comparison could not be verified safely.'], suggestedStrengthScale: 0 };
+  }
   const reasons: string[] = [];
   let scale = 1;
 
@@ -101,8 +88,9 @@ export function verifyEdit(
   if (brightnessShift > BRIGHTNESS_SHIFT_LIMIT) { reasons.push('The result is noticeably brighter than the original.'); scale *= 0.7; }
   if (brightnessShift < -BRIGHTNESS_SHIFT_LIMIT) { reasons.push('The result is noticeably darker than the original.'); scale *= 0.7; }
 
-  const detail = detailScope === 'subject' && subject ? detailRatio(before, after, subject) : detailRatio(before, after);
-  if (detail < DENOISE_DETAIL_FLOOR) {
+  const protectedSubject = detailScope === 'subject' && subject;
+  const detail = regionalDetailEvidence(before, after, protectedSubject || undefined);
+  if (detail.ratio < DENOISE_DETAIL_FLOOR || (detail.regions > 0 && detail.worstRegion < 0.45)) {
     reasons.push(detailScope === 'subject' ? 'Softening has smoothed away too much detail on the subject itself.' : 'Denoising has smoothed away too much real detail.');
     scale *= 0.5;
   }
