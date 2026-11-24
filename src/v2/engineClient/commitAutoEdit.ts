@@ -15,6 +15,7 @@ export function commitAutoEdit(
   const frameId = state.selectedFrameId ?? state.frames.find((frame) => frame.removedAt == null)?.id;
   if (frameId !== examined.id) return state;
 
+  if (state.frames.filter(frame => frame.id === frameId).length !== 1) return state;
   const index = state.frames.findIndex((frame) => frame.id === frameId);
   const frame = state.frames[index];
   if (!frame || frame.removedAt != null || frame.edit || frame.editHistory !== examined.editHistory ||
