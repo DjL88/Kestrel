@@ -64,7 +64,10 @@ async function verifiedHead(remote: BackupRemote, prefix: string, signal?: Abort
   ensureActive(signal);
   const obj = await remote.read(prefix + '/head.json', signal);
   ensureActive(signal);
-  return obj ? { head: parseHead(obj.bytes, prefix), etag: obj.etag } : null;
+  if (!obj) return null;
+  if (obj.key !== prefix + '/head.json' || typeof obj.etag !== 'string' || !obj.etag.trim())
+    throw new Error('Backup head identity or revision token did not verify');
+  return { head: parseHead(obj.bytes, prefix), etag: obj.etag };
 }
 function checkAnchor(remoteHead: BackupHead | null, anchor: BackupAnchor | null): void {
   if (!anchor) return;
@@ -82,10 +85,12 @@ export async function readVerifiedBackup(remote: BackupRemote, projectId: string
   if (!state) return null;
   const object = await remote.read(state.head.blobKey, signal);
   ensureActive(signal);
-  if (!object || object.bytes.byteLength !== state.head.bytes ||
-      await digest(object.bytes) !== state.head.sha256) throw new Error('Backup content verification failed');
+  if (!object || object.key !== state.head.blobKey || object.bytes.byteLength !== state.head.bytes)
+    throw new Error('Backup content verification failed');
+  const verifiedBytes = Uint8Array.from(object.bytes);
+  if (await digest(verifiedBytes) !== state.head.sha256) throw new Error('Backup content verification failed');
   ensureActive(signal);
-  return { bytes: Uint8Array.from(object.bytes), anchor: { revision: state.head.revision, sha256: state.head.sha256 } };
+  return { bytes: verifiedBytes, anchor: { revision: state.head.revision, sha256: state.head.sha256 } };
 }
 /**
  * Write immutable content first; publish a small pointer only after verifying the remote bytes.
@@ -110,7 +115,7 @@ export async function publishBackup(remote: BackupRemote, projectId: string, byt
       (current.head.revision === anchor.revision || current.head.revision === anchor.revision + 1)) {
     const stored = await remote.read(current.head.blobKey, signal);
     ensureActive(signal);
-    if (!stored || stored.bytes.byteLength !== payload.byteLength || stored.bytes.byteLength !== current.head.bytes ||
+    if (!stored || stored.key !== current.head.blobKey || stored.bytes.byteLength !== payload.byteLength || stored.bytes.byteLength !== current.head.bytes ||
         await digest(stored.bytes) !== sha256) throw new Error('Remote backup bytes did not verify');
     ensureActive(signal);
     return { revision: current.head.revision, sha256 };
@@ -124,7 +129,7 @@ export async function publishBackup(remote: BackupRemote, projectId: string, byt
   ensureActive(signal);
   const stored = await remote.read(blobKey, signal);
   ensureActive(signal);
-  if (!stored || stored.bytes.byteLength !== payload.byteLength || await digest(stored.bytes) !== sha256)
+  if (!stored || stored.key !== blobKey || stored.bytes.byteLength !== payload.byteLength || await digest(stored.bytes) !== sha256)
     throw new Error('Remote backup bytes did not verify');
   ensureActive(signal);
   // An existing content-addressed object is acceptable only after byte verification.
