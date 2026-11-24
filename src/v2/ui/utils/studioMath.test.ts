@@ -331,3 +331,13 @@ test('measured overlay safe margins snap edges, never the box centre', () => {
   // Legacy callers without geometry still snap their point to 8%.
   assert.equal(snapOverlayPosition(8.2, 8.2, peer, true, 1).x, 8);
 });
+
+test('fit overlay reduces short stacked rows for panoramic formats and scales tracking', () => {
+  const base = { fields: ['custom'], customText: 'Hi', fontId: 'jakarta', weight: 500, uppercase: false, letterSpacing: 3 };
+  const overlay = { textEnabled: true, textLayoutMode: 'as-is', textOffsetX: 0, textOffsetY: 0, rows: Array.from({ length: 4 }, (_, i) => ({ ...base, id: String(i), sizePx: 32 })) } as unknown as OverlaySettings;
+  const wide = { ...mockSizePortrait, width: 2400, height: 800, enabled: true };
+  const fitted = fitOverlayRows(overlay, mockPhoto, [wide]);
+  assert.ok(fitted.every(row => row.sizePx < 32 && row.letterSpacing < 3));
+  assert.equal(detectOverlayOverflow({ ...overlay, rows: fitted }, mockPhoto, [wide]).length, 0);
+  assert.equal(fitOverlayRows({ ...overlay, rows: [] }, mockPhoto, [wide]).length, 0);
+});
