@@ -13,8 +13,16 @@ export function boundedSubjectGuide<T>(
   signal?: AbortSignal,
 ): Promise<T | null> {
   // A function that returns a promise rejects for an already-cancelled photo; it must not throw synchronously.
-  if (signal?.aborted) return Promise.reject(new DOMException('Subject search cancelled', 'AbortError'));
-  if (!Number.isFinite(budgetMs) || budgetMs < 1) throw new RangeError('Invalid subject guide budget');
+  if (signal?.aborted) {
+    // The caller already started the promise. Consume a late model rejection
+    // even though the UI must stop waiting immediately.
+    void work.catch(() => undefined);
+    return Promise.reject(new DOMException('Subject search cancelled', 'AbortError'));
+  }
+  if (!Number.isFinite(budgetMs) || budgetMs < 1) {
+    void work.catch(() => undefined);
+    throw new RangeError('Invalid subject guide budget');
+  }
   return new Promise<T | null>((resolve, reject) => {
     let settled = false;
     const cleanup = () => {
@@ -36,8 +44,9 @@ export function boundedSubjectGuide<T>(
     const onAbort = () => fail(new DOMException('Subject search cancelled', 'AbortError'));
     const timer = setTimeout(() => finish(null), budgetMs);
     signal?.addEventListener('abort', onAbort, { once: true });
-    if (signal?.aborted) { onAbort(); return; }
-    // Attach handlers even after timeout/abort so late rejection is consumed.
+    // Attach handlers before the final abort check so every already-started
+    // model promise is observed, including cancellation at registration.
     work.then(finish, fail);
+    if (signal?.aborted) onAbort();
   });
 }
