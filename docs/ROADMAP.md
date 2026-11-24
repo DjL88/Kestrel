@@ -188,6 +188,44 @@ The owner saw a different Kestrel on Windows than on the Mac. This is not a desi
 
 Platform-specific code lives only in adapters (`src-tauri/`, `src/providers/*`). Shared behaviour lives in `src/core/` and `src/components/`. A feature isn't done until its status is recorded here for every platform it affects.
 
+## Engine and model plan (24 November 2026, owner-directed)
+
+**Owner constraints:** every model must fit an app installable on a phone. Cloud processing runs **the same tasks** as the phone, plus extra validation. Several models may run in tandem, with a vision model reviewing the best results (hybrid). No generative pixels. Cloud AI is opt-in and advisory only.
+
+**Three tiers, one contract.** Every model sits behind the existing signed model manifest (`modelDelivery`, `/v1/models/manifest`): id, version, hash, licence, input/output schema, memory profile, thresholds and device tier. The same ONNX files and the same `src/core` decision code run on every tier. A tier changes only *which* packs are installed and how much checking is done, never the meaning of a result.
+
+| Tier | Runs | Budget |
+| --- | --- | --- |
+| **Phone / tablet** (default) | Core pack: detector, saliency mask, tap-to-select, embeddings, species (base), conventional + small learned denoise | about 150 MB of models, int8/int4, CPU/NNAPI/Core ML through ONNX Runtime |
+| **Desktop** | Core pack plus optional "fine detail" packs (high-resolution edge masks, larger species model, local vision reviewer) | downloads on request |
+| **Cloud** (opt-in, cost-estimated) | Identical core pack **plus validators**: larger models re-check the phone's answer; results are signed, verified, then committed locally | Cloud Run jobs in London, inside the £20 budget |
+
+**Model review.** Licences are from the upstream cards and must be re-checked against each LICENSE file before shipping (`tools/licence`).
+
+| Job | Today | Proposed | Licence (to confirm) | Why |
+| --- | --- | --- | --- | --- |
+| Subject detection | YOLOX-Tiny (2021) | **RF-DETR Nano** (30.5 M params, COCO AP 48.4); YOLOX stays as the fallback | Apache-2.0 (Nano/S/M only; XL/2XL are not) | Much better on small and distant subjects; ONNX and Qualcomm builds exist |
+| Subject/background mask | U²-Netp (2020) | Phone: keep U²-Netp. Desktop/cloud: **BiRefNet-lite** (int4 ~82 MB) for feather/fur edges | MIT | High-resolution dichotomous segmentation; U²-Netp is coarse on fine edges |
+| Tap-to-select masks | none | **EfficientSAM-Ti** (~25 MB encoder) or MobileSAM | Apache-2.0 (check TinyViT terms for MobileSAM) | Click or tap a subject; also the manual-correction path |
+| Species | BioCLIP (ViT-B), int8 | Phone: keep BioCLIP + IOC list. Desktop/cloud validator: **BioCLIP 2** (ViT-L/14) | MIT (weights); taxonomy data separately | BioCLIP 2 is far stronger but too large for the phone default |
+| Bursts, duplicates, individuals | heuristics | **DINOv2 ViT-S/14** embeddings (~21 M params) | Apache-2.0 per the official repo (some mirrors say CC-BY-NC: use Meta's release) | Grouping, near-duplicates and provisional identity (#1145) |
+| Denoise (developed RGB) | conventional only | **NAFNet width32** baseline (mobile LiteRT builds exist) | MIT | Proven small denoiser; benchmark against TrueDetail |
+| Denoise (RAW mosaic) | TrueDetail adapter, **no weights shipped** | Train TrueDetail (`tools/denoise-training`), ship only after the real high-ISO gate | own | Sensor-aware, the long-term differentiator |
+| Upscale | Lanczos 2x/4x | Keep. No model upscaler (would invent detail) | n/a | Non-generative rule |
+| Vision reviewer | SmolVLM2-500M (desktop) | Phone: rule-based quality supervisor (#1262). Desktop: SmolVLM2. Cloud: opt-in Gemini as reviewer only | Apache-2.0 / provider terms | Ranks candidate edits; never edits pixels |
+
+**Tandem + reviewer (hybrid).** For Auto-Edit and culling: (1) several conservative candidates from the measured rules; (2) the offline quality supervisor rejects any that clip, lose detail, spill a mask or shift colour; (3) where installed, the vision reviewer ranks the survivors; (4) the photographer sees one recommendation, alternatives on request, and an exact before/after. Detectors run in tandem (RF-DETR + YOLOX). Agreement raises confidence; disagreement means "review", never auto-reject.
+
+**Cloud = same tasks + validation.** `services/cloud-runner` loads the same pack versions as the device, re-runs the task, then adds validators (BioCLIP 2, BiRefNet full, ensemble agreement). It returns a signed result that the app verifies before committing locally. A disagreement is reported, not silently applied.
+
+**Task Manager.** Export and background develop use `engineScheduler`; **18 direct `taskStore.start` callers** (import, cull, detect, masks and others) bypass it, so pause, resume and priority don't reach them. Move them onto the scheduler, one caller per PR.
+
+**Vertex and learning (inside the £20 budget).** Phase 1: Vertex AI model registry and **batch evaluation** of the packs above on licensed, held-out sets (no user photos). Phase 2: opt-in learning from numeric recipe signals already collected by `learningSignal` (no photos); train small re-rankers. GPU training (TrueDetail) stays on the owner's PC until a costed Vertex job is approved.
+
+**Coding agents ("Codex").** One integration owner merges; workers take one bounded item each from this plan; every PR reports PASS / FAIL / NOT RUN from a real checkout. ChatGPT hourly workers only for docs, i18n and test-only lanes.
+
+**Order:** (1) native desktop menu with V2 actions; (2) Task Manager adoption; (3) DINOv2 embeddings for bursts and duplicates; (4) RF-DETR Nano in tandem with YOLOX; (5) EfficientSAM tap-to-select; (6) NAFNet baseline + TrueDetail gate; (7) BioCLIP 2 and BiRefNet as desktop/cloud validators; (8) Vertex evaluation. Each model needs the owner's approval to download its weights, a licence entry, a checksum in code and a measured benchmark before shipping.
+
 ## 3. The order of work
 
 Work runs P0, then P1, then P2, then P3, then P4. Inside each, take the items in order; inside P0, take the first item that isn't blocked.
@@ -1005,6 +1043,9 @@ Counts: a=136, b=0 (all candidates turned out to be on main or were merged in th
 | a | `ui/menu-bar` | 2026-11-22 | 0 | 23 | merge result identical to main |
 
 ## 4. Integration log
+
+- **24 November 2026 — 21 failing V2 browser specs fixed (PR #1277, `c90f681e`).** Real app fixes: Delete/Duplicate format on photos without EXIF dimensions; Export closes when it starts; File/Edit/View header menus back on (owner: browser keeps them, installed desktop apps move to the native menu next); include-format toggles expose `aria-pressed`. The other specs were updated for intentional redesigns. Checks: lint PASS, `npm test` PASS (2840, 4 skipped), build PASS, V2 Playwright desktop + phone PASS (75/75 relevant). Device check pending: phone taps after swiping.
+- **24 November 2026 — backend redeployed from `main` `a648dde6`.** Control plane Cloud Run revision `kestrel-control-plane-00006` (was 23 Nov `78e43167`); `/V2Proto` rebuilt by the approval-gated `inflight-v2proto-main` trigger. Its 08:00 build had failed because `main` was red, and later builds were waiting for approval. Smoke: manifest, admin, website and V2Proto 200; bad licence request refused. Not yet: the app's `VITE_KESTREL_GRANT_KEYS` (public key `kcp-2026-11=…` from the service log).
 
 - **24 November 2026 — `main` green again on a real Windows checkout (PR #1270).** At 9bbf967b (#1269), `npm run lint` failed (TS2339 in `taskStore.ts`) and 5 unit tests failed; GitHub Actions was billing-locked, so nothing ran them. Fixed: the type error; a real masks bug, where on extreme crops a brush dab thinner than one grid cell vanished; recovery now refuses paths with repeated separators. Three tests also asserted the wrong thing (a scheduler race, a nonce-named backup, task fields added by #1247). Checks: lint PASS, `npm test` PASS (2840/2844, 4 skipped), build PASS. Still unconnected in V2 on `main`: AI RAW denoise (TrueDetail) and lens correction. Everything else in `UNMAPPED_KEYS`/`NOT_CONNECTED` is now wired.
 
