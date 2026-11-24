@@ -20,6 +20,12 @@ test('ratings 0 to 5 map to their rating, and every command target exists in the
   }
 });
 
+test('V2-only File items reach the actions the header menu has in a browser', () => {
+  assert.deepEqual(menuActionForV2('removed-photos'), { kind: 'removedPhotos' });
+  assert.deepEqual(menuActionForV2('reset-photo'), { kind: 'resetPhoto' });
+  assert.deepEqual(menuActionForV2('back-to-projects'), { kind: 'backToProjects' });
+});
+
 test('ids that belong only to the current app are ignored, not guessed at', () => {
   for (const id of ['edit-photo', 'view-tab-masks', 'view-bursts', 'view-left', 'photo-reject', 'toString', '__proto__']) assert.equal(menuActionForV2(id), null, id);
 });
