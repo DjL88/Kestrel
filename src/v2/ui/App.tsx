@@ -333,7 +333,9 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   };
 
   const activePanelState = store.activePanel ? store.panels[store.activePanel] : null;
-  const activePanelVisible = Boolean(store.activePanel && activePanelState?.visible);
+  // Composing collage pages has its own tools; the photo editor's panels return when one photo is opened to edit.
+  const composingCollage = Boolean(store.collage && !collageEditingId);
+  const activePanelVisible = Boolean(store.activePanel && activePanelState?.visible) && !composingCollage;
 
   // On wide screens, detached panels are independent of the active dock/rail tab.
   // Compact desktop and tablet layouts show only one floating panel at a time.
@@ -575,6 +577,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                 onImportFolder={actions.importFolder}
                 onRunAutoCull={actions.runAutoCull}
                 onCreateCollage={store.collage ? undefined : actions.createCollageFromSelection}
+                collageMode={composingCollage}
                 onExportSelected={() => actions.setExportOpen(true)}
               />
             </div>
@@ -596,7 +599,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             )}
 
             {/* Undocked windows: independent on large displays, one on compact screens. */}
-            {!isMobile && shownFloatingPanelIds.map((panelId) => {
+            {!isMobile && !composingCollage && shownFloatingPanelIds.map((panelId) => {
               const state = store.panels[panelId];
               return (
                 <DockPanel
@@ -617,7 +620,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
           </div>
 
           {/* Mobile tool bar (<= 767px): four large targets, like Lightroom; everything else lives in More. */}
-          {isMobile && (
+          {isMobile && !composingCollage && (
             <nav
               aria-label={STRINGS.mobile.toolBar}
               className="flex min-h-16 shrink-0 items-stretch justify-around border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1 pb-[env(safe-area-inset-bottom)]"
@@ -665,7 +668,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             </nav>
           )}
 
-          {isMobile && moreOpen && (
+          {isMobile && moreOpen && !composingCollage && (
             <div
               role="dialog"
               aria-label={STRINGS.mobile.moreTools}
@@ -701,7 +704,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
           )}
 
           {/* Mobile Drawer when a tool tab is selected on small portrait screens */}
-          {isMobile && store.activePanel && (
+          {isMobile && store.activePanel && !composingCollage && (
             <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]">
               <div
                 data-testid="mobile-sheet-handle"
