@@ -63,10 +63,15 @@ export async function runV2Denoise(
     mask.kind === 'subject' && !mask.hidden && !mask.invert && !mask.limit &&
     mask.confidence !== 'low' && mask.framingKey === framingKey(framing));
   let detectionUnavailable = false;
+  let newLayers: Mask[] = [];
   if (!subjects.length && remaining.length + 2 <= MAX_MASKS) {
     try {
       const instances = await detectSubjectInstances(canvas, framingKey(framing), signal);
-      subjects = instances.map(instance => instance.mask);
+      subjects = instances.map((instance, index) => ({ ...instance.mask,
+        id: `${id}-instance-${index + 1}-${instance.label.replace(/[^a-zA-Z0-9]/g, '')}`,
+      }));
+      // Never displace existing edits or exceed the persisted mask schema limit.
+      if (remaining.length + subjects.length + 2 <= MAX_MASKS) newLayers = subjects;
       detectionUnavailable = !subjects.length;
     } catch {
       signal?.throwIfAborted();
@@ -94,8 +99,9 @@ export async function runV2Denoise(
   const notes = response.runner === 'cloud-processing'
     ? ['Denoised in the InFlight cloud from a working-size copy, checked on this device.']
     : [cloud ? 'The cloud was not used for this one, so it ran on this device.' : 'Denoised on this device.'];
+  if (subject && subjects.length > 0 && !newLayers.length && !remaining.some(mask => subjects.includes(mask as typeof subjects[number]))) notes.push('Individual layers could not fit; combined protection is available.');
   if (subject) notes.unshift(`Denoised on this device with combined subject protection (${subjects.length} mask${subjects.length === 1 ? '' : 's'}).`);
   else if (detectionUnavailable) notes.unshift('No reliable subject masks were available; denoise used a global setting.');
   if (!result.verification.ok) notes.push('It could not be made to pass the quality check, so the gentlest setting tried is shown.');
-  return { runner: response.runner === 'cloud-processing' ? 'cloud-processing' : 'device', strength, masks: result.masks, verified: result.verification.ok, notes };
+  return { runner: response.runner === 'cloud-processing' ? 'cloud-processing' : 'device', strength, masks: subject ? [...newLayers, ...result.masks] : result.masks, verified: result.verification.ok, notes };
 }
