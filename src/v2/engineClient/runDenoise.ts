@@ -55,9 +55,10 @@ export async function runV2Denoise(
     applyMasks(data, original.width, original.height, masks, fullContext(original.width, original.height));
     return { data, width: original.width, height: original.height };
   };
-  const asked = frame.edit?.denoise && frame.edit.denoise > 0 ? frame.edit.denoise : DEFAULT_DENOISE_STRENGTH;
   const existing = frame.edit?.masks ?? [];
   const id = `auto-denoise-${frame.id}`;
+  const previousBackground = existing.find(mask => mask.id === `${id}-background`);
+  const asked = previousBackground?.edit.denoise ?? (frame.edit?.denoise && frame.edit.denoise > 0 ? frame.edit.denoise : DEFAULT_DENOISE_STRENGTH);
   const remaining = existing.filter(mask => mask.id !== id && mask.id !== `${id}-background`);
   let subjects = remaining.filter((mask): mask is Extract<Mask, { kind: 'subject' }> =>
     mask.kind === 'subject' && !mask.hidden && !mask.invert && !mask.limit &&
@@ -71,7 +72,16 @@ export async function runV2Denoise(
         id: `${id}-instance-${index + 1}-${instance.label.replace(/[^a-zA-Z0-9]/g, '')}`,
       }));
       // Never displace existing edits or exceed the persisted mask schema limit.
-      if (remaining.length + subjects.length + 2 <= MAX_MASKS) newLayers = subjects;
+      if (remaining.length + subjects.length + 2 <= MAX_MASKS) {
+        // Old framing may leave instance IDs occupied. Never duplicate them.
+        const occupied = new Set(remaining.map(mask => mask.id));
+        newLayers = subjects.map(mask => {
+          let unique = mask.id;
+          while (occupied.has(unique)) unique = unique.replace(/-instance-(\d+)-/, (_, n) => `-instance-${Number(n) + 1}-`);
+          occupied.add(unique);
+          return { ...mask, id: unique };
+        });
+      }
       detectionUnavailable = !subjects.length;
     } catch {
       signal?.throwIfAborted();
@@ -89,6 +99,10 @@ export async function runV2Denoise(
     maskId: id, grid: combined.grid, framingKey: combined.framingKey, confidence: combined.confidence, detail: combined.detail,
     alpha: maskAlpha(combined, original.width, original.height, fullContext(original.width, original.height)),
   } : undefined;
+  if (!subject && (previousBackground || subjects.length)) {
+    // Do not replace an established protected recipe with global smoothing.
+    return { runner: 'device', strength: 0, masks: [], verified: false, notes: ['Subject protection could not be rebuilt safely. Existing edits were kept.'] };
+  }
   const attempt = cloud && !subject
     ? createCloudProcessingAttempt(cloud.connection, { online: cloud.online, signedIn: true, userConsent: true }, signal)
     : undefined;
