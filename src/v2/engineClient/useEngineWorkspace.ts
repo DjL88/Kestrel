@@ -5,6 +5,7 @@ import { forkEditCheckpoint, switchEditVersion as switchVersionInCatalogue } fro
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { sameRecipe } from '../../core/naturalAuto';
 import { newId } from '../../core/ids';
+import { exportCollage } from './exportCollage';
 import { createCollage, readCollage } from '../../core/collage';
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
 import { appendProjectPhotos, applyImportBursts, createEmptyProject, setArchived } from '../../core/projects';
@@ -1125,7 +1126,25 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     await loadHub();
   }, [loadHub]);
 
+  const collageExportRunning = useRef(false);
   const real: Partial<WorkspaceActions> = {
+    exportCollage: async (request) => {
+      const current = stateRef.current;
+      if (!current || collageExportRunning.current) return;
+      collageExportRunning.current = true;
+      const controller = new AbortController();
+      const task = tasks.start('Exporting collage', { total: request.allPages ? current.shoot.collage?.pages.length ?? 1 : 1, cancel: () => controller.abort() });
+      try {
+        const result = await exportCollage(current, provider.current!, request, controller.signal, (done, total) => task.progress(done, total));
+        controller.signal.throwIfAborted();
+        downloadExport(result.blob, result.name);
+        task.finish('Export prepared.');
+        setNotice('Collage export prepared. Your originals are unchanged.');
+      } catch (error) {
+        const message = controller.signal.aborted ? 'Collage export cancelled.' : error instanceof Error ? error.message : 'Collage export failed.';
+        task.fail(message); setNotice(message);
+      } finally { collageExportRunning.current = false; }
+    },
     addEditGroup: (photoId) => {
       const id = `group-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 24)}`;
       const frame = stateRef.current?.frames.find((item) => item.id === photoId);
