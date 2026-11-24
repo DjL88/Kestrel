@@ -174,6 +174,9 @@ export function createEngineScheduler(options: {
   };
   const jobs = new Map<number, WorkBatch>();
   const failedJobs = new Map<number, WorkBatch>();
+  // Reserve before awaiting destination readback, not merely before dispatch.
+  // This protects concurrent submissions within this scheduler instance.
+  const activeRecoveryKeys = new Set<string>();
   let sequence = 0;
   let highest = 100;
   let pausedAll = false;
@@ -339,6 +342,19 @@ export function createEngineScheduler(options: {
   };
 
   async function submit<Item, Snapshot>(definition: BatchDefinition<Item, Snapshot>): Promise<SchedulerTicket> {
+    const key = definition.recovery?.key;
+    if (key !== undefined && (!key.trim() || activeRecoveryKeys.has(key)))
+      throw new Error('This recovery job is already active or has an invalid key.');
+    if (key !== undefined) activeRecoveryKeys.add(key);
+    try {
+      return await submitReserved(definition, key);
+    } catch (error) {
+      if (key !== undefined) activeRecoveryKeys.delete(key);
+      throw error;
+    }
+  }
+
+  async function submitReserved<Item, Snapshot>(definition: BatchDefinition<Item, Snapshot>, recoveryKey: string | undefined): Promise<SchedulerTicket> {
     if (!definition.items.length) throw new Error('A processing batch needs at least one item.');
     const ids = definition.items.map(definition.itemId);
     if (ids.some(id => !id) || new Set(ids).size !== ids.length) throw new Error('Batch item identities must be unique and non-empty.');
@@ -354,7 +370,9 @@ export function createEngineScheduler(options: {
       const priorText = recovery.journal.getItem(recovery.key);
       if (priorText) {
         const prior = JSON.parse(priorText) as StoredCheckpoint;
-        if (prior.version !== 1 || prior.fingerprint !== fingerprint || !Array.isArray(prior.completed))
+        if (prior.version !== 1 || prior.fingerprint !== fingerprint || !Array.isArray(prior.completed) ||
+            prior.completed.some(id => typeof id !== 'string' || !ids.includes(id)) ||
+            new Set(prior.completed).size !== prior.completed.length)
           throw new Error('The saved job does not match these sources and settings. Start a new batch.');
         for (const id of prior.completed) {
           const index = ids.indexOf(id);
@@ -372,6 +390,7 @@ export function createEngineScheduler(options: {
     let resolveFinished!: (result: 'done' | 'failed' | 'cancelled') => void;
     const finished = new Promise<'done' | 'failed' | 'cancelled'>(resolve => { resolveFinished = resolve; });
     let job!: WorkBatch;
+    let retryStarted = false;
     const handle = store.enqueue(definition.title, {
       total: items.length, location: definition.location ?? 'local', priority: definition.priority ?? 0,
       pauseable: definition.pauseable !== false && items.length > 1,
@@ -407,12 +426,29 @@ export function createEngineScheduler(options: {
       },
       retry: async () => {
         const failures = items.filter(item => item.state === 'failed' && !item.uncertain);
-        if (!job.retryable || !failures.length || job.active || job.cancelled) return null;
-        return submit({ ...definition, title: `${definition.title} — retry failed`, items: failures.map(item => item.input) });
+        if (!job.retryable || !failures.length || jobs.has(job.id) || job.cancelled || retryStarted) return null;
+        // An uncertain checkpoint cannot safely be replayed, including as part
+        // of the original recovery fingerprint.
+        if (recovery && items.some(item => item.uncertain)) return null;
+        retryStarted = true;
+        try {
+          // A journal belongs to the complete original batch. Reusing its key
+          // with a subset changes the fingerprint and destroys restart safety.
+          // Reverify every completed destination and resume only missing items.
+          const next = await submit({ ...definition, snapshot,
+            title: `${definition.title} — retry failed`,
+            items: recovery ? items.map(item => item.input) : failures.map(item => item.input) });
+          failedJobs.delete(job.id);
+          return next;
+        } catch (error) {
+          retryStarted = false;
+          throw error;
+        }
       },
       finish: result => {
         if (!jobs.has(handle.id)) return;
         jobs.delete(handle.id);
+        if (recoveryKey !== undefined) activeRecoveryKeys.delete(recoveryKey);
         if (result === 'failed') {
           failedJobs.set(handle.id, job);
           while (failedJobs.size > 5) failedJobs.delete(failedJobs.keys().next().value!);
@@ -473,7 +509,7 @@ export function createEngineScheduler(options: {
     cancel: (id: number) => store.cancel(id),
     canRetryFailed: (id: number) => {
       const job = jobs.get(id) ?? failedJobs.get(id);
-      return Boolean(job?.retryable && job.items.some(item => item.state === 'failed' && !item.uncertain));
+      return Boolean(job?.retryable && !jobs.has(id) && job.items.some(item => item.state === 'failed' && !item.uncertain));
     },
     retryFailed: async (id: number) => {
       const job = jobs.get(id) ?? failedJobs.get(id);
