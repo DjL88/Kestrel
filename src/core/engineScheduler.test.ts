@@ -278,3 +278,53 @@ test('ambiguous browser or non-exclusive writes never offer a retry button', asy
   assert.equal(scheduler.canRetryFailed(ticket.taskId), false);
   assert.equal(await scheduler.retryFailed(ticket.taskId), null);
 });
+
+test('journal retry retains original batch identity and never repeats verified saves', async () => {
+  const { scheduler } = build();
+  const journal = new Map<string,string>();
+  const saved = new Set<number>();
+  const calls: number[] = [];
+  let fail = true;
+  const def = batch('Five exports',5,async n => {
+    calls.push(n);
+    if (n === 3 && fail) throw Error('Temporary failure');
+    saved.add(n);
+  },{recovery:{key:'five',journal:{getItem:k=>journal.get(k)??null,setItem:(k,v)=>{journal.set(k,v);}},verifyCompleted:async n=>saved.has(n)}});
+  const first = await scheduler.submit(def);
+  assert.equal(await first.finished,'failed');
+  fail = false;
+  const [retry, duplicate] = await Promise.all([first.retryFailed(),first.retryFailed()]);
+  assert.ok(retry);
+  assert.equal(duplicate,null);
+  assert.equal(await retry.finished,'done');
+  assert.deepEqual(calls,[1,2,3,4,5,3]);
+  const restarted = await build().scheduler.submit(def);
+  assert.equal(await restarted.finished,'done');
+  assert.deepEqual(calls,[1,2,3,4,5,3]);
+});
+
+test('duplicate recovery submission is rejected while initial destination verification waits', async () => {
+  const {scheduler} = build();
+  const journal = new Map<string,string>();
+  const adapter = {getItem:(k:string)=>journal.get(k)??null,setItem:(k:string,v:string)=>{journal.set(k,v);}};
+  let release!:()=>void;
+  const gate = new Promise<void>(r=>{release=r;});
+  const def = batch('Saved photo',1,async()=>{}, {recovery:{key:'same',journal:adapter,verifyCompleted:async()=>true}});
+  assert.equal(await (await scheduler.submit(def)).finished,'done');
+  const resuming = scheduler.submit({...def,recovery:{...def.recovery!,verifyCompleted:async()=>{await gate;return true;}}});
+  await assert.rejects(()=>scheduler.submit(def),/already active/);
+  release();
+  assert.equal(await (await resuming).finished,'done');
+});
+
+test('invalid recovery journal identities fail closed and release the reservation', async () => {
+  const {scheduler} = build();
+  const journal = new Map<string,string>();
+  const def = batch('Export',1,async()=>{}, {recovery:{key:'corrupt',journal:{getItem:k=>journal.get(k)??null,setItem:(k,v)=>{journal.set(k,v);}},verifyCompleted:async()=>true}});
+  assert.equal(await (await scheduler.submit(def)).finished,'done');
+  const previous = journal.get('corrupt')!;
+  journal.set('corrupt',JSON.stringify({...JSON.parse(previous),completed:['unknown']}));
+  await assert.rejects(()=>scheduler.submit(def),/does not match/);
+  journal.set('corrupt',previous);
+  assert.equal(await (await scheduler.submit(def)).finished,'done');
+});
