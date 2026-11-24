@@ -854,44 +854,53 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const jobKey = JSON.stringify([project.shoot.id, photoId]);
     if (maskInFlight.current.has(jobKey)) return;
     maskInFlight.current.add(jobKey);
-    const task = tasks.start(type === 'subject' ? 'Finding the subject' : 'Finding the background');
-    try {
-      const image = await loadExportSource(frame, provider.current!);
-      const framing = frame.framing ?? DEFAULT_FRAMING;
-      const { width, height } = framedSize(image.naturalWidth, image.naturalHeight, framing);
-      const framed = document.createElement('canvas');
-      drawFramedPhoto(image, framed, framing, { scale: Math.min(1, GUIDED_RENDER_EDGE / Math.max(width, height)) });
-      const { grid, assessment, detail, boxFinding } = await detectSubjectGuided(framed);
-      if (!assessment.usable) { task.finish('No clear subject'); setNotice(assessment.reason); return; }
-      const mask = { ...createSubjectMask(newId(), grid, framingKey(framing), assessment.confidence, detail), invert: type === 'background', feather: 0.5 };
-      const latest = stateRef.current;
-      if (!latest || !subjectMaskTarget(latest, project.shoot.id, frame)) {
-        task.finish('Photo or editing context changed');
-        setNotice('The mask was discarded because the photo changed or its layers are full. Try detecting the subject again.');
-        return;
-      }
-      const at = Date.now();
-      mutate(current => commitSubjectMask(current, project.shoot.id, frame, mask, at));
-      task.finish(assessment.reason);
-      // Advisory only: the segmentation model's own usability check above is the sole gate on creating this
-      // mask, same as before - this never blocks or changes the mask. When the guided path actually steered
-      // it with a detector box, additionally run that box through this capability's real trust gate
-      // (autoCull.ts's judgeSubject, the same score/size/sharpness logic engine/subjectDetectAction.ts uses
-      // for exactly this question), and fold its verdict into the notice so a low-confidence find is said
-      // plainly rather than only ever reading "Added". `judgeSubject`'s decision is cull vocabulary (keep a
-      // photo vs. not), re-read here only for its confidence word, never as a reason to discard a mask.
-      // Named "detector" confidence to keep it distinct from `assessment.confidence` above (the outline's
-      // own edge-clarity reading, already folded into the stored mask) - the two measure different things.
-      const trustNote = boxFinding
-        ? `, ${judgeSubject({ label: boxFinding.detection.label, score: boxFinding.detection.score, size: Math.max(boxFinding.detection.box.w, boxFinding.detection.box.h), sharpness: boxFinding.sharpness }).confidence}-confidence detection`
-        : '';
-      setNotice(`Added the ${type} mask${trustNote}. It changes nothing until you move one of its sliders.`);
-    } catch (reason) {
-      const message = reason instanceof Error ? reason.message : 'Could not find the subject.';
-      task.fail(message); setNotice(message);
-    } finally {
-      maskInFlight.current.delete(jobKey);
-    }
+    // Subject and background detection share the GPU queue with export and
+    // denoise. This one-photo job cannot pause mid-model; Cancel prevents its
+    // eventual result from changing the current photograph.
+    void engineScheduler.submit({
+      title: type === 'subject' ? 'Finding the subject' : 'Finding the background',
+      kind: 'mask', resource: 'gpu', priority: 18,
+      pauseable: false, items: [{ id: photoId, name: frame.filename }],
+      snapshot: { projectId: project.shoot.id, photoId, framing: frame.framing },
+      itemId: item => item.id, itemLabel: item => item.name,
+      runItem: async (_, __, ctx) => {
+        ctx.stage('Detecting subject edges on this device');
+        const image = await loadExportSource(frame, provider.current!);
+        ctx.checkCancelled();
+        const framing = frame.framing ?? DEFAULT_FRAMING;
+        const { width, height } = framedSize(image.naturalWidth, image.naturalHeight, framing);
+        const framed = document.createElement('canvas');
+        drawFramedPhoto(image, framed, framing, { scale: Math.min(1, GUIDED_RENDER_EDGE / Math.max(width, height)) });
+        const { grid, assessment, detail, boxFinding } = await detectSubjectGuided(framed);
+        ctx.checkCancelled();
+        if (!assessment.usable) {
+          ctx.commitIfCurrent(() => setNotice(assessment.reason));
+          return;
+        }
+        const mask = {
+          ...createSubjectMask(newId(), grid, framingKey(framing), assessment.confidence, detail),
+          invert: type === 'background', feather: 0.5,
+        };
+        const latest = stateRef.current;
+        if (!latest || !subjectMaskTarget(latest, project.shoot.id, frame)) {
+          ctx.commitIfCurrent(() => setNotice('The mask was discarded because the photo changed or its layers are full. Try detecting the subject again.'));
+          return;
+        }
+        const at = Date.now();
+        ctx.stage('Saving a reversible mask');
+        ctx.commitIfCurrent(() => mutate(current =>
+          ctx.signal.aborted ? current : commitSubjectMask(current, project.shoot.id, frame, mask, at)));
+        const trustNote = boxFinding
+          ? `, ${judgeSubject({ label: boxFinding.detection.label, score: boxFinding.detection.score,
+              size: Math.max(boxFinding.detection.box.w, boxFinding.detection.box.h),
+              sharpness: boxFinding.sharpness }).confidence}-confidence detection`
+          : '';
+        ctx.commitIfCurrent(() => setNotice(`Added the ${type} mask${trustNote}. It changes nothing until you move one of its sliders.`));
+      },
+    }).then(ticket => ticket.finished).then(result => {
+      if (result === 'failed') setNotice('Subject detection failed. Open Tasks for details.');
+    }).catch(reason => setNotice(reason instanceof Error ? reason.message : 'Could not queue subject detection.'))
+      .finally(() => { maskInFlight.current.delete(jobKey); });
   }, [editFrames, mutate]);
   const editMasks = useCallback((photoId: string, change: (masks: ReturnType<typeof removeMask>) => ReturnType<typeof removeMask>) =>
     editFrames([photoId], (frame) => ({ ...(frame.edit ?? DEFAULT_EDIT), masks: change(frame.edit?.masks ?? []) })), [editFrames]);
