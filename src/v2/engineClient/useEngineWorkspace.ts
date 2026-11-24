@@ -1571,11 +1571,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     },
     updateSettings: (patch) => setSavedUi((current) => { const next: SavedUi = { ...current, settings: { ...current.settings, ...patch } }; saveUi(next); return next; }),
     setAssistMode: (mode) => setSavedUi((current) => { const next: SavedUi = { ...current, assistMode: mode, settings: { ...current.settings, defaultAssistMode: mode } }; saveUi(next); return next; }),
-    importWatermarkImage: async () => {
+    importWatermarkImage: async (usage) => {
       const picked = await pickImageFile();
       if (!picked) return null;
       try {
-        const entry = await importWatermark(picked, picked.name.replace(/\.[^.]+$/, ''), `wm-${newId().slice(0, 8)}`);
+        const entry = await importWatermark(picked, picked.name.replace(/\.[^.]+$/, ''), `wm-${newId().slice(0, 8)}`, usage);
         updateWatermarks([...watermarkStore, entry]);
         return entry.id;
       } catch (error) { setNotice(error instanceof Error ? error.message : 'That image could not be added.'); return null; }
