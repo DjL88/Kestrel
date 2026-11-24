@@ -28,6 +28,8 @@ export const it: AreaTranslation<typeof source> = {
     label19: 'Incolla impostazioni',
     label20: 'Applica Look',
     label21: 'Rimuovi',
+    label22: 'Scegli un Look…',
+    label23: 'Esporta selezione…',
   },
   brandName: 'InFlight',
   collage: {

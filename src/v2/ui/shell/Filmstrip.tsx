@@ -710,7 +710,7 @@ export default function Filmstrip({
               }}
               className="mt-1 h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2 text-xs text-[var(--text-primary)]"
             >
-              <option value="" disabled>Choose a Look…</option>
+              <option value="" disabled>{STRINGS.filmstripLabels.label22}</option>
               {looks.map((look) => <option key={look.id} value={look.id}>{look.name}</option>)}
             </select>
           </label>
@@ -724,7 +724,7 @@ export default function Filmstrip({
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
           >
             <BrandIcon name="export" size={14} />
-            <span>Export selected…</span>
+            <span>{STRINGS.filmstripLabels.label23}</span>
           </button>
         </div>
         );

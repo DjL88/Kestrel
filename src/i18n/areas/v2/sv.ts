@@ -28,6 +28,8 @@ export const sv: AreaTranslation<typeof source> = {
     label19: 'Klistra in inställningar',
     label20: 'Använd Look',
     label21: 'Ta bort',
+    label22: 'Välj en Look…',
+    label23: 'Exportera markerade…',
   },
   brandName: 'InFlight',
   collage: {
