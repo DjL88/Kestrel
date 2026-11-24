@@ -262,3 +262,22 @@ test('late cancellation cannot contradict a successful durable export commit', a
   assert.equal(commits, 1);
   assert.equal(store.list()[0].state, 'done');
 });
+
+test('the legacy export lane never describes a waiting save as running', async () => {
+  const store = createTaskStore();
+  const queue = createExportBatchQueue(store);
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const adapter = { async render(item: { filename: string }) {
+    if (item.filename === 'one.jpg') await gate;
+    return item.filename;
+  }, async save() {} };
+  const first = queue.enqueue({title:'First save',items:[photos[0]],recipe:{}}, adapter);
+  const second = queue.enqueue({title:'Second save',items:[photos[1]],recipe:{}}, adapter);
+  assert.equal(store.list()[0].state, 'running');
+  assert.equal(store.list()[1].state, 'queued');
+  release();
+  assert.equal(await first.done, 'completed');
+  assert.equal(await second.done, 'completed');
+  assert.equal(store.list().find(task => task.title === 'Second save')?.state, 'done');
+});
