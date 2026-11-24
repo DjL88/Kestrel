@@ -4,7 +4,7 @@ async function collageWithPhotos(page: Page) {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: 'New project' }).first().click();
-  await page.getByText('Collage / album').click();
+  await page.getByText('Collage or album').click();
   await page.getByLabel(/name/i).first().fill('Collage composing');
   await page.getByRole('dialog').getByRole('button', { name: /create project/i }).last().click();
   const pngs = await page.evaluate(() => ['#2f4a63', '#7a4a2a', '#3d6b3d'].map((colour, i) => {
