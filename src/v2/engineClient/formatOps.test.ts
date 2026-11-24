@@ -194,3 +194,17 @@ test('3:2 is a separate optional format', () => {
   const enabled = toggleFormat(undefined, 'format-3x2', false);
   assert.equal(applyFormats(defaults, enabled, { width: 4000, height: 3000 }).find((size) => size.id === 'format-3x2')?.enabled, true);
 });
+
+test('a colliding custom ID cannot replace or silently discard an existing format on reopen', () => {
+  const existing = addFormat(undefined, 'Original print', 2400, 3000, 'custom-abc')!;
+  assert.equal(addFormat(existing, 'Other print', 3000, 2400, 'custom-abc'), undefined);
+  assert.deepEqual(readFormats(JSON.parse(JSON.stringify(existing))).custom, existing.custom);
+});
+test('malformed persisted output dimensions are not coerced from booleans or strings', () => {
+  const formats = readFormats({ custom: [
+    { id: 'custom-bad', width: true, height: 1000 },
+    { id: 'custom-str', width: '1000', height: 1000 },
+    { id: 'custom-good', width: 1000, height: 1000 },
+  ] });
+  assert.deepEqual(formats.custom.map(format => format.id), ['custom-good']);
+});
