@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { WatermarkPreset } from '../contract';
+import type { WatermarkPreset, WatermarkUsage } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 
@@ -7,7 +7,7 @@ interface WatermarkLibraryProps {
   presets: WatermarkPreset[];
   selectedId: string;
   onSelect: (presetId: string) => void;
-  onImport: () => Promise<string | null>;
+  onImport: (usage: WatermarkUsage) => Promise<string | null>;
   onCutOut: (presetId: string, slot: 'dark' | 'light', tolerance: number, commit: boolean) => Promise<{ url: string; tooMuch: boolean } | null>;
   onMakeVariant: (presetId: string, slot: 'dark' | 'light') => Promise<void>;
   onDelete: (presetId: string) => void;
@@ -38,6 +38,8 @@ export default function WatermarkLibrary({ presets, selectedId, onSelect, onImpo
   const [tolerance, setTolerance] = useState(25);
   const [preview, setPreview] = useState<{ url: string; tooMuch: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [usage, setUsage] = useState<WatermarkUsage>('auto');
+  const [importing, setImporting] = useState(false);
 
   const preparePreview = async (id: string, slot: 'dark' | 'light', value: number) => {
     setBusy(true);
@@ -103,7 +105,21 @@ export default function WatermarkLibrary({ presets, selectedId, onSelect, onImpo
           );
         })}
       </div>
-      <button type="button" onClick={async () => { const id = await onImport(); if (id) onSelect(id); }}
+      <label className="block space-y-1 text-xs text-[var(--text-secondary)]">
+        <span>{STRINGS.watermarks.usagePrompt}</span>
+        <select aria-label={STRINGS.watermarks.usageLabel} value={usage} onChange={(event) => setUsage(event.target.value as WatermarkUsage)}
+          className="w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2 py-2 text-xs text-[var(--text-primary)]">
+          <option value="auto">{STRINGS.watermarks.usageAuto}</option>
+          <option value="dark">{STRINGS.watermarks.usageDark}</option>
+          <option value="light">{STRINGS.watermarks.usageLight}</option>
+          <option value="both">{STRINGS.watermarks.usageBoth}</option>
+        </select>
+      </label>
+      <button type="button" disabled={importing} onClick={async () => {
+        setImporting(true);
+        try { const id = await onImport(usage); if (id) onSelect(id); }
+        finally { setImporting(false); }
+      }}
         className="flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
         <BrandIcon name="plus" size={13} />{STRINGS.watermarks.add}
       </button>

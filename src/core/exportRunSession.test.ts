@@ -51,3 +51,20 @@ test('a write confirmed while stopping still counts as saved', async () => {
   await job.save(file(), 'Instagram', controller.signal);
   assert.equal(controller.signal.aborted, true);
 });
+
+test('one export run refuses duplicate and case-equivalent destinations', async () => {
+  const connector = memoryConnector();
+  const run = createExportRunSession(connector, when, first);
+  const signal = new AbortController().signal;
+  await run.save(file(), 'Instagram', signal);
+  await assert.rejects(run.save(file('KINGFISHER.JPG'), 'Instagram', signal), /already attempted/);
+  assert.equal(connector.files.size, 1);
+});
+test('an uncertain failed PUT cannot be blindly repeated', async () => {
+  let calls = 0;
+  const run = createExportRunSession({ put: async () => { calls++; throw new Error('connection lost'); } }, when, first);
+  const signal = new AbortController().signal;
+  await assert.rejects(run.save(file(), '', signal), /connection lost/);
+  await assert.rejects(run.save(file(), '', signal), /already attempted/);
+  assert.equal(calls, 1);
+});

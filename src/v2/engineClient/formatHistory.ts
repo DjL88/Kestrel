@@ -33,7 +33,7 @@ export function readFormatHistory(raw: unknown): FormatHistory {
   const v = raw as Record<string, unknown>;
   if (v.version !== 1 || !Array.isArray(v.events)) return { version: 1, events: [] };
   const events: FormatHistoryEvent[] = [];
-  for (const rawEvent of v.events.slice(-MAX_FORMAT_HISTORY)) {
+  for (const rawEvent of v.events) {
     if (!rawEvent || typeof rawEvent !== 'object' || Array.isArray(rawEvent)) continue;
     const e = rawEvent as Record<string, unknown>;
     if (!validId(e.formatId) || !eventKinds.has(e.kind as FormatEventKind) || !validTime(e.at)) continue;
@@ -50,7 +50,7 @@ export function readFormatHistory(raw: unknown): FormatHistory {
     }
     events.push(event);
   }
-  return { version: 1, events };
+  return { version: 1, events: trimFormatHistory(events) };
 }
 
 /**

@@ -2,6 +2,7 @@ import { stepFrom, swipeIntent } from '../utils/swipe';
 import { cropHandleZoom, type CropHandleSide } from '../utils/cropHandleZoom';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { nextCanvasZoom, zoomAnchorScroll } from '../utils/canvasTrackpadZoom';
+import { maxCanvasPixels } from '../../../core/exportLimits';
 import type {
   CropTransform,
   EditGroup,
@@ -26,7 +27,7 @@ import {
   cropPanLimits,
   clamp,
   detectOverlayOverflow,
-  effectiveOutputSize,
+  effectiveUpscaleOutputSize,
   formatOverlayRowText,
   getActiveGroup,
   snapOverlayPosition,
@@ -37,6 +38,7 @@ import {
 interface CanvasProps {
   /** Engine-supplied renderer; falls back to a plain image. */
   PhotoSurface?: React.ComponentType<PhotoSurfaceProps>;
+  maskGuideId?: string;
   photo: Photo | null;
   activeSizeId: string;
   selectedSizeIds: string[];
@@ -80,6 +82,7 @@ const ZOOM_BAR_STORAGE_KEY = 'inflight.v2.zoomBarOffset';
 
 export default function Canvas({
   PhotoSurface,
+  maskGuideId,
   photo,
   activeSizeId,
   selectedSizeIds,
@@ -326,7 +329,7 @@ export default function Canvas({
   if (!photo) {
     return (
       <main className="flex flex-1 items-center justify-center bg-[var(--bg-canvas)] text-sm text-[var(--text-muted)]">
-        Select a photograph from the filmstrip to begin editing.
+        {STRINGS.canvas.selectPhoto}
       </main>
     );
   }
@@ -924,7 +927,7 @@ export default function Canvas({
                   <button
                     key={place}
                     type="button"
-                    aria-label="Resize text"
+                    aria-label={STRINGS.canvas.resizeText}
                     onPointerDown={(e) => handleFramePointerDown(e, 'resize-text', size, e.currentTarget.closest('[data-overlay]')?.parentElement?.parentElement)}
                     className={`pointer-events-auto absolute z-30 h-2.5 w-2.5 rounded-sm border border-white bg-[var(--brand-accent)] opacity-0 shadow hover:opacity-100 group-hover/overlay:opacity-100 focus-visible:opacity-100 ${place}`}
                   />
@@ -994,7 +997,7 @@ export default function Canvas({
                   <button
                     key={place}
                     type="button"
-                    aria-label="Resize watermark"
+                    aria-label={STRINGS.canvas.resizeWatermark}
                     onPointerDown={(e) => handleFramePointerDown(e, 'resize-watermark', size, e.currentTarget.closest('[data-overlay]')?.parentElement?.parentElement)}
                     className={`pointer-events-auto absolute z-30 h-2.5 w-2.5 rounded-sm border border-white bg-[var(--brand-accent)] opacity-0 shadow hover:opacity-100 group-hover/overlay:opacity-100 focus-visible:opacity-100 ${place}`}
                   />
@@ -1022,7 +1025,7 @@ export default function Canvas({
   /** The photo as pixels: the engine's renderer when there is one, otherwise a plain image with the CSS approximation. */
   const renderSurface = (variant: 'edited' | 'original', alt: string, style: React.CSSProperties, filter: string) =>
     PhotoSurface ? (
-      <PhotoSurface photoId={photo.id} variant={variant} lookPreview={variant === 'edited' ? hoveredLook?.recipeDelta : undefined} alt={alt} className="h-full w-full" style={style} />
+      <PhotoSurface photoId={photo.id} variant={variant} maskGuideId={variant === 'edited' && alt && !compareMode ? maskGuideId : undefined} lookPreview={variant === 'edited' ? hoveredLook?.recipeDelta : undefined} alt={alt} className="h-full w-full" style={style} />
     ) : (
       <img src={photo.previewUrl} alt={alt} referrerPolicy="no-referrer" draggable={false}
         className="h-full w-full object-cover" style={{ ...style, filter }} />
@@ -1065,8 +1068,9 @@ export default function Canvas({
     const { frameW, frameH } = artboardFrame(activeSize);
     return Math.max(frameW / photo.pixelSize.width, frameH / photo.pixelSize.height);
   })();
-  // The format's real output size: never more pixels than the picture has.
-  const output = effectiveOutputSize(activeSize, photo.pixelSize);
+  // Match the export's source cap and device-bounded upscale admission.
+  const pixelLimit = maxCanvasPixels(typeof navigator === 'undefined' ? { userAgent: '' } : navigator);
+  const output = effectiveUpscaleOutputSize(activeSize, photo.pixelSize, activeSize.kind === 'photo' ? group.recipe.upscaleFactor : 1, pixelLimit);
   const actualPercent = fitScale ? Math.round(fitScale * canvasZoom * 100) : Math.round(canvasZoom * 100);
   const toggleActualSize = () => {
     if (!fitScale) { onSetZoom(1); return; }
@@ -1205,6 +1209,9 @@ export default function Canvas({
           <span className="font-mono tabular-nums">
             {output.width}×{output.height} ({activeSize.ratioLabel})
           </span>
+          {output.factor > 1 && (
+            <span data-testid="output-upscale-factor" className="rounded border border-[var(--border-default)] px-1.5 py-0.5 font-mono tabular-nums">{output.factor}×</span>
+          )}
           {output.capped && (
             <span
               role="status"
@@ -1270,25 +1277,25 @@ export default function Canvas({
                 ))}
                 <button
                   type="button"
-                  aria-label="Drag top crop edge"
+                  aria-label={STRINGS.canvas.dragTopEdge}
                   onPointerDown={(e) => handleFramePointerDown(e, 'scale-top', activeSize, e.currentTarget.closest('[data-testid="crop-ghost"]') as HTMLElement)}
                   className="pointer-events-auto absolute left-1/2 top-1 z-20 h-1.5 w-12 -translate-x-1/2 cursor-ns-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
                 />
                 <button
                   type="button"
-                  aria-label="Drag bottom crop edge"
+                  aria-label={STRINGS.canvas.dragBottomEdge}
                   onPointerDown={(e) => handleFramePointerDown(e, 'scale-bottom', activeSize, e.currentTarget.closest('[data-testid="crop-ghost"]') as HTMLElement)}
                   className="pointer-events-auto absolute bottom-1 left-1/2 z-20 h-1.5 w-12 -translate-x-1/2 cursor-ns-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
                 />
                 <button
                   type="button"
-                  aria-label="Drag left crop edge"
+                  aria-label={STRINGS.canvas.dragLeftEdge}
                   onPointerDown={(e) => handleFramePointerDown(e, 'scale-left', activeSize, e.currentTarget.closest('[data-testid="crop-ghost"]') as HTMLElement)}
                   className="pointer-events-auto absolute left-1 top-1/2 z-20 h-12 w-1.5 -translate-y-1/2 cursor-ew-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
                 />
                 <button
                   type="button"
-                  aria-label="Drag right crop edge"
+                  aria-label={STRINGS.canvas.dragRightEdge}
                   onPointerDown={(e) => handleFramePointerDown(e, 'scale-right', activeSize, e.currentTarget.closest('[data-testid="crop-ghost"]') as HTMLElement)}
                   className="pointer-events-auto absolute right-1 top-1/2 z-20 h-12 w-1.5 -translate-y-1/2 cursor-ew-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
                 />
@@ -1306,7 +1313,7 @@ export default function Canvas({
               renderSurface(holdingOriginal ? 'original' : 'edited', holdingOriginal ? `${photo.title} original` : photo.title, { transform: buildImageTransform(activeSize.crop), clipPath: cropClip }, holdingOriginal ? 'none' : filterCss)
             ))}
             {holdingOriginal && (
-              <span role="status" className="pointer-events-none absolute left-2 top-2 z-30 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[0.6875rem] font-semibold text-white">Showing the original. Let go to see your edit.</span>
+              <span role="status" className="pointer-events-none absolute left-2 top-2 z-30 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[0.6875rem] font-semibold text-white">{STRINGS.canvas.showingOriginal}</span>
             )}
 
             </div>
@@ -1321,7 +1328,7 @@ export default function Canvas({
                   <BrandIcon name="focal-point" size={20} />
                 </div>
                 <span className="mt-1 block rounded bg-[var(--bg-scrim)] px-1.5 py-0.5 text-center text-[0.625rem] font-medium text-white whitespace-nowrap">
-                  {photo.videoZoom.direction === 'in' ? 'Zoom in' : 'Zoom out'} · {photo.videoZoom.durationSec}s
+                  {photo.videoZoom.direction === 'in' ? STRINGS.canvas.zoomIn : STRINGS.canvas.zoomOut} · {photo.videoZoom.durationSec}s
                 </span>
               </div>
             )}
@@ -1490,12 +1497,12 @@ export default function Canvas({
               }`}
             >
               <BrandIcon name="image" size={13} />
-              <span>Single</span>
+              <span>{STRINGS.canvas.singleView}</span>
             </button>
             <button
               type="button"
               onClick={() => onSetLayoutMode('all-formats')}
-              title="Drag artboard title bars to arrange · Ctrl/Cmd-click formats to edit as a group · Double-click to focus"
+              title={STRINGS.canvas.boardArrangeTitle}
               className={`inline-flex h-7 items-center gap-1.5 rounded px-2 text-[0.6875rem] font-medium transition-colors whitespace-nowrap ${
                 canvasLayoutMode === 'all-formats'
                   ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]'
@@ -1514,7 +1521,7 @@ export default function Canvas({
                 onClick={() => onSelectAllSizes(photo.id, enabledSizes.map((size) => size.id))}
                 className="h-7 rounded-[var(--radius-sm)] px-2 text-[0.6875rem] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] whitespace-nowrap"
               >
-                Select all
+                {STRINGS.canvas.selectAllFormats}
               </button>
               <button
                 type="button"
@@ -1526,7 +1533,7 @@ export default function Canvas({
                 }}
                 className="h-7 rounded-[var(--radius-sm)] px-2 text-[0.6875rem] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] whitespace-nowrap"
               >
-                Tidy board
+                {STRINGS.canvas.tidyBoard}
               </button>
             </>
           )}
@@ -1555,7 +1562,7 @@ export default function Canvas({
         {selectedSizeIds.length > 0 && (
           <div
             role="toolbar"
-            aria-label="Selected format actions"
+            aria-label={STRINGS.canvas.selectedFormatActions}
             data-testid="selected-format-toolbar"
             className="flex min-w-0 items-center gap-1 overflow-x-auto inflight-scroll"
           >
@@ -1660,7 +1667,7 @@ export default function Canvas({
       >
         {hoveredLook && (
           <div className="pointer-events-none absolute left-4 top-4 z-30 rounded-[var(--radius-sm)] border border-[var(--brand-accent-border)] bg-[var(--bg-surface-raised)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] shadow">
-            Previewing look: <span className="text-[var(--brand-accent)]">{hoveredLook.name}</span>
+            {STRINGS.canvas.previewingLook} <span className="text-[var(--brand-accent)]">{hoveredLook.name}</span>
           </div>
         )}
 
@@ -1682,7 +1689,7 @@ export default function Canvas({
 
         {/* BottomRightCluster: Zoom controls, Grid View toggle, and ONE Full Screen button */}
         <div
-          aria-label="Canvas viewport controls"
+          aria-label={STRINGS.canvas.viewportControls}
           data-capture-ignore
           ref={zoomBarRef}
           role="toolbar"
@@ -1713,7 +1720,7 @@ export default function Canvas({
           </button>
           <button
             type="button"
-            aria-label="Zoom out"
+            aria-label={STRINGS.canvas.zoomOut}
             onClick={() => onSetZoom(canvasZoom / 1.25)}
             className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
@@ -1731,7 +1738,7 @@ export default function Canvas({
           </button>
           <button
             type="button"
-            aria-label="Zoom in"
+            aria-label={STRINGS.canvas.zoomIn}
             onClick={() => onSetZoom(canvasZoom * 1.25)}
             className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
@@ -1755,8 +1762,8 @@ export default function Canvas({
 
           <button
             type="button"
-            title="Grab screenshot: saves what you see on the canvas, with the edit, crop, overlays and grid"
-            aria-label="Grab screenshot"
+            title={STRINGS.canvas.screenshotTitle}
+            aria-label={STRINGS.canvas.screenshot}
             data-testid="grab-screenshot"
             onClick={() => void grabScreenshot()}
             className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"

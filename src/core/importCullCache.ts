@@ -16,6 +16,7 @@ interface CacheEntry {
   stableKey: string;
   size: number;
   modified: number;
+  originalSha256?: string;
   evidence: CullPreviewEvidence;
 }
 
@@ -42,7 +43,7 @@ export class ImportCullCache {
       typeof info.lastModified === 'number' && Number.isFinite(info.lastModified) && info.lastModified >= 0;
   }
 
-  put(frame: Pick<PhotoFrame, 'id' | 'stableKey'>, info: OriginalVersion | undefined, evidence: CullPreviewEvidence): void {
+  put(frame: Pick<PhotoFrame, 'id' | 'stableKey' | 'originalSha256'>, info: OriginalVersion | undefined, evidence: CullPreviewEvidence): void {
     if (!this.healthy || !this.validVersion(info) || this.capacity < 1 ||
         !frame.id.startsWith(`${this.importId}-`) || !frame.stableKey ||
         evidence.result.frameId !== frame.id ||
@@ -55,13 +56,13 @@ export class ImportCullCache {
     }
     this.records.set(frame.id, {
       id: frame.id, stableKey: frame.stableKey, size: info.size,
-      modified: info.lastModified, evidence,
+      modified: info.lastModified, originalSha256: frame.originalSha256, evidence,
     });
   }
 
   get(
     projectId: string,
-    frame: Pick<PhotoFrame, 'id' | 'stableKey'>,
+    frame: Pick<PhotoFrame, 'id' | 'stableKey' | 'originalSha256'>,
     info: OriginalVersion | undefined,
     modelHash: string,
   ): CullPreviewEvidence | undefined {
@@ -69,7 +70,8 @@ export class ImportCullCache {
         !this.validVersion(info)) return undefined;
     const entry = this.records.get(frame.id);
     if (!entry || entry.stableKey !== frame.stableKey ||
-        entry.size !== info.size || entry.modified !== info.lastModified) return undefined;
+        entry.size !== info.size || entry.modified !== info.lastModified ||
+        entry.originalSha256 !== frame.originalSha256) return undefined;
     return entry.evidence;
   }
 

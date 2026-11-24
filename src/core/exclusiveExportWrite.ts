@@ -31,16 +31,20 @@ export async function writeExclusiveBlob(
   // existed before this call.
   signal?.throwIfAborted();
   const handle = await openExclusive();
-  const reader = blob.stream().getReader();
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  let received = 0;
   let closed = false;
   let complete = false;
   try {
+    reader = blob.stream().getReader();
     while (true) {
       signal?.throwIfAborted();
       const { done, value } = await reader.read();
       signal?.throwIfAborted();
       if (done) break;
       if (!(value instanceof Uint8Array)) throw new Error('The export stream returned invalid bytes.');
+      received += value.byteLength;
+      if (received > blob.size) throw new Error('Export stream exceeded its expected byte length.');
       let offset = 0;
       while (offset < value.byteLength) {
         signal?.throwIfAborted();
@@ -52,15 +56,16 @@ export async function writeExclusiveBlob(
       }
     }
     signal?.throwIfAborted();
+    if (received !== blob.size) throw new Error('Export stream ended before all expected bytes were written.');
     await handle.close();
     closed = true;
     complete = true;
   } finally {
     if (!complete) {
-      try { await reader.cancel(); } catch { /* The original write failure still matters. */ }
+      try { await reader?.cancel(); } catch { /* The original write failure still matters. */ }
       if (!closed) { try { await handle.close(); } catch { /* Best effort close. */ } }
       try { await removeIncomplete(); } catch { /* Never hide the original write error. */ }
     }
-    reader.releaseLock();
+    reader?.releaseLock();
   }
 }

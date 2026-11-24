@@ -37,8 +37,8 @@
 
 <div id="console" hidden>
   <nav class="tabs" aria-label="Console sections">
-    <a href="#overview">Overview</a><a href="#licensees">Licensees and devices</a><a href="#issue">Issue a key</a>
-    <a href="#demo-studio">Demo Studio</a><a href="#switches">Switches</a><a href="#flags">Flags</a><a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#price-review">Price review</a><a href="#audit">Audit log</a>
+    <a href="#overview">Overview</a><a href="#licensees">Licensees and devices</a><a href="#grant">Grant Pro</a><a href="#issue">Issue a key</a>
+    <a href="#demo-studio">Demo Studio</a><a href="#switches">Switches</a><a href="#flags">Flags</a><a href="#monitoring">Monitoring</a><a href="#notifications">Notifications</a><a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#price-review">Price review</a><a href="#audit">Audit log</a>
   </nav>
 
   <section id="overview" class="panel" aria-labelledby="overview-title">
@@ -65,13 +65,28 @@
     </form>
   </section>
 
+  <section id="grant" class="panel" aria-labelledby="grant-title">
+    <h2 id="grant-title">Grant free Pro access by email</h2>
+    <p class="muted">No licence key or payment is needed. Access attaches to the recipient's verified account when they sign in with this address. Repeating a grant for the same person and major version does not create another licence.</p>
+    <form id="grant-form">
+      <label>Recipient address <input name="email" type="email" maxlength="254" autocomplete="off" required></label>
+      <label>Major version <input name="majorVersion" type="number" min="1" max="99" value="1" required inputmode="numeric"></label>
+      <label>Grant note (optional) <input name="note" maxlength="200" autocomplete="off"></label>
+      <label>Grant expiry (days; leave empty for no expiry) <input name="validDays" type="number" min="1" max="3650" inputmode="numeric"></label>
+      <label class="check"><input name="managedAi" type="checkbox"> Include the online helper allowance</label>
+      <button>Grant free Pro</button>
+    </form>
+    <p id="grant-result" aria-live="polite"></p>
+  </section>
+
   <section id="issue" class="panel" aria-labelledby="issue-title">
     <h2 id="issue-title">Issue a free Pro tester or gift key</h2>
+    <p id="issue-unavailable" class="muted" hidden>Key issuing is disabled on this server because a licence signing key is not configured. Use Grant free Pro above for account-based access instead.</p>
     <form id="issue-form">
       <label>Note (who it is for; only you see this) <input name="note" maxlength="200" autocomplete="off"></label>
       <label>Expires after (days; leave empty for no expiry) <input name="validDays" type="number" min="1" max="3650" inputmode="numeric"></label>
       <label>Devices <input name="maxDevices" type="number" min="1" max="20" value="3" required inputmode="numeric"></label>
-      <label>Account id (optional) <input name="accountId" autocomplete="off" pattern="acc_[A-Za-z0-9_-]+"></label>
+      <label>Account id (optional, starts with acc_; not an email address) <input name="accountId" autocomplete="off" pattern="acc_[A-Za-z0-9_\\-]+" title="Enter an account ID starting with acc_, or leave this empty."></label>
       <label class="check"><input type="checkbox" name="managedAi"> Include the online helper (AI allowance)</label>
       <p class="muted">This is a Pro licence, issued at no charge to a tester or as a gift. Optional expiry is only enforceable when the app checks online; a previously issued signed key can still be used without a connection. Do not issue time-limited keys for access requiring guaranteed offline expiry.</p>
       <button>Issue key</button>
@@ -118,6 +133,45 @@
       </fieldset>
       <div class="row"><button>Save flag</button><button type="button" id="flag-reset" class="quiet">Clear the form</button></div>
     </form>
+  </section>
+
+  <section id="monitoring" class="panel" aria-labelledby="monitoring-title">
+    <h2 id="monitoring-title">Monitoring and alerts</h2>
+    <p><strong>Live monitoring: not connected.</strong> Phone notifications: not configured.</p>
+    <p class="muted">Rehearse proposed alert rules using synthetic examples. This does not query production, send a push notification or record an incident.</p>
+    <div class="scroll"><table>
+      <caption>Proposed starting rules — not active</caption>
+      <thead><tr><th scope="col">Signal</th><th scope="col">Threshold</th></tr></thead>
+      <tbody id="monitoring-rules"></tbody>
+    </table></div>
+    <form id="monitoring-rehearsal">
+      <label>Test scenario
+        <select name="scenario"><option value="normal">Normal traffic</option><option value="surge">Traffic surge</option><option value="outage">API failures</option><option value="budget">Budget exceeded</option></select>
+      </label>
+      <div class="row"><button>Rehearse alert</button><button type="button" id="monitoring-clear" class="quiet">Clear rehearsal</button></div>
+    </form>
+    <p id="monitoring-result" role="status" aria-live="polite">No rehearsal run.</p>
+    <ul id="monitoring-alerts"></ul>
+  </section>
+
+  <section id="notifications" class="panel" aria-labelledby="notification-heading">
+    <h2 id="notification-heading">Notification centre — rehearsal</h2>
+    <p class="muted">Synthetic recipients only. No live delivery, automatic translation or customer data connected.</p>
+    <form id="notification-form">
+      <label>Match inclusion rules <select name="match"><option value="all">All (AND)</option><option value="any">Any (OR)</option></select></label>
+      <label class="check"><input name="allowAll" type="checkbox"> Include all sample devices when no inclusion rule is specified</label>
+      <fieldset><legend>Audience rules — exclusions always win</legend><div id="notification-rules"></div><button type="button" id="notification-add" class="quiet">Add rule</button></fieldset>
+      <p class="muted">Example values: GB, DE, FR, Unknown; Studio A, Studio B, Independent; Pro, Basic; Yes, No; Windows, macOS, iOS, Android, Web; en-GB, de, fr.</p>
+      <label>British English title <input name="sourceTitle" maxlength="120" required></label>
+      <label>British English message <textarea name="sourceBody" maxlength="500" rows="3" required></textarea></label>
+      <label>Preview language <select name="locale"><option value="en-GB">British English</option><option value="en-US">US English</option><option value="en-CA">Canadian English</option><option value="cy">Welsh</option><option value="gd">Scottish Gaelic</option><option value="ga">Irish</option><option value="fr">French</option><option value="de">German</option><option value="es">Spanish</option><option value="nl">Dutch</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="da">Danish</option><option value="sv">Swedish</option><option value="nb">Norwegian</option><option value="fi">Finnish</option><option value="is">Icelandic</option></select></label>
+      <label>Translated title (manual draft) <input name="variantTitle" maxlength="120"></label>
+      <label>Translated message (manual draft) <textarea name="variantBody" maxlength="500" rows="3"></textarea></label>
+      <button>Preview sample recipients and message</button>
+    </form>
+    <p id="notification-result" role="status" aria-live="polite">No preview yet.</p>
+    <div id="notification-preview" hidden><h3 id="notification-title"></h3><p id="notification-body"></p></div>
+    <button type="button" disabled>Send notification — not connected</button>
   </section>
 
   <section id="usage" class="panel" aria-labelledby="usage-title">

@@ -171,7 +171,7 @@ export interface LookPreset {
 
 export interface OverlayTextRow {
   id: string;
-  fields: Array<'camera' | 'lens' | 'aperture' | 'shutter' | 'iso' | 'focalLength' | 'species' | 'custom'>;
+  fields: Array<'camera' | 'lens' | 'aperture' | 'shutter' | 'iso' | 'focalLength' | 'capturedAt' | 'fileFormat' | 'fileSizeMb' | 'dimensions' | 'colourProfile' | 'filename' | 'species' | 'custom'>;
   customText: string;
   fontId: string;
   sizePx: number;
@@ -226,6 +226,8 @@ export interface MaskLayer {
   type: 'subject' | 'sky' | 'background' | 'brush' | 'area' | 'gradient';
   /** Present only for genuine editable oval/gradient masks; never fabricated for detected subjects. */
   geometry?: MaskGeometry;
+  /** Restrict this layer to, or subtract, another layer's saved shape. */
+  limit?: { id: string; mode: 'intersect' | 'subtract' };
   visible: boolean;
   /** Edge softness, 0 to 100. */
   feather: number;
@@ -434,6 +436,8 @@ export interface ExportRequest {
 /** How a photo is drawn. The engine supplies this so the canvas shows real, developed pixels; without it the UI falls back
  * to a plain image with a CSS filter. 'original' is the photo with no edit, 'edited' is with its recipe. */
 export interface PhotoSurfaceProps {
+  /** Editor-only coverage guide, never part of the photo recipe or export. */
+  maskGuideId?: string;
   photoId: string;
   variant: 'edited' | 'original';
   /** Non-destructive live preview of a hovered Look. Never stored or applied to original pixels. */
@@ -595,12 +599,12 @@ export interface WorkspaceActions {
 
   // Overlays (Text & Watermark) & Snapping
   updateOverlay: (photoId: string, patch: Partial<OverlaySettings>) => void;
-  alignOverlaysCleanly: (photoId: string, layout: 'stacked-left' | 'opposite-bottom' | 'centred-pair') => void;
+  alignOverlaysCleanly: (photoId: string, layout: 'stacked-left' | 'stacked-right' | 'opposite-bottom' | 'centred-pair') => void;
   addOverlayRow: (photoId: string) => void;
   updateOverlayRow: (photoId: string, rowId: string, patch: Partial<OverlayTextRow>) => void;
   removeOverlayRow: (photoId: string, rowId: string) => void;
   /** Opens the file picker and adds the chosen image to the watermark library. Resolves to the new watermark's id. */
-  importWatermarkImage: () => Promise<string | null>;
+  importWatermarkImage: (usage?: WatermarkUsage) => Promise<string | null>;
   /** Removes a flat background from a watermark's artwork. With commit false it only previews (a picture on transparency). */
   cutOutWatermark: (presetId: string, slot: 'dark' | 'light', tolerance: number, commit: boolean) => Promise<{ url: string; tooMuch: boolean } | null>;
   /** Makes the missing version (white for dark photos, black for light photos) from the one that exists. */
@@ -620,6 +624,7 @@ export interface WorkspaceActions {
   setMaskEdit: (photoId: string, maskId: string, key: string, value: number) => void;
   setMaskFeather: (photoId: string, maskId: string, percent: number) => void;
   setMaskGeometry: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
+  setMaskLimit: (photoId: string, maskId: string, limit: MaskLayer['limit'] | null) => void;
 
   // Tasks & Export
   cancelTask: (taskId: string) => void;
@@ -668,3 +673,6 @@ export interface WorkspaceActions {
   toggleStorageConnector: (connectorId: StorageConnector['id']) => void;
   clearNotice: () => void;
 }
+
+/** Background suitability chosen when importing watermark artwork. */
+export type WatermarkUsage = 'auto' | 'dark' | 'light' | 'both';

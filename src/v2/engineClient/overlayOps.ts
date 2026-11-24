@@ -1,8 +1,8 @@
 import type { OverlayAnchor, OverlaySettings, OverlayTextRow } from '../ui/contract';
 import { createDefaultOverlay } from '../ui/stub';
+import { isOverlayField } from '../ui/utils/overlayMetadata';
 
 const ANCHORS: readonly OverlayAnchor[] = ['top-left', 'top-center', 'top-right', 'middle-left', 'middle-center', 'middle-right', 'bottom-left', 'bottom-center', 'bottom-right'];
-const FIELDS = ['camera', 'lens', 'aperture', 'shutter', 'iso', 'focalLength', 'species', 'custom'] as const;
 const WEIGHTS = [400, 500, 600, 700] as const;
 
 const num = (value: unknown, fallback: number, min: number, max: number) => (typeof value === 'number' && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback);
@@ -10,8 +10,8 @@ const num = (value: unknown, fallback: number, min: number, max: number) => (typ
 function readRow(raw: unknown, fallback: OverlayTextRow): OverlayTextRow | null {
   if (!raw || typeof raw !== 'object') return null;
   const row = raw as Record<string, unknown>;
-  if (typeof row.id !== 'string' || !row.id) return null;
-  const fields = Array.isArray(row.fields) ? row.fields.filter((field): field is OverlayTextRow['fields'][number] => (FIELDS as readonly unknown[]).includes(field)) : fallback.fields;
+  if (typeof row.id !== 'string' || !row.id.trim()) return null;
+  const fields = Array.isArray(row.fields) ? [...new Set(row.fields.filter(isOverlayField))] : fallback.fields;
   return {
     id: row.id,
     fields,
@@ -33,6 +33,12 @@ export function readOverlay(raw: unknown): OverlaySettings {
   const value = raw as Record<string, unknown>;
   const anchor = (candidate: unknown, fallback: OverlayAnchor) => ((ANCHORS as readonly unknown[]).includes(candidate) ? (candidate as OverlayAnchor) : fallback);
   const rows = Array.isArray(value.rows) ? value.rows.map((row) => readRow(row, base.rows[0])).filter((row): row is OverlayTextRow => row !== null) : base.rows;
+  const seen = new Set<string>();
+  const uniqueRows = rows.filter(row => {
+    if (seen.has(row.id)) return false;
+    seen.add(row.id);
+    return true;
+  });
   return {
     ...base,
     textEnabled: value.textEnabled === true,
@@ -42,7 +48,7 @@ export function readOverlay(raw: unknown): OverlaySettings {
     textOffsetX: num(value.textOffsetX, 0, -40, 40), textOffsetY: num(value.textOffsetY, 0, -40, 40),
     textColour: value.textColour === 'dark' ? 'dark' : 'light',
     textScrim: value.textScrim !== false,
-    rows,
+    rows: uniqueRows,
     watermarkEnabled: value.watermarkEnabled === true,
     watermarkPresetId: typeof value.watermarkPresetId === 'string' ? value.watermarkPresetId : base.watermarkPresetId,
     watermarkPosition: anchor(value.watermarkPosition, base.watermarkPosition),
@@ -57,6 +63,7 @@ export function readOverlay(raw: unknown): OverlaySettings {
 export const patchOverlay = (overlay: OverlaySettings, patch: Partial<OverlaySettings>): OverlaySettings => readOverlay({ ...overlay, ...patch });
 
 export function addRow(overlay: OverlaySettings, id: string): OverlaySettings {
+  if (!id.trim() || overlay.rows.some(row => row.id === id)) return overlay;
   const row: OverlayTextRow = { id, fields: ['species'], customText: '', fontId: 'playfair', sizePx: 14, weight: 500, uppercase: false, letterSpacing: 0.2 };
   return { ...overlay, textEnabled: true, rows: [...overlay.rows, row] };
 }
@@ -68,6 +75,7 @@ export const removeRow = (overlay: OverlaySettings, rowId: string): OverlaySetti
 
 const LAYOUTS = {
   'stacked-left': { textPosition: 'bottom-left', textX: 8, textY: 90, watermarkPosition: 'bottom-left', watermarkX: 8, watermarkY: 78 },
+  'stacked-right': { textPosition: 'bottom-right', textX: 92, textY: 90, watermarkPosition: 'bottom-right', watermarkX: 92, watermarkY: 78 },
   'opposite-bottom': { textPosition: 'bottom-left', textX: 8, textY: 90, watermarkPosition: 'bottom-right', watermarkX: 92, watermarkY: 90 },
   'centred-pair': { textPosition: 'bottom-center', textX: 50, textY: 88, watermarkPosition: 'bottom-center', watermarkX: 50, watermarkY: 76 },
 } as const;

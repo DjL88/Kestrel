@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { checkS3Settings, isInsideSyncRoot, memoryConnector, syncPath } from './storageConnectors.ts';
+import { checkS3Settings, checkWebDavSettings, isInsideExportRoot, isInsideSyncRoot, memoryConnector, syncPath } from './storageConnectors.ts';
 
 test('every connector uses one layout, by level', () => {
   assert.equal(syncPath('recipes', 'p1', 'img-9'), 'kestrel/v1/recipes/p1/img-9.json');
@@ -35,4 +35,21 @@ test('S3 settings are checked with plain messages', () => {
   assert.equal(checkS3Settings({ ...good, endpoint: 'not a url' }).length, 1);
   assert.equal(checkS3Settings({ ...good, bucket: 'Bad Bucket!' }).length, 1);
   assert.equal(checkS3Settings({ ...good, secretAccessKey: ' ' }).length, 1);
+});
+
+test('cross-platform traversal and alternate data streams never pass the shared path guard', async () => {
+  const connector = memoryConnector();
+  for (const prefix of ['kestrel/v1/', 'export/']) for (const suffix of ['safe/..\\secret', 'safe/a:stream', 'safe/.. /secret', 'safe/a\u0000b']) {
+    const path = prefix + suffix;
+    assert.equal(isInsideSyncRoot(path), false);
+    assert.equal(isInsideExportRoot(path), false);
+    await assert.rejects(connector.put(path, new Uint8Array(), 'x'), /outside/);
+  }
+});
+test('a numeric-looking public hostname never bypasses HTTPS requirements', () => {
+  const s3 = { region:'r', bucket:'my-photos', accessKeyId:'AK', secretAccessKey:'SK' };
+  for (const url of ['http://10.example.com', 'http://127.example.com', 'http://192.168.example.com', 'http://172.16.example.com']) {
+    assert.equal(checkS3Settings({ ...s3, endpoint:url }).length, 1);
+    assert.equal(checkWebDavSettings({ url, username:'user', password:'pass' }).length, 1);
+  }
 });

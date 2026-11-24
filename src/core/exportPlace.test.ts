@@ -69,3 +69,26 @@ test('stop lets the current write finish and never starts the next file', async 
   assert.deepEqual(progress, [1]);
   assert.deepEqual(result, { count: 1, stopped: true });
 });
+
+test('long filenames and their numbered copies retain the output extension and length limit', () => {
+  const name = 'x'.repeat(200) + '.tiff';
+  const paths = exportPaths([{name}, {name}], when);
+  for (const path of paths) {
+    const file = path.split('/').at(-1)!;
+    assert.ok(file.length <= 150);
+    assert.ok(file.endsWith('.tiff'));
+  }
+  assert.notEqual(paths[0], paths[1]);
+});
+test('canonically equivalent filenames do not collide on normalising filesystems', () => {
+  const paths = exportPaths([{name:'Café.jpg'}, {name:'Cafe\u0301.jpg'}, {name:'CON.jpg'}], when);
+  assert.equal(new Set(paths.map(p => p.normalize('NFC').toLowerCase())).size, 3);
+  assert.match(paths[1], /-2\.jpg$/);
+  assert.match(paths[2], /\/_CON\.jpg$/);
+});
+test('mismatched or duplicate output plans refuse every write', async () => {
+  const files = [new Blob(['a']), new Blob(['b'])];
+  for (const paths of [['a.jpg'], ['A.jpg','a.jpg']]) {
+    await assert.rejects(writeExportFiles(files, paths, async () => assert.fail('unexpected write')), /destinations must match/);
+  }
+});

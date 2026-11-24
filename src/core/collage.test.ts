@@ -130,3 +130,63 @@ test('photographs dropped on a page fill its empty windows in order', async () =
   assert.equal(placed, 2);
   assert.deepEqual(collagePage(filled).slots.map((slot) => slot.photoId), ['x', 'kept', 'y']);
 });
+
+test('template changes preserve independent framing even when the same photo appears twice and moves to another page', async () => {
+  const { setCollageSlotFraming } = await import('./collage');
+  let doc = createCollage(['a','b','a','d']);
+  doc = setCollageSlotFraming(doc, doc.pages[0].slots[0].id, { zoom: 2, panX: 0.5 });
+  doc = setCollageSlotFraming(doc, doc.pages[0].slots[2].id, { zoom: 3, panY: -0.5 });
+  assert.equal(changeCollageTemplate(doc, 'grid'), doc);
+  const changed = changeCollageTemplate(doc, 'diagonal');
+  assert.equal(changed.pages.length, 2);
+  assert.equal(changed.pages[0].slots[0].zoom, 2);
+  assert.equal(changed.pages[0].slots[0].panX, 0.5);
+  assert.equal(changed.pages[1].slots[0].photoId, 'a');
+  assert.equal(changed.pages[1].slots[0].zoom, 3);
+  assert.equal(changed.pages[1].slots[0].panY, -0.5);
+  assert.deepEqual(readCollage(JSON.parse(JSON.stringify(changed))), changed);
+});
+
+test('collage caption design survives save, duplication, format and template changes', async () => {
+  const { modifyCollagePage, collageCaptionStyle, collageCaptionGeometry, changeCollageFormat } = await import('./collage');
+  const captionStyle = { font: 'serif' as const, size: 4, position: 25 };
+  let doc = modifyCollagePage(createCollage(['a','b','c']), { caption: 'Wildlife', captionStyle });
+  doc = changeCollageTemplate(doc, 'grid');
+  doc = changeCollageFormat(doc, 'story');
+  doc = duplicateCollagePage(doc);
+  const restored = readCollage(JSON.parse(JSON.stringify(doc)))!;
+  assert.deepEqual(restored.pages.map(p => p.captionStyle), [captionStyle, captionStyle]);
+  assert.notEqual(doc.pages[0].captionStyle, doc.pages[1].captionStyle);
+  assert.deepEqual(collageCaptionStyle(undefined), { font:'sans-serif', size:2.5, position:100 });
+  assert.deepEqual(collageCaptionStyle({font:'url(bad)',size:999,position:-1}), {font:'sans-serif',size:6,position:0});
+  const g = collageCaptionGeometry(1000, 2000, captionStyle);
+  assert.deepEqual([g.x,g.y,g.width,g.height,g.fontPx,g.position],[50,60,900,1880,40,25]);
+});
+
+
+test('custom collage windows retain their photo references and page-relative geometry on reopen, duplicate and size changes', async () => {
+  const { addCollageWindow, removeCollageWindow, setCollageWindowGeometry, changeCollageFormat } = await import('./collage');
+  const original = createCollage(['a','b','c']);
+  let doc = addCollageWindow(original);
+  const id = collagePage(doc).slots.at(-1)!.id;
+  doc = setCollageWindowGeometry(doc, id, { x: 20, y: 30, width: 50, height: 40, angle: 15 });
+  doc = replaceCollagePhoto(doc, id, 'a');
+  assert.equal(removeCollageWindow(doc,id), doc);
+  const before = collagePage(doc).slots.at(-1)!;
+  const reopened = readCollage(JSON.parse(JSON.stringify(doc)))!;
+  assert.deepEqual(collagePage(changeCollageFormat(reopened,'story')).slots.at(-1), before);
+  assert.equal(collagePage(duplicateCollagePage(reopened)).customLayout,true);
+  assert.deepEqual(collagePage(doc).slots.slice(0,3).map(s=>s.photoId), ['a','b','c']);
+  doc = replaceCollagePhoto(doc,id,null);
+  assert.equal(collagePage(removeCollageWindow(doc,id)).slots.length,3);
+});
+test('custom window resizing stays within the page and built-in layout can be restored', async () => {
+  const { addCollageWindow, setCollageWindowGeometry } = await import('./collage');
+  let doc = addCollageWindow(createCollage(['a']));
+  const id = collagePage(doc).slots.at(-1)!.id;
+  doc = setCollageWindowGeometry(doc,id,{ x: 999, y: -5, width: 1000, height: 0, angle: 500 });
+  const slot = collagePage(doc).slots.at(-1)!;
+  assert.deepEqual([slot.x,slot.y,slot.width,slot.height,slot.angle],[0,0,100,5,180]);
+  assert.equal(collagePage(changeCollageTemplate(doc,'triptych')).customLayout,undefined);
+  assert.equal(collagePage(changeCollageTemplate(doc,'triptych')).slots.length,3);
+});

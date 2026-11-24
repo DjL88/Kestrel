@@ -4,8 +4,9 @@ import type { Photo, PhotoSurfaceProps, Project } from '../contract';
 import type { CollageDocument, CollageFormat, CollageSlot, CollageTemplate } from '../../../core/collage';
 import {
   addCollagePage, canChangeCollageTemplate, MAX_COLLAGE_PAGES, MAX_COLLAGE_ZOOM, changeCollageFormat, changeCollageTemplate,
-  collagePage, collageShapes, collageSlotPlacement, COLLAGE_FORMATS, COLLAGE_TEMPLATES, deleteCollagePage, duplicateCollagePage,
+  collageCaptionGeometry, collageCaptionStyle, COLLAGE_CAPTION_FONTS, collagePage, collageShapes, collageSlotPlacement, COLLAGE_FORMATS, COLLAGE_TEMPLATES, deleteCollagePage, duplicateCollagePage,
   fillEmptyCollageSlots, modifyCollagePage, placeCollagePhoto, setCollageSlotFraming,
+  addCollageWindow, removeCollageWindow, setCollageWindowGeometry, MAX_COLLAGE_WINDOWS,
 } from '../../../core/collage';
 
 import { PHOTO_DRAG_TYPE, readPhotoDrag } from '../utils/photoDrag';
@@ -141,6 +142,10 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
   const setPage = (patch: Parameters<typeof modifyCollagePage>[1]) => onChange(modifyCollagePage(doc, patch));
   const printing = format.unit === 'mm';
   const pageNumber = doc.pages.indexOf(page) + 1;
+  const captionStyle = collageCaptionStyle(page.captionStyle);
+  const captionGeometry = collageCaptionGeometry(pageWidth, pageWidth / aspect, captionStyle);
+  const setCaptionStyle = (patch: Partial<typeof captionStyle>) =>
+    setPage({ captionStyle: collageCaptionStyle({ ...captionStyle, ...patch }) });
   // A shape's window, less the spacing, as a share of the page: also its width ÷ height on screen and in export.
   const windowAspect = (item: CollageSlot) => (Math.max(1, item.width - page.gap) * aspect) / Math.max(1, item.height - page.gap);
   const frame = (item: CollageSlot, patch: { zoom?: number; panX?: number; panY?: number }) => onChange(setCollageSlotFraming(doc, item.id, patch));
@@ -153,7 +158,7 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
     { label: STRINGS.collage.clearPage, run: () => onChange(page.slots.reduce((next, item) => placeCollagePhoto(next, item.id, null), doc)), disabled: page.slots.every((item) => item.photoId === null) },
     'divider',
     ...COLLAGE_TEMPLATES.map((template): MenuItem => ({
-      label: `${STRINGS.collage.layoutHeading}: ${template.label}`, checked: page.template === template.id,
+      label: `${STRINGS.collage.layoutHeading}: ${template.label}`, checked: !page.customLayout && page.template === template.id,
       disabled: !canChangeCollageTemplate(doc, template.id),
       run: () => { onChange(changeCollageTemplate(doc, template.id)); setActiveSlot(null); },
     })),
@@ -309,7 +314,7 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
                   className={`absolute overflow-hidden bg-black/10 outline-offset-2 focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)] ${selected && source ? 'cursor-move' : 'cursor-pointer'} ${selected || dropTarget === item.id ? 'ring-2 ring-[var(--brand-accent)]' : ''}`}
                   style={{ left: `${item.x + gap}%`, top: `${item.y + gap}%`, width: `${Math.max(1, item.width - gap * 2)}%`,
                     height: `${Math.max(1, item.height - gap * 2)}%`, transform: `rotate(${item.angle}deg)`,
-                    clipPath: item.clip, zIndex: selected ? 2 : 1, touchAction: selected && source ? 'none' : 'auto' }}>
+                    clipPath: item.clip, zIndex: index + 1, touchAction: selected && source ? 'none' : 'auto' }}>
                   {source && place ? (
                     <div className="pointer-events-none absolute" data-testid="collage-window-photo"
                       style={{ left: `${place.left * 100}%`, top: `${place.top * 100}%`, width: `${place.width * 100}%`, height: `${place.height * 100}%` }}>
@@ -327,29 +332,17 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
                 </div>
               );
             })}
-            {page.caption && <div data-artwork className="pointer-events-none absolute inset-x-[5%] bottom-[3%] z-10 whitespace-pre-wrap break-words text-center font-semibold"
-              style={{ color: page.captionColour, fontSize: 'clamp(9px, 2cqw, 22px)', textShadow: '0 1px 4px #0008' }}>{page.caption}</div>}
+            {page.caption && <div data-artwork className="pointer-events-none absolute inset-[3%_5%] z-20 overflow-hidden">
+              <div className="absolute w-full whitespace-pre-wrap break-words text-center font-semibold"
+                style={{ color: page.captionColour, fontFamily: captionGeometry.font, fontSize: captionGeometry.fontPx,
+                  lineHeight: captionGeometry.lineHeight, top: `${captionStyle.position}%`, transform: `translateY(-${captionStyle.position}%)` }}>{page.caption}</div>
+            </div>}
           </div>
         </div>
         <aside className="max-h-[40dvh] w-full shrink-0 space-y-5 overflow-y-auto border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 lg:max-h-none lg:w-[280px] lg:border-l lg:border-t-0" aria-label={STRINGS.collage.collageTools}>
           <p role="status" aria-live="polite" className={status ? 'rounded bg-[var(--bg-input)] p-2 text-xs' : 'sr-only'}>{status}</p>
 
-          <section className="space-y-2" aria-label={STRINGS.collage.collageLayoutTemplates}>
-            <h3 className={heading}>{STRINGS.collage.layoutHeading}</h3>
-            <div className="grid grid-cols-3 gap-2">
-              {COLLAGE_TEMPLATES.map((template) => (
-                <button type="button" key={template.id} disabled={!canChangeCollageTemplate(doc, template.id)}
-                  onClick={() => { onChange(changeCollageTemplate(doc, template.id)); setActiveSlot(null); }}
-                  aria-pressed={page.template === template.id} title={`${template.label} · ${template.slots}`}
-                  className={`flex min-h-[76px] flex-col items-center justify-center gap-1 rounded border p-1 text-[0.625rem] leading-tight text-[var(--text-secondary)] disabled:opacity-40 ${page.template === template.id ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border-[var(--border-default)]'}`}>
-                  <LayoutThumb template={template.id} aspect={aspect} />
-                  <span>{template.label}</span>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="space-y-3 border-t border-[var(--border-default)] pt-3">
+          <section className="space-y-3">
             <h3 className={heading}>{STRINGS.collage.pageHeading}</h3>
             <label className="block text-xs font-medium">{STRINGS.collage.pageSize}
               <select className={`mt-1 w-full ${field}`} value={doc.format} onChange={(e) => onChange(changeCollageFormat(doc, e.target.value as CollageFormat))}>
@@ -366,17 +359,49 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
             </label>
           </section>
 
+          <section className="space-y-2 border-t border-[var(--border-default)] pt-3" aria-label={STRINGS.collage.collageLayoutTemplates}>
+            <h3 className={heading}>{STRINGS.collage.layoutHeading}</h3>
+            <div className="grid grid-cols-3 gap-2">
+              {COLLAGE_TEMPLATES.map((template) => (
+                <button type="button" key={template.id} disabled={!canChangeCollageTemplate(doc, template.id)}
+                  onClick={() => { onChange(changeCollageTemplate(doc, template.id)); setActiveSlot(null); }}
+                  aria-pressed={page.template === template.id} title={`${template.label} · ${template.slots}`}
+                  className={`flex min-h-[76px] flex-col items-center justify-center gap-1 rounded border p-1 text-[0.625rem] leading-tight text-[var(--text-secondary)] disabled:opacity-40 ${page.template === template.id ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border-[var(--border-default)]'}`}>
+                  <LayoutThumb template={template.id} aspect={aspect} />
+                  <span>{template.label}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
           <section className="space-y-3 border-t border-[var(--border-default)] pt-3">
             <h3 className={heading}>{STRINGS.collage.textHeading}</h3>
             <label className="block text-xs font-medium">{STRINGS.collage.pageText}
               <textarea className={`mt-1 min-h-16 w-full resize-y ${field}`} value={page.caption}
                 maxLength={1000} placeholder={STRINGS.collage.addYourOwnHeadingOrCaption} onChange={(e) => setPage({ caption: e.target.value })}/>
             </label>
+            <label className="block text-xs font-medium">{STRINGS.overlays.fontListLabel}
+              <select className={`mt-1 w-full ${field}`} value={captionStyle.font} onChange={(e) => setCaptionStyle({ font: e.target.value as typeof captionStyle.font })}>
+                {COLLAGE_CAPTION_FONTS.map(font => <option key={font} value={font}>{font}</option>)}
+              </select>
+            </label>
+            <label className="block text-xs font-medium">{STRINGS.canvas.resizeText} · {captionStyle.size}%
+              <input type="range" min="1" max="6" step="0.25" value={captionStyle.size}
+                className="mt-1 w-full" onChange={(e) => setCaptionStyle({ size: Number(e.target.value) })} />
+            </label>
+            <label className="block text-xs font-medium">{STRINGS.panelWords.centreUpDown} · {captionStyle.position}%
+              <input type="range" min="0" max="100" step="5" value={captionStyle.position}
+                className="mt-1 w-full" onChange={(e) => setCaptionStyle({ position: Number(e.target.value) })} />
+            </label>
             <label className="flex items-center justify-between text-xs font-medium">{STRINGS.collage.textColour}
               <input type="color" value={page.captionColour} onChange={(e) => setPage({ captionColour: e.target.value })} className="h-10 w-14" />
             </label>
           </section>
 
+          <section className="space-y-2 border-t border-[var(--border-default)] pt-3">
+            <button type="button" data-testid="collage-add-window" className={`w-full ${field}`} disabled={page.slots.length >= MAX_COLLAGE_WINDOWS}
+              onClick={() => { const next = addCollageWindow(doc); if (next !== doc) { setActiveSlot(collagePage(next).slots.at(-1)!.id); onChange(next); } }}>+ {STRINGS.collage.emptyWindow}</button>
+          </section>
           {slot && (
             <section className="space-y-2 border-t border-[var(--border-default)] pt-3" aria-label={STRINGS.collage.selectedWindow}>
               <h3 className={heading}>{STRINGS.collage.selectedWindow}</h3>
@@ -386,6 +411,22 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
                   {photos.map((p) => <option key={p.id} value={p.id}>{p.filename}</option>)}
                 </select>
               </label>
+              <div className="space-y-2" data-testid="collage-window-geometry">
+                {([
+                  { key: 'x', label: STRINGS.panelWords.startLeftRight, value: slot.x, min: 0, max: 100 - slot.width },
+                  { key: 'y', label: STRINGS.panelWords.startUpDown, value: slot.y, min: 0, max: 100 - slot.height },
+                  { key: 'width', label: 'W (%)', value: slot.width, min: 5, max: 100 },
+                  { key: 'height', label: 'H (%)', value: slot.height, min: 5, max: 100 },
+                  { key: 'angle', label: STRINGS.panelWords.rotateDegrees, value: slot.angle, min: -180, max: 180 },
+                ] as const).map(row => (
+                  <label key={row.key} className="block text-xs font-medium">{row.label} · {Math.round(row.value)}
+                    <input type="range" min={row.min} max={row.max} step={1} value={row.value} className="mt-1 w-full"
+                      aria-label={row.label} onChange={e => onChange(setCollageWindowGeometry(doc, slot.id, { [row.key]: Number(e.target.value) }))} />
+                  </label>
+                ))}
+                {!slot.photoId && <button type="button" className={field} data-testid="collage-delete-window"
+                  onClick={() => { onChange(removeCollageWindow(doc, slot.id)); setActiveSlot(null); }}>{STRINGS.collage.remove} · {STRINGS.collage.emptyWindow}</button>}
+              </div>
               {photo && <>
                 <label className="block text-xs font-medium">{STRINGS.collage.windowSize} · {Math.round((slot.zoom ?? 1) * 100)}%
                   <input type="range" min="1" max={MAX_COLLAGE_ZOOM} step="0.05" value={slot.zoom ?? 1} className="mt-1 w-full"

@@ -1,3 +1,4 @@
+import { useConnectivity } from './providers/useConnectivity';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { qualifiesForAutoTag, scanCandidates, scanPatch } from './core/autoTags';
 import { SPECIES_MODEL } from './core/speciesModel';
@@ -18,17 +19,6 @@ import { appText as t } from './i18n/areas/app';
 /** Photos sent to the online helper in this session, across projects. Counted so the cap holds however often it restarts. */
 let helperSent = 0;
 
-function useOnline(): boolean {
-  const [online, setOnline] = useState(() => navigator.onLine);
-  useEffect(() => {
-    const update = () => setOnline(navigator.onLine);
-    window.addEventListener('online', update);
-    window.addEventListener('offline', update);
-    return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update); };
-  }, []);
-  return online;
-}
-
 interface Options {
   projectId: string;
   frames: PhotoFrame[];
@@ -43,7 +33,7 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
   const [status, setStatus] = useState<SpeciesStatus | 'checking'>('checking');
   const [downloading, setDownloading] = useState<number | null>(null);
   const [error, setError] = useState('');
-  const online = useOnline();
+  const online = useConnectivity() !== 'offline';
   const helper = useHelperSettings();
   const helperOn = helperReady(helper, { online });
   const localReady = status === 'ready';
@@ -156,6 +146,7 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
   }, [ready, waiting, run]);
 
   async function download() {
+    if (!online) { setError(t.species.downloadFailed); return; }
     setDownloading(0);
     setError('');
     try {

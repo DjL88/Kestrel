@@ -31,6 +31,7 @@ import { EngineSurface } from './EngineSurface';
 import { featureAccess, featurePlan } from './featureMap';
 import { hasDeviceFont, listDeviceFonts, loadSavedDeviceFonts, mergeFonts, saveDeviceFonts } from './fonts';
 import { assetUrl, cutOut, importWatermark, loadStored, makeVariant, saveStored, toPresets, type StoredWatermark } from './watermarkLibrary';
+import { replaceWatermarkIfUnchanged } from './watermarkMutation';
 import { watermarkToneForPixels } from '../../core/watermark';
 import { INITIAL_WATERMARKS, createDefaultSizes } from '../ui/stub';
 import { toPhotoHistogram } from './histogram';
@@ -59,8 +60,9 @@ import { type FormatSet, addFormat, applyFormats, ORIGINAL_FORMAT_ID, removeForm
 import { patchVideoZoom } from './videoZoomOps';
 import { isSplitFrameCount, setFormatSplitOffset, setSplitFrameCount as writeSplitFrameCount, toggleFormatSplit, type SplitFrameCount } from './formatSplitOps';
 import { readSplitPanOffset } from './splitFrameOps';
-import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, toggleMask } from './maskOps';
+import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskLimit, toggleMask } from './maskOps';
 import { verifyFrameMasks } from './maskVerify';
+import { maskVerificationKey, commitVerifiedMasks } from './maskVerificationCommit';
 import { commitSubjectMask, subjectMaskTarget } from './subjectMaskCommit';
 import { createMask, createSubjectMask, framingKey, hasActiveMasks } from '../../core/maskTypes';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFraming';
@@ -198,6 +200,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [clipboard, setClipboard] = useState<EditRecipe | null>(null);
   const [deviceFonts, setDeviceFonts] = useState<string[]>(loadSavedDeviceFonts);
   const [watermarkStore, setWatermarkStore] = useState<StoredWatermark[]>(loadStored);
+  const watermarkStoreRef = useRef(watermarkStore);
   const [watermarkLibrary, setWatermarkLibrary] = useState<WatermarkPreset[]>([]);
   const [templates, setTemplates] = useState<OverlayTemplate[]>(() => { try { return readTemplates(localStorage.getItem(TEMPLATES_KEY)); } catch { return []; } });
   const updateTemplates = useCallback((next: OverlayTemplate[]) => { setTemplates(next); try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(next)); } catch { setNotice('InFlight could not save the template on this device.'); } }, []);
@@ -212,7 +215,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [histograms, setHistograms] = useState<Record<string, PhotoHistogram>>({});
   const [watermarkAuto, setWatermarkAuto] = useState<Record<string, 'light-on-dark' | 'dark-on-light'>>({});
   useEffect(() => { let live = true; void toPresets(watermarkStore).then((presets) => { if (live) setWatermarkLibrary(presets); }); return () => { live = false; }; }, [watermarkStore]);
-  const updateWatermarks = useCallback((next: StoredWatermark[]) => { setWatermarkStore(next); saveStored(next); }, []);
+  const updateWatermarks = useCallback((change: (current: StoredWatermark[]) => StoredWatermark[]) => {
+    const current = watermarkStoreRef.current;
+    const next = change(current);
+    if (next === current) return;
+    watermarkStoreRef.current = next;
+    setWatermarkStore(next);
+    saveStored(next);
+  }, []);
   const [assists, setAssists] = useState<Record<string, AssistState>>({});
   const [autoRequest, setAutoRequest] = useState<{ photoId: string; sequence: number } | null>(null);
   const lastAutoRequest = useRef(0);
@@ -677,42 +687,37 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // and watermark-tone checks already draw. A mask whose effect held up changes nothing here (attempts
   // === 1, the common case); one that did not is written back at the strength that actually passed, with
   // a plain notice - never left silently at a value the check could not confirm.
-  const maskVerifyKey = activeFrame && hasActiveMasks(activeFrame.edit?.masks) ? `${activeFrame.id}|${JSON.stringify(activeFrame.edit!.masks)}` : null;
-  const maskVerifyRunning = useRef<string | null>(null);
+  const maskVerifyKey = activeFrame && projectId && hasActiveMasks(activeFrame.edit?.masks)
+    ? maskVerificationKey(projectId, activeFrame) : null;
   useEffect(() => {
-    if (!maskVerifyKey || !activeFrame) return;
-    let live = true;
+    if (!maskVerifyKey || !activeFrame || !projectId) return;
+    const controller = new AbortController();
     const frame = activeFrame;
-    const photoId = frame.id;
-    const key = maskVerifyKey;
+    const capturedProject = projectId;
+    const sourceProvider = provider.current!;
     const timer = window.setTimeout(() => {
-      if (!live || maskVerifyRunning.current === key) return;
-      maskVerifyRunning.current = key;
       (async () => {
         try {
-          const image = await loadExportSource(frame, provider.current!);
-          if (!live) return;
-          const outcome = await verifyFrameMasks(image, frame);
-          // Only the one case worth acting on: the engine actually had to scale something down. A first-try
-          // pass (attempts === 1) is the masks already held up - nothing to write back or tell anyone.
-          if (!live || !outcome || outcome.attempts <= 1) return;
-          // Re-read: the photo (or its masks) may have changed again while this ran. If so, a newer run
-          // will judge the newer masks; this stale result is dropped rather than overwriting it.
-          const latest = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
-          if (!latest || JSON.stringify(latest.edit?.masks ?? []) !== JSON.stringify(frame.edit?.masks ?? [])) return;
-          editFrames([photoId], (current) => ({ ...(current.edit ?? DEFAULT_EDIT), masks: outcome.masks }));
+          const image = await loadExportSource(frame, sourceProvider);
+          if (controller.signal.aborted) return;
+          const outcome = await verifyFrameMasks(image, frame, controller.signal);
+          if (controller.signal.aborted || !outcome || outcome.attempts <= 1) return;
+          const currentState = stateRef.current;
+          const latest = currentState?.frames.find(candidate => candidate.id === frame.id);
+          if (!latest || currentState?.shoot.id !== capturedProject ||
+              maskVerificationKey(capturedProject, latest) !== maskVerifyKey) return;
+          const at = Date.now();
+          mutate(current => controller.signal.aborted ? current :
+            commitVerifiedMasks(current, capturedProject, frame, outcome.masks, at));
           setNotice(outcome.verification.ok
-            ? `A mask's strength was reduced to keep its effect plausible${outcome.verification.reasons.length ? `: ${outcome.verification.reasons.join(' ')}` : '.'}`
-            : `A mask's effect still looked too strong after retrying, so it was left at the gentlest version tried${outcome.verification.reasons.length ? `: ${outcome.verification.reasons.join(' ')}` : '.'}`);
+            ? `A mask's strength was reduced to keep its effect plausible.`
+            : `A mask's effect still looked too strong after retrying, so it was left at the gentlest version tried${outcome.verification.reasons.length ? ': ' + outcome.verification.reasons.join(' ') : '.'}`);
         } catch {
-          // A safety net, not a blocker: if the check itself fails, editing continues with whatever the
-          // sliders already show, same as any other best-effort engine capability.
-        } finally {
-          if (maskVerifyRunning.current === key) maskVerifyRunning.current = null;
+          // A failed safety check must not block the manual editor.
         }
       })();
     }, 500);
-    return () => { live = false; window.clearTimeout(timer); };
+    return () => { controller.abort(); window.clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [maskVerifyKey]);
 
@@ -1488,6 +1493,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     setMaskEdit: (photoId, maskId, key, value) => editMasks(photoId, (masks) => setMaskEdit(masks, maskId, key, value)),
     setMaskFeather: (photoId, maskId, percent) => editMasks(photoId, (masks) => setMaskFeather(masks, maskId, percent)),
     setMaskGeometry: (photoId, maskId, field, value) => editMasks(photoId, (masks) => setMaskGeometry(masks, maskId, field, value)),
+    setMaskLimit: (photoId, maskId, limit) => editMasks(photoId, masks => setMaskLimit(masks, maskId, limit ?? null)),
     // As in the owner's design: starting an export closes the dialog; progress and the result continue in Tasks.
     runExport: (request) => { stub.actions.setExportOpen(false); void runExportAction(request); },
     applyAssistSuggestion: applyAuto,
@@ -1571,32 +1577,48 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     },
     updateSettings: (patch) => setSavedUi((current) => { const next: SavedUi = { ...current, settings: { ...current.settings, ...patch } }; saveUi(next); return next; }),
     setAssistMode: (mode) => setSavedUi((current) => { const next: SavedUi = { ...current, assistMode: mode, settings: { ...current.settings, defaultAssistMode: mode } }; saveUi(next); return next; }),
-    importWatermarkImage: async () => {
+    importWatermarkImage: async (usage) => {
       const picked = await pickImageFile();
       if (!picked) return null;
       try {
-        const entry = await importWatermark(picked, picked.name.replace(/\.[^.]+$/, ''), `wm-${newId().slice(0, 8)}`);
-        updateWatermarks([...watermarkStore, entry]);
+        const entry = await importWatermark(picked, picked.name.replace(/\.[^.]+$/, ''), `wm-${newId().slice(0, 8)}`, usage);
+        updateWatermarks((current) => [...current, entry]);
         return entry.id;
       } catch (error) { setNotice(error instanceof Error ? error.message : 'That image could not be added.'); return null; }
     },
     cutOutWatermark: async (presetId, slot, tolerance, commit) => {
-      const entry = watermarkStore.find((candidate) => candidate.id === presetId);
+      const entry = watermarkStoreRef.current.find((candidate) => candidate.id === presetId);
       if (!entry) return null;
       const result = await cutOut(entry, slot, tolerance, commit).catch(() => null);
       if (!result) return null;
-      if (commit && !result.tooMuch) updateWatermarks(watermarkStore.map((candidate) => (candidate.id === presetId ? result.entry : candidate)));
+      if (commit && !result.tooMuch) {
+        let applied = false;
+        updateWatermarks((current) => {
+          const next = replaceWatermarkIfUnchanged(current, entry, result.entry);
+          applied = next !== current;
+          return next;
+        });
+        if (!applied) { setNotice('The watermark changed while this edit was processing. Please try again.'); return null; }
+      }
       if (result.tooMuch) setNotice('The background is not one flat colour, so it was left as it is. Try a plain background.');
       return { url: result.url, tooMuch: result.tooMuch };
     },
     makeWatermarkVariant: async (presetId, slot) => {
-      const entry = watermarkStore.find((candidate) => candidate.id === presetId);
+      const entry = watermarkStoreRef.current.find((candidate) => candidate.id === presetId);
       const next = entry ? await makeVariant(entry, slot).catch(() => null) : null;
-      if (next) updateWatermarks(watermarkStore.map((candidate) => (candidate.id === presetId ? next : candidate)));
+      if (next && entry) {
+        let applied = false;
+        updateWatermarks((current) => {
+          const replacement = replaceWatermarkIfUnchanged(current, entry, next);
+          applied = replacement !== current;
+          return replacement;
+        });
+        if (!applied) setNotice('The watermark changed while this edit was processing. Please try again.');
+      }
       else setNotice('That version could not be made.');
     },
     deleteWatermark: (presetId) => {
-      updateWatermarks(watermarkStore.filter((candidate) => candidate.id !== presetId));
+      updateWatermarks((current) => current.filter((candidate) => candidate.id !== presetId));
       // Photos that used it fall back to the first built-in watermark; nothing else about them changes.
       mutate((current) => ({ ...current, frames: current.frames.map((frame) => { const overlay = readOverlay(frame.overlay); return overlay.watermarkPresetId === presetId ? { ...frame, overlay: { ...overlay, watermarkPresetId: INITIAL_WATERMARKS[0].id } } : frame; }) }));
     },

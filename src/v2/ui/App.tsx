@@ -1,3 +1,5 @@
+import { useConnectivity } from '../../providers/useConnectivity';
+import { projectsText } from '../../i18n/areas/projects';
 import { stepFrom } from './utils/swipe';
 import React, { useEffect, useRef, useState } from 'react';
 import type { PanelId } from './contract';
@@ -60,6 +62,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   accountPanel?: React.ReactNode;
 } = {}) {
   const { store, actions } = useStore();
+  const connectivity = useConnectivity();
   const [systemDark, setSystemDark] = useState(() =>
     typeof window !== 'undefined' && typeof window.matchMedia === 'function'
       ? window.matchMedia('(prefers-color-scheme: dark)').matches : false);
@@ -95,6 +98,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   const [pad, setPad] = useState<PadProfile>(loadPad);
   const changePad = React.useCallback((next: PadProfile) => { savePad(next); setPad(next); }, []);
   const changeKeymap = React.useCallback((next: SavedKeymap) => { saveKeymap(next); setSavedKeymap(next); }, []);
+  const [maskGuide, setMaskGuide] = useState<{ photoId: string; maskId: string } | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [addingFormatFor, setAddingFormatFor] = useState<string | null>(null);
   const [collageEditingId, setCollageEditingId] = useState<string | null>(null);
@@ -278,6 +282,8 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             onSetMaskEdit={actions.setMaskEdit}
             onSetMaskFeather={actions.setMaskFeather}
             onSetMaskGeometry={actions.setMaskGeometry}
+            onSetMaskLimit={actions.setMaskLimit}
+            onPreviewMask={setMaskGuide}
           />
         );
       case 'enhance':
@@ -411,6 +417,12 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         e.preventDefault();
       }}
     >
+      {connectivity === 'offline' && (
+        <div role="status" data-testid="offline-status" className="flex shrink-0 items-center gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1 text-xs text-[var(--text-secondary)]">
+          <BrandIcon name="alert" size={14} />
+          <span>{projectsText.connections.health.offline} · {projectsText.connections.advice.offline}</span>
+        </div>
+      )}
       {store.screen === 'hub' ? (
         <ProjectsHub
           projects={store.projects}
@@ -479,12 +491,10 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
               runningTaskCount={runningTaskCount}
               taskProgress={runningTaskCount ? store.tasks.filter((t) => t.status === 'running').reduce((sum, t) => sum + t.progress, 0) / runningTaskCount : 0}
               onOpenTasks={() => actions.setActivePanel(store.activePanel === 'tasks' ? null : 'tasks')}
-              onOpenModeSettings={() => actions.setSettingsOpen(true, 'assistance')}
               quietBadges={store.settings.calmBadges}
               onSelectPanel={actions.setActivePanel}
               onSetPanelVisible={actions.setPanelVisible}
               onSetPanelDock={actions.setPanelDock}
-              onOpenSettings={() => actions.setSettingsOpen(true)}
               onOpenAllPhotos={() => actions.setGridViewOpen(!store.gridViewOpen)}
               allPhotosOpen={store.gridViewOpen}
             />}
@@ -535,6 +545,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
               ) : (
                 <Canvas
                   PhotoSurface={store.PhotoSurface}
+                  maskGuideId={maskGuide?.photoId === activePhoto?.id ? maskGuide?.maskId : undefined}
                   onOpenFormats={activePhoto ? () => {
                     actions.setPanelVisible('formats', true);
                     setAddingFormatFor(activePhoto.id);

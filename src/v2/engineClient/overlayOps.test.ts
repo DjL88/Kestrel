@@ -50,3 +50,32 @@ test('a watermark starts on auto contrast, and an explicit choice is kept', () =
   assert.equal(readOverlay({ watermarkContrast: 'light-on-dark' }).watermarkContrast, 'light-on-dark');
   assert.equal(readOverlay({ watermarkContrast: 'weird' }).watermarkContrast, 'auto');
 });
+
+test('stacked-right mirrors stacked-left and keeps both overlays together', () => {
+  const before = patchOverlay(readOverlay(undefined), { textOffsetX: 20, textOffsetY: -10 });
+  const right = alignOverlays(before, 'stacked-right');
+  const left = alignOverlays(before, 'stacked-left');
+  assert.equal(right.textPosition, 'bottom-right');
+  assert.equal(right.watermarkPosition, 'bottom-right');
+  assert.equal(right.textX, 100 - left.textX);
+  assert.equal(right.watermarkX, 100 - left.watermarkX);
+  assert.equal(right.textY, left.textY);
+  assert.equal(right.watermarkY, left.watermarkY);
+  assert.equal(right.textOffsetX, 0);
+  assert.equal(right.textOffsetY, 0);
+});
+
+test('extended photo metadata fields persist in selection order, without duplicates or unknown fields', () => {
+  const overlay = readOverlay({ rows: [{ id: 'r', fields: ['capturedAt', 'filename', 'capturedAt', 'dimensions', 'privatePath', 'colourProfile'] }] });
+  assert.deepEqual(overlay.rows[0].fields, ['capturedAt', 'filename', 'dimensions', 'colourProfile']);
+  assert.deepEqual(readOverlay(JSON.parse(JSON.stringify(overlay))).rows[0].fields, overlay.rows[0].fields);
+});
+
+test('duplicate stored row IDs cannot cause one edit to change multiple text rows', () => {
+  const overlay = readOverlay({ rows: [{ id: 'same', fields: ['camera'] }, { id: 'same', fields: ['lens'] }, { id: ' ' }] });
+  assert.equal(overlay.rows.length, 1);
+  assert.deepEqual(overlay.rows[0].fields, ['camera']);
+  assert.equal(addRow(overlay, 'same'), overlay);
+  assert.equal(addRow(overlay, ' '), overlay);
+  assert.equal(updateRow(overlay, 'same', { sizePx: 32 }).rows[0].sizePx, 32);
+});

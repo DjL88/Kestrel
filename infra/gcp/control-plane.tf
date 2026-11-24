@@ -46,6 +46,7 @@ resource "google_firestore_database" "default" {
   location_id             = var.firestore_location
   type                    = "FIRESTORE_NATIVE"
   concurrency_mode        = "PESSIMISTIC"
+  point_in_time_recovery_enablement = var.phase2_recovery ? "POINT_IN_TIME_RECOVERY_ENABLED" : "POINT_IN_TIME_RECOVERY_DISABLED"
   delete_protection_state = "DELETE_PROTECTION_ENABLED" # licences must not vanish with a mistyped destroy
   deletion_policy         = "ABANDON"
   depends_on              = [google_project_service.control_plane]
@@ -129,23 +130,11 @@ resource "google_secret_manager_secret_iam_member" "licence_private_key" {
 }
 
 # ---- Managed Gemini gateway key (owner's key; container only, the value is added with gcloud) ------------------------
-# Off by default. Mounted only while var.gemini_gateway_enabled is true; only this service's account can read it.
-resource "google_secret_manager_secret" "gemini_api_key" {
-  count     = var.gemini_gateway_enabled ? 1 : 0
-  secret_id = "kcp-gemini-api-key"
-  replication {
-    user_managed {
-      replicas {
-        location = var.region
-      }
-    }
-  }
-  depends_on = [google_project_service.enabled]
-}
+# Off by default. References an existing owner-managed secret; Terraform never creates or reads its payload.
 
 resource "google_secret_manager_secret_iam_member" "gemini_api_key" {
   count     = var.gemini_gateway_enabled ? 1 : 0
-  secret_id = google_secret_manager_secret.gemini_api_key[0].id
+  secret_id = var.gemini_secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.control_plane.email}"
 }
@@ -157,6 +146,15 @@ resource "google_cloud_run_v2_service" "control_plane" {
   location            = var.region
   ingress             = "INGRESS_TRAFFIC_ALL"
   deletion_protection = false
+
+  # Preserve the observed automatic, scale-to-zero service-level configuration.
+  # Revision-level scaling below continues to cap the service at one instance.
+  scaling {
+    min_instance_count = 0
+  }
+  lifecycle {
+    ignore_changes = [client, client_version]
+  }
 
   template {
     service_account                  = google_service_account.control_plane.email
@@ -259,7 +257,7 @@ resource "google_cloud_run_v2_service" "control_plane" {
           name = "KCP_GEMINI_API_KEY"
           value_source {
             secret_key_ref {
-              secret  = google_secret_manager_secret.gemini_api_key[0].secret_id
+              secret  = var.gemini_secret_id
               version = "latest"
             }
           }
@@ -269,6 +267,25 @@ resource "google_cloud_run_v2_service" "control_plane" {
         for_each = var.cloud_processing_enabled && var.cloud_runner_image != "" ? { KCP_CLOUD_PROCESSING_BUCKET = try(google_storage_bucket.cloud_inputs[0].name, ""), KCP_CLOUD_RUNNER_JOB = try(google_cloud_run_v2_job.cloud_runner[0].id, "") } : {}
         content {
           name  = env.key
+          value = env.value
+        }
+      }
+      dynamic "env" {
+        for_each = var.phase5_sumup_enabled ? [1] : []
+        content {
+          name = "KCP_SUMUP_API_KEY"
+          value_source {
+            secret_key_ref {
+              secret  = "kestrel-sumup-api-key"
+              version = "latest"
+            }
+          }
+        }
+      }
+      dynamic "env" {
+        for_each = var.phase5_sumup_enabled ? [var.phase5_sumup_merchant] : []
+        content {
+          name  = "KCP_SUMUP_MERCHANT_CODE"
           value = env.value
         }
       }
@@ -302,6 +319,7 @@ resource "google_cloud_run_v2_service" "control_plane" {
     google_secret_manager_secret_iam_member.control_plane,
     google_secret_manager_secret_iam_member.licence_private_key,
     google_secret_manager_secret_iam_member.gemini_api_key,
+    google_secret_manager_secret_iam_member.phase5_sumup,
     google_service_account_iam_member.control_plane_url_signing,
     google_storage_bucket_iam_member.control_plane_objects,
     google_storage_bucket_iam_member.safe_copy_control_plane,

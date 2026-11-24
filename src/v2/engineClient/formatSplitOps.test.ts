@@ -61,3 +61,18 @@ test('removing a frame keeps the saved offset, and removing one of two rejoins t
   assert.equal(formatSplitOffset(splits, 'ig-portrait'), -8);
   assert.deepEqual(setSplitFrameCount(setSplitFrameCount(splits, 'ig-portrait', 2), 'ig-portrait', 1), {});
 });
+
+test('all 40 format layouts survive persistence, including the last selected split', () => {
+  let raw = {};
+  for (let i = 0; i < 40; i++) raw = setSplitFrameCount(raw, 'format-' + i, 5);
+  const reopened = readFormatSplits(JSON.parse(JSON.stringify(raw)));
+  assert.equal(Object.keys(reopened).length, 40);
+  assert.equal(splitFrameCount(reopened, 'format-39'), 5);
+});
+test('inherited object property names cannot appear as saved split formats', () => {
+  for (const id of ['__proto__', 'constructor', 'toString']) {
+    assert.equal(splitFrameCount({}, id), 1);
+    assert.deepEqual(setSplitFrameCount({}, id, 3), {});
+    assert.deepEqual(setFormatSplitOffset({}, id, 10), {});
+  }
+});

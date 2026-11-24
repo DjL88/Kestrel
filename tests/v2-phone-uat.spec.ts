@@ -9,8 +9,13 @@ async function importPhoto(page: Page) {
   const studio = page.locator('.inflight-v2');
   await expect(studio.getByText('No projects yet')).toBeVisible();
   await studio.getByRole('button', { name: 'New project' }).first().tap();
-  await page.getByLabel('Project name', { exact: true }).fill('Phone acceptance');
-  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().tap();
+  const dialog = page.getByRole('dialog', { name: 'Create new project' });
+  const create = dialog.getByRole('button', { name: 'Create project', exact: true });
+  await expect(create).toBeInViewport({ ratio: 1 });
+  await expect(dialog.getByRole('button', { name: 'Cancel', exact: true })).toBeInViewport({ ratio: 1 });
+  await dialog.getByLabel('Project name', { exact: true }).fill('Phone acceptance');
+  await expect(create).toBeInViewport({ ratio: 1 });
+  await create.tap();
   const png = await page.evaluate(() => {
     const image = document.createElement('canvas');
     image.width = 240;
@@ -26,6 +31,21 @@ async function importPhoto(page: Page) {
   await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
   return studio;
 }
+
+test('the project dialog keeps keyboard focus and returns it on Escape', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto('/?v2');
+  const trigger = page.getByRole('button', { name: 'New project', exact: true }).first();
+  await trigger.press('Enter');
+  const dialog = page.getByRole('dialog', { name: 'Create new project' });
+  const form = dialog.locator('form');
+  await expect(form).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(dialog.getByRole('button', { name: 'Create project', exact: true })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+});
 
 test('320px phone can undo and redo an offline edit by touch', async ({ page, context }) => {
   await page.setViewportSize({ width: 320, height: 568 });
@@ -131,7 +151,7 @@ test('swipe on the photo: left or right steps through photos, up or down through
   await expect(studio.getByText('No projects yet')).toBeVisible();
   await studio.getByRole('button', { name: 'New project' }).first().tap();
   await page.getByLabel('Project name', { exact: true }).fill('Swipe');
-  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().tap();
+  await page.getByRole('dialog').getByRole('button', { name: 'Create project', exact: true }).tap();
   const png = await page.evaluate(() => {
     const c = document.createElement('canvas'); c.width = 240; c.height = 160;
     c.getContext('2d')!.fillRect(0, 0, 240, 160);

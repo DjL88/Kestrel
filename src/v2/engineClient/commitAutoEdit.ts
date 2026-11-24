@@ -1,4 +1,5 @@
 import { recordEdit } from '../../core/editHistory';
+import { readEditGroups, syncEditGroup } from './editGroupState';
 import type { PhotoEdit } from '../../core/photoEdits';
 import type { CullingState, PhotoFrame } from '../../core/types';
 
@@ -18,9 +19,11 @@ export function commitAutoEdit(
   const frame = state.frames[index];
   if (!frame || frame.removedAt != null || frame.edit || frame.editHistory !== examined.editHistory ||
       frame.framing !== examined.framing || frame.stableKey !== examined.stableKey ||
-      frame.originalSha256 !== examined.originalSha256) return state;
+      frame.originalSha256 !== examined.originalSha256 ||
+      readEditGroups(frame).activeId !== readEditGroups(examined).activeId ||
+      frame.editVersions?.activeId !== examined.editVersions?.activeId) return state;
 
   const frames = state.frames.slice();
-  frames[index] = recordEdit(frame, { edit: proposal }, at);
+  frames[index] = syncEditGroup(recordEdit(frame, { edit: proposal }, at));
   return { ...state, frames, shoot: { ...state.shoot, lastUpdatedAt: at } };
 }
