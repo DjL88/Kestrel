@@ -13,8 +13,8 @@ import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvi
 import type { ExportRequest } from '../ui/contract';
 import type { ExportJob, ExportPlan } from './exportOps';
 
-/** Each photo/format/edit-group is one restartable-at-a-boundary scheduler unit.
- * Split formats remain one atomic unit containing 2-3 delivered panels. */
+/** Each photo/format/edit-group/panel is one independently tracked scheduler unit.
+ * Completed files are never re-rendered on an ordinary pause/resume. */
 export type ScheduledPhotoUnit =
   | { id: string; label: string; frameId: string; kind: 'developed'; jobIndex: number; variantIndex: number; panelIndex: number }
   | { id: string; label: string; frameId: string; kind: 'original' };
@@ -66,6 +66,7 @@ export async function scheduleV2PhotoExports(input: {
   const units = photoExportUnits(snapshot.plan, snapshot.frames);
   if (!units.length) throw new Error('No export outputs were selected.');
   const names = new Set<string>();
+  const reservedNames = new Map<string, string>();
   const started = new Date();
   const provider = input.provider;
   return engineScheduler.submit({
@@ -134,13 +135,18 @@ export async function scheduleV2PhotoExports(input: {
       }
       for (const file of files) {
         ctx.checkCancelled();
-        const name = uniqueExportFilename(file.name, names);
+        // Reserve the output name once for this exact item. A failed native
+        // save must retry the SAME filename, not make an accidental -2 copy.
+        let name = reservedNames.get(item.id);
+        if (!name) { name = uniqueExportFilename(file.name, names); reservedNames.set(item.id, name); }
         const output = name === file.name ? file : new File([file], name, { type: file.type, lastModified: file.lastModified });
         ctx.stage(`Saving ${name}`);
         if (folder) await folder.save(output, '', ctx.signal);
         else if (!await saveExportFile(output, output.name, ctx.signal))
           throw new DOMException('Save cancelled. Previously saved outputs remain unchanged.', 'AbortError');
-        // Each item is only marked done AFTER the destination acknowledged its write.
+        // The native destination has acknowledged the completed write. Even
+        // if cancellation now arrives, this item must remain completed.
+        ctx.acknowledgeCommitted();
       }
       ctx.checkCancelled();
     },
