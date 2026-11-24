@@ -276,8 +276,10 @@ export function createEngineScheduler(options: {
     const snapshot = structuredClone(definition.snapshot);
     // Only serialisable metadata belongs in the recovery fingerprint.
     // Never journal source bytes, handles, model weights or photographs.
-    const fingerprint = JSON.stringify({ kind: definition.kind, items: ids, snapshot });
     const recovery = definition.recovery;
+    // A full photo recipe may contain dense mask arrays. Never stringify
+    // those enormous records unless a verified recovery journal is enabled.
+    const fingerprint = recovery ? JSON.stringify({ kind: definition.kind, items: ids, snapshot }) : '';
     const completed = new Set<string>();
     if (recovery) {
       const priorText = recovery.journal.getItem(recovery.key);
