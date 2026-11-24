@@ -7,6 +7,9 @@ import type { CullingState } from './types';
 export interface CompletedAutoResult {
   projectId: string;
   frameId: string;
+  /** The exact catalogue source examined by the worker. */
+  stableKey: string;
+  originalSha256?: string;
   edit: PhotoEdit;
   at: number;
   /** The photo currently being edited by hand, if any. It must always win. */
@@ -27,7 +30,8 @@ export function commitCompletedAutoResult(state: CullingState, update: Completed
   const matching = state.frames.filter((frame) => frame.id === update.frameId);
   if (matching.length !== 1) return state;
   const frame = matching[0];
-  if (frame.decision !== 'keep' || !untouchedForBackgroundAuto(frame)) return state;
+  if (frame.stableKey !== update.stableKey || frame.originalSha256 !== update.originalSha256 ||
+      frame.decision !== 'keep' || !untouchedForBackgroundAuto(frame)) return state;
 
   const revised = recordEdit(frame, { edit: update.edit }, update.at);
   if (revised === frame) return state;
