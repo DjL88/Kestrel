@@ -6,6 +6,8 @@ import { KNOWN_FLAGS, NEVER_GATED, fieldsFromRule, flagFromForm, ruleSummary } f
 
 import { RULES, SCENARIOS, evaluateSample, rehearseDelivery } from './admin-monitoring.mjs';
 
+import { DIMENSIONS, SAMPLE_DEVICES, previewAudience, messagePreview } from './admin-notifications.mjs';
+
 const $ = id => document.getElementById(id);
 const status = $('status');
 let token;
@@ -90,6 +92,7 @@ function signOut(message = '') {
   sendDemoEditorSession();
   localTaxes = {};
   clearMonitoringRehearsal();
+  resetNotificationRehearsal();
   $('console').hidden = true;
   $('sign-out').hidden = true;
   $('who').textContent = '';
@@ -289,6 +292,63 @@ act($('monitoring-rehearsal'), 'submit', async () => {
       ' No live data or push delivery.';
 });
 act($('monitoring-clear'), 'click', async () => { clearMonitoringRehearsal(); });
+
+// ---- Notification rehearsal: no network, no actual recipients, no persistence ---------------------------------
+const notificationForm = $('notification-form');
+function clearNotificationPreview() {
+  $('notification-result').textContent = 'No preview yet.';
+  $('notification-preview').hidden = true;
+  $('notification-title').textContent = '';
+  $('notification-body').textContent = '';
+}
+function addNotificationRule() {
+  const container = $('notification-rules');
+  if (container.children.length >= 20) { say('At most 20 rehearsal rules.'); return; }
+  const row = el('div', undefined, 'row');
+  const selectField = (label, values) => {
+    const wrapper = el('label', label);
+    const select = el('select');
+    for (const [value, text] of values) { const option = el('option', text); option.value = value; select.append(option); }
+    wrapper.append(select); row.append(wrapper);
+    return select;
+  };
+  const mode = selectField('Rule', [['include','Include'],['exclude','Exclude']]); mode.dataset.field = 'mode';
+  const dimension = selectField('Field', Object.entries(DIMENSIONS)); dimension.dataset.field = 'dimension';
+  const label = el('label', 'Value'); const input = el('input');
+  input.dataset.field = 'value'; input.maxLength = 160; input.required = true; label.append(input); row.append(label);
+  row.append(button('Remove', 'Remove audience rule', 'quiet', async () => { row.remove(); clearNotificationPreview(); }));
+  container.append(row);
+  clearNotificationPreview();
+}
+function resetNotificationRehearsal() {
+  notificationForm.reset();
+  $('notification-rules').replaceChildren();
+  clearNotificationPreview();
+}
+act($('notification-add'), 'click', async () => { addNotificationRule(); });
+notificationForm.addEventListener('input', clearNotificationPreview);
+notificationForm.elements.locale.addEventListener('change', () => {
+  // A draft for one language must never be silently reused for a different language.
+  notificationForm.elements.variantTitle.value = '';
+  notificationForm.elements.variantBody.value = '';
+  clearNotificationPreview();
+});
+act(notificationForm, 'submit', async () => {
+  if (!token) return;
+  clearNotificationPreview();
+  const f = notificationForm.elements;
+  const rules = [...$('notification-rules').children].map(row => Object.fromEntries(
+    [...row.querySelectorAll('[data-field]')].map(field => [field.dataset.field, field.value])));
+  const count = previewAudience(SAMPLE_DEVICES, rules, f.match.value, f.allowAll.checked);
+  const preview = messagePreview({ title: f.sourceTitle.value, body: f.sourceBody.value },
+    { title: f.variantTitle.value, body: f.variantBody.value }, f.locale.value);
+  $('notification-result').textContent = count.accounts + ' sample account(s), ' + count.devices + ' sample device(s). ' +
+    (preview.fallback ? 'English fallback; no translated draft.' : 'Preview language: ' + preview.locale + '. Manual draft, not reviewed.') +
+    ' No real recipients or sends.';
+  $('notification-title').textContent = preview.title;
+  $('notification-body').textContent = preview.body;
+  $('notification-preview').hidden = false;
+});
 
 async function loadUsage() {
   const u = await api('admin/usage');
