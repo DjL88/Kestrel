@@ -7,6 +7,7 @@
  * Async engine results must be applied through commitIfCurrent.
  */
 import { tasks, type SchedulerTaskHandle, type TaskItemInfo, type TaskLocation } from './taskStore.ts';
+import { admitBackground, type ProcessingMode, type Reservation, type ResourceSample } from './resourcePolicy';
 
 export type EngineResource = 'cpu' | 'gpu' | 'io';
 export type EngineKind = 'import' | 'raw' | 'preview' | 'thumbnail' | 'cull' | 'detect' | 'mask' |
@@ -49,6 +50,8 @@ export interface BatchDefinition<Item, Snapshot = undefined> {
   runItem(item: Readonly<Item>, snapshot: Readonly<Snapshot>, ctx: ScheduledContext): Promise<void>;
   snapshot: Snapshot;
   resource?: EngineResource;
+  /** Conservative estimated peak reservation; never advertised as measured usage. */
+  reservation?: Partial<Reservation>;
   priority?: number;
   location?: TaskLocation;
   /** Only offer pause when a photo or stage boundary genuinely exists. */
@@ -84,6 +87,7 @@ interface WorkBatch {
   order: number;
   priority: number;
   resource: EngineResource;
+  reservation: Reservation;
   pauseable: boolean;
   paused: boolean;
   pauseRequested: boolean;
@@ -110,12 +114,54 @@ export function limitsForDevice(device: { hardwareConcurrency?: number; deviceMe
 export function createEngineScheduler(options: {
   taskStore?: typeof tasks;
   limits?: DeviceLimits;
+  /** Only native or otherwise trustworthy live measurements belong here. */
+  resourceSample?: ResourceSample | null;
+  mode?: ProcessingMode;
   now?: () => number;
 } = {}) {
   const store = options.taskStore ?? tasks;
   const limits = options.limits ?? limitsForDevice();
   const now = options.now ?? Date.now;
   const used: DeviceLimits = { cpu: 0, gpu: 0, io: 0 };
+  const emptyReservation = (): Reservation => ({ memoryBytes: 0, gpuBytes: 0, diskBytes: 0 });
+  // These are conservative scheduling reservations, NOT observations of RAM,
+  // VRAM or disk usage. Actual available capacity must come from the device.
+  const estimatedReservation = (resource: EngineResource, supplied?: Partial<Reservation>): Reservation => {
+    const MiB = 1024 * 1024;
+    const baseline = resource === 'gpu'
+      ? { memoryBytes: 512 * MiB, gpuBytes: 256 * MiB, diskBytes: 0 }
+      : resource === 'cpu'
+        ? { memoryBytes: 192 * MiB, gpuBytes: 0, diskBytes: 0 }
+        : { memoryBytes: 64 * MiB, gpuBytes: 0, diskBytes: 0 };
+    return { ...baseline, ...supplied };
+  };
+  let resourceSample = options.resourceSample ?? null;
+  let mode: ProcessingMode = options.mode ?? 'balanced';
+  let blockedReason: string | null = null;
+  const admitted = (job: WorkBatch): boolean => {
+    if (used[job.resource] >= limits[job.resource]) return false;
+    const occupied = [...jobs.values()].filter(other => other.active);
+    const held = occupied.reduce((sum, other) => ({
+      memoryBytes: sum.memoryBytes + other.reservation.memoryBytes,
+      gpuBytes: sum.gpuBytes + other.reservation.gpuBytes,
+      diskBytes: sum.diskBytes + other.reservation.diskBytes,
+    }), emptyReservation());
+    if (resourceSample) {
+      const outcome = admitBackground(resourceSample, held, job.reservation, mode);
+      if (outcome.allowed) { blockedReason = null; return true; }
+      if (outcome.reason !== 'unknown') {
+        blockedReason = outcome.reason ?? 'capacity';
+        return false;
+      }
+    }
+    // Browser and mobile builds often cannot measure *available* RAM/VRAM.
+    // Do not invent capacity. Run just one heavy engine at a time while
+    // measurements are unknown; interactive editing still gets first priority.
+    const heavyActive = occupied.some(other => other.resource !== 'io');
+    const safe = job.resource === 'io' ? used.io < 1 : !heavyActive;
+    if (!safe) blockedReason = 'unknown capacity';
+    return safe;
+  };
   const jobs = new Map<number, WorkBatch>();
   const failedJobs = new Map<number, WorkBatch>();
   let sequence = 0;
@@ -150,7 +196,7 @@ export function createEngineScheduler(options: {
     while (dispatched) {
       dispatched = false;
       const eligible = [...jobs.values()].filter(j => !j.active && !j.paused && !j.pauseRequested && !j.cancelled &&
-        j.items.some(item => item.state === 'queued') && used[j.resource] < limits[j.resource]);
+        j.items.some(item => item.state === 'queued') && admitted(j));
       eligible.sort((a, b) => b.priority - a.priority || a.order - b.order);
       const job = eligible[0];
       if (!job) break;
@@ -325,7 +371,8 @@ export function createEngineScheduler(options: {
     };
     job = {
       id: handle.id, order: ++sequence, priority: definition.priority ?? 0,
-      resource: definition.resource ?? 'cpu', pauseable: definition.pauseable !== false && items.length > 1,
+      resource: definition.resource ?? 'cpu', reservation: estimatedReservation(definition.resource ?? 'cpu', definition.reservation),
+      pauseable: definition.pauseable !== false && items.length > 1,
       active: false, paused: false, pauseRequested: false, cancelled: false, controller: null,
       handle, items: items as WorkItem<unknown>[], manualProgress: false,
       work: (index, ctx) => definition.runItem(items[index].input, snapshot, ctx),
@@ -424,6 +471,14 @@ export function createEngineScheduler(options: {
     subscribe: store.subscribe,
     runningResourceCount: () => ({ ...used }),
     isPausedAll: () => pausedAll,
+    /** Updates should come from OS-native telemetry; no manufactured percentages. */
+    updateResourceSample(sample: ResourceSample | null) {
+      resourceSample = sample ? { ...sample } : null;
+      blockedReason = null;
+      pump();
+    },
+    setProcessingMode(next: ProcessingMode) { mode = next; pump(); },
+    resourceStatus: () => ({ active: { ...used }, measured: resourceSample !== null, mode, blockedReason }),
   };
 }
 
