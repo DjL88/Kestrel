@@ -2,7 +2,7 @@ import { applyDetail, applyPhotoEdit, hasDetail, isNeutralEdit, isNeutralGlobal,
 import { applyMasks, fullContext, type MaskContext } from './masks';
 import { hasActiveMasks, usesDetail } from './maskTypes';
 import { applyNoiseReduction, hasNoiseReduction } from './noiseReduction';
-import { denoiseBands, denoiseOnlyMasks } from './denoiseBands';
+import { denoiseHalo, originalDenoiseStrips, denoiseOnlyMasks } from './denoiseBands';
 
 /** Colour noise reduction runs first, on the original pixels, before tone, sharpening and masks. */
 function applyCanvasNoiseReduction(canvas: HTMLCanvasElement, edit: PhotoEdit): void {
@@ -30,35 +30,18 @@ function* canvasMaskBands(canvas: HTMLCanvasElement, edit: PhotoEdit, mask: Mask
   if (!hasActiveMasks(edit.masks)) return;
   const context = canvas.getContext('2d', { willReadFrequently: true });
   if (!context) throw new Error('Canvas unavailable');
-  // Pure denoise recipes can use bounded strips. Multiple sequential mask
-  // filters need two original neighbour rows per active mask, conservatively.
-  // Read the next strip before writing this one, so no halo ever sees edited pixels.
-  if (denoiseOnlyMasks(edit.masks) && edit.masks?.length === 2 &&
-      edit.masks[0].id === edit.masks[1].id + '-background' &&
-      edit.masks[0].kind === 'subject' && edit.masks[1].kind === 'subject' &&
-      edit.masks[0].invert && !edit.masks[1].invert &&
-      !edit.masks[0].hidden && !edit.masks[1].hidden &&
-      !edit.masks[0].limit && !edit.masks[1].limit &&
-      edit.masks[0].feather === edit.masks[1].feather &&
-      edit.masks[0].framingKey === edit.masks[1].framingKey &&
-      JSON.stringify(edit.masks[0].grid) === JSON.stringify(edit.masks[1].grid) &&
-      JSON.stringify(edit.masks[0].detail) === JSON.stringify(edit.masks[1].detail) &&
-      JSON.stringify(edit.masks[0].strokes) === JSON.stringify(edit.masks[1].strokes)) {
-    const bands = denoiseBands(canvas.width, canvas.height);
-    let current = bands.next();
-    let pixels = current.done ? undefined : context.getImageData(0, current.value.start, canvas.width, current.value.height);
-    while (!current.done && pixels) {
-      const band = current.value;
-      const next = bands.next();
-      const nextPixels = next.done ? undefined : context.getImageData(0, next.value.start, canvas.width, next.value.height);
+  // Bound all denoise-only masks, including independent subject overrides.
+  // Keep the existing full-frame size guard and mixed-detail path unchanged.
+  if (edit.masks && denoiseOnlyMasks(edit.masks) && canvas.width * canvas.height <= 80_000_000) {
+    const halo = denoiseHalo(edit.masks);
+    for (const { band, pixels } of originalDenoiseStrips(canvas.width, canvas.height, halo,
+      band => context.getImageData(0, band.start, canvas.width, band.height))) {
       applyMasks(pixels.data, canvas.width, band.height, edit.masks, {
         aspect: mask.aspect, imageEdge,
         view: { x: mask.view.x, y: mask.view.y + mask.view.h * band.start / canvas.height,
           w: mask.view.w, h: mask.view.h * band.height / canvas.height },
       });
       context.putImageData(pixels, 0, band.start, 0, band.y - band.start, canvas.width, band.rows);
-      current = next;
-      pixels = nextPixels;
       yield;
     }
     return;
