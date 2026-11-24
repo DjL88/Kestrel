@@ -195,3 +195,14 @@ test('portable restore rejects fractional and unsafe catalogue sequence and burs
   const restored = restoreProjectBackup(baseline, 'restored');
   assert.deepEqual(restored.frames.map(frame => frame.sequenceIndex), project.frames.map(frame => frame.sequenceIndex));
 });
+
+test('collage backup preserves pages, repeat appearances and rejects orphan slots', async () => {
+  const { createCollage, duplicateCollagePage } = await import('./collage');
+  const project = createDemoShootState(3);
+  project.shoot.collage = duplicateCollagePage(createCollage(project.frames.map(f => f.id), 'a4-portrait'));
+  const restored = restoreProjectBackup(encodeProjectBackup(project), 'restored');
+  assert.deepEqual(restored.shoot.collage, project.shoot.collage);
+  const bad = JSON.parse(encodeProjectBackup(project));
+  bad.project.shoot.collage.pages[0].slots[0].photoId = 'missing';
+  assert.throws(() => restoreProjectBackup(JSON.stringify(bad), 'restored'), /invalid collage layout or photo links/);
+});
