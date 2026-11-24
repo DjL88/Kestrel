@@ -26,7 +26,8 @@ export function readFormats(raw: unknown): FormatSet {
     if (!entry || typeof entry !== 'object') continue;
     const item = entry as Record<string, unknown>;
     if (typeof item.id !== 'string' || !CUSTOM_ID.test(item.id) || seen.has(item.id)) continue;
-    const width = Number(item.width), height = Number(item.height);
+    const width = item.width, height = item.height;
+    if (typeof width !== 'number' || typeof height !== 'number') continue;
     if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width > MAX_SIDE || height > MAX_SIDE) continue;
     const label = typeof item.label === 'string' ? item.label.trim().slice(0, 60) : '';
     seen.add(item.id);
@@ -112,7 +113,7 @@ export function validCustomSize(width: number, height: number): boolean {
 /** A new custom format, or undefined when the size is not usable or the photo already has the most formats allowed. */
 export function addFormat(raw: unknown, label: string, width: number, height: number, id: string): FormatSet | undefined {
   const formats = readFormats(raw);
-  if (!validCustomSize(width, height) || formats.custom.length >= MAX_CUSTOM_FORMATS || !CUSTOM_ID.test(id)) return undefined;
+  if (!validCustomSize(width, height) || formats.custom.length >= MAX_CUSTOM_FORMATS || !CUSTOM_ID.test(id) || formats.custom.some(format => format.id === id)) return undefined;
   return { ...formats, custom: [...formats.custom, { id, label: label.trim().slice(0, 60) || `${width}×${height}`, width, height }] };
 }
 
