@@ -147,15 +147,25 @@ export function canChangeCollageTemplate(doc: CollageDocument, template: Collage
 export function changeCollageTemplate(doc: CollageDocument, template: CollageTemplate): CollageDocument {
   if (!canChangeCollageTemplate(doc, template)) return doc;
   const old = collagePage(doc);
-  const assigned = old.slots.map((slot) => slot.photoId).filter((id): id is string => id !== null);
+  if (old.template === template) return doc;
+  const assigned = old.slots.filter((slot): slot is CollageSlot & { photoId: string } => slot.photoId !== null);
   const capacity = shapes[template].length;
   const aspect = collageFormatAspect(doc.format);
-  const redesigned = newCollagePage(template, assigned.slice(0, capacity), aspect);
+  const pageWithFraming = (entries: typeof assigned) => {
+    const page = newCollagePage(template, entries.map(slot => slot.photoId), aspect);
+    return { ...page, slots: page.slots.map((slot, index) => {
+      const source = entries[index];
+      if (!source) return slot;
+      return { ...slot, ...(source.zoom !== undefined ? { zoom: source.zoom } : {}),
+        ...(source.panX !== undefined ? { panX: source.panX } : {}), ...(source.panY !== undefined ? { panY: source.panY } : {}) };
+    }) };
+  };
+  const redesigned = pageWithFraming(assigned.slice(0, capacity));
   const overflow = assigned.slice(capacity);
   // Smaller layouts create following pages for extra photographs, without
   // overwriting the layout, assignments or captions on other existing pages.
   const extraPages = Array.from({ length: Math.ceil(overflow.length / capacity) }, (_, index) => {
-    const page = newCollagePage(template, overflow.slice(index * capacity, (index + 1) * capacity), aspect);
+    const page = pageWithFraming(overflow.slice(index * capacity, (index + 1) * capacity));
     return { ...page, background: old.background, gap: old.gap, captionColour: old.captionColour };
   });
   const pages = doc.pages.flatMap((p) => p.id === old.id
