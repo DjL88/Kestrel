@@ -29,6 +29,9 @@ export interface ScheduledContext {
   stage(stage: string): void;
   /** Report real sub-stage/photo counts for one-shot engines such as culling. */
   reportProgress(done: number, total: number, detail?: string): void;
+  /** For a scan-wide job which decides only after analysing all photographs. */
+  setSubitems(items: readonly { id: string; label: string }[]): void;
+  updateSubitem(id: string, state: ItemState, detail?: string): void;
   /** Reflect the verified processing runner, including cloud-to-local fallback. */
   setLocation(location: TaskLocation): void;
   /** Prevent cancelled, superseded or stale asynchronous engine results from applying. */
@@ -90,6 +93,7 @@ interface WorkBatch {
   handle: SchedulerTaskHandle;
   items: WorkItem<unknown>[];
   manualProgress: boolean;
+  subitems?: TaskItemInfo[];
   work(index: number, ctx: ScheduledContext): Promise<void>;
   saveCheckpoint(): void;
   retry(): Promise<SchedulerTicket | null>;
@@ -119,7 +123,7 @@ export function createEngineScheduler(options: {
   let pausedAll = false;
 
   const updateItems = (job: WorkBatch, detail?: string) => job.handle.patch({
-    items: job.items.map(({ id, label, state, detail: explanation }) => ({ id, label, state, ...(explanation ? { detail: explanation } : {}) })),
+    items: job.subitems ?? job.items.map(({ id, label, state, detail: explanation }) => ({ id, label, state, ...(explanation ? { detail: explanation } : {}) })),
     ...(detail !== undefined ? { detail } : {}),
   });
   const countDone = (job: WorkBatch) => job.items.filter(item => item.state === 'done').length;
@@ -177,6 +181,16 @@ export function createEngineScheduler(options: {
             job.manualProgress = true;
             job.handle.progress(done, total, detail);
           }
+        },
+        setSubitems(subitems) {
+          if (job.cancelled || controller.signal.aborted) return;
+          job.subitems = subitems.map(sub => ({ ...sub, state: 'queued' }));
+          updateItems(job);
+        },
+        updateSubitem(id, state, detail) {
+          if (job.cancelled || controller.signal.aborted || !job.subitems) return;
+          job.subitems = job.subitems.map(sub => sub.id === id ? { ...sub, state, ...(detail ? { detail } : {}) } : sub);
+          updateItems(job);
         },
         setLocation(location) { if (!job.cancelled && !controller.signal.aborted) job.handle.patch({ location }); },
         checkCancelled() {
