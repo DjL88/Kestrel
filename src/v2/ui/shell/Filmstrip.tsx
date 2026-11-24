@@ -16,7 +16,7 @@ interface FilmstripProps {
   height: number;
   filter: 'all' | 'flagged' | 'set-aside';
   search: string;
-  calmView: boolean;
+  quietBadges: boolean;
   looks: LookPreset[];
   hasClipboardRecipe: boolean;
   onSetBottomTab: (tab: 'filmstrip' | 'info') => void;
@@ -50,7 +50,7 @@ export default function Filmstrip({
   height,
   filter,
   search,
-  calmView,
+  quietBadges,
   looks,
   hasClipboardRecipe,
   onSetBottomTab,
@@ -546,7 +546,7 @@ export default function Filmstrip({
                           {STRINGS.tier[photo.tier]}
                         </span>
                       )}
-                      {(photo.state !== 'ready' || !calmView) && (
+                      {(photo.state !== 'ready' || !quietBadges) && (
                         <span
                           className={`absolute left-1.5 bottom-1.5 rounded px-1.5 py-0.5 text-[9px] font-semibold ${
                             photo.state === 'unavailable'

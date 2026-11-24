@@ -665,6 +665,12 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     settings: {
       theme: 'dark',
       calmView: false,
+      // Calmer by default for everyone: less movement and no Ready badge on every finished photo.
+      // Hints and slider numbers stay, because new users need the hints and many people rely on exact values.
+      calmMotion: true,
+      calmBadges: true,
+      calmHints: false,
+      calmReadouts: false,
       touchDensity: 'comfortable',
       hand: 'right',
       cvdGuidance: true,

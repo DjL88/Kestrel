@@ -27,6 +27,11 @@
     animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important;
   }
 }
+/* Calm View > Less movement: the same as the operating system's reduce-motion setting, chosen inside InFlight. */
+.inflight-v2[data-v2-motion="calm"] *, .inflight-v2[data-v2-motion="calm"] *::before, .inflight-v2[data-v2-motion="calm"] *::after {
+  animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
 
 /* The Pro badge ships in a dark and a light version; show the one that suits the V2 theme. */
 .inflight-v2 .v2-pro-light { display: none; }

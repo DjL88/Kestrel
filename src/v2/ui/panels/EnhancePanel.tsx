@@ -13,7 +13,7 @@ const unsupportedHelp = 'Unavailable: this control does not yet change the photo
 
 interface EnhancePanelProps {
   photo: Photo | null;
-  calmView: boolean;
+  hideReadouts: boolean;
   onUpdateRecipe: (photoId: string, patch: Partial<EditRecipe>) => void;
   onDenoise?: (photoId: string) => void;
   /** Whether this plan includes cloud processing. */
@@ -22,7 +22,7 @@ interface EnhancePanelProps {
 
 export default function EnhancePanel({
   photo,
-  calmView,
+  hideReadouts,
   onUpdateRecipe,
   onDenoise,
   cloudEnabled = false,
@@ -98,7 +98,7 @@ export default function EnhancePanel({
                 body={STRINGS.enhance.tooltips.luminanceDenoise}
               />
             </span>
-            {!calmView && (
+            {!hideReadouts && (
               <span className="font-mono text-[11px] text-[var(--text-secondary)] tabular-nums">
                 {recipe.denoiseLuminance}
               </span>
@@ -125,7 +125,7 @@ export default function EnhancePanel({
                 body={STRINGS.enhance.tooltips.colourDenoise}
               />
             </span>
-            {!calmView && (
+            {!hideReadouts && (
               <span className="font-mono text-[11px] text-[var(--text-secondary)] tabular-nums">
                 {recipe.denoiseColour}
               </span>
@@ -178,7 +178,7 @@ export default function EnhancePanel({
                 body="Adds contrast to fine detail that is already present. It cannot restore missing detail or invent feathers."
               />
             </span>
-            {!calmView && (
+            {!hideReadouts && (
               <span className="font-mono text-[11px] text-[var(--text-secondary)] tabular-nums">
                 {recipe.detailRecovery}
               </span>

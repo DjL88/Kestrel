@@ -10,7 +10,7 @@ interface AdjustPanelProps {
   selectedPhotoCount: number;
   looks: LookPreset[];
   cvdGuidance: boolean;
-  calmView: boolean;
+  hideReadouts: boolean;
   onUpdateRecipe: (photoId: string, patch: Partial<EditRecipe>) => void;
   onApplyLook: (photoId: string, lookId: string) => void;
   onHoverLook: (lookId: string | null) => void;
@@ -28,7 +28,7 @@ interface SliderRowProps {
   unit?: string;
   leftHint?: string;
   rightHint?: string;
-  calmView: boolean;
+  hideReadouts: boolean;
   onChange: (val: number) => void;
 }
 
@@ -43,7 +43,7 @@ function SliderRow({
   unit = '',
   leftHint,
   rightHint,
-  calmView,
+  hideReadouts,
   onChange,
 }: SliderRowProps) {
   const formatted =
@@ -60,7 +60,7 @@ function SliderRow({
           </label>
           <InfoPopover title={label} body={tooltip} />
         </div>
-        {!calmView && (
+        {!hideReadouts && (
           <button
             type="button"
             title={`Double-click or click to reset ${label} to 0`}
@@ -105,7 +105,7 @@ export default function AdjustPanel({
   selectedPhotoCount,
   looks,
   cvdGuidance,
-  calmView,
+  hideReadouts,
   onUpdateRecipe,
   onApplyLook,
   onHoverLook,
@@ -248,7 +248,7 @@ export default function AdjustPanel({
           unit={` ${STRINGS.adjust.stopsSuffix}`}
           leftHint="-5 EV"
           rightHint="+5 EV"
-          calmView={calmView}
+          hideReadouts={hideReadouts}
           onChange={(v) => onUpdateRecipe(photo.id, { exposure: v })}
         /></div>
         <div className={phoneGroupClass(advancedGroup, 'tone')}><SliderRow
@@ -258,7 +258,7 @@ export default function AdjustPanel({
           value={recipe.highlights}
           min={-100}
           max={100}
-          calmView={calmView}
+          hideReadouts={hideReadouts}
           onChange={(v) => onUpdateRecipe(photo.id, { highlights: v })}
         /></div>
         <div className={phoneGroupClass(advancedGroup, 'tone')}><SliderRow
@@ -268,7 +268,7 @@ export default function AdjustPanel({
           value={recipe.shadows}
           min={-100}
           max={100}
-          calmView={calmView}
+          hideReadouts={hideReadouts}
           onChange={(v) => onUpdateRecipe(photo.id, { shadows: v })}
         /></div>
         <div className={phoneGroupClass(advancedGroup, 'light')}><SliderRow
@@ -278,7 +278,7 @@ export default function AdjustPanel({
           value={recipe.contrast}
           min={-100}
           max={100}
-          calmView={calmView}
+          hideReadouts={hideReadouts}
           onChange={(v) => onUpdateRecipe(photo.id, { contrast: v })}
         /></div>
         <div className={phoneGroupClass(advancedGroup, 'tone')}><SliderRow
@@ -288,7 +288,7 @@ export default function AdjustPanel({
           value={recipe.whites}
           min={-100}
           max={100}
-          calmView={calmView}
+          hideReadouts={hideReadouts}
           onChange={(v) => onUpdateRecipe(photo.id, { whites: v })}
         /></div>
         <div className={phoneGroupClass(advancedGroup, 'tone')}><SliderRow
@@ -298,7 +298,7 @@ export default function AdjustPanel({
           value={recipe.blacks}
           min={-100}
           max={100}
-          calmView={calmView}
+          hideReadouts={hideReadouts}
           onChange={(v) => onUpdateRecipe(photo.id, { blacks: v })}
         /></div>
       </section>
@@ -318,7 +318,7 @@ export default function AdjustPanel({
           max={100}
           leftHint={cvdGuidance ? 'Cooler (Blue)' : 'Cool'}
           rightHint={cvdGuidance ? 'Warmer (Amber)' : 'Warm'}
-          calmView={calmView}
+          hideReadouts={hideReadouts}
           onChange={(v) => onUpdateRecipe(photo.id, { temperature: v })}
         /></div>
         <div className={phoneGroupClass(advancedGroup, 'colour')}><SliderRow
@@ -330,7 +330,7 @@ export default function AdjustPanel({
           max={100}
           leftHint={cvdGuidance ? 'Green bias' : undefined}
           rightHint={cvdGuidance ? 'Magenta bias' : undefined}
-          calmView={calmView}
+          hideReadouts={hideReadouts}
           onChange={(v) => onUpdateRecipe(photo.id, { tint: v })}
         /></div>
         <div className={phoneGroupClass(advancedGroup, 'colour')}><SliderRow
@@ -340,7 +340,7 @@ export default function AdjustPanel({
           value={recipe.vibrance}
           min={-100}
           max={100}
-          calmView={calmView}
+          hideReadouts={hideReadouts}
           onChange={(v) => onUpdateRecipe(photo.id, { vibrance: v })}
         /></div>
         <div className={phoneGroupClass(advancedGroup, 'colour')}><SliderRow
@@ -350,7 +350,7 @@ export default function AdjustPanel({
           value={recipe.saturation}
           min={-100}
           max={100}
-          calmView={calmView}
+          hideReadouts={hideReadouts}
           onChange={(v) => onUpdateRecipe(photo.id, { saturation: v })}
         /></div>
         <div className={phoneGroupClass(advancedGroup, 'detail')}><SliderRow
@@ -360,7 +360,7 @@ export default function AdjustPanel({
           value={recipe.clarity}
           min={-100}
           max={100}
-          calmView={calmView}
+          hideReadouts={hideReadouts}
           onChange={(v) => onUpdateRecipe(photo.id, { clarity: v })}
         /></div>
         <div className={phoneGroupClass(advancedGroup, 'detail')}><SliderRow
@@ -370,7 +370,7 @@ export default function AdjustPanel({
           value={recipe.sharpen}
           min={0}
           max={100}
-          calmView={calmView}
+          hideReadouts={hideReadouts}
           onChange={(v) => onUpdateRecipe(photo.id, { sharpen: v })}
         /></div>
       </section>

@@ -2,7 +2,9 @@ import { LANGUAGES, languageOption, type LanguageCode } from '../../../core/loca
 import { chooseLanguage, language } from '../../../i18n/messages';
 import { StorageConnections } from './StorageConnections';
 import { aiProviderControl, cacheCapControl } from '../../engineClient/realSettingsControls';
-import React, { useState } from 'react';
+import { calmViewOn, calmViewPatch } from '../../engineClient/uiSettings';
+import React, { useRef, useState } from 'react';
+import { useDialogFocus } from '../utils/dialogFocus';
 import type {
   AiProviderConfig,
   AssistMode,
@@ -41,6 +43,13 @@ interface SettingsDialogProps {
   proChoiceOffered?: boolean;
 }
 
+const CALM_PARTS: Array<{ key: 'calmMotion' | 'calmBadges' | 'calmHints' | 'calmReadouts'; label: string; desc: string }> = [
+  { key: 'calmMotion', label: STRINGS.settings.appearance.calmMotionLabel, desc: STRINGS.settings.appearance.calmMotionDesc },
+  { key: 'calmBadges', label: STRINGS.settings.appearance.calmBadgesLabel, desc: STRINGS.settings.appearance.calmBadgesDesc },
+  { key: 'calmHints', label: STRINGS.settings.appearance.calmHintsLabel, desc: STRINGS.settings.appearance.calmHintsDesc },
+  { key: 'calmReadouts', label: STRINGS.settings.appearance.calmReadoutsLabel, desc: STRINGS.settings.appearance.calmReadoutsDesc },
+];
+
 const TABS: Array<{ id: SettingsTabId; label: string; icon: BrandIconName }> = [
   { id: 'appearance', label: STRINGS.settings.tabs.appearance, icon: 'palette' },
   { id: 'account', label: STRINGS.settings.tabs.account, icon: 'account' },
@@ -74,6 +83,9 @@ export default function SettingsDialog({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  const panelRef = useRef<HTMLDivElement>(null);
+  const onDialogKeyDown = useDialogFocus(open, panelRef, onClose);
+
   if (!open) return null;
 
   const handleEmailSignIn = (e: React.FormEvent) => {
@@ -88,13 +100,14 @@ export default function SettingsDialog({
     <div
       role="dialog"
       aria-modal="true"
+      onKeyDown={onDialogKeyDown}
       aria-labelledby="settings-dialog-title"
       className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-scrim)] p-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex h-[82vh] max-h-[680px] w-full max-w-3xl flex-col overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]">
+      <div ref={panelRef} tabIndex={-1} className="flex h-[82vh] max-h-[680px] w-full max-w-3xl flex-col overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-6 py-4">
           <h2 id="settings-dialog-title" className="text-base font-bold text-[var(--text-primary)]">
@@ -188,29 +201,56 @@ export default function SettingsDialog({
                   </div>
                 </section>
 
-                {/* Calm View toggle (lives here, NOT in TopBar) */}
-                <section className="flex items-start justify-between gap-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-4">
-                  <div>
-                    <h3 className="text-xs font-semibold text-[var(--text-primary)]">
-                      {STRINGS.settings.appearance.calmViewLabel}
-                    </h3>
-                    <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
-                      {STRINGS.settings.appearance.calmViewDesc}
-                    </p>
+                {/* Calm View (lives here, NOT in TopBar or Assistance): a preset, with each of its parts adjustable below. */}
+                <section className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 id="calm-view-title" className="text-xs font-semibold text-[var(--text-primary)]">
+                        {STRINGS.settings.appearance.calmViewLabel}
+                      </h3>
+                      <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
+                        {STRINGS.settings.appearance.calmViewDesc}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={calmViewOn(settings)}
+                      aria-labelledby="calm-view-title"
+                      onClick={() => onUpdateSettings(calmViewPatch(!calmViewOn(settings)))}
+                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                        calmViewOn(settings)
+                          ? 'bg-[var(--brand-accent)] text-[var(--text-on-accent)]'
+                          : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
+                      }`}
+                    >
+                      {calmViewOn(settings) ? STRINGS.settings.appearance.on : STRINGS.settings.appearance.off}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={settings.calmView}
-                    onClick={() => onUpdateSettings({ calmView: !settings.calmView })}
-                    className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                      settings.calmView
-                        ? 'bg-[var(--brand-accent)] text-[var(--text-on-accent)]'
-                        : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
-                    }`}
-                  >
-                    {settings.calmView ? 'On' : 'Off'}
-                  </button>
+                  <ul className="mt-3 divide-y divide-[var(--border-subtle)] border-t border-[var(--border-subtle)]">
+                    {CALM_PARTS.map((part) => (
+                      <li key={part.key} className="flex items-start justify-between gap-4 py-2.5">
+                        <div>
+                          <p id={`calm-${part.key}`} className="text-xs font-medium text-[var(--text-primary)]">{part.label}</p>
+                          <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)]">{part.desc}</p>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={settings[part.key]}
+                          aria-labelledby={`calm-${part.key}`}
+                          onClick={() => onUpdateSettings({ [part.key]: !settings[part.key] })}
+                          className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                            settings[part.key]
+                              ? 'border-[var(--brand-accent-border)] bg-[var(--brand-accent-soft)] text-[var(--text-primary)]'
+                              : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)]'
+                          }`}
+                        >
+                          {settings[part.key] ? STRINGS.settings.appearance.on : STRINGS.settings.appearance.off}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                 </section>
 
                 {/* Basic accounts only: leave locked Pro features out of the interface so they are not a constant reminder. */}
