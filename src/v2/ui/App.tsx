@@ -1,3 +1,5 @@
+import { useConnectivity } from '../../providers/useConnectivity';
+import { projectsText } from '../../i18n/areas/projects';
 import { stepFrom } from './utils/swipe';
 import React, { useEffect, useRef, useState } from 'react';
 import type { PanelId } from './contract';
@@ -60,6 +62,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   accountPanel?: React.ReactNode;
 } = {}) {
   const { store, actions } = useStore();
+  const connectivity = useConnectivity();
   const [systemDark, setSystemDark] = useState(() =>
     typeof window !== 'undefined' && typeof window.matchMedia === 'function'
       ? window.matchMedia('(prefers-color-scheme: dark)').matches : false);
@@ -412,6 +415,12 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         e.preventDefault();
       }}
     >
+      {connectivity === 'offline' && (
+        <div role="status" data-testid="offline-status" className="flex shrink-0 items-center gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1 text-xs text-[var(--text-secondary)]">
+          <BrandIcon name="alert" size={14} />
+          <span>{projectsText.connections.health.offline} · {projectsText.connections.advice.offline}</span>
+        </div>
+      )}
       {store.screen === 'hub' ? (
         <ProjectsHub
           projects={store.projects}
