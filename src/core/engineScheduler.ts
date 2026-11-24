@@ -34,6 +34,8 @@ export interface ScheduledContext {
   /** Prevent cancelled, superseded or stale asynchronous engine results from applying. */
   commitIfCurrent(commit: () => void): boolean;
   checkCancelled(): void;
+  /** Called immediately after an irreversible output has been confirmed by its destination. */
+  acknowledgeCommitted(): void;
 }
 export interface BatchDefinition<Item, Snapshot = undefined> {
   title: string;
@@ -71,6 +73,8 @@ interface WorkItem<Item> {
   state: ItemState;
   detail?: string;
   uncertain?: boolean;
+  confirmed?: boolean;
+  checkpointed?: boolean;
 }
 interface WorkBatch {
   id: number;
@@ -184,17 +188,32 @@ export function createEngineScheduler(options: {
           commit();
           return true;
         },
+        acknowledgeCommitted() {
+          // Once a destination confirmed the final bytes, cancellation cannot
+          // pretend that output was never saved. A failed checkpoint requires
+          // manual destination verification before any retry.
+          item.confirmed = true;
+          item.state = 'done';
+          if (!item.checkpointed) {
+            try { job.saveCheckpoint(); item.checkpointed = true; }
+            catch (error) {
+              item.uncertain = true;
+              throw new Error(`Could not checkpoint confirmed output for ${item.label}: ${error instanceof Error ? error.message : String(error)}. Check the destination before retrying.`);
+            }
+          }
+          publishProgress(job);
+        },
       };
       void (async () => {
         try {
           await job.work(index, ctx);
-          if (controller.signal.aborted || job.cancelled) {
+          if ((controller.signal.aborted || job.cancelled) && !item.confirmed) {
             item.state = 'cancelled';
           } else {
             // Worker has already confirmed actual save. If the checkpoint fails,
             // the destination may still contain the file: forbid blind retry.
             item.state = 'done';
-            try { job.saveCheckpoint(); } catch (error) {
+            try { if (!item.checkpointed) job.saveCheckpoint(); } catch (error) {
               item.uncertain = true;
               throw new Error(`Could not checkpoint confirmed output for ${item.label}: ${error instanceof Error ? error.message : String(error)}. Verify the destination before retrying.`);
             }
@@ -203,7 +222,11 @@ export function createEngineScheduler(options: {
           // A cancelled native save picker is cancellation, not a failed image.
           if (error instanceof DOMException && error.name === 'AbortError' && !job.cancelled)
             store.cancel(job.id);
-          if (controller.signal.aborted || job.cancelled) item.state = 'cancelled';
+          if (item.uncertain) {
+            item.state = 'failed';
+            item.detail = error instanceof Error ? error.message : String(error);
+          } else if (item.confirmed) item.state = 'done';
+          else if (controller.signal.aborted || job.cancelled) item.state = 'cancelled';
           else {
             item.state = 'failed';
             item.detail = error instanceof Error ? error.message : String(error);
