@@ -10,7 +10,7 @@ interface ProjectsHubProps {
   hubState: HubViewState;
   theme: ThemeMode;
   onOpenProject: (projectId: string) => void;
-  onCreateProject: (name: string) => void;
+  onCreateProject: (name: string, kind?: 'photography' | 'collage') => void;
   onCreateFromFolder: () => void;
   onRenameProject: (projectId: string, name: string) => void;
   onArchiveProject: (projectId: string, archived: boolean) => void;
@@ -43,6 +43,7 @@ export default function ProjectsHub({
   const [failedCovers, setFailedCovers] = useState<string[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [projectName, setProjectName] = useState('');
+  const [projectKind, setProjectKind] = useState<'photography' | 'collage'>('photography');
 
   const [showArchived, setShowArchived] = useState(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
@@ -61,7 +62,7 @@ export default function ProjectsHub({
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!projectName.trim()) return;
-    onCreateProject(projectName);
+    onCreateProject(projectName, projectKind);
     setProjectName('');
     setModalOpen(false);
   };
@@ -223,7 +224,7 @@ export default function ProjectsHub({
                         {project.name}
                       </button>
                       <p className="mt-1.5 text-xs text-[var(--text-secondary)] tabular-nums">
-                        {STRINGS.hub.photosCount(project.photoCount)} ·{' '}
+                        {project.kind === 'collage' ? 'Collage · ' : ''}{STRINGS.hub.photosCount(project.photoCount)} ·{' '}
                         {STRINGS.hub.flaggedCount(project.flaggedCount)} · {project.updatedAt}
                       </p>
                       <p className="mt-1 truncate font-mono text-[11px] text-[var(--text-muted)]">
@@ -322,6 +323,19 @@ export default function ProjectsHub({
             <h2 id="create-proj-title" className="text-base font-bold text-[var(--text-primary)]">
               {STRINGS.hub.modalTitle}
             </h2>
+            <fieldset className="space-y-2">
+              <legend className="text-xs font-medium text-[var(--text-secondary)]">What are you making?</legend>
+              <div className="grid grid-cols-2 gap-2">
+                {([['photography','Photography','Cull, edit and export a shoot'], ['collage','Collage / album','Compose pages from photographs']] as const).map(([kind,title,description]) => (
+                  <label key={kind} className={`min-h-20 cursor-pointer rounded-lg border p-3 ${projectKind === kind ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]' : 'border-[var(--border-default)]'}`}>
+                    <input type="radio" className="mr-2" name="project-kind" value={kind} checked={projectKind === kind}
+                      onChange={() => setProjectKind(kind)} />
+                    <span className="text-sm font-semibold">{title}</span>
+                    <span className="mt-1 block text-xs text-[var(--text-secondary)]">{description}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             <div className="space-y-1.5">
               <label htmlFor="new-proj-name" className="text-xs font-medium text-[var(--text-secondary)]">
                 {STRINGS.hub.modalNameLabel}
@@ -340,6 +354,7 @@ export default function ProjectsHub({
             <button
               type="button"
               onClick={() => { setModalOpen(false); onCreateFromFolder(); }}
+              disabled={projectKind === 'collage'}
               className="flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] text-xs font-medium text-[var(--text-primary)]"
             >
               <BrandIcon name="folder" size={16} />
