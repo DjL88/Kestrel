@@ -1,3 +1,5 @@
+import { proposeGroupSubjectAuto, groupSubjectSafe } from '../../core/groupSubjectAuto';
+import type { InstanceFinding } from '../../providers/multiSubjectDetector';
 import { detectSubjectInstances } from '../../providers/multiSubjectDetector';
 import { unionSubjectGrid } from '../../core/subjectUnion';
 import { speciesReference } from '../../core/speciesKnowledge';
@@ -76,6 +78,7 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   let segmentation: { grid: SubjectGrid; confidence: 'high' | 'medium' | 'low'; detail?: SubjectDetail | null } | null = null;
   let species: SpeciesGuess | null = null;
   let instanceCount = 0;
+  let subjectInstances: InstanceFinding[] = [];
   let instanceCoverageUnavailable = false;
   if (category !== 'landscape') {
     try {
@@ -91,6 +94,7 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
           return [];
         });
         instanceCount = instances.length;
+        subjectInstances = instances;
         if (instances.length > 1) {
           segmentation = { grid: unionSubjectGrid(instances.map(i => i.mask), guide.height / guide.width),
             confidence: instances.every(i => i.mask.confidence === 'high') ? 'high' : 'medium' };
@@ -153,6 +157,28 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
       }
     }
   }
+  if (instanceCount > 1 && segmentation && !policy.preserveDark) {
+    const subjects = subjectInstances.map(i => i.mask);
+    const local = proposeGroupSubjectAuto(analysis.data, analysis.width, analysis.height, global, subjects,
+      subjects.map(() => newId()), (frame.exif?.iso ?? 0) >= 1600);
+    if (local !== global) {
+      const subjectPlan = planAuto({ ...input, proposal: local });
+      if (subjectPlan.verdict.kind === 'improved' && (subjectPlan.proposal.masks?.length ?? 0) > (base.masks?.length ?? 0)) {
+        recipes.push({ id: 'subject', edit: subjectPlan.proposal, summary: describeEdit(subjectPlan.proposal, true) });
+        plan = subjectPlan;
+      }
+    }
+  }
+  if (instanceCount > 1 && segmentation) {
+    const subjects = subjectInstances.map(i => i.mask);
+    for (let i = recipes.length - 1; i >= 0; i--) {
+      if (!groupSubjectSafe(analysis.data, analysis.width, analysis.height, base, recipes[i].edit, subjects)) recipes.splice(i, 1);
+    }
+    if (!recipes.some(r => r.edit === plan.proposal)) {
+      if (recipes.some(r => r.edit === naturalPlan.proposal)) plan = naturalPlan;
+      else plan = { ...naturalPlan, proposal: base, verdict: { kind: 'cannot-improve-safely', reason: 'No preferred recipe passed every detected subject check' } };
+    }
+  }
   const rendered = recipes.length ? renderAutoCandidates(analysisCanvas, base, recipes) : { before: '', candidates: [] };
   if (!rendered.candidates.some((candidate) => candidate.edit === plan.proposal)
     && rendered.candidates.some((candidate) => candidate.edit === naturalPlan.proposal)) {
@@ -161,7 +187,7 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   const described = describePlan(plan);
   const reference = segmentation?.confidence === 'high' ? speciesReference(species) : null;
   const improved = rendered.candidates.some((candidate) => candidate.edit === plan.proposal);
-  const coverageNote = instanceCount > 1 && segmentation ? 'Multiple detected subjects were measured together; individual local adjustments and species colour correction were withheld.' : instanceCoverageUnavailable ? 'Complete subject coverage was unavailable; only whole-frame suggestions were considered.' : null;
+  const coverageNote = instanceCount > 1 && segmentation ? 'Multiple detected subjects were checked individually for clipping and shadow loss. Local tone edits require reliable non-overlapping masks; species colour correction was withheld.' : instanceCoverageUnavailable ? 'Complete subject coverage was unavailable; only whole-frame suggestions were considered.' : null;
   return {
     ...rendered, plan, improved, detail: [...described.detail, ...(coverageNote ? [coverageNote] : []), ...(reference ? ['Species reference (not a measured colour target): ' + reference.features] : [])],
     headline: rendered.candidates.length ? 'Checked edit suggestions are ready to preview.'
