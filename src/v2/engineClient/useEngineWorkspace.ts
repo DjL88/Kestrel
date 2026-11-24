@@ -485,7 +485,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             if (!await saveExportFile(file, file.name, ctx.signal))
               throw new DOMException('Save cancelled.', 'AbortError');
             ctx.acknowledgeCommitted();
-            ctx.commitIfCurrent(() => setNotice('Saved the 16-bit RAW TIFF. Your original is unchanged.'));
+            ctx.commitIfCurrent(() => setNotice(isDesktopApp()
+              ? 'Saved the 16-bit RAW TIFF. Your original is unchanged.'
+              : 'Started the 16-bit RAW TIFF download. Check your browser downloads for completion. Your original is unchanged.'));
           },
         });
         const result = await ticket.finished;
@@ -512,8 +514,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         if (!ticket) { setNotice('No folder was selected. Nothing was exported.'); return; }
         setNotice(`Queued ${count} export ${count === 1 ? 'output' : 'outputs'}. You can edit while they process; open Tasks to pause, prioritise or cancel.`);
         void ticket.finished.then(result => {
-          if (result === 'done') setNotice(`Exported ${count} ${count === 1 ? 'output' : 'outputs'}. Your originals are unchanged.`);
-          else if (result === 'failed') setNotice('Some export outputs failed. Open Tasks for each photograph and Retry failed. Files already saved remain in place.');
+          if (result === 'done') setNotice(isDesktopApp()
+            ? `Saved ${count} ${count === 1 ? 'output' : 'outputs'}. Your originals are unchanged.`
+            : `Started download of ${count} ${count === 1 ? 'output' : 'outputs'}. Check your browser downloads for completion. Your originals are unchanged.`);
+          else if (result === 'failed') setNotice('Some export outputs failed. Open Tasks for details. Retry only where offered; oversized ZIPs need a smaller batch or a desktop folder.');
           else setNotice('Export stopped. Files already saved remain in place.');
         });
       } catch (error) {
@@ -1252,7 +1256,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             if (!await saveExportFile(result.blob, result.name, ctx.signal))
               throw new DOMException('The collage save was cancelled.', 'AbortError');
             ctx.acknowledgeCommitted();
-            ctx.commitIfCurrent(() => setNotice('Collage export prepared. Your originals are unchanged.'));
+            ctx.commitIfCurrent(() => setNotice(isDesktopApp()
+              ? 'Collage export saved. Your originals are unchanged.'
+              : 'Collage download started. Check your browser downloads for completion. Your originals are unchanged.'));
           },
         });
         const outcome = await ticket.finished;
