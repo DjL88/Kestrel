@@ -18,7 +18,7 @@ test('desktop photo commands select catalogue records and export the full select
   // Native menus deliver these application events; the test deliberately avoids
   // clicking labels which may change to "Export 4" with multi-selection.
   await page.evaluate(() => window.dispatchEvent(new Event('kestrel:photos-select-all')));
-  await expect(page.getByText('4 selected', { exact: true })).toBeVisible();
+  await expect(page.getByText('4 selected', { exact: true }).locator('visible=true').first()).toBeVisible();
 
   await page.evaluate(() => window.dispatchEvent(new Event('kestrel:desktop-export')));
   await expect(page.getByRole('heading', { name: 'Export 4 photos' })).toBeVisible();
