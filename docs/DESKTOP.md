@@ -42,25 +42,56 @@ The macOS build is run by the owner. Windows builds are now made locally with th
 The app checks `https://github.com/DjL88/Kestrel/releases/latest/download/latest.json` when it opens. If a newer signed version exists it shows "Install and restart"; nothing installs without a tap, and nothing is shown when offline or when there is no release yet.
 
 To publish one:
-1. One-off: add the **private** update key as the repository secret `TAURI_SIGNING_PRIVATE_KEY`. It was generated at `~/.kestrel-signing/kestrel.key` (no password) on the development Mac and is not in the repository. Back it up: without it, installed apps cannot be updated. The matching public key is in `src-tauri/tauri.conf.json`.
+1. One-off: add the **private** update key as the repository secret `TAURI_SIGNING_PRIVATE_KEY` (step 1 of the checklist below). It was generated at `~/.kestrel-signing/kestrel.key` (no password) on the development Mac and is not in the repository. Back it up: without it, installed apps cannot be updated. The matching public key is in `src-tauri/tauri.conf.json`. With the secret present, `release.yml` makes signed update files and `latest.json` by itself.
 2. Raise `version` in `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`, merge, then `git tag v0.1.1 && git push origin v0.1.1`.
 3. `release.yml` builds Mac (universal), Windows and Linux, and creates a **draft** release. Publish the draft and apps pick it up.
 
-Apple notarisation and Windows signing are still separate; until then first installs show an "unidentified developer" or SmartScreen warning.
+Apple notarisation and Windows signing are separate secrets (checklist below); until they are added, first installs show an "unidentified developer" or SmartScreen warning.
 
 ## Signing and notarising checklist
-Needs accounts only the owner can create, so none of this is switched on. Do it in this order, testing on real machines between steps.
+`release.yml` already reads every secret below. Each part switches on by itself once **all** of its secrets exist, and a
+part with only some of its secrets stops the release rather than shipping something mislabelled. The draft release text
+states what was actually signed. The accounts, payments and certificates are the owner's; nothing here is switched on
+until they exist. Add secrets at **GitHub → Kestrel → Settings → Secrets and variables → Actions → New repository
+secret**, or with `gh secret set NAME --repo DjL88/Kestrel` from a terminal.
 
-**macOS** (Apple Developer Program membership):
-1. Create a "Developer ID Application" certificate; export it as `.p12` and base64 it.
-2. Add repository secrets: `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD` (an app-specific password), `APPLE_TEAM_ID`.
-3. Pass those as `env` to the `tauri-action` step in `release.yml`. Tauri then signs and notarises the `.app` and `.dmg`.
-4. Check on a clean Mac: download the DMG from the draft release, open it with no warning, and confirm `spctl -a -vv Kestrel.app` says "Notarized Developer ID".
+**1. Update key (free, already made).** On the development Mac:
+`gh secret set TAURI_SIGNING_PRIVATE_KEY --repo DjL88/Kestrel < ~/.kestrel-signing/kestrel.key`. It has no password, so
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` is not needed. Copy `kestrel.key` to a password manager or offline backup first: if it
+is lost, installed copies can never update again. The next tagged release then includes signed update files and
+`latest.json`; the app's update check stays off (`UPDATER_ENABLED`) until the test at the end of this section passes.
 
-**Windows** (a code-signing certificate; an EV or cloud-signing service avoids SmartScreen warnings sooner):
-1. Choose the signing route (certificate file, Azure Trusted Signing or similar) and add its secrets.
-2. Set `bundle.windows.signCommand` or the certificate thumbprint in the release build only.
-3. Check on a clean PC: the installer shows the publisher name, installs and uninstalls cleanly, and an install over an older version keeps the catalogue.
+**2. macOS (Apple Developer Program, paid yearly membership in the owner's name or company).**
+1. Enrol at developer.apple.com/programs. The name on the membership is what macOS shows as the developer.
+2. On the Mac, Xcode → Settings → Accounts → Manage Certificates → **+** → *Developer ID Application*. (Not "Apple
+   Development" or "Mac App Distribution".)
+3. Keychain Access → My Certificates → right-click the *Developer ID Application* certificate → Export as `.p12`, with a
+   new password. Then `base64 -i DeveloperID.p12 | pbcopy`, and delete the `.p12` file once the secret is saved.
+4. Secrets: `APPLE_CERTIFICATE` (the base64 text), `APPLE_CERTIFICATE_PASSWORD` (the export password),
+   `APPLE_SIGNING_IDENTITY` (the full name from `security find-identity -v -p codesigning`, for example
+   `Developer ID Application: Your Name (TEAMID1234)`).
+5. Notarising: make an app-specific password at account.apple.com → Sign-In and Security, then add `APPLE_ID` (the
+   Apple Account email), `APPLE_PASSWORD` (the app-specific password, never the real one) and `APPLE_TEAM_ID` (the ten
+   characters in brackets above, also on developer.apple.com → Membership).
+6. Check on a clean Mac: download the DMG from the draft release, open it with no warning, and confirm
+   `spctl -a -vv /Applications/InFlight.app` says "Notarized Developer ID".
+
+**3. Windows (choose one route).** Since June 2023 certificate authorities only issue code-signing keys on hardware tokens
+or cloud HSMs, so a new certificate normally cannot be exported as a `.pfx` for CI.
+- **Azure Trusted Signing (recommended, monthly fee, no hardware).** Check first that Microsoft currently accepts the
+  owner (individual or company, and country) for identity validation. Then in the Azure portal: create a Trusted Signing
+  account, complete identity validation, create a *Public Trust* certificate profile, register an app (Microsoft Entra
+  ID → App registrations) with a client secret, and give it the *Trusted Signing Certificate Profile Signer* role on the
+  account. Secrets: `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`, `AZURE_SIGNING_ENDPOINT` (the account's
+  region endpoint, for example `https://weu.codesigning.azure.net`), `AZURE_SIGNING_ACCOUNT` and `AZURE_SIGNING_PROFILE`
+  (the two names chosen in the portal).
+- **A certificate file**, only if one that can be exported as `.pfx` is available: `WINDOWS_CERTIFICATE` (base64 of the
+  `.pfx`: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("cert.pfx")) | Set-Clipboard`) and
+  `WINDOWS_CERTIFICATE_PASSWORD`. Do not set both routes; the release stops if both are present.
+- Check on a clean PC: the installer shows the publisher name in the User Account Control prompt, installs and uninstalls
+  cleanly, and an install over an older version keeps the catalogue. New certificates still build SmartScreen reputation
+  over the first downloads.
+- Local Windows builds from `scripts/windows/Build-Kestrel.ps1` stay unsigned; signing is only in `release.yml`.
 
 **Before turning updates on** (`UPDATER_ENABLED`): publish two real releases, update from the first to the second on both systems, confirm the catalogue and open project survive, and confirm a tampered update file is refused. Keep the update key backed up.
 
