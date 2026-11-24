@@ -5,6 +5,7 @@ import { forkEditCheckpoint, switchEditVersion as switchVersionInCatalogue } fro
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { sameRecipe } from '../../core/naturalAuto';
 import { newId } from '../../core/ids';
+import { createCollage, readCollage } from '../../core/collage';
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
 import { appendProjectPhotos, applyImportBursts, createEmptyProject, setArchived } from '../../core/projects';
 import { tasks } from '../../core/taskStore';
@@ -1137,9 +1138,41 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     },
     reconnectOriginal: () => reconnectOriginal(),
     openProject: (id) => { void openProject(id); },
-    createProject: (name) => {
-      const created = createEmptyProject(`project-${newId()}`, name.trim() || 'Untitled project');
+    createProject: (name, kind = 'photography') => {
+      const empty = createEmptyProject(`project-${newId()}`, name.trim() || 'Untitled project');
+      const created = kind === 'collage' ? { ...empty, shoot: { ...empty.shoot, collage: createCollage() } } : empty;
       void catalogue.current!.saveProject(created).then(() => enterProject(created), () => setNotice('InFlight could not create the project.'));
+    },
+    createCollageFromSelection: (photoIds) => {
+      const source = stateRef.current;
+      if (!source) return;
+      const chosen = new Set(photoIds);
+      const selectedFrames = source.frames.filter((frame) => chosen.has(frame.id) && frame.removedAt == null);
+      if (!selectedFrames.length) { setNotice('Select at least one photograph to make a collage.'); return; }
+      // A new project references the same verified original keys but has independent saved recipes.
+      // Keep source frames and edits untouched; do not move or delete source photographs.
+      const projectId = `project-${newId()}`;
+      const idMap = new Map(selectedFrames.map((frame) => [frame.id, `${projectId}-${frame.id}`]));
+      const frames = selectedFrames.map((frame, index) => ({
+        ...frame, id: idMap.get(frame.id)!, sequenceIndex: index + 1,
+        virtualCopy: frame.virtualCopy && idMap.has(frame.virtualCopy.originalFrameId)
+          ? { ...frame.virtualCopy, originalFrameId: idMap.get(frame.virtualCopy.originalFrameId)! } : undefined,
+      }));
+      const blank = createEmptyProject(projectId, `Collage from ${source.shoot.title}`);
+      const created = {
+        ...blank, frames, selectedFrameId: frames[0].id,
+        shoot: { ...blank.shoot, totalFrames: frames.length,
+          collage: createCollage(frames.map((frame) => frame.id)) },
+      };
+      void catalogue.current!.saveProject(created)
+        .then(() => openProject(created.shoot.id))
+        .catch(() => setNotice('InFlight could not save this collage. The source project is unchanged.'));
+    },
+    updateCollage: (document) => {
+      if (!readCollage(document)) { setNotice('That collage layout could not be saved.'); return; }
+      mutate((current) => current.shoot.collage ? {
+        ...current, shoot: { ...current.shoot, collage: document, lastUpdatedAt: Date.now() },
+      } : current);
     },
     eraseDeviceData: () => {
       void (async () => {
@@ -1438,6 +1471,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     featurePlan: featurePlan(),
     screen, hubState, projects,
     activeProjectId: state?.shoot.id ?? null,
+    collage: readCollage(state?.shoot.collage),
     photos,
     removedPhotos,
     removedOpen,
