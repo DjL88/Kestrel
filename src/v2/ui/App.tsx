@@ -98,6 +98,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   const [pad, setPad] = useState<PadProfile>(loadPad);
   const changePad = React.useCallback((next: PadProfile) => { savePad(next); setPad(next); }, []);
   const changeKeymap = React.useCallback((next: SavedKeymap) => { saveKeymap(next); setSavedKeymap(next); }, []);
+  const [maskGuide, setMaskGuide] = useState<{ photoId: string; maskId: string } | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [addingFormatFor, setAddingFormatFor] = useState<string | null>(null);
   const [collageEditingId, setCollageEditingId] = useState<string | null>(null);
@@ -282,6 +283,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             onSetMaskFeather={actions.setMaskFeather}
             onSetMaskGeometry={actions.setMaskGeometry}
             onSetMaskLimit={actions.setMaskLimit}
+            onPreviewMask={setMaskGuide}
           />
         );
       case 'enhance':
@@ -543,6 +545,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
               ) : (
                 <Canvas
                   PhotoSurface={store.PhotoSurface}
+                  maskGuideId={maskGuide?.photoId === activePhoto?.id ? maskGuide?.maskId : undefined}
                   onOpenFormats={activePhoto ? () => {
                     actions.setPanelVisible('formats', true);
                     setAddingFormatFor(activePhoto.id);
