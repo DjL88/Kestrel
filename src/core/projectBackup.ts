@@ -1,9 +1,8 @@
 import { MAX_EDIT_HISTORY_STEPS, type EditKind } from './editHistory';
 import { readCollage } from './collage';
 import { parseSettings } from './projectSettings';
-import { validMasks } from './maskTypes';
-import { validCurve, validMixer } from './curveMixer';
-import { validAsShot, validWhiteBalance } from './asShotWhite';
+import { recipeIsValid } from './recipeValidation';
+import { validAsShot } from './asShotWhite';
 import type { CullingState, FilterState, PhotoFrame, ShootDescriptor } from './types';
 import { DEVELOP_VERSION } from './backgroundDevelop';
 
@@ -40,24 +39,6 @@ function nullableKey(value: unknown): boolean {
 
 const editKinds = new Set<EditKind>(['light', 'warmth', 'colour', 'adjustments', 'tone', 'detail', 'mask', 'crop', 'rotation', 'straighten']);
 
-function recipeIsValid(value: unknown): boolean {
-  if (!record(value)) return false;
-  const edit = value.edit;
-  if (edit !== undefined && (!record(edit) || !number(edit.exposure, -12.5, 12.5) ||
-    !number(edit.warmth, -2, 2) || !number(edit.colour, -2, 2) ||
-    ['brightness', 'tint', 'contrast', 'highlights', 'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity', 'sharpen'].some((key) =>
-      edit[key] !== undefined && !number(edit[key], -2, 2)) ||
-    (edit.denoise !== undefined && !number(edit.denoise, 0, 2)) ||
-    (edit.denoiseLuminance !== undefined && !number(edit.denoiseLuminance, 0, 2)) ||
-    (edit.curve !== undefined && !validCurve(edit.curve)) || (edit.mixer !== undefined && !validMixer(edit.mixer)) ||
-    (edit.whiteBalance !== undefined && !validWhiteBalance(edit.whiteBalance)) ||
-    (edit.masks !== undefined && !validMasks(edit.masks)))) return false;
-  const framing = value.framing;
-  if (framing !== undefined && (!record(framing) || (framing.ratio !== null && !number(framing.ratio, 0.01, 100)) ||
-    !number(framing.turns, 0, 3) || !Number.isInteger(framing.turns) || !number(framing.straighten, -12, 12) ||
-    !number(framing.x, 0, 1) || !number(framing.y, 0, 1) || (framing.size !== undefined && !number(framing.size, 0.05, 1)))) return false;
-  return true;
-}
 
 function historyIsValid(value: unknown): boolean {
   if (!record(value) || !Array.isArray(value.steps) || value.steps.length > MAX_EDIT_HISTORY_STEPS ||
