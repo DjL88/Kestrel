@@ -85,9 +85,16 @@ export function newCollagePage(template: CollageTemplate = 'triptych', photoIds:
     slots: shapes[template].map((shape, i) => ({ ...shape, id: nextId(), photoId: photoIds[i] ?? null })) };
 }
 export function createCollage(photoIds: readonly string[] = [], format: CollageFormat = 'square'): CollageDocument {
-  const template: CollageTemplate = photoIds.length === 2 ? 'diagonal' : photoIds.length === 4 ? 'grid' : 'triptych';
-  const first = newCollagePage(template, photoIds);
-  return { version: 1, format, pages: [first], activePageId: first.id };
+  // A selection of 5+ photographs becomes multiple editable pages rather than silently losing
+  // the photos that do not fit the first template. Every photo remains available in the project library.
+  const template: CollageTemplate = photoIds.length === 2 ? 'diagonal' :
+    photoIds.length === 4 || photoIds.length > 4 ? 'grid' : 'triptych';
+  const capacity = shapes[template].length;
+  const pages = photoIds.length
+    ? Array.from({ length: Math.ceil(photoIds.length / capacity) }, (_, index) =>
+      newCollagePage(template, photoIds.slice(index * capacity, (index + 1) * capacity)))
+    : [newCollagePage(template)];
+  return { version: 1, format, pages, activePageId: pages[0].id };
 }
 export function collagePage(doc: CollageDocument): CollagePage {
   return doc.pages.find((p) => p.id === doc.activePageId) ?? doc.pages[0];
