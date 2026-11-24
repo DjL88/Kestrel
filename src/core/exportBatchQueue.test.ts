@@ -280,3 +280,17 @@ test('Task Manager cannot mark an irreversible export finalisation cancelled', a
   assert.equal(await ticket.done,'completed');
   assert.equal(store.list()[0].state,'done');
 });
+
+
+test('live exports refuse non-portable output names before scheduling any work', () => {
+  const store = createTaskStore();
+  const queue = createExportBatchQueue(store);
+  const adapter = { async render() { throw Error('must not render'); }, async save() {} };
+  for (const filename of ['CON.jpg', 'COM¹.tif', 'bird.jpg.', 'bird.jpg ', 'e\u0301.jpg', 'bad\u007f.jpg']) {
+    assert.throws(() => queue.enqueue({ title: 'Unsafe', recipe: {}, items: [{ ...photos[0], filename }] }, adapter), /invalid/i);
+  }
+  for (const subfolder of ['NUL', 'COM1', 'LPT²']) {
+    assert.throws(() => queue.enqueue({ title: 'Unsafe', recipe: {}, items: [{ ...photos[0], subfolder }] }, adapter), /invalid/i);
+  }
+  assert.equal(store.list().length, 0);
+});
