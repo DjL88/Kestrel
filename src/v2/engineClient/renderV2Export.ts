@@ -9,7 +9,7 @@ import type { PhotoFrame } from '../../core/types';
 import type { CropTransform, OverlaySettings } from '../ui/contract';
 import { effectiveUpscaleOutputSize } from '../ui/utils/studioMath';
 import type { SplitFrameCount } from './formatSplitOps';
-import { anchoredBox, cropPlacement, referenceScale, watermarkBox, fitWatermarkArtwork } from './exportLayout';
+import { safeAnchoredBox, cropPlacement, referenceScale, watermarkBox, fitWatermarkArtwork } from './exportLayout';
 import { planBorderFrame } from './borderFrameLayout';
 import { upscaleCanvasInPlace } from './upscaleCanvas';
 import { cappedContinuousLayout, continuousExportLayout, numberedSectionFilename } from './continuousExport';
@@ -120,7 +120,7 @@ function drawText(canvas: HTMLCanvasElement, input: OverlayDraw) {
   const padX = (cover ? 24 : 12) * k, padY = (cover ? 24 : 8) * k;
   const box = cover
     ? { x: 0, y: 0, width: canvas.width, height: canvas.height }
-    : anchoredBox(canvas, overlay.textX, overlay.textY, { width: textWidth + padX * 2, height: textHeight + padY * 2 });
+    : safeAnchoredBox(canvas, overlay.textX, overlay.textY, { width: textWidth + padX * 2, height: textHeight + padY * 2 });
   context.save();
   if (overlay.textScrim) {
     context.fillStyle = cover ? (light ? 'rgba(10, 12, 16, 0.48)' : 'rgba(246, 244, 238, 0.56)') : (light ? 'rgba(10, 12, 16, 0.62)' : 'rgba(246, 244, 238, 0.72)');
