@@ -298,6 +298,7 @@ export interface Photo {
 }
 
 export interface Project {
+  kind?: 'photography' | 'collage';
   id: string;
   name: string;
   updatedAt: string;
@@ -419,6 +420,8 @@ export interface WorkspaceStore {
   hubState: HubViewState;
   projects: Project[];
   activeProjectId: string | null;
+  /** Present only when the active project is a collage; normal Photography workspaces remain unchanged. */
+  collage?: import('../../core/collage').CollageDocument | null;
   photos: Photo[];
   activePhotoId: string | null;
   selectedPhotoIds: string[];
@@ -472,7 +475,11 @@ export interface WorkspaceActions {
   // Navigation & Projects
   openProject: (projectId: string) => void;
   backToProjects: () => void;
-  createProject: (name: string) => void;
+  createProject: (name: string, kind?: 'photography' | 'collage') => void;
+  createCollageFromSelection?: (photoIds: string[]) => void;
+  updateCollage?: (document: import('../../core/collage').CollageDocument) => void;
+  browseCollageProjectPhotos?: (sourceProjectId: string) => Promise<Array<{ id: string; filename: string }>>;
+  addCollageProjectPhotos?: (sourceProjectId: string, photoIds: string[]) => Promise<void>;
   /** Pick a folder (on this device, an external drive or a synced cloud folder) and make a project of its photos. */
   createProjectFromFolder: () => void;
   renameProject: (projectId: string, name: string) => void;
