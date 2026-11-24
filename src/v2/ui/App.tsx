@@ -355,14 +355,21 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
       ? [store.activePanel as PanelId]
       : floatingPanelIds.slice(-1);
 
-  // Safari's trackpad pinch over the panels, toolbars or filmstrip zoomed the whole page, so the menus slid about and
-  // out of reach. The canvas handles its own pinch (it zooms the photo); everywhere else the gesture is simply ignored.
-  // Browser zoom from the keyboard and the system's zoom and text size are untouched.
+  // Owner decision (24 Nov): pinch zoom belongs to the canvas only. A trackpad pinch over the panels, toolbars, menus or
+  // filmstrip zoomed the whole page, so the menus slid about and out of reach. The canvas handles its own pinch first (it
+  // zooms the photo); everywhere else the gesture is simply ignored. Chromium and WebView2 report a trackpad pinch as
+  // Ctrl+wheel, Safari as gesture events. Touch-screen pinch is stopped by `touch-action` in v2.css. Browser zoom from
+  // the keyboard (Ctrl/Cmd + and -) and the system's zoom and text size are untouched.
   useEffect(() => {
     const stopPageZoom = (event: Event) => event.preventDefault();
+    const stopPinchWheel = (event: WheelEvent) => { if (event.ctrlKey) event.preventDefault(); };
     const events = ['gesturestart', 'gesturechange', 'gestureend'] as const;
     events.forEach((name) => document.addEventListener(name, stopPageZoom, { passive: false }));
-    return () => events.forEach((name) => document.removeEventListener(name, stopPageZoom));
+    document.addEventListener('wheel', stopPinchWheel, { passive: false });
+    return () => {
+      events.forEach((name) => document.removeEventListener(name, stopPageZoom));
+      document.removeEventListener('wheel', stopPinchWheel);
+    };
   }, []);
 
   return (
