@@ -168,11 +168,15 @@ export class LicenceSync {
   async activateAccount(idToken: string): Promise<AccountStanding | null> {
     if (!this.configured) return null;
     const checkId = ++this.accountCheck;
+    // A fresh exchange must not expose an older account's bearer to cloud operations.
+    this.session = null;
     try {
       const session = await this.post('/v1/auth/firebase', { credential: idToken });
-      if (checkId !== this.accountCheck || session.status !== 200 || typeof session.json?.accessToken !== 'string') return null;
+      if (checkId !== this.accountCheck || session.status !== 200 || typeof session.json?.accessToken !== 'string' || !session.json.accessToken.trim()) return null;
+      const deviceHash = await this.deviceHash();
+      if (checkId !== this.accountCheck) return null;
       this.session = session.json.accessToken;
-      const reply = await this.post('/v1/me/activate', { deviceHash: await this.deviceHash(), platform: this.o.platform, appVersion: this.o.appVersion }, session.json.accessToken);
+      const reply = await this.post('/v1/me/activate', { deviceHash, platform: this.o.platform, appVersion: this.o.appVersion }, session.json.accessToken);
       if (checkId !== this.accountCheck) return null;
       const code = reply.json?.error?.code as string | undefined;
       const message = (reply.json?.error?.message as string | undefined) ?? '';
