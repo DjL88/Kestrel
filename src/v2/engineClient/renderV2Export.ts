@@ -7,11 +7,11 @@ import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFr
 import { isRawPreviewFile } from '../../core/rawFormats';
 import type { PhotoFrame } from '../../core/types';
 import type { CropTransform, OverlaySettings } from '../ui/contract';
-import { effectiveOutputSize } from '../ui/utils/studioMath';
+import { effectiveUpscaleOutputSize } from '../ui/utils/studioMath';
 import type { SplitFrameCount } from './formatSplitOps';
 import { anchoredBox, cropPlacement, referenceScale, watermarkBox } from './exportLayout';
 import { planBorderFrame } from './borderFrameLayout';
-import { upscaleCanvasInPlace, upscaleFactorFor } from './upscaleCanvas';
+import { upscaleCanvasInPlace } from './upscaleCanvas';
 import { cappedContinuousLayout, continuousExportLayout, numberedSectionFilename } from './continuousExport';
 
 /** Everything the overlay needs, resolved by the caller from the same description the canvas draws. */
@@ -206,8 +206,8 @@ export async function renderV2Export(
   const requested = continuousExportLayout(size.width, size.height, sectionCount);
   const limit = maxCanvasPixels({ userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints });
   // Upscale (2x or 4x, chosen on the photo) lifts the "never larger than the picture" cap by that factor, only when the size asks for more pixels.
-  const up = upscaleFactorFor(frame.edit?.upscale, Math.max(requested.width / fw, requested.height / fh) * crop.zoom, fw, fh, limit);
-  const out = effectiveOutputSize({ width: requested.width, height: requested.height, crop }, { width: fw * up, height: fh * up });
+  const out = effectiveUpscaleOutputSize({ width: requested.width, height: requested.height, crop }, { width: fw, height: fh }, frame.edit?.upscale, limit);
+  const up = out.factor;
   const layout = cappedContinuousLayout(out.width, out.height, sectionCount);
   const wasCapped = out.capped || layout.width !== requested.width || layout.height !== requested.height;
   if (layout.width * layout.height > limit) throw new Error(`This device cannot safely export ${layout.width} × ${layout.height} px. Choose a smaller size or export on a desktop. No smaller file was substituted.`);
