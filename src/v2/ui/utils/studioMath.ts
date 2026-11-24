@@ -11,6 +11,7 @@ import type {
   Photo,
   SizePreset,
 } from '../contract';
+import { composeOverlayText } from './overlayMetadata';
 
 export function getActiveGroup(photo: Photo): EditGroup {
   return (
@@ -79,37 +80,7 @@ export function buildPreviewFilterCss(
  * Renders a single OverlayTextRow using photo EXIF & species metadata.
  */
 export function formatOverlayRowText(row: OverlayTextRow, photo: Photo): string {
-  const tokens: string[] = [];
-  for (const field of row.fields) {
-    switch (field) {
-      case 'camera':
-        tokens.push(photo.exif.camera);
-        break;
-      case 'lens':
-        tokens.push(photo.exif.lens);
-        break;
-      case 'aperture':
-        tokens.push(photo.exif.aperture);
-        break;
-      case 'shutter':
-        tokens.push(photo.exif.shutter);
-        break;
-      case 'iso':
-        tokens.push(`ISO ${photo.exif.iso}`);
-        break;
-      case 'focalLength':
-        tokens.push(photo.exif.focalLength);
-        break;
-      case 'species':
-        if (photo.speciesLabel) tokens.push(photo.speciesLabel);
-        break;
-      case 'custom':
-        if (row.customText.trim()) tokens.push(row.customText.trim());
-        break;
-    }
-  }
-  const joined = tokens.join('  ·  ');
-  return row.uppercase ? joined.toUpperCase() : joined;
+  return composeOverlayText(row, photo);
 }
 
 export interface OverlayOverflowIssue {
@@ -156,13 +127,20 @@ export function detectOverlayOverflow(
   return issues;
 }
 
-/** The rows scaled down together, just enough for the widest to fit inside the safe width. Unchanged when it already fits. */
-export function fitOverlayRows(overlay: OverlaySettings, photo: Photo): OverlayTextRow[] {
-  const safeWidth = (overlay.textLayoutMode === 'cover-full' ? 92 : 84) - Math.abs(overlay.textOffsetX);
+/** Fit the estimated width and height of every enabled format, preserving row proportions where the minimum permits. */
+export function fitOverlayRows(overlay: OverlaySettings, photo: Photo, sizes: SizePreset[] = photo.sizes ?? []): OverlayTextRow[] {
+  if (!overlay.rows.length) return overlay.rows;
+  const full = overlay.textLayoutMode === 'cover-full';
+  const safeWidth = (full ? 92 : 84) - Math.abs(overlay.textOffsetX || 0);
+  const safeHeight = (full ? 88 : 45) - Math.abs(overlay.textOffsetY || 0);
   const widest = Math.max(...overlay.rows.map((row) => rowWidthPercent(row, formatOverlayRowText(row, photo))));
-  if (!(widest > safeWidth) || safeWidth <= 0) return overlay.rows;
-  const factor = safeWidth / widest;
-  return overlay.rows.map((row) => ({ ...row, sizePx: Math.max(8, Math.floor(row.sizePx * factor)) }));
+  const height = overlay.rows.reduce((sum, row) => sum + row.sizePx * LINE_HEIGHT / REFERENCE_FRAME_WIDTH, 0) * 100;
+  const shapes = sizes.filter((size) => size.enabled && size.width > 0 && size.height > 0).map((size) => size.width / size.height);
+  const tallest = height * Math.max(0, ...shapes);
+  if (safeWidth <= 0 || safeHeight <= 0) return overlay.rows;
+  const factor = Math.min(1, widest > 0 ? safeWidth / widest : 1, tallest > 0 ? safeHeight / tallest : 1);
+  if (factor >= 1) return overlay.rows;
+  return overlay.rows.map((row) => ({ ...row, sizePx: Math.max(8, Math.floor(row.sizePx * factor)), letterSpacing: Math.round(row.letterSpacing * factor * 10) / 10 }));
 }
 
 /**
@@ -434,6 +412,26 @@ export function effectiveOutputSize(
   if (usableWidth >= size.width - 0.5) return { width: size.width, height: size.height, capped: false, ...requested };
   const width = Math.max(1, Math.round(usableWidth));
   return { width, height: Math.max(1, Math.round(width / aspect)), capped: true, ...requested };
+}
+
+/** The chosen scale is used only when requested pixels need it and the enlarged source fits the device. */
+export function upscaleFactorFor(chosen: 1 | 2 | 4 | undefined, neededScale: number, width: number, height: number, pixelLimit: number): 1 | 2 | 4 {
+  if ((chosen !== 2 && chosen !== 4) || !(neededScale > 1)) return 1;
+  return width * height * chosen * chosen <= pixelLimit ? chosen : 1;
+}
+
+/** Shared canvas/export dimensions. Keep fixed format sizes fixed; upscale lifts the source cap, not the requested size. */
+export function effectiveUpscaleOutputSize(
+  size: Parameters<typeof effectiveOutputSize>[0],
+  pixelSize: Parameters<typeof effectiveOutputSize>[1],
+  chosen: 1 | 2 | 4 | undefined,
+  pixelLimit: number,
+): OutputSize & { factor: 1 | 2 | 4 } {
+  const factor = pixelSize && pixelSize.width > 0 && pixelSize.height > 0
+    ? upscaleFactorFor(chosen, Math.max(size.width / pixelSize.width, size.height / pixelSize.height) * (size.crop?.zoom ?? 1), pixelSize.width, pixelSize.height, pixelLimit)
+    : 1;
+  const source = pixelSize ? { width: pixelSize.width * factor, height: pixelSize.height * factor } : undefined;
+  return { ...effectiveOutputSize(size, source), factor };
 }
 
 /** Bounds for moving the source under one format's fixed-aspect crop window.

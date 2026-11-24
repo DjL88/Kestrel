@@ -1,4 +1,4 @@
-import { LOCAL_KEYS, MAX_MASKS, type LocalKey, type Mask } from '../../core/maskTypes';
+import { LOCAL_KEYS, MAX_MASKS, type LocalKey, type Mask, type MaskLimit } from '../../core/maskTypes';
 import type { MaskGeometryField, MaskLayer } from '../ui/contract';
 
 /** The sliders a mask offers in V2. Each is a real local control; the range is the core's own (-2 to 2, sharpen from 0). */
@@ -26,6 +26,7 @@ const layerName = (mask: Mask): string => {
 export function masksToLayers(masks: readonly Mask[] | undefined): MaskLayer[] {
   return (masks ?? []).map((mask) => ({
     id: mask.id, name: layerName(mask), type: layerType(mask), visible: !mask.hidden,
+    ...(mask.limit ? { limit: { ...mask.limit } } : {}),
     feather: Math.round(mask.feather * 100), edit: { ...mask.edit, ...(mask.id.startsWith('auto-denoise-') && /-instance-\d+-[a-zA-Z0-9]+$/.test(mask.id) && mask.edit.denoise === undefined ? { denoise: (masks ?? []).find(group => group.id === mask.id.replace(/-instance-\d+-[a-zA-Z0-9]+$/, '') && !group.hidden)?.edit.denoise ?? 0 } : {}) } as Record<string, number>,
     ...(mask.kind === 'radial' ? { geometry: { kind: 'radial' as const, cx: mask.cx, cy: mask.cy, rx: mask.rx, ry: mask.ry, angle: mask.angle ?? 0 } }
       : mask.kind === 'linear' ? { geometry: { kind: 'linear' as const, x1: mask.x1, y1: mask.y1, x2: mask.x2, y2: mask.y2 } } : {}),
@@ -81,4 +82,11 @@ export function setMaskGeometry(
     }
     return mask;
   });
+}
+
+/** The renderer uses only the referenced mask's own shape, not its restriction, so chains cannot recurse. */
+export function setMaskLimit(masks: readonly Mask[] | undefined, id: string, limit: MaskLimit | null): Mask[] {
+  const list = masks ?? [];
+  if (limit && (limit.id === id || !list.some(mask => mask.id === limit.id) || (limit.mode !== 'intersect' && limit.mode !== 'subtract'))) return [...list];
+  return change(list, id, mask => ({ ...mask, limit: limit ? { ...limit } : undefined }));
 }

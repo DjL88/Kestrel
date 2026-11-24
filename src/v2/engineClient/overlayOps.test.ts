@@ -64,3 +64,9 @@ test('stacked-right mirrors stacked-left and keeps both overlays together', () =
   assert.equal(right.textOffsetX, 0);
   assert.equal(right.textOffsetY, 0);
 });
+
+test('extended photo metadata fields persist in selection order, without duplicates or unknown fields', () => {
+  const overlay = readOverlay({ rows: [{ id: 'r', fields: ['capturedAt', 'filename', 'capturedAt', 'dimensions', 'privatePath', 'colourProfile'] }] });
+  assert.deepEqual(overlay.rows[0].fields, ['capturedAt', 'filename', 'dimensions', 'colourProfile']);
+  assert.deepEqual(readOverlay(JSON.parse(JSON.stringify(overlay))).rows[0].fields, overlay.rows[0].fields);
+});

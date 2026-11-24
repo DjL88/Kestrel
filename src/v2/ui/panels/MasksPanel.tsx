@@ -14,6 +14,7 @@ interface MasksPanelProps {
   onSetMaskEdit: (photoId: string, maskId: string, key: string, value: number) => void;
   onSetMaskFeather: (photoId: string, maskId: string, percent: number) => void;
   onSetMaskGeometry: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
+  onSetMaskLimit: (photoId: string, maskId: string, limit: MaskLayer['limit'] | null) => void;
 }
 
 export default function MasksPanel({
@@ -26,6 +27,7 @@ export default function MasksPanel({
   onSetMaskEdit,
   onSetMaskFeather,
   onSetMaskGeometry,
+  onSetMaskLimit,
 }: MasksPanelProps) {
   const [openId, setOpenId] = React.useState<string | null>(null);
   const seen = React.useRef<{ photoId: string; ids: string[] } | null>(null);
@@ -156,6 +158,7 @@ export default function MasksPanel({
                     className="min-w-0 flex-1 truncate text-left text-xs text-[var(--text-primary)]"
                   >
                     <span className={layer.visible ? '' : 'opacity-50'}>{layer.name}</span>
+                    {layer.limit && <span className="ml-1 text-[10px] text-[var(--text-muted)]">{layer.limit.mode === 'intersect' ? '· Intersected' : '· Subtracted'}</span>}
                     <span className="ml-2 text-[10px] text-[var(--text-muted)]">{Object.keys(layer.edit).length ? `${Object.keys(layer.edit).length} adjusted` : 'no adjustments'}</span>
                   </button>
                   <button
@@ -205,6 +208,30 @@ export default function MasksPanel({
                         ))}
                       </fieldset>;
                     })()}
+                    {photo.masks.some(other => other.id !== layer.id) && (
+                      <fieldset className="space-y-2 border-b border-[var(--border-subtle)] pb-3">
+                        <legend className="text-[11px] font-semibold text-[var(--text-primary)]">{'Combine with another mask'}</legend>
+                        <label className="block space-y-1 text-[11px] text-[var(--text-secondary)]">
+                          <span>{'Limit to a shape'}</span>
+                          <select aria-label={`${layer.name} combination target`} value={layer.limit?.id ?? ''}
+                            className="min-h-9 w-full rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2"
+                            onChange={event => onSetMaskLimit(photo.id, layer.id, event.target.value ? { id: event.target.value, mode: layer.limit?.mode ?? 'intersect' } : null)}>
+                            <option value="">{'No restriction'}</option>
+                            {photo.masks.filter(other => other.id !== layer.id).map((other, index) => <option key={other.id} value={other.id}>{`${other.name} · ${index + 1}`}</option>)}
+                          </select>
+                        </label>
+                        {layer.limit && <label className="block space-y-1 text-[11px] text-[var(--text-secondary)]">
+                          <span>{'Combination'}</span>
+                          <select aria-label={`${layer.name} combination mode`} value={layer.limit.mode}
+                            className="min-h-9 w-full rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2"
+                            onChange={event => { if (event.target.value === 'intersect' || event.target.value === 'subtract') onSetMaskLimit(photo.id, layer.id, { id: layer.limit!.id, mode: event.target.value }); }}>
+                            <option value="intersect">{'Intersect · only the overlap'}</option>
+                            <option value="subtract">{'Subtract · exclude the other shape'}</option>
+                          </select>
+                        </label>}
+                        <p className="text-[10px] text-[var(--text-muted)]">{'Uses the other mask’s own shape, even if its adjustments are switched off. Both masks remain editable.'}</p>
+                      </fieldset>
+                    )}
                     {MASK_SLIDERS.map((slider) => (
                       <label key={slider.key} className="block space-y-1 text-[11px] text-[var(--text-secondary)]">
                         <span className="flex justify-between"><span>{slider.label}</span><span className="font-mono tabular-nums">{(layer.edit[slider.key] ?? 0).toFixed(2)}</span></span>

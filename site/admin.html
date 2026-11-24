@@ -37,7 +37,7 @@
 
 <div id="console" hidden>
   <nav class="tabs" aria-label="Console sections">
-    <a href="#overview">Overview</a><a href="#licensees">Licensees and devices</a><a href="#issue">Issue a key</a>
+    <a href="#overview">Overview</a><a href="#licensees">Licensees and devices</a><a href="#grant">Grant Pro</a><a href="#issue">Issue a key</a>
     <a href="#demo-studio">Demo Studio</a><a href="#switches">Switches</a><a href="#flags">Flags</a><a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#price-review">Price review</a><a href="#audit">Audit log</a>
   </nav>
 
@@ -65,13 +65,28 @@
     </form>
   </section>
 
+  <section id="grant" class="panel" aria-labelledby="grant-title">
+    <h2 id="grant-title">Grant free Pro access by email</h2>
+    <p class="muted">No licence key or payment is needed. Access attaches to the recipient's verified account when they sign in with this address. Repeating a grant for the same person and major version does not create another licence.</p>
+    <form id="grant-form">
+      <label>Recipient address <input name="email" type="email" maxlength="254" autocomplete="off" required></label>
+      <label>Major version <input name="majorVersion" type="number" min="1" max="99" value="1" required inputmode="numeric"></label>
+      <label>Grant note (optional) <input name="note" maxlength="200" autocomplete="off"></label>
+      <label>Grant expiry (days; leave empty for no expiry) <input name="validDays" type="number" min="1" max="3650" inputmode="numeric"></label>
+      <label class="check"><input name="managedAi" type="checkbox"> Include the online helper allowance</label>
+      <button>Grant free Pro</button>
+    </form>
+    <p id="grant-result" aria-live="polite"></p>
+  </section>
+
   <section id="issue" class="panel" aria-labelledby="issue-title">
     <h2 id="issue-title">Issue a free Pro tester or gift key</h2>
+    <p id="issue-unavailable" class="muted" hidden>Key issuing is disabled on this server because a licence signing key is not configured. Use Grant free Pro above for account-based access instead.</p>
     <form id="issue-form">
       <label>Note (who it is for; only you see this) <input name="note" maxlength="200" autocomplete="off"></label>
       <label>Expires after (days; leave empty for no expiry) <input name="validDays" type="number" min="1" max="3650" inputmode="numeric"></label>
       <label>Devices <input name="maxDevices" type="number" min="1" max="20" value="3" required inputmode="numeric"></label>
-      <label>Account id (optional) <input name="accountId" autocomplete="off" pattern="acc_[A-Za-z0-9_-]+"></label>
+      <label>Account id (optional, starts with acc_; not an email address) <input name="accountId" autocomplete="off" pattern="acc_[A-Za-z0-9_\\-]+" title="Enter an account ID starting with acc_, or leave this empty."></label>
       <label class="check"><input type="checkbox" name="managedAi"> Include the online helper (AI allowance)</label>
       <p class="muted">This is a Pro licence, issued at no charge to a tester or as a gift. Optional expiry is only enforceable when the app checks online; a previously issued signed key can still be used without a connection. Do not issue time-limited keys for access requiring guaranteed offline expiry.</p>
       <button>Issue key</button>

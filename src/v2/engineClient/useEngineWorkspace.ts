@@ -59,7 +59,7 @@ import { type FormatSet, addFormat, applyFormats, ORIGINAL_FORMAT_ID, removeForm
 import { patchVideoZoom } from './videoZoomOps';
 import { isSplitFrameCount, setFormatSplitOffset, setSplitFrameCount as writeSplitFrameCount, toggleFormatSplit, type SplitFrameCount } from './formatSplitOps';
 import { readSplitPanOffset } from './splitFrameOps';
-import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, toggleMask } from './maskOps';
+import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskLimit, toggleMask } from './maskOps';
 import { verifyFrameMasks } from './maskVerify';
 import { commitSubjectMask, subjectMaskTarget } from './subjectMaskCommit';
 import { createMask, createSubjectMask, framingKey, hasActiveMasks } from '../../core/maskTypes';
@@ -1488,6 +1488,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     setMaskEdit: (photoId, maskId, key, value) => editMasks(photoId, (masks) => setMaskEdit(masks, maskId, key, value)),
     setMaskFeather: (photoId, maskId, percent) => editMasks(photoId, (masks) => setMaskFeather(masks, maskId, percent)),
     setMaskGeometry: (photoId, maskId, field, value) => editMasks(photoId, (masks) => setMaskGeometry(masks, maskId, field, value)),
+    setMaskLimit: (photoId, maskId, limit) => editMasks(photoId, masks => setMaskLimit(masks, maskId, limit ?? null)),
     // As in the owner's design: starting an export closes the dialog; progress and the result continue in Tasks.
     runExport: (request) => { stub.actions.setExportOpen(false); void runExportAction(request); },
     applyAssistSuggestion: applyAuto,
@@ -1571,11 +1572,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     },
     updateSettings: (patch) => setSavedUi((current) => { const next: SavedUi = { ...current, settings: { ...current.settings, ...patch } }; saveUi(next); return next; }),
     setAssistMode: (mode) => setSavedUi((current) => { const next: SavedUi = { ...current, assistMode: mode, settings: { ...current.settings, defaultAssistMode: mode } }; saveUi(next); return next; }),
-    importWatermarkImage: async () => {
+    importWatermarkImage: async (usage) => {
       const picked = await pickImageFile();
       if (!picked) return null;
       try {
-        const entry = await importWatermark(picked, picked.name.replace(/\.[^.]+$/, ''), `wm-${newId().slice(0, 8)}`);
+        const entry = await importWatermark(picked, picked.name.replace(/\.[^.]+$/, ''), `wm-${newId().slice(0, 8)}`, usage);
         updateWatermarks([...watermarkStore, entry]);
         return entry.id;
       } catch (error) { setNotice(error instanceof Error ? error.message : 'That image could not be added.'); return null; }
