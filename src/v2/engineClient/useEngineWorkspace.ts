@@ -1096,46 +1096,62 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const controller = new AbortController();
     importController.current = controller;
     setImporting(true);
-    const task = tasks.start(`Adding ${additions.length} photo${additions.length === 1 ? '' : 's'}`, { total: additions.length, cancel: () => controller.abort() });
     const importId = newId().slice(0, 8);
     const sequenceBase = target.frames.reduce((max, frame) => Math.max(max, frame.sequenceIndex), 0);
-    const appended = new Set<string>();
-    let waiting: PhotoFrame[] = [];
-    let lastShown = 0;
-    const show = () => {
-      if (!waiting.length) return;
-      const batch = waiting; waiting = [];
-      for (const frame of batch) appended.add(frame.stableKey);
-      lastShown = Date.now();
-      setState((current) => (current && current.shoot.id === projectKey ? appendProjectPhotos(current, batch, importId, { sequenceBase }) : current));
-    };
+    const importedFrames: PhotoFrame[] = [];
+    const warnings: string[] = [];
+    const sourceProvider = provider.current!;
+    const sourceCatalogue = catalogue.current!;
     try {
-      const result = await loadLocalFileListShoot(additions, provider.current!, catalogue.current!,
-        ({ loaded, total }) => task.progress(loaded, total),
-        { allowPartial: true, signal: controller.signal, onFrameReady: (frame) => {
-          if (controller.signal.aborted) return;
-          waiting.push(frame);
-          if (waiting.length >= 24 || Date.now() - lastShown > 1200 || appended.size < 8) show();
-        } });
-      waiting = [];
-      if (!result.frames.length) {
-        if (result.stopped) task.finish('Stopped before any photo was added.');
-        else { task.fail('None of those files could be read as photos.'); setNotice('None of those files could be read as photos. Nothing was changed.'); }
-        return;
+      // An actual scheduler item for each photograph: complete the original
+      // fingerprint, preview and catalogue registration before advancing.
+      // Unlike a visibility-only bulk task, this releases the CPU slot at each
+      // boundary so someone can continue editing while 300 files import.
+      const ticket = await engineScheduler.submit({
+        title: `Adding ${additions.length} photo${additions.length === 1 ? '' : 's'}`,
+        kind: 'import', resource: 'cpu', priority: 4, pauseable: additions.length > 1,
+        items: additions.map((file, index) => ({ file, index })),
+        // Source file handles are intentionally NOT copied into the journal or
+        // snapshot; a picker token cannot be persisted as a verified original.
+        snapshot: { projectKey, importId },
+        itemId: item => pickedKey(item.file), itemLabel: item => item.file.name,
+        runItem: async (item, _, ctx) => {
+          ctx.stage('Reading and fingerprinting the original');
+          const result = await loadLocalFileListShoot([item.file], sourceProvider, sourceCatalogue,
+            undefined, { allowPartial: true, signal: ctx.signal });
+          ctx.checkCancelled();
+          if (!result.frames.length) throw new Error(`Could not import ${item.file.name}. Check the original and try again.`);
+          if (result.failedNames.length) throw new Error(`Could not read ${result.failedNames.join(', ')}.`);
+          // A one-photo loader has index one. Give each imported frame its
+          // distinct stable project index before inserting it into React.
+          const frames = result.frames.map(frame => ({
+            ...frame, id: `file-${item.index + 1}-${frame.filename}`,
+            sequenceIndex: item.index + 1,
+          }));
+          if (result.unstoredKeys.length) warnings.push(`${item.file.name} could not be stored for reopening. Relink it when needed.`);
+          ctx.stage('Saving the photograph in this project');
+          ctx.commitIfCurrent(() => {
+            if (stateRef.current?.shoot.id !== projectKey || ctx.signal.aborted) return;
+            importedFrames.push(...frames);
+            setState(current => current && current.shoot.id === projectKey && !ctx.signal.aborted
+              ? appendProjectPhotos(current, frames, importId, { sequenceBase }) : current);
+          });
+        },
+      });
+      controller.signal.addEventListener('abort', () => ticket.cancel(), { once: true });
+      if (controller.signal.aborted) ticket.cancel();
+      const outcome = await ticket.finished;
+      if (importedFrames.length && stateRef.current?.shoot.id === projectKey) {
+        setState(current => current && current.shoot.id === projectKey
+          ? applyImportBursts(current, importedFrames, importId) : current);
       }
-      setState((current) => (current && current.shoot.id === projectKey
-        ? applyImportBursts(appendProjectPhotos(current, result.frames.filter((frame) => !appended.has(frame.stableKey)), importId, { sequenceBase }), result.frames, importId)
-        : current));
-      task.finish(result.stopped ? `Stopped. ${result.frames.length} added.` : result.failedNames.length ? `${result.frames.length} added, ${result.failedNames.length} could not be read.` : undefined);
-      const warnings: string[] = [];
-      if (result.failedNames.length) warnings.push(`${result.failedNames.length} file${result.failedNames.length === 1 ? '' : 's'} could not be read: ${result.failedNames.slice(0, 3).join(', ')}.`);
-      if (result.unstoredKeys.length) warnings.push('Some originals are held for this session only. Reconnect them next time you open the project.');
-      if (warnings.length) setNotice(warnings.join(' '));
-    } catch {
-      task.fail('Adding photos failed.');
-      setNotice('Adding photos failed. Your original files were not changed.');
+      if (outcome === 'failed') setNotice(`Some photographs could not be imported. ${importedFrames.length} were added. Open Tasks to retry failed photographs only.`);
+      else if (outcome === 'cancelled') setNotice(`Import stopped. ${importedFrames.length} photographs were added; originals are unchanged.`);
+      else if (warnings.length) setNotice(warnings.slice(0, 3).join(' '));
+    } catch (reason) {
+      setNotice(reason instanceof Error ? reason.message : 'Adding photos failed. Your originals were not changed.');
     } finally {
-      task.fail('Stopped before finishing.'); // does nothing once finished
+      controller.abort();
       if (importController.current === controller) importController.current = null;
       setImporting(false);
     }
