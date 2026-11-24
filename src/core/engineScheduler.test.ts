@@ -191,3 +191,54 @@ test('scan-wide jobs expose individual photo stage updates without applying part
   assert.equal(task.total, 2);
   assert.deepEqual(task.items?.map(item => [item.id, item.state]), [['dog-one','done'],['dog-two','done']]);
 });
+
+test('pressure defers background admission without lowering processing quality', async () => {
+  const store = createTaskStore();
+  const scheduler = createEngineScheduler({
+    taskStore: store,
+    limits: { cpu: 2, gpu: 1, io: 1 },
+    resourceSample: {
+      cpu: 0.96, availableMemoryBytes: 3 * 1024 ** 3,
+      availableGpuBytes: 2 * 1024 ** 3, availableDiskBytes: 8 * 1024 ** 3,
+    },
+  });
+  let ran = false;
+  const ticket = await scheduler.submit(batch('Heavy import', 3, async () => { ran = true; }));
+  assert.equal(store.list().find(task => task.id === ticket.taskId)?.state, 'queued');
+  assert.equal(ran, false);
+  assert.equal(scheduler.resourceStatus().measured, true);
+  assert.equal(scheduler.resourceStatus().blockedReason, 'cpu');
+  scheduler.updateResourceSample({
+    cpu: 0.2, availableMemoryBytes: 3 * 1024 ** 3,
+    availableGpuBytes: 2 * 1024 ** 3, availableDiskBytes: 8 * 1024 ** 3,
+  });
+  assert.equal(await ticket.finished, 'done');
+  assert.equal(ran, true);
+});
+
+test('unknown device memory serialises CPU and GPU heavy jobs instead of inventing available RAM', async () => {
+  const store = createTaskStore();
+  const scheduler = createEngineScheduler({ taskStore: store, limits: { cpu: 3, gpu: 1, io: 2 } });
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  const order: string[] = [];
+  const cpu = await scheduler.submit(batch('Import', 1, async () => { order.push('cpu start'); await held; }, {resource:'cpu'}));
+  await until(() => order.length === 1, 'cpu active');
+  const gpu = await scheduler.submit(batch('Denoise', 1, async () => { order.push('gpu start'); }, {resource:'gpu'}));
+  assert.equal(store.list().find(task => task.id === gpu.taskId)?.state, 'queued');
+  assert.equal(scheduler.resourceStatus().measured, false);
+  release();
+  assert.equal(await cpu.finished, 'done');
+  assert.equal(await gpu.finished, 'done');
+  assert.deepEqual(order, ['cpu start', 'gpu start']);
+});
+
+test('measured insufficient available RAM blocks even priority jobs until pressure clears', async () => {
+  const store = createTaskStore();
+  const scheduler = createEngineScheduler({ taskStore: store, limits:{cpu:1,gpu:1,io:1},
+    resourceSample:{cpu:0.1,availableMemoryBytes: 600 * 1024 ** 2,availableGpuBytes:3*1024**3,availableDiskBytes:3*1024**3} });
+  const ticket = await scheduler.submit(batch('RAW import',1,async()=>{}, {priority:100}));
+  assert.equal(store.list().find(task => task.id === ticket.taskId)?.state, 'queued');
+  scheduler.updateResourceSample({cpu:0.1,availableMemoryBytes: 2*1024**3,availableGpuBytes:3*1024**3,availableDiskBytes:3*1024**3});
+  assert.equal(await ticket.finished, 'done');
+});
