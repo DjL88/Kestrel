@@ -3,7 +3,7 @@ export interface Rgba { data: Uint8ClampedArray; width: number; height: number }
 
 export interface CutOutResult {
   image: Rgba;
-  /** Share of the picture that became transparent, 0 to 1. */
+  /** Share of previously visible pixels that became transparent, 0 to 1. */
   removed: number;
   /** True when so much went that the background was probably not a flat colour. The original is returned unchanged. */
   tooMuch: boolean;
@@ -66,9 +66,14 @@ export function cutOutBackground(img: Rgba, tolerance: number, soften = 1): CutO
     const x = p % width, y = (p - x) / width;
     consider(x + 1, y); consider(x - 1, y); consider(x, y + 1); consider(x, y - 1);
   }
-  let removed = 0;
-  for (let p = 0; p < gone.length; p += 1) if (gone[p]) removed += 1;
-  const share = removed / Math.max(1, gone.length);
+  // Pre-existing transparent padding is not artwork removed by this operation.
+  let removed = 0, visible = 0;
+  for (let p = 0; p < gone.length; p += 1) {
+    if (img.data[p * 4 + 3] === 0) continue;
+    visible += 1;
+    if (gone[p]) removed += 1;
+  }
+  const share = removed / Math.max(1, visible);
   if (share > MAX_REMOVED) return { image: img, removed: share, tooMuch: true };
   for (let p = 0; p < gone.length; p += 1) if (gone[p]) data[p * 4 + 3] = 0;
   // Soften: a kept pixel touching removed background fades by how close its colour is to the background.
