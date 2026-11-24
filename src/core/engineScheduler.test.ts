@@ -268,3 +268,13 @@ test('coalesced child-stage updates flush all final results even at a frozen clo
   assert.equal(record.items?.length, 100);
   assert.equal(record.items?.filter(item => item.state === 'done').length, 100);
 });
+
+test('ambiguous browser or non-exclusive writes never offer a retry button', async () => {
+  const { scheduler } = build();
+  const ticket = await scheduler.submit(batch('Browser download', 2,
+    async n => { if (n === 2) throw new Error('Download may already have started'); },
+    { kind: 'export', retryable: false }));
+  assert.equal(await ticket.finished, 'failed');
+  assert.equal(scheduler.canRetryFailed(ticket.taskId), false);
+  assert.equal(await scheduler.retryFailed(ticket.taskId), null);
+});
