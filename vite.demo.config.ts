@@ -12,6 +12,6 @@ export default defineConfig({
     outDir: 'site/editor',
     emptyOutDir: true,
     assetsDir: 'assets',
-    rollupOptions: { input: { 'demo-editor': path.resolve(__dirname, 'demo-editor.html'), 'demo-v2': path.resolve(__dirname, 'demo-v2.html') } },
+    rollupOptions: { input: { 'demo-editor': path.resolve(import.meta.dirname, 'demo-editor.html'), 'demo-v2': path.resolve(import.meta.dirname, 'demo-v2.html') } },
   },
 });
