@@ -68,6 +68,7 @@ export const removeRow = (overlay: OverlaySettings, rowId: string): OverlaySetti
 
 const LAYOUTS = {
   'stacked-left': { textPosition: 'bottom-left', textX: 8, textY: 90, watermarkPosition: 'bottom-left', watermarkX: 8, watermarkY: 78 },
+  'stacked-right': { textPosition: 'bottom-right', textX: 92, textY: 90, watermarkPosition: 'bottom-right', watermarkX: 92, watermarkY: 78 },
   'opposite-bottom': { textPosition: 'bottom-left', textX: 8, textY: 90, watermarkPosition: 'bottom-right', watermarkX: 92, watermarkY: 90 },
   'centred-pair': { textPosition: 'bottom-center', textX: 50, textY: 88, watermarkPosition: 'bottom-center', watermarkX: 50, watermarkY: 76 },
 } as const;

@@ -1699,6 +1699,14 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
           watermarkX: 8,
           watermarkY: 78,
         },
+        'stacked-right': {
+          textPosition: 'bottom-right' as const,
+          textX: 92,
+          textY: 90,
+          watermarkPosition: 'bottom-right' as const,
+          watermarkX: 92,
+          watermarkY: 78,
+        },
         'opposite-bottom': {
           textPosition: 'bottom-left' as const,
           textX: 8,

@@ -597,7 +597,7 @@ export interface WorkspaceActions {
 
   // Overlays (Text & Watermark) & Snapping
   updateOverlay: (photoId: string, patch: Partial<OverlaySettings>) => void;
-  alignOverlaysCleanly: (photoId: string, layout: 'stacked-left' | 'opposite-bottom' | 'centred-pair') => void;
+  alignOverlaysCleanly: (photoId: string, layout: 'stacked-left' | 'stacked-right' | 'opposite-bottom' | 'centred-pair') => void;
   addOverlayRow: (photoId: string) => void;
   updateOverlayRow: (photoId: string, rowId: string, patch: Partial<OverlayTextRow>) => void;
   removeOverlayRow: (photoId: string, rowId: string) => void;

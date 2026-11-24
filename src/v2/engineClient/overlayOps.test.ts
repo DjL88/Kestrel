@@ -51,6 +51,20 @@ test('a watermark starts on auto contrast, and an explicit choice is kept', () =
   assert.equal(readOverlay({ watermarkContrast: 'weird' }).watermarkContrast, 'auto');
 });
 
+test('stacked-right mirrors stacked-left and keeps both overlays together', () => {
+  const before = patchOverlay(readOverlay(undefined), { textOffsetX: 20, textOffsetY: -10 });
+  const right = alignOverlays(before, 'stacked-right');
+  const left = alignOverlays(before, 'stacked-left');
+  assert.equal(right.textPosition, 'bottom-right');
+  assert.equal(right.watermarkPosition, 'bottom-right');
+  assert.equal(right.textX, 100 - left.textX);
+  assert.equal(right.watermarkX, 100 - left.watermarkX);
+  assert.equal(right.textY, left.textY);
+  assert.equal(right.watermarkY, left.watermarkY);
+  assert.equal(right.textOffsetX, 0);
+  assert.equal(right.textOffsetY, 0);
+});
+
 test('extended photo metadata fields persist in selection order, without duplicates or unknown fields', () => {
   const overlay = readOverlay({ rows: [{ id: 'r', fields: ['capturedAt', 'filename', 'capturedAt', 'dimensions', 'privatePath', 'colourProfile'] }] });
   assert.deepEqual(overlay.rows[0].fields, ['capturedAt', 'filename', 'dimensions', 'colourProfile']);
