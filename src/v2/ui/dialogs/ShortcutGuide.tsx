@@ -1,3 +1,4 @@
+import { STRINGS } from '../strings';
 import React, { useEffect, useRef } from 'react';
 import { COMMANDS, COMMAND_GROUP_LABELS, type CommandGroup } from '../commands/registry';
 import { chordLabel, type Keymap } from '../commands/keymap';
@@ -36,9 +37,9 @@ export default function ShortcutGuide({ keymap, isMac, onClose }: ShortcutGuideP
       <section role="dialog" aria-modal="true" aria-labelledby="v2-shortcut-title"
         className="w-full max-w-md rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 text-[var(--text-primary)] shadow-[var(--shadow-panel)]">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 id="v2-shortcut-title" className="text-base font-semibold">Keyboard shortcuts</h2>
-          <button ref={closeButton} type="button" onClick={onClose} aria-label="Close keyboard shortcuts"
-            className="min-h-10 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-sm">Close</button>
+          <h2 id="v2-shortcut-title" className="text-base font-semibold">{STRINGS.shortcutHelp.keyboardShortcuts}</h2>
+          <button ref={closeButton} type="button" onClick={onClose} aria-label={STRINGS.shortcutHelp.closeKeyboardShortcuts}
+            className="min-h-10 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-sm">{STRINGS.shortcutHelp.close}</button>
         </div>
         <div className="max-h-[60vh] space-y-4 overflow-y-auto text-sm">
           {(['photos', 'view', 'edit', 'app'] as CommandGroup[]).map((group) => (
@@ -54,7 +55,7 @@ export default function ShortcutGuide({ keymap, isMac, onClose }: ShortcutGuideP
               </dl>
             </section>
           ))}
-          <p className="text-[var(--text-secondary)]">Close this guide: Esc</p>
+          <p className="text-[var(--text-secondary)]">{STRINGS.shortcutHelp.closeThisGuideEsc}</p>
         </div>
       </section>
     </div>

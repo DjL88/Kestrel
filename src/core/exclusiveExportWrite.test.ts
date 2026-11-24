@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { writeExclusiveBlob } from './exclusiveExportWrite';
+import { requireEmptyExportHandle, writeExclusiveBlob } from './exclusiveExportWrite';
 
 test('exclusive writer streams multiple chunks and handles short writes without truncation', async () => {
   const expected = new Uint8Array(131_072);
@@ -75,4 +75,13 @@ test('cancellation before opening never touches the destination', async () => {
     throw new Error('unexpected open');
   }, async () => {}, controller.signal), { name: 'AbortError' });
   assert.equal(opened, false);
+});
+
+test('a mobile picker returning an existing file cannot truncate, write or unlink it', async () => {
+  let closed = false;
+  const handle = { stat: async () => ({ size: 2048 }), write: async () => assert.fail('Existing file written'),
+    close: async () => { closed = true; } };
+  await assert.rejects(writeExclusiveBlob(new Blob(['edit']), () => requireEmptyExportHandle(handle),
+    async () => assert.fail('Existing file removed')), /already contains data/);
+  assert.ok(closed);
 });

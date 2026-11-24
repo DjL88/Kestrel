@@ -10,8 +10,8 @@ const MAX_GROUPS = 12;
 const validId = (s: unknown): s is string => typeof s === 'string' && /^[a-z0-9-]{1,64}$/.test(s);
 const validName = (s: unknown): s is string => typeof s === 'string' && s.trim().length > 0 && s.trim().length <= 80;
 
-export function readEditGroups(frame: PhotoFrame): SavedEditGroups {
-  const raw = (frame as GroupFrame).v2EditGroups;
+export function readEditGroups(frame: Pick<PhotoFrame, 'edit' | 'v2EditGroups'>): SavedEditGroups {
+  const raw = frame.v2EditGroups;
   const fallback: SavedEditGroups = { activeId: PRIMARY, groups: [{ id: PRIMARY, name: 'Edit group 1', edit: frame.edit }] };
   if (!raw || typeof raw !== 'object') return fallback;
   const value = raw as Partial<SavedEditGroups>;

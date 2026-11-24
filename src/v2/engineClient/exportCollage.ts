@@ -1,4 +1,4 @@
-import { COLLAGE_FORMATS, collagePage, readCollage } from '../../core/collage';
+import { COLLAGE_FORMATS, collageExportPages, readCollage } from '../../core/collage';
 import { renderCollagePage, encodeCollagePage } from '../../core/collagePageRender';
 import { collagePdf, type PdfRasterPage } from '../../core/collagePdf';
 import { planCollagePrint } from '../../core/collagePrint';
@@ -10,7 +10,7 @@ import type { CullingState } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import { archiveExports, loadVerifiedRasterOriginalForExport } from '../../providers/browserExport';
 
-export interface CollageExportRequest { format: 'jpeg' | 'png' | 'pdf'; allPages: boolean }
+export interface CollageExportRequest { format: 'jpeg' | 'png' | 'pdf'; allPages: boolean; range?: { first: number; last: number } }
 export async function exportCollage(state:CullingState, provider:BrowserPreviewProvider, request:CollageExportRequest, signal?:AbortSignal, progress?:(done:number,total:number)=>void):Promise<{blob:Blob;name:string}>{
  const doc=readCollage(state.shoot.collage);
  if(!doc)throw new Error('No valid collage is open.');
@@ -21,8 +21,7 @@ export async function exportCollage(state:CullingState, provider:BrowserPreviewP
  const paper=COLLAGE_FORMATS[doc.format].unit==='mm';
  if(print&&!paper)throw new Error('Choose an album paper size before exporting a print PDF.');
  if(!print&&paper)throw new Error('Choose a social canvas size for JPEG/PNG, or choose PDF for a printed album.');
- const pages=request.allPages?doc.pages:[collagePage(doc)];
- if(pages.length>40)throw new Error('Choose no more than 40 pages per export on this device.');
+ const pages = collageExportPages(doc, request.allPages, request.range);
  const files:File[]=[];const rasters:PdfRasterPage[]=[];
  const stem=state.shoot.title.replace(/[^a-zA-Z0-9_-]+/g,'-').replace(/^-+|-+$/g,'')||'collage';
  const limit=maxCanvasPixels({userAgent:navigator.userAgent,platform:navigator.platform,maxTouchPoints:navigator.maxTouchPoints});
@@ -58,7 +57,8 @@ export async function exportCollage(state:CullingState, provider:BrowserPreviewP
   }finally{canvas.width=0;canvas.height=0;}
   progress?.(print?rasters.length:files.length,pages.length);
  }
- if(plan)return {blob:collagePdf(rasters,plan),name:stem+'.pdf'};
+ const selectionName = request.range ? stem + '-pages-' + request.range.first + '-' + request.range.last : stem;
+ if(plan)return {blob:collagePdf(rasters,plan),name:selectionName+'.pdf'};
  if(files.length===1)return {blob:files[0],name:files[0].name};
- return {blob:await archiveExports(files),name:stem+'-pages.zip'};
+ return {blob:await archiveExports(files),name:request.range ? selectionName+'.zip' : stem+'-pages.zip'};
 }

@@ -74,6 +74,10 @@ const shapes: Record<CollageTemplate, SlotShape[]> = {
     { x: 4, y: 68, width: 92, height: 28, angle: 0 },
   ],
 };
+export const MAX_COLLAGE_PAGES = 200;
+export const MAX_COLLAGE_SELECTION = MAX_COLLAGE_PAGES * shapes.grid.length;
+export const MAX_COLLAGE_EXPORT_PAGES = 40;
+
 let sequence = 0;
 const nextId = () => `collage-${++sequence}-${Date.now().toString(36)}`;
 export const COLLAGE_TEMPLATES = (Object.keys(shapes) as CollageTemplate[]).map((id) => ({
@@ -85,6 +89,7 @@ export function newCollagePage(template: CollageTemplate = 'triptych', photoIds:
     slots: shapes[template].map((shape, i) => ({ ...shape, id: nextId(), photoId: photoIds[i] ?? null })) };
 }
 export function createCollage(photoIds: readonly string[] = [], format: CollageFormat = 'square'): CollageDocument {
+  if (photoIds.length > MAX_COLLAGE_SELECTION) throw new Error(`Choose up to ${MAX_COLLAGE_SELECTION} photographs per collage.`);
   // Populate as many pages as necessary. The photos do not disappear from the
   // composition just because the chosen template has fewer windows.
   const template: CollageTemplate = photoIds.length === 2 ? 'diagonal' : photoIds.length >= 4 ? 'grid' : 'triptych';
@@ -105,7 +110,13 @@ export function replaceCollagePhoto(doc: CollageDocument, slotId: string, photoI
   return { ...doc, pages: doc.pages.map((p) => p.id === doc.activePageId
     ? { ...p, slots: p.slots.map((s) => s.id === slotId ? { ...s, photoId } : s) } : p) };
 }
+export function canChangeCollageTemplate(doc: CollageDocument, template: CollageTemplate): boolean {
+  const assigned = collagePage(doc).slots.filter(slot => slot.photoId !== null).length;
+  const pagesNeeded = Math.max(1, Math.ceil(assigned / shapes[template].length));
+  return doc.pages.length - 1 + pagesNeeded <= MAX_COLLAGE_PAGES;
+}
 export function changeCollageTemplate(doc: CollageDocument, template: CollageTemplate): CollageDocument {
+  if (!canChangeCollageTemplate(doc, template)) return doc;
   const old = collagePage(doc);
   const assigned = old.slots.map((slot) => slot.photoId).filter((id): id is string => id !== null);
   const capacity = shapes[template].length;
@@ -123,10 +134,12 @@ export function changeCollageTemplate(doc: CollageDocument, template: CollageTem
   return { ...doc, pages };
 }
 export function addCollagePage(doc: CollageDocument, template: CollageTemplate = 'triptych'): CollageDocument {
+  if (doc.pages.length >= MAX_COLLAGE_PAGES) return doc;
   const page = newCollagePage(template);
   return { ...doc, pages: [...doc.pages, page], activePageId: page.id };
 }
 export function duplicateCollagePage(doc: CollageDocument): CollageDocument {
+  if (doc.pages.length >= MAX_COLLAGE_PAGES) return doc;
   const old = collagePage(doc);
   const copy = { ...old, id: nextId(), slots: old.slots.map((s) => ({ ...s, id: nextId() })) };
   const index = doc.pages.findIndex((p) => p.id === old.id);
@@ -144,7 +157,7 @@ export function readCollage(value: unknown): CollageDocument | null {
   if (!value || typeof value !== 'object') return null;
   const doc = value as Partial<CollageDocument>;
   if (doc.version !== 1 || !doc.format || !Object.hasOwn(COLLAGE_FORMATS, doc.format) || !Array.isArray(doc.pages) ||
-      doc.pages.length === 0 || doc.pages.length > 200) return null;
+      doc.pages.length === 0 || doc.pages.length > MAX_COLLAGE_PAGES) return null;
   if (!doc.pages.every((page) => page && typeof page.id === 'string' && Object.hasOwn(shapes, page.template) &&
     typeof page.background === 'string' && /^#[0-9a-fA-F]{6}$/.test(page.background) &&
     typeof page.gap === 'number' && Number.isFinite(page.gap) && page.gap >= 0 && page.gap <= 12 &&
@@ -155,4 +168,15 @@ export function readCollage(value: unknown): CollageDocument | null {
   if (new Set(doc.pages.map(p => p.id)).size !== doc.pages.length || doc.pages.some(p => new Set(p.slots.map(s => s.id)).size !== p.slots.length)) return null;
   if (!doc.activePageId || !doc.pages.some((p) => p.id === doc.activePageId)) return null;
   return doc as CollageDocument;
+}
+
+/** One-based page numbers, including both ends, as displayed in the editor. */
+export function collageExportPages(doc: CollageDocument, allPages: boolean, range?: { first: number; last: number }) {
+  if (!range && !allPages) return [collagePage(doc)];
+  const { first, last } = range ?? { first: 1, last: doc.pages.length };
+  if (!Number.isInteger(first) || !Number.isInteger(last) || first < 1 || first > last || last > doc.pages.length) {
+    throw new Error(`Choose a page range between 1 and ${doc.pages.length}.`);
+  }
+  if (last - first + 1 > MAX_COLLAGE_EXPORT_PAGES) throw new Error(`Choose up to ${MAX_COLLAGE_EXPORT_PAGES} pages per export.`);
+  return doc.pages.slice(first - 1, last);
 }

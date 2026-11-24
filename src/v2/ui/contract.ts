@@ -63,6 +63,7 @@ export type SocialPlatform =
 export type ExportDestination =
   | 'local-zip'
   | 'local-individual'
+  | 'local-folder'
   | 'share'
   | 'dropbox'
   | 'onedrive'

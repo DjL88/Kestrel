@@ -1,4 +1,4 @@
-import { writeExclusiveBlob } from '../core/exclusiveExportWrite';
+import { requireEmptyExportHandle, writeExclusiveBlob } from '../core/exclusiveExportWrite';
 /** True when InFlight is running inside the desktop app rather than a browser tab. */
 export const isDesktopApp = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
@@ -14,10 +14,11 @@ const extensionOf = (name: string) => name.includes('.') ? name.slice(name.lastI
  * Ask where to save with the system's own dialog, then write the file there. Returns false if the person cancelled.
  * The app can write only the place they chose.
  */
-export async function saveWithDialog(blob: Blob, name: string, requireMatchingExtension = false): Promise<boolean> {
+export async function saveWithDialog(blob: Blob, name: string, requireMatchingExtension = false, signal?: AbortSignal): Promise<boolean> {
   const [{ save }, { open, remove }] = await Promise.all([import('@tauri-apps/plugin-dialog'), import('@tauri-apps/plugin-fs')]);
   const extension = extensionOf(name);
   const path = await save({ defaultPath: name, filters: extension ? [{ name: extension.toUpperCase(), extensions: [extension] }] : undefined });
+  signal?.throwIfAborted();
   if (!path) return false;
   if (requireMatchingExtension && extensionOf(path.split(/[\\/]/).at(-1) ?? '') !== extension) {
     throw new Error(`Choose a filename ending in .${extension}.`);
@@ -25,9 +26,12 @@ export async function saveWithDialog(blob: Blob, name: string, requireMatchingEx
   // Never overwrite an existing photograph or export, even when the save
   // dialog returns an already-used filename. createNew is atomic at open time.
   // Stream large TIFFs instead of allocating another full-size byte array.
-  // On a phone the system's picker has already made (and the person has already confirmed) an empty file at this path, so
-  // an exclusive create fails there and leaves a zero-byte file with "Could not save file". Write into it instead.
-  await writeExclusiveBlob(blob, () => open(path, isMobileShell() ? { write: true, truncate: true } : { write: true, createNew: true }), () => remove(path));
+  // Mobile pickers can reserve an empty file. Inspect the opened handle before
+  // writing, so a provider returning an existing photograph cannot truncate it.
+  const openOutput = async () => isMobileShell()
+    ? requireEmptyExportHandle(await open(path, { write: true }))
+    : open(path, { write: true, createNew: true });
+  await writeExclusiveBlob(blob, openOutput, () => remove(path), signal);
   // Show the saved file in Finder or Explorer. Saving has still worked if this fails.
   try {
     const { revealItemInDir } = await import('@tauri-apps/plugin-opener');

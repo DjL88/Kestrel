@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { addCollagePage, changeCollageTemplate, collagePage, createCollage, deleteCollagePage, duplicateCollagePage, readCollage, replaceCollagePhoto, COLLAGE_FORMATS } from './collage';
+import { addCollagePage, collageExportPages, changeCollageTemplate, collagePage, createCollage, deleteCollagePage, duplicateCollagePage, readCollage, replaceCollagePhoto, COLLAGE_FORMATS } from './collage';
 
 test('a collage can show the same photograph on multiple pages without duplicating originals', () => {
   let doc = createCollage(['raw-1', 'raw-2', 'raw-3']);
@@ -51,4 +51,26 @@ test('switching from four-up to a two-window angled template preserves all page 
   assert.equal(adjusted.pages[0].id, original.pages[0].id);
   assert.deepEqual(adjusted.pages.flatMap(page => page.slots.map(slot => slot.photoId).filter((id): id is string => id !== null)), ['a','b','c','d']);
   assert.deepEqual(readCollage(JSON.parse(JSON.stringify(adjusted))), adjusted);
+});
+
+test('all accepted page operations remain reopenable at the album limit', () => {
+  const ids = Array.from({length: 800}, (_, i) => String(i));
+  const doc = createCollage(ids);
+  assert.ok(readCollage(JSON.parse(JSON.stringify(doc))));
+  assert.throws(() => createCollage([...ids, 'extra']), /800/);
+  assert.equal(addCollagePage(doc), doc);
+  assert.equal(duplicateCollagePage(doc), doc);
+  assert.equal(changeCollageTemplate(doc, 'diagonal'), doc);
+  assert.deepEqual(doc.pages.flatMap(page => page.slots.map(slot => slot.photoId)), ids);
+  assert.ok(readCollage(changeCollageTemplate(deleteCollagePage(doc), 'diagonal')));
+});
+
+test('exports an inclusive range in album order and rejects invalid or excessive selections', () => {
+  const doc = createCollage(Array.from({length: 168}, (_, i) => String(i)));
+  assert.deepEqual(collageExportPages(doc, false, { first: 3, last: 42 }), doc.pages.slice(2));
+  assert.deepEqual(collageExportPages(doc, false), [doc.pages[0]]);
+  for (const range of [{first: 0,last: 1}, {first: 2,last: 1}, {first: 1,last: 41}, {first: 41,last: 43}, {first: 1.1,last: 2}]) {
+    assert.throws(() => collageExportPages(doc, false, range));
+  }
+  assert.throws(() => collageExportPages(doc, true), /40/);
 });

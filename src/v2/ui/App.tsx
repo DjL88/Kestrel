@@ -739,7 +739,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
 
       {/* Global Dialogs */}
       {store.collage && store.exportOpen && <CollageExportDialog key={store.activeProjectId} document={store.collage} onClose={() => actions.setExportOpen(false)} onExport={actions.exportCollage} />}
-      <ExportDialog
+      <ExportDialog key={JSON.stringify([activePhoto?.id, activePhoto?.activeGroupId])}
         open={store.exportOpen && !store.collage}
         photo={activePhoto}
         selectedPhotoIds={store.selectedPhotoIds}
