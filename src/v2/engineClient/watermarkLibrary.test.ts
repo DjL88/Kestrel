@@ -26,3 +26,14 @@ test('guided watermark import assigns the requested photo backgrounds without re
   assert.deepEqual(watermarkSlots(id, 'auto', 0.1), { forLight: id });
   assert.deepEqual(watermarkSlots(id, 'auto', 0.9), { forDark: id });
 });
+
+test('duplicate watermark IDs cannot resolve to different artwork after reopening', () => {
+  const list = parseStored(JSON.stringify([
+    { id: 'mark', label: 'Original', forDark: id },
+    { id: 'mark', label: 'Duplicate', forLight: 'b'.repeat(64) },
+    { id: ' ', label: 'Invalid', forDark: id },
+    { id: 'other', label: 'Other', forLight: id },
+  ]));
+  assert.deepEqual(list.map(entry => entry.label), ['Original', 'Other']);
+  assert.equal(list[0].forDark, id);
+});
