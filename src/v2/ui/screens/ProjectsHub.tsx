@@ -297,14 +297,14 @@ export default function ProjectsHub({
           role="dialog"
           aria-modal="true"
           aria-labelledby="create-proj-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-scrim)] p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[var(--bg-scrim)] p-4"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) setModalOpen(false);
           }}
         >
           <form
             onSubmit={handleCreate}
-            className="w-full max-w-md space-y-4 rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-panel)]"
+            className="max-h-[calc(100dvh-2rem)] w-full max-w-md space-y-4 overflow-y-auto rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-panel)]"
           >
             <h2 id="create-proj-title" className="text-base font-bold text-[var(--text-primary)]">
               {STRINGS.hub.modalTitle}
