@@ -100,7 +100,7 @@ export default function Rail({
   return (
     <>
       <aside
-        aria-label="Studio tools"
+        aria-label={STRINGS.shellLabels.studioTools}
         onContextMenu={handleContextMenu}
         className={`hidden md:flex w-[var(--rail-width)] shrink-0 flex-col items-center justify-between ${hand === 'left' ? 'border-l' : 'border-r'} border-[var(--border-subtle)] bg-[var(--bg-surface)] py-2 select-none`}
       >
@@ -144,15 +144,15 @@ export default function Rail({
               type="button"
               onClick={onOpenAllPhotos}
               aria-pressed={allPhotosOpen}
-              title="Show all photos at once"
-              aria-label="All photos"
+              title={STRINGS.shellLabels.allPhotosTitle}
+              aria-label={STRINGS.shellLabels.allPhotos}
               data-testid="all-photos-button"
               className={`flex w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] py-2 text-[10px] font-medium transition-colors ${
                 allPhotosOpen ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
               }`}
             >
               <BrandIcon name="image" size={18} />
-              <span>All photos</span>
+              <span>{STRINGS.shellLabels.allPhotos}</span>
             </button>
           )}
           <TasksWheel running={runningTaskCount} percent={taskProgress} active={activePanel === 'tasks'} onClick={onOpenTasks} />

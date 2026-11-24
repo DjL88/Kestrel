@@ -26,7 +26,7 @@ export default function InfoPanel({
   }, [photo?.id, photo?.speciesLabel]);
 
   if (!photo) {
-    return <p className="text-xs text-[var(--text-muted)]">Select a photo to inspect metadata.</p>;
+    return <p className="text-xs text-[var(--text-muted)]">{STRINGS.panelWords.selectToInspect}</p>;
   }
 
   const hist = photo.histogram ?? null;
@@ -43,14 +43,14 @@ export default function InfoPanel({
       {/* Live SVG Histogram */}
       <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3">
         <div className="flex items-center justify-between text-xs">
-          <span className="font-semibold text-[var(--text-primary)]">Histogram</span>
+          <span className="font-semibold text-[var(--text-primary)]">{STRINGS.panelWords.histogram}</span>
           <span className="font-mono text-[10px] text-[var(--text-muted)]">
             {photo.assistCritique.kelvinEstimate}
           </span>
         </div>
         {hist ? (
           <>
-            <svg viewBox="0 0 240 76" className="mt-2 h-20 w-full" role="img" aria-label={`Tonal histogram. Shadows clipped ${pct(hist.shadowClip)}, highlights clipped ${pct(hist.highlightClip)}.`}>
+            <svg viewBox="0 0 240 76" className="mt-2 h-20 w-full" role="img" aria-label={STRINGS.panelWords.histogramLabel(pct(hist.shadowClip), pct(hist.highlightClip))}>
               <polyline fill="none" stroke="rgba(226,92,92,0.58)" strokeWidth="1.6" points={toPolyline(hist.red)} />
               <polyline fill="none" stroke="rgba(56,178,139,0.58)" strokeWidth="1.6" points={toPolyline(hist.green)} />
               <polyline fill="none" stroke="rgba(78,168,222,0.62)" strokeWidth="1.6" points={toPolyline(hist.blue)} />
@@ -62,7 +62,7 @@ export default function InfoPanel({
             </p>
           </>
         ) : (
-          <p role="status" className="mt-2 text-xs text-[var(--text-secondary)]">Measuring this photo…</p>
+          <p role="status" className="mt-2 text-xs text-[var(--text-secondary)]">{STRINGS.panelWords.measuring}</p>
         )}
       </div>
 
@@ -73,7 +73,7 @@ export default function InfoPanel({
             <button
               key={n}
               type="button"
-              aria-label={`Rate ${n} stars`}
+              aria-label={STRINGS.panelWords.rateStars(n)}
               onClick={() => onSetRating([photo.id], n)}
               className="p-1"
             >
@@ -145,7 +145,7 @@ export default function InfoPanel({
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.info.cullSection}</h3>
         <dl className="space-y-1.5 text-xs">
           <div className="flex items-start justify-between gap-2">
-            <dt className="shrink-0 text-[var(--text-muted)]">Subject</dt>
+            <dt className="shrink-0 text-[var(--text-muted)]">{STRINGS.panelWords.subject}</dt>
             {editingSpecies ? (
               <form
                 className="flex min-w-0 flex-1 flex-wrap justify-end gap-1"
@@ -158,22 +158,22 @@ export default function InfoPanel({
               >
                 <input
                   type="text"
-                  aria-label="Correct species name"
+                  aria-label={STRINGS.panelWords.correctSpecies}
                   autoFocus
                   maxLength={120}
                   value={speciesDraft}
                   onChange={(event) => setSpeciesDraft(event.target.value)}
                   className="min-w-0 max-w-40 rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2 py-1 text-xs text-[var(--text-primary)]"
                 />
-                <button type="submit" disabled={!speciesDraft.trim()} className="rounded border border-[var(--border-default)] px-2 py-1 disabled:opacity-40">Save</button>
-                <button type="button" onClick={() => setEditingSpecies(false)} className="rounded px-1 py-1">Cancel</button>
+                <button type="submit" disabled={!speciesDraft.trim()} className="rounded border border-[var(--border-default)] px-2 py-1 disabled:opacity-40">{STRINGS.panelWords.save}</button>
+                <button type="button" onClick={() => setEditingSpecies(false)} className="rounded px-1 py-1">{STRINGS.panelWords.cancel}</button>
               </form>
             ) : (
               <dd className="flex min-w-0 items-center gap-2 text-right text-[var(--text-primary)]">
-                <span>{photo.speciesLabel || photo.category || 'Not identified'}</span>
-                <button type="button" aria-label="Correct species name" title="Correct species name"
+                <span>{photo.speciesLabel || photo.category || STRINGS.panelWords.notIdentified}</span>
+                <button type="button" aria-label={STRINGS.panelWords.correctSpecies} title={STRINGS.panelWords.correctSpecies}
                   onClick={() => setEditingSpecies(true)}
-                  className="shrink-0 rounded border border-[var(--border-subtle)] px-2 py-1 text-[11px]">Edit</button>
+                  className="shrink-0 rounded border border-[var(--border-subtle)] px-2 py-1 text-[11px]">{STRINGS.panelWords.edit}</button>
               </dd>
             )}
           </div>

@@ -17,7 +17,7 @@ import InfoPopover from '../shell/InfoPopover';
 import { detectOverlayOverflow, fitOverlayRows, formatOverlayRowText, getActiveGroup } from '../utils/studioMath';
 
 /** The words a row will say on this photo (or a pangram when it has nothing yet), so a font is judged on real text. */
-const sampleText = (photo: Photo, row: OverlayTextRow) => formatOverlayRowText(row, photo).trim() || 'The quick brown fox jumps over the lazy dog';
+const sampleText = (photo: Photo, row: OverlayTextRow) => formatOverlayRowText(row, photo).trim() || STRINGS.panelWords.sampleText;
 
 interface OverlayPanelProps {
   photo: Photo | null;
@@ -117,7 +117,7 @@ export default function OverlayPanel({
   const [subTab, setSubTab] = useState<'text' | 'watermark'>('text');
 
   if (!photo) {
-    return <p className="text-xs text-[var(--text-muted)]">Select a photo to edit overlays.</p>;
+    return <p className="text-xs text-[var(--text-muted)]">{STRINGS.panelWords.selectToOverlay}</p>;
   }
 
   const group = getActiveGroup(photo);
@@ -208,11 +208,11 @@ export default function OverlayPanel({
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1">
             <span className="text-xs font-semibold text-[var(--text-primary)]">
-              Suggested snapping
+              {STRINGS.panelWords.suggestedSnapping}
             </span>
             <InfoPopover
-              title="Suggested Snapping"
-              body="Dragging Text or Watermark on the canvas magnetically snaps edges, baselines, and balanced spacing relative to each other and safe margins."
+              title={STRINGS.panelWords.suggestedSnapping}
+              body={STRINGS.panelWords.snappingHelp}
             />
           </div>
           <button
@@ -226,7 +226,7 @@ export default function OverlayPanel({
                 : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
             }`}
           >
-            {overlay.snapEnabled ? 'Snap On' : 'Snap Off'}
+            {overlay.snapEnabled ? STRINGS.panelWords.snapOn : STRINGS.panelWords.snapOff}
           </button>
         </div>
 
@@ -236,21 +236,21 @@ export default function OverlayPanel({
             onClick={() => onAlignOverlaysCleanly(photo.id, 'opposite-bottom')}
             className="rounded-[var(--radius-xs)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1.5 py-1 text-[10px] font-medium text-[var(--text-secondary)] hover:border-[var(--brand-accent)] hover:text-[var(--text-primary)]"
           >
-            Opposite corners
+            {STRINGS.panelWords.oppositeCorners}
           </button>
           <button
             type="button"
             onClick={() => onAlignOverlaysCleanly(photo.id, 'stacked-left')}
             className="rounded-[var(--radius-xs)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1.5 py-1 text-[10px] font-medium text-[var(--text-secondary)] hover:border-[var(--brand-accent)] hover:text-[var(--text-primary)]"
           >
-            Stacked left
+            {STRINGS.panelWords.stackedLeft}
           </button>
           <button
             type="button"
             onClick={() => onAlignOverlaysCleanly(photo.id, 'centred-pair')}
             className="rounded-[var(--radius-xs)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1.5 py-1 text-[10px] font-medium text-[var(--text-secondary)] hover:border-[var(--brand-accent)] hover:text-[var(--text-primary)]"
           >
-            Centred pair
+            {STRINGS.panelWords.centredPair}
           </button>
         </div>
       </div>
@@ -265,7 +265,7 @@ export default function OverlayPanel({
               {/* Enable toggle + Layout mode */}
               <div className="flex items-center justify-between">
                 <label className="text-xs font-medium text-[var(--text-primary)]">
-                  Show text overlay on this photo
+                  {STRINGS.panelWords.showTextOverlay}
                 </label>
                 <Switch on={overlay.textEnabled} label={STRINGS.overlays.textToggleLabel} onToggle={() => onUpdateOverlay(photo.id, { textEnabled: !overlay.textEnabled })} />
               </div>
@@ -362,7 +362,7 @@ export default function OverlayPanel({
                         {overlay.rows.length > 1 && (
                           <button
                             type="button"
-                            aria-label={`Remove Row ${idx + 1}`}
+                            aria-label={STRINGS.panelWords.removeRow(idx + 1)}
                             onClick={() => onRemoveRow(photo.id, row.id)}
                             className="text-[var(--text-muted)] hover:text-[var(--semantic-danger)]"
                           >
@@ -397,7 +397,7 @@ export default function OverlayPanel({
                           type="text"
                           value={row.customText}
                           onChange={(e) => onUpdateRow(photo.id, row.id, { customText: e.target.value })}
-                          placeholder="Custom line text…"
+                          placeholder={STRINGS.panelWords.customLine}
                           className="h-7 w-full rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]"
                         />
                       )}
@@ -416,7 +416,7 @@ export default function OverlayPanel({
                       <div className="flex items-center gap-3">
                         <div className="flex-1 space-y-1">
                           <div className="flex justify-between text-[10px] text-[var(--text-muted)]">
-                            <span>Size</span>
+                            <span>{STRINGS.panelWords.size}</span>
                             <span className="font-mono tabular-nums">{row.sizePx}px</span>
                           </div>
                           <input
@@ -582,7 +582,7 @@ export default function OverlayPanel({
                 <span className="text-xs font-semibold text-[var(--text-primary)]">
                   {STRINGS.overlays.positionHeading}
                 </span>
-                <div role="group" aria-label="Watermark position" className="mx-auto grid w-24 grid-cols-3 gap-0 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-1">
+                <div role="group" aria-label={STRINGS.panelWords.watermarkPosition} className="mx-auto grid w-24 grid-cols-3 gap-0 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-1">
                   {ANCHORS.map((a) => (
                     <button
                       key={a.id}

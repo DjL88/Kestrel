@@ -57,4 +57,18 @@ export const enUS: AreaTranslation<typeof source> = {
       cvdDesc: 'Names the main colors in each photo in words, and points out color casts, very strong colors and red and green areas that many colorblind people find hard to tell apart. Also labels the ends of the Temperature and Tint sliders. Off unless you turn it on.',
     },
   },
+  keyboardKeys: {
+    importedSkipped: (set, skipped) => `Imported. Key set: ${set}. Not recognized and skipped: ${skipped}.`,
+    resetPad: 'Reset pad to the starting setup',
+    padHelp: 'A pad or dial sends keys, like a keyboard. For each slot, say which key it sends (Learn, then press it on the pad) and what it should do. The starting keys match the SinLoon pad setup from InFlight Version 1. TourBox and other pads that send keys work the same way; TourBox has not been tested on a real device.',
+  },
+  panelWords: {
+    selectToAdjust: 'Select a photo to adjust tone and color.',
+    centreLeftRight: 'Center left / right',
+    centreUpDown: 'Center up / down',
+    centredPair: 'Centered pair',
+  },
+  settingsMore: {
+    forgetBody: 'If you have signed in, bought a license, used optional cloud help, or sent a message, InFlight holds a small amount of data about you on its servers. Turning off “help improve suggestions” already deletes what you shared. To have the rest erased, send a request with the email you signed in with. InFlight does not yet have a one-tap server erase, so this goes to a person, and you will be told what, if anything, must be kept (for example payment records the law requires).',
+  },
 };

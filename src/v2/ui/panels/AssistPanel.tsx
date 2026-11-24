@@ -19,7 +19,7 @@ export default function AssistPanel({
   onApplySuggestion,
 }: AssistPanelProps) {
   if (!photo) {
-    return <p className="text-xs text-[var(--text-muted)]">Select a photo to read Assist guidance.</p>;
+    return <p className="text-xs text-[var(--text-muted)]">{STRINGS.panelWords.selectToAssist}</p>;
   }
 
   return (

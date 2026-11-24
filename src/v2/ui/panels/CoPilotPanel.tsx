@@ -39,7 +39,7 @@ export default function CoPilotPanel({
   const hiddenOnline = useProHidden('onlineAi');
   const hiddenCloud = useProHidden('cloudAssist');
   if (!photo) {
-    return <p className="text-xs text-[var(--text-muted)]">Select a photo to run Flight Analysis.</p>;
+    return <p className="text-xs text-[var(--text-muted)]">{STRINGS.panelWords.selectToAnalyse}</p>;
   }
 
   const reviewAvailable = features.onlineAi || features.cloudAssist;
