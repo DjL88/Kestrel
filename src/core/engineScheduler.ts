@@ -187,6 +187,9 @@ export function createEngineScheduler(options: {
             }
           }
         } catch (error) {
+          // A cancelled native save picker is cancellation, not a failed image.
+          if (error instanceof DOMException && error.name === 'AbortError' && !job.cancelled)
+            store.cancel(job.id);
           if (controller.signal.aborted || job.cancelled) item.state = 'cancelled';
           else {
             item.state = 'failed';
