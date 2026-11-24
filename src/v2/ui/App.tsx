@@ -36,6 +36,7 @@ import { loadPad, resolveWithPad, savePad, type PadProfile } from './commands/pa
 import KeyboardSettings from './dialogs/KeyboardSettings';
 import { commandById, type CommandDefinition } from './commands/registry';
 import { useNativeMenu } from './commands/useNativeMenu';
+import { isDesktopApp } from '../../providers/desktopShell';
 import type { MenuAction } from './commands/menuMap';
 
 const IS_MAC = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
@@ -168,6 +169,9 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
       case 'deselectAll': if (inEditor) actions.clearSelection(); break;
       case 'toggleFilmstrip': if (inEditor) actions.setFilmstripCollapsed(!store.filmstripCollapsed); break;
       case 'settings': actions.setSettingsOpen(true, action.tab); break;
+      case 'removedPhotos': if (inEditor) actions.setRemovedOpen(true); break;
+      case 'resetPhoto': if (inEditor && activePhoto) actions.resetPhotoEdits(activePhoto.id); break;
+      case 'backToProjects': if (inEditor) actions.backToProjects(); break;
     }
   });
 
@@ -402,6 +406,8 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
       ) : (
         <>
           <TopBar
+            // Owner decision 24 Nov 2026: header menus in a browser; the installed desktop app uses its native menu bar.
+            showMenus={!isDesktopApp()}
             keymap={keymap}
             photoName={store.collage && !collageEditingId ? `Collage · ${store.collage.pages.length} page${store.collage.pages.length === 1 ? '' : 's'}` : activePhoto ? `${activePhoto.title} · ${activePhoto.filename}` : 'No photo'}
             assistMode={store.assistMode}
