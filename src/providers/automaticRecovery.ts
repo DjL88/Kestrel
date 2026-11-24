@@ -24,6 +24,8 @@ export function sharedOriginalFolder(paths: readonly (string | undefined)[]): st
   // Never choose an automatic backup destination from ambiguous catalogue paths.
   if (!paths.length || paths.some(path => {
     if (!path || !/[/\\]/.test(path) || /[\u0000-\u001f\u007f]/.test(path) || /[/\\]$/.test(path)) return true;
+    // A repeated separator after the root (C:\Photos\\x.nef) makes the parent folder ambiguous.
+    if (/[^/\\][/\\]{2,}/.test(path)) return true;
     return path.split(/[/\\]/).some(segment => segment === '.' || segment === '..');
   })) return null;
   const folders = paths.map(path => path!.slice(0, Math.max(path!.lastIndexOf('/'), path!.lastIndexOf('\\'))));

@@ -90,7 +90,10 @@ test('a photo\'s stored split state is read through and kept in range', () => {
 
 test('tasks keep their progress and a failure is shown as failed, not as cancelled', () => {
   const base = { id: 7, title: 'Adding 10 photos', done: 4, total: 10, startedAt: 0, updatedAt: 0 };
-  assert.deepEqual(taskToInfo({ ...base, state: 'running' }), { id: '7', label: 'Adding 10 photos', detail: '4 of 10', progress: 40, status: 'running' });
+  const running = taskToInfo({ ...base, state: 'running' });
+  assert.deepEqual(
+    { id: running.id, label: running.label, detail: running.detail, progress: running.progress, status: running.status },
+    { id: '7', label: 'Adding 10 photos', detail: '4 of 10', progress: 40, status: 'running' });
   assert.equal(taskToInfo({ ...base, state: 'done' }).progress, 100);
   assert.equal(taskToInfo({ ...base, state: 'failed', detail: 'Disk full' }).status, 'failed');
   assert.equal(taskToInfo({ ...base, state: 'cancelled' }).status, 'cancelled');

@@ -14,10 +14,10 @@ test('refuses ambiguous source paths instead of selecting an adjacent backup des
   for (const unsafe of [
     '/photos/day/', '/photos/day/../other.nef', '/photos/./one.nef',
     '/photos/day/one.nef\u0000', '/photos/day/one.nef\n',
-    'C:\\\\Photos\\\\..\\\\other.nef', 'C:\\\\Photos\\\\',
+    'C:\\Photos\\..\\other.nef', 'C:\\Photos\\', 'C:\\Photos\\\\one.nef', '/photos//one.nef',
   ]) {
     assert.equal(sharedOriginalFolder([unsafe]), null, `unsafe path: ${JSON.stringify(unsafe)}`);
   }
   assert.equal(sharedOriginalFolder(['/photos/day/one.nef', '/photos/day/two.nef']), '/photos/day');
-  assert.equal(sharedOriginalFolder(['C:\\\\Photos\\\\one.nef', 'C:\\\\Photos\\\\two.nef']), 'C:\\\\Photos');
+  assert.equal(sharedOriginalFolder(['C:\\Photos\\one.nef', 'C:\\Photos\\two.nef']), 'C:\\Photos');
 });

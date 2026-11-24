@@ -108,12 +108,18 @@ test('configured source disconnect preserves device snapshot and reports retryab
   const partial = await backUpNow(project, LOCAL_RECOVERY_TARGET, now, recovery);
   assert.equal(partial.state, 'partial');
   assert.match(partial.message ?? '', /retry/);
-  const name = backupName(project.shoot.id, now);
-  assert.ok(await local.get(name));
+  // Backup names carry a random nonce, so find what was actually written.
+  const folder = `${backupFolder(project.shoot.id)}/`;
+  const firstLocal = await local.list(folder);
+  assert.equal(firstLocal.length, 1, 'device snapshot kept while the source is disconnected');
+  assert.ok(await local.get(firstLocal[0]));
   available = true;
   const retried = await backUpNow(project, LOCAL_RECOVERY_TARGET, now, recovery);
   assert.equal(retried.state, 'ok');
-  assert.deepEqual(await source.get(name), await local.get(name));
+  const sourceNames = await source.list(folder);
+  assert.equal(sourceNames.length, 1);
+  assert.ok((await local.list(folder)).includes(sourceNames[0]), 'retry writes the same snapshot to both places');
+  assert.deepEqual(await source.get(sourceNames[0]), await local.get(sourceNames[0]));
 });
 
 test('no eligible source is a successful device-only backup, but a thrown source opener is partial', async () => {

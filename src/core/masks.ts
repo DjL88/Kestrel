@@ -94,8 +94,10 @@ function brushGrid(mask: Extract<Mask, { kind: 'brush' | 'subject' }>, aspect: n
   const scale = new Float32Array(cols * rows).fill(1);
   const floor = new Float32Array(cols * rows);
   const dab = (cx: number, cy: number, radius: number, erase: boolean) => {
-    const rx = radius * cols;
-    const ry = radius * rows / aspect;
+    // On an extreme crop a dab can be thinner than one grid cell; never let it
+    // fall between cell centres and silently vanish.
+    const rx = Math.max(1, radius * cols);
+    const ry = Math.max(1, radius * rows / aspect);
     const x0 = Math.max(0, Math.floor(cx * cols - rx));
     const x1 = Math.min(cols - 1, Math.ceil(cx * cols + rx));
     const y0 = Math.max(0, Math.floor(cy * rows - ry));
