@@ -28,9 +28,14 @@ export function syncPath(level: SyncLevel, projectId: string, photoId: string): 
   return `${SYNC_ROOT}/${level}/${projectId}/${photoId}.${ending}`;
 }
 
+/** Reject Windows separators, stream names, control characters and dot segments across all connectors. */
+function safeRelativePath(path: string): boolean {
+  return !/[\\:\x00-\x1f\x7f]/.test(path) && path.split('/').every(part => part.length > 0 && part !== '.' && part !== '..' && !/[. ]$/.test(part));
+}
+
 /** Only paths inside the InFlight folder are ever read, written or removed. */
 export function isInsideSyncRoot(path: string): boolean {
-  return path.startsWith(`${SYNC_ROOT}/`) && !path.split('/').some((part) => part === '..' || part === '.' || part === '');
+  return path.startsWith(`${SYNC_ROOT}/`) && safeRelativePath(path);
 }
 
 /**
@@ -38,7 +43,7 @@ export function isInsideSyncRoot(path: string): boolean {
  * That is the only place outside InFlight's own folder that is ever written to, and files there are never read or removed.
  */
 export function isInsideExportRoot(path: string): boolean {
-  return path.startsWith('export/') && !path.split('/').some((part) => part === '..' || part === '.' || part === '');
+  return path.startsWith('export/') && safeRelativePath(path);
 }
 
 /** What a connector may write: its own folder, or the export folder. */
@@ -63,7 +68,11 @@ export interface S3Settings { endpoint: string; region: string; bucket: string; 
 
 /** localhost, this computer, a .local name, or a private network address (10.x, 192.168.x, 172.16 to 31.x). */
 export function isLocalHost(host: string): boolean {
-  return host === 'localhost' || host === '[::1]' || /\.local$/i.test(host) || /^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) || /^172\.(1[6-9]|2\d|3[01])\./.test(host);
+  if (host === 'localhost' || host === '[::1]' || /\.local$/i.test(host)) return true;
+  const parts = host.split('.');
+  if (parts.length !== 4 || parts.some(part => !/^\d{1,3}$/.test(part) || Number(part) > 255)) return false;
+  const [a, b] = parts.map(Number);
+  return a === 127 || a === 10 || (a === 192 && b === 168) || (a === 172 && b >= 16 && b <= 31);
 }
 
 export function checkS3Settings(settings: S3Settings): string[] {
