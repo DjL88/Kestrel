@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Photo, PhotoSurfaceProps, Project } from '../contract';
 import type { CollageDocument, CollageFormat, CollageTemplate } from '../../../core/collage';
-import { addCollagePage, changeCollageTemplate, collagePage, COLLAGE_FORMATS, COLLAGE_TEMPLATES, deleteCollagePage, duplicateCollagePage, modifyCollagePage, replaceCollagePhoto } from '../../../core/collage';
+import { addCollagePage, changeCollageTemplate, collagePage, COLLAGE_FORMATS, COLLAGE_TEMPLATES, deleteCollagePage, duplicateCollagePage, modifyCollagePage, replaceCollagePhoto, updateCollageWindow, windowFraming } from '../../../core/collage';
 
 interface Props {
   document: CollageDocument;
@@ -29,6 +29,7 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
   const slot = page.slots.find((item) => item.id === activeSlot) ?? page.slots[0];
   const photo = photos.find((item) => item.id === slot?.photoId);
   const setPage = (patch: Parameters<typeof modifyCollagePage>[1]) => onChange(modifyCollagePage(doc, patch));
+  const framing = slot ? windowFraming(slot) : { zoom: 1, panX: 0, panY: 0 };
   const printing = format.unit === 'mm';
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--bg-app)]" aria-label="Collage page editor">
@@ -55,16 +56,20 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
             {page.slots.map((item) => {
               const source = photos.find((candidate) => candidate.id === item.photoId);
               const gap = page.gap / 2;
+              const frame = windowFraming(item);
+              const position = `${(1+frame.panX)*50}% ${(1+frame.panY)*50}%`;
+              const pictureStyle: React.CSSProperties = { position: 'absolute', width: `${frame.zoom*100}%`, height: `${frame.zoom*100}%`, left: `${(1-frame.zoom)*(1+frame.panX)*50}%`, top: `${(1-frame.zoom)*(1+frame.panY)*50}%`, objectPosition: position };
+
               return (
                 <button type="button" key={item.id} aria-label={source ? `Choose photo for ${source.filename}` : 'Choose a photo for this collage slot'}
                   aria-pressed={item.id === activeSlot} onClick={() => setActiveSlot(item.id)}
                   className={`absolute overflow-hidden bg-black/10 outline-offset-2 focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)] ${activeSlot === item.id ? 'ring-2 ring-[var(--brand-accent)]' : ''}`}
                   style={{ left: `${item.x + gap}%`, top: `${item.y + gap}%`, width: `${Math.max(1,item.width - gap * 2)}%`,
                     height: `${Math.max(1,item.height - gap * 2)}%`, transform: `rotate(${item.angle}deg)`,
-                    clipPath: item.clip, zIndex: activeSlot === item.id ? 2 : 1 }}>
+                    clipPath: item.clip, zIndex: 1 }}>
                   {source ? (PhotoSurface
-                    ? <PhotoSurface photoId={source.id} variant="edited" alt={source.filename} className="h-full w-full" />
-                    : <img src={source.previewUrl} alt={source.filename} className="h-full w-full object-cover" />)
+                    ? <PhotoSurface photoId={source.id} variant="edited" alt={source.filename} className="h-full w-full" style={pictureStyle} />
+                    : <img src={source.previewUrl} alt={source.filename} className="h-full w-full object-cover" style={pictureStyle} />)
                     : <span className="flex h-full items-center justify-center text-2xl text-[var(--text-secondary)]">+</span>}
                 </button>
               );
@@ -109,6 +114,18 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
                 {photos.map((p) => <option key={p.id} value={p.id}>{p.filename}</option>)}
               </select>
             </label>
+            {photo && slot && <div className="space-y-2">
+              <label className="block text-xs">Window zoom · {framing.zoom.toFixed(1)}×
+                <input type="range" className="w-full" min={1} max={8} step={0.1} value={framing.zoom} onChange={e=>onChange(updateCollageWindow(doc,slot.id,{zoom:Number(e.target.value)}))}/>
+              </label>
+              <label className="block text-xs">Horizontal position
+                <input type="range" className="w-full" min={-1} max={1} step={0.05} value={framing.panX} onChange={e=>onChange(updateCollageWindow(doc,slot.id,{panX:Number(e.target.value)}))}/>
+              </label>
+              <label className="block text-xs">Vertical position
+                <input type="range" className="w-full" min={-1} max={1} step={0.05} value={framing.panY} onChange={e=>onChange(updateCollageWindow(doc,slot.id,{panY:Number(e.target.value)}))}/>
+              </label>
+              <button type="button" className={`w-full ${field}`} onClick={()=>onChange(updateCollageWindow(doc,slot.id,{zoom:1,panX:0,panY:0}))}>Reset window framing</button>
+            </div>}
             {photo && <button type="button" className={`w-full ${field}`} onClick={() => onEditPhoto(photo.id)}>Edit this photograph</button>}
             <button type="button" className={`w-full ${field}`} onClick={onImport}>Import more photos</button>
             {onBrowseProject && onAddFromProject && projects.length > 0 && <button type="button" className={`w-full ${field}`}
