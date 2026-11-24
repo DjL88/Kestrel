@@ -48,3 +48,9 @@ test('invalid grids and repeated mask identifiers leave history untouched', () =
   const empty = project(source);
   assert.equal(commitSubjectMask(empty, 'project', source, { ...mask, grid: { ...mask.grid, data: 'A' } }, 3000), empty);
 });
+
+
+test('subject mask refuses a disputed photo ID', () => {
+  const state = { ...project(source), frames: [source, { ...source, stableKey: 'other.nef' }] };
+  assert.equal(commitSubjectMask(state, 'project', source, mask, 3000), state);
+});
