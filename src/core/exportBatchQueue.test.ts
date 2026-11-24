@@ -262,3 +262,21 @@ test('late cancellation cannot contradict a successful durable export commit', a
   assert.equal(commits, 1);
   assert.equal(store.list()[0].state, 'done');
 });
+
+test('Task Manager cannot mark an irreversible export finalisation cancelled', async () => {
+  const store = createTaskStore();
+  const queue = createExportBatchQueue(store);
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  let finalising = false;
+  const ticket = queue.enqueue({title:'Finalising',items:[photos[0]],recipe:{}},{
+    async render(){return 'pixels';},async save(){},async finalize(){finalising=true;await gate;},
+  });
+  for(let i=0;i<10&&!finalising;i++)await tick();
+  assert.equal(finalising,true);
+  assert.equal(store.cancel(store.list()[0].id),false);
+  assert.equal(store.list()[0].state,'running');
+  release();
+  assert.equal(await ticket.done,'completed');
+  assert.equal(store.list()[0].state,'done');
+});
