@@ -45,3 +45,16 @@ test('a manual decision during a scan frees the burst slot for the next eligible
   const reviewed = commitAutoCull(latest, [first, second], [pick('a', 98), pick('b', 89)]);
   assert.deepEqual(reviewed.frames.map(f => f.decision), ['reject', 'keep']);
 });
+
+
+test('G05: original keeper target remains attainable after making and flagging virtual copies', () => {
+  const originals = [frame('manual', { decision: 'keep' }), frame('candidate'), frame('other')];
+  const variants = Array.from({ length: 20 }, (_, i) => frame('copy-' + i, {
+    decision: 'keep', virtualCopy: { originalFrameId: 'manual', number: i + 1 },
+  }));
+  const state = project(...originals, ...variants, frame('demo', { isDemo: true, decision: 'keep' }));
+  const reviewed = commitAutoCull(state, originals.slice(1), [pick('candidate', 99), pick('other', 90)]);
+  assert.deepEqual(reviewed.frames.slice(0, 3).map(f => f.decision), ['keep', 'keep', 'unreviewed']);
+  assert.deepEqual(reviewed.frames.slice(3), state.frames.slice(3));
+  assert.deepEqual(undoDecision(reviewed).frames.map(f => f.decision), state.frames.map(f => f.decision));
+});
