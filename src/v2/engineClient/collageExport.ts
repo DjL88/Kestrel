@@ -50,7 +50,7 @@ async function verifiedSource(
  * The composition renderer releases the intermediate canvas after using each window. */
 async function editedSource(
   photoId: string, frames: readonly PhotoFrame[], provider: BrowserPreviewProvider,
-  printing: boolean, signal: AbortSignal,
+  printing: boolean, signal: AbortSignal, socialMaxEdge: number,
 ): Promise<CollageImage> {
   signal.throwIfAborted();
   const frame = frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
@@ -59,7 +59,11 @@ async function editedSource(
   const framing = frame.framing ?? DEFAULT_FRAMING;
   const { width, height } = framedSize(original.naturalWidth, original.naturalHeight, framing);
   if (!(width > 0 && height > 0)) throw new Error(`Invalid full-resolution image geometry for ${frame.filename}.`);
-  const scale = fitScale(width, height, deviceLimit());
+  // Social pages have a fixed output size; do not process every 45 MP source at
+  // full resolution merely to fill a 1080 px window. Print uses all available
+  // genuine pixels (subject to the device canvas cap) for its strict PPI check.
+  const scale = Math.min(fitScale(width, height, deviceLimit()),
+    printing ? 1 : Math.min(1, socialMaxEdge / Math.max(width, height)));
   const canvas = document.createElement('canvas');
   try {
     drawFramedPhoto(original, canvas, framing, { scale, colourSpace: 'srgb' });
@@ -96,7 +100,7 @@ export async function exportCollage(
   for (const [index, page] of document.pages.entries()) {
     signal.throwIfAborted();
     const canvas = await renderCollagePage(document, page,
-      (id) => editedSource(id, frames, provider, printing, signal), printing, signal);
+      (id) => editedSource(id, frames, provider, printing, signal, Math.max(format.width, format.height) * 1.5), printing, signal);
     try {
       const mime = printing ? 'jpeg' : type;
       const blob = await encodeCollagePage(canvas, mime as 'jpeg' | 'png');
