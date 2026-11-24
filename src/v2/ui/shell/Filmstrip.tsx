@@ -209,7 +209,7 @@ export default function Filmstrip({
 
   return (
     <section
-      aria-label="Filmstrip and photo info dock"
+      aria-label={STRINGS.filmstripLabels.label1}
       className="v2-filmstrip relative z-20 flex shrink-0 flex-col border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] select-none"
     >
       {/* Top Resize Drag Bar */}
@@ -217,7 +217,7 @@ export default function Filmstrip({
         <div
           role="separator"
           aria-orientation="horizontal"
-          aria-label="Resize bottom panel"
+          aria-label={STRINGS.filmstripLabels.label2}
           aria-valuenow={height}
           aria-valuetext={`${height} pixels high; use Up or Down arrow keys to resize`}
           tabIndex={0}
@@ -237,7 +237,7 @@ export default function Filmstrip({
         {/* Left: Filmstrip / Info tabs + Import + Auto-Cull & Analyse */}
         <div className="flex shrink-0 items-center gap-2">
 
-          <div role="group" aria-label="Photograph browsing view" className="inline-flex rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-0.5">
+          <div role="group" aria-label={STRINGS.filmstripLabels.label3} className="inline-flex rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-0.5">
             {(['filmstrip', 'tiles'] as const).map((view) => (
               <button key={view} type="button" aria-pressed={photoView === view}
                 onClick={() => { setPhotoView(view); if (collapsed) onSetCollapsed(false); }}
@@ -277,9 +277,9 @@ export default function Filmstrip({
 
           <button type="button" onClick={onImportFolder}
             className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[11px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
-            title="Add photographs from a folder">
+            title={STRINGS.filmstripLabels.label4}>
             <BrandIcon name="folder-open" size={13} />
-            <span>Folder</span>
+            <span>{STRINGS.filmstripLabels.label10}</span>
           </button>
 
           {!hideAutoCull && (
@@ -317,10 +317,10 @@ export default function Filmstrip({
                 onClick={onExportSelected}
                 className="rounded px-1.5 py-0.5 font-medium hover:bg-[var(--bg-surface)]"
               >
-                Export
+                {STRINGS.filmstripLabels.label11}
               </button>
               {onCreateCollage && <button type="button" onClick={() => onCreateCollage(selectedPhotoIds)}
-                className="rounded px-1.5 py-0.5 font-medium hover:bg-[var(--bg-surface)]">Make collage</button>}
+                className="rounded px-1.5 py-0.5 font-medium hover:bg-[var(--bg-surface)]">{STRINGS.filmstripLabels.label12}</button>}
               <button
                 type="button"
                 onClick={onClearSelection}
@@ -398,14 +398,14 @@ export default function Filmstrip({
 
           {(searchOpen || search || minimumRating > 0) && (
             <label className="flex items-center gap-1 text-[11px] text-[var(--text-secondary)]">
-              <span>Rating</span>
+              <span>{STRINGS.filmstripLabels.label13}</span>
               <select
-                aria-label="Minimum photo rating"
+                aria-label={STRINGS.filmstripLabels.label5}
                 value={minimumRating}
                 onChange={(event) => setMinimumRating(Number(event.target.value))}
                 className="h-8 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-1 text-xs text-[var(--text-primary)]"
               >
-                <option value={0}>Any</option>
+                <option value={0}>{STRINGS.filmstripLabels.label14}</option>
                 {[1, 2, 3, 4, 5].map((rating) => (
                   <option value={rating} key={rating}>{rating}+ stars</option>
                 ))}
@@ -438,7 +438,7 @@ export default function Filmstrip({
           ) : (
             <div
               role="listbox"
-              aria-label="Project photographs"
+              aria-label={STRINGS.filmstripLabels.label6}
               aria-multiselectable="true"
               className={photoView === 'tiles'
                 ? 'grid h-full auto-rows-[minmax(170px,210px)] grid-cols-[repeat(auto-fill,minmax(min(100%,170px),1fr))] content-start gap-2.5 overflow-y-auto inflight-scroll px-3 py-2'
@@ -507,7 +507,7 @@ export default function Filmstrip({
                     <button
                       type="button"
                       aria-label={`More actions for ${photo.filename}`}
-                      title="Photo actions"
+                      title={STRINGS.filmstripLabels.label7}
                       onClick={(event) => {
                         event.stopPropagation();
                         if (!isSelected) onSelectPhoto(photo.id);
@@ -598,7 +598,7 @@ export default function Filmstrip({
         return (
         <div
           role="menu"
-          aria-label="Photo actions"
+          aria-label={STRINGS.filmstripLabels.label7}
           onPointerDown={(e) => {
             suppressTouchClick.current = false;
             e.stopPropagation();
@@ -621,12 +621,12 @@ export default function Filmstrip({
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
           >
             <BrandIcon name="flag" size={14} />
-            <span>Flag / unflag</span>
+            <span>{STRINGS.filmstripLabels.label15}</span>
           </button>
           {onCreateCollage && <button type="button" role="menuitem"
             onClick={() => { onCreateCollage(selectedPhotoIds.includes(tileMenu.photoId) ? selectedPhotoIds : [tileMenu.photoId]); setTileMenu(null); }}
             className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
-            Make collage from selected
+            {STRINGS.filmstripLabels.label16}
           </button>}
           <button type="button" role="menuitem"
             onClick={() => {
@@ -634,7 +634,7 @@ export default function Filmstrip({
               setTileMenu(null);
             }}
             className="flex w-full px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
-            Reject / set aside
+            {STRINGS.filmstripLabels.label17}
           </button>
           <button type="button" role="menuitem"
             onClick={() => {
@@ -642,7 +642,7 @@ export default function Filmstrip({
               setTileMenu(null);
             }}
             className="flex w-full px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
-            Return to review
+            {STRINGS.filmstripLabels.label18}
           </button>
           {photos.find((p) => p.id === tileMenu.photoId)?.burst?.ungrouped && (
             <button type="button" role="menuitem"
@@ -666,8 +666,8 @@ export default function Filmstrip({
             </button>
           )}
           <div className="border-t border-[var(--border-subtle)] px-3 py-2">
-            <span className="mb-1 block text-[11px] text-[var(--text-secondary)]">Rating</span>
-            <div className="flex flex-wrap gap-1" role="group" aria-label="Set photo rating">
+            <span className="mb-1 block text-[11px] text-[var(--text-secondary)]">{STRINGS.filmstripLabels.label13}</span>
+            <div className="flex flex-wrap gap-1" role="group" aria-label={STRINGS.filmstripLabels.label8}>
               {[0, 1, 2, 3, 4, 5].map((rating) => (
                 <button
                   key={rating}
@@ -696,12 +696,12 @@ export default function Filmstrip({
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <BrandIcon name="paste" size={14} />
-            <span>Paste settings</span>
+            <span>{STRINGS.filmstripLabels.label19}</span>
           </button>
           <label className="block px-3 py-1.5 text-[11px] text-[var(--text-secondary)]">
-            Apply Look
+            {STRINGS.filmstripLabels.label20}
             <select
-              aria-label="Apply a Look to selected photos"
+              aria-label={STRINGS.filmstripLabels.label9}
               defaultValue=""
               onChange={(event) => {
                 if (event.target.value) onApplyLook(tileMenu.photoId, event.target.value);
@@ -752,7 +752,7 @@ export default function Filmstrip({
                   setRemoveConfirm(null);
                 }}
                 className="min-h-10 rounded-[var(--radius-md)] bg-[var(--status-danger,#e5484d)] px-4 text-xs font-semibold text-white">
-                Remove
+                {STRINGS.filmstripLabels.label21}
               </button>
             </div>
           </div>
