@@ -20,6 +20,31 @@ const label = (task: Task) => {
   return { done: t.tasks.finished, failed: t.tasks.failed, cancelled: t.tasks.cancelled, queued: 'Queued', paused: 'Paused' }[task.state];
 };
 
+/** Avoid mounting a whole 1,695-photo task list just because the drawer
+ * opened. Users can reveal each next page without a massive DOM update. */
+function TaskItemDetails({ items }: { items: NonNullable<Task['items']> }) {
+  const [expanded, setExpanded] = useState(false);
+  const [show, setShow] = useState(60);
+  return (
+    <details onToggle={event => setExpanded(event.currentTarget.open)} className="rounded-md border border-white/10 p-2">
+      <summary className="min-h-11 cursor-pointer py-3 text-xs">Show {items.length} photographs or outputs</summary>
+      {expanded && (
+        <>
+          <ul className="max-h-60 overflow-auto text-xs">
+            {items.slice(0, show).map(item => <li key={item.id} className="py-1">
+              {item.label} · {item.state}{item.detail ? ` · ${item.detail}` : ''}
+            </li>)}
+          </ul>
+          {show < items.length && <button type="button" onClick={() => setShow(count => Math.min(count + 60, items.length))}
+            className="min-h-11 rounded-md border border-white/15 px-3 text-xs">
+            Show next {Math.min(60, items.length - show)} of {items.length}
+          </button>}
+        </>
+      )}
+    </details>
+  );
+}
+
 /**
  * Every heavy job in one place, each with its progress and a Cancel. Hidden when there is nothing to show.
  * `inline` sits in a page's own header: the work in hand as a compact progress bar (no separate row), and the full
@@ -129,16 +154,7 @@ export function TaskManager({ inline = false }: { inline?: boolean } = {}) {
             </div>
             {(task.state === 'running' || task.state === 'queued' || task.state === 'paused') && task.total ? <progress aria-label={task.title} className="block w-full" value={task.done} max={task.total} /> : null}
             {task.stage && <p className="text-xs text-zinc-400">Stage: {task.stage}</p>}
-            {task.items && task.items.length > 0 && (
-              <details className="rounded-md border border-white/10 p-2">
-                <summary className="min-h-11 cursor-pointer py-3 text-xs">Show {task.items.length} photographs</summary>
-                <ul className="max-h-60 overflow-auto text-xs">
-                  {task.items.map(item => <li key={item.id} className="py-1">
-                    {item.label} · {item.state}{item.detail ? ` · ${item.detail}` : ''}
-                  </li>)}
-                </ul>
-              </details>
-            )}
+            {task.items && task.items.length > 0 && <TaskItemDetails items={task.items} />}
             {(task.state === 'running' || task.state === 'queued') && task.pauseable && (
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => engineScheduler.pause(task.id)} aria-label={`Pause ${task.title}`}
