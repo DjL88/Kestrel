@@ -3,7 +3,8 @@
  * Callers own source identity validation, destination permissions, atomic writes
  * and resumable persistence; jobs do not survive an app restart yet.
  */
-import { tasks, type TaskHandle } from './taskStore';
+import { tasks, type TaskHandle, type SchedulerTaskHandle } from './taskStore';
+import { engineScheduler } from './engineScheduler';
 
 export interface ExportBatchItem {
   readonly sourceId: string;
@@ -57,7 +58,8 @@ export function snapshotExportRecipe<Recipe>(recipe: Recipe): Readonly<Recipe> {
   return copy;
 }
 
-export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
+export function createExportBatchQueue(taskStore: ExportTaskStore = tasks,
+  scheduler: Pick<typeof engineScheduler, 'runInSlot'> = engineScheduler) {
   const pending = new Map<number, () => Promise<void>>();
   // Never keep user photographs or destination handles indefinitely. Only
   // failed, explicitly retry-safe jobs are retained, with a bounded history.
@@ -131,17 +133,16 @@ export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
           }
           return true;
         };
-        // The legacy export adapter still uses its own execution lane, but it
-        // must report waiting as QUEUED, not pretend to be using CPU or GPU.
-        // This preserves older injected TaskStore tests without inventing work.
+        // Keep the existing visible task and destination lifecycle; actual
+        // per-photo work must acquire the shared engine scheduler slot.
         handle = taskStore.enqueue
-          ? taskStore.enqueue(title, { total: items.length, cancel, pauseable: false })
-          : taskStore.start(title, { total: items.length, cancel });
+          ? taskStore.enqueue(title, { total: items.length, cancel, canCancel: () => !committing, pauseable: false })
+          : taskStore.start(title, { total: items.length, cancel, canCancel: () => !committing });
         pending.set(id, async () => {
-          if (handle && 'transition' in handle && typeof handle.transition === 'function') {
-            handle.transition('running');
-          }
-          if (startIndex > 0) handle?.progress(startIndex, items.length, `${startIndex} already saved`);
+          const scheduled = handle as SchedulerTaskHandle | null;
+          const transition = (state: 'queued' | 'running', detail?: string) => {
+            scheduled?.transition?.(state, detail);
+          };
           if (controller.signal.aborted || handle?.cancelled) {
             finished = true;
             handle?.fail('Export cancelled before it started.');
@@ -151,11 +152,17 @@ export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
           try {
             for (let index = startIndex; index < items.length; index++) {
               if (controller.signal.aborted || handle?.cancelled) break;
-              const rendered = await adapter.render(items[index], recipe, controller.signal);
-              if (controller.signal.aborted || handle?.cancelled) break;
-              await adapter.save(items[index], rendered, controller.signal);
-              savedCount = index + 1; // only advance after confirmed write success
-              handle?.progress(savedCount, items.length, `${savedCount} of ${items.length} saved`);
+              transition('queued', 'Waiting for shared processing capacity');
+              await scheduler.runInSlot('cpu', controller.signal, async () => {
+                transition('running', `Working on ${items[index].filename}`);
+                if (index === startIndex && startIndex > 0)
+                  handle?.progress(startIndex, items.length, `${startIndex} already saved`);
+                const rendered = await adapter.render(items[index], recipe, controller.signal);
+                controller.signal.throwIfAborted();
+                await adapter.save(items[index], rendered, controller.signal);
+                savedCount = index + 1; // advance only after confirmed write
+                handle?.progress(savedCount, items.length, `${savedCount} of ${items.length} saved`);
+              });
             }
             if (controller.signal.aborted || handle?.cancelled) {
               handle?.fail('Export stopped. Files already saved remain at the destination.');
@@ -163,8 +170,15 @@ export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
             } else {
               // A published file is not a completed batch until its recovery
               // checkpoint is durable. Failure is surfaced in Task Manager.
-              committing = true;
-              await adapter.finalize?.(recipe, controller.signal);
+              if (adapter.finalize) {
+                transition('queued', 'Waiting to finalise export');
+                await scheduler.runInSlot('io', controller.signal, async () => {
+                  committing = true;
+                  scheduled?.patch?.({ cancellable: false });
+                  transition('running', 'Finalising confirmed files');
+                  await adapter.finalize!(recipe, controller.signal);
+                });
+              }
               // A successful finalisation is an irreversible durable commit.
               // Never report cancellation after the journal has committed.
               handle?.finish(`${items.length} files saved`);
