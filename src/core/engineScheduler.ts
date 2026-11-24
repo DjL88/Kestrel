@@ -365,7 +365,7 @@ export function createEngineScheduler(options: {
   };
 }
 
-const nav = typeof navigator === 'undefined' ? {} : navigator as Navigator & { deviceMemory?: number };
+const nav: Partial<Navigator & { deviceMemory?: number }> = typeof navigator === 'undefined' ? {} : navigator;
 export const engineScheduler = createEngineScheduler({
   limits: limitsForDevice({ hardwareConcurrency: nav.hardwareConcurrency, deviceMemory: nav.deviceMemory,
     mobile: typeof navigator !== 'undefined' && /Android|iPhone|iPad/i.test(navigator.userAgent) }),
