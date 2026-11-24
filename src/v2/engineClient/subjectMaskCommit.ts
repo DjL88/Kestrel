@@ -1,5 +1,5 @@
 import { recordEdit } from '../../core/editHistory';
-import { framingKey, type Mask } from '../../core/maskTypes';
+import { framingKey, validMasks, type Mask } from '../../core/maskTypes';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
 import type { CullingState, PhotoFrame } from '../../core/types';
 import { readEditGroups, syncEditGroup } from './editGroupState';
@@ -22,7 +22,9 @@ export function commitSubjectMask(
 ): CullingState {
   const frame = subjectMaskTarget(state, projectId, source);
   if (!frame || mask.framingKey !== framingKey(frame.framing)) return state;
-  const edit = { ...(frame.edit ?? DEFAULT_EDIT), masks: [...(frame.edit?.masks ?? []), mask] };
+  const masks = frame.edit?.masks ?? [];
+  if (masks.some(existing => existing.id === mask.id) || !validMasks([...masks, mask])) return state;
+  const edit = { ...(frame.edit ?? DEFAULT_EDIT), masks: [...masks, mask] };
   const updated = syncEditGroup(recordEdit(frame, { edit }, at));
   return {
     ...state,
