@@ -297,11 +297,11 @@ export class BrowserPreviewProvider implements PreviewProvider {
   }
 
   /** Keep a picture developed from the RAW, made small, and tell the tiles showing this original to redraw. */
-  async storeDevelopedPicture(frame: PhotoFrame, original: Blob, picture: Blob): Promise<boolean> {
+  async storeDevelopedPicture(frame: PhotoFrame, original: Blob, picture: Blob, signal?: AbortSignal): Promise<boolean> {
     const stableKey = frame.stableKey;
     const epoch = this.cacheEpoch;
     const revision = this.sourceRevisions.get(stableKey);
-    const isCurrent = () => epoch === this.cacheEpoch && revision === this.sourceRevisions.get(stableKey)
+    const isCurrent = () => !signal?.aborted && epoch === this.cacheEpoch && revision === this.sourceRevisions.get(stableKey)
       && this.localBlobs.get(stableKey) === original;
     if (!isCurrent()) return false;
 

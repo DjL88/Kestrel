@@ -2,6 +2,7 @@ import { useEffect, useSyncExternalStore, useState, useRef } from 'react';
 import { AlertTriangle, CheckCircle2, Clock, Loader2, RotateCcw, X } from './icons/KestrelUIIcons';
 import { drawerTabTarget } from './taskDrawerKeyboard';
 import { exportBatchQueue } from '../core/exportBatchQueue';
+import { engineScheduler } from '../core/engineScheduler';
 import { taskHealth, tasks, tasksNeedAttention, type Health, type Task } from '../core/taskStore';
 import { libraryText as t } from '../i18n/areas/library';
 
@@ -16,7 +17,7 @@ const HEALTH: Record<Health, { word: string; classes: string; Icon: typeof Clock
 
 const label = (task: Task) => {
   if (task.state === 'running') return task.total ? t.tasks.progress(task.done, task.total) : task.done ? t.tasks.doneSoFar(task.done) : t.tasks.workingEllipsis;
-  return { done: t.tasks.finished, failed: t.tasks.failed, cancelled: t.tasks.cancelled }[task.state];
+  return { done: t.tasks.finished, failed: t.tasks.failed, cancelled: t.tasks.cancelled, queued: 'Queued', paused: 'Paused' }[task.state];
 };
 
 /**
@@ -96,23 +97,29 @@ export function TaskManager({ inline = false }: { inline?: boolean } = {}) {
           </button>
         </div>
       </div>
+      {list.some(task => task.pauseable && (task.state === 'running' || task.state === 'queued' || task.state === 'paused')) && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          <button type="button" onClick={() => engineScheduler.pauseAll()} className="min-h-11 rounded-md border border-white/15 px-3 text-xs">Pause all</button>
+          <button type="button" onClick={() => engineScheduler.resumeAll()} className="min-h-11 rounded-md border border-white/15 px-3 text-xs">Resume all</button>
+        </div>
+      )}
       <ul className="space-y-3">
         {list.map((task) => (
           <li key={task.id} className="space-y-1">
             <div className="flex items-center justify-between gap-2">
               <span className="min-w-0 truncate">{task.title}</span>
-              {task.state === 'failed' && exportBatchQueue.canRetryTask(task.id) && (
-                <button type="button" onClick={() => { exportBatchQueue.retryTask(task.id); }}
+              {task.state === 'failed' && (exportBatchQueue.canRetryTask(task.id) || engineScheduler.canRetryFailed(task.id)) && (
+                <button type="button" onClick={() => { if (engineScheduler.canRetryFailed(task.id)) void engineScheduler.retryFailed(task.id); else exportBatchQueue.retryTask(task.id); }}
                   aria-label={t.tasks.retryRemaining} title={t.tasks.retryRemaining}
                   className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
                   <RotateCcw className="h-4 w-4" aria-hidden="true" />{t.tasks.retry}
                 </button>
               )}
-              {task.state === 'running' && task.cancellable && (
+              {(task.state === 'running' || task.state === 'queued' || task.state === 'paused') && task.cancellable && (
                 <button type="button" onClick={() => tasks.cancel(task.id)} aria-label={t.tasks.cancelTask(task.title)} title={t.tasks.cancel}
                   className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-zinc-300 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300"><X className="h-4 w-4" aria-hidden="true" /></button>
               )}
-              {task.state !== 'running' && (
+              {(task.state === 'done' || task.state === 'cancelled' || task.state === 'failed') && (
                 <button type="button" onClick={() => tasks.dismissFinished(task.id)}
                   aria-label={`${t.tasks.clearFinished}: ${task.title}`} title={t.tasks.clearFinished}
                   className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-zinc-300 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
@@ -120,7 +127,30 @@ export function TaskManager({ inline = false }: { inline?: boolean } = {}) {
                 </button>
               )}
             </div>
-            {task.state === 'running' && task.total ? <progress aria-label={task.title} className="block w-full" value={task.done} max={task.total} /> : null}
+            {(task.state === 'running' || task.state === 'queued' || task.state === 'paused') && task.total ? <progress aria-label={task.title} className="block w-full" value={task.done} max={task.total} /> : null}
+            {task.stage && <p className="text-xs text-zinc-400">Stage: {task.stage}</p>}
+            {task.items && task.items.length > 0 && (
+              <details className="rounded-md border border-white/10 p-2">
+                <summary className="min-h-11 cursor-pointer py-3 text-xs">Show {task.items.length} photographs</summary>
+                <ul className="max-h-60 overflow-auto text-xs">
+                  {task.items.map(item => <li key={item.id} className="py-1">
+                    {item.label} · {item.state}{item.detail ? ` · ${item.detail}` : ''}
+                  </li>)}
+                </ul>
+              </details>
+            )}
+            {(task.state === 'running' || task.state === 'queued') && task.pauseable && (
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => engineScheduler.pause(task.id)} aria-label={`Pause ${task.title}`}
+                  className="min-h-11 rounded-md border border-white/15 px-3 text-xs">Pause</button>
+                <button type="button" onClick={() => engineScheduler.jumpQueue(task.id)} aria-label={`Prioritise ${task.title}`}
+                  className="min-h-11 rounded-md border border-white/15 px-3 text-xs">Jump the queue</button>
+              </div>
+            )}
+            {task.state === 'paused' && task.pauseable && (
+              <button type="button" onClick={() => engineScheduler.resume(task.id)} aria-label={`Resume ${task.title}`}
+                className="min-h-11 rounded-md border border-white/15 px-3 text-xs">Resume</button>
+            )}
             <p className="break-words text-xs text-zinc-400">{label(task)}{task.detail ? ` · ${task.detail}` : ''}</p>
           </li>
         ))}
