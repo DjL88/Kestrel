@@ -1,3 +1,4 @@
+import ViewportThumbnail from './ViewportThumbnail';
 import { planFilmstrip } from '../../engineClient/burstGroups';
 import React, { useEffect, useRef, useState } from 'react';
 import type { AssistMode, LookPreset, Photo } from '../contract';
@@ -8,6 +9,7 @@ import { filterPhotos } from '../utils/studioMath';
 
 interface FilmstripProps {
   photos: Photo[];
+  requestThumbnail?: (id: string) => () => void;
   activePhoto: Photo | null;
   selectedPhotoIds: string[];
   assistMode: AssistMode;
@@ -42,6 +44,7 @@ interface FilmstripProps {
 
 export default function Filmstrip({
   photos,
+  requestThumbnail,
   activePhoto,
   selectedPhotoIds,
   assistMode,
@@ -528,10 +531,7 @@ export default function Filmstrip({
                       }
                       className="relative flex-1 w-full overflow-hidden bg-[var(--bg-canvas)] text-left"
                     >
-                      <img
-                        src={photo.thumbUrl}
-                        alt={photo.title}
-                        referrerPolicy="no-referrer"
+                      <ViewportThumbnail photo={photo} request={requestThumbnail}
                         className={`h-full w-full object-cover ${
                           photo.state === 'unavailable' ? 'opacity-55' : ''
                         }`}
