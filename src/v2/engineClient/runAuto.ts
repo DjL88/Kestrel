@@ -1,3 +1,4 @@
+import { observationsFromFrame, preservationPolicy } from '../../core/photographyPolicy';
 import { mergeAutoSuggestion } from '../../core/autoEnhance';
 import { acceptedAutoChanges } from '../../core/autoSuggestionSummary';
 import { proposeSubjectAwareAuto, type InsightSubjectKind } from '../../core/insightSubjectAuto';
@@ -84,10 +85,12 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   }
   if (signal?.aborted) return null;
 
-  const natural = naturalAuto({ pixels: analysis.data, width: analysis.width, height: analysis.height, segmentation, iso: frame.exif?.iso });
+  const photographyObservations = observationsFromFrame(frame);
+  const policy = preservationPolicy(photographyObservations);
+  const natural = naturalAuto({ pixels: analysis.data, width: analysis.width, height: analysis.height, segmentation, iso: frame.exif?.iso, photographyObservations });
   if (natural.notes.includes('This preview is too small or too large to analyse.')) return null;
   const global = mergeAutoSuggestion(base, natural.edit).edit;
-  const input = { pixels: analysis.data, width: analysis.width, height: analysis.height, base, natural, segmentation, species };
+  const input = { pixels: analysis.data, width: analysis.width, height: analysis.height, base, natural, segmentation, species, photographyObservations };
   const naturalPlan = planAuto({ ...input, proposal: global });
   let plan = naturalPlan;
   const recipes: Omit<AutoCandidate, 'after'>[] = [];
@@ -110,7 +113,7 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
       }
     }
   }
-  if (segmentation) {
+  if (segmentation && !policy.preserveDark) {
     const local = proposeSubjectAwareAuto({
       pixels: analysis.data, width: analysis.width, height: analysis.height, edit: global, subjectKind: category,
       segmentation, maskId: newId(), framingKey: framingKey(framing), extra: natural.subjectEdit,
