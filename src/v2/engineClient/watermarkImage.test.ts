@@ -75,3 +75,21 @@ test('a black logo on a white background is a dark mark, and a white logo on bla
   assert.ok((markBrightness(inverse) ?? 0) > 0.9);
   assert.ok((artworkBrightness(logo()) ?? 0) > 0.5, 'the plain average is fooled by the white background');
 });
+
+test('existing transparent padding does not count as removed artwork', () => {
+  const data = new Uint8ClampedArray(20 * 20 * 4);
+  const index = (10 * 20 + 10) * 4;
+  data[index + 3] = 255;
+  const result = cutOutBackground({ data, width: 20, height: 20 }, 0, 0);
+  assert.equal(result.tooMuch, false);
+  assert.equal(result.removed, 0);
+  assert.equal(result.image.data[index + 3], 255);
+});
+test('removing all visible artwork is refused even with transparent padding', () => {
+  const data = new Uint8ClampedArray(20 * 20 * 4);
+  data.set([255, 255, 255, 255], 0);
+  const image = { data, width: 20, height: 20 };
+  const result = cutOutBackground(image, 0, 0);
+  assert.equal(result.tooMuch, true);
+  assert.equal(result.image, image);
+});
