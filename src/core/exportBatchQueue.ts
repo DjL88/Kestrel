@@ -32,14 +32,17 @@ export interface ExportBatchTicket {
   cancel(): boolean;
 }
 export type ExportTaskStore = Pick<typeof tasks, 'start' | 'cancel' | 'list' | 'dismissFinished'>;
-const invalid = /[\\/:*?"<>|\u0000-\u001f]/;
+const invalid = /[\\/:*?"<>|\u0000-\u001f\u007f]/;
+const reserved = /^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\s*\.|$)/i;
+const safeFilename = (value: string) => !!value && value !== '.' && value !== '..' &&
+  value.normalize('NFC') === value && !invalid.test(value) && !reserved.test(value) && !/[. ]$/.test(value);
 
 export function exportFolderName(value: string): string {
   if (value === '') return '';
   const name = value.trim();
   if (!name || name === '.' || name === '..' || name.includes('/') || name.includes('\\')) throw new Error('Invalid export subfolder.');
   const safe = name.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').replace(/\.+$/, '').slice(0, 64);
-  if (!safe || safe === '.' || safe === '..') throw new Error('Invalid export subfolder.');
+  if (!safeFilename(safe)) throw new Error('Invalid export subfolder.');
   return safe;
 }
 
@@ -91,12 +94,11 @@ export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
       if (!plan.items.length) throw new Error('Select at least one photo and export format.');
       const used = new Set<string>();
       const items = plan.items.map((item): Readonly<ExportBatchItem> => {
-        if (!item.sourceId || !item.filename || item.filename === '.' || item.filename === '..' ||
-          invalid.test(item.filename)) throw new Error('An export filename or source identifier is invalid.');
+        if (!item.sourceId || !safeFilename(item.filename)) throw new Error('An export filename or source identifier is invalid.');
         const copy = Object.freeze({
           sourceId: item.sourceId, filename: item.filename, subfolder: exportFolderName(item.subfolder),
         });
-        const key = `${copy.subfolder}/${copy.filename}`.toLocaleLowerCase('en-US');
+        const key = `${copy.subfolder}/${copy.filename}`.normalize('NFC').toLocaleLowerCase('en-US');
         if (used.has(key)) throw new Error('Two exports target the same filename in one destination.');
         used.add(key);
         return copy;
