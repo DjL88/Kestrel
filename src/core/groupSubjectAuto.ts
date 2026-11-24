@@ -1,7 +1,8 @@
 import {maskAlpha, fullContext} from './masks';
 import type {Mask, LocalEdit} from './maskTypes';
 import type {PhotoEdit} from './photoEdits';
-import {renderRecipePreview, assessNaturalAuto} from './naturalAuto';
+import {renderRecipePreview, assessNaturalAuto, naturalAuto} from './naturalAuto';
+import type {PhotographyObservation} from './photographyKnowledge';
 type Subject = Extract<Mask,{kind:'subject'}>;
 function validDimensions(width:number,height:number){return Number.isSafeInteger(width) && Number.isSafeInteger(height) && width>=16 && height>=16 && width*height<=409600;}
 function validGrid(g:Subject['grid']){
@@ -36,8 +37,9 @@ function measure(pixels:Uint8ClampedArray,alpha:Float32Array,width:number){
   }
   return {count,texture:energy/Math.max(1,pairs),pairs,mean:sum/Math.max(1,count)/255,bright:bright/Math.max(1,count),clipped:clipped/Math.max(1,count),black:black/Math.max(1,count)};
 }
-/** Conservative tone-only proposal. Existing user masks are not altered or stacked over. */
-export function proposeGroupSubjectAuto(source:Uint8ClampedArray,width:number,height:number,global:PhotoEdit,subjects:readonly Subject[],ids:readonly string[],highIso:boolean):PhotoEdit {
+/** Conservative individual tone and detail proposals, using the existing Natural Auto measurements.
+ * Existing user masks are not altered or stacked over. Unknown capture ISO is not evidence of clean detail. */
+export function proposeGroupSubjectAuto(source:Uint8ClampedArray,width:number,height:number,global:PhotoEdit,subjects:readonly Subject[],ids:readonly string[],highIso:boolean, observations:readonly PhotographyObservation[]=[]):PhotoEdit {
   if(source.length!==width*height*4 || global.masks?.length || ids.length!==subjects.length || new Set(ids).size!==ids.length) return global;
   const alpha=regions(subjects,width,height);if(!alpha)return global;
   const preview=renderRecipePreview(source,width,height,global);
@@ -47,6 +49,15 @@ export function proposeGroupSubjectAuto(source:Uint8ClampedArray,width:number,he
     const edit:LocalEdit={};
     if(m.bright>.1 && m.clipped>.01)edit.highlights=-.25;
     else if(!highIso && m.mean>.10 && m.mean<.30 && m.clipped<.005 && m.bright<.01 && m.black<.15)edit.exposure=.2;
+    // Measure the actual prospective global look, not a separately invented sharpening score.
+    // Natural Auto already distinguishes textured, smooth and noise-dominated blocks.
+    // Do not sharpen if global detail settings are active or the subject is clipping.
+    if(!highIso && !global.sharpen && !global.texture && !global.clarity && !global.denoise &&
+        m.pairs>=64 && m.texture>=2 && m.clipped<.005 && m.black<.05 && m.mean>=.25 && m.mean<=.8) {
+      const assessment=naturalAuto({pixels:preview,width,height,segmentation:{grid:subjects[i].grid,confidence:'high'},
+        photographyObservations:observations});
+      if(assessment.scene.reference==='subject' && assessment.subjectEdit?.sharpen===.2) edit.sharpen=.1;
+    }
     if(Object.keys(edit).length)masks.push({...subjects[i],id:ids[i],edit});
   }
   return masks.length?{...global,masks}:global;
@@ -60,6 +71,7 @@ export function groupSubjectSafe(source:Uint8ClampedArray,width:number,height:nu
     const b=measure(before,a,width), c=measure(after,a,width);
     return b.count>=32 && c.count===b.count && c.clipped<=b.clipped+.005 && c.black<=b.black+.005 &&
       (b.pairs<32||b.texture<2||c.texture>=b.texture*.85) &&
+      (b.pairs<32||c.texture<=Math.max(b.texture*1.2,b.texture+1)) &&
       assessNaturalAuto(before,after,width,height,{grid:s.grid,confidence:s.confidence}).safe;
   });
 }
