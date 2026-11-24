@@ -278,7 +278,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     openRequest.current += 1;
     provider.current!.clear();
     if (restored) provider.current = restored;
-    thumbs.current = { generation: thumbs.current.generation + 1, requested: new Set(), queue: [], active: 0 };
+    thumbs.current.ticket?.cancel();
+    thumbs.current = { generation: thumbs.current.generation + 1, requested: new Set<string>(), queue: [] as PhotoFrame[], active: 0, ticket: null };
     setUrls({});
     setAssists({});
     setSelected(next.selectedFrameId ? [next.selectedFrameId] : []);
@@ -312,22 +313,46 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   // Thumbnails: a few at a time, so a large project does not start thousands of reads at once. Each photo is asked for
   // once; a read in flight is never thrown away when more photos arrive, only when the project changes (generation).
-  const thumbs = useRef({ generation: 0, requested: new Set<string>(), queue: [] as PhotoFrame[], active: 0 });
+  const thumbs = useRef({
+    generation: 0, requested: new Set<string>(), queue: [] as PhotoFrame[],
+    active: 0, ticket: null as import('../../core/engineScheduler').SchedulerTicket | null,
+  });
   const pumpThumbnails = useCallback(() => {
     const book = thumbs.current;
-    while (book.active < THUMBNAIL_WORKERS && book.queue.length) {
-      const frame = book.queue.shift()!;
-      const generation = book.generation;
-      book.active += 1;
-      provider.current!.getThumbnailUrl(frame, 'visible').then(
-        (thumb) => {
-          if (generation !== thumbs.current.generation) return;
-          // An empty address means the original cannot be read (not connected, or not stored): say so, never "Importing".
-          setUrls((current) => (current[frame.id]?.thumb ? current : { ...current, [frame.id]: thumb ? { ...current[frame.id], thumb } : { ...current[frame.id], failed: true } }));
-        },
-        () => { if (generation === thumbs.current.generation) setUrls((current) => ({ ...current, [frame.id]: { ...current[frame.id], failed: true } })); },
-      ).finally(() => { if (generation === thumbs.current.generation) { thumbs.current.active -= 1; pumpThumbnails(); } });
-    }
+    if (book.active || !book.queue.length) return;
+    const frames = book.queue.splice(0);
+    const generation = book.generation;
+    book.active = 1;
+    const sourceProvider = provider.current!;
+    void engineScheduler.submit({
+      title: `Preparing ${frames.length} thumbnails`, kind: 'thumbnail', resource: 'io',
+      priority: 1, pauseable: frames.length > 1, items: frames,
+      snapshot: { generation, keys: frames.map(frame => frame.stableKey) },
+      itemId: frame => frame.id, itemLabel: frame => frame.filename,
+      runItem: async (frame, _, ctx) => {
+        ctx.stage('Reading and scaling this photograph');
+        const thumb = await sourceProvider.getThumbnailUrl(frame, 'visible');
+        ctx.checkCancelled();
+        if (generation !== thumbs.current.generation) return;
+        if (!thumb) {
+          ctx.commitIfCurrent(() => setUrls(current =>
+            ({ ...current, [frame.id]: { ...current[frame.id], failed: true } })));
+          throw new Error(`Could not create the thumbnail for ${frame.filename}. Reconnect the original and retry.`);
+        }
+        ctx.commitIfCurrent(() => setUrls(current => current[frame.id]?.thumb ? current
+          : { ...current, [frame.id]: { ...current[frame.id], thumb } }));
+      },
+    }).then(ticket => {
+      book.ticket = ticket;
+      return ticket.finished;
+    }).catch(() => {
+      // Individual file failures are shown in the task and unavailable tile.
+    }).finally(() => {
+      if (generation !== thumbs.current.generation) return;
+      book.active = 0;
+      book.ticket = null;
+      pumpThumbnails();
+    });
   }, []);
   const projectId = state?.shoot.id;
   const frameCount = state?.frames.length ?? 0;
