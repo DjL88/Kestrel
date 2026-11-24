@@ -2,6 +2,7 @@ import { applyDetail, applyPhotoEdit, hasDetail, isNeutralEdit, isNeutralGlobal,
 import { applyMasks, fullContext, type MaskContext } from './masks';
 import { hasActiveMasks, usesDetail } from './maskTypes';
 import { applyNoiseReduction, hasNoiseReduction } from './noiseReduction';
+import { denoiseBands, denoiseOnlyMasks } from './denoiseBands';
 
 /** Colour noise reduction runs first, on the original pixels, before tone, sharpening and masks. */
 function applyCanvasNoiseReduction(canvas: HTMLCanvasElement, edit: PhotoEdit): void {
@@ -29,6 +30,39 @@ function* canvasMaskBands(canvas: HTMLCanvasElement, edit: PhotoEdit, mask: Mask
   if (!hasActiveMasks(edit.masks)) return;
   const context = canvas.getContext('2d', { willReadFrequently: true });
   if (!context) throw new Error('Canvas unavailable');
+  // Pure denoise recipes can use bounded strips. Multiple sequential mask
+  // filters need two original neighbour rows per active mask, conservatively.
+  // Read the next strip before writing this one, so no halo ever sees edited pixels.
+  if (denoiseOnlyMasks(edit.masks) && edit.masks?.length === 2 &&
+      edit.masks[0].id === edit.masks[1].id + '-background' &&
+      edit.masks[0].kind === 'subject' && edit.masks[1].kind === 'subject' &&
+      edit.masks[0].invert && !edit.masks[1].invert &&
+      !edit.masks[0].hidden && !edit.masks[1].hidden &&
+      !edit.masks[0].limit && !edit.masks[1].limit &&
+      edit.masks[0].feather === edit.masks[1].feather &&
+      edit.masks[0].framingKey === edit.masks[1].framingKey &&
+      JSON.stringify(edit.masks[0].grid) === JSON.stringify(edit.masks[1].grid) &&
+      JSON.stringify(edit.masks[0].detail) === JSON.stringify(edit.masks[1].detail) &&
+      JSON.stringify(edit.masks[0].strokes) === JSON.stringify(edit.masks[1].strokes)) {
+    const bands = denoiseBands(canvas.width, canvas.height);
+    let current = bands.next();
+    let pixels = current.done ? undefined : context.getImageData(0, current.value.start, canvas.width, current.value.height);
+    while (!current.done && pixels) {
+      const band = current.value;
+      const next = bands.next();
+      const nextPixels = next.done ? undefined : context.getImageData(0, next.value.start, canvas.width, next.value.height);
+      applyMasks(pixels.data, canvas.width, band.height, edit.masks, {
+        aspect: mask.aspect, imageEdge,
+        view: { x: mask.view.x, y: mask.view.y + mask.view.h * band.start / canvas.height,
+          w: mask.view.w, h: mask.view.h * band.height / canvas.height },
+      });
+      context.putImageData(pixels, 0, band.start, 0, band.y - band.start, canvas.width, band.rows);
+      current = next;
+      pixels = nextPixels;
+      yield;
+    }
+    return;
+  }
   // Detail controls look at neighbouring pixels, so a mask that uses them is processed in one piece to avoid seams.
   const rows = usesDetail(edit.masks) ? canvas.height : Math.max(1, Math.floor(1_000_000 / canvas.width));
   for (let y = 0; y < canvas.height; y += rows) {
