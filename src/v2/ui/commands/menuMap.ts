@@ -14,7 +14,10 @@ export type MenuAction =
   | { kind: 'import' }
   | { kind: 'deselectAll' }
   | { kind: 'toggleFilmstrip' }
-  | { kind: 'settings'; tab: SettingsTabId };
+  | { kind: 'settings'; tab: SettingsTabId }
+  | { kind: 'removedPhotos' }
+  | { kind: 'resetPhoto' }
+  | { kind: 'backToProjects' };
 
 const TABLE: Record<string, MenuAction> = {
   export: { kind: 'command', id: 'file.export' },
@@ -35,6 +38,10 @@ const TABLE: Record<string, MenuAction> = {
   'settings-ai': { kind: 'settings', tab: 'aiProviders' },
   'settings-storage': { kind: 'settings', tab: 'storage' },
   'macro-pad': { kind: 'settings', tab: 'keyboard' },
+  // V2-only File items (src-tauri/src/lib.rs). The header menus are hidden in the desktop app, so these are the way in.
+  'removed-photos': { kind: 'removedPhotos' },
+  'reset-photo': { kind: 'resetPhoto' },
+  'back-to-projects': { kind: 'backToProjects' },
   ...Object.fromEntries([0, 1, 2, 3, 4, 5].map((rating) => [`photo-rate-${rating}`, { kind: 'rate', rating } as MenuAction])),
 };
 
