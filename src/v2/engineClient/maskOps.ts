@@ -26,7 +26,7 @@ const layerName = (mask: Mask): string => {
 export function masksToLayers(masks: readonly Mask[] | undefined): MaskLayer[] {
   return (masks ?? []).map((mask) => ({
     id: mask.id, name: layerName(mask), type: layerType(mask), visible: !mask.hidden,
-    feather: Math.round(mask.feather * 100), edit: { ...mask.edit } as Record<string, number>,
+    feather: Math.round(mask.feather * 100), edit: { ...mask.edit, ...(mask.id.startsWith('auto-denoise-') && /-instance-\d+-[a-zA-Z0-9]+$/.test(mask.id) && mask.edit.denoise === undefined ? { denoise: (masks ?? []).find(group => group.id === mask.id.replace(/-instance-\d+-[a-zA-Z0-9]+$/, '') && !group.hidden)?.edit.denoise ?? 0 } : {}) } as Record<string, number>,
     ...(mask.kind === 'radial' ? { geometry: { kind: 'radial' as const, cx: mask.cx, cy: mask.cy, rx: mask.rx, ry: mask.ry, angle: mask.angle ?? 0 } }
       : mask.kind === 'linear' ? { geometry: { kind: 'linear' as const, x1: mask.x1, y1: mask.y1, x2: mask.x2, y2: mask.y2 } } : {}),
   }));
