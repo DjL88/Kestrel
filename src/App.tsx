@@ -1048,16 +1048,18 @@ export default function App() {
       });
       controller.signal.addEventListener('abort', () => { tasks.cancel(task.id); }, { once: true });
       try {
+        const examined = new Map(snapshot.frames.filter(frame => targets.has(frame.id)).map(frame => [frame.id, frame]));
         const edits = await suggestKeeperAutoEdits(prioritizePhotoProcessing(snapshot.frames), provider, controller.signal,
           (count) => task.progress(count), targets,
           (frameId, edit) => {
-            if (!alive() || leavingRef.current) return;
+            const source = examined.get(frameId);
+            if (!source || !alive() || leavingRef.current) return;
             // The photographer can edit, reject, remove or switch projects while
             // the next photo is processing. Every result checks the LIVE state.
             setCullingState((prev) => {
               if (!alive() || leavingRef.current || controller.signal.aborted) return prev;
               return commitCompletedAutoResult(prev, {
-                projectId, frameId, edit, at: Date.now(),
+                projectId, frameId, stableKey: source.stableKey, originalSha256: source.originalSha256, edit, at: Date.now(),
                 editingFrameId: editingRef.current ? prev.selectedFrameId ?? undefined : undefined,
               });
             });
