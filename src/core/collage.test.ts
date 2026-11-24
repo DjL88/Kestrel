@@ -35,3 +35,11 @@ test('reject invalid persisted shapes; social pixels are distinct from physical 
   assert.equal(COLLAGE_FORMATS.square.unit, 'px');
   assert.equal(COLLAGE_FORMATS['a4-portrait'].unit, 'mm');
 });
+
+test('a filmstrip selection of 10 photographs fills three collage pages without loss', () => {
+  const ids = Array.from({length: 10}, (_, i) => `photo-${i}`);
+  const doc = createCollage(ids);
+  assert.equal(doc.pages.length, 3);
+  assert.deepEqual(doc.pages.flatMap((p) => p.slots.map((s) => s.photoId).filter(Boolean)), ids);
+  assert.equal(doc.activePageId, doc.pages[0].id);
+});
