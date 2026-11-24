@@ -28,7 +28,7 @@ export function sanitiseCrop(raw: unknown): CropTransform {
 /** The crops stored on a photo, by format id. Read defensively: a stored value can come from an older build or a damaged file. */
 export function readCrops(raw: unknown): Record<string, CropTransform> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
-  return Object.fromEntries(Object.entries(raw as Record<string, unknown>).filter(([id]) => id.length > 0 && id.length <= 80).map(([id, crop]) => [id, sanitiseCrop(crop)]));
+  return Object.fromEntries(Object.entries(raw as Record<string, unknown>).filter(([id]) => /^[a-zA-Z0-9_-]{1,80}$/.test(id) && !Object.hasOwn(Object.prototype, id)).map(([id, crop]) => [id, sanitiseCrop(crop)]));
 }
 
 export const patchCrop = (crop: CropTransform | undefined, patch: Partial<CropTransform>): CropTransform => sanitiseCrop({ ...(crop ?? DEFAULT_CROP), ...patch });
