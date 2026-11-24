@@ -475,7 +475,8 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
               {store.collage && collageEditingId && <button type="button" className="min-h-10 shrink-0 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 text-left text-sm font-semibold text-[var(--brand-accent)]" onClick={() => setCollageEditingId(null)}>← Back to collage pages</button>}
               {store.collage && !collageEditingId ? (
-                <CollageEditor document={store.collage} photos={store.photos} PhotoSurface={store.PhotoSurface}
+                <CollageEditor document={store.collage} photos={store.photos} projects={store.projects.filter((p) => p.id !== store.activeProjectId)}
+                  onBrowseProject={actions.browseCollageProjectPhotos} onAddFromProject={actions.addCollageProjectPhotos} PhotoSurface={store.PhotoSurface}
                   onChange={(next) => actions.updateCollage?.(next)}
                   onEditPhoto={(id) => { actions.selectPhoto(id); setCollageEditingId(id); }}
                   onImport={actions.importPhotos} />
