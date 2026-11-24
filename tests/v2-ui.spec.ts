@@ -561,7 +561,9 @@ test('?v2 overlay text drags smoothly (no jump at 35% or 65%), snaps to the cent
   }
   await page.mouse.up();
   // Smooth: the box never moves much more than the pointer did between two samples (a jump at 35% or 65% would be half a box wide).
-  for (let i = 1; i < lefts.length; i += 1) expect(Math.abs(lefts[i] - lefts[i - 1])).toBeLessThan(step * 2 + 4);
+  // With Less movement on (the default) there is no transition to even out a sample that catches up after a slow frame,
+  // or the release from the centre snap, so allow up to three pointer steps; a half-box jump is still far beyond that.
+  for (let i = 1; i < lefts.length; i += 1) expect(Math.abs(lefts[i] - lefts[i - 1])).toBeLessThan(step * 3 + 4);
   // Resize from a corner: pulling the bottom-right corner outward makes the text bigger.
   const fontBefore = await box.locator('p').first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
   await box.hover();

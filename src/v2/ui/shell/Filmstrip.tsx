@@ -546,7 +546,10 @@ export default function Filmstrip({
                           {STRINGS.tier[photo.tier]}
                         </span>
                       )}
-                      {(photo.state !== 'ready' || !quietBadges) && (
+                      {/* Fewer badges hides the Ready label from view only: the state stays in the button's name. */}
+                      {photo.state === 'ready' && quietBadges ? (
+                        <span className="sr-only">{stateLabel}</span>
+                      ) : (
                         <span
                           className={`absolute left-1.5 bottom-1.5 rounded px-1.5 py-0.5 text-[9px] font-semibold ${
                             photo.state === 'unavailable'
