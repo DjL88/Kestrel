@@ -148,9 +148,13 @@ export function createEngineScheduler(options: {
   let resourceSample = options.resourceSample ?? null;
   let mode: ProcessingMode = options.mode ?? 'balanced';
   let blockedReason: string | null = null;
-  const admitted = (job: WorkBatch): boolean => {
+  type Slot = Pick<WorkBatch, 'resource' | 'reservation' | 'priority' | 'order'>;
+  type Waiter = Slot & { grant(): void };
+  const externalActive = new Set<Slot>();
+  const externalWaiting = new Set<Waiter>();
+  const admitted = (job: Slot): boolean => {
     if (used[job.resource] >= limits[job.resource]) return false;
-    const occupied = [...jobs.values()].filter(other => other.active);
+    const occupied = [...[...jobs.values()].filter(other => other.active), ...externalActive];
     const held = occupied.reduce((sum, other) => ({
       memoryBytes: sum.memoryBytes + other.reservation.memoryBytes,
       gpuBytes: sum.gpuBytes + other.reservation.gpuBytes,
@@ -223,6 +227,17 @@ export function createEngineScheduler(options: {
         j.items.some(item => item.state === 'queued') && admitted(j));
       eligible.sort((a, b) => b.priority - a.priority || a.order - b.order);
       const job = eligible[0];
+      const waiter = [...externalWaiting].filter(admitted)
+        .sort((a,b) => b.priority - a.priority || a.order - b.order)[0];
+      if (waiter && (!job || waiter.priority > job.priority ||
+          (waiter.priority === job.priority && waiter.order < job.order))) {
+        externalWaiting.delete(waiter);
+        externalActive.add(waiter);
+        used[waiter.resource]++;
+        waiter.grant();
+        dispatched = true;
+        continue;
+      }
       if (!job) break;
       const index = job.items.findIndex(item => item.state === 'queued');
       if (index < 0) break;
@@ -340,6 +355,40 @@ export function createEngineScheduler(options: {
       })();
     }
   };
+
+  /** Transitional adapter for existing visible tasks. Shares exactly the same
+   * admission, reservations and priority ordering as scheduled batches, without
+   * registering a second Task Manager entry. Release at each safe photo boundary.
+   * Cancellation while waiting never consumes a slot. In-flight work must settle. */
+  async function runInSlot<T>(resource: EngineResource, signal: AbortSignal,
+      work: () => Promise<T>, priority = 0): Promise<T> {
+    signal.throwIfAborted();
+    let slot!: Waiter;
+    await new Promise<void>((resolve, reject) => {
+      const abort = () => {
+        if (externalWaiting.delete(slot)) {
+          signal.removeEventListener('abort', abort);
+          reject(signal.reason ?? new DOMException('Cancelled', 'AbortError'));
+        }
+      };
+      slot = {
+        resource, reservation: estimatedReservation(resource), priority, order: ++sequence,
+        grant() { signal.removeEventListener('abort', abort); resolve(); },
+      };
+      externalWaiting.add(slot);
+      signal.addEventListener('abort', abort, { once: true });
+      if (signal.aborted) abort();
+      else pump();
+    });
+    try {
+      signal.throwIfAborted();
+      return await work();
+    } finally {
+      externalActive.delete(slot);
+      used[resource] = Math.max(0, used[resource] - 1);
+      setTimeout(pump, 0);
+    }
+  }
 
   async function submit<Item, Snapshot>(definition: BatchDefinition<Item, Snapshot>): Promise<SchedulerTicket> {
     const key = definition.recovery?.key;
@@ -505,7 +554,7 @@ export function createEngineScheduler(options: {
     return true;
   };
   return {
-    submit, pause, resume, jumpQueue, reorder,
+    submit, runInSlot, pause, resume, jumpQueue, reorder,
     cancel: (id: number) => store.cancel(id),
     canRetryFailed: (id: number) => {
       const job = jobs.get(id) ?? failedJobs.get(id);
