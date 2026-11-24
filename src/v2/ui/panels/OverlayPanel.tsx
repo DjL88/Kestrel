@@ -25,7 +25,7 @@ interface OverlayPanelProps {
   watermarkPresets: WatermarkPreset[];
   features: Record<FeatureKey, boolean>;
   onUpdateOverlay: (photoId: string, patch: Partial<OverlaySettings>) => void;
-  onAlignOverlaysCleanly: (photoId: string, layout: 'stacked-left' | 'opposite-bottom' | 'centred-pair') => void;
+  onAlignOverlaysCleanly: (photoId: string, layout: 'stacked-left' | 'stacked-right' | 'opposite-bottom' | 'centred-pair') => void;
   onAddRow: (photoId: string) => void;
   onUpdateRow: (photoId: string, rowId: string, patch: Partial<OverlayTextRow>) => void;
   onRemoveRow: (photoId: string, rowId: string) => void;
@@ -230,28 +230,18 @@ export default function OverlayPanel({
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-1">
-          <button
-            type="button"
-            onClick={() => onAlignOverlaysCleanly(photo.id, 'opposite-bottom')}
-            className="rounded-[var(--radius-xs)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1.5 py-1 text-[10px] font-medium text-[var(--text-secondary)] hover:border-[var(--brand-accent)] hover:text-[var(--text-primary)]"
-          >
-            {STRINGS.panelWords.oppositeCorners}
-          </button>
-          <button
-            type="button"
-            onClick={() => onAlignOverlaysCleanly(photo.id, 'stacked-left')}
-            className="rounded-[var(--radius-xs)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1.5 py-1 text-[10px] font-medium text-[var(--text-secondary)] hover:border-[var(--brand-accent)] hover:text-[var(--text-primary)]"
-          >
-            {STRINGS.panelWords.stackedLeft}
-          </button>
-          <button
-            type="button"
-            onClick={() => onAlignOverlaysCleanly(photo.id, 'centred-pair')}
-            className="rounded-[var(--radius-xs)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1.5 py-1 text-[10px] font-medium text-[var(--text-secondary)] hover:border-[var(--brand-accent)] hover:text-[var(--text-primary)]"
-          >
-            {STRINGS.panelWords.centredPair}
-          </button>
+        <div className="grid grid-cols-2 gap-1">
+          {([
+            ['stacked-left', 'Left'],
+            ['centred-pair', 'Centre'],
+            ['stacked-right', 'Right'],
+            ['opposite-bottom', STRINGS.panelWords.oppositeCorners],
+          ] as const).map(([layout, label]) => (
+            <button key={layout} type="button" onClick={() => onAlignOverlaysCleanly(photo.id, layout)}
+              className="rounded-[var(--radius-xs)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1.5 py-1 text-[10px] font-medium text-[var(--text-secondary)] hover:border-[var(--brand-accent)] hover:text-[var(--text-primary)]">
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
