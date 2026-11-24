@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createExportBatchQueue, exportFolderName, snapshotExportRecipe } from './exportBatchQueue.ts';
 import { createTaskStore } from './taskStore.ts';
+import { createEngineScheduler } from './engineScheduler.ts';
 
 const photos = [
   { sourceId: 'nef-01', filename: 'one.jpg', subfolder: 'Instagram' },
@@ -236,6 +237,8 @@ test('cancellation is refused once durable finalisation starts; failed commit st
   for (let i = 0; i < 10 && !finalizing; i++) await tick();
   assert.equal(finalizing, true);
   assert.equal(ticket.cancel(), false, 'the irreversible commit boundary has started');
+  assert.equal(store.cancel(store.list()[0].id), false, 'Task Manager must also refuse cancellation');
+  assert.equal(store.list()[0].cancellable, false);
   release();
   assert.equal(await ticket.done, 'failed');
   assert.equal(store.list()[0].state, 'failed');
@@ -274,10 +277,79 @@ test('the legacy export lane never describes a waiting save as running', async (
   }, async save() {} };
   const first = queue.enqueue({title:'First save',items:[photos[0]],recipe:{}}, adapter);
   const second = queue.enqueue({title:'Second save',items:[photos[1]],recipe:{}}, adapter);
+  await tick();
   assert.equal(store.list()[0].state, 'running');
   assert.equal(store.list()[1].state, 'queued');
   release();
   assert.equal(await first.done, 'completed');
   assert.equal(await second.done, 'completed');
   assert.equal(store.list().find(task => task.title === 'Second save')?.state, 'done');
+});
+
+test('legacy exports and central jobs share a single CPU slot and one visible task per batch', async () => {
+  const store = createTaskStore();
+  const scheduler = createEngineScheduler({taskStore:store,limits:{cpu:1,gpu:1,io:1}});
+  const queue = createExportBatchQueue(store,scheduler);
+  let release!:()=>void;
+  const gate = new Promise<void>(r=>{release=r;});
+  const order:string[] = [];
+  const raw = await scheduler.submit({
+    title:'Develop RAW',kind:'raw',resource:'cpu',snapshot:{},items:['raw'],
+    itemId:x=>x,itemLabel:x=>x,async runItem(){order.push('RAW');await gate;}
+  });
+  const exportJob = queue.enqueue({title:'Legacy export',items:photos,recipe:{}},{
+    async render(item){order.push('render '+item.filename);return item.filename;},
+    async save(item){order.push('save '+item.filename);}
+  });
+  await tick();
+  assert.equal(store.list().length,2);
+  assert.equal(store.list().find(x=>x.title==='Legacy export')?.state,'queued');
+  assert.deepEqual(order,['RAW']);
+  release();
+  assert.equal(await raw.finished,'done');
+  assert.equal(await exportJob.done,'completed');
+  assert.deepEqual(order,['RAW','render one.jpg','save one.jpg','render two.jpg','save two.jpg']);
+});
+
+test('interactive work takes priority between legacy export photographs', async () => {
+  const store = createTaskStore();
+  const scheduler = createEngineScheduler({taskStore:store,limits:{cpu:1,gpu:1,io:1}});
+  const queue = createExportBatchQueue(store,scheduler);
+  let release!:()=>void;
+  const gate = new Promise<void>(r=>{release=r;});
+  const order:string[]=[];
+  const job=queue.enqueue({title:'Legacy',items:photos,recipe:{}},{
+    async render(item){order.push(item.filename);if(item.filename==='one.jpg')await gate;return item.filename;},
+    async save(){}
+  });
+  await tick();
+  const edit=await scheduler.submit({
+    title:'Interactive edit',kind:'auto-edit',resource:'cpu',priority:20,snapshot:{},items:['edit'],
+    itemId:x=>x,itemLabel:x=>x,async runItem(){order.push('edit');}
+  });
+  assert.deepEqual(order,['one.jpg']);
+  release();
+  assert.equal(await edit.finished,'done');
+  assert.equal(await job.done,'completed');
+  assert.deepEqual(order,['one.jpg','edit','two.jpg']);
+});
+
+test('legacy export waiting for a shared slot can cancel without rendering', async () => {
+  const store=createTaskStore();
+  const scheduler=createEngineScheduler({taskStore:store,limits:{cpu:1,gpu:1,io:1}});
+  const queue=createExportBatchQueue(store,scheduler);
+  let release!:()=>void;
+  const gate=new Promise<void>(r=>{release=r;});
+  const raw=await scheduler.submit({title:'RAW',kind:'raw',resource:'cpu',snapshot:{},items:[1],
+    itemId:String,itemLabel:String,async runItem(){await gate;}});
+  let rendered=false;
+  const job=queue.enqueue({title:'Waiting',items:photos,recipe:{}},{
+    async render(){rendered=true;return '';},async save(){}
+  });
+  assert.equal(job.cancel(),true);
+  assert.equal(await job.done,'cancelled');
+  assert.equal(rendered,false);
+  release();
+  assert.equal(await raw.finished,'done');
+  assert.deepEqual(scheduler.runningResourceCount(),{cpu:0,gpu:0,io:0});
 });
