@@ -9,7 +9,8 @@ import type { Pixels } from '../../core/colourCheck';
 import type { PhotoFrame } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import { loadImage } from '../../providers/loadImage';
-import { loadExportSource } from '../../providers/browserExport';
+import { loadExportSource, loadVerifiedRasterOriginalForExport } from '../../providers/browserExport';
+import { fullResolutionRasterFormat } from '../../core/rawFormats';
 import { loadDenoiseSource } from './denoiseSource';
 import { unionSubjectGrid } from '../../core/subjectUnion';
 import { detectSubjectInstances } from '../../providers/multiSubjectDetector';
@@ -56,7 +57,9 @@ export async function runV2Denoise(
   frame: PhotoFrame, provider: BrowserPreviewProvider, cloud: CloudAccess, signal?: AbortSignal,
 ): Promise<DenoiseOutcome | null> {
   const source = await loadDenoiseSource(frame, provider,
-    () => loadExportSource(frame, provider), loadImage, signal);
+    () => fullResolutionRasterFormat(frame.filename)
+      ? loadVerifiedRasterOriginalForExport(frame, provider, signal)
+      : loadExportSource(frame, provider), loadImage, signal);
   if (!source) return null;
   const framing = frame.framing ?? DEFAULT_FRAMING;
   const edge = Math.max(source.naturalWidth, source.naturalHeight);
