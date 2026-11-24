@@ -40,13 +40,16 @@ export async function openDeviceRecovery(): Promise<RecoveryLocation> {
 /**
  * Obtain an existing writable location for the original images, on any OS.
  * Desktop file paths, browser folder handles and connected NAS/cloud sources
- * all work when access has already been granted. Otherwise return null.
+ * all work when access has already been granted. Return null only when no
+ * eligible source exists; an inaccessible configured source is a retryable problem.
  */
 export async function openSourceRecovery(state: CullingState): Promise<RecoveryLocation | null> {
+  let configured = false;
   const originals = state.frames.filter(frame => !frame.isDemo && !frame.virtualCopy && frame.removedAt == null);
   if (originals.length && isDesktopApp() && originals.every(frame => frame.sourceKind === 'file')) {
     const folder = sharedOriginalFolder(originals.map(frame => frame.sourcePath));
     if (folder) {
+      configured = true;
       try {
         const connector = await desktopFolderConnector(folder);
         if ((await connector.test()).ok) return { connector, to: 'Photo folder' };
@@ -57,6 +60,7 @@ export async function openSourceRecovery(state: CullingState): Promise<RecoveryL
   // File-system handles can represent local *or network* folders, including
   // those opened from mobile. Never ask for permission during automatic saves.
   if (state.shoot.sourceKind === 'local-folder' && originals.some(frame => frame.sourceKind === 'directory-handle')) {
+    configured = true;
     try {
       const handle = await new BrowserCatalogueStore().loadDirectoryHandle(state.shoot.id);
       const permission = await (handle as (FileSystemDirectoryHandle & {
@@ -73,11 +77,12 @@ export async function openSourceRecovery(state: CullingState): Promise<RecoveryL
   // or another existing connection. On phones this works the same as desktop.
   const sourceId = getLocations(state.shoot.id).loadFrom;
   if (sourceId && originals.length) {
+    configured = true;
     try {
       const opened = await openConnection(sourceId);
       if (!('problem' in opened) && (await opened.connector.test()).ok)
         return { connector: opened.connector, to: 'Photo source' };
     } catch { /* The remote source may be offline or read-only. */ }
   }
-  return null;
+  return configured ? { problem: 'missing', message: 'Photo source recovery is temporarily unavailable.' } : null;
 }
