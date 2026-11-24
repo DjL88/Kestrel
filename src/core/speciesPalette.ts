@@ -78,7 +78,7 @@ export interface SpeciesColourInput {
 export function subjectSignatureHue(pixels: Uint8ClampedArray, subject: Float32Array, pixelCount: number): { hue: number; chroma: number } | null {
   const rows: { c: number; a: number; b: number }[] = [];
   for (let i = 0; i < pixelCount; i += 1) {
-    if (subject[i] < 200 / 255) continue;
+    if (!Number.isFinite(subject[i]) || subject[i] > 1 || subject[i] < 200 / 255 || pixels[i * 4 + 3] !== 255) continue;
     const [L, a, b] = toOklab(pixels[i * 4], pixels[i * 4 + 1], pixels[i * 4 + 2]);
     // Clipped or very dark pixels carry no reliable hue.
     if (L < 0.25 || L > 0.92) continue;
@@ -96,12 +96,12 @@ export function speciesColourCheck(input: SpeciesColourInput): SpeciesColourResu
   const { species } = input;
   if (!species) return abstain(null, 'No species name was available, so colour was not compared with an expected palette.');
   const name = species.common;
-  if (species.probability < HIGH_CONFIDENCE.probability || species.probability - species.runnerUp < HIGH_CONFIDENCE.lead) {
+  if (!Number.isFinite(species.probability) || !Number.isFinite(species.runnerUp) || species.probability > 1 || species.runnerUp < 0 || species.runnerUp > 1 || species.probability < HIGH_CONFIDENCE.probability || species.probability - species.runnerUp < HIGH_CONFIDENCE.lead) {
     return abstain(name, `The species is only a possible match (${name}), so its colours were not used to correct anything.`);
   }
   const signature = SIGNATURES.find((s) => s.match.test(name));
   if (!signature) return abstain(name, `No expected colour is on file for ${name}, so colour was left to the usual checks.`);
-  if (!input.subject) return abstain(name, `The ${name} could not be outlined reliably, so its colour was not measured.`);
+  if (!input.subject || !Number.isSafeInteger(input.width) || !Number.isSafeInteger(input.height) || input.width <= 0 || input.height <= 0 || input.subject.length !== input.width * input.height || input.pixels.length !== input.width * input.height * 4) return abstain(name, `The ${name} could not be outlined reliably, so its colour was not measured.`);
   const measured = subjectSignatureHue(input.pixels, input.subject, input.width * input.height);
   if (!measured) return abstain(name, `Too little of the ${name} was measurable to judge its ${signature.part}.`);
   if (measured.chroma < signature.minChroma) {
