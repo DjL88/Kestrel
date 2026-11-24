@@ -1,12 +1,13 @@
 import { installedModel } from './modelUpdater';
 import { TRUEDETAIL_TILE, type TileInference } from '../core/trueDetailTiles';
 import { sha256Hex } from '../core/sha256';
+import { prepareDenoiseInput, type DenoiseInputContract } from '../core/trueDetailNoiseInput';
 
 /** Review must cover the weight file's licence, exact tensor contract and
  * photographic quality. A signed download alone does not prove any of these.
  * No model is approved or released yet; never use a guessed hash or model.
  */
-const APPROVED: Readonly<Record<string, {sha256: string; licence: string}>> = Object.freeze({});
+const APPROVED: Readonly<Record<string, {sha256: string; licence: string; contract: DenoiseInputContract}>> = Object.freeze({});
 
 export interface TrueDetailSession {
   infer: TileInference;
@@ -14,7 +15,7 @@ export interface TrueDetailSession {
 }
 
 /** Load only an installed, explicitly reviewed weight file. No photo upload. */
-export async function openTrueDetailModel(): Promise<TrueDetailSession | null> {
+export async function openTrueDetailModel(sigma?: number): Promise<TrueDetailSession | null> {
   const approval = APPROVED['truedetail-rgb16-v1'];
   if (!approval) return null;
   const model = await installedModel('truedetail-rgb16-v1');
@@ -34,8 +35,9 @@ export async function openTrueDetailModel(): Promise<TrueDetailSession | null> {
       signal?.throwIfAborted();
       const size = TRUEDETAIL_TILE;
       if (input.length !== 3*size*size) throw new Error('Invalid TrueDetail input shape');
+      const prepared = prepareDenoiseInput(input, approval.contract, sigma);
+      const tensor = new ort.Tensor('float32',prepared.data,[1,prepared.channels,size,size]);
       busy = true;
-      const tensor = new ort.Tensor('float32',input,[1,3,size,size]);
       try {
         const outputs = await session.run({[session.inputNames[0]]:tensor});
         try {
