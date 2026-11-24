@@ -17,6 +17,14 @@ export async function renderCollagePage(doc: CollageDocument, page: CollagePage,
  const tw=width-2*bx,th=height-2*by;
  ctx.fillStyle=page.background;ctx.fillRect(0,0,width,height);
  try{
+ if(page.backgroundPhotoId){
+  // A background photograph covers the whole page, bleed included, behind the windows.
+  const source=await load(page.backgroundPhotoId);
+  try{
+   const cover=coverCrop(source.width,source.height,width,height);
+   ctx.save();ctx.imageSmoothingQuality='high';ctx.drawImage(source.image,cover.x,cover.y,cover.width,cover.height);ctx.restore();
+  }finally{source.release?.();}
+ }
  for(const slot of page.slots){
   if(!slot.photoId)continue;
   const source=await load(slot.photoId);

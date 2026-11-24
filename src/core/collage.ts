@@ -17,6 +17,8 @@ export interface CollagePage {
   template: CollageTemplate;
   slots: CollageSlot[];
   background: string;
+  /** A photograph from the library filling the page behind its windows (a reference; null or absent for a plain colour). */
+  backgroundPhotoId?: string | null;
   gap: number;
   caption: string;
   captionColour: string;
@@ -231,10 +233,27 @@ export function duplicateCollagePage(doc: CollageDocument): CollageDocument {
   pages.splice(index + 1, 0, copy);
   return { ...doc, pages, activePageId: copy.id };
 }
-export function deleteCollagePage(doc: CollageDocument): CollageDocument {
+/** Move one page to a new position (0-based). The active page stays active. */
+export function moveCollagePage(doc: CollageDocument, pageId: string, toIndex: number): CollageDocument {
+  const from = doc.pages.findIndex((p) => p.id === pageId);
+  if (from < 0 || !Number.isInteger(toIndex)) return doc;
+  const to = Math.max(0, Math.min(doc.pages.length - 1, toIndex));
+  if (to === from) return doc;
+  const pages = doc.pages.slice();
+  const [page] = pages.splice(from, 1);
+  pages.splice(to, 0, page);
+  return { ...doc, pages };
+}
+/** Delete any page by id; the last page is never deleted. */
+export function deleteCollagePageById(doc: CollageDocument, pageId: string): CollageDocument {
+  if (!doc.pages.some((p) => p.id === pageId)) return doc;
+  return deleteCollagePage({ ...doc, activePageId: pageId }, doc.activePageId === pageId ? undefined : doc.activePageId);
+}
+export function deleteCollagePage(doc: CollageDocument, keepActive?: string): CollageDocument {
   if (doc.pages.length <= 1) return doc;
   const pages = doc.pages.filter((p) => p.id !== doc.activePageId);
-  return { ...doc, pages, activePageId: pages[Math.min(pages.length - 1, Math.max(0, doc.pages.findIndex((p) => p.id === doc.activePageId) - 1))].id };
+  const fallback = pages[Math.min(pages.length - 1, Math.max(0, doc.pages.findIndex((p) => p.id === doc.activePageId) - 1))].id;
+  return { ...doc, pages, activePageId: keepActive && pages.some((p) => p.id === keepActive) ? keepActive : fallback };
 }
 /** Ignore malformed saved collage content, preserving access to the underlying photo library. */
 export function readCollage(value: unknown): CollageDocument | null {
@@ -244,6 +263,7 @@ export function readCollage(value: unknown): CollageDocument | null {
       doc.pages.length === 0 || doc.pages.length > MAX_COLLAGE_PAGES) return null;
   if (!doc.pages.every((page) => page && typeof page.id === 'string' && Object.hasOwn(shapes, page.template) &&
     typeof page.background === 'string' && /^#[0-9a-fA-F]{6}$/.test(page.background) &&
+    (page.backgroundPhotoId === undefined || page.backgroundPhotoId === null || (typeof page.backgroundPhotoId === 'string' && page.backgroundPhotoId.length > 0 && page.backgroundPhotoId.length < 200)) &&
     typeof page.gap === 'number' && Number.isFinite(page.gap) && page.gap >= 0 && page.gap <= 12 &&
     typeof page.caption === 'string' && page.caption.length <= 1000 &&
     typeof page.captionColour === 'string' && /^#[0-9a-fA-F]{6}$/.test(page.captionColour) &&
