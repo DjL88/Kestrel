@@ -38,9 +38,9 @@ const change = (masks: readonly Mask[] | undefined, id: string, update: (mask: M
 
 export const toggleMask = (masks: readonly Mask[] | undefined, id: string): Mask[] => change(masks, id, (mask) => (mask.hidden ? { ...mask, hidden: undefined } : { ...mask, hidden: true }));
 
-/** Remove a mask, and any other mask that was limited by it (a limit pointing nowhere is dropped, not left dangling). */
+/** Remove the selected mask. Hide dependent edits before dropping their lost limit; the person can explicitly show them again. */
 export const removeMask = (masks: readonly Mask[] | undefined, id: string): Mask[] =>
-  (masks ?? []).filter((mask) => mask.id !== id).map((mask) => (mask.limit?.id === id ? { ...mask, limit: undefined } : mask));
+  (masks ?? []).filter((mask) => mask.id !== id).map((mask) => (mask.limit?.id === id ? { ...mask, limit: undefined, hidden: true } : mask));
 
 /** Set one slider on a mask. The value is held inside the control's range, and a slider at zero is removed so it reads as unset. */
 export function setMaskEdit(masks: readonly Mask[] | undefined, id: string, key: string, value: number): Mask[] {
