@@ -98,6 +98,13 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '
   console.log(`index: ${species.length} species, ${families.size} families, ${size(index)}`);
   // Mammal names from Wikidata (CC0), fetched by mammal_names.mjs into tools/species/mammal-names.json.
   const mammalNames = JSON.parse(readFileSync(new URL('./mammal-names.json', import.meta.url), 'utf8')).names;
+  // Draft names for common UK and European mammals (tools/species/mammal-drafts.json) win over Wikidata, whose labels
+  // there are sometimes missing, wrong ("Poponejo") or an old Latin name ("Neovison vison").
+  const mammalDrafts = JSON.parse(readFileSync(new URL('./mammal-drafts.json', import.meta.url), 'utf8'));
+  for (const [code, drafts] of Object.entries(mammalDrafts)) {
+    if (code === 'note') continue;
+    mammalNames[code] = { ...(mammalNames[code] ?? {}), ...drafts };
+  }
   for (const code of [...Object.keys(IOC_COLUMNS), ...NO_IOC_NAMES]) {
     const local = {};
     let mammals = 0;
