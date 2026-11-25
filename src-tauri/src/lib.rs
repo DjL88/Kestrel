@@ -231,6 +231,7 @@ pub fn run() {
             let file = Submenu::with_items(app, "File", true, &[
                 &MenuItem::with_id(app, "add", "Add photos…", true, Some("CmdOrCtrl+O"))?,
                 &MenuItem::with_id(app, "export", "Export…", true, Some("CmdOrCtrl+E"))?,
+                &MenuItem::with_id(app, "export-again", "Export again with last settings", true, None::<&str>)?,
                 &PredefinedMenuItem::separator(app)?,
                 // V2 workspace items (src/v2/ui/commands/menuMap.ts). The V2 header menus are hidden in the desktop
                 // app, so these are the only way in there; the current app ignores ids it does not know.

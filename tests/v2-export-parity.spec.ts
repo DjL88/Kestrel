@@ -145,3 +145,43 @@ test('?v2 PNG export is lossless: the same pixels whether exported once or twice
     expect(compare.mean, `${name}: PNG and JPEG pixels differ by more than JPEG compression`).toBeLessThan(4);
   }
 });
+
+test('?v2 a saved preset and File > Export again give exactly the files the wizard gave with the same settings', async ({ page }) => {
+  const studio = await projectWithPhoto(page);
+  // Wizard: PNG at most 2560 px, saved as a preset.
+  let dialog = await openExport(page, studio);
+  await dialog.getByLabel('File format').selectOption('png');
+  await dialog.getByRole('combobox', { name: 'Size', exact: true }).selectOption('2560');
+  await dialog.getByRole('textbox', { name: 'Name for these settings' }).fill('Web PNG');
+  await dialog.getByRole('button', { name: 'Save these settings' }).click();
+  await expect(dialog.getByRole('status')).toHaveText('Saved “Web PNG”.');
+  const wizard = await exportZip(page, dialog);
+  const names = Object.keys(wizard).sort();
+  expect(names.length).toBeGreaterThan(0);
+  expect(names.every((name) => name.endsWith('.png'))).toBe(true);
+
+  // A fresh dialog starts from the defaults; choosing the preset puts the same settings back.
+  dialog = await openExport(page, studio);
+  await expect(dialog.getByLabel('File format')).toHaveValue('jpeg');
+  await dialog.getByRole('combobox', { name: 'Use saved settings' }).selectOption({ label: 'Web PNG' });
+  await expect(dialog.getByLabel('File format')).toHaveValue('png');
+  const preset = await exportZip(page, dialog);
+  expect(Object.keys(preset).sort()).toEqual(names);
+  for (const name of names) expect(preset[name].equals(wizard[name]), `${name}: preset differs from the wizard`).toBe(true);
+
+  // Export again: no dialog, the last settings, the same bytes.
+  const downloaded = page.waitForEvent('download');
+  await studio.getByRole('button', { name: 'File', exact: true }).click();
+  await studio.getByRole('menuitem', { name: 'Export again with last settings' }).click();
+  const download = await downloaded;
+  const quick = Object.fromEntries(Object.entries(unzipSync(await readFile((await download.path())!))).map(([n, b]) => [n, Buffer.from(b)]));
+  expect(Object.keys(quick).sort()).toEqual(names);
+  for (const name of names) expect(quick[name].equals(wizard[name]), `${name}: Export again differs from the wizard`).toBe(true);
+  await expect(page.getByRole('dialog', { name: /export/i })).toHaveCount(0);
+
+  // Delete removes the preset.
+  dialog = await openExport(page, studio);
+  await dialog.getByRole('combobox', { name: 'Use saved settings' }).selectOption({ label: 'Web PNG' });
+  await dialog.getByRole('button', { name: 'Delete “Web PNG”' }).click();
+  await expect(dialog.getByRole('combobox', { name: 'Use saved settings' })).toHaveCount(0);
+});

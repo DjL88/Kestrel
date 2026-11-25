@@ -31,6 +31,8 @@ interface TopBarProps {
   onBack: () => void;
   onSetAssistMode: (mode: AssistMode) => void;
   onExport: () => void;
+  /** File > Export again with last settings (G09). Absent: not offered (no photo, or a collage). */
+  onQuickExport?: () => void;
   /** Opens Share (shared projects, #1387). Absent: no Share button. */
   onShare?: () => void;
   /** Who else is in this shared project (PresenceAvatars). */
@@ -80,6 +82,7 @@ export default function TopBar({
   onBack,
   onSetAssistMode,
   onExport,
+  onQuickExport,
   onShare,
   presence,
   onOpenRemoved,
@@ -220,6 +223,9 @@ export default function TopBar({
                   shortcut="⌘E"
                   onClick={() => runAndClose(onExport)}
                 />
+                {onQuickExport && (
+                  <MenuItem icon="export" label={STRINGS.exportDialog.quickExport} onClick={() => runAndClose(onQuickExport)} />
+                )}
                 <div className="my-1 h-px bg-[var(--border-subtle)]" />
                 <MenuItem
                   icon="restore"

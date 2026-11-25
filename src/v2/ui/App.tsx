@@ -21,6 +21,7 @@ import Filmstrip from './shell/Filmstrip';
 import GridView from './shell/GridView';
 import PairCompare from './shell/PairCompare';
 import { backupStatusText } from '../engineClient/backupWords';
+import { exportTargetFor, readLastExport, requestFromSettings } from '../engineClient/exportSettings';
 import CoPilotPanel from './panels/CoPilotPanel';
 import AdjustPanel from './panels/AdjustPanel';
 import SizesPanel from './panels/SizesPanel';
@@ -53,7 +54,7 @@ import { loadPad, resolveWithPad, savePad, type PadProfile } from './commands/pa
 import KeyboardSettings from './dialogs/KeyboardSettings';
 import { commandById, type CommandDefinition } from './commands/registry';
 import { useNativeMenu } from './commands/useNativeMenu';
-import { isDesktopApp } from '../../providers/desktopShell';
+import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
 import type { MenuAction } from './commands/menuMap';
 
 const IS_MAC = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
@@ -214,6 +215,16 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     }
   }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, activePhoto, actions, pairPhotos, editLocked]);
 
+  // File > Export again with last settings (G09): the wizard's last settings on the current selection, through the same
+  // request builder, so it gives exactly the files the wizard would. Nothing exported yet: open the wizard instead.
+  const quickExport = () => {
+    if (!activePhoto || store.collage) return;
+    let last = null;
+    try { last = readLastExport(window.localStorage); } catch { last = null; }
+    if (!last) { actions.setExportOpen(true); return; }
+    actions.runExport(requestFromSettings(last, exportTargetFor(activePhoto, store.selectedPhotoIds, isDesktopApp() && !isMobileShell())));
+  };
+
   // The desktop app's native menu (File, Edit, Photo, View, Settings). Some of its accelerators (Cmd/Ctrl+E, +A, +O, +M)
   // are taken before the page sees the key, so the menu choice must run the action itself.
   useNativeMenu((action: MenuAction) => {
@@ -229,6 +240,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'settings': actions.setSettingsOpen(true, action.tab); break;
       case 'removedPhotos': if (inEditor) actions.setRemovedOpen(true); break;
       case 'backupNow': if (inEditor && !store.collage) actions.backUpProjectNow(); break;
+      case 'quickExport': if (inEditor) quickExport(); break;
       case 'backupFile': if (inEditor && !store.collage) actions.saveProjectBackupFile(); break;
       case 'saveXmp': if (inEditor && !store.collage) actions.saveXmpSidecars(store.selectedPhotoIds); break;
       case 'readXmp': if (inEditor && !store.collage) xmpInputRef.current?.click(); break;
@@ -568,6 +580,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onBack={actions.backToProjects}
             onSetAssistMode={actions.setAssistMode}
             onExport={() => actions.setExportOpen(true)}
+            onQuickExport={store.screen === 'editor' && !store.collage && activePhoto ? quickExport : undefined}
             onShare={store.collage ? undefined : () => setShareOpen(true)}
             presence={<PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(key) => { const photo = store.photos.find((candidate) => candidate.sharedKey === key); if (photo) actions.selectPhoto(photo.id); }} />}
             onOpenRemoved={() => actions.setRemovedOpen(true)}
