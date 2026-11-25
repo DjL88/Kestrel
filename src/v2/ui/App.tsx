@@ -850,6 +850,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onSetDecision={actions.setDecision}
                 onSetBurstGrouped={actions.setBurstGrouped}
                 onRemovePhotos={actions.removePhotos}
+                onMovePhotos={actions.movePhotos}
+                moveTargets={store.projects.filter((project) => project.id !== store.activeProjectId && !project.trashed)
+                  .map((project) => ({ id: project.id, name: project.name }))}
                 onPasteRecipe={actions.pasteRecipe}
                 onApplyLook={actions.applyLook}
                 onImport={actions.importPhotos}
