@@ -229,5 +229,5 @@ test('Advanced Edits on a phone shows one group of sliders per pill; a wide scre
   if (!(await studio.getByRole('tab', { name: 'Advanced Edits' }).isVisible())) await studio.getByRole('button', { name: 'Adjust' }).first().click();
   await studio.getByRole('tab', { name: 'Advanced Edits' }).click();
   await expect(groups).toBeHidden();
-  for (const name of ['Exposure', 'Highlights', 'Temperature', 'Clarity']) await expect(studio.getByRole('slider', { name })).toBeVisible();
+  for (const name of ['Exposure', 'Highlights', 'Temperature', 'Clarity']) await expect(studio.getByRole('slider', { name, exact: name === 'Highlights' })).toBeVisible();
 });
