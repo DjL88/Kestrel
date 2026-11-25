@@ -1,7 +1,7 @@
 import { useConnectivity } from './providers/useConnectivity';
 import { validateSpecies } from './providers/speciesValidator';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { familyFallback, qualifiesForAutoTag, speciesGroupsForRoute, scanCandidates, scanPatch } from './core/autoTags';
+import { familyFallback, gateAgreesWithSpecies, qualifiesForAutoTag, speciesGroupsForRoute, scanCandidates, scanPatch } from './core/autoTags';
 import { SPECIES_MODEL } from './core/speciesModel';
 import { kindFor, personalBonus, pickSuggestions, rankSpecies } from './core/speciesMatch';
 import type { PhotoFrame } from './core/types';
@@ -143,7 +143,9 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
             const keep = localLabels.labels.map((label, i) => (!groups || groups.includes(label.group) ? i : -1)).filter((i) => i >= 0);
             const labels = groups ? keep.map((i) => localLabels.labels[i]) : localLabels.labels;
             const vectors = groups ? keep.map((i) => localLabels.vectors[i]) : localLabels.vectors;
-            const top = pickSuggestions(rankSpecies(embedding, labels, vectors, personalBonus(labels, readSpeciesCounts())))[0];
+            // If the best match across every list is from another group, the gate and the species model disagree: no name.
+            const agrees = gateAgreesWithSpecies(groups, groups ? rankSpecies(embedding, localLabels.labels, localLabels.vectors)[0]?.label : undefined);
+            const top = agrees ? pickSuggestions(rankSpecies(embedding, labels, vectors, personalBonus(labels, readSpeciesCounts())))[0] : undefined;
             const qualified = top && qualifiesForAutoTag(top, embedding, labels, vectors) ? top : undefined;
             // With the optional BioCLIP 2 validator installed (desktop), a clear disagreement withholds the automatic
             // name: the photo stays for the person to name. Agreement or an unsure validator changes nothing.
@@ -151,7 +153,7 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
             const best = verdict?.kind === 'differs' ? undefined : qualified;
             // No species certain enough: the family may be ("Owls"), from the unpersonalised ranking; else nothing.
             // A species the validator disagreed with is left for the person, without a family guess.
-            const family = qualified ? undefined : familyFallback(rankSpecies(embedding, labels, vectors));
+            const family = qualified || !agrees ? undefined : familyFallback(rankSpecies(embedding, labels, vectors));
             const named = best ? { name: best.label.common, probability: best.probability, kind: kindFor(best.label) }
               : family ? { name: family.family, probability: family.probability, kind: 'wildlife' as const } : undefined;
             // The same picture embedding says what kind of vehicle it is, if the gate says it is mostly a vehicle.

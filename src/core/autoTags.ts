@@ -42,11 +42,16 @@ export const AUTO_MINIMUM = 0.8;
 export const shouldAutoTag = (probability: number, minimum = AUTO_MINIMUM) => probability >= minimum && probability <= 1;
 
 /**
- * A higher bar for groups where BioCLIP confuses look-alike species more. Measured on 61 CC0/CC BY Commons photos of
- * dragonflies, damselflies, butterflies and moths named against the insect lists: at 0.8, 29 right and 5 wrong; at 0.95,
- * 25 right and none wrong (tools/species/check_names_on_photos.py). Birds and mammals keep 0.8.
+ * A higher bar for the world lists where BioCLIP confuses look-alike species more (tools/species/check_names_on_photos.py,
+ * CC0/CC BY Commons photos, Palearctic):
+ * - insects (61 photos of dragonflies, damselflies, butterflies, moths, beetles): at 0.8, 29 right and 5 wrong; at 0.95,
+ *   25 right and none wrong;
+ * - mammals (12 photos of red squirrels and roe deer): at 0.8, 5 right and 2 wrong (Perny's Long-nosed Squirrel 0.89,
+ *   Water Deer 0.85); at 0.95, 4 right and none wrong;
+ * - reptiles and amphibians: not measured at species level yet, so the same cautious bar.
+ * Birds keep 0.8: every bird tag in the same check was right, down to 0.81.
  */
-export const AUTO_MINIMUM_BY_GROUP: Partial<Record<SpeciesLabel['group'], number>> = { insect: 0.95 };
+export const AUTO_MINIMUM_BY_GROUP: Partial<Record<SpeciesLabel['group'], number>> = { insect: 0.95, mammal: 0.95, reptile: 0.95, amphibian: 0.95 };
 export const autoTagMinimum = (group: SpeciesLabel['group'] | undefined) => (group && AUTO_MINIMUM_BY_GROUP[group]) || AUTO_MINIMUM;
 
 /**
@@ -62,6 +67,15 @@ export function speciesGroupsForRoute(categoryId: string | null | undefined): Sp
     case 'insect': return ['insect'];
     default: return null;
   }
+}
+
+/**
+ * The gate and the species model must agree on the group before a name is written: the best match across every list
+ * has to be in the group the gate saw. A squirrel the gate took for a bird (and whose best match overall is a squirrel)
+ * is then not named from the bird list; a beetle whose best match overall was a woodpecker is not named at all.
+ */
+export function gateAgreesWithSpecies(groups: readonly SpeciesLabel['group'][] | null, bestOverall: SpeciesLabel | undefined): boolean {
+  return !groups || !bestOverall || groups.includes(bestOverall.group);
 }
 
 /**
