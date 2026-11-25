@@ -563,6 +563,8 @@ export interface ExportRequest {
 export interface PhotoSurfaceProps {
   /** Editor-only coverage guide, never part of the photo recipe or export. */
   maskGuideId?: string;
+  /** The guide as a line round the mask (the V2 default) or the hatched area. */
+  maskGuideStyle?: 'outline' | 'fill';
   /** Editor-only SVG content (mask outline and handles) drawn in the displayed picture's own pixels, over exactly that picture. */
   maskOutline?: (picture: { width: number; height: number }) => ReactNode;
   photoId: string;
