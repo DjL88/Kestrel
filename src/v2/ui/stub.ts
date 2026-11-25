@@ -1790,6 +1790,11 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
+    addImageLayer: async (photoId) => { logAction('addImageLayer', { photoId }); },
+    addPhotoLayer: async (photoId, sourcePhotoId) => { logAction('addPhotoLayer', { photoId, sourcePhotoId }); },
+    updateLayer: (photoId, layerId) => { logAction('updateLayer', { photoId, layerId }); },
+    removeLayer: (photoId, layerId) => { logAction('removeLayer', { photoId, layerId }); },
+    moveLayer: (photoId, layerId, direction) => { logAction('moveLayer', { photoId, layerId, direction }); },
     removeOverlayRow: (photoId, rowId) => {
       logAction('removeOverlayRow', { photoId, rowId });
       updatePhotoById(photoId, (photo) => ({

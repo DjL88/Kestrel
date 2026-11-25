@@ -1,5 +1,6 @@
 import { safeExportName } from '../../core/exportPlace';
 import { master16Blocker } from '../../core/master16';
+import { frameLayers, visibleLayers } from '../../core/layers';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { isRawPreviewFile } from '../../core/rawFormats';
 import type { PhotoFrame } from '../../core/types';
@@ -18,6 +19,8 @@ export async function buildRawMasterFile(frame: PhotoFrame, provider: BrowserPre
     throw new Error('This photo has no verified original fingerprint. Import the original again before saving a RAW TIFF.');
   }
   const edit = frame.edit ?? DEFAULT_EDIT;
+  // Layers are composed by the 8-bit/16-bit canvas renderer only; the archival RAW TIFF is the photo alone, so say so.
+  if (visibleLayers(frameLayers(frame.overlay)).length) throw new Error('The 16-bit RAW TIFF is the photo alone and cannot include layers yet. Hide the layers to save it, or export a JPEG, PNG or TIFF from Export.');
   const blocker = master16Blocker(edit, frame.framing);
   if (blocker) throw new Error(blocker);
   signal.throwIfAborted();

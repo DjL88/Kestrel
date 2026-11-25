@@ -1,6 +1,8 @@
 import { maskCoverageGuide } from '../core/maskCoverageGuide';
 import type { Mask } from '../core/maskTypes';
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
+import { frameLayers, visibleLayers } from '../core/layers';
+import { applyFrameLayers } from '../core/layerAssetVault';
 import { frameImageIdentity, framePreviewEncoding, visibleFrameUrl } from '../core/frameImageIdentity';
 import { DEFAULT_EDIT, isNeutralEdit } from '../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../core/photoFraming';
@@ -130,7 +132,9 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     return () => previewProvider.events.removeEventListener('developed', onDeveloped);
   }, [frame.stableKey, previewProvider, variant, refreshOnBackgroundDevelop]);
 
-  const edited = Boolean((frame.edit && !isNeutralEdit(frame.edit)) || (frame.framing &&
+  // Image layers are part of the picture (V2): a change to them redraws it, a change to text or watermark does not.
+  const layersKey = JSON.stringify(visibleLayers(frameLayers(frame.overlay)));
+  const edited = Boolean((frame.edit && !isNeutralEdit(frame.edit)) || layersKey !== '[]' || (frame.framing &&
     (frame.framing.ratio || frame.framing.turns || frame.framing.straighten)));
 
   const hasImage = useRef(false);
@@ -169,6 +173,8 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       const size = framedSize(source.naturalWidth, source.naturalHeight, framing);
       drawFramedPhoto(source, canvas, framing, { scale: Math.min(1, (variant === 'thumb' ? 400 : 2200) / Math.max(size.width, size.height)) });
       applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT);
+      await applyFrameLayers(canvas, frame.overlay, false);
+      if (cancelled) return;
       // A full-size edited view must not suffer a second lossy JPEG pass.
       // Thumbnails stay compact JPEGs; full previews use lossless PNG.
       const { mime, quality } = framePreviewEncoding(variant);
@@ -191,7 +197,10 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       const canvas = document.createElement('canvas');
       const framing = frame.framing ?? DEFAULT_FRAMING;
       drawFramedPhoto(source, canvas, framing, { scale: 1 });
-      if (edited) applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT);
+      if (edited) {
+        applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT);
+        await applyFrameLayers(canvas, frame.overlay, false);
+      }
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
       if (!blob || cancelled || fullShown || hasImage.current) return;
       const url = URL.createObjectURL(blob);
@@ -238,7 +247,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [frame.id, frame.stableKey, identity, frame.edit, frame.framing, edited, previewProvider, variant, needsAccess, priority, nearViewport, onPreviewStatus, developedRev]);
+  }, [frame.id, frame.stableKey, identity, frame.edit, frame.framing, layersKey, edited, previewProvider, variant, needsAccess, priority, nearViewport, onPreviewStatus, developedRev]);
 
   const demoStyle: React.CSSProperties = {};
   if (!edited && frame.isDemo && frame.demoVariant) {

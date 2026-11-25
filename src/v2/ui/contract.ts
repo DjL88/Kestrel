@@ -250,6 +250,8 @@ export interface OverlaySettings {
   snapEnabled: boolean;
   /** Space between an anchored box and the frame's edge, as % of the frame's width (so the same distance on every side). 0 to 12. */
   edgeMargin: number;
+  /** Image layers over the photo, bottom first (src/core/layers.ts). Part of the picture: in every view and export, under the text and watermark. */
+  layers?: import('../../core/layers').PhotoLayer[];
 }
 
 export interface EditGroup {
@@ -695,6 +697,14 @@ export interface WorkspaceActions {
   addOverlayRow: (photoId: string) => void;
   updateOverlayRow: (photoId: string, rowId: string, patch: Partial<OverlayTextRow>) => void;
   removeOverlayRow: (photoId: string, rowId: string) => void;
+  /** Image layers. Add one from an image file on this device (opens the file picker). */
+  addImageLayer: (photoId: string) => Promise<void>;
+  /** Add another photo of this project as a layer: a copy of it as it looks now, with its edits. */
+  addPhotoLayer: (photoId: string, sourcePhotoId: string) => Promise<void>;
+  updateLayer: (photoId: string, layerId: string, patch: Partial<Omit<import('../../core/layers').PhotoLayer, 'id' | 'assetId' | 'aspect'>>) => void;
+  removeLayer: (photoId: string, layerId: string) => void;
+  /** Move a layer up (1, towards the top) or down (-1). */
+  moveLayer: (photoId: string, layerId: string, direction: -1 | 1) => void;
   /** Opens the file picker and adds the chosen image to the watermark library. Resolves to the new watermark's id. */
   importWatermarkImage: (usage?: WatermarkUsage) => Promise<string | null>;
   /** Removes a flat background from a watermark's artwork. With commit false it only previews (a picture on transparency). */

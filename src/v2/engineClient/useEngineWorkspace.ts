@@ -39,12 +39,14 @@ import { fullResolutionRasterFormat, isHeifFile, isRawPreviewFile } from '../../
 import { rawSensorSize } from '../../core/rawSensorSize';
 import { loadUi, mergeSettings, saveUi, type SavedUi } from './uiSettings';
 import { dropSourceUrls } from './previewInvalidation';
-import { applyCanvasPhotoEdit } from '../../core/canvasEdit';
+import { applyCanvasExportEdit, applyCanvasPhotoEdit } from '../../core/canvasEdit';
+import { applyFrameLayers, LAYER_COPY_EDGE, saveLayerAsset } from '../../core/layerAssetVault';
+import { MAX_LAYERS } from '../../core/layers';
 import { DEFAULT_EDIT as EMPTY_EDIT } from '../../core/photoEdits';
 import { DEFAULT_CROP, flipCrop, patchCrop, rotateCrop } from './cropOps';
 import { readCrops } from './cropOps';
 import { recordFormatCrop, recordFormatSetChange, recordFormatLink } from './formatHistory';
-import { addRow, alignOverlays, moveRow, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps';
+import { addLayer, addRow, alignOverlays, moveLayer, moveRow, newLayer, patchOverlay, readOverlay, removeLayer, removeRow, updateLayer, updateRow } from './overlayOps';
 import { frameToPhoto, matchesAutoSource, originalFormatSize, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
 import { commitAutoEdit } from './commitAutoEdit';
@@ -712,6 +714,16 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       return changed ? { ...current, shoot: { ...current.shoot, lastUpdatedAt: at }, frames } : current;
     });
   }, [mutate]);
+
+  /** Add an image layer on top of the photo's stack, sized to fit its frame. */
+  const addLayerTo = useCallback((photoId: string, assetId: string, label: string, aspect: number, widthShare = 0.5) => {
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+    if (!frame) return;
+    if (readOverlay(frame.overlay).layers?.length === MAX_LAYERS) { setNotice(`A photo can have up to ${MAX_LAYERS} layers. Remove one to add another.`); return; }
+    const w = frame.exif.width || 3, h = frame.exif.height || 2;
+    const framed = framedSize(w, h, frame.framing ?? DEFAULT_FRAMING);
+    changeOverlay(photoId, (overlay) => addLayer(overlay, newLayer(`layer-${newId().slice(0, 8)}`, assetId, label, aspect, framed.height / framed.width, widthShare)));
+  }, [changeOverlay]);
 
   // 'auto' watermark: light or dark from the pixels behind it, using the same measure as the export (src/core/watermark.ts).
   const activeOverlay = activeFrame ? readOverlay(activeFrame.overlay) : null;
@@ -1716,6 +1728,40 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     addOverlayRow: (photoId) => changeOverlay(photoId, (overlay) => addRow(overlay, `row-${newId().slice(0, 8)}`)),
     updateOverlayRow: (photoId, rowId, patch) => changeOverlay(photoId, (overlay) => updateRow(overlay, rowId, patch)),
     removeOverlayRow: (photoId, rowId) => changeOverlay(photoId, (overlay) => removeRow(overlay, rowId)),
+    addImageLayer: async (photoId) => {
+      const picked = await pickImageFile();
+      if (!picked) return;
+      try {
+        const assetId = await saveLayerAsset(picked);
+        const image = await createImageBitmap(picked);
+        const aspect = image.height / image.width;
+        image.close();
+        addLayerTo(photoId, assetId, picked.name.replace(/\.[^.]+$/, ''), aspect);
+      } catch (error) { setNotice(error instanceof Error ? error.message : 'That image could not be added as a layer.'); }
+    },
+    addPhotoLayer: async (photoId, sourcePhotoId) => {
+      const source = stateRef.current?.frames.find((candidate) => candidate.id === sourcePhotoId);
+      if (!source || !provider.current) return;
+      try {
+        // A copy of the other photo as it looks now (framing, edit and its own layers), kept on this device. Its original is only read.
+        const image = await loadExportSource(source, provider.current);
+        const framing = source.framing ?? DEFAULT_FRAMING;
+        const { width, height } = framedSize(image.naturalWidth, image.naturalHeight, framing);
+        const scale = Math.min(1, LAYER_COPY_EDGE / Math.max(width, height));
+        const canvas = document.createElement('canvas');
+        drawFramedPhoto(image, canvas, framing, { scale });
+        await applyCanvasExportEdit(canvas, source.edit ?? DEFAULT_EDIT, undefined, Math.max(width, height) * scale, { aspect: height / width, view: { x: 0, y: 0, w: 1, h: 1 } });
+        await applyFrameLayers(canvas, source.overlay, true);
+        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+        if (!blob) throw new Error('InFlight could not copy that photo.');
+        const assetId = await saveLayerAsset(blob);
+        addLayerTo(photoId, assetId, source.filename, canvas.height / canvas.width, 1);
+        canvas.width = 0; canvas.height = 0;
+      } catch (error) { setNotice(error instanceof Error ? error.message : 'That photo could not be added as a layer.'); }
+    },
+    updateLayer: (photoId, layerId, patch) => changeOverlay(photoId, (overlay) => updateLayer(overlay, layerId, patch)),
+    removeLayer: (photoId, layerId) => changeOverlay(photoId, (overlay) => removeLayer(overlay, layerId)),
+    moveLayer: (photoId, layerId, direction) => changeOverlay(photoId, (overlay) => moveLayer(overlay, layerId, direction)),
     addCustomFont: (fontName) => {
       const name = fontName.trim();
       if (!name) return;
