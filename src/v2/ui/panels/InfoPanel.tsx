@@ -4,6 +4,7 @@ import type { Photo } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import { pictureSourceWords } from '../shell/PictureSourceBadge';
+import { photoTagsText } from '../../../i18n/areas/photoTags';
 
 /** Brightness is solid; each colour channel also has its own dash pattern and name, so none is told apart by hue alone (WCAG 1.4.1). */
 const HISTOGRAM_LINES = [
@@ -20,6 +21,7 @@ interface InfoPanelProps {
   onReconnectOriginal: (photoId: string) => void;
   onCorrectSpeciesName: (photoId: string, name: string) => void;
   onCorrectVehicle?: (photoId: string, choice: { kind: string; type?: string } | 'not-a-vehicle', wholeBurst: boolean) => void;
+  onRemovePhotoTag?: (photoId: string, tagId: string) => void;
 }
 
 export default function InfoPanel({
@@ -29,6 +31,7 @@ export default function InfoPanel({
   onReconnectOriginal,
   onCorrectSpeciesName,
   onCorrectVehicle,
+  onRemovePhotoTag,
 }: InfoPanelProps) {
   const [editingSpecies, setEditingSpecies] = useState(false);
   // The name alone: the label may carry a "(suggested)" marker in the person's language, which is not part of the name.
@@ -220,6 +223,26 @@ export default function InfoPanel({
           <MetaRow label={STRINGS.tier.label} value={photo.tier ? STRINGS.tier[photo.tier] : STRINGS.tier.notRanked} />
         </dl>
       </section>
+      {photo.photoTags && photo.photoTags.length > 0 && (
+        <section aria-label={photoTagsText.foundHeading} data-testid="photo-tags">
+          <h3 className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--text-muted)]">{photoTagsText.foundHeading}</h3>
+          <ul className="flex flex-wrap gap-1.5">
+            {photo.photoTags.map((tag) => (
+              <li key={tag.id} className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] px-2 py-0.5 text-xs text-[var(--text-primary)]">
+                <span><span className="text-[var(--text-muted)]">{(photoTagsText.facets as Record<string, string>)[tag.facet]}: </span>{tag.label}</span>
+                {onRemovePhotoTag && (
+                  <button type="button" aria-label={photoTagsText.remove(tag.label)} title={photoTagsText.remove(tag.label)}
+                    onClick={() => onRemovePhotoTag(photo.id, tag.id)}
+                    className="rounded px-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">×</button>
+                )}
+              </li>
+            ))}
+          </ul>
+          {photo.photoTags.some((tag) => tag.facet === 'place') && (
+            <p className="mt-2 text-[0.6875rem] text-[var(--text-muted)]">{photoTagsText.placeNote}</p>
+          )}
+        </section>
+      )}
     </div>
   );
 }

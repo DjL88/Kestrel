@@ -1,3 +1,4 @@
+import { openV2Settings } from './helpers';
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(({}, testInfo) => {
@@ -27,7 +28,7 @@ test('?v2 a macro pad key flags the photo and the dial steps through the photos'
 test('?v2 Settings > Keyboard shows the last pad key, learns a new key and reports a clash', async ({ page }) => {
   await page.goto('/?v2&stub=1&autostart=1');
   const root = page.locator('.inflight-v2');
-  await root.getByRole('button', { name: /Settings/ }).first().click();
+  await openV2Settings(page);
   await root.getByRole('tab', { name: 'Keyboard' }).or(root.getByRole('button', { name: 'Keyboard' })).first().click();
   await page.keyboard.press('k');
   await expect(root.getByTestId('pad-last-key')).toContainText('Key 1');
