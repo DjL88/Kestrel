@@ -101,6 +101,7 @@ import { GUIDED_RENDER_EDGE } from '../../core/subjectGuide';
 import { detectSubjectGuided } from '../../providers/subjectDetector';
 import { judgeSubject } from '../../core/autoCull';
 import { archiveExports, saveExportFile, loadExportSource, loadVerifiedRasterOriginalForExport } from '../../providers/browserExport';
+import { loadAnalysisPicture } from '../../providers/analysisPicture';
 import { toProfile } from '../../core/exportFormats';
 import { renderV2Export, type OverlayDraw } from './renderV2Export';
 import { renderGalleryPreview } from './galleryPreview';
@@ -136,6 +137,12 @@ import { addSavedEditGroup, renameSavedEditGroup, selectSavedEditGroup, syncEdit
 import { engineText } from '../../i18n/areas/engine';
 import { loadSpeciesNames, onSpeciesNamesLoaded } from '../../providers/speciesNames';
 import { language } from '../../i18n/messages';
+
+/** A picture for a measurement that needs at most a screen's worth of pixels: a RAW's screen-size sensor develop when one can be
+ * had (analysisPicture.ts), otherwise the full source as before. Never for anything that writes pixels at full size. */
+async function boundedSource(frame: PhotoFrame, source: BrowserPreviewProvider): Promise<HTMLImageElement> {
+  return (await loadAnalysisPicture(frame, source).catch(() => null)) ?? loadExportSource(frame, source);
+}
 
 /** Actions that change a photo's edit, sizes, overlay, masks or assist state. They are not connected to the real
  * recipe yet, so they say so instead of silently changing sample data. */
@@ -2448,7 +2455,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
       if (!frame || !provider.current) return 'unclear';
       // Measured on the unedited framed picture at a bounded size, then stored, so preview and export use the same numbers.
-      const image = await loadExportSource(frame, provider.current);
+      // A RAW uses its screen-size sensor develop (analysisPicture.ts), not a full 45 MP develop.
+      const image = await boundedSource(frame, provider.current);
       const framing = frame.framing ?? DEFAULT_FRAMING;
       const { width, height } = framedSize(image.naturalWidth, image.naturalHeight, framing);
       const canvas = document.createElement('canvas');
@@ -2476,7 +2484,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
       if (!frame || !provider.current) return 'unreadable';
       // Measured on the unedited framed picture (what the canvas shows, before the edit), at a bounded size.
-      const image = await loadExportSource(frame, provider.current);
+      const image = await boundedSource(frame, provider.current);
       const framing = frame.framing ?? DEFAULT_FRAMING;
       const { width, height } = framedSize(image.naturalWidth, image.naturalHeight, framing);
       const canvas = document.createElement('canvas');
