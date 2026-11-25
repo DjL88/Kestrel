@@ -1,0 +1,147 @@
+import { test, expect, type Page, type Locator } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import { unzipSync } from 'fflate';
+
+/**
+ * G09: the same export settings give the same files, byte for byte, however the export is reached: run twice, as a ZIP or
+ * as separate files, and with a format exported alone or with the others. Synthetic gradient and noise, so a resample or
+ * re-encode difference cannot hide in a flat colour.
+ */
+async function projectWithPhoto(page: Page) {
+  await page.goto('/?v2');
+  const studio = page.locator('.inflight-v2');
+  await studio.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel('Project name', { exact: true }).fill('Export parity');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  await studio.getByRole('button', { name: 'Import', exact: true }).first().waitFor();
+  await studio.evaluate((target) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 480;
+    canvas.height = 320;
+    const ctx = canvas.getContext('2d')!;
+    const image = ctx.createImageData(canvas.width, canvas.height);
+    let seed = 7;
+    for (let i = 0; i < image.data.length; i += 4) {
+      const x = (i / 4) % canvas.width;
+      const y = Math.floor(i / 4 / canvas.width);
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      image.data[i] = (x * 255) / canvas.width;
+      image.data[i + 1] = (y * 255) / canvas.height;
+      image.data[i + 2] = seed % 256;
+      image.data[i + 3] = 255;
+    }
+    ctx.putImageData(image, 0, 0);
+    const bytes = Uint8Array.from(atob(canvas.toDataURL('image/png').split(',')[1]), (c) => c.charCodeAt(0));
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(new File([bytes], 'parity.png', { type: 'image/png' }));
+    target.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
+  });
+  await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  return studio;
+}
+
+async function openExport(page: Page, studio: Locator) {
+  const dialog = page.getByRole('dialog', { name: /export/i });
+  if (!await dialog.isVisible()) await studio.getByRole('button', { name: /^Export/ }).first().click();
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
+async function exportZip(page: Page, dialog: Locator): Promise<Record<string, Buffer>> {
+  const downloaded = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: /export bundle/i }).click();
+  const download = await downloaded;
+  expect(download.suggestedFilename()).toMatch(/\.zip$/);
+  const files = unzipSync(await readFile((await download.path())!));
+  return Object.fromEntries(Object.entries(files).map(([name, bytes]) => [name, Buffer.from(bytes)]));
+}
+
+const formatButtons = (dialog: Locator) => dialog.locator('.grid.grid-cols-2 button[aria-pressed]');
+
+test('?v2 the same settings give byte-identical files: twice, as a ZIP or separate files, and a format alone', async ({ page }) => {
+  const studio = await projectWithPhoto(page);
+
+  // 1. The same settings twice.
+  let dialog = await openExport(page, studio);
+  const formats = await formatButtons(dialog).count();
+  expect(formats).toBeGreaterThan(0);
+  const first = await exportZip(page, dialog);
+  const names = Object.keys(first).sort();
+  expect(names.length).toBe(formats);
+  dialog = await openExport(page, studio);
+  const second = await exportZip(page, dialog);
+  expect(Object.keys(second).sort()).toEqual(names);
+  for (const name of names) expect(second[name].equals(first[name]), `${name} differs between two identical exports`).toBe(true);
+
+  // 2. Separate files carry exactly the bytes the ZIP carries.
+  dialog = await openExport(page, studio);
+  await dialog.getByRole('button', { name: /Download individual files/ }).click();
+  const separate: Record<string, Buffer> = {};
+  const done = new Promise<void>((resolve) => {
+    page.on('download', async (download) => {
+      separate[download.suggestedFilename()] = await readFile((await download.path())!);
+      if (Object.keys(separate).length === names.length) resolve();
+    });
+  });
+  await dialog.getByRole('button', { name: /^Save files/ }).click();
+  await done;
+  expect(Object.keys(separate).sort()).toEqual(names);
+  for (const name of names) expect(separate[name].equals(first[name]), `${name}: separate file differs from the ZIP copy`).toBe(true);
+  page.removeAllListeners('download');
+
+  // 3. Each format exported on its own matches the same format exported with all the others.
+  for (let keep = 0; keep < Math.min(formats, 3); keep += 1) {
+    dialog = await openExport(page, studio);
+    await dialog.getByRole('button', { name: /Download ZIP bundle/ }).click();
+    const buttons = formatButtons(dialog);
+    for (let i = 0; i < formats; i += 1) {
+      const pressed = await buttons.nth(i).getAttribute('aria-pressed') === 'true';
+      if (pressed !== (i === keep)) await buttons.nth(i).click();
+    }
+    const alone = await exportZip(page, dialog);
+    const [name] = Object.keys(alone);
+    expect(Object.keys(alone)).toHaveLength(1);
+    expect(alone[name].equals(first[name]), `${name} alone differs from ${name} exported with the other formats`).toBe(true);
+    // Back to every format for the next round.
+    dialog = await openExport(page, studio);
+    for (let i = 0; i < formats; i += 1) if (await buttons.nth(i).getAttribute('aria-pressed') !== 'true') await buttons.nth(i).click();
+    await dialog.getByRole('button', { name: 'Cancel' }).click().catch(() => page.keyboard.press('Escape'));
+  }
+});
+
+test('?v2 PNG export is lossless: the same pixels whether exported once or twice, and the same size as the JPEG', async ({ page }) => {
+  const studio = await projectWithPhoto(page);
+  let dialog = await openExport(page, studio);
+  const jpeg = await exportZip(page, dialog);
+  dialog = await openExport(page, studio);
+  await dialog.getByLabel('File format').selectOption('png');
+  const png = await exportZip(page, dialog);
+  dialog = await openExport(page, studio);
+  await dialog.getByLabel('File format').selectOption('png');
+  const again = await exportZip(page, dialog);
+  expect(Object.keys(png).length).toBe(Object.keys(jpeg).length);
+  for (const [name, bytes] of Object.entries(png)) {
+    expect(again[name]?.equals(bytes), `${name} differs between two PNG exports`).toBe(true);
+    const jpegName = name.replace(/\.png$/, '.jpg');
+    const jpegBytes = jpeg[jpegName] ?? jpeg[name.replace(/\.png$/, '.jpeg')];
+    expect(jpegBytes, `no JPEG twin for ${name}`).toBeTruthy();
+    // Same planned pixels: compare decoded dimensions, and pixels within JPEG's tolerance.
+    const compare = await page.evaluate(async ([a, b]) => {
+      const decode = async (base64: string, type: string) => {
+        const bitmap = await createImageBitmap(new Blob([Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))], { type }));
+        const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(bitmap, 0, 0);
+        return { width: bitmap.width, height: bitmap.height, data: ctx.getImageData(0, 0, bitmap.width, bitmap.height).data };
+      };
+      const p = await decode(a, 'image/png');
+      const j = await decode(b, 'image/jpeg');
+      let total = 0;
+      for (let i = 0; i < p.data.length; i += 4) total += Math.abs(p.data[i] - j.data[i]) + Math.abs(p.data[i + 1] - j.data[i + 1]);
+      return { same: p.width === j.width && p.height === j.height, mean: total / (p.data.length / 2) };
+    }, [bytes.toString('base64'), jpegBytes.toString('base64')] as const);
+    expect(compare.same, `${name}: PNG and JPEG sizes differ`).toBe(true);
+    // Red and green are smooth gradients, so JPEG at the default quality stays close; a different crop or resample would not.
+    expect(compare.mean, `${name}: PNG and JPEG pixels differ by more than JPEG compression`).toBeLessThan(4);
+  }
+});
