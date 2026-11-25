@@ -74,8 +74,8 @@ export const EFFICIENTSAM_TI: OptionalModel = {
 
 export const NAFNET_W32: OptionalModel = {
   id: 'nafnet-sidd-w32-w16',
-  name: 'Learned denoise (NAFNet)',
-  job: 'A learned noise reduction for developed photos, offered beside the built-in conventional noise reduction.',
+  name: 'TrueDetail: NAFNet denoiser',
+  job: 'Adds NAFNet as one more noise-reduction candidate for TrueDetail, beside the built-in noise reduction.',
   licence: 'MIT',
   source: 'https://github.com/megvii-research/NAFNet (commit 2b4af71ebe098a92a75910c233a3965a3e93ede4), NAFNet-SIDD-width32.pth from the authors\' Google Drive link in docs/SIDD.md',
   tier: 'phone',

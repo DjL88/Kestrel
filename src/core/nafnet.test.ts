@@ -33,3 +33,9 @@ test('the NAFNet pack is pinned, MIT, about 59 MB', () => {
   assert.equal(NAFNET_W32.licence, 'MIT');
   assert.equal(optionalModelBytes(NAFNET_W32), 58841423);
 });
+
+test('NAFNet is one learned TrueDetail candidate, tied to its pack', async () => {
+  const { NAFNET_CANDIDATE } = await import('./nafnet');
+  assert.equal(NAFNET_CANDIDATE.kind, 'learned');
+  assert.equal(NAFNET_CANDIDATE.pack, NAFNET_W32.id);
+});

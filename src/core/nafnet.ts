@@ -17,3 +17,17 @@ export function nafnetOutput(raw: Float32Array, expected = 3 * NAFNET_TILE * NAF
   }
   return out;
 }
+
+/**
+ * Owner decision 8: TrueDetail is the combination of denoisers (the measured conventional denoise, NAFNet, and the
+ * owner's trained network as it matures), compared per mask region by the guardian, which keeps the result that
+ * preserves the most real detail or holds it for review. NAFNet is one candidate, never "the" TrueDetail on its own.
+ */
+export interface TrueDetailCandidate {
+  id: string;
+  name: string;
+  kind: 'conventional' | 'learned';
+  /** Where its weights come from; null for the conventional denoise. */
+  pack: string | null;
+}
+export const NAFNET_CANDIDATE: TrueDetailCandidate = { id: 'nafnet-sidd-w32', name: 'NAFNet width32', kind: 'learned', pack: 'nafnet-sidd-w32-w16' };
