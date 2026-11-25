@@ -504,6 +504,17 @@ function SortMenu({ value, onChange }: { value: ProjectSort; onChange: (value: P
     setOpen(false);
     buttonRef.current?.focus();
   };
+  // One key handler for the open list, whichever of the button or the list has focus: the list takes focus only after
+  // it has drawn, and a quick second key must still move the highlight rather than reopen the list.
+  const onListKey = (event: React.KeyboardEvent) => {
+    const last = options.length - 1;
+    if (event.key === 'ArrowDown') { event.preventDefault(); setActive((i) => Math.min(last, i + 1)); }
+    else if (event.key === 'ArrowUp') { event.preventDefault(); setActive((i) => Math.max(0, i - 1)); }
+    else if (event.key === 'Home') { event.preventDefault(); setActive(0); }
+    else if (event.key === 'End') { event.preventDefault(); setActive(last); }
+    else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(active); }
+    else if (event.key === 'Escape' || event.key === 'Tab') { if (event.key === 'Escape') event.preventDefault(); setOpen(false); buttonRef.current?.focus(); }
+  };
 
   return (
     <div ref={rootRef} className="relative shrink-0">
@@ -518,7 +529,8 @@ function SortMenu({ value, onChange }: { value: ProjectSort; onChange: (value: P
         aria-labelledby={`${id}-label ${id}-value`}
         onClick={() => (open ? setOpen(false) : show())}
         onKeyDown={(event) => {
-          if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) { event.preventDefault(); show(); }
+          if (open) onListKey(event);
+          else if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) { event.preventDefault(); show(); }
         }}
         className={`inline-flex h-10 items-center gap-2 rounded-[var(--radius-md)] border bg-[var(--bg-surface)] pl-3 pr-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] ${open ? 'border-[var(--brand-accent)]' : 'border-[var(--border-default)]'}`}
       >
@@ -533,15 +545,7 @@ function SortMenu({ value, onChange }: { value: ProjectSort; onChange: (value: P
           tabIndex={-1}
           aria-labelledby={`${id}-label`}
           aria-activedescendant={`${id}-option-${active}`}
-          onKeyDown={(event) => {
-            const last = options.length - 1;
-            if (event.key === 'ArrowDown') { event.preventDefault(); setActive((i) => Math.min(last, i + 1)); }
-            else if (event.key === 'ArrowUp') { event.preventDefault(); setActive((i) => Math.max(0, i - 1)); }
-            else if (event.key === 'Home') { event.preventDefault(); setActive(0); }
-            else if (event.key === 'End') { event.preventDefault(); setActive(last); }
-            else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(active); }
-            else if (event.key === 'Escape' || event.key === 'Tab') { if (event.key === 'Escape') event.preventDefault(); setOpen(false); buttonRef.current?.focus(); }
-          }}
+          onKeyDown={onListKey}
           className="absolute right-0 top-full z-40 mt-1 min-w-full overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] p-1 text-xs text-[var(--text-primary)] shadow-[var(--shadow-popover)] focus:outline-none"
         >
           {options.map(([key, label], index) => {
@@ -552,7 +556,8 @@ function SortMenu({ value, onChange }: { value: ProjectSort; onChange: (value: P
                 id={`${id}-option-${index}`}
                 role="option"
                 aria-selected={selected}
-                onPointerEnter={() => setActive(index)}
+                // Only a pointer that actually moves takes the highlight: a list opened under a resting pointer keeps the keyboard's place.
+                onPointerMove={(event) => { if (event.movementX || event.movementY) setActive(index); }}
                 onClick={() => choose(index)}
                 className={`flex min-h-9 cursor-pointer items-center gap-2 whitespace-nowrap rounded-[var(--radius-sm)] px-2 ${index === active ? 'bg-[var(--bg-surface-hover)]' : ''} ${selected ? 'font-semibold' : ''}`}
               >

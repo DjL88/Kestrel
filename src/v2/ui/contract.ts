@@ -289,14 +289,16 @@ export type MaskGeometry =
 
 export type MaskGeometryField = 'cx' | 'cy' | 'rx' | 'ry' | 'angle' | 'x1' | 'y1' | 'x2' | 'y2';
 
+export interface MaskLayerPart { id: string; mode: 'add' | 'subtract' | 'intersect' }
+
 export interface MaskLayer {
   id: string;
   name: string;
   type: 'subject' | 'sky' | 'background' | 'brush' | 'area' | 'gradient';
   /** Present only for genuine editable oval/gradient masks; never fabricated for detected subjects. */
   geometry?: MaskGeometry;
-  /** Restrict this layer to, or subtract, another layer's saved shape. */
-  limit?: { id: string; mode: 'intersect' | 'subtract' };
+  /** Other layers combined into this one, in order: add their area, subtract it, or keep only the overlap. */
+  parts?: MaskLayerPart[];
   visible: boolean;
   /** Edge softness, 0 to 100. */
   feather: number;
@@ -351,8 +353,6 @@ export interface Photo {
   speciesLabel?: string;
   /** What kind of vehicle or aircraft it probably is, in the person's language ("Military jet: Eurofighter Typhoon (probably)"). */
   vehicleLabel?: string;
-  /** Extra words the photo can be found by (a vehicle's kind in this language and in English, its type name). */
-  searchTerms?: string[];
   /** The subject name alone, without the "(suggested)" marker the label may carry, for editing it. */
   speciesName?: string;
   /** The vehicle reading's ids, so a correction starts from what is shown. */
@@ -526,6 +526,8 @@ export interface WorkspaceSettings {
     provider?: 'google' | 'apple' | 'email';
     email?: string;
     displayName?: string;
+    /** This month's cloud allowances and balance, from the control plane once signed in. Absent: the section is hidden. */
+    cloud?: import('../../core/cloudPlan').CloudUsage;
   };
   aiProviders: AiProviderConfig[];
   storageConnectors: StorageConnector[];
@@ -561,6 +563,8 @@ export interface ExportRequest {
 export interface PhotoSurfaceProps {
   /** Editor-only coverage guide, never part of the photo recipe or export. */
   maskGuideId?: string;
+  /** The guide as a line round the mask (the V2 default) or the hatched area. */
+  maskGuideStyle?: 'outline' | 'fill';
   /** Editor-only SVG content (mask outline and handles) drawn in the displayed picture's own pixels, over exactly that picture. */
   maskOutline?: (picture: { width: number; height: number }) => ReactNode;
   photoId: string;
@@ -794,6 +798,10 @@ export interface WorkspaceActions {
   removeOverlayRow: (photoId: string, rowId: string) => void;
   /** Measure this photo's lens colour edges and set caRed/caBlue from them. 'clean' = nothing to correct; 'unclear' = too few edges to tell. */
   detectColourEdges: (photoId: string) => Promise<'corrected' | 'clean' | 'unclear'>;
+  /** White balance from the picture itself, as one undoable step. `at` (0 to 1 across the shown, framed picture) is a spot
+   * that should be grey or white (the eyedropper); without it, Auto estimates the light from the whole picture.
+   * 'limited' = a slider reached its end first; 'unreadable' = the spot is clipped or too dark, nothing changed. */
+  neutralWhiteBalance?: (photoId: string, at?: { x: number; y: number }) => Promise<'set' | 'limited' | 'unreadable'>;
   /** Image layers. Add one from an image file on this device (opens the file picker). */
   addImageLayer: (photoId: string) => Promise<void>;
   /** Add another photo of this project as a layer: a copy of it as it looks now, with its edits. */
@@ -829,7 +837,8 @@ export interface WorkspaceActions {
   setMaskEdit: (photoId: string, maskId: string, key: string, value: number) => void;
   setMaskFeather: (photoId: string, maskId: string, percent: number) => void;
   setMaskGeometry: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
-  setMaskLimit: (photoId: string, maskId: string, limit: MaskLayer['limit'] | null) => void;
+  /** Combine other masks into this one, in order; an empty list removes every part. */
+  setMaskParts: (photoId: string, maskId: string, parts: MaskLayerPart[]) => void;
 
   // Tasks & Export
   cancelTask: (taskId: string) => void;

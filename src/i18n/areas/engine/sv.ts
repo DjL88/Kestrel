@@ -146,6 +146,7 @@ export const sv: AreaTranslation<typeof source> = {
     importSaveStage: 'Sparar fotot i det här projektet',
     importSomeFailed: (added) => `Några foton kunde inte importeras. ${added} lades till. Öppna Uppgifter för att bara försöka igen med de misslyckade.`,
     importStopped: (added) => `Importen stoppades. ${added} foton lades till. Dina original är oförändrade.`,
+    importNotFinished: (count, names) => `Den senaste importen till det här projektet blev inte klar: ${count} foton lades inte till (${names}). Importera dem igen för att lägga till dem. Foton som redan har lagts till behålls.`,
     importFailed: 'Det gick inte att lägga till fotona. Dina original ändrades inte.',
   },
 };

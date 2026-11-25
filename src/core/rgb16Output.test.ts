@@ -69,3 +69,38 @@ test('a gradient through a strong curve, rounded once at the end, has no bands; 
   assert.ok(dithered < 0.5, `16-bit then one dither strays ${dithered} levels`);
   assert.ok(banded > dithered * 2, `8-bit path strays ${banded} levels, dithered ${dithered}`);
 });
+
+test('a strong lift of a smooth sky shows no steps on the canvas: dithered, not plainly rounded', async () => {
+  const { rgb16ToRgba } = await import('./master16');
+  // A clear sky in the shadows: 1024 columns spanning only 6 8-bit levels before the edit, as an underexposed RAW gives.
+  const width = 1024, height = 256;
+  const sky = grey(width, height, (x) => Math.round((40 + (6 * x) / (width - 1)) * 257));
+  const lift: PhotoEdit = { ...DEFAULT_EDIT, exposure: 1.5, shadows: 60 };
+  editRgb16(sky, lift);
+  const truth = Array.from({ length: width }, (_, x) => sky.data[x * 3] / 257);
+  // The lift spreads those 6 levels across many more: real room for steps.
+  assert.ok(truth[width - 1] - truth[0] > 12, `span ${truth[width - 1] - truth[0]}`);
+
+  /** Worst error of each column's average from the true 16-bit value (what the eye sees as a band edge), and the widest flat run. */
+  const measure = (rgba: Uint8ClampedArray) => {
+    let worst = 0, run = 1, widest = 1;
+    let previous = -1;
+    for (let x = 0; x < width; x += 1) {
+      let sum = 0;
+      for (let y = 0; y < height; y += 1) sum += rgba[(y * width + x) * 4];
+      const mean = sum / height;
+      worst = Math.max(worst, Math.abs(mean - truth[x]));
+      const level = Math.round(mean * 4) / 4;
+      run = level === previous ? run + 1 : 1;
+      widest = Math.max(widest, run);
+      previous = level;
+    }
+    return { worst, widest };
+  };
+  const plain = measure(rgb16ToRgba(sky));
+  const dithered = measure(ditherRgb16ToRgba8(sky));
+  // Plain rounding: flat bands with steps up to half a level off the true sky. The dither follows it within a fifth of a level.
+  assert.ok(plain.worst > 0.4, `plain ${plain.worst}`);
+  assert.ok(dithered.worst < 0.2, `dithered ${dithered.worst}`);
+  assert.ok(dithered.widest * 2 < plain.widest, `bands ${dithered.widest} vs ${plain.widest}`);
+});

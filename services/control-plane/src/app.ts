@@ -1,9 +1,10 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { freeStorageFor, settleStorageDay, storageAllowsUpload } from './cloudStorageBilling.ts';
 import crypto from 'node:crypto';
 import { z } from 'zod';
 import type { EntitlementGrant } from '../../../src/core/entitlementGrant.ts';
 import { forPublicDocument, parseFlagSet, resolveFlagsForGrant, MAX_GRANT_FLAGS, type Audience, type FlagSet } from '../../../src/core/featureFlags.ts';
-import { parseDataManifest, type DataManifest } from '../../../src/core/dataUpdateManifest.ts';
+import { openSignedDataManifest } from '../../../src/core/modelDelivery.ts';
 import { verifyLicence } from '../../../src/core/licence.ts';
 import { newerRelease } from '../../../src/core/desktopRelease.ts';
 import { inspectJpeg } from '../../../src/core/jpegInspect.ts';
@@ -15,7 +16,8 @@ import { licenceIsUsable, newLicence, type AuditRecord, type Store } from './sto
 import { geminiProvider, identify, suggest, verifyColour, type AiProvider } from './gateway.ts';
 import type { CommerceLedger } from './commerce/ledger.ts';
 import type { TransactionRecord } from './commerce/records.ts';
-import { CheckoutCountryUnavailable, CheckoutLocationUnconfirmed, type sumupProCheckout } from './commerce/proCheckout.ts';
+import type { paddleProCheckout } from './commerce/proCheckout.ts';
+import { PADDLE_TRANSACTION_ID, PaddleEvent, verifyPaddleSignature, type PaddleEnvironment } from './commerce/paddle.ts';
 import { emailHashOf, giftEntitlement } from './entitlement.ts';
 import { googleKeysFromNetwork, verifyGoogleIdToken, GOOGLE_CERTS_URL, type GoogleKeys } from './googleIdToken.ts';
 import { APPLE_ISSUER, APPLE_KEYS_URL, FIREBASE_KEYS_URL, firebaseIssuer, oidcKeysFromNetwork, verifyOidcIdToken, type OidcKeys } from './oidcIdToken.ts';
@@ -42,23 +44,26 @@ export const MAX_IMAGE_EDGE = 1024;
 const DAY_MS = 86_400_000;
 const QUOTA_PERIOD_MS = 30 * DAY_MS;
 const REFRESH_TTL_MS = 30 * DAY_MS;
-const SumupNotification = z.object({ event_type: z.string().min(1).max(64), id: z.string().regex(/^[A-Za-z0-9-]{1,64}$/) });
 const offlineDeadline = (licence: { offlineGraceDays: number; validUntilMs: number | null }, now: number) =>
   Math.min(now + licence.offlineGraceDays * DAY_MS, licence.validUntilMs ?? Infinity);
 
 export interface AppOptions {
   config: Config;
+  /** Injected for tests: reads the models bucket's manifest/stable.json. Defaults to fetch. */
+  manifestFetch?: typeof fetch;
   store?: Store;
   commerce?: Pick<CommerceLedger, 'getTaxSettings' | 'updateTaxSettings' | 'recordTurnover' | 'ossQuarter'>;
   pricing?: Pick<CommerceLedger, 'latestPriceReview'>;
   /** Paid checkouts for the admin console's Payments table (the Firestore commerce ledger). */
   payments?: { listTransactions(limit: number): Promise<TransactionRecord[]> };
-  /** Re-fetches and matches SumUp checkout and transaction records before fulfilling a server-owned order. */
-  settleSumupPro?: (checkoutId: string) => Promise<void>;
-  /** Server-owned SumUp hosted checkout for Pro; off in production until the admin switches 'pro-checkout' on. */
-  proCheckout?: ReturnType<typeof sumupProCheckout>;
-  /** Country of the request's network address, looked up on the server (never sent by the client). */
-  networkCountry?: (req: Request) => string | null;
+  /** Re-fetches a Paddle transaction and matches it to the server-owned order before granting Pro. */
+  settlePaddle?: (transactionId: string) => Promise<'paid' | 'pending' | 'unknown'>;
+  /** The secret key of the Paddle notification destination (Secret Manager), for Paddle-Signature. */
+  paddleWebhookSecret?: string;
+  /** Paddle.js settings for the site's checkout page. The client-side token is public by design, but kept out of Git. */
+  paddleClient?: { environment: PaddleEnvironment; clientToken: string };
+  /** Server-owned Paddle checkout for Pro; off in production until the admin switches 'pro-checkout' on. */
+  proCheckout?: ReturnType<typeof paddleProCheckout>;
   /** Google's ID-token signing keys. Injected for tests; fetched from Google otherwise. */
   googleKeys?: GoogleKeys;
   firebaseKeys?: OidcKeys;
@@ -89,6 +94,8 @@ export interface AppOptions {
   notices?: NoticeStore;
   /** Shared projects' cloud photo store and the per-account download meter. Absent: the cloud routes answer 503. */
   cloudPhotos?: { store: CloudPhotoStore; meter: UsageMeter; allowance: AllowancePolicy; maxProjectBytes: number };
+  /** Prepaid cloud balance (top-ups; pays beyond the free allowances). Absent: allowances are hard limits. */
+  cloudBalance?: import('./cloudBalance.ts').CloudBalance;
   /** Hard monthly ceiling on metered spend (Gemini, cloud jobs). Absent: no guard (development and tests). */
   spend?: SpendOptions;
   /** Production sets this: the cloud, safe copy and learning features stay OFF until an admin switches them on. Tests and development leave them on. */
@@ -171,10 +178,9 @@ const SWITCHES = [
   { key: 'cloud-processing', label: 'Cloud processing', note: 'Heavier jobs (denoise, upscale, masks) for Pro. Needs the bucket and the runner job set up.' },
   { key: 'safe-copy', label: 'Safe copy (managed backup)', note: 'Opt-in backup to InFlight UK storage. Switching off stops uploads only; people can always read and delete their copy.' },
   { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
-  { key: 'pro-checkout', label: 'Pro checkout (SumUp)', note: 'People can pay for Pro through SumUp\'s hosted page. Their billing country must match their network location. Switching off stops new checkouts only; payments already made are still verified and granted.' },
+  { key: 'pro-checkout', label: 'Pro checkout (Paddle)', note: 'People can buy Pro through Paddle\'s checkout. Paddle is the merchant of record and handles sales tax and VAT in every country. Switching off stops new checkouts only; payments already made are still verified and granted.' },
   { key: 'email', label: 'App email (hello@inflight.studio)', note: 'Sends share invitations by email through Google Workspace. Plain text and HTML, an unsubscribe link in every message, at most 500 a day (30 per sender, 3 per recipient). Switch on only once hello@inflight.studio is a verified Send mail as address.' },
   { key: 'collaboration', label: 'Shared projects', note: 'Cloud subscribers can share a project, invite people by email and check photos out to edit. Switching off stops new shared projects and checkouts; members can still read revisions.' },
-  { key: 'pro-checkout-eu', label: 'Pro checkout for EU buyers', note: 'Switch on only once you are registered for OSS (EU VAT on digital sales). Until then EU buyers see that Pro is not on sale in their country yet.' },
   { key: 'pro-cloud-storage', planned: true, label: 'Pro Cloud storage (designed, not built)', note: "Store a project's originals in InFlight's UK cloud to open on any device and share. Opt-in per project; originals on the device are never moved or changed. Cannot be switched on until it is built and the owner approves the cost." },
 ] as const;
 const SWITCH_KEYS = SWITCHES.map((w) => w.key) as [SwitchKey, ...SwitchKey[]];
@@ -183,7 +189,8 @@ const isPlanned = (key: SwitchKey) => SWITCHES.some((w) => w.key === key && 'pla
 
 export const Schemas = {
   AdminSwitch: z.object({ key: z.enum(SWITCH_KEYS), on: z.boolean() }).strict(),
-  ProCheckoutRequest: z.object({ country: z.string().regex(/^[A-Z]{2}$/) }).strict(),
+  // Paddle asks the buyer for their country itself. Older apps still send one; it is accepted and ignored.
+  ProCheckoutRequest: z.object({ country: z.string().regex(/^[A-Z]{2}$/).optional() }).strict(),
   CollabCreate: z.object({ name: z.string().trim().min(1).max(120), displayName: z.string().trim().min(1).max(80) }).strict(),
   CollabMembers: z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('inviteEmail'), email: z.string().trim().email().max(254), role: z.enum(['editor', 'commenter', 'viewer', 'client']), displayName: z.string().trim().max(80).default(''), photoIds: z.array(PhotoId).max(5000).optional(), language: z.enum(MAIL_LANGUAGES).optional() }).strict(),
@@ -303,15 +310,7 @@ export const Schemas = {
   }).strict(),
   AdminFlagDelete: z.object({ key: z.string().regex(/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/) }).strict(),
   AdminQuota: z.object({ accountId: z.string(), requestsLimit: z.number().int().min(0).max(1_000_000) }).strict(),
-  AdminModel: z.object({
-    id: z.string(), kind: z.enum(['onnx', 'species-library', 'equipment']), version: z.string(), path: z.string(),
-    sha256: Hex64, bytes: z.number().int().positive(), requiredAppMin: Version.default('0.0.0'), channel: z.enum(['stable', 'beta']).default('stable'),
-    /** What the model does for the app (inputs, outputs, labels). Required for ONNX: the app only swaps a slot with an unchanged contract. */
-    contract: z.string().max(80).optional(),
-    /** The rights record for this exact version. Required for ONNX. Never stored in Git; weights are not either. */
-    licence: z.object({ spdx: z.string().min(1).max(64), sourceUrl: z.string().url().max(300).startsWith('https://'), noticePath: z.string().max(180).optional(), rightsConfirmed: z.boolean() }).strict().optional(),
-  }).strict(),
-  AdminPromote: z.object({ id: z.string(), version: z.string(), channel: z.enum(['stable', 'beta']).default('stable') }).strict(),
+  AdminCloudCredit: z.object({ accountId: z.string(), credits: z.number().int().min(1).max(100_000), reference: z.string().regex(/^[A-Za-z0-9_.:-]{1,64}$/).describe('Applied once per reference, so a retried request never doubles it') }).strict(),
   AdminRelease: z.object({ platform: z.enum(['windows', 'macos']), channel: z.enum(['stable', 'beta']).default('stable'), version: Version, url: z.string().url(), notes: z.string().max(4000).default(''), minSupported: Version.default('0.0.0') }).strict(),
   AiConsentRequest: z.object({ consent: z.boolean() }).strict(),
 };
@@ -330,7 +329,6 @@ class RateLimiter {
   }
 }
 
-const versionAtLeast = (version: string, minimum: string) => version === minimum || newerRelease(version, minimum);
 
 function decodeImage(base64: string): Buffer {
   if (!/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) throw new ApiError(400, 'IMAGE_INVALID', 'The image is not valid base64.');
@@ -368,7 +366,7 @@ export function createApp(options: AppOptions) {
   const userGoogleKeys: OidcKeys = options.googleKeys ?? oidcKeysFromNetwork(GOOGLE_CERTS_URL);
   const adminEmailHashes = new Set(config.adminEmails.map((email) => sha256Hex(email)));
   const activateLimiter = new RateLimiter(20, 60_000);
-  const sumupLimiter = new RateLimiter(90, 60_000);
+  const paddleLimiter = new RateLimiter(90, 60_000);
   const checkoutLimiter = new RateLimiter(10, 60_000);
   const galleryLimiter = new RateLimiter(120, 60_000);
 
@@ -451,7 +449,7 @@ export function createApp(options: AppOptions) {
   // ---- Admin on/off switches. Managed Gemini is on unless switched off (the existing `ai_disabled` setting, so the
   // existing admin control and this one are the same switch). The new features are off in production until an admin
   // switches them on. The older kill settings (cloud_disabled, safe_copy_disabled) still win.
-  const switchConfigured = (key: SwitchKey) => isPlanned(key) ? false : key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'email' ? !!options.mailer : key === 'pro-checkout' || key === 'pro-checkout-eu' ? !!options.proCheckout : !!options.learning;
+  const switchConfigured = (key: SwitchKey) => isPlanned(key) ? false : key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'email' ? !!options.mailer : key === 'pro-checkout' ? !!options.proCheckout : !!options.learning;
   async function switchOn(key: SwitchKey): Promise<boolean> {
     if (isPlanned(key)) return false;
     if (key === 'managed-ai') return (await store.getSetting('ai_disabled')) !== '1';
@@ -504,12 +502,17 @@ export function createApp(options: AppOptions) {
       await audit(accountId, 'cloud.job.create', 'denied', 'kill switch');
       throw new ApiError(503, 'CLOUD_DISABLED', 'Cloud processing is switched off for now.', true);
     }
-    const licences = await store.listLicencesForAccount(accountId);
-    if (!licences.some((l) => (l.plan === 'paid' || l.plan === 'subscriber') && licenceIsUsable(l, now()))) {
+    const limit = (await accountIsPro(accountId)) ? cloud.jobsPerPeriod : (cloud.basicJobsPerPeriod ?? 0);
+    if (limit <= 0) {
       await audit(accountId, 'cloud.job.create', 'denied', 'not Pro');
       throw new ApiError(403, 'CLOUD_NOT_ENTITLED', 'Cloud processing is part of Pro.');
     }
-    return cloud;
+    return { ...cloud, limit };
+  }
+  /** Pro: any usable paid licence (bought, rent-to-own in progress, or admin-granted) on the account. */
+  async function accountIsPro(accountId: string) {
+    const licences = await store.listLicencesForAccount(accountId);
+    return licences.some((l) => (l.plan === 'paid' || l.plan === 'subscriber') && licenceIsUsable(l, now()));
   }
   async function cloudJobStart(req: Request): Promise<Reply> {
     const claims = await bearer(req);
@@ -520,24 +523,37 @@ export function createApp(options: AppOptions) {
     const reservedAtMs = now();
     const spendPence = options.spend?.cloudJobPence ?? 0;
     const refundSpend = await reserveSpend(spendPence, reservedAtMs).catch(async (e) => { await audit(claims.sub, 'cloud.job.create', 'denied', 'spend ceiling'); throw e; });
-    if (!(await cloud.ledger.reserve(claims.sub, reservedAtMs, cloud.jobsPerPeriod, QUOTA_PERIOD_MS))) {
-      await refundSpend();
-      await audit(claims.sub, 'cloud.job.create', 'denied', 'quota');
-      throw new ApiError(429, 'CLOUD_QUOTA_EXHAUSTED', 'This account has used its cloud processing allowance for this period.');
-    }
     const jobId = uuid();
+    // The month's allowance first; beyond it, one photo's price from the prepaid balance (counted in the ledger too,
+    // so the failure paths' refund of the count stays right).
+    let paidMillicredits: number | undefined;
+    if (!(await cloud.ledger.reserve(claims.sub, reservedAtMs, cloud.limit, QUOTA_PERIOD_MS))) {
+      const price = cloud.extraPhotoMillicredits ?? 300;
+      if (cloud.balance && await cloud.balance.debit(claims.sub, price, `job:${jobId}`)) {
+        paidMillicredits = price;
+        await cloud.ledger.reserve(claims.sub, reservedAtMs, Number.MAX_SAFE_INTEGER, QUOTA_PERIOD_MS);
+      } else {
+        await refundSpend();
+        await audit(claims.sub, 'cloud.job.create', 'denied', 'quota');
+        throw new ApiError(429, 'CLOUD_QUOTA_EXHAUSTED', cloud.balance
+          ? 'This month\'s cloud photos are used up and the cloud balance cannot cover more. Top up, or this runs on your device.'
+          : 'This account has used its cloud processing allowance for this period.');
+      }
+    }
     try {
       const upload = await cloud.runner.createUpload(jobId, body.inputBytes);
       await cloud.ledger.put({
         jobId, accountId: claims.sub, kind: body.kind, inputBytes: body.inputBytes,
         status: 'awaiting-upload', createdAtMs: reservedAtMs, consentAtMs: reservedAtMs,
         ...(options.spend ? { spendPence } : {}),
+        ...(paidMillicredits ? { paidMillicredits } : {}),
       });
       await audit(claims.sub, 'cloud.job.create', 'allowed', `${body.kind} ${jobId}`);
       return { status: 200, body: { jobId, uploadUrl: upload.uploadUrl, expiresAtMs: upload.expiresAtMs } };
     } catch (error) {
       await cloud.ledger.refund(claims.sub, reservedAtMs); // A job that never started costs nothing.
       await refundSpend();
+      if (paidMillicredits) await cloud.balance?.credit(claims.sub, paidMillicredits, `refund:${jobId}`);
       await cloud.runner.deleteInput(jobId).catch(() => undefined);
       throw new ApiError(502, 'CLOUD_RUNNER_FAILED', 'Cloud processing could not start. Nothing was uploaded or charged.', true);
     }
@@ -552,11 +568,17 @@ export function createApp(options: AppOptions) {
 
   async function settleFailedCloudJob(cloud: CloudOptions, record: CloudJobRecord): Promise<boolean> {
     const legacySpendPence = options.spend?.cloudJobPence ?? 0;
-    if (cloud.settleFailed) return cloud.settleFailed(record.jobId, legacySpendPence);
-    if (!(await cloud.ledger.transition(record.jobId, 'running', 'failed'))) return false;
-    await cloud.ledger.refund(record.accountId, record.createdAtMs);
-    await options.spend?.guard.refund(record.createdAtMs, record.spendPence ?? legacySpendPence);
-    return true;
+    const settled = cloud.settleFailed
+      ? await cloud.settleFailed(record.jobId, legacySpendPence)
+      : await (async () => {
+        if (!(await cloud.ledger.transition(record.jobId, 'running', 'failed'))) return false;
+        await cloud.ledger.refund(record.accountId, record.createdAtMs);
+        await options.spend?.guard.refund(record.createdAtMs, record.spendPence ?? legacySpendPence);
+        return true;
+      })();
+    // A failed photo paid from the balance is paid back. Keyed by job, so it happens once whichever path settles it.
+    if (settled && record.paidMillicredits) await cloud.balance?.credit(record.accountId, record.paidMillicredits, `refund:${record.jobId}`);
+    return settled;
   }
 
   /** A stable pseudonym, so withdrawal can delete a person's signals without the store holding their account id. */
@@ -580,6 +602,23 @@ export function createApp(options: AppOptions) {
     }
   }
 
+  /** Bytes in the cloud store across the projects this account pays for (projects it owns first). */
+  async function accountStoredBytes(accountId: string): Promise<number> {
+    if (!options.cloudPhotos || !options.collab) return 0;
+    const collabStore = options.collab, photos = options.cloudPhotos.store;
+    let total = 0;
+    for (const p of await collabStore.myProjects(accountId)) {
+      if (p.role !== 'owner') continue;
+      if ((await collabStore.payerOf(p.projectId).catch(() => null)) !== accountId) continue;
+      total += await photos.storedBytes(p.projectId);
+    }
+    return total;
+  }
+  /** Today's storage charge for one account (idempotent per day). */
+  async function settleStorage(accountId: string) {
+    if (!options.cloudBalance) return 'free' as const;
+    return settleStorageDay(options.cloudBalance, accountId, await accountStoredBytes(accountId), freeStorageFor(await accountIsPro(accountId)), now());
+  }
   function cloudCfg() {
     if (!options.cloudPhotos) throw new ApiError(503, 'CLOUD_NOT_CONFIGURED', 'The cloud photo store is not set up on this server yet. Everything on your devices keeps working.');
     return options.cloudPhotos;
@@ -664,24 +703,32 @@ export function createApp(options: AppOptions) {
     return { flags: resolveFlagsForGrant(flags, { audience, nowMs, bucket, appVersion }) };
   }
 
-  // Contract and licence per model version live in one settings document (works on SQLite and Firestore alike).
-  const MODEL_META_SETTING = 'model_meta';
-  type ModelMeta = Record<string, { contract?: string; licence?: { spdx: string; sourceUrl: string; noticePath?: string; rightsConfirmed: true; recordedAtMs: number } }>;
-  async function loadModelMeta(): Promise<ModelMeta> {
-    try { return JSON.parse((await store.getSetting(MODEL_META_SETTING)) ?? '{}') as ModelMeta; } catch { return {}; }
-  }
-
-  async function currentManifest(appVersion: string, channel: string): Promise<DataManifest> {
-    const rows = await store.listLiveModelAssets(channel);
-    const meta = await loadModelMeta();
-    const assets = rows.filter((row) => versionAtLeast(appVersion, row.requiredAppMin))
-      .map((row) => {
-        const contract = meta[`${row.assetId}@${row.version}`]?.contract;
-        return { id: row.assetId, kind: row.kind, version: row.version, path: row.path, bytes: row.bytes, sha256: row.sha256, ...(contract ? { contract } : {}) };
-      });
-    const manifest = parseDataManifest({ schema: 1, revision: Number((await store.getSetting(`manifest_revision_${channel}`)) ?? 1), assets });
-    if (!manifest) throw new ApiError(500, 'MANIFEST_INVALID', 'The model registry is in an invalid state.');
-    return manifest;
+  // The one model manifest: the bucket's signed manifest/stable.json, served unchanged after its signature is checked
+  // against the pinned manifest key. The control plane never builds or re-signs a model list (kcp keys sign grants only).
+  let cachedManifest: { atMs: number; body: unknown } | null = null;
+  const MANIFEST_CACHE_MS = 5 * 60_000;
+  async function verifiedModelManifest(): Promise<unknown> {
+    const source = config.modelManifest;
+    if (!source) throw new ApiError(503, 'MANIFEST_NOT_CONFIGURED', 'The model manifest is not set up on this server. The app keeps its bundled models.', true);
+    if (cachedManifest && now() - cachedManifest.atMs < MANIFEST_CACHE_MS) return cachedManifest.body;
+    const fetcher = options.manifestFetch ?? fetch;
+    let envelope: unknown;
+    try {
+      const response = await fetcher(source.url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+      if (!response.ok) throw new Error(String(response.status));
+      envelope = await response.json();
+    } catch {
+      if (cachedManifest) return cachedManifest.body; // a short bucket outage serves the last verified copy
+      throw new ApiError(503, 'MANIFEST_UNAVAILABLE', 'The model manifest could not be read just now. The app keeps the models it has.', true);
+    }
+    const checked = await openSignedDataManifest(envelope, source.keys);
+    if (!checked.ok) {
+      console.error('control-plane: model manifest refused', checked.reason);
+      if (cachedManifest) return cachedManifest.body;
+      throw new ApiError(503, 'MANIFEST_UNTRUSTED', 'The model manifest did not verify, so it is not served. The app keeps the models it has.', true);
+    }
+    cachedManifest = { atMs: now(), body: envelope };
+    return envelope;
   }
 
   // Device management and activation must select exactly the same account-owned Pro licence.
@@ -869,39 +916,37 @@ export function createApp(options: AppOptions) {
       },
     },
     {
-      method: 'POST', path: '/v1/me/checkout/pro', summary: 'Signed in: start a server-priced SumUp hosted checkout for Pro. The billing country must match the network location. Returns the SumUp page to open.', auth: 'user',
+      method: 'POST', path: '/v1/me/checkout/pro', summary: 'Signed in: start a server-priced Paddle checkout for Pro, bound to this account. Returns the checkout page to open; Paddle collects the country and tax.', auth: 'user',
       body: Schemas.ProCheckoutRequest,
       handler: async (req) => {
         const claims = await bearer(req);
         const checkout = options.proCheckout;
         if (!checkout || !(await switchOn('pro-checkout'))) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Buying Pro is not open yet. Everything else keeps working.', true);
         if (!checkoutLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
-        const body = parseJson(Schemas.ProCheckoutRequest, req.rawBody);
+        parseJson(Schemas.ProCheckoutRequest, req.rawBody);
         const t = now();
         const current = await effectiveAccountLicence(claims.sub, t);
         if (current?.paid) throw new ApiError(409, 'ALREADY_PRO', 'This account already has Pro.');
         const account = await store.getAccount(claims.sub);
         if (!account?.emailHash) throw new ApiError(403, 'ACCOUNT_UNVERIFIED', 'Sign in again to buy Pro.');
         try {
-          const started = await checkout.start({ accountId: claims.sub, emailHash: account.emailHash, country: body.country, networkCountry: options.networkCountry?.(req) ?? null, euSalesOpen: await switchOn('pro-checkout-eu') });
+          const started = await checkout.start({ accountId: claims.sub, emailHash: account.emailHash });
           await audit(claims.sub, 'checkout.pro.start', 'allowed', started.checkoutId);
           return { status: 201, body: started };
-        } catch (error) {
-          if (error instanceof CheckoutCountryUnavailable) throw new ApiError(409, 'COUNTRY_UNAVAILABLE', 'Pro is not on sale in your country yet. Everything else keeps working.');
-          if (error instanceof CheckoutLocationUnconfirmed) throw new ApiError(409, 'LOCATION_UNCONFIRMED', 'We could not confirm your country: your billing country and your network location differ. If you use a VPN, turn it off and try again.');
+        } catch {
           throw new ApiError(502, 'CHECKOUT_UNAVAILABLE', 'The payment page could not be opened. Nothing was charged; try again shortly.', true);
         }
       },
     },
     {
-      method: 'GET', path: '/v1/me/checkout/pro/:id', summary: 'Signed in: has this checkout been paid and verified with SumUp? Paid means /v1/me/activate now returns Pro.', auth: 'user',
+      method: 'GET', path: '/v1/me/checkout/pro/:id', summary: 'Signed in: has this checkout been paid and verified with Paddle? Paid means /v1/me/activate now returns Pro.', auth: 'user',
       handler: async (req, params) => {
         const claims = await bearer(req);
-        if (!options.proCheckout || !/^[A-Za-z0-9-]{1,64}$/.test(params.id ?? '')) throw new ApiError(404, 'NOT_FOUND', 'No such checkout.');
+        if (!options.proCheckout || !PADDLE_TRANSACTION_ID.test(params.id ?? '')) throw new ApiError(404, 'NOT_FOUND', 'No such checkout.');
         if (!checkoutLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'Checking too often. Wait a minute and try again.', true);
         let status: 'paid' | 'pending' | null;
         try { status = await options.proCheckout.status({ accountId: claims.sub, checkoutId: params.id! }); }
-        catch { throw new ApiError(503, 'SUMUP_VERIFICATION_PENDING', 'The payment is still being checked. Try again shortly.', true); }
+        catch { throw new ApiError(503, 'PAYMENT_VERIFICATION_PENDING', 'The payment is still being checked. Try again shortly.', true); }
         if (!status) throw new ApiError(404, 'NOT_FOUND', 'No such checkout.');
         return { status: 200, body: { status } };
       },
@@ -1314,6 +1359,12 @@ export function createApp(options: AppOptions) {
         const c = await collabWritable();
         await collab(() => c.requireMember(params.id, claims.sub, 'edit', params.photoId));
         const cfg = cloudCfg();
+        // Storage beyond the payer's included amount (Pro 2.5 GB, Basic none) needs a month of it in their cloud balance. Nothing stored is ever removed.
+        const payer = await collab(() => c.payerOf(params.id));
+        await settleStorage(payer);
+        if (!(await storageAllowsUpload(options.cloudBalance, payer, await accountStoredBytes(payer), body.bytes, freeStorageFor(await accountIsPro(payer))))) {
+          throw new ApiError(402, 'STORAGE_NEEDS_CREDIT', "This project's owner needs cloud balance for more storage (Basic includes none, Pro includes 2.5 GB). A top-up lets more go up. Everything already stored stays.");
+        }
         return { status: 200, body: await cloud(() => cfg.store.signUpload(params.id, params.photoId, claims.sub, body, now(), cfg.maxProjectBytes)) };
       },
     },
@@ -1361,7 +1412,14 @@ export function createApp(options: AppOptions) {
         const cfg = cloudCfg();
         const used = await cfg.meter.usage(claims.sub, now());
         const allowance = await cfg.allowance.monthlyMillicredits(claims.sub, now());
-        return { status: 200, body: { month: used.month, usedCredits: used.millicredits / 1000, allowanceCredits: allowance / 1000, bytes: used.bytes, downloads: used.downloads } };
+        // The Account screen's meters: plan, cloud photos this period and the prepaid balance, when those are set up.
+        const cloud = options.cloud;
+        const pro = await accountIsPro(claims.sub);
+        const photos = cloud ? { photosUsed: (await cloud.ledger.periodUsed?.(claims.sub, now(), QUOTA_PERIOD_MS)) ?? 0, photosIncluded: pro ? cloud.jobsPerPeriod : (cloud.basicJobsPerPeriod ?? 0) } : {};
+        await settleStorage(claims.sub);
+        const balance = options.cloudBalance ? { balanceCredits: (await options.cloudBalance.millicredits(claims.sub)) / 1000 } : {};
+        const storedBytes = options.collab ? { storedBytes: await accountStoredBytes(claims.sub) } : {};
+        return { status: 200, body: { month: used.month, usedCredits: used.millicredits / 1000, allowanceCredits: allowance / 1000, bytes: used.bytes, downloads: used.downloads, plan: pro ? 'pro' : 'basic', ...photos, ...balance, ...storedBytes } };
       },
     },
     // ---- Team notifications (G20, owner decision 11): the in-app inbox comes first.
@@ -1549,12 +1607,13 @@ export function createApp(options: AppOptions) {
 
     // ---- Model & release registry
     {
-      method: 'GET', path: '/v1/models/manifest', summary: 'Signed data manifest (models, species libraries) for an app version', auth: 'none', response: Schemas.ManifestResponse,
+      method: 'GET', path: '/v1/models/manifest', summary: 'The one signed model manifest (the models bucket manifest/stable.json, key kestrel-2026-11), checked here and served unchanged', auth: 'none', response: Schemas.ManifestResponse,
       handler: async (req) => {
+        // app and channel are accepted for older clients; there is one manifest, and each app skips what it cannot use.
         const app = req.query.get('app') ?? '0.0.0';
         const channel = req.query.get('channel') ?? 'stable';
         if (!Version.safeParse(app).success || (channel !== 'stable' && channel !== 'beta')) throw new ApiError(400, 'VALIDATION_FAILED', 'Give app as x.y.z and channel as stable or beta.');
-        return { status: 200, body: signEnvelope(await currentManifest(app, channel), config.signingKey), headers: { 'cache-control': 'public, max-age=3600' } };
+        return { status: 200, body: await verifiedModelManifest(), headers: { 'cache-control': 'public, max-age=3600' } };
       },
     },
     {
@@ -1619,17 +1678,29 @@ export function createApp(options: AppOptions) {
     providerRoute('apple'),
     providerRoute('firebase'),
     {
-      method: 'POST', path: '/v1/billing/sumup', summary: 'Verify a SumUp checkout status notification against SumUp', auth: 'none',
-      body: SumupNotification,
+      method: 'GET', path: '/v1/billing/paddle/config', summary: 'Paddle.js settings for the checkout page: environment and client-side token (public by design)', auth: 'none',
+      handler: async () => {
+        if (!options.paddleClient || !options.proCheckout) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Buying Pro is not open yet.');
+        return { status: 200, headers: { 'cache-control': 'no-store' }, body: options.paddleClient };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/billing/paddle', summary: 'Paddle notifications (Paddle-Signature). Each transaction is fetched back from Paddle before anything is granted.', auth: 'none',
       handler: async (req) => {
-        if (!options.settleSumupPro) throw new ApiError(503, 'SUMUP_NOT_CONFIGURED', 'SumUp payments are not set up.');
-        const event = parseJson(SumupNotification, req.rawBody);
-        if (event.event_type === 'CHECKOUT_STATUS_CHANGED') {
-          if (!sumupLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Retry this notification shortly.', true);
-          try { await options.settleSumupPro(event.id); }
-          catch { throw new ApiError(503, 'SUMUP_VERIFICATION_PENDING', 'The payment verification will be retried.', true); }
+        if (!options.settlePaddle || !options.paddleWebhookSecret) throw new ApiError(503, 'PADDLE_NOT_CONFIGURED', 'Paddle payments are not set up.');
+        const signature = req.headers['paddle-signature'];
+        if (!verifyPaddleSignature(req.rawBody, typeof signature === 'string' ? signature : undefined, options.paddleWebhookSecret, now())) {
+          throw new ApiError(401, 'WEBHOOK_SIGNATURE_INVALID', 'Paddle signature missing, wrong or outside the replay window.');
         }
-        return { status: 204, body: null };
+        const event = parseJson(PaddleEvent, req.rawBody);
+        // One-off Pro is fulfilled from transactions. Subscriptions (Cloud, Teams) will get their own handler on
+        // subscription.* events; until then they are acknowledged and ignored, so Paddle does not retry them.
+        if (event.event_type.startsWith('transaction.') && PADDLE_TRANSACTION_ID.test(event.data.id ?? '')) {
+          if (!paddleLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Retry this notification shortly.', true);
+          try { await options.settlePaddle(event.data.id!); }
+          catch { throw new ApiError(503, 'PAYMENT_VERIFICATION_PENDING', 'The payment verification will be retried.', true); }
+        }
+        return { status: 200, body: { received: true } };
       },
     },
     {
@@ -1781,7 +1852,7 @@ export function createApp(options: AppOptions) {
       },
     },
     {
-      method: 'GET', path: '/v1/admin/payments', summary: 'Paid checkouts (SumUp) and signed billing events received', auth: 'admin',
+      method: 'GET', path: '/v1/admin/payments', summary: 'Paid checkouts (Paddle) and signed billing events received', auth: 'admin',
       handler: async (req) => {
         const claims = await admin(req, 'payments.read');
         const [transactions, events] = await Promise.all([options.payments ? options.payments.listTransactions(200) : Promise.resolve(null), store.listBillingEvents(200)]);
@@ -1945,59 +2016,31 @@ export function createApp(options: AppOptions) {
       },
     },
     {
-      method: 'POST', path: '/v1/admin/models', summary: 'Register a model or data file as a candidate', auth: 'admin', body: Schemas.AdminModel,
+      method: 'POST', path: '/v1/admin/cloud-balance', summary: "Add credits to an account's cloud balance (a goodwill grant or a test top-up; 1 credit = 1p)", auth: 'admin',
+      body: Schemas.AdminCloudCredit,
       handler: async (req) => {
-        const claims = await admin(req, 'model.register');
-        const body = parseJson(Schemas.AdminModel, req.rawBody);
-        // The client's own parser is the gate: anything it would reject (traversal, absolute paths, bad ids) is refused here too.
-        if (!parseDataManifest({ schema: 1, revision: 1, assets: [{ id: body.id, kind: body.kind, version: body.version, path: body.path, bytes: body.bytes, sha256: body.sha256 }] })) {
-          await audit(claims.sub, 'model.register', 'denied', `invalid asset ${JSON.stringify(body.id).slice(0, 80)}`);
-          throw new ApiError(400, 'ASSET_INVALID', 'Asset id, version or path is not allowed (paths must be /data/..., with no ".." or absolute paths).');
-        }
-        const metaKey = `${body.id}@${body.version}`;
-        if (body.kind === 'onnx') {
-          if (!body.contract) throw new ApiError(400, 'MODEL_CONTRACT_REQUIRED', 'An ONNX model needs its contract (for example denoise-heavy/v1).');
-          if (!body.licence) throw new ApiError(400, 'MODEL_LICENCE_REQUIRED', 'An ONNX model needs a licence record: SPDX id, source URL and confirmation that you have the rights to publish it.');
-          if (body.licence.rightsConfirmed !== true) throw new ApiError(400, 'MODEL_LICENCE_REQUIRED', 'Confirm that you have the rights to publish this model.');
-        }
-        if (body.contract && !parseDataManifest({ schema: 1, revision: 1, assets: [{ id: body.id, kind: body.kind, version: body.version, path: body.path, bytes: body.bytes, sha256: body.sha256, contract: body.contract }] })) {
-          throw new ApiError(400, 'ASSET_INVALID', 'The contract is not allowed (use name/v1).');
-        }
-        const inserted = await store.insertModelAsset({
-          assetId: body.id, kind: body.kind, version: body.version, channel: body.channel, path: body.path, sha256: body.sha256,
-          bytes: body.bytes, requiredAppMin: body.requiredAppMin, status: 'candidate', createdAtMs: now(),
-        });
-        if (!inserted) throw new ApiError(409, 'ASSET_EXISTS', 'That version is already registered. Give it a new version.');
-        if (body.contract || body.licence) {
-          const meta = await loadModelMeta();
-          meta[metaKey] = { ...(body.contract ? { contract: body.contract } : {}), ...(body.licence ? { licence: { ...body.licence, rightsConfirmed: true as const, recordedAtMs: now() } } : {}) };
-          await store.setSetting(MODEL_META_SETTING, JSON.stringify(meta));
-        }
-        return adminDone(claims, 'model.register', `${metaKey} ${body.channel}${body.licence ? ` licence=${body.licence.spdx}` : ''}`, { status: 'candidate' });
+        const claims = await admin(req, 'cloud.balance');
+        const body = parseJson(Schemas.AdminCloudCredit, req.rawBody);
+        if (!options.cloudBalance) throw new ApiError(503, 'CLOUD_BALANCE_NOT_CONFIGURED', 'The cloud balance is not set up on this server.');
+        if (!(await store.getAccount(body.accountId))) throw new ApiError(404, 'NOT_FOUND', 'No such account.');
+        await options.cloudBalance.credit(body.accountId, body.credits * 1000, `admin:${body.reference}`);
+        const balanceCredits = (await options.cloudBalance.millicredits(body.accountId)) / 1000;
+        return adminDone(claims, 'cloud.balance', `${body.accountId} +${body.credits} ref=${body.reference}`, { balanceCredits });
       },
     },
     {
-      method: 'GET', path: '/v1/admin/models/licences', summary: 'The licence record and contract of every registered model version', auth: 'admin',
+      method: 'POST', path: '/v1/admin/cloud-storage/settle', summary: "Charge today's cloud storage beyond the free 2.5 GB for every paying account (daily scheduler; safe to repeat)", auth: 'admin',
       handler: async (req) => {
-        const claims = await admin(req, 'model.licences');
-        const meta = await loadModelMeta();
-        const licences = Object.fromEntries(Object.entries(meta).filter(([, v]) => v.licence).map(([k, v]) => [k, { ...v.licence, contract: v.contract }]));
-        return adminDone(claims, 'model.licences', '', { licences });
-      },
-    },
-    {
-      method: 'POST', path: '/v1/admin/models/promote', summary: 'Make one version live (also how rollback works: promote the older one)', auth: 'admin', body: Schemas.AdminPromote,
-      handler: async (req) => {
-        const claims = await admin(req, 'model.promote');
-        const body = parseJson(Schemas.AdminPromote, req.rawBody);
-        const meta = await loadModelMeta();
-        const target = await store.getModelAsset(body.id, body.version, body.channel);
-        if (target?.kind === 'onnx' && !meta[`${body.id}@${body.version}`]?.licence) {
-          await audit(claims.sub, 'model.promote', 'denied', `${body.id}@${body.version} no licence record`);
-          throw new ApiError(409, 'MODEL_LICENCE_MISSING', 'This ONNX version has no licence record, so it cannot go live. Register a new version with one.');
+        const claims = await admin(req, 'cloud.storage.settle');
+        const cfg = cloudCfg();
+        const payers = new Set<string>();
+        for (const projectId of await cfg.store.projectIds()) {
+          const payer = await options.collab?.payerOf(projectId).catch(() => null);
+          if (payer) payers.add(payer);
         }
-        if (!(await store.promoteModelAsset(body.id, body.version, body.channel))) throw new ApiError(404, 'NOT_FOUND', 'No such model version.');
-        return adminDone(claims, 'model.promote', `${body.id}@${body.version} ${body.channel}`, { live: true });
+        const counts = { free: 0, charged: 0, unpaid: 0 };
+        for (const accountId of payers) counts[await settleStorage(accountId)]++;
+        return adminDone(claims, 'cloud.storage.settle', `accounts=${payers.size} charged=${counts.charged} unpaid=${counts.unpaid}`, counts);
       },
     },
     {

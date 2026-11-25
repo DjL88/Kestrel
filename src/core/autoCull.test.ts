@@ -454,3 +454,31 @@ test('unavailable, contradictory and malformed keeper reasons cannot consume aut
     }
   }
 });
+
+test('several subjects in one frame are judged as a group: one soft major subject keeps the frame for review, never rejected', async () => {
+  const { scoreWithSubjects, scoreWithSubject } = await import('./autoCull.ts');
+  const base = { frameId: 'g', decision: null, confidence: 'low' as const, score: 40, reason: 'limitedDetail' as const };
+  const sharp = (size: number, sharpness = 20) => ({ label: 'bird', score: 0.9, size, sharpness });
+  // A single subject scores exactly as before.
+  assert.deepEqual(scoreWithSubjects(base, [sharp(400)]), scoreWithSubject(base, sharp(400)));
+  assert.deepEqual(scoreWithSubjects(base, []), scoreWithSubject(base, null));
+  // Two sharp birds: a confident keep.
+  const both = scoreWithSubjects(base, [sharp(400), sharp(380)]);
+  assert.equal(both.decision, 'keep');
+  assert.equal(both.confidence, 'high');
+  // One of two birds soft: not a confident keep, held for review, never a reject.
+  const oneSoft = scoreWithSubjects(base, [sharp(400), sharp(390, 4)]);
+  assert.equal(oneSoft.decision, null);
+  assert.equal(oneSoft.reason, 'subjectSoft');
+  assert.notEqual(oneSoft.decision, 'reject');
+  // The order the detector returned them in does not matter.
+  assert.deepEqual(scoreWithSubjects(base, [sharp(390, 4), sharp(400)]), oneSoft);
+  // A distant speck behind a sharp main subject does not drag the frame down.
+  assert.equal(scoreWithSubjects(base, [sharp(400), { label: 'bird', score: 0.9, size: 130, sharpness: 3 }]).decision, 'keep');
+  // Untrusted detections (unknown label, bad numbers) are ignored, never counted as a subject.
+  assert.equal(scoreWithSubjects(base, [sharp(400), { label: 'unknown', score: 0.9, size: 400, sharpness: 2 }]).decision, 'keep');
+  // The group keeps the weakest major subject's confidence and score.
+  const mixed = scoreWithSubjects(base, [sharp(400, 30), sharp(380, 10)]);
+  assert.equal(mixed.confidence, 'medium');
+  assert.equal(mixed.reason, 'subjectOk');
+});
