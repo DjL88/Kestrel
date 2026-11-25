@@ -251,3 +251,54 @@ test('forking the first overlay checkpoint after reopening restores no overlay',
   assert.equal(fork.overlay, undefined);
   assert.deepEqual(switchEditVersion(fork, 'version-original').overlay, changed.overlay);
 });
+
+test('a named checkpoint keeps its state through later edits and opens as a new version; the working version keeps going', async () => {
+  const { saveCheckpoint, restoreCheckpoint, describeCheckpoints } = await import('./editBranches');
+  let frame = edited();
+  frame = { ...frame, sizeCrops: { 'orig-3x2': { zoom: 1.4, panX: 0.1 } } };
+  frame = saveCheckpoint(frame, 'cp-1', '  Before   the sky  ', 5000);
+  assert.deepEqual(describeCheckpoints(frame.editCheckpoints), [{ id: 'cp-1', name: 'Before the sky', createdAt: 5000, versionId: ROOT_VERSION_ID }]);
+  frame = recordEdit(frame, { edit: { exposure: -1, warmth: 0, colour: 1 } }, 6000);
+  frame = { ...frame, sizeCrops: { 'orig-3x2': { zoom: 2, panX: 0 } } };
+  const restored = restoreCheckpoint(frame, 'cp-1', 'cp-open-1', 7000);
+  assert.equal(restored.edit?.exposure, 0.5, 'the recipe as saved');
+  assert.deepEqual(restored.sizeCrops, { 'orig-3x2': { zoom: 1.4, panX: 0.1 } }, 'and every format crop as saved');
+  assert.equal(restored.editHistory?.steps.length, 3, 'with the undo steps it had then');
+  const tree = readEditVersions(restored.editVersions)!;
+  assert.equal(tree.activeId, 'cp-open-1');
+  assert.equal(tree.versions.at(-1)?.label, 'Before the sky');
+  // The working version is untouched and can be chosen again.
+  const back = switchEditVersion(restored, ROOT_VERSION_ID);
+  assert.equal(back.edit?.exposure, -1);
+  assert.deepEqual(back.sizeCrops, { 'orig-3x2': { zoom: 2, panX: 0 } });
+  // The checkpoint itself never changes, even after editing the version opened from it.
+  const again = restoreCheckpoint(recordEdit(back, { edit: { exposure: 1, warmth: 0, colour: 0 } }, 8000), 'cp-1', 'cp-open-2', 9000);
+  assert.equal(again.edit?.exposure, 0.5);
+  // Reopening (JSON round trip) keeps everything.
+  const reopened = JSON.parse(JSON.stringify(again)) as PhotoFrame;
+  assert.equal(describeCheckpoints(reopened.editCheckpoints).length, 1);
+  assert.equal(switchEditVersion(reopened, ROOT_VERSION_ID).edit?.exposure, 1);
+});
+
+test('checkpoints refuse empty names, duplicates, a full list and damaged saves; delete and rename change nothing else', async () => {
+  const { saveCheckpoint, deleteCheckpoint, readCheckpoints, renameEditVersion, restoreCheckpoint, MAX_CHECKPOINTS } = await import('./editBranches');
+  const frame = edited();
+  assert.equal(saveCheckpoint(frame, 'cp-1', '   ', 5000), frame);
+  const one = saveCheckpoint(frame, 'cp-1', 'First', 5000);
+  assert.equal(saveCheckpoint(one, 'cp-1', 'Again', 5001), one);
+  let full = frame;
+  for (let i = 0; i < MAX_CHECKPOINTS; i += 1) full = saveCheckpoint(full, `cp-${i}`, `Check ${i}`, 5000 + i);
+  assert.equal(saveCheckpoint(full, 'cp-extra', 'One too many', 9000), full);
+  // Damaged entries are dropped rather than restored.
+  const damaged = { ...one, editCheckpoints: [...(one.editCheckpoints as unknown[]), { id: 'x', name: '', createdAt: 1, versionId: ROOT_VERSION_ID, snapshot: {} }, 'junk'] };
+  assert.equal(readCheckpoints(damaged.editCheckpoints).length, 1);
+  assert.equal(restoreCheckpoint(damaged, 'x', 'open-x', 6000), damaged);
+  const gone = deleteCheckpoint(one, 'cp-1');
+  assert.equal(gone.editCheckpoints, undefined);
+  assert.deepEqual(gone.edit, one.edit);
+  const renamed = renameEditVersion(one, ROOT_VERSION_ID, 'Warm edit');
+  assert.equal(readEditVersions(renamed.editVersions)?.versions[0].label, 'Warm edit');
+  assert.deepEqual(renamed.edit, one.edit);
+  assert.equal(renameEditVersion(one, ROOT_VERSION_ID, ''), one);
+  assert.equal(renameEditVersion(one, 'no-such-version', 'Name'), one);
+});
