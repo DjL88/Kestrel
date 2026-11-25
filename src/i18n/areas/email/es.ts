@@ -21,4 +21,7 @@ export const es: AreaTranslation<typeof source> = {
     invalid: "Este enlace no es válido.",
     invalidHint: "Responde al correo y dejaremos de enviarlas.",
   },
+  news: {
+    why: "Recibes esto porque pediste las novedades de InFlight por correo electrónico. Para dejar de recibirlas, desactívalo en Ajustes → Cuenta o usa el enlace de abajo.",
+  },
 };

@@ -21,4 +21,7 @@ export const ga: AreaTranslation<typeof source> = {
     invalid: "Níl an nasc seo bailí.",
     invalidHint: "Freagair an ríomhphost agus stopfaimid iad.",
   },
+  news: {
+    why: "Tá sé seo á fháil agat mar gur iarr tú nuacht InFlight trí ríomhphost. Chun é a stopadh, múch é in Socruithe → Cuntas, nó úsáid an nasc thíos.",
+  },
 };

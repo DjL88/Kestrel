@@ -111,7 +111,7 @@
 
   <section id="mail" class="panel" aria-labelledby="mail-title">
     <h2 id="mail-title">Email sent today</h2>
-    <p class="muted">App email goes from hello@inflight.studio through Google Workspace, which allows about 2,000 messages a day. InFlight stops well before that, at its own daily limit.</p>
+    <p class="muted">App email goes through Gmail SMTP: a personal Gmail account (Google allows about 500 recipients a day; InFlight stops at 450) or Google Workspace (about 2,000 a day; InFlight stops at 1,500 at most). Notices and product news are emailed only when push cannot reach someone.</p>
     <p id="mail-unavailable" class="muted" hidden>Not set up on this server yet.</p>
     <dl id="mail-facts" class="facts"></dl>
     <p id="mail-warning" role="status" hidden><strong>Warning:</strong> 80% of today’s email limit is used.</p>
@@ -193,6 +193,16 @@
     <p id="notification-result" role="status" aria-live="polite">No preview yet.</p>
     <div id="notification-preview" hidden><h3 id="notification-title"></h3><p id="notification-body"></p></div>
     <button type="button" disabled>Send notification — not connected</button>
+
+    <h3 id="news-heading">Product news — live</h3>
+    <p class="muted">Sends one message to everyone: pushed to devices where alerts are on and “InFlight news” is kept on; emailed only to people who turned on “Email me InFlight news” and could not be reached by push, within today’s email limit. British English only. The audience rules above are a rehearsal and do not apply here. Check first: “Count who would get it” sends nothing. Needs the Product news switch.</p>
+    <form id="news-form" aria-labelledby="news-heading">
+      <label>Title <input name="title" maxlength="120" required></label>
+      <label>Message <textarea name="body" maxlength="500" rows="3" required></textarea></label>
+      <label>Continue an earlier send (its id; leave empty for new news) <input name="broadcastId" maxlength="64" pattern="[A-Za-z0-9_\-]{8,64}" autocomplete="off"></label>
+      <p><button type="submit" name="dry" value="1">Count who would get it</button> <button type="submit" name="send" value="1">Send now</button></p>
+    </form>
+    <p id="news-result" role="status" aria-live="polite"></p>
   </section>
 
   <section id="usage" class="panel" aria-labelledby="usage-title">

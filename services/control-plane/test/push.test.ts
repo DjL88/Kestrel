@@ -46,7 +46,7 @@ test('a device registered for alerts gets a push with names and ids only; a gone
     assert.equal((await call('POST', '/v1/notify/push/devices', owner.token, { token: 'short', platform: 'web' })).status, 400);
     assert.equal((await call('POST', '/v1/notify/push/devices', owner.token, { token: TOKEN_B, platform: 'fax' })).status, 400);
     const status = (await call('GET', '/v1/notify/push', owner.token)).body;
-    assert.deepEqual(status, { available: true, preferences: { comments: true, clientFeedback: true }, devices: 1 });
+    assert.deepEqual(status, { available: true, preferences: { comments: true, clientFeedback: true, news: true }, devices: 1 });
 
     await call('POST', `/v1/collab/projects/${pid}/photos/p1/comments`, editor.token, { text: 'Secret words', point: { x: 0.5, y: 0.5 } });
     assert.equal(fcm.sent.length, 1);

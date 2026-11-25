@@ -1871,6 +1871,11 @@ export const cy: AreaTranslation<typeof source> = {
     pushBlocked: "Mae rhybuddion InFlight wedi’u rhwystro yng ngosodiadau’r porwr hwn.",
     pushAppOnly: "Yn yr ap hwn, mae hysbysiadau newydd yn ymddangos yma pan fydd InFlight ar agor.",
     pushFailed: "Doedd dim modd newid y rhybuddion. Ni newidiodd dim byd arall.",
+    pushNews: "Newyddion a nodweddion newydd InFlight",
+    newsEmailHeading: "E-bost gan InFlight",
+    newsEmailLabel: "Anfon newyddion a nodweddion newydd InFlight ataf drwy e-bost",
+    newsEmailHint: "I ffwrdd oni bai eich bod yn ei droi ymlaen. Mae newyddion yn mynd i’ch dyfeisiau sydd â rhybuddion yn gyntaf; dim ond pan na all rhybudd eich cyrraedd y byddwn yn anfon e-bost. Mae dolen i’w stopio ym mhob e-bost.",
+    newsEmailFailed: "Doedd dim modd newid hyn. Ni newidiodd dim byd arall.",
   },
   taskAlerts: {
     oneDone: (title: string) => `Wedi gorffen: ${title}.`,

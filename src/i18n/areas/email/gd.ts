@@ -21,4 +21,7 @@ export const gd: AreaTranslation<typeof source> = {
     invalid: "Chan eil an ceangal seo dligheach.",
     invalidHint: "Freagair am post-d agus cuiridh sinn stad orra.",
   },
+  news: {
+    why: "Tha seo a’ tighinn thugad air sgàth ’s gun do dh’iarr thu naidheachdan InFlight air post-d. Airson stad a chur air, cuir dheth e ann an Roghainnean → Cunntas, no cleachd an ceangal gu h-ìosal.",
+  },
 };

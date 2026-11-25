@@ -1871,6 +1871,11 @@ export const sv: AreaTranslation<typeof source> = {
     pushBlocked: "Aviseringar från InFlight är blockerade i den här webbläsarens inställningar.",
     pushAppOnly: "I den här appen visas nya aviseringar här när InFlight är öppet.",
     pushFailed: "Aviseringarna kunde inte ändras. Inget annat ändrades.",
+    pushNews: "Nyheter och nya funktioner i InFlight",
+    newsEmailHeading: "E-post från InFlight",
+    newsEmailLabel: "Skicka nyheter och nya funktioner i InFlight till mig via e-post",
+    newsEmailHint: "Avstängt tills du slår på det. Nyheter går först till dina enheter med aviseringar; vi mejlar bara när en avisering inte når dig. Varje mejl har en länk för att stoppa dem.",
+    newsEmailFailed: "Det gick inte att ändra. Inget annat ändrades.",
   },
   taskAlerts: {
     oneDone: (title: string) => `Klart: ${title}.`,

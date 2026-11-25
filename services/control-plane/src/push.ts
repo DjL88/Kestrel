@@ -13,8 +13,7 @@
  */
 import { createHash } from 'node:crypto';
 import type { FirestoreLike } from './firestoreStore.ts';
-import { cleanPreferences, MAX_PUSH_DEVICES, pushCategory, type PushPlatform, type PushPreferences } from '../../../src/core/pushNotices.ts';
-import type { NoticeKind } from '../../../src/core/collabNotices.ts';
+import { cleanPreferences, MAX_PUSH_DEVICES, pushCategory, type PushKind, type PushPlatform, type PushPreferences } from '../../../src/core/pushNotices.ts';
 import type { NoticeDelivery } from './notices.ts';
 
 const C = { devices: 'push_devices', prefs: 'push_prefs' };
@@ -62,6 +61,12 @@ export class PushService {
     await this.db.runTransaction(async (tx) => { tx.delete(ref); });
   }
 
+  /** Every account with at least one device for alerts (product news goes to these). */
+  async accountsWithDevices(): Promise<string[]> {
+    const snap = await this.db.collection(C.devices).get();
+    return [...new Set(snap.docs.map((d) => String(d.data()?.accountId ?? '')).filter(Boolean))];
+  }
+
   async devices(accountId: string): Promise<DeviceDoc[]> {
     const snap = await this.db.collection(C.devices).where('accountId', '==', accountId).get();
     return snap.docs.map((d) => d.data() as unknown as DeviceDoc);
@@ -84,7 +89,7 @@ export class PushService {
    */
   async push(accountId: string, message: PushMessage): Promise<'sent' | 'no-device' | 'off'> {
     if (!(await this.gate())) return 'no-device';
-    const kind = message.data.kind as NoticeKind | undefined;
+    const kind = message.data.kind as PushKind | undefined;
     if (kind && !(await this.preferences(accountId))[pushCategory(kind)]) return 'off';
     let sent = 0;
     for (const device of await this.devices(accountId)) {

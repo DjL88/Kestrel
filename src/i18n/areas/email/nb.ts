@@ -21,4 +21,7 @@ export const nb: AreaTranslation<typeof source> = {
     invalid: "Lenken er ikke gyldig.",
     invalidHint: "Svar på e-posten, så stopper vi dem.",
   },
+  news: {
+    why: "Du får dette fordi du har bedt om nyheter fra InFlight på e-post. Slå det av under Innstillinger → Konto, eller bruk lenken nedenfor.",
+  },
 };

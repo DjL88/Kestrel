@@ -18,7 +18,7 @@ import { backupStatusText } from '../engineClient/backupWords';
 import { exportTargetFor, readLastExport, requestFromSettings } from '../engineClient/exportSettings';
 import { usePresence } from './shell/usePresence';
 import { PresenceAvatars, PresenceCursors } from './shell/PresenceLayer';
-import { NoticesButton, useNotices } from './shell/Notices';
+import { NewsEmailSetting, NoticesButton, useNotices } from './shell/Notices';
 import { TaskAlerts } from './shell/TaskAlerts';
 import { onPushOpened, removePushOnSignOut } from '../../providers/webPush';
 import SharedEditBanner from './shell/SharedEditBanner';
@@ -1162,7 +1162,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         templates={store.overlayTemplates}
         onRenameTemplate={actions.renameOverlayTemplate}
         onDeleteTemplate={actions.deleteOverlayTemplate}
-        accountPanel={accountPanel}
+        accountPanel={accountPanel ? <>{accountPanel}<NewsEmailSetting client={sharing} signedIn={signedInName} /></> : undefined}
         keyboardPanel={<React.Suspense fallback={null}><KeyboardSettings saved={savedKeymap} isMac={IS_MAC} onChange={changeKeymap} pad={pad} onPadChange={changePad} /></React.Suspense>}
         settings={store.settings}
         cloudUsage={cloudUsage}
