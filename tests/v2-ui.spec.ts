@@ -733,11 +733,22 @@ test('?v2 masks are real: Subject is found on this device, its sliders change th
   await expect.poll(() => luma(0.5, 0.5), { timeout: 20000 }).toBeLessThan(subject0 - 60);
   // The background is outside the mask: it is not darkened with the subject.
   expect(Math.abs((await luma(0.05, 0.05)) - back0)).toBeLessThan(20);
-  // Hiding the mask restores the picture; showing it brings the edit back.
+  // The mask check may reduce an implausibly strong edit once, with a notice. Wait until the value stops changing:
+  // it must settle, never keep fading (it used to halve itself every half second down to nothing).
+  let previous = '';
+  await expect.poll(async () => { const value = await exposure.inputValue(); const same = value === previous; previous = value; return same; },
+    { intervals: [1000], timeout: 15000 }).toBe(true);
+  expect(Number(previous)).toBeLessThan(-0.5);
+  await page.waitForTimeout(1000);
+  const edited = await luma(0.5, 0.5);
+  expect(edited).toBeLessThan(subject0 - 20);
+  // Hiding the mask restores the picture; showing it brings back exactly the same edit.
   await root.getByRole('button', { name: 'Hide Subject' }).click();
   await expect.poll(() => luma(0.5, 0.5), { timeout: 20000 }).toBeGreaterThan(subject0 - 20);
   await root.getByRole('button', { name: 'Show Subject' }).click();
-  await expect.poll(() => luma(0.5, 0.5), { timeout: 20000 }).toBeLessThan(subject0 - 60);
+  await expect.poll(async () => Math.abs((await luma(0.5, 0.5)) - edited), { timeout: 20000 }).toBeLessThan(12);
+  await page.waitForTimeout(2000);
+  await expect(exposure).toHaveValue(previous);
   await exposure.fill('0');
   await expect.poll(() => luma(0.5, 0.5)).toBeGreaterThan(subject0 - 20);
   const chromaVariation = (fx: number, fy: number) => frame.locator('canvas, img').first().evaluate((element, [x, y]) => {

@@ -850,8 +850,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // a plain notice - never left silently at a value the check could not confirm.
   const maskVerifyKey = activeFrame && projectId && hasActiveMasks(activeFrame.edit?.masks)
     ? maskVerificationKey(projectId, activeFrame) : null;
+  // The masks this check last wrote back, per photo. They are its own verdict, so they are not checked again: re-checking
+  // them halved the person's edit again every half second until it reached zero, even across Hide and Show.
+  const verifiedMasks = useRef(new Map<string, string>());
   useEffect(() => {
     if (!maskVerifyKey || !activeFrame || !projectId) return;
+    if (verifiedMasks.current.get(activeFrame.id) === JSON.stringify(activeFrame.edit?.masks ?? [])) return;
     const controller = new AbortController();
     const frame = activeFrame;
     const capturedProject = projectId;
@@ -868,6 +872,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           if (!latest || currentState?.shoot.id !== capturedProject ||
               maskVerificationKey(capturedProject, latest) !== maskVerifyKey) return;
           const at = Date.now();
+          verifiedMasks.current.set(frame.id, JSON.stringify(outcome.masks));
           mutate(current => controller.signal.aborted ? current :
             commitVerifiedMasks(current, capturedProject, frame, outcome.masks, at));
           setNotice(outcome.verification.ok
