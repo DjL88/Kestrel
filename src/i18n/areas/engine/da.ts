@@ -54,6 +54,8 @@ export const da: AreaTranslation<typeof source> = {
   workspace: {
     templateNotSaved: 'InFlight kunne ikke gemme skabelonen på denne enhed.',
     projectNotSaved: 'InFlight kunne ikke gemme dette projekt. Dine originale fotos er uændrede.',
+    projectSaveRetrying: 'InFlight kunne ikke gemme dette projekt. Det bliver ved med at prøve; lad InFlight være åbent, indtil der står gemt. Dine originale fotos er uændrede.',
+    projectSavedAfterRetry: 'Gemt. Intet gik tabt.',
     projectNotOpened: 'Det projekt kunne ikke åbnes.',
     thumbnailsTask: (count) => (count === 1 ? 'Forbereder 1 miniature' : `Forbereder ${count} miniaturer`),
     thumbnailStage: 'Læser og formindsker dette foto',

@@ -54,6 +54,8 @@ export const fi: AreaTranslation<typeof source> = {
   workspace: {
     templateNotSaved: 'InFlight ei voinut tallentaa mallia tälle laitteelle.',
     projectNotSaved: 'InFlight ei voinut tallentaa tätä projektia. Alkuperäiset kuvasi ovat ennallaan.',
+    projectSaveRetrying: 'InFlight ei voinut tallentaa tätä projektia. Se yrittää edelleen; pidä InFlight auki, kunnes se kertoo tallentaneensa. Alkuperäiset kuvasi ovat ennallaan.',
+    projectSavedAfterRetry: 'Tallennettu. Mitään ei kadonnut.',
     projectNotOpened: 'Projektia ei voitu avata.',
     thumbnailsTask: (count) => (count === 1 ? 'Valmistellaan 1 pikkukuva' : `Valmistellaan ${count} pikkukuvaa`),
     thumbnailStage: 'Luetaan ja pienennetään tätä kuvaa',
