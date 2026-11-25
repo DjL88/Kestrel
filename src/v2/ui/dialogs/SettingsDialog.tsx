@@ -19,6 +19,16 @@ import type {
   WorkspaceSettings,
 } from '../contract';
 import { STRINGS } from '../strings';
+import { projectsText } from '../../../i18n/areas/projects';
+import { readBuildInfo } from '../../../core/buildInfo';
+
+/** Settings → Build information (G10). Literal accesses, so Vite's build-time values replace them. */
+const BUILD = readBuildInfo({
+  VITE_KESTREL_BUILD_REVISION: import.meta.env.VITE_KESTREL_BUILD_REVISION,
+  VITE_KESTREL_BUILD_FULL_REVISION: import.meta.env.VITE_KESTREL_BUILD_FULL_REVISION,
+  VITE_KESTREL_BUILD_DIRTY: import.meta.env.VITE_KESTREL_BUILD_DIRTY,
+  VITE_KESTREL_BUILD_TIMESTAMP: import.meta.env.VITE_KESTREL_BUILD_TIMESTAMP,
+});
 import { BrandIcon as OfficialMark, WorksWith } from '../../../components/BrandIcon';
 import type { BrandIconId } from '../../../core/brandIcons';
 
@@ -607,6 +617,17 @@ export default function SettingsDialog({
                       }}>{STRINGS.settingsMore.privacyLink}</a> {STRINGS.settingsMore.privacyDraft}
                   </p>
                 </div>
+                <section aria-labelledby="build-information-title" data-testid="v2-build-information" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
+                  <h3 id="build-information-title" className="text-xs font-semibold text-[var(--text-primary)]">{projectsText.licence.buildTitle}</h3>
+                  <p className="text-xs leading-relaxed text-[var(--text-secondary)]">{projectsText.licence.buildHint}</p>
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-[var(--text-secondary)]">
+                    <dt>{projectsText.licence.sourceRevision}</dt>
+                    <dd data-testid="v2-build-revision" title={BUILD.fullRevision ?? undefined} className="select-text break-all font-mono text-[var(--text-primary)]">{BUILD.revision ?? projectsText.licence.unavailable}</dd>
+                    <dt>{projectsText.licence.builtAt}</dt>
+                    <dd className="select-text break-all font-mono text-[var(--text-primary)]">{BUILD.builtAt ?? projectsText.licence.unavailable}</dd>
+                  </dl>
+                  {BUILD.modified && <p role="note" className="text-xs font-medium text-[var(--text-primary)]">⚠ {STRINGS.settingsMore.buildModified}</p>}
+                </section>
                 <section aria-labelledby="erase-device-title" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
                   <h3 id="erase-device-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.settingsMore.eraseHeading}</h3>
                   <p className="text-xs leading-relaxed text-[var(--text-secondary)]">

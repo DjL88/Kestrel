@@ -1242,6 +1242,7 @@ export const nl: AreaTranslation<typeof source> = {
     privacyBody: 'InFlight werkt volledig offline. Originele bestanden worden nooit gewijzigd, verplaatst of geüpload. Er verlaat niets dit apparaat, tenzij u een optionele functie inschakelt en daarmee instemt.',
     privacyLink: 'Privacybeleid lezen',
     privacyDraft: '(concept, nog niet door een jurist bekeken).',
+    buildModified: 'Gewijzigd sinds deze commit (een testversie, geen release)',
     eraseHeading: 'Alles op dit apparaat wissen',
     eraseBody: 'Verwijdert alle projecten, bewerkingen, voorbeelden en opgeslagen keuzes die InFlight in deze browser of app bewaart, en start het daarna opnieuw. Uw originele fotobestanden worden niet aangeraakt. Dit kan niet ongedaan worden gemaakt.',
     eraseConfirm: 'Typ ERASE om te bevestigen',

@@ -1245,6 +1245,7 @@ export const ga: AreaTranslation<typeof source> = {
     privacyBody: 'Oibríonn InFlight go hiomlán as líne. Ní athraítear, ní bhogtar agus ní uaslódáiltear bunchomhaid riamh. Ní fhágann aon rud an gléas seo mura gcasann tú gné roghnach air agus mura dtugann tú toiliú di.',
     privacyLink: 'Léigh an polasaí príobháideachais',
     privacyDraft: '(dréacht, gan athbhreithniú dlíodóra fós).',
+    buildModified: 'Athraithe ón tiomantas seo (tógáil tástála, ní eisiúint)',
     eraseHeading: 'Scrios gach rud ar an ngléas seo',
     eraseBody: 'Baineann sé gach tionscadal, eagarthóireacht, réamhamharc agus rogha shábháilte a choinníonn InFlight sa bhrabhsálaí nó san aip seo, agus atosaíonn sé ansin. Ní bhaintear le do bhunchomhaid grianghraf. Ní féidir é seo a chealú.',
     eraseConfirm: 'Clóscríobh ERASE chun deimhniú',

@@ -1243,6 +1243,7 @@ export const gd: AreaTranslation<typeof source> = {
     privacyBody: 'Obraichidh InFlight gu tur far loidhne. Chan atharraichear, cha ghluaisear is cha luchdaichear suas na faidhlichean tùsail gu bràth. Chan fhàg dad an uidheam seo mura cuir thu feart roghainneil air agus mura toir thu cead air a shon.',
     privacyLink: 'Leugh am poileasaidh prìobhaideachd',
     privacyDraft: '(dreachd, gun sgrùdadh laghail fhathast).',
+    buildModified: 'Air atharrachadh on ghealladh seo (togail deuchainn, chan e foillseachadh)',
     eraseHeading: 'Sguab às a h-uile càil air an uidheam seo',
     eraseBody: 'Bheir seo air falbh gach pròiseact, deasachadh, ro-shealladh is roghainn a ghlèidh InFlight sa bhrabhsair no san aplacaid seo, an uairsin tòisichidh e às ùr. Cha bhuinear ris na faidhlichean dhealbhan tùsail agad. Cha ghabh seo neo-dhèanamh.',
     eraseConfirm: 'Sgrìobh ERASE gus a dhearbhadh',

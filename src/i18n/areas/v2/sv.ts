@@ -1242,6 +1242,7 @@ export const sv: AreaTranslation<typeof source> = {
     privacyBody: 'InFlight fungerar helt offline. Originalfiler ändras, flyttas eller laddas aldrig upp. Inget lämnar den här enheten om du inte slår på en valfri funktion och samtycker till den.',
     privacyLink: 'Läs integritetspolicyn',
     privacyDraft: '(utkast, ännu inte granskat av jurist).',
+    buildModified: 'Ändrad sedan denna commit (en testversion, inte en utgåva)',
     eraseHeading: 'Radera allt på den här enheten',
     eraseBody: 'Tar bort alla projekt, redigeringar, förhandsvisningar och sparade val som InFlight har i den här webbläsaren eller appen, och startar sedan om den. Dina ursprungliga fotofiler rörs inte. Det går inte att ångra.',
     eraseConfirm: 'Skriv ERASE för att bekräfta',

@@ -1243,6 +1243,7 @@ export const fi: AreaTranslation<typeof source> = {
     privacyBody: 'InFlight toimii täysin ilman verkkoyhteyttä. Alkuperäisiä tiedostoja ei koskaan muuteta, siirretä eikä lähetetä. Mitään ei lähde tältä laitteelta, ellei otat käyttöön valinnaista toimintoa ja anna siihen suostumustasi.',
     privacyLink: 'Lue tietosuojakäytäntö',
     privacyDraft: '(luonnos, juristi ei ole vielä tarkistanut).',
+    buildModified: 'Muutettu tämän commitin jälkeen (testikoonti, ei julkaisu)',
     eraseHeading: 'Poista kaikki tältä laitteelta',
     eraseBody: 'Poistaa kaikki projektit, muokkaukset, esikatselut ja tallennetut valinnat, joita InFlight säilyttää tässä selaimessa tai sovelluksessa, ja käynnistää sen sitten uudelleen. Alkuperäisiin kuvatiedostoihisi ei kosketa. Tätä ei voi perua.',
     eraseConfirm: 'Vahvista kirjoittamalla ERASE',
