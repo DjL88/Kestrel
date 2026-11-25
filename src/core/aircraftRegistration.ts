@@ -1,13 +1,17 @@
 /**
- * Vehicle and aircraft recognition, step 2: what painted text on an AIRCRAFT may be a registration or military serial.
+ * Vehicle and aircraft recognition, steps 2 and 5: what painted text may be a registration or military serial on an
+ * AIRCRAFT, or a race number on a RACING car or motorbike (painted for a public sporting event).
  *
- * Text is only ever read from a photo whose vehicle reading is an aircraft (`mayReadMarkings`), so a car's number plate is
- * never read. As a second guard, anything shaped like a UK or Irish number plate is dropped even on an aircraft, and only
+ * Text is only ever read from a photo whose vehicle reading is an aircraft or clearly a racing vehicle (`markingContext`),
+ * so an ordinary car's, van's or bike's number plate is never read. As a second guard, anything shaped like a UK or Irish number plate is dropped even on an aircraft, and only
  * the formats below are kept. Pure and deterministic: OCR output comes in as text, nothing is looked up here.
  */
 import type { VehicleReading } from './vehicleRecognition';
 
-export type MarkingFormat = 'uk-civil' | 'irish-civil' | 'us-civil' | 'uk-military';
+export type MarkingFormat = 'uk-civil' | 'irish-civil' | 'us-civil' | 'uk-military' | 'race-number';
+
+/** Racing kinds, where a race number (painted for a public sporting event) may be read. Never a road car or bike. */
+export const RACING_KINDS: readonly string[] = ['racing-car', 'racing-motorbike'];
 
 export interface Marking {
   /** Normalised: upper case, with the country's dash ("G-EZAA", "EI-DCL", "N172SP", "ZK301"). */
@@ -15,9 +19,28 @@ export interface Marking {
   format: MarkingFormat;
 }
 
-/** Only photos read as aircraft are ever read for text. A road, rail or water vehicle never is. */
+/**
+ * Which text may be read from a photo: registrations and serials on an aircraft, race numbers on a photo clearly read as
+ * a racing car or racing motorbike. Nothing else, so an ordinary car's, van's or bike's number plate is never read.
+ */
+export type MarkingContext = 'aircraft' | 'racing';
+export function markingContext(reading: VehicleReading | null | undefined): MarkingContext | null {
+  if (reading?.family === 'air') return 'aircraft';
+  if (reading?.family === 'road' && reading.kind && RACING_KINDS.includes(reading.kind)) return 'racing';
+  return null;
+}
 export function mayReadMarkings(reading: VehicleReading | null | undefined): boolean {
-  return reading?.family === 'air';
+  return markingContext(reading) !== null;
+}
+
+/**
+ * A race number: a line that is only one to three digits ("7", "46", "993"). Anything else on a racing photo (sponsors,
+ * plates, phone numbers, years) gives nothing. The plate guard still runs first.
+ */
+export function findRaceNumber(text: string): Marking[] {
+  const compact = text.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (looksLikeNumberPlate(compact) || !/^\d{1,3}$/.test(compact)) return [];
+  return [{ value: String(Number(compact)), format: 'race-number' }];
 }
 
 // Current UK number plates (AB12 CDE) and Irish plates (12-D-3456, 191-KY-12). No aircraft format below has these shapes.

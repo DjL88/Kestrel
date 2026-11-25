@@ -148,7 +148,7 @@ const DEVELOPER_TEXT = [
   { pattern: /\b[A-Z][a-z]+[A-Z][a-z]+[A-Za-z]*\b/, why: 'a code name (PascalCase) is shown' },
 ];
 /** Product and brand names written in mixed case, with any case ending a language adds (InFlights, OneDrivessa). */
-const ALLOWED_CODE_LIKE = /\b(?:InFlight|sRGB|ownCloud|NextCloud|SinLoon|TourBox|iPhone|iPad|iOS|macOS|WebDAV|OneDrive|iCloud|PowerShell|GitHub|YouTube|LinkedIn|PayPal|DeepSeek|OpenAI|JavaScript|TrueDetail|ColourSense|RawTherapee|DxO|PhotoLab|PureRAW|eBird|BirdNET|MobileNet|ResNet|ConvNeXt|SigLIP|DeepPRIME|FastStone|PhotoMechanic|ExifTool|LibRaw|WebGPU|WebGL|McDonald|MacBook|DropBox|GoPro)\p{L}*/gu;
+const ALLOWED_CODE_LIKE = /\b(?:InFlight|sRGB|ownCloud|NextCloud|SinLoon|TourBox|iPhone|iPad|iOS|macOS|WebDAV|OneDrive|iCloud|PowerShell|GitHub|YouTube|LinkedIn|PayPal|DeepSeek|OpenAI|JavaScript|TrueDetail|ColourSense|RawTherapee|DxO|PhotoLab|PureRAW|eBird|BirdNET|MobileNet|ResNet|ConvNeXt|SigLIP|DeepPRIME|FastStone|PhotoMechanic|ExifTool|LibRaw|WebGPU|WebGL|McDonald|MacBook|DropBox|GoPro|GeoNames)\p{L}*/gu;
 
 /** A sentence-length, word-length or developer-text problem in one phrase, judged against the language's bar. */
 export function plainProblems(text, code) {
