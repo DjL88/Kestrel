@@ -3,6 +3,7 @@ import { renderCollagePage, encodeCollagePage } from '../../core/collagePageRend
 import { collagePdf, type PdfRasterPage } from '../../core/collagePdf';
 import { planCollagePrint } from '../../core/collagePrint';
 import { applyCanvasExportEdit } from '../../core/canvasEdit';
+import { applyFrameLayers } from '../../core/layerAssetVault';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFraming';
 import { fitScale, maxCanvasPixels } from '../../core/exportLimits';
@@ -46,6 +47,7 @@ export async function exportCollage(state:CullingState, provider:BrowserPreviewP
     drawFramedPhoto(image,picture,framing,{scale,colourSpace:'srgb'});
     await applyCanvasExportEdit(picture,frame.edit??DEFAULT_EDIT,signal,
       Math.max(size.width,size.height)*scale,{aspect:size.height/size.width,view:{x:0,y:0,w:1,h:1}});
+    await applyFrameLayers(picture,frame.overlay,true);
     return {image:picture,width:picture.width,height:picture.height,release:()=>{picture.width=0;picture.height=0;}};
    }catch(error){picture.width=0;picture.height=0;throw error;}
   },print);

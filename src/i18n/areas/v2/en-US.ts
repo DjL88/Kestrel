@@ -32,6 +32,10 @@ export const enUS: AreaTranslation<typeof source> = {
       saturation: 'Uniformly increases or decreases intensity across every color channel.',
     },
   },
+  layers: {
+    centre: "Center",
+  },
+
   formats: {
     recentBorderColoursGroup: 'Recently used border colors',
     recentBorderColours: 'Recent colors',
