@@ -42,6 +42,8 @@ interface TopBarProps {
   /** The open project's last automatic backup, in words, shown under Back up now. */
   backupNote?: string;
   onReadXmp?: () => void;
+  /** File menu: bring in a Lightroom Classic catalogue. */
+  onReadLightroom?: () => void;
   onOpenSettings: () => void;
   onImport: () => void;
   onUndo: () => void;
@@ -86,6 +88,7 @@ export default function TopBar({
   onSaveBackupFile,
   backupNote,
   onReadXmp,
+  onReadLightroom,
   onOpenSettings,
   onImport,
   onUndo,
@@ -228,6 +231,7 @@ export default function TopBar({
                     <div className="my-1 h-px bg-[var(--border-subtle)]" />
                     <MenuItem icon="save" label={STRINGS.xmp.saveMenu} onClick={() => runAndClose(onSaveXmp)} />
                     <MenuItem icon="folder-open" label={STRINGS.xmp.readMenu} onClick={() => runAndClose(onReadXmp)} />
+                    {onReadLightroom && <MenuItem icon="folder-open" label={STRINGS.lightroom.readMenu} onClick={() => runAndClose(onReadLightroom)} />}
                   </>
                 )}
                 {onBackUpNow && onSaveBackupFile && (

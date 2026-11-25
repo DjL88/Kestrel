@@ -2,7 +2,7 @@ import { useServiceReachability } from '../../providers/useServiceReachability';
 import { useConnectivity } from '../../providers/useConnectivity';
 import { projectsText } from '../../i18n/areas/projects';
 import { stepFrom } from './utils/swipe';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { PanelId, Photo } from './contract';
 import { useWorkspace } from './stub';
 import { resolveTheme } from './themePreference';
@@ -34,6 +34,7 @@ import TasksPanel from './panels/TasksPanel';
 import CollageExportDialog from './dialogs/CollageExportDialog';
 import ExportDialog from './dialogs/ExportDialog';
 import RemovedPhotosDialog from './dialogs/RemovedPhotosDialog';
+import LightroomOfferDialog from './dialogs/LightroomOfferDialog';
 import ShareDialog from './dialogs/ShareDialog';
 import { usePresence } from './shell/usePresence';
 import { PresenceAvatars, PresenceCursors } from './shell/PresenceLayer';
@@ -163,6 +164,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   }, [store.compareMode, store.collage, store.selectedPhotoIds, store.photos]);
   const [pairSwapped, setPairSwapped] = useState(false);
   const xmpInputRef = useRef<HTMLInputElement>(null);
+  const lightroomInputRef = useRef<HTMLInputElement>(null);
+  const dismissLightroomOffer = useCallback(() => actions.dismissLightroomOffer?.(), [actions]);
   const peers = usePresence(sharing, store.collage ? null : store.activeProjectId, activePhoto?.sharedKey ?? null, signedInName, shareVersion);
   const sharedEditing = useSharedEditing(sharing, store.collage ? null : store.activeProjectId, activePhoto?.id ?? null, activePhoto?.sharedKey, actions, activePhoto, shareVersion);
   // Someone else has this photo out, or both sides changed it: the editing panels are view-only until that is settled.
@@ -229,6 +232,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'backupFile': if (inEditor && !store.collage) actions.saveProjectBackupFile(); break;
       case 'saveXmp': if (inEditor && !store.collage) actions.saveXmpSidecars(store.selectedPhotoIds); break;
       case 'readXmp': if (inEditor && !store.collage) xmpInputRef.current?.click(); break;
+      case 'readLightroom': if (inEditor && !store.collage) lightroomInputRef.current?.click(); break;
       case 'resetPhoto': if (inEditor && activePhoto && !editLocked) actions.resetPhotoEdits(activePhoto.id); break;
       case 'backToProjects': if (inEditor) actions.backToProjects(); break;
     }
@@ -540,6 +544,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               event.target.value = '';
               if (files.length) actions.readXmpSidecars(files, store.selectedPhotoIds);
             }} />
+          <input ref={lightroomInputRef} type="file" accept=".lrcat" hidden
+            data-testid="lightroom-input" aria-hidden="true" tabIndex={-1}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = '';
+              if (file) actions.readLightroomCatalogue(file);
+            }} />
           <TopBar
             // Owner decision 24 Nov 2026: header menus in a browser; the installed desktop app uses its native menu bar.
             showMenus={!isDesktopApp()}
@@ -565,6 +576,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSaveBackupFile={store.screen === 'editor' && !store.collage ? actions.saveProjectBackupFile : undefined}
             backupNote={store.backup ? backupStatusText(store.backup) : undefined}
             onReadXmp={store.screen === 'editor' && !store.collage ? () => xmpInputRef.current?.click() : undefined}
+            onReadLightroom={store.screen === 'editor' && !store.collage ? () => lightroomInputRef.current?.click() : undefined}
             onOpenSettings={() => actions.setSettingsOpen(true)}
             onImport={actions.importPhotos}
             onUndo={actions.undo}
@@ -933,6 +945,12 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         photoName={(id) => store.photos.find((photo) => photo.id === id)?.filename ?? id}
         onGoToPhoto={(id) => { closeShare(); actions.selectPhoto(id); }}
         onClose={closeShare}
+      />
+
+      <LightroomOfferDialog
+        offer={store.screen === 'editor' ? store.lightroomOffer : null}
+        onChooseFolder={() => actions.chooseLightroomFolder?.()}
+        onClose={dismissLightroomOffer}
       />
 
       <RemovedPhotosDialog
