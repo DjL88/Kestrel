@@ -119,12 +119,14 @@ const titleOf = (filename: string) => filename.replace(/\.[^./\\]+$/, '');
 const extensionOf = (filename: string) => /\.([^./\\]+)$/.exec(filename)?.[1]?.toUpperCase();
 
 /** A photo's vehicle reading as words in the person's language, and the words it can be searched by (also in English). */
-export function vehicleWordsOf(frame: Pick<PhotoFrame, 'vehicle'>): { vehicleLabel?: string; searchTerms?: string[] } {
+export function vehicleWordsOf(frame: Pick<PhotoFrame, 'vehicle'>): { vehicleLabel?: string; searchTerms?: string[]; vehicleKind?: string; vehicleType?: string } {
   const reading = validVehicleReading(frame.vehicle, VEHICLE_LABELS);
   if (!reading) return {};
   return {
     vehicleLabel: vehicleLabel(reading, VEHICLE_LABELS, vehicleText),
     searchTerms: vehicleSearchWords(reading, VEHICLE_LABELS, [vehicleText, vehicleTextEnglish]),
+    ...(reading.kind ? { vehicleKind: reading.kind } : {}),
+    ...(reading.type ? { vehicleType: reading.type } : {}),
   };
 }
 

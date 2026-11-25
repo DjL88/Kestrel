@@ -29,6 +29,18 @@ export const sv: AreaTranslation<typeof source> = {
   registered: (marking: string, type: string) => `${marking}: ${type} (enligt registret)`,
   operatedBy: (what: string, operator: string) => `${what}, drivs av ${operator}`,
   held: (what: string) => `${what}? Behöver granskas`,
+  correct: {
+    edit: 'Redigera',
+    change: 'Byt fordon',
+    kindLabel: 'Sort',
+    typeLabel: 'Märke eller typ',
+    typeUnknown: 'Inte säker',
+    notVehicle: 'Inte ett fordon',
+    wholeBurst: (count: number) => `Alla ${count} bilder i den här serien`,
+    save: 'Spara',
+    cancel: 'Avbryt',
+    saved: (count: number) => (count > 1 ? `Sparat för ${count} bilder.` : 'Sparat.'),
+  },
   reader: {
     title: 'Läs registreringar på flygplan',
     description: (megabytes: string) => `Läser registreringar och militära serienummer som målats på luftfartyg, på den här enheten, och slår upp dem i en offlinekopia av offentliga register. En engångsnedladdning på ${megabytes} MB. Registreringsskyltar på bilar läses aldrig.`,

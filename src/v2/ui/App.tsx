@@ -429,6 +429,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetRating={actions.setRating}
             onReconnectOriginal={actions.reconnectOriginal}
             onCorrectSpeciesName={actions.correctSpeciesName}
+            onCorrectVehicle={actions.correctVehicle}
           />
         );
       case 'tasks':
