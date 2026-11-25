@@ -343,6 +343,9 @@ export interface Photo {
   searchTerms?: string[];
   /** The subject name alone, without the "(suggested)" marker the label may carry, for editing it. */
   speciesName?: string;
+  /** The vehicle reading's ids, so a correction starts from what is shown. */
+  vehicleKind?: string;
+  vehicleType?: string;
   category: string;
   sharpnessScore: number;
   exif: PhotoExif;
@@ -505,8 +508,10 @@ export interface WorkspaceSettings {
 }
 
 export interface ExportRequest {
-  /** Standalone, photo-wide TIFF made from the selected sensor RAW. */
+  /** Standalone, photo-wide 16-bit file made from the selected sensor RAW. */
   rawMaster?: boolean;
+  /** Which 16-bit file the RAW master is written as. Absent = TIFF. */
+  rawMasterFormat?: 'tiff' | 'png';
   fileFormat?: 'jpeg' | 'png';
   jpegQuality?: number;
   destination: ExportDestination;
@@ -641,6 +646,8 @@ export interface WorkspaceActions {
   toggleFlag: (photoIds: string[]) => void;
   setRating: (photoIds: string[], rating: number) => void;
   correctSpeciesName: (photoId: string, name: string) => void;
+  /** The person's own vehicle name for a photo, or for every frame of its burst. 'not-a-vehicle' removes it for good. */
+  correctVehicle: (photoId: string, choice: { kind: string; type?: string } | 'not-a-vehicle', wholeBurst: boolean) => void;
   importPhotos: () => void;
   importFolder: () => void;
   importDroppedPhotos: (files: File[]) => void;

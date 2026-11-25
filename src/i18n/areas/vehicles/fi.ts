@@ -29,6 +29,18 @@ export const fi: AreaTranslation<typeof source> = {
   registered: (marking: string, type: string) => `${marking}: ${type} (rekisterin mukaan)`,
   operatedBy: (what: string, operator: string) => `${what}, käyttäjä ${operator}`,
   held: (what: string) => `${what}? Tarkista`,
+  correct: {
+    edit: 'Muokkaa',
+    change: 'Vaihda ajoneuvo',
+    kindLabel: 'Laji',
+    typeLabel: 'Merkki tai tyyppi',
+    typeUnknown: 'En ole varma',
+    notVehicle: 'Ei ajoneuvo',
+    wholeBurst: (count: number) => `Kaikki ${count} kuvaa tässä sarjassa`,
+    save: 'Tallenna',
+    cancel: 'Peruuta',
+    saved: (count: number) => (count > 1 ? `Tallennettu ${count} kuvaan.` : 'Tallennettu.'),
+  },
   reader: {
     title: 'Lue ilma-alusten tunnukset',
     description: (megabytes: string) => `Lukee ilma-aluksiin maalatut rekisteritunnukset ja sotilaalliset sarjanumerot tällä laitteella ja hakee ne julkisten rekisterien offline-kopiosta. Kertalataus, ${megabytes} Mt. Autojen rekisterikilpiä ei koskaan lueta.`,
