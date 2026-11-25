@@ -170,6 +170,21 @@ export interface EditRecipe {
   colourGrade?: ColourGradeRecipe;
   /** Advanced: red, green and blue curves, same points as toneCurve, applied after it. Absent = none. */
   channelCurves?: Partial<Record<'red' | 'green' | 'blue', Array<[number, number]>>>;
+  /** Remove haze (positive) or add it (negative), -100 to 100. Absent = 0. */
+  dehaze?: number;
+  /** Vignette: -100 darker edges to 100 lighter edges (with a colour, the strength of that colour). Absent = 0. */
+  vignette?: number;
+  /** How far the vignette reaches into the picture, 0 to 100. Absent = 50. */
+  vignetteSize?: number;
+  /** How much the vignette softens the edges, 0 to 100. Absent = 0. */
+  vignetteBlur?: number;
+  /** A colour for the vignette as #rrggbb. Absent = darker or lighter, no colour. */
+  vignetteColour?: string;
+  /** Film-like grain, 0 to 100, and its size, 0 (fine) to 100 (coarse; absent = 25). */
+  grain?: number;
+  grainSize?: number;
+  /** Advanced: camera calibration, hue and saturation of each primary, -100 to 100. Absent = none. */
+  calibration?: Record<'red' | 'green' | 'blue', { hue: number; saturation: number }>;
   /** White balance in kelvin against the camera's as-shot estimate (RAW photos only). Absent = as shot. */
   whiteBalance?: { asShotK: number; kelvin: number };
 }
