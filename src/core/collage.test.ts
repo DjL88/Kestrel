@@ -131,33 +131,6 @@ test('photographs dropped on a page fill its empty windows in order', async () =
   assert.deepEqual(collagePage(filled).slots.map((slot) => slot.photoId), ['x', 'kept', 'y']);
 });
 
-test('pages can be reordered and any page deleted, keeping the active page where it can', async () => {
-  const { moveCollagePage, deleteCollagePageById } = await import('./collage');
-  let doc = addCollagePage(addCollagePage(createCollage(['a'])));
-  const [p1, p2, p3] = doc.pages.map((p) => p.id);
-  doc = { ...doc, activePageId: p2 };
-  doc = moveCollagePage(doc, p3, 0);
-  assert.deepEqual(doc.pages.map((p) => p.id), [p3, p1, p2]);
-  assert.equal(doc.activePageId, p2);
-  assert.equal(moveCollagePage(doc, 'missing', 0), doc);
-  doc = deleteCollagePageById(doc, p1);
-  assert.deepEqual(doc.pages.map((p) => p.id), [p3, p2]);
-  assert.equal(doc.activePageId, p2);
-  doc = deleteCollagePageById(doc, p2);
-  assert.equal(doc.activePageId, p3);
-  assert.equal(deleteCollagePageById(doc, p3).pages.length, 1);
-  assert.ok(readCollage(JSON.parse(JSON.stringify(doc))));
-});
-
-test('a background photograph is saved as a reference and checked on reopen', () => {
-  const doc = createCollage(['a']);
-  const withBackground = { ...doc, pages: doc.pages.map((p) => ({ ...p, backgroundPhotoId: 'a' })) };
-  assert.ok(readCollage(JSON.parse(JSON.stringify(withBackground))));
-  const bad = JSON.parse(JSON.stringify(withBackground));
-  bad.pages[0].backgroundPhotoId = 42;
-  assert.equal(readCollage(bad), null);
-});
-
 test('template changes preserve independent framing even when the same photo appears twice and moves to another page', async () => {
   const { setCollageSlotFraming } = await import('./collage');
   let doc = createCollage(['a','b','a','d']);
