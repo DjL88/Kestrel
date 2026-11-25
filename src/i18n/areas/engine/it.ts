@@ -146,6 +146,7 @@ export const it: AreaTranslation<typeof source> = {
     importSaveStage: 'Salvataggio della foto in questo progetto',
     importSomeFailed: (added) => `Alcune foto non sono state importate. Ne sono state aggiunte ${added}. Apri Attività per riprovare solo quelle non riuscite.`,
     importStopped: (added) => `Importazione interrotta. Sono state aggiunte ${added} foto. I tuoi originali non sono cambiati.`,
+    importNotFinished: (count, names) => `L’ultima importazione in questo progetto non è terminata: ${count} foto non sono state aggiunte (${names}). Importale di nuovo per aggiungerle. Le foto già aggiunte vengono mantenute.`,
     importFailed: 'L’aggiunta delle foto non è riuscita. I tuoi originali non sono stati modificati.',
   },
 };
