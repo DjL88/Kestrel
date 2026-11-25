@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { checkGroupLabels, checkValidatorLabels, compareSpecies } from './speciesValidator';
+import { checkGroupLabels, checkValidatorLabels, compareSpecies, groupFileNames } from './speciesValidator';
 import type { SpeciesLabel, Suggestion } from './speciesMatch';
 import { BIOCLIP2, OPTIONAL_MODELS, optionalModelFitsDevice } from './optionalModels';
 
@@ -29,10 +29,10 @@ test('the labels file must be BioCLIP 2 vectors (768 dimensions) with a UK list'
   assert.equal(checkValidatorLabels({ version: 1, model: 'bioclip-2', dimensions: 768, uk: [kingfisher], world: [] }).uk.length, 1);
 });
 
-test('the validator pack is desktop-only, MIT weights, two pinned files', () => {
+test('the validator pack is desktop-only, MIT weights, its model, main names and each group pinned', () => {
   assert.ok(OPTIONAL_MODELS.includes(BIOCLIP2));
   assert.equal(optionalModelFitsDevice(BIOCLIP2, 'phone'), false);
-  assert.deepEqual(Object.keys(BIOCLIP2.files), ['model', 'labels', 'mammals']);
+  assert.deepEqual(Object.keys(BIOCLIP2.files), ['model', 'labels', 'mammals', 'reptiles']);
   for (const file of Object.values(BIOCLIP2.files)) assert.match(file.sha256, /^[0-9a-f]{64}$/);
 });
 
@@ -42,4 +42,9 @@ test('a group file (world mammals) must be BioCLIP 2 vectors with names, or it i
   assert.throws(() => checkGroupLabels({ dimensions: 512, labels: [mammal] }));
   assert.throws(() => checkGroupLabels({ dimensions: 768, labels: [] }));
   assert.throws(() => checkGroupLabels(null));
+});
+
+test('every pinned file except the model and the main list is an extra group, in the order added', () => {
+  assert.deepEqual(groupFileNames(BIOCLIP2.files), ['mammals', 'reptiles']);
+  assert.deepEqual(groupFileNames({ model: 1, labels: 2 }), []);
 });

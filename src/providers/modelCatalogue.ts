@@ -7,10 +7,12 @@ import { PHOTO_CHECK_PACK, PHOTO_CHECK_REVISION } from '../core/photoCheckPack';
 import { BIOCLIP2, BIREFNET_LITE, EFFICIENTSAM_TI, NAFNET_W32, RFDETR_NANO, optionalModelConfigured, type OptionalModel } from '../core/optionalModels';
 import { NAFNET_TILE } from '../core/nafnet';
 import { bundledModelUrl } from './bundledModelAssets';
-import { isDesktopApp } from './desktopShell';
+import { isDesktopApp, isMobileShell } from './desktopShell';
 import { hasModel } from './modelStore';
 import { optionalModelStatus } from './optionalModels';
 import { MARKING_PACK, markingReaderReady } from './markingReader';
+import { LOCAL_VISION_ID } from '../core/localVisionMetrics';
+import modelManifest from '../../scripts/models/manifest.json';
 
 /**
  * Every model the app can run, for Settings → Models (P0 #703): what it is, its exact file(s) and checksum, whether
@@ -71,6 +73,12 @@ const packPlace = async (model: OptionalModel): Promise<ModelPlace> => {
 
 const LAPTOP = 'onnxruntime-web 1.31, Windows laptop, 25 Nov 2026';
 
+/** The desktop vision pack's int8 files, read from the pinned manifest the Rust runtime checks against (kestrel-vision pack.rs). */
+const DESKTOP_VLM = modelManifest.models['smolvlm2-500m'];
+const desktopVlmFiles: CatalogueFile[] = DESKTOP_VLM.files
+  .filter((file): file is typeof file & { sha256: string } => 'sha256' in file && typeof file.sha256 === 'string' && file.path.endsWith('_int8.onnx'))
+  .map((file) => ({ statId: `${LOCAL_VISION_ID}.${file.path.replace(/^.*\//, '')}`, file: file.path.replace(/^.*\//, ''), sha256: file.sha256, bytes: file.bytes }));
+
 export const MODEL_CATALOGUE: readonly CatalogueEntry[] = [
   {
     id: 'yolox-tiny', name: DETECTOR_MODEL.name, role: 'detector', version: 'release 0.1.1rc0', licence: DETECTOR_MODEL.licence,
@@ -121,6 +129,19 @@ export const MODEL_CATALOGUE: readonly CatalogueEntry[] = [
     peakMemory: null,
     // Timed when Check photo runs: a test picture would only time the image half, not the written review.
     place: async () => { const { photoCheckInstalled } = await import('./photoCheckStore'); return (await photoCheckInstalled()) ? 'downloaded' : 'not-downloaded'; },
+  },
+  {
+    // The desktop app's own vision model (Rust, ONNX Runtime). Its runtime times the whole model and reads its memory
+    // from the operating system, so its numbers are recorded under the entry id, not per file.
+    id: LOCAL_VISION_ID, name: 'SmolVLM2-500M (desktop, 8-bit)', role: 'photoCheck', version: DESKTOP_VLM.revision.slice(0, 8), licence: 'Apache-2.0',
+    files: desktopVlmFiles,
+    peakMemory: null,
+    place: async () => {
+      if (!isDesktopApp() || isMobileShell()) return 'not-offered';
+      const { localVisionStatus } = await import('./localVision');
+      return (await localVisionStatus())?.installed ? 'downloaded' : 'not-downloaded';
+    },
+    measure: async () => { const { measureLocalVision } = await import('./localVision'); await measureLocalVision(); },
   },
   {
     id: 'markings-reader', name: 'PP-OCRv5 mobile', role: 'markings', version: 'e6f4fa85 / 3fafbc3b', licence: 'Apache-2.0',

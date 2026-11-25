@@ -29,6 +29,8 @@ import { CloudRefusal, CLOUD_VARIANTS, type CloudPhotoStore } from './cloudPhoto
 import { millicreditsForBytes, type AllowancePolicy, type UsageMeter } from './usageMeter.ts';
 import { FEEDBACK_ITEM_ID } from '../../../src/core/clientFeedback.ts';
 import type { NoticeStore } from './notices.ts';
+import type { PushService } from './push.ts';
+import { PUSH_PLATFORMS, isPushToken } from '../../../src/core/pushNotices.ts';
 import type { NoticeEvent } from '../../../src/core/collabNotices.ts';
 import { GalleryRefusal, GALLERY_MAX_DAYS, GALLERY_MAX_PHOTOS, GALLERY_MAX_PREVIEW_BYTES, galleryIdFor, previewKey, type GalleryStore } from './gallery.ts';
 import { SafetyRefusal, BLOCKED_MESSAGE, HELD_MESSAGE, NOTICE_CATEGORIES, caseSummary, caseForUploader, type CheckInput, type SafetyService } from './contentSafety.ts';
@@ -99,6 +101,8 @@ export interface AppOptions {
   gallery?: GalleryStore;
   /** Team notifications (G20, decision 11): in-app inbox, then the backend's FCM sender and hello@ mailer. Absent: inbox answers 503. */
   notices?: NoticeStore;
+  /** Push notifications through FCM (G20). Absent: the push routes answer 503 and nothing is pushed. */
+  push?: PushService;
   /** Shared projects' cloud photo store and the per-account download meter. Absent: the cloud routes answer 503. */
   cloudPhotos?: { store: CloudPhotoStore; meter: UsageMeter; allowance: AllowancePolicy; maxProjectBytes: number };
   /** Prepaid cloud balance (top-ups; pays beyond the free allowances). Absent: allowances are hard limits. */
@@ -189,6 +193,7 @@ const SWITCHES = [
   { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
   { key: 'pro-checkout', label: 'Pro checkout (Paddle)', note: 'People can buy Pro through Paddle\'s checkout. Paddle is the merchant of record and handles sales tax and VAT in every country. Switching off stops new checkouts only; payments already made are still verified and granted.' },
   { key: 'email', label: 'App email (hello@inflight.studio)', note: 'Sends share invitations by email through Google Workspace. Plain text and HTML, an unsubscribe link in every message, at most 500 a day (30 per sender, 3 per recipient). Switch on only once hello@inflight.studio is a verified Send mail as address.' },
+  { key: 'push', label: 'Push notifications (FCM)', note: 'Sends shared-project notices (comments, client feedback) to the phones and browsers where people turned alerts on. Names and counts only, never comment text or photos. Switching off stops sending and new device sign-ups; the in-app inbox keeps working.' },
   { key: 'collaboration', label: 'Shared projects', note: 'Cloud subscribers can share a project, invite people by email and check photos out to edit. Switching off stops new shared projects and checkouts; members can still read revisions.' },
   { key: 'vertex-learning', label: 'Learning in Vertex AI (batches)', note: "Trains shared models in Vertex AI from consented shadow files only (measurements, masks, decisions, recipes; never photos). Batches only: 1,000 newly edited photos, weekly when something is new, or Learn now. Each run reserves its worst-case cost first and is refused past the owner's £20 a month. No always-on endpoints." },
   { key: 'pro-cloud-storage', planned: true, label: 'Pro Cloud storage (designed, not built)', note: "Store a project's originals in InFlight's UK cloud to open on any device and share. Opt-in per project; originals on the device are never moved or changed. Cannot be switched on until it is built and the owner approves the cost." },
@@ -245,6 +250,9 @@ export const Schemas = {
   SafetyAppeal: z.object({ text: z.string().trim().min(3).max(2000) }).strict(),
   CloudRemove: z.object({ variants: z.array(z.enum(CLOUD_VARIANTS)).min(1).max(3).optional() }).strict(),
   CollabResolve: z.object({ resolved: z.boolean() }).strict(),
+  PushDevice: z.object({ token: z.string().refine(isPushToken, 'not a push token'), platform: z.enum(PUSH_PLATFORMS) }).strict(),
+  PushDeviceRemove: z.object({ token: z.string().refine(isPushToken, 'not a push token') }).strict(),
+  PushPreferences: z.object({ comments: z.boolean(), clientFeedback: z.boolean() }).partial().strict(),
   NoticesRead: z.object({ ids: z.union([z.literal('all'), z.array(z.string().min(1).max(64)).max(200)]) }).strict(),
   CollabOverride: z.object({ reason: z.string().trim().min(1).max(500) }).strict(),
   CollabPublish: z.object({ token: z.string().min(16).max(128), baseRevisionId: z.string().max(64).nullable(), recipe: z.record(z.string(), z.unknown()), virtualCopyOf: z.string().max(64).optional() }).strict(),
@@ -474,7 +482,7 @@ export function createApp(options: AppOptions) {
   // ---- Admin on/off switches. Managed Gemini is on unless switched off (the existing `ai_disabled` setting, so the
   // existing admin control and this one are the same switch). The new features are off in production until an admin
   // switches them on. The older kill settings (cloud_disabled, safe_copy_disabled) still win.
-  const switchConfigured = (key: SwitchKey) => isPlanned(key) ? false : key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'email' ? !!options.mailer : key === 'pro-checkout' ? !!options.proCheckout : key === 'vertex-learning' ? !!options.vertexLearning : !!options.learning;
+  const switchConfigured = (key: SwitchKey) => isPlanned(key) ? false : key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'email' ? !!options.mailer : key === 'push' ? !!options.push : key === 'pro-checkout' ? !!options.proCheckout : key === 'vertex-learning' ? !!options.vertexLearning : !!options.learning;
   async function switchOn(key: SwitchKey): Promise<boolean> {
     if (isPlanned(key)) return false;
     if (key === 'managed-ai') return (await store.getSetting('ai_disabled')) !== '1';
@@ -660,6 +668,12 @@ export function createApp(options: AppOptions) {
     if (!options.notices) return;
     try { const e = await event(); if (e && e.recipients.length) await options.notices.deliver(e, now()); } catch { /* the action already succeeded */ }
   }
+
+  function pushCfg(): PushService {
+    if (!options.push) throw new ApiError(503, 'PUSH_NOT_CONFIGURED', 'Alerts are not set up on this server yet. The in-app notifications still work.');
+    return options.push;
+  }
+  options.push?.setGate(() => switchOn('push'));
 
   function galleryCfg(): GalleryStore {
     if (!options.gallery) throw new ApiError(503, 'GALLERY_NOT_CONFIGURED', 'Client galleries are not set up on this server yet.');
@@ -1503,6 +1517,41 @@ export function createApp(options: AppOptions) {
         const body = parseJson(Schemas.NoticesRead, req.rawBody);
         if (!options.notices) throw new ApiError(503, 'COLLAB_NOT_CONFIGURED', 'Notifications are not set up on this server yet.');
         return { status: 200, body: { read: await options.notices.markRead(claims.sub, body.ids, now()) } };
+      },
+    },
+    // ---- Push notifications (G20): only to devices where the person turned alerts on; the inbox above stays the record.
+    {
+      method: 'GET', path: '/v1/notify/push', summary: 'Whether push is available, which kinds you get, and how many of your devices get them', auth: 'user',
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const push = pushCfg();
+        return { status: 200, body: { available: await switchOn('push'), preferences: await push.preferences(claims.sub), devices: (await push.devices(claims.sub)).length } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/notify/push/preferences', summary: 'Choose which kinds of notice are pushed (a kind switched off is not emailed either)', auth: 'user', body: Schemas.PushPreferences,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.PushPreferences, req.rawBody);
+        return { status: 200, body: { preferences: await pushCfg().setPreferences(claims.sub, body) } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/notify/push/devices', summary: 'Register this device for alerts (after the person turned them on)', auth: 'user', body: Schemas.PushDevice,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.PushDevice, req.rawBody);
+        const push = pushCfg();
+        if (!(await switchOn('push'))) throw new ApiError(503, 'PUSH_OFF', 'Alerts are switched off on this server for now. The in-app notifications still work.');
+        return { status: 200, body: { devices: await push.register(claims.sub, body.token, body.platform, now()) } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/notify/push/devices/remove', summary: 'Stop alerts on this device (turning them off, or signing out)', auth: 'user', body: Schemas.PushDeviceRemove,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.PushDeviceRemove, req.rawBody);
+        return { status: 200, body: { removed: await pushCfg().remove(claims.sub, body.token) } };
       },
     },
     {

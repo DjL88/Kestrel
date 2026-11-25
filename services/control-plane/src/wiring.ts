@@ -12,7 +12,8 @@ import { FirestoreSafeCopyCatalog } from './safeCopyFirestore.ts';
 import { CollabStore } from './collaboration.ts';
 import { IamPresenceSigner } from './presenceToken.ts';
 import { GalleryStore } from './gallery.ts';
-import { NoticeStore, NO_DELIVERY } from './notices.ts';
+import { NoticeStore } from './notices.ts';
+import { FcmSender, PushService, noticeDelivery, type PushSender } from './push.ts';
 import { CloudPhotoStore } from './cloudPhotos.ts';
 import { BalanceBackedMeter, FirestoreUsageMeter, FlatAllowance } from './usageMeter.ts';
 import { FirestoreCloudBalance } from './cloudBalance.ts';
@@ -24,7 +25,7 @@ import { createHmac } from 'node:crypto';
 import { SafetyService, ExactHashListMatcher, PhotoDnaMatcher, CloudVisionSafeSearch, NcmecCyberTipline, type HashMatcher } from './contentSafety.ts';
 import { networkCountryFrom, dbipCountryLookup } from './networkCountry.ts';
 import { readFileSync } from 'node:fs';
-import { FirestoreMailLedger, Mailer, SmtpTransport, secretManagerValue, MAIL_HARD_DAILY_MAX } from './mailer.ts';
+import { FirestoreMailLedger, Mailer, SmtpTransport, secretManagerValue, MAIL_HARD_DAILY_MAX, mailNoticeDelivery } from './mailer.ts';
 
 export interface WiringDeps {
   firestore?: FirestoreLike;
@@ -35,8 +36,10 @@ export interface WiringDeps {
   sessionSecret?: Buffer;
   /** Tests replace the SMTP transport. */
   mailTransport?: import('./mailer.ts').MailTransport;
+  /** Tests: a fake FCM sender. */
+  pushSender?: PushSender;
 }
-export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'notices' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer' | 'cloudBalance' | 'vertexLearning' | 'safety'> & { enabled: string[] };
+export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'notices' | 'push' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer' | 'cloudBalance' | 'vertexLearning' | 'safety'> & { enabled: string[] };
 
 function whole(env: NodeJS.ProcessEnv, name: string, dflt: number, max: number): number {
   const raw = env[name];
@@ -123,9 +126,15 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
   // Shared projects need only Firestore. Off unless KCP_COLLABORATION_ENABLED=1, and then still off until an admin switches them on.
   if (env.KCP_COLLABORATION_ENABLED === '1') {
     out.collab = new CollabStore(db); out.enabled.push('collaboration');
-    // Team notifications: the in-app inbox works now. Push (FCM) and hello@ email plug in when the backend lane wires
-    // its sender and mailer into NoticeDelivery; until then nothing leaves the server.
-    out.notices = new NoticeStore(db, NO_DELIVERY, undefined, (message) => console.warn(message)); out.enabled.push('notices');
+    // Team notifications: the in-app inbox always; push (FCM) only when KCP_PUSH_ENABLED=1 and the `push` admin switch is
+    // on; hello@ email through the mailer, which needs its own switches and an address the person gave.
+    if (env.KCP_PUSH_ENABLED === '1') {
+      const project = env.KCP_FCM_PROJECT_ID || env.GOOGLE_CLOUD_PROJECT;
+      if (!project) throw new Error('KCP_FCM_PROJECT_ID is required when KCP_PUSH_ENABLED=1');
+      const sender = deps.pushSender ?? new FcmSender(project, deps.token ?? (() => metadataAccessToken()));
+      out.push = new PushService(db, sender, (message) => console.warn(message)); out.enabled.push('push');
+    }
+    out.notices = new NoticeStore(db, noticeDelivery(out.push, mailNoticeDelivery(out.mailer).email), undefined, (message) => console.warn(message)); out.enabled.push('notices');
     // Live cursors also need the Realtime Database URL and the service account that signs per-project tokens.
     if (env.KCP_PRESENCE_DATABASE_URL && env.KCP_PRESENCE_SERVICE_ACCOUNT) {
       if (!/^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.(firebasedatabase\.app|firebaseio\.com)$/.test(env.KCP_PRESENCE_DATABASE_URL)) throw new Error('KCP_PRESENCE_DATABASE_URL must be a Firebase Realtime Database URL');

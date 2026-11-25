@@ -29,7 +29,7 @@ export const canExportRawMaster = () => hasNativeRaw();
  * Send a RAW file to the desktop app's decoder and get back the full-size developed picture as a JPEG. The original file
  * is not changed. Rejects with a plain message when the camera or compression mode cannot be read.
  */
-export async function developRaw(file: Blob, extension = 'nef'): Promise<Blob> {
+export async function developRaw(file: Blob, extension = 'nef', options?: { size?: 'full' | 'screen' }): Promise<Blob> {
   // Do not silently reinterpret unknown formats (or path-like values) as a Nikon NEF or any one maker's format.
   // The native decoder independently validates its extension as a second boundary.
   const normalizedExtension = validateRawExtension(extension);
@@ -37,7 +37,11 @@ export async function developRaw(file: Blob, extension = 'nef'): Promise<Blob> {
   const { invoke } = await import('@tauri-apps/api/core');
   const bytes = new Uint8Array(await file.arrayBuffer());
   try {
-    const result = await invoke<ArrayBuffer>('develop_raw', bytes, { headers: { 'x-file-extension': normalizedExtension } });
+    // 'screen': half the sensor's width and height on desktop (about 4,100 px for a Z 8), about three times faster, for the
+    // screen-size copy kept after import. The browser build develops at full size until its WebAssembly is rebuilt.
+    const headers: Record<string, string> = { 'x-file-extension': normalizedExtension };
+    if (options?.size === 'screen') headers['x-develop-size'] = 'screen';
+    const result = await invoke<ArrayBuffer>('develop_raw', bytes, { headers });
     return new Blob([result], { type: 'image/jpeg' });
   } catch (error) {
     throw new Error(typeof error === 'string' ? error : 'This RAW file could not be developed.');
