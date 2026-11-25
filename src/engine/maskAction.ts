@@ -35,6 +35,8 @@ export interface MaskActionInput {
    * mask (or combination) that is meant to change the whole frame, such as a plain linear sky gradient. */
   subject?: { alpha: Float32Array };
   maxRetries?: number;
+  /** Cancels the work; a scheduled batch's own signal runs it inside that batch (see taskManager.ts). */
+  signal?: AbortSignal;
 }
 
 export interface MaskActionResult {
@@ -71,7 +73,7 @@ export async function runMaskAction(input: MaskActionInput): Promise<MaskActionR
       masks = masks.map((mask) => ({ ...mask, edit: scaleMaskEdit(mask.edit, verification.suggestedStrengthScale) }));
     }
     return { masks, verification, attempts: attempts + 1 };
-  });
+  }, { signal: input.signal });
 }
 
 /**

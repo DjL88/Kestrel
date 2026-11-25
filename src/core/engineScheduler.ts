@@ -120,7 +120,7 @@ export function createEngineScheduler(options: {
   now?: () => number;
 } = {}) {
   const store = options.taskStore ?? tasks;
-  const limits = options.limits ?? limitsForDevice();
+  const limits: DeviceLimits = { ...(options.limits ?? limitsForDevice()) };
   const now = options.now ?? Date.now;
   const used: DeviceLimits = { cpu: 0, gpu: 0, io: 0 };
   const emptyReservation = (): Reservation => ({ memoryBytes: 0, gpuBytes: 0, diskBytes: 0 });
@@ -164,6 +164,9 @@ export function createEngineScheduler(options: {
   };
   const jobs = new Map<number, WorkBatch>();
   const failedJobs = new Map<number, WorkBatch>();
+  // The signal handed to each running photograph. Engine work called with one of these is already inside a
+  // batch: it must run there, not queue a second batch behind the one waiting for it (one heavy job at a time).
+  const batchSignals = new WeakSet<AbortSignal>();
   let sequence = 0;
   let highest = 100;
   let pausedAll = false;
@@ -209,6 +212,7 @@ export function createEngineScheduler(options: {
       const item = job.items[index];
       const controller = new AbortController();
       job.controller = controller;
+      batchSignals.add(controller.signal);
       item.state = 'running';
       item.detail = undefined;
       job.handle.transition('running', `Working on ${item.label}`);
@@ -459,8 +463,18 @@ export function createEngineScheduler(options: {
     pump();
     return true;
   };
+  /**
+   * The photos-at-once policy (photoParallelism.ts) for this plan and device sets the CPU limit. Running work is never
+   * stopped by a lower limit; it only stops new photos starting until the count is under it.
+   */
+  const setCpuLimit = (cpu: number) => {
+    if (!Number.isSafeInteger(cpu) || cpu < 1) return;
+    limits.cpu = cpu;
+    pump();
+  };
   return {
-    submit, pause, resume, jumpQueue, reorder,
+    submit, pause, resume, jumpQueue, reorder, setCpuLimit,
+    cpuLimit: () => limits.cpu,
     cancel: (id: number) => store.cancel(id),
     canRetryFailed: (id: number) => {
       const job = jobs.get(id) ?? failedJobs.get(id);
@@ -485,6 +499,8 @@ export function createEngineScheduler(options: {
     subscribe: store.subscribe,
     runningResourceCount: () => ({ ...used }),
     isPausedAll: () => pausedAll,
+    /** True when `signal` is the one a running batch gave its current photograph. */
+    isBatchSignal: (signal?: AbortSignal | null) => Boolean(signal && batchSignals.has(signal)),
     /** Updates should come from OS-native telemetry; no manufactured percentages. */
     updateResourceSample(sample: ResourceSample | null) {
       resourceSample = sample ? { ...sample } : null;

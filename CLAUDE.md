@@ -43,7 +43,7 @@ gh pr list --state open
 - Take **one** bounded item, the first unblocked one in ROADMAP P0 unless the owner asks otherwise. Check the open PRs for overlap before starting. Make it a small PR on its own branch.
 - **Repair your own open PRs before opening another.** Don't stack drafts nobody will review.
 - New code is wired into the app, or it isn't merged. A prototype nothing calls, or a plan that duplicates ROADMAP.md, goes into ROADMAP.md instead of a new file.
-- Update ROADMAP.md in the same PR when an item's status changes.
+- **Only the lead session edits docs/ROADMAP.md (owner, 25 Nov 2026).** Don't change it in your PR: write the item, its status and what's verified in the PR description, and the lead updates the ROADMAP in batches as PRs merge. Many PRs editing that one file caused most merge conflicts and once duplicated it.
 - Use only synthetic or lawfully licensed fixtures. Never commit or upload the owner's photos, catalogues or results.
 - `tools/denoise-training/` belongs to the denoiser track. Coordinate before changing it.
 - Keep AI Studio compatibility: `DISABLE_HMR` in `vite.config.ts`, `metadata.json`, port 3000, and the npm script names.

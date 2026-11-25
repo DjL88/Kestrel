@@ -6,6 +6,7 @@ import { calmViewOn, calmViewPatch } from '../../engineClient/uiSettings';
 import React, { useRef, useState } from 'react';
 import { useDialogFocus } from '../utils/dialogFocus';
 import ReadingSettings from './ReadingSettings';
+import MarkingsReaderSetting from './MarkingsReaderSetting';
 import { isDesktopApp, isMobileShell } from '../../../providers/desktopShell';
 
 /** The published privacy policy. It is not bundled into the app, so a relative link would lead nowhere in the desktop app. */
@@ -491,6 +492,7 @@ export default function SettingsDialog({
                   checked={settings.ongoingCritique}
                   onToggle={() => onUpdateSettings({ ongoingCritique: !settings.ongoingCritique })}
                 />
+                <MarkingsReaderSetting />
               </div>
             )}
 

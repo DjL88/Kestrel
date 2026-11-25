@@ -205,3 +205,40 @@ each file live beside the weights, outside the repo, in the `Kestrel-models` fol
 | int8 dynamic (MatMul) | 34.5 MB | FAIL | 0.117 | 0.943 | 396 |
 
 onnxruntime-web 1.31.1 in Node (single thread): load 2.2 s, one 384 px tile 3.5 s, 432 MB RSS. It returns the same detections as PyTorch on the five-people composite: 5 separate people, scores within 0.005, boxes within 0.001. **Not measured:** accuracy on real wildlife or aviation shoots, phone timings, and whether it beats YOLOX on distant subjects. Until that is measured it only runs beside YOLOX, never in place of it.
+
+### EfficientSAM-Ti (tap to select: several taps, several subjects)
+| | |
+| --- | --- |
+| Files | `efficientsam-ti-encoder-fp16.onnx`: 12,641,129 B, SHA-256 `5f0260b102fe82ad88c8ef0dc2422b3c44755005e1c2bbcc44b5d88b1bafbff4`<br>`efficientsam-ti-decoder-fp16.onnx`: 8,589,267 B, SHA-256 `e1409f2e1449600f29ee3674e690020de14d5b52d573b169650c8062608b73f3` |
+| Model and weights | EfficientSAM ViT-Tiny (Xiong et al., Meta), Apache-2.0 |
+| Source | The authors' own ONNX exports at https://github.com/yformer/EfficientSAM, commit `d525f622e6f640acf5a0fc37c7ca1f243da5bde0`: `weights/efficient_sam_vitt_encoder.onnx` (24,799,761 B, `84ed466f…e0951`) and `weights/efficient_sam_vitt_decoder.onnx` (16,565,728 B, `a62f8fa5…b0c11`). Reference: `weights/efficient_sam_vitt.pt` (40,982,470 B, `dff858b1…e4e6a`) with the authors' model code |
+| Conversion | fp16 weights with `onnxruntime.transformers.float16` (I/O stays float32; Resize, Softmax, ReduceMean, Pow, Sqrt, Div, Erf, Sin, Cos and Exp kept in fp32) |
+| Input / output | Encoder: `batched_images` [1,3,1024,1024], RGB 0..1 (it normalises internally). Decoder, one subject per run: up to 6 points in mask pixels, labels 1 add, 0 remove, 2/3 box corners; `orig_im_size` is the mask size (long edge ≤ 1024). Out: 3 candidate masks (logits) and their predicted IoU |
+
+**Parity (25 Nov 2026).** Compared against the PyTorch reference on 5 prompts: one tap; four taps adding and removing parts; two subjects in one photo; six taps; and a box. Gate: the same best candidate, mask IoU ≥ 0.97, predicted-IoU score within 0.02.
+
+| Variant | Size | Gate | Mask IoU vs PyTorch (lowest) | CPU encoder / decoder ms (onnxruntime 1.32) |
+| --- | --- | --- | --- | --- |
+| Official fp32 ONNX | 41.4 MB | PASS | 0.982 (box) | 4338 / 266 |
+| **fp16 (shipped)** | 21.2 MB | PASS | 0.981 (box) | 3730 / 322 |
+
+The lowest IoU, 0.98, is for the box prompt in both variants. It comes from the official export upsampling bilinearly where the PyTorch code upsamples bicubically. onnxruntime-web 1.31.1, single thread, in Node: encoding a 1024 px input gave the same mask as Python on the original photo (IoU 0.998). **Speed is the open problem:** about 35–37 s to encode one photo in single-thread WASM on the loaded Windows laptop, then about 0.6 s per tap. A browser needs multi-threaded WASM (cross-origin isolation) or WebGPU before this feels instant. **Not measured:** phones, real wildlife edges (feathers, fur), and the desktop native runtime.
+
+### NAFNet-SIDD-width32 (learned denoise, developed RGB)
+| | |
+| --- | --- |
+| File | `nafnet-sidd-w32-w16.onnx`: 58,841,423 B, SHA-256 `c28f9ebfc824217becc71f1406300380e2a74123db02e007a17eb3015f74fe21` |
+| Model and weights | NAFNet (Chen et al., Megvii), MIT. Trained on SIDD, real smartphone sRGB noise |
+| Source | `NAFNet-SIDD-width32.pth` from the authors' Google Drive link in `docs/SIDD.md` of https://github.com/megvii-research/NAFNet (commit `2b4af71ebe098a92a75910c233a3965a3e93ede4`): 116,861,841 B, SHA-256 `89c70e808d1783b6c07911306e106aaf0d4f7f3da8c61078b99ff7f8929a26f4` |
+| Conversion | Authors' `NAFNet_arch.py` (width 32; encoder blocks 2, 2, 4, 8; middle 12; decoder blocks 2, 2, 2, 2) → `torch.onnx.export` (opset 17, fixed [1,3,256,256]). Their LayerNorm2d forward maths is exported with plain ops; its custom autograd class exists only for its backward pass. Then **weight-only fp16**: weights stored as fp16, each followed by a Cast to fp32, so every operation still computes in fp32 |
+| Input / output | `input` [1,3,256,256] RGB 0..1 → `output`: the restored tile. The same contract as TrueDetail, run through `runTrueDetailTiles` (halo 32, strength, subject protection); output clamped to 0..1 |
+
+**Parity (25 Nov 2026).** 12 cases: the 4 CC0/public-domain samples, each cropped to 512×384, with Gaussian σ 10 and 25 and Poisson-Gaussian noise added, then tiled with overlap. Gate: agreement with PyTorch (PSNR) and the same denoise result against the clean image.
+
+| Variant | Size | Gate | PSNR vs PyTorch (lowest) | Largest loss vs PyTorch's result | CPU ms per tile |
+| --- | --- | --- | --- | --- | --- |
+| fp32 ONNX | 117.1 MB | PASS | 147 dB | 0.00 dB | 470–610 |
+| full fp16 | 59.2 MB | **FAIL** | 32 dB | 1.6 dB | 600–720 |
+| **weight-only fp16 (shipped)** | 58.8 MB | PASS | 88 dB | 0.01 dB | 770 |
+
+What it does on those synthetic cases (PyTorch): σ 25 goes from 20.2–20.9 dB to 26.6–28.7 dB, and Poisson-Gaussian from 21.1–23.2 dB to 27.9–29.8 dB. onnxruntime-web 1.31.1, single thread: max difference 0.0005 from fp32, 3.3 s per 256 px tile, 387 MB RSS. A 24 MP photo is about 430 tiles, so 20+ minutes single-threaded. **Not measured:** real camera high-ISO noise (Nikon Z 8 / Z5 II NEFs), detail loss on feathers, a comparison with the conventional denoise, and TrueDetail (no weights exist yet). Until those are measured it's an option beside the conventional denoise, never the default.
