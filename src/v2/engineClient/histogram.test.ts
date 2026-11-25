@@ -25,3 +25,23 @@ test('a brighter picture moves the histogram to the right (it follows the pixels
   const dark = toPhotoHistogram(solid(40, 40, 40)), light = toPhotoHistogram(solid(210, 210, 210));
   assert.ok(dark.luma.indexOf(Math.max(...dark.luma)) < light.luma.indexOf(Math.max(...light.luma)));
 });
+
+const pixels = (...rgb: [number, number, number][]) => Uint8ClampedArray.from(rgb.flatMap(([r, g, b]) => [r, g, b, 255]));
+
+test('clipping is also measured per channel, so it can be said in words without relying on colour', () => {
+  // Four pixels: one red highlight clipped, one blue shadow clipped, two clean mid-tones.
+  const h = toPhotoHistogram(pixels([255, 120, 90], [80, 70, 0], [128, 128, 128], [64, 96, 140]));
+  assert.deepEqual(h.channelClip, {
+    red: { shadow: 0, highlight: 0.25 },
+    green: { shadow: 0, highlight: 0 },
+    blue: { shadow: 0.25, highlight: 0 },
+  });
+  // The overall figures still count a pixel once, whichever channel clipped.
+  assert.equal(h.highlightClip, 0.25);
+  assert.equal(h.shadowClip, 0.25);
+});
+
+test('an empty picture reports no channel clipping rather than dividing by zero', () => {
+  const none = { shadow: 0, highlight: 0 };
+  assert.deepEqual(toPhotoHistogram(new Uint8ClampedArray(0)).channelClip, { red: none, green: none, blue: none });
+});

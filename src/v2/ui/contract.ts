@@ -16,6 +16,8 @@ export interface PhotoHistogram {
   blue: number[];
   shadowClip: number;
   highlightClip: number;
+  /** Share of pixels at 0 (shadow) or 255 (highlight) in each channel, so clipping can be said in words per channel. */
+  channelClip?: Record<'red' | 'green' | 'blue', { shadow: number; highlight: number }>;
 }
 export type TileState = 'importing' | 'analysing' | 'ready' | 'unavailable';
 export type AssistMode = 'solo' | 'copilot' | 'autopilot';
