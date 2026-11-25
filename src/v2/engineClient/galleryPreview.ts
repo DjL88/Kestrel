@@ -33,3 +33,4 @@ export async function renderGalleryPreview(frame: PhotoFrame, provider: BrowserP
   await applyFrameLayers(canvas, frame.overlay, true);
   return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.86));
 }
+

@@ -1384,6 +1384,7 @@ export const fr: AreaTranslation<typeof source> = {
     privacyBody: 'InFlight fonctionne entièrement hors ligne. Les fichiers originaux ne sont jamais modifiés, déplacés ni envoyés. Rien ne quitte cet appareil sauf si vous activez une fonction facultative et y consentez.',
     privacyLink: 'Lire la politique de confidentialité',
     privacyDraft: '(brouillon, pas encore relu par un juriste).',
+    buildModified: 'Modifiée depuis ce commit (une version de test, pas une version publiée)',
     eraseHeading: 'Tout effacer sur cet appareil',
     eraseBody: 'Supprime tous les projets, retouches, aperçus et choix enregistrés qu’InFlight conserve dans ce navigateur ou cette application, puis le redémarre. Vos fichiers photo originaux ne sont pas touchés. C’est irréversible.',
     eraseConfirm: 'Tapez ERASE pour confirmer',

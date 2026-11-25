@@ -1384,6 +1384,7 @@ export const is: AreaTranslation<typeof source> = {
     privacyBody: 'InFlight virkar að fullu án nettengingar. Frumskrám er aldrei breytt, þær færðar eða hlaðið upp. Ekkert fer úr þessu tæki nema þú kveikir á valkvæðum eiginleika og samþykkir það.',
     privacyLink: 'Lesa persónuverndarstefnuna',
     privacyDraft: '(drög, ekki enn yfirfarin af lögfræðingi).',
+    buildModified: 'Breytt síðan þessi útgáfa var skráð (prófunarútgáfa, ekki útgáfa)',
     eraseHeading: 'Eyða öllu í þessu tæki',
     eraseBody: 'Fjarlægir öll verkefni, breytingar, forskoðanir og vistuð val sem InFlight geymir í þessum vafra eða forriti og endurræsir það síðan. Upprunalegu myndskránum þínum er ekki hreyft. Þetta er ekki hægt að afturkalla.',
     eraseConfirm: 'Sláðu inn ERASE til að staðfesta',

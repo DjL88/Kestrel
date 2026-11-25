@@ -1384,6 +1384,7 @@ export const nb: AreaTranslation<typeof source> = {
     privacyBody: 'InFlight virker helt frakoblet. Originalfiler blir aldri endret, flyttet eller lastet opp. Ingenting forlater denne enheten med mindre du slår på en valgfri funksjon og samtykker.',
     privacyLink: 'Les personvernerklæringen',
     privacyDraft: '(utkast, ennå ikke gjennomgått av jurist).',
+    buildModified: 'Endret siden denne commiten (en testversjon, ikke en utgivelse)',
     eraseHeading: 'Slett alt på denne enheten',
     eraseBody: 'Fjerner alle prosjekter, redigeringer, forhåndsvisninger og lagrede valg som InFlight har i denne nettleseren eller appen, og starter den deretter på nytt. De originale bildefilene dine blir ikke rørt. Det kan ikke angres.',
     eraseConfirm: 'Skriv ERASE for å bekrefte',

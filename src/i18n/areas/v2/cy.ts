@@ -1384,6 +1384,7 @@ export const cy: AreaTranslation<typeof source> = {
     privacyBody: 'Mae InFlight yn gweithio’n llwyr all-lein. Ni chaiff ffeiliau gwreiddiol byth eu newid, eu symud na’u huwchlwytho. Nid oes dim yn gadael y ddyfais hon oni bai eich bod yn troi nodwedd ddewisol ymlaen ac yn cydsynio iddi.',
     privacyLink: 'Darllen y polisi preifatrwydd',
     privacyDraft: '(drafft, heb ei adolygu gan gyfreithiwr eto).',
+    buildModified: 'Wedi newid ers yr ymrwymiad hwn (adeiliad prawf, nid rhyddhad)',
     eraseHeading: 'Dileu popeth ar y ddyfais hon',
     eraseBody: 'Yn tynnu pob prosiect, golygiad, rhagolwg a dewis wedi’i gadw y mae InFlight yn ei gadw yn y porwr neu’r ap hwn, yna’n ei ailgychwyn. Ni chyffyrddir â’ch ffeiliau lluniau gwreiddiol. Does dim modd dadwneud hyn.',
     eraseConfirm: 'Teipiwch ERASE i gadarnhau',
