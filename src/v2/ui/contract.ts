@@ -62,7 +62,9 @@ export type FeatureKey =
   | 'onlineAi'
   | 'cloudAssist'
   | 'zoomVideo'
-  | 'splitFrames';
+  | 'splitFrames'
+  /** Preview: focus stacking (off by default). */
+  | 'focusStack';
 
 export type SocialPlatform =
   | 'instagram'
@@ -452,6 +454,8 @@ export interface Photo {
    * as recorded when the preview was made. Absent for JPEG/PNG files and while nothing is shown yet. */
   /** A lossless DNG copy can be saved: a Nikon HE/HE* NEF in the desktop app. */
   dngCopy?: boolean;
+  /** This photo is a focus stack made in InFlight: the photos it was made from, in order. */
+  focusStack?: { sources: string[] };
   /** 'offered': a RAW whose full-size develop is not on screen and can be made here; 'running': it is being made. */
   fullDevelop?: 'offered' | 'running';
   picture?: { preview?: import('../../core/pictureSource').PictureProvenance; thumb?: import('../../core/pictureSource').PictureProvenance };
@@ -740,6 +744,8 @@ export interface WorkspaceActions {
   backToProjects: () => void;
   createProject: (name: string, kind?: 'photography' | 'collage') => void;
   createCollageFromSelection?: (photoIds: string[]) => void;
+  /** Focus stack the chosen photos into a new linked photo, as a background task (preview, behind its flag). */
+  focusStackPhotos?: (photoIds: string[]) => void;
   exportCollage?: (request: import('../engineClient/exportCollage').CollageExportRequest) => Promise<void>;
   updateCollage?: (document: import('../../core/collage').CollageDocument) => void;
   browseCollageProjectPhotos?: (sourceProjectId: string) => Promise<Array<{ id: string; filename: string }>>;

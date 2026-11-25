@@ -103,6 +103,8 @@ export interface PhotoFrame {
   framing?: PhotoFraming;
   focusPoint?: FocusPoint;
   rating?: number;
+  /** A focus stack made in InFlight: this photo is the new linked file, and this is the record of its sources. */
+  focusStack?: import('./focusStackRecipe').FocusStackRecipe;
   virtualCopy?: { originalFrameId: string; number: number };
   /** A preview fetched from a shared project's cloud store, standing in for an original this device does not have. Its shared identity is the owner's original, never this file. */
   cloudPhoto?: { projectId: string; photoKey: string; /** The owner's original has been fetched and now stands behind this photo. */ hasOriginal?: boolean };
