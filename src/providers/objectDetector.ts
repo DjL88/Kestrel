@@ -167,6 +167,28 @@ export async function findSubject(source: Source, signal?: AbortSignal): Promise
   return { detection: best, sharpness: sharpnessOf(source, best.box), coverage: (best.box.w * best.box.h) / (w * h) };
 }
 
+/**
+ * The same looking as findSubject (the whole frame, then tiles only when nothing confident was seen, so it costs the
+ * same), but every merged subject rather than only the dominant one, for multi-subject culling (owner decision 6).
+ * Ordered like findSubject, so the first entry is the subject findSubject would have returned. At most 8.
+ */
+export async function findSubjectsSamePass(source: Source, signal?: AbortSignal): Promise<FoundSubject[]> {
+  const { w, h } = dims(source);
+  const plan = tilePlan(w, h);
+  let detections = await lookIn(source, plan[0]);
+  if (!detections.some((d) => d.score >= 0.5)) {
+    for (const tile of plan.slice(1)) {
+      signal?.throwIfAborted();
+      detections = detections.concat(await lookIn(source, tile));
+    }
+  }
+  return mergeDetections(detections)
+    .filter((d) => Number.isFinite(d.box.x) && Number.isFinite(d.box.y) && Number.isFinite(d.box.w) && Number.isFinite(d.box.h) && d.box.w > 0 && d.box.h > 0)
+    .sort((a, b) => b.score * Math.sqrt(b.box.w * b.box.h) - a.score * Math.sqrt(a.box.w * a.box.h))
+    .slice(0, 8)
+    .map((detection) => ({ detection, sharpness: sharpnessOf(source, detection.box), coverage: (detection.box.w * detection.box.h) / (w * h) }));
+}
+
 /** Sharpness inside the box, measured at a fixed size so a big subject and a small one compare fairly. */
 function sharpnessOf(source: Source, box: Box): number {
   const pad = 0.1;

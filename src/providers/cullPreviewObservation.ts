@@ -1,8 +1,8 @@
-import { scorePreview, scoreWithSubject, type CullSuggestion, type SubjectFinding } from '../core/autoCull';
+import { scorePreview, scoreWithSubjects, type CullSuggestion, type SubjectFinding } from '../core/autoCull';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 import { loadImage } from './loadImage';
-import { findSubject } from './objectDetector';
+import { findSubjectsSamePass } from './objectDetector';
 
 export interface CullImageObservation {
   result: CullSuggestion;
@@ -41,13 +41,14 @@ export async function observeCullImage(
     if (!tryDetector) return { result: base, base, detectorFailed: false };
 
     try {
-      const found = await findSubject(image, signal);
+      // Every subject is checked on its own; the frame is only as good as its weakest main subject (decision 6).
+      const found = await findSubjectsSamePass(image, signal);
       signal.throwIfAborted();
-      const finding: SubjectFinding | null = found && {
-        label: found.detection.label, score: found.detection.score,
-        size: Math.max(found.detection.box.w, found.detection.box.h), sharpness: found.sharpness,
-      };
-      return { result: scoreWithSubject(base, finding), base, detectorFailed: false };
+      const findings: SubjectFinding[] = found.map((subject) => ({
+        label: subject.detection.label, score: subject.detection.score,
+        size: Math.max(subject.detection.box.w, subject.detection.box.h), sharpness: subject.sharpness,
+      }));
+      return { result: scoreWithSubjects(base, findings), base, detectorFailed: false };
     } catch {
       signal.throwIfAborted();
       return { result: base, base, detectorFailed: true };
