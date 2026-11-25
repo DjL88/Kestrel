@@ -176,12 +176,17 @@ export async function requireVerifiedNikonPrecisionMode(file: Blob): Promise<voi
       return invoke<string>('raw_sensor_mode', new Uint8Array(await file.slice(0, bytes).arrayBuffer()),
         { headers: { 'x-file-length': String(file.size) } });
     };
-  const mode = await verifiedNikonSensorMode(file, ask);
-  if (mode !== 'other') {
-    throw new Error(mode === 'unknown'
-      ? 'Nikon RAW compression could not be verified; no precision export was made.'
-      : 'Nikon HE/HE* precision export requires separate commercial codec clearance.');
-  }
+  const refusal = precisionModeRefusal(await verifiedNikonSensorMode(file, ask));
+  if (refusal) throw new Error(refusal);
+}
+
+/**
+ * Whether a 16-bit develop may go ahead for this compression. The owner decided (25 Nov 2026) that Nikon HE/HE* NEFs get
+ * the 16-bit develop through the same decoder (ticoraw) that already makes their 8-bit develop. Only a compression that
+ * could not be read stays refused: never guessed.
+ */
+export function precisionModeRefusal(mode: RawSensorMode | 'unknown'): string | null {
+  return mode === 'unknown' ? 'Nikon RAW compression could not be verified; no precision export was made.' : null;
 }
 
 /** Plain words for how a developed picture was made from the sensor data. */

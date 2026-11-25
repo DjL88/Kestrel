@@ -80,8 +80,8 @@ export async function openSensorWorkingRaster(
   const before = await hashRawSource(original);
   if (expectedSourceSha256 && before !== expectedSourceSha256)
     throw new Error('The selected original no longer matches its recorded SHA-256. No edit source was opened.');
-  // The decoder recognises camera bytes independently of the suffix. Keep
-  // the HE gate for renamed files, without claiming that this proves rights.
+  // The decoder recognises camera bytes independently of the suffix. A Nikon
+  // compression that cannot be read is refused; HE/HE* go ahead (owner, 25 Nov).
   await requireVerifiedNikonPrecisionMode(original);
   const decoded = await developRawRgb16(original);
   // Files backed by removable/network storage can change while decoding.

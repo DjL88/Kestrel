@@ -1151,6 +1151,7 @@ Counts: a=136, b=0 (all candidates turned out to be on main or were merged in th
 
 ## 4. Integration log
 
+- **25 November 2026 — Owner decision: Nikon HE/HE\* get the 16-bit develop too.** Dave confirmed in the InFlight project that the 16-bit path uses the same decoder (ticoraw) as the 8-bit develop. `requireVerifiedNikonPrecisionMode` now refuses only a compression it could not read (`precisionModeRefusal`); the 16-bit TIFF, PNG and RGB16 exports open HE/HE\* NEFs. Owner HE NEF through the 16-bit path NOT RUN.
 - **25 November 2026 — V2 "Develop full size" control (RAW audit row 3).** One canvas-bar button, its state shown ("Developing full size…", then the picture label says "at full size"), run as a Tasks item. Checks: see the PR.
 
 - **25 November 2026 — V2 lossless DNG copy of Nikon HE/HE\* NEFs (desktop, RAW audit row 9).** Photo Info offers "Save lossless DNG copy" for an HE/HE\* NEF in the desktop app; one Tasks item reads the original, calls the existing `raw_dng_copy` (ticoraw, tested in `kestrel-raw`) and saves `<name>.dng`. Checks: see the PR.
