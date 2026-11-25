@@ -5,6 +5,7 @@ import vectors from '../assets/scene/vectors.json' with { type: 'json' };
 import thresholds from '../assets/scene/thresholds.json' with { type: 'json' };
 import { captureInstantUtc, readGpsPosition } from './exifParser';
 import { mergePhotoTags } from './photoTags';
+import { encodeVector } from './textSearch';
 import { PLACES_REVISION, clipSceneTags, pixelStyleTags, sceneModel, sceneRevision, sceneTagCandidates, sceneTagWork, sceneTags, sunTags, type SceneModel } from './sceneTags';
 import type { PhotoFrame } from './types';
 
@@ -107,9 +108,14 @@ test('a photo is looked at for places only when it has GPS, and for its scene un
   const withoutModel = mergePhotoTags(photo('p1'), 'scene', ['light'], [], sceneRevision(false));
   assert.equal(sceneTagWork(withoutModel, false).scene, false, 'nothing new to learn without the model');
   assert.equal(sceneTagWork(withoutModel, true).scene, true, 'looked at again once the model is available');
-  const done = mergePhotoTags(mergePhotoTags(photo('p1', { exif: { gps: MACH_LOOP } }), 'scene', ['light'], [], sceneRevision(true)),
+  const tagged = mergePhotoTags(mergePhotoTags(photo('p1', { exif: { gps: MACH_LOOP } }), 'scene', ['light'], [], sceneRevision(true)),
     'places', ['place'], [], PLACES_REVISION);
+  assert.equal(sceneTagWork(tagged, true).scene, true, 'tagged before picture vectors were kept: looked at once more');
+  assert.equal(sceneTagWork(tagged, false).scene, false, 'without the model there is no picture vector to add');
+  const done = { ...tagged, pictureVector: encodeVector(new Float32Array(512).fill(0.1)) };
   assert.deepEqual(sceneTagWork(done, true), { places: false, scene: false });
+  const otherModel = { ...tagged, pictureVector: { ...done.pictureVector, model: 'another-model' } };
+  assert.equal(sceneTagWork(otherModel, true).scene, true, 'a vector from another model is made again');
   assert.deepEqual(sceneTagWork(photo('p1', { removedAt: 1 }), true), { places: false, scene: false });
 });
 

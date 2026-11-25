@@ -6,6 +6,7 @@ import PictureSourceBadge from './PictureSourceBadge';
 import { viewPhotos } from '../utils/studioMath';
 import { TagFilterSelect } from './TagFilterSelect';
 import { DecisionFilter, ViewOptions } from './PhotoViewControls';
+import { SearchNote } from './SearchNote';
 
 interface GridViewProps {
   photos: Photo[];
@@ -13,6 +14,8 @@ interface GridViewProps {
   selectedPhotoIds: string[];
   filter: FilmstripFilter;
   search: string;
+  /** Photos whose picture matches the search words (search by description); null: words only. */
+  pictureIds?: ReadonlySet<string> | null;
   minRating: number;
   sort: PhotoSort;
   onSetMinRating: (rating: number) => void;
@@ -34,6 +37,7 @@ export default function GridView({
   selectedPhotoIds,
   filter,
   search,
+  pictureIds = null,
   minRating,
   sort,
   onSetMinRating,
@@ -48,7 +52,7 @@ export default function GridView({
   onSetSearch,
   onClose,
 }: GridViewProps) {
-  const visible = viewPhotos(photos, { filter, search, minRating, sort, tag: tagFilter });
+  const visible = viewPhotos(photos, { filter, search, minRating, sort, tag: tagFilter, pictureIds });
   const flaggedCount = photos.filter((p) => p.decision === 'keep').length;
 
   return (
@@ -65,6 +69,7 @@ export default function GridView({
           <span className="text-xs text-[var(--text-muted)] tabular-nums">
             {visible.length} of {photos.length} · {flaggedCount} flagged
           </span>
+          <SearchNote photos={photos} search={search} pictureIds={pictureIds} className="max-w-md truncate" />
         </div>
 
         <div className="flex items-center gap-2">

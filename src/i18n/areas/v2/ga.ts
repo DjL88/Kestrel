@@ -289,6 +289,8 @@ export const ga: AreaTranslation<typeof source> = {
     autoCullRunning: 'Ag déanamh anailíse…',
     searchPlaceholder: 'Cuardaigh ainm comhaid, ceamara, speiceas…',
     searchToggle: 'Cuardaigh agus scag grianghraif',
+    searchPartial: (words: string) => `Níl aon ghrianghraf a mheaitseálann gach focal. Grianghraif le: ${words}`,
+    searchByPicture: 'Áirítear grianghraif a aimsíodh ón méid atá sa phictiúr.',
     filterAll: 'Gach ceann',
     filterFlagged: 'Marcáilte',
     filterToReview: "Le hathbhreithniú",
@@ -1684,6 +1686,7 @@ export const ga: AreaTranslation<typeof source> = {
       photoCheck: 'Seiceáil an grianghraf',
       markings: 'Léann cláruimhreacha',
       denoise: 'Laghdú torainn TrueDetail',
+      search: 'Aimsíonn sé grianghraif ó chur síos',
     },
     place: {
       builtIn: 'Ionsuite',

@@ -45,8 +45,11 @@ export async function placeTagsFor(frame: Pick<PhotoFrame, 'exif'>): Promise<Pho
   return [...curatedTags(loaded.spots, gps.latitude, gps.longitude), ...placeTags(loaded.places, gps.latitude, gps.longitude)];
 }
 
-/** Scene tags for a photo from its small analysis picture, and whether the image model took part. */
-export async function sceneTagsFor(frame: Pick<PhotoFrame, 'exif'>, picture: HTMLCanvasElement): Promise<{ tags: PhotoTag[]; withModel: boolean }> {
+/**
+ * Scene tags for a photo from its small analysis picture, whether the image model took part, and the picture vector it
+ * worked out (kept for search in words; null without the model).
+ */
+export async function sceneTagsFor(frame: Pick<PhotoFrame, 'exif'>, picture: HTMLCanvasElement): Promise<{ tags: PhotoTag[]; withModel: boolean; vector: Float32Array | null }> {
   const context = picture.getContext('2d', { willReadFrequently: true });
   const rgba = context ? context.getImageData(0, 0, picture.width, picture.height).data : null;
   let embedding: Float32Array | null = null;
@@ -59,5 +62,5 @@ export async function sceneTagsFor(frame: Pick<PhotoFrame, 'exif'>, picture: HTM
       scene = null; embedding = null;
     }
   }
-  return { tags: sceneTags({ exif: frame.exif, rgba, embedding, model: scene }), withModel: Boolean(embedding && scene) };
+  return { tags: sceneTags({ exif: frame.exif, rgba, embedding, model: scene }), withModel: Boolean(embedding && scene), vector: embedding && scene ? embedding : null };
 }

@@ -286,6 +286,8 @@ export const da: AreaTranslation<typeof source> = {
     autoCullRunning: 'Analyserer …',
     searchPlaceholder: 'Søg filnavn, kamera, art …',
     searchToggle: 'Søg og filtrér fotos',
+    searchPartial: (words: string) => `Intet foto passer til alle ord. Viser fotos med: ${words}`,
+    searchByPicture: 'Omfatter fotos fundet ud fra det, billedet viser.',
     filterAll: 'Alle',
     filterFlagged: 'Markerede',
     filterToReview: "Til gennemsyn",
@@ -1681,6 +1683,7 @@ export const da: AreaTranslation<typeof source> = {
       photoCheck: 'Tjek billede',
       markings: 'Læser registreringer',
       denoise: 'TrueDetail-støjreduktion',
+      search: 'Finder fotos ud fra beskrivelse',
     },
     place: {
       builtIn: 'Indbygget',

@@ -286,6 +286,8 @@ export const nb: AreaTranslation<typeof source> = {
     autoCullRunning: 'Analyserer …',
     searchPlaceholder: 'Søk filnavn, kamera, art …',
     searchToggle: 'Søk og filtrer bilder',
+    searchPartial: (words: string) => `Ingen bilder passer med alle ordene. Viser bilder med: ${words}`,
+    searchByPicture: 'Inkluderer bilder funnet etter det bildet viser.',
     filterAll: 'Alle',
     filterFlagged: 'Merket',
     filterToReview: "Til gjennomgang",
@@ -1681,6 +1683,7 @@ export const nb: AreaTranslation<typeof source> = {
       photoCheck: 'Sjekk bildet',
       markings: 'Leser registreringer',
       denoise: 'TrueDetail-støyreduksjon',
+      search: 'Finner bilder etter beskrivelse',
     },
     place: {
       builtIn: 'Innebygd',

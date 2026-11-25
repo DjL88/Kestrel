@@ -303,10 +303,12 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   // so "what Cmd/Ctrl+K can run" and "what the keyboard shortcut runs" never drift apart.
   // The photos the filmstrip and grid show, in their order. Select all and Shift ranges act on these only, so a filter
   // such as Flagged never lets an edit or an export reach photos that are hidden.
+  // Photos found by what the picture shows (search by description), added to the word matches.
+  const pictureIds = React.useMemo(() => (store.searchPictureIds ? new Set(store.searchPictureIds) : null), [store.searchPictureIds]);
   const shownPhotoIds = React.useMemo(() => viewPhotos(store.photos, {
     filter: store.filmstripFilter, search: store.filmstripSearch, minRating: store.filmstripMinRating,
-    sort: store.filmstripSort, tag: store.filmstripTag ?? null,
-  }).map((photo) => photo.id), [store.photos, store.filmstripFilter, store.filmstripSearch, store.filmstripMinRating, store.filmstripSort, store.filmstripTag]);
+    sort: store.filmstripSort, tag: store.filmstripTag ?? null, pictureIds,
+  }).map((photo) => photo.id), [store.photos, store.filmstripFilter, store.filmstripSearch, store.filmstripMinRating, store.filmstripSort, store.filmstripTag, pictureIds]);
   const selectShownPhoto = React.useCallback((photoId: string, modifiers?: { ctrl?: boolean; shift?: boolean }) =>
     actions.selectPhoto(photoId, modifiers?.shift ? { ...modifiers, order: shownPhotoIds } : modifiers), [actions, shownPhotoIds]);
   const selectAllShown = React.useCallback(() => actions.selectAllPhotos(shownPhotoIds), [actions, shownPhotoIds]);
@@ -842,6 +844,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   selectedPhotoIds={store.selectedPhotoIds}
                   filter={store.filmstripFilter}
                   search={store.filmstripSearch}
+                  pictureIds={pictureIds}
                   minRating={store.filmstripMinRating}
                   sort={store.filmstripSort}
                   onSetMinRating={actions.setFilmstripMinRating}
@@ -928,6 +931,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 height={store.filmstripHeight}
                 filter={store.filmstripFilter}
                 search={store.filmstripSearch}
+                pictureIds={pictureIds}
                 minRating={store.filmstripMinRating}
                 sort={store.filmstripSort}
                 onSetMinRating={actions.setFilmstripMinRating}

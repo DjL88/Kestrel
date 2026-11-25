@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { MODEL_CATALOGUE } from './modelCatalogue';
-import { OPTIONAL_MODELS } from '../core/optionalModels';
+import { OPTIONAL_MODELS, optionalModelConfigured } from '../core/optionalModels';
 
 test('every model is listed once, each file pinned by a 64-hex checksum and a real size', () => {
   const ids = MODEL_CATALOGUE.map((entry) => entry.id);
@@ -12,6 +12,8 @@ test('every model is listed once, each file pinned by a 64-hex checksum and a re
     assert.ok(entry.files.length > 0, entry.id);
     for (const file of entry.files) {
       assert.match(file.sha256, /^[0-9a-f]{64}$/, file.statId);
+      // A pack whose size is not pinned yet is never offered (optionalModelConfigured), so it never shows a size.
+      if (entry.pack && file.bytes === 0) { assert.equal(optionalModelConfigured(entry.pack.model), false, file.statId); continue; }
       assert.ok(Number.isSafeInteger(file.bytes) && file.bytes > 0, file.statId);
     }
   }

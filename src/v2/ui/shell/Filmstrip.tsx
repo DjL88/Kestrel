@@ -10,6 +10,7 @@ import BrandIcon from '../icons/BrandIcon';
 import { viewPhotos } from '../utils/studioMath';
 import { TagFilterSelect } from './TagFilterSelect';
 import { DecisionFilter, ViewOptions } from './PhotoViewControls';
+import { SearchNote } from './SearchNote';
 
 interface FilmstripProps {
   photos: Photo[];
@@ -21,6 +22,8 @@ interface FilmstripProps {
   height: number;
   filter: FilmstripFilter;
   search: string;
+  /** Photos whose picture matches the search words (search by description); null: words only. */
+  pictureIds?: ReadonlySet<string> | null;
   minRating: number;
   sort: PhotoSort;
   onSetMinRating: (rating: number) => void;
@@ -70,6 +73,7 @@ export default function Filmstrip({
   height,
   filter,
   search,
+  pictureIds = null,
   minRating,
   sort,
   onSetMinRating,
@@ -190,7 +194,7 @@ export default function Filmstrip({
     };
   }, [tileMenu]);
 
-  const visiblePhotos = viewPhotos(photos, { filter, search, minRating, sort, tag: tagFilter });
+  const visiblePhotos = viewPhotos(photos, { filter, search, minRating, sort, tag: tagFilter, pictureIds });
   // Next and previous photo (a macro pad dial or command search) step through the photos shown here, so the filter and rating filter are respected.
   const stepRef = useRef({ visiblePhotos, activePhoto, onSelectPhoto });
   stepRef.current = { visiblePhotos, activePhoto, onSelectPhoto };
@@ -397,6 +401,7 @@ export default function Filmstrip({
                 aria-label={STRINGS.filmstrip.searchPlaceholder}
                 className="h-8 w-44 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] pl-7 pr-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
               />
+              <SearchNote photos={photos} search={search} pictureIds={pictureIds} className="ml-2 hidden max-w-[16rem] truncate md:inline" />
             </div>
           ) : (
             <button

@@ -130,6 +130,26 @@ export const BIOCLIP2: OptionalModel = {
   cache: 'kestrel-bioclip2-v1',
 };
 
+/**
+ * The text half of the CLIP ViT-B/32 model whose picture half is already in the app (the category gate). With it, a
+ * description typed in the search box ("dipper on a rock") is compared with each photo's picture vector, which the scene
+ * tag pass keeps. It is the exact file the committed scene, subject and vehicle vectors were made with (their
+ * `textModelSha256`). Its size is not pinned yet: the file was not reachable from the session that added the pack, so
+ * the pack stays out of sight until the size is set here (or with `VITE_CLIPTEXT_MODEL_BYTES`). Signing the file with
+ * scripts/release/sign-data-manifest.ts reports its true size.
+ */
+export const CLIP_TEXT: OptionalModel = {
+  id: 'clip-vit-b32-text-int8',
+  name: 'Search by description (CLIP text)',
+  job: 'Find photos by describing them in words, such as "dipper on a rock", by what is in the picture rather than only names and tags.',
+  licence: 'MIT (OpenAI CLIP; ONNX conversion by Xenova)',
+  source: 'https://huggingface.co/Xenova/clip-vit-base-patch32 (onnx/text_model_int8.onnx)',
+  tier: 'phone',
+  fallback: 'search by names, species, vehicles and tags',
+  files: { model: pinned('CLIPTEXT_MODEL', 'clip-vit-b32-text-int8.onnx', '18845f2ccc35223bb7fec403383a131154b11ac0918df25cf51986df5efd3a21', 0) },
+  cache: 'kestrel-clip-text-v1',
+};
+
 export const BIREFNET_LITE: OptionalModel = {
   id: 'birefnet-lite-w16',
   name: 'Fine subject edges (BiRefNet-lite)',
@@ -158,7 +178,7 @@ export function packFileUrlFromManifest(model: OptionalModel, role: string, mani
   return baseUrl.replace(/\/+$/, '') + asset.path;
 }
 
-export const OPTIONAL_MODELS: readonly OptionalModel[] = [RFDETR_NANO, EFFICIENTSAM_TI, NAFNET_W32, BIOCLIP2, BIREFNET_LITE];
+export const OPTIONAL_MODELS: readonly OptionalModel[] = [RFDETR_NANO, EFFICIENTSAM_TI, NAFNET_W32, BIOCLIP2, BIREFNET_LITE, CLIP_TEXT];
 
 /** Total download for a pack, for an honest size in the offer. */
 export function optionalModelBytes(model: OptionalModel): number {

@@ -286,6 +286,8 @@ export const it: AreaTranslation<typeof source> = {
     autoCullRunning: 'Analisi…',
     searchPlaceholder: 'Cerca nome file, fotocamera, specie…',
     searchToggle: 'Cerca e filtra le foto',
+    searchPartial: (words: string) => `Nessuna foto corrisponde a tutte le parole. Foto con: ${words}`,
+    searchByPicture: 'Include foto trovate in base a ciò che mostra l’immagine.',
     filterAll: 'Tutte',
     filterFlagged: 'Contrassegnate',
     filterToReview: "Da rivedere",
@@ -1681,6 +1683,7 @@ export const it: AreaTranslation<typeof source> = {
       photoCheck: 'Controlla la foto',
       markings: 'Legge le immatricolazioni',
       denoise: 'Riduzione del rumore TrueDetail',
+      search: 'Trova foto da una descrizione',
     },
     place: {
       builtIn: 'Integrato',

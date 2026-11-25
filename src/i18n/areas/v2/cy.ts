@@ -286,6 +286,8 @@ export const cy: AreaTranslation<typeof source> = {
     autoCullRunning: 'Yn dadansoddi…',
     searchPlaceholder: 'Chwilio enw ffeil, camera, rhywogaeth…',
     searchToggle: 'Chwilio a hidlo lluniau',
+    searchPartial: (words: string) => `Does dim llun yn cyfateb i bob gair. Yn dangos lluniau gyda: ${words}`,
+    searchByPicture: 'Yn cynnwys lluniau a ganfuwyd o’r hyn sydd yn y llun.',
     filterAll: 'Y cyfan',
     filterFlagged: 'Wedi’u marcio',
     filterToReview: "I’w hadolygu",
@@ -1681,6 +1683,7 @@ export const cy: AreaTranslation<typeof source> = {
       photoCheck: 'Gwirio’r llun',
       markings: 'Yn darllen rhifau cofrestru',
       denoise: 'Lleihau sŵn TrueDetail',
+      search: 'Canfod lluniau o ddisgrifiad',
     },
     place: {
       builtIn: 'Wedi’i gynnwys',

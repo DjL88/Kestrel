@@ -286,6 +286,8 @@ export const fr: AreaTranslation<typeof source> = {
     autoCullRunning: 'Analyse…',
     searchPlaceholder: 'Rechercher nom de fichier, appareil, espèce…',
     searchToggle: 'Rechercher et filtrer les photos',
+    searchPartial: (words: string) => `Aucune photo ne correspond à tous les mots. Photos affichées avec : ${words}`,
+    searchByPicture: 'Inclut des photos trouvées d’après ce que montre l’image.',
     filterAll: 'Toutes',
     filterFlagged: 'Marquées',
     filterToReview: "À trier",
@@ -1681,6 +1683,7 @@ export const fr: AreaTranslation<typeof source> = {
       photoCheck: 'Vérifier la photo',
       markings: 'Lit les immatriculations',
       denoise: 'Réduction du bruit TrueDetail',
+      search: 'Trouve des photos d’après une description',
     },
     place: {
       builtIn: 'Intégré',

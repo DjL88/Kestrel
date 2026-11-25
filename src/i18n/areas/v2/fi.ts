@@ -287,6 +287,8 @@ export const fi: AreaTranslation<typeof source> = {
     autoCullRunning: 'Analysoidaan…',
     searchPlaceholder: 'Hae tiedostonimeä, kameraa, lajia…',
     searchToggle: 'Hae ja suodata kuvia',
+    searchPartial: (words: string) => `Mikään kuva ei vastaa kaikkia sanoja. Näytetään kuvat, joissa on: ${words}`,
+    searchByPicture: 'Mukana kuvia, jotka löytyivät kuvan sisällön perusteella.',
     filterAll: 'Kaikki',
     filterFlagged: 'Merkityt',
     filterToReview: "Tarkistettavat",
@@ -1682,6 +1684,7 @@ export const fi: AreaTranslation<typeof source> = {
       photoCheck: 'Tarkista kuva',
       markings: 'Lukee rekisteritunnukset',
       denoise: 'TrueDetail-kohinanpoisto',
+      search: 'Etsii kuvia kuvauksen perusteella',
     },
     place: {
       builtIn: 'Sisäänrakennettu',

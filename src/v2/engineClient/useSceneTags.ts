@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { mergePhotoTags, type PhotoTag } from '../../core/photoTags';
 import { PLACES_LANE } from '../../core/places';
 import { PLACES_REVISION, SCENE_FACETS, SCENE_LANE, sceneRevision, sceneTagCandidates, sceneTagWork } from '../../core/sceneTags';
+import { encodeVector } from '../../core/textSearch';
 import type { PhotoFrame } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import { gateAvailable } from '../../providers/categoryGate';
@@ -45,7 +46,7 @@ export function useSceneTags({ projectId, frames, provider, active, onScreen, on
         skipped.current.add(frame.id);
         const work = sceneTagWork(frame, modelAvailable);
         let places: PhotoTag[] | null = null;
-        let scene: { tags: PhotoTag[]; withModel: boolean } | null = null;
+        let scene: { tags: PhotoTag[]; withModel: boolean; vector: Float32Array | null } | null = null;
         if (work.places) places = await placeTagsFor(frame).catch(() => null);
         if (work.scene) {
           const picture = await pictureForAnalysis(store, frame).catch(() => null);
@@ -59,6 +60,8 @@ export function useSceneTags({ projectId, frames, provider, active, onScreen, on
           let next = live;
           if (places) next = mergePhotoTags(next, PLACES_LANE, ['place', 'landmark'], places, PLACES_REVISION, at);
           if (scene) next = mergePhotoTags(next, SCENE_LANE, SCENE_FACETS, scene.tags, sceneRevision(scene.withModel), at);
+          // The picture vector, for finding the photo by a description in words. A damaged vector is simply not kept.
+          if (scene?.vector) { try { next = { ...next, pictureVector: encodeVector(scene.vector) }; } catch { /* not kept */ } }
           return next;
         });
         await new Promise((resolve) => window.setTimeout(resolve, 20));

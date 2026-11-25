@@ -287,6 +287,8 @@ export const gd: AreaTranslation<typeof source> = {
     autoCullRunning: 'A’ mion-sgrùdadh…',
     searchPlaceholder: 'Lorg ainm faidhle, camara, gnè…',
     searchToggle: 'Lorg is criathraich dealbhan',
+    searchPartial: (words: string) => `Chan eil dealbh a’ freagairt ris gach facal. A’ sealltainn dhealbhan le: ${words}`,
+    searchByPicture: 'A’ gabhail a-steach dhealbhan a chaidh a lorg on rud a tha san dealbh.',
     filterAll: 'Na h-uile',
     filterFlagged: 'Le comharra',
     filterToReview: "Ri sgrùdadh",
@@ -1682,6 +1684,7 @@ export const gd: AreaTranslation<typeof source> = {
       photoCheck: 'Thoir sùil air an dealbh',
       markings: 'Leughaidh e àireamhan clàraidh',
       denoise: 'Lùghdachadh gràinne TrueDetail',
+      search: 'Lorgaidh e dealbhan o thuairisgeul',
     },
     place: {
       builtIn: 'Na bhroinn',

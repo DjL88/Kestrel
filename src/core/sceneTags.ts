@@ -3,6 +3,7 @@ import { decodeVector } from './speciesMatch';
 import { LOGIT_SCALE } from './subjectRouter';
 import { sunElevation, sunLight, type SunLight } from './sunPosition';
 import { laneRevision, type PhotoTag, type TagFacet } from './photoTags';
+import { readVector } from './textSearch';
 import { PLACES_LANE } from './places';
 import type { ExifMetadata, PhotoFrame } from './types';
 
@@ -23,13 +24,17 @@ export const PLACES_REVISION = 'places-v1';
 /** The scene lane's revision says whether the image model took part, so photos are looked at again once it can. */
 export const sceneRevision = (withModel: boolean) => (withModel ? `${SCENE_REVISION}+clip` : SCENE_REVISION);
 
-/** What still has to be looked at for a photo: its places (only with GPS) and its scene. */
+/**
+ * What still has to be looked at for a photo: its places (only with GPS) and its scene. A photo tagged with the image
+ * model before its picture vector was kept (for search in words) is looked at once more while the model is available.
+ */
 export function sceneTagWork(frame: PhotoFrame, modelAvailable: boolean): { places: boolean; scene: boolean } {
   if (frame.removedAt != null) return { places: false, scene: false };
   const scene = laneRevision(frame, SCENE_LANE);
+  const needsVector = modelAvailable && readVector(frame.pictureVector) === null;
   return {
     places: Boolean(frame.exif.gps) && laneRevision(frame, PLACES_LANE) !== PLACES_REVISION,
-    scene: scene !== sceneRevision(true) && (scene !== sceneRevision(false) || modelAvailable),
+    scene: (scene !== sceneRevision(true) && (scene !== sceneRevision(false) || modelAvailable)) || needsVector,
   };
 }
 

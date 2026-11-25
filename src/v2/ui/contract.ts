@@ -671,6 +671,8 @@ export interface WorkspaceStore {
   filmstripMinRating: number;
   filmstripSort: PhotoSort;
   filmstripSearch: string;
+  /** Photos whose picture matches the search words (search by description, on this device). Absent or null: words only. */
+  searchPictureIds?: string[] | null;
   /** Show only photos with this tag id; null shows all. */
   filmstripTag?: string | null;
   gridViewOpen: boolean;
