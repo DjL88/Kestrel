@@ -158,3 +158,101 @@ test('16-bit format export: split sections join to the one-pass 16-bit frame exa
   expect(report.mismatches).toBe(0);
   expect(report.names).toEqual(['p_split16-01-of-02.png', 'p_split16-02-of-02.png']);
 });
+
+for (const variant of [
+  { name: 'picture layers (normal and darken, turned, soft-edged)', upscale: undefined, layers: true, size: { width: 300, height: 240 } },
+  { name: '2x Output scale enlargement', upscale: 2, layers: false, size: { width: 800, height: 600 } },
+  { name: 'layers and 4x enlargement together', upscale: 4, layers: true, size: { width: 1200, height: 900 } },
+] as const) {
+  test('16-bit format export stays 16-bit to the file: ' + variant.name, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop', 'Pure rendering; one project is enough.');
+    await page.goto('/');
+    const report = await page.evaluate(async (settings) => {
+      // @ts-ignore Browser module resolved by Vite dev server.
+      const { renderV2Export } = await import('/src/v2/engineClient/renderV2Export.ts');
+      // @ts-ignore Browser module resolved by Vite dev server.
+      const { DEFAULT_CROP } = await import('/src/v2/engineClient/cropOps.ts');
+      // @ts-ignore Browser module resolved by Vite dev server.
+      const { readPng16 } = await import('/src/core/png16.ts');
+      // @ts-ignore Browser module resolved by Vite dev server.
+      const { looksEightBit } = await import('/src/core/compose16.ts');
+      // @ts-ignore Browser module resolved by Vite dev server.
+      const { ditherRgb16ToRgba8 } = await import('/src/core/rgb16Output.ts');
+      // @ts-ignore Browser module resolved by Vite dev server.
+      const { saveLayerAsset } = await import('/src/core/layerAssetVault.ts');
+
+      const width = 240, height = 180;
+      const data = new Uint16Array(width * height * 3);
+      for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) {
+        const at = (y * width + x) * 3;
+        data[at] = 3001 + x * 241; data[at + 1] = 7001 + y * 317; data[at + 2] = 61001 - x * 113 - y * 97;
+      }
+      const precise = { width, height, data };
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d')!.putImageData(new ImageData(ditherRgb16ToRgba8(precise), width, height), 0, 0);
+      const image = new Image();
+      image.src = canvas.toDataURL('image/png');
+      await image.decode();
+
+      let overlayRecord: unknown = undefined;
+      if (settings.layers) {
+        // Two synthetic layer images: a flat orange card and a two-tone stripe.
+        const art = (paint: (c: CanvasRenderingContext2D) => void) => {
+          const c = document.createElement('canvas'); c.width = 64; c.height = 48; paint(c.getContext('2d')!);
+          return new Promise<Blob>((resolve) => c.toBlob((b) => resolve(b!), 'image/png'));
+        };
+        const orange = await saveLayerAsset(await art((c) => { c.fillStyle = '#e08030'; c.fillRect(0, 0, 64, 48); }));
+        const stripe = await saveLayerAsset(await art((c) => { c.fillStyle = '#203040'; c.fillRect(0, 0, 32, 48); c.fillStyle = '#f0f0f0'; c.fillRect(32, 0, 32, 48); }));
+        const base = { aspect: 0.75, hidden: false, shape: 'rectangle' as const };
+        overlayRecord = { layers: [
+          { ...base, id: 'l1', assetId: orange, label: 'card', x: 0.3, y: 0.35, width: 0.3, rotation: 20, opacity: 0.6, blend: 'normal', softEdge: 0.1 },
+          { ...base, id: 'l2', assetId: stripe, label: 'stripe', x: 0.7, y: 0.65, width: 0.25, rotation: 0, opacity: 1, blend: 'darken', softEdge: 0, shape: 'oval' },
+        ] };
+      }
+      const frame = { id: 'fl', filename: 'layers16.png', isDemo: true, overlay: overlayRecord,
+        edit: { exposure: 0, warmth: 0, colour: 0, upscale: settings.upscale as 2 | 4 | undefined } } as Parameters<typeof renderV2Export>[1];
+      const png = { id: 'p16', label: 'PNG', prefix: 'p_', width: 0, height: 0, quality: 1, format: 'png' as const };
+      const crop = { ...DEFAULT_CROP };
+      const date = new Date('2026-11-25T23:30:00.000Z');
+
+      const result = await renderV2Export(image, frame, settings.size, crop, png, null, date, undefined, 1, precise);
+      const picture = await readPng16(new Uint8Array(await result.file.arrayBuffer()));
+      const plain = await renderV2Export(image, Object.assign({}, frame, { overlay: undefined }), settings.size, crop, png, null, date, undefined, 1, precise);
+      const plainPicture = await readPng16(new Uint8Array(await plain.file.arrayBuffer()));
+      const canvasResult = await renderV2Export(image, frame, settings.size, crop, png, null, date, undefined, 1);
+      const bitmap = await createImageBitmap(canvasResult.file);
+      const c = document.createElement('canvas'); c.width = bitmap.width; c.height = bitmap.height;
+      const ctx = c.getContext('2d', { willReadFrequently: true })!;
+      ctx.drawImage(bitmap, 0, 0);
+      const eight = ctx.getImageData(0, 0, c.width, c.height).data;
+      let sum = 0, count = 0, large = 0, changedByLayers = 0;
+      for (let p = 0; p < picture.width * picture.height; p += 1) {
+        let changed = false;
+        for (let ch = 0; ch < 3; ch += 1) {
+          const diff = Math.abs(picture.data[p * 3 + ch] / 257 - eight[p * 4 + ch]);
+          sum += diff; count += 1; if (diff > 24) large += 1;
+          if (picture.data[p * 3 + ch] !== plainPicture.data[p * 3 + ch]) changed = true;
+        }
+        if (changed) changedByLayers += 1;
+      }
+      return {
+        precision: result.precision, bits: result.bitsPerChannel, size: [picture.width, picture.height], canvasSize: [c.width, c.height],
+        eightBit: looksEightBit(picture), meanDiff: sum / count, largeShare: large / count,
+        layerShare: changedByLayers / (picture.width * picture.height),
+      };
+    }, { upscale: variant.upscale, layers: variant.layers, size: variant.size });
+
+    expect(report.precision).toBe('rgb16');
+    expect(report.bits).toBe(16);
+    expect(report.eightBit).toBe(false);
+    expect(report.size).toEqual(report.canvasSize);
+    // Enlarged beyond the 240 x 180 picture when Output scale asks for it.
+    if (variant.upscale) expect(report.size[0]).toBeGreaterThan(240);
+    expect(report.meanDiff).toBeLessThan(2);
+    expect(report.largeShare).toBeLessThan(0.01);
+    // Layers change only part of the picture; without them the export is identical to the plain one.
+    if (variant.layers) { expect(report.layerShare).toBeGreaterThan(0.02); expect(report.layerShare).toBeLessThan(0.5); }
+    else expect(report.layerShare).toBe(0);
+  });
+}

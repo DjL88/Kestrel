@@ -1,6 +1,6 @@
 import { applyCanvasExportEdit } from '../../core/canvasEdit';
 import { tagSrgb } from '../../core/iccEmbed';
-import { applyFrameLayers } from '../../core/layerAssetVault';
+import { applyFrameLayers, applyFrameLayers16 } from '../../core/layerAssetVault';
 import { fitScale, maxCanvasPixels } from '../../core/exportLimits';
 import { exportFilename, type ExportProfile } from '../../core/exportProfiles';
 import { datedExport } from '../../core/exportTimestamp';
@@ -18,9 +18,8 @@ import { upscaleCanvasInPlace } from './upscaleCanvas';
 import { cappedContinuousLayout, continuousExportLayout, numberedSectionFilename } from './continuousExport';
 import type { Rgb16Image } from '../../core/master16';
 import { ditherRgb16ToRgba8, downscaleRgb16 } from '../../core/rgb16Output';
-import { blankRgb16, copyRgb16, cropRgb16, drawRgb16, fillRgb16, overlayRgba8OnRgb16, rgb8To16 } from '../../core/compose16';
+import { blankRgb16, copyRgb16, cropRgb16, drawRgb16, enlargeRgb16, fillRgb16, overlayRgba8OnRgb16, rgb8To16 } from '../../core/compose16';
 import { encodePng16, provePng } from '../../core/png16';
-import { frameLayers, visibleLayers } from '../../core/layers';
 
 /** Everything the overlay needs, resolved by the caller from the same description the canvas draws. */
 export interface OverlayDraw {
@@ -37,11 +36,10 @@ export interface OverlayDraw {
 export interface V2RenderResult {
   file: File; width: number; height: number; capped: boolean;
   /**
-   * 'rgb16': edited, framed (crop, border, overlays, split) and written at 16 bits; a PNG is 16-bit, a JPEG is rounded
-   * to 8 bits once, as it is encoded. 'rgb16-edit': edited at 16 bits, then rounded once and framed on the 8-bit canvas
-   * (picture layers or an Output-scale enlargement, which are 8-bit steps today). '8-bit': the canvas path throughout.
+   * 'rgb16': edited, layered, enlarged, framed (crop, border, overlays, split) and written at 16 bits; a PNG is 16-bit,
+   * a JPEG is rounded to 8 bits once, as it is encoded. '8-bit': the canvas path throughout.
    */
-  precision: 'rgb16' | 'rgb16-edit' | '8-bit';
+  precision: 'rgb16' | '8-bit';
   /** Bits per channel in the written file(s): 16 only for a PNG from the 16-bit path. */
   bitsPerChannel: 8 | 16;
   /** Files in left-to-right order when exporting a continuous split. */
@@ -334,11 +332,14 @@ export async function renderV2Export(
   const scale = Math.min(1, needed, fitScale(fw, fh, limit));
   const name = exportFilename(frame.filename, profile, !frame.isDemo && isRawPreviewFile(frame.filename));
   const mimeType = profile.format === 'png' ? 'image/png' : 'image/jpeg';
-  // Picture layers (blend modes on the canvas) and the engine's enlargement are 8-bit steps; anything else stays 16-bit.
-  const layers = visibleLayers(frameLayers(frame.overlay)).length > 0;
-  const enlarges = up !== 1 && scale >= 1;
-  if (precise && !layers && !enlarges) {
-    const sized = downscaleRgb16(precise, Math.max(1, Math.round(fw * scale)), Math.max(1, Math.round(fh * scale)));
+  if (precise) {
+    let sized = downscaleRgb16(precise, Math.max(1, Math.round(fw * scale)), Math.max(1, Math.round(fh * scale)));
+    signal?.throwIfAborted();
+    // Picture layers, on the whole framed picture as the canvas path does, blended into the 16-bit pixels.
+    await applyFrameLayers16(sized, frame.overlay, true, frame.edit?.masks);
+    signal?.throwIfAborted();
+    // Output scale: the same Lanczos-3 resampler as the 8-bit path, on 16-bit samples.
+    if (up !== 1 && scale >= 1) sized = enlargeRgb16(sized, up as 2 | 4, signal);
     signal?.throwIfAborted();
     const output16 = blankRgb16(layout.width, layout.height);
     drawContinuousInsideBorders16(output16, sized, crop, sectionCount);
@@ -396,17 +397,8 @@ export async function renderV2Export(
   const picture = document.createElement('canvas');
   const output = document.createElement('canvas');
   try {
-    if (precise) {
-      // Tone, colour, masks and detail were applied at 16 bits on the full picture; resize at 16 bits, then round once.
-      const sized = downscaleRgb16(precise, Math.max(1, Math.round(fw * scale)), Math.max(1, Math.round(fh * scale)));
-      picture.width = sized.width; picture.height = sized.height;
-      const context = picture.getContext('2d');
-      if (!context) throw new Error('Canvas unavailable');
-      context.putImageData(new ImageData(ditherRgb16ToRgba8(sized), sized.width, sized.height), 0, 0);
-    } else {
-      drawFramedPhoto(source, picture, framing, { scale });
-      await applyCanvasExportEdit(picture, frame.edit ?? DEFAULT_EDIT, signal, Math.max(fw, fh) * scale, { aspect: fh / fw, view: { x: 0, y: 0, w: 1, h: 1 }, lensCentre: lensCentre(source.naturalWidth, source.naturalHeight, framing) });
-    }
+    drawFramedPhoto(source, picture, framing, { scale });
+    await applyCanvasExportEdit(picture, frame.edit ?? DEFAULT_EDIT, signal, Math.max(fw, fh) * scale, { aspect: fh / fw, view: { x: 0, y: 0, w: 1, h: 1 }, lensCentre: lensCentre(source.naturalWidth, source.naturalHeight, framing) });
     signal?.throwIfAborted();
     await applyFrameLayers(picture, frame.overlay, true, frame.edit?.masks);
     signal?.throwIfAborted();
@@ -435,7 +427,7 @@ export async function renderV2Export(
       const sectionName = numberedSectionFilename(name, section.index, sectionCount);
       sections.push(datedExport(tagged, sectionName, date, frame.exif?.captureStamp));
     }
-    return { file: sections[0], width: layout.sectionWidth, height: layout.height, capped: wasCapped, precision: precise ? 'rgb16-edit' : '8-bit',
+    return { file: sections[0], width: layout.sectionWidth, height: layout.height, capped: wasCapped, precision: '8-bit',
       bitsPerChannel: 8,
       ...(sectionCount > 1 ? { sections } : {}) };
   } finally {

@@ -3,7 +3,8 @@
  * Kept on this device (IndexedDB, by SHA-256 id), like watermark artwork; nothing is uploaded and no original is changed.
  */
 import { browserAssetStorage, createWatermarkAssetRepository } from './watermarkAssetVault';
-import { composeLayers } from './layerCompose';
+import { composeLayers, composeLayers16 } from './layerCompose';
+import type { Rgb16Image } from './master16';
 import { frameLayers, visibleLayers } from './layers';
 import type { Mask } from './maskTypes';
 
@@ -52,5 +53,18 @@ export async function applyFrameLayers(canvas: HTMLCanvasElement, overlay: unkno
     throw new Error(`This device does not have the image for the layer "${missing[0]}". Add it again in Overlays → Layers, or hide that layer, then export. Nothing was exported.`);
   }
   composeLayers(canvas, layers, images, masks);
+  return missing;
+}
+
+/** `applyFrameLayers` onto a 16-bit picture (composeLayers16), with the same strict check for missing images. */
+export async function applyFrameLayers16(image: Rgb16Image, overlay: unknown, strict: boolean, masks?: readonly Mask[]): Promise<string[]> {
+  const layers = visibleLayers(frameLayers(overlay));
+  if (!layers.length) return [];
+  const images = await layerImages(layers.map((layer) => layer.assetId));
+  const missing = layers.filter((layer) => !images.has(layer.assetId)).map((layer) => layer.label);
+  if (strict && missing.length) {
+    throw new Error(`This device does not have the image for the layer "${missing[0]}". Add it again in Overlays → Layers, or hide that layer, then export. Nothing was exported.`);
+  }
+  composeLayers16(image, layers, images, masks);
   return missing;
 }

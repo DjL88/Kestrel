@@ -6,6 +6,8 @@
 import { layerMask, softEdgeAlpha, visibleLayers, type PhotoLayer } from './layers';
 import { effectiveAlpha, fullContext } from './masks';
 import type { Mask } from './maskTypes';
+import type { Rgb16Image } from './master16';
+import { blendRgba8OnRgb16 } from './compose16';
 
 /** Canvas operation for each blend. */
 const OPERATION: Record<PhotoLayer['blend'], GlobalCompositeOperation> = { normal: 'source-over', darken: 'darken', lighten: 'lighten' };
@@ -90,6 +92,47 @@ export function composeLayers(
       context.drawImage(sheet, 0, 0);
       context.restore();
     }
+  }
+  return { missing };
+}
+
+/**
+ * `composeLayers` onto a 16-bit picture. Each layer is placed on its own clear sheet exactly as above (size, turn, soft
+ * edge, mask), then blended into the RGB16 pixels with its opacity and blend, so the photo under and around a layer
+ * keeps its 16-bit values.
+ */
+export function composeLayers16(
+  target: Rgb16Image, layers: readonly PhotoLayer[], images: ReadonlyMap<string, CanvasImageSource & { width: number; height: number }>,
+  masks?: readonly Mask[],
+): { missing: string[] } {
+  const shown = visibleLayers(layers);
+  const missing = shown.filter((layer) => !images.has(layer.assetId)).map((layer) => layer.label);
+  if (!shown.length) return { missing };
+  const sheet = document.createElement('canvas');
+  try {
+    sheet.width = target.width; sheet.height = target.height;
+    const context = sheet.getContext('2d', { willReadFrequently: true });
+    if (!context) throw new Error('Canvas unavailable');
+    for (const layer of shown) {
+      const image = images.get(layer.assetId);
+      if (!image) continue;
+      context.clearRect(0, 0, sheet.width, sheet.height);
+      const width = layer.width * sheet.width;
+      const height = width * layer.aspect;
+      const raster = layerRaster(image, layer, Math.min(width, image.width));
+      context.save();
+      context.translate(layer.x * sheet.width, layer.y * sheet.height);
+      context.rotate((layer.rotation * Math.PI) / 180);
+      context.drawImage(raster, -width / 2, -height / 2, width, height);
+      context.restore();
+      raster.width = 0; raster.height = 0;
+      const pixels = context.getImageData(0, 0, sheet.width, sheet.height);
+      const mask = layerMask(layer, masks);
+      if (mask) maskLayerAlpha(pixels.data, effectiveAlpha(mask, masks!, sheet.width, sheet.height, fullContext(sheet.width, sheet.height)), !!layer.maskInvert);
+      blendRgba8OnRgb16(target, pixels.data, layer.blend, layer.opacity);
+    }
+  } finally {
+    sheet.width = 0; sheet.height = 0;
   }
   return { missing };
 }
