@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "note": "Well-known photo spots, by hand. Each covers a circle of radiusKm around its point; a photo inside gets the spot's name as a landmark tag. Names are proper nouns and are not translated. Positions are approximate, worked out from the A487 and A470 passes on public maps (OpenStreetMap geometry was not copied); NOT CHECKED ON SITE: the owner should confirm them before relying on the spot names.",
+  "spots": [
+    { "id": "landmark.mach-loop", "name": "Mach Loop", "latitude": 52.69, "longitude": -3.8, "radiusKm": 14 },
+    { "id": "landmark.mach-loop.cad-west", "name": "Cad West", "latitude": 52.7, "longitude": -3.862, "radiusKm": 0.8 },
+    { "id": "landmark.mach-loop.cad-east", "name": "Cad East", "latitude": 52.701, "longitude": -3.843, "radiusKm": 0.8 },
+    { "id": "landmark.mach-loop.bwlch", "name": "Bwlch", "latitude": 52.716, "longitude": -3.745, "radiusKm": 1.2 },
+    { "id": "landmark.mach-loop.corris-corner", "name": "Corris Corner", "latitude": 52.665, "longitude": -3.858, "radiusKm": 0.8 }
+  ]
+}
