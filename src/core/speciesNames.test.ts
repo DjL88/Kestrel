@@ -53,6 +53,12 @@ test('mammals are named in the person’s language where Wikidata has a name, el
   assert.equal(read('cy').names['Lutra lutra'], 'Dwrgi');
   assert.equal(read('ga').names['Vulpes vulpes'], 'Sionnach');
   assert.match(read('cy').attribution, /Wikidata \(CC0\)/);
+  // Drafts for common UK and European mammals win where Wikidata is missing, wrong or Latin.
+  assert.equal(read('es').names['Oryctolagus cuniculus'], 'Conejo europeo', 'not "Poponejo"');
+  assert.equal(read('es').names['Neogale vison'], 'Visón americano', 'not an old Latin name');
+  assert.equal(read('it').names['Vulpes vulpes'], 'Volpe rossa');
+  assert.equal(read('cy').names['Vulpes vulpes'], 'Llwynog');
+  assert.equal(read('gd').names['Oryctolagus cuniculus'], 'Coineanach');
   for (const code of ['de', 'fr', 'cy', 'gd', 'ga']) {
     for (const [scientific, name] of Object.entries(read(code).names)) assert.notEqual(name.toLowerCase(), scientific.toLowerCase(), `${code}: ${scientific} is Latin again`);
   }
