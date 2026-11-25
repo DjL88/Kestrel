@@ -7,6 +7,7 @@ import { applyDehaze, validDehaze } from './dehaze';
 import { applyCaptureDetailRgb16, validCaptureSharpen } from './captureSharpen';
 import { applyFringe, validDefringe, validLateralCa } from './fringe';
 import { applyLensCorrection, validLens } from './lensCorrection';
+import { applyHeal, validHeal } from './heal';
 import { applyFinishingRgb16, validGrain, validVignette } from './finishing';
 import { validWhiteBalance } from './asShotWhite';
 import { applyDetailRgb16, applyPhotoEditLinear, detailParams, hasDetail, isNeutralTone, type PhotoEdit } from './photoEdits';
@@ -85,7 +86,7 @@ export function thumbRgb16(image: Rgb16Image): Thumb {
 const EXPORT_EDIT_KEYS = new Set([
   'exposure', 'warmth', 'tint', 'colour', 'brightness', 'contrast', 'highlights',
   'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity',
-  'sharpen', 'denoise', 'denoiseLuminance', 'masks', 'curve', 'mixer', 'whiteBalance', 'grade', 'channelCurves', 'calibration', 'vignette', 'grain', 'dehaze', 'lateralCa', 'defringe', 'lens', 'captureSharpen', 'deblur',
+  'sharpen', 'denoise', 'denoiseLuminance', 'masks', 'curve', 'mixer', 'whiteBalance', 'grade', 'channelCurves', 'calibration', 'vignette', 'grain', 'dehaze', 'lateralCa', 'defringe', 'lens', 'captureSharpen', 'deblur', 'heal',
 ]);
 
 /** Stop rather than quietly export a future or malformed edit that this
@@ -99,7 +100,7 @@ export function master16Blocker(edit: PhotoEdit | undefined, framing: PhotoFrami
     // A NaN/Infinity or non-number must never silently become black/white
     // archival pixels in a purportedly faithful 16-bit master.
     for (const key of EXPORT_EDIT_KEYS) {
-      if (key === 'masks' || key === 'curve' || key === 'mixer' || key === 'whiteBalance' || key === 'grade' || key === 'channelCurves' || key === 'calibration' || key === 'vignette' || key === 'grain' || key === 'captureSharpen') continue;
+      if (key === 'masks' || key === 'heal' || key === 'curve' || key === 'mixer' || key === 'whiteBalance' || key === 'grade' || key === 'channelCurves' || key === 'calibration' || key === 'vignette' || key === 'grain' || key === 'captureSharpen') continue;
       const value = edit[key as keyof PhotoEdit];
       if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || (key === 'tint' && Math.abs(value) > 2) || (key === 'denoiseLuminance' && (value < 0 || value > 2)))) {
         return `The saved "${key}" adjustment is invalid, so no 16-bit TIFF was made.`;
@@ -119,6 +120,7 @@ export function master16Blocker(edit: PhotoEdit | undefined, framing: PhotoFrami
     if (edit.defringe !== undefined && !validDefringe(edit.defringe)) return 'The saved fringe removal is invalid, so no 16-bit TIFF was made.';
     if (edit.grain !== undefined && !validGrain(edit.grain)) return 'The saved grain is invalid, so no 16-bit TIFF was made.';
     if (edit.channelCurves !== undefined && !validChannelCurves(edit.channelCurves)) return 'The saved channel curves are invalid, so no 16-bit TIFF was made.';
+    if (edit.heal !== undefined && !validHeal(edit.heal)) return 'The saved spot healing is invalid, so no 16-bit TIFF was made.';
     if (edit.masks !== undefined && !validMasks(edit.masks)) {
       return 'One or more saved masks could not be safely included in the 16-bit TIFF.';
     }
@@ -388,6 +390,7 @@ export function editRgb16(image: Rgb16Image, edit: PhotoEdit, lens?: { x: number
   const context = { aspect: image.height / image.width, view: { x: 0, y: 0, w: 1, h: 1 }, lensCentre: lens };
   applyLensCorrection(data, image.width, image.height, 3, edit.lens, context);
   applyFringe(data, image.width, image.height, 3, edit, context);
+  applyHeal(data, image.width, image.height, 3, 65535, edit.heal, context, Math.max(image.width, image.height));
   const chroma = noiseStrength(edit.denoise);
   if (chroma > 0) denoiseChromaRgb16(data, image.width, image.height, chroma, (edit.denoise ?? 0) > 1 ? 2 : 1);
   const luma = noiseStrength(edit.denoiseLuminance);

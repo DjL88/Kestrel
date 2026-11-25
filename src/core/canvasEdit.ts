@@ -5,6 +5,17 @@ import { applyDehaze } from './dehaze';
 import { applyCaptureDetail, deconvolutionParams } from './captureSharpen';
 import { applyFringe, hasFringeEdit } from './fringe';
 import { applyLensCorrection, hasLensCorrection } from './lensCorrection';
+import { applyHeal, hasHeal } from './heal';
+
+/** Spot healing runs after lens corrections, on the picture's own pixels, so spots sit where the person placed them. */
+function applyCanvasHeal(canvas: HTMLCanvasElement, edit: PhotoEdit, mask: MaskContext, imageEdge: number): void {
+  if (!hasHeal(edit.heal)) return;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('Canvas unavailable');
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  applyHeal(pixels.data, canvas.width, canvas.height, 4, 255, edit.heal, mask, mask.imageEdge ?? imageEdge);
+  context.putImageData(pixels, 0, 0);
+}
 
 /** Lens corrections and colour fringe removal run first, on the picture's own pixels, centred on the lens. */
 function applyCanvasFringe(canvas: HTMLCanvasElement, edit: PhotoEdit, mask: MaskContext, imageEdge: number): void {
@@ -145,6 +156,7 @@ export function applyCanvasPhotoEdit(
   // The stored AI result was made from the photo's own pixels, so it goes in before anything else.
   applyCanvasTrueDetailAi(canvas, edit, maskContext, false);
   applyCanvasFringe(canvas, edit, maskContext, imageEdge);
+  applyCanvasHeal(canvas, edit, maskContext, imageEdge);
   applyCanvasNoiseReduction(canvas, edit);
   applyCanvasDehaze(canvas, edit, imageEdge);
   applyCanvasCapture(canvas, edit, imageEdge);
@@ -173,6 +185,7 @@ export async function applyCanvasExportEdit(
   signal?.throwIfAborted();
   applyCanvasTrueDetailAi(canvas, edit, maskContext, true);
   applyCanvasFringe(canvas, edit, maskContext, edge);
+  applyCanvasHeal(canvas, edit, maskContext, edge);
   signal?.throwIfAborted();
   applyCanvasNoiseReduction(canvas, edit);
   signal?.throwIfAborted();

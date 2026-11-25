@@ -34,6 +34,9 @@ import { loadPad, resolveWithPad, savePad, type PadProfile } from './commands/pa
 import { commandById, type CommandDefinition } from './commands/registry';
 import { useNativeMenu } from './commands/useNativeMenu';
 import { lazyPart } from './utils/lazyPart';
+import { radiusToSize, sizeToRadius } from '../engineClient/healOps';
+import { DEFAULT_HEAL_RADIUS, MAX_HEAL_SPOTS } from '../../core/heal';
+import { healText } from '../../i18n/areas/heal';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
 import type { MenuAction } from './commands/menuMap';
 
@@ -53,6 +56,7 @@ const AdjustPanel = lazyPart(() => import('./panels/AdjustPanel'));
 const SizesPanel = lazyPart(() => import('./panels/SizesPanel'));
 const HistoryPanel = lazyPart(() => import('./panels/HistoryPanel'));
 const MasksPanel = lazyPart(() => import('./panels/MasksPanel'));
+const HealSection = lazyPart(() => import('./panels/HealSection'));
 const EnhancePanel = lazyPart(() => import('./panels/EnhancePanel'));
 const OverlayPanel = lazyPart(() => import('./panels/OverlayPanel'));
 const AssistPanel = lazyPart(() => import('./panels/AssistPanel'));
@@ -200,6 +204,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const changePad = React.useCallback((next: PadProfile) => { savePad(next); setPad(next); }, []);
   const changeKeymap = React.useCallback((next: SavedKeymap) => { saveKeymap(next); setSavedKeymap(next); }, []);
   const [maskGuide, setMaskGuide] = useState<{ photoId: string; maskId: string } | null>(null);
+  // Spot healing: shown on the photo while its section in the Masks panel is on screen.
+  const [healShown, setHealShown] = useState(false);
+  const [healUi, setHealUi] = useState<{ photoId: string; placing: boolean; selectedId: string | null; note?: string; busy?: boolean } | null>(null);
+  const [healSize, setHealSize] = useState(() => radiusToSize(DEFAULT_HEAL_RADIUS));
   // The selected mask's hatched coverage overlay (O). Its outline stays on the canvas either way.
   const [maskOverlayVisible, setMaskOverlayVisible] = useState(true);
   // A line round the mask by default, so the edit inside stays visible; the hatched area is one press away.
@@ -248,6 +256,29 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const neutralPick = React.useMemo(() => (whitePickActive && activePhoto
     ? { onPick: (at: { x: number; y: number }) => { void runNeutralWhite(activePhoto.id, at); }, onCancel: () => setWhitePickFor(null) }
     : undefined), [whitePickActive, activePhoto, runNeutralWhite]);
+  // Spot healing on the photo in view. Placing and the selected spot belong to one photo; switching photos clears them.
+  const healFor = activePhoto && healUi?.photoId === activePhoto.id ? healUi : null;
+  const placeHealSpot = React.useCallback(async (photoId: string, at: { x: number; y: number }) => {
+    if (!actions.addHealSpot) return;
+    setHealUi((current) => ({ photoId, placing: current?.photoId === photoId ? current.placing : true, selectedId: current?.photoId === photoId ? current.selectedId : null, busy: true }));
+    const outcome = await actions.addHealSpot(photoId, at, healSize).catch(() => ({ result: 'unreadable' as const }));
+    setHealUi((current) => {
+      const base = current?.photoId === photoId ? current : { photoId, placing: true, selectedId: null };
+      if (outcome.result === 'added') return { ...base, selectedId: outcome.spotId, busy: false, note: healText.added };
+      const note = outcome.result === 'full' ? healText.full(MAX_HEAL_SPOTS) : outcome.result === 'no-source' ? healText.noSource : healText.unreadable;
+      return { ...base, busy: false, note };
+    });
+  }, [actions, healSize]);
+  const healCanvas = React.useMemo(() => (healShown && activePhoto && actions.addHealSpot ? {
+    spots: activePhoto.healSpots ?? [],
+    selectedId: healFor?.selectedId ?? null,
+    placing: Boolean(healFor?.placing),
+    newRadius: sizeToRadius(healSize),
+    onPlace: (at: { x: number; y: number }) => { void placeHealSpot(activePhoto.id, at); },
+    onSelect: (spotId: string) => setHealUi((current) => ({ ...(current?.photoId === activePhoto.id ? current : { placing: false }), photoId: activePhoto.id, selectedId: spotId, note: undefined })),
+    onMoveSource: (spotId: string, source: { sx: number; sy: number }) => actions.updateHealSpot?.(activePhoto.id, spotId, { source }),
+    onStopPlacing: () => setHealUi((current) => (current ? { ...current, placing: false } : current)),
+  } : undefined), [healShown, activePhoto, actions, healFor, healSize, placeHealSpot]);
   // Compare with exactly two photos selected shows them side by side; with one, it stays before and after.
   const pairPhotos = React.useMemo(() => {
     if (!store.compareMode || store.collage || store.selectedPhotoIds.length !== 2) return null;
@@ -498,6 +529,33 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         );
       case 'masks':
         return (
+          <div className="space-y-4">
+          {activePhoto && actions.addHealSpot && (
+            <HealSection
+              photo={activePhoto}
+              placing={Boolean(healFor?.placing)}
+              onSetPlacing={(placing) => setHealUi((current) => ({ photoId: activePhoto.id, selectedId: current?.photoId === activePhoto.id ? current.selectedId : null, placing, note: undefined }))}
+              newSize={healSize}
+              onSetNewSize={setHealSize}
+              selectedId={healFor?.selectedId ?? null}
+              onSelect={(spotId) => setHealUi((current) => ({ photoId: activePhoto.id, placing: current?.photoId === activePhoto.id ? current.placing : false, selectedId: spotId, note: undefined }))}
+              note={healFor?.note}
+              busy={healFor?.busy}
+              onUpdate={(photoId, spotId, change) => actions.updateHealSpot?.(photoId, spotId, change)}
+              onNextSource={(photoId, spotId) => {
+                if (!actions.nextHealSource) return;
+                setHealUi((current) => (current ? { ...current, busy: true } : current));
+                void actions.nextHealSource(photoId, spotId).catch(() => false).then((moved) =>
+                  setHealUi((current) => (current ? { ...current, busy: false, note: moved ? undefined : healText.noOther } : current)));
+              }}
+              onRemove={(photoId, spotId) => {
+                actions.removeHealSpot?.(photoId, spotId);
+                setHealUi((current) => (current?.selectedId === spotId ? { ...current, selectedId: null } : current));
+              }}
+              onClear={(photoId) => { actions.clearHealSpots?.(photoId); setHealUi((current) => (current ? { ...current, selectedId: null } : current)); }}
+              onShown={setHealShown}
+            />
+          )}
           <MasksPanel
             photo={activePhoto}
             activeMaskTool={store.activeMaskTool}
@@ -513,6 +571,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             tapSelect={store.tapSelect}
             tapActions={actions}
           />
+          </div>
         );
       case 'enhance':
         return (
@@ -873,6 +932,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   tapSession={store.tapSelect?.session}
                   onTapSelect={actions.tapSelectAt}
                   neutralPick={neutralPick}
+                  heal={healCanvas}
                   onOpenFormats={activePhoto ? () => {
                     actions.setPanelVisible('formats', true);
                     setAddingFormatFor(activePhoto.id);

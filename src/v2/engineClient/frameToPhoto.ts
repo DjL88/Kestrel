@@ -15,6 +15,7 @@ import { editToRecipe } from './recipeMap';
 import { readOverlay } from './overlayOps';
 import { readEditGroups } from './editGroupState';
 import { masksToLayers } from './maskOps';
+import { healToSpots } from './healOps';
 import { readCrops } from './cropOps';
 import { readBoard } from './boardOps';
 import type { AutoRun } from './runAuto';
@@ -282,6 +283,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
       : readFormatSplits(frame.formatSplits),
     videoZoom: readVideoZoom(frame.videoZoom),
     masks: masksToLayers(frame.edit?.masks),
+    healSpots: healToSpots(frame.edit?.heal),
     ...(frame.asShotWhite ? { asShotKelvin: Math.round(frame.asShotWhite.kelvin) } : {}),
     ...(frame.burstGroupId && frame.burstCount > 1 ? { burst: { groupId: frame.burstGroupId, index: frame.burstIndex, count: frame.burstCount, ungrouped: Boolean(frame.burstUngrouped), ...(typeof frame.cullScore === 'number' ? { score: frame.cullScore } : {}) } } : {}),
     ...(describeHistory(frame.editHistory)

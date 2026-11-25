@@ -3,6 +3,7 @@ import type { PhotoEdit } from '../../core/photoEdits';
 import type { EditRecipe } from '../ui/contract';
 import { STRINGS } from '../ui/strings';
 import { editToRecipe } from './recipeMap';
+import { healText } from '../../i18n/areas/heal';
 
 export interface HistoryChange { label: string; from: string; to: string }
 export interface HistoryStepInfo {
@@ -57,7 +58,9 @@ export function describeHistory(history: EditHistory | undefined): HistoryInfo |
           : JSON.stringify(step.before.formatSplits) !== JSON.stringify(step.after.formatSplits)
             ? 'Split or rejoin frames'
             : JSON.stringify(step.before.overlay) !== JSON.stringify(step.after.overlay)
-              ? 'Text and watermark' : LABEL[step.kind] ?? 'Edit',
+              ? 'Text and watermark'
+              : step.kind === 'adjustments' && JSON.stringify(step.before.edit?.heal ?? []) !== JSON.stringify(step.after.edit?.heal ?? []) && !changes.length
+                ? healText.historyStep : LABEL[step.kind] ?? 'Edit',
         at: step.at,
         ...(step.why ? { by: step.why.by } : {}),
         ...(changes.length ? { changes } : {}),

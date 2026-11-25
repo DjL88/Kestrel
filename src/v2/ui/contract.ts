@@ -304,6 +304,31 @@ export type MaskGeometry =
 
 export type MaskGeometryField = 'cx' | 'cy' | 'rx' | 'ry' | 'angle' | 'x1' | 'y1' | 'x2' | 'y2';
 
+/** A spot-healing spot as the editor shows it. Coordinates are in the framed photograph (0–1), like masks. */
+export interface HealSpotView {
+  id: string;
+  /** Centre of the area being covered. */
+  x: number; y: number;
+  /** Centre of the area the pixels are copied from. */
+  sx: number; sy: number;
+  /** Radius as a share of the framed photograph's long edge. */
+  r: number;
+  mode: 'heal' | 'clone';
+  /** Size and edge softness, 0 to 100, as the panel shows them. */
+  size: number;
+  feather: number;
+  visible: boolean;
+}
+
+export interface HealSpotChange {
+  size?: number;
+  feather?: number;
+  mode?: 'heal' | 'clone';
+  source?: { sx: number; sy: number };
+  at?: { x: number; y: number };
+  visible?: boolean;
+}
+
 export interface MaskLayerPart { id: string; mode: 'add' | 'subtract' | 'intersect' }
 
 export interface MaskLayer {
@@ -390,6 +415,8 @@ export interface Photo {
   formatSplits?: Record<string, { enabled: boolean; offset: number; count?: 3 | 4 | 5 }>;
   videoZoom: VideoZoomConfig;
   masks: MaskLayer[];
+  /** Spot healing on this photo, in the order it is applied. Absent where there is no engine. */
+  healSpots?: HealSpotView[];
   /** The camera's as-shot white in kelvin, estimated by InFlight's RAW decoder. Absent for JPEGs and older developments. */
   asShotKelvin?: number;
   /** Set when this photo was shot in a burst with others. `ungrouped` is the person's choice to see its frames one by one. */
@@ -873,6 +900,14 @@ export interface WorkspaceActions {
    * that should be grey or white (the eyedropper); without it, Auto estimates the light from the whole picture.
    * 'limited' = a slider reached its end first; 'unreadable' = the spot is clipped or too dark, nothing changed. */
   neutralWhiteBalance?: (photoId: string, at?: { x: number; y: number }) => Promise<'set' | 'limited' | 'unreadable'>;
+  /** Spot healing: cover a spot at `at` (framed photo, 0–1) with pixels copied from the best nearby place found on the
+   * photo. 'full' when the photo already has the most spots allowed; 'no-source' when nothing nearby fits. */
+  addHealSpot?: (photoId: string, at: { x: number; y: number }, size: number) => Promise<{ result: 'added'; spotId: string } | { result: 'full' | 'no-source' | 'unreadable' }>;
+  updateHealSpot?: (photoId: string, spotId: string, change: HealSpotChange) => void;
+  /** Copy from the next best nearby place instead. False when there is no other. */
+  nextHealSource?: (photoId: string, spotId: string) => Promise<boolean>;
+  removeHealSpot?: (photoId: string, spotId: string) => void;
+  clearHealSpots?: (photoId: string) => void;
   /** Image layers. Add one from an image file on this device (opens the file picker). */
   addImageLayer: (photoId: string) => Promise<void>;
   /** Add another photo of this project as a layer: a copy of it as it looks now, with its edits. */

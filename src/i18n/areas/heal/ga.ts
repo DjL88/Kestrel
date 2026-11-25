@@ -1,0 +1,36 @@
+import { plural } from '../../../core/locale';
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** Irish. DRAFT: written without a native speaker's check. */
+export const ga: AreaTranslation<typeof source> = {
+  title: "Deisiú spotaí",
+  intro: "Clúdaíonn sé deannach, craobhóg nó bruscar timpeall an fhara le picteilíní a cóipeáladh ó áit in aice láimhe sa ghrianghraf céanna. Ní chumtar aon rud, agus ní athraítear an bunchomhad riamh.",
+  start: "Cuir spotaí",
+  stop: "Críochnaithe",
+  placing: "Cliceáil nó tapáil ar gach spota le clúdach. Brúigh Escape nuair atá tú críochnaithe.",
+  size: "Méid",
+  feather: "Boige",
+  method: "Modh",
+  heal: "Deisigh: cumasc leis an timpeallacht",
+  clone: "Clónáil: cóip bheacht",
+  nextSource: "Cóipeáil ó áit eile",
+  remove: "Bain an spota",
+  removeAll: "Bain gach spota",
+  show: "Taispeáin an spota",
+  hide: "Folaigh an spota",
+  spot: (n: number) => `Spota ${n}`,
+  hidden: "folaithe",
+  count: (n: number) => plural(n, { one: `${n} spota`, other: `${n} spota` }),
+  empty: "Níl aon spota fós.",
+  added: "Tá an spota clúdaithe. Tarraing an ciorcal briste, nó roghnaigh Cóipeáil ó áit eile, chun an fhoinse a athrú.",
+  full: (n: number) => `Tá ${n} spota ag an ngrianghraf seo cheana, an líon is mó a cheadaítear.`,
+  noSource: "Ní raibh aon rud in aice láimhe cosúil go leor le cóipeáil uaidh. Bain triail as méid níos lú.",
+  unreadable: "Níorbh fhéidir an grianghraf a léamh anois, mar sin níor cuireadh aon spota leis.",
+  noOther: "Níl aon áit eile in aice láimhe le cóipeáil uaithi.",
+  working: "Ag cuardach áite le cóipeáil uaithi…",
+  historyStep: "Deisiú spotaí",
+  layer: "Spotaí deisithe",
+  select: (n: number) => `Spota ${n}: roghnaigh`,
+  source: (n: number) => `Foinse spota ${n}: tarraing nó úsáid na saigheadeochracha`,
+};
