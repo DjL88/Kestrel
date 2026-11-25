@@ -1,5 +1,8 @@
 import { expect, test } from '@playwright/test';
 
+// The Masks panel opens from the desktop tool rail; the phone mask layout (one tool row, #1399) is checked in its own slice.
+test.beforeEach(({}, testInfo) => { test.skip(testInfo.project.name !== 'desktop', 'Desktop tool rail, mouse drags and the O key.'); });
+
 test('real oval and gradient mask coverage follows selection, hide and panel dismissal', async ({ page }) => {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');

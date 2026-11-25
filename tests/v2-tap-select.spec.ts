@@ -7,6 +7,9 @@ import { expect, test, type Page } from '@playwright/test';
 test.skip(!process.env.KESTREL_TAP_SELECT, 'Set KESTREL_TAP_SELECT=1 and build with the EfficientSAM-Ti URLs to run this.');
 test.setTimeout(300_000);
 
+// The Masks panel opens from the desktop tool rail; the phone mask layout (one tool row, #1399) is checked in its own slice.
+test.beforeEach(({}, testInfo) => { test.skip(testInfo.project.name !== 'desktop', 'Desktop tool rail, mouse drags and the O key.'); });
+
 const BIRDS = [{ x: 0.3, y: 0.5, r: 0.12 }, { x: 0.74, y: 0.42, r: 0.09 }];
 
 async function openPhoto(page: Page) {

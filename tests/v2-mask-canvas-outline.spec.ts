@@ -6,6 +6,9 @@ import { unzipSync } from 'fflate';
 // The canvas must draw the shape with handles, offer an overlay that is not a colour-only cue and can be
 // toggled from the keyboard, and show the mask's effect the same way the export renders it.
 
+// The Masks panel opens from the desktop tool rail; the phone mask layout (one tool row, #1399) is checked in its own slice.
+test.beforeEach(({}, testInfo) => { test.skip(testInfo.project.name !== 'desktop', 'Desktop tool rail, mouse drags and the O key.'); });
+
 async function openPhoto(page: Page) {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
