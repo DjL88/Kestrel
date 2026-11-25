@@ -21,6 +21,8 @@ const filters = new Set(['all', ...decisions]);
 const sources = new Set(['demo', 'file', 'directory-handle']);
 const projectSources = new Set(['demo', 'local-files', 'local-folder']);
 const demoAssets = new Set(['red-kite', 'kingfisher', 'barn-owl', 'collie-coco', 'red-fox', 'osprey']);
+const EXIF_DATE = /^\d{4}:\d{2}:\d{2} \d{2}:\d{2}:\d{2}$/;
+const EXIF_OFFSET = /^[+-]\d{2}:\d{2}$/;
 
 function record(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
@@ -110,6 +112,13 @@ function frameIsValid(value: unknown): value is PhotoFrame {
   }
   for (const field of ['rating', 'focalLengthMm', 'apertureF', 'iso', 'capturedAtMs', 'width', 'height']) {
     if (value.exif[field] !== undefined && !number(value.exif[field])) return false;
+  }
+  const stamp = value.exif.captureStamp;
+  if (stamp !== undefined) {
+    if (!record(stamp)) return false;
+    for (const [field, shape] of [['original', EXIF_DATE], ['digitized', EXIF_DATE], ['offsetOriginal', EXIF_OFFSET], ['offsetDigitized', EXIF_OFFSET]] as const) {
+      if (stamp[field] !== undefined && (typeof stamp[field] !== 'string' || !shape.test(stamp[field] as string))) return false;
+    }
   }
   if (!recipeIsValid(value) || (value.editHistory !== undefined && !historyIsValid(value.editHistory))) return false;
   const focus = value.focusPoint;
