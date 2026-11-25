@@ -726,6 +726,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       localCacheLimitGb: 25,
       hideProFeatures: false,
       advancedControls: false,
+      advanceAfterDecision: false,
     },
     activePanel: 'adjust',
     panels: createDefaultPanels(),
@@ -862,6 +863,11 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     setBurstGrouped: (burstGroupId, grouped) => { logAction('setBurstGrouped', { burstGroupId, grouped }); },
     jumpToEditStep: (photoId, cursor) => { logAction('jumpToEditStep', { photoId, cursor }); },
     switchEditVersion: (photoId, versionId) => { logAction('switchEditVersion', { photoId, versionId }); },
+    renameEditVersion: (photoId, versionId, name) => { logAction('renameEditVersion', { photoId, versionId, name }); },
+    saveEditCheckpoint: (photoId, name) => { logAction('saveEditCheckpoint', { photoId, name }); },
+    restoreEditCheckpoint: (photoId, checkpointId) => { logAction('restoreEditCheckpoint', { photoId, checkpointId }); },
+    deleteEditCheckpoint: (photoId, checkpointId) => { logAction('deleteEditCheckpoint', { photoId, checkpointId }); },
+    restoreFormatCrop: (photoId, formatId, eventAt) => { logAction('restoreFormatCrop', { photoId, formatId, eventAt }); },
 
     setHubState: (hubState) => {
       logAction('setHubState', { hubState });

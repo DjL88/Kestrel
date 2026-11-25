@@ -375,8 +375,10 @@ export interface Photo {
     activeId: string;
     versions: { id: string; label: string; parentId: string | null; forkCursor: number; createdAt: number }[];
   };
-  /** Actual recorded format actions; missing means pre-history, not a fabricated event. */
-  formatHistory?: { formatId: string; kind: string; at: number; parentFormatId?: string; forkEditCursor?: number }[];
+  /** Named checkpoints of the whole editing state (recipe and every format's crop), oldest first. */
+  editCheckpoints?: { id: string; name: string; createdAt: number; versionId: string }[];
+  /** Actual recorded format actions; missing means pre-history, not a fabricated event. `crop` is the crop a crop action left. */
+  formatHistory?: { formatId: string; kind: string; at: number; parentFormatId?: string; forkEditCursor?: number; crop?: CropTransform }[];
   /** The JPEG the camera wrote with this RAW, kept beside it and shown as one photo. Its flag and rating follow this photo. */
   pairedJpeg?: string;
   /** When the photo was taken, in milliseconds, when the file records it. Used only for sorting. */
@@ -495,6 +497,8 @@ export interface WorkspaceSettings {
   hideProFeatures: boolean;
   /** Show the advanced editing controls (colour grading, channel curves). Off by default so the panel stays simple. */
   advancedControls: boolean;
+  /** Move to the next photo after a rating or decision on one photo (culling). */
+  advanceAfterDecision: boolean;
   ongoingCritique: boolean;
   defaultAssistMode: AssistMode;
   language: 'en-GB' | 'en-US' | 'de-DE' | 'fr-FR';
@@ -828,6 +832,15 @@ export interface WorkspaceActions {
   jumpToEditStep: (photoId: string, cursor: number) => void;
   /** Switch between independent checkpoint-forked versions without touching the source file. */
   switchEditVersion: (photoId: string, versionId: string) => void;
+  /** Give an editing version a name of the person's choosing. */
+  renameEditVersion: (photoId: string, versionId: string, name: string) => void;
+  /** Save the photo's whole editing state (recipe and every format's crop) under a name. */
+  saveEditCheckpoint: (photoId: string, name: string) => void;
+  /** Open a saved checkpoint as a new editing version; the current version is kept. */
+  restoreEditCheckpoint: (photoId: string, checkpointId: string) => void;
+  deleteEditCheckpoint: (photoId: string, checkpointId: string) => void;
+  /** Put a format's crop back to the one a recorded crop action left (itself recorded, so it can be undone the same way). */
+  restoreFormatCrop: (photoId: string, formatId: string, eventAt: number) => void;
   setFilmstripCollapsed: (collapsed: boolean) => void;
   setFilmstripHeight: (height: number) => void;
   setFilmstripFilter: (filter: FilmstripFilter) => void;
