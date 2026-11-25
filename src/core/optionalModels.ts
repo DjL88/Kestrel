@@ -102,6 +102,8 @@ export const BIOCLIP2: OptionalModel = {
   files: {
     model: pinned('BIOCLIP2_MODEL', 'bioclip2-image-fp16.onnx', '6f4fede093651f33a83ea0a0061833e0e8245fe0e218e558230ee56ac77360de', 608152397),
     labels: pinned('BIOCLIP2_LABELS', 'bioclip2-species.json', 'd06aa6d9c60e7242251d5771af902792d235dcdc6ec9419fa5230bd8617f6d59', 13250338),
+    // 6,791 extant mammals, Mammal Diversity Database v2.5 (CC BY 4.0), BioCLIP 2 vectors by the species-names session.
+    mammals: pinned('BIOCLIP2_MAMMALS', 'bioclip2-mammals.json', 'ad90459b5c891637c568fab7f1f51083817f9b20d33b5fddb44dcdd2a4478455', 8139587),
   },
   cache: 'kestrel-bioclip2-v1',
 };
