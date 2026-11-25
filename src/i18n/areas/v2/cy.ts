@@ -1404,6 +1404,10 @@ export const cy: AreaTranslation<typeof source> = {
       intro: 'Llwybrau byr bwrdd gwaith hanfodol ar gyfer didoli a golygu’n gyflym.',
       advanceLabel: "Symud i’r llun nesaf ar ôl graddio",
       advanceDesc: "Ar ôl rhoi seren, baner neu roi o’r neilltu ar un llun, dangos y llun nesaf ar unwaith. Nid yw dewisiadau ar sawl llun dethol byth yn symud ymlaen.",
+      touchHeading: "Cyffwrdd a phen",
+      swipeLabel: "Llithro i newid llun",
+      swipeDesc: "Mae llithriad cyflym ag un bys ar draws y llun yn dangos y llun nesaf neu’r un blaenorol. Diffoddwch hyn os yw’n digwydd ar ddamwain.",
+      penNote: "Gyda phen fel Apple Pencil, caiff cyffyrddiadau ar y llun eu hanwybyddu tra bo’r pen i lawr. Mae hyn yn para eiliad wedyn hefyd, fel nad yw’ch llaw byth yn symud y llun.",
     },
     language: {
       label: 'Iaith arddangos',

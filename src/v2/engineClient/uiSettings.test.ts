@@ -44,3 +44,8 @@ test('Show advanced controls is remembered and a damaged value is ignored', () =
   assert.equal(parseSavedUi(JSON.stringify({ settings: { advancedControls: true } })).settings.advancedControls, true);
   assert.equal(parseSavedUi(JSON.stringify({ settings: { advancedControls: 'yes' } })).settings.advancedControls, undefined);
 });
+
+test('Swipe to change photo is remembered, and anything but true or false is ignored', () => {
+  assert.equal(parseSavedUi(JSON.stringify({ settings: { swipeBetweenPhotos: false } })).settings.swipeBetweenPhotos, false);
+  assert.equal(parseSavedUi(JSON.stringify({ settings: { swipeBetweenPhotos: 'no' } })).settings.swipeBetweenPhotos, undefined);
+});

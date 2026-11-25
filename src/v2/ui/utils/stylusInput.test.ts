@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mayPaintPointer, stylusIsInContact, stylusSample } from './stylusInput';
+import { mayPaintPointer, stylusIsInContact, stylusSample, touchIsLikelyPalm } from './stylusInput';
 
 test('pen pressure changes strength and never brush radius', () => {
   assert.deepEqual(stylusSample({ pointerType: 'pen', pressure: 0.3, tiltX: 24, tiltY: -13 }),
@@ -26,4 +26,14 @@ test('tilt and malformed values are bounded and hover cannot paint', () => {
     { kind: 'pen', strength: 0, tiltX: 90, tiltY: -90 });
   assert.equal(stylusIsInContact({ pointerType: 'pen', pressure: 0, buttons: 0 }), false);
   assert.equal(stylusIsInContact({ pointerType: 'pen', pressure: 0.3, buttons: 1 }), true);
+});
+
+test('a touch while the pen is down, or just after it lifts, is the palm and is ignored', () => {
+  assert.equal(touchIsLikelyPalm({ down: true, upAt: Number.NEGATIVE_INFINITY }, 1000), true);
+  assert.equal(touchIsLikelyPalm({ down: false, upAt: 1000 }, 1100), true);
+  assert.equal(touchIsLikelyPalm({ down: false, upAt: 1000 }, 1300), false);
+  // Never used a pen: fingers always work.
+  assert.equal(touchIsLikelyPalm({ down: false, upAt: Number.NEGATIVE_INFINITY }, 5), false);
+  // A clock that went backwards is not a palm.
+  assert.equal(touchIsLikelyPalm({ down: false, upAt: 1000 }, 900), false);
 });

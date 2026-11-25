@@ -1407,6 +1407,10 @@ export const ga: AreaTranslation<typeof source> = {
       intro: 'Aicearraí riachtanacha deisce le haghaidh roghnú agus eagarthóireacht thapa.',
       advanceLabel: "Bog chuig an chéad ghrianghraf eile tar éis rátála",
       advanceDesc: "Tar éis rátáil réalta, marcáil nó cur i leataobh ar ghrianghraf amháin, taispeáin an chéad cheann eile láithreach. Ní bhogann roghanna ar roinnt grianghraf roghnaithe ar aghaidh riamh.",
+      touchHeading: "Tadhall agus peann",
+      swipeLabel: "Svaidhpeáil chun an grianghraf a athrú",
+      swipeDesc: "Taispeánann svaidhpeáil thapa le méar amháin trasna an ghrianghraif an chéad cheann eile nó an ceann roimhe. Múch é seo má tharlaíonn sé de thimpiste.",
+      penNote: "Le peann ar nós Apple Pencil, déantar neamhaird ar theagmhálacha ar an ngrianghraf fad atá an peann síos. Leanann sé nóiméad ina dhiaidh freisin, ionas nach mbogann do lámh an grianghraf choíche.",
     },
     language: {
       label: 'Teanga taispeána',

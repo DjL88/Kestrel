@@ -46,7 +46,7 @@ export default function ShortcutGuide({ keymap, pad, isMac, onClose }: ShortcutG
             className="min-h-10 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-sm">{STRINGS.shortcutHelp.close}</button>
         </div>
         <div className="max-h-[60vh] space-y-4 overflow-y-auto text-sm">
-          {(['photos', 'view', 'edit', 'app'] as CommandGroup[]).map((group) => (
+          {(['photos', 'view', 'adjust', 'edit', 'app'] as CommandGroup[]).map((group) => (
             <section key={group} aria-labelledby={`v2-shortcut-${group}`}>
               <h3 id={`v2-shortcut-${group}`} className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{COMMAND_GROUP_LABELS[group]}</h3>
               <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2">

@@ -44,3 +44,18 @@ test('finite extreme anchor arithmetic fails closed instead of producing Infinit
   assert.equal(zoomAnchorScroll(Number.MAX_VALUE, Number.MAX_VALUE, 1, 2), Number.MAX_VALUE);
   assert.equal(zoomAnchorScroll(42, Number.MAX_VALUE, 0.25, 8), 42);
 });
+
+test('zoom keys step like the zoom bar, fit is 1, and 100% toggles back to fit', async () => {
+  const { keyboardZoomTarget, isCanvasZoomAction } = await import('./canvasTrackpadZoom');
+  assert.equal(keyboardZoomTarget('in', 1, 0.2), 1.25);
+  assert.equal(keyboardZoomTarget('out', 1.25, 0.2), 1);
+  assert.equal(keyboardZoomTarget('in', 8, 0.2), 8);
+  assert.equal(keyboardZoomTarget('out', 0.25, 0.2), 0.25);
+  assert.equal(keyboardZoomTarget('fit', 3, 0.2), 1);
+  assert.equal(keyboardZoomTarget('actual', 1, 0.2), 5); // 1 / 0.2: one photo pixel per screen pixel
+  assert.equal(keyboardZoomTarget('actual', 5, 0.2), 1); // already at 100%: back to fit
+  assert.equal(keyboardZoomTarget('actual', 2, null), 1); // size unknown: 100% cannot be worked out, so fit
+  assert.equal(keyboardZoomTarget('in', Number.NaN, 0.2), 1.25);
+  assert.equal(isCanvasZoomAction('in'), true);
+  assert.equal(isCanvasZoomAction('sideways'), false);
+});

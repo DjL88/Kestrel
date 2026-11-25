@@ -1404,6 +1404,10 @@ export const it: AreaTranslation<typeof source> = {
       intro: 'Scorciatoie essenziali da computer per selezionare e modificare in fretta.',
       advanceLabel: "Passa alla foto successiva dopo il voto",
       advanceDesc: "Dopo un voto a stelle, una bandiera o una messa da parte su una foto, mostra subito la successiva. Le scelte su più foto selezionate non fanno mai avanzare.",
+      touchHeading: "Tocco e penna",
+      swipeLabel: "Scorri per cambiare foto",
+      swipeDesc: "Un rapido scorrimento con un dito sulla foto mostra la foto successiva o precedente. Disattivalo se succede per sbaglio.",
+      penNote: "Con una penna come Apple Pencil, i tocchi sulla foto vengono ignorati mentre la penna è appoggiata. Anche per un attimo dopo, così la tua mano non sposta mai la foto.",
     },
     language: {
       label: 'Lingua dell’interfaccia',

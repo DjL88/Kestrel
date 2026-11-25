@@ -1404,6 +1404,10 @@ export const nb: AreaTranslation<typeof source> = {
       intro: 'Viktige hurtigtaster på datamaskinen for rask sortering og redigering.',
       advanceLabel: "Gå til neste bilde etter vurdering",
       advanceDesc: "Etter en stjernevurdering, et flagg eller å legge til side ett bilde vises neste bilde med en gang. Valg på flere merkede bilder går aldri videre.",
+      touchHeading: "Berøring og penn",
+      swipeLabel: "Sveip for å bytte bilde",
+      swipeDesc: "Et raskt sveip med én finger over bildet viser neste eller forrige bilde. Slå det av hvis det skjer ved et uhell.",
+      penNote: "Med en penn som Apple Pencil ignoreres berøringer på bildet mens pennen er nede. Også et øyeblikk etterpå, slik at hånden din aldri flytter bildet.",
     },
     language: {
       label: 'Visningsspråk',

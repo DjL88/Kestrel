@@ -1404,6 +1404,10 @@ export const nl: AreaTranslation<typeof source> = {
       intro: 'Belangrijke sneltoetsen voor de computer om snel te selecteren en te bewerken.',
       advanceLabel: "Na beoordelen naar de volgende foto",
       advanceDesc: "Na een sterbeoordeling, vlag of opzijleggen van één foto direct de volgende foto tonen. Keuzes voor meerdere geselecteerde foto's gaan nooit door.",
+      touchHeading: "Aanraken en pen",
+      swipeLabel: "Vegen om van foto te wisselen",
+      swipeDesc: "Een snelle veeg met één vinger over de foto toont de volgende of vorige foto. Zet dit uit als het per ongeluk gebeurt.",
+      penNote: "Met een pen zoals Apple Pencil worden aanrakingen op de foto genegeerd zolang de pen het scherm raakt. Ook nog even daarna, zodat je hand de foto nooit verplaatst.",
     },
     language: {
       label: 'Weergavetaal',

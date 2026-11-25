@@ -15,7 +15,7 @@ interface KeyboardSettingsProps {
   onPadChange: (next: PadProfile) => void;
 }
 
-const GROUPS: CommandGroup[] = ['photos', 'view', 'edit', 'app'];
+const GROUPS: CommandGroup[] = ['photos', 'view', 'adjust', 'edit', 'app'];
 const buttonClass = 'min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2.5 text-xs text-[var(--text-primary)] disabled:opacity-40';
 
 /** Settings > Keyboard: pick a keymap, change or clear any command's key, reset. A clash is shown in words and never resolved by guessing. */

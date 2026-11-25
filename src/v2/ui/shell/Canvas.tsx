@@ -1,7 +1,8 @@
 import { stepFrom, swipeIntent } from '../utils/swipe';
 import { cropHandleZoom, type CropHandleSide } from '../utils/cropHandleZoom';
+import { touchIsLikelyPalm, type PenContact } from '../utils/stylusInput';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { nextCanvasZoom, zoomAnchorScroll } from '../utils/canvasTrackpadZoom';
+import { CANVAS_ZOOM_EVENT, isCanvasZoomAction, keyboardZoomTarget, nextCanvasZoom, zoomAnchorScroll, type CanvasZoomAction } from '../utils/canvasTrackpadZoom';
 import { maxCanvasPixels } from '../../../core/exportLimits';
 import { ORIGINAL_FORMAT_ID } from '../../engineClient/formatOps';
 import { paneImageStyle, paneInsetClip, type PictureFit } from '../../engineClient/frameGeometry';
@@ -89,6 +90,8 @@ interface CanvasProps {
   onClearSizeSelection: () => void;
   /** Phone swipe left or right on the photo: go to the next (1) or previous (-1) photo. */
   onStepPhoto?: (delta: 1 | -1) => void;
+  /** Settings > Keyboard > Touch and pen: a one-finger flick changes the photo. Off, a flick does nothing. */
+  swipeBetweenPhotos?: boolean;
   /** The small action bar by the format: open the Formats tool, duplicate or delete this format. */
   onOpenFormats?: () => void;
   onDuplicateSize?: (sizeId: string) => void;
@@ -168,6 +171,7 @@ export default function Canvas({
   onSelectSize,
   onClearSizeSelection,
   onStepPhoto,
+  swipeBetweenPhotos = true,
   onOpenFormats,
   onDuplicateSize,
   onRemoveSize,
@@ -262,6 +266,18 @@ export default function Canvas({
       column.removeEventListener('gestureend', onGestureEnd);
     };
   }, [stageEl, columnEl]);
+
+  // Zoom keys (Settings > Keyboard: zoom in, zoom out, fit, 100%). The App's key handler sends the request; the zoom maths
+  // live further down, after this component's early return, so they are reached through a ref set on each render.
+  const zoomKeyRef = useRef<((action: CanvasZoomAction) => void) | null>(null);
+  useEffect(() => {
+    const onZoomKey = (event: Event) => {
+      const action = (event as CustomEvent<{ action?: unknown }>).detail?.action;
+      if (isCanvasZoomAction(action)) zoomKeyRef.current?.(action);
+    };
+    window.addEventListener(CANVAS_ZOOM_EVENT, onZoomKey);
+    return () => window.removeEventListener(CANVAS_ZOOM_EVENT, onZoomKey);
+  }, []);
 
   useLayoutEffect(() => {
     const stage = stageRef.current;
@@ -418,6 +434,38 @@ export default function Canvas({
   const swipeRef = useRef<{ x: number; y: number; t: number; pinched: boolean } | null>(null);
   const holdRef = useRef<{ timer: number | null; x: number; y: number; active: boolean }>({ timer: null, x: 0, y: 0, active: false });
   const [draggingType, setDraggingType] = useState<'none' | 'pan' | 'crop' | 'text' | 'watermark' | 'board'>('none');
+
+  // Palm rejection for Apple Pencil and other pens. While the pen is on the glass, or for a moment after it lifts, a touch
+  // is the hand holding it, so it never swipes to another photo, pinches or moves a crop. A palm that landed before the
+  // pen is forgotten the moment the pen touches down.
+  const penContact = useRef<PenContact>({ down: false, upAt: Number.NEGATIVE_INFINITY });
+  useEffect(() => {
+    const onPenDown = (event: PointerEvent) => {
+      if (event.pointerType !== 'pen') return;
+      penContact.current = { down: true, upAt: penContact.current.upAt };
+      if (touchPoints.current.size === 0) return;
+      touchPoints.current.clear();
+      touchGesture.current = null;
+      touchPan.current = null;
+      swipeRef.current = null;
+      if (holdRef.current.timer !== null) window.clearTimeout(holdRef.current.timer);
+      holdRef.current = { timer: null, x: 0, y: 0, active: false };
+      setHoldingOriginal(false);
+      dragRef.current = null;
+      setDraggingType('none');
+    };
+    const onPenUp = (event: PointerEvent) => {
+      if (event.pointerType === 'pen') penContact.current = { down: false, upAt: event.timeStamp };
+    };
+    window.addEventListener('pointerdown', onPenDown, true);
+    window.addEventListener('pointerup', onPenUp, true);
+    window.addEventListener('pointercancel', onPenUp, true);
+    return () => {
+      window.removeEventListener('pointerdown', onPenDown, true);
+      window.removeEventListener('pointerup', onPenUp, true);
+      window.removeEventListener('pointercancel', onPenUp, true);
+    };
+  }, []);
 
   const dragRef = useRef<{
     kind: 'pan' | 'crop-top' | 'crop-right' | 'crop-bottom' | 'crop-left' | 'scale-top' | 'scale-right' | 'scale-bottom' | 'scale-left' | 'scale-tl' | 'scale-tr' | 'scale-bl' | 'scale-br' | 'move-frame' | 'text' | 'watermark' | 'resize-text' | 'resize-watermark' | 'board';
@@ -820,6 +868,7 @@ export default function Canvas({
   const handleTouchDown = (e: React.PointerEvent<HTMLElement>, fromMargin = false) => {
     if (e.pointerType !== 'touch' || activeSize.kind !== 'photo' || compareMode) return false;
     e.stopPropagation();
+    if (touchIsLikelyPalm(penContact.current, e.timeStamp)) return true; // the hand holding the pen: swallow it
     e.currentTarget.setPointerCapture(e.pointerId);
     touchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (touchPoints.current.size === 2) {
@@ -927,8 +976,8 @@ export default function Canvas({
       swipeRef.current = null;
       if (swipe && !swipe.pinched && !heldOriginal && revealSizeId !== activeSize.id && zoomRef.current <= 1.01) {
         const intent = swipeIntent(e.clientX - swipe.x, e.clientY - swipe.y, e.timeStamp - swipe.t);
-        if (intent === 'next-photo') onStepPhoto?.(1);
-        else if (intent === 'previous-photo') onStepPhoto?.(-1);
+        if (intent === 'next-photo') { if (swipeBetweenPhotos) onStepPhoto?.(1); }
+        else if (intent === 'previous-photo') { if (swipeBetweenPhotos) onStepPhoto?.(-1); }
         else if (intent === 'next-format' || intent === 'previous-format') {
           const next = stepFrom(photo.sizes.filter((size) => size.kind === 'photo' && size.enabled), activeSize.id, intent === 'next-format' ? 1 : -1);
           if (next) onSelectSize(next.id);
@@ -1319,6 +1368,10 @@ export default function Canvas({
     const stage = stageRef.current;
     if (stage) zoomAnchor.current = { x: stage.clientWidth / 2, y: stage.clientHeight / 2, left: stage.scrollLeft, top: stage.scrollTop, zoom: canvasZoom };
     onSetZoom(next);
+  };
+  zoomKeyRef.current = (action) => {
+    const next = keyboardZoomTarget(action, canvasZoom, fitScale);
+    if (next !== null && Math.abs(next - canvasZoom) > 0.0005) zoomAroundCentre(next);
   };
   const zoomToEye = async () => {
     const stage = stageRef.current;

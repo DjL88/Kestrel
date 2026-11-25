@@ -1456,6 +1456,10 @@ export const source = {
       intro: 'Essential desktop shortcuts for fast culling and editing.',
       advanceLabel: "Move to the next photo after rating",
       advanceDesc: "After a star rating, flag or set aside on one photo, show the next photo straight away. Choices on several selected photos never move on.",
+      touchHeading: "Touch and pen",
+      swipeLabel: "Swipe to change photo",
+      swipeDesc: "A quick one-finger flick across the photo shows the next or previous photo. Turn this off if it happens by accident.",
+      penNote: "With a pen such as Apple Pencil, touches on the photo are ignored while the pen is down. This lasts a moment after it lifts too, so your hand never moves the photo.",
     },
     language: {
       label: 'Display language',

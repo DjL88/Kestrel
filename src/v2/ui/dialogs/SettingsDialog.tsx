@@ -612,6 +612,16 @@ export default function SettingsDialog({
                   onToggle={() => onUpdateSettings({ advanceAfterDecision: !settings.advanceAfterDecision })}
                 />
                 {keyboardPanel}
+                <section aria-labelledby="v2-touch-pen-title" className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
+                  <h3 id="v2-touch-pen-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.settings.keyboard.touchHeading}</h3>
+                  <SettingSwitch
+                    title={STRINGS.settings.keyboard.swipeLabel}
+                    description={STRINGS.settings.keyboard.swipeDesc}
+                    checked={settings.swipeBetweenPhotos !== false}
+                    onToggle={() => onUpdateSettings({ swipeBetweenPhotos: settings.swipeBetweenPhotos === false })}
+                  />
+                  <p className="text-xs text-[var(--text-secondary)]">{STRINGS.settings.keyboard.penNote}</p>
+                </section>
               </div>
             )}
 

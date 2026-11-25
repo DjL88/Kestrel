@@ -564,6 +564,8 @@ export interface WorkspaceSettings {
   advancedControls: boolean;
   /** Move to the next photo after a rating or decision on one photo (culling). */
   advanceAfterDecision: boolean;
+  /** A quick one-finger flick across the photo steps to the next or previous photo (touch screens). On by default. */
+  swipeBetweenPhotos: boolean;
   ongoingCritique: boolean;
   defaultAssistMode: AssistMode;
   language: 'en-GB' | 'en-US' | 'de-DE' | 'fr-FR';

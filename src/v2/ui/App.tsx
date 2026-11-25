@@ -29,6 +29,8 @@ import { readSharedLink } from './dialogs/sharedLinks';
 import { useSharedEditing } from './shell/useSharedEditing';
 import { collabClient } from '../../providers/collabClient';
 import { firebaseAuth } from '../../providers/firebaseAuth';
+import { CANVAS_ZOOM_EVENT } from './utils/canvasTrackpadZoom';
+import { nudgeSliderInUse, trackSliderInUse } from './utils/sliderNudge';
 import { chordLabel, effectiveKeymap, keyAlreadyHandled, loadKeymap, saveKeymap, type SavedKeymap } from './commands/keymap';
 import { loadPad, resolveWithPad, savePad, type PadProfile } from './commands/pad';
 import { commandById, type CommandDefinition } from './commands/registry';
@@ -382,6 +384,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'view.compare': actions.setCompareMode(!store.compareMode); break;
       case 'view.fullscreen': actions.toggleFullScreen(); break;
       case 'view.maskOverlay': setMaskOverlayVisible((visible) => !visible); break;
+      case 'view.zoomIn': case 'view.zoomOut': case 'view.zoomFit': case 'view.zoom100':
+        window.dispatchEvent(new CustomEvent(CANVAS_ZOOM_EVENT, { detail: { action: ({ 'view.zoomIn': 'in', 'view.zoomOut': 'out', 'view.zoomFit': 'fit', 'view.zoom100': 'actual' } as const)[command.id] } }));
+        break;
+      case 'adjust.sliderUp': nudgeSliderInUse('up'); break;
+      case 'adjust.sliderDown': nudgeSliderInUse('down'); break;
+      case 'adjust.sliderUpMore': nudgeSliderInUse('upMore'); break;
+      case 'adjust.sliderDownMore': nudgeSliderInUse('downMore'); break;
       case 'edit.undo': actions.undo(); break;
       case 'edit.redo': actions.redo(); break;
       case 'edit.copy': actions.copyRecipe(); break;
@@ -443,16 +452,22 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         Boolean(target?.isContentEditable);
       // A control already used this key (the Adjust tabs' arrows, Space on a focused button): never run a shortcut too.
       if (keyAlreadyHandled(target, e)) return;
-      const command = resolveWithPad({ event: e, keymap, pad, isMac: IS_MAC, inField });
+      let command = resolveWithPad({ event: e, keymap, pad, isMac: IS_MAC, inField });
+      // A dial keeps turning the slider while that slider has focus (it counts as a field, so other keys leave it alone).
+      if (!command && target instanceof HTMLInputElement && target.type === 'range') {
+        const dial = resolveWithPad({ event: e, keymap, pad, isMac: IS_MAC, inField: false });
+        if (dial?.group === 'adjust') command = dial;
+      }
       if (!command) return;
       // While the guide is open only it, Export, Settings and Edit commands act; photo and view keys wait.
-      if (shortcutGuideOpen && (command.group === 'photos' || command.group === 'view')) return;
+      if (shortcutGuideOpen && (command.group === 'photos' || command.group === 'view' || command.group === 'adjust')) return;
       e.preventDefault();
       runCommand(command);
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    const stopTracking = trackSliderInUse();
+    return () => { window.removeEventListener('keydown', handleKeyDown); stopTracking(); };
   }, [store.screen, shortcutGuideOpen, keymap, pad, runCommand]);
 
   const EDITING_PANELS: PanelId[] = ['adjust', 'masks', 'enhance', 'copilot'];
@@ -956,6 +971,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   } : undefined}
                   onDuplicateSize={(sizeId) => activePhoto && actions.duplicateSize(activePhoto.id, sizeId)}
                   onRemoveSize={(sizeId) => activePhoto && actions.removeSize(activePhoto.id, sizeId)}
+                  swipeBetweenPhotos={store.settings.swipeBetweenPhotos !== false}
                   onStepPhoto={(delta) => {
                     // In the order the filmstrip shows (its sort and filter), not the store's: a swipe goes to the photo beside this one.
                     const next = stepFrom(shownPhotoIds.map((id) => ({ id })), activePhoto?.id, delta);

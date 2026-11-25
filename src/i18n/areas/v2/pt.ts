@@ -1404,6 +1404,10 @@ export const pt: AreaTranslation<typeof source> = {
       intro: 'Atalhos essenciais de computador para selecionar e editar depressa.',
       advanceLabel: "Passar à fotografia seguinte após classificar",
       advanceDesc: 'Depois de classificar com estrelas, marcar ou pôr de parte uma fotografia, mostrar logo a seguinte. As escolhas em várias fotografias selecionadas nunca avançam.',
+      touchHeading: "Toque e caneta",
+      swipeLabel: "Deslizar para mudar de foto",
+      swipeDesc: "Um deslize rápido com um dedo sobre a foto mostra a foto seguinte ou anterior. Desative se acontecer por engano.",
+      penNote: "Com uma caneta como o Apple Pencil, os toques na foto são ignorados enquanto a caneta está pousada. Também por um instante depois, para que a sua mão nunca mova a foto.",
     },
     language: {
       label: 'Idioma de apresentação',

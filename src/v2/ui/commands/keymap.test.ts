@@ -14,7 +14,10 @@ test('has no clashing chords in any built-in preset', () => {
 test('gives every command a chord in the InFlight preset', () => {
     const map = effectiveKeymap('inflight');
     // Next and previous photo are for a macro pad dial for now: arrow keys would fight the Compare slider.
-  for (const command of COMMANDS.filter((c) => c.id !== 'photo.next' && c.id !== 'photo.prev')) assert.ok(map[command.id], command.id);
+  // Fit and 100% wait for the macro pad decision (Lightroom's Z is the pad's Undo), so they start without a key.
+  // Slider nudges are for dials and pads, which send whatever key they are set to.
+  const keyless = new Set(['photo.next', 'photo.prev', 'view.zoomFit', 'view.zoom100', 'adjust.sliderUp', 'adjust.sliderDown', 'adjust.sliderUpMore', 'adjust.sliderDownMore']);
+  for (const command of COMMANDS.filter((c) => !keyless.has(c.id))) assert.ok(map[command.id], command.id);
   });
 
 test('reads Cmd as Mod on a Mac and Ctrl as Mod elsewhere', () => {
@@ -152,4 +155,18 @@ test('a key a control already used never runs a shortcut too', async () => {
   assert.equal(keyAlreadyHandled(el('DIV'), { key: ' ' }), false);
   assert.equal(keyAlreadyHandled(el('BUTTON'), { key: 'Enter', metaKey: true }), false);
   assert.equal(keyAlreadyHandled(null, { key: ' ' }), false);
+});
+
+test('+ and - zoom from either key of the pair and the number pad, and Cmd/Ctrl with them stays browser zoom', () => {
+  const map = effectiveKeymap('inflight');
+  const run = (init: Partial<KeyboardEvent> & { code: string; key: string }) => resolveCommand({ event: key(init), keymap: map, isMac: false, inField: false })?.id ?? null;
+  assert.equal(run({ code: 'Equal', key: '=' }), 'view.zoomIn');
+  assert.equal(run({ code: 'Equal', key: '+', shiftKey: true }), 'view.zoomIn');
+  assert.equal(run({ code: 'NumpadAdd', key: '+' }), 'view.zoomIn');
+  assert.equal(run({ code: 'Minus', key: '-' }), 'view.zoomOut');
+  assert.equal(run({ code: 'NumpadSubtract', key: '-' }), 'view.zoomOut');
+  assert.equal(run({ code: 'Equal', key: '=', ctrlKey: true }), null);
+  assert.equal(run({ code: 'Minus', key: '-', ctrlKey: true }), null);
+  // Typing a minus sign in a number field never zooms.
+  assert.equal(resolveCommand({ event: key({ code: 'Minus', key: '-' }), keymap: map, isMac: false, inField: true }), null);
 });

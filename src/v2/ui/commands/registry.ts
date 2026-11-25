@@ -16,6 +16,8 @@ export type CommandId =
   | 'view.compare'
   | 'view.fullscreen'
   | 'view.maskOverlay'
+  | 'view.zoomIn' | 'view.zoomOut' | 'view.zoomFit' | 'view.zoom100'
+  | 'adjust.sliderUp' | 'adjust.sliderDown' | 'adjust.sliderUpMore' | 'adjust.sliderDownMore'
   | 'edit.undo' | 'edit.redo'
   | 'edit.copy' | 'edit.paste'
   | 'edit.selectAll'
@@ -23,7 +25,7 @@ export type CommandId =
   | 'app.settings'
   | 'app.commandSearch';
 
-export type CommandGroup = 'photos' | 'view' | 'edit' | 'app';
+export type CommandGroup = 'photos' | 'view' | 'adjust' | 'edit' | 'app';
 
 export interface CommandDefinition {
   id: CommandId;
@@ -53,6 +55,15 @@ export const COMMANDS: readonly CommandDefinition[] = [
   { id: 'view.compare', group: 'view', label: 'Compare original and edit', worksInFields: false, allowRepeat: false },
   { id: 'view.fullscreen', group: 'view', label: 'Full screen', worksInFields: false, allowRepeat: false },
   { id: 'view.maskOverlay', group: 'view', label: 'Show or hide the selected mask overlay', worksInFields: false, allowRepeat: false },
+  { id: 'view.zoomIn', group: 'view', label: 'Zoom in', worksInFields: false, allowRepeat: true },
+  { id: 'view.zoomOut', group: 'view', label: 'Zoom out', worksInFields: false, allowRepeat: true },
+  { id: 'view.zoomFit', group: 'view', label: 'Zoom to fit', worksInFields: false, allowRepeat: false },
+  { id: 'view.zoom100', group: 'view', label: 'Zoom to 100% (again for fit)', worksInFields: false, allowRepeat: false },
+  // For dials and pad keys (TourBox, Loupedeck, a pad's knob): turn the slider last used, or Exposure. No key by default.
+  { id: 'adjust.sliderUp', group: 'adjust', label: 'Slider in use: up one step', worksInFields: false, allowRepeat: true },
+  { id: 'adjust.sliderDown', group: 'adjust', label: 'Slider in use: down one step', worksInFields: false, allowRepeat: true },
+  { id: 'adjust.sliderUpMore', group: 'adjust', label: 'Slider in use: up ten steps', worksInFields: false, allowRepeat: true },
+  { id: 'adjust.sliderDownMore', group: 'adjust', label: 'Slider in use: down ten steps', worksInFields: false, allowRepeat: true },
   { id: 'edit.undo', group: 'edit', label: 'Undo', worksInFields: false, allowRepeat: true },
   { id: 'edit.redo', group: 'edit', label: 'Redo', worksInFields: false, allowRepeat: true },
   { id: 'edit.copy', group: 'edit', label: 'Copy edit settings', worksInFields: false, allowRepeat: false },
@@ -66,6 +77,7 @@ export const COMMANDS: readonly CommandDefinition[] = [
 export const COMMAND_GROUP_LABELS: Record<CommandGroup, string> = {
   photos: 'Photos',
   view: 'View',
+  adjust: 'Adjust',
   edit: 'Edit',
   app: 'App',
 };

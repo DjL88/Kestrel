@@ -22,3 +22,26 @@ export function zoomAnchorScroll(
   // usable scroll instead of handing Infinity to the DOM scroll position.
   return Number.isFinite(anchored) ? Math.max(0, anchored) : Math.max(0, scroll);
 }
+
+/** The window event the App's key handler sends to ask the canvas to zoom. */
+export const CANVAS_ZOOM_EVENT = 'inflight:canvas-zoom';
+export type CanvasZoomAction = 'in' | 'out' | 'fit' | 'actual';
+export function isCanvasZoomAction(value: unknown): value is CanvasZoomAction {
+  return value === 'in' || value === 'out' || value === 'fit' || value === 'actual';
+}
+
+/**
+ * The zoom a key asks for, in the canvas's own units (1 = Fit), or null when there is nothing to do.
+ * In and out step by the zoom bar's own 1.25, within the pinch's 0.25 to 8. "Actual" is 100%: one photo pixel per
+ * screen pixel, and pressing it again at 100% goes back to Fit, as Lightroom's Z does. Without the photo's size, 100% is Fit.
+ */
+export function keyboardZoomTarget(action: CanvasZoomAction, current: number, fitScale: number | null): number | null {
+  const zoom = Number.isFinite(current) && current > 0 ? current : 1;
+  const clampZoom = (value: number) => Math.max(0.25, Math.min(8, value));
+  if (action === 'in') return clampZoom(zoom * 1.25);
+  if (action === 'out') return clampZoom(zoom / 1.25);
+  if (action === 'fit') return 1;
+  if (!fitScale || !Number.isFinite(fitScale) || fitScale <= 0) return 1;
+  const actual = 1 / fitScale;
+  return Math.abs(zoom * fitScale - 1) <= 0.01 ? 1 : actual;
+}
