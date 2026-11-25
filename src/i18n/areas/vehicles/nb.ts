@@ -48,8 +48,6 @@ export const nb: AreaTranslation<typeof source> = {
     cancel: 'Avbryt',
     saved: (count: number) => (count > 1 ? `Lagret for ${count} bilder.` : 'Lagret.'),
   },
-  raceNumber: (what: string, number: string) => `${what}, startnummer ${number}`,
-  named: (what: string, name: string) => `${what}, ved navn ${name}`,
   reader: {
     title: 'Les registreringer, startnumre og båtnavn',
     description: (megabytes: string) => `Leser på denne enheten registreringer og militære serienumre på fly, startnumre på racerbiler og racermotorsykler, og navn og IMO-numre på båter. Flyregistreringer slås opp i en frakoblet kopi av offentlige registre. En engangsnedlasting på ${megabytes} MB. Skilt på veikjøretøy leses aldri.`,

@@ -48,8 +48,6 @@ export const ga: AreaTranslation<typeof source> = {
     cancel: 'Cealaigh',
     saved: (count: number) => (count > 1 ? `Sábháilte do ${count} grianghraf.` : 'Sábháilte.'),
   },
-  raceNumber: (what: string, number: string) => `${what}, uimhir ${number}`,
-  named: (what: string, name: string) => `${what}, darb ainm ${name}`,
   reader: {
     title: 'Léigh clárúcháin, uimhreacha rásaíochta agus ainmneacha bád',
     description: (megabytes: string) => `Léann sé clárúcháin agus sraithuimhreacha míleata ar aerárthaí, uimhreacha rásaíochta ar charranna agus ar ghluaisrothair rásaíochta, agus ainmneacha agus uimhreacha IMO ar bháid, ar an ngléas seo. Cuardaítear clárúcháin aerárthaí i gcóip as líne de chláir phoiblí. Íoslódáil aonuaire de ${megabytes} MB. Ní léitear uimhirphlátaí feithiclí bóthair riamh.`,
