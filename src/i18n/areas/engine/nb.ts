@@ -90,6 +90,8 @@ export const nb: AreaTranslation<typeof source> = {
     exportNotQueued: 'Kunne ikke starte denne eksporten.',
     destinationUnavailable: 'Det eksportmålet er ikke tilgjengelig. Velg en lokal ZIP, separate filer eller en mappe på datamaskinen.',
     cullPro: 'Autosortering er en del av InFlight Pro.',
+    cullOffer: "Bilder lagt til. Trykk på Automatisk sortering for å sortere dem på denne enheten; ingenting merkes før da.",
+    cullSwitchedOff: "Automatisk sortering er slått av for denne kontoen, så den kjørte ikke. Bildene dine er uendret.",
     cullRunning: 'Autosortering kjører allerede.',
     cullNothing: 'Alle bildene har allerede en avgjørelse, så det er ingenting å sortere.',
     cullTask: 'Autosortering og analyse',

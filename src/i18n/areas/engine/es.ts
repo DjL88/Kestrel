@@ -90,6 +90,8 @@ export const es: AreaTranslation<typeof source> = {
     exportNotQueued: 'No se pudo iniciar esta exportación.',
     destinationUnavailable: 'Ese destino de exportación no está disponible. Elija un ZIP local, archivos separados o una carpeta del ordenador.',
     cullPro: 'La selección automática forma parte de InFlight Pro.',
+    cullOffer: "Fotos añadidas. Pulse Selección automática para ordenarlas en este dispositivo; no se marca nada hasta entonces.",
+    cullSwitchedOff: "La selección automática está desactivada para esta cuenta, así que no se ha ejecutado. Sus fotos no han cambiado.",
     cullRunning: 'La selección automática ya está en curso.',
     cullNothing: 'Todas las fotos tienen ya una decisión, así que no hay nada que seleccionar.',
     cullTask: 'Selección y análisis automáticos',

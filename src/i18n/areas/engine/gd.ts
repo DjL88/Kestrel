@@ -90,6 +90,8 @@ export const gd: AreaTranslation<typeof source> = {
     exportNotQueued: 'Cha b’ urrainnear an t-às-phortadh seo a thòiseachadh.',
     destinationUnavailable: 'Chan eil an ceann-uidhe às-phortaidh sin ri fhaighinn. Tagh ZIP ionadail, faidhlichean fa leth no pasgan air a’ choimpiutair.',
     cullPro: 'Tha taghadh fèin-obrachail na phàirt de InFlight Pro.',
+    cullOffer: "Chaidh dealbhan a chur ris. Brùth Taghadh fèin-obrachail gus an rèiteachadh air an uidheam seo; cha tèid dad a chomharrachadh gus an dèan thu sin.",
+    cullSwitchedOff: "Tha an taghadh fèin-obrachail dheth airson a' chunntais seo, mar sin cha deach a ruith. Tha na dealbhan agad gun atharrachadh.",
     cullRunning: 'Tha taghadh fèin-obrachail a’ dol mu thràth.',
     cullNothing: 'Tha co-dhùnadh aig gach dealbh mu thràth, mar sin chan eil dad ri thaghadh.',
     cullTask: 'Taghadh is mion-sgrùdadh fèin-obrachail',

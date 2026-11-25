@@ -90,6 +90,8 @@ export const is: AreaTranslation<typeof source> = {
     exportNotQueued: 'Ekki tókst að hefja þennan útflutning.',
     destinationUnavailable: 'Sá útflutningsstaður er ekki tiltækur. Veldu ZIP á tækinu, stakar skrár eða möppu á tölvunni.',
     cullPro: 'Sjálfvirk grisjun er hluti af InFlight Pro.',
+    cullOffer: "Myndum bætt við. Ýttu á Sjálfvirka flokkun til að flokka þær í þessu tæki; ekkert er merkt fyrr en þá.",
+    cullSwitchedOff: "Slökkt er á sjálfvirkri flokkun fyrir þennan reikning, svo hún var ekki keyrð. Myndirnar þínar eru óbreyttar.",
     cullRunning: 'Sjálfvirk grisjun er þegar í gangi.',
     cullNothing: 'Allar myndir hafa þegar ákvörðun, svo það er ekkert að grisja.',
     cullTask: 'Sjálfvirk grisjun og greining',

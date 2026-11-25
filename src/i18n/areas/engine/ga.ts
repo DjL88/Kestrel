@@ -90,6 +90,8 @@ export const ga: AreaTranslation<typeof source> = {
     exportNotQueued: 'Níorbh fhéidir an easpórtáil seo a thosú.',
     destinationUnavailable: 'Níl an ceann scríbe easpórtála sin ar fáil. Roghnaigh ZIP áitiúil, comhaid ar leith nó fillteán ar an ríomhaire.',
     cullPro: 'Is cuid de InFlight Pro é an roghnú uathoibríoch.',
+    cullOffer: "Cuireadh grianghraif leis. Brúigh Sórtáil uathoibríoch chun iad a shórtáil ar an ngléas seo; ní mharcáiltear aon rud go dtí sin.",
+    cullSwitchedOff: "Tá an tsórtáil uathoibríoch múchta don chuntas seo, mar sin níor ritheadh í. Níl do ghrianghraif athraithe.",
     cullRunning: 'Tá an roghnú uathoibríoch ar siúl cheana.',
     cullNothing: 'Tá cinneadh ag gach grianghraf cheana, mar sin níl aon rud le roghnú.',
     cullTask: 'Roghnú agus anailís uathoibríoch',

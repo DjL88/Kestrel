@@ -90,6 +90,8 @@ export const fr: AreaTranslation<typeof source> = {
     exportNotQueued: 'Impossible de lancer cet export.',
     destinationUnavailable: 'Cette destination d’export n’est pas disponible. Choisissez un ZIP local, des fichiers séparés ou un dossier de l’ordinateur.',
     cullPro: 'Le tri auto fait partie d’InFlight Pro.',
+    cullOffer: "Photos ajoutées. Appuyez sur Tri automatique pour les trier sur cet appareil ; rien n'est marqué avant cela.",
+    cullSwitchedOff: "Le tri automatique est désactivé pour ce compte, il n'a donc pas été lancé. Vos photos sont inchangées.",
     cullRunning: 'Le tri auto est déjà en cours.',
     cullNothing: 'Chaque photo a déjà une décision, il n’y a donc rien à trier.',
     cullTask: 'Tri et analyse auto',

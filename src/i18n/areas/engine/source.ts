@@ -101,6 +101,8 @@ export const source = {
     exportNotQueued: 'Could not start this export.',
     destinationUnavailable: 'That export destination is unavailable. Choose a local ZIP, separate files or a desktop folder.',
     cullPro: 'Auto-cull is part of InFlight Pro.',
+    cullOffer: "Photos added. Press Auto-Cull to sort them on this device; nothing is flagged until you do.",
+    cullSwitchedOff: "Auto-cull is switched off for this account, so it did not run. Your photos are unchanged.",
     cullRunning: 'Auto-cull is already running.',
     cullNothing: 'Every photo already has a decision, so there is nothing to cull.',
     cullTask: 'Auto-cull and analyse',

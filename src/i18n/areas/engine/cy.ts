@@ -90,6 +90,8 @@ export const cy: AreaTranslation<typeof source> = {
     exportNotQueued: 'Doedd dim modd dechrau’r allforio hwn.',
     destinationUnavailable: 'Dydy’r cyrchfan allforio hwnnw ddim ar gael. Dewiswch ZIP lleol, ffeiliau ar wahân neu ffolder ar y cyfrifiadur.',
     cullPro: 'Mae dethol awtomatig yn rhan o InFlight Pro.',
+    cullOffer: "Lluniau wedi'u hychwanegu. Pwyswch Didoli awtomatig i'w trefnu ar y ddyfais hon; does dim yn cael ei farcio tan hynny.",
+    cullSwitchedOff: "Mae didoli awtomatig wedi'i ddiffodd ar gyfer y cyfrif hwn, felly ni redodd. Mae eich lluniau heb eu newid.",
     cullRunning: 'Mae dethol awtomatig eisoes ar waith.',
     cullNothing: 'Mae penderfyniad gan bob llun eisoes, felly does dim i’w ddethol.',
     cullTask: 'Dethol a dadansoddi’n awtomatig',

@@ -90,6 +90,8 @@ export const sv: AreaTranslation<typeof source> = {
     exportNotQueued: 'Kunde inte starta den här exporten.',
     destinationUnavailable: 'Det exportmålet är inte tillgängligt. Välj en lokal ZIP, separata filer eller en mapp på datorn.',
     cullPro: 'Autogallring ingår i InFlight Pro.',
+    cullOffer: "Foton tillagda. Tryck på Automatisk sortering för att sortera dem på den här enheten; inget markeras innan dess.",
+    cullSwitchedOff: "Automatisk sortering är avstängd för det här kontot, så den kördes inte. Dina foton är oförändrade.",
     cullRunning: 'Autogallring pågår redan.',
     cullNothing: 'Alla foton har redan ett beslut, så det finns inget att gallra.',
     cullTask: 'Autogallring och analys',
