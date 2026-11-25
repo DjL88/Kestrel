@@ -42,7 +42,7 @@ async function mockApi(page: Page, flags: Flags) {
 
 async function signIn(page: Page) {
   await page.goto(`${origin}/admin.html`);
-  await page.getByLabel('Email').fill('admin@example.test');
+  await page.locator('#password-form').getByLabel('Email').fill('admin@example.test');
   await page.getByLabel('Password').fill('not-a-real-password');
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.locator('#flags')).toBeVisible();
@@ -73,7 +73,7 @@ test('adding a trial for Basic people sends exactly the rule that was described'
   await row.getByLabel('First day').fill('2026-11-22');
   await row.getByLabel('Last day (empty = until stopped)').fill('2026-11-24');
   await page.getByRole('button', { name: 'Save flag' }).click();
-  await expect(page.getByRole('status')).toContainText('Saved smartCulling.');
+  await expect(page.locator('#status')).toContainText('Saved smartCulling.');
   expect(writes).toHaveLength(1);
   expect(writes[0].body).toEqual({ key: 'smartCulling', flag: { default: false, rules: [{ audience: { kind: 'plan', plan: 'basic' }, enabled: true, trial: true, startsAtMs: NOV22, endsAtMs: NOV22 + 3 * 86_400_000 }] } });
   await expect(page.locator('#flags-table').getByText('Basic: on (trial), from 22 Nov 2026, last day 24 Nov 2026')).toBeVisible();
@@ -88,7 +88,7 @@ test('a trial with no last day runs until stopped, and a mistake is explained wi
   await row.getByLabel('First day').fill('2026-11-24');
   await row.getByLabel('Last day (empty = until stopped)').fill('2026-11-22');
   await page.getByRole('button', { name: 'Save flag' }).click();
-  await expect(page.getByRole('status')).toContainText('Rule 1: The last day must not be before the first day.');
+  await expect(page.locator('#status')).toContainText('Rule 1: The last day must not be before the first day.');
   expect(writes).toHaveLength(0);
   await row.getByLabel('First day').fill('');
   await row.getByLabel('Last day (empty = until stopped)').fill('');
@@ -109,7 +109,7 @@ test('Edit loads a flag into the form and Delete removes it after confirming', a
   await expect(page.locator('.rule-row').first().getByLabel('Name or email')).toHaveValue('Acme Ltd');
   page.once('dialog', (dialog) => { void dialog.accept(); });
   await page.getByRole('button', { name: 'Delete masks' }).click();
-  await expect(page.getByRole('status')).toContainText('Deleted masks.');
+  await expect(page.locator('#status')).toContainText('Deleted masks.');
   expect(writes.map((w) => w.path)).toEqual(['admin/flags/delete']);
   await expect(page.locator('#flags-empty')).toBeVisible();
 });
