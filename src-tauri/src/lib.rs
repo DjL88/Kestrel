@@ -82,7 +82,8 @@ fn take_opened_files(state: tauri::State<'_, OpenedFiles>) -> Vec<String> {
     state.0.lock().map(|mut pending| std::mem::take(&mut *pending)).unwrap_or_default()
 }
 
-/// Develop a RAW file the page sends as raw bytes, and return the full-size picture as JPEG bytes.
+/// Develop a RAW file the page sends as raw bytes, and return the picture as JPEG bytes: full size, or half the sensor's
+/// width and height when the page asks for the screen-size copy (header `x-develop-size: screen`).
 #[cfg(desktop)]
 #[tauri::command]
 async fn develop_raw(request: tauri::ipc::Request<'_>) -> Result<tauri::ipc::Response, String> {
@@ -91,8 +92,9 @@ async fn develop_raw(request: tauri::ipc::Request<'_>) -> Result<tauri::ipc::Res
     // The file's extension, so the system decoder on a Mac knows what it is given.
     let extension = request.headers().get("x-file-extension").and_then(|value| value.to_str().ok())
         .filter(|value| value.chars().all(|c| c.is_ascii_alphanumeric()) && !value.is_empty() && value.len() <= 5).unwrap_or("nef").to_string();
+    let screen = request.headers().get("x-develop-size").and_then(|value| value.to_str().ok()) == Some("screen");
     // A decoder can panic on a damaged file; run it apart so that becomes an error message, not a crash.
-    let jpeg = tauri::async_runtime::spawn_blocking(move || raw::develop_any(&bytes, &extension))
+    let jpeg = tauri::async_runtime::spawn_blocking(move || raw::develop_any(&bytes, &extension, screen))
         .await
         .map_err(|_| "This RAW file could not be read.".to_string())??;
     Ok(tauri::ipc::Response::new(jpeg))
