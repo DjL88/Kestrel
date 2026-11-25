@@ -42,18 +42,20 @@ export const AUTO_MINIMUM = 0.8;
 export const shouldAutoTag = (probability: number, minimum = AUTO_MINIMUM) => probability >= minimum && probability <= 1;
 
 /**
- * The bar for writing a species name by itself, per group: 0.95 for every group. Owner: "aim for 100%, 95% is great".
- * Measured with tools/species/benchmark_score.py on 474 public-domain, CC0 and CC BY Commons photos of 50 UK and European
- * species, through the app's whole path (gate, group, agreement, bar, family), Palearctic lists:
- * - birds (192 photos): at 0.8 with the family at 0.8, 162 names given and 7 wrong (95.7%); at 0.95 with the family at
- *   0.95, 150 names given and 1 wrong (99.3%; a book illustration of a wren named as the tit family);
- * - mammals, insects, reptiles and amphibians (282 photos), already at 0.95: 69 names given and 4 marked wrong, of which
- *   2 were Commons photos filed under another species whose name the app gave correctly (a red kite, a bee-eater).
- * Earlier smaller checks agreed: at 0.8, insects 29 right and 5 wrong, mammals 5 right and 2 wrong.
+ * The bar for writing a species name by itself, per group. Owner: the goal is that at least 95% of the names written
+ * are right, with the best guess shown from 0.90 up. So each group gets the lowest bar, no lower than 0.90, at which
+ * its written names were at least 95% right in tools/species/benchmark_score.py: 474 public-domain, CC0 and CC BY
+ * Commons photos of 50 UK and European species, through the app's whole path (gate, group, agreement, bar, family),
+ * Palearctic lists. Two Commons files filed under the wrong species were corrected by eye first.
+ * - birds (192 photos): at 0.90, 155 of 156 names right (99.4%), 81% of photos named;
+ * - insects (108): at 0.90, 58 of 60 right (96.7%), 56% named;
+ * - mammals (100), reptiles (45), amphibians (29): too few names written to measure (11, 7 and 5 at 0.90; mammals
+ *   9 of 11), so they stay at a cautious 0.95 until there is more data.
+ * Below its bar a photo gets no name and is left for the person.
  */
-export const AUTO_MINIMUM_BY_GROUP: Partial<Record<SpeciesLabel['group'], number>> = { bird: 0.95, insect: 0.95, mammal: 0.95, reptile: 0.95, amphibian: 0.95 };
-/** The bar for naming a family when no single species reaches its bar: the same 0.95 (at 0.8, 2 of 24 family names were wrong). */
-export const FAMILY_MINIMUM = 0.95;
+export const AUTO_MINIMUM_BY_GROUP: Partial<Record<SpeciesLabel['group'], number>> = { bird: 0.9, insect: 0.9, mammal: 0.95, reptile: 0.95, amphibian: 0.95 };
+/** The bar for naming a bird family when no single species reaches its bar: the birds' 0.90 (family names are counted in the birds' row above). */
+export const FAMILY_MINIMUM = 0.9;
 export const autoTagMinimum = (group: SpeciesLabel['group'] | undefined) => (group && AUTO_MINIMUM_BY_GROUP[group]) || AUTO_MINIMUM;
 
 /**
