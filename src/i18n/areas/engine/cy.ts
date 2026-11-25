@@ -54,6 +54,8 @@ export const cy: AreaTranslation<typeof source> = {
   workspace: {
     templateNotSaved: 'Doedd InFlight ddim yn gallu cadw’r templed ar y ddyfais hon.',
     projectNotSaved: 'Doedd InFlight ddim yn gallu cadw’r prosiect hwn. Mae eich lluniau gwreiddiol heb eu newid.',
+    projectSaveRetrying: 'Methodd InFlight gadw’r prosiect hwn. Mae’n dal i geisio; gadewch InFlight ar agor nes iddo ddweud ei fod wedi’i gadw. Mae eich lluniau gwreiddiol heb eu newid.',
+    projectSavedAfterRetry: 'Wedi’i gadw. Ni chollwyd dim.',
     projectNotOpened: 'Doedd dim modd agor y prosiect hwnnw.',
     thumbnailsTask: (count) => (count === 1 ? 'Paratoi 1 llun bach' : `Paratoi ${count} llun bach`),
     thumbnailStage: 'Darllen a lleihau’r llun hwn',

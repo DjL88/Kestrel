@@ -27,10 +27,21 @@ test('V2 background engine replaces a synthetic embedded RAW preview with develo
   const dimensions = () => photo.evaluate((el: HTMLImageElement) => [el.naturalWidth, el.naturalHeight]);
   // The embedded JPEG is 640 × 960. Only the developed, orientation-corrected mosaic produces 64 × 96.
   await expect.poll(dimensions, { timeout: 30_000 }).toEqual([64, 96]);
+  // The canvas and the filmstrip say, in words, that this is InFlight's develop from the sensor data.
+  const canvasLabel = root.locator('.v2-canvas-bar [data-testid="picture-source"]');
+  await expect(canvasLabel).toHaveAttribute('data-picture-source', /^raw-/);
+  await expect(canvasLabel).toContainText('Developed from RAW');
+  const tileLabel = root.getByRole('listbox', { name: 'Project photographs' }).getByTestId('picture-source');
+  const tileImage = root.getByRole('listbox', { name: 'Project photographs' }).locator('img').first();
+  // The tile catches up a moment after the canvas; its label follows the picture it actually shows.
+  await expect(tileLabel).toHaveAttribute('data-picture-source', 'raw-screen', { timeout: 30_000 });
+  await expect.poll(() => tileImage.evaluate((el: HTMLImageElement) => [el.naturalWidth, el.naturalHeight])).toEqual([64, 96]);
+  await expect(tileLabel).toContainText('RAW');
   await root.getByRole('button', { name: 'Back to projects' }).click();
   await page.reload();
-  await root.getByRole('button', { name: /Open studio/ }).first().click();
+  await root.getByRole('button', { name: /^(Open studio.*|V2 sensor develop)$/ }).first().click();
   await expect.poll(dimensions, { timeout: 30_000 }).toEqual([64, 96]);
+  await expect(canvasLabel).toHaveAttribute('data-picture-source', 'raw-screen');
 });
 
 test('V2 writes structurally verified 16-bit TIFFs with and without the Tint edit', async ({ page }, testInfo) => {

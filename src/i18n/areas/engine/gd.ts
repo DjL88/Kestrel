@@ -54,6 +54,8 @@ export const gd: AreaTranslation<typeof source> = {
   workspace: {
     templateNotSaved: 'Cha b’ urrainn do InFlight an teamplaid a shàbhaladh air an uidheam seo.',
     projectNotSaved: 'Cha b’ urrainn do InFlight am pròiseact seo a shàbhaladh. Cha deach na dealbhan tùsail agad atharrachadh.',
+    projectSaveRetrying: 'Cha b’ urrainn do InFlight am pròiseact seo a shàbhaladh. Cumaidh e a’ feuchainn; fàg InFlight fosgailte gus an can e gun deach a shàbhaladh. Chan eil na dealbhan tùsail agad air atharrachadh.',
+    projectSavedAfterRetry: 'Air a shàbhaladh. Cha deach dad a chall.',
     projectNotOpened: 'Cha b’ urrainnear am pròiseact sin fhosgladh.',
     thumbnailsTask: (count) => (count === 1 ? 'Ag ullachadh 1 dealbhag' : `Ag ullachadh ${count} dealbhagan`),
     thumbnailStage: 'A’ leughadh is a’ lùghdachadh an deilbh seo',

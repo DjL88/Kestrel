@@ -54,6 +54,8 @@ export const is: AreaTranslation<typeof source> = {
   workspace: {
     templateNotSaved: 'InFlight gat ekki vistað sniðmátið á þessu tæki.',
     projectNotSaved: 'InFlight gat ekki vistað þetta verkefni. Upprunalegu myndirnar þínar eru óbreyttar.',
+    projectSaveRetrying: 'InFlight gat ekki vistað þetta verkefni. Það heldur áfram að reyna; hafðu InFlight opið þar til það segir að það sé vistað. Upprunalegu myndirnar þínar eru óbreyttar.',
+    projectSavedAfterRetry: 'Vistað. Ekkert tapaðist.',
     projectNotOpened: 'Ekki tókst að opna það verkefni.',
     thumbnailsTask: (count) => (count === 1 ? 'Undirbý 1 smámynd' : `Undirbý ${count} smámyndir`),
     thumbnailStage: 'Les og minnka þessa mynd',

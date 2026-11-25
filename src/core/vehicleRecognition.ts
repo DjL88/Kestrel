@@ -80,6 +80,10 @@ export interface VehicleReading {
   marking?: { value: string; format: MarkingFormat; confidence: number };
   /** What an offline register says about that marking. `exact` is a register record; otherwise a serial block, "probably". */
   registered?: { type: string; operator?: string; register: RegisterSource; exact: boolean };
+  /** The Vision guardian's second opinion (step 3): 'agreed' adds nothing; 'held' means it withdrew a claim (see vehicleGuardian). */
+  guardian?: 'agreed' | 'held';
+  /** The guardian did not see the family either ("Is there an aircraft?" "No"): nothing is named; the person decides. */
+  heldFamily?: boolean;
 }
 
 /** The committed vectors (src/assets/vehicle/vectors.json), in label order. Throws on any mismatch. */
@@ -169,6 +173,8 @@ export function validVehicleReading(value: unknown, labels: VehicleLabels): Vehi
   if (registered !== undefined && (!marking || !registered || typeof registered.type !== 'string' || !registered.type.trim() ||
     (registered.operator !== undefined && typeof registered.operator !== 'string') ||
     !['faa', 'uk-military-blocks'].includes(registered.register) || typeof registered.exact !== 'boolean')) return null;
+  if (reading.guardian !== undefined && reading.guardian !== 'agreed' && reading.guardian !== 'held') return null;
+  if (reading.heldFamily !== undefined && (reading.heldFamily !== true || reading.guardian !== 'held' || reading.kind !== undefined)) return null;
   return reading as VehicleReading;
 }
 
@@ -183,6 +189,8 @@ export interface VehicleWords {
   /** An exact register record: "N172SP: CESSNA 172S (FAA register)". */
   registered: (marking: string, type: string) => string;
   operatedBy: (what: string, operator: string) => string;
+  /** The guardian doubted even the family: "Aircraft? Needs your review". */
+  held: (what: string) => string;
 }
 
 /**
@@ -190,6 +198,7 @@ export interface VehicleWords {
  * "Aircraft, type unknown", "Bus (probably)". A person's own choice is shown without "probably".
  */
 export function vehicleLabel(reading: VehicleReading, labels: VehicleLabels, words: VehicleWords): string {
+  if (reading.heldFamily) return words.held(words.families[reading.family]);
   const base = kindLabel(reading, labels, words);
   const { marking, registered } = reading;
   if (!marking || reading.source === 'person') return base;
@@ -215,6 +224,7 @@ function kindLabel(reading: VehicleReading, labels: VehicleLabels, words: Vehicl
 /** The words a photo can be found by: in the person's language and in English, plus the type's own name. */
 export function vehicleSearchWords(reading: VehicleReading, labels: VehicleLabels, words: readonly VehicleWords[]): string[] {
   const out = new Set<string>();
+  if (reading.heldFamily) return reading.marking ? [reading.marking.value] : [];
   for (const set of words) {
     out.add(set.families[reading.family]);
     if (reading.kind && set.kinds[reading.kind]) out.add(set.kinds[reading.kind]);

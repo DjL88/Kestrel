@@ -164,6 +164,9 @@ export function createEngineScheduler(options: {
   };
   const jobs = new Map<number, WorkBatch>();
   const failedJobs = new Map<number, WorkBatch>();
+  // The signal handed to each running photograph. Engine work called with one of these is already inside a
+  // batch: it must run there, not queue a second batch behind the one waiting for it (one heavy job at a time).
+  const batchSignals = new WeakSet<AbortSignal>();
   let sequence = 0;
   let highest = 100;
   let pausedAll = false;
@@ -209,6 +212,7 @@ export function createEngineScheduler(options: {
       const item = job.items[index];
       const controller = new AbortController();
       job.controller = controller;
+      batchSignals.add(controller.signal);
       item.state = 'running';
       item.detail = undefined;
       job.handle.transition('running', `Working on ${item.label}`);
@@ -485,6 +489,8 @@ export function createEngineScheduler(options: {
     subscribe: store.subscribe,
     runningResourceCount: () => ({ ...used }),
     isPausedAll: () => pausedAll,
+    /** True when `signal` is the one a running batch gave its current photograph. */
+    isBatchSignal: (signal?: AbortSignal | null) => Boolean(signal && batchSignals.has(signal)),
     /** Updates should come from OS-native telemetry; no manufactured percentages. */
     updateResourceSample(sample: ResourceSample | null) {
       resourceSample = sample ? { ...sample } : null;

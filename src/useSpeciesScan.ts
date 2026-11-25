@@ -20,6 +20,7 @@ import { VEHICLE_LABELS } from './core/vehicleLabels';
 import { markingReaderReady, readText } from './providers/markingReader';
 import { loadFaaRegister } from './providers/aircraftRegisters';
 import { findSubjects } from './providers/objectDetector';
+import { guardVehicleOnDevice } from './providers/vehicleGuardian';
 import { HELPER_GAP_MS, HELPER_SESSION_CAP, failureMessage, helperPatch, helperReady } from './core/onlineHelper';
 import { ONLINE_HELPER_VISIBLE, useHelperSettings } from './providers/helperSettings';
 import { HelperError, geminiTransport, imageForHelper } from './providers/onlineHelper';
@@ -147,7 +148,7 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
               // Not an animal the list can name (a helicopter, a car): looked at, and no animal name offered.
               patch = { speciesChecked: true };
             }
-            if (vehicle) patch = { ...(patch ?? {}), speciesChecked: true, vehicle: await readMarkings(vehicle, store, frame) };
+            if (vehicle) patch = { ...(patch ?? {}), speciesChecked: true, vehicle: await guardVehicleOnDevice(await readMarkings(vehicle, store, frame), picture) };
             // Unclassified and not clearly an animal: unknown stays unknown, and the opted-in helper may still answer.
           } catch { /* A failed local analysis can still use the opted-in fallback. */ }
         }

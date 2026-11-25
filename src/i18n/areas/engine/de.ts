@@ -54,6 +54,8 @@ export const de: AreaTranslation<typeof source> = {
   workspace: {
     templateNotSaved: 'InFlight konnte die Vorlage auf diesem Gerät nicht speichern.',
     projectNotSaved: 'InFlight konnte dieses Projekt nicht speichern. Ihre Originalfotos sind unverändert.',
+    projectSaveRetrying: 'InFlight konnte dieses Projekt nicht speichern. Es versucht es weiter; lassen Sie InFlight geöffnet, bis „gespeichert“ angezeigt wird. Ihre Originalfotos sind unverändert.',
+    projectSavedAfterRetry: 'Gespeichert. Nichts ist verloren gegangen.',
     projectNotOpened: 'Dieses Projekt konnte nicht geöffnet werden.',
     thumbnailsTask: (count) => (count === 1 ? '1 Miniatur wird vorbereitet' : `${count} Miniaturen werden vorbereitet`),
     thumbnailStage: 'Dieses Foto wird gelesen und verkleinert',

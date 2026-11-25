@@ -28,6 +28,7 @@ export const fr: AreaTranslation<typeof source> = {
   marked: (what: string, marking: string) => `${what}, marqué ${marking}`,
   registered: (marking: string, type: string) => `${marking} : ${type} (d'après le registre)`,
   operatedBy: (what: string, operator: string) => `${what}, exploité par ${operator}`,
+  held: (what: string) => `${what}? À vérifier`,
   reader: {
     title: 'Lire les immatriculations d’aéronefs',
     description: (megabytes: string) => `Lit les immatriculations et numéros de série militaires peints sur les aéronefs, sur cet appareil, et les recherche dans une copie hors ligne de registres publics. Un téléchargement unique de ${megabytes} Mo. Les plaques d’immatriculation des voitures ne sont jamais lues.`,

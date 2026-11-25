@@ -1,3 +1,4 @@
+import { pictureProvenance, type PictureSource } from '../../core/pictureSource';
 import { applyFormats, applySizeLinked } from './formatOps';
 import { framedSize, DEFAULT_FRAMING } from '../../core/photoFraming';
 import { readVideoZoom } from './videoZoomOps';
@@ -28,6 +29,7 @@ import { buildEditingSequence } from '../../core/editingSequence';
 import type { PhotoEdit } from '../../core/photoEdits';
 import { VEHICLE_LABELS } from '../../core/vehicleLabels';
 import { validVehicleReading, vehicleLabel, vehicleSearchWords } from '../../core/vehicleRecognition';
+import { sharedPhotoKey } from '../../core/sharedSync';
 import { vehicleText, vehicleTextEnglish } from '../../i18n/areas/vehicles';
 
 /** A transparent pixel, so a photo whose picture is not ready yet shows an empty tile rather than a broken image. */
@@ -49,7 +51,7 @@ export function recipeDelta(base: Parameters<typeof editToRecipe>[0], proposal: 
 
 /** The on-screen slider names, so a step points at the slider the person can find in Adjust. */
 const effects = STRINGS.adjust.effects;
-const STEP_LABELS: Record<string, string> = {
+export const STEP_LABELS: Record<string, string> = {
   ...engineText.steps,
   // Effects, grading and calibration reuse the words their own panels show, so a step names the slider exactly.
   colourGrade: STRINGS.adjust.grade.heading, dehaze: effects.dehaze, vignette: effects.vignette,
@@ -143,7 +145,7 @@ export function tileStateFor(urls: FrameUrls | undefined): TileState {
  * not record says "Not recorded" (or is left empty), never an invented value. The edit, size and mask parts start as the
  * UI's neutral defaults; they are connected to the real recipe in a later step.
  */
-export interface PhotoExtras { pixelSize?: { width: number; height: number }; /** Measured from a connected, decoded JPEG/PNG original, not EXIF or a preview. */ verifiedOriginalSize?: { width: number; height: number }; assist?: AssistState; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram; originalConnected?: boolean }
+export interface PhotoExtras { pixelSize?: { width: number; height: number }; /** Measured from a connected, decoded JPEG/PNG original, not EXIF or a preview. */ verifiedOriginalSize?: { width: number; height: number }; assist?: AssistState; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram; originalConnected?: boolean; /** What the provider recorded for each address (BrowserPreviewProvider.pictureSourceOf). */ sources?: { preview?: PictureSource; thumb?: PictureSource } }
 
 /** Decoded JPEG/PNG pixel size (after framing), or null when not measured. */
 function verifiedFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { width: number; height: number }): { width: number; height: number } | null {
@@ -176,7 +178,9 @@ export function originalFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { w
 }
 
 export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, extras: PhotoExtras = {}): Photo {
-  const { assist, watermarkAuto, histogram, pixelSize, verifiedOriginalSize } = extras;
+  const { assist, watermarkAuto, histogram, pixelSize, verifiedOriginalSize, sources } = extras;
+  const shownPreview = pictureProvenance(urls?.preview ? sources?.preview : sources?.thumb, frame.rawCodec);
+  const shownThumb = pictureProvenance(sources?.thumb, frame.rawCodec);
   const { exif } = frame;
   const nativeSize = verifiedFormatSize(frame, verifiedOriginalSize);
   const originalSize = originalFormatSize(frame, verifiedOriginalSize, pixelSize);
@@ -199,6 +203,8 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
   const thumb = urls?.thumb ?? BLANK_IMAGE;
   return {
     id: frame.id,
+    sharedKey: frame.cloudPhoto && !frame.virtualCopy ? frame.cloudPhoto.photoKey : sharedPhotoKey(frame.originalSha256, frame.virtualCopy?.number),
+    cloudPreview: frame.cloudPhoto && !frame.cloudPhoto.hasOriginal ? true : undefined,
     filename: frame.filename,
     title: titleOf(frame.filename),
     previewUrl: urls?.preview ?? thumb,
@@ -254,6 +260,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     ...(frame.formatHistory ? { formatHistory: readFormatHistory(frame.formatHistory).events.map(({ formatId, kind, at, parentFormatId, forkEditCursor }) => ({ formatId, kind, at, ...(parentFormatId ? { parentFormatId } : {}), ...(forkEditCursor !== undefined ? { forkEditCursor } : {}) })) } : {}),
     ...(watermarkAuto ? { watermarkAuto } : {}),
     ...(histogram ? { histogram } : {}),
+    ...(shownPreview || shownThumb ? { picture: { ...(shownPreview ? { preview: shownPreview } : {}), ...(shownThumb ? { thumb: shownThumb } : {}) } } : {}),
     assistCritique: assistCritiqueFor(assist && matchesAutoSource(assist.run, frame) ? assist : undefined, frame.edit),
   };
 }
