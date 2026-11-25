@@ -332,6 +332,12 @@ export const gd: AreaTranslation<typeof source> = {
     rate: (n: number) => `Thoir ${n} rionnagan`,
     ratingFor: (name: string) => `Rangachadh airson ${name}`,
   },
+  openExport: {
+    menu: "Às-phortaich a h-uile càil ann am fòrmatan fosgailte…",
+    saved: "Chaidh rangachadh, bratach, facail-luirg is reasabaidh deasachaidh gach deilbh a shàbhaladh ann am fòrmatan fosgailte (XMP, CSV is JSON). Chan eil na dealbhan agad ann agus cha deach dad a luchdadh suas.",
+    nothing: "Chan eil dealbhan sa phròiseact seo ri às-phortadh.",
+    failed: "Cha b’ urrainn dhuinn an às-phortadh a shàbhaladh. Cha deach am pròiseact agad atharrachadh.",
+  },
   quickStart: {
     hubButton: "Dèan dealbh sgoinneil ann am mionaid",
     hubHint: "Tagh dealbh no beagan. Nì InFlight pròiseact, cothromaichidh e an dealbhachadh is an dath le Fèin-obrachail, agus ’s urrainn dhut às-phortadh sa bhad. Fuirichidh a h-uile càil air an uidheam seo.",

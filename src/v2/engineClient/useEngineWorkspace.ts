@@ -90,6 +90,7 @@ import { restoreProjectBackup } from '../../core/projectBackup';
 import { backupStatusText } from './backupWords';
 import { applySidecarImports, planXmpImports, saveSidecars, sidecarFailureText, xmpScope } from './xmpOps';
 import { applyLightroomImport, lightroomNotice } from './lightroomOps';
+import { saveCatalogueExport } from './catalogueExport';
 import { CatalogueReadError, readLightroomCatalogue } from '../../core/lightroomCatalogue';
 import { catalogueFilesInFolder, catalogueOnlyPhotos, commonFolder, planLightroomImport } from '../../core/lightroomImport';
 import type { LightroomPhoto } from '../../core/lightroomCatalogue';
@@ -1715,6 +1716,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         mutate((current) => (current === now ? applied : current));
         setNotice(lightroomNotice(words, { ...plan, unmatched: plan.unmatched - toAdd.length }, catalogued, result));
       }, (error) => setNotice(words.failed[error instanceof CatalogueReadError ? error.reason : 'unreadable']));
+    },
+    exportOpenFormats: () => {
+      const current = stateRef.current;
+      if (!current) return;
+      const words = V2_STRINGS.openExport;
+      void saveCatalogueExport(current).then((outcome) => {
+        if (outcome !== 'cancelled') setNotice(outcome === 'saved' ? words.saved : outcome === 'nothing' ? words.nothing : words.failed);
+      });
     },
     startQuickStart: () => {
       const words = V2_STRINGS.quickStart;
