@@ -1025,6 +1025,8 @@ export const de: AreaTranslation<typeof source> = {
     forgetLink: 'InFlight bitten, meine Kontodaten zu löschen',
   },
   overlayKit: {
+    wmAddOther: "Meine eigene andere Version hinzufügen",
+    capitals: 'Großbuchstaben',
     stackHeading: "Text und Wasserzeichen zusammenführen",
     stackHelp: "Setzt das Wasserzeichen direkt über den Text unten im Foto, an einer Seite ausgerichtet.",
     left: "Links",

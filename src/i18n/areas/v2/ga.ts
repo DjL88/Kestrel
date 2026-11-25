@@ -1028,6 +1028,8 @@ export const ga: AreaTranslation<typeof source> = {
     forgetLink: 'Iarr ar InFlight sonraí mo chuntais a scriosadh',
   },
   overlayKit: {
+    wmAddOther: "Cuir mo leagan eile féin leis",
+    capitals: 'Ceannlitreacha',
     stackHeading: "Cuir an téacs agus an comhartha uisce le chéile",
     stackHelp: "Cuireann sé an comhartha uisce díreach os cionn an téacs ag bun an ghrianghraif, ailínithe ar thaobh amháin.",
     left: "Clé",

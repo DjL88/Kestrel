@@ -1025,6 +1025,8 @@ export const cy: AreaTranslation<typeof source> = {
     forgetLink: 'Gofyn i InFlight ddileu data fy nghyfrif',
   },
   overlayKit: {
+    wmAddOther: "Ychwanegu fy fersiwn arall fy hun",
+    capitals: 'Priflythrennau',
     stackHeading: "Rhoi’r testun a’r dyfrnod gyda’i gilydd",
     stackHelp: "Yn rhoi’r dyfrnod ychydig uwchben y testun ar waelod y llun, wedi’i alinio ar un ochr.",
     left: "Chwith",

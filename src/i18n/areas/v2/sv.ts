@@ -1025,6 +1025,8 @@ export const sv: AreaTranslation<typeof source> = {
     forgetLink: 'Be InFlight radera mina kontouppgifter',
   },
   overlayKit: {
+    wmAddOther: "Lägg till min egen andra version",
+    capitals: 'Versaler',
     stackHeading: "Sätt ihop text och vattenstämpel",
     stackHelp: "Placerar vattenstämpeln strax ovanför texten längst ner i bilden, justerad mot en sida.",
     left: "Vänster",

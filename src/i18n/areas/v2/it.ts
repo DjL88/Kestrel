@@ -1025,6 +1025,8 @@ export const it: AreaTranslation<typeof source> = {
     forgetLink: 'Chiedi a InFlight di cancellare i dati del mio account',
   },
   overlayKit: {
+    wmAddOther: "Aggiungi la mia altra versione",
+    capitals: 'Maiuscole',
     stackHeading: "Unisci testo e filigrana",
     stackHelp: "Mette la filigrana appena sopra il testo, in fondo alla foto, allineata su un lato.",
     left: "Sinistra",

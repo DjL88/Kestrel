@@ -1093,6 +1093,8 @@ export const source = {
   },
   // Overlays: text rows, the field picker, placement and the guided watermark flow
   overlayKit: {
+    wmAddOther: "Add my own other version",
+    capitals: 'Capital letters',
     stackHeading: 'Put text and watermark together',
     stackHelp: 'Puts the watermark just above the text at the bottom of the photo, lined up on one side.',
     left: 'Left',

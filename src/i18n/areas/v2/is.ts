@@ -1025,6 +1025,8 @@ export const is: AreaTranslation<typeof source> = {
     forgetLink: 'Biðja InFlight að eyða aðgangsgögnunum mínum',
   },
   overlayKit: {
+    wmAddOther: "Bæta við minni eigin hinni útgáfu",
+    capitals: 'Hástafir',
     stackHeading: "Setja texta og vatnsmerki saman",
     stackHelp: "Setur vatnsmerkið rétt fyrir ofan textann neðst á myndinni, jafnað við eina hlið.",
     left: "Vinstri",

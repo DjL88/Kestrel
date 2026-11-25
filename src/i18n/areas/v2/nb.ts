@@ -1025,6 +1025,8 @@ export const nb: AreaTranslation<typeof source> = {
     forgetLink: 'Be InFlight slette kontodataene mine',
   },
   overlayKit: {
+    wmAddOther: "Legg til min egen andre versjon",
+    capitals: 'Store bokstaver',
     stackHeading: "Sett tekst og vannmerke sammen",
     stackHelp: "Setter vannmerket rett over teksten nederst i bildet, justert mot én side.",
     left: "Venstre",

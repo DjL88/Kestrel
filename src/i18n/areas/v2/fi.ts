@@ -1026,6 +1026,8 @@ export const fi: AreaTranslation<typeof source> = {
     forgetLink: 'Pyydä InFlightia poistamaan tilitietoni',
   },
   overlayKit: {
+    wmAddOther: "Lisää oma toinen versioni",
+    capitals: 'Isot kirjaimet',
     stackHeading: "Yhdistä teksti ja vesileima",
     stackHelp: "Asettaa vesileiman tekstin yläpuolelle kuvan alareunaan, tasattuna yhdelle puolelle.",
     left: "Vasen",

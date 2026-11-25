@@ -1025,6 +1025,8 @@ export const es: AreaTranslation<typeof source> = {
     forgetLink: 'Pedir a InFlight que borre mis datos de cuenta',
   },
   overlayKit: {
+    wmAddOther: "Añadir mi propia otra versión",
+    capitals: 'Mayúsculas',
     stackHeading: "Juntar el texto y la marca de agua",
     stackHelp: "Coloca la marca de agua justo encima del texto, en la parte inferior de la foto, alineada a un lado.",
     left: "Izquierda",

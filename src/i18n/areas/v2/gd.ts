@@ -1026,6 +1026,8 @@ export const gd: AreaTranslation<typeof source> = {
     forgetLink: 'Iarr air InFlight dàta a’ chunntais agam a sguabadh às',
   },
   overlayKit: {
+    wmAddOther: "Cuir an tionndadh eile agam fhèin ris",
+    capitals: 'Litrichean mòra',
     stackHeading: "Cuir an teacsa is an comharra-uisge còmhla",
     stackHelp: "Cuiridh e an comharra-uisge dìreach os cionn an teacsa aig bonn an deilbh, co-thaobhte ri aon taobh.",
     left: "Clì",

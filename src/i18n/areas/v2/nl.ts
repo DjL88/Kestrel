@@ -1025,6 +1025,8 @@ export const nl: AreaTranslation<typeof source> = {
     forgetLink: 'InFlight vragen mijn accountgegevens te wissen',
   },
   overlayKit: {
+    wmAddOther: "Mijn eigen andere versie toevoegen",
+    capitals: 'Hoofdletters',
     stackHeading: "Tekst en watermerk samenvoegen",
     stackHelp: "Zet het watermerk net boven de tekst onder in de foto, uitgelijnd aan één kant.",
     left: "Links",

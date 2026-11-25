@@ -1025,6 +1025,8 @@ export const fr: AreaTranslation<typeof source> = {
     forgetLink: 'Demander à InFlight d’effacer mes données de compte',
   },
   overlayKit: {
+    wmAddOther: "Ajouter ma propre autre version",
+    capitals: 'Majuscules',
     stackHeading: "Réunir le texte et le filigrane",
     stackHelp: "Place le filigrane juste au-dessus du texte, en bas de la photo, aligné d’un côté.",
     left: "Gauche",
