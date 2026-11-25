@@ -1,5 +1,6 @@
 import { scorePreview, scoreWithSubject, type CullSuggestion, type SubjectFinding } from '../core/autoCull';
 import type { PhotoFrame } from '../core/types';
+import type { PictureSource } from '../core/pictureSource';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 import { loadImage } from './loadImage';
 import { findSubject } from './objectDetector';
@@ -8,6 +9,8 @@ export interface CullImageObservation {
   result: CullSuggestion;
   base?: CullSuggestion;
   detectorFailed: boolean;
+  /** Which picture was judged, as the preview provider recorded it (camera preview or developed from the RAW). */
+  source?: PictureSource;
 }
 
 /**
@@ -30,6 +33,7 @@ export async function observeCullImage(
     signal.throwIfAborted();
     const url = await provider.getFullPreviewUrl(frame, 'background');
     if (!url) return { result: unavailable, detectorFailed: false };
+    const source = provider.pictureSourceOf(url);
     const image = await loadImage(url);
     signal.throwIfAborted();
     const scale = Math.min(1, 256 / Math.max(image.naturalWidth, image.naturalHeight));
@@ -38,7 +42,7 @@ export async function observeCullImage(
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
     const base = scorePreview(frame.id, context.getImageData(0, 0, canvas.width, canvas.height).data,
       canvas.width, canvas.height);
-    if (!tryDetector) return { result: base, base, detectorFailed: false };
+    if (!tryDetector) return { result: base, base, detectorFailed: false, source };
 
     try {
       const found = await findSubject(image, signal);
@@ -47,10 +51,10 @@ export async function observeCullImage(
         label: found.detection.label, score: found.detection.score,
         size: Math.max(found.detection.box.w, found.detection.box.h), sharpness: found.sharpness,
       };
-      return { result: scoreWithSubject(base, finding), base, detectorFailed: false };
+      return { result: scoreWithSubject(base, finding), base, detectorFailed: false, source };
     } catch {
       signal.throwIfAborted();
-      return { result: base, base, detectorFailed: true };
+      return { result: base, base, detectorFailed: true, source };
     }
   } catch {
     signal.throwIfAborted();

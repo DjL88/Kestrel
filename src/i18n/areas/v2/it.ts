@@ -1139,6 +1139,11 @@ export const it: AreaTranslation<typeof source> = {
     moreTools: 'Altri strumenti',
     closeDrawer: 'Chiudi il pannello mobile',
   },
+  autoCullSummary: {
+    checked: (count: number) => `Foto controllate dalla selezione automatica: ${count}. Controlla i contrassegni nella striscia di foto.`,
+    rawFromCameraPreview: (count: number) => `Foto RAW giudicate dall'anteprima incorporata della fotocamera, non dai dati del sensore: ${count}. Controlla la nitidezza a occhio.`,
+    undo: "Puoi annullare l'intero passaggio in un solo passo.",
+  },
   tasks: {
     heading: 'Attività in background',
     empty: 'Nessuna attività in background. InFlight è inattivo.',

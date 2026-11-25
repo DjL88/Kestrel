@@ -1139,6 +1139,11 @@ export const sv: AreaTranslation<typeof source> = {
     moreTools: 'Fler verktyg',
     closeDrawer: 'Stäng mobillådan',
   },
+  autoCullSummary: {
+    checked: (count: number) => `Foton kontrollerade av automatisk sortering: ${count}. Granska markeringarna i filmremsan.`,
+    rawFromCameraPreview: (count: number) => `RAW-foton bedömda utifrån kamerans inbäddade förhandsvisning, inte utifrån sensordata: ${count}. Kontrollera skärpan med ögat.`,
+    undo: "Du kan ångra hela genomgången i ett steg.",
+  },
   tasks: {
     heading: 'Bakgrundsuppgifter',
     empty: 'Inga bakgrundsuppgifter körs. InFlight är inaktivt.',

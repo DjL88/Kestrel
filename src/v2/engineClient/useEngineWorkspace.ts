@@ -60,7 +60,8 @@ import { addLayer, addRow, alignOverlays, moveLayer, moveRow, newLayer, patchOve
 import { frameToPhoto, matchesAutoSource, originalFormatSize, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
 import { commitAutoEdit } from './commitAutoEdit';
-import { commitAutoCull } from './commitAutoCull';
+import type { PictureSource } from '../../core/pictureSource';
+import { autoCullSummary, commitAutoCull, rawsJudgedFromCameraPreview } from './commitAutoCull';
 import { runV2Denoise } from './runDenoise';
 import { composeDenoiseRecipe } from './denoiseRecipe';
 import { moveArtboard } from './boardOps';
@@ -786,12 +787,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         runItem: async (_, __, ctx) => {
           ctx.stage(engineText.workspace.cullScan);
           ctx.setSubitems(candidates.map(frame => ({ id: frame.id, label: frame.filename })));
+          const judgedFrom = new Map<string, PictureSource | undefined>();
           const results = await scanForCulling(candidates, current.frames, provider.current!, null,
             ctx.signal, count => ctx.reportProgress(count, candidates.length, `${count} of ${candidates.length} analysed`),
             () => ctx.commitIfCurrent(() => setNotice(engineText.workspace.cullNoDetector)),
             (frameId, stage) => ctx.updateSubitem(frameId,
               stage === 'analysing' ? 'running' : 'done',
-              stage === 'unavailable' ? engineText.workspace.cullDetectorStage : stage));
+              stage === 'unavailable' ? engineText.workspace.cullDetectorStage : stage),
+            undefined, (frameId, source) => judgedFrom.set(frameId, source));
           ctx.checkCancelled();
           if (requestId !== openRequest.current || stateRef.current?.shoot.id !== projectKey) return;
           ctx.stage(engineText.workspace.cullApply);
@@ -799,7 +802,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             if (!latest || latest.shoot.id !== projectKey || requestId !== openRequest.current || ctx.signal.aborted) return latest;
             return commitAutoCull(latest, candidates, results);
           }));
-          const summary = `Auto-cull checked ${candidates.length} photo${candidates.length === 1 ? '' : 's'}. Review the flags in the filmstrip. You can undo the whole pass in one step.`;
+          // Which picture each RAW was actually judged from; unknown counts as the camera's preview (never overstated).
+          const summary = autoCullSummary(candidates.length, rawsJudgedFromCameraPreview(candidates, results, judgedFrom));
           ctx.commitIfCurrent(() => setNotice(summary));
         },
       });

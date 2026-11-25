@@ -1139,6 +1139,11 @@ export const da: AreaTranslation<typeof source> = {
     moreTools: 'Flere værktøjer',
     closeDrawer: 'Luk mobilskuffe',
   },
+  autoCullSummary: {
+    checked: (count: number) => `Fotos tjekket af automatisk sortering: ${count}. Se markeringerne i filmstrimlen.`,
+    rawFromCameraPreview: (count: number) => `RAW-fotos bedømt ud fra kameraets indlejrede forhåndsvisning, ikke ud fra deres sensordata: ${count}. Tjek skarpheden med øjet.`,
+    undo: "Du kan fortryde hele gennemgangen i ét trin.",
+  },
   tasks: {
     heading: 'Baggrundsopgaver',
     empty: 'Ingen baggrundsopgaver kører. InFlight er inaktiv.',

@@ -1183,6 +1183,11 @@ export const source = {
   },
 
   // Tasks Panel
+  autoCullSummary: {
+    checked: (count: number) => `Photos checked by Auto-cull: ${count}. Review the flags in the filmstrip.`,
+    rawFromCameraPreview: (count: number) => `RAW photos judged from the camera's embedded preview, not from their sensor data: ${count}. Check their sharpness by eye.`,
+    undo: "You can undo the whole pass in one step.",
+  },
   tasks: {
     heading: 'Background Tasks',
     empty: 'No background tasks running. InFlight is idle.',

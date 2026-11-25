@@ -1140,6 +1140,11 @@ export const gd: AreaTranslation<typeof source> = {
     moreTools: 'Barrachd innealan',
     closeDrawer: 'Dùin an drathair mobile',
   },
+  autoCullSummary: {
+    checked: (count: number) => `Dealbhan a sgrùd an taghadh fèin-obrachail: ${count}. Thoir sùil air na brataichean san stiall fhilm.`,
+    rawFromCameraPreview: (count: number) => `Dealbhan RAW a chaidh a mheas o ro-shealladh a' chamara, chan ann o dhàta a' mhothachair: ${count}. Thoir sùil air an geurachd le do shùil.`,
+    undo: "'S urrainn dhut an cuairt slàn a neo-dhèanamh ann an aon cheum.",
+  },
   tasks: {
     heading: 'Saothraichean sa chùlaibh',
     empty: 'Chan eil saothair sa chùlaibh a’ ruith. Tha InFlight na thàmh.',

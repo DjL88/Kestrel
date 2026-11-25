@@ -1139,6 +1139,11 @@ export const nl: AreaTranslation<typeof source> = {
     moreTools: 'Meer gereedschap',
     closeDrawer: 'Mobiele lade sluiten',
   },
+  autoCullSummary: {
+    checked: (count: number) => `Foto's gecontroleerd door automatisch selecteren: ${count}. Bekijk de markeringen in de filmstrip.`,
+    rawFromCameraPreview: (count: number) => `RAW-foto's beoordeeld op de ingebouwde voorvertoning van de camera, niet op hun sensorgegevens: ${count}. Controleer hun scherpte met het oog.`,
+    undo: "U kunt de hele ronde in één stap ongedaan maken.",
+  },
   tasks: {
     heading: 'Achtergrondtaken',
     empty: 'Geen achtergrondtaken actief. InFlight is inactief.',

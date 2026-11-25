@@ -1140,6 +1140,11 @@ export const fi: AreaTranslation<typeof source> = {
     moreTools: 'Lisää työkaluja',
     closeDrawer: 'Sulje mobiilivalikko',
   },
+  autoCullSummary: {
+    checked: (count: number) => `Automaattisen karsinnan tarkistamat kuvat: ${count}. Katso merkinnät filminauhasta.`,
+    rawFromCameraPreview: (count: number) => `RAW-kuvat, jotka arvioitiin kameran upotetusta esikatselusta eikä kennotiedoista: ${count}. Tarkista niiden terävyys silmällä.`,
+    undo: "Voit kumota koko läpikäynnin yhdellä kertaa.",
+  },
   tasks: {
     heading: 'Taustatehtävät',
     empty: 'Ei käynnissä olevia taustatehtäviä. InFlight on joutilaana.',

@@ -1139,6 +1139,11 @@ export const cy: AreaTranslation<typeof source> = {
     moreTools: 'Rhagor o offer',
     closeDrawer: 'Cau’r drôr symudol',
   },
+  autoCullSummary: {
+    checked: (count: number) => `Lluniau a wiriwyd gan y didoli awtomatig: ${count}. Adolygwch y baneri yn y stribed ffilm.`,
+    rawFromCameraPreview: (count: number) => `Lluniau RAW a farnwyd o ragolwg mewnol y camera, nid o ddata eu synhwyrydd: ${count}. Gwiriwch eu miniogrwydd â'ch llygad.`,
+    undo: "Gallwch ddadwneud y rownd gyfan mewn un cam.",
+  },
   tasks: {
     heading: 'Tasgau cefndir',
     empty: 'Does dim tasgau cefndir yn rhedeg. Mae InFlight yn segur.',
