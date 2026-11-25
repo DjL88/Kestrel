@@ -44,6 +44,9 @@ export function checkValidatorLabels(file: unknown): ValidatorLabels {
  * A group of extra names for the validator (world mammals today; reptiles, amphibians, dragonflies, butterflies and moths
  * later): BioCLIP 2 vectors with region codes, filtered by the person's regions the same way as the world birds.
  */
+/** The pack's files that are extra groups of names, in the order they are added: everything but the model and the main list. */
+export const groupFileNames = (files: Record<string, unknown>): string[] => Object.keys(files).filter((name) => name !== 'model' && name !== 'labels');
+
 export function checkGroupLabels(file: unknown): SpeciesLabel[] {
   const f = file as { dimensions?: unknown; labels?: unknown } | null;
   if (!f || f.dimensions !== 768 || !Array.isArray(f.labels) || !f.labels.length) {

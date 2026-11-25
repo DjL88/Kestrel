@@ -118,6 +118,8 @@ export const BIOCLIP2: OptionalModel = {
     labels: pinned('BIOCLIP2_LABELS', 'bioclip2-species.json', 'd06aa6d9c60e7242251d5771af902792d235dcdc6ec9419fa5230bd8617f6d59', 13250338),
     // 6,791 extant mammals, Mammal Diversity Database v2.5 (CC BY 4.0), BioCLIP 2 vectors by the species-names session.
     mammals: pinned('BIOCLIP2_MAMMALS', 'bioclip2-mammals.json', 'ad90459b5c891637c568fab7f1f51083817f9b20d33b5fddb44dcdd2a4478455', 8139587),
+    // 12,650 reptiles, The Reptile Database 2026-06 (CC BY 4.0), BioCLIP 2 vectors by the species-names session.
+    reptiles: pinned('BIOCLIP2_REPTILES', 'bioclip2-reptiles.json', '655d97013a12d744ed9528792ad7682a07db6fdc9096e64bbafdc12b42339abf', 14988825),
   },
   cache: 'kestrel-bioclip2-v1',
 };
