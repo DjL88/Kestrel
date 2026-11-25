@@ -6,6 +6,7 @@ import InfoPopover from '../shell/InfoPopover';
 import { getActiveGroup } from '../utils/studioMath';
 import { ColourMixerControl, KelvinControl, ToneCurveControl } from './CurveMixerControls';
 import { ColourGradeControl } from './ColourGradeControl';
+import { CalibrationControl, EffectsControls } from './EffectsControls';
 
 interface AdjustPanelProps {
   photo: Photo | null;
@@ -385,6 +386,12 @@ export default function AdjustPanel({
         /></div>
       </section>
 
+      {/* Effects: dehaze, vignette and grain (Detail group on a phone) */}
+      <section aria-labelledby="effects-heading" className={`space-y-3 border-t border-[var(--border-subtle)] pt-4 ${phoneGroupClass(advancedGroup, 'detail')}`}>
+        <h3 id="effects-heading" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.adjust.effects.heading}</h3>
+        <EffectsControls recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
+      </section>
+
       {/* Tone curve (Tone group on a phone) and colour mixer (Colour group on a phone) */}
       <section aria-label={STRINGS.adjust.curve.heading} className={`space-y-3 border-t border-[var(--border-subtle)] pt-4 ${phoneGroupClass(advancedGroup, 'tone')}`}>
         <ToneCurveControl recipe={recipe} calmView={hideReadouts} channels={showAdvanced} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
@@ -397,9 +404,12 @@ export default function AdjustPanel({
           <summary className="cursor-pointer select-none text-[0.625rem] font-medium uppercase tracking-wide text-[var(--text-muted)]">{STRINGS.adjust.advanced.heading}</summary>
           <div className="mt-3 space-y-3">
             <ColourGradeControl recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
+            <div className="border-t border-[var(--border-subtle)] pt-3">
+              <CalibrationControl recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
+            </div>
           </div>
         </details>
-      ) : (recipe.colourGrade || recipe.channelCurves) && (
+      ) : (recipe.colourGrade || recipe.channelCurves || recipe.calibration) && (
         // Hidden is never discarded: say plainly that hidden adjustments are still on this photo.
         <p className="border-t border-[var(--border-subtle)] pt-3 text-[0.6875rem] leading-snug text-[var(--text-muted)]" data-testid="advanced-hidden-note">
           {STRINGS.adjust.advanced.hiddenActive}

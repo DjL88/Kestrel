@@ -4,6 +4,9 @@ import { parseSettings } from './projectSettings';
 import { validMasks } from './maskTypes';
 import { validCurve, validMixer } from './curveMixer';
 import { validChannelCurves, validGrade } from './colourGrade';
+import { validCalibration } from './calibration';
+import { validDehaze } from './dehaze';
+import { validGrain, validVignette } from './finishing';
 import { validAsShot, validWhiteBalance } from './asShotWhite';
 import type { CullingState, FilterState, PhotoFrame, ShootDescriptor } from './types';
 import { DEVELOP_VERSION } from './backgroundDevelop';
@@ -52,6 +55,9 @@ function recipeIsValid(value: unknown): boolean {
     (edit.denoiseLuminance !== undefined && !number(edit.denoiseLuminance, 0, 2)) ||
     (edit.curve !== undefined && !validCurve(edit.curve)) || (edit.mixer !== undefined && !validMixer(edit.mixer)) ||
     (edit.grade !== undefined && !validGrade(edit.grade)) || (edit.channelCurves !== undefined && !validChannelCurves(edit.channelCurves)) ||
+    (edit.calibration !== undefined && !validCalibration(edit.calibration)) ||
+    (edit.dehaze !== undefined && !validDehaze(edit.dehaze)) ||
+    (edit.vignette !== undefined && !validVignette(edit.vignette)) || (edit.grain !== undefined && !validGrain(edit.grain)) ||
     (edit.whiteBalance !== undefined && !validWhiteBalance(edit.whiteBalance)) ||
     (edit.masks !== undefined && !validMasks(edit.masks)))) return false;
   const framing = value.framing;

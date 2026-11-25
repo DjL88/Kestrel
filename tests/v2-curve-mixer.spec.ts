@@ -132,3 +132,22 @@ test('?v2 advanced controls stay hidden until Settings turns them on, then colou
   expect(Math.abs((await corner(root))[2] - b0)).toBeLessThan(3);
   await expect(curve.getByRole('radio', { name: /Red.*changed/ })).toBeVisible();
 });
+
+test('?v2 Effects are in the standard editor: a dark vignette darkens the corner, a colour vignette tints it, and grain shows', async ({ page }) => {
+  const root = await projectWithPhoto(page);
+  const effects = root.getByTestId('effects');
+  await expect(effects).toBeVisible();
+  await expect.poll(async () => (await corner(root))[2]).toBeGreaterThan(40);
+  const [r0, g0, b0] = await corner(root);
+  await effects.getByRole('slider', { name: 'Amount' }).fill('-100');
+  await expect.poll(async () => b0 - (await corner(root))[2], { timeout: 15000 }).toBeGreaterThan(15);
+  await effects.getByRole('radio', { name: 'Colour' }).click();
+  await effects.getByLabel('Vignette colour').fill('#ff0000');
+  await effects.getByRole('slider', { name: 'Colour strength' }).fill('100');
+  await expect.poll(async () => { const [r, g] = await corner(root); return (r - g) - (r0 - g0); }, { timeout: 15000 }).toBeGreaterThan(40);
+  await effects.getByRole('button', { name: 'Reset vignette' }).click();
+  await expect.poll(async () => Math.abs((await corner(root))[0] - r0), { timeout: 15000 }).toBeLessThan(2);
+  await expect(effects.getByRole('slider', { name: 'Grain size' })).toBeDisabled();
+  await effects.getByRole('slider', { name: 'Grain', exact: true }).fill('100');
+  await expect(effects.getByRole('slider', { name: 'Grain size' })).toBeEnabled();
+});

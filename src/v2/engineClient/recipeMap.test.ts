@@ -163,3 +163,21 @@ test('advanced colour grading and channel curves round-trip between the recipe a
   assert.equal(applyRecipePatch(edit, { colourGrade: undefined, channelCurves: undefined }).edit.grade, undefined);
   assert.equal(applyRecipePatch(edit, { colourGrade: undefined, channelCurves: undefined }).edit.channelCurves, undefined);
 });
+
+test('dehaze, vignette (with colour and blur), grain and calibration round-trip and switch off cleanly', () => {
+  const patch = { dehaze: 40, vignette: 60, vignetteSize: 30, vignetteBlur: 20, vignetteColour: '#3a2a1e', grain: 25, grainSize: 70,
+    calibration: { red: { hue: 20, saturation: -10 }, green: { hue: 0, saturation: 0 }, blue: { hue: 0, saturation: 30 } } };
+  const { edit } = applyRecipePatch(undefined, patch);
+  assert.equal(edit.dehaze, 0.4);
+  assert.deepEqual(edit.vignette, { amount: 0.6, size: 0.3, blur: 0.2, colour: [0.2275, 0.1647, 0.1176] });
+  assert.deepEqual(edit.grain, { amount: 0.25, size: 0.7 });
+  assert.deepEqual(edit.calibration, { red: [0.2, -0.1], green: [0, 0], blue: [0, 0.3] });
+  const back = editToRecipe(edit);
+  for (const key of Object.keys(patch) as (keyof typeof patch)[]) assert.deepEqual(back[key], patch[key], key);
+  // Changing only the size keeps the rest; no strength and no blur is no vignette at all.
+  assert.equal(applyRecipePatch(edit, { vignetteSize: 80 }).edit.vignette?.blur, 0.2);
+  assert.equal(applyRecipePatch(edit, { vignette: 0, vignetteBlur: 0 }).edit.vignette, undefined);
+  assert.equal(applyRecipePatch(edit, { vignetteColour: undefined }).edit.vignette?.colour, undefined);
+  assert.equal(applyRecipePatch(edit, { grain: 0 }).edit.grain, undefined);
+  assert.equal(applyRecipePatch(edit, { dehaze: 0 }).edit.dehaze, undefined);
+});
