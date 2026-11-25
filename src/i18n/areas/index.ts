@@ -3,6 +3,7 @@ import { aiReviewArea } from './aiReview';
 import { appArea } from './app';
 import { colourArea } from './colour';
 import { editorArea } from './editor';
+import { engineArea } from './engine';
 import { exportArea } from './export';
 import { libraryArea } from './library';
 import { projectsArea } from './projects';
@@ -15,4 +16,4 @@ import { viewerArea } from './viewer';
  * folder: `source.ts` (British English), one file per language, and `index.ts`, which exports the area's words for
  * the session's language and an `AreaEntry`.
  */
-export const AREAS: AreaEntry[] = [aiReviewArea, appArea, colourArea, editorArea, exportArea, libraryArea, projectsArea, v2Area, vehiclesArea, viewerArea];
+export const AREAS: AreaEntry[] = [aiReviewArea, appArea, colourArea, editorArea, engineArea, exportArea, libraryArea, projectsArea, v2Area, vehiclesArea, viewerArea];
