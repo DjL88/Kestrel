@@ -5,18 +5,19 @@ test.beforeEach(({}, testInfo) => {
 });
 
 /** A new V2 project with one synthetic photo: a slate-blue background and an orange box. */
-async function projectWithPhoto(page: Page): Promise<Locator> {
+async function projectWithPhoto(page: Page, paint?: string): Promise<Locator> {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: 'New project' }).first().click();
   await page.getByLabel(/name/i).first().fill('Curve and mixer check');
   await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
-  const image = await page.evaluate(() => {
+  const image = await page.evaluate((custom) => {
     const canvas = document.createElement('canvas'); canvas.width = 240; canvas.height = 160;
     const ctx = canvas.getContext('2d')!; ctx.fillStyle = '#3c4a5c'; ctx.fillRect(0, 0, 240, 160);
     ctx.fillStyle = '#d08a3a'; ctx.fillRect(60, 40, 120, 80);
+    if (custom) new Function('ctx', custom)(ctx);
     return canvas.toDataURL('image/png').split(',')[1];
-  });
+  }, paint);
   const chooser = page.waitForEvent('filechooser');
   await root.getByRole('button', { name: /^Import/ }).first().click();
   await (await chooser).setFiles([{ name: 'curve-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
@@ -150,4 +151,27 @@ test('?v2 Effects are in the standard editor: a dark vignette darkens the corner
   await expect(effects.getByRole('slider', { name: 'Grain size' })).toBeDisabled();
   await effects.getByRole('slider', { name: 'Grain', exact: true }).fill('100');
   await expect(effects.getByRole('slider', { name: 'Grain size' })).toBeEnabled();
+});
+
+test('?v2 Colour fringes: purple fringe beside a dark edge goes grey, and Fix lens colour edges reports in words', async ({ page }) => {
+  // A dark branch against a bright sky with a purple fringe between them.
+  const root = await projectWithPhoto(page, "ctx.fillStyle='#f0f0f0';ctx.fillRect(0,0,240,160);ctx.fillStyle='#141414';ctx.fillRect(0,0,117,160);ctx.fillStyle='#9a3cc8';ctx.fillRect(117,0,4,160);");
+  const fringe = root.getByTestId('fringe');
+  await expect(fringe).toBeVisible();
+  const spread = () => root.getByTestId('canvas-frame').locator('canvas, img').first().evaluate((el) => {
+    const source = el as HTMLCanvasElement | HTMLImageElement;
+    const width = source instanceof HTMLImageElement ? source.naturalWidth : source.width;
+    const height = source instanceof HTMLImageElement ? source.naturalHeight : source.height;
+    const probe = document.createElement('canvas'); probe.width = width; probe.height = height;
+    const ctx = probe.getContext('2d')!; ctx.drawImage(source, 0, 0);
+    const c = ctx.getImageData(Math.floor(width * 119 / 240), Math.floor(height / 2), 1, 1).data;
+    return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]);
+  });
+  await expect.poll(spread, { timeout: 15000 }).toBeGreaterThan(80);
+  await fringe.getByRole('slider', { name: 'Purple fringe' }).fill('100');
+  await expect.poll(spread, { timeout: 15000 }).toBeLessThan(30);
+  await fringe.getByRole('button', { name: 'Fix lens colour edges', exact: true }).click();
+  await expect(fringe.getByRole('status')).toHaveText(/nothing was changed/, { timeout: 15000 });
+  // The manual sliders are for confident users only.
+  await expect(fringe.getByRole('slider', { name: 'Red / cyan edges' })).toHaveCount(0);
 });

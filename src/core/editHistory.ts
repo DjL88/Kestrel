@@ -8,9 +8,19 @@ export type EditKind = 'light' | 'warmth' | 'colour' | 'adjustments' | 'tone' | 
 
 export const MAX_EDIT_HISTORY_STEPS = 60;
 
+/** Who made a step that the person did not make slider by slider, and Auto's own plain-language reasons. Shown in History. */
+export interface EditWhy { by: 'auto' | 'lightroom'; notes?: string[] }
+export const MAX_WHY_NOTES = 8;
+export function validWhy(value: unknown): value is EditWhy {
+  if (!value || typeof value !== 'object') return false;
+  const why = value as Record<string, unknown>;
+  return (why.by === 'auto' || why.by === 'lightroom') && (why.notes === undefined ||
+    (Array.isArray(why.notes) && why.notes.length <= MAX_WHY_NOTES && why.notes.every((note) => typeof note === 'string' && note.length <= 400)));
+}
+
 export interface EditHistory {
   cursor: number;
-  steps: { kind: EditKind; before: Snapshot; after: Snapshot; at: number }[];
+  steps: { kind: EditKind; before: Snapshot; after: Snapshot; at: number; why?: EditWhy }[];
   /** Number of older edit steps compacted away; step zero is then NOT the imported Original. */
   discarded?: number;
 }
@@ -34,7 +44,7 @@ function classify(before: Snapshot, after: Snapshot): EditKind {
   return fields[0] === 'denoise' || fields[0] === 'denoiseLuminance' || DETAIL_CONTROLS.some(({ key }) => key === fields[0]) ? 'detail' : 'tone';
 }
 
-export function recordEdit(frame: PhotoFrame, patch: Snapshot, at: number): PhotoFrame {
+export function recordEdit(frame: PhotoFrame, patch: Snapshot, at: number, why?: EditWhy): PhotoFrame {
   // Preserve legacy two-frame projects when adding an unrelated edit:
   // old catalogues stored a top-level splitFrames flag, not formatSplits.
   // Record a real per-format baseline (or an explicit empty one) so Undo,
@@ -57,13 +67,15 @@ export function recordEdit(frame: PhotoFrame, patch: Snapshot, at: number): Phot
   const lastSplitChange = last && JSON.stringify(last.before.formatSplits) !== JSON.stringify(last.after.formatSplits);
   // Both use the backwards-compatible 'adjustments' kind, but a watermark must
   // never swallow a separate tone/edit step when the person acts quickly.
-  if (last && history?.cursor === history?.steps.length && last.kind === kind &&
+  const note = why && validWhy(why) ? { why: { by: why.by, ...(why.notes?.length ? { notes: why.notes.slice(0, MAX_WHY_NOTES) } : {}) } } : {};
+  // A step Auto or an import made is always its own step, so History can say why and one Undo takes it back.
+  if (!why && !last?.why && last && history?.cursor === history?.steps.length && last.kind === kind &&
       isOverlayChange === lastOverlayChange && !isSplitChange && !lastSplitChange &&
       at >= last.at && at - last.at < 550) {
     steps.pop();
     if (JSON.stringify(last.before) !== JSON.stringify(after)) steps.push({ kind, before: last.before, after, at });
   } else {
-    steps.push({ kind, before, after, at });
+    steps.push({ kind, before, after, at, ...note });
   }
   const discarded = Math.max(0, history?.discarded ?? 0) + Math.max(0, steps.length - MAX_EDIT_HISTORY_STEPS);
   const retained = steps.slice(-MAX_EDIT_HISTORY_STEPS);

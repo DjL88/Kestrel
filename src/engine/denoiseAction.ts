@@ -169,5 +169,5 @@ export async function runDenoiseAction(input: DenoiseActionInput): Promise<Denoi
       eyes = Math.max(0, eyes * verification.suggestedStrengthScale);
     }
     return { edit: verification.ok ? edit : {}, masks: verification.ok ? masks : [], verification, attempts: attempts + 1, ...(regions ? { regions } : {}) };
-  });
+  }, { signal: input.signal });
 }

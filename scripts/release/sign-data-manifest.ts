@@ -15,6 +15,7 @@ import { basename, extname, join } from 'node:path';
 import { parseDataManifest, type DataAsset } from '../../src/core/dataUpdateManifest.ts';
 import { loadSigningKey, signEnvelope } from '../../services/control-plane/src/crypto.ts';
 import { MODEL_SLOTS, isModelSlot } from '../../src/core/modelUpdatePolicy.ts';
+import { readGit, resolveProvenance } from '../build-provenance.mjs';
 
 function arg(name: string): string {
   const index = process.argv.indexOf(`--${name}`);
@@ -30,6 +31,10 @@ const out = arg('out');
 const pem = process.env.KESTREL_SIGNING_KEY_PEM;
 const keyId = process.env.KESTREL_SIGNING_KEY_ID;
 if (!pem || !keyId) throw new Error('Set KESTREL_SIGNING_KEY_PEM and KESTREL_SIGNING_KEY_ID (never commit the key).');
+// Model packs are released from the same clean commit as the app (G10): refuse an unknown commit or a changed tree before
+// anything is signed, and write manifest/build-info.json for scripts/check-release-parity.mjs. The signed manifest's own
+// schema is unchanged, so installed apps keep accepting it.
+const provenance = resolveProvenance({ env: { ...process.env, KESTREL_RELEASE: '1' }, git: readGit(process.cwd()), target: 'models' });
 if (!Number.isInteger(revision) || revision < 1) throw new Error('--revision must be a whole number of 1 or more, higher than the last one published.');
 
 const assets: DataAsset[] = readdirSync(dir).filter((name) => extname(name) === '.onnx').sort().map((name) => {

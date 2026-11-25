@@ -18,6 +18,7 @@ import { loadDenoiseSource, loadVerifiedAdditionalDenoiseSource } from './denois
 import { unionSubjectGrid } from '../../core/subjectUnion';
 import { detectSubjectInstances } from '../../providers/multiSubjectDetector';
 import { estimateNoiseSigma, luminanceStrengthFor } from '../../core/noiseEstimate';
+import { engineText } from '../../i18n/areas/engine';
 
 /** Noise at full size: a centre crop of up to 1024 px drawn 1:1 from the picture being edited. */
 function measureFullSizeNoise(source: HTMLImageElement): number | null {
@@ -111,7 +112,7 @@ export async function runV2Denoise(
   const sigma = measureFullSizeNoise(source);
   const luminance = luminanceStrengthFor(sigma);
   if (sigma !== null && luminance === 0) {
-    return { runner: 'device', strength: 0, luminance: 0, masks: [], verified: false, notes: [`No visible noise was measured at full size (σ ${sigma.toFixed(1)}), so nothing was changed.`] };
+    return { runner: 'device', strength: 0, luminance: 0, masks: [], verified: false, notes: [engineText.denoise.noVisibleNoise] };
   }
   const existing = frame.edit?.masks ?? [];
   const id = `auto-denoise-${frame.id}`;
@@ -164,7 +165,7 @@ export async function runV2Denoise(
   } : undefined;
   if (!subject && (previousBackground || subjects.length)) {
     // Do not replace an established protected recipe with global smoothing.
-    return { runner: 'device', strength: 0, luminance: 0, masks: [], verified: false, notes: ['Subject protection could not be rebuilt safely. Existing edits were kept.'] };
+    return { runner: 'device', strength: 0, luminance: 0, masks: [], verified: false, notes: [engineText.denoise.protectionLost] };
   }
   const baseline = renderDenoiseRecipe(original, frame.edit ?? DEFAULT_EDIT);
   const render = async (edit: Partial<PhotoEdit>, masks: Mask[]): Promise<Pixels> => {
@@ -191,11 +192,11 @@ export async function runV2Denoise(
   const result = response.result;
   const strength = result.edit.denoise ?? 0;
   const notes = response.runner === 'cloud-processing'
-    ? ['Denoised in the InFlight cloud from a working-size copy, checked on this device.']
-    : [cloud ? 'The cloud was not used for this one, so it ran on this device.' : 'Denoised on this device.'];
-  if (subject && subjects.length > 0 && !newLayers.length && !remaining.some(mask => subjects.includes(mask as typeof subjects[number]))) notes.push('Individual layers could not fit; combined protection is available.');
+    ? [engineText.denoise.cloud]
+    : [cloud ? engineText.denoise.cloudNotUsed : engineText.denoise.device];
+  if (subject && subjects.length > 0 && !newLayers.length && !remaining.some(mask => subjects.includes(mask as typeof subjects[number]))) notes.push(engineText.denoise.layersFull);
   if (subject) notes.unshift(trueDetailNote(result.regions, subjects.length, eyes.length));
-  else if (detectionUnavailable) notes.unshift('No reliable subject masks were available; denoise used a global setting.');
-  if (!result.verification.ok) notes.push('The composed recipe did not pass the quality check. Existing edits were kept.');
+  else if (detectionUnavailable) notes.unshift(engineText.denoise.global);
+  if (!result.verification.ok) notes.push(engineText.denoise.failedCheck);
   return { runner: response.runner === 'cloud-processing' ? 'cloud-processing' : 'device', strength, luminance: Math.round(Math.min(2, strength * lumaPerStrength) * 1e4) / 1e4, masks: subject ? [...newLayers, ...result.masks] : result.masks, verified: result.verification.ok, notes };
 }

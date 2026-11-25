@@ -1,7 +1,7 @@
 import { applyCanvasExportEdit } from '../../core/canvasEdit';
 import { applyFrameLayers } from '../../core/layerAssetVault';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
-import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFraming';
+import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../../core/photoFraming';
 import { isRawPreviewFile } from '../../core/rawFormats';
 import type { PhotoFrame } from '../../core/types';
 import { loadExportSource } from '../../providers/browserExport';
@@ -28,8 +28,9 @@ export async function renderGalleryPreview(frame: PhotoFrame, provider: BrowserP
   const scale = Math.min(1, GALLERY_PREVIEW_EDGE / Math.max(width, height));
   const canvas = document.createElement('canvas');
   drawFramedPhoto(source, canvas, framing, { scale });
-  await applyCanvasExportEdit(canvas, frame.edit ?? DEFAULT_EDIT, signal, Math.max(width, height) * scale, { aspect: height / width, view: { x: 0, y: 0, w: 1, h: 1 } });
+  await applyCanvasExportEdit(canvas, frame.edit ?? DEFAULT_EDIT, signal, Math.max(width, height) * scale, { aspect: height / width, view: { x: 0, y: 0, w: 1, h: 1 }, lensCentre: lensCentre(source.naturalWidth, source.naturalHeight, framing) });
   signal?.throwIfAborted();
   await applyFrameLayers(canvas, frame.overlay, true);
   return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.86));
 }
+

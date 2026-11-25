@@ -15,6 +15,7 @@ export const DETAIL_CONTROLS = [
   { key: 'sharpen', label: 'Sharpening' },
 ] as const;
 export type ToneKey = (typeof TONE_CONTROLS)[number]['key'];
+import { hasFringeEdit, type Defringe, type LateralCa } from './fringe';
 import { isNeutralWhiteBalance, whiteBalanceGains, type WhiteBalanceEdit } from './asShotWhite';
 import { applyCurveLut, curveLut, isNeutralCurve, isNeutralMixer, mixerParams, mixPixel, type ColourMixer, type CurvePoint } from './curveMixer';
 import { calibrationMatrix, isNeutralCalibration, type Calibration } from './calibration';
@@ -58,6 +59,10 @@ export interface PhotoEdit {
   vignette?: Vignette;
   /** Remove (positive, up to 1) or add (negative) haze. Runs first, on the picture's own pixels, before tone. */
   dehaze?: number;
+  /** Lens: rescale red and blue about the lens centre to remove red/cyan and blue/yellow edges. Runs first. */
+  lateralCa?: LateralCa;
+  /** Lens: take the colour out of purple or green fringes beside strong edges. Runs first, after lateralCa. */
+  defringe?: Defringe;
   /** Advanced: film-like grain anchored to the photo. A finishing pass after masks. */
   grain?: Grain;
   /** White balance in kelvin against the camera's as-shot estimate (RAW only). Multiplies with Warmth and Tint. */
@@ -83,7 +88,7 @@ export function isNeutralTone(edit: PhotoEdit): boolean {
 export const NOISE_CONTROL = { key: 'denoise', label: 'Noise reduction' } as const;
 
 export function isNeutralEdit(edit: PhotoEdit): boolean {
-  return !edit.denoise && !edit.denoiseLuminance && !edit.upscale && !edit.dehaze && !hasFinishing(edit) && isNeutralTone(edit) && DETAIL_CONTROLS.every(({ key }) => !edit[key]) && !hasActiveMasks(edit.masks);
+  return !edit.denoise && !edit.denoiseLuminance && !edit.upscale && !edit.dehaze && !hasFringeEdit(edit) && !hasFinishing(edit) && isNeutralTone(edit) && DETAIL_CONTROLS.every(({ key }) => !edit[key]) && !hasActiveMasks(edit.masks);
 }
 
 /** Nothing to keep: neutral, and no masks at all (an empty mask is still kept so it can be adjusted). */
