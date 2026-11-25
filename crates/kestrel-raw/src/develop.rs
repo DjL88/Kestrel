@@ -64,11 +64,23 @@ pub fn rgb16_bytes(image: &ImageBuffer<Rgb<u16>, Vec<u16>>) -> Vec<u8> {
 }
 
 pub fn develop_jpeg(bytes: &[u8]) -> Result<Vec<u8>, String> {
+    develop_jpeg_sized(bytes, false)
+}
+
+/// The same develop at half the sensor's width and height (see `scene_develop::develop_display_rgb16_half`): for the
+/// screen-size copy the app keeps after import, about five times faster than the full size it would throw away.
+pub fn develop_jpeg_screen(bytes: &[u8]) -> Result<Vec<u8>, String> {
+    develop_jpeg_sized(bytes, true)
+}
+
+fn develop_jpeg_sized(bytes: &[u8], half: bool) -> Result<Vec<u8>, String> {
     // Nikon High Efficiency NEFs are decoded from their sensor data by `nikon_he`; everything else by rawler.
     let (raw, _decoder) = crate::nikon_he::decode_sensor(bytes)?;
     // Kestrel's own develop (highlight reconstruction, no clipping, filmic shoulder), shared with the 16-bit master.
     // Sensors it doesn't handle yet (monochrome, four-colour) keep rawler's default develop.
-    let rgb8 = match crate::scene_develop::develop_display_rgb16(&raw, &crate::scene_develop::Look::default())? {
+    let look = crate::scene_develop::Look::default();
+    let display = if half { crate::scene_develop::develop_display_rgb16_half(&raw, &look)? } else { crate::scene_develop::develop_display_rgb16(&raw, &look)? };
+    let rgb8 = match display {
         Some(display) => crate::scene_develop::to_rgb8_dithered(&display),
         None => RawDevelop::default()
             .develop_intermediate(&raw)

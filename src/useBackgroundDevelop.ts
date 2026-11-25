@@ -72,7 +72,9 @@ export function useBackgroundDevelop({ projectId, frames, provider, active, onSc
           ctx.checkCancelled();
           if (!original) throw new Error(`Reconnect ${frame.filename} to develop the actual RAW file.`);
           ctx.stage('Developing sensor pixels');
-          const developed = await developRaw(original, /\.([a-z0-9]+)$/i.exec(frame.filename)?.[1] ?? 'nef');
+          // Only a screen-size review copy and a thumbnail are kept from this develop (storeDevelopedPicture), so ask for
+          // the screen-size develop: the full 45 MP one took about 25 s per Nikon Z 8 photo on desktop and was thrown away.
+          const developed = await developRaw(original, /\.([a-z0-9]+)$/i.exec(frame.filename)?.[1] ?? 'nef', { size: 'screen' });
           ctx.checkCancelled();
           // Read before orientation matching, which may re-encode the picture and drop the decoder's comment.
           const white = await readAsShotWhiteFromBlob(developed).catch(() => null);

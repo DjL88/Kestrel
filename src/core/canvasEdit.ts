@@ -2,14 +2,17 @@ import { applyDetail, applyPhotoEdit, hasDetail, isNeutralEdit, isNeutralGlobal,
 import { applyMasks, fullContext, type MaskContext } from './masks';
 import { applyFinishing, hasFinishing } from './finishing';
 import { applyDehaze } from './dehaze';
+import { applyCaptureDetail, deconvolutionParams } from './captureSharpen';
 import { applyFringe, hasFringeEdit } from './fringe';
+import { applyLensCorrection, hasLensCorrection } from './lensCorrection';
 
-/** Colour fringe removal runs first, on the picture's own pixels, centred on the lens. */
+/** Lens corrections and colour fringe removal run first, on the picture's own pixels, centred on the lens. */
 function applyCanvasFringe(canvas: HTMLCanvasElement, edit: PhotoEdit, mask: MaskContext, imageEdge: number): void {
-  if (!hasFringeEdit(edit)) return;
+  if (!hasFringeEdit(edit) && !hasLensCorrection(edit.lens)) return;
   const context = canvas.getContext('2d', { willReadFrequently: true });
   if (!context) throw new Error('Canvas unavailable');
   const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  applyLensCorrection(pixels.data, canvas.width, canvas.height, 4, edit.lens, mask);
   applyFringe(pixels.data, canvas.width, canvas.height, 4, edit, mask, imageEdge);
   context.putImageData(pixels, 0, 0);
 }
@@ -21,6 +24,16 @@ function applyCanvasDehaze(canvas: HTMLCanvasElement, edit: PhotoEdit, imageEdge
   if (!context) throw new Error('Canvas unavailable');
   const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
   applyDehaze(pixels.data, canvas.width, canvas.height, 4, 255, edit.dehaze, imageEdge);
+  context.putImageData(pixels, 0, 0);
+}
+
+/** Capture sharpening and deblur run after dehaze, before tone, on the picture's own detail. */
+function applyCanvasCapture(canvas: HTMLCanvasElement, edit: PhotoEdit, imageEdge: number): void {
+  if (!deconvolutionParams(edit, imageEdge)) return;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('Canvas unavailable');
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  applyCaptureDetail(pixels.data, canvas.width, canvas.height, edit, imageEdge);
   context.putImageData(pixels, 0, 0);
 }
 
@@ -134,6 +147,7 @@ export function applyCanvasPhotoEdit(
   applyCanvasFringe(canvas, edit, maskContext, imageEdge);
   applyCanvasNoiseReduction(canvas, edit);
   applyCanvasDehaze(canvas, edit, imageEdge);
+  applyCanvasCapture(canvas, edit, imageEdge);
   if (!isNeutralGlobal(edit) && !gpuRenderer?.(canvas, edit, imageEdge)) {
     for (const _ of editCanvasStrips(canvas, edit)) {
       // The fit preview has a bounded raster, so render it in one pass.
@@ -163,6 +177,8 @@ export async function applyCanvasExportEdit(
   applyCanvasNoiseReduction(canvas, edit);
   signal?.throwIfAborted();
   applyCanvasDehaze(canvas, edit, edge);
+  signal?.throwIfAborted();
+  applyCanvasCapture(canvas, edit, edge);
   signal?.throwIfAborted();
   if (!isNeutralGlobal(edit) && !gpuRenderer?.(canvas, edit, edge)) {
     let lastYield = performance.now();

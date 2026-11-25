@@ -73,6 +73,9 @@ export const gd: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Chan eil an tùsail ri fhaighinn — ceangail a phasgan no an draibh aige a-rithist',
     previewUnavailable: 'Chan eil ro-shealladh ri fhaighinn',
+    retrying: 'A’ luchdadh an deilbh shlàin a-rithist',
+    lowQuality: 'Ro-shealladh beag: cha b’ urrainn dhuinn an dealbh slàn a luchdadh',
+    tryAgain: 'Feuch ris a-rithist',
     heifUndecodable: 'Cha b’ urrainn do InFlight an dealbh HEIF seo a dhì-chòdachadh. Tha an tùsail gun atharrachadh.',
   },
   info: {

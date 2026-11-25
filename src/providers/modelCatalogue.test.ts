@@ -24,6 +24,18 @@ test('every opt-in pack appears, and memory is only ever a measured figure with 
   }
 });
 
+test('the desktop vision model lists exactly the files and digests the Rust runtime pins', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const rust = await readFile(new URL('../../crates/kestrel-vision/src/pack.rs', import.meta.url), 'utf8');
+  const pinned = [...rust.matchAll(/\("onnx\/([^"]+)", ([\d_]+), "([0-9a-f]{64})"\)/g)].map((m) => ({ file: m[1], bytes: Number(m[2].replace(/_/g, '')), sha256: m[3] }));
+  const entry = MODEL_CATALOGUE.find((item) => item.id === 'smolvlm2-500m-desktop');
+  assert.ok(entry);
+  assert.equal(pinned.length, 3);
+  assert.deepEqual(entry.files.map(({ file, bytes, sha256 }) => ({ file, bytes, sha256 })).sort((a, b) => a.file.localeCompare(b.file)),
+    pinned.sort((a, b) => a.file.localeCompare(b.file)));
+  assert.match(rust, new RegExp(`REVISION: &str = "${entry.version!.slice(0, 8)}`));
+});
+
 test('every opt-in pack can be downloaded and removed from Settings, and nothing built in can', () => {
   const packs = MODEL_CATALOGUE.filter((entry) => entry.pack);
   assert.deepEqual(packs.map((entry) => entry.pack!.model.id).sort(), OPTIONAL_MODELS.map((model) => model.id).sort());

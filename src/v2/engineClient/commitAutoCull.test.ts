@@ -93,3 +93,17 @@ test('only RAWs that were judged, and not from a picture developed from their se
   // a: camera preview; d: unknown source (cached at import) counts as not developed; e is not a RAW; f was not judged.
   assert.equal(rawsJudgedFromCameraPreview(frames, results, sources), 2);
 });
+
+test('after an import, Auto-pilot runs Auto-cull, Co-pilot offers it, Solo stays quiet, and a switched-off cull says so', async () => {
+  const { cullAfterImport } = await import('./commitAutoCull.ts');
+  assert.equal(cullAfterImport('autopilot', true, 2000, 'done'), 'run');
+  assert.equal(cullAfterImport('copilot', true, 12, 'done'), 'offer');
+  assert.equal(cullAfterImport('solo', true, 12, 'done'), 'none');
+  assert.equal(cullAfterImport('autopilot', false, 12, 'done'), 'switched-off');
+  assert.equal(cullAfterImport('copilot', false, 12, 'done'), 'switched-off');
+  assert.equal(cullAfterImport('solo', false, 12, 'done'), 'none', 'Solo never mentions it');
+  // A partly failed import still gets a cull of what arrived; a stopped or empty one does not.
+  assert.equal(cullAfterImport('autopilot', true, 5, 'failed'), 'run');
+  assert.equal(cullAfterImport('autopilot', true, 5, 'cancelled'), 'none');
+  assert.equal(cullAfterImport('autopilot', true, 0, 'done'), 'none');
+});

@@ -12,3 +12,4 @@ image = "0.25.10"
 ort = "2.0.0-rc.15"
 serde_json = "1.0.154"
 tokenizers = { version = "0.23.2", default-features = false, features = ["onig"] }
+memory-stats = "1"

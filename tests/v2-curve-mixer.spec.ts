@@ -176,6 +176,22 @@ test('?v2 Colour fringes: purple fringe beside a dark edge goes grey, and Fix le
   await expect(fringe.getByRole('slider', { name: 'Red / cyan edges' })).toHaveCount(0);
 });
 
+test('?v2 Lens corrections: lens vignetting brightens the corners, and distortion changes the picture', async ({ page }) => {
+  const root = await projectWithPhoto(page);
+  const lens = root.getByTestId('lens');
+  await expect(lens).toBeVisible();
+  await expect.poll(async () => (await corner(root))[2]).toBeGreaterThan(40);
+  const [, , b0] = await corner(root);
+  await lens.getByRole('slider', { name: 'Lens vignetting' }).fill('100');
+  await expect.poll(async () => (await corner(root))[2] - b0, { timeout: 15000 }).toBeGreaterThan(15);
+  await lens.getByRole('button', { name: 'Reset lens corrections' }).click();
+  await expect.poll(async () => Math.abs((await corner(root))[2] - b0), { timeout: 15000 }).toBeLessThan(2);
+  const before = (await measure(root)).mean;
+  await lens.getByRole('slider', { name: 'Distortion' }).fill('-100');
+  // Fixing pincushion enlarges the picture just enough to hide empty edges, so the bright orange box covers more of it.
+  await expect.poll(async () => (await measure(root)).mean - before, { timeout: 15000 }).toBeGreaterThan(1);
+});
+
 test('?v2 vignette shape: roundness, feather and highlights wait for a vignette; a hard feather darkens the corner more; grain roughness waits for grain', async ({ page }) => {
   const root = await projectWithPhoto(page);
   const effects = root.getByTestId('effects');

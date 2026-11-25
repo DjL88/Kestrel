@@ -37,7 +37,7 @@ npm run desktop:build    # release bundle in src-tauri/target/release/bundle
 The macOS build is run by the owner. Windows builds are now made locally with the script above; a clean-machine Windows install/uninstall and the 500-photo scenario in `ROADMAP.md` are still to be observed. Linux builds only in CI.
 
 ## Updates
-**Currently switched off** (`UPDATER_ENABLED` in `src/components/DesktopUpdate.tsx`) until signing, update and rollback are tested on real Mac and Windows machines. Update files are made only by `release.yml`, never by ordinary CI.
+**On only in releases that ship signed update files.** `release.yml` builds the app with `VITE_KESTREL_UPDATER=1` when the `TAURI_SIGNING_PRIVATE_KEY` secret exists, and `UPDATER_ENABLED` in `src/components/DesktopUpdate.tsx` reads it. Local, PR and unsigned builds never check. Update files are made only by `release.yml`, never by ordinary CI. The plugin refuses any update whose signature does not match the public key in `tauri.conf.json`. On Windows the update is the NSIS installer (`updaterJsonPreferNsis`), the same kind people install, so an update never leaves a second MSI copy.
 
 The app checks `https://github.com/DjL88/Kestrel/releases/latest/download/latest.json` when it opens. If a newer signed version exists it shows "Install and restart"; nothing installs without a tap, and nothing is shown when offline or when there is no release yet.
 
@@ -59,7 +59,7 @@ secret**, or with `gh secret set NAME --repo DjL88/Kestrel` from a terminal.
 `gh secret set TAURI_SIGNING_PRIVATE_KEY --repo DjL88/Kestrel < ~/.kestrel-signing/kestrel.key`. It has no password, so
 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` is not needed. Copy `kestrel.key` to a password manager or offline backup first: if it
 is lost, installed copies can never update again. The next tagged release then includes signed update files and
-`latest.json`; the app's update check stays off (`UPDATER_ENABLED`) until the test at the end of this section passes.
+`latest.json`, and that release's app checks for newer versions. Run the update test at the end of this section before telling testers about updates.
 
 **2. macOS (Apple Developer Program, paid yearly membership in the owner's name or company).**
 1. Enrol at developer.apple.com/programs. The name on the membership is what macOS shows as the developer.
@@ -78,8 +78,10 @@ is lost, installed copies can never update again. The next tagged release then i
 
 **3. Windows (choose one route).** Since June 2023 certificate authorities only issue code-signing keys on hardware tokens
 or cloud HSMs, so a new certificate normally cannot be exported as a `.pfx` for CI.
-- **Azure Trusted Signing (recommended, monthly fee, no hardware).** Check first that Microsoft currently accepts the
-  owner (individual or company, and country) for identity validation. Then in the Azure portal: create a Trusted Signing
+- **Azure Artifact Signing, formerly Trusted Signing (recommended, Basic tier about US$9.99 a month, no hardware).** Check
+  first that Microsoft currently accepts the owner for identity validation: individual validation has been limited by
+  country, and a UK company (Companies House) is the safer route. If neither is accepted, use an OV certificate from a CA
+  with cloud signing and an exportable route, or the Microsoft Store. Then in the Azure portal: create a Trusted Signing
   account, complete identity validation, create a *Public Trust* certificate profile, register an app (Microsoft Entra
   ID → App registrations) with a client secret, and give it the *Trusted Signing Certificate Profile Signer* role on the
   account. Secrets: `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`, `AZURE_SIGNING_ENDPOINT` (the account's
@@ -93,7 +95,7 @@ or cloud HSMs, so a new certificate normally cannot be exported as a `.pfx` for 
   over the first downloads.
 - Local Windows builds from `scripts/windows/Build-Kestrel.ps1` stay unsigned; signing is only in `release.yml`.
 
-**Before turning updates on** (`UPDATER_ENABLED`): publish two real releases, update from the first to the second on both systems, confirm the catalogue and open project survive, and confirm a tampered update file is refused. Keep the update key backed up.
+**Update test (owner, on real machines):** publish two real releases, update from the first to the second on both systems, confirm the catalogue and open project survive, and confirm a tampered update file is refused. Keep the update key backed up.
 
 ## Native checks still to do
 - Moving a project: originals moved or backed up to another drive are found again by name, size and modified time.

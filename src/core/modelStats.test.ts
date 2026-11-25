@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { medianRunMs, modelStat, modelStatsVersion, recordModelLoad, recordModelRun, resetModelStats, subscribeModelStats } from './modelStats';
+import { medianRunMs, modelStat, modelStatsVersion, recordModelLoad, recordModelMemory, recordModelRun, resetModelStats, subscribeModelStats } from './modelStats';
 
 test('load and run times are kept per model; the speed is the median run; bad numbers are ignored', () => {
   resetModelStats();
@@ -27,4 +27,14 @@ test('only the last 20 runs are kept, and listeners hear every change', () => {
   assert.equal(modelStat('m')!.runsMs[0], 7);
   assert.equal(heard, 25);
   assert.ok(modelStatsVersion() > before);
+});
+
+test('memory measured by the operating system is kept per model, and bad values are ignored', () => {
+  resetModelStats();
+  recordModelMemory('desktop', 734003200, 'measure');
+  recordModelMemory('desktop', Number.NaN);
+  recordModelMemory('desktop', -1);
+  assert.equal(modelStat('desktop')!.loadRamBytes, 734003200);
+  assert.equal(modelStat('desktop')!.source, 'measure');
+  assert.equal(modelStat('never')?.loadRamBytes ?? null, null);
 });

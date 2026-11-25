@@ -74,6 +74,9 @@ export const nl: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Origineel niet beschikbaar — koppel de map of schijf opnieuw',
     previewUnavailable: 'Voorvertoning niet beschikbaar',
+    retrying: 'Volledige afbeelding wordt opnieuw geladen',
+    lowQuality: 'Kleine voorvertoning: de volledige afbeelding kon niet worden geladen',
+    tryAgain: 'Opnieuw proberen',
     heifUndecodable: 'InFlight kon deze HEIF-foto niet decoderen. Het origineel is ongewijzigd.',
   },
   info: {
