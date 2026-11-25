@@ -52,8 +52,8 @@ test('a portrait tablet docks a narrower panel', async ({ page }) => {
   const studio = await openPhoto(page);
   const panel = studio.getByRole('heading', { name: 'Adjust', exact: true }).first();
   await expect(panel).toBeVisible();
-  expect(await studio.evaluate((el) => getComputedStyle(el).getPropertyValue('--dock-width').trim())).toBe('280px');
+  expect(await studio.evaluate((el) => getComputedStyle(el).getPropertyValue('--dock-width').trim())).toBe('16rem');
   // The wide desktop keeps its usual width.
   await page.setViewportSize({ width: 1280, height: 800 });
-  expect(await studio.evaluate((el) => getComputedStyle(el).getPropertyValue('--dock-width').trim())).toBe('316px');
+  expect(await studio.evaluate((el) => getComputedStyle(el).getPropertyValue('--dock-width').trim())).toBe('19.75rem');
 });

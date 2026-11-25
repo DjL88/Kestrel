@@ -46,7 +46,7 @@ export default function AssistPanel({
             <BrandIcon name="palette" size={14} className="text-[var(--semantic-info)]" />
             <span>{STRINGS.assist.colourConfidenceHeading}</span>
           </span>
-          <span className="font-mono text-[10px] text-[var(--text-muted)]">
+          <span className="font-mono text-[0.625rem] text-[var(--text-muted)]">
             {photo.assistCritique.kelvinEstimate}
           </span>
         </div>
@@ -54,7 +54,7 @@ export default function AssistPanel({
           {photo.assistCritique.colourConfidence}
         </p>
         {cvdGuidance && photo.assistCritique.colourCheck && <ColourWordsList words={photo.assistCritique.colourCheck} />}
-        <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
+        <p className="text-[0.6875rem] leading-relaxed text-[var(--text-muted)]">
           {STRINGS.assist.safeNote}
         </p>
       </section>
@@ -68,13 +68,13 @@ export default function AssistPanel({
           >
             <div className="min-w-0">
               <p className="truncate text-xs font-medium text-[var(--text-primary)]">{sug.title}</p>
-              <p className="truncate font-mono text-[10px] text-[var(--text-muted)]">{sug.colourReadout}</p>
+              <p className="truncate font-mono text-[0.625rem] text-[var(--text-muted)]">{sug.colourReadout}</p>
             </div>
             <button
               type="button"
               disabled={sug.applied}
               onClick={() => onApplySuggestion(photo.id, sug.id)}
-              className={`shrink-0 rounded-[var(--radius-xs)] px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+              className={`shrink-0 rounded-[var(--radius-xs)] px-2.5 py-1 text-[0.6875rem] font-semibold transition-colors ${
                 sug.applied
                   ? 'bg-[var(--semantic-success-soft)] text-[var(--semantic-success)]'
                   : 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)] hover:bg-[var(--brand-accent)] hover:text-[var(--text-on-accent)]'

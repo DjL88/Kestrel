@@ -3,6 +3,11 @@
 
 locals {
   prefix = var.project_id
+  # The public website's address, one value for the whole repository (config/public-site.json; change it with
+  # scripts/site/set-domain.mjs). Both it and the Firebase Hosting address are allowed browser origins.
+  public_site      = jsondecode(file("${path.module}/../../config/public-site.json"))
+  site_origins     = distinct([local.public_site.origin, "https://${google_firebase_hosting_site.site.site_id}.web.app"])
+  browser_origins  = distinct(concat(var.allowed_origins, local.site_origins))
   services = [
     "storage.googleapis.com",
     "secretmanager.googleapis.com",
@@ -42,7 +47,9 @@ resource "google_storage_bucket" "models" {
   uniform_bucket_level_access = true
   versioning { enabled = true } # an overwritten file can be recovered
   cors {
-    origin          = var.allowed_origins
+    # The site origins too: without them a browser on the website cannot read the signed manifest (seen live 25 Nov:
+    # no Access-Control-Allow-Origin for https://kestrel-hosting-kestrel.web.app).
+    origin          = local.browser_origins
     method          = ["GET", "HEAD"]
     response_header = ["Content-Type", "Content-Length", "ETag"]
     max_age_seconds = 3600
