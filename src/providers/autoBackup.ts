@@ -189,23 +189,24 @@ export function useBackupStatus(projectId: string): BackupStatus {
  * Backs the open project up on its own: shortly after a change, no more often than the gap allows, and straight away
  * when the project is closed or another one opens. A place that cannot be reached is tried again later.
  */
-export function useAutoBackup(state: CullingState, open: boolean) {
+export function useAutoBackup(state: CullingState | null, open: boolean) {
   const latest = useRef(state);
   latest.current = state;
-  const projectId = state.shoot.id;
+  const projectId = state?.shoot.id ?? '';
   useEffect(() => {
-    if (!open) return;
+    if (!open || !state) return;
     // A change is a real edit: the project's own last-edited time moving on, not the project merely being opened.
     const clock = clockFor(projectId);
     clocks.set(projectId, afterChange(clock, Math.max(clock.lastChangeAt ?? 0, state.shoot.lastUpdatedAt ?? 0)));
-    const soon = window.setTimeout(() => void maybeBackUp(latest.current), 1500);
+    const soon = window.setTimeout(() => { if (latest.current) void maybeBackUp(latest.current); }, 1500);
     return () => window.clearTimeout(soon);
   }, [state, open, projectId]);
   useEffect(() => {
-    if (!open) return;
-    const timer = window.setInterval(() => void maybeBackUp(latest.current), 30_000);
-    const hide = () => { if (document.visibilityState === 'hidden') void maybeBackUp(latest.current, true); };
+    if (!open || !projectId) return;
+    const backUp = (leaving = false) => { if (latest.current) void maybeBackUp(latest.current, leaving); };
+    const timer = window.setInterval(() => backUp(), 30_000);
+    const hide = () => { if (document.visibilityState === 'hidden') backUp(true); };
     document.addEventListener('visibilitychange', hide);
-    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', hide); void maybeBackUp(latest.current, true); };
+    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', hide); backUp(true); };
   }, [open, projectId]);
 }

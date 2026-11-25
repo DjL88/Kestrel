@@ -370,7 +370,7 @@ export const fi: AreaTranslation<typeof source> = {
     works: 'Avain toimii.',
     couldNotCheck: 'Avainta ei voitu tarkistaa. Tarkista avain ja yhteytesi.',
     title: 'Verkkoavustaja (valinnainen)',
-    intro: 'Valinnainen. Kun tunnistus laitteella ei ole käytettävissä tai on epävarma ja olet verkossa, se voi nimetä kuvan eläimen tai linnun ja kertoa, onko kuvassa luontoa, ihmisiä vai maisema. Se on pois päältä, kunnes kytket sen päälle tästä.',
+    intro: 'Valinnainen. Kun tunnistus laitteella ei ole käytettävissä tai on epävarma ja olet verkossa, se voi nimetä kuvan eläimen tai linnun. Se voi myös kertoa, onko kuvassa luontoa, ihmisiä vai maisema. Se on pois päältä, kunnes kytket sen päälle tästä.',
     sentLead: 'Lähetetään:',
     sent: 'pieni kopio jokaisesta kuvasta (noin 640 pikseliä) ilman tiedostonimeä, kameratietoja tai sijaintia Google Geminille omalla avaimellasi. Alkuperäinen kuvasi ei koskaan lähde laitteelta. Ihmisiä ei koskaan nimetä.',
     atMost: (count) => `Enintään ${count} kuvaa istunnossa, yksi kerrallaan.`,

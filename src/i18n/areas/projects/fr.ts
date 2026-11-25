@@ -370,7 +370,7 @@ export const fr: AreaTranslation<typeof source> = {
     works: 'La clé fonctionne.',
     couldNotCheck: 'La clé n’a pas pu être vérifiée. Vérifiez-la, ainsi que votre connexion.',
     title: 'Assistant en ligne (facultatif)',
-    intro: 'Facultatif. Quand l’identification locale n’est pas disponible ou hésite et que vous êtes en ligne, il peut nommer l’animal ou l’oiseau d’une photo et dire s’il s’agit de faune, de personnes ou d’un paysage. Il reste désactivé tant que vous ne l’activez pas ici.',
+    intro: 'Facultatif. Quand l’identification locale n’est pas disponible ou hésite et que vous êtes en ligne, il peut nommer l’animal ou l’oiseau d’une photo. Il peut aussi dire s’il s’agit de faune, de personnes ou d’un paysage. Il reste désactivé tant que vous ne l’activez pas ici.',
     sentLead: 'Envoyé :',
     sent: 'une petite copie de chaque photo (environ 640 pixels), sans nom de fichier, données de l’appareil ni lieu, à Google Gemini avec votre propre clé. Votre original ne quitte jamais l’appareil. Les personnes ne sont jamais nommées.',
     atMost: (count) => `Au plus ${count} photos par session, une à la fois.`,

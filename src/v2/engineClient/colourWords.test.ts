@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { checkColour, type ColourReport } from '../../core/colourCheck';
-import { colourWarningSentences, colourWords, describeColourFinding } from './colourWords';
+import { colourWarningSentences, colourWords, describeColourFinding, describeColourMatch, describeColourSense } from './colourWords';
+import type { ColourMatchResult } from '../../core/colourMatch';
+import { checkSubjectColour } from '../../core/colourSense';
 
 const solid = (width: number, height: number, paint: (x: number, y: number) => [number, number, number]) => {
   const data = new Uint8ClampedArray(width * height * 4);
@@ -45,4 +47,31 @@ test('a real check of a red and green picture names both colours', () => {
   const words = colourWords(report);
   assert.ok(words.palette.some((line) => line.startsWith('red')));
   assert.ok(words.palette.some((line) => line.startsWith('green')));
+});
+
+
+test('ColourSense says in words whether the subject keeps its colour, and says nothing when it cannot judge', () => {
+  const subject = Float32Array.from({ length: 100 }, (_, p) => (p % 10 < 5 ? 1 : 0));
+  const picture = (rgb: [number, number, number]) => solid(10, 10, (x) => (x < 5 ? rgb : [90, 110, 90]));
+  const kept = describeColourSense(checkSubjectColour(picture([200, 110, 40]), picture([212, 118, 44]), subject));
+  assert.deepEqual(kept, { kept: true, label: 'Subject colour:', text: 'Kept close to the original (orange).' });
+  const moved = describeColourSense(checkSubjectColour(picture([200, 110, 40]), picture([205, 180, 40]), subject));
+  assert.equal(moved?.kept, false);
+  assert.match(moved!.text, /Moves from orange towards yellow\./);
+  const clipped = describeColourSense(checkSubjectColour(picture([230, 120, 60]), picture([255, 128, 64]), subject));
+  assert.match(clipped!.text, /Detail is lost in the red channel on part of the subject\./);
+  assert.equal(describeColourSense(checkSubjectColour(picture([200, 110, 40]), picture([200, 110, 40]), new Float32Array(100))), undefined);
+  assert.equal(describeColourSense(undefined), undefined);
+});
+
+test('colour match says what the subject should have and whether it is there, with the caveat when it is not', () => {
+  const base: ColourMatchResult = { subject: 'robin', source: 'speciesSignature', verdict: 'matches', parts: [{ part: 'breast', expected: ['orange', 'brown'], verdict: 'matches' }], measured: [{ family: 'orange', share: 0.4 }, { family: 'brown', share: 0.3 }] };
+  assert.deepEqual(describeColourMatch(base), { kept: true, label: 'Colour match, robin:', text: 'Expected orange (breast): found on the subject.' });
+  const differs: ColourMatchResult = { ...base, verdict: 'differs', parts: [{ part: 'breast', expected: ['orange'], verdict: 'differs' }], measured: [{ family: 'grey', share: 0.6 }, { family: 'blue', share: 0.2 }] };
+  assert.deepEqual(describeColourMatch(differs), {
+    kept: false,
+    label: 'Colour match, robin:',
+    text: 'Expected orange (breast): not found. The subject is mostly grey and blue. Light, age, moult or a wrong name can explain a difference.',
+  });
+  assert.equal(describeColourMatch(null), undefined);
 });

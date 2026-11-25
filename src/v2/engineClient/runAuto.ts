@@ -18,6 +18,7 @@ import type { PhotoFrame } from '../../core/types';
 import { describePlan, planAuto, type AutoPlan } from '../../core/unifiedAuto';
 import { checkColour, type ColourReport } from '../../core/colourCheck';
 import type { SpeciesGuess } from '../../core/speciesPalette';
+import { expectationForSpecies } from '../../core/colourMatch';
 import { newId } from '../../core/ids';
 import { identifySubject } from '../../providers/autoSpecies';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
@@ -182,7 +183,10 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
       else plan = { ...naturalPlan, proposal: base, verdict: { kind: 'cannot-improve-safely', reason: 'No preferred recipe passed every detected subject check' } };
     }
   }
-  const rendered = recipes.length ? renderAutoCandidates(analysisCanvas, base, recipes, subjectInstances.map(instance => instance.mask)) : { before: '', candidates: [], rejected: [] };
+  // Colour match: the species signature on file, only for a confidently named species on a reliable mask. The vision
+  // model's expectation (the guardian lane) takes the same SubjectExpectation shape when it is available.
+  const expectation = segmentation?.confidence === 'high' ? expectationForSpecies(species) : null;
+  const rendered = recipes.length ? renderAutoCandidates(analysisCanvas, base, recipes, subjectInstances.map(instance => instance.mask), expectation) : { before: '', candidates: [], rejected: [] };
   if (!rendered.candidates.some((candidate) => candidate.edit === plan.proposal)
     && rendered.candidates.some((candidate) => candidate.edit === naturalPlan.proposal)) {
     plan = naturalPlan;

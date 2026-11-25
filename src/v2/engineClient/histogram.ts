@@ -8,5 +8,13 @@ const BINS = 32;
 export function toPhotoHistogram(data: Uint8ClampedArray): PhotoHistogram {
   const histogram = computeHistogram(data);
   const scale = (bins: Uint32Array) => histogramBars(bins, BINS).map((value) => Math.round(value * 100));
-  return { luma: scale(histogram.luma), red: scale(histogram.red), green: scale(histogram.green), blue: scale(histogram.blue), shadowClip: histogram.shadowClip, highlightClip: histogram.highlightClip };
+  const clip = (bins: Uint32Array) => ({
+    shadow: histogram.pixels ? bins[0] / histogram.pixels : 0,
+    highlight: histogram.pixels ? bins[255] / histogram.pixels : 0,
+  });
+  return {
+    luma: scale(histogram.luma), red: scale(histogram.red), green: scale(histogram.green), blue: scale(histogram.blue),
+    shadowClip: histogram.shadowClip, highlightClip: histogram.highlightClip,
+    channelClip: { red: clip(histogram.red), green: clip(histogram.green), blue: clip(histogram.blue) },
+  };
 }

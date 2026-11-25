@@ -11,6 +11,7 @@ import { FirestoreLearningSink } from './learningSignalFirestore.ts';
 import { FirestoreSafeCopyCatalog } from './safeCopyFirestore.ts';
 import { CollabStore } from './collaboration.ts';
 import { IamPresenceSigner } from './presenceToken.ts';
+import { GalleryStore } from './gallery.ts';
 import { FirestoreSpendGuard } from './spendGuard.ts';
 import type { FirestoreLike } from './firestoreStore.ts';
 
@@ -20,7 +21,7 @@ export interface WiringDeps {
   openBucket?: (name: string) => Promise<GcsBucketLike>;
   token?: () => Promise<string>;
 }
-export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'learning' | 'learningWithdrawal' | 'spend'> & { enabled: string[] };
+export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'learning' | 'learningWithdrawal' | 'spend'> & { enabled: string[] };
 
 function whole(env: NodeJS.ProcessEnv, name: string, dflt: number, max: number): number {
   const raw = env[name];
@@ -73,6 +74,8 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
       out.presence = new IamPresenceSigner(env.KCP_PRESENCE_DATABASE_URL, env.KCP_PRESENCE_SERVICE_ACCOUNT, deps.token ?? (() => metadataAccessToken()));
       out.enabled.push('presence');
     }
+    // Client galleries need their own private UK bucket (infra/gcp/gallery.tf).
+    if (env.KCP_GALLERY_BUCKET) { out.gallery = new GalleryStore(db, new GcsSafeCopyStorage(await open(env.KCP_GALLERY_BUCKET))); out.enabled.push('gallery'); }
   }
   // Withdrawal/deletion must remain available with collection disabled.
   // This service cannot enable research writes: only the optional 'learning'
