@@ -22,6 +22,7 @@ release. A build without the Kestrel ones still works fully offline.
 | Setting | Where to find it | Status |
 | --- | --- | --- |
 | `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID` | Firebase console → project **kestrel** (`kestrel-photo`) → Project settings → General → Your apps → **Kestrel web** → SDK setup and configuration | Done, in the owner's `.env.local` |
+| `VITE_GOOGLE_SIGNIN_CLIENT_ID`, `VITE_GOOGLE_SIGNIN_CLIENT_SECRET` | Google Cloud console → project `kestrel-photo` → APIs & Services → Credentials → Create OAuth client ID → **Desktop app**. Same project as Firebase, so Firebase accepts its tokens; otherwise add the client id under Firebase Auth → Google → Safelist client IDs. Optional: the desktop app falls back to `VITE_GOOGLE_DRIVE_CLIENT_ID` | Not yet |
 | `VITE_KESTREL_CONTROL_PLANE_URL` | `terraform -chdir=infra/gcp output control_plane_url` after the control plane is applied with an image (a `https://…run.app` address; no trailing path) | Yes: deployed 20 Nov 2026 (see ROADMAP integration log for what is live) |
 | `VITE_KESTREL_GRANT_KEYS` | `kcp-2026-11=<base64 public key>`. The public half of the secret `kcp-signing-key-pem`. The service prints it in its Cloud Run log on start, or print it from the PEM before deleting the file (command in "Set it up" step 2, and phase 1 step 3) | Not yet |
 | `VITE_KESTREL_BUILD_REVISION`, `VITE_KESTREL_BUILD_TIMESTAMP` | Set by the build scripts | Automatic |
