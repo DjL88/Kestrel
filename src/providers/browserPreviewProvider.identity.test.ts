@@ -139,3 +139,20 @@ test('background development cannot publish an older original after a replacemen
   provider.clear();
   assert.equal(await provider.storeDevelopedPicture(photo, newOriginal, picture), false);
 });
+
+test('a full develop that revokes the cached preview URL tells listeners, so views drop the dead link', async () => {
+  const provider = new BrowserPreviewProvider();
+  const key = 'develop-me';
+  const photo = frame('frame-dev', key);
+  provider.registerBlob(key, new Blob(['ORIGINAL'], { type: 'image/jpeg' }));
+  const before = await provider.getFullPreviewUrl(photo);
+  assert.ok(before.startsWith('blob:'));
+  const signals: string[] = [];
+  provider.events.addEventListener('developed', (event) => signals.push((event as CustomEvent<string>).detail));
+  assert.equal(await provider.developFromOriginal(key, async () => new Blob(['DEVELOPED'], { type: 'image/jpeg' })), 'ready');
+  assert.deepEqual(signals, [key], 'the revoked preview must be announced');
+  const after = await provider.getFullPreviewUrl(photo);
+  assert.notEqual(after, before);
+  assert.equal(await (await fetch(after)).text(), 'DEVELOPED');
+  provider.clear();
+});

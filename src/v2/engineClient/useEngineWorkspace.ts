@@ -38,6 +38,7 @@ import { toPhotoHistogram } from './histogram';
 import { fullResolutionRasterFormat, isHeifFile, isRawPreviewFile } from '../../core/rawFormats';
 import { rawSensorSize } from '../../core/rawSensorSize';
 import { loadUi, mergeSettings, saveUi, type SavedUi } from './uiSettings';
+import { dropSourceUrls } from './previewInvalidation';
 import { applyCanvasPhotoEdit } from '../../core/canvasEdit';
 import { DEFAULT_EDIT as EMPTY_EDIT } from '../../core/photoEdits';
 import { DEFAULT_CROP, flipCrop, patchCrop, rotateCrop } from './cropOps';
@@ -399,6 +400,44 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId]);
+
+  // Developing, relinking or replacing an original revokes the provider's blob URLs. Forget them for every photo of
+  // that original and ask again, so views that draw `previewUrl` directly (the All formats board) never show a dead link.
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
+  const listenedProvider = useRef<{ source: BrowserPreviewProvider; detach: () => void } | null>(null);
+  useEffect(() => {
+    const source = provider.current;
+    if (!source || listenedProvider.current?.source === source) return;
+    listenedProvider.current?.detach();
+    const onSourceChanged = (event: Event) => {
+      const stableKey = (event as CustomEvent<string>).detail;
+      if (provider.current !== source || typeof stableKey !== 'string') return;
+      const frames = stateRef.current?.frames ?? [];
+      setUrls((current) => dropSourceUrls(current, frames, stableKey).urls);
+      const affected = frames.filter((frame) => frame.stableKey === stableKey && !frame.removedAt);
+      for (const frame of affected) {
+        thumbs.current.requested.add(frame.id);
+        thumbs.current.queue.push(frame);
+      }
+      pumpThumbnails();
+      const active = affected.find((frame) => frame.id === activeIdRef.current);
+      if (active) source.getFullPreviewUrl(active, 'selected').then(
+        (preview) => { if (provider.current === source && preview) setUrls((current) => ({ ...current, [active.id]: { ...current[active.id], preview } })); },
+        () => { /* the refreshed thumbnail stays */ },
+      );
+    };
+    source.events.addEventListener('developed', onSourceChanged);
+    source.events.addEventListener('preview-invalidated', onSourceChanged);
+    listenedProvider.current = {
+      source,
+      detach: () => {
+        source.events.removeEventListener('developed', onSourceChanged);
+        source.events.removeEventListener('preview-invalidated', onSourceChanged);
+      },
+    };
+  });
+  useEffect(() => () => { listenedProvider.current?.detach(); listenedProvider.current = null; }, []);
 
   const mutate = useCallback((change: (current: CullingState) => CullingState) => setState((current) => (current ? change(current) : current)), []);
 

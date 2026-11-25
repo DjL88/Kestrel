@@ -380,7 +380,10 @@ export class BrowserPreviewProvider implements PreviewProvider {
         if (!oldest) break;
         this.developed.delete(oldest);
         this.invalidateFullPreview(oldest);
+        this.events.dispatchEvent(new CustomEvent('preview-invalidated', { detail: oldest }));
       }
+      // The cached preview URL was revoked: views holding it must ask again.
+      this.events.dispatchEvent(new CustomEvent('developed', { detail: stableKey }));
       return 'ready';
     } catch (error) {
       if (this.developing.get(stableKey) !== request) return 'superseded';
