@@ -60,6 +60,7 @@ import { commitAutoEdit } from './commitAutoEdit';
 import { commitAutoCull } from './commitAutoCull';
 import { runV2Denoise } from './runDenoise';
 import { composeDenoiseRecipe } from './denoiseRecipe';
+import { preloadTrueDetailAi } from '../../core/trueDetailAiCanvas';
 import { moveArtboard } from './boardOps';
 import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
@@ -878,6 +879,19 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // and watermark-tone checks already draw. A mask whose effect held up changes nothing here (attempts
   // === 1, the common case); one that did not is written back at the strength that actually passed, with
   // a plain notice - never left silently at a value the check could not confirm.
+  // A stored AI denoise result lives on the device that made it. Say plainly when this device does not have it: the view
+  // is drawn without it, and export refuses rather than quietly leave it out.
+  const aiAsset = activeFrame?.edit?.trueDetailAi?.asset ?? null;
+  useEffect(() => {
+    if (!aiAsset || !activeFrame) return;
+    let live = true;
+    void preloadTrueDetailAi(activeFrame.edit).then(found => {
+      if (live && !found) setNotice('This photo’s AI denoise result is not on this device, so it is shown without it and will not export. Run Denoise again here, or turn the AI denoise off in Enhance.');
+    });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiAsset]);
+
   const maskVerifyKey = activeFrame && projectId && hasActiveMasks(activeFrame.edit?.masks)
     ? maskVerificationKey(projectId, activeFrame) : null;
   useEffect(() => {
@@ -1111,7 +1125,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       runItem: async (_, __, ctx) => {
         ctx.stage(engineText.workspace.denoiseStage);
         const outcome = await runV2Denoise(frame, provider.current!,
-          connection ? { connection, online: navigator.onLine !== false } : null, ctx.signal);
+          connection ? { connection, online: navigator.onLine !== false } : null, ctx.signal,
+          (done, total, label) => ctx.reportProgress(done, total, label));
         ctx.checkCancelled();
         if (!outcome) throw new Error(engineText.workspace.denoiseNoSource);
         ctx.setLocation(outcome.runner === 'cloud-processing' ? 'cloud' : 'local');
@@ -1128,7 +1143,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             if (!valid(current)) return current.edit;
             const edit = current.edit ?? DEFAULT_EDIT;
             const id = `auto-denoise-${photoId}`;
-            return composeDenoiseRecipe(edit, id, outcome.strength, outcome.masks, outcome.strength > 0 ? outcome.luminance / outcome.strength : 0);
+            const next = composeDenoiseRecipe(edit, id, outcome.strength, outcome.masks, outcome.strength > 0 ? outcome.luminance / outcome.strength : 0);
+            return outcome.trueDetailAi ? { ...next, trueDetailAi: outcome.trueDetailAi } : next;
           }));
         }
         ctx.commitIfCurrent(() => setNotice(outcome.verified ? outcome.notes[0] : engineText.denoise.leftAsItWas(outcome.notes.join(' '))));

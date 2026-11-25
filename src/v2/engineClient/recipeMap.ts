@@ -61,6 +61,7 @@ export function editToRecipe(edit: PhotoEdit | undefined): EditRecipe {
     denoiseLuminance: toSlider(edit.denoiseLuminance),
     detailRecovery: round(clamp((edit.texture ?? 0) * SLIDER_PER_STEP, 0, 100), 2),
     upscaleFactor: edit.upscale ?? 1,
+    ...(edit.trueDetailAi ? { aiDenoise: true } : {}),
     ...(!isNeutralWhiteBalance(edit.whiteBalance) ? { whiteBalance: { ...edit.whiteBalance! } } : {}),
     ...(validCurve(edit.curve) && !isNeutralCurve(edit.curve) ? { toneCurve: edit.curve.map(([x, y]) => [x, y] as [number, number]) } : {}),
     ...(validMixer(edit.mixer) && !isNeutralMixer(edit.mixer) ? { colourMixer: {
@@ -136,6 +137,8 @@ export function applyRecipePatch(edit: PhotoEdit | undefined, patch: Partial<Edi
     if (texture === 0) delete next.texture;
     else next.texture = texture;
   }
+  // AI denoise is made only by the Denoise action (it needs the stored result); the recipe can only remove it.
+  if (patch.aiDenoise === false) delete next.trueDetailAi;
   if (patch.upscaleFactor !== undefined) { if (patch.upscaleFactor === 2 || patch.upscaleFactor === 4) next.upscale = patch.upscaleFactor; else delete next.upscale; }
   if ('toneCurve' in patch) {
     // A curve that is missing, straight or malformed is stored as no curve at all, never as a guess.

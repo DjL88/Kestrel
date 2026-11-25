@@ -916,6 +916,8 @@ export const ga: AreaTranslation<typeof source> = {
     denoiseNow: 'Laghdaigh torann an ghrianghraif seo',
     denoiseCloudNote: 'Nuair atá tú sínithe isteach agus ar líne, seolann an cnaipe seo cóip oibre (ní an bunghrianghraf riamh) chuig scamall InFlight don jab seo amháin, agus seiceálann sé an toradh ar an ngléas seo. Mura bhfuil an scamall ar fáil, ritheann sé anseo.',
     denoiseDeviceNote: 'Ritheann sé ar an ngléas seo. Is cuid de Pro an phróiseáil sa scamall.',
+    aiDenoiseInUse: 'Tá laghdú torainn AI (NAFNet) in úsáid ar an ábhar. Ní stóráiltear é ach ar an ngléas seo.',
+    aiDenoiseOff: 'Múch laghdú torainn AI',
     rawAiDenoise: 'Laghdú torainn RAW domhain',
     luminanceDenoise: 'Torann lonrachais',
     colourDenoise: 'Torann datha',

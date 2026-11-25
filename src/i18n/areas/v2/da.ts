@@ -913,6 +913,8 @@ export const da: AreaTranslation<typeof source> = {
     denoiseNow: 'Fjern støj fra dette foto',
     denoiseCloudNote: 'Når du er logget ind og online, sender denne knap en arbejdskopi (aldrig originalen) til InFlight-skyen kun til dette job og kontrollerer resultatet på denne enhed. Hvis skyen ikke er tilgængelig, kører det her.',
     denoiseDeviceNote: 'Kører på denne enhed. Behandling i skyen er en del af Pro.',
+    aiDenoiseInUse: 'AI-støjreduktion (NAFNet) bruges på motivet. Den gemmes kun på denne enhed.',
+    aiDenoiseOff: 'Slå AI-støjreduktion fra',
     rawAiDenoise: 'Dyb RAW-støjreduktion',
     luminanceDenoise: 'Luminansstøj',
     colourDenoise: 'Farvestøj',

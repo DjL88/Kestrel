@@ -913,6 +913,8 @@ export const nl: AreaTranslation<typeof source> = {
     denoiseNow: 'Ruis van deze foto verwijderen',
     denoiseCloudNote: 'Als u bent aangemeld en online bent, stuurt deze knop een werkkopie (nooit het origineel) voor deze ene taak naar de InFlight-cloud. Het resultaat wordt op dit apparaat gecontroleerd. Als de cloud niet beschikbaar is, gebeurt het hier.',
     denoiseDeviceNote: 'Draait op dit apparaat. Verwerking in de cloud hoort bij Pro.',
+    aiDenoiseInUse: 'AI-ruisreductie (NAFNet) wordt op het onderwerp gebruikt. Dit wordt alleen op dit apparaat bewaard.',
+    aiDenoiseOff: 'AI-ruisreductie uitzetten',
     rawAiDenoise: 'Diepe RAW-ruisonderdrukking',
     luminanceDenoise: 'Luminantieruis',
     colourDenoise: 'Kleurruis',
