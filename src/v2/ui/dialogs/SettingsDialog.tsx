@@ -6,6 +6,7 @@ import { calmViewOn, calmViewPatch } from '../../engineClient/uiSettings';
 import React, { useRef, useState } from 'react';
 import { useDialogFocus } from '../utils/dialogFocus';
 import ReadingSettings from './ReadingSettings';
+import ModelMetricsPanel from './ModelMetricsPanel';
 import MarkingsReaderSetting from './MarkingsReaderSetting';
 import { isDesktopApp, isMobileShell } from '../../../providers/desktopShell';
 
@@ -551,6 +552,7 @@ export default function SettingsDialog({
                     <p className="text-[0.6875rem] font-medium text-[var(--text-muted)]">{STRINGS.settingsMore.byoAi}</p>
                     <WorksWith items={[{ id: 'ollama', name: 'Ollama' }, { id: 'lmstudio', name: 'LM Studio' }]} />
                   </div>}
+                <ModelMetricsPanel />
               </div>
             )}
 
