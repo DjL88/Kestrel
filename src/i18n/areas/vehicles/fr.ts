@@ -29,6 +29,18 @@ export const fr: AreaTranslation<typeof source> = {
   registered: (marking: string, type: string) => `${marking} : ${type} (d'après le registre)`,
   operatedBy: (what: string, operator: string) => `${what}, exploité par ${operator}`,
   held: (what: string) => `${what}? À vérifier`,
+  correct: {
+    edit: 'Modifier',
+    change: 'Changer le véhicule',
+    kindLabel: 'Genre',
+    typeLabel: 'Marque ou modèle',
+    typeUnknown: 'Pas sûr',
+    notVehicle: 'Pas un véhicule',
+    wholeBurst: (count: number) => `Les ${count} photos de cette rafale`,
+    save: 'Enregistrer',
+    cancel: 'Annuler',
+    saved: (count: number) => (count > 1 ? `Enregistré pour ${count} photos.` : 'Enregistré.'),
+  },
   reader: {
     title: 'Lire les immatriculations d’aéronefs',
     description: (megabytes: string) => `Lit les immatriculations et numéros de série militaires peints sur les aéronefs, sur cet appareil, et les recherche dans une copie hors ligne de registres publics. Un téléchargement unique de ${megabytes} Mo. Les plaques d’immatriculation des voitures ne sont jamais lues.`,

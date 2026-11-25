@@ -103,6 +103,8 @@ export interface PhotoFrame {
   /** What kind of vehicle or aircraft the photo probably shows, read on this device (ids only; words follow the language).
    * A suggestion: never changes a decision, rating or edit. Malformed values are ignored, never shown. */
   vehicle?: import('./vehicleRecognition').VehicleReading;
+  /** The person said this photo is not a vehicle, so no vehicle reading is ever added to it again. */
+  vehicleDeclined?: boolean;
   /**
    * On-device image embedding (DINOv2), used only to refine burst grouping. Absent until the background pass runs.
    * A cache: anything malformed is ignored by `decodeEmbedding`, never a reason to refuse a restore.

@@ -21,8 +21,12 @@ import { scanForCulling } from '../../providers/browserAutoCull';
 import { useAccess } from '../../providers/useAccess';
 import { useBackgroundDevelop } from '../../useBackgroundDevelop';
 import { useSpeciesScan } from '../../useSpeciesScan';
+import { carryVehicleReadings, correctVehicle } from '../../core/vehicleBursts';
+import { VEHICLE_LABELS } from '../../core/vehicleLabels';
+import { vehicleText } from '../../i18n/areas/vehicles';
 import { useVisualGrouping } from './useVisualGrouping';
-import { isDesktopApp } from '../../providers/desktopShell';
+import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
+import { photoParallelism } from '../../core/photoParallelism';
 import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
 import { getLocalFileKey, loadLocalFileListShoot, rehydrateLocalFramesFromStore } from '../../providers/localShootLoader';
 import { hashOriginalBytes, isSameOriginalBytes } from '../../core/originalFileIdentity';
@@ -105,6 +109,8 @@ import { canvasLensCentre, detectLateralCa } from '../../core/fringe';
 import { surfaceBridge } from './surfaceBridge';
 import { addSavedEditGroup, renameSavedEditGroup, selectSavedEditGroup, syncEditGroup } from './editGroupState';
 import { engineText } from '../../i18n/areas/engine';
+import { loadSpeciesNames, onSpeciesNamesLoaded } from '../../providers/speciesNames';
+import { language } from '../../i18n/messages';
 
 /** Actions that change a photo's edit, sizes, overlay, masks or assist state. They are not connected to the real
  * recipe yet, so they say so instead of silently changing sample data. */
@@ -205,7 +211,16 @@ async function pickReselectFiles(): Promise<File[] | null> {
  */
 export function useEngineWorkspace(): { store: WorkspaceStore; actions: WorkspaceActions } {
   const stub = useWorkspace();
-  const { can: canByPlan } = useAccess();
+  const { can: canByPlan, capabilities } = useAccess();
+  // Photos at once (owner decision 25 Nov): the plan's ceiling, held to this device's memory and cores. The
+  // scheduler still runs one heavy job at a time where free memory cannot be measured.
+  useEffect(() => {
+    const nav = typeof navigator === 'undefined' ? undefined : navigator as Navigator & { deviceMemory?: number };
+    engineScheduler.setCpuLimit(photoParallelism({
+      desktop: isDesktopApp() && !isMobileShell(), paid: capabilities.fullEditor, cloud: canByPlan('cloudAssist'),
+      cores: nav?.hardwareConcurrency, memoryGB: nav?.deviceMemory,
+    }).local);
+  }, [capabilities.fullEditor, canByPlan]);
   // One gate for the whole adapter: the plan's answer, or the developer-only Pro preview (see featureMap.ts).
   const can = useCallback((feature: Parameters<typeof canByPlan>[0]) => featureAccess(canByPlan)[feature as keyof ReturnType<typeof featureAccess>] ?? canByPlan(feature), [canByPlan]);
   const catalogue = useRef<BrowserCatalogueStore | null>(null);
@@ -617,9 +632,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useSpeciesScan({
     projectId: state?.shoot.id ?? '', frames: state?.frames ?? [], provider: provider.current,
     active: screen === 'editor' && Boolean(state) && can('speciesId'),
-    onResult: (frameId, patch) => setState((current) => (current ? { ...current, frames: current.frames.map((frame) =>
+    // A vehicle reading is carried across its burst: the same aircraft, read once, shown on every frame.
+    onResult: (frameId, patch) => setState((current) => (current ? { ...current, frames: carryVehicleReadings(current.frames.map((frame) =>
       frame.id === frameId && !frame.removedAt && !frame.speciesChecked && !frame.tags?.length && !frame.subjectNames?.length
-        ? { ...frame, ...patch, ...(frame.subjectKind && patch.subjectKind ? { subjectKind: frame.subjectKind } : {}) } : frame) } : current)),
+        ? { ...frame, ...patch, ...(frame.subjectKind && patch.subjectKind ? { subjectKind: frame.subjectKind } : {}) } : frame), VEHICLE_LABELS) } : current)),
   });
 
   // Bursts are refined quietly on this device from image embeddings (DINOv2): a real scene change splits a burst, and
@@ -651,31 +667,33 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const sourceProvider = provider.current!;
     const env = exportEnv.current;
     if (request.rawMaster) {
+      const masterFormat = request.rawMasterFormat === 'png' ? 'png' : 'tiff';
+      const png = masterFormat === 'png';
       const matches = current.frames.filter((frame) => frame.id === request.photoIds[0] && frame.removedAt == null);
-      if (request.photoIds.length !== 1 || matches.length !== 1) { setNotice(engineText.workspace.selectOneRaw); return; }
+      if (request.photoIds.length !== 1 || matches.length !== 1) { setNotice(png ? engineText.workspace.selectOneRawPng : engineText.workspace.selectOneRaw); return; }
       try {
         const frame = structuredClone(matches[0]);
         const ticket = await engineScheduler.submit({
-          title: engineText.workspace.rawTiffTask, kind: 'raw', resource: 'gpu', priority: 10,
+          title: png ? engineText.workspace.rawPngTask : engineText.workspace.rawTiffTask, kind: 'raw', resource: 'gpu', priority: 10,
           pauseable: false, items: [{ id: frame.id, name: frame.filename }],
           snapshot: { frameId: frame.id, originalSha256: frame.originalSha256 },
           itemId: item => item.id, itemLabel: item => item.name,
           runItem: async (_, __, ctx) => {
             ctx.stage(engineText.workspace.rawTiffDevelop);
-            const file = await buildRawMasterFile(frame, sourceProvider, ctx.signal);
+            const file = await buildRawMasterFile(frame, sourceProvider, ctx.signal, masterFormat);
             ctx.checkCancelled();
-            ctx.stage(engineText.workspace.rawTiffSave);
+            ctx.stage(png ? engineText.workspace.rawPngSave : engineText.workspace.rawTiffSave);
             if (!await saveExportFile(file, file.name, ctx.signal))
               throw new DOMException(engineText.workspace.saveCancelled, 'AbortError');
             ctx.acknowledgeCommitted();
-            ctx.commitIfCurrent(() => setNotice(engineText.workspace.rawTiffSaved));
+            ctx.commitIfCurrent(() => setNotice(png ? engineText.workspace.rawPngSaved : engineText.workspace.rawTiffSaved));
           },
         });
         const result = await ticket.finished;
-        if (result === 'failed') setNotice(engineText.workspace.rawTiffFailed);
-        else if (result === 'cancelled') setNotice(engineText.workspace.rawTiffCancelled);
+        if (result === 'failed') setNotice(png ? engineText.workspace.rawPngFailed : engineText.workspace.rawTiffFailed);
+        else if (result === 'cancelled') setNotice(png ? engineText.workspace.rawPngCancelled : engineText.workspace.rawTiffCancelled);
       } catch (reason) {
-        setNotice(reason instanceof Error ? reason.message : engineText.workspace.rawTiffNotQueued);
+        setNotice(reason instanceof Error ? reason.message : (png ? engineText.workspace.rawPngNotQueued : engineText.workspace.rawTiffNotQueued));
       }
       return;
     }
@@ -1647,6 +1665,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const target = frame.decision === 'keep' ? 'unreviewed' : 'keep';
       return withPartners([id], pairsRef.current).reduce((acc, member) => applyDecisionWithHistory(acc, member, target, { allowAdvance: false }), next);
     }, current)),
+    correctVehicle: (photoId, choice, wholeBurst) => {
+      const before = stateRef.current?.frames ?? [];
+      const after = correctVehicle(before, photoId, choice, wholeBurst, VEHICLE_LABELS);
+      if (after === before) return;
+      const changed = after.filter((frame, index) => frame !== before[index]).length;
+      mutate((current) => ({ ...current, shoot: { ...current.shoot, lastUpdatedAt: Date.now() }, frames: correctVehicle(current.frames, photoId, choice, wholeBurst, VEHICLE_LABELS) }));
+      setNotice(vehicleText.correct.saved(changed));
+    },
     correctSpeciesName: (photoId, proposedName) => {
       const name = proposedName.trim().slice(0, 120);
       if (!name) return;
@@ -2133,12 +2159,19 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     [stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: watermarkLibrary, auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
+  // Species names in the person's language arrive once, after start-up; the photo list is redrawn when they do.
+  const [speciesNamesVersion, setSpeciesNamesVersion] = useState(0);
+  useEffect(() => {
+    const stop = onSpeciesNamesLoaded(() => setSpeciesNamesVersion((version) => version + 1));
+    void loadSpeciesNames(language);
+    return stop;
+  }, []);
   const photos = useMemo(() => recountBursts((state?.frames ?? []).filter((frame) => !frame.removedAt && !pairs.rawOf.has(frame.id)).map((frame) => {
     const assist = assists[frame.id];
     const jpegId = pairs.jpegOf.get(frame.id);
     const pairedJpeg = jpegId ? state?.frames.find((candidate) => candidate.id === jpegId)?.filename : undefined;
     return withPairedJpeg(pairedJpeg, frameToPhoto(frame, urls[frame.id], { assist, watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed, sources: { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) } }));
-  })), [state?.frames, pairs, urls, assists, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes]);
+  })), [state?.frames, pairs, urls, assists, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes, speciesNamesVersion]);
   // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo
   // (ROADMAP.md, "Removed photos panel" next item). Thumbnails are not fetched for them; the filename is enough
   // to recognise one in a short list, and restoring returns it to the normal, already-thumbnailed photo list.
