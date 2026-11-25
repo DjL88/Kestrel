@@ -52,7 +52,7 @@ export function loadSpeciesNames(language: string): Promise<SpeciesNameIndex | u
       };
       const [all, local] = await Promise.all([
         read<IndexFile>('index.json'),
-        IOC_NAME_LANGUAGES.includes(code) ? read<LanguageFile>(`${code}.json`) : Promise.resolve({ names: {} }),
+        IOC_NAME_LANGUAGES.includes(code) ? read<LanguageFile>(`${code}.json`) : Promise.resolve<LanguageFile>({ names: {} }),
       ]);
       if (!Array.isArray(all.species) || typeof local.names !== 'object') throw new Error('species names are not in the expected format');
       loadedLanguage = language;
