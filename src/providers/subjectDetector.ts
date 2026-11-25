@@ -1,4 +1,4 @@
-import { createTimedSession } from './modelTiming';
+import { createOffThreadSession, type OffThreadSession } from './offThreadSession';
 import { sha256Hex } from '../core/sha256';
 import { assertSubjectActive, boundedSubjectGuide } from '../core/subjectCancellation';
 import { friendlyToolError } from '../core/toolErrors';
@@ -11,14 +11,14 @@ import type { SubjectDetail, SubjectGrid } from '../core/maskTypes';
 import { guideRegion, guidedGridSize, maskAgreesWithDetection } from '../core/subjectGuide';
 import { placeInRegion, sampledRegion } from '../core/subjectRegion';
 
-type Ort = typeof import('onnxruntime-web/wasm');
-interface Loaded { ort: Ort; session: import('onnxruntime-web/wasm').InferenceSession }
-
-let loading: Promise<Loaded> | null = null;
+let loading: Promise<OffThreadSession> | null = null;
 
 
-/** Loads the runtime and the bundled model once. The model is checked against its recorded checksum first. */
-function load(): Promise<Loaded> {
+/**
+ * Loads the bundled model once, checked against its recorded checksum first, and runs it in a worker so the interface
+ * never waits for it (it took 1-4 s per photo on the page's own thread on a phone).
+ */
+function load(): Promise<OffThreadSession> {
   loading ??= (async () => {
     const updated = await installedModel('u2netp');
     let bytes: ArrayBuffer;
@@ -34,15 +34,7 @@ function load(): Promise<Loaded> {
         throw new Error('The subject model file does not match its checksum, so it was not used.');
       }
     }
-    // The runtime loads on demand, and a hosted dev server can fail to serve it the first time. Try once more before giving up.
-    const ort = await import('onnxruntime-web/wasm').catch(async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 500));
-      return import('onnxruntime-web/wasm');
-    });
-    ort.env.wasm.numThreads = 1; // Avoids needing cross-origin isolation, so it works on any host and offline.
-    ort.env.wasm.proxy = false;
-    const session = await createTimedSession(ort, 'u2netp', new Uint8Array(bytes), { executionProviders: ['wasm'] });
-    return { ort, session };
+    return createOffThreadSession('u2netp', new Uint8Array(bytes));
   })().catch((error) => {
     loading = null; // Allow a retry after a failure.
     console.warn('Subject tools failed to load', error);
@@ -63,7 +55,7 @@ export async function detectSubject(preview: HTMLCanvasElement, options: { maxCo
 
 /** The model's subject map (inputSize × inputSize, 0 to 1) for a picture. */
 async function subjectMap(preview: HTMLCanvasElement): Promise<Float32Array> {
-  const { ort, session } = await load();
+  const session = await load();
   const size = SUBJECT_MODEL.inputSize;
   const small = document.createElement('canvas');
   small.width = size;
@@ -73,7 +65,7 @@ async function subjectMap(preview: HTMLCanvasElement): Promise<Float32Array> {
   context.imageSmoothingQuality = 'high';
   context.drawImage(preview, 0, 0, size, size);
   const input = preprocess(context.getImageData(0, 0, size, size).data, size);
-  const results = await session.run({ [session.inputNames[0]]: new ort.Tensor('float32', input, [1, 3, size, size]) });
+  const results = await session.run({ [session.inputNames[0]]: { data: input, dims: [1, 3, size, size] } });
   return readSubjectMap(results[session.outputNames[0]]?.data, size);
 }
 

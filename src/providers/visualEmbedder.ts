@@ -1,5 +1,5 @@
 import { sha256Hex } from '../core/sha256';
-import { createTimedSession } from './modelTiming';
+import { createOffThreadSession, type OffThreadSession } from './offThreadSession';
 import { EMBED_MODEL, embeddingCrop, encodeEmbedding, preprocessEmbedding, type StoredEmbedding } from '../core/visualSimilarity';
 import { friendlyToolError } from '../core/toolErrors';
 
@@ -8,11 +8,10 @@ import { friendlyToolError } from '../core/toolErrors';
  * onnxruntime-web WASM runtime as the other models on every platform. The file ships with the app and is checked
  * against its length and SHA-256 before use; a mismatch means no embeddings, and grouping stays time-based.
  */
-type Ort = typeof import('onnxruntime-web/wasm');
-interface Loaded { ort: Ort; session: import('onnxruntime-web/wasm').InferenceSession }
-let loading: Promise<Loaded> | null = null;
+let loading: Promise<OffThreadSession> | null = null;
 
-function load(): Promise<Loaded> {
+/** Runs in a worker (src/providers/offThreadSession.ts): on the page's own thread it held up the interface 1-4 s a photo. */
+function load(): Promise<OffThreadSession> {
   loading ??= (async () => {
     const response = await fetch(EMBED_MODEL.url);
     if (!response.ok) throw new Error('The photo similarity model is missing. Reinstall InFlight.');
@@ -22,11 +21,7 @@ function load(): Promise<Loaded> {
     if (bytes.byteLength !== EMBED_MODEL.bytes || await sha256Hex(bytes.buffer) !== EMBED_MODEL.sha256) {
       throw new Error('The photo similarity model failed its integrity check, so it was not used.');
     }
-    const ort = await import('onnxruntime-web/wasm');
-    ort.env.wasm.numThreads = 1;
-    ort.env.wasm.proxy = false;
-    const session = await createTimedSession(ort, 'dinov2-small-fp16', bytes, { executionProviders: ['wasm'] });
-    return { ort, session };
+    return createOffThreadSession('dinov2-small-fp16', bytes);
   })().catch((error) => {
     loading = null;
     console.warn('Photo similarity model failed to load', error);
@@ -37,7 +32,7 @@ function load(): Promise<Loaded> {
 
 /** The stored embedding for a picture, or null when the model gave no usable answer. */
 export async function embedPicture(picture: HTMLCanvasElement): Promise<StoredEmbedding | null> {
-  const { ort, session } = await load();
+  const session = await load();
   const size = EMBED_MODEL.size;
   const crop = embeddingCrop(picture.width, picture.height);
   const canvas = document.createElement('canvas');
@@ -48,7 +43,7 @@ export async function embedPicture(picture: HTMLCanvasElement): Promise<StoredEm
   context.imageSmoothingQuality = 'high';
   context.drawImage(picture, crop.x, crop.y, crop.size, crop.size, 0, 0, size, size);
   const input = preprocessEmbedding(context.getImageData(0, 0, size, size).data, size);
-  const results = await session.run({ pixel_values: new ort.Tensor('float32', input, [1, 3, size, size]) });
+  const results = await session.run({ pixel_values: { data: input, dims: [1, 3, size, size] } });
   const output = results.embedding ?? results[session.outputNames[0]];
   return encodeEmbedding(Float32Array.from(output.data as Float32Array));
 }
