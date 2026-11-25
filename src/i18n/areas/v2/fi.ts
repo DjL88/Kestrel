@@ -57,6 +57,8 @@ export const fi: AreaTranslation<typeof source> = {
       ? `Sijoitettuja kuvia: ${placed}.`
       : `Kuvia sijoitettu: ${placed} / ${dropped}. Tällä sivulla ei ole enää tyhjiä ruutuja. Lisää sivu lopuille kuville.`,
     noEmptyWindows: 'Tällä sivulla ei ole tyhjiä ruutuja. Korvaa ruudussa oleva kuva pudottamalla uusi kuva sen tilalle tai lisää sivu.',
+    windowsAdded: (n) => `Lisättiin ${n} uutta ruutua pudotuskohtaan.`,
+    windowLimitReached: (n) => `Sivulle mahtuu enintään ${n} ruutua. Lisää sivu lopuille.`,
     backgroundHeading: "Tausta",
     windowHeading: "Ruutu",
     backgroundPhoto: "Taustakuva",

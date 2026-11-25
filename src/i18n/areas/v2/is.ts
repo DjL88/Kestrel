@@ -56,6 +56,8 @@ export const is: AreaTranslation<typeof source> = {
       ? `Myndir settar inn: ${placed}.`
       : `Myndir settar inn: ${placed} af ${dropped}. Engir auðir reitir eru eftir á síðunni. Bættu við síðu fyrir myndirnar sem eftir eru.`,
     noEmptyWindows: 'Engir auðir reitir eru á síðunni. Slepptu mynd á reit til að skipta um mynd þar eða bættu við síðu.',
+    windowsAdded: (n) => `Bætti við ${n} nýjum reitum þar sem þú slepptir.`,
+    windowLimitReached: (n) => `Þessi síða rúmar allt að ${n} reiti. Bættu við síðu fyrir afganginn.`,
     backgroundHeading: "Bakgrunnur",
     windowHeading: "Reitur",
     backgroundPhoto: "Bakgrunnsmynd",

@@ -6,7 +6,7 @@ import {
   addCollagePage, canChangeCollageTemplate, MAX_COLLAGE_PAGES, MAX_COLLAGE_ZOOM, changeCollageFormat, changeCollageTemplate,
   collageCaptionGeometry, collageCaptionStyle, COLLAGE_CAPTION_FONTS, collagePage, collageShapes, collageSlotPlacement, COLLAGE_FORMATS, COLLAGE_TEMPLATES, deleteCollagePage, duplicateCollagePage,
   deleteCollagePageById, fillEmptyCollageSlots, modifyCollagePage, moveCollagePage, placeCollagePhoto, setCollageSlotFraming,
-  addCollageWindow, removeCollageWindow, setCollageWindowGeometry, MAX_COLLAGE_WINDOWS,
+  addCollageWindow, addCollageWindowsAt, removeCollageWindow, setCollageWindowGeometry, MAX_COLLAGE_WINDOWS,
 } from '../../../core/collage';
 
 import { PHOTO_DRAG_TYPE, readPhotoDrag } from '../utils/photoDrag';
@@ -226,10 +226,17 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
     setDropTarget(null);
     if (!ids.length) return;
     event.preventDefault();
-    const { doc: next, placed } = fillEmptyCollageSlots(doc, ids);
-    if (!placed) { setStatus(STRINGS.collage.noEmptyWindows); return; }
+    const { doc: filled, placed } = fillEmptyCollageSlots(doc, ids);
+    // Build your own layout: what doesn't fit an empty window gets a new window where it was dropped.
+    const box = event.currentTarget.getBoundingClientRect();
+    const at = { x: ((event.clientX - box.left) / Math.max(1, box.width)) * 100, y: ((event.clientY - box.top) / Math.max(1, box.height)) * 100 };
+    const { doc: next, added } = addCollageWindowsAt(filled, ids.slice(placed), at.x, at.y);
+    if (!placed && !added) { setStatus(STRINGS.collage.windowLimitReached(MAX_COLLAGE_WINDOWS)); return; }
     onChange(next);
-    setStatus(STRINGS.collage.placedCount(placed, ids.length));
+    if (added) setActiveSlot(collagePage(next).slots.at(-1)!.id);
+    const left = ids.length - placed - added;
+    setStatus([placed ? STRINGS.collage.placedCount(placed, placed) : '', added ? STRINGS.collage.windowsAdded(added) : '',
+      left ? STRINGS.collage.windowLimitReached(MAX_COLLAGE_WINDOWS) : ''].filter(Boolean).join(' '));
   };
   const acceptsPhotos = (event: React.DragEvent) => event.dataTransfer.types.includes(PHOTO_DRAG_TYPE);
 

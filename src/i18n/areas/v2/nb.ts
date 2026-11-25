@@ -56,6 +56,8 @@ export const nb: AreaTranslation<typeof source> = {
       ? `Plasserte bilder: ${placed}.`
       : `Plasserte bilder: ${placed} av ${dropped}. Det er ingen flere tomme felt på siden. Legg til en side for resten.`,
     noEmptyWindows: 'Det er ingen tomme felt på siden. Slipp bildet på et felt for å bytte ut bildet der, eller legg til en side.',
+    windowsAdded: (n) => `La til ${n} nye felt der du slapp.`,
+    windowLimitReached: (n) => `Siden har plass til opptil ${n} felt. Legg til en side for resten.`,
     backgroundHeading: "Bakgrunn",
     windowHeading: "Felt",
     backgroundPhoto: "Bakgrunnsbilde",

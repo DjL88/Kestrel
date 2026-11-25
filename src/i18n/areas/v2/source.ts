@@ -98,6 +98,8 @@ export const source = {
       ? `${placed} photograph${placed === 1 ? '' : 's'} placed.`
       : `${placed} of ${dropped} photographs placed. This page has no more empty windows; add a page for the rest.`,
     noEmptyWindows: "This page has no empty windows. Drop onto a window to replace its photograph, or add a page.",
+    windowsAdded: (n: number) => `Added ${n} new window${n === 1 ? '' : 's'} where you dropped.`,
+    windowLimitReached: (n: number) => `This page holds up to ${n} windows. Add a page for the rest.`,
     backgroundHeading: "Background",
     windowHeading: "Window",
     backgroundPhoto: "Background photograph",

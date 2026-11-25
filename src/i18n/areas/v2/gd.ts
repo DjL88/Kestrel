@@ -57,6 +57,8 @@ export const gd: AreaTranslation<typeof source> = {
       ? `Dealbhan air an cur ann: ${placed}.`
       : `Dealbhan air an cur ann: ${placed} à ${dropped}. Chan eil uinneag fhalamh eile ann. Cuir duilleag ris airson na tha air fhàgail.`,
     noEmptyWindows: 'Chan eil uinneag fhalamh air an duilleig seo. Leig dealbh air uinneag gus an dealbh aice a chur na àite, no cuir duilleag ris.',
+    windowsAdded: (n) => `Chaidh ${n} uinneag ùr a chur ris far an do leig thu às.`,
+    windowLimitReached: (n) => `Tha àite air an duilleig seo do suas ri ${n} uinneagan. Cuir duilleag ris airson a’ chòrr.`,
     backgroundHeading: "Cùlaibh",
     windowHeading: "Uinneag",
     backgroundPhoto: "Dealbh cùlaibh",

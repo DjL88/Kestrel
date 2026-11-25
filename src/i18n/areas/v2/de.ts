@@ -56,6 +56,8 @@ export const de: AreaTranslation<typeof source> = {
       ? `Platzierte Fotos: ${placed}.`
       : `Platzierte Fotos: ${placed} von ${dropped}. Auf dieser Seite gibt es keine leeren Fenster mehr. Fügen Sie für die restlichen Fotos eine Seite hinzu.`,
     noEmptyWindows: 'Auf dieser Seite gibt es keine leeren Fenster. Legen Sie ein Foto auf einem Fenster ab, um dessen Foto zu ersetzen, oder fügen Sie eine Seite hinzu.',
+    windowsAdded: (n) => `${n} neue Fenster dort hinzugefügt, wo Sie abgelegt haben.`,
+    windowLimitReached: (n) => `Diese Seite fasst bis zu ${n} Fenster. Fügen Sie für den Rest eine Seite hinzu.`,
     backgroundHeading: "Hintergrund",
     windowHeading: "Fenster",
     backgroundPhoto: "Hintergrundfoto",

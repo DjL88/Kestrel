@@ -56,6 +56,8 @@ export const fr: AreaTranslation<typeof source> = {
       ? `Photos placées : ${placed}.`
       : `Photos placées : ${placed} sur ${dropped}. Cette page n’a plus de fenêtres vides. Ajoutez une page pour les photos restantes.`,
     noEmptyWindows: 'Cette page n’a plus de fenêtres vides. Déposez une photo sur une fenêtre pour remplacer la photo qu’elle contient, ou ajoutez une page.',
+    windowsAdded: (n) => `${n} nouvelles fenêtres ajoutées là où vous avez déposé.`,
+    windowLimitReached: (n) => `Cette page accepte jusqu’à ${n} fenêtres. Ajoutez une page pour le reste.`,
     backgroundHeading: "Arrière-plan",
     windowHeading: "Fenêtre",
     backgroundPhoto: "Photo d’arrière-plan",

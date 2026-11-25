@@ -56,6 +56,8 @@ export const it: AreaTranslation<typeof source> = {
       ? `Foto inserite: ${placed}.`
       : `Foto inserite: ${placed} su ${dropped}. Questa pagina non ha più riquadri vuoti. Aggiungi una pagina per le foto rimanenti.`,
     noEmptyWindows: 'Questa pagina non ha riquadri vuoti. Rilascia la foto su un riquadro per sostituire quella presente o aggiungi una pagina.',
+    windowsAdded: (n) => `Aggiunti ${n} nuovi riquadri dove hai rilasciato.`,
+    windowLimitReached: (n) => `Questa pagina contiene fino a ${n} riquadri. Aggiungi una pagina per il resto.`,
     backgroundHeading: "Sfondo",
     windowHeading: "Riquadro",
     backgroundPhoto: "Foto di sfondo",

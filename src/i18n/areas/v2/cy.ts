@@ -56,6 +56,8 @@ export const cy: AreaTranslation<typeof source> = {
       ? `Lluniau wedi'u gosod: ${placed}.`
       : `Lluniau wedi'u gosod: ${placed} o ${dropped}. Nid oes rhagor o ffenestri gwag ar y dudalen hon. Ychwanegwch dudalen ar gyfer y gweddill.`,
     noEmptyWindows: 'Nid oes ffenestri gwag ar y dudalen hon. Gollyngwch lun ar ffenestr i ddisodli ei llun, neu ychwanegwch dudalen.',
+    windowsAdded: (n) => `Ychwanegwyd ${n} ffenestr newydd lle gollyngoch chi.`,
+    windowLimitReached: (n) => `Mae lle i hyd at ${n} ffenestr ar y dudalen hon. Ychwanegwch dudalen ar gyfer y gweddill.`,
     backgroundHeading: "Cefndir",
     windowHeading: "Ffenestr",
     backgroundPhoto: "Llun cefndir",

@@ -285,6 +285,23 @@ export function fillEmptyCollageSlots(doc: CollageDocument, photoIds: readonly s
   }
   return { doc: next, placed };
 }
+/** Build your own layout: photographs dropped on the page with no empty window left each get a new
+ * window, centred where they were dropped (later ones stepped down and right), up to the window limit.
+ * x and y are page percentages. Returns how many windows were added; the rest are not placed. */
+export function addCollageWindowsAt(doc: CollageDocument, photoIds: readonly string[], x: number, y: number): { doc: CollageDocument; added: number } {
+  const page = collagePage(doc);
+  const room = Math.max(0, MAX_COLLAGE_WINDOWS - page.slots.length);
+  const ids = photoIds.slice(0, room);
+  if (!ids.length) return { doc, added: 0 };
+  const size = 32;
+  const safe = (v: number) => (Number.isFinite(v) ? v : 50);
+  const slots: CollageSlot[] = ids.map((photoId, i) => ({
+    id: nextId(), photoId, angle: 0, width: size, height: size,
+    x: Math.min(100 - size, Math.max(0, safe(x) + i * 4 - size / 2)),
+    y: Math.min(100 - size, Math.max(0, safe(y) + i * 4 - size / 2)),
+  }));
+  return { doc: { ...doc, pages: doc.pages.map(p => p.id === page.id ? { ...p, customLayout: true, slots: [...p.slots, ...slots] } : p) }, added: ids.length };
+}
 /** Where a photograph sits in its window, as the share of the picture that shows.
  * Width and height are the picture's size relative to the window (always 1 or more),
  * left and top its offset (0 or less), all in window units. Preview and export both use this. */
