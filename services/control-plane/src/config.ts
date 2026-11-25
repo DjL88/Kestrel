@@ -35,6 +35,8 @@ export interface Config {
   userGoogleClientIds: string[];
   /** Apple Services ID (web) and app bundle ids accepted for Sign in with Apple. Not secrets. Empty: Apple sign-in is off. */
   appleClientIds: string[];
+  /** On Cloud Run (K_SERVICE is set) the client's address is the last X-Forwarded-For entry; the socket is Google's front end. */
+  trustCloudRunForwardedFor: boolean;
   /** Firebase project id whose ID tokens (Google, Apple, email sign-in done in the app) are accepted. Public, not a secret. */
   firebaseProjectId?: string;
 }
@@ -77,5 +79,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     userGoogleClientIds: (env.KCP_USER_GOOGLE_CLIENT_IDS ?? env.KCP_GOOGLE_CLIENT_ID ?? '').split(/[,\s]+/).map((v) => v.trim()).filter(Boolean),
     firebaseProjectId: env.KCP_FIREBASE_PROJECT_ID || undefined,
     appleClientIds: (env.KCP_APPLE_CLIENT_IDS ?? '').split(/[,\s]+/).map((v) => v.trim()).filter(Boolean),
+    trustCloudRunForwardedFor: !!env.K_SERVICE,
   };
 }

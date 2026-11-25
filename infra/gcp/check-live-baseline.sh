@@ -10,7 +10,7 @@ for c in git terraform jq tar; do command -v "$c" >/dev/null || fail "Missing $c
 [[ -f "$live/current.tfvars.json" && -f "$live/backend_override.tf" && -f "$live/.terraform.lock.hcl" ]] || fail "Missing private applied configuration"
 jq -e '.project_id=="kestrel-hosting" and .safe_copy_enabled and .gemini_gateway_enabled and .phase2_recovery and .phase2_monitoring and .pricing_review_enabled and .phase5_sumup_enabled' "$live/current.tfvars.json" >/dev/null || fail "Applied feature flags missing"
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
-git -C "$repo" archive "$ref" infra/gcp | tar -x -C "$tmp"
+git -C "$repo" archive "$ref" infra/gcp config | tar -x -C "$tmp"
 w="$tmp/infra/gcp"
 cp "$live/backend_override.tf" "$live/.terraform.lock.hcl" "$live/current.tfvars.json" "$w/"
 # Deliberately do not copy live_service_override: candidate source must reconcile it.
