@@ -9,6 +9,8 @@ mod oauth_loopback;
 #[cfg(desktop)]
 mod local_vision;
 #[cfg(desktop)]
+mod external_edit;
+#[cfg(desktop)]
 pub use kestrel_raw::scene_develop;
 #[cfg(desktop)]
 pub mod raw_precision;
@@ -73,6 +75,72 @@ fn queue_opened_files(app: &tauri::AppHandle, paths: Vec<std::path::PathBuf>) {
     if accepted.is_empty() { return; }
     if let Ok(mut pending) = app.state::<OpenedFiles>().0.lock() { pending.extend(accepted); }
     let _ = app.emit("open-files", ());
+}
+
+/// The working folder for files sent to another editor: inside the app's data folder, never beside an original.
+#[cfg(desktop)]
+fn external_edit_folder(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    app.path().app_data_dir().map(|dir| dir.join(external_edit::WORKING_FOLDER))
+        .map_err(|_| "InFlight could not find its own data folder.".to_string())
+}
+
+/// Write the edit the page sends (a 16-bit PNG) as a 16-bit TIFF in the working folder and open it in the chosen app
+/// (header `x-open-with`, a path to the app) or the system's default app for TIFF files. Returns the TIFF's path and stamp.
+#[cfg(desktop)]
+#[tauri::command]
+async fn external_edit_send(app: tauri::AppHandle, request: tauri::ipc::Request<'_>) -> Result<serde_json::Value, String> {
+    use tauri_plugin_opener::OpenerExt;
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else { return Err("No picture was sent.".into()) };
+    let bytes = bytes.to_vec();
+    let header = |name: &str| request.headers().get(name).and_then(|value| value.to_str().ok()).map(external_edit::percent_decode).transpose();
+    let name = external_edit::safe_file_name(&header("x-file-name")?.unwrap_or_else(|| "InFlight edit".into()), "tif")?;
+    let open_with = header("x-open-with")?.filter(|value| !value.is_empty()).map(std::path::PathBuf::from);
+    if let Some(chosen) = &open_with { external_edit::check_app(std::env::consts::OS, chosen)?; }
+    let folder = external_edit_folder(&app)?;
+    let path = tauri::async_runtime::spawn_blocking(move || {
+        let tiff = external_edit::png_to_tiff16(&bytes)?;
+        external_edit::write_new(&folder, &name, &tiff)
+    }).await.map_err(|_| "The TIFF could not be written.".to_string())??;
+    match &open_with {
+        Some(chosen) => {
+            let (program, args) = external_edit::launch_plan(std::env::consts::OS, chosen, &path);
+            std::process::Command::new(program).args(args).spawn()
+                .map_err(|_| "The other app did not open. The TIFF is saved in InFlight's working folder.".to_string())?;
+        }
+        None => app.opener().open_path(path.to_string_lossy(), None::<&str>)
+            .map_err(|_| "No app on this computer opened the TIFF. Choose an app instead.".to_string())?,
+    }
+    let stamp = external_edit::stamp(&path).ok_or_else(|| "The TIFF could not be checked after writing.".to_string())?;
+    Ok(serde_json::json!({ "path": path.to_string_lossy(), "size": stamp.size, "modifiedMs": stamp.modified_ms }))
+}
+
+/// The size and modified time of a file InFlight sent to another app, or nothing when it has gone.
+#[cfg(desktop)]
+#[tauri::command]
+fn external_edit_stamp(app: tauri::AppHandle, path: String) -> Result<Option<external_edit::FileStamp>, String> {
+    let folder = external_edit_folder(&app)?;
+    let path = std::path::PathBuf::from(path);
+    if !path.exists() { return Ok(None); }
+    if !external_edit::is_inside(&folder, &path) { return Err("That file is not one InFlight sent to another app.".into()); }
+    Ok(external_edit::stamp(&path))
+}
+
+/// Read the TIFF the other app saved and write it as a new 16-bit PNG in the working folder, which the page may then
+/// read and import. Returns the PNG's path and the bits per channel the other app saved.
+#[cfg(desktop)]
+#[tauri::command]
+async fn external_edit_bring_back(app: tauri::AppHandle, path: String, name: String) -> Result<serde_json::Value, String> {
+    let folder = external_edit_folder(&app)?;
+    let name = external_edit::safe_file_name(&name, "png")?;
+    let source = std::path::PathBuf::from(path);
+    let place = folder.clone();
+    let (png_path, bits) = tauri::async_runtime::spawn_blocking(move || {
+        let tiff = external_edit::read_returned(&place, &source)?;
+        let (png, bits) = external_edit::tiff_to_png16(&tiff)?;
+        external_edit::write_new(&place, &name, &png).map(|written| (written, bits))
+    }).await.map_err(|_| "The saved file could not be read.".to_string())??;
+    app.fs_scope().allow_file(&png_path).map_err(|_| "InFlight could not open the returned picture.".to_string())?;
+    Ok(serde_json::json!({ "path": png_path.to_string_lossy(), "bits": bits }))
 }
 
 /// The photos waiting to be opened, handed over once.
@@ -223,7 +291,7 @@ pub fn run() {
         .manage(OpenedFiles::default())
         .manage(OauthListener::default())
         .manage(local_vision::VisionState::default())
-        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure])
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure])
         .menu(|app| {
             let app_menu = Submenu::with_items(app, "InFlight", true, &[
                 &PredefinedMenuItem::about(app, None, None)?,
