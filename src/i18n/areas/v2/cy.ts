@@ -1024,4 +1024,10 @@ export const cy: AreaTranslation<typeof source> = {
     forgetBody: 'Os ydych wedi mewngofnodi, prynu trwydded, defnyddio cymorth cwmwl dewisol, neu anfon neges, mae InFlight yn cadw ychydig o ddata amdanoch ar ei weinyddion. Mae diffodd “helpu i wella awgrymiadau” eisoes yn dileu’r hyn a rannwyd gennych. I ddileu’r gweddill, anfonwch gais o’r cyfeiriad e-bost y gwnaethoch fewngofnodi ag ef. Nid oes gan InFlight ddileu gweinydd ag un tap eto, felly mae hyn yn mynd at berson, a chewch wybod beth, os unrhyw beth, y mae’n rhaid ei gadw (er enghraifft cofnodion talu y mae’r gyfraith yn eu mynnu).',
     forgetLink: 'Gofyn i InFlight ddileu data fy nghyfrif',
   },
+  crash: {
+    title: "Mae'r sgrin hon wedi stopio gweithio",
+    body: "Mae eich lluniau a'ch golygiadau'n ddiogel: nid yw InFlight byth yn newid eich ffeiliau gwreiddiol. Ail-lwythwch i barhau, ac anfonwch y manylion isod os bydd yn digwydd eto.",
+    reload: "Ail-lwytho InFlight",
+    details: "Manylion",
+  },
 };

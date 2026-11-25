@@ -164,3 +164,4 @@ test('Nikon ISO metadata rejects fractional, unsafe and non-numeric values', () 
   assert.equal(validExifIso(6400), 6400);
   assert.equal(validExifIso(102400), 102400);
 });
+

@@ -197,7 +197,10 @@ export async function parseImageExif(
   try {
     const metadata = isHeif ? await readHeifExif(file) : file;
     if (!metadata) return { formatLabel, isEmbeddedPreviewOnly: false };
-    const segments = await exifr.parse(metadata, { xmp: true, mergeOutput: false, gps: false, interop: false });
+    // A RAW's maker segments (XMP, thumbnails) can sit past the bytes read or be malformed. One bad segment must not
+    // lose the camera, lens and size, so a failed full read retries with only the main TIFF and EXIF directories.
+    const segments = await exifr.parse(metadata, { xmp: true, mergeOutput: false, gps: false, interop: false })
+      .catch(() => exifr.parse(metadata, { xmp: false, mergeOutput: false, gps: false, interop: false, ifd1: false, makerNote: false, userComment: false }));
     const parsed = { ...segments?.ifd0, ...segments?.exif };
     const rating = readEmbeddedRating(segments?.xmp?.Rating, parsed.Rating);
 

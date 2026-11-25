@@ -1024,4 +1024,10 @@ export const is: AreaTranslation<typeof source> = {
     forgetBody: 'Ef þú hefur skráð þig inn, keypt leyfi, notað valkvæða skýjahjálp eða sent skilaboð geymir InFlight lítið magn gagna um þig á netþjónum sínum. Ef þú slekkur á „hjálpa til við að bæta tillögur“ er því sem þú deildir þegar eytt. Til að fá restinni eytt skaltu senda beiðni úr netfanginu sem þú skráðir þig inn með. InFlight hefur ekki enn eyðingu á netþjóni með einum smelli, svo manneskja sér um beiðnina og þér verður sagt hvað, ef eitthvað, þarf að geyma (til dæmis greiðsluskrár sem lög krefjast).',
     forgetLink: 'Biðja InFlight að eyða aðgangsgögnunum mínum',
   },
+  crash: {
+    title: "Þessi skjár hætti að virka",
+    body: "Myndirnar þínar og breytingar eru öruggar: InFlight breytir aldrei upprunalegu skránum þínum. Endurhlaðaðu til að halda áfram og sendu upplýsingarnar hér að neðan ef þetta gerist aftur.",
+    reload: "Endurhlaða InFlight",
+    details: "Upplýsingar",
+  },
 };

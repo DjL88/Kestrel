@@ -1091,4 +1091,10 @@ export const source = {
     forgetBody: 'If you have signed in, bought a licence, used optional cloud help, or sent a message, InFlight holds a small amount of data about you on its servers. Turning off “help improve suggestions” already deletes what you shared. To have the rest erased, send a request with the email you signed in with. InFlight does not yet have a one-tap server erase, so this goes to a person, and you will be told what, if anything, must be kept (for example payment records the law requires).',
     forgetLink: 'Ask InFlight to erase my account data',
   },
+  crash: {
+    title: 'This screen stopped working',
+    body: 'Your photos and edits are safe: InFlight never changes your original files. Reload to carry on, and send the details below if it happens again.',
+    reload: 'Reload InFlight',
+    details: 'Details',
+  },
 };

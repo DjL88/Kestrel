@@ -1024,4 +1024,10 @@ export const nb: AreaTranslation<typeof source> = {
     forgetBody: 'Hvis du har logget inn, kjøpt en lisens, brukt den valgfrie skyhjelpen eller sendt en melding, har InFlight litt data om deg på sine servere. Når du slår av «hjelp til å forbedre forslag», slettes det du har delt. Vil du få resten slettet, sender du en forespørsel fra e-postadressen du logget inn med. InFlight har ennå ikke sletting på serveren med ett trykk, så forespørselen behandles av et menneske, og du får vite hva som eventuelt må beholdes (for eksempel betalingsopplysninger loven krever).',
     forgetLink: 'Be InFlight slette kontodataene mine',
   },
+  crash: {
+    title: "Denne skjermen sluttet å virke",
+    body: "Bildene og redigeringene dine er trygge: InFlight endrer aldri originalfilene dine. Last inn på nytt for å fortsette, og send detaljene nedenfor hvis det skjer igjen.",
+    reload: "Last inn InFlight på nytt",
+    details: "Detaljer",
+  },
 };
