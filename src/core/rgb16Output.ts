@@ -57,7 +57,7 @@ function spans(source: number, target: number): Array<[number, number, Float64Ar
  * (no randomness), hides the 8-bit steps of a gradient: the local average stays at the true 16-bit value.
  * `originX`/`originY` place a tile in a larger picture, so tiles join exactly.
  */
-export function ditherRgb16ToRgba8(image: Rgb16Image, originX = 0, originY = 0): Uint8ClampedArray {
+export function ditherRgb16ToRgba8(image: Rgb16Image, originX = 0, originY = 0): Uint8ClampedArray<ArrayBuffer> {
   const { width, height, data } = image;
   if (data.length !== width * height * 3) throw new Error('Invalid high-precision image.');
   const out = new Uint8ClampedArray(width * height * 4);
