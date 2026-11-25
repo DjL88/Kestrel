@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { onLaunchIntent, requestLaunch, resolveLaunchIntent, takeLaunchIntent } from './launchIntent';
+import { lastProjectFrom, onLaunchIntent, requestLaunch, resolveLaunchIntent, takeLaunchIntent } from './launchIntent';
 
 test('a project intent opens that project when it exists', () => {
   assert.deepEqual(resolveLaunchIntent({ kind: 'project', id: 'a' }, ['a', 'b']), { open: 'a', notice: null });
@@ -29,4 +29,13 @@ test('listeners hear a request and can stop listening', () => {
   requestLaunch({ kind: 'projects' });
   assert.equal(heard, 1);
   takeLaunchIntent();
+});
+
+test('the last-project snapshot carries an ISO edited date', () => {
+  const ts = Date.UTC(2026, 10, 25, 9, 30);
+  assert.deepEqual(lastProjectFrom({ id: 'a', name: 'Dawn', photoCount: 12, lastUpdatedAt: ts }), { id: 'a', name: 'Dawn', photoCount: 12, editedAt: new Date(ts).toISOString() });
+});
+
+test('an unusable timestamp gives no snapshot rather than throwing', () => {
+  assert.equal(lastProjectFrom({ id: 'a', name: 'Dawn', photoCount: 12, lastUpdatedAt: NaN }), null);
 });

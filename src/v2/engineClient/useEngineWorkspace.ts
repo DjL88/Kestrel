@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { flushSync } from 'react-dom';
 import { applyImportBatch, createImportHandoff, readPendingImport, writePendingImport, type ImportBatch, type ImportHandoff } from './importHandoff';
 import { marksOf } from '../../core/sharedMarks';
-import { applyDecisionWithHistory, assignBurstGroups, redoDecision, regroupBurstsWithEmbeddings, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
+import { computeCullCounts, applyDecisionWithHistory, assignBurstGroups, redoDecision, regroupBurstsWithEmbeddings, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
 import { recordEdit, stepEdit, type EditWhy } from '../../core/editHistory';
 import { deleteCheckpoint, forkEditCheckpoint, renameEditVersion, restoreCheckpoint, saveCheckpoint, switchEditVersion as switchVersionInCatalogue } from '../../core/editBranches';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
@@ -151,7 +151,7 @@ import { maskAdvice, maskVerificationKey } from './maskVerificationCommit';
 import { commitSubjectMask, subjectMaskTarget } from './subjectMaskCommit';
 import { createMask, createSubjectMask, framingKey, hasActiveMasks, type Mask } from '../../core/maskTypes';
 import { v2Text } from '../../i18n/areas/v2';
-import { onLaunchIntent, resolveLaunchIntent, takeLaunchIntent } from '../launchIntent';
+import { lastProjectFrom, onLaunchIntent, resolveLaunchIntent, takeLaunchIntent } from '../launchIntent';
 import { writeLastProject } from '../../providers/launchMemory';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../../core/photoFraming';
 import { estimateIlluminant, neutralBalance, samplePatch } from '../../core/neutralWhite';
@@ -647,8 +647,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       enterProject(project, restored);
       entered = true;
       // Remember it for the launch welcome's "pick up where you left off". Local only; erased with device data.
-      const summary = projectsRef.current.find((candidate) => candidate.id === id);
-      if (summary) writeLastProject({ id, name: summary.name, photoCount: summary.photoCount, editedAt: summary.updatedAt });
+      // Built from the loaded project, so it is written even before the hub list has filled.
+      const last = lastProjectFrom({
+        id,
+        name: project.shoot.title,
+        photoCount: computeCullCounts(project.frames.filter((frame) => !frame.removedAt)).all,
+        lastUpdatedAt: project.shoot.lastUpdatedAt,
+      });
+      if (last) writeLastProject(last);
     } catch {
       if (request === openRequest.current) {
         setHubState('ready');

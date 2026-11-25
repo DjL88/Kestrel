@@ -1,3 +1,5 @@
+import type { LastProject } from '../core/launchWelcome';
+
 /**
  * The bridge from the launch welcome (which lives in the splash layer, outside the V2 React tree) into V2.
  * The welcome calls requestLaunch; the workspace takes the intent once and resolves it against the projects it has
@@ -35,4 +37,12 @@ export function resolveLaunchIntent(
   return projectIds.includes(intent.id)
     ? { open: intent.id, notice: null }
     : { open: null, notice: 'missing-project' };
+}
+
+/** Pure: the remembered-project snapshot, with an ISO `editedAt`. Null when the timestamp is not a usable date. */
+export function lastProjectFrom(input: { id: string; name: string; photoCount: number; lastUpdatedAt: number }): LastProject | null {
+  if (!Number.isFinite(input.lastUpdatedAt)) return null;
+  const date = new Date(input.lastUpdatedAt);
+  if (Number.isNaN(date.getTime())) return null;
+  return { id: input.id, name: input.name, photoCount: input.photoCount, editedAt: date.toISOString() };
 }
