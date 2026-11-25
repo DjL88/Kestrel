@@ -13,6 +13,10 @@ import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvi
 import type { ExportRequest } from '../ui/contract';
 import { originalExportSize, type ExportJob, type ExportPlan } from './exportOps';
 import { createSplitRenderCache } from './splitRenderCache';
+import { master16Blocker } from '../../core/master16';
+import { DEFAULT_EDIT } from '../../core/photoEdits';
+import { canDevelopRaw, RawPrecisionUnavailableError } from '../../providers/rawDevelop';
+import { renderRaw16 } from '../../providers/rawMaster16';
 
 /** Each photo/format/edit-group/panel is one independently tracked scheduler unit.
  * Completed files are never re-rendered on an ordinary pause/resume. */
@@ -145,10 +149,35 @@ export async function scheduleV2PhotoExports(input: {
           const outputFormat = scaledOriginal ? { ...job.format, ...outputSize } : job.format;
           const overlay = variant.kind === 'unedited' ? null : await input.buildOverlay(frame, submitted.request);
           ctx.checkCancelled();
-          ctx.stage('Rendering complete edit, masks, crop and overlays');
+          // A RAW is edited at 16 bits from its sensor data and rounded to 8 bits once, at the very end. An edit the
+          // 16-bit renderer cannot carry yet keeps the 8-bit path, and the task says so rather than hiding it.
+          let precise: Awaited<ReturnType<typeof renderRaw16>> | undefined;
+          if (!frame.isDemo && isRawPreviewFile(frame.filename) && canDevelopRaw()) {
+            const blocker = master16Blocker(variant.edit ?? DEFAULT_EDIT, frame.framing);
+            if (blocker) {
+              ctx.stage(`8-bit export for ${frame.filename}: ${blocker}`);
+            } else {
+              ctx.stage('Developing RAW sensor data at 16 bits');
+              const original = await provider.ensureOriginal(frame.stableKey, 'selected');
+              ctx.checkCancelled();
+              if (!original) throw new Error(`Reconnect ${frame.filename} before exporting. The original RAW file is not available.`);
+              const originalSha256 = frame.originalSha256 && /^[a-f0-9]{64}$/.test(frame.originalSha256) ? frame.originalSha256 : undefined;
+              // Bound to the recorded fingerprint when there is one, so a changed file is refused rather than exported.
+              try {
+                precise = await renderRaw16(original, frame.filename, image, variant.edit ?? DEFAULT_EDIT, frame.framing, { originalSha256, signal: ctx.signal });
+              } catch (reason) {
+                // Only a refusal of the 16-bit path itself (compression that cannot be classified) falls back; a changed or
+                // unreadable original still stops the export.
+                if (!(reason instanceof RawPrecisionUnavailableError)) throw reason;
+                ctx.stage(`8-bit export for ${frame.filename}: ${reason.message}`);
+              }
+              ctx.checkCancelled();
+            }
+          }
+          ctx.stage(precise ? 'Rendering the 16-bit edit, crop and overlays' : 'Rendering complete edit, masks, crop and overlays');
           const result = await renderV2Export(
             image, { ...frame, edit: variant.edit }, outputSize, job.crop, toProfile(outputFormat),
-            overlay, started, ctx.signal, job.sections ?? 1,
+            overlay, started, ctx.signal, job.sections ?? 1, precise,
           );
           ctx.checkCancelled();
             return result.sections ?? [result.file];

@@ -12,10 +12,16 @@ substitutions:
   _FIREBASE_APP_ID: ''
   _CONTROL_PLANE_URL: ''
   _GRANT_KEYS: ''
+  # G10 build provenance. Trigger builds get the commit from $COMMIT_SHA. A manual `gcloud builds submit` has none, so pass
+  # --substitutions=_REVISION=$(git rev-parse HEAD) from a clean checkout. _RELEASE=1 makes the image build refuse an
+  # unknown revision (scripts/build-provenance.mjs), so nothing unlabelled is deployed.
+  _REVISION: '${COMMIT_SHA}'
+  _RELEASE: '1'
 steps:
   # The Firebase web SDK in package-lock.json requires Node 24.12 or newer.
   - name: node:24-bookworm
     entrypoint: sh
+    env: ['KESTREL_BUILD_REVISION=${_REVISION}']
     args: ['-c', 'npm ci --include=optional && npm run lint && npm test && node --test services/v2proto/server.test.mjs && npm run build']
   - name: gcr.io/cloud-builders/docker
     args:
@@ -23,6 +29,8 @@ steps:
       - -f
       - services/v2proto/Dockerfile
       - --build-arg=V2PROTO_REQUIRE_ONLINE_CONFIG=${_REQUIRE_ONLINE_CONFIG}
+      - --build-arg=KESTREL_BUILD_REVISION=${_REVISION}
+      - --build-arg=KESTREL_RELEASE=${_RELEASE}
       - --build-arg=VITE_FIREBASE_API_KEY=${_FIREBASE_API_KEY}
       - --build-arg=VITE_FIREBASE_AUTH_DOMAIN=${_FIREBASE_AUTH_DOMAIN}
       - --build-arg=VITE_FIREBASE_PROJECT_ID=${_FIREBASE_PROJECT_ID}
@@ -53,4 +61,6 @@ images:
   - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/v2proto:$SHORT_SHA'
 options:
   logging: CLOUD_LOGGING_ONLY
+  # Lets _REVISION default to the built-in ${COMMIT_SHA}.
+  dynamicSubstitutions: true
 timeout: 1800s

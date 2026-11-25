@@ -91,7 +91,11 @@ test('the committed vectors and thresholds match the labels', () => {
   for (const [index, threshold] of model.thresholds.entries()) {
     const measured = thresholds.tags[model.labels[index].id as keyof typeof thresholds.tags];
     assert.ok(measured, `${model.labels[index].id} has a measured entry`);
-    if (threshold !== null) assert.ok(threshold >= 0.5 && measured.precision >= 0.9, `${model.labels[index].id} passed its precision target`);
+    if (threshold === null) continue;
+    assert.ok(threshold >= 0.5 && measured.precision >= 0.9, `${model.labels[index].id} passed its precision target`);
+    // And again on the second, independent set: a tag is on only if both agree.
+    const confirmation = (measured as { confirmation?: { precision: number; recall: number } | null }).confirmation;
+    assert.ok(confirmation && confirmation.precision >= 0.9 && confirmation.recall >= 0.15, `${model.labels[index].id} was confirmed on the second set`);
   }
 });
 
