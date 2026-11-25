@@ -18,7 +18,9 @@
       { "url": "https://www.dropbox.com/oauth2/authorize*" },
       { "url": "https://accounts.google.com/o/oauth2/v2/auth*" },
       { "url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize*" },
-      { "url": "https://checkout.sumup.com/*" }
+      { "url": "https://checkout.sumup.com/*" },
+      { "url": "https://inflight.studio/checkout?_ptxn=*" },
+      { "url": "https://kestrel-hosting-kestrel.web.app/checkout?_ptxn=*" }
     ] },
     "updater:default",
     "process:allow-restart"

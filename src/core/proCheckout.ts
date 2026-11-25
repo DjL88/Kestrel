@@ -1,5 +1,5 @@
 /**
- * Buying Pro through the control plane's server-owned SumUp checkout (services/control-plane/README.md, "Buying Pro").
+ * Buying Pro through the control plane's server-owned checkout (Paddle, or SumUp until Paddle is live) (services/control-plane/README.md, "Buying Pro").
  * The server prices the order and binds it to the signed-in account; the app only opens SumUp's page, waits for the
  * server to say the payment is verified, then activates the device as for any other Pro account. Pure: no network.
  */
@@ -43,13 +43,32 @@ export function isSumUpCheckoutUrl(value: unknown): value is string {
   } catch { return false; }
 }
 
-const CHECKOUT_ID = /^[A-Za-z0-9-]{1,64}$/;
+/** Our own website's checkout page, where Paddle's checkout opens (Paddle's "default payment link"). */
+const PADDLE_CHECKOUT_HOSTS = new Set(['inflight.studio', 'kestrel-hosting-kestrel.web.app']);
+
+/**
+ * Paddle's checkout runs on our own website's /checkout page, which loads Paddle.js and opens the transaction named
+ * in `_ptxn`. Only that page on our own HTTPS hosts is opened.
+ */
+export function isPaddleCheckoutUrl(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password && !url.port && PADDLE_CHECKOUT_HOSTS.has(url.hostname)
+      && url.pathname === '/checkout' && /^txn_[a-z0-9]{26}$/.test(url.searchParams.get('_ptxn') ?? '');
+  } catch { return false; }
+}
+
+/** A payment page the app may open: SumUp's, or Paddle's on our own website. */
+export const isCheckoutUrl = (value: unknown): value is string => isSumUpCheckoutUrl(value) || isPaddleCheckoutUrl(value);
+
+const CHECKOUT_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 /** The answer to POST /v1/me/checkout/pro. */
 export function parseCheckoutStart(status: number, json: Record<string, unknown> | null): CheckoutStart {
   if (status === 201 || status === 200) {
     const { checkoutId, url, totalPence, currency } = json ?? {};
-    if (typeof checkoutId === 'string' && CHECKOUT_ID.test(checkoutId) && isSumUpCheckoutUrl(url)) {
+    if (typeof checkoutId === 'string' && CHECKOUT_ID.test(checkoutId) && isCheckoutUrl(url)) {
       return {
         ok: true, checkoutId, url,
         totalPence: Number.isSafeInteger(totalPence) && (totalPence as number) > 0 ? totalPence as number : null,

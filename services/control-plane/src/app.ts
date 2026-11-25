@@ -16,6 +16,8 @@ import { geminiProvider, identify, suggest, verifyColour, type AiProvider } from
 import type { CommerceLedger } from './commerce/ledger.ts';
 import type { TransactionRecord } from './commerce/records.ts';
 import { CheckoutCountryUnavailable, CheckoutLocationUnconfirmed, type sumupProCheckout } from './commerce/proCheckout.ts';
+import { PADDLE_ID, PaddleNotification, verifyPaddleSignature, type PaddleApi } from './commerce/paddle.ts';
+import type { PaddleProCheckout, PaddleSaleRecord } from './commerce/paddleCheckout.ts';
 import { emailHashOf, giftEntitlement } from './entitlement.ts';
 import { googleKeysFromNetwork, verifyGoogleIdToken, GOOGLE_CERTS_URL, type GoogleKeys } from './googleIdToken.ts';
 import { APPLE_ISSUER, APPLE_KEYS_URL, FIREBASE_KEYS_URL, firebaseIssuer, oidcKeysFromNetwork, verifyOidcIdToken, type OidcKeys } from './oidcIdToken.ts';
@@ -55,6 +57,19 @@ export interface AppOptions {
   settleSumupPro?: (checkoutId: string) => Promise<void>;
   /** Server-owned SumUp hosted checkout for Pro; off in production until the admin switches 'pro-checkout' on. */
   proCheckout?: ReturnType<typeof sumupProCheckout>;
+  /**
+   * Paddle (merchant of record). When set it replaces SumUp for buying Pro: checkout, verified notifications at
+   * POST /v1/billing/paddle, and pushing an approved price review to Paddle's catalogue.
+   */
+  paddle?: {
+    checkout: PaddleProCheckout;
+    webhookSecret: string;
+    api: Pick<PaddleApi, 'setPrices'>;
+    proPriceId: string;
+    sales?: { listPaddleSales(limit: number): Promise<PaddleSaleRecord[]> };
+    /** Remember notification ids so a replay is answered without work; true when first seen. */
+    rememberEvent?: (eventId: string, eventType: string, dataId: string) => Promise<boolean>;
+  };
   /** Country of the request's network address, looked up on the server (never sent by the client). */
   networkCountry?: (req: Request) => string | null;
   /** Google's ID-token signing keys. Injected for tests; fetched from Google otherwise. */
@@ -100,6 +115,7 @@ const ImageBody = z.object({
   image: z.string().min(4).max(Math.ceil(MAX_IMAGE_BYTES / 3) * 4 + 8).describe('Base64 JPEG, redrawn so it carries no camera metadata'),
   userConsent: z.boolean().describe('Must be true: the person agreed to send this photo'),
 }).strict();
+const AdminPricePush = z.object({ month: z.string().regex(/^\d{4}-\d{2}$/) }).strict();
 const AdminTaxSettings = z.object({
   ukVatRegistered: z.boolean(),
   ukVatNumber: z.string().max(22).optional(),
@@ -428,12 +444,14 @@ export function createApp(options: AppOptions) {
     { key: 'cloud-processing', label: 'Cloud processing', note: 'Heavier jobs (denoise, upscale, masks) for Pro. Needs the bucket and the runner job set up.' },
     { key: 'safe-copy', label: 'Safe copy (managed backup)', note: 'Opt-in backup to InFlight UK storage. Switching off stops uploads only; people can always read and delete their copy.' },
     { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
-    { key: 'pro-checkout', label: 'Pro checkout (SumUp)', note: 'People can pay for Pro through SumUp\'s hosted page. Their billing country must match their network location. Switching off stops new checkouts only; payments already made are still verified and granted.' },
+    options.paddle
+      ? { key: 'pro-checkout', label: 'Pro checkout (Paddle)', note: 'People can pay for Pro on Paddle\'s checkout. Paddle is the seller of record: it works out and pays VAT and sales tax, and sends receipts. Switching off stops new checkouts only; payments already made are still verified and granted.' }
+      : { key: 'pro-checkout', label: 'Pro checkout (SumUp)', note: 'People can pay for Pro through SumUp\'s hosted page. Their billing country must match their network location. Switching off stops new checkouts only; payments already made are still verified and granted.' },
     { key: 'collaboration', label: 'Shared projects', note: 'Cloud subscribers can share a project, invite people by email and check photos out to edit. Switching off stops new shared projects and checkouts; members can still read revisions.' },
     { key: 'pro-checkout-eu', label: 'Pro checkout for EU buyers', note: 'Switch on only once you are registered for OSS (EU VAT on digital sales). Until then EU buyers see that Pro is not on sale in their country yet.' },
   ] as const;
   type SwitchKey = typeof SWITCHES[number]['key'];
-  const switchConfigured = (key: SwitchKey) => key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'pro-checkout' || key === 'pro-checkout-eu' ? !!options.proCheckout : !!options.learning;
+  const switchConfigured = (key: SwitchKey) => key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'pro-checkout' ? !!(options.paddle || options.proCheckout) : key === 'pro-checkout-eu' ? !!options.proCheckout : !!options.learning;
   async function switchOn(key: SwitchKey): Promise<boolean> {
     if (key === 'managed-ai') return (await store.getSetting('ai_disabled')) !== '1';
     const legacy = key === 'cloud-processing' ? 'cloud_disabled' : key === 'safe-copy' ? 'safe_copy_disabled' : undefined;
@@ -824,7 +842,7 @@ export function createApp(options: AppOptions) {
       handler: async (req) => {
         const claims = await bearer(req);
         const checkout = options.proCheckout;
-        if (!checkout || !(await switchOn('pro-checkout'))) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Buying Pro is not open yet. Everything else keeps working.', true);
+        if ((!checkout && !options.paddle) || !(await switchOn('pro-checkout'))) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Buying Pro is not open yet. Everything else keeps working.', true);
         if (!checkoutLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
         const body = parseJson(Schemas.ProCheckoutRequest, req.rawBody);
         const t = now();
@@ -832,8 +850,15 @@ export function createApp(options: AppOptions) {
         if (current?.paid) throw new ApiError(409, 'ALREADY_PRO', 'This account already has Pro.');
         const account = await store.getAccount(claims.sub);
         if (!account?.emailHash) throw new ApiError(403, 'ACCOUNT_UNVERIFIED', 'Sign in again to buy Pro.');
+        if (options.paddle) {
+          let started;
+          try { started = await options.paddle.checkout.start({ accountId: claims.sub, emailHash: account.emailHash }); }
+          catch { throw new ApiError(502, 'CHECKOUT_UNAVAILABLE', 'The payment page could not be opened. Nothing was charged; try again shortly.', true); }
+          await audit(claims.sub, 'checkout.pro.start', 'allowed', started.checkoutId);
+          return { status: 201, body: started };
+        }
         try {
-          const started = await checkout.start({ accountId: claims.sub, emailHash: account.emailHash, country: body.country, networkCountry: options.networkCountry?.(req) ?? null, euSalesOpen: await switchOn('pro-checkout-eu') });
+          const started = await checkout!.start({ accountId: claims.sub, emailHash: account.emailHash, country: body.country, networkCountry: options.networkCountry?.(req) ?? null, euSalesOpen: await switchOn('pro-checkout-eu') });
           await audit(claims.sub, 'checkout.pro.start', 'allowed', started.checkoutId);
           return { status: 201, body: started };
         } catch (error) {
@@ -847,10 +872,12 @@ export function createApp(options: AppOptions) {
       method: 'GET', path: '/v1/me/checkout/pro/:id', summary: 'Signed in: has this checkout been paid and verified with SumUp? Paid means /v1/me/activate now returns Pro.', auth: 'user',
       handler: async (req, params) => {
         const claims = await bearer(req);
-        if (!options.proCheckout || !/^[A-Za-z0-9-]{1,64}$/.test(params.id ?? '')) throw new ApiError(404, 'NOT_FOUND', 'No such checkout.');
+        const id = params.id ?? '';
+        const provider = options.paddle && PADDLE_ID.test(id) ? options.paddle.checkout : /^[A-Za-z0-9-]{1,64}$/.test(id) ? options.proCheckout : undefined;
+        if (!provider) throw new ApiError(404, 'NOT_FOUND', 'No such checkout.');
         if (!checkoutLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'Checking too often. Wait a minute and try again.', true);
         let status: 'paid' | 'pending' | null;
-        try { status = await options.proCheckout.status({ accountId: claims.sub, checkoutId: params.id! }); }
+        try { status = await provider.status({ accountId: claims.sub, checkoutId: id }); }
         catch { throw new ApiError(503, 'SUMUP_VERIFICATION_PENDING', 'The payment is still being checked. Try again shortly.', true); }
         if (!status) throw new ApiError(404, 'NOT_FOUND', 'No such checkout.');
         return { status: 200, body: { status } };
@@ -1567,6 +1594,30 @@ export function createApp(options: AppOptions) {
       },
     },
     {
+      method: 'POST', path: '/v1/billing/paddle', summary: 'Paddle notification: signature checked, then the transaction is read back from Paddle before Pro is granted', auth: 'none',
+      handler: async (req) => {
+        const paddle = options.paddle;
+        if (!paddle) throw new ApiError(503, 'PADDLE_NOT_CONFIGURED', 'Paddle payments are not set up.');
+        const signature = req.headers['paddle-signature'];
+        if (!verifyPaddleSignature(req.rawBody, typeof signature === 'string' ? signature : undefined, paddle.webhookSecret, now())) {
+          throw new ApiError(401, 'WEBHOOK_SIGNATURE_INVALID', 'Paddle signature missing, wrong or outside the replay window.');
+        }
+        const event = parseJson(PaddleNotification, req.rawBody);
+        if (!sumupLimiter.take('paddle', now())) throw new ApiError(429, 'RATE_LIMITED', 'Retry this notification shortly.', true);
+        if (event.event_type === 'transaction.paid' || event.event_type === 'transaction.completed') {
+          if (PADDLE_ID.test(event.data.id)) {
+            // Settling is idempotent and re-reads Paddle, so a retried or replayed notification is harmless.
+            try { await paddle.checkout.settle(event.data.id); }
+            catch { throw new ApiError(503, 'PADDLE_VERIFICATION_PENDING', 'The payment verification will be retried.', true); }
+          }
+        }
+        // Everything else (subscriptions, refunds and chargebacks as adjustments) is kept for the admin console until
+        // its handling is built; Paddle stops retrying once it gets a 2xx.
+        await paddle.rememberEvent?.(event.event_id, event.event_type, event.data.id);
+        return { status: 200, body: { received: true } };
+      },
+    },
+    {
       method: 'POST', path: '/v1/billing/webhook', summary: 'Signed, idempotent billing events', auth: 'webhook', body: Schemas.WebhookEvent,
       handler: async (req) => {
         const signature = req.headers['kestrel-signature'];
@@ -1608,6 +1659,23 @@ export function createApp(options: AppOptions) {
         const claims = await admin(req, 'pricing.review.read');
         if (!options.pricing) throw new ApiError(503, 'PRICING_REVIEW_UNAVAILABLE', 'Price reviews need the Firestore commerce ledger.');
         return adminDone(claims, 'pricing.review.read', '', { review: await options.pricing.latestPriceReview() });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/pricing/paddle', summary: 'Approve the latest price review and send its prices to the Pro price in Paddle', auth: 'admin',
+      body: AdminPricePush,
+      handler: async (req) => {
+        const claims = await admin(req, 'pricing.paddle.push');
+        if (!options.pricing || !options.paddle) throw new ApiError(503, 'PADDLE_NOT_CONFIGURED', 'Sending prices needs Paddle and the price review.');
+        const body = parseJson(AdminPricePush, req.rawBody);
+        const review = await options.pricing.latestPriceReview();
+        // The month names exactly what the owner saw, so a newer review cannot be pushed by an old page.
+        if (!review || review.month !== body.month) throw new ApiError(409, 'REVIEW_CHANGED', 'The price review has changed. Reload and check it again.');
+        const local = review.prices.flatMap((p) => p.status === 'for-review' && p.currency !== 'GBP' ? [{ currency: p.currency, major: p.proposedMajor }] : []);
+        let sent;
+        try { sent = await options.paddle.api.setPrices(options.paddle.proPriceId, review.proposedGbpPence, local); }
+        catch { throw new ApiError(502, 'PADDLE_UNAVAILABLE', 'Paddle did not accept the prices. Nothing was changed; try again shortly.', true); }
+        return adminDone(claims, 'pricing.paddle.push', review.month + ' gbp=' + review.proposedGbpPence + ' local=' + sent.overrides, { sent: true, localPrices: sent.overrides, gbpPence: review.proposedGbpPence });
       },
     },
     {
@@ -1718,9 +1786,16 @@ export function createApp(options: AppOptions) {
       method: 'GET', path: '/v1/admin/payments', summary: 'Paid checkouts (SumUp) and signed billing events received', auth: 'admin',
       handler: async (req) => {
         const claims = await admin(req, 'payments.read');
-        const [transactions, events] = await Promise.all([options.payments ? options.payments.listTransactions(200) : Promise.resolve(null), store.listBillingEvents(200)]);
+        const [transactions, events, paddleSales] = await Promise.all([
+          options.payments ? options.payments.listTransactions(200) : Promise.resolve(null), store.listBillingEvents(200),
+          options.paddle?.sales ? options.paddle.sales.listPaddleSales(200) : Promise.resolve([]),
+        ]);
         return adminDone(claims, 'payments.read', '', {
-          connected: transactions !== null,
+          connected: transactions !== null || !!options.paddle,
+          paddleSales: paddleSales.map((s) => ({
+            reference: s.reference, transactionId: s.providerTransactionId, paidAt: s.paidAt, status: s.status, country: s.country,
+            currency: s.currency, totalMinor: s.totalMinor, subtotalMinor: s.subtotalMinor, taxMinor: s.taxMinor, accountId: s.accountId,
+          })),
           transactions: (transactions ?? []).map((t) => ({
             checkoutReference: t.checkoutReference, invoiceNumber: t.invoiceNumber, paidAt: t.paidAt, status: t.status, country: t.country,
             currency: t.currency, totalPence: t.totalPence, netPence: t.netPence, taxPence: t.taxPence, accountId: t.accountId,

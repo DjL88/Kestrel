@@ -3,6 +3,7 @@ import { commerceCollections, type RollingTurnoverRecord, type TaxSettingsRecord
 import { validateUkVatSettings, type TaxSettings } from './tax.ts';
 import { ukTurnoverMetrics } from './turnover.ts';
 import type { proposePrices } from './priceReview.ts';
+import type { PaddleSaleRecord } from './paddleCheckout.ts';
 
 export class CommerceLedger {
   constructor(private readonly db: Firestore) {}
@@ -62,6 +63,26 @@ export class CommerceLedger {
       transaction.create(document, sale);
       return sale;
     });
+  }
+
+  /**
+   * Paddle sales live apart from `transactions`: Paddle is the seller of record, so they are not ours for UK VAT
+   * turnover or OSS. Called only after the server has read the transaction back from Paddle. Replays return the first.
+   */
+  async recordPaddleSale(sale: PaddleSaleRecord): Promise<PaddleSaleRecord> {
+    if (sale.status !== 'paid' || !/^[A-Za-z0-9_-]{1,64}$/.test(sale.reference)) throw new Error('Invalid verified sale.');
+    const document = this.db.collection('paddle_sales').doc(sale.reference);
+    return this.db.runTransaction(async transaction => {
+      const existing = (await transaction.get(document)).data() as PaddleSaleRecord | undefined;
+      if (existing) return existing;
+      transaction.create(document, sale);
+      return sale;
+    });
+  }
+
+  async listPaddleSales(limit: number): Promise<PaddleSaleRecord[]> {
+    const rows = await this.db.collection('paddle_sales').orderBy('paidAt', 'desc').limit(limit).get();
+    return rows.docs.map(document => document.data() as PaddleSaleRecord);
   }
 
   /** Newest first, for the admin console. */

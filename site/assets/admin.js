@@ -432,7 +432,27 @@ async function loadPriceReview() {
     $('price-review-rows').append(row);
   }
   $('price-review-table').hidden = false;
+  $('price-push-row').hidden = false;
+  $('price-push-status').textContent = '';
+  $('price-push').dataset.month = review.month;
 }
+
+// Sends the reviewed prices to the Pro price in Paddle. The month is what the owner is looking at: the server refuses if
+// a newer review has arrived since.
+$('price-push').addEventListener('click', async () => {
+  const button = $('price-push');
+  const month = button.dataset.month;
+  if (!month || !confirm(`Send the ${month} prices to Paddle? New buyers will see them straight away.`)) return;
+  button.disabled = true;
+  $('price-push-status').textContent = 'Sending…';
+  try {
+    const result = await api('admin/pricing/paddle', { month });
+    $('price-push-status').textContent = `Sent: £${(result.gbpPence / 100).toFixed(2)} base price and ${result.localPrices} local prices.`;
+  } catch (error) {
+    if (error instanceof SignedOut) throw error;
+    $('price-push-status').textContent = error.message;
+  } finally { button.disabled = false; }
+});
 
 const taxForm = $('tax-settings');
 const ossForm = $('oss');

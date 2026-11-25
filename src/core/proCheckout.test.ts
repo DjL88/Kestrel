@@ -54,3 +54,17 @@ test('the suggested country comes from the language setting, and the list is eve
   assert.equal(priceText(4900, 'GBP', 'en-GB'), '£49.00');
   assert.equal(priceText(null, 'GBP'), null);
 });
+
+test('Paddle: only our own website\'s /checkout page with a Paddle transaction is opened', async () => {
+  const { isPaddleCheckoutUrl } = await import('./proCheckout.ts');
+  const txn = 'txn_' + 'a1'.repeat(13);
+  assert.equal(isPaddleCheckoutUrl('https://inflight.studio/checkout?_ptxn=' + txn), true);
+  assert.equal(isPaddleCheckoutUrl('https://kestrel-hosting-kestrel.web.app/checkout?_ptxn=' + txn), true);
+  for (const url of [
+    'http://inflight.studio/checkout?_ptxn=' + txn, 'https://evil.example/checkout?_ptxn=' + txn,
+    'https://inflight.studio.evil.example/checkout?_ptxn=' + txn, 'https://inflight.studio/other?_ptxn=' + txn,
+    'https://inflight.studio/checkout', 'https://inflight.studio/checkout?_ptxn=txn_x', 'https://a:b@inflight.studio/checkout?_ptxn=' + txn,
+  ]) assert.equal(isPaddleCheckoutUrl(url), false, url);
+  const started = parseCheckoutStart(201, { checkoutId: txn, url: 'https://inflight.studio/checkout?_ptxn=' + txn, totalPence: 2900, currency: 'GBP' });
+  assert.equal(started.ok, true);
+});

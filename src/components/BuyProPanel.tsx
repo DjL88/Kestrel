@@ -34,7 +34,7 @@ export function BuyProPanel({ offline, onPaid }: { offline: boolean; onPaid: () 
 
   async function buy() {
     if (busy || offline || !country) return;
-    // A browser only allows a new tab straight from the click, so open it now and point it at SumUp once the server answers.
+    // A browser only allows a new tab straight from the click, so open it now and point it at the payment page once the server answers.
     const preopened = isDesktopApp() ? null : window.open('', '_blank');
     if (preopened) { try { preopened.opener = null; } catch { /* already separate */ } }
     setBusy(true);
@@ -88,7 +88,7 @@ export function BuyProPanel({ offline, onPaid }: { offline: boolean; onPaid: () 
       <h4 id="buy-pro-h" className="font-medium">Buy InFlight Pro</h4>
       {waiting ? (
         <>
-          <p role="status">{waiting.opened ? 'Finish paying on the SumUp page in your browser.' : 'Open the SumUp page to pay.'}{waiting.price ? ` Total ${waiting.price}.` : ''} This updates by itself once the payment is confirmed.</p>
+          <p role="status">{waiting.opened ? 'Finish paying on the payment page in your browser.' : 'Open the payment page to pay.'}{waiting.price ? ` Total ${waiting.price}.` : ''} This updates by itself once the payment is confirmed.</p>
           <div className="flex flex-wrap gap-2">
             <a className={`${action} inline-flex items-center`} href={waiting.url} target="_blank" rel="noopener noreferrer"
               onClick={(event) => { if (!isDesktopApp()) return; event.preventDefault(); void openPage(waiting.url, null).then((ok) => { if (!ok) setNote({ text: 'This version could not open your browser. Copy the address below into your browser to pay.', good: false }); }); }}>
@@ -100,7 +100,7 @@ export function BuyProPanel({ offline, onPaid }: { offline: boolean; onPaid: () 
         </>
       ) : (
         <form className="space-y-2" onSubmit={(event) => { event.preventDefault(); void buy(); }}>
-          <p>Pro adds assisted culling, species suggestions and the online helper. Payment is on SumUp's own page; InFlight never sees your card. Your billing country must match where you are connecting from.</p>
+          <p>Pro adds assisted culling, species suggestions and the online helper. Payment is on a secure payment page; InFlight never sees your card.</p>
           <label className="block">Billing country
             <select className={`${field} mt-1`} value={country} onChange={(event) => setCountry(event.target.value)} required>
               <option value="" disabled>Choose a country</option>

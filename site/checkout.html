@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Pay for InFlight Pro</title>
+</head>
+<body style="font-family:system-ui,sans-serif;background:#111;color:#eee;display:grid;place-items:center;min-height:100vh;margin:0;padding:0 16px">
+<main style="max-width:32rem;line-height:1.5">
+  <h1 style="font-size:1.4rem">Pay for InFlight Pro</h1>
+  <p id="status" role="status">Opening the secure payment page…</p>
+  <p>Payment is handled by Paddle, our reseller and merchant of record. Paddle works out any VAT or sales tax and sends your receipt. InFlight never sees your card.</p>
+  <p>When you have paid, go back to InFlight: it checks the payment itself and turns Pro on once it is confirmed. If you close this page, nothing is charged. Your photos and edits are not affected either way.</p>
+  <p style="font-size:.85rem;color:#bbb"><a style="color:#9cf" href="/terms">Terms</a> · <a style="color:#9cf" href="/privacy">Privacy</a></p>
+</main>
+<script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+<script>
+  // Paddle's client-side token: public by design (it can only open checkouts), so it lives here, not in Secret Manager.
+  // Paddle → Developer tools → Authentication → Client-side tokens.
+  const PADDLE_CLIENT_TOKEN = 'PADDLE_CLIENT_TOKEN';
+  const status = document.getElementById('status');
+  const txn = new URLSearchParams(location.search).get('_ptxn') || '';
+  if (!/^txn_[a-z0-9]{26}$/.test(txn) || !window.Paddle || !/^(live|test)_[A-Za-z0-9]+$/.test(PADDLE_CLIENT_TOKEN)) {
+    status.textContent = 'The payment page could not be opened. Nothing was charged. Go back to InFlight and try again.';
+  } else {
+    if (PADDLE_CLIENT_TOKEN.startsWith('test_')) Paddle.Environment.set('sandbox');
+    // With _ptxn in the address, Paddle.js opens the checkout for that transaction itself.
+    Paddle.Initialize({
+      token: PADDLE_CLIENT_TOKEN,
+      eventCallback(event) {
+        if (event.name === 'checkout.completed') status.textContent = 'Payment received. You can close this page and go back to InFlight.';
+        if (event.name === 'checkout.closed') status.textContent = 'The payment page was closed. If you did not pay, nothing was charged.';
+      },
+    });
+  }
+</script>
+</body>
+</html>

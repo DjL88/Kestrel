@@ -283,6 +283,25 @@ resource "google_cloud_run_v2_service" "control_plane" {
         }
       }
       dynamic "env" {
+        for_each = var.paddle_enabled ? local.paddle_secrets : {}
+        content {
+          name = env.key
+          value_source {
+            secret_key_ref {
+              secret  = env.value
+              version = "latest"
+            }
+          }
+        }
+      }
+      dynamic "env" {
+        for_each = var.paddle_enabled && var.paddle_pro_price_id != "" ? [var.paddle_pro_price_id] : []
+        content {
+          name  = "KCP_PADDLE_PRO_PRICE_ID"
+          value = env.value
+        }
+      }
+      dynamic "env" {
         for_each = var.phase5_sumup_enabled ? [var.phase5_sumup_merchant] : []
         content {
           name  = "KCP_SUMUP_MERCHANT_CODE"
@@ -332,6 +351,7 @@ resource "google_cloud_run_v2_service" "control_plane" {
     google_secret_manager_secret_iam_member.licence_private_key,
     google_secret_manager_secret_iam_member.gemini_api_key,
     google_secret_manager_secret_iam_member.phase5_sumup,
+    google_secret_manager_secret_iam_member.paddle,
     google_service_account_iam_member.control_plane_url_signing,
     google_storage_bucket_iam_member.control_plane_objects,
     google_storage_bucket_iam_member.safe_copy_control_plane,

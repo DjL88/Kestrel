@@ -6,6 +6,8 @@ import { CommerceLedger } from './commerce/ledger.ts';
 import { sumupProSettlement, type ProPurchaseOrder } from './commerce/proSettlement.ts';
 import { sumupCheckouts } from './commerce/sumup.ts';
 import { sumupProCheckout, type StoredProOrder } from './commerce/proCheckout.ts';
+import { paddleApi } from './commerce/paddle.ts';
+import { paddleProCheckout, type PaddleProOrder } from './commerce/paddleCheckout.ts';
 import { FirestoreStore, type FirestoreLike } from './firestoreStore.ts';
 import { openFirestore, openStore } from './openStore.ts';
 import { buildOptionalServices } from './wiring.ts';
@@ -39,11 +41,34 @@ const proCheckout = firestore && commerce && sumup && settleSumupPro && siteUrl 
   redirectUrl: new URL('/pro-complete', siteUrl).toString(),
   callbackUrl: process.env.KCP_PUBLIC_API_URL?.trim() ? new URL('/v1/billing/sumup', process.env.KCP_PUBLIC_API_URL.trim()).toString() : undefined,
 }) : undefined;
+// Paddle (merchant of record) replaces SumUp once its key, notification secret and Pro price are all set.
+const paddleKey = process.env.KCP_PADDLE_API_KEY?.trim();
+const paddleSecret = process.env.KCP_PADDLE_WEBHOOK_SECRET?.trim();
+const paddlePrice = process.env.KCP_PADDLE_PRO_PRICE_ID?.trim();
+const paddle = firestore && commerce && paddleKey && paddleSecret && paddlePrice ? (() => {
+  const api = paddleApi({ apiKey: paddleKey, sandbox: process.env.KCP_PADDLE_SANDBOX === '1' });
+  const orders = firestore.collection('paddle_pro_orders');
+  return {
+    api, webhookSecret: paddleSecret, proPriceId: paddlePrice, sales: commerce,
+    checkout: paddleProCheckout({
+      api, proPriceId: paddlePrice, licences: store, recordSale: (sale) => commerce.recordPaddleSale(sale),
+      orders: {
+        // create() refuses to overwrite: a transaction is bound to one account for good.
+        save: async (order) => { await orders.doc(order.transactionId).create(order); },
+        get: async (id) => (await orders.doc(id).get()).data() as PaddleProOrder | undefined ?? null,
+      },
+    }),
+    rememberEvent: async (eventId: string, eventType: string, dataId: string) => {
+      try { await firestore.collection('paddle_events').doc(eventId).create({ eventType, dataId, receivedAt: new Date().toISOString() }); return true; }
+      catch { return false; }
+    },
+  };
+})() : undefined;
 const networkCountry = proCheckout ? networkCountryFrom(await dbipCountryLookup()) : undefined;
 const demoStudio = firestore && process.env.KCP_DEMO_PRIVATE_BUCKET && process.env.KCP_DEMO_PUBLIC_BUCKET
   ? new CloudDemoStudio(firestore, process.env.KCP_DEMO_PRIVATE_BUCKET, process.env.KCP_DEMO_PUBLIC_BUCKET) : undefined;
 const optional = await buildOptionalServices({ firestore: firestore as unknown as FirestoreLike | undefined });
-const app = createApp({ config, store, commerce, payments: commerce, settleSumupPro, proCheckout, networkCountry, pricing: commerce, demoStudio, cloud: optional.cloud, safeCopy: optional.safeCopy, collab: optional.collab, presence: optional.presence, gallery: optional.gallery, notices: optional.notices, cloudPhotos: optional.cloudPhotos, learning: optional.learning, learningWithdrawal: optional.learningWithdrawal, spend: optional.spend, requireAdminSwitch: true });
+const app = createApp({ config, store, commerce, payments: commerce, settleSumupPro, proCheckout, paddle, networkCountry, pricing: commerce, demoStudio, cloud: optional.cloud, safeCopy: optional.safeCopy, collab: optional.collab, presence: optional.presence, gallery: optional.gallery, notices: optional.notices, cloudPhotos: optional.cloudPhotos, learning: optional.learning, learningWithdrawal: optional.learningWithdrawal, spend: optional.spend, requireAdminSwitch: true });
 
 if (process.argv.includes('--print-openapi')) {
   process.stdout.write(`${JSON.stringify(openApi(app.routes), null, 2)}\n`);
