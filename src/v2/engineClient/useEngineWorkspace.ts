@@ -38,7 +38,7 @@ import { toPhotoHistogram } from './histogram';
 import { fullResolutionRasterFormat, isHeifFile, isRawPreviewFile } from '../../core/rawFormats';
 import { rawSensorSize } from '../../core/rawSensorSize';
 import { loadUi, mergeSettings, saveUi, type SavedUi } from './uiSettings';
-import { dropSourceUrls } from './previewInvalidation';
+import { dropSourcePreview, dropSourceUrls } from './previewInvalidation';
 import { applyCanvasPhotoEdit } from '../../core/canvasEdit';
 import { DEFAULT_EDIT as EMPTY_EDIT } from '../../core/photoEdits';
 import { DEFAULT_CROP, flipCrop, patchCrop, rotateCrop } from './cropOps';
@@ -438,13 +438,27 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         () => { /* the refreshed thumbnail stays */ },
       );
     };
+    // The full-preview cache made room: only the large preview was revoked. A photo revisited later asks again.
+    const onPreviewReleased = (event: Event) => {
+      const stableKey = (event as CustomEvent<string>).detail;
+      if (provider.current !== source || typeof stableKey !== 'string') return;
+      const frames = stateRef.current?.frames ?? [];
+      setUrls((current) => dropSourcePreview(current, frames, stableKey).urls);
+      const active = frames.find((frame) => frame.stableKey === stableKey && !frame.removedAt && frame.id === activeIdRef.current);
+      if (active) source.getFullPreviewUrl(active, 'selected').then(
+        (preview) => { if (provider.current === source && preview) setUrls((current) => ({ ...current, [active.id]: { ...current[active.id], preview } })); },
+        () => { /* the thumbnail stays */ },
+      );
+    };
     source.events.addEventListener('developed', onSourceChanged);
     source.events.addEventListener('preview-invalidated', onSourceChanged);
+    source.events.addEventListener('full-preview-released', onPreviewReleased);
     listenedProvider.current = {
       source,
       detach: () => {
         source.events.removeEventListener('developed', onSourceChanged);
         source.events.removeEventListener('preview-invalidated', onSourceChanged);
+        source.events.removeEventListener('full-preview-released', onPreviewReleased);
       },
     };
   });
