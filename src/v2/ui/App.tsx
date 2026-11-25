@@ -431,6 +431,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetRating={actions.setRating}
             onReconnectOriginal={actions.reconnectOriginal}
             onCorrectSpeciesName={actions.correctSpeciesName}
+            onCorrectVehicle={actions.correctVehicle}
           />
         );
       case 'tasks':
@@ -602,7 +603,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onToggleTheme={() =>
               actions.updateSettings({ theme: activeTheme === 'dark' ? 'light' : 'dark' })
             }
-            onToggleDemoUnavailable={actions.toggleDemoUnavailable}
+            hasActivePhoto={Boolean(activePhoto)}
+            onToggleDemoUnavailable={useStore === useWorkspace ? actions.toggleDemoUnavailable : undefined}
           />
 
           {/* Main Workspace Row */}

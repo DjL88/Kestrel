@@ -23,6 +23,8 @@ import { sameRecipe } from '../../core/naturalAuto';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { STRINGS } from '../ui/strings';
 import { engineText } from '../../i18n/areas/engine';
+import { displaySpeciesName } from '../../core/speciesNames';
+import { speciesNameIndex } from '../../providers/speciesNames';
 import type { AssistSuggestion, EditRecipe, PhotoHistogram } from '../ui/contract';
 import type { Task } from '../../core/taskStore';
 import { buildEditingSequence } from '../../core/editingSequence';
@@ -117,22 +119,26 @@ const titleOf = (filename: string) => filename.replace(/\.[^./\\]+$/, '');
 const extensionOf = (filename: string) => /\.([^./\\]+)$/.exec(filename)?.[1]?.toUpperCase();
 
 /** A photo's vehicle reading as words in the person's language, and the words it can be searched by (also in English). */
-export function vehicleWordsOf(frame: Pick<PhotoFrame, 'vehicle'>): { vehicleLabel?: string; searchTerms?: string[] } {
+export function vehicleWordsOf(frame: Pick<PhotoFrame, 'vehicle'>): { vehicleLabel?: string; searchTerms?: string[]; vehicleKind?: string; vehicleType?: string } {
   const reading = validVehicleReading(frame.vehicle, VEHICLE_LABELS);
   if (!reading) return {};
   return {
     vehicleLabel: vehicleLabel(reading, VEHICLE_LABELS, vehicleText),
     searchTerms: vehicleSearchWords(reading, VEHICLE_LABELS, [vehicleText, vehicleTextEnglish]),
+    ...(reading.kind ? { vehicleKind: reading.kind } : {}),
+    ...(reading.type ? { vehicleType: reading.type } : {}),
   };
 }
 
 /** The subject name for a photo. A name the app suggested itself is marked as a suggestion; nothing is shown when unknown. */
 export function speciesLabelOf(frame: Pick<PhotoFrame, 'subjectNames' | 'tags' | 'autoTags'>): string | undefined {
+  // Shown in the person's language: the local name, else the scientific name; a name nobody knows stays as stored.
+  const shown = (name: string) => displaySpeciesName(name, speciesNameIndex()).name;
   const chosen = frame.subjectNames?.[0];
-  if (chosen) return chosen;
+  if (chosen) return shown(chosen);
   const tag = frame.tags?.[0];
   if (!tag) return undefined;
-  return frame.autoTags?.includes(tag) ? engineText.suggestedName(tag) : tag;
+  return frame.autoTags?.includes(tag) ? engineText.suggestedName(shown(tag)) : shown(tag);
 }
 
 export function tileStateFor(urls: FrameUrls | undefined): TileState {

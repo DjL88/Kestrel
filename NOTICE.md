@@ -35,6 +35,13 @@ decoder would not avoid the patents.
 build (desktop, web and mobile), as one decoder for all platforms. The operating
 system's decoder is used only where InFlight's cannot read a file. The patent
 exposure is accepted by the owner; this note records it and is not legal advice.
+
+**Owner decision (25 Nov 2026): 16-bit output included.** The 19 Nov decision also
+covers 16-bit output of HE/HE* sensor data (16-bit TIFF and PNG masters and 16-bit
+exports), the same as every other RAW. Asked whether to lift the 16-bit gate, the
+owner answered "Yes, lift the gate". This records an accepted patent exposure, not a
+verified licence: the app's evidence keeps `commercialHeRightsVerified: false`.
+
 The code stays behind the `nikon-he` Cargo feature (on by default), so a build
 without it is one flag away (`--no-default-features`, or
 `npm run raw:wasm -- --without-nikon-he`) if that decision changes.
