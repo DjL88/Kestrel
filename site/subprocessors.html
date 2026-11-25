@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0E1116">
+  <link rel="icon" type="image/svg+xml" href="assets/brand/inflight/app-icons/favicon.svg">
+  <meta name="description" content="The companies that process personal data for InFlight's online features.">
+  <title>InFlight subprocessors</title>
+  <link rel="stylesheet" href="assets/legal.css">
+</head>
+<body>
+<header><div class="wrap"><a class="brand" href="/" aria-label="InFlight home">InFlight</a></div></header>
+<main><div class="wrap">
+  <h1>Subprocessors</h1>
+  <p class="when">Last changed 25 November 2026.</p>
+  <p class="notice"><strong>Pre-release draft, not legal advice.</strong> These are the companies that process personal data for InFlight's online features. None of them are used if you only use InFlight offline. We will update this page before adding a new one.</p>
+
+  <h2>Service providers acting for us</h2>
+  <div class="table"><table>
+    <thead><tr><th>Provider</th><th>What it does for InFlight</th><th>Data involved</th><th>Where</th></tr></thead>
+    <tbody>
+      <tr><td>Google Cloud (Google Cloud EMEA Ltd / Google LLC)</td><td>Runs our service (Cloud Run), its database (Firestore), private photo storage for shared projects and client galleries (Cloud Storage), secrets and logs</td><td>Account and licence records, shared-project records, cloud previews and originals you choose to store, server logs</td><td>London, UK (europe-west2)</td></tr>
+      <tr><td>Firebase Authentication (Google LLC)</td><td>Sign-in with Google, Apple or email and password; verification and password-reset emails</td><td>Email address, sign-in identifiers, sign-in times and internet address</td><td>United States and other Google locations</td></tr>
+      <tr><td>Firebase Hosting (Google LLC)</td><td>Serves this website and the web app</td><td>Server logs</td><td>Global network</td></tr>
+      <tr><td>Firebase Realtime Database (Google LLC)</td><td>Live cursors in shared projects</td><td>Pointer positions and display names while a project is open; nothing kept afterwards</td><td><span class="fill">[owner: region chosen when it is created, for example Belgium (europe-west1)]</span></td></tr>
+      <tr><td>Google Gemini API (Google LLC)</td><td>Managed second opinion, only if you switch it on</td><td>One downscaled copy of the photo, metadata removed. Google does not use paid-service data to train its models.</td><td>United States and other Google locations</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Independent companies with their own privacy notices</h2>
+  <div class="table"><table>
+    <thead><tr><th>Company</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td><a href="https://www.paddle.com/legal/privacy">Paddle.com Market Ltd</a> (UK)</td><td>Reseller and merchant of record: takes payments, charges tax, sends receipts and manages subscriptions.</td></tr>
+      <tr><td>Apple and Google app stores (when available)</td><td>Take payments for purchases made through their stores.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Services you choose yourself</h2>
+  <p>If you connect your own storage (S3-compatible, WebDAV, Dropbox, Google Drive or OneDrive) or your own Gemini key, InFlight talks to that provider directly from your device under your own agreement with them. We are not involved and they are not our subprocessors.</p>
+</div></main>
+<footer><div class="wrap"><a href="/">Back to InFlight</a> · <a href="/privacy">Privacy</a> · <a href="/cookies">Cookies</a> · <a href="/terms">Terms</a> · <a href="/acceptable-use">Acceptable use</a> · <a href="/subprocessors">Subprocessors</a> · <a href="/#contact">Contact</a></div></footer>
+</body>
+</html>
