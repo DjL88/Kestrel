@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { settleStorageDay, storageAllowsUpload } from './cloudStorageBilling.ts';
 import crypto from 'node:crypto';
 import { z } from 'zod';
 import type { EntitlementGrant } from '../../../src/core/entitlementGrant.ts';
@@ -581,6 +582,23 @@ export function createApp(options: AppOptions) {
     }
   }
 
+  /** Bytes in the cloud store across the projects this account pays for (projects it owns first). */
+  async function accountStoredBytes(accountId: string): Promise<number> {
+    if (!options.cloudPhotos || !options.collab) return 0;
+    const collabStore = options.collab, photos = options.cloudPhotos.store;
+    let total = 0;
+    for (const p of await collabStore.myProjects(accountId)) {
+      if (p.role !== 'owner') continue;
+      if ((await collabStore.payerOf(p.projectId).catch(() => null)) !== accountId) continue;
+      total += await photos.storedBytes(p.projectId);
+    }
+    return total;
+  }
+  /** Today's storage charge for one account (idempotent per day). */
+  async function settleStorage(accountId: string) {
+    if (!options.cloudBalance) return 'free' as const;
+    return settleStorageDay(options.cloudBalance, accountId, await accountStoredBytes(accountId), now());
+  }
   function cloudCfg() {
     if (!options.cloudPhotos) throw new ApiError(503, 'CLOUD_NOT_CONFIGURED', 'The cloud photo store is not set up on this server yet. Everything on your devices keeps working.');
     return options.cloudPhotos;
@@ -1251,6 +1269,12 @@ export function createApp(options: AppOptions) {
         const c = await collabWritable();
         await collab(() => c.requireMember(params.id, claims.sub, 'edit', params.photoId));
         const cfg = cloudCfg();
+        // Storage beyond the payer's free 2.5 GB needs a month of it in their cloud balance. Nothing stored is ever removed.
+        const payer = await collab(() => c.payerOf(params.id));
+        await settleStorage(payer);
+        if (!(await storageAllowsUpload(options.cloudBalance, payer, await accountStoredBytes(payer), body.bytes))) {
+          throw new ApiError(402, 'STORAGE_NEEDS_CREDIT', "This project's owner has used their free cloud storage. A cloud balance top-up lets more go up. Everything already stored stays.");
+        }
         return { status: 200, body: await cloud(() => cfg.store.signUpload(params.id, params.photoId, claims.sub, body, now(), cfg.maxProjectBytes)) };
       },
     },
@@ -1302,8 +1326,10 @@ export function createApp(options: AppOptions) {
         const cloud = options.cloud;
         const pro = await accountIsPro(claims.sub);
         const photos = cloud ? { photosUsed: (await cloud.ledger.periodUsed?.(claims.sub, now(), QUOTA_PERIOD_MS)) ?? 0, photosIncluded: pro ? cloud.jobsPerPeriod : (cloud.basicJobsPerPeriod ?? 0) } : {};
+        await settleStorage(claims.sub);
         const balance = options.cloudBalance ? { balanceCredits: (await options.cloudBalance.millicredits(claims.sub)) / 1000 } : {};
-        return { status: 200, body: { month: used.month, usedCredits: used.millicredits / 1000, allowanceCredits: allowance / 1000, bytes: used.bytes, downloads: used.downloads, plan: pro ? 'pro' : 'basic', ...photos, ...balance } };
+        const storedBytes = options.collab ? { storedBytes: await accountStoredBytes(claims.sub) } : {};
+        return { status: 200, body: { month: used.month, usedCredits: used.millicredits / 1000, allowanceCredits: allowance / 1000, bytes: used.bytes, downloads: used.downloads, plan: pro ? 'pro' : 'basic', ...photos, ...balance, ...storedBytes } };
       },
     },
     {
@@ -1863,6 +1889,21 @@ export function createApp(options: AppOptions) {
         await options.cloudBalance.credit(body.accountId, body.credits * 1000, `admin:${body.reference}`);
         const balanceCredits = (await options.cloudBalance.millicredits(body.accountId)) / 1000;
         return adminDone(claims, 'cloud.balance', `${body.accountId} +${body.credits} ref=${body.reference}`, { balanceCredits });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/cloud-storage/settle', summary: "Charge today's cloud storage beyond the free 2.5 GB for every paying account (daily scheduler; safe to repeat)", auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'cloud.storage.settle');
+        const cfg = cloudCfg();
+        const payers = new Set<string>();
+        for (const projectId of await cfg.store.projectIds()) {
+          const payer = await options.collab?.payerOf(projectId).catch(() => null);
+          if (payer) payers.add(payer);
+        }
+        const counts = { free: 0, charged: 0, unpaid: 0 };
+        for (const accountId of payers) counts[await settleStorage(accountId)]++;
+        return adminDone(claims, 'cloud.storage.settle', `accounts=${payers.size} charged=${counts.charged} unpaid=${counts.unpaid}`, counts);
       },
     },
     {

@@ -11,13 +11,14 @@ import { startHarness } from './helpers.ts';
 const sha = (c: string) => c.repeat(64);
 const KEY = `o_${'a'.repeat(64)}`;
 
-async function harness(allowanceCredits = 1, maxProjectBytes = 50_000_000) {
+async function harness(allowanceCredits = 1, maxProjectBytes = 50_000_000, cloudBalance?: import('../src/cloudBalance.ts').CloudBalance) {
   const db = new MemoryFirestore();
   const storage = new MemorySafeCopyStorage();
   const meter = new MemoryUsageMeter();
   const h = await startHarness(undefined, undefined, {
     collab: new CollabStore(db),
     cloudPhotos: { store: new CloudPhotoStore(db, storage), meter, allowance: new FlatAllowance(allowanceCredits * 1000), maxProjectBytes },
+    cloudBalance,
   });
   const person = async (email: string, plan?: 'subscriber') => {
     const id = await h.app.createAccount(email, 'a-long-password-123', 'user');
@@ -37,10 +38,10 @@ async function harness(allowanceCredits = 1, maxProjectBytes = 50_000_000) {
   return { h, owner, friend, viewer, call, P, meter, storage };
 }
 
-async function put(ctx: Awaited<ReturnType<typeof harness>>, variant: string, bytes: number, c = 'b') {
-  const r = await ctx.call('POST', `${ctx.P}/photos/${KEY}/cloud/upload-url`, ctx.owner.token, { variant, sha256: sha(c), bytes, name: 'Kite.NEF' });
+async function put(ctx: Awaited<ReturnType<typeof harness>>, variant: string, bytes: number, c = 'b', key = KEY) {
+  const r = await ctx.call('POST', `${ctx.P}/photos/${key}/cloud/upload-url`, ctx.owner.token, { variant, sha256: sha(c), bytes, name: 'Kite.NEF' });
   assert.equal(r.status, 200, JSON.stringify(r.body));
-  assert.equal((await ctx.call('POST', `${ctx.P}/photos/${KEY}/cloud/commit`, ctx.owner.token, { variant })).status, 200);
+  assert.equal((await ctx.call('POST', `${ctx.P}/photos/${key}/cloud/commit`, ctx.owner.token, { variant })).status, 200);
   return r.body;
 }
 
@@ -94,5 +95,31 @@ test('the project store has a size cap and removing a photo deletes its files', 
     assert.equal((await ctx.call('POST', `${ctx.P}/photos/${KEY}/cloud/upload-url`, ctx.owner.token, { variant: 'thumb', sha256: sha('e'), bytes: 300_000, name: 'x' })).status, 413);
     assert.equal((await ctx.call('POST', `${ctx.P}/photos/${KEY}/cloud/remove`, ctx.owner.token, {})).status, 200);
     assert.deepEqual((await ctx.call('GET', `${ctx.P}/cloud`, ctx.owner.token)).body.photos, []);
+  } finally { await ctx.h.close(); }
+});
+
+test('storage beyond the free 2.5 GB needs a month of it in the balance, and is charged once a day', async () => {
+  const { MemoryCloudBalance } = await import('../src/cloudBalance.ts');
+  const balance = new MemoryCloudBalance();
+  const ctx = await harness(1, 10_000_000_000, balance);
+  const key = (n: number) => `o_${String(n).repeat(64).slice(0, 64)}`;
+  try {
+    for (let n = 1; n <= 5; n++) await put(ctx, 'original', 500_000_000, String(n), key(n)); // 2.5 GB: all free
+    let r = await ctx.call('POST', `${ctx.P}/photos/${key(6)}/cloud/upload-url`, ctx.owner.token, { variant: 'original', sha256: sha('6'), bytes: 500_000_000, name: 'x' });
+    assert.equal(r.status, 402); assert.equal(r.body.error.code, 'STORAGE_NEEDS_CREDIT');
+    await balance.credit(ctx.owner.id, 100_000, 'topup:1'); // £1
+    await put(ctx, 'original', 500_000_000, '6', key(6)); // 0.5 GB over: 3.5p a month
+    r = await ctx.call('GET', '/v1/me/usage', ctx.owner.token);
+    assert.equal(r.body.storedBytes, 3_000_000_000);
+    assert.equal(r.body.balanceCredits, (100_000 - 117) / 1000, "today's 0.5 GB (0.117 credits) is charged once");
+    r = await ctx.call('POST', '/v1/admin/cloud-storage/settle', ctx.h.adminToken);
+    assert.equal(r.status, 200); assert.equal(await balance.millicredits(ctx.owner.id), 100_000 - 117, 'repeating the day charges nothing more');
+    ctx.h.clock.now += 86_400_000;
+    const adminToken = (await ctx.h.app.issueSession(await ctx.h.app.createAccount('admin2@example.test', 'admin-password-123', 'admin'), 'admin')).accessToken; // the first session has expired
+    r = await ctx.call('POST', '/v1/admin/cloud-storage/settle', adminToken);
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(await balance.millicredits(ctx.owner.id), 100_000 - 234, 'the next day is charged');
+    const friendToken = (await ctx.h.app.issueSession(ctx.friend.id, 'user')).accessToken;
+    assert.equal((await ctx.call('GET', '/v1/me/usage', friendToken)).body.storedBytes, 0, "an editor does not pay for the owner's project");
   } finally { await ctx.h.close(); }
 });
