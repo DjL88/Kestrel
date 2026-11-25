@@ -632,6 +632,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onDeleteProject={actions.deleteProject}
           onRestoreDeletedProject={actions.restoreDeletedProject}
           onDeleteProjectForever={actions.deleteProjectForever}
+          onDuplicateProject={actions.duplicateProject}
           onOpenSettings={() => actions.setSettingsOpen(true, 'appearance')}
           onToggleTheme={() =>
             actions.updateSettings({ theme: activeTheme === 'dark' ? 'light' : 'dark' })
