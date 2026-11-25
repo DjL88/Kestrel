@@ -87,9 +87,16 @@ or cloud HSMs, so a new certificate normally cannot be exported as a `.pfx` for 
   account. Secrets: `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`, `AZURE_SIGNING_ENDPOINT` (the account's
   region endpoint, for example `https://weu.codesigning.azure.net`), `AZURE_SIGNING_ACCOUNT` and `AZURE_SIGNING_PROFILE`
   (the two names chosen in the portal).
+- **SSL.com eSigner (the route for a UK individual; owner's choice, 25 Nov 2026).** Azure only verifies individuals in the
+  US and Canada. Buy an *IV (Individual Validated) Code Signing* certificate at ssl.com (about US$129 a year) and an
+  *eSigner* cloud-signing plan (Tier 1: 20 signings a month, US$20 a month or US$180 a year; each release signs a few
+  files). After validation, enrol the certificate in eSigner and choose **TOTP** for automated signing; keep the TOTP
+  secret it shows (the base32 text, not the QR picture). Secrets: `ES_USERNAME` and `ES_PASSWORD` (the ssl.com login),
+  `ES_CREDENTIAL_ID` (the certificate's eSigner credential ID) and `ES_TOTP_SECRET`. `release.yml` downloads SSL.com's
+  CodeSignTool and `scripts/windows/esigner-sign.ps1` signs each file Tauri asks it to.
 - **A certificate file**, only if one that can be exported as `.pfx` is available: `WINDOWS_CERTIFICATE` (base64 of the
   `.pfx`: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("cert.pfx")) | Set-Clipboard`) and
-  `WINDOWS_CERTIFICATE_PASSWORD`. Do not set both routes; the release stops if both are present.
+  `WINDOWS_CERTIFICATE_PASSWORD`. Set only one Windows route; the release stops if more than one is present.
 - Check on a clean PC: the installer shows the publisher name in the User Account Control prompt, installs and uninstalls
   cleanly, and an install over an older version keeps the catalogue. New certificates still build SmartScreen reputation
   over the first downloads.

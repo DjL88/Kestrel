@@ -6,7 +6,7 @@ name: Release desktop apps
 # Signing switches itself on from the repository secrets that exist (scripts/release-signing.mjs):
 #   update files: TAURI_SIGNING_PRIVATE_KEY (+ optional TAURI_SIGNING_PRIVATE_KEY_PASSWORD)
 #   macOS: APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY; notarising adds APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID
-#   Windows: Azure Trusted Signing (AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID, AZURE_SIGNING_ENDPOINT,
+#   Windows: SSL.com eSigner (ES_USERNAME, ES_PASSWORD, ES_CREDENTIAL_ID, ES_TOTP_SECRET), Azure Trusted Signing (AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID, AZURE_SIGNING_ENDPOINT,
 #            AZURE_SIGNING_ACCOUNT, AZURE_SIGNING_PROFILE) or a certificate file (WINDOWS_CERTIFICATE, WINDOWS_CERTIFICATE_PASSWORD)
 # With no secrets the builds are unsigned and the release says so. A half-configured part stops the release.
 # Owner steps: docs/DESKTOP.md, "Signing and notarising checklist".
@@ -93,6 +93,20 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
         run: |
           if [ -n "$AZURE_CLIENT_ID" ]; then cargo install trusted-signing-cli --locked; fi
+      - name: Install SSL.com CodeSignTool (only when its secrets exist)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          ES_USERNAME: ${{ secrets.ES_USERNAME }}
+        run: |
+          if (-not $env:ES_USERNAME) { exit 0 }
+          $zip = Join-Path $env:RUNNER_TEMP 'codesigntool.zip'
+          $dir = Join-Path $env:RUNNER_TEMP 'codesigntool'
+          Invoke-WebRequest -Uri 'https://www.ssl.com/download/codesigntool-for-windows/' -OutFile $zip
+          Expand-Archive $zip -DestinationPath $dir -Force
+          $bat = Get-ChildItem $dir -Recurse -Filter CodeSignTool.bat | Select-Object -First 1
+          if (-not $bat) { throw 'CodeSignTool.bat not found in the SSL.com download.' }
+          "CODESIGNTOOL_DIR=$($bat.DirectoryName)" >> $env:GITHUB_ENV
       - name: Choose signing from the secrets that exist
         id: signing
         env:
@@ -110,6 +124,10 @@ jobs:
           AZURE_SIGNING_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
           AZURE_SIGNING_ACCOUNT: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
           AZURE_SIGNING_PROFILE: ${{ secrets.AZURE_SIGNING_PROFILE }}
+          ES_USERNAME: ${{ secrets.ES_USERNAME }}
+          ES_PASSWORD: ${{ secrets.ES_PASSWORD }}
+          ES_CREDENTIAL_ID: ${{ secrets.ES_CREDENTIAL_ID }}
+          ES_TOTP_SECRET: ${{ secrets.ES_TOTP_SECRET }}
           WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
           WINDOWS_CERTIFICATE_THUMBPRINT: ${{ steps.wincert.outputs.thumbprint }}

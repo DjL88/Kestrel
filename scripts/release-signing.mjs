@@ -7,6 +7,9 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 
+/** SSL.com eSigner credentials, as named in SSL.com's GitHub Actions guide. */
+export const ESIGNER = ['ES_USERNAME', 'ES_PASSWORD', 'ES_CREDENTIAL_ID', 'ES_TOTP_SECRET'];
+
 const has = (env, name) => typeof env[name] === 'string' && env[name].trim() !== '';
 
 // Turns a group of secrets on only when every required one is present.
@@ -56,19 +59,27 @@ export function planSigning({ os, env }) {
     here.push(`macOS app ${apple}`);
   }
 
-  // Windows: either Azure Trusted Signing (cloud, no certificate file) or an exportable .pfx certificate. Not both.
+  // Windows, exactly one of: Azure Artifact (Trusted) Signing for companies, an SSL.com eSigner cloud certificate
+  // (works for UK individuals), or an exportable .pfx certificate.
   const azure = group(env, 'Windows Azure Trusted Signing', ['AZURE_CLIENT_ID', 'AZURE_CLIENT_SECRET', 'AZURE_TENANT_ID', 'AZURE_SIGNING_ENDPOINT', 'AZURE_SIGNING_ACCOUNT', 'AZURE_SIGNING_PROFILE'], errors);
+  const esigner = group(env, 'Windows SSL.com eSigner', ESIGNER, errors);
   const pfx = group(env, 'Windows certificate file', ['WINDOWS_CERTIFICATE', 'WINDOWS_CERTIFICATE_PASSWORD'], errors);
-  if (azure && pfx) errors.push('Windows: both Azure Trusted Signing and a certificate file are configured. Keep one.');
-  const windows = azure ? 'signed (Azure Trusted Signing)' : pfx ? 'signed (certificate)' : 'unsigned';
-  if (os === 'Windows') {
-    if (azure && !pfx) {
+  if ([azure, esigner, pfx].filter(Boolean).length > 1) errors.push('Windows: more than one signing route is configured (Azure, SSL.com eSigner, certificate file). Keep one.');
+  const windows = azure ? 'signed (Azure Trusted Signing)' : esigner ? 'signed (SSL.com eSigner)' : pfx ? 'signed (certificate)' : 'unsigned';
+  const onlyOne = [azure, esigner, pfx].filter(Boolean).length === 1;
+  if (os === 'Windows' && onlyOne) {
+    if (esigner) {
+      for (const name of ESIGNER) exports[name] = env[name];
+      // release.yml installs CodeSignTool; the script signs %1 in place and fails loudly if eSigner refuses.
+      const script = `${(env.GITHUB_WORKSPACE ?? '.').replaceAll('\\', '/')}/scripts/windows/esigner-sign.ps1`;
+      config.bundle.windows = { signCommand: `pwsh -NoProfile -ExecutionPolicy Bypass -File ${script} %1` };
+    } else if (azure) {
       for (const name of ['AZURE_CLIENT_ID', 'AZURE_CLIENT_SECRET', 'AZURE_TENANT_ID']) exports[name] = env[name];
       // trusted-signing-cli is installed by the workflow; %1 is the file Tauri asks to sign.
       config.bundle.windows = {
         signCommand: `trusted-signing-cli -e ${env.AZURE_SIGNING_ENDPOINT} -a ${env.AZURE_SIGNING_ACCOUNT} -c ${env.AZURE_SIGNING_PROFILE} -d InFlight %1`,
       };
-    } else if (pfx && !azure) {
+    } else if (pfx) {
       if (!has(env, 'WINDOWS_CERTIFICATE_THUMBPRINT')) {
         errors.push('Windows certificate file: the certificate was not imported, so there is no thumbprint to sign with.');
       } else {
@@ -79,8 +90,8 @@ export function planSigning({ os, env }) {
         };
       }
     }
-    here.push(`Windows installer ${windows}`);
   }
+  if (os === 'Windows') here.push(`Windows installer ${windows}`);
 
   const used = updater || Object.keys(config.bundle).length > 0;
   return { errors, exports, config: used ? config : null, release: { updater, apple, windows }, here };
