@@ -1926,17 +1926,17 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
-    setMaskLimit: (photoId, maskId, limit) => {
+    setMaskParts: (photoId, maskId, parts) => {
       updatePhotoById(photoId, photo => {
-        if (limit && (limit.id === maskId || !photo.masks.some(m => m.id === limit.id))) return photo;
-        return { ...photo, masks: photo.masks.map(m => m.id === maskId ? { ...m, limit: limit ?? undefined } : m) };
+        if (parts.some(part => part.id === maskId || !photo.masks.some(m => m.id === part.id))) return photo;
+        return { ...photo, masks: photo.masks.map(m => m.id === maskId ? { ...m, parts: parts.length ? parts.map(part => ({ ...part })) : undefined } : m) };
       });
     },
 
     removeMaskLayer: (photoId, maskId) => {
       updatePhotoById(photoId, (photo) => ({
         ...photo,
-        masks: photo.masks.filter((m) => m.id !== maskId).map(m => m.limit?.id === maskId ? { ...m, limit: undefined } : m),
+        masks: photo.masks.filter((m) => m.id !== maskId).map(m => m.parts?.some(part => part.id === maskId) ? { ...m, parts: m.parts.filter(part => part.id !== maskId) } : m),
       }));
     },
 

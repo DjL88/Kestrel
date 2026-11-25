@@ -6,7 +6,7 @@ import { findEye, lumaOf } from '../../core/eyeFinder';
 import type { RegionChoice } from '../../core/trueDetailHybrid';
 import { isNeutralEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto } from '../../core/photoFraming';
-import { createSubjectMask, framingKey, MAX_MASKS, type Mask } from '../../core/maskTypes';
+import { createSubjectMask, framingKey, isCombined, MAX_MASKS, type Mask } from '../../core/maskTypes';
 import type { Pixels } from '../../core/colourCheck';
 import type { PhotoFrame } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
@@ -121,7 +121,7 @@ export async function runV2Denoise(
   const lumaPerStrength = asked > 0 ? luminance / asked : 0;
   const remaining = existing.filter(mask => !isAutoDenoiseLayer(mask.id, id));
   let subjects = remaining.filter((mask): mask is Extract<Mask, { kind: 'subject' }> =>
-    mask.kind === 'subject' && !mask.hidden && !mask.invert && !mask.limit &&
+    mask.kind === 'subject' && !mask.hidden && !mask.invert && !isCombined(mask) &&
     mask.confidence !== 'low' && mask.framingKey === framingKey(framing));
   let detectionUnavailable = false;
   let newLayers: Mask[] = [];

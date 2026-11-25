@@ -368,7 +368,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetMaskEdit={actions.setMaskEdit}
             onSetMaskFeather={actions.setMaskFeather}
             onSetMaskGeometry={actions.setMaskGeometry}
-            onSetMaskLimit={actions.setMaskLimit}
+            onSetMaskParts={actions.setMaskParts}
             onPreviewMask={setMaskGuide}
           />
         );
