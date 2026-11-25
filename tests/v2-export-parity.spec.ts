@@ -56,6 +56,29 @@ async function exportZip(page: Page, dialog: Locator): Promise<Record<string, Bu
   return Object.fromEntries(Object.entries(files).map(([name, bytes]) => [name, Buffer.from(bytes)]));
 }
 
+
+const EXPORT_TIME = /\d{4}:\d{2}:\d{2} \d{2}:\d{2}:\d{2}/g;
+/**
+ * Every export is stamped with the time it was made (src/core/exportTimestamp.ts), so two exports made seconds apart
+ * differ in those bytes only. Blank the stamp, keep everything else: pixels, ICC profile and every other byte must match.
+ */
+function withoutExportTime(bytes: Buffer): Buffer {
+  const out = Buffer.from(bytes);
+  if (out.readUInt32BE(0) === 0x89504e47) {
+    const at = out.indexOf('eXIf');
+    expect(at, 'a PNG export carries its eXIf time stamp').toBeGreaterThan(0);
+    out.fill(0, at + 4, at + 4 + out.readUInt32BE(at - 4) + 4); // the chunk's data and CRC
+  } else {
+    expect(out[2] === 0xff && out[3] === 0xe1, 'a JPEG export starts with its Exif time stamp').toBe(true);
+    const segment = out.subarray(4, 4 + out.readUInt16BE(4));
+    const stamps = [...segment.toString('latin1').matchAll(EXPORT_TIME)];
+    expect(stamps.length, 'the Exif block holds the export time').toBeGreaterThan(0);
+    for (const stamp of stamps) segment.fill(0, stamp.index!, stamp.index! + 19);
+  }
+  return out;
+}
+const same = (a: Buffer | undefined, b: Buffer | undefined) => !!a && !!b && withoutExportTime(a).equals(withoutExportTime(b));
+
 const formatButtons = (dialog: Locator) => dialog.locator('.grid.grid-cols-2 button[aria-pressed]');
 
 test('?v2 the same settings give byte-identical files: twice, as a ZIP or separate files, and a format alone', async ({ page }) => {
@@ -71,7 +94,7 @@ test('?v2 the same settings give byte-identical files: twice, as a ZIP or separa
   dialog = await openExport(page, studio);
   const second = await exportZip(page, dialog);
   expect(Object.keys(second).sort()).toEqual(names);
-  for (const name of names) expect(second[name].equals(first[name]), `${name} differs between two identical exports`).toBe(true);
+  for (const name of names) expect(same(second[name], first[name]), `${name} differs between two identical exports`).toBe(true);
 
   // 2. Separate files carry exactly the bytes the ZIP carries.
   dialog = await openExport(page, studio);
@@ -86,7 +109,7 @@ test('?v2 the same settings give byte-identical files: twice, as a ZIP or separa
   await dialog.getByRole('button', { name: /^Save files/ }).click();
   await done;
   expect(Object.keys(separate).sort()).toEqual(names);
-  for (const name of names) expect(separate[name].equals(first[name]), `${name}: separate file differs from the ZIP copy`).toBe(true);
+  for (const name of names) expect(same(separate[name], first[name]), `${name}: separate file differs from the ZIP copy`).toBe(true);
   page.removeAllListeners('download');
 
   // 3. Each format exported on its own matches the same format exported with all the others.
@@ -101,7 +124,7 @@ test('?v2 the same settings give byte-identical files: twice, as a ZIP or separa
     const alone = await exportZip(page, dialog);
     const [name] = Object.keys(alone);
     expect(Object.keys(alone)).toHaveLength(1);
-    expect(alone[name].equals(first[name]), `${name} alone differs from ${name} exported with the other formats`).toBe(true);
+    expect(same(alone[name], first[name]), `${name} alone differs from ${name} exported with the other formats`).toBe(true);
     // Back to every format for the next round.
     dialog = await openExport(page, studio);
     for (let i = 0; i < formats; i += 1) if (await buttons.nth(i).getAttribute('aria-pressed') !== 'true') await buttons.nth(i).click();
@@ -121,7 +144,7 @@ test('?v2 PNG export is lossless: the same pixels whether exported once or twice
   const again = await exportZip(page, dialog);
   expect(Object.keys(png).length).toBe(Object.keys(jpeg).length);
   for (const [name, bytes] of Object.entries(png)) {
-    expect(again[name]?.equals(bytes), `${name} differs between two PNG exports`).toBe(true);
+    expect(same(again[name], bytes), `${name} differs between two PNG exports`).toBe(true);
     const jpegName = name.replace(/\.png$/, '.jpg');
     const jpegBytes = jpeg[jpegName] ?? jpeg[name.replace(/\.png$/, '.jpeg')];
     expect(jpegBytes, `no JPEG twin for ${name}`).toBeTruthy();
@@ -167,7 +190,7 @@ test('?v2 a saved preset and File > Export again give exactly the files the wiza
   await expect(dialog.getByLabel('File format')).toHaveValue('png');
   const preset = await exportZip(page, dialog);
   expect(Object.keys(preset).sort()).toEqual(names);
-  for (const name of names) expect(preset[name].equals(wizard[name]), `${name}: preset differs from the wizard`).toBe(true);
+  for (const name of names) expect(same(preset[name], wizard[name]), `${name}: preset differs from the wizard`).toBe(true);
 
   // Export again: no dialog, the last settings, the same bytes.
   const downloaded = page.waitForEvent('download');
@@ -176,7 +199,7 @@ test('?v2 a saved preset and File > Export again give exactly the files the wiza
   const download = await downloaded;
   const quick = Object.fromEntries(Object.entries(unzipSync(await readFile((await download.path())!))).map(([n, b]) => [n, Buffer.from(b)]));
   expect(Object.keys(quick).sort()).toEqual(names);
-  for (const name of names) expect(quick[name].equals(wizard[name]), `${name}: Export again differs from the wizard`).toBe(true);
+  for (const name of names) expect(same(quick[name], wizard[name]), `${name}: Export again differs from the wizard`).toBe(true);
   await expect(page.getByRole('dialog', { name: /export/i })).toHaveCount(0);
 
   // Delete removes the preset.
