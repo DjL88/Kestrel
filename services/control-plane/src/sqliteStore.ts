@@ -77,6 +77,7 @@ export class SqliteStore implements Store {
   }
   async getAccount(accountId: string) { const r = this.get<AccountRow>('SELECT * FROM accounts WHERE account_id = ?', accountId); return r && account(r); }
   async setAccountRole(accountId: string, role: Role): Promise<void> { this.run('UPDATE accounts SET role = ? WHERE account_id = ?', role, accountId); }
+  async setAccountStatus(accountId: string, status: 'active' | 'suspended'): Promise<void> { this.run('UPDATE accounts SET status = ? WHERE account_id = ?', status, accountId); }
   async setAiConsent(accountId: string, consent: boolean): Promise<void> { this.run('UPDATE accounts SET ai_consent = ? WHERE account_id = ?', consent ? 1 : 0, accountId); }
   async findAccountByEmailHash(emailHash: string) { const r = this.get<AccountRow>('SELECT * FROM accounts WHERE email_hash = ?', emailHash); return r && account(r); }
 

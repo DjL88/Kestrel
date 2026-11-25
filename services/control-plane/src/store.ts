@@ -134,6 +134,8 @@ export interface Store {
   createAccount(account: AccountRecord): Promise<boolean>;
   getAccount(accountId: string): Promise<AccountRecord | undefined>;
   setAccountRole(accountId: string, role: Role): Promise<void>;
+  /** Suspends or restores an account (acceptable use). A suspended account cannot sign in or use a session. */
+  setAccountStatus(accountId: string, status: 'active' | 'suspended'): Promise<void>;
   /** The standing "use Gemini" account preference (see AccountRecord.aiConsent). */
   setAiConsent(accountId: string, consent: boolean): Promise<void>;
   findAccountByEmailHash(emailHash: string): Promise<AccountRecord | undefined>;

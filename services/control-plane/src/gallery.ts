@@ -29,6 +29,8 @@ export interface GalleryRecord extends GalleryOptions {
   createdAtMs: number;
   expiresAtMs: number;
   passwordHash: string | null;
+  /** Taken down while a report about it is reviewed (contentSafety.ts). The link answers 451 meanwhile. */
+  safetyHold?: boolean;
   /** photoId -> committed preview */
   previews: Record<string, { sha256: string; bytes: number; committed: boolean; thumb?: { sha256: string; bytes: number } }>;
 }
@@ -104,6 +106,28 @@ export class GalleryStore {
     });
   }
 
+  /** Takes a gallery down, or puts it back, while a report about it is reviewed. */
+  async setHold(galleryId: string, hold: boolean) {
+    await this.db.runTransaction(async (tx) => {
+      const snap = await tx.get(this.ref(galleryId));
+      if (!snap.exists) throw new GalleryRefusal(404, 'NOT_FOUND', 'No such gallery.');
+      tx.update(this.ref(galleryId), { safetyHold: hold });
+    });
+  }
+
+  /** Withdraws one photo from the gallery (its previews are deleted), after a report or a safety check. */
+  async removePhoto(galleryId: string, photoId: string) {
+    await Promise.all([this.storage.delete(previewKey(galleryId, photoId)), this.storage.delete(previewKey(galleryId, photoId, 'thumb'))]);
+    await this.db.runTransaction(async (tx) => {
+      const snap = await tx.get(this.ref(galleryId));
+      if (!snap.exists) return;
+      const g = snap.data()! as unknown as GalleryRecord;
+      const previews = { ...(g.previews ?? {}) };
+      delete previews[photoId];
+      tx.update(this.ref(galleryId), { photoIds: g.photoIds.filter((p) => p !== photoId), previews });
+    });
+  }
+
   /** Deletes the previews and the gallery. Feedback stays for the photographer. */
   async revoke(galleryId: string) {
     const g = await this.get(galleryId);
@@ -116,6 +140,7 @@ export class GalleryStore {
     const galleryId = galleryIdFor(linkToken);
     const g = await this.get(galleryId).catch(() => { throw new GalleryRefusal(404, 'GALLERY_NOT_FOUND', 'This gallery link is not valid.'); });
     if (g.expiresAtMs <= atMs) { await this.revoke(galleryId).catch(() => undefined); throw new GalleryRefusal(410, 'GALLERY_EXPIRED', 'This gallery has expired. Ask the photographer for a new link.'); }
+    if (g.safetyHold) throw new GalleryRefusal(451, 'GALLERY_UNDER_REVIEW', 'This gallery is unavailable while a report about it is reviewed.');
     if (g.passwordHash && !(password && verifyPassword(password, g.passwordHash))) throw new GalleryRefusal(401, 'GALLERY_PASSWORD', 'Enter the gallery password.');
     const photos = [];
     for (const photoId of g.photoIds) {

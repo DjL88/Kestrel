@@ -59,3 +59,36 @@ test('an incomplete or expired link says so in words', async ({ page }) => {
   await page.goto(`${origin}/gallery.html#t=${'z'.repeat(43)}`);
   await expect(page.locator('#status')).toContainText('expired');
 });
+
+test('anyone can report a gallery, or one photograph in it, in words and without an account', async ({ page }) => {
+  let reported: any = null;
+  await page.route('**/v1/gallery/open', (route) => route.fulfill({ json: {
+    name: 'Raptor selects', expiresAtMs: Date.UTC(2026, 11, 25), watermark: false,
+    allow: { comments: false, favourites: false, approval: false, downloads: false },
+    photos: [{ photoId: 'p1', url: pixel('#335') }, { photoId: 'p2', url: pixel('#553') }],
+  } }));
+  await page.route('**/v1/gallery/report', async (route) => { reported = route.request().postDataJSON(); await route.fulfill({ json: { noticeId: 'ntc_abc123', receipt: 'r'.repeat(24), receivedAtMs: 1, urgent: false } }); });
+  await page.goto(`${origin}/gallery.html#t=${'k'.repeat(43)}`);
+  await expect(page.getByRole('heading', { name: 'Raptor selects' })).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await page.getByRole('link', { name: 'Report this gallery' }).click();
+  await page.getByLabel('What is wrong').selectOption('copyright');
+  await page.getByRole('button', { name: 'Send report' }).click();
+  await expect(page.locator('#report-note')).toContainText('why');
+  await page.getByLabel('Why is it illegal or against the policy?').fill('This is my photograph, used without permission.');
+  await page.getByRole('button', { name: 'Send report' }).click();
+  await expect(page.locator('#report-note')).toContainText('good faith');
+  expect(reported).toBeNull();
+  await page.getByLabel(/in good faith/).check();
+  await page.getByRole('button', { name: 'Send report' }).click();
+  await expect(page.locator('#report-note')).toContainText('ntc_abc123');
+  expect(reported).toEqual({ token: 'k'.repeat(43), photoId: 'p2', category: 'copyright', explanation: 'This is my photograph, used without permission.', goodFaith: true });
+});
+
+test('a gallery under review says so, and can still be reported', async ({ page }) => {
+  await page.route('**/v1/gallery/open', (route) => route.fulfill({ status: 451, json: { error: { code: 'GALLERY_UNDER_REVIEW', message: 'This gallery is unavailable while a report about it is reviewed.' } } }));
+  await page.goto(`${origin}/gallery.html#t=${'k'.repeat(43)}`);
+  await expect(page.locator('#status')).toContainText('reviewed');
+  await page.getByRole('link', { name: 'Report this gallery' }).click();
+  await expect(page.locator('#report-scope')).toBeHidden();
+});

@@ -34,7 +34,9 @@ import type { NoticeContacts } from './noticeContacts.ts';
 import type { NewsBroadcaster } from './news.ts';
 import { PUSH_PLATFORMS, isPushToken } from '../../../src/core/pushNotices.ts';
 import type { NoticeEvent } from '../../../src/core/collabNotices.ts';
-import { GalleryRefusal, GALLERY_MAX_DAYS, GALLERY_MAX_PHOTOS, GALLERY_MAX_PREVIEW_BYTES, type GalleryStore } from './gallery.ts';
+import { GalleryRefusal, GALLERY_MAX_DAYS, GALLERY_MAX_PHOTOS, GALLERY_MAX_PREVIEW_BYTES, galleryIdFor, previewKey, type GalleryStore } from './gallery.ts';
+import { SafetyRefusal, BLOCKED_MESSAGE, HELD_MESSAGE, NOTICE_CATEGORIES, caseSummary, caseForUploader, type CheckInput, type SafetyService } from './contentSafety.ts';
+import { cloudKey } from './cloudPhotos.ts';
 import { presenceUid, PRESENCE_TOKEN_TTL_S, type PresenceSigner } from './presenceToken.ts';
 import { SAFE_COPY_LEVELS, SAFE_COPY_MAX_BYTES, safeCopyKey, type SafeCopyOptions } from './safeCopy.ts';
 import type { SpendOptions } from './spendGuard.ts';
@@ -114,6 +116,8 @@ export interface AppOptions {
   cloudBalance?: import('./cloudBalance.ts').CloudBalance;
   /** Hard monthly ceiling on metered spend (Gemini, cloud jobs). Absent: no guard (development and tests). */
   spend?: SpendOptions;
+  /** Acceptable-use checks on shared and cloud photos, and the report-a-gallery queue (contentSafety.ts). */
+  safety?: { service: SafetyService; countryOf?: (req: Request) => string | null };
   /** Production sets this: the cloud, safe copy and learning features stay OFF until an admin switches them on. Tests and development leave them on. */
   requireAdminSwitch?: boolean;
 }
@@ -238,6 +242,20 @@ export const Schemas = {
   CollabComment: z.object({ text: z.string().trim().min(1).max(2000), point: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().nullable().default(null), replyTo: z.string().min(1).max(64).nullable().optional() }).strict(),
   CloudUpload: z.object({ variant: z.enum(CLOUD_VARIANTS), sha256: Sha, bytes: z.number().int().positive(), name: z.string().trim().min(1).max(200) }).strict(),
   CloudVariantBody: z.object({ variant: z.enum(CLOUD_VARIANTS) }).strict(),
+  GalleryReport: z.object({
+    token: z.string().min(20).max(128).describe('The gallery link token from the page fragment'),
+    photoId: PhotoId.nullable().default(null),
+    category: z.enum(NOTICE_CATEGORIES),
+    explanation: z.string().trim().min(10).max(4000).describe('Why the content is illegal or breaks the acceptable use policy'),
+    name: z.string().trim().max(120).optional(),
+    email: z.string().email().max(254).optional(),
+    goodFaith: z.literal(true).describe('The notifier confirms the report is accurate and made in good faith (EU DSA Art. 16)'),
+  }).strict(),
+  GalleryReportStatus: z.object({ noticeId: z.string().regex(/^ntc_[A-Za-z0-9_-]{6,40}$/), receipt: z.string().min(16).max(64) }).strict(),
+  SafetyDecide: z.object({ outcome: z.enum(['released', 'upheld']), reason: z.string().trim().min(3).max(1000) }).strict(),
+  SafetyManualReport: z.object({ ncmecReportId: z.string().trim().min(1).max(40).optional(), ncaDone: z.boolean().optional() }).strict(),
+  SafetyNoticeDecide: z.object({ outcome: z.enum(['no-action', 'photo-removed', 'gallery-revoked']), reason: z.string().trim().min(3).max(1000) }).strict(),
+  SafetyAppeal: z.object({ text: z.string().trim().min(3).max(2000) }).strict(),
   CloudRemove: z.object({ variants: z.array(z.enum(CLOUD_VARIANTS)).min(1).max(3).optional() }).strict(),
   CollabResolve: z.object({ resolved: z.boolean() }).strict(),
   PushDevice: z.object({ token: z.string().refine(isPushToken, 'not a push token'), platform: z.enum(PUSH_PLATFORMS) }).strict(),
@@ -396,6 +414,7 @@ export function createApp(options: AppOptions) {
   const paddleLimiter = new RateLimiter(90, 60_000);
   const checkoutLimiter = new RateLimiter(10, 60_000);
   const galleryLimiter = new RateLimiter(120, 60_000);
+  const reportLimiter = new RateLimiter(10, 10 * 60_000);
 
   const audit = (actor: string, action: string, outcome: AuditRecord['outcome'], detail: string) => store.audit({ atMs: now(), actor, action, outcome, detail });
 
@@ -694,6 +713,39 @@ export function createApp(options: AppOptions) {
     const g = await gallery(() => galleryCfg().get(galleryId));
     const member = await collab(() => collabCfg().requireMember(g.projectId, claims.sub, 'export'));
     return { claims, g, member };
+  }
+
+  function safetyCfg(): SafetyService {
+    if (!options.safety) throw new ApiError(503, 'SAFETY_NOT_CONFIGURED', 'Reporting is not set up on this server yet. Email the address on the acceptable use page.');
+    return options.safety.service;
+  }
+  async function safety<T>(work: () => Promise<T>): Promise<T> {
+    try { return await work(); } catch (error) {
+      if (error instanceof SafetyRefusal) throw new ApiError(error.status, error.code, error.message, error.retryable);
+      throw error;
+    }
+  }
+  /**
+   * The acceptable-use check on one stored picture, before it is shared (site/acceptable-use.html). Production never
+   * publishes unchecked: without a hash checker it refuses. Development and tests without checks publish as before.
+   */
+  async function safetyCheck(req: Request, storage: import('./safeCopy.ts').SafeCopyStorage, input: Omit<CheckInput, 'country'>): Promise<void> {
+    const service = options.safety?.service;
+    if (!service?.configured || !storage.read || !storage.copy) {
+      if (options.requireAdminSwitch) throw new ApiError(503, 'SAFETY_NOT_CONFIGURED', 'Sharing is not open yet: the safety checks are not set up on this server. Everything on your devices keeps working.');
+      return;
+    }
+    const scannable = { read: storage.read.bind(storage), copy: storage.copy.bind(storage), delete: storage.delete.bind(storage) };
+    const result = await safety(() => service.check(scannable, { ...input, country: options.safety?.countryOf?.(req) ?? null }, async (c) => {
+      await store.setAccountStatus(c.accountId, 'suspended');
+      if (c.galleryId && options.gallery) await options.gallery.setHold(c.galleryId, true).catch(() => undefined);
+      await audit('system', 'safety.hash-match', 'denied', `${c.caseId} account suspended`);
+    }));
+    if (result.outcome === 'blocked') throw new ApiError(403, 'CONTENT_BLOCKED', BLOCKED_MESSAGE);
+    if (result.outcome === 'held') {
+      await audit(input.accountId, 'safety.ai-flag', 'denied', result.caseId);
+      throw new ApiError(409, 'CONTENT_HELD', HELD_MESSAGE);
+    }
   }
 
   function safeCopyCfg() {
@@ -1427,7 +1479,14 @@ export function createApp(options: AppOptions) {
         const claims = await bearer(req);
         const body = parseJson(Schemas.CloudVariantBody, req.rawBody);
         await collab(() => collabCfg().requireMember(params.id, claims.sub, 'edit', params.photoId));
-        await cloud(() => cloudCfg().store.commit(params.id, params.photoId, body.variant));
+        const cfg = cloudCfg();
+        if (body.variant === 'original') {
+          // An original is never checked itself (RAW files cannot be): it is stored only behind a preview that passed.
+          if (options.safety?.service.configured) await cloud(() => cfg.store.objectFor(params.id, params.photoId, 'preview')).catch(() => { throw new ApiError(409, 'PREVIEW_FIRST', 'Store the preview first; the original follows it.'); });
+        } else {
+          await safetyCheck(req, cfg.store.storage, { scope: 'cloud', accountId: claims.sub, projectId: params.id, galleryId: null, photoId: params.photoId, variant: body.variant, key: cloudKey(params.id, params.photoId, body.variant), sha256: '', bytes: 0 });
+        }
+        await cloud(() => cfg.store.commit(params.id, params.photoId, body.variant));
         return { status: 200, body: { stored: true } };
       },
     },
@@ -1603,7 +1662,17 @@ export function createApp(options: AppOptions) {
     },
     {
       method: 'POST', path: '/v1/collab/galleries/:gid/photos/:photoId/commit', summary: 'Mark an uploaded preview as published', auth: 'user',
-      handler: async (req, params) => { await galleryOwner(req, params.gid); await gallery(() => galleryCfg().commitPreview(params.gid, params.photoId)); return { status: 200, body: { published: true } }; },
+      handler: async (req, params) => {
+        const { claims, g } = await galleryOwner(req, params.gid);
+        const preview = g.previews?.[params.photoId];
+        if (!preview) throw new ApiError(404, 'NOT_FOUND', 'Upload the preview first.');
+        // Both pictures a client can see are checked before the photo is published.
+        for (const variant of preview.thumb ? (['thumb', 'preview'] as const) : (['preview'] as const)) {
+          await safetyCheck(req, galleryCfg().storage, { scope: 'gallery', accountId: claims.sub, projectId: g.projectId, galleryId: params.gid, photoId: params.photoId, variant, key: previewKey(params.gid, params.photoId, variant), sha256: '', bytes: 0 });
+        }
+        await gallery(() => galleryCfg().commitPreview(params.gid, params.photoId));
+        return { status: 200, body: { published: true } };
+      },
     },
     {
       method: 'GET', path: '/v1/collab/galleries/:gid/feedback', summary: 'Client favourites, comments and approvals', auth: 'user',
@@ -1650,6 +1719,54 @@ export function createApp(options: AppOptions) {
           return { kind: 'client-feedback', projectId: g.projectId, projectName: audience.projectName, galleryId: g.galleryId, galleryName: g.name, actorName: null, recipients: audience.accountIds };
         });
         return { status: 200, body: { received: true } };
+      },
+    },
+    // ---- Report a gallery (EU DSA Art. 16 notice and action; UK Online Safety Act user reporting). No account needed.
+    {
+      method: 'POST', path: '/v1/gallery/report', summary: 'Report a client gallery or one photo in it as illegal or against the acceptable use policy. No account needed', auth: 'none', body: Schemas.GalleryReport,
+      handler: async (req) => {
+        if (!reportLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many reports from here. Wait a few minutes, or email the address on the acceptable use page.', true);
+        const body = parseJson(Schemas.GalleryReport, req.rawBody);
+        const service = safetyCfg();
+        const g = await gallery(() => galleryCfg().get(galleryIdFor(body.token))).catch(() => { throw new ApiError(404, 'GALLERY_NOT_FOUND', 'This gallery link is not valid. Email the address on the acceptable use page instead.'); });
+        if (body.photoId !== null && !g.photoIds.includes(body.photoId)) throw new ApiError(404, 'NOT_FOUND', 'That photo is not in this gallery.');
+        const { notice, receipt } = await service.addNotice({
+          galleryId: g.galleryId, ownerAccountId: g.createdBy, photoId: body.photoId, category: body.category, explanation: body.explanation,
+          notifierName: body.name ?? null, notifierEmail: body.email ?? null, goodFaith: true,
+        });
+        // A report of child sexual abuse takes the gallery down at once while a person reviews it.
+        if (body.category === 'child-sexual-abuse') await galleryCfg().setHold(g.galleryId, true);
+        await audit('anonymous', 'safety.notice', 'allowed', `${notice.noticeId} ${body.category}${notice.urgent ? ' urgent' : ''}`);
+        return { status: 200, body: { noticeId: notice.noticeId, receipt, receivedAtMs: notice.atMs, urgent: notice.urgent } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/gallery/report/status', summary: 'What happened to a report, with the receipt given when it was made', auth: 'none', body: Schemas.GalleryReportStatus,
+      handler: async (req) => {
+        if (!galleryLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
+        const body = parseJson(Schemas.GalleryReportStatus, req.rawBody);
+        return { status: 200, body: await safety(() => safetyCfg().noticeStatus(body.noticeId, body.receipt)) };
+      },
+    },
+    // ---- The uploader's side: what was held or acted on, why, and asking for another look (EU DSA Art. 17 and 20).
+    {
+      method: 'GET', path: '/v1/me/safety', summary: 'Pictures held back from sharing, and actions on my galleries, with the reasons', auth: 'user',
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const service = safetyCfg();
+        const actions = (await service.notices()).filter((n) => n.ownerAccountId === claims.sub && n.decision && n.decision.outcome !== 'no-action')
+          .map((n) => ({ noticeId: n.noticeId, galleryId: n.galleryId, photoId: n.photoId, category: n.category, outcome: n.decision!.outcome, reason: n.decision!.reason, atMs: n.decision!.atMs }));
+        return { status: 200, body: { cases: (await service.cases({ accountId: claims.sub })).map(caseForUploader), actions } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/me/safety/:id/appeal', summary: 'Ask for another look at a picture held by an automatic check', auth: 'user', body: Schemas.SafetyAppeal,
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.SafetyAppeal, req.rawBody);
+        const c = await safety(() => safetyCfg().appeal(params.id, claims.sub, body.text));
+        await audit(claims.sub, 'safety.appeal', 'allowed', c.caseId);
+        return { status: 200, body: { case: caseForUploader(c) } };
       },
     },
 
@@ -1732,6 +1849,72 @@ export function createApp(options: AppOptions) {
     {
       method: 'GET', path: '/v1/flags/public', summary: 'Signed feature flags for people without an account: no named users or organisations', auth: 'none', response: Schemas.ManifestResponse,
       handler: async () => ({ status: 200, body: signEnvelope({ schema: 1, flags: forPublicDocument(await loadFlags()) }, config.signingKey), headers: { 'cache-control': 'public, max-age=3600' } }),
+    },
+    // ---- Safety review. Admins see details only: no route ever returns a held or blocked picture.
+    {
+      method: 'GET', path: '/v1/admin/safety', summary: 'Safety cases and gallery reports, as metadata only (never the pictures)', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'safety.read');
+        const service = options.safety?.service;
+        const checks = service ? { hashMatchers: service.checks.hashMatchers.map((m) => m.name), classifier: service.checks.classifier?.name ?? null, reporter: service.checks.reporter !== null } : null;
+        return adminDone(claims, 'safety.read', '', {
+          checks, publishingRefused: !!options.requireAdminSwitch && !service?.configured,
+          cases: service ? (await service.cases()).map(caseSummary) : [],
+          notices: service ? (await service.notices()).map(({ receiptHash: _r, ...n }) => n) : [],
+        });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/safety/cases/:id/decide', summary: 'Release or uphold a picture held by the AI check, from its details only', auth: 'admin', body: Schemas.SafetyDecide,
+      handler: async (req, params) => {
+        const claims = await admin(req, 'safety.decide');
+        const body = parseJson(Schemas.SafetyDecide, req.rawBody);
+        const c = await safety(() => safetyCfg().decide(params.id, claims.sub, body.outcome, body.reason));
+        return adminDone(claims, 'safety.decide', `${c.caseId} ${c.status}`, { case: caseSummary(c) });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/safety/cases/:id/report', summary: 'Send (or retry) the CyberTipline report for a hash match', auth: 'admin',
+      handler: async (req, params) => {
+        const claims = await admin(req, 'safety.report');
+        const storage = options.gallery?.storage;
+        if (!storage?.read || !storage.copy) throw new ApiError(503, 'SAFETY_NOT_CONFIGURED', 'The evidence store is not set up on this server.');
+        const scannable = { read: storage.read.bind(storage), copy: storage.copy.bind(storage), delete: storage.delete.bind(storage) };
+        const c = await safety(() => safetyCfg().report(params.id, scannable));
+        return adminDone(claims, 'safety.report', `${c.caseId} ${c.ncmec?.reportId ?? ''}`, { case: caseSummary(c) });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/safety/cases/:id/manual-report', summary: 'Record a report made by hand to NCMEC or the NCA', auth: 'admin', body: Schemas.SafetyManualReport,
+      handler: async (req, params) => {
+        const claims = await admin(req, 'safety.manual-report');
+        const body = parseJson(Schemas.SafetyManualReport, req.rawBody);
+        const c = await safety(() => safetyCfg().recordManualReport(params.id, claims.sub, body));
+        return adminDone(claims, 'safety.manual-report', `${c.caseId} ncmec=${c.ncmec?.reportId ?? ''} nca=${c.nca}`, { case: caseSummary(c) });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/safety/notices/:id/decide', summary: 'Act on a gallery report: no action, remove the photo, or revoke the gallery. The reason is shown to the notifier and the gallery owner', auth: 'admin', body: Schemas.SafetyNoticeDecide,
+      handler: async (req, params) => {
+        const claims = await admin(req, 'safety.notice');
+        const body = parseJson(Schemas.SafetyNoticeDecide, req.rawBody);
+        const service = safetyCfg();
+        const n = await safety(() => service.getNotice(params.id));
+        const g = options.gallery;
+        if (g) {
+          if (body.outcome === 'gallery-revoked') await g.revoke(n.galleryId).catch(() => undefined);
+          else {
+            if (body.outcome === 'photo-removed') {
+              if (!n.photoId) throw new ApiError(400, 'BAD_REQUEST', 'This report is about the whole gallery. Revoke the gallery, or take no action.');
+              await g.removePhoto(n.galleryId, n.photoId);
+            }
+            await g.setHold(n.galleryId, false).catch(() => undefined);
+          }
+        }
+        const decided = await service.decideNotice(n.noticeId, claims.sub, body.outcome, body.reason);
+        const { receiptHash: _r, ...view } = decided;
+        return adminDone(claims, 'safety.notice', `${n.noticeId} ${body.outcome}`, { notice: view });
+      },
     },
     {
       method: 'GET', path: '/v1/admin/flags', summary: 'Read every feature flag. Named-user rules show a hash of the email, never the address', auth: 'admin',
