@@ -96,6 +96,12 @@ interface CanvasProps {
 
 const ZOOM_BAR_STORAGE_KEY = 'inflight.v2.zoomBarOffset';
 
+/** Tells the store once when a cloud preview is zoomed past 100%, so it can offer the original. */
+function ZoomPastPreviewSignal({ active, photoId, onZoomPastPreview }: { active: boolean; photoId: string; onZoomPastPreview?: (photoId: string) => void }) {
+  useEffect(() => { if (active) onZoomPastPreview?.(photoId); }, [active, photoId, onZoomPastPreview]);
+  return null;
+}
+
 export default function Canvas({
   PhotoSurface,
   maskGuideId,
@@ -1115,7 +1121,6 @@ export default function Canvas({
   const output = effectiveUpscaleOutputSize(requestedSize, photo.pixelSize, chosenScale, pixelLimit);
   const actualPercent = fitScale ? Math.round(fitScale * canvasZoom * 100) : Math.round(canvasZoom * 100);
   const pastPreview = Boolean(photo.cloudPreview) && actualPercent > 100;
-  useEffect(() => { if (pastPreview) onZoomPastPreview?.(photo.id); }, [pastPreview, photo.id, onZoomPastPreview]);
   const toggleActualSize = () => {
     if (!fitScale) { onSetZoom(1); return; }
     onSetZoom(Math.abs(actualPercent - 100) <= 1 ? 1 : 1 / fitScale);
@@ -1560,6 +1565,8 @@ export default function Canvas({
       onPointerCancel={handleGlobalPointerUp}
       className="relative flex flex-1 flex-col overflow-hidden bg-[var(--bg-canvas)]"
     >
+      {/* A child component, so the hook never runs after this component's early returns (React #310). */}
+      <ZoomPastPreviewSignal active={pastPreview} photoId={photo.id} onZoomPastPreview={onZoomPastPreview} />
       {/* Top Canvas Bar: View mode (Single vs All Formats Side-by-Side) + Per-selection Flip/Rotate/Compare */}
       <div className="v2-canvas-bar flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/75 px-3 py-1.5 backdrop-blur-sm">
         <div className="flex items-center gap-1.5">
