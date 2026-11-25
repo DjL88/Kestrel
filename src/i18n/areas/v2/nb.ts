@@ -913,7 +913,6 @@ export const nb: AreaTranslation<typeof source> = {
     denoiseNow: 'Fjern støy fra dette bildet',
     denoiseCloudNote: 'Når du er pålogget og tilkoblet, sender denne knappen en arbeidskopi (aldri originalen) til InFlight-skyen bare for denne jobben og kontrollerer resultatet på denne enheten. Hvis skyen ikke er tilgjengelig, kjøres det her.',
     denoiseDeviceNote: 'Kjøres på denne enheten. Behandling i skyen er en del av Pro.',
-    denoiseMainThreadNote: 'Denne enheten kunne ikke fjerne støy i bakgrunnen, så InFlight kan ha stoppet opp mens den jobbet.',
     rawAiDenoise: 'Grundig RAW-støyreduksjon',
     luminanceDenoise: 'Luminansstøy',
     colourDenoise: 'Fargestøy',

@@ -913,7 +913,6 @@ export const is: AreaTranslation<typeof source> = {
     denoiseNow: 'Eyða suði úr þessari mynd',
     denoiseCloudNote: 'Þegar þú ert innskráð/ur og nettengd/ur sendir þessi hnappur vinnuafrit (aldrei frumritið) í InFlight-skýið fyrir þetta eina verk og athugar niðurstöðuna á þessu tæki. Ef skýið er ekki tiltækt er unnið hér.',
     denoiseDeviceNote: 'Keyrir á þessu tæki. Vinnsla í skýi er hluti af Pro.',
-    denoiseMainThreadNote: 'Þetta tæki gat ekki fjarlægt suð í bakgrunni, svo InFlight gæti hafa stöðvast á meðan.',
     rawAiDenoise: 'Ítarleg RAW-suðeyðing',
     luminanceDenoise: 'Birtusuð',
     colourDenoise: 'Litasuð',

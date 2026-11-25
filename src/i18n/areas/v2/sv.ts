@@ -913,7 +913,6 @@ export const sv: AreaTranslation<typeof source> = {
     denoiseNow: 'Brusreducera det här fotot',
     denoiseCloudNote: 'När du är inloggad och online skickar den här knappen en arbetskopia (aldrig originalet) till InFlight-molnet för just det här jobbet och kontrollerar resultatet på den här enheten. Om molnet inte är tillgängligt körs det här.',
     denoiseDeviceNote: 'Körs på den här enheten. Bearbetning i molnet ingår i Pro.',
-    denoiseMainThreadNote: 'Den här enheten kunde inte ta bort brus i bakgrunden, så InFlight kan ha stannat upp medan den arbetade.',
     rawAiDenoise: 'Djup RAW-brusreducering',
     luminanceDenoise: 'Luminansbrus',
     colourDenoise: 'Färgbrus',

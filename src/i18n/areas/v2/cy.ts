@@ -913,7 +913,6 @@ export const cy: AreaTranslation<typeof source> = {
     denoiseNow: 'Lleihau sŵn y llun hwn',
     denoiseCloudNote: 'Pan fyddwch wedi mewngofnodi ac ar-lein, mae pwyso hwn yn anfon copi gweithio (byth y gwreiddiol) i gwmwl InFlight ar gyfer y gwaith hwn yn unig. Mae’r canlyniad yn cael ei wirio ar y ddyfais hon. Os nad yw’r cwmwl ar gael, mae’n rhedeg yma.',
     denoiseDeviceNote: 'Yn rhedeg ar y ddyfais hon. Mae prosesu yn y cwmwl yn rhan o Pro.',
-    denoiseMainThreadNote: 'Ni allai’r ddyfais hon leihau sŵn yn y cefndir, felly efallai fod InFlight wedi oedi wrth weithio.',
     rawAiDenoise: 'Lleihau sŵn RAW manwl',
     luminanceDenoise: 'Sŵn goleuedd',
     colourDenoise: 'Sŵn lliw',

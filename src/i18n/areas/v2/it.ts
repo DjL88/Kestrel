@@ -913,7 +913,6 @@ export const it: AreaTranslation<typeof source> = {
     denoiseNow: 'Riduci il rumore di questa foto',
     denoiseCloudNote: 'Se ha effettuato l’accesso ed è online, questo pulsante invia una copia di lavoro (mai l’originale) al cloud InFlight solo per questa operazione e verifica il risultato su questo dispositivo. Se il cloud non è disponibile, l’elaborazione avviene qui.',
     denoiseDeviceNote: 'Viene eseguito su questo dispositivo. L’elaborazione nel cloud fa parte di Pro.',
-    denoiseMainThreadNote: 'Questo dispositivo non ha potuto ridurre il rumore in background, quindi InFlight potrebbe essersi bloccato durante il lavoro.',
     rawAiDenoise: 'Riduzione profonda del rumore RAW',
     luminanceDenoise: 'Rumore di luminanza',
     colourDenoise: 'Rumore di colore',
