@@ -155,6 +155,7 @@ test('a full develop that revokes the cached preview URL tells listeners, so vie
   assert.notEqual(after, before);
   assert.equal(await (await fetch(after)).text(), 'DEVELOPED');
   provider.clear();
+});
 
 test('same-metadata linked registration evicts previous RAW development and cached bytes', async (t) => {
   const provider = new BrowserPreviewProvider();
