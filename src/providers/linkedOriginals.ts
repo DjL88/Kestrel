@@ -35,6 +35,8 @@ export const pickedKey = (photo: Pick<PickedPhoto, 'name' | 'size' | 'lastModifi
 
 const extensions = PHOTO_EXTENSIONS.map((entry) => entry.replace(/^\./, ''));
 const baseName = (path: string) => path.split(/[\\/]/).filter(Boolean).at(-1) ?? path;
+/** The last part of a folder path, Windows or POSIX, so a project made from a folder can take its name. */
+export const folderNameOf = (path: string) => baseName(path.trim());
 
 /** A photo that lives at this path, read from the disk each time it is needed. */
 export async function linkedPhoto(path: string): Promise<PickedPhoto> {
@@ -152,7 +154,7 @@ export async function pickPhotosNatively(): Promise<PickedPhoto[] | 'cancelled'>
  */
 export async function pickFolderNatively(options: {
   /** Called once a folder is chosen, before the (possibly long) look through it, so progress can show at once. */
-  onChosen?: () => void;
+  onChosen?: (folder: string) => void;
   /** Photos found so far and how many have been looked at; total is known once the folder has been listed. */
   onProgress?: (done: number, total: number) => void;
   signal?: AbortSignal;
@@ -162,7 +164,7 @@ export async function pickFolderNatively(options: {
   const fs = await import('@tauri-apps/plugin-fs');
   const chosen = await open({ directory: true, multiple: false, recursive: true, title: 'Choose a folder of photos' });
   if (typeof chosen !== 'string') return 'cancelled';
-  options.onChosen?.();
+  options.onChosen?.(chosen);
   const discovery = await discoverPhotoPaths(chosen, fs.readDir, new Set(extensions));
   if (options.signal?.aborted) return 'cancelled';
   if (discovery.truncated || discovery.skippedFolders) {
