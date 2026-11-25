@@ -35,6 +35,13 @@ decoder would not avoid the patents.
 build (desktop, web and mobile), as one decoder for all platforms. The operating
 system's decoder is used only where InFlight's cannot read a file. The patent
 exposure is accepted by the owner; this note records it and is not legal advice.
+
+**Owner decision (25 Nov 2026): 16-bit output included.** The 19 Nov decision also
+covers 16-bit output of HE/HE* sensor data (16-bit TIFF and PNG masters and 16-bit
+exports), the same as every other RAW. Asked whether to lift the 16-bit gate, the
+owner answered "Yes, lift the gate". This records an accepted patent exposure, not a
+verified licence: the app's evidence keeps `commercialHeRightsVerified: false`.
+
 The code stays behind the `nikon-he` Cargo feature (on by default), so a build
 without it is one flag away (`--no-default-features`, or
 `npm run raw:wasm -- --without-nikon-he`) if that decision changes.
@@ -113,6 +120,15 @@ Dev-only tooling (not shipped in the app: `typescript`, `tsx`, `@playwright/test
 `zod`, `@modelcontextprotocol/sdk`, `@tauri-apps/cli`) is omitted here since it
 isn't distributed to users, but include it in a full scan if you ever publish
 build tooling or a plugin SDK separately.
+
+## Place names: GeoNames (CC BY 4.0)
+
+`public/places/geonames-cities1000.bin` is built by `tools/scene-tags/make_places.py` from GeoNames' `cities1000.zip`
+and `admin1CodesASCII.txt` (https://www.geonames.org/, licensed Creative Commons Attribution 4.0). Required credit:
+"Place names from GeoNames (www.geonames.org), CC BY 4.0". The app shows it under place tags in Info
+(`photoTags.placeNote`); keep it in the About/Licences page when that exists. Country names come from the platform
+(`Intl.DisplayNames`), not from GeoNames. The curated photo-spot list (`src/assets/places/curated.json`) is
+InFlight's own, positions read by hand; no OpenStreetMap data was copied.
 
 ## Machine-learning models
 
