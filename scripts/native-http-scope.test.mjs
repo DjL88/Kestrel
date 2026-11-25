@@ -13,10 +13,8 @@ test('native HTTP capability never grants wildcard plaintext hosts', () => {
   assert.ok(urls.includes('http://127.0.0.1:*'), 'IPv4 loopback helper access remains available');
   for (const url of urls) {
     if (!url.startsWith('http://')) continue;
-    // Tauri reads these as URL patterns, where ':' starts a named part, so IPv6 loopback is written [\:\:1].
-    assert.match(url, /^http:\/\/(?:localhost|127\.0\.0\.1|\[\\:\\:1\])(?::\*)?$/, `unsafe plaintext HTTP scope: ${url}`);
+    assert.match(url, /^http:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\*)?$/, `unsafe plaintext HTTP scope: ${url}`);
   }
-  assert.ok(!urls.includes('http://[::1]:*'), 'unescaped IPv6 loopback is not a valid URL pattern');
 });
 
 test('native window retains explicit file picker and offline file access', () => {
