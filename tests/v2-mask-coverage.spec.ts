@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('real oval and gradient mask coverage follows selection, hide and panel dismissal', async ({ page }) => {
+test('real oval and gradient mask coverage follows selection, hide and panel dismissal', async ({ page, isMobile }) => {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: 'New project' }).first().click();
@@ -16,6 +16,8 @@ test('real oval and gradient mask coverage follows selection, hide and panel dis
   await (await chooser).setFiles([{ name: 'coverage.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
   const frame = root.getByTestId('canvas-frame');
   await expect(frame.locator('img').first()).toBeVisible({ timeout: 30000 });
+  // A phone has no rail: Masks sits in the bottom bar's More tools (as in verified-asset-v2-adaptive).
+  if (isMobile) await root.getByRole('navigation', { name: 'Mobile studio tools' }).getByRole('button', { name: 'More' }).click();
   await root.getByRole('button', { name: 'Masks', exact: true }).first().click();
   await root.getByRole('button', { name: 'Oval area', exact: true }).click();
   const guide = frame.getByTestId('mask-coverage-guide');
