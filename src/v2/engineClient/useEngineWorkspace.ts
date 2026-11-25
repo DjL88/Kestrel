@@ -10,7 +10,7 @@ import { newId } from '../../core/ids';
 import { exportCollage } from './exportCollage';
 import { createCollage, MAX_COLLAGE_SELECTION, readCollage } from '../../core/collage';
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
-import { appendProjectPhotos, applyImportBursts, createEmptyProject, moveFrames, setArchived, setTrashed, trashExpired } from '../../core/projects';
+import { appendProjectPhotos, applyImportBursts, createEmptyProject, duplicateProject, moveFrames, setArchived, setTrashed, trashExpired } from '../../core/projects';
 import { tasks } from '../../core/taskStore';
 import { createSaveGuard, type SaveGuard } from '../../core/saveGuard';
 import { engineScheduler } from '../../core/engineScheduler';
@@ -72,6 +72,7 @@ import { askOnDeviceGuardian } from '../../providers/visionGuardian';
 import type { PictureSource } from '../../core/pictureSource';
 import { autoCullSummary, commitAutoCull, rawsJudgedFromCameraPreview } from './commitAutoCull';
 import { runV2Denoise } from './runDenoise';
+import { MAIN_THREAD_DENOISE_NOTE } from '../../providers/denoiseOffThread';
 import { composeDenoiseRecipe } from './denoiseRecipe';
 import { preloadTrueDetailAi } from '../../core/trueDetailAiCanvas';
 import { moveArtboard } from './boardOps';
@@ -86,6 +87,7 @@ import { type FormatSet, addFormat, applyFormats, ORIGINAL_FORMAT_ID, removeForm
 import { patchVideoZoom } from './videoZoomOps';
 import { isSplitFrameCount, setFormatSplitOffset, setSplitFrameCount as writeSplitFrameCount, toggleFormatSplit, type SplitFrameCount } from './formatSplitOps';
 import { readSplitPanOffset } from './splitFrameOps';
+import { useTapSelect } from './useTapSelect';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskParts, toggleMask } from './maskOps';
 import { verifyFrameMasks } from './maskVerify';
 import { maskAdvice, maskVerificationKey } from './maskVerificationCommit';
@@ -118,7 +120,8 @@ import { CatalogueReadError, readLightroomCatalogue } from '../../core/lightroom
 import { catalogueFilesInFolder, catalogueOnlyPhotos, commonFolder, planLightroomImport } from '../../core/lightroomImport';
 import type { LightroomPhoto } from '../../core/lightroomCatalogue';
 import { STRINGS as V2_STRINGS } from '../ui/strings';
-import { scheduleV2PhotoExports, photoExportUnits } from './scheduledPhotoExport';
+import { renderExportJob, scheduleV2PhotoExports, photoExportUnits } from './scheduledPhotoExport';
+import { enlargementPreviewRequest, type EnlargementPreviewResult } from './enlargementPreview';
 import { uniqueExportFilename } from '../../core/exportNaming';
 import { exportMayContinue } from '../../core/exportCancellation';
 import type { ExportRequest } from '../ui/contract';
@@ -1153,6 +1156,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? recordSplitChange(entry, next, at) : entry)) }));
   }, [mutate, stub.store.activeSizeId]);
 
+  const tapSelect = useTapSelect({ stateRef, provider, editFrames, setNotice });
+
   /** Reuse actual area/gradient masks from the shared engine. Sky detection and brush painting are intentionally gated. */
   const addMask = useCallback(async (photoId: string, type: 'subject' | 'sky' | 'background' | 'brush' | 'area' | 'gradient') => {
     if (type === 'sky') { setNotice(engineText.workspace.skyUnavailable); return; }
@@ -1275,7 +1280,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             return outcome.trueDetailAi ? { ...next, trueDetailAi: outcome.trueDetailAi } : next;
           }));
         }
-        ctx.commitIfCurrent(() => setNotice(outcome.verified ? outcome.notes[0] : engineText.denoise.leftAsItWas(outcome.notes.join(' '))));
+        // A main-thread fallback is always said, even on success, so a pause is never unexplained.
+        ctx.commitIfCurrent(() => setNotice(outcome.verified
+          ? [outcome.notes[0], ...outcome.notes.slice(1).filter(note => note === MAIN_THREAD_DENOISE_NOTE)].join(' ')
+          : engineText.denoise.leftAsItWas(outcome.notes.join(' '))));
       },
     }).then(ticket => ticket.finished).then(result => {
       if (result === 'failed') setNotice(engineText.workspace.denoiseFailed);
@@ -1915,6 +1923,28 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     deleteProjectForever: (id) => {
       void catalogue.current!.deleteProject(id).then(() => loadHub(), () => setNotice('InFlight could not delete the project. Your original photos are unchanged.'));
     },
+    // A copy is a Tasks job: it waits for a free slot, shows while it runs and can be cancelled before it saves.
+    duplicateProject: (id) => {
+      void (async () => {
+        const store = catalogue.current!;
+        const found = await store.loadProject(id);
+        if (!found) { setNotice('That project could not be found.'); return; }
+        const title = V2_STRINGS.hubMore.copyName(found.shoot.title);
+        const ticket = await engineScheduler.submit({
+          title: V2_STRINGS.hubMore.duplicating(found.shoot.title),
+          kind: 'other', resource: 'io', pauseable: false, snapshot: undefined,
+          items: [id], itemId: (item) => item, itemLabel: () => found.shoot.title,
+          runItem: async (_item, _snapshot, ctx) => {
+            // Read again inside the task, so the copy has every change made while it waited its turn.
+            const latest = await store.loadProject(id);
+            ctx.checkCancelled();
+            if (!latest) throw new Error('That project could not be found.');
+            await store.saveProject(duplicateProject(latest, `project-${newId()}`, title, Date.now()));
+          },
+        });
+        if (await ticket.finished === 'done') await loadHub();
+      })().catch(() => setNotice('InFlight could not update the project.'));
+    },
     backToProjects: () => { void backToProjects(); },
     setHubState: (next) => setHubState(next),
     selectPhoto: (id, modifiers) => {
@@ -2226,6 +2256,46 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (!bytes) return null;
       try { return await verifyExactOriginalCopy(bytes, frame.originalSha256); } catch { return null; }
     },
+    previewEnlargement: async (photoId, sizeId) => {
+      const current = stateRef.current;
+      if (!current || !provider.current) return { ok: false, message: engineText.workspace.exportStopped };
+      const request = enlargementPreviewRequest(photoId, sizeId);
+      const plan = planExport(request, current.frames, createDefaultSizes());
+      if ('error' in plan) return { ok: false, message: plan.error };
+      const job = plan.jobs[0];
+      const variant = job?.variants[0];
+      const frame = current.frames.find((candidate) => candidate.id === photoId);
+      if (!job || !variant || !frame) return { ok: false, message: engineText.workspace.exportStopped };
+      const snapshot = structuredClone(frame);
+      const env = structuredClone(exportEnv.current);
+      const sourceProvider = provider.current;
+      let rendered: File | null = null;
+      let failure = '';
+      // Queued with exports on the same resource, so a preview never renders alongside a full-size export.
+      const ticket = await engineScheduler.submit({
+        title: engineText.workspace.enlargementTask, kind: 'export', location: 'local', resource: 'gpu', priority: 5, pauseable: false,
+        items: [{ id: snapshot.id, name: snapshot.filename }], snapshot: { frameId: snapshot.id },
+        itemId: (item) => item.id, itemLabel: (item) => item.name,
+        runItem: async (_, __, ctx) => {
+          try {
+            const files = await renderExportJob({ frame: snapshot, job, variant, request, provider: sourceProvider,
+              buildOverlay: (target, submitted) => buildOverlayDraw(target, submitted, env), started: new Date(), signal: ctx.signal,
+              stage: (message) => ctx.stage(message), checkCancelled: () => ctx.checkCancelled() });
+            rendered = files[0] ?? null;
+          } catch (reason) {
+            failure = reason instanceof Error ? reason.message : String(reason);
+            throw reason;
+          }
+        },
+      });
+      const outcome = await ticket.finished;
+      const file = rendered as File | null;
+      if (outcome !== 'done' || !file) return { ok: false, message: failure || engineText.workspace.exportStopped };
+      const bitmap = await createImageBitmap(file);
+      const result: EnlargementPreviewResult = { ok: true, url: URL.createObjectURL(file), width: bitmap.width, height: bitmap.height, name: file.name };
+      bitmap.close();
+      return result;
+    },
     renderGalleryPreview: async (photoId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
       return frame && provider.current ? renderGalleryPreview(frame, provider.current) : null;
@@ -2515,10 +2585,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clearNotice: () => { setNotice(null); stub.actions.clearNotice(); },
   };
   const unconnected = Object.fromEntries(NOT_CONNECTED.map((name) => [name, () => setNotice('That is not connected to the InFlight engine yet. Your photos and originals are unchanged.')])) as Partial<WorkspaceActions>;
-  const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real }) as WorkspaceActions,
+  const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real, ...tapSelect.actions }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
+    [tapSelect.actions, stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: watermarkLibrary, auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   // Species names in the person's language (about 2.6 MB with every group) are fetched once, and only when a photo in
@@ -2571,11 +2641,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     canRedo: Boolean(state?.redoStack.length) || (activeFrame?.editHistory ? activeFrame.editHistory.cursor < activeFrame.editHistory.steps.length : false),
     clipboardRecipe: clipboard,
     PhotoSurface: EngineSurface,
+    tapSelect: tapSelect.state,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
     quickStart: quickStart && quickStart.projectId === state?.shoot.id && screen === 'editor' ? { phase: quickStart.phase, photoId: quickStart.photoId } : null,
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
-  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart]);
+  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state]);
 
   return { store, actions };
 }

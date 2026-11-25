@@ -1,4 +1,5 @@
 import { applyCanvasExportEdit } from '../../core/canvasEdit';
+import { tagSrgb } from '../../core/iccEmbed';
 import { applyFrameLayers } from '../../core/layerAssetVault';
 import { fitScale, maxCanvasPixels } from '../../core/exportLimits';
 import { exportFilename, type ExportProfile } from '../../core/exportProfiles';
@@ -303,8 +304,11 @@ export async function renderV2Export(
         if (!blob || blob.type !== mimeType || blob.size === 0) {
           throw new Error(`Could not encode split section ${section.index} at ${section.width} × ${section.height} pixels.`);
         }
+        // The canvas is sRGB but toBlob writes no colour tag; say so in the file (iccEmbed.ts).
+        const tagged = await tagSrgb(blob, profile.format === 'png' ? 'png' : 'jpeg');
+        signal?.throwIfAborted();
         const sectionName = numberedSectionFilename(name, section.index, sectionCount);
-        sections.push(datedExport(blob, sectionName, date, frame.exif?.captureStamp));
+        sections.push(datedExport(tagged, sectionName, date, frame.exif?.captureStamp));
       } finally {
         piece.width = 0; piece.height = 0;
       }

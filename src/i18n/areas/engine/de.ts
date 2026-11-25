@@ -49,6 +49,7 @@ export const de: AreaTranslation<typeof source> = {
       : `Auf diesem Gerät entrauscht, ${count} Motive sind gemeinsam geschützt.`),
     global: 'Kein Motivumriss war zuverlässig, daher wurde das ganze Foto gleichmäßig entrauscht.',
     failedCheck: 'Das Ergebnis hat die Qualitätsprüfung nicht bestanden. Ihre bisherigen Bearbeitungen wurden beibehalten.',
+    mainThread: 'Dieses Gerät konnte nicht im Hintergrund entrauschen, daher hat InFlight währenddessen vielleicht kurz gestockt.',
     leftAsItWas: (notes) => `Unverändert gelassen. ${notes}`,
   },
   workspace: {
@@ -87,6 +88,7 @@ export const de: AreaTranslation<typeof source> = {
       : `${count} Dateien exportiert. Ihre Originale sind unverändert.`),
     exportSomeFailed: 'Einige Exporte sind fehlgeschlagen. Öffnen Sie Aufgaben und wählen Sie „Fehlgeschlagene wiederholen“. Bereits gespeicherte Dateien bleiben erhalten.',
     exportStopped: 'Export gestoppt. Bereits gespeicherte Dateien bleiben erhalten.',
+    enlargementTask: 'Vergrößerungsvorschau wird erstellt',
     exportNotQueued: 'Dieser Export konnte nicht gestartet werden.',
     destinationUnavailable: 'Dieses Exportziel ist nicht verfügbar. Wählen Sie ein lokales ZIP, einzelne Dateien oder einen Ordner auf dem Computer.',
     cullPro: 'Auto-Sichtung gehört zu InFlight Pro.',

@@ -280,6 +280,14 @@ resource "google_cloud_run_v2_service" "control_plane" {
         }
       }
       dynamic "env" {
+        # "Learn now" in /admin starts the hourly Vertex learning tick (vertex-learning.tf).
+        for_each = local.vertex_tick_enabled ? { KCP_VERTEX_LEARNING_JOB = try(google_cloud_run_v2_job.vertex_learning[0].id, "") } : {}
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+      dynamic "env" {
         # App email (mail.tf). The app password is NOT here: the service reads it from Secret Manager itself.
         for_each = local.mail_env
         content {

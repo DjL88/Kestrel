@@ -59,6 +59,7 @@ export const source = {
       : `Denoised on this device, with ${count} subjects protected together.`),
     global: 'No subject outline was reliable, so denoise was applied evenly to the whole photo.',
     failedCheck: 'The result did not pass the quality check. Your existing edits were kept.',
+    mainThread: 'This device could not denoise in the background, so InFlight may have paused while it worked.',
     leftAsItWas: (notes: string) => `Left as it was. ${notes}`,
   },
   /** Notices and task names from the V2 workspace's main jobs: open, import, cull, export, masks, denoise, checks. */
@@ -98,6 +99,7 @@ export const source = {
       : `Exported ${count} files. Your originals are unchanged.`),
     exportSomeFailed: 'Some exports failed. Open Tasks and choose Retry failed. Files already saved stay in place.',
     exportStopped: 'Export stopped. Files already saved stay in place.',
+    enlargementTask: 'Making the enlargement preview',
     exportNotQueued: 'Could not start this export.',
     destinationUnavailable: 'That export destination is unavailable. Choose a local ZIP, separate files or a desktop folder.',
     cullPro: 'Auto-cull is part of InFlight Pro.',

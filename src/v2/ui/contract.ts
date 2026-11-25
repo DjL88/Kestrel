@@ -560,6 +560,28 @@ export interface ExportRequest {
 
 /** How a photo is drawn. The engine supplies this so the canvas shows real, developed pixels; without it the UI falls back
  * to a plain image with a CSS filter. 'original' is the photo with no edit, 'edited' is with its recipe. */
+/** One tap on the framed photo, as shares (0 to 1) of its width and height. */
+export interface TapPoint { x: number; y: number; add: boolean }
+
+export interface TapSelectState {
+  /** 'unavailable': this build does not offer the pack; 'not-downloaded': offered, the person has not chosen to download it. */
+  pack: 'unavailable' | 'not-downloaded' | 'downloading' | 'ready' | 'failed';
+  /** 0 to 1 while downloading. */
+  downloadProgress?: number;
+  /** Plain words for the last failure. */
+  message?: string;
+  /** The photo being selected on, if any. Each subject is its own reversible subject mask. */
+  session?: {
+    photoId: string;
+    /** 'reading': the model is reading the photo once (the slow step); 'working': answering a tap. */
+    phase: 'reading' | 'ready' | 'working' | 'failed';
+    mode: 'add' | 'remove';
+    subjects: Array<{ maskId: string; taps: TapPoint[] }>;
+    /** Index into subjects of the one taps go to; a new subject starts on the next added tap. */
+    active: number;
+  };
+}
+
 export interface PhotoSurfaceProps {
   /** Editor-only coverage guide, never part of the photo recipe or export. */
   maskGuideId?: string;
@@ -631,6 +653,8 @@ export interface WorkspaceStore {
   settingsOpen: boolean;
   settingsTab: SettingsTabId;
   activeMaskTool: 'subject' | 'sky' | 'background' | 'brush' | 'eraser' | 'area' | 'gradient';
+  /** Tap-to-select (optional EfficientSAM-Ti pack). Absent where the engine does not offer it. */
+  tapSelect?: TapSelectState;
   canUndo: boolean;
   canRedo: boolean;
   clipboardRecipe: EditRecipe | null;
@@ -662,6 +686,8 @@ export interface WorkspaceActions {
   archiveProject: (projectId: string, archived: boolean) => void;
   /** Moves the project to Recently deleted for 30 days. Nothing is removed yet; original files are never touched. */
   deleteProject: (projectId: string) => void;
+  /** A separate, complete copy named "… (copy)", made as a task in Tasks. Stored photo copies are shared. */
+  duplicateProject: (projectId: string) => void;
   /** Takes a project back out of Recently deleted, as it was. */
   restoreDeletedProject: (projectId: string) => void;
   /** Removes InFlight's catalogue entry and its stored copies now. Original files are never touched. */
@@ -728,6 +754,8 @@ export interface WorkspaceActions {
   applyAllAssistSuggestions: (photoId: string) => void;
   /** A sized JPEG of the edited photo for a client gallery, or null when there is no trustworthy picture yet. Absent in the stub. */
   renderGalleryPreview?: (photoId: string) => Promise<Blob | null>;
+  /** Render this photo's format exactly as export will (Output scale included) and return the picture. Absent in the stub. */
+  previewEnlargement?: (photoId: string, sizeId: string) => Promise<import('../engineClient/enlargementPreview').EnlargementPreviewResult>;
   /** The photo's whole edit as plain data for a shared project, or null when it has no edit. Absent in the stub. */
   sharedEditOf?: (photoId: string) => Record<string, unknown> | null;
   /** Replace the photo's edit with a shared one (or clear it). Recorded as an edit step, so it can be undone. */
@@ -835,6 +863,13 @@ export interface WorkspaceActions {
   // Genuine non-destructive masks; brush painting still requires canvas coordinate integration.
   setActiveMaskTool: (tool: WorkspaceStore['activeMaskTool']) => void;
   addMaskLayer: (photoId: string, type: MaskLayer['type']) => void;
+  /** Tap-to-select: download the optional pack (the person's choice), start on a photo, tap, and finish. */
+  downloadTapSelect?: () => void;
+  startTapSelect?: (photoId: string) => void;
+  tapSelectAt?: (photoId: string, tap: TapPoint) => void;
+  setTapSelectMode?: (mode: 'add' | 'remove') => void;
+  newTapSubject?: () => void;
+  finishTapSelect?: () => void;
   toggleMaskLayer: (photoId: string, maskId: string) => void;
   removeMaskLayer: (photoId: string, maskId: string) => void;
   setMaskEdit: (photoId: string, maskId: string, key: string, value: number) => void;

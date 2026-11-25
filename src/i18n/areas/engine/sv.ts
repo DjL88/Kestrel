@@ -49,6 +49,7 @@ export const sv: AreaTranslation<typeof source> = {
       : `Brusreducerat på den här enheten, med ${count} motiv skyddade tillsammans.`),
     global: 'Ingen motivkontur var tillförlitlig, så brusreduceringen tillämpades jämnt på hela fotot.',
     failedCheck: 'Resultatet klarade inte kvalitetskontrollen. Dina befintliga redigeringar behölls.',
+    mainThread: 'Den här enheten kunde inte ta bort brus i bakgrunden, så InFlight kan ha stannat upp medan den arbetade.',
     leftAsItWas: (notes) => `Lämnat som det var. ${notes}`,
   },
   workspace: {
@@ -87,6 +88,7 @@ export const sv: AreaTranslation<typeof source> = {
       : `${count} filer exporterade. Dina original är oförändrade.`),
     exportSomeFailed: 'Några exporter misslyckades. Öppna Uppgifter och välj Försök igen med misslyckade. Filer som redan sparats ligger kvar.',
     exportStopped: 'Exporten stoppades. Filer som redan sparats ligger kvar.',
+    enlargementTask: 'Skapar förhandsvisning av förstoringen',
     exportNotQueued: 'Kunde inte starta den här exporten.',
     destinationUnavailable: 'Det exportmålet är inte tillgängligt. Välj en lokal ZIP, separata filer eller en mapp på datorn.',
     cullPro: 'Autogallring ingår i InFlight Pro.',

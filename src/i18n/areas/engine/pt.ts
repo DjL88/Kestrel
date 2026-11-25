@@ -49,6 +49,7 @@ export const pt: AreaTranslation<typeof source> = {
       : `Ruído reduzido neste dispositivo, com ${count} motivos protegidos em conjunto.`),
     global: 'Nenhum contorno de motivo era fiável, por isso a redução de ruído foi aplicada por igual a toda a fotografia.',
     failedCheck: 'O resultado não passou a verificação de qualidade. As suas edições foram mantidas.',
+    mainThread: 'Este dispositivo não conseguiu reduzir o ruído em segundo plano, por isso o InFlight pode ter parado enquanto trabalhava.',
     leftAsItWas: (notes) => `Ficou como estava. ${notes}`,
   },
   workspace: {
@@ -87,6 +88,7 @@ export const pt: AreaTranslation<typeof source> = {
       : `${count} ficheiros exportados. Os seus originais não foram alterados.`),
     exportSomeFailed: 'Algumas exportações falharam. Abra Tarefas e escolha Repetir falhados. Os ficheiros já guardados ficam onde estão.',
     exportStopped: 'Exportação parada. Os ficheiros já guardados ficam onde estão.',
+    enlargementTask: 'A criar a pré-visualização da ampliação',
     exportNotQueued: 'Não foi possível iniciar esta exportação.',
     destinationUnavailable: 'Esse destino de exportação não está disponível. Escolha um ZIP local, ficheiros separados ou uma pasta do computador.',
     cullPro: 'A seleção automática faz parte do InFlight Pro.',
