@@ -84,7 +84,22 @@ export const NAFNET_W32: OptionalModel = {
   cache: 'kestrel-nafnet-w32-v1',
 };
 
-export const OPTIONAL_MODELS: readonly OptionalModel[] = [RFDETR_NANO, EFFICIENTSAM_TI, NAFNET_W32];
+export const BIOCLIP2: OptionalModel = {
+  id: 'bioclip2-image-fp16',
+  name: 'Species second opinion (BioCLIP 2)',
+  job: 'A much larger species model checks the species suggestion. If it disagrees, the photo is marked for review.',
+  licence: 'MIT (weights); names from the IOC World Bird List, CC BY 4.0',
+  source: 'https://huggingface.co/imageomics/bioclip-2 (revision 2957b322090f9cb17ae72c71981c7218a28d81e0, open_clip_model.safetensors)',
+  tier: 'desktop',
+  fallback: 'BioCLIP species suggestions without a second opinion',
+  files: {
+    model: pinned('BIOCLIP2_MODEL', '6f4fede093651f33a83ea0a0061833e0e8245fe0e218e558230ee56ac77360de', 608152397),
+    labels: pinned('BIOCLIP2_LABELS', 'd06aa6d9c60e7242251d5771af902792d235dcdc6ec9419fa5230bd8617f6d59', 13250338),
+  },
+  cache: 'kestrel-bioclip2-v1',
+};
+
+export const OPTIONAL_MODELS: readonly OptionalModel[] = [RFDETR_NANO, EFFICIENTSAM_TI, NAFNET_W32, BIOCLIP2];
 
 /** Total download for a pack, for an honest size in the offer. */
 export function optionalModelBytes(model: OptionalModel): number {
