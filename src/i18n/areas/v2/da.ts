@@ -765,6 +765,9 @@ export const da: AreaTranslation<typeof source> = {
     applyRecommendation: 'Anvend justering',
     safeNote: 'Farvenoterne kommer fra målinger af selve fotoet på denne enhed, ikke fra hvordan det ser ud på din skærm.',
   },
+  burstGrouping: {
+    unavailable: "Serier grupperes kun efter optagetidspunkt, fordi modellen for ens billeder ikke er tilgængelig på denne enhed. Intet ved dine fotos blev ændret.",
+  },
   bursts: {
     badge: (n) => `Serie på ${n}`,
     show: (n) => `Vis de ${n} billeder i denne serie`,

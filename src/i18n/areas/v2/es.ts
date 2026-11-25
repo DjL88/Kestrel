@@ -765,6 +765,9 @@ export const es: AreaTranslation<typeof source> = {
     applyRecommendation: 'Aplicar el ajuste',
     safeNote: 'Las notas de color proceden de medir la propia foto en este dispositivo, no de cómo se ve en su pantalla.',
   },
+  burstGrouping: {
+    unavailable: "Las ráfagas se agrupan solo por hora de captura, porque el modelo de parecido no está disponible en este dispositivo. No se ha cambiado nada en sus fotos.",
+  },
   bursts: {
     badge: (n) => `Ráfaga de ${n}`,
     show: (n) => `Mostrar los ${n} fotogramas de esta ráfaga`,

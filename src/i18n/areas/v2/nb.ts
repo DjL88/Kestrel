@@ -765,6 +765,9 @@ export const nb: AreaTranslation<typeof source> = {
     applyRecommendation: 'Bruk justering',
     safeNote: 'Fargemerknadene kommer fra målinger av selve bildet på denne enheten, ikke fra hvordan det ser ut på skjermen din.',
   },
+  burstGrouping: {
+    unavailable: "Serier grupperes bare etter opptakstidspunkt, fordi modellen for like bilder ikke er tilgjengelig på denne enheten. Ingenting ved bildene dine ble endret.",
+  },
   bursts: {
     badge: (n) => `Serie på ${n}`,
     show: (n) => `Vis de ${n} bildene i denne serien`,

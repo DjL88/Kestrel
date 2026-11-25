@@ -765,6 +765,9 @@ export const nl: AreaTranslation<typeof source> = {
     applyRecommendation: 'Aanpassing toepassen',
     safeNote: 'Kleuropmerkingen komen van metingen aan de foto zelf op dit apparaat, niet van hoe hij er op uw scherm uitziet.',
   },
+  burstGrouping: {
+    unavailable: "Reeksen worden alleen op opnametijd gegroepeerd, omdat het model voor gelijkende foto's niet beschikbaar is op dit apparaat. Aan uw foto's is niets veranderd.",
+  },
   bursts: {
     badge: (n) => `Reeks van ${n}`,
     show: (n) => `De ${n} beelden in deze reeks tonen`,

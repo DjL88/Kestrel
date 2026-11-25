@@ -765,6 +765,9 @@ export const cy: AreaTranslation<typeof source> = {
     applyRecommendation: 'Defnyddio’r newid',
     safeNote: 'Daw’r nodiadau lliw o fesur y llun ei hun ar y ddyfais hon, nid o sut mae’n edrych ar eich sgrin.',
   },
+  burstGrouping: {
+    unavailable: "Mae byrstiau wedi'u grwpio yn ôl amser tynnu yn unig, gan nad yw'r model lluniau tebyg ar gael ar y ddyfais hon. Ni newidiwyd dim yn eich lluniau.",
+  },
   bursts: {
     badge: (n) => `Cyfres o ${n}`,
     show: (n) => `Dangos y ${n} ffrâm yn y gyfres hon`,

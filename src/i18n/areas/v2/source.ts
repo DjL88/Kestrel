@@ -798,6 +798,9 @@ export const source = {
     safeNote: 'Colour notes come from measuring the photo itself on this device, not from how it looks on your screen.',
   },
 
+  burstGrouping: {
+    unavailable: "Bursts are grouped by capture time only, because the look-alike model is not available on this device. Nothing about your photos was changed.",
+  },
   bursts: {
     badge: (n: number) => `Burst of ${n}`,
     show: (n: number) => `Show the ${n} frames in this burst`,

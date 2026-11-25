@@ -765,6 +765,9 @@ export const fr: AreaTranslation<typeof source> = {
     applyRecommendation: 'Appliquer l’ajustement',
     safeNote: 'Les remarques sur la couleur proviennent de mesures de la photo elle-même sur cet appareil, et non de son aspect sur votre écran.',
   },
+  burstGrouping: {
+    unavailable: "Les rafales sont groupées uniquement par heure de prise de vue, car le modèle de ressemblance n'est pas disponible sur cet appareil. Rien n'a été modifié dans vos photos.",
+  },
   bursts: {
     badge: (n) => `Rafale de ${n}`,
     show: (n) => `Afficher les ${n} images de cette rafale`,

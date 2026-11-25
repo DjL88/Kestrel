@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { runEmbeddingPass, VISUAL_GROUPING_UNAVAILABLE } from './embeddingPass.ts';
+import { runEmbeddingPass, visualGroupingUnavailable } from './embeddingPass.ts';
+const VISUAL_GROUPING_UNAVAILABLE = visualGroupingUnavailable();
 
 const frames = ['a', 'b', 'c'].map((id) => ({ id }));
 const deps = (embed: () => Promise<unknown>) => {

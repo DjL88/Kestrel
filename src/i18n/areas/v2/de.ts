@@ -765,6 +765,9 @@ export const de: AreaTranslation<typeof source> = {
     applyRecommendation: 'Anpassung übernehmen',
     safeNote: 'Farbhinweise beruhen auf Messungen des Fotos selbst auf diesem Gerät, nicht darauf, wie es auf Ihrem Bildschirm aussieht.',
   },
+  burstGrouping: {
+    unavailable: "Serien werden nur nach Aufnahmezeit gruppiert, weil das Modell für ähnliche Bilder auf diesem Gerät nicht verfügbar ist. An Ihren Fotos wurde nichts geändert.",
+  },
   bursts: {
     badge: (n) => `Serie mit ${n}`,
     show: (n) => `Die ${n} Bilder dieser Serie anzeigen`,

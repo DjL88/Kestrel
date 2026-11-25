@@ -1,5 +1,7 @@
-/** Said once when the look-alike model cannot run, so the quiet fallback to time-based bursts is never a surprise. */
-export const VISUAL_GROUPING_UNAVAILABLE = 'Bursts are grouped by capture time only: the on-device look-alike model is unavailable on this device. Nothing about your photos was changed.';
+import { v2Text } from '../../i18n/areas/v2';
+
+/** Said once when the look-alike model cannot run, so the quiet fallback to time-based bursts is never a surprise. In the person's language. */
+export const visualGroupingUnavailable = (): string => v2Text.burstGrouping.unavailable;
 
 export interface EmbeddingPass<Frame extends { id: string }, Picture, Embedding> {
   /** The next photo to embed, or undefined when none is left. */
@@ -39,7 +41,7 @@ export async function runEmbeddingPass<Frame extends { id: string }, Picture, Em
       try {
         embedding = await pass.embed(picture);
       } catch {
-        pass.onUnavailable(VISUAL_GROUPING_UNAVAILABLE);
+        pass.onUnavailable(visualGroupingUnavailable());
         return 'halted';
       }
       if (!pass.stillCurrent()) return 'stopped';
