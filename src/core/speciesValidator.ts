@@ -39,3 +39,15 @@ export function checkValidatorLabels(file: unknown): ValidatorLabels {
   }
   return f as ValidatorLabels;
 }
+
+/**
+ * A group of extra names for the validator (world mammals today; reptiles, amphibians, dragonflies, butterflies and moths
+ * later): BioCLIP 2 vectors with region codes, filtered by the person's regions the same way as the world birds.
+ */
+export function checkGroupLabels(file: unknown): SpeciesLabel[] {
+  const f = file as { dimensions?: unknown; labels?: unknown } | null;
+  if (!f || f.dimensions !== 768 || !Array.isArray(f.labels) || !f.labels.length) {
+    throw new Error('The species validator names are not in the expected format.');
+  }
+  return f.labels as SpeciesLabel[];
+}
