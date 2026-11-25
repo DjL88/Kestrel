@@ -1483,7 +1483,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       // boundary so someone can continue editing while 300 files import.
       const ticket = await engineScheduler.submit({
         title: engineText.workspace.importTask(additions.length),
-        kind: 'import', resource: 'cpu', priority: 4, pauseable: additions.length > 1,
+        // Above background work (the open photo's Co-pilot check 8, culling 5, RAW develop 9-10), which otherwise took
+        // the one heavy slot at every photo boundary as soon as the first photos arrived (owner's 2,000-NEF test:
+        // "only 2 came in, then everything crawled"). Below what the person asks for now (denoise 12 and up).
+        kind: 'import', resource: 'cpu', priority: 11, pauseable: additions.length > 1,
         items: additions.map((file, index) => ({ file, index })),
         // Source file handles are intentionally NOT copied into the journal or
         // snapshot; a picker token cannot be persisted as a verified original.
