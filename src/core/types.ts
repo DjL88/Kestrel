@@ -71,6 +71,8 @@ export interface PhotoFrame {
   editHistory?: EditHistory;
   /** Saved non-destructive edit versions; only recipes/metadata, never original pixels. */
   editVersions?: EditVersionTree;
+  /** Named checkpoints (recipes only), validated by readCheckpoints in editBranches.ts. */
+  editCheckpoints?: unknown;
   /** Persisted V2 edit-group names, selection and non-destructive recipes; validated by readEditGroups. */
   v2EditGroups?: unknown;
   /** Per-format action history, validated at the V2 boundary. */
