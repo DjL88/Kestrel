@@ -126,13 +126,14 @@ export function findLeftInEnglish(areas, languages, exempt = () => false) {
  * The plain-language bar for each language: the most words in one sentence, and the longest everyday word.
  * Translations run longer than English (French and the Celtic languages by about a quarter), and compounding languages
  * write one long word where English writes three short ones, so a single bar for all would punish correct grammar.
- * Irish allows 21 letters because the everyday word for "of photography", grianghrafadóireachta, has 21.
+ * Irish allows 22 letters because the everyday word for "of photography", grianghrafadóireachta, has 21, and 22 once
+ * a mutation adds a letter (ghrianghrafadóireachta).
  */
 export const PLAIN_BAR = {
   'en-GB': { sentenceWords: 25, wordLetters: 16 },
   fr: { sentenceWords: 32, wordLetters: 17 }, es: { sentenceWords: 32, wordLetters: 17 },
   it: { sentenceWords: 32, wordLetters: 17 }, pt: { sentenceWords: 32, wordLetters: 17 },
-  cy: { sentenceWords: 32, wordLetters: 18 }, gd: { sentenceWords: 34, wordLetters: 18 }, ga: { sentenceWords: 34, wordLetters: 21 },
+  cy: { sentenceWords: 32, wordLetters: 18 }, gd: { sentenceWords: 34, wordLetters: 18 }, ga: { sentenceWords: 34, wordLetters: 22 },
   de: { sentenceWords: 28, wordLetters: 24 }, nl: { sentenceWords: 28, wordLetters: 24 },
   da: { sentenceWords: 28, wordLetters: 24 }, sv: { sentenceWords: 28, wordLetters: 24 }, nb: { sentenceWords: 28, wordLetters: 24 },
   fi: { sentenceWords: 25, wordLetters: 24 }, is: { sentenceWords: 25, wordLetters: 24 },
