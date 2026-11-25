@@ -9,8 +9,6 @@ no NonCommercial), with each file's title, licence and Commons page in manifest.
 import json, sys, time, urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
-OUT = Path(sys.argv[1])
-OUT.mkdir(parents=True, exist_ok=True)
 UA = {"User-Agent": "KestrelCalibration/0.1 (offline model calibration)"}
 PER_CATEGORY = 6
 
@@ -57,37 +55,40 @@ def api(params):
     return json.loads(get("https://commons.wikimedia.org/w/api.php?" + urllib.parse.urlencode({**params, "format": "json"})))
 
 
-old = json.loads((OUT / "manifest.json").read_text()) if (OUT / "manifest.json").exists() else []
-manifest = [m for m in old if (OUT / m["file"]).exists()]
-done = {m["file"] for m in manifest}
-for kind, category in SETS:
-    if sum(1 for m in manifest if m.get("category") == category) >= PER_CATEGORY:
-        continue
-    data = api({"action": "query", "generator": "categorymembers", "gcmtitle": "Category:" + category, "gcmtype": "file",
-                "gcmlimit": 60, "prop": "imageinfo", "iiprop": "url|extmetadata|mime", "iiurlwidth": 448})
-    pages = list((data.get("query") or {}).get("pages", {}).values())
-    kept = 0
-    for page in pages:
-        info = (page.get("imageinfo") or [{}])[0]
-        if info.get("mime") not in ("image/jpeg", "image/png"):
+if __name__ == '__main__':
+    OUT = Path(sys.argv[1])
+    OUT.mkdir(parents=True, exist_ok=True)
+    old = json.loads((OUT / "manifest.json").read_text()) if (OUT / "manifest.json").exists() else []
+    manifest = [m for m in old if (OUT / m["file"]).exists()]
+    done = {m["file"] for m in manifest}
+    for kind, category in SETS:
+        if sum(1 for m in manifest if m.get("category") == category) >= PER_CATEGORY:
             continue
-        licence = ((info.get("extmetadata") or {}).get("LicenseShortName") or {}).get("value", "")
-        if not allowed(licence):
-            continue
-        name = f"{kind}__{page['pageid']}.jpg"
-        if name in done:
-            continue
-        try:
-            (OUT / name).write_bytes(get(info["thumburl"]))
-        except Exception as error:  # noqa: BLE001
-            print("skip", name, error)
-            continue
-        manifest.append({"file": name, "kind": kind, "title": page["title"], "licence": licence, "source": info.get("descriptionurl"), "category": category})
-        (OUT / "manifest.json").write_text(json.dumps(manifest, indent=1), encoding="utf-8")
-        kept += 1
-        if kept >= PER_CATEGORY:
-            break
-        time.sleep(1.5)
-    print(f"{category}: {kept} of {len(pages)}")
-(OUT / "manifest.json").write_text(json.dumps(manifest, indent=1), encoding="utf-8")
-print(len(manifest), "images")
+        data = api({"action": "query", "generator": "categorymembers", "gcmtitle": "Category:" + category, "gcmtype": "file",
+                    "gcmlimit": 60, "prop": "imageinfo", "iiprop": "url|extmetadata|mime", "iiurlwidth": 448})
+        pages = list((data.get("query") or {}).get("pages", {}).values())
+        kept = 0
+        for page in pages:
+            info = (page.get("imageinfo") or [{}])[0]
+            if info.get("mime") not in ("image/jpeg", "image/png"):
+                continue
+            licence = ((info.get("extmetadata") or {}).get("LicenseShortName") or {}).get("value", "")
+            if not allowed(licence):
+                continue
+            name = f"{kind}__{page['pageid']}.jpg"
+            if name in done:
+                continue
+            try:
+                (OUT / name).write_bytes(get(info["thumburl"]))
+            except Exception as error:  # noqa: BLE001
+                print("skip", name, error)
+                continue
+            manifest.append({"file": name, "kind": kind, "title": page["title"], "licence": licence, "source": info.get("descriptionurl"), "category": category})
+            (OUT / "manifest.json").write_text(json.dumps(manifest, indent=1), encoding="utf-8")
+            kept += 1
+            if kept >= PER_CATEGORY:
+                break
+            time.sleep(1.5)
+        print(f"{category}: {kept} of {len(pages)}")
+    (OUT / "manifest.json").write_text(json.dumps(manifest, indent=1), encoding="utf-8")
+    print(len(manifest), "images")

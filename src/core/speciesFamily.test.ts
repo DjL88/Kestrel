@@ -10,16 +10,17 @@ const ranked = (entries: [string, string | undefined, number][]): Suggestion[] =
   entries.map(([common, family, probability], index) => ({ index, label: label(common, family), probability }));
 
 test('an uncertain species can still be named by its family, when the family together is certain', () => {
-  const owls = ranked([['Tawny Owl', 'Owls', 0.45], ['Ural Owl', 'Owls', 0.4], ['Little Owl', 'Owls', 0.05], ['Kestrel', 'Falcons', 0.1]]);
+  const owls = ranked([['Tawny Owl', 'Owls', 0.5], ['Ural Owl', 'Owls', 0.4], ['Little Owl', 'Owls', 0.06], ['Kestrel', 'Falcons', 0.04]]);
   const found = familyFallback(owls);
   assert.equal(found?.family, 'Owls');
-  assert.ok(Math.abs((found?.probability ?? 0) - 0.9) < 1e-9);
+  assert.ok(Math.abs((found?.probability ?? 0) - 0.96) < 1e-9);
 });
 
 test('unknown stays unknown: no family stands out, or the family is one name in disguise, or the family is missing', () => {
   assert.equal(familyFallback(ranked([['Tawny Owl', 'Owls', 0.4], ['Ural Owl', 'Owls', 0.3], ['Kestrel', 'Falcons', 0.3]])), undefined, 'owls only 70%');
   assert.equal(familyFallback(ranked([['Dipper', 'Dippers', 0.9], ['Kestrel', 'Falcons', 0.1]])), undefined, 'one-member family');
   assert.equal(familyFallback(ranked([['Tawny Owl', undefined, 0.5], ['Ural Owl', undefined, 0.5]])), undefined, 'no family recorded');
+  assert.equal(familyFallback(ranked([['Tawny Owl', 'Owls', 0.5], ['Ural Owl', 'Owls', 0.4], ['Kestrel', 'Falcons', 0.1]])), undefined, 'owls 90%: under the 0.95 family bar');
   assert.equal(familyFallback([]), undefined);
 });
 

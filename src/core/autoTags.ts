@@ -42,16 +42,18 @@ export const AUTO_MINIMUM = 0.8;
 export const shouldAutoTag = (probability: number, minimum = AUTO_MINIMUM) => probability >= minimum && probability <= 1;
 
 /**
- * A higher bar for the world lists where BioCLIP confuses look-alike species more (tools/species/check_names_on_photos.py,
- * CC0/CC BY Commons photos, Palearctic):
- * - insects (61 photos of dragonflies, damselflies, butterflies, moths, beetles): at 0.8, 29 right and 5 wrong; at 0.95,
- *   25 right and none wrong;
- * - mammals (12 photos of red squirrels and roe deer): at 0.8, 5 right and 2 wrong (Perny's Long-nosed Squirrel 0.89,
- *   Water Deer 0.85); at 0.95, 4 right and none wrong;
- * - reptiles and amphibians: not measured at species level yet, so the same cautious bar.
- * Birds keep 0.8: every bird tag in the same check was right, down to 0.81.
+ * The bar for writing a species name by itself, per group: 0.95 for every group. Owner: "aim for 100%, 95% is great".
+ * Measured with tools/species/benchmark_score.py on 474 public-domain, CC0 and CC BY Commons photos of 50 UK and European
+ * species, through the app's whole path (gate, group, agreement, bar, family), Palearctic lists:
+ * - birds (192 photos): at 0.8 with the family at 0.8, 162 names given and 7 wrong (95.7%); at 0.95 with the family at
+ *   0.95, 150 names given and 1 wrong (99.3%; a book illustration of a wren named as the tit family);
+ * - mammals, insects, reptiles and amphibians (282 photos), already at 0.95: 69 names given and 4 marked wrong, of which
+ *   2 were Commons photos filed under another species whose name the app gave correctly (a red kite, a bee-eater).
+ * Earlier smaller checks agreed: at 0.8, insects 29 right and 5 wrong, mammals 5 right and 2 wrong.
  */
-export const AUTO_MINIMUM_BY_GROUP: Partial<Record<SpeciesLabel['group'], number>> = { insect: 0.95, mammal: 0.95, reptile: 0.95, amphibian: 0.95 };
+export const AUTO_MINIMUM_BY_GROUP: Partial<Record<SpeciesLabel['group'], number>> = { bird: 0.95, insect: 0.95, mammal: 0.95, reptile: 0.95, amphibian: 0.95 };
+/** The bar for naming a family when no single species reaches its bar: the same 0.95 (at 0.8, 2 of 24 family names were wrong). */
+export const FAMILY_MINIMUM = 0.95;
 export const autoTagMinimum = (group: SpeciesLabel['group'] | undefined) => (group && AUTO_MINIMUM_BY_GROUP[group]) || AUTO_MINIMUM;
 
 /**
@@ -96,7 +98,7 @@ export function familyFallback(ranked: readonly Suggestion[]): { family: string;
   }
   let best: { family: string; probability: number } | undefined;
   for (const [family, share] of shares) {
-    if (share.members < 2 || !shouldAutoTag(Math.min(1, share.probability))) continue;
+    if (share.members < 2 || !shouldAutoTag(Math.min(1, share.probability), FAMILY_MINIMUM)) continue;
     if (!best || share.probability > best.probability) best = { family, probability: Math.min(1, share.probability) };
   }
   return best;
