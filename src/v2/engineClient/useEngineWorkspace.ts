@@ -1920,14 +1920,20 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     selectPhoto: (id, modifiers) => {
       const list = (stateRef.current?.frames ?? []).filter((frame) => !frame.removedAt && !pairsRef.current.rawOf.has(frame.id)).map((frame) => frame.id);
       if (modifiers?.shift && activeId) {
-        const a = list.indexOf(activeId), b = list.indexOf(id);
-        if (a >= 0 && b >= 0) setSelected(list.slice(Math.min(a, b), Math.max(a, b) + 1));
+        // A Shift range runs through the photos on screen: a filter such as Flagged must not pull in hidden photos.
+        const shown = modifiers.order ? modifiers.order.filter((entry) => list.includes(entry)) : list;
+        const a = shown.indexOf(activeId), b = shown.indexOf(id);
+        if (a >= 0 && b >= 0) setSelected(shown.slice(Math.min(a, b), Math.max(a, b) + 1));
       } else if (modifiers?.ctrl) {
         setSelected((current) => (current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id]));
       } else setSelected([id]);
       mutate((current) => ({ ...current, selectedFrameId: id }));
     },
-    selectAllPhotos: () => setSelected((stateRef.current?.frames ?? []).filter((frame) => !frame.removedAt && !pairsRef.current.rawOf.has(frame.id)).map((frame) => frame.id)),
+    // With a filter on (Flagged, a rating, a search), Select all selects the photos shown, never the hidden ones, so an
+    // edit or export of "all" reaches only the photos the photographer can see.
+    selectAllPhotos: (photoIds) => setSelected((stateRef.current?.frames ?? [])
+      .filter((frame) => !frame.removedAt && !pairsRef.current.rawOf.has(frame.id) && (!photoIds || photoIds.includes(frame.id)))
+      .map((frame) => frame.id)),
     clearSelection: () => setSelected(activeId ? [activeId] : []),
     setDecision: (ids, decision) => decide(ids, decision),
     removePhotos: (ids) => removePhotos(ids),
