@@ -1291,6 +1291,21 @@ export const source = {
   },
 
   // Tasks panel controls
+  cloudUsage: {
+    title: 'Cloud usage',
+    intro: 'Included every month for everyone who signs in. Editing on this device never uses any of this.',
+    photos: 'Cloud photos',
+    storage: 'Cloud storage',
+    downloads: 'Downloads and sharing',
+    resets: (d: string) => `Resets ${d}`,
+    used: (u: string, i: string) => `${u} of ${i}`,
+    extra: (a: string) => `${a} this month beyond the free amount`,
+    balance: (a: string) => `Cloud balance: ${a}`,
+    paused: 'Cloud work is paused until you top up or the month resets. Nothing is deleted.',
+    topUp: (a: string) => `Top up ${a}`,
+    topUpSoon: 'Top-ups open when checkout is live.',
+    ownStorage: 'Your own drives, NAS and cloud folders cost nothing here.',
+  },
   taskControls: {
     sectionLabel: 'Processing tasks',
     pauseAll: 'Pause all',

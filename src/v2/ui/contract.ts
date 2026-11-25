@@ -487,6 +487,8 @@ export interface WorkspaceSettings {
     provider?: 'google' | 'apple' | 'email';
     email?: string;
     displayName?: string;
+    /** This month's cloud allowances and balance, from the control plane once signed in. Absent: the section is hidden. */
+    cloud?: import('../../core/cloudPlan').CloudUsage;
   };
   aiProviders: AiProviderConfig[];
   storageConnectors: StorageConnector[];

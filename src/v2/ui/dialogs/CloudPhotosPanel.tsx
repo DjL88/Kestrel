@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { PAYG_PENCE } from '../../../core/cloudPlan';
 import type { CollabRole } from '../../../core/collabRoles';
 import type { CloudPhotoView, CloudUsage, CollabClient } from '../../../providers/collabClient';
 import { galleryThumbnail } from '../../engineClient/galleryThumbnail';
@@ -18,8 +19,8 @@ interface CloudPhotosPanelProps {
   onProblem: (error: unknown) => void;
 }
 
-/** 15 credits per GB downloaded (1 credit = 1p). Shown before anything is fetched, so nobody is surprised. */
-const creditsFor = (bytes: number) => Math.ceil(bytes * 15 / 1e9 * 10) / 10;
+/** Credits per GB downloaded (1 credit = 1p), from the shared price list. Shown before anything is fetched, so nobody is surprised. */
+const creditsFor = (bytes: number) => Math.ceil(bytes * PAYG_PENCE.downloadPerGb / 1e9 * 10) / 10;
 const ORIGINALS_CACHE = 'inflight-cloud-originals-v1';
 
 /**

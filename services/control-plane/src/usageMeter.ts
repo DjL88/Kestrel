@@ -8,8 +8,8 @@
 import type { FirestoreLike } from './firestoreStore.ts';
 import { monthKey } from './spendGuard.ts';
 
-/** About 9.5p/GB to serve, sold at 15 credits per GB downloaded (costing thread, 25 Nov 2026). */
-export const CREDITS_PER_GB_DOWNLOADED = 15;
+/** About 9.5p/GB to serve, sold at 33 credits (33p incl. VAT) per GB downloaded: at least 60% margin after VAT and Paddle fees. Same price as PAYG_PENCE.downloadPerGb in src/core/cloudPlan.ts. */
+export const CREDITS_PER_GB_DOWNLOADED = 33;
 export const millicreditsForBytes = (bytes: number) => Math.ceil(Math.max(0, bytes) * CREDITS_PER_GB_DOWNLOADED / 1_000_000);
 
 export interface AllowancePolicy {

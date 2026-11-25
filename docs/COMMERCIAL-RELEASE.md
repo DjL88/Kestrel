@@ -1,6 +1,27 @@
 # Kestrel commercial and release distribution decisions (proposal)
 
-## InFlight V2 pricing and cloud · 22 November 2026
+## InFlight plans and cloud · 25 November 2026 (owner decision, supersedes the 22 November table)
+
+**Two software plans, and one cloud price list for everyone who signs in.** The numbers live in code in `src/core/cloudPlan.ts`, and its tests check that each pay-as-you-go line keeps at least 60% margin after VAT, Paddle's 5% + 50p and Google's London list prices.
+
+| Software | Price | What it is |
+| --- | --- | --- |
+| Basic | Free | Core editing, local, NAS and connected-drive storage |
+| Pro | £29 once, or £2.99 a month | All editing tools. £29 keeps the current major version forever. £2.99 a month is rent to own: after 12 successfully paid months the customer keeps the latest major version (rules below). |
+
+| Cloud (everyone signed in) | Included each month | Beyond that (incl. VAT) |
+| --- | --- | --- |
+| Cloud processing | Basic 500 photos, Pro 5,000 photos | 0.3p a photo (£3 per 1,000), from the cloud balance |
+| Storage | 2.5 GB | 7p per GB a month |
+| Downloads and sharing (other devices, collaborators, galleries, restores) | 1 GB | 33p per GB, charged to the project owner |
+
+- The cloud balance is prepaid: top-ups of £5, £10 or £20 (Paddle charges 50p on every payment, so nothing smaller). 1 credit = 1p.
+- Allowances reset on the 1st of each month (UTC). Running out never blocks local editing and never deletes files: cloud work pauses until a top-up or the next month, and a cloud task runs on the device instead.
+- People are encouraged to use their own drives, NAS and cloud folders, which cost InFlight nothing.
+- Pro Cloud (£99) and the 100 GB bundle are withdrawn: storage is pay per GB, so heavy users pay for what they use.
+- Settings → Account shows the three meters, the reset date, the balance and the top-up buttons (`src/v2/ui/panels/CloudUsagePanel.tsx`). Top-ups open when Paddle checkout is live.
+
+## Earlier proposal · 22 November 2026 (superseded where it differs from the table above)
 
 | Plan | Monthly | Annual | One-off | Included |
 | --- | --- | --- | --- | --- |

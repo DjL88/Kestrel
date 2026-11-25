@@ -71,14 +71,14 @@ test('previews go up, friends list and download them, and every download is coun
 });
 
 test('originals: only exporters download them, and the allowance stops downloads when used up', async () => {
-  const ctx = await harness(1, 1_000_000_000);
+  const ctx = await harness(2, 1_000_000_000);
   try {
     await put(ctx, 'preview', 400_000);
     await put(ctx, 'original', 60_000_000, 'c');
     assert.equal((await ctx.call('POST', `${ctx.P}/photos/${KEY}/cloud/download-url`, ctx.viewer.token, { variant: 'original' })).status, 403, 'a viewer cannot take the original');
     assert.equal((await ctx.call('POST', `${ctx.P}/photos/${KEY}/cloud/download-url`, ctx.viewer.token, { variant: 'preview' })).status, 200);
     let r = await ctx.call('POST', `${ctx.P}/photos/${KEY}/cloud/download-url`, ctx.friend.token, { variant: 'original' });
-    assert.equal(r.status, 200, JSON.stringify(r.body)); // 60 MB = 0.9 credits
+    assert.equal(r.status, 200, JSON.stringify(r.body)); // 60 MB at 33 credits per GB = 1.98 credits
     r = await ctx.call('POST', `${ctx.P}/photos/${KEY}/cloud/download-url`, ctx.friend.token, { variant: 'original' });
     assert.equal(r.status, 402); assert.equal(r.body.error.code, 'CREDITS_EXHAUSTED');
     assert.equal((await ctx.call('POST', `${ctx.P}/photos/${KEY}/cloud/upload-url`, ctx.viewer.token, { variant: 'preview', sha256: sha('d'), bytes: 10, name: 'x' })).status, 403, 'viewers do not upload');

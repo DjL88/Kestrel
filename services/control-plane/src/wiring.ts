@@ -82,11 +82,11 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
       out.gallery = new GalleryStore(db, bucket); out.enabled.push('gallery');
       // The cloud photo store shares the UK bucket under projects/ (the 90-day rule covers galleries/ only).
       if (env.KCP_CLOUD_PHOTOS_ENABLED === '1') {
-        const credits = Number(env.KCP_DOWNLOAD_CREDITS_PER_MONTH ?? 300);
+        const credits = Number(env.KCP_DOWNLOAD_CREDITS_PER_MONTH ?? 33);
         const maxGb = Number(env.KCP_CLOUD_PROJECT_MAX_GB ?? 50);
         out.cloudPhotos = {
           store: new CloudPhotoStore(db, bucket), meter: new FirestoreUsageMeter(db),
-          allowance: new FlatAllowance(Math.max(0, Math.round((Number.isFinite(credits) ? credits : 300) * 1000))),
+          allowance: new FlatAllowance(Math.max(0, Math.round((Number.isFinite(credits) ? credits : 33) * 1000))),
           maxProjectBytes: Math.max(0, (Number.isFinite(maxGb) ? maxGb : 50) * 1_000_000_000),
         };
         out.enabled.push('cloud-photos');

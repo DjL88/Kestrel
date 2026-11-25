@@ -2,6 +2,7 @@ import { LANGUAGES, languageOption, type LanguageCode } from '../../../core/loca
 import { chooseLanguage, language } from '../../../i18n/messages';
 import { StorageConnections } from './StorageConnections';
 import { aiProviderControl, cacheCapControl } from '../../engineClient/realSettingsControls';
+import CloudUsagePanel from '../panels/CloudUsagePanel';
 import { calmViewOn, calmViewPatch } from '../../engineClient/uiSettings';
 import React, { useRef, useState } from 'react';
 import { useDialogFocus } from '../utils/dialogFocus';
@@ -353,6 +354,9 @@ export default function SettingsDialog({
               </div>
             )}
 
+            {activeTab === 'account' && settings.account.cloud && (
+              <div className="mb-5"><CloudUsagePanel usage={settings.account.cloud} /></div>
+            )}
             {activeTab === 'account' && (
               accountPanel ? <div className="text-sm text-[var(--text-secondary)] [--account-foreground:var(--text-primary)] [--account-text:var(--text-secondary)] [--account-muted:var(--text-muted)] [--account-border:var(--border-default)] [--account-field:var(--bg-input)] [--account-warning:var(--text-primary)]">
                 {accountPanel}
