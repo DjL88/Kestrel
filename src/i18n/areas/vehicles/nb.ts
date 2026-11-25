@@ -25,4 +25,16 @@ export const nb: AreaTranslation<typeof source> = {
   probably: (what: string) => `${what} (sannsynligvis)`,
   typeUnknown: (what: string) => `${what}, ukjent type`,
   withType: (kind: string, type: string) => `${kind}: ${type}`,
+  marked: (what: string, marking: string) => `${what}, merket ${marking}`,
+  registered: (marking: string, type: string) => `${marking}: ${type} (ifølge registeret)`,
+  operatedBy: (what: string, operator: string) => `${what}, drevet av ${operator}`,
+  reader: {
+    title: 'Les flyregistreringer',
+    description: (megabytes: string) => `Leser registreringer og militære serienumre malt på fly, på denne enheten, og slår dem opp i en frakoblet kopi av offentlige registre. En engangsnedlasting på ${megabytes} MB. Bilskilt leses aldri.`,
+    download: 'Last ned',
+    downloading: (percent: number) => `Laster ned… ${percent}%`,
+    ready: 'Installert. Virker frakoblet.',
+    remove: 'Fjern',
+    failed: 'Nedlastingen ble ikke fullført, så ingenting ble lagret. Prøv igjen.',
+  },
 };

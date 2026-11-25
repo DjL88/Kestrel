@@ -25,4 +25,16 @@ export const da: AreaTranslation<typeof source> = {
   probably: (what: string) => `${what} (sandsynligvis)`,
   typeUnknown: (what: string) => `${what}, ukendt type`,
   withType: (kind: string, type: string) => `${kind}: ${type}`,
+  marked: (what: string, marking: string) => `${what}, mærket ${marking}`,
+  registered: (marking: string, type: string) => `${marking}: ${type} (ifølge registret)`,
+  operatedBy: (what: string, operator: string) => `${what}, drevet af ${operator}`,
+  reader: {
+    title: 'Læs flyregistreringer',
+    description: (megabytes: string) => `Læser registreringer og militære serienumre malet på fly, på denne enhed, og slår dem op i en offline kopi af offentlige registre. En engangsdownload på ${megabytes} MB. Nummerplader på biler læses aldrig.`,
+    download: 'Download',
+    downloading: (percent: number) => `Downloader… ${percent}%`,
+    ready: 'Installeret. Virker offline.',
+    remove: 'Fjern',
+    failed: 'Downloadet blev ikke færdigt, så intet blev gemt. Prøv igen.',
+  },
 };
