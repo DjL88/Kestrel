@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Sign in with Apple – InFlight</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #111; color: #eee; display: grid; place-items: center; min-height: 100vh; margin: 0; }
+  main { max-width: 26rem; padding: 1.5rem; text-align: center; display: grid; gap: 1rem; }
+  h1 { font-size: 1.4rem; margin: 0; }
+  p { margin: 0; line-height: 1.5; color: #c8c8c8; }
+  button { font: inherit; font-weight: 600; padding: .8rem 1.2rem; border-radius: .6rem; border: 1px solid #fff; background: #fff; color: #000; cursor: pointer; }
+  button:focus-visible { outline: 3px solid #8db4f0; outline-offset: 3px; }
+  button[disabled] { opacity: .6; cursor: default; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Sign in to InFlight with Apple</h1>
+  <p id="m">Apple will ask you to confirm. InFlight never sees your Apple password.</p>
+  <button id="go" type="button" disabled>Continue with Apple</button>
+</main>
+<script src="https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_GB/appleid.auth.js"></script>
+<script>
+  // Opened by the InFlight desktop app. Runs Apple's sign-in here (Apple only returns to this registered address), then
+  // hands Apple's answer to the app's one-shot listener on this computer only (localhost). Nothing is stored or sent
+  // anywhere else. The app checks the state and the nonce, which it alone can verify.
+  (function () {
+    var SERVICES_ID = 'app.kestrel.photo.web';
+    var APP = 'http://localhost:53682/oauth-callback';
+    var params = new URLSearchParams(location.search);
+    var state = params.get('state') || '';
+    var nonce = params.get('nonce') || '';
+    var message = document.getElementById('m');
+    var button = document.getElementById('go');
+    history.replaceState(null, '', location.pathname);
+    if (!/^[A-Za-z0-9_-]{16,128}$/.test(state) || !/^[a-f0-9]{64}$/.test(nonce)) {
+      message.textContent = 'Open this page from InFlight: Settings → Account → Continue with Apple.';
+      return;
+    }
+    function back(answer) {
+      var out = new URLSearchParams(answer);
+      out.set('state', state);
+      message.textContent = 'Returning to InFlight…';
+      location.replace(APP + '?' + out.toString());
+    }
+    if (!window.AppleID) { message.textContent = 'Apple sign-in could not load. Check your connection and try again from InFlight.'; return; }
+    AppleID.auth.init({ clientId: SERVICES_ID, scope: 'name email', redirectURI: location.origin + '/apple-signin', state: state, nonce: nonce, usePopup: true });
+    button.disabled = false;
+    button.addEventListener('click', function () {
+      button.disabled = true;
+      AppleID.auth.signIn().then(function (result) {
+        var auth = result && result.authorization || {};
+        if (auth.state !== state || !auth.id_token) return back({ error: 'invalid_response' });
+        var name = result.user && result.user.name || {};
+        var answer = { code: auth.code || '', id_token: auth.id_token };
+        if (name.firstName) answer.first_name = name.firstName;
+        if (name.lastName) answer.last_name = name.lastName;
+        back(answer);
+      }, function (error) {
+        var code = error && error.error;
+        if (code === 'popup_closed_by_user' || code === 'user_cancelled_authorize') {
+          button.disabled = false;
+          message.textContent = 'Sign-in was cancelled. You can try again, or close this tab.';
+          return;
+        }
+        back({ error: typeof code === 'string' && /^[a-z_]{1,40}$/.test(code) ? code : 'apple_error' });
+      });
+    });
+  })();
+</script>
+</body>
+</html>
