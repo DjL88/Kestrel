@@ -1,4 +1,5 @@
 import { useConnectivity } from './providers/useConnectivity';
+import { validateSpecies } from './providers/speciesValidator';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { familyFallback, qualifiesForAutoTag, scanCandidates, scanPatch } from './core/autoTags';
 import { SPECIES_MODEL } from './core/speciesModel';
@@ -133,13 +134,19 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
             const { labels, vectors } = localLabels;
             const { embedding, grid } = await analysePicture(picture);
             const top = pickSuggestions(rankSpecies(embedding, labels, vectors, personalBonus(labels, readSpeciesCounts())))[0];
-            const best = top && qualifiesForAutoTag(top, embedding, labels, vectors) ? top : undefined;
+            const qualified = top && qualifiesForAutoTag(top, embedding, labels, vectors) ? top : undefined;
+            const crop = subjectCrop(picture.width, picture.height, grid);
+            // With the optional BioCLIP 2 validator installed (desktop), a clear disagreement withholds the automatic
+            // name: the photo stays for the person to name. Agreement or an unsure validator changes nothing.
+            const verdict = qualified ? await validateSpecies(picture, crop, qualified.label).catch(() => null) : null;
+            const best = verdict?.kind === 'differs' ? undefined : qualified;
             // No species certain enough: the family may be ("Owls"), from the unpersonalised ranking; else nothing.
-            const family = best ? undefined : familyFallback(rankSpecies(embedding, labels, vectors));
+            // A species the validator disagreed with is left for the person, without a family guess.
+            const family = qualified ? undefined : familyFallback(rankSpecies(embedding, labels, vectors));
             const named = best ? { name: best.label.common, probability: best.probability, kind: kindFor(best.label) }
               : family ? { name: family.family, probability: family.probability, kind: 'wildlife' as const } : undefined;
             // The gate looks at the same square as the species model. If it fails, nothing is decided for this photo.
-            const gate = await routeAndEmbedPicture(picture, subjectCrop(picture.width, picture.height, grid));
+            const gate = await routeAndEmbedPicture(picture, crop);
             const outcome = gateOutcome(gate.route, frame.subjectKind);
             // The same picture embedding says what kind of vehicle it is, if the gate says it is mostly a vehicle.
             const vehicle = vehicleData && !frame.vehicle && !frame.vehicleDeclined ? readVehicle(gate.embedding, gate.route, vehicleData.labels, vehicleData.vectors) : null;

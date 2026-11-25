@@ -4,7 +4,7 @@ import { EMBED_MODEL } from '../core/visualSimilarity';
 import { GATE_MODEL } from '../core/categoryGate';
 import { SPECIES_MODEL, centreSquare } from '../core/speciesModel';
 import { PHOTO_CHECK_PACK, PHOTO_CHECK_REVISION } from '../core/photoCheckPack';
-import { EFFICIENTSAM_TI, NAFNET_W32, RFDETR_NANO, optionalModelConfigured, type OptionalModel } from '../core/optionalModels';
+import { BIOCLIP2, EFFICIENTSAM_TI, NAFNET_W32, RFDETR_NANO, optionalModelConfigured, type OptionalModel } from '../core/optionalModels';
 import { NAFNET_TILE } from '../core/nafnet';
 import { bundledModelUrl } from './bundledModelAssets';
 import { isDesktopApp } from './desktopShell';
@@ -176,6 +176,13 @@ export const MODEL_CATALOGUE: readonly CatalogueEntry[] = [
       if (!nafnet) return;
       try { await nafnet.infer(new Float32Array(3 * NAFNET_TILE * NAFNET_TILE).fill(0.5)); } finally { await nafnet.close(); }
     },
+  },
+  {
+    // Desktop second opinion on species. Peak memory was measured only with native ONNX Runtime (1.95 GB, docs/models.md),
+    // not with the app's WebAssembly runtime, so it is not shown; timing needs a species to check, so it is not offered here.
+    id: BIOCLIP2.id, name: 'BioCLIP 2', role: 'species', version: '2957b322', licence: BIOCLIP2.licence,
+    files: packFiles(BIOCLIP2), peakMemory: null,
+    place: () => packPlace(BIOCLIP2),
   },
 ];
 
