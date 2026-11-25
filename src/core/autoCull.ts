@@ -114,6 +114,17 @@ export function countOriginalKeepers(frames: readonly PhotoFrame[]): number {
   return frames.filter(frame => isCullOriginal(frame) && frame.decision === 'keep').length;
 }
 
+/** Only positive photographic evidence can support a keeper suggestion.
+ * A persisted worker result can claim high confidence with an incompatible
+ * reason; missing/unavailable/soft/duplicate observations remain review-only. */
+export function hasReliableKeepEvidence(result: CullSuggestion): boolean {
+  return result.decision === 'keep' && typeof result.frameId === 'string' && !!result.frameId.trim() &&
+    Number.isFinite(result.score) && result.score >= 0 && result.score <= 100 &&
+    (result.confidence === 'high'
+      ? result.reason === 'clearDetail' || result.reason === 'subjectSharp'
+      : result.confidence === 'medium' && ['clearDetail', 'subjectSharp', 'someDetail', 'subjectOk'].includes(result.reason));
+}
+
 export function limitAutoKeepers(
   suggestions: CullSuggestion[], frames: PhotoFrame[], remainingKeepers: number,
 ): CullSuggestion[] {
@@ -135,8 +146,7 @@ export function limitAutoKeepers(
   const highKeepIds = new Set(suggestions.filter((result) => result.decision === 'keep' && result.confidence === 'high')
     .map((result) => result.frameId));
   for (const result of suggestions) {
-    if (result.decision !== 'keep' || result.confidence !== 'high' ||
-        !Number.isFinite(result.score) || result.score < 0 || result.score > 100) {
+    if (result.confidence !== 'high' || !hasReliableKeepEvidence(result)) {
       uncertainIds.add(result.frameId);
     }
   }
@@ -146,7 +156,7 @@ export function limitAutoKeepers(
     const value = frame?.rating ?? frame?.exif.rating ?? 0;
     return Number.isInteger(value) && value >= 1 && value <= 5 ? value : 0;
   };
-  for (const result of [...suggestions].sort((a, b) => rating(b.frameId) - rating(a.frameId) || b.score - a.score || String(a.frameId ?? '').localeCompare(String(b.frameId ?? '')) || a.reason.localeCompare(b.reason))) {
+  for (const result of [...suggestions].sort((a, b) => rating(b.frameId) - rating(a.frameId) || b.score - a.score || String(a.frameId ?? '').localeCompare(String(b.frameId ?? '')) || String(a.reason ?? '').localeCompare(String(b.reason ?? '')))) {
     if (!Number.isFinite(result.score) || result.score < 0 || result.score > 100 ||
         result.decision !== 'keep' || result.confidence !== 'high' || accepted.size >= safeRemaining ||
         typeof result.frameId !== 'string' || !result.frameId.trim()) continue;
