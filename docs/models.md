@@ -251,3 +251,22 @@ What it does on those synthetic cases (PyTorch): σ 25 goes from 20.2–20.9 dB 
 | Conversion | open_clip `ViT-L-14` with those weights. Names embedded once with its text half (template `a photo of {scientific}, {common}`, int8 plus a scale, as `tools/species/make_labels.py` does): 140 UK and 11,064 world names. Image half cast to fp16 in PyTorch (open_clip's LayerNorm computes in fp32), then exported with float32 input and output (opset 17, [1,3,224,224], CLIP mean and std, centre crop). No text model ships |
 
 **Parity (25 Nov 2026).** Against the PyTorch fp32 model on the 4 CC0/public-domain samples and one synthetic image: cosine ≥ 0.999998 and the same top-5 names out of 11,204 on every image. **PASS.** For example, the cat sample's top name is "Domestic cat". Native ONNX Runtime 1.32 on the laptop's CPU: load 11.4 s, 4.4 s per photo, 1.95 GB peak memory. **Not run:** onnxruntime-web WASM, because there wasn't enough free RAM on the laptop for a 0.6 GB model; real wildlife accuracy; and whether it beats BioCLIP. It only checks, and never names a photo on its own.
+
+### BiRefNet-lite (fine subject edges, desktop and cloud runner only)
+| | |
+| --- | --- |
+| File | `birefnet-lite-w16.onnx`: 92,215,270 B, SHA-256 `2c7c7240884841649e5f67b645cf7aed004a401c2fc666dd00c97a29948ef319` |
+| Model and weights | BiRefNet (Zheng et al.), Swin-T backbone, general, epoch 232. MIT |
+| Source | https://huggingface.co/ZhengPeng7/BiRefNet_lite, revision `aa62cd87eafb9cc43056d08ef3615a14628b831d` (`model.safetensors` 177,634,392 B, `4417d897…0815`; `birefnet.py` `af8568b5…69c9`) |
+| Conversion | `tools/model-conversion/birefnet_lite.py`, run by the manual **Model conversion** workflow ([run 45648025801](https://github.com/DjL88/Kestrel/actions/runs/45648025801)). Deformable convolution is replaced by an exact pure-PyTorch version (`tools/model-conversion/deform_conv.py`: 1.3e-6 vs torchvision on random inputs; 2.5e-5 for the whole model at 1024 px). It is exported with standard ONNX ops (opset 17, [1,3,1024,1024] → sigmoid alpha [1,1,1024,1024]), then made weight-only fp16 (fp16 weights, fp32 compute). A native DeformConv export is not possible: `torchvision::deform_conv2d` has no ONNX exporter |
+| Why our own export | The authors' published ONNX (release v1) differs from their PyTorch model on soft edges: edge band 0.022–0.086, limit 0.03, rocket IoU 0.977 ([run 45641328704](https://github.com/DjL88/Kestrel/actions/runs/45641328704)) |
+
+**Parity at 1024 px (25 Nov 2026, GitHub runner, 4 CPUs, onnxruntime 1.32 native).** Against the PyTorch model on 4 CC0/public-domain samples and a two-cats composite. Gate: mean |alpha diff| ≤ 0.005, IoU ≥ 0.99, edge band ≤ 0.03.
+
+| Variant | Size | Gate | Mean diff | Lowest IoU | Edge band | CPU per photo | Peak memory |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| our fp32 export | 181.4 MB | PASS | 0.0 | 1.0 | 0.0 | 7.7 s | 0.90 GB |
+| **weight-only fp16 (shipped)** | 92.2 MB | PASS | ≤ 7e-5 | 0.9995 | ≤ 0.0045 | 7.6 s | 1.14 GB |
+| fp16 (ops kept fp32) | 93.7 MB | could not load in onnxruntime | — | — | — | — | — |
+
+The app uses it only in the desktop app, and only when the person downloads it. When the built-in U²-Netp mask and BiRefNet find the same subject (IoU ≥ 0.6), BiRefNet's soft edges become the subject mask (`refineSubjectGrid`). Otherwise U²-Netp's mask stays. **Not measured:** the speed in the desktop app's own runtime (single-thread WebAssembly, expect several times the 7.6 s above), and edges on real feathers and fur.
