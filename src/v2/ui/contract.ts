@@ -347,6 +347,9 @@ export interface Photo {
   vehicleKind?: string;
   vehicleType?: string;
   category: string;
+  /** Tags InFlight worked out by itself (place, light, weather, style, genre, vehicle), already in the person's words.
+   * `words` also holds the British English word, so search finds a tag in either language. */
+  photoTags?: { id: string; facet: import('../../core/photoTags').TagFacet; label: string; words: string[] }[];
   sharpnessScore: number;
   exif: PhotoExif;
   activeGroupId: string;
@@ -592,6 +595,8 @@ export interface WorkspaceStore {
   filmstripMinRating: number;
   filmstripSort: PhotoSort;
   filmstripSearch: string;
+  /** Show only photos with this tag id; null shows all. */
+  filmstripTag?: string | null;
   gridViewOpen: boolean;
   compareMode: boolean;
   canvasZoom: number; // 0.5 to 3.0
@@ -652,6 +657,8 @@ export interface WorkspaceActions {
   correctSpeciesName: (photoId: string, name: string) => void;
   /** The person's own vehicle name for a photo, or for every frame of its burst. 'not-a-vehicle' removes it for good. */
   correctVehicle: (photoId: string, choice: { kind: string; type?: string } | 'not-a-vehicle', wholeBurst: boolean) => void;
+  /** The person removes a tag InFlight found: it goes and is never added to that photo again. */
+  removePhotoTag?: (photoId: string, tagId: string) => void;
   importPhotos: () => void;
   importFolder: () => void;
   importDroppedPhotos: (files: File[]) => void;
@@ -839,6 +846,7 @@ export interface WorkspaceActions {
   setFilmstripMinRating: (rating: number) => void;
   setFilmstripSort: (sort: PhotoSort) => void;
   setFilmstripSearch: (query: string) => void;
+  setFilmstripTag?: (tagId: string | null) => void;
   setGridViewOpen: (open: boolean) => void;
   setCompareMode: (compare: boolean) => void;
   setCanvasZoom: (zoom: number) => void;
