@@ -1244,6 +1244,7 @@ export const sv: AreaTranslation<typeof source> = {
   autoCullSummary: {
     checked: (count: number) => `Foton kontrollerade av Automatiskt urval: ${count}. Granska markeringarna i fotoremsan.`,
     rawFromCameraPreview: (count: number) => `RAW-foton bedömda utifrån kamerans inbäddade förhandsvisning, inte utifrån sensordata: ${count}. Kontrollera skärpan med ögat.`,
+    heldByGuardian: (count: number) => `Behållna foton som hålls inne för din granskning, eftersom bildkontrollen på den här enheten tvivlade på motivet: ${count}. De föreslås, de markeras inte.`,
     undo: "Du kan ångra hela genomgången i ett steg.",
   },
   tasks: {

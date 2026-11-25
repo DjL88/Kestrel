@@ -1244,6 +1244,7 @@ export const it: AreaTranslation<typeof source> = {
   autoCullSummary: {
     checked: (count: number) => `Foto controllate dalla scelta automatica: ${count}. Controlla i contrassegni nella striscia di foto.`,
     rawFromCameraPreview: (count: number) => `Foto RAW giudicate dall'anteprima incorporata della fotocamera, non dai dati del sensore: ${count}. Controlla la nitidezza a occhio.`,
+    heldByGuardian: (count: number) => `Foto da tenere trattenute per la tua revisione, perché il controllo visivo su questo dispositivo dubitava del soggetto: ${count}. Sono suggerite, non contrassegnate.`,
     undo: 'Puoi annullare l’intero passaggio in un solo passo.',
   },
   tasks: {

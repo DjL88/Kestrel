@@ -1247,6 +1247,7 @@ export const ga: AreaTranslation<typeof source> = {
   autoCullSummary: {
     checked: (count: number) => `Grianghraif a sheiceáil an roghnú uathoibríoch: ${count}. Athbhreithnigh na bratacha sa stiall grianghraf.`,
     rawFromCameraPreview: (count: number) => `Grianghraif RAW a measadh ó réamhamharc leabaithe an cheamara, ní óna sonraí braiteora: ${count}. Seiceáil a ngéire le do shúil.`,
+    heldByGuardian: (count: number) => `Grianghraif le coinneáil a coinníodh siar le haghaidh d'athbhreithnithe, mar bhí amhras ar an tseiceáil amhairc ar an ngléas seo faoin ábhar: ${count}. Moltar iad, níl siad marcáilte.`,
     undo: "Is féidir leat an babhta iomlán a chealú in aon chéim amháin.",
   },
   tasks: {
