@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { DEFAULT_CROP } from './cropOps.ts';
-import { anchoredBox, cropPlacement, referenceScale, watermarkBox, fitWatermarkArtwork } from './exportLayout.ts';
+import { anchoredBox, cropPlacement, referenceScale, watermarkBox, fitWatermarkArtwork, safeAnchoredBox, safeOverlayTransform } from './exportLayout.ts';
 
 const close = (actual: number, expected: number) => assert.ok(Math.abs(actual - expected) < 1e-9, `${actual} vs ${expected}`);
 
@@ -52,4 +52,25 @@ test('watermark artwork retains its aspect ratio inside the preview limits', () 
   assert.deepEqual(fitWatermarkArtwork(660, 100, 100), { width: 36, height: 36 });
   assert.deepEqual(fitWatermarkArtwork(1320, 100, 200), { width: 36, height: 72 });
   assert.deepEqual(fitWatermarkArtwork(660, 0, 0), { width: 0, height: 0 });
+});
+
+
+test('edge text and scaled watermark keep the same page-relative safe margins at preview and export resolutions', () => {
+  for (const n of [1, 4]) {
+    const frame = {width:1000*n,height:800*n};
+    const text = safeAnchoredBox(frame,8,6,{width:300*n,height:100*n});
+    close(text.x,40*n);
+    close(text.y,32*n);
+    const mark = watermarkBox(frame,{watermarkX:96,watermarkY:96,watermarkScale:160},{width:200*n,height:50*n});
+    close(mark.x+mark.width,960*n);
+    close(mark.y+mark.height,768*n);
+    const centred = safeAnchoredBox(frame,50,50,{width:300*n,height:100*n});
+    close(centred.x,350*n);
+    close(centred.y,350*n);
+  }
+  const css = safeOverlayTransform(96,96,1.6);
+  assert.match(css,/clamp\(/);
+  assert.match(css,/cqw/);
+  assert.match(css,/cqh/);
+  assert.match(css,/scale\(1\.6\)/);
 });

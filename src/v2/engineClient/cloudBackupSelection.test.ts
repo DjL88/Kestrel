@@ -5,7 +5,7 @@ import { photosEligibleForBackup, readBackupSelection, selectPhotosForBackup, st
 const library = Array.from({ length: 100 }, (_, i) => ({ id: `photo-${i}` }));
 
 test('new and corrupt libraries fail closed with zero uploads', () => {
-  for (const value of [undefined, null, {}, { mode: 'selected' }, { mode: 'unknown' }, { mode: 'selected', photoIds: ['ok', '../\\u0000'] }]) {
+  for (const value of [undefined, null, {}, { mode: 'selected' }, { mode: 'unknown' }, { mode: 'selected', photoIds: ['ok', '../\u0000'] }]) {
     assert.deepEqual(photosEligibleForBackup(value, library), []);
   }
 });
@@ -32,4 +32,19 @@ test('unknown, invalid and duplicated stored IDs cannot expand scope', () => {
   assert.deepEqual(readBackupSelection({ mode: 'selected', photoIds: ['a', 'a'] }), { mode: 'selected', photoIds: ['a'] });
   assert.deepEqual(photosEligibleForBackup({ mode: 'selected', photoIds: ['not-here', 'a'] }, [{ id: 'a' }]), ['a']);
   assert.deepEqual(photosEligibleForBackup({ mode: 'selected', photoIds: ['a'] }, [{ id: 'a', removedAt: 1 }]), []);
+});
+
+
+test('whole-library exclusions persist and only explicit reselection re-enables a photograph', () => {
+  const all = { mode: 'all' };
+  const excluded = stopBackingUpPhotos(all, ['photo-1', 'photo-2']);
+  const reopened = JSON.parse(JSON.stringify(excluded));
+  const expanded = [...library, { id: 'new-photo' }, { id: 'removed-zero', removedAt: 0 }];
+  const eligible = photosEligibleForBackup(reopened, expanded);
+  assert.equal(eligible.includes('photo-1'), false);
+  assert.equal(eligible.includes('photo-2'), false);
+  assert.equal(eligible.includes('new-photo'), true);
+  assert.equal(eligible.includes('removed-zero'), false);
+  assert.equal(photosEligibleForBackup(selectPhotosForBackup(reopened, ['photo-1']), expanded).includes('photo-1'), true);
+  assert.deepEqual(photosEligibleForBackup({ mode: 'all', excludedPhotoIds: null }, library), []);
 });

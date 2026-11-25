@@ -105,6 +105,15 @@ export function scoreWithSubject(base: CullSuggestion, found: SubjectFinding | n
   return { ...base, ...judgeSubject(found) };
 }
 
+/** The keeper target describes original photographs, not edit variants or sample data. */
+export function isCullOriginal(frame: PhotoFrame): boolean {
+  return frame.removedAt == null && !frame.isDemo && !frame.virtualCopy;
+}
+
+export function countOriginalKeepers(frames: readonly PhotoFrame[]): number {
+  return frames.filter(frame => isCullOriginal(frame) && frame.decision === 'keep').length;
+}
+
 export function limitAutoKeepers(
   suggestions: CullSuggestion[], frames: PhotoFrame[], remainingKeepers: number,
 ): CullSuggestion[] {
@@ -117,7 +126,7 @@ export function limitAutoKeepers(
     if (byId.has(frame.id)) ambiguousIds.add(frame.id);
     else byId.set(frame.id, frame);
   }
-  const occupied = new Set(frames.filter((frame) => frame.removedAt == null && frame.decision === 'keep' && frame.burstGroupId)
+  const occupied = new Set(frames.filter((frame) => isCullOriginal(frame) && frame.decision === 'keep' && frame.burstGroupId)
     .map((frame) => frame.burstGroupId!));
   // Overlapping workers can disagree about the same photo. An earlier high
   // score must not override a later review-only or reject result. Duplicate
@@ -144,7 +153,7 @@ export function limitAutoKeepers(
     // A stale scan result cannot reserve keeper headroom for a photo that was
     // removed or manually reviewed while the scan was running.
     const frame = byId.get(result.frameId);
-    if (accepted.has(result.frameId) || !frame || uncertainIds.has(result.frameId) || ambiguousIds.has(result.frameId) || frame.removedAt != null || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) continue;
+    if (accepted.has(result.frameId) || !frame || uncertainIds.has(result.frameId) || ambiguousIds.has(result.frameId) || !isCullOriginal(frame) || frame.decision !== 'unreviewed') continue;
     const burst = frame.burstGroupId;
     if (burst && occupied.has(burst)) continue;
     accepted.set(result.frameId, result);

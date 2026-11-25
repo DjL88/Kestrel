@@ -3,6 +3,7 @@ import type { TaskInfo } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import { engineScheduler } from '../../../core/engineScheduler';
+import { moveQueuedTask } from '../utils/queuedTaskOrder';
 
 interface TasksPanelProps {
   tasks: TaskInfo[];
@@ -40,7 +41,8 @@ export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCo
   const queuedOrder = running.filter(task => task.status === 'queued').map(task => Number(task.id));
   const finished = tasks.filter(task => !active(task.status));
   const shown = tab === 'active' ? running : finished;
-  const canPauseAny = running.some(task => task.pauseable && task.status !== 'paused');
+  const allPaused = engineScheduler.isPausedAll();
+  const canPauseAny = !allPaused && running.some(task => task.status === 'queued' || (task.pauseable && task.status === 'running'));
 
   const tabButton = (id: 'active' | 'completed', label: string, count: number) => (
     <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
@@ -55,12 +57,12 @@ export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCo
         {tabButton('active', STRINGS.tasks.tabActive, running.length)}
         {tabButton('completed', STRINGS.tasks.tabCompleted, finished.length)}
       </div>
-      {tab === 'active' && running.length > 0 && (
+      {tab === 'active' && (running.length > 0 || allPaused) && (
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" className={controlStyle} disabled={!canPauseAny}
             onClick={() => engineScheduler.pauseAll()}>{STRINGS.taskControls.pauseAll}</button>
           <button type="button" className={controlStyle}
-            disabled={!running.some(task => task.status === 'paused') && !engineScheduler.isPausedAll()}
+            disabled={!running.some(task => task.status === 'paused') && !allPaused}
             onClick={() => engineScheduler.resumeAll()}>{STRINGS.taskControls.resumeAll}</button>
         </div>
       )}
@@ -121,9 +123,9 @@ export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCo
                 className={controlStyle} aria-label={STRINGS.taskControls.resumeLabel(task.label)}>{STRINGS.taskControls.resume}</button>}
               {canPrioritise && task.pauseable && <button type="button" onClick={() => engineScheduler.jumpQueue(taskId)}
                 className={controlStyle} aria-label={STRINGS.taskControls.jumpLabel(task.label)}>{STRINGS.taskControls.jumpQueue}</button>}
-              {queueIndex > 0 && <button type="button" onClick={() => engineScheduler.reorder([taskId, queuedOrder[queueIndex - 1]])}
+              {queueIndex > 0 && <button type="button" onClick={() => engineScheduler.reorder(moveQueuedTask(queuedOrder, taskId, -1))}
                 className={controlStyle} aria-label={STRINGS.taskControls.upLabel(task.label)}>{STRINGS.taskControls.moveUp}</button>}
-              {queueIndex >= 0 && queueIndex < queuedOrder.length - 1 && <button type="button" onClick={() => engineScheduler.reorder([queuedOrder[queueIndex + 1], taskId])}
+              {queueIndex >= 0 && queueIndex < queuedOrder.length - 1 && <button type="button" onClick={() => engineScheduler.reorder(moveQueuedTask(queuedOrder, taskId, 1))}
                 className={controlStyle} aria-label={STRINGS.taskControls.downLabel(task.label)}>{STRINGS.taskControls.moveDown}</button>}
               {active(task.status) && task.cancellable !== false && (
                 <button type="button" onClick={() => onCancelTask(task.id)} className={controlStyle}

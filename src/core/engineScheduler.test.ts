@@ -244,3 +244,28 @@ test('measured insufficient available RAM blocks even priority jobs until pressu
   scheduler.updateResourceSample({cpu:0.1,availableMemoryBytes: 2*1024**3,availableGpuBytes:3*1024**3,availableDiskBytes:3*1024**3});
   assert.equal(await ticket.finished, 'done');
 });
+
+
+test('retry of journalled partial failure reuses the original fingerprint and verifies saved outputs', async () => {
+  const { scheduler } = build();
+  const persisted = new Map<string, string>();
+  const saved = new Set<number>();
+  const attempts: number[] = [];
+  let fail = true;
+  const first = await scheduler.submit(batch('Recoverable export', 3, async n => {
+    attempts.push(n);
+    if (n === 2 && fail) throw new Error('Temporary destination failure');
+    saved.add(n);
+  }, { recovery: { key: 'retry-journal', journal: {
+    getItem: key => persisted.get(key) ?? null,
+    setItem: (key, value) => { persisted.set(key, value); },
+  }, verifyCompleted: async n => saved.has(n) } }));
+  assert.equal(await first.finished, 'failed');
+  fail = false;
+  const retry = await first.retryFailed();
+  assert.ok(retry);
+  assert.equal(await retry.finished, 'done');
+  assert.deepEqual(attempts, [1, 2, 3, 2]);
+  assert.equal(await first.retryFailed(), null, 'same failure cannot be retried twice');
+  assert.deepEqual(JSON.parse(persisted.get('retry-journal')!).completed, ['1', '2', '3']);
+});

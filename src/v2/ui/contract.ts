@@ -40,6 +40,7 @@ export type SettingsTabId =
   | 'aiProviders'
   | 'storage'
   | 'keyboard'
+  | 'presets'
   | 'language'
   | 'privacy';
 
@@ -169,9 +170,20 @@ export interface LookPreset {
   recipeDelta: Partial<EditRecipe>;
 }
 
+/** A piece of information a text row can show: a field the photo file records, what subject detection found, or the person's own words. */
+export type OverlayFieldId =
+  | 'camera' | 'lens' | 'aperture' | 'shutter' | 'iso' | 'focalLength'
+  | 'capturedAt' | 'title' | 'filename' | 'fileFormat' | 'fileSizeMb' | 'dimensions' | 'colourProfile' | 'rating'
+  | 'species' | 'category'
+  | 'custom';
+
+/** Text and watermark stacked together at the bottom, lined up on one side. */
+export type OverlayStack = 'left' | 'center' | 'right';
+
 export interface OverlayTextRow {
   id: string;
-  fields: Array<'camera' | 'lens' | 'aperture' | 'shutter' | 'iso' | 'focalLength' | 'capturedAt' | 'fileFormat' | 'fileSizeMb' | 'dimensions' | 'colourProfile' | 'filename' | 'species' | 'custom'>;
+  /** In the order they are shown. */
+  fields: OverlayFieldId[];
   customText: string;
   fontId: string;
   sizePx: number;
@@ -184,6 +196,11 @@ export interface OverlaySettings {
   textEnabled: boolean;
   textLayoutMode: 'as-is' | 'cover-full';
   textPosition: OverlayAnchor;
+  /** 'anchor': the box's edge sits at the edge margin of the chosen place (a corner, the top, the bottom). 'free': it was
+   * dragged, and textX/textY are its centre. */
+  textPlacement: 'anchor' | 'free';
+  /** How the rows line up inside the text box. */
+  textAlign: 'left' | 'center' | 'right';
   textX: number; // 4 to 96 (% of frame width)
   textY: number; // 4 to 96 (% of frame height)
   textOffsetX: number; // -40 to 40 (%)
@@ -194,6 +211,8 @@ export interface OverlaySettings {
   watermarkEnabled: boolean;
   watermarkPresetId: string;
   watermarkPosition: OverlayAnchor;
+  /** As textPlacement, for the watermark. */
+  watermarkPlacement: 'anchor' | 'free';
   watermarkX: number; // 4 to 96 (% of frame width)
   watermarkY: number; // 4 to 96 (% of frame height)
   watermarkOpacity: number; // 10 to 100
@@ -201,6 +220,8 @@ export interface OverlaySettings {
   /** 'auto' picks light or dark from the photo behind the watermark (see Photo.watermarkAuto). */
   watermarkContrast: 'light-on-dark' | 'dark-on-light' | 'auto';
   snapEnabled: boolean;
+  /** Space between an anchored box and the frame's edge, as % of the frame's width (so the same distance on every side). 0 to 12. */
+  edgeMargin: number;
 }
 
 export interface EditGroup {
@@ -316,7 +337,10 @@ export interface Project {
   id: string;
   name: string;
   updatedAt: string;
+  /** The project's best favourite, at review size. Empty when no picture is cached on this device. */
   coverUrl: string;
+  /** Up to three further favourites, thumbnail size, shown beside the cover in the list view. */
+  sampleUrls?: string[];
   photoCount: number;
   flaggedCount: number;
   localCopyStatus: 'synced' | 'offline-ready' | 'pending';
@@ -599,7 +623,10 @@ export interface WorkspaceActions {
 
   // Overlays (Text & Watermark) & Snapping
   updateOverlay: (photoId: string, patch: Partial<OverlaySettings>) => void;
-  alignOverlaysCleanly: (photoId: string, layout: 'stacked-left' | 'stacked-right' | 'opposite-bottom' | 'centred-pair') => void;
+  /** Puts the text and the watermark together at the bottom, stacked, lined up left, centre or right. */
+  alignOverlaysCleanly: (photoId: string, layout: OverlayStack) => void;
+  /** Moves a text row up (-1) or down (+1). */
+  moveOverlayRow: (photoId: string, rowId: string, direction: -1 | 1) => void;
   addOverlayRow: (photoId: string) => void;
   updateOverlayRow: (photoId: string, rowId: string, patch: Partial<OverlayTextRow>) => void;
   removeOverlayRow: (photoId: string, rowId: string) => void;
@@ -610,6 +637,12 @@ export interface WorkspaceActions {
   /** Makes the missing version (white for dark photos, black for light photos) from the one that exists. */
   makeWatermarkVariant: (presetId: string, slot: 'dark' | 'light') => Promise<void>;
   deleteWatermark: (presetId: string) => void;
+  /** Adds a text watermark (a line and an optional second line) to the library. Returns its id, or null when the text is empty. */
+  addTextWatermark: (text: string, subtext: string) => string | null;
+  /** Opens the file picker and puts the chosen image in this watermark's version for dark ('dark') or light ('light') photos. */
+  addWatermarkVersion: (presetId: string, slot: 'dark' | 'light') => Promise<boolean>;
+  /** The person says the artwork is for the other kind of photo: moves a watermark's only version to that slot. */
+  setWatermarkSlot: (presetId: string, slot: 'dark' | 'light') => void;
   addCustomFont: (fontName: string) => void;
   /** Names of the fonts installed on this device, or null when the device cannot list them (then a name can be typed). */
   listDeviceFonts: () => Promise<string[] | null>;

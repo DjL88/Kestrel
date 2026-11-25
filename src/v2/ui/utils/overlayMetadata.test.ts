@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { OverlayTextRow, Photo } from '../contract';
-import { composeOverlayText, overlayFieldChoices } from './overlayMetadata';
+import { composeOverlayText, moveInList, overlayFieldChoices } from './overlayMetadata';
 
 const photo: Pick<Photo, 'exif' | 'filename' | 'speciesLabel' | 'pixelSize'> = {
   filename: 'bird.NEF', speciesLabel: 'Robin', pixelSize: { width: 6000, height: 4000 },
@@ -16,4 +16,17 @@ test('picker offers present metadata plus custom text, but not placeholders or a
   const fields = overlayFieldChoices(photo, ['camera', 'species']).map(([id]) => id);
   assert.ok(fields.includes('capturedAt') && fields.includes('custom') && fields.includes('dimensions'));
   for (const absent of ['camera', 'species', 'lens', 'iso', 'fileSizeMb', 'colourProfile']) assert.ok(!fields.some(id => id === absent));
+});
+
+test('title, star rating and subject type come from the photo and its detection, and are left out when absent', () => {
+  const found = { ...photo, title: 'Robin at dawn', rating: 4, category: 'bird' };
+  const all: OverlayTextRow = { ...row, fields: ['title', 'rating', 'category'] };
+  assert.equal(composeOverlayText(all, found), 'Robin at dawn  ·  ★★★★  ·  bird');
+  assert.equal(composeOverlayText(all, { ...photo, rating: 0, category: '' }), '');
+});
+
+test('moving an item stops at either end', () => {
+  assert.deepEqual(moveInList(['a', 'b', 'c'], 2, -1), ['a', 'c', 'b']);
+  assert.deepEqual(moveInList(['a', 'b', 'c'], 0, -1), ['a', 'b', 'c']);
+  assert.deepEqual(moveInList(['a', 'b', 'c'], 2, 1), ['a', 'b', 'c']);
 });

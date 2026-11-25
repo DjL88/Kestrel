@@ -28,8 +28,8 @@ test('select multiple photos in Library, edit just that queue and export togethe
   await page.getByRole('button', { name: 'Select photos', exact: true }).click();
   await page.getByRole('button', { name: 'Select frame-1.png' }).click();
   await page.getByRole('button', { name: 'Select frame-3.png' }).click();
-  await expect(page.getByText('2 selected', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Edit selected' }).click();
+  await expect(page.getByText('2 selected', { exact: true }).locator('visible=true').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Edit selected' }).locator('visible=true').first().click();
   const film = page.locator('[aria-label="Shoot filmstrip"]');
   await expect(film.getByRole('button', { name: 'Select frame-1.png' })).toBeVisible();
   await expect(film.getByRole('button', { name: 'Select frame-3.png' })).toBeVisible();

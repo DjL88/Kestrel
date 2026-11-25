@@ -17,8 +17,8 @@ test('desktop photo selection acts on all filtered photo records, never the page
 
   // Simulate the command emitted by Tauri, not the browser text-selection shortcut.
   await page.evaluate(() => window.dispatchEvent(new Event('kestrel:photos-select-all')));
-  await expect(page.getByText('4 selected', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Edit selected' })).toBeVisible();
+  await expect(page.getByText('4 selected', { exact: true }).locator('visible=true').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Edit selected' }).locator('visible=true').first()).toBeVisible();
 
   await page.evaluate(() => window.dispatchEvent(new Event('kestrel:photos-deselect-all')));
   await expect(page.getByText('4 selected', { exact: true })).toHaveCount(0);
