@@ -8,7 +8,7 @@ import { newId } from '../../core/ids';
 import { exportCollage } from './exportCollage';
 import { createCollage, MAX_COLLAGE_SELECTION, readCollage } from '../../core/collage';
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
-import { appendProjectPhotos, applyImportBursts, createEmptyProject, setArchived } from '../../core/projects';
+import { appendProjectPhotos, applyImportBursts, createEmptyProject, setArchived, setTrashed, trashExpired } from '../../core/projects';
 import { tasks } from '../../core/taskStore';
 import { createSaveGuard, type SaveGuard } from '../../core/saveGuard';
 import { engineScheduler } from '../../core/engineScheduler';
@@ -60,7 +60,8 @@ import { addLayer, addRow, alignOverlays, moveLayer, moveRow, newLayer, patchOve
 import { frameToPhoto, matchesAutoSource, originalFormatSize, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
 import { commitAutoEdit } from './commitAutoEdit';
-import { commitAutoCull } from './commitAutoCull';
+import type { PictureSource } from '../../core/pictureSource';
+import { autoCullSummary, commitAutoCull, rawsJudgedFromCameraPreview } from './commitAutoCull';
 import { runV2Denoise } from './runDenoise';
 import { composeDenoiseRecipe } from './denoiseRecipe';
 import { preloadTrueDetailAi } from '../../core/trueDetailAiCanvas';
@@ -312,7 +313,15 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const nextUrls: string[] = [];
     try {
       const store = catalogue.current!;
-      const shoots = (await store.listProjects()).filter((shoot: ShootDescriptor) => !shoot.inbox);
+      const listed = (await store.listProjects()).filter((shoot: ShootDescriptor) => !shoot.inbox);
+      // A project kept in Recently deleted for the full 30 days is removed for good now. One that cannot be
+      // removed stays listed there, so nothing disappears without being gone.
+      const now = Date.now();
+      const removed = new Set<string>();
+      for (const shoot of listed.filter((candidate) => trashExpired(candidate, now))) {
+        try { await store.deleteProject(shoot.id); removed.add(shoot.id); } catch { /* kept; tried again next time */ }
+      }
+      const shoots = listed.filter((shoot) => !removed.has(shoot.id));
       const loaded = await Promise.all(shoots.map(async (shoot) => {
         const frames = (await store.loadProject(shoot.id))?.frames ?? [];
         // The best favourites at review size, developed from the RAW where that is cached. Never the original itself.
@@ -332,6 +341,16 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     }
   }, []);
   useEffect(() => { void loadHub(); }, [loadHub]);
+  /** Puts a project in Recently deleted (a time) or takes it back out (undefined); everything else is unchanged. */
+  const setProjectTrashed = useCallback((id: string, at: number | undefined) => {
+    void (async () => {
+      const store = catalogue.current!;
+      const found = await store.loadProject(id);
+      if (!found) { setNotice('That project could not be found.'); return; }
+      await store.saveProject(setTrashed(found, at));
+      await loadHub();
+    })().catch(() => setNotice('InFlight could not update the project.'));
+  }, [loadHub]);
 
   // Save the open project whenever it changes. A failed save is never dropped (G07): the latest state of each project is
   // kept and retried until it is stored, and closing InFlight asks first while a failed change is still unsaved.
@@ -659,6 +678,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const regrouped = current ? regroupBurstsWithEmbeddings(current.frames) : null;
       return current && regrouped ? { ...current, frames: regrouped } : current;
     }),
+    onUnavailable: (message) => setNotice(message),
   });
 
   // Plain-language tags (place from GPS, light, weather, style, genre) are worked out quietly on this device after photos
@@ -769,12 +789,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         runItem: async (_, __, ctx) => {
           ctx.stage(engineText.workspace.cullScan);
           ctx.setSubitems(candidates.map(frame => ({ id: frame.id, label: frame.filename })));
+          const judgedFrom = new Map<string, PictureSource | undefined>();
           const results = await scanForCulling(candidates, current.frames, provider.current!, null,
             ctx.signal, count => ctx.reportProgress(count, candidates.length, `${count} of ${candidates.length} analysed`),
             () => ctx.commitIfCurrent(() => setNotice(engineText.workspace.cullNoDetector)),
             (frameId, stage) => ctx.updateSubitem(frameId,
               stage === 'analysing' ? 'running' : 'done',
-              stage === 'unavailable' ? engineText.workspace.cullDetectorStage : stage));
+              stage === 'unavailable' ? engineText.workspace.cullDetectorStage : stage),
+            undefined, (frameId, source) => judgedFrom.set(frameId, source));
           ctx.checkCancelled();
           if (requestId !== openRequest.current || stateRef.current?.shoot.id !== projectKey) return;
           ctx.stage(engineText.workspace.cullApply);
@@ -782,7 +804,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             if (!latest || latest.shoot.id !== projectKey || requestId !== openRequest.current || ctx.signal.aborted) return latest;
             return commitAutoCull(latest, candidates, results);
           }));
-          const summary = `Auto-cull checked ${candidates.length} photo${candidates.length === 1 ? '' : 's'}. Review the flags in the filmstrip. You can undo the whole pass in one step.`;
+          // Which picture each RAW was actually judged from; unknown counts as the camera's preview (never overstated).
+          const summary = autoCullSummary(candidates.length, rawsJudgedFromCameraPreview(candidates, results, judgedFrom));
           ctx.commitIfCurrent(() => setNotice(summary));
         },
       });
@@ -1734,7 +1757,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         await loadHub();
       })().catch(() => setNotice('InFlight could not update the project.'));
     },
-    deleteProject: (id) => {
+    // Delete is reversible for 30 days: the project moves to Recently deleted and nothing is removed yet.
+    deleteProject: (id) => { setProjectTrashed(id, Date.now()); },
+    restoreDeletedProject: (id) => { setProjectTrashed(id, undefined); },
+    // Removing for good is offered only from Recently deleted, after its own confirmation.
+    deleteProjectForever: (id) => {
       void catalogue.current!.deleteProject(id).then(() => loadHub(), () => setNotice('InFlight could not delete the project. Your original photos are unchanged.'));
     },
     backToProjects: () => { void backToProjects(); },

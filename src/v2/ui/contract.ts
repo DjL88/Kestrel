@@ -303,7 +303,7 @@ export interface AssistSuggestion {
   recipeDelta: Partial<EditRecipe>;
   comparison?: { before: string; after: string };
   /** The same edit as ordered slider steps with real values (src/core/editingSequence.ts), for Watch and Learn. */
-  steps?: { id: string; label: string; from: string; to: string }[];
+  steps?: { id: string; label: string; from: string; to: string; /** The recipe setting the step changes. */ key?: string }[];
   /** ColourSense: whether the suggestion keeps the subject's colour, in words (absent when it could not be judged). */
   colourSense?: ColourSenseNote;
   /** Colour match: whether the subject carries the colours it should have (species signature or the vision model), in words. */
@@ -428,6 +428,8 @@ export interface Project {
   folderPath: string;
   /** Hidden from the main list but kept; restore brings it back. */
   archived?: boolean;
+  /** Deleted: shown only in Recently deleted until restored or removed for good after 30 days. */
+  trashed?: boolean;
 }
 
 export interface TaskInfo {
@@ -644,8 +646,12 @@ export interface WorkspaceActions {
   createProjectFromFolder: () => void;
   renameProject: (projectId: string, name: string) => void;
   archiveProject: (projectId: string, archived: boolean) => void;
-  /** Removes InFlight's catalogue entry and its stored copies. Original files are never touched. */
+  /** Moves the project to Recently deleted for 30 days. Nothing is removed yet; original files are never touched. */
   deleteProject: (projectId: string) => void;
+  /** Takes a project back out of Recently deleted, as it was. */
+  restoreDeletedProject: (projectId: string) => void;
+  /** Removes InFlight's catalogue entry and its stored copies now. Original files are never touched. */
+  deleteProjectForever: (projectId: string) => void;
   setHubState: (state: HubViewState) => void;
 
   // Photos, Culling & Selection

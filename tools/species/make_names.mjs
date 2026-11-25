@@ -70,6 +70,8 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '
   const labels = [
     ...JSON.parse(readFileSync('public/models/species-world.json', 'utf8')).labels,
     ...JSON.parse(readFileSync('src/assets/species/uk.json', 'utf8')).labels,
+    // World mammals (Mammal Diversity Database), so other languages show their scientific name, not English.
+    ...JSON.parse(readFileSync('public/models/species-mammals.json', 'utf8')).labels.map(({ family: _family, ...label }) => label),
   ];
   const seen = new Set();
   const species = [];

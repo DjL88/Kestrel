@@ -5,44 +5,36 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0E1116">
   <link rel="icon" type="image/svg+xml" href="assets/brand/inflight/app-icons/favicon.svg">
-  <meta name="description" content="How InFlight uses strictly necessary cookies and local storage.">
+  <meta name="description" content="InFlight uses only strictly necessary storage: no analytics, advertising or tracking cookies.">
   <title>InFlight cookie policy</title>
-  <style>
-    @font-face{font-family:Inter;font-weight:400;font-display:swap;src:url(assets/fonts/inter-latin-400-normal.woff2) format("woff2")}
-    @font-face{font-family:Inter;font-weight:700;font-display:swap;src:url(assets/fonts/inter-latin-700-normal.woff2) format("woff2")}
-    @font-face{font-family:"Plus Jakarta Sans";font-weight:800;font-display:swap;src:url(assets/fonts/plus-jakarta-sans-latin-800-normal.woff2) format("woff2")}
-    :root{--canvas:#0E1116;--panel:#171B22;--ivory:#F4EFE8;--copper:#BF5824;--dusk:#9AA1AE;--mist:#9AA1AE;
-      color-scheme:dark;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--canvas);color:var(--ivory)}
-    h1,h2,h3,.brand{font-family:"Plus Jakarta Sans",Inter,system-ui,sans-serif;font-weight:800;letter-spacing:-.025em}
-    *{box-sizing:border-box}body{margin:0;line-height:1.6}a{color:#9cc3db}a:focus-visible{outline:3px solid var(--dusk);outline-offset:4px}
-    .wrap{width:min(760px,calc(100% - 40px));margin:auto}header{border-bottom:1px solid #343946;padding:22px 0}
-    .brand{color:inherit;text-decoration:none;font-size:1.25rem}
-    main{padding:48px 0 72px}h1{font-size:clamp(2rem,5vw,3rem);line-height:1.1;margin:0 0 16px}
-    h2{font-size:1.4rem;margin:36px 0 10px}p,li{color:#d3d9e5}li{margin:6px 0}
-    .notice{background:var(--panel);border:1px solid #343946;border-left:4px solid var(--copper);border-radius:8px;padding:14px 16px;color:var(--ivory)}
-    .when{color:var(--mist);font-size:.92rem}
-    footer{padding:30px 0;border-top:1px solid #343946;color:#bfc6d2}
-  </style>
+  <link rel="stylesheet" href="assets/legal.css">
 </head>
 <body>
 <header><div class="wrap"><a class="brand" href="/" aria-label="InFlight home">InFlight</a></div></header>
 <main><div class="wrap">
   <h1>Cookie policy</h1>
-  <p class="when">24 November 2026</p>
-  <p class="notice"><strong>Pre-release draft — needs legal review.</strong> This describes InFlight's intended storage policy. The final release and its connected services must be checked before publication.</p>
-  <h2>What we use</h2>
-  <p>InFlight uses only strictly necessary cookies and similar storage to provide the features you request. We do not use analytics or advertising cookies, or tracking pixels.</p>
-  <ul>
-    <li><strong>Sign-in session:</strong> when you choose to sign in, session storage keeps you signed in and supports account security.</li>
-    <li><strong>Local catalogue:</strong> browser or app storage keeps your projects, ratings and reversible edits available, including offline.</li>
-    <li><strong>Settings:</strong> local storage remembers choices such as your language and workspace preferences.</li>
-  </ul>
+  <p class="when">Version 2 · 25 November 2026.</p>
+  <p class="notice"><strong>Pre-release draft, not legal advice.</strong> Written from what the website and app actually store on 25 November 2026.</p>
+
+  <h2>The short version</h2>
+  <p>InFlight uses only storage that is strictly necessary for things you ask it to do. There are no analytics, advertising or tracking cookies, and no tracking pixels. Because of that, UK and EU law does not require a consent banner, and we do not show one. If that ever changes, we will ask before setting anything that is not strictly necessary.</p>
+
+  <h2>What is stored, and why</h2>
+  <div class="table"><table>
+    <thead><tr><th>Name or kind</th><th>Set by</th><th>Purpose</th><th>How long</th></tr></thead>
+    <tbody>
+      <tr><td>Sign-in session (browser storage)</td><td>Firebase Authentication, only when you sign in</td><td>Keeps you signed in and protects your account</td><td>Until you sign out</td></tr>
+      <tr><td>Projects, previews and edits (IndexedDB and app storage)</td><td>InFlight app</td><td>Your local catalogue, so it works offline</td><td>Until you delete it or use Erase this device</td></tr>
+      <tr><td>Settings, language and price currency (local storage)</td><td>InFlight app and website</td><td>Remembers choices you made</td><td>Until you clear them</td></tr>
+      <tr><td><code>inflight.gallery.visitor</code> (local storage)</td><td>Client gallery page</td><td>A random label so a gallery visitor's favourites and comments stay together. It is not linked to who you are.</td><td>Until you clear it</td></tr>
+      <tr><td>Payment cookies</td><td>Paddle, only when you open checkout</td><td>Take the payment securely and prevent fraud. See <a href="https://www.paddle.com/legal/cookies">Paddle's cookie policy</a>.</td><td>Set by Paddle</td></tr>
+    </tbody>
+  </table></div>
+  <p>Fonts and images on this site are served from our own address, and app downloads from our own Google Cloud storage, so no advertising or tracking company sees your visit.</p>
+
   <h2>Your choices</h2>
-  <p>You can sign out or manage site storage in your browser settings. Clearing storage may remove locally saved projects and edits, so back up your catalogue first. Original photo files are not removed by clearing browser storage.</p>
-  <p>Optional connected services may have their own storage policies. See our <a href="/privacy">privacy notice</a> for details of optional online features.</p>
-  <h2>Questions</h2>
-  <p>Contact us through the <a href="/#contact">contact form</a>.</p>
+  <p>You can sign out, or clear this site's storage in your browser settings. Clearing storage removes locally saved projects and edits, so back up first. Your original photo files are never removed by clearing browser storage. See the <a href="/privacy">privacy notice</a> for the optional online features.</p>
 </div></main>
-<footer><div class="wrap"><a href="/">Back to InFlight</a> · <a href="/privacy">Privacy</a></div></footer>
+<footer><div class="wrap"><a href="/">Back to InFlight</a> · <a href="/privacy">Privacy</a> · <a href="/cookies">Cookies</a> · <a href="/terms">Terms</a> · <a href="/acceptable-use">Acceptable use</a> · <a href="/subprocessors">Subprocessors</a> · <a href="/#contact">Contact</a></div></footer>
 </body>
 </html>

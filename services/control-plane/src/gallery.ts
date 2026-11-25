@@ -140,6 +140,7 @@ export class GalleryStore {
     if (input.kind !== 'approve-all' && input.photoId === null) throw new GalleryRefusal(400, 'BAD_REQUEST', 'Choose a photo.');
     const record: FeedbackRecord = { galleryId: g.galleryId, visitor: input.visitor, photoId: input.photoId, kind: input.kind, text: input.kind === 'comment' || input.kind === 'request-changes' ? input.text : null, atMs };
     await this.db.collection(G.feedback).doc(uuid()).create(clean(record));
+    return { galleryId: g.galleryId, projectId: g.projectId, name: g.name };
   }
 
   /** For the photographer: every event, oldest first, plus the favourites each visitor holds now. */
