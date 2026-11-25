@@ -2,7 +2,7 @@
  * Build and sign InFlight's one model manifest for the models bucket.
  *
  *   npx tsx scripts/release/sign-data-manifest.ts --dir <folder of .onnx files> --version 2026.11.25 --revision 3 --out out/models \
- *     [--species <folder of species lists (.json)> --species-licence CC-BY-4.0 --species-source https://...]
+ *     [--species <folder of species lists (.json)> --species-licence CC-BY-4.0 --species-source https://...] [--allow-large]
  *
  * Needs KESTREL_SIGNING_KEY_PEM (Ed25519, PKCS#8) and KESTREL_SIGNING_KEY_ID (kestrel-2026-11) in the environment, from
  *   gcloud secrets versions access latest --secret=kestrel-manifest-signing-key
@@ -37,6 +37,7 @@ const out = arg('out')!;
 const speciesDir = arg('species', true);
 const speciesSpdx = arg('species-licence', true);
 const speciesSource = arg('species-source', true);
+const allowLarge = process.argv.includes('--allow-large');
 const pem = process.env.KESTREL_SIGNING_KEY_PEM;
 const keyId = process.env.KESTREL_SIGNING_KEY_ID;
 if (!pem || !keyId) throw new Error('Set KESTREL_SIGNING_KEY_PEM and KESTREL_SIGNING_KEY_ID (never commit the key).');
@@ -53,7 +54,7 @@ const read = (folder: string, ext: string): (CandidateFile & { full: string })[]
 const models = read(dir, '.onnx');
 const species = speciesDir ? read(speciesDir, '.json') : [];
 const plan = planManifestAssets({
-  version, models, species,
+  version, models, species, allowLarge,
   ...(speciesSpdx && speciesSource ? { speciesLicence: { spdx: speciesSpdx, source: speciesSource } } : {}),
 });
 if (!plan.ok) throw new Error(`Not signed:\n- ${plan.problems.join('\n- ')}`);

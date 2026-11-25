@@ -10,7 +10,7 @@ import { newId } from '../../core/ids';
 import { exportCollage } from './exportCollage';
 import { createCollage, MAX_COLLAGE_SELECTION, readCollage } from '../../core/collage';
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
-import { appendProjectPhotos, applyImportBursts, createEmptyProject, setArchived, setTrashed, trashExpired } from '../../core/projects';
+import { appendProjectPhotos, applyImportBursts, createEmptyProject, moveFrames, setArchived, setTrashed, trashExpired } from '../../core/projects';
 import { tasks } from '../../core/taskStore';
 import { createSaveGuard, type SaveGuard } from '../../core/saveGuard';
 import { engineScheduler } from '../../core/engineScheduler';
@@ -72,6 +72,7 @@ import { askOnDeviceGuardian } from '../../providers/visionGuardian';
 import type { PictureSource } from '../../core/pictureSource';
 import { autoCullSummary, commitAutoCull, rawsJudgedFromCameraPreview } from './commitAutoCull';
 import { runV2Denoise } from './runDenoise';
+import { MAIN_THREAD_DENOISE_NOTE } from '../../providers/denoiseOffThread';
 import { composeDenoiseRecipe } from './denoiseRecipe';
 import { preloadTrueDetailAi } from '../../core/trueDetailAiCanvas';
 import { moveArtboard } from './boardOps';
@@ -86,6 +87,7 @@ import { type FormatSet, addFormat, applyFormats, ORIGINAL_FORMAT_ID, removeForm
 import { patchVideoZoom } from './videoZoomOps';
 import { isSplitFrameCount, setFormatSplitOffset, setSplitFrameCount as writeSplitFrameCount, toggleFormatSplit, type SplitFrameCount } from './formatSplitOps';
 import { readSplitPanOffset } from './splitFrameOps';
+import { useTapSelect } from './useTapSelect';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskParts, toggleMask } from './maskOps';
 import { verifyFrameMasks } from './maskVerify';
 import { maskAdvice, maskVerificationKey } from './maskVerificationCommit';
@@ -1155,6 +1157,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? recordSplitChange(entry, next, at) : entry)) }));
   }, [mutate, stub.store.activeSizeId]);
 
+  const tapSelect = useTapSelect({ stateRef, provider, editFrames, setNotice });
+
   /** Reuse actual area/gradient masks from the shared engine. Sky detection and brush painting are intentionally gated. */
   const addMask = useCallback(async (photoId: string, type: 'subject' | 'sky' | 'background' | 'brush' | 'area' | 'gradient') => {
     if (type === 'sky') { setNotice(engineText.workspace.skyUnavailable); return; }
@@ -1277,7 +1281,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             return outcome.trueDetailAi ? { ...next, trueDetailAi: outcome.trueDetailAi } : next;
           }));
         }
-        ctx.commitIfCurrent(() => setNotice(outcome.verified ? outcome.notes[0] : engineText.denoise.leftAsItWas(outcome.notes.join(' '))));
+        // A main-thread fallback is always said, even on success, so a pause is never unexplained.
+        ctx.commitIfCurrent(() => setNotice(outcome.verified
+          ? [outcome.notes[0], ...outcome.notes.slice(1).filter(note => note === MAIN_THREAD_DENOISE_NOTE)].join(' ')
+          : engineText.denoise.leftAsItWas(outcome.notes.join(' '))));
       },
     }).then(ticket => ticket.finished).then(result => {
       if (result === 'failed') setNotice(engineText.workspace.denoiseFailed);
@@ -1485,7 +1492,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       // boundary so someone can continue editing while 300 files import.
       const ticket = await engineScheduler.submit({
         title: engineText.workspace.importTask(additions.length),
-        kind: 'import', resource: 'cpu', priority: 4, pauseable: additions.length > 1,
+        // Above background work (the open photo's Co-pilot check 8, culling 5, RAW develop 9-10), which otherwise took
+        // the one heavy slot at every photo boundary as soon as the first photos arrived (owner's 2,000-NEF test:
+        // "only 2 came in, then everything crawled"). Below what the person asks for now (denoise 12 and up).
+        kind: 'import', resource: 'cpu', priority: 11, pauseable: additions.length > 1,
         items: additions.map((file, index) => ({ file, index })),
         // Source file handles are intentionally NOT copied into the journal or
         // snapshot; a picker token cannot be persisted as a verified original.
@@ -1930,6 +1940,46 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clearSelection: () => setSelected(activeId ? [activeId] : []),
     setDecision: (ids, decision) => decide(ids, decision),
     removePhotos: (ids) => removePhotos(ids),
+    // A move is a Tasks job. The target is saved first, so a failure part-way leaves the photos in both projects,
+    // never in neither. Only then are they taken out of this project.
+    movePhotos: (photoIds, targetId) => {
+      const source = stateRef.current;
+      if (!source || targetId === source.shoot.id) return;
+      const ids = withPartners(photoIds, pairsRef.current);
+      void (async () => {
+        const store = catalogue.current!;
+        const named = await store.loadProject(targetId);
+        if (!named) { setNotice('That project could not be found.'); return; }
+        const targetName = named.shoot.title;
+        const ticket = await engineScheduler.submit({
+          title: V2_STRINGS.filmstripLabels.moving(targetName),
+          kind: 'other', resource: 'io', pauseable: false, snapshot: undefined,
+          items: [targetId], itemId: (item) => item, itemLabel: () => targetName,
+          runItem: async (_item, _snapshot, ctx) => {
+            const target = await store.loadProject(targetId);
+            if (!target) throw new Error('That project could not be found.');
+            const from = stateRef.current?.shoot.id === source.shoot.id ? stateRef.current : source;
+            const importId = `move-${newId()}`;
+            const result = moveFrames(from, target, ids, importId);
+            ctx.checkCancelled();
+            if (result.moved) {
+              await store.saveProject(result.target);
+              ctx.acknowledgeCommitted();
+              if (stateRef.current?.shoot.id === source.shoot.id) {
+                mutate((current) => moveFrames(current, target, ids, importId).source);
+              } else {
+                const saved = await store.loadProject(source.shoot.id);
+                if (saved) await store.saveProject(moveFrames(saved, target, ids, importId).source);
+              }
+            }
+            const parts = [result.moved ? V2_STRINGS.filmstripLabels.moved(result.moved, target.shoot.title) : '',
+              result.skipped ? V2_STRINGS.filmstripLabels.moveSkipped(result.skipped) : ''].filter(Boolean);
+            if (parts.length) setNotice(parts.join(' '));
+          },
+        });
+        if (await ticket.finished === 'done') setSelected([]);
+      })().catch(() => setNotice('InFlight could not update the project.'));
+    },
     setRemovedOpen: (open) => setRemovedOpen(open),
     restorePhotos: (ids) => {
       mutate((current) => restoreRemoved(current, withPartners(ids, rawJpegPairs(current.frames.map((frame) => ({ ...frame, removedAt: undefined }))))));
@@ -2485,10 +2535,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clearNotice: () => { setNotice(null); stub.actions.clearNotice(); },
   };
   const unconnected = Object.fromEntries(NOT_CONNECTED.map((name) => [name, () => setNotice('That is not connected to the InFlight engine yet. Your photos and originals are unchanged.')])) as Partial<WorkspaceActions>;
-  const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real }) as WorkspaceActions,
+  const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real, ...tapSelect.actions }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
+    [tapSelect.actions, stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: watermarkLibrary, auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   // Species names in the person's language (about 2.6 MB with every group) are fetched once, and only when a photo in
@@ -2541,11 +2591,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     canRedo: Boolean(state?.redoStack.length) || (activeFrame?.editHistory ? activeFrame.editHistory.cursor < activeFrame.editHistory.steps.length : false),
     clipboardRecipe: clipboard,
     PhotoSurface: EngineSurface,
+    tapSelect: tapSelect.state,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
     quickStart: quickStart && quickStart.projectId === state?.shoot.id && screen === 'editor' ? { phase: quickStart.phase, photoId: quickStart.photoId } : null,
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
-  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart]);
+  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state]);
 
   return { store, actions };
 }

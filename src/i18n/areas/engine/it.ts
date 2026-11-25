@@ -49,6 +49,7 @@ export const it: AreaTranslation<typeof source> = {
       : `Rumore ridotto su questo dispositivo, con ${count} soggetti protetti insieme.`),
     global: 'Nessun contorno del soggetto era affidabile, quindi la riduzione del rumore è stata applicata in modo uniforme a tutta la foto.',
     failedCheck: 'Il risultato non ha superato il controllo di qualità. Le tue modifiche sono state mantenute.',
+    mainThread: 'Questo dispositivo non ha potuto ridurre il rumore in background, quindi InFlight potrebbe essersi bloccato durante il lavoro.',
     leftAsItWas: (notes) => `Lasciata com’era. ${notes}`,
   },
   workspace: {

@@ -568,6 +568,28 @@ export interface ExportRequest {
 
 /** How a photo is drawn. The engine supplies this so the canvas shows real, developed pixels; without it the UI falls back
  * to a plain image with a CSS filter. 'original' is the photo with no edit, 'edited' is with its recipe. */
+/** One tap on the framed photo, as shares (0 to 1) of its width and height. */
+export interface TapPoint { x: number; y: number; add: boolean }
+
+export interface TapSelectState {
+  /** 'unavailable': this build does not offer the pack; 'not-downloaded': offered, the person has not chosen to download it. */
+  pack: 'unavailable' | 'not-downloaded' | 'downloading' | 'ready' | 'failed';
+  /** 0 to 1 while downloading. */
+  downloadProgress?: number;
+  /** Plain words for the last failure. */
+  message?: string;
+  /** The photo being selected on, if any. Each subject is its own reversible subject mask. */
+  session?: {
+    photoId: string;
+    /** 'reading': the model is reading the photo once (the slow step); 'working': answering a tap. */
+    phase: 'reading' | 'ready' | 'working' | 'failed';
+    mode: 'add' | 'remove';
+    subjects: Array<{ maskId: string; taps: TapPoint[] }>;
+    /** Index into subjects of the one taps go to; a new subject starts on the next added tap. */
+    active: number;
+  };
+}
+
 export interface PhotoSurfaceProps {
   /** Editor-only coverage guide, never part of the photo recipe or export. */
   maskGuideId?: string;
@@ -639,6 +661,8 @@ export interface WorkspaceStore {
   settingsOpen: boolean;
   settingsTab: SettingsTabId;
   activeMaskTool: 'subject' | 'sky' | 'background' | 'brush' | 'eraser' | 'area' | 'gradient';
+  /** Tap-to-select (optional EfficientSAM-Ti pack). Absent where the engine does not offer it. */
+  tapSelect?: TapSelectState;
   canUndo: boolean;
   canRedo: boolean;
   clipboardRecipe: EditRecipe | null;
@@ -686,6 +710,9 @@ export interface WorkspaceActions {
   /** Moves already set-aside (rejected) photos into Trash. The catalogue entry is removed; InFlight's stored copies
    * go with it, but the original file on disk is never touched. Reversible with the normal per-photo Undo. */
   removePhotos: (photoIds: string[]) => void;
+  /** Moves photos (with their paired JPEG and copies, choices and edits) to another project, as a task in Tasks.
+   * A photo whose file is already there stays here. Original files are never touched. */
+  movePhotos?: (photoIds: string[], targetProjectId: string) => void;
   toggleFlag: (photoIds: string[]) => void;
   setRating: (photoIds: string[], rating: number) => void;
   correctSpeciesName: (photoId: string, name: string) => void;
@@ -843,6 +870,13 @@ export interface WorkspaceActions {
   // Genuine non-destructive masks; brush painting still requires canvas coordinate integration.
   setActiveMaskTool: (tool: WorkspaceStore['activeMaskTool']) => void;
   addMaskLayer: (photoId: string, type: MaskLayer['type']) => void;
+  /** Tap-to-select: download the optional pack (the person's choice), start on a photo, tap, and finish. */
+  downloadTapSelect?: () => void;
+  startTapSelect?: (photoId: string) => void;
+  tapSelectAt?: (photoId: string, tap: TapPoint) => void;
+  setTapSelectMode?: (mode: 'add' | 'remove') => void;
+  newTapSubject?: () => void;
+  finishTapSelect?: () => void;
   toggleMaskLayer: (photoId: string, maskId: string) => void;
   removeMaskLayer: (photoId: string, maskId: string) => void;
   setMaskEdit: (photoId: string, maskId: string, key: string, value: number) => void;
