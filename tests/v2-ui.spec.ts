@@ -1,3 +1,4 @@
+import { openV2Settings } from './helpers';
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(({}, testInfo) => {
@@ -318,13 +319,14 @@ test('?v2 chrome: icons load, File/Edit/View menus but no mode switch in the hea
   // Assist and Co-pilot are one tool: there is no separate Assist in the rail.
   const rail = root.getByRole('complementary', { name: 'Studio tools' });
   await expect(rail.getByRole('button', { name: /^Assist/ })).toHaveCount(0);
-  // The flag says which mode is on; Settings changes it.
-  const flag = root.getByTestId('mode-flag');
-  await expect(flag).toContainText('Co-pilot');
-  await flag.click();
+  // The first rail tool is named after the mode that is on (#1301 removed the separate mode flag); Settings changes it.
+  await expect(rail.getByRole('button', { name: 'Co-pilot', exact: true })).toBeVisible();
+  await openV2Settings(page);
+  await root.getByRole('tab', { name: 'Assistance' }).click();
   await root.getByRole('button', { name: 'Auto-pilot', exact: true }).click();
   await root.getByRole('button', { name: 'Close settings' }).click().catch(() => page.keyboard.press('Escape'));
-  await expect(flag).toContainText('Auto-pilot');
+  await expect(rail.getByRole('button', { name: 'Auto-pilot', exact: true })).toBeVisible();
+  await expect(rail.getByRole('button', { name: 'Co-pilot', exact: true })).toHaveCount(0);
   // Tasks sit at the bottom with a count in a progress ring.
   await expect(root.getByTestId('tasks-wheel')).toBeVisible();
   await page.waitForTimeout(500);
@@ -415,7 +417,7 @@ test('?v2 slice 1A: no Info in the footer, a bigger logo, Compare off in split, 
   const rail = root.getByRole('complementary', { name: 'Studio tools' });
   const before = (await rail.boundingBox())!;
   expect(before.x).toBeLessThan(10);
-  await root.getByTestId('mode-flag').click();
+  await openV2Settings(page);
   await root.getByRole('tab', { name: /Appearance/ }).first().click();
   await root.getByRole('radio', { name: /left-handed/i }).click();
   await root.getByRole('button', { name: /close settings/i }).first().click().catch(() => page.keyboard.press('Escape'));
@@ -625,7 +627,7 @@ test('?v2 overlay panel: clear on/off toggle that greys the controls until on, p
   await grid.click();
   await expect(root.getByTestId('composition-grid')).toHaveCount(0);
   // Compact and comfortable looked the same, so the setting is gone.
-  await root.getByTestId('mode-flag').click();
+  await openV2Settings(page);
   await root.getByRole('tab', { name: /Appearance/ }).click();
   await expect(root.getByText(/comfortable|compact/i)).toHaveCount(0);
 });
@@ -766,7 +768,7 @@ test('?v2 Settings storage uses the shared connections (NAS, cloud drives and th
   await page.goto('/?v2&stub=1');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: /Scottish Highlands/ }).first().click();
-  await root.getByTestId('mode-flag').click();
+  await openV2Settings(page);
   await root.getByRole('tab', { name: /Storage/ }).or(root.getByRole('button', { name: /^Storage/ })).first().click();
   await expect(root.getByText('Where your work lives')).toBeVisible();
   await root.getByRole('button', { name: 'Add a place' }).click();
