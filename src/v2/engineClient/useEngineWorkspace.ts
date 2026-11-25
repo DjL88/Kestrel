@@ -127,6 +127,8 @@ import { exportMayContinue } from '../../core/exportCancellation';
 import type { ExportRequest } from '../ui/contract';
 import { applyRecipePatch, editToRecipe } from './recipeMap';
 import { canvasLensCentre, detectLateralCa } from '../../core/fringe';
+import { resolveLensProfile } from '../../core/lensProfiles';
+import { lensDatabase } from '../../providers/lensProfileStore';
 import { surfaceBridge } from './surfaceBridge';
 import { addSavedEditGroup, renameSavedEditGroup, selectSavedEditGroup, syncEditGroup } from './editGroupState';
 import { engineText } from '../../i18n/areas/engine';
@@ -2387,6 +2389,17 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (!found) return 'unclear';
       applyPatch([photoId], { caRed: Math.round(found.red * 100), caBlue: Math.round(found.blue * 100) });
       return found.red === 0 && found.blue === 0 ? 'clean' : 'corrected';
+    },
+    applyLensProfile: async (photoId, download) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      if (!frame) return 'failed';
+      let db;
+      try { db = await lensDatabase(download); } catch { return 'failed'; }
+      if (!db) return 'needs-download';
+      const found = resolveLensProfile(db, frame.exif ?? {});
+      if (found.kind !== 'found') return found.kind;
+      applyPatch([photoId], { lensProfile: found.profile });
+      return 'applied';
     },
     neutralWhiteBalance: async (photoId, at) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);

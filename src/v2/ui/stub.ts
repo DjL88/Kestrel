@@ -1854,6 +1854,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     },
 
     detectColourEdges: async (photoId) => { logAction('detectColourEdges', { photoId }); return 'clean'; },
+    applyLensProfile: async (photoId, download) => { logAction('applyLensProfile', { photoId, download }); return 'not-found'; },
     addImageLayer: async (photoId) => { logAction('addImageLayer', { photoId }); },
     addPhotoLayer: async (photoId, sourcePhotoId) => { logAction('addPhotoLayer', { photoId, sourcePhotoId }); },
     updateLayer: (photoId, layerId) => { logAction('updateLayer', { photoId, layerId }); },
