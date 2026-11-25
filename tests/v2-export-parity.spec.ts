@@ -200,8 +200,14 @@ test('?v2 a saved preset and File > Export again give exactly the files the wiza
   // Export again: no dialog, the last settings, the same bytes.
   await expect(page.getByRole('dialog', { name: /export/i })).toHaveCount(0);
   const downloaded = page.waitForEvent('download');
-  await studio.getByRole('button', { name: 'File', exact: true }).click();
-  await studio.getByRole('menuitem', { name: 'Export again with last settings' }).click();
+  // From the File menu on a wide screen; from the button beside Export where there is no File menu (phone, tablet).
+  const fileMenu = studio.getByRole('button', { name: 'File', exact: true });
+  if (await fileMenu.isVisible()) {
+    await fileMenu.click();
+    await studio.getByRole('menuitem', { name: 'Export again with last settings' }).click();
+  } else {
+    await studio.getByRole('button', { name: 'Export again with last settings' }).click();
+  }
   const download = await downloaded;
   const quick = Object.fromEntries(Object.entries(unzipSync(await readFile((await download.path())!))).map(([n, b]) => [n, Buffer.from(b)]));
   expect(Object.keys(quick).sort()).toEqual(names);
