@@ -10,6 +10,7 @@ import { newerRelease } from '../../../src/core/desktopRelease.ts';
 import { inspectJpeg } from '../../../src/core/jpegInspect.ts';
 import type { Config } from './config.ts';
 import { MergeRefusal } from './accountMerge.ts';
+import { ErasureRefusal } from './accountErasure.ts';
 import { hashPassword, randomId, sha256Hex, signEnvelope, signSession, uuid, verifyPassword, verifySession, verifyWebhook, type SessionClaims } from './crypto.ts';
 import { SqliteStore } from './sqliteStore.ts';
 import { MemoryDemoStudio, publicExamples, adminExamples, type DemoStudioStore, type ExampleFields } from './demoStudio.ts';
@@ -117,6 +118,8 @@ export interface AppOptions {
   cloudPhotos?: { store: CloudPhotoStore; meter: UsageMeter; allowance: AllowancePolicy; maxProjectBytes: number };
   /** Prepaid cloud balance (top-ups; pays beyond the free allowances). Absent: allowances are hard limits. */
   cloudBalance?: import('./cloudBalance.ts').CloudBalance;
+  /** The person's data download and account deletion (accountErasure.ts). Absent: those routes answer 503. */
+  accountErasure?: import('./accountErasure.ts').AccountErasure;
   /** Merging two accounts the person owns (accountMerge.ts). Absent: the merge routes answer 503. */
   accountMerge?: import('./accountMerge.ts').AccountMerges;
   /** Hard monthly ceiling on metered spend (Gemini, cloud jobs). Absent: no guard (development and tests). */
@@ -215,6 +218,9 @@ const SWITCH_KEYS = SWITCHES.map((w) => w.key) as [SwitchKey, ...SwitchKey[]];
 type SwitchKey = typeof SWITCHES[number]['key'];
 const isPlanned = (key: SwitchKey) => SWITCHES.some((w) => w.key === key && 'planned' in w && w.planned);
 
+/** The pseudonym learning records are kept under (opting out and account deletion both delete by it). */
+export const learningSubjectFor = (accountId: string) => sha256Hex(`learning:${accountId}`);
+
 export const Schemas = {
   AdminSwitch: z.object({ key: z.enum(SWITCH_KEYS), on: z.boolean() }).strict(),
   // Paddle asks the buyer for their country itself. Older apps still send one; it is accepted and ignored.
@@ -294,6 +300,7 @@ export const Schemas = {
   AccountActivateRequest: z.object({ deviceHash: Hex64, platform: Platform, appVersion: Version }).strict(),
   AttachLicenceRequest: z.object({ licenceKey: z.string().min(10).max(2000) }).strict(),
   MergeTicketRequest: z.object({ ticket: z.string().min(20).max(400) }).strict(),
+  DeletionRequest: z.object({ confirm: z.string().min(1).max(40) }).strict(),
   MergeUndoRequest: z.object({ mergeId: z.string().regex(/^mrg_[0-9a-f]{24}$/) }).strict(),
   AccountDevicesRequest: z.object({ deviceHash: Hex64 }).strict(),
   AccountDeviceReleaseRequest: z.object({ deviceHash: Hex64, activationId: z.string().min(1).max(64) }).strict(),
@@ -640,7 +647,7 @@ export function createApp(options: AppOptions) {
   }
 
   /** A stable pseudonym, so withdrawal can delete a person's signals without the store holding their account id. */
-  const learningSubject = (accountId: string) => sha256Hex(`learning:${accountId}`);
+  const learningSubject = learningSubjectFor;
 
   // ---- Managed safe copy. Uploads are gated; reading and deleting your own copy never is.
   function collabCfg(): CollabStore {
@@ -705,6 +712,18 @@ export function createApp(options: AppOptions) {
     if (!options.contacts) throw new ApiError(503, 'EMAIL_PREFS_NOT_CONFIGURED', 'Email from InFlight is not set up on this server yet.');
     return options.contacts;
   }
+
+  function erasureCfg() {
+    if (!options.accountErasure) throw new ApiError(503, 'ERASURE_NOT_CONFIGURED', 'Downloading your data and deleting your account are not set up on this server yet.');
+    return options.accountErasure;
+  }
+  async function erasing<T>(work: () => Promise<T>): Promise<T> {
+    try { return await work(); } catch (error) {
+      if (error instanceof ErasureRefusal) throw new ApiError(error.status, error.code, error.message);
+      throw error;
+    }
+  }
+  const deletionBody = (r: { status: string; requestedAtMs: number; deleteAfterMs: number } | null) => ({ deletion: r && (r.status === 'scheduled' || r.status === 'deleting') ? { status: r.status, requestedAtMs: r.requestedAtMs, deleteAfterMs: r.deleteAfterMs } : null });
 
   function mergeCfg() {
     if (!options.accountMerge) throw new ApiError(503, 'MERGE_NOT_CONFIGURED', 'Merging accounts is not set up on this server yet.');
@@ -989,6 +1008,42 @@ export function createApp(options: AppOptions) {
         const account = await store.getAccount(accountId);
         if (!account || account.status !== 'active') throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'Sign in to use this.');
         return { status: 200, body: await issueSession(accountId, account.role === 'admin' ? 'admin' : 'user') };
+      },
+    },
+    // ---- The person's own data: download it, or delete the account (30 days to change their mind). Local projects and
+    // originals are never on this service, so nothing here can reach them.
+    {
+      method: 'GET', path: '/v1/me/data-export', summary: 'Signed in: everything this service holds about the account (account, licences, devices, shared projects, cloud photo list, comments, purchases, preferences) as JSON', auth: 'user',
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = await erasing(() => erasureCfg().exportData(claims.sub));
+        await audit(claims.sub, 'account.data_export', 'allowed', '');
+        return { status: 200, body };
+      },
+    },
+    {
+      method: 'GET', path: '/v1/me/deletion', summary: 'Signed in: whether the account is waiting to be deleted, and what deleting it would remove', auth: 'user',
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const cfg = erasureCfg();
+        const [record, preview] = await Promise.all([cfg.status(claims.sub), cfg.preview(claims.sub)]);
+        return { status: 200, body: { ...deletionBody(record), preview } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/me/deletion', summary: 'Signed in: delete the account in 30 days (type DELETE to confirm). Undo any time before then by signing in', auth: 'user', body: Schemas.DeletionRequest,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.DeletionRequest, req.rawBody);
+        return { status: 200, body: deletionBody(await erasing(() => erasureCfg().schedule(claims.sub, body.confirm))) };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/me/deletion/cancel', summary: 'Signed in: keep the account (undo a deletion that is still waiting)', auth: 'user',
+      handler: async (req) => {
+        const claims = await bearer(req);
+        await erasing(() => erasureCfg().cancel(claims.sub));
+        return { status: 200, body: { deletion: null } };
       },
     },
     // ---- Merging two accounts the person owns: proved from both sign-ins, previewed, confirmed, undoable for 30 days.
@@ -2443,6 +2498,14 @@ export function createApp(options: AppOptions) {
         await options.cloudBalance.credit(body.accountId, body.credits * 1000, `admin:${body.reference}`);
         const balanceCredits = (await options.cloudBalance.millicredits(body.accountId)) / 1000;
         return adminDone(claims, 'cloud.balance', `${body.accountId} +${body.credits} ref=${body.reference}`, { balanceCredits });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/account-deletions/run', summary: 'Delete every account whose 30 days have passed (daily scheduler; safe to repeat)', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'account.deletion.run');
+        const result = await erasureCfg().runDue();
+        return adminDone(claims, 'account.deletion.run', `deleted=${result.deleted} failed=${result.failed}`, result);
       },
     },
     {

@@ -34,6 +34,9 @@ export const FEATURES = {
   cloudAssist: 'paid',
   zoomVideo: 'free',
   splitFrames: 'free',
+  // Settings → Account "Download my data" and "Delete my account". Off for everyone until an admin flag turns it on
+  // (the owner checks the wording first). Not a paid feature: once on, it is for every signed-in person.
+  accountData: 'flagged',
 } as const;
 
 export type Feature = keyof typeof FEATURES;

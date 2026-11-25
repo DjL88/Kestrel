@@ -44,6 +44,19 @@ export class CloudPhotoStore {
       .map((p) => ({ photoKey: p.photoKey, name: p.name, previewBytes: p.preview!.bytes, thumbBytes: p.thumb?.committed ? p.thumb.bytes : null, originalBytes: p.original?.committed ? p.original.bytes : null }));
   }
 
+  /** Every photo record of a project, committed or not, with who added it (account data download, account deletion). */
+  async records(projectId: string): Promise<CloudPhotoRecord[]> {
+    const snap = await this.db.collection('collab_cloud_photos').where('projectId', '==', projectId).get();
+    return snap.docs.map((d) => d.data()! as unknown as CloudPhotoRecord).sort((a, b) => a.addedAtMs - b.addedAtMs || a.photoKey.localeCompare(b.photoKey));
+  }
+
+  /** Account deletion: every stored preview, filmstrip picture and original of a project, then its records. */
+  async removeProject(projectId: string): Promise<number> {
+    const all = await this.records(projectId);
+    for (const p of all) await this.remove(projectId, p.photoKey);
+    return all.length;
+  }
+
   /** Every project with something in the cloud store (for the daily storage settlement). */
   async projectIds(): Promise<string[]> {
     const snap = await this.db.collection('collab_cloud_photos').get();
