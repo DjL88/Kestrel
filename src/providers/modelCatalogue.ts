@@ -58,7 +58,7 @@ const packFiles = (model: OptionalModel): CatalogueFile[] => {
   const names = Object.keys(model.files);
   return names.map((name) => ({
     statId: names.length === 1 ? model.id : `${model.id}.${name}`,
-    file: model.files[name].url.replace(/^.*\//, '') || `${model.id}.${name}`,
+    file: model.files[name].file ?? (model.files[name].url.replace(/^.*\//, '') || `${model.id}.${name}`),
     sha256: model.files[name].sha256,
     bytes: model.files[name].bytes,
   }));
