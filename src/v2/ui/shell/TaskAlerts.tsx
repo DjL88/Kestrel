@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { alertText, alreadyFinished, groupAlerts, newlyFinished, releaseHeld, TASK_ALERT_GROUP_MS, type TaskAlert } from '../../../core/taskAlerts';
 import { tasks } from '../../../core/taskStore';
+import { askNotifyPermission, notifyPermission, notifySystem, type NotifyPermission } from '../../../providers/systemNotify';
 import { STRINGS } from '../strings';
 
 /**
@@ -8,11 +9,10 @@ import { STRINGS } from '../strings';
  * account-free: it reads the local task list only.
  *
  * In the foreground: a quiet message here. In the background: held and told together on return ("While you were away"),
- * and also as a system notification if the person allowed it in this browser (asked only from the button here, never on
- * load). The installed desktop app shows the message on return; its own system notifications need the Tauri
- * notification plugin, which is not in this build yet.
+ * and also as a system notification if the person allowed it (asked only from the button here, never on load). In a
+ * browser that is the Notification API; in the installed Windows, macOS and phone apps, the Tauri notification plugin
+ * (src/providers/systemNotify.ts).
  */
-const canNotify = () => typeof Notification !== 'undefined' && typeof window !== 'undefined' && !('__TAURI_INTERNALS__' in window);
 
 export function TaskAlerts() {
   const t = STRINGS.taskAlerts;
@@ -20,7 +20,8 @@ export function TaskAlerts() {
   const held = useRef<TaskAlert[]>([]);
   const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [shown, setShown] = useState<{ text: string; away: boolean; failed: boolean } | null>(null);
-  const [permission, setPermission] = useState(() => (canNotify() ? Notification.permission : 'denied'));
+  const [permission, setPermission] = useState<NotifyPermission>('denied');
+  useEffect(() => { void notifyPermission().then(setPermission); }, []);
   const words = { oneDone: t.oneDone, oneFailed: t.oneFailed, manyDone: t.manyDone, manyWithFailures: t.manyWithFailures };
 
   useEffect(() => {
@@ -33,9 +34,7 @@ export function TaskAlerts() {
       if (!alerts.length) return;
       if (visible()) { setShown({ text: alerts.map((a) => alertText(a, words)).join(' '), away: false, failed: alerts.some((a) => a.failed > 0) }); return; }
       held.current.push(...alerts);
-      if (canNotify() && Notification.permission === 'granted') {
-        for (const alert of alerts) { try { new Notification('InFlight', { body: alertText(alert, words), tag: 'inflight-task-done' }); } catch { /* the in-app message still shows on return */ } }
-      }
+      for (const alert of alerts) void notifySystem(alertText(alert, words));
     };
     // Tasks that end close together are told as one: wait a moment after a change before looking.
     const stop = tasks.subscribe(() => { if (!pending.current) pending.current = setTimeout(flush, TASK_ALERT_GROUP_MS); });
@@ -65,7 +64,7 @@ export function TaskAlerts() {
       <span aria-hidden="true">{shown.failed ? '⚠' : '✓'}</span>
       <p className="flex-1">{shown.away && <span className="font-semibold">{t.whileAway} </span>}{shown.text}</p>
       {permission === 'default' && (
-        <button type="button" data-testid="task-alert-allow" onClick={() => { void Notification.requestPermission().then(setPermission, () => undefined); }}
+        <button type="button" data-testid="task-alert-allow" onClick={() => { void askNotifyPermission().then(setPermission); }}
           className="pointer-events-auto min-h-7 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 hover:bg-[var(--bg-surface-hover)]">{t.allowSystem}</button>
       )}
       <button type="button" onClick={() => setShown(null)} className="pointer-events-auto min-h-7 rounded-[var(--radius-sm)] px-2 hover:bg-[var(--bg-surface-hover)]">{t.dismiss}</button>

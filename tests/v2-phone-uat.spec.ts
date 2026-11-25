@@ -162,6 +162,11 @@ test('swipe on the photo: left or right steps through photos, up or down through
   await (await picker).setFiles(['swipe-a.png', 'swipe-b.png', 'swipe-c.png'].map((name) => ({ name, mimeType: 'image/png', buffer: Buffer.from(png, 'base64') })));
   const options = studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option');
   await expect(options).toHaveCount(3);
+  // Co-pilot (the default) offers Auto pick once the import finishes; close it so nothing sits over the photo while swiping.
+  const offer = studio.getByRole('status').filter({ hasText: 'Photos added. Press Auto pick' });
+  await expect(offer).toBeVisible();
+  await offer.getByRole('button', { name: 'Dismiss message' }).tap();
+  await expect(offer).toHaveCount(0);
   const frame = studio.getByTestId('canvas-frame');
   await expect(frame).toBeVisible();
   const box = (await frame.boundingBox())!;

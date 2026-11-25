@@ -73,6 +73,9 @@ export const ga: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Níl an bunleagan ar fáil — ceangail a fhillteán nó a thiomántán arís',
     previewUnavailable: 'Níl réamhamharc ar fáil',
+    retrying: 'Ag lódáil an phictiúir iomláin arís',
+    lowQuality: 'Réamhamharc beag: níorbh fhéidir an pictiúr iomlán a lódáil',
+    tryAgain: 'Bain triail eile as',
     heifUndecodable: 'Níorbh fhéidir le InFlight an grianghraf HEIF seo a dhíchódú. Níl aon athrú ar an mbunleagan.',
   },
   info: {

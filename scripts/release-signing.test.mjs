@@ -39,6 +39,14 @@ test('update key turns on updater artifacts on every platform, with an empty pas
     assert.equal(plan.config.bundle.createUpdaterArtifacts, true);
     assert.equal(plan.exports.TAURI_SIGNING_PRIVATE_KEY, 'key');
     assert.equal(plan.exports.TAURI_SIGNING_PRIVATE_KEY_PASSWORD, '');
+    assert.equal(plan.exports.VITE_KESTREL_UPDATER, '1');
+  }
+  assert.match(releaseNote(planSigning({ os: 'Linux', env: { TAURI_SIGNING_PRIVATE_KEY: 'key' } }).release), /app offers new versions/);
+});
+
+test('without the update key the app is built with its update check off', () => {
+  for (const os of ['macOS', 'Windows', 'Linux']) {
+    assert.equal(planSigning({ os, env: { ...appleSign, ...azure } }).exports.VITE_KESTREL_UPDATER, undefined);
   }
 });
 

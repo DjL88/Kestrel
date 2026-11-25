@@ -74,6 +74,9 @@ export const fi: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Alkuperäinen ei ole saatavilla — yhdistä sen kansio tai asema uudelleen',
     previewUnavailable: 'Esikatselu ei ole saatavilla',
+    retrying: 'Ladataan koko kuvaa uudelleen',
+    lowQuality: 'Pieni esikatselu: koko kuvaa ei voitu ladata',
+    tryAgain: 'Yritä uudelleen',
     heifUndecodable: 'InFlight ei pystynyt purkamaan tätä HEIF-kuvaa. Alkuperäinen on ennallaan.',
   },
   info: {

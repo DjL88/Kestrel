@@ -17,7 +17,7 @@ export const enUS: AreaTranslation<typeof source> = {
     errorBody: 'The local catalog index could not be read. Retry or check your storage folder in Settings.',
   },
   filmstrip: {
-    autoCull: 'Auto-Cull & Analyze',
+    autoCull: 'Auto pick & Analyze',
     autoCullRunning: 'Analyzing…',
     tileStates: { analysing: 'Analyzing' },
   },

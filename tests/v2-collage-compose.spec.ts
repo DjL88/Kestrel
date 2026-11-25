@@ -26,7 +26,7 @@ async function collageWithPhotos(page: Page) {
 test('collage pages show collage tools, not the photo editor', async ({ page }) => {
   const { root } = await collageWithPhotos(page);
   await expect(root.getByTestId('collage-page')).toBeVisible();
-  await expect(root.getByRole('button', { name: /Auto-Cull/ })).toHaveCount(0);
+  await expect(root.getByRole('button', { name: /Auto pick/ })).toHaveCount(0);
   await expect(root.getByText('Photo styles')).toHaveCount(0);
   // Collage tools sit in a rail and side panel like the editor's, page size first.
   const rail = root.getByRole('navigation', { name: 'Collage tools' });

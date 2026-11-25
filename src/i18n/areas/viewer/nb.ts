@@ -74,6 +74,9 @@ export const nb: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Originalen er ikke tilgjengelig — koble til mappen eller stasjonen på nytt',
     previewUnavailable: 'Forhåndsvisning ikke tilgjengelig',
+    retrying: 'Laster inn hele bildet på nytt',
+    lowQuality: 'Liten forhåndsvisning: hele bildet kunne ikke lastes inn',
+    tryAgain: 'Prøv igjen',
     heifUndecodable: 'InFlight kunne ikke dekode dette HEIF-bildet. Originalen er uendret.',
   },
   info: {

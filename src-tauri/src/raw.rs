@@ -115,15 +115,16 @@ fn develop_with_system(_bytes: &[u8], _extension: &str) -> Result<Vec<u8>, Strin
 }
 
 /// Develop a RAW file: InFlight's own decoders first (rawler, and ticoraw for Nikon HE/HE*), then on a Mac the system's.
-pub fn develop_any(bytes: &[u8], extension: &str) -> Result<Vec<u8>, String> {
-    match develop(bytes) {
+/// `screen`: half the sensor's width and height (kestrel_raw::develop_jpeg_screen), for the screen-size copy kept after import.
+pub fn develop_any(bytes: &[u8], extension: &str, screen: bool) -> Result<Vec<u8>, String> {
+    match develop(bytes, screen) {
         Ok(jpeg) => Ok(jpeg),
         Err(error) => develop_with_system(bytes, extension).map_err(|_| error),
     }
 }
 
-pub fn develop(bytes: &[u8]) -> Result<Vec<u8>, String> {
-    kestrel_raw::develop_jpeg(bytes)
+pub fn develop(bytes: &[u8], screen: bool) -> Result<Vec<u8>, String> {
+    if screen { kestrel_raw::develop_jpeg_screen(bytes) } else { kestrel_raw::develop_jpeg(bytes) }
 }
 
 #[cfg(test)]
@@ -155,7 +156,7 @@ mod tests {
         let path = dir.join("z8-he.nef");
         if !path.exists() { eprintln!("NOT RUN: z8-he.nef not found"); return; }
         let bytes = std::fs::read(&path).expect("read owner-provided fixture");
-        match super::develop_any(&bytes, "nef") {
+        match super::develop_any(&bytes, "nef", false) {
             Ok(jpeg) => {
                 let image = image::load_from_memory_with_format(&jpeg, image::ImageFormat::Jpeg)
                     .expect("successful decode must produce valid JPEG");

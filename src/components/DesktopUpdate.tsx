@@ -2,8 +2,12 @@ import { useEffect, useState } from 'react';
 import { isDesktopApp } from '../providers/desktopShell';
 import { libraryText as t } from '../i18n/areas/library';
 
-/** Off until signing, update and rollback have been tested on real machines. Switch on in the release that first ships updates. */
-export const UPDATER_ENABLED = false;
+/**
+ * On only in desktop releases built by release.yml with the update key, which also ship signed update files
+ * (scripts/release-signing.mjs sets VITE_KESTREL_UPDATER). Local, PR and unsigned builds never check.
+ * The plugin refuses any update whose signature does not match the public key in tauri.conf.json.
+ */
+export const UPDATER_ENABLED = import.meta.env.VITE_KESTREL_UPDATER === '1';
 
 type Pending = { version: string; install: () => Promise<void> };
 

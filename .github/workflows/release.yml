@@ -111,4 +111,6 @@ jobs:
           releaseName: Kestrel ${{ github.ref_name }}
           releaseBody: ${{ steps.signing.outputs.release_note }}
           releaseDraft: true
+          # Windows updates use the NSIS installer, the same one people install, so an update never adds a second MSI copy.
+          updaterJsonPreferNsis: true
           args: ${{ matrix.args }} ${{ steps.signing.outputs.args }}

@@ -82,7 +82,8 @@ fn take_opened_files(state: tauri::State<'_, OpenedFiles>) -> Vec<String> {
     state.0.lock().map(|mut pending| std::mem::take(&mut *pending)).unwrap_or_default()
 }
 
-/// Develop a RAW file the page sends as raw bytes, and return the full-size picture as JPEG bytes.
+/// Develop a RAW file the page sends as raw bytes, and return the picture as JPEG bytes: full size, or half the sensor's
+/// width and height when the page asks for the screen-size copy (header `x-develop-size: screen`).
 #[cfg(desktop)]
 #[tauri::command]
 async fn develop_raw(request: tauri::ipc::Request<'_>) -> Result<tauri::ipc::Response, String> {
@@ -91,8 +92,9 @@ async fn develop_raw(request: tauri::ipc::Request<'_>) -> Result<tauri::ipc::Res
     // The file's extension, so the system decoder on a Mac knows what it is given.
     let extension = request.headers().get("x-file-extension").and_then(|value| value.to_str().ok())
         .filter(|value| value.chars().all(|c| c.is_ascii_alphanumeric()) && !value.is_empty() && value.len() <= 5).unwrap_or("nef").to_string();
+    let screen = request.headers().get("x-develop-size").and_then(|value| value.to_str().ok()) == Some("screen");
     // A decoder can panic on a damaged file; run it apart so that becomes an error message, not a crash.
-    let jpeg = tauri::async_runtime::spawn_blocking(move || raw::develop_any(&bytes, &extension))
+    let jpeg = tauri::async_runtime::spawn_blocking(move || raw::develop_any(&bytes, &extension, screen))
         .await
         .map_err(|_| "This RAW file could not be read.".to_string())??;
     Ok(tauri::ipc::Response::new(jpeg))
@@ -204,6 +206,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         // Lets the app talk to the person's own storage (S3-compatible, WebDAV) without a website's cross-origin limits.
         .plugin(tauri_plugin_http::init())
         // Remembers which folders the person allowed, so a chosen sync or backup folder still works after a restart.
@@ -220,7 +223,7 @@ pub fn run() {
         .manage(OpenedFiles::default())
         .manage(OauthListener::default())
         .manage(local_vision::VisionState::default())
-        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, local_vision::local_vision_status, local_vision::local_vision_describe])
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure])
         .menu(|app| {
             let app_menu = Submenu::with_items(app, "InFlight", true, &[
                 &PredefinedMenuItem::about(app, None, None)?,
@@ -231,6 +234,7 @@ pub fn run() {
             let file = Submenu::with_items(app, "File", true, &[
                 &MenuItem::with_id(app, "add", "Add photos…", true, Some("CmdOrCtrl+O"))?,
                 &MenuItem::with_id(app, "export", "Export…", true, Some("CmdOrCtrl+E"))?,
+                &MenuItem::with_id(app, "export-again", "Export again with last settings", true, None::<&str>)?,
                 &PredefinedMenuItem::separator(app)?,
                 // V2 workspace items (src/v2/ui/commands/menuMap.ts). The V2 header menus are hidden in the desktop
                 // app, so these are the only way in there; the current app ignores ids it does not know.

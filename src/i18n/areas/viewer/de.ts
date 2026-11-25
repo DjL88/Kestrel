@@ -74,6 +74,9 @@ export const de: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Original nicht verfügbar — verbinden Sie den Ordner oder das Laufwerk erneut',
     previewUnavailable: 'Vorschau nicht verfügbar',
+    retrying: 'Das volle Bild wird erneut geladen',
+    lowQuality: 'Kleine Vorschau: Das volle Bild konnte nicht geladen werden',
+    tryAgain: 'Erneut versuchen',
     heifUndecodable: 'InFlight konnte dieses HEIF-Foto nicht decodieren. Das Original bleibt unverändert.',
   },
   info: {

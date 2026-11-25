@@ -74,6 +74,9 @@ export const is: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Frumrit ekki tiltækt — tengdu möppuna eða drifið aftur',
     previewUnavailable: 'Forskoðun ekki tiltæk',
+    retrying: 'Hleð allri myndinni aftur',
+    lowQuality: 'Lítil forskoðun: ekki tókst að hlaða allri myndinni',
+    tryAgain: 'Reyna aftur',
     heifUndecodable: 'InFlight gat ekki afkóðað þessa HEIF-mynd. Frumritið er óbreytt.',
   },
   info: {
