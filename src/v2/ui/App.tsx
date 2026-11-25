@@ -421,7 +421,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     return (
       <>
         {comments}
-        <SharedEditBanner state={sharedEditing.state} onKeepMine={sharedEditing.keepMine} onKeepTheirs={sharedEditing.keepTheirs} onKeepBoth={sharedEditing.keepBoth} onRetry={sharedEditing.retry} />
+        <SharedEditBanner state={sharedEditing.state} onKeepMine={sharedEditing.keepMine} onKeepTheirs={sharedEditing.keepTheirs} onKeepBoth={sharedEditing.keepBoth} onRetry={sharedEditing.retry}
+          outbox={sharedEditing.outbox} onShowPhoto={(id) => actions.selectPhoto(id)} />
         {editLocked ? <fieldset disabled className="contents" data-testid="shared-edit-locked">{inner}</fieldset> : inner}
       </>
     );
