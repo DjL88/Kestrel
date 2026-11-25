@@ -381,6 +381,10 @@ export const es: AreaTranslation<typeof source> = {
     stepChanged: 'cambiado',
   },
   share: {
+    peopleHere: 'Personas aquí',
+    hideCursors: 'Ocultar cursores',
+    showCursors: 'Mostrar cursores',
+    goTo: (name: string) => `Ir a la foto que ve ${name}`,
     button: 'Compartir',
     heading: 'Compartir este proyecto',
     close: 'Cerrar',

@@ -33,6 +33,8 @@ interface TopBarProps {
   onExport: () => void;
   /** Opens Share (shared projects, #1387). Absent: no Share button. */
   onShare?: () => void;
+  /** Who else is in this shared project (PresenceAvatars). */
+  presence?: React.ReactNode;
   onOpenRemoved: () => void;
   onOpenSettings: () => void;
   onImport: () => void;
@@ -71,6 +73,7 @@ export default function TopBar({
   onSetAssistMode,
   onExport,
   onShare,
+  presence,
   onOpenRemoved,
   onOpenSettings,
   onImport,
@@ -402,6 +405,7 @@ export default function TopBar({
             </button>
           ))}
         </div>
+        {presence}
         {onShare && (
           <button
             type="button"

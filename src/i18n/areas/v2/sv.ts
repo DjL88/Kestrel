@@ -381,6 +381,10 @@ export const sv: AreaTranslation<typeof source> = {
     stepChanged: 'ändrad',
   },
   share: {
+    peopleHere: 'Personer här',
+    hideCursors: 'Dölj markörer',
+    showCursors: 'Visa markörer',
+    goTo: (name: string) => `Gå till fotot som ${name} tittar på`,
     button: 'Dela',
     heading: 'Dela det här projektet',
     close: 'Stäng',

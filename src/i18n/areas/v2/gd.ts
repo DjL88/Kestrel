@@ -382,6 +382,10 @@ export const gd: AreaTranslation<typeof source> = {
     stepChanged: 'air atharrachadh',
   },
   share: {
+    peopleHere: 'Daoine an-seo',
+    hideCursors: 'Falaich na cùrsairean',
+    showCursors: 'Seall na cùrsairean',
+    goTo: (name: string) => `Rach dhan dealbh air a bheil ${name} a’ coimhead`,
     button: 'Co-roinn',
     heading: 'Co-roinn am pròiseact seo',
     close: 'Dùin',

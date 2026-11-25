@@ -61,3 +61,20 @@ test('initials identify a participant without relying on colour', () => {
   assert.equal(initialsOf('  '), '?');
   assert.equal(initialsOf('Ann Marie Smith'), 'AS');
 });
+
+test('presence shows live peers only, never yourself, stale or malformed entries', async () => {
+  const { livePeers, PRESENCE_STALE_MS } = await import('./editingSequence');
+  const now = 1_000_000;
+  const peers = livePeers({
+    me: { name: 'Dave', kind: 'human-editor', at: now },
+    b: { name: 'Erin Ward', kind: 'human-editor', photoId: 'p1', x: 0.4, y: 0.2, at: now - 1000 },
+    a: { name: 'Ann', kind: 'human-reviewer', photoId: 'p2', x: 2, y: 0.5, at: now },
+    old: { name: 'Gone', kind: 'human-editor', at: now - PRESENCE_STALE_MS - 1 },
+    bad: { name: 'X', kind: 'robot', at: now },
+    empty: null,
+  }, 'me', now);
+  assert.deepEqual(peers.map((p) => [p.name, p.initials, p.photoId, p.point]), [
+    ['Ann', 'AN', 'p2', null], ['Erin Ward', 'EW', 'p1', { x: 0.4, y: 0.2 }],
+  ]);
+  assert.deepEqual(livePeers(null, 'me', now), []);
+});

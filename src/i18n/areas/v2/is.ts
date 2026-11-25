@@ -381,6 +381,10 @@ export const is: AreaTranslation<typeof source> = {
     stepChanged: 'breytt',
   },
   share: {
+    peopleHere: 'Fólk hér',
+    hideCursors: 'Fela bendla',
+    showCursors: 'Sýna bendla',
+    goTo: (name: string) => `Fara á myndina sem ${name} er að skoða`,
     button: 'Deila',
     heading: 'Deila þessu verkefni',
     close: 'Loka',

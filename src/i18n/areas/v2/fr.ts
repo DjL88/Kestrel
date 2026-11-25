@@ -381,6 +381,10 @@ export const fr: AreaTranslation<typeof source> = {
     stepChanged: 'modifié',
   },
   share: {
+    peopleHere: 'Personnes présentes',
+    hideCursors: 'Masquer les curseurs',
+    showCursors: 'Afficher les curseurs',
+    goTo: (name: string) => `Aller à la photo que regarde ${name}`,
     button: 'Partager',
     heading: 'Partager ce projet',
     close: 'Fermer',

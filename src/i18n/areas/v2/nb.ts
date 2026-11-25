@@ -381,6 +381,10 @@ export const nb: AreaTranslation<typeof source> = {
     stepChanged: 'endret',
   },
   share: {
+    peopleHere: 'Personer her',
+    hideCursors: 'Skjul pekere',
+    showCursors: 'Vis pekere',
+    goTo: (name: string) => `Gå til bildet ${name} ser på`,
     button: 'Del',
     heading: 'Del dette prosjektet',
     close: 'Lukk',
