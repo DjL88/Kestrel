@@ -21,6 +21,7 @@ export function createVirtualCopy(source: PhotoFrame, frames: readonly PhotoFram
     // branches or delivery receipts. The original identity stays shared.
     editHistory: undefined,
     editVersions: undefined,
+    editCheckpoints: undefined,
     formatHistory: undefined,
     lastExport: undefined,
     edit: source.edit ? structuredClone(source.edit) : undefined,

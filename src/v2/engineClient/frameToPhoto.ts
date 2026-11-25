@@ -5,7 +5,7 @@ import { readVideoZoom } from './videoZoomOps';
 import { readSplitFrames, readSplitPanOffset } from './splitFrameOps';
 import { readFormatSplits } from './formatSplitOps';
 import { describeHistory } from './historySteps';
-import { describeEditVersions, readEditVersions } from '../../core/editBranches';
+import { describeCheckpoints, describeEditVersions, readEditVersions } from '../../core/editBranches';
 import { readFormatHistory } from './formatHistory';
 import type { PhotoFrame, ShootDescriptor } from '../../core/types';
 import { computeCullCounts } from '../../core/cullingEngine';
@@ -33,6 +33,8 @@ import { VEHICLE_LABELS } from '../../core/vehicleLabels';
 import { validVehicleReading, vehicleLabel, vehicleSearchWords } from '../../core/vehicleRecognition';
 import { sharedPhotoKey } from '../../core/sharedSync';
 import { vehicleText, vehicleTextEnglish } from '../../i18n/areas/vehicles';
+import { photoTagsOf, tagWords } from '../../core/photoTags';
+import { photoTagEnglishLabel, photoTagLabel, photoTagsText } from '../../i18n/areas/photoTags';
 
 /** A transparent pixel, so a photo whose picture is not ready yet shows an empty tile rather than a broken image. */
 export const BLANK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
@@ -131,6 +133,16 @@ export function vehicleWordsOf(frame: Pick<PhotoFrame, 'vehicle'>): { vehicleLab
 }
 
 /** The subject name for a photo. A name the app suggested itself is marked as a suggestion; nothing is shown when unknown. */
+/** The photo's tags in the person's words. A tag with no words in any language is not shown (never a raw id). */
+export function photoTagViews(frame: Pick<PhotoFrame, 'stableKey' | 'photoTags'>): NonNullable<Photo['photoTags']> {
+  return photoTagsOf(frame).flatMap((tag) => {
+    const label = tagWords(tag, photoTagLabel, photoTagsText.probably);
+    if (!label) return [];
+    const english = tagWords(tag, photoTagEnglishLabel);
+    return [{ id: tag.id, facet: tag.facet, label, words: english && english !== label ? [label, english] : [label] }];
+  });
+}
+
 export function speciesLabelOf(frame: Pick<PhotoFrame, 'subjectNames' | 'tags' | 'autoTags'>): string | undefined {
   // Shown in the person's language: the local name, else the scientific name; a name nobody knows stays as stored.
   const shown = (name: string) => displaySpeciesName(name, speciesNameIndex()).name;
@@ -224,6 +236,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     speciesName: frame.subjectNames?.[0] ?? frame.tags?.[0],
     // What kind of subject, in the person's language (never the detector's internal word).
     category: frame.subjectKind ? engineText.subjectKinds[frame.subjectKind] : '',
+    photoTags: photoTagViews(frame),
     sharpnessScore: frame.cullScore ?? 0,
     ...(typeof exif.capturedAtMs === 'number' && Number.isFinite(exif.capturedAtMs) ? { capturedAtMs: exif.capturedAtMs } : {}),
     exif: {
@@ -263,7 +276,8 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
           versions: describeEditVersions(frame.editVersions),
         } }
       : {}),
-    ...(frame.formatHistory ? { formatHistory: readFormatHistory(frame.formatHistory).events.map(({ formatId, kind, at, parentFormatId, forkEditCursor }) => ({ formatId, kind, at, ...(parentFormatId ? { parentFormatId } : {}), ...(forkEditCursor !== undefined ? { forkEditCursor } : {}) })) } : {}),
+    ...(describeCheckpoints(frame.editCheckpoints).length ? { editCheckpoints: describeCheckpoints(frame.editCheckpoints) } : {}),
+    ...(frame.formatHistory ? { formatHistory: readFormatHistory(frame.formatHistory).events.map(({ formatId, kind, at, parentFormatId, forkEditCursor, after }) => ({ formatId, kind, at, ...(parentFormatId ? { parentFormatId } : {}), ...(forkEditCursor !== undefined ? { forkEditCursor } : {}), ...(kind === 'crop' && after ? { crop: after } : {}) })) } : {}),
     ...(watermarkAuto ? { watermarkAuto } : {}),
     ...(histogram ? { histogram } : {}),
     ...(extras.dngCopy ? { dngCopy: true } : {}),

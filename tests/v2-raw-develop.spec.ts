@@ -40,7 +40,8 @@ test('V2 background engine replaces a synthetic embedded RAW preview with develo
   await expect(tileLabel).toContainText('RAW');
   await root.getByRole('button', { name: 'Back to projects' }).click();
   await page.reload();
-  await root.getByRole('button', { name: /^(Open studio.*|V2 sensor develop)$/ }).first().click();
+  // The project's name opens it at every width; the separate Open studio link is wide-screen only since #1376.
+  await root.getByRole('button', { name: 'V2 sensor develop', exact: true }).first().click();
   await expect.poll(dimensions, { timeout: 30_000 }).toEqual([64, 96]);
   // A full develop is kept for one session; after a reload the stored screen-size develop is shown, and the label says so.
   await expect(canvasLabel).toHaveAttribute('data-picture-source', 'raw-screen');
