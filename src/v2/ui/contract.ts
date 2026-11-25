@@ -353,8 +353,6 @@ export interface Photo {
   speciesLabel?: string;
   /** What kind of vehicle or aircraft it probably is, in the person's language ("Military jet: Eurofighter Typhoon (probably)"). */
   vehicleLabel?: string;
-  /** Extra words the photo can be found by (a vehicle's kind in this language and in English, its type name). */
-  searchTerms?: string[];
   /** The subject name alone, without the "(suggested)" marker the label may carry, for editing it. */
   speciesName?: string;
   /** The vehicle reading's ids, so a correction starts from what is shown. */
@@ -528,6 +526,8 @@ export interface WorkspaceSettings {
     provider?: 'google' | 'apple' | 'email';
     email?: string;
     displayName?: string;
+    /** This month's cloud allowances and balance, from the control plane once signed in. Absent: the section is hidden. */
+    cloud?: import('../../core/cloudPlan').CloudUsage;
   };
   aiProviders: AiProviderConfig[];
   storageConnectors: StorageConnector[];
@@ -563,6 +563,8 @@ export interface ExportRequest {
 export interface PhotoSurfaceProps {
   /** Editor-only coverage guide, never part of the photo recipe or export. */
   maskGuideId?: string;
+  /** The guide as a line round the mask (the V2 default) or the hatched area. */
+  maskGuideStyle?: 'outline' | 'fill';
   /** Editor-only SVG content (mask outline and handles) drawn in the displayed picture's own pixels, over exactly that picture. */
   maskOutline?: (picture: { width: number; height: number }) => ReactNode;
   photoId: string;
@@ -678,6 +680,9 @@ export interface WorkspaceActions {
   /** Moves already set-aside (rejected) photos into Trash. The catalogue entry is removed; InFlight's stored copies
    * go with it, but the original file on disk is never touched. Reversible with the normal per-photo Undo. */
   removePhotos: (photoIds: string[]) => void;
+  /** Moves photos (with their paired JPEG and copies, choices and edits) to another project, as a task in Tasks.
+   * A photo whose file is already there stays here. Original files are never touched. */
+  movePhotos?: (photoIds: string[], targetProjectId: string) => void;
   toggleFlag: (photoIds: string[]) => void;
   setRating: (photoIds: string[], rating: number) => void;
   correctSpeciesName: (photoId: string, name: string) => void;

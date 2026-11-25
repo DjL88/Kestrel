@@ -170,9 +170,12 @@ const local = {
   getItem: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } },
   setItem: (k: string, v: string) => { localStorage.setItem(k, v); },
 };
+/** The models bucket and the pinned manifest key: the one model manifest, for slot updates and optional packs alike. */
+export const modelSource = { baseUrl: baseUrl(), keys: parsePinnedKeys(env?.VITE_KESTREL_MODEL_KEYS) };
+
 export const modelUpdater = new ModelUpdater({
-  baseUrl: baseUrl(),
-  keys: parsePinnedKeys(env?.VITE_KESTREL_MODEL_KEYS),
+  baseUrl: modelSource.baseUrl,
+  keys: modelSource.keys,
   storage: local,
   store: { get: (key) => getModel(CACHE, key), put: (key, blob) => putModel(CACHE, key, blob), remove: (key) => removeModel(CACHE, key) },
   fetch: (...args) => fetch(...args),

@@ -78,7 +78,7 @@ for (const count of [2, 3] as const) {
     await expect(panes).toHaveCount(count);
     // The selected mask's coverage shows in every pane, named in words, as in the single view.
     await expect(root.getByTestId('split-composition').getByTestId('mask-coverage-guide')).toHaveCount(count);
-    await expect(root.getByTestId('mask-canvas-label')).toContainText(/Round area.*overlay shown/i);
+    await expect(root.getByTestId('mask-canvas-label')).toContainText(/Round area.*outline shown/i);
     // Hide that hatched overlay (an editor guide, never exported) before reading pixels.
     await page.locator('body').click({ position: { x: 5, y: 5 } });
     await page.keyboard.press('o');

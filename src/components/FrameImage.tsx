@@ -1,4 +1,4 @@
-import { maskCoverageGuide } from '../core/maskCoverageGuide';
+import { maskCoverageGuide, type MaskGuideStyle } from '../core/maskCoverageGuide';
 import type { Mask } from '../core/maskTypes';
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
 import { preloadTrueDetailAi } from '../core/trueDetailAiCanvas';
@@ -37,6 +37,8 @@ interface FrameImageProps {
   onPreviewStatus?: (frameId: string, status: PhotoPreviewReadiness) => void;
   /** Optional editor-only mask coverage, drawn over exactly the displayed image. */
   maskGuideId?: string;
+  /** How the guide shows the mask: a line round it, or the hatched area (the default here). */
+  maskGuideStyle?: MaskGuideStyle;
   /** Optional editor-only SVG content drawn in the displayed picture's own pixels (mask outline and handles). */
   maskOutline?: (picture: { width: number; height: number }) => React.ReactNode;
   /** Optional interactive transform for zoom/pan viewports */
@@ -101,6 +103,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   refreshOnBackgroundDevelop = false,
   onPreviewStatus,
   maskGuideId,
+  maskGuideStyle = 'fill',
   maskOutline,
   zoomScale = 1,
   panOffset = { x: 0, y: 0 },
@@ -473,7 +476,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
         />
       )}
       {src && imageSize?.src === src && maskGuideId && frame.edit?.masks && (
-        <MaskCoverageImage key={`${src}:${maskGuideId}`} masks={frame.edit.masks} maskId={maskGuideId}
+        <MaskCoverageImage key={`${src}:${maskGuideId}:${maskGuideStyle}`} masks={frame.edit.masks} maskId={maskGuideId} guideStyle={maskGuideStyle}
           width={imageSize.width} height={imageSize.height} className={imgClassName} style={demoStyle} />
       )}
       {/* Kept through an edit redraw (same picture size), so the outline does not blink while a slider moves. */}
@@ -490,12 +493,12 @@ export const FrameImage: React.FC<FrameImageProps> = ({
 
 /** Render the same effective mask weights as the editor. The overlay is a separate non-interactive image, so
  * it follows object-fit, crop, rotation and zoom and can never enter an export recipe. */
-function MaskCoverageImage({ masks, maskId, width, height, className, style }: {
-  masks: readonly Mask[]; maskId: string; width: number; height: number; className: string; style: React.CSSProperties;
+function MaskCoverageImage({ masks, maskId, guideStyle, width, height, className, style }: {
+  masks: readonly Mask[]; maskId: string; guideStyle: MaskGuideStyle; width: number; height: number; className: string; style: React.CSSProperties;
 }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
-    const guide = maskCoverageGuide(masks, maskId, width, height);
+    const guide = maskCoverageGuide(masks, maskId, width, height, guideStyle);
     if (!guide) { setUrl(null); return; }
     const canvas = document.createElement('canvas');
     canvas.width = guide.width; canvas.height = guide.height;
@@ -505,8 +508,8 @@ function MaskCoverageImage({ masks, maskId, width, height, className, style }: {
     pixels.data.set(guide.rgba);
     ctx.putImageData(pixels, 0, 0);
     setUrl(canvas.toDataURL('image/png'));
-  }, [masks, maskId, width, height]);
+  }, [masks, maskId, guideStyle, width, height]);
   if (!url || !masks.some(mask => mask.id === maskId && !mask.hidden)) return null;
-  return <img src={url} alt="" aria-hidden="true" draggable={false} data-testid="mask-coverage-guide"
+  return <img src={url} alt="" aria-hidden="true" draggable={false} data-testid="mask-coverage-guide" data-style={guideStyle}
     className={`pointer-events-none absolute inset-0 h-full w-full z-10 ${className}`} style={style} />;
 }

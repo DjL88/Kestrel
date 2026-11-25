@@ -96,18 +96,9 @@ for (const [kind, open] of stores) {
     } finally { await store.close(); }
   });
 
-  test(`${kind}: model promotion retires the live version and bumps the revision; audit lists newest first`, async () => {
+  test(`${kind}: audit lists newest first`, async () => {
     const store = await open();
     try {
-      const asset = { assetId: 'm', kind: 'onnx', version: '1.0.0', channel: 'stable', path: '/data/m.onnx', sha256: 'a'.repeat(64), bytes: 1, requiredAppMin: '0.0.0', status: 'candidate' as const, createdAtMs: T };
-      assert.equal(await store.insertModelAsset(asset), true);
-      assert.equal(await store.insertModelAsset(asset), false, 'duplicates refused');
-      await store.insertModelAsset({ ...asset, version: '1.1.0' });
-      assert.equal(await store.promoteModelAsset('m', '1.0.0', 'stable'), true);
-      assert.equal(await store.promoteModelAsset('m', '1.1.0', 'stable'), true);
-      assert.equal(await store.promoteModelAsset('m', '9.9.9', 'stable'), false);
-      assert.deepEqual((await store.listLiveModelAssets('stable')).map((a) => a.version), ['1.1.0']);
-      assert.equal(await store.getSetting('manifest_revision_stable'), '3');
       for (const action of ['first', 'second', 'third']) await store.audit({ atMs: T, actor: 'a', action, outcome: 'allowed', detail: 'x'.repeat(900) });
       const entries = await store.listAudit(2);
       assert.deepEqual(entries.map((e) => e.action), ['third', 'second']);

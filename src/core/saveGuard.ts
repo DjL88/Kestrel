@@ -30,6 +30,10 @@ export interface SaveGuard<T> {
   hasFailedUnsaved: () => boolean;
   /** Resolves when nothing is pending or saving (failed saves still count as pending). */
   idle: () => Promise<void>;
+  /** The newest state of this project that is not stored yet (saving or failed), so a reopen never reads an older copy. */
+  pendingState: (key: string) => T | undefined;
+  /** True once this project's newest state is stored; false at its next failed attempt (it is still retried). */
+  whenStored: (key: string) => Promise<boolean>;
   dispose: () => void;
 }
 
@@ -41,6 +45,13 @@ export function createSaveGuard<T>(options: SaveGuardOptions<T>): SaveGuard<T> {
   const clearTimer = options.clearTimer ?? ((handle) => clearTimeout(handle as ReturnType<typeof setTimeout>));
   const slots = new Map<string, Slot<T>>();
   let waiters: Array<() => void> = [];
+  const keyWaiters = new Map<string, Array<(stored: boolean) => void>>();
+  const answer = (key: string, stored: boolean) => {
+    const ready = keyWaiters.get(key);
+    if (!ready) return;
+    keyWaiters.delete(key);
+    ready.forEach((resolve) => resolve(stored));
+  };
   let disposed = false;
 
   const settled = () => [...slots.values()].every((slot) => !slot.saving && slot.timer == null);
@@ -65,12 +76,14 @@ export function createSaveGuard<T>(options: SaveGuardOptions<T>): SaveGuard<T> {
       const recovered = slot.failures;
       slot.failures = 0;
       if (!Object.is(slot.latest, attempt)) { run(key); return; }
+      answer(key, true);
       options.onStatus?.('saved', { key, failures: recovered });
       wake();
     }, (error: unknown) => {
       slot.saving = false;
       slot.failures += 1;
       options.onStatus?.('failed', { key, failures: slot.failures, error });
+      answer(key, false);
       if (disposed) return;
       const ms = delays[Math.min(slot.failures - 1, delays.length - 1)];
       slot.timer = setTimer(() => { slot.timer = null; run(key); }, ms);
@@ -92,6 +105,15 @@ export function createSaveGuard<T>(options: SaveGuardOptions<T>): SaveGuard<T> {
     },
     hasFailedUnsaved() {
       return [...slots.values()].some((slot) => slot.failures > 0 && !Object.is(slot.latest, slot.stored));
+    },
+    whenStored(key) {
+      const slot = slots.get(key);
+      if (!slot || Object.is(slot.latest, slot.stored)) return Promise.resolve(true);
+      return new Promise<boolean>((resolve) => keyWaiters.set(key, [...(keyWaiters.get(key) ?? []), resolve]));
+    },
+    pendingState(key) {
+      const slot = slots.get(key);
+      return slot && !Object.is(slot.latest, slot.stored) ? slot.latest : undefined;
     },
     idle() {
       return settled() ? Promise.resolve() : new Promise<void>((resolve) => waiters.push(resolve));

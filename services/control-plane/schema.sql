@@ -64,20 +64,6 @@ CREATE TABLE IF NOT EXISTS billing_events (
 );
 
 -- Assets served in the signed data manifest (dataUpdateManifest.ts shape).
-CREATE TABLE IF NOT EXISTS model_assets (
-  asset_id         TEXT NOT NULL,               -- e.g. 'species-model'
-  kind             TEXT NOT NULL,               -- 'onnx' | 'species-library' | 'equipment'
-  version          TEXT NOT NULL,
-  channel          TEXT NOT NULL DEFAULT 'stable',
-  path             TEXT NOT NULL,               -- '/data/...', never absolute or '..'
-  sha256           TEXT NOT NULL,
-  bytes            INTEGER NOT NULL,
-  required_app_min TEXT NOT NULL DEFAULT '0.0.0',
-  status           TEXT NOT NULL DEFAULT 'candidate', -- 'candidate' | 'live' | 'retired'
-  created_at_ms    INTEGER NOT NULL,
-  PRIMARY KEY (asset_id, version, channel)
-);
-
 CREATE TABLE IF NOT EXISTS desktop_releases (
   platform        TEXT NOT NULL,                -- 'windows' | 'macos'
   channel         TEXT NOT NULL DEFAULT 'stable',

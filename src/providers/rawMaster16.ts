@@ -1,11 +1,12 @@
 import type { TiffExportMetadata } from '../core/tiffExportMetadata';
-import { editRgb16, encodeTiff16, frameRgb16, master16Blocker, renderTurned16, shrinkRgb16, thumbRgb16, type Rgb16Image } from '../core/master16';
+import { encodeTiff16, master16Blocker, renderTurned16, shrinkRgb16, thumbRgb16, type Rgb16Image } from '../core/master16';
 import { bestTurn } from '../core/orientMatch';
 import type { PhotoEdit } from '../core/photoEdits';
-import { DEFAULT_FRAMING, lensCentre, type PhotoFraming } from '../core/photoFraming';
+import type { PhotoFraming } from '../core/photoFraming';
 import { encodePng16, provePng } from '../core/png16';
 import { thumbOf } from './rawDevelop';
 import { openSensorWorkingRaster } from './rawWorkingRaster';
+import { frameAndEditOffThread } from './raw16Edit';
 
 /** The RAW's sensor picture at 16 bits, bound to the recorded original fingerprint when there is one. Not yet framed or edited. */
 export async function openRaw16(original: Blob, filename: string, options?: { originalSha256?: string; signal?: AbortSignal }): Promise<Rgb16Image> {
@@ -26,10 +27,9 @@ export async function editRaw16(picture: Rgb16Image, shown: HTMLImageElement, ed
   if (blocker) throw new Error(blocker);
   const turn = await turnToShown(picture, shown);
   options?.signal?.throwIfAborted();
-  // An identity framing reuses the picture itself unless it is shared; a real crop, turn or straighten always allocates.
-  const framed = frameRgb16(picture, framing ?? DEFAULT_FRAMING, turn / 90, !options?.shared);
-  editRgb16(framed, edit, lensCentre(picture.width, picture.height, framing ?? DEFAULT_FRAMING, turn / 90));
-  return framed;
+  // The full-size framing and edit run in a worker so the app stays responsive (a 45 MP frame is about 270 MB). A shared
+  // picture is copied for it; otherwise the picture is handed over and an identity framing is edited in place.
+  return frameAndEditOffThread(picture, turn, edit, framing, { shared: options?.shared, signal: options?.signal });
 }
 
 /** The quarter turn that puts the sensor picture the way the editor shows it; throws if they are not the same photo. */

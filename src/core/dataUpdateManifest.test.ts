@@ -18,7 +18,9 @@ test('rejects traversal, foreign URLs, duplicates, unknown fields, oversized ONN
   assert.equal(parseDataManifest({ ...base, assets: [{ ...base.assets[0], path: 'https://example.com/model.onnx' }] }), null);
   assert.equal(parseDataManifest({ ...base, assets: [base.assets[0], base.assets[0]] }), null);
   assert.equal(parseDataManifest({ ...base, injected: 'code' }), null);
-  assert.equal(parseDataManifest({ ...base, assets: [{ ...base.assets[0], bytes: 257 * 1024 * 1024 }] }), null);
+  // Large desktop packs (BioCLIP 2 is about 580 MiB) are allowed up to 1 GiB; anything larger is refused.
+  assert.ok(parseDataManifest({ ...base, assets: [{ ...base.assets[0], bytes: 608_152_397 }] }));
+  assert.equal(parseDataManifest({ ...base, assets: [{ ...base.assets[0], bytes: 1025 * 1024 * 1024 }] }), null);
   assert.equal(parseDataManifest({ ...base, assets: [{ ...base.assets[0], sha256: 'bad' }] }), null);
   assert.equal(parseDataManifest({ ...base, revision: 0 }), null);
   assert.equal(parseDataManifest(null), null);

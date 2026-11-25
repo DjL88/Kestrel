@@ -109,6 +109,11 @@ if ($Models) {
   if (-not (Test-Path (Join-Path $Models 'manifest/stable.json'))) { throw "No signed manifest in $Models. Run sign-data-manifest.ts first." }
   # Model files first, the manifest last, so the app never sees a manifest pointing at files that aren't there yet.
   gcloud storage cp --recursive (Join-Path $Models 'data') "$modelsBucket/" --cache-control='public, max-age=31536000, immutable' --project $Project
+  # The licence record of every listed file, and the commit it was signed from (check-release-parity.mjs), beside it.
+  foreach ($extra in 'licences.json', 'build-info.json') {
+    $path = Join-Path $Models "manifest/$extra"
+    if (Test-Path $path) { gcloud storage cp $path "$modelsBucket/manifest/$extra" --cache-control='public, max-age=300' --project $Project }
+  }
   gcloud storage cp (Join-Path $Models 'manifest/stable.json') "$modelsBucket/manifest/stable.json" --cache-control='public, max-age=300' --project $Project
   Write-Host 'Published models and the signed manifest.'
 }
