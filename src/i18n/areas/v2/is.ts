@@ -353,6 +353,7 @@ export const is: AreaTranslation<typeof source> = {
     working: "Bæti myndinni við og athuga lýsingu og liti á þessu tæki…",
     ready: "Sjálfvirkt jafnaði lýsingu og liti. Berðu saman við frumritið, haltu áfram að breyta eða fluttu út núna. Afturkalla tekur það til baka.",
     unchanged: "Myndin lítur þegar eðlilega út, svo Sjálfvirkt lét hana vera. Breyttu henni að vild eða fluttu hana út núna.",
+    held: "Auto er með tillögu, en myndathugunin í þessu tæki var ekki sannfærð um að hún líti eðlilega út, svo engu var breytt. Berðu hana saman í Aðstoðarflugmanni og notaðu hana ef þér líkar hún, eða fluttu myndina út eins og hún er.",
     failedCheck: "Sjálfvirkt gat ekki athugað þessa mynd. Þú getur samt breytt henni og flutt hana út.",
     export: "Flytja út…",
     done: "Lokið",
@@ -684,6 +685,8 @@ export const is: AreaTranslation<typeof source> = {
   },
   guardian: {
     autopilotHeld: "Sjálfstýringin hélt þessari breytingu eftir svo að þú getir skoðað hana: myndathugunin í þessu tæki var ekki sannfærð um að hún líti eðlilega út. Tillagan er í aðstoðarflugmanni til að forskoða eða nota. Engu var breytt.",
+    secondOpinion: "Annað álit:",
+    suggestionDoubted: "myndathugunin í þessu tæki var ekki sannfærð um að þetta líti eðlilega út. Berðu saman fyrir og eftir; það er þitt val hvort þú notar það.",
   },
   adjust: {
     grade: {

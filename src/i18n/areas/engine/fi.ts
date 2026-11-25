@@ -133,6 +133,7 @@ export const fi: AreaTranslation<typeof source> = {
     suggestionStale: 'Kuva muuttui tämän ehdotuksen jälkeen. Odota uutta tarkistusta.',
     checkTask: (filename) => `Tarkistetaan ${filename} ja sen värit`,
     checkStage: 'Katsotaan valotusta, väriä ja näkymää',
+    secondOpinionStage: "Toinen mielipide laitteen kuvamallilta",
     checkFailed: 'Tätä kuvaa ei voitu tarkistaa. Lisätietoja kohdassa Tehtävät.',
     deepTask: 'Syväkatselmus käynnissä',
     deepStage: 'Katsotaan kohteita ja kuvan laatua',

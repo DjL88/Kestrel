@@ -77,6 +77,9 @@ export const source = {
   frame: {
     originalUnavailable: 'Original unavailable — reconnect its folder or drive',
     previewUnavailable: 'Preview unavailable',
+    retrying: 'Loading the full picture again',
+    lowQuality: 'Small preview: the full picture could not be loaded',
+    tryAgain: 'Try again',
     heifUndecodable: 'InFlight could not decode this HEIF photo. The original is unchanged.',
   },
   info: {

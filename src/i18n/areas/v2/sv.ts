@@ -353,6 +353,7 @@ export const sv: AreaTranslation<typeof source> = {
     working: "Lägger till din bild och kontrollerar exponering och färg på den här enheten…",
     ready: "Auto har balanserat exponering och färg. Jämför med originalet, fortsätt redigera eller exportera nu. Ångra tar tillbaka det.",
     unchanged: "Bilden ser redan naturlig ut, så Auto lät den vara. Redigera den som du vill eller exportera den nu.",
+    held: "Auto har ett förslag, men bildkontrollen på den här enheten var inte övertygad om att det ser naturligt ut, så inget ändrades. Jämför det i Andrepilot och tillämpa det om du gillar det, eller exportera bilden som den är.",
     failedCheck: "Auto kunde inte kontrollera den här bilden. Du kan fortfarande redigera och exportera den.",
     export: "Exportera…",
     done: "Klar",
@@ -684,6 +685,8 @@ export const sv: AreaTranslation<typeof source> = {
   },
   guardian: {
     autopilotHeld: "Autopiloten höll inne den här redigeringen så att du kan granska den: bildkontrollen på den här enheten var inte övertygad om att den ser naturlig ut. Förslaget finns i andrepiloten för förhandsvisning eller användning. Inget ändrades.",
+    secondOpinion: "Andra åsikt:",
+    suggestionDoubted: "bildkontrollen på den här enheten var inte övertygad om att det ser naturligt ut. Jämför före och efter; det är ditt val om du tillämpar det.",
   },
   adjust: {
     grade: {

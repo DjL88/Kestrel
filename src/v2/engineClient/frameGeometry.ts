@@ -11,10 +11,20 @@ import type { CropTransform } from '../ui/contract';
  * `cropPlacement` and `renderV2Export` draw the exported composition.
  */
 export interface PaneImageStyle {
-  /** The picture element's width as a share of the pane: the whole composition. Absent for a single frame. */
+  /** The picture element's width as a share of the pane: the whole composition, or the whole picture when its shape is known. */
   width?: string;
+  /** Only when the picture's shape is known: the element is the whole picture, centred on the composition. */
+  height?: string;
+  left?: string;
+  top?: string;
+  position?: 'absolute';
   transform: string;
 }
+
+/** The picture's and one frame's shapes (width / height). With both known, the picture element is the whole picture. */
+export interface PictureFit { pictureAspect: number; frameAspect: number }
+
+const usableAspect = (value: number | undefined) => typeof value === 'number' && Number.isFinite(value) && value > 0;
 
 const finite = (value: number, fallback = 0) => (Number.isFinite(value) ? value : fallback);
 
@@ -24,13 +34,38 @@ export function exportCrop(crop: CropTransform, splitOffset = 0): CropTransform 
   return offset === 0 ? crop : { ...crop, panX: finite(crop.panX) + offset };
 }
 
-/** CSS for the picture inside pane `paneIndex` of `paneCount` (1 for an unsplit format). */
-export function paneImageStyle(crop: CropTransform, paneIndex = 0, paneCount = 1, splitOffset = 0): PaneImageStyle {
+/**
+ * CSS for the picture inside pane `paneIndex` of `paneCount` (1 for an unsplit format).
+ *
+ * With `fit` (the picture's shape is known), the element is the whole picture at the size that covers the composition,
+ * centred on it, exactly as `cropPlacement` draws it for export. Moving it then shows more of the photo. Without `fit`
+ * the element is the composition with `object-fit: cover`, which crops the picture to the frame's shape before it moves,
+ * so a moved picture showed empty (black) bands where the photo continues (owner report, 25 Nov 2026).
+ */
+export function paneImageStyle(crop: CropTransform, paneIndex = 0, paneCount = 1, splitOffset = 0, fit?: PictureFit): PaneImageStyle {
   const count = Math.max(1, Math.floor(paneCount));
   const index = Math.min(count - 1, Math.max(0, Math.floor(paneIndex)));
   const moved = exportCrop(crop, count > 1 ? splitOffset : 0);
   const sx = (moved.flipH ? -1 : 1) * moved.zoom;
   const sy = (moved.flipV ? -1 : 1) * moved.zoom;
+  if (fit && usableAspect(fit.pictureAspect) && usableAspect(fit.frameAspect)) {
+    // Sizes in shares of one pane: the composition is `count` panes wide and one pane high.
+    const compositionAspect = count * fit.frameAspect;
+    const width = fit.pictureAspect > compositionAspect ? (fit.pictureAspect / fit.frameAspect) * 100 : count * 100;
+    const height = fit.pictureAspect > compositionAspect ? 100 : (compositionAspect / fit.pictureAspect) * 100;
+    // The pan is a share of the composition (as export moves it); translate() percentages resolve against the element.
+    const panX = (finite(moved.panX) * count * 100) / width;
+    const panY = (finite(moved.panY) * 100) / height;
+    const round = (value: number) => Number(value.toFixed(4));
+    return {
+      position: 'absolute',
+      width: `${round(width)}%`,
+      height: `${round(height)}%`,
+      left: `${round((count / 2 - index) * 100 - width / 2)}%`,
+      top: `${round(50 - height / 2)}%`,
+      transform: `translate(${round(panX)}%, ${round(panY)}%) rotate(${moved.rotateDeg}deg) scale(${sx}, ${sy})`,
+    };
+  }
   // translate() percentages resolve against the element, which is the whole composition, so the pane's own place in it
   // is -index/count of that width.
   const panX = moved.panX - (index * 100) / count;

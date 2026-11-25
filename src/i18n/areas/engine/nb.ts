@@ -133,6 +133,7 @@ export const nb: AreaTranslation<typeof source> = {
     suggestionStale: 'Bildet endret seg etter dette forslaget. Vent på en ny kontroll.',
     checkTask: (filename) => `Sjekker ${filename} og fargene`,
     checkStage: 'Ser på eksponering, farge og motiv',
+    secondOpinionStage: "Second opinion fra bildemodellen på enheten",
     checkFailed: 'Kunne ikke sjekke dette bildet. Detaljer under Oppgaver.',
     deepTask: 'Kjører en dybdegjennomgang',
     deepStage: 'Ser på motivene og bildekvaliteten',

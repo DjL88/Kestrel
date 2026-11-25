@@ -63,6 +63,8 @@ export interface AppOptions {
   paddleWebhookSecret?: string;
   /** Paddle.js settings for the site's checkout page. The client-side token is public by design, but kept out of Git. */
   paddleClient?: { environment: PaddleEnvironment; clientToken: string };
+  /** The Paddle API key's renewal record (paddle_key_rotation in Firestore), for the admin console. */
+  paddleKeyStatus?: () => Promise<{ current: { rotatedAt: string; expiresAt: string; activated: boolean } | null; lastRun: { at: string; ok: boolean; reason?: string } | null }>;
   /** Server-owned Paddle checkout for Pro; off in production until the admin switches 'pro-checkout' on. */
   proCheckout?: ReturnType<typeof paddleProCheckout>;
   /** Google's ID-token signing keys. Injected for tests; fetched from Google otherwise. */
@@ -1852,6 +1854,18 @@ export function createApp(options: AppOptions) {
           aiDisabled: (await store.getSetting('ai_disabled')) === '1',
           aiProvider: provider?.name ?? null,
           accounts: quotas.map((q) => ({ accountId: q.accountId, requestsUsed: q.requestsUsed, requestsLimit: q.requestsLimit, periodEndsMs: q.periodStartMs + QUOTA_PERIOD_MS })),
+        });
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/paddle/key', summary: 'When the Paddle API key was last renewed, when it expires, and how the last weekly check went', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'paddle.key.read');
+        if (!options.paddleKeyStatus) throw new ApiError(503, 'PADDLE_NOT_CONFIGURED', 'Paddle key renewal is not set up.');
+        const status = await options.paddleKeyStatus();
+        return adminDone(claims, 'paddle.key.read', '', {
+          rotatedAt: status.current?.rotatedAt ?? null, expiresAt: status.current?.expiresAt ?? null, activated: status.current?.activated ?? null,
+          lastRunAt: status.lastRun?.at ?? null, lastRunOk: status.lastRun?.ok ?? null, lastRunReason: status.lastRun?.ok === false ? status.lastRun.reason ?? null : null,
         });
       },
     },

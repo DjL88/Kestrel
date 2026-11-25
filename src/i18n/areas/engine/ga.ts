@@ -133,6 +133,7 @@ export const ga: AreaTranslation<typeof source> = {
     suggestionStale: 'D’athraigh an grianghraf tar éis an mholta seo. Fan le seiceáil nua.',
     checkTask: (filename) => `${filename} agus a dhath á seiceáil`,
     checkStage: 'Ag féachaint ar nochtadh, dath agus radharc',
+    secondOpinionStage: "Dara tuairim ón tsamhail radhairc ar an ngléas",
     checkFailed: 'Níorbh fhéidir an grianghraf seo a sheiceáil. Sonraí i dTascanna.',
     deepTask: 'Athbhreithniú domhain ar siúl',
     deepStage: 'Ag féachaint ar na hábhair agus ar cháilíocht an ghrianghraif',

@@ -46,6 +46,26 @@ interface FrameImageProps {
   panOffset?: { x: number; y: number };
   /** V2 editor: when the picture is InFlight's own RAW develop, draw it from the 16-bit develop with the 16-bit edit maths. */
   sensor16?: boolean;
+  /** The shown picture's pixel size, each time one loads (the interim one included): its shape for format geometry. */
+  onPictureSize?: (size: { width: number; height: number }) => void;
+}
+
+/** A picture that will not load is asked for again this many times, after these waits, before the view settles for less. */
+const RETRY_WAITS_MS = [150, 900, 2500];
+
+/** The picture an edit is drawn from: the full source, else the full preview as shown, else the small thumbnail. A
+ * view never stays unedited or blank because the original (or a RAW develop) is not available on this device. */
+async function loadEditSource(frame: PhotoFrame, provider: BrowserPreviewProvider, variant: 'thumb' | 'full', priority: boolean): Promise<HTMLImageElement> {
+  if (variant === 'thumb') return loadThumbSource(frame, provider, priority);
+  try {
+    return await loadExportSource(frame, provider, 'selected');
+  } catch {
+    try {
+      const url = await provider.getFullPreviewUrl(frame, 'selected');
+      if (url) return await loadImage(url);
+    } catch { /* fall through to the thumbnail */ }
+    return loadThumbSource(frame, provider, true);
+  }
 }
 
 // Each full-size picture on screen (Before and After are two) has its own place in the 16-bit drawing queue.
@@ -88,6 +108,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   zoomScale = 1,
   panOffset = { x: 0, y: 0 },
   sensor16 = false,
+  onPictureSize,
 }) => {
   // Keep a finished render for same-frame slider updates, never for a different photo.
   const [sourceRevision, setSourceRevision] = useState(0);
@@ -99,6 +120,11 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   const [imageSize, setImageSize] = useState<{ src: string; width: number; height: number; fit: 'cover' | 'contain' } | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [errored, setErrored] = useState<boolean>(false);
+  // A picture that failed to load is asked for again (`retries`), showing the small picture with a spinner meanwhile.
+  // When every retry fails, the view keeps the small picture, marked as such (`degraded`), or a tidy placeholder.
+  const retries = useRef(0);
+  const [degraded, setDegraded] = useState(false);
+  useEffect(() => { retries.current = 0; setDegraded(false); }, [frame.id, frame.stableKey]);
   const containerRef = useRef<HTMLDivElement | null>(null);
   // A virtualised grid still mounts buffer rows. Do not start their disk reads
   // until their cards approach the viewport; selected photos always load now.
@@ -132,8 +158,18 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       thumbSources.delete(key);
       setSourceRevision((revision) => revision + 1);
     };
+    // A full preview released from the provider's cache is revoked: a view showing that address must ask again. A view
+    // showing its own edited render keeps it.
+    const onReleased = (event: Event) => {
+      if ((event as CustomEvent<string>).detail !== key || renderedUrl.current) return;
+      setSourceRevision((revision) => revision + 1);
+    };
     previewProvider.events.addEventListener('preview-invalidated', onInvalidate);
-    return () => previewProvider.events.removeEventListener('preview-invalidated', onInvalidate);
+    previewProvider.events.addEventListener('full-preview-released', onReleased);
+    return () => {
+      previewProvider.events.removeEventListener('preview-invalidated', onInvalidate);
+      previewProvider.events.removeEventListener('full-preview-released', onReleased);
+    };
   }, [frame.stableKey, previewProvider]);
   useEffect(() => {
     if (variant !== 'thumb' && !refreshOnBackgroundDevelop) return;
@@ -201,7 +237,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
 
     const render = async () => {
       // A small thumbnail is plenty for a filmstrip card, and avoids decoding the full-size picture on every slider move.
-      const source = variant === 'thumb' ? await loadThumbSource(frame, previewProvider, priority) : await loadExportSource(frame, previewProvider, 'selected');
+      const source = await loadEditSource(frame, previewProvider, variant, priority);
       if (cancelled) return;
       const canvas = document.createElement('canvas');
       const framing = frame.framing ?? DEFAULT_FRAMING;
@@ -267,9 +303,23 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       replaceRendered(url);
       setPreview({ identity, url, interim: true });
     };
-    if (variant === 'full' && !hasImage.current) void showInterim().catch(() => undefined);
+    const interim = variant === 'full' && !hasImage.current ? showInterim() : null;
+    interim?.catch(() => undefined);
+
+    // Every retry failed: keep the small picture (being drawn just above) rather than a blank or broken frame.
+    if (degraded) {
+      if (!interim) { if (!hasImage.current) setPreview({ identity, url: '' }); setLoading(false); return () => { cancelled = true; }; }
+      interim.then(() => { if (!cancelled) setLoading(false); }, () => { if (!cancelled) { setPreview({ identity, url: '' }); setLoading(false); } });
+      return () => { cancelled = true; window.clearTimeout(timer); };
+    }
 
     const load = async () => {
+      // A retry waits a little first, so a picture that is being replaced (a develop finishing) has time to arrive.
+      const wait = retries.current > 0 ? RETRY_WAITS_MS[Math.min(retries.current, RETRY_WAITS_MS.length) - 1] : 0;
+      if (wait) {
+        await new Promise<void>((resolve) => { timer = window.setTimeout(resolve, wait); });
+        if (cancelled) return;
+      }
       if (edited || (want16 && raw16Workings.ready(raw16Key(frame)))) {
         // Wait for the edit to settle before redrawing, so dragging a slider does not redraw on every step.
         await new Promise<void>((resolve) => { timer = window.setTimeout(resolve, hasImage.current ? 65 : 0); });
@@ -293,13 +343,18 @@ export const FrameImage: React.FC<FrameImageProps> = ({
 
     void load().catch(() => {
       if (cancelled) return;
-      fullShown = true;
-      // A failed redraw keeps the last good picture. Only a photo that never had one shows the fallback.
-      // An interim thumbnail is not a good picture: it must not stand in for a full view that failed.
+      // A failed redraw keeps the last good picture. A photo that never had one tries again, then keeps the small
+      // picture (marked as such, never reported as ready), and only then shows the placeholder.
       if (!hasImage.current || previewIsInterim.current) {
-        if (previewIsInterim.current) replaceRendered(undefined);
-        setPreview({ identity, url: '' });
+        if (retries.current < RETRY_WAITS_MS.length) {
+          retries.current += 1;
+          setSourceRevision((revision) => revision + 1);
+          return;
+        }
         onPreviewStatus?.(frame.id, 'unavailable');
+        if (variant === 'full') { setDegraded(true); return; }
+        fullShown = true;
+        setPreview({ identity, url: '' });
       }
       setLoading(false);
     });
@@ -307,7 +362,9 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [frame.id, frame.stableKey, identity, frame.edit, frame.framing, layersKey, edited, previewProvider, variant, needsAccess, priority, nearViewport, onPreviewStatus, developedRev, raw16Rev, want16]);
+  }, [frame.id, frame.stableKey, identity, frame.edit, frame.framing, layersKey, edited, previewProvider, variant, needsAccess, priority, nearViewport, onPreviewStatus, developedRev, raw16Rev, want16, degraded]);
+
+  const tryAgain = () => { retries.current = 0; setErrored(false); setDegraded(false); setSourceRevision((revision) => revision + 1); };
 
   const demoStyle: React.CSSProperties = {};
   if (!edited && frame.isDemo && frame.demoVariant) {
@@ -324,39 +381,48 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     demoStyle.transform = `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoomScale})`;
   }
 
+  // The tidy placeholder, only once every retry and the small picture have failed. It says what is missing in words and
+  // offers to try again; it never shows the browser's broken-image icon.
+  const placeholder = (message?: string) => (
+    <div
+      data-testid="picture-unavailable"
+      className={`flex flex-col items-center justify-center gap-0.5 bg-[#17191D] text-zinc-500 p-3 text-center select-none ${className}`}
+    >
+      <ImageOff className="w-5 h-5 mb-1 text-zinc-500" aria-hidden="true" />
+      <span className="text-xs font-medium text-zinc-400 truncate max-w-full">{frame.filename}</span>
+      {message && <span className="text-[11px] text-zinc-400">{message}</span>}
+      {variant === 'full' && !needsAccess && (
+        <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); tryAgain(); }}
+          className="mt-1.5 rounded border border-zinc-500 px-2 py-0.5 text-[11px] font-medium text-zinc-200 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+          {t.frame.tryAgain}
+        </button>
+      )}
+    </div>
+  );
+
   if (!src && !loading && preview.identity === identity) {
-    return (
-      <div
-        className={`flex flex-col items-center justify-center bg-[#17191D] text-zinc-500 p-3 text-center select-none ${className}`}
-      >
-        <ImageOff className="w-5 h-5 mb-1.5 text-zinc-500" aria-hidden="true" />
-        <span className="text-xs font-medium text-zinc-400 truncate max-w-full">
-          {frame.filename}
-        </span>
-        <span className="text-[11px] text-zinc-400 mt-0.5">
-          {needsAccess ? t.frame.originalUnavailable : isHeifFile(frame.filename) && !frame.isDemo ? t.frame.heifUndecodable : t.frame.previewUnavailable}
-        </span>
-      </div>
-    );
+    return placeholder(needsAccess ? t.frame.originalUnavailable : isHeifFile(frame.filename) && !frame.isDemo ? t.frame.heifUndecodable : t.frame.previewUnavailable);
   }
 
   if (errored && preview.identity === identity) {
-    return (
-      <div
-        className={`flex flex-col items-center justify-center bg-[#17191D] text-zinc-500 p-3 text-center select-none ${className}`}
-      >
-        <ImageOff className="w-5 h-5 mb-1.5 text-zinc-500" aria-hidden="true" />
-        <span className="text-xs text-zinc-400 truncate max-w-full">{frame.filename}</span>
-      </div>
-    );
+    return placeholder();
   }
 
   return (
     <div ref={containerRef} className={`relative overflow-hidden bg-kestrel-stage ${className}`}>
-      {(loading || preview.identity !== identity) && (!src ? (
+      {degraded && src && preview.interim && (
+        <div role="status" data-testid="picture-low-quality" className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 rounded-full bg-black/65 py-1 pl-2.5 pr-1 text-[11px] text-white">
+          <span>{t.frame.lowQuality}</span>
+          <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); tryAgain(); }}
+            className="rounded-full border border-white/60 px-2 py-0.5 font-medium hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+            {t.frame.tryAgain}
+          </button>
+        </div>
+      )}
+      {!degraded && (loading || preview.identity !== identity) && (!src ? (
         <div className="absolute inset-0 bg-[#181A1E] motion-safe:animate-pulse" aria-hidden="true" />
       ) : (
-        <div role="status" aria-label="Refreshing image" className="pointer-events-none absolute bottom-3 right-3 z-10 rounded-full bg-black/65 p-2 text-white">
+        <div role="status" aria-label={retries.current > 0 ? t.frame.retrying : 'Refreshing image'} className="pointer-events-none absolute bottom-3 right-3 z-10 rounded-full bg-black/65 p-2 text-white">
           <LoaderCircle className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />
         </div>
       ))}
@@ -371,9 +437,11 @@ export const FrameImage: React.FC<FrameImageProps> = ({
           data-preview-quality={preview.interim ? 'interim' : 'full'}
           data-precision={preview.interim ? undefined : preview.precision}
           onLoad={(event) => {
+            const { naturalWidth: width, naturalHeight: height } = event.currentTarget;
+            if (width > 0 && height > 0) onPictureSize?.({ width, height });
             // The interim thumbnail keeps the refresh status on and is not reported as the photo's preview.
             if (preview.interim) return;
-            const { naturalWidth: width, naturalHeight: height } = event.currentTarget;
+            retries.current = 0;
             // The outline must follow the picture exactly, including a border frame that switches it to object-contain.
             const fit = getComputedStyle(event.currentTarget).objectFit === 'contain' ? 'contain' : 'cover';
             setImageSize({ src, width, height, fit });
@@ -382,6 +450,21 @@ export const FrameImage: React.FC<FrameImageProps> = ({
           }}
           onError={() => {
             if (preview.interim) return;
+            // The address died (a revoked preview, a develop replacing it): ask again, showing the small picture meanwhile.
+            if (retries.current < RETRY_WAITS_MS.length) {
+              retries.current += 1;
+              replaceRendered(undefined);
+              setPreview({ identity, url: '' });
+              setSourceRevision((revision) => revision + 1);
+              return;
+            }
+            if (variant === 'full') {
+              replaceRendered(undefined);
+              setPreview({ identity, url: '' });
+              setDegraded(true);
+              onPreviewStatus?.(frame.id, 'unavailable');
+              return;
+            }
             setErrored(true);
             setLoading(false);
             onPreviewStatus?.(frame.id, 'unavailable');

@@ -353,6 +353,7 @@ export const fr: AreaTranslation<typeof source> = {
     working: "Ajout de votre photo et vérification de son exposition et de ses couleurs sur cet appareil…",
     ready: "Auto a équilibré l’exposition et les couleurs. Comparez avec l’original, continuez à retoucher ou exportez maintenant. Annuler revient en arrière.",
     unchanged: "Cette photo paraît déjà naturelle, Auto l’a donc laissée telle quelle. Retouchez-la à votre guise ou exportez-la maintenant.",
+    held: "Auto a une suggestion, mais la vérification visuelle sur cet appareil n'est pas convaincue qu'elle paraisse naturelle : rien n'a été modifié. Comparez-la dans Copilote et appliquez-la si elle vous plaît, ou exportez la photo telle quelle.",
     failedCheck: "Auto n’a pas pu analyser cette photo. Vous pouvez quand même la retoucher et l’exporter.",
     export: "Exporter…",
     done: "Terminé",
@@ -684,6 +685,8 @@ export const fr: AreaTranslation<typeof source> = {
   },
   guardian: {
     autopilotHeld: "Le pilote automatique a gardé cette retouche pour votre avis : la vérification visuelle sur cet appareil n'était pas convaincue qu'elle paraisse naturelle. La suggestion est dans le copilote, pour l'aperçu ou l'application. Rien n'a été modifié.",
+    secondOpinion: "Second avis :",
+    suggestionDoubted: "la vérification visuelle sur cet appareil n'est pas convaincue que le résultat paraisse naturel. Comparez avant et après ; l'appliquer reste votre choix.",
   },
   adjust: {
     grade: {

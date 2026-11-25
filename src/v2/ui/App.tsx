@@ -22,7 +22,7 @@ import { NoticesButton, useNotices } from './shell/Notices';
 import { TaskAlerts } from './shell/TaskAlerts';
 import SharedEditBanner from './shell/SharedEditBanner';
 import SharedComments from './shell/SharedComments';
-import { getActiveGroup } from './utils/studioMath';
+import { getActiveGroup, viewPhotos } from './utils/studioMath';
 import { readSharedLink } from './dialogs/sharedLinks';
 import { useSharedEditing } from './shell/useSharedEditing';
 import { collabClient } from '../../providers/collabClient';
@@ -271,6 +271,16 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
 
   // One dispatch for every command id, shared by the keydown handler below and the command search dialog,
   // so "what Cmd/Ctrl+K can run" and "what the keyboard shortcut runs" never drift apart.
+  // The photos the filmstrip and grid show, in their order. Select all and Shift ranges act on these only, so a filter
+  // such as Flagged never lets an edit or an export reach photos that are hidden.
+  const shownPhotoIds = React.useMemo(() => viewPhotos(store.photos, {
+    filter: store.filmstripFilter, search: store.filmstripSearch, minRating: store.filmstripMinRating,
+    sort: store.filmstripSort, tag: store.filmstripTag ?? null,
+  }).map((photo) => photo.id), [store.photos, store.filmstripFilter, store.filmstripSearch, store.filmstripMinRating, store.filmstripSort, store.filmstripTag]);
+  const selectShownPhoto = React.useCallback((photoId: string, modifiers?: { ctrl?: boolean; shift?: boolean }) =>
+    actions.selectPhoto(photoId, modifiers?.shift ? { ...modifiers, order: shownPhotoIds } : modifiers), [actions, shownPhotoIds]);
+  const selectAllShown = React.useCallback(() => actions.selectAllPhotos(shownPhotoIds), [actions, shownPhotoIds]);
+
   // Settings → Keyboard: after a rating or decision on one photo, move on to the next, as when culling in Photo Mechanic
   // or Lightroom with Caps Lock on. A choice on several selected photos never moves.
   const advanceAfterDecision = (ids: string[]) => {
@@ -302,11 +312,11 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'edit.redo': actions.redo(); break;
       case 'edit.copy': actions.copyRecipe(); break;
       case 'edit.paste': if (!editLocked) actions.pasteRecipe(); break;
-      case 'edit.selectAll': actions.selectAllPhotos(); break;
+      case 'edit.selectAll': selectAllShown(); break;
       case 'file.export': actions.setExportOpen(true); break;
       case 'app.settings': actions.setSettingsOpen(true); break;
     }
-  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, store.settings.advanceAfterDecision, activePhoto, actions, pairPhotos, editLocked]);
+  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, store.settings.advanceAfterDecision, activePhoto, actions, pairPhotos, editLocked, selectAllShown]);
 
   // File > Export again with last settings (G09): the wizard's last settings on the current selection, through the same
   // request builder, so it gives exactly the files the wizard would. Nothing exported yet: open the wizard instead.
@@ -726,7 +736,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onCopyRecipe={actions.copyRecipe}
             onPasteRecipe={actions.pasteRecipe}
             onResetPhoto={() => activePhoto && actions.resetPhotoEdits(activePhoto.id)}
-            onSelectAll={actions.selectAllPhotos}
+            onSelectAll={selectAllShown}
             onClearSelection={actions.clearSelection}
             onToggleFilmstrip={() => actions.setFilmstripCollapsed(!store.filmstripCollapsed)}
             onToggleGridView={() => actions.setGridViewOpen(!store.gridViewOpen)}
@@ -806,7 +816,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   onSetSort={actions.setFilmstripSort}
                   tagFilter={store.filmstripTag ?? null}
                   onSetTagFilter={actions.setFilmstripTag}
-                  onSelectPhoto={actions.selectPhoto}
+                  onSelectPhoto={selectShownPhoto}
                   onOpenInEditor={(id) => {
                     actions.selectPhoto(id);
                     actions.setGridViewOpen(false);
@@ -899,7 +909,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onSetHeight={actions.setFilmstripHeight}
                 onSetFilter={actions.setFilmstripFilter}
                 onSetSearch={actions.setFilmstripSearch}
-                onSelectPhoto={actions.selectPhoto}
+                onSelectPhoto={selectShownPhoto}
                 onClearSelection={actions.clearSelection}
                 onToggleFlag={actions.toggleFlag}
                 onSetRating={actions.setRating}
