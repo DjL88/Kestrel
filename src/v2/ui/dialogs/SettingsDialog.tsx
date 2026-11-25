@@ -599,6 +599,12 @@ export default function SettingsDialog({
             {activeTab === 'keyboard' && (
               <div className="space-y-3">
                 <p className="text-xs text-[var(--text-secondary)]">{STRINGS.settings.keyboard.intro}</p>
+                <SettingSwitch
+                  title={STRINGS.settings.keyboard.advanceLabel}
+                  description={STRINGS.settings.keyboard.advanceDesc}
+                  checked={settings.advanceAfterDecision}
+                  onToggle={() => onUpdateSettings({ advanceAfterDecision: !settings.advanceAfterDecision })}
+                />
                 {keyboardPanel}
               </div>
             )}
