@@ -304,6 +304,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             hideReadouts={store.settings.calmReadouts}
             showAdvanced={store.settings.advancedControls}
             onUpdateRecipe={actions.updateRecipe}
+            onDetectColourEdges={actions.detectColourEdges}
             onApplyLook={actions.applyLook}
             onHoverLook={actions.setHoveredLook}
             onResetPhoto={actions.resetPhotoEdits}

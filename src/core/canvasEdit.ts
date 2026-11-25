@@ -2,6 +2,17 @@ import { applyDetail, applyPhotoEdit, hasDetail, isNeutralEdit, isNeutralGlobal,
 import { applyMasks, fullContext, type MaskContext } from './masks';
 import { applyFinishing, hasFinishing } from './finishing';
 import { applyDehaze } from './dehaze';
+import { applyFringe, hasFringeEdit } from './fringe';
+
+/** Colour fringe removal runs first, on the picture's own pixels, centred on the lens. */
+function applyCanvasFringe(canvas: HTMLCanvasElement, edit: PhotoEdit, mask: MaskContext, imageEdge: number): void {
+  if (!hasFringeEdit(edit)) return;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('Canvas unavailable');
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  applyFringe(pixels.data, canvas.width, canvas.height, 4, edit, mask, imageEdge);
+  context.putImageData(pixels, 0, 0);
+}
 
 /** Dehaze runs on the picture's own pixels, after noise reduction and before tone. */
 function applyCanvasDehaze(canvas: HTMLCanvasElement, edit: PhotoEdit, imageEdge: number): void {
@@ -117,6 +128,7 @@ export function applyCanvasPhotoEdit(
   maskContext: MaskContext = fullContext(canvas.width, canvas.height),
 ): void {
   if (isNeutralEdit(edit)) return;
+  applyCanvasFringe(canvas, edit, maskContext, imageEdge);
   applyCanvasNoiseReduction(canvas, edit);
   applyCanvasDehaze(canvas, edit, imageEdge);
   if (!isNeutralGlobal(edit) && !gpuRenderer?.(canvas, edit, imageEdge)) {
@@ -140,6 +152,8 @@ export async function applyCanvasExportEdit(
 ): Promise<void> {
   if (isNeutralEdit(edit)) return;
   const edge = imageEdge;
+  applyCanvasFringe(canvas, edit, maskContext, edge);
+  signal?.throwIfAborted();
   applyCanvasNoiseReduction(canvas, edit);
   signal?.throwIfAborted();
   applyCanvasDehaze(canvas, edit, edge);

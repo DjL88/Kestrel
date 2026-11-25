@@ -25,4 +25,16 @@ export const fr: AreaTranslation<typeof source> = {
   probably: (what: string) => `${what} (probablement)`,
   typeUnknown: (what: string) => `${what}, type inconnu`,
   withType: (kind: string, type: string) => `${kind} : ${type}`,
+  marked: (what: string, marking: string) => `${what}, marqué ${marking}`,
+  registered: (marking: string, type: string) => `${marking} : ${type} (d'après le registre)`,
+  operatedBy: (what: string, operator: string) => `${what}, exploité par ${operator}`,
+  reader: {
+    title: 'Lire les immatriculations d’aéronefs',
+    description: (megabytes: string) => `Lit les immatriculations et numéros de série militaires peints sur les aéronefs, sur cet appareil, et les recherche dans une copie hors ligne de registres publics. Un téléchargement unique de ${megabytes} Mo. Les plaques d’immatriculation des voitures ne sont jamais lues.`,
+    download: 'Télécharger',
+    downloading: (percent: number) => `Téléchargement… ${percent}%`,
+    ready: 'Installé. Fonctionne hors ligne.',
+    remove: 'Supprimer',
+    failed: 'Le téléchargement n’a pas abouti, rien n’a été conservé. Réessayez.',
+  },
 };

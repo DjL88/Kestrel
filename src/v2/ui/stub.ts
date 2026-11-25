@@ -1790,6 +1790,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
+    detectColourEdges: async (photoId) => { logAction('detectColourEdges', { photoId }); return 'clean'; },
     addImageLayer: async (photoId) => { logAction('addImageLayer', { photoId }); },
     addPhotoLayer: async (photoId, sourcePhotoId) => { logAction('addPhotoLayer', { photoId, sourcePhotoId }); },
     updateLayer: (photoId, layerId) => { logAction('updateLayer', { photoId, layerId }); },
