@@ -17,7 +17,7 @@ let loading: Promise<Loaded> | null = null;
 export const tapSelectStatus = (): Promise<OptionalModelStatus> => optionalModelStatus(EFFICIENTSAM_TI);
 export const downloadTapSelect = (onProgress: (fraction: number) => void, signal?: AbortSignal) =>
   downloadOptionalModel(EFFICIENTSAM_TI, onProgress, signal);
-export async function removeTapSelect(): Promise<void> { loading = null; encoded = null; await removeOptionalModel(EFFICIENTSAM_TI); }
+export async function removeTapSelect(): Promise<void> { loading = null; encodings.clear(); await removeOptionalModel(EFFICIENTSAM_TI); }
 
 function load(): Promise<Loaded> {
   loading ??= (async () => {
@@ -43,15 +43,34 @@ function load(): Promise<Loaded> {
 type Source = HTMLImageElement | HTMLCanvasElement | ImageBitmap;
 const dims = (source: Source) => source instanceof HTMLImageElement ? { w: source.naturalWidth, h: source.naturalHeight } : { w: source.width, h: source.height };
 
-/** The one encoding kept, tagged with the caller's key (for example the original's SHA-256 and the crop). */
-let encoded: { key: string; embedding: Tensor; mask: { w: number; h: number } } | null = null;
+/**
+ * Encodings kept for the last few photos (about 4 MB each), keyed by the caller (for example the original's SHA-256
+ * and the crop). Encoding is the slow step, so a background queue should call `encodePhoto` ahead of the photographer
+ * (the photo on screen first, then its neighbours); a tap then needs only the fast decoder.
+ */
+export const KEPT_ENCODINGS = 4;
+interface Encoding { embedding: Tensor; mask: { w: number; h: number } }
+const encodings = new Map<string, Encoding>();
+const pending = new Map<string, Promise<{ w: number; h: number }>>();
+
+/** Is this photo already encoded, so a tap will answer at decoder speed? */
+export const isPhotoEncoded = (key: string) => encodings.has(key);
 
 /**
  * Read a photo once. Masks will come back at `samMaskSize` of the photo (long edge at most 1024), and taps must be
  * given in those mask pixels. A second call with the same key reuses the encoding.
  */
 export async function encodePhoto(source: Source, key: string): Promise<{ w: number; h: number }> {
-  if (encoded?.key === key) return encoded.mask;
+  const kept = encodings.get(key);
+  if (kept) { encodings.delete(key); encodings.set(key, kept); return kept.mask; }
+  const running = pending.get(key);
+  if (running) return running;
+  const job = encode(source, key).finally(() => pending.delete(key));
+  pending.set(key, job);
+  return job;
+}
+
+async function encode(source: Source, key: string): Promise<{ w: number; h: number }> {
   const { ort, encoder } = await load();
   const { w, h } = dims(source);
   const mask = samMaskSize(w, h);
@@ -64,17 +83,22 @@ export async function encodePhoto(source: Source, key: string): Promise<{ w: num
   context.drawImage(source, 0, 0, w, h, 0, 0, SAM_INPUT, SAM_INPUT);
   const input = samInput(context.getImageData(0, 0, SAM_INPUT, SAM_INPUT).data);
   const out = await encoder.run({ batched_images: new ort.Tensor('float32', input, [1, 3, SAM_INPUT, SAM_INPUT]) });
-  encoded = { key, embedding: out.image_embeddings, mask };
+  encodings.set(key, { embedding: out.image_embeddings, mask });
+  while (encodings.size > KEPT_ENCODINGS) {
+    const oldest = encodings.keys().next().value as string;
+    encodings.delete(oldest);
+  }
   return mask;
 }
 
 /**
- * One mask per subject, in the order given, from the photo last encoded with `key`. A subject with nothing to go on
+ * One mask per subject, in the order given, from the photo encoded with `key`. A subject with nothing to go on
  * (no box and no added tap) gives null. Several subjects are separate masks; `unionSamMasks` joins them when one
  * layer is wanted.
  */
 export async function selectSubjects(key: string, subjects: readonly SamPrompt[]): Promise<Array<SamMask | null>> {
-  if (encoded?.key !== key) throw new Error('This photo has not been read for tap-to-select yet.');
+  const encoded = encodings.get(key);
+  if (!encoded) throw new Error('This photo has not been read for tap-to-select yet.');
   const { ort, decoder } = await load();
   const { embedding, mask } = encoded;
   const results: Array<SamMask | null> = [];
