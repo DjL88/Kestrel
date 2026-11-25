@@ -734,6 +734,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     filmstripMinRating: 0,
     filmstripSort: 'shoot',
     filmstripSearch: '',
+    filmstripTag: null,
     gridViewOpen: false,
     compareMode: false,
     canvasZoom: 1,
@@ -949,6 +950,13 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
           : photo),
       }));
     },
+    removePhotoTag: (photoId, tagId) => {
+      setStore((prev) => ({
+        ...prev,
+        photos: prev.photos.map((photo) => photo.id === photoId ? { ...photo, photoTags: photo.photoTags?.filter((tag) => tag.id !== tagId) } : photo),
+      }));
+    },
+
     correctSpeciesName: (photoId, proposedName) => {
       const name = proposedName.trim().slice(0, 120);
       if (!name) return;
@@ -2080,6 +2088,10 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
 
     setFilmstripSearch: (filmstripSearch) => {
       setStore((prev) => ({ ...prev, filmstripSearch }));
+    },
+
+    setFilmstripTag: (filmstripTag) => {
+      setStore((prev) => ({ ...prev, filmstripTag }));
     },
 
     setGridViewOpen: (gridViewOpen) => {

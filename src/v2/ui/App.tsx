@@ -668,6 +668,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   sort={store.filmstripSort}
                   onSetMinRating={actions.setFilmstripMinRating}
                   onSetSort={actions.setFilmstripSort}
+                  tagFilter={store.filmstripTag ?? null}
+                  onSetTagFilter={actions.setFilmstripTag}
                   onSelectPhoto={actions.selectPhoto}
                   onOpenInEditor={(id) => {
                     actions.selectPhoto(id);
@@ -745,6 +747,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 sort={store.filmstripSort}
                 onSetMinRating={actions.setFilmstripMinRating}
                 onSetSort={actions.setFilmstripSort}
+                tagFilter={store.filmstripTag ?? null}
+                onSetTagFilter={actions.setFilmstripTag}
                 quietBadges={store.settings.calmBadges}
                 looks={store.looks}
                 hasClipboardRecipe={Boolean(store.clipboardRecipe)}

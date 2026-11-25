@@ -1,0 +1,53 @@
+/**
+ * Plain-language photo tags InFlight works out by itself (places, light, weather, style, genre, vehicles), keyed by
+ * tag id (`src/core/photoTags.ts`). British English, the source for every translation. The vehicles lane adds its own
+ * ids here. A tag id with no words here is never shown.
+ */
+export const source = {
+  tags: {
+    'light.golden-hour': "Golden hour",
+    'light.blue-hour': "Blue hour",
+    'light.night': "Night",
+    'light.backlit': "Backlit",
+    'light.silhouette': "Silhouette",
+    'light.moon': "Moon",
+    'light.milky-way': "Milky Way",
+    'weather.fog': "Fog or mist",
+    'weather.rain': "Rain",
+    'weather.snow': "Snow",
+    'weather.overcast': "Overcast",
+    'weather.clear': "Clear sky",
+    'style.high-key': "High-key",
+    'style.low-key': "Low-key",
+    'style.minimalist': "Minimalist",
+    'style.panning-blur': "Panning blur",
+    'style.motion-blur': "Motion blur",
+    'style.black-and-white': "Black and white",
+    'style.shallow-dof': "Shallow depth of field",
+    'genre.wildlife': "Wildlife",
+    'genre.birds': "Birds",
+    'genre.aviation': "Aviation",
+    'genre.motorsport': "Motorsport",
+    'genre.landscape': "Landscape",
+    'genre.portrait': "Portrait",
+    'genre.sport': "Sport",
+    'genre.street': "Street",
+    'genre.macro': "Macro",
+    'genre.astro': "Astro",
+    'genre.documentary': "Documentary",
+  },
+  facets: {
+    place: "Place",
+    landmark: "Landmark",
+    light: "Light",
+    weather: "Weather",
+    style: "Style",
+    genre: "Genre",
+    vehicle: "Vehicle",
+  },
+  filterLabel: "Tags",
+  allTags: "All tags",
+  foundHeading: "Found by InFlight",
+  remove: (name: string) => `Remove ${name}`,
+  placeNote: "Place names from GeoNames (CC BY 4.0), worked out on this device.",
+};
