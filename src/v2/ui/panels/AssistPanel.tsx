@@ -3,6 +3,7 @@ import type { Photo } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import ColourWordsList from './ColourWordsList';
+import ColourSenseLine from './ColourSenseLine';
 
 interface AssistPanelProps {
   photo: Photo | null;
@@ -69,6 +70,7 @@ export default function AssistPanel({
             <div className="min-w-0">
               <p className="truncate text-xs font-medium text-[var(--text-primary)]">{sug.title}</p>
               <p className="truncate font-mono text-[0.625rem] text-[var(--text-muted)]">{sug.colourReadout}</p>
+              <ColourSenseLine note={sug.colourSense} cvdGuidance={cvdGuidance} />
             </div>
             <button
               type="button"
