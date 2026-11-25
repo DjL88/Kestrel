@@ -73,6 +73,9 @@ export const cy: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Y gwreiddiol ddim ar gael — ailgysylltwch ei ffolder neu ei ddisg',
     previewUnavailable: 'Rhagolwg ddim ar gael',
+    retrying: 'Yn llwytho\'r llun llawn eto',
+    lowQuality: 'Rhagolwg bach: ni ellid llwytho\'r llun llawn',
+    tryAgain: 'Rhowch gynnig arall arni',
     heifUndecodable: 'Ni allai InFlight ddatgodio’r llun HEIF hwn. Mae’r gwreiddiol heb ei newid.',
   },
   info: {

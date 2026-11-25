@@ -606,6 +606,8 @@ export interface PhotoSurfaceProps {
   alt: string;
   className?: string;
   style?: CSSProperties;
+  /** Called with the shown picture's pixel size (framed, upright) whenever a picture loads, the small interim one included. */
+  onPictureSize?: (size: { width: number; height: number }) => void;
 }
 
 export type HubViewState = 'ready' | 'empty' | 'loading' | 'error';

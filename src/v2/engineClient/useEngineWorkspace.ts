@@ -969,6 +969,24 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detectKey]);
 
+  // A photo whose file records no size takes its Original shape from the picture shown, measured at once (not after the
+  // histogram's debounce), so Formats does not open as an unknown 1:1 Original and correct itself later (owner, 25 Nov).
+  const measureId = activeFrame && !(activeFrame.exif.width && activeFrame.exif.height) && !pixelSizes[activeFrame.id] ? activeFrame.id : null;
+  useEffect(() => {
+    if (!measureId || !activeFrame) return;
+    let live = true;
+    const frame = activeFrame;
+    provider.current!.getFullPreviewUrl(frame, 'selected').then(async (url) => {
+      if (!url || !live) return;
+      const image = await loadImage(url);
+      if (live && image.naturalWidth > 0 && image.naturalHeight > 0) {
+        setPixelSizes((current) => (current[frame.id] ? current : { ...current, [frame.id]: { width: image.naturalWidth, height: image.naturalHeight } }));
+      }
+    }).catch(() => { /* the histogram pass measures it later */ });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [measureId]);
+
   // The histogram is measured from the picture as it is now: the preview with this photo's edit applied, small and debounced.
   const histogramKey = activeFrame ? `${activeFrame.id}|${JSON.stringify(activeFrame.edit ?? null)}|${JSON.stringify(activeFrame.framing ?? null)}` : null;
   useEffect(() => {
