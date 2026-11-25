@@ -158,6 +158,7 @@ export const source = {
     importSaveStage: 'Saving the photo in this project',
     importSomeFailed: (added: number) => `Some photos could not be imported. ${added} were added. Open Tasks to retry only the ones that failed.`,
     importStopped: (added: number) => `Import stopped. ${added} photos were added. Your originals are unchanged.`,
+    importNotFinished: (count: number, names: string) => `The last import into this project did not finish: ${count} photos were not added (${names}). Import them again to add them. Photos already added are kept.`,
     importFailed: 'Adding photos failed. Your originals were not changed.',
   },
 };

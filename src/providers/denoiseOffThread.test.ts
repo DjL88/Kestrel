@@ -7,8 +7,9 @@ import { createSubjectMask, type SubjectGrid } from '../core/maskTypes';
 import { DEFAULT_EDIT } from '../core/photoEdits';
 import { fullContext, maskAlpha } from '../core/masks';
 import type { Pixels } from '../core/colourCheck';
-import { runDenoiseAction } from '../engine/denoiseAction';
-import { verifyDenoiseRecipe } from '../v2/engineClient/denoiseRecipe';
+import { regionalDenoiseMasks, runDenoiseAction } from '../engine/denoiseAction';
+import { composeDenoiseRecipe, renderDenoiseRecipe, verifyDenoiseRecipe } from '../v2/engineClient/denoiseRecipe';
+import { blendLearned, trueDetailAiWeight } from '../core/trueDetailAi';
 
 /** A seeded, noisy synthetic photograph: a soft gradient with a bright disc for a subject. */
 function syntheticPhoto(width: number, height: number, seed = 7): Pixels {
@@ -132,5 +133,28 @@ test('runDenoiseAction reaches the same verified recipe through the worker as th
   const inThread = await runDenoiseAction({ ...common, render: async (edit, masks) => local.render(edit, masks) });
   const viaWorker = await runDenoiseAction({ ...common, render: async () => { throw new Error('pixels must not come back'); }, assess: remote.assess });
   assert.deepEqual(viaWorker, inThread);
+  compute.dispose();
+});
+
+test('a TrueDetail learned result is blended in the worker exactly as the in-thread render blends it', async () => {
+  const photo = syntheticPhoto(96, 72, 17);
+  // A stand-in for the learned denoiser's working-size picture: a smoother copy of the photo.
+  const learned = new Uint8ClampedArray(syntheticPhoto(96, 72, 1).data.map((v, i) => i % 4 === 3 ? 255 : Math.round(v * 0.5 + 64)));
+  const base = job(photo, true);
+  const compute = createDenoiseCompute({ createWorker: () => new ClonedWorker() });
+  const remote = await compute.open({ ...base, learned });
+  const subject = { maskId: base.recipeId, grid: discGrid(), framingKey: 'frame', confidence: 'high' as const, alpha: base.subjectAlpha! };
+  const masks = regionalDenoiseMasks(subject, { background: 0.6, subject: 0.2, eyes: 0.2 }, base.lumaPerStrength);
+  const edit = { denoise: 0 };
+  const blend = { subject: 1, eyes: 1 };
+  // Main's in-thread TrueDetail render, written out independently of denoiseCompute.
+  const recipe = composeDenoiseRecipe(base.baseEdit, base.recipeId, 0, masks, base.lumaPerStrength);
+  const data = new Uint8ClampedArray(photo.data);
+  blendLearned(data, learned, trueDetailAiWeight({ maskId: base.recipeId, ...blend }, recipe.masks, photo.width, photo.height, fullContext(photo.width, photo.height)));
+  const expected = renderDenoiseRecipe({ data, width: photo.width, height: photo.height }, recipe);
+  const viaWorker = await remote.render(edit, masks, blend);
+  assert.deepEqual(viaWorker.data, expected.data, 'same blended pixels');
+  assert.notDeepEqual(viaWorker.data, (await remote.render(edit, masks)).data, 'the blend changed the subject');
+  assert.deepEqual(await remote.assess(edit, masks, blend), openDenoiseSession({ ...base, learned }).assess(edit, masks, blend));
   compute.dispose();
 });

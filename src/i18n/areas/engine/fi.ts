@@ -147,6 +147,7 @@ export const fi: AreaTranslation<typeof source> = {
     importSaveStage: 'Tallennetaan kuva tähän projektiin',
     importSomeFailed: (added) => `Osaa kuvista ei voitu tuoda. ${added} lisättiin. Avaa Tehtävät, niin voit yrittää uudelleen vain epäonnistuneita.`,
     importStopped: (added) => `Tuonti pysäytettiin. ${added} kuvaa lisättiin. Alkuperäiset ovat ennallaan.`,
+    importNotFinished: (count, names) => `Viimeisin tuonti tähän projektiin ei valmistunut: ${count} kuvaa jäi lisäämättä (${names}). Tuo ne uudelleen lisätäksesi ne. Jo lisätyt kuvat säilyvät.`,
     importFailed: 'Kuvien lisääminen epäonnistui. Alkuperäisiä ei muutettu.',
   },
 };

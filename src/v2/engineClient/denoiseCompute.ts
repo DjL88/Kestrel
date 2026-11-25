@@ -2,7 +2,9 @@ import { DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import type { Mask } from '../../core/maskTypes';
 import type { Pixels } from '../../core/colourCheck';
 import type { CourseCorrection } from '../../engine/enhancementVerifier';
-import { assessDenoiseCandidate } from '../../engine/denoiseAction';
+import { assessDenoiseCandidate, type LearnedBlend } from '../../engine/denoiseAction';
+import { fullContext } from '../../core/masks';
+import { blendLearned, trueDetailAiWeight } from '../../core/trueDetailAi';
 import { estimateNoiseSigma } from '../../core/noiseEstimate';
 import { composeDenoiseRecipe, renderDenoiseRecipe, verifyDenoiseRecipe } from './denoiseRecipe';
 
@@ -28,28 +30,37 @@ export interface DenoiseJob {
   subjects: Mask[];
   /** Combined subject alpha at working size, when subject protection is in use. */
   subjectAlpha?: Float32Array;
+  /** TrueDetail: a learned denoiser's result drawn into a working-size picture (transparent outside the subject's area). */
+  learned?: Uint8ClampedArray;
 }
 
 export interface DenoiseSession {
   /** The photo as it looks with its current recipe: what every candidate is judged against. */
   baseline: Pixels;
-  render(edit: Partial<PhotoEdit>, masks: Mask[]): Pixels;
+  render(edit: Partial<PhotoEdit>, masks: Mask[], blend?: LearnedBlend): Pixels;
   /** One attempt's verdict, by exactly `runDenoiseAction`'s rules. */
-  assess(edit: Partial<PhotoEdit>, masks: Mask[]): CourseCorrection;
+  assess(edit: Partial<PhotoEdit>, masks: Mask[], blend?: LearnedBlend): CourseCorrection;
   /** Whether the recipe the editor would save passes the per-subject check (used to re-check a cloud result). */
-  composedOk(edit: Partial<PhotoEdit>, masks: Mask[]): boolean;
+  composedOk(edit: Partial<PhotoEdit>, masks: Mask[], blend?: LearnedBlend): boolean;
 }
 
 export function openDenoiseSession(job: DenoiseJob): DenoiseSession {
   const baseline = renderDenoiseRecipe(job.original, job.baseEdit ?? DEFAULT_EDIT);
-  const render = (edit: Partial<PhotoEdit>, masks: Mask[]) => renderDenoiseRecipe(job.original,
-    composeDenoiseRecipe(job.baseEdit, job.recipeId, edit.denoise ?? 0, [...job.newLayers, ...masks], job.lumaPerStrength));
+  const { original } = job;
+  const render = (edit: Partial<PhotoEdit>, masks: Mask[], blend?: LearnedBlend): Pixels => {
+    const recipe = composeDenoiseRecipe(job.baseEdit, job.recipeId, edit.denoise ?? 0, [...job.newLayers, ...masks], job.lumaPerStrength);
+    if (!blend || !job.learned) return renderDenoiseRecipe(original, recipe);
+    // The learned result goes in first, on the photo's own pixels, exactly as the saved recipe draws it.
+    const data = new Uint8ClampedArray(original.data);
+    blendLearned(data, job.learned, trueDetailAiWeight({ maskId: job.recipeId, ...blend }, recipe.masks, original.width, original.height, fullContext(original.width, original.height)));
+    return renderDenoiseRecipe({ data, width: original.width, height: original.height }, recipe);
+  };
   const composed = (after: Pixels) => verifyDenoiseRecipe(baseline, after, job.subjects);
   return {
     baseline,
     render,
-    assess: (edit, masks) => assessDenoiseCandidate(baseline, render(edit, masks), job.subjectAlpha, composed),
-    composedOk: (edit, masks) => composed(render(edit, masks)).ok,
+    assess: (edit, masks, blend) => assessDenoiseCandidate(baseline, render(edit, masks, blend), job.subjectAlpha, composed),
+    composedOk: (edit, masks, blend) => composed(render(edit, masks, blend)).ok,
   };
 }
 
@@ -57,7 +68,7 @@ export function openDenoiseSession(job: DenoiseJob): DenoiseSession {
 export type DenoiseWorkerRequest =
   | { id: number; type: 'noise'; rgba: Uint8ClampedArray; width: number; height: number }
   | { id: number; type: 'open'; session: number; job: DenoiseJob }
-  | { id: number; type: 'render' | 'assess' | 'composed'; session: number; edit: Partial<PhotoEdit>; masks: Mask[] }
+  | { id: number; type: 'render' | 'assess' | 'composed'; session: number; edit: Partial<PhotoEdit>; masks: Mask[]; blend?: LearnedBlend }
   | { id: number; type: 'close'; session: number };
 
 export type DenoiseWorkerReply =
@@ -92,10 +103,10 @@ export function handleDenoiseWorkerMessage(state: DenoiseWorkerState, request: D
         const session = state.sessions.get(request.session);
         if (!session) throw new Error('This denoise job is no longer open.');
         if (request.type === 'render') {
-          const pixels = session.render(request.edit, request.masks);
+          const pixels = session.render(request.edit, request.masks, request.blend);
           return { reply: { id: request.id, ok: true, value: pixels }, transfer: [pixels.data.buffer] };
         }
-        const value = request.type === 'assess' ? session.assess(request.edit, request.masks) : session.composedOk(request.edit, request.masks);
+        const value = request.type === 'assess' ? session.assess(request.edit, request.masks, request.blend) : session.composedOk(request.edit, request.masks, request.blend);
         return { reply: { id: request.id, ok: true, value }, transfer: [] };
       }
     }

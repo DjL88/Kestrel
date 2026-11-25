@@ -8,6 +8,7 @@ const T = STRINGS.adjust.effects;
 const C = STRINGS.adjust.calibration;
 const DEFAULT_VIGNETTE_SIZE = 50;
 const DEFAULT_GRAIN_SIZE = 25;
+const DEFAULT_VIGNETTE_FEATHER = 50;
 /** A muted warm brown, a common starting colour for a coloured vignette. */
 const STARTING_COLOUR = '#3a2a1e';
 
@@ -77,7 +78,7 @@ export function EffectsControls({ recipe, calmView, onChange }: Props) {
             <h4 id="vignette-heading" className="text-xs font-medium text-[var(--text-primary)]">{T.vignette}</h4>
             <InfoPopover title={T.vignette} body={T.vignetteHelp} />
           </div>
-          <button type="button" onClick={() => onChange({ vignette: 0, vignetteBlur: 0, vignetteSize: DEFAULT_VIGNETTE_SIZE, vignetteColour: undefined })}
+          <button type="button" onClick={() => onChange({ vignette: 0, vignetteBlur: 0, vignetteSize: DEFAULT_VIGNETTE_SIZE, vignetteColour: undefined, vignetteRoundness: 0, vignetteFeather: DEFAULT_VIGNETTE_FEATHER, vignetteHighlights: 0 })}
             className="inline-flex items-center gap-1 text-[0.6875rem] font-medium text-[var(--text-muted)] hover:text-[var(--brand-accent)]">
             <BrandIcon name="restore" size={12} />
             <span>{T.resetVignette}</span>
@@ -121,12 +122,22 @@ export function EffectsControls({ recipe, calmView, onChange }: Props) {
           onChange={(v) => onChange({ vignetteBlur: v })} />
         <Row id="slider-vignette-size" label={T.size} help={vignetteOn ? T.sizeHelp : T.sizeOff} value={recipe.vignetteSize ?? DEFAULT_VIGNETTE_SIZE}
           min={0} max={100} calmView={calmView} disabled={!vignetteOn} reset={DEFAULT_VIGNETTE_SIZE} onChange={(v) => onChange({ vignetteSize: v })} />
+        <Row id="slider-vignette-roundness" label={T.roundness} help={vignetteOn ? T.roundnessHelp : T.shapeOff} value={recipe.vignetteRoundness ?? 0}
+          min={-100} max={100} calmView={calmView} disabled={!vignetteOn} leftHint={T.rectangle} rightHint={T.circle} onChange={(v) => onChange({ vignetteRoundness: v })} />
+        <Row id="slider-vignette-feather" label={T.feather} help={vignetteOn ? T.featherHelp : T.shapeOff} value={recipe.vignetteFeather ?? DEFAULT_VIGNETTE_FEATHER}
+          min={0} max={100} calmView={calmView} disabled={!vignetteOn} reset={DEFAULT_VIGNETTE_FEATHER} leftHint={T.hard} rightHint={T.soft}
+          onChange={(v) => onChange({ vignetteFeather: v })} />
+        <Row id="slider-vignette-highlights" label={T.highlights} help={vignetteOn ? T.highlightsHelp : T.shapeOff} value={recipe.vignetteHighlights ?? 0}
+          min={0} max={100} calmView={calmView} disabled={!vignetteOn || (!colour && vignette > 0)} onChange={(v) => onChange({ vignetteHighlights: v })} />
       </div>
 
       <Row id="slider-grain" label={T.grain} help={T.grainHelp} value={grain} min={0} max={100} calmView={calmView} onChange={(v) => onChange({ grain: v })} />
       <Row id="slider-grain-size" label={T.grainSize} help={grain > 0 ? T.grainSizeHelp : T.grainSizeOff} value={recipe.grainSize ?? DEFAULT_GRAIN_SIZE}
         min={0} max={100} calmView={calmView} disabled={grain === 0} reset={DEFAULT_GRAIN_SIZE}
         leftHint={T.fine} rightHint={T.coarse} onChange={(v) => onChange({ grainSize: v })} />
+      <Row id="slider-grain-roughness" label={T.roughness} help={grain > 0 ? T.roughnessHelp : T.roughnessOff} value={recipe.grainRoughness ?? 0}
+        min={0} max={100} calmView={calmView} disabled={grain === 0} leftHint={T.smooth} rightHint={T.rough}
+        onChange={(v) => onChange({ grainRoughness: v })} />
     </div>
   );
 }

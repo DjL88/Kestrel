@@ -147,6 +147,7 @@ export const ga: AreaTranslation<typeof source> = {
     importSaveStage: 'An grianghraf á shábháil sa tionscadal seo',
     importSomeFailed: (added) => `Níorbh fhéidir roinnt grianghraf a iompórtáil. Cuireadh ${added} leis. Oscail Tascanna chun triail eile a bhaint as na cinn a theip amháin.`,
     importStopped: (added) => `Stopadh an iompórtáil. Cuireadh ${added} grianghraf leis. Níor athraíodh do bhunchomhaid.`,
+    importNotFinished: (count, names) => `Níor críochnaíodh an iompórtáil dheireanach isteach sa tionscadal seo: níor cuireadh ${count} grianghraf leis (${names}). Iompórtáil arís iad chun iad a chur leis. Coinnítear na grianghraif a cuireadh leis cheana.`,
     importFailed: 'Theip ar na grianghraif a chur leis. Níor athraíodh do bhunchomhaid.',
   },
 };

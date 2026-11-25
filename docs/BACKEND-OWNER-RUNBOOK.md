@@ -97,3 +97,15 @@ The owner ran `terraform init` in Cloud Shell against the real state bucket. It 
 ## Storage wiring follow-up
 
 The control-plane image now declares the Storage SDK its adapter loads at boot. Safe copy and cloud processing share a single URL-signing IAM binding and IAM Credentials API enablement. Browser uploads include the signed size header in bucket CORS. Keep the existing Cloud Run image and production variables in the state comparison. The Cloud Run Job and the original state are separate from this dependency and signing fix.
+
+## 10. Privacy requests: data copy and account deletion (25 Nov 2026)
+
+The privacy notice (`site/privacy.html#rights`) promises a reply **within one month** and account deletion **within 30 days**. There is no self-service server delete yet, so these are manual. Requests arrive by email or in `/admin` → Messages (`contact_messages`).
+
+1. **Check it is the account holder.** Reply from your support address to the email the account signed in with and ask them to confirm. Do not act on a request from a different address.
+2. **Data copy.** From Firestore, export the account's documents as JSON: `accounts`, `licences` and `device_activations` for that account, `billing_events` and the commerce ledger rows for it, `collab_projects` / `collab_memberships` / `collab_comments` it owns or wrote, and its `contact_messages`. Email the file. Paddle holds the payment details; point them to their Paddle receipt for those.
+3. **Deletion.** Warn members of shared projects the person owns (they keep their own local copies). Delete the Firebase Authentication user, the documents above except purchase records, its cloud objects under `projects/{hash}/` and `galleries/`, and any learning-signal rows under its pseudonym. Keep billing and ledger rows for six years after the end of the tax year (UK tax law); remove the email hash from them only if no longer needed.
+4. **Reply** saying what was deleted and what was kept and why. Log the request date and the reply date somewhere private (not in this repo).
+5. **Contact messages** older than two years after the last reply: delete them once a year (the privacy notice promises this).
+
+When a policy page changes because the code changed, update the page in the same PR. When a new provider handles personal data, add it to `site/subprocessors.html` first.

@@ -214,10 +214,10 @@ test('Advanced Edits on a phone shows one group of sliders per pill; a wide scre
   await expect(groups.getByRole('tab', { name: 'Light' })).toHaveAttribute('aria-selected', 'true');
   await expect(studio.getByRole('slider', { name: 'Exposure' })).toBeVisible();
   await expect(studio.getByRole('slider', { name: 'Contrast' })).toBeVisible();
-  await expect(studio.getByRole('slider', { name: 'Highlights' })).toBeHidden();
+  await expect(studio.getByRole('slider', { name: 'Highlights', exact: true })).toBeHidden();
   await expect(studio.getByRole('slider', { name: 'Temperature' })).toBeHidden();
   await groups.getByRole('tab', { name: 'Tone' }).tap();
-  await expect(studio.getByRole('slider', { name: 'Highlights' })).toBeVisible();
+  await expect(studio.getByRole('slider', { name: 'Highlights', exact: true })).toBeVisible();
   await expect(studio.getByRole('slider', { name: 'Exposure' })).toBeHidden();
   await groups.getByRole('tab', { name: 'Colour' }).tap();
   await expect(studio.getByRole('slider', { name: 'Temperature' })).toBeVisible();
@@ -229,5 +229,5 @@ test('Advanced Edits on a phone shows one group of sliders per pill; a wide scre
   if (!(await studio.getByRole('tab', { name: 'Advanced Edits' }).isVisible())) await studio.getByRole('button', { name: 'Adjust' }).first().click();
   await studio.getByRole('tab', { name: 'Advanced Edits' }).click();
   await expect(groups).toBeHidden();
-  for (const name of ['Exposure', 'Highlights', 'Temperature', 'Clarity']) await expect(studio.getByRole('slider', { name })).toBeVisible();
+  for (const name of ['Exposure', 'Highlights', 'Temperature', 'Clarity']) await expect(studio.getByRole('slider', { name, exact: name === 'Highlights' })).toBeVisible();
 });

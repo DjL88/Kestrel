@@ -1,4 +1,5 @@
 import { sha256Hex } from '../core/sha256';
+import { createTimedSession } from './modelTiming';
 import { EMBED_MODEL, embeddingCrop, encodeEmbedding, preprocessEmbedding, type StoredEmbedding } from '../core/visualSimilarity';
 import { friendlyToolError } from '../core/toolErrors';
 
@@ -24,7 +25,7 @@ function load(): Promise<Loaded> {
     const ort = await import('onnxruntime-web/wasm');
     ort.env.wasm.numThreads = 1;
     ort.env.wasm.proxy = false;
-    const session = await ort.InferenceSession.create(bytes, { executionProviders: ['wasm'] });
+    const session = await createTimedSession(ort, 'dinov2-small-fp16', bytes, { executionProviders: ['wasm'] });
     return { ort, session };
   })().catch((error) => {
     loading = null;

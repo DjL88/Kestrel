@@ -202,6 +202,21 @@ test('portable restore rejects fractional and unsafe catalogue sequence and burs
   assert.deepEqual(restored.frames.map(frame => frame.sequenceIndex), project.frames.map(frame => frame.sequenceIndex));
 });
 
+test('a backup keeps the camera capture dates exports copy, and rejects damaged ones', () => {
+  const project = createDemoShootState(1);
+  project.frames[0].exif = { ...project.frames[0].exif, captureStamp: { original: '2025:06:14 05:42:10', offsetOriginal: '+01:00' } };
+  const baseline = encodeProjectBackup(project);
+  assert.deepEqual(restoreProjectBackup(baseline, 'restored').frames[0].exif.captureStamp, { original: '2025:06:14 05:42:10', offsetOriginal: '+01:00' });
+  for (const invalid of ['2025-06-14T05:42:10', 'Saturday', 12, ['2025:06:14 05:42:10']]) {
+    const damaged = JSON.parse(baseline);
+    damaged.project.frames[0].exif.captureStamp.original = invalid;
+    assert.throws(() => restoreProjectBackup(JSON.stringify(damaged), 'restored'), /invalid catalogue data/, String(invalid));
+  }
+  const badOffset = JSON.parse(baseline);
+  badOffset.project.frames[0].exif.captureStamp.offsetOriginal = '1 hour';
+  assert.throws(() => restoreProjectBackup(JSON.stringify(badOffset), 'restored'), /invalid catalogue data/);
+});
+
 test('collage backup preserves pages, repeat appearances and rejects orphan slots', async () => {
   const { createCollage, duplicateCollagePage } = await import('./collage');
   const project = createDemoShootState(3);

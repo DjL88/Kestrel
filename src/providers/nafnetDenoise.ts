@@ -1,3 +1,4 @@
+import { createTimedSession } from './modelTiming';
 import { NAFNET_W32 } from '../core/optionalModels';
 import { NAFNET_CANDIDATE, NAFNET_TILE, nafnetOutput, type TrueDetailCandidate } from '../core/nafnet';
 import { runTrueDetailTiles, type TileInference, type TrueDetailOptions } from '../core/trueDetailTiles';
@@ -24,7 +25,7 @@ export async function openNafnet(): Promise<NafnetSession | null> {
   const ort = await import('onnxruntime-web/wasm');
   ort.env.wasm.numThreads = 1;
   ort.env.wasm.proxy = false;
-  const session = await ort.InferenceSession.create(bytes, { executionProviders: ['wasm'] });
+  const session = await createTimedSession(ort, NAFNET_W32.id, bytes, { executionProviders: ['wasm'] });
   let closed = false;
   let busy = false;
   return {

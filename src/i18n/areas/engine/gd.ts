@@ -147,6 +147,7 @@ export const gd: AreaTranslation<typeof source> = {
     importSaveStage: 'A’ sàbhaladh an deilbh sa phròiseact seo',
     importSomeFailed: (added) => `Cha b’ urrainnear cuid de dhealbhan ion-phortadh. Chaidh ${added} a chur ris. Fosgail Saothraichean gus feuchainn a-rithist dìreach leis an fheadhainn a dh’fhàillig.`,
     importStopped: (added) => `Stad an t-ion-phortadh. Chaidh ${added} dealbhan a chur ris. Cha deach na dealbhan tùsail agad atharrachadh.`,
+    importNotFinished: (count, names) => `Cha deach an t-ion-phortadh mu dheireadh dhan phròiseact seo a chrìochnachadh: cha deach ${count} dealbhan a chur ris (${names}). Ion-phortaich iad a-rithist gus an cur ris. Thèid na dealbhan a chaidh a chur ris mu thràth a chumail.`,
     importFailed: 'Dh’fhàillig cur nan dealbhan ris. Cha deach na dealbhan tùsail agad atharrachadh.',
   },
 };

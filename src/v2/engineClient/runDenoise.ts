@@ -1,9 +1,16 @@
 import { runEngineCapability } from '../../engine/engineApi';
 import { createCloudProcessingAttempt, type CloudConnection } from '../../providers/cloudProcessingAttempt';
 import { fullContext, maskAlpha } from '../../core/masks';
+import { isAutoDenoiseLayer } from './denoiseRecipe';
+import { findEye, lumaOf } from '../../core/eyeFinder';
+import type { RegionChoice } from '../../core/trueDetailHybrid';
+import type { TrueDetailAi } from '../../core/trueDetailAi';
+import { saveLayerAsset } from '../../core/layerAssetVault';
+import type { LearnedBlend } from '../../engine/denoiseAction';
+import { runLearnedOnSubject } from './trueDetailLearned';
 import { isNeutralEdit, type PhotoEdit } from '../../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto } from '../../core/photoFraming';
-import { createSubjectMask, framingKey, MAX_MASKS, type Mask } from '../../core/maskTypes';
+import { createSubjectMask, framingKey, isCombined, MAX_MASKS, type Mask } from '../../core/maskTypes';
 import type { Pixels } from '../../core/colourCheck';
 import type { PhotoFrame } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
@@ -17,6 +24,8 @@ import { detectSubjectInstances } from '../../providers/multiSubjectDetector';
 import { luminanceStrengthFor } from '../../core/noiseEstimate';
 import { engineText } from '../../i18n/areas/engine';
 import { createDenoiseCompute, MAIN_THREAD_DENOISE_NOTE, type DenoiseCompute } from '../../providers/denoiseOffThread';
+
+const round3 = (v: number) => Math.round(v * 1000) / 1000;
 
 /** Noise at full size: a centre crop of up to 1024 px drawn 1:1 from the picture being edited, measured off the interface thread. */
 async function measureFullSizeNoise(source: HTMLImageElement, compute: DenoiseCompute): Promise<number | null> {
@@ -33,6 +42,34 @@ async function measureFullSizeNoise(source: HTMLImageElement, compute: DenoiseCo
 /** Lets the editor handle input between the two canvas reads denoise still does on this thread. */
 const yieldToInterface = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 
+/** The most likely eye inside each subject (at most `limit`), for TrueDetail's gentlest denoise region. */
+function findSubjectEyes(original: Pixels, subjects: readonly Mask[], combined: Float32Array, limit: number): { x: number; y: number; radius: number }[] {
+  const luma = lumaOf(original.data, original.width, original.height);
+  const context = fullContext(original.width, original.height);
+  const eyes: { x: number; y: number; radius: number }[] = [];
+  const alphas = subjects.length > 1 ? subjects.map(mask => maskAlpha(mask, original.width, original.height, context)) : [combined];
+  for (const alpha of alphas) {
+    if (eyes.length >= limit) break;
+    const eye = findEye({ luma, subject: alpha, width: original.width, height: original.height });
+    if (eye) eyes.push({ x: eye.x, y: eye.y, radius: eye.radius });
+  }
+  return eyes;
+}
+
+/** One plain sentence on what each region received. */
+export function trueDetailNote(regions: readonly RegionChoice[] | undefined, subjects: number, eyes: number): string {
+  const who = `${subjects} subject${subjects === 1 ? '' : 's'}`;
+  if (!regions?.length) return `Denoised on this device with combined subject protection (${who}).`;
+  const part = (region: RegionChoice['region'], name: string) => {
+    const choice = regions.find(r => r.region === region);
+    if (!choice) return null;
+    if (choice.strength <= 0) return `${name} kept as it was (${choice.kept})`;
+    return choice.source === 'conventional' ? `${name} ${choice.strength.toFixed(2)}` : `${name} AI denoise (${choice.source}) at ${Math.round(choice.strength * 100)}%`;
+  };
+  const parts = [part('background', 'background'), part('subject', 'subjects'), eyes ? part('eyes', eyes === 1 ? 'eye' : 'eyes') : null].filter(Boolean);
+  return `TrueDetail regional denoise on this device (${who}${eyes ? `, ${eyes} eye${eyes === 1 ? '' : 's'} protected` : ''}): ${parts.join('; ')}.`;
+}
+
 /** Longest edge of the picture denoise works on, and the only thing ever sent to the cloud (never the original). */
 export const DENOISE_WORKING_EDGE = 1600;
 /** A first-cut strength used when the photo has none yet (same 0 to 2 range as `PhotoEdit.denoise`). Not calibrated on real photos. */
@@ -47,6 +84,8 @@ export interface DenoiseOutcome {
   luminance: number;
   masks: Mask[];
   verified: boolean;
+  /** The learned denoiser's stored result, when the guardian chose it for the subject or eyes. */
+  trueDetailAi?: TrueDetailAi;
   notes: string[];
 }
 
@@ -60,6 +99,7 @@ export type CloudAccess = { connection: CloudConnection; online: boolean } | nul
  */
 export async function runV2Denoise(
   frame: PhotoFrame, provider: BrowserPreviewProvider, cloud: CloudAccess, signal?: AbortSignal,
+  progress?: (done: number, total: number, label: string) => void,
 ): Promise<DenoiseOutcome | null> {
   const source = await loadDenoiseSource(frame, provider,
     () => fullResolutionRasterFormat(frame.filename)
@@ -77,7 +117,7 @@ export async function runV2Denoise(
   // The pixel work (noise, every candidate render and check) runs in a Web Worker so the editor keeps responding.
   const compute = createDenoiseCompute({ signal });
   try {
-    const outcome = await denoiseVerifiedSource(frame, source, cloud, compute, signal);
+    const outcome = await denoiseVerifiedSource(frame, source, cloud, compute, signal, progress);
     if (outcome && compute.onMainThread) outcome.notes.push(MAIN_THREAD_DENOISE_NOTE);
     return outcome;
   } finally {
@@ -88,6 +128,7 @@ export async function runV2Denoise(
 /** Everything after the source passed its provenance checks. */
 async function denoiseVerifiedSource(
   frame: PhotoFrame, source: HTMLImageElement, cloud: CloudAccess, compute: DenoiseCompute, signal?: AbortSignal,
+  progress?: (done: number, total: number, label: string) => void,
 ): Promise<DenoiseOutcome | null> {
   const framing = frame.framing ?? DEFAULT_FRAMING;
   const edge = Math.max(source.naturalWidth, source.naturalHeight);
@@ -114,9 +155,9 @@ async function denoiseVerifiedSource(
   const previousBackground = existing.find(mask => mask.id === `${id}-background`);
   const asked = previousBackground?.edit.denoise ?? (frame.edit?.denoise && frame.edit.denoise > 0 ? frame.edit.denoise : DEFAULT_DENOISE_STRENGTH);
   const lumaPerStrength = asked > 0 ? luminance / asked : 0;
-  const remaining = existing.filter(mask => mask.id !== id && mask.id !== `${id}-background`);
+  const remaining = existing.filter(mask => !isAutoDenoiseLayer(mask.id, id));
   let subjects = remaining.filter((mask): mask is Extract<Mask, { kind: 'subject' }> =>
-    mask.kind === 'subject' && !mask.hidden && !mask.invert && !mask.limit &&
+    mask.kind === 'subject' && !mask.hidden && !mask.invert && !isCombined(mask) &&
     mask.confidence !== 'low' && mask.framingKey === framingKey(framing));
   let detectionUnavailable = false;
   let newLayers: Mask[] = [];
@@ -150,21 +191,32 @@ async function denoiseVerifiedSource(
     ? single ? subjects[0] : createSubjectMask(id, unionSubjectGrid(subjects, aspect), framingKey(framing),
       subjects.every(mask => mask.confidence === 'high') ? 'high' : 'medium')
     : undefined;
+  const combinedAlpha = combined ? maskAlpha(combined, original.width, original.height, fullContext(original.width, original.height)) : undefined;
+  // TrueDetail eye protection: one likely eye per subject, while the mask limit allows.
+  const eyeRoom = MAX_MASKS - remaining.length - newLayers.length - 2;
+  const eyes = combined && eyeRoom > 0 ? findSubjectEyes(original, subjects, combinedAlpha!, eyeRoom) : [];
   const subject = combined ? {
     maskId: id, grid: combined.grid, framingKey: combined.framingKey, confidence: combined.confidence, detail: combined.detail,
-    alpha: maskAlpha(combined, original.width, original.height, fullContext(original.width, original.height)),
+    alpha: combinedAlpha!, eyes,
   } : undefined;
   if (!subject && (previousBackground || subjects.length)) {
     // Do not replace an established protected recipe with global smoothing.
     return { runner: 'device', strength: 0, luminance: 0, masks: [], verified: false, notes: [engineText.denoise.protectionLost] };
   }
+  // TrueDetail: when the opt-in NAFNet pack is on this device, run it on the subject's area at full size, so the
+  // guardian can compare it with the built-in denoise region by region.
+  const learnedOutcome = subject ? await runLearnedOnSubject(source, framing, original, subject.alpha, signal,
+    (done, total) => progress?.(done, total, `AI denoise ${done} of ${total}`)) : { kind: 'unavailable' as const };
+  signal?.throwIfAborted();
+  const learned = learnedOutcome.kind === 'ready' ? learnedOutcome.result : null;
   const session = await compute.open({
     original, baseEdit: frame.edit, recipeId: id, newLayers, lumaPerStrength, subjects, subjectAlpha: subject?.alpha,
+    ...(learned ? { learned: learned.working } : {}),
   });
   const baseline = session.baseline;
-  const render = async (edit: Partial<PhotoEdit>, masks: Mask[]): Promise<Pixels> => {
+  const render = async (edit: Partial<PhotoEdit>, masks: Mask[], blend?: LearnedBlend): Promise<Pixels> => {
     signal?.throwIfAborted();
-    return session.render(edit, masks);
+    return session.render(edit, masks, blend);
   };
   // Remote filtering of already edited pixels is not equivalent to applying a
   // reversible denoise recipe to the original. Keep composed recipes local.
@@ -173,7 +225,9 @@ async function denoiseVerifiedSource(
     : undefined;
   // Each attempt is rendered and checked in the worker by the same rules runDenoiseAction applies in-thread.
   const request = { capability: 'denoise' as const, backgroundDenoise: asked, render, original: baseline, subject, signal,
-    assess: (edit: Partial<PhotoEdit>, masks: Mask[]) => session.assess(edit, masks) };
+    luminancePerStrength: lumaPerStrength,
+    ...(learned ? { learned: { source: learned.model, strengths: [1, 0.6] } } : {}),
+    assess: (edit: Partial<PhotoEdit>, masks: Mask[], blend?: LearnedBlend) => session.assess(edit, masks, blend) };
   let response = await runEngineCapability(request, attempt);
   // Even a verified remote raster is not the recipe the editor will save.
   // Verify the actual local rendering, and retry on-device if it differs.
@@ -189,8 +243,17 @@ async function denoiseVerifiedSource(
     ? [engineText.denoise.cloud]
     : [cloud ? engineText.denoise.cloudNotUsed : engineText.denoise.device];
   if (subject && subjects.length > 0 && !newLayers.length && !remaining.some(mask => subjects.includes(mask as typeof subjects[number]))) notes.push(engineText.denoise.layersFull);
-  if (subject) notes.unshift(engineText.denoise.protected(subjects.length));
+  if (subject) notes.unshift(trueDetailNote(result.regions, subjects.length, eyes.length));
+  if (learnedOutcome.kind === 'skipped') notes.push(learnedOutcome.note);
+  let trueDetailAi: TrueDetailAi | undefined;
+  if (result.verification.ok && result.learned && learned) {
+    // Stored once, on this device only, beside the original (never over it); the recipe points at it.
+    const asset = await saveLayerAsset(await learned.png());
+    signal?.throwIfAborted();
+    trueDetailAi = { model: learned.model, modelSha256: learned.modelSha256, asset, framingKey: framingKey(framing), rect: learned.rect,
+      maskId: id, subject: round3(result.learned.subject), eyes: round3(result.learned.eyes) };
+  }
   else if (detectionUnavailable) notes.unshift(engineText.denoise.global);
   if (!result.verification.ok) notes.push(engineText.denoise.failedCheck);
-  return { runner: response.runner === 'cloud-processing' ? 'cloud-processing' : 'device', strength, luminance: Math.round(Math.min(2, strength * lumaPerStrength) * 1e4) / 1e4, masks: subject ? [...newLayers, ...result.masks] : result.masks, verified: result.verification.ok, notes };
+  return { runner: response.runner === 'cloud-processing' ? 'cloud-processing' : 'device', strength, luminance: Math.round(Math.min(2, strength * lumaPerStrength) * 1e4) / 1e4, masks: subject ? [...newLayers, ...result.masks] : result.masks, verified: result.verification.ok, notes, ...(trueDetailAi ? { trueDetailAi } : {}) };
 }

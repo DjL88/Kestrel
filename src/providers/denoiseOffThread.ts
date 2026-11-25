@@ -2,6 +2,7 @@ import type { Pixels } from '../core/colourCheck';
 import type { Mask } from '../core/maskTypes';
 import type { PhotoEdit } from '../core/photoEdits';
 import type { CourseCorrection } from '../engine/enhancementVerifier';
+import type { LearnedBlend } from '../engine/denoiseAction';
 import { estimateNoiseSigma } from '../core/noiseEstimate';
 import { engineText } from '../i18n/areas/engine';
 import {
@@ -28,9 +29,9 @@ export interface DenoiseWorkerLike {
 
 export interface AsyncDenoiseSession {
   baseline: Pixels;
-  render(edit: Partial<PhotoEdit>, masks: Mask[]): Promise<Pixels>;
-  assess(edit: Partial<PhotoEdit>, masks: Mask[]): Promise<CourseCorrection>;
-  composedOk(edit: Partial<PhotoEdit>, masks: Mask[]): Promise<boolean>;
+  render(edit: Partial<PhotoEdit>, masks: Mask[], blend?: LearnedBlend): Promise<Pixels>;
+  assess(edit: Partial<PhotoEdit>, masks: Mask[], blend?: LearnedBlend): Promise<CourseCorrection>;
+  composedOk(edit: Partial<PhotoEdit>, masks: Mask[], blend?: LearnedBlend): Promise<boolean>;
   close(): void;
 }
 
@@ -52,7 +53,7 @@ function startDenoiseWorker(): DenoiseWorkerLike {
 type Pending = { resolve: (value: unknown) => void; reject: (reason: unknown) => void };
 /** A request before it is given its id. */
 type Outgoing = DenoiseWorkerRequest extends infer R ? R extends DenoiseWorkerRequest ? Omit<R, 'id'> : never : never;
-type Candidate = { edit: Partial<PhotoEdit>; masks: Mask[] };
+type Candidate = { edit: Partial<PhotoEdit>; masks: Mask[]; blend?: LearnedBlend };
 
 export function createDenoiseCompute(options: { createWorker?: () => DenoiseWorkerLike; signal?: AbortSignal } = {}): DenoiseCompute {
   const createWorker = options.createWorker ?? startDenoiseWorker;
@@ -134,9 +135,9 @@ export function createDenoiseCompute(options: { createWorker?: () => DenoiseWork
         offThread<T>({ type, session, ...body }, () => run(here()));
       return {
         baseline,
-        render: (edit, masks) => ask('render', { edit, masks }, s => s.render(edit, masks)),
-        assess: (edit, masks) => ask('assess', { edit, masks }, s => s.assess(edit, masks)),
-        composedOk: (edit, masks) => ask('composed', { edit, masks }, s => s.composedOk(edit, masks)),
+        render: (edit, masks, blend) => ask('render', { edit, masks, blend }, s => s.render(edit, masks, blend)),
+        assess: (edit, masks, blend) => ask('assess', { edit, masks, blend }, s => s.assess(edit, masks, blend)),
+        composedOk: (edit, masks, blend) => ask('composed', { edit, masks, blend }, s => s.composedOk(edit, masks, blend)),
         close() {
           local = null;
           if (worker && !signal?.aborted) void call({ type: 'close', session }).catch(() => undefined);

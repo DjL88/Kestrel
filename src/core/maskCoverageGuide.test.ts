@@ -40,3 +40,25 @@ test('hidden and missing masks do not show and work is bounded for full-size RAW
   assert.equal(guide.height, 256);
   assert.equal(guide.rgba.length, 384 * 256 * 4);
 });
+
+test('the outline guide draws only a line round the mask: white on the edge, a dark ring outside, the inside left clear', () => {
+  const mask = { ...createMask('radial', 'o'), cx: 0.5, cy: 0.5, rx: 0.25, ry: 0.25, feather: 0 } as Mask;
+  const guide = maskCoverageGuide([mask], 'o', 200, 200, 'outline')!;
+  const at = (x: number, y: number) => Array.from(guide.rgba.slice((y * guide.width + x) * 4, (y * guide.width + x) * 4 + 4));
+  const cx = Math.round(guide.width / 2);
+  // The centre and the far corner are untouched: the photo shows through.
+  assert.equal(at(cx, cx)[3], 0);
+  assert.equal(at(2, 2)[3], 0);
+  // Along the middle row, the first inside pixel is white and opaque, and the one just outside it is a dark ring.
+  const row = Math.round(guide.height / 2);
+  let first = -1;
+  for (let x = 0; x < guide.width && first < 0; x++) if (at(x, row)[0] === 255 && at(x, row)[3] === 255) first = x;
+  assert.ok(first > 0, 'an edge was drawn');
+  assert.deepEqual(at(first - 1, row), [0, 0, 0, 220]);
+  // Only a thin line: almost all pixels are clear.
+  let painted = 0;
+  for (let i = 3; i < guide.rgba.length; i += 4) if (guide.rgba[i] > 0) painted++;
+  assert.ok(painted / (guide.width * guide.height) < 0.05, `${painted} painted`);
+  // The fill style is unchanged and still the default.
+  assert.deepEqual(maskCoverageGuide([mask], 'o', 200, 200), maskCoverageGuide([mask], 'o', 200, 200, 'fill'));
+});
