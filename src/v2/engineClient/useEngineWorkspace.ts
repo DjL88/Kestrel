@@ -105,6 +105,8 @@ import { canvasLensCentre, detectLateralCa } from '../../core/fringe';
 import { surfaceBridge } from './surfaceBridge';
 import { addSavedEditGroup, renameSavedEditGroup, selectSavedEditGroup, syncEditGroup } from './editGroupState';
 import { engineText } from '../../i18n/areas/engine';
+import { loadSpeciesNames, onSpeciesNamesLoaded } from '../../providers/speciesNames';
+import { language } from '../../i18n/messages';
 
 /** Actions that change a photo's edit, sizes, overlay, masks or assist state. They are not connected to the real
  * recipe yet, so they say so instead of silently changing sample data. */
@@ -2133,12 +2135,19 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     [stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: watermarkLibrary, auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
+  // Species names in the person's language arrive once, after start-up; the photo list is redrawn when they do.
+  const [speciesNamesVersion, setSpeciesNamesVersion] = useState(0);
+  useEffect(() => {
+    const stop = onSpeciesNamesLoaded(() => setSpeciesNamesVersion((version) => version + 1));
+    void loadSpeciesNames(language);
+    return stop;
+  }, []);
   const photos = useMemo(() => recountBursts((state?.frames ?? []).filter((frame) => !frame.removedAt && !pairs.rawOf.has(frame.id)).map((frame) => {
     const assist = assists[frame.id];
     const jpegId = pairs.jpegOf.get(frame.id);
     const pairedJpeg = jpegId ? state?.frames.find((candidate) => candidate.id === jpegId)?.filename : undefined;
     return withPairedJpeg(pairedJpeg, frameToPhoto(frame, urls[frame.id], { assist, watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed, sources: { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) } }));
-  })), [state?.frames, pairs, urls, assists, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes]);
+  })), [state?.frames, pairs, urls, assists, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes, speciesNamesVersion]);
   // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo
   // (ROADMAP.md, "Removed photos panel" next item). Thumbnails are not fetched for them; the filename is enough
   // to recognise one in a short list, and restoring returns it to the normal, already-thumbnailed photo list.
