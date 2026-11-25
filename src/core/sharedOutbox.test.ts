@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { backgroundStep, dueEntries, flushOutbox, markConflict, markRetry, MAX_OUTBOX_ENTRIES, outboxSummary, queueEdit, readOutbox, retryDelayMs, settleEdit, type OutboxEntry } from './sharedOutbox';
-import { recipeFingerprint } from './sharedSync';
+import { recipeFingerprint, type SyncPoint } from './sharedSync';
+import { syncPointFor, type SharedMarks } from './sharedMarks';
 
 const A = { project: 'p1', key: 'o_a', photoId: 'photo-a', accountId: 'acc-1' };
 const B = { project: 'p1', key: 'o_b', photoId: 'photo-b', accountId: 'acc-1' };
@@ -112,6 +113,7 @@ class FakeProject {
         const token = `t${++this.n}`; this.leases.set(key, { token, account }); this.calls.push(`acquire ${key}`); return { token };
       },
       history: async (_p: string, key: string) => { check(); return { headId: this.head(key)?.id ?? null }; },
+      revision: async (_p: string, key: string, id: string) => { check(); const found = (this.heads.get(key) ?? []).find((r) => r.id === id); if (!found) throw new Error('missing'); return found; },
       publish: async (_p: string, key: string, request: { token: string; baseRevisionId: string | null; recipe: Record<string, unknown> }) => {
         check();
         if (this.leases.get(key)?.token !== request.token) throw Object.assign(new Error('lease'), { code: 'lease' });
@@ -125,8 +127,9 @@ class FakeProject {
   }
 }
 
-function device(server: FakeProject, account: string, start: { edits?: Record<string, Record<string, unknown> | null>; stored?: string; points?: Record<string, { revisionId: string | null; recipeHash: string }> } = {}) {
+function device(server: FakeProject, account: string, start: { edits?: Record<string, Record<string, unknown> | null>; marks?: Record<string, SharedMarks>; stored?: string; points?: Record<string, SyncPoint> } = {}) {
   const edits = new Map(Object.entries(start.edits ?? {}));
+  const marks = new Map<string, SharedMarks>(Object.entries(start.marks ?? {}));
   const points = new Map(Object.entries(start.points ?? {}));
   let stored = start.stored ?? '[]';
   let clock = 1_000;
@@ -136,18 +139,22 @@ function device(server: FakeProject, account: string, start: { edits?: Record<st
       const e = error as { code?: string; headId?: string };
       return e.code === 'stale' && e.headId ? { kind: 'stale' as const, headId: e.headId } : e.code === 'out' ? { kind: 'checked-out' as const } : { kind: 'other' as const };
     },
-    editOf: (id: string) => edits.get(id) ?? null,
+    payloadOf: (id: string) => ({ edit: edits.get(id) ?? null, ...(marks.has(id) ? { marks: marks.get(id) } : {}) }),
+    applyLocal: (id: string, payload: { edit: Record<string, unknown> | null; marks?: SharedMarks }, takesTheirEdit: boolean) => {
+      if (takesTheirEdit) edits.set(id, payload.edit);
+      if (payload.marks) marks.set(id, payload.marks);
+    },
     exists: (id: string) => edits.has(id),
     pointOf: (_p: string, key: string) => points.get(key) ?? null,
-    setPoint: (_p: string, key: string, point: { revisionId: string | null; recipeHash: string }) => { points.set(key, point); },
-    fingerprint: recipeFingerprint,
+    setPoint: (_p: string, key: string, point: SyncPoint) => { points.set(key, point); },
     read: () => readOutbox(JSON.parse(stored)),
     change: (update: (entries: OutboxEntry[]) => OutboxEntry[]) => { stored = JSON.stringify(update(readOutbox(JSON.parse(stored)))); },
     now: () => clock,
   };
   return {
-    deps, edits, points,
+    deps, edits, marks, points,
     edit(photoId: string, key: string, edit: Record<string, unknown>) { edits.set(photoId, edit); deps.change((entries) => queueEdit(entries, { project: 'p', key, photoId, accountId: account }, clock)); },
+    mark(photoId: string, key: string, value: SharedMarks) { marks.set(photoId, value); deps.change((entries) => queueEdit(entries, { project: 'p', key, photoId, accountId: account }, clock)); },
     stored: () => stored,
     tick(ms: number) { clock += ms; },
   };
@@ -229,4 +236,36 @@ test('a removed photo’s queued edit waits instead of sharing "no edit"', async
   assert.deepEqual(run, { shared: 0, conflicts: 0, stopped: false });
   assert.equal(server.calls.length, 0);
   assert.equal(readOutbox(JSON.parse(laptop.stored())).length, 1);
+});
+
+test('ratings and flags: changes to different things are combined on reconnect; the same thing changed twice waits', async () => {
+  const server = new FakeProject();
+  const start = { edit: { exposure: 0 }, marks: { rating: 0, decision: 'unreviewed' as const } };
+  for (const key of ['o_a', 'o_b', 'o_c']) server.heads.set(key, [{ id: `${key}-r0`, recipe: { edit: start.edit } }]);
+  const points = Object.fromEntries(['o_a', 'o_b', 'o_c'].map((key) => [key, syncPointFor(`${key}-r0`, start)]));
+  const laptop = device(server, 'acc-1', { edits: { a: start.edit, b: start.edit, c: start.edit }, marks: { a: start.marks, b: start.marks, c: start.marks }, points });
+
+  server.online = false;
+  laptop.mark('a', 'o_a', { rating: 5, decision: 'unreviewed' }); // I rate A; they will edit A.
+  laptop.mark('b', 'o_b', { rating: 0, decision: 'keep' }); // I flag B; nobody else touches it.
+  laptop.mark('c', 'o_c', { rating: 4, decision: 'unreviewed' }); // I rate C 4; they rate C 1.
+
+  server.online = true;
+  const phone = server.api('acc-2');
+  for (const [key, recipe] of [['o_a', { edit: { exposure: 0.7 }, marks: start.marks }], ['o_c', { edit: start.edit, marks: { rating: 1, decision: 'unreviewed' } }]] as const) {
+    const lease = await phone.acquire('p', key);
+    await phone.publish('p', key, { token: lease.token, baseRevisionId: `${key}-r0`, recipe: recipe as Record<string, unknown> });
+    await phone.release('p', key, lease.token);
+  }
+
+  const run = await flushOutbox('p', 'acc-1', laptop.deps, { force: true });
+  assert.deepEqual(run, { shared: 2, conflicts: 1, stopped: false });
+  assert.deepEqual(server.head('o_a')?.recipe, { edit: { exposure: 0.7 }, marks: { rating: 5, decision: 'unreviewed' } }, 'their edit and my rating, both kept');
+  assert.deepEqual(laptop.edits.get('a'), { exposure: 0.7 }, 'this device takes their edit');
+  assert.deepEqual(laptop.marks.get('a'), { rating: 5, decision: 'unreviewed' });
+  assert.deepEqual(server.head('o_b')?.recipe, { edit: start.edit, marks: { rating: 0, decision: 'keep' } });
+  assert.deepEqual(server.head('o_c')?.recipe, { edit: start.edit, marks: { rating: 1, decision: 'unreviewed' } }, 'their rating is not overwritten');
+  assert.deepEqual(laptop.marks.get('c'), { rating: 4, decision: 'unreviewed' }, 'and mine is still here to choose from');
+  assert.deepEqual(readOutbox(JSON.parse(laptop.stored())).map((e) => [e.key, e.state]), [['o_c', 'conflict']]);
+  assert.equal(server.leases.size, 0);
 });

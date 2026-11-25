@@ -9,6 +9,7 @@
  * made the edit, so a different account signed in on the same device never shares them.
  */
 import { planSync, type SyncPoint } from './sharedSync';
+import { combineWithShared, isUntouched, sharedPayloadHash, sharedRecipe, syncPointFor, type SharedPayload } from './sharedMarks';
 
 export interface OutboxEntry {
   /** The shared project's id on the control plane. */
@@ -141,16 +142,19 @@ export function backgroundStep(last: SyncPoint | null, localHash: string, headId
 export interface OutboxFlushDeps {
   acquire(project: string, key: string): Promise<{ token: string }>;
   history(project: string, key: string): Promise<{ headId: string | null }>;
+  revision(project: string, key: string, revisionId: string): Promise<{ recipe: Record<string, unknown> }>;
   publish(project: string, key: string, request: { token: string; baseRevisionId: string | null; recipe: Record<string, unknown> }): Promise<{ id: string }>;
   release(project: string, key: string, token: string): Promise<void>;
   /** 'stale' carries the head that moved on; 'checked-out' means someone else has the photo; anything else stops the run. */
   classify(error: unknown): { kind: 'stale'; headId: string } | { kind: 'checked-out' } | { kind: 'other' };
-  editOf(photoId: string): Record<string, unknown> | null;
+  /** The photo's edit and marks on this device. */
+  payloadOf(photoId: string): SharedPayload;
+  /** Puts a combined result on this device's photo (their edit when `takesTheirEdit`, and the combined marks). */
+  applyLocal(photoId: string, payload: SharedPayload, takesTheirEdit: boolean): void;
   /** False when the photo was removed from this catalogue: its edit waits, rather than sharing "no edit". */
   exists(photoId: string): boolean;
   pointOf(project: string, key: string): SyncPoint | null;
   setPoint(project: string, key: string, point: SyncPoint): void;
-  fingerprint(recipe: unknown): string;
   read(): OutboxEntry[];
   change(update: (entries: OutboxEntry[]) => OutboxEntry[]): void;
   now(): number;
@@ -158,31 +162,46 @@ export interface OutboxFlushDeps {
 
 /**
  * Shares the queued edits of one project's photos that are not on screen, oldest first, one photo at a time: check it
- * out, compare with the shared head, publish only when nobody else changed it, check it back in. A photo someone else
- * has out is tried again later; any other failure (offline, signed out) stops the run with the queue as it was.
+ * out, compare with the shared head, publish only when nobody else changed it, check it back in. When both sides
+ * changed different things (you rated, they edited) the two are combined and shared; when both changed the same thing
+ * the photo waits for the person. A photo someone else has out is tried again later; any other failure (offline,
+ * signed out) stops the run with the queue as it was.
  */
 export async function flushOutbox(project: string, accountId: string, deps: OutboxFlushDeps, options: { skipKey?: string | null; force?: boolean } = {}): Promise<{ shared: number; conflicts: number; stopped: boolean }> {
   let shared = 0, conflicts = 0;
   for (const entry of dueEntries(deps.read(), project, accountId, deps.now(), options)) {
     if (!deps.exists(entry.photoId)) { deps.change((entries) => markRetry(entries, project, entry.key, deps.now())); continue; }
     let token: string | null = null;
+    const send = async (baseRevisionId: string | null, payload: SharedPayload) => {
+      const revision = await deps.publish(project, entry.key, { token: token!, baseRevisionId, recipe: sharedRecipe(payload) });
+      deps.setPoint(project, entry.key, syncPointFor(revision.id, payload));
+      deps.change((entries) => settleEdit(entries, project, entry.key));
+      shared += 1;
+    };
+    /** Someone else saved since: combine if the two changed different things, otherwise wait for the person. */
+    const clash = async (headId: string) => {
+      const mine = deps.payloadOf(entry.photoId);
+      const theirs = await deps.revision(project, entry.key, headId);
+      const merged = combineWithShared(deps.pointOf(project, entry.key), mine, theirs.recipe);
+      if (merged.kind === 'conflict') { deps.change((entries) => markConflict(entries, project, entry.key, headId)); conflicts += 1; return; }
+      const payload: SharedPayload = { edit: merged.edit, ...(mine.marks ? { marks: merged.marks } : {}) };
+      await send(headId, payload);
+      deps.applyLocal(entry.photoId, payload, merged.takesTheirEdit);
+    };
     try {
       token = (await deps.acquire(project, entry.key)).token;
       const { headId } = await deps.history(project, entry.key);
-      const edit = deps.editOf(entry.photoId);
-      const step = backgroundStep(deps.pointOf(project, entry.key), deps.fingerprint(edit), headId, edit === null);
-      if (step.step === 'conflict') { deps.change((entries) => markConflict(entries, project, entry.key, step.headId)); conflicts += 1; }
+      const payload = deps.payloadOf(entry.photoId);
+      const step = backgroundStep(deps.pointOf(project, entry.key), sharedPayloadHash(payload.edit, payload.marks), headId, isUntouched(payload));
+      if (step.step === 'conflict') await clash(step.headId);
       else if (step.step === 'settle') deps.change((entries) => settleEdit(entries, project, entry.key));
-      else {
-        const revision = await deps.publish(project, entry.key, { token, baseRevisionId: step.baseRevisionId, recipe: { edit } });
-        deps.setPoint(project, entry.key, { revisionId: revision.id, recipeHash: deps.fingerprint(edit) });
-        deps.change((entries) => settleEdit(entries, project, entry.key));
-        shared += 1;
-      }
+      else await send(step.baseRevisionId, payload);
     } catch (error) {
       const kind = deps.classify(error);
-      if (kind.kind === 'stale') { deps.change((entries) => markConflict(entries, project, entry.key, kind.headId)); conflicts += 1; }
-      else {
+      if (kind.kind === 'stale') {
+        // Could not finish combining (offline, or it moved again): nothing was sent, so simply try again later.
+        try { await clash(kind.headId); } catch { deps.change((entries) => markRetry(entries, project, entry.key, deps.now())); }
+      } else {
         deps.change((entries) => markRetry(entries, project, entry.key, deps.now()));
         if (kind.kind !== 'checked-out') return { shared, conflicts, stopped: true };
       }

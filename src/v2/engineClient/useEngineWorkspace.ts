@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
 import { applyImportBatch, createImportHandoff, readPendingImport, writePendingImport, type ImportBatch, type ImportHandoff } from './importHandoff';
+import { marksOf } from '../../core/sharedMarks';
 import { applyDecisionWithHistory, assignBurstGroups, redoDecision, regroupBurstsWithEmbeddings, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
 import { recordEdit, stepEdit, type EditWhy } from '../../core/editHistory';
 import { deleteCheckpoint, forkEditCheckpoint, renameEditVersion, restoreCheckpoint, saveCheckpoint, switchEditVersion as switchVersionInCatalogue } from '../../core/editBranches';
@@ -2399,6 +2400,16 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     sharedEditOf: (photoId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
       return frame?.edit ? JSON.parse(JSON.stringify(frame.edit)) as Record<string, unknown> : null;
+    },
+    sharedMarksOf: (photoId) => marksOf(stateRef.current?.frames.find((frame) => frame.id === photoId) ?? {}),
+    applySharedMarks: (photoId, marks) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
+      if (!frame) return;
+      if (frame.decision !== marks.decision) decide([photoId], marks.decision);
+      if ((frame.rating ?? 0) !== marks.rating) {
+        const ids = withPartners([photoId], pairsRef.current);
+        mutate((current) => ({ ...current, frames: current.frames.map((f) => (ids.includes(f.id) ? { ...f, rating: marks.rating } : f)), shoot: { ...current.shoot, lastUpdatedAt: Date.now() } }));
+      }
     },
     sharedPhotoExists: (photoId) => Boolean(stateRef.current?.frames.some((frame) => frame.id === photoId && frame.removedAt == null)),
     applySharedEdit: (photoId, edit) => {
