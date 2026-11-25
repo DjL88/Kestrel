@@ -25,6 +25,18 @@ export const enUS: AreaTranslation<typeof source> = {
     noGenAiNote: 'Zero generative AI. Uses masking, denoise, tone, and color grading only.',
   },
   adjust: {
+    fringe: {
+      heading: "Color fringes",
+      help: "Lenses can leave thin colored outlines on edges: red, cyan, blue or yellow towards the corners, and purple or green on dark edges against a bright sky. These controls take them away. The photo itself is never changed.",
+      detect: "Fix lens color edges",
+      corrected: "Lens color edges corrected.",
+      clean: "No lens color edges found on this photo, so nothing was changed.",
+      active: "Lens color edges are corrected on this photo.",
+      redHelp: "Moves the red channel in or out from the centre. Set by Fix lens color edges; adjust by hand if a red or cyan outline remains.",
+      blueHelp: "Moves the blue channel in or out from the centre. Set by Fix lens color edges; adjust by hand if a blue or yellow outline remains.",
+      purpleHelp: "Takes the color out of purple and violet outlines beside strong edges, such as branches against a bright sky. Purple areas away from strong edges keep their color.",
+      greenHelp: "Takes the color out of green outlines beside strong edges. Green areas away from strong edges keep their color.",
+    },
     colourHeading: 'Color & Clarity',
     tooltips: {
       temperature: 'Shifts color balance cooler (blue) or warmer (amber). Guided by white-balance anchors for color-blind accuracy.',

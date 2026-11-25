@@ -4,6 +4,7 @@ import { isNeutralCurve, isNeutralMixer, validCurve, validMixer, type ColourMixe
 import { isNeutralChannelCurves, isNeutralGrade, validChannelCurves, validGrade, CURVE_CHANNELS, type ChannelCurves, type ColourGrade } from '../../core/colourGrade';
 import { isNeutralCalibration, PRIMARIES, validCalibration, type Calibration } from '../../core/calibration';
 import { validDehaze } from '../../core/dehaze';
+import { validDefringe, validLateralCa, type Defringe, type LateralCa } from '../../core/fringe';
 import { validGrain, validVignette, type Vignette } from '../../core/finishing';
 import type { ColourGradeRecipe, EditRecipe } from '../ui/contract';
 
@@ -66,6 +67,8 @@ export function editToRecipe(edit: PhotoEdit | undefined): EditRecipe {
       hue: edit.mixer.hue.map(toSlider), saturation: edit.mixer.saturation.map(toSlider), luminance: edit.mixer.luminance.map(toSlider),
     } } : {}),
     ...(validDehaze(edit.dehaze) && edit.dehaze !== 0 ? { dehaze: round(edit.dehaze * 100, 2) } : {}),
+    ...(validLateralCa(edit.lateralCa) ? { caRed: round(edit.lateralCa.red * 100, 2), caBlue: round(edit.lateralCa.blue * 100, 2) } : {}),
+    ...(validDefringe(edit.defringe) ? { defringePurple: round(edit.defringe.purple * 100, 2), defringeGreen: round(edit.defringe.green * 100, 2) } : {}),
     ...(validVignette(edit.vignette) ? {
       vignette: round(edit.vignette.amount * 100, 2), vignetteSize: round(edit.vignette.size * 100, 2),
       ...(edit.vignette.blur ? { vignetteBlur: round(edit.vignette.blur * 100, 2) } : {}),
@@ -156,6 +159,18 @@ export function applyRecipePatch(edit: PhotoEdit | undefined, patch: Partial<Edi
     const value = round(clamp(patch.dehaze, -100, 100) / 100, 4);
     if (value === 0) delete next.dehaze;
     else next.dehaze = value;
+  }
+  if ('caRed' in patch || 'caBlue' in patch) {
+    const unit = (value: number | undefined, fallback: number) => Number.isFinite(value) ? round(clamp(value!, -100, 100) / 100, 4) : fallback;
+    const ca: LateralCa = { red: unit(patch.caRed, next.lateralCa?.red ?? 0), blue: unit(patch.caBlue, next.lateralCa?.blue ?? 0) };
+    if (validLateralCa(ca) && (ca.red !== 0 || ca.blue !== 0)) next.lateralCa = ca;
+    else delete next.lateralCa;
+  }
+  if ('defringePurple' in patch || 'defringeGreen' in patch) {
+    const unit = (value: number | undefined, fallback: number) => Number.isFinite(value) ? round(clamp(value!, 0, 100) / 100, 4) : fallback;
+    const fringe: Defringe = { purple: unit(patch.defringePurple, next.defringe?.purple ?? 0), green: unit(patch.defringeGreen, next.defringe?.green ?? 0) };
+    if (validDefringe(fringe) && (fringe.purple > 0 || fringe.green > 0)) next.defringe = fringe;
+    else delete next.defringe;
   }
   if (['vignette', 'vignetteSize', 'vignetteBlur', 'vignetteColour'].some((key) => key in patch)) {
     const current: Vignette = { amount: 0, size: DEFAULT_VIGNETTE_SIZE / 100, ...next.vignette };

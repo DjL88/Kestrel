@@ -69,7 +69,7 @@ import { verifyFrameMasks } from './maskVerify';
 import { maskVerificationKey, commitVerifiedMasks } from './maskVerificationCommit';
 import { commitSubjectMask, subjectMaskTarget } from './subjectMaskCommit';
 import { createMask, createSubjectMask, framingKey, hasActiveMasks } from '../../core/maskTypes';
-import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFraming';
+import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../../core/photoFraming';
 import { GUIDED_RENDER_EDGE } from '../../core/subjectGuide';
 import { detectSubjectGuided } from '../../providers/subjectDetector';
 import { judgeSubject } from '../../core/autoCull';
@@ -93,6 +93,7 @@ import { uniqueExportFilename } from '../../core/exportNaming';
 import { exportMayContinue } from '../../core/exportCancellation';
 import type { ExportRequest } from '../ui/contract';
 import { applyRecipePatch, editToRecipe } from './recipeMap';
+import { canvasLensCentre, detectLateralCa } from '../../core/fringe';
 import { surfaceBridge } from './surfaceBridge';
 import { addSavedEditGroup, renameSavedEditGroup, selectSavedEditGroup, syncEditGroup } from './editGroupState';
 
@@ -1742,6 +1743,23 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     addOverlayRow: (photoId) => changeOverlay(photoId, (overlay) => addRow(overlay, `row-${newId().slice(0, 8)}`)),
     updateOverlayRow: (photoId, rowId, patch) => changeOverlay(photoId, (overlay) => updateRow(overlay, rowId, patch)),
     removeOverlayRow: (photoId, rowId) => changeOverlay(photoId, (overlay) => removeRow(overlay, rowId)),
+    detectColourEdges: async (photoId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      if (!frame || !provider.current) return 'unclear';
+      // Measured on the unedited framed picture at a bounded size, then stored, so preview and export use the same numbers.
+      const image = await loadExportSource(frame, provider.current);
+      const framing = frame.framing ?? DEFAULT_FRAMING;
+      const { width, height } = framedSize(image.naturalWidth, image.naturalHeight, framing);
+      const canvas = document.createElement('canvas');
+      drawFramedPhoto(image, canvas, framing, { scale: Math.min(1, 2400 / Math.max(width, height)) });
+      const pixels = canvas.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, canvas.width, canvas.height).data;
+      const [cx, cy] = canvasLensCentre(canvas.width, canvas.height, { aspect: canvas.height / canvas.width, view: { x: 0, y: 0, w: 1, h: 1 }, lensCentre: lensCentre(image.naturalWidth, image.naturalHeight, framing) });
+      const found = detectLateralCa(pixels, canvas.width, canvas.height, 4, cx, cy);
+      canvas.width = 0; canvas.height = 0;
+      if (!found) return 'unclear';
+      applyPatch([photoId], { caRed: Math.round(found.red * 100), caBlue: Math.round(found.blue * 100) });
+      return found.red === 0 && found.blue === 0 ? 'clean' : 'corrected';
+    },
     addImageLayer: async (photoId) => {
       const picked = await pickImageFile();
       if (!picked) return;
@@ -1764,7 +1782,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         const scale = Math.min(1, LAYER_COPY_EDGE / Math.max(width, height));
         const canvas = document.createElement('canvas');
         drawFramedPhoto(image, canvas, framing, { scale });
-        await applyCanvasExportEdit(canvas, source.edit ?? DEFAULT_EDIT, undefined, Math.max(width, height) * scale, { aspect: height / width, view: { x: 0, y: 0, w: 1, h: 1 } });
+        await applyCanvasExportEdit(canvas, source.edit ?? DEFAULT_EDIT, undefined, Math.max(width, height) * scale, { aspect: height / width, view: { x: 0, y: 0, w: 1, h: 1 }, lensCentre: lensCentre(image.naturalWidth, image.naturalHeight, framing) });
         await applyFrameLayers(canvas, source.overlay, true);
         const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
         if (!blob) throw new Error('InFlight could not copy that photo.');

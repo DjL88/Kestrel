@@ -172,6 +172,12 @@ export interface EditRecipe {
   channelCurves?: Partial<Record<'red' | 'green' | 'blue', Array<[number, number]>>>;
   /** Remove haze (positive) or add it (negative), -100 to 100. Absent = 0. */
   dehaze?: number;
+  /** Lens colour edges: red/cyan and blue/yellow, -100 to 100 each (set by Detect, or by hand in Advanced). Absent = 0. */
+  caRed?: number;
+  caBlue?: number;
+  /** Remove purple and green fringes beside strong edges, 0 to 100. Absent = 0. */
+  defringePurple?: number;
+  defringeGreen?: number;
   /** Vignette: -100 darker edges to 100 lighter edges (with a colour, the strength of that colour). Absent = 0. */
   vignette?: number;
   /** How far the vignette reaches into the picture, 0 to 100. Absent = 50. */
@@ -697,6 +703,8 @@ export interface WorkspaceActions {
   addOverlayRow: (photoId: string) => void;
   updateOverlayRow: (photoId: string, rowId: string, patch: Partial<OverlayTextRow>) => void;
   removeOverlayRow: (photoId: string, rowId: string) => void;
+  /** Measure this photo's lens colour edges and set caRed/caBlue from them. 'clean' = nothing to correct; 'unclear' = too few edges to tell. */
+  detectColourEdges: (photoId: string) => Promise<'corrected' | 'clean' | 'unclear'>;
   /** Image layers. Add one from an image file on this device (opens the file picker). */
   addImageLayer: (photoId: string) => Promise<void>;
   /** Add another photo of this project as a layer: a copy of it as it looks now, with its edits. */
