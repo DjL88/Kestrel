@@ -568,6 +568,8 @@ export const de: AreaTranslation<typeof source> = {
     commentPin: 'An Stelle heften',
     commentUnpin: 'Markierung entfernen',
     commentSend: 'Kommentieren',
+    sharedKeepBoth: 'Beide behalten',
+    sharedViewOnly: (role: string) => `Ihre Rolle in diesem Projekt: ${role}. Sie können ansehen und kommentieren; die Eigentümerin, der Eigentümer oder eine bearbeitende Person ändert das Foto.`,
   },
   adjust: {
     grade: {

@@ -569,6 +569,8 @@ export const fi: AreaTranslation<typeof source> = {
     commentPin: 'Kiinnitä kohtaan',
     commentUnpin: 'Poista kiinnitys',
     commentSend: 'Kommentoi',
+    sharedKeepBoth: 'Pidä molemmat',
+    sharedViewOnly: (role: string) => `Roolisi tässä projektissa: ${role}. Voit katsoa ja kommentoida; omistaja tai muokkaaja muuttaa kuvaa.`,
   },
   adjust: {
     grade: {

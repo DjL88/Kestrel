@@ -568,6 +568,8 @@ export const sv: AreaTranslation<typeof source> = {
     commentPin: 'Fäst vid en punkt',
     commentUnpin: 'Ta bort punkt',
     commentSend: 'Kommentera',
+    sharedKeepBoth: 'Behåll båda',
+    sharedViewOnly: (role: string) => `Din roll i projektet: ${role}. Du kan titta och kommentera; ägaren eller en redigerare ändrar fotot.`,
   },
   adjust: {
     grade: {

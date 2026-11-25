@@ -571,6 +571,8 @@ export const ga: AreaTranslation<typeof source> = {
     commentPin: 'Pionnáil ar spota',
     commentUnpin: 'Bain an biorán',
     commentSend: 'Trácht',
+    sharedKeepBoth: 'Coinnigh an dá cheann',
+    sharedViewOnly: (role: string) => `Do ról sa tionscadal seo: ${role}. Is féidir leat féachaint agus trácht a dhéanamh; athraíonn an t-úinéir nó eagarthóir an grianghraf.`,
   },
   adjust: {
     grade: {

@@ -568,6 +568,8 @@ export const is: AreaTranslation<typeof source> = {
     commentPin: 'Festa við stað',
     commentUnpin: 'Fjarlægja festingu',
     commentSend: 'Senda',
+    sharedKeepBoth: 'Halda báðum',
+    sharedViewOnly: (role: string) => `Hlutverk þitt í þessu verkefni: ${role}. Þú getur skoðað og skrifað athugasemdir; eigandi eða ritstjóri breytir myndinni.`,
   },
   adjust: {
     grade: {

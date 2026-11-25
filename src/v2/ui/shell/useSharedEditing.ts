@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { planSync, recipeFingerprint, type SyncPoint } from '../../../core/sharedSync';
+import type { CollabRole } from '../../../core/collabRoles';
 import { CollabError, type CollabClient } from '../../../providers/collabClient';
 import { readSharedLink } from '../dialogs/sharedLinks';
 
@@ -16,12 +17,15 @@ export type SharedEditingState =
   | { kind: 'ready' }
   | { kind: 'mine' }
   | { kind: 'theirs'; holder: string | null }
+  /** Viewers, commenters and clients look and comment; only owners and editors change photos. */
+  | { kind: 'view-only'; role: Exclude<CollabRole, 'owner' | 'editor'> }
   | { kind: 'draft'; reason: 'offline' | 'lost' }
   | { kind: 'conflict'; headId: string; theirs: Record<string, unknown> | null };
 
 interface EditSource {
   sharedEditOf?: (photoId: string) => Record<string, unknown> | null;
   applySharedEdit?: (photoId: string, edit: Record<string, unknown> | null) => void;
+  keepBothShared?: (photoId: string, theirs: Record<string, unknown> | null) => string | null;
 }
 
 const SYNC_KEY = 'inflight.sharedSync.v1';
@@ -50,6 +54,7 @@ export function useSharedEditing(client: CollabClient, localProjectId: string | 
   const shared = localProjectId && client.configured && source.sharedEditOf && source.applySharedEdit ? readSharedLink(localProjectId) : null;
   const session = useRef<{ project: string; key: string; photoId: string; token: string | null; opened: boolean; lastChangeMs: number; publishTimer: ReturnType<typeof setTimeout> | null; closed: boolean } | null>(null);
   const stateRef = useRef(state); stateRef.current = state;
+  const roles = useRef(new Map<string, CollabRole>());
   const sourceRef = useRef(source); sourceRef.current = source;
   const pointKey = (project: string, key: string) => `${project}:${key}`;
 
@@ -99,6 +104,10 @@ export function useSharedEditing(client: CollabClient, localProjectId: string | 
     const s = session.current;
     if (!s) return;
     try {
+      let role = roles.current.get(s.project);
+      if (!role) { role = (await client.project(s.project)).me.role; roles.current.set(s.project, role); }
+      if (s.closed) return;
+      if (role !== 'owner' && role !== 'editor') { s.opened = true; setState({ kind: 'view-only', role }); return; }
       const [leases, history] = await Promise.all([client.leases(s.project), client.history(s.project, s.key)]);
       if (s.closed) return;
       s.opened = true;
@@ -117,6 +126,9 @@ export function useSharedEditing(client: CollabClient, localProjectId: string | 
       }
     } catch (error) { if (!s.closed) failed(error); }
   }, [client, failed, publish, pull]);
+
+  // A role can change (the owner promotes or removes someone): ask again when Share closes.
+  useEffect(() => { roles.current.clear(); }, [refreshKey]);
 
   // A new photo (or project): check the last one in, then open this one.
   useEffect(() => {
@@ -157,7 +169,7 @@ export function useSharedEditing(client: CollabClient, localProjectId: string | 
     if (point?.recipeHash === PENDING) { writePoint(key, { revisionId: point.revisionId, recipeHash: hash }); return; }
     if (point && point.recipeHash === hash) return;
     const kind = stateRef.current.kind;
-    if (kind === 'theirs' || kind === 'conflict' || kind === 'no-key') return;
+    if (kind === 'theirs' || kind === 'conflict' || kind === 'no-key' || kind === 'view-only') return;
     if (!point && kind === 'ready' && hash === recipeFingerprint(null)) return;
     s.lastChangeMs = Date.now();
     if (!s.token) {
@@ -182,7 +194,17 @@ export function useSharedEditing(client: CollabClient, localProjectId: string | 
     setState({ kind: 'ready' });
   }, []);
 
+  /** Both: this device's edit becomes a virtual copy (shared as its own photo when opened); the photo takes theirs. */
+  const keepBoth = useCallback(() => {
+    const current = stateRef.current;
+    const s = session.current;
+    if (current.kind !== 'conflict' || !s || !sourceRef.current.keepBothShared) return;
+    if (sourceRef.current.keepBothShared(s.photoId, current.theirs) === null) return;
+    writePoint(pointKey(s.project, s.key), { revisionId: current.headId, recipeHash: PENDING });
+    setState({ kind: 'ready' });
+  }, []);
+
   const retry = useCallback(() => { void open(); }, [open]);
 
-  return { state, keepMine, keepTheirs, retry };
+  return { state, keepMine, keepTheirs, keepBoth: source.keepBothShared ? keepBoth : undefined, retry };
 }

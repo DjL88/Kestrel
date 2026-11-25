@@ -568,6 +568,8 @@ export const fr: AreaTranslation<typeof source> = {
     commentPin: 'Épingler un point',
     commentUnpin: 'Retirer l’épingle',
     commentSend: 'Commenter',
+    sharedKeepBoth: 'Garder les deux',
+    sharedViewOnly: (role: string) => `Votre rôle dans ce projet : ${role}. Vous pouvez regarder et commenter ; le propriétaire ou un éditeur modifie la photo.`,
   },
   adjust: {
     grade: {

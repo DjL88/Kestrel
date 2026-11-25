@@ -568,6 +568,8 @@ export const da: AreaTranslation<typeof source> = {
     commentPin: 'Sæt nål på et sted',
     commentUnpin: 'Fjern nål',
     commentSend: 'Kommentér',
+    sharedKeepBoth: 'Behold begge',
+    sharedViewOnly: (role: string) => `Din rolle i projektet: ${role}. Du kan se og kommentere; ejeren eller en redaktør ændrer fotoet.`,
   },
   adjust: {
     grade: {

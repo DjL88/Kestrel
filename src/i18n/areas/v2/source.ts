@@ -599,6 +599,8 @@ export const source = {
     commentPin: 'Pin to a spot',
     commentUnpin: 'Remove pin',
     commentSend: 'Comment',
+    sharedKeepBoth: 'Keep both',
+    sharedViewOnly: (role: string) => `You are a ${role} in this project: you can look and comment, and the owner or an editor changes the photo.`,
   },
 
   // Adjust Panel

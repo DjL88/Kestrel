@@ -660,6 +660,8 @@ export interface WorkspaceActions {
   sharedEditOf?: (photoId: string) => Record<string, unknown> | null;
   /** Replace the photo's edit with a shared one (or clear it). Recorded as an edit step, so it can be undone. */
   applySharedEdit?: (photoId: string, edit: Record<string, unknown> | null) => void;
+  /** On a clash: keep this device's edit as a virtual copy beside the photo, and give the photo the shared edit. Returns the copy's id. */
+  keepBothShared?: (photoId: string, theirs: Record<string, unknown> | null) => string | null;
   dismissAssistSuggestion: (photoId: string, suggestionId: string) => void;
 
   // Editing & Looks

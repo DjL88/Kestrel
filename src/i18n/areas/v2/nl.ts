@@ -568,6 +568,8 @@ export const nl: AreaTranslation<typeof source> = {
     commentPin: 'Aan plek vastmaken',
     commentUnpin: 'Markering weghalen',
     commentSend: 'Plaatsen',
+    sharedKeepBoth: 'Beide houden',
+    sharedViewOnly: (role: string) => `Je rol in dit project: ${role}. Je kunt kijken en reageren; de eigenaar of een bewerker past de foto aan.`,
   },
   adjust: {
     grade: {
