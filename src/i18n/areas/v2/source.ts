@@ -450,6 +450,8 @@ export const source = {
     he: 'Nikon High Efficiency',
     heStar: 'Nikon High Efficiency*',
     infoLabel: "Picture shown",
+    histogram16: "Measured from the 16-bit RAW develop.",
+    histogram8: "Measured from the 8-bit picture on screen.",
   },
   dngCopy: {
     button: "Save lossless DNG copy",

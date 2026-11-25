@@ -421,6 +421,8 @@ export const cy: AreaTranslation<typeof source> = {
     he: 'Nikon High Efficiency',
     heStar: 'Nikon High Efficiency*',
     infoLabel: "Llun a ddangosir",
+    histogram16: "Wedi'i fesur o'r datblygiad RAW 16-did.",
+    histogram8: "Wedi'i fesur o'r llun 8-did ar y sgrin.",
   },
   dngCopy: {
     button: "Cadw copi DNG di-golled",

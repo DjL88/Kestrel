@@ -421,6 +421,8 @@ export const es: AreaTranslation<typeof source> = {
     he: 'Nikon High Efficiency',
     heStar: 'Nikon High Efficiency*',
     infoLabel: "Imagen mostrada",
+    histogram16: "Medido a partir del revelado RAW de 16 bits.",
+    histogram8: "Medido a partir de la imagen de 8 bits en pantalla.",
   },
   dngCopy: {
     button: "Guardar copia DNG sin pérdida",

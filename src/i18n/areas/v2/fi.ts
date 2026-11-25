@@ -422,6 +422,8 @@ export const fi: AreaTranslation<typeof source> = {
     he: 'Nikon High Efficiency',
     heStar: 'Nikon High Efficiency*',
     infoLabel: "Näytetty kuva",
+    histogram16: "Mitattu 16-bittisestä RAW-kehityksestä.",
+    histogram8: "Mitattu näytön 8-bittisestä kuvasta.",
   },
   dngCopy: {
     button: "Tallenna häviötön DNG-kopio",

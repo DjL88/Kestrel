@@ -421,6 +421,8 @@ export const da: AreaTranslation<typeof source> = {
     he: 'Nikon High Efficiency',
     heStar: 'Nikon High Efficiency*',
     infoLabel: "Viste billede",
+    histogram16: "Målt fra 16-bit RAW-fremkaldelsen.",
+    histogram8: "Målt fra 8-bit billedet på skærmen.",
   },
   dngCopy: {
     button: "Gem tabsfri DNG-kopi",
