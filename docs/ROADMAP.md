@@ -299,6 +299,7 @@ The library, culling and editing share one frame. Build in this order:
 3. **Sections, not fixed tabs.** Light, Colour, Detail, Masks, Crop, Info and Species are sections with headers that can be folded, reordered, pinned as favourites, or dragged to the other side (docking, keyboard-movable too). A "One panel" setting merges Info into the tools side.
 4. **Wide screens get more columns.** Past about 2,500 px, a side can hold two columns, so up to four tool columns plus the photo.
 5. **Phones:** the same sections in one bottom sheet.
+6. **V2 touch placement (owner request 25 Nov). Phone and tablet portrait done in `fix/v2-touch-ergonomics-20261125`:** one row of photo tools above the picture instead of two (icon-only view switch; "1 selected" only where several formats can be selected); on touch phones the zoom bar keeps Fit/100%, grid, Save and Full screen, because pinch zooms; icon-only Import and Folder with finger-sized filmstrip buttons; no mouse-only crop hint on any touch screen; a narrower docked panel on upright tablets (`src/v2/ui/v2.css`, `tests/v2-touch-layout.spec.ts`). Not yet: the zoom bar can still cover a corner of the photo on a phone, and the action row scrolls sideways below about 450 px wide. Not tried on a real phone or tablet.
 
 No free-floating windows: they cover the photo, drift off small screens, and are hard for keyboard and screen-reader users. Docking gives the same flexibility.
 
