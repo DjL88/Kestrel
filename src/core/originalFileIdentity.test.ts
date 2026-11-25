@@ -13,6 +13,15 @@ test('fingerprint is exact SHA-256 of original Blob, including chunk boundaries'
   }
 });
 
+test('the system SHA-256 and the JavaScript fallback give the same fingerprint', async () => {
+  const { Sha256Stream } = await import('./sha256');
+  const bytes = new Uint8Array(3 * 1024 * 1024 + 777);
+  for (let i = 0; i < bytes.length; i += 1) bytes[i] = (i * 131 + 7) % 256;
+  const fallback = new Sha256Stream().update(bytes).digest();
+  assert.equal(await hashOriginalBytes(new Blob([bytes])), fallback);
+  assert.equal(fallback, createHash('sha256').update(bytes).digest('hex'));
+});
+
 test('same filename, size and mtime does not permit substituting different bytes', async () => {
   const a = new Blob([new Uint8Array([8, 7, 6, 5])]);
   const b = new Blob([new Uint8Array([8, 7, 6, 4])]);
