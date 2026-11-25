@@ -160,6 +160,8 @@
   .inflight-v2 .v2-filmstrip [role="separator"] { display: none; }
   .inflight-v2 .v2-strip-tile { width: 5rem; }
   .inflight-v2 .v2-strip-tile .v2-strip-tile-footer { justify-content: flex-end; }
+  /* On a small thumbnail More would cover the middle of the photo, so it moves to the footer row, opposite Flag. */
+  .inflight-v2 .v2-strip-tile .v2-strip-tile-more { top: auto; bottom: 0; right: auto; left: 0.25rem; }
   .inflight-v2 .v2-strip-tile .v2-strip-tile-name,
   .inflight-v2 .v2-strip-tile .v2-strip-tile-ready {
     position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;

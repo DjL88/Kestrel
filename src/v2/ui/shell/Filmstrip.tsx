@@ -497,7 +497,7 @@ export default function Filmstrip({
                         const bounds = event.currentTarget.getBoundingClientRect();
                         setTileMenu({ x: bounds.left, y: bounds.bottom, photoId: photo.id });
                       }}
-                      className="absolute right-1 top-1 z-10 flex min-h-9 min-w-9 items-center justify-center rounded bg-[var(--bg-surface-raised)] text-xs font-bold text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
+                      className="v2-strip-tile-more absolute right-1 top-1 z-10 flex min-h-9 min-w-9 items-center justify-center rounded bg-[var(--bg-surface-raised)] text-xs font-bold text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
                     >
                       <span aria-hidden="true">⋯</span>
                     </button>
