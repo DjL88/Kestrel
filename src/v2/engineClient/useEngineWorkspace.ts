@@ -653,31 +653,33 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const sourceProvider = provider.current!;
     const env = exportEnv.current;
     if (request.rawMaster) {
+      const masterFormat = request.rawMasterFormat === 'png' ? 'png' : 'tiff';
+      const png = masterFormat === 'png';
       const matches = current.frames.filter((frame) => frame.id === request.photoIds[0] && frame.removedAt == null);
-      if (request.photoIds.length !== 1 || matches.length !== 1) { setNotice(engineText.workspace.selectOneRaw); return; }
+      if (request.photoIds.length !== 1 || matches.length !== 1) { setNotice(png ? engineText.workspace.selectOneRawPng : engineText.workspace.selectOneRaw); return; }
       try {
         const frame = structuredClone(matches[0]);
         const ticket = await engineScheduler.submit({
-          title: engineText.workspace.rawTiffTask, kind: 'raw', resource: 'gpu', priority: 10,
+          title: png ? engineText.workspace.rawPngTask : engineText.workspace.rawTiffTask, kind: 'raw', resource: 'gpu', priority: 10,
           pauseable: false, items: [{ id: frame.id, name: frame.filename }],
           snapshot: { frameId: frame.id, originalSha256: frame.originalSha256 },
           itemId: item => item.id, itemLabel: item => item.name,
           runItem: async (_, __, ctx) => {
             ctx.stage(engineText.workspace.rawTiffDevelop);
-            const file = await buildRawMasterFile(frame, sourceProvider, ctx.signal);
+            const file = await buildRawMasterFile(frame, sourceProvider, ctx.signal, masterFormat);
             ctx.checkCancelled();
-            ctx.stage(engineText.workspace.rawTiffSave);
+            ctx.stage(png ? engineText.workspace.rawPngSave : engineText.workspace.rawTiffSave);
             if (!await saveExportFile(file, file.name, ctx.signal))
               throw new DOMException(engineText.workspace.saveCancelled, 'AbortError');
             ctx.acknowledgeCommitted();
-            ctx.commitIfCurrent(() => setNotice(engineText.workspace.rawTiffSaved));
+            ctx.commitIfCurrent(() => setNotice(png ? engineText.workspace.rawPngSaved : engineText.workspace.rawTiffSaved));
           },
         });
         const result = await ticket.finished;
-        if (result === 'failed') setNotice(engineText.workspace.rawTiffFailed);
-        else if (result === 'cancelled') setNotice(engineText.workspace.rawTiffCancelled);
+        if (result === 'failed') setNotice(png ? engineText.workspace.rawPngFailed : engineText.workspace.rawTiffFailed);
+        else if (result === 'cancelled') setNotice(png ? engineText.workspace.rawPngCancelled : engineText.workspace.rawTiffCancelled);
       } catch (reason) {
-        setNotice(reason instanceof Error ? reason.message : engineText.workspace.rawTiffNotQueued);
+        setNotice(reason instanceof Error ? reason.message : (png ? engineText.workspace.rawPngNotQueued : engineText.workspace.rawTiffNotQueued));
       }
       return;
     }
