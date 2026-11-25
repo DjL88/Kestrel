@@ -214,6 +214,8 @@ export function filterPhotos(
       photo.filename,
       photo.title,
       photo.speciesLabel ?? '',
+      photo.vehicleLabel ?? '',
+      ...(photo.searchTerms ?? []),
       photo.category,
       photo.exif.camera,
       photo.exif.lens,

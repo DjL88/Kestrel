@@ -201,7 +201,7 @@ export default function InfoPanel({
               </form>
             ) : (
               <dd className="flex min-w-0 items-center gap-2 text-right text-[var(--text-primary)]">
-                <span>{photo.speciesLabel || photo.category || STRINGS.panelWords.notIdentified}</span>
+                <span>{photo.speciesLabel || photo.vehicleLabel || photo.category || STRINGS.panelWords.notIdentified}</span>
                 <button type="button" aria-label={STRINGS.panelWords.correctSpecies} title={STRINGS.panelWords.correctSpecies}
                   onClick={() => setEditingSpecies(true)}
                   className="shrink-0 rounded border border-[var(--border-subtle)] px-2 py-1 text-[0.6875rem]">{STRINGS.panelWords.edit}</button>

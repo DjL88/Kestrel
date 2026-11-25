@@ -25,6 +25,9 @@ import type { AssistSuggestion, EditRecipe, PhotoHistogram } from '../ui/contrac
 import type { Task } from '../../core/taskStore';
 import { buildEditingSequence } from '../../core/editingSequence';
 import type { PhotoEdit } from '../../core/photoEdits';
+import { VEHICLE_LABELS } from '../../core/vehicleLabels';
+import { validVehicleReading, vehicleLabel, vehicleSearchWords } from '../../core/vehicleRecognition';
+import { vehicleText, vehicleTextEnglish } from '../../i18n/areas/vehicles';
 
 /** A transparent pixel, so a photo whose picture is not ready yet shows an empty tile rather than a broken image. */
 export const BLANK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
@@ -104,6 +107,16 @@ export function recordedFileSizeMb(key: string): number {
 
 const titleOf = (filename: string) => filename.replace(/\.[^./\\]+$/, '');
 const extensionOf = (filename: string) => /\.([^./\\]+)$/.exec(filename)?.[1]?.toUpperCase();
+
+/** A photo's vehicle reading as words in the person's language, and the words it can be searched by (also in English). */
+export function vehicleWordsOf(frame: Pick<PhotoFrame, 'vehicle'>): { vehicleLabel?: string; searchTerms?: string[] } {
+  const reading = validVehicleReading(frame.vehicle, VEHICLE_LABELS);
+  if (!reading) return {};
+  return {
+    vehicleLabel: vehicleLabel(reading, VEHICLE_LABELS, vehicleText),
+    searchTerms: vehicleSearchWords(reading, VEHICLE_LABELS, [vehicleText, vehicleTextEnglish]),
+  };
+}
 
 /** The subject name for a photo. A name the app suggested itself is marked as a suggestion; nothing is shown when unknown. */
 export function speciesLabelOf(frame: Pick<PhotoFrame, 'subjectNames' | 'tags' | 'autoTags'>): string | undefined {
@@ -189,6 +202,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     originalConnected: extras.originalConnected ?? !urls?.failed,
     rating: Number.isFinite(rating) ? Math.max(0, Math.min(5, Math.round(rating))) : 0,
     speciesLabel: speciesLabelOf(frame),
+    ...vehicleWordsOf(frame),
     category: frame.subjectKind ?? '',
     sharpnessScore: frame.cullScore ?? 0,
     exif: {
