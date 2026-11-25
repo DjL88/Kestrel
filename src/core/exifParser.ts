@@ -251,6 +251,7 @@ export async function parseImageExif(
       lens: typeof parsed.LensModel === 'string' && parsed.LensModel.trim() ? parsed.LensModel.trim() : undefined,
       focalLengthMm:
         validExifPositiveNumber(parsed.FocalLength),
+      focalLength35mm: validExifPositiveNumber(parsed.FocalLengthIn35mmFormat),
       apertureF:
         validExifPositiveNumber(parsed.FNumber),
       shutterSpeed: shutter || undefined,

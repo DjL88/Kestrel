@@ -50,3 +50,35 @@ test('fixing pincushion enlarges just enough to hide empty edges; out-of-range v
   assert.equal(validLens({ vignetting: -0.1 }), false);
   assert.equal(validLens({ distortion: -0.3, vignetting: 0.4 }), true);
 });
+
+test('a lens profile corrects its own distortion and vignetting, and only a valid profile is accepted', () => {
+  const w = 400, h = 300, cx = 200, cy = 150, radius = Math.hypot(w, h) / 2;
+  // A ptlens barrel: the lens drew r_u at r_u (a r^3 + b r^2 + c r + d), r in the profile's units (here scale 1.2).
+  const profile = { name: 'Test 24mm', distortion: { model: 'ptlens' as const, k: [0, -0.06, 0], scale: 1.2 }, vignetting: { k: [-0.5, 0, 0] as [number, number, number], scale: 1 } };
+  const p = grey(w, h, 240);
+  const g = (r: number) => -0.06 * r * r + 1.06;
+  for (let x = 0; x < w; x += 1) {
+    const dx = x + 0.5 - cx, dy = 20 - cy;
+    const rho = Math.hypot(dx, dy) / radius;
+    const f = g(rho * 1.2);
+    const y = Math.round(cy + dy * f), xx = Math.round(cx + dx * f);
+    for (let t = -1; t <= 1; t += 1) if (xx >= 0 && xx < w && y + t >= 0 && y + t < h) p.fill(0, ((y + t) * w + xx) * 4, ((y + t) * w + xx) * 4 + 3);
+  }
+  const lineY = (data: Uint8ClampedArray, x: number) => { let best = 0, low = 999; for (let y = 0; y < h / 2; y += 1) { const v = data[(y * w + x) * 4]; if (v < low) { low = v; best = y; } } return best; };
+  const bowBefore = lineY(p, 60) - lineY(p, 200);
+  applyLensCorrection(p, w, h, 4, { profile: { name: profile.name, distortion: profile.distortion } });
+  const bowAfter = lineY(p, 60) - lineY(p, 200);
+  assert.ok(bowBefore >= 4, `bowed to start with (${bowBefore})`);
+  assert.ok(Math.abs(bowAfter) <= 1, `straight after (${bowAfter})`);
+
+  const v = grey(w, h, 100);
+  applyLensCorrection(v, w, h, 4, { profile: { name: profile.name, vignetting: profile.vignetting } });
+  assert.equal(v[(150 * w + 200) * 4], 100);
+  assert.ok(v[0] > 130, `corner ${v[0]}`); // twice the light on linear values: 100 becomes about 137
+
+  assert.equal(validLens({ profile }), true);
+  assert.equal(validLens({ profile: { name: 'x' } }), false, 'a profile with nothing in it');
+  assert.equal(validLens({ profile: { ...profile, distortion: { model: 'ptlens', k: [0, 1], scale: 1 } } }), false, 'wrong number of terms');
+  assert.equal(validLens({ profile: { ...profile, vignetting: { k: [Number.NaN, 0, 0], scale: 1 } } }), false);
+  assert.equal(validLens({ profile: { ...profile, notes: ['made-up'] } }), false);
+});

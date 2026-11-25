@@ -48,6 +48,8 @@ export interface ExifMetadata {
   camera?: string;
   lens?: string;
   focalLengthMm?: number;
+  /** The camera's own 35 mm equivalent focal length, when it records one. */
+  focalLength35mm?: number;
   apertureF?: number;
   shutterSpeed?: string;
   iso?: number;
