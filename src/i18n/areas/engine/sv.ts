@@ -54,6 +54,8 @@ export const sv: AreaTranslation<typeof source> = {
   workspace: {
     templateNotSaved: 'InFlight kunde inte spara mallen på den här enheten.',
     projectNotSaved: 'InFlight kunde inte spara det här projektet. Dina originalfoton är oförändrade.',
+    projectSaveRetrying: 'InFlight kunde inte spara projektet. Det fortsätter att försöka; låt InFlight vara öppet tills det står sparat. Dina originalfoton är oförändrade.',
+    projectSavedAfterRetry: 'Sparat. Inget gick förlorat.',
     projectNotOpened: 'Det projektet kunde inte öppnas.',
     thumbnailsTask: (count) => (count === 1 ? 'Förbereder 1 miniatyr' : `Förbereder ${count} miniatyrer`),
     thumbnailStage: 'Läser och förminskar det här fotot',

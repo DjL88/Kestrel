@@ -74,7 +74,7 @@ export function applyLightroomImport(state: CullingState, plan: LightroomPlan, a
             if (candidate.edit || candidate.editHistory?.steps.length) kept.add(id);
             else {
               // Recorded as one undoable step, so Undo returns the photo to exactly how it was.
-              updated = syncEditGroup(recordEdit(updated, { edit: applyRecipePatch(undefined, developToRecipe(photo.develop!)).edit }, at));
+              updated = syncEditGroup(recordEdit(updated, { edit: applyRecipePatch(undefined, developToRecipe(photo.develop!)).edit }, at, { by: 'lightroom' }));
               edits++;
               if (photo.develop!.notCarried.length) partialEdits++;
               touched.add(id);

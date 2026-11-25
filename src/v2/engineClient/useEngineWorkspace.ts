@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { applyDecisionWithHistory, assignBurstGroups, redoDecision, regroupBurstsWithEmbeddings, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
-import { recordEdit, stepEdit } from '../../core/editHistory';
+import { recordEdit, stepEdit, type EditWhy } from '../../core/editHistory';
 import { forkEditCheckpoint, switchEditVersion as switchVersionInCatalogue } from '../../core/editBranches';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { sameRecipe } from '../../core/naturalAuto';
@@ -10,6 +10,7 @@ import { createCollage, MAX_COLLAGE_SELECTION, readCollage } from '../../core/co
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
 import { appendProjectPhotos, applyImportBursts, createEmptyProject, setArchived } from '../../core/projects';
 import { tasks } from '../../core/taskStore';
+import { createSaveGuard, type SaveGuard } from '../../core/saveGuard';
 import { engineScheduler } from '../../core/engineScheduler';
 import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '../../core/types';
 import { eraseDeviceData } from './eraseDeviceData';
@@ -313,11 +314,41 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, []);
   useEffect(() => { void loadHub(); }, [loadHub]);
 
-  // Save the open project whenever it changes, exactly as the current app does.
+  // Save the open project whenever it changes. A failed save is never dropped (G07): the latest state of each project is
+  // kept and retried until it is stored, and closing InFlight asks first while a failed change is still unsaved.
+  const saveGuard = useRef<SaveGuard<CullingState> | null>(null);
+  if (!saveGuard.current) {
+    saveGuard.current = createSaveGuard<CullingState>({
+      save: (next) => catalogue.current!.saveProject(next),
+      onStatus: (status, { failures }) => {
+        if (status === 'failed' && failures === 1) setNotice(engineText.workspace.projectSaveRetrying);
+        else if (status === 'saved' && failures > 0) setNotice(engineText.workspace.projectSavedAfterRetry);
+      },
+    });
+  }
   useEffect(() => {
     if (!state || screen !== 'editor') return;
-    void catalogue.current!.saveProject(state).catch(() => setNotice(engineText.workspace.projectNotSaved));
+    saveGuard.current!.submit(state.shoot.id, state);
   }, [state, screen]);
+  useEffect(() => {
+    const guard = saveGuard.current!;
+    const retry = () => { if (document.visibilityState !== 'hidden') guard.retryNow(); };
+    const warn = (event: BeforeUnloadEvent) => {
+      if (!guard.hasFailedUnsaved()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('online', retry);
+    document.addEventListener('visibilitychange', retry);
+    window.addEventListener('beforeunload', warn);
+    return () => {
+      window.removeEventListener('online', retry);
+      document.removeEventListener('visibilitychange', retry);
+      window.removeEventListener('beforeunload', warn);
+    };
+  }, []);
+  // Not disposed on unmount: a pending retry must still store the change (and React's development double-mount would
+  // otherwise switch the guard off).
 
   const openRequest = useRef(0);
   useEffect(() => () => { openRequest.current += 1; }, []);
@@ -555,7 +586,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, activeRasterKey]);
   const editTargets = (photoId: string) => (selected.includes(photoId) ? selected : [photoId]);
-  const editFrames = useCallback((ids: string[], change: (frame: PhotoFrame) => PhotoEdit | undefined) => {
+  const editFrames = useCallback((ids: string[], change: (frame: PhotoFrame) => PhotoEdit | undefined, why?: EditWhy) => {
     const at = Date.now();
     mutate((current) => ({
       ...current,
@@ -563,7 +594,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       frames: current.frames.map((frame) => {
         if (!ids.includes(frame.id)) return frame;
         const edit = change(frame);
-        return syncEditGroup(recordEdit(frame, { edit: edit && !isEmptyEdit(edit) ? edit : undefined }, at));
+        return syncEditGroup(recordEdit(frame, { edit: edit && !isEmptyEdit(edit) ? edit : undefined }, at, why));
       }),
     }));
   }, [mutate]);
@@ -1093,7 +1124,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!candidate || assist.dismissed.includes(candidate.id)) return;
     const valid = (latest: PhotoFrame) => matchesAutoSource(assist.run, latest) && sameRecipe(latest.edit ?? DEFAULT_EDIT, assist.run.plan.base);
     if (!valid(frame)) { setNotice(engineText.workspace.suggestionStale); return; }
-    editFrames([frameId], (latest) => valid(latest) ? candidate.edit : latest.edit);
+    editFrames([frameId], (latest) => valid(latest) ? candidate.edit : latest.edit, { by: 'auto', notes: assist.run.detail });
   }, [assists, editFrames]);
 
   // First run: once Auto has looked at the first photo, apply its suggestion (one undoable step), or say plainly that
@@ -1155,7 +1186,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             const at = Date.now();
             ctx.commitIfCurrent(() => mutate(current =>
               isCurrent() && !ctx.signal.aborted
-                ? commitAutoEdit(current, assistProjectId, frame, run.plan.proposal, at) : current));
+                ? commitAutoEdit(current, assistProjectId, frame, run.plan.proposal, at, { by: 'auto', notes: run.detail }) : current));
           }
         },
       }).then(ticket => {

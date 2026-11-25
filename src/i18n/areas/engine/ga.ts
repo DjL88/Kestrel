@@ -54,6 +54,8 @@ export const ga: AreaTranslation<typeof source> = {
   workspace: {
     templateNotSaved: 'Níorbh fhéidir le InFlight an teimpléad a shábháil ar an ngléas seo.',
     projectNotSaved: 'Níorbh fhéidir le InFlight an tionscadal seo a shábháil. Níor athraíodh do bhunghrianghraif.',
+    projectSaveRetrying: 'Níorbh fhéidir le InFlight an tionscadal seo a shábháil. Leanann sé ag iarraidh; fág InFlight oscailte go dtí go ndeir sé go bhfuil sé sábháilte. Níl aon athrú ar do bhunghrianghraif.',
+    projectSavedAfterRetry: 'Sábháilte. Níor cailleadh aon rud.',
     projectNotOpened: 'Níorbh fhéidir an tionscadal sin a oscailt.',
     thumbnailsTask: (count) => (count === 1 ? '1 mhionsamhail á hullmhú' : `${count} mionsamhail á n-ullmhú`),
     thumbnailStage: 'An grianghraf seo á léamh agus á laghdú',
