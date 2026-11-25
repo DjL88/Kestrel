@@ -1774,6 +1774,25 @@ export const nl: AreaTranslation<typeof source> = {
     reload: "InFlight opnieuw laden",
     details: "Details",
   },
+  // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
+  tapSelect: {
+    tool: "Tik om te selecteren",
+    offer: (mb) => `Tik om te selecteren heeft eenmalig een download van ${mb} MB nodig (EfficientSAM-Ti, Apache-2.0). Die blijft op dit apparaat en werkt offline.`,
+    download: "Tik om te selecteren downloaden",
+    downloading: (pct) => `Downloaden… ${pct}%`,
+    unavailable: "Tik om te selecteren wordt in deze versie niet aangeboden.",
+    reading: "De foto wordt eenmaal gelezen voor Tik om te selecteren. Dat kan een halve minuut duren; Ovaal en Verloop werken intussen gewoon.",
+    ready: "Tik op het onderwerp in de foto. In de modus Verwijderen (of met Alt) haalt een tik een deel weg.",
+    working: "Selectie bijwerken…",
+    addMode: "Deel toevoegen",
+    removeMode: "Deel verwijderen",
+    newSubject: "Nieuw onderwerp",
+    done: "Klaar",
+    subjects: (n) => `Geselecteerde onderwerpen: ${n}`,
+    tapLayer: "Tik hier om een onderwerp te selecteren",
+    failed: "Tik om te selecteren is gestopt. Er is niets veranderd.",
+  },
+
   notices: {
     button: 'Meldingen',
     buttonCount: (n: number) => `Meldingen, ${n} ongelezen`,
