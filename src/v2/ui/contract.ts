@@ -337,6 +337,8 @@ export interface Photo {
   vehicleLabel?: string;
   /** Extra words the photo can be found by (a vehicle's kind in this language and in English, its type name). */
   searchTerms?: string[];
+  /** The subject name alone, without the "(suggested)" marker the label may carry, for editing it. */
+  speciesName?: string;
   category: string;
   sharpnessScore: number;
   exif: PhotoExif;
