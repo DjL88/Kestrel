@@ -1856,6 +1856,24 @@ export const source = {
     reload: 'Reload InFlight',
     details: 'Details',
   },
+  // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
+  tapSelect: {
+    tool: "Tap to select",
+    offer: (mb: string) => `Tap to select needs a one-time ${mb} MB download (EfficientSAM-Ti, Apache-2.0). It stays on this device and works offline.`,
+    download: "Download tap to select",
+    downloading: (pct: number) => `Downloading… ${pct}%`,
+    unavailable: "Tap to select is not offered in this build.",
+    reading: "Reading the photo once for tap to select. This can take about half a minute; Oval and Gradient still work meanwhile.",
+    ready: "Tap the subject on the photo. In Remove mode (or with Alt held) a tap takes a part away.",
+    working: "Updating the selection…",
+    addMode: "Add part",
+    removeMode: "Remove part",
+    newSubject: "New subject",
+    done: "Done",
+    subjects: (n: number) => `Subjects selected: ${n}`,
+    tapLayer: "Tap here to select a subject",
+    failed: "Tap to select stopped. Nothing was changed.",
+  },
 
   // Team notifications in shared projects (G20, owner decision 11: in the app first)
   notices: {
