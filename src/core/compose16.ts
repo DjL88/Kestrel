@@ -1,5 +1,6 @@
 import type { Rgb16Image } from './master16';
 import { downscaleRgb16 } from './rgb16Output';
+import { resampleLanczos3 } from './upscaleResample';
 
 /**
  * 16-bit framing for format exports: the steps the canvas does for an 8-bit export (border fill, placing the picture
@@ -112,23 +113,43 @@ export function drawRgb16(target: Rgb16Image, picture: Rgb16Image, placement: Pl
   }
 }
 
+/** How a sheet's colour meets the picture under it: the canvas's source-over, darken and lighten (separable blends). */
+export type SheetBlend = 'normal' | 'darken' | 'lighten';
+
 /**
- * Lay an 8-bit RGBA sheet (text and watermark drawn on a transparent canvas, unpremultiplied as `getImageData` gives
- * it) over the 16-bit picture with normal "source-over" blending. Where the sheet is clear the picture keeps its
- * 16-bit values untouched; only the pixels the overlay covers take its colour.
+ * Lay an 8-bit RGBA sheet (drawn on a transparent canvas, unpremultiplied as `getImageData` gives it) over the 16-bit
+ * picture, as the canvas would with `globalAlpha = opacity` and the given blend over an opaque backdrop:
+ * result = under + (blend(under, over) - under) × alpha × opacity. Where the sheet is clear the picture keeps its
+ * 16-bit values untouched; only the pixels the sheet covers change.
  */
-export function overlayRgba8OnRgb16(target: Rgb16Image, rgba: ArrayLike<number>) {
+export function blendRgba8OnRgb16(target: Rgb16Image, rgba: ArrayLike<number>, blend: SheetBlend = 'normal', opacity = 1) {
   const { width, height, data } = target;
   if (rgba.length !== width * height * 4) throw new Error('The overlay sheet does not match the picture size.');
+  if (!(opacity >= 0 && opacity <= 1)) throw new Error('Invalid sheet opacity.');
+  if (opacity === 0) return;
   for (let i = 0, j = 0; i < width * height; i += 1, j += 3) {
     const alpha = rgba[i * 4 + 3];
     if (alpha === 0) continue;
-    const a = alpha / 255;
+    const a = (alpha / 255) * opacity;
     for (let ch = 0; ch < 3; ch += 1) {
       const under = data[j + ch];
-      data[j + ch] = Math.round(under + (rgba[i * 4 + ch] * 257 - under) * a);
+      const over = rgba[i * 4 + ch] * 257;
+      const mixed = blend === 'darken' ? Math.min(under, over) : blend === 'lighten' ? Math.max(under, over) : over;
+      data[j + ch] = Math.round(under + (mixed - under) * a);
     }
   }
+}
+
+/** Text and watermark: a plain source-over sheet. */
+export const overlayRgba8OnRgb16 = (target: Rgb16Image, rgba: ArrayLike<number>) => blendRgba8OnRgb16(target, rgba, 'normal', 1);
+
+/**
+ * Enlarge an RGB16 picture by a whole factor with the same deterministic Lanczos-3 resampler the 8-bit export uses
+ * (no sharpening, no model), keeping all 16 bits.
+ */
+export function enlargeRgb16(image: Rgb16Image, factor: 2 | 4, signal?: AbortSignal): Rgb16Image {
+  const out = resampleLanczos3({ data: image.data, width: image.width, height: image.height, channels: 3 }, image.width * factor, image.height * factor, { signal });
+  return { width: out.width, height: out.height, data: out.data };
 }
 
 /**

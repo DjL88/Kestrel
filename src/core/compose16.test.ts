@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { blankRgb16, copyRgb16, cropRgb16, drawRgb16, fillRgb16, looksEightBit, overlayRgba8OnRgb16, rgb8To16 } from './compose16';
+import { blankRgb16, blendRgba8OnRgb16, copyRgb16, cropRgb16, drawRgb16, enlargeRgb16, fillRgb16, looksEightBit, overlayRgba8OnRgb16, rgb8To16 } from './compose16';
+import { resampleLanczos3 } from './upscaleResample';
 import { encodePng16, readPng16 } from './png16';
 import type { Rgb16Image } from './master16';
 
@@ -98,4 +99,28 @@ test('looksEightBit is true for a picture that went through 8 bits', () => {
   const picture = blankRgb16(2, 1);
   picture.data.set([257 * 3, 0, 65535, 257 * 200, 257, 257 * 9]);
   assert.equal(looksEightBit(picture), true);
+});
+
+test('layer blends: darken and lighten pick per channel, opacity scales the mix, clear pixels are untouched', () => {
+  const make = () => { const p = blankRgb16(3, 1); p.data.set([10001, 50001, 30001, 10001, 50001, 30001, 10001, 50001, 30001]); return p; };
+  const sheet = new Uint8ClampedArray([128, 128, 128, 255, 128, 128, 128, 255, 0, 0, 0, 0]); // 128 * 257 = 32896
+  const dark = make(); blendRgba8OnRgb16(dark, sheet, 'darken', 1);
+  assert.deepEqual(px(dark, 0, 0), [10001, 32896, 30001]);
+  assert.deepEqual(px(dark, 2, 0), [10001, 50001, 30001]);
+  const light = make(); blendRgba8OnRgb16(light, sheet, 'lighten', 1);
+  assert.deepEqual(px(light, 0, 0), [32896, 50001, 32896]);
+  const half = make(); blendRgba8OnRgb16(half, sheet, 'normal', 0.5);
+  assert.deepEqual(px(half, 0, 0), [Math.round(10001 + (32896 - 10001) * 0.5), Math.round(50001 + (32896 - 50001) * 0.5), Math.round(30001 + (32896 - 30001) * 0.5)]);
+  assert.equal(looksEightBit(half), false);
+  assert.throws(() => blendRgba8OnRgb16(make(), sheet, 'normal', 2));
+});
+
+test('enlarging keeps 16 bits and is the same Lanczos-3 resample the 8-bit export uses', () => {
+  const picture = ramp(9, 5);
+  const big = enlargeRgb16(picture, 2);
+  assert.equal(big.width, 18); assert.equal(big.height, 10);
+  assert.equal(looksEightBit(big), false);
+  const direct = resampleLanczos3({ data: picture.data, width: 9, height: 5, channels: 3 }, 18, 10);
+  assert.deepEqual(big.data, direct.data);
+  assert.equal(enlargeRgb16(picture, 4).width, 36);
 });
