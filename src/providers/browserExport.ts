@@ -133,14 +133,18 @@ export async function loadExportSource(
  */
 export async function loadVerifiedRasterOriginalForExport(
   frame: PhotoFrame,
-  provider: Pick<BrowserPreviewProvider, 'ensureOriginal'>,
+  provider: Pick<BrowserPreviewProvider, 'verifiedOriginalReader'>,
   signal?: AbortSignal,
 ): Promise<HTMLImageElement> {
   const expected = fullResolutionRasterFormat(frame.filename);
   if (!expected || frame.isDemo) throw new Error('Native Original dimensions are only verified for connected JPEG and PNG originals.');
   signal?.throwIfAborted();
-  const original = await provider.ensureOriginal(frame.stableKey, 'selected');
-  if (!original) throw new Error(`Reconnect ${frame.filename} before exporting its full-resolution Original.`);
+  // A linked original's cached Blob can remain after the disk is disconnected
+  // or the file is substituted. Read the current registration from disk.
+  const reader = provider.verifiedOriginalReader(frame.stableKey);
+  const original = await reader.read();
+  signal?.throwIfAborted();
+  if (!original || !reader.isCurrent()) throw new Error(`Reconnect ${frame.filename} before exporting its full-resolution Original.`);
   // Content sniffing prevents a renamed thumbnail or wrong-format file from
   // being accepted merely because its filename or MIME metadata looks right.
   const header = new Uint8Array(await original.slice(0, 12).arrayBuffer());
@@ -151,10 +155,13 @@ export async function loadVerifiedRasterOriginalForExport(
   if (!isSameOriginalBytes(frame.originalSha256, await hashOriginalBytes(original, signal))) {
     throw new Error(`The connected file differs from the imported ${frame.filename}. Original-size export was stopped.`);
   }
+  signal?.throwIfAborted();
+  if (!reader.isCurrent()) throw new Error(`The original for ${frame.filename} changed during verification. Retry the export.`);
   const url = URL.createObjectURL(original);
   try {
     const image = await loadImage(url);
     signal?.throwIfAborted();
+    if (!reader.isCurrent()) throw new Error(`The original for ${frame.filename} changed during decoding. Retry the export.`);
     if (!Number.isSafeInteger(image.naturalWidth) || !Number.isSafeInteger(image.naturalHeight) ||
         image.naturalWidth < 1 || image.naturalHeight < 1) {
       throw new Error(`Could not decode the original image dimensions of ${frame.filename}.`);

@@ -9,7 +9,8 @@ import footerKiteLight from '../../../assets/brand/mark/inflight-kite-light.svg'
 import { isDesktopApp, isMobileShell } from '../../../providers/desktopShell';
 
 /** The published privacy policy. It is not bundled into the app, so a relative link would lead nowhere in the desktop app. */
-const PRIVACY_URL = 'https://kestrel-hosting-kestrel.web.app/privacy.html';
+import { publicSiteUrl } from '../../../core/publicSite';
+const PRIVACY_URL = publicSiteUrl('/privacy.html');
 
 interface ProjectsHubProps {
   projects: Project[];
@@ -284,7 +285,7 @@ export default function ProjectsHub({
                         <span className="text-sm font-semibold text-[var(--text-primary)]">{title}</span>
                         <span className="block text-xs leading-snug text-[var(--text-secondary)]">{description}</span>
                         {selected && (
-                          <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-[var(--brand-accent)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-on-accent)]">
+                          <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-[var(--brand-accent)] px-2 py-0.5 text-[0.625rem] font-semibold text-[var(--text-on-accent)]">
                             <BrandIcon name="check" size={11} />{STRINGS.hub.kindSelected}
                           </span>
                         )}
@@ -316,7 +317,7 @@ export default function ProjectsHub({
                 <BrandIcon name="folder" size={16} />
                 <span>{STRINGS.hubMore.fromFolder}</span>
               </button>
-              <p className="text-[11px] leading-snug text-[var(--text-muted)]">{STRINGS.hubMore.fromFolderNote}</p>
+              <p className="text-[0.6875rem] leading-snug text-[var(--text-muted)]">{STRINGS.hubMore.fromFolderNote}</p>
             </div>
             <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-[var(--border-subtle)] px-4 py-2 sm:px-6">
               <button

@@ -73,7 +73,7 @@ export function StorageConnections() {
           <button type="button" className={button} aria-expanded={adding !== null} onClick={() => { setAdding(adding ? null : 'folder'); setNote(null); }}>{STRINGS.storagePlaces.addPlace}</button>
         </div>
       </div>
-      <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.storagePlaces.intro}</p>
+      <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.storagePlaces.intro}</p>
 
       {list.length === 0 && !adding && <p className="text-xs text-[var(--text-secondary)]">{STRINGS.storagePlaces.nothingYet}</p>}
 
@@ -86,11 +86,11 @@ export function StorageConnections() {
                 <ProviderIcon kind={connection.kind} className="h-5 w-5 shrink-0 text-[var(--text-primary)]" />
                 <div className="min-w-0">
                   <p className="truncate text-xs font-semibold text-[var(--text-primary)]">{connection.label}</p>
-                  <p className="truncate text-[11px] text-[var(--text-muted)]">{connection.detail}</p>
+                  <p className="truncate text-[0.6875rem] text-[var(--text-muted)]">{connection.detail}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span role="status" className="text-[11px] text-[var(--text-secondary)]">{HEALTH_WORD[health]}{reports[connection.id]?.message && health !== 'ok' ? `: ${reports[connection.id]!.message}` : ''}</span>
+                <span role="status" className="text-[0.6875rem] text-[var(--text-secondary)]">{HEALTH_WORD[health]}{reports[connection.id]?.message && health !== 'ok' ? `: ${reports[connection.id]!.message}` : ''}</span>
                 <button type="button" className={button} disabled={busy === connection.id} onClick={async () => { setBusy(connection.id); await checkConnection(connection.id); setBusy(null); }}>{STRINGS.storagePlaces.check}</button>
                 {(health === 'needs-signin') && isCloudDrive(connection.kind) && <button type="button" className={button} onClick={() => void signIn(connection.kind as 'dropbox', connection.id)}>{STRINGS.storagePlaces.signInAgain}</button>}
                 <button type="button" className={button} onClick={() => removeConnection(connection.id)} aria-label={STRINGS.storagePlaces.removeLabel(connection.label)}>{STRINGS.storagePlaces.remove}</button>
@@ -113,7 +113,7 @@ export function StorageConnections() {
                   <span className="flex items-start gap-2">
                     <ProviderIcon kind={provider.kind} className="mt-0.5 h-5 w-5 shrink-0 text-[var(--text-primary)]" />
                     <span className="text-[var(--text-primary)]">{provider.label}
-                      {reason && <span className="block text-[11px] text-[var(--text-muted)]">{reason}</span>}
+                      {reason && <span className="block text-[0.6875rem] text-[var(--text-muted)]">{reason}</span>}
                       {WORKS_WITH[provider.kind] && <WorksWith items={WORKS_WITH[provider.kind]!} />}
                     </span>
                   </span>
@@ -142,7 +142,7 @@ export function StorageConnections() {
           )}
           {isCloudDrive(adding) && (
             <div className="space-y-2">
-              <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.storagePlaces.cloudNote(CLOUD_DRIVES[adding].name)}</p>
+              <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.storagePlaces.cloudNote(CLOUD_DRIVES[adding].name)}</p>
               <button type="button" className={`${button} inline-flex items-center gap-2`} disabled={busy === adding} onClick={() => void signIn(adding as 'dropbox')}>
                 {(adding === 'dropbox' || adding === 'googledrive') && <BrandIcon id={adding} className="h-4 w-4" />}
                 {STRINGS.storagePlaces.signInWith(CLOUD_DRIVES[adding].name)}

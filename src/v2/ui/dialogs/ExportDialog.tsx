@@ -180,7 +180,7 @@ export default function ExportDialog({
                           <span className="block truncate text-xs font-semibold text-[var(--text-primary)]">
                             {dest.label}
                           </span>
-                          <span className="block truncate text-[10px] text-[var(--text-muted)]">
+                          <span className="block truncate text-[0.625rem] text-[var(--text-muted)]">
                             {dest.sub}
                           </span>
                         </span>
@@ -197,7 +197,7 @@ export default function ExportDialog({
                   className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
                   {STRINGS.exportDialog.rawMasterButton}
                 </button>
-                <p className="text-[11px] text-[var(--text-secondary)]">{STRINGS.exportDialog.rawMasterHelp}</p>
+                <p className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.exportDialog.rawMasterHelp}</p>
               </section>
             )}
 
@@ -266,11 +266,11 @@ export default function ExportDialog({
                     >
                       <span className="min-w-0">
                         <span className="block truncate">{size.label}</span>
-                        <span className="block font-mono text-[10px] text-[var(--text-muted)]">
+                        <span className="block font-mono text-[0.625rem] text-[var(--text-muted)]">
                           {size.width}×{size.height}{frameCount(size.id) > 1 ? ` · ${STRINGS.exportDialog.frameFiles(frameCount(size.id))}` : ''}
                         </span>
                       </span>
-                      <span className="font-mono text-[10px] text-[var(--text-muted)] shrink-0">
+                      <span className="font-mono text-[0.625rem] text-[var(--text-muted)] shrink-0">
                         {size.ratioLabel}
                       </span>
                     </button>
@@ -347,7 +347,7 @@ export default function ExportDialog({
                   </button>
                 ))}
               </div>
-              <p className="px-2 text-[11px] text-[var(--text-secondary)]" data-testid="export-overlay-note">
+              <p className="px-2 text-[0.6875rem] text-[var(--text-secondary)]" data-testid="export-overlay-note">
                 {canvasOverlays.length
                   ? STRINGS.exportDialog.overlaysAsOnCanvas(new Intl.ListFormat(activeLanguage()).format(canvasOverlays))
                   : STRINGS.exportDialog.noOverlaysOnCanvas}

@@ -30,6 +30,8 @@ interface FrameImageProps {
   onPreviewStatus?: (frameId: string, status: PhotoPreviewReadiness) => void;
   /** Optional editor-only mask coverage, drawn over exactly the displayed image. */
   maskGuideId?: string;
+  /** Optional editor-only SVG content drawn in the displayed picture's own pixels (mask outline and handles). */
+  maskOutline?: (picture: { width: number; height: number }) => React.ReactNode;
   /** Optional interactive transform for zoom/pan viewports */
   zoomScale?: number;
   panOffset?: { x: number; y: number };
@@ -67,15 +69,17 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   refreshOnBackgroundDevelop = false,
   onPreviewStatus,
   maskGuideId,
+  maskOutline,
   zoomScale = 1,
   panOffset = { x: 0, y: 0 },
 }) => {
   // Keep a finished render for same-frame slider updates, never for a different photo.
   const [sourceRevision, setSourceRevision] = useState(0);
   const identity = frameImageIdentity(frame, variant, sourceRevision);
-  const [preview, setPreview] = useState<{ identity: string; url: string }>({ identity: '', url: '' });
+  // `interim`: the small filmstrip picture shown in the full-size view until the full picture is ready (never reported as ready).
+  const [preview, setPreview] = useState<{ identity: string; url: string; interim?: boolean }>({ identity: '', url: '' });
   const src = visibleFrameUrl(preview, identity);
-  const [imageSize, setImageSize] = useState<{ src: string; width: number; height: number } | null>(null);
+  const [imageSize, setImageSize] = useState<{ src: string; width: number; height: number; fit: 'cover' | 'contain' } | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [errored, setErrored] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -130,7 +134,10 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     (frame.framing.ratio || frame.framing.turns || frame.framing.straighten)));
 
   const hasImage = useRef(false);
-  hasImage.current = Boolean(src);
+  const previewIsInterim = useRef(false);
+  previewIsInterim.current = Boolean(src && preview.interim);
+  // An interim thumbnail does not count: an edit redraw must still be able to replace it with a full render.
+  hasImage.current = Boolean(src) && !preview.interim;
   const renderedUrl = useRef<string | undefined>(undefined);
   // The last rendered picture is only released once a newer one replaces it, or on unmount, so it never goes blank mid-edit.
   const replaceRendered = (next: string | undefined) => {
@@ -144,8 +151,8 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     if (variant === 'thumb' && !nearViewport && !priority) return;
     let cancelled = false;
     let timer: number | undefined;
-    // Keep showing the current picture while an edited one is being redrawn.
-    if (!hasImage.current) {
+    // Keep showing the current picture (an interim thumbnail included) while an edited one is being redrawn.
+    if (!hasImage.current && !previewIsInterim.current) {
       setPreview({ identity, url: '' });
     }
     // Keep the previous render visible, but report quality work so the
@@ -169,9 +176,29 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       if (cancelled) return;
       if (!blob) throw new Error('Preview unavailable');
       const url = URL.createObjectURL(blob);
+      fullShown = true;
       replaceRendered(url);
       setPreview({ identity, url });
     };
+
+    // A full-size view never stays an empty dark frame while a large original is verified and developed (a 45 MP RAW
+    // can take many seconds): it shows the photo's thumbnail, with the same framing and edit, and keeps the
+    // "Refreshing image" status until the full picture replaces it. The interim is never reported as ready.
+    let fullShown = false;
+    const showInterim = async () => {
+      const source = await loadThumbSource(frame, previewProvider, true);
+      if (cancelled || fullShown || hasImage.current) return;
+      const canvas = document.createElement('canvas');
+      const framing = frame.framing ?? DEFAULT_FRAMING;
+      drawFramedPhoto(source, canvas, framing, { scale: 1 });
+      if (edited) applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+      if (!blob || cancelled || fullShown || hasImage.current) return;
+      const url = URL.createObjectURL(blob);
+      replaceRendered(url);
+      setPreview({ identity, url, interim: true });
+    };
+    if (variant === 'full' && !hasImage.current) void showInterim().catch(() => undefined);
 
     const load = async () => {
       if (edited) {
@@ -187,6 +214,9 @@ export const FrameImage: React.FC<FrameImageProps> = ({
           ? await previewProvider.getFullPreviewUrl(frame, 'selected')
           : await previewProvider.getThumbnailUrl(frame, priority ? 'selected' : 'visible');
       if (!cancelled) {
+        fullShown = true;
+        // Release an interim thumbnail render once the full picture takes its place.
+        replaceRendered(undefined);
         setPreview({ identity, url });
         setLoading(false);
       }
@@ -194,8 +224,11 @@ export const FrameImage: React.FC<FrameImageProps> = ({
 
     void load().catch(() => {
       if (cancelled) return;
+      fullShown = true;
       // A failed redraw keeps the last good picture. Only a photo that never had one shows the fallback.
-      if (!hasImage.current) {
+      // An interim thumbnail is not a good picture: it must not stand in for a full view that failed.
+      if (!hasImage.current || previewIsInterim.current) {
+        if (previewIsInterim.current) replaceRendered(undefined);
         setPreview({ identity, url: '' });
         onPreviewStatus?.(frame.id, 'unavailable');
       }
@@ -266,26 +299,40 @@ export const FrameImage: React.FC<FrameImageProps> = ({
           referrerPolicy="no-referrer"
           draggable={false}
           loading={variant === 'thumb' ? 'lazy' : 'eager'}
+          data-preview-quality={preview.interim ? 'interim' : 'full'}
           onLoad={(event) => {
+            // The interim thumbnail keeps the refresh status on and is not reported as the photo's preview.
+            if (preview.interim) return;
             const { naturalWidth: width, naturalHeight: height } = event.currentTarget;
-            setImageSize({ src, width, height });
+            // The outline must follow the picture exactly, including a border frame that switches it to object-contain.
+            const fit = getComputedStyle(event.currentTarget).objectFit === 'contain' ? 'contain' : 'cover';
+            setImageSize({ src, width, height, fit });
             setLoading(false);
             onPreviewStatus?.(frame.id, 'ready');
           }}
           onError={() => {
+            if (preview.interim) return;
             setErrored(true);
             setLoading(false);
             onPreviewStatus?.(frame.id, 'unavailable');
           }}
           style={demoStyle}
           className={`w-full h-full select-none motion-safe:transition-opacity motion-safe:duration-150 ${
-            loading && !hasImage.current ? 'opacity-0' : 'opacity-100'
+            loading && !src ? 'opacity-0' : 'opacity-100'
           } ${edited && variant === 'thumb' ? 'object-contain' : imgClassName}`}
         />
       )}
       {src && imageSize?.src === src && maskGuideId && frame.edit?.masks && (
         <MaskCoverageImage key={`${src}:${maskGuideId}`} masks={frame.edit.masks} maskId={maskGuideId}
           width={imageSize.width} height={imageSize.height} className={imgClassName} style={demoStyle} />
+      )}
+      {/* Kept through an edit redraw (same picture size), so the outline does not blink while a slider moves. */}
+      {src && imageSize && maskOutline && (
+        <svg data-testid="mask-outline-layer" viewBox={`0 0 ${imageSize.width} ${imageSize.height}`}
+          preserveAspectRatio={imageSize.fit === 'contain' ? 'xMidYMid meet' : 'xMidYMid slice'}
+          className="pointer-events-none absolute inset-0 z-20 h-full w-full overflow-hidden" style={demoStyle}>
+          {maskOutline({ width: imageSize.width, height: imageSize.height })}
+        </svg>
       )}
     </div>
   );

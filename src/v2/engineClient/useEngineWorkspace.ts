@@ -30,20 +30,21 @@ import { useWorkspace } from '../ui/stub';
 import { EngineSurface } from './EngineSurface';
 import { featureAccess, featurePlan } from './featureMap';
 import { hasDeviceFont, listDeviceFonts, loadSavedDeviceFonts, mergeFonts, saveDeviceFonts } from './fonts';
-import { assetUrl, cutOut, importWatermark, loadStored, makeVariant, saveStored, toPresets, type StoredWatermark } from './watermarkLibrary';
+import { addVersion, assetUrl, cutOut, importWatermark, loadStored, makeVariant, moveToSlot, saveStored, textWatermark, toPresets, type StoredWatermark } from './watermarkLibrary';
 import { replaceWatermarkIfUnchanged } from './watermarkMutation';
 import { watermarkToneForPixels } from '../../core/watermark';
-import { INITIAL_WATERMARKS, createDefaultSizes } from '../ui/stub';
+import { createDefaultSizes } from '../ui/stub';
 import { toPhotoHistogram } from './histogram';
 import { fullResolutionRasterFormat, isHeifFile, isRawPreviewFile } from '../../core/rawFormats';
 import { rawSensorSize } from '../../core/rawSensorSize';
 import { loadUi, mergeSettings, saveUi, type SavedUi } from './uiSettings';
+import { dropSourceUrls } from './previewInvalidation';
 import { applyCanvasPhotoEdit } from '../../core/canvasEdit';
 import { DEFAULT_EDIT as EMPTY_EDIT } from '../../core/photoEdits';
 import { DEFAULT_CROP, flipCrop, patchCrop, rotateCrop } from './cropOps';
 import { readCrops } from './cropOps';
 import { recordFormatCrop, recordFormatSetChange, recordFormatLink } from './formatHistory';
-import { addRow, alignOverlays, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps';
+import { addRow, alignOverlays, moveRow, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps';
 import { frameToPhoto, matchesAutoSource, originalFormatSize, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
 import { autoUnavailableSentence, isAutoUnavailable, type AutoUnavailable } from './autoUnavailable';
@@ -106,7 +107,7 @@ async function buildOverlayDraw(frame: PhotoFrame, request: ExportRequest, env: 
     : undefined;
   return {
     overlay, text, watermark: mark, contrast,
-    rows: overlay.rows.map((row) => ({ text: formatOverlayRowText(row, photo) || 'Custom caption', family: env.fonts.find((font) => font.id === row.fontId)?.family ?? fallbackFamily, weight: row.weight, sizePx: row.sizePx, letterSpacing: row.letterSpacing })),
+    rows: overlay.rows.map((row) => ({ text: formatOverlayRowText(row, photo), family: env.fonts.find((font) => font.id === row.fontId)?.family ?? fallbackFamily, weight: row.weight, sizePx: row.sizePx, letterSpacing: row.letterSpacing })),
     mark: !mark || !preset ? null : imageUrl ? { kind: 'image', image: await loadImage(imageUrl) } : { kind: 'text', text: preset.text, ...(preset.subtext ? { subtext: preset.subtext } : {}) },
   };
 }
@@ -211,9 +212,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [verifiedRasterSizes, setVerifiedRasterSizes] = useState<Record<string, { width: number; height: number }>>({});
   const verifiedRasterRef = useRef(verifiedRasterSizes);
   verifiedRasterRef.current = verifiedRasterSizes;
+  const pixelSizesRef = useRef(pixelSizes);
+  pixelSizesRef.current = pixelSizes;
   /** The formats this photo has, worked out exactly as the canvas shows them (decoded size first, then EXIF). */
   const liveFormatsOf = (frame: PhotoFrame | undefined) => applyFormats(createDefaultSizes(), frame?.formats,
-    frame ? originalFormatSize(frame, verifiedRasterRef.current[`${frame.stableKey}|${frame.originalSha256 ?? ''}`]) : null);
+    frame ? originalFormatSize(frame, verifiedRasterRef.current[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], pixelSizesRef.current[frame.id]) : null);
   const [histograms, setHistograms] = useState<Record<string, PhotoHistogram>>({});
   const [watermarkAuto, setWatermarkAuto] = useState<Record<string, 'light-on-dark' | 'dark-on-light'>>({});
   useEffect(() => { let live = true; void toPresets(watermarkStore).then((presets) => { if (live) setWatermarkLibrary(presets); }); return () => { live = false; }; }, [watermarkStore]);
@@ -401,6 +404,44 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId]);
+
+  // Developing, relinking or replacing an original revokes the provider's blob URLs. Forget them for every photo of
+  // that original and ask again, so views that draw `previewUrl` directly (the All formats board) never show a dead link.
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
+  const listenedProvider = useRef<{ source: BrowserPreviewProvider; detach: () => void } | null>(null);
+  useEffect(() => {
+    const source = provider.current;
+    if (!source || listenedProvider.current?.source === source) return;
+    listenedProvider.current?.detach();
+    const onSourceChanged = (event: Event) => {
+      const stableKey = (event as CustomEvent<string>).detail;
+      if (provider.current !== source || typeof stableKey !== 'string') return;
+      const frames = stateRef.current?.frames ?? [];
+      setUrls((current) => dropSourceUrls(current, frames, stableKey).urls);
+      const affected = frames.filter((frame) => frame.stableKey === stableKey && !frame.removedAt);
+      for (const frame of affected) {
+        thumbs.current.requested.add(frame.id);
+        thumbs.current.queue.push(frame);
+      }
+      pumpThumbnails();
+      const active = affected.find((frame) => frame.id === activeIdRef.current);
+      if (active) source.getFullPreviewUrl(active, 'selected').then(
+        (preview) => { if (provider.current === source && preview) setUrls((current) => ({ ...current, [active.id]: { ...current[active.id], preview } })); },
+        () => { /* the refreshed thumbnail stays */ },
+      );
+    };
+    source.events.addEventListener('developed', onSourceChanged);
+    source.events.addEventListener('preview-invalidated', onSourceChanged);
+    listenedProvider.current = {
+      source,
+      detach: () => {
+        source.events.removeEventListener('developed', onSourceChanged);
+        source.events.removeEventListener('preview-invalidated', onSourceChanged);
+      },
+    };
+  });
+  useEffect(() => () => { listenedProvider.current?.detach(); listenedProvider.current = null; }, []);
 
   const mutate = useCallback((change: (current: CullingState) => CullingState) => setState((current) => (current ? change(current) : current)), []);
 
@@ -694,8 +735,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       provider.current!.getFullPreviewUrl(frame, 'selected').then(async (url) => {
         if (!url || !live) return;
         const image = await new Promise<HTMLImageElement>((resolve, reject) => { const element = new Image(); element.onload = () => resolve(element); element.onerror = reject; element.src = url; });
-        // For a plain picture file the shown image IS the original size; for RAW and HEIF it is a preview, so nothing is claimed.
-        if (live && !frame.exif.width && !isRawPreviewFile(frame.filename) && !isHeifFile(frame.filename)) setPixelSizes((current) => (current[frame.id] ? current : { ...current, [frame.id]: { width: image.naturalWidth, height: image.naturalHeight } }));
+        // When the file records no size, the shown picture gives the photo its shape. For a plain picture file that is
+        // the original size; for RAW and HEIF it is the preview's size, which the export renderer never enlarges past.
+        if (live && !(frame.exif.width && frame.exif.height)) setPixelSizes((current) => (current[frame.id]?.width === image.naturalWidth && current[frame.id]?.height === image.naturalHeight ? current : { ...current, [frame.id]: { width: image.naturalWidth, height: image.naturalHeight } }));
         const scale = Math.min(1, 256 / Math.max(image.naturalWidth, image.naturalHeight));
         const canvas = document.createElement('canvas');
         canvas.width = Math.max(1, Math.round(image.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
@@ -883,7 +925,15 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       itemId: item => item.id, itemLabel: item => item.name,
       runItem: async (_, __, ctx) => {
         ctx.stage('Detecting subject edges on this device');
-        const image = await loadExportSource(frame, provider.current!);
+        // A mask needs the photo's shape and content, not export-grade pixels. A RAW this device cannot develop (for
+        // example Nikon HE*) made the export loader throw, so subject detection always failed on such files; it now
+        // falls back to the preview shown on the canvas, which has the same framing.
+        const image = await loadExportSource(frame, provider.current!).catch(async (reason) => {
+          const shown = isRawPreviewFile(frame.filename) || isHeifFile(frame.filename)
+            ? await provider.current!.getFullPreviewUrl(frame, 'selected').catch(() => '') : '';
+          if (!shown) throw reason;
+          return loadImage(shown);
+        });
         ctx.checkCancelled();
         const framing = frame.framing ?? DEFAULT_FRAMING;
         const { width, height } = framedSize(image.naturalWidth, image.naturalHeight, framing);
@@ -1614,6 +1664,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     rotateSelectedSizes: (photoId) => changeCrops(photoId, stub.store.selectedSizeIds, (crop) => rotateCrop(crop)),
     updateOverlay: (photoId, patch) => changeOverlay(photoId, (overlay) => patchOverlay(overlay, patch)),
     alignOverlaysCleanly: (photoId, layout) => changeOverlay(photoId, (overlay) => alignOverlays(overlay, layout)),
+    moveOverlayRow: (photoId, rowId, direction) => changeOverlay(photoId, (overlay) => moveRow(overlay, rowId, direction)),
     addOverlayRow: (photoId) => changeOverlay(photoId, (overlay) => addRow(overlay, `row-${newId().slice(0, 8)}`)),
     updateOverlayRow: (photoId, rowId, patch) => changeOverlay(photoId, (overlay) => updateRow(overlay, rowId, patch)),
     removeOverlayRow: (photoId, rowId) => changeOverlay(photoId, (overlay) => removeRow(overlay, rowId)),
@@ -1667,9 +1718,28 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     },
     deleteWatermark: (presetId) => {
       updateWatermarks((current) => current.filter((candidate) => candidate.id !== presetId));
-      // Photos that used it fall back to the first built-in watermark; nothing else about them changes.
-      mutate((current) => ({ ...current, frames: current.frames.map((frame) => { const overlay = readOverlay(frame.overlay); return overlay.watermarkPresetId === presetId ? { ...frame, overlay: { ...overlay, watermarkPresetId: INITIAL_WATERMARKS[0].id } } : frame; }) }));
+      // Photos that used it fall back to the first watermark left in the library (or none); nothing else about them changes.
+      const fallback = watermarkStoreRef.current.find((candidate) => candidate.id !== presetId)?.id ?? '';
+      mutate((current) => ({ ...current, frames: current.frames.map((frame) => { const overlay = readOverlay(frame.overlay); return overlay.watermarkPresetId === presetId ? { ...frame, overlay: { ...overlay, watermarkPresetId: fallback } } : frame; }) }));
     },
+    addTextWatermark: (text, subtext) => {
+      const entry = textWatermark(`wm-${newId().slice(0, 8)}`, text, subtext);
+      if (!entry) return null;
+      updateWatermarks((current) => [...current, entry]);
+      return entry.id;
+    },
+    addWatermarkVersion: async (presetId, slot) => {
+      const entry = watermarkStoreRef.current.find((candidate) => candidate.id === presetId);
+      if (!entry) return false;
+      const picked = await pickImageFile();
+      if (!picked) return false;
+      try {
+        const next = await addVersion(entry, slot, picked);
+        updateWatermarks((current) => current.map((candidate) => (candidate.id === presetId ? { ...candidate, forDark: next.forDark, forLight: next.forLight } : candidate)));
+        return true;
+      } catch { setNotice('That image could not be added.'); return false; }
+    },
+    setWatermarkSlot: (presetId, slot) => updateWatermarks((current) => current.map((candidate) => (candidate.id === presetId ? moveToSlot(candidate, slot) : candidate))),
     listDeviceFonts: () => listDeviceFonts(),
     hasDeviceFont: (fontName) => hasDeviceFont(fontName),
     updateRecipe: (photoId, patch) => applyPatch(editTargets(photoId), patch),
@@ -1726,7 +1796,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
 
-  exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: [...INITIAL_WATERMARKS, ...watermarkLibrary], auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
+  exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: watermarkLibrary, auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => {
     const assist = assists[frame.id];
     return frameToPhoto(frame, urls[frame.id], { assist, autoUnavailable: autoUnavailable[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed });
@@ -1740,7 +1810,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     fonts: mergeFonts(deviceFonts),
     settings: mergeSettings(stub.store.settings, savedUi.settings),
     assistMode,
-    watermarkPresets: [...INITIAL_WATERMARKS, ...watermarkLibrary],
+    watermarkPresets: watermarkLibrary,
     overlayTemplates: templates.map(({ id, name }) => ({ id, name })),
     features: featureAccess(can),
     featurePlan: featurePlan(),
@@ -1753,7 +1823,18 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     activePhotoId: activeId,
     selectedPhotoIds: selected,
     reviewingPhotoIds: reviewingIds,
-    tasks: visibleTasks(taskList.filter((task) => task.state === 'running' || task.state === 'queued' || task.state === 'paused').map(taskToInfo), Object.values(taskHistory), clock),
+    // Finished tasks join the history in an effect, one render after the store marks them done. Merge them here too,
+    // so a task that has just finished is never missing from both lists (the Tasks panel would lose its row).
+    tasks: visibleTasks(
+      taskList.filter((task) => task.state === 'running' || task.state === 'queued' || task.state === 'paused').map(taskToInfo),
+      Object.values({
+        ...taskHistory,
+        ...Object.fromEntries(taskList.filter((task) => task.state === 'done' || task.state === 'failed' || task.state === 'cancelled')
+          .filter((task) => !taskHistory[String(task.id)])
+          .map((task) => { const info = taskToInfo({ ...task, endedAt: task.endedAt ?? Date.now() }); return [info.id, info]; })),
+      }),
+      clock,
+    ),
     canUndo: Boolean(state?.undoStack.length) || (activeFrame?.editHistory?.cursor ?? 0) > 0,
     canRedo: Boolean(state?.redoStack.length) || (activeFrame?.editHistory ? activeFrame.editHistory.cursor < activeFrame.editHistory.steps.length : false),
     clipboardRecipe: clipboard,

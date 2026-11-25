@@ -3,6 +3,14 @@ import type { Photo } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 
+/** Brightness is solid; each colour channel also has its own dash pattern and name, so none is told apart by hue alone (WCAG 1.4.1). */
+const HISTOGRAM_LINES = [
+  { key: 'red', word: 'histogramRed', stroke: 'rgba(226,92,92,0.85)', width: 1.6, dash: '5 3' },
+  { key: 'green', word: 'histogramGreen', stroke: 'rgba(56,178,139,0.85)', width: 1.6, dash: '0.5 3' },
+  { key: 'blue', word: 'histogramBlue', stroke: 'rgba(78,168,222,0.85)', width: 1.6, dash: '8 2.5 0.5 2.5' },
+  { key: 'luma', word: 'histogramBrightness', stroke: 'var(--text-primary)', width: 1.8, dash: undefined },
+] as const;
+
 interface InfoPanelProps {
   photo: Photo | null;
   onToggleFlag: (photoIds: string[]) => void;
@@ -32,6 +40,10 @@ export default function InfoPanel({
   const hist = photo.histogram ?? null;
   const pct = (fraction: number) => (fraction === 0 ? '0%' : fraction < 0.001 ? '<0.1%' : fraction >= 0.1 ? `${Math.round(fraction * 100)}%` : `${(fraction * 100).toFixed(1)}%`);
   const flagged = photo.decision === 'keep';
+  const clippedChannels = HISTOGRAM_LINES.flatMap((line) => {
+    const clip = line.key === 'luma' ? undefined : hist?.channelClip?.[line.key];
+    return clip && (clip.shadow > 0 || clip.highlight > 0) ? [{ line, clip }] : [];
+  });
 
   const toPolyline = (vals: number[]) =>
     vals
@@ -44,22 +56,40 @@ export default function InfoPanel({
       <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3">
         <div className="flex items-center justify-between text-xs">
           <span className="font-semibold text-[var(--text-primary)]">{STRINGS.panelWords.histogram}</span>
-          <span className="font-mono text-[10px] text-[var(--text-muted)]">
+          <span className="font-mono text-[0.625rem] text-[var(--text-muted)]">
             {photo.assistCritique.kelvinEstimate}
           </span>
         </div>
         {hist ? (
           <>
             <svg viewBox="0 0 240 76" className="mt-2 h-20 w-full" role="img" aria-label={STRINGS.panelWords.histogramLabel(pct(hist.shadowClip), pct(hist.highlightClip))}>
-              <polyline fill="none" stroke="rgba(226,92,92,0.58)" strokeWidth="1.6" points={toPolyline(hist.red)} />
-              <polyline fill="none" stroke="rgba(56,178,139,0.58)" strokeWidth="1.6" points={toPolyline(hist.green)} />
-              <polyline fill="none" stroke="rgba(78,168,222,0.62)" strokeWidth="1.6" points={toPolyline(hist.blue)} />
-              <polyline fill="none" stroke="var(--text-primary)" strokeWidth="1.7" points={toPolyline(hist.luma)} />
+              {HISTOGRAM_LINES.map((line) => (
+                <polyline key={line.key} data-channel={line.key} fill="none" stroke={line.stroke} strokeWidth={line.width}
+                  strokeDasharray={line.dash} strokeLinecap="round" points={toPolyline(hist[line.key])} />
+              ))}
             </svg>
-            <p className="mt-1 flex justify-between text-[11px] text-[var(--text-secondary)]" data-testid="histogram-clipping">
+            {/* Each line has its own pattern and a word, so the channels are told apart without relying on colour. */}
+            <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[0.6875rem] text-[var(--text-secondary)]" data-testid="histogram-legend">
+              {HISTOGRAM_LINES.map((line) => (
+                <li key={line.key} className="inline-flex items-center gap-1">
+                  <svg width="18" height="6" viewBox="0 0 18 6" aria-hidden="true" focusable="false">
+                    <line x1="1" y1="3" x2="17" y2="3" stroke={line.stroke} strokeWidth={line.width} strokeDasharray={line.dash} strokeLinecap="round" />
+                  </svg>
+                  {STRINGS.panelWords[line.word]}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1 flex justify-between text-[0.6875rem] text-[var(--text-secondary)]" data-testid="histogram-clipping">
               <span>Shadows clipped {pct(hist.shadowClip)}</span>
               <span>Highlights clipped {pct(hist.highlightClip)}</span>
             </p>
+            {clippedChannels.length > 0 && (
+              <ul className="mt-0.5 text-[0.6875rem] text-[var(--text-secondary)]" data-testid="histogram-channel-clipping">
+                {clippedChannels.map(({ line, clip }) => (
+                  <li key={line.key}>{STRINGS.panelWords.histogramChannelClip(STRINGS.panelWords[line.word], pct(clip.shadow), pct(clip.highlight))}</li>
+                ))}
+              </ul>
+            )}
           </>
         ) : (
           <p role="status" className="mt-2 text-xs text-[var(--text-secondary)]">{STRINGS.panelWords.measuring}</p>
@@ -174,7 +204,7 @@ export default function InfoPanel({
                 <span>{photo.speciesLabel || photo.category || STRINGS.panelWords.notIdentified}</span>
                 <button type="button" aria-label={STRINGS.panelWords.correctSpecies} title={STRINGS.panelWords.correctSpecies}
                   onClick={() => setEditingSpecies(true)}
-                  className="shrink-0 rounded border border-[var(--border-subtle)] px-2 py-1 text-[11px]">{STRINGS.panelWords.edit}</button>
+                  className="shrink-0 rounded border border-[var(--border-subtle)] px-2 py-1 text-[0.6875rem]">{STRINGS.panelWords.edit}</button>
               </dd>
             )}
           </div>
@@ -190,7 +220,7 @@ function MetaRow({ label, value, mono }: { label: string; value: string; mono?: 
   return (
     <div className="flex items-start justify-between gap-3">
       <dt className="shrink-0 text-[var(--text-muted)]">{label}</dt>
-      <dd className={`text-right text-[var(--text-primary)] ${mono ? 'font-mono text-[11px] tabular-nums' : ''}`}>
+      <dd className={`text-right text-[var(--text-primary)] ${mono ? 'font-mono text-[0.6875rem] tabular-nums' : ''}`}>
         {value}
       </dd>
     </div>

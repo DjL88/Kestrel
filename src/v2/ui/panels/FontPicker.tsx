@@ -65,7 +65,7 @@ export default function FontPicker({ fonts, row, sample, onSelect, onAddCustomFo
         font.id === row.fontId ? 'bg-[var(--brand-accent-soft)] text-[var(--text-primary)]' : 'text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
       }`}>
       <span style={{ fontFamily: font.family }} className="min-w-0 truncate text-base">{font.label}</span>
-      <span className="flex shrink-0 items-center gap-1 text-[10px] text-[var(--text-secondary)]">
+      <span className="flex shrink-0 items-center gap-1 text-[0.625rem] text-[var(--text-secondary)]">
         {font.isDevice ? STRINGS.overlays.fontOnThisDevice : font.category}
         {font.id === row.fontId && <BrandIcon name="check" size={12} className="text-[var(--brand-accent)]" />}
       </span>
@@ -91,9 +91,9 @@ export default function FontPicker({ fonts, row, sample, onSelect, onAddCustomFo
           <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={STRINGS.overlays.fontSearchPlaceholder}
             aria-label={STRINGS.overlays.fontSearchPlaceholder}
             className="mb-2 h-8 w-full rounded-[var(--radius-xs)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-2 text-xs text-[var(--text-primary)]" />
-          {favourites.length > 0 && <p className="px-2 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{STRINGS.overlays.fontFavourites}</p>}
+          {favourites.length > 0 && <p className="px-2 pb-1 pt-0.5 text-[0.625rem] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{STRINGS.overlays.fontFavourites}</p>}
           <div className="space-y-0.5">{favourites.map(item)}</div>
-          {mine.length > 0 && <p className="px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{STRINGS.overlays.fontOnThisDevice}</p>}
+          {mine.length > 0 && <p className="px-2 pb-1 pt-2 text-[0.625rem] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{STRINGS.overlays.fontOnThisDevice}</p>}
           <div className="space-y-0.5">{mine.map(item)}</div>
           {favourites.length + mine.length === 0 && <p className="px-2 py-2 text-xs text-[var(--text-secondary)]">{STRINGS.overlays.fontNoMatch}</p>}
 
@@ -114,15 +114,15 @@ export default function FontPicker({ fonts, row, sample, onSelect, onAddCustomFo
                   <button key={name} type="button" onClick={() => addDevice(name)}
                     className="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left hover:bg-[var(--bg-surface-hover)]">
                     <span style={{ fontFamily: `"${name}", sans-serif` }} className="min-w-0 truncate text-base text-[var(--text-primary)]">{name}</span>
-                    <span className="shrink-0 text-[10px] font-medium text-[var(--brand-accent)]">{STRINGS.overlays.fontAdd}</span>
+                    <span className="shrink-0 text-[0.625rem] font-medium text-[var(--brand-accent)]">{STRINGS.overlays.fontAdd}</span>
                   </button>
                 ))}
-                {deviceMatches.length > MAX_DEVICE_ROWS && <p className="px-2 text-[11px] text-[var(--text-secondary)]">{STRINGS.overlays.fontKeepTyping(deviceMatches.length - MAX_DEVICE_ROWS)}</p>}
+                {deviceMatches.length > MAX_DEVICE_ROWS && <p className="px-2 text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.overlays.fontKeepTyping(deviceMatches.length - MAX_DEVICE_ROWS)}</p>}
                 {deviceMatches.length === 0 && <p className="px-2 py-1 text-xs text-[var(--text-secondary)]">{STRINGS.overlays.fontNoMatch}</p>}
               </div>
             ) : (
               <div className="space-y-1.5">
-                <p className="px-1 text-[11px] leading-snug text-[var(--text-secondary)]">{STRINGS.overlays.fontCannotList}</p>
+                <p className="px-1 text-[0.6875rem] leading-snug text-[var(--text-secondary)]">{STRINGS.overlays.fontCannotList}</p>
                 <div className="flex gap-1">
                   <input type="text" value={typed} onChange={(event) => setTyped(event.target.value)} placeholder={STRINGS.overlays.fontTypeName} aria-label={STRINGS.overlays.fontTypeName}
                     className="h-8 min-w-0 flex-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-input)] px-2 text-xs text-[var(--text-primary)]" />

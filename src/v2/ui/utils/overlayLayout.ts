@@ -9,7 +9,7 @@ import type { OverlayAnchor, OverlaySettings } from '../contract';
  * margin is a share of the frame's width, so it is the same distance on every side. When the text and the watermark share an
  * anchor they stack (watermark first, then the text) instead of sitting on top of each other.
  *
- * A dragged ('free') box keeps its centre where it was dropped, moved in just enough to stay inside the frame.
+ * A dragged ('free') box keeps its centre where it was dropped, moved in just enough to stay inside the margins.
  */
 export interface Box { x: number; y: number; width: number; height: number }
 
@@ -41,10 +41,10 @@ function placeAnchored(frame: { width: number; height: number }, anchor: Overlay
   return { x: clamp(x, 0, frame.width - size.width), y: clamp(y, 0, frame.height - size.height) };
 }
 
-function placeFree(frame: { width: number; height: number }, centreX: number, centreY: number, size: { width: number; height: number }) {
+function placeFree(frame: { width: number; height: number }, centreX: number, centreY: number, margin: number, size: { width: number; height: number }) {
   const x = (centreX / 100) * frame.width - size.width / 2;
   const y = (centreY / 100) * frame.height - size.height / 2;
-  return { x: clamp(x, 0, frame.width - size.width), y: clamp(y, 0, frame.height - size.height) };
+  return { x: clamp(x, margin, frame.width - margin - size.width), y: clamp(y, margin, frame.height - margin - size.height) };
 }
 
 /** The anchor's column decides how a box's contents line up, so stacked boxes share one edge. */
@@ -78,11 +78,11 @@ export function layoutOverlays(
     return out;
   }
   if (sizes.text) {
-    const at = overlay.textPlacement === 'anchor' ? placeAnchored(frame, overlay.textPosition, margin, sizes.text) : placeFree(frame, overlay.textX, overlay.textY, sizes.text);
+    const at = overlay.textPlacement === 'anchor' ? placeAnchored(frame, overlay.textPosition, margin, sizes.text) : placeFree(frame, overlay.textX, overlay.textY, margin, sizes.text);
     out.text = { ...at, ...sizes.text };
   }
   if (sizes.mark) {
-    const at = overlay.watermarkPlacement === 'anchor' ? placeAnchored(frame, overlay.watermarkPosition, margin, sizes.mark) : placeFree(frame, overlay.watermarkX, overlay.watermarkY, sizes.mark);
+    const at = overlay.watermarkPlacement === 'anchor' ? placeAnchored(frame, overlay.watermarkPosition, margin, sizes.mark) : placeFree(frame, overlay.watermarkX, overlay.watermarkY, margin, sizes.mark);
     out.mark = { ...at, ...sizes.mark };
   }
   return out;
@@ -93,4 +93,13 @@ export function anchorFlexStyle(anchor: OverlayAnchor, marginCqw: string): { pad
   const { row, column } = anchorParts(anchor);
   const edge = (part: string) => (part === 'top' || part === 'left' ? 'flex-start' : part === 'bottom' || part === 'right' ? 'flex-end' : 'center');
   return { padding: marginCqw, justifyContent: edge(row), alignItems: edge(column) };
+}
+
+/** CSS for a dragged box on the canvas (inside a `container-type: size` layer): centred on (x%, y%), then held inside the
+ * edge margin exactly as `layoutOverlays` holds it, so the preview and the export agree. */
+export function freeTransform(xPercent: number, yPercent: number, edgeMargin: number): string {
+  const m = Number.isFinite(edgeMargin) ? edgeMargin : DEFAULT_EDGE_MARGIN;
+  const x = `clamp(calc(${m - xPercent}cqw), -50%, calc(${100 - m - xPercent}cqw - 100%))`;
+  const y = `clamp(calc(${m}cqw - ${yPercent}cqh), -50%, calc(100cqh - ${m}cqw - ${yPercent}cqh - 100%))`;
+  return `translate(${x}, ${y})`;
 }

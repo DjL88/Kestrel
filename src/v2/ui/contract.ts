@@ -1,5 +1,5 @@
 import type { ColourWords } from '../engineClient/colourWords';
-import type { ComponentType, CSSProperties } from 'react';
+import type { ComponentType, CSSProperties, ReactNode } from 'react';
 
 // Single Contract File for InFlight UI Shell
 // All components import their types ONLY from this file.
@@ -16,6 +16,8 @@ export interface PhotoHistogram {
   blue: number[];
   shadowClip: number;
   highlightClip: number;
+  /** Share of pixels at 0 (shadow) or 255 (highlight) in each channel, so clipping can be said in words per channel. */
+  channelClip?: Record<'red' | 'green' | 'blue', { shadow: number; highlight: number }>;
 }
 export type TileState = 'importing' | 'analysing' | 'ready' | 'unavailable';
 export type AssistMode = 'solo' | 'copilot' | 'autopilot';
@@ -264,6 +266,8 @@ export interface AssistSuggestion {
   applied: boolean;
   recipeDelta: Partial<EditRecipe>;
   comparison?: { before: string; after: string };
+  /** The same edit as ordered slider steps with real values (src/core/editingSequence.ts), for Watch and Learn. */
+  steps?: { id: string; label: string; from: string; to: string }[];
 }
 
 export interface PhotoExif {
@@ -462,6 +466,8 @@ export interface ExportRequest {
 export interface PhotoSurfaceProps {
   /** Editor-only coverage guide, never part of the photo recipe or export. */
   maskGuideId?: string;
+  /** Editor-only SVG content (mask outline and handles) drawn in the displayed picture's own pixels, over exactly that picture. */
+  maskOutline?: (picture: { width: number; height: number }) => ReactNode;
   photoId: string;
   variant: 'edited' | 'original';
   /** Non-destructive live preview of a hovered Look. Never stored or applied to original pixels. */

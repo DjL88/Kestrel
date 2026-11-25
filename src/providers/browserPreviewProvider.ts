@@ -79,8 +79,11 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
   registerBlob(stableKey: string, blob: Blob): void {
     const previous = this.localBlobs.get(stableKey);
-    if (previous !== blob) this.invalidateSourcePreviews(stableKey);
+    // Explicit registration replaces the previous source, not just its cache.
+    const wasLinked = this.linked.delete(stableKey);
+    this.linkedOrder = this.linkedOrder.filter(key => key !== stableKey);
     this.localBlobs.set(stableKey, blob);
+    if (wasLinked || previous !== blob) this.invalidateSourcePreviews(stableKey);
     if (this.offlineFullKeys.has(stableKey)) this.invalidateFullPreview(stableKey);
   }
 
@@ -98,13 +101,15 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
   registerLinked(stableKey: string, info: LinkedInfo): void {
     const previous = this.linked.get(stableKey);
-    if (previous && (previous.size !== info.size || previous.lastModified !== info.lastModified)) {
-      this.linkedGeneration.set(stableKey, (this.linkedGeneration.get(stableKey) ?? 0) + 1);
-      this.linkedLoading.delete(stableKey);
+    // Equal size and mtime are not source identity. A new reader may point to
+    // another drive, even when its metadata matches the previous registration.
+    const changed = previous !== info && (previous !== undefined || this.localBlobs.has(stableKey));
+    this.linked.set(stableKey, info);
+    if (changed) {
       this.localBlobs.delete(stableKey);
+      this.linkedOrder = this.linkedOrder.filter(key => key !== stableKey);
       this.invalidateSourcePreviews(stableKey);
     }
-    this.linked.set(stableKey, info);
     // A newly accessible original must replace a low-resolution offline fallback.
     if (this.offlineFullKeys.has(stableKey)) this.invalidateFullPreview(stableKey);
   }
@@ -380,7 +385,10 @@ export class BrowserPreviewProvider implements PreviewProvider {
         if (!oldest) break;
         this.developed.delete(oldest);
         this.invalidateFullPreview(oldest);
+        this.events.dispatchEvent(new CustomEvent('preview-invalidated', { detail: oldest }));
       }
+      // The cached preview URL was revoked: views holding it must ask again.
+      this.events.dispatchEvent(new CustomEvent('developed', { detail: stableKey }));
       return 'ready';
     } catch (error) {
       if (this.developing.get(stableKey) !== request) return 'superseded';

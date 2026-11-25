@@ -142,9 +142,15 @@ function refineBrush(made: BrushGrid | null, base: number, nx: number, ny: numbe
   return Math.max(base * scale, floor);
 }
 
+function invalidGradient(mask: Mask): boolean {
+  return mask.kind === 'linear' && (![mask.x1, mask.y1, mask.x2, mask.y2].every(Number.isFinite) || (mask.x1 === mask.x2 && mask.y1 === mask.y2));
+}
+
 /** Mask strength, 0 to 1, for every pixel of a canvas that shows `context.view`. */
 export function maskAlpha(mask: Mask, width: number, height: number, context: MaskContext): Float32Array {
   const alpha = new Float32Array(width * height);
+  // A collapsed gradient has no direction: never apply it to the entire image.
+  if (invalidGradient(mask)) return alpha;
   const { aspect, view } = context;
   const brush = (mask.kind === 'brush' || mask.kind === 'subject') && mask.strokes.length ? brushGrid(mask, aspect) : null;
   let dx = 0;
@@ -207,6 +213,7 @@ export function effectiveAlpha(mask: Mask, masks: readonly Mask[], width: number
   const candidates = masks.filter(candidate => candidate.id === mask.limit!.id && candidate.id !== mask.id);
   // A broken restriction must never broaden a previously local edit.
   if (candidates.length !== 1 || (mask.limit.mode !== 'intersect' && mask.limit.mode !== 'subtract')) return alpha.fill(0);
+  if (invalidGradient(candidates[0])) return alpha.fill(0);
   const limiter = maskAlpha(candidates[0], width, height, context);
   for (let i = 0; i < alpha.length; i += 1) alpha[i] *= mask.limit.mode === 'intersect' ? limiter[i] : 1 - limiter[i];
   return alpha;

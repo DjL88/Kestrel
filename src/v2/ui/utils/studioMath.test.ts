@@ -345,3 +345,16 @@ test('fit overlay reduces short stacked rows for panoramic formats and scales tr
   assert.equal(detectOverlayOverflow({ ...overlay, rows: fitted }, mockPhoto, [wide]).length, 0);
   assert.equal(fitOverlayRows({ ...overlay, rows: [] }, mockPhoto, [wide]).length, 0);
 });
+
+test('a row cannot be sized past the frame: the cap follows its words and the edge margin', async () => {
+  const { maxRowSizePx, capRowSize } = await import('./studioMath.ts');
+  const photo = { exif: { camera: 'Nikon Z 9', lens: 'NIKKOR Z 180-600mm f/5.6-6.3 VR', aperture: 'f/6.3', shutter: '1/3200s', iso: 1600, focalLength: '600mm', capturedAt: 'Not recorded', fileFormat: 'NEF', fileSizeMb: 0, dimensions: 'Not recorded', colourProfile: 'Not recorded' }, filename: 'a.NEF' } as never;
+  const row = { id: 'r', fields: ['camera', 'lens', 'aperture', 'shutter', 'iso'], customText: '', fontId: 'x', sizePx: 60, weight: 500, uppercase: false, letterSpacing: 0 } as never;
+  const roomy = maxRowSizePx(row, photo, { textLayoutMode: 'as-is', edgeMargin: 0 });
+  const tight = maxRowSizePx(row, photo, { textLayoutMode: 'as-is', edgeMargin: 12 });
+  assert.ok(roomy > tight, 'a bigger margin leaves less room');
+  assert.ok(roomy < 60, 'a long row cannot be 60 px');
+  assert.equal(capRowSize(row, photo, { textLayoutMode: 'as-is', edgeMargin: 4 }).sizePx, maxRowSizePx(row, photo, { textLayoutMode: 'as-is', edgeMargin: 4 }));
+  const empty = { ...(row as object), fields: [] } as never;
+  assert.equal(maxRowSizePx(empty, photo, { textLayoutMode: 'as-is', edgeMargin: 4 }), 120);
+});

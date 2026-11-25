@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useReducer, useRef, useState } from 'react';
 import type { TaskInfo } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import { engineScheduler } from '../../../core/engineScheduler';
-import { moveQueuedTask } from '../utils/queuedTaskOrder';
+import { moveQueuedTask, placeSubset, stableTaskOrder } from '../utils/queuedTaskOrder';
 
 interface TasksPanelProps {
   tasks: TaskInfo[];
@@ -34,18 +34,39 @@ export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCo
     const timer = window.setInterval(() => setClock(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, [tasks]);
-  const running = tasks.filter(task => active(task.status)).sort((a, b) => {
-    const weight = (status: TaskInfo['status']) => status === 'running' ? 0 : status === 'queued' ? 1 : 2;
-    return weight(a.status) - weight(b.status) || (b.priority ?? 0) - (a.priority ?? 0);
-  });
-  const queuedOrder = running.filter(task => task.status === 'queued').map(task => Number(task.id));
+  // Rows keep their place while they wait, run, pause and finish; only the person moves them.
+  // A task that finishes while this list is open stays in its row (marked done) until the
+  // person switches tab or closes Tasks, so nothing shifts under the pointer or focus.
+  const orderRef = useRef<string[]>([]);
+  const [, rerender] = useReducer((n: number) => n + 1, 0);
+  const running = tasks.filter(task => active(task.status));
+  const settled = new Set(orderRef.current);
+  const activePool = tasks.filter(task => active(task.status) || settled.has(task.id));
+  orderRef.current = stableTaskOrder(orderRef.current, activePool);
+  const byId = new Map(activePool.map(task => [task.id, task]));
+  const activeRows = orderRef.current.map(id => byId.get(id)).filter((task): task is TaskInfo => Boolean(task));
+  const queuedOrder = activeRows.filter(task => task.status === 'queued').map(task => Number(task.id));
+  const applyQueueOrder = (next: number[]) => {
+    orderRef.current = placeSubset(orderRef.current, next.map(String));
+    engineScheduler.reorder(next);
+    rerender();
+  };
+  const jump = (taskId: number) => {
+    if (queuedOrder.includes(taskId)) orderRef.current = placeSubset(orderRef.current, [taskId, ...queuedOrder.filter(id => id !== taskId)].map(String));
+    engineScheduler.jumpQueue(taskId);
+    rerender();
+  };
+  const chooseTab = (id: 'active' | 'completed') => {
+    orderRef.current = orderRef.current.filter(taskId => running.some(task => task.id === taskId));
+    setTab(id);
+  };
   const finished = tasks.filter(task => !active(task.status));
-  const shown = tab === 'active' ? running : finished;
+  const shown = tab === 'active' ? activeRows : finished;
   const allPaused = engineScheduler.isPausedAll();
   const canPauseAny = !allPaused && running.some(task => task.status === 'queued' || (task.pauseable && task.status === 'running'));
 
   const tabButton = (id: 'active' | 'completed', label: string, count: number) => (
-    <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+    <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => chooseTab(id)}
       className={`min-h-11 flex-1 rounded-[var(--radius-sm)] px-2 text-xs font-medium ${tab === id ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
       {label} ({count})
     </button>
@@ -85,7 +106,7 @@ export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCo
         const seconds = timing(task, clock);
         const queueIndex = queuedOrder.indexOf(taskId);
         return (
-          <article key={task.id} className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3">
+          <article key={task.id} data-testid="task-row" data-task-id={task.id} className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <p className="break-words text-xs font-semibold text-[var(--text-primary)]">{task.label}</p>
@@ -121,11 +142,11 @@ export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCo
                 className={controlStyle} aria-label={STRINGS.taskControls.pauseLabel(task.label)}>{STRINGS.taskControls.pause}</button>}
               {canResume && <button type="button" onClick={() => engineScheduler.resume(taskId)}
                 className={controlStyle} aria-label={STRINGS.taskControls.resumeLabel(task.label)}>{STRINGS.taskControls.resume}</button>}
-              {canPrioritise && task.pauseable && <button type="button" onClick={() => engineScheduler.jumpQueue(taskId)}
+              {canPrioritise && task.pauseable && <button type="button" onClick={() => jump(taskId)}
                 className={controlStyle} aria-label={STRINGS.taskControls.jumpLabel(task.label)}>{STRINGS.taskControls.jumpQueue}</button>}
-              {queueIndex > 0 && <button type="button" onClick={() => engineScheduler.reorder(moveQueuedTask(queuedOrder, taskId, -1))}
+              {queueIndex > 0 && <button type="button" onClick={() => applyQueueOrder(moveQueuedTask(queuedOrder, taskId, -1))}
                 className={controlStyle} aria-label={STRINGS.taskControls.upLabel(task.label)}>{STRINGS.taskControls.moveUp}</button>}
-              {queueIndex >= 0 && queueIndex < queuedOrder.length - 1 && <button type="button" onClick={() => engineScheduler.reorder(moveQueuedTask(queuedOrder, taskId, 1))}
+              {queueIndex >= 0 && queueIndex < queuedOrder.length - 1 && <button type="button" onClick={() => applyQueueOrder(moveQueuedTask(queuedOrder, taskId, 1))}
                 className={controlStyle} aria-label={STRINGS.taskControls.downLabel(task.label)}>{STRINGS.taskControls.moveDown}</button>}
               {active(task.status) && task.cancellable !== false && (
                 <button type="button" onClick={() => onCancelTask(task.id)} className={controlStyle}

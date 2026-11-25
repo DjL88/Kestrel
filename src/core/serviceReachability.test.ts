@@ -8,7 +8,7 @@ test('only expected JSON liveness is reachable; no credentials or redirects', as
   let called = false;
   const fetcher: typeof fetch = async (url, init) => {
     called = true;
-    assert.equal(url, 'https://example.test/healthz');
+    assert.equal(url, 'https://example.test/health');
     assert.equal(init?.credentials, 'omit');
     assert.equal(init?.redirect, 'error');
     assert.equal(init?.referrerPolicy, 'no-referrer');

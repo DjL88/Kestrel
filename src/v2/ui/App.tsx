@@ -32,10 +32,15 @@ import TasksPanel from './panels/TasksPanel';
 import CollageExportDialog from './dialogs/CollageExportDialog';
 import ExportDialog from './dialogs/ExportDialog';
 import RemovedPhotosDialog from './dialogs/RemovedPhotosDialog';
+import ShareDialog from './dialogs/ShareDialog';
+import { usePresence } from './shell/usePresence';
+import { PresenceAvatars, PresenceCursors } from './shell/PresenceLayer';
+import { collabClient } from '../../providers/collabClient';
+import { firebaseAuth } from '../../providers/firebaseAuth';
 import SettingsDialog from './dialogs/SettingsDialog';
 import ShortcutGuide from './dialogs/ShortcutGuide';
 import CommandPalette from './dialogs/CommandPalette';
-import { effectiveKeymap, loadKeymap, saveKeymap, type SavedKeymap } from './commands/keymap';
+import { chordLabel, effectiveKeymap, loadKeymap, saveKeymap, type SavedKeymap } from './commands/keymap';
 import { loadPad, resolveWithPad, savePad, type PadProfile } from './commands/pad';
 import KeyboardSettings from './dialogs/KeyboardSettings';
 import { commandById, type CommandDefinition } from './commands/registry';
@@ -64,6 +69,16 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   serviceBase?: string;
 } = {}) {
   const { store, actions } = useStore();
+  // Shared projects (#1387): contacted only when the person opens Share.
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareVersion, setShareVersion] = useState(0);
+  const [cursorsHidden, setCursorsHidden] = useState(false);
+  const closeShare = React.useCallback(() => { setShareOpen(false); setShareVersion((n) => n + 1); }, []);
+  const sharing = React.useMemo(() => collabClient(import.meta.env.VITE_KESTREL_CONTROL_PLANE_URL, () => firebaseAuth.idToken()), []);
+  const signedInName = React.useCallback(async () => {
+    const session = await firebaseAuth.current().catch(() => null);
+    return session ? (session.displayName?.trim() || session.email?.split('@')[0] || null) : null;
+  }, []);
   const connectivity = useConnectivity();
   const service = useServiceReachability(serviceBase);
   const health = projectsText.connections.health;
@@ -104,9 +119,12 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const changePad = React.useCallback((next: PadProfile) => { savePad(next); setPad(next); }, []);
   const changeKeymap = React.useCallback((next: SavedKeymap) => { saveKeymap(next); setSavedKeymap(next); }, []);
   const [maskGuide, setMaskGuide] = useState<{ photoId: string; maskId: string } | null>(null);
+  // The selected mask's hatched coverage overlay (O). Its outline stays on the canvas either way.
+  const [maskOverlayVisible, setMaskOverlayVisible] = useState(true);
   const [moreOpen, setMoreOpen] = useState(false);
   const [addingFormatFor, setAddingFormatFor] = useState<string | null>(null);
   const [collageEditingId, setCollageEditingId] = useState<string | null>(null);
+  const [collageSourceOpen, setCollageSourceOpen] = useState(false);
   const sheetDragY = useRef<number | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
@@ -129,6 +147,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
 
   const activePhoto =
     store.photos.find((p) => p.id === store.activePhotoId) ?? store.photos[0] ?? null;
+  const peers = usePresence(sharing, store.collage ? null : store.activeProjectId, activePhoto?.id ?? null, signedInName, shareVersion);
   const hoveredLook = store.looks.find((l) => l.id === store.hoveredLookId) ?? null;
   const runningTaskCount = store.tasks.filter((t) => t.status === 'running').length;
 
@@ -160,6 +179,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'view.grid': actions.setGridViewOpen(!store.gridViewOpen); break;
       case 'view.compare': actions.setCompareMode(!store.compareMode); break;
       case 'view.fullscreen': actions.toggleFullScreen(); break;
+      case 'view.maskOverlay': setMaskOverlayVisible((visible) => !visible); break;
       case 'edit.undo': actions.undo(); break;
       case 'edit.redo': actions.redo(); break;
       case 'edit.copy': actions.copyRecipe(); break;
@@ -314,6 +334,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onAddRow={actions.addOverlayRow}
             onUpdateRow={actions.updateOverlayRow}
             onRemoveRow={actions.removeOverlayRow}
+            onMoveRow={actions.moveOverlayRow}
+            onAddTextWatermark={actions.addTextWatermark}
+            onAddWatermarkVersion={actions.addWatermarkVersion}
+            onSetWatermarkSlot={actions.setWatermarkSlot}
             onAddCustomFont={actions.addCustomFont}
             onListDeviceFonts={actions.listDeviceFonts}
             onHasDeviceFont={actions.hasDeviceFont}
@@ -475,6 +499,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onBack={actions.backToProjects}
             onSetAssistMode={actions.setAssistMode}
             onExport={() => actions.setExportOpen(true)}
+            onShare={store.collage ? undefined : () => setShareOpen(true)}
+            presence={<PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(id) => actions.selectPhoto(id)} />}
             onOpenRemoved={() => actions.setRemovedOpen(true)}
             onOpenSettings={() => actions.setSettingsOpen(true)}
             onImport={actions.importPhotos}
@@ -539,7 +565,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   onBrowseProject={actions.browseCollageProjectPhotos} onAddFromProject={actions.addCollageProjectPhotos} PhotoSurface={store.PhotoSurface}
                   onChange={(next) => actions.updateCollage?.(next)}
                   onEditPhoto={(id) => { actions.selectPhoto(id); setCollageEditingId(id); }}
-                  onImport={actions.importPhotos} />
+                  onImport={actions.importPhotos}
+                  sourcePickerOpen={collageSourceOpen} onSourcePickerChange={setCollageSourceOpen} />
               ) : store.gridViewOpen ? (
                 <GridView
                   photos={store.photos}
@@ -562,6 +589,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 <Canvas
                   PhotoSurface={store.PhotoSurface}
                   maskGuideId={maskGuide?.photoId === activePhoto?.id ? maskGuide?.maskId : undefined}
+                  maskOverlayVisible={maskOverlayVisible}
+                  maskOverlayKey={keymap['view.maskOverlay'] ? chordLabel(keymap['view.maskOverlay'], IS_MAC) : undefined}
+                  onToggleMaskOverlay={() => setMaskOverlayVisible((visible) => !visible)}
+                  onSetMaskGeometry={actions.setMaskGeometry}
                   onOpenFormats={activePhoto ? () => {
                     actions.setPanelVisible('formats', true);
                     setAddingFormatFor(activePhoto.id);
@@ -637,6 +668,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onRunAutoCull={actions.runAutoCull}
                 onCreateCollage={store.collage ? undefined : actions.createCollageFromSelection}
                 collageMode={composingCollage}
+                onChooseFromProject={composingCollage && store.projects.some((p) => p.id !== store.activeProjectId) ? () => setCollageSourceOpen(true) : undefined}
                 onExportSelected={() => actions.setExportOpen(true)}
               />
             </div>
@@ -807,6 +839,17 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         selectedPhotoIds={store.selectedPhotoIds}
         onClose={() => actions.setExportOpen(false)}
         onExport={actions.runExport}
+      />
+
+      <PresenceCursors peers={peers} photoId={activePhoto?.id ?? null} hidden={cursorsHidden} />
+      <ShareDialog
+        open={shareOpen}
+        client={sharing}
+        localProjectId={store.activeProjectId}
+        projectName={store.projects.find((project) => project.id === store.activeProjectId)?.name ?? ''}
+        selectedPhotoIds={store.selectedPhotoIds}
+        displayName={signedInName}
+        onClose={closeShare}
       />
 
       <RemovedPhotosDialog

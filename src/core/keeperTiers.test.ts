@@ -68,3 +68,23 @@ test('Find More tiers count real originals, not flagged edit copies or demo fram
   frames[7].burstGroupId = 'copy-burst';
   assert.deepEqual(planKeeperTier(results, [...frames, copy, demo], 2, 'best'), [{ frameId: frames[7].id, decision: 'keep' }]);
 });
+
+
+test('Find More leaves a disputed or malformed observation for manual review', () => {
+  const { frames } = fixture();
+  const valid: CullSuggestion = { frameId: frames[7].id, decision: 'keep', confidence: 'high', score: 95, reason: 'subjectSharp' };
+  const other: CullSuggestion = { ...valid, frameId: frames[3].id, score: 92 };
+  const conflicts: CullSuggestion[] = [
+    { ...valid, decision: null, confidence: 'low', reason: 'noSubject' },
+    { ...valid, decision: 'reject', reason: 'duplicate' },
+    { ...valid, reason: 'unavailable' },
+    { ...valid, score: NaN },
+  ];
+  for (const conflict of conflicts) {
+    for (const input of [[valid, conflict, other], [conflict, valid, other]]) {
+      for (const tier of ['best', 'better', 'good'] as const) {
+        assert.deepEqual(planKeeperTier(input, frames, 4, tier), [{ frameId: other.frameId, decision: 'keep' }]);
+      }
+    }
+  }
+});

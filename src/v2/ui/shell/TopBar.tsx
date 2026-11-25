@@ -31,6 +31,10 @@ interface TopBarProps {
   onBack: () => void;
   onSetAssistMode: (mode: AssistMode) => void;
   onExport: () => void;
+  /** Opens Share (shared projects, #1387). Absent: no Share button. */
+  onShare?: () => void;
+  /** Who else is in this shared project (PresenceAvatars). */
+  presence?: React.ReactNode;
   onOpenRemoved: () => void;
   onOpenSettings: () => void;
   onImport: () => void;
@@ -68,6 +72,8 @@ export default function TopBar({
   onBack,
   onSetAssistMode,
   onExport,
+  onShare,
+  presence,
   onOpenRemoved,
   onOpenSettings,
   onImport,
@@ -399,6 +405,18 @@ export default function TopBar({
             </button>
           ))}
         </div>
+        {presence}
+        {onShare && (
+          <button
+            type="button"
+            onClick={onShare}
+            data-testid="share-button"
+            className="inline-flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-md)] border border-[var(--border-default)] px-2.5 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface-hover)] md:h-9 md:px-3.5"
+          >
+            <BrandIcon name="link" size={15} />
+            <span>{STRINGS.share.button}</span>
+          </button>
+        )}
         <button
           type="button"
           onClick={onExport}
@@ -438,7 +456,7 @@ function MenuItem({ icon, label, shortcut, disabled, checked, onClick }: MenuIte
         <BrandIcon name={icon} size={14} className="text-[var(--text-secondary)]" />
         <span className="truncate">{label}</span>
       </span>
-      <span className="flex items-center gap-1.5 shrink-0 text-[11px] text-[var(--text-muted)]">
+      <span className="flex items-center gap-1.5 shrink-0 text-[0.6875rem] text-[var(--text-muted)]">
         {checked && <BrandIcon name="check" size={12} className="text-[var(--brand-accent)]" />}
         {shortcut && <span className="font-mono">{shortcut}</span>}
       </span>

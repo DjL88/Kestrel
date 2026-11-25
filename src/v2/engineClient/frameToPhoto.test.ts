@@ -266,3 +266,15 @@ test('Auto that could not read a RAW says so in Co-pilot instead of "nothing to 
     assert.match(autoUnavailableSentence(cause, 'IMG_1.JPG'), /IMG_1\.JPG.*Nothing was changed/);
   }
 });
+
+test('a RAW with no recorded size takes its Original shape from the picture shown, never a 1 × 1 square', async () => {
+  const { originalFormatSize } = await import('./frameToPhoto.ts');
+  const raw = frame({ filename: 'DSC_0001.NEF', exif: {} as PhotoFrame['exif'] });
+  assert.equal(originalFormatSize(raw), null);
+  assert.deepEqual(originalFormatSize(raw, undefined, { width: 1620, height: 1080 }), { x: 0, y: 0, width: 1620, height: 1080 });
+  const photo = frameToPhoto(raw, { thumb: 'blob:t', preview: 'blob:p' }, { pixelSize: { width: 1620, height: 1080 } });
+  const original = photo.sizes.find((size) => size.id === 'orig-3x2')!;
+  assert.deepEqual([original.width, original.height, original.ratioLabel, original.enabled], [1620, 1080, '3:2', true]);
+  // Recorded EXIF dimensions still win over the shown picture.
+  assert.deepEqual(originalFormatSize(frame({ exif: { width: 6000, height: 4000 } as PhotoFrame['exif'] }), undefined, { width: 10, height: 10 }), { x: 0, y: 0, width: 6000, height: 4000 });
+});

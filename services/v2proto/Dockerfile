@@ -20,6 +20,8 @@ FROM node:24-alpine
 WORKDIR /app
 COPY --from=build /app/out/v2proto /app/site
 COPY services/v2proto/server.mjs /app/server.mjs
+# The public site's origin(s) for the sign-in origin check (one config value; scripts/site/set-domain.mjs).
+COPY config/public-site.json /app/config/public-site.json
 ENV NODE_ENV=production PORT=8080 V2PROTO_STATIC_ROOT=/app/site
 USER node
 EXPOSE 8080

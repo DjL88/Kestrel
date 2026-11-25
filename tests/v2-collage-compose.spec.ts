@@ -28,7 +28,39 @@ test('collage pages show collage tools, not the photo editor', async ({ page }) 
   await expect(root.getByTestId('collage-page')).toBeVisible();
   await expect(root.getByRole('button', { name: /Auto-Cull/ })).toHaveCount(0);
   await expect(root.getByText('Curated Looks')).toHaveCount(0);
-  await expect(root.getByRole('heading', { name: 'Layout' })).toBeVisible();
+  // Collage tools sit in a rail and side panel like the editor's, page size first.
+  const rail = root.getByRole('navigation', { name: 'Collage tools' });
+  await expect(rail.getByRole('button').first()).toHaveText('Page size');
+  await expect(root.getByRole('heading', { name: 'Page size' })).toBeVisible();
+  await rail.getByRole('button', { name: 'Layout' }).click();
+  await expect(root.getByRole('group', { name: 'Collage layout templates' })).toBeVisible();
+  await root.getByRole('button', { name: 'Close panel' }).click();
+  await expect(root.getByTestId('collage-tool-panel')).toHaveCount(0);
+});
+
+test('pages sit side by side and can be reordered and deleted; a page can have a background photograph', async ({ page }, info) => {
+  const { root } = await collageWithPhotos(page);
+  await root.getByTestId('collage-tool-background').click();
+  await root.getByLabel('Background photograph').selectOption({ label: 'collage-3.png' });
+  await expect(root.getByTestId('collage-page').getByTestId('collage-background-photo')).toBeVisible();
+
+  await root.getByTestId('collage-add-page').click();
+  await root.getByTestId('collage-add-page').click();
+  await expect(root.getByTestId(/^collage-page-card-/)).toHaveCount(3);
+  // The new page is active; the others show as previews beside it.
+  await expect(root.getByTestId('collage-page-preview-0')).toBeVisible();
+  await expect(root.getByTestId('collage-page-preview-0').getByTestId('collage-background-photo')).toBeVisible();
+
+  // Move page 1 (with the background) later, then delete the page now first.
+  await root.getByRole('button', { name: 'Move page 1 later' }).click();
+  await expect(root.getByTestId('collage-page-card-1').getByTestId('collage-background-photo')).toBeVisible();
+  await root.getByRole('button', { name: 'Delete page 1' }).click();
+  await expect(root.getByTestId(/^collage-page-card-/)).toHaveCount(2);
+  await expect(root.getByTestId('collage-page-card-0').getByTestId('collage-background-photo')).toBeVisible();
+  await expect(root.getByRole('button', { name: 'Delete page 1' })).toBeEnabled();
+  await root.getByRole('button', { name: 'Delete page 2' }).click();
+  await expect(root.getByRole('button', { name: 'Delete page 1' })).toBeDisabled();
+  await page.screenshot({ path: info.outputPath('collage-pages.png') });
 });
 
 test('photographs drag from the filmstrip onto windows, move and resize in them, and the page size re-lays the page', async ({ page }, info) => {
@@ -44,6 +76,26 @@ test('photographs drag from the filmstrip onto windows, move and resize in them,
   await tiles.nth(0).dragTo(root.getByTestId('collage-page'), { targetPosition: { x: 4, y: 4 } });
   await expect(root.getByTestId('collage-window-1')).toHaveAccessibleName(/collage-1\.png/);
   await expect(root.getByTestId('collage-window-2')).toHaveAccessibleName(/collage-(2|3)\.png/);
+
+  // Two empty windows took two photographs; the third got a new window where it was dropped (top left).
+  const added = root.getByTestId('collage-window-3');
+  await expect(added).toHaveAccessibleName(/collage-(1|2|3)\.png/);
+  await expect(root.getByText(/Added 1 new window where you dropped/)).toBeVisible();
+  const addedBox = (await added.boundingBox())!;
+  expect(addedBox.x + addedBox.width / 2).toBeLessThan(pageBox.x + pageBox.width / 2);
+  expect(addedBox.y + addedBox.height / 2).toBeLessThan(pageBox.y + pageBox.height / 2);
+  // An emptied window can be deleted, leaving the built-in three.
+  await added.click({ button: 'right' });
+  await page.getByRole('menu', { name: 'Window options' }).getByRole('menuitem', { name: /Remove photograph/ }).click();
+  await root.getByTestId('collage-delete-window').click();
+  await expect(root.getByTestId('collage-window-3')).toHaveCount(0);
+  // A page with its own windows shows no built-in layout as chosen until one is picked again.
+  await root.getByTestId('collage-tool-layout').click();
+  const threePanels = root.getByRole('group', { name: 'Collage layout templates' }).getByRole('button', { name: 'Three panels' });
+  await expect(threePanels).toHaveAttribute('aria-pressed', 'false');
+  await threePanels.click();
+  await expect(threePanels).toHaveAttribute('aria-pressed', 'true');
+  await expect(root.getByTestId('collage-window-0')).toHaveAccessibleName(/collage-2\.png/);
 
   // Select a window, pull its corner out to enlarge the photograph, then drag to move it.
   const win = root.getByTestId('collage-window-0');
@@ -82,7 +134,8 @@ test('photographs drag from the filmstrip onto windows, move and resize in them,
   // Three side-by-side windows on a square page become three rows on a tall story page.
   const columns = await Promise.all([0, 1, 2].map(async (i) => (await root.getByTestId(`collage-window-${i}`).boundingBox())!));
   expect(columns.every((c) => c.height > c.width)).toBe(true);
-  await root.getByLabel('Page size').selectOption('story');
+  await root.getByTestId('collage-tool-size').click();
+  await root.getByRole('combobox', { name: 'Page size' }).selectOption('story');
   await expect.poll(async () => {
     const rows = await Promise.all([0, 1, 2].map(async (i) => (await root.getByTestId(`collage-window-${i}`).boundingBox())!));
     return rows.every((r) => r.width > r.height);
