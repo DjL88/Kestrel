@@ -166,7 +166,8 @@ export async function scheduleV2PhotoExports(input: {
               try {
                 precise = await renderRaw16(original, frame.filename, image, variant.edit ?? DEFAULT_EDIT, frame.framing, { originalSha256, signal: ctx.signal });
               } catch (reason) {
-                // Only a refusal of the 16-bit path itself falls back; a changed or unreadable original still stops the export.
+                // Only a refusal of the 16-bit path itself (compression that cannot be classified) falls back; a changed or
+                // unreadable original still stops the export.
                 if (!(reason instanceof RawPrecisionUnavailableError)) throw reason;
                 ctx.stage(`8-bit export for ${frame.filename}: ${reason.message}`);
               }
