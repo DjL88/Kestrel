@@ -24,6 +24,9 @@ async function importPhoto(page: Page) {
   await studio.getByRole('button', { name: 'Import', exact: true }).tap();
   await (await picker).setFiles(Array.from({ length: 5 }, (_, i) => ({ name: `phone-test-${i + 1}.png`, mimeType: 'image/png', buffer: Buffer.from(png, 'base64') })));
   await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(5);
+  // Co-pilot offers Auto-cull after an import; the message sits over the filmstrip on a phone, so close it as a person would.
+  const dismiss = studio.getByRole('button', { name: 'Dismiss message' });
+  if (await dismiss.isVisible()) await dismiss.tap();
   return studio;
 }
 
