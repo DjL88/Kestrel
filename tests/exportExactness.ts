@@ -13,6 +13,16 @@ export interface DecodedPng { width: number; height: number; /** RGB, 8 bits per
 
 /** Decode an 8-bit, non-interlaced RGB or RGBA PNG to RGB. Anything else is refused, never approximated. */
 export function decodePng8(bytes: Uint8Array): DecodedPng {
+  const decoded = decodePng(bytes);
+  if (decoded.bitDepth !== 8) throw new Error(`Unsupported PNG layout: bit depth ${decoded.bitDepth}; an 8-bit PNG was expected.`);
+  return { width: decoded.width, height: decoded.height, rgb: decoded.rgb };
+}
+
+/**
+ * Decode a non-interlaced RGB or RGBA PNG of 8 or 16 bits per channel to RGB samples as stored: one byte per channel at
+ * 8 bits, two big-endian bytes per channel at 16 bits (so a row hash covers every 16-bit value exactly).
+ */
+export function decodePng(bytes: Uint8Array): DecodedPng & { bitDepth: 8 | 16 } {
   const buffer = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (buffer.readUInt32BE(0) !== 0x89504e47 || buffer.readUInt32BE(4) !== 0x0d0a1a0a) throw new Error('Not a PNG.');
   let at = 8, width = 0, height = 0, bitDepth = 0, colourType = 0, interlace = 0;
@@ -28,9 +38,10 @@ export function decodePng8(bytes: Uint8Array): DecodedPng {
     else if (type === 'IEND') break;
     at += 12 + length;
   }
-  if (bitDepth !== 8 || (colourType !== 2 && colourType !== 6) || interlace !== 0)
+  if ((bitDepth !== 8 && bitDepth !== 16) || (colourType !== 2 && colourType !== 6) || interlace !== 0)
     throw new Error(`Unsupported PNG layout: bit depth ${bitDepth}, colour type ${colourType}, interlace ${interlace}.`);
-  const channels = colourType === 6 ? 4 : 3;
+  const sample = bitDepth / 8;
+  const channels = (colourType === 6 ? 4 : 3) * sample;
   const stride = width * channels;
   const raw = inflateSync(Buffer.concat(idat));
   if (raw.length !== (stride + 1) * height) throw new Error('PNG image data has the wrong length.');
@@ -55,20 +66,24 @@ export function decodePng8(bytes: Uint8Array): DecodedPng {
       out[i] = value & 255;
     }
   }
-  if (channels === 3) return { width, height, rgb: rows };
-  const rgb = new Uint8Array(width * height * 3);
+  const depth = bitDepth as 8 | 16;
+  if (colourType === 2) return { width, height, rgb: rows, bitDepth: depth };
+  const rgb = new Uint8Array(width * height * 3 * sample);
+  const opaque = sample === 2 ? 0xffff : 0xff;
   for (let p = 0; p < width * height; p += 1) {
-    if (rows[p * 4 + 3] !== 255) throw new Error(`Exported pixel ${p % width},${Math.floor(p / width)} is not opaque.`);
-    rgb[p * 3] = rows[p * 4]; rgb[p * 3 + 1] = rows[p * 4 + 1]; rgb[p * 3 + 2] = rows[p * 4 + 2];
+    const alphaAt = (p * 4 + 3) * sample;
+    const alpha = sample === 2 ? (rows[alphaAt] << 8) | rows[alphaAt + 1] : rows[alphaAt];
+    if (alpha !== opaque) throw new Error(`Exported pixel ${p % width},${Math.floor(p / width)} is not opaque.`);
+    rgb.set(rows.subarray(p * 4 * sample, (p * 4 + 3) * sample), p * 3 * sample);
   }
-  return { width, height, rgb };
+  return { width, height, rgb, bitDepth: depth };
 }
 
 export const sha256 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 
 /** SHA-256 of each RGB row, so a mismatch can say where it starts without moving the whole picture between processes. */
-export function rowHashes(image: DecodedPng): string[] {
-  const stride = image.width * 3;
+export function rowHashes(image: DecodedPng & { bitDepth?: 8 | 16 }): string[] {
+  const stride = image.width * 3 * ((image.bitDepth ?? 8) / 8);
   return Array.from({ length: image.height }, (_, y) => sha256(image.rgb.subarray(y * stride, (y + 1) * stride)));
 }
 

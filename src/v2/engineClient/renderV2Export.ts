@@ -18,6 +18,9 @@ import { upscaleCanvasInPlace } from './upscaleCanvas';
 import { cappedContinuousLayout, continuousExportLayout, numberedSectionFilename } from './continuousExport';
 import type { Rgb16Image } from '../../core/master16';
 import { ditherRgb16ToRgba8, downscaleRgb16 } from '../../core/rgb16Output';
+import { blankRgb16, copyRgb16, cropRgb16, drawRgb16, fillRgb16, overlayRgba8OnRgb16, rgb8To16 } from '../../core/compose16';
+import { encodePng16, provePng } from '../../core/png16';
+import { frameLayers, visibleLayers } from '../../core/layers';
 
 /** Everything the overlay needs, resolved by the caller from the same description the canvas draws. */
 export interface OverlayDraw {
@@ -33,8 +36,14 @@ export interface OverlayDraw {
 
 export interface V2RenderResult {
   file: File; width: number; height: number; capped: boolean;
-  /** 'rgb16': edited at 16 bits from sensor data and rounded to 8 bits once, at the end. '8-bit': the canvas path. */
-  precision: 'rgb16' | '8-bit';
+  /**
+   * 'rgb16': edited, framed (crop, border, overlays, split) and written at 16 bits; a PNG is 16-bit, a JPEG is rounded
+   * to 8 bits once, as it is encoded. 'rgb16-edit': edited at 16 bits, then rounded once and framed on the 8-bit canvas
+   * (picture layers or an Output-scale enlargement, which are 8-bit steps today). '8-bit': the canvas path throughout.
+   */
+  precision: 'rgb16' | 'rgb16-edit' | '8-bit';
+  /** Bits per channel in the written file(s): 16 only for a PNG from the 16-bit path. */
+  bitsPerChannel: 8 | 16;
   /** Files in left-to-right order when exporting a continuous split. */
   sections?: File[];
 }
@@ -101,6 +110,69 @@ function drawContinuousInsideBorders(output: HTMLCanvasElement, picture: HTMLCan
   } finally {
     joined.width = 0;
     joined.height = 0;
+  }
+}
+
+/** One split section of a finished 8-bit canvas, encoded. Every section is cut from the same canvas. */
+async function encodeCanvasSection(output: HTMLCanvasElement, section: { x: number; width: number; height: number }, mimeType: string, profile: ExportProfile): Promise<Blob | null> {
+  const piece = document.createElement('canvas');
+  try {
+    piece.width = section.width; piece.height = section.height;
+    const context = piece.getContext('2d');
+    if (!context) throw new Error('Canvas unavailable for split export.');
+    context.drawImage(output, section.x, 0, section.width, section.height, 0, 0, section.width, section.height);
+    return await new Promise<Blob | null>((resolve) => piece.toBlob(resolve, mimeType, profile.format === 'jpeg' ? profile.quality : undefined));
+  } finally {
+    piece.width = 0; piece.height = 0;
+  }
+}
+
+/** A CSS colour as 16-bit sRGB, read through the canvas so every colour the 8-bit path accepts means the same here. */
+function cssColour16(colour: string): [number, number, number] {
+  const probe = document.createElement('canvas');
+  probe.width = 1; probe.height = 1;
+  const context = probe.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('Canvas unavailable');
+  context.fillStyle = '#ffffff';
+  context.fillStyle = colour;
+  context.fillRect(0, 0, 1, 1);
+  const [r, g, b] = context.getImageData(0, 0, 1, 1).data;
+  probe.width = 0; probe.height = 0;
+  return rgb8To16([r, g, b]);
+}
+
+/** `draw`, in 16 bits: the same border plan and the same placement, on RGB16 pixels. */
+function draw16(target: Rgb16Image, picture: Rgb16Image, crop: CropTransform) {
+  const border = crop.borderWidth ?? 0;
+  const geometry = planBorderFrame(target.width, target.height, picture.width, picture.height,
+    { placement: crop.borderPlacement ?? 'all', borderPercent: border, fit: crop.borderPlacement === 'auto' ? 'contain' : 'cover' });
+  if (border > 0 || crop.borderPlacement === 'auto') fillRgb16(target, cssColour16(crop.borderColour ?? '#ffffff'));
+  const inner = geometry.inner;
+  const place = cropPlacement(inner.width, inner.height, { width: picture.width, height: picture.height }, crop);
+  drawRgb16(target, picture, {
+    centreX: inner.x + inner.width / 2 + place.translateX, centreY: inner.y + inner.height / 2 + place.translateY,
+    rotateRad: place.rotateRad, scaleX: place.scaleX, scaleY: place.scaleY,
+    drawWidth: crop.borderPlacement === 'auto' ? geometry.photo.width : place.drawWidth,
+    drawHeight: crop.borderPlacement === 'auto' ? geometry.photo.height : place.drawHeight,
+    clip: { x: inner.x + place.clip.x, y: inner.y + place.clip.y, width: place.clip.width, height: place.clip.height },
+  });
+}
+
+/** `drawContinuousInsideBorders`, in 16 bits: one picture across the inner viewports, then shared out between the frames. */
+function drawContinuousInsideBorders16(output: Rgb16Image, picture: Rgb16Image, crop: CropTransform, sectionCount: SplitFrameCount) {
+  if (sectionCount === 1 || (!(crop.borderWidth && crop.borderWidth > 0) && crop.borderPlacement !== 'auto')) {
+    draw16(output, picture, crop);
+    return;
+  }
+  const sectionWidth = output.width / sectionCount;
+  const geometry = planBorderFrame(sectionWidth, output.height, picture.width, picture.height,
+    { placement: crop.borderPlacement ?? 'all', borderPercent: crop.borderWidth, fit: crop.borderPlacement === 'auto' ? 'contain' : 'cover' });
+  const { inner } = geometry;
+  const joined = blankRgb16(inner.width * sectionCount, inner.height);
+  draw16(joined, picture, { ...crop, borderWidth: 0 });
+  fillRgb16(output, cssColour16(crop.borderColour ?? '#ffffff'));
+  for (let i = 0; i < sectionCount; i += 1) {
+    copyRgb16(joined, { x: i * inner.width, y: 0, width: inner.width, height: inner.height }, output, i * sectionWidth + inner.x, inner.y);
   }
 }
 
@@ -260,6 +332,67 @@ export async function renderV2Export(
   // Edit only as many pixels as the output can show: the cover fit times the zoom, never above the picture's own size.
   const needed = Math.max(layout.width / fw, layout.height / fh) * crop.zoom;
   const scale = Math.min(1, needed, fitScale(fw, fh, limit));
+  const name = exportFilename(frame.filename, profile, !frame.isDemo && isRawPreviewFile(frame.filename));
+  const mimeType = profile.format === 'png' ? 'image/png' : 'image/jpeg';
+  // Picture layers (blend modes on the canvas) and the engine's enlargement are 8-bit steps; anything else stays 16-bit.
+  const layers = visibleLayers(frameLayers(frame.overlay)).length > 0;
+  const enlarges = up !== 1 && scale >= 1;
+  if (precise && !layers && !enlarges) {
+    const sized = downscaleRgb16(precise, Math.max(1, Math.round(fw * scale)), Math.max(1, Math.round(fh * scale)));
+    signal?.throwIfAborted();
+    const output16 = blankRgb16(layout.width, layout.height);
+    drawContinuousInsideBorders16(output16, sized, crop, sectionCount);
+    signal?.throwIfAborted();
+    if (overlay) {
+      await Promise.all(overlay.rows.map((row) => document.fonts?.load(`${row.weight} 16px ${row.family}`).catch(() => [])));
+      signal?.throwIfAborted();
+      // Text and watermark on a clear sheet, then laid over the 16-bit picture: only the pixels they cover change.
+      const sheet = document.createElement('canvas');
+      try {
+        sheet.width = layout.width; sheet.height = layout.height;
+        drawOverlay(sheet, overlay);
+        const context = sheet.getContext('2d', { willReadFrequently: true });
+        if (!context) throw new Error('Canvas unavailable');
+        overlayRgba8OnRgb16(output16, context.getImageData(0, 0, sheet.width, sheet.height).data);
+      } finally {
+        sheet.width = 0; sheet.height = 0;
+      }
+    }
+    // A JPEG is 8-bit by definition: round the finished frame once, with the deterministic dither, and cut from that.
+    const output8 = profile.format === 'png' ? null : document.createElement('canvas');
+    try {
+      if (output8) {
+        output8.width = layout.width; output8.height = layout.height;
+        const context = output8.getContext('2d');
+        if (!context) throw new Error('Canvas unavailable');
+        context.putImageData(new ImageData(ditherRgb16ToRgba8(output16), layout.width, layout.height), 0, 0);
+      }
+      const sections: File[] = [];
+      for (const section of layout.sections) {
+        signal?.throwIfAborted();
+        let blob: Blob | null;
+        if (!output8) {
+          const piece = cropRgb16(output16, { x: section.x, y: 0, width: section.width, height: section.height });
+          blob = await encodePng16(piece);
+          // Read the written header back: a 16-bit RGB PNG of exactly this size, or nothing is saved.
+          const proof = provePng(new Uint8Array(await blob.arrayBuffer()));
+          if (proof.bitDepth !== 16 || proof.colourType !== 2 || proof.width !== section.width || proof.height !== section.height || !proof.srgb)
+            throw new Error(`The 16-bit PNG for section ${section.index} did not read back as 16-bit RGB at ${section.width} × ${section.height} pixels. Nothing was saved.`);
+        } else {
+          blob = await encodeCanvasSection(output8, section, mimeType, profile);
+        }
+        signal?.throwIfAborted();
+        if (!blob || blob.type !== mimeType || blob.size === 0) throw new Error(`Could not encode split section ${section.index} at ${section.width} × ${section.height} pixels.`);
+        const tagged = await tagSrgb(blob, profile.format === 'png' ? 'png' : 'jpeg');
+        signal?.throwIfAborted();
+        sections.push(datedExport(tagged, numberedSectionFilename(name, section.index, sectionCount), date, frame.exif?.captureStamp));
+      }
+      return { file: sections[0], width: layout.sectionWidth, height: layout.height, capped: wasCapped, precision: 'rgb16',
+        bitsPerChannel: profile.format === 'png' ? 16 : 8, ...(sectionCount > 1 ? { sections } : {}) };
+    } finally {
+      if (output8) { output8.width = 0; output8.height = 0; }
+    }
+  }
   const picture = document.createElement('canvas');
   const output = document.createElement('canvas');
   try {
@@ -286,34 +419,24 @@ export async function renderV2Export(
       signal?.throwIfAborted();
       drawOverlay(output, overlay);
     }
-    const name = exportFilename(frame.filename, profile, !frame.isDemo && isRawPreviewFile(frame.filename));
-    const mimeType = profile.format === 'png' ? 'image/png' : 'image/jpeg';
     // Every section is cut from this SAME fully edited canvas. Never develop or
     // crop the photograph separately for each side of the seam.
     const sections: File[] = [];
     for (const section of layout.sections) {
       signal?.throwIfAborted();
-      const piece = document.createElement('canvas');
-      try {
-        piece.width = section.width; piece.height = section.height;
-        const context = piece.getContext('2d');
-        if (!context) throw new Error('Canvas unavailable for split export.');
-        context.drawImage(output, section.x, 0, section.width, section.height, 0, 0, section.width, section.height);
-        const blob = await new Promise<Blob | null>((resolve) => piece.toBlob(resolve, mimeType, profile.format === 'jpeg' ? profile.quality : undefined));
-        signal?.throwIfAborted();
-        if (!blob || blob.type !== mimeType || blob.size === 0) {
-          throw new Error(`Could not encode split section ${section.index} at ${section.width} × ${section.height} pixels.`);
-        }
-        // The canvas is sRGB but toBlob writes no colour tag; say so in the file (iccEmbed.ts).
-        const tagged = await tagSrgb(blob, profile.format === 'png' ? 'png' : 'jpeg');
-        signal?.throwIfAborted();
-        const sectionName = numberedSectionFilename(name, section.index, sectionCount);
-        sections.push(datedExport(tagged, sectionName, date, frame.exif?.captureStamp));
-      } finally {
-        piece.width = 0; piece.height = 0;
+      const blob = await encodeCanvasSection(output, section, mimeType, profile);
+      signal?.throwIfAborted();
+      if (!blob || blob.type !== mimeType || blob.size === 0) {
+        throw new Error(`Could not encode split section ${section.index} at ${section.width} × ${section.height} pixels.`);
       }
+      // The canvas is sRGB but toBlob writes no colour tag; say so in the file (iccEmbed.ts).
+      const tagged = await tagSrgb(blob, profile.format === 'png' ? 'png' : 'jpeg');
+      signal?.throwIfAborted();
+      const sectionName = numberedSectionFilename(name, section.index, sectionCount);
+      sections.push(datedExport(tagged, sectionName, date, frame.exif?.captureStamp));
     }
-    return { file: sections[0], width: layout.sectionWidth, height: layout.height, capped: wasCapped, precision: precise ? 'rgb16' : '8-bit',
+    return { file: sections[0], width: layout.sectionWidth, height: layout.height, capped: wasCapped, precision: precise ? 'rgb16-edit' : '8-bit',
+      bitsPerChannel: 8,
       ...(sectionCount > 1 ? { sections } : {}) };
   } finally {
     picture.width = 0; picture.height = 0; output.width = 0; output.height = 0;

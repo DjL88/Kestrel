@@ -2,15 +2,15 @@ import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { unzipSync } from 'fflate';
 import { mosaic } from './rawFixture';
-import { decodePng8, licensedRaw, LICENSED_RAWS, rowHashes, sha256 } from './exportExactness';
+import { decodePng, decodePng8, licensedRaw, LICENSED_RAWS, rowHashes, sha256 } from './exportExactness';
 
 /**
  * Board job p5-export (G09): full-size exports are exact, and originals are never touched.
  *
  * Through the real V2 app (import, develop, Export dialog, ZIP download), prove that:
  *  1. a full-size PNG export is pixel-for-pixel the intended render: for a PNG original, its own pixels; for a RAW, the
- *     16-bit sensor develop rounded once to 8 bits (`openRaw16` → `editRaw16` → `ditherRgb16ToRgba8`), computed
- *     independently in the same browser;
+ *     16-bit sensor develop itself, written as a 16-bit PNG with no 8-bit step (`openRaw16` → `editRaw16`, every
+ *     16-bit value), computed independently in the same browser;
  *  2. the exported "Original file: exact copy" is byte-identical to what was imported;
  *  3. the original's bytes are identical before and after import, develop and every export.
  * Files are read back with a Node PNG decoder (tests/exportExactness.ts), so the proof is of the bytes on disk.
@@ -127,21 +127,19 @@ async function rawReference(page: Page, root: ReturnType<Page['locator']>, filen
     // @ts-ignore Browser module resolved by Vite dev server.
     const { openRaw16, editRaw16 } = await import('/src/providers/rawMaster16.ts');
     // @ts-ignore Browser module resolved by Vite dev server.
-    const { ditherRgb16ToRgba8 } = await import('/src/core/rgb16Output.ts');
-    // @ts-ignore Browser module resolved by Vite dev server.
     const { DEFAULT_EDIT } = await import('/src/core/photoEdits.ts');
     const hex = (buffer: ArrayBuffer) => [...new Uint8Array(buffer)].map(b => b.toString(16).padStart(2, '0')).join('');
     const original = await (await fetch(url)).blob();
     const before = hex(await crypto.subtle.digest('SHA-256', await original.arrayBuffer()));
     const picture = await openRaw16(original, filename);
     const edited = await editRaw16(picture, img, DEFAULT_EDIT, undefined);
-    const rgba = ditherRgb16ToRgba8(edited);
+    // Each 16-bit value as two big-endian bytes, as a 16-bit PNG stores it.
     const rows: string[] = [];
-    const row = new Uint8Array(edited.width * 3);
+    const row = new Uint8Array(edited.width * 6);
     for (let y = 0; y < edited.height; y += 1) {
-      for (let x = 0; x < edited.width; x += 1) {
-        const from = (y * edited.width + x) * 4;
-        row[x * 3] = rgba[from]; row[x * 3 + 1] = rgba[from + 1]; row[x * 3 + 2] = rgba[from + 2];
+      for (let i = 0; i < edited.width * 3; i += 1) {
+        const value = edited.data[y * edited.width * 3 + i];
+        row[i * 2] = value >> 8; row[i * 2 + 1] = value & 0xff;
       }
       rows.push(hex(await crypto.subtle.digest('SHA-256', row)));
     }
@@ -159,7 +157,8 @@ async function proveRaw(page: Page, filename: string, bytes: Buffer, timeout: nu
   const developed = Object.entries(await exportZip(page, root, false));
   expect(developed).toHaveLength(1);
   expect(developed[0][0]).toMatch(/\.png$/);
-  const exported = decodePng8(developed[0][1]);
+  const exported = decodePng(developed[0][1]);
+  expect(exported.bitDepth, 'a PNG of a RAW is written at 16 bits, never rounded to 8 on the way').toBe(16);
   expect([exported.width, exported.height], 'full size: the developed sensor picture, never downsampled').toEqual([reference.width, reference.height]);
   expectSameRows(rowHashes(exported), reference.rows, filename);
 
@@ -170,7 +169,7 @@ async function proveRaw(page: Page, filename: string, bytes: Buffer, timeout: nu
   expect(sha256(bytes), 'original after export').toBe(before);
 }
 
-test('export exactness: a full-size PNG export of a RAW is its 16-bit develop rounded once, and the RAW is untouched', async ({ page }) => {
+test('export exactness: a full-size PNG export of a RAW is its 16-bit develop, value for value, and the RAW is untouched', async ({ page }) => {
   await proveRaw(page, 'synthetic-z8.dng', Buffer.from(mosaic), 60_000);
 });
 

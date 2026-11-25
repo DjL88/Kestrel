@@ -80,6 +80,54 @@ export function provePng(bytes: ArrayBuffer | Uint8Array): PngProof {
   return proof;
 }
 
+/**
+ * Read a 16-bit RGB PNG back to its pixels (every PNG filter, CRCs checked by `provePng`). For proving what an export
+ * really contains, value by value, never for guessing. Refuses any other kind of PNG.
+ */
+export async function readPng16(bytes: ArrayBuffer | Uint8Array): Promise<Rgb16Image> {
+  const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const proof = provePng(view);
+  if (proof.bitDepth !== 16 || proof.colourType !== 2) throw new Error(`Not a 16-bit RGB PNG (bit depth ${proof.bitDepth}, colour type ${proof.colourType}).`);
+  const data = new DataView(view.buffer, view.byteOffset, view.byteLength);
+  const idat: Uint8Array[] = [];
+  for (let at = 8; at + 12 <= view.length;) {
+    const length = data.getUint32(at);
+    const type = String.fromCharCode(...view.subarray(at + 4, at + 8));
+    if (type === 'IDAT') idat.push(view.slice(at + 8, at + 8 + length));
+    if (type === 'IEND') break;
+    at += 12 + length;
+  }
+  if (view[8 + 8 + 12] !== 0) throw new Error('Interlaced PNGs are not read here.');
+  const inflated = new Uint8Array(await new Response(new Blob(idat as Uint8Array<ArrayBuffer>[]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer());
+  const { width, height } = proof;
+  const stride = width * 6;
+  if (inflated.length !== height * (stride + 1)) throw new Error('The PNG picture data has the wrong length.');
+  const rows = new Uint8Array(height * stride);
+  for (let y = 0; y < height; y += 1) {
+    const filter = inflated[y * (stride + 1)];
+    const line = inflated.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
+    const out = y * stride;
+    for (let i = 0; i < stride; i += 1) {
+      const left = i >= 6 ? rows[out + i - 6] : 0;
+      const up = y > 0 ? rows[out - stride + i] : 0;
+      const corner = y > 0 && i >= 6 ? rows[out - stride + i - 6] : 0;
+      let value: number;
+      if (filter === 0) value = line[i];
+      else if (filter === 1) value = line[i] + left;
+      else if (filter === 2) value = line[i] + up;
+      else if (filter === 3) value = line[i] + ((left + up) >> 1);
+      else if (filter === 4) {
+        const p = left + up - corner, pa = Math.abs(p - left), pb = Math.abs(p - up), pc = Math.abs(p - corner);
+        value = line[i] + (pa <= pb && pa <= pc ? left : pb <= pc ? up : corner);
+      } else throw new Error(`Unknown PNG filter ${filter}.`);
+      rows[out + i] = value & 0xff;
+    }
+  }
+  const pixels = new Uint16Array(width * height * 3);
+  for (let i = 0; i < pixels.length; i += 1) pixels[i] = (rows[i * 2] << 8) | rows[i * 2 + 1];
+  return { width, height, data: pixels };
+}
+
 const PNG_SIGNATURE = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
 
 function chunk(type: string, body: Uint8Array): Uint8Array {
