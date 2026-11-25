@@ -1,3 +1,4 @@
+import { createTimedSession } from './modelTiming';
 import { Sha256Stream } from '../core/sha256';
 import { OCR_RECOGNISE, decodeText, detectorSize, recogniserWidth, textBoxes, type TextBox } from '../core/textOcr';
 import { friendlyToolError } from '../core/toolErrors';
@@ -94,8 +95,8 @@ function load(): Promise<Loaded> {
     ort.env.wasm.numThreads = 1;
     ort.env.wasm.proxy = false;
     const options = { executionProviders: ['wasm'] };
-    const detect = await ort.InferenceSession.create(bytes.detect!, options);
-    const recognise = await ort.InferenceSession.create(bytes.recognise!, options);
+    const detect = await createTimedSession(ort, 'markings-reader.detect', bytes.detect!, options);
+    const recognise = await createTimedSession(ort, 'markings-reader.recognise', bytes.recognise!, options);
     return { ort, detect, recognise, characters: dictionary.default.characters };
   })().catch((error) => {
     loading = null;

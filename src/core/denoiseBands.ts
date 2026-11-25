@@ -1,9 +1,9 @@
-import type { Mask } from './maskTypes';
+import { isDenoiseKey, type Mask } from './maskTypes';
 
 /** Only denoise-only recipes can use this bounded path. Other local operations
  * may have wider or sequential neighbourhood dependencies. */
 export function denoiseOnlyMasks(masks: readonly Mask[] | undefined): boolean {
-  return !!masks?.length && masks.every(mask => Object.keys(mask.edit).every(key => key === 'denoise'));
+  return !!masks?.length && masks.every(mask => Object.keys(mask.edit).every(isDenoiseKey));
 }
 
 export interface DenoiseBand { y: number; rows: number; start: number; height: number }
@@ -27,7 +27,8 @@ export function* denoiseBands(width: number, height: number, budget = 1_000_000,
  * hidden layers, ordinary denoise masks, limits and per-instance overrides.
  */
 export function denoiseHalo(masks: readonly Mask[]): number {
-  return 2 * masks.filter(mask => !mask.hidden && !!mask.edit.denoise).length;
+  // Colour and grain each reach two rows, and run one after the other.
+  return masks.reduce((rows, mask) => rows + (mask.hidden ? 0 : (mask.edit.denoise ? 2 : 0) + (mask.edit.denoiseLuminance ? 2 : 0)), 0);
 }
 
 /** Retain only the original rows needed by the next strip. Reading from a
