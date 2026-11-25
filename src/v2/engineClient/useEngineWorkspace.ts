@@ -1764,7 +1764,18 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     activePhotoId: activeId,
     selectedPhotoIds: selected,
     reviewingPhotoIds: reviewingIds,
-    tasks: visibleTasks(taskList.filter((task) => task.state === 'running' || task.state === 'queued' || task.state === 'paused').map(taskToInfo), Object.values(taskHistory), clock),
+    // Finished tasks join the history in an effect, one render after the store marks them done. Merge them here too,
+    // so a task that has just finished is never missing from both lists (the Tasks panel would lose its row).
+    tasks: visibleTasks(
+      taskList.filter((task) => task.state === 'running' || task.state === 'queued' || task.state === 'paused').map(taskToInfo),
+      Object.values({
+        ...taskHistory,
+        ...Object.fromEntries(taskList.filter((task) => task.state === 'done' || task.state === 'failed' || task.state === 'cancelled')
+          .filter((task) => !taskHistory[String(task.id)])
+          .map((task) => { const info = taskToInfo({ ...task, endedAt: task.endedAt ?? Date.now() }); return [info.id, info]; })),
+      }),
+      clock,
+    ),
     canUndo: Boolean(state?.undoStack.length) || (activeFrame?.editHistory?.cursor ?? 0) > 0,
     canRedo: Boolean(state?.redoStack.length) || (activeFrame?.editHistory ? activeFrame.editHistory.cursor < activeFrame.editHistory.steps.length : false),
     clipboardRecipe: clipboard,
