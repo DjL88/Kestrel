@@ -715,7 +715,7 @@ export const nl: AreaTranslation<typeof source> = {
       featherHelp: "Hoe geleidelijk het vignet invalt. Links geeft een harde rand, rechts de zachtste overgang. 50 is de standaard.",
       hard: "Hard",
       soft: "Zacht",
-      highlights: "Hoge lichten",
+      highlights: "Hoge lichten beschermen",
       highlightsHelp: "Spaart heldere delen bij de randen, zoals lucht of een witte vogel, bij een donkerder of gekleurd vignet. Heeft geen effect als de randen lichter worden gemaakt.",
       shapeOff: "Stel eerst een hoeveelheid, kleursterkte of randvervaging in; dit geeft het vignet daarna zijn vorm.",
       roughness: "Ruwheid van de korrel",

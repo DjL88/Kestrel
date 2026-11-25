@@ -716,7 +716,7 @@ export const gd: AreaTranslation<typeof source> = {
       featherHelp: "Cho mean air mhean ’s a thig an vignette a-steach. Bheir an taobh clì oir chruaidh, an taobh deas an crìonadh as buige. Is e 50 an àbhaist.",
       hard: "Cruaidh",
       soft: "Bog",
-      highlights: "Soillsean",
+      highlights: "Dìon na soillsean",
       highlightsHelp: "Glèidhidh e raointean soilleir faisg air na h-oirean, leithid adhar no eun geal, o vignette nas dorcha no dathte. Chan eil buaidh aige nuair a thèid na h-oirean a shoillseachadh.",
       shapeOff: "Suidhich meud, neart datha no sgleò oir an toiseach; cumaidh seo an vignette an uairsin.",
       roughness: "Gairbhead a’ ghràinne",

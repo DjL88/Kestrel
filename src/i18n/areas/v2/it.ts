@@ -715,7 +715,7 @@ export const it: AreaTranslation<typeof source> = {
       featherHelp: "Quanto gradualmente compare la vignettatura. A sinistra un bordo netto, a destra la sfumatura più morbida. 50 è il valore standard.",
       hard: "Netto",
       soft: "Morbido",
-      highlights: "Alte luci",
+      highlights: "Proteggi alte luci",
       highlightsHelp: "Protegge le zone chiare vicino ai bordi, come il cielo o un uccello bianco, da una vignettatura più scura o colorata. Non ha effetto quando i bordi vengono schiariti.",
       shapeOff: "Imposta prima una quantità, un’intensità del colore o una sfocatura dei bordi; questo dà poi forma alla vignettatura.",
       roughness: "Ruvidità della grana",

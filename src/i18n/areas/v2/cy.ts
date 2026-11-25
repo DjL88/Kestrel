@@ -715,7 +715,7 @@ export const cy: AreaTranslation<typeof source> = {
       featherHelp: "Pa mor raddol mae’r fignet yn pylu i mewn. Mae’r chwith yn rhoi ymyl galed, y dde y pylu meddalaf. 50 yw’r safon.",
       hard: "Caled",
       soft: "Meddal",
-      highlights: "Uchafbwyntiau",
+      highlights: "Diogelu uchafbwyntiau",
       highlightsHelp: "Yn arbed rhannau llachar ger yr ymylon, fel awyr neu aderyn gwyn, rhag fignet tywyllach neu liw. Does dim effaith pan fydd yr ymylon yn cael eu goleuo.",
       shapeOff: "Gosodwch faint, cryfder lliw neu niwlio ymyl yn gyntaf; mae hyn wedyn yn siapio’r fignet.",
       roughness: "Garwedd grawn",

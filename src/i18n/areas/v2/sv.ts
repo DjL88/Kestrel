@@ -715,7 +715,7 @@ export const sv: AreaTranslation<typeof source> = {
       featherHelp: "Hur gradvis vinjetten tonar in. Vänster ger en skarp kant, höger den mjukaste övergången. 50 är standard.",
       hard: "Hård",
       soft: "Mjuk",
-      highlights: "Högdagrar",
+      highlights: "Skydda högdagrar",
       highlightsHelp: "Skonar ljusa partier nära kanterna, som himmel eller en vit fågel, från en mörkare eller färgad vinjett. Har ingen effekt när kanterna ljusas upp.",
       shapeOff: "Ställ först in en mängd, färgstyrka eller kantoskärpa; detta formar sedan vinjetten.",
       roughness: "Kornets grovhet",

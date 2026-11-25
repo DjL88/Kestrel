@@ -715,7 +715,7 @@ export const is: AreaTranslation<typeof source> = {
       featherHelp: "Hversu hægt skyggingin kemur fram. Vinstri gefur skarpa brún, hægri mýkstu umskiptin. 50 er staðlað.",
       hard: "Skarpt",
       soft: "Mjúkt",
-      highlights: "Ljósir fletir",
+      highlights: "Vernda ljósa fleti",
       highlightsHelp: "Hlífir ljósum svæðum nálægt brúnunum, svo sem himni eða hvítum fugli, við dekkri eða litaðri skyggingu. Hefur engin áhrif þegar brúnirnar eru lýstar.",
       shapeOff: "Stilltu fyrst magn, litstyrk eða brúnamýkingu; þetta mótar síðan skygginguna.",
       roughness: "Grófleiki korna",

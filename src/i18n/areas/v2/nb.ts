@@ -715,7 +715,7 @@ export const nb: AreaTranslation<typeof source> = {
       featherHelp: "Hvor gradvis vignetten kommer inn. Venstre gir en hard kant, høyre den mykeste overgangen. 50 er standard.",
       hard: "Hard",
       soft: "Myk",
-      highlights: "Høylys",
+      highlights: "Beskytt høylys",
       highlightsHelp: "Skåner lyse områder nær kantene, som himmel eller en hvit fugl, fra en mørkere eller farget vignett. Har ingen virkning når kantene gjøres lysere.",
       shapeOff: "Still først inn en mengde, fargestyrke eller kantuskarphet; dette former deretter vignetten.",
       roughness: "Kornets ruhet",

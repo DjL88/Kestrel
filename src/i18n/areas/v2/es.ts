@@ -715,7 +715,7 @@ export const es: AreaTranslation<typeof source> = {
       featherHelp: "Lo gradual que aparece la viñeta. A la izquierda da un borde duro; a la derecha, el desvanecimiento más suave. 50 es el estándar.",
       hard: "Duro",
       soft: "Suave",
-      highlights: "Altas luces",
+      highlights: "Proteger altas luces",
       highlightsHelp: "Protege las zonas claras cerca de los bordes, como el cielo o un ave blanca, de una viñeta más oscura o de color. No tiene efecto cuando los bordes se aclaran.",
       shapeOff: "Ajusta primero una cantidad, una intensidad de color o un desenfoque de borde; esto da luego forma a la viñeta.",
       roughness: "Rugosidad del grano",

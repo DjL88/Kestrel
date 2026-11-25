@@ -715,7 +715,7 @@ export const pt: AreaTranslation<typeof source> = {
       featherHelp: "Quão gradualmente a vinheta aparece. À esquerda dá uma margem dura; à direita, o esbatimento mais suave. 50 é o padrão.",
       hard: "Duro",
       soft: "Suave",
-      highlights: "Altas luzes",
+      highlights: "Proteger altas luzes",
       highlightsHelp: "Poupa as zonas claras junto às margens, como o céu ou uma ave branca, de uma vinheta mais escura ou colorida. Não tem efeito quando as margens são clareadas.",
       shapeOff: "Defina primeiro uma quantidade, intensidade de cor ou desfoque das margens; isto dá depois forma à vinheta.",
       roughness: "Rugosidade do grão",

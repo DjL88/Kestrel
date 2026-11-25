@@ -715,7 +715,7 @@ export const fr: AreaTranslation<typeof source> = {
       featherHelp: "La progressivité avec laquelle le vignetage apparaît. À gauche, un bord net ; à droite, le fondu le plus doux. 50 est la valeur standard.",
       hard: "Net",
       soft: "Doux",
-      highlights: "Hautes lumières",
+      highlights: "Protéger les hautes lumières",
       highlightsHelp: "Préserve les zones claires près des bords, comme le ciel ou un oiseau blanc, d’un vignetage plus sombre ou coloré. Sans effet lorsque les bords sont éclaircis.",
       shapeOff: "Réglez d’abord une intensité, une force de couleur ou un flou des bords ; ceci donne ensuite sa forme au vignetage.",
       roughness: "Rugosité du grain",

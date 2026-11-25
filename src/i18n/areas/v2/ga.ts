@@ -718,7 +718,7 @@ export const ga: AreaTranslation<typeof source> = {
       featherHelp: "Cé chomh céimseach a thagann an vinéit isteach. Tugann an taobh clé imeall crua, an taobh deas an céimniú is boige. Is é 50 an caighdeán.",
       hard: "Crua",
       soft: "Bog",
-      highlights: "Buaicphointí",
+      highlights: "Cosain buaicphointí",
       highlightsHelp: "Spárálann sé limistéir gheala gar do na himill, mar spéir nó éan bán, ó vinéit níos dorcha nó daite. Níl aon éifeacht aige nuair a dhéantar na himill níos gile.",
       shapeOff: "Socraigh méid, neart datha nó doiléiriú imill ar dtús; cuireann sé seo cruth ar an vinéit ansin.",
       roughness: "Gairbhe an ghráinne",

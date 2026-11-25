@@ -786,7 +786,7 @@ export const source = {
       featherHelp: "How gradually the vignette fades in. Left gives a hard edge, right the softest fade. 50 is the standard.",
       hard: "Hard",
       soft: "Soft",
-      highlights: "Highlights",
+      highlights: "Protect highlights",
       highlightsHelp: "Spares bright areas near the edges, such as sky or a white bird, from a darker or coloured vignette. It has no effect when the edges are lightened.",
       shapeOff: "Set an amount, colour strength or edge blur first; this then shapes the vignette.",
       roughness: "Grain roughness",

@@ -715,7 +715,7 @@ export const da: AreaTranslation<typeof source> = {
       featherHelp: "Hvor gradvist vignetten toner ind. Venstre giver en skarp kant, højre den blødeste overgang. 50 er standard.",
       hard: "Hård",
       soft: "Blød",
-      highlights: "Højlys",
+      highlights: "Beskyt højlys",
       highlightsHelp: "Skåner lyse områder nær kanterne, fx himmel eller en hvid fugl, for en mørkere eller farvet vignet. Har ingen virkning, når kanterne gøres lysere.",
       shapeOff: "Indstil først en mængde, farvestyrke eller kantsløring; dette former derefter vignetten.",
       roughness: "Kornets ruhed",

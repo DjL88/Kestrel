@@ -715,7 +715,7 @@ export const de: AreaTranslation<typeof source> = {
       featherHelp: "Wie allmählich die Vignette einsetzt. Links ergibt eine harte Kante, rechts den weichsten Übergang. 50 ist der Standard.",
       hard: "Hart",
       soft: "Weich",
-      highlights: "Lichter",
+      highlights: "Lichter schützen",
       highlightsHelp: "Schont helle Bereiche nahe den Rändern, etwa Himmel oder einen weißen Vogel, vor einer dunkleren oder farbigen Vignette. Beim Aufhellen der Ränder hat es keine Wirkung.",
       shapeOff: "Stellen Sie zuerst eine Stärke, Farbstärke oder Randunschärfe ein; dies formt dann die Vignette.",
       roughness: "Körnungsrauheit",

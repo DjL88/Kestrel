@@ -716,7 +716,7 @@ export const fi: AreaTranslation<typeof source> = {
       featherHelp: "Kuinka asteittain vinjetti tulee esiin. Vasemmalla terävä reuna, oikealla pehmein häivytys. 50 on vakio.",
       hard: "Terävä",
       soft: "Pehmeä",
-      highlights: "Kirkkaat kohdat",
+      highlights: "Suojaa kirkkaat kohdat",
       highlightsHelp: "Säästää reunojen lähellä olevat kirkkaat alueet, kuten taivaan tai valkoisen linnun, tummemmalta tai värilliseltä vinjetiltä. Ei vaikuta, kun reunoja vaalennetaan.",
       shapeOff: "Aseta ensin määrä, värin voimakkuus tai reunan sumennus; tämä muotoilee sitten vinjetin.",
       roughness: "Rakeisuuden karkeus",
