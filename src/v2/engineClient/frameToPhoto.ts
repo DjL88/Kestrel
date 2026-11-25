@@ -23,6 +23,8 @@ import { sameRecipe } from '../../core/naturalAuto';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { STRINGS } from '../ui/strings';
 import { engineText } from '../../i18n/areas/engine';
+import { displaySpeciesName } from '../../core/speciesNames';
+import { speciesNameIndex } from '../../providers/speciesNames';
 import type { AssistSuggestion, EditRecipe, PhotoHistogram } from '../ui/contract';
 import type { Task } from '../../core/taskStore';
 import { buildEditingSequence } from '../../core/editingSequence';
@@ -128,11 +130,13 @@ export function vehicleWordsOf(frame: Pick<PhotoFrame, 'vehicle'>): { vehicleLab
 
 /** The subject name for a photo. A name the app suggested itself is marked as a suggestion; nothing is shown when unknown. */
 export function speciesLabelOf(frame: Pick<PhotoFrame, 'subjectNames' | 'tags' | 'autoTags'>): string | undefined {
+  // Shown in the person's language: the local name, else the scientific name; a name nobody knows stays as stored.
+  const shown = (name: string) => displaySpeciesName(name, speciesNameIndex()).name;
   const chosen = frame.subjectNames?.[0];
-  if (chosen) return chosen;
+  if (chosen) return shown(chosen);
   const tag = frame.tags?.[0];
   if (!tag) return undefined;
-  return frame.autoTags?.includes(tag) ? engineText.suggestedName(tag) : tag;
+  return frame.autoTags?.includes(tag) ? engineText.suggestedName(shown(tag)) : shown(tag);
 }
 
 export function tileStateFor(urls: FrameUrls | undefined): TileState {
