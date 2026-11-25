@@ -593,6 +593,14 @@ export const sv: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `Lägg till ${n} foton från molnet på den här enheten (cirka ${credits} krediter)`,
     cloudOriginals: (n: number, credits: number) => `Ladda ner ${n} original (cirka ${credits} krediter)`,
     cloudPreviewTag: 'molnförhandsvisning',
+    zoomOriginalAsk: (c: number) => `Du har zoomat förbi 100 % på en molnförhandsvisning. Ladda ned originalet för full detalj? Cirka ${c} krediter från projektägarens månadskvot, en gång för den här enheten.`,
+    zoomOriginalDownload: 'Ladda ned original',
+    zoomOriginalNotNow: 'Inte nu',
+    zoomOriginalDontAsk: 'Fråga inte igen på den här enheten',
+    zoomOriginalWorking: 'Laddar ned originalet …',
+    zoomOriginalNone: 'Det här är en molnförhandsvisning och ägaren har inte lagt originalet i molnet, så över 100 % förstoras förhandsvisningen.',
+    zoomOriginalFailed: 'Originalet kunde inte laddas ned. Du ser fortfarande förhandsvisningen.',
+    zoomOriginalClose: 'Stäng',
   },
   adjust: {
     grade: {

@@ -674,6 +674,8 @@ export interface WorkspaceActions {
   importCloudPreviews?: (items: { file: File; projectId: string; photoKey: string }[]) => Promise<void>;
   /** The photo's exact original bytes, checked against its fingerprint, or null when the original is not connected. */
   readVerifiedOriginal?: (photoId: string) => Promise<Blob | null>;
+  /** Put the owner's original (already checked against its fingerprint) behind a cloud preview, keeping its edits and shared identity. */
+  attachCloudOriginal?: (photoId: string, original: File, sha256: string) => Promise<boolean>;
   dismissAssistSuggestion: (photoId: string, suggestionId: string) => void;
 
   // Editing & Looks

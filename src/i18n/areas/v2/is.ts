@@ -593,6 +593,14 @@ export const is: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `Bæta ${n} myndum úr skýinu við þetta tæki (um ${credits} inneignir)`,
     cloudOriginals: (n: number, credits: number) => `Sækja ${n} frumrit (um ${credits} inneignir)`,
     cloudPreviewTag: 'skýjaforskoðun',
+    zoomOriginalAsk: (c: number) => `Þú hefur stækkað skýjaforskoðun yfir 100%. Sækja frumritið til að sjá öll smáatriði? Um ${c} inneignir af mánaðarlegum kvóta eiganda verkefnisins, einu sinni fyrir þetta tæki.`,
+    zoomOriginalDownload: 'Sækja frumrit',
+    zoomOriginalNotNow: 'Ekki núna',
+    zoomOriginalDontAsk: 'Ekki spyrja aftur á þessu tæki',
+    zoomOriginalWorking: 'Sæki frumritið…',
+    zoomOriginalNone: 'Þetta er skýjaforskoðun og eigandinn hefur ekki sett frumritið í skýið, svo yfir 100% er forskoðunin stækkuð.',
+    zoomOriginalFailed: 'Ekki tókst að sækja frumritið. Þú sérð enn forskoðunina.',
+    zoomOriginalClose: 'Loka',
   },
   adjust: {
     grade: {

@@ -625,6 +625,14 @@ export const source = {
     cloudAdd: (n: number, credits: number) => `Add ${n} photos from the cloud to this device (about ${credits} credits)`,
     cloudOriginals: (n: number, credits: number) => `Download ${n} originals (about ${credits} credits)`,
     cloudPreviewTag: 'cloud preview',
+    zoomOriginalAsk: (c: number) => `You are zoomed past 100% on a cloud preview. Download the original for full detail? About ${c} credits from the project owner’s monthly allowance, once for this device.`,
+    zoomOriginalDownload: 'Download original',
+    zoomOriginalNotNow: 'Not now',
+    zoomOriginalDontAsk: 'Don’t ask again on this device',
+    zoomOriginalWorking: 'Downloading the original…',
+    zoomOriginalNone: 'This is a cloud preview and the owner has not put the original in the cloud, so detail past 100% is enlarged from the preview.',
+    zoomOriginalFailed: 'The original could not be downloaded. You are still seeing the preview.',
+    zoomOriginalClose: 'Close',
   },
 
   // Adjust Panel

@@ -593,6 +593,14 @@ export const pt: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `Adicionar ${n} fotografias da nuvem a este dispositivo (cerca de ${credits} créditos)`,
     cloudOriginals: (n: number, credits: number) => `Transferir ${n} originais (cerca de ${credits} créditos)`,
     cloudPreviewTag: 'pré-visualização na nuvem',
+    zoomOriginalAsk: (c: number) => `Ampliou para além de 100% uma pré-visualização na nuvem. Transferir o original para ver todo o detalhe? Cerca de ${c} créditos da quota mensal do proprietário do projeto, uma única vez para este dispositivo.`,
+    zoomOriginalDownload: 'Transferir original',
+    zoomOriginalNotNow: 'Agora não',
+    zoomOriginalDontAsk: 'Não voltar a perguntar neste dispositivo',
+    zoomOriginalWorking: 'A transferir o original…',
+    zoomOriginalNone: 'Esta é uma pré-visualização na nuvem e o proprietário não colocou o original na nuvem, por isso acima de 100% a pré-visualização é ampliada.',
+    zoomOriginalFailed: 'Não foi possível transferir o original. Continua a ver a pré-visualização.',
+    zoomOriginalClose: 'Fechar',
   },
   adjust: {
     grade: {

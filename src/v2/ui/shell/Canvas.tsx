@@ -87,6 +87,8 @@ interface CanvasProps {
   onReconnectOriginal: (photoId: string) => void;
   onToggleCompare: () => void;
   onSetZoom: (zoom: number) => void;
+  /** Called when someone zooms a cloud preview past 100%: its pixels run out there, so the original may be wanted. */
+  onZoomPastPreview?: (photoId: string) => void;
   onToggleFullScreen: () => void;
 }
 
@@ -132,6 +134,7 @@ export default function Canvas({
   onReconnectOriginal,
   onToggleCompare,
   onSetZoom,
+  onZoomPastPreview,
   onToggleFullScreen,
 }: CanvasProps) {
   const [activeGuides, setActiveGuides] = useState<SnapGuide[]>([]);
@@ -1108,6 +1111,8 @@ export default function Canvas({
     ? { ...activeSize, width: activeSize.width * chosenScale, height: activeSize.height * chosenScale } : activeSize;
   const output = effectiveUpscaleOutputSize(requestedSize, photo.pixelSize, chosenScale, pixelLimit);
   const actualPercent = fitScale ? Math.round(fitScale * canvasZoom * 100) : Math.round(canvasZoom * 100);
+  const pastPreview = Boolean(photo.cloudPreview) && actualPercent > 100;
+  useEffect(() => { if (pastPreview) onZoomPastPreview?.(photo.id); }, [pastPreview, photo.id, onZoomPastPreview]);
   const toggleActualSize = () => {
     if (!fitScale) { onSetZoom(1); return; }
     onSetZoom(Math.abs(actualPercent - 100) <= 1 ? 1 : 1 / fitScale);

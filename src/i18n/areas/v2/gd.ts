@@ -594,6 +594,14 @@ export const gd: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `Cuir ${n} dealbhan on neul ris an uidheam seo (mu ${credits} creideas)`,
     cloudOriginals: (n: number, credits: number) => `Luchdaich a-nuas ${n} tùsan (mu ${credits} creideas)`,
     cloudPreviewTag: 'ro-shealladh neòil',
+    zoomOriginalAsk: (c: number) => `Tha thu air sùmadh seachad air 100% air ro-shealladh neòil. A bheil thu airson an tè thùsail a luchdadh a-nuas airson a’ mhion-fhiosrachaidh slàin? Mu ${c} creideas à cuibhreann mìosail sealbhadair a’ phròiseict, aon turas airson an uidheim seo.`,
+    zoomOriginalDownload: 'Luchdaich a-nuas an tè thùsail',
+    zoomOriginalNotNow: 'Chan ann an-dràsta',
+    zoomOriginalDontAsk: 'Na faighnich a-rithist air an uidheam seo',
+    zoomOriginalWorking: 'A’ luchdadh a-nuas an tè thùsail…',
+    zoomOriginalNone: 'Seo ro-shealladh neòil agus cha do chuir an sealbhadair an tè thùsail san neul, mar sin tha mion-fhiosrachadh seachad air 100% air a mheudachadh on ro-shealladh.',
+    zoomOriginalFailed: 'Cha b’ urrainn dhuinn an tè thùsail a luchdadh a-nuas. Chì thu an ro-shealladh fhathast.',
+    zoomOriginalClose: 'Dùin',
   },
   adjust: {
     grade: {

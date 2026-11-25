@@ -593,6 +593,14 @@ export const fr: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `Ajouter ${n} photos du cloud à cet appareil (environ ${credits} crédits)`,
     cloudOriginals: (n: number, credits: number) => `Télécharger ${n} originaux (environ ${credits} crédits)`,
     cloudPreviewTag: 'aperçu cloud',
+    zoomOriginalAsk: (c: number) => `Vous avez zoomé au-delà de 100 % sur un aperçu cloud. Télécharger l’original pour voir tous les détails ? Environ ${c} crédits pris sur l’allocation mensuelle du propriétaire du projet, une seule fois pour cet appareil.`,
+    zoomOriginalDownload: 'Télécharger l’original',
+    zoomOriginalNotNow: 'Pas maintenant',
+    zoomOriginalDontAsk: 'Ne plus demander sur cet appareil',
+    zoomOriginalWorking: 'Téléchargement de l’original…',
+    zoomOriginalNone: 'Ceci est un aperçu cloud et le propriétaire n’a pas mis l’original dans le cloud : au-delà de 100 %, l’image est agrandie à partir de l’aperçu.',
+    zoomOriginalFailed: 'L’original n’a pas pu être téléchargé. Vous voyez toujours l’aperçu.',
+    zoomOriginalClose: 'Fermer',
   },
   adjust: {
     grade: {

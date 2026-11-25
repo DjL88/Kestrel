@@ -594,6 +594,14 @@ export const fi: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `Lisää ${n} kuvaa pilvestä tälle laitteelle (noin ${credits} krediittiä)`,
     cloudOriginals: (n: number, credits: number) => `Lataa ${n} alkuperäistä (noin ${credits} krediittiä)`,
     cloudPreviewTag: 'pilviesikatselu',
+    zoomOriginalAsk: (c: number) => `Olet zoomannut pilviesikatselun yli 100 %:n. Ladataanko alkuperäinen kaikkia yksityiskohtia varten? Noin ${c} krediittiä projektin omistajan kuukausikiintiöstä, kerran tälle laitteelle.`,
+    zoomOriginalDownload: 'Lataa alkuperäinen',
+    zoomOriginalNotNow: 'Ei nyt',
+    zoomOriginalDontAsk: 'Älä kysy uudelleen tällä laitteella',
+    zoomOriginalWorking: 'Ladataan alkuperäistä…',
+    zoomOriginalNone: 'Tämä on pilviesikatselu, eikä omistaja ole tallentanut alkuperäistä pilveen, joten yli 100 %:n esikatselua suurennetaan.',
+    zoomOriginalFailed: 'Alkuperäistä ei voitu ladata. Näet yhä esikatselun.',
+    zoomOriginalClose: 'Sulje',
   },
   adjust: {
     grade: {

@@ -201,7 +201,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
   return {
     id: frame.id,
     sharedKey: frame.cloudPhoto && !frame.virtualCopy ? frame.cloudPhoto.photoKey : sharedPhotoKey(frame.originalSha256, frame.virtualCopy?.number),
-    cloudPreview: frame.cloudPhoto ? true : undefined,
+    cloudPreview: frame.cloudPhoto && !frame.cloudPhoto.hasOriginal ? true : undefined,
     filename: frame.filename,
     title: titleOf(frame.filename),
     previewUrl: urls?.preview ?? thumb,
