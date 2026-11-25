@@ -25,3 +25,11 @@ test('a view into a larger buffer is checked by its own bytes only', async () =>
   const sha = createHash('sha256').update(new Uint8Array([1, 2, 3])).digest('hex');
   assert.equal(await linkedBytesMatchImportedOriginal(view, sha), true);
 });
+
+test('a folder chosen on Windows or macOS gives its own name, whatever the separators or a trailing slash', async () => {
+  const { folderNameOf } = await import('./linkedOriginals');
+  assert.equal(folderNameOf(String.raw`C:\Users\me\Pictures\Puffins 2026\ `.trimEnd()), 'Puffins 2026');
+  assert.equal(folderNameOf('/Volumes/CARD/DCIM/100NIKON/'), '100NIKON');
+  assert.equal(folderNameOf(String.raw`\\nas\photos\Skye`), 'Skye');
+  assert.equal(folderNameOf('Shoot'), 'Shoot');
+});

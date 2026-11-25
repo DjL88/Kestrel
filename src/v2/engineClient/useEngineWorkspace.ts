@@ -35,7 +35,7 @@ import { developFullSizeOf, fullDevelopPossible } from './fullDevelop';
 import { buildDngCopyFile, dngCopyOffered } from './rawDngCopy';
 import { useSceneTags } from './useSceneTags';
 import { declinePhotoTag } from '../../core/photoTags';
-import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
+import { folderNameOf, pickedFromFile, pickedKey, pickFolderNatively, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
 import { getLocalFileKey, loadLocalFileListShoot, rehydrateLocalFramesFromStore } from '../../providers/localShootLoader';
 import { hashOriginalBytes, isSameOriginalBytes } from '../../core/originalFileIdentity';
 import type { EditRecipe, HubViewState, OverlaySettings, PhotoHistogram, WatermarkPreset, Project, TaskInfo, WorkspaceActions, WorkspaceStore } from '../ui/contract';
@@ -192,6 +192,27 @@ async function pickFolderFiles(): Promise<File[] | null> {
     input.addEventListener('cancel', () => done(null));
     input.click();
   });
+}
+
+/**
+ * Pick a folder of photos. On the desktop app the system folder dialog links every photo by its path, so originals stay
+ * where they are and are never copied; the browser reads them through the directory input. `name` is the folder's name.
+ */
+async function pickFolderPhotos(onProblem: (message: string) => void): Promise<{ picks: Array<File | PickedPhoto>; name?: string } | null> {
+  if (isDesktopApp()) {
+    let name: string | undefined;
+    try {
+      const chosen = await pickFolderNatively({ onChosen: (folder) => { name = folderNameOf(folder); } });
+      return chosen === 'cancelled' || !chosen.length ? null : { picks: chosen, name };
+    } catch (error) {
+      // An incomplete scan is refused rather than importing part of a shoot.
+      onProblem(error instanceof Error ? error.message : String(error));
+      return null;
+    }
+  }
+  const files = await pickFolderFiles();
+  if (!files?.length) return null;
+  return { picks: files, name: (files[0] as File & { webkitRelativePath?: string }).webkitRelativePath?.split('/')[0] };
 }
 
 async function pickFiles(): Promise<Array<File | PickedPhoto> | null> {
@@ -1932,15 +1953,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       })().catch(() => setNotice('InFlight could not erase this device. Nothing else was changed.'));
     },
     createProjectFromFolder: () => {
-      void pickFolderFiles().then(async (files) => {
-        if (!files?.length) return;
-        const folder = (files[0] as File & { webkitRelativePath?: string }).webkitRelativePath?.split('/')[0];
-        const created = createEmptyProject(`project-${newId()}`, folder?.trim() || 'Untitled project');
+      void pickFolderPhotos(setNotice).then(async (chosen) => {
+        if (!chosen) return;
+        const created = createEmptyProject(`project-${newId()}`, chosen.name?.trim() || 'Untitled project');
         try { await catalogue.current!.saveProject(created); } catch { setNotice('InFlight could not create the project.'); return; }
         enterProject(created);
         // The editor state lands on the next render; wait for it before adding the photos.
         for (let wait = 0; wait < 40 && stateRef.current?.shoot.id !== created.shoot.id; wait += 1) await new Promise((resolve) => setTimeout(resolve, 50));
-        void importPhotos(files);
+        void importPhotos(chosen.picks);
       });
     },
     renameProject: (id, name) => {
@@ -2111,7 +2131,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     };
     }),
     importPhotos: () => { void importPhotos(); },
-    importFolder: () => { void pickFolderFiles().then((files) => { if (files?.length) void importPhotos(files); }); },
+    importFolder: () => { void pickFolderPhotos(setNotice).then((chosen) => { if (chosen) void importPhotos(chosen.picks); }); },
     importDroppedPhotos: (files) => { if (files.length) void importPhotos(files); },
     backUpProjectNow: () => {
       const current = stateRef.current;
