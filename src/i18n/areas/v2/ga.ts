@@ -340,6 +340,13 @@ export const ga: AreaTranslation<typeof source> = {
     done: (p: number, of: number) => `Tugadh rátálacha, bratacha, eochairfhocail, bailiúcháin agus eagarthóireachtaí isteach do ${p} as ${of} grianghraf sa chatalóg. Níor athraíodh an catalóg ná do bhunchóipeanna.`,
     keptYours: (n: number) => `Bhí do rátáil, do bhratach nó d’eagarthóireacht féin ag ${n} anseo cheana, mar sin coinníodh do chuid féin.`,
     notFound: (n: number) => `Níor tugadh ${n} grianghraf ón gcatalóg isteach, mar níl siad sa tionscadal seo nó níor mheaitseáil a n-ainm nó a n-am gabhála go díreach. Cuir a bhfillteán leis, ansin tabhair an catalóg isteach arís.`,
+    offerTitle: "Cuir na grianghraif ó do chatalóg Lightroom leis",
+    offerBody: (n: number, folder: string) => `Níl ${n} grianghraf sa chatalóg sa tionscadal seo fós. Coinníonn Lightroom iad in ${folder}. Roghnaigh an fillteán sin, nó ceann os a chionn, agus cuirfidh InFlight leis iad agus tabharfaidh sé a rátálacha, a mbratacha, a n-eochairfhocail agus a n-eagarthóireachtaí isteach. Ní athraítear do bhunchóipeanna riamh.`,
+    chooseFolder: "Roghnaigh fillteán…",
+    notNow: "Ní anois",
+    noneInFolder: "Níl aon cheann de na comhaid san fhillteán sin ina ghrianghraf ón gcatalóg. Roghnaigh an fillteán ina gcoinníonn Lightroom iad.",
+    notInFolder: (n: number) => `Níor aimsíodh ${n} grianghraf ón gcatalóg san fhillteán sin, mar sin níor cuireadh leis iad.`,
+    notAdded: (n: number) => `Níorbh fhéidir ${n} a chur leis. Oscail Tascanna chun triail eile a bhaint astu.`,
     editsNote: "Pointí tosaigh gar is ea na heagarthóireachtaí, ní cóipeanna cruinne de Lightroom, agus is céim amháin i stair an ghrianghraif gach ceann. Ní thugtar bearradh, cothromaíocht bhán, maisc ná baint spotaí anall.",
     failed: {
       'not-catalogue': "Ní catalóg Lightroom Classic (.lrcat) é an comhad sin. Níor athraíodh aon rud.",

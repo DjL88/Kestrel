@@ -89,7 +89,8 @@ import { backupStatusText } from './backupWords';
 import { applySidecarImports, planXmpImports, saveSidecars, sidecarFailureText, xmpScope } from './xmpOps';
 import { applyLightroomImport, lightroomNotice } from './lightroomOps';
 import { CatalogueReadError, readLightroomCatalogue } from '../../core/lightroomCatalogue';
-import { planLightroomImport } from '../../core/lightroomImport';
+import { catalogueFilesInFolder, catalogueOnlyPhotos, commonFolder, planLightroomImport } from '../../core/lightroomImport';
+import type { LightroomPhoto } from '../../core/lightroomCatalogue';
 import { STRINGS as V2_STRINGS } from '../ui/strings';
 import { scheduleV2PhotoExports, photoExportUnits } from './scheduledPhotoExport';
 import { uniqueExportFilename } from '../../core/exportNaming';
@@ -472,6 +473,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // Automatic backups of the open project, shared with V1: soon after a change, every so often, and on leaving.
   useAutoBackup(state && !state.shoot.collage ? state : null, Boolean(state));
   const backupStatus = useBackupStatus(state?.shoot.id ?? '');
+  const lightroomPending = useRef<{ projectId: string; photos: LightroomPhoto[]; toAdd: LightroomPhoto[] } | null>(null);
+  const [lightroomOffer, setLightroomOffer] = useState<{ missing: number; folder: string } | null>(null);
   const mutate = useCallback((change: (current: CullingState) => CullingState) => setState((current) => (current ? change(current) : current)), []);
 
   // RAW + JPEG of one shot are one photo: the JPEG is kept but not listed, and decisions and ratings cover both.
@@ -1670,16 +1673,49 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           return;
         }
         const plan = planLightroomImport(photos, now.frames);
+        const toAdd = catalogueOnlyPhotos(photos, now.frames);
+        // Photos the project does not have yet are offered next: the person chooses the folder they are in.
+        lightroomPending.current = toAdd.length ? { projectId: now.shoot.id, photos, toAdd } : null;
+        setLightroomOffer(toAdd.length ? { missing: toAdd.length, folder: commonFolder(toAdd) } : null);
         if (!plan.matches.length) {
-          setNotice(words.failed.none);
+          if (!toAdd.length) setNotice(words.failed.none);
+          else setNotice(null);
           return;
         }
         const catalogued = photos.length - plan.virtualCopies;
         const { state: applied, result } = applyLightroomImport(now, plan, Date.now());
         // Applied only to the exact state that was matched; anything newer keeps the person's change instead.
         mutate((current) => (current === now ? applied : current));
-        setNotice(lightroomNotice(words, plan, catalogued, result));
+        setNotice(lightroomNotice(words, { ...plan, unmatched: plan.unmatched - toAdd.length }, catalogued, result));
       }, (error) => setNotice(words.failed[error instanceof CatalogueReadError ? error.reason : 'unreadable']));
+    },
+    dismissLightroomOffer: () => { lightroomPending.current = null; setLightroomOffer(null); },
+    chooseLightroomFolder: () => {
+      const pending = lightroomPending.current;
+      const words = V2_STRINGS.lightroom;
+      if (!pending) return;
+      // Picked from the person's click, so the browser allows the folder picker.
+      void pickFolderFiles().then(async (files) => {
+        if (!files?.length) return;
+        const { found, missing } = catalogueFilesInFolder(pending.toAdd, files);
+        if (!found.length) { setNotice(words.noneInFolder); return; }
+        lightroomPending.current = null;
+        setLightroomOffer(null);
+        const before = new Set((stateRef.current?.frames ?? []).map((frame) => frame.id));
+        await importPhotos(found);
+        await new Promise((resolve) => setTimeout(resolve, 0)); // let the last added photos reach stateRef
+        const now = stateRef.current;
+        if (!now || now.shoot.id !== pending.projectId) return;
+        const added = now.frames.filter((frame) => !before.has(frame.id)).length;
+        const plan = planLightroomImport(pending.photos, now.frames);
+        const { state: applied, result } = applyLightroomImport(now, plan, Date.now());
+        mutate((current) => (current === now ? applied : current));
+        const catalogued = pending.photos.length - plan.virtualCopies;
+        const parts = [lightroomNotice(words, { ...plan, unmatched: 0 }, catalogued, result)];
+        if (missing) parts.push(words.notInFolder(missing));
+        if (added < found.length) parts.push(words.notAdded(found.length - added));
+        setNotice(parts.join(' '));
+      });
     },
     runAutoCull: () => { void runAutoCull(); },
     addMaskLayer: (photoId, type) => { void addMask(photoId, type); },
@@ -1977,8 +2013,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clipboardRecipe: clipboard,
     PhotoSurface: EngineSurface,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
+    lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
-  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice]);
+  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer]);
 
   return { store, actions };
 }

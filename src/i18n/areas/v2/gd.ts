@@ -338,6 +338,13 @@ export const gd: AreaTranslation<typeof source> = {
     done: (p: number, of: number) => `Chaidh rangachadh, brataich, facail-luirg, cruinneachaidhean is deasachaidhean a thoirt a-steach airson ${p} de na ${of} dealbhan sa chatalog. Cha deach an catalog no na tùsan agad atharrachadh.`,
     keptYours: (n: number) => `Bha an rangachadh, a’ bhratach no an deasachadh agad fhèin aig ${n} an seo mu thràth, mar sin chaidh an fheadhainn agad a chumail.`,
     notFound: (n: number) => `Cha deach ${n} dealbhan on chatalog a thoirt a-steach, oir chan eil iad sa phròiseact seo no cha robh an t-ainm no àm an togail co-ionann. Cuir am pasgan aca ris, an uairsin thoir a-steach an catalog a-rithist.`,
+    offerTitle: "Cuir ris na dealbhan on chatalog Lightroom agad",
+    offerBody: (n: number, folder: string) => `Chan eil ${n} dealbhan sa chatalog sa phròiseact seo fhathast. Tha Lightroom gan cumail ann an ${folder}. Tagh am pasgan sin, no fear os a chionn, agus cuiridh InFlight ris iad is bheir e a-steach an rangachadh, na brataich, na facail-luirg is na deasachaidhean aca. Cha tèid na tùsan agad atharrachadh gu bràth.`,
+    chooseFolder: "Tagh pasgan…",
+    notNow: "Chan ann an-dràsta",
+    noneInFolder: "Chan eil gin de na faidhlichean sa phasgan sin nan dealbhan on chatalog. Tagh am pasgan sa bheil Lightroom gan cumail.",
+    notInFolder: (n: number) => `Cha deach ${n} dealbhan on chatalog a lorg sa phasgan sin, mar sin cha deach an cur ris.`,
+    notAdded: (n: number) => `Cha b’ urrainn dhuinn ${n} a chur ris. Fosgail Saothraichean airson feuchainn a-rithist.`,
     editsNote: "’S e puingean-tòiseachaidh faisg a th’ anns na deasachaidhean, chan e lethbhreacan dìreach de Lightroom, agus tha gach fear na cheum ann an eachdraidh an deilbh. Cha tèid bearradh, cothromachadh geal, masgaichean no toirt air falbh spotan a ghiùlan thairis.",
     failed: {
       'not-catalogue': "Chan e catalog Lightroom Classic (.lrcat) a th’ anns an fhaidhle sin. Cha deach dad atharrachadh.",

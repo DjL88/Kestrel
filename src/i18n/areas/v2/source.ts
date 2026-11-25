@@ -358,6 +358,13 @@ export const source = {
     done: (p: number, of: number) => `Brought in ratings, flags, keywords, collections and edits for ${p} of the ${of} photos in the catalogue. The catalogue and your originals are unchanged.`,
     keptYours: (n: number) => `${n} already had your own rating, flag or edit here, so yours were kept.`,
     notFound: (n: number) => `${n} catalogue photos were not brought in, because they are not in this project or their name or capture time did not match exactly. Add their folder, then bring the catalogue in again.`,
+    offerTitle: "Add the photos from your Lightroom catalogue",
+    offerBody: (n: number, folder: string) => `${n} photos in the catalogue are not in this project yet. Lightroom keeps them in ${folder}. Choose that folder, or one above it, and InFlight adds them and brings in their ratings, flags, keywords and edits. Your originals are never changed.`,
+    chooseFolder: "Choose folder…",
+    notNow: "Not now",
+    noneInFolder: "None of the files in that folder are photos from the catalogue. Choose the folder Lightroom keeps them in.",
+    notInFolder: (n: number) => `${n} catalogue photos were not found in that folder, so they were not added.`,
+    notAdded: (n: number) => `${n} could not be added. Open Tasks to retry them.`,
     editsNote: "Edits are close starting points, not exact copies of Lightroom, and each is one step in that photo's history. Crops, white balance, masks and spot removal are not carried over.",
     failed: {
       'not-catalogue': "That file is not a Lightroom Classic catalogue (.lrcat). Nothing was changed.",

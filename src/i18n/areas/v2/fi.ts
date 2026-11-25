@@ -338,6 +338,13 @@ export const fi: AreaTranslation<typeof source> = {
     done: (p: number, of: number) => `Arviot, merkinnät, avainsanat, kokoelmat ja muokkaukset tuotiin ${p} kuvalle luettelon ${of} kuvasta. Luettelo ja alkuperäiset ovat ennallaan.`,
     keptYours: (n: number) => `Kuvista ${n} oli jo täällä oma arviosi, merkintäsi tai muokkauksesi, joten omasi säilytettiin.`,
     notFound: (n: number) => `Luettelon kuvista ${n} ei tuotu, koska ne eivät ole tässä projektissa tai niiden nimi tai kuvausaika ei täsmännyt tarkasti. Lisää niiden kansio ja tuo luettelo uudelleen.`,
+    offerTitle: "Lisää kuvat Lightroom-luettelostasi",
+    offerBody: (n: number, folder: string) => `Luettelon kuvista ${n} ei ole vielä tässä projektissa. Lightroom säilyttää niitä kansiossa ${folder}. Valitse se kansio tai sen yläpuolinen, niin InFlight lisää ne ja tuo niiden arviot, merkinnät, avainsanat ja muokkaukset. Alkuperäisiä ei koskaan muuteta.`,
+    chooseFolder: "Valitse kansio…",
+    notNow: "Ei nyt",
+    noneInFolder: "Mikään kansion tiedostoista ei ole luettelon kuva. Valitse kansio, jossa Lightroom säilyttää niitä.",
+    notInFolder: (n: number) => `Luettelon kuvista ${n} ei löytynyt kansiosta, joten niitä ei lisätty.`,
+    notAdded: (n: number) => `Kuvista ${n} ei voitu lisätä. Avaa Tehtävät ja yritä uudelleen.`,
     editsNote: "Muokkaukset ovat läheisiä lähtökohtia, eivät tarkkoja kopioita Lightroomista, ja kukin on yksi vaihe kuvan historiassa. Rajauksia, valkotasapainoa, maskeja ja pisteiden poistoa ei tuoda.",
     failed: {
       'not-catalogue': "Tiedosto ei ole Lightroom Classic -luettelo (.lrcat). Mitään ei muutettu.",

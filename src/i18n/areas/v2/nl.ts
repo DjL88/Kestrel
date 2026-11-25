@@ -337,6 +337,13 @@ export const nl: AreaTranslation<typeof source> = {
     done: (p: number, of: number) => `Beoordelingen, markeringen, trefwoorden, verzamelingen en bewerkingen binnengehaald voor ${p} van de ${of} foto’s in de catalogus. De catalogus en uw originelen zijn ongewijzigd.`,
     keptYours: (n: number) => `${n} hadden hier al uw eigen beoordeling, markering of bewerking, dus die van u zijn behouden.`,
     notFound: (n: number) => `${n} foto’s uit de catalogus zijn niet binnengehaald, omdat ze niet in dit project staan of hun naam of opnametijd niet precies overeenkwam. Voeg hun map toe en haal de catalogus opnieuw binnen.`,
+    offerTitle: "De foto’s uit uw Lightroom-catalogus toevoegen",
+    offerBody: (n: number, folder: string) => `${n} foto’s uit de catalogus staan nog niet in dit project. Lightroom bewaart ze in ${folder}. Kies die map, of een map erboven, en InFlight voegt ze toe en haalt hun beoordelingen, markeringen, trefwoorden en bewerkingen binnen. Uw originelen worden nooit gewijzigd.`,
+    chooseFolder: "Map kiezen…",
+    notNow: "Niet nu",
+    noneInFolder: "Geen van de bestanden in die map is een foto uit de catalogus. Kies de map waarin Lightroom ze bewaart.",
+    notInFolder: (n: number) => `${n} foto’s uit de catalogus zijn niet in die map gevonden en dus niet toegevoegd.`,
+    notAdded: (n: number) => `${n} konden niet worden toegevoegd. Open Taken om het opnieuw te proberen.`,
     editsNote: "Bewerkingen zijn goede beginpunten, geen exacte kopieën van Lightroom, en elke bewerking is één stap in de geschiedenis van de foto. Uitsnedes, witbalans, maskers en vlekverwijdering worden niet meegenomen.",
     failed: {
       'not-catalogue': "Dat bestand is geen Lightroom Classic-catalogus (.lrcat). Er is niets gewijzigd.",

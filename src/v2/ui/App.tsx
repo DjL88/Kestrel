@@ -2,7 +2,7 @@ import { useServiceReachability } from '../../providers/useServiceReachability';
 import { useConnectivity } from '../../providers/useConnectivity';
 import { projectsText } from '../../i18n/areas/projects';
 import { stepFrom } from './utils/swipe';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { PanelId, Photo } from './contract';
 import { useWorkspace } from './stub';
 import { resolveTheme } from './themePreference';
@@ -34,6 +34,7 @@ import TasksPanel from './panels/TasksPanel';
 import CollageExportDialog from './dialogs/CollageExportDialog';
 import ExportDialog from './dialogs/ExportDialog';
 import RemovedPhotosDialog from './dialogs/RemovedPhotosDialog';
+import LightroomOfferDialog from './dialogs/LightroomOfferDialog';
 import ShareDialog from './dialogs/ShareDialog';
 import { usePresence } from './shell/usePresence';
 import { PresenceAvatars, PresenceCursors } from './shell/PresenceLayer';
@@ -159,6 +160,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [pairSwapped, setPairSwapped] = useState(false);
   const xmpInputRef = useRef<HTMLInputElement>(null);
   const lightroomInputRef = useRef<HTMLInputElement>(null);
+  const dismissLightroomOffer = useCallback(() => actions.dismissLightroomOffer?.(), [actions]);
   const peers = usePresence(sharing, store.collage ? null : store.activeProjectId, activePhoto?.id ?? null, signedInName, shareVersion);
   const hoveredLook = store.looks.find((l) => l.id === store.hoveredLookId) ?? null;
   const runningTaskCount = store.tasks.filter((t) => t.status === 'running').length;
@@ -916,6 +918,12 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         renderPreview={actions.renderGalleryPreview}
         siteUrl={gallerySiteUrl}
         onClose={closeShare}
+      />
+
+      <LightroomOfferDialog
+        offer={store.screen === 'editor' ? store.lightroomOffer : null}
+        onChooseFolder={() => actions.chooseLightroomFolder?.()}
+        onClose={dismissLightroomOffer}
       />
 
       <RemovedPhotosDialog

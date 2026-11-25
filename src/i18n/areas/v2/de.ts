@@ -337,6 +337,13 @@ export const de: AreaTranslation<typeof source> = {
     done: (p: number, of: number) => `Bewertungen, Markierungen, Stichwörter, Sammlungen und Bearbeitungen für ${p} von ${of} Fotos im Katalog übernommen. Katalog und Originale sind unverändert.`,
     keptYours: (n: number) => `${n} hatten hier schon Ihre eigene Bewertung, Markierung oder Bearbeitung, daher wurden Ihre behalten.`,
     notFound: (n: number) => `${n} Fotos aus dem Katalog wurden nicht übernommen, weil sie nicht in diesem Projekt sind oder Name oder Aufnahmezeit nicht genau passten. Fügen Sie ihren Ordner hinzu und übernehmen Sie den Katalog erneut.`,
+    offerTitle: "Fotos aus Ihrem Lightroom-Katalog hinzufügen",
+    offerBody: (n: number, folder: string) => `${n} Fotos aus dem Katalog sind noch nicht in diesem Projekt. Lightroom bewahrt sie in ${folder} auf. Wählen Sie diesen Ordner oder einen darüber, dann fügt InFlight sie hinzu und übernimmt Bewertungen, Markierungen, Stichwörter und Bearbeitungen. Ihre Originale werden nie verändert.`,
+    chooseFolder: "Ordner wählen …",
+    notNow: "Nicht jetzt",
+    noneInFolder: "Keine Datei in diesem Ordner ist ein Foto aus dem Katalog. Wählen Sie den Ordner, in dem Lightroom sie aufbewahrt.",
+    notInFolder: (n: number) => `${n} Fotos aus dem Katalog wurden in diesem Ordner nicht gefunden und daher nicht hinzugefügt.`,
+    notAdded: (n: number) => `${n} konnten nicht hinzugefügt werden. Öffnen Sie Aufgaben, um es erneut zu versuchen.`,
     editsNote: "Bearbeitungen sind nahe Ausgangspunkte, keine exakten Kopien von Lightroom, und jede ist ein Schritt im Verlauf des Fotos. Zuschnitte, Weißabgleich, Masken und Bereichsreparaturen werden nicht übernommen.",
     failed: {
       'not-catalogue': "Diese Datei ist kein Lightroom-Classic-Katalog (.lrcat). Es wurde nichts geändert.",

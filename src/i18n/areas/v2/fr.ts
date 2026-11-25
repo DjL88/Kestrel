@@ -337,6 +337,13 @@ export const fr: AreaTranslation<typeof source> = {
     done: (p: number, of: number) => `Notes, marqueurs, mots-clés, collections et réglages importés pour ${p} des ${of} photos du catalogue. Le catalogue et vos originaux sont inchangés.`,
     keptYours: (n: number) => `${n} avaient déjà votre propre note, marqueur ou réglage ici, ils ont donc été conservés.`,
     notFound: (n: number) => `${n} photos du catalogue n’ont pas été importées, car elles ne sont pas dans ce projet ou leur nom ou leur heure de prise de vue ne correspondait pas exactement. Ajoutez leur dossier, puis importez de nouveau le catalogue.`,
+    offerTitle: "Ajouter les photos de votre catalogue Lightroom",
+    offerBody: (n: number, folder: string) => `${n} photos du catalogue ne sont pas encore dans ce projet. Lightroom les range dans ${folder}. Choisissez ce dossier, ou un dossier au-dessus, et InFlight les ajoute puis importe leurs notes, marqueurs, mots-clés et réglages. Vos originaux ne sont jamais modifiés.`,
+    chooseFolder: "Choisir un dossier…",
+    notNow: "Pas maintenant",
+    noneInFolder: "Aucun fichier de ce dossier n’est une photo du catalogue. Choisissez le dossier où Lightroom les range.",
+    notInFolder: (n: number) => `${n} photos du catalogue sont introuvables dans ce dossier, elles n’ont donc pas été ajoutées.`,
+    notAdded: (n: number) => `${n} n’ont pas pu être ajoutées. Ouvrez Tâches pour réessayer.`,
     editsNote: "Les réglages sont des points de départ proches, pas des copies exactes de Lightroom, et chacun est une étape de l’historique de la photo. Recadrages, balance des blancs, masques et retouches de taches ne sont pas repris.",
     failed: {
       'not-catalogue': "Ce fichier n’est pas un catalogue Lightroom Classic (.lrcat). Rien n’a été modifié.",

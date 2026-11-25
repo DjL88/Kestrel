@@ -337,6 +337,13 @@ export const da: AreaTranslation<typeof source> = {
     done: (p: number, of: number) => `Bedømmelser, markeringer, nøgleord, samlinger og redigeringer hentet ind for ${p} af de ${of} billeder i kataloget. Kataloget og dine originaler er uændrede.`,
     keptYours: (n: number) => `${n} havde allerede din egen bedømmelse, markering eller redigering her, så dine blev beholdt.`,
     notFound: (n: number) => `${n} billeder fra kataloget blev ikke hentet ind, fordi de ikke er i dette projekt, eller fordi navn eller optagetidspunkt ikke passede præcist. Tilføj deres mappe, og hent kataloget ind igen.`,
+    offerTitle: "Tilføj billederne fra dit Lightroom-katalog",
+    offerBody: (n: number, folder: string) => `${n} billeder i kataloget er ikke i dette projekt endnu. Lightroom gemmer dem i ${folder}. Vælg den mappe, eller en over den, så tilføjer InFlight dem og henter deres bedømmelser, markeringer, nøgleord og redigeringer. Dine originaler ændres aldrig.`,
+    chooseFolder: "Vælg mappe…",
+    notNow: "Ikke nu",
+    noneInFolder: "Ingen af filerne i den mappe er billeder fra kataloget. Vælg den mappe, Lightroom gemmer dem i.",
+    notInFolder: (n: number) => `${n} billeder fra kataloget blev ikke fundet i den mappe, så de blev ikke tilføjet.`,
+    notAdded: (n: number) => `${n} kunne ikke tilføjes. Åbn Opgaver for at prøve igen.`,
     editsNote: "Redigeringer er tætte udgangspunkter, ikke præcise kopier af Lightroom, og hver er ét trin i billedets historik. Beskæringer, hvidbalance, masker og pletfjernelse kommer ikke med.",
     failed: {
       'not-catalogue': "Den fil er ikke et Lightroom Classic-katalog (.lrcat). Intet blev ændret.",

@@ -337,6 +337,13 @@ export const pt: AreaTranslation<typeof source> = {
     done: (p: number, of: number) => `Foram trazidas classificações, marcas, palavras-chave, coleções e edições de ${p} das ${of} fotos do catálogo. O catálogo e os seus originais não foram alterados.`,
     keptYours: (n: number) => `${n} já tinham aqui a sua própria classificação, marca ou edição, por isso as suas foram mantidas.`,
     notFound: (n: number) => `${n} fotos do catálogo não foram trazidas, porque não estão neste projeto ou o nome ou a hora de captura não coincidiam exatamente. Adicione a pasta delas e traga o catálogo outra vez.`,
+    offerTitle: "Adicionar as fotos do seu catálogo do Lightroom",
+    offerBody: (n: number, folder: string) => `${n} fotos do catálogo ainda não estão neste projeto. O Lightroom guarda-as em ${folder}. Escolha essa pasta, ou uma acima, e o InFlight adiciona-as e traz as classificações, marcas, palavras-chave e edições. Os seus originais nunca são alterados.`,
+    chooseFolder: "Escolher pasta…",
+    notNow: "Agora não",
+    noneInFolder: "Nenhum ficheiro dessa pasta é uma foto do catálogo. Escolha a pasta onde o Lightroom as guarda.",
+    notInFolder: (n: number) => `${n} fotos do catálogo não foram encontradas nessa pasta, por isso não foram adicionadas.`,
+    notAdded: (n: number) => `Não foi possível adicionar ${n}. Abra Tarefas para tentar novamente.`,
     editsNote: "As edições são pontos de partida próximos, não cópias exatas do Lightroom, e cada uma é um passo no histórico da foto. Recortes, equilíbrio de brancos, máscaras e remoção de manchas não são trazidos.",
     failed: {
       'not-catalogue': "Esse ficheiro não é um catálogo do Lightroom Classic (.lrcat). Nada foi alterado.",

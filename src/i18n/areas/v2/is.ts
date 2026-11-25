@@ -337,6 +337,13 @@ export const is: AreaTranslation<typeof source> = {
     done: (p: number, of: number) => `Einkunnir, flögg, lykilorð, söfn og breytingar sótt fyrir ${p} af ${of} myndum í skránni. Skránni og frumritunum þínum var ekki breytt.`,
     keptYours: (n: number) => `${n} voru þegar með þína eigin einkunn, flagg eða breytingu hér, svo þínum var haldið.`,
     notFound: (n: number) => `${n} myndir úr skránni voru ekki sóttar, því þær eru ekki í þessu verkefni eða nafn eða tökutími passaði ekki nákvæmlega. Bættu möppunni þeirra við og sæktu skrána aftur.`,
+    offerTitle: "Bæta við myndunum úr Lightroom-skránni þinni",
+    offerBody: (n: number, folder: string) => `${n} myndir í skránni eru ekki enn í þessu verkefni. Lightroom geymir þær í ${folder}. Veldu þá möppu, eða möppu fyrir ofan hana, og InFlight bætir þeim við og sækir einkunnir, flögg, lykilorð og breytingar. Frumritunum þínum er aldrei breytt.`,
+    chooseFolder: "Velja möppu…",
+    notNow: "Ekki núna",
+    noneInFolder: "Engin skrá í þeirri möppu er mynd úr skránni. Veldu möppuna sem Lightroom geymir þær í.",
+    notInFolder: (n: number) => `${n} myndir úr skránni fundust ekki í þeirri möppu, svo þeim var ekki bætt við.`,
+    notAdded: (n: number) => `Ekki tókst að bæta ${n} við. Opnaðu Verkefni til að reyna aftur.`,
     editsNote: "Breytingarnar eru nálægir upphafspunktar, ekki nákvæm afrit úr Lightroom, og hver þeirra er eitt skref í sögu myndarinnar. Skurðir, hvítjöfnun, grímur og blettahreinsun fylgja ekki með.",
     failed: {
       'not-catalogue': "Þessi skrá er ekki Lightroom Classic-skrá (.lrcat). Engu var breytt.",

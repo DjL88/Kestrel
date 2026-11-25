@@ -86,3 +86,48 @@ export function sameCaptureTime(captureTime: string | undefined, capturedAtMs: n
   const off = diff % 900;
   return off <= 2 || off >= 898;
 }
+
+/** Catalogue photos (not virtual copies) whose file name is not in the project at all, so they can be added first. */
+export function catalogueOnlyPhotos(photos: readonly LightroomPhoto[], frames: readonly PhotoFrame[]): LightroomPhoto[] {
+  const names = new Set(frames.filter((frame) => !frame.isDemo && frame.removedAt == null).map((frame) => normaliseName(frame.filename)));
+  return photos.filter((photo) => !photo.virtualCopy && !names.has(normaliseName(photo.filename)));
+}
+
+/** The folder that holds the most of these photos' folders, to tell the person where Lightroom keeps them. */
+export function commonFolder(photos: readonly LightroomPhoto[]): string {
+  const dirs = photos.map((photo) => photo.path.slice(0, photo.path.lastIndexOf('/') + 1)).filter(Boolean);
+  if (!dirs.length) return '';
+  let prefix = dirs[0];
+  for (const dir of dirs) while (!dir.startsWith(prefix)) prefix = prefix.slice(0, prefix.slice(0, -1).lastIndexOf('/') + 1);
+  return prefix || dirs[0];
+}
+
+/** A picked file with the path inside the chosen folder, as a directory picker gives it. */
+export interface PickedFolderFile { name: string; webkitRelativePath?: string }
+
+/**
+ * Which files in a folder the person chose are the catalogue's photos. A file is taken when the catalogue path ends with
+ * its path inside the chosen folder (the same subfolders), or else when its name is unique among both the wanted photos
+ * and the folder's files. Two candidates for one photo means neither is taken.
+ */
+export function catalogueFilesInFolder<T extends PickedFolderFile>(wanted: readonly LightroomPhoto[], files: readonly T[]): { found: T[]; missing: number } {
+  const byName = new Map<string, LightroomPhoto[]>();
+  for (const photo of wanted) {
+    const key = normaliseName(photo.filename);
+    byName.set(key, [...(byName.get(key) ?? []), photo]);
+  }
+  const claims = new Map<LightroomPhoto, T[]>();
+  const fileCount = new Map<string, number>();
+  for (const file of files) fileCount.set(normaliseName(file.name), (fileCount.get(normaliseName(file.name)) ?? 0) + 1);
+  for (const file of files) {
+    const candidates = byName.get(normaliseName(file.name));
+    if (!candidates) continue;
+    const relative = normalisePath(file.webkitRelativePath || file.name);
+    const bySuffix = candidates.filter((photo) => normalisePath(photo.path).endsWith('/' + relative));
+    const photo = bySuffix.length === 1 ? bySuffix[0]
+      : candidates.length === 1 && (fileCount.get(normaliseName(file.name)) ?? 0) === 1 ? candidates[0] : undefined;
+    if (photo) claims.set(photo, [...(claims.get(photo) ?? []), file]);
+  }
+  const found = [...claims.values()].filter((list) => list.length === 1).map(([file]) => file);
+  return { found, missing: wanted.length - found.length };
+}

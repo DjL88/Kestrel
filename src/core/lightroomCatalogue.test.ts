@@ -194,3 +194,23 @@ test('a 1,000-photo catalogue reads in well under a few seconds', async () => {
   assert.equal(photos.length, 1001);
   assert.ok(performance.now() - started < 5000);
 });
+
+test('adding the catalogue\'s photos: only files that are surely those photos are taken from the chosen folder', async () => {
+  const { catalogueOnlyPhotos, catalogueFilesInFolder, commonFolder } = await import('./lightroomImport');
+  const photos = await readCatalogue(await openSqliteBytes(catalogue(6)));
+  const [base] = createDemoShootState(1).frames;
+  const wanted = catalogueOnlyPhotos(photos, [frame(base, 'DSC_0001.NEF')]);
+  assert.deepEqual(wanted.map((photo) => photo.id), [2, 3, 4, 5, 6], 'already here, and virtual copies, are not added again');
+  assert.equal(commonFolder(wanted), 'C:/Users/sam/Pictures/2024/Skye/');
+  const files = [
+    { name: 'DSC_0002.NEF', webkitRelativePath: 'Pictures/2024/Skye/DSC_0002.NEF' },
+    { name: 'DSC_0003.NEF', webkitRelativePath: 'Skye/DSC_0003.NEF' },
+    { name: 'DSC_0004.NEF', webkitRelativePath: 'Backup/DSC_0004.NEF' }, // unique name: taken
+    { name: 'DSC_0005.NEF', webkitRelativePath: 'A/DSC_0005.NEF' }, { name: 'DSC_0005.NEF', webkitRelativePath: 'B/DSC_0005.NEF' }, // two candidates: neither
+    { name: 'IMG_9.JPG', webkitRelativePath: 'Skye/IMG_9.JPG' }, // not in the catalogue
+  ];
+  const { found, missing } = catalogueFilesInFolder(wanted, files);
+  assert.deepEqual(found.map((file) => file.webkitRelativePath), ['Pictures/2024/Skye/DSC_0002.NEF', 'Skye/DSC_0003.NEF', 'Backup/DSC_0004.NEF']);
+  assert.equal(missing, 2);
+  assert.equal(commonFolder([...wanted, photos.find((photo) => photo.id === 6)!]), 'C:/Users/sam/Pictures/2024/Skye/');
+});

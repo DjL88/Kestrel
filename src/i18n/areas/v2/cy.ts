@@ -337,6 +337,13 @@ export const cy: AreaTranslation<typeof source> = {
     done: (p: number, of: number) => `Daethpwyd â sgoriau, baneri, allweddeiriau, casgliadau a golygiadau i mewn ar gyfer ${p} o'r ${of} llun yn y catalog. Mae'r catalog a'ch rhai gwreiddiol heb eu newid.`,
     keptYours: (n: number) => `Roedd gan ${n} eich sgôr, baner neu olygiad eich hun yma eisoes, felly cadwyd eich rhai chi.`,
     notFound: (n: number) => `Ni ddaethpwyd â ${n} llun o'r catalog i mewn, gan nad ydynt yn y prosiect hwn neu nad oedd eu henw neu amser tynnu yn cyfateb yn union. Ychwanegwch eu ffolder, yna dewch â'r catalog i mewn eto.`,
+    offerTitle: "Ychwanegu’r lluniau o’ch catalog Lightroom",
+    offerBody: (n: number, folder: string) => `Nid yw ${n} llun yn y catalog yn y prosiect hwn eto. Mae Lightroom yn eu cadw yn ${folder}. Dewiswch y ffolder honno, neu un uwch ei phen, ac mae InFlight yn eu hychwanegu ac yn dod â’u sgoriau, baneri, allweddeiriau a golygiadau i mewn. Ni chaiff eich rhai gwreiddiol byth eu newid.`,
+    chooseFolder: "Dewis ffolder…",
+    notNow: "Nid nawr",
+    noneInFolder: "Nid oes yr un o’r ffeiliau yn y ffolder honno yn llun o’r catalog. Dewiswch y ffolder y mae Lightroom yn eu cadw ynddi.",
+    notInFolder: (n: number) => `Ni chafwyd hyd i ${n} llun o’r catalog yn y ffolder honno, felly ni chawsant eu hychwanegu.`,
+    notAdded: (n: number) => `Nid oedd modd ychwanegu ${n}. Agorwch Tasgau i roi cynnig arall arnynt.`,
     editsNote: "Mannau cychwyn agos yw'r golygiadau, nid copïau union o Lightroom, ac mae pob un yn un cam yn hanes y llun. Ni chaiff tocio, cydbwysedd gwyn, masgiau na thynnu smotiau eu cario drosodd.",
     failed: {
       'not-catalogue': "Nid catalog Lightroom Classic (.lrcat) yw'r ffeil honno. Ni newidiwyd dim.",
