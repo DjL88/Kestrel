@@ -862,6 +862,8 @@ export const nb: AreaTranslation<typeof source> = {
       saturation: 'Øker eller reduserer intensiteten jevnt i alle fargekanaler.',
       clarity: 'Forsterker kantstruktur i mellomtonene og tekstur i fjær eller fjell.',
       sharpen: 'Bruker fin utdataskarphet tilpasset sensoren.',
+      captureSharpen: "Gjenoppretter skarpheten som objektiv og sensor har mykt opp, med en profil for kameraet ditt (Nikon Z8, Z5II eller generell). Vurder ved 100 % zoom. Legger aldri til detaljer kameraet ikke tok opp.",
+      deblur: "Retter forsiktig lett uskarphet fra fokus eller en liten risting ved dekonvolusjon. Redder ikke et svært uskarpt bilde og finner aldri på detaljer.",
     },
   },
   layers: {
@@ -1123,6 +1125,8 @@ export const nb: AreaTranslation<typeof source> = {
       clarity: "Klarhet",
       detailRecovery: "Fine detaljer",
       sharpen: "Skarphet",
+      captureSharpen: "Opptaksskarphet",
+      deblur: "Mindre uskarphet",
       denoiseLuminance: "Støyreduksjon",
       denoiseColour: "Fargestøyreduksjon",
       dehaze: "Fjern dis",

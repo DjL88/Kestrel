@@ -17,6 +17,7 @@ export const DETAIL_CONTROLS = [
 ] as const;
 export type ToneKey = (typeof TONE_CONTROLS)[number]['key'];
 import { hasFringeEdit, type Defringe, type LateralCa } from './fringe';
+import { hasCaptureDetail, type CaptureSharpen } from './captureSharpen';
 import { isNeutralWhiteBalance, whiteBalanceGains, type WhiteBalanceEdit } from './asShotWhite';
 import { applyCurveLut, curveLut, isNeutralCurve, isNeutralMixer, mixerParams, mixPixel, type ColourMixer, type CurvePoint } from './curveMixer';
 import { calibrationMatrix, isNeutralCalibration, type Calibration } from './calibration';
@@ -40,6 +41,10 @@ export interface PhotoEdit {
   texture?: number;
   clarity?: number;
   sharpen?: number;
+  /** Capture sharpening: deconvolution with the camera's own point-spread profile, before tone. Absent = off. */
+  captureSharpen?: CaptureSharpen;
+  /** Mild deblur, 0 (off) to 1: deconvolution with a slightly wider point-spread, never generated pixels. Absent = off. */
+  deblur?: number;
   /** Colour noise reduction, 0 (off) to 2. Runs first, on the original pixels, before tone and sharpening. */
   denoise?: number;
   /** Edge-aware luminance noise reduction, 0–2, before tone and detail. */
@@ -91,7 +96,7 @@ export function isNeutralTone(edit: PhotoEdit): boolean {
 export const NOISE_CONTROL = { key: 'denoise', label: 'Noise reduction' } as const;
 
 export function isNeutralEdit(edit: PhotoEdit): boolean {
-  return !edit.denoise && !edit.denoiseLuminance && !edit.trueDetailAi && !edit.upscale && !edit.dehaze && !hasFringeEdit(edit) && !hasFinishing(edit) && isNeutralTone(edit) && DETAIL_CONTROLS.every(({ key }) => !edit[key]) && !hasActiveMasks(edit.masks);
+  return !edit.denoise && !edit.denoiseLuminance && !edit.trueDetailAi && !edit.upscale && !edit.dehaze && !hasCaptureDetail(edit) && !hasFringeEdit(edit) && !hasFinishing(edit) && isNeutralTone(edit) && DETAIL_CONTROLS.every(({ key }) => !edit[key]) && !hasActiveMasks(edit.masks);
 }
 
 /** Nothing to keep: neutral, and no masks at all (an empty mask is still kept so it can be adjusted). */
