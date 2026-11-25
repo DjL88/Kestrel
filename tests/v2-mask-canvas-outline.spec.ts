@@ -25,6 +25,9 @@ async function openPhoto(page: Page) {
   await (await chooser).setFiles([{ name: 'outline.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
   const frame = root.getByTestId('canvas-frame');
   await expect(frame.locator('img').first()).toBeVisible({ timeout: 30000 });
+  // A phone has no rail: Masks sits in the bottom bar's More tools (as in verified-asset-v2-adaptive).
+  const phoneTools = root.getByRole('navigation', { name: 'Mobile studio tools' });
+  if (await phoneTools.isVisible()) await phoneTools.getByRole('button', { name: 'More' }).click();
   await root.getByRole('button', { name: 'Masks', exact: true }).first().click();
   return { root, frame };
 }
