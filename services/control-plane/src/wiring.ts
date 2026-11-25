@@ -22,7 +22,9 @@ import { FirestoreSpendGuard } from './spendGuard.ts';
 import type { FirestoreLike } from './firestoreStore.ts';
 import { VertexLearningLedger, configFromEnv as vertexConfigFromEnv } from './vertexLearning.ts';
 import { createHmac } from 'node:crypto';
-import { FirestoreMailLedger, Mailer, SmtpTransport, secretManagerValue, MAIL_HARD_DAILY_MAX, mailNoticeDelivery } from './mailer.ts';
+import { FirestoreMailLedger, Mailer, SmtpTransport, secretManagerValue, DEFAULT_MAIL_LIMITS, fromAddressFor, hardDailyMax, mailAccountKind, mailNoticeDelivery } from './mailer.ts';
+import { NoticeContacts, identityToolkitLookup, type FirebaseUserLookup } from './noticeContacts.ts';
+import { NewsBroadcaster } from './news.ts';
 
 export interface WiringDeps {
   firestore?: FirestoreLike;
@@ -35,8 +37,10 @@ export interface WiringDeps {
   mailTransport?: import('./mailer.ts').MailTransport;
   /** Tests: a fake FCM sender. */
   pushSender?: PushSender;
+  /** Tests: a fake Firebase Auth user lookup (production: Identity Toolkit). */
+  firebaseUsers?: FirebaseUserLookup;
 }
-export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'notices' | 'push' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer' | 'cloudBalance' | 'vertexLearning'> & { enabled: string[] };
+export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'notices' | 'push' | 'contacts' | 'news' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer' | 'cloudBalance' | 'vertexLearning'> & { enabled: string[] };
 
 function whole(env: NodeJS.ProcessEnv, name: string, dflt: number, max: number): number {
   const raw = env[name];
@@ -64,21 +68,25 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
   const balance = new FirestoreCloudBalance(db);
   out.cloudBalance = balance;
 
-  // App email (hello@inflight.studio). Only when Terraform sets KCP_MAIL_ENABLED (smtp_mail_enabled), which waits for the
-  // owner's "Send mail as" verification; the `email` admin switch must also be on before anything is sent.
-  // The app password is read from Secret Manager on first send, never from the environment.
+  // App email. Only when Terraform sets KCP_MAIL_ENABLED (smtp_mail_enabled); the `email` admin switch must also be on
+  // before anything is sent. The app password is read from Secret Manager on first send, never from the environment.
+  // A gmail.com SMTP login is a personal Gmail account: hard cap 450 a day, From = that address unless KCP_MAIL_FROM
+  // names a verified "Send mail as" alias. Otherwise Workspace: hard cap 1,500, From hello@inflight.studio by default.
   if (env.KCP_MAIL_ENABLED === '1') {
     if (!deps.sessionSecret) throw new Error('app email needs the session secret for unsubscribe links');
     const required = (name: string) => { const v = env[name]; if (!v) throw new Error(`${name} is required when KCP_MAIL_ENABLED=1`); return v; };
     const token = deps.token ?? (() => metadataAccessToken());
+    const username = required('KCP_SMTP_USER');
+    const account = mailAccountKind(username);
     const transport = deps.mailTransport ?? new SmtpTransport({
-      host: env.KCP_SMTP_HOST || 'smtp.gmail.com', port: whole(env, 'KCP_SMTP_PORT', 587, 65535), username: required('KCP_SMTP_USER'),
+      host: env.KCP_SMTP_HOST || 'smtp.gmail.com', port: whole(env, 'KCP_SMTP_PORT', 587, 65535), username,
       password: secretManagerValue(required('KCP_SMTP_PASSWORD_SECRET'), token),
     });
+    const cap = hardDailyMax(account);
     out.mailer = new Mailer({
-      transport, ledger: new FirestoreMailLedger(db), fromAddress: env.KCP_MAIL_FROM || 'hello@inflight.studio', fromName: 'InFlight',
+      transport, ledger: new FirestoreMailLedger(db), fromAddress: fromAddressFor(username, env.KCP_MAIL_FROM), fromName: 'InFlight', account,
       siteOrigin: required('KCP_SITE_ORIGIN'), unsubscribeKey: createHmac('sha256', deps.sessionSecret).update('mail-unsubscribe-v1').digest(),
-      limits: { daily: whole(env, 'KCP_MAIL_DAILY_LIMIT', 500, MAIL_HARD_DAILY_MAX), perSender: whole(env, 'KCP_MAIL_PER_SENDER', 30, 500), perRecipient: whole(env, 'KCP_MAIL_PER_RECIPIENT', 3, 50) },
+      limits: { daily: whole(env, 'KCP_MAIL_DAILY_LIMIT', Math.min(DEFAULT_MAIL_LIMITS.daily, cap), cap), perSender: whole(env, 'KCP_MAIL_PER_SENDER', 30, 500), perRecipient: whole(env, 'KCP_MAIL_PER_RECIPIENT', 3, 50) },
     });
     out.enabled.push('email');
   }
@@ -124,14 +132,22 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
   if (env.KCP_COLLABORATION_ENABLED === '1') {
     out.collab = new CollabStore(db); out.enabled.push('collaboration');
     // Team notifications: the in-app inbox always; push (FCM) only when KCP_PUSH_ENABLED=1 and the `push` admin switch is
-    // on; hello@ email through the mailer, which needs its own switches and an address the person gave.
+    // on; email only when push reached no device, through the mailer (its own switch), to the account's verified
+    // Firebase sign-in address, looked up when needed (needs KCP_FIREBASE_PROJECT_ID and roles/firebaseauth.viewer).
     if (env.KCP_PUSH_ENABLED === '1') {
       const project = env.KCP_FCM_PROJECT_ID || env.GOOGLE_CLOUD_PROJECT;
       if (!project) throw new Error('KCP_FCM_PROJECT_ID is required when KCP_PUSH_ENABLED=1');
       const sender = deps.pushSender ?? new FcmSender(project, deps.token ?? (() => metadataAccessToken()));
       out.push = new PushService(db, sender, (message) => console.warn(message)); out.enabled.push('push');
     }
-    out.notices = new NoticeStore(db, noticeDelivery(out.push, mailNoticeDelivery(out.mailer).email), undefined, (message) => console.warn(message)); out.enabled.push('notices');
+    const firebaseProject = env.KCP_FIREBASE_PROJECT_ID;
+    const lookup = deps.firebaseUsers ?? (out.mailer && firebaseProject ? identityToolkitLookup(firebaseProject, deps.token ?? (() => metadataAccessToken()), fetch, (m) => console.warn(m)) : undefined);
+    out.contacts = new NoticeContacts(db, lookup, (message) => console.warn(message));
+    out.notices = new NoticeStore(db, noticeDelivery(out.push, mailNoticeDelivery(out.mailer, out.contacts.addressBook).email), undefined, (message) => console.warn(message)); out.enabled.push('notices');
+    if (out.push) {
+      out.news = new NewsBroadcaster(db, { push: out.push, mailer: out.mailer, contacts: out.contacts, addressBook: out.contacts.addressBook, log: (m) => console.warn(m) });
+      out.enabled.push('product-news');
+    }
     // Live cursors also need the Realtime Database URL and the service account that signs per-project tokens.
     if (env.KCP_PRESENCE_DATABASE_URL && env.KCP_PRESENCE_SERVICE_ACCOUNT) {
       if (!/^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.(firebasedatabase\.app|firebaseio\.com)$/.test(env.KCP_PRESENCE_DATABASE_URL)) throw new Error('KCP_PRESENCE_DATABASE_URL must be a Firebase Realtime Database URL');

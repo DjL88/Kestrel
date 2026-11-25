@@ -21,4 +21,7 @@ export const sv: AreaTranslation<typeof source> = {
     invalid: "Länken är inte giltig.",
     invalidHint: "Svara på mejlet, så slutar vi.",
   },
+  news: {
+    why: "Du får detta eftersom du har bett om nyheter från InFlight via e-post. Stäng av det under Inställningar → Konto, eller använd länken nedan.",
+  },
 };

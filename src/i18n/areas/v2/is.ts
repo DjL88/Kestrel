@@ -1877,6 +1877,11 @@ export const is: AreaTranslation<typeof source> = {
     pushBlocked: "Tilkynningar frá InFlight eru útilokaðar í stillingum þessa vafra.",
     pushAppOnly: "Í þessu forriti birtast nýjar tilkynningar hér þegar InFlight er opið.",
     pushFailed: "Ekki tókst að breyta tilkynningunum. Ekkert annað breyttist.",
+    pushNews: "Fréttir og nýir eiginleikar InFlight",
+    newsEmailHeading: "Tölvupóstur frá InFlight",
+    newsEmailLabel: "Senda mér fréttir og nýja eiginleika InFlight í tölvupósti",
+    newsEmailHint: "Slökkt nema þú kveikir á því. Fréttir fara fyrst í tækin þín með tilkynningum; við sendum aðeins tölvupóst þegar tilkynning nær ekki til þín. Í hverjum pósti er tengill til að stöðva þá.",
+    newsEmailFailed: "Ekki tókst að breyta þessu. Ekkert annað breyttist.",
   },
   taskAlerts: {
     oneDone: (title: string) => `Lokið: ${title}.`,

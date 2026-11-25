@@ -1878,6 +1878,11 @@ export const fi: AreaTranslation<typeof source> = {
     pushBlocked: "InFlightin ilmoitukset on estetty tämän selaimen asetuksissa.",
     pushAppOnly: "Tässä sovelluksessa uudet ilmoitukset näkyvät täällä, kun InFlight on auki.",
     pushFailed: "Ilmoituksia ei voitu muuttaa. Mikään muu ei muuttunut.",
+    pushNews: "InFlightin uutiset ja uudet toiminnot",
+    newsEmailHeading: "Sähköposti InFlightilta",
+    newsEmailLabel: "Lähetä minulle InFlightin uutiset ja uudet toiminnot sähköpostilla",
+    newsEmailHint: "Pois päältä, kunnes otat sen käyttöön. Uutiset menevät ensin laitteillesi, joissa ilmoitukset ovat päällä; lähetämme sähköpostia vain, jos ilmoitus ei tavoita sinua. Jokaisessa viestissä on linkki niiden lopettamiseen.",
+    newsEmailFailed: "Tätä ei voitu muuttaa. Mikään muu ei muuttunut.",
   },
   taskAlerts: {
     oneDone: (title: string) => `Valmis: ${title}.`,

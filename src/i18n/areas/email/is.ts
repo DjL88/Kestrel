@@ -21,4 +21,7 @@ export const is: AreaTranslation<typeof source> = {
     invalid: "Þessi tengill er ekki gildur.",
     invalidHint: "Svaraðu tölvupóstinum og við hættum.",
   },
+  news: {
+    why: "Þú færð þetta af því að þú baðst um fréttir frá InFlight í tölvupósti. Til að hætta skaltu slökkva á því í Stillingar → Aðgangur eða nota tengilinn hér fyrir neðan.",
+  },
 };

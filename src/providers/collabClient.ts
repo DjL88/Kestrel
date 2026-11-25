@@ -116,6 +116,10 @@ export interface CollabClient {
   setPushPreferences(change: Partial<PushPreferences>): Promise<PushPreferences>;
   registerPushDevice(token: string, platform: PushPlatform): Promise<void>;
   removePushDevice(token: string): Promise<void>;
+  /** Email only as the fallback: whether the server can email you, and product news by email (off unless turned on). */
+  emailSettings(): Promise<{ available: boolean; productNews: boolean }>;
+  /** Turn product news by email on or off. Also tells the server the app's language, for the words in any email. */
+  setEmailSettings(change: { productNews?: boolean }): Promise<boolean>;
   revokeGallery(galleryId: string): Promise<void>;
   leases(projectId: string): Promise<SharedLeaseView[]>;
   acquire(projectId: string, photoKey: string, deviceId: string): Promise<{ token: string; baseRevisionId: string | null }>;
@@ -220,6 +224,8 @@ export function collabClient(baseUrl: string | undefined | null, idToken: () => 
     setPushPreferences: async (change) => cleanPreferences((await call('POST', '/v1/notify/push/preferences', change as Json)).preferences),
     registerPushDevice: async (token, platform) => { await call('POST', '/v1/notify/push/devices', { token, platform }); },
     removePushDevice: async (token) => { await call('POST', '/v1/notify/push/devices/remove', { token }); },
+    emailSettings: async () => { const r = await call('GET', '/v1/notify/email'); return { available: r.available === true, productNews: r.productNews === true }; },
+    setEmailSettings: async (change) => (await call('POST', '/v1/notify/email', { ...change, language })).productNews === true,
     galleryFeedback: async (gid) => ((await call('GET', `/v1/collab/galleries/${encodeURIComponent(gid)}/feedback`)).events ?? []) as GalleryFeedbackEvent[],
     galleryFeedbackWithReviews: async (gid) => {
       const r = await call('GET', `/v1/collab/galleries/${encodeURIComponent(gid)}/feedback`);

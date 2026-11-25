@@ -1877,6 +1877,11 @@ export const fr: AreaTranslation<typeof source> = {
     pushBlocked: "Les alertes sont bloquées pour InFlight dans les réglages de ce navigateur.",
     pushAppOnly: "Dans cette app, les nouvelles notifications s’affichent ici quand InFlight est ouvert.",
     pushFailed: "Les alertes n’ont pas pu être modifiées. Rien d’autre n’a changé.",
+    pushNews: "Nouveautés et nouvelles fonctions d’InFlight",
+    newsEmailHeading: "E-mails d’InFlight",
+    newsEmailLabel: "M’envoyer par e-mail les nouveautés et nouvelles fonctions d’InFlight",
+    newsEmailHint: "Désactivé tant que vous ne l’activez pas. Les nouveautés arrivent d’abord sur vos appareils où les alertes sont activées ; nous n’envoyons un e-mail que si une alerte ne peut pas vous joindre. Chaque e-mail contient un lien pour les arrêter.",
+    newsEmailFailed: "Impossible de modifier ce réglage. Rien d’autre n’a changé.",
   },
   taskAlerts: {
     oneDone: (title: string) => `Terminé : ${title}.`,

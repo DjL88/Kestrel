@@ -21,4 +21,7 @@ export const da: AreaTranslation<typeof source> = {
     invalid: "Dette link er ikke gyldigt.",
     invalidHint: "Svar på mailen, så stopper vi dem.",
   },
+  news: {
+    why: "Du får dette, fordi du har bedt om nyheder fra InFlight på e-mail. Slå det fra under Indstillinger → Konto, eller brug linket nedenfor.",
+  },
 };

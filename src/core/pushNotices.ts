@@ -13,17 +13,26 @@ import type { NoticeKind } from './collabNotices';
 export const PUSH_PLATFORMS = ['web', 'android', 'ios', 'desktop'] as const;
 export type PushPlatform = typeof PUSH_PLATFORMS[number];
 
-/** What a person can switch on or off for push. Each notice kind belongs to one. */
-export const PUSH_CATEGORIES = ['comments', 'clientFeedback'] as const;
+/**
+ * What a person can switch on or off for push. Each notice kind belongs to one; `news` is InFlight's own product news
+ * (new features and updates), sent by an administrator to devices where alerts are on. It is on by default for push,
+ * because a device only gets alerts after the person turned them on there; product news by EMAIL is a separate opt-in
+ * that starts off (services/control-plane/src/noticeContacts.ts).
+ */
+export const PUSH_CATEGORIES = ['comments', 'clientFeedback', 'news'] as const;
 export type PushCategory = typeof PUSH_CATEGORIES[number];
 export type PushPreferences = Record<PushCategory, boolean>;
-export const DEFAULT_PUSH_PREFERENCES: PushPreferences = { comments: true, clientFeedback: true };
+export const DEFAULT_PUSH_PREFERENCES: PushPreferences = { comments: true, clientFeedback: true, news: true };
+
+/** The kind a product-news push carries in its data. */
+export const NEWS_KIND = 'news';
+export type PushKind = NoticeKind | typeof NEWS_KIND;
 
 /** At most this many devices per account; registering another drops the one seen longest ago. */
 export const MAX_PUSH_DEVICES = 10;
 
-export function pushCategory(kind: NoticeKind): PushCategory {
-  return kind === 'client-feedback' ? 'clientFeedback' : 'comments';
+export function pushCategory(kind: PushKind): PushCategory {
+  return kind === NEWS_KIND ? 'news' : kind === 'client-feedback' ? 'clientFeedback' : 'comments';
 }
 
 /** An FCM registration token: long, URL-safe characters and colons. Anything else is refused. */

@@ -7,11 +7,13 @@ test('a push carries kind and opaque ids only, and drops anything that is not an
   assert.deepEqual(pushData({ kind: 'reply', projectId: 'IMG 0001.jpg', photoId: null }), { kind: 'reply' });
 });
 
-test('kinds map to the two choices people make', () => {
+test('kinds map to the choices people make; product news is its own', () => {
   assert.equal(pushCategory('client-feedback'), 'clientFeedback');
+  assert.equal(pushCategory('news'), 'news');
   for (const kind of ['comment', 'reply', 'resolve', 'reopen'] as const) assert.equal(pushCategory(kind), 'comments');
-  assert.deepEqual(cleanPreferences({ comments: false, clientFeedback: 'yes', other: true }), { comments: false, clientFeedback: true });
-  assert.deepEqual(cleanPreferences(null), { comments: true, clientFeedback: true });
+  assert.deepEqual(cleanPreferences({ comments: false, clientFeedback: 'yes', other: true }), { comments: false, clientFeedback: true, news: true });
+  assert.deepEqual(cleanPreferences(null), { comments: true, clientFeedback: true, news: true });
+  assert.equal(cleanPreferences({ news: false }).news, false);
 });
 
 test('tokens are checked before they are stored', () => {

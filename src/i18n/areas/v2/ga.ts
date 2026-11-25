@@ -1880,6 +1880,11 @@ export const ga: AreaTranslation<typeof source> = {
     pushBlocked: "Tá foláirimh InFlight blocáilte i socruithe an bhrabhsálaí seo.",
     pushAppOnly: "San aip seo, taispeántar fógraí nua anseo nuair atá InFlight oscailte.",
     pushFailed: "Níorbh fhéidir na foláirimh a athrú. Níor athraíodh aon rud eile.",
+    pushNews: "Nuacht agus gnéithe nua InFlight",
+    newsEmailHeading: "Ríomhphost ó InFlight",
+    newsEmailLabel: "Seol nuacht agus gnéithe nua InFlight chugam trí ríomhphost",
+    newsEmailHint: "As mura gcasann tú air é. Téann nuacht chuig do ghléasanna a bhfuil foláirimh orthu ar dtús; ní sheolaimid ríomhphost ach nuair nach féidir le foláireamh teacht ort. Tá nasc i ngach ríomhphost chun iad a stopadh.",
+    newsEmailFailed: "Níorbh fhéidir é seo a athrú. Níor athraíodh aon rud eile.",
   },
   taskAlerts: {
     oneDone: (title: string) => `Críochnaithe: ${title}.`,

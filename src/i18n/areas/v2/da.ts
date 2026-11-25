@@ -1877,6 +1877,11 @@ export const da: AreaTranslation<typeof source> = {
     pushBlocked: "Beskeder fra InFlight er blokeret i denne browsers indstillinger.",
     pushAppOnly: "I denne app vises nye notifikationer her, når InFlight er åben.",
     pushFailed: "Beskederne kunne ikke ændres. Intet andet blev ændret.",
+    pushNews: "Nyheder og nye funktioner i InFlight",
+    newsEmailHeading: "E-mail fra InFlight",
+    newsEmailLabel: "Send mig nyheder og nye funktioner i InFlight på e-mail",
+    newsEmailHint: "Slået fra, medmindre du slår det til. Nyheder sendes først til dine enheder med beskeder; vi sender kun en e-mail, når en besked ikke kan nå dig. Hver e-mail har et link til at stoppe dem.",
+    newsEmailFailed: "Det kunne ikke ændres. Intet andet blev ændret.",
   },
   taskAlerts: {
     oneDone: (title: string) => `Færdig: ${title}.`,

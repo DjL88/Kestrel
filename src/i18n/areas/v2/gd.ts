@@ -1878,6 +1878,11 @@ export const gd: AreaTranslation<typeof source> = {
     pushBlocked: "Tha caismeachdan InFlight air am bacadh ann an roghainnean a’ bhrabhsair seo.",
     pushAppOnly: "San aplacaid seo, nochdaidh brathan ùra an-seo nuair a bhios InFlight fosgailte.",
     pushFailed: "Cha b’ urrainn dhuinn na caismeachdan atharrachadh. Cha do dh’atharraich càil eile.",
+    pushNews: "Naidheachdan is gleusan ùra InFlight",
+    newsEmailHeading: "Post-d o InFlight",
+    newsEmailLabel: "Cuir naidheachdan is gleusan ùra InFlight thugam air post-d",
+    newsEmailHint: "Dheth mura cuir thu air e. Thèid naidheachdan dha na h-uidheaman agad le caismeachdan an toiseach; cha chuir sinn post-d ach mur ruig caismeachd thu. Tha ceangal anns gach post-d airson stad a chur orra.",
+    newsEmailFailed: "Cha b’ urrainn dhuinn seo atharrachadh. Cha do dh’atharraich càil eile.",
   },
   taskAlerts: {
     oneDone: (title: string) => `Deiseil: ${title}.`,
