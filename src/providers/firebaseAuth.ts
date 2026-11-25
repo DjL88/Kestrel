@@ -4,6 +4,7 @@ import { isDesktopApp } from './desktopShell';
 import { friendlyAuthError } from '../core/authError';
 import { challengeFor, explainSignInError, makeVerifier, parseCallbackQuery } from '../core/cloudDrive';
 import { desktopGoogleClient, googleCodeExchangeBody, googleSignInUrl, GOOGLE_TOKEN_URL, idTokenFromAnswer } from '../core/desktopGoogleSignIn';
+import { appleAnswerFromQuery, appleSignInPageUrl, desktopAppleConfig, sha256Hex } from '../core/desktopAppleSignIn';
 
 /** Public web configuration from Firebase. These are identifiers, not secrets (see docs/BACKEND.md). */
 const env = import.meta.env;
@@ -23,6 +24,10 @@ export const isSignInConfigured = () => Boolean(config.apiKey && config.authDoma
 /** The Google desktop OAuth client this build signs in with, if any (see desktopGoogleSignIn.ts). */
 const googleDesktop = desktopGoogleClient(env as Record<string, string | undefined>);
 export const isDesktopGoogleConfigured = () => googleDesktop !== null;
+
+/** The website's Apple sign-in page this build sends desktop users to, if any (see desktopAppleSignIn.ts). */
+const appleDesktop = desktopAppleConfig(env as Record<string, string | undefined>);
+export const isDesktopAppleConfigured = () => appleDesktop !== null;
 
 export function signInPlatform(): SignInPlatform {
   if (!isDesktopApp()) return 'web';
@@ -112,6 +117,36 @@ async function signInWithGoogleOnDesktop(client: NonNullable<typeof googleDeskto
   return withAuth(async ({ auth, instance }) => toSession((await auth.signInWithCredential(instance, auth.GoogleAuthProvider.credential(idToken))).user, 'google'));
 }
 
+/**
+ * Desktop: InFlight's Apple sign-in page on the website opens in the person's normal browser, Apple's own sign-in runs
+ * there, and the page hands Apple's ID token to the one-shot listener on this computer. Firebase signs in with that
+ * token and the raw nonce, which never leaves the app (the page and Apple only see its hash).
+ */
+async function signInWithAppleOnDesktop(config: NonNullable<typeof appleDesktop>): Promise<import('../core/cloudInterfaces').Session> {
+  const { invoke } = await import('@tauri-apps/api/core');
+  const state = randomToken();
+  const rawNonce = randomToken();
+  const hashedNonce = await sha256Hex(rawNonce);
+  try { await invoke<string>('oauth_listen_start'); } catch (error) { throw loopbackError(error); }
+  let query: string;
+  try {
+    const { openUrl } = await import('@tauri-apps/plugin-opener');
+    await openUrl(appleSignInPageUrl(config, { state, hashedNonce }));
+    query = await invoke<string>('oauth_listen_wait', { timeoutSecs: 300 });
+  } catch (error) {
+    await invoke('oauth_listen_stop').catch(() => undefined);
+    throw new Error(typeof error === 'string' ? error : 'Apple sign-in did not finish. Try again.');
+  }
+  const answer = appleAnswerFromQuery(query, { state, servicesId: config.servicesId, hashedNonce });
+  return withAuth(async ({ auth, instance }) => {
+    const credential = new auth.OAuthProvider('apple.com').credential({ idToken: answer.idToken, rawNonce });
+    const { user } = await auth.signInWithCredential(instance, credential);
+    // Apple gives the name only on the first sign-in, outside the token; keep it so the account is not nameless.
+    if (answer.displayName && !user.displayName) await auth.updateProfile(user, { displayName: answer.displayName }).catch(() => undefined);
+    return toSession(user, 'apple');
+  });
+}
+
 export const firebaseAuth: AuthProvider = {
   signInWithEmail: (email, password) => withAuth(async ({ auth, instance }) => toSession((await auth.signInWithEmailAndPassword(instance, email.trim(), password)).user, 'password')),
   createAccount: (email, password) => withAuth(async ({ auth, instance }) => {
@@ -123,6 +158,7 @@ export const firebaseAuth: AuthProvider = {
   async signIn(provider) {
     if (!isSignInConfigured()) throw new Error('Sign-in is not set up in this build.');
     if (signInPlatform() === 'desktop' && provider === 'google' && googleDesktop) return signInWithGoogleOnDesktop(googleDesktop);
+    if (signInPlatform() === 'desktop' && provider === 'apple' && appleDesktop) return signInWithAppleOnDesktop(appleDesktop);
     if (signInPlatform() !== 'web') throw new Error('Google and Apple sign-in are not built for installed apps yet. Use email and password here, or sign in on the web.');
     try {
       const { auth, instance } = await firebase();
