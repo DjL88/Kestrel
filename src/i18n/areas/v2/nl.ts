@@ -508,6 +508,9 @@ export const nl: AreaTranslation<typeof source> = {
     galleryDone: (n: number) => `${n} foto’s gepubliceerd.`,
     gallerySkipped: (n: number) => `${n} foto’s zijn weggelaten omdat ze nog geen ontwikkeld voorbeeld hebben.`,
   },
+  guardian: {
+    autopilotHeld: "De automatische piloot heeft deze bewerking voor uw controle tegengehouden: de beeldcontrole op dit apparaat was er niet van overtuigd dat ze natuurlijk oogt. De suggestie staat in de copiloot om te bekijken of toe te passen. Er is niets veranderd.",
+  },
   adjust: {
     grade: {
       heading: 'Kleurcorrectie',

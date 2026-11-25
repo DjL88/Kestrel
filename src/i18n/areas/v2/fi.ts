@@ -509,6 +509,9 @@ export const fi: AreaTranslation<typeof source> = {
     galleryDone: (n: number) => `${n} kuvaa julkaistu.`,
     gallerySkipped: (n: number) => `${n} kuvaa jätettiin pois, koska niillä ei vielä ole kehitettyä esikatselua.`,
   },
+  guardian: {
+    autopilotHeld: "Autopilotti jätti tämän muokkauksen tarkistettavaksesi: tämän laitteen kuvatarkistus ei ollut varma, että se näyttää luonnolliselta. Ehdotus on perämiehessä esikatselua tai käyttöä varten. Mitään ei muutettu.",
+  },
   adjust: {
     grade: {
       heading: 'Värimäärittely',

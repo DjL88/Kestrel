@@ -2,6 +2,7 @@ import { recordEdit } from '../../core/editHistory';
 import { readEditGroups, syncEditGroup } from './editGroupState';
 import type { PhotoEdit } from '../../core/photoEdits';
 import type { CullingState, PhotoFrame } from '../../core/types';
+import { v2Text } from '../../i18n/areas/v2';
 
 /** Compare against the catalogue at write time, after any intervening manual edits. */
 export function commitAutoEdit(
@@ -28,5 +29,5 @@ export function commitAutoEdit(
   return { ...state, frames, shoot: { ...state.shoot, lastUpdatedAt: at } };
 }
 
-/** Shown when the vision guardian held an Auto-pilot edit back. The edit stays available as a Co-pilot suggestion. */
-export const AUTOPILOT_HELD_FOR_REVIEW = 'Auto-pilot held this edit for your review: the on-device vision check was not convinced it looks natural. The suggestion is in Co-pilot to preview or apply. Nothing was changed.';
+/** Shown when the vision guardian held an Auto-pilot edit back, in the person's language. The edit stays available as a Co-pilot suggestion. */
+export const autopilotHeldForReview = (): string => v2Text.guardian.autopilotHeld;

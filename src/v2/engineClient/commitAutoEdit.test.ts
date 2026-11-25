@@ -66,7 +66,7 @@ test('does not apply an old proposal after the active group or version changes',
 });
 
 test('a held Auto-pilot edit says it was held, where the suggestion is, and that nothing changed', async () => {
-  const { AUTOPILOT_HELD_FOR_REVIEW } = await import('./commitAutoEdit.ts');
+  const AUTOPILOT_HELD_FOR_REVIEW = (await import('./commitAutoEdit.ts')).autopilotHeldForReview();
   assert.match(AUTOPILOT_HELD_FOR_REVIEW, /held this edit for your review/);
   assert.match(AUTOPILOT_HELD_FOR_REVIEW, /Co-pilot/);
   assert.match(AUTOPILOT_HELD_FOR_REVIEW, /Nothing was changed\.$/);

@@ -509,6 +509,9 @@ export const gd: AreaTranslation<typeof source> = {
     galleryDone: (n: number) => `Chaidh ${n} dealbhan fhoillseachadh.`,
     gallerySkipped: (n: number) => `Chaidh ${n} dealbhan fhàgail às oir chan eil ro-shealladh leasaichte aca fhathast.`,
   },
+  guardian: {
+    autopilotHeld: "Chùm am fèin-phìleat an deasachadh seo air ais airson do lèirmheas: cha robh an sgrùdadh lèirsinneach air an uidheam seo cinnteach gu bheil e a' coimhead nàdarra. Tha am moladh sa cho-phìleat airson ro-shealladh no cur an sàs. Cha deach dad atharrachadh.",
+  },
   adjust: {
     grade: {
       heading: 'Rangachadh dhathan',

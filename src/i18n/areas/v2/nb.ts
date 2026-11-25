@@ -508,6 +508,9 @@ export const nb: AreaTranslation<typeof source> = {
     galleryDone: (n: number) => `${n} bilder publisert.`,
     gallerySkipped: (n: number) => `${n} bilder ble utelatt fordi de ennå ikke har en fremkalt forhåndsvisning.`,
   },
+  guardian: {
+    autopilotHeld: "Autopiloten holdt tilbake denne redigeringen så du kan se på den: bildesjekken på denne enheten var ikke overbevist om at den ser naturlig ut. Forslaget ligger i andrepiloten, klart til forhåndsvisning eller bruk. Ingenting ble endret.",
+  },
   adjust: {
     grade: {
       heading: 'Fargegradering',

@@ -508,6 +508,9 @@ export const is: AreaTranslation<typeof source> = {
     galleryDone: (n: number) => `${n} myndir birtar.`,
     gallerySkipped: (n: number) => `${n} myndum var sleppt því þær eru ekki enn með framkallaða forskoðun.`,
   },
+  guardian: {
+    autopilotHeld: "Sjálfstýringin hélt þessari breytingu eftir svo að þú getir skoðað hana: myndathugunin í þessu tæki var ekki sannfærð um að hún líti eðlilega út. Tillagan er í aðstoðarflugmanni til að forskoða eða nota. Engu var breytt.",
+  },
   adjust: {
     grade: {
       heading: 'Litaflokkun',

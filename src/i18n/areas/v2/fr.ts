@@ -508,6 +508,9 @@ export const fr: AreaTranslation<typeof source> = {
     galleryDone: (n: number) => `${n} photos publiées.`,
     gallerySkipped: (n: number) => `${n} photos ont été laissées de côté, faute d’aperçu développé.`,
   },
+  guardian: {
+    autopilotHeld: "Le pilote automatique a gardé cette retouche pour votre avis : la vérification visuelle sur cet appareil n'était pas convaincue qu'elle paraisse naturelle. La suggestion est dans le copilote, pour l'aperçu ou l'application. Rien n'a été modifié.",
+  },
   adjust: {
     grade: {
       heading: 'Étalonnage des couleurs',

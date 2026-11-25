@@ -508,6 +508,9 @@ export const de: AreaTranslation<typeof source> = {
     galleryDone: (n: number) => `${n} Fotos veröffentlicht.`,
     gallerySkipped: (n: number) => `${n} Fotos wurden ausgelassen, weil sie noch keine entwickelte Vorschau haben.`,
   },
+  guardian: {
+    autopilotHeld: "Der Autopilot hat diese Bearbeitung für Ihre Prüfung zurückgehalten: Die Bildprüfung auf diesem Gerät war nicht überzeugt, dass sie natürlich wirkt. Der Vorschlag steht im Copilot zur Vorschau oder zum Anwenden bereit. Es wurde nichts geändert.",
+  },
   adjust: {
     grade: {
       heading: 'Farbkorrektur',

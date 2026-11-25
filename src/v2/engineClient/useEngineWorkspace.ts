@@ -47,7 +47,7 @@ import { recordFormatCrop, recordFormatSetChange, recordFormatLink } from './for
 import { addRow, alignOverlays, moveRow, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps';
 import { frameToPhoto, matchesAutoSource, originalFormatSize, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
-import { AUTOPILOT_HELD_FOR_REVIEW, commitAutoEdit } from './commitAutoEdit';
+import { autopilotHeldForReview, commitAutoEdit } from './commitAutoEdit';
 import { guardResult } from '../../core/visionGuardian';
 import { askOnDeviceGuardian } from '../../providers/visionGuardian';
 import { commitAutoCull } from './commitAutoCull';
@@ -1097,7 +1097,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             ctx.checkCancelled();
             if (!isCurrent()) return;
             if (guardResult('apply', opinion ? [opinion] : []).status !== 'apply') {
-              ctx.commitIfCurrent(() => setNotice(AUTOPILOT_HELD_FOR_REVIEW));
+              ctx.commitIfCurrent(() => setNotice(autopilotHeldForReview()));
               return;
             }
             const at = Date.now();

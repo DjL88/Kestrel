@@ -511,6 +511,9 @@ export const ga: AreaTranslation<typeof source> = {
     galleryDone: (n: number) => `Foilsíodh ${n} grianghraf.`,
     gallerySkipped: (n: number) => `Fágadh ${n} grianghraf amach mar níl réamhamharc forbartha acu fós.`,
   },
+  guardian: {
+    autopilotHeld: "Choinnigh an t-uathphíolóta an eagarthóireacht seo siar le go ndéanfá athbhreithniú uirthi: ní raibh an tseiceáil amhairc ar an ngléas seo cinnte go bhfuil cuma nádúrtha uirthi. Tá an moladh sa chomhphíolóta le réamhamharc a fháil air nó é a chur i bhfeidhm. Níor athraíodh aon rud.",
+  },
   adjust: {
     grade: {
       heading: 'Grádú datha',

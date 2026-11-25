@@ -508,6 +508,9 @@ export const pt: AreaTranslation<typeof source> = {
     galleryDone: (n: number) => `${n} fotografias publicadas.`,
     gallerySkipped: (n: number) => `${n} fotografias ficaram de fora por ainda não terem pré-visualização revelada.`,
   },
+  guardian: {
+    autopilotHeld: "O piloto automático reteve esta edição para a sua revisão: a verificação visual neste dispositivo não ficou convencida de que parece natural. A sugestão está no copiloto para pré-visualizar ou aplicar. Nada foi alterado.",
+  },
   adjust: {
     grade: {
       heading: 'Correção de cor',
