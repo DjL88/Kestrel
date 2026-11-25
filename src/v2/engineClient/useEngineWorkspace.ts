@@ -21,6 +21,9 @@ import { scanForCulling } from '../../providers/browserAutoCull';
 import { useAccess } from '../../providers/useAccess';
 import { useBackgroundDevelop } from '../../useBackgroundDevelop';
 import { useSpeciesScan } from '../../useSpeciesScan';
+import { carryVehicleReadings, correctVehicle } from '../../core/vehicleBursts';
+import { VEHICLE_LABELS } from '../../core/vehicleLabels';
+import { vehicleText } from '../../i18n/areas/vehicles';
 import { useVisualGrouping } from './useVisualGrouping';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
 import { photoParallelism } from '../../core/photoParallelism';
@@ -629,9 +632,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useSpeciesScan({
     projectId: state?.shoot.id ?? '', frames: state?.frames ?? [], provider: provider.current,
     active: screen === 'editor' && Boolean(state) && can('speciesId'),
-    onResult: (frameId, patch) => setState((current) => (current ? { ...current, frames: current.frames.map((frame) =>
+    // A vehicle reading is carried across its burst: the same aircraft, read once, shown on every frame.
+    onResult: (frameId, patch) => setState((current) => (current ? { ...current, frames: carryVehicleReadings(current.frames.map((frame) =>
       frame.id === frameId && !frame.removedAt && !frame.speciesChecked && !frame.tags?.length && !frame.subjectNames?.length
-        ? { ...frame, ...patch, ...(frame.subjectKind && patch.subjectKind ? { subjectKind: frame.subjectKind } : {}) } : frame) } : current)),
+        ? { ...frame, ...patch, ...(frame.subjectKind && patch.subjectKind ? { subjectKind: frame.subjectKind } : {}) } : frame), VEHICLE_LABELS) } : current)),
   });
 
   // Bursts are refined quietly on this device from image embeddings (DINOv2): a real scene change splits a burst, and
@@ -1661,6 +1665,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const target = frame.decision === 'keep' ? 'unreviewed' : 'keep';
       return withPartners([id], pairsRef.current).reduce((acc, member) => applyDecisionWithHistory(acc, member, target, { allowAdvance: false }), next);
     }, current)),
+    correctVehicle: (photoId, choice, wholeBurst) => {
+      const before = stateRef.current?.frames ?? [];
+      const after = correctVehicle(before, photoId, choice, wholeBurst, VEHICLE_LABELS);
+      if (after === before) return;
+      const changed = after.filter((frame, index) => frame !== before[index]).length;
+      mutate((current) => ({ ...current, shoot: { ...current.shoot, lastUpdatedAt: Date.now() }, frames: correctVehicle(current.frames, photoId, choice, wholeBurst, VEHICLE_LABELS) }));
+      setNotice(vehicleText.correct.saved(changed));
+    },
     correctSpeciesName: (photoId, proposedName) => {
       const name = proposedName.trim().slice(0, 120);
       if (!name) return;
