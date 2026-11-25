@@ -1,17 +1,21 @@
 import { STRINGS } from '../strings';
 import React, { useEffect, useRef } from 'react';
-import { COMMANDS, COMMAND_GROUP_LABELS, type CommandGroup } from '../commands/registry';
+import { COMMANDS, COMMAND_GROUP_LABELS, commandById, type CommandGroup } from '../commands/registry';
 import { chordLabel, type Keymap } from '../commands/keymap';
+import { PAD_SLOT_LABELS, padGuideRows, type PadProfile } from '../commands/pad';
 
 interface ShortcutGuideProps {
   keymap: Keymap;
+  /** The macro pad's keys. They are real keys, so they are listed too: no key acts without being shown here. */
+  pad?: PadProfile;
   isMac: boolean;
   onClose: () => void;
 }
 
 /** V2 keyboard guide; mounted only when requested and never intercepts typing in a field. */
-export default function ShortcutGuide({ keymap, isMac, onClose }: ShortcutGuideProps) {
+export default function ShortcutGuide({ keymap, pad, isMac, onClose }: ShortcutGuideProps) {
   const closeButton = useRef<HTMLButtonElement>(null);
+  const padRows = pad ? padGuideRows(pad, keymap) : [];
 
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -55,6 +59,19 @@ export default function ShortcutGuide({ keymap, isMac, onClose }: ShortcutGuideP
               </dl>
             </section>
           ))}
+          {padRows.length > 0 && (
+            <section aria-labelledby="v2-shortcut-pad" data-testid="shortcut-guide-pad">
+              <h3 id="v2-shortcut-pad" className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{STRINGS.keyboardKeys.padHeading}</h3>
+              <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2">
+                {padRows.map((row) => (
+                  <React.Fragment key={row.slot}>
+                    <dt className="text-[var(--text-secondary)]">{commandById(row.command).label} ({PAD_SLOT_LABELS[row.slot]})</dt>
+                    <dd className="text-right font-medium">{chordLabel(row.chord, isMac)}</dd>
+                  </React.Fragment>
+                ))}
+              </dl>
+            </section>
+          )}
           <p className="text-[var(--text-secondary)]">{STRINGS.shortcutHelp.closeThisGuideEsc}</p>
         </div>
       </section>

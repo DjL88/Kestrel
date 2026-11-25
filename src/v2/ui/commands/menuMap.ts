@@ -4,7 +4,7 @@ import type { SettingsTabId } from '../contract';
 /**
  * What a native desktop menu id (from src-tauri/src/lib.rs, sent as the "menu" event) means in V2.
  * The native menu is shared with the current app, so ids V2 has no use for (editor tabs, bursts, Auto tab...) map to null and do nothing.
- * Several accelerators (Cmd+E, Cmd+A, Cmd+O, Cmd+M) are taken by the native menu before the page sees the key, so without this
+ * Several accelerators (Cmd+E, Cmd+A, Cmd+O, and Ctrl+M on Windows) are taken by the native menu before the page sees the key, so without this
  * bridge those keys would do nothing at all in the desktop app.
  */
 export type MenuAction =
@@ -34,6 +34,8 @@ const TABLE: Record<string, MenuAction> = {
   'edit-copy-adjustments': { kind: 'command', id: 'edit.copy' },
   'edit-paste-adjustments': { kind: 'command', id: 'edit.paste' },
   'photo-keep': { kind: 'decision', value: 'keep' },
+  // Photo > Set aside: the same as the X key, so it also moves on when "advance after a decision" is on.
+  'photo-reject': { kind: 'command', id: 'photo.reject' },
   'photo-unreview': { kind: 'decision', value: 'unreviewed' },
   'photo-undo': { kind: 'command', id: 'edit.undo' },
   'photo-redo': { kind: 'command', id: 'edit.redo' },

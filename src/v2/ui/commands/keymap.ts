@@ -238,3 +238,37 @@ export function importKeymap(raw: string): ImportKeymapResult {
   const { overrides, dropped } = sanitizeOverrides(candidate.overrides);
   return { ok: true, keymap: { preset: candidate.preset, overrides }, dropped };
 }
+
+/** The parts of a focused element the shortcut handler reads. Kept DOM-free so it can be unit tested. */
+export interface FocusTargetLike {
+  tagName?: string;
+  type?: string;
+  getAttribute?: (name: string) => string | null;
+}
+
+// Controls that a person presses with Space or Enter (WAI-ARIA: button, link, tab, menu item, option, checkbox, radio, switch).
+const PRESS_TAGS = new Set(['BUTTON', 'A', 'SUMMARY']);
+const PRESS_INPUT_TYPES = new Set(['button', 'submit', 'reset', 'checkbox', 'radio', 'file', 'color', 'image']);
+const PRESS_ROLES = new Set(['button', 'link', 'tab', 'menuitem', 'menuitemcheckbox', 'menuitemradio', 'option', 'checkbox', 'radio', 'switch', 'treeitem']);
+
+/**
+ * True when the key press is already spoken for, so a shortcut must not run as well:
+ * - a control's own key handler handled it (it called preventDefault), as the Adjust tabs, panel menus and compare
+ *   handle the arrow keys; before this, an arrow on the Adjust tabs switched the tab and also moved to another photo;
+ * - Space or Enter on a focused button, link, tab, menu item or option, which presses that control; before this,
+ *   Space on a focused button toggled the grid (the default pad sends Space) instead of pressing the button.
+ * Arrow keys on a filmstrip thumbnail or a plain button still step through photos, as before.
+ * Modified keys (Cmd/Ctrl/Alt) are never claimed by focus: the field rules in `resolveCommand` decide those.
+ */
+export function keyAlreadyHandled(
+  target: FocusTargetLike | null | undefined,
+  event: Pick<KeyEventLike, 'key' | 'ctrlKey' | 'metaKey' | 'altKey'> & { defaultPrevented?: boolean },
+): boolean {
+  if (event.defaultPrevented) return true;
+  if (!target || event.ctrlKey || event.metaKey || event.altKey) return false;
+  if (event.key !== ' ' && event.key !== 'Spacebar' && event.key !== 'Enter') return false;
+  const tag = (target.tagName || '').toUpperCase();
+  const role = (target.getAttribute?.('role') || '').toLowerCase();
+  const inputType = tag === 'INPUT' ? (target.type || target.getAttribute?.('type') || 'text').toLowerCase() : '';
+  return PRESS_TAGS.has(tag) || PRESS_INPUT_TYPES.has(inputType) || PRESS_ROLES.has(role);
+}

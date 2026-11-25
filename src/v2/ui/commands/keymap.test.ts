@@ -133,3 +133,23 @@ test('culling keys in every preset: arrows move between photos, X sets aside, U 
     assert.equal(new Set(chords).size, chords.length, 'one command per key');
   }
 });
+
+test('a key a control already used never runs a shortcut too', async () => {
+  const { keyAlreadyHandled } = await import('./keymap');
+  const el = (tagName: string, attrs: Record<string, string> = {}, type?: string) => ({ tagName, type, getAttribute: (name: string) => attrs[name] ?? null });
+  // The Adjust tabs move with the arrows and call preventDefault: the photo must not change as well.
+  assert.equal(keyAlreadyHandled(el('BUTTON', { role: 'tab' }), { key: 'ArrowRight', defaultPrevented: true }), true);
+  // Space and Enter press a focused button, link, tab, menu item, option or checkbox, never a shortcut such as the pad's Space.
+  for (const target of [el('BUTTON'), el('A'), el('DIV', { role: 'menuitem' }), el('DIV', { role: 'option' }), el('INPUT', {}, 'checkbox'), el('SUMMARY')]) {
+    assert.equal(keyAlreadyHandled(target, { key: ' ' }), true, target.tagName);
+    assert.equal(keyAlreadyHandled(target, { key: 'Enter' }), true, target.tagName);
+  }
+  // Arrow keys on a filmstrip thumbnail or a plain button still step through photos; letters still rate and flag.
+  assert.equal(keyAlreadyHandled(el('DIV', { role: 'option' }), { key: 'ArrowRight' }), false);
+  assert.equal(keyAlreadyHandled(el('BUTTON'), { key: 'ArrowLeft' }), false);
+  assert.equal(keyAlreadyHandled(el('BUTTON'), { key: 'x' }), false);
+  // Space on the photo itself, or with Cmd/Ctrl held, is left to the keymap.
+  assert.equal(keyAlreadyHandled(el('DIV'), { key: ' ' }), false);
+  assert.equal(keyAlreadyHandled(el('BUTTON'), { key: 'Enter', metaKey: true }), false);
+  assert.equal(keyAlreadyHandled(null, { key: ' ' }), false);
+});

@@ -29,7 +29,7 @@ import { readSharedLink } from './dialogs/sharedLinks';
 import { useSharedEditing } from './shell/useSharedEditing';
 import { collabClient } from '../../providers/collabClient';
 import { firebaseAuth } from '../../providers/firebaseAuth';
-import { chordLabel, effectiveKeymap, loadKeymap, saveKeymap, type SavedKeymap } from './commands/keymap';
+import { chordLabel, effectiveKeymap, keyAlreadyHandled, loadKeymap, saveKeymap, type SavedKeymap } from './commands/keymap';
 import { loadPad, resolveWithPad, savePad, type PadProfile } from './commands/pad';
 import { commandById, type CommandDefinition } from './commands/registry';
 import { useNativeMenu } from './commands/useNativeMenu';
@@ -397,6 +397,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         // A slider keeps the arrow keys (the Compare handle, range inputs).
         target?.getAttribute('role') === 'slider' ||
         Boolean(target?.isContentEditable);
+      // A control already used this key (the Adjust tabs' arrows, Space on a focused button): never run a shortcut too.
+      if (keyAlreadyHandled(target, e)) return;
       const command = resolveWithPad({ event: e, keymap, pad, isMac: IS_MAC, inField });
       if (!command) return;
       // While the guide is open only it, Export, Settings and Edit commands act; photo and view keys wait.
@@ -1221,7 +1223,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       /></React.Suspense>
 
       {shortcutGuideOpen && store.screen === 'editor' && (
-        <React.Suspense fallback={null}><ShortcutGuide keymap={keymap} isMac={IS_MAC} onClose={() => setShortcutGuideOpen(false)} /></React.Suspense>
+        <React.Suspense fallback={null}><ShortcutGuide keymap={keymap} pad={pad} isMac={IS_MAC} onClose={() => setShortcutGuideOpen(false)} /></React.Suspense>
       )}
 
       {commandPaletteOpen && store.screen === 'editor' && (
