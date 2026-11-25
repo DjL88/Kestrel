@@ -28,6 +28,7 @@ export const fi: AreaTranslation<typeof source> = {
   marked: (what: string, marking: string) => `${what}, tunnus ${marking}`,
   registered: (marking: string, type: string) => `${marking}: ${type} (rekisterin mukaan)`,
   operatedBy: (what: string, operator: string) => `${what}, käyttäjä ${operator}`,
+  held: (what: string) => `${what}? Tarkista`,
   reader: {
     title: 'Lue ilma-alusten tunnukset',
     description: (megabytes: string) => `Lukee ilma-aluksiin maalatut rekisteritunnukset ja sotilaalliset sarjanumerot tällä laitteella ja hakee ne julkisten rekisterien offline-kopiosta. Kertalataus, ${megabytes} Mt. Autojen rekisterikilpiä ei koskaan lueta.`,
