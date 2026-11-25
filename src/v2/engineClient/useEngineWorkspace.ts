@@ -27,6 +27,9 @@ import { vehicleText } from '../../i18n/areas/vehicles';
 import { useVisualGrouping } from './useVisualGrouping';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
 import { photoParallelism } from '../../core/photoParallelism';
+import { canDevelopRaw, canExportRawMaster } from '../../providers/rawDevelop';
+import { developFullSizeOf, fullDevelopPossible } from './fullDevelop';
+import { buildDngCopyFile, dngCopyOffered } from './rawDngCopy';
 import { useSceneTags } from './useSceneTags';
 import { declinePhotoTag } from '../../core/photoTags';
 import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
@@ -75,7 +78,7 @@ import { isSplitFrameCount, setFormatSplitOffset, setSplitFrameCount as writeSpl
 import { readSplitPanOffset } from './splitFrameOps';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskLimit, toggleMask } from './maskOps';
 import { verifyFrameMasks } from './maskVerify';
-import { maskVerificationKey, commitVerifiedMasks } from './maskVerificationCommit';
+import { maskAdvice, maskVerificationKey } from './maskVerificationCommit';
 import { commitSubjectMask, subjectMaskTarget } from './subjectMaskCommit';
 import { createMask, createSubjectMask, framingKey, hasActiveMasks } from '../../core/maskTypes';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../../core/photoFraming';
@@ -247,6 +250,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [templates, setTemplates] = useState<OverlayTemplate[]>(() => { try { return readTemplates(localStorage.getItem(TEMPLATES_KEY)); } catch { return []; } });
   const updateTemplates = useCallback((next: OverlayTemplate[]) => { setTemplates(next); try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(next)); } catch { setNotice(engineText.workspace.templateNotSaved); } }, []);
   const [savedUi, setSavedUi] = useState<SavedUi>(loadUi);
+  /** Originals (stable keys) whose full-size develop is being made, so the canvas can say so. */
+  const [fullDeveloping, setFullDeveloping] = useState<Record<string, true>>({});
+  const fullDevelopRunning = useRef(new Set<string>());
   const [pixelSizes, setPixelSizes] = useState<Record<string, { width: number; height: number }>>({});
   const [verifiedRasterSizes, setVerifiedRasterSizes] = useState<Record<string, { width: number; height: number }>>({});
   const verifiedRasterRef = useRef(verifiedRasterSizes);
@@ -872,13 +878,6 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [histogramKey]);
 
-  // Once the active photo's masks settle (debounced, same idea as the histogram above but a real pixel
-  // render so it waits for a pause rather than running on every drag tick), run them through the real
-  // verified-and-retried engine action (maskVerify.ts's verifyFrameMasks -> engine/maskAction.ts) instead
-  // of trusting whatever a slider was left at. Scoped to the one open photo, same boundary the histogram
-  // and watermark-tone checks already draw. A mask whose effect held up changes nothing here (attempts
-  // === 1, the common case); one that did not is written back at the strength that actually passed, with
-  // a plain notice - never left silently at a value the check could not confirm.
   // A stored AI denoise result lives on the device that made it. Say plainly when this device does not have it: the view
   // is drawn without it, and export refuses rather than quietly leave it out.
   const aiAsset = activeFrame?.edit?.trueDetailAi?.asset ?? null;
@@ -892,6 +891,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiAsset]);
 
+  // Once the active photo's masks settle (debounced, same idea as the histogram above but a real pixel
+  // render so it waits for a pause rather than running on every drag tick), run them through the real
+  // verified-and-retried engine action (maskVerify.ts's verifyFrameMasks -> engine/maskAction.ts). Scoped to
+  // the one open photo, same boundary the histogram and watermark-tone checks already draw. The check only
+  // ADVISES: a slider value the person set is their decision and is never rewritten in the background. It
+  // used to write the gentler retry back, which silently pulled a deliberate Subject Exposure of -1.5 to
+  // nearly 0 (a dark subject on a cool background reads frame-wide as a "cool colour cast", and a comparison
+  // the verifier cannot make suggests strength 0), so the edit looked lost after Hide and Show.
   const maskVerifyKey = activeFrame && projectId && hasActiveMasks(activeFrame.edit?.masks)
     ? maskVerificationKey(projectId, activeFrame) : null;
   useEffect(() => {
@@ -906,17 +913,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           const image = await loadExportSource(frame, sourceProvider);
           if (controller.signal.aborted) return;
           const outcome = await verifyFrameMasks(image, frame, controller.signal);
-          if (controller.signal.aborted || !outcome || outcome.attempts <= 1) return;
+          if (controller.signal.aborted || !outcome) return;
+          const advice = maskAdvice(outcome.verification);
+          if (!advice) return;
           const currentState = stateRef.current;
           const latest = currentState?.frames.find(candidate => candidate.id === frame.id);
           if (!latest || currentState?.shoot.id !== capturedProject ||
               maskVerificationKey(capturedProject, latest) !== maskVerifyKey) return;
-          const at = Date.now();
-          mutate(current => controller.signal.aborted ? current :
-            commitVerifiedMasks(current, capturedProject, frame, outcome.masks, at));
-          setNotice(outcome.verification.ok
-            ? `A mask's strength was reduced to keep its effect plausible.`
-            : `A mask's effect still looked too strong after retrying, so it was left at the gentlest version tried${outcome.verification.reasons.length ? ': ' + outcome.verification.reasons.join(' ') : '.'}`);
+          setNotice(advice);
         } catch {
           // A failed safety check must not block the manual editor.
         }
@@ -1547,6 +1551,74 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         frames: current.frames.map((item) => item.id === photoId ? renameSavedEditGroup(item, groupId, name) ?? item : item) }));
     },
     reconnectOriginal: () => reconnectOriginal(),
+    developFullSize: (photoId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
+      if (!frame || !fullDevelopPossible(frame, canDevelopRaw(), true)) {
+        setNotice('Only a RAW photo can be developed at full size, on a device with InFlight’s RAW decoder.');
+        return;
+      }
+      const key = frame.stableKey;
+      const sourceProvider = provider.current!;
+      if (fullDevelopRunning.current.has(key)) return;
+      fullDevelopRunning.current.add(key);
+      setFullDeveloping((current) => ({ ...current, [key]: true }));
+      const target = structuredClone(frame);
+      void (async () => {
+        try {
+          const ticket = await engineScheduler.submit({
+            title: 'Developing full size from RAW', kind: 'raw', resource: 'cpu', priority: 9,
+            pauseable: false, items: [{ id: target.id, name: target.filename }],
+            snapshot: { frameId: target.id, stableKey: key },
+            itemId: (item) => item.id, itemLabel: (item) => item.name,
+            runItem: async (_, __, ctx) => {
+              ctx.stage('Developing the sensor data at full size');
+              await developFullSizeOf(target, sourceProvider);
+              ctx.checkCancelled();
+            },
+          });
+          const result = await ticket.finished;
+          if (result === 'failed') setNotice(`${target.filename} could not be developed at full size. Open Tasks for the reason. Your original is unchanged.`);
+        } catch (reason) {
+          setNotice(reason instanceof Error ? reason.message : 'Could not start the full-size develop.');
+        } finally {
+          fullDevelopRunning.current.delete(key);
+          setFullDeveloping((current) => { const { [key]: _done, ...rest } = current; return rest; });
+        }
+      })();
+    },
+    saveDngCopy: (photoId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
+      if (!frame || !dngCopyOffered(frame, canExportRawMaster())) {
+        setNotice('A DNG copy is made only for Nikon High Efficiency NEFs, in the desktop app. Your original is unchanged.');
+        return;
+      }
+      const sourceProvider = provider.current!;
+      const target = structuredClone(frame);
+      void (async () => {
+        try {
+          const ticket = await engineScheduler.submit({
+            title: 'Saving a lossless DNG copy', kind: 'raw', resource: 'cpu', priority: 10,
+            pauseable: false, items: [{ id: target.id, name: target.filename }],
+            snapshot: { frameId: target.id, originalSha256: target.originalSha256 },
+            itemId: (item) => item.id, itemLabel: (item) => item.name,
+            runItem: async (_, __, ctx) => {
+              ctx.stage('Reading the sensor data into a DNG');
+              const file = await buildDngCopyFile(target, sourceProvider, ctx.signal);
+              ctx.checkCancelled();
+              ctx.stage('Saving the DNG copy');
+              if (!await saveExportFile(file, file.name, ctx.signal)) throw new DOMException('Save cancelled.', 'AbortError');
+              ctx.acknowledgeCommitted();
+              ctx.commitIfCurrent(() => setNotice(`Saved ${file.name}. Your original NEF is unchanged.`));
+            },
+          });
+          const result = await ticket.finished;
+          if (result === 'failed') setNotice('The DNG copy failed. Open Tasks for the reason. Your original is unchanged.');
+          else if (result === 'cancelled') setNotice('DNG copy cancelled.');
+        } catch (reason) {
+          setNotice(reason instanceof Error ? reason.message : 'Could not start the DNG copy.');
+        }
+      })();
+    },
     openProject: (id) => { void openProject(id); },
     createProject: (name, kind = 'photography') => {
       const empty = createEmptyProject(`project-${newId()}`, name.trim() || 'Untitled project');
@@ -2222,8 +2294,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const assist = assists[frame.id];
     const jpegId = pairs.jpegOf.get(frame.id);
     const pairedJpeg = jpegId ? state?.frames.find((candidate) => candidate.id === jpegId)?.filename : undefined;
-    return withPairedJpeg(pairedJpeg, frameToPhoto(frame, urls[frame.id], { assist, watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed, sources: { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) } }));
-  })), [state?.frames, pairs, urls, assists, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes, speciesNamesVersion]);
+    return withPairedJpeg(pairedJpeg, frameToPhoto(frame, urls[frame.id], { assist, watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed, sources: { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) }, dngCopy: dngCopyOffered(frame, canExportRawMaster()), fullDevelop: fullDeveloping[frame.stableKey] ? 'running' : fullDevelopPossible(frame, canDevelopRaw(), Boolean(provider.current?.hasBlob(frame.stableKey)) || frame.sourceKind !== 'file' || isDesktopApp()) ? 'possible' : undefined }));
+  })), [state?.frames, pairs, urls, assists, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes, speciesNamesVersion, fullDeveloping]);
   // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo
   // (ROADMAP.md, "Removed photos panel" next item). Thumbnails are not fetched for them; the filename is enough
   // to recognise one in a short list, and restoring returns it to the normal, already-thumbnailed photo list.
