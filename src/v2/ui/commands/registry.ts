@@ -15,6 +15,7 @@ export type CommandId =
   | 'view.grid'
   | 'view.compare'
   | 'view.fullscreen'
+  | 'view.maskOverlay'
   | 'edit.undo' | 'edit.redo'
   | 'edit.copy' | 'edit.paste'
   | 'edit.selectAll'
@@ -49,6 +50,7 @@ export const COMMANDS: readonly CommandDefinition[] = [
   { id: 'view.grid', group: 'view', label: 'All photos (grid view)', worksInFields: false, allowRepeat: false },
   { id: 'view.compare', group: 'view', label: 'Compare original and edit', worksInFields: false, allowRepeat: false },
   { id: 'view.fullscreen', group: 'view', label: 'Full screen', worksInFields: false, allowRepeat: false },
+  { id: 'view.maskOverlay', group: 'view', label: 'Show or hide the selected mask overlay', worksInFields: false, allowRepeat: false },
   { id: 'edit.undo', group: 'edit', label: 'Undo', worksInFields: false, allowRepeat: true },
   { id: 'edit.redo', group: 'edit', label: 'Redo', worksInFields: false, allowRepeat: true },
   { id: 'edit.copy', group: 'edit', label: 'Copy edit settings', worksInFields: false, allowRepeat: false },

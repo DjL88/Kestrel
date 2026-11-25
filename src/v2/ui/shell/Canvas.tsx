@@ -10,6 +10,7 @@ import type {
   FeatureKey,
   FontOption,
   LookPreset,
+  MaskGeometryField,
   OverlaySettings,
   Photo,
   PhotoSurfaceProps,
@@ -20,6 +21,7 @@ import type {
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import CompareSplit from './CompareSplit';
+import MaskOutlineLayer from './MaskOutlineLayer';
 import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
 import { captureElement, screenshotName } from '../utils/captureElement';
 import { DOCKED, clampDockOffset, isDocked, nudgeDockOffset, parseDockOffset, snapDockOffset, type DockOffset } from '../utils/floatingDock';
@@ -40,6 +42,12 @@ interface CanvasProps {
   /** Engine-supplied renderer; falls back to a plain image. */
   PhotoSurface?: React.ComponentType<PhotoSurfaceProps>;
   maskGuideId?: string;
+  /** The selected mask's hatched coverage overlay; its outline stays visible either way. */
+  maskOverlayVisible?: boolean;
+  /** The overlay key as the person reads it ("O"), or undefined when unbound. */
+  maskOverlayKey?: string;
+  onToggleMaskOverlay?: () => void;
+  onSetMaskGeometry?: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
   photo: Photo | null;
   activeSizeId: string;
   selectedSizeIds: string[];
@@ -84,6 +92,10 @@ const ZOOM_BAR_STORAGE_KEY = 'inflight.v2.zoomBarOffset';
 export default function Canvas({
   PhotoSurface,
   maskGuideId,
+  maskOverlayVisible = true,
+  maskOverlayKey,
+  onToggleMaskOverlay,
+  onSetMaskGeometry,
   photo,
   activeSizeId,
   selectedSizeIds,
@@ -1022,9 +1034,20 @@ export default function Canvas({
   };
 
   /** The photo as pixels: the engine's renderer when there is one, otherwise a plain image with the CSS approximation. */
+  // The selected mask (its layer is open in the Masks panel). Oval and gradient masks also get an outline with handles.
+  const selectedMask = maskGuideId ? photo.masks.find((layer) => layer.id === maskGuideId && layer.visible) : undefined;
+  const selectedShape = selectedMask?.geometry ? { ...selectedMask, geometry: selectedMask.geometry } : undefined;
+  const renderMaskOutline = selectedShape && onSetMaskGeometry
+    ? (picture: { width: number; height: number }) => (
+      <MaskOutlineLayer picture={picture} name={selectedShape.name} geometry={selectedShape.geometry} feather={selectedShape.feather}
+        onChange={(field, value) => onSetMaskGeometry(photo.id, selectedShape.id, field, value)} />
+    ) : undefined;
   const renderSurface = (variant: 'edited' | 'original', alt: string, style: React.CSSProperties, filter: string) =>
     PhotoSurface ? (
-      <PhotoSurface photoId={photo.id} variant={variant} maskGuideId={variant === 'edited' && alt && !compareMode ? maskGuideId : undefined} lookPreview={variant === 'edited' ? hoveredLook?.recipeDelta : undefined} alt={alt} className="h-full w-full" style={style} />
+      <PhotoSurface photoId={photo.id} variant={variant}
+        maskGuideId={variant === 'edited' && alt && !compareMode && maskOverlayVisible ? maskGuideId : undefined}
+        maskOutline={variant === 'edited' && alt && !compareMode ? renderMaskOutline : undefined}
+        lookPreview={variant === 'edited' ? hoveredLook?.recipeDelta : undefined} alt={alt} className="h-full w-full" style={style} />
     ) : (
       <img src={photo.previewUrl} alt={alt} referrerPolicy="no-referrer" draggable={false}
         className="h-full w-full object-cover" style={{ ...style, filter }} />
@@ -1311,6 +1334,18 @@ export default function Canvas({
             ) : (
               renderSurface(holdingOriginal ? 'original' : 'edited', holdingOriginal ? `${photo.title} original` : photo.title, { transform: buildImageTransform(activeSize.crop), clipPath: cropClip }, holdingOriginal ? 'none' : filterCss)
             ))}
+            {selectedMask && !compareMode && !holdingOriginal && PhotoSurface && (
+              <div data-testid="mask-canvas-label" className="absolute bottom-2 left-2 z-30 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[11px] font-medium text-white">
+                <span role="status" className="truncate">{maskOverlayVisible ? STRINGS.maskCanvas.overlayShown(selectedMask.name) : STRINGS.maskCanvas.overlayHidden(selectedMask.name)}</span>
+                {onToggleMaskOverlay && (
+                  <button type="button" aria-pressed={maskOverlayVisible} aria-label={STRINGS.maskCanvas.toggleOverlay} title={STRINGS.maskCanvas.toggleOverlay}
+                    onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onToggleMaskOverlay(); }}
+                    className="shrink-0 rounded border border-white/60 px-1.5 font-mono text-[10px] leading-4 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+                    {maskOverlayKey ?? '◐'}
+                  </button>
+                )}
+              </div>
+            )}
             {holdingOriginal && (
               <span role="status" className="pointer-events-none absolute left-2 top-2 z-30 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[11px] font-semibold text-white">{STRINGS.canvas.showingOriginal}</span>
             )}

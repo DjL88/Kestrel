@@ -1024,4 +1024,16 @@ export const fr: AreaTranslation<typeof source> = {
     forgetBody: 'Si vous vous êtes connecté, avez acheté une licence, utilisé l’aide cloud facultative ou envoyé un message, InFlight détient un peu de données vous concernant sur ses serveurs. Désactiver « aider à améliorer les suggestions » supprime déjà ce que vous avez partagé. Pour faire effacer le reste, envoyez une demande depuis l’adresse e-mail utilisée pour vous connecter. InFlight n’a pas encore d’effacement serveur en un geste : la demande est traitée par une personne, et vous saurez ce qui doit éventuellement être conservé (par exemple les justificatifs de paiement exigés par la loi).',
     forgetLink: 'Demander à InFlight d’effacer mes données de compte',
   },
+  // On-canvas outline and overlay for shape masks (oval, gradient).
+  maskCanvas: {
+    outline: (n) => `${n} · contour sur la photo`,
+    overlayShown: (n) => `${n} · superposition affichée (la zone hachurée indique où elle s’applique)`,
+    overlayHidden: (n) => `${n} · superposition masquée, contour seul`,
+    toggleOverlay: "Afficher ou masquer la superposition du masque",
+    moveCentre: (n) => `Déplacer le centre de ${n}`,
+    resizeWidth: (n) => `Redimensionner et faire pivoter la largeur de ${n}`,
+    resizeHeight: (n) => `Redimensionner la hauteur de ${n}`,
+    moveStart: (n) => `Déplacer le début de ${n}`,
+    moveEnd: (n) => `Déplacer la fin de ${n}`,
+  },
 };

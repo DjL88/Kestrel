@@ -1025,4 +1025,16 @@ export const fi: AreaTranslation<typeof source> = {
     forgetBody: 'Jos olet kirjautunut, ostanut lisenssin, käyttänyt valinnaista pilviapua tai lähettänyt viestin, InFlight säilyttää palvelimillaan hieman tietoja sinusta. Kun poistat käytöstä ”auta parantamaan ehdotuksia”, jakamasi tiedot poistetaan jo. Jos haluat loput poistetuiksi, lähetä pyyntö sähköpostiosoitteesta, jolla kirjauduit. InFlightissa ei vielä ole yhden napautuksen palvelinpoistoa, joten pyynnön käsittelee ihminen, ja sinulle kerrotaan, mitä mahdollisesti on säilytettävä (esimerkiksi lain vaatimat maksutiedot).',
     forgetLink: 'Pyydä InFlightia poistamaan tilitietoni',
   },
+  // On-canvas outline and overlay for shape masks (oval, gradient).
+  maskCanvas: {
+    outline: (n) => `${n} · ääriviiva kuvassa`,
+    overlayShown: (n) => `${n} · peittokuva näkyy (viivoitettu alue = vaikutusalue)`,
+    overlayHidden: (n) => `${n} · peittokuva piilotettu, vain ääriviiva`,
+    toggleOverlay: "Näytä tai piilota maskin peittokuva",
+    moveCentre: (n) => `Siirrä kohteen ${n} keskikohtaa`,
+    resizeWidth: (n) => `Muuta kohteen ${n} leveyttä ja kiertoa`,
+    resizeHeight: (n) => `Muuta kohteen ${n} korkeutta`,
+    moveStart: (n) => `Siirrä kohteen ${n} alkua`,
+    moveEnd: (n) => `Siirrä kohteen ${n} loppua`,
+  },
 };

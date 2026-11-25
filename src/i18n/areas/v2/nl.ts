@@ -1024,4 +1024,16 @@ export const nl: AreaTranslation<typeof source> = {
     forgetBody: 'Als u bent ingelogd, een licentie hebt gekocht, de optionele cloudhulp hebt gebruikt of een bericht hebt gestuurd, bewaart InFlight een kleine hoeveelheid gegevens over u op zijn servers. Door ‘help suggesties verbeteren’ uit te zetten, wordt wat u deelde al verwijderd. Wilt u de rest laten wissen, stuur dan een verzoek vanaf het e-mailadres waarmee u inlogde. InFlight heeft nog geen serverwissing met één tik, dus een mens behandelt het verzoek, en u hoort wat eventueel bewaard moet blijven (bijvoorbeeld wettelijk verplichte betalingsgegevens).',
     forgetLink: 'InFlight vragen mijn accountgegevens te wissen',
   },
+  // On-canvas outline and overlay for shape masks (oval, gradient).
+  maskCanvas: {
+    outline: (n) => `${n} · omtrek op de foto`,
+    overlayShown: (n) => `${n} · overlay zichtbaar (gearceerd gebied = waar het werkt)`,
+    overlayHidden: (n) => `${n} · overlay verborgen, alleen omtrek`,
+    toggleOverlay: "Maskeroverlay tonen of verbergen",
+    moveCentre: (n) => `Midden van ${n} verplaatsen`,
+    resizeWidth: (n) => `Breedte van ${n} wijzigen en draaien`,
+    resizeHeight: (n) => `Hoogte van ${n} wijzigen`,
+    moveStart: (n) => `Begin van ${n} verplaatsen`,
+    moveEnd: (n) => `Einde van ${n} verplaatsen`,
+  },
 };

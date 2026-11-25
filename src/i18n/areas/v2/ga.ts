@@ -1027,4 +1027,16 @@ export const ga: AreaTranslation<typeof source> = {
     forgetBody: 'Má shínigh tú isteach, má cheannaigh tú ceadúnas, má d’úsáid tú cabhair scamaill roghnach nó má sheol tú teachtaireacht, coinníonn InFlight méid beag sonraí fút ar a fhreastalaithe. Scriostar a roinn tú cheana féin má mhúchann tú “cabhraigh le moltaí a fheabhsú”. Chun an chuid eile a scriosadh, seol iarratas ón ríomhphost lenar shínigh tú isteach. Níl scriosadh freastalaí le haon tapáil amháin ag InFlight fós, mar sin téann sé seo chuig duine, agus inseofar duit cad, más ann, nach mór a choinneáil (mar shampla taifid íocaíochta a éilíonn an dlí).',
     forgetLink: 'Iarr ar InFlight sonraí mo chuntais a scriosadh',
   },
+  // On-canvas outline and overlay for shape masks (oval, gradient).
+  maskCanvas: {
+    outline: (n) => `${n} · imlíne ar an ngrianghraf`,
+    overlayShown: (n) => `${n} · forleagan le feiceáil (is é an limistéar stríocach an áit a bhfeidhmíonn sé)`,
+    overlayHidden: (n) => `${n} · forleagan i bhfolach, imlíne amháin`,
+    toggleOverlay: "Taispeáin nó folaigh forleagan an mhaisc",
+    moveCentre: (n) => `Bog lár ${n}`,
+    resizeWidth: (n) => `Athraigh méid agus rothlaigh leithead ${n}`,
+    resizeHeight: (n) => `Athraigh airde ${n}`,
+    moveStart: (n) => `Bog tús ${n}`,
+    moveEnd: (n) => `Bog deireadh ${n}`,
+  },
 };

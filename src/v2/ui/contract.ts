@@ -1,5 +1,5 @@
 import type { ColourWords } from '../engineClient/colourWords';
-import type { ComponentType, CSSProperties } from 'react';
+import type { ComponentType, CSSProperties, ReactNode } from 'react';
 
 // Single Contract File for InFlight UI Shell
 // All components import their types ONLY from this file.
@@ -462,6 +462,8 @@ export interface ExportRequest {
 export interface PhotoSurfaceProps {
   /** Editor-only coverage guide, never part of the photo recipe or export. */
   maskGuideId?: string;
+  /** Editor-only SVG content (mask outline and handles) drawn in the displayed picture's own pixels, over exactly that picture. */
+  maskOutline?: (picture: { width: number; height: number }) => ReactNode;
   photoId: string;
   variant: 'edited' | 'original';
   /** Non-destructive live preview of a hovered Look. Never stored or applied to original pixels. */

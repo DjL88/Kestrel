@@ -1024,4 +1024,16 @@ export const da: AreaTranslation<typeof source> = {
     forgetBody: 'Hvis du har logget ind, købt en licens, brugt den valgfri skyhjælp eller sendt en besked, har InFlight en lille mængde data om dig på sine servere. Når du slår »hjælp med at forbedre forslag« fra, slettes det, du har delt. Vil du have resten slettet, så send en anmodning fra den e-mail, du loggede ind med. InFlight har endnu ikke sletning på serveren med ét tryk, så anmodningen behandles af et menneske, og du får at vide, hvad der eventuelt skal gemmes (for eksempel betalingsoplysninger, som loven kræver).',
     forgetLink: 'Bed InFlight om at slette mine kontodata',
   },
+  // On-canvas outline and overlay for shape masks (oval, gradient).
+  maskCanvas: {
+    outline: (n) => `${n} · omrids på fotoet`,
+    overlayShown: (n) => `${n} · overlay vist (skraveret område = hvor den virker)`,
+    overlayHidden: (n) => `${n} · overlay skjult, kun omrids`,
+    toggleOverlay: "Vis eller skjul maskeoverlay",
+    moveCentre: (n) => `Flyt midten af ${n}`,
+    resizeWidth: (n) => `Tilpas og drej bredden af ${n}`,
+    resizeHeight: (n) => `Tilpas højden af ${n}`,
+    moveStart: (n) => `Flyt starten af ${n}`,
+    moveEnd: (n) => `Flyt slutningen af ${n}`,
+  },
 };

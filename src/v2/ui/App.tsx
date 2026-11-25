@@ -35,7 +35,7 @@ import RemovedPhotosDialog from './dialogs/RemovedPhotosDialog';
 import SettingsDialog from './dialogs/SettingsDialog';
 import ShortcutGuide from './dialogs/ShortcutGuide';
 import CommandPalette from './dialogs/CommandPalette';
-import { effectiveKeymap, loadKeymap, saveKeymap, type SavedKeymap } from './commands/keymap';
+import { chordLabel, effectiveKeymap, loadKeymap, saveKeymap, type SavedKeymap } from './commands/keymap';
 import { loadPad, resolveWithPad, savePad, type PadProfile } from './commands/pad';
 import KeyboardSettings from './dialogs/KeyboardSettings';
 import { commandById, type CommandDefinition } from './commands/registry';
@@ -104,6 +104,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const changePad = React.useCallback((next: PadProfile) => { savePad(next); setPad(next); }, []);
   const changeKeymap = React.useCallback((next: SavedKeymap) => { saveKeymap(next); setSavedKeymap(next); }, []);
   const [maskGuide, setMaskGuide] = useState<{ photoId: string; maskId: string } | null>(null);
+  // The selected mask's hatched coverage overlay (O). Its outline stays on the canvas either way.
+  const [maskOverlayVisible, setMaskOverlayVisible] = useState(true);
   const [moreOpen, setMoreOpen] = useState(false);
   const [addingFormatFor, setAddingFormatFor] = useState<string | null>(null);
   const [collageEditingId, setCollageEditingId] = useState<string | null>(null);
@@ -160,6 +162,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'view.grid': actions.setGridViewOpen(!store.gridViewOpen); break;
       case 'view.compare': actions.setCompareMode(!store.compareMode); break;
       case 'view.fullscreen': actions.toggleFullScreen(); break;
+      case 'view.maskOverlay': setMaskOverlayVisible((visible) => !visible); break;
       case 'edit.undo': actions.undo(); break;
       case 'edit.redo': actions.redo(); break;
       case 'edit.copy': actions.copyRecipe(); break;
@@ -562,6 +565,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 <Canvas
                   PhotoSurface={store.PhotoSurface}
                   maskGuideId={maskGuide?.photoId === activePhoto?.id ? maskGuide?.maskId : undefined}
+                  maskOverlayVisible={maskOverlayVisible}
+                  maskOverlayKey={keymap['view.maskOverlay'] ? chordLabel(keymap['view.maskOverlay'], IS_MAC) : undefined}
+                  onToggleMaskOverlay={() => setMaskOverlayVisible((visible) => !visible)}
+                  onSetMaskGeometry={actions.setMaskGeometry}
                   onOpenFormats={activePhoto ? () => {
                     actions.setPanelVisible('formats', true);
                     setAddingFormatFor(activePhoto.id);
