@@ -730,6 +730,8 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     filmstripCollapsed: false,
     filmstripHeight: 152,
     filmstripFilter: 'all',
+    filmstripMinRating: 0,
+    filmstripSort: 'shoot',
     filmstripSearch: '',
     gridViewOpen: false,
     compareMode: false,
@@ -2029,6 +2031,14 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
 
     setFilmstripFilter: (filmstripFilter) => {
       setStore((prev) => ({ ...prev, filmstripFilter }));
+    },
+
+    setFilmstripMinRating: (rating) => {
+      setStore((prev) => ({ ...prev, filmstripMinRating: Math.min(5, Math.max(0, Math.round(rating))) }));
+    },
+
+    setFilmstripSort: (filmstripSort) => {
+      setStore((prev) => ({ ...prev, filmstripSort }));
     },
 
     setFilmstripSearch: (filmstripSearch) => {

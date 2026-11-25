@@ -1,11 +1,12 @@
 import { planFilmstrip } from '../../engineClient/burstGroups';
 import React, { useEffect, useRef, useState } from 'react';
-import type { AssistMode, LookPreset, Photo } from '../contract';
+import type { AssistMode, FilmstripFilter, LookPreset, Photo, PhotoSort } from '../contract';
 import { STRINGS } from '../strings';
 import { PHOTO_DRAG_TYPE, draggedPhotoIds } from '../utils/photoDrag';
 import ProBadge, { useProHidden } from './ProBadge';
 import BrandIcon from '../icons/BrandIcon';
-import { filterPhotos } from '../utils/studioMath';
+import { viewPhotos } from '../utils/studioMath';
+import { DecisionFilter, ViewOptions } from './PhotoViewControls';
 
 interface FilmstripProps {
   photos: Photo[];
@@ -15,15 +16,19 @@ interface FilmstripProps {
   bottomTab: 'filmstrip' | 'info';
   collapsed: boolean;
   height: number;
-  filter: 'all' | 'flagged' | 'set-aside';
+  filter: FilmstripFilter;
   search: string;
+  minRating: number;
+  sort: PhotoSort;
+  onSetMinRating: (rating: number) => void;
+  onSetSort: (sort: PhotoSort) => void;
   quietBadges: boolean;
   looks: LookPreset[];
   hasClipboardRecipe: boolean;
   onSetBottomTab: (tab: 'filmstrip' | 'info') => void;
   onSetCollapsed: (collapsed: boolean) => void;
   onSetHeight: (height: number) => void;
-  onSetFilter: (filter: 'all' | 'flagged' | 'set-aside') => void;
+  onSetFilter: (filter: FilmstripFilter) => void;
   onSetSearch: (q: string) => void;
   onSelectPhoto: (photoId: string, modifiers?: { ctrl?: boolean; shift?: boolean }) => void;
   onClearSelection: () => void;
@@ -55,6 +60,10 @@ export default function Filmstrip({
   height,
   filter,
   search,
+  minRating,
+  sort,
+  onSetMinRating,
+  onSetSort,
   quietBadges,
   looks,
   hasClipboardRecipe,
@@ -94,7 +103,6 @@ export default function Filmstrip({
     return () => desktop.removeEventListener('change', reset);
   }, []);
   const [expandedBursts, setExpandedBursts] = useState<Set<string>>(() => new Set());
-  const [minimumRating, setMinimumRating] = useState(0);
   const [tileMenu, setTileMenu] = useState<{ x: number; y: number; photoId: string } | null>(null);
   const [removeConfirm, setRemoveConfirm] = useState<string[] | null>(null);
   const resizeStart = useRef<{ y: number; h: number } | null>(null);
@@ -166,7 +174,7 @@ export default function Filmstrip({
     };
   }, [tileMenu]);
 
-  const visiblePhotos = filterPhotos(photos, filter, search).filter((photo) => photo.rating >= minimumRating);
+  const visiblePhotos = viewPhotos(photos, { filter, search, minRating, sort });
   // Next and previous photo (a macro pad dial or command search) step through the photos shown here, so the filter and rating filter are respected.
   const stepRef = useRef({ visiblePhotos, activePhoto, onSelectPhoto });
   stepRef.current = { visiblePhotos, activePhoto, onSelectPhoto };
@@ -187,8 +195,6 @@ export default function Filmstrip({
   const items = planFilmstrip(visiblePhotos, expandedBursts, openIds);
   const planCoverId = (list: typeof items, groupId: string) => { const controls = list.find((entry) => entry.type === 'controls' && entry.groupId === groupId); return controls && controls.type === 'controls' ? controls.cover.id : undefined; };
   const setBurstOpen = (groupId: string, open: boolean) => setExpandedBursts((current) => { const next = new Set(current); if (open) next.add(groupId); else next.delete(groupId); return next; });
-  const flaggedCount = photos.filter((p) => p.decision === 'keep').length;
-  const setAsideCount = photos.filter((p) => p.decision === 'reject').length;
 
   const handleResizeDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -336,40 +342,12 @@ export default function Filmstrip({
             </div>
           )}
 
-          {/* Filter All / Flagged */}
-          <div className="inline-flex rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-0.5">
-            <button
-              type="button"
-              onClick={() => onSetFilter('all')}
-              className={`h-7 rounded px-2 text-xs font-medium transition-colors ${
-                filter === 'all'
-                  ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              {STRINGS.filmstrip.filterAll}
-            </button>
-            <button
-              type="button"
-              onClick={() => onSetFilter('flagged')}
-              className={`h-7 rounded px-2 text-xs font-medium transition-colors ${
-                filter === 'flagged'
-                  ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              {STRINGS.filmstrip.filterFlagged} ({flaggedCount})
-            </button>
-          </div>
-
-          <button type="button" onClick={() => onSetFilter('set-aside')}
-            aria-pressed={filter === 'set-aside'}
-            className={`h-8 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] px-2 text-xs font-medium ${filter === 'set-aside' ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
-            Set aside ({setAsideCount})
-          </button>
+          {/* Decision filter, then rating and order */}
+          <DecisionFilter photos={photos} filter={filter} onSetFilter={onSetFilter} compact />
+          <ViewOptions minRating={minRating} sort={sort} onSetMinRating={onSetMinRating} onSetSort={onSetSort} />
 
           {/* Search icon expanding into search input */}
-          {searchOpen || search || minimumRating > 0 ? (
+          {searchOpen || search ? (
             <div className="relative flex items-center">
               <BrandIcon
                 name="search"
@@ -382,7 +360,7 @@ export default function Filmstrip({
                 value={search}
                 onChange={(e) => onSetSearch(e.target.value)}
                 onBlur={() => {
-                  if (!search && minimumRating === 0) setSearchOpen(false);
+                  if (!search) setSearchOpen(false);
                 }}
                 placeholder={STRINGS.filmstrip.searchPlaceholder}
                 aria-label={STRINGS.filmstrip.searchPlaceholder}
@@ -399,23 +377,6 @@ export default function Filmstrip({
             >
               <BrandIcon name="search" size={15} />
             </button>
-          )}
-
-          {(searchOpen || search || minimumRating > 0) && (
-            <label className="flex items-center gap-1 text-[0.6875rem] text-[var(--text-secondary)]">
-              <span>{STRINGS.filmstripLabels.label13}</span>
-              <select
-                aria-label={STRINGS.filmstripLabels.label5}
-                value={minimumRating}
-                onChange={(event) => setMinimumRating(Number(event.target.value))}
-                className="h-8 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-1 text-xs text-[var(--text-primary)]"
-              >
-                <option value={0}>{STRINGS.filmstripLabels.label14}</option>
-                {[1, 2, 3, 4, 5].map((rating) => (
-                  <option value={rating} key={rating}>{rating}+ stars</option>
-                ))}
-              </select>
-            </label>
           )}
 
           {/* Collapse / Expand chevron */}

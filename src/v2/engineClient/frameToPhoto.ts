@@ -192,6 +192,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     speciesLabel: speciesLabelOf(frame),
     category: frame.subjectKind ?? '',
     sharpnessScore: frame.cullScore ?? 0,
+    ...(typeof exif.capturedAtMs === 'number' && Number.isFinite(exif.capturedAtMs) ? { capturedAtMs: exif.capturedAtMs } : {}),
     exif: {
       camera: exif.camera ?? NOT_RECORDED,
       lens: exif.lens ?? NOT_RECORDED,

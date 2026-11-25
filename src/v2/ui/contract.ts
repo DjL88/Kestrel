@@ -6,6 +6,10 @@ import type { ComponentType, CSSProperties, ReactNode } from 'react';
 // Engine engineers swap src/stub.ts with a real WorkspaceStore + WorkspaceActions provider.
 
 export type DecisionState = 'unreviewed' | 'keep' | 'reject';
+/** Which photos the filmstrip and grid show by decision. 'to-review' is the photos with no decision yet. */
+export type FilmstripFilter = 'all' | 'to-review' | 'flagged' | 'set-aside';
+/** The order photos are shown in. 'shoot' is the order they were imported in; nothing is moved on disk. */
+export type PhotoSort = 'shoot' | 'captured-oldest' | 'captured-newest' | 'filename' | 'rating' | 'best';
 /** The engine's three-tier ranking of a photo within its shoot. Absent or null means it has not been ranked: nothing is guessed. */
 export type PhotoTier = 'good' | 'better' | 'best';
 /** A histogram measured from the picture's pixels: 32 bins, each 0 to 100, plus the share of pixels clipped to pure black or white. */
@@ -322,6 +326,8 @@ export interface Photo {
   };
   /** Actual recorded format actions; missing means pre-history, not a fabricated event. */
   formatHistory?: { formatId: string; kind: string; at: number; parentFormatId?: string; forkEditCursor?: number }[];
+  /** When the photo was taken, in milliseconds, when the file records it. Used only for sorting. */
+  capturedAtMs?: number;
   /** The picture's size in real pixels, when the file says. Used for the true 100% zoom. */
   pixelSize?: { width: number; height: number };
   /** Measured from the picture as it is now. Absent until measured; the interface shows nothing rather than a guess. */
@@ -517,7 +523,10 @@ export interface WorkspaceStore {
   panels: Record<PanelId, PanelLayoutState>;
   filmstripCollapsed: boolean;
   filmstripHeight: number;
-  filmstripFilter: 'all' | 'flagged' | 'set-aside';
+  filmstripFilter: FilmstripFilter;
+  /** Show only photos rated at least this many stars (0 shows every rating). */
+  filmstripMinRating: number;
+  filmstripSort: PhotoSort;
   filmstripSearch: string;
   gridViewOpen: boolean;
   compareMode: boolean;
@@ -699,7 +708,9 @@ export interface WorkspaceActions {
   switchEditVersion: (photoId: string, versionId: string) => void;
   setFilmstripCollapsed: (collapsed: boolean) => void;
   setFilmstripHeight: (height: number) => void;
-  setFilmstripFilter: (filter: 'all' | 'flagged' | 'set-aside') => void;
+  setFilmstripFilter: (filter: FilmstripFilter) => void;
+  setFilmstripMinRating: (rating: number) => void;
+  setFilmstripSort: (sort: PhotoSort) => void;
   setFilmstripSearch: (query: string) => void;
   setGridViewOpen: (open: boolean) => void;
   setCompareMode: (compare: boolean) => void;
