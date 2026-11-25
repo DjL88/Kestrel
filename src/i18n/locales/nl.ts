@@ -79,6 +79,7 @@ export const nl: Translation = {
     themeContrast: 'Hoog contrast',
     textSize: 'Tekstgrootte',
     typeface: 'Lettertype',
+    fontBrand: 'InFlight (Plus Jakarta Sans)',
     fontReadable: 'Makkelijk leesbaar (Atkinson Hyperlegible)',
     calm: 'Minder prikkels (geen animaties)',
     calmPreset: 'Rustig en helder',

@@ -642,13 +642,12 @@ export const cy: AreaTranslation<typeof source> = {
     eraser: 'Rhwbiwr',
     selectArea: 'Dewis ardal',
     feather: 'Pluo’r ymyl',
-    placeholderNote: 'Mae cysylltiadau’r peiriant masgiau’n barod. Mae dewis haen yn mynd yn syth i WorkspaceActions.',
   },
   enhance: {
     heading: 'Gwella',
     denoiseHeading: 'Lleihau sŵn',
     denoiseNow: 'Lleihau sŵn y llun hwn',
-    denoiseCloudNote: 'Pan fyddwch wedi mewngofnodi ac ar-lein, mae pwyso hwn yn anfon copi gweithio (byth y gwreiddiol) i gwmwl InFlight ar gyfer y gwaith hwn yn unig, ac yn gwirio’r canlyniad ar y ddyfais hon. Os nad yw’r cwmwl ar gael, mae’n rhedeg yma.',
+    denoiseCloudNote: 'Pan fyddwch wedi mewngofnodi ac ar-lein, mae pwyso hwn yn anfon copi gweithio (byth y gwreiddiol) i gwmwl InFlight ar gyfer y gwaith hwn yn unig. Mae’r canlyniad yn cael ei wirio ar y ddyfais hon. Os nad yw’r cwmwl ar gael, mae’n rhedeg yma.',
     denoiseDeviceNote: 'Yn rhedeg ar y ddyfais hon. Mae prosesu yn y cwmwl yn rhan o Pro.',
     rawAiDenoise: 'Lleihau sŵn RAW manwl',
     luminanceDenoise: 'Sŵn goleuedd',
@@ -907,7 +906,7 @@ export const cy: AreaTranslation<typeof source> = {
     assistance: {
       defaultModeLabel: 'Modd hedfan diofyn ar gyfer prosiectau newydd',
       cvdLabel: 'Cymorth golwg lliw',
-      cvdDesc: 'Yn enwi prif liwiau pob llun mewn geiriau, ac yn tynnu sylw at arlliwiau lliw, lliwiau cryf iawn ac ardaloedd coch a gwyrdd y mae llawer o bobl ddall i liwiau’n ei chael yn anodd gwahaniaethu rhyngddynt. Mae hefyd yn labelu pennau’r llithryddion Tymheredd ac Arlliw. I ffwrdd oni bai eich bod yn ei droi ymlaen.',
+      cvdDesc: 'Yn enwi prif liwiau pob llun mewn geiriau. Mae’n tynnu sylw at arlliwiau lliw, lliwiau cryf iawn ac ardaloedd coch a gwyrdd y mae llawer o bobl ddall i liwiau’n ei chael yn anodd gwahaniaethu rhyngddynt. Mae hefyd yn labelu pennau’r llithryddion Tymheredd ac Arlliw. I ffwrdd oni bai eich bod yn ei droi ymlaen.',
       ongoingLabel: 'Beirniadaeth barhaus o olygiadau',
       ongoingDesc: 'Yn diweddaru arweiniad Cymorth yn barhaus pryd bynnag y byddwch yn symud llithryddion.',
     },
@@ -1160,7 +1159,7 @@ export const cy: AreaTranslation<typeof source> = {
     eraseConfirm: 'Teipiwch ERASE i gadarnhau',
     eraseButton: 'Clirio’r ddyfais hon',
     forgetHeading: 'Anghofiwch fi: data cyfrif sydd gan InFlight',
-    forgetBody: 'Os ydych wedi mewngofnodi, prynu trwydded, defnyddio cymorth cwmwl dewisol, neu anfon neges, mae InFlight yn cadw ychydig o ddata amdanoch ar ei weinyddion. Mae diffodd “helpu i wella awgrymiadau” eisoes yn dileu’r hyn a rannwyd gennych. I ddileu’r gweddill, anfonwch gais o’r cyfeiriad e-bost y gwnaethoch fewngofnodi ag ef. Nid oes gan InFlight ddileu gweinydd ag un tap eto, felly mae hyn yn mynd at berson, a chewch wybod beth, os unrhyw beth, y mae’n rhaid ei gadw (er enghraifft cofnodion talu y mae’r gyfraith yn eu mynnu).',
+    forgetBody: 'Os ydych wedi mewngofnodi, prynu trwydded, defnyddio cymorth cwmwl dewisol, neu anfon neges, mae InFlight yn cadw ychydig o ddata amdanoch ar ei weinyddion. Mae diffodd “helpu i wella awgrymiadau” eisoes yn dileu’r hyn a rannwyd gennych. I ddileu’r gweddill, anfonwch gais o’r cyfeiriad e-bost y gwnaethoch fewngofnodi ag ef. Nid oes gan InFlight ddileu gweinydd ag un tap eto, felly mae hyn yn mynd at berson. Cewch wybod beth, os unrhyw beth, y mae’n rhaid ei gadw (er enghraifft cofnodion talu y mae’r gyfraith yn eu mynnu).',
     forgetLink: 'Gofyn i InFlight ddileu data fy nghyfrif',
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).

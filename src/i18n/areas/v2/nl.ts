@@ -642,13 +642,12 @@ export const nl: AreaTranslation<typeof source> = {
     eraser: 'Gum',
     selectArea: 'Gebied selecteren',
     feather: 'Zachte rand',
-    placeholderNote: 'Koppelingen met de maskerengine zijn klaar. Een laag selecteren gaat direct naar WorkspaceActions.',
   },
   enhance: {
     heading: 'Verbeteren',
     denoiseHeading: 'Ruisonderdrukking',
     denoiseNow: 'Ruis van deze foto verwijderen',
-    denoiseCloudNote: 'Als u bent aangemeld en online bent, stuurt deze knop een werkkopie (nooit het origineel) voor deze ene taak naar de InFlight-cloud en controleert het resultaat op dit apparaat. Als de cloud niet beschikbaar is, gebeurt het hier.',
+    denoiseCloudNote: 'Als u bent aangemeld en online bent, stuurt deze knop een werkkopie (nooit het origineel) voor deze ene taak naar de InFlight-cloud. Het resultaat wordt op dit apparaat gecontroleerd. Als de cloud niet beschikbaar is, gebeurt het hier.',
     denoiseDeviceNote: 'Draait op dit apparaat. Verwerking in de cloud hoort bij Pro.',
     rawAiDenoise: 'Diepe RAW-ruisonderdrukking',
     luminanceDenoise: 'Luminantieruis',
@@ -1160,7 +1159,7 @@ export const nl: AreaTranslation<typeof source> = {
     eraseConfirm: 'Typ ERASE om te bevestigen',
     eraseButton: 'Dit apparaat wissen',
     forgetHeading: 'Vergeet mij: accountgegevens bij InFlight',
-    forgetBody: 'Als u bent ingelogd, een licentie hebt gekocht, de optionele cloudhulp hebt gebruikt of een bericht hebt gestuurd, bewaart InFlight een kleine hoeveelheid gegevens over u op zijn servers. Door ‘help suggesties verbeteren’ uit te zetten, wordt wat u deelde al verwijderd. Wilt u de rest laten wissen, stuur dan een verzoek vanaf het e-mailadres waarmee u inlogde. InFlight heeft nog geen serverwissing met één tik, dus een mens behandelt het verzoek, en u hoort wat eventueel bewaard moet blijven (bijvoorbeeld wettelijk verplichte betalingsgegevens).',
+    forgetBody: 'InFlight bewaart wat gegevens over u op zijn servers als u bent ingelogd, een licentie hebt gekocht, de optionele cloudhulp hebt gebruikt of een bericht hebt gestuurd. Door ‘help suggesties verbeteren’ uit te zetten, wordt wat u deelde al verwijderd. Wilt u de rest laten wissen, stuur dan een verzoek vanaf het e-mailadres waarmee u inlogde. InFlight heeft nog geen serverwissing met één tik, dus een mens behandelt het verzoek, en u hoort wat eventueel bewaard moet blijven (bijvoorbeeld wettelijk verplichte betalingsgegevens).',
     forgetLink: 'InFlight vragen mijn accountgegevens te wissen',
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).

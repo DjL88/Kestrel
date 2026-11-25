@@ -642,7 +642,6 @@ export const is: AreaTranslation<typeof source> = {
     eraser: 'Strokleður',
     selectArea: 'Velja svæði',
     feather: 'Mýking brúnar',
-    placeholderNote: 'Tengingar grímuvélar eru tilbúnar. Val á lagi fer beint í WorkspaceActions.',
   },
   enhance: {
     heading: 'Bæta',
@@ -907,7 +906,7 @@ export const is: AreaTranslation<typeof source> = {
     assistance: {
       defaultModeLabel: 'Sjálfgefin flugstilling fyrir ný verkefni',
       cvdLabel: 'Stuðningur við litasjón',
-      cvdDesc: 'Nefnir aðallitina í hverri mynd með orðum og bendir á litablæ, mjög sterka liti og rauð og græn svæði sem mörgum litblindum reynist erfitt að greina á milli. Merkir einnig enda Hitastigs- og Litblæs-sleðanna. Slökkt þar til þú kveikir á því.',
+      cvdDesc: 'Nefnir aðallitina í hverri mynd með orðum. Bendir á litablæ, mjög sterka liti og rauð og græn svæði sem mörgum litblindum reynist erfitt að greina á milli. Merkir einnig enda Hitastigs- og Litblæs-sleðanna. Slökkt þar til þú kveikir á því.',
       ongoingLabel: 'Samfelld umsögn um breytingar',
       ongoingDesc: 'Uppfærir leiðsögn aðstoðar í hvert sinn sem þú hreyfir sleða.',
     },
@@ -1160,7 +1159,7 @@ export const is: AreaTranslation<typeof source> = {
     eraseConfirm: 'Sláðu inn ERASE til að staðfesta',
     eraseButton: 'Hreinsa þetta tæki',
     forgetHeading: 'Gleymdu mér: aðgangsgögn hjá InFlight',
-    forgetBody: 'Ef þú hefur skráð þig inn, keypt leyfi, notað valkvæða skýjahjálp eða sent skilaboð geymir InFlight lítið magn gagna um þig á netþjónum sínum. Ef þú slekkur á „hjálpa til við að bæta tillögur“ er því sem þú deildir þegar eytt. Til að fá restinni eytt skaltu senda beiðni úr netfanginu sem þú skráðir þig inn með. InFlight hefur ekki enn eyðingu á netþjóni með einum smelli, svo manneskja sér um beiðnina og þér verður sagt hvað, ef eitthvað, þarf að geyma (til dæmis greiðsluskrár sem lög krefjast).',
+    forgetBody: 'Ef þú hefur skráð þig inn, keypt leyfi, notað valkvæða skýjahjálp eða sent skilaboð geymir InFlight lítið magn gagna um þig á netþjónum sínum. Ef þú slekkur á „hjálpa til við að bæta tillögur“ er því sem þú deildir þegar eytt. Til að fá restinni eytt skaltu senda beiðni úr netfanginu sem þú skráðir þig inn með. InFlight hefur ekki enn eyðingu á netþjóni með einum smelli, svo manneskja sér um beiðnina. Þér verður sagt hvað, ef eitthvað, þarf að geyma (til dæmis greiðsluskrár sem lög krefjast).',
     forgetLink: 'Biðja InFlight að eyða aðgangsgögnunum mínum',
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).

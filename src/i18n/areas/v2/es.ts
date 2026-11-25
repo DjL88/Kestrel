@@ -642,13 +642,12 @@ export const es: AreaTranslation<typeof source> = {
     eraser: 'Borrador',
     selectArea: 'Seleccionar zona',
     feather: 'Suavizado del borde',
-    placeholderNote: 'Conexiones del motor de máscaras listas. Seleccionar una capa la envía directamente a WorkspaceActions.',
   },
   enhance: {
     heading: 'Mejorar',
     denoiseHeading: 'Reducción de ruido',
     denoiseNow: 'Reducir el ruido de esta foto',
-    denoiseCloudNote: 'Si ha iniciado sesión y está en línea, este botón envía una copia de trabajo (nunca el original) a la nube de InFlight solo para esta tarea y comprueba el resultado en este dispositivo. Si la nube no está disponible, se ejecuta aquí.',
+    denoiseCloudNote: 'Si ha iniciado sesión y está en línea, este botón envía una copia de trabajo (nunca el original) a la nube de InFlight solo para esta tarea. El resultado se comprueba en este dispositivo. Si la nube no está disponible, se ejecuta aquí.',
     denoiseDeviceNote: 'Se ejecuta en este dispositivo. El procesamiento en la nube forma parte de Pro.',
     rawAiDenoise: 'Reducción profunda de ruido RAW',
     luminanceDenoise: 'Ruido de luminancia',
@@ -1160,7 +1159,7 @@ export const es: AreaTranslation<typeof source> = {
     eraseConfirm: 'Escriba ERASE para confirmar',
     eraseButton: 'Borrar este dispositivo',
     forgetHeading: 'Olvidarme: datos de cuenta que guarda InFlight',
-    forgetBody: 'Si ha iniciado sesión, comprado una licencia, usado la ayuda opcional en la nube o enviado un mensaje, InFlight guarda algunos datos sobre usted en sus servidores. Desactivar «ayudar a mejorar las sugerencias» ya borra lo que compartió. Para que se borre el resto, envíe una solicitud con el correo con el que inició sesión. InFlight aún no tiene un borrado en el servidor con un solo toque, así que la solicitud la atiende una persona, y se le dirá qué hay que conservar, si es el caso (por ejemplo, los registros de pago que exige la ley).',
+    forgetBody: 'Si ha iniciado sesión, comprado una licencia, usado la ayuda opcional en la nube o enviado un mensaje, InFlight guarda algunos datos sobre usted en sus servidores. Desactivar «ayudar a mejorar las sugerencias» ya borra lo que compartió. Para que se borre el resto, envíe una solicitud con el correo con el que inició sesión. InFlight aún no tiene un borrado en el servidor con un solo toque, así que la solicitud la atiende una persona. Se le dirá qué hay que conservar, si es el caso (por ejemplo, los registros de pago que exige la ley).',
     forgetLink: 'Pedir a InFlight que borre mis datos de cuenta',
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).

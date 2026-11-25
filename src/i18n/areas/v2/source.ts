@@ -664,7 +664,6 @@ export const source = {
     eraser: 'Eraser',
     selectArea: 'Select area',
     feather: 'Edge feather',
-    placeholderNote: 'Mask engine bindings ready. Selecting any layer routes directly to WorkspaceActions.',
   },
 
   // Enhance Panel
@@ -672,7 +671,7 @@ export const source = {
     heading: 'Enhance',
     denoiseHeading: 'Noise Reduction',
     denoiseNow: 'Denoise this photo',
-    denoiseCloudNote: 'When you are signed in and online, pressing this sends a working-size copy (never the original) to InFlight cloud for this one job, and checks the result on this device. If the cloud is unavailable it runs here.',
+    denoiseCloudNote: 'When you are signed in and online, this sends a working-size copy (never the original) to InFlight cloud for this one job. The result is checked on this device. If the cloud is unavailable, it runs here.',
     denoiseDeviceNote: 'Runs on this device. Cloud processing is part of Pro.',
     rawAiDenoise: 'RAW Deep Denoise',
     luminanceDenoise: 'Luminance denoise',
@@ -951,7 +950,7 @@ export const source = {
     assistance: {
       defaultModeLabel: 'Default Flight mode for new projects',
       cvdLabel: 'Colour-vision support',
-      cvdDesc: 'Names the main colours in each photo in words, and points out colour casts, very strong colours and red and green areas that many colour-blind people find hard to tell apart. Also labels the ends of the Temperature and Tint sliders. Off unless you turn it on.',
+      cvdDesc: 'Names the main colours in each photo in words. Points out colour casts, very strong colours, and red and green areas that many colour-blind people find hard to tell apart. Also labels the ends of the Temperature and Tint sliders. Off unless you turn it on.',
       ongoingLabel: 'Ongoing edit critique',
       ongoingDesc: 'Continuously updates Assist guidance whenever you adjust sliders.',
     },
@@ -1231,7 +1230,7 @@ export const source = {
     eraseConfirm: 'Type ERASE to confirm',
     eraseButton: 'Erase this device',
     forgetHeading: 'Forget me: account data held by InFlight',
-    forgetBody: 'If you have signed in, bought a licence, used optional cloud help, or sent a message, InFlight holds a small amount of data about you on its servers. Turning off “help improve suggestions” already deletes what you shared. To have the rest erased, send a request with the email you signed in with. InFlight does not yet have a one-tap server erase, so this goes to a person, and you will be told what, if anything, must be kept (for example payment records the law requires).',
+    forgetBody: 'Some things leave a small amount of data about you on InFlight’s servers: signing in, buying a licence, using optional cloud help or sending a message. Turning off “help improve suggestions” already deletes what you shared. To have the rest erased, send a request with the email you signed in with. InFlight cannot yet erase this with one tap, so a person handles the request. You will be told what, if anything, must be kept, such as payment records the law requires.',
     forgetLink: 'Ask InFlight to erase my account data',
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).
