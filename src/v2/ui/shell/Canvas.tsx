@@ -86,6 +86,7 @@ interface CanvasProps {
   onUpdateVideoZoom: (photoId: string, patch: Partial<VideoZoomConfig>) => void;
   onUpdateOverlay: (photoId: string, patch: Partial<OverlaySettings>) => void;
   onReconnectOriginal: (photoId: string) => void;
+  onDevelopFullSize?: (photoId: string) => void;
   onToggleCompare: () => void;
   onSetZoom: (zoom: number) => void;
   /** Called when someone zooms a cloud preview past 100%: its pixels run out there, so the original may be wanted. */
@@ -133,6 +134,7 @@ export default function Canvas({
   onUpdateVideoZoom,
   onUpdateOverlay,
   onReconnectOriginal,
+  onDevelopFullSize,
   onToggleCompare,
   onSetZoom,
   onZoomPastPreview,
@@ -1591,6 +1593,19 @@ export default function Canvas({
           </div>
           {/* Which picture is shown, for the single view and the All formats board alike (camera preview or RAW develop). */}
           <PictureSourceBadge picture={photo.picture?.preview} className="h-7 text-[0.6875rem]" />
+          {photo.fullDevelop && onDevelopFullSize && (
+            <button
+              type="button"
+              disabled={photo.fullDevelop === 'running'}
+              aria-busy={photo.fullDevelop === 'running'}
+              onClick={() => onDevelopFullSize(photo.id)}
+              title={STRINGS.fullDevelop.help}
+              className="inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-default disabled:opacity-70 whitespace-nowrap"
+            >
+              <BrandIcon name={photo.fullDevelop === 'running' ? 'clock' : 'expand'} size={13} />
+              <span>{photo.fullDevelop === 'running' ? STRINGS.fullDevelop.running : STRINGS.fullDevelop.button}</span>
+            </button>
+          )}
 
           {canvasLayoutMode === 'all-formats' && (
             <>

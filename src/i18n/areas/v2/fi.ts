@@ -427,6 +427,11 @@ export const fi: AreaTranslation<typeof source> = {
     button: "Tallenna häviötön DNG-kopio",
     help: "Ohjelmille, jotka eivät avaa Nikon High Efficiency -tiedostoja. Uusi tiedosto, jossa kennon tiedot ovat täsmälleen purettuina; NEF-tiedostoasi ei koskaan muuteta.",
   },
+  fullDevelop: {
+    button: "Kehitä täysikokoisena",
+    running: "Kehitetään täysikokoisena…",
+    help: "Kehitä tämä RAW kennon tiedoista täysikokoisena hienojen yksityiskohtien tarkistamista varten. Ajetaan Tehtävissä; alkuperäinen ei muutu.",
+  },
   canvas: {
     selectPhoto: "Aloita muokkaus valitsemalla kuva filminauhasta.",
     resizeText: "Muuta tekstin kokoa",

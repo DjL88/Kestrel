@@ -429,6 +429,11 @@ export const ga: AreaTranslation<typeof source> = {
     button: "Sábháil cóip DNG gan chailliúint",
     help: "Do chláir nach féidir leo comhaid Nikon High Efficiency a oscailt. Comhad nua le sonraí an bhraiteora díreach mar a díchódaíodh iad; ní athraítear do NEF riamh.",
   },
+  fullDevelop: {
+    button: "Forbair ar lánmhéid",
+    running: "Á fhorbairt ar lánmhéid…",
+    help: "Forbair an RAW seo ó shonraí an bhraiteora ar lánmhéid, chun mionsonraí a sheiceáil. Ritheann sé i dTascanna; ní athraítear an bunleagan.",
+  },
   canvas: {
     selectPhoto: "Roghnaigh grianghraf ón stiall scannáin chun tosú ag eagarthóireacht.",
     resizeText: "Athraigh méid an téacs",

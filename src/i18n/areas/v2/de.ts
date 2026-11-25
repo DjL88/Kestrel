@@ -426,6 +426,11 @@ export const de: AreaTranslation<typeof source> = {
     button: "Verlustfreie DNG-Kopie speichern",
     help: "Für Programme, die Nikon-High-Efficiency-Dateien nicht öffnen können. Eine neue Datei mit den Sensordaten genau wie dekodiert; Ihre NEF-Datei bleibt unverändert.",
   },
+  fullDevelop: {
+    button: "In voller Größe entwickeln",
+    running: "Wird in voller Größe entwickelt…",
+    help: "Diese RAW-Datei aus den Sensordaten in voller Größe entwickeln, um feine Details zu prüfen. Läuft unter Aufgaben; Ihr Original bleibt unverändert.",
+  },
   canvas: {
     selectPhoto: "Wählen Sie ein Foto im Filmstreifen aus, um mit der Bearbeitung zu beginnen.",
     resizeText: "Textgröße ändern",

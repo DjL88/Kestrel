@@ -22,7 +22,8 @@ import { useBackgroundDevelop } from '../../useBackgroundDevelop';
 import { useSpeciesScan } from '../../useSpeciesScan';
 import { useVisualGrouping } from './useVisualGrouping';
 import { isDesktopApp } from '../../providers/desktopShell';
-import { canExportRawMaster } from '../../providers/rawDevelop';
+import { canDevelopRaw, canExportRawMaster } from '../../providers/rawDevelop';
+import { developFullSizeOf, fullDevelopPossible } from './fullDevelop';
 import { buildDngCopyFile, dngCopyOffered } from './rawDngCopy';
 import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
 import { getLocalFileKey, loadLocalFileListShoot, rehydrateLocalFramesFromStore } from '../../providers/localShootLoader';
@@ -229,6 +230,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [templates, setTemplates] = useState<OverlayTemplate[]>(() => { try { return readTemplates(localStorage.getItem(TEMPLATES_KEY)); } catch { return []; } });
   const updateTemplates = useCallback((next: OverlayTemplate[]) => { setTemplates(next); try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(next)); } catch { setNotice(engineText.workspace.templateNotSaved); } }, []);
   const [savedUi, setSavedUi] = useState<SavedUi>(loadUi);
+  /** Originals (stable keys) whose full-size develop is being made, so the canvas can say so. */
+  const [fullDeveloping, setFullDeveloping] = useState<Record<string, true>>({});
+  const fullDevelopRunning = useRef(new Set<string>());
   const [pixelSizes, setPixelSizes] = useState<Record<string, { width: number; height: number }>>({});
   const [verifiedRasterSizes, setVerifiedRasterSizes] = useState<Record<string, { width: number; height: number }>>({});
   const verifiedRasterRef = useRef(verifiedRasterSizes);
@@ -1473,6 +1477,41 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         frames: current.frames.map((item) => item.id === photoId ? renameSavedEditGroup(item, groupId, name) ?? item : item) }));
     },
     reconnectOriginal: () => reconnectOriginal(),
+    developFullSize: (photoId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
+      if (!frame || !fullDevelopPossible(frame, canDevelopRaw(), true)) {
+        setNotice('Only a RAW photo can be developed at full size, on a device with InFlight’s RAW decoder.');
+        return;
+      }
+      const key = frame.stableKey;
+      const sourceProvider = provider.current!;
+      if (fullDevelopRunning.current.has(key)) return;
+      fullDevelopRunning.current.add(key);
+      setFullDeveloping((current) => ({ ...current, [key]: true }));
+      const target = structuredClone(frame);
+      void (async () => {
+        try {
+          const ticket = await engineScheduler.submit({
+            title: 'Developing full size from RAW', kind: 'raw', resource: 'cpu', priority: 9,
+            pauseable: false, items: [{ id: target.id, name: target.filename }],
+            snapshot: { frameId: target.id, stableKey: key },
+            itemId: (item) => item.id, itemLabel: (item) => item.name,
+            runItem: async (_, __, ctx) => {
+              ctx.stage('Developing the sensor data at full size');
+              await developFullSizeOf(target, sourceProvider);
+              ctx.checkCancelled();
+            },
+          });
+          const result = await ticket.finished;
+          if (result === 'failed') setNotice(`${target.filename} could not be developed at full size. Open Tasks for the reason. Your original is unchanged.`);
+        } catch (reason) {
+          setNotice(reason instanceof Error ? reason.message : 'Could not start the full-size develop.');
+        } finally {
+          fullDevelopRunning.current.delete(key);
+          setFullDeveloping((current) => { const { [key]: _done, ...rest } = current; return rest; });
+        }
+      })();
+    },
     saveDngCopy: (photoId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
       if (!frame || !dngCopyOffered(frame, canExportRawMaster())) {
@@ -2141,8 +2180,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const assist = assists[frame.id];
     const jpegId = pairs.jpegOf.get(frame.id);
     const pairedJpeg = jpegId ? state?.frames.find((candidate) => candidate.id === jpegId)?.filename : undefined;
-    return withPairedJpeg(pairedJpeg, frameToPhoto(frame, urls[frame.id], { assist, watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed, sources: { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) }, dngCopy: dngCopyOffered(frame, canExportRawMaster()) }));
-  })), [state?.frames, pairs, urls, assists, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes]);
+    return withPairedJpeg(pairedJpeg, frameToPhoto(frame, urls[frame.id], { assist, watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed, sources: { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) }, dngCopy: dngCopyOffered(frame, canExportRawMaster()), fullDevelop: fullDeveloping[frame.stableKey] ? 'running' : fullDevelopPossible(frame, canDevelopRaw(), Boolean(provider.current?.hasBlob(frame.stableKey)) || frame.sourceKind !== 'file' || isDesktopApp()) ? 'possible' : undefined }));
+  })), [state?.frames, pairs, urls, assists, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes, fullDeveloping]);
   // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo
   // (ROADMAP.md, "Removed photos panel" next item). Thumbnails are not fetched for them; the filename is enough
   // to recognise one in a short list, and restoring returns it to the normal, already-thumbnailed photo list.

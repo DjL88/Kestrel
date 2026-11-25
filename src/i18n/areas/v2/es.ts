@@ -426,6 +426,11 @@ export const es: AreaTranslation<typeof source> = {
     button: "Guardar copia DNG sin pérdida",
     help: "Para editores que no abren archivos Nikon High Efficiency. Un archivo nuevo con los datos del sensor tal como se decodificaron; su NEF nunca se modifica.",
   },
+  fullDevelop: {
+    button: "Revelar a tamaño completo",
+    running: "Revelando a tamaño completo…",
+    help: "Revelar este RAW desde los datos del sensor a tamaño completo, para revisar el detalle fino. Se ejecuta en Tareas; su original no cambia.",
+  },
   canvas: {
     selectPhoto: "Seleccione una fotografía de la tira de imágenes para empezar a editar.",
     resizeText: "Cambiar el tamaño del texto",

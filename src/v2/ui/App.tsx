@@ -724,6 +724,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   onUpdateVideoZoom={actions.updateVideoZoom}
                   onUpdateOverlay={actions.updateOverlay}
                   onReconnectOriginal={actions.reconnectOriginal}
+                  onDevelopFullSize={actions.developFullSize}
                   onToggleCompare={() => actions.setCompareMode(!store.compareMode)}
                   onSetZoom={actions.setCanvasZoom}
                   onToggleFullScreen={actions.toggleFullScreen}

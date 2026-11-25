@@ -41,7 +41,13 @@ test('V2 background engine replaces a synthetic embedded RAW preview with develo
   await page.reload();
   await root.getByRole('button', { name: /^(Open studio.*|V2 sensor develop)$/ }).first().click();
   await expect.poll(dimensions, { timeout: 30_000 }).toEqual([64, 96]);
+  // A full develop is kept for one session; after a reload the stored screen-size develop is shown, and the label says so.
   await expect(canvasLabel).toHaveAttribute('data-picture-source', 'raw-screen');
+  // One button develops the sensor data at full size; the label then says so and the button goes away.
+  const bar = root.locator('.v2-canvas-bar');
+  await bar.getByRole('button', { name: 'Develop full size' }).click();
+  await expect(canvasLabel).toHaveAttribute('data-picture-source', 'raw-full', { timeout: 30_000 });
+  await expect(bar.getByRole('button', { name: /Develop full size|Developing full size/ })).toHaveCount(0);
 });
 
 test('V2 writes structurally verified 16-bit TIFFs with and without the Tint edit', async ({ page }, testInfo) => {

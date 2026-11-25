@@ -427,6 +427,11 @@ export const gd: AreaTranslation<typeof source> = {
     button: "Sàbhail lethbhreac DNG gun chall",
     help: "Airson deasaichean nach fhosgail faidhlichean Nikon High Efficiency. Faidhle ùr le dàta a’ mhothaiche dìreach mar a chaidh a dhì-chòdachadh; chan atharraichear an NEF agad gu bràth.",
   },
+  fullDevelop: {
+    button: "Leasaich aig làn-mheud",
+    running: "Ga leasachadh aig làn-mheud…",
+    help: "Leasaich an RAW seo o dhàta a’ mhothaiche aig làn-mheud, airson mion-fhiosrachadh a sgrùdadh. Ruithidh e ann an Saothraichean; chan atharraich an tùsail agad.",
+  },
   canvas: {
     selectPhoto: "Tagh dealbh on stiall fhilm gus tòiseachadh air deasachadh.",
     resizeText: "Atharraich meud an teacsa",
