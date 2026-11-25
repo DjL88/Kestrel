@@ -36,7 +36,7 @@ export function addSpeciesNameTable(table: SpeciesNameTable) {
   if (loadedLanguage) rebuild();
 }
 
-interface IndexFile { attribution: string; source: string; species: [string, string][] }
+interface IndexFile { attribution: string; source: string; species: [string, string][]; families?: [string, string][] }
 interface LanguageFile { names: Record<string, string> }
 
 export function loadSpeciesNames(language: string): Promise<SpeciesNameIndex | undefined> {
@@ -56,7 +56,11 @@ export function loadSpeciesNames(language: string): Promise<SpeciesNameIndex | u
       ]);
       if (!Array.isArray(all.species) || typeof local.names !== 'object') throw new Error('species names are not in the expected format');
       loadedLanguage = language;
-      loaded = { source: all.source, attribution: all.attribution, language, names: all.species.map(([scientific, english]) => [scientific, english, local.names[scientific] ?? null]) };
+      loaded = { source: all.source, attribution: all.attribution, language, names: [
+        ...all.species.map(([scientific, english]): [string, string, string | null] => [scientific, english, local.names[scientific] ?? null]),
+        // A photo named only by family ("Owls") shows the scientific family where the source has no local name.
+        ...(all.families ?? []).map(([scientific, english]): [string, string, string | null] => [scientific, english, null]),
+      ] };
       rebuild();
     } catch (error) {
       // Without the files the stored names are shown as they are; nothing else changes.
