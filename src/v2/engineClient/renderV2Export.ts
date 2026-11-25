@@ -9,7 +9,8 @@ import type { PhotoFrame } from '../../core/types';
 import type { CropTransform, OverlaySettings } from '../ui/contract';
 import { effectiveUpscaleOutputSize } from '../ui/utils/studioMath';
 import type { SplitFrameCount } from './formatSplitOps';
-import { safeAnchoredBox, cropPlacement, referenceScale, watermarkBox, fitWatermarkArtwork } from './exportLayout';
+import { cropPlacement, fitWatermarkArtwork, referenceScale } from './exportLayout';
+import { alignForAnchor, layoutOverlays, type Box } from '../ui/utils/overlayLayout';
 import { planBorderFrame } from './borderFrameLayout';
 import { upscaleCanvasInPlace } from './upscaleCanvas';
 import { cappedContinuousLayout, continuousExportLayout, numberedSectionFilename } from './continuousExport';
@@ -29,6 +30,7 @@ export interface OverlayDraw {
 export interface V2RenderResult { file: File; width: number; height: number; capped: boolean; /** Files in left-to-right order when exporting a continuous split. */ sections?: File[] }
 
 const LINE = 1.375; // Tailwind `leading-snug`, as the canvas uses.
+const MARK_LINE = 1.5; // the text watermark's line height on the canvas
 
 function draw(canvas: HTMLCanvasElement, picture: HTMLCanvasElement, crop: CropTransform) {
   const context = canvas.getContext('2d');
@@ -102,25 +104,32 @@ function roundRect(context: CanvasRenderingContext2D, x: number, y: number, w: n
   if (r > 0 && rounded.roundRect) rounded.roundRect(x, y, w, h, r); else context.rect(x, y, w, h);
 }
 
-function drawText(canvas: HTMLCanvasElement, input: OverlayDraw) {
-  const context = canvas.getContext('2d');
-  if (!context || !input.rows.length) return;
-  const { overlay } = input;
-  const k = referenceScale(canvas.width);
-  const light = overlay.textColour === 'light';
-  const rows = input.rows.map((row) => ({ ...row, px: row.sizePx * k }));
-  const measure = (row: (typeof rows)[number]) => {
+/** How a box's contents line up: the text follows its own setting; the watermark follows its side when anchored. */
+const markAlign = (overlay: OverlaySettings): 'left' | 'center' | 'right' => (overlay.watermarkPlacement === 'anchor' ? alignForAnchor(overlay.watermarkPosition) : 'center');
+
+interface Measured { width: number; height: number }
+
+function measureText(context: CanvasRenderingContext2D, input: OverlayDraw, k: number) {
+  const rows = input.rows.filter((row) => row.text).map((row) => ({ ...row, px: row.sizePx * k }));
+  if (!rows.length) return null;
+  const widths = rows.map((row) => {
     context.font = `${row.weight} ${row.px}px ${row.family}`;
     setSpacing(context, row.letterSpacing * k);
     return context.measureText(row.text).width;
-  };
-  const textWidth = Math.max(...rows.map(measure));
-  const textHeight = rows.reduce((sum, row) => sum + row.px * LINE, 0);
-  const cover = overlay.textLayoutMode === 'cover-full';
+  });
+  const cover = input.overlay.textLayoutMode === 'cover-full';
   const padX = (cover ? 24 : 12) * k, padY = (cover ? 24 : 8) * k;
-  const box = cover
-    ? { x: 0, y: 0, width: canvas.width, height: canvas.height }
-    : safeAnchoredBox(canvas, overlay.textX, overlay.textY, { width: textWidth + padX * 2, height: textHeight + padY * 2 });
+  const textWidth = Math.max(...widths);
+  const textHeight = rows.reduce((sum, row) => sum + row.px * LINE, 0);
+  return { rows, widths, padX, padY, textHeight, size: { width: textWidth + padX * 2, height: textHeight + padY * 2 } };
+}
+
+function drawText(context: CanvasRenderingContext2D, canvas: HTMLCanvasElement, input: OverlayDraw, measured: NonNullable<ReturnType<typeof measureText>>, at: Box | undefined, k: number) {
+  const { overlay } = input;
+  const light = overlay.textColour === 'light';
+  const cover = overlay.textLayoutMode === 'cover-full';
+  const box = cover ? { x: 0, y: 0, width: canvas.width, height: canvas.height } : at!;
+  const { rows, widths, padX, padY, textHeight } = measured;
   context.save();
   if (overlay.textScrim) {
     context.fillStyle = cover ? (light ? 'rgba(10, 12, 16, 0.48)' : 'rgba(246, 244, 238, 0.56)') : (light ? 'rgba(10, 12, 16, 0.62)' : 'rgba(246, 244, 238, 0.72)');
@@ -129,66 +138,90 @@ function drawText(canvas: HTMLCanvasElement, input: OverlayDraw) {
   }
   context.fillStyle = light ? '#F8F6F2' : '#14171F';
   context.textBaseline = 'middle';
+  context.textAlign = 'left';
+  const align = cover ? 'center' : overlay.textAlign;
   let y = cover ? (box.height - textHeight) / 2 : box.y + padY;
-  for (const row of rows) {
+  rows.forEach((row, index) => {
     context.font = `${row.weight} ${row.px}px ${row.family}`;
     setSpacing(context, row.letterSpacing * k);
     const lineHeight = row.px * LINE;
-    const width = context.measureText(row.text).width;
-    context.textAlign = 'left';
-    context.fillText(row.text, cover ? (box.width - width) / 2 : box.x + padX, y + lineHeight / 2);
+    const inner = box.width - padX * 2;
+    const x = box.x + padX + (align === 'left' ? 0 : align === 'right' ? inner - widths[index] : (inner - widths[index]) / 2);
+    context.fillText(row.text, x, y + lineHeight / 2);
     y += lineHeight;
-  }
+  });
   context.restore();
 }
 
-function drawMark(canvas: HTMLCanvasElement, input: OverlayDraw) {
-  const context = canvas.getContext('2d');
-  if (!context || !input.mark) return;
-  const { overlay } = input;
-  const k = referenceScale(canvas.width);
-  const lightMark = input.contrast === 'light-on-dark';
-  const padX = 10 * k, padY = 4 * k;
-  context.save();
-  context.globalAlpha = overlay.watermarkOpacity / 100;
+type MarkPlan =
+  | { kind: 'image'; image: HTMLImageElement; width: number; height: number; padX: number; padY: number; size: Measured }
+  | { kind: 'text'; text: string; subtext?: string; family: string; big: number; small: number; widths: [number, number]; padX: number; padY: number; size: Measured };
+
+function measureMark(context: CanvasRenderingContext2D, input: OverlayDraw, k: number): MarkPlan | null {
+  if (!input.mark) return null;
+  const s = input.overlay.watermarkScale / 100;
+  const padX = 10 * k * s, padY = 4 * k * s;
   if (input.mark.kind === 'image') {
     const { image } = input.mark;
-    const { width, height } = fitWatermarkArtwork(canvas.width, image.naturalWidth, image.naturalHeight);
-    if (!width || !height) { context.restore(); return; }
-    const box = watermarkBox(canvas, overlay, { width: width + padX * 2, height: height + padY * 2 });
-    const s = overlay.watermarkScale / 100;
-    context.drawImage(image, box.x + padX * s, box.y + padY * s, width * s, height * s);
+    const fitted = fitWatermarkArtwork(k * 660, image.naturalWidth, image.naturalHeight);
+    if (!fitted.width || !fitted.height) return null;
+    const width = fitted.width * s, height = fitted.height * s;
+    return { kind: 'image', image, width, height, padX, padY, size: { width: width + padX * 2, height: height + padY * 2 } };
+  }
+  const { text, subtext } = input.mark;
+  const family = getComputedStyle(document.body).fontFamily || 'sans-serif';
+  const big = 11 * k * s, small = 9 * k * s;
+  context.font = `700 ${big}px ${family}`;
+  setSpacing(context, 0.14 * big);
+  const bigWidth = context.measureText(text).width;
+  let smallWidth = 0;
+  if (subtext) { context.font = `400 ${small}px ${family}`; setSpacing(context, 0.18 * small); smallWidth = context.measureText(subtext).width; }
+  const size = { width: Math.max(bigWidth, smallWidth) + padX * 2, height: big * MARK_LINE + (subtext ? small * MARK_LINE : 0) + padY * 2 };
+  return { kind: 'text', text, ...(subtext ? { subtext } : {}), family, big, small, widths: [bigWidth, smallWidth], padX, padY, size };
+}
+
+function drawMark(context: CanvasRenderingContext2D, input: OverlayDraw, plan: MarkPlan, box: Box, k: number) {
+  const { overlay } = input;
+  const lightMark = input.contrast === 'light-on-dark';
+  context.save();
+  context.globalAlpha = overlay.watermarkOpacity / 100;
+  if (plan.kind === 'image') {
+    context.drawImage(plan.image, box.x + plan.padX, box.y + plan.padY, plan.width, plan.height);
   } else {
-    const { text, subtext } = input.mark;
-    const family = getComputedStyle(document.body).fontFamily || 'sans-serif';
-    const big = 11 * k, small = 9 * k;
-    context.font = `700 ${big}px ${family}`;
-    setSpacing(context, 0.14 * big);
-    const bigWidth = context.measureText(text).width;
-    let smallWidth = 0;
-    if (subtext) { context.font = `400 ${small}px ${family}`; setSpacing(context, 0.18 * small); smallWidth = context.measureText(subtext).width; }
-    const width = Math.max(bigWidth, smallWidth) + padX * 2;
-    const height = big * 1.5 + (subtext ? small * 1.5 : 0) + padY * 2;
-    const box = watermarkBox(canvas, overlay, { width, height });
     const s = overlay.watermarkScale / 100;
     context.fillStyle = lightMark ? 'rgba(9, 11, 15, 0.36)' : 'rgba(248, 246, 242, 0.54)';
     roundRect(context, box.x, box.y, box.width, box.height, 4 * k * s);
     context.fill();
     context.fillStyle = lightMark ? '#F8F6F2' : '#14171F';
     context.textBaseline = 'middle';
-    context.textAlign = 'right';
-    const right = box.x + box.width - padX * s;
-    context.font = `700 ${big * s}px ${family}`;
-    setSpacing(context, 0.14 * big * s);
-    context.fillText(text, right, box.y + (padY + big * 0.75) * s);
-    if (subtext) {
+    context.textAlign = 'left';
+    const align = markAlign(overlay);
+    const inner = box.width - plan.padX * 2;
+    const xFor = (width: number) => box.x + plan.padX + (align === 'left' ? 0 : align === 'right' ? inner - width : (inner - width) / 2);
+    context.font = `700 ${plan.big}px ${plan.family}`;
+    setSpacing(context, 0.14 * plan.big);
+    context.fillText(plan.text, xFor(plan.widths[0]), box.y + plan.padY + (plan.big * MARK_LINE) / 2);
+    if (plan.subtext) {
       context.globalAlpha *= 0.8;
-      context.font = `400 ${small * s}px ${family}`;
-      setSpacing(context, 0.18 * small * s);
-      context.fillText(subtext, right, box.y + (padY + big * 1.5 + small * 0.75) * s);
+      context.font = `400 ${plan.small}px ${plan.family}`;
+      setSpacing(context, 0.18 * plan.small);
+      context.fillText(plan.subtext, xFor(plan.widths[1]), box.y + plan.padY + plan.big * MARK_LINE + (plan.small * MARK_LINE) / 2);
     }
   }
   context.restore();
+}
+
+/** Text and watermark, placed by the same rule the canvas uses (overlayLayout.ts): anchored to an edge margin, or stacked. */
+function drawOverlay(canvas: HTMLCanvasElement, input: OverlayDraw) {
+  const context = canvas.getContext('2d');
+  if (!context) return;
+  const k = referenceScale(canvas.width);
+  const text = input.text ? measureText(context, input, k) : null;
+  const mark = input.watermark ? measureMark(context, input, k) : null;
+  const cover = input.overlay.textLayoutMode === 'cover-full';
+  const boxes = layoutOverlays(canvas, input.overlay, { ...(text && !cover ? { text: text.size } : {}), ...(mark ? { mark: mark.size } : {}) }, k);
+  if (text) drawText(context, canvas, input, text, boxes.text, k);
+  if (mark && boxes.mark) drawMark(context, input, mark, boxes.mark, k);
 }
 
 /**
@@ -228,8 +261,7 @@ export async function renderV2Export(
     if (overlay) {
       await Promise.all(overlay.rows.map((row) => document.fonts?.load(`${row.weight} 16px ${row.family}`).catch(() => [])));
       signal?.throwIfAborted();
-      if (overlay.text) drawText(output, overlay);
-      if (overlay.watermark) drawMark(output, overlay);
+      drawOverlay(output, overlay);
     }
     const name = exportFilename(frame.filename, profile, !frame.isDemo && isRawPreviewFile(frame.filename));
     const mimeType = profile.format === 'png' ? 'image/png' : 'image/jpeg';

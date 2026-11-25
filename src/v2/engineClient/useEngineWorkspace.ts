@@ -30,10 +30,10 @@ import { useWorkspace } from '../ui/stub';
 import { EngineSurface } from './EngineSurface';
 import { featureAccess, featurePlan } from './featureMap';
 import { hasDeviceFont, listDeviceFonts, loadSavedDeviceFonts, mergeFonts, saveDeviceFonts } from './fonts';
-import { assetUrl, cutOut, importWatermark, loadStored, makeVariant, saveStored, toPresets, type StoredWatermark } from './watermarkLibrary';
+import { addVersion, assetUrl, cutOut, importWatermark, loadStored, makeVariant, moveToSlot, saveStored, textWatermark, toPresets, type StoredWatermark } from './watermarkLibrary';
 import { replaceWatermarkIfUnchanged } from './watermarkMutation';
 import { watermarkToneForPixels } from '../../core/watermark';
-import { INITIAL_WATERMARKS, createDefaultSizes } from '../ui/stub';
+import { createDefaultSizes } from '../ui/stub';
 import { toPhotoHistogram } from './histogram';
 import { fullResolutionRasterFormat, isHeifFile, isRawPreviewFile } from '../../core/rawFormats';
 import { rawSensorSize } from '../../core/rawSensorSize';
@@ -43,7 +43,7 @@ import { DEFAULT_EDIT as EMPTY_EDIT } from '../../core/photoEdits';
 import { DEFAULT_CROP, flipCrop, patchCrop, rotateCrop } from './cropOps';
 import { readCrops } from './cropOps';
 import { recordFormatCrop, recordFormatSetChange, recordFormatLink } from './formatHistory';
-import { addRow, alignOverlays, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps';
+import { addRow, alignOverlays, moveRow, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps';
 import { frameToPhoto, matchesAutoSource, originalFormatSize, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
 import { commitAutoEdit } from './commitAutoEdit';
@@ -105,7 +105,7 @@ async function buildOverlayDraw(frame: PhotoFrame, request: ExportRequest, env: 
     : undefined;
   return {
     overlay, text, watermark: mark, contrast,
-    rows: overlay.rows.map((row) => ({ text: formatOverlayRowText(row, photo) || 'Custom caption', family: env.fonts.find((font) => font.id === row.fontId)?.family ?? fallbackFamily, weight: row.weight, sizePx: row.sizePx, letterSpacing: row.letterSpacing })),
+    rows: overlay.rows.map((row) => ({ text: formatOverlayRowText(row, photo), family: env.fonts.find((font) => font.id === row.fontId)?.family ?? fallbackFamily, weight: row.weight, sizePx: row.sizePx, letterSpacing: row.letterSpacing })),
     mark: !mark || !preset ? null : imageUrl ? { kind: 'image', image: await loadImage(imageUrl) } : { kind: 'text', text: preset.text, ...(preset.subtext ? { subtext: preset.subtext } : {}) },
   };
 }
@@ -1594,6 +1594,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     rotateSelectedSizes: (photoId) => changeCrops(photoId, stub.store.selectedSizeIds, (crop) => rotateCrop(crop)),
     updateOverlay: (photoId, patch) => changeOverlay(photoId, (overlay) => patchOverlay(overlay, patch)),
     alignOverlaysCleanly: (photoId, layout) => changeOverlay(photoId, (overlay) => alignOverlays(overlay, layout)),
+    moveOverlayRow: (photoId, rowId, direction) => changeOverlay(photoId, (overlay) => moveRow(overlay, rowId, direction)),
     addOverlayRow: (photoId) => changeOverlay(photoId, (overlay) => addRow(overlay, `row-${newId().slice(0, 8)}`)),
     updateOverlayRow: (photoId, rowId, patch) => changeOverlay(photoId, (overlay) => updateRow(overlay, rowId, patch)),
     removeOverlayRow: (photoId, rowId) => changeOverlay(photoId, (overlay) => removeRow(overlay, rowId)),
@@ -1647,9 +1648,28 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     },
     deleteWatermark: (presetId) => {
       updateWatermarks((current) => current.filter((candidate) => candidate.id !== presetId));
-      // Photos that used it fall back to the first built-in watermark; nothing else about them changes.
-      mutate((current) => ({ ...current, frames: current.frames.map((frame) => { const overlay = readOverlay(frame.overlay); return overlay.watermarkPresetId === presetId ? { ...frame, overlay: { ...overlay, watermarkPresetId: INITIAL_WATERMARKS[0].id } } : frame; }) }));
+      // Photos that used it fall back to the first watermark left in the library (or none); nothing else about them changes.
+      const fallback = watermarkStoreRef.current.find((candidate) => candidate.id !== presetId)?.id ?? '';
+      mutate((current) => ({ ...current, frames: current.frames.map((frame) => { const overlay = readOverlay(frame.overlay); return overlay.watermarkPresetId === presetId ? { ...frame, overlay: { ...overlay, watermarkPresetId: fallback } } : frame; }) }));
     },
+    addTextWatermark: (text, subtext) => {
+      const entry = textWatermark(`wm-${newId().slice(0, 8)}`, text, subtext);
+      if (!entry) return null;
+      updateWatermarks((current) => [...current, entry]);
+      return entry.id;
+    },
+    addWatermarkVersion: async (presetId, slot) => {
+      const entry = watermarkStoreRef.current.find((candidate) => candidate.id === presetId);
+      if (!entry) return false;
+      const picked = await pickImageFile();
+      if (!picked) return false;
+      try {
+        const next = await addVersion(entry, slot, picked);
+        updateWatermarks((current) => current.map((candidate) => (candidate.id === presetId ? { ...candidate, forDark: next.forDark, forLight: next.forLight } : candidate)));
+        return true;
+      } catch { setNotice('That image could not be added.'); return false; }
+    },
+    setWatermarkSlot: (presetId, slot) => updateWatermarks((current) => current.map((candidate) => (candidate.id === presetId ? moveToSlot(candidate, slot) : candidate))),
     listDeviceFonts: () => listDeviceFonts(),
     hasDeviceFont: (fontName) => hasDeviceFont(fontName),
     updateRecipe: (photoId, patch) => applyPatch(editTargets(photoId), patch),
@@ -1706,7 +1726,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
 
-  exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: [...INITIAL_WATERMARKS, ...watermarkLibrary], auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
+  exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: watermarkLibrary, auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => {
     const assist = assists[frame.id];
     return frameToPhoto(frame, urls[frame.id], { assist, watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed });
@@ -1720,7 +1740,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     fonts: mergeFonts(deviceFonts),
     settings: mergeSettings(stub.store.settings, savedUi.settings),
     assistMode,
-    watermarkPresets: [...INITIAL_WATERMARKS, ...watermarkLibrary],
+    watermarkPresets: watermarkLibrary,
     overlayTemplates: templates.map(({ id, name }) => ({ id, name })),
     features: featureAccess(can),
     featurePlan: featurePlan(),
