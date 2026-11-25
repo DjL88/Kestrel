@@ -1,0 +1,22 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "presence": {
+      "$projectId": {
+        ".read": "auth != null && auth.token.p === $projectId && auth.token.r !== 'client'",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && auth.token.p === $projectId && auth.token.r !== 'client'",
+          ".validate": "newData.hasChildren(['name', 'kind', 'at']) && newData.child('at').val() <= now + 60000",
+          "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 80" },
+          "kind": { ".validate": "newData.isString() && newData.val().matches(/^(human-editor|human-reviewer|tutorial-guide|copilot|autopilot)$/)" },
+          "photoId": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,96}$/)" },
+          "x": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1" },
+          "y": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1" },
+          "at": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        }
+      }
+    }
+  }
+}

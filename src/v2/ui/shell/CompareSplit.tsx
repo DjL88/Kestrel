@@ -27,12 +27,12 @@ export default function CompareSplit({ before, after }: CompareSplitProps) {
       <div className="absolute inset-0">{after}</div>
       <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - pct}% 0 0)` }}>{before}</div>
       {pct > 14 && (
-        <span className="pointer-events-none absolute left-2.5 top-2.5 rounded bg-[var(--bg-scrim)] px-2 py-0.5 text-[10px] font-semibold text-white">
+        <span className="pointer-events-none absolute left-2.5 top-2.5 rounded bg-[var(--bg-scrim)] px-2 py-0.5 text-[0.625rem] font-semibold text-white">
           {STRINGS.canvas.beforeLabel}
         </span>
       )}
       {pct < 86 && (
-        <span className="pointer-events-none absolute right-2.5 top-2.5 rounded bg-[var(--brand-accent)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-on-accent)]">
+        <span className="pointer-events-none absolute right-2.5 top-2.5 rounded bg-[var(--brand-accent)] px-2 py-0.5 text-[0.625rem] font-semibold text-[var(--text-on-accent)]">
           {STRINGS.canvas.afterLabel}
         </span>
       )}
@@ -66,7 +66,7 @@ export default function CompareSplit({ before, after }: CompareSplitProps) {
         }}
       >
         <span aria-hidden="true" className="absolute inset-y-0 left-1/2 w-px bg-white/90 shadow-[0_0_0_1px_rgba(0,0,0,0.35)]" />
-        <span aria-hidden="true" className="relative grid h-9 w-9 place-items-center rounded-full border-2 border-white bg-[var(--bg-scrim)] text-[13px] font-bold text-white shadow-lg">◂▸</span>
+        <span aria-hidden="true" className="relative grid h-9 w-9 place-items-center rounded-full border-2 border-white bg-[var(--bg-scrim)] text-[0.8125rem] font-bold text-white shadow-lg">◂▸</span>
       </div>
     </div>
   );

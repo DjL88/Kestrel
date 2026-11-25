@@ -155,4 +155,48 @@ test('a full develop that revokes the cached preview URL tells listeners, so vie
   assert.notEqual(after, before);
   assert.equal(await (await fetch(after)).text(), 'DEVELOPED');
   provider.clear();
+
+test('same-metadata linked registration evicts previous RAW development and cached bytes', async (t) => {
+  const provider = new BrowserPreviewProvider();
+  t.after(() => provider.clear());
+  const key = 'same-metadata';
+  const first = new Blob(['OLD']);
+  const second = new Blob(['NEW']);
+  provider.registerLinked(key, { size: 3, lastModified: 1, read: async () => first });
+  const oldReader = provider.verifiedOriginalReader(key);
+  assert.equal(await provider.developFromOriginal(key, async () => new Blob(['old sensor picture'])), 'ready');
+  assert.equal(provider.isDeveloped(key), true);
+  provider.registerLinked(key, { size: 3, lastModified: 1, read: async () => second });
+  assert.equal(provider.isDeveloped(key), false);
+  assert.equal(oldReader.isCurrent(), false);
+  assert.equal(await provider.ensureOriginal(key), second);
+  assert.equal(await provider.verifiedOriginalReader(key).read(), second);
+});
+
+test('explicit local recovery replaces a disconnected linked reader for verified export', async (t) => {
+  const provider = new BrowserPreviewProvider();
+  t.after(() => provider.clear());
+  const key = 'recovered-local';
+  const bytes = new Blob(['verified replacement']);
+  provider.registerLinked(key, { size: bytes.size, lastModified: 1, read: async () => { throw new Error('offline'); } });
+  const oldReader = provider.verifiedOriginalReader(key);
+  provider.registerBlob(key, bytes);
+  assert.equal(oldReader.isCurrent(), false);
+  assert.equal(await provider.verifiedOriginalReader(key).read(), bytes);
+  provider.retryLinkedOriginal(key);
+  assert.equal(await provider.ensureOriginal(key), bytes, 'retry of an old link cannot discard the recovered local original');
+});
+
+test('first linked registration replaces a formerly local source and invalidates its cached thumbnail', async (t) => {
+  const provider = new BrowserPreviewProvider();
+  t.after(() => provider.clear());
+  const key = 'local-to-linked', photo = frame('photo', key);
+  provider.registerBlob(key, new Blob(['OLD'], { type: 'image/jpeg' }));
+  const first = await provider.getThumbnailUrl(photo);
+  const fresh = new Blob(['NEW'], { type: 'image/jpeg' });
+  provider.registerLinked(key, { size: fresh.size, lastModified: 1, read: async () => fresh });
+  const second = await provider.getThumbnailUrl(photo);
+  assert.notEqual(second, first);
+  assert.equal(await (await fetch(second)).text(), 'NEW');
+  assert.equal(await provider.ensureOriginal(key), fresh);
 });

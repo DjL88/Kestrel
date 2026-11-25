@@ -165,11 +165,11 @@ export default function GridView({
                       }`}
                     />
                     {active && (
-                      <span className="absolute left-2 top-2 rounded bg-[var(--bg-scrim)] px-1.5 py-0.5 text-[10px] font-medium text-white">
+                      <span className="absolute left-2 top-2 rounded bg-[var(--bg-scrim)] px-1.5 py-0.5 text-[0.625rem] font-medium text-white">
                         {STRINGS.shellLabels.activePhoto}
                       </span>
                     )}
-                    <span className="absolute bottom-2 left-2 rounded bg-[var(--bg-scrim)] px-1.5 py-0.5 text-[10px] font-medium text-white">
+                    <span className="absolute bottom-2 left-2 rounded bg-[var(--bg-scrim)] px-1.5 py-0.5 text-[0.625rem] font-medium text-white">
                       {stateWord}
                     </span>
                   </button>
@@ -185,7 +185,9 @@ export default function GridView({
                             key={n}
                             type="button"
                             aria-label={`Rate ${photo.filename} ${n} stars`}
-                            onClick={() => onSetRating([photo.id], n)}
+                            aria-pressed={n === photo.rating}
+                            // Choosing the rating a photo already has clears it, as in the Info panel (0 means unrated).
+                            onClick={() => onSetRating([photo.id], n === photo.rating ? 0 : n)}
                             className="p-0.5 text-[var(--brand-accent)] hover:scale-110 transition-transform"
                           >
                             <BrandIcon

@@ -32,6 +32,9 @@ import TasksPanel from './panels/TasksPanel';
 import CollageExportDialog from './dialogs/CollageExportDialog';
 import ExportDialog from './dialogs/ExportDialog';
 import RemovedPhotosDialog from './dialogs/RemovedPhotosDialog';
+import ShareDialog from './dialogs/ShareDialog';
+import { collabClient } from '../../providers/collabClient';
+import { firebaseAuth } from '../../providers/firebaseAuth';
 import SettingsDialog from './dialogs/SettingsDialog';
 import ShortcutGuide from './dialogs/ShortcutGuide';
 import CommandPalette from './dialogs/CommandPalette';
@@ -64,6 +67,14 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   serviceBase?: string;
 } = {}) {
   const { store, actions } = useStore();
+  // Shared projects (#1387): contacted only when the person opens Share.
+  const [shareOpen, setShareOpen] = useState(false);
+  const closeShare = React.useCallback(() => setShareOpen(false), []);
+  const sharing = React.useMemo(() => collabClient(import.meta.env.VITE_KESTREL_CONTROL_PLANE_URL, () => firebaseAuth.idToken()), []);
+  const signedInName = React.useCallback(async () => {
+    const session = await firebaseAuth.current().catch(() => null);
+    return session ? (session.displayName?.trim() || session.email?.split('@')[0] || null) : null;
+  }, []);
   const connectivity = useConnectivity();
   const service = useServiceReachability(serviceBase);
   const health = projectsText.connections.health;
@@ -107,6 +118,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [moreOpen, setMoreOpen] = useState(false);
   const [addingFormatFor, setAddingFormatFor] = useState<string | null>(null);
   const [collageEditingId, setCollageEditingId] = useState<string | null>(null);
+  const [collageSourceOpen, setCollageSourceOpen] = useState(false);
   const sheetDragY = useRef<number | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
@@ -314,6 +326,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onAddRow={actions.addOverlayRow}
             onUpdateRow={actions.updateOverlayRow}
             onRemoveRow={actions.removeOverlayRow}
+            onMoveRow={actions.moveOverlayRow}
+            onAddTextWatermark={actions.addTextWatermark}
+            onAddWatermarkVersion={actions.addWatermarkVersion}
+            onSetWatermarkSlot={actions.setWatermarkSlot}
             onAddCustomFont={actions.addCustomFont}
             onListDeviceFonts={actions.listDeviceFonts}
             onHasDeviceFont={actions.hasDeviceFont}
@@ -475,6 +491,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onBack={actions.backToProjects}
             onSetAssistMode={actions.setAssistMode}
             onExport={() => actions.setExportOpen(true)}
+            onShare={store.collage ? undefined : () => setShareOpen(true)}
             onOpenRemoved={() => actions.setRemovedOpen(true)}
             onOpenSettings={() => actions.setSettingsOpen(true)}
             onImport={actions.importPhotos}
@@ -539,7 +556,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   onBrowseProject={actions.browseCollageProjectPhotos} onAddFromProject={actions.addCollageProjectPhotos} PhotoSurface={store.PhotoSurface}
                   onChange={(next) => actions.updateCollage?.(next)}
                   onEditPhoto={(id) => { actions.selectPhoto(id); setCollageEditingId(id); }}
-                  onImport={actions.importPhotos} />
+                  onImport={actions.importPhotos}
+                  sourcePickerOpen={collageSourceOpen} onSourcePickerChange={setCollageSourceOpen} />
               ) : store.gridViewOpen ? (
                 <GridView
                   photos={store.photos}
@@ -637,6 +655,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onRunAutoCull={actions.runAutoCull}
                 onCreateCollage={store.collage ? undefined : actions.createCollageFromSelection}
                 collageMode={composingCollage}
+                onChooseFromProject={composingCollage && store.projects.some((p) => p.id !== store.activeProjectId) ? () => setCollageSourceOpen(true) : undefined}
                 onExportSelected={() => actions.setExportOpen(true)}
               />
             </div>
@@ -807,6 +826,16 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         selectedPhotoIds={store.selectedPhotoIds}
         onClose={() => actions.setExportOpen(false)}
         onExport={actions.runExport}
+      />
+
+      <ShareDialog
+        open={shareOpen}
+        client={sharing}
+        localProjectId={store.activeProjectId}
+        projectName={store.projects.find((project) => project.id === store.activeProjectId)?.name ?? ''}
+        selectedPhotoIds={store.selectedPhotoIds}
+        displayName={signedInName}
+        onClose={closeShare}
       />
 
       <RemovedPhotosDialog

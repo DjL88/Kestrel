@@ -239,13 +239,16 @@ html[data-theme="contrast"] :focus-visible {
 html[data-text-size="125"] { font-size: 125%; }
 html[data-text-size="150"] { font-size: 150%; }
 h1, h2, h3, summary, button { font-family: var(--font-display); }
-html[data-font="readable"], html[data-font="readable"] * {
+/* Text that is part of the picture (overlay text, watermark, collage caption) is marked data-artwork: it must look as it
+   will be exported, so the interface's reading font and spacing never change it. */
+html[data-font="readable"], html[data-font="readable"] *:not([data-artwork], [data-artwork] *) {
   font-family: "Atkinson Hyperlegible", ui-sans-serif, system-ui, sans-serif;
 }
 /* Roomier reading: moderate letter, word and paragraph spacing, inside the WCAG 1.4.12 limits. Inherited, so dense
    controls that set their own tracking keep it. */
 html[data-spacing="roomy"] body { letter-spacing: 0.03em; word-spacing: 0.1em; }
-html[data-spacing="roomy"] :where(p, li, dd) { line-height: 1.65; }
+html[data-spacing="roomy"] :where(p, li, dd):not([data-artwork] *) { line-height: 1.65; }
+html[data-spacing="roomy"] [data-artwork] { letter-spacing: normal; word-spacing: normal; }
 /* Compact density: Tailwind sizes everything from --spacing, so one value scales buttons, rows and gaps to 80%
    while text stays the same size. Only for a mouse or pen on a wide screen: touch targets are never shrunk. */
 @media (pointer: fine) and (min-width: 900px) {

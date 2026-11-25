@@ -4,10 +4,11 @@ import { cutOutBackground, markBrightness, recolour, type Rgba } from './waterma
 
 /** One watermark in the person's library. The artwork stays on this device (IndexedDB, by SHA-256 id); the list is a small
  * record in local storage. `forDark` is the artwork used on dark photos (a light mark), `forLight` the one for light photos. */
-export interface StoredWatermark { id: string; label: string; forDark?: string; forLight?: string }
+export interface StoredWatermark { id: string; label: string; forDark?: string; forLight?: string; /** A text watermark's line(s). No artwork. */ text?: string; subtext?: string }
 export type Slot = 'dark' | 'light';
 
 const KEY = 'inflight.v2.watermarks';
+const MAX_TEXT = 60;
 const ID = /^[a-f0-9]{64}$/;
 
 export function parseStored(raw: string | null): StoredWatermark[] {
@@ -17,10 +18,13 @@ export function parseStored(raw: string | null): StoredWatermark[] {
     const seen = new Set<string>();
     return value.flatMap((entry): StoredWatermark[] => {
       if (!entry || typeof entry !== 'object') return [];
-      const { id, label, forDark, forLight } = entry as Record<string, unknown>;
+      const { id, label, forDark, forLight, text, subtext } = entry as Record<string, unknown>;
       if (typeof id !== 'string' || !id.trim() || typeof label !== 'string' || seen.has(id)) return [];
       seen.add(id);
       const asset = (candidate: unknown) => (typeof candidate === 'string' && ID.test(candidate) ? candidate : undefined);
+      const line = (candidate: unknown) => (typeof candidate === 'string' && candidate.trim() ? candidate.trim().slice(0, MAX_TEXT) : undefined);
+      const words = line(text);
+      if (words) return [{ id, label: label.slice(0, 60), text: words, ...(line(subtext) ? { subtext: line(subtext) } : {}) }];
       return [{ id, label: label.slice(0, 60), forDark: asset(forDark), forLight: asset(forLight) }];
     });
   } catch { return []; }
@@ -62,10 +66,12 @@ export async function assetUrl(id: string | undefined): Promise<string | undefin
 }
 
 export async function toPresets(stored: readonly StoredWatermark[]): Promise<WatermarkPreset[]> {
-  return Promise.all(stored.map(async (entry) => ({
-    id: entry.id, label: entry.label, text: entry.label, kind: 'image' as const,
-    forDarkUrl: await assetUrl(entry.forDark), forLightUrl: await assetUrl(entry.forLight),
-  })));
+  return Promise.all(stored.map(async (entry): Promise<WatermarkPreset> => (entry.text
+    ? { id: entry.id, label: entry.label, text: entry.text, ...(entry.subtext ? { subtext: entry.subtext } : {}), kind: 'text' }
+    : {
+      id: entry.id, label: entry.label, text: entry.label, kind: 'image',
+      forDarkUrl: await assetUrl(entry.forDark), forLightUrl: await assetUrl(entry.forLight),
+    })));
 }
 
 /** "Both" uses the supplied artwork unchanged on both backgrounds. */
@@ -101,4 +107,28 @@ export async function makeVariant(entry: StoredWatermark, target: Slot): Promise
   if (!blob) return null;
   const savedId = await saveLocalWatermarkAsset(await toPng(recolour(await toPixels(blob), target === 'dark' ? 'white' : 'black')));
   return { ...entry, ...(target === 'dark' ? { forDark: savedId } : { forLight: savedId }) };
+}
+
+/** A text watermark: the person's own words, drawn light on dark photos and dark on light ones. Null when there are no words. */
+export function textWatermark(id: string, text: string, subtext: string): StoredWatermark | null {
+  const words = text.replace(/\s+/g, ' ').trim().slice(0, MAX_TEXT);
+  if (!words) return null;
+  const second = subtext.replace(/\s+/g, ' ').trim().slice(0, MAX_TEXT);
+  return { id, label: words, text: words, ...(second ? { subtext: second } : {}) };
+}
+
+/** The person says the artwork is for the other kind of photo: its only version moves to that slot. Unchanged when it
+ * already has that version, or has both. */
+export function moveToSlot(entry: StoredWatermark, slot: Slot): StoredWatermark {
+  if (entry.text) return entry;
+  const only = entry.forDark && !entry.forLight ? entry.forDark : entry.forLight && !entry.forDark ? entry.forLight : undefined;
+  if (!only) return entry;
+  return { id: entry.id, label: entry.label, ...(slot === 'dark' ? { forDark: only } : { forLight: only }) };
+}
+
+/** Put a second piece of artwork (the person's own other version) into one slot. */
+export async function addVersion(entry: StoredWatermark, slot: Slot, file: Blob): Promise<StoredWatermark> {
+  await toPixels(file); // refuse a file that is not a readable picture before keeping it
+  const assetId = await saveLocalWatermarkAsset(file);
+  return { ...entry, ...(slot === 'dark' ? { forDark: assetId } : { forLight: assetId }) };
 }

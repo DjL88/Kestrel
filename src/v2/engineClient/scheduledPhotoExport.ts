@@ -11,7 +11,7 @@ import { verifyExactOriginalCopy } from './verifiedOriginalCopy';
 import type { PhotoFrame } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import type { ExportRequest } from '../ui/contract';
-import type { ExportJob, ExportPlan } from './exportOps';
+import { originalExportSize, type ExportJob, type ExportPlan } from './exportOps';
 import { createSplitRenderCache } from './splitRenderCache';
 
 /** Each photo/format/edit-group/panel is one independently tracked scheduler unit.
@@ -135,13 +135,14 @@ export async function scheduleV2PhotoExports(input: {
           }
           const nativeSize = verifiedRaster && job.format.id === ORIGINAL_FORMAT_ID
             ? framedSize(image.naturalWidth, image.naturalHeight, frame.framing ?? DEFAULT_FRAMING) : null;
-          const longest = nativeSize ? Math.max(nativeSize.width * (job.sections ?? 1), nativeSize.height) : 0;
-          const limit = submitted.request.maxLongestEdgePx;
-          const scale = nativeSize && limit && limit > 0 ? Math.min(1, limit / longest) : 1;
-          const outputSize = nativeSize
-            ? { width: Math.max(1, Math.floor(nativeSize.width * scale)), height: Math.max(1, Math.floor(nativeSize.height * scale)) }
+          // Original follows the edit's Output scale (2× doubles it); other formats keep their size and the renderer only
+          // enlarges to fill them. Unedited variants never enlarge.
+          const upscale = job.format.id === ORIGINAL_FORMAT_ID && variant.kind === 'edited' ? variant.edit.upscale : undefined;
+          const scaledOriginal = nativeSize || upscale === 2 || upscale === 4;
+          const outputSize = scaledOriginal
+            ? originalExportSize(nativeSize ?? job.size, upscale, job.sections ?? 1, submitted.request.maxLongestEdgePx)
             : job.size;
-          const outputFormat = nativeSize ? { ...job.format, ...outputSize } : job.format;
+          const outputFormat = scaledOriginal ? { ...job.format, ...outputSize } : job.format;
           const overlay = variant.kind === 'unedited' ? null : await input.buildOverlay(frame, submitted.request);
           ctx.checkCancelled();
           ctx.stage('Rendering complete edit, masks, crop and overlays');

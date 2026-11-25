@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtemp, writeFile, mkdir, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, mkdir, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:net';
@@ -25,7 +25,7 @@ test('anonymous visitors see login, never the private V2 app or assets', async (
   const child = spawn(process.execPath, ['services/v2proto/server.mjs'], {
     env: { ...process.env, PORT: String(port), V2PROTO_STATIC_ROOT: directory,
       V2PROTO_OWNER_EMAILS: 'owner@example.test', V2PROTO_GOOGLE_CLIENT_ID: 'test-client-id',
-      V2PROTO_COOKIE_SECRET: 'a'.repeat(64) },
+      V2PROTO_COOKIE_SECRET: 'a'.repeat(64), V2PROTO_ALLOWED_ORIGINS: 'https://preview.example.test' },
     stdio: 'ignore',
   });
   try {
@@ -47,6 +47,18 @@ test('anonymous visitors see login, never the private V2 app or assets', async (
       body: JSON.stringify({ credential: 'forged' }),
     });
     assert.equal(wrongOrigin.status, 403);
+    assert.equal(await wrongOrigin.text(), 'Forbidden');
+    // The public site's origins (config/public-site.json) and V2PROTO_ALLOWED_ORIGINS pass the origin check and reach
+    // token verification, which refuses the forged credential.
+    const site = JSON.parse(await readFile(new URL('../../config/public-site.json', import.meta.url), 'utf8'));
+    for (const origin of [site.origin, site.firebaseOrigin, 'https://preview.example.test']) {
+      const fromSite = await fetch('http://127.0.0.1:' + port + '/V2Proto/session', {
+        method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: 'forged' }),
+      });
+      assert.equal(fromSite.status, 403, origin);
+      assert.equal(await fromSite.text(), 'Not authorised', origin);
+    }
     // Firebase Hosting forwards __session but strips other Cookie names.
     // Use a known test-only HMAC to exercise the authenticated request path
     // without mocking Google token signature verification.

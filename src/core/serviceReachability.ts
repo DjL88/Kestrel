@@ -16,7 +16,7 @@ export async function probeControlPlane(base: string, signal: AbortSignal, fetch
   });
   const request = (async (): Promise<Reachability> => {
     try {
-      const response = await fetcher(url + '/healthz', {
+      const response = await fetcher(url + '/health', {
         signal: controller.signal, method: 'GET', credentials: 'omit', cache: 'no-store',
         redirect: 'error', referrerPolicy: 'no-referrer',
       });

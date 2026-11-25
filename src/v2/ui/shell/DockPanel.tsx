@@ -96,7 +96,7 @@ export default function DockPanel({
             title={STRINGS.rail.dockLeft}
             aria-label={STRINGS.shellLabels.dockLeftLabel(title)}
             onClick={() => onSetDock('left')}
-            className={`inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-xs)] text-[10px] font-semibold transition-colors ${
+            className={`inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-xs)] text-[0.625rem] font-semibold transition-colors ${
               dock === 'left'
                 ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                 : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
@@ -109,7 +109,7 @@ export default function DockPanel({
             title={STRINGS.rail.dockRight}
             aria-label={STRINGS.shellLabels.dockRightLabel(title)}
             onClick={() => onSetDock('right')}
-            className={`inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-xs)] text-[10px] font-semibold transition-colors ${
+            className={`inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-xs)] text-[0.625rem] font-semibold transition-colors ${
               dock === 'right'
                 ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                 : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'

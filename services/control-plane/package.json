@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Kestrel control plane: licences, offline grants, managed AI gateway, model and release registry. Optional; the app works fully without it.",
-  "engines": { "node": ">=22.13" },
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
     "start": "tsx src/server.ts",
     "dev": "tsx watch src/server.ts",
@@ -16,6 +18,8 @@
   "dependencies": {
     "@google-cloud/firestore": "^7.11.6",
     "@google-cloud/storage": "^9.0.0",
+    "@ip-location-db/dbip-country-mmdb": "2.3.2026060120",
+    "mmdb-lib": "3.0.5",
     "zod": "^4.6.7"
   },
   "devDependencies": {
