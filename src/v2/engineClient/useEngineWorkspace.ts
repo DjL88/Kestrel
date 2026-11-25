@@ -2478,13 +2478,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     [stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: watermarkLibrary, auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
-  // Species names in the person's language arrive once, after start-up; the photo list is redrawn when they do.
+  // Species names in the person's language (about 2.6 MB with every group) are fetched once, and only when a photo in
+  // the project has a species name to show; the photo list is redrawn when they arrive.
   const [speciesNamesVersion, setSpeciesNamesVersion] = useState(0);
-  useEffect(() => {
-    const stop = onSpeciesNamesLoaded(() => setSpeciesNamesVersion((version) => version + 1));
-    void loadSpeciesNames(language);
-    return stop;
-  }, []);
+  useEffect(() => onSpeciesNamesLoaded(() => setSpeciesNamesVersion((version) => version + 1)), []);
+  const hasSpeciesName = (state?.frames ?? []).some((frame) => frame.subjectNames?.length || frame.tags?.length);
+  useEffect(() => { if (hasSpeciesName) void loadSpeciesNames(language); }, [hasSpeciesName]);
   const photos = useMemo(() => recountBursts((state?.frames ?? []).filter((frame) => !frame.removedAt && !pairs.rawOf.has(frame.id)).map((frame) => {
     const assist = assists[frame.id];
     const jpegId = pairs.jpegOf.get(frame.id);
