@@ -47,7 +47,7 @@ export async function exportCollage(state:CullingState, provider:BrowserPreviewP
     drawFramedPhoto(image,picture,framing,{scale,colourSpace:'srgb'});
     await applyCanvasExportEdit(picture,frame.edit??DEFAULT_EDIT,signal,
       Math.max(size.width,size.height)*scale,{aspect:size.height/size.width,view:{x:0,y:0,w:1,h:1},lensCentre:lensCentre(image.naturalWidth,image.naturalHeight,framing)});
-    await applyFrameLayers(picture,frame.overlay,true);
+    await applyFrameLayers(picture,frame.overlay,true,frame.edit?.masks);
     return {image:picture,width:picture.width,height:picture.height,release:()=>{picture.width=0;picture.height=0;}};
    }catch(error){picture.width=0;picture.height=0;throw error;}
   },print);

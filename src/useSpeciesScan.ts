@@ -1,6 +1,7 @@
 import { useConnectivity } from './providers/useConnectivity';
+import { validateSpecies } from './providers/speciesValidator';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { qualifiesForAutoTag, scanCandidates, scanPatch } from './core/autoTags';
+import { familyFallback, qualifiesForAutoTag, scanCandidates, scanPatch } from './core/autoTags';
 import { SPECIES_MODEL } from './core/speciesModel';
 import { kindFor, personalBonus, pickSuggestions, rankSpecies } from './core/speciesMatch';
 import type { PhotoFrame } from './core/types';
@@ -13,7 +14,7 @@ import { subjectCrop } from './core/subjectCrop';
 import { gateAvailable, routeAndEmbedPicture } from './providers/categoryGate';
 import { readVehicle, type VehicleReading } from './core/vehicleRecognition';
 import { loadVehicleData } from './providers/vehicleRecognition';
-import { findMarkings, mayReadMarkings } from './core/aircraftRegistration';
+import { findMarkings, findRaceNumber, markingContext } from './core/aircraftRegistration';
 import { lookUpMarking } from './core/aircraftRegister';
 import { withMarking } from './core/vehicleRecognition';
 import { VEHICLE_LABELS } from './core/vehicleLabels';
@@ -35,21 +36,23 @@ export type ScanResult = ReturnType<typeof scanPatch> & { vehicle?: VehicleReadi
  * detector has no class for). Any failure leaves the reading as it was.
  */
 async function readMarkings(vehicle: VehicleReading, store: BrowserPreviewProvider, frame: PhotoFrame): Promise<VehicleReading> {
-  if (!mayReadMarkings(vehicle) || !(await markingReaderReady())) return vehicle;
+  const context = markingContext(vehicle);
+  if (!context || !(await markingReaderReady())) return vehicle;
   try {
     const large = await pictureForAnalysis(store, frame, 2048);
     if (!large) return vehicle;
-    const planes = (await findSubjects(large).catch(() => [])).filter((found) => found.detection.label === 'aeroplane' && found.detection.score >= 0.4);
+    const planes = (await findSubjects(large).catch(() => [])).filter((found) => (context === 'aircraft' ? found.detection.label === 'aeroplane' : found.detection.label === 'car' || found.detection.label === 'motorcycle') && found.detection.score >= 0.4);
     const areas = planes.length ? planes.map(({ detection: { box } }) => {
       const pad = 0.05 * Math.max(box.w, box.h);
       const x = Math.max(0, box.x - pad), y = Math.max(0, box.y - pad);
       return { x, y, width: Math.min(large.width - x, box.w + 2 * pad), height: Math.min(large.height - y, box.h + 2 * pad) };
     }) : [{ x: 0, y: 0, width: large.width, height: large.height }];
     const lines = [];
-    for (const area of areas.slice(0, 3)) lines.push(...await readText(large, area));
+    for (const area of areas.slice(0, 3)) lines.push(...(await readText(large, area)).map((line) => ({ ...line, height: line.box.height })));
     const needsFaa = lines.some((line) => findMarkings(line.text).some((marking) => marking.format === 'us-civil'));
     const faa = needsFaa ? await loadFaaRegister().catch(() => null) : null;
     const typeName = (id: string) => VEHICLE_LABELS.types.find((entry) => entry.id === id)?.name;
+    if (context === 'racing') return withMarking(vehicle, lines, findRaceNumber, () => null);
     return withMarking(vehicle, lines, findMarkings, (marking) => {
       const match = lookUpMarking(marking, { faa }, vehicle.kind, typeName);
       if (!match) return null;
@@ -131,10 +134,19 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
             const { labels, vectors } = localLabels;
             const { embedding, grid } = await analysePicture(picture);
             const top = pickSuggestions(rankSpecies(embedding, labels, vectors, personalBonus(labels, readSpeciesCounts())))[0];
-            const best = top && qualifiesForAutoTag(top, embedding, labels, vectors) ? top : undefined;
-            const named = best ? { name: best.label.common, probability: best.probability, kind: kindFor(best.label) } : undefined;
+            const qualified = top && qualifiesForAutoTag(top, embedding, labels, vectors) ? top : undefined;
+            const crop = subjectCrop(picture.width, picture.height, grid);
+            // With the optional BioCLIP 2 validator installed (desktop), a clear disagreement withholds the automatic
+            // name: the photo stays for the person to name. Agreement or an unsure validator changes nothing.
+            const verdict = qualified ? await validateSpecies(picture, crop, qualified.label).catch(() => null) : null;
+            const best = verdict?.kind === 'differs' ? undefined : qualified;
+            // No species certain enough: the family may be ("Owls"), from the unpersonalised ranking; else nothing.
+            // A species the validator disagreed with is left for the person, without a family guess.
+            const family = qualified ? undefined : familyFallback(rankSpecies(embedding, labels, vectors));
+            const named = best ? { name: best.label.common, probability: best.probability, kind: kindFor(best.label) }
+              : family ? { name: family.family, probability: family.probability, kind: 'wildlife' as const } : undefined;
             // The gate looks at the same square as the species model. If it fails, nothing is decided for this photo.
-            const gate = await routeAndEmbedPicture(picture, subjectCrop(picture.width, picture.height, grid));
+            const gate = await routeAndEmbedPicture(picture, crop);
             const outcome = gateOutcome(gate.route, frame.subjectKind);
             // The same picture embedding says what kind of vehicle it is, if the gate says it is mostly a vehicle.
             const vehicle = vehicleData && !frame.vehicle && !frame.vehicleDeclined ? readVehicle(gate.embedding, gate.route, vehicleData.labels, vehicleData.vectors) : null;

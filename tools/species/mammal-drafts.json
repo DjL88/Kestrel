@@ -1,0 +1,46 @@
+{
+  "note": "DRAFT names for commonly photographed UK and European mammals, written for InFlight where Wikidata's label in Spanish, Italian, Welsh or Scottish Gaelic is missing, wrong (\"Poponejo\" for the rabbit) or an old Latin name (\"Neovison vison\"). Not yet checked by native speakers. Where both exist, these drafts win. Scottish Gaelic holds only names we are reasonably sure of; other species stay in Latin until reviewed.",
+  "es": {
+    "Vulpes vulpes": "Zorro rojo", "Cervus elaphus": "Ciervo rojo", "Capreolus capreolus": "Corzo", "Dama dama": "Gamo", "Cervus nippon": "Ciervo sica",
+    "Lepus europaeus": "Liebre europea", "Lepus timidus": "Liebre de montaña", "Oryctolagus cuniculus": "Conejo europeo", "Sciurus vulgaris": "Ardilla roja",
+    "Sciurus carolinensis": "Ardilla gris", "Lutra lutra": "Nutria europea", "Halichoerus grypus": "Foca gris", "Phoca vitulina": "Foca común",
+    "Tursiops truncatus": "Delfín mular", "Phocoena phocoena": "Marsopa común", "Castor fiber": "Castor europeo", "Sus scrofa": "Jabalí",
+    "Felis silvestris": "Gato montés", "Felis catus": "Gato doméstico", "Canis lupus familiaris": "Perro doméstico", "Equus caballus": "Caballo",
+    "Bos taurus": "Vaca", "Ovis aries": "Oveja", "Homo sapiens": "Ser humano", "Muntiacus reevesi": "Muntíaco de Reeves",
+    "Neogale vison": "Visón americano", "Mustela putorius": "Turón", "Orcinus orca": "Orca", "Megaptera novaeangliae": "Ballena jorobada",
+    "Balaenoptera acutorostrata": "Rorcual aliblanco", "Pipistrellus pipistrellus": "Murciélago enano", "Myotis daubentonii": "Murciélago ribereño",
+    "Plecotus auritus": "Orejudo dorado", "Rhinolophus ferrumequinum": "Murciélago grande de herradura", "Talpa europaea": "Topo europeo",
+    "Sorex araneus": "Musaraña común", "Muscardinus avellanarius": "Muscardino", "Arvicola amphibius": "Rata de agua", "Apodemus sylvaticus": "Ratón de campo",
+    "Ursus arctos": "Oso pardo", "Alces alces": "Alce", "Capra ibex": "Íbice de los Alpes", "Marmota marmota": "Marmota alpina", "Gulo gulo": "Glotón",
+    "Vulpes lagopus": "Zorro ártico", "Glis glis": "Lirón gris", "Mustela nivalis": "Comadreja"
+  },
+  "it": {
+    "Vulpes vulpes": "Volpe rossa", "Meles meles": "Tasso", "Cervus elaphus": "Cervo nobile", "Capreolus capreolus": "Capriolo", "Dama dama": "Daino",
+    "Cervus nippon": "Cervo sika", "Lepus europaeus": "Lepre europea", "Lepus timidus": "Lepre bianca", "Oryctolagus cuniculus": "Coniglio selvatico",
+    "Sciurus vulgaris": "Scoiattolo rosso", "Sciurus carolinensis": "Scoiattolo grigio", "Martes martes": "Martora", "Halichoerus grypus": "Foca grigia",
+    "Phoca vitulina": "Foca comune", "Tursiops truncatus": "Tursiope", "Phocoena phocoena": "Focena comune", "Castor fiber": "Castoro europeo",
+    "Felis catus": "Gatto domestico", "Canis lupus familiaris": "Cane domestico", "Equus caballus": "Cavallo", "Bos taurus": "Mucca", "Ovis aries": "Pecora",
+    "Homo sapiens": "Essere umano", "Muntiacus reevesi": "Muntjak della Cina", "Mustela nivalis": "Donnola", "Neogale vison": "Visone americano",
+    "Mustela putorius": "Puzzola", "Orcinus orca": "Orca", "Megaptera novaeangliae": "Megattera", "Balaenoptera acutorostrata": "Balenottera minore",
+    "Pipistrellus pipistrellus": "Pipistrello nano", "Myotis daubentonii": "Vespertilio di Daubenton", "Plecotus auritus": "Orecchione bruno",
+    "Rhinolophus ferrumequinum": "Ferro di cavallo maggiore", "Talpa europaea": "Talpa europea", "Sorex araneus": "Toporagno comune",
+    "Muscardinus avellanarius": "Moscardino", "Arvicola amphibius": "Arvicola d'acqua", "Apodemus sylvaticus": "Topo selvatico", "Mus musculus": "Topo domestico",
+    "Ursus arctos": "Orso bruno", "Canis lupus": "Lupo", "Lynx lynx": "Lince eurasiatica", "Rangifer tarandus": "Renna", "Alces alces": "Alce",
+    "Capra ibex": "Stambecco alpino", "Marmota marmota": "Marmotta alpina", "Gulo gulo": "Ghiottone", "Glis glis": "Ghiro"
+  },
+  "cy": {
+    "Vulpes vulpes": "Llwynog", "Dama dama": "Hydd brith", "Cervus nippon": "Carw Sika", "Lepus europaeus": "Ysgyfarnog", "Lepus timidus": "Ysgyfarnog fynydd",
+    "Oryctolagus cuniculus": "Cwningen", "Erinaceus europaeus": "Draenog", "Phocoena phocoena": "Llamhidydd", "Castor fiber": "Afanc",
+    "Felis silvestris": "Cath wyllt", "Felis catus": "Cath", "Canis lupus familiaris": "Ci", "Equus caballus": "Ceffyl", "Bos taurus": "Buwch",
+    "Ovis aries": "Dafad", "Homo sapiens": "Bod dynol", "Neogale vison": "Minc", "Talpa europaea": "Twrch daear", "Sorex araneus": "Chwistlen gyffredin",
+    "Arvicola amphibius": "Llygoden bengron y dŵr", "Rattus norvegicus": "Llygoden fawr", "Plecotus auritus": "Ystlum hirglust",
+    "Rhinolophus ferrumequinum": "Ystlum pedol mwyaf", "Myotis daubentonii": "Ystlum y dŵr"
+  },
+  "gd": {
+    "Cervus elaphus": "Fiadh ruadh", "Capreolus capreolus": "Earb", "Lepus europaeus": "Maigheach", "Lepus timidus": "Maigheach gheal",
+    "Oryctolagus cuniculus": "Coineanach", "Sciurus carolinensis": "Feòrag ghlas", "Erinaceus europaeus": "Gràineag", "Castor fiber": "Bìobhair",
+    "Felis silvestris": "Cat fiadhaich", "Felis catus": "Cat", "Canis lupus familiaris": "Cù", "Equus caballus": "Each", "Bos taurus": "Bò",
+    "Ovis aries": "Caora", "Homo sapiens": "Duine", "Tursiops truncatus": "Leumadair", "Talpa europaea": "Famh", "Ursus arctos": "Mathan",
+    "Mustela putorius": "Feòcallan", "Rattus norvegicus": "Radan"
+  }
+}

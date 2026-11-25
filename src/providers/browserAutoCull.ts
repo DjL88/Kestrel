@@ -8,6 +8,7 @@ import { countOriginalKeepers, limitAutoKeepers, type CullSuggestion } from '../
 import { detectorParallelism, resetDetectorFailure } from './objectDetector';
 import { bundledModelUrl } from './bundledModelAssets';
 import type { PhotoFrame } from '../core/types';
+import type { PictureSource } from '../core/pictureSource';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 
 export async function scanForCulling(
@@ -16,6 +17,8 @@ export async function scanForCulling(
   onDetectorUnavailable?: () => void,
   onFrameStage?: (frameId: string, stage: CullScanStage) => void,
   preflight?: { cache: ImportCullCache; projectId: string },
+  /** Which picture each photo was judged from; not called for observations cached at import (source unknown). */
+  onFrameSource?: (frameId: string, source: PictureSource | undefined) => void,
 ) {
   const baseById = new Map<string, CullSuggestion>();
   // A cloud IDE may omit large ONNX files. Treat object detection as optional
@@ -43,6 +46,7 @@ export async function scanForCulling(
       return cached.result;
     }
     const observation = await observeCullImage(frame, provider, signal, canvas, context, detectorHealthy);
+    onFrameSource?.(frame.id, observation.source);
     if (observation.base) baseById.set(frame.id, observation.base);
     if (observation.detectorFailed && detectorHealthy) {
       detectorHealthy = false;

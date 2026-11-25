@@ -97,9 +97,9 @@ function ActionsMenu({ project, menuOpen, onToggleMenu, onRename, onArchive, onD
       </button>
       {menuOpen && (
         <div role="menu" aria-label={STRINGS.hubMore.actionsMenu} className={`absolute right-0 z-30 w-44 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1 shadow-[var(--shadow-popover)] ${opensUp ? 'bottom-11' : 'top-11'}`}>
-          <button type="button" role="menuitem" className={`${item} text-[var(--text-primary)]`} onClick={() => { onToggleMenu(); onRename(); }}>{STRINGS.hubMore.rename}</button>
-          <button type="button" role="menuitem" className={`${item} text-[var(--text-primary)]`} onClick={() => { onToggleMenu(); onArchive(); }}>{project.archived ? STRINGS.hubMore.restore : STRINGS.hubMore.archive}</button>
-          <button type="button" role="menuitem" className={`${item} text-[var(--status-danger,#e5484d)]`} onClick={() => { onToggleMenu(); onDelete(); }}>{STRINGS.hubMore.deleteMenu}</button>
+          {!project.trashed && <button type="button" role="menuitem" className={`${item} text-[var(--text-primary)]`} onClick={() => { onToggleMenu(); onRename(); }}>{STRINGS.hubMore.rename}</button>}
+          <button type="button" role="menuitem" className={`${item} text-[var(--text-primary)]`} onClick={() => { onToggleMenu(); onArchive(); }}>{project.archived || project.trashed ? STRINGS.hubMore.restore : STRINGS.hubMore.archive}</button>
+          <button type="button" role="menuitem" className={`${item} text-[var(--status-danger,#e5484d)]`} onClick={() => { onToggleMenu(); onDelete(); }}>{project.trashed ? STRINGS.hubMore.deleteForeverMenu : STRINGS.hubMore.deleteMenu}</button>
         </div>
       )}
     </div>
@@ -133,10 +133,10 @@ export function ProjectRow(props: ProjectCardProps) {
           <BrandIcon name="pencil" size={18} />{STRINGS.hubMore.rename}
         </button>
         <button type="button" tabIndex={open ? 0 : -1} onClick={() => { close(); onArchive(); }} className={`${swipeButton} bg-[#1f5f86]`}>
-          <BrandIcon name={project.archived ? 'restore' : 'archive'} size={18} />{project.archived ? STRINGS.hubMore.restore : STRINGS.hubMore.archive}
+          <BrandIcon name={project.archived || project.trashed ? 'restore' : 'archive'} size={18} />{project.archived || project.trashed ? STRINGS.hubMore.restore : STRINGS.hubMore.archive}
         </button>
         <button type="button" tabIndex={open ? 0 : -1} onClick={() => { close(); onDelete(); }} className={`${swipeButton} bg-[#a3262b]`}>
-          <BrandIcon name="trash" size={18} />{STRINGS.hubMore.deleteMenu}
+          <BrandIcon name="trash" size={18} />{project.trashed ? STRINGS.hubMore.deleteForeverMenu : STRINGS.hubMore.deleteMenu}
         </button>
       </div>
       <div data-testid="project-row-body"
@@ -164,8 +164,9 @@ export function ProjectRow(props: ProjectCardProps) {
         }}
         onTouchCancel={() => { const gesture = start.current; start.current = null; setDragging(false); if (gesture) setOffset(gesture.from); }}
         onClickCapture={(event) => { if (offset !== 0) { event.preventDefault(); event.stopPropagation(); close(); } }}>
-        <button type="button" onClick={onOpen} tabIndex={-1} aria-hidden="true"
-          className="flex h-16 shrink-0 gap-0.5 overflow-hidden rounded-[var(--radius-md)] bg-[var(--bg-canvas)] sm:h-28">
+        {/* The cover is a pointer shortcut only (the name button opens it for keyboards), so it is not a second button, and its picture keeps its name for screen readers. */}
+        <div onClick={onOpen}
+          className="flex h-16 shrink-0 cursor-pointer gap-0.5 overflow-hidden rounded-[var(--radius-md)] bg-[var(--bg-canvas)] sm:h-28">
           <span className="block aspect-[3/2] h-full overflow-hidden">
             <Cover project={project} coverFailed={props.coverFailed} onCoverError={props.onCoverError} iconSize={22} />
           </span>
@@ -174,7 +175,7 @@ export function ProjectRow(props: ProjectCardProps) {
               {samples.map((url) => <img key={url} src={url} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" />)}
             </span>
           )}
-        </button>
+        </div>
         {/* A tap anywhere in the text opens the project; keyboard users reach the same through the name button. */}
         <div className="min-w-0 flex-1 cursor-pointer" onClick={(event) => { if (event.target === event.currentTarget || !(event.target as HTMLElement).closest('button')) onOpen(); }}>
           <button type="button" onClick={onOpen}
@@ -200,9 +201,9 @@ export function ProjectTile(props: ProjectCardProps) {
   const { project, onOpen } = props;
   return (
     <li className="group flex flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] transition-colors hover:border-[var(--brand-accent-border)]" data-testid="project-tile">
-      <button type="button" onClick={onOpen} tabIndex={-1} aria-hidden="true" className="relative aspect-[3/2] w-full overflow-hidden bg-[var(--bg-canvas)]">
+      <div onClick={onOpen} className="relative aspect-[3/2] w-full cursor-pointer overflow-hidden bg-[var(--bg-canvas)]">
         <Cover project={project} coverFailed={props.coverFailed} onCoverError={props.onCoverError} iconSize={24} />
-      </button>
+      </div>
       <div className="flex min-w-0 items-start gap-1 p-2 pr-1">
         <div className="min-w-0 flex-1">
           <button type="button" onClick={onOpen}

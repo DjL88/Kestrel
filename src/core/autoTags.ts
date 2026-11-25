@@ -41,6 +41,30 @@ export function keepAuto(previous: AutoState, name: string): string[] {
 export const AUTO_MINIMUM = 0.8;
 export const shouldAutoTag = (probability: number) => probability >= AUTO_MINIMUM && probability <= 1;
 
+/**
+ * When no single species is certain enough, the family may be: if the names that share one family together hold at
+ * least the automatic-tag share, the family's name is offered instead ("Owls" rather than a confident wrong owl).
+ * A family with one member in the list is never offered (that would be the species in disguise), and nothing is
+ * offered when no family stands out, so unknown stays unknown. Always uses the unpersonalised ranking.
+ */
+export function familyFallback(ranked: readonly Suggestion[]): { family: string; probability: number } | undefined {
+  const shares = new Map<string, { probability: number; members: number }>();
+  for (const entry of ranked) {
+    const family = entry.label.family?.trim();
+    if (!family) continue;
+    const share = shares.get(family) ?? { probability: 0, members: 0 };
+    share.probability += entry.probability;
+    share.members += 1;
+    shares.set(family, share);
+  }
+  let best: { family: string; probability: number } | undefined;
+  for (const [family, share] of shares) {
+    if (share.members < 2 || !shouldAutoTag(Math.min(1, share.probability))) continue;
+    if (!best || share.probability > best.probability) best = { family, probability: Math.min(1, share.probability) };
+  }
+  return best;
+}
+
 /** Personal preferences can reorder suggestions, but cannot qualify a name for automatic tagging. */
 export function qualifiesForAutoTag(
   suggested: Suggestion, embedding: Float32Array, labels: readonly SpeciesLabel[], vectors: readonly Float32Array[],

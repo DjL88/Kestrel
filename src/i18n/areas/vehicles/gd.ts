@@ -8,6 +8,8 @@ export const gd: AreaTranslation<typeof source> = {
   kinds: {
     car: 'Càr',
     motorbike: 'Motar-baidhsagal',
+    'racing-car': 'Càr-rèis',
+    'racing-motorbike': 'Motar-baidhsagal rèis',
     lorry: 'Làraidh',
     bus: 'Bus',
     train: 'Trèana',
@@ -41,9 +43,10 @@ export const gd: AreaTranslation<typeof source> = {
     cancel: 'Sguir dheth',
     saved: (count: number) => (count > 1 ? `Air a shàbhaladh airson ${count} dealbhan.` : 'Air a shàbhaladh.'),
   },
+  raceNumber: (what: string, number: string) => `${what}, àireamh ${number}`,
   reader: {
-    title: 'Leugh clàraidhean itealain',
-    description: (megabytes: string) => `A’ leughadh clàraidhean is àireamhan sreathach armailteach a tha peantte air itealain, air an uidheam seo, agus gan lorg ann an lethbhreac far loidhne de chlàran poblach. Luchdadh a-nuas aon turas de ${megabytes} MB. Cha tèid clàran-àireimh chàraichean a leughadh idir.`,
+    title: 'Leugh clàraidhean is àireamhan rèis',
+    description: (megabytes: string) => `A’ leughadh clàraidhean is àireamhan sreathach armailteach air itealain, agus àireamhan rèis air càraichean is baidhsagalan rèis, air an uidheam seo. Thèid clàraidhean a lorg ann an lethbhreac far loidhne de chlàran poblach. Luchdadh a-nuas aon turas de ${megabytes} MB. Cha tèid clàran-àireimh charbadan rathaid a leughadh idir.`,
     download: 'Luchdaich a-nuas',
     downloading: (percent: number) => `A’ luchdadh a-nuas… ${percent}%`,
     ready: 'Air a stàladh. Ag obair far loidhne.',

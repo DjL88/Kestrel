@@ -52,6 +52,13 @@
           "serviceId": "kestrel-control-plane",
           "region": "europe-west2"
         }
+      },
+      {
+        "source": "/v1/mail/**",
+        "run": {
+          "serviceId": "kestrel-control-plane",
+          "region": "europe-west2"
+        }
       }
     ],
     "headers": [
@@ -149,6 +156,9 @@
   },
   "database": {
     "rules": "database.rules.json"
+  },
+  "firestore": {
+    "rules": "firestore.rules"
   },
   "emulators": {
     "firestore": {

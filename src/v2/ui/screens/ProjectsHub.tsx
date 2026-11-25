@@ -6,11 +6,7 @@ import BrandIcon, { BrandLogo } from '../icons/BrandIcon';
 import { LayoutToggle, ProjectRow, ProjectTile, readHubLayout, saveHubLayout, type HubLayout } from './ProjectCards';
 import footerKiteDark from '../../../assets/brand/mark/inflight-kite-dark.svg';
 import footerKiteLight from '../../../assets/brand/mark/inflight-kite-light.svg';
-import { isDesktopApp, isMobileShell } from '../../../providers/desktopShell';
-
-/** The published privacy policy. It is not bundled into the app, so a relative link would lead nowhere in the desktop app. */
-import { publicSiteUrl } from '../../../core/publicSite';
-const PRIVACY_URL = publicSiteUrl('/privacy.html');
+import { POLICY_PATHS, SiteLink } from '../../../components/SiteLink';
 
 interface ProjectsHubProps {
   projects: Project[];
@@ -25,7 +21,11 @@ interface ProjectsHubProps {
   /** A .kestrel.json backup becomes a new project. */
   onRestoreBackup?: (file: File) => void;
   onArchiveProject: (projectId: string, archived: boolean) => void;
+  /** Moves the project to Recently deleted (kept 30 days). */
   onDeleteProject: (projectId: string) => void;
+  onRestoreDeletedProject?: (projectId: string) => void;
+  /** Removes a project in Recently deleted for good, after its own confirmation. */
+  onDeleteProjectForever?: (projectId: string) => void;
   onOpenSettings: () => void;
   onToggleTheme: () => void;
   onSetHubState: (state: HubViewState) => void;
@@ -43,6 +43,8 @@ export default function ProjectsHub({
   onRestoreBackup,
   onArchiveProject,
   onDeleteProject,
+  onRestoreDeletedProject,
+  onDeleteProjectForever,
   onOpenSettings,
   onToggleTheme,
   onSetHubState,
@@ -60,14 +62,19 @@ export default function ProjectsHub({
   const onCreateDialogKeyDown = useDialogFocus(modalOpen, createPanel, () => setModalOpen(false));
   const [projectKind, setProjectKind] = useState<'photography' | 'collage'>('photography');
 
-  const [showArchived, setShowArchived] = useState(false);
+  const [view, setView] = useState<'projects' | 'archived' | 'deleted'>('projects');
+  const showArchived = view === 'archived';
+  const showDeleted = view === 'deleted';
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState<Project | null>(null);
-  const archivedCount = projects.filter((p) => p.archived).length;
+  const archivedCount = projects.filter((p) => p.archived && !p.trashed).length;
+  const deletedCount = projects.filter((p) => p.trashed).length;
+  // Deleting forever is offered only where it can be confirmed; without it, deleted projects simply wait out their 30 days.
+  const canEmpty = Boolean(onDeleteProjectForever);
 
   const filtered = projects
-    .filter((p) => Boolean(p.archived) === showArchived)
+    .filter((p) => showDeleted ? Boolean(p.trashed) : !p.trashed && Boolean(p.archived) === showArchived)
     .filter((p) => `${p.name} ${p.folderPath}`.toLowerCase().includes(search.trim().toLowerCase()))
     .sort((a, b) => sortBy === 'name' ? a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
       : sortBy === 'photos' ? b.photoCount - a.photoCount
@@ -209,21 +216,38 @@ export default function ProjectsHub({
             </div>
           )}
 
-          {hubState === 'ready' && (archivedCount > 0 || showArchived) && (
-            <div className="mb-4 flex items-center gap-3">
-              <button
-                type="button"
-                aria-pressed={showArchived}
-                onClick={() => setShowArchived((v) => !v)}
-                className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-secondary)]"
-              >
-                {showArchived ? STRINGS.topBar.backToProjects : STRINGS.hubMore.archived(archivedCount)}
-              </button>
+          {hubState === 'ready' && (archivedCount > 0 || deletedCount > 0 || view !== 'projects') && (
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              {view !== 'projects' ? (
+                <button type="button" onClick={() => setView('projects')}
+                  className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-secondary)]">
+                  {STRINGS.topBar.backToProjects}
+                </button>
+              ) : (
+                <>
+                  {archivedCount > 0 && (
+                    <button type="button" onClick={() => setView('archived')}
+                      className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-secondary)]">
+                      {STRINGS.hubMore.archived(archivedCount)}
+                    </button>
+                  )}
+                  {deletedCount > 0 && (
+                    <button type="button" onClick={() => setView('deleted')} data-testid="hub-recently-deleted"
+                      className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-secondary)]">
+                      {STRINGS.hubMore.deletedList(deletedCount)}
+                    </button>
+                  )}
+                </>
+              )}
               {showArchived && <span className="text-xs text-[var(--text-muted)]">{STRINGS.hubMore.archivedNote}</span>}
+              {showDeleted && <span className="text-xs text-[var(--text-muted)]">{STRINGS.hubMore.deletedNote}</span>}
             </div>
           )}
           {hubState === 'ready' && filtered.length === 0 && showArchived && (
             <p className="text-sm text-[var(--text-muted)]">{STRINGS.hubMore.nothingArchived}</p>
+          )}
+          {hubState === 'ready' && filtered.length === 0 && showDeleted && (
+            <p className="text-sm text-[var(--text-muted)]">{STRINGS.hubMore.nothingDeleted}</p>
           )}
           {hubState === 'ready' && filtered.length > 0 && (
             <ul aria-label={STRINGS.hub.heading} data-project-layout={layout}
@@ -238,10 +262,15 @@ export default function ProjectsHub({
                     onCoverError={() => setFailedCovers((ids) => ids.includes(project.id) ? ids : [...ids, project.id])}
                     menuOpen={menuFor === project.id}
                     onToggleMenu={() => setMenuFor(menuFor === project.id ? null : project.id)}
-                    onOpen={() => onOpenProject(project.id)}
+                    // A deleted project is not opened: its card offers Restore and Delete forever instead.
+                    onOpen={() => project.trashed ? setMenuFor(project.id) : onOpenProject(project.id)}
                     onRename={() => { setMenuFor(null); setRenaming({ id: project.id, name: project.name }); }}
-                    onArchive={() => { setMenuFor(null); onArchiveProject(project.id, !project.archived); }}
-                    onDelete={() => { setMenuFor(null); setDeleting(project); }}
+                    onArchive={() => {
+                      setMenuFor(null);
+                      if (project.trashed) onRestoreDeletedProject?.(project.id);
+                      else onArchiveProject(project.id, !project.archived);
+                    }}
+                    onDelete={() => { setMenuFor(null); if (!project.trashed || canEmpty) setDeleting(project); }}
                   />
                 );
               })}
@@ -261,13 +290,8 @@ export default function ProjectsHub({
             data-testid="inflight-footer-kite"
           />
           <span className="font-semibold text-[var(--text-primary)]">InFlight</span>
-          <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline"
-            onClick={(event) => {
-              // The policy page is part of the website, not the app build. On the desktop app it opens in the system browser.
-              if (!isDesktopApp() || isMobileShell()) return;
-              event.preventDefault();
-              void import('@tauri-apps/plugin-opener').then(({ openUrl }) => openUrl(PRIVACY_URL)).catch(() => undefined);
-            }}>{STRINGS.hub.privacyLink}</a>
+          <SiteLink path={POLICY_PATHS.privacy} className="underline-offset-2 hover:underline">{STRINGS.hub.privacyLink}</SiteLink>
+          <SiteLink path={POLICY_PATHS.terms} className="underline-offset-2 hover:underline">{STRINGS.hub.termsLink}</SiteLink>
         </div>
         <button type="button" onClick={onToggleTheme} aria-label={theme === 'dark' ? STRINGS.hubMore.switchToLight : STRINGS.hubMore.switchToDark}
           className="inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 hover:bg-[var(--bg-surface-hover)]">
@@ -386,13 +410,19 @@ export default function ProjectsHub({
       {deleting && (
         <div role="alertdialog" aria-modal="true" aria-labelledby="delete-proj-title" aria-describedby="delete-proj-body" className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-scrim)] p-4">
           <div className="w-full max-w-md space-y-4 rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-panel)]">
-            <h2 id="delete-proj-title" className="text-base font-bold text-[var(--text-primary)]">{STRINGS.hubMore.deleteTitle(deleting.name)}</h2>
+            <h2 id="delete-proj-title" className="text-base font-bold text-[var(--text-primary)]">
+              {deleting.trashed ? STRINGS.hubMore.deleteForeverTitle(deleting.name) : STRINGS.hubMore.deleteTitle(deleting.name)}
+            </h2>
             <p id="delete-proj-body" className="text-sm leading-relaxed text-[var(--text-secondary)]">
-              {STRINGS.hubMore.deleteBody}
+              {deleting.trashed ? STRINGS.hubMore.deleteForeverBody : STRINGS.hubMore.deleteBody}
             </p>
             <div className="flex justify-end gap-2">
               <button type="button" autoFocus onClick={() => setDeleting(null)} className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-4 text-xs font-medium text-[var(--text-primary)]">{STRINGS.hubMore.keepProject}</button>
-              <button type="button" onClick={() => { onDeleteProject(deleting.id); setDeleting(null); }} className="min-h-10 rounded-[var(--radius-md)] bg-[var(--status-danger,#e5484d)] px-4 text-xs font-semibold text-white">{STRINGS.hubMore.deleteProject}</button>
+              <button type="button"
+                onClick={() => { if (deleting.trashed) onDeleteProjectForever?.(deleting.id); else onDeleteProject(deleting.id); setDeleting(null); }}
+                className="min-h-10 rounded-[var(--radius-md)] bg-[var(--status-danger,#e5484d)] px-4 text-xs font-semibold text-white">
+                {deleting.trashed ? STRINGS.hubMore.deleteForever : STRINGS.hubMore.deleteProject}
+              </button>
             </div>
           </div>
         </div>

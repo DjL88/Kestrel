@@ -1,6 +1,10 @@
 import { parseControlPlaneUrl } from '../core/licenceOnline';
 import type { CollabRole } from '../core/collabRoles';
+import type { LanguageCode } from '../core/locale';
+import { language as sessionLanguage } from '../i18n/messages';
 import type { GalleryFeedbackEvent } from '../core/galleryFeedback';
+import type { FeedbackReview } from '../core/clientFeedback';
+import type { Notice } from '../core/collabNotices';
 
 /**
  * The app's side of shared projects (#1387): talks to the control plane's /v1/collab routes. Sharing is opt-in and
@@ -36,7 +40,7 @@ export interface GalleryListItem { galleryId: string; name: string; expiresAtMs:
 export interface SharedLeaseView { photoId: string; holder: string | null; mine: boolean }
 export interface SharedRevisionMeta { id: string; number: number; parentId: string | null; authorAccountId: string; createdAtMs: number; virtualCopyOf?: string }
 
-export interface SharedComment { id: string; photoId: string; authorAccountId: string; authorName: string; text: string; point: { x: number; y: number } | null; createdAtMs: number; resolvedAtMs: number | null }
+export interface SharedComment { id: string; photoId: string; authorAccountId: string; authorName: string; text: string; point: { x: number; y: number } | null; createdAtMs: number; resolvedAtMs: number | null; /** The thread's first comment, for a reply; null for a thread. */ replyTo?: string | null }
 
 export type CloudVariant = 'thumb' | 'preview' | 'original';
 export interface CloudPhotoView { photoKey: string; name: string; previewBytes: number; thumbBytes: number | null; originalBytes: number | null }
@@ -95,6 +99,13 @@ export interface CollabClient {
   publishGallery(projectId: string, options: GalleryRequest, previews: { photoId: string; jpeg: Blob; thumb?: Blob | null }[]): Promise<{ galleryId: string; linkToken: string; expiresAtMs: number; published: number }>;
   galleries(projectId: string): Promise<GalleryListItem[]>;
   galleryFeedback(galleryId: string): Promise<GalleryFeedbackEvent[]>;
+  /** The events and the photographer's review of each photo's feedback. */
+  galleryFeedbackWithReviews(galleryId: string): Promise<{ events: GalleryFeedbackEvent[]; reviews: FeedbackReview[] }>;
+  /** Marks one photo's client feedback done or dismissed, or back to new. Never changes a decision. */
+  reviewFeedback(galleryId: string, photoId: string, state: 'done' | 'dismissed' | 'new'): Promise<void>;
+  /** Your newest notifications from shared projects. */
+  notices(): Promise<{ notices: Notice[]; unread: number }>;
+  readNotices(ids: string[] | 'all'): Promise<void>;
   revokeGallery(galleryId: string): Promise<void>;
   leases(projectId: string): Promise<SharedLeaseView[]>;
   acquire(projectId: string, photoKey: string, deviceId: string): Promise<{ token: string; baseRevisionId: string | null }>;
@@ -104,7 +115,7 @@ export interface CollabClient {
   revision(projectId: string, photoKey: string, revisionId: string): Promise<{ recipe: Record<string, unknown> } & SharedRevisionMeta>;
   publish(projectId: string, photoKey: string, request: { token: string; baseRevisionId: string | null; recipe: Record<string, unknown>; virtualCopyOf?: string }): Promise<SharedRevisionMeta>;
   comments(projectId: string, photoKey: string): Promise<SharedComment[]>;
-  addComment(projectId: string, photoKey: string, text: string, point: { x: number; y: number } | null): Promise<SharedComment>;
+  addComment(projectId: string, photoKey: string, text: string, point: { x: number; y: number } | null, replyTo?: string): Promise<SharedComment>;
   resolveComment(projectId: string, commentId: string, resolved: boolean): Promise<SharedComment>;
   cloudPhotos(projectId: string): Promise<CloudPhotoView[]>;
   /** Puts one file in the project's cloud store; nothing is sent again when the same file is already there. */
@@ -116,7 +127,8 @@ export interface CollabClient {
 }
 
 /** `idToken` returns the signed-in person's Firebase ID token, or null when signed out. */
-export function collabClient(baseUrl: string | undefined | null, idToken: () => Promise<string | null>, fetcher: typeof fetch = (...args) => fetch(...args)): CollabClient {
+/** `language` goes with each invitation so its email is in the language the inviter is using (the recipient's is not known). */
+export function collabClient(baseUrl: string | undefined | null, idToken: () => Promise<string | null>, fetcher: typeof fetch = (...args) => fetch(...args), language: LanguageCode = sessionLanguage): CollabClient {
   const origin = parseControlPlaneUrl(baseUrl ?? undefined);
   async function call(method: 'GET' | 'POST', path: string, body?: Json): Promise<Json> {
     if (!origin) throw new CollabError('not-configured');
@@ -135,7 +147,7 @@ export function collabClient(baseUrl: string | undefined | null, idToken: () => 
     invites: async () => ((await call('GET', '/v1/collab/invites')).invites ?? []) as CollabInvite[],
     create: async (name, displayName) => String((await call('POST', '/v1/collab/projects', { name, displayName })).projectId),
     project: async (id) => asProject(await call('GET', P(id))),
-    invite: async (id, email, role, photoIds) => asProject(await call('POST', P(id) + '/members', { kind: 'inviteEmail', email, role, ...(photoIds ? { photoIds } : {}) })),
+    invite: async (id, email, role, photoIds) => asProject(await call('POST', P(id) + '/members', { kind: 'inviteEmail', email, role, ...(photoIds ? { photoIds } : {}), language })),
     remove: async (id, accountId) => asProject(await call('POST', P(id) + '/members', { kind: 'remove', accountId })),
     accept: async (id, displayName) => { await call('POST', P(id) + '/accept', { displayName }); },
     publishGallery: async (id, options, previews) => {
@@ -171,7 +183,7 @@ export function collabClient(baseUrl: string | undefined | null, idToken: () => 
     revision: async (id, key, rid) => (await call('GET', `${P(id)}/photos/${encodeURIComponent(key)}/revisions/${encodeURIComponent(rid)}`)) as unknown as { recipe: Record<string, unknown> } & SharedRevisionMeta,
     publish: async (id, key, request) => (await call('POST', `${P(id)}/photos/${encodeURIComponent(key)}/revisions`, request)).revision as SharedRevisionMeta,
     comments: async (id, key) => ((await call('GET', `${P(id)}/photos/${encodeURIComponent(key)}/comments`)).comments ?? []) as SharedComment[],
-    addComment: async (id, key, text, point) => (await call('POST', `${P(id)}/photos/${encodeURIComponent(key)}/comments`, { text, point })).comment as SharedComment,
+    addComment: async (id, key, text, point, replyTo) => (await call('POST', `${P(id)}/photos/${encodeURIComponent(key)}/comments`, { text, point, ...(replyTo ? { replyTo } : {}) })).comment as SharedComment,
     resolveComment: async (id, cid, resolved) => (await call('POST', `${P(id)}/comments/${encodeURIComponent(cid)}/resolve`, { resolved })).comment as SharedComment,
     cloudPhotos: async (id) => ((await call('GET', `${P(id)}/cloud`)).photos ?? []) as CloudPhotoView[],
     cloudUpload: async (id, key, variant, blob, name) => {
@@ -192,7 +204,14 @@ export function collabClient(baseUrl: string | undefined | null, idToken: () => 
     },
     usage: async () => (await call('GET', '/v1/me/usage')) as unknown as CloudUsage,
     galleries: async (id) => ((await call('GET', P(id) + '/galleries')).galleries ?? []) as GalleryListItem[],
+    notices: async () => { const r = await call('GET', '/v1/collab/notices'); return { notices: (r.notices ?? []) as Notice[], unread: Number(r.unread ?? 0) }; },
+    readNotices: async (ids) => { await call('POST', '/v1/collab/notices/read', { ids }); },
     galleryFeedback: async (gid) => ((await call('GET', `/v1/collab/galleries/${encodeURIComponent(gid)}/feedback`)).events ?? []) as GalleryFeedbackEvent[],
+    galleryFeedbackWithReviews: async (gid) => {
+      const r = await call('GET', `/v1/collab/galleries/${encodeURIComponent(gid)}/feedback`);
+      return { events: (r.events ?? []) as GalleryFeedbackEvent[], reviews: (r.reviews ?? []) as FeedbackReview[] };
+    },
+    reviewFeedback: async (gid, photoId, state) => { await call('POST', `/v1/collab/galleries/${encodeURIComponent(gid)}/feedback/review`, { itemId: `photo:${photoId}`, state }); },
     revokeGallery: async (gid) => { await call('POST', `/v1/collab/galleries/${encodeURIComponent(gid)}/revoke`); },
     presenceToken: async (id) => (await call('POST', P(id) + '/presence-token')) as unknown as { customToken: string; databaseUrl: string; uid: string; expiresAtMs: number },
   };

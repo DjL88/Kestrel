@@ -7,7 +7,7 @@ import { applyFringe, validDefringe, validLateralCa } from './fringe';
 import { applyFinishingRgb16, validGrain, validVignette } from './finishing';
 import { validWhiteBalance } from './asShotWhite';
 import { applyDetailRgb16, applyPhotoEditLinear, detailParams, hasDetail, isNeutralTone, type PhotoEdit } from './photoEdits';
-import { cropRectangle, rotationCoverage, type PhotoFraming } from './photoFraming';
+import { cropRectangle, DEFAULT_FRAMING, lensCentre, rotationCoverage, type PhotoFraming } from './photoFraming';
 import { THUMB, type Thumb } from './orientMatch';
 import { maskIsActive, validMasks, type Mask } from './maskTypes';
 import { effectiveAlpha } from './masks';
@@ -15,7 +15,7 @@ import { blendSrgb16 } from './linearRgb16';
 import { denoiseLuminance } from './luminanceDenoise';
 import { noiseStrength } from './noiseReduction';
 import { denoiseChromaRgb16 } from './chromaDenoise16';
-import { isDenoisePair, denoiseMembers, applySubjectDenoise16 } from './subjectDenoise16';
+import { isDenoisePair, denoiseMembers, denoiseEyes, applySubjectDenoise16 } from './subjectDenoise16';
 
 /**
  * InFlight's 16-bit export. The RAW decoder's full-size 16-bit picture (display-encoded sRGB, as it was before the editor's
@@ -134,6 +134,31 @@ export function master16Blocker(edit: PhotoEdit | undefined, framing: PhotoFrami
  * it neither goes through an 8-bit canvas nor allocates a rotated full frame.
  * extraTurns first aligns the RAW to the picture the editor shows.
  */
+/**
+ * A smaller copy of a 16-bit picture for measuring (the histogram), averaged over whole source blocks so no level is
+ * invented. The longest edge becomes at most maxEdge; a picture already that small is copied unchanged.
+ */
+export function shrinkRgb16(image: Rgb16Image, maxEdge: number): Rgb16Image {
+  const step = Math.max(1, Math.ceil(Math.max(image.width, image.height) / Math.max(1, maxEdge)));
+  if (step === 1) return { width: image.width, height: image.height, data: image.data.slice() };
+  const width = Math.max(1, Math.floor(image.width / step));
+  const height = Math.max(1, Math.floor(image.height / step));
+  const data = new Uint16Array(width * height * 3);
+  const area = step * step;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      let r = 0, g = 0, b = 0;
+      for (let dy = 0; dy < step; dy += 1) {
+        let i = ((y * step + dy) * image.width + x * step) * 3;
+        for (let dx = 0; dx < step; dx += 1, i += 3) { r += image.data[i]; g += image.data[i + 1]; b += image.data[i + 2]; }
+      }
+      const o = (y * width + x) * 3;
+      data[o] = Math.round(r / area); data[o + 1] = Math.round(g / area); data[o + 2] = Math.round(b / area);
+    }
+  }
+  return { width, height, data };
+}
+
 export function frameRgb16(image: Rgb16Image, framing: PhotoFraming, extraTurns = 0, reuseIdentity = false): Rgb16Image {
   const turns = (((framing.turns + extraTurns) % 4) + 4) % 4;
   const sideways = turns % 2 === 1;
@@ -241,7 +266,9 @@ function applyDetailMaskRgb16(image: Rgb16Image, mask: Mask, masks: readonly Mas
   const edge = Math.max(width, height);
   const d = detailParams(local, edge);
   const denoiseRadius = noiseStrength(local.denoise) > 0 ? ((local.denoise ?? 0) > 1 ? 2 : 1) : 0;
-  const margin = Math.max(d.sharpenRadius, d.textureRadius, d.clarityRadius, denoiseRadius);
+  const grain = noiseStrength(local.denoiseLuminance);
+  // Colour then grain filtering chain their neighbourhoods; detail adds its own reach after them.
+  const margin = Math.max(d.sharpenRadius, d.textureRadius, d.clarityRadius) + denoiseRadius + (grain > 0 ? 2 : 0);
   // A band's top halo is retained before writing its interior. Ensuring at
   // least one margin's worth of interior keeps the previous original halo
   // sufficient, even for Clarity on a full-resolution Nikon image.
@@ -257,6 +284,7 @@ function applyDetailMaskRgb16(image: Rgb16Image, mask: Mask, masks: readonly Mas
     // Capture the original (not locally adjusted) lower halo for next stripe.
     kept = to < height ? source.slice((Math.max(first, to - margin) - first) * stride, (to - first) * stride) : null;
     if (denoiseRadius > 0) denoiseChromaRgb16(source, width, last - first, noiseStrength(local.denoise), denoiseRadius as 1 | 2);
+    if (grain > 0) denoiseLuminance(source, width, last - first, grain);
     applyToneRgb16(source, local);
     applyDetailRgb16(source, width, last - first, local, edge);
     const bandHeight = to - from;
@@ -291,26 +319,28 @@ export function applyToneMasksRgb16(image: Rgb16Image, masks: readonly Mask[] | 
   const { width, height, data } = image;
   // 256k pixels = about 4 MiB temporary RGBA floats + 1 MiB alpha.
   const rows = Math.max(1, Math.floor(262144 / width));
-  const groups = new Map<string, Mask[]>();
+  const groups = new Map<string, { members: Mask[]; eyes: Mask[] }>();
   const consumed = new Set<string>();
   for (let i = 0; i + 1 < masks.length; i++) {
     const group = masks[i+1];
     if (!isDenoisePair(masks[i], group)) continue;
-    const members = denoiseMembers(group, masks);
-    groups.set(group.id, members);
+    const members = denoiseMembers(group, masks), eyes = denoiseEyes(group, masks);
+    groups.set(group.id, { members, eyes });
     members.forEach(member => consumed.add(member.id));
+    eyes.forEach(eye => consumed.add(eye.id));
   }
   for (let index = 0; index < masks.length; index++) {
     const mask = masks[index], subject = masks[index+1];
     if (isDenoisePair(mask, subject)) {
-      applySubjectDenoise16(image, mask, subject, groups.get(subject.id) ?? [], masks, detailBandPixels);
+      const group = groups.get(subject.id);
+      applySubjectDenoise16(image, mask, subject, group?.members ?? [], masks, detailBandPixels, group?.eyes ?? []);
       index++;
       continue;
     }
     if (!maskIsActive(mask)) continue;
     const local: PhotoEdit = { exposure: 0, warmth: 0, colour: 0, ...mask.edit };
-    if (consumed.has(mask.id)) delete local.denoise;
-    if (hasDetail(local) || noiseStrength(local.denoise) > 0) {
+    if (consumed.has(mask.id)) { delete local.denoise; delete local.denoiseLuminance; }
+    if (hasDetail(local) || noiseStrength(local.denoise) > 0 || noiseStrength(local.denoiseLuminance) > 0) {
       applyDetailMaskRgb16(image, mask, masks, local, detailBandPixels);
       continue;
     }
@@ -359,6 +389,30 @@ export function editRgb16(image: Rgb16Image, edit: PhotoEdit, lens?: { x: number
   applyDetailRgb16(data, image.width, image.height, edit, Math.max(image.width, image.height));
   applyToneMasksRgb16(image, edit.masks);
   applyFinishingRgb16(data, image.width, image.height, edit);
+}
+
+/**
+ * A kept 16-bit picture (already turned by `turn` degrees to match the editor) with this framing and edit, by the same
+ * 16-bit maths as the export. Works on a copy; null when an edit cannot be carried at 16 bits yet (see master16Blocker).
+ */
+export function renderTurned16(picture: Rgb16Image, turn: number, edit: PhotoEdit, framing: PhotoFraming | undefined): Rgb16Image | null {
+  if (master16Blocker(edit, framing)) return null;
+  const framed = frameRgb16({ ...picture, data: picture.data.slice() }, framing ?? DEFAULT_FRAMING, turn / 90, true);
+  editRgb16(framed, edit, lensCentre(picture.width, picture.height, framing ?? DEFAULT_FRAMING, turn / 90));
+  return framed;
+}
+
+/** 16-bit samples to 8-bit screen pixels with one rounding (the decoder's samples are already display-encoded sRGB). */
+export function rgb16ToRgba(image: Rgb16Image): Uint8ClampedArray<ArrayBuffer> {
+  const pixels = image.width * image.height;
+  const rgba = new Uint8ClampedArray(pixels * 4);
+  for (let i = 0, o = 0; i < pixels * 3; i += 3, o += 4) {
+    rgba[o] = Math.round(image.data[i] / 257);
+    rgba[o + 1] = Math.round(image.data[i + 1] / 257);
+    rgba[o + 2] = Math.round(image.data[i + 2] / 257);
+    rgba[o + 3] = 255;
+  }
+  return rgba;
 }
 
 /**

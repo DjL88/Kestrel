@@ -25,10 +25,15 @@ import { LEARNING_ACTIONS, LEARNING_CAPABILITIES, LEARNING_SOURCES, type Learnin
 import { CollabRefusal, MAX_RECIPE_BYTES, type CollabStore } from './collaboration.ts';
 import { CloudRefusal, CLOUD_VARIANTS, type CloudPhotoStore } from './cloudPhotos.ts';
 import { millicreditsForBytes, type AllowancePolicy, type UsageMeter } from './usageMeter.ts';
+import { FEEDBACK_ITEM_ID } from '../../../src/core/clientFeedback.ts';
+import type { NoticeStore } from './notices.ts';
+import type { NoticeEvent } from '../../../src/core/collabNotices.ts';
 import { GalleryRefusal, GALLERY_MAX_DAYS, GALLERY_MAX_PHOTOS, GALLERY_MAX_PREVIEW_BYTES, type GalleryStore } from './gallery.ts';
 import { presenceUid, PRESENCE_TOKEN_TTL_S, type PresenceSigner } from './presenceToken.ts';
 import { SAFE_COPY_LEVELS, SAFE_COPY_MAX_BYTES, safeCopyKey, type SafeCopyOptions } from './safeCopy.ts';
 import type { SpendOptions } from './spendGuard.ts';
+import type { Mailer } from './mailer.ts';
+import { MAIL_LANGUAGES, htmlLang, mailWords } from './mailText.ts';
 import { cloudRunClientIp } from './networkCountry.ts';
 import { ApiError, matchRoute, parseJson, readBody, send, type Reply, type Request, type Route } from './http.ts';
 
@@ -76,8 +81,12 @@ export interface AppOptions {
   collab?: CollabStore;
   /** Signs per-project Realtime Database tokens for live cursors. Absent: the presence route answers 503. */
   presence?: PresenceSigner;
+  /** App email from hello@inflight.studio (invitations). Absent until the owner confirms Send mail as: nothing is sent. */
+  mailer?: Mailer;
   /** Client galleries: previews in their own UK bucket. Absent: the gallery routes answer 503. */
   gallery?: GalleryStore;
+  /** Team notifications (G20, decision 11): in-app inbox, then the backend's FCM sender and hello@ mailer. Absent: inbox answers 503. */
+  notices?: NoticeStore;
   /** Shared projects' cloud photo store and the per-account download meter. Absent: the cloud routes answer 503. */
   cloudPhotos?: { store: CloudPhotoStore; meter: UsageMeter; allowance: AllowancePolicy; maxProjectBytes: number };
   /** Hard monthly ceiling on metered spend (Gemini, cloud jobs). Absent: no guard (development and tests). */
@@ -154,11 +163,11 @@ class CollabApiError extends ApiError {
 }
 
 export const Schemas = {
-  AdminSwitch: z.object({ key: z.enum(['managed-ai', 'cloud-processing', 'safe-copy', 'learning-signal', 'pro-checkout', 'pro-checkout-eu']), on: z.boolean() }).strict(),
+  AdminSwitch: z.object({ key: z.enum(['managed-ai', 'cloud-processing', 'safe-copy', 'learning-signal', 'pro-checkout', 'pro-checkout-eu', 'collaboration', 'email']), on: z.boolean() }).strict(),
   ProCheckoutRequest: z.object({ country: z.string().regex(/^[A-Z]{2}$/) }).strict(),
   CollabCreate: z.object({ name: z.string().trim().min(1).max(120), displayName: z.string().trim().min(1).max(80) }).strict(),
   CollabMembers: z.discriminatedUnion('kind', [
-    z.object({ kind: z.literal('inviteEmail'), email: z.string().trim().email().max(254), role: z.enum(['editor', 'commenter', 'viewer', 'client']), displayName: z.string().trim().max(80).default(''), photoIds: z.array(PhotoId).max(5000).optional() }).strict(),
+    z.object({ kind: z.literal('inviteEmail'), email: z.string().trim().email().max(254), role: z.enum(['editor', 'commenter', 'viewer', 'client']), displayName: z.string().trim().max(80).default(''), photoIds: z.array(PhotoId).max(5000).optional(), language: z.enum(MAIL_LANGUAGES).optional() }).strict(),
     z.object({ kind: z.literal('setRole'), accountId: z.string().min(1).max(64), role: z.enum(['owner', 'editor', 'commenter', 'viewer', 'client']) }).strict(),
     z.object({ kind: z.literal('setPhotos'), accountId: z.string().min(1).max(64), photoIds: z.array(PhotoId).max(5000).optional() }).strict(),
     z.object({ kind: z.literal('remove'), accountId: z.string().min(1).max(64) }).strict(),
@@ -171,6 +180,7 @@ export const Schemas = {
     allowApproval: z.boolean().default(false), allowDownloads: z.boolean().default(false), watermark: z.boolean().default(false),
   }).strict(),
   GalleryPreview: z.object({ sha256: Sha, bytes: z.number().int().positive().max(GALLERY_MAX_PREVIEW_BYTES), variant: z.enum(['preview', 'thumb']).default('preview') }).strict(),
+  GalleryReview: z.object({ itemId: z.string().regex(FEEDBACK_ITEM_ID), state: z.enum(['done', 'dismissed', 'new']) }).strict(),
   GalleryOpen: z.object({ token: z.string().min(20).max(128), password: z.string().max(200).optional() }).strict(),
   GalleryFeedback: z.object({
     token: z.string().min(20).max(128), password: z.string().max(200).optional(), visitor: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
@@ -180,11 +190,12 @@ export const Schemas = {
   CollabAcquire: z.object({ deviceId: z.string().min(8).max(128) }).strict(),
   CollabHeartbeat: z.object({ token: z.string().min(16).max(128), editing: z.boolean() }).strict(),
   CollabRelease: z.object({ token: z.string().min(16).max(128), action: z.enum(['checked-in', 'released']) }).strict(),
-  CollabComment: z.object({ text: z.string().trim().min(1).max(2000), point: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().nullable().default(null) }).strict(),
+  CollabComment: z.object({ text: z.string().trim().min(1).max(2000), point: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().nullable().default(null), replyTo: z.string().min(1).max(64).nullable().optional() }).strict(),
   CloudUpload: z.object({ variant: z.enum(CLOUD_VARIANTS), sha256: Sha, bytes: z.number().int().positive(), name: z.string().trim().min(1).max(200) }).strict(),
   CloudVariantBody: z.object({ variant: z.enum(CLOUD_VARIANTS) }).strict(),
   CloudRemove: z.object({ variants: z.array(z.enum(CLOUD_VARIANTS)).min(1).max(3).optional() }).strict(),
   CollabResolve: z.object({ resolved: z.boolean() }).strict(),
+  NoticesRead: z.object({ ids: z.union([z.literal('all'), z.array(z.string().min(1).max(64)).max(200)]) }).strict(),
   CollabOverride: z.object({ reason: z.string().trim().min(1).max(500) }).strict(),
   CollabPublish: z.object({ token: z.string().min(16).max(128), baseRevisionId: z.string().max(64).nullable(), recipe: z.record(z.string(), z.unknown()), virtualCopyOf: z.string().max(64).optional() }).strict(),
   SafeCopyLevels: z.object({ levels: z.object({ recipes: z.boolean(), previews: z.boolean(), originals: z.boolean() }).partial().strict() }).strict(),
@@ -315,6 +326,11 @@ function decodeImage(base64: string): Buffer {
 
 // ---- The application -----------------------------------------------------------
 
+const esc = (v: string) => v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+const MAIL_PAGE_HEADERS = { 'content-type': 'text/html; charset=utf-8', 'x-robots-tag': 'noindex', 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'" };
+/** The small unsubscribe pages, in the recipient's language. */
+const mailPage = (lang: string, title: string, inner: string) => `<!doctype html><html lang="${esc(lang)}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(title)}</title><body style="font-family:system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem;line-height:1.5"><h1>${esc(title)}</h1>${inner}</body></html>`;
+
 export function createApp(options: AppOptions) {
   const { config, commerce } = options;
   if (!options.store && config.store !== 'sqlite') throw new Error('Open the Firestore store with openStore() and pass it in.');
@@ -422,11 +438,12 @@ export function createApp(options: AppOptions) {
     { key: 'safe-copy', label: 'Safe copy (managed backup)', note: 'Opt-in backup to InFlight UK storage. Switching off stops uploads only; people can always read and delete their copy.' },
     { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
     { key: 'pro-checkout', label: 'Pro checkout (SumUp)', note: 'People can pay for Pro through SumUp\'s hosted page. Their billing country must match their network location. Switching off stops new checkouts only; payments already made are still verified and granted.' },
+    { key: 'email', label: 'App email (hello@inflight.studio)', note: 'Sends share invitations by email through Google Workspace. Plain text and HTML, an unsubscribe link in every message, at most 500 a day (30 per sender, 3 per recipient). Switch on only once hello@inflight.studio is a verified Send mail as address.' },
     { key: 'collaboration', label: 'Shared projects', note: 'Cloud subscribers can share a project, invite people by email and check photos out to edit. Switching off stops new shared projects and checkouts; members can still read revisions.' },
     { key: 'pro-checkout-eu', label: 'Pro checkout for EU buyers', note: 'Switch on only once you are registered for OSS (EU VAT on digital sales). Until then EU buyers see that Pro is not on sale in their country yet.' },
   ] as const;
   type SwitchKey = typeof SWITCHES[number]['key'];
-  const switchConfigured = (key: SwitchKey) => key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'pro-checkout' || key === 'pro-checkout-eu' ? !!options.proCheckout : !!options.learning;
+  const switchConfigured = (key: SwitchKey) => key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'email' ? !!options.mailer : key === 'pro-checkout' || key === 'pro-checkout-eu' ? !!options.proCheckout : !!options.learning;
   async function switchOn(key: SwitchKey): Promise<boolean> {
     if (key === 'managed-ai') return (await store.getSetting('ai_disabled')) !== '1';
     const legacy = key === 'cloud-processing' ? 'cloud_disabled' : key === 'safe-copy' ? 'safe_copy_disabled' : undefined;
@@ -565,6 +582,12 @@ export function createApp(options: AppOptions) {
     }
   }
 
+  /** Tells people about a change. Never fails the action itself: a missed notice is logged, not an error for the person acting. */
+  async function notify(event: () => Promise<NoticeEvent | null>) {
+    if (!options.notices) return;
+    try { const e = await event(); if (e && e.recipients.length) await options.notices.deliver(e, now()); } catch { /* the action already succeeded */ }
+  }
+
   function galleryCfg(): GalleryStore {
     if (!options.gallery) throw new ApiError(503, 'GALLERY_NOT_CONFIGURED', 'Client galleries are not set up on this server yet.');
     return options.gallery;
@@ -579,8 +602,8 @@ export function createApp(options: AppOptions) {
   async function galleryOwner(req: Request, galleryId: string) {
     const claims = await bearer(req);
     const g = await gallery(() => galleryCfg().get(galleryId));
-    await collab(() => collabCfg().requireMember(g.projectId, claims.sub, 'export'));
-    return { claims, g };
+    const member = await collab(() => collabCfg().requireMember(g.projectId, claims.sub, 'export'));
+    return { claims, g, member };
   }
 
   function safeCopyCfg() {
@@ -661,6 +684,37 @@ export function createApp(options: AppOptions) {
   const routes: Route[] = [
     // Cloud Run's front end reserves some paths ending in 'z' (including /healthz) and answers them with its own 404
     // before the request reaches the container, so public clients probe /health. /healthz stays for the container probe.
+    {
+      method: 'GET', path: '/v1/mail/unsubscribe', summary: 'Confirm page for stopping invitation emails (a link only shows a button, so mail scanners cannot unsubscribe anyone)', auth: 'none',
+      handler: (req) => {
+        const r = req.query.get('r') ?? ''; const t = req.query.get('t') ?? ''; const l = htmlLang(req.query.get('l') ?? undefined);
+        const w = mailWords(l).unsubscribe;
+        const ok = !!options.mailer && options.mailer.checkUnsubscribe(r, t);
+        const safe = (v: string) => v.replace(/[^A-Za-z0-9_-]/g, '');
+        return { status: ok ? 200 : 400, body: mailPage(l, ok ? w.title : w.invalid, ok
+          ? `<p>${esc(w.confirm)}</p><form method="post" action="/v1/mail/unsubscribe?r=${safe(r)}&amp;t=${safe(t)}&amp;l=${encodeURIComponent(l)}"><input type="hidden" name="List-Unsubscribe" value="One-Click"><button type="submit">${esc(w.button)}</button></form>`
+          : `<p>${esc(w.invalidHint)}</p>`), headers: MAIL_PAGE_HEADERS };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/mail/unsubscribe', summary: 'One-click unsubscribe (RFC 8058) from invitation emails', auth: 'none',
+      handler: async (req) => {
+        const r = req.query.get('r') ?? ''; const t = req.query.get('t') ?? ''; const l = htmlLang(req.query.get('l') ?? undefined);
+        if (!options.mailer || !options.mailer.checkUnsubscribe(r, t)) throw new ApiError(400, 'UNSUBSCRIBE_INVALID', 'This unsubscribe link is not valid.');
+        await options.mailer.unsubscribe(r);
+        await audit('anonymous', 'mail.unsubscribe', 'allowed', '');
+        const w = mailWords(l).unsubscribe;
+        return { status: 200, body: mailPage(l, w.title, `<p>${esc(w.done)}</p>`), headers: MAIL_PAGE_HEADERS };
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/mail', summary: 'App email sent today against the daily cap and the Workspace limit', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'mail.read');
+        if (!options.mailer) throw new ApiError(503, 'MAIL_NOT_CONFIGURED', 'App email is not set up on this server.');
+        return adminDone(claims, 'mail.read', '', { on: await switchOn('email'), ...(await options.mailer.today()) });
+      },
+    },
     { method: 'GET', path: '/health', summary: 'Liveness (public)', auth: 'none', handler: () => ({ status: 200, body: { ok: true } }) },
     { method: 'GET', path: '/healthz', summary: 'Liveness', auth: 'none', handler: () => ({ status: 200, body: { ok: true } }) },
 
@@ -1112,7 +1166,20 @@ export function createApp(options: AppOptions) {
           : body.kind === 'setPhotos' ? { ...body, photoIds: body.photoIds } : body;
         await collab(() => c.change(params.id, claims.sub, change, now()));
         await audit(claims.sub, `collab.${body.kind}`, 'allowed', params.id);
-        return { status: 200, body: await collab(() => c.project(params.id, claims.sub)) };
+        const project = await collab(() => c.project(params.id, claims.sub));
+        let emailed: boolean | undefined;
+        if (body.kind === 'inviteEmail' && options.mailer && (await switchOn('email'))) {
+          // The invitation stands either way: it is also shown in the app under Shared with me.
+          try {
+            const r = await options.mailer.sendInvitation({ to: body.email, recipientHash: emailHashOf(body.email), senderAccountId: claims.sub, inviterName: project.me.displayName, projectName: project.name, role: body.role, language: body.language });
+            emailed = r.sent;
+            await audit(claims.sub, 'mail.invite', r.sent ? 'allowed' : 'denied', r.sent ? params.id : `${params.id} ${r.reason}`);
+          } catch {
+            emailed = false;
+            await audit(claims.sub, 'mail.invite', 'denied', `${params.id} send failed`); // never the address or the server's words
+          }
+        }
+        return { status: 200, body: emailed === undefined ? project : { ...project, emailed } };
       },
     },
     {
@@ -1194,7 +1261,15 @@ export function createApp(options: AppOptions) {
         const body = parseJson(Schemas.CollabComment, req.rawBody);
         if (!PhotoId.safeParse(params.photoId).success) throw new ApiError(400, 'BAD_REQUEST', 'That is not a photo id.');
         const c = await collabWritable();
-        return { status: 200, body: { comment: await collab(() => c.addComment(params.id, params.photoId, claims.sub, { text: body.text, point: body.point ?? null }, now())) } };
+        const comment = await collab(() => c.addComment(params.id, params.photoId, claims.sub, { text: body.text, point: body.point ?? null, replyTo: body.replyTo ?? null }, now()));
+        await notify(async () => {
+          const who = await c.commentAudience(params.id, params.photoId, claims.sub);
+          // A reply also reaches whoever started the thread, a client included (it is their own thread).
+          const starter = comment.replyTo ? (await c.comments(params.id, params.photoId, claims.sub)).find((x) => x.id === comment.replyTo)?.authorAccountId : undefined;
+          const recipients = [...new Set([...who.accountIds, ...(starter && starter !== claims.sub ? [starter] : [])])];
+          return { kind: comment.replyTo ? 'reply' : 'comment', projectId: params.id, projectName: who.projectName, photoId: params.photoId, actorName: who.actorName, recipients };
+        });
+        return { status: 200, body: { comment } };
       },
     },
     {
@@ -1202,7 +1277,13 @@ export function createApp(options: AppOptions) {
       handler: async (req, params) => {
         const claims = await bearer(req);
         const body = parseJson(Schemas.CollabResolve, req.rawBody);
-        return { status: 200, body: { comment: await collab(() => collabCfg().resolveComment(params.id, params.commentId, claims.sub, body.resolved, now())) } };
+        const comment = await collab(() => collabCfg().resolveComment(params.id, params.commentId, claims.sub, body.resolved, now()));
+        // The author hears that their comment was marked done or reopened by someone else.
+        if (comment.authorAccountId !== claims.sub) await notify(async () => {
+          const who = await collabCfg().commentAudience(params.id, comment.photoId, claims.sub);
+          return { kind: body.resolved ? 'resolve' : 'reopen', projectId: params.id, projectName: who.projectName, photoId: comment.photoId, actorName: who.actorName, recipients: [comment.authorAccountId] };
+        });
+        return { status: 200, body: { comment } };
       },
     },
     // ---- Cloud photo store for shared projects. Previews first; originals only on demand; downloads metered to the owner.
@@ -1274,6 +1355,24 @@ export function createApp(options: AppOptions) {
         return { status: 200, body: { month: used.month, usedCredits: used.millicredits / 1000, allowanceCredits: allowance / 1000, bytes: used.bytes, downloads: used.downloads } };
       },
     },
+    // ---- Team notifications (G20, owner decision 11): the in-app inbox comes first.
+    {
+      method: 'GET', path: '/v1/collab/notices', summary: 'Your newest notifications from shared projects (reading also marks the app as open, so nothing is emailed meanwhile)', auth: 'user',
+      handler: async (req) => {
+        const claims = await bearer(req);
+        if (!options.notices) throw new ApiError(503, 'COLLAB_NOT_CONFIGURED', 'Notifications are not set up on this server yet.');
+        return { status: 200, body: await options.notices.inbox(claims.sub, now()) };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/collab/notices/read', summary: 'Mark notifications read (some, or all)', auth: 'user', body: Schemas.NoticesRead,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.NoticesRead, req.rawBody);
+        if (!options.notices) throw new ApiError(503, 'COLLAB_NOT_CONFIGURED', 'Notifications are not set up on this server yet.');
+        return { status: 200, body: { read: await options.notices.markRead(claims.sub, body.ids, now()) } };
+      },
+    },
     {
       method: 'POST', path: '/v1/collab/projects/:id/presence-token', summary: 'A one-hour token for live cursors in this project only (Realtime Database)', auth: 'user',
       handler: async (req, params) => {
@@ -1331,6 +1430,17 @@ export function createApp(options: AppOptions) {
       handler: async (req, params) => { await galleryOwner(req, params.gid); return { status: 200, body: await galleryCfg().feedbackFor(params.gid) }; },
     },
     {
+      method: 'POST', path: '/v1/collab/galleries/:gid/feedback/review', summary: "Mark one photo's client feedback done or dismissed, or back to new. Never changes a decision", auth: 'user', body: Schemas.GalleryReview,
+      handler: async (req, params) => {
+        const { member } = await galleryOwner(req, params.gid);
+        const body = parseJson(Schemas.GalleryReview, req.rawBody);
+        const g = await gallery(() => galleryCfg().get(params.gid));
+        if (!g.photoIds.includes(body.itemId.slice('photo:'.length))) throw new ApiError(404, 'NOT_FOUND', 'That photo is not in this gallery.');
+        await galleryCfg().review(params.gid, body.itemId, body.state, member.displayName, now());
+        return { status: 200, body: { reviewed: true } };
+      },
+    },
+    {
       method: 'POST', path: '/v1/collab/galleries/:gid/revoke', summary: 'Close the link now and delete its previews', auth: 'user',
       handler: async (req, params) => {
         const { claims } = await galleryOwner(req, params.gid);
@@ -1353,7 +1463,12 @@ export function createApp(options: AppOptions) {
       handler: async (req) => {
         if (!galleryLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
         const body = parseJson(Schemas.GalleryFeedback, req.rawBody);
-        await gallery(() => galleryCfg().feedback(body.token, body.password, { visitor: body.visitor, photoId: body.photoId, kind: body.kind, text: body.text }, now()));
+        const g = await gallery(() => galleryCfg().feedback(body.token, body.password, { visitor: body.visitor, photoId: body.photoId, kind: body.kind, text: body.text }, now()));
+        // The people who manage this project's galleries hear about it, once per gallery while unread. Never the client.
+        if (options.collab && body.kind !== 'unfavourite') await notify(async () => {
+          const audience = await options.collab!.audience(g.projectId, 'export');
+          return { kind: 'client-feedback', projectId: g.projectId, projectName: audience.projectName, galleryId: g.galleryId, galleryName: g.name, actorName: null, recipients: audience.accountIds };
+        });
         return { status: 200, body: { received: true } };
       },
     },

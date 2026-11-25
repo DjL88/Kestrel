@@ -17,9 +17,9 @@ import { keepsNativeMenu } from './core/appChrome.ts';
 import { manageOfflineWorker } from './providers/offlineWorker.ts';
 import { v2Enabled } from './v2/switch.ts';
 
-// Each workspace is its own chunk, so a start downloads only the one it opens: Version 2 (the default), or the
-// previous Library and Editor (`?v2=0`, until V1 is retired). The splash covers the moment either takes to arrive.
+// Version 2 workspace, behind ?v2 while it is built. Its code and sample photos load only when the switch is on.
 const V2Root = lazy(() => import('./v2/V2Root.tsx'));
+// The previous Library and Editor (?v2=0) loads only when chosen, so V2, the default, does not download it first (G12).
 const App = lazy(() => import('./App.tsx'));
 
 // No browser right-click menu in the app (Open Image in New Window, Download Image, Inspect Element), except in text fields.
@@ -29,7 +29,7 @@ applyDisplay(loadDisplay());
 setGpuRenderer(renderEditOnGpu);
 
 createRoot(document.getElementById('root')!).render(
-  <><Suspense fallback={null}>{v2Enabled() ? <V2Root /> : <App />}</Suspense><Splash /></>,
+  v2Enabled() ? <><Suspense fallback={null}><V2Root /></Suspense><Splash /></> : <><Suspense fallback={null}><App /></Suspense><Splash /></>,
 );
 
 void manageOfflineWorker(import.meta.env.PROD, isDesktopApp());

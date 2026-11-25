@@ -12,18 +12,25 @@ import { FirestoreSafeCopyCatalog } from './safeCopyFirestore.ts';
 import { CollabStore } from './collaboration.ts';
 import { IamPresenceSigner } from './presenceToken.ts';
 import { GalleryStore } from './gallery.ts';
+import { NoticeStore, NO_DELIVERY } from './notices.ts';
 import { CloudPhotoStore } from './cloudPhotos.ts';
 import { FirestoreUsageMeter, FlatAllowance } from './usageMeter.ts';
 import { FirestoreSpendGuard } from './spendGuard.ts';
 import type { FirestoreLike } from './firestoreStore.ts';
+import { createHmac } from 'node:crypto';
+import { FirestoreMailLedger, Mailer, SmtpTransport, secretManagerValue, MAIL_HARD_DAILY_MAX } from './mailer.ts';
 
 export interface WiringDeps {
   firestore?: FirestoreLike;
   env?: NodeJS.ProcessEnv;
   openBucket?: (name: string) => Promise<GcsBucketLike>;
   token?: () => Promise<string>;
+  /** The server's session secret; app email derives its unsubscribe-link key from it. */
+  sessionSecret?: Buffer;
+  /** Tests replace the SMTP transport. */
+  mailTransport?: import('./mailer.ts').MailTransport;
 }
-export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend'> & { enabled: string[] };
+export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'notices' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer'> & { enabled: string[] };
 
 function whole(env: NodeJS.ProcessEnv, name: string, dflt: number, max: number): number {
   const raw = env[name];
@@ -48,6 +55,25 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
   };
   out.enabled.push('spend-guard');
 
+  // App email (hello@inflight.studio). Only when Terraform sets KCP_MAIL_ENABLED (smtp_mail_enabled), which waits for the
+  // owner's "Send mail as" verification; the `email` admin switch must also be on before anything is sent.
+  // The app password is read from Secret Manager on first send, never from the environment.
+  if (env.KCP_MAIL_ENABLED === '1') {
+    if (!deps.sessionSecret) throw new Error('app email needs the session secret for unsubscribe links');
+    const required = (name: string) => { const v = env[name]; if (!v) throw new Error(`${name} is required when KCP_MAIL_ENABLED=1`); return v; };
+    const token = deps.token ?? (() => metadataAccessToken());
+    const transport = deps.mailTransport ?? new SmtpTransport({
+      host: env.KCP_SMTP_HOST || 'smtp.gmail.com', port: whole(env, 'KCP_SMTP_PORT', 587, 65535), username: required('KCP_SMTP_USER'),
+      password: secretManagerValue(required('KCP_SMTP_PASSWORD_SECRET'), token),
+    });
+    out.mailer = new Mailer({
+      transport, ledger: new FirestoreMailLedger(db), fromAddress: env.KCP_MAIL_FROM || 'hello@inflight.studio', fromName: 'InFlight',
+      siteOrigin: required('KCP_SITE_ORIGIN'), unsubscribeKey: createHmac('sha256', deps.sessionSecret).update('mail-unsubscribe-v1').digest(),
+      limits: { daily: whole(env, 'KCP_MAIL_DAILY_LIMIT', 500, MAIL_HARD_DAILY_MAX), perSender: whole(env, 'KCP_MAIL_PER_SENDER', 30, 500), perRecipient: whole(env, 'KCP_MAIL_PER_RECIPIENT', 3, 50) },
+    });
+    out.enabled.push('email');
+  }
+
   if (env.KCP_CLOUD_PROCESSING_BUCKET && env.KCP_CLOUD_RUNNER_JOB) {
     const bucket = await open(env.KCP_CLOUD_PROCESSING_BUCKET);
     const trigger = new CloudRunJobTrigger(env.KCP_CLOUD_RUNNER_JOB, deps.token ?? (() => metadataAccessToken()));
@@ -70,6 +96,9 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
   // Shared projects need only Firestore. Off unless KCP_COLLABORATION_ENABLED=1, and then still off until an admin switches them on.
   if (env.KCP_COLLABORATION_ENABLED === '1') {
     out.collab = new CollabStore(db); out.enabled.push('collaboration');
+    // Team notifications: the in-app inbox works now. Push (FCM) and hello@ email plug in when the backend lane wires
+    // its sender and mailer into NoticeDelivery; until then nothing leaves the server.
+    out.notices = new NoticeStore(db, NO_DELIVERY, undefined, (message) => console.warn(message)); out.enabled.push('notices');
     // Live cursors also need the Realtime Database URL and the service account that signs per-project tokens.
     if (env.KCP_PRESENCE_DATABASE_URL && env.KCP_PRESENCE_SERVICE_ACCOUNT) {
       if (!/^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.(firebasedatabase\.app|firebaseio\.com)$/.test(env.KCP_PRESENCE_DATABASE_URL)) throw new Error('KCP_PRESENCE_DATABASE_URL must be a Firebase Realtime Database URL');

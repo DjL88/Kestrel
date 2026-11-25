@@ -45,6 +45,37 @@ test('archiving sets a date, restoring clears it, and the lists split cleanly', 
   assert.equal(gone.length, 1);
 });
 
+import { TRASH_KEEP_MS, setTrashed, trashExpired } from './projects';
+
+test('deleting moves a project to Recently deleted, keeps everything else, and restoring takes it back out', () => {
+  const [photo] = generateDemoShootFrames(1);
+  const project = appendProjectPhotos(createEmptyProject('p', 'P'), [{ ...photo, decision: 'keep', rating: 4 }], 'first');
+  const deleted = setTrashed(setArchived(project, 500), 1000);
+  assert.equal(deleted.shoot.trashedAt, 1000);
+  assert.equal(deleted.shoot.archivedAt, 500);
+  assert.deepEqual(deleted.frames, project.frames);
+  const restored = setTrashed(deleted, undefined);
+  assert.equal('trashedAt' in restored.shoot, false);
+  assert.equal(restored.shoot.archivedAt, 500);
+});
+
+test('a deleted project is in neither the main nor the archived list', () => {
+  const live = createEmptyProject('a', 'A');
+  const deleted = setTrashed(createEmptyProject('b', 'B'), 1000);
+  const deletedArchived = setTrashed(setArchived(createEmptyProject('c', 'C'), 900), 1000);
+  const { active, archived } = splitProjects([live.shoot, deleted.shoot, deletedArchived.shoot]);
+  assert.deepEqual(active.map((shoot) => shoot.id), ['a']);
+  assert.deepEqual(archived, []);
+});
+
+test('a deleted project is removed for good only after the full 30 days', () => {
+  assert.equal(TRASH_KEEP_MS, 30 * 24 * 60 * 60 * 1000);
+  const shoot = { trashedAt: 1_000 };
+  assert.equal(trashExpired(shoot, 1_000 + TRASH_KEEP_MS - 1), false);
+  assert.equal(trashExpired(shoot, 1_000 + TRASH_KEEP_MS), true);
+  assert.equal(trashExpired({}, Number.MAX_SAFE_INTEGER), false);
+});
+
 import { INBOX_ID, createInboxProject, inboxFirst, moveFrames } from './projects';
 
 function framesFor(project: CullingState, keys: string[]) {
