@@ -37,7 +37,7 @@ export const is: AreaTranslation<typeof source> = {
   noChanges: 'Gervigreindin þín leggur ekki til neinar breytingar.',
   changeLine: (slider, value) => `${slider}: ${value}`,
   apply: 'Nota tillögurnar',
-  applied: 'Búið. Þú getur afturkallað það í breytingaferlinum.',
+  applied: 'Búið. Þú getur afturkallað það í Breytingasögu.',
   dismiss: 'Loka',
   draftNote: 'Gervigreind getur haft rangt fyrir sér. Skoðaðu myndina með eigin augum áður en þú notar nokkuð.',
   issue: {

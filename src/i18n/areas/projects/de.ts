@@ -35,18 +35,18 @@ export const de: AreaTranslation<typeof source> = {
   wizard: {
     projectName: 'Projektname',
     summary: (target, autoCull, autoEdit) =>
-      `Ziel für behaltene Fotos: ${target ?? 'ungültig'}. Automatisch aussortieren ${autoCull ? 'an' : 'aus'}. Automatisch bearbeiten ${autoEdit ? 'an' : 'aus'}.`,
+      `Ziel für beste Fotos: ${target ?? 'ungültig'}. Auto-Auswahl ${autoCull ? 'an' : 'aus'}. Automatisch bearbeiten ${autoEdit ? 'an' : 'aus'}.`,
     options: 'Projektoptionen',
-    targetIntro: 'InFlight zeigt Ihren Fortschritt zu dieser Zahl, während Sie Fotos zum Behalten auswählen. Sie können sie später ändern.',
+    targetIntro: 'InFlight zeigt Ihren Fortschritt zu dieser Zahl, während Sie beste Fotos auswählen. Sie können sie später ändern.',
     commonTargets: 'Übliche Ziele',
     typeNumber: 'Oder eine Zahl eingeben',
     targetInvalid: 'Geben Sie eine ganze Zahl von 1 bis 9999 ein.',
     aimFor: (count) => plural(count, { one: `Ziel: ${count} Foto.`, other: `Ziel: ${count} Fotos.` }),
     autoIntro: 'Alles läuft auf diesem Gerät. Nichts wird gelöscht, und Sie können diese Funktionen später in den Arbeitsbereich-Optionen ausschalten.',
-    autoCull: 'Automatisch aussortieren',
-    autoCullHint: 'Nach dem Import sichtet eine lokale Aufgabe, die Sie abbrechen können, Ihre Fotos, während Sie stöbern. Sichere Fotos zum Behalten und exakte Duplikate werden automatisch einsortiert; unsichere Fotos bleiben zum Sichten. Die Originale bleiben unverändert.',
+    autoCull: 'Auto-Auswahl',
+    autoCullHint: 'Nach dem Import prüft eine lokale Aufgabe, die Sie abbrechen können, Ihre Fotos, während Sie stöbern. Beste Fotos mit hoher Sicherheit und exakte Duplikate werden automatisch einsortiert; unsichere Fotos bleiben zum Sichten. Die Originale bleiben unverändert.',
     autoEdit: 'Automatisch bearbeiten',
-    autoEditHint: 'Nach dem Aussortieren erhalten unbearbeitete behaltene Fotos automatisch eine zurückhaltende Grundbearbeitung, wenn die Vorschau die Qualitätsprüfung besteht. Ihre eigenen Bearbeitungen und Zuschnitte werden nie überschrieben; weitere Vorschläge finden Sie unter Auto → Look vorschlagen.',
+    autoEditHint: 'Nach der Auto-Auswahl erhalten unbearbeitete beste Fotos automatisch eine zurückhaltende Grundbearbeitung, wenn die Vorschau die Qualitätsprüfung besteht. Ihre eigenen Bearbeitungen und Zuschnitte werden nie überschrieben; weitere Vorschläge finden Sie unter Auto → Fotostil vorschlagen.',
     create: 'Projekt anlegen',
   },
   addPhotos: {

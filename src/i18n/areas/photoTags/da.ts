@@ -4,7 +4,7 @@ import type { source } from './source';
 /** Danish. DRAFT: written without a native speaker's check. */
 export const da: AreaTranslation<typeof source> = {
   tags: {
-    'light.golden-hour': "Gyldne time",
+    'light.golden-hour': "Den gyldne time",
     'light.blue-hour': "Blå time",
     'light.night': "Nat",
     'light.backlit': "Modlys",

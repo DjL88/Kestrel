@@ -30,7 +30,7 @@ export const nb: AreaTranslation<typeof source> = {
     'genre.landscape': "Landskap",
     'genre.portrait': "Portrett",
     'genre.sport': "Sport",
-    'genre.street': "Gate",
+    'genre.street': "Gatefoto",
     'genre.macro': "Makro",
     'genre.astro': "Astro",
     'genre.documentary': "Dokumentar",

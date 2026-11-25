@@ -577,7 +577,7 @@ const INITIAL_PROJECTS: Project[] = [
 const INITIAL_TASKS: TaskInfo[] = [
   {
     id: 'task-cull',
-    label: 'Auto-Cull & 16-bit RAW analysis',
+    label: 'Auto pick & 16-bit RAW analysis',
     detail: 'Rating sharpness & detecting subjects (17 of 20 complete)',
     progress: 85,
     status: 'running',
@@ -1069,7 +1069,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
         tasks: [
           {
             id: taskId,
-            label: 'Auto-Cull & Analyse running',
+            label: 'Auto pick & Analyse running',
             detail: 'Scoring eye sharpness, detecting subjects & flagging top frames',
             progress: 72,
             status: 'running',
@@ -1079,7 +1079,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
         photos: prev.photos.map((p) =>
           p.state === 'analysing' ? { ...p, state: 'ready', decision: 'keep' } : p
         ),
-        lastActionNotice: 'Auto-Cull & Analyse updated focus shortlist (no photos auto-rejected)',
+        lastActionNotice: 'Auto pick & Analyse updated focus shortlist (no photos auto-rejected)',
       }));
     },
 

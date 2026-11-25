@@ -144,7 +144,7 @@ export const ga: AreaTranslation<typeof source> = {
     removeTag: (tag) => `Bain an chlib ${tag}`,
     removeTitle: (tag) => `Bain ${tag}`,
     addATag: 'Cuir clib leis',
-    placeholderWildlife: 'm.sh. Cúr rua',
+    placeholderWildlife: 'm.sh. Clamhán gobhlach',
     placeholderLandscape: 'm.sh. Glen Coe',
     placeholderPeople: 'm.sh. Sam',
     addTag: 'Cuir clib leis',

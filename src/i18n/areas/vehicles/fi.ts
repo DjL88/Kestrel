@@ -33,7 +33,7 @@ export const fi: AreaTranslation<typeof source> = {
   marked: (what: string, marking: string) => `${what}, tunnus ${marking}`,
   registered: (marking: string, type: string) => `${marking}: ${type} (rekisterin mukaan)`,
   operatedBy: (what: string, operator: string) => `${what}, käyttäjä ${operator}`,
-  held: (what: string) => `${what}? Tarkista`,
+  held: (what: string) => `${what}? Vaatii tarkistuksesi`,
   raceNumber: (what: string, number: string) => `${what}, numero ${number}`,
   named: (what: string, name: string) => `${what}, nimeltään ${name}`,
   correct: {

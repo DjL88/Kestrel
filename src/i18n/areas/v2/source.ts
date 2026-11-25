@@ -12,7 +12,7 @@ export const source = {
     label6: "Project photographs",
     label7: "Photo actions",
     label8: "Set photo rating",
-    label9: "Apply a Look to selected photos",
+    label9: "Apply a photo style to the selected photos",
     label10: "Folder",
     label11: "Export",
     label12: "Make collage",
@@ -30,9 +30,9 @@ export const source = {
     moved: (count: number, name: string) => `Moved to “${name}”: ${count}.`,
     moveSkipped: (count: number) => `Already there, so not moved: ${count}.`,
     label19: "Paste settings",
-    label20: "Apply Look",
+    label20: "Apply style",
     label21: "Remove",
-    label22: "Choose a Look…",
+    label22: "Choose a photo style…",
     label23: "Export selected…",
   },
   brandName: 'InFlight',
@@ -299,7 +299,7 @@ export const source = {
   // Filmstrip & Grid
   filmstrip: {
     importPhotos: 'Import',
-    autoCull: 'Auto-Cull & Analyse',
+    autoCull: 'Auto pick & Analyse',
     autoCullRunning: 'Analysing…',
     searchPlaceholder: 'Search filename, camera, species…',
     searchToggle: 'Search & filter photos',
@@ -485,7 +485,7 @@ export const source = {
     selectAllFormats: "Select all",
     tidyBoard: "Tidy board",
     selectedFormatActions: "Selected format actions",
-    previewingLook: "Previewing look:",
+    previewingLook: "Previewing style:",
     viewportControls: "Canvas viewport controls",
     zoomIn: "Zoom in",
     zoomOut: "Zoom out",
@@ -724,8 +724,8 @@ export const source = {
     suggestionDoubted: "the vision check on this device was not convinced this looks natural. Compare before and after; applying it is your choice.",
   },
   adjust: {
-    looksHeading: 'Curated Looks',
-    looksHint: 'Hover any look to preview it live on your photo.',
+    looksHeading: 'Photo styles',
+    looksHint: 'Hover over a style to preview it on your photo.',
     lightToneHeading: 'Light & Tone',
     colourHeading: 'Colour & Clarity',
     resetPhoto: 'Reset photo',
@@ -902,8 +902,8 @@ export const source = {
     },
     neutral: {
       auto: "Auto",
-      pick: "Pick neutral",
-      help: "As shot puts white balance back to the camera's own setting. Auto estimates the light from the whole picture; a scene that is mostly one colour can mislead it. Pick neutral, then click a spot on the photo that should be grey or white.",
+      pick: "Pick grey or white",
+      help: "As shot puts white balance back to the camera's own setting. Auto estimates the light from the whole picture; a scene that is mostly one colour can mislead it. Choose Pick grey or white, then click a spot on the photo that should be grey or white.",
       picking: "Click a spot on the photo that should be grey or white. Press Esc to cancel.",
       set: "White balance set. Undo puts it back.",
       limited: "White balance set as far as the sliders go. Some colour cast remains.",
@@ -1167,7 +1167,7 @@ export const source = {
     hide: 'Collapse this burst into one stack',
     controls: (n: number) => `Burst of ${n} frames`,
     flagBest: 'Flag the best',
-    flagBestNotRanked: 'Not ranked yet. Run Auto-cull & Analyse to find the best frame.',
+    flagBestNotRanked: 'Not ranked yet. Run Auto pick & Analyse to find the best frame.',
     best: 'Best',
     split: 'Split into individual photos',
     collapse: 'Collapse',
@@ -1285,7 +1285,7 @@ export const source = {
 
   // Tasks Panel
   autoCullSummary: {
-    checked: (count: number) => `Photos checked by Auto-cull: ${count}. Review the flags in the filmstrip.`,
+    checked: (count: number) => `Photos checked by Auto pick: ${count}. Review the flags in the filmstrip.`,
     rawFromCameraPreview: (count: number) => `RAW photos judged from the camera's embedded preview, not from their sensor data: ${count}. Check their sharpness by eye.`,
     undo: "You can undo the whole pass in one step.",
   },

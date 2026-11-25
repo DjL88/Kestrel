@@ -35,7 +35,7 @@ export const is: AreaTranslation<typeof source> = {
   wizard: {
     projectName: 'Heiti verkefnis',
     summary: (target, autoCull, autoEdit) =>
-      `Markmið um valdar myndir: ${target ?? 'ógilt'}. Sjálfvirk flokkun ${autoCull ? 'á' : 'af'}. Sjálfvirk breyting ${autoEdit ? 'á' : 'af'}.`,
+      `Markmið um bestu myndir: ${target ?? 'ógilt'}. Sjálfvirkt val ${autoCull ? 'á' : 'af'}. Sjálfvirk breyting ${autoEdit ? 'á' : 'af'}.`,
     options: 'Valkostir verkefnis',
     targetIntro: 'InFlight sýnir hversu nálægt þessu marki þú ert á meðan þú velur myndir. Þú getur breytt því síðar.',
     commonTargets: 'Algeng markmið',
@@ -43,10 +43,10 @@ export const is: AreaTranslation<typeof source> = {
     targetInvalid: 'Sláðu inn heila tölu frá 1 til 9999.',
     aimFor: (count) => plural(count, { one: `Markmið: ${count} mynd.`, other: `Markmið: ${count} myndir.` }),
     autoIntro: 'Allt fer fram í þessu tæki. Engu er eytt og þú getur slökkt á þessu síðar í valkostum vinnusvæðisins.',
-    autoCull: 'Sjálfvirk flokkun',
-    autoCullHint: 'Eftir innflutning fer verkefni í tækinu, sem þú getur stöðvað, yfir myndirnar á meðan þú skoðar. Örugglega valdar myndir og nákvæm afrit eru flokkuð sjálfkrafa; óvissar myndir bíða yfirferðar. Frumritin eru ósnert.',
+    autoCull: 'Sjálfvirkt val',
+    autoCullHint: 'Eftir innflutning fer verkefni í tækinu, sem þú getur stöðvað, yfir myndirnar á meðan þú skoðar. Bestu myndir með mikla vissu og nákvæm afrit eru flokkuð sjálfkrafa; óvissar myndir bíða yfirferðar. Frumritin eru ósnert.',
     autoEdit: 'Sjálfvirk breyting',
-    autoEditHint: 'Eftir flokkun fá óbreyttar valdar myndir sjálfkrafa varfærna grunnbreytingu ef forskoðunin stenst gæðaprófanir. Þínum eigin breytingum og skurði er aldrei skrifað yfir; fleiri tillögur eru undir Auto → Stinga upp á útliti.',
+    autoEditHint: 'Eftir sjálfvirkt val fá óbreyttar bestu myndir sjálfkrafa varfærna grunnbreytingu ef forskoðunin stenst gæðaprófanir. Þínum eigin breytingum og skurði er aldrei skrifað yfir; fleiri tillögur eru undir Auto → Stinga upp á myndstíl.',
     create: 'Búa til verkefni',
   },
   addPhotos: {
@@ -360,8 +360,8 @@ export const is: AreaTranslation<typeof source> = {
     receivedCommand: (command) => `: ${command}.`,
     testHint: 'Ýttu á hnapp eða snúðu hnappnum. Hér sérðu hvað InFlight tekur á móti. Vefsíða sér ekki hljóðstyrks- og miðlahnappa, svo stilltu hnappinn til að senda venjulega hnappa eins og - og =.',
     rotaryKnob: 'Snúningshnappur',
-    anticlockwiseShort: 'Vinstri',
-    clockwiseShort: 'Hægri',
+    anticlockwiseShort: 'Rangsælis',
+    clockwiseShort: 'Réttsælis',
     additional: 'Fleiri flýtilyklar',
     reset: 'Endurstilla sjálfgildi',
   },

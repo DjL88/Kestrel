@@ -13,7 +13,7 @@ export const fi: AreaTranslation<typeof source> = {
   notMeasured: 'Ei mitattu',
   notRecorded: 'Ei tallennettu',
   suggestedName: (name) => `${name} (ehdotus)`,
-  subjectKinds: { wildlife: 'Luonto', people: 'Ihmiset', landscape: 'Maisema', other: 'Muu kohde' },
+  subjectKinds: { wildlife: 'Villieläimet', people: 'Ihmiset', landscape: 'Maisema', other: 'Muu kohde' },
   auto: {
     ready: 'Tarkistetut muokkausehdotukset ovat valmiina esikatseluun.',
     noneDifferent: 'Yksikään näkyvästi erilainen muokkaus ei läpäissyt tarkistuksia.',
@@ -28,9 +28,9 @@ export const fi: AreaTranslation<typeof source> = {
   },
   deepReview: {
     none: 'Syväkatselmus: kuvasta ei löytynyt kohdetta, johon tunnistin luottaa.',
-    confidence: { high: 'suuri', medium: 'kohtalainen', low: 'pieni' },
+    confidence: { high: 'korkea', medium: 'keskitaso', low: 'matala' },
     sharpness: { subjectSharp: 'terävä', subjectOk: 'melko terävä', subjectSoft: 'epätarkka', noSubject: 'epäselvä', unavailable: 'epäselvä' },
-    trusted: (confidence, sharpness) => `Syväkatselmus: löytyi ${sharpness} kohde, varmuus ${confidence}.`,
+    trusted: (confidence, sharpness) => `Syväkatselmus: löytyi ${sharpness} kohde, luottamus ${confidence}.`,
     untrusted: (sharpness) => `Syväkatselmus: löytyi kohde, joka on liian ${sharpness} luotettavaksi.`,
     witness: { bird: 'lintu', aircraft: 'lentokone', person: 'ihminen', animal: 'eläin', vehicle: 'ajoneuvo' },
     agreed: (subject) => `Näkymän tulkinta vahvistaa: ${subject}.`,
@@ -91,18 +91,18 @@ export const fi: AreaTranslation<typeof source> = {
     enlargementTask: 'Luodaan suurennoksen esikatselua',
     exportNotQueued: 'Tätä vientiä ei voitu aloittaa.',
     destinationUnavailable: 'Vientikohde ei ole käytettävissä. Valitse paikallinen ZIP, erilliset tiedostot tai tietokoneen kansio.',
-    cullPro: 'Automaattinen karsinta kuuluu InFlight Prohon.',
+    cullPro: 'Automaattinen poiminta kuuluu InFlight Prohon.',
     cullOffer: "Kuvat lisätty. Paina Automaattinen karsinta lajitellaksesi ne tällä laitteella; mitään ei merkitä sitä ennen.",
     cullSwitchedOff: "Automaattinen karsinta on poissa käytöstä tällä tilillä, joten sitä ei ajettu. Kuvasi ovat ennallaan.",
-    cullRunning: 'Automaattinen karsinta on jo käynnissä.',
-    cullNothing: 'Jokaisella kuvalla on jo päätös, joten karsittavaa ei ole.',
-    cullTask: 'Automaattinen karsinta ja analyysi',
+    cullRunning: 'Automaattinen poiminta on jo käynnissä.',
+    cullNothing: 'Jokaisella kuvalla on jo päätös, joten poimittavaa ei ole.',
+    cullTask: 'Automaattinen poiminta ja analyysi',
     cullScan: 'Käydään kuvat läpi ja verrataan koko kuvauskertaa',
-    cullNoDetector: 'Kohteen tunnistus ei ole käytettävissä. Automaattinen karsinta käytti vain terävyyttä ja valotusta, joten se on epävarmempi.',
+    cullNoDetector: 'Kohteen tunnistus ei ole käytettävissä. Automaattinen poiminta käytti vain terävyyttä ja valotusta, joten tulos on epävarmempi.',
     cullDetectorStage: 'Kohteen tunnistus ei käytettävissä; tarkista tulokset',
     cullApply: 'Ehdotuksia otetaan käyttöön muuttamatta omia merkintöjäsi',
-    cullFailed: 'Automaattinen karsinta epäonnistui. Uusia päätöksiä ei tehty. Lisätietoja kohdassa Tehtävät.',
-    cullNotQueued: 'Automaattista karsintaa ei voitu aloittaa.',
+    cullFailed: 'Automaattinen poiminta epäonnistui. Uusia päätöksiä ei tehty. Lisätietoja kohdassa Tehtävät.',
+    cullNotQueued: 'Automaattista poimintaa ei voitu aloittaa.',
     formatFirst: 'Valitse olemassa oleva kuvamuoto ennen kuin jaat sen.',
     formatRejoined: 'Muoto yhdistettiin takaisin yhdeksi kuvaksi.',
     formatSplit: (count) => `Tämä muoto viedään ${count} peräkkäisenä kuvana.`,
@@ -117,12 +117,12 @@ export const fi: AreaTranslation<typeof source> = {
     maskDiscarded: 'Maskia ei säilytetty, koska kuva muuttui tai sen tasot ovat täynnä. Etsi kohde uudelleen.',
     saveMaskStage: 'Tallennetaan maski, jonka voit kumota',
     subjectMaskAdded: (confidence) => (confidence
-      ? `Kohdemaski lisättiin (varmuus: ${confidence}). Se ei muuta mitään, ennen kuin liikutat sen liukusäädintä.`
+      ? `Kohdemaski lisättiin (luottamus: ${confidence}). Se ei muuta mitään, ennen kuin liikutat sen liukusäädintä.`
       : 'Kohdemaski lisättiin. Se ei muuta mitään, ennen kuin liikutat sen liukusäädintä.'),
     backgroundMaskAdded: (confidence) => (confidence
-      ? `Taustamaski lisättiin (varmuus: ${confidence}). Se ei muuta mitään, ennen kuin liikutat sen liukusäädintä.`
+      ? `Taustamaski lisättiin (luottamus: ${confidence}). Se ei muuta mitään, ennen kuin liikutat sen liukusäädintä.`
       : 'Taustamaski lisättiin. Se ei muuta mitään, ennen kuin liikutat sen liukusäädintä.'),
-    confidence: { high: 'suuri', medium: 'kohtalainen', low: 'pieni' },
+    confidence: { high: 'korkea', medium: 'keskitaso', low: 'matala' },
     subjectFailed: 'Kohteen tunnistus epäonnistui. Lisätietoja kohdassa Tehtävät.',
     subjectNotQueued: 'Kohteen tunnistusta ei voitu aloittaa.',
     denoiseTask: (filename) => `Poistetaan kohinaa: ${filename}`,

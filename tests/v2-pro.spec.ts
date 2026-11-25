@@ -88,7 +88,7 @@ test('Pro: text overlay settings are saved with the photo', async ({ page }) => 
   await expect(textSwitch()).toHaveAttribute('aria-checked', 'true');
 });
 
-test('Pro: Auto-Cull scores the photos on this device and never rejects', async ({ page }) => {
+test('Pro: Auto pick scores the photos on this device and never rejects', async ({ page }) => {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: 'New project' }).first().click();
@@ -99,8 +99,8 @@ test('Pro: Auto-Cull scores the photos on this device and never rejects', async 
   await root.getByRole('button', { name: /^Import/ }).first().click();
   await (await chooser).setFiles(images.map((img, i) => ({ name: `cull-${i + 1}.png`, mimeType: 'image/png', buffer: Buffer.from(img, 'base64') })));
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(4);
-  await root.getByRole('button', { name: /Auto-Cull/ }).first().click();
-  await expect(root.getByText(/Photos checked by Auto-cull: 4. Review the flags/)).toBeVisible({ timeout: 90000 });
+  await root.getByRole('button', { name: /Auto pick/ }).first().click();
+  await expect(root.getByText(/Photos checked by Auto pick: 4. Review the flags/)).toBeVisible({ timeout: 90000 });
   await expect(root.getByText(/were rejected|has been rejected/)).toHaveCount(0);
   // Ordinary image files are the pictures themselves: no RAW caveat is shown.
   await expect(root.getByText(/judged from the camera's embedded preview/)).toHaveCount(0);

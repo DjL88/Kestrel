@@ -30,7 +30,7 @@ export const nb: AreaTranslation<typeof source> = {
     none: 'Dybdegjennomgang: fant ikke noe motiv detektoren stoler på i dette bildet.',
     confidence: { high: 'høy', medium: 'middels', low: 'lav' },
     sharpness: { subjectSharp: 'skarpt', subjectOk: 'ganske skarpt', subjectSoft: 'uskarpt', noSubject: 'uklart', unavailable: 'uklart' },
-    trusted: (confidence, sharpness) => `Dybdegjennomgang: fant et ${sharpness} motiv med ${confidence} sikkerhet.`,
+    trusted: (confidence, sharpness) => `Dybdegjennomgang: fant et ${sharpness} motiv med ${confidence} tiltro.`,
     untrusted: (sharpness) => `Dybdegjennomgang: fant et motiv som er for ${sharpness} til å stole på.`,
     witness: { bird: 'fugl', aircraft: 'fly', person: 'person', animal: 'dyr', vehicle: 'kjøretøy' },
     agreed: (subject) => `Scenetolkningen bekrefter: ${subject}.`,
@@ -91,18 +91,18 @@ export const nb: AreaTranslation<typeof source> = {
     enlargementTask: 'Lager forhåndsvisning av forstørrelsen',
     exportNotQueued: 'Kunne ikke starte denne eksporten.',
     destinationUnavailable: 'Det eksportmålet er ikke tilgjengelig. Velg en lokal ZIP, separate filer eller en mappe på datamaskinen.',
-    cullPro: 'Autosortering er en del av InFlight Pro.',
+    cullPro: 'Autovalg er en del av InFlight Pro.',
     cullOffer: "Bilder lagt til. Trykk på Automatisk sortering for å sortere dem på denne enheten; ingenting merkes før da.",
     cullSwitchedOff: "Automatisk sortering er slått av for denne kontoen, så den kjørte ikke. Bildene dine er uendret.",
-    cullRunning: 'Autosortering kjører allerede.',
-    cullNothing: 'Alle bildene har allerede en avgjørelse, så det er ingenting å sortere.',
-    cullTask: 'Autosortering og analyse',
+    cullRunning: 'Autovalg kjører allerede.',
+    cullNothing: 'Alle bildene har allerede en avgjørelse, så Autovalg har ingenting å gjøre.',
+    cullTask: 'Autovalg og analyse',
     cullScan: 'Går gjennom bildene og sammenligner hele fotograferingen',
-    cullNoDetector: 'Motivgjenkjenningen er ikke tilgjengelig. Autosorteringen brukte bare skarphet og eksponering og er derfor mindre sikker.',
+    cullNoDetector: 'Motivgjenkjenningen er ikke tilgjengelig. Autovalg brukte bare skarphet og eksponering, så resultatet er mindre pålitelig.',
     cullDetectorStage: 'Motivgjenkjenning ikke tilgjengelig; gå gjennom resultatene',
     cullApply: 'Bruker forslag uten å endre dine egne markeringer',
-    cullFailed: 'Autosorteringen mislyktes. Ingen nye avgjørelser ble brukt. Detaljer under Oppgaver.',
-    cullNotQueued: 'Autosorteringen kunne ikke starte.',
+    cullFailed: 'Autovalg mislyktes. Ingen nye avgjørelser ble brukt. Detaljer under Oppgaver.',
+    cullNotQueued: 'Autovalg kunne ikke starte.',
     formatFirst: 'Velg et eksisterende bildeformat før du deler det.',
     formatRejoined: 'Formatet er satt sammen til ett bilde igjen.',
     formatSplit: (count) => `Dette formatet eksporteres som ${count} bilder på rad.`,
@@ -117,10 +117,10 @@ export const nb: AreaTranslation<typeof source> = {
     maskDiscarded: 'Masken ble ikke beholdt fordi bildet endret seg eller lagene er fulle. Finn motivet på nytt.',
     saveMaskStage: 'Lagrer en maske du kan angre',
     subjectMaskAdded: (confidence) => (confidence
-      ? `Motivmasken er lagt til (sikkerhet: ${confidence}). Den endrer ingenting før du flytter en av glidebryterne.`
+      ? `Motivmasken er lagt til (tiltro: ${confidence}). Den endrer ingenting før du flytter en av glidebryterne.`
       : 'Motivmasken er lagt til. Den endrer ingenting før du flytter en av glidebryterne.'),
     backgroundMaskAdded: (confidence) => (confidence
-      ? `Bakgrunnsmasken er lagt til (sikkerhet: ${confidence}). Den endrer ingenting før du flytter en av glidebryterne.`
+      ? `Bakgrunnsmasken er lagt til (tiltro: ${confidence}). Den endrer ingenting før du flytter en av glidebryterne.`
       : 'Bakgrunnsmasken er lagt til. Den endrer ingenting før du flytter en av glidebryterne.'),
     confidence: { high: 'høy', medium: 'middels', low: 'lav' },
     subjectFailed: 'Motivgjenkjenningen mislyktes. Detaljer under Oppgaver.',

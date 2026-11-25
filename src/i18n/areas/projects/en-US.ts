@@ -4,7 +4,7 @@ import type { source } from './source';
 /** US English: spelling and wording only. */
 export const enUS: AreaTranslation<typeof source> = {
   wizard: {
-    autoCullHint: 'After import, a cancelable local task reviews your photos while you browse. High-confidence keepers and exact duplicates are sorted automatically; uncertain photos stay for review. Originals are untouched.',
+    autoCullHint: 'After import, a cancelable local task reviews your photos while you browse. Best picks with high confidence and exact duplicates are sorted automatically; uncertain photos stay for review. Originals are untouched.',
   },
   storage: {
     declined: 'The browser did not grant persistent storage. Keep a current catalog backup.',
