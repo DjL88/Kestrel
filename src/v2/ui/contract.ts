@@ -301,7 +301,7 @@ export interface AssistSuggestion {
   recipeDelta: Partial<EditRecipe>;
   comparison?: { before: string; after: string };
   /** The same edit as ordered slider steps with real values (src/core/editingSequence.ts), for Watch and Learn. */
-  steps?: { id: string; label: string; from: string; to: string }[];
+  steps?: { id: string; label: string; from: string; to: string; /** The recipe setting the step changes. */ key?: string }[];
   /** ColourSense: whether the suggestion keeps the subject's colour, in words (absent when it could not be judged). */
   colourSense?: ColourSenseNote;
   /** Colour match: whether the subject carries the colours it should have (species signature or the vision model), in words. */
@@ -392,6 +392,10 @@ export interface Photo {
   histogram?: PhotoHistogram | null;
   /** Which picture of a RAW each view shows: the camera's embedded preview or InFlight's develop from the sensor data,
    * as recorded when the preview was made. Absent for JPEG/PNG files and while nothing is shown yet. */
+  /** A lossless DNG copy can be saved: a Nikon HE/HE* NEF in the desktop app. */
+  dngCopy?: boolean;
+  /** 'offered': a RAW whose full-size develop is not on screen and can be made here; 'running': it is being made. */
+  fullDevelop?: 'offered' | 'running';
   picture?: { preview?: import('../../core/pictureSource').PictureProvenance; thumb?: import('../../core/pictureSource').PictureProvenance };
   /** Good, better or best, from the engine's decision maker. Shown as a word, never as a number. */
   tier?: PhotoTier | null;
@@ -693,6 +697,10 @@ export interface WorkspaceActions {
   dismissQuickStart?: () => void;
   runAutoCull: () => void;
   reconnectOriginal: (photoId: string) => void;
+  /** Save a lossless DNG copy of a Nikon HE/HE* NEF (desktop). The original is only read. */
+  saveDngCopy: (photoId: string) => void;
+  /** Develop a RAW from its sensor data at full size, as one Tasks item. The original is only read. */
+  developFullSize: (photoId: string) => void;
   toggleDemoUnavailable: () => void;
 
   // Flight Mode & Deep Vision Review

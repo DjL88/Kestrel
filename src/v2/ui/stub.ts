@@ -1070,6 +1070,14 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
+    saveDngCopy: (photoId) => {
+      logAction('saveDngCopy', { photoId });
+    },
+
+    developFullSize: (photoId) => {
+      logAction('developFullSize', { photoId });
+    },
+
     reconnectOriginal: (photoId) => {
       logAction('reconnectOriginal', { photoId });
       updatePhotoById(photoId, (p) => ({

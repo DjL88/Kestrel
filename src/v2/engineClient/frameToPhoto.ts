@@ -21,6 +21,7 @@ import type { AutoRun } from './runAuto';
 import { colourWarningSentences, colourWords, describeColourMatch, describeColourSense } from './colourWords';
 import { sameRecipe } from '../../core/naturalAuto';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
+import { isRawPreviewFile } from '../../core/rawFormats';
 import { STRINGS } from '../ui/strings';
 import { engineText } from '../../i18n/areas/engine';
 import { displaySpeciesName } from '../../core/speciesNames';
@@ -72,7 +73,7 @@ export function suggestionSteps(base: PhotoEdit, proposal: PhotoEdit): NonNullab
   const before = { ...editToRecipe(base), masks: base.masks?.length ?? 0 };
   const after = { ...editToRecipe(proposal), masks: proposal.masks?.length ?? 0 };
   return buildEditingSequence(before, after, ['lookId']).map((step) => ({
-    id: step.id, label: STEP_LABELS[step.key] ?? step.key, from: stepValue(step.from), to: stepValue(step.to),
+    id: step.id, key: step.key, label: STEP_LABELS[step.key] ?? step.key, from: stepValue(step.from), to: stepValue(step.to),
   }));
 }
 
@@ -163,7 +164,7 @@ export function tileStateFor(urls: FrameUrls | undefined): TileState {
  * not record says "Not recorded" (or is left empty), never an invented value. The edit, size and mask parts start as the
  * UI's neutral defaults; they are connected to the real recipe in a later step.
  */
-export interface PhotoExtras { pixelSize?: { width: number; height: number }; /** Measured from a connected, decoded JPEG/PNG original, not EXIF or a preview. */ verifiedOriginalSize?: { width: number; height: number }; assist?: AssistState; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram; originalConnected?: boolean; /** What the provider recorded for each address (BrowserPreviewProvider.pictureSourceOf). */ sources?: { preview?: PictureSource; thumb?: PictureSource } }
+export interface PhotoExtras { pixelSize?: { width: number; height: number }; /** Measured from a connected, decoded JPEG/PNG original, not EXIF or a preview. */ verifiedOriginalSize?: { width: number; height: number }; assist?: AssistState; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram; originalConnected?: boolean; /** What the provider recorded for each address (BrowserPreviewProvider.pictureSourceOf). */ sources?: { preview?: PictureSource; thumb?: PictureSource }; dngCopy?: boolean; /** The develop is being made now; otherwise offered when it can be made here. */ fullDevelop?: 'possible' | 'running' }
 
 /** Decoded JPEG/PNG pixel size (after framing), or null when not measured. */
 function verifiedFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { width: number; height: number }): { width: number; height: number } | null {
@@ -250,7 +251,9 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
       fileFormat: exif.formatLabel ?? extensionOf(frame.filename) ?? NOT_RECORDED,
       fileSizeMb: recordedFileSizeMb(frame.stableKey),
       dimensions: recordedDimensions ? `${recordedDimensions.width} × ${recordedDimensions.height}` : NOT_RECORDED,
-      colourProfile: NOT_RECORDED,
+      // InFlight's RAW develop records the as-shot white only after it has validated the camera's own colour matrix, so that
+      // is the evidence the picture came from it. Anything else (an embedded preview, a JPEG's own profile) stays unknown.
+      colourProfile: isRawPreviewFile(frame.filename) && frame.asShotWhite ? STRINGS.info.rawColourSource : NOT_RECORDED,
     },
     ...(nativeSize ? { pixelSize: { width: nativeSize.width, height: nativeSize.height } } : exif.width && exif.height ? { pixelSize: { width: exif.width, height: exif.height } } : pixelSize ? { pixelSize } : {}),
     activeGroupId: savedGroups.activeId,
@@ -280,6 +283,9 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     ...(frame.formatHistory ? { formatHistory: readFormatHistory(frame.formatHistory).events.map(({ formatId, kind, at, parentFormatId, forkEditCursor, after }) => ({ formatId, kind, at, ...(parentFormatId ? { parentFormatId } : {}), ...(forkEditCursor !== undefined ? { forkEditCursor } : {}), ...(kind === 'crop' && after ? { crop: after } : {}) })) } : {}),
     ...(watermarkAuto ? { watermarkAuto } : {}),
     ...(histogram ? { histogram } : {}),
+    ...(extras.dngCopy ? { dngCopy: true } : {}),
+    ...(extras.fullDevelop === 'running' ? { fullDevelop: 'running' as const }
+      : extras.fullDevelop === 'possible' && sources?.preview !== 'raw-full' ? { fullDevelop: 'offered' as const } : {}),
     ...(shownPreview || shownThumb ? { picture: { ...(shownPreview ? { preview: shownPreview } : {}), ...(shownThumb ? { thumb: shownThumb } : {}) } } : {}),
     assistCritique: assistCritiqueFor(assist && matchesAutoSource(assist.run, frame) ? assist : undefined, frame.edit),
   };

@@ -6,11 +6,7 @@ import BrandIcon, { BrandLogo } from '../icons/BrandIcon';
 import { LayoutToggle, ProjectRow, ProjectTile, readHubLayout, saveHubLayout, type HubLayout } from './ProjectCards';
 import footerKiteDark from '../../../assets/brand/mark/inflight-kite-dark.svg';
 import footerKiteLight from '../../../assets/brand/mark/inflight-kite-light.svg';
-import { isDesktopApp, isMobileShell } from '../../../providers/desktopShell';
-
-/** The published privacy policy. It is not bundled into the app, so a relative link would lead nowhere in the desktop app. */
-import { publicSiteUrl } from '../../../core/publicSite';
-const PRIVACY_URL = publicSiteUrl('/privacy.html');
+import { POLICY_PATHS, SiteLink } from '../../../components/SiteLink';
 
 interface ProjectsHubProps {
   projects: Project[];
@@ -298,13 +294,8 @@ export default function ProjectsHub({
             data-testid="inflight-footer-kite"
           />
           <span className="font-semibold text-[var(--text-primary)]">InFlight</span>
-          <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline"
-            onClick={(event) => {
-              // The policy page is part of the website, not the app build. On the desktop app it opens in the system browser.
-              if (!isDesktopApp() || isMobileShell()) return;
-              event.preventDefault();
-              void import('@tauri-apps/plugin-opener').then(({ openUrl }) => openUrl(PRIVACY_URL)).catch(() => undefined);
-            }}>{STRINGS.hub.privacyLink}</a>
+          <SiteLink path={POLICY_PATHS.privacy} className="underline-offset-2 hover:underline">{STRINGS.hub.privacyLink}</SiteLink>
+          <SiteLink path={POLICY_PATHS.terms} className="underline-offset-2 hover:underline">{STRINGS.hub.termsLink}</SiteLink>
         </div>
         <button type="button" onClick={onToggleTheme} aria-label={theme === 'dark' ? STRINGS.hubMore.switchToLight : STRINGS.hubMore.switchToDark}
           className="inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 hover:bg-[var(--bg-surface-hover)]">
