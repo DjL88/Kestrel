@@ -351,6 +351,13 @@ export const source = {
     ratingFor: (name: string) => `Rating for ${name}`,
   },
 
+  // Whole-project export in open formats (File menu)
+  openExport: {
+    menu: "Export everything in open formats…",
+    saved: "Saved every photo's rating, flag, keywords and edit recipe in open formats (XMP, CSV and JSON). Your photos are not in it and nothing was uploaded.",
+    nothing: "There are no photos in this project to export.",
+    failed: "The export could not be saved. Your project is unchanged.",
+  },
   // First run: a great photo within a minute (projects hub)
   quickStart: {
     hubButton: "Make a great photo in a minute",

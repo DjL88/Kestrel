@@ -331,6 +331,12 @@ export const sv: AreaTranslation<typeof source> = {
     rate: (n: number) => `Ge ${n} stjärnor`,
     ratingFor: (name: string) => `Betyg för ${name}`,
   },
+  openExport: {
+    menu: "Exportera allt i öppna format…",
+    saved: "Varje bilds betyg, flagga, nyckelord och redigeringsrecept sparades i öppna format (XMP, CSV och JSON). Dina bilder ingår inte och inget laddades upp.",
+    nothing: "Det finns inga bilder i det här projektet att exportera.",
+    failed: "Exporten kunde inte sparas. Ditt projekt är oförändrat.",
+  },
   quickStart: {
     hubButton: "En fin bild på en minut",
     hubHint: "Välj en bild eller några. InFlight skapar ett projekt, balanserar exponering och färg med Auto, och du kan exportera direkt. Allt stannar på den här enheten.",

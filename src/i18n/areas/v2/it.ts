@@ -331,6 +331,12 @@ export const it: AreaTranslation<typeof source> = {
     rate: (n: number) => `Valuta ${n} stelle`,
     ratingFor: (name: string) => `Valutazione di ${name}`,
   },
+  openExport: {
+    menu: "Esporta tutto in formati aperti…",
+    saved: "Valutazione, contrassegno, parole chiave e ricetta di modifica di ogni foto salvati in formati aperti (XMP, CSV e JSON). Le tue foto non sono incluse e non è stato caricato nulla.",
+    nothing: "Non ci sono foto da esportare in questo progetto.",
+    failed: "Non è stato possibile salvare l’esportazione. Il progetto è invariato.",
+  },
   quickStart: {
     hubButton: "Una bella foto in un minuto",
     hubHint: "Scegli una foto o qualcuna. InFlight crea un progetto, bilancia esposizione e colore con Auto, e puoi esportarla subito. Tutto resta su questo dispositivo.",

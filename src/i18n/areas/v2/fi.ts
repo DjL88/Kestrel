@@ -332,6 +332,12 @@ export const fi: AreaTranslation<typeof source> = {
     rate: (n: number) => `Anna ${n} tähteä`,
     ratingFor: (name: string) => `Arvio: ${name}`,
   },
+  openExport: {
+    menu: "Vie kaikki avoimissa muodoissa…",
+    saved: "Jokaisen kuvan arvio, merkintä, avainsanat ja muokkausresepti tallennettiin avoimissa muodoissa (XMP, CSV ja JSON). Kuvasi eivät ole mukana, eikä mitään lähetetty.",
+    nothing: "Tässä projektissa ei ole vietäviä kuvia.",
+    failed: "Vientiä ei voitu tallentaa. Projektisi on ennallaan.",
+  },
   quickStart: {
     hubButton: "Hieno kuva minuutissa",
     hubHint: "Valitse yksi tai muutama kuva. InFlight tekee projektin, tasapainottaa valotuksen ja värit Autolla, ja voit viedä kuvan heti. Kaikki pysyy tällä laitteella.",
