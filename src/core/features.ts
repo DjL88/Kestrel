@@ -63,6 +63,11 @@ export interface FeatureContext {
   nowMs?: number;
   bucket?: number;
   appVersion?: string;
+  /**
+   * The developer-only Pro preview (`VITE_KESTREL_DEV_PRO=1` on the Vite dev server; `import.meta.env.DEV` is false in
+   * every installed build). It opens every feature so Pro paths can be tested; compiled Pro flags are otherwise off.
+   */
+  devProPreview?: boolean;
 }
 
 export function evaluateFeature(feature: Feature, capabilities: Capabilities, context: FeatureContext = {}): Evaluation {
@@ -73,5 +78,6 @@ export function evaluateFeature(feature: Feature, capabilities: Capabilities, co
 }
 
 export function featureAvailable(feature: Feature, capabilities: Capabilities, context: FeatureContext = {}): boolean {
+  if (context.devProPreview === true) return true;
   return evaluateFeature(feature, capabilities, context).on;
 }
