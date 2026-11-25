@@ -2,6 +2,7 @@ import type { AuthProvider, Session, SignInProvider } from '../core/cloudInterfa
 import type { SignInPlatform } from '../core/signInOptions';
 import { isDesktopApp } from './desktopShell';
 import { friendlyAuthError } from '../core/authError';
+import { LinkingError, linkingProblem, methodsFromProviderIds, type SignInMethod } from '../core/accountLinking';
 import { challengeFor, explainSignInError, makeVerifier, parseCallbackQuery } from '../core/cloudDrive';
 import { desktopGoogleClient, googleCodeExchangeBody, googleSignInUrl, GOOGLE_TOKEN_URL, idTokenFromAnswer } from '../core/desktopGoogleSignIn';
 import { appleAnswerFromQuery, appleSignInPageUrl, desktopAppleConfig, sha256Hex } from '../core/desktopAppleSignIn';
@@ -75,7 +76,86 @@ const providerOf = (user: import('firebase/auth').User): SignInProvider =>
 /** Email and password work in the browser and, unlike pop-ups, would also work in the installed apps; the apps still wait on their own Settings wiring. */
 async function withAuth<T>(run: (a: Awaited<ReturnType<typeof firebase>>) => Promise<T>): Promise<T> {
   if (!isSignInConfigured()) throw new Error('Sign-in is not set up in this build.');
-  try { return await run(await firebase()); } catch (error) { throw new Error(friendlyAuthError(error)); }
+  try { return await run(await firebase()); } catch (error) {
+    if (error instanceof LinkingError) throw error; // the screen words it in the person's language
+    throw new Error(friendlyAuthError(error));
+  }
+}
+
+// ---- One account, several ways in (account linking) -------------------------------------------------------------
+// When someone signs in with Google or Apple and their email already has an InFlight account that signs in another
+// way, Firebase refuses rather than making a second account. The new way in is kept here (in memory only), and added
+// to the account as soon as they sign in the way they already use. Nothing is ever merged silently.
+type Auth = typeof import('firebase/auth');
+type Instance = import('firebase/auth').Auth;
+let pendingLink: { credential: import('firebase/auth').AuthCredential; method: SignInMethod } | null = null;
+let justLinked: SignInMethod | null = null;
+/** The way of signing in that was added to the account at the last sign-in, once; null otherwise. */
+export function consumeLinkedMethod(): SignInMethod | null { const m = justLinked; justLinked = null; return m; }
+const codeOf = (error: unknown) => (error as { code?: string })?.code ?? '';
+
+async function afterSignIn(auth: Auth, user: import('firebase/auth').User) {
+  const pending = pendingLink;
+  if (!pending) return;
+  pendingLink = null;
+  try { await auth.linkWithCredential(user, pending.credential); justLinked = pending.method; } catch { /* left as it was: they can add it in Settings */ }
+}
+
+/** Sign in, or (mode 'link') add this way in to the signed-in account, with a credential from Google or Apple. */
+async function useCredential(auth: Auth, instance: Instance, credential: import('firebase/auth').AuthCredential, method: SignInMethod, mode: 'signIn' | 'link'): Promise<import('firebase/auth').User> {
+  if (mode === 'link') {
+    await instance.authStateReady();
+    const user = instance.currentUser;
+    if (!user) throw new Error('Sign in first, then add another way to sign in.');
+    try { await auth.linkWithCredential(user, credential); } catch (error) {
+      const problem = linkingProblem(codeOf(error));
+      if (problem) throw new LinkingError(problem);
+      throw error;
+    }
+    return user;
+  }
+  try {
+    const user = await useCredential(auth, instance, credential, 'apple', mode);
+    await afterSignIn(auth, user);
+    return user;
+  } catch (error) {
+    if (codeOf(error) === 'auth/account-exists-with-different-credential') { pendingLink = { credential, method }; throw new LinkingError('use-existing-method'); }
+    throw error;
+  }
+}
+
+/** The ways the signed-in account can sign in (Google, Apple, email and password). Empty when signed out. */
+export async function signInMethods(): Promise<SignInMethod[]> {
+  if (!isSignInConfigured()) return [];
+  const { instance } = await firebase();
+  await instance.authStateReady();
+  return methodsFromProviderIds(instance.currentUser?.providerData.map((p) => p.providerId) ?? []);
+}
+
+/** Add Google, Apple, or a password for the account's own email, to the signed-in account. Never creates an account. */
+export async function addSignInMethod(method: SignInMethod, password?: string): Promise<SignInMethod[]> {
+  if (method === 'google' && signInPlatform() === 'desktop' && googleDesktop) await signInWithGoogleOnDesktop(googleDesktop, 'link');
+  else if (method === 'apple' && signInPlatform() === 'desktop' && appleDesktop) await signInWithAppleOnDesktop(appleDesktop, 'link');
+  else await withAuth(async ({ auth, instance }) => {
+    await instance.authStateReady();
+    const user = instance.currentUser;
+    if (!user) throw new Error('Sign in first, then add another way to sign in.');
+    try {
+      if (method === 'password') {
+        if (!user.email || !password) throw new Error('Choose a password for signing in with your email.');
+        await auth.linkWithCredential(user, auth.EmailAuthProvider.credential(user.email, password));
+      } else {
+        if (signInPlatform() !== 'web') throw new Error('Adding Google or Apple is not built for this app yet. Add it on the web version.');
+        const chosen = method === 'apple' ? new auth.OAuthProvider('apple.com') : new auth.GoogleAuthProvider();
+        await auth.linkWithPopup(user, chosen);
+      }
+    } catch (error) {
+      const problem = linkingProblem(codeOf(error));
+      if (problem) throw new LinkingError(problem);
+      throw error;
+    }
+  });
+  return signInMethods();
 }
 
 /** Request a fresh verification email for the current signed-in user, never an arbitrary address. */
@@ -100,7 +180,7 @@ const loopbackError = (error: unknown) => new Error(typeof error === 'string' ? 
  * listener on this computer receives the one-time code, the app swaps it for Google's ID token, and Firebase signs in
  * with that token. Uses the same loopback listener and HTTP client as the Google Drive connection.
  */
-async function signInWithGoogleOnDesktop(client: NonNullable<typeof googleDesktop>): Promise<import('../core/cloudInterfaces').Session> {
+async function signInWithGoogleOnDesktop(client: NonNullable<typeof googleDesktop>, mode: 'signIn' | 'link' = 'signIn'): Promise<import('../core/cloudInterfaces').Session> {
   const { invoke } = await import('@tauri-apps/api/core');
   const verifier = randomToken();
   const state = randomToken();
@@ -129,7 +209,7 @@ async function signInWithGoogleOnDesktop(client: NonNullable<typeof googleDeskto
   // Name Google's own reason too, so a refusal can be traced without a debug build.
   if (!response.ok) throw new Error(`${explainSignInError(json?.error)} (Google: ${json?.error ?? `HTTP ${response.status}`})`);
   const idToken = idTokenFromAnswer(json, { clientId: client.clientId, nonce });
-  return withAuth(async ({ auth, instance }) => toSession((await auth.signInWithCredential(instance, auth.GoogleAuthProvider.credential(idToken))).user, 'google'));
+  return withAuth(async ({ auth, instance }) => toSession(await useCredential(auth, instance, auth.GoogleAuthProvider.credential(idToken), 'google', mode), 'google'));
 }
 
 /**
@@ -137,7 +217,7 @@ async function signInWithGoogleOnDesktop(client: NonNullable<typeof googleDeskto
  * there, and the page hands Apple's ID token to the one-shot listener on this computer. Firebase signs in with that
  * token and the raw nonce, which never leaves the app (the page and Apple only see its hash).
  */
-async function signInWithAppleOnDesktop(config: NonNullable<typeof appleDesktop>): Promise<import('../core/cloudInterfaces').Session> {
+async function signInWithAppleOnDesktop(config: NonNullable<typeof appleDesktop>, mode: 'signIn' | 'link' = 'signIn'): Promise<import('../core/cloudInterfaces').Session> {
   const { invoke } = await import('@tauri-apps/api/core');
   const state = randomToken();
   const rawNonce = randomToken();
@@ -163,7 +243,11 @@ async function signInWithAppleOnDesktop(config: NonNullable<typeof appleDesktop>
 }
 
 export const firebaseAuth: AuthProvider = {
-  signInWithEmail: (email, password) => withAuth(async ({ auth, instance }) => toSession((await auth.signInWithEmailAndPassword(instance, email.trim(), password)).user, 'password')),
+  signInWithEmail: (email, password) => withAuth(async ({ auth, instance }) => {
+    const { user } = await auth.signInWithEmailAndPassword(instance, email.trim(), password);
+    await afterSignIn(auth, user);
+    return toSession(user, 'password');
+  }),
   createAccount: (email, password) => withAuth(async ({ auth, instance }) => {
     const { user } = await auth.createUserWithEmailAndPassword(instance, email.trim(), password);
     await auth.sendEmailVerification(user).catch(() => undefined);
@@ -179,9 +263,20 @@ export const firebaseAuth: AuthProvider = {
       const { auth, instance } = await firebase();
       const chosen = provider === 'apple' ? new auth.OAuthProvider('apple.com') : new auth.GoogleAuthProvider();
       if (provider === 'apple') { chosen.addScope('email'); chosen.addScope('name'); }
-      const result = await auth.signInWithPopup(instance, chosen);
-      return toSession(result.user, provider);
+      try {
+        const result = await auth.signInWithPopup(instance, chosen);
+        await afterSignIn(auth, result.user);
+        return toSession(result.user, provider);
+      } catch (error) {
+        if (codeOf(error) === 'auth/account-exists-with-different-credential') {
+          const credential = provider === 'apple' ? auth.OAuthProvider.credentialFromError(error as never) : auth.GoogleAuthProvider.credentialFromError(error as never);
+          if (credential) pendingLink = { credential, method: provider === 'apple' ? 'apple' : 'google' };
+          throw new LinkingError('use-existing-method');
+        }
+        throw error;
+      }
     } catch (error) {
+      if (error instanceof LinkingError) throw error;
       throw new Error(friendlyAuthError(error));
     }
   },

@@ -207,6 +207,23 @@ export class LicenceSync {
     } catch { return null; }
   }
 
+  /**
+   * Put this device's KESTREL1 key on the signed-in account (used before signing up). 'other' when another account
+   * holds it: moving it is an account merge, never done here.
+   */
+  async attachKey(idToken: string, key: string): Promise<'attached' | 'already' | 'other' | 'invalid' | 'unreachable'> {
+    if (!this.configured || !idToken.trim() || !key.trim()) return 'unreachable';
+    try {
+      const session = await this.post('/v1/auth/firebase', { credential: idToken });
+      if (session.status !== 200 || typeof session.json?.accessToken !== 'string' || !session.json.accessToken.trim()) return 'unreachable';
+      const reply = await this.post('/v1/me/licence/attach', { licenceKey: key.trim() }, session.json.accessToken);
+      if (reply.status === 409) return 'other';
+      if (reply.status === 400) return 'invalid';
+      if (reply.status !== 200) return 'unreachable';
+      return reply.json?.attached === true ? 'attached' : 'already';
+    } catch { return 'unreachable'; }
+  }
+
   async accountDevices(idToken: string): Promise<LicenceStatus | null> {
     const data = await this.accountDeviceRequest(idToken, '/v1/me/devices');
     if (!data || !['active', 'unknown'].includes(data.status) || !Number.isSafeInteger(data.maxDevices) || data.maxDevices < 0 ||

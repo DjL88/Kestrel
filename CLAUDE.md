@@ -69,6 +69,11 @@ python -m pytest scripts tools/denoise-training tools/lightroom   # when Python 
 - Squash-merge, delete the branch, and add a line to the ROADMAP integration log.
 - A change to Rust that couldn't be compiled stays unmerged unless it only touches tests or message text, and the PR says so.
 
+## Releases (owner, 25 Nov 2026)
+- `main` is staging: each merge deploys only to the private /V2Proto preview. Live is a deliberate promotion of a known-good `main` commit, and only when the owner says go. Full table: [docs/RELEASE-FLOW.md](docs/RELEASE-FLOW.md).
+- No separate beta environment. Put unfinished work behind a feature flag that is off by default, in the one pipeline. Use a branch or fork for experiments; branches never deploy.
+- Never make `main` release by itself to the App Store, TestFlight, Google Play, the desktop updater, the public website or the downloads bucket. Desktop tags build a draft release only, and only from a commit on `main`.
+
 ## Builds the owner installs
 - Only optimised (`release=true`) builds of `main` go to the owner, built from the same commit for Windows and macOS. Debug and PR builds show a console window, run slowly, and quit when the console closes.
 - Before reporting that "Windows and Mac differ", compare **Settings → Build information** (commit and build time) on both machines.

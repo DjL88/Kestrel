@@ -7,6 +7,8 @@
  * worker (U2-Net and DINOv2) answer in float32, and the worker leaves any other output out on purpose.
  */
 export interface ModelTensor { data: Float32Array; dims: readonly number[] }
+/** An input: float32, or int64 for sizes and counts (EfficientSAM's original image size). Outputs stay float32. */
+export interface ModelInput { data: Float32Array | BigInt64Array; dims: readonly number[] }
 
 const time = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null);
 const names = (value: unknown): string[] | null =>

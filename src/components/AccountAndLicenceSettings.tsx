@@ -2,8 +2,10 @@ import { useConnectivity } from '../providers/useConnectivity';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Session, SignInProvider } from '../core/cloudInterfaces';
 import { signInOptions } from '../core/signInOptions';
-import { firebaseAuth, isDesktopAppleConfigured, isDesktopGoogleConfigured, isSignInConfigured, signInPlatform, resendAccountVerification } from '../providers/firebaseAuth';
-import { accountLicenceDevices, activateFromAccount, consumeExpiredAccountNotice, freeAccountLicenceDevice, leaveAccount, licenceOnlineConfigured, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
+import { consumeLinkedMethod, firebaseAuth, isDesktopAppleConfigured, isDesktopGoogleConfigured, isSignInConfigured, signInPlatform, resendAccountVerification } from '../providers/firebaseAuth';
+import { LinkingError } from '../core/accountLinking';
+import { SignInMethodsPanel, linkingProblemText, methodName } from './SignInMethodsPanel';
+import { accountLicenceDevices, activateFromAccount, attachDeviceKeyToAccount, consumeExpiredAccountNotice, freeAccountLicenceDevice, leaveAccount, licenceOnlineConfigured, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
 import { BuyProPanel } from './BuyProPanel';
 import type { LicenceStatus } from '../providers/licenceSync';
 import { isDesktopApp, isMobileShell } from '../providers/desktopShell';
@@ -47,7 +49,7 @@ export function AccountAndLicenceSettings() {
     setAccountBusy(true);
     setAccountNote(null);
     try { await action(); } catch (error) {
-      setAccountNote(error instanceof Error ? error.message : 'The account request did not complete.');
+      setAccountNote(error instanceof LinkingError ? linkingProblemText(error.problem) : error instanceof Error ? error.message : 'The account request did not complete.');
     } finally {
       accountAction.current = false;
       setAccountBusy(false);
@@ -59,6 +61,14 @@ export function AccountAndLicenceSettings() {
     if (offline) return;
     const token = await firebaseAuth.idToken(true).catch(() => null);
     if (!token) { setAccountNote('Could not check Pro online. You can keep using InFlight.'); return; }
+    // A Pro key used on this device before signing up goes onto the account, with its devices. Never silently from
+    // another account: then it is left where it is and the person is told.
+    const linked = consumeLinkedMethod();
+    const attached = await attachDeviceKeyToAccount(token);
+    const before = [
+      linked ? t.accountLinks.added(methodName(linked)) : '',
+      attached === 'attached' ? t.accountLinks.keyAttached : attached === 'other' ? t.accountLinks.keyOther : '',
+    ].filter(Boolean).join(' ');
     const result = await activateFromAccount(token);
     const text: Record<typeof result, string | null> = {
       pro: 'InFlight Pro is active on this device through your account.',
@@ -68,7 +78,7 @@ export function AccountAndLicenceSettings() {
       unreachable: 'Signed in, but the licence service could not be reached or the email is not verified yet. Check your email, then sign in again. InFlight keeps working.',
       not_set_up: 'This build is missing its online licence settings.',
     };
-    setAccountNote(text[result]);
+    setAccountNote([before, text[result]].filter(Boolean).join(' '));
   }
 
   useEffect(() => {
@@ -253,6 +263,8 @@ export function AccountAndLicenceSettings() {
               <button type="button" className={action} disabled={accountBusy} onClick={() => void chooseSignOut()}>Sign out</button>
               <button type="button" className={action} disabled={offline || accountBusy} onClick={() => void showAccountDevices()}>Show account devices</button>
             </div>
+            <SignInMethodsPanel key={account.accountId} disabled={offline || accountBusy} hasEmail={Boolean(account.email)} className={action} onNote={setAccountNote} />
+            <p className="text-xs text-[var(--account-muted,#a1a1aa)]">{t.accountLinks.localStay}</p>
             {!offline && accountDevices && (
               <section aria-label="Account Pro devices" className="space-y-2 rounded-lg border border-[var(--account-border,#ffffff1a)] p-3">
                 <h4 className="font-medium">Account Pro devices</h4>
@@ -276,6 +288,7 @@ export function AccountAndLicenceSettings() {
         ) : (
           <>
             <p>Signing in lets you manage optional account features, including the online AI helper when available. Importing, culling, editing and exporting never need an account.</p>
+            <p data-testid="account-local-stay">{t.accountLinks.localStay}</p>
             <div className="flex flex-wrap gap-2">
               {signInOptions(signInPlatform(), isSignInConfigured(), isDesktopGoogleConfigured(), isDesktopAppleConfigured()).map((option) => (
                 <button key={option.provider} type="button" className={`${action} inline-flex items-center gap-2 disabled:opacity-60`} disabled={offline || accountBusy || !option.available} aria-describedby={option.reason ? 'account-reason' : undefined} onClick={() => void chooseSignIn(option.provider)}><SignInMark provider={option.provider === 'apple' ? 'apple' : 'google'} />{option.label}</button>

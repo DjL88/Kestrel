@@ -8,8 +8,8 @@ Per photo, mirroring useSpeciesScan:
      allow / strict / block; an automatic name needs "allow";
   2. the photo is ranked only against the label groups of the gate's category (all groups when it is not sure);
   3. the best match across every list must be in that group, or no name;
-  4. the top name needs its group's bar (src/core/autoTags.ts: 0.95 for every group); else, for birds, the
-     family may be named when its species together reach 0.95 and it has two or more members;
+  4. the top name needs its group's bar (src/core/autoTags.ts: birds and insects 0.90, others 0.95); else, for birds, the
+     family may be named when its species together reach 0.90 and it has two or more members;
   5. otherwise no name.
 Lists: shipped UK names, world birds, mammals, reptiles, amphibians, dragonflies, Lepidoptera, filtered to REGION.
 Reports right / wrong / family / no name per group, at the app's bars and at alternative bars for comparison.
@@ -29,7 +29,8 @@ from try_router import HERE, LOGIT_SCALE, load_categories, preprocess  # noqa: E
 
 weights, folder, region, target = sys.argv[1:5]
 folder = Path(folder)
-BARS = {'bird': 0.95, 'mammal': 0.95, 'reptile': 0.95, 'amphibian': 0.95, 'insect': 0.95}
+BARS = {'bird': 0.9, 'mammal': 0.95, 'reptile': 0.95, 'amphibian': 0.95, 'insect': 0.9}  # src/core/autoTags.ts AUTO_MINIMUM_BY_GROUP
+FAMILY_BAR = 0.9  # src/core/autoTags.ts FAMILY_MINIMUM
 GROUPS = {'bird': ['bird'], 'bird-of-prey': ['bird'], 'waterbird': ['bird'], 'mammal': ['mammal'], 'reptile': ['reptile', 'amphibian'], 'insect': ['insect']}
 
 # Species lists, as the app loads them (UK names first, then the world lists, no name twice, filtered by region).
@@ -94,14 +95,19 @@ def name(embedding, category, verdict, bars, family_bar=0.8, unsure='all'):
     return ('family', best[0]) if best else ('none', 'not sure enough')
 
 
-# (bars per group, family bar, what to do when the gate is not sure of the group)
+# (bars per group, family bar, what to do when the gate is not sure of the group). The sweep gives every group the same bar
+# b (and the family the same b); a photo's result depends only on the bar of its top name's group, so each group's row of
+# the sweep is that group's result at bar b.
+SWEEP = [round(0.90 + 0.01 * i, 2) for i in range(10)]
 SETTINGS = {
-    'app': (BARS, 0.95, 'all'),
-    'before (birds 0.8, family 0.8)': ({**BARS, 'bird': 0.8}, 0.8, 'all'),
-    'all 0.95, family 0.8': (dict.fromkeys(BARS, 0.95), 0.8, 'all'),
-    'all 0.95, family 0.95, unsure: none': (dict.fromkeys(BARS, 0.95), 0.95, 'none'),
-    'birds 0.95, others 0.98, family 0.98, unsure: none': ({**dict.fromkeys(BARS, 0.98), 'bird': 0.95}, 0.98, 'none'),
-    'all 0.98, family 0.98, unsure: none': (dict.fromkeys(BARS, 0.98), 0.98, 'none'),
+    'app': (BARS, FAMILY_BAR, 'all'),
+    'before (birds 0.8, family 0.8)': ({**dict.fromkeys(BARS, 0.95), 'bird': 0.8}, 0.8, 'all'),
+    **{f'all {b:.2f}': (dict.fromkeys(BARS, b), b, 'all') for b in SWEEP},
+}
+# Commons files whose category is wrong, checked by eye: the name the app gave is what the photo shows.
+CORRECTIONS = {
+    'Capreolus_capreolus__182037768.jpg': 'Milvus milvus',  # a red kite on a roe deer carcass (also filed under Milvus milvus)
+    'Macroglossum_stellatarum__151274097.jpg': 'Merops apiaster',  # a bee-eater holding the hawk-moth
 }
 manifest = json.loads((folder / 'manifest.json').read_text(encoding='utf-8'))
 rows = []
@@ -110,26 +116,42 @@ for item in manifest:
     category, verdict = gate(path)
     with torch.no_grad():
         e = model.encode_image(bio_preprocess(Image.open(path).convert('RGB')).unsqueeze(0), normalize=True).numpy()[0]
-    row = {'file': item['file'], 'group': item['group'], 'truth': item['scientific'], 'gate': [category, verdict]}
+    truth = CORRECTIONS.get(item['file'], item['scientific'])
+    row = {'file': item['file'], 'group': item['group'], 'truth': truth, 'gate': [category, verdict]}
+    truth_family = family_of.get(truth.lower())
     for label, (bars, family_bar, unsure) in SETTINGS.items():
         kind, value = name(e, category, verdict, bars, family_bar, unsure)
-        truth_family = family_of.get(item['scientific'].lower())
         row[label] = {'kind': kind, 'value': value,
-                      'right': kind == 'species' and value == item['scientific'] or kind == 'family' and value == truth_family}
+                      'right': kind == 'species' and value == truth or kind == 'family' and value == truth_family}
     rows.append(row)
 json.dump(rows, open(target, 'w', encoding='utf-8'), indent=1)
 
-for setting in SETTINGS:
-    print(f'\n== bars: {setting}')
-    for group in ['bird', 'mammal', 'reptile', 'amphibian', 'insect', 'all']:
-        rs = [r for r in rows if group == 'all' or r['group'] == group]
-        sp = [r for r in rs if r[setting]['kind'] == 'species']; fam = [r for r in rs if r[setting]['kind'] == 'family']
-        right = sum(r[setting]['right'] for r in sp); wrong = len(sp) - right
-        fright = sum(r[setting]['right'] for r in fam)
-        named = len(sp) + len(fam)
-        print(f"{group:9} n={len(rs):3}  species right {right:3} wrong {wrong:2} | family right {fright:2} wrong {len(fam) - fright:2} | "
-              f"no name {len(rs) - named:3} | accuracy of names given {(right + fright) / named:.1%}" if named else f"{group:9} n={len(rs):3}  no names given")
+
+def tally(rs, setting):
+    named = [r for r in rs if r[setting]['kind'] != 'none']
+    right = sum(r[setting]['right'] for r in named)
+    return right, len(named), len(rs)
+
+
+GROUPS_SHOWN = ['bird', 'mammal', 'reptile', 'amphibian', 'insect', 'all']
+for setting in ['before (birds 0.8, family 0.8)', 'app']:
+    print()
+    print(f'== {setting}')
+    for group in GROUPS_SHOWN:
+        right, named, n = tally([r for r in rows if group == 'all' or r['group'] == group], setting)
+        print(f"{group:9} n={n:3}  named {named:3}  wrong {named - right:2}  accuracy {right / named:.1%}  coverage {named / n:.0%}" if named else f"{group:9} n={n:3}  no names given")
+
+print()
+print('== sweep: accuracy of names written / coverage, per group (bar for species and family alike)')
+print('group     ' + ''.join(f'{b:>14.2f}' for b in SWEEP))
+for group in GROUPS_SHOWN:
+    cells = []
+    for b in SWEEP:
+        right, named, n = tally([r for r in rows if group == 'all' or r['group'] == group], f'all {b:.2f}')
+        cells.append(f"{right}/{named} {named / n:.0%}" if named else '-')
+    print(f'{group:9} ' + ''.join(f'{c:>14}' for c in cells))
 wrong = [r for r in rows if r['app']['kind'] != 'none' and not r['app']['right']]
-print('\nWrong names at the app bars:')
+print()
+print('Wrong names at the app bars:')
 for r in wrong:
     print(f"  {r['file']}: {r['truth']} -> {r['app']['kind']} {r['app']['value']}")

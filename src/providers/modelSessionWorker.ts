@@ -30,8 +30,8 @@ scope.onmessage = async (event: MessageEvent) => {
     } else if (message.type === 'run') {
       if (!ort || !session) throw new Error('The model is not ready.');
       const feeds: Record<string, import('onnxruntime-web/wasm').Tensor> = {};
-      for (const [name, value] of Object.entries(message.feeds as Record<string, { data: Float32Array; dims: number[] }>)) {
-        feeds[name] = new ort.Tensor('float32', value.data, value.dims);
+      for (const [name, value] of Object.entries(message.feeds as Record<string, { data: Float32Array | BigInt64Array; dims: number[] }>)) {
+        feeds[name] = value.data instanceof BigInt64Array ? new ort.Tensor('int64', value.data, value.dims) : new ort.Tensor('float32', value.data, value.dims);
       }
       const started = performance.now();
       const results = await session.run(feeds);

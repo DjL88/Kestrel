@@ -289,6 +289,7 @@ export const Schemas = {
   }),
   DeactivateRequest: z.object({ licenceKey: z.string().min(10).max(2000), activationId: z.string().min(1).max(64) }).strict(),
   AccountActivateRequest: z.object({ deviceHash: Hex64, platform: Platform, appVersion: Version }).strict(),
+  AttachLicenceRequest: z.object({ licenceKey: z.string().min(10).max(2000) }).strict(),
   AccountDevicesRequest: z.object({ deviceHash: Hex64 }).strict(),
   AccountDeviceReleaseRequest: z.object({ deviceHash: Hex64, activationId: z.string().min(1).max(64) }).strict(),
   ActivateResponse: z.object({ grant: SignedEnvelopeSchema, activationId: z.string() }),
@@ -971,6 +972,23 @@ export function createApp(options: AppOptions) {
         const account = await store.getAccount(accountId);
         if (!account || account.status !== 'active') throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'Sign in to use this.');
         return { status: 200, body: await issueSession(accountId, account.role === 'admin' ? 'admin' : 'user') };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/me/licence/attach', summary: 'Signed in: put a KESTREL1 licence key used before signing up on this account (its devices come with it). Never moves a key from another account', auth: 'user',
+      body: Schemas.AttachLicenceRequest,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        if (!activateLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
+        const body = parseJson(Schemas.AttachLicenceRequest, req.rawBody);
+        const check = await verifyLicence(body.licenceKey, config.licencePublicKey);
+        if (!check.ok) throw new ApiError(400, 'LICENCE_INVALID', 'That licence key was not recognised.');
+        const account = await store.getAccount(claims.sub);
+        const outcome = await store.attachLicenceToAccount(check.details.id, claims.sub,
+          newLicence(check.details.id, check.details.plan, now(), { accountId: claims.sub, emailHash: account?.emailHash ?? null }));
+        await audit(claims.sub, 'licence.attach', outcome === 'other' ? 'denied' : 'allowed', `${check.details.id} ${outcome}`);
+        if (outcome === 'other') throw new ApiError(409, 'LICENCE_ON_OTHER_ACCOUNT', 'This licence key is already on another InFlight account. To bring the two together, merge the accounts in Settings → Account.');
+        return { status: 200, body: { attached: outcome === 'attached', already: outcome === 'already', licenceId: check.details.id } };
       },
     },
     {
