@@ -79,6 +79,7 @@ export const cy: Translation = {
     themeContrast: 'Cyferbyniad uchel',
     textSize: 'Maint testun',
     typeface: 'Ffurfdeip',
+    fontBrand: 'InFlight (Plus Jakarta Sans)',
     fontReadable: 'Hawdd ei ddarllen (Atkinson Hyperlegible)',
     calm: 'Llai o ysgogiad (dim animeiddio)',
     calmPreset: 'Tawel a chlir',

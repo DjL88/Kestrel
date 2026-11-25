@@ -3,6 +3,9 @@ import type { CollabRole } from '../../../core/collabRoles';
 import { initialsOf } from '../../../core/editingSequence';
 import { CollabError, type CollabClient, type CollabInvite, type CollabProjectView } from '../../../providers/collabClient';
 import { STRINGS } from '../strings';
+import { galleryThumbnail } from '../../engineClient/galleryThumbnail';
+import GalleryFeedbackPanel from './GalleryFeedbackPanel';
+import CloudPhotosPanel, { type LocalCloudPhoto } from './CloudPhotosPanel';
 import { readSharedLink, writeSharedLink } from './sharedLinks';
 
 interface ShareDialogProps {
@@ -14,6 +17,17 @@ interface ShareDialogProps {
   selectedPhotoIds: string[];
   /** The signed-in person's name, or null when signed out. */
   displayName: () => Promise<string | null>;
+  /** A sized JPEG of a photo as it is developed now, or null when it has no developed preview yet. */
+  renderPreview?: (photoId: string) => Promise<Blob | null>;
+  /** Where the public gallery page lives (`/gallery`); empty when this build cannot make client links. */
+  siteUrl: string;
+  photoName: (photoId: string) => string;
+  /** This project's photos, for the cloud store. */
+  localPhotos: LocalCloudPhoto[];
+  readOriginal?: (photoId: string) => Promise<Blob | null>;
+  importCloud?: (items: { file: File; projectId: string; photoKey: string }[]) => Promise<void>;
+  attachOriginal?: (photoId: string, original: File, sha256: string) => Promise<boolean>;
+  onGoToPhoto: (photoId: string) => void;
   onClose: () => void;
 }
 
@@ -23,7 +37,7 @@ const INVITE_ROLES: Exclude<CollabRole, 'owner'>[] = ['editor', 'commenter', 'vi
  * Share a project with named people (#1387 C01). Opt-in: nothing is contacted until this dialog opens, and a project
  * that is never shared keeps working offline. For now only the project name and the people are shared; the dialog says so.
  */
-export default function ShareDialog({ open, client, localProjectId, projectName, selectedPhotoIds, displayName, onClose }: ShareDialogProps) {
+export default function ShareDialog({ open, client, localProjectId, projectName, selectedPhotoIds, displayName, renderPreview, siteUrl, photoName, onGoToPhoto, localPhotos, readOriginal, importCloud, attachOriginal, onClose }: ShareDialogProps) {
   const t = STRINGS.share;
   const closeButton = useRef<HTMLButtonElement>(null);
   const [view, setView] = useState<CollabProjectView | null>(null);
@@ -33,6 +47,9 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Exclude<CollabRole, 'owner'>>('editor');
+  const [gallery, setGallery] = useState({ days: 14, password: '', allowComments: true, allowFavourites: true, allowApproval: true, allowDownloads: false, watermark: true });
+  const [galleryLink, setGalleryLink] = useState<string | null>(null);
+  const [published, setPublished] = useState(0);
 
   const explain = useCallback((error: unknown) => {
     const kind = error instanceof CollabError ? error.kind : 'network';
@@ -47,7 +64,7 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
 
   useEffect(() => {
     if (!open) return;
-    setView(null); setInvites([]); setProblem(null); setNote(null);
+    setView(null); setInvites([]); setProblem(null); setNote(null); setGalleryLink(null);
     if (!client.configured) { setProblem(t.notConfigured); return; }
     const linked = localProjectId ? readSharedLink(localProjectId) : null;
     void run(async () => {
@@ -88,6 +105,28 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
     setInvites((current) => current.filter((entry) => entry.projectId !== item.projectId));
     setView(await client.project(item.projectId));
   });
+  const publish = () => view && renderPreview && run(async () => {
+    setGalleryLink(null);
+    const previews: { photoId: string; jpeg: Blob; thumb: Blob | null }[] = [];
+    for (const photoId of selectedPhotoIds) {
+      const jpeg = await renderPreview(photoId);
+      if (jpeg) previews.push({ photoId, jpeg, thumb: await galleryThumbnail(jpeg) });
+    }
+    const skipped = selectedPhotoIds.length - previews.length;
+    if (!previews.length) { setNote(t.gallerySkipped(skipped)); return; }
+    const name = projectName.trim() || 'InFlight project';
+    const made = await client.publishGallery(view.projectId, {
+      name, photoIds: previews.map((item) => item.photoId), days: gallery.days, ...(gallery.password ? { password: gallery.password } : {}),
+      allowComments: gallery.allowComments, allowFavourites: gallery.allowFavourites, allowApproval: gallery.allowApproval,
+      allowDownloads: gallery.allowDownloads, watermark: gallery.watermark,
+    }, previews);
+    setPublished((n) => n + 1);
+    setGalleryLink(`${siteUrl.replace(/\/+$/, '')}/gallery#t=${encodeURIComponent(made.linkToken)}`);
+    setNote([t.galleryDone(made.published), skipped ? t.gallerySkipped(skipped) : ''].filter(Boolean).join(' '));
+  });
+  const copyLink = () => { if (galleryLink) void navigator.clipboard?.writeText(galleryLink).then(() => setNote(t.galleryCopied), () => undefined); };
+  const toggles = [['allowComments', t.galleryComments], ['allowFavourites', t.galleryFavourites], ['allowApproval', t.galleryApproval],
+    ['allowDownloads', t.galleryDownloads], ['watermark', t.galleryWatermark]] as const;
   const manages = view?.me.role === 'owner';
   const canInvite = view && (view.me.role === 'owner' || view.me.role === 'editor');
   const inputClass = 'min-h-10 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2.5 text-sm';
@@ -157,6 +196,41 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
                   className="min-h-10 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-sm font-medium disabled:opacity-50">{t.sendInvite}</button>
               </form>
             )}
+            {canInvite && renderPreview && siteUrl && (
+              <form className="mt-4 space-y-2 border-t border-[var(--border-default)] pt-3" data-testid="share-gallery" onSubmit={(event) => { event.preventDefault(); void publish(); }}>
+                <h3 className="text-xs font-semibold">{t.galleryHeading}</h3>
+                <p className="text-xs text-[var(--text-secondary)]">{t.galleryIntro}</p>
+                {selectedPhotoIds.length === 0 && <p className="text-xs">{t.galleryNeedsPhotos}</p>}
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="block text-xs">{t.galleryDays}
+                    <input type="number" min={1} max={90} value={gallery.days} onChange={(event) => setGallery((g) => ({ ...g, days: Math.min(90, Math.max(1, Math.round(Number(event.target.value) || 1))) }))} className={inputClass} />
+                  </label>
+                  <label className="block text-xs">{t.galleryPassword}
+                    <input type="password" value={gallery.password} minLength={6} maxLength={200} onChange={(event) => setGallery((g) => ({ ...g, password: event.target.value }))} className={inputClass} autoComplete="new-password" />
+                  </label>
+                </div>
+                <div className="space-y-1">
+                  {toggles.map(([key, label]) => (
+                    <label key={key} className="flex min-h-8 items-center gap-2 text-xs">
+                      <input type="checkbox" checked={gallery[key]} onChange={(event) => setGallery((g) => ({ ...g, [key]: event.target.checked }))} />{label}
+                    </label>
+                  ))}
+                </div>
+                <button type="submit" disabled={busy || selectedPhotoIds.length === 0}
+                  className="min-h-10 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-sm font-medium disabled:opacity-50">{t.galleryPublish(selectedPhotoIds.length)}</button>
+                {galleryLink && (
+                  <div className="space-y-1">
+                    <label className="block text-xs">{t.galleryLink}
+                      <input readOnly value={galleryLink} data-testid="share-gallery-link" onFocus={(event) => event.currentTarget.select()} className={inputClass} />
+                    </label>
+                    <button type="button" onClick={copyLink} className="min-h-9 rounded-[var(--radius-sm)] px-2.5 text-xs font-medium hover:bg-[var(--bg-surface-active)]">{t.galleryCopy}</button>
+                  </div>
+                )}
+              </form>
+            )}
+            <CloudPhotosPanel client={client} projectId={view.projectId} role={view.me.role} photos={localPhotos} selectedPhotoIds={selectedPhotoIds}
+              renderPreview={renderPreview} readOriginal={readOriginal} importCloud={importCloud} attachOriginal={attachOriginal} onProblem={explain} />
+            {canInvite && <GalleryFeedbackPanel client={client} projectId={view.projectId} version={published} photoName={photoName} onGoToPhoto={onGoToPhoto} onProblem={explain} />}
           </>
         )}
       </section>

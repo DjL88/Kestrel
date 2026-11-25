@@ -25,6 +25,18 @@ export const enUS: AreaTranslation<typeof source> = {
     noGenAiNote: 'Zero generative AI. Uses masking, denoise, tone, and color grading only.',
   },
   adjust: {
+    fringe: {
+      heading: "Color fringes",
+      help: "Lenses can leave thin colored outlines on edges: red, cyan, blue or yellow towards the corners, and purple or green on dark edges against a bright sky. These controls take them away. The photo itself is never changed.",
+      detect: "Fix lens color edges",
+      corrected: "Lens color edges corrected.",
+      clean: "No lens color edges found on this photo, so nothing was changed.",
+      active: "Lens color edges are corrected on this photo.",
+      redHelp: "Moves the red channel in or out from the centre. Set by Fix lens color edges; adjust by hand if a red or cyan outline remains.",
+      blueHelp: "Moves the blue channel in or out from the centre. Set by Fix lens color edges; adjust by hand if a blue or yellow outline remains.",
+      purpleHelp: "Takes the color out of purple and violet outlines beside strong edges, such as branches against a bright sky. Purple areas away from strong edges keep their color.",
+      greenHelp: "Takes the color out of green outlines beside strong edges. Green areas away from strong edges keep their color.",
+    },
     colourHeading: 'Color & Clarity',
     tooltips: {
       temperature: 'Shifts color balance cooler (blue) or warmer (amber). Guided by white-balance anchors for color-blind accuracy.',
@@ -32,6 +44,10 @@ export const enUS: AreaTranslation<typeof source> = {
       saturation: 'Uniformly increases or decreases intensity across every color channel.',
     },
   },
+  layers: {
+    centre: "Center",
+  },
+
   formats: {
     recentBorderColoursGroup: 'Recently used border colors',
     recentBorderColours: 'Recent colors',
@@ -54,7 +70,7 @@ export const enUS: AreaTranslation<typeof source> = {
   settings: {
     assistance: {
       cvdLabel: 'Color-vision support',
-      cvdDesc: 'Names the main colors in each photo in words, and points out color casts, very strong colors and red and green areas that many colorblind people find hard to tell apart. Also labels the ends of the Temperature and Tint sliders. Off unless you turn it on.',
+      cvdDesc: 'Names the main colors in each photo in words. Points out color casts, very strong colors, and red and green areas that many colorblind people find hard to tell apart. Also labels the ends of the Temperature and Tint sliders. Off unless you turn it on.',
     },
   },
   keyboardKeys: {
@@ -69,7 +85,7 @@ export const enUS: AreaTranslation<typeof source> = {
     centredPair: 'Centered pair',
   },
   settingsMore: {
-    forgetBody: 'If you have signed in, bought a license, used optional cloud help, or sent a message, InFlight holds a small amount of data about you on its servers. Turning off “help improve suggestions” already deletes what you shared. To have the rest erased, send a request with the email you signed in with. InFlight does not yet have a one-tap server erase, so this goes to a person, and you will be told what, if anything, must be kept (for example payment records the law requires).',
+    forgetBody: 'Some things leave a small amount of data about you on InFlight’s servers: signing in, buying a license, using optional cloud help or sending a message. Turning off “help improve suggestions” already deletes what you shared. To have the rest erased, send a request with the email you signed in with. InFlight cannot yet erase this with one tap, so a person handles the request. You will be told what, if anything, must be kept, such as payment records the law requires.',
   },
   overlayKit: {
     centre: 'Center',
