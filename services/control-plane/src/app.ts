@@ -166,7 +166,7 @@ export const Schemas = {
     password: z.string().min(6).max(200).optional(), allowComments: z.boolean().default(false), allowFavourites: z.boolean().default(false),
     allowApproval: z.boolean().default(false), allowDownloads: z.boolean().default(false), watermark: z.boolean().default(false),
   }).strict(),
-  GalleryPreview: z.object({ sha256: Sha, bytes: z.number().int().positive().max(GALLERY_MAX_PREVIEW_BYTES) }).strict(),
+  GalleryPreview: z.object({ sha256: Sha, bytes: z.number().int().positive().max(GALLERY_MAX_PREVIEW_BYTES), variant: z.enum(['preview', 'thumb']).default('preview') }).strict(),
   GalleryOpen: z.object({ token: z.string().min(20).max(128), password: z.string().max(200).optional() }).strict(),
   GalleryFeedback: z.object({
     token: z.string().min(20).max(128), password: z.string().max(200).optional(), visitor: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
@@ -1232,7 +1232,7 @@ export function createApp(options: AppOptions) {
       handler: async (req, params) => {
         const body = parseJson(Schemas.GalleryPreview, req.rawBody);
         await galleryOwner(req, params.gid);
-        return { status: 200, body: { uploadUrl: await gallery(() => galleryCfg().signPreviewUpload(params.gid, params.photoId, body.sha256, body.bytes)) } };
+        return { status: 200, body: { uploadUrl: await gallery(() => galleryCfg().signPreviewUpload(params.gid, params.photoId, body.sha256, body.bytes, body.variant)) } };
       },
     },
     {

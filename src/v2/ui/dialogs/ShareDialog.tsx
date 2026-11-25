@@ -3,6 +3,7 @@ import type { CollabRole } from '../../../core/collabRoles';
 import { initialsOf } from '../../../core/editingSequence';
 import { CollabError, type CollabClient, type CollabInvite, type CollabProjectView } from '../../../providers/collabClient';
 import { STRINGS } from '../strings';
+import { galleryThumbnail } from '../../engineClient/galleryThumbnail';
 import GalleryFeedbackPanel from './GalleryFeedbackPanel';
 import { readSharedLink, writeSharedLink } from './sharedLinks';
 
@@ -100,10 +101,10 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
   });
   const publish = () => view && renderPreview && run(async () => {
     setGalleryLink(null);
-    const previews: { photoId: string; jpeg: Blob }[] = [];
+    const previews: { photoId: string; jpeg: Blob; thumb: Blob | null }[] = [];
     for (const photoId of selectedPhotoIds) {
       const jpeg = await renderPreview(photoId);
-      if (jpeg) previews.push({ photoId, jpeg });
+      if (jpeg) previews.push({ photoId, jpeg, thumb: await galleryThumbnail(jpeg) });
     }
     const skipped = selectedPhotoIds.length - previews.length;
     if (!previews.length) { setNote(t.gallerySkipped(skipped)); return; }
