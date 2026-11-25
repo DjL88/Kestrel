@@ -23,7 +23,7 @@ locals {
   licence_private_key_secret = "kcp-licence-private-key-pem"
   control_plane_origin_list  = local.browser_origins
   control_plane_origins      = join(",", local.control_plane_origin_list)
-  storage_signing_enabled    = local.cloud_on || var.safe_copy_enabled
+  storage_signing_enabled    = local.cloud_on || var.safe_copy_enabled || var.gallery_enabled || var.presence_database_url != "" # presence signs Firebase tokens with the same self Token Creator binding
 }
 
 resource "google_project_service" "control_plane" {
@@ -297,6 +297,17 @@ resource "google_cloud_run_v2_service" "control_plane" {
         }
       }
       dynamic "env" {
+        for_each = var.collaboration_enabled ? merge(
+          { KCP_COLLABORATION_ENABLED = "1" },
+          var.presence_database_url != "" ? { KCP_PRESENCE_DATABASE_URL = var.presence_database_url, KCP_PRESENCE_SERVICE_ACCOUNT = google_service_account.control_plane.email } : {},
+          var.gallery_enabled ? { KCP_GALLERY_BUCKET = try(google_storage_bucket.gallery[0].name, "") } : {},
+        ) : {}
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+      dynamic "env" {
         for_each = var.learning_signal_enabled ? { KCP_LEARNING_ENABLED = "1" } : {}
         content {
           name  = env.key
@@ -323,6 +334,7 @@ resource "google_cloud_run_v2_service" "control_plane" {
     google_service_account_iam_member.control_plane_url_signing,
     google_storage_bucket_iam_member.control_plane_objects,
     google_storage_bucket_iam_member.safe_copy_control_plane,
+    google_storage_bucket_iam_member.gallery_control_plane,
     google_cloud_run_v2_job_iam_member.control_plane_starts_job,
     google_service_account_iam_member.control_plane_acts_as_runner,
   ]

@@ -75,9 +75,12 @@ import { judgeSubject } from '../../core/autoCull';
 import { archiveExports, saveExportFile, loadExportSource, loadVerifiedRasterOriginalForExport } from '../../providers/browserExport';
 import { toProfile } from '../../core/exportFormats';
 import { renderV2Export, type OverlayDraw } from './renderV2Export';
+import { renderGalleryPreview } from './galleryPreview';
 import { formatOverlayRowText } from '../ui/utils/studioMath';
 import { loadImage } from '../../providers/loadImage';
 import { deliverExport, describeExport } from './exportDelivery';
+import { applySidecarImports, planXmpImports, saveSidecars, sidecarFailureText, xmpScope } from './xmpOps';
+import { STRINGS as V2_STRINGS } from '../ui/strings';
 import { scheduleV2PhotoExports, photoExportUnits } from './scheduledPhotoExport';
 import { uniqueExportFilename } from '../../core/exportNaming';
 import { exportMayContinue } from '../../core/exportCancellation';
@@ -1584,6 +1587,24 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     importPhotos: () => { void importPhotos(); },
     importFolder: () => { void pickFolderFiles().then((files) => { if (files?.length) void importPhotos(files); }); },
     importDroppedPhotos: (files) => { if (files.length) void importPhotos(files); },
+    saveXmpSidecars: (photoIds) => {
+      const frames = xmpScope(stateRef.current?.frames ?? [], photoIds);
+      void saveSidecars(frames).then((message) => { if (message) setNotice(message); });
+    },
+    readXmpSidecars: (files, photoIds) => {
+      const before = stateRef.current;
+      if (!before) return;
+      // Every file is parsed and matched before any photo changes; a project change meanwhile cancels it.
+      void planXmpImports(files, xmpScope(before.frames, photoIds), before.frames).then((planned) => {
+        const now = stateRef.current;
+        if (!now || now.shoot.id !== before.shoot.id || now.shoot.lastUpdatedAt !== before.shoot.lastUpdatedAt) {
+          setNotice(sidecarFailureText(null));
+          return;
+        }
+        mutate((current) => applySidecarImports(current, planned));
+        setNotice(V2_STRINGS.xmp.read(planned.length));
+      }, (error) => setNotice(sidecarFailureText(error)));
+    },
     runAutoCull: () => { void runAutoCull(); },
     addMaskLayer: (photoId, type) => { void addMask(photoId, type); },
     toggleMaskLayer: (photoId, maskId) => editMasks(photoId, (masks) => toggleMask(masks, maskId)),
@@ -1597,6 +1618,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     applyAssistSuggestion: applyAuto,
     requestLocalAuto: (photoId) => setAutoRequest((last) => ({ photoId, sequence: (last?.sequence ?? 0) + 1 })),
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
+    renderGalleryPreview: async (photoId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
+      return frame && provider.current ? renderGalleryPreview(frame, provider.current) : null;
+    },
     dismissAssistSuggestion: (photoId, suggestionId) => setAssists((current) => (current[photoId]
       ? { ...current, [photoId]: { ...current[photoId], dismissed: [...current[photoId].dismissed, suggestionId] } } : current)),
     runDeepVisionReview: (photoId) => runDeepVisionReviewAction(photoId),

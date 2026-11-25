@@ -79,6 +79,7 @@ export const pt: Translation = {
     themeContrast: 'Alto contraste',
     textSize: 'Tamanho do texto',
     typeface: 'Tipo de letra',
+    fontBrand: 'InFlight (Plus Jakarta Sans)',
     fontReadable: 'Fácil de ler (Atkinson Hyperlegible)',
     calm: 'Menos estímulos (sem animações)',
     calmPreset: 'Calmo e claro',

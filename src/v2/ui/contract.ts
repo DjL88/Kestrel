@@ -1,4 +1,4 @@
-import type { ColourWords } from '../engineClient/colourWords';
+import type { ColourSenseNote, ColourWords } from '../engineClient/colourWords';
 import type { ComponentType, CSSProperties, ReactNode } from 'react';
 
 // Single Contract File for InFlight UI Shell
@@ -6,6 +6,10 @@ import type { ComponentType, CSSProperties, ReactNode } from 'react';
 // Engine engineers swap src/stub.ts with a real WorkspaceStore + WorkspaceActions provider.
 
 export type DecisionState = 'unreviewed' | 'keep' | 'reject';
+/** Which photos the filmstrip and grid show by decision. 'to-review' is the photos with no decision yet. */
+export type FilmstripFilter = 'all' | 'to-review' | 'flagged' | 'set-aside';
+/** The order photos are shown in. 'shoot' is the order they were imported in; nothing is moved on disk. */
+export type PhotoSort = 'shoot' | 'captured-oldest' | 'captured-newest' | 'filename' | 'rating' | 'best';
 /** The engine's three-tier ranking of a photo within its shoot. Absent or null means it has not been ranked: nothing is guessed. */
 export type PhotoTier = 'good' | 'better' | 'best';
 /** A histogram measured from the picture's pixels: 32 bins, each 0 to 100, plus the share of pixels clipped to pure black or white. */
@@ -268,6 +272,10 @@ export interface AssistSuggestion {
   comparison?: { before: string; after: string };
   /** The same edit as ordered slider steps with real values (src/core/editingSequence.ts), for Watch and Learn. */
   steps?: { id: string; label: string; from: string; to: string }[];
+  /** ColourSense: whether the suggestion keeps the subject's colour, in words (absent when it could not be judged). */
+  colourSense?: ColourSenseNote;
+  /** Colour match: whether the subject carries the colours it should have (species signature or the vision model), in words. */
+  colourMatch?: ColourSenseNote;
 }
 
 export interface PhotoExif {
@@ -295,6 +303,10 @@ export interface Photo {
   originalConnected: boolean;
   rating: number; // 0 to 5
   speciesLabel?: string;
+  /** What kind of vehicle or aircraft it probably is, in the person's language ("Military jet: Eurofighter Typhoon (probably)"). */
+  vehicleLabel?: string;
+  /** Extra words the photo can be found by (a vehicle's kind in this language and in English, its type name). */
+  searchTerms?: string[];
   category: string;
   sharpnessScore: number;
   exif: PhotoExif;
@@ -318,6 +330,8 @@ export interface Photo {
   };
   /** Actual recorded format actions; missing means pre-history, not a fabricated event. */
   formatHistory?: { formatId: string; kind: string; at: number; parentFormatId?: string; forkEditCursor?: number }[];
+  /** When the photo was taken, in milliseconds, when the file records it. Used only for sorting. */
+  capturedAtMs?: number;
   /** The picture's size in real pixels, when the file says. Used for the true 100% zoom. */
   pixelSize?: { width: number; height: number };
   /** Measured from the picture as it is now. Absent until measured; the interface shows nothing rather than a guess. */
@@ -513,7 +527,10 @@ export interface WorkspaceStore {
   panels: Record<PanelId, PanelLayoutState>;
   filmstripCollapsed: boolean;
   filmstripHeight: number;
-  filmstripFilter: 'all' | 'flagged' | 'set-aside';
+  filmstripFilter: FilmstripFilter;
+  /** Show only photos rated at least this many stars (0 shows every rating). */
+  filmstripMinRating: number;
+  filmstripSort: PhotoSort;
   filmstripSearch: string;
   gridViewOpen: boolean;
   compareMode: boolean;
@@ -555,6 +572,8 @@ export interface WorkspaceActions {
 
   // Photos, Culling & Selection
   selectPhoto: (photoId: string, modifiers?: { ctrl?: boolean; shift?: boolean }) => void;
+  /** Make this photo the one keys act on, without changing which photos are selected (the chosen side of a two-photo compare). */
+  focusPhoto: (photoId: string) => void;
   selectAllPhotos: () => void;
   clearSelection: () => void;
   setDecision: (photoIds: string[], decision: DecisionState) => void;
@@ -567,6 +586,10 @@ export interface WorkspaceActions {
   importPhotos: () => void;
   importFolder: () => void;
   importDroppedPhotos: (files: File[]) => void;
+  /** Save ratings, flags and confirmed tags as XMP sidecars (the selection when two or more are selected, else the whole project). */
+  saveXmpSidecars: (photoIds: string[]) => void;
+  /** Read ratings, flags and tags from chosen .xmp files (or one .zip) for matching photos. Every file is checked before anything changes. */
+  readXmpSidecars: (files: File[], photoIds: string[]) => void;
   runAutoCull: () => void;
   reconnectOriginal: (photoId: string) => void;
   toggleDemoUnavailable: () => void;
@@ -577,6 +600,8 @@ export interface WorkspaceActions {
   applyAssistSuggestion: (photoId: string, suggestionId: string) => void;
   requestLocalAuto?: (photoId: string) => void;
   applyAllAssistSuggestions: (photoId: string) => void;
+  /** A sized JPEG of the edited photo for a client gallery, or null when there is no trustworthy picture yet. Absent in the stub. */
+  renderGalleryPreview?: (photoId: string) => Promise<Blob | null>;
   dismissAssistSuggestion: (photoId: string, suggestionId: string) => void;
 
   // Editing & Looks
@@ -693,7 +718,9 @@ export interface WorkspaceActions {
   switchEditVersion: (photoId: string, versionId: string) => void;
   setFilmstripCollapsed: (collapsed: boolean) => void;
   setFilmstripHeight: (height: number) => void;
-  setFilmstripFilter: (filter: 'all' | 'flagged' | 'set-aside') => void;
+  setFilmstripFilter: (filter: FilmstripFilter) => void;
+  setFilmstripMinRating: (rating: number) => void;
+  setFilmstripSort: (sort: PhotoSort) => void;
   setFilmstripSearch: (query: string) => void;
   setGridViewOpen: (open: boolean) => void;
   setCompareMode: (compare: boolean) => void;

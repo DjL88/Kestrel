@@ -730,6 +730,8 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     filmstripCollapsed: false,
     filmstripHeight: 152,
     filmstripFilter: 'all',
+    filmstripMinRating: 0,
+    filmstripSort: 'shoot',
     filmstripSearch: '',
     gridViewOpen: false,
     compareMode: false,
@@ -866,6 +868,10 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       });
     },
 
+    focusPhoto: (photoId) => {
+      setStore((prev) => (prev.photos.some((p) => p.id === photoId) ? { ...prev, activePhotoId: photoId } : prev));
+    },
+
     selectAllPhotos: () => {
       logAction('selectAllPhotos');
       setStore((prev) => ({
@@ -959,6 +965,12 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     importFolder: () => {
       logAction('importFolder');
       setStore((prev) => ({ ...prev, lastActionNotice: 'Folder import is available in the real workspace.' }));
+    },
+    saveXmpSidecars: () => {
+      setStore((prev) => ({ ...prev, lastActionNotice: 'XMP sidecars are available in the real workspace.' }));
+    },
+    readXmpSidecars: () => {
+      setStore((prev) => ({ ...prev, lastActionNotice: 'XMP sidecars are available in the real workspace.' }));
     },
     importDroppedPhotos: (files) => {
       logAction('importDroppedPhotos', { count: files.length });
@@ -2029,6 +2041,14 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
 
     setFilmstripFilter: (filmstripFilter) => {
       setStore((prev) => ({ ...prev, filmstripFilter }));
+    },
+
+    setFilmstripMinRating: (rating) => {
+      setStore((prev) => ({ ...prev, filmstripMinRating: Math.min(5, Math.max(0, Math.round(rating))) }));
+    },
+
+    setFilmstripSort: (filmstripSort) => {
+      setStore((prev) => ({ ...prev, filmstripSort }));
     },
 
     setFilmstripSearch: (filmstripSearch) => {

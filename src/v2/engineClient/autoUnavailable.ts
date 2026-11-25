@@ -1,4 +1,5 @@
 import type { PhotoFrame } from '../../core/types';
+import { v2Text } from '../../i18n/areas/v2';
 
 /**
  * Why Auto (Co-pilot's on-device check, Auto-pilot) did not look at a photo. Before this, runAuto returned null and the
@@ -21,16 +22,13 @@ export function autoUnavailableMatches(result: AutoUnavailable, frame: PhotoFram
     result.source.originalSha256 === frame.originalSha256 && result.source.framing === frame.framing;
 }
 
-/** One calm, plain sentence for the Co-pilot panel and the notice. Never claims an analysis that did not happen. */
+/** Calm, plain sentences for the Co-pilot panel and the notice, in the person's language. Never claims an analysis that did not happen. */
 export function autoUnavailableSentence(cause: AutoUnavailableCause, filename: string): string {
+  const words = v2Text.autoCheck;
   switch (cause) {
-    case 'raw-not-developed':
-      return `Auto has not checked ${filename}: it needs the RAW developed from its sensor data, and that is not available on this device right now (the original may be disconnected). Auto did not use the camera's embedded preview instead. Nothing was changed.`;
-    case 'no-preview':
-      return `Auto has not checked ${filename}: no picture of it could be read on this device. Reconnect the original and try again. Nothing was changed.`;
-    case 'too-small':
-      return `Auto has not checked ${filename}: the picture is too small to measure reliably. Nothing was changed.`;
-    case 'failed':
-      return `Auto could not finish checking ${filename}. Open Tasks for the detail. Nothing was changed.`;
+    case 'raw-not-developed': return words.rawNotDeveloped(filename);
+    case 'no-preview': return words.noPreview(filename);
+    case 'too-small': return words.tooSmall(filename);
+    case 'failed': return words.failed(filename);
   }
 }
