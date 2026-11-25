@@ -13,8 +13,24 @@ test('native HTTP capability never grants wildcard plaintext hosts', () => {
   assert.ok(urls.includes('http://127.0.0.1:*'), 'IPv4 loopback helper access remains available');
   for (const url of urls) {
     if (!url.startsWith('http://')) continue;
-    assert.match(url, /^http:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\*)?$/, `unsafe plaintext HTTP scope: ${url}`);
+    assert.match(url, /^http:\/\/(?:localhost|127\.0\.0\.1|\[\\:\\:1\])(?::\*)?$/, `unsafe plaintext HTTP scope: ${url}`);
   }
+});
+
+// Tauri's HTTP plugin compiles every allowed URL as a URL pattern when a request is made. One pattern that does not
+// compile makes every native request fail ("error deserializing scope"), which broke desktop Google sign-in on 25 Nov.
+// In a URL pattern ':' starts a named part, so the IPv6 loopback must be written with escaped colons.
+test('every native HTTP scope compiles as a URL pattern and allows what it is meant to', () => {
+  assert.equal(typeof URLPattern, 'function', 'this check needs a Node with URLPattern');
+  for (const { url } of http.allow) {
+    assert.doesNotThrow(() => new URLPattern(url), `not a valid URL pattern: ${url}`);
+  }
+  const allowed = (target) => http.allow.some(({ url }) => new URLPattern(url).test(target));
+  assert.ok(allowed('https://oauth2.googleapis.com/token'), 'Google sign-in code exchange');
+  assert.ok(allowed('http://localhost:11434/api/tags'), 'local helper on localhost');
+  assert.ok(allowed('http://127.0.0.1:11434/api/tags'), 'local helper on IPv4 loopback');
+  assert.ok(allowed('http://[::1]:11434/api/tags'), 'local helper on IPv6 loopback');
+  assert.ok(!allowed('http://example.com/'), 'no plaintext HTTP to other hosts');
 });
 
 test('native window retains explicit file picker and offline file access', () => {
