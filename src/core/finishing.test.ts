@@ -90,3 +90,31 @@ test('the 16-bit TIFF includes dehaze, calibration, vignette and grain and refus
   applyFinishingRgb16(vignetteOnly, w, h, { vignette: { amount: -1, size: 0.5 } });
   assert.ok(vignetteOnly[0] < 30000);
 });
+
+test('dehaze at preview size matches dehaze at full size (the haze colour does not depend on resolution)', () => {
+  const W = 400, H = 300, k = 4;
+  const big = new Uint8ClampedArray(W * H * 4);
+  for (let y = 0; y < H; y += 1) for (let x = 0; x < W; x += 1) {
+    const i = (y * W + x) * 4;
+    const haze = y / H; // hazier towards the bottom, as with distance
+    const ridge = ((x >> 3) + (y >> 3)) % 2 ? 60 : 110;
+    big.set([ridge + (225 - ridge) * haze * 0.8, ridge * 0.9 + (228 - ridge * 0.9) * haze * 0.8, ridge * 0.7 + (232 - ridge * 0.7) * haze * 0.8, 255], i);
+  }
+  const shrink = (src: Uint8ClampedArray) => {
+    const out = new Uint8ClampedArray((W / k) * (H / k) * 4);
+    for (let y = 0; y < H / k; y += 1) for (let x = 0; x < W / k; x += 1) for (let c = 0; c < 4; c += 1) {
+      let sum = 0;
+      for (let dy = 0; dy < k; dy += 1) for (let dx = 0; dx < k; dx += 1) sum += src[((y * k + dy) * W + x * k + dx) * 4 + c];
+      out[(y * (W / k) + x) * 4 + c] = Math.round(sum / (k * k));
+    }
+    return out;
+  };
+  const small = shrink(big);
+  applyDehaze(big, W, H, 4, 255, 0.8);
+  applyDehaze(small, W / k, H / k, 4, 255, 0.8);
+  const fromBig = shrink(big);
+  let diff = 0;
+  for (let i = 0; i < small.length; i += 4) diff += Math.abs(small[i] - fromBig[i]) + Math.abs(small[i + 2] - fromBig[i + 2]);
+  const mean = diff / (small.length / 2);
+  assert.ok(mean < 4, `mean difference ${mean.toFixed(2)} of 255`);
+});

@@ -4,8 +4,8 @@
  * has from a softened dark channel, and take it away (positive amount) or add more (negative). It runs first, on the
  * picture's own pixels, before tone, like noise reduction. It makes no claim to recover detail that is not there.
  *
- * Known limit: the airlight is estimated from the pixels being edited, so a zoomed-in strip can differ slightly from
- * the whole-photo preview and the export, which agree with each other.
+ * The airlight is measured on a fixed-size, block-averaged copy (AIRLIGHT_EDGE across the long edge), so a 2,200-pixel
+ * preview, a thumbnail and a full-size export of the same framed photo find the same haze colour and agree.
  */
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 export const validDehaze = (value: unknown): value is number => finite(value) && value >= -1 && value <= 1;
@@ -46,28 +46,53 @@ function boxBlur(source: Float32Array, width: number, height: number, radius: nu
   return a;
 }
 
+/** Long edge of the block-averaged copy the airlight is measured on. */
+export const AIRLIGHT_EDGE = 256;
+
+/**
+ * The haze colour (0..1 per channel): the mean of the 0.2% of blocks with the brightest dark channel, measured on the
+ * picture averaged into blocks so there are AIRLIGHT_EDGE across its long edge. Independent of the resolution it is
+ * given, which keeps preview and export in step.
+ */
+export function airlight(pixels: Uint8ClampedArray | Uint16Array, width: number, height: number, stride: 3 | 4, max: number): [number, number, number] {
+  const scale = Math.max(width, height) / AIRLIGHT_EDGE;
+  const bw = Math.max(1, Math.round(width / Math.max(1, scale)));
+  const bh = Math.max(1, Math.round(height / Math.max(1, scale)));
+  const sums = new Float64Array(bw * bh * 3);
+  const counts = new Uint32Array(bw * bh);
+  for (let y = 0; y < height; y += 1) {
+    const by = Math.min(bh - 1, Math.floor((y * bh) / height));
+    for (let x = 0; x < width; x += 1) {
+      const b = by * bw + Math.min(bw - 1, Math.floor((x * bw) / width));
+      const i = (y * width + x) * stride;
+      sums[b * 3] += pixels[i]; sums[b * 3 + 1] += pixels[i + 1]; sums[b * 3 + 2] += pixels[i + 2];
+      counts[b] += 1;
+    }
+  }
+  const blocks = bw * bh;
+  const dark = new Float32Array(blocks);
+  for (let b = 0; b < blocks; b += 1) {
+    const n = Math.max(1, counts[b]) * max;
+    dark[b] = Math.min(sums[b * 3], sums[b * 3 + 1], sums[b * 3 + 2]) / n;
+  }
+  const order = Array.from(dark.keys()).sort((a, b) => dark[b] - dark[a]);
+  const take = Math.max(4, Math.round(blocks * 0.002));
+  const total = [0, 0, 0];
+  let n = 0;
+  for (const b of order.slice(0, take)) {
+    const c = Math.max(1, counts[b]) * max;
+    total[0] += sums[b * 3] / c; total[1] += sums[b * 3 + 1] / c; total[2] += sums[b * 3 + 2] / c; n += 1;
+  }
+  return total.map((v) => Math.max(MIN_AIRLIGHT, v / Math.max(1, n))) as [number, number, number];
+}
+
 /** Dehaze display-encoded samples in place: RGBA 8-bit (stride 4, max 255) or RGB 16-bit (stride 3, max 65535). */
 export function applyDehaze(pixels: Uint8ClampedArray | Uint16Array, width: number, height: number, stride: 3 | 4, max: number, amount: number | undefined, imageEdge = Math.max(width, height)): void {
   if (!validDehaze(amount) || amount === 0 || !width || !height) return;
   const count = width * height;
   const dark = new Float32Array(count);
-  const BINS = 1024;
-  const histogram = new Uint32Array(BINS);
-  for (let p = 0, i = 0; p < count; p += 1, i += stride) {
-    const d = Math.min(pixels[i], pixels[i + 1], pixels[i + 2]) / max;
-    dark[p] = d;
-    histogram[Math.min(BINS - 1, Math.floor(d * BINS))] += 1;
-  }
-  // Airlight: the mean colour of the 0.1% of pixels with the brightest dark channel (the haziest, not just the whitest).
-  let threshold = BINS - 1;
-  for (let seen = 0, want = Math.max(1, count * 0.001); threshold > 0; threshold -= 1) { seen += histogram[threshold]; if (seen >= want) break; }
-  const airlight = [0, 0, 0];
-  let n = 0;
-  for (let p = 0, i = 0; p < count; p += 1, i += stride) {
-    if (Math.floor(dark[p] * BINS) < threshold) continue;
-    airlight[0] += pixels[i]; airlight[1] += pixels[i + 1]; airlight[2] += pixels[i + 2]; n += 1;
-  }
-  const A = airlight.map((v) => Math.max(MIN_AIRLIGHT, v / Math.max(1, n) / max));
+  for (let p = 0, i = 0; p < count; p += 1, i += stride) dark[p] = Math.min(pixels[i], pixels[i + 1], pixels[i + 2]) / max;
+  const A = airlight(pixels, width, height, stride, max);
   const peak = Math.max(A[0], A[1], A[2]);
   if (amount < 0) {
     const k = -amount * ADD_STRENGTH;
