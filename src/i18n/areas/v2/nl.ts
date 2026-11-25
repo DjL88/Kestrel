@@ -599,6 +599,14 @@ export const nl: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `${n} foto’s uit de cloud aan dit apparaat toevoegen (ongeveer ${credits} credits)`,
     cloudOriginals: (n: number, credits: number) => `${n} originelen downloaden (ongeveer ${credits} credits)`,
     cloudPreviewTag: 'cloudvoorbeeld',
+    zoomOriginalAsk: (c: number) => `Je zoomt verder dan 100% in op een cloudvoorbeeld. Het origineel downloaden voor alle details? Ongeveer ${c} credits uit de maandtegoed van de projecteigenaar, één keer voor dit apparaat.`,
+    zoomOriginalDownload: 'Origineel downloaden',
+    zoomOriginalNotNow: 'Niet nu',
+    zoomOriginalDontAsk: 'Niet meer vragen op dit apparaat',
+    zoomOriginalWorking: 'Origineel wordt gedownload…',
+    zoomOriginalNone: 'Dit is een cloudvoorbeeld en de eigenaar heeft het origineel niet in de cloud gezet, dus boven 100% wordt het voorbeeld vergroot.',
+    zoomOriginalFailed: 'Het origineel kon niet worden gedownload. Je ziet nog steeds het voorbeeld.',
+    zoomOriginalClose: 'Sluiten',
   },
   adjust: {
     grade: {

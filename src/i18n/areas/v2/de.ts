@@ -599,6 +599,14 @@ export const de: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `${n} Fotos aus der Cloud auf dieses Gerät holen (etwa ${credits} Credits)`,
     cloudOriginals: (n: number, credits: number) => `${n} Originale herunterladen (etwa ${credits} Credits)`,
     cloudPreviewTag: 'Cloud-Vorschau',
+    zoomOriginalAsk: (c: number) => `Sie haben eine Cloud-Vorschau über 100 % vergrößert. Original für alle Details herunterladen? Etwa ${c} Credits aus dem Monatskontingent des Projektinhabers, einmal für dieses Gerät.`,
+    zoomOriginalDownload: 'Original herunterladen',
+    zoomOriginalNotNow: 'Nicht jetzt',
+    zoomOriginalDontAsk: 'Auf diesem Gerät nicht mehr fragen',
+    zoomOriginalWorking: 'Original wird heruntergeladen …',
+    zoomOriginalNone: 'Dies ist eine Cloud-Vorschau, und der Inhaber hat das Original nicht in die Cloud gelegt. Über 100 % wird die Vorschau vergrößert.',
+    zoomOriginalFailed: 'Das Original konnte nicht heruntergeladen werden. Sie sehen weiterhin die Vorschau.',
+    zoomOriginalClose: 'Schließen',
   },
   adjust: {
     grade: {

@@ -599,6 +599,14 @@ export const cy: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `Ychwanegu ${n} llun o’r cwmwl i’r ddyfais hon (tua ${credits} credyd)`,
     cloudOriginals: (n: number, credits: number) => `Lawrlwytho ${n} gwreiddiol (tua ${credits} credyd)`,
     cloudPreviewTag: 'rhagolwg cwmwl',
+    zoomOriginalAsk: (c: number) => `Rydych wedi chwyddo heibio 100% ar ragolwg cwmwl. Lawrlwytho’r gwreiddiol i weld y manylion llawn? Tua ${c} credyd o lwfans misol perchennog y prosiect, unwaith ar gyfer y ddyfais hon.`,
+    zoomOriginalDownload: 'Lawrlwytho’r gwreiddiol',
+    zoomOriginalNotNow: 'Nid nawr',
+    zoomOriginalDontAsk: 'Peidio â gofyn eto ar y ddyfais hon',
+    zoomOriginalWorking: 'Yn lawrlwytho’r gwreiddiol…',
+    zoomOriginalNone: 'Rhagolwg cwmwl yw hwn ac nid yw’r perchennog wedi rhoi’r gwreiddiol yn y cwmwl, felly mae manylion heibio 100% wedi’u chwyddo o’r rhagolwg.',
+    zoomOriginalFailed: 'Nid oedd modd lawrlwytho’r gwreiddiol. Rydych yn dal i weld y rhagolwg.',
+    zoomOriginalClose: 'Cau',
   },
   adjust: {
     grade: {

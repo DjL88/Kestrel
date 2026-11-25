@@ -599,6 +599,14 @@ export const it: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `Aggiungi ${n} foto dal cloud a questo dispositivo (circa ${credits} crediti)`,
     cloudOriginals: (n: number, credits: number) => `Scarica ${n} originali (circa ${credits} crediti)`,
     cloudPreviewTag: 'anteprima cloud',
+    zoomOriginalAsk: (c: number) => `Hai ingrandito oltre il 100% un’anteprima cloud. Scaricare l’originale per vedere tutti i dettagli? Circa ${c} crediti dalla quota mensile del proprietario del progetto, una sola volta per questo dispositivo.`,
+    zoomOriginalDownload: 'Scarica l’originale',
+    zoomOriginalNotNow: 'Non ora',
+    zoomOriginalDontAsk: 'Non chiedere più su questo dispositivo',
+    zoomOriginalWorking: 'Download dell’originale…',
+    zoomOriginalNone: 'Questa è un’anteprima cloud e il proprietario non ha messo l’originale nel cloud, quindi oltre il 100% l’anteprima viene ingrandita.',
+    zoomOriginalFailed: 'Non è stato possibile scaricare l’originale. Stai ancora vedendo l’anteprima.',
+    zoomOriginalClose: 'Chiudi',
   },
   adjust: {
     grade: {

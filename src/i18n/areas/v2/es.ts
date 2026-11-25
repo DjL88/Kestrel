@@ -599,6 +599,14 @@ export const es: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `Añadir ${n} fotos de la nube a este dispositivo (unos ${credits} créditos)`,
     cloudOriginals: (n: number, credits: number) => `Descargar ${n} originales (unos ${credits} créditos)`,
     cloudPreviewTag: 'vista previa en la nube',
+    zoomOriginalAsk: (c: number) => `Has ampliado más del 100 % una vista previa en la nube. ¿Descargar el original para ver todo el detalle? Unos ${c} créditos de la asignación mensual del propietario del proyecto, una sola vez para este dispositivo.`,
+    zoomOriginalDownload: 'Descargar original',
+    zoomOriginalNotNow: 'Ahora no',
+    zoomOriginalDontAsk: 'No volver a preguntar en este dispositivo',
+    zoomOriginalWorking: 'Descargando el original…',
+    zoomOriginalNone: 'Esta es una vista previa en la nube y el propietario no ha subido el original, así que por encima del 100 % se amplía la vista previa.',
+    zoomOriginalFailed: 'No se pudo descargar el original. Sigues viendo la vista previa.',
+    zoomOriginalClose: 'Cerrar',
   },
   adjust: {
     grade: {

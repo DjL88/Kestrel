@@ -1820,6 +1820,23 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       try { await importPhotos(items.map((item) => item.file)); }
       finally { for (const item of items) cloudImports.current.delete(pickedKey(pickedFromFile(item.file))); }
     },
+    attachCloudOriginal: async (photoId, original, sha256) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
+      if (!frame?.cloudPhoto || !provider.current || !catalogue.current || !/^[0-9a-f]{64}$/.test(sha256)) return false;
+      const key = getLocalFileKey(original);
+      try { await catalogue.current.saveLocalFileBlob(key, original); } catch { /* still usable this session */ }
+      provider.current.registerBlob(key, original);
+      const next: PhotoFrame = { ...frame, stableKey: key, filename: original.name, originalSha256: sha256, cloudPhoto: { ...frame.cloudPhoto, hasOriginal: true } };
+      mutate((current) => ({ ...current, frames: current.frames.map((item) => (item.id === photoId ? { ...item, stableKey: next.stableKey, filename: next.filename, originalSha256: sha256, cloudPhoto: next.cloudPhoto } : item)) }));
+      setUrls((current) => { const updated = { ...current }; delete updated[photoId]; return updated; });
+      thumbs.current.requested.delete(photoId);
+      thumbs.current.queue.push(next); pumpThumbnails();
+      provider.current.getFullPreviewUrl(next, 'selected').then(
+        (preview) => setUrls((current) => ({ ...current, [photoId]: { ...current[photoId], preview } })),
+        () => { /* the thumbnail reload reports failures; the preview stays */ },
+      );
+      return true;
+    },
     readVerifiedOriginal: async (photoId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
       if (!frame || frame.isDemo || frame.cloudPhoto || !provider.current) return null;
