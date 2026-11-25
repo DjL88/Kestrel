@@ -337,7 +337,7 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
             onClick={() => goToPage(item.id)}
             className="relative overflow-hidden opacity-80 shadow-lg outline-offset-2 transition-opacity hover:opacity-100 focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
             style={{ width: pageWidth, height: pageWidth / aspect, background: item.background }}>
-            {near && <PagePreview page={item} photos={photos} aspect={aspect} aspectOf={aspectOf} PhotoSurface={PhotoSurface} />}
+            {near && <PagePreview page={item} photos={photos} width={pageWidth} aspect={aspect} aspectOf={aspectOf} PhotoSurface={PhotoSurface} />}
           </button>
         )}
       </div>
@@ -424,8 +424,8 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
           {COLLAGE_TEMPLATES.map((template) => (
             <button type="button" key={template.id} disabled={!canChangeCollageTemplate(doc, template.id)}
               onClick={() => { onChange(changeCollageTemplate(doc, template.id)); setActiveSlot(null); }}
-              aria-pressed={page.template === template.id} title={`${template.label} · ${template.slots}`}
-              className={`flex min-h-[76px] flex-col items-center justify-center gap-1 rounded border p-1 text-[0.625rem] leading-tight text-[var(--text-secondary)] disabled:opacity-40 ${page.template === template.id ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border-[var(--border-default)]'}`}>
+              aria-pressed={!page.customLayout && page.template === template.id} title={`${template.label} · ${template.slots}`}
+              className={`flex min-h-[76px] flex-col items-center justify-center gap-1 rounded border p-1 text-[0.625rem] leading-tight text-[var(--text-secondary)] disabled:opacity-40 ${!page.customLayout && page.template === template.id ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border-[var(--border-default)]'}`}>
               <LayoutThumb template={template.id} aspect={aspect} />
               <span>{template.label}</span>
             </button>
@@ -587,9 +587,10 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
 }
 
 /** A read-only page beside the one being edited: background, photographs in their windows, caption. */
-function PagePreview({ page, photos, aspect, aspectOf, PhotoSurface }: { page: CollagePage; photos: Photo[]; aspect: number;
+function PagePreview({ page, photos, width, aspect, aspectOf, PhotoSurface }: { page: CollagePage; photos: Photo[]; width: number; aspect: number;
   aspectOf: (id: string) => number; PhotoSurface?: React.ComponentType<PhotoSurfaceProps> }) {
   const background = photos.find((p) => p.id === page.backgroundPhotoId);
+  const caption = collageCaptionGeometry(width, width / aspect, page.captionStyle);
   return (
     <>
       {background && <BackgroundPhoto photo={background} PhotoSurface={PhotoSurface} />}
@@ -612,8 +613,11 @@ function PagePreview({ page, photos, aspect, aspectOf, PhotoSurface }: { page: C
           </span>
         );
       })}
-      {page.caption && <span className="pointer-events-none absolute inset-x-[5%] bottom-[3%] z-10 block truncate text-center text-[0.625rem] font-semibold"
-        style={{ color: page.captionColour }}>{page.caption}</span>}
+      {page.caption && <span className="pointer-events-none absolute inset-[3%_5%] z-20 block overflow-hidden">
+        <span className="absolute block w-full whitespace-pre-wrap break-words text-center font-semibold"
+          style={{ color: page.captionColour, fontFamily: caption.font, fontSize: caption.fontPx, lineHeight: caption.lineHeight,
+            top: `${caption.position}%`, transform: `translateY(-${caption.position}%)` }}>{page.caption}</span>
+      </span>}
     </>
   );
 }
