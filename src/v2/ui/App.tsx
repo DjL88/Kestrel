@@ -979,6 +979,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         readOriginal={actions.readVerifiedOriginal}
         importCloud={actions.importCloudPreviews}
         attachOriginal={actions.attachCloudOriginal}
+        photoDecision={(id) => store.photos.find((photo) => photo.id === id)?.decision ?? null}
+        onFlagPhoto={(id) => actions.setDecision([id], 'keep')}
         onClose={closeShare}
       />
 
