@@ -7,6 +7,7 @@
 //   node scripts/site/set-domain.mjs https://inflight.example     switch every listed file to the new origin
 //   node scripts/site/set-domain.mjs --check                       fail if any listed file or src/ disagrees
 //   --root=<dir>                                                    work on another checkout (tests)
+// `plannedOrigin` records a domain that is bought but not connected; it changes nothing until it is made the origin.
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -38,6 +39,8 @@ function check() {
   const problems = [];
   const origin = bareOrigin(config.origin);
   if (!origin) problems.push(`config/public-site.json: origin ${JSON.stringify(config.origin)} is not a bare https origin`);
+  // plannedOrigin: the domain bought but not connected yet (inflight.studio, 25 Nov 2026). Nothing reads it but this check.
+  if (config.plannedOrigin !== undefined && !bareOrigin(config.plannedOrigin)) problems.push(`config/public-site.json: plannedOrigin ${JSON.stringify(config.plannedOrigin)} is not a bare https origin`);
   for (const file of config.files) {
     const text = readFileSync(join(root, file), 'utf8');
     if (!text.includes(config.origin)) problems.push(`${file}: does not use ${config.origin}`);
@@ -77,6 +80,7 @@ if (args.includes('--check')) {
     writeFileSync(path, readFileSync(path, 'utf8').replaceAll(previous, next));
   }
   config.origin = next;
+  if (config.plannedOrigin === next) delete config.plannedOrigin; // the planned domain is now the live one
   writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
   console.log(`Public site origin: ${previous} -> ${next} (${config.files.length} files).`);
   console.log('Next: commit, rebuild the app, redeploy Hosting, and apply Terraform so CORS allows the new origin');

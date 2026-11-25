@@ -89,8 +89,24 @@ export function setArchived(project: CullingState, archivedAt: number | undefine
   return { ...project, shoot: archivedAt ? { ...shoot, archivedAt } : shoot };
 }
 
-export function splitProjects<T extends { archivedAt?: number }>(projects: readonly T[]): { active: T[]; archived: T[] } {
-  return { active: projects.filter((project) => !project.archivedAt), archived: projects.filter((project) => project.archivedAt) };
+/** A deleted project is kept this long in Recently deleted, then removed for good. */
+export const TRASH_KEEP_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Delete puts a project in Recently deleted (a time), or takes it back out (undefined). Nothing else changes. */
+export function setTrashed(project: CullingState, trashedAt: number | undefined): CullingState {
+  const { trashedAt: _previous, ...shoot } = project.shoot;
+  return { ...project, shoot: trashedAt ? { ...shoot, trashedAt } : shoot };
+}
+
+/** True once a deleted project has been kept for the full period, so it may now be removed for good. */
+export function trashExpired(shoot: { trashedAt?: number }, now: number): boolean {
+  return shoot.trashedAt !== undefined && now - shoot.trashedAt >= TRASH_KEEP_MS;
+}
+
+/** Deleted projects are in neither list: they show only in Recently deleted. */
+export function splitProjects<T extends { archivedAt?: number; trashedAt?: number }>(projects: readonly T[]): { active: T[]; archived: T[] } {
+  const kept = projects.filter((project) => !project.trashedAt);
+  return { active: kept.filter((project) => !project.archivedAt), archived: kept.filter((project) => project.archivedAt) };
 }
 
 export const INBOX_ID = 'quick-edits';

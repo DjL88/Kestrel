@@ -21,6 +21,14 @@ test('a photo with no recorded metadata says so rather than inventing values', (
   assert.equal(photo.thumbUrl, BLANK_IMAGE);
 });
 
+test('the colour profile names the InFlight RAW develop only when it is known to have run; otherwise it stays unknown', () => {
+  const developed = frameToPhoto(frame({ asShotWhite: { kelvin: 5480, duv: 0.002 } as never }), undefined);
+  assert.match(developed.exif.colourProfile, /colour matrix/);
+  assert.match(developed.exif.colourProfile, /not the maker's picture style/);
+  assert.equal(frameToPhoto(frame(), undefined).exif.colourProfile, 'Not recorded', 'an undeveloped RAW (embedded preview) is not claimed');
+  assert.equal(frameToPhoto(frame({ filename: 'a.jpg', asShotWhite: { kelvin: 5480, duv: 0 } as never }), undefined).exif.colourProfile, 'Not recorded');
+});
+
 test('recorded metadata, rating and the keep decision carry over', () => {
   const photo = frameToPhoto(frame({ decision: 'keep', rating: 4, exif: { camera: 'Nikon Z8', apertureF: 5.6, iso: 640, focalLengthMm: 400, width: 8256, height: 5504 } }), { thumb: 'blob:t', preview: 'blob:p' });
   assert.equal(photo.decision, 'keep');
@@ -247,6 +255,24 @@ test('file info reads recorded import byte count and verified raster dimensions,
   assert.equal(frameToPhoto(frame({stableKey:'unknown::12300000::456'}), undefined).exif.fileSizeMb, 0);
   assert.equal(frameToPhoto(frame({rating: NaN, exif:{iso:-1, capturedAtMs: Infinity}}), undefined).rating, 0);
   assert.equal(frameToPhoto(frame({exif:{iso:-1, capturedAtMs:Infinity}}), undefined).exif.capturedAt, 'Not recorded');
+});
+
+test('Auto that could not read a RAW says so in Co-pilot instead of "nothing to report yet" forever', async () => {
+  const { autoUnavailableSentence } = await import('./autoUnavailable.ts');
+  const raw = frame({ filename: 'DSC_0042.NEF', originalSha256: 'sha-a' });
+  const unavailable = { unavailable: 'raw-not-developed' as const, source: { stableKey: raw.stableKey, originalSha256: raw.originalSha256, framing: raw.framing } };
+  const note = frameToPhoto(raw, undefined, { autoUnavailable: unavailable }).assistCritique.subjectNote;
+  assert.equal(note, autoUnavailableSentence('raw-not-developed', 'DSC_0042.NEF'));
+  assert.match(note, /RAW/);
+  assert.match(note, /embedded preview/, 'says the camera JPEG was not used in place of the RAW');
+  assert.match(note, /Nothing was changed/);
+  assert.doesNotMatch(note, /export/i, 'an Auto check never talks about exporting');
+  assert.equal(frameToPhoto(raw, undefined, {}).assistCritique.subjectNote, '', 'no check yet: nothing is claimed');
+  // A result for a different original (relinked, changed bytes) is not shown for this one.
+  assert.equal(frameToPhoto({ ...raw, originalSha256: 'sha-b' }, undefined, { autoUnavailable: unavailable }).assistCritique.subjectNote, '');
+  for (const cause of ['no-preview', 'too-small', 'failed'] as const) {
+    assert.match(autoUnavailableSentence(cause, 'IMG_1.JPG'), /IMG_1\.JPG.*Nothing was changed/);
+  }
 });
 
 test('a RAW with no recorded size takes its Original shape from the picture shown, never a 1 × 1 square', async () => {

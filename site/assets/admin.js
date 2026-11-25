@@ -149,7 +149,7 @@ act($('sign-out'), 'click', () => signOut('Signed out.'));
 // ---- Sections --------------------------------------------------------------------------------------------------
 
 async function refreshAll() {
-  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadMessages(), loadTax(), loadPriceReview(), loadSwitches(), loadFlags(), loadAudit()]);
+  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadMessages(), loadTax(), loadPriceReview(), loadSwitches(), loadMail(), loadFlags(), loadAudit()]);
   const failed = results.find(r => r.status === 'rejected' && !(r.reason instanceof SignedOut));
   if (failed) say(failed.reason.message);
 }
@@ -516,6 +516,22 @@ async function loadSwitches() {
     cell(row, action);
     return row;
   }));
+}
+
+async function loadMail() {
+  let m;
+  try { m = await api('admin/mail'); } catch (error) {
+    if (error instanceof SignedOut) throw error;
+    $('mail-unavailable').hidden = false; $('mail-warning').hidden = true; $('mail-facts').replaceChildren(); return;
+  }
+  $('mail-unavailable').hidden = true;
+  const facts = [
+    ['Switch', m.on ? 'On' : 'Off (see Switches)'],
+    ['Sent today (' + m.day + ', UTC)', m.sent + ' of ' + m.cap],
+    ['Google Workspace limit', 'About ' + m.workspaceLimit + ' a day'],
+  ];
+  $('mail-facts').replaceChildren(...facts.map(([k, v]) => { const d = el('div'); d.append(el('dt', k), el('dd', String(v))); return d; }));
+  $('mail-warning').hidden = !m.warn;
 }
 
 async function loadFlags() {

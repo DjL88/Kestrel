@@ -15,6 +15,8 @@ import { alignForAnchor, layoutOverlays, type Box } from '../ui/utils/overlayLay
 import { planBorderFrame } from './borderFrameLayout';
 import { upscaleCanvasInPlace } from './upscaleCanvas';
 import { cappedContinuousLayout, continuousExportLayout, numberedSectionFilename } from './continuousExport';
+import type { Rgb16Image } from '../../core/master16';
+import { ditherRgb16ToRgba8, downscaleRgb16 } from '../../core/rgb16Output';
 
 /** Everything the overlay needs, resolved by the caller from the same description the canvas draws. */
 export interface OverlayDraw {
@@ -28,7 +30,13 @@ export interface OverlayDraw {
   contrast: 'light-on-dark' | 'dark-on-light';
 }
 
-export interface V2RenderResult { file: File; width: number; height: number; capped: boolean; /** Files in left-to-right order when exporting a continuous split. */ sections?: File[] }
+export interface V2RenderResult {
+  file: File; width: number; height: number; capped: boolean;
+  /** 'rgb16': edited at 16 bits from sensor data and rounded to 8 bits once, at the end. '8-bit': the canvas path. */
+  precision: 'rgb16' | '8-bit';
+  /** Files in left-to-right order when exporting a continuous split. */
+  sections?: File[];
+}
 
 const LINE = 1.375; // Tailwind `leading-snug`, as the canvas uses.
 const MARK_LINE = 1.5; // the text watermark's line height on the canvas
@@ -233,11 +241,13 @@ function drawOverlay(canvas: HTMLCanvasElement, input: OverlayDraw) {
 export async function renderV2Export(
   source: HTMLImageElement, frame: PhotoFrame, size: { width: number; height: number }, crop: CropTransform,
   profile: ExportProfile, overlay: OverlayDraw | null, date: Date, signal?: AbortSignal, sectionCount: SplitFrameCount = 1,
+  /** The photo already framed and edited at 16 bits, full size (renderRaw16). When given, the picture comes from it, not `source`. */
+  precise?: Rgb16Image,
 ): Promise<V2RenderResult> {
   signal?.throwIfAborted();
   if (!(source.naturalWidth > 0) || !(source.naturalHeight > 0)) throw new Error(`Cannot export ${frame.filename}: the decoded source has invalid pixel dimensions. Reconnect or redevelop the original.`);
   const framing = frame.framing ?? DEFAULT_FRAMING;
-  const { width: fw, height: fh } = framedSize(source.naturalWidth, source.naturalHeight, framing);
+  const { width: fw, height: fh } = precise ? { width: precise.width, height: precise.height } : framedSize(source.naturalWidth, source.naturalHeight, framing);
   const requested = continuousExportLayout(size.width, size.height, sectionCount);
   const limit = maxCanvasPixels({ userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints });
   // Upscale (2x or 4x, chosen on the photo) lifts the "never larger than the picture" cap by that factor, only when the size asks for more pixels.
@@ -252,10 +262,19 @@ export async function renderV2Export(
   const picture = document.createElement('canvas');
   const output = document.createElement('canvas');
   try {
-    drawFramedPhoto(source, picture, framing, { scale });
-    await applyCanvasExportEdit(picture, frame.edit ?? DEFAULT_EDIT, signal, Math.max(fw, fh) * scale, { aspect: fh / fw, view: { x: 0, y: 0, w: 1, h: 1 }, lensCentre: lensCentre(source.naturalWidth, source.naturalHeight, framing) });
+    if (precise) {
+      // Tone, colour, masks and detail were applied at 16 bits on the full picture; resize at 16 bits, then round once.
+      const sized = downscaleRgb16(precise, Math.max(1, Math.round(fw * scale)), Math.max(1, Math.round(fh * scale)));
+      picture.width = sized.width; picture.height = sized.height;
+      const context = picture.getContext('2d');
+      if (!context) throw new Error('Canvas unavailable');
+      context.putImageData(new ImageData(ditherRgb16ToRgba8(sized), sized.width, sized.height), 0, 0);
+    } else {
+      drawFramedPhoto(source, picture, framing, { scale });
+      await applyCanvasExportEdit(picture, frame.edit ?? DEFAULT_EDIT, signal, Math.max(fw, fh) * scale, { aspect: fh / fw, view: { x: 0, y: 0, w: 1, h: 1 }, lensCentre: lensCentre(source.naturalWidth, source.naturalHeight, framing) });
+    }
     signal?.throwIfAborted();
-    await applyFrameLayers(picture, frame.overlay, true);
+    await applyFrameLayers(picture, frame.overlay, true, frame.edit?.masks);
     signal?.throwIfAborted();
     if (up !== 1 && scale >= 1) await upscaleCanvasInPlace(picture, up, signal);
     signal?.throwIfAborted();
@@ -290,7 +309,7 @@ export async function renderV2Export(
         piece.width = 0; piece.height = 0;
       }
     }
-    return { file: sections[0], width: layout.sectionWidth, height: layout.height, capped: wasCapped,
+    return { file: sections[0], width: layout.sectionWidth, height: layout.height, capped: wasCapped, precision: precise ? 'rgb16' : '8-bit',
       ...(sectionCount > 1 ? { sections } : {}) };
   } finally {
     picture.width = 0; picture.height = 0; output.width = 0; output.height = 0;

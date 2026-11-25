@@ -16,14 +16,22 @@ export function renderDenoiseRecipe(source: Pixels, edit: PhotoEdit): Pixels {
   return { data, width, height };
 }
 
-/** The workspace replaces only the two automatic group layers. Existing
+/** The automatic layers one denoise run owns: the background/subject pair and its eye protection. */
+export const isAutoDenoiseLayer = (maskId: string, id: string) => maskId === id || maskId === id + '-background' || maskId.startsWith(id + '-eye-');
+
+/** The workspace replaces only the automatic group layers (pair and eyes). Existing
  * individual overrides and manual adjustments keep their exact recipe/order. */
 export function composeDenoiseRecipe(base: PhotoEdit | undefined, id: string, strength: number, masks: Mask[], lumaPerStrength = 0): PhotoEdit {
   const edit = base ?? DEFAULT_EDIT;
   // Luminance (grain) denoise moves with the verified strength, so a detail-loss correction reduces both together.
   const luma = Math.round(Math.min(2, strength * lumaPerStrength) * 1e4) / 1e4;
-  return { ...edit, denoise: strength, ...(luma > 0 ? { denoiseLuminance: luma } : {}), masks: [
-    ...(edit.masks ?? []).filter(mask => mask.id !== id && mask.id !== id + '-background'),
+  // This run decides any AI denoise afresh: an older stored result is dropped here and re-added only if chosen again.
+  const { denoiseLuminance: previousGrain, trueDetailAi: _previousAi, ...rest } = edit;
+  // A regional recipe carries grain per region, so the global grain setting it replaces is removed, never stacked.
+  const regional = masks.some(mask => mask.id === id + '-background');
+  const grain = luma > 0 ? luma : regional ? undefined : previousGrain;
+  return { ...rest, denoise: strength, ...(grain !== undefined ? { denoiseLuminance: grain } : {}), masks: [
+    ...(edit.masks ?? []).filter(mask => !isAutoDenoiseLayer(mask.id, id)),
     ...masks,
   ] };
 }

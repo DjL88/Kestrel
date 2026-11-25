@@ -1,3 +1,4 @@
+import { createTimedSession } from './modelTiming';
 import { Sha256Stream } from '../core/sha256';
 import { isDesktopApp } from './desktopShell';
 import { getModel, hasModel, putModel, removeModel } from './modelStore';
@@ -116,7 +117,7 @@ function loadSession(): Promise<Loaded> {
     });
     ort.env.wasm.numThreads = 1;
     ort.env.wasm.proxy = false;
-    const session = await ort.InferenceSession.create(bytes, { executionProviders: ['wasm'] });
+    const session = await createTimedSession(ort, 'bioclip-image-int8', bytes, { executionProviders: ['wasm'] });
     return { ort, session };
   })().catch((error) => {
     loading = null;
@@ -128,8 +129,9 @@ function loadSession(): Promise<Loaded> {
 
 /**
  * The names the model can match, with their vectors ready to compare. Loaded on demand. The shipped list (UK birds and
- * mammals, about 0.1 MB) is always used. The world bird list (about 9 MB, fetched once beside the model) adds the birds
- * that occur in the person's chosen regions. If it is missing the shipped list still works, so this never fails.
+ * mammals, about 0.1 MB) is always used. The world bird list (about 9 MB) and the world mammal list (Mammal Diversity
+ * Database, about 6 MB), each fetched once beside the model, add the birds and mammals that occur in the person's chosen
+ * regions. If either is missing the rest still works, so this never fails.
  */
 export function loadSpeciesLabels(): Promise<Labels> {
   const regions = readSpeciesRegions();
@@ -141,24 +143,47 @@ export function loadSpeciesLabels(): Promise<Labels> {
     const labels = [...shipped];
     try {
       const world = await loadWorldLabels();
+      // The shipped names carry no family; take it from the world list so a doubtful bird can still be named by family.
+      const familyOf = new Map(world.map((label) => [label.scientific.toLowerCase(), label.family]));
+      for (let i = 0; i < labels.length; i++) {
+        const family = familyOf.get(labels[i].scientific.toLowerCase());
+        if (family && !labels[i].family) labels[i] = { ...labels[i], family };
+      }
       labels.push(...worldLabelsForRegions(world, regions, new Set(shipped.map((label) => label.scientific.toLowerCase()))));
     } catch (error) { console.warn('World species list unavailable; using the shipped list', error); }
+    try {
+      // Mammals carry their MDD family in Latin; it is not offered as a name until it has words in every language.
+      const mammals = (await loadListBeside('species-mammals.json', 'mammal list')).map(({ family: _family, ...label }) => label as SpeciesLabel);
+      labels.push(...worldLabelsForRegions(mammals, regions, new Set(labels.map((label) => label.scientific.toLowerCase()))));
+    } catch (error) { console.warn('World mammal list unavailable', error); }
     return { labels, vectors: labels.map(decodeVector) };
   })();
   return labelsLoading;
 }
 
 function loadWorldLabels(): Promise<SpeciesLabel[]> {
-  worldLoading ??= (async () => {
-    const url = SPECIES_MODEL.url.replace(/[^/]*$/, 'species-world.json');
-    if (!url || url === 'species-world.json') return [];
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`world list ${response.status}`);
-    const file = await response.json() as { dimensions?: number; labels?: SpeciesLabel[] };
-    if (file.dimensions !== 512 || !Array.isArray(file.labels)) throw new Error('world list is not in the expected format');
-    return file.labels;
-  })().catch((error) => { worldLoading = null; throw error; });
+  worldLoading ??= loadListBeside('species-world.json', 'world list').catch((error) => { worldLoading = null; throw error; });
   return worldLoading;
+}
+
+const besideLoads = new Map<string, Promise<SpeciesLabel[]>>();
+/** A name list stored beside the species model, checked to have the same 512 numbers per name as its image half. */
+function loadListBeside(name: string, what: string): Promise<SpeciesLabel[]> {
+  let loading = besideLoads.get(name);
+  if (!loading) {
+    loading = (async () => {
+      const url = SPECIES_MODEL.url.replace(/[^/]*$/, name);
+      if (!url || url === name) return [];
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`${what} ${response.status}`);
+      const file = await response.json() as { dimensions?: number; labels?: SpeciesLabel[] };
+      if (file.dimensions !== 512 || !Array.isArray(file.labels)) throw new Error(`${what} is not in the expected format`);
+      return file.labels;
+    })();
+    loading.catch(() => besideLoads.delete(name));
+    besideLoads.set(name, loading);
+  }
+  return loading;
 }
 
 /** What the model "sees" in a picture, as a unit-length vector. Runs on this device. */

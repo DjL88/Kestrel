@@ -759,7 +759,7 @@ test('?v2 masks are real: Subject is found on this device, its sliders change th
   const backgroundChroma = await chromaVariation(0.05, 0.05);
   expect(subjectChroma).toBeGreaterThan(10);
   await root.getByRole('slider', { name: 'Subject Colour denoise' }).fill('2');
-  await expect.poll(() => chromaVariation(0.5, 0.5)).toBeLessThan(subjectChroma * 0.8);
+  await expect.poll(() => chromaVariation(0.5, 0.5), { timeout: 20000 }).toBeLessThan(subjectChroma * 0.8);
   expect(await chromaVariation(0.05, 0.05)).toBeCloseTo(backgroundChroma, 0);
   // Deleting removes the layer and the edit.
   await root.getByRole('button', { name: 'Delete Subject' }).click();

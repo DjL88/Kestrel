@@ -18,7 +18,7 @@ import type { ExifMetadata, PhotoFrame } from './types';
  */
 export const SCENE_LANE = 'scene';
 export const SCENE_FACETS: readonly TagFacet[] = ['light', 'weather', 'style', 'genre'];
-export const SCENE_REVISION = 'scene-v1';
+export const SCENE_REVISION = 'scene-v2';
 export const PLACES_REVISION = 'places-v1';
 /** The scene lane's revision says whether the image model took part, so photos are looked at again once it can. */
 export const sceneRevision = (withModel: boolean) => (withModel ? `${SCENE_REVISION}+clip` : SCENE_REVISION);

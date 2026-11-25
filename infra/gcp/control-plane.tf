@@ -271,6 +271,14 @@ resource "google_cloud_run_v2_service" "control_plane" {
         }
       }
       dynamic "env" {
+        # App email (mail.tf). The app password is NOT here: the service reads it from Secret Manager itself.
+        for_each = local.mail_env
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+      dynamic "env" {
         for_each = local.paddle_secrets
         content {
           name = env.key

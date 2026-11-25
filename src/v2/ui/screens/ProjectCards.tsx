@@ -97,9 +97,9 @@ function ActionsMenu({ project, menuOpen, onToggleMenu, onRename, onArchive, onD
       </button>
       {menuOpen && (
         <div role="menu" aria-label={STRINGS.hubMore.actionsMenu} className={`absolute right-0 z-30 w-44 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1 shadow-[var(--shadow-popover)] ${opensUp ? 'bottom-11' : 'top-11'}`}>
-          <button type="button" role="menuitem" className={`${item} text-[var(--text-primary)]`} onClick={() => { onToggleMenu(); onRename(); }}>{STRINGS.hubMore.rename}</button>
-          <button type="button" role="menuitem" className={`${item} text-[var(--text-primary)]`} onClick={() => { onToggleMenu(); onArchive(); }}>{project.archived ? STRINGS.hubMore.restore : STRINGS.hubMore.archive}</button>
-          <button type="button" role="menuitem" className={`${item} text-[var(--status-danger,#e5484d)]`} onClick={() => { onToggleMenu(); onDelete(); }}>{STRINGS.hubMore.deleteMenu}</button>
+          {!project.trashed && <button type="button" role="menuitem" className={`${item} text-[var(--text-primary)]`} onClick={() => { onToggleMenu(); onRename(); }}>{STRINGS.hubMore.rename}</button>}
+          <button type="button" role="menuitem" className={`${item} text-[var(--text-primary)]`} onClick={() => { onToggleMenu(); onArchive(); }}>{project.archived || project.trashed ? STRINGS.hubMore.restore : STRINGS.hubMore.archive}</button>
+          <button type="button" role="menuitem" className={`${item} text-[var(--status-danger,#e5484d)]`} onClick={() => { onToggleMenu(); onDelete(); }}>{project.trashed ? STRINGS.hubMore.deleteForeverMenu : STRINGS.hubMore.deleteMenu}</button>
         </div>
       )}
     </div>
@@ -133,10 +133,10 @@ export function ProjectRow(props: ProjectCardProps) {
           <BrandIcon name="pencil" size={18} />{STRINGS.hubMore.rename}
         </button>
         <button type="button" tabIndex={open ? 0 : -1} onClick={() => { close(); onArchive(); }} className={`${swipeButton} bg-[#1f5f86]`}>
-          <BrandIcon name={project.archived ? 'restore' : 'archive'} size={18} />{project.archived ? STRINGS.hubMore.restore : STRINGS.hubMore.archive}
+          <BrandIcon name={project.archived || project.trashed ? 'restore' : 'archive'} size={18} />{project.archived || project.trashed ? STRINGS.hubMore.restore : STRINGS.hubMore.archive}
         </button>
         <button type="button" tabIndex={open ? 0 : -1} onClick={() => { close(); onDelete(); }} className={`${swipeButton} bg-[#a3262b]`}>
-          <BrandIcon name="trash" size={18} />{STRINGS.hubMore.deleteMenu}
+          <BrandIcon name="trash" size={18} />{project.trashed ? STRINGS.hubMore.deleteForeverMenu : STRINGS.hubMore.deleteMenu}
         </button>
       </div>
       <div data-testid="project-row-body"

@@ -22,6 +22,8 @@ export interface PhotoHistogram {
   highlightClip: number;
   /** Share of pixels at 0 (shadow) or 255 (highlight) in each channel, so clipping can be said in words per channel. */
   channelClip?: Record<'red' | 'green' | 'blue', { shadow: number; highlight: number }>;
+  /** 'rgb16': measured from the 16-bit RAW develop. Absent: measured from the 8-bit picture on screen. */
+  precision?: 'rgb16';
 }
 export type TileState = 'importing' | 'analysing' | 'ready' | 'unavailable';
 export type AssistMode = 'solo' | 'copilot' | 'autopilot';
@@ -157,6 +159,8 @@ export interface EditRecipe {
   clarity: number; // -100 to 100
   sharpen: number; // 0 to 100
   denoiseRawAi: boolean;
+  /** TrueDetail AI denoise: true while a learned denoiser's stored result is blended into the subject. Set false to remove it. Absent = off. */
+  aiDenoise?: boolean;
   denoiseLuminance: number; // 0 to 100
   denoiseColour: number; // 0 to 100
   upscaleFactor: 1 | 2 | 4;
@@ -186,9 +190,17 @@ export interface EditRecipe {
   vignetteBlur?: number;
   /** A colour for the vignette as #rrggbb. Absent = darker or lighter, no colour. */
   vignetteColour?: string;
+  /** Vignette shape, -100 (the frame's rectangle) to 100 (a circle). Absent = 0, an oval of the frame's shape. */
+  vignetteRoundness?: number;
+  /** Vignette fall-off, 0 (hard) to 100 (softest). Absent = 50. */
+  vignetteFeather?: number;
+  /** How much bright areas are spared from a darkening or colour vignette, 0 to 100. Absent = 0. */
+  vignetteHighlights?: number;
   /** Film-like grain, 0 to 100, and its size, 0 (fine) to 100 (coarse; absent = 25). */
   grain?: number;
   grainSize?: number;
+  /** Grain roughness, 0 (smooth and even) to 100 (irregular). Absent = 0. */
+  grainRoughness?: number;
   /** Advanced: camera calibration, hue and saturation of each primary, -100 to 100. Absent = none. */
   calibration?: Record<'red' | 'green' | 'blue', { hue: number; saturation: number }>;
   /** White balance in kelvin against the camera's as-shot estimate (RAW photos only). Absent = as shot. */
@@ -301,7 +313,7 @@ export interface AssistSuggestion {
   recipeDelta: Partial<EditRecipe>;
   comparison?: { before: string; after: string };
   /** The same edit as ordered slider steps with real values (src/core/editingSequence.ts), for Watch and Learn. */
-  steps?: { id: string; label: string; from: string; to: string }[];
+  steps?: { id: string; label: string; from: string; to: string; /** The recipe setting the step changes. */ key?: string }[];
   /** ColourSense: whether the suggestion keeps the subject's colour, in words (absent when it could not be judged). */
   colourSense?: ColourSenseNote;
   /** Colour match: whether the subject carries the colours it should have (species signature or the vision model), in words. */
@@ -392,6 +404,10 @@ export interface Photo {
   histogram?: PhotoHistogram | null;
   /** Which picture of a RAW each view shows: the camera's embedded preview or InFlight's develop from the sensor data,
    * as recorded when the preview was made. Absent for JPEG/PNG files and while nothing is shown yet. */
+  /** A lossless DNG copy can be saved: a Nikon HE/HE* NEF in the desktop app. */
+  dngCopy?: boolean;
+  /** 'offered': a RAW whose full-size develop is not on screen and can be made here; 'running': it is being made. */
+  fullDevelop?: 'offered' | 'running';
   picture?: { preview?: import('../../core/pictureSource').PictureProvenance; thumb?: import('../../core/pictureSource').PictureProvenance };
   /** Good, better or best, from the engine's decision maker. Shown as a word, never as a number. */
   tier?: PhotoTier | null;
@@ -422,6 +438,8 @@ export interface Project {
   folderPath: string;
   /** Hidden from the main list but kept; restore brings it back. */
   archived?: boolean;
+  /** Deleted: shown only in Recently deleted until restored or removed for good after 30 days. */
+  trashed?: boolean;
 }
 
 export interface TaskInfo {
@@ -638,8 +656,12 @@ export interface WorkspaceActions {
   createProjectFromFolder: () => void;
   renameProject: (projectId: string, name: string) => void;
   archiveProject: (projectId: string, archived: boolean) => void;
-  /** Removes InFlight's catalogue entry and its stored copies. Original files are never touched. */
+  /** Moves the project to Recently deleted for 30 days. Nothing is removed yet; original files are never touched. */
   deleteProject: (projectId: string) => void;
+  /** Takes a project back out of Recently deleted, as it was. */
+  restoreDeletedProject: (projectId: string) => void;
+  /** Removes InFlight's catalogue entry and its stored copies now. Original files are never touched. */
+  deleteProjectForever: (projectId: string) => void;
   setHubState: (state: HubViewState) => void;
 
   // Photos, Culling & Selection
@@ -685,6 +707,10 @@ export interface WorkspaceActions {
   dismissQuickStart?: () => void;
   runAutoCull: () => void;
   reconnectOriginal: (photoId: string) => void;
+  /** Save a lossless DNG copy of a Nikon HE/HE* NEF (desktop). The original is only read. */
+  saveDngCopy: (photoId: string) => void;
+  /** Develop a RAW from its sensor data at full size, as one Tasks item. The original is only read. */
+  developFullSize: (photoId: string) => void;
   toggleDemoUnavailable: () => void;
 
   // Flight Mode & Deep Vision Review
@@ -768,6 +794,10 @@ export interface WorkspaceActions {
   removeOverlayRow: (photoId: string, rowId: string) => void;
   /** Measure this photo's lens colour edges and set caRed/caBlue from them. 'clean' = nothing to correct; 'unclear' = too few edges to tell. */
   detectColourEdges: (photoId: string) => Promise<'corrected' | 'clean' | 'unclear'>;
+  /** White balance from the picture itself, as one undoable step. `at` (0 to 1 across the shown, framed picture) is a spot
+   * that should be grey or white (the eyedropper); without it, Auto estimates the light from the whole picture.
+   * 'limited' = a slider reached its end first; 'unreadable' = the spot is clipped or too dark, nothing changed. */
+  neutralWhiteBalance?: (photoId: string, at?: { x: number; y: number }) => Promise<'set' | 'limited' | 'unreadable'>;
   /** Image layers. Add one from an image file on this device (opens the file picker). */
   addImageLayer: (photoId: string) => Promise<void>;
   /** Add another photo of this project as a layer: a copy of it as it looks now, with its edits. */
