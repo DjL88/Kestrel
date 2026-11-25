@@ -353,6 +353,7 @@ export const de: AreaTranslation<typeof source> = {
     working: "Ihr Foto wird hinzugefügt und Belichtung und Farbe werden auf diesem Gerät geprüft …",
     ready: "Auto hat Belichtung und Farbe ausgeglichen. Vergleichen Sie mit dem Original, bearbeiten Sie weiter oder exportieren Sie jetzt. Rückgängig nimmt es zurück.",
     unchanged: "Dieses Foto wirkt schon natürlich, daher hat Auto es gelassen, wie es war. Bearbeiten Sie es nach Belieben oder exportieren Sie es jetzt.",
+    held: "Auto hat einen Vorschlag, aber die Bildprüfung auf diesem Gerät war nicht überzeugt, dass er natürlich wirkt, daher wurde nichts geändert. Vergleichen Sie ihn im Copilot und wenden Sie ihn an, wenn er Ihnen gefällt, oder exportieren Sie das Foto unverändert.",
     failedCheck: "Auto konnte dieses Foto nicht prüfen. Sie können es trotzdem bearbeiten und exportieren.",
     export: "Exportieren …",
     done: "Fertig",
@@ -684,6 +685,8 @@ export const de: AreaTranslation<typeof source> = {
   },
   guardian: {
     autopilotHeld: "Der Autopilot hat diese Bearbeitung für Ihre Prüfung zurückgehalten: Die Bildprüfung auf diesem Gerät war nicht überzeugt, dass sie natürlich wirkt. Der Vorschlag steht im Copilot zur Vorschau oder zum Anwenden bereit. Es wurde nichts geändert.",
+    secondOpinion: "Zweite Meinung:",
+    suggestionDoubted: "Die Bildprüfung auf diesem Gerät war nicht überzeugt, dass dies natürlich wirkt. Vergleichen Sie vorher und nachher; ob Sie es anwenden, entscheiden Sie.",
   },
   adjust: {
     grade: {

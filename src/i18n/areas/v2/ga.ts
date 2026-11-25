@@ -356,6 +356,7 @@ export const ga: AreaTranslation<typeof source> = {
     working: "Do ghrianghraf á chur leis agus a nochtadh agus a dhath á seiceáil ar an ngléas seo…",
     ready: "Chothromaigh Uathoibríoch an nochtadh agus an dath. Cuir i gcomparáid leis an mbunchóip é, lean ort ag eagarthóireacht, nó easpórtáil anois é. Tugann Cealaigh ar ais é.",
     unchanged: "Tá cuma nádúrtha ar an ngrianghraf seo cheana, mar sin d’fhág Uathoibríoch mar a bhí sé. Cuir in eagar é mar is mian leat, nó easpórtáil anois é.",
+    held: "Tá moladh ag Auto, ach ní raibh an seiceáil radhairc ar an ngléas seo cinnte go bhfuil cuma nádúrtha air, mar sin níor athraíodh aon rud. Cuir i gcomparáid é sa Chomhphíolóta agus cuir i bhfeidhm é más maith leat é, nó easpórtáil an grianghraf mar atá.",
     failedCheck: "Níorbh fhéidir le hUathoibríoch an grianghraf seo a sheiceáil. Is féidir leat é a chur in eagar agus a easpórtáil fós.",
     export: "Easpórtáil…",
     done: "Déanta",
@@ -687,6 +688,8 @@ export const ga: AreaTranslation<typeof source> = {
   },
   guardian: {
     autopilotHeld: "Choinnigh an t-uathphíolóta an eagarthóireacht seo siar le go ndéanfá athbhreithniú uirthi: ní raibh an tseiceáil amhairc ar an ngléas seo cinnte go bhfuil cuma nádúrtha uirthi. Tá an moladh sa chomhphíolóta le réamhamharc a fháil air nó é a chur i bhfeidhm. Níor athraíodh aon rud.",
+    secondOpinion: "Dara tuairim:",
+    suggestionDoubted: "ní raibh an seiceáil radhairc ar an ngléas seo cinnte go bhfuil cuma nádúrtha air seo. Cuir roimh agus i ndiaidh i gcomparáid; is fútsa atá sé é a chur i bhfeidhm.",
   },
   adjust: {
     grade: {

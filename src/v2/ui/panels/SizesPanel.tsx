@@ -54,8 +54,6 @@ export default function SizesPanel({
   addingCustom,
   onSetAddingCustom,
   onAddCustomSize,
-  onSetOriginalOutputSize,
-  onResetOriginalOutputSize,
   onSetSplitFrameCount,
   onUpdateVideoZoom,
 }: SizesPanelProps) {
@@ -74,13 +72,6 @@ export default function SizesPanel({
   const [paperPreset, setPaperPreset] = useState<PaperPreset>('custom');
   const [paperOrientation, setPaperOrientation] = useState<PaperOrientation>('portrait');
   const [recentBorderColours, setRecentBorderColours] = useState<string[]>([]);
-  const originalFormat = photo?.sizes.find((size) => size.id === 'orig-3x2');
-  const [originalW, setOriginalW] = useState(0);
-  const [originalH, setOriginalH] = useState(0);
-  useEffect(() => {
-    setOriginalW(originalFormat?.width ?? 0);
-    setOriginalH(originalFormat?.height ?? 0);
-  }, [photo?.id, originalFormat?.width, originalFormat?.height]);
 
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">{STRINGS.formats.noPhoto}</p>;
@@ -261,43 +252,6 @@ export default function SizesPanel({
             <span>{STRINGS.formats.customSizeAdd}</span>
           </button>
         </div>
-
-        {originalFormat && !addingCustom && (
-          <form
-            className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              onSetOriginalOutputSize(photo.id, originalW, originalH);
-            }}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.formats.originalHeading}</span>
-              <span className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.formats.originalVisibility}</span>
-            </div>
-            <p className="text-[0.6875rem] text-[var(--text-secondary)]">
-              {STRINGS.formats.originalHelp}
-            </p>
-            <div className="flex flex-wrap items-end gap-2">
-              <label className="flex flex-col gap-1 text-[0.6875rem] text-[var(--text-secondary)]">
-                {STRINGS.formats.originalWidth}
-                <input type="number" min="1" max="20000" step="1" value={originalW}
-                  aria-label={STRINGS.formats.originalWidthLabel} onChange={(event) => setOriginalW(Number(event.target.value))}
-                  className="h-9 w-28 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 font-mono text-xs text-[var(--text-primary)]" />
-              </label>
-              <label className="flex flex-col gap-1 text-[0.6875rem] text-[var(--text-secondary)]">
-                {STRINGS.formats.originalHeight}
-                <input type="number" min="1" max="20000" step="1" value={originalH}
-                  aria-label={STRINGS.formats.originalHeightLabel} onChange={(event) => setOriginalH(Number(event.target.value))}
-                  className="h-9 w-28 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 font-mono text-xs text-[var(--text-primary)]" />
-              </label>
-              <button type="submit"
-                disabled={!Number.isSafeInteger(originalW) || !Number.isSafeInteger(originalH) || originalW < 1 || originalH < 1 || originalW > 20000 || originalH > 20000}
-                className="h-9 rounded-[var(--radius-sm)] bg-[var(--brand-accent)] px-3 text-xs font-semibold text-[var(--text-on-accent)] disabled:opacity-40">{STRINGS.formats.originalApply}</button>
-              <button type="button" onClick={() => onResetOriginalOutputSize(photo.id)}
-                className="h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs text-[var(--text-secondary)]">{STRINGS.formats.originalReset}</button>
-            </div>
-          </form>
-        )}
 
         {addingCustom && (
           <form

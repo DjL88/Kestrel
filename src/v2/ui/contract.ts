@@ -328,6 +328,8 @@ export interface AssistSuggestion {
   colourSense?: ColourSenseNote;
   /** Colour match: whether the subject carries the colours it should have (species signature or the vision model), in words. */
   colourMatch?: ColourSenseNote;
+  /** The vision guardian doubted this suggestion looks natural, in words. Advice only: Apply still applies it. */
+  secondOpinion?: ColourSenseNote;
 }
 
 export interface PhotoExif {
@@ -604,6 +606,8 @@ export interface PhotoSurfaceProps {
   alt: string;
   className?: string;
   style?: CSSProperties;
+  /** Called with the shown picture's pixel size (framed, upright) whenever a picture loads, the small interim one included. */
+  onPictureSize?: (size: { width: number; height: number }) => void;
 }
 
 export type HubViewState = 'ready' | 'empty' | 'loading' | 'error';
@@ -670,8 +674,9 @@ export interface WorkspaceStore {
   /** After reading a Lightroom catalogue: how many of its photos are not in this project yet, and where Lightroom keeps them. */
   lightroomOffer?: { missing: number; folder: string } | null;
   /** First run: InFlight is adding the picked photos and running Auto on the first ('working'), has applied Auto ('ready'),
-   * found the photo already looked natural and left it ('unchanged'), or could not check it ('failed'). */
-  quickStart?: { phase: 'working' | 'ready' | 'unchanged' | 'failed'; photoId: string | null } | null;
+   * found the photo already looked natural and left it ('unchanged'), held its suggestion because the vision guardian
+   * doubted it ('held'), or could not check it ('failed'). */
+  quickStart?: { phase: 'working' | 'ready' | 'unchanged' | 'held' | 'failed'; photoId: string | null } | null;
   /** The open project's automatic backup, as last reported. Absent when no project is open. */
   backup?: { state: 'idle' | 'working' | 'ok' | 'partial' | 'failed'; at?: number } | null;
   /** Optional engine-supplied renderer for the canvas (see PhotoSurfaceProps). */

@@ -133,6 +133,7 @@ export const cy: AreaTranslation<typeof source> = {
     suggestionStale: 'Newidiodd y llun ar ôl yr awgrym hwn. Arhoswch am wiriad newydd.',
     checkTask: (filename) => `Gwirio ${filename} a’i liw`,
     checkStage: 'Edrych ar ddatguddiad, lliw a golygfa',
+    secondOpinionStage: "Ail farn gan y model gweledol ar y ddyfais",
     checkFailed: 'Doedd dim modd gwirio’r llun hwn. Manylion yn Tasgau.',
     deepTask: 'Cynnal adolygiad manwl',
     deepStage: 'Edrych ar y gwrthrychau ac ansawdd y llun',
