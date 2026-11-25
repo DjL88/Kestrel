@@ -49,6 +49,7 @@ export const it: AreaTranslation<typeof source> = {
       : `Rumore ridotto su questo dispositivo, con ${count} soggetti protetti insieme.`),
     global: 'Nessun contorno del soggetto era affidabile, quindi la riduzione del rumore è stata applicata in modo uniforme a tutta la foto.',
     failedCheck: 'Il risultato non ha superato il controllo di qualità. Le tue modifiche sono state mantenute.',
+    mainThread: 'Questo dispositivo non ha potuto ridurre il rumore in background, quindi InFlight potrebbe essersi bloccato durante il lavoro.',
     leftAsItWas: (notes) => `Lasciata com’era. ${notes}`,
   },
   workspace: {
@@ -147,6 +148,7 @@ export const it: AreaTranslation<typeof source> = {
     importSaveStage: 'Salvataggio della foto in questo progetto',
     importSomeFailed: (added) => `Alcune foto non sono state importate. Ne sono state aggiunte ${added}. Apri Attività per riprovare solo quelle non riuscite.`,
     importStopped: (added) => `Importazione interrotta. Sono state aggiunte ${added} foto. I tuoi originali non sono cambiati.`,
+    importNotFinished: (count, names) => `L’ultima importazione in questo progetto non è terminata: ${count} foto non sono state aggiunte (${names}). Importale di nuovo per aggiungerle. Le foto già aggiunte vengono mantenute.`,
     importFailed: 'L’aggiunta delle foto non è riuscita. I tuoi originali non sono stati modificati.',
   },
 };

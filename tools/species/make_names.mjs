@@ -11,7 +11,7 @@
  * app shows the scientific name, never a guessed translation. The xlsx is not committed; its URL and SHA-256 go in each file.
  */
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { strFromU8, unzipSync } from 'fflate';
 
@@ -62,6 +62,8 @@ export function iocNames(rows) {
 }
 
 
+const GROUP_LISTS = ['public/models/species-reptiles.json', 'public/models/species-amphibians.json', 'public/models/species-odonata.json', 'public/models/species-lepidoptera.json'];
+
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/').split('/').pop())) {
   const [source, target] = process.argv.slice(2);
   const bytes = readFileSync(source);
@@ -72,6 +74,8 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '
     ...JSON.parse(readFileSync('src/assets/species/uk.json', 'utf8')).labels,
     // World mammals (Mammal Diversity Database), so other languages show their scientific name, not English.
     ...JSON.parse(readFileSync('public/models/species-mammals.json', 'utf8')).labels.map(({ family: _family, ...label }) => label),
+    // The other group lists, where added (reptiles, amphibians, dragonflies, butterflies and moths).
+    ...GROUP_LISTS.filter((file) => existsSync(file)).flatMap((file) => JSON.parse(readFileSync(file, 'utf8')).labels.map(({ family: _family, ...label }) => label)),
   ];
   const seen = new Set();
   const species = [];
@@ -105,17 +109,20 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '
     if (code === 'note') continue;
     mammalNames[code] = { ...(mammalNames[code] ?? {}), ...drafts };
   }
+  // Local names for the other groups, from their checklists' vernacular names (tools/species/group-names.json).
+  const groupNames = JSON.parse(readFileSync(new URL('./group-names.json', import.meta.url), 'utf8')).names;
   for (const code of [...Object.keys(IOC_COLUMNS), ...NO_IOC_NAMES]) {
     const local = {};
     let mammals = 0;
     for (const s of species) {
-      const name = names.get(s.scientific.toLowerCase())?.[code] ?? (s.group === 'mammal' ? mammalNames[code]?.[s.scientific] : undefined);
+      const name = names.get(s.scientific.toLowerCase())?.[code]
+        ?? (s.group === 'mammal' ? mammalNames[code]?.[s.scientific] : s.group !== 'bird' ? groupNames[code]?.[s.scientific] : undefined);
       if (!name) continue;
       local[s.scientific] = name;
       if (s.group === 'mammal') mammals += 1;
     }
     const file = { ...meta, language: code, names: local,
-      attribution: `${attribution} Mammal names: Wikidata (CC0), for species from the Mammal Diversity Database v2.5 (CC BY 4.0).` };
+      attribution: `${attribution} Mammal names: Wikidata (CC0), for species from the Mammal Diversity Database v2.5 (CC BY 4.0). Reptile, amphibian and dragonfly names: their checklists (CC BY 4.0) and Wikidata (CC0).` };
     writeFileSync(join(target, `${code}.json`), JSON.stringify(file));
     console.log(`${code}: ${Object.keys(local).length} of ${species.length} named (${mammals} mammals), ${size(file)}`);
   }

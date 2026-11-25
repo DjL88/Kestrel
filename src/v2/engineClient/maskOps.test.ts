@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createMask, createSubjectMask, MAX_MASKS, validMasks, hasActiveMasks, type Mask } from '../../core/maskTypes.ts';
-import { canAddMask, masksToLayers, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskLimit, toggleMask } from './maskOps.ts';
+import { canAddMask, masksToLayers, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskLimit, setMaskParts, toggleMask } from './maskOps.ts';
 import { applyMasks, effectiveAlpha, fullContext, maskAlpha } from '../../core/masks.ts';
 import { recordEdit, stepEdit } from '../../core/editHistory.ts';
 import type { PhotoFrame } from '../../core/types.ts';
@@ -144,7 +144,7 @@ test('mask combinations are reversible, validated and change the actual rendered
   const intersect = setMaskLimit(base, 'left', { id: 'right', mode: 'intersect' });
   const subtract = setMaskLimit(base, 'left', { id: 'right', mode: 'subtract' });
   assert.ok(validMasks(intersect) && validMasks(subtract));
-  assert.deepEqual(masksToLayers(intersect)[0].limit, { id: 'right', mode: 'intersect' });
+  assert.deepEqual(masksToLayers(intersect)[0].parts, [{ id: 'right', mode: 'intersect' }]);
   const both = effectiveAlpha(intersect[0], intersect, w, h, ctx);
   const difference = effectiveAlpha(subtract[0], subtract, w, h, ctx);
   assert.ok(both[50 * w + 50] > 0.9 && both[50 * w + 20] < 0.1);
@@ -182,4 +182,62 @@ test('collapsed linear gradients cannot affect the whole image or broaden a rest
   }
   const valid = { ...gradient, x2: 0.75 };
   assert.deepEqual(setMaskGeometry([valid], 'g', 'x2', 0.5), [valid]);
+});
+
+/** Three round areas in a row across the middle: left (x 0.1-0.4), middle (0.35-0.65), right (0.6-0.9). */
+function threeAreas(): Mask[] {
+  const area = (id: string, cx: number) => ({ ...createMask('radial', id), cx, cy: 0.5, rx: 0.15, ry: 0.15, feather: 0, edit: { exposure: 1 } }) as Mask;
+  return [area('left', 0.25), area('middle', 0.5), area('right', 0.75)];
+}
+const at = (alpha: Float32Array, x: number, w = 100) => alpha[50 * w + x];
+
+test('a mask combines several parts in order: add, subtract and intersect', () => {
+  const ctx = fullContext(100, 100);
+  // left + right: both areas, not the gap between them.
+  const added = setMaskParts(threeAreas(), 'left', [{ id: 'right', mode: 'add' }]);
+  const union = effectiveAlpha(added[0], added, 100, 100, ctx);
+  assert.ok(at(union, 25) > 0.9 && at(union, 75) > 0.9 && at(union, 50) < 0.1);
+  // (left + right) - middle: the middle area's overlap with each is taken out again.
+  const cut = setMaskParts(threeAreas(), 'left', [{ id: 'right', mode: 'add' }, { id: 'middle', mode: 'subtract' }]);
+  const less = effectiveAlpha(cut[0], cut, 100, 100, ctx);
+  assert.ok(at(less, 15) > 0.9 && at(less, 85) > 0.9 && at(less, 38) < 0.1 && at(less, 62) < 0.1);
+  // (left + right) ∩ middle: only the two thin overlaps remain.
+  const overlap = setMaskParts(threeAreas(), 'left', [{ id: 'right', mode: 'add' }, { id: 'middle', mode: 'intersect' }]);
+  const both = effectiveAlpha(overlap[0], overlap, 100, 100, ctx);
+  assert.ok(at(both, 38) > 0.9 && at(both, 62) > 0.9 && at(both, 15) < 0.1 && at(both, 50) < 0.1);
+  // Saved and read back as a valid recipe, and listed for the panel in order.
+  assert.ok(validMasks(JSON.parse(JSON.stringify(cut))));
+  assert.deepEqual(masksToLayers(cut)[0].parts, [{ id: 'right', mode: 'add' }, { id: 'middle', mode: 'subtract' }]);
+});
+
+test('an older InFlight that only reads limit narrows the mask instead of spreading it', () => {
+  const cut = setMaskParts(threeAreas(), 'left', [{ id: 'right', mode: 'add' }, { id: 'middle', mode: 'subtract' }]);
+  assert.deepEqual(cut[0].limit, { id: 'middle', mode: 'subtract' });
+  const addOnly = setMaskParts(threeAreas(), 'left', [{ id: 'right', mode: 'add' }]);
+  assert.equal(addOnly[0].limit, undefined);
+  // An older single limit is still read as one part.
+  const older = { ...threeAreas()[0], limit: { id: 'middle', mode: 'subtract' as const } };
+  const alpha = effectiveAlpha(older, [older, ...threeAreas().slice(1)], 100, 100, fullContext(100, 100));
+  assert.ok(at(alpha, 15) > 0.9 && at(alpha, 38) < 0.1);
+});
+
+test('mask parts are validated, capped at four, and removing a part mask hides the masks that used it', () => {
+  const areas = threeAreas();
+  assert.deepEqual(setMaskParts(areas, 'left', [{ id: 'left', mode: 'add' }]), areas);
+  assert.deepEqual(setMaskParts(areas, 'left', [{ id: 'missing', mode: 'add' }]), areas);
+  assert.deepEqual(setMaskParts(areas, 'left', [{ id: 'right', mode: 'add' }, { id: 'right', mode: 'subtract' }]), areas);
+  assert.deepEqual(setMaskParts(areas, 'left', [{ id: 'right', mode: 'blend' as 'add' }]), areas);
+  const many = [...areas, ...['a', 'b', 'c'].map((id) => createMask('radial', id))];
+  assert.deepEqual(setMaskParts(many, 'left', ['middle', 'right', 'a', 'b', 'c'].map((id) => ({ id, mode: 'add' as const }))), many);
+  assert.ok(validMasks(setMaskParts(many, 'left', ['middle', 'right', 'a', 'b'].map((id) => ({ id, mode: 'add' as const })))));
+  // Clearing the parts clears the older limit as well.
+  const cleared = setMaskParts(setMaskParts(areas, 'left', [{ id: 'middle', mode: 'intersect' }]), 'left', []);
+  assert.equal(cleared[0].parts, undefined);
+  assert.equal(cleared[0].limit, undefined);
+  // Removing a part mask drops that part and hides the dependent mask, so its edit never spreads.
+  const combined = setMaskParts(areas, 'left', [{ id: 'right', mode: 'add' }, { id: 'middle', mode: 'subtract' }]);
+  const after = removeMask(combined, 'middle');
+  assert.deepEqual(after[0].parts, [{ id: 'right', mode: 'add' }]);
+  assert.equal(after[0].hidden, true);
+  assert.equal(after[0].limit, undefined);
 });

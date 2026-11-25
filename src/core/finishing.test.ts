@@ -118,3 +118,49 @@ test('dehaze at preview size matches dehaze at full size (the haze colour does n
   const mean = diff / (small.length / 2);
   assert.ok(mean < 4, `mean difference ${mean.toFixed(2)} of 255`);
 });
+
+test('vignette roundness, feather and highlight protection; the defaults are the original vignette exactly', () => {
+  const w = 60, h = 30;
+  const at = (p: Uint8ClampedArray, x: number, y: number) => p[(y * w + x) * 4];
+  const run = (extra: Record<string, number>, value = 150) => {
+    const p = flat(w, h, value);
+    applyFinishing(p, w, h, { vignette: { amount: -1, size: 0.5, ...extra } }, full(w, h));
+    return p;
+  };
+  assert.deepEqual(run({ roundness: 0, feather: 0.5, highlights: 0 }), run({}));
+  // Round: the middle of the long edge is further from a circle's centre than an oval's, so it darkens more.
+  const edgeMid = (p: Uint8ClampedArray) => at(p, 0, h / 2);
+  assert.ok(edgeMid(run({ roundness: 1 })) < edgeMid(run({})) - 5, `${edgeMid(run({ roundness: 1 }))} vs ${edgeMid(run({}))}`);
+  // Rectangular: the middle of each edge reaches as dark as a corner.
+  const rect = run({ roundness: -1 });
+  assert.ok(Math.abs(at(rect, 0, h / 2) - at(rect, 0, 0)) < 12);
+  // Feather 0 is a hard step; 1 is softer than the default.
+  const hard = run({ feather: 0 }), soft = run({ feather: 1 });
+  let jumps = 0;
+  for (let x = 1; x < w / 2; x += 1) if (Math.abs(at(hard, x, h / 2) - at(hard, x - 1, h / 2)) > 30) jumps += 1;
+  assert.ok(jumps >= 1, 'a hard edge has a step');
+  assert.ok(at(soft, 0, 0) > at(run({}), 0, 0), 'a softer fall-off leaves the corner lighter');
+  // Highlights protection spares a bright picture but still darkens a mid-grey one.
+  const bright = run({ highlights: 1 }, 245);
+  assert.ok(at(bright, 0, 0) > 235, `bright corner ${at(bright, 0, 0)}`);
+  assert.ok(at(run({ highlights: 1 }, 120), 0, 0) < 80);
+  assert.ok(!validVignette({ amount: -1, size: 0.5, roundness: 2 }));
+  assert.ok(!validVignette({ amount: -1, size: 0.5, feather: -0.1 }));
+});
+
+test('grain roughness makes the grain less even, stays fixed to the photo, and 0 is the original grain', () => {
+  const w = 600, h = 400;
+  const run = (roughness?: number) => {
+    const p = flat(w, h, 128);
+    applyFinishing(p, w, h, { grain: { amount: 1, size: 1, ...(roughness === undefined ? {} : { roughness }) } }, full(w, h), w);
+    return p;
+  };
+  assert.deepEqual(run(0), run());
+  const smooth = run(0), rough = run(1);
+  assert.notDeepEqual(smooth, rough);
+  assert.deepEqual(rough, run(1), 'deterministic');
+  // Rougher grain has more pixel-to-pixel change.
+  const busy = (p: Uint8ClampedArray) => { let s = 0; for (let i = 4; i < p.length; i += 4) s += Math.abs(p[i] - p[i - 4]); return s; };
+  assert.ok(busy(rough) > busy(smooth) * 1.1, `${busy(rough)} vs ${busy(smooth)}`);
+  assert.equal(hasFinishing({ grain: { amount: 0.2, size: 0.3, roughness: 0.5 } }), true);
+});

@@ -1,5 +1,7 @@
 import React from 'react';
-import type { MaskGeometryField, MaskLayer, Photo, WorkspaceStore } from '../contract';
+import type { MaskGeometryField, MaskLayer, MaskLayerPart, Photo, TapSelectState, WorkspaceActions, WorkspaceStore } from '../contract';
+import { EFFICIENTSAM_TI, optionalModelBytes } from '../../../core/optionalModels';
+import { MAX_MASK_PARTS } from '../../../core/maskTypes';
 import { STRINGS } from '../strings';
 import BrandIcon, { type BrandIconName } from '../icons/BrandIcon';
 import { MASK_SLIDERS } from '../../engineClient/maskOps';
@@ -14,8 +16,11 @@ interface MasksPanelProps {
   onSetMaskEdit: (photoId: string, maskId: string, key: string, value: number) => void;
   onSetMaskFeather: (photoId: string, maskId: string, percent: number) => void;
   onSetMaskGeometry: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
-  onSetMaskLimit: (photoId: string, maskId: string, limit: MaskLayer['limit'] | null) => void;
+  onSetMaskParts: (photoId: string, maskId: string, parts: MaskLayerPart[]) => void;
   onPreviewMask?: (selection: { photoId: string; maskId: string } | null) => void;
+  /** Tap to select (optional pack); absent where the engine does not offer it. */
+  tapSelect?: TapSelectState;
+  tapActions?: Pick<WorkspaceActions, 'downloadTapSelect' | 'startTapSelect' | 'setTapSelectMode' | 'newTapSubject' | 'finishTapSelect'>;
 }
 
 export default function MasksPanel({
@@ -28,8 +33,10 @@ export default function MasksPanel({
   onSetMaskEdit,
   onSetMaskFeather,
   onSetMaskGeometry,
-  onSetMaskLimit,
+  onSetMaskParts,
   onPreviewMask,
+  tapSelect,
+  tapActions,
 }: MasksPanelProps) {
   const [openId, setOpenId] = React.useState<string | null>(null);
   const seen = React.useRef<{ photoId: string; ids: string[] } | null>(null);
@@ -106,6 +113,8 @@ export default function MasksPanel({
         </div>
       </div>
 
+      {tapSelect && <TapSelectSection photo={photo} state={tapSelect} actions={tapActions ?? {}} />}
+
       {/* Manual refinement tools */}
       <div className="space-y-2 border-t border-[var(--border-subtle)] pt-3.5">
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">
@@ -165,7 +174,7 @@ export default function MasksPanel({
                     className="min-w-0 flex-1 truncate text-left text-xs text-[var(--text-primary)]"
                   >
                     <span className={layer.visible ? '' : 'opacity-50'}>{layer.name}</span>
-                    {layer.limit && <span className="ml-1 text-[0.625rem] text-[var(--text-muted)]">{layer.limit.mode === 'intersect' ? '· Intersected' : '· Subtracted'}</span>}
+                    {layer.parts?.length ? <span className="ml-1 text-[0.625rem] text-[var(--text-muted)]">{`· ${STRINGS.panelWords.combined}`}</span> : null}
                     <span className="ml-2 text-[0.625rem] text-[var(--text-muted)]">{Object.keys(layer.edit).length ? `${Object.keys(layer.edit).length} adjusted` : 'no adjustments'}</span>
                   </button>
                   <button
@@ -215,30 +224,55 @@ export default function MasksPanel({
                         ))}
                       </fieldset>;
                     })()}
-                    {photo.masks.some(other => other.id !== layer.id) && (
-                      <fieldset className="space-y-2 border-b border-[var(--border-subtle)] pb-3">
-                        <legend className="text-[0.6875rem] font-semibold text-[var(--text-primary)]">{'Combine with another mask'}</legend>
-                        <label className="block space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
-                          <span>{'Limit to a shape'}</span>
-                          <select aria-label={`${layer.name} combination target`} value={layer.limit?.id ?? ''}
-                            className="min-h-9 w-full rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2"
-                            onChange={event => onSetMaskLimit(photo.id, layer.id, event.target.value ? { id: event.target.value, mode: layer.limit?.mode ?? 'intersect' } : null)}>
-                            <option value="">{'No restriction'}</option>
-                            {photo.masks.filter(other => other.id !== layer.id).map((other, index) => <option key={other.id} value={other.id}>{`${other.name} · ${index + 1}`}</option>)}
-                          </select>
-                        </label>
-                        {layer.limit && <label className="block space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
-                          <span>{'Combination'}</span>
-                          <select aria-label={`${layer.name} combination mode`} value={layer.limit.mode}
-                            className="min-h-9 w-full rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2"
-                            onChange={event => { if (event.target.value === 'intersect' || event.target.value === 'subtract') onSetMaskLimit(photo.id, layer.id, { id: layer.limit!.id, mode: event.target.value }); }}>
-                            <option value="intersect">{'Intersect · only the overlap'}</option>
-                            <option value="subtract">{'Subtract · exclude the other shape'}</option>
-                          </select>
-                        </label>}
-                        <p className="text-[0.625rem] text-[var(--text-muted)]">{'Uses the other mask’s own shape, even if its adjustments are switched off. Both masks remain editable.'}</p>
-                      </fieldset>
-                    )}
+                    {photo.masks.some(other => other.id !== layer.id) && (() => {
+                      const parts = layer.parts ?? [];
+                      const others = photo.masks.filter(other => other.id !== layer.id);
+                      const setParts = (next: MaskLayerPart[]) => onSetMaskParts(photo.id, layer.id, next);
+                      const unused = others.filter(other => !parts.some(part => part.id === other.id));
+                      return <fieldset className="space-y-2 border-b border-[var(--border-subtle)] pb-3" data-testid="v2-mask-parts">
+                        <legend className="text-[0.6875rem] font-semibold text-[var(--text-primary)]">{STRINGS.panelWords.partsHeading}</legend>
+                        <ol className="space-y-2">
+                          {parts.map((part, index) => (
+                            <li key={part.id} className="space-y-1 rounded border border-[var(--border-subtle)] p-2">
+                              <label className="block space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
+                                <span>{`${index + 1}. ${STRINGS.panelWords.partMode}`}</span>
+                                <select aria-label={`${layer.name} ${index + 1}: ${STRINGS.panelWords.partMode}`} value={part.mode}
+                                  className="min-h-9 w-full rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2"
+                                  onChange={event => { const mode = event.target.value; if (mode === 'add' || mode === 'subtract' || mode === 'intersect') setParts(parts.map((other, at) => at === index ? { ...other, mode } : other)); }}>
+                                  <option value="add">{STRINGS.panelWords.modeAdd}</option>
+                                  <option value="subtract">{STRINGS.panelWords.modeSubtract}</option>
+                                  <option value="intersect">{STRINGS.panelWords.modeIntersect}</option>
+                                </select>
+                              </label>
+                              <label className="block space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
+                                <span>{STRINGS.panelWords.partTarget}</span>
+                                <select aria-label={`${layer.name} ${index + 1}: ${STRINGS.panelWords.partTarget}`} value={part.id}
+                                  className="min-h-9 w-full rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2"
+                                  onChange={event => setParts(parts.map((other, at) => at === index ? { ...other, id: event.target.value } : other))}>
+                                  {others.filter(other => other.id === part.id || !parts.some(used => used.id === other.id)).map(other => (
+                                    <option key={other.id} value={other.id}>{`${other.name} · ${photo.masks.indexOf(other) + 1}`}</option>
+                                  ))}
+                                </select>
+                              </label>
+                              <button type="button" onClick={() => setParts(parts.filter((_, at) => at !== index))}
+                                aria-label={`${layer.name} ${index + 1}: ${STRINGS.panelWords.removePart}`}
+                                className="min-h-9 text-[0.6875rem] font-medium text-[var(--text-secondary)] underline-offset-2 hover:underline">
+                                {STRINGS.panelWords.removePart}
+                              </button>
+                            </li>
+                          ))}
+                        </ol>
+                        {parts.length < MAX_MASK_PARTS && unused.length > 0 ? (
+                          <button type="button" data-testid="v2-mask-add-part"
+                            onClick={() => setParts([...parts, { id: unused[0].id, mode: parts.length ? 'add' : 'intersect' }])}
+                            className="inline-flex min-h-9 items-center gap-1.5 rounded border border-[var(--border-default)] px-2.5 text-[0.6875rem] font-medium text-[var(--text-primary)]">
+                            <BrandIcon name="plus" size={12} />
+                            <span>{STRINGS.panelWords.addPart}</span>
+                          </button>
+                        ) : parts.length >= MAX_MASK_PARTS ? <p className="text-[0.625rem] text-[var(--text-muted)]">{STRINGS.panelWords.partsFull}</p> : null}
+                        <p className="text-[0.625rem] text-[var(--text-muted)]">{STRINGS.panelWords.partsNote}</p>
+                      </fieldset>;
+                    })()}
                     {MASK_SLIDERS.map((slider) => (
                       <label key={slider.key} className="block space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
                         <span className="flex justify-between"><span>{slider.label}</span><span className="font-mono tabular-nums">{(layer.edit[slider.key] ?? 0).toFixed(2)}</span></span>
@@ -269,5 +303,60 @@ export default function MasksPanel({
         Subject/Background detection and adjustable Oval/Gradient masks work on this device. Automatic Sky detection and Brush/Eraser painting remain unavailable.
       </p>
     </div>
+  );
+}
+
+const TAP_MB = (optionalModelBytes(EFFICIENTSAM_TI) / 1_000_000).toFixed(0);
+
+/** Tap to select: the optional pack offer, then the session controls. Words carry every state; nothing is colour alone. */
+function TapSelectSection({ photo, state, actions }: { photo: Photo; state: TapSelectState; actions: NonNullable<MasksPanelProps['tapActions']> }) {
+  const words = STRINGS.tapSelect;
+  const session = state.session?.photoId === photo.id ? state.session : undefined;
+  const button = 'flex min-h-9 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border px-2.5 text-xs font-medium';
+  const plain = `${button} border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-primary)] hover:border-[var(--border-default)] disabled:cursor-not-allowed disabled:opacity-50`;
+  const chosen = `${button} border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--text-primary)]`;
+  return (
+    <section aria-label={words.tool} data-testid="tap-select" className="space-y-2 border-t border-[var(--border-subtle)] pt-3.5">
+      <h3 className="text-xs font-semibold text-[var(--text-primary)]">{words.tool}</h3>
+      {state.pack === 'unavailable' && <p className="text-[11px] text-[var(--text-muted)]">{words.unavailable}</p>}
+      {(state.pack === 'not-downloaded' || state.pack === 'failed') && (
+        <>
+          <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">{words.offer(TAP_MB)}</p>
+          {state.pack === 'failed' && state.message && <p role="alert" className="text-[11px] text-[var(--text-primary)]">{state.message}</p>}
+          <button type="button" className={plain} onClick={() => actions.downloadTapSelect?.()}>
+            <BrandIcon name="plus" size={14} /><span>{words.download}</span>
+          </button>
+        </>
+      )}
+      {state.pack === 'downloading' && (
+        <p role="status" className="text-[11px] text-[var(--text-secondary)]">{words.downloading(Math.round((state.downloadProgress ?? 0) * 100))}</p>
+      )}
+      {state.pack === 'ready' && !session && (
+        <button type="button" className={plain} onClick={() => actions.startTapSelect?.(photo.id)}>
+          <BrandIcon name="find-subject" size={14} /><span>{words.tool}</span>
+        </button>
+      )}
+      {state.pack === 'ready' && session && (
+        <div className="space-y-2">
+          <p role="status" className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
+            {session.phase === 'reading' ? words.reading : session.phase === 'working' ? words.working : session.phase === 'failed' ? (state.message ?? words.failed) : words.ready}
+          </p>
+          {session.subjects.length > 0 && <p className="text-[11px] text-[var(--text-muted)]">{words.subjects(session.subjects.length)}</p>}
+          <div className="grid grid-cols-2 gap-1.5" role="group" aria-label={words.tool}>
+            <button type="button" aria-pressed={session.mode === 'add'} className={session.mode === 'add' ? chosen : plain}
+              disabled={session.phase === 'reading' || session.phase === 'failed'} onClick={() => actions.setTapSelectMode?.('add')}>
+              <span aria-hidden="true" className="font-mono">+</span><span>{words.addMode}</span>
+            </button>
+            <button type="button" aria-pressed={session.mode === 'remove'} className={session.mode === 'remove' ? chosen : plain}
+              disabled={session.phase === 'reading' || session.phase === 'failed' || session.subjects.length === 0} onClick={() => actions.setTapSelectMode?.('remove')}>
+              <span aria-hidden="true" className="font-mono">−</span><span>{words.removeMode}</span>
+            </button>
+            <button type="button" className={plain} disabled={session.phase !== 'ready' || session.subjects.length === 0 || session.active >= session.subjects.length}
+              onClick={() => actions.newTapSubject?.()}>{words.newSubject}</button>
+            <button type="button" className={plain} onClick={() => actions.finishTapSelect?.()}>{words.done}</button>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }

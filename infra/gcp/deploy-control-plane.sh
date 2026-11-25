@@ -16,7 +16,9 @@ mode=$1; repo=$2; sha=$3; live=$4; export TF_DATA_DIR=$5
 project=kestrel-hosting; region=europe-west2; service=kestrel-control-plane
 address='google_cloud_run_v2_service.control_plane[0]'
 # Reviewed in-place updates that may ride along with a deploy (#1422: the models bucket CORS gains the website origin).
-also_allowed='["google_storage_bucket.models"]'
+# Also allowed: creating the three Paddle secret-reader grants when phase5_paddle_enabled is first turned on (#1478).
+# Also allowed: the monthly pricing review job's image, because that job runs the same control-plane image.
+also_allowed='["google_storage_bucket.models","google_cloud_run_v2_job.pricing_review[0]"]'
 for c in git terraform jq tar gcloud curl; do command -v "$c" >/dev/null || fail "Missing $c"; done
 [[ $sha =~ ^[0-9a-f]{40}$ ]] || fail "SHA must be a full 40-character commit"
 [[ -d "$TF_DATA_DIR/providers" && -f "$TF_DATA_DIR/terraform.tfstate" ]] || fail "Existing initialised provider/backend required"
@@ -44,8 +46,9 @@ plan_for(){ # $1 image, $2 plan file. Allows exactly one in-place update of the 
   changes=$(terraform -chdir="$tmp/infra/gcp" show -json "$2" | jq -c '[.resource_changes[]?|select(.change.actions!=["no-op"] and .change.actions!=["read"])|{address,actions:.change.actions}]')
   echo "Planned changes: $changes"
   jq -e --arg a "$address" --argjson ok "$also_allowed" \
-    'any(.[]; .address==$a) and all(.[]; .actions==["update"] and (.address==$a or (.address as $x | $ok | index($x))))' <<<"$changes" >/dev/null \
-    || fail "Plan changes more than the control plane image (and the reviewed bucket CORS); do not apply"
+    'any(.[]; .address==$a) and all(.[]; (.actions==["update"] and (.address==$a or (.address as $x | $ok | index($x))))
+      or (.actions==["create"] and (.address | startswith("google_secret_manager_secret_iam_member.phase5_paddle["))))' <<<"$changes" >/dev/null \
+    || fail "Plan changes more than the control plane image (and the reviewed bucket CORS, or Paddle's three secret-reader grants); do not apply"
   sha256sum "$2" | cut -d' ' -f1 >"$2.sha256"
 }
 apply_saved(){ # $1 plan file, $2 image applied

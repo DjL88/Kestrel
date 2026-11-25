@@ -49,9 +49,32 @@ export interface SubjectDetail { region: { x: number; y: number; w: number; h: n
 /** Restrict a mask by another one: only where it overlaps (intersect), or everywhere except it (subtract). */
 export interface MaskLimit { id: string; mode: 'intersect' | 'subtract' }
 
+/** How one part changes a mask: add the other mask's area, subtract it, or keep only the overlap. */
+export type MaskPartMode = 'add' | 'subtract' | 'intersect';
+/** Another mask combined into this one, by that mask's own shape. Parts apply in order. */
+export interface MaskPart { id: string; mode: MaskPartMode }
+export const MAX_MASK_PARTS = 4;
+const PART_MODES: readonly MaskPartMode[] = ['add', 'subtract', 'intersect'];
+
+/** The parts a mask combines, in order: its `parts`, or an older single `limit` read as one part. */
+export function maskParts(mask: Pick<Mask, 'parts' | 'limit'>): MaskPart[] {
+  return mask.parts ? mask.parts.map((part) => ({ ...part })) : mask.limit ? [{ ...mask.limit }] : [];
+}
+
+/** True when another mask's shape changes this one (a part or an older limit). */
+export function isCombined(mask: Pick<Mask, 'parts' | 'limit'>): boolean {
+  return maskParts(mask).length > 0;
+}
+
 export type Mask = MaskShape & {
   id: string;
+  /**
+   * Older single restriction. A mask with `parts` keeps its first restricting part here too, so an older InFlight that
+   * does not know `parts` narrows the mask rather than spreading its edit over the whole picture.
+   */
   limit?: MaskLimit;
+  /** Other masks combined into this one, in order. When present, `limit` is ignored. */
+  parts?: MaskPart[];
   invert: boolean;
   /** 0 is a crisp edge, 1 is the softest transition. */
   feather: number;
@@ -134,6 +157,17 @@ export function validMasks(value: unknown): value is Mask[] {
       const limit = mask.limit as Record<string, unknown> | null;
       if (typeof limit !== 'object' || limit === null || typeof limit.id !== 'string' || !limit.id || limit.id === mask.id ||
         (limit.mode !== 'intersect' && limit.mode !== 'subtract')) return false;
+    }
+    if (mask.parts !== undefined) {
+      if (!Array.isArray(mask.parts) || mask.parts.length > MAX_MASK_PARTS) return false;
+      const used = new Set<string>();
+      if (!mask.parts.every((raw) => {
+        if (typeof raw !== 'object' || raw === null) return false;
+        const part = raw as Record<string, unknown>;
+        if (typeof part.id !== 'string' || !part.id || part.id === mask.id || used.has(part.id)) return false;
+        used.add(part.id);
+        return PART_MODES.includes(part.mode as MaskPartMode);
+      })) return false;
     }
     const edit = mask.edit;
     if (typeof edit !== 'object' || edit === null || Array.isArray(edit)) return false;

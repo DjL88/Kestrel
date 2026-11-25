@@ -190,9 +190,17 @@ export interface EditRecipe {
   vignetteBlur?: number;
   /** A colour for the vignette as #rrggbb. Absent = darker or lighter, no colour. */
   vignetteColour?: string;
+  /** Vignette shape, -100 (the frame's rectangle) to 100 (a circle). Absent = 0, an oval of the frame's shape. */
+  vignetteRoundness?: number;
+  /** Vignette fall-off, 0 (hard) to 100 (softest). Absent = 50. */
+  vignetteFeather?: number;
+  /** How much bright areas are spared from a darkening or colour vignette, 0 to 100. Absent = 0. */
+  vignetteHighlights?: number;
   /** Film-like grain, 0 to 100, and its size, 0 (fine) to 100 (coarse; absent = 25). */
   grain?: number;
   grainSize?: number;
+  /** Grain roughness, 0 (smooth and even) to 100 (irregular). Absent = 0. */
+  grainRoughness?: number;
   /** Advanced: camera calibration, hue and saturation of each primary, -100 to 100. Absent = none. */
   calibration?: Record<'red' | 'green' | 'blue', { hue: number; saturation: number }>;
   /** White balance in kelvin against the camera's as-shot estimate (RAW photos only). Absent = as shot. */
@@ -281,14 +289,16 @@ export type MaskGeometry =
 
 export type MaskGeometryField = 'cx' | 'cy' | 'rx' | 'ry' | 'angle' | 'x1' | 'y1' | 'x2' | 'y2';
 
+export interface MaskLayerPart { id: string; mode: 'add' | 'subtract' | 'intersect' }
+
 export interface MaskLayer {
   id: string;
   name: string;
   type: 'subject' | 'sky' | 'background' | 'brush' | 'area' | 'gradient';
   /** Present only for genuine editable oval/gradient masks; never fabricated for detected subjects. */
   geometry?: MaskGeometry;
-  /** Restrict this layer to, or subtract, another layer's saved shape. */
-  limit?: { id: string; mode: 'intersect' | 'subtract' };
+  /** Other layers combined into this one, in order: add their area, subtract it, or keep only the overlap. */
+  parts?: MaskLayerPart[];
   visible: boolean;
   /** Edge softness, 0 to 100. */
   feather: number;
@@ -343,8 +353,6 @@ export interface Photo {
   speciesLabel?: string;
   /** What kind of vehicle or aircraft it probably is, in the person's language ("Military jet: Eurofighter Typhoon (probably)"). */
   vehicleLabel?: string;
-  /** Extra words the photo can be found by (a vehicle's kind in this language and in English, its type name). */
-  searchTerms?: string[];
   /** The subject name alone, without the "(suggested)" marker the label may carry, for editing it. */
   speciesName?: string;
   /** The vehicle reading's ids, so a correction starts from what is shown. */
@@ -518,6 +526,8 @@ export interface WorkspaceSettings {
     provider?: 'google' | 'apple' | 'email';
     email?: string;
     displayName?: string;
+    /** This month's cloud allowances and balance, from the control plane once signed in. Absent: the section is hidden. */
+    cloud?: import('../../core/cloudPlan').CloudUsage;
   };
   aiProviders: AiProviderConfig[];
   storageConnectors: StorageConnector[];
@@ -550,9 +560,33 @@ export interface ExportRequest {
 
 /** How a photo is drawn. The engine supplies this so the canvas shows real, developed pixels; without it the UI falls back
  * to a plain image with a CSS filter. 'original' is the photo with no edit, 'edited' is with its recipe. */
+/** One tap on the framed photo, as shares (0 to 1) of its width and height. */
+export interface TapPoint { x: number; y: number; add: boolean }
+
+export interface TapSelectState {
+  /** 'unavailable': this build does not offer the pack; 'not-downloaded': offered, the person has not chosen to download it. */
+  pack: 'unavailable' | 'not-downloaded' | 'downloading' | 'ready' | 'failed';
+  /** 0 to 1 while downloading. */
+  downloadProgress?: number;
+  /** Plain words for the last failure. */
+  message?: string;
+  /** The photo being selected on, if any. Each subject is its own reversible subject mask. */
+  session?: {
+    photoId: string;
+    /** 'reading': the model is reading the photo once (the slow step); 'working': answering a tap. */
+    phase: 'reading' | 'ready' | 'working' | 'failed';
+    mode: 'add' | 'remove';
+    subjects: Array<{ maskId: string; taps: TapPoint[] }>;
+    /** Index into subjects of the one taps go to; a new subject starts on the next added tap. */
+    active: number;
+  };
+}
+
 export interface PhotoSurfaceProps {
   /** Editor-only coverage guide, never part of the photo recipe or export. */
   maskGuideId?: string;
+  /** The guide as a line round the mask (the V2 default) or the hatched area. */
+  maskGuideStyle?: 'outline' | 'fill';
   /** Editor-only SVG content (mask outline and handles) drawn in the displayed picture's own pixels, over exactly that picture. */
   maskOutline?: (picture: { width: number; height: number }) => ReactNode;
   photoId: string;
@@ -619,6 +653,8 @@ export interface WorkspaceStore {
   settingsOpen: boolean;
   settingsTab: SettingsTabId;
   activeMaskTool: 'subject' | 'sky' | 'background' | 'brush' | 'eraser' | 'area' | 'gradient';
+  /** Tap-to-select (optional EfficientSAM-Ti pack). Absent where the engine does not offer it. */
+  tapSelect?: TapSelectState;
   canUndo: boolean;
   canRedo: boolean;
   clipboardRecipe: EditRecipe | null;
@@ -666,6 +702,9 @@ export interface WorkspaceActions {
   /** Moves already set-aside (rejected) photos into Trash. The catalogue entry is removed; InFlight's stored copies
    * go with it, but the original file on disk is never touched. Reversible with the normal per-photo Undo. */
   removePhotos: (photoIds: string[]) => void;
+  /** Moves photos (with their paired JPEG and copies, choices and edits) to another project, as a task in Tasks.
+   * A photo whose file is already there stays here. Original files are never touched. */
+  movePhotos?: (photoIds: string[], targetProjectId: string) => void;
   toggleFlag: (photoIds: string[]) => void;
   setRating: (photoIds: string[], rating: number) => void;
   correctSpeciesName: (photoId: string, name: string) => void;
@@ -788,6 +827,10 @@ export interface WorkspaceActions {
   removeOverlayRow: (photoId: string, rowId: string) => void;
   /** Measure this photo's lens colour edges and set caRed/caBlue from them. 'clean' = nothing to correct; 'unclear' = too few edges to tell. */
   detectColourEdges: (photoId: string) => Promise<'corrected' | 'clean' | 'unclear'>;
+  /** White balance from the picture itself, as one undoable step. `at` (0 to 1 across the shown, framed picture) is a spot
+   * that should be grey or white (the eyedropper); without it, Auto estimates the light from the whole picture.
+   * 'limited' = a slider reached its end first; 'unreadable' = the spot is clipped or too dark, nothing changed. */
+  neutralWhiteBalance?: (photoId: string, at?: { x: number; y: number }) => Promise<'set' | 'limited' | 'unreadable'>;
   /** Image layers. Add one from an image file on this device (opens the file picker). */
   addImageLayer: (photoId: string) => Promise<void>;
   /** Add another photo of this project as a layer: a copy of it as it looks now, with its edits. */
@@ -818,12 +861,20 @@ export interface WorkspaceActions {
   // Genuine non-destructive masks; brush painting still requires canvas coordinate integration.
   setActiveMaskTool: (tool: WorkspaceStore['activeMaskTool']) => void;
   addMaskLayer: (photoId: string, type: MaskLayer['type']) => void;
+  /** Tap-to-select: download the optional pack (the person's choice), start on a photo, tap, and finish. */
+  downloadTapSelect?: () => void;
+  startTapSelect?: (photoId: string) => void;
+  tapSelectAt?: (photoId: string, tap: TapPoint) => void;
+  setTapSelectMode?: (mode: 'add' | 'remove') => void;
+  newTapSubject?: () => void;
+  finishTapSelect?: () => void;
   toggleMaskLayer: (photoId: string, maskId: string) => void;
   removeMaskLayer: (photoId: string, maskId: string) => void;
   setMaskEdit: (photoId: string, maskId: string, key: string, value: number) => void;
   setMaskFeather: (photoId: string, maskId: string, percent: number) => void;
   setMaskGeometry: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
-  setMaskLimit: (photoId: string, maskId: string, limit: MaskLayer['limit'] | null) => void;
+  /** Combine other masks into this one, in order; an empty list removes every part. */
+  setMaskParts: (photoId: string, maskId: string, parts: MaskLayerPart[]) => void;
 
   // Tasks & Export
   cancelTask: (taskId: string) => void;

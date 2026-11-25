@@ -49,6 +49,7 @@ export const ga: AreaTranslation<typeof source> = {
       : `Laghdaíodh torann ar an ngléas seo, agus ${count} ábhar cosanta le chéile.`),
     global: 'Ní raibh imlíne aon ábhair iontaofa, mar sin laghdaíodh torann go cothrom ar fud an ghrianghraif.',
     failedCheck: 'Níor éirigh leis an toradh sa tseiceáil cháilíochta. Coinníodh d’eagarthóireacht reatha.',
+    mainThread: 'Níorbh fhéidir leis an ngléas seo torann a laghdú sa chúlra, mar sin d’fhéadfadh InFlight stopadh ar feadh tamaill.',
     leftAsItWas: (notes) => `Fágadh mar a bhí. ${notes}`,
   },
   workspace: {
@@ -147,6 +148,7 @@ export const ga: AreaTranslation<typeof source> = {
     importSaveStage: 'An grianghraf á shábháil sa tionscadal seo',
     importSomeFailed: (added) => `Níorbh fhéidir roinnt grianghraf a iompórtáil. Cuireadh ${added} leis. Oscail Tascanna chun triail eile a bhaint as na cinn a theip amháin.`,
     importStopped: (added) => `Stopadh an iompórtáil. Cuireadh ${added} grianghraf leis. Níor athraíodh do bhunchomhaid.`,
+    importNotFinished: (count, names) => `Níor críochnaíodh an iompórtáil dheireanach isteach sa tionscadal seo: níor cuireadh ${count} grianghraf leis (${names}). Iompórtáil arís iad chun iad a chur leis. Coinnítear na grianghraif a cuireadh leis cheana.`,
     importFailed: 'Theip ar na grianghraif a chur leis. Níor athraíodh do bhunchomhaid.',
   },
 };

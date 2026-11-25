@@ -49,6 +49,7 @@ export const fi: AreaTranslation<typeof source> = {
       : `Kohina poistettiin tällä laitteella, ${count} kohdetta suojattuna yhdessä.`),
     global: 'Yksikään kohteen rajaus ei ollut luotettava, joten kohinanpoisto tehtiin tasaisesti koko kuvaan.',
     failedCheck: 'Tulos ei läpäissyt laatutarkistusta. Nykyiset muokkauksesi säilytettiin.',
+    mainThread: 'Tämä laite ei voinut poistaa kohinaa taustalla, joten InFlight saattoi pysähtyä hetkeksi työn aikana.',
     leftAsItWas: (notes) => `Jätettiin ennalleen. ${notes}`,
   },
   workspace: {
@@ -147,6 +148,7 @@ export const fi: AreaTranslation<typeof source> = {
     importSaveStage: 'Tallennetaan kuva tähän projektiin',
     importSomeFailed: (added) => `Osaa kuvista ei voitu tuoda. ${added} lisättiin. Avaa Tehtävät, niin voit yrittää uudelleen vain epäonnistuneita.`,
     importStopped: (added) => `Tuonti pysäytettiin. ${added} kuvaa lisättiin. Alkuperäiset ovat ennallaan.`,
+    importNotFinished: (count, names) => `Viimeisin tuonti tähän projektiin ei valmistunut: ${count} kuvaa jäi lisäämättä (${names}). Tuo ne uudelleen lisätäksesi ne. Jo lisätyt kuvat säilyvät.`,
     importFailed: 'Kuvien lisääminen epäonnistui. Alkuperäisiä ei muutettu.',
   },
 };

@@ -21,7 +21,8 @@ test('embedded timestamp is readable and ZIP retains files with duplicate names'
   const file = datedExport(jpeg, 'ig_example.jpg', date);
   assert.equal(file.lastModified, date.getTime());
   const metadata = await exifr.parse(Buffer.from(await file.arrayBuffer()), { reviveValues: false });
-  assert.equal(metadata.DateTimeOriginal, '2026:11:15 08:25:40');
+  assert.equal(metadata.ModifyDate, '2026:11:15 08:25:40');
+  assert.equal(metadata.DateTimeOriginal, undefined, 'the export time is never written as the capture time');
   const archive = await archiveExports([file, file]);
   const entries = unzipSync(new Uint8Array(await archive.arrayBuffer()));
   assert.deepEqual(Object.keys(entries), ['ig_example.jpg', 'ig_example-2.jpg']);

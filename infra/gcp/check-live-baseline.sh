@@ -8,7 +8,7 @@ repo=$1; ref=$2; live=$3; export TF_DATA_DIR=$4
 for c in git terraform jq tar; do command -v "$c" >/dev/null || fail "Missing $c"; done
 [[ -d "$TF_DATA_DIR/providers" && -f "$TF_DATA_DIR/terraform.tfstate" ]] || fail "Existing initialised provider/backend required"
 [[ -f "$live/current.tfvars.json" && -f "$live/backend_override.tf" && -f "$live/.terraform.lock.hcl" ]] || fail "Missing private applied configuration"
-jq -e '.project_id=="kestrel-hosting" and .safe_copy_enabled and .gemini_gateway_enabled and .phase2_recovery and .phase2_monitoring and .pricing_review_enabled and .phase5_sumup_enabled' "$live/current.tfvars.json" >/dev/null || fail "Applied feature flags missing"
+jq -e '.project_id=="kestrel-hosting" and .safe_copy_enabled and .gemini_gateway_enabled and .phase2_recovery and .phase2_monitoring and .pricing_review_enabled' "$live/current.tfvars.json" >/dev/null || fail "Applied feature flags missing"
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 git -C "$repo" archive "$ref" infra/gcp config | tar -x -C "$tmp"
 w="$tmp/infra/gcp"

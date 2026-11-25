@@ -6,6 +6,9 @@ import { unzipSync } from 'fflate';
 // The canvas must draw the shape with handles, offer an overlay that is not a colour-only cue and can be
 // toggled from the keyboard, and show the mask's effect the same way the export renders it.
 
+// The Masks panel opens from the desktop tool rail; the phone mask layout (one tool row, #1399) is checked in its own slice.
+test.beforeEach(({}, testInfo) => { test.skip(testInfo.project.name !== 'desktop', 'Desktop tool rail, mouse drags and the O key.'); });
+
 async function openPhoto(page: Page) {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
@@ -55,10 +58,10 @@ test('oval mask: outline with handles, keyboard overlay toggle with a text label
   await expect(frame.getByRole('button', { name: 'Resize and rotate Round area width' })).toBeVisible();
   await expect(frame.getByRole('button', { name: 'Resize Round area height' })).toBeVisible();
 
-  // The overlay is labelled in words, and the coverage itself is hatched (not a flat colour tint).
+  // The overlay is labelled in words, and by default it is a line round the mask (not a colour-only tint).
   const label = root.getByTestId('mask-canvas-label');
   await expect(label).toContainText('Round area');
-  await expect(label).toContainText(/overlay shown/i);
+  await expect(label).toContainText(/outline shown/i);
   await expect(frame.getByTestId('mask-coverage-guide')).toBeVisible();
 
   // O hides and shows the overlay; the outline stays so the shape is always visible.

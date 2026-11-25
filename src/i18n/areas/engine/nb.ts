@@ -49,6 +49,7 @@ export const nb: AreaTranslation<typeof source> = {
       : `Støy fjernet på denne enheten, med ${count} motiver beskyttet sammen.`),
     global: 'Ingen motivkontur var pålitelig, så støyreduksjonen ble brukt jevnt på hele bildet.',
     failedCheck: 'Resultatet besto ikke kvalitetskontrollen. De eksisterende redigeringene dine ble beholdt.',
+    mainThread: 'Denne enheten kunne ikke fjerne støy i bakgrunnen, så InFlight kan ha stoppet opp mens den jobbet.',
     leftAsItWas: (notes) => `Latt være som det var. ${notes}`,
   },
   workspace: {
@@ -147,6 +148,7 @@ export const nb: AreaTranslation<typeof source> = {
     importSaveStage: 'Lagrer bildet i dette prosjektet',
     importSomeFailed: (added) => `Noen bilder kunne ikke importeres. ${added} ble lagt til. Åpne Oppgaver for å prøve bare de mislykkede på nytt.`,
     importStopped: (added) => `Importen stoppet. ${added} bilder ble lagt til. Originalene dine er uendret.`,
+    importNotFinished: (count, names) => `Den siste importen til dette prosjektet ble ikke fullført: ${count} bilder ble ikke lagt til (${names}). Importer dem på nytt for å legge dem til. Bilder som allerede er lagt til, beholdes.`,
     importFailed: 'Kunne ikke legge til bildene. Originalene dine ble ikke endret.',
   },
 };

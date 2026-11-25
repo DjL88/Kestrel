@@ -1,5 +1,7 @@
 import { parseControlPlaneUrl } from '../core/licenceOnline';
 import type { CollabRole } from '../core/collabRoles';
+import type { LanguageCode } from '../core/locale';
+import { language as sessionLanguage } from '../i18n/messages';
 import type { GalleryFeedbackEvent } from '../core/galleryFeedback';
 import type { FeedbackReview } from '../core/clientFeedback';
 import type { Notice } from '../core/collabNotices';
@@ -42,7 +44,11 @@ export interface SharedComment { id: string; photoId: string; authorAccountId: s
 
 export type CloudVariant = 'thumb' | 'preview' | 'original';
 export interface CloudPhotoView { photoKey: string; name: string; previewBytes: number; thumbBytes: number | null; originalBytes: number | null }
-export interface CloudUsage { month: string; usedCredits: number; allowanceCredits: number; bytes: number; downloads: number }
+export interface CloudUsage {
+  month: string; usedCredits: number; allowanceCredits: number; bytes: number; downloads: number;
+  /** Present on servers with the plan and balance (25 Nov 2026 pricing). */
+  plan?: 'basic' | 'pro'; photosUsed?: number; photosIncluded?: number; balanceCredits?: number;
+}
 
 export interface CollabInvite { projectId: string; name: string; role: CollabRole }
 
@@ -125,7 +131,8 @@ export interface CollabClient {
 }
 
 /** `idToken` returns the signed-in person's Firebase ID token, or null when signed out. */
-export function collabClient(baseUrl: string | undefined | null, idToken: () => Promise<string | null>, fetcher: typeof fetch = (...args) => fetch(...args)): CollabClient {
+/** `language` goes with each invitation so its email is in the language the inviter is using (the recipient's is not known). */
+export function collabClient(baseUrl: string | undefined | null, idToken: () => Promise<string | null>, fetcher: typeof fetch = (...args) => fetch(...args), language: LanguageCode = sessionLanguage): CollabClient {
   const origin = parseControlPlaneUrl(baseUrl ?? undefined);
   async function call(method: 'GET' | 'POST', path: string, body?: Json): Promise<Json> {
     if (!origin) throw new CollabError('not-configured');
@@ -144,7 +151,7 @@ export function collabClient(baseUrl: string | undefined | null, idToken: () => 
     invites: async () => ((await call('GET', '/v1/collab/invites')).invites ?? []) as CollabInvite[],
     create: async (name, displayName) => String((await call('POST', '/v1/collab/projects', { name, displayName })).projectId),
     project: async (id) => asProject(await call('GET', P(id))),
-    invite: async (id, email, role, photoIds) => asProject(await call('POST', P(id) + '/members', { kind: 'inviteEmail', email, role, ...(photoIds ? { photoIds } : {}) })),
+    invite: async (id, email, role, photoIds) => asProject(await call('POST', P(id) + '/members', { kind: 'inviteEmail', email, role, ...(photoIds ? { photoIds } : {}), language })),
     remove: async (id, accountId) => asProject(await call('POST', P(id) + '/members', { kind: 'remove', accountId })),
     accept: async (id, displayName) => { await call('POST', P(id) + '/accept', { displayName }); },
     publishGallery: async (id, options, previews) => {

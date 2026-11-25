@@ -1,18 +1,16 @@
 import { runEngineCapability } from '../../engine/engineApi';
 import { createCloudProcessingAttempt, type CloudConnection } from '../../providers/cloudProcessingAttempt';
 import { fullContext, maskAlpha } from '../../core/masks';
-import { composeDenoiseRecipe, isAutoDenoiseLayer, renderDenoiseRecipe, verifyDenoiseRecipe } from './denoiseRecipe';
+import { isAutoDenoiseLayer } from './denoiseRecipe';
 import { findEye, lumaOf } from '../../core/eyeFinder';
 import type { RegionChoice } from '../../core/trueDetailHybrid';
-import { blendLearned, trueDetailAiWeight, type TrueDetailAi } from '../../core/trueDetailAi';
+import type { TrueDetailAi } from '../../core/trueDetailAi';
 import { saveLayerAsset } from '../../core/layerAssetVault';
 import type { LearnedBlend } from '../../engine/denoiseAction';
 import { runLearnedOnSubject } from './trueDetailLearned';
-
-const round3 = (v: number) => Math.round(v * 1000) / 1000;
-import { isNeutralEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
+import { isNeutralEdit, type PhotoEdit } from '../../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto } from '../../core/photoFraming';
-import { createSubjectMask, framingKey, MAX_MASKS, type Mask } from '../../core/maskTypes';
+import { createSubjectMask, framingKey, isCombined, MAX_MASKS, type Mask } from '../../core/maskTypes';
 import type { Pixels } from '../../core/colourCheck';
 import type { PhotoFrame } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
@@ -23,11 +21,14 @@ import { decodeHeifForDisplay } from '../../providers/heifDecode';
 import { loadDenoiseSource, loadVerifiedAdditionalDenoiseSource } from './denoiseSource';
 import { unionSubjectGrid } from '../../core/subjectUnion';
 import { detectSubjectInstances } from '../../providers/multiSubjectDetector';
-import { estimateNoiseSigma, luminanceStrengthFor } from '../../core/noiseEstimate';
+import { luminanceStrengthFor } from '../../core/noiseEstimate';
 import { engineText } from '../../i18n/areas/engine';
+import { createDenoiseCompute, MAIN_THREAD_DENOISE_NOTE, type DenoiseCompute } from '../../providers/denoiseOffThread';
 
-/** Noise at full size: a centre crop of up to 1024 px drawn 1:1 from the picture being edited. */
-function measureFullSizeNoise(source: HTMLImageElement): number | null {
+const round3 = (v: number) => Math.round(v * 1000) / 1000;
+
+/** Noise at full size: a centre crop of up to 1024 px drawn 1:1 from the picture being edited, measured off the interface thread. */
+async function measureFullSizeNoise(source: HTMLImageElement, compute: DenoiseCompute): Promise<number | null> {
   const size = Math.min(1024, source.naturalWidth, source.naturalHeight);
   if (size < 64) return null;
   const crop = document.createElement('canvas');
@@ -35,8 +36,11 @@ function measureFullSizeNoise(source: HTMLImageElement): number | null {
   const ctx = crop.getContext('2d', { willReadFrequently: true });
   if (!ctx) return null;
   ctx.drawImage(source, (source.naturalWidth - size) / 2, (source.naturalHeight - size) / 2, size, size, 0, 0, size, size);
-  return estimateNoiseSigma(ctx.getImageData(0, 0, size, size).data, size, size);
+  return compute.measureNoise(ctx.getImageData(0, 0, size, size).data, size, size);
 }
+
+/** Lets the editor handle input between the two canvas reads denoise still does on this thread. */
+const yieldToInterface = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 
 /** The most likely eye inside each subject (at most `limit`), for TrueDetail's gentlest denoise region. */
 function findSubjectEyes(original: Pixels, subjects: readonly Mask[], combined: Float32Array, limit: number): { x: number; y: number; radius: number }[] {
@@ -110,16 +114,38 @@ export async function runV2Denoise(
         }, signal), loadImage, signal);
   if (!source || !Number.isSafeInteger(source.naturalWidth) || !Number.isSafeInteger(source.naturalHeight) ||
       source.naturalWidth <= 0 || source.naturalHeight <= 0) return null;
+  // The pixel work (noise, every candidate render and check) runs in a Web Worker so the editor keeps responding.
+  const compute = createDenoiseCompute({ signal });
+  try {
+    const outcome = await denoiseVerifiedSource(frame, source, cloud, compute, signal, progress);
+    if (outcome && compute.onMainThread) outcome.notes.push(MAIN_THREAD_DENOISE_NOTE);
+    return outcome;
+  } finally {
+    compute.dispose();
+  }
+}
+
+/** Everything after the source passed its provenance checks. */
+async function denoiseVerifiedSource(
+  frame: PhotoFrame, source: HTMLImageElement, cloud: CloudAccess, compute: DenoiseCompute, signal?: AbortSignal,
+  progress?: (done: number, total: number, label: string) => void,
+): Promise<DenoiseOutcome | null> {
   const framing = frame.framing ?? DEFAULT_FRAMING;
   const edge = Math.max(source.naturalWidth, source.naturalHeight);
   const canvas = document.createElement('canvas');
+  // Decode off the interface thread first: drawing an undecoded full-size picture decodes it synchronously.
+  await source.decode?.().catch(() => undefined);
+  signal?.throwIfAborted();
   drawFramedPhoto(source, canvas, framing, { scale: Math.min(1, DENOISE_WORKING_EDGE / edge) });
   const context = canvas.getContext('2d', { willReadFrequently: true });
   if (!context || canvas.width < 16 || canvas.height < 16) return null;
   const image = context.getImageData(0, 0, canvas.width, canvas.height);
   const original: Pixels = { data: new Uint8ClampedArray(image.data), width: image.width, height: image.height };
   // Noise is judged at full size (a 1:1 centre crop), where the photographer sees it; the downscaled working copy hides it.
-  const sigma = measureFullSizeNoise(source);
+  await yieldToInterface();
+  signal?.throwIfAborted();
+  const sigma = await measureFullSizeNoise(source, compute);
+  signal?.throwIfAborted();
   const luminance = luminanceStrengthFor(sigma);
   if (sigma !== null && luminance === 0) {
     return { runner: 'device', strength: 0, luminance: 0, masks: [], verified: false, notes: [engineText.denoise.noVisibleNoise] };
@@ -131,7 +157,7 @@ export async function runV2Denoise(
   const lumaPerStrength = asked > 0 ? luminance / asked : 0;
   const remaining = existing.filter(mask => !isAutoDenoiseLayer(mask.id, id));
   let subjects = remaining.filter((mask): mask is Extract<Mask, { kind: 'subject' }> =>
-    mask.kind === 'subject' && !mask.hidden && !mask.invert && !mask.limit &&
+    mask.kind === 'subject' && !mask.hidden && !mask.invert && !isCombined(mask) &&
     mask.confidence !== 'low' && mask.framingKey === framingKey(framing));
   let detectionUnavailable = false;
   let newLayers: Mask[] = [];
@@ -183,30 +209,30 @@ export async function runV2Denoise(
     (done, total) => progress?.(done, total, `AI denoise ${done} of ${total}`)) : { kind: 'unavailable' as const };
   signal?.throwIfAborted();
   const learned = learnedOutcome.kind === 'ready' ? learnedOutcome.result : null;
-  const baseline = renderDenoiseRecipe(original, frame.edit ?? DEFAULT_EDIT);
+  const session = await compute.open({
+    original, baseEdit: frame.edit, recipeId: id, newLayers, lumaPerStrength, subjects, subjectAlpha: subject?.alpha,
+    ...(learned ? { learned: learned.working } : {}),
+  });
+  const baseline = session.baseline;
   const render = async (edit: Partial<PhotoEdit>, masks: Mask[], blend?: LearnedBlend): Promise<Pixels> => {
     signal?.throwIfAborted();
-    const recipe = composeDenoiseRecipe(frame.edit, id, edit.denoise ?? 0, [...newLayers, ...masks], lumaPerStrength);
-    if (!blend || !learned) return renderDenoiseRecipe(original, recipe);
-    // The learned result goes in first, on the photo's own pixels, exactly as the saved recipe draws it.
-    const data = new Uint8ClampedArray(original.data);
-    blendLearned(data, learned.working, trueDetailAiWeight({ maskId: id, ...blend }, recipe.masks, original.width, original.height, fullContext(original.width, original.height)));
-    return renderDenoiseRecipe({ data, width: original.width, height: original.height }, recipe);
+    return session.render(edit, masks, blend);
   };
   // Remote filtering of already edited pixels is not equivalent to applying a
   // reversible denoise recipe to the original. Keep composed recipes local.
   const attempt = cloud && !subject && (!frame.edit || isNeutralEdit(frame.edit))
     ? createCloudProcessingAttempt(cloud.connection, { online: cloud.online, signedIn: true, userConsent: true }, signal)
     : undefined;
+  // Each attempt is rendered and checked in the worker by the same rules runDenoiseAction applies in-thread.
   const request = { capability: 'denoise' as const, backgroundDenoise: asked, render, original: baseline, subject, signal,
     luminancePerStrength: lumaPerStrength,
     ...(learned ? { learned: { source: learned.model, strengths: [1, 0.6] } } : {}),
-    verifyCandidate: (after: Pixels) => verifyDenoiseRecipe(baseline, after, subjects) };
+    assess: (edit: Partial<PhotoEdit>, masks: Mask[], blend?: LearnedBlend) => session.assess(edit, masks, blend) };
   let response = await runEngineCapability(request, attempt);
   // Even a verified remote raster is not the recipe the editor will save.
   // Verify the actual local rendering, and retry on-device if it differs.
   if (response.capability === 'denoise' && response.runner === 'cloud-processing' &&
-      !request.verifyCandidate(await render(response.result.edit, response.result.masks)).ok) {
+      !(await session.composedOk(response.result.edit, response.result.masks))) {
     response = await runEngineCapability(request);
   }
   signal?.throwIfAborted();
