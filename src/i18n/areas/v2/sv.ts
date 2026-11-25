@@ -422,6 +422,15 @@ export const sv: AreaTranslation<typeof source> = {
     heStar: 'Nikon High Efficiency*',
     infoLabel: "Visad bild",
   },
+  dngCopy: {
+    button: "Spara förlustfri DNG-kopia",
+    help: "För program som inte kan öppna Nikon High Efficiency-filer. En ny fil med sensordata exakt som avkodade; din NEF ändras aldrig.",
+  },
+  fullDevelop: {
+    button: "Framkalla i full storlek",
+    running: "Framkallar i full storlek…",
+    help: "Framkalla den här RAW-filen från sensordata i full storlek för att granska fina detaljer. Körs under Uppgifter; originalet ändras inte.",
+  },
   canvas: {
     selectPhoto: "Välj ett foto i filmremsan för att börja redigera.",
     resizeText: "Ändra textstorlek",

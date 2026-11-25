@@ -439,6 +439,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onToggleFlag={actions.toggleFlag}
             onSetRating={actions.setRating}
             onReconnectOriginal={actions.reconnectOriginal}
+            onSaveDngCopy={actions.saveDngCopy}
             onCorrectSpeciesName={actions.correctSpeciesName}
             onCorrectVehicle={actions.correctVehicle}
           />
@@ -738,6 +739,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   onUpdateVideoZoom={actions.updateVideoZoom}
                   onUpdateOverlay={actions.updateOverlay}
                   onReconnectOriginal={actions.reconnectOriginal}
+                  onDevelopFullSize={actions.developFullSize}
                   onToggleCompare={() => actions.setCompareMode(!store.compareMode)}
                   onSetZoom={actions.setCanvasZoom}
                   onToggleFullScreen={actions.toggleFullScreen}

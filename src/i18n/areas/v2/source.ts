@@ -451,6 +451,15 @@ export const source = {
     heStar: 'Nikon High Efficiency*',
     infoLabel: "Picture shown",
   },
+  dngCopy: {
+    button: "Save lossless DNG copy",
+    help: "For editors that cannot open Nikon High Efficiency files. A new file with the sensor data exactly as decoded; your NEF is never changed.",
+  },
+  fullDevelop: {
+    button: "Develop full size",
+    running: "Developing full size…",
+    help: "Develop this RAW from its sensor data at full size, for checking fine detail. It runs in Tasks; your original is unchanged.",
+  },
 
   // Canvas
   canvas: {

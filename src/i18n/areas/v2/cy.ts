@@ -422,6 +422,15 @@ export const cy: AreaTranslation<typeof source> = {
     heStar: 'Nikon High Efficiency*',
     infoLabel: "Llun a ddangosir",
   },
+  dngCopy: {
+    button: "Cadw copi DNG di-golled",
+    help: "Ar gyfer golygyddion na allant agor ffeiliau Nikon High Efficiency. Ffeil newydd gyda data’r synhwyrydd yn union fel y’i datgodiwyd; ni chaiff eich NEF byth ei newid.",
+  },
+  fullDevelop: {
+    button: "Datblygu ar faint llawn",
+    running: "Yn datblygu ar faint llawn…",
+    help: "Datblygu’r RAW hwn o ddata’r synhwyrydd ar faint llawn, i wirio manylion mân. Mae’n rhedeg yn Tasgau; nid yw eich gwreiddiol yn newid.",
+  },
   canvas: {
     selectPhoto: "Dewiswch lun o’r stribed lluniau i ddechrau golygu.",
     resizeText: "Newid maint y testun",

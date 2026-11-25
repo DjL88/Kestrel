@@ -422,6 +422,15 @@ export const fr: AreaTranslation<typeof source> = {
     heStar: 'Nikon High Efficiency*',
     infoLabel: "Image affichée",
   },
+  dngCopy: {
+    button: "Enregistrer une copie DNG sans perte",
+    help: "Pour les logiciels qui ne lisent pas les fichiers Nikon High Efficiency. Un nouveau fichier avec les données du capteur telles que décodées ; votre NEF n’est jamais modifié.",
+  },
+  fullDevelop: {
+    button: "Développer en pleine taille",
+    running: "Développement en pleine taille…",
+    help: "Développer ce RAW à partir des données du capteur en pleine taille, pour vérifier les détails fins. Visible dans Tâches ; votre original n’est pas modifié.",
+  },
   canvas: {
     selectPhoto: "Sélectionnez une photographie dans le film pour commencer la retouche.",
     resizeText: "Redimensionner le texte",
