@@ -3,12 +3,26 @@ import { superviseAutoRender } from '../../core/autoRenderSupervisor';
 import { fullContext, maskAlpha } from '../../core/masks';
 import type { Mask } from '../../core/maskTypes';
 import type { PhotoEdit } from '../../core/photoEdits';
+import { checkSubjectColour, type ColourSenseResult } from '../../core/colourSense';
 
 export interface AutoCandidate {
   id: 'natural' | 'balanced' | 'subject';
   edit: PhotoEdit;
   summary: string;
   after: string;
+  /** ColourSense: whether this suggestion keeps the subject's colour close to the measured original. Absent with no subject. */
+  colourSense?: ColourSenseResult;
+}
+
+/** Several subjects as one: each pixel takes the strongest mask that covers it. */
+export function unionAlpha(alphas: readonly Float32Array[]): Float32Array | null {
+  if (!alphas.length) return null;
+  const union = new Float32Array(alphas[0].length);
+  for (const alpha of alphas) {
+    if (alpha.length !== union.length) return null;
+    for (let i = 0; i < union.length; i += 1) if (alpha[i] > union[i]) union[i] = alpha[i];
+  }
+  return union;
 }
 
 /** Reject near-identical comparisons, including differences caused only by rounding. */
@@ -42,11 +56,16 @@ export function renderAutoCandidates(
   canvas.height = source.height;
   const referenceFull = render(base);
   const alpha = subjects.map(mask => maskAlpha(mask, canvas.width, canvas.height, fullContext(canvas.width, canvas.height)));
+  const subjectUnion = unionAlpha(alpha);
   const rejected: string[] = [];
+  const colourSense = new Map<string, ColourSenseResult>();
   const safe = recipes.filter(recipe => {
     const pixels = render(recipe.edit);
     const review = superviseAutoRender({data: referenceFull,width: canvas.width,height: canvas.height}, {data: pixels,width: canvas.width,height: canvas.height}, alpha);
     if (!review.safe) rejected.push(review.reason);
+    // Measured at the analysis size, against the same render of the original, on the subject only.
+    else if (subjectUnion) colourSense.set(recipe.id, checkSubjectColour(
+      { data: referenceFull, width: canvas.width, height: canvas.height }, { data: pixels, width: canvas.width, height: canvas.height }, subjectUnion));
     return review.safe;
   });
   canvas.width = Math.max(1, Math.round(source.width * scale));
@@ -59,7 +78,8 @@ export function renderAutoCandidates(
     const pixels = render(recipe.edit);
     if (!previous.every((other) => visiblyDifferent(other, pixels))) continue;
     previous.push(pixels);
-    candidates.push({ ...recipe, after: canvas.toDataURL('image/jpeg', 0.85) });
+    const sense = colourSense.get(recipe.id);
+    candidates.push({ ...recipe, after: canvas.toDataURL('image/jpeg', 0.85), ...(sense ? { colourSense: sense } : {}) });
   }
   return { before, candidates, rejected };
 }

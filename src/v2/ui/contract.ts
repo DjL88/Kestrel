@@ -1,4 +1,4 @@
-import type { ColourWords } from '../engineClient/colourWords';
+import type { ColourSenseNote, ColourWords } from '../engineClient/colourWords';
 import type { ComponentType, CSSProperties, ReactNode } from 'react';
 
 // Single Contract File for InFlight UI Shell
@@ -268,6 +268,8 @@ export interface AssistSuggestion {
   comparison?: { before: string; after: string };
   /** The same edit as ordered slider steps with real values (src/core/editingSequence.ts), for Watch and Learn. */
   steps?: { id: string; label: string; from: string; to: string }[];
+  /** ColourSense: whether the suggestion keeps the subject's colour, in words (absent when it could not be judged). */
+  colourSense?: ColourSenseNote;
 }
 
 export interface PhotoExif {
