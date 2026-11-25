@@ -87,6 +87,7 @@ test('signing in with no licence on the account stays Free', async () => {
   assert.deepEqual(env.calls, ['/v1/auth/firebase', '/v1/me/activate Bearer session-token']);
   assert.equal(decideAccountAccess(standing!, env.now).pro, false);
   assert.equal(await env.reload().storedAccountStanding(), null);
+  assert.equal(env.reload().hasStoredAccountGrant(), false, 'nothing kept, so the splash knows at once it is Free');
 });
 
 test('an account with a paid licence gets a verified grant that survives a restart and ends when forgotten', async () => {
@@ -95,9 +96,11 @@ test('an account with a paid licence gets a verified grant that survives a resta
   assert.equal(standing?.kind, 'active');
   assert.deepEqual(decideAccountAccess(standing!, env.now), { pro: true, managedAi: false, basis: 'grant' });
   assert.equal((await env.reload().storedAccountStanding())?.kind, 'active');
+  assert.equal(env.reload().hasStoredAccountGrant(), true, 'a kept grant makes the splash wait for it to be read');
   assert.equal(decideAccountAccess(standing!, env.now + 31 * 86_400_000).pro, false, 'the offline window ends');
   env.sync.forgetAccount();
   assert.equal(await env.reload().storedAccountStanding(), null);
+  assert.equal(env.reload().hasStoredAccountGrant(), false);
 });
 
 test('sign-out during an online grant check cannot restore the signed-out account', async () => {

@@ -15,6 +15,7 @@ import { POLICY_PATHS, SiteLink } from './SiteLink';
 import { LicenceOnlineStatus } from './LicenceOnlineStatus';
 import { projectsText as t } from '../i18n/areas/projects';
 import { publicSiteUrl } from '../core/publicSite';
+import { licencePlan } from '../core/licencePlan';
 
 
 const field = 'block min-h-11 w-full rounded-md border border-[var(--account-border,#ffffff26)] bg-[var(--account-field,#0000004d)] px-3 text-sm text-[var(--account-foreground,#f4f4f5)]';
@@ -233,6 +234,13 @@ export function AccountAndLicenceSettings() {
     });
   }
 
+  // The plan is read from the licence store all the time, so it is right before (and without) a check online.
+  const plan = licencePlan(licence);
+  const planText = plan.kind === 'checking' ? t.licence.planChecking
+    : plan.kind === 'pro-key' ? t.licence.planProKey
+    : plan.kind === 'pro-account' ? [t.licence.planProAccount, plan.offlineUntilMs ? t.licence.planOfflineUntil(new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(plan.offlineUntilMs)) : ''].filter(Boolean).join(' ')
+    : t.licence.planFree(DEV_PRO_PREVIEW_MODE);
+
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     const result = await saveLicence(key);
@@ -244,6 +252,10 @@ export function AccountAndLicenceSettings() {
       <section aria-labelledby="account-h" className="space-y-3">
         <h3 id="account-h" className="font-medium text-[var(--account-foreground,#f4f4f5)]">Account (optional)</h3>
         {offline && <p role="status">{t.connections.health.offline} · {t.connections.advice.offline}</p>}
+        <div data-testid="licence-plan" data-plan={plan.kind} className="space-y-1 rounded-lg border border-[var(--account-border,#ffffff1a)] p-3">
+          <h4 className="font-medium text-[var(--account-foreground,#f4f4f5)]">{t.licence.planHeading}</h4>
+          <p>{planText}</p>
+        </div>
         {account ? (
           <>
             <p role="status">Signed in with {account.provider === 'apple' ? 'Apple' : account.provider === 'password' ? 'email' : 'Google'}{account.email ? ` as ${account.email}` : ''}.</p>

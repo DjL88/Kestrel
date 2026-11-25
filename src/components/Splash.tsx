@@ -4,9 +4,10 @@ import splashDark from '../assets/brand/splash/inflight-splash-dark.json';
 import splashLight from '../assets/brand/splash/inflight-splash-light.json';
 import splashProDark from '../assets/brand/splash/inflight-splash-pro-dark.json';
 import splashProLight from '../assets/brand/splash/inflight-splash-pro-light.json';
-import { FADE_MS, HOLD_MS, STILL_MS, shouldShowSplash } from '../core/splashRules';
+import { FADE_MS, HOLD_MS, LICENCE_WAIT_MS, STILL_MS, shouldShowSplash } from '../core/splashRules';
 import type { LogoTone } from '../core/brandLogo';
 import { BrandLogo, useIsPro, useLogoTone } from './BrandLogo';
+import { useLicenceKnown } from '../providers/licenceStore';
 
 // The session key keeps its old spelling so a person who already saw the splash this session is not shown it again after updating.
 const SEEN_KEY = 'kestrel-splash-v1';
@@ -24,6 +25,8 @@ function shouldShow(): boolean {
 /**
  * The launch animation from the InFlight brand pack (Lottie, 3 s): the chevron holds, the bird opens its wings, the wordmark follows.
  * Light and dark versions follow the display theme, and the Pro version shows only for a verified Pro licence.
+ * It starts with the right one: while a licence kept on this device is still being read (a moment, at most LICENCE_WAIT_MS)
+ * it shows only the background, so a Pro user never sees the standard logo first.
  * A tap or key skips it. With reduced motion there is no animation, only the still stacked logo for a moment.
  * The player is loaded on demand so it is not part of the first paint.
  */
@@ -33,21 +36,31 @@ export function Splash() {
   const [played, setPlayed] = useState(false);
   const tone = useLogoTone();
   const pro = useIsPro();
+  const licenceKnown = useLicenceKnown();
+  const [waitedForLicence, setWaitedForLicence] = useState(false);
+  const logoReady = licenceKnown || waitedForLicence;
   const host = useRef<HTMLDivElement>(null);
   const reduced = useRef(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false).current;
 
   useEffect(() => { if (open) { try { sessionStorage.setItem(SEEN_KEY, '1'); } catch { /* Not remembered. */ } } }, [open]);
 
+  // Wait for the stored licence, but never for long.
+  useEffect(() => {
+    if (!open || logoReady) return;
+    const giveUp = window.setTimeout(() => setWaitedForLicence(true), LICENCE_WAIT_MS);
+    return () => window.clearTimeout(giveUp);
+  }, [open, logoReady]);
+
   // Reduced motion: the still logo, held briefly.
   useEffect(() => {
-    if (!open || !reduced) return;
+    if (!open || !reduced || !logoReady) return;
     const leave = window.setTimeout(() => setLeaving(true), STILL_MS);
     return () => window.clearTimeout(leave);
-  }, [open, reduced]);
+  }, [open, reduced, logoReady]);
 
   // Otherwise play the animation, hold the finished logo for a moment, then fade away.
   useEffect(() => {
-    if (!open || reduced || !host.current) return;
+    if (!open || reduced || !logoReady || !host.current) return;
     let cancelled = false;
     let item: AnimationItem | undefined;
     let hold = 0;
@@ -59,7 +72,7 @@ export function Splash() {
       item.addEventListener('complete', () => { hold = window.setTimeout(() => setLeaving(true), HOLD_MS); });
     }).catch(() => { if (!cancelled) setLeaving(true); }); // If the player cannot load, never hold the app back.
     return () => { cancelled = true; window.clearTimeout(hold); item?.destroy(); };
-  }, [open, reduced, tone, pro]);
+  }, [open, reduced, logoReady, tone, pro]);
 
   useEffect(() => {
     if (!leaving) return;
@@ -81,7 +94,7 @@ export function Splash() {
     <div data-testid="splash" aria-hidden="true" className="fixed inset-0 z-[1000] grid place-items-center"
       style={{ backgroundColor: BACKGROUND[tone], opacity: leaving ? 0 : 1, transition: reduced ? undefined : `opacity ${FADE_MS}ms ease-out` }}>
       {reduced
-        ? <BrandLogo kind="stacked" decorative className="h-auto w-[min(60vmin,16rem)]" />
+        ? logoReady && <BrandLogo kind="stacked" decorative className="h-auto w-[min(60vmin,16rem)]" />
         : <div ref={host} data-testid="splash-animation" data-played={played} className="h-[min(88vmin,34rem)] w-[min(88vmin,34rem)]" />}
     </div>
   );

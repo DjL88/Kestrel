@@ -18,3 +18,10 @@ export const HOLD_MS = 350;
 export const FADE_MS = 300;
 /** With reduced motion there is no animation, so the still logo only stays briefly. */
 export const STILL_MS = 700;
+
+/**
+ * When a licence or account grant is kept on this device, the splash waits for it to be read so it starts with the right
+ * logo (Pro or standard) instead of switching part-way. Reading it is local and quick; past this the splash plays anyway,
+ * so a slow or failing read never holds the app back.
+ */
+export const LICENCE_WAIT_MS = 1200;
