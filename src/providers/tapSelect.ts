@@ -1,4 +1,4 @@
-import { createTimedSession } from './modelTiming';
+import { createOffThreadSession, type ModelTensor, type OffThreadSession } from './offThreadSession';
 import { EFFICIENTSAM_TI } from '../core/optionalModels';
 import { SAM_INPUT, bestSamMask, samInput, samMaskSize, samPoints, unionSamMasks, type SamMask, type SamPrompt } from '../core/efficientSam';
 import { friendlyToolError } from '../core/toolErrors';
@@ -7,12 +7,11 @@ import { downloadOptionalModel, optionalModelStatus, readOptionalModelFile, remo
 /**
  * Tap-to-select with EfficientSAM-Ti, an optional download. `encodePhoto` reads a photo once (the slow step: seconds
  * natively, far longer in single-thread WASM); `selectSubjects` then answers every tap from that encoding. Without
- * the pack nothing here runs, and the existing manual brush and U²-Netp subject mask stay as they are.
+ * the pack nothing here runs, and the existing manual brush and U²-Netp subject mask stay as they are. Both halves run
+ * in background workers (src/providers/offThreadSession.ts), so reading a photo never freezes the interface; where a
+ * worker cannot start they run on this thread, as before.
  */
-type Ort = typeof import('onnxruntime-web/wasm');
-type Session = import('onnxruntime-web/wasm').InferenceSession;
-type Tensor = import('onnxruntime-web/wasm').Tensor;
-interface Loaded { ort: Ort; encoder: Session; decoder: Session }
+interface Loaded { encoder: OffThreadSession; decoder: OffThreadSession }
 let loading: Promise<Loaded> | null = null;
 
 export const tapSelectStatus = (): Promise<OptionalModelStatus> => optionalModelStatus(EFFICIENTSAM_TI);
@@ -25,14 +24,14 @@ function load(): Promise<Loaded> {
     const [encoderBytes, decoderBytes] = await Promise.all([
       readOptionalModelFile(EFFICIENTSAM_TI, 'encoder'), readOptionalModelFile(EFFICIENTSAM_TI, 'decoder'),
     ]);
-    const ort = await import('onnxruntime-web/wasm');
-    ort.env.wasm.numThreads = 1;
-    ort.env.wasm.proxy = false;
-    const options = { executionProviders: ['wasm'] };
+    // A worker that stops after loading drops both sessions, so the next reading or tap starts fresh ones.
+    const onLost = () => { loading = null; };
     const [encoder, decoder] = await Promise.all([
-      createTimedSession(ort, `${EFFICIENTSAM_TI.id}.encoder`, encoderBytes, options), createTimedSession(ort, `${EFFICIENTSAM_TI.id}.decoder`, decoderBytes, options),
+      createOffThreadSession(`${EFFICIENTSAM_TI.id}.encoder`, encoderBytes, { onLost }),
+      // The decoder also returns a shape (int64) the app does not read.
+      createOffThreadSession(`${EFFICIENTSAM_TI.id}.decoder`, decoderBytes, { onLost, outputs: ['output_masks', 'iou_predictions'] }),
     ]);
-    return { ort, encoder, decoder };
+    return { encoder, decoder };
   })().catch((error) => {
     loading = null;
     console.warn('Tap-to-select failed to load', error);
@@ -50,7 +49,7 @@ const dims = (source: Source) => source instanceof HTMLImageElement ? { w: sourc
  * (the photo on screen first, then its neighbours); a tap then needs only the fast decoder.
  */
 export const KEPT_ENCODINGS = 4;
-interface Encoding { embedding: Tensor; mask: { w: number; h: number } }
+interface Encoding { embedding: ModelTensor; mask: { w: number; h: number } }
 const encodings = new Map<string, Encoding>();
 const pending = new Map<string, Promise<{ w: number; h: number }>>();
 
@@ -72,7 +71,7 @@ export async function encodePhoto(source: Source, key: string): Promise<{ w: num
 }
 
 async function encode(source: Source, key: string): Promise<{ w: number; h: number }> {
-  const { ort, encoder } = await load();
+  const { encoder } = await load();
   const { w, h } = dims(source);
   const mask = samMaskSize(w, h);
   const canvas = document.createElement('canvas');
@@ -83,8 +82,10 @@ async function encode(source: Source, key: string): Promise<{ w: number; h: numb
   context.imageSmoothingQuality = 'high';
   context.drawImage(source, 0, 0, w, h, 0, 0, SAM_INPUT, SAM_INPUT);
   const input = samInput(context.getImageData(0, 0, SAM_INPUT, SAM_INPUT).data);
-  const out = await encoder.run({ batched_images: new ort.Tensor('float32', input, [1, 3, SAM_INPUT, SAM_INPUT]) });
-  encodings.set(key, { embedding: out.image_embeddings, mask });
+  const out = await encoder.run({ batched_images: { data: input, dims: [1, 3, SAM_INPUT, SAM_INPUT] } });
+  const embedding = out.image_embeddings;
+  if (!embedding) throw new Error('The tap-to-select model returned an unexpected result.');
+  encodings.set(key, { embedding, mask });
   while (encodings.size > KEPT_ENCODINGS) {
     const oldest = encodings.keys().next().value as string;
     encodings.delete(oldest);
@@ -100,7 +101,7 @@ async function encode(source: Source, key: string): Promise<{ w: number; h: numb
 export async function selectSubjects(key: string, subjects: readonly SamPrompt[]): Promise<Array<SamMask | null>> {
   const encoded = encodings.get(key);
   if (!encoded) throw new Error('This photo has not been read for tap-to-select yet.');
-  const { ort, decoder } = await load();
+  const { decoder } = await load();
   const { embedding, mask } = encoded;
   const results: Array<SamMask | null> = [];
   for (const subject of subjects) {
@@ -108,11 +109,12 @@ export async function selectSubjects(key: string, subjects: readonly SamPrompt[]
     if (!points) { results.push(null); continue; }
     const out = await decoder.run({
       image_embeddings: embedding,
-      batched_point_coords: new ort.Tensor('float32', points.coords, [1, 1, points.count, 2]),
-      batched_point_labels: new ort.Tensor('float32', points.labels, [1, 1, points.count]),
-      orig_im_size: new ort.Tensor('int64', BigInt64Array.from([BigInt(mask.h), BigInt(mask.w)]), [2]),
+      batched_point_coords: { data: points.coords, dims: [1, 1, points.count, 2] },
+      batched_point_labels: { data: points.labels, dims: [1, 1, points.count] },
+      orig_im_size: { data: BigInt64Array.from([BigInt(mask.h), BigInt(mask.w)]), dims: [2] },
     });
-    results.push(bestSamMask(out.output_masks.data as Float32Array, out.iou_predictions.data as Float32Array, mask.w, mask.h));
+    if (!out.output_masks || !out.iou_predictions) throw new Error('The tap-to-select model returned an unexpected result.');
+    results.push(bestSamMask(out.output_masks.data, out.iou_predictions.data, mask.w, mask.h));
   }
   return results;
 }

@@ -1,6 +1,6 @@
 import { recordModelLoad, recordModelRun } from '../core/modelStats';
 import { createTimedSession } from './modelTiming';
-import { readModelReady, readModelResult, type ModelTensor } from '../core/modelSessionProtocol';
+import { readModelReady, readModelResult, type ModelInput, type ModelTensor } from '../core/modelSessionProtocol';
 
 /**
  * One model session in a worker (src/providers/modelSessionWorker.ts), so inference never holds up the interface: a
@@ -8,14 +8,14 @@ import { readModelReady, readModelResult, type ModelTensor } from '../core/model
  * fails to load there, the same model runs on this thread instead, as before. Load and run times reach Settings →
  * Models either way (src/core/modelStats.ts).
  */
-export type { ModelTensor } from '../core/modelSessionProtocol';
+export type { ModelInput, ModelTensor } from '../core/modelSessionProtocol';
 
 export interface OffThreadSession {
   readonly inputNames: readonly string[];
   readonly outputNames: readonly string[];
   /** Where it runs, for tests and diagnostics. */
   readonly where: 'worker' | 'main';
-  run(feeds: Record<string, ModelTensor>): Promise<Record<string, ModelTensor>>;
+  run(feeds: Record<string, ModelInput>): Promise<Record<string, ModelTensor>>;
 }
 
 export interface OffThreadOptions {
@@ -26,7 +26,14 @@ export interface OffThreadOptions {
    * forget it: its next call starts a fresh worker (or falls back to this thread) instead of waiting on a dead one.
    */
   onLost?: () => void;
+  /**
+   * The outputs the caller reads, when the model has others it does not need (EfficientSAM's decoder also returns a
+   * shape). Each named output must be present and float32; others are not checked. Default: every output.
+   */
+  outputs?: readonly string[];
 }
+
+const copyOf = (data: Float32Array | BigInt64Array) => (data instanceof BigInt64Array ? new BigInt64Array(data) : new Float32Array(data));
 
 const defaultWorker = () => new Worker(new URL('./modelSessionWorker.ts', import.meta.url), { type: 'module' });
 
@@ -34,7 +41,7 @@ export async function createOffThreadSession(id: string, bytes: Uint8Array, opti
   const startWorker = options.startWorker === undefined ? (typeof Worker === 'undefined' ? null : defaultWorker) : options.startWorker;
   if (startWorker) {
     try {
-      return await inWorker(id, bytes, startWorker, options.onLost);
+      return await inWorker(id, bytes, startWorker, options.onLost, options.outputs);
     } catch (problem) {
       console.warn(`The ${id} model could not start in the background; running it here instead.`, problem);
     }
@@ -42,7 +49,7 @@ export async function createOffThreadSession(id: string, bytes: Uint8Array, opti
   return onThisThread(id, bytes);
 }
 
-async function inWorker(id: string, bytes: Uint8Array, startWorker: () => Worker, onLost?: () => void): Promise<OffThreadSession> {
+async function inWorker(id: string, bytes: Uint8Array, startWorker: () => Worker, onLost?: () => void, wanted?: readonly string[]): Promise<OffThreadSession> {
   const worker = startWorker();
   const pending = new Map<number, { resolve: (outputs: Record<string, ModelTensor>) => void; reject: (error: Error) => void }>();
   let nextId = 1;
@@ -96,7 +103,7 @@ async function inWorker(id: string, bytes: Uint8Array, startWorker: () => Worker
     worker.terminate();
     throw problem;
   }
-  outputNames = names.outputNames;
+  outputNames = wanted ?? names.outputNames;
   return {
     ...names,
     where: 'worker',
@@ -105,10 +112,10 @@ async function inWorker(id: string, bytes: Uint8Array, startWorker: () => Worker
       const runId = nextId++;
       pending.set(runId, { resolve, reject });
       // Copies, so the caller's arrays stay usable; the copies move to the worker without another copy.
-      const sent: Record<string, { data: Float32Array; dims: number[] }> = {};
+      const sent: Record<string, { data: Float32Array | BigInt64Array; dims: number[] }> = {};
       const transfer: ArrayBuffer[] = [];
       for (const [name, tensor] of Object.entries(feeds)) {
-        const data = new Float32Array(tensor.data);
+        const data = copyOf(tensor.data);
         sent[name] = { data, dims: [...tensor.dims] };
         transfer.push(data.buffer);
       }
@@ -128,10 +135,12 @@ async function onThisThread(id: string, bytes: Uint8Array): Promise<OffThreadSes
     where: 'main',
     run: async (feeds) => {
       const tensors: Record<string, import('onnxruntime-web/wasm').Tensor> = {};
-      for (const [name, tensor] of Object.entries(feeds)) tensors[name] = new ort.Tensor('float32', tensor.data, [...tensor.dims]);
+      for (const [name, tensor] of Object.entries(feeds)) {
+        tensors[name] = tensor.data instanceof BigInt64Array ? new ort.Tensor('int64', tensor.data, [...tensor.dims]) : new ort.Tensor('float32', tensor.data, [...tensor.dims]);
+      }
       const results = await session.run(tensors);
       const outputs: Record<string, ModelTensor> = {};
-      // Only float32 outputs, on purpose: U2-Net and DINOv2 answer in float32 (src/core/modelSessionProtocol.ts).
+      // Only float32 outputs, on purpose: the models read here answer in float32 (src/core/modelSessionProtocol.ts).
       for (const [name, tensor] of Object.entries(results)) if (tensor.data instanceof Float32Array) outputs[name] = { data: tensor.data, dims: tensor.dims };
       return outputs;
     },
