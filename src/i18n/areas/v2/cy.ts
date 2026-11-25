@@ -1125,6 +1125,7 @@ export const cy: AreaTranslation<typeof source> = {
     restoreCropLabel: (time: string) => `Defnyddio’r tocio o ${time} eto`,
   },
   info: {
+    rawColourSource: "Matrics lliw y camera ei hun o’r ffeil RAW, golwg safonol InFlight (nid arddull llun y gwneuthurwr)",
     heading: 'Gwybodaeth y llun',
     fileSection: 'Ffeil a chysylltiad',
     cameraSection: 'Camera a thynnu’r llun',

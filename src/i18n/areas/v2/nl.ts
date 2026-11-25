@@ -1125,6 +1125,7 @@ export const nl: AreaTranslation<typeof source> = {
     restoreCropLabel: (time: string) => `De uitsnede van ${time} opnieuw gebruiken`,
   },
   info: {
+    rawColourSource: "De eigen kleurmatrix van de camera uit het RAW-bestand, standaardweergave van InFlight (niet de beeldstijl van de fabrikant)",
     heading: 'Foto-info',
     fileSection: 'Bestand & verbinding',
     cameraSection: 'Camera & opname',

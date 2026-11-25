@@ -21,6 +21,7 @@ import type { AutoRun } from './runAuto';
 import { colourWarningSentences, colourWords, describeColourMatch, describeColourSense } from './colourWords';
 import { sameRecipe } from '../../core/naturalAuto';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
+import { isRawPreviewFile } from '../../core/rawFormats';
 import { STRINGS } from '../ui/strings';
 import { engineText } from '../../i18n/areas/engine';
 import { displaySpeciesName } from '../../core/speciesNames';
@@ -250,7 +251,9 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
       fileFormat: exif.formatLabel ?? extensionOf(frame.filename) ?? NOT_RECORDED,
       fileSizeMb: recordedFileSizeMb(frame.stableKey),
       dimensions: recordedDimensions ? `${recordedDimensions.width} × ${recordedDimensions.height}` : NOT_RECORDED,
-      colourProfile: NOT_RECORDED,
+      // InFlight's RAW develop records the as-shot white only after it has validated the camera's own colour matrix, so that
+      // is the evidence the picture came from it. Anything else (an embedded preview, a JPEG's own profile) stays unknown.
+      colourProfile: isRawPreviewFile(frame.filename) && frame.asShotWhite ? STRINGS.info.rawColourSource : NOT_RECORDED,
     },
     ...(nativeSize ? { pixelSize: { width: nativeSize.width, height: nativeSize.height } } : exif.width && exif.height ? { pixelSize: { width: exif.width, height: exif.height } } : pixelSize ? { pixelSize } : {}),
     activeGroupId: savedGroups.activeId,

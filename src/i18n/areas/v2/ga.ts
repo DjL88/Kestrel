@@ -1128,6 +1128,7 @@ export const ga: AreaTranslation<typeof source> = {
     restoreCropLabel: (time: string) => `Úsáid an bearradh ó ${time} arís`,
   },
   info: {
+    rawColourSource: "Maitrís datha an cheamara féin ón gcomhad RAW, cuma chaighdeánach InFlight (ní stíl pictiúir an déantóra)",
     heading: 'Eolas an ghrianghraif',
     fileSection: 'Comhad agus ceangal',
     cameraSection: 'Ceamara agus gabháil',

@@ -1125,6 +1125,7 @@ export const fr: AreaTranslation<typeof source> = {
     restoreCropLabel: (time: string) => `Réutiliser le recadrage de ${time}`,
   },
   info: {
+    rawColourSource: "Matrice de couleur de l’appareil lui-même, issue du fichier RAW, rendu standard InFlight (pas le style d’image du fabricant)",
     heading: 'Infos de la photo',
     fileSection: 'Fichier et connexion',
     cameraSection: 'Appareil et prise de vue',

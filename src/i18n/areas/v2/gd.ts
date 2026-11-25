@@ -1126,6 +1126,7 @@ export const gd: AreaTranslation<typeof source> = {
     restoreCropLabel: (time: string) => `Cleachd am bearradh o ${time} a-rithist`,
   },
   info: {
+    rawColourSource: "Matrix dhathan a’ chamara fhèin on fhaidhle RAW, coltas àbhaisteach InFlight (chan e stoidhle deilbh an dèanadair)",
     heading: 'Fiosrachadh an deilbh',
     fileSection: 'Faidhle is ceangal',
     cameraSection: 'Camara is glacadh',

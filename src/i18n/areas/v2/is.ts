@@ -1125,6 +1125,7 @@ export const is: AreaTranslation<typeof source> = {
     restoreCropLabel: (time: string) => `Nota skurðinn frá ${time} aftur`,
   },
   info: {
+    rawColourSource: "Eigið litafylki myndavélarinnar úr RAW-skránni, staðalútlit InFlight (ekki myndstíll framleiðandans)",
     heading: 'Myndaupplýsingar',
     fileSection: 'Skrá og tenging',
     cameraSection: 'Myndavél og taka',

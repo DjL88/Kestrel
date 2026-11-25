@@ -1125,6 +1125,7 @@ export const sv: AreaTranslation<typeof source> = {
     restoreCropLabel: (time: string) => `Använd beskärningen från ${time} igen`,
   },
   info: {
+    rawColourSource: "Kamerans egen färgmatris från RAW-filen, InFlights standardutseende (inte tillverkarens bildstil)",
     heading: 'Fotoinfo',
     fileSection: 'Fil och anslutning',
     cameraSection: 'Kamera och tagning',

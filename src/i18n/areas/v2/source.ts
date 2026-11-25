@@ -1165,6 +1165,7 @@ export const source = {
 
   // Info Panel
   info: {
+    rawColourSource: "Camera's own colour matrix from the RAW file, InFlight standard look (not the maker's picture style)",
     heading: 'Photo Info',
     fileSection: 'File & Connection',
     cameraSection: 'Camera & Capture',
