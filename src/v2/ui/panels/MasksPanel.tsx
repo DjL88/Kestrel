@@ -1,5 +1,6 @@
 import React from 'react';
-import type { MaskGeometryField, MaskLayer, Photo, WorkspaceStore } from '../contract';
+import type { MaskGeometryField, MaskLayer, MaskLayerPart, Photo, WorkspaceStore } from '../contract';
+import { MAX_MASK_PARTS } from '../../../core/maskTypes';
 import { STRINGS } from '../strings';
 import BrandIcon, { type BrandIconName } from '../icons/BrandIcon';
 import { MASK_SLIDERS } from '../../engineClient/maskOps';
@@ -14,7 +15,7 @@ interface MasksPanelProps {
   onSetMaskEdit: (photoId: string, maskId: string, key: string, value: number) => void;
   onSetMaskFeather: (photoId: string, maskId: string, percent: number) => void;
   onSetMaskGeometry: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
-  onSetMaskLimit: (photoId: string, maskId: string, limit: MaskLayer['limit'] | null) => void;
+  onSetMaskParts: (photoId: string, maskId: string, parts: MaskLayerPart[]) => void;
   onPreviewMask?: (selection: { photoId: string; maskId: string } | null) => void;
 }
 
@@ -28,7 +29,7 @@ export default function MasksPanel({
   onSetMaskEdit,
   onSetMaskFeather,
   onSetMaskGeometry,
-  onSetMaskLimit,
+  onSetMaskParts,
   onPreviewMask,
 }: MasksPanelProps) {
   const [openId, setOpenId] = React.useState<string | null>(null);
@@ -165,7 +166,7 @@ export default function MasksPanel({
                     className="min-w-0 flex-1 truncate text-left text-xs text-[var(--text-primary)]"
                   >
                     <span className={layer.visible ? '' : 'opacity-50'}>{layer.name}</span>
-                    {layer.limit && <span className="ml-1 text-[0.625rem] text-[var(--text-muted)]">{layer.limit.mode === 'intersect' ? '· Intersected' : '· Subtracted'}</span>}
+                    {layer.parts?.length ? <span className="ml-1 text-[0.625rem] text-[var(--text-muted)]">{`· ${STRINGS.panelWords.combined}`}</span> : null}
                     <span className="ml-2 text-[0.625rem] text-[var(--text-muted)]">{Object.keys(layer.edit).length ? `${Object.keys(layer.edit).length} adjusted` : 'no adjustments'}</span>
                   </button>
                   <button
@@ -215,30 +216,55 @@ export default function MasksPanel({
                         ))}
                       </fieldset>;
                     })()}
-                    {photo.masks.some(other => other.id !== layer.id) && (
-                      <fieldset className="space-y-2 border-b border-[var(--border-subtle)] pb-3">
-                        <legend className="text-[0.6875rem] font-semibold text-[var(--text-primary)]">{'Combine with another mask'}</legend>
-                        <label className="block space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
-                          <span>{'Limit to a shape'}</span>
-                          <select aria-label={`${layer.name} combination target`} value={layer.limit?.id ?? ''}
-                            className="min-h-9 w-full rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2"
-                            onChange={event => onSetMaskLimit(photo.id, layer.id, event.target.value ? { id: event.target.value, mode: layer.limit?.mode ?? 'intersect' } : null)}>
-                            <option value="">{'No restriction'}</option>
-                            {photo.masks.filter(other => other.id !== layer.id).map((other, index) => <option key={other.id} value={other.id}>{`${other.name} · ${index + 1}`}</option>)}
-                          </select>
-                        </label>
-                        {layer.limit && <label className="block space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
-                          <span>{'Combination'}</span>
-                          <select aria-label={`${layer.name} combination mode`} value={layer.limit.mode}
-                            className="min-h-9 w-full rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2"
-                            onChange={event => { if (event.target.value === 'intersect' || event.target.value === 'subtract') onSetMaskLimit(photo.id, layer.id, { id: layer.limit!.id, mode: event.target.value }); }}>
-                            <option value="intersect">{'Intersect · only the overlap'}</option>
-                            <option value="subtract">{'Subtract · exclude the other shape'}</option>
-                          </select>
-                        </label>}
-                        <p className="text-[0.625rem] text-[var(--text-muted)]">{'Uses the other mask’s own shape, even if its adjustments are switched off. Both masks remain editable.'}</p>
-                      </fieldset>
-                    )}
+                    {photo.masks.some(other => other.id !== layer.id) && (() => {
+                      const parts = layer.parts ?? [];
+                      const others = photo.masks.filter(other => other.id !== layer.id);
+                      const setParts = (next: MaskLayerPart[]) => onSetMaskParts(photo.id, layer.id, next);
+                      const unused = others.filter(other => !parts.some(part => part.id === other.id));
+                      return <fieldset className="space-y-2 border-b border-[var(--border-subtle)] pb-3" data-testid="v2-mask-parts">
+                        <legend className="text-[0.6875rem] font-semibold text-[var(--text-primary)]">{STRINGS.panelWords.partsHeading}</legend>
+                        <ol className="space-y-2">
+                          {parts.map((part, index) => (
+                            <li key={part.id} className="space-y-1 rounded border border-[var(--border-subtle)] p-2">
+                              <label className="block space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
+                                <span>{`${index + 1}. ${STRINGS.panelWords.partMode}`}</span>
+                                <select aria-label={`${layer.name} ${index + 1}: ${STRINGS.panelWords.partMode}`} value={part.mode}
+                                  className="min-h-9 w-full rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2"
+                                  onChange={event => { const mode = event.target.value; if (mode === 'add' || mode === 'subtract' || mode === 'intersect') setParts(parts.map((other, at) => at === index ? { ...other, mode } : other)); }}>
+                                  <option value="add">{STRINGS.panelWords.modeAdd}</option>
+                                  <option value="subtract">{STRINGS.panelWords.modeSubtract}</option>
+                                  <option value="intersect">{STRINGS.panelWords.modeIntersect}</option>
+                                </select>
+                              </label>
+                              <label className="block space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
+                                <span>{STRINGS.panelWords.partTarget}</span>
+                                <select aria-label={`${layer.name} ${index + 1}: ${STRINGS.panelWords.partTarget}`} value={part.id}
+                                  className="min-h-9 w-full rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2"
+                                  onChange={event => setParts(parts.map((other, at) => at === index ? { ...other, id: event.target.value } : other))}>
+                                  {others.filter(other => other.id === part.id || !parts.some(used => used.id === other.id)).map(other => (
+                                    <option key={other.id} value={other.id}>{`${other.name} · ${photo.masks.indexOf(other) + 1}`}</option>
+                                  ))}
+                                </select>
+                              </label>
+                              <button type="button" onClick={() => setParts(parts.filter((_, at) => at !== index))}
+                                aria-label={`${layer.name} ${index + 1}: ${STRINGS.panelWords.removePart}`}
+                                className="min-h-9 text-[0.6875rem] font-medium text-[var(--text-secondary)] underline-offset-2 hover:underline">
+                                {STRINGS.panelWords.removePart}
+                              </button>
+                            </li>
+                          ))}
+                        </ol>
+                        {parts.length < MAX_MASK_PARTS && unused.length > 0 ? (
+                          <button type="button" data-testid="v2-mask-add-part"
+                            onClick={() => setParts([...parts, { id: unused[0].id, mode: parts.length ? 'add' : 'intersect' }])}
+                            className="inline-flex min-h-9 items-center gap-1.5 rounded border border-[var(--border-default)] px-2.5 text-[0.6875rem] font-medium text-[var(--text-primary)]">
+                            <BrandIcon name="plus" size={12} />
+                            <span>{STRINGS.panelWords.addPart}</span>
+                          </button>
+                        ) : parts.length >= MAX_MASK_PARTS ? <p className="text-[0.625rem] text-[var(--text-muted)]">{STRINGS.panelWords.partsFull}</p> : null}
+                        <p className="text-[0.625rem] text-[var(--text-muted)]">{STRINGS.panelWords.partsNote}</p>
+                      </fieldset>;
+                    })()}
                     {MASK_SLIDERS.map((slider) => (
                       <label key={slider.key} className="block space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
                         <span className="flex justify-between"><span>{slider.label}</span><span className="font-mono tabular-nums">{(layer.edit[slider.key] ?? 0).toFixed(2)}</span></span>

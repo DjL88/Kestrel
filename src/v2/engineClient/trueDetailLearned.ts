@@ -1,0 +1,76 @@
+import { NAFNET_W32 } from '../../core/optionalModels';
+import { drawFramedPhoto, framedSize, type PhotoFraming } from '../../core/photoFraming';
+import { denoiseWithNafnet, nafnetStatus } from '../../providers/nafnetDenoise';
+import { subjectRect } from '../../core/trueDetailAi';
+
+/** The largest subject area (full-size pixels) the learned denoiser runs on: about 80 tiles, a few minutes on one
+ * CPU thread. A larger subject is left to the conventional denoise and the note says so. Never downsampled. */
+export const LEARNED_MAX_PIXELS = 3_000_000;
+
+export interface LearnedSubject {
+  model: string;
+  modelSha256: string;
+  /** Where the result sits, 0 to 1 of the framed photo. */
+  rect: { x: number; y: number; w: number; h: number };
+  /** The full-size result for that area, as a picture to store. */
+  png: () => Promise<Blob>;
+  /** The same result drawn into a working-size picture (transparent outside the area), for the guardian. */
+  working: Uint8ClampedArray;
+}
+
+export type LearnedOutcome = { kind: 'ready'; result: LearnedSubject } | { kind: 'skipped'; note: string } | { kind: 'unavailable' };
+
+/**
+ * Run the learned denoiser (NAFNet, when its opt-in pack is on this device) on the subject's area at full size.
+ * Nothing runs, and nothing is downloaded, when the pack is absent.
+ */
+export async function runLearnedOnSubject(
+  source: HTMLImageElement, framing: PhotoFraming, working: { width: number; height: number }, subjectAlpha: Float32Array,
+  signal?: AbortSignal, progress?: (done: number, total: number) => void,
+): Promise<LearnedOutcome> {
+  if (await nafnetStatus() !== 'ready') return { kind: 'unavailable' };
+  const rect = subjectRect(subjectAlpha, working.width, working.height);
+  if (!rect) return { kind: 'skipped', note: 'No subject area was found for the AI denoise.' };
+  const framed = framedSize(source.naturalWidth, source.naturalHeight, framing);
+  const region = {
+    x: Math.floor(rect.x * framed.width), y: Math.floor(rect.y * framed.height),
+    width: Math.max(1, Math.ceil(rect.w * framed.width)), height: Math.max(1, Math.ceil(rect.h * framed.height)),
+  };
+  region.width = Math.min(region.width, framed.width - region.x);
+  region.height = Math.min(region.height, framed.height - region.y);
+  if (region.width * region.height > LEARNED_MAX_PIXELS) {
+    return { kind: 'skipped', note: `The subject is too large for the on-device AI denoise (${(region.width * region.height / 1e6).toFixed(1)} MP; the limit is ${LEARNED_MAX_PIXELS / 1e6} MP), so only the built-in denoise was compared.` };
+  }
+  const crop = document.createElement('canvas');
+  drawFramedPhoto(source, crop, framing, { region });
+  const context = crop.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('Canvas unavailable');
+  const pixels = context.getImageData(0, 0, crop.width, crop.height);
+  const count = crop.width * crop.height;
+  const rgb16 = new Uint16Array(count * 3);
+  for (let p = 0; p < count; p++) for (let c = 0; c < 3; c++) rgb16[p * 3 + c] = pixels.data[p * 4 + c] * 257;
+  const out = await denoiseWithNafnet(rgb16, crop.width, crop.height, { strength: 1, signal, progress });
+  signal?.throwIfAborted();
+  if (!out) return { kind: 'unavailable' };
+  for (let p = 0; p < count; p++) {
+    for (let c = 0; c < 3; c++) pixels.data[p * 4 + c] = Math.round(out[p * 3 + c] / 257);
+    pixels.data[p * 4 + 3] = 255;
+  }
+  context.putImageData(pixels, 0, 0);
+  const placed = { x: region.x / framed.width, y: region.y / framed.height, w: region.width / framed.width, h: region.height / framed.height };
+  const layer = document.createElement('canvas');
+  layer.width = working.width; layer.height = working.height;
+  const lctx = layer.getContext('2d', { willReadFrequently: true });
+  if (!lctx) throw new Error('Canvas unavailable');
+  lctx.imageSmoothingQuality = 'high';
+  lctx.drawImage(crop, placed.x * working.width, placed.y * working.height, placed.w * working.width, placed.h * working.height);
+  const workingPixels = lctx.getImageData(0, 0, working.width, working.height).data;
+  layer.width = 0; layer.height = 0;
+  return {
+    kind: 'ready',
+    result: {
+      model: NAFNET_W32.id, modelSha256: NAFNET_W32.files.model.sha256, rect: placed, working: workingPixels,
+      png: () => new Promise<Blob>((resolve, reject) => crop.toBlob(blob => blob ? resolve(blob) : reject(new Error('The AI denoise result could not be stored.')), 'image/png')),
+    },
+  };
+}

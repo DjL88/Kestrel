@@ -23,6 +23,13 @@ interface AdjustPanelProps {
   onApplyLook: (photoId: string, lookId: string) => void;
   onHoverLook: (lookId: string | null) => void;
   onResetPhoto: (photoId: string) => void;
+  /** White balance from the picture: Auto (no point) runs at once; the eyedropper waits for a click on the canvas. */
+  onNeutralWhite?: (photoId: string) => void;
+  /** Whether the canvas is waiting for a click on a neutral spot. */
+  whitePicking?: boolean;
+  onSetWhitePicking?: (picking: boolean) => void;
+  /** The last white-balance result, in words (role=status). */
+  whiteNote?: string | null;
 }
 
 interface SliderRowProps {
@@ -121,6 +128,10 @@ export default function AdjustPanel({
   onApplyLook,
   onHoverLook,
   onResetPhoto,
+  onNeutralWhite,
+  whitePicking = false,
+  onSetWhitePicking,
+  whiteNote,
 }: AdjustPanelProps) {
   const [activeTab, setActiveTab] = React.useState<'looks' | 'advanced'>('looks');
   const [advancedGroup, setAdvancedGroup] = React.useState<AdvancedGroup>('light');
@@ -320,6 +331,33 @@ export default function AdjustPanel({
           {STRINGS.adjust.colourHeading}
         </h3>
 
+        <div className={`space-y-1.5 ${phoneGroupClass(advancedGroup, 'colour')}`} data-testid="white-balance-tools">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button type="button" data-testid="wb-as-shot"
+              onClick={() => onUpdateRecipe(photo.id, { temperature: 0, tint: 0, whiteBalance: undefined })}
+              className="rounded border border-[var(--border-default)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:border-[var(--brand-accent)]">
+              {STRINGS.adjust.kelvin.reset}
+            </button>
+            {onNeutralWhite && (
+              <button type="button" data-testid="wb-auto" onClick={() => onNeutralWhite(photo.id)}
+                className="rounded border border-[var(--border-default)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:border-[var(--brand-accent)]">
+                {STRINGS.adjust.neutral.auto}
+              </button>
+            )}
+            {onSetWhitePicking && (
+              <button type="button" data-testid="wb-pick" aria-pressed={whitePicking} onClick={() => onSetWhitePicking(!whitePicking)}
+                className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-[0.6875rem] font-medium ${whitePicking ? 'border-[var(--brand-accent)] bg-[var(--brand-accent)] text-white' : 'border-[var(--border-default)] text-[var(--text-primary)] hover:border-[var(--brand-accent)]'}`}>
+                <span aria-hidden="true">{whitePicking ? '✓' : '⊕'}</span>{STRINGS.adjust.neutral.pick}
+              </button>
+            )}
+            <InfoPopover title={STRINGS.adjust.kelvin.label} body={STRINGS.adjust.neutral.help} />
+          </div>
+          {(whitePicking || whiteNote) && (
+            <p role="status" data-testid="wb-note" className="text-[0.6875rem] text-[var(--text-secondary)]">
+              {whitePicking ? STRINGS.adjust.neutral.picking : whiteNote}
+            </p>
+          )}
+        </div>
         {photo.asShotKelvin && (
           <div className={phoneGroupClass(advancedGroup, 'colour')}>
             <KelvinControl recipe={recipe} asShotK={photo.asShotKelvin} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />

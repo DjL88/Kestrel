@@ -54,6 +54,8 @@ export const nb: AreaTranslation<typeof source> = {
   workspace: {
     templateNotSaved: 'InFlight kunne ikke lagre malen på denne enheten.',
     projectNotSaved: 'InFlight kunne ikke lagre dette prosjektet. Originalbildene dine er uendret.',
+    projectSaveRetrying: 'InFlight kunne ikke lagre dette prosjektet. Det fortsetter å prøve; la InFlight være åpent til det står lagret. Originalbildene dine er uendret.',
+    projectSavedAfterRetry: 'Lagret. Ingenting gikk tapt.',
     projectNotOpened: 'Det prosjektet kunne ikke åpnes.',
     thumbnailsTask: (count) => (count === 1 ? 'Forbereder 1 miniatyrbilde' : `Forbereder ${count} miniatyrbilder`),
     thumbnailStage: 'Leser og forminsker dette bildet',
@@ -61,14 +63,21 @@ export const nb: AreaTranslation<typeof source> = {
     notConnected: (names) => `Ikke koblet til InFlight-motoren ennå, så ikke brukt: ${names}.`,
     exportRunning: 'En eksport kjører allerede.',
     selectOneRaw: 'Velg ett RAW-bilde for å eksportere TIFF-filen.',
+    selectOneRawPng: 'Velg ett RAW-bilde for å eksportere PNG-filen.',
     rawTiffTask: 'Forbereder 16-biters RAW-TIFF',
+    rawPngTask: 'Forbereder 16-biters RAW-PNG',
     rawTiffDevelop: 'Fremkaller RAW-sensordata i 16 biter',
     rawTiffSave: 'Lagrer master-TIFF',
+    rawPngSave: 'Lagrer master-PNG',
     saveCancelled: 'Lagring avbrutt.',
     rawTiffSaved: '16-biters RAW-TIFF er lagret. Originalen din er uendret.',
+    rawPngSaved: '16-biters RAW-PNG er lagret. Originalen din er uendret.',
     rawTiffFailed: 'RAW-TIFF-eksporten mislyktes. Åpne Oppgaver for å se hvorfor.',
+    rawPngFailed: 'RAW-PNG-eksporten mislyktes. Åpne Oppgaver for å se hvorfor.',
     rawTiffCancelled: 'RAW-TIFF-eksporten ble avbrutt.',
+    rawPngCancelled: 'RAW-PNG-eksporten ble avbrutt.',
     rawTiffNotQueued: 'Kunne ikke starte 16-biters RAW-TIFF.',
+    rawPngNotQueued: 'Kunne ikke starte 16-biters RAW-PNG.',
     noFolder: 'Ingen mappe ble valgt. Ingenting ble eksportert.',
     exportQueued: (count) => (count === 1
       ? '1 eksport i kø. Du kan redigere videre; åpne Oppgaver for å sette på pause, prioritere eller avbryte.'
@@ -137,6 +146,7 @@ export const nb: AreaTranslation<typeof source> = {
     importSaveStage: 'Lagrer bildet i dette prosjektet',
     importSomeFailed: (added) => `Noen bilder kunne ikke importeres. ${added} ble lagt til. Åpne Oppgaver for å prøve bare de mislykkede på nytt.`,
     importStopped: (added) => `Importen stoppet. ${added} bilder ble lagt til. Originalene dine er uendret.`,
+    importNotFinished: (count, names) => `Den siste importen til dette prosjektet ble ikke fullført: ${count} bilder ble ikke lagt til (${names}). Importer dem på nytt for å legge dem til. Bilder som allerede er lagt til, beholdes.`,
     importFailed: 'Kunne ikke legge til bildene. Originalene dine ble ikke endret.',
   },
 };

@@ -65,6 +65,8 @@ export const source = {
   workspace: {
     templateNotSaved: 'InFlight could not save the template on this device.',
     projectNotSaved: 'InFlight could not save this project. Your original photos are unchanged.',
+    projectSaveRetrying: 'InFlight could not save this project. It keeps trying; leave InFlight open until it says saved. Your original photos are unchanged.',
+    projectSavedAfterRetry: 'Saved. Nothing was lost.',
     projectNotOpened: 'That project could not be opened.',
     thumbnailsTask: (count: number) => (count === 1 ? 'Preparing 1 thumbnail' : `Preparing ${count} thumbnails`),
     thumbnailStage: 'Reading and scaling this photo',
@@ -72,14 +74,21 @@ export const source = {
     notConnected: (names: string) => `Not connected to the InFlight engine yet, so not applied: ${names}.`,
     exportRunning: 'An export is already running.',
     selectOneRaw: 'Select one RAW photo to export its TIFF.',
+    selectOneRawPng: 'Select one RAW photo to export its PNG.',
     rawTiffTask: 'Preparing 16-bit RAW TIFF',
+    rawPngTask: 'Preparing 16-bit RAW PNG',
     rawTiffDevelop: 'Developing the RAW sensor data to 16-bit',
     rawTiffSave: 'Saving the TIFF master',
+    rawPngSave: 'Saving the PNG master',
     saveCancelled: 'Save cancelled.',
     rawTiffSaved: 'Saved the 16-bit RAW TIFF. Your original is unchanged.',
+    rawPngSaved: 'Saved the 16-bit RAW PNG. Your original is unchanged.',
     rawTiffFailed: 'RAW TIFF export failed. Open Tasks to see why.',
+    rawPngFailed: 'RAW PNG export failed. Open Tasks to see why.',
     rawTiffCancelled: 'RAW TIFF export cancelled.',
+    rawPngCancelled: 'RAW PNG export cancelled.',
     rawTiffNotQueued: 'Could not start a 16-bit RAW TIFF.',
+    rawPngNotQueued: 'Could not start a 16-bit RAW PNG.',
     noFolder: 'No folder was selected. Nothing was exported.',
     exportQueued: (count: number) => (count === 1
       ? 'Queued 1 export. You can keep editing; open Tasks to pause, prioritise or cancel.'
@@ -148,6 +157,7 @@ export const source = {
     importSaveStage: 'Saving the photo in this project',
     importSomeFailed: (added: number) => `Some photos could not be imported. ${added} were added. Open Tasks to retry only the ones that failed.`,
     importStopped: (added: number) => `Import stopped. ${added} photos were added. Your originals are unchanged.`,
+    importNotFinished: (count: number, names: string) => `The last import into this project did not finish: ${count} photos were not added (${names}). Import them again to add them. Photos already added are kept.`,
     importFailed: 'Adding photos failed. Your originals were not changed.',
   },
 };

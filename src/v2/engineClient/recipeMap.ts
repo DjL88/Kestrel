@@ -11,6 +11,7 @@ import type { ColourGradeRecipe, EditRecipe } from '../ui/contract';
 
 export const DEFAULT_VIGNETTE_SIZE = 50;
 export const DEFAULT_GRAIN_SIZE = 25;
+export const DEFAULT_VIGNETTE_FEATHER = 50;
 const hex = (colour: [number, number, number]) => `#${colour.map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('')}`;
 const fromHex = (value: string | undefined): [number, number, number] | undefined => {
   const match = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(value ?? '');
@@ -62,6 +63,7 @@ export function editToRecipe(edit: PhotoEdit | undefined): EditRecipe {
     denoiseLuminance: toSlider(edit.denoiseLuminance),
     detailRecovery: round(clamp((edit.texture ?? 0) * SLIDER_PER_STEP, 0, 100), 2),
     upscaleFactor: edit.upscale ?? 1,
+    ...(edit.trueDetailAi ? { aiDenoise: true } : {}),
     ...(!isNeutralWhiteBalance(edit.whiteBalance) ? { whiteBalance: { ...edit.whiteBalance! } } : {}),
     ...(validCurve(edit.curve) && !isNeutralCurve(edit.curve) ? { toneCurve: edit.curve.map(([x, y]) => [x, y] as [number, number]) } : {}),
     ...(validMixer(edit.mixer) && !isNeutralMixer(edit.mixer) ? { colourMixer: {
@@ -79,8 +81,12 @@ export function editToRecipe(edit: PhotoEdit | undefined): EditRecipe {
       vignette: round(edit.vignette.amount * 100, 2), vignetteSize: round(edit.vignette.size * 100, 2),
       ...(edit.vignette.blur ? { vignetteBlur: round(edit.vignette.blur * 100, 2) } : {}),
       ...(edit.vignette.colour ? { vignetteColour: hex(edit.vignette.colour) } : {}),
+      ...(edit.vignette.roundness ? { vignetteRoundness: round(edit.vignette.roundness * 100, 2) } : {}),
+      ...(edit.vignette.feather !== undefined && edit.vignette.feather !== DEFAULT_VIGNETTE_FEATHER / 100 ? { vignetteFeather: round(edit.vignette.feather * 100, 2) } : {}),
+      ...(edit.vignette.highlights ? { vignetteHighlights: round(edit.vignette.highlights * 100, 2) } : {}),
     } : {}),
-    ...(validGrain(edit.grain) ? { grain: round(edit.grain.amount * 100, 2), grainSize: round(edit.grain.size * 100, 2) } : {}),
+    ...(validGrain(edit.grain) ? { grain: round(edit.grain.amount * 100, 2), grainSize: round(edit.grain.size * 100, 2),
+      ...(edit.grain.roughness ? { grainRoughness: round(edit.grain.roughness * 100, 2) } : {}) } : {}),
     ...(validCalibration(edit.calibration) && !isNeutralCalibration(edit.calibration) ? { calibration: Object.fromEntries(
       PRIMARIES.map((key) => [key, { hue: round(edit.calibration![key][0] * 100, 2), saturation: round(edit.calibration![key][1] * 100, 2) }]),
     ) as NonNullable<EditRecipe['calibration']> } : {}),
@@ -142,6 +148,8 @@ export function applyRecipePatch(edit: PhotoEdit | undefined, patch: Partial<Edi
     if (texture === 0) delete next.texture;
     else next.texture = texture;
   }
+  // AI denoise is made only by the Denoise action (it needs the stored result); the recipe can only remove it.
+  if (patch.aiDenoise === false) delete next.trueDetailAi;
   if (patch.upscaleFactor !== undefined) { if (patch.upscaleFactor === 2 || patch.upscaleFactor === 4) next.upscale = patch.upscaleFactor; else delete next.upscale; }
   if ('toneCurve' in patch) {
     // A curve that is missing, straight or malformed is stored as no curve at all, never as a guess.
@@ -188,7 +196,7 @@ export function applyRecipePatch(edit: PhotoEdit | undefined, patch: Partial<Edi
     if (validDefringe(fringe) && (fringe.purple > 0 || fringe.green > 0)) next.defringe = fringe;
     else delete next.defringe;
   }
-  if (['vignette', 'vignetteSize', 'vignetteBlur', 'vignetteColour'].some((key) => key in patch)) {
+  if (['vignette', 'vignetteSize', 'vignetteBlur', 'vignetteColour', 'vignetteRoundness', 'vignetteFeather', 'vignetteHighlights'].some((key) => key in patch)) {
     const current: Vignette = { amount: 0, size: DEFAULT_VIGNETTE_SIZE / 100, ...next.vignette };
     const unit = (value: number | undefined, fallback: number, low = 0) => Number.isFinite(value) ? round(clamp(value!, low * 100, 100) / 100, 4) : fallback;
     const vignette: Vignette = {
@@ -199,14 +207,22 @@ export function applyRecipePatch(edit: PhotoEdit | undefined, patch: Partial<Edi
     if (blur > 0) vignette.blur = blur;
     const colour = 'vignetteColour' in patch ? fromHex(patch.vignetteColour) : current.colour;
     if (colour) vignette.colour = colour;
+    // Shape and protection: the defaults (round 0, feather 50, highlights 0) are not stored.
+    const roundness = 'vignetteRoundness' in patch ? unit(patch.vignetteRoundness, 0, -1) : current.roundness ?? 0;
+    if (roundness !== 0) vignette.roundness = roundness;
+    const feather = 'vignetteFeather' in patch ? unit(patch.vignetteFeather, DEFAULT_VIGNETTE_FEATHER / 100) : current.feather ?? DEFAULT_VIGNETTE_FEATHER / 100;
+    if (feather !== DEFAULT_VIGNETTE_FEATHER / 100) vignette.feather = feather;
+    const highlights = 'vignetteHighlights' in patch ? unit(patch.vignetteHighlights, 0) : current.highlights ?? 0;
+    if (highlights > 0) vignette.highlights = highlights;
     // Off (no strength and no blur) is stored as no vignette at all.
     if (validVignette(vignette) && (vignette.amount !== 0 || blur > 0)) next.vignette = vignette;
     else delete next.vignette;
   }
-  if ('grain' in patch || 'grainSize' in patch) {
+  if ('grain' in patch || 'grainSize' in patch || 'grainRoughness' in patch) {
     const amount = Number.isFinite(patch.grain) ? round(clamp(patch.grain!, 0, 100) / 100, 4) : next.grain?.amount ?? 0;
     const size = Number.isFinite(patch.grainSize) ? round(clamp(patch.grainSize!, 0, 100) / 100, 4) : next.grain?.size ?? DEFAULT_GRAIN_SIZE / 100;
-    if (amount > 0) next.grain = { amount, size };
+    const roughness = Number.isFinite(patch.grainRoughness) ? round(clamp(patch.grainRoughness!, 0, 100) / 100, 4) : 'grainRoughness' in patch ? 0 : next.grain?.roughness ?? 0;
+    if (amount > 0) next.grain = { amount, size, ...(roughness > 0 ? { roughness } : {}) };
     else delete next.grain;
   }
   if ('calibration' in patch) {

@@ -11,6 +11,8 @@ interface TopBarProps {
    */
   showMenus?: boolean;
   photoName: string;
+  /** Phone only: where this photo is in the project, e.g. "2 of 20". */
+  photoPosition?: string;
   /**
    * The same effective keymap App.tsx's dispatcher runs, lifted down as a prop rather than
    * loaded independently here. Before this, TopBar re-read the saved keymap itself and only
@@ -61,7 +63,10 @@ interface TopBarProps {
   onDockActivePanel: (dock: DockPosition) => void;
   onResetLayout: () => void;
   onToggleTheme: () => void;
-  onToggleDemoUnavailable: () => void;
+  /** The sample store's design aid only; the real workspace leaves it out, since it changes nothing there. */
+  onToggleDemoUnavailable?: () => void;
+  /** False when no photo is open: Copy and Reset adjustments then have nothing to act on. */
+  hasActivePhoto?: boolean;
 }
 
 type OpenMenu = 'file' | 'edit' | 'view' | null;
@@ -69,6 +74,7 @@ type OpenMenu = 'file' | 'edit' | 'view' | null;
 export default function TopBar({
   showMenus = true,
   photoName,
+  photoPosition,
   keymap: shortcutMap,
   assistMode,
   theme,
@@ -108,11 +114,14 @@ export default function TopBar({
   onResetLayout,
   onToggleTheme,
   onToggleDemoUnavailable,
+  hasActivePhoto = true,
 }: TopBarProps) {
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuTriggers = useRef<Partial<Record<Exclude<OpenMenu, null>, HTMLButtonElement | null>>>({});
   const isMac = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
+  /** The key the editor really runs for a command (the same keymap as App.tsx), or nothing when it is unbound. */
+  const keyFor = (id: keyof Keymap): string | undefined => (shortcutMap[id] ? chordLabel(shortcutMap[id], isMac) : undefined);
 
   useEffect(() => {
     if (!openMenu) return;
@@ -182,10 +191,16 @@ export default function TopBar({
           <span className="hidden sm:inline">{STRINGS.topBar.backShort}</span>
         </button>
 
-        <div className="h-5 w-px bg-[var(--border-subtle)] shrink-0" aria-hidden="true" />
+        <div className="hidden h-5 w-px bg-[var(--border-subtle)] shrink-0 md:block" aria-hidden="true" />
 
-        <div className="flex items-center px-1 shrink-0">
+        <div className="hidden items-center px-1 shrink-0 md:flex">
           <BrandLogo height={38} className="h-auto w-[92px] md:w-[124px]" />
+        </div>
+
+        {/* Phone: the photo's name and where it is in the project, in place of the logo (owner wireframe, 26.3). */}
+        <div className="flex min-w-0 flex-col leading-tight md:hidden" data-testid="phone-photo-title">
+          <span className="truncate text-sm font-semibold text-[var(--text-primary)]">{photoName}</span>
+          {photoPosition && <span className="truncate text-xs text-[var(--text-secondary)]">{photoPosition}</span>}
         </div>
 
         {/* Desktop menus: File, Edit, View */}
@@ -214,13 +229,12 @@ export default function TopBar({
                 <MenuItem
                   icon="image-plus"
                   label={STRINGS.topBar.fileActions.importPhotos}
-                  shortcut="⌘I"
                   onClick={() => runAndClose(onImport)}
                 />
                 <MenuItem
                   icon="export"
                   label={STRINGS.topBar.fileActions.exportSelected}
-                  shortcut="⌘E"
+                  shortcut={keyFor('file.export')}
                   onClick={() => runAndClose(onExport)}
                 />
                 <div className="my-1 h-px bg-[var(--border-subtle)]" />
@@ -250,7 +264,7 @@ export default function TopBar({
                 <MenuItem
                   icon="settings"
                   label={STRINGS.topBar.fileActions.settings}
-                  shortcut="⌘,"
+                  shortcut={keyFor('app.settings')}
                   onClick={() => runAndClose(onOpenSettings)}
                 />
                 <MenuItem
@@ -286,14 +300,14 @@ export default function TopBar({
                 <MenuItem
                   icon="undo"
                   label={STRINGS.topBar.editActions.undo}
-                  shortcut="⌘Z"
+                  shortcut={keyFor('edit.undo')}
                   disabled={!canUndo}
                   onClick={() => runAndClose(onUndo)}
                 />
                 <MenuItem
                   icon="refresh"
                   label={STRINGS.topBar.editActions.redo}
-                  shortcut="⇧⌘Z"
+                  shortcut={keyFor('edit.redo')}
                   disabled={!canRedo}
                   onClick={() => runAndClose(onRedo)}
                 />
@@ -301,32 +315,33 @@ export default function TopBar({
                 <MenuItem
                   icon="copy"
                   label={STRINGS.topBar.editActions.copyAdjustments}
-                  shortcut="⌘C"
+                  shortcut={keyFor('edit.copy')}
+                  disabled={!hasActivePhoto}
                   onClick={() => runAndClose(onCopyRecipe)}
                 />
                 <MenuItem
                   icon="paste"
                   label={STRINGS.topBar.editActions.pasteAdjustments}
-                  shortcut="⌘V"
+                  shortcut={keyFor('edit.paste')}
                   disabled={!hasClipboardRecipe}
                   onClick={() => runAndClose(onPasteRecipe)}
                 />
                 <MenuItem
                   icon="restore"
                   label={STRINGS.topBar.editActions.resetAdjustments}
+                  disabled={!hasActivePhoto}
                   onClick={() => runAndClose(onResetPhoto)}
                 />
                 <div className="my-1 h-px bg-[var(--border-subtle)]" />
                 <MenuItem
                   icon="select-photos"
                   label={STRINGS.topBar.editActions.selectAll}
-                  shortcut="⌘A"
+                  shortcut={keyFor('edit.selectAll')}
                   onClick={() => runAndClose(onSelectAll)}
                 />
                 <MenuItem
                   icon="close"
                   label={STRINGS.topBar.editActions.clearSelection}
-                  shortcut="Esc"
                   onClick={() => runAndClose(onClearSelection)}
                 />
               </div>
@@ -402,11 +417,11 @@ export default function TopBar({
                   label={STRINGS.topBar.viewActions.switchTheme}
                   onClick={() => runAndClose(onToggleTheme)}
                 />
-                <MenuItem
+                {onToggleDemoUnavailable && <MenuItem
                   icon="image-off"
                   label={STRINGS.topBar.viewActions.previewUnavailable}
                   onClick={() => runAndClose(onToggleDemoUnavailable)}
-                />
+                />}
               </div>
             )}
           </div>
@@ -448,7 +463,7 @@ export default function TopBar({
             className="inline-flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-md)] border border-[var(--border-default)] px-2.5 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface-hover)] md:h-9 md:px-3.5"
           >
             <BrandIcon name="link" size={15} />
-            <span>{STRINGS.share.button}</span>
+            <span className="v2-phone-label">{STRINGS.share.button}</span>
           </button>
         )}
         <button

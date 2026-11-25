@@ -27,6 +27,13 @@ export class FirestoreCloudLedger implements CloudLedger {
     });
   }
 
+  async periodUsed(accountId: string, nowMs: number, periodMs: number): Promise<number> {
+    const snap = await this.db.collection(USAGE).doc(accountId).get();
+    const d = snap.exists ? snap.data()! : undefined;
+    if (typeof d?.periodStartMs !== 'number' || nowMs - d.periodStartMs >= periodMs) return 0;
+    return typeof d.used === 'number' ? d.used : 0;
+  }
+
   async refund(accountId: string, reservedAtMs: number): Promise<void> {
     await this.db.runTransaction(async (tx) => {
       const ref = this.db.collection(USAGE).doc(accountId);
@@ -38,10 +45,11 @@ export class FirestoreCloudLedger implements CloudLedger {
   }
 
   async put(record: CloudJobRecord): Promise<void> {
-    const { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, spendPence } = record;
+    const { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, spendPence, paidMillicredits } = record;
     await this.db.collection(JOBS).doc(jobId).set({
       jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs,
       ...(spendPence === undefined ? {} : { spendPence }),
+      ...(paidMillicredits === undefined ? {} : { paidMillicredits }),
     });
   }
 
@@ -54,6 +62,7 @@ export class FirestoreCloudLedger implements CloudLedger {
       inputBytes: Number(d.inputBytes), status: d.status as CloudJobRecord['status'],
       createdAtMs: Number(d.createdAtMs), consentAtMs: Number(d.consentAtMs),
       ...(typeof d.spendPence === 'number' ? { spendPence: d.spendPence } : {}),
+      ...(typeof d.paidMillicredits === 'number' ? { paidMillicredits: d.paidMillicredits } : {}),
     };
   }
 

@@ -54,6 +54,8 @@ export const ga: AreaTranslation<typeof source> = {
   workspace: {
     templateNotSaved: 'Níorbh fhéidir le InFlight an teimpléad a shábháil ar an ngléas seo.',
     projectNotSaved: 'Níorbh fhéidir le InFlight an tionscadal seo a shábháil. Níor athraíodh do bhunghrianghraif.',
+    projectSaveRetrying: 'Níorbh fhéidir le InFlight an tionscadal seo a shábháil. Leanann sé ag iarraidh; fág InFlight oscailte go dtí go ndeir sé go bhfuil sé sábháilte. Níl aon athrú ar do bhunghrianghraif.',
+    projectSavedAfterRetry: 'Sábháilte. Níor cailleadh aon rud.',
     projectNotOpened: 'Níorbh fhéidir an tionscadal sin a oscailt.',
     thumbnailsTask: (count) => (count === 1 ? '1 mhionsamhail á hullmhú' : `${count} mionsamhail á n-ullmhú`),
     thumbnailStage: 'An grianghraf seo á léamh agus á laghdú',
@@ -61,14 +63,21 @@ export const ga: AreaTranslation<typeof source> = {
     notConnected: (names) => `Níl sé nasctha le hinneall InFlight fós, mar sin níor cuireadh i bhfeidhm é: ${names}.`,
     exportRunning: 'Tá easpórtáil ar siúl cheana.',
     selectOneRaw: 'Roghnaigh grianghraf RAW amháin chun a TIFF a easpórtáil.',
+    selectOneRawPng: 'Roghnaigh grianghraf RAW amháin chun a PNG a easpórtáil.',
     rawTiffTask: 'TIFF RAW 16 ghiotán á ullmhú',
+    rawPngTask: 'PNG RAW 16 ghiotán á ullmhú',
     rawTiffDevelop: 'Sonraí braiteora RAW á bhforbairt go 16 ghiotán',
     rawTiffSave: 'An máistir-TIFF á shábháil',
+    rawPngSave: 'An máistir-PNG á shábháil',
     saveCancelled: 'Cealaíodh an sábháil.',
     rawTiffSaved: 'Sábháladh an TIFF RAW 16 ghiotán. Níor athraíodh do bhunchomhad.',
+    rawPngSaved: 'Sábháladh an PNG RAW 16 ghiotán. Níor athraíodh do bhunchomhad.',
     rawTiffFailed: 'Theip ar easpórtáil an TIFF RAW. Oscail Tascanna le fáil amach cén fáth.',
+    rawPngFailed: 'Theip ar easpórtáil an PNG RAW. Oscail Tascanna le fáil amach cén fáth.',
     rawTiffCancelled: 'Cealaíodh easpórtáil an TIFF RAW.',
+    rawPngCancelled: 'Cealaíodh easpórtáil an PNG RAW.',
     rawTiffNotQueued: 'Níorbh fhéidir an TIFF RAW 16 ghiotán a thosú.',
+    rawPngNotQueued: 'Níorbh fhéidir an PNG RAW 16 ghiotán a thosú.',
     noFolder: 'Níor roghnaíodh fillteán. Níor easpórtáladh aon rud.',
     exportQueued: (count) => (count === 1
       ? '1 easpórtáil sa scuaine. Is féidir leat leanúint ag eagarthóireacht; oscail Tascanna chun sos a chur leis, tosaíocht a thabhairt nó é a chealú.'
@@ -137,6 +146,7 @@ export const ga: AreaTranslation<typeof source> = {
     importSaveStage: 'An grianghraf á shábháil sa tionscadal seo',
     importSomeFailed: (added) => `Níorbh fhéidir roinnt grianghraf a iompórtáil. Cuireadh ${added} leis. Oscail Tascanna chun triail eile a bhaint as na cinn a theip amháin.`,
     importStopped: (added) => `Stopadh an iompórtáil. Cuireadh ${added} grianghraf leis. Níor athraíodh do bhunchomhaid.`,
+    importNotFinished: (count, names) => `Níor críochnaíodh an iompórtáil dheireanach isteach sa tionscadal seo: níor cuireadh ${count} grianghraf leis (${names}). Iompórtáil arís iad chun iad a chur leis. Coinnítear na grianghraif a cuireadh leis cheana.`,
     importFailed: 'Theip ar na grianghraif a chur leis. Níor athraíodh do bhunchomhaid.',
   },
 };

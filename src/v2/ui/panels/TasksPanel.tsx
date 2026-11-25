@@ -1,6 +1,8 @@
 import React, { useEffect, useReducer, useRef, useState } from 'react';
 import type { TaskInfo } from '../contract';
 import { STRINGS } from '../strings';
+import type { CloudUsage } from '../../../core/cloudPlan';
+import { cloudTaskCost } from '../utils/cloudTaskCost';
 import BrandIcon from '../icons/BrandIcon';
 import { engineScheduler } from '../../../core/engineScheduler';
 import { moveQueuedTask, placeSubset, stableTaskOrder } from '../utils/queuedTaskOrder';
@@ -10,6 +12,8 @@ interface TasksPanelProps {
   onCancelTask: (taskId: string) => void;
   onClearTask: (taskId: string) => void;
   onClearCompleted: () => void;
+  /** This month's cloud allowance and balance, when signed in: cloud tasks then say what they will use. */
+  cloudUsage?: CloudUsage;
 }
 const active = (status: TaskInfo['status']) => status === 'running' || status === 'queued' || status === 'paused';
 const stateLabel = (status: TaskInfo['status']) => STRINGS.taskControls.states[status];
@@ -26,7 +30,7 @@ function timing(task: TaskInfo, clock: number) {
 }
 
 const controlStyle = 'inline-flex min-h-11 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-active)] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-40';
-export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCompleted }: TasksPanelProps) {
+export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCompleted, cloudUsage }: TasksPanelProps) {
   const [tab, setTab] = useState<'active' | 'completed'>('active');
   const [clock, setClock] = useState(Date.now);
   useEffect(() => {
@@ -119,6 +123,7 @@ export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCo
               <p className="text-xs text-[var(--text-secondary)]">{STRINGS.taskControls.processed(task.done ?? 0, task.total)}</p>
             )}
             {task.stage && <p className="break-words text-xs text-[var(--text-secondary)]">{STRINGS.taskControls.stage(task.stage)}</p>}
+            {(() => { const cost = cloudTaskCost(task, cloudUsage); return cost && <p data-testid="task-cloud-cost" className="break-words text-xs text-[var(--text-secondary)]">{cost}</p>; })()}
             {task.detail && <p role={task.status === 'failed' ? 'alert' : undefined} className="break-words text-xs text-[var(--text-secondary)]">{task.detail}</p>}
             {seconds && <p className="text-xs tabular-nums text-[var(--text-muted)]">{seconds}</p>}
             {task.items && task.items.length > 0 && (

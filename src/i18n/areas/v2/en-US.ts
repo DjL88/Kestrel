@@ -84,11 +84,18 @@ export const enUS: AreaTranslation<typeof source> = {
     centreUpDown: 'Center up / down',
     centredPair: 'Centered pair',
   },
+  models: {
+    licence: 'License',
+  },
   settingsMore: {
     forgetBody: 'Some things leave a small amount of data about you on InFlight’s servers: signing in, buying a license, using optional cloud help or sending a message. Turning off “help improve suggestions” already deletes what you shared. To have the rest erased, send a request with the email you signed in with. InFlight cannot yet erase this with one tap, so a person handles the request. You will be told what, if anything, must be kept, such as payment records the law requires.',
   },
   overlayKit: {
     centre: 'Center',
     fields: { colourProfile: 'Color profile' },
+  },
+  canvas: {
+    zoomCentre: 'Zoom to center',
+    centreFound: 'No clear subject, so zoomed to the center.',
   },
 };

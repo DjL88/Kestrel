@@ -23,6 +23,8 @@ export interface PhotoHistogram {
   highlightClip: number;
   /** Share of pixels at 0 (shadow) or 255 (highlight) in each channel, so clipping can be said in words per channel. */
   channelClip?: Record<'red' | 'green' | 'blue', { shadow: number; highlight: number }>;
+  /** 'rgb16': measured from the 16-bit RAW develop. Absent: measured from the 8-bit picture on screen. */
+  precision?: 'rgb16';
 }
 export type TileState = 'importing' | 'analysing' | 'ready' | 'unavailable';
 export type AssistMode = 'solo' | 'copilot' | 'autopilot';
@@ -160,6 +162,8 @@ export interface EditRecipe {
   clarity: number; // -100 to 100
   sharpen: number; // 0 to 100
   denoiseRawAi: boolean;
+  /** TrueDetail AI denoise: true while a learned denoiser's stored result is blended into the subject. Set false to remove it. Absent = off. */
+  aiDenoise?: boolean;
   denoiseLuminance: number; // 0 to 100
   denoiseColour: number; // 0 to 100
   upscaleFactor: 1 | 2 | 4;
@@ -194,9 +198,17 @@ export interface EditRecipe {
   vignetteBlur?: number;
   /** A colour for the vignette as #rrggbb. Absent = darker or lighter, no colour. */
   vignetteColour?: string;
+  /** Vignette shape, -100 (the frame's rectangle) to 100 (a circle). Absent = 0, an oval of the frame's shape. */
+  vignetteRoundness?: number;
+  /** Vignette fall-off, 0 (hard) to 100 (softest). Absent = 50. */
+  vignetteFeather?: number;
+  /** How much bright areas are spared from a darkening or colour vignette, 0 to 100. Absent = 0. */
+  vignetteHighlights?: number;
   /** Film-like grain, 0 to 100, and its size, 0 (fine) to 100 (coarse; absent = 25). */
   grain?: number;
   grainSize?: number;
+  /** Grain roughness, 0 (smooth and even) to 100 (irregular). Absent = 0. */
+  grainRoughness?: number;
   /** Advanced: camera calibration, hue and saturation of each primary, -100 to 100. Absent = none. */
   calibration?: Record<'red' | 'green' | 'blue', { hue: number; saturation: number }>;
   /** White balance in kelvin against the camera's as-shot estimate (RAW photos only). Absent = as shot. */
@@ -285,14 +297,16 @@ export type MaskGeometry =
 
 export type MaskGeometryField = 'cx' | 'cy' | 'rx' | 'ry' | 'angle' | 'x1' | 'y1' | 'x2' | 'y2';
 
+export interface MaskLayerPart { id: string; mode: 'add' | 'subtract' | 'intersect' }
+
 export interface MaskLayer {
   id: string;
   name: string;
   type: 'subject' | 'sky' | 'background' | 'brush' | 'area' | 'gradient';
   /** Present only for genuine editable oval/gradient masks; never fabricated for detected subjects. */
   geometry?: MaskGeometry;
-  /** Restrict this layer to, or subtract, another layer's saved shape. */
-  limit?: { id: string; mode: 'intersect' | 'subtract' };
+  /** Other layers combined into this one, in order: add their area, subtract it, or keep only the overlap. */
+  parts?: MaskLayerPart[];
   visible: boolean;
   /** Edge softness, 0 to 100. */
   feather: number;
@@ -309,7 +323,7 @@ export interface AssistSuggestion {
   recipeDelta: Partial<EditRecipe>;
   comparison?: { before: string; after: string };
   /** The same edit as ordered slider steps with real values (src/core/editingSequence.ts), for Watch and Learn. */
-  steps?: { id: string; label: string; from: string; to: string }[];
+  steps?: { id: string; label: string; from: string; to: string; /** The recipe setting the step changes. */ key?: string }[];
   /** ColourSense: whether the suggestion keeps the subject's colour, in words (absent when it could not be judged). */
   colourSense?: ColourSenseNote;
   /** Colour match: whether the subject carries the colours it should have (species signature or the vision model), in words. */
@@ -347,11 +361,15 @@ export interface Photo {
   speciesLabel?: string;
   /** What kind of vehicle or aircraft it probably is, in the person's language ("Military jet: Eurofighter Typhoon (probably)"). */
   vehicleLabel?: string;
-  /** Extra words the photo can be found by (a vehicle's kind in this language and in English, its type name). */
-  searchTerms?: string[];
   /** The subject name alone, without the "(suggested)" marker the label may carry, for editing it. */
   speciesName?: string;
+  /** The vehicle reading's ids, so a correction starts from what is shown. */
+  vehicleKind?: string;
+  vehicleType?: string;
   category: string;
+  /** Tags InFlight worked out by itself (place, light, weather, style, genre, vehicle), already in the person's words.
+   * `words` also holds the British English word, so search finds a tag in either language. */
+  photoTags?: { id: string; facet: import('../../core/photoTags').TagFacet; label: string; words: string[] }[];
   sharpnessScore: number;
   exif: PhotoExif;
   activeGroupId: string;
@@ -366,14 +384,24 @@ export interface Photo {
   /** Set when this photo was shot in a burst with others. `ungrouped` is the person's choice to see its frames one by one. */
   burst?: { groupId: string; index: number; count: number; ungrouped: boolean; score?: number };
   /** The photo's recorded edit steps (oldest first) and where it stands now. Absent until it has been edited. */
-  editHistory?: { steps: { label: string; at: number }[]; cursor: number; originalAvailable?: boolean };
+  editHistory?: { steps: {
+    label: string; at: number;
+    /** Made by Auto or brought in from Lightroom, rather than slider by slider. */
+    by?: 'auto' | 'lightroom';
+    /** What changed, slider by slider, with real values. */
+    changes?: { label: string; from: string; to: string }[];
+    /** Auto's own reasons, in the person's language. */
+    why?: string[];
+  }[]; cursor: number; originalAvailable?: boolean };
   /** Saved non-destructive photo-wide edit versions, all using one original. */
   editVersions?: {
     activeId: string;
     versions: { id: string; label: string; parentId: string | null; forkCursor: number; createdAt: number }[];
   };
-  /** Actual recorded format actions; missing means pre-history, not a fabricated event. */
-  formatHistory?: { formatId: string; kind: string; at: number; parentFormatId?: string; forkEditCursor?: number }[];
+  /** Named checkpoints of the whole editing state (recipe and every format's crop), oldest first. */
+  editCheckpoints?: { id: string; name: string; createdAt: number; versionId: string }[];
+  /** Actual recorded format actions; missing means pre-history, not a fabricated event. `crop` is the crop a crop action left. */
+  formatHistory?: { formatId: string; kind: string; at: number; parentFormatId?: string; forkEditCursor?: number; crop?: CropTransform }[];
   /** The JPEG the camera wrote with this RAW, kept beside it and shown as one photo. Its flag and rating follow this photo. */
   pairedJpeg?: string;
   /** When the photo was taken, in milliseconds, when the file records it. Used only for sorting. */
@@ -382,6 +410,13 @@ export interface Photo {
   pixelSize?: { width: number; height: number };
   /** Measured from the picture as it is now. Absent until measured; the interface shows nothing rather than a guess. */
   histogram?: PhotoHistogram | null;
+  /** Which picture of a RAW each view shows: the camera's embedded preview or InFlight's develop from the sensor data,
+   * as recorded when the preview was made. Absent for JPEG/PNG files and while nothing is shown yet. */
+  /** A lossless DNG copy can be saved: a Nikon HE/HE* NEF in the desktop app. */
+  dngCopy?: boolean;
+  /** 'offered': a RAW whose full-size develop is not on screen and can be made here; 'running': it is being made. */
+  fullDevelop?: 'offered' | 'running';
+  picture?: { preview?: import('../../core/pictureSource').PictureProvenance; thumb?: import('../../core/pictureSource').PictureProvenance };
   /** Good, better or best, from the engine's decision maker. Shown as a word, never as a number. */
   tier?: PhotoTier | null;
   /** What 'auto' resolves to for this photo's watermark, measured on the pixels behind it. Absent until measured. */
@@ -411,6 +446,8 @@ export interface Project {
   folderPath: string;
   /** Hidden from the main list but kept; restore brings it back. */
   archived?: boolean;
+  /** Deleted: shown only in Recently deleted until restored or removed for good after 30 days. */
+  trashed?: boolean;
 }
 
 export interface TaskInfo {
@@ -487,6 +524,8 @@ export interface WorkspaceSettings {
   hideProFeatures: boolean;
   /** Show the advanced editing controls (colour grading, channel curves). Off by default so the panel stays simple. */
   advancedControls: boolean;
+  /** Move to the next photo after a rating or decision on one photo (culling). */
+  advanceAfterDecision: boolean;
   ongoingCritique: boolean;
   defaultAssistMode: AssistMode;
   language: 'en-GB' | 'en-US' | 'de-DE' | 'fr-FR';
@@ -495,6 +534,8 @@ export interface WorkspaceSettings {
     provider?: 'google' | 'apple' | 'email';
     email?: string;
     displayName?: string;
+    /** This month's cloud allowances and balance, from the control plane once signed in. Absent: the section is hidden. */
+    cloud?: import('../../core/cloudPlan').CloudUsage;
   };
   aiProviders: AiProviderConfig[];
   storageConnectors: StorageConnector[];
@@ -502,8 +543,10 @@ export interface WorkspaceSettings {
 }
 
 export interface ExportRequest {
-  /** Standalone, photo-wide TIFF made from the selected sensor RAW. */
+  /** Standalone, photo-wide 16-bit file made from the selected sensor RAW. */
   rawMaster?: boolean;
+  /** Which 16-bit file the RAW master is written as. Absent = TIFF. */
+  rawMasterFormat?: 'tiff' | 'png';
   fileFormat?: 'jpeg' | 'png';
   jpegQuality?: number;
   destination: ExportDestination;
@@ -528,6 +571,8 @@ export interface ExportRequest {
 export interface PhotoSurfaceProps {
   /** Editor-only coverage guide, never part of the photo recipe or export. */
   maskGuideId?: string;
+  /** The guide as a line round the mask (the V2 default) or the hatched area. */
+  maskGuideStyle?: 'outline' | 'fill';
   /** Editor-only SVG content (mask outline and handles) drawn in the displayed picture's own pixels, over exactly that picture. */
   maskOutline?: (picture: { width: number; height: number }) => ReactNode;
   photoId: string;
@@ -580,6 +625,8 @@ export interface WorkspaceStore {
   filmstripMinRating: number;
   filmstripSort: PhotoSort;
   filmstripSearch: string;
+  /** Show only photos with this tag id; null shows all. */
+  filmstripTag?: string | null;
   gridViewOpen: boolean;
   compareMode: boolean;
   canvasZoom: number; // 0.5 to 3.0
@@ -621,8 +668,12 @@ export interface WorkspaceActions {
   createProjectFromFolder: () => void;
   renameProject: (projectId: string, name: string) => void;
   archiveProject: (projectId: string, archived: boolean) => void;
-  /** Removes InFlight's catalogue entry and its stored copies. Original files are never touched. */
+  /** Moves the project to Recently deleted for 30 days. Nothing is removed yet; original files are never touched. */
   deleteProject: (projectId: string) => void;
+  /** Takes a project back out of Recently deleted, as it was. */
+  restoreDeletedProject: (projectId: string) => void;
+  /** Removes InFlight's catalogue entry and its stored copies now. Original files are never touched. */
+  deleteProjectForever: (projectId: string) => void;
   setHubState: (state: HubViewState) => void;
 
   // Photos, Culling & Selection
@@ -638,6 +689,10 @@ export interface WorkspaceActions {
   toggleFlag: (photoIds: string[]) => void;
   setRating: (photoIds: string[], rating: number) => void;
   correctSpeciesName: (photoId: string, name: string) => void;
+  /** The person's own vehicle name for a photo, or for every frame of its burst. 'not-a-vehicle' removes it for good. */
+  correctVehicle: (photoId: string, choice: { kind: string; type?: string } | 'not-a-vehicle', wholeBurst: boolean) => void;
+  /** The person removes a tag InFlight found: it goes and is never added to that photo again. */
+  removePhotoTag?: (photoId: string, tagId: string) => void;
   importPhotos: () => void;
   importFolder: () => void;
   importDroppedPhotos: (files: File[]) => void;
@@ -664,6 +719,10 @@ export interface WorkspaceActions {
   dismissQuickStart?: () => void;
   runAutoCull: () => void;
   reconnectOriginal: (photoId: string) => void;
+  /** Save a lossless DNG copy of a Nikon HE/HE* NEF (desktop). The original is only read. */
+  saveDngCopy: (photoId: string) => void;
+  /** Develop a RAW from its sensor data at full size, as one Tasks item. The original is only read. */
+  developFullSize: (photoId: string) => void;
   toggleDemoUnavailable: () => void;
 
   // Flight Mode & Deep Vision Review
@@ -684,6 +743,8 @@ export interface WorkspaceActions {
   importCloudPreviews?: (items: { file: File; projectId: string; photoKey: string }[]) => Promise<void>;
   /** The photo's exact original bytes, checked against its fingerprint, or null when the original is not connected. */
   readVerifiedOriginal?: (photoId: string) => Promise<Blob | null>;
+  /** Put the owner's original (already checked against its fingerprint) behind a cloud preview, keeping its edits and shared identity. */
+  attachCloudOriginal?: (photoId: string, original: File, sha256: string) => Promise<boolean>;
   dismissAssistSuggestion: (photoId: string, suggestionId: string) => void;
 
   // Editing & Looks
@@ -748,6 +809,10 @@ export interface WorkspaceActions {
   /** Find this photo's lens in the lensfun profiles and apply its profile. Only with `download` does it fetch the
    * profiles (once, then kept on this device); without it, a device that lacks them answers 'needs-download'. */
   applyLensProfile: (photoId: string, download: boolean) => Promise<LensProfileOutcome>;
+  /** White balance from the picture itself, as one undoable step. `at` (0 to 1 across the shown, framed picture) is a spot
+   * that should be grey or white (the eyedropper); without it, Auto estimates the light from the whole picture.
+   * 'limited' = a slider reached its end first; 'unreadable' = the spot is clipped or too dark, nothing changed. */
+  neutralWhiteBalance?: (photoId: string, at?: { x: number; y: number }) => Promise<'set' | 'limited' | 'unreadable'>;
   /** Image layers. Add one from an image file on this device (opens the file picker). */
   addImageLayer: (photoId: string) => Promise<void>;
   /** Add another photo of this project as a layer: a copy of it as it looks now, with its edits. */
@@ -783,7 +848,8 @@ export interface WorkspaceActions {
   setMaskEdit: (photoId: string, maskId: string, key: string, value: number) => void;
   setMaskFeather: (photoId: string, maskId: string, percent: number) => void;
   setMaskGeometry: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
-  setMaskLimit: (photoId: string, maskId: string, limit: MaskLayer['limit'] | null) => void;
+  /** Combine other masks into this one, in order; an empty list removes every part. */
+  setMaskParts: (photoId: string, maskId: string, parts: MaskLayerPart[]) => void;
 
   // Tasks & Export
   cancelTask: (taskId: string) => void;
@@ -811,12 +877,22 @@ export interface WorkspaceActions {
   jumpToEditStep: (photoId: string, cursor: number) => void;
   /** Switch between independent checkpoint-forked versions without touching the source file. */
   switchEditVersion: (photoId: string, versionId: string) => void;
+  /** Give an editing version a name of the person's choosing. */
+  renameEditVersion: (photoId: string, versionId: string, name: string) => void;
+  /** Save the photo's whole editing state (recipe and every format's crop) under a name. */
+  saveEditCheckpoint: (photoId: string, name: string) => void;
+  /** Open a saved checkpoint as a new editing version; the current version is kept. */
+  restoreEditCheckpoint: (photoId: string, checkpointId: string) => void;
+  deleteEditCheckpoint: (photoId: string, checkpointId: string) => void;
+  /** Put a format's crop back to the one a recorded crop action left (itself recorded, so it can be undone the same way). */
+  restoreFormatCrop: (photoId: string, formatId: string, eventAt: number) => void;
   setFilmstripCollapsed: (collapsed: boolean) => void;
   setFilmstripHeight: (height: number) => void;
   setFilmstripFilter: (filter: FilmstripFilter) => void;
   setFilmstripMinRating: (rating: number) => void;
   setFilmstripSort: (sort: PhotoSort) => void;
   setFilmstripSearch: (query: string) => void;
+  setFilmstripTag?: (tagId: string | null) => void;
   setGridViewOpen: (open: boolean) => void;
   setCompareMode: (compare: boolean) => void;
   setCanvasZoom: (zoom: number) => void;

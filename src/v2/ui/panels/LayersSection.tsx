@@ -247,6 +247,33 @@ export default function LayersSection({ photo, overlay, projectPhotos, onShowTex
               ))}
             </div>
           </div>
+          <div className="space-y-1" data-testid="layer-mask">
+            <div className="flex items-center gap-1">
+              <label htmlFor="layer-mask" className="text-xs font-medium text-[var(--text-primary)]">{T.mask}</label>
+              <InfoPopover title={T.mask} body={T.maskHelp} />
+            </div>
+            <select id="layer-mask" value={photo.masks.some((m) => m.id === selected.maskId) ? selected.maskId : ''}
+              onChange={(e) => update({ maskId: e.target.value || undefined, ...(e.target.value ? {} : { maskInvert: undefined }) })}
+              className="min-h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2 text-xs text-[var(--text-primary)]">
+              <option value="">{T.maskNone}</option>
+              {photo.masks.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+            {!photo.masks.length && <p className="text-[0.6875rem] leading-snug text-[var(--text-muted)]">{T.maskNoneYet}</p>}
+            {selected.maskId && !photo.masks.some((m) => m.id === selected.maskId) && (
+              <p role="status" className="text-[0.6875rem] leading-snug text-[var(--text-secondary)]">{T.maskGone}</p>
+            )}
+            {photo.masks.some((m) => m.id === selected.maskId) && (
+              <div role="radiogroup" aria-label={T.maskWhere} className="grid grid-cols-2 gap-1">
+                {([[false, T.maskInside], [true, T.maskOutside]] as const).map(([invert, label]) => (
+                  <button key={String(invert)} type="button" role="radio" aria-checked={!!selected.maskInvert === invert}
+                    onClick={() => update({ maskInvert: invert || undefined })}
+                    className={`min-h-8 rounded-[var(--radius-sm)] border px-1 text-[0.6875rem] ${!!selected.maskInvert === invert ? 'border-[var(--brand-accent)] text-[var(--brand-accent)]' : 'border-[var(--border-subtle)] text-[var(--text-secondary)]'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="flex flex-wrap gap-1.5">
             <button type="button" onClick={() => update({ x: 0.5, y: 0.5, rotation: 0 })}
               className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-input)] px-2.5 py-1 text-[0.6875rem] text-[var(--text-secondary)] hover:border-[var(--border-default)]">{T.centre}</button>

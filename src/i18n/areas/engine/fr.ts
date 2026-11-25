@@ -54,6 +54,8 @@ export const fr: AreaTranslation<typeof source> = {
   workspace: {
     templateNotSaved: 'InFlight n’a pas pu enregistrer le modèle sur cet appareil.',
     projectNotSaved: 'InFlight n’a pas pu enregistrer ce projet. Vos photos originales sont inchangées.',
+    projectSaveRetrying: 'InFlight n’a pas pu enregistrer ce projet. Il continue d’essayer ; laissez InFlight ouvert jusqu’à ce qu’il indique que c’est enregistré. Vos photos originales sont inchangées.',
+    projectSavedAfterRetry: 'Enregistré. Rien n’a été perdu.',
     projectNotOpened: 'Ce projet n’a pas pu être ouvert.',
     thumbnailsTask: (count) => (count === 1 ? 'Préparation d’1 vignette' : `Préparation de ${count} vignettes`),
     thumbnailStage: 'Lecture et réduction de cette photo',
@@ -61,14 +63,21 @@ export const fr: AreaTranslation<typeof source> = {
     notConnected: (names) => `Pas encore relié au moteur InFlight, donc non appliqué : ${names}.`,
     exportRunning: 'Un export est déjà en cours.',
     selectOneRaw: 'Sélectionnez une photo RAW pour exporter son TIFF.',
+    selectOneRawPng: 'Sélectionnez une photo RAW pour exporter son PNG.',
     rawTiffTask: 'Préparation du TIFF RAW 16 bits',
+    rawPngTask: 'Préparation du PNG RAW 16 bits',
     rawTiffDevelop: 'Développement des données du capteur RAW en 16 bits',
     rawTiffSave: 'Enregistrement du TIFF maître',
+    rawPngSave: 'Enregistrement du PNG maître',
     saveCancelled: 'Enregistrement annulé.',
     rawTiffSaved: 'TIFF RAW 16 bits enregistré. Votre original est inchangé.',
+    rawPngSaved: 'PNG RAW 16 bits enregistré. Votre original est inchangé.',
     rawTiffFailed: 'L’export TIFF RAW a échoué. Ouvrez Tâches pour voir pourquoi.',
+    rawPngFailed: 'L’export PNG RAW a échoué. Ouvrez Tâches pour voir pourquoi.',
     rawTiffCancelled: 'Export TIFF RAW annulé.',
+    rawPngCancelled: 'Export PNG RAW annulé.',
     rawTiffNotQueued: 'Impossible de lancer le TIFF RAW 16 bits.',
+    rawPngNotQueued: 'Impossible de lancer le PNG RAW 16 bits.',
     noFolder: 'Aucun dossier n’a été choisi. Rien n’a été exporté.',
     exportQueued: (count) => (count === 1
       ? '1 export en file d’attente. Vous pouvez continuer à retoucher ; ouvrez Tâches pour mettre en pause, prioriser ou annuler.'
@@ -137,6 +146,7 @@ export const fr: AreaTranslation<typeof source> = {
     importSaveStage: 'Enregistrement de la photo dans ce projet',
     importSomeFailed: (added) => `Certaines photos n’ont pas pu être importées. ${added} ont été ajoutées. Ouvrez Tâches pour réessayer seulement celles qui ont échoué.`,
     importStopped: (added) => `Import arrêté. ${added} photos ont été ajoutées. Vos originaux sont inchangés.`,
+    importNotFinished: (count, names) => `Le dernier import dans ce projet ne s’est pas terminé : ${count} photos n’ont pas été ajoutées (${names}). Importez-les à nouveau pour les ajouter. Les photos déjà ajoutées sont conservées.`,
     importFailed: 'L’ajout des photos a échoué. Vos originaux n’ont pas été modifiés.',
   },
 };

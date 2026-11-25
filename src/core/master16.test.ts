@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { applyDetail, applyDetailRgb16, applyPhotoEdit, applyPhotoEditLinear, DEFAULT_EDIT, decodeEncoded, type PhotoEdit } from './photoEdits';
-import { editRgb16, applyToneMasksRgb16, encodeTiff16, frameRgb16, master16Blocker, parseRgb16, thumbRgb16, type Rgb16Image } from './master16';
+import { editRgb16, applyToneMasksRgb16, encodeTiff16, frameRgb16, master16Blocker, parseRgb16, shrinkRgb16, thumbRgb16, type Rgb16Image } from './master16';
 import { DEFAULT_FRAMING } from './photoFraming';
 import { THUMB } from './orientMatch';
 import { blendSrgb16 } from './linearRgb16';
@@ -453,4 +453,16 @@ test('RGB16 decoder refuses forged, oversized and trailing frames before allocat
     assert.throws(() => parseRgb16(bad), /empty|invalid dimensions|incomplete pixel data/);
     assert.throws(() => parseRgb16(bad, true), /empty|invalid dimensions|incomplete pixel data/);
   }
+});
+
+test('shrinkRgb16 averages whole blocks and never invents a level', () => {
+  const data = new Uint16Array(4 * 2 * 3);
+  for (let i = 0; i < 4 * 3; i += 1) data[i] = 65535; // top row white, bottom row black
+  const small = shrinkRgb16({ width: 4, height: 2, data }, 2);
+  assert.equal(small.width, 2);
+  assert.equal(small.height, 1);
+  assert.deepEqual(Array.from(small.data), [32768, 32768, 32768, 32768, 32768, 32768]);
+  const same = shrinkRgb16({ width: 2, height: 1, data: small.data }, 8);
+  assert.notEqual(same.data, small.data, 'a copy, never the caller’s buffer');
+  assert.deepEqual(Array.from(same.data), Array.from(small.data));
 });

@@ -6,15 +6,16 @@ import { newTestStore } from './helpers.ts';
 const NOW = Date.UTC(2026, 10, 21, 12);
 
 test('a paid entitlement is derived from the checkout reference and marked paid', () => {
-  const a = purchaseEntitlement({ email: ' Ann@Example.com ', checkoutReference: 'chk_123', majorVersion: 1 }, NOW);
-  assert.equal(a.licenceId, 'lic_p_chk_123');
+  const a = purchaseEntitlement({ email: ' Ann@Example.com ', store: 'paddle', checkoutReference: 'paddle_123', majorVersion: 1 }, NOW);
+  assert.equal(a.licenceId, 'lic_p_paddle_123');
   assert.equal(a.paid, true);
   assert.equal(a.source, 'purchase');
   assert.equal(a.plan, 'paid');
   assert.equal(a.emailHash, emailHashOf('ann@example.com'), 'the email is normalised, then hashed');
   assert.ok(!JSON.stringify(a).includes('example.com'), 'the address itself is never stored');
-  assert.throws(() => purchaseEntitlement({ email: 'a@b.c', checkoutReference: '../x', majorVersion: 1 }, NOW), /checkout reference/);
-  assert.throws(() => purchaseEntitlement({ email: 'a@b.c', checkoutReference: 'ok', majorVersion: 0 }, NOW), /version/);
+  assert.throws(() => purchaseEntitlement({ email: 'a@b.c', store: 'paddle', checkoutReference: '../x', majorVersion: 1 }, NOW), /checkout reference/);
+  assert.throws(() => purchaseEntitlement({ email: 'a@b.c', store: 'apple', checkoutReference: 'paddle_1', majorVersion: 1 }, NOW), /checkout reference/, 'the reference names its store');
+  assert.throws(() => purchaseEntitlement({ email: 'a@b.c', store: 'google', checkoutReference: 'google_ok', majorVersion: 0 }, NOW), /version/);
 });
 
 test('a gift is free but still grants the plan, once per person, plan and version', () => {
@@ -36,7 +37,7 @@ test('a licence covers its own major version and older apps, not a newer one', (
 test('granting twice creates one entitlement, and it waits for the person to sign in', async () => {
   const store = await newTestStore();
   try {
-    const grant = purchaseEntitlement({ email: 'ann@example.com', checkoutReference: 'chk_1', majorVersion: 1 }, NOW);
+    const grant = purchaseEntitlement({ email: 'ann@example.com', store: 'paddle', checkoutReference: 'paddle_1', majorVersion: 1 }, NOW);
     assert.equal((await store.grantLicence(grant)).created, true);
     const again = await store.grantLicence({ ...grant, plan: 'free' });
     assert.equal(again.created, false);

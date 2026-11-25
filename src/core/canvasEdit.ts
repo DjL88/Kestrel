@@ -38,6 +38,7 @@ function applyCanvasFinishing(canvas: HTMLCanvasElement, edit: PhotoEdit, mask: 
 import { hasActiveMasks, usesDetail } from './maskTypes';
 import { applyNoiseReduction, hasNoiseReduction } from './noiseReduction';
 import { denoiseHalo, originalDenoiseStrips, denoiseOnlyMasks } from './denoiseBands';
+import { applyCanvasTrueDetailAi, preloadTrueDetailAi, TRUEDETAIL_AI_MISSING } from './trueDetailAiCanvas';
 
 /** Colour noise reduction runs first, on the original pixels, before tone, sharpening and masks. */
 function applyCanvasNoiseReduction(canvas: HTMLCanvasElement, edit: PhotoEdit): void {
@@ -130,6 +131,8 @@ export function applyCanvasPhotoEdit(
   maskContext: MaskContext = fullContext(canvas.width, canvas.height),
 ): void {
   if (isNeutralEdit(edit)) return;
+  // The stored AI result was made from the photo's own pixels, so it goes in before anything else.
+  applyCanvasTrueDetailAi(canvas, edit, maskContext, false);
   applyCanvasFringe(canvas, edit, maskContext, imageEdge);
   applyCanvasNoiseReduction(canvas, edit);
   applyCanvasDehaze(canvas, edit, imageEdge);
@@ -154,6 +157,9 @@ export async function applyCanvasExportEdit(
 ): Promise<void> {
   if (isNeutralEdit(edit)) return;
   const edge = imageEdge;
+  if (edit.trueDetailAi && !await preloadTrueDetailAi(edit)) throw new Error(TRUEDETAIL_AI_MISSING);
+  signal?.throwIfAborted();
+  applyCanvasTrueDetailAi(canvas, edit, maskContext, true);
   applyCanvasFringe(canvas, edit, maskContext, edge);
   signal?.throwIfAborted();
   applyCanvasNoiseReduction(canvas, edit);

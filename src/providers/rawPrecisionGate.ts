@@ -10,13 +10,10 @@ export interface RawPrecisionEvidence {
   originalHashVerified: false;
 }
 
-/** Never allow known Nikon HE/HE* through the experimental precision export.
- * This is a distribution/legal gate, not a claim that the decoder cannot read it.
- * Unknown compression remains unverified and must never be described as cleared. */
+/** Evidence for a precision export. Nikon HE/HE* are included by the owner's decision (19 Nov 2026, extended to 16-bit
+ * output on 25 Nov 2026; NOTICE.md): that accepts the patent exposure, it does not verify a licence, so
+ * commercialHeRightsVerified stays false and the codec is recorded for honest labelling. */
 export function rawPrecisionEvidence(mode: RawSensorMode): RawPrecisionEvidence {
-  if (mode === 'nikon-he' || mode === 'nikon-he-star') {
-    throw new Error('Nikon High Efficiency RAW precision export is unavailable until codec patent and commercial distribution rights are cleared. The original remains unchanged.');
-  }
   return {
     source: 'sensor-rgb16',
     codec: mode,

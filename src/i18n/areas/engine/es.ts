@@ -54,6 +54,8 @@ export const es: AreaTranslation<typeof source> = {
   workspace: {
     templateNotSaved: 'InFlight no pudo guardar la plantilla en este dispositivo.',
     projectNotSaved: 'InFlight no pudo guardar este proyecto. Sus fotos originales no han cambiado.',
+    projectSaveRetrying: 'InFlight no pudo guardar este proyecto. Sigue intentándolo; deje InFlight abierto hasta que indique que se ha guardado. Sus fotos originales no han cambiado.',
+    projectSavedAfterRetry: 'Guardado. No se ha perdido nada.',
     projectNotOpened: 'No se pudo abrir ese proyecto.',
     thumbnailsTask: (count) => (count === 1 ? 'Preparando 1 miniatura' : `Preparando ${count} miniaturas`),
     thumbnailStage: 'Leyendo y reduciendo esta foto',
@@ -61,14 +63,21 @@ export const es: AreaTranslation<typeof source> = {
     notConnected: (names) => `Aún no está conectado al motor de InFlight, así que no se aplicó: ${names}.`,
     exportRunning: 'Ya hay una exportación en curso.',
     selectOneRaw: 'Seleccione una foto RAW para exportar su TIFF.',
+    selectOneRawPng: 'Seleccione una foto RAW para exportar su PNG.',
     rawTiffTask: 'Preparando TIFF RAW de 16 bits',
+    rawPngTask: 'Preparando PNG RAW de 16 bits',
     rawTiffDevelop: 'Revelando los datos del sensor RAW a 16 bits',
     rawTiffSave: 'Guardando el TIFF maestro',
+    rawPngSave: 'Guardando el PNG maestro',
     saveCancelled: 'Guardado cancelado.',
     rawTiffSaved: 'Se guardó el TIFF RAW de 16 bits. Su original no ha cambiado.',
+    rawPngSaved: 'Se guardó el PNG RAW de 16 bits. Su original no ha cambiado.',
     rawTiffFailed: 'La exportación TIFF RAW falló. Abra Tareas para ver por qué.',
+    rawPngFailed: 'La exportación PNG RAW falló. Abra Tareas para ver por qué.',
     rawTiffCancelled: 'Exportación TIFF RAW cancelada.',
+    rawPngCancelled: 'Exportación PNG RAW cancelada.',
     rawTiffNotQueued: 'No se pudo iniciar el TIFF RAW de 16 bits.',
+    rawPngNotQueued: 'No se pudo iniciar el PNG RAW de 16 bits.',
     noFolder: 'No se eligió ninguna carpeta. No se exportó nada.',
     exportQueued: (count) => (count === 1
       ? '1 exportación en cola. Puede seguir editando; abra Tareas para pausar, priorizar o cancelar.'
@@ -137,6 +146,7 @@ export const es: AreaTranslation<typeof source> = {
     importSaveStage: 'Guardando la foto en este proyecto',
     importSomeFailed: (added) => `Algunas fotos no se pudieron importar. Se añadieron ${added}. Abra Tareas para reintentar solo las que fallaron.`,
     importStopped: (added) => `Importación detenida. Se añadieron ${added} fotos. Sus originales no han cambiado.`,
+    importNotFinished: (count, names) => `La última importación a este proyecto no terminó: no se añadieron ${count} fotos (${names}). Vuelva a importarlas para añadirlas. Las fotos ya añadidas se conservan.`,
     importFailed: 'No se pudieron añadir las fotos. Sus originales no se cambiaron.',
   },
 };

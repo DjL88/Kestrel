@@ -35,6 +35,13 @@ decoder would not avoid the patents.
 build (desktop, web and mobile), as one decoder for all platforms. The operating
 system's decoder is used only where InFlight's cannot read a file. The patent
 exposure is accepted by the owner; this note records it and is not legal advice.
+
+**Owner decision (25 Nov 2026): 16-bit output included.** The 19 Nov decision also
+covers 16-bit output of HE/HE* sensor data (16-bit TIFF and PNG masters and 16-bit
+exports), the same as every other RAW. Asked whether to lift the 16-bit gate, the
+owner answered "Yes, lift the gate". This records an accepted patent exposure, not a
+verified licence: the app's evidence keeps `commercialHeRightsVerified: false`.
+
 The code stays behind the `nikon-he` Cargo feature (on by default), so a build
 without it is one flag away (`--no-default-features`, or
 `npm run raw:wasm -- --without-nikon-he`) if that decision changes.
@@ -114,6 +121,15 @@ Dev-only tooling (not shipped in the app: `typescript`, `tsx`, `@playwright/test
 isn't distributed to users, but include it in a full scan if you ever publish
 build tooling or a plugin SDK separately.
 
+## Place names: GeoNames (CC BY 4.0)
+
+`public/places/geonames-cities1000.bin` is built by `tools/scene-tags/make_places.py` from GeoNames' `cities1000.zip`
+and `admin1CodesASCII.txt` (https://www.geonames.org/, licensed Creative Commons Attribution 4.0). Required credit:
+"Place names from GeoNames (www.geonames.org), CC BY 4.0". The app shows it under place tags in Info
+(`photoTags.placeNote`); keep it in the About/Licences page when that exists. Country names come from the platform
+(`Intl.DisplayNames`), not from GeoNames. The curated photo-spot list (`src/assets/places/curated.json`) is
+InFlight's own, positions read by hand; no OpenStreetMap data was copied.
+
 ## Machine-learning models
 
 - **Burst grouping (DINOv2 ViT-S/14 image embeddings, Apache-2.0, Meta)**: `public/models/dinov2-small-fp16.onnx`,
@@ -126,6 +142,19 @@ build tooling or a plugin SDK separately.
 - **Species suggestions (BioCLIP, MIT)** — already documented in full, including
   the required reproduced license text, in `docs/notices/bioclip.txt`. Keep that
   file alongside any build that bundles the species model.
+- **Species name lists (data, not models)**:
+  - Birds: IOC World Bird List v15.2 and its Multilingual version (Gill, F., D. Donsker and P. Rasmussen, eds; multilingual
+    names compiled by P. Kovalik), **CC BY 4.0**, https://www.worldbirdnames.org. Used in `public/models/species-world.json`
+    and `public/models/species-names/`.
+  - Mammals: Mammal Diversity Database (2026), version 2.5, Zenodo, https://doi.org/10.5281/zenodo.21654811, **CC BY 4.0**.
+    Used in `public/models/species-mammals.json` (names, families and realms; the vectors are made with BioCLIP).
+  - Bird family names: Wikidata, **CC0 1.0**, in `public/models/species-names/families.json`, plus InFlight's own draft names.
+  - Reptiles: The Reptile Database (Uetz, P. et al.), version 2026-06, via ChecklistBank (doi 10.48580/d37s), **CC BY 4.0**.
+    Used in `public/models/species-reptiles.json` and, for local names, `tools/species/group-names.json`.
+  - Amphibians: GBIF Backbone Taxonomy (GBIF Secretariat, doi 10.15468/39omei), class Amphibia, retrieved 2026-11-25,
+    **CC BY 4.0**; regions from GBIF occurrence records. Used in `public/models/species-amphibians.json`.
+  - Mammal, reptile and amphibian local names also from Wikidata (**CC0 1.0**) and InFlight's own draft names.
+  Each file carries its attribution and the source's SHA-256; the source downloads are not in git.
 - **Subject/eye detection models** (`src/assets/models/u2netp.onnx`,
   `yolox_tiny.onnx`) — confirm and document their license and training-data
   provenance the same way before they ship in a paid build; `docs/

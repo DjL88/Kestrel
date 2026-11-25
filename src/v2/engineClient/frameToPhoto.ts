@@ -1,10 +1,11 @@
+import { pictureProvenance, type PictureSource } from '../../core/pictureSource';
 import { applyFormats, applySizeLinked } from './formatOps';
 import { framedSize, DEFAULT_FRAMING } from '../../core/photoFraming';
 import { readVideoZoom } from './videoZoomOps';
 import { readSplitFrames, readSplitPanOffset } from './splitFrameOps';
 import { readFormatSplits } from './formatSplitOps';
 import { describeHistory } from './historySteps';
-import { describeEditVersions, readEditVersions } from '../../core/editBranches';
+import { describeCheckpoints, describeEditVersions, readEditVersions } from '../../core/editBranches';
 import { readFormatHistory } from './formatHistory';
 import type { PhotoFrame, ShootDescriptor } from '../../core/types';
 import { computeCullCounts } from '../../core/cullingEngine';
@@ -17,19 +18,25 @@ import { masksToLayers } from './maskOps';
 import { readCrops } from './cropOps';
 import { readBoard } from './boardOps';
 import type { AutoRun } from './runAuto';
+import { autoUnavailableMatches, autoUnavailableSentence, type AutoUnavailable } from './autoUnavailable';
 import { colourWarningSentences, colourWords, describeColourMatch, describeColourSense } from './colourWords';
 import { sameRecipe } from '../../core/naturalAuto';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
+import { isRawPreviewFile } from '../../core/rawFormats';
 import { STRINGS } from '../ui/strings';
 import { engineText } from '../../i18n/areas/engine';
+import { displaySpeciesName } from '../../core/speciesNames';
+import { speciesNameIndex } from '../../providers/speciesNames';
 import type { AssistSuggestion, EditRecipe, PhotoHistogram } from '../ui/contract';
 import type { Task } from '../../core/taskStore';
 import { buildEditingSequence } from '../../core/editingSequence';
 import type { PhotoEdit } from '../../core/photoEdits';
 import { VEHICLE_LABELS } from '../../core/vehicleLabels';
-import { validVehicleReading, vehicleLabel, vehicleSearchWords } from '../../core/vehicleRecognition';
+import { validVehicleReading, vehicleLabel } from '../../core/vehicleRecognition';
 import { sharedPhotoKey } from '../../core/sharedSync';
-import { vehicleText, vehicleTextEnglish } from '../../i18n/areas/vehicles';
+import { vehicleText } from '../../i18n/areas/vehicles';
+import { photoTagsOf, tagWords } from '../../core/photoTags';
+import { photoTagEnglishLabel, photoTagLabel, photoTagsText } from '../../i18n/areas/photoTags';
 
 /** A transparent pixel, so a photo whose picture is not ready yet shows an empty tile rather than a broken image. */
 export const BLANK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
@@ -56,6 +63,8 @@ export const STEP_LABELS: Record<string, string> = {
   colourGrade: STRINGS.adjust.grade.heading, dehaze: effects.dehaze, vignette: effects.vignette,
   vignetteSize: `${effects.vignette}: ${effects.size}`, vignetteBlur: `${effects.vignette}: ${effects.blur}`,
   vignetteColour: effects.colourPick, grain: effects.grain, grainSize: effects.grainSize,
+  vignetteRoundness: `${effects.vignette}: ${effects.roundness}`, vignetteFeather: `${effects.vignette}: ${effects.feather}`,
+  vignetteHighlights: `${effects.vignette}: ${effects.highlights}`, grainRoughness: effects.roughness,
   calibration: STRINGS.adjust.calibration.heading,
   channelCurves: `${STRINGS.adjust.curve.heading} (${STRINGS.adjust.curve.channels.red}, ${STRINGS.adjust.curve.channels.green}, ${STRINGS.adjust.curve.channels.blue})`,
 };
@@ -67,7 +76,7 @@ export function suggestionSteps(base: PhotoEdit, proposal: PhotoEdit): NonNullab
   const before = { ...editToRecipe(base), masks: base.masks?.length ?? 0 };
   const after = { ...editToRecipe(proposal), masks: proposal.masks?.length ?? 0 };
   return buildEditingSequence(before, after, ['lookId']).map((step) => ({
-    id: step.id, label: STEP_LABELS[step.key] ?? step.key, from: stepValue(step.from), to: stepValue(step.to),
+    id: step.id, key: step.key, label: STEP_LABELS[step.key] ?? step.key, from: stepValue(step.from), to: stepValue(step.to),
   }));
 }
 
@@ -116,22 +125,35 @@ const titleOf = (filename: string) => filename.replace(/\.[^./\\]+$/, '');
 const extensionOf = (filename: string) => /\.([^./\\]+)$/.exec(filename)?.[1]?.toUpperCase();
 
 /** A photo's vehicle reading as words in the person's language, and the words it can be searched by (also in English). */
-export function vehicleWordsOf(frame: Pick<PhotoFrame, 'vehicle'>): { vehicleLabel?: string; searchTerms?: string[] } {
+export function vehicleWordsOf(frame: Pick<PhotoFrame, 'vehicle'>): { vehicleLabel?: string; vehicleKind?: string; vehicleType?: string } {
   const reading = validVehicleReading(frame.vehicle, VEHICLE_LABELS);
   if (!reading) return {};
   return {
     vehicleLabel: vehicleLabel(reading, VEHICLE_LABELS, vehicleText),
-    searchTerms: vehicleSearchWords(reading, VEHICLE_LABELS, [vehicleText, vehicleTextEnglish]),
+    ...(reading.kind ? { vehicleKind: reading.kind } : {}),
+    ...(reading.type ? { vehicleType: reading.type } : {}),
   };
 }
 
 /** The subject name for a photo. A name the app suggested itself is marked as a suggestion; nothing is shown when unknown. */
+/** The photo's tags in the person's words. A tag with no words in any language is not shown (never a raw id). */
+export function photoTagViews(frame: Pick<PhotoFrame, 'stableKey' | 'photoTags'>): NonNullable<Photo['photoTags']> {
+  return photoTagsOf(frame).flatMap((tag) => {
+    const label = tagWords(tag, photoTagLabel, photoTagsText.probably);
+    if (!label) return [];
+    const english = tagWords(tag, photoTagEnglishLabel);
+    return [{ id: tag.id, facet: tag.facet, label, words: english && english !== label ? [label, english] : [label] }];
+  });
+}
+
 export function speciesLabelOf(frame: Pick<PhotoFrame, 'subjectNames' | 'tags' | 'autoTags'>): string | undefined {
+  // Shown in the person's language: the local name, else the scientific name; a name nobody knows stays as stored.
+  const shown = (name: string) => displaySpeciesName(name, speciesNameIndex()).name;
   const chosen = frame.subjectNames?.[0];
-  if (chosen) return chosen;
+  if (chosen) return shown(chosen);
   const tag = frame.tags?.[0];
   if (!tag) return undefined;
-  return frame.autoTags?.includes(tag) ? engineText.suggestedName(tag) : tag;
+  return frame.autoTags?.includes(tag) ? engineText.suggestedName(shown(tag)) : shown(tag);
 }
 
 export function tileStateFor(urls: FrameUrls | undefined): TileState {
@@ -144,7 +166,7 @@ export function tileStateFor(urls: FrameUrls | undefined): TileState {
  * not record says "Not recorded" (or is left empty), never an invented value. The edit, size and mask parts start as the
  * UI's neutral defaults; they are connected to the real recipe in a later step.
  */
-export interface PhotoExtras { pixelSize?: { width: number; height: number }; /** Measured from a connected, decoded JPEG/PNG original, not EXIF or a preview. */ verifiedOriginalSize?: { width: number; height: number }; assist?: AssistState; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram; originalConnected?: boolean }
+export interface PhotoExtras { pixelSize?: { width: number; height: number }; /** Measured from a connected, decoded JPEG/PNG original, not EXIF or a preview. */ verifiedOriginalSize?: { width: number; height: number }; assist?: AssistState; /** Auto tried and could not look at this photo, with the reason. */ autoUnavailable?: AutoUnavailable; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram; originalConnected?: boolean; /** What the provider recorded for each address (BrowserPreviewProvider.pictureSourceOf). */ sources?: { preview?: PictureSource; thumb?: PictureSource }; dngCopy?: boolean; /** The develop is being made now; otherwise offered when it can be made here. */ fullDevelop?: 'possible' | 'running' }
 
 /** Decoded JPEG/PNG pixel size (after framing), or null when not measured. */
 function verifiedFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { width: number; height: number }): { width: number; height: number } | null {
@@ -177,7 +199,9 @@ export function originalFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { w
 }
 
 export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, extras: PhotoExtras = {}): Photo {
-  const { assist, watermarkAuto, histogram, pixelSize, verifiedOriginalSize } = extras;
+  const { assist, watermarkAuto, histogram, pixelSize, verifiedOriginalSize, sources } = extras;
+  const shownPreview = pictureProvenance(urls?.preview ? sources?.preview : sources?.thumb, frame.rawCodec);
+  const shownThumb = pictureProvenance(sources?.thumb, frame.rawCodec);
   const { exif } = frame;
   const nativeSize = verifiedFormatSize(frame, verifiedOriginalSize);
   const originalSize = originalFormatSize(frame, verifiedOriginalSize, pixelSize);
@@ -201,7 +225,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
   return {
     id: frame.id,
     sharedKey: frame.cloudPhoto && !frame.virtualCopy ? frame.cloudPhoto.photoKey : sharedPhotoKey(frame.originalSha256, frame.virtualCopy?.number),
-    cloudPreview: frame.cloudPhoto ? true : undefined,
+    cloudPreview: frame.cloudPhoto && !frame.cloudPhoto.hasOriginal ? true : undefined,
     filename: frame.filename,
     title: titleOf(frame.filename),
     previewUrl: urls?.preview ?? thumb,
@@ -215,6 +239,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     speciesName: frame.subjectNames?.[0] ?? frame.tags?.[0],
     // What kind of subject, in the person's language (never the detector's internal word).
     category: frame.subjectKind ? engineText.subjectKinds[frame.subjectKind] : '',
+    photoTags: photoTagViews(frame),
     sharpnessScore: frame.cullScore ?? 0,
     ...(typeof exif.capturedAtMs === 'number' && Number.isFinite(exif.capturedAtMs) ? { capturedAtMs: exif.capturedAtMs } : {}),
     exif: {
@@ -228,7 +253,9 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
       fileFormat: exif.formatLabel ?? extensionOf(frame.filename) ?? NOT_RECORDED,
       fileSizeMb: recordedFileSizeMb(frame.stableKey),
       dimensions: recordedDimensions ? `${recordedDimensions.width} × ${recordedDimensions.height}` : NOT_RECORDED,
-      colourProfile: NOT_RECORDED,
+      // InFlight's RAW develop records the as-shot white only after it has validated the camera's own colour matrix, so that
+      // is the evidence the picture came from it. Anything else (an embedded preview, a JPEG's own profile) stays unknown.
+      colourProfile: isRawPreviewFile(frame.filename) && frame.asShotWhite ? STRINGS.info.rawColourSource : NOT_RECORDED,
     },
     ...(nativeSize ? { pixelSize: { width: nativeSize.width, height: nativeSize.height } } : exif.width && exif.height ? { pixelSize: { width: exif.width, height: exif.height } } : pixelSize ? { pixelSize } : {}),
     activeGroupId: savedGroups.activeId,
@@ -254,10 +281,19 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
           versions: describeEditVersions(frame.editVersions),
         } }
       : {}),
-    ...(frame.formatHistory ? { formatHistory: readFormatHistory(frame.formatHistory).events.map(({ formatId, kind, at, parentFormatId, forkEditCursor }) => ({ formatId, kind, at, ...(parentFormatId ? { parentFormatId } : {}), ...(forkEditCursor !== undefined ? { forkEditCursor } : {}) })) } : {}),
+    ...(describeCheckpoints(frame.editCheckpoints).length ? { editCheckpoints: describeCheckpoints(frame.editCheckpoints) } : {}),
+    ...(frame.formatHistory ? { formatHistory: readFormatHistory(frame.formatHistory).events.map(({ formatId, kind, at, parentFormatId, forkEditCursor, after }) => ({ formatId, kind, at, ...(parentFormatId ? { parentFormatId } : {}), ...(forkEditCursor !== undefined ? { forkEditCursor } : {}), ...(kind === 'crop' && after ? { crop: after } : {}) })) } : {}),
     ...(watermarkAuto ? { watermarkAuto } : {}),
     ...(histogram ? { histogram } : {}),
-    assistCritique: assistCritiqueFor(assist && matchesAutoSource(assist.run, frame) ? assist : undefined, frame.edit),
+    ...(extras.dngCopy ? { dngCopy: true } : {}),
+    ...(extras.fullDevelop === 'running' ? { fullDevelop: 'running' as const }
+      : extras.fullDevelop === 'possible' && sources?.preview !== 'raw-full' ? { fullDevelop: 'offered' as const } : {}),
+    ...(shownPreview || shownThumb ? { picture: { ...(shownPreview ? { preview: shownPreview } : {}), ...(shownThumb ? { thumb: shownThumb } : {}) } } : {}),
+    assistCritique: assist && matchesAutoSource(assist.run, frame)
+      ? assistCritiqueFor(assist, frame.edit)
+      : extras.autoUnavailable && autoUnavailableMatches(extras.autoUnavailable, frame)
+        ? { ...assistCritiqueFor(undefined), subjectNote: autoUnavailableSentence(extras.autoUnavailable.unavailable, frame.filename) }
+        : assistCritiqueFor(undefined, frame.edit),
   };
 }
 
@@ -275,6 +311,7 @@ export function shootToProject(shoot: ShootDescriptor, frames: readonly PhotoFra
     localCopyStatus: 'offline-ready',
     folderPath: shoot.folderName ?? '',
     archived: Boolean(shoot.archivedAt),
+    trashed: Boolean(shoot.trashedAt),
   };
 }
 

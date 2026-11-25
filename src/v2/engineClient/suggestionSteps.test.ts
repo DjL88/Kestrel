@@ -8,7 +8,7 @@ test('Co-pilot suggestions list their real slider steps in working order, includ
     masks: [{ id: 'm', kind: 'subject' } as never],
   });
   assert.deepEqual(steps.map((s) => s.label), ['Temperature', 'Exposure', 'Shadows', 'Local adjustments']);
-  assert.deepEqual(steps.find((s) => s.label === 'Shadows'), { id: steps[2].id, label: 'Shadows', from: '0', to: '20' });
+  assert.deepEqual(steps.find((s) => s.label === 'Shadows'), { id: steps[2].id, key: 'shadows', label: 'Shadows', from: '0', to: '20' });
   assert.deepEqual(steps.at(-1)?.from, '0');
   assert.deepEqual(steps.at(-1)?.to, '1');
   assert.deepEqual(suggestionSteps({ exposure: 0, warmth: 0, colour: 0 }, { exposure: 0, warmth: 0, colour: 0 }), []);

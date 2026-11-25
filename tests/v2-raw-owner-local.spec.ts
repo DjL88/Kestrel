@@ -1,5 +1,6 @@
 import { expect, test, type Locator } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { basename } from 'node:path';
 
 /**
@@ -18,6 +19,7 @@ async function boardImagesLoaded(root: Locator) {
 test('local only: an owner HE NEF stays visible on the All formats board after its background develop', async ({ page }, testInfo) => {
   const path = process.env.KESTREL_OWNER_NEF;
   test.skip(!path, 'Set KESTREL_OWNER_NEF to a local NEF to run this check.');
+  test.skip(!existsSync(path!), `KESTREL_OWNER_NEF points to ${path}, which does not exist (moved or on a disconnected drive). Point it at the file's current location.`);
   test.skip(testInfo.project.name !== 'desktop', 'One project is enough for a large local file.');
   test.setTimeout(240_000);
   await page.goto('/?v2');

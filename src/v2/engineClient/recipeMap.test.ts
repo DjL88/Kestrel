@@ -179,6 +179,15 @@ test('dehaze, vignette (with colour and blur), grain and calibration round-trip 
   assert.equal(applyRecipePatch(edit, { vignette: 0, vignetteBlur: 0 }).edit.vignette, undefined);
   assert.equal(applyRecipePatch(edit, { vignetteColour: undefined }).edit.vignette?.colour, undefined);
   assert.equal(applyRecipePatch(edit, { grain: 0 }).edit.grain, undefined);
+  // Shape, fall-off, highlight protection and grain roughness round-trip; their defaults are not stored.
+  const shaped = applyRecipePatch(edit, { vignetteRoundness: -40, vignetteFeather: 80, vignetteHighlights: 60, grainRoughness: 30 }).edit;
+  assert.deepEqual({ r: shaped.vignette?.roundness, f: shaped.vignette?.feather, h: shaped.vignette?.highlights }, { r: -0.4, f: 0.8, h: 0.6 });
+  assert.equal(shaped.grain?.roughness, 0.3);
+  const shapedBack = editToRecipe(shaped);
+  assert.deepEqual([shapedBack.vignetteRoundness, shapedBack.vignetteFeather, shapedBack.vignetteHighlights, shapedBack.grainRoughness], [-40, 80, 60, 30]);
+  const plain = applyRecipePatch(shaped, { vignetteRoundness: 0, vignetteFeather: 50, vignetteHighlights: 0, grainRoughness: 0 }).edit;
+  assert.deepEqual(plain.vignette, edit.vignette);
+  assert.deepEqual(plain.grain, edit.grain);
   assert.equal(applyRecipePatch(edit, { dehaze: 0 }).edit.dehaze, undefined);
 });
 
@@ -202,4 +211,15 @@ test('lens corrections round-trip, and zero is stored as nothing', () => {
   assert.deepEqual([recipe.lensDistortion, recipe.lensVignetting], [-40, 70]);
   edit = applyRecipePatch(edit, { lensDistortion: 0, lensVignetting: 0 }).edit;
   assert.equal(edit?.lens, undefined);
+});
+
+test('AI denoise shows as on while a stored result is in the edit, and the recipe can only remove it', async () => {
+  const { applyRecipePatch, editToRecipe } = await import('./recipeMap');
+  const trueDetailAi = { model: 'nafnet-sidd-w32-w16', modelSha256: 'c'.repeat(64), asset: 'a'.repeat(64), framingKey: 'k',
+    rect: { x: 0, y: 0, w: 1, h: 1 }, maskId: 'auto-denoise-p', subject: 1, eyes: 0.6 };
+  const edit = { exposure: 0, warmth: 0, colour: 0, trueDetailAi };
+  assert.equal(editToRecipe(edit).aiDenoise, true);
+  assert.equal(editToRecipe({ exposure: 0, warmth: 0, colour: 0 }).aiDenoise, undefined);
+  assert.equal(applyRecipePatch(edit, { aiDenoise: false }).edit.trueDetailAi, undefined);
+  assert.deepEqual(applyRecipePatch({ exposure: 0, warmth: 0, colour: 0 }, { aiDenoise: true }).edit.trueDetailAi, undefined);
 });

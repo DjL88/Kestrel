@@ -54,6 +54,8 @@ export const is: AreaTranslation<typeof source> = {
   workspace: {
     templateNotSaved: 'InFlight gat ekki vistað sniðmátið á þessu tæki.',
     projectNotSaved: 'InFlight gat ekki vistað þetta verkefni. Upprunalegu myndirnar þínar eru óbreyttar.',
+    projectSaveRetrying: 'InFlight gat ekki vistað þetta verkefni. Það heldur áfram að reyna; hafðu InFlight opið þar til það segir að það sé vistað. Upprunalegu myndirnar þínar eru óbreyttar.',
+    projectSavedAfterRetry: 'Vistað. Ekkert tapaðist.',
     projectNotOpened: 'Ekki tókst að opna það verkefni.',
     thumbnailsTask: (count) => (count === 1 ? 'Undirbý 1 smámynd' : `Undirbý ${count} smámyndir`),
     thumbnailStage: 'Les og minnka þessa mynd',
@@ -61,14 +63,21 @@ export const is: AreaTranslation<typeof source> = {
     notConnected: (names) => `Ekki enn tengt við InFlight-vélina, svo ekki notað: ${names}.`,
     exportRunning: 'Útflutningur er þegar í gangi.',
     selectOneRaw: 'Veldu eina RAW-mynd til að flytja út TIFF-skrá hennar.',
+    selectOneRawPng: 'Veldu eina RAW-mynd til að flytja út PNG-skrá hennar.',
     rawTiffTask: 'Undirbý 16 bita RAW-TIFF',
+    rawPngTask: 'Undirbý 16 bita RAW-PNG',
     rawTiffDevelop: 'Framkalla RAW-skynjaragögn í 16 bita',
     rawTiffSave: 'Vista aðal-TIFF',
+    rawPngSave: 'Vista aðal-PNG',
     saveCancelled: 'Hætt við vistun.',
     rawTiffSaved: '16 bita RAW-TIFF vistað. Frumritið þitt er óbreytt.',
+    rawPngSaved: '16 bita RAW-PNG vistað. Frumritið þitt er óbreytt.',
     rawTiffFailed: 'RAW-TIFF-útflutningur mistókst. Opnaðu Verk til að sjá ástæðuna.',
+    rawPngFailed: 'RAW-PNG-útflutningur mistókst. Opnaðu Verk til að sjá ástæðuna.',
     rawTiffCancelled: 'Hætt við RAW-TIFF-útflutning.',
+    rawPngCancelled: 'Hætt við RAW-PNG-útflutning.',
     rawTiffNotQueued: 'Ekki tókst að hefja 16 bita RAW-TIFF.',
+    rawPngNotQueued: 'Ekki tókst að hefja 16 bita RAW-PNG.',
     noFolder: 'Engin mappa var valin. Ekkert var flutt út.',
     exportQueued: (count) => (count === 1
       ? '1 útflutningur í biðröð. Þú getur haldið áfram að breyta; opnaðu Verk til að gera hlé, forgangsraða eða hætta við.'
@@ -137,6 +146,7 @@ export const is: AreaTranslation<typeof source> = {
     importSaveStage: 'Vista myndina í þessu verkefni',
     importSomeFailed: (added) => `Ekki tókst að flytja inn sumar myndir. ${added} var bætt við. Opnaðu Verk til að reyna aðeins aftur við þær sem mistókust.`,
     importStopped: (added) => `Innflutningur stöðvaður. ${added} myndum var bætt við. Frumritin þín eru óbreytt.`,
+    importNotFinished: (count, names) => `Síðasti innflutningur í þetta verkefni kláraðist ekki: ${count} myndum var ekki bætt við (${names}). Flyttu þær inn aftur til að bæta þeim við. Myndir sem þegar var bætt við eru geymdar.`,
     importFailed: 'Ekki tókst að bæta við myndum. Frumritunum þínum var ekki breytt.',
   },
 };

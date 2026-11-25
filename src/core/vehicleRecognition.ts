@@ -1,6 +1,6 @@
 import { decodeVector } from './speciesMatch';
 import { LOGIT_SCALE, type RouteResult } from './subjectRouter';
-import type { MarkingFormat } from './aircraftRegistration';
+import { validImo, type MarkingFormat } from './aircraftRegistration';
 import type { RegisterSource } from './aircraftRegister';
 
 /**
@@ -45,6 +45,8 @@ export interface VehicleVectors { kinds: Float32Array[]; types: Float32Array[] }
  * - type: CLIP alone is weak at telling types apart (51 of 163 right as a first guess). At 0.55 / 0.25 a named type was right
  *   on only 1 of 6 photos whose kind was clear (it leans to "Voyager" for every big grey aircraft); at 0.75 / 0.5 no wrong
  *   type was named, and in practice almost none is. Exact types come from a readable registration (step 2), not from here.
+ * Re-measured with labels version 2 (racing kinds) on 302 photos: kind 146 of 153 named right (95%); racing kinds 21 of 21.
+ * Version 3 (lifeboat, ferry, yacht): kind 143 of 151 right (95%); water kinds 21 of 22.
  * Re-measure whenever labels.json changes.
  */
 export const VEHICLE_THRESHOLDS = {
@@ -78,12 +80,16 @@ export interface VehicleReading {
   typeProbability?: number;
   /** A registration or military serial read from the aircraft itself (step 2). Never set for a road vehicle. */
   marking?: { value: string; format: MarkingFormat; confidence: number };
+  /** A ship's IMO number (checked), kept beside its hull name when both were read. Only on a boat. */
+  imo?: string;
   /** What an offline register says about that marking. `exact` is a register record; otherwise a serial block, "probably". */
   registered?: { type: string; operator?: string; register: RegisterSource; exact: boolean };
   /** The Vision guardian's second opinion (step 3): 'agreed' adds nothing; 'held' means it withdrew a claim (see vehicleGuardian). */
   guardian?: 'agreed' | 'held';
   /** The guardian did not see the family either ("Is there an aircraft?" "No"): nothing is named; the person decides. */
   heldFamily?: boolean;
+  /** Carried from this frame of the same burst (step 4): the same aircraft, read once. */
+  carriedFrom?: string;
 }
 
 /** The committed vectors (src/assets/vehicle/vectors.json), in label order. Throws on any mismatch. */
@@ -157,6 +163,20 @@ export function kindHasTypes(labels: VehicleLabels, kind: string): boolean {
   return labels.types.filter((entry) => entry.kind === kind).length >= 2;
 }
 
+/** Which text may be kept on which reading: registrations on aircraft, race numbers on racing kinds, names and IMO numbers on boats. */
+function markingFits(reading: Partial<VehicleReading>, marking: { value: string; format: MarkingFormat }): boolean {
+  switch (marking.format) {
+    case 'race-number':
+      return reading.family === 'road' && (reading.kind === 'racing-car' || reading.kind === 'racing-motorbike') && /^\d{1,3}$/.test(marking.value);
+    case 'imo':
+      return reading.family === 'water' && /^IMO \d{7}$/.test(marking.value) && validImo(marking.value.slice(4));
+    case 'hull-name':
+      return reading.family === 'water' && /^[A-Z][A-Z '&.-]{2,29}$/.test(marking.value);
+    default:
+      return reading.family === 'air' && /^[A-Z0-9-]{4,8}$/.test(marking.value) && ['uk-civil', 'irish-civil', 'us-civil', 'uk-military'].includes(marking.format);
+  }
+}
+
 /** A stored reading, checked; anything malformed or from an unknown label is ignored, never shown. */
 export function validVehicleReading(value: unknown, labels: VehicleLabels): VehicleReading | null {
   if (!value || typeof value !== 'object') return null;
@@ -167,12 +187,13 @@ export function validVehicleReading(value: unknown, labels: VehicleLabels): Vehi
   if (reading.kind !== undefined && (!kind || kind.family !== reading.family)) return null;
   if (reading.type !== undefined && !labels.types.some((entry) => entry.id === reading.type && entry.kind === reading.kind)) return null;
   const marking = reading.marking;
-  if (marking !== undefined && (reading.family !== 'air' || !marking || typeof marking.value !== 'string' || !/^[A-Z0-9-]{4,8}$/.test(marking.value) ||
-    !['uk-civil', 'irish-civil', 'us-civil', 'uk-military'].includes(marking.format) || !Number.isFinite(marking.confidence))) return null;
+  if (marking !== undefined && (!marking || typeof marking.value !== 'string' || !Number.isFinite(marking.confidence) || !markingFits(reading, marking))) return null;
+  if (reading.imo !== undefined && (reading.family !== 'water' || typeof reading.imo !== 'string' || !/^IMO \d{7}$/.test(reading.imo) || !validImo(reading.imo.slice(4)))) return null;
   const registered = reading.registered;
   if (registered !== undefined && (!marking || !registered || typeof registered.type !== 'string' || !registered.type.trim() ||
     (registered.operator !== undefined && typeof registered.operator !== 'string') ||
     !['faa', 'uk-military-blocks'].includes(registered.register) || typeof registered.exact !== 'boolean')) return null;
+  if (reading.carriedFrom !== undefined && (typeof reading.carriedFrom !== 'string' || !reading.carriedFrom)) return null;
   if (reading.guardian !== undefined && reading.guardian !== 'agreed' && reading.guardian !== 'held') return null;
   if (reading.heldFamily !== undefined && (reading.heldFamily !== true || reading.guardian !== 'held' || reading.kind !== undefined)) return null;
   return reading as VehicleReading;
@@ -191,6 +212,10 @@ export interface VehicleWords {
   operatedBy: (what: string, operator: string) => string;
   /** The guardian doubted even the family: "Aircraft? Needs your review". */
   held: (what: string) => string;
+  /** A race number read from a racing car or bike: "Racing motorbike, number 46". */
+  raceNumber: (what: string, number: string) => string;
+  /** A name painted on a boat's hull, as read: "Ferry (probably), named PRIDE OF KENT". */
+  named: (what: string, name: string) => string;
 }
 
 /**
@@ -202,6 +227,8 @@ export function vehicleLabel(reading: VehicleReading, labels: VehicleLabels, wor
   const base = kindLabel(reading, labels, words);
   const { marking, registered } = reading;
   if (!marking || reading.source === 'person') return base;
+  if (marking.format === 'race-number') return words.raceNumber(base, marking.value);
+  if (marking.format === 'hull-name') return reading.imo ? words.marked(words.named(base, marking.value), reading.imo) : words.named(base, marking.value);
   if (registered?.exact) {
     const text = words.registered(marking.value, registered.type);
     return registered.operator ? words.operatedBy(text, registered.operator) : text;
@@ -232,6 +259,7 @@ export function vehicleSearchWords(reading: VehicleReading, labels: VehicleLabel
   const type = reading.type ? labels.types.find((entry) => entry.id === reading.type) : undefined;
   if (type) out.add(type.name);
   if (reading.marking) out.add(reading.marking.value).add(reading.marking.value.replace(/-/g, ''));
+  if (reading.imo) out.add(reading.imo).add(reading.imo.slice(4));
   if (reading.registered) { out.add(reading.registered.type); if (reading.registered.operator) out.add(reading.registered.operator); }
   return [...out].filter(Boolean);
 }
@@ -246,15 +274,26 @@ export const MARKING_CONFIDENCE = 0.9;
  */
 export function withMarking(
   reading: VehicleReading,
-  lines: readonly { text: string; confidence: number }[],
+  lines: readonly { text: string; confidence: number; height?: number }[],
   find: (text: string) => { value: string; format: MarkingFormat }[],
   lookUp: (marking: { value: string; format: MarkingFormat }) => VehicleReading['registered'] | null,
 ): VehicleReading {
-  if (reading.family !== 'air') return reading;
+  const racing = reading.family === 'road' && (reading.kind === 'racing-car' || reading.kind === 'racing-motorbike');
+  const vessel = reading.family === 'water';
+  if (reading.family !== 'air' && !racing && !vessel) return reading;
+  // A race number is the biggest number on the car or bike; a registration is the surest read.
   const candidates = lines.filter((line) => line.confidence >= MARKING_CONFIDENCE)
-    .flatMap((line) => find(line.text).map((marking) => ({ ...marking, confidence: Math.round(line.confidence * 100) / 100 })))
-    .sort((a, b) => b.confidence - a.confidence);
+    .flatMap((line) => find(line.text).map((marking) => ({ ...marking, confidence: Math.round(line.confidence * 100) / 100, height: line.height ?? 0 })))
+    .filter((marking) => (marking.format === 'race-number') === racing && (marking.format === 'imo' || marking.format === 'hull-name') === vessel)
+    .sort((a, b) => (racing || vessel ? b.height - a.height : 0) || b.confidence - a.confidence)
+    .map(({ height: _height, ...marking }) => marking);
   if (!candidates.length) return reading;
+  if (vessel) {
+    // The biggest name on the hull is the boat's name; a checked IMO number is kept beside it.
+    const name = candidates.find((marking) => marking.format === 'hull-name');
+    const imo = candidates.find((marking) => marking.format === 'imo');
+    return name ? { ...reading, marking: name, ...(imo ? { imo: imo.value } : {}) } : { ...reading, marking: imo! };
+  }
   for (const marking of candidates) {
     const registered = lookUp(marking);
     if (registered) return { ...reading, marking, registered };

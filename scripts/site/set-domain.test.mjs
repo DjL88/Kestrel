@@ -41,6 +41,29 @@ test('switching the domain rewrites every listed file and the config, then passe
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test('a planned domain is recorded without changing anything, and becomes live only through the switch', () => {
+  const root = fixture();
+  try {
+    const path = join(root, 'config', 'public-site.json');
+    const config = JSON.parse(readFileSync(path, 'utf8'));
+    writeFileSync(path, JSON.stringify({ ...config, plannedOrigin: 'https://inflight.studio' }));
+    assert.equal(run('--check', `--root=${root}`).status, 0, 'a planned domain changes nothing');
+    assert.match(readFileSync(join(root, 'site', 'index.html'), 'utf8'), /kestrel-hosting-kestrel.web.app/);
+    assert.equal(run('https://inflight.studio', `--root=${root}`).status, 0);
+    const after = JSON.parse(readFileSync(path, 'utf8'));
+    assert.equal(after.origin, 'https://inflight.studio');
+    assert.equal(after.plannedOrigin, undefined);
+    writeFileSync(path, JSON.stringify({ ...after, plannedOrigin: 'inflight.studio' }));
+    assert.match(run('--check', `--root=${root}`).stderr, /plannedOrigin .* is not a bare https origin/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('this checkout plans inflight.studio and still serves the Firebase address', () => {
+  const config = JSON.parse(readFileSync(fileURLToPath(new URL('../../config/public-site.json', import.meta.url)), 'utf8'));
+  assert.equal(config.plannedOrigin, 'https://inflight.studio');
+  assert.equal(config.origin, 'https://kestrel-hosting-kestrel.web.app', 'not connected until the owner says publishing is close');
+});
+
 test('refuses anything but a bare https origin', () => {
   const root = fixture();
   try {

@@ -120,7 +120,7 @@ export function createEngineScheduler(options: {
   now?: () => number;
 } = {}) {
   const store = options.taskStore ?? tasks;
-  const limits = options.limits ?? limitsForDevice();
+  const limits: DeviceLimits = { ...(options.limits ?? limitsForDevice()) };
   const now = options.now ?? Date.now;
   const used: DeviceLimits = { cpu: 0, gpu: 0, io: 0 };
   const emptyReservation = (): Reservation => ({ memoryBytes: 0, gpuBytes: 0, diskBytes: 0 });
@@ -463,8 +463,18 @@ export function createEngineScheduler(options: {
     pump();
     return true;
   };
+  /**
+   * The photos-at-once policy (photoParallelism.ts) for this plan and device sets the CPU limit. Running work is never
+   * stopped by a lower limit; it only stops new photos starting until the count is under it.
+   */
+  const setCpuLimit = (cpu: number) => {
+    if (!Number.isSafeInteger(cpu) || cpu < 1) return;
+    limits.cpu = cpu;
+    pump();
+  };
   return {
-    submit, pause, resume, jumpQueue, reorder,
+    submit, pause, resume, jumpQueue, reorder, setCpuLimit,
+    cpuLimit: () => limits.cpu,
     cancel: (id: number) => store.cancel(id),
     canRetryFailed: (id: number) => {
       const job = jobs.get(id) ?? failedJobs.get(id);

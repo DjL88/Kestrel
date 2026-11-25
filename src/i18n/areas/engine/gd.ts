@@ -54,6 +54,8 @@ export const gd: AreaTranslation<typeof source> = {
   workspace: {
     templateNotSaved: 'Cha b’ urrainn do InFlight an teamplaid a shàbhaladh air an uidheam seo.',
     projectNotSaved: 'Cha b’ urrainn do InFlight am pròiseact seo a shàbhaladh. Cha deach na dealbhan tùsail agad atharrachadh.',
+    projectSaveRetrying: 'Cha b’ urrainn do InFlight am pròiseact seo a shàbhaladh. Cumaidh e a’ feuchainn; fàg InFlight fosgailte gus an can e gun deach a shàbhaladh. Chan eil na dealbhan tùsail agad air atharrachadh.',
+    projectSavedAfterRetry: 'Air a shàbhaladh. Cha deach dad a chall.',
     projectNotOpened: 'Cha b’ urrainnear am pròiseact sin fhosgladh.',
     thumbnailsTask: (count) => (count === 1 ? 'Ag ullachadh 1 dealbhag' : `Ag ullachadh ${count} dealbhagan`),
     thumbnailStage: 'A’ leughadh is a’ lùghdachadh an deilbh seo',
@@ -61,14 +63,21 @@ export const gd: AreaTranslation<typeof source> = {
     notConnected: (names) => `Chan eil seo ceangailte ri einnsean InFlight fhathast, mar sin cha deach a chur an sàs: ${names}.`,
     exportRunning: 'Tha às-phortadh a’ dol mu thràth.',
     selectOneRaw: 'Tagh aon dealbh RAW gus an TIFF aige às-phortadh.',
+    selectOneRawPng: 'Tagh aon dealbh RAW gus an PNG aige às-phortadh.',
     rawTiffTask: 'Ag ullachadh TIFF RAW 16-biod',
+    rawPngTask: 'Ag ullachadh PNG RAW 16-biod',
     rawTiffDevelop: 'A’ leasachadh dàta mothachaire RAW gu 16-biod',
     rawTiffSave: 'A’ sàbhaladh a’ phrìomh TIFF',
+    rawPngSave: 'A’ sàbhaladh a’ phrìomh PNG',
     saveCancelled: 'Chaidh an sàbhaladh a sguir.',
     rawTiffSaved: 'Chaidh an TIFF RAW 16-biod a shàbhaladh. Cha deach an tè thùsail agad atharrachadh.',
+    rawPngSaved: 'Chaidh an PNG RAW 16-biod a shàbhaladh. Cha deach an tè thùsail agad atharrachadh.',
     rawTiffFailed: 'Dh’fhàillig às-phortadh an TIFF RAW. Fosgail Saothraichean gus faicinn carson.',
+    rawPngFailed: 'Dh’fhàillig às-phortadh an PNG RAW. Fosgail Saothraichean gus faicinn carson.',
     rawTiffCancelled: 'Chaidh às-phortadh an TIFF RAW a sguir.',
+    rawPngCancelled: 'Chaidh às-phortadh an PNG RAW a sguir.',
     rawTiffNotQueued: 'Cha b’ urrainnear an TIFF RAW 16-biod a thòiseachadh.',
+    rawPngNotQueued: 'Cha b’ urrainnear an PNG RAW 16-biod a thòiseachadh.',
     noFolder: 'Cha deach pasgan a thaghadh. Cha deach dad às-phortadh.',
     exportQueued: (count) => (count === 1
       ? 'Tha 1 às-phortadh sa chiutha. Faodaidh tu cumail a’ deasachadh; fosgail Saothraichean gus stad, prìomhachas a thoirt no sguir.'
@@ -137,6 +146,7 @@ export const gd: AreaTranslation<typeof source> = {
     importSaveStage: 'A’ sàbhaladh an deilbh sa phròiseact seo',
     importSomeFailed: (added) => `Cha b’ urrainnear cuid de dhealbhan ion-phortadh. Chaidh ${added} a chur ris. Fosgail Saothraichean gus feuchainn a-rithist dìreach leis an fheadhainn a dh’fhàillig.`,
     importStopped: (added) => `Stad an t-ion-phortadh. Chaidh ${added} dealbhan a chur ris. Cha deach na dealbhan tùsail agad atharrachadh.`,
+    importNotFinished: (count, names) => `Cha deach an t-ion-phortadh mu dheireadh dhan phròiseact seo a chrìochnachadh: cha deach ${count} dealbhan a chur ris (${names}). Ion-phortaich iad a-rithist gus an cur ris. Thèid na dealbhan a chaidh a chur ris mu thràth a chumail.`,
     importFailed: 'Dh’fhàillig cur nan dealbhan ris. Cha deach na dealbhan tùsail agad atharrachadh.',
   },
 };

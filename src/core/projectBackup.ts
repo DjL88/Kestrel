@@ -1,7 +1,8 @@
-import { MAX_EDIT_HISTORY_STEPS, type EditKind } from './editHistory';
+import { MAX_EDIT_HISTORY_STEPS, validWhy, type EditKind } from './editHistory';
 import { readCollage } from './collage';
 import { parseSettings } from './projectSettings';
 import { validMasks } from './maskTypes';
+import { validTrueDetailAi } from './trueDetailAi';
 import { validCurve, validMixer } from './curveMixer';
 import { validChannelCurves, validGrade } from './colourGrade';
 import { validCalibration } from './calibration';
@@ -10,8 +11,10 @@ import { validDefringe, validLateralCa } from './fringe';
 import { validLens } from './lensCorrection';
 import { validGrain, validVignette } from './finishing';
 import { validAsShot, validWhiteBalance } from './asShotWhite';
+import { isRawCodec } from './pictureSource';
 import type { CullingState, FilterState, PhotoFrame, ShootDescriptor } from './types';
 import { DEVELOP_VERSION } from './backgroundDevelop';
+import { withoutLocation } from './photoTags';
 
 const FORMAT = 'kestrel-project';
 const decisions = new Set(['unreviewed', 'keep', 'reject']);
@@ -19,6 +22,8 @@ const filters = new Set(['all', ...decisions]);
 const sources = new Set(['demo', 'file', 'directory-handle']);
 const projectSources = new Set(['demo', 'local-files', 'local-folder']);
 const demoAssets = new Set(['red-kite', 'kingfisher', 'barn-owl', 'collie-coco', 'red-fox', 'osprey']);
+const EXIF_DATE = /^\d{4}:\d{2}:\d{2} \d{2}:\d{2}:\d{2}$/;
+const EXIF_OFFSET = /^[+-]\d{2}:\d{2}$/;
 
 function record(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
@@ -55,6 +60,7 @@ function recipeIsValid(value: unknown): boolean {
       edit[key] !== undefined && !number(edit[key], -2, 2)) ||
     (edit.denoise !== undefined && !number(edit.denoise, 0, 2)) ||
     (edit.denoiseLuminance !== undefined && !number(edit.denoiseLuminance, 0, 2)) ||
+    (edit.trueDetailAi !== undefined && !validTrueDetailAi(edit.trueDetailAi)) ||
     (edit.curve !== undefined && !validCurve(edit.curve)) || (edit.mixer !== undefined && !validMixer(edit.mixer)) ||
     (edit.grade !== undefined && !validGrade(edit.grade)) || (edit.channelCurves !== undefined && !validChannelCurves(edit.channelCurves)) ||
     (edit.calibration !== undefined && !validCalibration(edit.calibration)) ||
@@ -75,7 +81,7 @@ function historyIsValid(value: unknown): boolean {
   if (!record(value) || !Array.isArray(value.steps) || value.steps.length > MAX_EDIT_HISTORY_STEPS ||
     !number(value.cursor, 0, value.steps.length) || !Number.isInteger(value.cursor)) return false;
   return value.steps.every((step: unknown) => record(step) && text(step.kind) && editKinds.has(step.kind as EditKind) &&
-    number(step.at, 0) && recipeIsValid(step.before) && recipeIsValid(step.after));
+    number(step.at, 0) && recipeIsValid(step.before) && recipeIsValid(step.after) && (step.why === undefined || validWhy(step.why)));
 }
 
 function frameIsValid(value: unknown): value is PhotoFrame {
@@ -97,6 +103,7 @@ function frameIsValid(value: unknown): value is PhotoFrame {
   if (value.cullConfidence !== undefined && !['high', 'medium', 'low'].includes(value.cullConfidence as string)) return false;
   if (value.cullScore !== undefined && !number(value.cullScore, 0, 100)) return false;
   if (value.asShotWhite !== undefined && !validAsShot(value.asShotWhite)) return false;
+  if (value.rawCodec !== undefined && !isRawCodec(value.rawCodec)) return false;
   for (const field of ['autoTags', 'declinedTags']) {
     if (value[field] !== undefined && (!Array.isArray(value[field]) || (value[field] as unknown[]).length > 48 || !(value[field] as unknown[]).every(text))) return false;
   }
@@ -107,6 +114,13 @@ function frameIsValid(value: unknown): value is PhotoFrame {
   }
   for (const field of ['rating', 'focalLengthMm', 'apertureF', 'iso', 'capturedAtMs', 'width', 'height']) {
     if (value.exif[field] !== undefined && !number(value.exif[field])) return false;
+  }
+  const stamp = value.exif.captureStamp;
+  if (stamp !== undefined) {
+    if (!record(stamp)) return false;
+    for (const [field, shape] of [['original', EXIF_DATE], ['digitized', EXIF_DATE], ['offsetOriginal', EXIF_OFFSET], ['offsetDigitized', EXIF_OFFSET]] as const) {
+      if (stamp[field] !== undefined && (typeof stamp[field] !== 'string' || !shape.test(stamp[field] as string))) return false;
+    }
   }
   if (!recipeIsValid(value) || (value.editHistory !== undefined && !historyIsValid(value.editHistory))) return false;
   const focus = value.focusPoint;
@@ -135,8 +149,8 @@ export function encodeProjectBackup(state: CullingState): string {
     project: {
       // Derived OCR can contain private writing or registration numbers. It stays
       // on this device; portable or cloud backups regenerate it rather than
-      // copying unconfirmed text to another destination.
-      shoot: state.shoot, frames: state.frames.map(({ searchEvidence: _local, ...frame }) => frame), selectedFrameId: state.selectedFrameId,
+      // copying unconfirmed text to another destination. Location (GPS, place tags) is personal and stays too.
+      shoot: state.shoot, frames: state.frames.map(({ searchEvidence: _local, ...frame }) => withoutLocation(frame)), selectedFrameId: state.selectedFrameId,
       compareRightFrameId: state.compareRightFrameId, filter: state.filter, searchQuery: state.searchQuery,
       keeperTarget: state.keeperTarget, autoAdvance: state.autoAdvance,
       ...(state.settings ? { settings: state.settings } : {}),
@@ -193,7 +207,7 @@ export function restoreProjectBackup(contents: string, id: string, now = Date.no
       needsFileReselect: frames.some((frame) => frame.sourceKind === 'file'),
     },
     // Portable backups cannot silently carry automatic OCR of personal writing.
-    frames: (frames as PhotoFrame[]).map(({ searchEvidence: _local, ...frame }) => frame),
+    frames: (frames as PhotoFrame[]).map(({ searchEvidence: _local, ...frame }) => withoutLocation(frame)),
     filter: filter as FilterState, searchQuery, keeperTarget, autoAdvance,
     ...(record(envelope.project.settings) ? { settings: parseSettings(envelope.project.settings) } : {}),
     selectedFrameId: existingId(selectedFrameId),

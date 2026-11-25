@@ -54,6 +54,8 @@ export const da: AreaTranslation<typeof source> = {
   workspace: {
     templateNotSaved: 'InFlight kunne ikke gemme skabelonen på denne enhed.',
     projectNotSaved: 'InFlight kunne ikke gemme dette projekt. Dine originale fotos er uændrede.',
+    projectSaveRetrying: 'InFlight kunne ikke gemme dette projekt. Det bliver ved med at prøve; lad InFlight være åbent, indtil der står gemt. Dine originale fotos er uændrede.',
+    projectSavedAfterRetry: 'Gemt. Intet gik tabt.',
     projectNotOpened: 'Det projekt kunne ikke åbnes.',
     thumbnailsTask: (count) => (count === 1 ? 'Forbereder 1 miniature' : `Forbereder ${count} miniaturer`),
     thumbnailStage: 'Læser og formindsker dette foto',
@@ -61,14 +63,21 @@ export const da: AreaTranslation<typeof source> = {
     notConnected: (names) => `Endnu ikke forbundet til InFlight-motoren, så ikke anvendt: ${names}.`,
     exportRunning: 'Der kører allerede en eksport.',
     selectOneRaw: 'Vælg ét RAW-foto for at eksportere dets TIFF.',
+    selectOneRawPng: 'Vælg ét RAW-foto for at eksportere dets PNG.',
     rawTiffTask: 'Forbereder 16-bit RAW-TIFF',
+    rawPngTask: 'Forbereder 16-bit RAW-PNG',
     rawTiffDevelop: 'Fremkalder RAW-sensordata i 16 bit',
     rawTiffSave: 'Gemmer master-TIFF',
+    rawPngSave: 'Gemmer master-PNG',
     saveCancelled: 'Gemning annulleret.',
     rawTiffSaved: '16-bit RAW-TIFF er gemt. Din original er uændret.',
+    rawPngSaved: '16-bit RAW-PNG er gemt. Din original er uændret.',
     rawTiffFailed: 'RAW-TIFF-eksporten mislykkedes. Åbn Opgaver for at se hvorfor.',
+    rawPngFailed: 'RAW-PNG-eksporten mislykkedes. Åbn Opgaver for at se hvorfor.',
     rawTiffCancelled: 'RAW-TIFF-eksport annulleret.',
+    rawPngCancelled: 'RAW-PNG-eksport annulleret.',
     rawTiffNotQueued: 'Kunne ikke starte 16-bit RAW-TIFF.',
+    rawPngNotQueued: 'Kunne ikke starte 16-bit RAW-PNG.',
     noFolder: 'Der blev ikke valgt en mappe. Intet blev eksporteret.',
     exportQueued: (count) => (count === 1
       ? '1 eksport sat i kø. Du kan redigere videre; åbn Opgaver for at sætte på pause, prioritere eller annullere.'
@@ -137,6 +146,7 @@ export const da: AreaTranslation<typeof source> = {
     importSaveStage: 'Gemmer fotoet i dette projekt',
     importSomeFailed: (added) => `Nogle fotos kunne ikke importeres. ${added} blev tilføjet. Åbn Opgaver for kun at prøve de mislykkede igen.`,
     importStopped: (added) => `Importen stoppede. ${added} fotos blev tilføjet. Dine originaler er uændrede.`,
+    importNotFinished: (count, names) => `Den sidste import til dette projekt blev ikke færdig: ${count} fotos blev ikke tilføjet (${names}). Importér dem igen for at tilføje dem. Fotos, der allerede er tilføjet, bevares.`,
     importFailed: 'Tilføjelse af fotos mislykkedes. Dine originaler blev ikke ændret.',
   },
 };
