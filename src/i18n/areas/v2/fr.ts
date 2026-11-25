@@ -503,6 +503,12 @@ export const fr: AreaTranslation<typeof source> = {
     fullScreenExit: 'Quitter le plein écran',
     zoomFit: 'Ajuster',
   },
+  autoCheck: {
+    rawNotDeveloped: (file: string) => `Auto n'a pas vérifié ${file}. Il faut un développement à partir des données du capteur RAW, qui n'est pas disponible sur cet appareil pour le moment. L'original est peut-être déconnecté. Auto n'a pas utilisé l'aperçu intégré de l'appareil photo à la place. Rien n'a été modifié.`,
+    noPreview: (file: string) => `Auto n'a pas vérifié ${file}. Aucune image de cette photo n'a pu être lue sur cet appareil. Reconnectez l'original et réessayez. Rien n'a été modifié.`,
+    tooSmall: (file: string) => `Auto n'a pas vérifié ${file}. L'image est trop petite pour être mesurée de façon fiable. Rien n'a été modifié.`,
+    failed: (file: string) => `Auto n'a pas pu terminer la vérification de ${file}. Ouvrez Tâches pour le détail. Rien n'a été modifié.`,
+  },
   /** Watch: an Auto suggestion played one step at a time, each explained in plain words. */
   watch: {
     start: "Regarder étape par étape",

@@ -503,6 +503,12 @@ export const es: AreaTranslation<typeof source> = {
     fullScreenExit: 'Salir de pantalla completa',
     zoomFit: 'Ajustar',
   },
+  autoCheck: {
+    rawNotDeveloped: (file: string) => `Auto no ha revisado ${file}. Necesita un revelado a partir de los datos del sensor RAW, que ahora no está disponible en este dispositivo. Puede que el original esté desconectado. Auto no ha usado en su lugar la vista previa integrada de la cámara. No se ha cambiado nada.`,
+    noPreview: (file: string) => `Auto no ha revisado ${file}. No se pudo leer ninguna imagen de esta foto en este dispositivo. Vuelva a conectar el original e inténtelo de nuevo. No se ha cambiado nada.`,
+    tooSmall: (file: string) => `Auto no ha revisado ${file}. La imagen es demasiado pequeña para medirla con fiabilidad. No se ha cambiado nada.`,
+    failed: (file: string) => `Auto no pudo terminar de revisar ${file}. Abra Tareas para ver el detalle. No se ha cambiado nada.`,
+  },
   /** Watch: an Auto suggestion played one step at a time, each explained in plain words. */
   watch: {
     start: "Ver paso a paso",

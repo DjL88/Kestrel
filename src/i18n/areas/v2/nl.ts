@@ -503,6 +503,12 @@ export const nl: AreaTranslation<typeof source> = {
     fullScreenExit: 'Volledig scherm sluiten',
     zoomFit: 'Passend',
   },
+  autoCheck: {
+    rawNotDeveloped: (file: string) => `Auto heeft ${file} niet gecontroleerd. Daarvoor is een ontwikkeling uit de RAW-sensorgegevens nodig, die nu niet beschikbaar is op dit apparaat. Het origineel is misschien niet verbonden. Auto heeft niet in plaats daarvan de ingebouwde voorvertoning van de camera gebruikt. Er is niets veranderd.`,
+    noPreview: (file: string) => `Auto heeft ${file} niet gecontroleerd. Op dit apparaat kon geen afbeelding ervan worden gelezen. Verbind het origineel opnieuw en probeer het nog eens. Er is niets veranderd.`,
+    tooSmall: (file: string) => `Auto heeft ${file} niet gecontroleerd. De afbeelding is te klein om betrouwbaar te meten. Er is niets veranderd.`,
+    failed: (file: string) => `Auto kon de controle van ${file} niet afmaken. Open Taken voor de details. Er is niets veranderd.`,
+  },
   /** Watch: an Auto suggestion played one step at a time, each explained in plain words. */
   watch: {
     start: "Stap voor stap bekijken",

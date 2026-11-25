@@ -503,6 +503,12 @@ export const nb: AreaTranslation<typeof source> = {
     fullScreenExit: 'Avslutt fullskjerm',
     zoomFit: 'Tilpass',
   },
+  autoCheck: {
+    rawNotDeveloped: (file: string) => `Auto har ikke sjekket ${file}. Det trengs en fremkalling fra RAW-sensordata, som ikke er tilgjengelig på denne enheten nå. Originalen er kanskje ikke tilkoblet. Auto brukte ikke kameraets innebygde forhåndsvisning i stedet. Ingenting ble endret.`,
+    noPreview: (file: string) => `Auto har ikke sjekket ${file}. Ingen bilde av det kunne leses på denne enheten. Koble til originalen igjen og prøv på nytt. Ingenting ble endret.`,
+    tooSmall: (file: string) => `Auto har ikke sjekket ${file}. Bildet er for lite til å måles pålitelig. Ingenting ble endret.`,
+    failed: (file: string) => `Auto kunne ikke fullføre sjekken av ${file}. Åpne Oppgaver for detaljer. Ingenting ble endret.`,
+  },
   /** Watch: an Auto suggestion played one step at a time, each explained in plain words. */
   watch: {
     start: "Se trinn for trinn",

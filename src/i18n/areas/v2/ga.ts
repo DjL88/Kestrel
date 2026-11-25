@@ -506,6 +506,12 @@ export const ga: AreaTranslation<typeof source> = {
     fullScreenExit: 'Fág an lánscáileán',
     zoomFit: 'Oiriúnaigh',
   },
+  autoCheck: {
+    rawNotDeveloped: (file: string) => `Níor sheiceáil Auto ${file}. Tá forbairt ó shonraí braiteora RAW ag teastáil, agus níl sí ar fáil ar an ngléas seo anois. B'fhéidir go bhfuil an bunleagan dícheangailte. Níor úsáid Auto réamhamharc leabaithe an cheamara ina háit. Níor athraíodh aon rud.`,
+    noPreview: (file: string) => `Níor sheiceáil Auto ${file}. Níorbh fhéidir aon phictiúr de a léamh ar an ngléas seo. Ceangail an bunleagan arís agus bain triail eile as. Níor athraíodh aon rud.`,
+    tooSmall: (file: string) => `Níor sheiceáil Auto ${file}. Tá an pictiúr róbheag le tomhas go hiontaofa. Níor athraíodh aon rud.`,
+    failed: (file: string) => `Níorbh fhéidir le Auto seiceáil ${file} a chríochnú. Oscail Tascanna chun na sonraí a fheiceáil. Níor athraíodh aon rud.`,
+  },
   /** Watch: an Auto suggestion played one step at a time, each explained in plain words. */
   watch: {
     start: "Féach céim ar chéim",

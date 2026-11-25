@@ -503,6 +503,12 @@ export const is: AreaTranslation<typeof source> = {
     fullScreenExit: 'Hætta í öllum skjánum',
     zoomFit: 'Passa',
   },
+  autoCheck: {
+    rawNotDeveloped: (file: string) => `Auto hefur ekki athugað ${file}. Það þarf framköllun úr RAW-skynjaragögnum, sem er ekki tiltæk í þessu tæki núna. Frumritið er ef til vill ekki tengt. Auto notaði ekki innbyggða forskoðun myndavélarinnar í staðinn. Engu var breytt.`,
+    noPreview: (file: string) => `Auto hefur ekki athugað ${file}. Engin mynd af henni var lesin í þessu tæki. Tengdu frumritið aftur og reyndu aftur. Engu var breytt.`,
+    tooSmall: (file: string) => `Auto hefur ekki athugað ${file}. Myndin er of lítil til að mæla hana áreiðanlega. Engu var breytt.`,
+    failed: (file: string) => `Auto gat ekki lokið við að athuga ${file}. Opnaðu Verk til að sjá nánar. Engu var breytt.`,
+  },
   /** Watch: an Auto suggestion played one step at a time, each explained in plain words. */
   watch: {
     start: "Horfa skref fyrir skref",

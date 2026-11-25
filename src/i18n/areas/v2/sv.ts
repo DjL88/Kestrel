@@ -503,6 +503,12 @@ export const sv: AreaTranslation<typeof source> = {
     fullScreenExit: 'Avsluta helskärm',
     zoomFit: 'Anpassa',
   },
+  autoCheck: {
+    rawNotDeveloped: (file: string) => `Auto har inte kontrollerat ${file}. Det krävs en framkallning från RAW-sensordata, som inte är tillgänglig på den här enheten just nu. Originalet kanske inte är anslutet. Auto använde inte kamerans inbäddade förhandsvisning i stället. Inget ändrades.`,
+    noPreview: (file: string) => `Auto har inte kontrollerat ${file}. Ingen bild av det kunde läsas på den här enheten. Anslut originalet igen och försök på nytt. Inget ändrades.`,
+    tooSmall: (file: string) => `Auto har inte kontrollerat ${file}. Bilden är för liten för att mätas tillförlitligt. Inget ändrades.`,
+    failed: (file: string) => `Auto kunde inte slutföra kontrollen av ${file}. Öppna Uppgifter för detaljer. Inget ändrades.`,
+  },
   /** Watch: an Auto suggestion played one step at a time, each explained in plain words. */
   watch: {
     start: "Titta steg för steg",
