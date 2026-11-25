@@ -1024,4 +1024,10 @@ export const it: AreaTranslation<typeof source> = {
     forgetBody: 'Se ha effettuato l’accesso, acquistato una licenza, usato l’aiuto cloud facoltativo o inviato un messaggio, InFlight conserva alcuni dati che la riguardano sui propri server. Disattivare «aiuta a migliorare i suggerimenti» elimina già ciò che ha condiviso. Per far cancellare il resto, invii una richiesta dall’indirizzo email usato per l’accesso. InFlight non ha ancora una cancellazione dal server con un solo tocco, quindi la richiesta è gestita da una persona, e le verrà detto che cosa eventualmente va conservato (per esempio le registrazioni dei pagamenti richieste dalla legge).',
     forgetLink: 'Chiedi a InFlight di cancellare i dati del mio account',
   },
+  crash: {
+    title: "Questa schermata ha smesso di funzionare",
+    body: "Le tue foto e modifiche sono al sicuro: InFlight non modifica mai i file originali. Ricarica per continuare e invia i dettagli qui sotto se succede di nuovo.",
+    reload: "Ricarica InFlight",
+    details: "Dettagli",
+  },
 };

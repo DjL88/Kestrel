@@ -78,7 +78,9 @@ export function setMaskGeometry(
     if (mask.kind === 'linear') {
       if (!(['x1', 'y1', 'x2', 'y2'] as string[]).includes(field)) return mask;
       const bounded = Math.max(0, Math.min(1, Math.round(value * 1000) / 1000));
-      return { ...mask, [field]: bounded };
+      const next = { ...mask, [field]: bounded };
+      if (next.x1 === next.x2 && next.y1 === next.y2) return mask;
+      return next;
     }
     return mask;
   });

@@ -1024,4 +1024,10 @@ export const es: AreaTranslation<typeof source> = {
     forgetBody: 'Si ha iniciado sesión, comprado una licencia, usado la ayuda opcional en la nube o enviado un mensaje, InFlight guarda algunos datos sobre usted en sus servidores. Desactivar «ayudar a mejorar las sugerencias» ya borra lo que compartió. Para que se borre el resto, envíe una solicitud con el correo con el que inició sesión. InFlight aún no tiene un borrado en el servidor con un solo toque, así que la solicitud la atiende una persona, y se le dirá qué hay que conservar, si es el caso (por ejemplo, los registros de pago que exige la ley).',
     forgetLink: 'Pedir a InFlight que borre mis datos de cuenta',
   },
+  crash: {
+    title: "Esta pantalla ha dejado de funcionar",
+    body: "Tus fotos y ediciones están a salvo: InFlight nunca cambia tus archivos originales. Recarga para continuar y envía los detalles de abajo si vuelve a ocurrir.",
+    reload: "Recargar InFlight",
+    details: "Detalles",
+  },
 };

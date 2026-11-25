@@ -1024,4 +1024,10 @@ export const nl: AreaTranslation<typeof source> = {
     forgetBody: 'Als u bent ingelogd, een licentie hebt gekocht, de optionele cloudhulp hebt gebruikt of een bericht hebt gestuurd, bewaart InFlight een kleine hoeveelheid gegevens over u op zijn servers. Door ‘help suggesties verbeteren’ uit te zetten, wordt wat u deelde al verwijderd. Wilt u de rest laten wissen, stuur dan een verzoek vanaf het e-mailadres waarmee u inlogde. InFlight heeft nog geen serverwissing met één tik, dus een mens behandelt het verzoek, en u hoort wat eventueel bewaard moet blijven (bijvoorbeeld wettelijk verplichte betalingsgegevens).',
     forgetLink: 'InFlight vragen mijn accountgegevens te wissen',
   },
+  crash: {
+    title: "Dit scherm werkt niet meer",
+    body: "Je foto's en bewerkingen zijn veilig: InFlight wijzigt je originele bestanden nooit. Laad opnieuw om verder te gaan en stuur de details hieronder als het weer gebeurt.",
+    reload: "InFlight opnieuw laden",
+    details: "Details",
+  },
 };

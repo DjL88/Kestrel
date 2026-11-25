@@ -167,3 +167,19 @@ test('deleting a limiter never exposes a stronger adjustment, and undo restores 
   assert.deepEqual(stepEdit(reopened, -1).edit?.masks, [limiter, dependent]);
   assert.equal(hasActiveMasks(toggleMask(masks, 'dependent')), true);
 });
+
+
+test('collapsed linear gradients cannot affect the whole image or broaden a restricted adjustment', () => {
+  const gradient = { ...createMask('linear', 'g'), kind: 'linear' as const, x1: 0.5, y1: 0.5, x2: 0.5, y2: 0.5 } as Extract<Mask, { kind: 'linear' }>;
+  const ctx = fullContext(10, 10);
+  for (const invert of [false, true]) {
+    const invalid = { ...gradient, invert };
+    assert.ok(maskAlpha(invalid, 10, 10, ctx).every(a => a === 0));
+    for (const mode of ['intersect', 'subtract'] as const) {
+      const local: Mask = { ...createMask('radial', 'local'), limit: { id: 'g', mode } };
+      assert.ok(effectiveAlpha(local, [local, invalid], 10, 10, ctx).every(a => a === 0));
+    }
+  }
+  const valid = { ...gradient, x2: 0.75 };
+  assert.deepEqual(setMaskGeometry([valid], 'g', 'x2', 0.5), [valid]);
+});

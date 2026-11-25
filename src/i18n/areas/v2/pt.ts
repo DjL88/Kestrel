@@ -1024,4 +1024,10 @@ export const pt: AreaTranslation<typeof source> = {
     forgetBody: 'Se iniciou sessão, comprou uma licença, usou a ajuda opcional na nuvem ou enviou uma mensagem, o InFlight guarda alguns dados sobre si nos seus servidores. Desligar «ajudar a melhorar as sugestões» já apaga o que partilhou. Para apagar o resto, envie um pedido a partir do email com que iniciou sessão. O InFlight ainda não tem um apagamento no servidor com um só toque, por isso o pedido é tratado por uma pessoa, e ser-lhe-á dito o que, se for o caso, tem de ser guardado (por exemplo, os registos de pagamento exigidos por lei).',
     forgetLink: 'Pedir ao InFlight que apague os meus dados de conta',
   },
+  crash: {
+    title: "Este ecrã deixou de funcionar",
+    body: "As suas fotografias e edições estão seguras: o InFlight nunca altera os ficheiros originais. Recarregue para continuar e envie os detalhes abaixo se voltar a acontecer.",
+    reload: "Recarregar o InFlight",
+    details: "Detalhes",
+  },
 };

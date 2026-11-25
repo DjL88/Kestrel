@@ -185,6 +185,33 @@ export function readEmbeddedRating(xmp: unknown, tiff: unknown): Pick<ExifMetada
   return {};
 }
 
+/** EXIF orientations 5 to 8 turn the picture a quarter turn, so the stored width and height swap on screen. exifr
+ * reports the orientation as a number or, translated, as text such as "Rotate 90 CW". */
+export function isQuarterTurn(orientation: unknown): boolean {
+  if (typeof orientation === 'number') return orientation >= 5 && orientation <= 8;
+  return typeof orientation === 'string' && /\b(?:90|270)\b/.test(orientation);
+}
+
+/**
+ * The picture's recorded width and height, as it is shown (after the camera's orientation).
+ *
+ * In a RAW file the first TIFF directory is often a small thumbnail (a Nikon NEF's is 160 × 120, a different shape
+ * from the 3:2 sensor). TIFF marks such a reduced-resolution image with NewSubfileType 1, so a RAW's first-directory
+ * size is used only when it is not marked reduced. Otherwise the size is left unknown, and the app measures the
+ * shape from the picture it shows rather than guessing it from a thumbnail.
+ */
+export function recordedDimensions(
+  ifd0: Record<string, unknown> | undefined, exif: Record<string, unknown> | undefined, isRaw: boolean,
+): { width?: number; height?: number } {
+  const exifWidth = validExifDimension(exif?.ExifImageWidth), exifHeight = validExifDimension(exif?.ExifImageHeight);
+  const reduced = ifd0?.SubfileType === 1 || ifd0?.NewSubfileType === 1;
+  const mainWidth = isRaw && reduced ? undefined : validExifDimension(ifd0?.ImageWidth);
+  const mainHeight = isRaw && reduced ? undefined : validExifDimension(ifd0?.ImageHeight);
+  const [width, height] = exifWidth && exifHeight ? [exifWidth, exifHeight] : mainWidth && mainHeight ? [mainWidth, mainHeight] : [undefined, undefined];
+  if (!width || !height) return {};
+  return isQuarterTurn(ifd0?.Orientation) ? { width: height, height: width } : { width, height };
+}
+
 export async function parseImageExif(
   file: Blob,
   filename: string
@@ -197,7 +224,10 @@ export async function parseImageExif(
   try {
     const metadata = isHeif ? await readHeifExif(file) : file;
     if (!metadata) return { formatLabel, isEmbeddedPreviewOnly: false };
-    const segments = await exifr.parse(metadata, { xmp: true, mergeOutput: false, gps: false, interop: false });
+    // A RAW's maker segments (XMP, thumbnails) can sit past the bytes read or be malformed. One bad segment must not
+    // lose the camera, lens and size, so a failed full read retries with only the main TIFF and EXIF directories.
+    const segments = await exifr.parse(metadata, { xmp: true, mergeOutput: false, gps: false, interop: false })
+      .catch(() => exifr.parse(metadata, { xmp: false, mergeOutput: false, gps: false, interop: false, ifd1: false, makerNote: false, userComment: false }));
     const parsed = { ...segments?.ifd0, ...segments?.exif };
     const rating = readEmbeddedRating(segments?.xmp?.Rating, parsed.Rating);
 
@@ -211,10 +241,9 @@ export async function parseImageExif(
     const sensor = isNikonRaw
       ? await file.slice(0, 2 << 20).arrayBuffer().then((buffer) => rawSensorSize(new Uint8Array(buffer))).catch(() => null)
       : null;
-    const width =
-      sensor?.width ?? validExifDimension(parsed.ExifImageWidth) ?? validExifDimension(parsed.ImageWidth);
-    const height =
-      sensor?.height ?? validExifDimension(parsed.ExifImageHeight) ?? validExifDimension(parsed.ImageHeight);
+    const recorded = recordedDimensions(segments?.ifd0, segments?.exif, isNikonRaw);
+    const width = sensor?.width ?? recorded.width;
+    const height = sensor?.height ?? recorded.height;
 
     return {
       ...rating,
