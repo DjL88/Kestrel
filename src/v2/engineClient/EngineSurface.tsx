@@ -11,7 +11,7 @@ export function EngineSurface({ photoId, variant, lookPreview, alt, className, s
   const frame = frames.get(photoId);
   if (!frame || !provider) return null;
   const shown = variant === 'original'
-    ? { ...frame, edit: undefined }
+    ? { ...frame, edit: undefined, overlay: undefined } // Before: the photo alone, without its edit or layers
     : lookPreview ? { ...frame, edit: previewLookEdit(frame.edit, lookPreview) } : frame;
   return (
     <div className={className} style={style}>

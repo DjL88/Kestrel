@@ -35,7 +35,9 @@ export function readTemplates(raw: string | null | undefined): OverlayTemplate[]
 export function addTemplate(list: readonly OverlayTemplate[], name: string, overlay: OverlaySettings, id: string, now: number): OverlayTemplate[] | undefined {
   const clean = cleanName(name);
   if (!clean || list.length >= MAX_TEMPLATES || !/^tpl-[a-z0-9]{3,24}$/.test(id) || list.some((entry) => entry.id === id)) return undefined;
-  return [...list, { id, name: clean, overlay: readOverlay(JSON.parse(JSON.stringify(overlay))), savedAt: now }];
+  // A template is text and watermark only: image layers belong to their photo's picture.
+  const { layers: _layers, ...textAndMark } = overlay;
+  return [...list, { id, name: clean, overlay: readOverlay(JSON.parse(JSON.stringify(textAndMark))), savedAt: now }];
 }
 
 export const renameTemplate = (list: readonly OverlayTemplate[], id: string, name: string): OverlayTemplate[] => {
