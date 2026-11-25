@@ -35,7 +35,7 @@ export default function InfoPopover({ title, body }: InfoPopoverProps) {
           className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-60 -translate-x-1/2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] p-3 text-left shadow-[var(--shadow-popover)]"
         >
           <p className="text-xs font-semibold text-[var(--text-primary)]">{title}</p>
-          <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-secondary)]">
+          <p className="mt-1 text-[0.6875rem] leading-relaxed text-[var(--text-secondary)]">
             {body}
           </p>
         </div>

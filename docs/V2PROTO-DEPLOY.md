@@ -127,7 +127,8 @@ For automatic release proof: merge an approved harmless V2-only commit to `main`
 
 ## Operational notes and limits
 
-- The GitHub Pages workflow `.github/workflows/publish-site.yml` does **not** deploy to Firebase Hosting, and its `site/**` path filter does not cover V2 code. This dedicated Cloud Build trigger is independent of GitHub Actions credits.
+- No GitHub Actions workflow deploys the website or V2Proto (the unused GitHub Pages workflow was removed on 25 Nov 2026). This dedicated Cloud Build trigger is independent of GitHub Actions credits.
+- The sign-in origin check accepts the site origins in `config/public-site.json` (copied into the image) plus any in `V2PROTO_ALLOWED_ORIGINS`.
 - Firebase Hosting Cloud Run rewrites only apply when a matching static file does not exist in `site/`. Do not add any `site/V2Proto` files.
 - Under the current configuration all main commits rebuild the prototype, even non-V2 changes. That is simplest and avoids stale bundled code. You can restrict trigger paths after successful rollout.
 - V2 is still an active beta. Do not mistake deployment for engine/export parity, production readiness or implemented stylus features.

@@ -63,8 +63,8 @@
 
 /* Mobile layer: finger-sized targets on touch phones only (Apple HIG 44pt). Desktop and tablet widths are not touched. */
 @media (pointer: coarse) and (max-width: 767px) {
-  .inflight-v2 header button, .inflight-v2 nav button, .inflight-v2 [role="dialog"] button, .inflight-v2 [role="tab"] { min-height: 44px; }
-  .inflight-v2 header button[aria-label], .inflight-v2 [role="dialog"] button[aria-label] { min-width: 44px; }
+  .inflight-v2 header button, .inflight-v2 nav button, .inflight-v2 [role="dialog"] button, .inflight-v2 [role="tab"] { min-height: var(--touch-min); }
+  .inflight-v2 header button[aria-label], .inflight-v2 [role="dialog"] button[aria-label] { min-width: var(--touch-min); }
   .inflight-v2 input[type="range"].inflight-slider { height: 6px; }
   .inflight-v2 input[type="range"].inflight-slider::-webkit-slider-thumb { width: 26px; height: 26px; }
   .inflight-v2 input[type="range"].inflight-slider::-moz-range-thumb { width: 26px; height: 26px; }
@@ -89,12 +89,22 @@
   }
 }
 @media (min-width: 768px) and (max-height: 560px) and (pointer: coarse) {
-  .inflight-v2 .v2-rail button { min-height: 44px; }
+  .inflight-v2 .v2-rail button { min-height: var(--touch-min); }
+}
+
+/* Tablet layer (section 26.4): the desktop layout, made for fingers. Touch screens from 768px wide get finger-sized
+   bar, tab and dialog buttons and a 48px rail; a mouse or trackpad at the same width is unchanged. */
+@media (pointer: coarse) and (min-width: 768px) {
+  .inflight-v2 header button, .inflight-v2 [role="dialog"] button, .inflight-v2 [role="tab"] { min-height: var(--touch-min); }
+  .inflight-v2 header button[aria-label], .inflight-v2 [role="dialog"] button[aria-label] { min-width: var(--touch-min); }
+}
+@media (pointer: coarse) and (min-width: 768px) and (min-height: 561px) {
+  .inflight-v2 .v2-rail button { min-height: var(--touch-comfort); }
 }
 
 /* Tablets in portrait and landscape phones: a narrower docked panel leaves the photo more of the screen. */
 @media (min-width: 768px) and (max-width: 1023px) {
-  .inflight-v2 { --dock-width: 280px; }
+  .inflight-v2 { --dock-width: 17.5rem; }
 }
 
 /* Short landscape screens: the canvas bar stays one row (it scrolls sideways if it must) instead of wrapping to two
@@ -103,3 +113,44 @@
   .inflight-v2 .v2-canvas-bar { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
   .inflight-v2 .v2-canvas-bar > * { flex-shrink: 0; }
 }
+
+/* Touch ergonomics. A visually hidden label still names its button for screen readers and voice control. */
+.inflight-v2 .v2-phone-label, .inflight-v2 .v2-compact-label { white-space: nowrap; }
+
+/* Touch screens of any size: no hint that only makes sense with a mouse (drag a corner, double-click). */
+@media (pointer: coarse) {
+  .inflight-v2 .v2-mouse-hint { display: none !important; }
+}
+
+/* Phones and upright tablets: one row of photo tools above the picture instead of two, so the photo gets the height.
+   The view switch shows its icons, the "1 selected" count only appears where several formats can be selected, and if
+   the actions still do not fit they scroll sideways rather than wrap. Import and Folder in the filmstrip show their
+   icons so the filter (All, Flagged, Set aside) fits beside them. */
+@media (max-width: 767px), (max-width: 1023px) and (orientation: portrait) {
+  .inflight-v2 .v2-canvas-bar { flex-wrap: nowrap; }
+  .inflight-v2 .v2-canvas-bar > :first-child { flex-shrink: 0; }
+  .inflight-v2 .v2-phone-hide { display: none; }
+  .inflight-v2 .v2-phone-label, .inflight-v2 .v2-compact-label {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+    clip: rect(0 0 0 0); clip-path: inset(50%); border: 0;
+  }
+  .inflight-v2 .v2-canvas-bar button:has(> .v2-phone-label) { min-width: 40px; justify-content: center; }
+  .inflight-v2 .v2-filmstrip-tools button:has(> .v2-compact-label) { min-width: 40px; justify-content: center; }
+}
+
+/* Upright tablets: a slightly narrower docked panel leaves the photo more of the width. */
+@media (min-width: 768px) and (max-width: 1023px) and (orientation: portrait) {
+  .inflight-v2 { --dock-width: 16rem; }
+}
+
+/* Touch phones: fingers pinch to zoom, so the zoom bar keeps only Fit/100%, the grid, Save and Full screen (no
+   zoom steps, no drag grip), with finger-sized buttons. The filmstrip's buttons grow to finger size too. */
+@media (pointer: coarse) and (max-width: 767px) {
+  .inflight-v2 [data-testid="canvas-viewport-controls"] .v2-zoom-fine { display: none; }
+  .inflight-v2 [data-testid="canvas-viewport-controls"] button { min-height: 40px; min-width: 40px; }
+  .inflight-v2 .v2-filmstrip-tools button { min-height: 40px; }
+}
+
+/* Overlay text, watermark and collage caption are part of the picture (data-artwork): the interface's reading font does
+   not apply to them (index.css), so they keep the workspace font they will be exported with. */
+html[data-font="readable"] .inflight-v2 [data-artwork] { font-family: var(--font-sans); }

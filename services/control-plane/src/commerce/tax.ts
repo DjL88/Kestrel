@@ -8,6 +8,9 @@ const euRates = new Map(Object.entries({
 
 export const PRO_BASE_PENCE = 2900;
 
+/** EU consumer sales need the seller's (non-Union) OSS registration before the first sale. */
+export const isEuVatCountry = (country: string): boolean => euRates.has(country);
+
 export interface TaxSettings {
   ukVatRegistered: boolean;
   ukVatNumber?: string;

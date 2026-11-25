@@ -66,7 +66,7 @@ function SliderRow({
             type="button"
             title={`Double-click or click to reset ${label} to 0`}
             onClick={() => onChange(0)}
-            className="font-mono text-[11px] text-[var(--text-secondary)] tabular-nums hover:text-[var(--brand-accent)]"
+            className="font-mono text-[0.6875rem] text-[var(--text-secondary)] tabular-nums hover:text-[var(--brand-accent)]"
           >
             {formatted}
           </button>
@@ -85,7 +85,7 @@ function SliderRow({
       />
 
       {(leftHint || rightHint) && (
-        <div className="flex items-center justify-between text-[10px] text-[var(--text-muted)]">
+        <div className="flex items-center justify-between text-[0.625rem] text-[var(--text-muted)]">
           <span>{leftHint}</span>
           <span>{rightHint}</span>
         </div>
@@ -132,7 +132,7 @@ export default function AdjustPanel({
   return (
     <div className="space-y-5">
       {selectedPhotoCount > 1 && (
-        <div className="rounded-[var(--radius-sm)] border border-[var(--brand-accent-border)] bg-[var(--brand-accent-soft)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--brand-accent)]">
+        <div className="rounded-[var(--radius-sm)] border border-[var(--brand-accent-border)] bg-[var(--brand-accent-soft)] px-2.5 py-1.5 text-[0.6875rem] font-medium text-[var(--brand-accent)]">
           Group edit active: sliders apply to {selectedPhotoCount} selected photos
         </div>
       )}
@@ -160,9 +160,9 @@ export default function AdjustPanel({
           <h3 id="looks-heading" className="text-xs font-semibold text-[var(--text-primary)]">
             {STRINGS.adjust.looksHeading}
           </h3>
-          <span className="text-[10px] text-[var(--text-muted)]">{looks.length} styles</span>
+          <span className="text-[0.625rem] text-[var(--text-muted)]">{looks.length} styles</span>
         </div>
-        <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.adjust.looksHint}</p>
+        <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.adjust.looksHint}</p>
 
         <div
           className="grid grid-cols-2 gap-2"
@@ -196,7 +196,7 @@ export default function AdjustPanel({
                   />
                 </div>
                 <span
-                  className={`truncate px-2 py-1.5 text-[11px] font-medium ${
+                  className={`truncate px-2 py-1.5 text-[0.6875rem] font-medium ${
                     active ? 'text-[var(--brand-accent)]' : 'text-[var(--text-secondary)]'
                   }`}
                 >
@@ -231,7 +231,7 @@ export default function AdjustPanel({
           <button
             type="button"
             onClick={() => onResetPhoto(photo.id)}
-            className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--brand-accent)]"
+            className="inline-flex items-center gap-1 text-[0.6875rem] font-medium text-[var(--text-muted)] hover:text-[var(--brand-accent)]"
           >
             <BrandIcon name="restore" size={12} />
             <span>{STRINGS.adjust.resetPhoto}</span>

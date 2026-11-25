@@ -239,7 +239,7 @@ export default function Filmstrip({
       )}
 
       {/* Dock Header Toolbar */}
-      <div className="flex flex-nowrap items-center justify-between gap-2 overflow-x-auto px-3 py-1.5 border-b border-[var(--border-subtle)] inflight-scroll">
+      <div className="v2-filmstrip-tools flex flex-nowrap items-center justify-between gap-2 overflow-x-auto px-3 py-1.5 border-b border-[var(--border-subtle)] inflight-scroll">
         {/* Selection, import and Auto-Cull controls */}
         <div className="flex shrink-0 items-center gap-2">
 
@@ -265,22 +265,22 @@ export default function Filmstrip({
           <button
             type="button"
             onClick={onImport}
-            className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
+            className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
           >
             <BrandIcon name="image-plus" size={13} />
-            <span>{STRINGS.filmstrip.importPhotos}</span>
+            <span className="v2-compact-label">{STRINGS.filmstrip.importPhotos}</span>
           </button>
 
           <button type="button" onClick={onImportFolder}
-            className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[11px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
+            className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
             title={STRINGS.filmstripLabels.label4}>
             <BrandIcon name="folder-open" size={13} />
-            <span>{STRINGS.filmstripLabels.label10}</span>
+            <span className="v2-compact-label">{STRINGS.filmstripLabels.label10}</span>
           </button>
 
           {onChooseFromProject && (
             <button type="button" onClick={onChooseFromProject} data-testid="filmstrip-from-project"
-              className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[11px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
+              className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
               title={STRINGS.collage.chooseFromAnotherProject}>
               <BrandIcon name="folder-open" size={13} />
               <span>{STRINGS.collage.fromProject}</span>
@@ -291,7 +291,7 @@ export default function Filmstrip({
           <button
             type="button"
             onClick={onRunAutoCull}
-            className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] bg-[var(--brand-accent-soft)] px-2 text-[11px] font-medium text-[var(--brand-accent)] transition-colors hover:bg-[var(--brand-accent)] hover:text-[var(--text-on-accent)] whitespace-nowrap"
+            className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] bg-[var(--brand-accent-soft)] px-2 text-[0.6875rem] font-medium text-[var(--brand-accent)] transition-colors hover:bg-[var(--brand-accent)] hover:text-[var(--text-on-accent)] whitespace-nowrap"
           >
             <BrandIcon name="find-subject" size={13} />
             <span>
@@ -402,7 +402,7 @@ export default function Filmstrip({
           )}
 
           {(searchOpen || search || minimumRating > 0) && (
-            <label className="flex items-center gap-1 text-[11px] text-[var(--text-secondary)]">
+            <label className="flex items-center gap-1 text-[0.6875rem] text-[var(--text-secondary)]">
               <span>{STRINGS.filmstripLabels.label13}</span>
               <select
                 aria-label={STRINGS.filmstripLabels.label5}
@@ -451,13 +451,13 @@ export default function Filmstrip({
                 if (item.type === 'controls') {
                   return (
                     <div key={`burst-${item.groupId}`} role="group" aria-label={STRINGS.bursts.controls(item.count)} className="h-full w-40 shrink-0 flex flex-col justify-center gap-1.5 rounded-[var(--radius-md)] border border-dashed border-[var(--brand-accent-border)] bg-[var(--bg-surface)] p-2">
-                      <p className="text-[11px] font-semibold text-[var(--text-primary)]">{STRINGS.bursts.controls(item.count)}</p>
+                      <p className="text-[0.6875rem] font-semibold text-[var(--text-primary)]">{STRINGS.bursts.controls(item.count)}</p>
                       <button type="button" disabled={!item.best} title={item.best ? undefined : STRINGS.bursts.flagBestNotRanked}
                         onClick={() => { if (item.best) onSetDecision([item.best.id], 'keep'); }}
-                        className="min-h-8 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[11px] font-medium text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50">{STRINGS.bursts.flagBest}</button>
-                      {!item.best && <span className="text-[10px] leading-tight text-[var(--text-muted)]">{STRINGS.bursts.flagBestNotRanked}</span>}
-                      <button type="button" onClick={() => onSetBurstGrouped(item.groupId, false)} className="min-h-8 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[11px] font-medium text-[var(--text-primary)]">{STRINGS.bursts.split}</button>
-                      <button type="button" onClick={() => { onSelectPhoto(item.cover.id); setBurstOpen(item.groupId, false); }} className="min-h-8 rounded-[var(--radius-sm)] px-2 text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{STRINGS.bursts.collapse}</button>
+                        className="min-h-8 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50">{STRINGS.bursts.flagBest}</button>
+                      {!item.best && <span className="text-[0.625rem] leading-tight text-[var(--text-muted)]">{STRINGS.bursts.flagBestNotRanked}</span>}
+                      <button type="button" onClick={() => onSetBurstGrouped(item.groupId, false)} className="min-h-8 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)]">{STRINGS.bursts.split}</button>
+                      <button type="button" onClick={() => { onSelectPhoto(item.cover.id); setBurstOpen(item.groupId, false); }} className="min-h-8 rounded-[var(--radius-sm)] px-2 text-[0.6875rem] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{STRINGS.bursts.collapse}</button>
                     </div>
                   );
                 }
@@ -509,7 +509,7 @@ export default function Filmstrip({
                         aria-label={stack.expanded ? STRINGS.bursts.hide : STRINGS.bursts.show(stack.count)}
                         title={stack.expanded ? STRINGS.bursts.hide : STRINGS.bursts.show(stack.count)}
                         onClick={(event) => { event.stopPropagation(); if (stack.expanded) onSelectPhoto(planCoverId(items, stack.groupId) ?? photo.id); setBurstOpen(stack.groupId, !stack.expanded); }}
-                        className="absolute left-1 top-1 z-10 min-h-9 rounded bg-[var(--bg-scrim)] px-2 text-[10px] font-semibold text-white"
+                        className="absolute left-1 top-1 z-10 min-h-9 rounded bg-[var(--bg-scrim)] px-2 text-[0.625rem] font-semibold text-white"
                       >
                         {STRINGS.bursts.badge(stack.count)}{!stack.expanded ? ' ▸' : ''}
                       </button>
@@ -551,7 +551,7 @@ export default function Filmstrip({
                         <span
                           data-testid="tier-badge"
                           title={`${STRINGS.tier.label}: ${STRINGS.tier[photo.tier]}`}
-                          className="absolute right-1.5 bottom-1.5 rounded border border-[var(--brand-accent-border)] bg-[var(--bg-scrim)] px-1.5 py-0.5 text-[9px] font-semibold text-white"
+                          className="absolute right-1.5 bottom-1.5 rounded border border-[var(--brand-accent-border)] bg-[var(--bg-scrim)] px-1.5 py-0.5 text-[0.5625rem] font-semibold text-white"
                         >
                           {STRINGS.tier[photo.tier]}
                         </span>
@@ -561,7 +561,7 @@ export default function Filmstrip({
                         <span className="sr-only">{stateLabel}</span>
                       ) : (
                         <span
-                          className={`absolute left-1.5 bottom-1.5 rounded px-1.5 py-0.5 text-[9px] font-semibold ${
+                          className={`absolute left-1.5 bottom-1.5 rounded px-1.5 py-0.5 text-[0.5625rem] font-semibold ${
                             photo.state === 'unavailable'
                               ? 'bg-[var(--semantic-warning)] text-[#140d0a]'
                               : photo.state === 'importing' || photo.state === 'analysing'
@@ -576,7 +576,7 @@ export default function Filmstrip({
 
                     {/* Tile footer: filename + flag toggle */}
                     <div className="flex h-9 shrink-0 items-center justify-between gap-1 px-1">
-                      <span className="truncate font-mono text-[10px] text-[var(--text-secondary)]">
+                      <span className="truncate font-mono text-[0.625rem] text-[var(--text-secondary)]">
                         {photo.filename}
                       </span>
                       <button
@@ -619,7 +619,7 @@ export default function Filmstrip({
           className="fixed z-50 w-56 max-h-[min(70dvh,16rem)] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1.5 shadow-[var(--shadow-popover)] md:max-h-[70vh]"
           style={{ left: Math.max(8, Math.min(tileMenu.x, window.innerWidth - 232)), top: Math.max(8, Math.min(tileMenu.y, window.innerHeight - 270)) }}
         >
-          <p className="px-3 py-1 text-[11px] text-[var(--text-muted)]">
+          <p className="px-3 py-1 text-[0.6875rem] text-[var(--text-muted)]">
             {selectedPhotoIds.includes(tileMenu.photoId) && selectedPhotoIds.length > 1
               ? `${selectedPhotoIds.length} selected photos`
               : 'Photo actions'}
@@ -679,7 +679,7 @@ export default function Filmstrip({
             </button>
           )}
           <div className="border-t border-[var(--border-subtle)] px-3 py-2">
-            <span className="mb-1 block text-[11px] text-[var(--text-secondary)]">{STRINGS.filmstripLabels.label13}</span>
+            <span className="mb-1 block text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.filmstripLabels.label13}</span>
             <div className="flex flex-wrap gap-1" role="group" aria-label={STRINGS.filmstripLabels.label8}>
               {[0, 1, 2, 3, 4, 5].map((rating) => (
                 <button
@@ -711,7 +711,7 @@ export default function Filmstrip({
             <BrandIcon name="paste" size={14} />
             <span>{STRINGS.filmstripLabels.label19}</span>
           </button>
-          <label className="block px-3 py-1.5 text-[11px] text-[var(--text-secondary)]">
+          <label className="block px-3 py-1.5 text-[0.6875rem] text-[var(--text-secondary)]">
             {STRINGS.filmstripLabels.label20}
             <select
               aria-label={STRINGS.filmstripLabels.label9}

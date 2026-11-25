@@ -4,7 +4,9 @@
 import { createServer } from 'node:http';
 import { createHmac, createPublicKey, randomBytes, timingSafeEqual, verify } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
-import { resolve, sep, extname } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve, sep, extname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const root = resolve(process.env.V2PROTO_STATIC_ROOT || '/app/site');
 const clientId = process.env.V2PROTO_GOOGLE_CLIENT_ID || '';
@@ -13,6 +15,20 @@ const secret = process.env.V2PROTO_COOKIE_SECRET || '';
 if (!clientId || !owners.size || Buffer.byteLength(secret) < 32) {
   throw new Error('V2PROTO_GOOGLE_CLIENT_ID, V2PROTO_OWNER_EMAILS, and a 32-byte+ V2PROTO_COOKIE_SECRET are required');
 }
+// Sign-in is accepted only from the public site: its own domain (config/public-site.json, copied into the image) and
+// the Firebase Hosting address, which keeps working after a custom domain is added. V2PROTO_ALLOWED_ORIGINS adds more.
+function siteOrigins() {
+  const here = dirname(fileURLToPath(import.meta.url));
+  for (const candidate of [resolve(here, 'config/public-site.json'), resolve(here, '../../config/public-site.json')]) {
+    try {
+      const config = JSON.parse(readFileSync(candidate, 'utf8'));
+      return [config.origin, config.firebaseOrigin];
+    } catch { /* try the next location */ }
+  }
+  return ['https://kestrel-hosting-kestrel.web.app'];
+}
+const allowedOrigins = new Set([...siteOrigins(), ...(process.env.V2PROTO_ALLOWED_ORIGINS || '').split(/[,\s]+/)]
+  .map(s => s.trim()).filter(s => /^https:\/\/[^/]+$/.test(s)));
 const rootPath = '/V2Proto';
 const lifetime = 12 * 60 * 60 * 1000;
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2', '.wasm': 'application/wasm', '.ico': 'image/x-icon', '.onnx': 'application/octet-stream' };
@@ -77,7 +93,7 @@ const server = createServer(async (req, res) => {
   const pathname = new URL(req.url || '/', 'https://localhost').pathname;
   if (pathname !== rootPath && !pathname.startsWith(rootPath + '/')) { send(res, 404, 'Not found'); return; }
   if (req.method === 'POST' && pathname === rootPath + '/session') {
-    if (req.headers.origin !== 'https://kestrel-hosting-kestrel.web.app') { send(res, 403, 'Forbidden'); return; }
+    if (!allowedOrigins.has(req.headers.origin)) { send(res, 403, 'Forbidden'); return; }
     const chunks = []; let length = 0;
     for await (const chunk of req) { length += chunk.length; if (length > 12000) { send(res, 413, 'Too large'); return; } chunks.push(chunk); }
     try {

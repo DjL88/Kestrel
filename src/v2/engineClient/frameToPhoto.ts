@@ -23,6 +23,8 @@ import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { STRINGS } from '../ui/strings';
 import type { AssistSuggestion, EditRecipe, PhotoHistogram } from '../ui/contract';
 import type { Task } from '../../core/taskStore';
+import { buildEditingSequence } from '../../core/editingSequence';
+import type { PhotoEdit } from '../../core/photoEdits';
 
 /** A transparent pixel, so a photo whose picture is not ready yet shows an empty tile rather than a broken image. */
 export const BLANK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
@@ -41,6 +43,25 @@ export function recipeDelta(base: Parameters<typeof editToRecipe>[0], proposal: 
   return Object.fromEntries((Object.keys(after) as (keyof EditRecipe)[]).filter((key) => before[key] !== after[key]).map((key) => [key, after[key]])) as Partial<EditRecipe>;
 }
 
+/** The on-screen slider names, so a step points at the slider the person can find in Adjust. */
+const STEP_LABELS: Record<string, string> = {
+  whiteBalance: 'White balance', temperature: 'Temperature', tint: 'Tint', exposure: 'Exposure', contrast: 'Contrast',
+  highlights: 'Highlights', shadows: 'Shadows', whites: 'Whites', blacks: 'Blacks', toneCurve: 'Tone curve',
+  vibrance: 'Vibrance', saturation: 'Saturation', colourMixer: 'Colour mixer', clarity: 'Clarity', detailRecovery: 'Texture',
+  sharpen: 'Sharpen', denoiseLuminance: 'Luminance noise', denoiseColour: 'Colour noise', upscaleFactor: 'Upscale', masks: 'Local adjustments',
+};
+
+const stepValue = (value: unknown) => typeof value === 'number' ? String(Number(value.toFixed(2))) : value === undefined ? '0' : STRINGS.copilot.stepChanged;
+
+/** Auto's accepted recipe as ordered steps in the UI's slider units, with local adjustments counted. */
+export function suggestionSteps(base: PhotoEdit, proposal: PhotoEdit): NonNullable<AssistSuggestion['steps']> {
+  const before = { ...editToRecipe(base), masks: base.masks?.length ?? 0 };
+  const after = { ...editToRecipe(proposal), masks: proposal.masks?.length ?? 0 };
+  return buildEditingSequence(before, after, ['lookId']).map((step) => ({
+    id: step.id, label: STEP_LABELS[step.key] ?? step.key, from: stepValue(step.from), to: stepValue(step.to),
+  }));
+}
+
 export function assistCritiqueFor(assist: AssistState | undefined, currentEdit = DEFAULT_EDIT): Photo['assistCritique'] {
   if (!assist) return { subjectNote: '', colourConfidence: '', kelvinEstimate: '', suggestions: [] };
   const { run } = assist;
@@ -54,6 +75,7 @@ export function assistCritiqueFor(assist: AssistState | undefined, currentEdit =
       colourReadout: run.plan.species.reason,
       applied: candidate === matching,
       recipeDelta: recipeDelta(run.plan.base, candidate.edit),
+      steps: suggestionSteps(run.plan.base, candidate.edit),
       comparison: { before: run.before, after: candidate.after },
     }));
   return {
@@ -116,7 +138,7 @@ function verifiedFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { width: n
  * asks "which formats does this photo have?" (the canvas, Duplicate, Delete) must use this one rule, or a photo without
  * EXIF dimensions shows Original on the canvas while the actions think it is switched off.
  */
-export function originalFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { width: number; height: number }): { width: number; height: number } | null {
+export function originalFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { width: number; height: number }, shownSize?: { width: number; height: number }): { width: number; height: number } | null {
   const nativeSize = verifiedFormatSize(frame, verifiedOriginalSize);
   const { exif } = frame;
   // Recorded sensor dimensions are evidence for the *format shape*, not proof
@@ -124,14 +146,20 @@ export function originalFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { w
   const reportedSize = exif.width && exif.height && Number.isSafeInteger(exif.width) &&
     Number.isSafeInteger(exif.height) && exif.width > 0 && exif.height > 0
     ? framedSize(exif.width, exif.height, frame.framing ?? DEFAULT_FRAMING) : null;
-  return nativeSize ?? reportedSize;
+  // A RAW or HEIF whose file records no usable size (a NEF's first directory is a 160 × 120 thumbnail) takes its shape
+  // from the picture actually shown. Without this the Original was a 1 × 1 square, so the canvas and crop showed a
+  // square cut of a 3:2 photo. The renderer still caps every export at the source's real pixels.
+  const measured = shownSize && Number.isSafeInteger(shownSize.width) && Number.isSafeInteger(shownSize.height) &&
+    shownSize.width > 0 && shownSize.height > 0
+    ? framedSize(shownSize.width, shownSize.height, frame.framing ?? DEFAULT_FRAMING) : null;
+  return nativeSize ?? reportedSize ?? measured;
 }
 
 export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, extras: PhotoExtras = {}): Photo {
   const { assist, watermarkAuto, histogram, pixelSize, verifiedOriginalSize } = extras;
   const { exif } = frame;
   const nativeSize = verifiedFormatSize(frame, verifiedOriginalSize);
-  const originalSize = originalFormatSize(frame, verifiedOriginalSize);
+  const originalSize = originalFormatSize(frame, verifiedOriginalSize, pixelSize);
   const recordedDimensions = nativeSize && verifiedOriginalSize ? verifiedOriginalSize : positive(exif.width) && positive(exif.height) && Number.isSafeInteger(exif.width) && Number.isSafeInteger(exif.height) ? { width: exif.width, height: exif.height } : null;
   const rating = frame.rating ?? exif.rating ?? 0;
   const captured = typeof exif.capturedAtMs === 'number' && Number.isFinite(new Date(exif.capturedAtMs).getTime()) ? new Date(exif.capturedAtMs).toLocaleString('en-GB') : NOT_RECORDED;
