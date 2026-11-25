@@ -357,6 +357,8 @@ export const cy: AreaTranslation<typeof source> = {
     previewAfter: 'Golygiad a awgrymir',
     waitingForReview: 'Yn aros am yr adolygiad. Dydy’ch golygiad ddim wedi newid.',
     noLocalSuggestions: 'Mae awgrymiadau lleol yn ymddangos yma pan fydd newid gweladwy’n pasio’r gwiriadau.',
+    stepsHeading: 'Gweld pob cam',
+    stepChanged: 'wedi newid',
   },
   adjust: {
     mixer: {

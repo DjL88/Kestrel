@@ -358,6 +358,8 @@ export const gd: AreaTranslation<typeof source> = {
     previewAfter: 'An deasachadh a mholar',
     waitingForReview: 'A’ feitheamh air an lèirmheas. Cha do dh’atharraich an deasachadh agad.',
     noLocalSuggestions: 'Nochdaidh molaidhean ionadail an-seo nuair a thèid atharrachadh faicsinneach tro na dearbhaidhean.',
+    stepsHeading: 'Seall gach ceum',
+    stepChanged: 'air atharrachadh',
   },
   adjust: {
     mixer: {

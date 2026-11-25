@@ -357,6 +357,8 @@ export const da: AreaTranslation<typeof source> = {
     previewAfter: 'Foreslået redigering',
     waitingForReview: 'Venter på gennemgangen. Din redigering er uændret.',
     noLocalSuggestions: 'Lokale forslag vises her, når en synlig ændring består kontrollerne.',
+    stepsHeading: 'Se hvert trin',
+    stepChanged: 'ændret',
   },
   adjust: {
     mixer: {

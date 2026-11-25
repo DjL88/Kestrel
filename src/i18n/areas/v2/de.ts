@@ -357,6 +357,8 @@ export const de: AreaTranslation<typeof source> = {
     previewAfter: 'Vorgeschlagene Bearbeitung',
     waitingForReview: 'Warten auf die Analyse. Ihre Bearbeitung bleibt unverändert.',
     noLocalSuggestions: 'Lokale Vorschläge erscheinen hier, wenn eine sichtbare Änderung die Prüfungen besteht.',
+    stepsHeading: 'Jeden Schritt ansehen',
+    stepChanged: 'geändert',
   },
   adjust: {
     mixer: {
