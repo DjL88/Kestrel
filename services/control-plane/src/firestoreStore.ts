@@ -159,6 +159,18 @@ export class FirestoreStore implements Store {
       return { created: true, licence: l };
     });
   }
+  async attachLicenceToAccount(licenceId: string, accountId: string, ifNew: LicenceRecord): Promise<'attached' | 'already' | 'other'> {
+    return this.db.runTransaction(async (tx) => {
+      const ref = this.ref(C.licences, licenceId);
+      const current = await tx.get(ref);
+      if (!current.exists) { tx.set(ref, licenceDoc({ ...ifNew, licenceId, accountId }, 0)); return 'attached' as const; }
+      const holder = (current.data()!.accountId ?? null) as string | null;
+      if (holder === accountId) return 'already' as const;
+      if (holder) return 'other' as const;
+      tx.update(ref, { accountId });
+      return 'attached' as const;
+    });
+  }
   async claimLicencesForEmail(emailHash: string, accountId: string) {
     const snap = await this.db.collection(C.licences).where('emailHash', '==', emailHash).get();
     let claimed = 0;

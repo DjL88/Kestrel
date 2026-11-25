@@ -149,6 +149,12 @@ export interface Store {
   grantLicence(licence: LicenceRecord): Promise<{ created: boolean; licence: LicenceRecord }>;
   /** Attaches every unclaimed licence for this email to the account. Returns how many were attached. */
   claimLicencesForEmail(emailHash: string, accountId: string): Promise<number>;
+  /**
+   * Put a KESTREL1 key's licence on an account (the person signed up after using the key with no account). Atomic:
+   * 'attached' when it had no account (created from `ifNew` when the key was never activated), 'already' when it is
+   * on this account, 'other' when another account holds it (never moved here: that is an account merge).
+   */
+  attachLicenceToAccount(licenceId: string, accountId: string, ifNew: LicenceRecord): Promise<'attached' | 'already' | 'other'>;
   getLicence(licenceId: string): Promise<LicenceRecord | undefined>;
   listLicencesForAccount(accountId: string): Promise<LicenceRecord[]>;
   hasActiveManagedAi(accountId: string): Promise<boolean>;
