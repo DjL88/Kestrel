@@ -708,10 +708,12 @@ export interface WorkspaceActions {
   setHubState: (state: HubViewState) => void;
 
   // Photos, Culling & Selection
-  selectPhoto: (photoId: string, modifiers?: { ctrl?: boolean; shift?: boolean }) => void;
+  /** `order` is the photos as the filmstrip or grid shows them, so a Shift range covers only what is on screen. */
+  selectPhoto: (photoId: string, modifiers?: { ctrl?: boolean; shift?: boolean; order?: readonly string[] }) => void;
   /** Make this photo the one keys act on, without changing which photos are selected (the chosen side of a two-photo compare). */
   focusPhoto: (photoId: string) => void;
-  selectAllPhotos: () => void;
+  /** Select every photo shown, or only `photoIds` (the photos the current filter shows) when given. */
+  selectAllPhotos: (photoIds?: readonly string[]) => void;
   clearSelection: () => void;
   setDecision: (photoIds: string[], decision: DecisionState) => void;
   /** Moves already set-aside (rejected) photos into Trash. The catalogue entry is removed; InFlight's stored copies
