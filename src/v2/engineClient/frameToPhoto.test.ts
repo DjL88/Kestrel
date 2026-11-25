@@ -21,6 +21,14 @@ test('a photo with no recorded metadata says so rather than inventing values', (
   assert.equal(photo.thumbUrl, BLANK_IMAGE);
 });
 
+test('the colour profile names the InFlight RAW develop only when it is known to have run; otherwise it stays unknown', () => {
+  const developed = frameToPhoto(frame({ asShotWhite: { kelvin: 5480, duv: 0.002 } as never }), undefined);
+  assert.match(developed.exif.colourProfile, /colour matrix/);
+  assert.match(developed.exif.colourProfile, /not the maker's picture style/);
+  assert.equal(frameToPhoto(frame(), undefined).exif.colourProfile, 'Not recorded', 'an undeveloped RAW (embedded preview) is not claimed');
+  assert.equal(frameToPhoto(frame({ filename: 'a.jpg', asShotWhite: { kelvin: 5480, duv: 0 } as never }), undefined).exif.colourProfile, 'Not recorded');
+});
+
 test('recorded metadata, rating and the keep decision carry over', () => {
   const photo = frameToPhoto(frame({ decision: 'keep', rating: 4, exif: { camera: 'Nikon Z8', apertureF: 5.6, iso: 640, focalLengthMm: 400, width: 8256, height: 5504 } }), { thumb: 'blob:t', preview: 'blob:p' });
   assert.equal(photo.decision, 'keep');

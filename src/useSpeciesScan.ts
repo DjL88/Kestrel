@@ -1,6 +1,6 @@
 import { useConnectivity } from './providers/useConnectivity';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { qualifiesForAutoTag, scanCandidates, scanPatch } from './core/autoTags';
+import { familyFallback, qualifiesForAutoTag, scanCandidates, scanPatch } from './core/autoTags';
 import { SPECIES_MODEL } from './core/speciesModel';
 import { kindFor, personalBonus, pickSuggestions, rankSpecies } from './core/speciesMatch';
 import type { PhotoFrame } from './core/types';
@@ -134,7 +134,10 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
             const { embedding, grid } = await analysePicture(picture);
             const top = pickSuggestions(rankSpecies(embedding, labels, vectors, personalBonus(labels, readSpeciesCounts())))[0];
             const best = top && qualifiesForAutoTag(top, embedding, labels, vectors) ? top : undefined;
-            const named = best ? { name: best.label.common, probability: best.probability, kind: kindFor(best.label) } : undefined;
+            // No species certain enough: the family may be ("Owls"), from the unpersonalised ranking; else nothing.
+            const family = best ? undefined : familyFallback(rankSpecies(embedding, labels, vectors));
+            const named = best ? { name: best.label.common, probability: best.probability, kind: kindFor(best.label) }
+              : family ? { name: family.family, probability: family.probability, kind: 'wildlife' as const } : undefined;
             // The gate looks at the same square as the species model. If it fails, nothing is decided for this photo.
             const gate = await routeAndEmbedPicture(picture, subjectCrop(picture.width, picture.height, grid));
             const outcome = gateOutcome(gate.route, frame.subjectKind);
