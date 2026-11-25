@@ -7,11 +7,7 @@ import React, { useRef, useState } from 'react';
 import { useDialogFocus } from '../utils/dialogFocus';
 import ReadingSettings from './ReadingSettings';
 import MarkingsReaderSetting from './MarkingsReaderSetting';
-import { isDesktopApp, isMobileShell } from '../../../providers/desktopShell';
-
-/** The published privacy policy. It is not bundled into the app, so a relative link would lead nowhere in the desktop app. */
-import { publicSiteUrl } from '../../../core/publicSite';
-const PRIVACY_URL = publicSiteUrl('/privacy.html');
+import { POLICY_PATHS, SiteLink } from '../../../components/SiteLink';
 import type {
   AiProviderConfig,
   AssistMode,
@@ -610,13 +606,9 @@ export default function SettingsDialog({
                   <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.settingsMore.privacyHeading}</h3>
                   <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
                     {STRINGS.settingsMore.privacyBody}{' '}
-                    <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="font-medium text-[var(--brand-accent)] underline"
-                      onClick={(event) => {
-                        // The policy page is part of the website, not the app build. On the desktop app it opens in the system browser.
-                        if (!isDesktopApp() || isMobileShell()) return;
-                        event.preventDefault();
-                        void import('@tauri-apps/plugin-opener').then(({ openUrl }) => openUrl(PRIVACY_URL)).catch(() => undefined);
-                      }}>{STRINGS.settingsMore.privacyLink}</a> {STRINGS.settingsMore.privacyDraft}
+                    <SiteLink path={POLICY_PATHS.privacy} className="font-medium text-[var(--brand-accent)] underline">{STRINGS.settingsMore.privacyLink}</SiteLink>{' · '}
+                    <SiteLink path={POLICY_PATHS.terms} className="font-medium text-[var(--brand-accent)] underline">{STRINGS.settingsMore.termsLink}</SiteLink>{' '}
+                    {STRINGS.settingsMore.privacyDraft}
                   </p>
                 </div>
                 <section aria-labelledby="build-information-title" data-testid="v2-build-information" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
