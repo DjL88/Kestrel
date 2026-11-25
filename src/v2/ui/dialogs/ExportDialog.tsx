@@ -96,9 +96,10 @@ export default function ExportDialog({
     : maxSizeChoice === 'custom' ? customMaxSize
     : Number(maxSizeChoice);
 
-  const handleSubmit = (rawMaster = false) => {
+  const handleSubmit = (rawMaster = false, rawMasterFormat: 'tiff' | 'png' = 'tiff') => {
     onExport({
       rawMaster,
+      ...(rawMaster ? { rawMasterFormat } : {}),
       destination: rawMaster ? 'local-individual' : destination,
       fileFormat,
       jpegQuality: jpegQuality / 100,
@@ -193,10 +194,16 @@ export default function ExportDialog({
             </section>
             {canRequestRaw && (
               <section aria-label={STRINGS.exportDialog.rawMasterHeading} className="space-y-2">
-                <button type="button" onClick={() => handleSubmit(true)}
-                  className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
-                  {STRINGS.exportDialog.rawMasterButton}
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => handleSubmit(true, 'tiff')}
+                    className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                    {STRINGS.exportDialog.rawMasterButton}
+                  </button>
+                  <button type="button" onClick={() => handleSubmit(true, 'png')}
+                    className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                    {STRINGS.exportDialog.rawMasterPngButton}
+                  </button>
+                </div>
                 <p className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.exportDialog.rawMasterHelp}</p>
               </section>
             )}

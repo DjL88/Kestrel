@@ -21,7 +21,7 @@ export const gd: Translation = {
   emptyHistory: 'Nochdaidh deasachaidhean an deilbh seo an-seo.',
   redo: 'Ath-dhèan',
   historyStep: {
-    light: 'Solas', warmth: 'Blàths', colour: 'Dath', adjustments: 'Atharrachaidhean', tone: 'Tòna', detail: 'Mion-fhiosrachadh', mask: 'Masg',
+    light: 'Nochdadh', warmth: 'Blàths', colour: 'Dath', adjustments: 'Atharrachaidhean', tone: 'Tòna', detail: 'Mion-fhiosrachadh', mask: 'Masg',
     crop: 'Bearr', rotation: 'Cuairteachadh', straighten: 'Dìrich',
   },
   undo: 'Neo-dhèan',
@@ -79,6 +79,7 @@ export const gd: Translation = {
     themeContrast: 'Iomsgaradh àrd',
     textSize: 'Meud an teacsa',
     typeface: 'Cruth-clò',
+    fontBrand: 'InFlight (Plus Jakarta Sans)',
     fontReadable: 'Furasta a leughadh (Atkinson Hyperlegible)',
     calm: 'Nas lugha de bhrosnachadh (gun bheòthachadh)',
     calmPreset: 'Sàmhach is soilleir',
@@ -114,7 +115,7 @@ export const gd: Translation = {
     "texture": "Inneach",
     "clarity": "Soilleireachd mion-fhiosrachaidh",
     "sharpen": "Geuraich",
-    "denoise": "Lùghdachadh fuaim"
+    "denoise": "Lùghdachadh gràinne"
   },
   quick: {
     changed: "(air atharrachadh)",

@@ -87,7 +87,7 @@ export const nl: AreaTranslation<typeof source> = {
     copy: 'Fotogegevens kopiëren',
     copied: 'Fotogegevens gekopieerd.',
     copyFailed: 'Kopiëren lukte niet. Sta toegang tot het klembord toe of probeer het opnieuw.',
-    burstFrame: (index, count) => `Burstfoto ${index} van ${count}`,
+    burstFrame: (index, count) => `Foto ${index} van ${count} uit de reeks`,
     embeddedOnly: 'Ingebedde RAW-voorvertoning (geen volledige RAW-decodering)',
     cameraDetails: 'Camera- en opnamegegevens',
     cameraHeading: 'Camera & opname',
@@ -196,11 +196,11 @@ export const nl: AreaTranslation<typeof source> = {
     nothingElse: 'Niets meer voor te stellen.',
     noMatch: 'Geen duidelijke match. Voeg zelf een label toe, of tik op Opnieuw kijken nadat u nauwer hebt bijgesneden.',
     suggestedNames: 'Voorgestelde namen',
-    checkingBurst: 'De rest van de burst wordt gecontroleerd…',
+    checkingBurst: 'De rest van de reeks wordt gecontroleerd…',
     tagSimilar: 'Vergelijkbare foto’s labelen',
     offer: (count, name) => count === 1
-      ? `1 andere foto in deze burst lijkt hetzelfde. Die ook als ${name} labelen?`
-      : `${count} andere foto’s in deze burst lijken hetzelfde. Die ook als ${name} labelen?`,
+      ? `1 andere foto in deze reeks lijkt hetzelfde. Die ook als ${name} labelen?`
+      : `${count} andere foto’s in deze reeks lijken hetzelfde. Die ook als ${name} labelen?`,
     tagAll: (count) => count === 1 ? 'Labelen' : `Alle ${count} labelen`,
     noThanks: 'Nee, bedankt',
     autoTag: 'Sterke matches automatisch labelen',

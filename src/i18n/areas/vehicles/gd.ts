@@ -1,0 +1,53 @@
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** Scottish Gaelic. DRAFT: written without a native speaker's check. Type names (Eurofighter Typhoon, Boeing 737) are proper names and stay as they are. */
+export const gd: AreaTranslation<typeof source> = {
+  heading: 'Carbad',
+  families: { air: 'Itealan', road: 'Carbad rathaid', rail: 'Carbad rèile', water: 'Bàta' },
+  kinds: {
+    car: 'Càr',
+    motorbike: 'Motar-baidhsagal',
+    lorry: 'Làraidh',
+    bus: 'Bus',
+    train: 'Trèana',
+    tram: 'Trama',
+    boat: 'Bàta no long',
+    helicopter: 'Heileacoptair',
+    airliner: 'Itealan-siubhail',
+    'light-aircraft': 'Itealan beag',
+    'military-jet': 'Jet armailteach',
+    'military-transport': 'Itealan-giùlain armailteach',
+    glider: 'Glaidhdear',
+    drone: 'Drona',
+    balloon: 'Bailiùn',
+  },
+  probably: (what: string) => `${what} (is dòcha)`,
+  typeUnknown: (what: string) => `${what}, seòrsa neo-aithnichte`,
+  withType: (kind: string, type: string) => `${kind}: ${type}`,
+  marked: (what: string, marking: string) => `${what}, comharra ${marking}`,
+  registered: (marking: string, type: string) => `${marking}: ${type} (on chlàr)`,
+  operatedBy: (what: string, operator: string) => `${what}, air obrachadh le ${operator}`,
+  held: (what: string) => `${what}? Feumaidh tu sùil a thoirt air`,
+  correct: {
+    edit: 'Deasaich',
+    change: 'Atharraich an carbad',
+    kindLabel: 'Seòrsa',
+    typeLabel: 'Dèanadas no modail',
+    typeUnknown: 'Chan eil mi cinnteach',
+    notVehicle: 'Chan e carbad a th’ ann',
+    wholeBurst: (count: number) => `Na ${count} dealbhan uile san t-sreath seo`,
+    save: 'Sàbhail',
+    cancel: 'Sguir dheth',
+    saved: (count: number) => (count > 1 ? `Air a shàbhaladh airson ${count} dealbhan.` : 'Air a shàbhaladh.'),
+  },
+  reader: {
+    title: 'Leugh clàraidhean itealain',
+    description: (megabytes: string) => `A’ leughadh clàraidhean is àireamhan sreathach armailteach a tha peantte air itealain, air an uidheam seo, agus gan lorg ann an lethbhreac far loidhne de chlàran poblach. Luchdadh a-nuas aon turas de ${megabytes} MB. Cha tèid clàran-àireimh chàraichean a leughadh idir.`,
+    download: 'Luchdaich a-nuas',
+    downloading: (percent: number) => `A’ luchdadh a-nuas… ${percent}%`,
+    ready: 'Air a stàladh. Ag obair far loidhne.',
+    remove: 'Thoir air falbh',
+    failed: 'Cha do chrìochnaich an luchdadh a-nuas, mar sin cha deach dad a chumail. Feuch a-rithist.',
+  },
+};

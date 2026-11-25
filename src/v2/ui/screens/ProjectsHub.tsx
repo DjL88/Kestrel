@@ -19,7 +19,11 @@ interface ProjectsHubProps {
   onOpenProject: (projectId: string) => void;
   onCreateProject: (name: string, kind?: 'photography' | 'collage') => void;
   onCreateFromFolder: () => void;
+  /** First run: pick photos and get an Auto-edited photo ready to export. */
+  onQuickStart?: () => void;
   onRenameProject: (projectId: string, name: string) => void;
+  /** A .kestrel.json backup becomes a new project. */
+  onRestoreBackup?: (file: File) => void;
   onArchiveProject: (projectId: string, archived: boolean) => void;
   onDeleteProject: (projectId: string) => void;
   onOpenSettings: () => void;
@@ -34,7 +38,9 @@ export default function ProjectsHub({
   onOpenProject,
   onCreateProject,
   onCreateFromFolder,
+  onQuickStart,
   onRenameProject,
+  onRestoreBackup,
   onArchiveProject,
   onDeleteProject,
   onOpenSettings,
@@ -50,6 +56,7 @@ export default function ProjectsHub({
   const [modalOpen, setModalOpen] = useState(false);
   const [projectName, setProjectName] = useState('');
   const createPanel = useRef<HTMLFormElement>(null);
+  const backupInputRef = useRef<HTMLInputElement>(null);
   const onCreateDialogKeyDown = useDialogFocus(modalOpen, createPanel, () => setModalOpen(false));
   const [projectKind, setProjectKind] = useState<'photography' | 'collage'>('photography');
 
@@ -84,6 +91,16 @@ export default function ProjectsHub({
         </div>
 
         <nav className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
+          {onRestoreBackup && (
+            <>
+              <input ref={backupInputRef} type="file" accept=".json,application/json" hidden data-testid="restore-backup-input"
+                onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) onRestoreBackup(file); }} />
+              <button type="button" onClick={() => backupInputRef.current?.click()} title={STRINGS.backup.restore} aria-label={STRINGS.backup.restore}
+                className="inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-sm)] px-2 hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]">
+                <BrandIcon name="restore" size={17} /><span className="hidden sm:inline">{STRINGS.backup.restore}</span>
+              </button>
+            </>
+          )}
           <button type="button" aria-label={STRINGS.settings.heading} onClick={onOpenSettings}
             className="inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-sm)] px-2 hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]">
             <BrandIcon name="settings" size={17} /><span className="hidden sm:inline">{STRINGS.settings.heading}</span>
@@ -176,6 +193,19 @@ export default function ProjectsHub({
                 <BrandIcon name="plus" size={14} />
                 <span>{STRINGS.hub.newProject}</span>
               </button>
+              {onQuickStart && projects.length === 0 ? (
+                <div className="mt-6 max-w-md border-t border-[var(--border-subtle)] pt-5">
+                  <button
+                    type="button"
+                    onClick={onQuickStart}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-md)] border border-[var(--brand-accent)] px-4 text-xs font-semibold text-[var(--text-primary)]"
+                  >
+                    <BrandIcon name="assist" size={14} />
+                    <span>{STRINGS.quickStart.hubButton}</span>
+                  </button>
+                  <p className="mt-2 text-xs text-[var(--text-secondary)]">{STRINGS.quickStart.hubHint}</p>
+                </div>
+              ) : null}
             </div>
           )}
 

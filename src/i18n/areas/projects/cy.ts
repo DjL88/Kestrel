@@ -349,7 +349,7 @@ export const cy: AreaTranslation<typeof source> = {
     editNote: 'Mae’r llwybrau byr hyn yn gweithio yn y golygydd. Mae newidiadau’n cael eu cadw ar y ddyfais hon.',
     conflict: 'Gwrthdaro rhwng llwybrau byr:',
     howTo: 'Sut i ddefnyddio pad macro',
-    step1: 'Mae pad macro’n anfon bysellau cyffredin. Ym meddalwedd y pad ei hun, gosodwch bob bysell a phob tro o’r bwlyn i anfon y llwybr byr sy’n cael ei ddangos isod (er enghraifft, mae’r chweched fysell yn anfon Q, a’r bwlyn yn anfon - ac =). Dydy InFlight ddim yn gallu gweld gosodiadau’r pad ei hun.',
+    step1: 'Mae pad macro’n anfon bysellau cyffredin. Ym meddalwedd y pad ei hun, gosodwch bob bysell a phob tro o’r bwlyn i anfon y llwybr byr sy’n cael ei ddangos isod. Er enghraifft, mae’r chweched fysell yn anfon Q, a’r bwlyn yn anfon - ac =. Dydy InFlight ddim yn gallu gweld gosodiadau’r pad ei hun.',
     step2: 'Neu newidiwch InFlight i gyd-fynd â’r pad: cliciwch fysell isod, yna pwyswch y fysell ar y pad. Mae gwrthdaro wedi’i farcio mewn oren.',
     step3Lead: 'Yn y golygydd:',
     step3: 'pwyswch y fysell Cycle i ddewis llithrydd (mae ei enw’n dangos "Dial"), yna trowch y bwlyn i’w newid. Mae Reset yn clirio golygiadau’r llun, ac mae Compare yn newid rhwng cyn ac ar ôl.',

@@ -43,7 +43,7 @@ gh pr list --state open
 - Take **one** bounded item, the first unblocked one in ROADMAP P0 unless the owner asks otherwise. Check the open PRs for overlap before starting. Make it a small PR on its own branch.
 - **Repair your own open PRs before opening another.** Don't stack drafts nobody will review.
 - New code is wired into the app, or it isn't merged. A prototype nothing calls, or a plan that duplicates ROADMAP.md, goes into ROADMAP.md instead of a new file.
-- Update ROADMAP.md in the same PR when an item's status changes.
+- **Only the lead session edits docs/ROADMAP.md (owner, 25 Nov 2026).** Don't change it in your PR: write the item, its status and what's verified in the PR description, and the lead updates the ROADMAP in batches as PRs merge. Many PRs editing that one file caused most merge conflicts and once duplicated it.
 - Use only synthetic or lawfully licensed fixtures. Never commit or upload the owner's photos, catalogues or results.
 - `tools/denoise-training/` belongs to the denoiser track. Coordinate before changing it.
 - Keep AI Studio compatibility: `DISABLE_HMR` in `vite.config.ts`, `metadata.json`, port 3000, and the npm script names.
@@ -65,7 +65,7 @@ python -m pytest scripts tools/denoise-training tools/lightroom   # when Python 
 
 ## Merging
 - Merge when every check relevant to the change has PASSED on a real checkout and the results are written in the PR.
-- **While GitHub Actions is billing-blocked (until about 24 Nov 2026), the owner has authorised merging on local results.** Workflow runs that fail with zero steps are INFRASTRUCTURE BLOCKED, not failures. Don't re-run them, and don't pay to get around the block.
+- **GitHub Actions is the check of record again (owner, 25 Nov 2026).** Push your branch and open the PR (draft is fine). The CI workflow runs lint, every unit test, the build check and the V2 browser tests on desktop and phone; Python and desktop (Rust) workflows run when those parts change. Merge on a green run. On the laptop, run only fast targeted tests for what you changed, and reproduce a CI failure locally only when you need to debug it. Push meaningful commits rather than every small save, because each push uses paid Actions minutes. A run that fails with zero steps is infrastructure, not a test failure: report it, and don't re-run it in a loop.
 - Squash-merge, delete the branch, and add a line to the ROADMAP integration log.
 - A change to Rust that couldn't be compiled stays unmerged unless it only touches tests or message text, and the PR says so.
 

@@ -41,7 +41,7 @@ for target in aarch64-apple-darwin x86_64-apple-darwin; do
 done
 step 'Choose exact revision without overwriting local changes'
 if [ "$NO_UPDATE" -eq 0 ]; then
-  if [ -n "$(git status --porcelain)" ]; then
+  if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
     echo 'Local changes present. Commit/stash them, or use --no-update to build this checkout.' >&2
     exit 1
   fi
@@ -104,6 +104,8 @@ cat > "$DESTINATION.json" <<EOF
   "builtAtUtc": "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 }
 EOF
+# The commit record the release parity check compares with Windows, the web app and the model packs (G10).
+cp "$ROOT/dist/build-info.json" "$DESTINATION.build-info.json"
 step 'Mac prototype installer ready'
 printf 'DMG: %s\nSHA-256: %s\n' "$DESTINATION" "$SHA"
 echo 'This is NOT signed or notarised. Apple may warn on first launch.'
