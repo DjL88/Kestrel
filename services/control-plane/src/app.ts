@@ -11,6 +11,7 @@ import { inspectJpeg } from '../../../src/core/jpegInspect.ts';
 import type { Config } from './config.ts';
 import { MergeRefusal } from './accountMerge.ts';
 import { ErasureRefusal } from './accountErasure.ts';
+import { learningSubjectFor } from './learningSignal.ts';
 import { hashPassword, randomId, sha256Hex, signEnvelope, signSession, uuid, verifyPassword, verifySession, verifyWebhook, type SessionClaims } from './crypto.ts';
 import { SqliteStore } from './sqliteStore.ts';
 import { MemoryDemoStudio, publicExamples, adminExamples, type DemoStudioStore, type ExampleFields } from './demoStudio.ts';
@@ -217,9 +218,6 @@ const SWITCHES = [
 const SWITCH_KEYS = SWITCHES.map((w) => w.key) as [SwitchKey, ...SwitchKey[]];
 type SwitchKey = typeof SWITCHES[number]['key'];
 const isPlanned = (key: SwitchKey) => SWITCHES.some((w) => w.key === key && 'planned' in w && w.planned);
-
-/** The pseudonym learning records are kept under (opting out and account deletion both delete by it). */
-export const learningSubjectFor = (accountId: string) => sha256Hex(`learning:${accountId}`);
 
 export const Schemas = {
   AdminSwitch: z.object({ key: z.enum(SWITCH_KEYS), on: z.boolean() }).strict(),
