@@ -35,18 +35,18 @@ export const fr: AreaTranslation<typeof source> = {
   wizard: {
     projectName: 'Nom du projet',
     summary: (target, autoCull, autoEdit) =>
-      `Objectif de photos à garder : ${target ?? 'non valide'}. Tri automatique ${autoCull ? 'activé' : 'désactivé'}. Retouche automatique ${autoEdit ? 'activée' : 'désactivée'}.`,
+      `Objectif de meilleures photos : ${target ?? 'non valide'}. Choix auto ${autoCull ? 'activé' : 'désactivé'}. Retouche automatique ${autoEdit ? 'activée' : 'désactivée'}.`,
     options: 'Options du projet',
-    targetIntro: 'InFlight montre votre progression vers ce nombre à mesure que vous choisissez les photos à garder. Vous pourrez le changer plus tard.',
+    targetIntro: 'InFlight montre votre progression vers ce nombre à mesure que vous choisissez vos meilleures photos. Vous pourrez le changer plus tard.',
     commonTargets: 'Objectifs courants',
     typeNumber: 'Ou saisissez un nombre',
     targetInvalid: 'Saisissez un nombre entier de 1 à 9999.',
     aimFor: (count) => plural(count, { one: `Objectif : ${count} photo.`, other: `Objectif : ${count} photos.` }),
     autoIntro: 'Tout se passe sur cet appareil. Rien n’est supprimé, et vous pourrez les désactiver plus tard dans les options de l’espace de travail.',
-    autoCull: 'Tri automatique',
-    autoCullHint: 'Après l’import, une tâche locale, que vous pouvez annuler, examine vos photos pendant que vous les parcourez. Les photos sûres à garder et les doublons exacts sont triés automatiquement ; les photos incertaines restent à trier. Les originaux ne sont pas modifiés.',
+    autoCull: 'Choix auto',
+    autoCullHint: 'Après l’import, une tâche locale, que vous pouvez annuler, examine vos photos pendant que vous les parcourez. Les meilleures photos à confiance élevée et les doublons exacts sont triés automatiquement ; les photos incertaines restent à trier. Les originaux ne sont pas modifiés.',
     autoEdit: 'Retouche automatique',
-    autoEditHint: 'Après le tri, les photos à garder encore intactes reçoivent automatiquement une retouche de départ prudente si l’aperçu passe les contrôles de qualité. Vos propres retouches et recadrages ne sont jamais remplacés ; d’autres suggestions restent dans Auto → Proposer un style.',
+    autoEditHint: 'Après le tri, les meilleures photos encore intactes reçoivent automatiquement une retouche de départ prudente si l’aperçu passe les contrôles de qualité. Vos propres retouches et recadrages ne sont jamais remplacés ; d’autres suggestions restent dans Auto → Proposer un style.',
     create: 'Créer le projet',
   },
   addPhotos: {

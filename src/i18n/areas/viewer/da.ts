@@ -257,7 +257,7 @@ export const da: AreaTranslation<typeof source> = {
     paint: 'Mal',
     remove: 'Fjern',
     erase: 'Visk ud',
-    undoRefining: 'Fortryd forfining',
+    undoRefining: 'Fortryd maskeforfining',
     clear: 'Ryd',
     paintingOn: 'Maling er slået til. Tryk igen for at panorere og zoome.',
     paintingOff: 'Vælg Mal eller Visk ud for at begynde. Indtil da kan du panorere og zoome.',

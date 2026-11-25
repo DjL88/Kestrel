@@ -43,7 +43,7 @@ export const cy: AreaTranslation<typeof source> = {
     typeLabel: 'Gwneuthuriad neu fodel',
     typeUnknown: 'Ddim yn siŵr',
     notVehicle: 'Nid cerbyd',
-    wholeBurst: (count: number) => `Pob un o’r ${count} llun yn y byrst hwn`,
+    wholeBurst: (count: number) => `Pob un o’r ${count} llun yn y gyfres o luniau hon`,
     save: 'Cadw',
     cancel: 'Canslo',
     saved: (count: number) => (count > 1 ? `Wedi’i gadw ar gyfer ${count} llun.` : 'Wedi’i gadw.'),

@@ -35,18 +35,18 @@ export const es: AreaTranslation<typeof source> = {
   wizard: {
     projectName: 'Nombre del proyecto',
     summary: (target, autoCull, autoEdit) =>
-      `Objetivo de fotos para conservar: ${target ?? 'no válido'}. Selección automática ${autoCull ? 'activada' : 'desactivada'}. Edición automática ${autoEdit ? 'activada' : 'desactivada'}.`,
+      `Objetivo de mejores fotos: ${target ?? 'no válido'}. Elección automática ${autoCull ? 'activada' : 'desactivada'}. Edición automática ${autoEdit ? 'activada' : 'desactivada'}.`,
     options: 'Opciones del proyecto',
-    targetIntro: 'InFlight muestra su avance hacia este número a medida que elige fotos para conservar. Puede cambiarlo más adelante.',
+    targetIntro: 'InFlight muestra su avance hacia este número a medida que elige mejores fotos. Puede cambiarlo más adelante.',
     commonTargets: 'Objetivos habituales',
     typeNumber: 'O escriba un número',
     targetInvalid: 'Escriba un número entero del 1 al 9999.',
     aimFor: (count) => plural(count, { one: `Objetivo: ${count} foto.`, other: `Objetivo: ${count} fotos.` }),
     autoIntro: 'Todo se hace en este dispositivo. No se elimina nada, y puede desactivar estas opciones más adelante en las opciones del espacio de trabajo.',
-    autoCull: 'Selección automática',
-    autoCullHint: 'Tras la importación, una tarea local que puede cancelar revisa sus fotos mientras navega. Las fotos claras para conservar y los duplicados exactos se ordenan automáticamente; las dudosas quedan para revisar. Los originales no se tocan.',
+    autoCull: 'Elección automática',
+    autoCullHint: 'Tras la importación, una tarea local que puede cancelar revisa sus fotos mientras navega. Las mejores fotos con confianza alta y los duplicados exactos se ordenan automáticamente; las dudosas quedan para revisar. Los originales no se tocan.',
     autoEdit: 'Edición automática',
-    autoEditHint: 'Tras la selección, las fotos para conservar sin tocar reciben automáticamente una edición inicial prudente si la vista previa pasa los controles de calidad. Sus propias ediciones y recortes nunca se sobrescriben; hay más sugerencias en Auto → Sugerir un estilo.',
+    autoEditHint: 'Tras la elección automática, las mejores fotos sin tocar reciben automáticamente una edición inicial prudente si la vista previa pasa los controles de calidad. Sus propias ediciones y recortes nunca se sobrescriben; hay más sugerencias en Auto → Sugerir un estilo.',
     create: 'Crear proyecto',
   },
   addPhotos: {

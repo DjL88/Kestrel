@@ -257,7 +257,7 @@ export const fr: AreaTranslation<typeof source> = {
     paint: 'Peindre',
     remove: 'Retirer',
     erase: 'Gommer',
-    undoRefining: 'Annuler les retouches',
+    undoRefining: 'Annuler l’affinage',
     clear: 'Effacer',
     paintingOn: 'Le pinceau est actif. Appuyez à nouveau pour déplacer et zoomer.',
     paintingOff: 'Choisissez Peindre ou Gommer pour commencer. D’ici là, vous pouvez déplacer et zoomer.',

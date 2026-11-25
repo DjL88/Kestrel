@@ -48,11 +48,11 @@ export const is: AreaTranslation<typeof source> = {
   matchLabel: (subject) => `Litasamsvörun, ${subject}:`,
   matchFound: (colour, part) => `Búist við ${colour} (${part}): finnst á myndefninu.`,
   matchMissing: (colour, part, measured) => `Búist við ${colour} (${part}): finnst ekki. Myndefnið er aðallega ${measured}.`,
-  matchCaveat: 'Ljós, aldur, fjaðrafellir eða rangt heiti getur skýrt mun.',
+  matchCaveat: 'Ljós, aldur, fjaðraskipti eða rangt heiti geta skýrt mun.',
   matchPart: { breast: 'bringa', face: 'andlit', head: 'höfuð', back: 'bak', belly: 'kviður', wings: 'vængir', tail: 'stél', beak: 'goggur', body: 'búkur' },
   fixSoften: 'Milda lit',
   fixCooler: 'Gera kaldari',
   fixWarmer: 'Gera hlýrri',
-  fixApplied: 'Búið. Þú getur afturkallað það í breytingaferlinum.',
+  fixApplied: 'Búið. Þú getur afturkallað það í Breytingasögu.',
   findings: (count) => plural(count, { one: `${count} atriði til að skoða`, other: `${count} atriði til að skoða` }),
 };

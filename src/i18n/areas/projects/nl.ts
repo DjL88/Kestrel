@@ -35,18 +35,18 @@ export const nl: AreaTranslation<typeof source> = {
   wizard: {
     projectName: 'Projectnaam',
     summary: (target, autoCull, autoEdit) =>
-      `Doel voor te bewaren foto’s: ${target ?? 'ongeldig'}. Automatisch selecteren ${autoCull ? 'aan' : 'uit'}. Automatisch bewerken ${autoEdit ? 'aan' : 'uit'}.`,
+      `Doel voor beste foto’s: ${target ?? 'ongeldig'}. Automatisch kiezen ${autoCull ? 'aan' : 'uit'}. Automatisch bewerken ${autoEdit ? 'aan' : 'uit'}.`,
     options: 'Projectopties',
-    targetIntro: 'InFlight laat uw voortgang naar dit aantal zien terwijl u foto’s kiest om te bewaren. U kunt het later wijzigen.',
+    targetIntro: 'InFlight laat uw voortgang naar dit aantal zien terwijl u beste foto’s kiest. U kunt het later wijzigen.',
     commonTargets: 'Gangbare doelen',
     typeNumber: 'Of typ een getal',
     targetInvalid: 'Voer een heel getal van 1 tot 9999 in.',
     aimFor: (count) => plural(count, { one: `Doel: ${count} foto.`, other: `Doel: ${count} foto’s.` }),
     autoIntro: 'Alles gebeurt op dit apparaat. Er wordt niets verwijderd, en u kunt dit later uitzetten in de werkruimte-opties.',
-    autoCull: 'Automatisch selecteren',
-    autoCullHint: 'Na het importeren bekijkt een lokale taak, die u kunt annuleren, uw foto’s terwijl u bladert. Zekere foto’s om te bewaren en exacte dubbele foto’s worden automatisch ingedeeld; twijfelgevallen blijven staan om te beoordelen. Originelen blijven onaangeroerd.',
+    autoCull: 'Automatisch kiezen',
+    autoCullHint: 'Na het importeren bekijkt een lokale taak, die u kunt annuleren, uw foto’s terwijl u bladert. Beste foto’s met hoge betrouwbaarheid en exacte dubbele foto’s worden automatisch ingedeeld; onzekere foto’s blijven staan om te beoordelen. Originelen blijven onaangeroerd.',
     autoEdit: 'Automatisch bewerken',
-    autoEditHint: 'Na het selecteren krijgen onbewerkte te bewaren foto’s automatisch een voorzichtige beginbewerking als het voorbeeld de kwaliteitscontrole doorstaat. Uw eigen bewerkingen en uitsneden worden nooit overschreven; meer suggesties vindt u onder Auto → Stijl voorstellen.',
+    autoEditHint: 'Na Automatisch kiezen krijgen onbewerkte beste foto’s automatisch een voorzichtige beginbewerking als het voorbeeld de kwaliteitscontrole doorstaat. Uw eigen bewerkingen en uitsneden worden nooit overschreven; meer suggesties vindt u onder Auto → Fotostijl voorstellen.',
     create: 'Project maken',
   },
   addPhotos: {

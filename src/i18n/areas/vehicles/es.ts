@@ -21,7 +21,7 @@ export const es: AreaTranslation<typeof source> = {
     helicopter: 'Helicóptero',
     airliner: 'Avión comercial',
     'light-aircraft': 'Avioneta',
-    'military-jet': 'Caza militar',
+    'military-jet': 'Avión militar a reacción',
     'military-transport': 'Avión de transporte militar',
     glider: 'Planeador',
     drone: 'Dron',

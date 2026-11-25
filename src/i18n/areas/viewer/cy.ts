@@ -253,7 +253,7 @@ export const cy: AreaTranslation<typeof source> = {
     paint: 'Paentio',
     remove: 'Tynnu',
     erase: 'Rhwbio',
-    undoRefining: 'Dadwneud y mireinio',
+    undoRefining: 'Dadwneud mireinio’r masg',
     clear: 'Clirio',
     paintingOn: 'Mae paentio ymlaen. Pwyswch eto i symud a chwyddo.',
     paintingOff: 'Dewiswch Paentio neu Rhwbio i ddechrau. Tan hynny gallwch chi symud a chwyddo.',
