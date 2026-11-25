@@ -375,6 +375,8 @@ export const is: AreaTranslation<typeof source> = {
     previewAfter: 'Tillaga að breytingu',
     waitingForReview: 'Bíð eftir yfirferð. Breytingin þín er óbreytt.',
     noLocalSuggestions: 'Staðbundnar tillögur birtast hér þegar sýnileg breyting stenst athuganirnar.',
+    stepsHeading: 'Sjá hvert skref',
+    stepChanged: 'breytt',
   },
   adjust: {
     mixer: {

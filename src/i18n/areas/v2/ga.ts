@@ -378,6 +378,8 @@ export const ga: AreaTranslation<typeof source> = {
     previewAfter: 'An eagarthóireacht mholta',
     waitingForReview: 'Ag fanacht leis an athbhreithniú. Níor athraíodh d’eagarthóireacht.',
     noLocalSuggestions: 'Feictear moltaí áitiúla anseo nuair a éiríonn le hathrú infheicthe sna seiceálacha.',
+    stepsHeading: 'Féach ar gach céim',
+    stepChanged: 'athraithe',
   },
   adjust: {
     mixer: {

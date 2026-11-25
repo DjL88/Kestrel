@@ -375,6 +375,8 @@ export const es: AreaTranslation<typeof source> = {
     previewAfter: 'Edición sugerida',
     waitingForReview: 'Esperando la revisión. Su edición no ha cambiado.',
     noLocalSuggestions: 'Las sugerencias locales aparecen aquí cuando un cambio visible supera las comprobaciones.',
+    stepsHeading: 'Ver cada paso',
+    stepChanged: 'cambiado',
   },
   adjust: {
     mixer: {

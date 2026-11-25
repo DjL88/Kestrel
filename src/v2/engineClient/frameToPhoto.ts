@@ -23,6 +23,8 @@ import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { STRINGS } from '../ui/strings';
 import type { AssistSuggestion, EditRecipe, PhotoHistogram } from '../ui/contract';
 import type { Task } from '../../core/taskStore';
+import { buildEditingSequence } from '../../core/editingSequence';
+import type { PhotoEdit } from '../../core/photoEdits';
 
 /** A transparent pixel, so a photo whose picture is not ready yet shows an empty tile rather than a broken image. */
 export const BLANK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
@@ -41,6 +43,25 @@ export function recipeDelta(base: Parameters<typeof editToRecipe>[0], proposal: 
   return Object.fromEntries((Object.keys(after) as (keyof EditRecipe)[]).filter((key) => before[key] !== after[key]).map((key) => [key, after[key]])) as Partial<EditRecipe>;
 }
 
+/** The on-screen slider names, so a step points at the slider the person can find in Adjust. */
+const STEP_LABELS: Record<string, string> = {
+  whiteBalance: 'White balance', temperature: 'Temperature', tint: 'Tint', exposure: 'Exposure', contrast: 'Contrast',
+  highlights: 'Highlights', shadows: 'Shadows', whites: 'Whites', blacks: 'Blacks', toneCurve: 'Tone curve',
+  vibrance: 'Vibrance', saturation: 'Saturation', colourMixer: 'Colour mixer', clarity: 'Clarity', detailRecovery: 'Texture',
+  sharpen: 'Sharpen', denoiseLuminance: 'Luminance noise', denoiseColour: 'Colour noise', upscaleFactor: 'Upscale', masks: 'Local adjustments',
+};
+
+const stepValue = (value: unknown) => typeof value === 'number' ? String(Number(value.toFixed(2))) : value === undefined ? '0' : STRINGS.copilot.stepChanged;
+
+/** Auto's accepted recipe as ordered steps in the UI's slider units, with local adjustments counted. */
+export function suggestionSteps(base: PhotoEdit, proposal: PhotoEdit): NonNullable<AssistSuggestion['steps']> {
+  const before = { ...editToRecipe(base), masks: base.masks?.length ?? 0 };
+  const after = { ...editToRecipe(proposal), masks: proposal.masks?.length ?? 0 };
+  return buildEditingSequence(before, after, ['lookId']).map((step) => ({
+    id: step.id, label: STEP_LABELS[step.key] ?? step.key, from: stepValue(step.from), to: stepValue(step.to),
+  }));
+}
+
 export function assistCritiqueFor(assist: AssistState | undefined, currentEdit = DEFAULT_EDIT): Photo['assistCritique'] {
   if (!assist) return { subjectNote: '', colourConfidence: '', kelvinEstimate: '', suggestions: [] };
   const { run } = assist;
@@ -54,6 +75,7 @@ export function assistCritiqueFor(assist: AssistState | undefined, currentEdit =
       colourReadout: run.plan.species.reason,
       applied: candidate === matching,
       recipeDelta: recipeDelta(run.plan.base, candidate.edit),
+      steps: suggestionSteps(run.plan.base, candidate.edit),
       comparison: { before: run.before, after: candidate.after },
     }));
   return {

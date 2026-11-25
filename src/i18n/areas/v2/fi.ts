@@ -376,6 +376,8 @@ export const fi: AreaTranslation<typeof source> = {
     previewAfter: 'Ehdotettu muokkaus',
     waitingForReview: 'Odotetaan arviota. Muokkauksesi on ennallaan.',
     noLocalSuggestions: 'Paikalliset ehdotukset näkyvät tässä, kun näkyvä muutos läpäisee tarkistukset.',
+    stepsHeading: 'Näytä jokainen vaihe',
+    stepChanged: 'muutettu',
   },
   adjust: {
     mixer: {

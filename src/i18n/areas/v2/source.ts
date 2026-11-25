@@ -396,6 +396,8 @@ export const source = {
     previewAfter: 'Suggested edit',
     waitingForReview: 'Waiting for the review. Your edit is unchanged.',
     noLocalSuggestions: 'Local suggestions appear here when a visible change passes the checks.',
+    stepsHeading: 'See each step',
+    stepChanged: 'changed',
   },
 
   // Adjust Panel

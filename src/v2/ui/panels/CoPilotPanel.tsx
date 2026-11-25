@@ -186,6 +186,19 @@ export default function CoPilotPanel({
                 <p className="mt-1.5 font-mono text-[0.625rem] text-[var(--text-muted)]">
                   {sug.colourReadout}
                 </p>
+                {sug.steps && sug.steps.length > 0 && (
+                  <details className="mt-1.5 text-[11px] text-[var(--text-secondary)]">
+                    <summary className="cursor-pointer select-none text-[var(--text-primary)]">{STRINGS.copilot.stepsHeading}</summary>
+                    <ol className="mt-1 list-decimal space-y-0.5 pl-4">
+                      {sug.steps.map((step) => (
+                        <li key={step.id}>
+                          <span>{step.label}</span>{' '}
+                          <span className="font-mono text-[10px] text-[var(--text-muted)]">{step.from} → {step.to}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
+                )}
                 <div className="mt-2.5 flex items-center gap-2">
                   <button
                     type="button"
