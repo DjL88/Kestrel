@@ -27,6 +27,7 @@ export const da: AreaTranslation<typeof source> = {
   frameUnused: (n: number) => `Billede ${n} bidrog næsten ikke med noget.`,
   oneFrameDominates: "Ét billede leverede næsten alle detaljer. Tjek, at billederne er taget med forskellig fokusafstand.",
   localFallback: (n: number) => `Billede ${n} blev kun rettet ind som helhed: for få matchende detaljer til finere indretning.`,
+  mainThread: "Det kørte i forgrunden, fordi baggrundsarbejde ikke er tilgængeligt her, så appen kan have hakket undervejs.",
   infoTitle: "Fokusstak",
   infoMadeFrom: (n: number) => plural(n, { one: `Lavet af ${n} billede:`, other: `Lavet af ${n} billeder:` }),
   infoHow: "Hver del kommer fra det skarpeste billede netop dér, blødt sammenblandet. Ingen pixels blev genereret.",

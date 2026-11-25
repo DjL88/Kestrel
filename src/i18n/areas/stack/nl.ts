@@ -27,6 +27,7 @@ export const nl: AreaTranslation<typeof source> = {
   frameUnused: (n: number) => `Foto ${n} heeft bijna niets aan de stapel toegevoegd.`,
   oneFrameDominates: "Eén foto leverde bijna al het detail. Controleer of de foto's op verschillende scherpstelafstanden zijn gemaakt.",
   localFallback: (n: number) => `Foto ${n} is alleen als geheel uitgelijnd: er was te weinig overeenkomend detail voor fijnere uitlijning.`,
+  mainThread: "Het draaide op de voorgrond omdat werk op de achtergrond hier niet beschikbaar is, dus de app kan even hebben gehaperd.",
   infoTitle: "Focus stack",
   infoMadeFrom: (n: number) => plural(n, { one: `Gemaakt van ${n} foto:`, other: `Gemaakt van ${n} foto's:` }),
   infoHow: "Elk deel komt uit de scherpste foto op die plek, zacht overgevloeid. Er zijn geen pixels gegenereerd.",

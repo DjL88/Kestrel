@@ -27,6 +27,7 @@ export const it: AreaTranslation<typeof source> = {
   frameUnused: (n: number) => `La foto ${n} non ha aggiunto quasi nulla.`,
   oneFrameDominates: "Una sola foto ha fornito quasi tutto il dettaglio. Verifichi che le foto siano state scattate a distanze di messa a fuoco diverse.",
   localFallback: (n: number) => `La foto ${n} è stata allineata solo nel complesso: aveva troppi pochi dettagli corrispondenti per un allineamento più fine.`,
+  mainThread: "È stato eseguito in primo piano perché qui il lavoro in background non è disponibile, quindi l'app potrebbe essersi fermata a tratti.",
   infoTitle: "Focus stacking",
   infoMadeFrom: (n: number) => plural(n, { one: `Creata da ${n} foto:`, other: `Creata da ${n} foto:` }),
   infoHow: "Ogni parte proviene dalla foto più nitida in quel punto, fusa con morbidezza. Nessun pixel è stato generato.",

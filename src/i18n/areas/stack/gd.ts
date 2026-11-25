@@ -27,6 +27,7 @@ export const gd: AreaTranslation<typeof source> = {
   frameUnused: (n: number) => `Cha mhòr nach do chuir dealbh ${n} càil ris.`,
   oneFrameDominates: "Thug aon dealbh cha mhòr am mion-fhiosrachadh gu lèir. Dèan cinnteach gun deach na dealbhan a thogail aig astaran fòcais eadar-dhealaichte.",
   localFallback: (n: number) => `Cha deach dealbh ${n} a cho-thaobhadh ach mar aon: bha ro bheag de mhion-fhiosrachadh co-ionann ann airson co-thaobhadh nas mionaidiche.`,
+  mainThread: "Ruith e air a' bheulaibh oir chan eil obair sa chùlaibh ri fhaighinn an seo, mar sin dh'fhaodadh gun do stad an aplacaid uaireannan.",
   infoTitle: "Cruach fòcas",
   infoMadeFrom: (n: number) => plural(n, { one: `Air a dhèanamh à ${n} dealbh:`, other: `Air a dhèanamh à ${n} dealbhan:` }),
   infoHow: "Tha gach pàirt a' tighinn bhon dealbh as gèire san àite sin, air a mheasgachadh gu mìn. Cha deach piogsail sam bith a ghintinn.",

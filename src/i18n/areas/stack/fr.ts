@@ -27,6 +27,7 @@ export const fr: AreaTranslation<typeof source> = {
   frameUnused: (n: number) => `La photo ${n} n'a presque rien apporté à la pile.`,
   oneFrameDominates: "Une seule photo a fourni presque tout le détail. Vérifiez que les photos ont été prises à des distances de mise au point différentes.",
   localFallback: (n: number) => `La photo ${n} n'a été alignée que dans son ensemble : trop peu de détails correspondants pour un alignement plus fin.`,
+  mainThread: "Il a tourné au premier plan, car le travail en arrière-plan n'est pas disponible ici : l'application a pu marquer des pauses.",
   infoTitle: "Empilement de mise au point",
   infoMadeFrom: (n: number) => plural(n, { one: `Créée à partir de ${n} photo :`, other: `Créée à partir de ${n} photos :` }),
   infoHow: "Chaque partie vient de la photo la plus nette à cet endroit, fusionnée en douceur. Aucun pixel n'a été généré.",

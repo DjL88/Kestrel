@@ -86,6 +86,8 @@ test('three bracketed frames become one new photo that is sharper than every fra
   await menu.getByRole('menuitem', { name: 'Focus stack 3 photos' }).click();
   await expect(root.getByText(/Added macro_1-stack3\.png, stacked from 3 photos\. Your original photos are untouched\./)).toBeVisible({ timeout: 60000 });
   await expect(options).toHaveCount(4);
+  // It ran in the background worker: no note that it had to run on the interface thread.
+  await expect(root.getByText(/could not run in the background/)).toHaveCount(0);
 
   const stacked = strip.getByRole('option', { name: /macro_1-stack3\.png/ });
   await stacked.click();

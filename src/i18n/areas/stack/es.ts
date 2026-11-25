@@ -27,6 +27,7 @@ export const es: AreaTranslation<typeof source> = {
   frameUnused: (n: number) => `La foto ${n} apenas aportó nada al apilado.`,
   oneFrameDominates: "Una sola foto aportó casi todo el detalle. Compruebe que las fotos se tomaron a distancias de enfoque diferentes.",
   localFallback: (n: number) => `La foto ${n} solo se alineó en conjunto: tenía muy poco detalle coincidente para un ajuste más fino.`,
+  mainThread: "Se ejecutó en primer plano porque aquí no hay trabajo en segundo plano, así que la aplicación pudo detenerse a ratos.",
   infoTitle: "Apilado de enfoque",
   infoMadeFrom: (n: number) => plural(n, { one: `Hecha a partir de ${n} foto:`, other: `Hecha a partir de ${n} fotos:` }),
   infoHow: "Cada parte procede de la foto más nítida en ese lugar, combinada con suavidad. No se generó ningún píxel.",

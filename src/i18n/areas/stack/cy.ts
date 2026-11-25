@@ -27,6 +27,7 @@ export const cy: AreaTranslation<typeof source> = {
   frameUnused: (n: number) => `Prin yr ychwanegodd llun ${n} ddim.`,
   oneFrameDominates: "Rhoddodd un llun bron yr holl fanylion. Gwiriwch fod y lluniau wedi'u tynnu ar bellteroedd ffocws gwahanol.",
   localFallback: (n: number) => `Dim ond fel cyfanwaith yr aliniwyd llun ${n}: roedd rhy ychydig o fanylion cyfatebol ar gyfer alinio manylach.`,
+  mainThread: "Rhedodd yn y blaendir am nad oes gwaith cefndir ar gael yma, felly efallai i'r ap oedi weithiau.",
   infoTitle: "Pentwr ffocws",
   infoMadeFrom: (n: number) => plural(n, { one: `Wedi'i wneud o ${n} llun:`, other: `Wedi'i wneud o ${n} llun:` }),
   infoHow: "Daw pob rhan o'r llun mwyaf miniog yn y fan honno, wedi'i gyfuno'n llyfn. Ni chrëwyd unrhyw bicseli.",

@@ -27,6 +27,7 @@ export const pt: AreaTranslation<typeof source> = {
   frameUnused: (n: number) => `A foto ${n} quase não acrescentou nada.`,
   oneFrameDominates: "Uma só foto forneceu quase todo o detalhe. Verifique se as fotos foram tiradas a distâncias de foco diferentes.",
   localFallback: (n: number) => `A foto ${n} só foi alinhada como um todo: tinha pouco detalhe correspondente para um alinhamento mais fino.`,
+  mainThread: "Foi executado em primeiro plano porque aqui não há trabalho em segundo plano, por isso a aplicação pode ter parado por momentos.",
   infoTitle: "Empilhamento de foco",
   infoMadeFrom: (n: number) => plural(n, { one: `Feita a partir de ${n} foto:`, other: `Feita a partir de ${n} fotos:` }),
   infoHow: "Cada parte vem da foto mais nítida nesse local, junta com suavidade. Nenhum píxel foi gerado.",

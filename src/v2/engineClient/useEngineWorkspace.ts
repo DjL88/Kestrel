@@ -15,7 +15,7 @@ import { appendProjectPhotos, applyImportBursts, createEmptyProject, duplicatePr
 import { tasks } from '../../core/taskStore';
 import { createSaveGuard, type SaveGuard } from '../../core/saveGuard';
 import { engineScheduler } from '../../core/engineScheduler';
-import { stackFocus } from '../../core/focusStack';
+import { stackFocusOffThread } from '../../providers/focusStackOffThread';
 import { focusStackRecipe, type FocusStackRecipe } from '../../core/focusStackRecipe';
 import { encodePng16, provePng } from '../../core/png16';
 import { maxCanvasPixels } from '../../core/exportLimits';
@@ -1997,8 +1997,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
               const { naturalWidth: width, naturalHeight: height } = images[0];
               const limit = maxCanvasPixels({ userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints });
               if (width * height > limit) { refusal = stackText.tooLarge; throw new Error(refusal); }
-              const result = await stackFocus(images.map((image) => imageStackSource(image)), {
-                signal: ctx.signal, maxWorkingBytes: 48 * 1024 * 1024,
+              // In a worker, so the editor keeps responding; on this thread (smaller bands) only where a worker cannot run.
+              const { result, onMainThread } = await stackFocusOffThread(images, {
+                signal: ctx.signal, maxWorkingBytes: 192 * 1024 * 1024,
+                hereSources: () => images.map((image) => imageStackSource(image)),
                 onProgress: (done, total, stage) => { ctx.stage(stackText[stage]); ctx.reportProgress(done, total); },
               });
               if (!result.ok) { refusal = refusalText(result); throw new Error(refusal); }
@@ -2010,7 +2012,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
               if (proof.bitDepth !== 16 || proof.colourType !== 2 || proof.width !== width || proof.height !== height) throw new Error(stackText.failed);
               const file = new File([blob], name, { type: 'image/png', lastModified: Date.now() });
               const recipe = focusStackRecipe(result, frames.map((frame) => ({ frameId: frame.id, stableKey: frame.stableKey, filename: frame.filename, ...(frame.originalSha256 ? { originalSha256: frame.originalSha256 } : {}) })), picture, Date.now());
-              ctx.commitIfCurrent(() => { made = { file, recipe, notice: stackDoneNotice(name, result, frames.length) }; });
+              ctx.commitIfCurrent(() => { made = { file, recipe, notice: stackDoneNotice(name, result, frames.length) + (onMainThread ? ` ${stackText.mainThread}` : '') }; });
             },
           });
           const outcome = await ticket.finished;

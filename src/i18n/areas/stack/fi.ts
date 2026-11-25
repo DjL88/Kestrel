@@ -27,6 +27,7 @@ export const fi: AreaTranslation<typeof source> = {
   frameUnused: (n: number) => `Kuva ${n} toi pinoon tuskin mitään.`,
   oneFrameDominates: "Yksi kuva antoi lähes kaikki yksityiskohdat. Tarkista, että kuvat otettiin eri tarkennusetäisyyksiltä.",
   localFallback: (n: number) => `Kuva ${n} kohdistettiin vain kokonaisuutena: vastaavia yksityiskohtia oli liian vähän tarkempaan kohdistukseen.`,
+  mainThread: "Se ajettiin etualalla, koska taustatyö ei ole täällä käytettävissä, joten sovellus saattoi välillä pysähtyä.",
   infoTitle: "Tarkennuspino",
   infoMadeFrom: (n: number) => plural(n, { one: `Tehty ${n} kuvasta:`, other: `Tehty ${n} kuvasta:` }),
   infoHow: "Jokainen kohta tulee siinä kohdassa terävimmästä kuvasta, pehmeästi yhdistettynä. Pikseleitä ei luotu.",

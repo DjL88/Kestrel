@@ -27,6 +27,7 @@ export const source = {
   frameUnused: (n: number) => `Photo ${n} added almost nothing to the stack.`,
   oneFrameDominates: "One photo supplied almost all of the detail. Check that the photos were taken at different focus distances.",
   localFallback: (n: number) => `Photo ${n} was lined up as a whole only: it had too little matching detail for finer alignment.`,
+  mainThread: "It could not run in the background here, so the app may have paused while it worked.",
   infoTitle: "Focus stack",
   infoMadeFrom: (n: number) => plural(n, { one: `Made from ${n} photo:`, other: `Made from ${n} photos:` }),
   infoHow: "Each part comes from the sharpest photo there, blended softly. No pixels were generated.",

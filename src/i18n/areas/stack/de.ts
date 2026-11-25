@@ -27,6 +27,7 @@ export const de: AreaTranslation<typeof source> = {
   frameUnused: (n: number) => `Foto ${n} hat fast nichts zum Stapel beigetragen.`,
   oneFrameDominates: "Ein Foto lieferte fast alle Details. Prüfen Sie, ob die Fotos mit unterschiedlichen Fokusabständen aufgenommen wurden.",
   localFallback: (n: number) => `Foto ${n} wurde nur als Ganzes ausgerichtet: Für eine feinere Ausrichtung gab es zu wenig übereinstimmende Details.`,
+  mainThread: "Es lief im Vordergrund, weil Hintergrundarbeit hier nicht verfügbar ist, daher hat die App möglicherweise kurz gestockt.",
   infoTitle: "Fokus-Stacking",
   infoMadeFrom: (n: number) => plural(n, { one: `Aus ${n} Foto erstellt:`, other: `Aus ${n} Fotos erstellt:` }),
   infoHow: "Jeder Bereich stammt aus dem dort schärfsten Foto, weich überblendet. Es wurden keine Pixel erzeugt.",

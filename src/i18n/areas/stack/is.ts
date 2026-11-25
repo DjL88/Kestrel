@@ -27,6 +27,7 @@ export const is: AreaTranslation<typeof source> = {
   frameUnused: (n: number) => `Mynd ${n} bætti nánast engu við.`,
   oneFrameDominates: "Ein mynd lagði til nánast öll smáatriðin. Athugaðu hvort myndirnar voru teknar í mismunandi fókusfjarlægð.",
   localFallback: (n: number) => `Mynd ${n} var aðeins stillt saman í heild: of lítið af samsvarandi smáatriðum fyrir nákvæmari stillingu.`,
+  mainThread: "Það keyrði í forgrunni því bakgrunnsvinnsla er ekki í boði hér, svo forritið gæti hafa hikstað á meðan.",
   infoTitle: "Fókusstafli",
   infoMadeFrom: (n: number) => plural(n, { one: `Gerð úr ${n} mynd:`, other: `Gerð úr ${n} myndum:` }),
   infoHow: "Hver hluti kemur úr skörpustu myndinni á þeim stað, mjúklega blandað. Engir dílar voru búnir til.",

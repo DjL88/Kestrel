@@ -27,6 +27,7 @@ export const ga: AreaTranslation<typeof source> = {
   frameUnused: (n: number) => `Is beag nár chuir grianghraf ${n} aon rud leis.`,
   oneFrameDominates: "Thug grianghraf amháin beagnach na mionsonraí go léir. Seiceáil gur glacadh na grianghraif ag faid fhócais éagsúla.",
   localFallback: (n: number) => `Níor ailíníodh grianghraf ${n} ach ina iomláine: bhí ró-bheagán mionsonraí comhoiriúnacha ann d'ailíniú níos míne.`,
+  mainThread: "Ritheadh é sa tulra mar nach bhfuil obair chúlra ar fáil anseo, mar sin b'fhéidir gur stad an aip uaireanta.",
   infoTitle: "Cruach fócais",
   infoMadeFrom: (n: number) => plural(n, { one: `Déanta ó ${n} grianghraf:`, other: `Déanta ó ${n} grianghraf:` }),
   infoHow: "Tagann gach cuid ón ngrianghraf is géire san áit sin, cumaiscthe go réidh. Níor gineadh aon phicteilín.",
