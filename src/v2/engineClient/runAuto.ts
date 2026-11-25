@@ -24,7 +24,7 @@ import { newId } from '../../core/ids';
 import { identifySubject } from '../../providers/autoSpecies';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import { loadImage } from '../../providers/loadImage';
-import { loadExportSource } from '../../providers/browserExport';
+import { loadAnalysisPicture } from '../../providers/analysisPicture';
 import { editorText as t } from '../../i18n/areas/editor';
 import { renderAutoCandidates, type AutoCandidate } from './renderAutoCandidates';
 import { engineText } from '../../i18n/areas/engine';
@@ -82,10 +82,14 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   const url = raw ? null : await provider.getFullPreviewUrl(frame, 'selected');
   if (signal?.aborted) return null;
   if (!raw && !url) return unavailable('no-preview');
-  const source = raw ? await loadExportSource(frame, provider) : await loadImage(url!);
+  // A RAW is analysed from its screen-size sensor develop (stored after import, or made now): the analysis works at 640 px
+  // and the subject guide at most 2,400, so a full 45 MP develop (about 25 s for a Nikon Z 8) is never needed here.
+  const developed = raw ? await loadAnalysisPicture(frame, provider, signal).catch(() => null) : null;
   if (signal?.aborted) return null;
   // Never analyse the camera's embedded JPEG as if it were the RAW; say why instead of finishing silently.
-  if (raw && !provider.isDeveloped(frame.stableKey)) return unavailable('raw-not-developed');
+  if (raw && !developed) return unavailable('raw-not-developed');
+  const source = developed ?? await loadImage(url!);
+  if (signal?.aborted) return null;
   const framing = frame.framing ?? DEFAULT_FRAMING;
   const edge = Math.max(source.naturalWidth, source.naturalHeight);
   const analysisCanvas = document.createElement('canvas');
