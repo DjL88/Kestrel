@@ -65,7 +65,7 @@ python -m pytest scripts tools/denoise-training tools/lightroom   # when Python 
 
 ## Merging
 - Merge when every check relevant to the change has PASSED on a real checkout and the results are written in the PR.
-- **While GitHub Actions is billing-blocked (until about 24 Nov 2026), the owner has authorised merging on local results.** Workflow runs that fail with zero steps are INFRASTRUCTURE BLOCKED, not failures. Don't re-run them, and don't pay to get around the block.
+- **GitHub Actions is the check of record again (owner, 25 Nov 2026).** Push your branch and open the PR (draft is fine). The CI workflow runs lint, every unit test, the build check and the V2 browser tests on desktop and phone; Python and desktop (Rust) workflows run when those parts change. Merge on a green run. On the laptop, run only fast targeted tests for what you changed, and reproduce a CI failure locally only when you need to debug it. Push meaningful commits rather than every small save, because each push uses paid Actions minutes. A run that fails with zero steps is infrastructure, not a test failure: report it, and don't re-run it in a loop.
 - Squash-merge, delete the branch, and add a line to the ROADMAP integration log.
 - A change to Rust that couldn't be compiled stays unmerged unless it only touches tests or message text, and the PR says so.
 
