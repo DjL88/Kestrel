@@ -256,7 +256,10 @@ test('?v2 Co-pilot checks the photo on this device, suggests Auto, and applying 
     await apply.first().click();
     // One edit: History shows the original and exactly one step after applying.
     await root.getByRole('button', { name: 'History' }).first().click();
-    await expect(root.getByRole('list', { name: 'History' }).getByRole('button')).toHaveCount(2);
+    // Since #1522 the Auto step also carries its own "Undo this change" button; the steps are still the original and one.
+    const historyList = root.getByRole('list', { name: 'History' });
+    await expect(historyList.getByRole('button', { name: 'Undo this change' })).toHaveCount(1);
+    await expect(historyList.getByRole('button').filter({ hasNotText: 'Undo this change' })).toHaveCount(2);
   } else {
     await expect(panel.getByText(/Looks good|Cannot improve/).first()).toBeVisible();
   }
