@@ -518,6 +518,16 @@ export const gd: AreaTranslation<typeof source> = {
     feedbackDetails: 'Beachdan a rèir deilbh',
     feedbackShow: 'Seall an dealbh',
     feedbackChangesLabel: 'Atharraichean a dh’iarradh',
+    sharedTheirs: (name: string) => `Tha ${name} a’ deasachadh an deilbh seo. ’S urrainn dhut coimhead, agus a dheasachadh nuair a ghluaiseas iad air adhart.`,
+    sharedSomeone: 'Cuideigin eile',
+    sharedMine: 'Air a thoirt a-mach dhutsa. Thèid na deasachaidhean agad a cho-roinneadh mar a thèid thu air adhart.',
+    sharedDraftOffline: 'Far loidhne. Thèid na deasachaidhean agad a chumail air an uidheam seo agus a cho-roinneadh nuair a bhios tu air loidhne a-rithist.',
+    sharedDraftLost: 'Chan eil an dealbh seo air a thoirt a-mach dhutsa tuilleadh. Thèid na deasachaidhean agad a chumail air an uidheam seo.',
+    sharedConflict: 'Shàbhail cuideigin eile an dealbh seo fhad ’s a bha thu ga dheasachadh. Tagh an deasachadh a chleachdas tu. Cha tèid càil air chall: fanaidh am fear eile ann an eachdraidh an deilbh.',
+    sharedKeepMine: 'Cùm am fear agamsa',
+    sharedKeepTheirs: 'Cleachd am fear acasan',
+    sharedRetry: 'Feuch a-rithist',
+    sharedNoKey: 'Chan eil lorg-meòir tùsail dearbhte aig an dealbh seo, mar sin fanaidh na deasachaidhean aige air an uidheam seo.',
   },
   adjust: {
     grade: {

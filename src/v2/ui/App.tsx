@@ -37,6 +37,8 @@ import RemovedPhotosDialog from './dialogs/RemovedPhotosDialog';
 import ShareDialog from './dialogs/ShareDialog';
 import { usePresence } from './shell/usePresence';
 import { PresenceAvatars, PresenceCursors } from './shell/PresenceLayer';
+import SharedEditBanner from './shell/SharedEditBanner';
+import { useSharedEditing } from './shell/useSharedEditing';
 import { collabClient } from '../../providers/collabClient';
 import { firebaseAuth } from '../../providers/firebaseAuth';
 import SettingsDialog from './dialogs/SettingsDialog';
@@ -158,7 +160,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   }, [store.compareMode, store.collage, store.selectedPhotoIds, store.photos]);
   const [pairSwapped, setPairSwapped] = useState(false);
   const xmpInputRef = useRef<HTMLInputElement>(null);
-  const peers = usePresence(sharing, store.collage ? null : store.activeProjectId, activePhoto?.id ?? null, signedInName, shareVersion);
+  const peers = usePresence(sharing, store.collage ? null : store.activeProjectId, activePhoto?.sharedKey ?? null, signedInName, shareVersion);
+  const sharedEditing = useSharedEditing(sharing, store.collage ? null : store.activeProjectId, activePhoto?.id ?? null, activePhoto?.sharedKey, actions, activePhoto, shareVersion);
+  // Someone else has this photo out, or both sides changed it: the editing panels are view-only until that is settled.
+  const editLocked = sharedEditing.state.kind === 'theirs' || sharedEditing.state.kind === 'conflict';
   const hoveredLook = store.looks.find((l) => l.id === store.hoveredLookId) ?? null;
   const runningTaskCount = store.tasks.filter((t) => t.status === 'running').length;
 
@@ -196,12 +201,12 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'edit.undo': actions.undo(); break;
       case 'edit.redo': actions.redo(); break;
       case 'edit.copy': actions.copyRecipe(); break;
-      case 'edit.paste': actions.pasteRecipe(); break;
+      case 'edit.paste': if (!editLocked) actions.pasteRecipe(); break;
       case 'edit.selectAll': actions.selectAllPhotos(); break;
       case 'file.export': actions.setExportOpen(true); break;
       case 'app.settings': actions.setSettingsOpen(true); break;
     }
-  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, activePhoto, actions, pairPhotos]);
+  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, activePhoto, actions, pairPhotos, editLocked]);
 
   // The desktop app's native menu (File, Edit, Photo, View, Settings). Some of its accelerators (Cmd/Ctrl+E, +A, +O, +M)
   // are taken before the page sees the key, so the menu choice must run the action itself.
@@ -221,7 +226,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'backupFile': if (inEditor && !store.collage) actions.saveProjectBackupFile(); break;
       case 'saveXmp': if (inEditor && !store.collage) actions.saveXmpSidecars(store.selectedPhotoIds); break;
       case 'readXmp': if (inEditor && !store.collage) xmpInputRef.current?.click(); break;
-      case 'resetPhoto': if (inEditor && activePhoto) actions.resetPhotoEdits(activePhoto.id); break;
+      case 'resetPhoto': if (inEditor && activePhoto && !editLocked) actions.resetPhotoEdits(activePhoto.id); break;
       case 'backToProjects': if (inEditor) actions.backToProjects(); break;
     }
   });
@@ -251,7 +256,18 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [store.screen, shortcutGuideOpen, keymap, pad, runCommand]);
 
+  const EDITING_PANELS: PanelId[] = ['adjust', 'masks', 'enhance', 'copilot'];
   const renderPanelContent = (panelId: PanelId) => {
+    const inner = renderPanelInner(panelId);
+    if (!EDITING_PANELS.includes(panelId)) return inner;
+    return (
+      <>
+        <SharedEditBanner state={sharedEditing.state} onKeepMine={sharedEditing.keepMine} onKeepTheirs={sharedEditing.keepTheirs} onRetry={sharedEditing.retry} />
+        {editLocked ? <fieldset disabled className="contents" data-testid="shared-edit-locked">{inner}</fieldset> : inner}
+      </>
+    );
+  };
+  const renderPanelInner = (panelId: PanelId) => {
     switch (panelId) {
       case 'copilot':
         return (
@@ -533,7 +549,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetAssistMode={actions.setAssistMode}
             onExport={() => actions.setExportOpen(true)}
             onShare={store.collage ? undefined : () => setShareOpen(true)}
-            presence={<PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(id) => actions.selectPhoto(id)} />}
+            presence={<PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(key) => { const photo = store.photos.find((candidate) => candidate.sharedKey === key); if (photo) actions.selectPhoto(photo.id); }} />}
             onOpenRemoved={() => actions.setRemovedOpen(true)}
             onSaveXmp={store.screen === 'editor' && !store.collage ? () => actions.saveXmpSidecars(store.selectedPhotoIds) : undefined}
             onBackUpNow={store.screen === 'editor' && !store.collage ? actions.backUpProjectNow : undefined}
@@ -895,7 +911,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         onExport={actions.runExport}
       />
 
-      <PresenceCursors peers={peers} photoId={activePhoto?.id ?? null} hidden={cursorsHidden} />
+      <PresenceCursors peers={peers} photoId={activePhoto?.sharedKey ?? null} hidden={cursorsHidden} />
       <ShareDialog
         open={shareOpen}
         client={sharing}

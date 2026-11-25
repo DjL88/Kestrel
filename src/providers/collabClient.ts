@@ -10,7 +10,7 @@ import type { GalleryFeedbackEvent } from '../core/galleryFeedback';
 export type CollabErrorKind = 'not-configured' | 'sign-in' | 'not-entitled' | 'switched-off' | 'not-permitted' | 'refused' | 'network';
 
 export class CollabError extends Error {
-  constructor(readonly kind: CollabErrorKind, readonly code = '', message = 'Could not reach sharing.') { super(message); this.name = 'CollabError'; }
+  constructor(readonly kind: CollabErrorKind, readonly code = '', message = 'Could not reach sharing.', readonly detail: Record<string, unknown> = {}) { super(message); this.name = 'CollabError'; }
 }
 
 export interface CollabMemberView { accountId: string; role: CollabRole; displayName: string; photoIds?: string[] }
@@ -32,6 +32,9 @@ async function sha256Hex(blob: Blob): Promise<string> {
 }
 
 export interface GalleryListItem { galleryId: string; name: string; expiresAtMs: number; photos: number; photoIds: string[]; published: number; password: boolean }
+
+export interface SharedLeaseView { photoId: string; holder: string | null; mine: boolean }
+export interface SharedRevisionMeta { id: string; number: number; parentId: string | null; authorAccountId: string; createdAtMs: number; virtualCopyOf?: string }
 
 export interface CollabInvite { projectId: string; name: string; role: CollabRole }
 
@@ -67,7 +70,7 @@ async function request(url: string, fetcher: typeof fetch, method: 'GET' | 'POST
   if (!response.ok) {
     const error = isRecord(parsed) && isRecord(parsed.error) ? parsed.error : {};
     const code = typeof error.code === 'string' ? error.code : '';
-    throw new CollabError(kindFor(response.status, code), code, typeof error.message === 'string' ? error.message : undefined);
+    throw new CollabError(kindFor(response.status, code), code, typeof error.message === 'string' ? error.message : undefined, isRecord(error.detail) ? error.detail : {});
   }
   if (!isRecord(parsed)) throw new CollabError('network');
   return parsed;
@@ -87,6 +90,13 @@ export interface CollabClient {
   galleries(projectId: string): Promise<GalleryListItem[]>;
   galleryFeedback(galleryId: string): Promise<GalleryFeedbackEvent[]>;
   revokeGallery(galleryId: string): Promise<void>;
+  leases(projectId: string): Promise<SharedLeaseView[]>;
+  acquire(projectId: string, photoKey: string, deviceId: string): Promise<{ token: string; baseRevisionId: string | null }>;
+  heartbeat(projectId: string, photoKey: string, token: string, editing: boolean): Promise<void>;
+  release(projectId: string, photoKey: string, token: string, action: 'checked-in' | 'released'): Promise<void>;
+  history(projectId: string, photoKey: string): Promise<{ headId: string | null; revisions: SharedRevisionMeta[] }>;
+  revision(projectId: string, photoKey: string, revisionId: string): Promise<{ recipe: Record<string, unknown> } & SharedRevisionMeta>;
+  publish(projectId: string, photoKey: string, request: { token: string; baseRevisionId: string | null; recipe: Record<string, unknown>; virtualCopyOf?: string }): Promise<SharedRevisionMeta>;
   presenceToken(projectId: string): Promise<{ customToken: string; databaseUrl: string; uid: string; expiresAtMs: number }>;
 }
 
@@ -126,6 +136,20 @@ export function collabClient(baseUrl: string | undefined | null, idToken: () => 
       }
       return { galleryId, linkToken: String(made.linkToken), expiresAtMs: Number(made.expiresAtMs), published };
     },
+    leases: async (id) => ((await call('GET', P(id) + '/leases')).leases ?? []) as SharedLeaseView[],
+    acquire: async (id, key, deviceId) => {
+      const lease = (await call('POST', `${P(id)}/photos/${encodeURIComponent(key)}/lease`, { deviceId })).lease as Json | undefined;
+      if (!lease || typeof lease.token !== 'string') throw new CollabError('network');
+      return { token: lease.token, baseRevisionId: typeof lease.baseRevisionId === 'string' ? lease.baseRevisionId : null };
+    },
+    heartbeat: async (id, key, token, editing) => { await call('POST', `${P(id)}/photos/${encodeURIComponent(key)}/heartbeat`, { token, editing }); },
+    release: async (id, key, token, action) => { await call('POST', `${P(id)}/photos/${encodeURIComponent(key)}/release`, { token, action }); },
+    history: async (id, key) => {
+      const data = await call('GET', `${P(id)}/photos/${encodeURIComponent(key)}/revisions`);
+      return { headId: typeof data.headId === 'string' ? data.headId : null, revisions: (data.revisions ?? []) as SharedRevisionMeta[] };
+    },
+    revision: async (id, key, rid) => (await call('GET', `${P(id)}/photos/${encodeURIComponent(key)}/revisions/${encodeURIComponent(rid)}`)) as unknown as { recipe: Record<string, unknown> } & SharedRevisionMeta,
+    publish: async (id, key, request) => (await call('POST', `${P(id)}/photos/${encodeURIComponent(key)}/revisions`, request)).revision as SharedRevisionMeta,
     galleries: async (id) => ((await call('GET', P(id) + '/galleries')).galleries ?? []) as GalleryListItem[],
     galleryFeedback: async (gid) => ((await call('GET', `/v1/collab/galleries/${encodeURIComponent(gid)}/feedback`)).events ?? []) as GalleryFeedbackEvent[],
     revokeGallery: async (gid) => { await call('POST', `/v1/collab/galleries/${encodeURIComponent(gid)}/revoke`); },

@@ -518,6 +518,16 @@ export const fi: AreaTranslation<typeof source> = {
     feedbackDetails: 'Palaute kuvittain',
     feedbackShow: 'Näytä kuva',
     feedbackChangesLabel: 'Muutoksia pyydetty',
+    sharedTheirs: (name: string) => `${name} muokkaa tätä kuvaa. Voit katsoa sitä ja muokata sitä, kun hän siirtyy eteenpäin.`,
+    sharedSomeone: 'Joku muu',
+    sharedMine: 'Varattu sinulle. Muokkauksesi jaetaan sitä mukaa.',
+    sharedDraftOffline: 'Ei yhteyttä. Muokkauksesi säilyvät tällä laitteella ja jaetaan, kun olet taas verkossa.',
+    sharedDraftLost: 'Tämä kuva ei ole enää varattu sinulle. Muokkauksesi säilyvät tällä laitteella.',
+    sharedConflict: 'Joku muu tallensi tämän kuvan, kun muokkasit sitä. Valitse, kumpaa muokkausta käytetään. Mitään ei menetetä: toinen jää kuvan historiaan.',
+    sharedKeepMine: 'Pidä omani',
+    sharedKeepTheirs: 'Käytä heidän',
+    sharedRetry: 'Yritä uudelleen',
+    sharedNoKey: 'Tällä kuvalla ei ole vahvistettua alkuperäisen sormenjälkeä, joten sen muokkaukset jäävät tälle laitteelle.',
   },
   adjust: {
     grade: {

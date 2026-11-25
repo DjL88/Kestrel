@@ -546,6 +546,16 @@ export const source = {
     feedbackDetails: 'Feedback by photo',
     feedbackShow: 'Show photo',
     feedbackChangesLabel: 'Changes asked',
+    sharedTheirs: (name: string) => `${name} is editing this photo. You can look, and edit it once they move on.`,
+    sharedSomeone: 'Someone else',
+    sharedMine: 'Checked out to you. Your edits are shared as you go.',
+    sharedDraftOffline: 'Offline. Your edits are kept on this device and shared when you are back online.',
+    sharedDraftLost: 'This photo is no longer checked out to you. Your edits are kept on this device.',
+    sharedConflict: 'Someone else saved this photo while you were editing it. Choose which edit to use. Nothing is lost: the other stays in the photo’s history.',
+    sharedKeepMine: 'Keep mine',
+    sharedKeepTheirs: 'Use theirs',
+    sharedRetry: 'Try again',
+    sharedNoKey: 'This photo has no verified original fingerprint, so its edits stay on this device.',
   },
 
   // Adjust Panel

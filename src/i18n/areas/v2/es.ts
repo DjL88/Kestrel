@@ -517,6 +517,16 @@ export const es: AreaTranslation<typeof source> = {
     feedbackDetails: 'Opiniones por foto',
     feedbackShow: 'Mostrar foto',
     feedbackChangesLabel: 'Cambios pedidos',
+    sharedTheirs: (name: string) => `${name} está editando esta foto. Puede verla, y editarla cuando termine.`,
+    sharedSomeone: 'Otra persona',
+    sharedMine: 'Reservada para usted. Sus ediciones se comparten sobre la marcha.',
+    sharedDraftOffline: 'Sin conexión. Sus ediciones se guardan en este dispositivo y se compartirán cuando vuelva a estar en línea.',
+    sharedDraftLost: 'Esta foto ya no está reservada para usted. Sus ediciones se guardan en este dispositivo.',
+    sharedConflict: 'Otra persona guardó esta foto mientras usted la editaba. Elija qué edición usar. No se pierde nada: la otra queda en el historial de la foto.',
+    sharedKeepMine: 'Quedarme con la mía',
+    sharedKeepTheirs: 'Usar la suya',
+    sharedRetry: 'Reintentar',
+    sharedNoKey: 'Esta foto no tiene una huella verificada del original, así que sus ediciones se quedan en este dispositivo.',
   },
   adjust: {
     grade: {

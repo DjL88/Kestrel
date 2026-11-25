@@ -27,6 +27,7 @@ import { buildEditingSequence } from '../../core/editingSequence';
 import type { PhotoEdit } from '../../core/photoEdits';
 import { VEHICLE_LABELS } from '../../core/vehicleLabels';
 import { validVehicleReading, vehicleLabel, vehicleSearchWords } from '../../core/vehicleRecognition';
+import { sharedPhotoKey } from '../../core/sharedSync';
 import { vehicleText, vehicleTextEnglish } from '../../i18n/areas/vehicles';
 
 /** A transparent pixel, so a photo whose picture is not ready yet shows an empty tile rather than a broken image. */
@@ -194,6 +195,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
   const thumb = urls?.thumb ?? BLANK_IMAGE;
   return {
     id: frame.id,
+    sharedKey: sharedPhotoKey(frame.originalSha256, frame.virtualCopy?.number),
     filename: frame.filename,
     title: titleOf(frame.filename),
     previewUrl: urls?.preview ?? thumb,

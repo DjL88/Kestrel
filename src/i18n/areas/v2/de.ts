@@ -517,6 +517,16 @@ export const de: AreaTranslation<typeof source> = {
     feedbackDetails: 'Feedback pro Foto',
     feedbackShow: 'Foto zeigen',
     feedbackChangesLabel: 'Änderungen gewünscht',
+    sharedTheirs: (name: string) => `${name} bearbeitet dieses Foto. Sie können es ansehen und bearbeiten, sobald die Person weitergeht.`,
+    sharedSomeone: 'Jemand anderes',
+    sharedMine: 'Für Sie ausgecheckt. Ihre Änderungen werden laufend geteilt.',
+    sharedDraftOffline: 'Offline. Ihre Änderungen bleiben auf diesem Gerät und werden geteilt, sobald Sie wieder online sind.',
+    sharedDraftLost: 'Dieses Foto ist nicht mehr für Sie ausgecheckt. Ihre Änderungen bleiben auf diesem Gerät.',
+    sharedConflict: 'Jemand anderes hat dieses Foto gespeichert, während Sie es bearbeitet haben. Wählen Sie, welche Bearbeitung gilt. Nichts geht verloren: Die andere bleibt im Verlauf des Fotos.',
+    sharedKeepMine: 'Meine behalten',
+    sharedKeepTheirs: 'Ihre verwenden',
+    sharedRetry: 'Erneut versuchen',
+    sharedNoKey: 'Dieses Foto hat keinen geprüften Original-Fingerabdruck, daher bleiben seine Änderungen auf diesem Gerät.',
   },
   adjust: {
     grade: {

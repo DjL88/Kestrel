@@ -517,6 +517,16 @@ export const nl: AreaTranslation<typeof source> = {
     feedbackDetails: 'Feedback per foto',
     feedbackShow: 'Foto tonen',
     feedbackChangesLabel: 'Wijzigingen gevraagd',
+    sharedTheirs: (name: string) => `${name} bewerkt deze foto. Je kunt kijken, en hem bewerken zodra die persoon verdergaat.`,
+    sharedSomeone: 'Iemand anders',
+    sharedMine: 'Voor jou uitgecheckt. Je bewerkingen worden gaandeweg gedeeld.',
+    sharedDraftOffline: 'Offline. Je bewerkingen blijven op dit apparaat en worden gedeeld zodra je weer online bent.',
+    sharedDraftLost: 'Deze foto is niet meer voor jou uitgecheckt. Je bewerkingen blijven op dit apparaat.',
+    sharedConflict: 'Iemand anders heeft deze foto opgeslagen terwijl jij hem bewerkte. Kies welke bewerking je gebruikt. Er gaat niets verloren: de andere blijft in de geschiedenis van de foto.',
+    sharedKeepMine: 'Die van mij houden',
+    sharedKeepTheirs: 'Die van hen gebruiken',
+    sharedRetry: 'Opnieuw proberen',
+    sharedNoKey: 'Deze foto heeft geen geverifieerde vingerafdruk van het origineel, dus de bewerkingen blijven op dit apparaat.',
   },
   adjust: {
     grade: {

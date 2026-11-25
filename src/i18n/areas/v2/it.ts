@@ -517,6 +517,16 @@ export const it: AreaTranslation<typeof source> = {
     feedbackDetails: 'Riscontri per foto',
     feedbackShow: 'Mostra foto',
     feedbackChangesLabel: 'Modifiche richieste',
+    sharedTheirs: (name: string) => `${name} sta modificando questa foto. Può guardarla, e modificarla quando avrà finito.`,
+    sharedSomeone: 'Qualcun altro',
+    sharedMine: 'Riservata a lei. Le sue modifiche vengono condivise man mano.',
+    sharedDraftOffline: 'Non in linea. Le sue modifiche restano su questo dispositivo e verranno condivise quando tornerà in linea.',
+    sharedDraftLost: 'Questa foto non è più riservata a lei. Le sue modifiche restano su questo dispositivo.',
+    sharedConflict: 'Qualcun altro ha salvato questa foto mentre la modificava. Scelga quale modifica usare. Non si perde nulla: l’altra resta nella cronologia della foto.',
+    sharedKeepMine: 'Tieni la mia',
+    sharedKeepTheirs: 'Usa la loro',
+    sharedRetry: 'Riprova',
+    sharedNoKey: 'Questa foto non ha un’impronta verificata dell’originale, quindi le sue modifiche restano su questo dispositivo.',
   },
   adjust: {
     grade: {

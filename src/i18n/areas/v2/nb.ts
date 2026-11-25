@@ -517,6 +517,16 @@ export const nb: AreaTranslation<typeof source> = {
     feedbackDetails: 'Tilbakemelding per bilde',
     feedbackShow: 'Vis bilde',
     feedbackChangesLabel: 'Endringer ønsket',
+    sharedTheirs: (name: string) => `${name} redigerer dette bildet. Du kan se på det og redigere det når vedkommende går videre.`,
+    sharedSomeone: 'Noen andre',
+    sharedMine: 'Sjekket ut til deg. Endringene dine deles fortløpende.',
+    sharedDraftOffline: 'Frakoblet. Endringene dine lagres på denne enheten og deles når du er på nett igjen.',
+    sharedDraftLost: 'Dette bildet er ikke lenger sjekket ut til deg. Endringene dine lagres på denne enheten.',
+    sharedConflict: 'Noen andre lagret dette bildet mens du redigerte det. Velg hvilken redigering som skal brukes. Ingenting går tapt: den andre blir i bildets historikk.',
+    sharedKeepMine: 'Behold min',
+    sharedKeepTheirs: 'Bruk deres',
+    sharedRetry: 'Prøv igjen',
+    sharedNoKey: 'Dette bildet har ikke noe verifisert fingeravtrykk av originalen, så endringene blir på denne enheten.',
   },
   adjust: {
     grade: {

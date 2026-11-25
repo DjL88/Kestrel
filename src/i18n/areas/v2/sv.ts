@@ -517,6 +517,16 @@ export const sv: AreaTranslation<typeof source> = {
     feedbackDetails: 'Feedback per foto',
     feedbackShow: 'Visa foto',
     feedbackChangesLabel: 'Ändringar önskade',
+    sharedTheirs: (name: string) => `${name} redigerar det här fotot. Du kan titta och redigera det när personen går vidare.`,
+    sharedSomeone: 'Någon annan',
+    sharedMine: 'Utcheckat till dig. Dina ändringar delas efter hand.',
+    sharedDraftOffline: 'Offline. Dina ändringar sparas på den här enheten och delas när du är online igen.',
+    sharedDraftLost: 'Det här fotot är inte längre utcheckat till dig. Dina ändringar sparas på den här enheten.',
+    sharedConflict: 'Någon annan sparade det här fotot medan du redigerade det. Välj vilken redigering som ska gälla. Inget går förlorat: den andra finns kvar i fotots historik.',
+    sharedKeepMine: 'Behåll min',
+    sharedKeepTheirs: 'Använd deras',
+    sharedRetry: 'Försök igen',
+    sharedNoKey: 'Det här fotot saknar verifierat fingeravtryck av originalet, så ändringarna stannar på den här enheten.',
   },
   adjust: {
     grade: {

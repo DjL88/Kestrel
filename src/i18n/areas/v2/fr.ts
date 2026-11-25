@@ -517,6 +517,16 @@ export const fr: AreaTranslation<typeof source> = {
     feedbackDetails: 'Avis par photo',
     feedbackShow: 'Afficher la photo',
     feedbackChangesLabel: 'Modifications demandées',
+    sharedTheirs: (name: string) => `${name} modifie cette photo. Vous pouvez la regarder, et la modifier dès qu’elle aura fini.`,
+    sharedSomeone: 'Quelqu’un d’autre',
+    sharedMine: 'Réservée pour vous. Vos modifications sont partagées au fur et à mesure.',
+    sharedDraftOffline: 'Hors ligne. Vos modifications restent sur cet appareil et seront partagées à votre retour en ligne.',
+    sharedDraftLost: 'Cette photo ne vous est plus réservée. Vos modifications restent sur cet appareil.',
+    sharedConflict: 'Quelqu’un d’autre a enregistré cette photo pendant que vous la modifiiez. Choisissez la modification à garder. Rien n’est perdu : l’autre reste dans l’historique de la photo.',
+    sharedKeepMine: 'Garder la mienne',
+    sharedKeepTheirs: 'Utiliser la leur',
+    sharedRetry: 'Réessayer',
+    sharedNoKey: 'Cette photo n’a pas d’empreinte d’original vérifiée, ses modifications restent donc sur cet appareil.',
   },
   adjust: {
     grade: {

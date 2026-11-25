@@ -517,6 +517,16 @@ export const cy: AreaTranslation<typeof source> = {
     feedbackDetails: 'Adborth fesul llun',
     feedbackShow: 'Dangos y llun',
     feedbackChangesLabel: 'Newidiadau a ofynnwyd',
+    sharedTheirs: (name: string) => `Mae ${name} yn golygu’r llun hwn. Gallwch edrych, a’i olygu pan fyddan nhw’n symud ymlaen.`,
+    sharedSomeone: 'Rhywun arall',
+    sharedMine: 'Wedi’i gymryd allan i chi. Caiff eich golygiadau eu rhannu wrth i chi fynd.',
+    sharedDraftOffline: 'All-lein. Caiff eich golygiadau eu cadw ar y ddyfais hon a’u rhannu pan fyddwch ar-lein eto.',
+    sharedDraftLost: 'Nid yw’r llun hwn wedi’i gymryd allan i chi mwyach. Caiff eich golygiadau eu cadw ar y ddyfais hon.',
+    sharedConflict: 'Cadwodd rhywun arall y llun hwn tra oeddech yn ei olygu. Dewiswch pa olygiad i’w ddefnyddio. Does dim yn cael ei golli: mae’r llall yn aros yn hanes y llun.',
+    sharedKeepMine: 'Cadw fy un i',
+    sharedKeepTheirs: 'Defnyddio’u un nhw',
+    sharedRetry: 'Rhoi cynnig arall',
+    sharedNoKey: 'Does gan y llun hwn ddim olion bysedd gwreiddiol wedi’u gwirio, felly mae ei olygiadau’n aros ar y ddyfais hon.',
   },
   adjust: {
     grade: {

@@ -520,6 +520,16 @@ export const ga: AreaTranslation<typeof source> = {
     feedbackDetails: 'Aiseolas de réir grianghraif',
     feedbackShow: 'Taispeáin an grianghraf',
     feedbackChangesLabel: 'Athruithe iarrtha',
+    sharedTheirs: (name: string) => `Tá ${name} ag eagarthóireacht an ghrianghraif seo. Is féidir leat féachaint air, agus é a chur in eagar nuair a bhogann siad ar aghaidh.`,
+    sharedSomeone: 'Duine eile',
+    sharedMine: 'Seiceáilte amach duitse. Comhroinntear d’athruithe de réir a chéile.',
+    sharedDraftOffline: 'As líne. Coinnítear d’athruithe ar an ngléas seo agus comhroinnfear iad nuair a bheidh tú ar líne arís.',
+    sharedDraftLost: 'Níl an grianghraf seo seiceáilte amach duit a thuilleadh. Coinnítear d’athruithe ar an ngléas seo.',
+    sharedConflict: 'Shábháil duine eile an grianghraf seo agus tú á chur in eagar. Roghnaigh cén leagan le húsáid. Ní chailltear tada: fanann an ceann eile i stair an ghrianghraif.',
+    sharedKeepMine: 'Coinnigh mo cheann féin',
+    sharedKeepTheirs: 'Úsáid a gceann siúd',
+    sharedRetry: 'Bain triail eile as',
+    sharedNoKey: 'Níl méarlorg fíoraithe bunleagain ag an ngrianghraf seo, mar sin fanann a athruithe ar an ngléas seo.',
   },
   adjust: {
     grade: {

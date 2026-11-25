@@ -517,6 +517,16 @@ export const is: AreaTranslation<typeof source> = {
     feedbackDetails: 'Endurgjöf eftir mynd',
     feedbackShow: 'Sýna mynd',
     feedbackChangesLabel: 'Breytinga óskað',
+    sharedTheirs: (name: string) => `${name} er að breyta þessari mynd. Þú getur skoðað hana og breytt henni þegar viðkomandi heldur áfram.`,
+    sharedSomeone: 'Einhver annar',
+    sharedMine: 'Frátekin fyrir þig. Breytingum þínum er deilt jafnóðum.',
+    sharedDraftOffline: 'Ótengt. Breytingar þínar eru geymdar á þessu tæki og þeim deilt þegar þú ert aftur nettengd(ur).',
+    sharedDraftLost: 'Þessi mynd er ekki lengur frátekin fyrir þig. Breytingar þínar eru geymdar á þessu tæki.',
+    sharedConflict: 'Einhver annar vistaði þessa mynd á meðan þú varst að breyta henni. Veldu hvaða breytingu á að nota. Ekkert tapast: hin verður áfram í sögu myndarinnar.',
+    sharedKeepMine: 'Halda minni',
+    sharedKeepTheirs: 'Nota þeirra',
+    sharedRetry: 'Reyna aftur',
+    sharedNoKey: 'Þessi mynd er ekki með staðfest fingrafar frumritsins, svo breytingar hennar verða áfram á þessu tæki.',
   },
   adjust: {
     grade: {
