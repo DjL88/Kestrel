@@ -9,6 +9,7 @@ import { verifyLicence } from '../../../src/core/licence.ts';
 import { newerRelease } from '../../../src/core/desktopRelease.ts';
 import { inspectJpeg } from '../../../src/core/jpegInspect.ts';
 import type { Config } from './config.ts';
+import { MergeRefusal } from './accountMerge.ts';
 import { hashPassword, randomId, sha256Hex, signEnvelope, signSession, uuid, verifyPassword, verifySession, verifyWebhook, type SessionClaims } from './crypto.ts';
 import { SqliteStore } from './sqliteStore.ts';
 import { MemoryDemoStudio, publicExamples, adminExamples, type DemoStudioStore, type ExampleFields } from './demoStudio.ts';
@@ -116,6 +117,8 @@ export interface AppOptions {
   cloudPhotos?: { store: CloudPhotoStore; meter: UsageMeter; allowance: AllowancePolicy; maxProjectBytes: number };
   /** Prepaid cloud balance (top-ups; pays beyond the free allowances). Absent: allowances are hard limits. */
   cloudBalance?: import('./cloudBalance.ts').CloudBalance;
+  /** Merging two accounts the person owns (accountMerge.ts). Absent: the merge routes answer 503. */
+  accountMerge?: import('./accountMerge.ts').AccountMerges;
   /** Hard monthly ceiling on metered spend (Gemini, cloud jobs). Absent: no guard (development and tests). */
   spend?: SpendOptions;
   /** Acceptable-use checks on shared and cloud photos, and the report-a-gallery queue (contentSafety.ts). */
@@ -290,6 +293,8 @@ export const Schemas = {
   DeactivateRequest: z.object({ licenceKey: z.string().min(10).max(2000), activationId: z.string().min(1).max(64) }).strict(),
   AccountActivateRequest: z.object({ deviceHash: Hex64, platform: Platform, appVersion: Version }).strict(),
   AttachLicenceRequest: z.object({ licenceKey: z.string().min(10).max(2000) }).strict(),
+  MergeTicketRequest: z.object({ ticket: z.string().min(20).max(400) }).strict(),
+  MergeUndoRequest: z.object({ mergeId: z.string().regex(/^mrg_[0-9a-f]{24}$/) }).strict(),
   AccountDevicesRequest: z.object({ deviceHash: Hex64 }).strict(),
   AccountDeviceReleaseRequest: z.object({ deviceHash: Hex64, activationId: z.string().min(1).max(64) }).strict(),
   ActivateResponse: z.object({ grant: SignedEnvelopeSchema, activationId: z.string() }),
@@ -449,6 +454,7 @@ export function createApp(options: AppOptions) {
       await store.createAccount({ accountId: `acc_${randomId(12)}`, emailHash, passwordHash: `${provider}-only`, role: 'user', status: 'active', createdAtMs: now(), aiConsent: false });
       account = await store.findAccountByEmailHash(emailHash);
     }
+    if (account?.status === 'merged') throw new ApiError(403, 'ACCOUNT_MERGED', 'This account was merged into another InFlight account. Sign in with that account: everything from this one is there. The merge can be undone from that account for 30 days.');
     if (!account || account.status !== 'active') throw new ApiError(403, 'FORBIDDEN', 'This account is suspended.');
     const attached = await store.claimLicencesForEmail(emailHash, account.accountId);
     await audit(account.accountId, 'user.signin', 'allowed', `${provider}${attached ? ` attached=${attached}` : ''}`);
@@ -698,6 +704,17 @@ export function createApp(options: AppOptions) {
   function contactsCfg(): NoticeContacts {
     if (!options.contacts) throw new ApiError(503, 'EMAIL_PREFS_NOT_CONFIGURED', 'Email from InFlight is not set up on this server yet.');
     return options.contacts;
+  }
+
+  function mergeCfg() {
+    if (!options.accountMerge) throw new ApiError(503, 'MERGE_NOT_CONFIGURED', 'Merging accounts is not set up on this server yet.');
+    return options.accountMerge;
+  }
+  async function merging<T>(work: () => Promise<T>): Promise<T> {
+    try { return await work(); } catch (error) {
+      if (error instanceof MergeRefusal) throw new ApiError(error.status, error.code, error.message);
+      throw error;
+    }
   }
 
   function galleryCfg(): GalleryStore {
@@ -972,6 +989,41 @@ export function createApp(options: AppOptions) {
         const account = await store.getAccount(accountId);
         if (!account || account.status !== 'active') throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'Sign in to use this.');
         return { status: 200, body: await issueSession(accountId, account.role === 'admin' ? 'admin' : 'user') };
+      },
+    },
+    // ---- Merging two accounts the person owns: proved from both sign-ins, previewed, confirmed, undoable for 30 days.
+    {
+      method: 'POST', path: '/v1/me/merge/ticket', summary: 'Signed in to the account that will close: a 15-minute ticket saying it agrees to be merged into the account the app is signed in to next', auth: 'user',
+      handler: async (req) => { const claims = await bearer(req); return { status: 200, body: mergeCfg().ticketFor(claims.sub) }; },
+    },
+    {
+      method: 'POST', path: '/v1/me/merge/preview', summary: 'Signed in to the account that stays: what would move from the other account (licences, balance, shared projects, devices) and whether anything blocks it', auth: 'user', body: Schemas.MergeTicketRequest,
+      handler: async (req) => { const claims = await bearer(req); const body = parseJson(Schemas.MergeTicketRequest, req.rawBody); return { status: 200, body: await merging(() => mergeCfg().preview(body.ticket, claims.sub)) }; },
+    },
+    {
+      method: 'POST', path: '/v1/me/merge', summary: 'Signed in to the account that stays: merge the other account into it (idempotent per ticket; undoable for 30 days)', auth: 'user', body: Schemas.MergeTicketRequest,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.MergeTicketRequest, req.rawBody);
+        const record = await merging(() => mergeCfg().merge(body.ticket, claims.sub));
+        return { status: 200, body: { mergeId: record.mergeId, undoUntilMs: record.undoUntilMs, licences: record.licences.length, balanceMillicredits: record.balanceMillicredits, projects: record.projects.length, devices: record.pushTokens } };
+      },
+    },
+    {
+      method: 'GET', path: '/v1/me/merges', summary: 'Accounts merged into this one, with the undo deadline', auth: 'user',
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const merges = await mergeCfg().list(claims.sub);
+        return { status: 200, body: { merges: merges.map((m) => ({ mergeId: m.mergeId, status: m.status, createdAtMs: m.createdAtMs, undoUntilMs: m.undoUntilMs, licences: m.licences.length, balanceMillicredits: m.balanceMillicredits, projects: m.projects.length })) } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/me/merge/undo', summary: 'Undo a merge within 30 days: the other account comes back with what it brought', auth: 'user', body: Schemas.MergeUndoRequest,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.MergeUndoRequest, req.rawBody);
+        const record = await merging(() => mergeCfg().undo(body.mergeId, claims.sub));
+        return { status: 200, body: { mergeId: record.mergeId, status: record.status } };
       },
     },
     {

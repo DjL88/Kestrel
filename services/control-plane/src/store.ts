@@ -19,12 +19,15 @@ export type LicenceStatus = 'active' | 'trial' | 'expired' | 'revoked';
 /** How an entitlement came about: a verified payment, a gift from the admin, or a typed KESTREL1 key. */
 export type LicenceSource = 'purchase' | 'gift' | 'key';
 
+export type AccountStatus = 'active' | 'suspended' | 'merged';
+
 export interface AccountRecord {
   accountId: string;
   emailHash: string;
   passwordHash: string;
   role: Role;
-  status: 'active' | 'suspended';
+  /** 'merged': brought into another account by the person (accountMerge.ts); undoable for 30 days. */
+  status: AccountStatus;
   createdAtMs: number;
   /**
    * A standing, account-level "use Gemini" preference, set once by the person and kept across
@@ -135,7 +138,7 @@ export interface Store {
   getAccount(accountId: string): Promise<AccountRecord | undefined>;
   setAccountRole(accountId: string, role: Role): Promise<void>;
   /** Suspends or restores an account (acceptable use). A suspended account cannot sign in or use a session. */
-  setAccountStatus(accountId: string, status: 'active' | 'suspended'): Promise<void>;
+  setAccountStatus(accountId: string, status: AccountStatus): Promise<void>;
   /** The standing "use Gemini" account preference (see AccountRecord.aiConsent). */
   setAiConsent(accountId: string, consent: boolean): Promise<void>;
   findAccountByEmailHash(emailHash: string): Promise<AccountRecord | undefined>;
@@ -157,6 +160,8 @@ export interface Store {
   attachLicenceToAccount(licenceId: string, accountId: string, ifNew: LicenceRecord): Promise<'attached' | 'already' | 'other'>;
   getLicence(licenceId: string): Promise<LicenceRecord | undefined>;
   listLicencesForAccount(accountId: string): Promise<LicenceRecord[]>;
+  /** Move one licence between accounts, only if it is still on `from` (account merge and its undo). Its devices come with it. */
+  reassignLicence(licenceId: string, fromAccountId: string, toAccountId: string): Promise<boolean>;
   hasActiveManagedAi(accountId: string): Promise<boolean>;
   /** Atomic: creates the licence row if unknown, checks it is active, reuses this device's slot or takes a free one. */
   activateDevice(request: ActivationRequest): Promise<ActivationOutcome>;

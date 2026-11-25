@@ -5,6 +5,7 @@ import { signInOptions } from '../core/signInOptions';
 import { consumeLinkedMethod, firebaseAuth, isDesktopAppleConfigured, isDesktopGoogleConfigured, isSignInConfigured, signInPlatform, resendAccountVerification } from '../providers/firebaseAuth';
 import { LinkingError } from '../core/accountLinking';
 import { SignInMethodsPanel, linkingProblemText, methodName } from './SignInMethodsPanel';
+import { AccountMergePanel } from './AccountMergePanel';
 import { accountLicenceDevices, activateFromAccount, attachDeviceKeyToAccount, consumeExpiredAccountNotice, freeAccountLicenceDevice, leaveAccount, licenceOnlineConfigured, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
 import { BuyProPanel } from './BuyProPanel';
 import type { LicenceStatus } from '../providers/licenceSync';
@@ -276,6 +277,7 @@ export function AccountAndLicenceSettings() {
               <button type="button" className={action} disabled={offline || accountBusy} onClick={() => void showAccountDevices()}>Show account devices</button>
             </div>
             <SignInMethodsPanel key={account.accountId} disabled={offline || accountBusy} hasEmail={Boolean(account.email)} className={action} onNote={setAccountNote} />
+            <AccountMergePanel key={'merge-' + account.accountId} disabled={offline || accountBusy} className={action} onNote={setAccountNote} />
             <p className="text-xs text-[var(--account-muted,#a1a1aa)]">{t.accountLinks.localStay}</p>
             {!offline && accountDevices && (
               <section aria-label="Account Pro devices" className="space-y-2 rounded-lg border border-[var(--account-border,#ffffff1a)] p-3">
