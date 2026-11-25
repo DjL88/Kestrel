@@ -4,6 +4,8 @@ import type { PhotoEdit } from '../core/photoEdits';
 import { verifyEdit, type CourseCorrection } from './enhancementVerifier';
 import { regionalDetailEvidence } from './regionalDetailGuard';
 import { runEngineTask } from './taskManager';
+import { fullContext, maskAlpha } from '../core/masks';
+import { chooseRegions, regionWeights, type DenoiseRegion, type RegionChoice } from '../core/trueDetailHybrid';
 
 /**
  * Denoise as a real action, mask-aware (owner direction, 22 Nov 2026: "denoise within masking... sometimes
@@ -45,6 +47,9 @@ export interface SubjectInput {
   /** The subject's alpha (0-1 per pixel, same size as the render), so `enhancementVerifier.ts` can judge
    * subject colour separately from surroundings, same convention `checkColour` already uses. */
   alpha: Float32Array;
+  /** Likely eyes inside the subject (centre 0 to 1 of the framed picture, radius in picture widths). Each gets the
+   * gentlest denoise of all (TrueDetail eye protection). */
+  eyes?: ReadonlyArray<{ x: number; y: number; radius: number }>;
 }
 
 export interface DenoiseActionInput {
@@ -63,6 +68,8 @@ export interface DenoiseActionInput {
   maxRetries?: number;
   /** Additional caller checks on the exact composed recipe. */
   verifyCandidate?: (after: Pixels) => CourseCorrection;
+  /** Grain (luminance) denoise per unit of colour denoise strength, so each region's grain moves with its strength. */
+  luminancePerStrength?: number;
   signal?: AbortSignal;
 }
 
@@ -72,32 +79,82 @@ export interface DenoiseActionResult {
   verification: CourseCorrection;
   /** 1 means it passed on the first try. */
   attempts: number;
+  /** With a subject: what TrueDetail's regional guardian chose for each region, and why a region kept the original. */
+  regions?: RegionChoice[];
+}
+
+/** How far the eye protection reaches around a detected eye: the eye ring and the feathers at its rim. */
+export const EYE_PROTECTION_REACH = 2.6;
+
+const noiseEdit = (strength: number, lumaPerStrength: number) => {
+  const luma = Math.round(Math.min(2, strength * lumaPerStrength) * 1e4) / 1e4;
+  return { denoise: strength, ...(luma > 0 ? { denoiseLuminance: luma } : {}) };
+};
+
+/** The stored TrueDetail regional recipe: background, subject and eye layers, each with its own strength. */
+export function regionalDenoiseMasks(subject: SubjectInput, strengths: Record<DenoiseRegion, number>, lumaPerStrength = 0): Mask[] {
+  const base = createSubjectMask(subject.maskId, subject.grid, subject.framingKey, subject.confidence, subject.detail);
+  return [
+    { ...base, id: `${subject.maskId}-background`, invert: true, edit: noiseEdit(strengths.background, lumaPerStrength) },
+    { ...base, edit: noiseEdit(strengths.subject, lumaPerStrength) },
+    ...(subject.eyes ?? []).map((eye, i): Mask => ({
+      id: `${subject.maskId}-eye-${i + 1}`, kind: 'radial', cx: eye.x, cy: eye.y,
+      rx: eye.radius * EYE_PROTECTION_REACH, ry: eye.radius * EYE_PROTECTION_REACH, angle: 0,
+      invert: false, feather: 0.5, edit: noiseEdit(strengths.eyes, lumaPerStrength),
+    })),
+  ];
 }
 
 /** Runs denoise as a real, verified, retryable action through the engine's task manager. */
 export async function runDenoiseAction(input: DenoiseActionInput): Promise<DenoiseActionResult> {
   return runEngineTask('denoise', 'device', 'Denoising', async () => {
     const maxRetries = input.maxRetries ?? 2;
+    const lumaPerStrength = input.luminancePerStrength ?? 0;
+    const subjectInput = input.subject;
+    const { width, height } = input.original;
     let { background, subject } = splitDenoiseBySubject(input.backgroundDenoise);
+    let eyes = subject;
+    let regions: RegionChoice[] | undefined;
+    const sized = !!subjectInput && subjectInput.alpha.length === width * height;
+    if (subjectInput && sized) {
+      // TrueDetail: each region takes the strongest candidate that beats the original there, judged on its own pixels.
+      const eyeAlpha = subjectInput.eyes?.length ? new Float32Array(width * height) : undefined;
+      if (eyeAlpha) for (const mask of regionalDenoiseMasks(subjectInput, { background: 0, subject: 0, eyes: 0 }).slice(2)) {
+        const a = maskAlpha(mask, width, height, fullContext(width, height));
+        for (let p = 0; p < a.length; p++) eyeAlpha[p] = Math.max(eyeAlpha[p], a[p]);
+      }
+      const weights = regionWeights(subjectInput.alpha, eyeAlpha);
+      regions = await chooseRegions(input.original, [
+        { region: 'background', weight: weights.background },
+        { region: 'subject', weight: weights.subject },
+        ...(weights.eyes ? [{ region: 'eyes' as const, weight: weights.eyes }] : []),
+      ], Math.max(0, Math.min(2, input.backgroundDenoise)), async (strength) => {
+        input.signal?.throwIfAborted();
+        return input.render({ denoise: 0 }, regionalDenoiseMasks(subjectInput, { background: strength, subject: strength, eyes: strength }, lumaPerStrength));
+      });
+      const pick = (region: DenoiseRegion) => regions!.find(r => r.region === region)?.strength ?? 0;
+      background = pick('background'); subject = pick('subject');
+      // Without a measured eye, the eye layer is absent; with one, it is never stronger than the subject around it.
+      eyes = Math.min(subject, weights.eyes ? pick('eyes') : subject);
+      if (!background && !subject && !eyes) {
+        return { edit: {}, masks: [], attempts: 1, regions,
+          verification: { ok: false, reasons: ['No denoise candidate improved on the original in any region.'], suggestedStrengthScale: 0 } };
+      }
+    }
     let edit: Partial<PhotoEdit> = {};
     let masks: Mask[] = [];
     let verification: CourseCorrection = { ok: false, reasons: [], suggestedStrengthScale: 1 };
     let attempts = 0;
 
     for (; attempts <= maxRetries; attempts += 1) {
-      edit = { denoise: input.subject ? 0 : background };
-      masks = input.subject
-        ? [
-          { ...subjectDenoiseMask(`${input.subject.maskId}-background`, input.subject.grid, input.subject.framingKey, input.subject.confidence, background, input.subject.detail), invert: true },
-          subjectDenoiseMask(input.subject.maskId, input.subject.grid, input.subject.framingKey, input.subject.confidence, subject, input.subject.detail),
-        ]
-        : [];
+      edit = { denoise: subjectInput ? 0 : background };
+      masks = subjectInput ? regionalDenoiseMasks(subjectInput, { background, subject, eyes }, lumaPerStrength) : [];
       input.signal?.throwIfAborted();
       const after = await input.render(edit, masks);
       input.signal?.throwIfAborted();
-      verification = verifyEdit(input.original, after, input.subject?.alpha);
-      if (input.subject && input.subject.alpha.length === input.original.width * input.original.height && after.width === input.original.width && after.height === input.original.height && after.data.length === input.original.data.length) {
-        const evidence = regionalDetailEvidence(input.original, after, input.subject.alpha);
+      verification = verifyEdit(input.original, after, subjectInput?.alpha);
+      if (subjectInput && sized && after.width === width && after.height === height && after.data.length === input.original.data.length) {
+        const evidence = regionalDetailEvidence(input.original, after, subjectInput.alpha);
         if (evidence.regions && (evidence.ratio < 0.75 || evidence.worstRegion < 0.6)) {
           verification = { ok: false, reasons: [...verification.reasons, 'Denoise removed too much structure from a protected subject.'], suggestedStrengthScale: Math.min(0.5, verification.suggestedStrengthScale) };
         }
@@ -109,7 +166,8 @@ export async function runDenoiseAction(input: DenoiseActionInput): Promise<Denoi
       if (verification.ok || attempts === maxRetries) break;
       background = Math.max(0, background * verification.suggestedStrengthScale);
       subject = Math.max(0, subject * verification.suggestedStrengthScale);
+      eyes = Math.max(0, eyes * verification.suggestedStrengthScale);
     }
-    return { edit: verification.ok ? edit : {}, masks: verification.ok ? masks : [], verification, attempts: attempts + 1 };
+    return { edit: verification.ok ? edit : {}, masks: verification.ok ? masks : [], verification, attempts: attempts + 1, ...(regions ? { regions } : {}) };
   });
 }

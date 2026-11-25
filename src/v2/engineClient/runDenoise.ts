@@ -1,7 +1,9 @@
 import { runEngineCapability } from '../../engine/engineApi';
 import { createCloudProcessingAttempt, type CloudConnection } from '../../providers/cloudProcessingAttempt';
 import { fullContext, maskAlpha } from '../../core/masks';
-import { composeDenoiseRecipe, renderDenoiseRecipe, verifyDenoiseRecipe } from './denoiseRecipe';
+import { composeDenoiseRecipe, isAutoDenoiseLayer, renderDenoiseRecipe, verifyDenoiseRecipe } from './denoiseRecipe';
+import { findEye, lumaOf } from '../../core/eyeFinder';
+import type { RegionChoice } from '../../core/trueDetailHybrid';
 import { isNeutralEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto } from '../../core/photoFraming';
 import { createSubjectMask, framingKey, MAX_MASKS, type Mask } from '../../core/maskTypes';
@@ -27,6 +29,33 @@ function measureFullSizeNoise(source: HTMLImageElement): number | null {
   if (!ctx) return null;
   ctx.drawImage(source, (source.naturalWidth - size) / 2, (source.naturalHeight - size) / 2, size, size, 0, 0, size, size);
   return estimateNoiseSigma(ctx.getImageData(0, 0, size, size).data, size, size);
+}
+
+/** The most likely eye inside each subject (at most `limit`), for TrueDetail's gentlest denoise region. */
+function findSubjectEyes(original: Pixels, subjects: readonly Mask[], combined: Float32Array, limit: number): { x: number; y: number; radius: number }[] {
+  const luma = lumaOf(original.data, original.width, original.height);
+  const context = fullContext(original.width, original.height);
+  const eyes: { x: number; y: number; radius: number }[] = [];
+  const alphas = subjects.length > 1 ? subjects.map(mask => maskAlpha(mask, original.width, original.height, context)) : [combined];
+  for (const alpha of alphas) {
+    if (eyes.length >= limit) break;
+    const eye = findEye({ luma, subject: alpha, width: original.width, height: original.height });
+    if (eye) eyes.push({ x: eye.x, y: eye.y, radius: eye.radius });
+  }
+  return eyes;
+}
+
+/** One plain sentence on what each region received. */
+export function trueDetailNote(regions: readonly RegionChoice[] | undefined, subjects: number, eyes: number): string {
+  const who = `${subjects} subject${subjects === 1 ? '' : 's'}`;
+  if (!regions?.length) return `Denoised on this device with combined subject protection (${who}).`;
+  const part = (region: RegionChoice['region'], name: string) => {
+    const choice = regions.find(r => r.region === region);
+    if (!choice) return null;
+    return choice.strength > 0 ? `${name} ${choice.strength.toFixed(2)}` : `${name} kept as it was (${choice.kept})`;
+  };
+  const parts = [part('background', 'background'), part('subject', 'subjects'), eyes ? part('eyes', eyes === 1 ? 'eye' : 'eyes') : null].filter(Boolean);
+  return `TrueDetail regional denoise on this device (${who}${eyes ? `, ${eyes} eye${eyes === 1 ? '' : 's'} protected` : ''}): ${parts.join('; ')}.`;
 }
 
 /** Longest edge of the picture denoise works on, and the only thing ever sent to the cloud (never the original). */
@@ -89,7 +118,7 @@ export async function runV2Denoise(
   const previousBackground = existing.find(mask => mask.id === `${id}-background`);
   const asked = previousBackground?.edit.denoise ?? (frame.edit?.denoise && frame.edit.denoise > 0 ? frame.edit.denoise : DEFAULT_DENOISE_STRENGTH);
   const lumaPerStrength = asked > 0 ? luminance / asked : 0;
-  const remaining = existing.filter(mask => mask.id !== id && mask.id !== `${id}-background`);
+  const remaining = existing.filter(mask => !isAutoDenoiseLayer(mask.id, id));
   let subjects = remaining.filter((mask): mask is Extract<Mask, { kind: 'subject' }> =>
     mask.kind === 'subject' && !mask.hidden && !mask.invert && !mask.limit &&
     mask.confidence !== 'low' && mask.framingKey === framingKey(framing));
@@ -125,9 +154,13 @@ export async function runV2Denoise(
     ? single ? subjects[0] : createSubjectMask(id, unionSubjectGrid(subjects, aspect), framingKey(framing),
       subjects.every(mask => mask.confidence === 'high') ? 'high' : 'medium')
     : undefined;
+  const combinedAlpha = combined ? maskAlpha(combined, original.width, original.height, fullContext(original.width, original.height)) : undefined;
+  // TrueDetail eye protection: one likely eye per subject, while the mask limit allows.
+  const eyeRoom = MAX_MASKS - remaining.length - newLayers.length - 2;
+  const eyes = combined && eyeRoom > 0 ? findSubjectEyes(original, subjects, combinedAlpha!, eyeRoom) : [];
   const subject = combined ? {
     maskId: id, grid: combined.grid, framingKey: combined.framingKey, confidence: combined.confidence, detail: combined.detail,
-    alpha: maskAlpha(combined, original.width, original.height, fullContext(original.width, original.height)),
+    alpha: combinedAlpha!, eyes,
   } : undefined;
   if (!subject && (previousBackground || subjects.length)) {
     // Do not replace an established protected recipe with global smoothing.
@@ -144,6 +177,7 @@ export async function runV2Denoise(
     ? createCloudProcessingAttempt(cloud.connection, { online: cloud.online, signedIn: true, userConsent: true }, signal)
     : undefined;
   const request = { capability: 'denoise' as const, backgroundDenoise: asked, render, original: baseline, subject, signal,
+    luminancePerStrength: lumaPerStrength,
     verifyCandidate: (after: Pixels) => verifyDenoiseRecipe(baseline, after, subjects) };
   let response = await runEngineCapability(request, attempt);
   // Even a verified remote raster is not the recipe the editor will save.
@@ -160,7 +194,7 @@ export async function runV2Denoise(
     ? ['Denoised in the InFlight cloud from a working-size copy, checked on this device.']
     : [cloud ? 'The cloud was not used for this one, so it ran on this device.' : 'Denoised on this device.'];
   if (subject && subjects.length > 0 && !newLayers.length && !remaining.some(mask => subjects.includes(mask as typeof subjects[number]))) notes.push('Individual layers could not fit; combined protection is available.');
-  if (subject) notes.unshift(`Denoised on this device with combined subject protection (${subjects.length} mask${subjects.length === 1 ? '' : 's'}).`);
+  if (subject) notes.unshift(trueDetailNote(result.regions, subjects.length, eyes.length));
   else if (detectionUnavailable) notes.unshift('No reliable subject masks were available; denoise used a global setting.');
   if (!result.verification.ok) notes.push('The composed recipe did not pass the quality check. Existing edits were kept.');
   return { runner: response.runner === 'cloud-processing' ? 'cloud-processing' : 'device', strength, luminance: Math.round(Math.min(2, strength * lumaPerStrength) * 1e4) / 1e4, masks: subject ? [...newLayers, ...result.masks] : result.masks, verified: result.verification.ok, notes };
