@@ -656,6 +656,43 @@ Each feature has an admin switch marked *planned*. It shows in Admin → Switche
 
   At ≈ £0.01 a heavy job: **1,000 jobs a month ≈ £10; 10,000 ≈ £100; 100,000 ≈ £1,000.** The existing £15 ceiling (counted from the per-job estimate `KCP_CLOUD_JOB_PENCE`, not Google's bill) stops new cloud jobs at 750 a month at the default 2p estimate, until the owner raises it. Idle costs nothing (jobs scale to zero).
 
+#### 7. Learning in Vertex AI from shadow files, with consent (owner decision 7; switch `vertex-learning`)
+- **What a shadow file is.** For each photo it is data derived on the device, and never the original pixels:
+  - the measurements (the Kite44 shadow payload in `kite44ResearchLedger.ts`: eye sharpness, subject confidence, clipping, noise, mask coverage and so on, bounded numbers only);
+  - the mask as a small run-length outline;
+  - the cull decision and whether a suggestion was accepted, changed, undone or rejected;
+  - the edit recipe (slider numbers).
+
+  No file name, EXIF, GPS, free text or account id; a server-derived pseudonym is stored so deletion works. Original pixels are sent only if the person explicitly chooses that, per photo, under a separate consent. That is NOT part of the first build.
+- **Consent:** strictly opt-in, off by default, a separate consent from managed AI and from the existing learning signal, shown in words with examples. Revocable at any time. Withdrawing deletes that person's shadow files at once (`deleteBySubject`, as the learning signal does today). Models already trained keep what they learned until the next scheduled retrain, which excludes the withdrawn data. The design retrains at least every 30 days, and the privacy page must say so; nothing can "unlearn" in between.
+- **Where learning happens:**
+  - Personal style, culling and edit preferences keep learning **on the device**, as now (offline-first).
+  - Vertex trains only the **shared** models, from pooled consented shadow files: the Auto-Edit recipe model, cull calibration and guardian thresholds.
+  - Results come back as signed ONNX packs through the existing model manifest (same id, version, SHA-256 and licence rules). So there is **no always-on Vertex endpoint** to pay for, and the app keeps working offline.
+- **Gates, all in place now:**
+  - The planned switch `vertex-learning` (cannot be switched on).
+  - `infra/gcp/vertex-learning.tf`, the only place `aiplatform.googleapis.com` may appear. It is off by default, and the plan fails unless the owner sets an approved monthly budget, which also creates a Vertex-only budget alert.
+  - `scripts/infra-paid-services.test.mjs` (in `npm test`) fails if Vertex AI is enabled anywhere else, or if Cloud Tasks appears at all.
+  - **Vertex AI is not enabled.**
+- **To build, after owner approval:**
+  1. Connect the shadow ledger to an authenticated, consented route (with per-project approval and excluded photos, as the ledger requires).
+  2. Export to a private UK bucket.
+  3. A Vertex custom training job: a container from `tools/`, CPU first.
+  4. An evaluation gate: the new model must beat the current one on a held-out set before it is signed.
+  5. Signing and publishing to the manifest.
+  6. Privacy page and consent copy.
+- **Cost per month** (Vertex AI training in London: e2 core £0.0275/h and e2 RAM £0.0037/GiB-h including the management fee; n1 core £0.0352/h; T4 GPU £0.40/h including the fee; Gemini 2.5 Flash supervised tuning £3.76 per million training tokens, global):
+
+  | Plan | Assumed use | About per month |
+  |---|---|---|
+  | Shadow files held | 100,000 photos × 20 KB in UK storage | **≈ £0.03** |
+  | Weekly retrain, CPU (e2-standard-4, 4 vCPU / 16 GiB, ≈ £0.17/h), 2 h a run | 8–9 h | **≈ £1.50** |
+  | Weekly retrain with a T4 GPU (n1-standard-4 + T4, ≈ £0.61/h), 4 h a run | 17 h | **≈ £10** |
+  | Monthly Gemini tuning for the guardian's words | 20 million training tokens | **≈ £75** (plus Gemini's per-token price whenever the tuned model is used) |
+  | What the design avoids: an always-on prediction endpoint (e2-standard-2) | 730 h | ≈ £35 for its 2 cores (£0.0243/h each), ≈ £55 with its memory |
+
+  A CPU-first start costs **under £5 a month**. Spend begins only when the owner approves enabling Vertex, sets the budget variable, and turns the switch from planned to real.
+
 ### P3: Later work
 - A metadata-only serialiser and local sync outbox, with synthetic tests of conflict-safe sync between two devices. (Gates carried over from the closed #363: originals and previews never upload; a licence isn't an account or a key; local writing works with the network off.)
 - Control plane: deployment, app sign-in, choosing the managed transport, storing grants for `useAccess`, a PostgreSQL adapter.
