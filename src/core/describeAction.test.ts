@@ -25,7 +25,7 @@ test('removals and batches say how many photos they touch', () => {
   assert.equal(undoLabel(removed), 'Remove 2 photos from the library');
   assert.equal(undoLabel(removeFromLibrary(project(['reject']), ['f0'])), 'Remove bird-0.jpg from the library');
   const entry: DecisionHistoryEntry = { frameId: 'f0', batch: [{ frameId: 'f0', prevDecision: 'unreviewed', nextDecision: 'keep' }, { frameId: 'f1', prevDecision: 'unreviewed', nextDecision: 'reject' }], prevDecision: 'unreviewed', nextDecision: 'keep', prevSelectedId: null, nextSelectedId: null };
-  assert.equal(describeEntry(entry, []), 'Auto-cull (2 photos)');
+  assert.equal(describeEntry(entry, []), 'Auto pick (2 photos)');
 });
 
 test('there is no label when there is nothing to undo or redo, and redo names the undone step', () => {

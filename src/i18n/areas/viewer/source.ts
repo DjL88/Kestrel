@@ -37,7 +37,7 @@ export const source = {
     /** Button words. Shown on screen with the first letter in capitals. */
     keepSide: (side: string) => `keep ${side}`,
     rejectSide: (side: string) => `reject ${side}`,
-    clearDecisionFor: (side: string) => `Reset decision for photo ${side}`,
+    clearDecisionFor: (side: string) => `Clear decision for photo ${side}`,
     clearSide: (side: string) => `Reset ${side}`,
     finish: 'Finish comparing photos',
     done: 'Done',
@@ -265,7 +265,7 @@ export const source = {
     paint: 'Paint',
     remove: 'Remove',
     erase: 'Erase',
-    undoRefining: 'Undo refining',
+    undoRefining: 'Undo mask refinement',
     clear: 'Clear',
     paintingOn: 'Painting is on. Press it again to pan and zoom.',
     paintingOff: 'Choose Paint or Erase to start. Until then you can pan and zoom.',

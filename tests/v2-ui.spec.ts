@@ -196,7 +196,7 @@ test('?v2 edits are real: Adjust changes the pixels, Compare splits original and
   // Move Exposure up through the real slider: the recipe becomes a PhotoEdit and the canvas redraws brighter.
   const advanced = root.getByRole('tab', { name: 'Advanced Edits' });
   if (!(await advanced.isVisible())) await root.getByRole('button', { name: 'Adjust', exact: true }).first().click();
-  const curated = root.getByRole('tab', { name: 'Curated Looks' });
+  const curated = root.getByRole('tab', { name: 'Photo styles' });
   await expect(curated).toHaveAttribute('aria-selected', 'true');
   await curated.focus();
   await curated.press('ArrowRight');
@@ -287,7 +287,7 @@ test('?v2 Auto-Cull says it is part of Pro on the Free plan and changes nothing'
   await importGenerated(page, 'Free cull check', 2);
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: /Auto-Cull/ }).first().click();
-  await expect(root.getByText('Auto-cull is part of InFlight Pro.')).toBeVisible();
+  await expect(root.getByText('Auto pick is part of InFlight Pro.')).toBeVisible();
   await expect(root.getByRole('button', { name: /^Unflag / })).toHaveCount(0);
 });
 
@@ -877,10 +877,10 @@ test('?v2 Look preview belongs only to its selected photo, never the next one', 
   })));
   const strip = root.getByRole('listbox', { name: 'Project photographs' });
   await expect(strip.getByRole('option')).toHaveCount(2);
-  const looksTab = root.getByRole('tab', { name: 'Curated Looks' });
+  const looksTab = root.getByRole('tab', { name: 'Photo styles' });
   if (!(await looksTab.isVisible())) await root.getByRole('button', { name: 'Adjust', exact: true }).first().click();
   await looksTab.click();
-  const looksPanel = root.getByRole('tabpanel', { name: 'Curated Looks' });
+  const looksPanel = root.getByRole('tabpanel', { name: 'Photo styles' });
   const firstLook = looksPanel.getByRole('button').nth(1); // the first Look is the default everywhere
   await strip.getByRole('option').nth(0).click(); // just this photo, so the Look goes to it alone
   await firstLook.click();

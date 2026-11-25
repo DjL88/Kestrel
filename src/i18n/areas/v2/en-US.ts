@@ -65,7 +65,7 @@ export const enUS: AreaTranslation<typeof source> = {
     safeNote: 'Color notes come from measuring the photo itself on this device, not from how it looks on your screen.',
   },
   bursts: {
-    flagBestNotRanked: 'Not ranked yet. Run Auto-cull & Analyze to find the best frame.',
+    flagBestNotRanked: 'Not ranked yet. Run Auto pick & Analyze to find the best frame.',
   },
   settings: {
     assistance: {

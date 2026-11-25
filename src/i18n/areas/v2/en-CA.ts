@@ -9,6 +9,6 @@ export const enCA: AreaTranslation<typeof source> = {
     tileStates: { analysing: 'Analyzing' },
   },
   bursts: {
-    flagBestNotRanked: 'Not ranked yet. Run Auto-cull & Analyze to find the best frame.',
+    flagBestNotRanked: 'Not ranked yet. Run Auto pick & Analyze to find the best frame.',
   },
 };
