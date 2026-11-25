@@ -44,7 +44,38 @@
       <p class="muted small"><span id="expiry"></span> <button id="approve-all" type="button" class="link" hidden>Approve the whole selection</button></p>
     </section>
   </main>
-  <footer class="muted small legal"><a href="/acceptable-use#report">Report this gallery</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer>
+  <details id="report" class="report small">
+    <summary>Report this gallery</summary>
+    <form id="report-form" class="panel" novalidate>
+      <p class="muted">Tell us if something here is illegal or breaks the <a href="/acceptable-use">acceptable use policy</a>. You do not need an account. If a child is in immediate danger, contact the police first.</p>
+      <fieldset id="report-scope" hidden>
+        <legend>What are you reporting?</legend>
+        <label><input type="radio" name="report-scope" value="photo" checked> The photograph shown now</label>
+        <label><input type="radio" name="report-scope" value="gallery"> The whole gallery</label>
+      </fieldset>
+      <label for="report-category">What is wrong</label>
+      <select id="report-category" required>
+        <option value="">Choose one</option>
+        <option value="child-sexual-abuse">Child sexual abuse</option>
+        <option value="intimate-image-abuse">Intimate image shared without consent</option>
+        <option value="terrorism-or-violence">Terrorism, or encouraging violence or self-harm</option>
+        <option value="harassment-or-privacy">Harassment, threats or a privacy breach</option>
+        <option value="copyright">Copyright: my photograph used without permission</option>
+        <option value="other-illegal">Something else illegal</option>
+        <option value="policy-breach">Breaks the acceptable use policy</option>
+      </select>
+      <label for="report-explanation">Why is it illegal or against the policy?</label>
+      <textarea id="report-explanation" rows="3" maxlength="4000" required></textarea>
+      <label for="report-name">Your name (optional)</label>
+      <input id="report-name" autocomplete="name" maxlength="120">
+      <label for="report-email">Your email, so we can tell you what we did (optional)</label>
+      <input id="report-email" type="email" autocomplete="email" maxlength="254">
+      <label class="check"><input id="report-good-faith" type="checkbox" required> I believe this report is accurate and complete, and I am making it in good faith.</label>
+      <button type="submit">Send report</button>
+      <p id="report-note" role="status" aria-live="polite"></p>
+    </form>
+  </details>
+  <footer class="muted small legal"><a href="#report" id="report-link">Report this gallery</a> · <a href="/acceptable-use#report">Other ways to report</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer>
   <script type="module" src="/assets/gallery.js"></script>
 </body>
 </html>

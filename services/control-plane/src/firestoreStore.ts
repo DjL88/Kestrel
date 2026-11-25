@@ -113,6 +113,12 @@ export class FirestoreStore implements Store {
       if ((await tx.get(ref)).exists) tx.update(ref, { role });
     });
   }
+  async setAccountStatus(accountId: string, status: 'active' | 'suspended'): Promise<void> {
+    await this.db.runTransaction(async (tx) => {
+      const ref = this.ref(C.accounts, accountId);
+      if ((await tx.get(ref)).exists) tx.update(ref, { status });
+    });
+  }
   async setAiConsent(accountId: string, consent: boolean): Promise<void> {
     await this.db.runTransaction(async (tx) => {
       const ref = this.ref(C.accounts, accountId);

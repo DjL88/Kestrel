@@ -38,7 +38,7 @@
 <div id="console" hidden>
   <nav class="tabs" aria-label="Console sections">
     <a href="#overview">Overview</a><a href="#licensees">Licensees and devices</a><a href="#grant">Grant Pro</a><a href="#issue">Issue a key</a>
-    <a href="#demo-studio">Demo Studio</a><a href="#switches">Switches</a><a href="#mail">Email</a><a href="#flags">Flags</a><a href="#monitoring">Monitoring</a><a href="#notifications">Notifications</a><a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#price-review">Price review</a><a href="#audit">Audit log</a>
+    <a href="#demo-studio">Demo Studio</a><a href="#safety">Safety</a><a href="#switches">Switches</a><a href="#mail">Email</a><a href="#flags">Flags</a><a href="#monitoring">Monitoring</a><a href="#notifications">Notifications</a><a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#price-review">Price review</a><a href="#audit">Audit log</a>
   </nav>
 
   <section id="overview" class="panel" aria-labelledby="overview-title">
@@ -97,6 +97,24 @@
       <label>Licence key <textarea id="issued-key" rows="3" readonly></textarea></label>
       <button type="button" id="copy-key">Copy key</button>
     </div>
+  </section>
+
+  <section id="safety" class="panel" aria-labelledby="safety-title">
+    <h2 id="safety-title">Safety: held pictures and reports</h2>
+    <p class="muted">Checks on shared and cloud photos only (the acceptable use policy). You never see a held or blocked picture here, only its details. A hash match is blocked, kept as evidence and reported; it is never released here. An AI flag is held until you release or uphold it, and is never reported. Gallery reports come from anyone with the link.</p>
+    <p id="safety-checks" class="muted"></p>
+    <h3>Cases</h3>
+    <div class="scroll"><table id="safety-cases">
+      <caption class="sr-only">Safety cases</caption>
+      <thead><tr><th scope="col">When</th><th scope="col">Kind</th><th scope="col">Where</th><th scope="col">Detection</th><th scope="col">Status</th><th scope="col">Reports</th><th scope="col">Action</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <h3>Gallery reports</h3>
+    <div class="scroll"><table id="safety-notices">
+      <caption class="sr-only">Gallery reports</caption>
+      <thead><tr><th scope="col">When</th><th scope="col">What is wrong</th><th scope="col">About</th><th scope="col">Explanation</th><th scope="col">Reply to</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
   </section>
 
   <section id="switches" class="panel" aria-labelledby="switches-title">

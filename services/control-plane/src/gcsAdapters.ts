@@ -12,6 +12,10 @@ export interface GcsFileLike {
   getSignedUrl(opts: { version: 'v4'; action: 'read' | 'write'; expires: number; extensionHeaders?: Record<string, string> }): Promise<[string]>;
   exists(): Promise<[boolean]>;
   delete(opts?: { ignoreNotFound?: boolean }): Promise<unknown>;
+  /** Used by the sharing safety checks (contentSafety.ts). */
+  getMetadata?(): Promise<[{ size?: string | number }]>;
+  download?(): Promise<[Buffer]>;
+  copy?(destination: string): Promise<unknown>;
 }
 export interface GcsBucketLike { file(name: string): GcsFileLike }
 
@@ -36,6 +40,15 @@ export class GcsSafeCopyStorage implements SafeCopyStorage {
     return (await this.bucket.file(key).getSignedUrl({ version: 'v4', action: 'read', expires: this.now() + DOWNLOAD_TTL_MS }))[0];
   }
   async delete(key: string) { await this.bucket.file(key).delete({ ignoreNotFound: true }); }
+  /** Reads a stored picture for the sharing checks; checks the size first so nothing large is downloaded. */
+  async read(key: string, maxBytes: number): Promise<Buffer | null> {
+    const file = this.bucket.file(key);
+    if (!(await file.exists())[0]) return null;
+    const [meta] = await file.getMetadata!();
+    if (Number(meta.size ?? Infinity) > maxBytes) throw new Error('too large to check');
+    return (await file.download!())[0];
+  }
+  async copy(from: string, to: string) { await this.bucket.file(from).copy!(to); }
 }
 
 export interface RunnerTrigger { trigger(jobId: string, kind: CloudKind): Promise<void> }

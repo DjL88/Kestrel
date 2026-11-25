@@ -17,6 +17,9 @@ export interface SafeCopyStorage {
   signUpload(key: string, bytes: number, sha256: string): Promise<string>;
   signDownload(key: string): Promise<string>;
   delete(key: string): Promise<void>;
+  /** Needed only by the sharing safety checks (contentSafety.ts) on the gallery/cloud-photo bucket. */
+  read?(key: string, maxBytes: number): Promise<Buffer | null>;
+  copy?(from: string, to: string): Promise<void>;
 }
 export interface SafeCopyCatalog {
   getSettings(accountId: string): Promise<SafeCopySettings>;
@@ -36,10 +39,20 @@ export const safeCopyKey = (accountId: string, level: SafeCopyLevel, sha256: str
 export class MemorySafeCopyStorage implements SafeCopyStorage {
   signedUploads = 0; lastKey: string | undefined;
   private objects = new Set<string>();
+  /** Bytes a test "uploaded"; a signed key with no bytes reads as a small placeholder picture. */
+  private contents = new Map<string, Buffer>();
   async signUpload(key: string) { this.signedUploads++; this.lastKey = key; this.objects.add(key); return `memory://upload/${key}`; }
   async signDownload(key: string) { this.lastKey = key; return `memory://download/${key}`; }
-  async delete(key: string) { this.objects.delete(key); }
+  async delete(key: string) { this.objects.delete(key); this.contents.delete(key); }
   has(key: string) { return this.objects.has(key); }
+  put(key: string, bytes: Buffer) { this.objects.add(key); this.contents.set(key, bytes); }
+  async read(key: string, maxBytes: number) {
+    if (!this.objects.has(key)) return null;
+    const bytes = this.contents.get(key) ?? Buffer.from(`placeholder:${key}`);
+    if (bytes.length > maxBytes) throw new Error('too large');
+    return bytes;
+  }
+  async copy(from: string, to: string) { const b = await this.read(from, Infinity); if (!b) throw new Error('missing'); this.put(to, b); }
 }
 
 export class MemorySafeCopyCatalog implements SafeCopyCatalog {

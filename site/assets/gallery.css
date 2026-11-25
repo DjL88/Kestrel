@@ -26,3 +26,9 @@ input, textarea { font: inherit; padding: 8px; border-radius: 6px; border: 1px s
 
 footer.legal { text-align: center; padding: 16px; }
 footer.legal a { color: inherit; }
+
+.report { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+.report summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.report fieldset { border: 1px solid var(--border); border-radius: 6px; display: grid; gap: 4px; }
+.report label.check, .report fieldset label { display: flex; gap: 8px; align-items: flex-start; }
+select { font: inherit; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); min-height: 44px; }

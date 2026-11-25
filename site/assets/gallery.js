@@ -107,6 +107,29 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'ArrowRight') show(index + 1);
   if (event.key === 'ArrowLeft') show(index - 1);
 });
+// ---- Report this gallery (EU DSA notice and action; UK Online Safety Act). Works even when the gallery cannot open.
+$('report-link').addEventListener('click', (event) => { event.preventDefault(); $('report').open = true; $('report-category').focus(); });
+$('report').addEventListener('toggle', () => { $('report-scope').hidden = !(gallery && gallery.photos && gallery.photos.length); });
+$('report-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const say = (text) => { $('report-note').textContent = text; };
+  if (!token) { say('This link is incomplete, so we cannot tell which gallery you mean. Use one of the other ways to report.'); return; }
+  const category = $('report-category').value;
+  const explanation = $('report-explanation').value.trim();
+  if (!category) { say('Choose what is wrong.'); $('report-category').focus(); return; }
+  if (explanation.length < 10) { say('Say briefly why it is illegal or against the policy.'); $('report-explanation').focus(); return; }
+  if (!$('report-good-faith').checked) { say('Confirm the report is made in good faith.'); $('report-good-faith').focus(); return; }
+  const scope = document.querySelector('input[name="report-scope"]:checked');
+  const photoId = !$('report-scope').hidden && scope && scope.value === 'photo' && gallery ? gallery.photos[index].photoId : null;
+  const name = $('report-name').value.trim();
+  const email = $('report-email').value.trim();
+  try {
+    const made = await post('report', { token, photoId, category, explanation, goodFaith: true, ...(name ? { name } : {}), ...(email ? { email } : {}) });
+    $('report-form').reset();
+    say('Thank you. Your report ' + made.noticeId + ' was received. ' + (made.urgent ? 'We look at reports like this first. ' : '') + 'Keep this receipt to check what we decided: ' + made.receipt);
+  } catch (error) { say(error.code === 'RATE_LIMITED' ? error.message : 'The report could not be sent. Email the address on the acceptable use page instead.'); }
+});
+
 // A new link pasted into the same tab changes only the fragment: start again with it.
 window.addEventListener('hashchange', () => location.reload());
 void open();
