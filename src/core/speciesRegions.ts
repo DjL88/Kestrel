@@ -39,6 +39,8 @@ export function worldLabelsForRegions(world: readonly SpeciesLabel[], regionIds:
 }
 
 export const SPECIES_REGIONS_KEY = 'kite44.speciesRegions';
+/** Sent on the window when the home regions change, so open screens can show the new words. */
+export const SPECIES_REGIONS_EVENT = 'kestrel-species-regions';
 
 export function readSpeciesRegions(storage: Pick<Storage, 'getItem'> | undefined = safeStorage()): string[] {
   try { return normaliseRegions(JSON.parse(storage?.getItem(SPECIES_REGIONS_KEY) ?? 'null')); } catch { return [...DEFAULT_SPECIES_REGIONS]; }
@@ -46,6 +48,7 @@ export function readSpeciesRegions(storage: Pick<Storage, 'getItem'> | undefined
 
 export function writeSpeciesRegions(ids: readonly string[], storage: Pick<Storage, 'setItem'> | undefined = safeStorage()): void {
   try { storage?.setItem(SPECIES_REGIONS_KEY, JSON.stringify(normaliseRegions(ids))); } catch { /* Not saved: the default applies next time. */ }
+  try { if (typeof window !== 'undefined') window.dispatchEvent(new Event(SPECIES_REGIONS_EVENT)); } catch { /* No window: nothing listens. */ }
 }
 
 function safeStorage(): Storage | undefined {

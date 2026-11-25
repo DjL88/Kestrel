@@ -584,6 +584,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSaveDngCopy={actions.saveDngCopy}
             onCorrectSpeciesName={actions.correctSpeciesName}
             onCorrectVehicle={actions.correctVehicle}
+            speciesPlace={store.speciesPlace}
+            onSetSpeciesArea={actions.setSpeciesArea}
+            onDeclineSpeciesArea={actions.declineSpeciesAreaSuggestion}
           />
         );
       case 'tasks':

@@ -1,7 +1,8 @@
 import { BIOCLIP2, optionalModelFitsDevice } from '../core/optionalModels';
 import { SPECIES_MODEL, preprocessSpecies } from '../core/speciesModel';
 import { decodeVector, normalise, rankSpecies, type SpeciesLabel } from '../core/speciesMatch';
-import { readSpeciesRegions, worldLabelsForRegions } from '../core/speciesRegions';
+import { normaliseRegions, readSpeciesRegions } from '../core/speciesRegions';
+import { speciesLabelsForRegions } from '../core/speciesArea';
 import { checkGroupLabels, checkValidatorLabels, compareSpecies, groupFileNames, type SpeciesVerdict, type ValidatorLabels } from '../core/speciesValidator';
 import type { SquareCrop } from '../core/subjectCrop';
 import { friendlyToolError } from '../core/toolErrors';
@@ -54,19 +55,13 @@ function load(): Promise<Loaded> {
 let vectorsKey = '';
 let ranked: { labels: SpeciesLabel[]; vectors: Float32Array[] } | null = null;
 
-function namesFor(labels: ValidatorLabels, groups: readonly (readonly SpeciesLabel[])[]) {
-  const regions = readSpeciesRegions();
+function namesFor(labels: ValidatorLabels, groups: readonly (readonly SpeciesLabel[])[], regionIds?: readonly string[]) {
+  const regions = regionIds?.length ? normaliseRegions(regionIds) : readSpeciesRegions();
   const key = regions.join(',');
   if (!ranked || vectorsKey !== key) {
-    // The UK list first, then world birds, then each extra group (mammals, reptiles, ...) for the person's regions; a
-    // name already listed is not repeated.
-    const have = new Set(labels.uk.map((l) => l.scientific.toLowerCase()));
-    const list = [...labels.uk];
-    for (const group of [labels.world, ...groups]) {
-      const added = worldLabelsForRegions(group, regions, have);
-      for (const name of added) have.add(name.scientific.toLowerCase());
-      list.push(...added);
-    }
+    // The same names as BioCLIP ranks: the UK list (when Europe is among the regions), then world birds, then each
+    // extra group (mammals, reptiles, ...) for the project's regions; a name already listed is not repeated.
+    const list = speciesLabelsForRegions(labels.uk, labels.world, groups, regions);
     ranked = { labels: list, vectors: list.map(decodeVector) };
     vectorsKey = key;
   }
@@ -78,7 +73,7 @@ function namesFor(labels: ValidatorLabels, groups: readonly (readonly SpeciesLab
  * when the validator is not installed here, so callers show BioCLIP's suggestion exactly as before.
  */
 export async function validateSpecies(picture: CanvasImageSource & { width: number; height: number }, crop: SquareCrop,
-  suggested: Pick<SpeciesLabel, 'scientific' | 'common'> | null): Promise<SpeciesVerdict | null> {
+  suggested: Pick<SpeciesLabel, 'scientific' | 'common'> | null, regionIds?: readonly string[]): Promise<SpeciesVerdict | null> {
   if (await validatorStatus() !== 'ready') return null;
   const { ort, session, labels, groups } = await load();
   const size = SPECIES_MODEL.size;
@@ -92,6 +87,6 @@ export async function validateSpecies(picture: CanvasImageSource & { width: numb
   const input = preprocessSpecies(context.getImageData(0, 0, size, size).data, size);
   const out = await session.run({ pixel_values: new ort.Tensor('float32', input, [1, 3, size, size]) });
   const embedding = normalise(Float32Array.from(out.embedding.data as Float32Array));
-  const names = namesFor(labels, groups);
+  const names = namesFor(labels, groups, regionIds);
   return compareSpecies(suggested, rankSpecies(embedding, names.labels, names.vectors));
 }

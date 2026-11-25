@@ -1,8 +1,14 @@
+import { parseSpeciesArea, type SpeciesArea } from './speciesArea';
+
 export interface ProjectSettings {
   /** After photos are added, scan them on this device and suggest keepers and rejects. */
   autoCull: boolean;
   /** Develop untouched keepers in background after import; edited photos keep suggestions behind Auto. */
   autoEdit: boolean;
+  /** "Where were these taken?": the place species names are matched against. Absent means the person's home region. */
+  speciesArea?: SpeciesArea;
+  /** The GPS suggestion the person answered "Not now" to, so the same one is not offered again (the area's key only). */
+  speciesAreaDeclined?: string;
 }
 
 /** What the new-project wizard starts with. */
@@ -14,7 +20,12 @@ export const LEGACY_SETTINGS: ProjectSettings = { autoCull: false, autoEdit: fal
 export function parseSettings(value: unknown): ProjectSettings {
   if (typeof value !== 'object' || value === null) return LEGACY_SETTINGS;
   const raw = value as Record<string, unknown>;
-  return { autoCull: raw.autoCull === true, autoEdit: raw.autoEdit === true };
+  const speciesArea = parseSpeciesArea(raw.speciesArea);
+  return {
+    autoCull: raw.autoCull === true, autoEdit: raw.autoEdit === true,
+    ...(speciesArea ? { speciesArea } : {}),
+    ...(typeof raw.speciesAreaDeclined === 'string' && raw.speciesAreaDeclined.length <= 200 ? { speciesAreaDeclined: raw.speciesAreaDeclined } : {}),
+  };
 }
 
 export const TARGET_CHOICES = [20, 50, 100, 200] as const;

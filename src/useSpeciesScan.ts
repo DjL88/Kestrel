@@ -27,9 +27,11 @@ import { HELPER_GAP_MS, HELPER_SESSION_CAP, failureMessage, helperPatch, helperR
 import { ONLINE_HELPER_VISIBLE, useHelperSettings } from './providers/helperSettings';
 import { HelperError, geminiTransport, imageForHelper } from './providers/onlineHelper';
 import { appText as t } from './i18n/areas/app';
+import { readSpeciesRegions } from './core/speciesRegions';
+import { regionIdsForArea, resolvedArea, type SpeciesArea } from './core/speciesArea';
 
 /** What one look at a photo found: a species name, or a vehicle reading (kind and probable type), or only that it was looked at. */
-export type ScanResult = ReturnType<typeof scanPatch> & { vehicle?: VehicleReading };
+export type ScanResult = ReturnType<typeof scanPatch> & { vehicle?: VehicleReading; speciesArea?: PhotoFrame['speciesArea'] };
 
 /**
  * Read a registration or serial from an aircraft, only when the photo is an aircraft and the person installed the
@@ -77,10 +79,12 @@ interface Options {
   /** True while the project page is showing. Looking pauses while a photo is being edited. */
   active: boolean;
   onResult: (frameId: string, patch: ScanResult) => void;
+  /** Where the project's photos were taken ("Where were these taken?"); absent means the person's home regions. */
+  area?: SpeciesArea;
 }
 
 /** Identifies untagged photos quietly, using the on-device model first. */
-export function useSpeciesScan({ projectId, frames, provider, active, onResult }: Options) {
+export function useSpeciesScan({ projectId, frames, provider, active, onResult, area }: Options) {
   const [status, setStatus] = useState<SpeciesStatus | 'checking'>('checking');
   const [downloading, setDownloading] = useState<number | null>(null);
   const [error, setError] = useState('');
@@ -91,8 +95,8 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
   const sources = useRef({ localReady, helperOn, key: helper.key });
   sources.current = { localReady, helperOn, key: helper.key };
   const helperHalted = useRef(false);
-  const latest = useRef({ projectId, frames, provider, active, onResult });
-  latest.current = { projectId, frames, provider, active, onResult };
+  const latest = useRef({ projectId, frames, provider, active, onResult, area });
+  latest.current = { projectId, frames, provider, active, onResult, area };
   const running = useRef(false);
   const cancelled = useRef(false);
   const skipped = useRef(new Set<string>());
@@ -103,17 +107,23 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
     if (running.current) return;
     running.current = true;
     try {
-      const localLabels = await loadSpeciesLabels().catch(() => null);
       const vehicleData = await loadVehicleData().catch(() => null);
       for (;;) {
-        const { projectId: currentId, frames: current, provider: store, onResult: report } = latest.current;
-        const stillCurrent = () => !cancelled.current && latest.current.active && latest.current.projectId === currentId;
+        const { projectId: currentId, frames: current, provider: store, onResult: report, area: chosen } = latest.current;
+        // The project's place decides which names are ranked; a change of place starts a fresh look (the key below).
+        const home = readSpeciesRegions();
+        const regions = regionIdsForArea(chosen, home);
+        const usedArea = resolvedArea(chosen, home);
+        const areaKey = regions.join(',');
+        const stillCurrent = () => !cancelled.current && latest.current.active && latest.current.projectId === currentId &&
+          regionIdsForArea(latest.current.area, readSpeciesRegions()).join(',') === areaKey;
         const available = sources.current;
         if (!stillCurrent() || !store || !readAutoTag()) break;
         const canAsk = () => sources.current.helperOn && sources.current.key === available.key &&
           !helperHalted.current && helperSent < HELPER_SESSION_CAP;
         if (!available.localReady && !canAsk()) break;
-        const frameKey = (id: string) => `${currentId}|${id}`;
+        const frameKey = (id: string) => `${currentId}|${areaKey}|${id}`;
+        const localLabels = available.localReady ? await loadSpeciesLabels(regions).catch(() => null) : null;
         // With the category gate, the local model may look at unclassified photos too: the gate, not the species list,
         // decides whether a photo is an animal at all.
         const gateOn = available.localReady && await gateAvailable();
@@ -150,7 +160,7 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
             const qualified = top && qualifiesForAutoTag(top, embedding, labels, vectors) ? top : undefined;
             // With the optional BioCLIP 2 validator installed (desktop), a clear disagreement withholds the automatic
             // name: the photo stays for the person to name. Agreement or an unsure validator changes nothing.
-            const verdict = qualified ? await validateSpecies(picture, crop, qualified.label).catch(() => null) : null;
+            const verdict = qualified ? await validateSpecies(picture, crop, qualified.label, regions).catch(() => null) : null;
             // Then the Vision guardian (owner decision 2): one plain question about the name. A clear "no" withholds the
             // automatic name the same way, leaving the photo for the person; agreement or doubt changes nothing.
             const guardian = qualified && verdict?.kind !== 'differs' && stillCurrent()
@@ -170,6 +180,8 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
               // the independent animal/aircraft check. Strict = review only.
               patch = scanPatch({ ...frame, subjectKind: kind }, permitsAutomaticSpeciesTag(outcome.species) ? named : undefined);
               if (outcome.kind) patch = { ...patch, subjectKind: outcome.kind };
+              // The place the name was matched against is kept beside it, and shown with it.
+              if (patch.tags?.length) patch = { ...patch, speciesArea: usedArea };
             } else if (kind) {
               // Not an animal the list can name (a helicopter, a car): looked at, and no animal name offered.
               patch = { speciesChecked: true };
