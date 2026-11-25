@@ -17,7 +17,7 @@ import { geminiProvider, identify, suggest, verifyColour, type AiProvider } from
 import type { CommerceLedger } from './commerce/ledger.ts';
 import type { TransactionRecord } from './commerce/records.ts';
 import type { paddleProCheckout } from './commerce/proCheckout.ts';
-import { PADDLE_TRANSACTION_ID, PaddleEvent, verifyPaddleSignature, type PaddleEnvironment } from './commerce/paddle.ts';
+import { PADDLE_TRANSACTION_ID, PaddleEvent, verifyPaddleSignature, type PaddleEnvironment, PADDLE_ADJUSTMENT_ID } from './commerce/paddle.ts';
 import { emailHashOf, giftEntitlement } from './entitlement.ts';
 import { googleKeysFromNetwork, verifyGoogleIdToken, GOOGLE_CERTS_URL, type GoogleKeys } from './googleIdToken.ts';
 import { APPLE_ISSUER, APPLE_KEYS_URL, FIREBASE_KEYS_URL, firebaseIssuer, oidcKeysFromNetwork, verifyOidcIdToken, type OidcKeys } from './oidcIdToken.ts';
@@ -65,6 +65,8 @@ export interface AppOptions {
   payments?: { listTransactions(limit: number): Promise<TransactionRecord[]> };
   /** Re-fetches a Paddle transaction and matches it to the server-owned order before granting Pro. */
   settlePaddle?: (transactionId: string) => Promise<'paid' | 'pending' | 'unknown'>;
+  /** A full refund or chargeback of a Paddle Pro order removes Pro (commerce/paddleRefunds.ts). Absent: adjustments are acknowledged only. */
+  revokePaddle?: (eventId: string, adjustmentId: string) => Promise<import('./commerce/paddleRefunds.ts').RefundOutcome>;
   /** The secret key of the Paddle notification destination (Secret Manager), for Paddle-Signature. */
   paddleWebhookSecret?: string;
   /** Paddle.js settings for the site's checkout page. The client-side token is public by design, but kept out of Git. */
@@ -1981,7 +1983,7 @@ export function createApp(options: AppOptions) {
       },
     },
     {
-      method: 'POST', path: '/v1/billing/paddle', summary: 'Paddle notifications (Paddle-Signature). Each transaction is fetched back from Paddle before anything is granted.', auth: 'none',
+      method: 'POST', path: '/v1/billing/paddle', summary: 'Paddle notifications (Paddle-Signature). Each transaction or adjustment is fetched back from Paddle before Pro is granted, or removed after a full refund or chargeback.', auth: 'none',
       handler: async (req) => {
         if (!options.settlePaddle || !options.paddleWebhookSecret) throw new ApiError(503, 'PADDLE_NOT_CONFIGURED', 'Paddle payments are not set up.');
         const signature = req.headers['paddle-signature'];
@@ -1995,6 +1997,14 @@ export function createApp(options: AppOptions) {
           if (!paddleLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Retry this notification shortly.', true);
           try { await options.settlePaddle(event.data.id!); }
           catch { throw new ApiError(503, 'PAYMENT_VERIFICATION_PENDING', 'The payment verification will be retried.', true); }
+        }
+        // Refunds and chargebacks: a full one removes Pro, a partial one keeps it. Each event is acted on once.
+        if ((event.event_type === 'adjustment.created' || event.event_type === 'adjustment.updated') && options.revokePaddle && PADDLE_ADJUSTMENT_ID.test(event.data.id ?? '')) {
+          if (!paddleLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Retry this notification shortly.', true);
+          let outcome: string;
+          try { outcome = await options.revokePaddle(event.event_id, event.data.id!); }
+          catch { throw new ApiError(503, 'REFUND_VERIFICATION_PENDING', 'The refund will be checked again when Paddle retries.', true); }
+          return { status: 200, body: { received: true, outcome } };
         }
         return { status: 200, body: { received: true } };
       },

@@ -4,6 +4,7 @@ import { CloudDemoStudio } from './demoStudio.ts';
 import { loadConfig } from './config.ts';
 import { CommerceLedger } from './commerce/ledger.ts';
 import { paddleProSettlement, type ProPurchaseOrder } from './commerce/proSettlement.ts';
+import { paddleRefundRevocation } from './commerce/paddleRefunds.ts';
 import { paddleApi } from './commerce/paddle.ts';
 import { rotatingKeySource, secretManagerSecret } from './commerce/paddleKeyRotation.ts';
 import { paddleProCheckout, type StoredProOrder } from './commerce/proCheckout.ts';
@@ -36,6 +37,17 @@ const settlePaddle = firestore && commerce && paddle ? paddleProSettlement({
   commerce,
   licences: store,
 }) : undefined;
+// A full refund or chargeback of a Pro order removes Pro. Each Paddle event id is claimed once (create() refuses a second).
+const revokePaddle = firestore && paddle ? paddleRefundRevocation({
+  findOrder: async (id) => (await firestore.collection(paddleOrders).doc(id).get()).data() as ProPurchaseOrder | undefined ?? null,
+  paddle,
+  licences: store,
+  events: {
+    claim: async (eventId, atMs) => { try { await firestore.collection('paddle_events').doc(eventId.slice(0, 128)).create({ atMs }); return true; } catch { return false; } },
+    release: async (eventId) => { await firestore.collection('paddle_events').doc(eventId.slice(0, 128)).delete(); },
+  },
+  now: () => Date.now(),
+}) : undefined;
 // The checkout page is on the published website (the first HTTPS app origin, i.e. the Hosting site Terraform adds).
 const siteUrl = process.env.KCP_PUBLIC_SITE_URL?.trim() || config.allowedOrigins.find((o) => o.startsWith('https://') && o !== 'https://tauri.localhost');
 const proCheckout = firestore && paddle && settlePaddle && paddlePriceId && siteUrl ? paddleProCheckout({
@@ -53,7 +65,7 @@ const paddleClient = paddleClientToken ? { environment: paddleEnvironment, clien
 const demoStudio = firestore && process.env.KCP_DEMO_PRIVATE_BUCKET && process.env.KCP_DEMO_PUBLIC_BUCKET
   ? new CloudDemoStudio(firestore, process.env.KCP_DEMO_PRIVATE_BUCKET, process.env.KCP_DEMO_PUBLIC_BUCKET) : undefined;
 const optional = await buildOptionalServices({ firestore: firestore as unknown as FirestoreLike | undefined, sessionSecret: config.sessionSecret });
-const app = createApp({ config, store, commerce, payments: commerce, settlePaddle, paddleWebhookSecret, paddleClient,
+const app = createApp({ config, store, commerce, payments: commerce, settlePaddle, revokePaddle, paddleWebhookSecret, paddleClient,
   paddleKeyStatus: firestore && paddleKeyProject ? async () => {
     const [current, lastRun] = await Promise.all(['current', 'last_run'].map((id) => firestore.collection('paddle_key_rotation').doc(id).get()));
     return { current: (current.data() as never) ?? null, lastRun: (lastRun.data() as never) ?? null };
