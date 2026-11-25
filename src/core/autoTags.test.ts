@@ -126,3 +126,17 @@ test('a Photo Check outcome sets, clears or leaves the dispute flag', () => {
   assert.equal(disputePatch({}, 'unverified'), null);
   assert.equal(disputePatch({ subjectDisputed: true }, 'unverified'), null);
 });
+
+test('a photo is named only from the group the gate saw, and insects need a higher bar', async () => {
+  const { speciesGroupsForRoute, autoTagMinimum, shouldAutoTag } = await import('./autoTags');
+  assert.deepEqual(speciesGroupsForRoute('insect'), ['insect']);
+  assert.deepEqual(speciesGroupsForRoute('reptile'), ['reptile', 'amphibian']);
+  assert.deepEqual(speciesGroupsForRoute('waterbird'), ['bird']);
+  assert.equal(speciesGroupsForRoute(null), null, 'not sure: every group stays in, as before');
+  assert.equal(speciesGroupsForRoute('helicopter'), null);
+  assert.equal(autoTagMinimum('insect'), 0.95);
+  assert.equal(autoTagMinimum('bird'), 0.8);
+  assert.equal(autoTagMinimum('mammal'), 0.8);
+  assert.equal(shouldAutoTag(0.94, autoTagMinimum('insect')), false, 'a 0.94 damselfly name is not written');
+  assert.equal(shouldAutoTag(0.94, autoTagMinimum('bird')), true);
+});

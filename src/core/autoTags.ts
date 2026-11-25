@@ -39,7 +39,30 @@ export function keepAuto(previous: AutoState, name: string): string[] {
 
 /** Minimum share of the unpersonalised ranking for automatic tagging. */
 export const AUTO_MINIMUM = 0.8;
-export const shouldAutoTag = (probability: number) => probability >= AUTO_MINIMUM && probability <= 1;
+export const shouldAutoTag = (probability: number, minimum = AUTO_MINIMUM) => probability >= minimum && probability <= 1;
+
+/**
+ * A higher bar for groups where BioCLIP confuses look-alike species more. Measured on 61 CC0/CC BY Commons photos of
+ * dragonflies, damselflies, butterflies and moths named against the insect lists: at 0.8, 29 right and 5 wrong; at 0.95,
+ * 25 right and none wrong (tools/species/check_names_on_photos.py). Birds and mammals keep 0.8.
+ */
+export const AUTO_MINIMUM_BY_GROUP: Partial<Record<SpeciesLabel['group'], number>> = { insect: 0.95 };
+export const autoTagMinimum = (group: SpeciesLabel['group'] | undefined) => (group && AUTO_MINIMUM_BY_GROUP[group]) || AUTO_MINIMUM;
+
+/**
+ * The label groups a photo may be named from, by what the category gate saw: an insect is named only from the insect
+ * lists, a reptile or amphibian only from theirs. A stag beetle was otherwise named "Black Woodpecker" at 0.89 in the
+ * same check. When the gate is not sure (no confident category), every group stays in, as before.
+ */
+export function speciesGroupsForRoute(categoryId: string | null | undefined): SpeciesLabel['group'][] | null {
+  switch (categoryId) {
+    case 'bird': case 'bird-of-prey': case 'waterbird': return ['bird'];
+    case 'mammal': return ['mammal'];
+    case 'reptile': return ['reptile', 'amphibian'];
+    case 'insect': return ['insect'];
+    default: return null;
+  }
+}
 
 /**
  * When no single species is certain enough, the family may be: if the names that share one family together hold at
@@ -71,9 +94,10 @@ export function qualifiesForAutoTag(
 ): boolean {
   // A softmax over one available label is 100% by definition, even for an
   // unrelated animal. It may be shown for manual consideration, never applied.
-  if (labels.length < 2 || labels.length !== vectors.length || !shouldAutoTag(suggested.probability)) return false;
+  const minimum = autoTagMinimum(suggested.label.group);
+  if (labels.length < 2 || labels.length !== vectors.length || !shouldAutoTag(suggested.probability, minimum)) return false;
   const strongest = rankSpecies(embedding, labels, vectors)[0];
-  return strongest?.index === suggested.index && shouldAutoTag(strongest.probability);
+  return strongest?.index === suggested.index && shouldAutoTag(strongest.probability, minimum);
 }
 
 /** Photos the species model has not looked at yet: still in the library, never checked, and with nothing of the user's own on them. */

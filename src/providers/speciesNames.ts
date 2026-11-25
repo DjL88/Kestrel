@@ -37,7 +37,7 @@ export function addSpeciesNameTable(table: SpeciesNameTable) {
   if (loadedLanguage) rebuild();
 }
 
-interface IndexFile { attribution: string; source: string; species: [string, string][]; families?: [string, string][] }
+interface IndexFile { attribution: string; source: string; species: ([string, string] | [string])[]; families?: [string, string][] }
 interface LanguageFile { names: Record<string, string> }
 interface FamiliesFile { names: Record<string, Record<string, string>> }
 
@@ -62,7 +62,8 @@ export function loadSpeciesNames(language: string): Promise<SpeciesNameIndex | u
       if (!Array.isArray(all.species) || typeof local.names !== 'object') throw new Error('species names are not in the expected format');
       loadedLanguage = language;
       loaded = { source: all.source, attribution: all.attribution, language, names: [
-        ...all.species.map(([scientific, english]): [string, string, string | null] => [scientific, english, local.names[scientific] ?? null]),
+        // A species with no English name is stored once, as its scientific name.
+        ...all.species.map(([scientific, english]): [string, string, string | null] => [scientific, english ?? scientific, local.names[scientific] ?? null]),
         // A photo named only by family ("Owls") shows the family's local name, else the scientific family.
         ...(all.families ?? []).map(([scientific, english]): [string, string, string | null] => [scientific, english, families[scientific] ?? null]),
       ] };

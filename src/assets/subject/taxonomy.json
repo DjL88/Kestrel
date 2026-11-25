@@ -126,7 +126,7 @@
     "a dragonfly, bee or beetle"
    ],
    "detector": [],
-   "identify": null
+   "identify": "species"
   },
   {
    "id": "invertebrate",

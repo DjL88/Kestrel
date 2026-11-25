@@ -97,7 +97,7 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '
     const scientificFamily = names.get(s.scientific.toLowerCase())?.family;
     if (s.family && scientificFamily && !families.has(s.family)) families.set(s.family, scientificFamily);
   }
-  const index = { ...meta, species: species.map((s) => [s.scientific, s.common]), families: [...families].map(([english, scientific]) => [scientific, english]) };
+  const index = { ...meta, species: species.map((s) => (s.common && s.common !== s.scientific ? [s.scientific, s.common] : [s.scientific])), families: [...families].map(([english, scientific]) => [scientific, english]) };
   writeFileSync(join(target, 'index.json'), JSON.stringify(index));
   console.log(`index: ${species.length} species, ${families.size} families, ${size(index)}`);
   // Mammal names from Wikidata (CC0), fetched by mammal_names.mjs into tools/species/mammal-names.json.

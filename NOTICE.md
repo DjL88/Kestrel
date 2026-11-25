@@ -153,6 +153,12 @@ InFlight's own, positions read by hand; no OpenStreetMap data was copied.
     Used in `public/models/species-reptiles.json` and, for local names, `tools/species/group-names.json`.
   - Amphibians: GBIF Backbone Taxonomy (GBIF Secretariat, doi 10.15468/39omei), class Amphibia, retrieved 2026-11-25,
     **CC BY 4.0**; regions from GBIF occurrence records. Used in `public/models/species-amphibians.json`.
+  - Dragonflies and damselflies: The World Odonata List (Abbott, J. et al.), version Nov 2026, via ChecklistBank
+    (doi 10.48580/d75rv), **CC BY 4.0**; extra English and local names from Wikidata (**CC0**); regions from GBIF
+    occurrence records where the list has none. Used in `public/models/species-odonata.json`.
+  - European butterflies and moths: Fauna Europaea – Lepidoptera (doi 10.15468/0ub3co), **CC BY 4.0**; English butterfly
+    names from INBO's National checklists and red lists for European butterflies (doi 10.15468/ye7whj), **CC0**.
+    Used in `public/models/species-lepidoptera.json`.
   - Mammal, reptile and amphibian local names also from Wikidata (**CC0 1.0**) and InFlight's own draft names.
   Each file carries its attribution and the source's SHA-256; the source downloads are not in git.
 - **Subject/eye detection models** (`src/assets/models/u2netp.onnx`,

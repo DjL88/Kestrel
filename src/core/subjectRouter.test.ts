@@ -172,13 +172,15 @@ test('reptiles and amphibians now route to the species list, which holds the wor
   assert.equal(speciesGate(routeSubject(picture({ reptile: 1 }), vectors, categories)), 'allow');
 });
 
-test('insects stay strict until both insect lists (dragonflies, butterflies and moths) are in the species list', () => {
-  assert.equal(categories.find((c) => c.id === 'insect')!.identify, null);
-  assert.equal(speciesGate(routeSubject(picture({ insect: 1 }), vectors, categories)), 'strict');
+test('insects route to the species list now that dragonflies and butterflies and moths are in it', () => {
+  assert.equal(categories.find((c) => c.id === 'insect')!.identify, 'species');
+  assert.equal(speciesGate(routeSubject(picture({ insect: 1 }), vectors, categories)), 'allow');
+  // Other invertebrates (spiders, snails) still have no list.
+  assert.equal(categories.find((c) => c.id === 'invertebrate')!.identify, null);
 });
 
-test('a picture split between reptile and insect is not let through to a species name', () => {
+test('a picture split between reptile and insect names no category, so its species are ranked across every group', () => {
   const result = routeSubject(picture({ reptile: 1, insect: 1 }), vectors, categories);
   assert.equal(result.confident, false);
-  assert.notEqual(speciesGate(result), 'allow');
+  assert.equal(result.category, null, 'no group is chosen for it, so naming is not narrowed (and insects keep their 0.95 bar)');
 });
