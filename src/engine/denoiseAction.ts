@@ -61,7 +61,10 @@ export interface DenoiseActionInput {
   /** Renders the photo with this edit + these masks applied. Injected deliberately: this module has no
    * canvas/renderer of its own (that lives in a provider, e.g. the browser preview pipeline), so it stays
    * pure and testable with a fake renderer. */
-  render: (edit: Partial<PhotoEdit>, masks: Mask[]) => Promise<Pixels>;
+  render: (edit: Partial<PhotoEdit>, masks: Mask[], learned?: LearnedBlend) => Promise<Pixels>;
+  /** A learned denoiser's result is available (TrueDetail): `render` can blend it into the subject and eye regions at
+   * these strengths, and the guardian compares it with the conventional denoise per region. */
+  learned?: { source: string; strengths: readonly number[] };
   /** The photo before this action, for the closed-loop check. */
   original: Pixels;
   /** How many times to retry at a reduced strength before accepting whatever the last attempt produced. */
@@ -73,6 +76,9 @@ export interface DenoiseActionInput {
   signal?: AbortSignal;
 }
 
+/** How strongly a learned denoiser's result is blended inside subjects and inside eyes, 0 to 1. */
+export interface LearnedBlend { subject: number; eyes: number }
+
 export interface DenoiseActionResult {
   edit: Partial<PhotoEdit>;
   masks: Mask[];
@@ -81,6 +87,8 @@ export interface DenoiseActionResult {
   attempts: number;
   /** With a subject: what TrueDetail's regional guardian chose for each region, and why a region kept the original. */
   regions?: RegionChoice[];
+  /** The learned result's verified blend, when the guardian chose it for the subject or eyes. */
+  learned?: LearnedBlend;
 }
 
 /** How far the eye protection reaches around a detected eye: the eye ring and the feathers at its rim. */
@@ -115,6 +123,7 @@ export async function runDenoiseAction(input: DenoiseActionInput): Promise<Denoi
     let { background, subject } = splitDenoiseBySubject(input.backgroundDenoise);
     let eyes = subject;
     let regions: RegionChoice[] | undefined;
+    let learned: LearnedBlend | undefined;
     const sized = !!subjectInput && subjectInput.alpha.length === width * height;
     if (subjectInput && sized) {
       // TrueDetail: each region takes the strongest candidate that beats the original there, judged on its own pixels.
@@ -131,12 +140,24 @@ export async function runDenoiseAction(input: DenoiseActionInput): Promise<Denoi
       ], Math.max(0, Math.min(2, input.backgroundDenoise)), async (strength) => {
         input.signal?.throwIfAborted();
         return input.render({ denoise: 0 }, regionalDenoiseMasks(subjectInput, { background: strength, subject: strength, eyes: strength }, lumaPerStrength));
-      });
-      const pick = (region: DenoiseRegion) => regions!.find(r => r.region === region)?.strength ?? 0;
-      background = pick('background'); subject = pick('subject');
+      }, undefined, (input.learned?.strengths ?? []).map(strength => ({
+        source: input.learned!.source, strength, regions: ['subject', 'eyes'] as const,
+        // The learned result alone in subject and eyes: no conventional filter on top, so it is judged on its own.
+        render: async () => {
+          input.signal?.throwIfAborted();
+          return input.render({ denoise: 0 }, regionalDenoiseMasks(subjectInput, { background: 0, subject: 0, eyes: 0 }, lumaPerStrength), { subject: strength, eyes: strength });
+        },
+      })));
+      const choice = (region: DenoiseRegion) => regions!.find(r => r.region === region);
+      const conventional = (region: DenoiseRegion) => { const c = choice(region); return c && c.source === 'conventional' ? c.strength : 0; };
+      const learnedAt = (region: DenoiseRegion) => { const c = choice(region); return c && c.source !== 'conventional' ? c.strength : 0; };
+      background = conventional('background'); subject = conventional('subject');
       // Without a measured eye, the eye layer is absent; with one, it is never stronger than the subject around it.
-      eyes = Math.min(subject, weights.eyes ? pick('eyes') : subject);
-      if (!background && !subject && !eyes) {
+      eyes = Math.min(subject, weights.eyes ? conventional('eyes') : subject);
+      const subjectLearned = learnedAt('subject');
+      // Without an eye region the eyes follow the subject; an eye never takes a learned result the eye check refused.
+      learned = subjectLearned || learnedAt('eyes') ? { subject: subjectLearned, eyes: weights.eyes ? learnedAt('eyes') : subjectLearned } : undefined;
+      if (!background && !subject && !eyes && !learned) {
         return { edit: {}, masks: [], attempts: 1, regions,
           verification: { ok: false, reasons: ['No denoise candidate improved on the original in any region.'], suggestedStrengthScale: 0 } };
       }
@@ -150,7 +171,7 @@ export async function runDenoiseAction(input: DenoiseActionInput): Promise<Denoi
       edit = { denoise: subjectInput ? 0 : background };
       masks = subjectInput ? regionalDenoiseMasks(subjectInput, { background, subject, eyes }, lumaPerStrength) : [];
       input.signal?.throwIfAborted();
-      const after = await input.render(edit, masks);
+      const after = await input.render(edit, masks, learned);
       input.signal?.throwIfAborted();
       verification = verifyEdit(input.original, after, subjectInput?.alpha);
       if (subjectInput && sized && after.width === width && after.height === height && after.data.length === input.original.data.length) {
@@ -167,7 +188,9 @@ export async function runDenoiseAction(input: DenoiseActionInput): Promise<Denoi
       background = Math.max(0, background * verification.suggestedStrengthScale);
       subject = Math.max(0, subject * verification.suggestedStrengthScale);
       eyes = Math.max(0, eyes * verification.suggestedStrengthScale);
+      if (learned) learned = { subject: learned.subject * verification.suggestedStrengthScale, eyes: learned.eyes * verification.suggestedStrengthScale };
     }
-    return { edit: verification.ok ? edit : {}, masks: verification.ok ? masks : [], verification, attempts: attempts + 1, ...(regions ? { regions } : {}) };
+    return { edit: verification.ok ? edit : {}, masks: verification.ok ? masks : [], verification, attempts: attempts + 1,
+      ...(regions ? { regions } : {}), ...(verification.ok && learned ? { learned } : {}) };
   }, { signal: input.signal });
 }

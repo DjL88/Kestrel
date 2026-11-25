@@ -54,11 +54,17 @@ const MEMBERSHIP_MESSAGES: Record<MembershipRefusal, [number, string]> = {
   'role-too-high': [403, 'Only the owner can add editors or owners.'],
 };
 
-/** A comment on one photo, optionally pinned to a spot on it (0–1 across and down). Resolved ones are kept, marked. */
+/**
+ * A comment on one photo, optionally pinned to a spot on it (0–1 across and down). Resolved ones are kept, marked.
+ * A reply belongs to one thread (replyTo is the thread's first comment); threads are one level deep, a reply has no
+ * pin of its own, and the thread is marked done or reopened as a whole, from its first comment.
+ */
 export interface CollabComment {
   id: string; projectId: string; photoId: string; authorAccountId: string; authorName: string;
   text: string; point: { x: number; y: number } | null; createdAtMs: number; resolvedAtMs: number | null;
+  replyTo: string | null;
 }
+const asComment = (data: FsData) => ({ point: null, resolvedAtMs: null, replyTo: null, ...data }) as unknown as CollabComment;
 
 export class CollabStore {
   constructor(private readonly db: FirestoreLike, private readonly newId: () => string = uuid, private readonly newToken: () => string = () => randomId(24)) {}
@@ -311,11 +317,23 @@ export class CollabStore {
     return rest;
   }
 
-  async addComment(projectId: string, photoId: string, accountId: string, input: { text: string; point: { x: number; y: number } | null }, atMs: number): Promise<CollabComment> {
+  async addComment(projectId: string, photoId: string, accountId: string, input: { text: string; point: { x: number; y: number } | null; replyTo?: string | null }, atMs: number): Promise<CollabComment> {
     return this.db.runTransaction(async (tx) => {
       const project = await this.readProject(tx, projectId);
       const member = this.memberOrRefuse(project, accountId, 'comment', photoId);
-      const comment: CollabComment = { id: this.newId(), projectId, photoId, authorAccountId: accountId, authorName: member.displayName, text: input.text, point: input.point, createdAtMs: atMs, resolvedAtMs: null };
+      let replyTo: string | null = null;
+      if (input.replyTo) {
+        const parentRef = this.ref(C.comments, projectId, input.replyTo);
+        const parentSnap = await tx.get(parentRef);
+        const parent = parentSnap.exists ? asComment(parentSnap.data()!) : null;
+        // A client may only reply in a thread they started; any other thread does not exist for them.
+        if (!parent || parent.photoId !== photoId || (member.role === 'client' && parent.authorAccountId !== accountId)) throw new CollabRefusal(404, 'NOT_FOUND', 'No such comment.');
+        if (parent.replyTo !== null) throw new CollabRefusal(400, 'COLLAB_REPLY_TO_THREAD', 'Reply to the first comment of the thread.');
+        replyTo = parent.id;
+        // Replying to a thread that was marked done reopens it: the conversation is clearly not over.
+        if (parent.resolvedAtMs !== null) tx.set(parentRef, clean({ ...parent, resolvedAtMs: null }));
+      }
+      const comment: CollabComment = { id: this.newId(), projectId, photoId, authorAccountId: accountId, authorName: member.displayName, text: input.text, point: replyTo ? null : input.point, createdAtMs: atMs, resolvedAtMs: null, replyTo };
       tx.create(this.ref(C.comments, projectId, comment.id), clean(comment));
       return comment;
     });
@@ -325,9 +343,11 @@ export class CollabStore {
     const project = await this.db.runTransaction((tx) => this.readProject(tx, projectId));
     const me = this.memberOrRefuse(project, accountId, 'view', photoId);
     const snap = await this.db.collection(C.comments).where('projectId', '==', projectId).where('photoId', '==', photoId).get();
-    return snap.docs.map((d) => ({ point: null, resolvedAtMs: null, ...d.data()! }) as unknown as CollabComment)
-      // Team comments are never shown to a client: a client sees only the comments they wrote themselves.
-      .filter((comment) => me.role !== 'client' || comment.authorAccountId === accountId)
+    const all = snap.docs.map((d) => asComment(d.data()!));
+    const starter = new Map(all.filter((c) => c.replyTo === null).map((c) => [c.id, c.authorAccountId]));
+    return all
+      // Team threads are never shown to a client: a client sees only the threads they started (with the replies to them).
+      .filter((comment) => me.role !== 'client' || starter.get(comment.replyTo ?? comment.id) === accountId)
       .sort((a, b) => a.createdAtMs - b.createdAtMs);
   }
 
@@ -338,8 +358,9 @@ export class CollabStore {
       const ref = this.ref(C.comments, projectId, commentId);
       const snap = await tx.get(ref);
       if (!snap.exists) throw new CollabRefusal(404, 'NOT_FOUND', 'No such comment.');
-      const comment = { point: null, resolvedAtMs: null, ...snap.data()! } as unknown as CollabComment;
+      const comment = asComment(snap.data()!);
       const me = this.memberOrRefuse(project, accountId, 'view', comment.photoId);
+      if (comment.replyTo !== null) throw new CollabRefusal(400, 'COLLAB_RESOLVE_THREAD', 'Mark the thread done from its first comment.');
       // To a client, someone else's comment does not exist (no 403 that would reveal it).
       if (me.role === 'client' && comment.authorAccountId !== accountId) throw new CollabRefusal(404, 'NOT_FOUND', 'No such comment.');
       if (comment.authorAccountId !== accountId && !can(project, accountId, 'edit', comment.photoId)) throw new CollabRefusal(403, 'COLLAB_NOT_PERMITTED', 'Only the author or an editor can mark this done.');
