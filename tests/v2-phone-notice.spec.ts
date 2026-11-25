@@ -11,9 +11,9 @@ test('phone: a notice never covers the filmstrip, and long-press on a thumbnail 
 
   // The sample workspace answers Folder with a notice.
   await studio.getByRole('button', { name: /^(Folder|Add photographs from a folder)$/ }).first().click();
-  const notice = studio.getByTestId('action-notice');
+  // Found by what a screen reader meets: a status (or alert) carrying the message.
+  const notice = studio.locator('[role="status"], [role="alert"]').filter({ hasText: 'Folder import is available' });
   await expect(notice).toBeVisible();
-  await expect(notice).toHaveAttribute('role', /status|alert/);
 
   const strip = studio.getByRole('listbox', { name: 'Project photographs' });
   const noticeBox = (await notice.boundingBox())!;
