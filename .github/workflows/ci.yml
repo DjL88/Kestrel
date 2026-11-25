@@ -24,7 +24,7 @@ jobs:
   check:
     if: github.event.pull_request.draft != true
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -53,7 +53,11 @@ jobs:
       - if: steps.pw-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
       # Playwright builds and serves the production app before running the tests. Desktop and phone projects.
-      - run: npx playwright test tests/v2- tests/site- tests/admin- --workers=2
+      # Fail fast and cheap: stop after 20 failures, and never let the browser step run past 25 minutes (everything
+      # before this step takes about 2.5 minutes on GitHub). Each test still has its 90 s limit for slow on-device models.
+      - name: V2 browser tests
+        timeout-minutes: 25
+        run: npx playwright test tests/v2- tests/site- tests/admin- --workers=2 --max-failures=20
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
