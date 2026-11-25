@@ -113,6 +113,9 @@ export interface PhotoFrame {
   /** The camera's as-shot white, estimated by InFlight's RAW decoder from the file's own metadata when it developed the
    * sensor data. Absent for JPEGs and for RAWs developed before this was recorded. Never the camera maker's own figure. */
   asShotWhite?: import('./asShotWhite').AsShotWhite;
+  /** How the RAW's sensor data is compressed, read from the file's own headers once it was developed (Nikon HE/HE* or
+   * 'other'). Absent when not yet read; then nothing names a codec. Only ever adds words to a label. */
+  rawCodec?: import('./pictureSource').RawCodec;
   cullScore?: number;
   /** The person chose to see this burst's frames one by one (set on every frame of the burst). Never changes a decision. */
   burstUngrouped?: boolean;

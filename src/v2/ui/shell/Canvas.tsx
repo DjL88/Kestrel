@@ -21,6 +21,7 @@ import type {
 } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
+import PictureSourceBadge from './PictureSourceBadge';
 import CompareSplit from './CompareSplit';
 import MaskOutlineLayer from './MaskOutlineLayer';
 import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
@@ -1583,6 +1584,8 @@ export default function Canvas({
               <span className="v2-phone-label">All formats ({enabledSizes.length})</span>
             </button>
           </div>
+          {/* Which picture is shown, for the single view and the All formats board alike (camera preview or RAW develop). */}
+          <PictureSourceBadge picture={photo.picture?.preview} className="h-7 text-[0.6875rem]" />
 
           {canvasLayoutMode === 'all-formats' && (
             <>

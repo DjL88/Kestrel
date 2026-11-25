@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { Photo } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
+import { pictureSourceWords } from '../shell/PictureSourceBadge';
 
 /** Brightness is solid; each colour channel also has its own dash pattern and name, so none is told apart by hue alone (WCAG 1.4.1). */
 const HISTOGRAM_LINES = [
@@ -137,6 +138,7 @@ export default function InfoPanel({
           <MetaRow label="File" value={photo.filename} mono />
           {photo.pairedJpeg && <MetaRow label={STRINGS.pair.infoLabel} value={photo.pairedJpeg} mono />}
           <MetaRow label="Format" value={photo.exif.fileSizeMb > 0 ? `${photo.exif.fileFormat} · ${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(photo.exif.fileSizeMb)} MB` : photo.exif.fileFormat} />
+          {photo.picture?.preview && (() => { const words = pictureSourceWords(photo.picture.preview); return <MetaRow label={STRINGS.pictureSource.infoLabel} value={`${words.label}. ${words.detail}`} />; })()}
           <MetaRow label="Dimensions" value={photo.exif.dimensions} mono />
           <MetaRow label="Colour profile" value={photo.exif.colourProfile} />
           <MetaRow

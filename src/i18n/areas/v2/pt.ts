@@ -368,6 +368,18 @@ export const pt: AreaTranslation<typeof source> = {
     title: (raw: string, jpeg: string) => `${raw} e ${jpeg} são uma só fotografia. Os dois ficheiros são mantidos; marcas e estrelas aplicam-se a ambos.`,
     infoLabel: "JPEG associado",
   },
+  pictureSource: {
+    camera: "Pré-visualização da câmara",
+    raw: "Revelada a partir do RAW",
+    cameraShort: "Pré-visualização",
+    rawShort: "RAW",
+    cameraDetail: "O JPEG que a câmara guardou dentro do ficheiro RAW. O InFlight ainda não revelou os dados do sensor.",
+    rawScreenDetail: "Revelada pelo InFlight a partir dos dados do sensor RAW, no tamanho do ecrã.",
+    rawFullDetail: "Revelada pelo InFlight a partir dos dados do sensor RAW, em tamanho completo.",
+    he: 'Nikon High Efficiency',
+    heStar: 'Nikon High Efficiency*',
+    infoLabel: "Imagem mostrada",
+  },
   canvas: {
     selectPhoto: "Selecione uma fotografia na película para começar a editar.",
     resizeText: "Redimensionar o texto",

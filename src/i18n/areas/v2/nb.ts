@@ -368,6 +368,18 @@ export const nb: AreaTranslation<typeof source> = {
     title: (raw: string, jpeg: string) => `${raw} og ${jpeg} er ett bilde. Begge filene beholdes; merker og stjerner gjelder for begge.`,
     infoLabel: "Tilhørende JPEG",
   },
+  pictureSource: {
+    camera: "Kameraforhåndsvisning",
+    raw: "Fremkalt fra RAW",
+    cameraShort: "Forhåndsvisning",
+    rawShort: "RAW",
+    cameraDetail: "JPEG-bildet kameraet lagret i RAW-filen. InFlight har ikke fremkalt sensordataene ennå.",
+    rawScreenDetail: "Fremkalt av InFlight fra RAW-sensordataene, i skjermstørrelse.",
+    rawFullDetail: "Fremkalt av InFlight fra RAW-sensordataene, i full størrelse.",
+    he: 'Nikon High Efficiency',
+    heStar: 'Nikon High Efficiency*',
+    infoLabel: "Vist bilde",
+  },
   canvas: {
     selectPhoto: "Velg et bilde i filmstripen for å begynne å redigere.",
     resizeText: "Endre tekststørrelse",

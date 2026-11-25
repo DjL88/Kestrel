@@ -368,6 +368,18 @@ export const is: AreaTranslation<typeof source> = {
     title: (raw: string, jpeg: string) => `${raw} og ${jpeg} eru ein mynd. Báðum skrám er haldið; merkingar og stjörnur gilda um báðar.`,
     infoLabel: "Pöruð JPEG",
   },
+  pictureSource: {
+    camera: "Forskoðun myndavélar",
+    raw: "Framkallað úr RAW",
+    cameraShort: "Forskoðun",
+    rawShort: "RAW",
+    cameraDetail: "JPEG-myndin sem myndavélin vistaði í RAW-skránni. InFlight hefur ekki enn framkallað gögn myndflögunnar.",
+    rawScreenDetail: "Framkallað af InFlight úr RAW-gögnum myndflögunnar, í skjástærð.",
+    rawFullDetail: "Framkallað af InFlight úr RAW-gögnum myndflögunnar, í fullri stærð.",
+    he: 'Nikon High Efficiency',
+    heStar: 'Nikon High Efficiency*',
+    infoLabel: "Mynd sem sést",
+  },
   canvas: {
     selectPhoto: "Veldu mynd úr myndaröðinni til að hefja vinnslu.",
     resizeText: "Breyta stærð texta",

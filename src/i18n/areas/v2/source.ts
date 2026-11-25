@@ -393,6 +393,18 @@ export const source = {
     title: (raw: string, jpeg: string) => `${raw} and ${jpeg} are one shot. Both files are kept; flags and stars apply to both.`,
     infoLabel: 'Paired JPEG',
   },
+  pictureSource: {
+    camera: "Camera preview",
+    raw: "Developed from RAW",
+    cameraShort: "Preview",
+    rawShort: "RAW",
+    cameraDetail: "The JPEG the camera saved inside the RAW file. InFlight has not developed the sensor data yet.",
+    rawScreenDetail: "Developed by InFlight from the RAW sensor data, at screen size.",
+    rawFullDetail: "Developed by InFlight from the RAW sensor data, at full size.",
+    he: 'Nikon High Efficiency',
+    heStar: 'Nikon High Efficiency*',
+    infoLabel: "Picture shown",
+  },
 
   // Canvas
   canvas: {
