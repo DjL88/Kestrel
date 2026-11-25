@@ -74,6 +74,7 @@ import { judgeSubject } from '../../core/autoCull';
 import { archiveExports, saveExportFile, loadExportSource, loadVerifiedRasterOriginalForExport } from '../../providers/browserExport';
 import { toProfile } from '../../core/exportFormats';
 import { renderV2Export, type OverlayDraw } from './renderV2Export';
+import { renderGalleryPreview } from './galleryPreview';
 import { formatOverlayRowText } from '../ui/utils/studioMath';
 import { loadImage } from '../../providers/loadImage';
 import { deliverExport, describeExport } from './exportDelivery';
@@ -1577,6 +1578,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     applyAssistSuggestion: applyAuto,
     requestLocalAuto: (photoId) => setAutoRequest((last) => ({ photoId, sequence: (last?.sequence ?? 0) + 1 })),
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
+    renderGalleryPreview: async (photoId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
+      return frame && provider.current ? renderGalleryPreview(frame, provider.current) : null;
+    },
     dismissAssistSuggestion: (photoId, suggestionId) => setAssists((current) => (current[photoId]
       ? { ...current, [photoId]: { ...current[photoId], dismissed: [...current[photoId].dismissed, suggestionId] } } : current)),
     runDeepVisionReview: (photoId) => runDeepVisionReviewAction(photoId),

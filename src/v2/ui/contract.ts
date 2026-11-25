@@ -577,6 +577,8 @@ export interface WorkspaceActions {
   applyAssistSuggestion: (photoId: string, suggestionId: string) => void;
   requestLocalAuto?: (photoId: string) => void;
   applyAllAssistSuggestions: (photoId: string) => void;
+  /** A sized JPEG of the edited photo for a client gallery, or null when there is no trustworthy picture yet. Absent in the stub. */
+  renderGalleryPreview?: (photoId: string) => Promise<Blob | null>;
   dismissAssistSuggestion: (photoId: string, suggestionId: string) => void;
 
   // Editing & Looks
