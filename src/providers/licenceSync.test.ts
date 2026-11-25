@@ -147,3 +147,34 @@ test('a failed fresh identity exchange cannot retain a previous account session'
   // An existing offline signed grant is not silently deleted on network/auth failure.
   assert.equal((await env.reload().storedAccountStanding())?.kind, 'active');
 });
+
+
+test('account device management exchanges fresh identity without activating or persisting a grant', async () => {
+  const values = new Map<string, string>();
+  const requests: Array<{ url: string; body: any; auth?: string }> = [];
+  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+  let failed = false;
+  const sync = new LicenceSync({
+    baseUrl: 'https://licences.example.test', grantKeys: { k1: 'unused-in-device-management' },
+    storage: { getItem: k => values.get(k) ?? null, setItem: (k, v) => { values.set(k, v); }, removeItem: k => { values.delete(k); } },
+    fetch: (async (url: string, init: RequestInit) => {
+      requests.push({ url, body: JSON.parse(String(init.body)), auth: (init.headers as Record<string, string>).authorization });
+      if (url.endsWith('/v1/auth/firebase')) return json({ accessToken: 'fresh-session' });
+      if (url.endsWith('/v1/me/devices/deactivate')) return failed ? json({}, 404) : json({ deactivated: true });
+      return json({ status: 'active', validUntilMs: null, maxDevices: 5, devices: [{ activationId: 'act_other', platform: 'windows', appVersion: '1.0.0', lastSeenMs: 123, thisDevice: false }] });
+    }) as unknown as typeof fetch,
+    now: () => 123, platform: 'macos', appVersion: '1.0.0', randomId: () => 'account-device',
+  });
+  const status = await sync.accountDevices('fresh-identity');
+  assert.equal(status?.maxDevices, 5);
+  assert.equal(status?.devices[0]?.activationId, 'act_other');
+  assert.equal(await sync.releaseAccountDevice('fresh-identity', 'act_other'), true);
+  assert.equal(requests[1].auth, 'Bearer fresh-session');
+  assert.deepEqual(Object.keys(requests[1].body), ['deviceHash']);
+  assert.equal(requests[3].body.activationId, 'act_other');
+  assert.ok(requests.every(r => !r.url.endsWith('/activate')));
+  assert.equal(sync.accountConnection(), null);
+  assert.equal(await sync.storedAccountStanding(), null);
+  failed = true;
+  assert.equal(await sync.releaseAccountDevice('fresh-identity', 'act_other'), false);
+});

@@ -38,11 +38,12 @@ test('hiding a mask keeps it but it stops changing the picture; showing it again
   assert.equal(hasActiveMasks(masks), true);
 });
 
-test('removing a mask drops a limit that pointed at it, and everything stays a valid mask list', () => {
+test('removing a limiting mask hides dependent adjustments and keeps a valid mask list', () => {
   const limited: Mask = { ...createMask('radial', 'b'), limit: { id: 'a', mode: 'intersect' } };
   const left = removeMask([subject('a'), limited], 'a');
   assert.equal(left.length, 1);
   assert.equal(left[0].limit, undefined);
+  assert.equal(left[0].hidden, true);
   assert.ok(validMasks(setMaskFeather(setMaskEdit(toggleMask(left, 'b'), 'b', 'clarity', 0.4), 'b', 250)));
   assert.equal(setMaskFeather(left, 'b', 250)[0].feather, 1);
 });
@@ -152,4 +153,17 @@ test('mask combinations are reversible, validated and change the actual rendered
   assert.deepEqual(setMaskLimit(base, 'left', { id: 'missing', mode: 'intersect' }), base);
   assert.equal(setMaskLimit(intersect, 'left', null)[0].limit, undefined);
   assert.deepEqual(JSON.parse(JSON.stringify(intersect))[0].limit, { id: 'right', mode: 'intersect' });
+});
+
+
+test('deleting a limiter never exposes a stronger adjustment, and undo restores the original restriction', () => {
+  const limiter = createMask('radial', 'limiter');
+  const dependent: Mask = { ...createMask('radial', 'dependent'), edit: { exposure: 1 }, limit: { id: 'limiter', mode: 'intersect' } };
+  const source = { id: 'photo', edit: { exposure: 0, warmth: 0, colour: 0, masks: [limiter, dependent] } } as PhotoFrame;
+  const masks = removeMask(source.edit?.masks, 'limiter');
+  assert.equal(hasActiveMasks(masks), false);
+  const removed = recordEdit(source, { edit: { ...source.edit!, masks } }, 1000);
+  const reopened = JSON.parse(JSON.stringify(removed)) as PhotoFrame;
+  assert.deepEqual(stepEdit(reopened, -1).edit?.masks, [limiter, dependent]);
+  assert.equal(hasActiveMasks(toggleMask(masks, 'dependent')), true);
 });

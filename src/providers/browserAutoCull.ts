@@ -4,7 +4,7 @@ import type { ImportCullCache } from '../core/importCullCache';
 import { collectCullEvidence, finaliseCullEvidence } from '../core/cullEvidenceFinal';
 import type { CullScanStage } from '../core/cullScanProgress';
 import { scanExactDuplicates } from '../core/cullDuplicateScan';
-import { limitAutoKeepers, type CullSuggestion } from '../core/autoCull';
+import { countOriginalKeepers, limitAutoKeepers, type CullSuggestion } from '../core/autoCull';
 import { detectorParallelism, resetDetectorFailure } from './objectDetector';
 import { bundledModelUrl } from './bundledModelAssets';
 import type { PhotoFrame } from '../core/types';
@@ -80,5 +80,5 @@ export async function scanForCulling(
     outcome, duplicates, baseById, detectorHealthy);
   // The V2 caller applies the limit once, against the live catalogue at commit.
   if (goal === null) return fallbackResults;
-  return limitAutoKeepers(fallbackResults, all, Math.max(0, goal - all.filter((frame) => frame.removedAt == null && frame.decision === 'keep').length));
+  return limitAutoKeepers(fallbackResults, all, Math.max(0, goal - countOriginalKeepers(all)));
 }

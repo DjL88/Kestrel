@@ -31,6 +31,7 @@ function render(count: 1 | 2 | 3 | 4 | 5, enabled = true): string {
     features: { ...DEFAULT_FEATURES, splitFrames: true },
     onSetActiveGroup: () => {},
     onAddEditGroup: () => {},
+    onRenameEditGroup: () => {},
     onSetActiveSize: () => {},
     onSetCanvasLayoutMode: () => {},
     onToggleSizeEnabled: () => {},

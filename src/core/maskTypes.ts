@@ -116,17 +116,20 @@ const finite = (value: unknown, low: number, high: number): value is number =>
 
 export function validMasks(value: unknown): value is Mask[] {
   if (!Array.isArray(value) || value.length > MAX_MASKS) return false;
+  const ids = new Set<string>();
   return value.every((raw) => {
-    if (typeof raw !== 'object' || raw === null) return false;
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return false;
     const mask = raw as Record<string, unknown>;
     if (typeof mask.id !== 'string' || !mask.id || typeof mask.invert !== 'boolean' || !finite(mask.feather, 0, 1)) return false;
+    if (ids.has(mask.id) || (mask.hidden !== undefined && typeof mask.hidden !== 'boolean')) return false;
+    ids.add(mask.id);
     if (mask.limit !== undefined) {
       const limit = mask.limit as Record<string, unknown> | null;
       if (typeof limit !== 'object' || limit === null || typeof limit.id !== 'string' || !limit.id || limit.id === mask.id ||
         (limit.mode !== 'intersect' && limit.mode !== 'subtract')) return false;
     }
     const edit = mask.edit;
-    if (typeof edit !== 'object' || edit === null) return false;
+    if (typeof edit !== 'object' || edit === null || Array.isArray(edit)) return false;
     if (!Object.entries(edit).every(([key, number]) => (LOCAL_KEYS as readonly string[]).includes(key) && finite(number, key === 'denoise' ? 0 : -2, 2))) return false;
     if (mask.kind === 'linear') return ['x1', 'y1', 'x2', 'y2'].every((key) => finite(mask[key], -2, 3));
     if (mask.kind === 'radial') return finite(mask.cx, -2, 3) && finite(mask.cy, -2, 3) && finite(mask.rx, 0.001, 5) && finite(mask.ry, 0.001, 5) && (mask.angle === undefined || finite(mask.angle, -180, 180));

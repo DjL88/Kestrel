@@ -12,6 +12,7 @@ import type { PhotoFrame } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import type { ExportRequest } from '../ui/contract';
 import type { ExportJob, ExportPlan } from './exportOps';
+import { createSplitRenderCache } from './splitRenderCache';
 
 /** Each photo/format/edit-group/panel is one independently tracked scheduler unit.
  * Completed files are never re-rendered on an ordinary pause/resume. */
@@ -75,7 +76,9 @@ export async function scheduleV2PhotoExports(input: {
   const reservedNames = new Map<string, string>();
   const started = new Date();
   const provider = input.provider;
-  return engineScheduler.submit({
+  // Only one composition's encoded sections are retained; never cache decoded canvases.
+  const splitCache = createSplitRenderCache<File>();
+  const ticket = await engineScheduler.submit({
     title: `Exporting ${input.plan.summary}`,
     kind: 'export',
     location: 'local',
@@ -115,38 +118,41 @@ export async function scheduleV2PhotoExports(input: {
         const job = submitted.plan.jobs[item.jobIndex];
         const variant = job?.variants[item.variantIndex];
         if (!job || !variant) throw new Error('The selected export recipe was not found.');
-        // JPEG/PNG source pixels are read from the SHA-verified original, for
-        // every size (not just Original); review previews cannot be exported.
-        const verifiedRaster = !frame.isDemo && Boolean(fullResolutionRasterFormat(frame.filename));
-        if (!frame.isDemo && isHeifFile(frame.filename))
-          throw new Error(`Cannot verify full-resolution HEIF pixels for ${frame.filename} in this export path. Use a supported source; no preview was substituted.`);
-        const image = verifiedRaster
-          ? await loadVerifiedRasterOriginalForExport(frame, provider, ctx.signal)
-          : await loadExportSource(frame, provider);
+        const selectedPanel = await splitCache.get(
+          `${item.jobIndex}:${item.variantIndex}`, job.sections ?? 1, item.panelIndex, async () => {
+          // JPEG/PNG source pixels are read from the SHA-verified original, for
+          // every size (not just Original); review previews cannot be exported.
+          const verifiedRaster = !frame.isDemo && Boolean(fullResolutionRasterFormat(frame.filename));
+          if (!frame.isDemo && isHeifFile(frame.filename))
+            throw new Error(`Cannot verify full-resolution HEIF pixels for ${frame.filename} in this export path. Use a supported source; no preview was substituted.`);
+          const image = verifiedRaster
+            ? await loadVerifiedRasterOriginalForExport(frame, provider, ctx.signal)
+            : await loadExportSource(frame, provider);
+          ctx.checkCancelled();
+          if (!frame.isDemo && isRawPreviewFile(frame.filename) &&
+              (!provider.isDeveloped(frame.stableKey) || provider.isOfflineFallback(frame.stableKey))) {
+            throw new Error(`${frame.filename} has no verified sensor-developed source. Embedded RAW previews cannot be exported as full-quality photographs.`);
+          }
+          const nativeSize = verifiedRaster && job.format.id === ORIGINAL_FORMAT_ID
+            ? framedSize(image.naturalWidth, image.naturalHeight, frame.framing ?? DEFAULT_FRAMING) : null;
+          const longest = nativeSize ? Math.max(nativeSize.width * (job.sections ?? 1), nativeSize.height) : 0;
+          const limit = submitted.request.maxLongestEdgePx;
+          const scale = nativeSize && limit && limit > 0 ? Math.min(1, limit / longest) : 1;
+          const outputSize = nativeSize
+            ? { width: Math.max(1, Math.floor(nativeSize.width * scale)), height: Math.max(1, Math.floor(nativeSize.height * scale)) }
+            : job.size;
+          const outputFormat = nativeSize ? { ...job.format, ...outputSize } : job.format;
+          const overlay = variant.kind === 'unedited' ? null : await input.buildOverlay(frame, submitted.request);
+          ctx.checkCancelled();
+          ctx.stage('Rendering complete edit, masks, crop and overlays');
+          const result = await renderV2Export(
+            image, { ...frame, edit: variant.edit }, outputSize, job.crop, toProfile(outputFormat),
+            overlay, started, ctx.signal, job.sections ?? 1,
+          );
+          ctx.checkCancelled();
+            return result.sections ?? [result.file];
+          });
         ctx.checkCancelled();
-        if (!frame.isDemo && isRawPreviewFile(frame.filename) &&
-            (!provider.isDeveloped(frame.stableKey) || provider.isOfflineFallback(frame.stableKey))) {
-          throw new Error(`${frame.filename} has no verified sensor-developed source. Embedded RAW previews cannot be exported as full-quality photographs.`);
-        }
-        const nativeSize = verifiedRaster && job.format.id === ORIGINAL_FORMAT_ID
-          ? framedSize(image.naturalWidth, image.naturalHeight, frame.framing ?? DEFAULT_FRAMING) : null;
-        const longest = nativeSize ? Math.max(nativeSize.width * (job.sections ?? 1), nativeSize.height) : 0;
-        const limit = submitted.request.maxLongestEdgePx;
-        const scale = nativeSize && limit && limit > 0 ? Math.min(1, limit / longest) : 1;
-        const outputSize = nativeSize
-          ? { width: Math.max(1, Math.floor(nativeSize.width * scale)), height: Math.max(1, Math.floor(nativeSize.height * scale)) }
-          : job.size;
-        const outputFormat = nativeSize ? { ...job.format, ...outputSize } : job.format;
-        const overlay = variant.kind === 'unedited' ? null : await input.buildOverlay(frame, submitted.request);
-        ctx.checkCancelled();
-        ctx.stage('Rendering complete edit, masks, crop and overlays');
-        const result = await renderV2Export(
-          image, { ...frame, edit: variant.edit }, outputSize, job.crop, toProfile(outputFormat),
-          overlay, started, ctx.signal, job.sections ?? 1,
-        );
-        ctx.checkCancelled();
-        const selectedPanel = (result.sections ?? [result.file])[item.panelIndex];
-        if (!selectedPanel) throw new Error('A requested split panel was not rendered.');
         files = [selectedPanel].map(rendered => {
           const base = rendered.name.replace(/(\.[^.]+)?$/, extension => variant.suffix + extension);
           return new File([rendered], base, { type: rendered.type, lastModified: rendered.lastModified });
@@ -175,4 +181,6 @@ export async function scheduleV2PhotoExports(input: {
       ctx.checkCancelled();
     },
   });
+  void ticket.finished.then(() => splitCache.clear());
+  return ticket;
 }

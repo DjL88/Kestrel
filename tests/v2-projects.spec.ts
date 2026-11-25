@@ -47,20 +47,69 @@ test('?v2 settings: Privacy has a guarded erase-this-device and a forget-me requ
   await expect(page.getByRole('link', { name: 'Ask InFlight to erase my account data' })).toHaveAttribute('href', '/#contact');
 });
 
-
-test('project hub offers a persistent compact list and retains project actions', async ({ page }) => {
+test('?v2 hub: list view by default with favourite samples, smaller tiles on request, remembered after reload', async ({ page }) => {
   await page.goto('/?v2&stub=1');
-  const hub = page.locator('.inflight-v2');
-  const compact = hub.getByRole('button', { name: 'Compact', exact: true });
-  const cards = hub.locator('[data-project-layout]');
-  await expect(compact).toHaveAttribute('aria-pressed', 'true');
-  await expect(cards).toHaveAttribute('data-project-layout', 'compact');
-  await compact.click();
-  await expect(cards).toHaveAttribute('data-project-layout', 'cards');
+  const studio = page.locator('.inflight-v2');
+  const layout = studio.getByRole('group', { name: 'Project layout' });
+  await expect(layout.getByRole('button', { name: 'List' })).toHaveAttribute('aria-pressed', 'true');
+  const firstRow = studio.getByTestId('project-row').first();
+  await expect(firstRow).toBeVisible();
+  await expect(firstRow.getByRole('img', { name: /^Cover photograph for / })).toBeVisible();
+  await expect(firstRow.getByTestId('project-samples').locator('img')).toHaveCount(3);
+  const rowBox = (await firstRow.boundingBox())!;
+  expect(rowBox.height).toBeLessThan(140);
+
+  await layout.getByRole('button', { name: 'Tiles' }).click();
+  await expect(studio.getByTestId('project-row')).toHaveCount(0);
+  const tile = studio.getByTestId('project-tile').first();
+  await expect(tile).toBeVisible();
+  const tileBox = (await tile.boundingBox())!;
+  const viewport = page.viewportSize()!;
+  expect(tileBox.width).toBeLessThan(viewport.width < 640 ? viewport.width / 2 : 260);
+
   await page.reload();
-  await expect(cards).toHaveAttribute('data-project-layout', 'cards');
-  await compact.click();
-  await expect(cards).toHaveAttribute('data-project-layout', 'compact');
-  await hub.getByRole('button', { name: /^Project actions for / }).first().click();
-  await expect(hub.getByRole('menuitem', { name: 'Rename' })).toBeVisible();
+  await expect(studio.getByRole('group', { name: 'Project layout' }).getByRole('button', { name: 'Tiles' })).toHaveAttribute('aria-pressed', 'true');
+  await studio.getByRole('group', { name: 'Project layout' }).getByRole('button', { name: 'List' }).click();
+  await expect(studio.locator('[data-project-layout]')).toHaveAttribute('data-project-layout', 'list');
+  await studio.getByRole('button', { name: /^Project actions for / }).first().click();
+  await expect(studio.getByRole('menuitem', { name: 'Rename' })).toBeVisible();
+});
+
+test('?v2 hub on a phone: a finger swipe reveals Rename, Archive and Delete; a mouse drag never moves a row', async ({ page, context, isMobile }) => {
+  test.skip(!isMobile, 'Real touch input is only available on the phone project');
+  const cdp = await context.newCDPSession(page);
+  await page.goto('/?v2&stub=1');
+  const studio = page.locator('.inflight-v2');
+  const body = studio.getByTestId('project-row-body').first();
+  await expect(body).toBeVisible();
+  const name = (await studio.getByRole('button', { name: /^Project actions for / }).first().getAttribute('aria-label'))!.replace('Project actions for ', '');
+  const shift = () => body.evaluate((element) => new DOMMatrix(getComputedStyle(element).transform).m41);
+
+  await body.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const x = box.right - 30, y = box.top + box.height / 2;
+    const fire = (type: string, px: number) => element.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 7, isPrimary: true, pointerType: 'mouse', clientX: px, clientY: y }));
+    fire('pointerdown', x);
+    for (let step = 1; step <= 6; step += 1) fire('pointermove', x - (200 * step) / 6);
+    fire('pointerup', x - 200);
+  });
+  await page.waitForTimeout(250);
+  expect(await shift()).toBe(0);
+
+  const box = (await body.boundingBox())!;
+  const y = box.y + box.height / 2, x0 = box.x + box.width - 40;
+  const send = (type: 'touchStart' | 'touchMove' | 'touchEnd', x: number) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+  await send('touchStart', x0);
+  for (let i = 1; i <= 10; i += 1) { await send('touchMove', x0 - (120 * i) / 10); await page.waitForTimeout(16); }
+  await send('touchEnd', x0 - 120);
+  await expect.poll(shift).toBeLessThan(-200);
+
+  const row = studio.getByTestId('project-row').first();
+  await expect(row.getByRole('button', { name: 'Rename', exact: true })).toBeVisible();
+  await row.getByRole('button', { name: 'Delete…', exact: true }).tap();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText('Your original photo files are never touched');
+  await dialog.getByRole('button', { name: 'Keep project' }).tap();
+  await expect(studio.getByRole('button', { name: `Project actions for ${name}` })).toBeVisible();
+  await expect.poll(shift).toBe(0);
 });

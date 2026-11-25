@@ -98,25 +98,39 @@ export async function publishBackup(remote: BackupRemote, projectId: string, byt
   const prefix = scope(projectId);
   if (!bytes.byteLength || bytes.byteLength > LIMIT) throw new Error('Backup size outside limits');
   ensureActive(signal);
-  const sha256 = await digest(bytes);
+  // Keep the exact payload stable across asynchronous provider operations.
+  const payload = Uint8Array.from(bytes);
+  const sha256 = await digest(payload);
   const current = await verifiedHead(remote, prefix, signal);
   checkAnchor(current?.head ?? null, anchor);
+  // A retry with a verified local anchor can observe either the same
+  // unchanged revision or its immediate successor if a previous publication
+  // succeeded but its acknowledgement was lost. Never overwrite that head.
+  if (current && anchor && current.head.sha256 === sha256 &&
+      (current.head.revision === anchor.revision || current.head.revision === anchor.revision + 1)) {
+    const stored = await remote.read(current.head.blobKey, signal);
+    ensureActive(signal);
+    if (!stored || stored.bytes.byteLength !== payload.byteLength || stored.bytes.byteLength !== current.head.bytes ||
+        await digest(stored.bytes) !== sha256) throw new Error('Remote backup bytes did not verify');
+    ensureActive(signal);
+    return { revision: current.head.revision, sha256 };
+  }
   // Refuse a blind write over an existing remote backup, even if the local anchor is absent.
   if (current && !anchor) throw new Error('Existing remote backup requires verified local anchor');
   if (current && anchor && (current.head.revision !== anchor.revision || current.head.sha256 !== anchor.sha256))
     throw new Error('Remote backup changed; restore or reconcile before upload');
   const blobKey = prefix + '/objects/' + sha256 + '.json';
-  const created = await remote.create(blobKey, Uint8Array.from(bytes), signal);
+  const created = await remote.create(blobKey, payload, signal);
   ensureActive(signal);
   const stored = await remote.read(blobKey, signal);
   ensureActive(signal);
-  if (!stored || stored.bytes.byteLength !== bytes.byteLength || await digest(stored.bytes) !== sha256)
+  if (!stored || stored.bytes.byteLength !== payload.byteLength || await digest(stored.bytes) !== sha256)
     throw new Error('Remote backup bytes did not verify');
   ensureActive(signal);
   // An existing content-addressed object is acceptable only after byte verification.
   void created;
   const revision = (current?.head.revision ?? 0) + 1;
-  const head: BackupHead = { schema: 1, revision, blobKey, sha256, bytes: bytes.byteLength };
+  const head: BackupHead = { schema: 1, revision, blobKey, sha256, bytes: payload.byteLength };
   const ok = await remote.compareAndSwap(prefix + '/head.json', current?.etag ?? null,
     encoder.encode(JSON.stringify(head)), signal);
   // A successful CAS is already a committed remote publication. Cancellation after

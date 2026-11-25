@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en-GB"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<title>InFlight service status</title>
+<link rel="icon" href="/assets/brand/inflight/app-icons/favicon.svg">
+<style>
+body{font:16px/1.6 system-ui,sans-serif;background:#10141b;color:#f0f1f5;margin:0} main,header,footer{max-width:760px;margin:auto;padding:20px}
+a{color:#e3b79b} button{font:inherit;background:#252d38;color:inherit;border:1px solid #657180;border-radius:8px;padding:8px 16px;cursor:pointer}button:disabled{opacity:.55}
+section,article{border:1px solid #414957;border-radius:12px;padding:18px;margin:16px 0} h1,h2,h3{line-height:1.3} ul{padding:0;list-style:none} li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;border-bottom:1px solid #414957;padding:12px 0} li:last-child{border:0}
+p{overflow-wrap:anywhere} a:focus-visible,button:focus-visible{outline:2px solid #e3b79b;outline-offset:4px}
+</style>
+<script type="module" src="/assets/status-page.mjs"></script>
+</head><body><header><a href="/">InFlight home</a></header><main>
+<h1>Service status</h1><p>Check cloud service availability and planned maintenance. Your locally available photographs can still be edited without a connection.</p>
+<section aria-labelledby="health-title"><h2 id="health-title">Service health</h2>
+<p id="status-summary" role="status">Live status has not been checked.</p><p id="status-updated">No verified publication time.</p>
+<button id="status-refresh" type="button">Refresh status</button><ul id="service-list"></ul>
+<noscript><p>Enable JavaScript to check the published feed. Current service health is unknown.</p></noscript>
+</section><section aria-labelledby="incident-title"><h2 id="incident-title">Incidents and maintenance</h2><p id="incidents-empty">Current incident notices are unavailable.</p><div id="incident-list"></div></section>
+</main><footer><a href="/privacy">Privacy</a> · <a href="/#contact">Contact InFlight</a></footer></body></html>

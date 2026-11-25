@@ -121,11 +121,12 @@ test('limiting a mask to another keeps only the overlap, and subtracting removes
   assert.ok(at(only, 12, 40) > 0.95, 'the rest of the first mask stays');
 });
 
-test('a limit pointing at a deleted mask or at itself is ignored', () => {
+test('broken mask restrictions never broaden the affected edit', () => {
   const mask: Mask = { ...createMask('radial', 'a'), kind: 'radial', cx: 0.5, cy: 0.5, rx: 0.3, ry: 0.3, limit: { id: 'gone', mode: 'intersect' } };
-  const plain = maskAlpha({ ...mask, limit: undefined }, W, H, ctx);
-  assert.deepEqual(effectiveAlpha(mask, [mask], W, H, ctx), plain);
-  assert.deepEqual(effectiveAlpha({ ...mask, limit: { id: 'a', mode: 'subtract' } }, [mask], W, H, ctx), plain);
+  assert.ok(effectiveAlpha(mask, [mask], W, H, ctx).every(value => value === 0));
+  assert.ok(effectiveAlpha({ ...mask, limit: { id: 'a', mode: 'subtract' } }, [mask], W, H, ctx).every(value => value === 0));
+  const other = createMask('radial', 'gone');
+  assert.ok(effectiveAlpha(mask, [mask, other, { ...other }], W, H, ctx).every(value => value === 0));
 });
 
 test('limits are validated, and self references are rejected', () => {
@@ -339,4 +340,13 @@ test('fine brush edits survive JSON reopen and give the same alpha in an equival
   for (let y = 0; y < 40; y++) for (let x = 0; x < 50; x++) {
     assert.ok(Math.abs(zoom[y * 50 + x] - full[(y + 20) * W + x + 25]) < 1e-5);
   }
+});
+
+
+test('saved mask identity and visibility must be unambiguous', () => {
+  const a = createMask('radial', 'a');
+  assert.equal(validMasks([a, { ...a }]), false);
+  assert.equal(validMasks([{ ...a, hidden: 'false' }]), false);
+  assert.equal(validMasks([{ ...a, edit: [] }]), false);
+  assert.equal(validMasks([a, { ...createMask('radial', 'b'), hidden: true }]), true);
 });

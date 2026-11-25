@@ -59,3 +59,12 @@ test('suggestions are deterministic across shuffled score ties and duplicate res
   assert.deepEqual(planKeeperTier([...options].reverse(), frames, 3, 'better'), forward);
   assert.deepEqual(planKeeperTier([...options, options[0]], frames, 3, 'better'), forward);
 });
+
+
+test('Find More tiers count real originals, not flagged edit copies or demo frames', () => {
+  const { frames, results } = fixture();
+  const copy = { ...frames[1], id: 'copy', decision: 'keep' as const, burstGroupId: 'copy-burst', virtualCopy: { originalFrameId: frames[0].id, number: 1 } };
+  const demo = { ...frames[2], id: 'demo', decision: 'keep' as const, isDemo: true };
+  frames[7].burstGroupId = 'copy-burst';
+  assert.deepEqual(planKeeperTier(results, [...frames, copy, demo], 2, 'best'), [{ frameId: frames[7].id, decision: 'keep' }]);
+});

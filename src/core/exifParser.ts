@@ -2,6 +2,7 @@ import exifr from 'exifr';
 import type { ExifMetadata } from './types';
 import { heifFormatLabel, isHeifFile, isRawPreviewFile, rawPreviewLabel } from './rawFormats';
 import { readHeifExif } from './heifExif';
+import { rawSensorSize } from './rawSensorSize';
 
 /** Nikon TIFF-based RAW formats supported by the embedded-JPEG preview adapter. */
 export function isNikonEmbeddedPreviewFile(filename: string): boolean {
@@ -205,10 +206,15 @@ export async function parseImageExif(
 
     const shutter = formatShutterSpeed(validExifPositiveNumber(parsed.ExposureTime));
 
+    // RAWs: the recorded sensor image size from the file's own IFDs (EXIF often has none, or only the thumbnail's).
+    // Without this, a Nikon Z5II NEF landed as a 1x1 "Original" format.
+    const sensor = isNikonRaw
+      ? await file.slice(0, 2 << 20).arrayBuffer().then((buffer) => rawSensorSize(new Uint8Array(buffer))).catch(() => null)
+      : null;
     const width =
-      validExifDimension(parsed.ExifImageWidth) ?? validExifDimension(parsed.ImageWidth);
+      sensor?.width ?? validExifDimension(parsed.ExifImageWidth) ?? validExifDimension(parsed.ImageWidth);
     const height =
-      validExifDimension(parsed.ExifImageHeight) ?? validExifDimension(parsed.ImageHeight);
+      sensor?.height ?? validExifDimension(parsed.ExifImageHeight) ?? validExifDimension(parsed.ImageHeight);
 
     return {
       ...rating,

@@ -14,6 +14,13 @@ git fetch origin && git log --oneline -15 origin/main
 gh pr list --state open
 ```
 
+4. The owner's reference pages on claude.ai. Read the ones that touch your work with the Artifact tool's `read` action. Don't web-fetch them. They're the owner's design input, and the spec and ROADMAP still decide what ships.
+   - [InFlight](https://claude.ai/artifact/KXu7qQZjPRp2JTokuJ4cme): product overview.
+   - [InFlight – mobile & tablet wireframes](https://claude.ai/artifact/8b46uNd8a5a9du8K9oEvoS): phone and tablet layout, gestures and UI optimisation plan.
+   - [Kestrel gap analysis vs major photo editors](https://claude.ai/artifact/BYhrvo2RNvdCK4CPz5mxEj): where Kestrel stands against other editors. Never overstate parity.
+   - [Colour-vision support audit](https://claude.ai/artifact/B71T7ukCKQUuJUFZbujnrc): no colour-only cues.
+   - [Kestrel neurodivergent accessibility review](https://claude.ai/artifact/2vCG6ri8j8eNHMfsp697vi): calm, predictable, accessible UI.
+
 ## Non-negotiables (details in the spec)
 - Originals are never written, moved or replaced. Kestrel stores links, previews and reversible recipes.
 - Core use works fully offline. No uploads, telemetry or accounts by default.

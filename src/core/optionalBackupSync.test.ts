@@ -57,3 +57,22 @@ describe('optional backup CAS and content verification', () => {
     assert.equal(files.size, 3);
   });
 });
+
+
+it('retry after publication acknowledgement loss returns the verified successor without another write', async () => {
+  const { remote, files } = fixture();
+  const first = await publishBackup(remote, 'birds', enc.encode('one'), null);
+  const next = enc.encode('two');
+  const lost: BackupRemote = { ...remote, compareAndSwap: async (...args) => {
+    assert.equal(await remote.compareAndSwap(...args), true);
+    throw new Error('Connection lost after CAS');
+  } };
+  await assert.rejects(publishBackup(lost, 'birds', next, first), /Connection lost/);
+  const before = files.get('kestrel/backups/birds/head.json')!.etag;
+  const resumed = await publishBackup(remote, 'birds', next, first);
+  assert.equal(resumed.revision, 2);
+  assert.equal(files.get('kestrel/backups/birds/head.json')!.etag, before);
+  assert.deepEqual(await publishBackup(remote, 'birds', next, resumed), resumed);
+  files.get('kestrel/backups/birds/objects/' + resumed.sha256 + '.json')!.bytes = enc.encode('bad');
+  await assert.rejects(publishBackup(remote, 'birds', next, first), /did not verify/);
+});

@@ -205,6 +205,10 @@ export async function freeLicenceDevice(activationId: string): Promise<boolean> 
   return ok;
 }
 
+/** Account-based licences have no pasted key; these calls never activate a device. */
+export const accountLicenceDevices = (idToken: string) => sync.accountDevices(idToken);
+export const freeAccountLicenceDevice = (idToken: string, activationId: string) => sync.releaseAccountDevice(idToken, activationId);
+
 export const licenceOnlineConfigured = () => sync.configured;
 /** Where and how to reach account-only services (cloud processing) right now; null when signed out or the session ended. */
 export const accountConnection = () => sync.accountConnection();
