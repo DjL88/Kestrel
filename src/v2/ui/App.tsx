@@ -13,32 +13,7 @@ import BrandIcon, { assistModeIconName } from './icons/BrandIcon';
 import ProjectsHub from './screens/ProjectsHub';
 import { canHidePro, hiddenProFeatures, panelsHiddenByPro } from '../engineClient/proVisibility';
 import { FeaturePlanContext, HiddenProContext } from './shell/ProBadge';
-import TopBar from './shell/TopBar';
-import Rail from './shell/Rail';
-import DockPanel from './shell/DockPanel';
-import Canvas from './shell/Canvas';
-import CollageEditor from './shell/CollageEditor';
-import Filmstrip from './shell/Filmstrip';
-import GridView from './shell/GridView';
-import PairCompare from './shell/PairCompare';
 import { backupStatusText } from '../engineClient/backupWords';
-import CoPilotPanel from './panels/CoPilotPanel';
-import AdjustPanel from './panels/AdjustPanel';
-import SizesPanel from './panels/SizesPanel';
-import HistoryPanel from './panels/HistoryPanel';
-import MasksPanel from './panels/MasksPanel';
-import EnhancePanel from './panels/EnhancePanel';
-import OverlayPanel from './panels/OverlayPanel';
-import AssistPanel from './panels/AssistPanel';
-import InfoPanel from './panels/InfoPanel';
-import TasksPanel from './panels/TasksPanel';
-import CollageExportDialog from './dialogs/CollageExportDialog';
-import ExportDialog from './dialogs/ExportDialog';
-import RemovedPhotosDialog from './dialogs/RemovedPhotosDialog';
-import LightroomOfferDialog from './dialogs/LightroomOfferDialog';
-import QuickStartCard from './panels/QuickStartCard';
-import ShareDialog from './dialogs/ShareDialog';
-import CloudOriginalPrompt from './dialogs/CloudOriginalPrompt';
 import { usePresence } from './shell/usePresence';
 import { PresenceAvatars, PresenceCursors } from './shell/PresenceLayer';
 import { NoticesButton, useNotices } from './shell/Notices';
@@ -50,16 +25,51 @@ import { readSharedLink } from './dialogs/sharedLinks';
 import { useSharedEditing } from './shell/useSharedEditing';
 import { collabClient } from '../../providers/collabClient';
 import { firebaseAuth } from '../../providers/firebaseAuth';
-import SettingsDialog from './dialogs/SettingsDialog';
-import ShortcutGuide from './dialogs/ShortcutGuide';
-import CommandPalette from './dialogs/CommandPalette';
 import { chordLabel, effectiveKeymap, loadKeymap, saveKeymap, type SavedKeymap } from './commands/keymap';
 import { loadPad, resolveWithPad, savePad, type PadProfile } from './commands/pad';
-import KeyboardSettings from './dialogs/KeyboardSettings';
 import { commandById, type CommandDefinition } from './commands/registry';
 import { useNativeMenu } from './commands/useNativeMenu';
+import { lazyPart } from './utils/lazyPart';
 import { isDesktopApp } from '../../providers/desktopShell';
 import type { MenuAction } from './commands/menuMap';
+
+// Only the projects list is needed to start. The editor (shell, panels and dialogs) is its own set of chunks, fetched in
+// the background once the list has drawn (preloadEditorParts), so opening a project does not wait for it either.
+// Each lazy part sits inside its own Suspense boundary, so a part still arriving never blanks what is already on screen.
+const TopBar = lazyPart(() => import('./shell/TopBar'));
+const Rail = lazyPart(() => import('./shell/Rail'));
+const DockPanel = lazyPart(() => import('./shell/DockPanel'));
+const Canvas = lazyPart(() => import('./shell/Canvas'));
+const CollageEditor = lazyPart(() => import('./shell/CollageEditor'));
+const Filmstrip = lazyPart(() => import('./shell/Filmstrip'));
+const GridView = lazyPart(() => import('./shell/GridView'));
+const PairCompare = lazyPart(() => import('./shell/PairCompare'));
+const CoPilotPanel = lazyPart(() => import('./panels/CoPilotPanel'));
+const AdjustPanel = lazyPart(() => import('./panels/AdjustPanel'));
+const SizesPanel = lazyPart(() => import('./panels/SizesPanel'));
+const HistoryPanel = lazyPart(() => import('./panels/HistoryPanel'));
+const MasksPanel = lazyPart(() => import('./panels/MasksPanel'));
+const EnhancePanel = lazyPart(() => import('./panels/EnhancePanel'));
+const OverlayPanel = lazyPart(() => import('./panels/OverlayPanel'));
+const AssistPanel = lazyPart(() => import('./panels/AssistPanel'));
+const InfoPanel = lazyPart(() => import('./panels/InfoPanel'));
+const TasksPanel = lazyPart(() => import('./panels/TasksPanel'));
+const CollageExportDialog = lazyPart(() => import('./dialogs/CollageExportDialog'));
+const ExportDialog = lazyPart(() => import('./dialogs/ExportDialog'));
+const RemovedPhotosDialog = lazyPart(() => import('./dialogs/RemovedPhotosDialog'));
+const ShareDialog = lazyPart(() => import('./dialogs/ShareDialog'));
+const SettingsDialog = lazyPart(() => import('./dialogs/SettingsDialog'));
+const ShortcutGuide = lazyPart(() => import('./dialogs/ShortcutGuide'));
+const CommandPalette = lazyPart(() => import('./dialogs/CommandPalette'));
+const KeyboardSettings = lazyPart(() => import('./dialogs/KeyboardSettings'));
+const LightroomOfferDialog = lazyPart(() => import('./dialogs/LightroomOfferDialog'));
+const QuickStartCard = lazyPart(() => import('./panels/QuickStartCard'));
+const CloudOriginalPrompt = lazyPart(() => import('./dialogs/CloudOriginalPrompt'));
+const EDITOR_PARTS = [TopBar, Rail, DockPanel, Canvas, CollageEditor, Filmstrip, GridView, PairCompare, CoPilotPanel, AdjustPanel, SizesPanel, HistoryPanel, MasksPanel, EnhancePanel, OverlayPanel, AssistPanel, InfoPanel, TasksPanel, CollageExportDialog, ExportDialog, RemovedPhotosDialog, ShareDialog, SettingsDialog, ShortcutGuide, CommandPalette, KeyboardSettings, LightroomOfferDialog, QuickStartCard, CloudOriginalPrompt];
+function preloadEditorParts() {
+  // A part already fetched, or still arriving, is not fetched again; one that failed (offline) is tried on next use.
+  for (const part of EDITOR_PARTS) void part.preload().catch(() => undefined);
+}
 
 const IS_MAC = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
 
@@ -133,6 +143,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     return () => media.removeListener?.(update);
   }, []);
   const activeTheme = resolveTheme(store.settings.theme, systemDark);
+  useEffect(() => {
+    // After the first paint, when the browser is idle: fetch the editor so opening a project is immediate.
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
+    if (idle) { idle(preloadEditorParts, { timeout: 2000 }); return; }
+    const timer = window.setTimeout(preloadEditorParts, 300);
+    return () => window.clearTimeout(timer);
+  }, []);
   useEffect(() => {
     const favicon = document.querySelector<HTMLLinkElement>('link[data-inflight-theme-icon]');
     if (favicon) favicon.href = activeTheme === 'dark' ? '/brand/favicon-dark.svg' : '/brand/favicon-light.svg';
@@ -323,7 +340,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   }, [store.screen, shortcutGuideOpen, keymap, pad, runCommand]);
 
   const EDITING_PANELS: PanelId[] = ['adjust', 'masks', 'enhance', 'copilot'];
-  const renderPanelContent = (panelId: PanelId) => {
+  const renderPanelContent = (panelId: PanelId) => <React.Suspense fallback={null}>{renderPanelBody(panelId)}</React.Suspense>;
+  const renderPanelBody = (panelId: PanelId) => {
     const inner = renderPanelInner(panelId);
     const comments = (panelId === 'copilot' || panelId === 'info') && sharedEditing.state.kind !== 'off' ? (
       <SharedComments client={sharing} project={store.activeProjectId ? readSharedLink(store.activeProjectId) : null} photoKey={activePhoto?.sharedKey} photoId={activePhoto?.id ?? null}
@@ -619,7 +637,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onSetHubState={actions.setHubState}
         />
       ) : (
-        <>
+        <React.Suspense fallback={null}>
           <input ref={xmpInputRef} type="file" multiple accept=".xmp,.zip,application/rdf+xml,application/zip" hidden
             data-testid="xmp-input" aria-hidden="true" tabIndex={-1}
             onChange={(event) => {
@@ -1027,29 +1045,29 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               </div>
             </div>
           )}
-        </>
+        </React.Suspense>
       )}
 
-      {/* Global Dialogs */}
-      {store.collage && store.exportOpen && <CollageExportDialog key={store.activeProjectId} document={store.collage} onClose={() => actions.setExportOpen(false)} onExport={actions.exportCollage} />}
-      <ExportDialog key={JSON.stringify([activePhoto?.id, activePhoto?.activeGroupId])}
+      {/* Global Dialogs: each in its own boundary, so one still arriving hides nothing else. */}
+      {store.collage && store.exportOpen && <React.Suspense fallback={null}><CollageExportDialog key={store.activeProjectId} document={store.collage} onClose={() => actions.setExportOpen(false)} onExport={actions.exportCollage} /></React.Suspense>}
+      <React.Suspense fallback={null}><ExportDialog key={JSON.stringify([activePhoto?.id, activePhoto?.activeGroupId])}
         open={store.exportOpen && !store.collage}
         photo={activePhoto}
         selectedPhotoIds={store.selectedPhotoIds}
         onClose={() => actions.setExportOpen(false)}
         onExport={actions.runExport}
-      />
+      /></React.Suspense>
 
       <TaskAlerts />
       <PresenceCursors peers={peers} photoId={activePhoto?.sharedKey ?? null} hidden={cursorsHidden} />
-      <CloudOriginalPrompt
+      <React.Suspense fallback={null}><CloudOriginalPrompt
         client={sharing}
         localProjectId={store.collage ? null : store.activeProjectId}
         photo={zoomedPastPreview && activePhoto?.id === zoomedPastPreview ? activePhoto : null}
         attachOriginal={actions.attachCloudOriginal}
         onDone={() => setZoomedPastPreview(null)}
-      />
-      <ShareDialog
+      /></React.Suspense>
+      <React.Suspense fallback={null}><ShareDialog
         open={shareOpen}
         client={sharing}
         localProjectId={store.activeProjectId}
@@ -1067,35 +1085,35 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         photoDecision={(id) => store.photos.find((photo) => photo.id === id)?.decision ?? null}
         onFlagPhoto={(id) => actions.setDecision([id], 'keep')}
         onClose={closeShare}
-      />
+      /></React.Suspense>
 
-      <QuickStartCard
+      <React.Suspense fallback={null}><QuickStartCard
         quickStart={store.screen === 'editor' && !store.exportOpen ? store.quickStart : null}
         onExport={() => { actions.dismissQuickStart?.(); actions.setExportOpen(true); }}
         onDone={() => actions.dismissQuickStart?.()}
-      />
+      /></React.Suspense>
 
-      <LightroomOfferDialog
+      <React.Suspense fallback={null}><LightroomOfferDialog
         offer={store.screen === 'editor' ? store.lightroomOffer : null}
         onChooseFolder={() => actions.chooseLightroomFolder?.()}
         onClose={dismissLightroomOffer}
-      />
+      /></React.Suspense>
 
-      <RemovedPhotosDialog
+      <React.Suspense fallback={null}><RemovedPhotosDialog
         open={store.removedOpen}
         photos={store.removedPhotos}
         onRestore={actions.restorePhotos}
         onClose={() => actions.setRemovedOpen(false)}
-      />
+      /></React.Suspense>
 
-      <SettingsDialog
+      <React.Suspense fallback={null}><SettingsDialog
         open={store.settingsOpen}
         activeTab={store.settingsTab}
         templates={store.overlayTemplates}
         onRenameTemplate={actions.renameOverlayTemplate}
         onDeleteTemplate={actions.deleteOverlayTemplate}
         accountPanel={accountPanel}
-        keyboardPanel={<KeyboardSettings saved={savedKeymap} isMac={IS_MAC} onChange={changeKeymap} pad={pad} onPadChange={changePad} />}
+        keyboardPanel={<React.Suspense fallback={null}><KeyboardSettings saved={savedKeymap} isMac={IS_MAC} onChange={changeKeymap} pad={pad} onPadChange={changePad} /></React.Suspense>}
         settings={store.settings}
         cloudUsage={cloudUsage}
         assistMode={store.assistMode}
@@ -1109,19 +1127,19 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         onToggleStorageConnector={actions.toggleStorageConnector}
         onEraseDeviceData={actions.eraseDeviceData}
         proChoiceOffered={proChoiceOffered}
-      />
+      /></React.Suspense>
 
       {shortcutGuideOpen && store.screen === 'editor' && (
-        <ShortcutGuide keymap={keymap} isMac={IS_MAC} onClose={() => setShortcutGuideOpen(false)} />
+        <React.Suspense fallback={null}><ShortcutGuide keymap={keymap} isMac={IS_MAC} onClose={() => setShortcutGuideOpen(false)} /></React.Suspense>
       )}
 
       {commandPaletteOpen && store.screen === 'editor' && (
-        <CommandPalette
+        <React.Suspense fallback={null}><CommandPalette
           keymap={keymap}
           isMac={IS_MAC}
           onRunCommand={runCommand}
           onClose={() => setCommandPaletteOpen(false)}
-        />
+        /></React.Suspense>
       )}
 
       {/* Action message: quiet, readable, and never gone before it can be read. */}
