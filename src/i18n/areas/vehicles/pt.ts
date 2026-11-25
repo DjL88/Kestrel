@@ -8,6 +8,8 @@ export const pt: AreaTranslation<typeof source> = {
   kinds: {
     car: 'Carro',
     motorbike: 'Mota',
+    'racing-car': 'Carro de corrida',
+    'racing-motorbike': 'Mota de corrida',
     lorry: 'Camião',
     bus: 'Autocarro',
     train: 'Comboio',
@@ -29,9 +31,10 @@ export const pt: AreaTranslation<typeof source> = {
   registered: (marking: string, type: string) => `${marking}: ${type} (segundo o registo)`,
   operatedBy: (what: string, operator: string) => `${what}, operado por ${operator}`,
   held: (what: string) => `${what}? Verifique`,
+  raceNumber: (what: string, number: string) => `${what}, número ${number}`,
   reader: {
-    title: 'Ler matrículas de aeronaves',
-    description: (megabytes: string) => `Lê matrículas e números de série militares pintados em aeronaves, neste dispositivo, e procura-os numa cópia offline de registos públicos. Uma transferência única de ${megabytes} MB. As matrículas dos carros nunca são lidas.`,
+    title: 'Ler matrículas e números de corrida',
+    description: (megabytes: string) => `Lê neste dispositivo matrículas e números de série militares de aeronaves, e números de corrida de carros e motas de corrida. As matrículas são procuradas numa cópia offline de registos públicos. Uma transferência única de ${megabytes} MB. As matrículas de veículos de estrada nunca são lidas.`,
     download: 'Transferir',
     downloading: (percent: number) => `A transferir… ${percent}%`,
     ready: 'Instalado. Funciona offline.',

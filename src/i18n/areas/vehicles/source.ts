@@ -9,6 +9,8 @@ export const source = {
   kinds: {
     car: 'Car',
     motorbike: 'Motorbike',
+    'racing-car': 'Racing car',
+    'racing-motorbike': 'Racing motorbike',
     lorry: 'Lorry',
     bus: 'Bus',
     train: 'Train',
@@ -36,10 +38,12 @@ export const source = {
   operatedBy: (what: string, operator: string) => `${what}, operated by ${operator}`,
   /** The Vision guardian doubted even that it is an aircraft (or a road vehicle…): nothing is named. */
   held: (what: string) => `${what}? Needs your review`,
+  /** A race number read from a racing car or bike, at a public sporting event. */
+  raceNumber: (what: string, number: string) => `${what}, number ${number}`,
   /** Settings → Assistance: the opt-in markings reader. */
   reader: {
-    title: 'Read aircraft registrations',
-    description: (megabytes: string) => `Reads registrations and military serials painted on aircraft, on this device, and looks them up in an offline copy of public registers. A one-off ${megabytes} MB download. Number plates on cars are never read.`,
+    title: 'Read registrations and race numbers',
+    description: (megabytes: string) => `Reads registrations and military serials on aircraft, and race numbers on racing cars and bikes, on this device. Registrations are looked up in an offline copy of public registers. A one-off ${megabytes} MB download. Number plates on road vehicles are never read.`,
     download: 'Download',
     downloading: (percent: number) => `Downloading… ${percent}%`,
     ready: 'Installed. Works offline.',

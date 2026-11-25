@@ -8,6 +8,8 @@ export const da: AreaTranslation<typeof source> = {
   kinds: {
     car: 'Bil',
     motorbike: 'Motorcykel',
+    'racing-car': 'Racerbil',
+    'racing-motorbike': 'Racermotorcykel',
     lorry: 'Lastbil',
     bus: 'Bus',
     train: 'Tog',
@@ -29,9 +31,10 @@ export const da: AreaTranslation<typeof source> = {
   registered: (marking: string, type: string) => `${marking}: ${type} (ifølge registret)`,
   operatedBy: (what: string, operator: string) => `${what}, drevet af ${operator}`,
   held: (what: string) => `${what}? Bør tjekkes`,
+  raceNumber: (what: string, number: string) => `${what}, startnummer ${number}`,
   reader: {
-    title: 'Læs flyregistreringer',
-    description: (megabytes: string) => `Læser registreringer og militære serienumre malet på fly, på denne enhed, og slår dem op i en offline kopi af offentlige registre. En engangsdownload på ${megabytes} MB. Nummerplader på biler læses aldrig.`,
+    title: 'Læs registreringer og startnumre',
+    description: (megabytes: string) => `Læser på denne enhed registreringer og militære serienumre på fly, og startnumre på racerbiler og racermotorcykler. Registreringer slås op i en offline kopi af offentlige registre. En engangsdownload på ${megabytes} MB. Nummerplader på vejkøretøjer læses aldrig.`,
     download: 'Download',
     downloading: (percent: number) => `Downloader… ${percent}%`,
     ready: 'Installeret. Virker offline.',

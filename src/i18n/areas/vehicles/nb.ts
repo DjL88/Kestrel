@@ -8,6 +8,8 @@ export const nb: AreaTranslation<typeof source> = {
   kinds: {
     car: 'Bil',
     motorbike: 'Motorsykkel',
+    'racing-car': 'Racerbil',
+    'racing-motorbike': 'Racermotorsykkel',
     lorry: 'Lastebil',
     bus: 'Buss',
     train: 'Tog',
@@ -29,9 +31,10 @@ export const nb: AreaTranslation<typeof source> = {
   registered: (marking: string, type: string) => `${marking}: ${type} (ifølge registeret)`,
   operatedBy: (what: string, operator: string) => `${what}, drevet av ${operator}`,
   held: (what: string) => `${what}? Bør sjekkes`,
+  raceNumber: (what: string, number: string) => `${what}, startnummer ${number}`,
   reader: {
-    title: 'Les flyregistreringer',
-    description: (megabytes: string) => `Leser registreringer og militære serienumre malt på fly, på denne enheten, og slår dem opp i en frakoblet kopi av offentlige registre. En engangsnedlasting på ${megabytes} MB. Bilskilt leses aldri.`,
+    title: 'Les registreringer og startnumre',
+    description: (megabytes: string) => `Leser på denne enheten registreringer og militære serienumre på fly, og startnumre på racerbiler og racermotorsykler. Registreringer slås opp i en frakoblet kopi av offentlige registre. En engangsnedlasting på ${megabytes} MB. Skilt på veikjøretøy leses aldri.`,
     download: 'Last ned',
     downloading: (percent: number) => `Laster ned… ${percent}%`,
     ready: 'Installert. Virker frakoblet.',

@@ -8,6 +8,8 @@ export const ga: AreaTranslation<typeof source> = {
   kinds: {
     car: 'Carr',
     motorbike: 'Gluaisrothar',
+    'racing-car': 'Carr rásaíochta',
+    'racing-motorbike': 'Gluaisrothar rásaíochta',
     lorry: 'Leoraí',
     bus: 'Bus',
     train: 'Traein',
@@ -29,9 +31,10 @@ export const ga: AreaTranslation<typeof source> = {
   registered: (marking: string, type: string) => `${marking}: ${type} (ón gclár)`,
   operatedBy: (what: string, operator: string) => `${what}, á oibriú ag ${operator}`,
   held: (what: string) => `${what}? Ní mór duit é a sheiceáil`,
+  raceNumber: (what: string, number: string) => `${what}, uimhir ${number}`,
   reader: {
-    title: 'Léigh clárúcháin aerárthaí',
-    description: (megabytes: string) => `Léann sé clárúcháin agus sraithuimhreacha míleata atá péinteáilte ar aerárthaí, ar an ngléas seo, agus cuardaíonn sé iad i gcóip as líne de chláir phoiblí. Íoslódáil aonuaire de ${megabytes} MB. Ní léitear uimhirphlátaí carranna riamh.`,
+    title: 'Léigh clárúcháin agus uimhreacha rásaíochta',
+    description: (megabytes: string) => `Léann sé clárúcháin agus sraithuimhreacha míleata ar aerárthaí, agus uimhreacha rásaíochta ar charranna agus ar ghluaisrothair rásaíochta, ar an ngléas seo. Cuardaítear clárúcháin i gcóip as líne de chláir phoiblí. Íoslódáil aonuaire de ${megabytes} MB. Ní léitear uimhirphlátaí feithiclí bóthair riamh.`,
     download: 'Íoslódáil',
     downloading: (percent: number) => `Á íoslódáil… ${percent}%`,
     ready: 'Suiteáilte. Oibríonn sé as líne.',

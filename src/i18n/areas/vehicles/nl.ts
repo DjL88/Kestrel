@@ -8,6 +8,8 @@ export const nl: AreaTranslation<typeof source> = {
   kinds: {
     car: 'Auto',
     motorbike: 'Motor',
+    'racing-car': 'Raceauto',
+    'racing-motorbike': 'Racemotor',
     lorry: 'Vrachtwagen',
     bus: 'Bus',
     train: 'Trein',
@@ -29,9 +31,10 @@ export const nl: AreaTranslation<typeof source> = {
   registered: (marking: string, type: string) => `${marking}: ${type} (volgens het register)`,
   operatedBy: (what: string, operator: string) => `${what}, geëxploiteerd door ${operator}`,
   held: (what: string) => `${what}? Controleer dit`,
+  raceNumber: (what: string, number: string) => `${what}, startnummer ${number}`,
   reader: {
-    title: 'Registraties van luchtvaartuigen lezen',
-    description: (megabytes: string) => `Leest registraties en militaire serienummers die op luchtvaartuigen zijn geschilderd, op dit apparaat, en zoekt ze op in een offline kopie van openbare registers. Een eenmalige download van ${megabytes} MB. Kentekens van auto’s worden nooit gelezen.`,
+    title: 'Registraties en startnummers lezen',
+    description: (megabytes: string) => `Leest op dit apparaat registraties en militaire serienummers van luchtvaartuigen, en startnummers van raceauto’s en racemotoren. Registraties worden opgezocht in een offline kopie van openbare registers. Een eenmalige download van ${megabytes} MB. Kentekens van wegvoertuigen worden nooit gelezen.`,
     download: 'Downloaden',
     downloading: (percent: number) => `Bezig met downloaden… ${percent}%`,
     ready: 'Geïnstalleerd. Werkt offline.',

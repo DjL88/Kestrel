@@ -8,6 +8,8 @@ export const is: AreaTranslation<typeof source> = {
   kinds: {
     car: 'Bíll',
     motorbike: 'Mótorhjól',
+    'racing-car': 'Kappakstursbíll',
+    'racing-motorbike': 'Kappakstursmótorhjól',
     lorry: 'Vörubíll',
     bus: 'Strætó',
     train: 'Lest',
@@ -29,9 +31,10 @@ export const is: AreaTranslation<typeof source> = {
   registered: (marking: string, type: string) => `${marking}: ${type} (samkvæmt skrá)`,
   operatedBy: (what: string, operator: string) => `${what}, rekið af ${operator}`,
   held: (what: string) => `${what}? Þarf að yfirfara`,
+  raceNumber: (what: string, number: string) => `${what}, númer ${number}`,
   reader: {
-    title: 'Lesa skráningar loftfara',
-    description: (megabytes: string) => `Les skráningar og hernaðarleg raðnúmer sem máluð eru á loftför, á þessu tæki, og flettir þeim upp í ónettengdu afriti af opinberum skrám. Einstakt niðurhal upp á ${megabytes} MB. Bílnúmer eru aldrei lesin.`,
+    title: 'Lesa skráningar og keppnisnúmer',
+    description: (megabytes: string) => `Les á þessu tæki skráningar og hernaðarleg raðnúmer á loftförum, og keppnisnúmer á kappakstursbílum og kappakstursmótorhjólum. Skráningum er flett upp í ónettengdu afriti af opinberum skrám. Einstakt niðurhal upp á ${megabytes} MB. Bílnúmer eru aldrei lesin.`,
     download: 'Sækja',
     downloading: (percent: number) => `Sæki… ${percent}%`,
     ready: 'Uppsett. Virkar án nettengingar.',

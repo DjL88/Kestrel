@@ -8,6 +8,8 @@ export const fi: AreaTranslation<typeof source> = {
   kinds: {
     car: 'Auto',
     motorbike: 'Moottoripyörä',
+    'racing-car': 'Kilpa-auto',
+    'racing-motorbike': 'Kilpamoottoripyörä',
     lorry: 'Kuorma-auto',
     bus: 'Bussi',
     train: 'Juna',
@@ -29,9 +31,10 @@ export const fi: AreaTranslation<typeof source> = {
   registered: (marking: string, type: string) => `${marking}: ${type} (rekisterin mukaan)`,
   operatedBy: (what: string, operator: string) => `${what}, käyttäjä ${operator}`,
   held: (what: string) => `${what}? Tarkista`,
+  raceNumber: (what: string, number: string) => `${what}, numero ${number}`,
   reader: {
-    title: 'Lue ilma-alusten tunnukset',
-    description: (megabytes: string) => `Lukee ilma-aluksiin maalatut rekisteritunnukset ja sotilaalliset sarjanumerot tällä laitteella ja hakee ne julkisten rekisterien offline-kopiosta. Kertalataus, ${megabytes} Mt. Autojen rekisterikilpiä ei koskaan lueta.`,
+    title: 'Lue tunnukset ja kilpanumerot',
+    description: (megabytes: string) => `Lukee tällä laitteella ilma-alusten rekisteritunnukset ja sotilaalliset sarjanumerot sekä kilpa-autojen ja kilpamoottoripyörien kilpanumerot. Tunnukset haetaan julkisten rekisterien offline-kopiosta. Kertalataus, ${megabytes} Mt. Tieajoneuvojen rekisterikilpiä ei koskaan lueta.`,
     download: 'Lataa',
     downloading: (percent: number) => `Ladataan… ${percent}%`,
     ready: 'Asennettu. Toimii ilman verkkoa.',

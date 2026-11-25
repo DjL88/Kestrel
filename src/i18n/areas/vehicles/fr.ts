@@ -8,6 +8,8 @@ export const fr: AreaTranslation<typeof source> = {
   kinds: {
     car: 'Voiture',
     motorbike: 'Moto',
+    'racing-car': 'Voiture de course',
+    'racing-motorbike': 'Moto de course',
     lorry: 'Poids lourd',
     bus: 'Bus',
     train: 'Train',
@@ -29,9 +31,10 @@ export const fr: AreaTranslation<typeof source> = {
   registered: (marking: string, type: string) => `${marking} : ${type} (d'après le registre)`,
   operatedBy: (what: string, operator: string) => `${what}, exploité par ${operator}`,
   held: (what: string) => `${what}? À vérifier`,
+  raceNumber: (what: string, number: string) => `${what}, numéro ${number}`,
   reader: {
-    title: 'Lire les immatriculations d’aéronefs',
-    description: (megabytes: string) => `Lit les immatriculations et numéros de série militaires peints sur les aéronefs, sur cet appareil, et les recherche dans une copie hors ligne de registres publics. Un téléchargement unique de ${megabytes} Mo. Les plaques d’immatriculation des voitures ne sont jamais lues.`,
+    title: 'Lire immatriculations et numéros de course',
+    description: (megabytes: string) => `Lit sur cet appareil les immatriculations et numéros de série militaires des aéronefs, et les numéros de course des voitures et motos de course. Les immatriculations sont recherchées dans une copie hors ligne de registres publics. Un téléchargement unique de ${megabytes} Mo. Les plaques des véhicules routiers ne sont jamais lues.`,
     download: 'Télécharger',
     downloading: (percent: number) => `Téléchargement… ${percent}%`,
     ready: 'Installé. Fonctionne hors ligne.',
