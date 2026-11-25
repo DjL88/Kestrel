@@ -288,14 +288,15 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       document.querySelector<HTMLElement>('.inflight-v2 .v2-filmstrip'),
       document.querySelector<HTMLElement>(`.inflight-v2 nav[aria-label="${STRINGS.mobile.toolBar}"]`),
       document.querySelector<HTMLElement>('.inflight-v2 [data-testid="mobile-sheet-handle"]')?.parentElement ?? null,
-    ].filter((el): el is HTMLElement => Boolean(el && el.offsetParent !== null));
+      sheetRef.current,
+    ].filter((el): el is HTMLElement => Boolean(el && el.isConnected && el.getBoundingClientRect().height > 0));
     const place = () => setNoticeBottom(phoneNoticeBottom(window.innerHeight, bottomParts().map((el) => el.getBoundingClientRect().top)));
     place();
     window.addEventListener('resize', place);
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place);
     bottomParts().forEach((el) => observer?.observe(el));
     return () => { window.removeEventListener('resize', place); observer?.disconnect(); };
-  }, [isMobile, store.lastActionNotice, store.activePanel, store.filmstripCollapsed]);
+  }, [isMobile, store.lastActionNotice, store.activePanel, store.filmstripCollapsed, sheetHeight]);
 
   // One dispatch for every command id, shared by the keydown handler below and the command search dialog,
   // so "what Cmd/Ctrl+K can run" and "what the keyboard shortcut runs" never drift apart.
