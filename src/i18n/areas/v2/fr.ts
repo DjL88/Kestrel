@@ -1024,4 +1024,10 @@ export const fr: AreaTranslation<typeof source> = {
     forgetBody: 'Si vous vous êtes connecté, avez acheté une licence, utilisé l’aide cloud facultative ou envoyé un message, InFlight détient un peu de données vous concernant sur ses serveurs. Désactiver « aider à améliorer les suggestions » supprime déjà ce que vous avez partagé. Pour faire effacer le reste, envoyez une demande depuis l’adresse e-mail utilisée pour vous connecter. InFlight n’a pas encore d’effacement serveur en un geste : la demande est traitée par une personne, et vous saurez ce qui doit éventuellement être conservé (par exemple les justificatifs de paiement exigés par la loi).',
     forgetLink: 'Demander à InFlight d’effacer mes données de compte',
   },
+  crash: {
+    title: "Cet écran a cessé de fonctionner",
+    body: "Vos photos et retouches sont en sécurité : InFlight ne modifie jamais vos fichiers originaux. Rechargez pour continuer, et envoyez les détails ci-dessous si cela se reproduit.",
+    reload: "Recharger InFlight",
+    details: "Détails",
+  },
 };

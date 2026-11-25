@@ -1025,4 +1025,10 @@ export const gd: AreaTranslation<typeof source> = {
     forgetBody: 'Ma chlàraich thu a-steach, ma cheannaich thu ceadachas, ma chleachd thu cobhair-neòil roghainneil no ma chuir thu teachdaireachd, cumaidh InFlight beagan dàta mu do dhèidhinn air na frithealaichean aige. Ma chuireas tu dheth “cuidich le leasachadh nam molaidhean”, thèid na roinn thu a sguabadh às mu thràth. Airson an còrr a sguabadh às, cuir iarrtas on phost-d leis an do chlàraich thu a-steach. Chan eil sguabadh às le aon thogail air an fhrithealaiche aig InFlight fhathast, mar sin thèid seo gu duine, agus thèid innse dhut dè, ma tha dad idir, a dh’fheumar a chumail (mar eisimpleir clàran pàighidh a dh’iarras an lagh).',
     forgetLink: 'Iarr air InFlight dàta a’ chunntais agam a sguabadh às',
   },
+  crash: {
+    title: "Sguir an sgrìn seo a dh'obair",
+    body: "Tha na dealbhan is na deasachaidhean agad sàbhailte: cha bhi InFlight a-riamh ag atharrachadh nam faidhlichean tùsail agad. Luchdaich a-rithist gus leantainn air adhart, is cuir am fiosrachadh gu h-ìosal ma thachras e a-rithist.",
+    reload: "Luchdaich InFlight a-rithist",
+    details: "Fiosrachadh",
+  },
 };
