@@ -4,22 +4,53 @@
 //! WebAssembly build run exactly the same code. The original is only read.
 
 use image::codecs::jpeg::JpegEncoder;
-use image::{imageops, ImageBuffer, Pixel, Rgb};
+use image::{ImageBuffer, Pixel, Rgb};
+use rayon::prelude::*;
 use rawler::imgop::develop::RawDevelop;
 
 /// Turn the picture the way the camera was held, from the file's EXIF orientation (1 to 8). The sensor data is always stored
 /// sideways-on, so without this a portrait photograph comes out lying on its side.
-pub fn apply_orientation<P: Pixel + 'static>(image: ImageBuffer<P, Vec<P::Subpixel>>, exif_orientation: u16) -> ImageBuffer<P, Vec<P::Subpixel>> {
-    match exif_orientation {
-        2 => imageops::flip_horizontal(&image),
-        3 => imageops::rotate180(&image),
-        4 => imageops::flip_vertical(&image),
-        5 => imageops::flip_horizontal(&imageops::rotate90(&image)),
-        6 => imageops::rotate90(&image),
-        7 => imageops::flip_horizontal(&imageops::rotate270(&image)),
-        8 => imageops::rotate270(&image),
-        _ => image,
-    }
+///
+/// The same pixels as `image::imageops`' rotate and flip, exactly, but in 64 x 64 tiles over all cores: a quarter turn of a
+/// 45-megapixel frame reads its source column by column, which took the plain version about 2.4 s.
+pub fn apply_orientation<P: Pixel + 'static>(image: ImageBuffer<P, Vec<P::Subpixel>>, exif_orientation: u16) -> ImageBuffer<P, Vec<P::Subpixel>>
+where P::Subpixel: Send + Sync {
+    if !(2..=8).contains(&exif_orientation) { return image; }
+    let (w, h) = (image.width() as usize, image.height() as usize);
+    let c = P::CHANNEL_COUNT as usize;
+    let quarter = exif_orientation >= 5;
+    let (ow, oh) = if quarter { (h, w) } else { (w, h) };
+    // Where output pixel (x, y) comes from in the source.
+    let source = move |x: usize, y: usize| -> (usize, usize) {
+        match exif_orientation {
+            2 => (w - 1 - x, y),
+            3 => (w - 1 - x, h - 1 - y),
+            4 => (x, h - 1 - y),
+            5 => (y, x),
+            6 => (y, h - 1 - x),
+            7 => (w - 1 - y, h - 1 - x),
+            _ => (w - 1 - y, x), // 8
+        }
+    };
+    let src = image.as_raw();
+    let mut out: Vec<P::Subpixel> = src.clone();
+    const TILE: usize = 64;
+    out.par_chunks_mut(TILE * ow * c).enumerate().for_each(|(band, rows)| {
+        let top = band * TILE;
+        let band_rows = rows.len() / (ow * c);
+        for left in (0..ow).step_by(TILE) {
+            for dy in 0..band_rows {
+                let y = top + dy;
+                for x in left..(left + TILE).min(ow) {
+                    let (sx, sy) = source(x, y);
+                    let from = (sy * w + sx) * c;
+                    let to = (dy * ow + x) * c;
+                    rows[to..to + c].copy_from_slice(&src[from..from + c]);
+                }
+            }
+        }
+    });
+    ImageBuffer::from_raw(ow as u32, oh as u32, out).expect("same number of samples")
 }
 
 /// A plain-English reason for a decoder error, so the person sees what is going on rather than a library message.
@@ -201,6 +232,26 @@ mod tests {
             assert_eq!(layout(&super::apply_orientation(picture(), orientation)), wanted, "orientation {orientation}");
         }
         assert_eq!(layout(&super::apply_orientation(picture(), 0)), layout(&picture()), "unknown leaves it alone");
+    }
+
+    #[test]
+    fn the_tiled_turn_gives_exactly_the_image_crates_pixels() {
+        use image::{imageops, ImageBuffer, Rgb};
+        // Odd sizes that are not multiples of the tile, in 8 and 16 bits.
+        for (w, h) in [(1, 1), (7, 3), (130, 67), (200, 129)] {
+            let eight = image::RgbImage::from_fn(w, h, |x, y| image::Rgb([(x * 7 + y) as u8, (y * 13) as u8, (x ^ y) as u8]));
+            let sixteen = ImageBuffer::<Rgb<u16>, Vec<u16>>::from_fn(w, h, |x, y| Rgb([(x * 977 + y) as u16, (y * 131) as u16, (x * y) as u16]));
+            let reference8 = |o: u16| match o { 2 => imageops::flip_horizontal(&eight), 3 => imageops::rotate180(&eight), 4 => imageops::flip_vertical(&eight),
+                5 => imageops::flip_horizontal(&imageops::rotate90(&eight)), 6 => imageops::rotate90(&eight),
+                7 => imageops::flip_horizontal(&imageops::rotate270(&eight)), _ => imageops::rotate270(&eight) };
+            let reference16 = |o: u16| match o { 2 => imageops::flip_horizontal(&sixteen), 3 => imageops::rotate180(&sixteen), 4 => imageops::flip_vertical(&sixteen),
+                5 => imageops::flip_horizontal(&imageops::rotate90(&sixteen)), 6 => imageops::rotate90(&sixteen),
+                7 => imageops::flip_horizontal(&imageops::rotate270(&sixteen)), _ => imageops::rotate270(&sixteen) };
+            for o in 2..=8u16 {
+                assert_eq!(super::apply_orientation(eight.clone(), o), reference8(o), "8-bit {w}x{h} orientation {o}");
+                assert_eq!(super::apply_orientation(sixteen.clone(), o), reference16(o), "16-bit {w}x{h} orientation {o}");
+            }
+        }
     }
 
     #[test]
