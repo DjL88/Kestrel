@@ -548,6 +548,8 @@ export interface WorkspaceStore {
   canRedo: boolean;
   clipboardRecipe: EditRecipe | null;
   lastActionNotice: string | null;
+  /** The open project's automatic backup, as last reported. Absent when no project is open. */
+  backup?: { state: 'idle' | 'working' | 'ok' | 'partial' | 'failed'; at?: number } | null;
   /** Optional engine-supplied renderer for the canvas (see PhotoSurfaceProps). */
   PhotoSurface?: ComponentType<PhotoSurfaceProps>;
 }
@@ -586,6 +588,12 @@ export interface WorkspaceActions {
   importPhotos: () => void;
   importFolder: () => void;
   importDroppedPhotos: (files: File[]) => void;
+  /** Back the open project up now to this device (and its chosen place), checking the saved copy reads back the same. */
+  backUpProjectNow: () => void;
+  /** Save the open project's catalogue (decisions, edits, links; never photos) as a .kestrel.json file. */
+  saveProjectBackupFile: () => void;
+  /** Make a new project from a .kestrel.json backup file and open it. The backed-up project is never overwritten. */
+  restoreProjectBackup: (file: File) => void;
   /** Save ratings, flags and confirmed tags as XMP sidecars (the selection when two or more are selected, else the whole project). */
   saveXmpSidecars: (photoIds: string[]) => void;
   /** Read ratings, flags and tags from chosen .xmp files (or one .zip) for matching photos. Every file is checked before anything changes. */

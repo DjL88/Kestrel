@@ -17,6 +17,8 @@ export type MenuAction =
   | { kind: 'settings'; tab: SettingsTabId }
   | { kind: 'removedPhotos' }
   | { kind: 'saveXmp' }
+  | { kind: 'backupNow' }
+  | { kind: 'backupFile' }
   | { kind: 'readXmp' }
   | { kind: 'resetPhoto' }
   | { kind: 'backToProjects' };
@@ -43,6 +45,8 @@ const TABLE: Record<string, MenuAction> = {
   // V2-only File items (src-tauri/src/lib.rs). The header menus are hidden in the desktop app, so these are the way in.
   'removed-photos': { kind: 'removedPhotos' },
   'xmp-save': { kind: 'saveXmp' },
+  'backup-now': { kind: 'backupNow' },
+  'backup-file': { kind: 'backupFile' },
   'xmp-read': { kind: 'readXmp' },
   'reset-photo': { kind: 'resetPhoto' },
   'back-to-projects': { kind: 'backToProjects' },

@@ -972,6 +972,15 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     readXmpSidecars: () => {
       setStore((prev) => ({ ...prev, lastActionNotice: 'XMP sidecars are available in the real workspace.' }));
     },
+    backUpProjectNow: () => {
+      setStore((prev) => ({ ...prev, lastActionNotice: 'Backups are available in the real workspace.' }));
+    },
+    saveProjectBackupFile: () => {
+      setStore((prev) => ({ ...prev, lastActionNotice: 'Backups are available in the real workspace.' }));
+    },
+    restoreProjectBackup: () => {
+      setStore((prev) => ({ ...prev, lastActionNotice: 'Backups are available in the real workspace.' }));
+    },
     importDroppedPhotos: (files) => {
       logAction('importDroppedPhotos', { count: files.length });
       setStore((prev) => ({ ...prev, lastActionNotice: 'Drag and drop is available in the real workspace.' }));
