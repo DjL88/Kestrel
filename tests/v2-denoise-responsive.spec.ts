@@ -108,5 +108,5 @@ test('?v2 the editor stays responsive while denoise runs, and the work runs in a
   // the check is on the share of time blocked, not on the single longest gap, which is recorded above.
   expect(blockedShare, 'the interface thread is free for most of the denoise run').toBeLessThan(0.25);
   expect(workers.some(url => /denoiseWorker/.test(url)), `denoise worker started (saw: ${workers.join(', ')})`).toBe(true);
-  await expect(root.getByText(/interface thread/)).toHaveCount(0);
+  await expect(root.getByText(/could not denoise in the background/)).toHaveCount(0);
 });

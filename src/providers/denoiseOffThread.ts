@@ -3,6 +3,7 @@ import type { Mask } from '../core/maskTypes';
 import type { PhotoEdit } from '../core/photoEdits';
 import type { CourseCorrection } from '../engine/enhancementVerifier';
 import { estimateNoiseSigma } from '../core/noiseEstimate';
+import { v2Text } from '../i18n/areas/v2';
 import {
   openDenoiseSession, type DenoiseJob, type DenoiseSession, type DenoiseWorkerReply, type DenoiseWorkerRequest,
 } from '../v2/engineClient/denoiseCompute';
@@ -15,7 +16,7 @@ import {
  */
 
 /** Shown with the result when the work could not run in the background. */
-export const MAIN_THREAD_DENOISE_NOTE = 'Background processing is not available here, so denoise ran on the interface thread and the app may have paused while it worked.';
+export const MAIN_THREAD_DENOISE_NOTE = v2Text.enhance.denoiseMainThreadNote;
 
 /** The part of `Worker` used here, so tests can stand in a structured-clone fake. */
 export interface DenoiseWorkerLike {

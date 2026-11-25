@@ -95,7 +95,7 @@ test('without Workers it runs on the main thread, says so, and gives the same re
   const local = openDenoiseSession(job(photo, false));
   assert.deepEqual((await session.render({ denoise: 0.8 }, [])).data, local.render({ denoise: 0.8 }, []).data);
   assert.equal(compute.onMainThread, true);
-  assert.match(MAIN_THREAD_DENOISE_NOTE, /interface thread/);
+  assert.match(MAIN_THREAD_DENOISE_NOTE, /could not denoise in the background/);
 });
 
 test('a worker that fails mid-job falls back to the main thread for that job', async () => {
