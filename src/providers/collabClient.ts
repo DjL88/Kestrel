@@ -88,7 +88,7 @@ export interface CollabClient {
   remove(projectId: string, accountId: string): Promise<CollabProjectView>;
   accept(projectId: string, displayName: string): Promise<void>;
   /** Publishes the given previews as a client gallery and returns the link's secret token. */
-  publishGallery(projectId: string, options: GalleryRequest, previews: { photoId: string; jpeg: Blob }[]): Promise<{ galleryId: string; linkToken: string; expiresAtMs: number; published: number }>;
+  publishGallery(projectId: string, options: GalleryRequest, previews: { photoId: string; jpeg: Blob; thumb?: Blob | null }[]): Promise<{ galleryId: string; linkToken: string; expiresAtMs: number; published: number }>;
   galleries(projectId: string): Promise<GalleryListItem[]>;
   galleryFeedback(galleryId: string): Promise<GalleryFeedbackEvent[]>;
   revokeGallery(galleryId: string): Promise<void>;
@@ -132,10 +132,15 @@ export function collabClient(baseUrl: string | undefined | null, idToken: () => 
       const made = await call('POST', P(id) + '/galleries', { ...options });
       const galleryId = String(made.galleryId);
       let published = 0;
-      for (const { photoId, jpeg } of previews) {
+      const put = async (url: string, blob: Blob) => (await fetcher(url, { method: 'PUT', body: blob, headers: { 'content-type': 'image/jpeg', 'x-goog-content-length-range': `0,${blob.size}` }, credentials: 'omit', referrerPolicy: 'no-referrer' }).catch(() => null))?.ok === true;
+      for (const { photoId, jpeg, thumb } of previews) {
+        // The small filmstrip picture first: clients' browsers fetch it instead of the full preview while browsing.
+        if (thumb) {
+          const signedThumb = await call('POST', `/v1/collab/galleries/${encodeURIComponent(galleryId)}/photos/${encodeURIComponent(photoId)}/upload-url`, { sha256: await sha256Hex(thumb), bytes: thumb.size, variant: 'thumb' });
+          if (!(await put(String(signedThumb.uploadUrl), thumb))) throw new CollabError('network', 'GALLERY_UPLOAD', 'A preview could not be uploaded. Nothing else was published for it.');
+        }
         const signed = await call('POST', `/v1/collab/galleries/${encodeURIComponent(galleryId)}/photos/${encodeURIComponent(photoId)}/upload-url`, { sha256: await sha256Hex(jpeg), bytes: jpeg.size });
-        const put = await fetcher(String(signed.uploadUrl), { method: 'PUT', body: jpeg, headers: { 'content-type': 'image/jpeg', 'x-goog-content-length-range': `0,${jpeg.size}` }, credentials: 'omit', referrerPolicy: 'no-referrer' }).catch(() => null);
-        if (!put?.ok) throw new CollabError('network', 'GALLERY_UPLOAD', 'A preview could not be uploaded. Nothing else was published for it.');
+        if (!(await put(String(signed.uploadUrl), jpeg))) throw new CollabError('network', 'GALLERY_UPLOAD', 'A preview could not be uploaded. Nothing else was published for it.');
         await call('POST', `/v1/collab/galleries/${encodeURIComponent(galleryId)}/photos/${encodeURIComponent(photoId)}/commit`);
         published += 1;
       }
