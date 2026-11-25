@@ -1,3 +1,4 @@
+import { openV2Settings } from './helpers';
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(({}, testInfo) => {
@@ -28,7 +29,7 @@ test('?v2 Basic: Hide Pro features removes auto-cull and the online review block
   await root.getByRole('button', { name: /Co-pilot|Flight|Solo|Auto-pilot/ }).first().click();
   await expect(root.getByText(/Online review is unavailable/)).toBeVisible();
 
-  await root.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openV2Settings(page);
   await page.getByRole('tab', { name: 'Appearance' }).or(page.getByRole('button', { name: 'Appearance' })).first().click();
   const toggle = page.getByRole('switch', { name: 'Hide Pro features' });
   await expect(toggle).toHaveAttribute('aria-checked', 'false');
@@ -38,7 +39,7 @@ test('?v2 Basic: Hide Pro features removes auto-cull and the online review block
   await expect(root.getByRole('button', { name: /Auto-Cull/ })).toHaveCount(0);
   await expect(root.getByText(/Online review is unavailable/)).toHaveCount(0);
 
-  await root.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openV2Settings(page);
   await page.getByRole('tab', { name: 'Appearance' }).or(page.getByRole('button', { name: 'Appearance' })).first().click();
   await page.getByRole('switch', { name: 'Hide Pro features' }).click();
   await page.getByRole('button', { name: 'Close settings' }).click();

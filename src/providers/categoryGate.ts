@@ -98,6 +98,12 @@ export async function routePicture(picture: HTMLCanvasElement, crop: SquareCrop)
   return (await routeAndEmbedPicture(picture, crop)).route;
 }
 
+/** The image model's unit-length embedding of one square of the picture, on this device: the scene tags use it on the
+ * whole picture's centre square, so one model and one session serve the gate, vehicles and scene tags. */
+export async function embedSquare(picture: HTMLCanvasElement, crop: SquareCrop): Promise<Float32Array> {
+  return (await routeAndEmbedPicture(picture, crop)).embedding;
+}
+
 /** The gate's answer and the CLIP picture embedding it came from, so vehicle recognition can reuse it without running again. */
 export async function routeAndEmbedPicture(picture: HTMLCanvasElement, crop: SquareCrop): Promise<{ route: RouteResult; embedding: Float32Array }> {
   const { ort, session, categories, vectors } = await load();
