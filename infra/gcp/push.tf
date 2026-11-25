@@ -9,8 +9,15 @@ variable "push_enabled" {
   default     = false
 }
 
+# Push tokens belong to the Firebase project the apps use (firebase_project_id, e.g. kestrel-photo), so FCM is turned on
+# and sent through there. Without a Firebase project, the hosting project itself.
+locals {
+  fcm_project = var.firebase_project_id != "" ? var.firebase_project_id : var.project_id
+}
+
 resource "google_project_service" "fcm" {
   count              = var.push_enabled ? 1 : 0
+  project            = local.fcm_project
   service            = "fcm.googleapis.com"
   disable_on_destroy = false
 }
@@ -18,11 +25,11 @@ resource "google_project_service" "fcm" {
 # Send messages, nothing else: the narrowest predefined role for FCM HTTP v1.
 resource "google_project_iam_member" "control_plane_fcm" {
   count   = var.push_enabled ? 1 : 0
-  project = var.project_id
+  project = local.fcm_project
   role    = "roles/firebasecloudmessaging.admin"
   member  = "serviceAccount:${google_service_account.control_plane.email}"
 }
 
 locals {
-  push_env = var.push_enabled && var.collaboration_enabled ? { KCP_PUSH_ENABLED = "1", KCP_FCM_PROJECT_ID = var.project_id } : {}
+  push_env = var.push_enabled && var.collaboration_enabled ? { KCP_PUSH_ENABLED = "1", KCP_FCM_PROJECT_ID = local.fcm_project } : {}
 }
