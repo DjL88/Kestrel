@@ -16,5 +16,12 @@ test('?v2 Settings lists every model with its checksum, and says what has not be
   // The opt-in packs are not offered without an address in this build, and were never timed.
   await expect(section.getByTestId('v2-model-rfdetr-nano-fp16').getByTestId('v2-model-place')).toHaveText('Not offered in this copy');
   await expect(section.getByTestId('v2-model-file-rfdetr-nano-fp16').getByTestId('v2-model-run')).toHaveText('Not measured yet');
+  // The desktop vision model is listed with its pinned digests; in the browser it is not offered and never timed.
+  const desktop = section.getByTestId('v2-model-smolvlm2-500m-desktop');
+  await expect(desktop.getByTestId('v2-model-place')).toHaveText('Not offered in this copy');
+  await expect(desktop.locator('[title="7d0a356562c7e474012c5e383de58d44d487a517c04190d26e5891db86cb2b1f"]')).toHaveCount(1);
+  await expect(desktop.getByTestId('v2-model-whole-smolvlm2-500m-desktop').getByTestId('v2-model-load')).toHaveText('Not measured yet');
+  await expect(desktop.getByTestId('v2-model-whole-smolvlm2-500m-desktop').getByTestId('v2-model-run')).toHaveText('Not measured yet');
+  await expect(desktop.getByTestId('v2-model-ram')).toHaveCount(0);
   await expect(section.getByTestId('v2-models-measure')).toBeEnabled();
 });

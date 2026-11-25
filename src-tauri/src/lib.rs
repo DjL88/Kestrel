@@ -220,7 +220,7 @@ pub fn run() {
         .manage(OpenedFiles::default())
         .manage(OauthListener::default())
         .manage(local_vision::VisionState::default())
-        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, local_vision::local_vision_status, local_vision::local_vision_describe])
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure])
         .menu(|app| {
             let app_menu = Submenu::with_items(app, "InFlight", true, &[
                 &PredefinedMenuItem::about(app, None, None)?,

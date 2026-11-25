@@ -1561,6 +1561,8 @@ export const ga: AreaTranslation<typeof source> = {
     notMeasured: 'Gan tomhas fós',
     memoryNote: 'Tomhaiseadh an chuimhne uair amháin le hinneall na haipe ar ríomhaire glúine Windows. Ní féidir leis an scáileán seo an chuimhne a léamh beo.',
     timedInUse: 'Amaítear é nuair a úsáideann tú é.',
+    memoryLoaded: 'Cuimhne a d’úsáid an lódáil (tomhaiste anseo)',
+    wholeModel: 'An tsamhail iomlán',
     measure: 'Tomhais anois',
     measureHint: 'Ritheann sé gach samhail uair amháin ar an ngléas seo, ar phictiúr tástála cumtha. Ní úsáidtear aon ghrianghraf.',
     measuring: (name: string) => `Ag tomhas ${name}…`,

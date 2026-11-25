@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { STRINGS } from '../strings';
 import { medianRunMs, modelStat, modelStatsVersion, subscribeModelStats } from '../../../core/modelStats';
 import { MODEL_CATALOGUE, measureModels, type ModelPlace } from '../../../providers/modelCatalogue';
+import { LOCAL_VISION_ID } from '../../../core/localVisionMetrics';
 
 /**
  * Settings → Models (P0 #703): each model's version, checksum and size, whether it is on this device, and what it
@@ -67,9 +68,17 @@ export function ModelsSection() {
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-[var(--text-secondary)]">
               <dt>{T.version}</dt><dd className="select-text font-mono text-[var(--text-primary)]">{entry.version ?? '—'}</dd>
               <dt>{T.licence}</dt><dd className="text-[var(--text-primary)]">{entry.licence}</dd>
-              <dt>{T.memory}</dt>
-              <dd className="text-[var(--text-primary)]">{entry.peakMemory ? `${number(entry.peakMemory.megabytes)} MB *` : T.notMeasured}</dd>
+              {modelStat(entry.id)?.loadRamBytes != null
+                ? <><dt>{T.memoryLoaded}</dt><dd data-testid="v2-model-ram" className="text-[var(--text-primary)]">{mb(modelStat(entry.id)!.loadRamBytes!)}</dd></>
+                : <><dt>{T.memory}</dt><dd className="text-[var(--text-primary)]">{entry.peakMemory ? `${number(entry.peakMemory.megabytes)} MB *` : T.notMeasured}</dd></>}
             </dl>
+            {entry.id === LOCAL_VISION_ID && (
+              <dl data-testid={`v2-model-whole-${entry.id}`} className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 pl-3 text-xs text-[var(--text-secondary)]">
+                <dt className="col-span-2 text-[var(--text-primary)]">{T.wholeModel}</dt>
+                <dt>{T.loadTime}</dt><dd data-testid="v2-model-load" className="text-[var(--text-primary)]">{ms(modelStat(entry.id)?.loadMs ?? null)}</dd>
+                <dt>{T.runTime}</dt><dd data-testid="v2-model-run" className="text-[var(--text-primary)]">{ms(medianRunMs(modelStat(entry.id)))}</dd>
+              </dl>
+            )}
             {entry.files.map((file) => {
               const stat = modelStat(file.statId);
               return (
@@ -78,8 +87,10 @@ export function ModelsSection() {
                   <dt>{T.checksum}</dt>
                   <dd title={file.sha256} className="select-text break-all font-mono text-[var(--text-primary)]">{file.sha256.slice(0, 16)}…</dd>
                   <dt>{T.size}</dt><dd className="text-[var(--text-primary)]">{mb(file.bytes)}</dd>
-                  <dt>{T.loadTime}</dt><dd data-testid="v2-model-load" className="text-[var(--text-primary)]">{ms(stat?.loadMs ?? null)}</dd>
-                  <dt>{T.runTime}</dt><dd data-testid="v2-model-run" className="text-[var(--text-primary)]">{ms(medianRunMs(stat))}</dd>
+                  {entry.id !== LOCAL_VISION_ID && <>
+                    <dt>{T.loadTime}</dt><dd data-testid="v2-model-load" className="text-[var(--text-primary)]">{ms(stat?.loadMs ?? null)}</dd>
+                    <dt>{T.runTime}</dt><dd data-testid="v2-model-run" className="text-[var(--text-primary)]">{ms(medianRunMs(stat))}</dd>
+                  </>}
                 </dl>
               );
             })}

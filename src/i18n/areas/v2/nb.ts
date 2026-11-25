@@ -1558,6 +1558,8 @@ export const nb: AreaTranslation<typeof source> = {
     notMeasured: 'Ikke målt ennå',
     memoryNote: 'Minnet ble målt én gang med appens egen motor på en Windows-bærbar. Denne skjermen kan ikke lese minnet direkte.',
     timedInUse: 'Tidtas når du bruker den.',
+    memoryLoaded: 'Minne brukt ved innlasting (målt her)',
+    wholeModel: 'Hele modellen',
     measure: 'Mål nå',
     measureHint: 'Kjører hver modell én gang på denne enheten, på et oppdiktet testbilde. Ingen bilder brukes.',
     measuring: (name: string) => `Måler ${name}…`,

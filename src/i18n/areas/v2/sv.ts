@@ -1558,6 +1558,8 @@ export const sv: AreaTranslation<typeof source> = {
     notMeasured: 'Inte mätt än',
     memoryNote: 'Minnet mättes en gång med appens egen motor på en Windows-bärbar. Den här skärmen kan inte läsa minnet direkt.',
     timedInUse: 'Tidtas när du använder den.',
+    memoryLoaded: 'Minne som inläsningen använde (mätt här)',
+    wholeModel: 'Hela modellen',
     measure: 'Mät nu',
     measureHint: 'Kör varje modell en gång på den här enheten, på en påhittad testbild. Inget foto används.',
     measuring: (name: string) => `Mäter ${name}…`,

@@ -38,3 +38,21 @@ pub async fn local_vision_describe(request: tauri::ipc::Request<'_>, state: taur
     tauri::async_runtime::spawn_blocking(move || engine.run(&dir, &bytes, &question))
         .await.map_err(|_| "The vision model stopped unexpectedly.".to_string())?
 }
+
+/// Settings (#703): the pinned pack and what this session has actually measured. Unmeasured values are `null`.
+#[tauri::command]
+pub fn local_vision_metrics(state: tauri::State<'_, VisionState>) -> serde_json::Value {
+    let mut metrics = state.engine.metrics();
+    metrics["installed"] = serde_json::Value::Bool(pack_dir().map(|dir| verify_installed(&dir)).unwrap_or(false));
+    metrics
+}
+
+/// Settings' "Measure on this device": verify, load (first time) and run the model once on a synthetic test card, then report.
+#[tauri::command]
+pub async fn local_vision_measure(state: tauri::State<'_, VisionState>) -> Result<serde_json::Value, String> {
+    let dir = pack_dir().ok_or("The models folder could not be found.")?;
+    let engine = Arc::clone(&state.engine);
+    tauri::async_runtime::spawn_blocking(move || engine.measure(&dir))
+        .await.map_err(|_| "The vision model stopped unexpectedly.".to_string())??;
+    Ok(local_vision_metrics(state))
+}
