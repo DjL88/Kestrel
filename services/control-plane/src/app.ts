@@ -24,6 +24,7 @@ import { CLOUD_KINDS, DEFAULT_MAX_JOB_MS, type CloudJobRecord, type CloudOptions
 import { LEARNING_ACTIONS, LEARNING_CAPABILITIES, LEARNING_SOURCES, type LearningSink } from './learningSignal.ts';
 import { SAFE_COPY_LEVELS, SAFE_COPY_MAX_BYTES, safeCopyKey, type SafeCopyOptions } from './safeCopy.ts';
 import type { SpendOptions } from './spendGuard.ts';
+import { cloudRunClientIp } from './networkCountry.ts';
 import { ApiError, matchRoute, parseJson, readBody, send, type Reply, type Request, type Route } from './http.ts';
 
 export const MAX_IMAGE_BYTES = 512 * 1024;
@@ -1528,7 +1529,8 @@ export function createApp(options: AppOptions) {
       const rawBody = req.method === 'POST' ? await readBody(req, bodyLimit(url.pathname)) : '';
       const reply = await found.route.handler({
         method: req.method ?? 'GET', path: url.pathname, query: url.searchParams, headers: req.headers, rawBody,
-        ip: req.socket.remoteAddress ?? 'unknown',
+        // Per-person rate limits: behind Cloud Run every socket is Google's front end, so use the address it appended.
+        ip: (config.trustCloudRunForwardedFor ? cloudRunClientIp(req.headers) : null) ?? req.socket.remoteAddress ?? 'unknown',
       }, found.params);
       send(res, reply, origin);
     } catch (error) {
