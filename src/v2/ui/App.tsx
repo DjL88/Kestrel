@@ -75,6 +75,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [cursorsHidden, setCursorsHidden] = useState(false);
   const closeShare = React.useCallback(() => { setShareOpen(false); setShareVersion((n) => n + 1); }, []);
   const sharing = React.useMemo(() => collabClient(import.meta.env.VITE_KESTREL_CONTROL_PLANE_URL, () => firebaseAuth.idToken()), []);
+  const gallerySiteUrl = import.meta.env.VITE_KESTREL_SITE_URL || (/^https?:$/.test(window.location.protocol) ? window.location.origin : '');
   const signedInName = React.useCallback(async () => {
     const session = await firebaseAuth.current().catch(() => null);
     return session ? (session.displayName?.trim() || session.email?.split('@')[0] || null) : null;
@@ -857,6 +858,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         projectName={store.projects.find((project) => project.id === store.activeProjectId)?.name ?? ''}
         selectedPhotoIds={store.selectedPhotoIds}
         displayName={signedInName}
+        renderPreview={actions.renderGalleryPreview}
+        siteUrl={gallerySiteUrl}
         onClose={closeShare}
       />
 
