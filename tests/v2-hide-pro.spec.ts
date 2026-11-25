@@ -44,7 +44,7 @@ test('?v2 Basic: Hide Pro features removes the online review block but keeps on-
   await page.getByRole('tab', { name: 'Appearance' }).or(page.getByRole('button', { name: 'Appearance' })).first().click();
   await page.getByRole('switch', { name: 'Hide Pro features' }).click();
   await page.getByRole('button', { name: 'Close settings' }).click();
-  await root.getByRole('button', { name: /Co-pilot|Flight|Solo|Auto-pilot/ }).first().click();
+  // Co-pilot is still open, so the online review block comes back where it was.
   await expect(root.getByText(/Online review is unavailable/)).toBeVisible();
 });
 
