@@ -261,6 +261,7 @@ export const source = {
     sortPhotos: 'Most photos',
     sortFlagged: 'Most flagged',
     privacyLink: 'Privacy',
+    termsLink: 'Terms',
     subheading: 'Offline-first projects with local fast copies and optional cloud sync.',
     newProject: 'New project',
     searchPlaceholder: 'Search projects…',
@@ -451,6 +452,15 @@ export const source = {
     heStar: 'Nikon High Efficiency*',
     infoLabel: "Picture shown",
   },
+  dngCopy: {
+    button: "Save lossless DNG copy",
+    help: "For editors that cannot open Nikon High Efficiency files. A new file with the sensor data exactly as decoded; your NEF is never changed.",
+  },
+  fullDevelop: {
+    button: "Develop full size",
+    running: "Developing full size…",
+    help: "Develop this RAW from its sensor data at full size, for checking fine detail. It runs in Tasks; your original is unchanged.",
+  },
 
   // Canvas
   canvas: {
@@ -524,6 +534,25 @@ export const source = {
   },
 
   // Co-pilot / Flight Mode Panel
+  /** Watch: an Auto suggestion played one step at a time, each explained in plain words. */
+  watch: {
+    start: "Watch step by step",
+    region: "Watch this suggestion step by step",
+    stepOf: (n: number, total: number) => `Step ${n} of ${total}`,
+    back: "Back",
+    next: "Next",
+    skip: "Skip to the end",
+    replay: "Watch again",
+    stop: "Stop watching",
+    done: "That was every step. Apply the suggestion to keep it, or stop watching to leave the photo as it was.",
+    previewNote: "Preview only. Nothing changes until you apply the suggestion.",
+    otherSetting: "Another setting",
+    on: "on",
+    off: "off",
+    changed: "changed",
+    why: { "white-balance": "First the colour of the light, so the next steps start from true colours.", "light": "Then brightness and contrast.", "colour": "Then how strong the colours are.", "detail": "Last, fine detail and noise.", "local": "A change to part of the photo only. You will see it once you apply the suggestion.", "other": "One more setting this suggestion changes." },
+  },
+
   copilot: {
     heading: 'Co-pilot',
     changeInSettings: 'Change mode in Settings',
@@ -604,6 +633,16 @@ export const source = {
     feedbackDetails: 'Feedback by photo',
     feedbackShow: 'Show photo',
     feedbackChangesLabel: 'Changes asked',
+    feedbackNew: (n: number) => `${n} new`,
+    feedbackNewOne: 'new',
+    feedbackNeverApplied: 'Nothing a client does changes this project until you choose it.',
+    feedbackFlag: 'Flag it',
+    feedbackDone: 'Mark done',
+    feedbackDismiss: 'Dismiss',
+    feedbackAgain: 'Review again',
+    feedbackDoneBy: (name: string) => `Done by ${name}`,
+    feedbackDismissedBy: (name: string) => `Dismissed by ${name}`,
+    feedbackFlagged: 'Flagged in this project.',
     sharedTheirs: (name: string) => `${name} is editing this photo. You can look, and edit it once they move on.`,
     sharedSomeone: 'Someone else',
     sharedMine: 'Checked out to you. Your edits are shared as you go.',
@@ -1027,6 +1066,9 @@ export const source = {
     safeNote: 'Colour notes come from measuring the photo itself on this device, not from how it looks on your screen.',
   },
 
+  burstGrouping: {
+    unavailable: "Bursts are grouped by capture time only, because the look-alike model is not available on this device. Nothing about your photos was changed.",
+  },
   bursts: {
     badge: (n: number) => `Burst of ${n}`,
     show: (n: number) => `Show the ${n} frames in this burst`,
@@ -1129,6 +1171,7 @@ export const source = {
 
   // Info Panel
   info: {
+    rawColourSource: "Camera's own colour matrix from the RAW file, InFlight standard look (not the maker's picture style)",
     heading: 'Photo Info',
     fileSection: 'File & Connection',
     cameraSection: 'Camera & Capture',
@@ -1146,6 +1189,11 @@ export const source = {
   },
 
   // Tasks Panel
+  autoCullSummary: {
+    checked: (count: number) => `Photos checked by Auto-cull: ${count}. Review the flags in the filmstrip.`,
+    rawFromCameraPreview: (count: number) => `RAW photos judged from the camera's embedded preview, not from their sensor data: ${count}. Check their sharpness by eye.`,
+    undo: "You can undo the whole pass in one step.",
+  },
   tasks: {
     heading: 'Background Tasks',
     empty: 'No background tasks running. InFlight is idle.',
@@ -1462,9 +1510,16 @@ export const source = {
     fromFolderNote: 'Pick a folder on this device, an external drive, or a cloud folder that is synced to this device. The project takes the folder’s name. Your originals stay where they are.',
     renameTitle: 'Rename project',
     deleteTitle: (name: string) => `Delete “${name}”?`,
-    deleteBody: 'This removes the project, its edits and InFlight’s stored previews from this device. Your original photo files are never touched. It cannot be undone; archive it instead if you may want it back.',
+    deleteBody: 'The project moves to Recently deleted. You can restore it there for 30 days. Your original photo files are never touched.',
     keepProject: 'Keep project',
     deleteProject: 'Delete project',
+    deletedList: (count: number) => `Recently deleted (${count})`,
+    deletedNote: 'Deleted projects stay here for 30 days. Restore one to use it again.',
+    nothingDeleted: 'Nothing has been deleted.',
+    deleteForeverMenu: 'Delete forever…',
+    deleteForeverTitle: (name: string) => `Delete “${name}” forever?`,
+    deleteForeverBody: 'This removes the project, its edits and InFlight’s stored previews from this device. Your original photo files are never touched. It cannot be undone.',
+    deleteForever: 'Delete forever',
     layoutLabel: 'Project layout',
     layoutList: 'List',
     layoutTiles: 'Tiles',
@@ -1537,6 +1592,45 @@ export const source = {
     watermarkPosition: 'Watermark position',
   },
   // Settings dialog: AI and storage notes, privacy and erasing data
+  // Settings → Models: every model, its checksum, and what it cost on this device (#703)
+  models: {
+    title: 'Models on this device',
+    hint: 'What each model is, and what it costs on this computer. Times are measured here when a model runs, or when you press Measure now. Nothing is estimated.',
+    role: {
+      detector: 'Finds subjects',
+      detectorTandem: 'Second subject finder',
+      mask: 'Subject mask',
+      tapSelect: 'Tap to select',
+      species: 'Names species',
+      gate: 'Checks the kind of subject',
+      similarity: 'Groups look-alike photos',
+      photoCheck: 'Check photo',
+      markings: 'Reads registrations',
+      denoise: 'TrueDetail noise reduction',
+    },
+    place: {
+      builtIn: 'Built in',
+      downloaded: 'Downloaded',
+      notDownloaded: 'Not downloaded',
+      notOffered: 'Not offered in this copy',
+    },
+    version: 'Version',
+    checksum: 'Checksum',
+    size: 'Size',
+    licence: 'Licence',
+    loadTime: 'Load time',
+    runTime: 'Time per run',
+    memory: 'Peak memory',
+    notMeasured: 'Not measured yet',
+    memoryNote: 'Memory was measured once with the app’s own runtime on a Windows laptop. This screen cannot read memory live.',
+    timedInUse: 'Timed when you use it.',
+    measure: 'Measure now',
+    measureHint: 'Runs each model on this device once, on a made-up test picture. No photo is used.',
+    measuring: (name: string) => `Measuring ${name}…`,
+    stop: 'Stop',
+    failed: (names: string) => `Could not measure: ${names}`,
+    done: 'Measured on this device.',
+  },
   settingsMore: {
     closeSettings: 'Close settings',
     sections: 'Settings sections',
@@ -1549,6 +1643,7 @@ export const source = {
     privacyHeading: 'Your photos stay yours',
     privacyBody: 'InFlight works fully offline. Original files are never changed, moved or uploaded. Nothing leaves this device unless you turn on an optional feature and consent to it.',
     privacyLink: 'Read the privacy policy',
+    termsLink: 'Read the terms',
     privacyDraft: '(draft, not yet lawyer-reviewed).',
     buildModified: 'Changed since this commit (a test build, not a release)',
     eraseHeading: 'Erase everything on this device',
@@ -1655,5 +1750,34 @@ export const source = {
     body: 'Your photos and edits are safe: InFlight never changes your original files. Reload to carry on, and send the details below if it happens again.',
     reload: 'Reload InFlight',
     details: 'Details',
+  },
+
+  // Team notifications in shared projects (G20, owner decision 11: in the app first)
+  notices: {
+    button: 'Notifications',
+    buttonCount: (n: number) => `Notifications, ${n} unread`,
+    heading: 'Notifications',
+    none: 'Nothing new.',
+    markAllRead: 'Mark all as read',
+    failed: 'Could not reach notifications.',
+    unread: 'Unread: ',
+    someone: 'Someone',
+    andMore: (name: string, n: number) => `${name} and ${n} more`,
+    comment: (who: string) => `${who} commented on a photo`,
+    reply: (who: string) => `${who} replied to a comment`,
+    resolve: (who: string) => `${who} resolved a comment`,
+    reopen: (who: string) => `${who} reopened a comment`,
+    clientFeedback: (gallery: string) => `New client feedback in ${gallery}`,
+  },
+
+  // Long work finished (G20): on this device, offline, no account
+  taskAlerts: {
+    oneDone: (title: string) => `Finished: ${title}.`,
+    oneFailed: (title: string) => `Needs attention: ${title}. Open Tasks to see why.`,
+    manyDone: (n: number) => `${n} tasks finished.`,
+    manyWithFailures: (n: number, failed: number) => `${n} tasks ended; ${failed} need attention. Open Tasks to see why.`,
+    whileAway: 'While you were away:',
+    allowSystem: 'Also tell me in the background',
+    dismiss: 'Dismiss',
   },
 };

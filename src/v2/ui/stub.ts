@@ -838,6 +838,14 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     },
     deleteProject: (id) => {
       logAction('deleteProject', { id });
+      setStore((prev) => ({ ...prev, projects: prev.projects.map((p) => (p.id === id ? { ...p, trashed: true } : p)) }));
+    },
+    restoreDeletedProject: (id) => {
+      logAction('restoreDeletedProject', { id });
+      setStore((prev) => ({ ...prev, projects: prev.projects.map((p) => (p.id === id ? { ...p, trashed: false } : p)) }));
+    },
+    deleteProjectForever: (id) => {
+      logAction('deleteProjectForever', { id });
       setStore((prev) => ({ ...prev, projects: prev.projects.filter((p) => p.id !== id) }));
     },
 
@@ -1050,6 +1058,14 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
         ),
         lastActionNotice: 'Auto-Cull & Analyse updated focus shortlist (no photos auto-rejected)',
       }));
+    },
+
+    saveDngCopy: (photoId) => {
+      logAction('saveDngCopy', { photoId });
+    },
+
+    developFullSize: (photoId) => {
+      logAction('developFullSize', { photoId });
     },
 
     reconnectOriginal: (photoId) => {

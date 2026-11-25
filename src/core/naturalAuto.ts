@@ -1,5 +1,6 @@
 import type { PhotographyObservation } from './photographyKnowledge';
 import { preservationPolicy } from './photographyPolicy';
+import type { SceneHints } from './photoTagHints';
 import { applyDetail, applyPhotoEdit, isNeutralEdit, type PhotoEdit } from './photoEdits';
 import { applyMasks, fullContext } from './masks';
 import { assessAutoQuality } from './autoQualityGate';
@@ -38,6 +39,8 @@ export interface NaturalAutoInput {
   iso?: number | null;
   /** Explicit or confidently observed photographic context; absent means no extra restrictions. */
   photographyObservations?: readonly PhotographyObservation[];
+  /** What the photo's scene tags ask Auto to leave alone (photoTagHints.ts). Hints only remove or soften a suggestion. */
+  sceneHints?: SceneHints;
 }
 
 export type GlobalAutoEdit = Pick<PhotoEdit, 'exposure' | 'warmth'> &
@@ -435,7 +438,27 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
   scene.kind = lowKey ? 'low-key' : subdued ? 'subdued' : brightBackground ? 'bright-background' :
     edit.exposure > 0 ? 'underexposed' : edit.exposure < 0 ? 'overexposed' : edit.contrast > 0 ? 'flat' : 'balanced';
   // Knowledge policies may suppress measured suggestions, never invent an adjustment.
-  const { preserveLight, preserveDark, preserveSoft } = preservationPolicy(input.photographyObservations);
+  const policy = preservationPolicy(input.photographyObservations);
+  const hints = input.sceneHints ?? {};
+  const preserveLight = policy.preserveLight || hints.preserveLight === true;
+  const preserveDark = policy.preserveDark || hints.preserveDark === true;
+  const preserveSoft = policy.preserveSoft || hints.preserveSoft === true;
+  if (hints.preserveBright) {
+    // Snow and high-key: a bright frame is meant to be bright; keep white white rather than grey.
+    if (edit.exposure < 0) edit.exposure = 0;
+    if (edit.highlights < 0) edit.highlights = 0;
+    notes.push('The scene tags say this is bright on purpose, so it is not darkened.');
+  }
+  if (hints.monochrome) {
+    if (edit.vibrance !== 0) edit.vibrance = 0;
+    if (edit.warmth !== 0) edit.warmth = 0;
+    notes.push('The scene tags say this is black and white, so colour-only changes are left out.');
+  }
+  if (hints.overcast) {
+    if (edit.contrast > 0.1) edit.contrast = 0.1;
+    if ((edit.warmth ?? 0) > 0) edit.warmth = 0;
+    notes.push('The scene tags say the sky is overcast, so contrast stays gentle and no warmth is added.');
+  }
   if (preserveLight && edit.warmth !== 0) {
     edit.warmth = 0;
     notes.push('Photography guidance preserves intentional lighting colour.');

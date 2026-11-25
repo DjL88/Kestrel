@@ -5,6 +5,8 @@ import ProBadge, { useProHidden } from '../shell/ProBadge';
 import BrandIcon, { assistModeIconName } from '../icons/BrandIcon';
 import ColourWordsList from './ColourWordsList';
 import ColourSenseLine from './ColourSenseLine';
+import WatchSteps from './WatchSteps';
+import type { EditRecipe } from '../contract';
 
 interface CoPilotPanelProps {
   photo: Photo | null;
@@ -22,6 +24,8 @@ interface CoPilotPanelProps {
   onRequestLocalAuto?: (photoId: string) => void;
   onApplySuggestion: (photoId: string, suggestionId: string) => void;
   onDismissSuggestion: (photoId: string, suggestionId: string) => void;
+  /** Watch: shows a suggestion's steps so far on the photo without applying them. Null clears the preview. */
+  onStepPreview?: (delta: Partial<EditRecipe> | null) => void;
 }
 
 export default function CoPilotPanel({
@@ -36,8 +40,13 @@ export default function CoPilotPanel({
   onRequestLocalAuto,
   onApplySuggestion,
   onDismissSuggestion,
+  onStepPreview,
 }: CoPilotPanelProps) {
   const hiddenOnline = useProHidden('onlineAi');
+  // Which suggestion is being watched step by step. A different photo stops watching.
+  const [watchingId, setWatchingId] = React.useState<string | null>(null);
+  React.useEffect(() => setWatchingId(null), [photo?.id]);
+  const clearPreview = React.useCallback((delta: Partial<EditRecipe> | null) => onStepPreview?.(delta), [onStepPreview]);
   const hiddenCloud = useProHidden('cloudAssist');
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">{STRINGS.panelWords.selectToAnalyse}</p>;
@@ -202,6 +211,15 @@ export default function CoPilotPanel({
                     </ol>
                   </details>
                 )}
+                {watchingId === sug.id && onStepPreview && (
+                  <WatchSteps
+                    suggestion={sug}
+                    current={(photo.editGroups.find((group) => group.id === photo.activeGroupId) ?? photo.editGroups[0])?.recipe}
+                    onPreview={clearPreview}
+                    onApply={() => onApplySuggestion(photo.id, sug.id)}
+                    onClose={() => setWatchingId(null)}
+                  />
+                )}
                 <div className="mt-2.5 flex items-center gap-2">
                   <button
                     type="button"
@@ -216,6 +234,16 @@ export default function CoPilotPanel({
                     <BrandIcon name="check" size={12} />
                     <span>{sug.applied ? STRINGS.copilot.applied : STRINGS.copilot.applySingle}</span>
                   </button>
+                  {!sug.applied && onStepPreview && watchingId !== sug.id && (
+                    <button
+                      type="button"
+                      data-testid="watch-start"
+                      onClick={() => setWatchingId(sug.id)}
+                      className="h-7 rounded-[var(--radius-sm)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
+                    >
+                      {STRINGS.watch.start}
+                    </button>
+                  )}
                   {!sug.applied && (
                     <button
                       type="button"

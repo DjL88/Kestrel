@@ -15,7 +15,7 @@ import { blendSrgb16 } from './linearRgb16';
 import { denoiseLuminance } from './luminanceDenoise';
 import { noiseStrength } from './noiseReduction';
 import { denoiseChromaRgb16 } from './chromaDenoise16';
-import { isDenoisePair, denoiseMembers, applySubjectDenoise16 } from './subjectDenoise16';
+import { isDenoisePair, denoiseMembers, denoiseEyes, applySubjectDenoise16 } from './subjectDenoise16';
 
 /**
  * InFlight's 16-bit export. The RAW decoder's full-size 16-bit picture (display-encoded sRGB, as it was before the editor's
@@ -241,7 +241,9 @@ function applyDetailMaskRgb16(image: Rgb16Image, mask: Mask, masks: readonly Mas
   const edge = Math.max(width, height);
   const d = detailParams(local, edge);
   const denoiseRadius = noiseStrength(local.denoise) > 0 ? ((local.denoise ?? 0) > 1 ? 2 : 1) : 0;
-  const margin = Math.max(d.sharpenRadius, d.textureRadius, d.clarityRadius, denoiseRadius);
+  const grain = noiseStrength(local.denoiseLuminance);
+  // Colour then grain filtering chain their neighbourhoods; detail adds its own reach after them.
+  const margin = Math.max(d.sharpenRadius, d.textureRadius, d.clarityRadius) + denoiseRadius + (grain > 0 ? 2 : 0);
   // A band's top halo is retained before writing its interior. Ensuring at
   // least one margin's worth of interior keeps the previous original halo
   // sufficient, even for Clarity on a full-resolution Nikon image.
@@ -257,6 +259,7 @@ function applyDetailMaskRgb16(image: Rgb16Image, mask: Mask, masks: readonly Mas
     // Capture the original (not locally adjusted) lower halo for next stripe.
     kept = to < height ? source.slice((Math.max(first, to - margin) - first) * stride, (to - first) * stride) : null;
     if (denoiseRadius > 0) denoiseChromaRgb16(source, width, last - first, noiseStrength(local.denoise), denoiseRadius as 1 | 2);
+    if (grain > 0) denoiseLuminance(source, width, last - first, grain);
     applyToneRgb16(source, local);
     applyDetailRgb16(source, width, last - first, local, edge);
     const bandHeight = to - from;
@@ -291,26 +294,28 @@ export function applyToneMasksRgb16(image: Rgb16Image, masks: readonly Mask[] | 
   const { width, height, data } = image;
   // 256k pixels = about 4 MiB temporary RGBA floats + 1 MiB alpha.
   const rows = Math.max(1, Math.floor(262144 / width));
-  const groups = new Map<string, Mask[]>();
+  const groups = new Map<string, { members: Mask[]; eyes: Mask[] }>();
   const consumed = new Set<string>();
   for (let i = 0; i + 1 < masks.length; i++) {
     const group = masks[i+1];
     if (!isDenoisePair(masks[i], group)) continue;
-    const members = denoiseMembers(group, masks);
-    groups.set(group.id, members);
+    const members = denoiseMembers(group, masks), eyes = denoiseEyes(group, masks);
+    groups.set(group.id, { members, eyes });
     members.forEach(member => consumed.add(member.id));
+    eyes.forEach(eye => consumed.add(eye.id));
   }
   for (let index = 0; index < masks.length; index++) {
     const mask = masks[index], subject = masks[index+1];
     if (isDenoisePair(mask, subject)) {
-      applySubjectDenoise16(image, mask, subject, groups.get(subject.id) ?? [], masks, detailBandPixels);
+      const group = groups.get(subject.id);
+      applySubjectDenoise16(image, mask, subject, group?.members ?? [], masks, detailBandPixels, group?.eyes ?? []);
       index++;
       continue;
     }
     if (!maskIsActive(mask)) continue;
     const local: PhotoEdit = { exposure: 0, warmth: 0, colour: 0, ...mask.edit };
-    if (consumed.has(mask.id)) delete local.denoise;
-    if (hasDetail(local) || noiseStrength(local.denoise) > 0) {
+    if (consumed.has(mask.id)) { delete local.denoise; delete local.denoiseLuminance; }
+    if (hasDetail(local) || noiseStrength(local.denoise) > 0 || noiseStrength(local.denoiseLuminance) > 0) {
       applyDetailMaskRgb16(image, mask, masks, local, detailBandPixels);
       continue;
     }

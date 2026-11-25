@@ -184,6 +184,8 @@ export interface ShootDescriptor {
   lastUpdatedAt: number;
   /** Set when the project is archived. Archived projects are hidden from the main list and can be restored. */
   archivedAt?: number;
+  /** Set when the project is deleted. It stays in Recently deleted for TRASH_KEEP_MS and can be restored until then. */
+  trashedAt?: number;
   /** True for the Quick edits bucket, where single photos are opened without making a project first. */
   inbox?: boolean;
   /** Optional multi-page collage / print album composition; sources remain ordinary non-destructive frames. */

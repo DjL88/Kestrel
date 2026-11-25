@@ -3,30 +3,31 @@ import assert from 'node:assert/strict';
 import { createMask } from '../../core/maskTypes';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { DEFAULT_FRAMING } from '../../core/photoFraming';
-import { createEmptyProject } from '../../core/projects';
 import type { PhotoFrame } from '../../core/types';
 import { addSavedEditGroup } from './editGroupState';
-import { commitVerifiedMasks } from './maskVerificationCommit';
-const original = {...createMask('radial','mask'),edit:{exposure:0.8}};
-const source: PhotoFrame = {id:'bird',stableKey:'bird.nef',filename:'bird.nef',sequenceIndex:1,
-  decision:'unreviewed',burstGroupId:null,burstIndex:0,burstCount:1,exif:{},isDemo:false,sourceKind:'file',
-  edit:{...DEFAULT_EDIT,masks:[original]}};
-const corrected = {...original,edit:{exposure:0.3}};
-const project = (frame:PhotoFrame,id='p') => ({...createEmptyProject(id,'Test'),frames:[frame]});
-test('verification cannot cross projects, original identities, framing or edit groups',()=>{
-  const group = addSavedEditGroup(source,'other');
+import { maskAdvice, maskVerificationKey } from './maskVerificationCommit';
+import { toggleMask } from './maskOps';
+
+const original = { ...createMask('radial', 'mask'), edit: { exposure: -1.5 } };
+const source: PhotoFrame = { id: 'bird', stableKey: 'bird.nef', filename: 'bird.nef', sequenceIndex: 1,
+  decision: 'unreviewed', burstGroupId: null, burstIndex: 0, burstCount: 1, exif: {}, isDemo: false, sourceKind: 'file',
+  edit: { ...DEFAULT_EDIT, masks: [original] } };
+
+test('the verification key changes with project, original, framing, edit group and masks', () => {
+  const key = maskVerificationKey('p', source);
+  const group = addSavedEditGroup(source, 'other');
   assert.ok(group);
-  for(const state of [project(source,'another'),project({...source,stableKey:'other.nef'}),
-    project({...source,framing:{...DEFAULT_FRAMING,turns:1}}),project(group),
-    project({...source,editVersions:{version:1,activeId:'other',versions:[]}}),
-    project({...source,removedAt:0}),project({...source,edit:{...source.edit!,masks:[]}})]){
-    assert.equal(commitVerifiedMasks(state,'p',source,[corrected],3000),state);
-  }
+  for (const [project, frame] of [['another', source], ['p', { ...source, stableKey: 'other.nef' }],
+    ['p', { ...source, framing: { ...DEFAULT_FRAMING, turns: 1 } }], ['p', group],
+    ['p', { ...source, editVersions: { version: 1, activeId: 'other', versions: [] } }],
+    ['p', { ...source, removedAt: 0 }], ['p', { ...source, edit: { ...source.edit!, masks: toggleMask(source.edit!.masks, 'mask') } }],
+  ] as [string, PhotoFrame][]) assert.notEqual(maskVerificationKey(project, frame), key);
 });
-test('valid correction preserves concurrent global adjustments and rating',()=>{
-  const current = {...source,rating:4,edit:{...source.edit!,exposure:0.5}};
-  const state = commitVerifiedMasks(project(current),'p',source,[corrected],3000);
-  assert.equal(state.frames[0].rating,4);
-  assert.equal(state.frames[0].edit?.exposure,0.5);
-  assert.deepEqual(state.frames[0].edit?.masks,[corrected]);
+
+test('the mask check advises and never proposes a rewrite of the person\'s value', () => {
+  assert.equal(maskAdvice({ ok: true, reasons: [], suggestedStrengthScale: 1 }), null);
+  // A comparison the verifier could not make is not shown to the person.
+  assert.equal(maskAdvice({ ok: false, reasons: ['The comparison could not be verified safely.'], suggestedStrengthScale: 0 }), null);
+  const advice = maskAdvice({ ok: false, reasons: ['A clear cool colour cast.'], suggestedStrengthScale: 0.7 });
+  assert.match(advice ?? '', /cool colour cast\. Your setting is kept/);
 });
