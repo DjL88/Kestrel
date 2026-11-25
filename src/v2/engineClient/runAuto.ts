@@ -25,6 +25,7 @@ import { loadImage } from '../../providers/loadImage';
 import { loadExportSource } from '../../providers/browserExport';
 import { editorText as t } from '../../i18n/areas/editor';
 import { renderAutoCandidates, type AutoCandidate } from './renderAutoCandidates';
+import type { AutoUnavailable, AutoUnavailableCause } from './autoUnavailable';
 
 export interface AutoRun {
   plan: AutoPlan;
@@ -59,21 +60,26 @@ const withTimeout = <T>(work: Promise<T>, ms: number, onTimeout: () => T | Promi
 /**
  * The one Auto for a photo, the same flow as the current editor (src/core/unifiedAuto.ts): measure the framed, unedited
  * preview on this device, find the subject, build one reversible recipe, check it against the quality gate. Nothing is
- * applied here: the caller decides (Co-pilot suggests, Auto-pilot applies). Returns null when the picture cannot be
- * read or is too small to analyse. RAW advice uses the sensor-developed preview when available. Original files are read only.
+ * applied here: the caller decides (Co-pilot suggests, Auto-pilot applies). Returns the reason (AutoUnavailable) when the picture
+ * cannot be read, is too small, or is a RAW without a sensor development; null only when cancelled. RAW advice uses the
+ * sensor-developed preview only, never the embedded camera JPEG. Original files are read only.
  */
-export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvider, signal?: AbortSignal): Promise<AutoRun | null> {
+export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvider, signal?: AbortSignal): Promise<AutoRun | AutoUnavailable | null> {
+  const unavailable = (cause: AutoUnavailableCause): AutoUnavailable => ({ unavailable: cause, source: { stableKey: frame.stableKey, originalSha256: frame.originalSha256, framing: frame.framing } });
   const raw = !frame.isDemo && isRawPreviewFile(frame.filename);
   const url = raw ? null : await provider.getFullPreviewUrl(frame, 'selected');
-  if ((!raw && !url) || signal?.aborted) return null;
+  if (signal?.aborted) return null;
+  if (!raw && !url) return unavailable('no-preview');
   const source = raw ? await loadExportSource(frame, provider) : await loadImage(url!);
-  if (signal?.aborted || (raw && !provider.isDeveloped(frame.stableKey))) return null;
+  if (signal?.aborted) return null;
+  // Never analyse the camera's embedded JPEG as if it were the RAW; say why instead of finishing silently.
+  if (raw && !provider.isDeveloped(frame.stableKey)) return unavailable('raw-not-developed');
   const framing = frame.framing ?? DEFAULT_FRAMING;
   const edge = Math.max(source.naturalWidth, source.naturalHeight);
   const analysisCanvas = document.createElement('canvas');
   drawFramedPhoto(source, analysisCanvas, framing, { scale: Math.min(1, 640 / edge) });
   const context = analysisCanvas.getContext('2d', { willReadFrequently: true });
-  if (!context || analysisCanvas.width < 16 || analysisCanvas.height < 16) return null;
+  if (!context || analysisCanvas.width < 16 || analysisCanvas.height < 16) return unavailable('too-small');
   const analysis = context.getImageData(0, 0, analysisCanvas.width, analysisCanvas.height);
   const category = subjectKindOf(frame);
   const base: PhotoEdit = frame.edit ?? DEFAULT_EDIT;
@@ -122,7 +128,7 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   const photographyObservations = observationsFromFrame(frame);
   const policy = preservationPolicy(photographyObservations);
   const natural = naturalAuto({ pixels: analysis.data, width: analysis.width, height: analysis.height, segmentation, iso: frame.exif?.iso, photographyObservations });
-  if (natural.notes.includes('This preview is too small or too large to analyse.')) return null;
+  if (natural.notes.includes('This preview is too small or too large to analyse.')) return unavailable('too-small');
   const global = mergeAutoSuggestion(base, natural.edit).edit;
   const input = { pixels: analysis.data, width: analysis.width, height: analysis.height, base, natural, segmentation, species, photographyObservations };
   const naturalPlan = planAuto({ ...input, proposal: global });

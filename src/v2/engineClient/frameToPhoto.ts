@@ -17,6 +17,7 @@ import { masksToLayers } from './maskOps';
 import { readCrops } from './cropOps';
 import { readBoard } from './boardOps';
 import type { AutoRun } from './runAuto';
+import { autoUnavailableMatches, autoUnavailableSentence, type AutoUnavailable } from './autoUnavailable';
 import { colourWarningSentences, colourWords } from './colourWords';
 import { sameRecipe } from '../../core/naturalAuto';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
@@ -101,7 +102,7 @@ export function tileStateFor(urls: FrameUrls | undefined): TileState {
  * not record says "Not recorded" (or is left empty), never an invented value. The edit, size and mask parts start as the
  * UI's neutral defaults; they are connected to the real recipe in a later step.
  */
-export interface PhotoExtras { pixelSize?: { width: number; height: number }; /** Measured from a connected, decoded JPEG/PNG original, not EXIF or a preview. */ verifiedOriginalSize?: { width: number; height: number }; assist?: AssistState; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram; originalConnected?: boolean }
+export interface PhotoExtras { pixelSize?: { width: number; height: number }; /** Measured from a connected, decoded JPEG/PNG original, not EXIF or a preview. */ verifiedOriginalSize?: { width: number; height: number }; assist?: AssistState; /** Auto tried and could not look at this photo, with the reason. */ autoUnavailable?: AutoUnavailable; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram; originalConnected?: boolean }
 
 /** Decoded JPEG/PNG pixel size (after framing), or null when not measured. */
 function verifiedFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { width: number; height: number }): { width: number; height: number } | null {
@@ -202,7 +203,11 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     ...(frame.formatHistory ? { formatHistory: readFormatHistory(frame.formatHistory).events.map(({ formatId, kind, at, parentFormatId, forkEditCursor }) => ({ formatId, kind, at, ...(parentFormatId ? { parentFormatId } : {}), ...(forkEditCursor !== undefined ? { forkEditCursor } : {}) })) } : {}),
     ...(watermarkAuto ? { watermarkAuto } : {}),
     ...(histogram ? { histogram } : {}),
-    assistCritique: assistCritiqueFor(assist && matchesAutoSource(assist.run, frame) ? assist : undefined, frame.edit),
+    assistCritique: assist && matchesAutoSource(assist.run, frame)
+      ? assistCritiqueFor(assist, frame.edit)
+      : extras.autoUnavailable && autoUnavailableMatches(extras.autoUnavailable, frame)
+        ? { ...assistCritiqueFor(undefined), subjectNote: autoUnavailableSentence(extras.autoUnavailable.unavailable, frame.filename) }
+        : assistCritiqueFor(undefined, frame.edit),
   };
 }
 

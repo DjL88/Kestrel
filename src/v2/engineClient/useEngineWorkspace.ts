@@ -46,6 +46,7 @@ import { recordFormatCrop, recordFormatSetChange, recordFormatLink } from './for
 import { addRow, alignOverlays, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps';
 import { frameToPhoto, matchesAutoSource, originalFormatSize, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
+import { autoUnavailableSentence, isAutoUnavailable, type AutoUnavailable } from './autoUnavailable';
 import { commitAutoEdit } from './commitAutoEdit';
 import { commitAutoCull } from './commitAutoCull';
 import { runV2Denoise } from './runDenoise';
@@ -225,6 +226,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     saveStored(next);
   }, []);
   const [assists, setAssists] = useState<Record<string, AssistState>>({});
+  const [autoUnavailable, setAutoUnavailable] = useState<Record<string, AutoUnavailable>>({});
   const [autoRequest, setAutoRequest] = useState<{ photoId: string; sequence: number } | null>(null);
   const lastAutoRequest = useRef(0);
   const cullController = useRef<AbortController | null>(null);
@@ -1013,6 +1015,19 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           ctx.checkCancelled();
           if (!isCurrent()) return;
           if (!run) return;
+          if (isAutoUnavailable(run)) {
+            // Say why in Co-pilot (and, for a press of the button, as a notice) instead of finishing silently.
+            ctx.commitIfCurrent(() => {
+              setAutoUnavailable(current => ({ ...current, [frame.id]: run }));
+              if (manual) setNotice(autoUnavailableSentence(run.unavailable, frame.filename));
+            });
+            return;
+          }
+          ctx.commitIfCurrent(() => setAutoUnavailable(current => {
+            if (!(frame.id in current)) return current;
+            const { [frame.id]: _cleared, ...rest } = current;
+            return rest;
+          }));
           ctx.commitIfCurrent(() => setAssists(current => {
             if (!isCurrent()) return current;
             const recent = Object.entries(current).filter(([id]) => id !== frame.id).slice(-11);
@@ -1030,6 +1045,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         controller.signal.addEventListener('abort', () => ticket.cancel(), { once: true });
         if (controller.signal.aborted) ticket.cancel();
         return ticket.finished;
+      }).then(result => {
+        // A thrown RAW or decode error used to end here unseen (and its text talked about exporting).
+        if (result !== 'failed' || !isCurrent()) return;
+        setAutoUnavailable(current => ({ ...current, [frame.id]: { unavailable: 'failed', source: { stableKey: frame.stableKey, originalSha256: frame.originalSha256, framing: frame.framing } } }));
+        if (manual) setNotice(autoUnavailableSentence('failed', frame.filename));
       }).catch(() => {
         if (isCurrent()) setNotice('Could not analyse this photograph. Open Tasks for details.');
       });
@@ -1709,8 +1729,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: [...INITIAL_WATERMARKS, ...watermarkLibrary], auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => {
     const assist = assists[frame.id];
-    return frameToPhoto(frame, urls[frame.id], { assist, watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed });
-  }), [state?.frames, urls, assists, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes]);
+    return frameToPhoto(frame, urls[frame.id], { assist, autoUnavailable: autoUnavailable[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed });
+  }), [state?.frames, urls, assists, autoUnavailable, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes]);
   // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo
   // (ROADMAP.md, "Removed photos panel" next item). Thumbnails are not fetched for them; the filename is enough
   // to recognise one in a short list, and restoring returns it to the normal, already-thumbnailed photo list.
