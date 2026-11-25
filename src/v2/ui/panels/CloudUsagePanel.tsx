@@ -1,5 +1,5 @@
 import React from 'react';
-import { TOP_UP_PENCE, formatBytes, formatPence, usageSummary, type CloudUsage, type UsageMeter } from '../../../core/cloudPlan';
+import { STORAGE_PLANS, TOP_UP_PENCE, formatBytes, formatPence, usageSummary, type CloudUsage, type UsageMeter } from '../../../core/cloudPlan';
 import { STRINGS } from '../strings';
 
 /**
@@ -13,7 +13,7 @@ export default function CloudUsagePanel({ usage, onTopUp }: { usage: CloudUsage;
   const label: Record<UsageMeter['id'], string> = { photos: words.photos, storage: words.storage, downloads: words.downloads };
   const amount = (m: UsageMeter) => m.id === 'photos'
     ? words.used(m.used.toLocaleString(), m.included.toLocaleString())
-    : words.used(formatBytes(m.used), formatBytes(m.included));
+    : m.included === 0 ? formatBytes(m.used) : words.used(formatBytes(m.used), formatBytes(m.included));
 
   return (
     <section aria-labelledby="cloud-usage-title" data-testid="v2-cloud-usage" className="space-y-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-4">
@@ -27,9 +27,11 @@ export default function CloudUsagePanel({ usage, onTopUp }: { usage: CloudUsage;
           <li key={m.id} data-testid={`cloud-meter-${m.id}`} className="space-y-1">
             <div className="flex flex-wrap items-baseline justify-between gap-2 text-xs">
               <span className="font-medium text-[var(--text-primary)]">{label[m.id]}</span>
-              <span className="font-mono tabular-nums text-[var(--text-secondary)]">{amount(m)} · {m.percent}%</span>
+              <span className="font-mono tabular-nums text-[var(--text-secondary)]">{amount(m)}{m.included > 0 && ` · ${m.percent}%`}</span>
             </div>
-            <progress aria-label={`${label[m.id]}: ${amount(m)}`} max={100} value={m.percent} className="block h-2 w-full" />
+            {m.included > 0
+              ? <progress aria-label={`${label[m.id]}: ${amount(m)}`} max={100} value={m.percent} className="block h-2 w-full" />
+              : <p className="text-xs text-[var(--text-secondary)]">{words.storageNoneIncluded}</p>}
             {m.chargePence > 0 && <p className="text-xs text-[var(--text-secondary)]">{words.extra(formatPence(Math.ceil(m.chargePence)))}</p>}
           </li>
         ))}
@@ -51,6 +53,9 @@ export default function CloudUsagePanel({ usage, onTopUp }: { usage: CloudUsage;
           ))}
         </div>
         {!onTopUp && <p className="text-xs text-[var(--text-muted)]">{words.topUpSoon}</p>}
+        {STORAGE_PLANS.filter((p) => !p.available).map((p) => (
+          <p key={p.id} data-testid="cloud-storage-plan" className="text-xs text-[var(--text-muted)]">{words.storagePlanSoon(formatBytes(p.bytes), formatPence(p.monthlyPence))}</p>
+        ))}
         <p className="text-xs text-[var(--text-muted)]">{words.ownStorage}</p>
       </div>
     </section>

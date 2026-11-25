@@ -8,7 +8,8 @@
  *
  * Cloud, the same for everyone who signs in:
  *  - cloud processing: a monthly photo allowance (Basic 500, Pro 5,000), then paid from the cloud balance;
- *  - storage: 2.5 GB free, then pay per GB-month;
+ *  - storage: Pro includes 2.5 GB, Basic none (owner, 25 Nov 2026); beyond that pay per GB-month from the balance, or
+ *    later a fixed storage plan by Direct Debit (STORAGE_PLANS);
  *  - downloads (other devices, collaborators, galleries, restores): 1 GB a month free, then pay per GB.
  * Prices include VAT and are set so each line keeps at least 60% margin after VAT, Paddle fees and Google's London list
  * prices (see CLOUD_COST_PENCE and the margin test). Running out never blocks local editing and never deletes files:
@@ -30,7 +31,9 @@ export const SOFTWARE_PRICES = {
 export const MONTHLY_PHOTO_ALLOWANCE: Record<SoftwarePlan, number> = { basic: 500, pro: 5000 };
 
 const GB = 1_000_000_000;
-export const FREE_STORAGE_BYTES = 2.5 * GB;
+/** Cloud storage included with each plan. Basic has none: every stored GB is paid from the balance. */
+export const FREE_STORAGE_BYTES_BY_PLAN: Record<SoftwarePlan, number> = { basic: 0, pro: 2.5 * GB };
+export const freeStorageBytes = (plan: SoftwarePlan) => FREE_STORAGE_BYTES_BY_PLAN[plan] ?? 0;
 export const FREE_DOWNLOAD_BYTES_PER_MONTH = 1 * GB;
 
 /** Pay-as-you-go prices, pence including VAT. */
@@ -42,6 +45,14 @@ export const PAYG_PENCE = {
   /** Each cloud photo processed above the monthly allowance. */
   extraPhotoTenths: 3, // 0.3p a photo, £3 per 1,000
 } as const;
+
+/**
+ * Fixed storage plans paid monthly by Direct Debit (a recurring Paddle subscription), as an alternative to paying per
+ * GB from the balance. Not on sale until Paddle checkout is live: `available` stays false until then.
+ */
+export const STORAGE_PLANS = [
+  { id: 'storage-100', bytes: 100 * GB, monthlyPence: 699, available: false },
+] as const;
 
 /** Top-up amounts offered, pence. £5 is the minimum because Paddle charges 50p on every payment. */
 export const TOP_UP_PENCE = [500, 1000, 2000] as const;
@@ -55,6 +66,14 @@ export const CLOUD_COST_PENCE = { storagePerGbMonth: 1.82, downloadPerGb: 9.5, p
 
 /** Share of a top-up we keep after VAT (UK/EU/US/other mix) and Paddle's 5% + 50p, for the smallest (£5) top-up. */
 export const KEEP_RATIO_SMALLEST_TOP_UP = 0.72;
+
+/** Average share left after VAT for the buyer mix (UK 45%, EU 25%, US 20%, other 10%). */
+export const EX_VAT_RATIO = 0.88;
+
+/** Share of one payment of `pence` we keep after VAT and Paddle's 5% + 50p. */
+export function keepRatioFor(pence: number): number {
+  return pence > 0 ? (pence * (EX_VAT_RATIO - 0.05) - 50) / pence : 0;
+}
 
 export function marginOf(pricePence: number, costPence: number, keepRatio = KEEP_RATIO_SMALLEST_TOP_UP): number {
   const kept = pricePence * keepRatio;
@@ -124,14 +143,15 @@ function meter(id: UsageMeter['id'], used: number, included: number, chargePence
 export function usageSummary(usage: CloudUsage): UsageSummary {
   const allowance = MONTHLY_PHOTO_ALLOWANCE[usage.plan] ?? MONTHLY_PHOTO_ALLOWANCE.basic;
   const extraPhotos = Math.max(0, whole(usage.photosUsed) - allowance);
-  const extraStoredGb = Math.max(0, whole(usage.storedBytes ?? 0) - FREE_STORAGE_BYTES) / GB;
+  const freeStorage = freeStorageBytes(usage.plan);
+  const extraStoredGb = Math.max(0, whole(usage.storedBytes ?? 0) - freeStorage) / GB;
   const extraDownGb = Math.max(0, whole(usage.downloadedBytes) - FREE_DOWNLOAD_BYTES_PER_MONTH) / GB;
   const photoCharge = (extraPhotos * PAYG_PENCE.extraPhotoTenths) / 10;
   const storageCharge = extraStoredGb * PAYG_PENCE.storagePerGbMonth;
   const downloadCharge = extraDownGb * PAYG_PENCE.downloadPerGb;
   const meters = [
     meter('photos', usage.photosUsed, allowance, photoCharge),
-    ...(usage.storedBytes === undefined ? [] : [meter('storage', usage.storedBytes, FREE_STORAGE_BYTES, storageCharge)]),
+    ...(usage.storedBytes === undefined ? [] : [meter('storage', usage.storedBytes, freeStorage, storageCharge)]),
     meter('downloads', usage.downloadedBytes, FREE_DOWNLOAD_BYTES_PER_MONTH, downloadCharge),
   ];
   const charge = Math.ceil(photoCharge + storageCharge + downloadCharge);

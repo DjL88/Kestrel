@@ -1242,6 +1242,8 @@ export const is: AreaTranslation<typeof source> = {
     topUp: (a) => `Fylla á ${a}`,
     topUpSoon: 'Áfylling opnast þegar greiðsla er virk.',
     ownStorage: 'Þín eigin drif, NAS og skýjamöppur kosta ekkert hér.',
+    storageNoneIncluded: 'Basic inniheldur enga skýjageymslu. Hún er greidd af skýjainneigninni, eða Pro inniheldur 2,5 GB.',
+    storagePlanSoon: (s, p) => `Væntanlegt: föst geymsluáskrift, ${s} fyrir ${p} á mánuði með beingreiðslu.`,
     taskUses: (n, l) => `Notar ${n} af mánaðarlegum skýjamyndum þínum (${l} eftir á eftir)`,
     taskPays: (n, a) => `${n} myndir umfram mánaðarkvótann: ${a} af skýjainneigninni`,
     taskOnDevice: 'Ekki næg skýjainneign: þetta verk keyrir á þessu tæki',

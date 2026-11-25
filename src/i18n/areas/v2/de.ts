@@ -1242,6 +1242,8 @@ export const de: AreaTranslation<typeof source> = {
     topUp: (a) => `${a} aufladen`,
     topUpSoon: 'Aufladen ist möglich, sobald die Kasse live ist.',
     ownStorage: 'Eigene Laufwerke, NAS und Cloud-Ordner kosten hier nichts.',
+    storageNoneIncluded: 'Basic enthält keinen Cloud-Speicher. Er wird vom Cloud-Guthaben bezahlt, oder Pro enthält 2,5 GB.',
+    storagePlanSoon: (s, p) => `Demnächst: ein fester Speicherplan, ${s} für ${p} im Monat per Lastschrift.`,
     taskUses: (n, l) => `Verbraucht ${n} deiner monatlichen Cloud-Fotos (danach noch ${l})`,
     taskPays: (n, a) => `${n} Fotos über dein Monatskontingent: ${a} vom Cloud-Guthaben`,
     taskOnDevice: 'Nicht genug Cloud-Guthaben: Diese Aufgabe läuft auf diesem Gerät',

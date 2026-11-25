@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { settleStorageDay, storageAllowsUpload } from './cloudStorageBilling.ts';
+import { freeStorageFor, settleStorageDay, storageAllowsUpload } from './cloudStorageBilling.ts';
 import crypto from 'node:crypto';
 import { z } from 'zod';
 import type { EntitlementGrant } from '../../../src/core/entitlementGrant.ts';
@@ -597,7 +597,7 @@ export function createApp(options: AppOptions) {
   /** Today's storage charge for one account (idempotent per day). */
   async function settleStorage(accountId: string) {
     if (!options.cloudBalance) return 'free' as const;
-    return settleStorageDay(options.cloudBalance, accountId, await accountStoredBytes(accountId), now());
+    return settleStorageDay(options.cloudBalance, accountId, await accountStoredBytes(accountId), freeStorageFor(await accountIsPro(accountId)), now());
   }
   function cloudCfg() {
     if (!options.cloudPhotos) throw new ApiError(503, 'CLOUD_NOT_CONFIGURED', 'The cloud photo store is not set up on this server yet. Everything on your devices keeps working.');
@@ -1269,11 +1269,11 @@ export function createApp(options: AppOptions) {
         const c = await collabWritable();
         await collab(() => c.requireMember(params.id, claims.sub, 'edit', params.photoId));
         const cfg = cloudCfg();
-        // Storage beyond the payer's free 2.5 GB needs a month of it in their cloud balance. Nothing stored is ever removed.
+        // Storage beyond the payer's included amount (Pro 2.5 GB, Basic none) needs a month of it in their cloud balance. Nothing stored is ever removed.
         const payer = await collab(() => c.payerOf(params.id));
         await settleStorage(payer);
-        if (!(await storageAllowsUpload(options.cloudBalance, payer, await accountStoredBytes(payer), body.bytes))) {
-          throw new ApiError(402, 'STORAGE_NEEDS_CREDIT', "This project's owner has used their free cloud storage. A cloud balance top-up lets more go up. Everything already stored stays.");
+        if (!(await storageAllowsUpload(options.cloudBalance, payer, await accountStoredBytes(payer), body.bytes, freeStorageFor(await accountIsPro(payer))))) {
+          throw new ApiError(402, 'STORAGE_NEEDS_CREDIT', "This project's owner needs cloud balance for more storage (Basic includes none, Pro includes 2.5 GB). A top-up lets more go up. Everything already stored stays.");
         }
         return { status: 200, body: await cloud(() => cfg.store.signUpload(params.id, params.photoId, claims.sub, body, now(), cfg.maxProjectBytes)) };
       },

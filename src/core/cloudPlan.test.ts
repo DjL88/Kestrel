@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  usageFromServer, CLOUD_COST_PENCE, FREE_DOWNLOAD_BYTES_PER_MONTH, FREE_STORAGE_BYTES, MONTHLY_PHOTO_ALLOWANCE, PAYG_PENCE,
-  estimateCloudTask, formatBytes, formatPence, marginOf, nextResetMs, rentToOwn, usageSummary,
+  usageFromServer, CLOUD_COST_PENCE, FREE_DOWNLOAD_BYTES_PER_MONTH, FREE_STORAGE_BYTES_BY_PLAN, MONTHLY_PHOTO_ALLOWANCE, PAYG_PENCE, STORAGE_PLANS, keepRatioFor,
+  estimateCloudTask, formatBytes, formatPence, KEEP_RATIO_SMALLEST_TOP_UP, marginOf, nextResetMs, rentToOwn, usageSummary,
 } from './cloudPlan.ts';
 
 const NOW = Date.UTC(2026, 10, 25, 12, 0);
@@ -13,10 +13,19 @@ test('every pay-as-you-go line keeps at least 60% margin after VAT and Paddle fe
   assert.ok(marginOf(PAYG_PENCE.extraPhotoTenths / 10, CLOUD_COST_PENCE.photo) >= 0.6);
 });
 
-test('allowances: Basic 500 photos, Pro 5,000; 2.5 GB storage and 1 GB downloads free for everyone', () => {
+test('every fixed storage plan keeps at least 60% margin even when completely full', () => {
+  assert.ok(Math.abs(keepRatioFor(500) - KEEP_RATIO_SMALLEST_TOP_UP) < 0.02, 'the per-payment keep ratio agrees with the £5 top-up figure');
+  for (const plan of STORAGE_PLANS) {
+    const costPence = (plan.bytes / 1e9) * CLOUD_COST_PENCE.storagePerGbMonth;
+    assert.ok(marginOf(plan.monthlyPence, costPence, keepRatioFor(plan.monthlyPence)) >= 0.6, plan.id);
+    assert.equal(plan.available, false, 'not on sale until Paddle checkout is live');
+  }
+});
+
+test('allowances: Basic 500 photos and no storage, Pro 5,000 photos and 2.5 GB; 1 GB downloads free for everyone', () => {
   assert.equal(MONTHLY_PHOTO_ALLOWANCE.basic, 500);
   assert.equal(MONTHLY_PHOTO_ALLOWANCE.pro, 5000);
-  assert.equal(FREE_STORAGE_BYTES, 2.5e9);
+  assert.deepEqual(FREE_STORAGE_BYTES_BY_PLAN, { basic: 0, pro: 2.5e9 });
   assert.equal(FREE_DOWNLOAD_BYTES_PER_MONTH, 1e9);
 });
 
@@ -33,10 +42,18 @@ test('rent to own: owned after 12 successful payments, never from bad input', ()
 });
 
 test('within the free amounts nothing is charged', () => {
-  const s = usageSummary({ plan: 'basic', photosUsed: 120, storedBytes: 1e9, downloadedBytes: 2e8, balancePence: 0, nowMs: NOW });
+  const s = usageSummary({ plan: 'pro', photosUsed: 1200, storedBytes: 1e9, downloadedBytes: 2e8, balancePence: 0, nowMs: NOW });
   assert.equal(s.chargePence, 0);
   assert.equal(s.paused, false);
   assert.deepEqual(s.meters.map(m => m.percent), [24, 40, 20]);
+});
+
+test('Basic includes no cloud storage: every stored GB is charged', () => {
+  const s = usageSummary({ plan: 'basic', photosUsed: 0, storedBytes: 10e9, downloadedBytes: 0, balancePence: 100, nowMs: NOW });
+  const storage = s.meters.find(m => m.id === 'storage')!;
+  assert.equal(storage.included, 0);
+  assert.equal(Math.round(storage.chargePence), 70);
+  assert.equal(s.chargePence, 70);
 });
 
 test('over the free amounts each line is charged at its own rate and rounded up once', () => {
@@ -49,7 +66,7 @@ test('over the free amounts each line is charged at its own rate and rounded up 
 });
 
 test('when charges pass the balance cloud work pauses; the balance never goes negative', () => {
-  const s = usageSummary({ plan: 'basic', photosUsed: 0, storedBytes: 52.5e9, downloadedBytes: 0, balancePence: 100, nowMs: NOW });
+  const s = usageSummary({ plan: 'basic', photosUsed: 0, storedBytes: 50e9, downloadedBytes: 0, balancePence: 100, nowMs: NOW });
   assert.equal(s.chargePence, 350);
   assert.equal(s.paused, true);
   assert.equal(s.balanceAfterPence, 0);

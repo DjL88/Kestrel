@@ -98,7 +98,7 @@ test('the project store has a size cap and removing a photo deletes its files', 
   } finally { await ctx.h.close(); }
 });
 
-test('storage beyond the free 2.5 GB needs a month of it in the balance, and is charged once a day', async () => {
+test('storage beyond Pro’s included 2.5 GB needs a month of it in the balance, and is charged once a day', async () => {
   const { MemoryCloudBalance } = await import('../src/cloudBalance.ts');
   const balance = new MemoryCloudBalance();
   const ctx = await harness(1, 10_000_000_000, balance);

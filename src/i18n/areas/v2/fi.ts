@@ -1243,6 +1243,8 @@ export const fi: AreaTranslation<typeof source> = {
     topUp: (a) => `Lisää ${a}`,
     topUpSoon: 'Saldon lisäys avautuu, kun maksaminen on käytössä.',
     ownStorage: 'Omat asemasi, NAS ja pilvikansiot eivät maksa täällä mitään.',
+    storageNoneIncluded: 'Basic ei sisällä pilvitallennustilaa. Se maksetaan pilvisaldosta, tai Pro sisältää 2,5 Gt.',
+    storagePlanSoon: (s, p) => `Tulossa pian: kiinteä tallennustilapaketti, ${s} hintaan ${p} kuukaudessa suoraveloituksella.`,
     taskUses: (n, l) => `Käyttää ${n} kuukauden pilvikuvistasi (${l} jäljellä tämän jälkeen)`,
     taskPays: (n, a) => `${n} kuvaa kuukausikiintiön yli: ${a} pilvisaldostasi`,
     taskOnDevice: 'Pilvisaldo ei riitä: tämä tehtävä suoritetaan tällä laitteella',

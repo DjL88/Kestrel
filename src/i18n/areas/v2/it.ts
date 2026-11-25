@@ -1242,6 +1242,8 @@ export const it: AreaTranslation<typeof source> = {
     topUp: (a) => `Ricarica ${a}`,
     topUpSoon: 'Le ricariche si apriranno quando il pagamento sarà attivo.',
     ownStorage: 'I tuoi dischi, NAS e cartelle cloud non costano nulla qui.',
+    storageNoneIncluded: 'Basic non include spazio cloud. Si paga dal saldo cloud, oppure Pro include 2,5 GB.',
+    storagePlanSoon: (s, p) => `In arrivo: un piano di archiviazione fisso, ${s} a ${p} al mese con addebito diretto.`,
     taskUses: (n, l) => `Usa ${n} delle tue foto cloud del mese (ne resteranno ${l})`,
     taskPays: (n, a) => `${n} foto oltre la quota mensile: ${a} dal credito cloud`,
     taskOnDevice: 'Credito cloud insufficiente: questa attività verrà eseguita su questo dispositivo',
