@@ -1,10 +1,11 @@
+import { PAYG_PENCE } from '../../../core/cloudPlan';
 import type { CollabClient } from '../../../providers/collabClient';
 
 const CACHE = 'inflight-cloud-originals-v1';
 const ASK_KEY = 'inflight.cloudOriginal.dontAsk.v1';
 
-/** 15 credits per GB downloaded (1 credit = 1p), to one decimal place, shown before anything is fetched. */
-export const creditsFor = (bytes: number) => Math.ceil(bytes * 15 / 1e9 * 10) / 10;
+/** Credits per GB downloaded (1 credit = 1p) from the shared price list, to one decimal place, shown before anything is fetched. */
+export const creditsFor = (bytes: number) => Math.ceil(bytes * PAYG_PENCE.downloadPerGb / 1e9 * 10) / 10;
 
 async function sha256Hex(blob: Blob): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());

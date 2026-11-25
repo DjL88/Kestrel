@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { freeStorageFor, settleStorageDay, storageAllowsUpload } from './cloudStorageBilling.ts';
 import crypto from 'node:crypto';
 import { z } from 'zod';
 import type { EntitlementGrant } from '../../../src/core/entitlementGrant.ts';
@@ -91,6 +92,8 @@ export interface AppOptions {
   notices?: NoticeStore;
   /** Shared projects' cloud photo store and the per-account download meter. Absent: the cloud routes answer 503. */
   cloudPhotos?: { store: CloudPhotoStore; meter: UsageMeter; allowance: AllowancePolicy; maxProjectBytes: number };
+  /** Prepaid cloud balance (top-ups; pays beyond the free allowances). Absent: allowances are hard limits. */
+  cloudBalance?: import('./cloudBalance.ts').CloudBalance;
   /** Hard monthly ceiling on metered spend (Gemini, cloud jobs). Absent: no guard (development and tests). */
   spend?: SpendOptions;
   /** Production sets this: the cloud, safe copy and learning features stay OFF until an admin switches them on. Tests and development leave them on. */
@@ -287,6 +290,7 @@ export const Schemas = {
   }).strict(),
   AdminFlagDelete: z.object({ key: z.string().regex(/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/) }).strict(),
   AdminQuota: z.object({ accountId: z.string(), requestsLimit: z.number().int().min(0).max(1_000_000) }).strict(),
+  AdminCloudCredit: z.object({ accountId: z.string(), credits: z.number().int().min(1).max(100_000), reference: z.string().regex(/^[A-Za-z0-9_.:-]{1,64}$/).describe('Applied once per reference, so a retried request never doubles it') }).strict(),
   AdminModel: z.object({
     id: z.string(), kind: z.enum(['onnx', 'species-library', 'equipment']), version: z.string(), path: z.string(),
     sha256: Hex64, bytes: z.number().int().positive(), requiredAppMin: Version.default('0.0.0'), channel: z.enum(['stable', 'beta']).default('stable'),
@@ -497,12 +501,17 @@ export function createApp(options: AppOptions) {
       await audit(accountId, 'cloud.job.create', 'denied', 'kill switch');
       throw new ApiError(503, 'CLOUD_DISABLED', 'Cloud processing is switched off for now.', true);
     }
-    const licences = await store.listLicencesForAccount(accountId);
-    if (!licences.some((l) => (l.plan === 'paid' || l.plan === 'subscriber') && licenceIsUsable(l, now()))) {
+    const limit = (await accountIsPro(accountId)) ? cloud.jobsPerPeriod : (cloud.basicJobsPerPeriod ?? 0);
+    if (limit <= 0) {
       await audit(accountId, 'cloud.job.create', 'denied', 'not Pro');
       throw new ApiError(403, 'CLOUD_NOT_ENTITLED', 'Cloud processing is part of Pro.');
     }
-    return cloud;
+    return { ...cloud, limit };
+  }
+  /** Pro: any usable paid licence (bought, rent-to-own in progress, or admin-granted) on the account. */
+  async function accountIsPro(accountId: string) {
+    const licences = await store.listLicencesForAccount(accountId);
+    return licences.some((l) => (l.plan === 'paid' || l.plan === 'subscriber') && licenceIsUsable(l, now()));
   }
   async function cloudJobStart(req: Request): Promise<Reply> {
     const claims = await bearer(req);
@@ -513,24 +522,37 @@ export function createApp(options: AppOptions) {
     const reservedAtMs = now();
     const spendPence = options.spend?.cloudJobPence ?? 0;
     const refundSpend = await reserveSpend(spendPence, reservedAtMs).catch(async (e) => { await audit(claims.sub, 'cloud.job.create', 'denied', 'spend ceiling'); throw e; });
-    if (!(await cloud.ledger.reserve(claims.sub, reservedAtMs, cloud.jobsPerPeriod, QUOTA_PERIOD_MS))) {
-      await refundSpend();
-      await audit(claims.sub, 'cloud.job.create', 'denied', 'quota');
-      throw new ApiError(429, 'CLOUD_QUOTA_EXHAUSTED', 'This account has used its cloud processing allowance for this period.');
-    }
     const jobId = uuid();
+    // The month's allowance first; beyond it, one photo's price from the prepaid balance (counted in the ledger too,
+    // so the failure paths' refund of the count stays right).
+    let paidMillicredits: number | undefined;
+    if (!(await cloud.ledger.reserve(claims.sub, reservedAtMs, cloud.limit, QUOTA_PERIOD_MS))) {
+      const price = cloud.extraPhotoMillicredits ?? 300;
+      if (cloud.balance && await cloud.balance.debit(claims.sub, price, `job:${jobId}`)) {
+        paidMillicredits = price;
+        await cloud.ledger.reserve(claims.sub, reservedAtMs, Number.MAX_SAFE_INTEGER, QUOTA_PERIOD_MS);
+      } else {
+        await refundSpend();
+        await audit(claims.sub, 'cloud.job.create', 'denied', 'quota');
+        throw new ApiError(429, 'CLOUD_QUOTA_EXHAUSTED', cloud.balance
+          ? 'This month\'s cloud photos are used up and the cloud balance cannot cover more. Top up, or this runs on your device.'
+          : 'This account has used its cloud processing allowance for this period.');
+      }
+    }
     try {
       const upload = await cloud.runner.createUpload(jobId, body.inputBytes);
       await cloud.ledger.put({
         jobId, accountId: claims.sub, kind: body.kind, inputBytes: body.inputBytes,
         status: 'awaiting-upload', createdAtMs: reservedAtMs, consentAtMs: reservedAtMs,
         ...(options.spend ? { spendPence } : {}),
+        ...(paidMillicredits ? { paidMillicredits } : {}),
       });
       await audit(claims.sub, 'cloud.job.create', 'allowed', `${body.kind} ${jobId}`);
       return { status: 200, body: { jobId, uploadUrl: upload.uploadUrl, expiresAtMs: upload.expiresAtMs } };
     } catch (error) {
       await cloud.ledger.refund(claims.sub, reservedAtMs); // A job that never started costs nothing.
       await refundSpend();
+      if (paidMillicredits) await cloud.balance?.credit(claims.sub, paidMillicredits, `refund:${jobId}`);
       await cloud.runner.deleteInput(jobId).catch(() => undefined);
       throw new ApiError(502, 'CLOUD_RUNNER_FAILED', 'Cloud processing could not start. Nothing was uploaded or charged.', true);
     }
@@ -545,11 +567,17 @@ export function createApp(options: AppOptions) {
 
   async function settleFailedCloudJob(cloud: CloudOptions, record: CloudJobRecord): Promise<boolean> {
     const legacySpendPence = options.spend?.cloudJobPence ?? 0;
-    if (cloud.settleFailed) return cloud.settleFailed(record.jobId, legacySpendPence);
-    if (!(await cloud.ledger.transition(record.jobId, 'running', 'failed'))) return false;
-    await cloud.ledger.refund(record.accountId, record.createdAtMs);
-    await options.spend?.guard.refund(record.createdAtMs, record.spendPence ?? legacySpendPence);
-    return true;
+    const settled = cloud.settleFailed
+      ? await cloud.settleFailed(record.jobId, legacySpendPence)
+      : await (async () => {
+        if (!(await cloud.ledger.transition(record.jobId, 'running', 'failed'))) return false;
+        await cloud.ledger.refund(record.accountId, record.createdAtMs);
+        await options.spend?.guard.refund(record.createdAtMs, record.spendPence ?? legacySpendPence);
+        return true;
+      })();
+    // A failed photo paid from the balance is paid back. Keyed by job, so it happens once whichever path settles it.
+    if (settled && record.paidMillicredits) await cloud.balance?.credit(record.accountId, record.paidMillicredits, `refund:${record.jobId}`);
+    return settled;
   }
 
   /** A stable pseudonym, so withdrawal can delete a person's signals without the store holding their account id. */
@@ -573,6 +601,23 @@ export function createApp(options: AppOptions) {
     }
   }
 
+  /** Bytes in the cloud store across the projects this account pays for (projects it owns first). */
+  async function accountStoredBytes(accountId: string): Promise<number> {
+    if (!options.cloudPhotos || !options.collab) return 0;
+    const collabStore = options.collab, photos = options.cloudPhotos.store;
+    let total = 0;
+    for (const p of await collabStore.myProjects(accountId)) {
+      if (p.role !== 'owner') continue;
+      if ((await collabStore.payerOf(p.projectId).catch(() => null)) !== accountId) continue;
+      total += await photos.storedBytes(p.projectId);
+    }
+    return total;
+  }
+  /** Today's storage charge for one account (idempotent per day). */
+  async function settleStorage(accountId: string) {
+    if (!options.cloudBalance) return 'free' as const;
+    return settleStorageDay(options.cloudBalance, accountId, await accountStoredBytes(accountId), freeStorageFor(await accountIsPro(accountId)), now());
+  }
   function cloudCfg() {
     if (!options.cloudPhotos) throw new ApiError(503, 'CLOUD_NOT_CONFIGURED', 'The cloud photo store is not set up on this server yet. Everything on your devices keeps working.');
     return options.cloudPhotos;
@@ -1305,6 +1350,12 @@ export function createApp(options: AppOptions) {
         const c = await collabWritable();
         await collab(() => c.requireMember(params.id, claims.sub, 'edit', params.photoId));
         const cfg = cloudCfg();
+        // Storage beyond the payer's included amount (Pro 2.5 GB, Basic none) needs a month of it in their cloud balance. Nothing stored is ever removed.
+        const payer = await collab(() => c.payerOf(params.id));
+        await settleStorage(payer);
+        if (!(await storageAllowsUpload(options.cloudBalance, payer, await accountStoredBytes(payer), body.bytes, freeStorageFor(await accountIsPro(payer))))) {
+          throw new ApiError(402, 'STORAGE_NEEDS_CREDIT', "This project's owner needs cloud balance for more storage (Basic includes none, Pro includes 2.5 GB). A top-up lets more go up. Everything already stored stays.");
+        }
         return { status: 200, body: await cloud(() => cfg.store.signUpload(params.id, params.photoId, claims.sub, body, now(), cfg.maxProjectBytes)) };
       },
     },
@@ -1352,7 +1403,14 @@ export function createApp(options: AppOptions) {
         const cfg = cloudCfg();
         const used = await cfg.meter.usage(claims.sub, now());
         const allowance = await cfg.allowance.monthlyMillicredits(claims.sub, now());
-        return { status: 200, body: { month: used.month, usedCredits: used.millicredits / 1000, allowanceCredits: allowance / 1000, bytes: used.bytes, downloads: used.downloads } };
+        // The Account screen's meters: plan, cloud photos this period and the prepaid balance, when those are set up.
+        const cloud = options.cloud;
+        const pro = await accountIsPro(claims.sub);
+        const photos = cloud ? { photosUsed: (await cloud.ledger.periodUsed?.(claims.sub, now(), QUOTA_PERIOD_MS)) ?? 0, photosIncluded: pro ? cloud.jobsPerPeriod : (cloud.basicJobsPerPeriod ?? 0) } : {};
+        await settleStorage(claims.sub);
+        const balance = options.cloudBalance ? { balanceCredits: (await options.cloudBalance.millicredits(claims.sub)) / 1000 } : {};
+        const storedBytes = options.collab ? { storedBytes: await accountStoredBytes(claims.sub) } : {};
+        return { status: 200, body: { month: used.month, usedCredits: used.millicredits / 1000, allowanceCredits: allowance / 1000, bytes: used.bytes, downloads: used.downloads, plan: pro ? 'pro' : 'basic', ...photos, ...balance, ...storedBytes } };
       },
     },
     // ---- Team notifications (G20, owner decision 11): the in-app inbox comes first.
@@ -1945,6 +2003,34 @@ export function createApp(options: AppOptions) {
         if (!(await store.getAccount(body.accountId))) throw new ApiError(404, 'NOT_FOUND', 'No such account.');
         await store.setQuotaLimit(body.accountId, body.requestsLimit, now());
         return adminDone(claims, 'ai.quota', `${body.accountId} limit=${body.requestsLimit}`, { requestsLimit: body.requestsLimit });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/cloud-balance', summary: "Add credits to an account's cloud balance (a goodwill grant or a test top-up; 1 credit = 1p)", auth: 'admin',
+      body: Schemas.AdminCloudCredit,
+      handler: async (req) => {
+        const claims = await admin(req, 'cloud.balance');
+        const body = parseJson(Schemas.AdminCloudCredit, req.rawBody);
+        if (!options.cloudBalance) throw new ApiError(503, 'CLOUD_BALANCE_NOT_CONFIGURED', 'The cloud balance is not set up on this server.');
+        if (!(await store.getAccount(body.accountId))) throw new ApiError(404, 'NOT_FOUND', 'No such account.');
+        await options.cloudBalance.credit(body.accountId, body.credits * 1000, `admin:${body.reference}`);
+        const balanceCredits = (await options.cloudBalance.millicredits(body.accountId)) / 1000;
+        return adminDone(claims, 'cloud.balance', `${body.accountId} +${body.credits} ref=${body.reference}`, { balanceCredits });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/cloud-storage/settle', summary: "Charge today's cloud storage beyond the free 2.5 GB for every paying account (daily scheduler; safe to repeat)", auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'cloud.storage.settle');
+        const cfg = cloudCfg();
+        const payers = new Set<string>();
+        for (const projectId of await cfg.store.projectIds()) {
+          const payer = await options.collab?.payerOf(projectId).catch(() => null);
+          if (payer) payers.add(payer);
+        }
+        const counts = { free: 0, charged: 0, unpaid: 0 };
+        for (const accountId of payers) counts[await settleStorage(accountId)]++;
+        return adminDone(claims, 'cloud.storage.settle', `accounts=${payers.size} charged=${counts.charged} unpaid=${counts.unpaid}`, counts);
       },
     },
     {

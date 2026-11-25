@@ -1,4 +1,5 @@
 import { useServiceReachability } from '../../providers/useServiceReachability';
+import { usageFromServer, type CloudUsage } from '../../core/cloudPlan';
 import { useConnectivity } from '../../providers/useConnectivity';
 import { projectsText } from '../../i18n/areas/projects';
 import { stepFrom } from './utils/swipe';
@@ -87,6 +88,16 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [cursorsHidden, setCursorsHidden] = useState(false);
   const closeShare = React.useCallback(() => { setShareOpen(false); setShareVersion((n) => n + 1); }, []);
   const sharing = React.useMemo(() => collabClient(import.meta.env.VITE_KESTREL_CONTROL_PLANE_URL, () => firebaseAuth.idToken()), []);
+  // Settings → Account: this month's cloud allowances and balance, read when the Account tab or the Task Manager opens. Signed out, an
+  // older server or no network: nothing shows (the sample workspace keeps its own figures).
+  const [cloudUsage, setCloudUsage] = React.useState<CloudUsage | undefined>(undefined);
+  React.useEffect(() => {
+    const wanted = (store.settingsOpen && store.settingsTab === 'account') || store.activePanel === 'tasks';
+    if (!wanted) return;
+    let live = true;
+    sharing.usage().then((body) => { if (live) setCloudUsage(usageFromServer(body, Date.now()) ?? undefined); }).catch(() => { if (live) setCloudUsage(undefined); });
+    return () => { live = false; };
+  }, [sharing, store.settingsOpen, store.settingsTab, store.activePanel]);
   const gallerySiteUrl = import.meta.env.VITE_KESTREL_SITE_URL || (/^https?:$/.test(window.location.protocol) ? window.location.origin : '');
   const signedInName = React.useCallback(async () => {
     const session = await firebaseAuth.current().catch(() => null);
@@ -483,7 +494,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           />
         );
       case 'tasks':
-        return <TasksPanel tasks={store.tasks} onCancelTask={actions.cancelTask} onClearTask={actions.clearTask} onClearCompleted={actions.clearCompletedTasks} />;
+        return <TasksPanel tasks={store.tasks} onCancelTask={actions.cancelTask} onClearTask={actions.clearTask} onClearCompleted={actions.clearCompletedTasks} cloudUsage={cloudUsage ?? store.settings.account.cloud} />;
     }
   };
 
@@ -1079,6 +1090,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         accountPanel={accountPanel}
         keyboardPanel={<KeyboardSettings saved={savedKeymap} isMac={IS_MAC} onChange={changeKeymap} pad={pad} onPadChange={changePad} />}
         settings={store.settings}
+        cloudUsage={cloudUsage}
         assistMode={store.assistMode}
         onSetAssistMode={actions.setAssistMode}
         onClose={() => actions.setSettingsOpen(false)}

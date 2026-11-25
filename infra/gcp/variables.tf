@@ -198,9 +198,9 @@ variable "cloud_photos_enabled" {
 }
 
 variable "download_credits_per_month" {
-  description = "Cloud download allowance per paying account per month, in credits (1 credit = 1p; 15 credits per GB). Placeholder until the credit system lands."
+  description = "Free cloud download allowance per account per month, in credits (1 credit = 1p; 33 credits per GB, so 33 is 1 GB). Matches FREE_DOWNLOAD_BYTES_PER_MONTH in src/core/cloudPlan.ts; top-ups will add to it."
   type        = number
-  default     = 300
+  default     = 33
 }
 
 variable "cloud_project_max_gb" {
