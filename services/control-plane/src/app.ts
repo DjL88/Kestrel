@@ -1041,6 +1041,10 @@ export function createApp(options: AppOptions) {
       handler: async (req) => { const claims = await bearer(req); return { status: 200, body: { projects: await collabCfg().myProjects(claims.sub) } }; },
     },
     {
+      method: 'GET', path: '/v1/collab/invites', summary: 'Invitations waiting for your email address', auth: 'user',
+      handler: async (req) => { const claims = await bearer(req); const account = await store.getAccount(claims.sub); return { status: 200, body: { invites: await collabCfg().invitesFor(account!.emailHash) } }; },
+    },
+    {
       method: 'GET', path: '/v1/collab/projects/:id', summary: 'A shared project as your role may see it', auth: 'user',
       handler: async (req, params) => { const claims = await bearer(req); return { status: 200, body: await collab(() => collabCfg().project(params.id, claims.sub)) }; },
     },
