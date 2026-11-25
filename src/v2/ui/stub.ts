@@ -973,6 +973,9 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     readXmpSidecars: () => {
       setStore((prev) => ({ ...prev, lastActionNotice: 'XMP sidecars are available in the real workspace.' }));
     },
+    readLightroomCatalogue: () => {
+      setStore((prev) => ({ ...prev, lastActionNotice: 'Lightroom catalogues are available in the real workspace.' }));
+    },
     backUpProjectNow: () => {
       setStore((prev) => ({ ...prev, lastActionNotice: 'Backups are available in the real workspace.' }));
     },

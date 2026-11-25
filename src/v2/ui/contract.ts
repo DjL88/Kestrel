@@ -586,6 +586,8 @@ export interface WorkspaceStore {
   canRedo: boolean;
   clipboardRecipe: EditRecipe | null;
   lastActionNotice: string | null;
+  /** After reading a Lightroom catalogue: how many of its photos are not in this project yet, and where Lightroom keeps them. */
+  lightroomOffer?: { missing: number; folder: string } | null;
   /** The open project's automatic backup, as last reported. Absent when no project is open. */
   backup?: { state: 'idle' | 'working' | 'ok' | 'partial' | 'failed'; at?: number } | null;
   /** Optional engine-supplied renderer for the canvas (see PhotoSurfaceProps). */
@@ -636,6 +638,12 @@ export interface WorkspaceActions {
   saveXmpSidecars: (photoIds: string[]) => void;
   /** Read ratings, flags and tags from chosen .xmp files (or one .zip) for matching photos. Every file is checked before anything changes. */
   readXmpSidecars: (files: File[], photoIds: string[]) => void;
+  /** Bring ratings, flags, keywords, collections and basic edits in from a Lightroom Classic catalogue (.lrcat) for the photos
+   * already in this project. The catalogue is only read; choices already made in InFlight are kept. */
+  readLightroomCatalogue: (file: File) => void;
+  /** Choose the folder Lightroom keeps the catalogue's photos in: add those photos, then bring in their details. */
+  chooseLightroomFolder?: () => void;
+  dismissLightroomOffer?: () => void;
   runAutoCull: () => void;
   reconnectOriginal: (photoId: string) => void;
   toggleDemoUnavailable: () => void;
