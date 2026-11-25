@@ -1,5 +1,6 @@
 import React from 'react';
 import type { AssistMode, SocialPlatform } from '../contract';
+import { DIRECTION_B_PATHS } from './directionBPaths';
 
 // Maps semantic icon names directly to the attached InFlight brand SVG pack.
 // Rendered using CSS mask-image + currentColor so monochrome SVGs adapt crisply
@@ -160,18 +161,51 @@ interface BrandIconProps {
 /** Icons live in the public folder; behind a base path (the website demo is served from /editor/) they move with it. */
 const withBase = (path: string | undefined) => (path && path.startsWith('/') ? `${import.meta.env?.BASE_URL ?? '/'}${path.slice(1)}` : path);
 
+/**
+ * Direction B's stroke, in its 24-unit grid, for an icon drawn `size` CSS px wide: never thinner on screen than 1.4 px,
+ * so a 12-14 px icon still reads as a full-strength line on a 1x display (most Windows laptops), not a faint grey one.
+ * At 24 px and over it is the drawn 1.65.
+ */
+export function directionBStroke(size: number): number {
+  return Math.max(1.65, Math.round(((1.4 * 24) / Math.max(1, size)) * 100) / 100);
+}
+
 export default function BrandIcon({
   name,
   size = 18,
   className = '',
   label,
 }: BrandIconProps) {
+  const directionB = name in DIRECTION_B ? DIRECTION_B[name as keyof typeof DIRECTION_B] : null;
+  const paths = directionB ? DIRECTION_B_PATHS[directionB.slice(directionB.lastIndexOf('/') + 1, -4)] : null;
+  if (paths) {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        width={size}
+        height={size}
+        role={label ? 'img' : undefined}
+        aria-label={label}
+        aria-hidden={label ? undefined : true}
+        data-icon={name}
+        className={`inline-block shrink-0 ${className}`}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={directionBStroke(size)}
+        strokeLinecap="square"
+        strokeLinejoin="round"
+      >
+        {paths.map((path, index) => <path key={index} d={path.d} opacity={path.opacity} />)}
+      </svg>
+    );
+  }
   const src = withBase(ALL_ICON_PATHS[name]);
   return (
     <span
       role={label ? 'img' : undefined}
       aria-label={label}
       aria-hidden={label ? undefined : true}
+      data-icon={name}
       className={`inline-block shrink-0 ${className}`}
       style={{
         width: size,
