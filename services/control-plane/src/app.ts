@@ -23,6 +23,7 @@ import { UK_VAT_THRESHOLD_PENCE, UK_VAT_WARNING_PENCE } from './commerce/turnove
 import { CLOUD_KINDS, DEFAULT_MAX_JOB_MS, type CloudJobRecord, type CloudOptions } from './cloudJobs.ts';
 import { LEARNING_ACTIONS, LEARNING_CAPABILITIES, LEARNING_SOURCES, type LearningSink } from './learningSignal.ts';
 import { CollabRefusal, MAX_RECIPE_BYTES, type CollabStore } from './collaboration.ts';
+import { presenceUid, PRESENCE_TOKEN_TTL_S, type PresenceSigner } from './presenceToken.ts';
 import { SAFE_COPY_LEVELS, SAFE_COPY_MAX_BYTES, safeCopyKey, type SafeCopyOptions } from './safeCopy.ts';
 import type { SpendOptions } from './spendGuard.ts';
 import { cloudRunClientIp } from './networkCountry.ts';
@@ -70,6 +71,8 @@ export interface AppOptions {
   safeCopy?: SafeCopyOptions;
   /** Shared projects (#1387): membership, per-photo leases, revisions. Absent until Firestore is set up for it: routes answer 503. */
   collab?: CollabStore;
+  /** Signs per-project Realtime Database tokens for live cursors. Absent: the presence route answers 503. */
+  presence?: PresenceSigner;
   /** Hard monthly ceiling on metered spend (Gemini, cloud jobs). Absent: no guard (development and tests). */
   spend?: SpendOptions;
   /** Production sets this: the cloud, safe copy and learning features stay OFF until an admin switches them on. Tests and development leave them on. */
@@ -1121,6 +1124,19 @@ export function createApp(options: AppOptions) {
         if (Buffer.byteLength(JSON.stringify(body.recipe)) > MAX_RECIPE_BYTES) throw new ApiError(413, 'COLLAB_RECIPE_TOO_LARGE', 'That edit is too large to share.');
         const revision = await collab(() => collabCfg().publish(params.id, params.photoId, claims.sub, body, now()));
         return { status: 200, body: { revision } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/collab/projects/:id/presence-token', summary: 'A one-hour token for live cursors in this project only (Realtime Database)', auth: 'user',
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        const c = await collabWritable();
+        if (!options.presence) throw new ApiError(503, 'PRESENCE_NOT_CONFIGURED', 'Live cursors are not set up on this server yet. Everything else works.');
+        const view = await collab(() => c.project(params.id, claims.sub));
+        const issuedAtS = Math.floor(now() / 1000);
+        const uid = presenceUid(claims.sub);
+        const token = await options.presence.sign(uid, { p: params.id, r: view.me.role }, issuedAtS);
+        return { status: 200, body: { customToken: token, databaseUrl: options.presence.databaseUrl, uid, expiresAtMs: (issuedAtS + PRESENCE_TOKEN_TTL_S) * 1000 } };
       },
     },
     {

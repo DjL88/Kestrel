@@ -119,6 +119,9 @@
       }
     ]
   },
+  "database": {
+    "rules": "database.rules.json"
+  },
   "emulators": {
     "firestore": {
       "host": "127.0.0.1",
