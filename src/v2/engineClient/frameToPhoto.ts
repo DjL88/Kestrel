@@ -32,9 +32,9 @@ import type { Task } from '../../core/taskStore';
 import { buildEditingSequence } from '../../core/editingSequence';
 import type { PhotoEdit } from '../../core/photoEdits';
 import { VEHICLE_LABELS } from '../../core/vehicleLabels';
-import { validVehicleReading, vehicleLabel, vehicleSearchWords } from '../../core/vehicleRecognition';
+import { validVehicleReading, vehicleLabel } from '../../core/vehicleRecognition';
 import { sharedPhotoKey } from '../../core/sharedSync';
-import { vehicleText, vehicleTextEnglish } from '../../i18n/areas/vehicles';
+import { vehicleText } from '../../i18n/areas/vehicles';
 import { photoTagsOf, tagWords } from '../../core/photoTags';
 import { photoTagEnglishLabel, photoTagLabel, photoTagsText } from '../../i18n/areas/photoTags';
 
@@ -125,12 +125,11 @@ const titleOf = (filename: string) => filename.replace(/\.[^./\\]+$/, '');
 const extensionOf = (filename: string) => /\.([^./\\]+)$/.exec(filename)?.[1]?.toUpperCase();
 
 /** A photo's vehicle reading as words in the person's language, and the words it can be searched by (also in English). */
-export function vehicleWordsOf(frame: Pick<PhotoFrame, 'vehicle'>): { vehicleLabel?: string; searchTerms?: string[]; vehicleKind?: string; vehicleType?: string } {
+export function vehicleWordsOf(frame: Pick<PhotoFrame, 'vehicle'>): { vehicleLabel?: string; vehicleKind?: string; vehicleType?: string } {
   const reading = validVehicleReading(frame.vehicle, VEHICLE_LABELS);
   if (!reading) return {};
   return {
     vehicleLabel: vehicleLabel(reading, VEHICLE_LABELS, vehicleText),
-    searchTerms: vehicleSearchWords(reading, VEHICLE_LABELS, [vehicleText, vehicleTextEnglish]),
     ...(reading.kind ? { vehicleKind: reading.kind } : {}),
     ...(reading.type ? { vehicleType: reading.type } : {}),
   };

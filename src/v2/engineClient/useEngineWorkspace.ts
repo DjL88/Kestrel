@@ -24,6 +24,7 @@ import { useAccess } from '../../providers/useAccess';
 import { useBackgroundDevelop } from '../../useBackgroundDevelop';
 import { useSpeciesScan } from '../../useSpeciesScan';
 import { carryVehicleReadings, correctVehicle } from '../../core/vehicleBursts';
+import { syncAllVehicleTags } from '../../core/vehicleTags';
 import { VEHICLE_LABELS } from '../../core/vehicleLabels';
 import { vehicleText } from '../../i18n/areas/vehicles';
 import { useVisualGrouping } from './useVisualGrouping';
@@ -731,15 +732,27 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       frame.stableKey === stableKey && frame.rawCodec !== codec ? { ...frame, rawCodec: codec } : frame) } : current)),
   });
 
+  // Photos read before vehicle tags joined the shared tag store get their tags once when the project opens; nothing is
+  // written when they already match.
+  const shootId = state?.shoot.id;
+  useEffect(() => {
+    if (!shootId) return;
+    setState((current) => {
+      if (!current) return current;
+      const frames = syncAllVehicleTags(current.frames, VEHICLE_LABELS);
+      return frames === current.frames ? current : { ...current, frames };
+    });
+  }, [shootId]);
+
   // Subject and species are named quietly on this device after photos are added (the species name is a suggestion the
   // person can change, and it never changes a decision). The species check is the Pro feature `speciesId`.
   useSpeciesScan({
     projectId: state?.shoot.id ?? '', frames: state?.frames ?? [], provider: provider.current,
     active: screen === 'editor' && Boolean(state) && can('speciesId'),
     // A vehicle reading is carried across its burst: the same aircraft, read once, shown on every frame.
-    onResult: (frameId, patch) => setState((current) => (current ? { ...current, frames: carryVehicleReadings(current.frames.map((frame) =>
+    onResult: (frameId, patch) => setState((current) => (current ? { ...current, frames: syncAllVehicleTags(carryVehicleReadings(current.frames.map((frame) =>
       frame.id === frameId && !frame.removedAt && !frame.speciesChecked && !frame.tags?.length && !frame.subjectNames?.length
-        ? { ...frame, ...patch, ...(frame.subjectKind && patch.subjectKind ? { subjectKind: frame.subjectKind } : {}) } : frame), VEHICLE_LABELS) } : current)),
+        ? { ...frame, ...patch, ...(frame.subjectKind && patch.subjectKind ? { subjectKind: frame.subjectKind } : {}) } : frame), VEHICLE_LABELS), VEHICLE_LABELS) } : current)),
   });
 
   // Bursts are refined quietly on this device from image embeddings (DINOv2): a real scene change splits a burst, and
@@ -1931,7 +1944,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const after = correctVehicle(before, photoId, choice, wholeBurst, VEHICLE_LABELS);
       if (after === before) return;
       const changed = after.filter((frame, index) => frame !== before[index]).length;
-      mutate((current) => ({ ...current, shoot: { ...current.shoot, lastUpdatedAt: Date.now() }, frames: correctVehicle(current.frames, photoId, choice, wholeBurst, VEHICLE_LABELS) }));
+      mutate((current) => ({ ...current, shoot: { ...current.shoot, lastUpdatedAt: Date.now() }, frames: syncAllVehicleTags(correctVehicle(current.frames, photoId, choice, wholeBurst, VEHICLE_LABELS), VEHICLE_LABELS) }));
       setNotice(vehicleText.correct.saved(changed));
     },
     removePhotoTag: (photoId, tagId) => mutate((current) => ({

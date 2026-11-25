@@ -7,6 +7,7 @@
  * the formats below are kept. Pure and deterministic: OCR output comes in as text, nothing is looked up here.
  */
 import type { VehicleReading } from './vehicleRecognition';
+import { looksLikeNumberPlate } from './photoTags';
 
 export type MarkingFormat = 'uk-civil' | 'irish-civil' | 'us-civil' | 'uk-military' | 'race-number' | 'imo' | 'hull-name';
 
@@ -76,11 +77,8 @@ export function findVesselMarkings(text: string): Marking[] {
 // Current UK number plates (AB12 CDE) and Irish plates (12-D-3456, 191-KY-12). No aircraft format below has these shapes.
 // Older UK plates (ABC 123, A123 BCD) do share shapes with serials and N-numbers, so for them the first guard is the one
 // that counts: text is only read from an aircraft photo, inside the aircraft.
-const PLATES = [/^[A-Z]{2}\d{2}[A-Z]{3}$/, /^\d{2,3}[A-Z]{1,2}\d{1,6}$/];
-/** True for text shaped like a road number plate. Such text is never kept, stored or looked up. */
-export function looksLikeNumberPlate(compact: string): boolean {
-  return PLATES.some((pattern) => pattern.test(compact));
-}
+// One copy of the plate check, kept with the shared tag store so it also guards every stored tag (see photoTags.ts).
+export { looksLikeNumberPlate };
 
 /**
  * UK military serials: two letters and three digits (ZJ910, ZK301, ZM400). The letters C, I, O, Q, U and Y are not used.
