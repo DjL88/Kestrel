@@ -8,6 +8,8 @@ export const it: AreaTranslation<typeof source> = {
   kinds: {
     car: 'Auto',
     motorbike: 'Moto',
+    'racing-car': 'Auto da corsa',
+    'racing-motorbike': 'Moto da corsa',
     lorry: 'Camion',
     bus: 'Autobus',
     train: 'Treno',
@@ -41,9 +43,10 @@ export const it: AreaTranslation<typeof source> = {
     cancel: 'Annulla',
     saved: (count: number) => (count > 1 ? `Salvato per ${count} foto.` : 'Salvato.'),
   },
+  raceNumber: (what: string, number: string) => `${what}, numero ${number}`,
   reader: {
-    title: 'Leggi le marche degli aeromobili',
-    description: (megabytes: string) => `Legge le marche e i numeri di serie militari dipinti sugli aeromobili, su questo dispositivo, e li cerca in una copia offline di registri pubblici. Un download unico di ${megabytes} MB. Le targhe delle auto non vengono mai lette.`,
+    title: 'Leggi marche e numeri di gara',
+    description: (megabytes: string) => `Legge su questo dispositivo le marche e i numeri di serie militari degli aeromobili, e i numeri di gara di auto e moto da corsa. Le marche vengono cercate in una copia offline di registri pubblici. Un download unico di ${megabytes} MB. Le targhe dei veicoli stradali non vengono mai lette.`,
     download: 'Scarica',
     downloading: (percent: number) => `Download in corso… ${percent}%`,
     ready: 'Installato. Funziona offline.',
