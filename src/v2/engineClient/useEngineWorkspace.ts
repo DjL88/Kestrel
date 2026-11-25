@@ -45,6 +45,9 @@ import { replaceWatermarkIfUnchanged } from './watermarkMutation';
 import { watermarkToneForPixels } from '../../core/watermark';
 import { createDefaultSizes } from '../ui/stub';
 import { toPhotoHistogram } from './histogram';
+import { histogramFromWorking } from './histogram16';
+import { measuringCopy, raw16Possible, raw16WorkingFor } from '../../providers/raw16Working';
+import { renderRaw16Working } from '../../providers/rawMaster16';
 import { fullResolutionRasterFormat, isHeifFile, isRawPreviewFile } from '../../core/rawFormats';
 import { rawSensorSize } from '../../core/rawSensorSize';
 import { loadUi, mergeSettings, saveUi, type SavedUi } from './uiSettings';
@@ -59,11 +62,14 @@ import { readFormatHistory, recordFormatCrop, recordFormatSetChange, recordForma
 import { addLayer, addRow, alignOverlays, moveLayer, moveRow, newLayer, patchOverlay, readOverlay, removeLayer, removeRow, updateLayer, updateRow } from './overlayOps';
 import { frameToPhoto, matchesAutoSource, originalFormatSize, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
-import { commitAutoEdit } from './commitAutoEdit';
+import { autopilotHeldForReview, commitAutoEdit } from './commitAutoEdit';
+import { guardResult } from '../../core/visionGuardian';
+import { askOnDeviceGuardian } from '../../providers/visionGuardian';
 import type { PictureSource } from '../../core/pictureSource';
 import { autoCullSummary, commitAutoCull, rawsJudgedFromCameraPreview } from './commitAutoCull';
 import { runV2Denoise } from './runDenoise';
 import { composeDenoiseRecipe } from './denoiseRecipe';
+import { preloadTrueDetailAi } from '../../core/trueDetailAiCanvas';
 import { moveArtboard } from './boardOps';
 import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
@@ -894,11 +900,33 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         applyCanvasPhotoEdit(canvas, frame.edit ?? EMPTY_EDIT);
         const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
         if (live) setHistograms((current) => ({ ...current, [frame.id]: toPhotoHistogram(pixels) }));
+        // When the picture on screen is InFlight's own RAW develop, measure again from the 16-bit develop (kept small, made
+        // once per photo) with the same 16-bit edit maths as the export. The 8-bit measurement stands until then, or if not.
+        if (!live || !raw16Possible(frame, provider.current!.pictureSourceOf(url), canDevelopRaw())) return;
+        // Only for a photo the person stays on: browsing past photos never starts a full RAW develop for each one.
+        await new Promise((resolve) => window.setTimeout(resolve, 1200));
+        if (!live) return;
+        const working = await raw16WorkingFor(frame, () => provider.current!.ensureOriginal(frame.stableKey, 'selected'), image);
+        const measured = live && working ? histogramFromWorking(measuringCopy(working), frame.edit ?? EMPTY_EDIT, frame.framing, renderRaw16Working) : null;
+        if (live && measured) setHistograms((current) => ({ ...current, [frame.id]: measured }));
       }).catch(() => { /* no measurement: the panel says it is still measuring, never a made-up curve */ });
     }, 160);
     return () => { live = false; window.clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [histogramKey]);
+
+  // A stored AI denoise result lives on the device that made it. Say plainly when this device does not have it: the view
+  // is drawn without it, and export refuses rather than quietly leave it out.
+  const aiAsset = activeFrame?.edit?.trueDetailAi?.asset ?? null;
+  useEffect(() => {
+    if (!aiAsset || !activeFrame) return;
+    let live = true;
+    void preloadTrueDetailAi(activeFrame.edit).then(found => {
+      if (live && !found) setNotice('This photo’s AI denoise result is not on this device, so it is shown without it and will not export. Run Denoise again here, or turn the AI denoise off in Enhance.');
+    });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiAsset]);
 
   // Once the active photo's masks settle (debounced, same idea as the histogram above but a real pixel
   // render so it waits for a pause rather than running on every drag tick), run them through the real
@@ -1138,7 +1166,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       runItem: async (_, __, ctx) => {
         ctx.stage(engineText.workspace.denoiseStage);
         const outcome = await runV2Denoise(frame, provider.current!,
-          connection ? { connection, online: navigator.onLine !== false } : null, ctx.signal);
+          connection ? { connection, online: navigator.onLine !== false } : null, ctx.signal,
+          (done, total, label) => ctx.reportProgress(done, total, label));
         ctx.checkCancelled();
         if (!outcome) throw new Error(engineText.workspace.denoiseNoSource);
         ctx.setLocation(outcome.runner === 'cloud-processing' ? 'cloud' : 'local');
@@ -1155,7 +1184,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             if (!valid(current)) return current.edit;
             const edit = current.edit ?? DEFAULT_EDIT;
             const id = `auto-denoise-${photoId}`;
-            return composeDenoiseRecipe(edit, id, outcome.strength, outcome.masks, outcome.strength > 0 ? outcome.luminance / outcome.strength : 0);
+            const next = composeDenoiseRecipe(edit, id, outcome.strength, outcome.masks, outcome.strength > 0 ? outcome.luminance / outcome.strength : 0);
+            return outcome.trueDetailAi ? { ...next, trueDetailAi: outcome.trueDetailAi } : next;
           }));
         }
         ctx.commitIfCurrent(() => setNotice(outcome.verified ? outcome.notes[0] : engineText.denoise.leftAsItWas(outcome.notes.join(' '))));
@@ -1233,6 +1263,17 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             return { ...Object.fromEntries(recent), [frame.id]: { run, dismissed: [] } };
           }));
           if (!manual && assistMode === 'autopilot' && run.improved) {
+            // Vision AI is the guardian: a second opinion on the rendered edit before Auto-pilot applies it. It can hold the
+            // edit for review (it stays a Co-pilot suggestion), never apply anything Auto did not already choose.
+            const preferred = run.candidates.find((candidate) => candidate.edit === run.plan.proposal);
+            ctx.stage('Second opinion from the on-device vision model');
+            const opinion = preferred ? await askOnDeviceGuardian(preferred.after, 'editNatural') : null;
+            ctx.checkCancelled();
+            if (!isCurrent()) return;
+            if (guardResult('apply', opinion ? [opinion] : []).status !== 'apply') {
+              ctx.commitIfCurrent(() => setNotice(autopilotHeldForReview()));
+              return;
+            }
             const at = Date.now();
             ctx.commitIfCurrent(() => mutate(current =>
               isCurrent() && !ctx.signal.aborted
@@ -2134,7 +2175,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         const canvas = document.createElement('canvas');
         drawFramedPhoto(image, canvas, framing, { scale });
         await applyCanvasExportEdit(canvas, source.edit ?? DEFAULT_EDIT, undefined, Math.max(width, height) * scale, { aspect: height / width, view: { x: 0, y: 0, w: 1, h: 1 }, lensCentre: lensCentre(image.naturalWidth, image.naturalHeight, framing) });
-        await applyFrameLayers(canvas, source.overlay, true);
+        await applyFrameLayers(canvas, source.overlay, true, source.edit?.masks);
         const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
         if (!blob) throw new Error('InFlight could not copy that photo.');
         const assetId = await saveLayerAsset(blob);

@@ -22,6 +22,8 @@ export interface PhotoHistogram {
   highlightClip: number;
   /** Share of pixels at 0 (shadow) or 255 (highlight) in each channel, so clipping can be said in words per channel. */
   channelClip?: Record<'red' | 'green' | 'blue', { shadow: number; highlight: number }>;
+  /** 'rgb16': measured from the 16-bit RAW develop. Absent: measured from the 8-bit picture on screen. */
+  precision?: 'rgb16';
 }
 export type TileState = 'importing' | 'analysing' | 'ready' | 'unavailable';
 export type AssistMode = 'solo' | 'copilot' | 'autopilot';
@@ -157,6 +159,8 @@ export interface EditRecipe {
   clarity: number; // -100 to 100
   sharpen: number; // 0 to 100
   denoiseRawAi: boolean;
+  /** TrueDetail AI denoise: true while a learned denoiser's stored result is blended into the subject. Set false to remove it. Absent = off. */
+  aiDenoise?: boolean;
   denoiseLuminance: number; // 0 to 100
   denoiseColour: number; // 0 to 100
   upscaleFactor: 1 | 2 | 4;
@@ -186,9 +190,17 @@ export interface EditRecipe {
   vignetteBlur?: number;
   /** A colour for the vignette as #rrggbb. Absent = darker or lighter, no colour. */
   vignetteColour?: string;
+  /** Vignette shape, -100 (the frame's rectangle) to 100 (a circle). Absent = 0, an oval of the frame's shape. */
+  vignetteRoundness?: number;
+  /** Vignette fall-off, 0 (hard) to 100 (softest). Absent = 50. */
+  vignetteFeather?: number;
+  /** How much bright areas are spared from a darkening or colour vignette, 0 to 100. Absent = 0. */
+  vignetteHighlights?: number;
   /** Film-like grain, 0 to 100, and its size, 0 (fine) to 100 (coarse; absent = 25). */
   grain?: number;
   grainSize?: number;
+  /** Grain roughness, 0 (smooth and even) to 100 (irregular). Absent = 0. */
+  grainRoughness?: number;
   /** Advanced: camera calibration, hue and saturation of each primary, -100 to 100. Absent = none. */
   calibration?: Record<'red' | 'green' | 'blue', { hue: number; saturation: number }>;
   /** White balance in kelvin against the camera's as-shot estimate (RAW photos only). Absent = as shot. */

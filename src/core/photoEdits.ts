@@ -1,3 +1,4 @@
+import type { TrueDetailAi } from './trueDetailAi';
 import { hasActiveMasks, type Mask } from './maskTypes';
 /** Optional tonal controls. Each runs from -2 to 2 and an absent value means 0. */
 export const TONE_CONTROLS = [
@@ -43,6 +44,8 @@ export interface PhotoEdit {
   denoise?: number;
   /** Edge-aware luminance noise reduction, 0–2, before tone and detail. */
   denoiseLuminance?: number;
+  /** TrueDetail AI denoise: a learned denoiser's stored result, blended into the subject and eye regions. Absent = off. */
+  trueDetailAi?: TrueDetailAi;
   /** Export-time enlargement: 2 or 4 times the picture's own size, by the deterministic resampler (no model, nothing uploaded). Absent = off. */
   upscale?: 2 | 4;
   /** Tone curve points on display-encoded values, applied to each channel after contrast. Absent = straight line. */
@@ -88,7 +91,7 @@ export function isNeutralTone(edit: PhotoEdit): boolean {
 export const NOISE_CONTROL = { key: 'denoise', label: 'Noise reduction' } as const;
 
 export function isNeutralEdit(edit: PhotoEdit): boolean {
-  return !edit.denoise && !edit.denoiseLuminance && !edit.upscale && !edit.dehaze && !hasFringeEdit(edit) && !hasFinishing(edit) && isNeutralTone(edit) && DETAIL_CONTROLS.every(({ key }) => !edit[key]) && !hasActiveMasks(edit.masks);
+  return !edit.denoise && !edit.denoiseLuminance && !edit.trueDetailAi && !edit.upscale && !edit.dehaze && !hasFringeEdit(edit) && !hasFinishing(edit) && isNeutralTone(edit) && DETAIL_CONTROLS.every(({ key }) => !edit[key]) && !hasActiveMasks(edit.masks);
 }
 
 /** Nothing to keep: neutral, and no masks at all (an empty mask is still kept so it can be adjusted). */
