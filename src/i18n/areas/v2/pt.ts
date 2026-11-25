@@ -56,6 +56,8 @@ export const pt: AreaTranslation<typeof source> = {
       ? `Fotografias colocadas: ${placed}.`
       : `Fotografias colocadas: ${placed} de ${dropped}. Esta página já não tem janelas vazias. Adicione uma página para as restantes.`,
     noEmptyWindows: 'Esta página não tem janelas vazias. Largue a fotografia numa janela para substituir a que lá está, ou adicione uma página.',
+    windowsAdded: (n) => `Foram adicionadas ${n} janelas novas onde largou.`,
+    windowLimitReached: (n) => `Esta página aceita até ${n} janelas. Adicione uma página para as restantes.`,
     backgroundHeading: "Fundo",
     windowHeading: "Janela",
     backgroundPhoto: "Fotografia de fundo",

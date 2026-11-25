@@ -56,6 +56,8 @@ export const sv: AreaTranslation<typeof source> = {
       ? `Placerade foton: ${placed}.`
       : `Placerade foton: ${placed} av ${dropped}. Det finns inga fler tomma fält på sidan. Lägg till en sida för resten.`,
     noEmptyWindows: 'Det finns inga tomma fält på sidan. Släpp fotot på ett fält för att ersätta det befintliga fotot eller lägg till en sida.',
+    windowsAdded: (n) => `Lade till ${n} nya fält där du släppte.`,
+    windowLimitReached: (n) => `Sidan rymmer upp till ${n} fält. Lägg till en sida för resten.`,
     backgroundHeading: "Bakgrund",
     windowHeading: "Fält",
     backgroundPhoto: "Bakgrundsfoto",

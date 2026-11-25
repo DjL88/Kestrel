@@ -59,6 +59,8 @@ export const ga: AreaTranslation<typeof source> = {
       ? `Grianghraif curtha isteach: ${placed}.`
       : `Grianghraif curtha isteach: ${placed} as ${dropped}. Níl fuinneoga folmha fágtha ar an leathanach seo. Cuir leathanach leis don chuid eile.`,
     noEmptyWindows: 'Níl fuinneoga folmha ar an leathanach seo. Scaoil grianghraf ar fhuinneog chun an ceann atá inti a athsholáthar, nó cuir leathanach leis.',
+    windowsAdded: (n) => `Cuireadh ${n} fuinneog nua leis san áit ar scaoil tú.`,
+    windowLimitReached: (n) => `Tá spás do suas le ${n} fuinneog ar an leathanach seo. Cuir leathanach leis don chuid eile.`,
     backgroundHeading: "Cúlra",
     windowHeading: "Fuinneog",
     backgroundPhoto: "Grianghraf cúlra",

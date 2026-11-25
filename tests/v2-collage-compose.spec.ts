@@ -77,6 +77,26 @@ test('photographs drag from the filmstrip onto windows, move and resize in them,
   await expect(root.getByTestId('collage-window-1')).toHaveAccessibleName(/collage-1\.png/);
   await expect(root.getByTestId('collage-window-2')).toHaveAccessibleName(/collage-(2|3)\.png/);
 
+  // Two empty windows took two photographs; the third got a new window where it was dropped (top left).
+  const added = root.getByTestId('collage-window-3');
+  await expect(added).toHaveAccessibleName(/collage-(1|2|3)\.png/);
+  await expect(root.getByText(/Added 1 new window where you dropped/)).toBeVisible();
+  const addedBox = (await added.boundingBox())!;
+  expect(addedBox.x + addedBox.width / 2).toBeLessThan(pageBox.x + pageBox.width / 2);
+  expect(addedBox.y + addedBox.height / 2).toBeLessThan(pageBox.y + pageBox.height / 2);
+  // An emptied window can be deleted, leaving the built-in three.
+  await added.click({ button: 'right' });
+  await page.getByRole('menu', { name: 'Window options' }).getByRole('menuitem', { name: /Remove photograph/ }).click();
+  await root.getByTestId('collage-delete-window').click();
+  await expect(root.getByTestId('collage-window-3')).toHaveCount(0);
+  // A page with its own windows shows no built-in layout as chosen until one is picked again.
+  await root.getByTestId('collage-tool-layout').click();
+  const threePanels = root.getByRole('group', { name: 'Collage layout templates' }).getByRole('button', { name: 'Three panels' });
+  await expect(threePanels).toHaveAttribute('aria-pressed', 'false');
+  await threePanels.click();
+  await expect(threePanels).toHaveAttribute('aria-pressed', 'true');
+  await expect(root.getByTestId('collage-window-0')).toHaveAccessibleName(/collage-2\.png/);
+
   // Select a window, pull its corner out to enlarge the photograph, then drag to move it.
   const win = root.getByTestId('collage-window-0');
   await win.click();

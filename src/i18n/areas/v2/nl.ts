@@ -56,6 +56,8 @@ export const nl: AreaTranslation<typeof source> = {
       ? `Geplaatste foto’s: ${placed}.`
       : `Geplaatste foto’s: ${placed} van ${dropped}. Deze pagina heeft geen lege vensters meer. Voeg voor de overige foto’s een pagina toe.`,
     noEmptyWindows: 'Deze pagina heeft geen lege vensters. Zet een foto neer op een venster om de huidige foto te vervangen, of voeg een pagina toe.',
+    windowsAdded: (n) => `${n} nieuwe vensters toegevoegd waar je ze neerzette.`,
+    windowLimitReached: (n) => `Deze pagina heeft ruimte voor maximaal ${n} vensters. Voeg een pagina toe voor de rest.`,
     backgroundHeading: "Achtergrond",
     windowHeading: "Venster",
     backgroundPhoto: "Achtergrondfoto",

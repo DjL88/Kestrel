@@ -217,3 +217,27 @@ test('a background photograph is saved as a reference and checked on reopen', ()
   bad.pages[0].backgroundPhotoId = 42;
   assert.equal(readCollage(bad), null);
 });
+
+test('photographs dropped on a page with no empty windows get new windows where they were dropped', async () => {
+  const { addCollageWindowsAt, MAX_COLLAGE_WINDOWS } = await import('./collage');
+  const doc = createCollage(['a', 'b', 'c']);
+  const before = collagePage(doc).slots.length;
+  const { doc: next, added } = addCollageWindowsAt(doc, ['d', 'e'], 90, 10);
+  assert.equal(added, 2);
+  const page = collagePage(next);
+  assert.equal(page.customLayout, true);
+  assert.equal(page.slots.length, before + 2);
+  const [d, e] = page.slots.slice(-2);
+  assert.equal(d.photoId, 'd'); assert.equal(e.photoId, 'e');
+  // Clamped inside the page, centred on the drop point where it fits.
+  assert.equal(d.x, 68); assert.equal(d.y, 0);
+  assert.equal(e.x, 68); assert.equal(e.y, 0);
+  const stepped = collagePage(addCollageWindowsAt(doc, ['d', 'e'], 50, 50).doc).slots.slice(-2);
+  assert.deepEqual(stepped.map((s) => [s.x, s.y]), [[34, 34], [38, 38]]);
+  assert.ok(readCollage(JSON.parse(JSON.stringify(next))));
+  // Never more than the window limit; the rest are reported as not added.
+  const full = addCollageWindowsAt(doc, Array.from({ length: 20 }, (_, i) => `p${i}`), 50, 50);
+  assert.equal(collagePage(full.doc).slots.length, MAX_COLLAGE_WINDOWS);
+  assert.equal(full.added, MAX_COLLAGE_WINDOWS - before);
+  assert.equal(addCollageWindowsAt(full.doc, ['z'], 50, 50).added, 0);
+});

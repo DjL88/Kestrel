@@ -56,6 +56,8 @@ export const da: AreaTranslation<typeof source> = {
       ? `Placerede billeder: ${placed}.`
       : `Placerede billeder: ${placed} af ${dropped}. Der er ikke flere tomme felter på siden. Tilføj en side til resten.`,
     noEmptyWindows: 'Der er ingen tomme felter på siden. Slip billedet på et felt for at erstatte billedet i det, eller tilføj en side.',
+    windowsAdded: (n) => `Tilføjede ${n} nye felter, hvor du slap.`,
+    windowLimitReached: (n) => `Siden kan rumme op til ${n} felter. Tilføj en side til resten.`,
     backgroundHeading: "Baggrund",
     windowHeading: "Felt",
     backgroundPhoto: "Baggrundsbillede",
