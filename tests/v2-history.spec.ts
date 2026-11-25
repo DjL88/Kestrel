@@ -69,9 +69,11 @@ test('?v2 a named checkpoint opens as a new version with its own recipe; the wor
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
 
   const exposure = root.getByRole('slider', { name: 'Exposure' });
+  // Adjust may already be the open panel, and its rail button would then close it: open it only when its tab is hidden.
   const openAdjust = async () => {
-    await root.getByRole('button', { name: 'Adjust' }).first().click();
-    await root.getByRole('tab', { name: 'Advanced Edits' }).click();
+    const tab = root.getByRole('tab', { name: 'Advanced Edits' });
+    if (!(await tab.isVisible())) await root.getByRole('button', { name: 'Adjust' }).first().click();
+    await tab.click();
   };
   await openAdjust();
   await exposure.fill('1');
