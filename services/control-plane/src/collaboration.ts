@@ -303,9 +303,12 @@ export class CollabStore {
 
   async comments(projectId: string, photoId: string, accountId: string): Promise<CollabComment[]> {
     const project = await this.db.runTransaction((tx) => this.readProject(tx, projectId));
-    this.memberOrRefuse(project, accountId, 'view', photoId);
+    const me = this.memberOrRefuse(project, accountId, 'view', photoId);
     const snap = await this.db.collection(C.comments).where('projectId', '==', projectId).where('photoId', '==', photoId).get();
-    return snap.docs.map((d) => ({ point: null, resolvedAtMs: null, ...d.data()! }) as unknown as CollabComment).sort((a, b) => a.createdAtMs - b.createdAtMs);
+    return snap.docs.map((d) => ({ point: null, resolvedAtMs: null, ...d.data()! }) as unknown as CollabComment)
+      // Team comments are never shown to a client: a client sees only the comments they wrote themselves.
+      .filter((comment) => me.role !== 'client' || comment.authorAccountId === accountId)
+      .sort((a, b) => a.createdAtMs - b.createdAtMs);
   }
 
   /** The author, or anyone who may edit the photo, marks a comment done (or reopens it). */
@@ -316,7 +319,9 @@ export class CollabStore {
       const snap = await tx.get(ref);
       if (!snap.exists) throw new CollabRefusal(404, 'NOT_FOUND', 'No such comment.');
       const comment = { point: null, resolvedAtMs: null, ...snap.data()! } as unknown as CollabComment;
-      this.memberOrRefuse(project, accountId, 'view', comment.photoId);
+      const me = this.memberOrRefuse(project, accountId, 'view', comment.photoId);
+      // To a client, someone else's comment does not exist (no 403 that would reveal it).
+      if (me.role === 'client' && comment.authorAccountId !== accountId) throw new CollabRefusal(404, 'NOT_FOUND', 'No such comment.');
       if (comment.authorAccountId !== accountId && !can(project, accountId, 'edit', comment.photoId)) throw new CollabRefusal(403, 'COLLAB_NOT_PERMITTED', 'Only the author or an editor can mark this done.');
       const next = { ...comment, resolvedAtMs: resolved ? atMs : null };
       tx.set(ref, clean(next));
