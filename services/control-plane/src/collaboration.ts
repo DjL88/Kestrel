@@ -404,6 +404,78 @@ export class CollabStore {
     });
   }
 
+  /** Account data download: every comment this account wrote, in any project, oldest first. */
+  async commentsBy(accountId: string): Promise<CollabComment[]> {
+    const snap = await this.db.collection(C.comments).where('authorAccountId', '==', accountId).get();
+    return snap.docs.map((d) => asComment(d.data()!)).sort((a, b) => a.createdAtMs - b.createdAtMs);
+  }
+
+  /**
+   * Account deletion (accountErasure.ts). A project where this account is the only owner is deleted for everyone in it,
+   * as the privacy page says ("until the project owner deletes the project or closes their account"): its record,
+   * every member's place, invites, leases, edit history, lease audit and comments. In any other project the account
+   * leaves, and the comments it wrote there lose its name (the text stays with that project). Returns the project ids.
+   */
+  async eraseAccount(accountId: string, emailHash?: string): Promise<{ deleted: string[]; left: string[] }> {
+    const deleted: string[] = []; const left: string[] = [];
+    // Invitations still waiting for this email (they hold the email hash and the name the inviter typed).
+    for (const invite of emailHash ? await this.invitesFor(emailHash) : []) {
+      await this.db.runTransaction(async (tx) => {
+        const ref = this.ref(C.projects, invite.projectId);
+        const snap = await tx.get(ref);
+        if (snap.exists) {
+          const p = snap.data()! as unknown as ProjectRecord;
+          tx.set(ref, clean({ ...p, invites: (p.invites ?? []).filter((i) => i.emailHash !== emailHash) }));
+        }
+        tx.delete(this.ref(C.invites, emailHash!, invite.projectId));
+      });
+    }
+    for (const { projectId } of await this.myProjects(accountId)) {
+      const project = await this.db.runTransaction((tx) => this.readProject(tx, projectId)).catch(() => null);
+      if (!project) { await this.db.runTransaction(async (tx) => { tx.delete(this.ref(C.memberships, accountId, projectId)); }); continue; }
+      const owners = project.members.filter((m) => m.role === 'owner');
+      if (owners.length === 1 && owners[0].accountId === accountId) { await this.deleteProject(project); deleted.push(projectId); continue; }
+      await this.db.runTransaction(async (tx) => {
+        const before = await this.readProject(tx, projectId);
+        const after: ProjectRecord = { ...before, members: before.members.filter((m) => m.accountId !== accountId) };
+        tx.set(this.ref(C.projects, projectId), clean(after));
+        this.writeMemberships(tx, before, after);
+      });
+      left.push(projectId);
+    }
+    for (const comment of await this.commentsBy(accountId)) {
+      const ref = this.ref(C.comments, comment.projectId, comment.id);
+      await this.db.runTransaction(async (tx) => { if ((await tx.get(ref)).exists) tx.set(ref, clean({ ...comment, authorName: '' })); });
+    }
+    return { deleted, left };
+  }
+
+  /** Projects this account is the only owner of, with how many other people are in each (shown before deleting). */
+  async soleOwnerOf(accountId: string): Promise<{ projectId: string; name: string; others: number }[]> {
+    const out: { projectId: string; name: string; others: number }[] = [];
+    for (const { projectId } of await this.myProjects(accountId)) {
+      const project = await this.db.runTransaction((tx) => this.readProject(tx, projectId)).catch(() => null);
+      const owners = project?.members.filter((m) => m.role === 'owner') ?? [];
+      if (project && owners.length === 1 && owners[0].accountId === accountId) out.push({ projectId, name: project.name, others: project.members.length - 1 });
+    }
+    return out;
+  }
+
+  private async deleteProject(project: ProjectRecord): Promise<void> {
+    const { projectId } = project;
+    for (const collection of [C.comments, C.revisions, C.heads, C.leases, C.audit, C.invites]) {
+      const snap = await this.db.collection(collection).where('projectId', '==', projectId).get();
+      for (let i = 0; i < snap.docs.length; i += 400) {
+        const batch = snap.docs.slice(i, i + 400);
+        await this.db.runTransaction(async (tx) => { for (const d of batch) tx.delete(this.db.collection(collection).doc(d.id)); });
+      }
+    }
+    await this.db.runTransaction(async (tx) => {
+      for (const m of project.members) tx.delete(this.ref(C.memberships, m.accountId, projectId));
+      tx.delete(this.ref(C.projects, projectId));
+    });
+  }
+
   async auditFor(projectId: string, accountId: string): Promise<(LeaseAuditEntry & { projectId: string })[]> {
     const project = await this.db.runTransaction((tx) => this.readProject(tx, projectId));
     this.memberOrRefuse(project, accountId, 'managePermissions');

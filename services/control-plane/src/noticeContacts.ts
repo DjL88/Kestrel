@@ -42,6 +42,13 @@ export class NoticeContacts {
     return next;
   }
 
+  /** Account deletion (accountErasure.ts): the Firebase user id, email hash, language and news opt-in go. */
+  async forget(accountId: string): Promise<void> {
+    const ref = this.ref(accountId);
+    await this.db.runTransaction(async (tx) => { if ((await tx.get(ref)).exists) tx.delete(ref); });
+    this.written.delete(accountId);
+  }
+
   /** At an app sign-in: the Firebase user id and the hash of the verified email it signed in with. */
   async rememberSignIn(accountId: string, firebaseUid: string, emailHash: string): Promise<void> {
     if (!FIREBASE_UID.test(firebaseUid) || !/^[0-9a-f]{64}$/.test(emailHash)) return;
