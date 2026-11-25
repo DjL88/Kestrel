@@ -16,7 +16,10 @@ import { createSplitRenderCache } from './splitRenderCache';
 import { master16Blocker } from '../../core/master16';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { canDevelopRaw, RawPrecisionUnavailableError } from '../../providers/rawDevelop';
-import { renderRaw16 } from '../../providers/rawMaster16';
+import { editRaw16, openRaw16 } from '../../providers/rawMaster16';
+import type { Rgb16Image } from '../../core/master16';
+import { hasNativeRaw } from '../../providers/desktopShell';
+import { createRawSourceCache, rawSourceBudget } from './rawSourceCache';
 
 /** Each photo/format/edit-group/panel is one independently tracked scheduler unit.
  * Completed files are never re-rendered on an ordinary pause/resume. */
@@ -82,6 +85,15 @@ export async function scheduleV2PhotoExports(input: {
   const provider = input.provider;
   // Only one composition's encoded sections are retained; never cache decoded canvases.
   const splitCache = createSplitRenderCache<File>();
+  // One RAW decode per photo, shared by its formats and variants while memory allows (rawSourceCache.ts).
+  const rawSources = createRawSourceCache(rawSourceBudget({
+    nativeDesktop: hasNativeRaw(),
+    deviceMemoryGb: (globalThis.navigator as unknown as { deviceMemory?: number } | undefined)?.deviceMemory,
+  }));
+  // A relinked original is a different Blob: it never reuses the previous decode.
+  const blobIds = new WeakMap<Blob, number>();
+  let nextBlobId = 0;
+  const blobId = (blob: Blob) => { let id = blobIds.get(blob); if (id === undefined) { id = ++nextBlobId; blobIds.set(blob, id); } return id; };
   const ticket = await engineScheduler.submit({
     title: `Exporting ${input.plan.summary}`,
     kind: 'export',
@@ -151,7 +163,7 @@ export async function scheduleV2PhotoExports(input: {
           ctx.checkCancelled();
           // A RAW is edited at 16 bits from its sensor data and rounded to 8 bits once, at the very end. An edit the
           // 16-bit renderer cannot carry yet keeps the 8-bit path, and the task says so rather than hiding it.
-          let precise: Awaited<ReturnType<typeof renderRaw16>> | undefined;
+          let precise: Rgb16Image | undefined;
           if (!frame.isDemo && isRawPreviewFile(frame.filename) && canDevelopRaw()) {
             const blocker = master16Blocker(variant.edit ?? DEFAULT_EDIT, frame.framing);
             if (blocker) {
@@ -164,7 +176,10 @@ export async function scheduleV2PhotoExports(input: {
               const originalSha256 = frame.originalSha256 && /^[a-f0-9]{64}$/.test(frame.originalSha256) ? frame.originalSha256 : undefined;
               // Bound to the recorded fingerprint when there is one, so a changed file is refused rather than exported.
               try {
-                precise = await renderRaw16(original, frame.filename, image, variant.edit ?? DEFAULT_EDIT, frame.framing, { originalSha256, signal: ctx.signal });
+                const source = await rawSources.get(`${frame.stableKey}|${originalSha256 ?? ''}|${blobId(original)}`,
+                  () => openRaw16(original, frame.filename, { originalSha256, signal: ctx.signal }));
+                ctx.checkCancelled();
+                precise = await editRaw16(source.image, image, variant.edit ?? DEFAULT_EDIT, frame.framing, { shared: source.shared, signal: ctx.signal });
               } catch (reason) {
                 // Only a refusal of the 16-bit path itself (compression that cannot be classified) falls back; a changed or
                 // unreadable original still stops the export.
@@ -211,6 +226,6 @@ export async function scheduleV2PhotoExports(input: {
       ctx.checkCancelled();
     },
   });
-  void ticket.finished.then(() => splitCache.clear());
+  void ticket.finished.then(() => { splitCache.clear(); rawSources.clear(); });
   return ticket;
 }
