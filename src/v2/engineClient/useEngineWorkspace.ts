@@ -74,7 +74,7 @@ import { isSplitFrameCount, setFormatSplitOffset, setSplitFrameCount as writeSpl
 import { readSplitPanOffset } from './splitFrameOps';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskLimit, toggleMask } from './maskOps';
 import { verifyFrameMasks } from './maskVerify';
-import { maskVerificationKey, commitVerifiedMasks } from './maskVerificationCommit';
+import { maskAdvice, maskVerificationKey } from './maskVerificationCommit';
 import { commitSubjectMask, subjectMaskTarget } from './subjectMaskCommit';
 import { createMask, createSubjectMask, framingKey, hasActiveMasks } from '../../core/maskTypes';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../../core/photoFraming';
@@ -873,11 +873,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   // Once the active photo's masks settle (debounced, same idea as the histogram above but a real pixel
   // render so it waits for a pause rather than running on every drag tick), run them through the real
-  // verified-and-retried engine action (maskVerify.ts's verifyFrameMasks -> engine/maskAction.ts) instead
-  // of trusting whatever a slider was left at. Scoped to the one open photo, same boundary the histogram
-  // and watermark-tone checks already draw. A mask whose effect held up changes nothing here (attempts
-  // === 1, the common case); one that did not is written back at the strength that actually passed, with
-  // a plain notice - never left silently at a value the check could not confirm.
+  // verified-and-retried engine action (maskVerify.ts's verifyFrameMasks -> engine/maskAction.ts). Scoped to
+  // the one open photo, same boundary the histogram and watermark-tone checks already draw. The check only
+  // ADVISES: a slider value the person set is their decision and is never rewritten in the background. It
+  // used to write the gentler retry back, which silently pulled a deliberate Subject Exposure of -1.5 to
+  // nearly 0 (a dark subject on a cool background reads frame-wide as a "cool colour cast", and a comparison
+  // the verifier cannot make suggests strength 0), so the edit looked lost after Hide and Show.
   const maskVerifyKey = activeFrame && projectId && hasActiveMasks(activeFrame.edit?.masks)
     ? maskVerificationKey(projectId, activeFrame) : null;
   useEffect(() => {
@@ -892,17 +893,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           const image = await loadExportSource(frame, sourceProvider);
           if (controller.signal.aborted) return;
           const outcome = await verifyFrameMasks(image, frame, controller.signal);
-          if (controller.signal.aborted || !outcome || outcome.attempts <= 1) return;
+          if (controller.signal.aborted || !outcome) return;
+          const advice = maskAdvice(outcome.verification);
+          if (!advice) return;
           const currentState = stateRef.current;
           const latest = currentState?.frames.find(candidate => candidate.id === frame.id);
           if (!latest || currentState?.shoot.id !== capturedProject ||
               maskVerificationKey(capturedProject, latest) !== maskVerifyKey) return;
-          const at = Date.now();
-          mutate(current => controller.signal.aborted ? current :
-            commitVerifiedMasks(current, capturedProject, frame, outcome.masks, at));
-          setNotice(outcome.verification.ok
-            ? `A mask's strength was reduced to keep its effect plausible.`
-            : `A mask's effect still looked too strong after retrying, so it was left at the gentlest version tried${outcome.verification.reasons.length ? ': ' + outcome.verification.reasons.join(' ') : '.'}`);
+          setNotice(advice);
         } catch {
           // A failed safety check must not block the manual editor.
         }
