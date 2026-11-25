@@ -1775,6 +1775,8 @@ export const source = {
     notMeasured: 'Not measured yet',
     memoryNote: 'Memory was measured once with the app’s own runtime on a Windows laptop. This screen cannot read memory live.',
     timedInUse: 'Timed when you use it.',
+    memoryLoaded: 'Memory used by loading (measured here)',
+    wholeModel: 'Whole model',
     measure: 'Measure now',
     measureHint: 'Runs each model on this device once, on a made-up test picture. No photo is used.',
     measuring: (name: string) => `Measuring ${name}…`,

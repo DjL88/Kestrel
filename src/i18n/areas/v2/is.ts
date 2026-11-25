@@ -1696,6 +1696,8 @@ export const is: AreaTranslation<typeof source> = {
     notMeasured: 'Ekki mælt enn',
     memoryNote: 'Minnið var mælt einu sinni með keyrsluvél appsins á Windows-fartölvu. Þessi skjár getur ekki lesið minnið jafnóðum.',
     timedInUse: 'Tímamælt þegar þú notar það.',
+    memoryLoaded: 'Minni notað við hleðslu (mælt hér)',
+    wholeModel: 'Allt líkanið',
     measure: 'Mæla núna',
     measureHint: 'Keyrir hvert líkan einu sinni á þessu tæki, á tilbúinni prófunarmynd. Engin ljósmynd er notuð.',
     measuring: (name: string) => `Mælir ${name}…`,

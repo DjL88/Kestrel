@@ -1697,6 +1697,8 @@ export const fi: AreaTranslation<typeof source> = {
     notMeasured: 'Ei vielä mitattu',
     memoryNote: 'Muisti mitattiin kerran sovelluksen omalla moottorilla Windows-kannettavalla. Tämä näkymä ei voi lukea muistia suoraan.',
     timedInUse: 'Ajastetaan, kun käytät sitä.',
+    memoryLoaded: 'Latauksen käyttämä muisti (mitattu täällä)',
+    wholeModel: 'Koko malli',
     measure: 'Mittaa nyt',
     measureHint: 'Ajaa jokaisen mallin tällä laitteella kerran keksityllä testikuvalla. Mitään valokuvaa ei käytetä.',
     measuring: (name: string) => `Mitataan: ${name}…`,

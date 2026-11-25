@@ -1697,6 +1697,8 @@ export const gd: AreaTranslation<typeof source> = {
     notMeasured: 'Gun tomhas fhathast',
     memoryNote: 'Chaidh a’ chuimhne a thomhas aon turas le einnsean na h-aplacaid air laptop Windows. Chan urrainn don sgrìn seo a’ chuimhne a leughadh beò.',
     timedInUse: 'Thèid ùine a ghabhail nuair a chleachdas tu e.',
+    memoryLoaded: 'Cuimhne a chleachd an luchdadh (air a thomhas an-seo)',
+    wholeModel: 'Am modail slàn',
     measure: 'Tomhais an-dràsta',
     measureHint: 'Ruithidh e gach modail aon turas air an uidheam seo, air dealbh deuchainn mas fhìor. Cha tèid dealbh sam bith a chleachdadh.',
     measuring: (name: string) => `A’ tomhas ${name}…`,

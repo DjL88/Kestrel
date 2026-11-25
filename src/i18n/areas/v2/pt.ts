@@ -1696,6 +1696,8 @@ export const pt: AreaTranslation<typeof source> = {
     notMeasured: 'Ainda não medido',
     memoryNote: 'A memória foi medida uma vez com o motor da própria app num portátil Windows. Este ecrã não consegue ler a memória em direto.',
     timedInUse: 'É medido quando o usa.',
+    memoryLoaded: 'Memória usada no carregamento (medida aqui)',
+    wholeModel: 'Modelo completo',
     measure: 'Medir agora',
     measureHint: 'Corre cada modelo uma vez neste dispositivo, numa imagem de teste inventada. Nenhuma foto é usada.',
     measuring: (name: string) => `A medir ${name}…`,

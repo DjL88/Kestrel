@@ -1696,6 +1696,8 @@ export const da: AreaTranslation<typeof source> = {
     notMeasured: 'Ikke målt endnu',
     memoryNote: 'Hukommelsen blev målt én gang med appens egen motor på en Windows-bærbar. Denne skærm kan ikke læse hukommelsen direkte.',
     timedInUse: 'Tidtages, når du bruger den.',
+    memoryLoaded: 'Hukommelse brugt ved indlæsning (målt her)',
+    wholeModel: 'Hele modellen',
     measure: 'Mål nu',
     measureHint: 'Kører hver model på denne enhed én gang på et opdigtet testbillede. Intet foto bruges.',
     measuring: (name: string) => `Måler ${name}…`,

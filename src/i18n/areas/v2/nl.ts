@@ -1696,6 +1696,8 @@ export const nl: AreaTranslation<typeof source> = {
     notMeasured: 'Nog niet gemeten',
     memoryNote: 'Het geheugen is één keer gemeten met de eigen motor van de app op een Windows-laptop. Dit scherm kan het geheugen niet live lezen.',
     timedInUse: 'Wordt gemeten als je het gebruikt.',
+    memoryLoaded: 'Geheugen gebruikt bij laden (hier gemeten)',
+    wholeModel: 'Hele model',
     measure: 'Nu meten',
     measureHint: 'Draait elk model één keer op dit apparaat, op een verzonnen testbeeld. Er wordt geen foto gebruikt.',
     measuring: (name: string) => `${name} meten…`,

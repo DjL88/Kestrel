@@ -1696,6 +1696,8 @@ export const cy: AreaTranslation<typeof source> = {
     notMeasured: 'Heb ei fesur eto',
     memoryNote: 'Cafodd y cof ei fesur unwaith gyda meddalwedd yr ap ar liniadur Windows. Ni all y sgrin hon ddarllen y cof yn fyw.',
     timedInUse: 'Caiff ei amseru pan fyddwch yn ei ddefnyddio.',
+    memoryLoaded: 'Cof a ddefnyddiwyd wrth lwytho (wedi’i fesur yma)',
+    wholeModel: 'Y model cyfan',
     measure: 'Mesur nawr',
     measureHint: 'Yn rhedeg pob model ar y ddyfais hon unwaith, ar lun prawf dychmygol. Ni ddefnyddir unrhyw lun go iawn.',
     measuring: (name: string) => `Yn mesur ${name}…`,

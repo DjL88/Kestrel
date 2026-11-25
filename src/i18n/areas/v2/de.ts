@@ -1696,6 +1696,8 @@ export const de: AreaTranslation<typeof source> = {
     notMeasured: 'Noch nicht gemessen',
     memoryNote: 'Der Speicher wurde einmal mit der eigenen Laufzeit der App auf einem Windows-Laptop gemessen. Dieser Bildschirm kann den Speicher nicht live lesen.',
     timedInUse: 'Wird gemessen, wenn Sie es verwenden.',
+    memoryLoaded: 'Speicher für das Laden (hier gemessen)',
+    wholeModel: 'Gesamtes Modell',
     measure: 'Jetzt messen',
     measureHint: 'Führt jedes Modell auf diesem Gerät einmal mit einem erfundenen Testbild aus. Es wird kein Foto verwendet.',
     measuring: (name: string) => `${name} wird gemessen…`,
