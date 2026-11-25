@@ -21,7 +21,8 @@ test('local only: an owner HE NEF stays visible on the All formats board after i
   test.skip(!path, 'Set KESTREL_OWNER_NEF to a local NEF to run this check.');
   test.skip(!existsSync(path!), `KESTREL_OWNER_NEF points to ${path}, which does not exist (moved or on a disconnected drive). Point it at the file's current location.`);
   test.skip(testInfo.project.name !== 'desktop', 'One project is enough for a large local file.');
-  test.setTimeout(240_000);
+  // A Nikon HE* NEF takes about 2.5 minutes to develop in the browser (single-threaded wasm) on the owner's laptop.
+  test.setTimeout(480_000);
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: 'New project' }).first().click();
@@ -35,7 +36,7 @@ test('local only: an owner HE NEF stays visible on the All formats board after i
   // Wait for the background develop to replace the embedded JPEG (a new picture URL): that revokes the old one.
   const start = await photo.evaluate((el: HTMLImageElement) => el.src);
   await expect.poll(() => photo.evaluate((el: HTMLImageElement, first) => el.complete && el.naturalWidth > 0 && el.src !== first,
-    start), { timeout: 150_000 }).toBe(true);
+    start), { timeout: 360_000 }).toBe(true);
   await root.getByRole('button', { name: /All formats/ }).click();
   await boardImagesLoaded(root);
 });

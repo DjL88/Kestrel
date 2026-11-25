@@ -23,5 +23,7 @@ test('?v2 Settings lists every model with its checksum, and says what has not be
   await expect(desktop.getByTestId('v2-model-whole-smolvlm2-500m-desktop').getByTestId('v2-model-load')).toHaveText('Not measured yet');
   await expect(desktop.getByTestId('v2-model-whole-smolvlm2-500m-desktop').getByTestId('v2-model-run')).toHaveText('Not measured yet');
   await expect(desktop.getByTestId('v2-model-ram')).toHaveCount(0);
+  // A pack this build does not offer has nothing to download.
+  await expect(section.getByTestId('v2-model-download')).toHaveCount(0);
   await expect(section.getByTestId('v2-models-measure')).toBeEnabled();
 });

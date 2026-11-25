@@ -146,6 +146,7 @@ export const cy: AreaTranslation<typeof source> = {
     importSaveStage: 'Cadw’r llun yn y prosiect hwn',
     importSomeFailed: (added) => `Doedd dim modd mewnforio rhai lluniau. Ychwanegwyd ${added}. Agorwch Tasgau i ailgynnig y rhai a fethodd yn unig.`,
     importStopped: (added) => `Stopiodd y mewnforio. Ychwanegwyd ${added} llun. Mae eich gwreiddiolion heb eu newid.`,
+    importNotFinished: (count, names) => `Ni orffennodd y mewnforio diwethaf i'r prosiect hwn: ni ychwanegwyd ${count} llun (${names}). Mewnforiwch nhw eto i'w hychwanegu. Cedwir y lluniau a ychwanegwyd eisoes.`,
     importFailed: 'Methodd ychwanegu lluniau. Ni newidiwyd eich gwreiddiolion.',
   },
 };

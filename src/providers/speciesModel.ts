@@ -133,6 +133,13 @@ function loadSession(): Promise<Loaded> {
  * Database, about 6 MB), each fetched once beside the model, add the birds and mammals that occur in the person's chosen
  * regions. If either is missing the rest still works, so this never fails.
  */
+/**
+ * Species lists beside the model, after the world birds: mammals (Mammal Diversity Database), reptiles (The Reptile
+ * Database), amphibians (GBIF Backbone), dragonflies and damselflies (World Odonata List) and European butterflies and
+ * moths (Fauna Europaea). Built by tools/species/make_mammals.py and make_vectors.py; sizes and licences in NOTICE.md.
+ */
+export const EXTRA_GROUP_LISTS = ['species-mammals.json', 'species-reptiles.json', 'species-amphibians.json', 'species-odonata.json', 'species-lepidoptera.json'];
+
 export function loadSpeciesLabels(): Promise<Labels> {
   const regions = readSpeciesRegions();
   const key = regions.join(',');
@@ -151,11 +158,14 @@ export function loadSpeciesLabels(): Promise<Labels> {
       }
       labels.push(...worldLabelsForRegions(world, regions, new Set(shipped.map((label) => label.scientific.toLowerCase()))));
     } catch (error) { console.warn('World species list unavailable; using the shipped list', error); }
-    try {
-      // Mammals carry their MDD family in Latin; it is not offered as a name until it has words in every language.
-      const mammals = (await loadListBeside('species-mammals.json', 'mammal list')).map(({ family: _family, ...label }) => label as SpeciesLabel);
-      labels.push(...worldLabelsForRegions(mammals, regions, new Set(labels.map((label) => label.scientific.toLowerCase()))));
-    } catch (error) { console.warn('World mammal list unavailable', error); }
+    // The other groups, each from its own open checklist, filtered by region the same way. Their families come in Latin,
+    // so they are not offered as fallback names until they have words in every language. A missing file is skipped.
+    for (const file of EXTRA_GROUP_LISTS) {
+      try {
+        const extra = (await loadListBeside(file, file)).map(({ family: _family, ...label }) => label as SpeciesLabel);
+        labels.push(...worldLabelsForRegions(extra, regions, new Set(labels.map((label) => label.scientific.toLowerCase()))));
+      } catch (error) { console.warn(`Species list ${file} unavailable`, error); }
+    }
     return { labels, vectors: labels.map(decodeVector) };
   })();
   return labelsLoading;

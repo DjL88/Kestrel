@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { loadSigningKey, type SigningKey } from './crypto.ts';
+import { parsePinnedKeys } from '../../../src/core/licenceOnline.ts';
 
 export interface Config {
   port: number;
@@ -11,7 +12,7 @@ export interface Config {
   firestoreProjectId?: string;
   firestoreDatabaseId?: string;
   sessionSecret: Buffer;
-  /** Signs offline grants and the data manifest. Clients pin its public half. */
+  /** Signs offline grants and feature flags. Clients pin its public half. It never signs models: see modelManifest. */
   signingKey: SigningKey;
   /** Public half of the key that signs KESTREL1 licence keys (src/core/licence.ts). */
   licencePublicKey: string;
@@ -37,6 +38,12 @@ export interface Config {
   appleClientIds: string[];
   /** On Cloud Run (K_SERVICE is set) the client's address is the last X-Forwarded-For entry; the socket is Google's front end. */
   trustCloudRunForwardedFor: boolean;
+  /**
+   * The one model manifest (the models bucket's manifest/stable.json, signed with the manifest key kestrel-2026-11 by
+   * scripts/release/sign-data-manifest.ts) and the pinned public key(s) it must verify with before it is served.
+   * Absent: /v1/models/manifest answers 503.
+   */
+  modelManifest?: { url: string; keys: Record<string, string> };
   /** Firebase project id whose ID tokens (Google, Apple, email sign-in done in the app) are accepted. Public, not a secret. */
   firebaseProjectId?: string;
 }
@@ -46,6 +53,15 @@ const required = (env: NodeJS.ProcessEnv, name: string): string => {
   if (!value) throw new Error(`${name} is required outside development mode (see .env.example)`);
   return value;
 };
+
+function modelManifestFrom(env: NodeJS.ProcessEnv): { modelManifest?: Config['modelManifest'] } {
+  const url = env.KCP_MODEL_MANIFEST_URL?.trim();
+  if (!url) return {};
+  if (!/^https:\/\/\S+\/manifest\/stable\.json$/.test(url) && !/^http:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url)) throw new Error('KCP_MODEL_MANIFEST_URL must be the https address of manifest/stable.json');
+  const keys = parsePinnedKeys(env.KCP_MODEL_KEYS);
+  if (!Object.keys(keys).length) throw new Error('KCP_MODEL_KEYS must pin the manifest key (id=base64), e.g. kestrel-2026-11=...');
+  return { modelManifest: { url, keys } };
+}
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const devMode = env.KCP_DEV_MODE === '1';
@@ -80,5 +96,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     firebaseProjectId: env.KCP_FIREBASE_PROJECT_ID || undefined,
     appleClientIds: (env.KCP_APPLE_CLIENT_IDS ?? '').split(/[,\s]+/).map((v) => v.trim()).filter(Boolean),
     trustCloudRunForwardedFor: !!env.K_SERVICE,
+    ...modelManifestFrom(env),
   };
 }

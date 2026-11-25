@@ -1,4 +1,4 @@
-import { isDenoiseKey, type Mask } from './maskTypes';
+import { isCombined, isDenoiseKey, type Mask } from './maskTypes';
 
 /**
  * TrueDetail regional denoise (owner decision 8, 25 Nov 2026): one common-source recipe with three regions. The
@@ -16,7 +16,7 @@ const noiseOnly = (mask: Mask) => Object.keys(mask.edit).every(isDenoiseKey);
 export function isDenoisePair(background: Mask, subject: Mask | undefined): subject is Extract<Mask, { kind: 'subject' }> {
   return background.kind === 'subject' && subject?.kind === 'subject' &&
     background.id === subject.id + '-background' && background.invert && !subject.invert &&
-    !background.hidden && !subject.hidden && !background.limit && !subject.limit &&
+    !background.hidden && !subject.hidden && !isCombined(background) && !isCombined(subject) &&
     background.feather === subject.feather && background.framingKey === subject.framingKey &&
     JSON.stringify(background.grid) === JSON.stringify(subject.grid) &&
     JSON.stringify(background.detail) === JSON.stringify(subject.detail) &&
@@ -33,7 +33,7 @@ export function denoiseMembers(group: Extract<Mask, { kind: 'subject' }>, masks:
 
 /** Eye protection inside a pair: radial areas that override every subject strength where they cover the subject. */
 export function denoiseEyes(group: Extract<Mask, { kind: 'subject' }>, masks: readonly Mask[]): Mask[] {
-  return masks.filter(m => m.kind === 'radial' && !m.invert && !m.hidden && !m.limit &&
+  return masks.filter(m => m.kind === 'radial' && !m.invert && !m.hidden && !isCombined(m) &&
     m.id.startsWith(group.id + '-eye-') && m.edit.denoise !== undefined && noiseOnly(m))
     .sort((a, b) => a.id.localeCompare(b.id));
 }

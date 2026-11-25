@@ -50,6 +50,9 @@ test('V2 background engine replaces a synthetic embedded RAW preview with develo
   await bar.getByRole('button', { name: 'Develop full size' }).click();
   await expect(canvasLabel).toHaveAttribute('data-picture-source', 'raw-full', { timeout: 30_000 });
   await expect(bar.getByRole('button', { name: /Develop full size|Developing full size/ })).toHaveCount(0);
+  // The editor's picture is then drawn from the 16-bit develop (edit maths at 16 bits, one rounding to the screen).
+  await expect(root.getByTestId('canvas-frame').locator('img[data-precision="rgb16"]').first()).toBeVisible({ timeout: 30_000 });
+  await expect.poll(dimensions).toEqual([64, 96]);
   // The histogram of InFlight's own develop is measured again from the 16-bit sensor develop, and says so in words.
   // (The panel is shared; on a phone it sits behind More, which other specs cover.)
   if (testInfo.project.name !== 'desktop') return;
@@ -57,6 +60,24 @@ test('V2 background engine replaces a synthetic embedded RAW preview with develo
   const precision = root.getByTestId('histogram-precision');
   await expect(precision).toHaveAttribute('data-precision', 'rgb16', { timeout: 30_000 });
   await expect(precision).toHaveText('Measured from the 16-bit RAW develop.');
+  // An edit is drawn from the 16-bit develop too: brighter, and still from the sensor data.
+  const sensorPicture = root.getByTestId('canvas-frame').locator('img[data-precision="rgb16"]').first();
+  const mean = () => sensorPicture.evaluate((img: HTMLImageElement) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+    const context = canvas.getContext('2d')!;
+    context.drawImage(img, 0, 0);
+    const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let total = 0; for (let i = 0; i < data.length; i += 4) total += data[i] + data[i + 1] + data[i + 2];
+    return total / (data.length / 4 * 3);
+  });
+  const before = await mean();
+  const advanced = root.getByRole('tab', { name: 'Advanced Edits' });
+  if (!(await advanced.isVisible())) await root.getByRole('button', { name: 'Adjust', exact: true }).first().click();
+  await advanced.click();
+  await root.getByLabel('Exposure', { exact: true }).fill('1');
+  await expect.poll(mean, { timeout: 30_000 }).toBeGreaterThan(before + 3);
+  await expect(sensorPicture).toBeVisible();
 });
 
 test('V2 writes structurally verified 16-bit TIFFs with and without the Tint edit', async ({ page }, testInfo) => {
@@ -138,4 +159,36 @@ test('V2 writes a 16-bit RAW PNG from the sensor data, proven by reading the fil
   expect(download.suggestedFilename()).toBe('synthetic-z8_16bit.png');
   const proof = provePng(Uint8Array.from(await readFile((await download.path())!)));
   expect([proof.width, proof.height, proof.bitDepth, proof.colourType, proof.srgb]).toEqual([64, 96, 16, 2, true]);
+});
+
+test('V2 shows a portrait RAW upright when its embedded preview is stored sideways (Orientation 6)', async ({ page }) => {
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel('Project name', { exact: true }).fill('V2 portrait RAW');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  // Like a Nikon NEF: the camera writes the preview the way the sensor lies (landscape) and records the turn only in the RAW.
+  const sideways = Buffer.from(await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 960;
+    canvas.height = 640;
+    const ctx = canvas.getContext('2d')!;
+    for (let y = 0; y < 640; y += 16) for (let x = 0; x < 960; x += 16) {
+      ctx.fillStyle = `rgb(${(x * 7 + y) % 255},${(x + y * 3) % 255},${(x * 5 + y * 11) % 255})`;
+      ctx.fillRect(x, y, 16, 16);
+    }
+    return canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+  }), 'base64');
+  const picker = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: 'Import', exact: true }).click();
+  await (await picker).setFiles([{ name: 'v2-portrait.dng', mimeType: 'application/octet-stream', buffer: withPreview(mosaic, sideways) }]);
+  const photo = root.getByTestId('canvas-frame').locator('img').first();
+  await expect(photo).toBeVisible();
+  const shape = () => photo.evaluate((el: HTMLImageElement) => [el.naturalWidth, el.naturalHeight]);
+  // Whichever picture is on the canvas (the embedded preview first, then the develop), it is upright: taller than wide.
+  await expect.poll(async () => { const [w, h] = await shape(); return w > 0 && h > w; }, { timeout: 30_000 }).toBe(true);
+  // The develop is not turned back to match a sideways preview.
+  await expect.poll(shape, { timeout: 30_000 }).toEqual([64, 96]);
+  const tile = root.getByRole('listbox', { name: 'Project photographs' }).locator('img').first();
+  await expect.poll(() => tile.evaluate((el: HTMLImageElement) => el.naturalHeight > el.naturalWidth && el.naturalWidth > 0), { timeout: 30_000 }).toBe(true);
 });

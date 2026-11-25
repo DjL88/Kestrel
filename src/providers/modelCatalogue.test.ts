@@ -35,3 +35,9 @@ test('the desktop vision model lists exactly the files and digests the Rust runt
     pinned.sort((a, b) => a.file.localeCompare(b.file)));
   assert.match(rust, new RegExp(`REVISION: &str = "${entry.version!.slice(0, 8)}`));
 });
+
+test('every opt-in pack can be downloaded and removed from Settings, and nothing built in can', () => {
+  const packs = MODEL_CATALOGUE.filter((entry) => entry.pack);
+  assert.deepEqual(packs.map((entry) => entry.pack!.model.id).sort(), OPTIONAL_MODELS.map((model) => model.id).sort());
+  for (const entry of packs) assert.equal(entry.id, entry.pack!.model.id);
+});

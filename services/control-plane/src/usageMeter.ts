@@ -8,8 +8,8 @@
 import type { FirestoreLike } from './firestoreStore.ts';
 import { monthKey } from './spendGuard.ts';
 
-/** About 9.5p/GB to serve, sold at 15 credits per GB downloaded (costing thread, 25 Nov 2026). */
-export const CREDITS_PER_GB_DOWNLOADED = 15;
+/** About 9.5p/GB to serve, sold at 33 credits (33p incl. VAT) per GB downloaded: at least 60% margin after VAT and Paddle fees. Same price as PAYG_PENCE.downloadPerGb in src/core/cloudPlan.ts. */
+export const CREDITS_PER_GB_DOWNLOADED = 33;
 export const millicreditsForBytes = (bytes: number) => Math.ceil(Math.max(0, bytes) * CREDITS_PER_GB_DOWNLOADED / 1_000_000);
 
 export interface AllowancePolicy {
@@ -63,4 +63,19 @@ export class FirestoreUsageMeter implements UsageMeter {
     const snap = await this.ref(accountId, nowMs).get();
     return snap.exists ? { ...empty(nowMs), ...(snap.data() as unknown as UsageRecord) } : empty(nowMs);
   }
+}
+
+/**
+ * Downloads within the month's free allowance go to `inner`; beyond it, each download is paid from the prepaid cloud
+ * balance at the same price (and still recorded in the month's usage). Refused only when the balance cannot cover it.
+ */
+export class BalanceBackedMeter implements UsageMeter {
+  constructor(private readonly inner: UsageMeter, private readonly balance: import('./cloudBalance.ts').CloudBalance, private readonly key: () => string) {}
+  async reserve(accountId: string, nowMs: number, bytes: number, allowance: number) {
+    if (await this.inner.reserve(accountId, nowMs, bytes, allowance)) return true;
+    if (!(await this.balance.debit(accountId, millicreditsForBytes(bytes), `download:${this.key()}`))) return false;
+    await this.inner.reserve(accountId, nowMs, bytes, Number.MAX_SAFE_INTEGER);
+    return true;
+  }
+  usage(accountId: string, nowMs: number) { return this.inner.usage(accountId, nowMs); }
 }

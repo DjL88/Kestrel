@@ -1,4 +1,4 @@
-import { MASK_EDIT_KEYS, MAX_MASKS, type MaskEditKey, type Mask, type MaskLimit } from '../../core/maskTypes';
+import { MASK_EDIT_KEYS, MAX_MASKS, MAX_MASK_PARTS, isCombined, maskParts, type MaskEditKey, type Mask, type MaskLimit, type MaskPart } from '../../core/maskTypes';
 import type { MaskGeometryField, MaskLayer } from '../ui/contract';
 
 /** The sliders a mask offers in V2. Each is a real local control; the range is the core's own (-2 to 2, sharpen from 0). */
@@ -31,7 +31,7 @@ const layerName = (mask: Mask): string => {
 export function masksToLayers(masks: readonly Mask[] | undefined): MaskLayer[] {
   return (masks ?? []).map((mask) => ({
     id: mask.id, name: layerName(mask), type: layerType(mask), visible: !mask.hidden,
-    ...(mask.limit ? { limit: { ...mask.limit } } : {}),
+    ...(isCombined(mask) ? { parts: maskParts(mask) } : {}),
     feather: Math.round(mask.feather * 100), edit: { ...mask.edit, ...(mask.id.startsWith('auto-denoise-') && /-instance-\d+-[a-zA-Z0-9]+$/.test(mask.id) && mask.edit.denoise === undefined ? { denoise: (masks ?? []).find(group => group.id === mask.id.replace(/-instance-\d+-[a-zA-Z0-9]+$/, '') && !group.hidden)?.edit.denoise ?? 0 } : {}) } as Record<string, number>,
     ...(mask.kind === 'radial' ? { geometry: { kind: 'radial' as const, cx: mask.cx, cy: mask.cy, rx: mask.rx, ry: mask.ry, angle: mask.angle ?? 0 } }
       : mask.kind === 'linear' ? { geometry: { kind: 'linear' as const, x1: mask.x1, y1: mask.y1, x2: mask.x2, y2: mask.y2 } } : {}),
@@ -43,9 +43,18 @@ const change = (masks: readonly Mask[] | undefined, id: string, update: (mask: M
 
 export const toggleMask = (masks: readonly Mask[] | undefined, id: string): Mask[] => change(masks, id, (mask) => (mask.hidden ? { ...mask, hidden: undefined } : { ...mask, hidden: true }));
 
-/** Remove the selected mask. Hide dependent edits before dropping their lost limit; the person can explicitly show them again. */
+/** Remove the selected mask. Masks that used it as a part lose that part and are hidden; the person can show them again. */
 export const removeMask = (masks: readonly Mask[] | undefined, id: string): Mask[] =>
-  (masks ?? []).filter((mask) => mask.id !== id).map((mask) => (mask.limit?.id === id ? { ...mask, limit: undefined, hidden: true } : mask));
+  (masks ?? []).filter((mask) => mask.id !== id).map((mask) => (maskParts(mask).some((part) => part.id === id)
+    ? { ...withParts(mask, maskParts(mask).filter((part) => part.id !== id)), hidden: true } : mask));
+
+/** Store the parts, and the first restricting one as the older `limit` so an older InFlight narrows rather than widens. */
+function withParts(mask: Mask, parts: readonly MaskPart[]): Mask {
+  const { limit: _limit, parts: _parts, ...rest } = mask;
+  if (!parts.length) return rest as Mask;
+  const restricting = parts.find((part) => part.mode !== 'add');
+  return { ...rest, parts: parts.map((part) => ({ ...part })), ...(restricting ? { limit: { id: restricting.id, mode: restricting.mode as MaskLimit['mode'] } } : {}) } as Mask;
+}
 
 /** Set one slider on a mask. The value is held inside the control's range, and a slider at zero is removed so it reads as unset. */
 export function setMaskEdit(masks: readonly Mask[] | undefined, id: string, key: string, value: number): Mask[] {
@@ -91,9 +100,25 @@ export function setMaskGeometry(
   });
 }
 
-/** The renderer uses only the referenced mask's own shape, not its restriction, so chains cannot recurse. */
-export function setMaskLimit(masks: readonly Mask[] | undefined, id: string, limit: MaskLimit | null): Mask[] {
+/**
+ * Combine other masks into this one, in order (add, subtract or intersect). The renderer uses only each other mask's own
+ * shape, never its parts, so chains cannot recurse. An invalid list changes nothing.
+ */
+export function setMaskParts(masks: readonly Mask[] | undefined, id: string, parts: readonly MaskPart[]): Mask[] {
   const list = masks ?? [];
-  if (limit && (limit.id === id || !list.some(mask => mask.id === limit.id) || (limit.mode !== 'intersect' && limit.mode !== 'subtract'))) return [...list];
-  return change(list, id, mask => ({ ...mask, limit: limit ? { ...limit } : undefined }));
+  const used = new Set<string>();
+  const valid = parts.length <= MAX_MASK_PARTS && parts.every((part) => {
+    const ok = part.id !== id && !used.has(part.id) && list.some((mask) => mask.id === part.id) &&
+      (part.mode === 'add' || part.mode === 'subtract' || part.mode === 'intersect');
+    used.add(part.id);
+    return ok;
+  });
+  if (!valid) return [...list];
+  return change(list, id, (mask) => withParts(mask, parts));
+}
+
+/** One restricting part (the older single limit), or none. */
+export function setMaskLimit(masks: readonly Mask[] | undefined, id: string, limit: MaskLimit | null): Mask[] {
+  if (limit && limit.mode !== 'intersect' && limit.mode !== 'subtract') return [...(masks ?? [])];
+  return setMaskParts(masks, id, limit ? [limit] : []);
 }
