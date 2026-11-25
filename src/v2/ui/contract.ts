@@ -1,6 +1,7 @@
 import type { CaptureProfileId } from '../../core/captureSharpen';
 import type { ColourSenseNote, ColourWords } from '../engineClient/colourWords';
 import type { ComponentType, CSSProperties, ReactNode } from 'react';
+import type { LensProfile } from '../../core/lensCorrection';
 
 // Single Contract File for InFlight UI Shell
 // All components import their types ONLY from this file.
@@ -145,6 +146,8 @@ export interface SizePreset {
 export interface GradeRangeRecipe { hue: number; amount: number }
 export interface ColourGradeRecipe { shadows: GradeRangeRecipe; midtones: GradeRangeRecipe; highlights: GradeRangeRecipe; balance: number }
 
+export type LensProfileOutcome = 'applied' | 'needs-download' | 'no-lens' | 'not-found' | 'no-focal' | 'failed';
+
 export interface EditRecipe {
   lookId: string;
   exposure: number; // -5.0 to +5.0 EV stops
@@ -183,6 +186,11 @@ export interface EditRecipe {
   channelCurves?: Partial<Record<'red' | 'green' | 'blue', Array<[number, number]>>>;
   /** Remove haze (positive) or add it (negative), -100 to 100. Absent = 0. */
   dehaze?: number;
+  /** Lens distortion, -100 (fixes pincushion) to 100 (fixes barrel), and lens vignetting correction 0 to 100. Absent = 0. */
+  lensDistortion?: number;
+  lensVignetting?: number;
+  /** The measured profile for this photo's lens (from lensfun), set by applyLensProfile. null in a patch removes it. */
+  lensProfile?: LensProfile | null;
   /** Lens colour edges: red/cyan and blue/yellow, -100 to 100 each (set by Detect, or by hand in Advanced). Absent = 0. */
   caRed?: number;
   caBlue?: number;
@@ -327,6 +335,8 @@ export interface AssistSuggestion {
   colourSense?: ColourSenseNote;
   /** Colour match: whether the subject carries the colours it should have (species signature or the vision model), in words. */
   colourMatch?: ColourSenseNote;
+  /** The vision guardian doubted this suggestion looks natural, in words. Advice only: Apply still applies it. */
+  secondOpinion?: ColourSenseNote;
 }
 
 export interface PhotoExif {
@@ -567,6 +577,28 @@ export interface ExportRequest {
 
 /** How a photo is drawn. The engine supplies this so the canvas shows real, developed pixels; without it the UI falls back
  * to a plain image with a CSS filter. 'original' is the photo with no edit, 'edited' is with its recipe. */
+/** One tap on the framed photo, as shares (0 to 1) of its width and height. */
+export interface TapPoint { x: number; y: number; add: boolean }
+
+export interface TapSelectState {
+  /** 'unavailable': this build does not offer the pack; 'not-downloaded': offered, the person has not chosen to download it. */
+  pack: 'unavailable' | 'not-downloaded' | 'downloading' | 'ready' | 'failed';
+  /** 0 to 1 while downloading. */
+  downloadProgress?: number;
+  /** Plain words for the last failure. */
+  message?: string;
+  /** The photo being selected on, if any. Each subject is its own reversible subject mask. */
+  session?: {
+    photoId: string;
+    /** 'reading': the model is reading the photo once (the slow step); 'working': answering a tap. */
+    phase: 'reading' | 'ready' | 'working' | 'failed';
+    mode: 'add' | 'remove';
+    subjects: Array<{ maskId: string; taps: TapPoint[] }>;
+    /** Index into subjects of the one taps go to; a new subject starts on the next added tap. */
+    active: number;
+  };
+}
+
 export interface PhotoSurfaceProps {
   /** Editor-only coverage guide, never part of the photo recipe or export. */
   maskGuideId?: string;
@@ -581,6 +613,8 @@ export interface PhotoSurfaceProps {
   alt: string;
   className?: string;
   style?: CSSProperties;
+  /** Called with the shown picture's pixel size (framed, upright) whenever a picture loads, the small interim one included. */
+  onPictureSize?: (size: { width: number; height: number }) => void;
 }
 
 export type HubViewState = 'ready' | 'empty' | 'loading' | 'error';
@@ -638,6 +672,8 @@ export interface WorkspaceStore {
   settingsOpen: boolean;
   settingsTab: SettingsTabId;
   activeMaskTool: 'subject' | 'sky' | 'background' | 'brush' | 'eraser' | 'area' | 'gradient';
+  /** Tap-to-select (optional EfficientSAM-Ti pack). Absent where the engine does not offer it. */
+  tapSelect?: TapSelectState;
   canUndo: boolean;
   canRedo: boolean;
   clipboardRecipe: EditRecipe | null;
@@ -645,8 +681,9 @@ export interface WorkspaceStore {
   /** After reading a Lightroom catalogue: how many of its photos are not in this project yet, and where Lightroom keeps them. */
   lightroomOffer?: { missing: number; folder: string } | null;
   /** First run: InFlight is adding the picked photos and running Auto on the first ('working'), has applied Auto ('ready'),
-   * found the photo already looked natural and left it ('unchanged'), or could not check it ('failed'). */
-  quickStart?: { phase: 'working' | 'ready' | 'unchanged' | 'failed'; photoId: string | null } | null;
+   * found the photo already looked natural and left it ('unchanged'), held its suggestion because the vision guardian
+   * doubted it ('held'), or could not check it ('failed'). */
+  quickStart?: { phase: 'working' | 'ready' | 'unchanged' | 'held' | 'failed'; photoId: string | null } | null;
   /** The open project's automatic backup, as last reported. Absent when no project is open. */
   backup?: { state: 'idle' | 'working' | 'ok' | 'partial' | 'failed'; at?: number } | null;
   /** Optional engine-supplied renderer for the canvas (see PhotoSurfaceProps). */
@@ -669,6 +706,8 @@ export interface WorkspaceActions {
   archiveProject: (projectId: string, archived: boolean) => void;
   /** Moves the project to Recently deleted for 30 days. Nothing is removed yet; original files are never touched. */
   deleteProject: (projectId: string) => void;
+  /** A separate, complete copy named "… (copy)", made as a task in Tasks. Stored photo copies are shared. */
+  duplicateProject: (projectId: string) => void;
   /** Takes a project back out of Recently deleted, as it was. */
   restoreDeletedProject: (projectId: string) => void;
   /** Removes InFlight's catalogue entry and its stored copies now. Original files are never touched. */
@@ -735,6 +774,8 @@ export interface WorkspaceActions {
   applyAllAssistSuggestions: (photoId: string) => void;
   /** A sized JPEG of the edited photo for a client gallery, or null when there is no trustworthy picture yet. Absent in the stub. */
   renderGalleryPreview?: (photoId: string) => Promise<Blob | null>;
+  /** Render this photo's format exactly as export will (Output scale included) and return the picture. Absent in the stub. */
+  previewEnlargement?: (photoId: string, sizeId: string) => Promise<import('../engineClient/enlargementPreview').EnlargementPreviewResult>;
   /** The photo's whole edit as plain data for a shared project, or null when it has no edit. Absent in the stub. */
   sharedEditOf?: (photoId: string) => Record<string, unknown> | null;
   /** Replace the photo's edit with a shared one (or clear it). Recorded as an edit step, so it can be undone. */
@@ -808,6 +849,9 @@ export interface WorkspaceActions {
   removeOverlayRow: (photoId: string, rowId: string) => void;
   /** Measure this photo's lens colour edges and set caRed/caBlue from them. 'clean' = nothing to correct; 'unclear' = too few edges to tell. */
   detectColourEdges: (photoId: string) => Promise<'corrected' | 'clean' | 'unclear'>;
+  /** Find this photo's lens in the lensfun profiles and apply its profile. Only with `download` does it fetch the
+   * profiles (once, then kept on this device); without it, a device that lacks them answers 'needs-download'. */
+  applyLensProfile: (photoId: string, download: boolean) => Promise<LensProfileOutcome>;
   /** White balance from the picture itself, as one undoable step. `at` (0 to 1 across the shown, framed picture) is a spot
    * that should be grey or white (the eyedropper); without it, Auto estimates the light from the whole picture.
    * 'limited' = a slider reached its end first; 'unreadable' = the spot is clipped or too dark, nothing changed. */
@@ -842,6 +886,13 @@ export interface WorkspaceActions {
   // Genuine non-destructive masks; brush painting still requires canvas coordinate integration.
   setActiveMaskTool: (tool: WorkspaceStore['activeMaskTool']) => void;
   addMaskLayer: (photoId: string, type: MaskLayer['type']) => void;
+  /** Tap-to-select: download the optional pack (the person's choice), start on a photo, tap, and finish. */
+  downloadTapSelect?: () => void;
+  startTapSelect?: (photoId: string) => void;
+  tapSelectAt?: (photoId: string, tap: TapPoint) => void;
+  setTapSelectMode?: (mode: 'add' | 'remove') => void;
+  newTapSubject?: () => void;
+  finishTapSelect?: () => void;
   toggleMaskLayer: (photoId: string, maskId: string) => void;
   removeMaskLayer: (photoId: string, maskId: string) => void;
   setMaskEdit: (photoId: string, maskId: string, key: string, value: number) => void;

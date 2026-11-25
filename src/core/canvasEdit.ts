@@ -4,13 +4,15 @@ import { applyFinishing, hasFinishing } from './finishing';
 import { applyDehaze } from './dehaze';
 import { applyCaptureDetail, deconvolutionParams } from './captureSharpen';
 import { applyFringe, hasFringeEdit } from './fringe';
+import { applyLensCorrection, hasLensCorrection } from './lensCorrection';
 
-/** Colour fringe removal runs first, on the picture's own pixels, centred on the lens. */
+/** Lens corrections and colour fringe removal run first, on the picture's own pixels, centred on the lens. */
 function applyCanvasFringe(canvas: HTMLCanvasElement, edit: PhotoEdit, mask: MaskContext, imageEdge: number): void {
-  if (!hasFringeEdit(edit)) return;
+  if (!hasFringeEdit(edit) && !hasLensCorrection(edit.lens)) return;
   const context = canvas.getContext('2d', { willReadFrequently: true });
   if (!context) throw new Error('Canvas unavailable');
   const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  applyLensCorrection(pixels.data, canvas.width, canvas.height, 4, edit.lens, mask);
   applyFringe(pixels.data, canvas.width, canvas.height, 4, edit, mask, imageEdge);
   context.putImageData(pixels, 0, 0);
 }

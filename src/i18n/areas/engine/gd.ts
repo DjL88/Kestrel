@@ -49,6 +49,7 @@ export const gd: AreaTranslation<typeof source> = {
       : `Chaidh a’ ghràinne a lùghdachadh air an uidheam seo, le ${count} cuspairean dìonta còmhla.`),
     global: 'Cha robh iomall cuspair sam bith earbsach, mar sin chaidh lùghdachadh gràinne a chur air an dealbh air fad gu cothromach.',
     failedCheck: 'Cha deach an toradh tron dearbhadh càileachd. Chaidh na deasachaidhean agad a chumail.',
+    mainThread: 'Cha b’ urrainn don uidheam seo an gràinne a lùghdachadh sa chùlaibh, mar sin dh’fhaodadh InFlight stad greis.',
     leftAsItWas: (notes) => `Chaidh fhàgail mar a bha e. ${notes}`,
   },
   workspace: {
@@ -87,6 +88,7 @@ export const gd: AreaTranslation<typeof source> = {
       : `Chaidh ${count} faidhlichean às-phortadh. Cha deach na dealbhan tùsail agad atharrachadh.`),
     exportSomeFailed: 'Dh’fhàillig cuid de na às-phortaidhean. Fosgail Saothraichean is tagh “Feuch a-rithist na dh’fhàillig”. Fuirichidh na faidhlichean a chaidh a shàbhaladh far a bheil iad.',
     exportStopped: 'Stad an t-às-phortadh. Fuirichidh na faidhlichean a chaidh a shàbhaladh far a bheil iad.',
+    enlargementTask: 'A’ dèanamh ro-shealladh air an meudachadh',
     exportNotQueued: 'Cha b’ urrainnear an t-às-phortadh seo a thòiseachadh.',
     destinationUnavailable: 'Chan eil an ceann-uidhe às-phortaidh sin ri fhaighinn. Tagh ZIP ionadail, faidhlichean fa leth no pasgan air a’ choimpiutair.',
     cullPro: 'Tha taghadh fèin-obrachail na phàirt de InFlight Pro.',
@@ -131,6 +133,7 @@ export const gd: AreaTranslation<typeof source> = {
     suggestionStale: 'Dh’atharraich an dealbh às dèidh a’ mholaidh seo. Fuirich airson dearbhadh ùr.',
     checkTask: (filename) => `A’ dearbhadh ${filename} is a dhath`,
     checkStage: 'A’ coimhead air nochdadh, dath is sealladh',
+    secondOpinionStage: "Dàrna beachd bhon mhodail lèirsinn air an uidheam",
     checkFailed: 'Cha b’ urrainnear an dealbh seo a dhearbhadh. Mion-fhiosrachadh ann an Saothraichean.',
     deepTask: 'A’ dèanamh lèirmheas domhainn',
     deepStage: 'A’ coimhead air na cuspairean is càileachd an deilbh',

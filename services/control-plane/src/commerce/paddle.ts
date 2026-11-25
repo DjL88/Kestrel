@@ -36,16 +36,18 @@ const transaction = z.object({
 export type PaddleTransaction = z.infer<typeof transaction>;
 
 export interface PaddleCredentials {
-  apiKey: string;
+  /** The key, or a function giving the current key (re-read from Secret Manager after a rotation). */
+  apiKey: string | (() => Promise<string>);
   environment: PaddleEnvironment;
 }
 
 export function paddleApi(credentials: PaddleCredentials, request: typeof fetch = fetch) {
   const base = paddleApiBase(credentials.environment);
   async function call(path: string, options?: RequestInit): Promise<PaddleTransaction> {
+    const apiKey = typeof credentials.apiKey === 'function' ? await credentials.apiKey() : credentials.apiKey;
     const response = await request(base + path, {
       ...options,
-      headers: { Authorization: 'Bearer ' + credentials.apiKey, 'Content-Type': 'application/json', 'Paddle-Version': '1' },
+      headers: { Authorization: 'Bearer ' + apiKey, 'Content-Type': 'application/json', 'Paddle-Version': '1' },
       signal: AbortSignal.timeout(10_000),
     });
     if (!response.ok) throw new Error('Paddle request failed with ' + response.status + '.');

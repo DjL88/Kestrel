@@ -1,5 +1,5 @@
 import React from 'react';
-import type { EditRecipe, LookPreset, Photo } from '../contract';
+import type { EditRecipe, LensProfileOutcome, LookPreset, Photo } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import InfoPopover from '../shell/InfoPopover';
@@ -7,7 +7,7 @@ import { getActiveGroup } from '../utils/studioMath';
 import { ColourMixerControl, KelvinControl, ToneCurveControl } from './CurveMixerControls';
 import { ColourGradeControl } from './ColourGradeControl';
 import { CalibrationControl, EffectsControls } from './EffectsControls';
-import { FringeControls } from './FringeControls';
+import { FringeControls, LensControls } from './FringeControls';
 import { captureProfileFor } from '../../../core/captureSharpen';
 
 interface AdjustPanelProps {
@@ -20,6 +20,7 @@ interface AdjustPanelProps {
   showAdvanced?: boolean;
   onUpdateRecipe: (photoId: string, patch: Partial<EditRecipe>) => void;
   onDetectColourEdges: (photoId: string) => Promise<'corrected' | 'clean' | 'unclear'>;
+  onApplyLensProfile: (photoId: string, download: boolean) => Promise<LensProfileOutcome>;
   onApplyLook: (photoId: string, lookId: string) => void;
   onHoverLook: (lookId: string | null) => void;
   onResetPhoto: (photoId: string) => void;
@@ -124,6 +125,7 @@ export default function AdjustPanel({
   showAdvanced = false,
   onUpdateRecipe,
   onDetectColourEdges,
+  onApplyLensProfile,
   onApplyLook,
   onHoverLook,
   onResetPhoto,
@@ -452,6 +454,9 @@ export default function AdjustPanel({
       <section aria-labelledby="effects-heading" className={`space-y-3 border-t border-[var(--border-subtle)] pt-4 ${phoneGroupClass(advancedGroup, 'detail')}`}>
         <h3 id="effects-heading" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.adjust.effects.heading}</h3>
         <EffectsControls recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
+        <div className="border-t border-[var(--border-subtle)] pt-3">
+          <LensControls key={photo.id} recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} onUseProfile={(download) => onApplyLensProfile(photo.id, download)} />
+        </div>
         <div className="border-t border-[var(--border-subtle)] pt-3">
           <FringeControls recipe={recipe} calmView={hideReadouts} showAdvanced={showAdvanced} onChange={(patch) => onUpdateRecipe(photo.id, patch)} onDetect={() => onDetectColourEdges(photo.id)} />
         </div>

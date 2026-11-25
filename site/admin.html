@@ -38,7 +38,7 @@
 <div id="console" hidden>
   <nav class="tabs" aria-label="Console sections">
     <a href="#overview">Overview</a><a href="#licensees">Licensees and devices</a><a href="#grant">Grant Pro</a><a href="#issue">Issue a key</a>
-    <a href="#demo-studio">Demo Studio</a><a href="#switches">Switches</a><a href="#mail">Email</a><a href="#flags">Flags</a><a href="#monitoring">Monitoring</a><a href="#notifications">Notifications</a><a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#price-review">Price review</a><a href="#audit">Audit log</a>
+    <a href="#demo-studio">Demo Studio</a><a href="#switches">Switches</a><a href="#mail">Email</a><a href="#learning">Learning</a><a href="#flags">Flags</a><a href="#monitoring">Monitoring</a><a href="#notifications">Notifications</a><a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#price-review">Price review</a><a href="#audit">Audit log</a>
   </nav>
 
   <section id="overview" class="panel" aria-labelledby="overview-title">
@@ -115,6 +115,19 @@
     <p id="mail-unavailable" class="muted" hidden>Not set up on this server yet.</p>
     <dl id="mail-facts" class="facts"></dl>
     <p id="mail-warning" role="status" hidden><strong>Warning:</strong> 80% of today’s email limit is used.</p>
+  </section>
+
+  <section id="learning" class="panel" aria-labelledby="learning-title">
+    <h2 id="learning-title">Learning in Vertex AI</h2>
+    <p class="muted">Shared models learn in batches from consented shadow files only (measurements, masks, decisions and recipes, never photos). A batch starts at the photo count below, weekly when something new has arrived, or when you press Learn now. Before each batch the worst-case cost is reserved, and the batch is refused if this month would pass the ceiling. Nothing is deployed to an always-on endpoint.</p>
+    <p id="learning-unavailable" class="muted" hidden>Not set up on this server yet.</p>
+    <dl id="learning-facts" class="facts"></dl>
+    <p><button type="button" id="learning-run">Learn now</button></p>
+    <div class="scroll"><table id="learning-runs">
+      <caption>Recent batches</caption>
+      <thead><tr><th scope="col">Started</th><th scope="col">Why</th><th scope="col">Photos</th><th scope="col">Reserved</th><th scope="col">Result</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
   </section>
 
   <section id="flags" class="panel" aria-labelledby="flags-title">
@@ -196,6 +209,7 @@
   <section id="payments" class="panel" aria-labelledby="payments-title">
     <h2 id="payments-title">Payments</h2>
     <p id="payments-state" class="muted"></p>
+    <p id="paddle-key-state" role="status"></p>
     <div class="scroll"><table id="payments-table">
       <caption class="sr-only">Paid checkouts, newest first</caption>
       <thead><tr><th scope="col">Paid</th><th scope="col">Invoice</th><th scope="col">Status</th><th scope="col">Country</th><th scope="col">Net</th><th scope="col">Tax</th><th scope="col">Total</th><th scope="col">Account</th></tr></thead>

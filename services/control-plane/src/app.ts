@@ -34,6 +34,7 @@ import { GalleryRefusal, GALLERY_MAX_DAYS, GALLERY_MAX_PHOTOS, GALLERY_MAX_PREVI
 import { presenceUid, PRESENCE_TOKEN_TTL_S, type PresenceSigner } from './presenceToken.ts';
 import { SAFE_COPY_LEVELS, SAFE_COPY_MAX_BYTES, safeCopyKey, type SafeCopyOptions } from './safeCopy.ts';
 import type { SpendOptions } from './spendGuard.ts';
+import { reservationPence, APPROVED_MONTHLY_PENCE, billingMonth, type VertexLearningConfig, type VertexLearningLedger } from './vertexLearning.ts';
 import type { Mailer } from './mailer.ts';
 import { MAIL_LANGUAGES, htmlLang, mailWords } from './mailText.ts';
 import { cloudRunClientIp } from './networkCountry.ts';
@@ -62,6 +63,8 @@ export interface AppOptions {
   paddleWebhookSecret?: string;
   /** Paddle.js settings for the site's checkout page. The client-side token is public by design, but kept out of Git. */
   paddleClient?: { environment: PaddleEnvironment; clientToken: string };
+  /** The Paddle API key's renewal record (paddle_key_rotation in Firestore), for the admin console. */
+  paddleKeyStatus?: () => Promise<{ current: { rotatedAt: string; expiresAt: string; activated: boolean } | null; lastRun: { at: string; ok: boolean; reason?: string } | null }>;
   /** Server-owned Paddle checkout for Pro; off in production until the admin switches 'pro-checkout' on. */
   proCheckout?: ReturnType<typeof paddleProCheckout>;
   /** Google's ID-token signing keys. Injected for tests; fetched from Google otherwise. */
@@ -80,6 +83,8 @@ export interface AppOptions {
   learning?: LearningSink;
   /** Always-available authenticated withdrawal/deletion sink when new research intake is disabled. */
   learningWithdrawal?: Pick<LearningSink, 'setConsent' | 'deleteBySubject'>;
+  /** Vertex learning batches (owner decisions 7 and 9). Absent until the job is deployed: the switch cannot go on. */
+  vertexLearning?: { ledger: VertexLearningLedger; config: VertexLearningConfig; startJob?: () => Promise<void> };
   /** Managed safe copy (opt-in backup). Absent in production until a bucket exists and is approved: routes answer 503. */
   safeCopy?: SafeCopyOptions;
   /** Shared projects (#1387): membership, per-photo leases, revisions. Absent until Firestore is set up for it: routes answer 503. */
@@ -169,8 +174,27 @@ class CollabApiError extends ApiError {
   constructor(status: number, code: string, message: string, readonly detail?: Record<string, unknown>) { super(status, code, message); }
 }
 
+/**
+ * Admin on/off switches. A `planned` switch is designed but not built (owner decisions of 25 Nov 2026, docs/ROADMAP.md):
+ * it is listed so the admin console shows the gate, it is never "configured", and so it can never be switched on.
+ */
+const SWITCHES = [
+  { key: 'managed-ai', label: 'Managed Gemini helper', note: 'Sends one consented, metadata-free thumbnail at a time to Gemini. Counts against the monthly spend ceiling.' },
+  { key: 'cloud-processing', label: 'Cloud processing', note: 'Heavier jobs (denoise, upscale, masks) for Pro. Needs the bucket and the runner job set up.' },
+  { key: 'safe-copy', label: 'Safe copy (managed backup)', note: 'Opt-in backup to InFlight UK storage. Switching off stops uploads only; people can always read and delete their copy.' },
+  { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
+  { key: 'pro-checkout', label: 'Pro checkout (Paddle)', note: 'People can buy Pro through Paddle\'s checkout. Paddle is the merchant of record and handles sales tax and VAT in every country. Switching off stops new checkouts only; payments already made are still verified and granted.' },
+  { key: 'email', label: 'App email (hello@inflight.studio)', note: 'Sends share invitations by email through Google Workspace. Plain text and HTML, an unsubscribe link in every message, at most 500 a day (30 per sender, 3 per recipient). Switch on only once hello@inflight.studio is a verified Send mail as address.' },
+  { key: 'collaboration', label: 'Shared projects', note: 'Cloud subscribers can share a project, invite people by email and check photos out to edit. Switching off stops new shared projects and checkouts; members can still read revisions.' },
+  { key: 'vertex-learning', label: 'Learning in Vertex AI (batches)', note: "Trains shared models in Vertex AI from consented shadow files only (measurements, masks, decisions, recipes; never photos). Batches only: 1,000 newly edited photos, weekly when something is new, or Learn now. Each run reserves its worst-case cost first and is refused past the owner's £20 a month. No always-on endpoints." },
+  { key: 'pro-cloud-storage', planned: true, label: 'Pro Cloud storage (designed, not built)', note: "Store a project's originals in InFlight's UK cloud to open on any device and share. Opt-in per project; originals on the device are never moved or changed. Cannot be switched on until it is built and the owner approves the cost." },
+] as const;
+const SWITCH_KEYS = SWITCHES.map((w) => w.key) as [SwitchKey, ...SwitchKey[]];
+type SwitchKey = typeof SWITCHES[number]['key'];
+const isPlanned = (key: SwitchKey) => SWITCHES.some((w) => w.key === key && 'planned' in w && w.planned);
+
 export const Schemas = {
-  AdminSwitch: z.object({ key: z.enum(['managed-ai', 'cloud-processing', 'safe-copy', 'learning-signal', 'pro-checkout', 'collaboration', 'email']), on: z.boolean() }).strict(),
+  AdminSwitch: z.object({ key: z.enum(SWITCH_KEYS), on: z.boolean() }).strict(),
   // Paddle asks the buyer for their country itself. Older apps still send one; it is accepted and ignored.
   ProCheckoutRequest: z.object({ country: z.string().regex(/^[A-Z]{2}$/).optional() }).strict(),
   CollabCreate: z.object({ name: z.string().trim().min(1).max(120), displayName: z.string().trim().min(1).max(80) }).strict(),
@@ -431,18 +455,9 @@ export function createApp(options: AppOptions) {
   // ---- Admin on/off switches. Managed Gemini is on unless switched off (the existing `ai_disabled` setting, so the
   // existing admin control and this one are the same switch). The new features are off in production until an admin
   // switches them on. The older kill settings (cloud_disabled, safe_copy_disabled) still win.
-  const SWITCHES = [
-    { key: 'managed-ai', label: 'Managed Gemini helper', note: 'Sends one consented, metadata-free thumbnail at a time to Gemini. Counts against the monthly spend ceiling.' },
-    { key: 'cloud-processing', label: 'Cloud processing', note: 'Heavier jobs (denoise, upscale, masks) for Pro. Needs the bucket and the runner job set up.' },
-    { key: 'safe-copy', label: 'Safe copy (managed backup)', note: 'Opt-in backup to InFlight UK storage. Switching off stops uploads only; people can always read and delete their copy.' },
-    { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
-    { key: 'pro-checkout', label: 'Pro checkout (Paddle)', note: 'People can buy Pro through Paddle\'s checkout. Paddle is the merchant of record and handles sales tax and VAT in every country. Switching off stops new checkouts only; payments already made are still verified and granted.' },
-    { key: 'email', label: 'App email (hello@inflight.studio)', note: 'Sends share invitations by email through Google Workspace. Plain text and HTML, an unsubscribe link in every message, at most 500 a day (30 per sender, 3 per recipient). Switch on only once hello@inflight.studio is a verified Send mail as address.' },
-    { key: 'collaboration', label: 'Shared projects', note: 'Cloud subscribers can share a project, invite people by email and check photos out to edit. Switching off stops new shared projects and checkouts; members can still read revisions.' },
-  ] as const;
-  type SwitchKey = typeof SWITCHES[number]['key'];
-  const switchConfigured = (key: SwitchKey) => key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'email' ? !!options.mailer : key === 'pro-checkout' ? !!options.proCheckout : !!options.learning;
+  const switchConfigured = (key: SwitchKey) => isPlanned(key) ? false : key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'email' ? !!options.mailer : key === 'pro-checkout' ? !!options.proCheckout : key === 'vertex-learning' ? !!options.vertexLearning : !!options.learning;
   async function switchOn(key: SwitchKey): Promise<boolean> {
+    if (isPlanned(key)) return false;
     if (key === 'managed-ai') return (await store.getSetting('ai_disabled')) !== '1';
     const legacy = key === 'cloud-processing' ? 'cloud_disabled' : key === 'safe-copy' ? 'safe_copy_disabled' : undefined;
     if (legacy && (await store.getSetting(legacy)) === '1') return false;
@@ -1843,6 +1858,18 @@ export function createApp(options: AppOptions) {
       },
     },
     {
+      method: 'GET', path: '/v1/admin/paddle/key', summary: 'When the Paddle API key was last renewed, when it expires, and how the last weekly check went', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'paddle.key.read');
+        if (!options.paddleKeyStatus) throw new ApiError(503, 'PADDLE_NOT_CONFIGURED', 'Paddle key renewal is not set up.');
+        const status = await options.paddleKeyStatus();
+        return adminDone(claims, 'paddle.key.read', '', {
+          rotatedAt: status.current?.rotatedAt ?? null, expiresAt: status.current?.expiresAt ?? null, activated: status.current?.activated ?? null,
+          lastRunAt: status.lastRun?.at ?? null, lastRunOk: status.lastRun?.ok ?? null, lastRunReason: status.lastRun?.ok === false ? status.lastRun.reason ?? null : null,
+        });
+      },
+    },
+    {
       method: 'GET', path: '/v1/admin/payments', summary: 'Paid checkouts (Paddle) and signed billing events received', auth: 'admin',
       handler: async (req) => {
         const claims = await admin(req, 'payments.read');
@@ -1886,6 +1913,35 @@ export function createApp(options: AppOptions) {
           licenceIssuing: !!config.licencePrivateKey,
           paymentsConnected: !!options.payments,
         });
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/learning', summary: 'Vertex learning batches: what is counted, the month\'s reserved spend against the ceiling, recent runs', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'learning.read');
+        const vl = options.vertexLearning;
+        if (!vl) throw new ApiError(503, 'LEARNING_NOT_CONFIGURED', 'Vertex learning is not set up on this server.');
+        const state = await vl.ledger.state();
+        const month = billingMonth(now());
+        return adminDone(claims, 'learning.read', '', {
+          on: await switchOn('vertex-learning'), newPhotos: state.newPhotos, photoThreshold: vl.config.photoThreshold,
+          lastRunAtMs: state.lastRunAtMs, manualRequested: state.manualRequestedAtMs !== null, running: state.runningRunId !== null,
+          month, reservedPence: await vl.ledger.monthReservedPence(month), ceilingPence: Math.min(vl.config.ceilingPence, APPROVED_MONTHLY_PENCE),
+          runReservePence: reservationPence(vl.config), runs: await vl.ledger.recentRuns(10),
+        });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/learning/run', summary: 'Learn now: ask for a Vertex learning batch (the spend ceiling and every other check still apply)', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'learning.run');
+        const vl = options.vertexLearning;
+        if (!vl) throw new ApiError(503, 'LEARNING_NOT_CONFIGURED', 'Vertex learning is not set up on this server.');
+        if (!(await switchOn('vertex-learning'))) throw new ApiError(409, 'LEARNING_SWITCHED_OFF', 'Switch on Learning in Vertex AI first.');
+        await vl.ledger.requestManualRun(now());
+        let started = false;
+        if (vl.startJob) { try { await vl.startJob(); started = true; } catch { /* the hourly tick picks the request up */ } }
+        return adminDone(claims, 'learning.run', started ? 'started' : 'queued', { requested: true, startedNow: started });
       },
     },
     {

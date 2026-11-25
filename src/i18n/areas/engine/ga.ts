@@ -49,6 +49,7 @@ export const ga: AreaTranslation<typeof source> = {
       : `Laghdaíodh torann ar an ngléas seo, agus ${count} ábhar cosanta le chéile.`),
     global: 'Ní raibh imlíne aon ábhair iontaofa, mar sin laghdaíodh torann go cothrom ar fud an ghrianghraif.',
     failedCheck: 'Níor éirigh leis an toradh sa tseiceáil cháilíochta. Coinníodh d’eagarthóireacht reatha.',
+    mainThread: 'Níorbh fhéidir leis an ngléas seo torann a laghdú sa chúlra, mar sin d’fhéadfadh InFlight stopadh ar feadh tamaill.',
     leftAsItWas: (notes) => `Fágadh mar a bhí. ${notes}`,
   },
   workspace: {
@@ -87,6 +88,7 @@ export const ga: AreaTranslation<typeof source> = {
       : `Easpórtáladh ${count} comhad. Níor athraíodh do bhunchomhaid.`),
     exportSomeFailed: 'Theip ar roinnt easpórtálacha. Oscail Tascanna agus roghnaigh “Bain triail eile as na cinn a theip”. Fanann na comhaid atá sábháilte cheana mar a bhfuil siad.',
     exportStopped: 'Stopadh an easpórtáil. Fanann na comhaid atá sábháilte cheana mar a bhfuil siad.',
+    enlargementTask: 'Réamhamharc an mhéadaithe á dhéanamh',
     exportNotQueued: 'Níorbh fhéidir an easpórtáil seo a thosú.',
     destinationUnavailable: 'Níl an ceann scríbe easpórtála sin ar fáil. Roghnaigh ZIP áitiúil, comhaid ar leith nó fillteán ar an ríomhaire.',
     cullPro: 'Is cuid de InFlight Pro é an roghnú uathoibríoch.',
@@ -131,6 +133,7 @@ export const ga: AreaTranslation<typeof source> = {
     suggestionStale: 'D’athraigh an grianghraf tar éis an mholta seo. Fan le seiceáil nua.',
     checkTask: (filename) => `${filename} agus a dhath á seiceáil`,
     checkStage: 'Ag féachaint ar nochtadh, dath agus radharc',
+    secondOpinionStage: "Dara tuairim ón tsamhail radhairc ar an ngléas",
     checkFailed: 'Níorbh fhéidir an grianghraf seo a sheiceáil. Sonraí i dTascanna.',
     deepTask: 'Athbhreithniú domhain ar siúl',
     deepStage: 'Ag féachaint ar na hábhair agus ar cháilíocht an ghrianghraif',

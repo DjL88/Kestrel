@@ -149,7 +149,7 @@ act($('sign-out'), 'click', () => signOut('Signed out.'));
 // ---- Sections --------------------------------------------------------------------------------------------------
 
 async function refreshAll() {
-  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadMessages(), loadTax(), loadPriceReview(), loadSwitches(), loadMail(), loadFlags(), loadAudit()]);
+  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadMessages(), loadTax(), loadPriceReview(), loadSwitches(), loadMail(), loadLearning(), loadFlags(), loadAudit()]);
   const failed = results.find(r => r.status === 'rejected' && !(r.reason instanceof SignedOut));
   if (failed) say(failed.reason.message);
 }
@@ -362,7 +362,23 @@ async function loadUsage() {
   $('usage-table').closest('.scroll').hidden = u.accounts.length === 0;
 }
 
+async function loadPaddleKey() {
+  let k;
+  try { k = await api('admin/paddle/key'); } catch (error) {
+    if (error instanceof SignedOut) throw error;
+    $('paddle-key-state').textContent = '';
+    return;
+  }
+  const date = (iso) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const parts = [];
+  if (k.expiresAt) parts.push(`Paddle API key renews itself. Last renewed ${date(k.rotatedAt)}; it expires ${date(k.expiresAt)} unless renewed again.`);
+  else parts.push('Paddle API key: not renewed by InFlight yet. The weekly check renews it on its first run.');
+  if (k.lastRunOk === false) parts.push(`Warning: the last weekly check failed (${date(k.lastRunAt)}): ${k.lastRunReason}`);
+  $('paddle-key-state').textContent = parts.join(' ');
+}
+
 async function loadPayments() {
+  void loadPaddleKey();
   const p = await api('admin/payments');
   $('payments-state').textContent = p.connected
     ? 'Paid checkouts recorded after Paddle confirmed them. Amounts are what Paddle pays out; Paddle handles the buyer\'s tax.'
@@ -533,6 +549,42 @@ async function loadMail() {
   $('mail-facts').replaceChildren(...facts.map(([k, v]) => { const d = el('div'); d.append(el('dt', k), el('dd', String(v))); return d; }));
   $('mail-warning').hidden = !m.warn;
 }
+
+const pounds = (pence) => '£' + (pence / 100).toFixed(2);
+const WHY = { count: 'Photo count reached', weekly: 'Weekly', manual: 'Learn now' };
+const RESULT = { reserved: 'Starting', submitted: 'Running', succeeded: 'Finished', failed: 'Failed (cost still counted)', 'not-started': 'Not started (nothing charged)' };
+async function loadLearning() {
+  let s;
+  try { s = await api('admin/learning'); } catch (error) {
+    if (error instanceof SignedOut) throw error;
+    $('learning-unavailable').hidden = false; $('learning-run').disabled = true; $('learning-facts').replaceChildren(); return;
+  }
+  $('learning-unavailable').hidden = true;
+  const facts = [
+    ['Switch', s.on ? 'On' : 'Off (see Switches)'],
+    ['New photos since the last batch', s.newPhotos + ' of ' + s.photoThreshold],
+    ['This month (' + s.month + ')', pounds(s.reservedPence) + ' reserved of ' + pounds(s.ceilingPence)],
+    ['Each batch reserves', pounds(s.runReservePence) + ' (its worst case)'],
+    ['Now', s.running ? 'A batch is running' : s.manualRequested ? 'Learn now is waiting for the next check' : 'Waiting'],
+  ];
+  $('learning-facts').replaceChildren(...facts.map(([k, v]) => { const d = el('div'); d.append(el('dt', k), el('dd', String(v))); return d; }));
+  $('learning-run').disabled = !s.on || s.running;
+  $('learning-runs').tBodies[0].replaceChildren(...s.runs.map(r => {
+    const row = document.createElement('tr');
+    cell(row, new Date(r.startedAtMs).toLocaleString('en-GB'));
+    cell(row, WHY[r.trigger] ?? r.trigger);
+    cell(row, String(r.newPhotos));
+    cell(row, pounds(r.reservedPence));
+    cell(row, RESULT[r.status] ?? r.status);
+    return row;
+  }));
+}
+act($('learning-run'), 'click', async () => {
+  if (!confirm('Start a learning batch now? It is refused if this month would pass the ceiling.')) return;
+  const r = await api('admin/learning/run', {});
+  await Promise.all([loadLearning(), loadAudit()]);
+  say(r.startedNow ? 'Learning check started. A batch begins if there is something new and it fits within this month’s ceiling.' : 'Learn now is queued for the next hourly check.');
+});
 
 async function loadFlags() {
   flagsState = (await api('admin/flags')).flags;

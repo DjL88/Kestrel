@@ -49,6 +49,7 @@ export const is: AreaTranslation<typeof source> = {
       : `Suð fjarlægt á þessu tæki, með ${count} myndefni varin saman.`),
     global: 'Engin útlína myndefnis var áreiðanleg, svo suðeyðing var notuð jafnt á alla myndina.',
     failedCheck: 'Niðurstaðan stóðst ekki gæðaprófun. Núverandi breytingum þínum var haldið.',
+    mainThread: 'Þetta tæki gat ekki fjarlægt suð í bakgrunni, svo InFlight gæti hafa stöðvast á meðan.',
     leftAsItWas: (notes) => `Látið óbreytt. ${notes}`,
   },
   workspace: {
@@ -87,6 +88,7 @@ export const is: AreaTranslation<typeof source> = {
       : `${count} skrár fluttar út. Frumritin þín eru óbreytt.`),
     exportSomeFailed: 'Sumir útflutningar mistókust. Opnaðu Verk og veldu Reyna mistókst aftur. Skrár sem þegar eru vistaðar haldast á sínum stað.',
     exportStopped: 'Útflutningur stöðvaður. Skrár sem þegar eru vistaðar haldast á sínum stað.',
+    enlargementTask: 'Bý til forskoðun stækkunar',
     exportNotQueued: 'Ekki tókst að hefja þennan útflutning.',
     destinationUnavailable: 'Sá útflutningsstaður er ekki tiltækur. Veldu ZIP á tækinu, stakar skrár eða möppu á tölvunni.',
     cullPro: 'Sjálfvirk grisjun er hluti af InFlight Pro.',
@@ -131,6 +133,7 @@ export const is: AreaTranslation<typeof source> = {
     suggestionStale: 'Myndin breyttist eftir þessa tillögu. Bíddu eftir nýrri athugun.',
     checkTask: (filename) => `Athuga ${filename} og liti hennar`,
     checkStage: 'Skoða lýsingu, lit og senu',
+    secondOpinionStage: "Annað álit frá myndlíkaninu í tækinu",
     checkFailed: 'Ekki tókst að athuga þessa mynd. Nánar undir Verk.',
     deepTask: 'Ítarleg yfirferð í gangi',
     deepStage: 'Skoða myndefnin og gæði myndarinnar',

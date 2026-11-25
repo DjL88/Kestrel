@@ -135,68 +135,13 @@ export async function scheduleV2PhotoExports(input: {
         const variant = job?.variants[item.variantIndex];
         if (!job || !variant) throw new Error('The selected export recipe was not found.');
         const selectedPanel = await splitCache.get(
-          `${item.jobIndex}:${item.variantIndex}`, job.sections ?? 1, item.panelIndex, async () => {
-          // JPEG/PNG source pixels are read from the SHA-verified original, for
-          // every size (not just Original); review previews cannot be exported.
-          const verifiedRaster = !frame.isDemo && Boolean(fullResolutionRasterFormat(frame.filename));
-          if (!frame.isDemo && isHeifFile(frame.filename))
-            throw new Error(`Cannot verify full-resolution HEIF pixels for ${frame.filename} in this export path. Use a supported source; no preview was substituted.`);
-          const image = verifiedRaster
-            ? await loadVerifiedRasterOriginalForExport(frame, provider, ctx.signal)
-            : await loadExportSource(frame, provider);
-          ctx.checkCancelled();
-          if (!frame.isDemo && isRawPreviewFile(frame.filename) &&
-              (!provider.isDeveloped(frame.stableKey) || provider.isOfflineFallback(frame.stableKey))) {
-            throw new Error(`${frame.filename} has no verified sensor-developed source. Embedded RAW previews cannot be exported as full-quality photographs.`);
-          }
-          const nativeSize = verifiedRaster && job.format.id === ORIGINAL_FORMAT_ID
-            ? framedSize(image.naturalWidth, image.naturalHeight, frame.framing ?? DEFAULT_FRAMING) : null;
-          // Original follows the edit's Output scale (2× doubles it); other formats keep their size and the renderer only
-          // enlarges to fill them. Unedited variants never enlarge.
-          const upscale = job.format.id === ORIGINAL_FORMAT_ID && variant.kind === 'edited' ? variant.edit.upscale : undefined;
-          const scaledOriginal = nativeSize || upscale === 2 || upscale === 4;
-          const outputSize = scaledOriginal
-            ? originalExportSize(nativeSize ?? job.size, upscale, job.sections ?? 1, submitted.request.maxLongestEdgePx)
-            : job.size;
-          const outputFormat = scaledOriginal ? { ...job.format, ...outputSize } : job.format;
-          const overlay = variant.kind === 'unedited' ? null : await input.buildOverlay(frame, submitted.request);
-          ctx.checkCancelled();
-          // A RAW is edited at 16 bits from its sensor data and rounded to 8 bits once, at the very end. An edit the
-          // 16-bit renderer cannot carry yet keeps the 8-bit path, and the task says so rather than hiding it.
-          let precise: Rgb16Image | undefined;
-          if (!frame.isDemo && isRawPreviewFile(frame.filename) && canDevelopRaw()) {
-            const blocker = master16Blocker(variant.edit ?? DEFAULT_EDIT, frame.framing);
-            if (blocker) {
-              ctx.stage(`8-bit export for ${frame.filename}: ${blocker}`);
-            } else {
-              ctx.stage('Developing RAW sensor data at 16 bits');
-              const original = await provider.ensureOriginal(frame.stableKey, 'selected');
-              ctx.checkCancelled();
-              if (!original) throw new Error(`Reconnect ${frame.filename} before exporting. The original RAW file is not available.`);
-              const originalSha256 = frame.originalSha256 && /^[a-f0-9]{64}$/.test(frame.originalSha256) ? frame.originalSha256 : undefined;
-              // Bound to the recorded fingerprint when there is one, so a changed file is refused rather than exported.
-              try {
-                const source = await rawSources.get(`${frame.stableKey}|${originalSha256 ?? ''}|${blobId(original)}`,
-                  () => openRaw16(original, frame.filename, { originalSha256, signal: ctx.signal }));
-                ctx.checkCancelled();
-                precise = await editRaw16(source.image, image, variant.edit ?? DEFAULT_EDIT, frame.framing, { shared: source.shared, signal: ctx.signal });
-              } catch (reason) {
-                // Only a refusal of the 16-bit path itself (compression that cannot be classified) falls back; a changed or
-                // unreadable original still stops the export.
-                if (!(reason instanceof RawPrecisionUnavailableError)) throw reason;
-                ctx.stage(`8-bit export for ${frame.filename}: ${reason.message}`);
-              }
-              ctx.checkCancelled();
-            }
-          }
-          ctx.stage(precise ? 'Rendering the 16-bit edit, crop and overlays' : 'Rendering complete edit, masks, crop and overlays');
-          const result = await renderV2Export(
-            image, { ...frame, edit: variant.edit }, outputSize, job.crop, toProfile(outputFormat),
-            overlay, started, ctx.signal, job.sections ?? 1, precise,
-          );
-          ctx.checkCancelled();
-            return result.sections ?? [result.file];
-          });
+          `${item.jobIndex}:${item.variantIndex}`, job.sections ?? 1, item.panelIndex, () => renderExportJob({
+            frame, job, variant, request: submitted.request, provider, buildOverlay: input.buildOverlay, started, signal: ctx.signal,
+            stage: (message) => ctx.stage(message), checkCancelled: () => ctx.checkCancelled(),
+            // The ticket's cache: a RAW is decoded once for all its formats and edit groups, and released when the ticket ends.
+            openRawSource: (target, original, originalSha256, signal) => rawSources.get(`${target.stableKey}|${originalSha256 ?? ''}|${blobId(original)}`,
+              () => openRaw16(original, target.filename, { originalSha256, signal })),
+          }));
         ctx.checkCancelled();
         files = [selectedPanel].map(rendered => {
           const base = rendered.name.replace(/(\.[^.]+)?$/, extension => variant.suffix + extension);
@@ -228,4 +173,91 @@ export async function scheduleV2PhotoExports(input: {
   });
   void ticket.finished.then(() => { splitCache.clear(); rawSources.clear(); });
   return ticket;
+}
+
+/** A RAW's decoded 16-bit picture. `shared` is true when others use the same picture, so it must not be edited in place. */
+export type OpenRawSource = (frame: PhotoFrame, original: Blob, originalSha256: string | undefined, signal: AbortSignal) => Promise<{ image: Rgb16Image; shared: boolean }>;
+
+/** Without a cache (the enlargement preview): decode the RAW for this one render; nothing else holds the picture. */
+export const openRawSourceOnce: OpenRawSource = async (frame, original, originalSha256, signal) =>
+  ({ image: await openRaw16(original, frame.filename, { originalSha256, signal }), shared: false });
+
+/**
+ * Render one export job: the verified source, the RAW check, the output size (Original follows Output scale), the
+ * overlay, the 16-bit RAW path and `renderV2Export`. The export scheduler and the enlargement preview both call this,
+ * so the preview is the exported picture, never an approximation of it.
+ */
+export async function renderExportJob({ frame, job, variant, request, provider, buildOverlay, started, signal, stage, checkCancelled, openRawSource = openRawSourceOnce }: {
+  frame: PhotoFrame;
+  job: ExportJob;
+  variant: ExportJob['variants'][number];
+  request: ExportRequest;
+  provider: BrowserPreviewProvider;
+  buildOverlay: (frame: PhotoFrame, request: ExportRequest) => Promise<OverlayDraw | null>;
+  started: Date;
+  signal: AbortSignal;
+  stage: (message: string) => void;
+  checkCancelled: () => void;
+  /** How to get a RAW's decoded picture; the scheduler passes its per-ticket cache. */
+  openRawSource?: OpenRawSource;
+}): Promise<File[]> {
+    // JPEG/PNG source pixels are read from the SHA-verified original, for
+    // every size (not just Original); review previews cannot be exported.
+    const verifiedRaster = !frame.isDemo && Boolean(fullResolutionRasterFormat(frame.filename));
+    if (!frame.isDemo && isHeifFile(frame.filename))
+      throw new Error(`Cannot verify full-resolution HEIF pixels for ${frame.filename} in this export path. Use a supported source; no preview was substituted.`);
+    const image = verifiedRaster
+      ? await loadVerifiedRasterOriginalForExport(frame, provider, signal)
+      : await loadExportSource(frame, provider);
+    checkCancelled();
+    if (!frame.isDemo && isRawPreviewFile(frame.filename) &&
+        (!provider.isDeveloped(frame.stableKey) || provider.isOfflineFallback(frame.stableKey))) {
+      throw new Error(`${frame.filename} has no verified sensor-developed source. Embedded RAW previews cannot be exported as full-quality photographs.`);
+    }
+    const nativeSize = verifiedRaster && job.format.id === ORIGINAL_FORMAT_ID
+      ? framedSize(image.naturalWidth, image.naturalHeight, frame.framing ?? DEFAULT_FRAMING) : null;
+    // Original follows the edit's Output scale (2× doubles it); other formats keep their size and the renderer only
+    // enlarges to fill them. Unedited variants never enlarge.
+    const upscale = job.format.id === ORIGINAL_FORMAT_ID && variant.kind === 'edited' ? variant.edit.upscale : undefined;
+    const scaledOriginal = nativeSize || upscale === 2 || upscale === 4;
+    const outputSize = scaledOriginal
+      ? originalExportSize(nativeSize ?? job.size, upscale, job.sections ?? 1, request.maxLongestEdgePx)
+      : job.size;
+    const outputFormat = scaledOriginal ? { ...job.format, ...outputSize } : job.format;
+    const overlay = variant.kind === 'unedited' ? null : await buildOverlay(frame, request);
+    checkCancelled();
+    // A RAW is edited at 16 bits from its sensor data and rounded to 8 bits once, at the very end. An edit the
+    // 16-bit renderer cannot carry yet keeps the 8-bit path, and the task says so rather than hiding it.
+    let precise: Rgb16Image | undefined;
+    if (!frame.isDemo && isRawPreviewFile(frame.filename) && canDevelopRaw()) {
+      const blocker = master16Blocker(variant.edit ?? DEFAULT_EDIT, frame.framing);
+      if (blocker) {
+        stage(`8-bit export for ${frame.filename}: ${blocker}`);
+      } else {
+        stage('Developing RAW sensor data at 16 bits');
+        const original = await provider.ensureOriginal(frame.stableKey, 'selected');
+        checkCancelled();
+        if (!original) throw new Error(`Reconnect ${frame.filename} before exporting. The original RAW file is not available.`);
+        const originalSha256 = frame.originalSha256 && /^[a-f0-9]{64}$/.test(frame.originalSha256) ? frame.originalSha256 : undefined;
+        // Bound to the recorded fingerprint when there is one, so a changed file is refused rather than exported.
+        try {
+          const source = await openRawSource(frame, original, originalSha256, signal);
+          checkCancelled();
+          precise = await editRaw16(source.image, image, variant.edit ?? DEFAULT_EDIT, frame.framing, { shared: source.shared, signal: signal });
+        } catch (reason) {
+          // Only a refusal of the 16-bit path itself (compression that cannot be classified) falls back; a changed or
+          // unreadable original still stops the export.
+          if (!(reason instanceof RawPrecisionUnavailableError)) throw reason;
+          stage(`8-bit export for ${frame.filename}: ${reason.message}`);
+        }
+        checkCancelled();
+      }
+    }
+    stage(precise ? 'Rendering the 16-bit edit, crop and overlays' : 'Rendering complete edit, masks, crop and overlays');
+    const result = await renderV2Export(
+      image, { ...frame, edit: variant.edit }, outputSize, job.crop, toProfile(outputFormat),
+      overlay, started, signal, job.sections ?? 1, precise,
+    );
+    checkCancelled();
+    return result.sections ?? [result.file];
 }

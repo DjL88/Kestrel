@@ -49,6 +49,7 @@ export const it: AreaTranslation<typeof source> = {
       : `Rumore ridotto su questo dispositivo, con ${count} soggetti protetti insieme.`),
     global: 'Nessun contorno del soggetto era affidabile, quindi la riduzione del rumore è stata applicata in modo uniforme a tutta la foto.',
     failedCheck: 'Il risultato non ha superato il controllo di qualità. Le tue modifiche sono state mantenute.',
+    mainThread: 'Questo dispositivo non ha potuto ridurre il rumore in background, quindi InFlight potrebbe essersi bloccato durante il lavoro.',
     leftAsItWas: (notes) => `Lasciata com’era. ${notes}`,
   },
   workspace: {
@@ -87,6 +88,7 @@ export const it: AreaTranslation<typeof source> = {
       : `${count} file esportati. I tuoi originali non sono cambiati.`),
     exportSomeFailed: 'Alcune esportazioni non sono riuscite. Apri Attività e scegli Riprova i falliti. I file già salvati restano dove sono.',
     exportStopped: 'Esportazione interrotta. I file già salvati restano dove sono.',
+    enlargementTask: 'Creazione dell’anteprima dell’ingrandimento',
     exportNotQueued: 'Impossibile avviare questa esportazione.',
     destinationUnavailable: 'Quella destinazione di esportazione non è disponibile. Scegli uno ZIP locale, file separati o una cartella del computer.',
     cullPro: 'La selezione automatica fa parte di InFlight Pro.',
@@ -131,6 +133,7 @@ export const it: AreaTranslation<typeof source> = {
     suggestionStale: 'La foto è cambiata dopo questo suggerimento. Attendi un nuovo controllo.',
     checkTask: (filename) => `Controllo di ${filename} e del suo colore`,
     checkStage: 'Analisi di esposizione, colore e scena',
+    secondOpinionStage: "Secondo parere dal modello visivo sul dispositivo",
     checkFailed: 'Impossibile controllare questa foto. Dettagli in Attività.',
     deepTask: 'Revisione approfondita in corso',
     deepStage: 'Analisi dei soggetti e della qualità della foto',
