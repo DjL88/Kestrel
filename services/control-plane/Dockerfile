@@ -5,6 +5,8 @@
 FROM node:22-alpine
 WORKDIR /app
 COPY src/core ./src/core
+# Email words in every language (plain data; the wording audit checks them in npm test).
+COPY src/i18n/areas/email ./src/i18n/areas/email
 COPY services/control-plane/package.json services/control-plane/package-lock.json ./services/control-plane/
 # tsx needs esbuild's platform binary, which npm installs as an optional dependency.
 RUN cd services/control-plane && npm ci --include=dev --include=optional --no-audit --no-fund

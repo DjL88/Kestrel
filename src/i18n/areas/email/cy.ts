@@ -1,0 +1,24 @@
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** Welsh. DRAFT: written without a native speaker's check. */
+export const cy: AreaTranslation<typeof source> = {
+  invitation: {
+    subject: (inviter: string, project: string) => `${inviter} wedi eich gwahodd i “${project}” ar InFlight`,
+    invited: (inviter: string, project: string, as: string) => `Mae ${inviter} wedi eich gwahodd i brosiect InFlight “${project}” ${as}.`,
+    as: { editor: "fel golygydd", commenter: "fel sylwebydd", viewer: "fel gwyliwr", client: "fel cleient" },
+    join: "I ymuno, agorwch InFlight a mewngofnodwch gyda’r cyfeiriad e-bost hwn.",
+    open: "Agor InFlight",
+    ignore: "Heb ddisgwyl hwn? Gallwch ei anwybyddu. Does dim yn digwydd oni bai eich bod yn derbyn.",
+    stop: "Peidio ag anfon e-byst gwahodd i’r cyfeiriad hwn",
+    someone: "Rhywun",
+  },
+  unsubscribe: {
+    title: "Stopio e-byst gwahodd",
+    confirm: "Pwyswch y botwm i stopio e-byst gwahodd i’r cyfeiriad hwn.",
+    button: "Stopio e-byst gwahodd",
+    done: "Wedi’i wneud. Ni fydd InFlight yn anfon e-byst gwahodd i’r cyfeiriad hwn eto.",
+    invalid: "Nid yw’r ddolen hon yn ddilys.",
+    invalidHint: "Atebwch yr e-bost a byddwn yn eu stopio.",
+  },
+};

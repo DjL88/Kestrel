@@ -271,6 +271,14 @@ resource "google_cloud_run_v2_service" "control_plane" {
         }
       }
       dynamic "env" {
+        # App email (mail.tf). The app password is NOT here: the service reads it from Secret Manager itself.
+        for_each = local.mail_env
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+      dynamic "env" {
         for_each = var.phase5_sumup_enabled ? [1] : []
         content {
           name = "KCP_SUMUP_API_KEY"

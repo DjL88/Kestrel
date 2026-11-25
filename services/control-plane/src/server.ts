@@ -42,8 +42,8 @@ const proCheckout = firestore && commerce && sumup && settleSumupPro && siteUrl 
 const networkCountry = proCheckout ? networkCountryFrom(await dbipCountryLookup()) : undefined;
 const demoStudio = firestore && process.env.KCP_DEMO_PRIVATE_BUCKET && process.env.KCP_DEMO_PUBLIC_BUCKET
   ? new CloudDemoStudio(firestore, process.env.KCP_DEMO_PRIVATE_BUCKET, process.env.KCP_DEMO_PUBLIC_BUCKET) : undefined;
-const optional = await buildOptionalServices({ firestore: firestore as unknown as FirestoreLike | undefined });
-const app = createApp({ config, store, commerce, payments: commerce, settleSumupPro, proCheckout, networkCountry, pricing: commerce, demoStudio, cloud: optional.cloud, safeCopy: optional.safeCopy, collab: optional.collab, presence: optional.presence, gallery: optional.gallery, learning: optional.learning, learningWithdrawal: optional.learningWithdrawal, spend: optional.spend, requireAdminSwitch: true });
+const optional = await buildOptionalServices({ firestore: firestore as unknown as FirestoreLike | undefined, sessionSecret: config.sessionSecret });
+const app = createApp({ config, store, commerce, payments: commerce, settleSumupPro, proCheckout, networkCountry, pricing: commerce, demoStudio, cloud: optional.cloud, safeCopy: optional.safeCopy, collab: optional.collab, presence: optional.presence, gallery: optional.gallery, learning: optional.learning, learningWithdrawal: optional.learningWithdrawal, spend: optional.spend, mailer: optional.mailer, requireAdminSwitch: true });
 
 if (process.argv.includes('--print-openapi')) {
   process.stdout.write(`${JSON.stringify(openApi(app.routes), null, 2)}\n`);
