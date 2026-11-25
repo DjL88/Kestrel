@@ -24,7 +24,7 @@ test('a slot can be given another command or another key; pad keys never fire wh
 });
 
 test('a pad key that is also a keyboard shortcut for another command runs nothing and is reported', () => {
-  const pad = withPadChord(DEFAULT_PAD, 'K2', 'KeyF'); // F is Flag on the keyboard; K2 runs Clear rating
+  const pad = withPadChord(DEFAULT_PAD, 'K2', 'KeyF'); // F is Flag on the keyboard; K2 runs Set aside
   assert.equal(run(key({ code: 'KeyF', key: 'f' }), pad), undefined);
   assert.deepEqual(padClashes(pad, keymap).map((c) => c.slot), ['K2']);
   assert.deepEqual(padClashes(DEFAULT_PAD, keymap), []);
