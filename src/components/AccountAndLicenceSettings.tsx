@@ -12,6 +12,7 @@ import { DEV_PRO_PREVIEW_MODE } from '../providers/useAccess';
 import { SignInMark } from './SignInMark';
 import { LicenceOnlineStatus } from './LicenceOnlineStatus';
 import { projectsText as t } from '../i18n/areas/projects';
+import { publicSiteUrl } from '../core/publicSite';
 
 
 const field = 'block min-h-11 w-full rounded-md border border-[var(--account-border,#ffffff26)] bg-[var(--account-field,#0000004d)] px-3 text-sm text-[var(--account-foreground,#f4f4f5)]';
@@ -348,7 +349,7 @@ export function AccountAndLicenceSettings() {
           <button type="button" className={action} onClick={() => { setNote(null); void removeLicence(); }}>{t.licence.removeKey}</button>
         )}
         {licence.status !== 'valid' && !isMobileShell() && !offline && (
-          <a href="https://kestrel-hosting-kestrel.web.app/#pricing" target="_blank" rel="noopener noreferrer"
+          <a href={publicSiteUrl('/#pricing')} target="_blank" rel="noopener noreferrer"
             className={`${action} inline-flex items-center`}
             onClick={(event) => {
               if (!isDesktopApp()) return;

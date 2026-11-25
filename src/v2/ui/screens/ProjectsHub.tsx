@@ -9,7 +9,8 @@ import footerKiteLight from '../../../assets/brand/mark/inflight-kite-light.svg'
 import { isDesktopApp, isMobileShell } from '../../../providers/desktopShell';
 
 /** The published privacy policy. It is not bundled into the app, so a relative link would lead nowhere in the desktop app. */
-const PRIVACY_URL = 'https://kestrel-hosting-kestrel.web.app/privacy.html';
+import { publicSiteUrl } from '../../../core/publicSite';
+const PRIVACY_URL = publicSiteUrl('/privacy.html');
 
 interface ProjectsHubProps {
   projects: Project[];

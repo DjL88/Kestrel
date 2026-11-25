@@ -12,6 +12,11 @@ on:
   push:
     tags: ['v*']
 
+# One release run per tag; never cancel a release half-way.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
 

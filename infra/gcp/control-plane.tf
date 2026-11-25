@@ -21,7 +21,7 @@ locals {
   # The KESTREL1 licence-issuing PRIVATE key. Only the admin console's "issue a key" needs it. It is mounted into the
   # service only when var.licence_issuing_enabled is true, and only this service's account can read it.
   licence_private_key_secret = "kcp-licence-private-key-pem"
-  control_plane_origin_list  = distinct(concat(var.allowed_origins, ["https://${google_firebase_hosting_site.site.site_id}.web.app"]))
+  control_plane_origin_list  = local.browser_origins
   control_plane_origins      = join(",", local.control_plane_origin_list)
   storage_signing_enabled    = local.cloud_on || var.safe_copy_enabled
 }

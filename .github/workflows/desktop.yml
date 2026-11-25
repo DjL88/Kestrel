@@ -1,8 +1,11 @@
 name: Desktop app
 
+# Three operating systems, so this is the most expensive workflow (macOS runners bill at 10x on a private repository).
+# PRs build it only when the native shell changes; web code in src/ is covered by ci.yml's build and browser specs.
+# Run it by hand (workflow_dispatch) for a full desktop build of any branch.
 on:
   pull_request:
-    paths: ['src-tauri/**', 'src/**', 'package.json', '.github/workflows/desktop.yml']
+    paths: ['src-tauri/**', 'crates/**', 'Cargo.lock', '.github/workflows/desktop.yml']
   workflow_dispatch:
     inputs:
       release:
@@ -10,8 +13,16 @@ on:
         type: boolean
         default: false
 
+concurrency:
+  group: desktop-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   build:
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:

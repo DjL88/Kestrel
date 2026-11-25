@@ -1,39 +1,37 @@
 name: CI
+# Lint, unit tests, build and the V2 browser specs. Kept cheap for paid minutes:
+# - one run per PR or branch at a time (a new push cancels the old run);
+# - docs-only changes skip it (paths-ignore);
+# - npm and the Playwright browser are cached;
+# - only the V2 product's specs run (tests/v2-*, plus the website and admin pages). The retired V1 specs still run
+#   locally with `npx playwright test`; they are not worth paid minutes now that V2 is the app.
+# Python checks live in python.yml, desktop bundles in desktop.yml (both path-filtered).
 on:
   push:
     branches: [main]
+    paths-ignore: ['docs/**', '**/*.md', 'LICENSE*', '.github/ISSUE_TEMPLATE/**']
   pull_request:
+    # Draft PRs do not run (marking one ready for review starts it); run a draft by hand with workflow_dispatch.
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore: ['docs/**', '**/*.md', 'LICENSE*', '.github/ISSUE_TEMPLATE/**']
+  workflow_dispatch:
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
 jobs:
-  nikon-evidence:
-    name: Nikon evidence harness
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: scripts/requirements-nikon-qa.txt
-      - run: python -m pip install -r scripts/requirements-nikon-qa.txt
-      # These tests generate their own TIFFs/JSON. No SDK, camera photos or cloud account is needed.
-      - run: python -m unittest discover -s scripts -p 'test_*.py'
-      - run: python -m unittest discover -s tools/cull-evidence
-      - run: python -m unittest discover -s tools/raw-evidence
-      # Denoiser training tools: catalogue reading, noise calibration and dataset building. The training tests need
-      # torch and skip themselves here; run them locally (see tools/denoise-training/README.md).
-      - run: python -m unittest discover -s tools/denoise-training -p 'test_*.py'
   check:
+    if: github.event.pull_request.draft != true
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - run: npm ci --no-audit --no-fund
       - run: node --test scripts/check-release-version.test.mjs
       - run: node scripts/check-release-version.mjs
       - run: npm run lint
@@ -42,9 +40,20 @@ jobs:
       # Build once with the model directory hidden, then restore it in finally.
       - name: Build preview with optional models absent
         run: node scripts/check-preview-without-models.mjs
-      - run: npx playwright install --with-deps chromium
-      # Playwright builds and serves the production app before running the tests.
-      - run: npm run test:e2e -- --workers=2
+      - name: Playwright version
+        id: pw
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        id: pw-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ steps.pw.outputs.version }}
+      - if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      # Playwright builds and serves the production app before running the tests. Desktop and phone projects.
+      - run: npx playwright test tests/v2- tests/site- tests/admin- --workers=2
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
