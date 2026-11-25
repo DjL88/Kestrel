@@ -118,7 +118,7 @@ async function signInWithGoogleOnDesktop(client: NonNullable<typeof googleDeskto
     throw loopbackError(error);
   }
   const answer = parseCallbackQuery(query, state);
-  if (answer.error || !answer.code) throw new Error(explainSignInError(answer.error));
+  if (answer.error || !answer.code) throw new Error(`${explainSignInError(answer.error)} (Google: ${answer.error ?? 'no code returned'})`);
   const { fetch: tauriFetch } = await import('@tauri-apps/plugin-http');
   let response: Response;
   try {
@@ -126,7 +126,8 @@ async function signInWithGoogleOnDesktop(client: NonNullable<typeof googleDeskto
       body: googleCodeExchangeBody({ clientId: client.clientId, clientSecret: client.clientSecret, code: answer.code, verifier, redirectUri }) });
   } catch { throw new Error('Could not reach Google. Check your connection.'); }
   const json = await response.json().catch(() => null) as { error?: string } | null;
-  if (!response.ok) throw new Error(explainSignInError(json?.error));
+  // Name Google's own reason too, so a refusal can be traced without a debug build.
+  if (!response.ok) throw new Error(`${explainSignInError(json?.error)} (Google: ${json?.error ?? `HTTP ${response.status}`})`);
   const idToken = idTokenFromAnswer(json, { clientId: client.clientId, nonce });
   return withAuth(async ({ auth, instance }) => toSession((await auth.signInWithCredential(instance, auth.GoogleAuthProvider.credential(idToken))).user, 'google'));
 }
