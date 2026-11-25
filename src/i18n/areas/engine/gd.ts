@@ -88,6 +88,7 @@ export const gd: AreaTranslation<typeof source> = {
       : `Chaidh ${count} faidhlichean às-phortadh. Cha deach na dealbhan tùsail agad atharrachadh.`),
     exportSomeFailed: 'Dh’fhàillig cuid de na às-phortaidhean. Fosgail Saothraichean is tagh “Feuch a-rithist na dh’fhàillig”. Fuirichidh na faidhlichean a chaidh a shàbhaladh far a bheil iad.',
     exportStopped: 'Stad an t-às-phortadh. Fuirichidh na faidhlichean a chaidh a shàbhaladh far a bheil iad.',
+    enlargementTask: 'A’ dèanamh ro-shealladh air an meudachadh',
     exportNotQueued: 'Cha b’ urrainnear an t-às-phortadh seo a thòiseachadh.',
     destinationUnavailable: 'Chan eil an ceann-uidhe às-phortaidh sin ri fhaighinn. Tagh ZIP ionadail, faidhlichean fa leth no pasgan air a’ choimpiutair.',
     cullPro: 'Tha taghadh fèin-obrachail na phàirt de InFlight Pro.',

@@ -10,7 +10,7 @@ import { newId } from '../../core/ids';
 import { exportCollage } from './exportCollage';
 import { createCollage, MAX_COLLAGE_SELECTION, readCollage } from '../../core/collage';
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
-import { appendProjectPhotos, applyImportBursts, createEmptyProject, moveFrames, setArchived, setTrashed, trashExpired } from '../../core/projects';
+import { appendProjectPhotos, applyImportBursts, createEmptyProject, duplicateProject, moveFrames, setArchived, setTrashed, trashExpired } from '../../core/projects';
 import { tasks } from '../../core/taskStore';
 import { createSaveGuard, type SaveGuard } from '../../core/saveGuard';
 import { engineScheduler } from '../../core/engineScheduler';
@@ -120,12 +120,15 @@ import { CatalogueReadError, readLightroomCatalogue } from '../../core/lightroom
 import { catalogueFilesInFolder, catalogueOnlyPhotos, commonFolder, planLightroomImport } from '../../core/lightroomImport';
 import type { LightroomPhoto } from '../../core/lightroomCatalogue';
 import { STRINGS as V2_STRINGS } from '../ui/strings';
-import { scheduleV2PhotoExports, photoExportUnits } from './scheduledPhotoExport';
+import { renderExportJob, scheduleV2PhotoExports, photoExportUnits } from './scheduledPhotoExport';
+import { enlargementPreviewRequest, type EnlargementPreviewResult } from './enlargementPreview';
 import { uniqueExportFilename } from '../../core/exportNaming';
 import { exportMayContinue } from '../../core/exportCancellation';
 import type { ExportRequest } from '../ui/contract';
 import { applyRecipePatch, editToRecipe } from './recipeMap';
 import { canvasLensCentre, detectLateralCa } from '../../core/fringe';
+import { resolveLensProfile } from '../../core/lensProfiles';
+import { lensDatabase } from '../../providers/lensProfileStore';
 import { surfaceBridge } from './surfaceBridge';
 import { addSavedEditGroup, renameSavedEditGroup, selectSavedEditGroup, syncEditGroup } from './editGroupState';
 import { engineText } from '../../i18n/areas/engine';
@@ -1922,6 +1925,28 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     deleteProjectForever: (id) => {
       void catalogue.current!.deleteProject(id).then(() => loadHub(), () => setNotice('InFlight could not delete the project. Your original photos are unchanged.'));
     },
+    // A copy is a Tasks job: it waits for a free slot, shows while it runs and can be cancelled before it saves.
+    duplicateProject: (id) => {
+      void (async () => {
+        const store = catalogue.current!;
+        const found = await store.loadProject(id);
+        if (!found) { setNotice('That project could not be found.'); return; }
+        const title = V2_STRINGS.hubMore.copyName(found.shoot.title);
+        const ticket = await engineScheduler.submit({
+          title: V2_STRINGS.hubMore.duplicating(found.shoot.title),
+          kind: 'other', resource: 'io', pauseable: false, snapshot: undefined,
+          items: [id], itemId: (item) => item, itemLabel: () => found.shoot.title,
+          runItem: async (_item, _snapshot, ctx) => {
+            // Read again inside the task, so the copy has every change made while it waited its turn.
+            const latest = await store.loadProject(id);
+            ctx.checkCancelled();
+            if (!latest) throw new Error('That project could not be found.');
+            await store.saveProject(duplicateProject(latest, `project-${newId()}`, title, Date.now()));
+          },
+        });
+        if (await ticket.finished === 'done') await loadHub();
+      })().catch(() => setNotice('InFlight could not update the project.'));
+    },
     backToProjects: () => { void backToProjects(); },
     setHubState: (next) => setHubState(next),
     selectPhoto: (id, modifiers) => {
@@ -2233,6 +2258,46 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (!bytes) return null;
       try { return await verifyExactOriginalCopy(bytes, frame.originalSha256); } catch { return null; }
     },
+    previewEnlargement: async (photoId, sizeId) => {
+      const current = stateRef.current;
+      if (!current || !provider.current) return { ok: false, message: engineText.workspace.exportStopped };
+      const request = enlargementPreviewRequest(photoId, sizeId);
+      const plan = planExport(request, current.frames, createDefaultSizes());
+      if ('error' in plan) return { ok: false, message: plan.error };
+      const job = plan.jobs[0];
+      const variant = job?.variants[0];
+      const frame = current.frames.find((candidate) => candidate.id === photoId);
+      if (!job || !variant || !frame) return { ok: false, message: engineText.workspace.exportStopped };
+      const snapshot = structuredClone(frame);
+      const env = structuredClone(exportEnv.current);
+      const sourceProvider = provider.current;
+      let rendered: File | null = null;
+      let failure = '';
+      // Queued with exports on the same resource, so a preview never renders alongside a full-size export.
+      const ticket = await engineScheduler.submit({
+        title: engineText.workspace.enlargementTask, kind: 'export', location: 'local', resource: 'gpu', priority: 5, pauseable: false,
+        items: [{ id: snapshot.id, name: snapshot.filename }], snapshot: { frameId: snapshot.id },
+        itemId: (item) => item.id, itemLabel: (item) => item.name,
+        runItem: async (_, __, ctx) => {
+          try {
+            const files = await renderExportJob({ frame: snapshot, job, variant, request, provider: sourceProvider,
+              buildOverlay: (target, submitted) => buildOverlayDraw(target, submitted, env), started: new Date(), signal: ctx.signal,
+              stage: (message) => ctx.stage(message), checkCancelled: () => ctx.checkCancelled() });
+            rendered = files[0] ?? null;
+          } catch (reason) {
+            failure = reason instanceof Error ? reason.message : String(reason);
+            throw reason;
+          }
+        },
+      });
+      const outcome = await ticket.finished;
+      const file = rendered as File | null;
+      if (outcome !== 'done' || !file) return { ok: false, message: failure || engineText.workspace.exportStopped };
+      const bitmap = await createImageBitmap(file);
+      const result: EnlargementPreviewResult = { ok: true, url: URL.createObjectURL(file), width: bitmap.width, height: bitmap.height, name: file.name };
+      bitmap.close();
+      return result;
+    },
     renderGalleryPreview: async (photoId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
       return frame && provider.current ? renderGalleryPreview(frame, provider.current) : null;
@@ -2324,6 +2389,17 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (!found) return 'unclear';
       applyPatch([photoId], { caRed: Math.round(found.red * 100), caBlue: Math.round(found.blue * 100) });
       return found.red === 0 && found.blue === 0 ? 'clean' : 'corrected';
+    },
+    applyLensProfile: async (photoId, download) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      if (!frame) return 'failed';
+      let db;
+      try { db = await lensDatabase(download); } catch { return 'failed'; }
+      if (!db) return 'needs-download';
+      const found = resolveLensProfile(db, frame.exif ?? {});
+      if (found.kind !== 'found') return found.kind;
+      applyPatch([photoId], { lensProfile: found.profile });
+      return 'applied';
     },
     neutralWhiteBalance: async (photoId, at) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);

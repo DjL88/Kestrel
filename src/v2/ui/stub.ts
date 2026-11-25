@@ -616,8 +616,8 @@ function createDefaultPanels(): Record<PanelId, PanelLayoutState> {
 export const DEFAULT_FEATURE_PLAN: Record<FeatureKey, 'basic' | 'pro'> = {
   watermarkCustom: 'basic',
   overlayText: 'basic',
-  smartCulling: 'pro',
-  speciesId: 'pro',
+  smartCulling: 'basic',
+  speciesId: 'basic',
   onlineAi: 'pro',
   cloudAssist: 'pro',
   zoomVideo: 'basic',
@@ -840,6 +840,15 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     deleteProject: (id) => {
       logAction('deleteProject', { id });
       setStore((prev) => ({ ...prev, projects: prev.projects.map((p) => (p.id === id ? { ...p, trashed: true } : p)) }));
+    },
+    duplicateProject: (id) => {
+      logAction('duplicateProject', { id });
+      setStore((prev) => {
+        const source = prev.projects.find((p) => p.id === id);
+        if (!source) return prev;
+        const copy = { ...source, id: `${id}-copy-${prev.projects.length}`, name: STRINGS.hubMore.copyName(source.name), archived: false, trashed: false };
+        return { ...prev, projects: [copy, ...prev.projects] };
+      });
     },
     restoreDeletedProject: (id) => {
       logAction('restoreDeletedProject', { id });
@@ -1845,6 +1854,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     },
 
     detectColourEdges: async (photoId) => { logAction('detectColourEdges', { photoId }); return 'clean'; },
+    applyLensProfile: async (photoId, download) => { logAction('applyLensProfile', { photoId, download }); return 'not-found'; },
     addImageLayer: async (photoId) => { logAction('addImageLayer', { photoId }); },
     addPhotoLayer: async (photoId, sourcePhotoId) => { logAction('addPhotoLayer', { photoId, sourcePhotoId }); },
     updateLayer: (photoId, layerId) => { logAction('updateLayer', { photoId, layerId }); },

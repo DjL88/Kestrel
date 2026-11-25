@@ -1,5 +1,6 @@
 import type { ColourSenseNote, ColourWords } from '../engineClient/colourWords';
 import type { ComponentType, CSSProperties, ReactNode } from 'react';
+import type { LensProfile } from '../../core/lensCorrection';
 
 // Single Contract File for InFlight UI Shell
 // All components import their types ONLY from this file.
@@ -144,6 +145,8 @@ export interface SizePreset {
 export interface GradeRangeRecipe { hue: number; amount: number }
 export interface ColourGradeRecipe { shadows: GradeRangeRecipe; midtones: GradeRangeRecipe; highlights: GradeRangeRecipe; balance: number }
 
+export type LensProfileOutcome = 'applied' | 'needs-download' | 'no-lens' | 'not-found' | 'no-focal' | 'failed';
+
 export interface EditRecipe {
   lookId: string;
   exposure: number; // -5.0 to +5.0 EV stops
@@ -176,6 +179,11 @@ export interface EditRecipe {
   channelCurves?: Partial<Record<'red' | 'green' | 'blue', Array<[number, number]>>>;
   /** Remove haze (positive) or add it (negative), -100 to 100. Absent = 0. */
   dehaze?: number;
+  /** Lens distortion, -100 (fixes pincushion) to 100 (fixes barrel), and lens vignetting correction 0 to 100. Absent = 0. */
+  lensDistortion?: number;
+  lensVignetting?: number;
+  /** The measured profile for this photo's lens (from lensfun), set by applyLensProfile. null in a patch removes it. */
+  lensProfile?: LensProfile | null;
   /** Lens colour edges: red/cyan and blue/yellow, -100 to 100 each (set by Detect, or by hand in Advanced). Absent = 0. */
   caRed?: number;
   caBlue?: number;
@@ -686,6 +694,8 @@ export interface WorkspaceActions {
   archiveProject: (projectId: string, archived: boolean) => void;
   /** Moves the project to Recently deleted for 30 days. Nothing is removed yet; original files are never touched. */
   deleteProject: (projectId: string) => void;
+  /** A separate, complete copy named "… (copy)", made as a task in Tasks. Stored photo copies are shared. */
+  duplicateProject: (projectId: string) => void;
   /** Takes a project back out of Recently deleted, as it was. */
   restoreDeletedProject: (projectId: string) => void;
   /** Removes InFlight's catalogue entry and its stored copies now. Original files are never touched. */
@@ -752,6 +762,8 @@ export interface WorkspaceActions {
   applyAllAssistSuggestions: (photoId: string) => void;
   /** A sized JPEG of the edited photo for a client gallery, or null when there is no trustworthy picture yet. Absent in the stub. */
   renderGalleryPreview?: (photoId: string) => Promise<Blob | null>;
+  /** Render this photo's format exactly as export will (Output scale included) and return the picture. Absent in the stub. */
+  previewEnlargement?: (photoId: string, sizeId: string) => Promise<import('../engineClient/enlargementPreview').EnlargementPreviewResult>;
   /** The photo's whole edit as plain data for a shared project, or null when it has no edit. Absent in the stub. */
   sharedEditOf?: (photoId: string) => Record<string, unknown> | null;
   /** Replace the photo's edit with a shared one (or clear it). Recorded as an edit step, so it can be undone. */
@@ -825,6 +837,9 @@ export interface WorkspaceActions {
   removeOverlayRow: (photoId: string, rowId: string) => void;
   /** Measure this photo's lens colour edges and set caRed/caBlue from them. 'clean' = nothing to correct; 'unclear' = too few edges to tell. */
   detectColourEdges: (photoId: string) => Promise<'corrected' | 'clean' | 'unclear'>;
+  /** Find this photo's lens in the lensfun profiles and apply its profile. Only with `download` does it fetch the
+   * profiles (once, then kept on this device); without it, a device that lacks them answers 'needs-download'. */
+  applyLensProfile: (photoId: string, download: boolean) => Promise<LensProfileOutcome>;
   /** White balance from the picture itself, as one undoable step. `at` (0 to 1 across the shown, framed picture) is a spot
    * that should be grey or white (the eyedropper); without it, Auto estimates the light from the whole picture.
    * 'limited' = a slider reached its end first; 'unreadable' = the spot is clipped or too dark, nothing changed. */
