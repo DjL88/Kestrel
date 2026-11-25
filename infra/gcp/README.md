@@ -229,6 +229,8 @@ exceed 20 testers). The £20 budget alert from phase 1 still applies.
 
 To deploy a newer version, repeat step 3 with the new commit. To roll back, apply with the previous image tag.
 
+**Go-live readiness (read-only):** `bash infra/gcp/check-go-live.sh` in Cloud Shell prints one line per item, OK, OFF or MISSING, with the next step. It covers the control plane and its commit against `origin/main`, the model manifest key and revision, Paddle checkout, the Paddle, SMTP and manifest secrets (they are checked to exist and their enabled versions counted, never read), the switches in `current.tfvars.json`, the V2 web build commit and its control-plane URL, the Firebase sign-in domains and the Realtime Database. It changes nothing.
+
 **Cloud Shell, against the live backend (CS05):** `infra/gcp/deploy-control-plane.sh` does this with guard rails. It builds
 the image for one full `main` SHA, plans with the private `current.tfvars.json`, and stops unless the only change is an
 in-place update of the Cloud Run service. `apply` needs the SHA typed back and the saved plan unchanged, then records the
