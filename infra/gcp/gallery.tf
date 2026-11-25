@@ -19,7 +19,11 @@ resource "google_storage_bucket" "gallery" {
 
   lifecycle_rule {
     action { type = "Delete" }
-    condition { age = 91 }
+    # Galleries only: shared projects' cloud photos (projects/) stay until the project removes them.
+    condition {
+      age            = 91
+      matches_prefix = ["galleries/"]
+    }
   }
   lifecycle_rule {
     action { type = "AbortIncompleteMultipartUpload" }

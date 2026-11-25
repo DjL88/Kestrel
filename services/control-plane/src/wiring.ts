@@ -12,6 +12,8 @@ import { FirestoreSafeCopyCatalog } from './safeCopyFirestore.ts';
 import { CollabStore } from './collaboration.ts';
 import { IamPresenceSigner } from './presenceToken.ts';
 import { GalleryStore } from './gallery.ts';
+import { CloudPhotoStore } from './cloudPhotos.ts';
+import { FirestoreUsageMeter, FlatAllowance } from './usageMeter.ts';
 import { FirestoreSpendGuard } from './spendGuard.ts';
 import type { FirestoreLike } from './firestoreStore.ts';
 
@@ -21,7 +23,7 @@ export interface WiringDeps {
   openBucket?: (name: string) => Promise<GcsBucketLike>;
   token?: () => Promise<string>;
 }
-export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'learning' | 'learningWithdrawal' | 'spend'> & { enabled: string[] };
+export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend'> & { enabled: string[] };
 
 function whole(env: NodeJS.ProcessEnv, name: string, dflt: number, max: number): number {
   const raw = env[name];
@@ -75,7 +77,21 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
       out.enabled.push('presence');
     }
     // Client galleries need their own private UK bucket (infra/gcp/gallery.tf).
-    if (env.KCP_GALLERY_BUCKET) { out.gallery = new GalleryStore(db, new GcsSafeCopyStorage(await open(env.KCP_GALLERY_BUCKET))); out.enabled.push('gallery'); }
+    if (env.KCP_GALLERY_BUCKET) {
+      const bucket = new GcsSafeCopyStorage(await open(env.KCP_GALLERY_BUCKET));
+      out.gallery = new GalleryStore(db, bucket); out.enabled.push('gallery');
+      // The cloud photo store shares the UK bucket under projects/ (the 90-day rule covers galleries/ only).
+      if (env.KCP_CLOUD_PHOTOS_ENABLED === '1') {
+        const credits = Number(env.KCP_DOWNLOAD_CREDITS_PER_MONTH ?? 300);
+        const maxGb = Number(env.KCP_CLOUD_PROJECT_MAX_GB ?? 50);
+        out.cloudPhotos = {
+          store: new CloudPhotoStore(db, bucket), meter: new FirestoreUsageMeter(db),
+          allowance: new FlatAllowance(Math.max(0, Math.round((Number.isFinite(credits) ? credits : 300) * 1000))),
+          maxProjectBytes: Math.max(0, (Number.isFinite(maxGb) ? maxGb : 50) * 1_000_000_000),
+        };
+        out.enabled.push('cloud-photos');
+      }
+    }
   }
   // Withdrawal/deletion must remain available with collection disabled.
   // This service cannot enable research writes: only the optional 'learning'

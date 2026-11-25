@@ -8,7 +8,7 @@ import { canDevelopRaw, developRaw } from './rawDevelop';
 import { loadImage } from './loadImage';
 import { applyCanvasExportEdit } from '../core/canvasEdit';
 import { DEFAULT_EDIT } from '../core/photoEdits';
-import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../core/photoFraming';
+import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../core/photoFraming';
 import { exportFilename, type ExportProfile } from '../core/exportProfiles';
 import { planExportFraming, type ExportFraming, type FocusPoint } from '../core/exportFraming';
 import type { BarStyle } from '../core/exportFormats';
@@ -231,6 +231,7 @@ async function composeExport(
   await applyCanvasExportEdit(canvas, frame.edit ?? DEFAULT_EDIT, signal, Math.max(width, height) * scale, {
     aspect: height / width,
     view: { x: region.x / width, y: region.y / height, w: region.width / width, h: region.height / height },
+    lensCentre: lensCentre(source.naturalWidth, source.naturalHeight, framing),
   });
   signal?.throwIfAborted();
   if (border) {

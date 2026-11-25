@@ -23,6 +23,8 @@ import { UK_VAT_THRESHOLD_PENCE, UK_VAT_WARNING_PENCE } from './commerce/turnove
 import { CLOUD_KINDS, DEFAULT_MAX_JOB_MS, type CloudJobRecord, type CloudOptions } from './cloudJobs.ts';
 import { LEARNING_ACTIONS, LEARNING_CAPABILITIES, LEARNING_SOURCES, type LearningSink } from './learningSignal.ts';
 import { CollabRefusal, MAX_RECIPE_BYTES, type CollabStore } from './collaboration.ts';
+import { CloudRefusal, CLOUD_VARIANTS, type CloudPhotoStore } from './cloudPhotos.ts';
+import { millicreditsForBytes, type AllowancePolicy, type UsageMeter } from './usageMeter.ts';
 import { GalleryRefusal, GALLERY_MAX_DAYS, GALLERY_MAX_PHOTOS, GALLERY_MAX_PREVIEW_BYTES, type GalleryStore } from './gallery.ts';
 import { presenceUid, PRESENCE_TOKEN_TTL_S, type PresenceSigner } from './presenceToken.ts';
 import { SAFE_COPY_LEVELS, SAFE_COPY_MAX_BYTES, safeCopyKey, type SafeCopyOptions } from './safeCopy.ts';
@@ -76,6 +78,8 @@ export interface AppOptions {
   presence?: PresenceSigner;
   /** Client galleries: previews in their own UK bucket. Absent: the gallery routes answer 503. */
   gallery?: GalleryStore;
+  /** Shared projects' cloud photo store and the per-account download meter. Absent: the cloud routes answer 503. */
+  cloudPhotos?: { store: CloudPhotoStore; meter: UsageMeter; allowance: AllowancePolicy; maxProjectBytes: number };
   /** Hard monthly ceiling on metered spend (Gemini, cloud jobs). Absent: no guard (development and tests). */
   spend?: SpendOptions;
   /** Production sets this: the cloud, safe copy and learning features stay OFF until an admin switches them on. Tests and development leave them on. */
@@ -166,7 +170,7 @@ export const Schemas = {
     password: z.string().min(6).max(200).optional(), allowComments: z.boolean().default(false), allowFavourites: z.boolean().default(false),
     allowApproval: z.boolean().default(false), allowDownloads: z.boolean().default(false), watermark: z.boolean().default(false),
   }).strict(),
-  GalleryPreview: z.object({ sha256: Sha, bytes: z.number().int().positive().max(GALLERY_MAX_PREVIEW_BYTES) }).strict(),
+  GalleryPreview: z.object({ sha256: Sha, bytes: z.number().int().positive().max(GALLERY_MAX_PREVIEW_BYTES), variant: z.enum(['preview', 'thumb']).default('preview') }).strict(),
   GalleryOpen: z.object({ token: z.string().min(20).max(128), password: z.string().max(200).optional() }).strict(),
   GalleryFeedback: z.object({
     token: z.string().min(20).max(128), password: z.string().max(200).optional(), visitor: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
@@ -176,6 +180,11 @@ export const Schemas = {
   CollabAcquire: z.object({ deviceId: z.string().min(8).max(128) }).strict(),
   CollabHeartbeat: z.object({ token: z.string().min(16).max(128), editing: z.boolean() }).strict(),
   CollabRelease: z.object({ token: z.string().min(16).max(128), action: z.enum(['checked-in', 'released']) }).strict(),
+  CollabComment: z.object({ text: z.string().trim().min(1).max(2000), point: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().nullable().default(null) }).strict(),
+  CloudUpload: z.object({ variant: z.enum(CLOUD_VARIANTS), sha256: Sha, bytes: z.number().int().positive(), name: z.string().trim().min(1).max(200) }).strict(),
+  CloudVariantBody: z.object({ variant: z.enum(CLOUD_VARIANTS) }).strict(),
+  CloudRemove: z.object({ variants: z.array(z.enum(CLOUD_VARIANTS)).min(1).max(3).optional() }).strict(),
+  CollabResolve: z.object({ resolved: z.boolean() }).strict(),
   CollabOverride: z.object({ reason: z.string().trim().min(1).max(500) }).strict(),
   CollabPublish: z.object({ token: z.string().min(16).max(128), baseRevisionId: z.string().max(64).nullable(), recipe: z.record(z.string(), z.unknown()), virtualCopyOf: z.string().max(64).optional() }).strict(),
   SafeCopyLevels: z.object({ levels: z.object({ recipes: z.boolean(), previews: z.boolean(), originals: z.boolean() }).partial().strict() }).strict(),
@@ -541,6 +550,17 @@ export function createApp(options: AppOptions) {
   async function collab<T>(work: () => Promise<T>): Promise<T> {
     try { return await work(); } catch (error) {
       if (error instanceof CollabRefusal) throw new CollabApiError(error.status, error.code, error.message, error.detail);
+      throw error;
+    }
+  }
+
+  function cloudCfg() {
+    if (!options.cloudPhotos) throw new ApiError(503, 'CLOUD_NOT_CONFIGURED', 'The cloud photo store is not set up on this server yet. Everything on your devices keeps working.');
+    return options.cloudPhotos;
+  }
+  async function cloud<T>(work: () => Promise<T>): Promise<T> {
+    try { return await work(); } catch (error) {
+      if (error instanceof CloudRefusal) throw new ApiError(error.status, error.code, error.message);
       throw error;
     }
   }
@@ -1164,6 +1184,97 @@ export function createApp(options: AppOptions) {
       },
     },
     {
+      method: 'GET', path: '/v1/collab/projects/:id/photos/:photoId/comments', summary: 'Comments on one photo, oldest first', auth: 'user',
+      handler: async (req, params) => { const claims = await bearer(req); return { status: 200, body: { comments: await collab(() => collabCfg().comments(params.id, params.photoId, claims.sub)) } }; },
+    },
+    {
+      method: 'POST', path: '/v1/collab/projects/:id/photos/:photoId/comments', summary: 'Comment on a photo, optionally pinned to a spot on it', auth: 'user', body: Schemas.CollabComment,
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.CollabComment, req.rawBody);
+        if (!PhotoId.safeParse(params.photoId).success) throw new ApiError(400, 'BAD_REQUEST', 'That is not a photo id.');
+        const c = await collabWritable();
+        return { status: 200, body: { comment: await collab(() => c.addComment(params.id, params.photoId, claims.sub, { text: body.text, point: body.point ?? null }, now())) } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/collab/projects/:id/comments/:commentId/resolve', summary: 'Mark a comment done, or reopen it', auth: 'user', body: Schemas.CollabResolve,
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.CollabResolve, req.rawBody);
+        return { status: 200, body: { comment: await collab(() => collabCfg().resolveComment(params.id, params.commentId, claims.sub, body.resolved, now())) } };
+      },
+    },
+    // ---- Cloud photo store for shared projects. Previews first; originals only on demand; downloads metered to the owner.
+    {
+      method: 'GET', path: '/v1/collab/projects/:id/cloud', summary: 'Photos this project keeps in the cloud (previews always, originals when stored)', auth: 'user',
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        const member = await collab(() => collabCfg().requireMember(params.id, claims.sub, 'view'));
+        if (member.role === 'client') throw new ApiError(403, 'COLLAB_NOT_PERMITTED', 'Clients see the photos shared with them in a gallery.');
+        return { status: 200, body: { photos: await cloudCfg().store.list(params.id) } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/collab/projects/:id/photos/:photoId/cloud/upload-url', summary: 'A signed URL to put one preview, filmstrip picture or original in the cloud', auth: 'user', body: Schemas.CloudUpload,
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.CloudUpload, req.rawBody);
+        if (!PhotoId.safeParse(params.photoId).success) throw new ApiError(400, 'BAD_REQUEST', 'That is not a photo id.');
+        const c = await collabWritable();
+        await collab(() => c.requireMember(params.id, claims.sub, 'edit', params.photoId));
+        const cfg = cloudCfg();
+        return { status: 200, body: await cloud(() => cfg.store.signUpload(params.id, params.photoId, claims.sub, body, now(), cfg.maxProjectBytes)) };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/collab/projects/:id/photos/:photoId/cloud/commit', summary: 'Mark an uploaded cloud object as stored', auth: 'user', body: Schemas.CloudVariantBody,
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.CloudVariantBody, req.rawBody);
+        await collab(() => collabCfg().requireMember(params.id, claims.sub, 'edit', params.photoId));
+        await cloud(() => cloudCfg().store.commit(params.id, params.photoId, body.variant));
+        return { status: 200, body: { stored: true } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/collab/projects/:id/photos/:photoId/cloud/download-url', summary: "A signed URL to download one cloud object. Counted against the project owner's monthly allowance first", auth: 'user', body: Schemas.CloudVariantBody,
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.CloudVariantBody, req.rawBody);
+        // An original is the full file: only those who may export it get it.
+        await collab(() => collabCfg().requireMember(params.id, claims.sub, body.variant === 'original' ? 'export' : 'view', params.photoId));
+        const cfg = cloudCfg();
+        const object = await cloud(() => cfg.store.objectFor(params.id, params.photoId, body.variant));
+        const payer = await collab(() => collabCfg().payerOf(params.id));
+        const allowance = await cfg.allowance.monthlyMillicredits(payer, now());
+        if (!(await cfg.meter.reserve(payer, now(), object.bytes, allowance))) {
+          throw new ApiError(402, 'CREDITS_EXHAUSTED', "This project's download allowance for the month is used up. Photos already on your devices keep working.");
+        }
+        return { status: 200, body: { downloadUrl: await cfg.store.signDownload(params.id, params.photoId, body.variant), bytes: object.bytes, sha256: object.sha256, millicredits: millicreditsForBytes(object.bytes) } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/collab/projects/:id/photos/:photoId/cloud/remove', summary: 'Take a photo (or just its original) out of the cloud', auth: 'user', body: Schemas.CloudRemove,
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.CloudRemove, req.rawBody);
+        await collab(() => collabCfg().requireMember(params.id, claims.sub, 'edit', params.photoId));
+        await cloudCfg().store.remove(params.id, params.photoId, body.variants ?? CLOUD_VARIANTS);
+        return { status: 200, body: { removed: true } };
+      },
+    },
+    {
+      method: 'GET', path: '/v1/me/usage', summary: 'This month: cloud downloads you pay for, in credits (1 credit = 1p), and your allowance', auth: 'user',
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const cfg = cloudCfg();
+        const used = await cfg.meter.usage(claims.sub, now());
+        const allowance = await cfg.allowance.monthlyMillicredits(claims.sub, now());
+        return { status: 200, body: { month: used.month, usedCredits: used.millicredits / 1000, allowanceCredits: allowance / 1000, bytes: used.bytes, downloads: used.downloads } };
+      },
+    },
+    {
       method: 'POST', path: '/v1/collab/projects/:id/presence-token', summary: 'A one-hour token for live cursors in this project only (Realtime Database)', auth: 'user',
       handler: async (req, params) => {
         const claims = await bearer(req);
@@ -1208,7 +1319,7 @@ export function createApp(options: AppOptions) {
       handler: async (req, params) => {
         const body = parseJson(Schemas.GalleryPreview, req.rawBody);
         await galleryOwner(req, params.gid);
-        return { status: 200, body: { uploadUrl: await gallery(() => galleryCfg().signPreviewUpload(params.gid, params.photoId, body.sha256, body.bytes)) } };
+        return { status: 200, body: { uploadUrl: await gallery(() => galleryCfg().signPreviewUpload(params.gid, params.photoId, body.sha256, body.bytes, body.variant)) } };
       },
     },
     {
