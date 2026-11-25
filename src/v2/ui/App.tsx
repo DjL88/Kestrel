@@ -900,6 +900,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   } : undefined}
                   onDuplicateSize={(sizeId) => activePhoto && actions.duplicateSize(activePhoto.id, sizeId)}
                   onRemoveSize={(sizeId) => activePhoto && actions.removeSize(activePhoto.id, sizeId)}
+                  swipeBetweenPhotos={store.settings.swipeBetweenPhotos !== false}
                   onStepPhoto={(delta) => {
                     // In the order the filmstrip shows (its sort and filter), not the store's: a swipe goes to the photo beside this one.
                     const next = stepFrom(shownPhotoIds.map((id) => ({ id })), activePhoto?.id, delta);

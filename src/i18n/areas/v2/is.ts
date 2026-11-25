@@ -1404,6 +1404,10 @@ export const is: AreaTranslation<typeof source> = {
       intro: 'Helstu flýtilyklar á tölvu fyrir hraða grisjun og breytingar.',
       advanceLabel: "Fara í næstu mynd eftir einkunn",
       advanceDesc: "Eftir stjörnueinkunn, flagg eða að setja eina mynd til hliðar birtist næsta mynd strax. Val á mörgum völdum myndum færir aldrei áfram.",
+      touchHeading: "Snerting og penni",
+      swipeLabel: "Strjúktu til að skipta um mynd",
+      swipeDesc: "Hröð stroka með einum fingri yfir myndina sýnir næstu eða fyrri mynd. Slökktu á þessu ef það gerist óvart.",
+      penNote: "Með penna eins og Apple Pencil eru snertingar á myndinni hunsaðar á meðan penninn er á skjánum og augnablik á eftir, svo höndin sem heldur á honum færir aldrei myndina.",
     },
     language: {
       label: 'Tungumál viðmóts',

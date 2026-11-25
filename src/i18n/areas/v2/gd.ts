@@ -1405,6 +1405,10 @@ export const gd: AreaTranslation<typeof source> = {
       intro: 'Ath-ghoiridean deasga riatanach airson taghadh is deasachadh luath.',
       advanceLabel: "Gluais dhan ath dhealbh an dèidh rangachadh",
       advanceDesc: "An dèidh rangachadh rionnaig, bratach no cur an dàrna taobh air aon dealbh, seall an ath dhealbh sa bhad. Cha ghluais roghainnean air grunn dhealbhan taghte air adhart idir.",
+      touchHeading: "Suathadh is peann",
+      swipeLabel: "Grad-shlaighd airson an dealbh atharrachadh",
+      swipeDesc: "Seallaidh grad-shlaighd le aon chorrag thar an dealbh an ath dhealbh no an tè roimhe. Cuir dheth seo ma thachras e gun fhiosta.",
+      penNote: "Le peann mar Apple Pencil, thèid suathadh air an dealbh a leigeil seachad fhad ’s a tha am peann sìos is car tiota às a dhèidh, gus nach gluais an làmh a tha ga chumail an dealbh idir.",
     },
     language: {
       label: 'Cànan an t-seallaidh',

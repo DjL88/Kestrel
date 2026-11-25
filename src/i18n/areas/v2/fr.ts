@@ -1404,6 +1404,10 @@ export const fr: AreaTranslation<typeof source> = {
       intro: 'Raccourcis essentiels sur ordinateur pour trier et retoucher vite.',
       advanceLabel: "Passer à la photo suivante après la note",
       advanceDesc: "Après une note, un drapeau ou une mise de côté sur une photo, afficher aussitôt la suivante. Un choix sur plusieurs photos sélectionnées ne fait jamais avancer.",
+      touchHeading: "Toucher et stylet",
+      swipeLabel: "Balayer pour changer de photo",
+      swipeDesc: "Un geste rapide d’un doigt sur la photo affiche la photo suivante ou précédente. Désactivez-le si cela arrive par accident.",
+      penNote: "Avec un stylet comme l’Apple Pencil, les contacts sur la photo sont ignorés tant que le stylet touche l’écran et un court instant après, pour que la main qui le tient ne déplace jamais la photo.",
     },
     language: {
       label: 'Langue d’affichage',

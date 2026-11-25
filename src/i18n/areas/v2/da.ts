@@ -1404,6 +1404,10 @@ export const da: AreaTranslation<typeof source> = {
       intro: 'Vigtige genveje på computeren til hurtig sortering og redigering.',
       advanceLabel: "Gå til næste foto efter bedømmelse",
       advanceDesc: "Efter en stjernebedømmelse, et flag eller en tilsidesættelse af ét foto vises det næste foto med det samme. Valg på flere markerede fotos går aldrig videre.",
+      touchHeading: "Berøring og pen",
+      swipeLabel: "Stryg for at skifte foto",
+      swipeDesc: "Et hurtigt stryg med én finger hen over fotoet viser det næste eller forrige foto. Slå det fra, hvis det sker ved et uheld.",
+      penNote: "Med en pen som Apple Pencil ignoreres berøringer på fotoet, mens pennen rører skærmen og et øjeblik efter, så hånden, der holder den, aldrig flytter fotoet.",
     },
     language: {
       label: 'Visningssprog',

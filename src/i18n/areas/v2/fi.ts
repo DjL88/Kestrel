@@ -1405,6 +1405,10 @@ export const fi: AreaTranslation<typeof source> = {
       intro: 'Tärkeimmät tietokoneen pikanäppäimet nopeaan karsintaan ja muokkaukseen.',
       advanceLabel: "Siirry seuraavaan kuvaan arvioinnin jälkeen",
       advanceDesc: "Kun yksi kuva saa tähtiarvion, merkinnän tai siirretään sivuun, seuraava kuva näytetään heti. Usean valitun kuvan valinnat eivät koskaan siirry eteenpäin.",
+      touchHeading: "Kosketus ja kynä",
+      swipeLabel: "Vaihda kuvaa pyyhkäisemällä",
+      swipeDesc: "Nopea yhden sormen pyyhkäisy kuvan yli näyttää seuraavan tai edellisen kuvan. Poista tämä käytöstä, jos niin käy vahingossa.",
+      penNote: "Kun käytät kynää, kuten Apple Penciliä, kuvan kosketukset ohitetaan kynän ollessa näytöllä ja hetken sen jälkeen, joten kynää pitelevä käsi ei koskaan siirrä kuvaa.",
     },
     language: {
       label: 'Näyttökieli',

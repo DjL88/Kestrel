@@ -727,6 +727,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       hideProFeatures: false,
       advancedControls: false,
       advanceAfterDecision: false,
+      swipeBetweenPhotos: true,
     },
     activePanel: 'adjust',
     panels: createDefaultPanels(),

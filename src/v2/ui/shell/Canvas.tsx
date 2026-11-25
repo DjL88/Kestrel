@@ -83,6 +83,8 @@ interface CanvasProps {
   onClearSizeSelection: () => void;
   /** Phone swipe left or right on the photo: go to the next (1) or previous (-1) photo. */
   onStepPhoto?: (delta: 1 | -1) => void;
+  /** Settings > Keyboard > Touch and pen: a one-finger flick changes the photo. Off, a flick does nothing. */
+  swipeBetweenPhotos?: boolean;
   /** The small action bar by the format: open the Formats tool, duplicate or delete this format. */
   onOpenFormats?: () => void;
   onDuplicateSize?: (sizeId: string) => void;
@@ -161,6 +163,7 @@ export default function Canvas({
   onSelectSize,
   onClearSizeSelection,
   onStepPhoto,
+  swipeBetweenPhotos = true,
   onOpenFormats,
   onDuplicateSize,
   onRemoveSize,
@@ -957,8 +960,8 @@ export default function Canvas({
       swipeRef.current = null;
       if (swipe && !swipe.pinched && !heldOriginal && revealSizeId !== activeSize.id && zoomRef.current <= 1.01) {
         const intent = swipeIntent(e.clientX - swipe.x, e.clientY - swipe.y, e.timeStamp - swipe.t);
-        if (intent === 'next-photo') onStepPhoto?.(1);
-        else if (intent === 'previous-photo') onStepPhoto?.(-1);
+        if (intent === 'next-photo') { if (swipeBetweenPhotos) onStepPhoto?.(1); }
+        else if (intent === 'previous-photo') { if (swipeBetweenPhotos) onStepPhoto?.(-1); }
         else if (intent === 'next-format' || intent === 'previous-format') {
           const next = stepFrom(photo.sizes.filter((size) => size.kind === 'photo' && size.enabled), activeSize.id, intent === 'next-format' ? 1 : -1);
           if (next) onSelectSize(next.id);
