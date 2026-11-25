@@ -152,3 +152,27 @@ test('live cursors: a one-hour token for one project, carrying the role, only fo
     assert.equal((await h.call('POST', `/v1/collab/projects/${pid}/presence-token`, { token: h.user.token })).status, 404);
   } finally { await h.close(); }
 });
+
+test('comments: members comment and pin, clients only when allowed and on their photos, the author or an editor marks them done', async () => {
+  const { h, owner, editor, client, call, P } = await harness();
+  try {
+    await call('POST', `${P}/members`, owner.token, { kind: 'inviteEmail', email: 'editor@example.test', role: 'editor', displayName: 'Erin' });
+    await call('POST', `${P}/members`, owner.token, { kind: 'inviteEmail', email: 'client@example.test', role: 'client', displayName: 'Cleo', photoIds: ['p1'] });
+    await call('POST', `${P}/accept`, editor.token, { displayName: 'Erin' });
+    await call('POST', `${P}/accept`, client.token, { displayName: 'Cleo' });
+    assert.equal((await call('POST', `${P}/photos/p1/comments`, client.token, { text: 'Lovely' })).status, 403, 'clients comment only when the owner allows it');
+    let r = await call('POST', `${P}/photos/p1/comments`, owner.token, { text: 'Brighter eye?', point: { x: 0.4, y: 0.3 } });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const id = r.body.comment.id as string;
+    assert.equal(r.body.comment.authorName, 'Dave');
+    assert.equal((await call('GET', `${P}/photos/p2/comments`, client.token)).status, 403, 'a client sees only their photos');
+    assert.equal((await call('POST', `${P}/photos/p1/comments`, editor.token, { text: '  ' })).status, 400);
+    assert.equal((await call('POST', `${P}/photos/p1/comments`, editor.token, { text: 'Off the photo', point: { x: 2, y: 0 } })).status, 400);
+    assert.equal((await call('POST', `${P}/photos/p1/comments`, editor.token, { text: 'On it' })).status, 200);
+    r = await call('GET', `${P}/photos/p1/comments`, owner.token);
+    assert.deepEqual(r.body.comments.map((c: any) => [c.authorName, c.text, c.point]), [['Dave', 'Brighter eye?', { x: 0.4, y: 0.3 }], ['Erin', 'On it', null]]);
+    r = await call('POST', `${P}/comments/${id}/resolve`, editor.token, { resolved: true });
+    assert.equal(r.status, 200); assert.equal(typeof r.body.comment.resolvedAtMs, 'number');
+    assert.equal((await call('POST', `${P}/comments/${id}/resolve`, h.user.token, { resolved: false })).status, 404, 'not a member');
+  } finally { await h.close(); }
+});

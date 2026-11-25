@@ -80,3 +80,16 @@ test('the Auto-cull summary says when RAWs were judged from the camera preview, 
   assert.match(autoCullSummary(30, 4), /sensor data: 4./);
   assert.match(autoCullSummary(30, 4), /You can undo the whole pass in one step.$/);
 });
+
+test('only RAWs that were judged, and not from a picture developed from their sensor data, count for the caveat', async () => {
+  const { rawsJudgedFromCameraPreview } = await import('./commitAutoCull.ts');
+  const frames = [
+    { id: 'a', filename: 'A.NEF' }, { id: 'b', filename: 'B.NEF' }, { id: 'c', filename: 'C.NEF' },
+    { id: 'd', filename: 'D.NEF' }, { id: 'e', filename: 'E.jpg' }, { id: 'f', filename: 'F.NEF' },
+  ];
+  const results = frames.map(({ id }) => ({ frameId: id, decision: null, confidence: 'low' as const, score: 40,
+    reason: id === 'f' ? 'unavailable' as const : 'limitedDetail' as const }));
+  const sources = new Map([['a', 'camera-preview'], ['b', 'raw-review'], ['c', 'raw-full'], ['e', 'original']] as const);
+  // a: camera preview; d: unknown source (cached at import) counts as not developed; e is not a RAW; f was not judged.
+  assert.equal(rawsJudgedFromCameraPreview(frames, results, sources), 2);
+});
