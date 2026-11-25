@@ -8,6 +8,8 @@ export const cy: AreaTranslation<typeof source> = {
   kinds: {
     car: 'Car',
     motorbike: 'Beic modur',
+    'racing-car': 'Car rasio',
+    'racing-motorbike': 'Beic modur rasio',
     lorry: 'Lori',
     bus: 'Bws',
     train: 'Trên',
@@ -41,9 +43,10 @@ export const cy: AreaTranslation<typeof source> = {
     cancel: 'Canslo',
     saved: (count: number) => (count > 1 ? `Wedi’i gadw ar gyfer ${count} llun.` : 'Wedi’i gadw.'),
   },
+  raceNumber: (what: string, number: string) => `${what}, rhif ${number}`,
   reader: {
-    title: 'Darllen cofrestriadau awyrennau',
-    description: (megabytes: string) => `Yn darllen cofrestriadau a rhifau cyfresol milwrol sydd wedi’u peintio ar awyrennau, ar y ddyfais hon, ac yn eu chwilio mewn copi all-lein o gofrestrau cyhoeddus. Lawrlwythiad unwaith o ${megabytes} MB. Nid yw platiau rhif ceir byth yn cael eu darllen.`,
+    title: 'Darllen cofrestriadau a rhifau rasio',
+    description: (megabytes: string) => `Yn darllen cofrestriadau a rhifau cyfresol milwrol ar awyrennau, a rhifau rasio ar geir a beiciau rasio, ar y ddyfais hon. Caiff cofrestriadau eu chwilio mewn copi all-lein o gofrestrau cyhoeddus. Lawrlwythiad unwaith o ${megabytes} MB. Nid yw platiau rhif cerbydau ffordd byth yn cael eu darllen.`,
     download: 'Lawrlwytho',
     downloading: (percent: number) => `Yn lawrlwytho… ${percent}%`,
     ready: 'Wedi’i osod. Yn gweithio all-lein.',

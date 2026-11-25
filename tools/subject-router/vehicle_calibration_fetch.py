@@ -40,6 +40,14 @@ SETS = [
     ("train", "", "British Rail Class 800"),
     ("tram", "", "Manchester Metrolink trams"),
     ("boat", "", "RNLI lifeboats"),
+    ("racing-car", "", "British Touring Car Championship"),
+    ("racing-car", "", "Formula One cars"),
+    ("racing-car", "", "Rally cars"),
+    ("racing-motorbike", "", "MotoGP motorcycles"),
+    ("racing-motorbike", "", "Isle of Man TT"),
+    ("ferry", "", "Ferries of the United Kingdom"),
+    ("yacht", "", "Sailing yachts"),
+    ("lifeboat", "", "Tamar-class lifeboats"),
 ]
 
 
