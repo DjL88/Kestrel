@@ -831,6 +831,7 @@ export const nl: AreaTranslation<typeof source> = {
     more: 'Meer',
     moreTools: 'Meer gereedschap',
     closeDrawer: 'Mobiele lade sluiten',
+    photoPosition: (n, total) => `${n} van ${total}`,
   },
   tasks: {
     heading: 'Achtergrondtaken',

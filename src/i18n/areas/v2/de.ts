@@ -831,6 +831,7 @@ export const de: AreaTranslation<typeof source> = {
     more: 'Mehr',
     moreTools: 'Weitere Werkzeuge',
     closeDrawer: 'Mobile Leiste schließen',
+    photoPosition: (n, total) => `${n} von ${total}`,
   },
   tasks: {
     heading: 'Hintergrundaufgaben',

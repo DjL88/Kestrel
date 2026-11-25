@@ -831,6 +831,7 @@ export const sv: AreaTranslation<typeof source> = {
     more: 'Mer',
     moreTools: 'Fler verktyg',
     closeDrawer: 'Stäng mobillådan',
+    photoPosition: (n, total) => `${n} av ${total}`,
   },
   tasks: {
     heading: 'Bakgrundsuppgifter',

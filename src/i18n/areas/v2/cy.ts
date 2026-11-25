@@ -831,6 +831,7 @@ export const cy: AreaTranslation<typeof source> = {
     more: 'Rhagor',
     moreTools: 'Rhagor o offer',
     closeDrawer: 'Cau’r drôr symudol',
+    photoPosition: (n, total) => `${n} o ${total}`,
   },
   tasks: {
     heading: 'Tasgau cefndir',

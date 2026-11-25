@@ -831,6 +831,7 @@ export const nb: AreaTranslation<typeof source> = {
     more: 'Mer',
     moreTools: 'Flere verktøy',
     closeDrawer: 'Lukk mobilskuffen',
+    photoPosition: (n, total) => `${n} av ${total}`,
   },
   tasks: {
     heading: 'Bakgrunnsoppgaver',

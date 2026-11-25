@@ -513,6 +513,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             showMenus={!isDesktopApp()}
             keymap={keymap}
             photoName={store.collage && !collageEditingId ? `Collage · ${store.collage.pages.length} page${store.collage.pages.length === 1 ? '' : 's'}` : activePhoto ? `${activePhoto.title} · ${activePhoto.filename}` : 'No photo'}
+            photoPosition={!store.collage && activePhoto ? STRINGS.mobile.photoPosition(store.photos.findIndex((p) => p.id === activePhoto.id) + 1, store.photos.length) : undefined}
             assistMode={store.assistMode}
             theme={activeTheme}
             activePanel={store.activePanel}

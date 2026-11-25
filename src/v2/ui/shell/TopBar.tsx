@@ -11,6 +11,8 @@ interface TopBarProps {
    */
   showMenus?: boolean;
   photoName: string;
+  /** Phone only: where this photo is in the project, e.g. "2 of 20". */
+  photoPosition?: string;
   /**
    * The same effective keymap App.tsx's dispatcher runs, lifted down as a prop rather than
    * loaded independently here. Before this, TopBar re-read the saved keymap itself and only
@@ -65,6 +67,7 @@ type OpenMenu = 'file' | 'edit' | 'view' | null;
 export default function TopBar({
   showMenus = true,
   photoName,
+  photoPosition,
   keymap: shortcutMap,
   assistMode,
   theme,
@@ -176,10 +179,16 @@ export default function TopBar({
           <span className="hidden sm:inline">{STRINGS.topBar.backShort}</span>
         </button>
 
-        <div className="h-5 w-px bg-[var(--border-subtle)] shrink-0" aria-hidden="true" />
+        <div className="hidden h-5 w-px bg-[var(--border-subtle)] shrink-0 md:block" aria-hidden="true" />
 
-        <div className="flex items-center px-1 shrink-0">
+        <div className="hidden items-center px-1 shrink-0 md:flex">
           <BrandLogo height={38} className="h-auto w-[92px] md:w-[124px]" />
+        </div>
+
+        {/* Phone: the photo's name and where it is in the project, in place of the logo (owner wireframe, 26.3). */}
+        <div className="flex min-w-0 flex-col leading-tight md:hidden" data-testid="phone-photo-title">
+          <span className="truncate text-sm font-semibold text-[var(--text-primary)]">{photoName}</span>
+          {photoPosition && <span className="truncate text-xs text-[var(--text-secondary)]">{photoPosition}</span>}
         </div>
 
         {/* Desktop menus: File, Edit, View */}
@@ -440,7 +449,7 @@ export default function TopBar({
             className="inline-flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-md)] border border-[var(--border-default)] px-2.5 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface-hover)] md:h-9 md:px-3.5"
           >
             <BrandIcon name="link" size={15} />
-            <span>{STRINGS.share.button}</span>
+            <span className="v2-phone-label">{STRINGS.share.button}</span>
           </button>
         )}
         <button

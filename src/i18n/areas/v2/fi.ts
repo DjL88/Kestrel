@@ -832,6 +832,7 @@ export const fi: AreaTranslation<typeof source> = {
     more: 'Lisää',
     moreTools: 'Lisää työkaluja',
     closeDrawer: 'Sulje mobiilivalikko',
+    photoPosition: (n, total) => `${n}/${total}`,
   },
   tasks: {
     heading: 'Taustatehtävät',

@@ -831,6 +831,7 @@ export const it: AreaTranslation<typeof source> = {
     more: 'Altro',
     moreTools: 'Altri strumenti',
     closeDrawer: 'Chiudi il pannello mobile',
+    photoPosition: (n, total) => `${n} di ${total}`,
   },
   tasks: {
     heading: 'Attività in background',

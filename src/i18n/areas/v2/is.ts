@@ -831,6 +831,7 @@ export const is: AreaTranslation<typeof source> = {
     more: 'Meira',
     moreTools: 'Fleiri verkfæri',
     closeDrawer: 'Loka farsímaskúffu',
+    photoPosition: (n, total) => `${n} af ${total}`,
   },
   tasks: {
     heading: 'Bakgrunnsverk',

@@ -834,6 +834,7 @@ export const ga: AreaTranslation<typeof source> = {
     more: 'Tuilleadh',
     moreTools: 'Tuilleadh uirlisí',
     closeDrawer: 'Dún an tarraiceán soghluaiste',
+    photoPosition: (n, total) => `${n} as ${total}`,
   },
   tasks: {
     heading: 'Tascanna cúlra',

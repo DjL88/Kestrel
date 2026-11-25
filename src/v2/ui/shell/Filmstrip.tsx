@@ -467,7 +467,7 @@ export default function Filmstrip({
                     onPointerMove={moveLongPress}
                     onPointerUp={cancelLongPress}
                     onPointerCancel={cancelLongPress}
-                    className={`group relative flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--radius-md)] border transition-colors w-36 shrink-0 ${
+                    className={`v2-strip-tile group relative flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--radius-md)] border transition-colors w-36 shrink-0 ${
                       isActive
                         ? 'border-[var(--brand-accent)] bg-[var(--bg-surface-raised)] ring-1 ring-[var(--brand-accent)]'
                         : isSelected
@@ -534,7 +534,7 @@ export default function Filmstrip({
                         <span className="sr-only">{stateLabel}</span>
                       ) : (
                         <span
-                          className={`absolute left-1.5 bottom-1.5 rounded px-1.5 py-0.5 text-[0.5625rem] font-semibold ${
+                          className={`${photo.state === 'ready' ? 'v2-strip-tile-ready ' : ''}absolute left-1.5 bottom-1.5 rounded px-1.5 py-0.5 text-[0.5625rem] font-semibold ${
                             photo.state === 'unavailable'
                               ? 'bg-[var(--semantic-warning)] text-[#140d0a]'
                               : photo.state === 'importing' || photo.state === 'analysing'
@@ -548,8 +548,8 @@ export default function Filmstrip({
                     </button>
 
                     {/* Tile footer: filename + flag toggle */}
-                    <div className="flex h-9 shrink-0 items-center justify-between gap-1 px-1">
-                      <span className="truncate font-mono text-[0.625rem] text-[var(--text-secondary)]" title={photo.pairedJpeg ? STRINGS.pair.title(photo.filename, photo.pairedJpeg) : undefined}>
+                    <div className="v2-strip-tile-footer flex h-9 shrink-0 items-center justify-between gap-1 px-1">
+                      <span className="v2-strip-tile-name truncate font-mono text-[0.625rem] text-[var(--text-secondary)]" title={photo.pairedJpeg ? STRINGS.pair.title(photo.filename, photo.pairedJpeg) : undefined}>
                         {photo.pairedJpeg && <span data-testid="pair-badge" className="mr-1 rounded-sm border border-[var(--border-default)] px-0.5 font-sans font-semibold text-[var(--text-primary)]">{STRINGS.pair.badge}</span>}
                         {photo.filename}
                       </span>

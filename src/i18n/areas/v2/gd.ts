@@ -832,6 +832,7 @@ export const gd: AreaTranslation<typeof source> = {
     more: 'Barrachd',
     moreTools: 'Barrachd innealan',
     closeDrawer: 'Dùin an drathair mobile',
+    photoPosition: (n, total) => `${n} à ${total}`,
   },
   tasks: {
     heading: 'Saothraichean sa chùlaibh',
