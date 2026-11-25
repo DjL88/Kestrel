@@ -8,6 +8,8 @@ export const de: AreaTranslation<typeof source> = {
   kinds: {
     car: 'Auto',
     motorbike: 'Motorrad',
+    'racing-car': 'Rennwagen',
+    'racing-motorbike': 'Rennmotorrad',
     lorry: 'Lkw',
     bus: 'Bus',
     train: 'Zug',
@@ -41,9 +43,10 @@ export const de: AreaTranslation<typeof source> = {
     cancel: 'Abbrechen',
     saved: (count: number) => (count > 1 ? `Für ${count} Fotos gespeichert.` : 'Gespeichert.'),
   },
+  raceNumber: (what: string, number: string) => `${what}, Startnummer ${number}`,
   reader: {
-    title: 'Luftfahrzeugkennzeichen lesen',
-    description: (megabytes: string) => `Liest auf Luftfahrzeuge gemalte Kennzeichen und militärische Seriennummern auf diesem Gerät und schlägt sie in einer Offline-Kopie öffentlicher Register nach. Ein einmaliger Download von ${megabytes} MB. Autokennzeichen werden nie gelesen.`,
+    title: 'Kennzeichen und Startnummern lesen',
+    description: (megabytes: string) => `Liest auf diesem Gerät Kennzeichen und militärische Seriennummern von Luftfahrzeugen sowie Startnummern von Rennwagen und Rennmotorrädern. Kennzeichen werden in einer Offline-Kopie öffentlicher Register nachgeschlagen. Ein einmaliger Download von ${megabytes} MB. Nummernschilder von Straßenfahrzeugen werden nie gelesen.`,
     download: 'Herunterladen',
     downloading: (percent: number) => `Wird heruntergeladen… ${percent}%`,
     ready: 'Installiert. Funktioniert offline.',

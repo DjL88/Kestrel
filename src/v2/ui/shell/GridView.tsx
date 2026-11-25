@@ -4,6 +4,7 @@ import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import PictureSourceBadge from './PictureSourceBadge';
 import { viewPhotos } from '../utils/studioMath';
+import { TagFilterSelect } from './TagFilterSelect';
 import { DecisionFilter, ViewOptions } from './PhotoViewControls';
 
 interface GridViewProps {
@@ -16,6 +17,8 @@ interface GridViewProps {
   sort: PhotoSort;
   onSetMinRating: (rating: number) => void;
   onSetSort: (sort: PhotoSort) => void;
+  tagFilter?: string | null;
+  onSetTagFilter?: (tagId: string | null) => void;
   onSelectPhoto: (photoId: string, modifiers?: { ctrl?: boolean; shift?: boolean }) => void;
   onOpenInEditor: (photoId: string) => void;
   onToggleFlag: (photoIds: string[]) => void;
@@ -35,6 +38,8 @@ export default function GridView({
   sort,
   onSetMinRating,
   onSetSort,
+  tagFilter = null,
+  onSetTagFilter,
   onSelectPhoto,
   onOpenInEditor,
   onToggleFlag,
@@ -43,7 +48,7 @@ export default function GridView({
   onSetSearch,
   onClose,
 }: GridViewProps) {
-  const visible = viewPhotos(photos, { filter, search, minRating, sort });
+  const visible = viewPhotos(photos, { filter, search, minRating, sort, tag: tagFilter });
   const flaggedCount = photos.filter((p) => p.decision === 'keep').length;
 
   return (
@@ -65,6 +70,7 @@ export default function GridView({
         <div className="flex items-center gap-2">
           <DecisionFilter photos={photos} filter={filter} onSetFilter={onSetFilter} />
           <ViewOptions minRating={minRating} sort={sort} onSetMinRating={onSetMinRating} onSetSort={onSetSort} opensUp={false} />
+              {onSetTagFilter && <TagFilterSelect photos={photos} value={tagFilter} onChange={onSetTagFilter} />}
           <div className="relative">
             <BrandIcon
               name="search"
