@@ -72,6 +72,12 @@ export class CollabStore {
     return member;
   }
 
+  /** For other shared-project features (galleries): refuses unless this account may do this here. */
+  async requireMember(projectId: string, accountId: string, capability: CollabCapability, photoId?: string): Promise<ProjectMember> {
+    const project = await this.db.runTransaction((tx) => this.readProject(tx, projectId));
+    return this.memberOrRefuse(project, accountId, capability, photoId);
+  }
+
   private writeMemberships(tx: FsTransaction, before: ProjectRecord | null, after: ProjectRecord) {
     const was = new Set(before?.members.map((m) => m.accountId) ?? []);
     const now = new Set(after.members.map((m) => m.accountId));
