@@ -27,10 +27,10 @@ const MARKING_KEY: Record<MarkingFormat, string> = {
 export function vehicleTags(reading: VehicleReading | null, labels: VehicleLabels): PhotoTag[] {
   if (!reading || reading.heldFamily) return [];
   const person = reading.source === 'person';
-  // The person's own choice was made from the curated list; a carried reading names the frame it came from.
+  // The person's own choice is 'user' (never hedged); a carried reading names the frame it came from.
   const base: Pick<PhotoTag, 'source' | 'fromFrameId'> = reading.carriedFrom
     ? { source: 'burst', fromFrameId: reading.carriedFrom }
-    : { source: (person ? 'curated' : 'clip') as TagSource };
+    : { source: (person ? 'user' : 'clip') as TagSource };
   const hedged = person ? {} : { hedged: true };
   const tags: PhotoTag[] = [{ id: `vehicle.family.${reading.family}`, facet: 'vehicle', ...base }];
   if (reading.kind) tags.push({ id: `vehicle.kind.${reading.kind}`, facet: 'vehicle', ...base, ...hedged });

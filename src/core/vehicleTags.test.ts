@@ -37,7 +37,7 @@ test('a reading becomes valid store tags: words for kinds and families, proper n
 
 test('the person’s choice is not hedged; a carried reading names its frame; a held reading gives no tags', () => {
   const mine = vehicleTags({ schema: 1, family: 'air', kind: 'military-transport', type: 'a400m', source: 'person', labelsVersion: 3 }, labels);
-  assert.ok(mine.every((tag) => !tag.hedged && tag.source === 'curated'));
+  assert.ok(mine.every((tag) => !tag.hedged && tag.source === 'user'));
   assert.equal(mine.find((tag) => tag.id === 'vehicle.type.a400m')!.name, 'Airbus A400M Atlas');
   const carried = vehicleTags({ ...serial, carriedFrom: 'f0' }, labels);
   assert.ok(carried.every((tag) => tag.source === 'burst' && tag.fromFrameId === 'f0'));
