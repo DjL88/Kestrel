@@ -107,3 +107,10 @@ test('after an import, Auto-pilot runs Auto-cull, Co-pilot offers it, Solo stays
   assert.equal(cullAfterImport('autopilot', true, 5, 'cancelled'), 'none');
   assert.equal(cullAfterImport('autopilot', true, 0, 'done'), 'none');
 });
+
+test('the summary says how many keepers the vision check held for review, and only when it held some', async () => {
+  const { autoCullSummary } = await import('./commitAutoCull.ts');
+  assert.doesNotMatch(autoCullSummary(12, 0, 0), /vision check/);
+  assert.match(autoCullSummary(12, 0, 3), /vision check on this device doubted the subject: 3\. They are suggested, not flagged\./);
+  assert.match(autoCullSummary(12, 0, 3), /You can undo the whole pass in one step\.$/);
+});

@@ -1244,6 +1244,7 @@ export const gd: AreaTranslation<typeof source> = {
   autoCullSummary: {
     checked: (count: number) => `Dealbhan a sgrùd an taghadh fèin-obrachail: ${count}. Thoir sùil air na brataichean san stiall dhealbhan.`,
     rawFromCameraPreview: (count: number) => `Dealbhan RAW a chaidh a mheas o ro-shealladh a' chamara, chan ann o dhàta a' mhothachair: ${count}. Thoir sùil air an geurachd le do shùil.`,
+    heldByGuardian: (count: number) => `Dealbhan ri chumail a chaidh a chumail air ais airson do lèirmheas, oir bha an sgrùdadh lèirsinneach air an uidheam seo teagmhach mun chuspair: ${count}. Thathar gam moladh, chan eil iad comharraichte.`,
     undo: "'S urrainn dhut an cuairt slàn a neo-dhèanamh ann an aon cheum.",
   },
   tasks: {

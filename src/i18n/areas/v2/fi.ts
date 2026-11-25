@@ -1244,6 +1244,7 @@ export const fi: AreaTranslation<typeof source> = {
   autoCullSummary: {
     checked: (count: number) => `Automaattisen poiminnan tarkistamat kuvat: ${count}. Katso merkinnät kuvarivistä.`,
     rawFromCameraPreview: (count: number) => `RAW-kuvat, jotka arvioitiin kameran upotetusta esikatselusta eikä kennotiedoista: ${count}. Tarkista niiden terävyys silmällä.`,
+    heldByGuardian: (count: number) => `Säilytettävät kuvat jätettiin tarkistettavaksesi, koska tämän laitteen kuvatarkistus epäili kohdetta: ${count}. Niitä ehdotetaan, niitä ei merkitty.`,
     undo: "Voit kumota koko läpikäynnin yhdellä kertaa.",
   },
   tasks: {

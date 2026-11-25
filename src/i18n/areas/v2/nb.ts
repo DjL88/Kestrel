@@ -1243,6 +1243,7 @@ export const nb: AreaTranslation<typeof source> = {
   autoCullSummary: {
     checked: (count: number) => `Bilder sjekket av Autovalg: ${count}. Se gjennom markeringene i bilderaden.`,
     rawFromCameraPreview: (count: number) => `RAW-bilder vurdert ut fra kameraets innebygde forhåndsvisning, ikke ut fra sensordataene: ${count}. Sjekk skarpheten med øyet.`,
+    heldByGuardian: (count: number) => `Beholdere holdt tilbake til din vurdering, fordi bildesjekken på denne enheten tvilte på motivet: ${count}. De er foreslått, ikke merket.`,
     undo: "Du kan angre hele gjennomgangen i ett trinn.",
   },
   tasks: {

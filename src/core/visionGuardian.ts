@@ -13,6 +13,7 @@ export interface GuardianOpinion { source: 'on-device' | 'online'; verdict: Guar
 /** Short plain ASCII, so the on-device model accepts them (see providers/localVision.ts). */
 export const GUARDIAN_QUESTIONS = {
   editNatural: 'Does this photograph look natural, with no strange colours, halos or blotches? Answer yes or no.',
+  subjectClear: 'Is the main subject of this photograph clearly visible and sharp? Answer yes or no.',
 } as const;
 
 const RANK: Record<GuardedStatus, number> = { apply: 2, suggest: 1, 'needs-review': 0 };

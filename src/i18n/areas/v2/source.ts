@@ -1287,6 +1287,7 @@ export const source = {
   autoCullSummary: {
     checked: (count: number) => `Photos checked by Auto pick: ${count}. Review the flags in the filmstrip.`,
     rawFromCameraPreview: (count: number) => `RAW photos judged from the camera's embedded preview, not from their sensor data: ${count}. Check their sharpness by eye.`,
+    heldByGuardian: (count: number) => `Keepers held for your review because the vision check on this device doubted the subject: ${count}. They are suggested, not flagged.`,
     undo: "You can undo the whole pass in one step.",
   },
   tasks: {

@@ -1243,6 +1243,7 @@ export const es: AreaTranslation<typeof source> = {
   autoCullSummary: {
     checked: (count: number) => `Fotos revisadas por la elección automática: ${count}. Revise las marcas en la tira de fotos.`,
     rawFromCameraPreview: (count: number) => `Fotos RAW juzgadas por la vista previa integrada de la cámara, no por sus datos del sensor: ${count}. Compruebe su nitidez a simple vista.`,
+    heldByGuardian: (count: number) => `Fotos para conservar retenidas para su revisión porque la comprobación visual de este dispositivo dudó del sujeto: ${count}. Se sugieren, no se marcan.`,
     undo: "Puede deshacer toda la pasada en un solo paso.",
   },
   tasks: {

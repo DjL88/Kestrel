@@ -1243,6 +1243,7 @@ export const cy: AreaTranslation<typeof source> = {
   autoCullSummary: {
     checked: (count: number) => `Lluniau a wiriwyd gan y dewis awtomatig: ${count}. Adolygwch y baneri yn y stribed lluniau.`,
     rawFromCameraPreview: (count: number) => `Lluniau RAW a farnwyd o ragolwg mewnol y camera, nid o ddata eu synhwyrydd: ${count}. Gwiriwch eu miniogrwydd â'ch llygad.`,
+    heldByGuardian: (count: number) => `Lluniau i'w cadw a ddaliwyd yn ôl i chi eu hadolygu, gan fod y gwiriad gweledol ar y ddyfais hon yn amau'r gwrthrych: ${count}. Maen nhw'n cael eu hawgrymu, nid eu baneru.`,
     undo: "Gallwch ddadwneud y rownd gyfan mewn un cam.",
   },
   tasks: {
