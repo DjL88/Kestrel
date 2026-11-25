@@ -557,6 +557,17 @@ export const sv: AreaTranslation<typeof source> = {
       fine: 'Fint',
       coarse: 'Grovt',
     },
+    lens: {
+      heading: "Objektivkorrigeringar",
+      help: "Tar bort det objektivet gjorde med bilden: raka linjer som buktar utåt (tunna) eller inåt (kudde), och hörn som är mörkare än mitten. Båda mäts från mitten av hela fotot, hur du än beskär. Själva fotot ändras aldrig.",
+      reset: "Återställ objektivkorrigeringar",
+      distortion: "Distorsion",
+      distortionHelp: "Åt höger rätas linjer som buktar utåt, vanligt med vidvinkel. Åt vänster rätas linjer som buktar inåt, vanligt med telezoomar. Bilden förstoras precis så mycket att ingen tom kant syns.",
+      barrel: "Rättar tunna",
+      pincushion: "Rättar kudde",
+      vignetting: "Objektivvinjettering",
+      vignettingHelp: "Ljusar upp hörnen som objektivet lämnat mörkare än mitten, så att ljuset blir jämnt över hela bilden. För medvetet mörkare eller ljusare kanter, använd Vinjett i stället.",
+    },
     fringe: {
       heading: "Färgkanter",
       help: "Objektiv kan lämna tunna färgade konturer på kanter: röda, cyan, blå eller gula mot hörnen, och lila eller gröna på mörka kanter mot en ljus himmel. De här reglagen tar bort dem. Själva fotot ändras aldrig.",

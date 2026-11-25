@@ -557,6 +557,17 @@ export const pt: AreaTranslation<typeof source> = {
       fine: 'Fino',
       coarse: 'Grosso',
     },
+    lens: {
+      heading: "Correções da objetiva",
+      help: "Desfaz o que a objetiva fez à imagem: linhas retas que se curvam para fora (barril) ou para dentro (almofada), e cantos mais escuros do que o centro. Ambas são medidas a partir do centro da fotografia inteira, seja qual for o recorte. A fotografia em si nunca é alterada.",
+      reset: "Repor correções da objetiva",
+      distortion: "Distorção",
+      distortionHelp: "Para a direita endireita linhas que se curvam para fora, comuns em grandes angulares. Para a esquerda endireita linhas que se curvam para dentro, comuns em zooms teleobjetiva. A imagem é ampliada apenas o suficiente para não mostrar margens vazias.",
+      barrel: "Corrige barril",
+      pincushion: "Corrige almofada",
+      vignetting: "Vinheta da objetiva",
+      vignettingHelp: "Clareia os cantos que a objetiva deixou mais escuros do que o centro, para uma luz uniforme em todo o enquadramento. Para margens mais escuras ou claras de propósito, use Vinheta.",
+    },
     fringe: {
       heading: "Franjas de cor",
       help: "As objetivas podem deixar finos contornos coloridos nas margens: vermelhos, ciano, azuis ou amarelos para os cantos, e roxos ou verdes em margens escuras contra um céu claro. Estes controlos removem-nos. A fotografia em si nunca é alterada.",

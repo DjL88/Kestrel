@@ -557,6 +557,17 @@ export const es: AreaTranslation<typeof source> = {
       fine: 'Fino',
       coarse: 'Grueso',
     },
+    lens: {
+      heading: "Correcciones del objetivo",
+      help: "Deshace lo que el objetivo hizo a la imagen: líneas rectas que se curvan hacia fuera (barril) o hacia dentro (cojín), y esquinas más oscuras que el centro. Ambas se miden desde el centro de la foto completa, recortes aparte. La foto en sí nunca se modifica.",
+      reset: "Restablecer correcciones del objetivo",
+      distortion: "Distorsión",
+      distortionHelp: "Hacia la derecha endereza las líneas que se curvan hacia fuera, habitual en angulares. Hacia la izquierda endereza las que se curvan hacia dentro, habitual en zooms tele. La imagen se amplía lo justo para que no se vea ningún borde vacío.",
+      barrel: "Corrige barril",
+      pincushion: "Corrige cojín",
+      vignetting: "Viñeteo del objetivo",
+      vignettingHelp: "Aclara las esquinas que el objetivo dejó más oscuras que el centro, para que la luz sea uniforme en todo el encuadre. Para bordes más oscuros o claros a propósito, usa Viñeta en Efectos.",
+    },
     fringe: {
       heading: "Franjas de color",
       help: "Los objetivos pueden dejar finos contornos de color en los bordes: rojos, cian, azules o amarillos hacia las esquinas, y morados o verdes en bordes oscuros contra un cielo claro. Estos controles los eliminan. La foto en sí nunca se modifica.",

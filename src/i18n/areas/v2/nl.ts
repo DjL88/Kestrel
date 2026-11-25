@@ -557,6 +557,17 @@ export const nl: AreaTranslation<typeof source> = {
       fine: 'Fijn',
       coarse: 'Grof',
     },
+    lens: {
+      heading: "Objectiefcorrecties",
+      help: "Maakt ongedaan wat het objectief met het beeld deed: rechte lijnen die naar buiten (ton) of naar binnen (kussen) buigen, en hoeken die donkerder zijn dan het midden. Beide worden gemeten vanaf het midden van de hele foto, waar u ook bijsnijdt. De foto zelf wordt nooit gewijzigd.",
+      reset: "Objectiefcorrecties herstellen",
+      distortion: "Vertekening",
+      distortionHelp: "Naar rechts maakt lijnen recht die naar buiten buigen, vaak bij groothoeklenzen. Naar links maakt lijnen recht die naar binnen buigen, vaak bij telezooms. Het beeld wordt net genoeg vergroot dat er geen lege rand zichtbaar is.",
+      barrel: "Herstelt ton",
+      pincushion: "Herstelt kussen",
+      vignetting: "Objectiefvignettering",
+      vignettingHelp: "Maakt de hoeken lichter die het objectief donkerder liet dan het midden, zodat het licht over het hele beeld gelijk is. Voor bewust donkere of lichte randen gebruikt u Vignet.",
+    },
     fringe: {
       heading: "Kleurranden",
       help: "Objectieven kunnen dunne gekleurde randjes op randen achterlaten: rood, cyaan, blauw of geel naar de hoeken, en paars of groen op donkere randen tegen een lichte lucht. Deze regelaars halen ze weg. De foto zelf wordt nooit gewijzigd.",

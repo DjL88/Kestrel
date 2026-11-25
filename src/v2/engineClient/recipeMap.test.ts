@@ -194,3 +194,12 @@ test('colour fringe settings round-trip, and zero is stored as nothing', () => {
   assert.equal(edit?.defringe, undefined);
   assert.equal(applyRecipePatch(undefined, { caRed: 500 }).edit?.lateralCa?.red, 1, 'clamped to range');
 });
+
+test('lens corrections round-trip, and zero is stored as nothing', () => {
+  let edit = applyRecipePatch(undefined, { lensDistortion: -40, lensVignetting: 70 }).edit;
+  assert.deepEqual(edit?.lens, { distortion: -0.4, vignetting: 0.7 });
+  const recipe = editToRecipe(edit);
+  assert.deepEqual([recipe.lensDistortion, recipe.lensVignetting], [-40, 70]);
+  edit = applyRecipePatch(edit, { lensDistortion: 0, lensVignetting: 0 }).edit;
+  assert.equal(edit?.lens, undefined);
+});

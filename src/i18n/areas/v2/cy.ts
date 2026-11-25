@@ -557,6 +557,17 @@ export const cy: AreaTranslation<typeof source> = {
       fine: 'Mân',
       coarse: 'Bras',
     },
+    lens: {
+      heading: "Cywiriadau lens",
+      help: "Yn dadwneud yr hyn a wnaeth y lens i'r llun: llinellau syth sy'n plygu tuag allan (casgen) neu tuag i mewn (clustog), a chorneli tywyllach na'r canol. Mae'r ddau'n cael eu mesur o ganol y llun cyfan, ble bynnag y byddwch yn tocio. Nid yw'r llun ei hun byth yn cael ei newid.",
+      reset: "Ailosod cywiriadau lens",
+      distortion: "Ystumiad",
+      distortionHelp: "I'r dde, yn sythu llinellau sy'n plygu tuag allan, sy'n gyffredin gyda lensys ongl lydan. I'r chwith, yn sythu llinellau sy'n plygu tuag i mewn, sy'n gyffredin gyda lensys teleffoto. Mae'r llun yn cael ei chwyddo dim ond digon i beidio â dangos ymyl wag.",
+      barrel: "Trwsio casgen",
+      pincushion: "Trwsio clustog",
+      vignetting: "Fignetio'r lens",
+      vignettingHelp: "Yn goleuo'r corneli a adawodd y lens yn dywyllach na'r canol, fel bod y golau'n wastad ar draws y ffrâm. I gael ymylon tywyllach neu oleuach yn fwriadol, defnyddiwch Fignét yn lle hynny.",
+    },
     fringe: {
       heading: "Ymylon lliw",
       help: "Gall lensys adael amlinellau lliw tenau ar ymylon: coch, gwyrddlas, glas neu felyn tua'r corneli, a phorffor neu wyrdd ar ymylon tywyll yn erbyn awyr olau. Mae'r rheolyddion hyn yn eu tynnu. Nid yw'r llun ei hun byth yn cael ei newid.",

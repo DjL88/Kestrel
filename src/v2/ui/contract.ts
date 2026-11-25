@@ -172,6 +172,9 @@ export interface EditRecipe {
   channelCurves?: Partial<Record<'red' | 'green' | 'blue', Array<[number, number]>>>;
   /** Remove haze (positive) or add it (negative), -100 to 100. Absent = 0. */
   dehaze?: number;
+  /** Lens distortion, -100 (fixes pincushion) to 100 (fixes barrel), and lens vignetting correction 0 to 100. Absent = 0. */
+  lensDistortion?: number;
+  lensVignetting?: number;
   /** Lens colour edges: red/cyan and blue/yellow, -100 to 100 each (set by Detect, or by hand in Advanced). Absent = 0. */
   caRed?: number;
   caBlue?: number;

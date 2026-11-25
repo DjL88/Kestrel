@@ -4,6 +4,7 @@ import { validChannelCurves, validGrade } from './colourGrade';
 import { validCalibration } from './calibration';
 import { applyDehaze, validDehaze } from './dehaze';
 import { applyFringe, validDefringe, validLateralCa } from './fringe';
+import { applyLensCorrection, validLens } from './lensCorrection';
 import { applyFinishingRgb16, validGrain, validVignette } from './finishing';
 import { validWhiteBalance } from './asShotWhite';
 import { applyDetailRgb16, applyPhotoEditLinear, detailParams, hasDetail, isNeutralTone, type PhotoEdit } from './photoEdits';
@@ -82,7 +83,7 @@ export function thumbRgb16(image: Rgb16Image): Thumb {
 const EXPORT_EDIT_KEYS = new Set([
   'exposure', 'warmth', 'tint', 'colour', 'brightness', 'contrast', 'highlights',
   'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity',
-  'sharpen', 'denoise', 'denoiseLuminance', 'masks', 'curve', 'mixer', 'whiteBalance', 'grade', 'channelCurves', 'calibration', 'vignette', 'grain', 'dehaze', 'lateralCa', 'defringe',
+  'sharpen', 'denoise', 'denoiseLuminance', 'masks', 'curve', 'mixer', 'whiteBalance', 'grade', 'channelCurves', 'calibration', 'vignette', 'grain', 'dehaze', 'lateralCa', 'defringe', 'lens',
 ]);
 
 /** Stop rather than quietly export a future or malformed edit that this
@@ -109,6 +110,7 @@ export function master16Blocker(edit: PhotoEdit | undefined, framing: PhotoFrami
     if (edit.calibration !== undefined && !validCalibration(edit.calibration)) return 'The saved camera calibration is invalid, so no 16-bit TIFF was made.';
     if (edit.vignette !== undefined && !validVignette(edit.vignette)) return 'The saved vignette is invalid, so no 16-bit TIFF was made.';
     if (edit.dehaze !== undefined && !validDehaze(edit.dehaze)) return 'The saved dehaze is invalid, so no 16-bit TIFF was made.';
+    if (edit.lens !== undefined && !validLens(edit.lens)) return 'The saved lens correction is invalid, so no 16-bit TIFF was made.';
     if (edit.lateralCa !== undefined && !validLateralCa(edit.lateralCa)) return 'The saved colour edge correction is invalid, so no 16-bit TIFF was made.';
     if (edit.defringe !== undefined && !validDefringe(edit.defringe)) return 'The saved fringe removal is invalid, so no 16-bit TIFF was made.';
     if (edit.grain !== undefined && !validGrain(edit.grain)) return 'The saved grain is invalid, so no 16-bit TIFF was made.';
@@ -347,9 +349,11 @@ export function applyToneMasksRgb16(image: Rgb16Image, masks: readonly Mask[] | 
 
 /** Apply the edit in place: conservative chroma denoise, tone/colour,
  * global Texture/Clarity/Sharpening and then the same local mask ordering as screen. */
-export function editRgb16(image: Rgb16Image, edit: PhotoEdit, lens?: { x: number; y: number }): void {
+export function editRgb16(image: Rgb16Image, edit: PhotoEdit, lens?: { x: number; y: number; r?: number }): void {
   const { data } = image;
-  applyFringe(data, image.width, image.height, 3, edit, { aspect: image.height / image.width, view: { x: 0, y: 0, w: 1, h: 1 }, lensCentre: lens });
+  const context = { aspect: image.height / image.width, view: { x: 0, y: 0, w: 1, h: 1 }, lensCentre: lens };
+  applyLensCorrection(data, image.width, image.height, 3, edit.lens, context);
+  applyFringe(data, image.width, image.height, 3, edit, context);
   const chroma = noiseStrength(edit.denoise);
   if (chroma > 0) denoiseChromaRgb16(data, image.width, image.height, chroma, (edit.denoise ?? 0) > 1 ? 2 : 1);
   const luma = noiseStrength(edit.denoiseLuminance);

@@ -557,6 +557,17 @@ export const fr: AreaTranslation<typeof source> = {
       fine: 'Fin',
       coarse: 'Grossier',
     },
+    lens: {
+      heading: "Corrections de l’objectif",
+      help: "Annule ce que l’objectif a fait à l’image : des lignes droites qui se courbent vers l’extérieur (barillet) ou vers l’intérieur (coussinet), et des coins plus sombres que le centre. Les deux sont mesurés depuis le centre de la photo entière, quel que soit le recadrage. La photo elle-même n’est jamais modifiée.",
+      reset: "Réinitialiser les corrections de l’objectif",
+      distortion: "Distorsion",
+      distortionHelp: "Vers la droite, redresse les lignes courbées vers l’extérieur, fréquentes avec les grands-angles. Vers la gauche, redresse les lignes courbées vers l’intérieur, fréquentes avec les zooms téléobjectifs. L’image est agrandie juste assez pour qu’aucun bord vide n’apparaisse.",
+      barrel: "Corrige le barillet",
+      pincushion: "Corrige le coussinet",
+      vignetting: "Vignetage de l’objectif",
+      vignettingHelp: "Éclaircit les coins que l’objectif a laissés plus sombres que le centre, pour une lumière égale sur toute l’image. Pour des bords volontairement plus sombres ou plus clairs, utilisez plutôt Vignetage.",
+    },
     fringe: {
       heading: "Franges colorées",
       help: "Les objectifs peuvent laisser de fins contours colorés sur les bords : rouges, cyan, bleus ou jaunes vers les coins, et violets ou verts sur les bords sombres devant un ciel clair. Ces réglages les retirent. La photo elle-même n’est jamais modifiée.",

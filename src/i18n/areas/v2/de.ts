@@ -557,6 +557,17 @@ export const de: AreaTranslation<typeof source> = {
       fine: 'Fein',
       coarse: 'Grob',
     },
+    lens: {
+      heading: "Objektivkorrekturen",
+      help: "Macht rückgängig, was das Objektiv mit dem Bild gemacht hat: gerade Linien, die sich nach außen (tonnenförmig) oder innen (kissenförmig) wölben, und Ecken, die dunkler sind als die Mitte. Beides wird von der Mitte des ganzen Fotos aus gemessen, wo auch immer Sie zuschneiden. Das Foto selbst wird nie verändert.",
+      reset: "Objektivkorrekturen zurücksetzen",
+      distortion: "Verzeichnung",
+      distortionHelp: "Nach rechts begradigt Linien, die sich nach außen wölben, häufig bei Weitwinkelobjektiven. Nach links begradigt Linien, die sich nach innen wölben, häufig bei Telezooms. Das Bild wird gerade so weit vergrößert, dass kein leerer Rand zu sehen ist.",
+      barrel: "Behebt Tonne",
+      pincushion: "Behebt Kissen",
+      vignetting: "Objektiv-Vignettierung",
+      vignettingHelp: "Hellt die Ecken auf, die das Objektiv dunkler als die Mitte gelassen hat, damit das Licht über das ganze Bild gleichmäßig ist. Für bewusst dunklere oder hellere Ränder nutzen Sie stattdessen Vignette.",
+    },
     fringe: {
       heading: "Farbsäume",
       help: "Objektive können dünne farbige Ränder an Kanten hinterlassen: rot, cyan, blau oder gelb zu den Ecken hin und violett oder grün an dunklen Kanten vor hellem Himmel. Diese Regler entfernen sie. Das Foto selbst wird nie verändert.",

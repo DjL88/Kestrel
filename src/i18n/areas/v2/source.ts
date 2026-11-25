@@ -624,6 +624,17 @@ export const source = {
       fine: 'Fine',
       coarse: 'Coarse',
     },
+    lens: {
+      heading: 'Lens corrections',
+      help: 'Undoes what the lens did to the picture: straight lines that bow outwards (barrel) or inwards (pincushion), and corners darker than the middle. Both are measured from the centre of the whole photo, wherever you crop. The photo itself is never changed.',
+      reset: 'Reset lens corrections',
+      distortion: 'Distortion',
+      distortionHelp: 'Right straightens lines that bow outwards, common with wide-angle lenses. Left straightens lines that bow inwards, common with telephoto zooms. The picture is enlarged just enough that no empty edge shows.',
+      barrel: 'Fixes barrel',
+      pincushion: 'Fixes pincushion',
+      vignetting: 'Lens vignetting',
+      vignettingHelp: 'Brightens the corners that the lens left darker than the middle, so the light is even across the frame. For darker or lighter edges on purpose, use Vignette instead.',
+    },
     fringe: {
       heading: 'Colour fringes',
       help: 'Lenses can leave thin coloured outlines on edges: red, cyan, blue or yellow towards the corners, and purple or green on dark edges against a bright sky. These controls take them away. The photo itself is never changed.',

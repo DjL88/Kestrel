@@ -558,6 +558,17 @@ export const fi: AreaTranslation<typeof source> = {
       fine: 'Hieno',
       coarse: 'Karkea',
     },
+    lens: {
+      heading: "Objektiivikorjaukset",
+      help: "Kumoaa sen, mitä objektiivi teki kuvalle: suorat viivat, jotka kaartuvat ulospäin (tynnyri) tai sisäänpäin (tyyny), ja keskustaa tummemmat kulmat. Molemmat mitataan koko kuvan keskeltä, rajasitpa miten tahansa. Itse kuvaa ei koskaan muuteta.",
+      reset: "Palauta objektiivikorjaukset",
+      distortion: "Vääristymä",
+      distortionHelp: "Oikealle suoristaa ulospäin kaartuvat viivat, tavallisia laajakulmissa. Vasemmalle suoristaa sisäänpäin kaartuvat viivat, tavallisia telezoomeissa. Kuvaa suurennetaan juuri sen verran, ettei tyhjää reunaa näy.",
+      barrel: "Korjaa tynnyrin",
+      pincushion: "Korjaa tyynyn",
+      vignetting: "Objektiivin vinjetointi",
+      vignettingHelp: "Vaalentaa kulmat, jotka objektiivi jätti keskustaa tummemmiksi, jotta valo on tasainen koko kuvassa. Tarkoituksella tummempiin tai vaaleampiin reunoihin käytä Vinjetti-säädintä.",
+    },
     fringe: {
       heading: "Värireunat",
       help: "Objektiivit voivat jättää reunoihin ohuita värillisiä ääriviivoja: punaisia, syaaneja, sinisiä tai keltaisia kulmia kohti sekä violetteja tai vihreitä tummiin reunoihin vaaleaa taivasta vasten. Nämä säätimet poistavat ne. Itse kuvaa ei koskaan muuteta.",

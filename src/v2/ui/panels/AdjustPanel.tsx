@@ -7,7 +7,7 @@ import { getActiveGroup } from '../utils/studioMath';
 import { ColourMixerControl, KelvinControl, ToneCurveControl } from './CurveMixerControls';
 import { ColourGradeControl } from './ColourGradeControl';
 import { CalibrationControl, EffectsControls } from './EffectsControls';
-import { FringeControls } from './FringeControls';
+import { FringeControls, LensControls } from './FringeControls';
 
 interface AdjustPanelProps {
   photo: Photo | null;
@@ -393,6 +393,9 @@ export default function AdjustPanel({
       <section aria-labelledby="effects-heading" className={`space-y-3 border-t border-[var(--border-subtle)] pt-4 ${phoneGroupClass(advancedGroup, 'detail')}`}>
         <h3 id="effects-heading" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.adjust.effects.heading}</h3>
         <EffectsControls recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
+        <div className="border-t border-[var(--border-subtle)] pt-3">
+          <LensControls recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
+        </div>
         <div className="border-t border-[var(--border-subtle)] pt-3">
           <FringeControls recipe={recipe} calmView={hideReadouts} showAdvanced={showAdvanced} onChange={(patch) => onUpdateRecipe(photo.id, patch)} onDetect={() => onDetectColourEdges(photo.id)} />
         </div>

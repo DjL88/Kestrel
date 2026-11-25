@@ -558,6 +558,17 @@ export const gd: AreaTranslation<typeof source> = {
       fine: 'Mìn',
       coarse: 'Garbh',
     },
+    lens: {
+      heading: "Ceartachaidhean lionsa",
+      help: "Neo-dhèanaidh seo na rinn an lionsa ris an dealbh: loidhnichean dìreach a lùbas a-mach (baraille) no a-steach (cluasag), agus oiseanan nas dorcha na am meadhan. Thèid an dà chuid a thomhas o mheadhan na deilbh air fad, ge b' e mar a bhearras tu i. Cha tèid an dealbh fhèin atharrachadh idir.",
+      reset: "Ath-shuidhich ceartachaidhean lionsa",
+      distortion: "Saobhadh",
+      distortionHelp: "Gu deas, nì seo dìreach loidhnichean a lùbas a-mach, cumanta le lionsaichean farsaing. Gu clì, nì seo dìreach loidhnichean a lùbas a-steach, cumanta le sùmaichean fad-astair. Thèid an dealbh a mheudachadh dìreach gu leòr nach nochd oir fhalamh.",
+      barrel: "Ceartaichidh baraille",
+      pincushion: "Ceartaichidh cluasag",
+      vignetting: "Bìnteachadh an lionsa",
+      vignettingHelp: "Soillsichidh seo na h-oiseanan a dh'fhàg an lionsa nas dorcha na am meadhan, gus am bi an solas cothromach air feadh an fhrèama. Airson oirean nas dorcha no nas soilleire a dh'aona-ghnothach, cleachd Sgàileadh oir na àite.",
+    },
     fringe: {
       heading: "Oirean dathte",
       help: "Faodaidh lionsaichean oir-loidhnichean tana dathte fhàgail air oirean: dearg, saidhean, gorm no buidhe a dh'ionnsaigh nan oisean, agus purpaidh no uaine air oirean dorcha mu choinneamh speur soilleir. Bheir na smachdan seo air falbh iad. Cha tèid an dealbh fhèin atharrachadh idir.",

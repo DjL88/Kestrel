@@ -5,6 +5,7 @@ import BrandIcon from '../icons/BrandIcon';
 import InfoPopover from '../shell/InfoPopover';
 
 const T = STRINGS.adjust.fringe;
+const L = STRINGS.adjust.lens;
 type Outcome = 'corrected' | 'clean' | 'unclear';
 
 interface Props {
@@ -15,7 +16,7 @@ interface Props {
   onDetect: () => Promise<Outcome>;
 }
 
-function Slider({ id, label, help, value, min, calmView, onChange }: { id: string; label: string; help: string; value: number; min: number; calmView: boolean; onChange: (v: number) => void }) {
+function Slider({ id, label, help, value, min, calmView, onChange, leftHint, rightHint }: { id: string; label: string; help: string; value: number; min: number; calmView: boolean; onChange: (v: number) => void; leftHint?: string; rightHint?: string }) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
@@ -30,6 +31,9 @@ function Slider({ id, label, help, value, min, calmView, onChange }: { id: strin
         )}
       </div>
       <input id={id} type="range" min={min} max={100} step={1} value={value} onChange={(e) => onChange(Number(e.target.value))} className="inflight-slider" />
+      {(leftHint || rightHint) && (
+        <div className="flex items-center justify-between text-[0.625rem] text-[var(--text-muted)]"><span>{leftHint}</span><span>{rightHint}</span></div>
+      )}
     </div>
   );
 }
@@ -78,6 +82,28 @@ export function FringeControls({ recipe, calmView, showAdvanced, onChange, onDet
       )}
       <Slider id="slider-defringe-purple" label={T.purple} help={T.purpleHelp} value={recipe.defringePurple ?? 0} min={0} calmView={calmView} onChange={(v) => onChange({ defringePurple: v })} />
       <Slider id="slider-defringe-green" label={T.green} help={T.greenHelp} value={recipe.defringeGreen ?? 0} min={0} calmView={calmView} onChange={(v) => onChange({ defringeGreen: v })} />
+    </div>
+  );
+}
+
+/** Lens corrections: straighten barrel or pincushion lines and brighten the corners the lens darkened. */
+export function LensControls({ recipe, calmView, onChange }: { recipe: EditRecipe; calmView: boolean; onChange: (patch: Partial<EditRecipe>) => void }) {
+  return (
+    <div className="space-y-3" data-testid="lens">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          <h4 className="text-xs font-medium text-[var(--text-primary)]">{L.heading}</h4>
+          <InfoPopover title={L.heading} body={L.help} />
+        </div>
+        <button type="button" onClick={() => onChange({ lensDistortion: 0, lensVignetting: 0 })}
+          className="inline-flex items-center gap-1 text-[0.6875rem] font-medium text-[var(--text-muted)] hover:text-[var(--brand-accent)]">
+          <BrandIcon name="restore" size={12} /><span>{L.reset}</span>
+        </button>
+      </div>
+      <Slider id="slider-lens-distortion" label={L.distortion} help={L.distortionHelp} value={recipe.lensDistortion ?? 0} min={-100} calmView={calmView}
+        leftHint={L.pincushion} rightHint={L.barrel} onChange={(v) => onChange({ lensDistortion: v })} />
+      <Slider id="slider-lens-vignetting" label={L.vignetting} help={L.vignettingHelp} value={recipe.lensVignetting ?? 0} min={0} calmView={calmView}
+        onChange={(v) => onChange({ lensVignetting: v })} />
     </div>
   );
 }

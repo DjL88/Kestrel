@@ -557,6 +557,17 @@ export const da: AreaTranslation<typeof source> = {
       fine: 'Fint',
       coarse: 'Groft',
     },
+    lens: {
+      heading: "Objektivrettelser",
+      help: "Fjerner det, objektivet gjorde ved billedet: lige linjer, der bøjer udad (tønde) eller indad (pude), og hjørner, der er mørkere end midten. Begge måles fra midten af hele fotoet, uanset hvordan du beskærer. Selve fotoet ændres aldrig.",
+      reset: "Nulstil objektivrettelser",
+      distortion: "Forvrængning",
+      distortionHelp: "Mod højre rettes linjer, der bøjer udad, typisk ved vidvinkel. Mod venstre rettes linjer, der bøjer indad, typisk ved telezoom. Billedet forstørres lige nok til, at ingen tom kant ses.",
+      barrel: "Retter tønde",
+      pincushion: "Retter pude",
+      vignetting: "Objektivvignettering",
+      vignettingHelp: "Lysner de hjørner, objektivet efterlod mørkere end midten, så lyset er jævnt over hele billedet. Til bevidst mørkere eller lysere kanter skal du bruge Vignet i stedet.",
+    },
     fringe: {
       heading: "Farvekanter",
       help: "Objektiver kan efterlade tynde farvede konturer på kanter: røde, cyan, blå eller gule mod hjørnerne og lilla eller grønne på mørke kanter mod en lys himmel. Disse knapper fjerner dem. Selve fotoet ændres aldrig.",

@@ -557,6 +557,17 @@ export const it: AreaTranslation<typeof source> = {
       fine: 'Fine',
       coarse: 'Grossa',
     },
+    lens: {
+      heading: "Correzioni dell’obiettivo",
+      help: "Annulla ciò che l’obiettivo ha fatto all’immagine: linee dritte che si curvano verso l’esterno (a barilotto) o verso l’interno (a cuscinetto), e angoli più scuri del centro. Entrambe sono misurate dal centro della foto intera, comunque la ritagli. La foto stessa non viene mai modificata.",
+      reset: "Reimposta correzioni dell’obiettivo",
+      distortion: "Distorsione",
+      distortionHelp: "Verso destra raddrizza le linee curvate verso l’esterno, comuni con i grandangoli. Verso sinistra raddrizza quelle curvate verso l’interno, comuni con gli zoom tele. L’immagine viene ingrandita quanto basta perché non si veda alcun bordo vuoto.",
+      barrel: "Corregge barilotto",
+      pincushion: "Corregge cuscinetto",
+      vignetting: "Vignettatura dell’obiettivo",
+      vignettingHelp: "Schiarisce gli angoli che l’obiettivo ha lasciato più scuri del centro, così la luce è uniforme in tutta l’immagine. Per bordi più scuri o chiari di proposito, usa invece Vignettatura.",
+    },
     fringe: {
       heading: "Frange di colore",
       help: "Gli obiettivi possono lasciare sottili contorni colorati sui bordi: rossi, ciano, blu o gialli verso gli angoli, e viola o verdi sui bordi scuri contro un cielo chiaro. Questi controlli li rimuovono. La foto stessa non viene mai modificata.",

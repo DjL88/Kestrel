@@ -557,6 +557,17 @@ export const nb: AreaTranslation<typeof source> = {
       fine: 'Fint',
       coarse: 'Grovt',
     },
+    lens: {
+      heading: "Objektivkorrigeringer",
+      help: "Opphever det objektivet gjorde med bildet: rette linjer som bøyer utover (tønne) eller innover (pute), og hjørner som er mørkere enn midten. Begge måles fra midten av hele bildet, uansett hvordan du beskjærer. Selve bildet endres aldri.",
+      reset: "Tilbakestill objektivkorrigeringer",
+      distortion: "Forvrengning",
+      distortionHelp: "Mot høyre rettes linjer som bøyer utover, vanlig med vidvinkel. Mot venstre rettes linjer som bøyer innover, vanlig med telezoom. Bildet forstørres akkurat nok til at ingen tom kant vises.",
+      barrel: "Retter tønne",
+      pincushion: "Retter pute",
+      vignetting: "Objektivvignettering",
+      vignettingHelp: "Lysner hjørnene objektivet etterlot mørkere enn midten, slik at lyset blir jevnt over hele bildet. For bevisst mørkere eller lysere kanter, bruk Vignett i stedet.",
+    },
     fringe: {
       heading: "Fargekanter",
       help: "Objektiver kan etterlate tynne fargede konturer på kanter: røde, cyan, blå eller gule mot hjørnene, og lilla eller grønne på mørke kanter mot en lys himmel. Disse kontrollene fjerner dem. Selve bildet endres aldri.",

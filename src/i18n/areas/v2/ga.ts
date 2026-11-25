@@ -560,6 +560,17 @@ export const ga: AreaTranslation<typeof source> = {
       fine: 'Mín',
       coarse: 'Garbh',
     },
+    lens: {
+      heading: "Ceartúcháin lionsa",
+      help: "Cealaíonn sé an méid a rinne an lionsa leis an bpictiúr: línte díreacha a lúbann amach (bairille) nó isteach (pillín), agus cúinní níos dorcha ná an lár. Tomhaistear an dá cheann ó lár an ghrianghraif iomláin, is cuma conas a bhearrann tú. Ní athraítear an grianghraf féin riamh.",
+      reset: "Athshocraigh ceartúcháin lionsa",
+      distortion: "Díchumadh",
+      distortionHelp: "Ar dheis, díríonn sé línte a lúbann amach, coitianta le lionsaí leathan-uillinne. Ar chlé, díríonn sé línte a lúbann isteach, coitianta le zúmanna teileafóta. Méadaítear an pictiúr díreach a dhóthain nach dtaispeántar imeall folamh.",
+      barrel: "Ceartaíonn bairille",
+      pincushion: "Ceartaíonn pillín",
+      vignetting: "Vignetáil an lionsa",
+      vignettingHelp: "Gealaíonn sé na cúinní a d'fhág an lionsa níos dorcha ná an lár, ionas go mbíonn an solas cothrom ar fud an fhráma. Le haghaidh imill níos dorcha nó níos gile d'aon ghnó, úsáid Vinnéit ina ionad.",
+    },
     fringe: {
       heading: "Imill datha",
       help: "Is féidir le lionsaí imlínte tanaí daite a fhágáil ar imill: dearg, cian, gorm nó buí i dtreo na gcúinní, agus corcra nó glas ar imill dhorcha in aghaidh spéir gheal. Bainfidh na rialuithe seo iad. Ní athraítear an grianghraf féin riamh.",

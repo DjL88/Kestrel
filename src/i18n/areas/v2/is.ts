@@ -557,6 +557,17 @@ export const is: AreaTranslation<typeof source> = {
       fine: 'Fínt',
       coarse: 'Gróft',
     },
+    lens: {
+      heading: "Linsuleiðréttingar",
+      help: "Afturkallar það sem linsan gerði við myndina: beinar línur sem bogna út (tunna) eða inn (púði) og horn sem eru dekkri en miðjan. Hvort tveggja er mælt frá miðju allrar myndarinnar, hvernig sem þú skerð. Myndinni sjálfri er aldrei breytt.",
+      reset: "Endurstilla linsuleiðréttingar",
+      distortion: "Bjögun",
+      distortionHelp: "Til hægri réttir línur sem bogna út, algengt með gleiðlinsum. Til vinstri réttir línur sem bogna inn, algengt með aðdráttarlinsum. Myndin er stækkuð rétt nóg til að engin tóm brún sjáist.",
+      barrel: "Lagar tunnu",
+      pincushion: "Lagar púða",
+      vignetting: "Linsuskygging",
+      vignettingHelp: "Lýsir hornin sem linsan skildi eftir dekkri en miðjuna svo birtan verði jöfn yfir allan rammann. Fyrir viljandi dekkri eða ljósari brúnir skaltu nota Skyggingu í staðinn.",
+    },
     fringe: {
       heading: "Litakantar",
       help: "Linsur geta skilið eftir þunnar litaðar útlínur á brúnum: rauðar, blágrænar, bláar eða gular út í hornin og fjólubláar eða grænar á dökkum brúnum við bjartan himin. Þessar stillingar fjarlægja þær. Myndinni sjálfri er aldrei breytt.",
