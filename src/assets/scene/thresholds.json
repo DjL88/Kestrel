@@ -1,14 +1,15 @@
 {
- "note": "Measured by tools/scene-tags/measure_thresholds.py. A null threshold means the tag is switched off: it did not reach the target precision with a useful recall.",
+ "note": "Measured by tools/scene-tags/measure_thresholds.py. A null threshold means the tag is switched off: it did not reach the target precision with a useful recall, on the first set and again on a second, independent set (confirmation).",
  "model": "clip-vit-b32-vision-uint8.onnx",
  "modelSha256": "b95448754a6ae56964ec80c570c80bb9863787ee85f51b664abed8c0e5f22a7a",
- "labelsVersion": 1,
+ "labelsVersion": 2,
  "targetPrecision": 0.9,
  "minimumRecall": 0.15,
  "evaluation": {
-  "source": "Wikimedia Commons, CC0 / public domain / CC BY / CC BY-SA, 320 px thumbnails, chosen by Commons category (tools/scene-tags/fetch_eval_set.py); file list with authors and licences in tools/scene-tags/eval-manifest.json",
+  "source": "Wikimedia Commons, CC0 / public domain / CC BY / CC BY-SA, 320 px thumbnails, chosen by Commons category (tools/scene-tags/fetch_eval_set.py); file lists with authors and licences in tools/scene-tags/eval-manifest.json (thresholds) and eval-manifest-confirm.json (confirmation)",
   "pictures": 1120,
-  "backgroundShare": "share of 160 random Commons Quality images the tag fires on (informational: their true labels are unknown)"
+  "confirmationPictures": 840,
+  "backgroundShare": "share of the random Commons Quality images the tag fires on (informational: their true labels are unknown)"
  },
  "tags": {
   "light.backlit": {
@@ -19,7 +20,8 @@
    "heldOutPrecision": 1.0,
    "heldOutRecall": 0.05,
    "positives": 40,
-   "negatives": 480
+   "negatives": 480,
+   "confirmation": null
   },
   "light.silhouette": {
    "backgroundShare": null,
@@ -29,7 +31,8 @@
    "heldOutPrecision": null,
    "heldOutRecall": null,
    "positives": 40,
-   "negatives": 160
+   "negatives": 160,
+   "confirmation": null
   },
   "light.moon": {
    "backgroundShare": 0.0,
@@ -39,7 +42,13 @@
    "heldOutPrecision": 0.947,
    "heldOutRecall": 0.9,
    "positives": 40,
-   "negatives": 640
+   "negatives": 640,
+   "confirmation": {
+    "precision": 0.906,
+    "recall": 0.967,
+    "positives": 30,
+    "negatives": 480
+   }
   },
   "light.milky-way": {
    "backgroundShare": 0.006,
@@ -49,7 +58,13 @@
    "heldOutPrecision": 0.947,
    "heldOutRecall": 0.9,
    "positives": 40,
-   "negatives": 480
+   "negatives": 480,
+   "confirmation": {
+    "precision": 0.906,
+    "recall": 0.967,
+    "positives": 30,
+    "negatives": 360
+   }
   },
   "weather.fog": {
    "backgroundShare": 0.0,
@@ -59,7 +74,13 @@
    "heldOutPrecision": 0.857,
    "heldOutRecall": 0.6,
    "positives": 40,
-   "negatives": 360
+   "negatives": 360,
+   "confirmation": {
+    "precision": 1.0,
+    "recall": 0.567,
+    "positives": 30,
+    "negatives": 270
+   }
   },
   "weather.rain": {
    "backgroundShare": null,
@@ -69,7 +90,8 @@
    "heldOutPrecision": 0.5,
    "heldOutRecall": 0.05,
    "positives": 40,
-   "negatives": 640
+   "negatives": 640,
+   "confirmation": null
   },
   "weather.snow": {
    "backgroundShare": 0.006,
@@ -79,17 +101,29 @@
    "heldOutPrecision": 0.875,
    "heldOutRecall": 0.7,
    "positives": 40,
-   "negatives": 400
+   "negatives": 400,
+   "confirmation": {
+    "precision": 0.938,
+    "recall": 1.0,
+    "positives": 30,
+    "negatives": 300
+   }
   },
   "weather.overcast": {
-   "backgroundShare": null,
-   "threshold": null,
-   "precision": 1.0,
-   "recall": 0.025,
-   "heldOutPrecision": 0.833,
-   "heldOutRecall": 0.5,
+   "backgroundShare": 0.0,
+   "threshold": 0.8601,
+   "precision": 0.917,
+   "recall": 0.275,
+   "heldOutPrecision": 0.818,
+   "heldOutRecall": 0.45,
    "positives": 40,
-   "negatives": 400
+   "negatives": 400,
+   "confirmation": {
+    "precision": 0.909,
+    "recall": 0.333,
+    "positives": 30,
+    "negatives": 300
+   }
   },
   "weather.clear": {
    "backgroundShare": null,
@@ -99,27 +133,40 @@
    "heldOutPrecision": null,
    "heldOutRecall": null,
    "positives": 40,
-   "negatives": 360
+   "negatives": 360,
+   "confirmation": null
   },
   "style.minimalist": {
-   "backgroundShare": 0.0,
-   "threshold": 0.9058,
+   "backgroundShare": null,
+   "threshold": null,
    "precision": 1.0,
    "recall": 0.175,
    "heldOutPrecision": 1.0,
    "heldOutRecall": 0.1,
    "positives": 40,
-   "negatives": 400
+   "negatives": 400,
+   "confirmation": {
+    "precision": 0.667,
+    "recall": 0.067,
+    "positives": 30,
+    "negatives": 300
+   }
   },
   "style.panning-blur": {
-   "backgroundShare": null,
-   "threshold": null,
+   "backgroundShare": 0.0,
+   "threshold": 0.9689,
    "precision": 1.0,
-   "recall": 0.025,
-   "heldOutPrecision": 0.4,
-   "heldOutRecall": 0.2,
+   "recall": 0.175,
+   "heldOutPrecision": 1.0,
+   "heldOutRecall": 0.25,
    "positives": 40,
-   "negatives": 600
+   "negatives": 600,
+   "confirmation": {
+    "precision": 1.0,
+    "recall": 0.367,
+    "positives": 30,
+    "negatives": 450
+   }
   },
   "style.motion-blur": {
    "backgroundShare": null,
@@ -129,7 +176,8 @@
    "heldOutPrecision": null,
    "heldOutRecall": null,
    "positives": 40,
-   "negatives": 200
+   "negatives": 200,
+   "confirmation": null
   },
   "style.shallow-dof": {
    "backgroundShare": null,
@@ -139,17 +187,24 @@
    "heldOutPrecision": 0.0,
    "heldOutRecall": 0.0,
    "positives": 40,
-   "negatives": 760
+   "negatives": 760,
+   "confirmation": null
   },
   "genre.wildlife": {
-   "backgroundShare": 0.006,
-   "threshold": 0.914,
+   "backgroundShare": null,
+   "threshold": null,
    "precision": 0.923,
    "recall": 0.3,
    "heldOutPrecision": 0.857,
    "heldOutRecall": 0.3,
    "positives": 40,
-   "negatives": 720
+   "negatives": 720,
+   "confirmation": {
+    "precision": 0.857,
+    "recall": 0.2,
+    "positives": 30,
+    "negatives": 540
+   }
   },
   "genre.birds": {
    "backgroundShare": 0.044,
@@ -159,7 +214,13 @@
    "heldOutPrecision": 0.769,
    "heldOutRecall": 1.0,
    "positives": 40,
-   "negatives": 480
+   "negatives": 480,
+   "confirmation": {
+    "precision": 0.935,
+    "recall": 0.967,
+    "positives": 30,
+    "negatives": 360
+   }
   },
   "genre.aviation": {
    "backgroundShare": 0.006,
@@ -169,7 +230,13 @@
    "heldOutPrecision": 0.895,
    "heldOutRecall": 0.85,
    "positives": 40,
-   "negatives": 520
+   "negatives": 520,
+   "confirmation": {
+    "precision": 0.968,
+    "recall": 1.0,
+    "positives": 30,
+    "negatives": 390
+   }
   },
   "genre.motorsport": {
    "backgroundShare": null,
@@ -179,7 +246,8 @@
    "heldOutPrecision": 0.72,
    "heldOutRecall": 0.9,
    "positives": 40,
-   "negatives": 680
+   "negatives": 680,
+   "confirmation": null
   },
   "genre.landscape": {
    "backgroundShare": 0.025,
@@ -189,17 +257,29 @@
    "heldOutPrecision": 1.0,
    "heldOutRecall": 0.4,
    "positives": 40,
-   "negatives": 520
+   "negatives": 520,
+   "confirmation": {
+    "precision": 0.909,
+    "recall": 0.333,
+    "positives": 30,
+    "negatives": 390
+   }
   },
   "genre.portrait": {
-   "backgroundShare": null,
-   "threshold": null,
+   "backgroundShare": 0.0,
+   "threshold": 0.9577,
    "precision": 1.0,
-   "recall": 0.1,
+   "recall": 0.175,
    "heldOutPrecision": 1.0,
-   "heldOutRecall": 0.1,
+   "heldOutRecall": 0.05,
    "positives": 40,
-   "negatives": 520
+   "negatives": 520,
+   "confirmation": {
+    "precision": 1.0,
+    "recall": 0.2,
+    "positives": 30,
+    "negatives": 390
+   }
   },
   "genre.sport": {
    "backgroundShare": null,
@@ -209,7 +289,8 @@
    "heldOutPrecision": null,
    "heldOutRecall": null,
    "positives": 40,
-   "negatives": 680
+   "negatives": 680,
+   "confirmation": null
   },
   "genre.street": {
    "backgroundShare": null,
@@ -219,27 +300,40 @@
    "heldOutPrecision": null,
    "heldOutRecall": null,
    "positives": 40,
-   "negatives": 600
+   "negatives": 600,
+   "confirmation": null
   },
   "genre.macro": {
-   "backgroundShare": 0.013,
-   "threshold": 0.9909,
+   "backgroundShare": null,
+   "threshold": null,
    "precision": 1.0,
    "recall": 0.15,
    "heldOutPrecision": 0.857,
    "heldOutRecall": 0.3,
    "positives": 40,
-   "negatives": 760
+   "negatives": 760,
+   "confirmation": {
+    "precision": 1.0,
+    "recall": 0.033,
+    "positives": 30,
+    "negatives": 570
+   }
   },
   "genre.astro": {
-   "backgroundShare": 0.019,
-   "threshold": 0.7216,
+   "backgroundShare": null,
+   "threshold": null,
    "precision": 0.905,
    "recall": 0.95,
    "heldOutPrecision": 1.0,
    "heldOutRecall": 0.95,
    "positives": 40,
-   "negatives": 480
+   "negatives": 480,
+   "confirmation": {
+    "precision": 0.882,
+    "recall": 1.0,
+    "positives": 30,
+    "negatives": 360
+   }
   },
   "genre.documentary": {
    "backgroundShare": null,
@@ -249,7 +343,8 @@
    "heldOutPrecision": null,
    "heldOutRecall": null,
    "positives": 40,
-   "negatives": 640
+   "negatives": 640,
+   "confirmation": null
   }
  }
 }

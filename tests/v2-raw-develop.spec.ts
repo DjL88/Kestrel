@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { mosaic, withPreview } from './rawFixture';
 import { proveTiff16 } from '../src/core/tiff16Proof';
 import { provePng } from '../src/core/png16';
-test('V2 background engine replaces a synthetic embedded RAW preview with developed sensor pixels', async ({ page }) => {
+test('V2 background engine replaces a synthetic embedded RAW preview with developed sensor pixels', async ({ page }, testInfo) => {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: 'New project' }).first().click();
@@ -43,7 +43,41 @@ test('V2 background engine replaces a synthetic embedded RAW preview with develo
   // The project's name opens it at every width; the separate Open studio link is wide-screen only since #1376.
   await root.getByRole('button', { name: 'V2 sensor develop', exact: true }).first().click();
   await expect.poll(dimensions, { timeout: 30_000 }).toEqual([64, 96]);
+  // A full develop is kept for one session; after a reload the stored screen-size develop is shown, and the label says so.
   await expect(canvasLabel).toHaveAttribute('data-picture-source', 'raw-screen');
+  // One button develops the sensor data at full size; the label then says so and the button goes away.
+  const bar = root.locator('.v2-canvas-bar');
+  await bar.getByRole('button', { name: 'Develop full size' }).click();
+  await expect(canvasLabel).toHaveAttribute('data-picture-source', 'raw-full', { timeout: 30_000 });
+  await expect(bar.getByRole('button', { name: /Develop full size|Developing full size/ })).toHaveCount(0);
+  // The editor's picture is then drawn from the 16-bit develop (edit maths at 16 bits, one rounding to the screen).
+  await expect(root.getByTestId('canvas-frame').locator('img[data-precision="rgb16"]').first()).toBeVisible({ timeout: 30_000 });
+  await expect.poll(dimensions).toEqual([64, 96]);
+  // The histogram of InFlight's own develop is measured again from the 16-bit sensor develop, and says so in words.
+  // (The panel is shared; on a phone it sits behind More, which other specs cover.)
+  if (testInfo.project.name !== 'desktop') return;
+  await root.getByRole('button', { name: 'Info', exact: true }).first().click();
+  const precision = root.getByTestId('histogram-precision');
+  await expect(precision).toHaveAttribute('data-precision', 'rgb16', { timeout: 30_000 });
+  await expect(precision).toHaveText('Measured from the 16-bit RAW develop.');
+  // An edit is drawn from the 16-bit develop too: brighter, and still from the sensor data.
+  const sensorPicture = root.getByTestId('canvas-frame').locator('img[data-precision="rgb16"]').first();
+  const mean = () => sensorPicture.evaluate((img: HTMLImageElement) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+    const context = canvas.getContext('2d')!;
+    context.drawImage(img, 0, 0);
+    const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let total = 0; for (let i = 0; i < data.length; i += 4) total += data[i] + data[i + 1] + data[i + 2];
+    return total / (data.length / 4 * 3);
+  });
+  const before = await mean();
+  const advanced = root.getByRole('tab', { name: 'Advanced Edits' });
+  if (!(await advanced.isVisible())) await root.getByRole('button', { name: 'Adjust', exact: true }).first().click();
+  await advanced.click();
+  await root.getByLabel('Exposure', { exact: true }).fill('1');
+  await expect.poll(mean, { timeout: 30_000 }).toBeGreaterThan(before + 3);
+  await expect(sensorPicture).toBeVisible();
 });
 
 test('V2 writes structurally verified 16-bit TIFFs with and without the Tint edit', async ({ page }, testInfo) => {

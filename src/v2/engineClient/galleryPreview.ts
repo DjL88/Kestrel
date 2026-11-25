@@ -30,7 +30,7 @@ export async function renderGalleryPreview(frame: PhotoFrame, provider: BrowserP
   drawFramedPhoto(source, canvas, framing, { scale });
   await applyCanvasExportEdit(canvas, frame.edit ?? DEFAULT_EDIT, signal, Math.max(width, height) * scale, { aspect: height / width, view: { x: 0, y: 0, w: 1, h: 1 }, lensCentre: lensCentre(source.naturalWidth, source.naturalHeight, framing) });
   signal?.throwIfAborted();
-  await applyFrameLayers(canvas, frame.overlay, true);
+  await applyFrameLayers(canvas, frame.overlay, true, frame.edit?.masks);
   return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.86));
 }
 

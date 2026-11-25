@@ -2,6 +2,7 @@ import { recordEdit, type EditWhy } from '../../core/editHistory';
 import { readEditGroups, syncEditGroup } from './editGroupState';
 import type { PhotoEdit } from '../../core/photoEdits';
 import type { CullingState, PhotoFrame } from '../../core/types';
+import { v2Text } from '../../i18n/areas/v2';
 
 /** Compare against the catalogue at write time, after any intervening manual edits. */
 export function commitAutoEdit(
@@ -28,3 +29,6 @@ export function commitAutoEdit(
   frames[index] = syncEditGroup(recordEdit(frame, { edit: proposal }, at, why));
   return { ...state, frames, shoot: { ...state.shoot, lastUpdatedAt: at } };
 }
+
+/** Shown when the vision guardian held an Auto-pilot edit back, in the person's language. The edit stays available as a Co-pilot suggestion. */
+export const autopilotHeldForReview = (): string => v2Text.guardian.autopilotHeld;

@@ -1,6 +1,5 @@
 import { lazy, Suspense } from 'react';
 import {createRoot} from 'react-dom/client';
-import App from './App.tsx';
 import { Splash } from './components/Splash.tsx';
 import '@fontsource/plus-jakarta-sans/latin-400.css';
 import '@fontsource/plus-jakarta-sans/latin-600.css';
@@ -20,6 +19,8 @@ import { v2Enabled } from './v2/switch.ts';
 
 // Version 2 workspace, behind ?v2 while it is built. Its code and sample photos load only when the switch is on.
 const V2Root = lazy(() => import('./v2/V2Root.tsx'));
+// The previous Library and Editor (?v2=0) loads only when chosen, so V2, the default, does not download it first (G12).
+const App = lazy(() => import('./App.tsx'));
 
 // No browser right-click menu in the app (Open Image in New Window, Download Image, Inspect Element), except in text fields.
 document.addEventListener('contextmenu', (event) => { if (!keepsNativeMenu(event.target as HTMLElement | null)) event.preventDefault(); });
@@ -28,7 +29,7 @@ applyDisplay(loadDisplay());
 setGpuRenderer(renderEditOnGpu);
 
 createRoot(document.getElementById('root')!).render(
-  v2Enabled() ? <><Suspense fallback={null}><V2Root /></Suspense><Splash /></> : <><App /><Splash /></>,
+  v2Enabled() ? <><Suspense fallback={null}><V2Root /></Suspense><Splash /></> : <><Suspense fallback={null}><App /></Suspense><Splash /></>,
 );
 
 void manageOfflineWorker(import.meta.env.PROD, isDesktopApp());
