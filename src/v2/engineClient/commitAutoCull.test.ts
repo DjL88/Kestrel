@@ -58,3 +58,14 @@ test('G05: original keeper target remains attainable after making and flagging v
   assert.deepEqual(reviewed.frames.slice(3), state.frames.slice(3));
   assert.deepEqual(undoDecision(reviewed).frames.map(f => f.decision), state.frames.map(f => f.decision));
 });
+
+
+test('a duplicated scan identity cannot attach another source result to the live original', () => {
+  const a = frame('a', { stableKey: 'current-source' });
+  const stale = frame('a', { stableKey: 'different-source' });
+  const b = frame('b');
+  for (const captured of [[stale, a, b], [a, stale, b]]) {
+    const reviewed = commitAutoCull(project(a, b), captured, [pick('a', 99), pick('b', 90)]);
+    assert.deepEqual(reviewed.frames.map(f => f.decision), ['unreviewed', 'keep']);
+  }
+});
