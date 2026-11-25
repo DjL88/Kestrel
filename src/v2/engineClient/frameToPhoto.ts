@@ -48,7 +48,7 @@ export function recipeDelta(base: Parameters<typeof editToRecipe>[0], proposal: 
 }
 
 /** The on-screen slider names, so a step points at the slider the person can find in Adjust. */
-const STEP_LABELS: Record<string, string> = {
+export const STEP_LABELS: Record<string, string> = {
   whiteBalance: 'White balance', temperature: 'Temperature', tint: 'Tint', exposure: 'Exposure', contrast: 'Contrast',
   highlights: 'Highlights', shadows: 'Shadows', whites: 'Whites', blacks: 'Blacks', toneCurve: 'Tone curve',
   vibrance: 'Vibrance', saturation: 'Saturation', colourMixer: 'Colour mixer', colourGrade: 'Colour grading', dehaze: 'Dehaze', vignette: 'Vignette', vignetteSize: 'Vignette size', vignetteBlur: 'Vignette blur', vignetteColour: 'Vignette colour', grain: 'Grain', grainSize: 'Grain size', calibration: 'Camera calibration', channelCurves: 'Channel curves', clarity: 'Clarity', detailRecovery: 'Texture',

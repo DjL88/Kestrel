@@ -38,6 +38,9 @@ import ShareDialog from './dialogs/ShareDialog';
 import { usePresence } from './shell/usePresence';
 import { PresenceAvatars, PresenceCursors } from './shell/PresenceLayer';
 import SharedEditBanner from './shell/SharedEditBanner';
+import SharedComments from './shell/SharedComments';
+import { getActiveGroup } from './utils/studioMath';
+import { readSharedLink } from './dialogs/sharedLinks';
 import { useSharedEditing } from './shell/useSharedEditing';
 import { collabClient } from '../../providers/collabClient';
 import { firebaseAuth } from '../../providers/firebaseAuth';
@@ -259,9 +262,14 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const EDITING_PANELS: PanelId[] = ['adjust', 'masks', 'enhance', 'copilot'];
   const renderPanelContent = (panelId: PanelId) => {
     const inner = renderPanelInner(panelId);
-    if (!EDITING_PANELS.includes(panelId)) return inner;
+    const comments = (panelId === 'copilot' || panelId === 'info') && sharedEditing.state.kind !== 'off' ? (
+      <SharedComments client={sharing} project={store.activeProjectId ? readSharedLink(store.activeProjectId) : null} photoKey={activePhoto?.sharedKey} photoId={activePhoto?.id ?? null}
+        recipe={activePhoto ? getActiveGroup(activePhoto).recipe : null} canEdit={!editLocked} onApply={(id, delta, label) => actions.updateRecipe(id, delta, label)} />
+    ) : null;
+    if (!EDITING_PANELS.includes(panelId)) return <>{comments}{inner}</>;
     return (
       <>
+        {comments}
         <SharedEditBanner state={sharedEditing.state} onKeepMine={sharedEditing.keepMine} onKeepTheirs={sharedEditing.keepTheirs} onRetry={sharedEditing.retry} />
         {editLocked ? <fieldset disabled className="contents" data-testid="shared-edit-locked">{inner}</fieldset> : inner}
       </>

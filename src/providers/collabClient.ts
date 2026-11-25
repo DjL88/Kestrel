@@ -36,6 +36,8 @@ export interface GalleryListItem { galleryId: string; name: string; expiresAtMs:
 export interface SharedLeaseView { photoId: string; holder: string | null; mine: boolean }
 export interface SharedRevisionMeta { id: string; number: number; parentId: string | null; authorAccountId: string; createdAtMs: number; virtualCopyOf?: string }
 
+export interface SharedComment { id: string; photoId: string; authorAccountId: string; authorName: string; text: string; point: { x: number; y: number } | null; createdAtMs: number; resolvedAtMs: number | null }
+
 export interface CollabInvite { projectId: string; name: string; role: CollabRole }
 
 type Json = Record<string, unknown>;
@@ -97,6 +99,9 @@ export interface CollabClient {
   history(projectId: string, photoKey: string): Promise<{ headId: string | null; revisions: SharedRevisionMeta[] }>;
   revision(projectId: string, photoKey: string, revisionId: string): Promise<{ recipe: Record<string, unknown> } & SharedRevisionMeta>;
   publish(projectId: string, photoKey: string, request: { token: string; baseRevisionId: string | null; recipe: Record<string, unknown>; virtualCopyOf?: string }): Promise<SharedRevisionMeta>;
+  comments(projectId: string, photoKey: string): Promise<SharedComment[]>;
+  addComment(projectId: string, photoKey: string, text: string, point: { x: number; y: number } | null): Promise<SharedComment>;
+  resolveComment(projectId: string, commentId: string, resolved: boolean): Promise<SharedComment>;
   presenceToken(projectId: string): Promise<{ customToken: string; databaseUrl: string; uid: string; expiresAtMs: number }>;
 }
 
@@ -150,6 +155,9 @@ export function collabClient(baseUrl: string | undefined | null, idToken: () => 
     },
     revision: async (id, key, rid) => (await call('GET', `${P(id)}/photos/${encodeURIComponent(key)}/revisions/${encodeURIComponent(rid)}`)) as unknown as { recipe: Record<string, unknown> } & SharedRevisionMeta,
     publish: async (id, key, request) => (await call('POST', `${P(id)}/photos/${encodeURIComponent(key)}/revisions`, request)).revision as SharedRevisionMeta,
+    comments: async (id, key) => ((await call('GET', `${P(id)}/photos/${encodeURIComponent(key)}/comments`)).comments ?? []) as SharedComment[],
+    addComment: async (id, key, text, point) => (await call('POST', `${P(id)}/photos/${encodeURIComponent(key)}/comments`, { text, point })).comment as SharedComment,
+    resolveComment: async (id, cid, resolved) => (await call('POST', `${P(id)}/comments/${encodeURIComponent(cid)}/resolve`, { resolved })).comment as SharedComment,
     galleries: async (id) => ((await call('GET', P(id) + '/galleries')).galleries ?? []) as GalleryListItem[],
     galleryFeedback: async (gid) => ((await call('GET', `/v1/collab/galleries/${encodeURIComponent(gid)}/feedback`)).events ?? []) as GalleryFeedbackEvent[],
     revokeGallery: async (gid) => { await call('POST', `/v1/collab/galleries/${encodeURIComponent(gid)}/revoke`); },
