@@ -49,6 +49,7 @@ export const nl: AreaTranslation<typeof source> = {
       : `Ruis verwijderd op dit apparaat, met ${count} onderwerpen samen beschermd.`),
     global: 'Geen omtrek van een onderwerp was betrouwbaar, dus ruisonderdrukking is gelijkmatig op de hele foto toegepast.',
     failedCheck: 'Het resultaat kwam niet door de kwaliteitscontrole. Uw bestaande bewerkingen zijn behouden.',
+    mainThread: 'Dit apparaat kon de ruis niet op de achtergrond verwijderen, dus InFlight kan even hebben stilgestaan.',
     leftAsItWas: (notes) => `Gelaten zoals het was. ${notes}`,
   },
   workspace: {

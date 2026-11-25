@@ -13,6 +13,8 @@ import type {
   FontOption,
   LookPreset,
   MaskGeometryField,
+  TapPoint,
+  WorkspaceStore,
   OverlaySettings,
   Photo,
   PhotoSurfaceProps,
@@ -25,6 +27,7 @@ import BrandIcon from '../icons/BrandIcon';
 import PictureSourceBadge from './PictureSourceBadge';
 import CompareSplit from './CompareSplit';
 import MaskOutlineLayer from './MaskOutlineLayer';
+import TapSelectLayer from './TapSelectLayer';
 import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
 import { captureElement, screenshotName } from '../utils/captureElement';
 import { focusOnScreen, focusZoom, lookForZoomFocus, type ZoomFocus } from '../../engineClient/eyeZoom';
@@ -56,6 +59,9 @@ interface CanvasProps {
   maskOverlayKey?: string;
   onToggleMaskOverlay?: () => void;
   onSetMaskGeometry?: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
+  /** Tap-to-select session; when it is on this photo, clicks on the picture select instead of moving the format. */
+  tapSession?: NonNullable<WorkspaceStore['tapSelect']>['session'];
+  onTapSelect?: (photoId: string, tap: TapPoint) => void;
   /** White-balance eyedropper: while set, a click on the picture reports that spot (0 to 1 across the shown, framed
    * picture) instead of moving anything. Esc cancels. */
   neutralPick?: { onPick: (at: { x: number; y: number }) => void; onCancel: () => void };
@@ -123,6 +129,8 @@ export default function Canvas({
   maskOverlayKey,
   onToggleMaskOverlay,
   onSetMaskGeometry,
+  tapSession,
+  onTapSelect,
   neutralPick,
   photo,
   activeSizeId,
@@ -1112,10 +1120,16 @@ export default function Canvas({
   // The selected mask (its layer is open in the Masks panel). Oval and gradient masks also get an outline with handles.
   const selectedMask = maskGuideId ? photo.masks.find((layer) => layer.id === maskGuideId && layer.visible) : undefined;
   const selectedShape = selectedMask?.geometry ? { ...selectedMask, geometry: selectedMask.geometry } : undefined;
-  const renderMaskOutline = selectedShape && onSetMaskGeometry
+  const tapping = tapSession?.photoId === photo.id && onTapSelect ? tapSession : undefined;
+  const renderMaskOutline = (selectedShape && onSetMaskGeometry) || tapping
     ? (picture: { width: number; height: number }) => (
-      <MaskOutlineLayer picture={picture} name={selectedShape.name} geometry={selectedShape.geometry} feather={selectedShape.feather}
-        onChange={(field, value) => onSetMaskGeometry(photo.id, selectedShape.id, field, value)} />
+      <>
+        {selectedShape && onSetMaskGeometry && !tapping && (
+          <MaskOutlineLayer picture={picture} name={selectedShape.name} geometry={selectedShape.geometry} feather={selectedShape.feather}
+            onChange={(field, value) => onSetMaskGeometry(photo.id, selectedShape.id, field, value)} />
+        )}
+        {tapping && <TapSelectLayer picture={picture} session={tapping} onTap={(tap) => onTapSelect!(photo.id, tap)} />}
+      </>
     ) : undefined;
   // The eyedropper is drawn in the displayed picture's own pixels (like the mask outline), so crop, rotation, flips and
   // zoom are already undone by the browser when it maps the click back. It takes the place of the outline while active.

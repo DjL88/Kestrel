@@ -1777,6 +1777,25 @@ export const da: AreaTranslation<typeof source> = {
     reload: "Genindlæs InFlight",
     details: "Detaljer",
   },
+  // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
+  tapSelect: {
+    tool: "Tryk for at vælge",
+    offer: (mb) => `Tryk for at vælge kræver en engangsdownload på ${mb} MB (EfficientSAM-Ti, Apache-2.0). Den bliver på denne enhed og virker offline.`,
+    download: "Download Tryk for at vælge",
+    downloading: (pct) => `Downloader… ${pct} %`,
+    unavailable: "Tryk for at vælge tilbydes ikke i denne version.",
+    reading: "Fotoet læses én gang til Tryk for at vælge. Det kan tage et halvt minut; Oval og Forløb virker imens.",
+    ready: "Tryk på motivet i fotoet. I tilstanden Fjern (eller med Alt) fjerner et tryk en del.",
+    working: "Opdaterer markeringen…",
+    addMode: "Tilføj del",
+    removeMode: "Fjern del",
+    newSubject: "Nyt motiv",
+    done: "Færdig",
+    subjects: (n) => `Valgte motiver: ${n}`,
+    tapLayer: "Tryk her for at vælge et motiv",
+    failed: "Tryk for at vælge stoppede. Intet blev ændret.",
+  },
+
   notices: {
     button: 'Notifikationer',
     buttonCount: (n: number) => `Notifikationer, ${n} ulæste`,

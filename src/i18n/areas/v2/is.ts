@@ -1777,6 +1777,25 @@ export const is: AreaTranslation<typeof source> = {
     reload: "Endurhlaða InFlight",
     details: "Upplýsingar",
   },
+  // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
+  tapSelect: {
+    tool: "Ýta til að velja",
+    offer: (mb) => `Ýta til að velja þarf eitt niðurhal upp á ${mb} MB (EfficientSAM-Ti, Apache-2.0). Það helst á þessu tæki og virkar án nettengingar.`,
+    download: "Sækja Ýta til að velja",
+    downloading: (pct) => `Sæki… ${pct}%`,
+    unavailable: "Ýta til að velja er ekki í boði í þessari útgáfu.",
+    reading: "Myndin er lesin einu sinni fyrir Ýta til að velja. Það getur tekið um hálfa mínútu; Sporöskja og Litaskipti virka á meðan.",
+    ready: "Ýttu á myndefnið á myndinni. Í Fjarlægja-ham (eða með Alt) fjarlægir ýting hluta.",
+    working: "Uppfæri valið…",
+    addMode: "Bæta við hluta",
+    removeMode: "Fjarlægja hluta",
+    newSubject: "Nýtt myndefni",
+    done: "Lokið",
+    subjects: (n) => `Valin myndefni: ${n}`,
+    tapLayer: "Ýttu hér til að velja myndefni",
+    failed: "Ýta til að velja stöðvaðist. Engu var breytt.",
+  },
+
   notices: {
     button: 'Tilkynningar',
     buttonCount: (n: number) => `Tilkynningar, ${n} ólesnar`,

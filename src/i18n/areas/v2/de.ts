@@ -1777,6 +1777,25 @@ export const de: AreaTranslation<typeof source> = {
     reload: "InFlight neu laden",
     details: "Details",
   },
+  // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
+  tapSelect: {
+    tool: "Antippen zum Auswählen",
+    offer: (mb) => `Antippen zum Auswählen braucht einen einmaligen Download von ${mb} MB (EfficientSAM-Ti, Apache-2.0). Er bleibt auf diesem Gerät und funktioniert offline.`,
+    download: "Antippen zum Auswählen herunterladen",
+    downloading: (pct) => `Wird geladen… ${pct} %`,
+    unavailable: "Antippen zum Auswählen ist in dieser Version nicht verfügbar.",
+    reading: "Das Foto wird einmal für das Antippen gelesen. Das kann etwa eine halbe Minute dauern; Oval und Verlauf funktionieren weiter.",
+    ready: "Tippen Sie auf das Motiv im Foto. Im Modus Entfernen (oder mit Alt) nimmt ein Tippen einen Teil weg.",
+    working: "Auswahl wird aktualisiert…",
+    addMode: "Teil hinzufügen",
+    removeMode: "Teil entfernen",
+    newSubject: "Neues Motiv",
+    done: "Fertig",
+    subjects: (n) => `Ausgewählte Motive: ${n}`,
+    tapLayer: "Hier tippen, um ein Motiv auszuwählen",
+    failed: "Antippen zum Auswählen wurde beendet. Nichts wurde geändert.",
+  },
+
   notices: {
     button: 'Benachrichtigungen',
     buttonCount: (n: number) => `Benachrichtigungen, ${n} ungelesen`,

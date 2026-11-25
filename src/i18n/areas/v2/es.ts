@@ -1777,6 +1777,25 @@ export const es: AreaTranslation<typeof source> = {
     reload: "Recargar InFlight",
     details: "Detalles",
   },
+  // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
+  tapSelect: {
+    tool: "Tocar para seleccionar",
+    offer: (mb) => `Tocar para seleccionar necesita una descarga única de ${mb} MB (EfficientSAM-Ti, Apache-2.0). Se queda en este dispositivo y funciona sin conexión.`,
+    download: "Descargar Tocar para seleccionar",
+    downloading: (pct) => `Descargando… ${pct} %`,
+    unavailable: "Tocar para seleccionar no está disponible en esta versión.",
+    reading: "Leyendo la foto una vez para Tocar para seleccionar. Puede tardar medio minuto; Óvalo y Degradado siguen funcionando.",
+    ready: "Toca el sujeto en la foto. En modo Quitar (o con Alt) un toque quita una parte.",
+    working: "Actualizando la selección…",
+    addMode: "Añadir parte",
+    removeMode: "Quitar parte",
+    newSubject: "Nuevo sujeto",
+    done: "Hecho",
+    subjects: (n) => `Sujetos seleccionados: ${n}`,
+    tapLayer: "Toca aquí para seleccionar un sujeto",
+    failed: "Tocar para seleccionar se detuvo. No se cambió nada.",
+  },
+
   notices: {
     button: 'Avisos',
     buttonCount: (n: number) => `Avisos, ${n} sin leer`,
