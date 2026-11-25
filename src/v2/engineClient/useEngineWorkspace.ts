@@ -21,7 +21,8 @@ import { useAccess } from '../../providers/useAccess';
 import { useBackgroundDevelop } from '../../useBackgroundDevelop';
 import { useSpeciesScan } from '../../useSpeciesScan';
 import { useVisualGrouping } from './useVisualGrouping';
-import { isDesktopApp } from '../../providers/desktopShell';
+import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
+import { photoParallelism } from '../../core/photoParallelism';
 import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
 import { getLocalFileKey, loadLocalFileListShoot, rehydrateLocalFramesFromStore } from '../../providers/localShootLoader';
 import { hashOriginalBytes, isSameOriginalBytes } from '../../core/originalFileIdentity';
@@ -203,7 +204,16 @@ async function pickReselectFiles(): Promise<File[] | null> {
  */
 export function useEngineWorkspace(): { store: WorkspaceStore; actions: WorkspaceActions } {
   const stub = useWorkspace();
-  const { can: canByPlan } = useAccess();
+  const { can: canByPlan, capabilities } = useAccess();
+  // Photos at once (owner decision 25 Nov): the plan's ceiling, held to this device's memory and cores. The
+  // scheduler still runs one heavy job at a time where free memory cannot be measured.
+  useEffect(() => {
+    const nav = typeof navigator === 'undefined' ? undefined : navigator as Navigator & { deviceMemory?: number };
+    engineScheduler.setCpuLimit(photoParallelism({
+      desktop: isDesktopApp() && !isMobileShell(), paid: capabilities.fullEditor, cloud: canByPlan('cloudAssist'),
+      cores: nav?.hardwareConcurrency, memoryGB: nav?.deviceMemory,
+    }).local);
+  }, [capabilities.fullEditor, canByPlan]);
   // One gate for the whole adapter: the plan's answer, or the developer-only Pro preview (see featureMap.ts).
   const can = useCallback((feature: Parameters<typeof canByPlan>[0]) => featureAccess(canByPlan)[feature as keyof ReturnType<typeof featureAccess>] ?? canByPlan(feature), [canByPlan]);
   const catalogue = useRef<BrowserCatalogueStore | null>(null);

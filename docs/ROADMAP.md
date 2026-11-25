@@ -237,6 +237,25 @@ Platform-specific code lives only in adapters (`src-tauri/`, `src/providers/*`).
 | Upscale | Lanczos 2x/4x | Keep. No model upscaler (would invent detail) | n/a | Non-generative rule |
 | Vision reviewer | SmolVLM2-500M (desktop) | Phone: rule-based quality supervisor (#1262). Desktop: SmolVLM2. Cloud: opt-in Gemini as reviewer only | Apache-2.0 / provider terms | Ranks candidate edits; never edits pixels |
 
+**Photos at once (owner decision, 25 Nov 2026).**
+
+| Device | Basic | Pro | Pro with the cloud runner |
+| --- | --- | --- | --- |
+| Desktop | 5 | 20 | 50 |
+| Phone or tablet | 1 | 3 | 3 on the phone, plus up to 47 in the cloud (50 in total) |
+
+The phone's cloud total of 50 is my reading of "cloud boosts it significantly"; the owner may change it. These are ceilings, not promises. `src/core/photoParallelism.ts` holds the number to the device's memory (per-photo need from the model manifest) and its cores, with one core kept for the interface. The cloud share is only a request: the control plane's spend guard grants cloud jobs against the monthly budget, which is a setting. £20 is the starting figure while the owner tests, so no money figure is coded into the app. The plan is passed as `paid` (from `featureAvailable`), never by plan name.
+
+Status: **PARTIAL.** V2 sets `engineScheduler.setCpuLimit` from the policy. Two existing limits still apply:
+- (a) Where free memory cannot be measured (browsers, phones, and the desktop app until a native sampler exists), the scheduler keeps one heavy job at a time on purpose.
+- (b) Inside one job, photos still run one after another.
+
+Next:
+- (1) a native resource sampler (Tauri) so desktop limits take effect;
+- (2) per-job fan-out across photos, with one model copy per worker;
+- (3) each pack's measured peak memory in its manifest entry;
+- (4) a cloud fan-out using Cloud Run parallel tasks. That is an infrastructure change and needs owner approval before deploy.
+
 **Model upgrades: status (25 Nov 2026; the owner approved the downloads).** Each upgrade is an opt-in pack in `src/core/optionalModels.ts`: pinned URL, bytes and SHA-256, no network by default, and hidden when the build sets no address. `src/providers/optionalModels.ts` loads it, with the existing model as the fallback. The weights are kept outside the repo; provenance and parity are in [models.md](models.md#optional-model-packs-opt-in-downloads).
 - **RF-DETR Nano: WIRED INTO SUBJECT DETECTION; NO DOWNLOAD OFFER IN THE UI YET.** fp16 ONNX, 54.6 MB, from `Roboflow/rf-detr-nano`. Parity with PyTorch on CC0/public-domain samples, synthetic scenes and multi-subject composites: every detection matched (worst score difference 0.0017, IoU ≥ 0.99), and two cats and five people came back as separate boxes. onnxruntime-web 1.31 gives the same detections. int8 failed the gate (score difference 0.117) and isn't used. Once the pack is installed, `findSubject` and `findSubjects` in `src/providers/objectDetector.ts` (used by `verifiedSubjectScan`, `photoCheck` and culling) run RF-DETR in tandem with YOLOX via `tandemWithRfDetr`. Every subject is kept separately. Where they agree, the better box is kept; where they disagree, the subject is kept with `review: true`. Without the pack, YOLOX runs alone, exactly as before. Not yet: the download offer in V2 Settings; a benchmark on real shoots; and worker-pool inference (RF-DETR runs on the main thread, about 3.5 s per 384 px tile in single-thread WASM on the laptop).
 - **EfficientSAM-Ti (tap to select): WIRED, NOT YET IN THE UI.** It uses the authors' own ONNX exports, converted to fp16: 21.2 MB for the encoder and decoder together. Parity with PyTorch on one tap, add and remove taps, two subjects, six taps and a box: mask IoU ≥ 0.98. `src/providers/tapSelect.ts` provides `encodePhoto`, called once per photo, and `selectSubjects`, which gives one mask per subject. Masks come out at most 1024 px on the long edge. Not yet: the canvas-masks caller, and fast encoding. It takes about 35 s per photo in single-thread WASM on the laptop, so it needs multi-threaded WASM or WebGPU.
