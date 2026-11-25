@@ -1,0 +1,13 @@
+{
+  "origin": "https://kestrel-hosting-kestrel.web.app",
+  "firebaseOrigin": "https://kestrel-hosting-kestrel.web.app",
+  "files": [
+    "site/index.html",
+    "site/logos.html",
+    "site/press.html",
+    "site/robots.txt",
+    "site/sitemap.xml",
+    "src-tauri/capabilities/desktop.json",
+    "scripts/release/publish-gcp.ps1"
+  ]
+}
