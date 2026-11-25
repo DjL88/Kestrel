@@ -55,6 +55,8 @@ export interface RouteResult {
   speciesProbability: number;
   /** Total probability of every animal category, including pets and farm animals the species list does not cover. */
   animalProbability: number;
+  /** Total probability of every vehicle category (cars, aircraft, boats…), which decides whether vehicle recognition runs. */
+  vehicleProbability: number;
 }
 
 /**
@@ -117,6 +119,7 @@ export function routeSubject(
     category: confident ? ranked[0].category : null, best: ranked[0].category, probability, margin, confident, top: ranked.slice(0, 3),
     speciesProbability: mass((category) => category.group === 'animal' && category.identify === 'species'),
     animalProbability: mass((category) => category.group === 'animal'),
+    vehicleProbability: mass((category) => category.group === 'vehicle'),
   };
 }
 

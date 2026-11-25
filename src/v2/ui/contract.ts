@@ -303,6 +303,10 @@ export interface Photo {
   originalConnected: boolean;
   rating: number; // 0 to 5
   speciesLabel?: string;
+  /** What kind of vehicle or aircraft it probably is, in the person's language ("Military jet: Eurofighter Typhoon (probably)"). */
+  vehicleLabel?: string;
+  /** Extra words the photo can be found by (a vehicle's kind in this language and in English, its type name). */
+  searchTerms?: string[];
   category: string;
   sharpnessScore: number;
   exif: PhotoExif;
