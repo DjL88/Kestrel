@@ -625,7 +625,6 @@ export const de: AreaTranslation<typeof source> = {
     eraser: 'Radierer',
     selectArea: 'Bereich auswählen',
     feather: 'Weiche Kante',
-    placeholderNote: 'Anbindung der Masken-Engine bereit. Die Auswahl einer Ebene wird direkt an WorkspaceActions geleitet.',
   },
   enhance: {
     heading: 'Verbessern',

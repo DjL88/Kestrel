@@ -625,7 +625,6 @@ export const it: AreaTranslation<typeof source> = {
     eraser: 'Gomma',
     selectArea: 'Seleziona area',
     feather: 'Sfumatura del bordo',
-    placeholderNote: 'Collegamenti del motore delle maschere pronti. La selezione di un livello va direttamente a WorkspaceActions.',
   },
   enhance: {
     heading: 'Migliora',
@@ -1143,7 +1142,7 @@ export const it: AreaTranslation<typeof source> = {
     eraseConfirm: 'Digiti ERASE per confermare',
     eraseButton: 'Cancella questo dispositivo',
     forgetHeading: 'Dimenticami: dati dell’account conservati da InFlight',
-    forgetBody: 'Se ha effettuato l’accesso, acquistato una licenza, usato l’aiuto cloud facoltativo o inviato un messaggio, InFlight conserva alcuni dati che la riguardano sui propri server. Disattivare «aiuta a migliorare i suggerimenti» elimina già ciò che ha condiviso. Per far cancellare il resto, invii una richiesta dall’indirizzo email usato per l’accesso. InFlight non ha ancora una cancellazione dal server con un solo tocco, quindi la richiesta è gestita da una persona, e le verrà detto che cosa eventualmente va conservato (per esempio le registrazioni dei pagamenti richieste dalla legge).',
+    forgetBody: 'Se ha effettuato l’accesso, acquistato una licenza, usato l’aiuto cloud facoltativo o inviato un messaggio, InFlight conserva alcuni dati che la riguardano sui propri server. Disattivare «aiuta a migliorare i suggerimenti» elimina già ciò che ha condiviso. Per far cancellare il resto, invii una richiesta dall’indirizzo email usato per l’accesso. InFlight non ha ancora una cancellazione dal server con un solo tocco, quindi la richiesta è gestita da una persona. Le verrà detto che cosa eventualmente va conservato (per esempio le registrazioni dei pagamenti richieste dalla legge).',
     forgetLink: 'Chiedi a InFlight di cancellare i dati del mio account',
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).

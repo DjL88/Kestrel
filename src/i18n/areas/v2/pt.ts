@@ -625,7 +625,6 @@ export const pt: AreaTranslation<typeof source> = {
     eraser: 'Borracha',
     selectArea: 'Selecionar zona',
     feather: 'Suavização da margem',
-    placeholderNote: 'Ligações do motor de máscaras prontas. Selecionar uma camada envia-a diretamente para WorkspaceActions.',
   },
   enhance: {
     heading: 'Melhorar',
@@ -1143,7 +1142,7 @@ export const pt: AreaTranslation<typeof source> = {
     eraseConfirm: 'Escreva ERASE para confirmar',
     eraseButton: 'Apagar este dispositivo',
     forgetHeading: 'Esquecer-me: dados de conta guardados pelo InFlight',
-    forgetBody: 'Se iniciou sessão, comprou uma licença, usou a ajuda opcional na nuvem ou enviou uma mensagem, o InFlight guarda alguns dados sobre si nos seus servidores. Desligar «ajudar a melhorar as sugestões» já apaga o que partilhou. Para apagar o resto, envie um pedido a partir do email com que iniciou sessão. O InFlight ainda não tem um apagamento no servidor com um só toque, por isso o pedido é tratado por uma pessoa, e ser-lhe-á dito o que, se for o caso, tem de ser guardado (por exemplo, os registos de pagamento exigidos por lei).',
+    forgetBody: 'Se iniciou sessão, comprou uma licença, usou a ajuda opcional na nuvem ou enviou uma mensagem, o InFlight guarda alguns dados sobre si nos seus servidores. Desligar «ajudar a melhorar as sugestões» já apaga o que partilhou. Para apagar o resto, envie um pedido a partir do email com que iniciou sessão. O InFlight ainda não tem um apagamento no servidor com um só toque, por isso o pedido é tratado por uma pessoa. Ser-lhe-á dito o que, se for o caso, tem de ser guardado (por exemplo, os registos de pagamento exigidos por lei).',
     forgetLink: 'Pedir ao InFlight que apague os meus dados de conta',
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).

@@ -625,7 +625,6 @@ export const da: AreaTranslation<typeof source> = {
     eraser: 'Viskelæder',
     selectArea: 'Vælg område',
     feather: 'Blød kant',
-    placeholderNote: 'Maskemotorens forbindelser er klar. Valg af et lag sendes direkte til WorkspaceActions.',
   },
   enhance: {
     heading: 'Forbedr',
@@ -1143,7 +1142,7 @@ export const da: AreaTranslation<typeof source> = {
     eraseConfirm: 'Skriv ERASE for at bekræfte',
     eraseButton: 'Slet denne enhed',
     forgetHeading: 'Glem mig: kontodata hos InFlight',
-    forgetBody: 'Hvis du har logget ind, købt en licens, brugt den valgfri skyhjælp eller sendt en besked, har InFlight en lille mængde data om dig på sine servere. Når du slår »hjælp med at forbedre forslag« fra, slettes det, du har delt. Vil du have resten slettet, så send en anmodning fra den e-mail, du loggede ind med. InFlight har endnu ikke sletning på serveren med ét tryk, så anmodningen behandles af et menneske, og du får at vide, hvad der eventuelt skal gemmes (for eksempel betalingsoplysninger, som loven kræver).',
+    forgetBody: 'Hvis du har logget ind, købt en licens, brugt den valgfri skyhjælp eller sendt en besked, har InFlight en lille mængde data om dig på sine servere. Når du slår »hjælp med at forbedre forslag« fra, slettes det, du har delt. Vil du have resten slettet, så send en anmodning fra den e-mail, du loggede ind med. InFlight har endnu ikke sletning på serveren med ét tryk, så anmodningen behandles af et menneske. Du får at vide, hvad der eventuelt skal gemmes (for eksempel betalingsoplysninger, som loven kræver).',
     forgetLink: 'Bed InFlight om at slette mine kontodata',
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).

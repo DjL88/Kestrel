@@ -79,6 +79,7 @@ export const ga: Translation = {
     themeContrast: 'Codarsnacht ard',
     textSize: 'Méid an téacs',
     typeface: 'Cló',
+    fontBrand: 'InFlight (Plus Jakarta Sans)',
     fontReadable: 'Éasca le léamh (Atkinson Hyperlegible)',
     calm: 'Níos lú spreagtha (gan beochan)',
     calmPreset: 'Socair agus soiléir',

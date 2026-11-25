@@ -128,7 +128,7 @@ export const source = {
       },
       spread: {
         headline: (_share: string) => 'The tones are well spread',
-        meaning: 'The graph reaches from dark to bright without piling up at either end, which gives you room to edit and keeps detail in the shadows and highlights.',
+        meaning: 'The graph reaches from dark to bright without piling up at either end. That gives you room to edit and keeps detail in the shadows and highlights.',
         tryThis: 'Nothing needed. Fine-tune by eye.',
       },
     },

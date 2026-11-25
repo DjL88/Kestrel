@@ -626,7 +626,6 @@ export const fi: AreaTranslation<typeof source> = {
     eraser: 'Pyyhekumi',
     selectArea: 'Valitse alue',
     feather: 'Reunan pehmennys',
-    placeholderNote: 'Maskimoottorin liitännät ovat valmiit. Tason valinta ohjautuu suoraan WorkspaceActionsiin.',
   },
   enhance: {
     heading: 'Paranna',

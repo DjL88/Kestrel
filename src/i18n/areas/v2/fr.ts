@@ -625,7 +625,6 @@ export const fr: AreaTranslation<typeof source> = {
     eraser: 'Gomme',
     selectArea: 'Sélectionner une zone',
     feather: 'Adoucissement du bord',
-    placeholderNote: 'Liaisons du moteur de masques prêtes. Sélectionner un calque l’envoie directement à WorkspaceActions.',
   },
   enhance: {
     heading: 'Améliorer',

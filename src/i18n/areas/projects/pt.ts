@@ -370,7 +370,7 @@ export const pt: AreaTranslation<typeof source> = {
     works: 'A chave funciona.',
     couldNotCheck: 'Não foi possível verificar a chave. Confira-a, e também a sua ligação.',
     title: 'Assistente online (opcional)',
-    intro: 'Opcional. Quando a identificação local não está disponível ou não tem certeza e está online, pode dar o nome do animal ou da ave numa fotografia e dizer se é vida selvagem, pessoas ou uma paisagem. Fica desligado até o ligar aqui.',
+    intro: 'Opcional. Quando a identificação local não está disponível ou não tem certeza e está online, pode dar o nome do animal ou da ave numa fotografia. Também pode dizer se é vida selvagem, pessoas ou uma paisagem. Fica desligado até o ligar aqui.',
     sentLead: 'Enviado:',
     sent: 'uma cópia pequena de cada fotografia (cerca de 640 píxeis), sem nome de ficheiro, dados da câmara nem localização, para o Google Gemini com a sua própria chave. O seu original nunca sai do dispositivo. As pessoas nunca são identificadas pelo nome.',
     atMost: (count) => `No máximo ${count} fotografias por sessão, uma de cada vez.`,
