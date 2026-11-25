@@ -62,6 +62,8 @@ export const STEP_LABELS: Record<string, string> = {
   colourGrade: STRINGS.adjust.grade.heading, dehaze: effects.dehaze, vignette: effects.vignette,
   vignetteSize: `${effects.vignette}: ${effects.size}`, vignetteBlur: `${effects.vignette}: ${effects.blur}`,
   vignetteColour: effects.colourPick, grain: effects.grain, grainSize: effects.grainSize,
+  vignetteRoundness: `${effects.vignette}: ${effects.roundness}`, vignetteFeather: `${effects.vignette}: ${effects.feather}`,
+  vignetteHighlights: `${effects.vignette}: ${effects.highlights}`, grainRoughness: effects.roughness,
   calibration: STRINGS.adjust.calibration.heading,
   channelCurves: `${STRINGS.adjust.curve.heading} (${STRINGS.adjust.curve.channels.red}, ${STRINGS.adjust.curve.channels.green}, ${STRINGS.adjust.curve.channels.blue})`,
 };
