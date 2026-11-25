@@ -78,7 +78,8 @@ test('?v2 hub: list view by default with favourite samples, smaller tiles on req
   const studio = page.locator('.inflight-v2');
   const layout = studio.getByRole('group', { name: 'Project layout' });
   await expect(layout.getByRole('button', { name: 'List' })).toHaveAttribute('aria-pressed', 'true');
-  const firstRow = studio.getByTestId('project-row').first();
+  // The sample project with three favourites, by name: the stub's "Today · 10:18" style dates do not sort by time.
+  const firstRow = studio.getByTestId('project-row').filter({ hasText: 'Scottish Highlands' });
   await expect(firstRow).toBeVisible();
   await expect(firstRow.getByRole('img', { name: /^Cover photograph for / })).toBeVisible();
   await expect(firstRow.getByTestId('project-samples').locator('img')).toHaveCount(3);
@@ -132,10 +133,13 @@ test('?v2 hub on a phone: a finger swipe reveals Rename, Archive and Delete; a m
 
   const row = studio.getByTestId('project-row').first();
   await expect(row.getByRole('button', { name: 'Rename', exact: true })).toBeVisible();
-  await row.getByRole('button', { name: 'Delete…', exact: true }).tap();
+  // The swipe above is real touch input. Headless Chromium did not turn a later synthetic tap on the revealed button into
+  // a click reliably (Playwright's tap() and a raw CDP tap both failed under load), so the button is pressed with click();
+  // a finger tap on the revealed actions is checked on a real phone, not here.
+  await row.getByRole('button', { name: 'Delete…', exact: true }).click();
   const dialog = page.getByRole('alertdialog');
   await expect(dialog).toContainText('Your original photo files are never touched');
-  await dialog.getByRole('button', { name: 'Keep project' }).tap();
+  await dialog.getByRole('button', { name: 'Keep project' }).click();
   await expect(studio.getByRole('button', { name: `Project actions for ${name}` })).toBeVisible();
   await expect.poll(shift).toBe(0);
 });

@@ -176,3 +176,30 @@ test('comments: members comment and pin, clients only when allowed and on their 
     assert.equal((await call('POST', `${P}/comments/${id}/resolve`, h.user.token, { resolved: false })).status, 404, 'not a member');
   } finally { await h.close(); }
 });
+
+test('privacy: a client never reads or touches the team comments on their photos, only their own', async () => {
+  const { h, owner, editor, client, call, P } = await harness();
+  try {
+    await call('POST', `${P}/members`, owner.token, { kind: 'inviteEmail', email: 'editor@example.test', role: 'editor', displayName: 'Erin' });
+    await call('POST', `${P}/members`, owner.token, { kind: 'inviteEmail', email: 'client@example.test', role: 'client', displayName: 'Cleo', photoIds: ['p1'] });
+    await call('POST', `${P}/accept`, editor.token, { displayName: 'Erin' });
+    await call('POST', `${P}/accept`, client.token, { displayName: 'Cleo' });
+    const team = (await call('POST', `${P}/photos/p1/comments`, editor.token, { text: 'Team only: retouch the perch, client is fussy', point: { x: 0.2, y: 0.2 } })).body.comment;
+    let r = await call('GET', `${P}/photos/p1/comments`, client.token);
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.body.comments, [], 'the team comment on the client\'s own photo is not sent to them');
+    assert.equal(JSON.stringify(r.body).includes('fussy'), false);
+    r = await call('POST', `${P}/comments/${team.id}/resolve`, client.token, { resolved: true });
+    assert.equal(r.status, 404, 'to a client the team comment does not exist (no 403 that would reveal it)');
+    assert.equal(JSON.stringify(r.body).includes('fussy'), false);
+
+    // With client comments allowed, they see and resolve their own, and the team still sees everything.
+    await call('POST', `${P}/members`, owner.token, { kind: 'options', options: { clientsMayComment: true } });
+    const mine = (await call('POST', `${P}/photos/p1/comments`, client.token, { text: 'Can the branch go?' })).body.comment;
+    r = await call('GET', `${P}/photos/p1/comments`, client.token);
+    assert.deepEqual(r.body.comments.map((c: any) => c.text), ['Can the branch go?']);
+    assert.equal((await call('POST', `${P}/comments/${mine.id}/resolve`, client.token, { resolved: true })).status, 200);
+    r = await call('GET', `${P}/photos/p1/comments`, owner.token);
+    assert.deepEqual(r.body.comments.map((c: any) => c.authorName), ['Erin', 'Cleo']);
+  } finally { await h.close(); }
+});
