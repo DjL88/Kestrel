@@ -1,6 +1,8 @@
 import { Sha256Stream } from '../core/sha256';
 import { optionalModelBytes, optionalModelConfigured, type OptionalModel, type OptionalModelFile } from '../core/optionalModels';
 import { getModel, hasModel, putModel, removeModel } from './modelStore';
+import { modelSource } from './modelUpdater';
+import { packUrlResolver, type PackUrlResolver } from './packManifest';
 
 /**
  * Download, keep and read an optional model pack (src/core/optionalModels.ts). Nothing here runs unless the photographer
@@ -18,16 +20,34 @@ export interface PackStore {
 
 const deviceStore: PackStore = { get: getModel, has: hasModel, put: putModel, remove: removeModel };
 
-export interface PackDeps { store: PackStore; fetch: typeof fetch }
-const defaults = (): PackDeps => ({ store: deviceStore, fetch: (...args) => fetch(...args) });
+export interface PackDeps {
+  store: PackStore;
+  fetch: typeof fetch;
+  /** Where a file comes from when it has no address of its own: the signed model manifest, read at download time. */
+  resolveUrl?: PackUrlResolver;
+}
+// Only a build with the models bucket and its pinned key reads addresses from the manifest; others offer no pack.
+const manifestUrls = modelSource.baseUrl && Object.keys(modelSource.keys).length ? packUrlResolver({ ...modelSource, fetch: (...args) => fetch(...args) }) : undefined;
+const defaults = (): PackDeps => ({ store: deviceStore, fetch: (...args) => fetch(...args), ...(manifestUrls ? { resolveUrl: manifestUrls } : {}) });
+const offered = (model: OptionalModel, deps: PackDeps) => optionalModelConfigured(model, deps.resolveUrl !== undefined);
 
-const keyOf = (file: OptionalModelFile) => `${file.url}#${file.sha256}`;
+/** A kept file is known by its pack, role and SHA-256, wherever it was downloaded from. */
+const keyOf = (model: OptionalModel, role: string, file: OptionalModelFile) => `${model.id}/${role}#${file.sha256}`;
+/** Copies kept before the manifest, under their old address; still found and still checked. */
+const legacyKeyOf = (file: OptionalModelFile) => (file.url ? `${file.url}#${file.sha256}` : null);
+
+async function findKey(store: PackStore, model: OptionalModel, role: string, file: OptionalModelFile): Promise<string | null> {
+  const key = keyOf(model, role, file);
+  if (await store.has(model.cache, key)) return key;
+  const legacy = legacyKeyOf(file);
+  return legacy && (await store.has(model.cache, legacy)) ? legacy : null;
+}
 
 export async function optionalModelStatus(model: OptionalModel, deps: PackDeps = defaults()): Promise<OptionalModelStatus> {
-  if (!optionalModelConfigured(model)) return 'unavailable';
+  if (!offered(model, deps)) return 'unavailable';
   try {
-    const present = await Promise.all(Object.values(model.files).map((file) => deps.store.has(model.cache, keyOf(file))));
-    return present.every(Boolean) ? 'ready' : 'not-downloaded';
+    const present = await Promise.all(Object.entries(model.files).map(([role, file]) => findKey(deps.store, model, role, file)));
+    return present.every((key) => key !== null) ? 'ready' : 'not-downloaded';
   } catch {
     return 'not-downloaded';
   }
@@ -47,13 +67,15 @@ export async function downloadOptionalModel(
   signal?: AbortSignal,
   deps: PackDeps = defaults(),
 ): Promise<void> {
-  if (!optionalModelConfigured(model)) throw new Error(`${model.name} is not offered in this copy of InFlight.`);
+  if (!offered(model, deps)) throw new Error(`${model.name} is not offered in this copy of InFlight.`);
   const total = optionalModelBytes(model);
   let done = 0;
-  for (const file of Object.values(model.files)) {
+  for (const [role, file] of Object.entries(model.files)) {
     signal?.throwIfAborted();
-    if (await deps.store.has(model.cache, keyOf(file))) { done += file.bytes; onProgress(done / total); continue; }
-    const response = await deps.fetch(file.url, { signal });
+    if (await findKey(deps.store, model, role, file)) { done += file.bytes; onProgress(done / total); continue; }
+    const url = file.url || (deps.resolveUrl ? await deps.resolveUrl(model, role) : '');
+    if (!url) throw new Error(`${model.name} is not offered in this copy of InFlight.`);
+    const response = await deps.fetch(url, { signal });
     if (!response.ok || !response.body) throw new Error(`${model.name} could not be downloaded. Check the connection and try again.`);
     const reader = response.body.getReader();
     const pieces: Uint8Array[] = [];
@@ -72,7 +94,7 @@ export async function downloadOptionalModel(
       throw new Error(`The downloaded ${model.name} does not match its checksum, so it was not kept. Try again.`);
     }
     try {
-      await deps.store.put(model.cache, keyOf(file), new Blob(pieces as BlobPart[], { type: 'application/octet-stream' }));
+      await deps.store.put(model.cache, keyOf(model, role, file), new Blob(pieces as BlobPart[], { type: 'application/octet-stream' }));
     } catch {
       throw new Error(`There is not enough room on this device to keep ${model.name} (about ${Math.ceil(total / 1e6)} MB).`);
     }
@@ -82,19 +104,24 @@ export async function downloadOptionalModel(
 }
 
 export async function removeOptionalModel(model: OptionalModel, deps: PackDeps = defaults()): Promise<void> {
-  for (const file of Object.values(model.files)) await deps.store.remove(model.cache, keyOf(file));
+  for (const [role, file] of Object.entries(model.files)) {
+    await deps.store.remove(model.cache, keyOf(model, role, file));
+    const legacy = legacyKeyOf(file);
+    if (legacy) await deps.store.remove(model.cache, legacy);
+  }
 }
 
 /** The checked bytes of one file of a downloaded pack. Throws when it is missing or does not match, never returns a bad file. */
 export async function readOptionalModelFile(model: OptionalModel, name: string, deps: PackDeps = defaults()): Promise<Uint8Array> {
   const file = model.files[name];
-  if (!file || !optionalModelConfigured(model)) throw new Error(`${model.name} is not offered in this copy of InFlight.`);
-  const blob = await deps.store.get(model.cache, keyOf(file));
-  if (!blob) throw new Error(`${model.name} has not been downloaded.`);
+  if (!file || !offered(model, deps)) throw new Error(`${model.name} is not offered in this copy of InFlight.`);
+  const key = await findKey(deps.store, model, name, file);
+  const blob = key ? await deps.store.get(model.cache, key) : undefined;
+  if (!key || !blob) throw new Error(`${model.name} has not been downloaded.`);
   const bytes = new Uint8Array(await blob.arrayBuffer());
   const check = digest([bytes]);
   if (check.bytes !== file.bytes || check.sha256 !== file.sha256) {
-    await deps.store.remove(model.cache, keyOf(file)).catch(() => undefined);
+    await deps.store.remove(model.cache, key).catch(() => undefined);
     throw new Error(`The stored ${model.name} failed its integrity check and was removed. Download it again to use it.`);
   }
   return bytes;

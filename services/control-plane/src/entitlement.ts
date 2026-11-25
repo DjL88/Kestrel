@@ -1,5 +1,6 @@
 import { sha256Hex } from './crypto.ts';
 import { newLicence, type LicenceRecord, type LicencePlan } from './store.ts';
+import type { PurchaseStore } from './commerce/records.ts';
 
 /**
  * Entitlements: who has which plan, for which major version, whether money was received, and whether managed AI is
@@ -13,7 +14,9 @@ export const normaliseEmail = (email: string) => email.trim().toLowerCase();
 export const emailHashOf = (email: string) => sha256Hex(normaliseEmail(email));
 
 export type PurchaseGrant = ({ email: string } | { emailHash: string }) & {
-  /** The checkout reference of the verified payment: the idempotency key. */
+  /** Where it was paid. One account-wide entitlement whatever the store, so every signed-in device gets Pro. */
+  store: PurchaseStore;
+  /** The checkout reference of the verified payment, starting with the store's name: the idempotency key. */
   checkoutReference: string;
   majorVersion: number;
   managedAi?: boolean;
@@ -33,7 +36,7 @@ const REFERENCE = /^[A-Za-z0-9_-]{1,64}$/;
 
 /** A paid entitlement. Call this only after the payment has been retrieved from the provider and matched. */
 export function purchaseEntitlement(grant: PurchaseGrant, nowMs: number): LicenceRecord {
-  if (!REFERENCE.test(grant.checkoutReference)) throw new Error('Invalid checkout reference.');
+  if (!REFERENCE.test(grant.checkoutReference) || !grant.checkoutReference.startsWith(grant.store + '_')) throw new Error('Invalid checkout reference.');
   assertVersion(grant.majorVersion);
   const emailHash = 'emailHash' in grant ? grant.emailHash : emailHashOf(grant.email);
   if (!/^[a-f0-9]{64}$/.test(emailHash)) throw new Error('Invalid account email hash.');

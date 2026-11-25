@@ -169,7 +169,8 @@ test('?v2 PNG export is lossless: the same pixels whether exported once or twice
   }
 });
 
-test('?v2 a saved preset and File > Export again give exactly the files the wizard gave with the same settings', async ({ page }) => {
+test('?v2 a saved preset and File > Export again give exactly the files the wizard gave with the same settings', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Export again is on the desktop File menu; the phone has no menu bar.');
   const studio = await projectWithPhoto(page);
   // Wizard: PNG at most 2560 px, saved as a preset.
   let dialog = await openExport(page, studio);

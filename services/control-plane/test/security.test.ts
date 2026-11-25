@@ -6,7 +6,7 @@
 import test, { after, before, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { signSession, signWebhook } from '../src/crypto.ts';
+import { loadSigningKey, signEnvelope, signSession, signWebhook } from '../src/crypto.ts';
 import { identify } from '../src/gateway.ts';
 import { ApiError } from '../src/http.ts';
 import { verifyEntitlementGrant, snapshotFromGrant } from '../../../src/core/entitlementGrant.ts';
@@ -180,33 +180,70 @@ test('10. an expired session never revokes Free editing or a valid offline grant
 test('11. a model download that does not match the signed manifest is rejected and the old weights stay', async () => {
   const good = Buffer.from('pretend onnx weights v2');
   const sha256 = crypto.createHash('sha256').update(good).digest('hex');
-  const register = await h.call('POST', '/v1/admin/models', { token: h.adminToken, body: { id: 'species-model', kind: 'onnx', version: '2026.11.2', path: '/data/models/bioclip-v2.onnx', sha256, bytes: good.length, contract: 'bioclip/v1', licence: { spdx: 'MIT', sourceUrl: 'https://example.org/bioclip', rightsConfirmed: true } } });
-  assert.equal(register.status, 200);
-  assert.equal((await h.call('POST', '/v1/admin/models/promote', { token: h.adminToken, body: { id: 'species-model', version: '2026.11.2' } })).status, 200);
+  // The one model manifest is signed with the manifest key (kestrel-2026-11 in production), not the control plane's key.
+  const manifestKey = loadSigningKey('manifest-test', crypto.generateKeyPairSync('ed25519').privateKey.export({ format: 'pem', type: 'pkcs8' }).toString());
+  const signed = signEnvelope({ schema: 1, revision: 3, assets: [{ id: 'bioclip-image-int8', kind: 'onnx', version: '2026.11.2', path: '/data/onnx/bioclip-image-int8/2026.11.2/bioclip.onnx', sha256, bytes: good.length, contract: 'bioclip-image-224/v1' }] }, manifestKey);
+  const served = await startHarness(undefined, undefined, {
+    env: { KCP_MODEL_MANIFEST_URL: 'https://models.example.test/manifest/stable.json', KCP_MODEL_KEYS: `manifest-test=${manifestKey.publicKeyBase64}` },
+    manifestFetch: (async () => new Response(JSON.stringify(signed), { status: 200 })) as typeof fetch,
+  });
+  try {
+    const manifest = await served.call('GET', '/v1/models/manifest?app=26.11.2');
+    assert.equal(manifest.status, 200);
+    assert.deepEqual(manifest.body, JSON.parse(JSON.stringify(signed)), 'served unchanged, never re-signed');
+    const keys = { [manifestKey.keyId]: manifestKey.publicKeyBase64 };
+    const opened = await openSignedDataManifest(manifest.body, keys);
+    assert.equal(opened.ok, true);
+    const asset = opened.ok ? opened.manifest.assets[0] : null;
+    assert.ok(asset);
 
-  const manifest = await h.call('GET', '/v1/models/manifest?app=26.11.2');
-  const keys = { [h.app.config.signingKey.keyId]: h.app.config.signingKey.publicKeyBase64 };
-  const opened = await openSignedDataManifest(manifest.body, keys);
-  assert.equal(opened.ok, true);
-  const asset = opened.ok ? opened.manifest.assets[0] : null;
-  assert.ok(asset);
+    const previous = { id: 'bioclip-image-int8', version: '2026.11.1', sha256: 'a'.repeat(64) };
+    const tampered = new Uint8Array(Buffer.from('pretend onnx weights v3')) as Uint8Array<ArrayBuffer>;
+    const decision = await stageDownloadedAsset(asset, tampered, previous);
+    assert.deepEqual(decision, { action: 'keep_previous', installed: previous, reason: 'checksum_mismatch' });
+    const truncated = await stageDownloadedAsset(asset, new Uint8Array(good.subarray(0, 4)) as Uint8Array<ArrayBuffer>, previous);
+    assert.equal(truncated.action, 'keep_previous');
+    assert.equal((await stageDownloadedAsset(asset, new Uint8Array(good) as Uint8Array<ArrayBuffer>, previous)).action, 'swap');
 
-  const previous = { id: 'species-model', version: '2026.11.1', sha256: 'a'.repeat(64) };
-  const tampered = new Uint8Array(Buffer.from('pretend onnx weights v3')) as Uint8Array<ArrayBuffer>;
-  const decision = await stageDownloadedAsset(asset, tampered, previous);
-  assert.deepEqual(decision, { action: 'keep_previous', installed: previous, reason: 'checksum_mismatch' });
-  const truncated = await stageDownloadedAsset(asset, new Uint8Array(good.subarray(0, 4)) as Uint8Array<ArrayBuffer>, previous);
-  assert.equal(truncated.action, 'keep_previous');
-  assert.equal((await stageDownloadedAsset(asset, new Uint8Array(good) as Uint8Array<ArrayBuffer>, previous)).action, 'swap');
-
-  // A manifest edited in transit (someone swaps the checksum) fails its signature.
-  const forged = structuredClone(manifest.body);
-  forged.payload.assets[0].sha256 = crypto.createHash('sha256').update(tampered).digest('hex');
-  assert.deepEqual(await openSignedDataManifest(forged, keys), { ok: false, reason: 'bad_signature' });
-  assert.deepEqual(await openSignedDataManifest(manifest.body, { other: h.app.config.signingKey.publicKeyBase64 }), { ok: false, reason: 'unknown_key' });
+    // A manifest edited in transit (someone swaps the checksum) fails its signature, and the grant key does not open it.
+    const forged = structuredClone(manifest.body);
+    forged.payload.assets[0].sha256 = crypto.createHash('sha256').update(tampered).digest('hex');
+    assert.deepEqual(await openSignedDataManifest(forged, keys), { ok: false, reason: 'bad_signature' });
+    assert.deepEqual(await openSignedDataManifest(manifest.body, { [served.app.config.signingKey.keyId]: served.app.config.signingKey.publicKeyBase64 }), { ok: false, reason: 'unknown_key' });
+  } finally { await served.close(); }
 });
 
-test('12. model ids or paths with "..", absolute paths or drive letters are refused', async () => {
+test('11b. the control plane never serves a manifest it cannot verify with the pinned manifest key', async () => {
+  const pinned = loadSigningKey('manifest-test', crypto.generateKeyPairSync('ed25519').privateKey.export({ format: 'pem', type: 'pkcs8' }).toString());
+  const other = loadSigningKey('manifest-test', crypto.generateKeyPairSync('ed25519').privateKey.export({ format: 'pem', type: 'pkcs8' }).toString());
+  const payload = { schema: 1, revision: 4, assets: [{ id: 'u2netp', kind: 'onnx', version: '1', path: '/data/onnx/u2netp/1/u2netp.onnx', sha256: 'c'.repeat(64), bytes: 10, contract: 'u2netp-salient-320/v1' }] };
+  let body: unknown = signEnvelope(payload, other);
+  const served = await startHarness(undefined, undefined, {
+    env: { KCP_MODEL_MANIFEST_URL: 'https://models.example.test/manifest/stable.json', KCP_MODEL_KEYS: `manifest-test=${pinned.publicKeyBase64}` },
+    manifestFetch: (async () => new Response(JSON.stringify(body), { status: 200 })) as typeof fetch,
+  });
+  try {
+    let r = await served.call('GET', '/v1/models/manifest');
+    assert.equal(r.status, 503); assert.equal(r.body.error.code, 'MANIFEST_UNTRUSTED', 'signed with a key that is not pinned');
+    body = { ...signEnvelope(payload, pinned), payload: { ...payload, revision: 5 } };
+    r = await served.call('GET', '/v1/models/manifest');
+    assert.equal(r.body.error.code, 'MANIFEST_UNTRUSTED', 'edited after signing');
+    body = signEnvelope({ ...payload, assets: [{ ...payload.assets[0], path: '/etc/passwd' }] }, pinned);
+    r = await served.call('GET', '/v1/models/manifest');
+    assert.equal(r.body.error.code, 'MANIFEST_UNTRUSTED', 'a signed manifest the app would refuse is refused here too');
+    body = signEnvelope(payload, pinned);
+    r = await served.call('GET', '/v1/models/manifest');
+    assert.equal(r.status, 200);
+  } finally { await served.close(); }
+  const bare = await startHarness();
+  try {
+    const r = await bare.call('GET', '/v1/models/manifest');
+    assert.equal(r.status, 503); assert.equal(r.body.error.code, 'MANIFEST_NOT_CONFIGURED');
+    assert.equal((await bare.call('POST', '/v1/admin/models', { token: bare.adminToken, body: {} })).status, 404, 'the old model registry is gone');
+  } finally { await bare.close(); }
+});
+
+test('12. model ids or paths with "..", absolute paths or drive letters are refused by the app parser', () => {
   const sha256 = 'b'.repeat(64);
   for (const [id, path] of [
     ['../../evil', '/data/models/evil.onnx'],
@@ -216,12 +253,7 @@ test('12. model ids or paths with "..", absolute paths or drive letters are refu
     ['species-model', '/data/models//double.onnx'],
     ['species-model', '../data/models/up.onnx'],
   ]) {
-    const response = await h.call('POST', '/v1/admin/models', { token: h.adminToken, body: { id, kind: 'onnx', version: '9.9.9', path, sha256, bytes: 10 } });
-    assert.equal(response.status, 400, `${id} ${path}`);
-    assert.equal(response.body.error.code, 'ASSET_INVALID');
-    // The client parser, which runs after signature verification, refuses the same thing.
-    assert.equal(parseDataManifest({ schema: 1, revision: 2, assets: [{ id, kind: 'onnx', version: '9.9.9', path, sha256, bytes: 10 }] }), null);
+    // The client parser runs after signature verification, in the app and in the control plane (verifiedModelManifest).
+    assert.equal(parseDataManifest({ schema: 1, revision: 2, assets: [{ id, kind: 'onnx', version: '9.9.9', path, sha256, bytes: 10 }] }), null, `${id} ${path}`);
   }
-  const denied = (await h.app.store.listAudit(1000)).filter((e) => e.action === 'model.register' && e.outcome === 'denied').length;
-  assert.equal(denied, 6);
 });

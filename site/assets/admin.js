@@ -365,8 +365,8 @@ async function loadUsage() {
 async function loadPayments() {
   const p = await api('admin/payments');
   $('payments-state').textContent = p.connected
-    ? 'Paid checkouts recorded after SumUp confirmed them.'
-    : 'SumUp is not connected yet, so there are no payments to show. Refunds will appear here too once checkout is live.';
+    ? 'Paid checkouts recorded after Paddle confirmed them. Amounts are what Paddle pays out; Paddle handles the buyer\'s tax.'
+    : 'Paddle is not connected yet, so there are no payments to show. Refunds will appear here too once checkout is live.';
   $('payments-table').tBodies[0].replaceChildren(...p.transactions.map(t => {
     const row = document.createElement('tr');
     cell(row, when(Date.parse(t.paidAt))); cell(row, t.invoiceNumber); cell(row, t.status === 'paid' ? 'Paid' : t.status === 'refunded' ? 'Refunded' : 'Partly refunded');
