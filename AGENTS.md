@@ -13,6 +13,8 @@ This repository has **one product contract and one live coordination board**. Th
 
 Read [CLAUDE.md](CLAUDE.md) as the detailed implementation and test policy; the filename is historical and the rules are **not Claude-only**. Existing [PR #416](https://github.com/DjL88/Kestrel/pull/416) owns important import/flow paths, and [PR #417](https://github.com/DjL88/Kestrel/pull/417) owns Nikon evidence documentation; always check their live status before changes.
 
+**Releases:** `main` is staging (it deploys only to /V2Proto). Live is a deliberate promotion of a known-good `main` commit, unfinished work stays behind feature flags, and nothing on `main` releases to stores, the updater or the public site by itself. See [docs/RELEASE-FLOW.md](docs/RELEASE-FLOW.md).
+
 ## Worker implementation briefs
 
 Read [docs/worker-tasks/README.md](docs/worker-tasks/README.md) and the assigned task brief before implementing a grouped deliverable. These prompts supplement the product contract; they do not replace #1138 priorities or #890 live claims. Verify current main, follow the brief's acceptance criteria, and implement the next unblocked slice. Do not infer completion from a brief or duplicate another worker's claim.
