@@ -4,6 +4,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { nextCanvasZoom, zoomAnchorScroll } from '../utils/canvasTrackpadZoom';
 import { maxCanvasPixels } from '../../../core/exportLimits';
 import { ORIGINAL_FORMAT_ID } from '../../engineClient/formatOps';
+import { paneImageStyle, paneInsetClip } from '../../engineClient/frameGeometry';
 import { STACK_GAP_PX, alignForAnchor, anchorFlexStyle, freeTransform, stacked } from '../utils/overlayLayout';
 import type {
   CropTransform,
@@ -21,6 +22,7 @@ import type {
 } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
+import PictureSourceBadge from './PictureSourceBadge';
 import CompareSplit from './CompareSplit';
 import MaskOutlineLayer from './MaskOutlineLayer';
 import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
@@ -87,7 +89,18 @@ interface CanvasProps {
   onReconnectOriginal: (photoId: string) => void;
   onToggleCompare: () => void;
   onSetZoom: (zoom: number) => void;
+  /** Called when someone zooms a cloud preview past 100%: its pixels run out there, so the original may be wanted. */
+  onZoomPastPreview?: (photoId: string) => void;
   onToggleFullScreen: () => void;
+}
+
+/**
+ * Tells the workspace once when a cloud preview is zoomed past 100%. A component of its own, so its effect is never a hook
+ * after Canvas's early return for "no photo" (which broke the studio when the first photo arrived).
+ */
+function ZoomPastPreviewWatch({ photoId, active, onZoomPastPreview }: { photoId: string; active: boolean; onZoomPastPreview?: (photoId: string) => void }) {
+  useEffect(() => { if (active) onZoomPastPreview?.(photoId); }, [active, photoId, onZoomPastPreview]);
+  return null;
 }
 
 const ZOOM_BAR_STORAGE_KEY = 'inflight.v2.zoomBarOffset';
@@ -132,6 +145,7 @@ export default function Canvas({
   onReconnectOriginal,
   onToggleCompare,
   onSetZoom,
+  onZoomPastPreview,
   onToggleFullScreen,
 }: CanvasProps) {
   const [activeGuides, setActiveGuides] = useState<SnapGuide[]>([]);
@@ -424,11 +438,8 @@ export default function Canvas({
   const getFontFamily = (fontId: string) =>
     fonts.find((f) => f.id === fontId)?.family ?? 'var(--font-sans)';
 
-  const buildImageTransform = (crop: CropTransform, extraPanX = 0) => {
-    const sx = (crop.flipH ? -1 : 1) * crop.zoom;
-    const sy = (crop.flipV ? -1 : 1) * crop.zoom;
-    return `translate(${crop.panX + extraPanX}%, ${crop.panY}%) rotate(${crop.rotateDeg}deg) scale(${sx}, ${sy})`;
-  };
+  // One placement for every view and for export (frameGeometry.ts, G02).
+  const buildImageTransform = (crop: CropTransform) => paneImageStyle(crop).transform;
 
   const MAX_CROP_ZOOM = 8;
   /** How far the picture can be moved under the crop window (in % of the frame) before its edge shows. */
@@ -1065,7 +1076,8 @@ export default function Canvas({
   /** Border claims space WITHIN the output size, without hiding photo pixels.
    * CSS percentage padding resolves against the frame width on all four sides,
    * matching the export layout's per-width border geometry. */
-  const inBorderFrame = (size: SizePreset, content: React.ReactNode) => {
+  /** `pane` is this frame's place in a split format; the edge insets clip in the frame's own coordinates, as export does. */
+  const inBorderFrame = (size: SizePreset, content: React.ReactNode, pane: { index: number; count: number } = { index: 0, count: 1 }) => {
     const rawPercent = Math.max(0, Math.min(10, size.crop.borderWidth ?? 0));
     const percent = Math.min(rawPercent, (size.height / Math.max(1, size.width)) * 49);
     const placement = size.crop.borderPlacement ?? 'all';
@@ -1078,7 +1090,8 @@ export default function Canvas({
         className="absolute inset-0 box-border"
         style={{ backgroundColor: percent > 0 || placement === 'auto' ? size.crop.borderColour ?? '#ffffff' : undefined, padding }}
       >
-        <div className={`h-full w-full overflow-hidden ${placement === 'auto' ? '[&_img]:object-contain' : ''}`}>{content}</div>
+        <div data-testid="image-inset-clip" className={`h-full w-full overflow-hidden ${placement === 'auto' ? '[&_img]:object-contain' : ''}`}
+          style={{ clipPath: paneInsetClip(size.crop, pane.index, pane.count) }}>{content}</div>
       </div>
     );
   };
@@ -1108,6 +1121,7 @@ export default function Canvas({
     ? { ...activeSize, width: activeSize.width * chosenScale, height: activeSize.height * chosenScale } : activeSize;
   const output = effectiveUpscaleOutputSize(requestedSize, photo.pixelSize, chosenScale, pixelLimit);
   const actualPercent = fitScale ? Math.round(fitScale * canvasZoom * 100) : Math.round(canvasZoom * 100);
+  const pastPreview = Boolean(photo.cloudPreview) && actualPercent > 100;
   const toggleActualSize = () => {
     if (!fitScale) { onSetZoom(1); return; }
     onSetZoom(Math.abs(actualPercent - 100) <= 1 ? 1 : 1 / fitScale);
@@ -1148,8 +1162,6 @@ export default function Canvas({
       ? { height: frameH * activeSize.crop.zoom, width: frameH * activeSize.crop.zoom * imageAspect }
       : { width: frameW * activeSize.crop.zoom, height: (frameW * activeSize.crop.zoom) / imageAspect };
     const offset = frameOffsets[activeSize.id];
-
-    const cropClip = `inset(${activeSize.crop.insetTop}% ${activeSize.crop.insetRight}% ${activeSize.crop.insetBottom}% ${activeSize.crop.insetLeft}%)`;
 
     // Keep the entire split composition visible while editing its shared crop.
     // Previously entering crop mode dropped back to one frame and hid the other.
@@ -1229,11 +1241,8 @@ export default function Canvas({
                 {inBorderFrame(activeSize, renderStrip(
                   `${photo.title} — Frame ${paneIdx + 1}`,
                   'h-full max-w-none object-cover select-none',
-                  {
-                    width: `${sectionCount * 100}%`,
-                    transform: `translate(${-(paneIdx * 100 / sectionCount) + splitOffsetFor(activeSize.id) + activeSize.crop.panX}%, ${activeSize.crop.panY}%) rotate(${activeSize.crop.rotateDeg}deg) scale(${(activeSize.crop.flipH ? -1 : 1) * activeSize.crop.zoom}, ${(activeSize.crop.flipV ? -1 : 1) * activeSize.crop.zoom})`,
-                  },
-                ))}
+                  paneImageStyle(activeSize.crop, paneIdx, sectionCount, splitOffsetFor(activeSize.id)),
+                ), { index: paneIdx, count: sectionCount })}
                 {paneIdx === sectionCount - 1 && renderOverlaysInsideFrame(activeSize, true)}
               </div>
             </div>
@@ -1372,7 +1381,7 @@ export default function Canvas({
                 after={renderSurface('edited', `${photo.title} edited`, { transform: buildImageTransform(activeSize.crop) }, filterCss)}
               />
             ) : (
-              renderSurface(holdingOriginal ? 'original' : 'edited', holdingOriginal ? `${photo.title} original` : photo.title, { transform: buildImageTransform(activeSize.crop), clipPath: cropClip }, holdingOriginal ? 'none' : filterCss)
+              renderSurface(holdingOriginal ? 'original' : 'edited', holdingOriginal ? `${photo.title} original` : photo.title, { transform: buildImageTransform(activeSize.crop) }, holdingOriginal ? 'none' : filterCss)
             ))}
             {selectedMask && !compareMode && !holdingOriginal && PhotoSurface && (
               <div data-testid="mask-canvas-label" className="absolute bottom-2 left-2 z-30 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[11px] font-medium text-white">
@@ -1509,13 +1518,8 @@ export default function Canvas({
                 {inBorderFrame(size, renderStrip(
                   `${photo.title} — ${size.label}`,
                   panes.length > 1 ? 'h-full max-w-none object-cover' : 'h-full w-full object-cover',
-                  {
-                    ...(panes.length > 1 ? { width: `${panes.length * 100}%` } : {}),
-                    transform: panes.length > 1
-                      ? `translate(${-(paneIdx * 100 / panes.length) + splitOffsetFor(size.id) + size.crop.panX}%, ${size.crop.panY}%) rotate(${size.crop.rotateDeg}deg) scale(${(size.crop.flipH ? -1 : 1) * size.crop.zoom}, ${(size.crop.flipV ? -1 : 1) * size.crop.zoom})`
-                      : buildImageTransform(size.crop),
-                  },
-                ))}
+                  paneImageStyle(size.crop, paneIdx, panes.length, splitOffsetFor(size.id)),
+                ), { index: paneIdx, count: panes.length })}
                 {paneIdx === panes.length - 1 && renderOverlaysInsideFrame(size, false)}
                 {size.kind === 'video' && (
                   <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-[var(--bg-scrim)] px-1.5 py-0.5 text-[0.625rem] font-medium text-white">
@@ -1552,6 +1556,7 @@ export default function Canvas({
       onPointerCancel={handleGlobalPointerUp}
       className="relative flex flex-1 flex-col overflow-hidden bg-[var(--bg-canvas)]"
     >
+      <ZoomPastPreviewWatch photoId={photo.id} active={pastPreview} onZoomPastPreview={onZoomPastPreview} />
       {/* Top Canvas Bar: View mode (Single vs All Formats Side-by-Side) + Per-selection Flip/Rotate/Compare */}
       <div className="v2-canvas-bar flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/75 px-3 py-1.5 backdrop-blur-sm">
         <div className="flex items-center gap-1.5">
@@ -1583,6 +1588,8 @@ export default function Canvas({
               <span className="v2-phone-label">All formats ({enabledSizes.length})</span>
             </button>
           </div>
+          {/* Which picture is shown, for the single view and the All formats board alike (camera preview or RAW develop). */}
+          <PictureSourceBadge picture={photo.picture?.preview} className="h-7 text-[0.6875rem]" />
 
           {canvasLayoutMode === 'all-formats' && (
             <>

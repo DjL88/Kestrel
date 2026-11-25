@@ -725,6 +725,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       localCacheLimitGb: 25,
       hideProFeatures: false,
       advancedControls: false,
+      advanceAfterDecision: false,
     },
     activePanel: 'adjust',
     panels: createDefaultPanels(),
@@ -734,6 +735,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     filmstripMinRating: 0,
     filmstripSort: 'shoot',
     filmstripSearch: '',
+    filmstripTag: null,
     gridViewOpen: false,
     compareMode: false,
     canvasZoom: 1,
@@ -844,6 +846,11 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     setBurstGrouped: (burstGroupId, grouped) => { logAction('setBurstGrouped', { burstGroupId, grouped }); },
     jumpToEditStep: (photoId, cursor) => { logAction('jumpToEditStep', { photoId, cursor }); },
     switchEditVersion: (photoId, versionId) => { logAction('switchEditVersion', { photoId, versionId }); },
+    renameEditVersion: (photoId, versionId, name) => { logAction('renameEditVersion', { photoId, versionId, name }); },
+    saveEditCheckpoint: (photoId, name) => { logAction('saveEditCheckpoint', { photoId, name }); },
+    restoreEditCheckpoint: (photoId, checkpointId) => { logAction('restoreEditCheckpoint', { photoId, checkpointId }); },
+    deleteEditCheckpoint: (photoId, checkpointId) => { logAction('deleteEditCheckpoint', { photoId, checkpointId }); },
+    restoreFormatCrop: (photoId, formatId, eventAt) => { logAction('restoreFormatCrop', { photoId, formatId, eventAt }); },
 
     setHubState: (hubState) => {
       logAction('setHubState', { hubState });
@@ -941,6 +948,21 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       });
     },
 
+    correctVehicle: (photoId, choice) => {
+      setStore((prev) => ({
+        ...prev,
+        photos: prev.photos.map((photo) => photo.id === photoId
+          ? (choice === 'not-a-vehicle' ? { ...photo, vehicleLabel: undefined, vehicleKind: undefined, vehicleType: undefined } : { ...photo, vehicleKind: choice.kind, vehicleType: choice.type })
+          : photo),
+      }));
+    },
+    removePhotoTag: (photoId, tagId) => {
+      setStore((prev) => ({
+        ...prev,
+        photos: prev.photos.map((photo) => photo.id === photoId ? { ...photo, photoTags: photo.photoTags?.filter((tag) => tag.id !== tagId) } : photo),
+      }));
+    },
+
     correctSpeciesName: (photoId, proposedName) => {
       const name = proposedName.trim().slice(0, 120);
       if (!name) return;
@@ -972,6 +994,9 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     },
     readXmpSidecars: () => {
       setStore((prev) => ({ ...prev, lastActionNotice: 'XMP sidecars are available in the real workspace.' }));
+    },
+    readLightroomCatalogue: () => {
+      setStore((prev) => ({ ...prev, lastActionNotice: 'Lightroom catalogues are available in the real workspace.' }));
     },
     backUpProjectNow: () => {
       setStore((prev) => ({ ...prev, lastActionNotice: 'Backups are available in the real workspace.' }));
@@ -1790,6 +1815,12 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
+    detectColourEdges: async (photoId) => { logAction('detectColourEdges', { photoId }); return 'clean'; },
+    addImageLayer: async (photoId) => { logAction('addImageLayer', { photoId }); },
+    addPhotoLayer: async (photoId, sourcePhotoId) => { logAction('addPhotoLayer', { photoId, sourcePhotoId }); },
+    updateLayer: (photoId, layerId) => { logAction('updateLayer', { photoId, layerId }); },
+    removeLayer: (photoId, layerId) => { logAction('removeLayer', { photoId, layerId }); },
+    moveLayer: (photoId, layerId, direction) => { logAction('moveLayer', { photoId, layerId, direction }); },
     removeOverlayRow: (photoId, rowId) => {
       logAction('removeOverlayRow', { photoId, rowId });
       updatePhotoById(photoId, (photo) => ({
@@ -2063,6 +2094,10 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
 
     setFilmstripSearch: (filmstripSearch) => {
       setStore((prev) => ({ ...prev, filmstripSearch }));
+    },
+
+    setFilmstripTag: (filmstripTag) => {
+      setStore((prev) => ({ ...prev, filmstripTag }));
     },
 
     setGridViewOpen: (gridViewOpen) => {

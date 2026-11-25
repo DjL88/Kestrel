@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Photo } from '../contract';
 import { STRINGS } from '../strings';
 
@@ -7,6 +7,89 @@ interface HistoryPanelProps {
   activeSizeId: string;
   onForkFromStep: (photoId: string, cursor: number) => void;
   onSwitchVersion: (photoId: string, versionId: string) => void;
+  /** One tap: take back the latest step (the same as Undo). */
+  onUndo?: () => void;
+  onRenameVersion?: (photoId: string, versionId: string, name: string) => void;
+  onSaveCheckpoint?: (photoId: string, name: string) => void;
+  onRestoreCheckpoint?: (photoId: string, checkpointId: string) => void;
+  onDeleteCheckpoint?: (photoId: string, checkpointId: string) => void;
+  onRestoreFormatCrop?: (photoId: string, formatId: string, eventAt: number) => void;
+}
+
+/** Most checkpoints one photo keeps (MAX_CHECKPOINTS in src/core/editBranches.ts). */
+const MAX_CHECKPOINTS = 24;
+const FIELD = 'min-h-10 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-primary)]';
+const BUTTON = 'min-h-10 shrink-0 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--brand-accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)] disabled:opacity-50';
+
+/** Rename the version being edited. Keyed by version id by the caller, so switching versions starts from its own name. */
+function RenameVersion({ label, onRename }: { label: string; onRename: (name: string) => void }) {
+  const [name, setName] = useState(label);
+  const clean = name.trim();
+  return (
+    <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); if (clean && clean !== label) onRename(clean); }}>
+      <label htmlFor="inflight-history-version-name" className="sr-only">{STRINGS.history.versionName}</label>
+      <input id="inflight-history-version-name" value={name} maxLength={60} onChange={(event) => setName(event.target.value)} className={FIELD} />
+      <button type="submit" disabled={!clean || clean === label} className={BUTTON}>{STRINGS.history.renameVersion}</button>
+    </form>
+  );
+}
+
+function Checkpoints({ photo, onSave, onRestore, onDelete }: {
+  photo: Photo;
+  onSave: (name: string) => void;
+  onRestore: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const checkpoints = photo.editCheckpoints ?? [];
+  const [name, setName] = useState('');
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const full = checkpoints.length >= MAX_CHECKPOINTS;
+  const fallback = STRINGS.history.checkpointDefault(checkpoints.length + 1);
+  return (
+    <section className="space-y-2 border-t border-[var(--border-subtle)] pt-4" aria-label={STRINGS.history.checkpointHeading} data-testid="history-checkpoints">
+      <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.history.checkpointHeading}</h3>
+      <p className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.history.checkpointHelp}</p>
+      <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); if (full) return; onSave(name.trim() || fallback); setName(''); }}>
+        <label htmlFor="inflight-checkpoint-name" className="sr-only">{STRINGS.history.checkpointName}</label>
+        <input id="inflight-checkpoint-name" value={name} maxLength={60} placeholder={fallback} disabled={full}
+          onChange={(event) => setName(event.target.value)} className={FIELD} />
+        <button type="submit" disabled={full} className={BUTTON}>{STRINGS.history.saveCheckpoint}</button>
+      </form>
+      {full && <p className="text-[0.6875rem] text-[var(--text-secondary)]" role="status">{STRINGS.history.checkpointFull}</p>}
+      {!checkpoints.length ? (
+        <p className="text-xs text-[var(--text-muted)]">{STRINGS.history.checkpointEmpty}</p>
+      ) : (
+        <ol className="space-y-1.5" aria-label={STRINGS.history.checkpointList}>
+          {checkpoints.map((checkpoint) => (
+            <li key={checkpoint.id} className="space-y-2 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2 text-xs">
+              <div className="flex justify-between gap-3">
+                <span className="font-medium text-[var(--text-primary)]">{checkpoint.name}</span>
+                <span className="shrink-0 font-mono text-[0.625rem] text-[var(--text-muted)]">{timeOf(checkpoint.createdAt)}</span>
+              </div>
+              {confirming === checkpoint.id ? (
+                <div className="space-y-2" role="group" aria-label={STRINGS.history.deleteCheckpointLabel(checkpoint.name)}>
+                  <p className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.history.confirmDeleteQuestion(checkpoint.name)}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" className={BUTTON} onClick={() => { setConfirming(null); onDelete(checkpoint.id); }}>{STRINGS.history.confirmDeleteCheckpoint}</button>
+                    <button type="button" className={BUTTON} autoFocus onClick={() => setConfirming(null)}>{STRINGS.history.keepCheckpoint}</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" className={BUTTON} aria-label={STRINGS.history.openCheckpointLabel(checkpoint.name)} onClick={() => onRestore(checkpoint.id)}>
+                    {STRINGS.history.openCheckpoint}
+                  </button>
+                  <button type="button" className={BUTTON} aria-label={STRINGS.history.deleteCheckpointLabel(checkpoint.name)} onClick={() => setConfirming(checkpoint.id)}>
+                    {STRINGS.history.deleteCheckpoint}
+                  </button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
 }
 
 const FORMAT_EVENTS: Readonly<Record<string, string>> = STRINGS.history.formatEvents;
@@ -20,7 +103,9 @@ function timeOf(at: number): string {
  * an independent branch; per-format activity remains read-only. No synthetic
  * historical thumbnails are shown as if they were old rendered snapshots.
  */
-export default function HistoryPanel({ photo, activeSizeId, onForkFromStep, onSwitchVersion }: HistoryPanelProps) {
+export default function HistoryPanel({
+  photo, activeSizeId, onForkFromStep, onSwitchVersion, onRenameVersion, onSaveCheckpoint, onRestoreCheckpoint, onDeleteCheckpoint, onRestoreFormatCrop, onUndo,
+}: HistoryPanelProps) {
   if (!photo) return <p className="text-xs text-[var(--text-muted)]">{STRINGS.history.noPhoto}</p>;
   const format = photo.sizes.find(s => s.id === activeSizeId);
   const events = photo.formatHistory?.filter(e => e.formatId === activeSizeId) ?? [];
@@ -32,7 +117,11 @@ export default function HistoryPanel({ photo, activeSizeId, onForkFromStep, onSw
   }];
   const activeVersionId = photo.editVersions?.activeId ?? 'version-original';
   const versionNames = new Map(versions.map((version) => [version.id, version.label]));
-  const rows = history ? [{ label: history.originalAvailable === false ? STRINGS.history.earliestSaved : STRINGS.history.original, at: undefined as number | undefined }, ...history.steps] : [];
+  const activeLabel = versionNames.get(activeVersionId) ?? STRINGS.history.editVersionRoot;
+  // The latest crop action is the crop in use now, so only earlier ones offer to be used again.
+  const latestCropAt = ordered.filter((event) => event.kind === 'crop').at(-1)?.at;
+  type Row = NonNullable<typeof history>['steps'][number] | { label: string; at: undefined; by?: undefined; changes?: undefined; why?: undefined };
+  const rows: Row[] = history ? [{ label: history.originalAvailable === false ? STRINGS.history.earliestSaved : STRINGS.history.original, at: undefined }, ...history.steps] : [];
 
   return (
     <div className="space-y-5">
@@ -59,7 +148,12 @@ export default function HistoryPanel({ photo, activeSizeId, onForkFromStep, onSw
           ))}
         </select>
         <p className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.history.forkCheckpointHint}</p>
+        {onRenameVersion && <RenameVersion key={`${activeVersionId}:${activeLabel}`} label={activeLabel} onRename={(name) => onRenameVersion(photo.id, activeVersionId, name)} />}
       </section>
+      {onSaveCheckpoint && onRestoreCheckpoint && onDeleteCheckpoint && (
+        <Checkpoints photo={photo} onSave={(name) => onSaveCheckpoint(photo.id, name)}
+          onRestore={(id) => onRestoreCheckpoint(photo.id, id)} onDelete={(id) => onDeleteCheckpoint(photo.id, id)} />
+      )}
       <section className="space-y-2" aria-label={STRINGS.history.formatRegion}>
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">
           {STRINGS.history.formatHeading(format?.label ?? STRINGS.history.selectedFormat)}
@@ -84,7 +178,15 @@ export default function HistoryPanel({ photo, activeSizeId, onForkFromStep, onSw
                   ? ` · ${STRINGS.history.fromFormat(event.parentFormatId === 'orig-3x2' ? STRINGS.history.originalFormatName : event.parentFormatId, event.forkEditCursor ?? 0)}`
                   : ''}
               </span>
-              <span className="shrink-0 font-mono text-[0.625rem] text-[var(--text-muted)]">{timeOf(event.at)}</span>
+              <span className="flex shrink-0 items-center gap-2">
+                {event.kind === 'crop' && event.crop && event.at !== latestCropAt && onRestoreFormatCrop && (
+                  <button type="button" className={BUTTON} aria-label={STRINGS.history.restoreCropLabel(timeOf(event.at))}
+                    onClick={() => onRestoreFormatCrop(photo.id, activeSizeId, event.at)}>
+                    {STRINGS.history.restoreCrop}
+                  </button>
+                )}
+                <span className="font-mono text-[0.625rem] text-[var(--text-muted)]">{timeOf(event.at)}</span>
+              </span>
             </li>
           ))}
           {!ordered.length && activeSizeId !== 'orig-3x2' && (
@@ -122,6 +224,32 @@ export default function HistoryPanel({ photo, activeSizeId, onForkFromStep, onSw
                     <span className="shrink-0 text-[0.625rem] font-semibold text-[var(--brand-accent)]">{STRINGS.history.forkFromCheckpoint}</span>
                     {row.at !== undefined && <span className="font-mono text-[0.625rem] text-[var(--text-muted)]">{timeOf(row.at)}</span>}
                   </button>
+                  {(row.changes?.length || row.why?.length) && !later ? (
+                    <div className="mt-1 space-y-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] px-3 py-2 text-[0.6875rem] text-[var(--text-secondary)]">
+                      {row.changes?.length ? (
+                        <>
+                          <p className="font-semibold text-[var(--text-primary)]">{STRINGS.history.whatChanged}</p>
+                          <ul className="space-y-0.5">
+                            {row.changes.map((change) => <li key={change.label}>{STRINGS.history.change(change.label, change.from, change.to)}</li>)}
+                          </ul>
+                        </>
+                      ) : null}
+                      {row.why?.length ? (
+                        <>
+                          <p className="pt-1 font-semibold text-[var(--text-primary)]">{STRINGS.history.why}</p>
+                          <ul className="list-disc space-y-0.5 pl-4">
+                            {row.why.map((reason, index) => <li key={index}>{reason}</li>)}
+                          </ul>
+                        </>
+                      ) : null}
+                      {current && row.by && onUndo ? (
+                        <button type="button" onClick={onUndo}
+                          className="mt-1 min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-primary)]">
+                          {STRINGS.history.undoThis}
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </li>
               );
             })}

@@ -29,7 +29,7 @@ export interface GalleryRecord extends GalleryOptions {
   expiresAtMs: number;
   passwordHash: string | null;
   /** photoId -> committed preview */
-  previews: Record<string, { sha256: string; bytes: number; committed: boolean }>;
+  previews: Record<string, { sha256: string; bytes: number; committed: boolean; thumb?: { sha256: string; bytes: number } }>;
 }
 
 export type FeedbackKind = 'favourite' | 'unfavourite' | 'comment' | 'approve' | 'request-changes' | 'approve-all';
@@ -40,7 +40,10 @@ export class GalleryRefusal extends Error {
 }
 
 export const galleryIdFor = (linkToken: string) => sha256Hex(`gallery:${linkToken}`);
-export const previewKey = (galleryId: string, photoId: string) => `galleries/${galleryId}/${photoId}.jpg`;
+export const previewKey = (galleryId: string, photoId: string, variant: GalleryVariant = 'preview') => `galleries/${galleryId}/${photoId}${variant === 'thumb' ? '.thumb' : ''}.jpg`;
+/** A small filmstrip picture, so opening a gallery fetches kilobytes per photo, not the full preview. */
+export const GALLERY_MAX_THUMB_BYTES = 200_000;
+export type GalleryVariant = 'preview' | 'thumb';
 const clean = (value: object): FsData => JSON.parse(JSON.stringify(value)) as FsData;
 const G = { galleries: 'collab_galleries', feedback: 'collab_gallery_feedback' };
 
@@ -69,19 +72,24 @@ export class GalleryStore {
   async list(projectId: string) {
     const snap = await this.db.collection(G.galleries).where('projectId', '==', projectId).get();
     return snap.docs.map((d) => d.data()! as unknown as GalleryRecord).map((g) => ({
-      galleryId: g.galleryId, name: g.name, expiresAtMs: g.expiresAtMs, photos: g.photoIds.length,
+      galleryId: g.galleryId, name: g.name, expiresAtMs: g.expiresAtMs, photos: g.photoIds.length, photoIds: g.photoIds,
       published: Object.values(g.previews ?? {}).filter((p) => p.committed).length, password: g.passwordHash !== null,
     }));
   }
 
-  async signPreviewUpload(galleryId: string, photoId: string, sha256: string, bytes: number) {
+  async signPreviewUpload(galleryId: string, photoId: string, sha256: string, bytes: number, variant: GalleryVariant = 'preview') {
     return this.db.runTransaction(async (tx) => {
       const snap = await tx.get(this.ref(galleryId));
       if (!snap.exists) throw new GalleryRefusal(404, 'NOT_FOUND', 'No such gallery.');
       const g = snap.data()! as unknown as GalleryRecord;
       if (!g.photoIds.includes(photoId)) throw new GalleryRefusal(404, 'NOT_FOUND', 'That photo is not in this gallery.');
-      tx.update(this.ref(galleryId), { previews: { ...(g.previews ?? {}), [photoId]: { sha256, bytes, committed: false } } });
-      return this.storage.signUpload(previewKey(galleryId, photoId), bytes, sha256);
+      if (variant === 'thumb' && bytes > GALLERY_MAX_THUMB_BYTES) throw new GalleryRefusal(413, 'GALLERY_THUMB_TOO_LARGE', 'That filmstrip picture is too large.');
+      const existing = g.previews?.[photoId];
+      const entry = variant === 'thumb'
+        ? { sha256: existing?.sha256 ?? '', bytes: existing?.bytes ?? 0, committed: false, thumb: { sha256, bytes } }
+        : { sha256, bytes, committed: false, ...(existing?.thumb ? { thumb: existing.thumb } : {}) };
+      tx.update(this.ref(galleryId), { previews: { ...(g.previews ?? {}), [photoId]: entry } });
+      return this.storage.signUpload(previewKey(galleryId, photoId, variant), bytes, sha256);
     });
   }
 
@@ -98,7 +106,7 @@ export class GalleryStore {
   /** Deletes the previews and the gallery. Feedback stays for the photographer. */
   async revoke(galleryId: string) {
     const g = await this.get(galleryId);
-    await Promise.all(g.photoIds.map((photoId) => this.storage.delete(previewKey(galleryId, photoId))));
+    await Promise.all(g.photoIds.flatMap((photoId) => [this.storage.delete(previewKey(galleryId, photoId)), this.storage.delete(previewKey(galleryId, photoId, 'thumb'))]));
     await this.db.runTransaction(async (tx) => { tx.delete(this.ref(galleryId)); });
   }
 
@@ -111,7 +119,9 @@ export class GalleryStore {
     const photos = [];
     for (const photoId of g.photoIds) {
       if (!g.previews?.[photoId]?.committed) continue;
-      photos.push({ photoId, url: await this.storage.signDownload(previewKey(galleryId, photoId)) });
+      const url = await this.storage.signDownload(previewKey(galleryId, photoId));
+      const thumbUrl = g.previews[photoId].thumb ? await this.storage.signDownload(previewKey(galleryId, photoId, 'thumb')) : url;
+      photos.push({ photoId, url, thumbUrl });
     }
     return {
       g, view: {

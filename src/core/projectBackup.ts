@@ -1,4 +1,4 @@
-import { MAX_EDIT_HISTORY_STEPS, type EditKind } from './editHistory';
+import { MAX_EDIT_HISTORY_STEPS, validWhy, type EditKind } from './editHistory';
 import { readCollage } from './collage';
 import { parseSettings } from './projectSettings';
 import { validMasks } from './maskTypes';
@@ -6,10 +6,13 @@ import { validCurve, validMixer } from './curveMixer';
 import { validChannelCurves, validGrade } from './colourGrade';
 import { validCalibration } from './calibration';
 import { validDehaze } from './dehaze';
+import { validDefringe, validLateralCa } from './fringe';
 import { validGrain, validVignette } from './finishing';
 import { validAsShot, validWhiteBalance } from './asShotWhite';
+import { isRawCodec } from './pictureSource';
 import type { CullingState, FilterState, PhotoFrame, ShootDescriptor } from './types';
 import { DEVELOP_VERSION } from './backgroundDevelop';
+import { withoutLocation } from './photoTags';
 
 const FORMAT = 'kestrel-project';
 const decisions = new Set(['unreviewed', 'keep', 'reject']);
@@ -57,6 +60,7 @@ function recipeIsValid(value: unknown): boolean {
     (edit.grade !== undefined && !validGrade(edit.grade)) || (edit.channelCurves !== undefined && !validChannelCurves(edit.channelCurves)) ||
     (edit.calibration !== undefined && !validCalibration(edit.calibration)) ||
     (edit.dehaze !== undefined && !validDehaze(edit.dehaze)) ||
+    (edit.lateralCa !== undefined && !validLateralCa(edit.lateralCa)) || (edit.defringe !== undefined && !validDefringe(edit.defringe)) ||
     (edit.vignette !== undefined && !validVignette(edit.vignette)) || (edit.grain !== undefined && !validGrain(edit.grain)) ||
     (edit.whiteBalance !== undefined && !validWhiteBalance(edit.whiteBalance)) ||
     (edit.masks !== undefined && !validMasks(edit.masks)))) return false;
@@ -71,7 +75,7 @@ function historyIsValid(value: unknown): boolean {
   if (!record(value) || !Array.isArray(value.steps) || value.steps.length > MAX_EDIT_HISTORY_STEPS ||
     !number(value.cursor, 0, value.steps.length) || !Number.isInteger(value.cursor)) return false;
   return value.steps.every((step: unknown) => record(step) && text(step.kind) && editKinds.has(step.kind as EditKind) &&
-    number(step.at, 0) && recipeIsValid(step.before) && recipeIsValid(step.after));
+    number(step.at, 0) && recipeIsValid(step.before) && recipeIsValid(step.after) && (step.why === undefined || validWhy(step.why)));
 }
 
 function frameIsValid(value: unknown): value is PhotoFrame {
@@ -93,6 +97,7 @@ function frameIsValid(value: unknown): value is PhotoFrame {
   if (value.cullConfidence !== undefined && !['high', 'medium', 'low'].includes(value.cullConfidence as string)) return false;
   if (value.cullScore !== undefined && !number(value.cullScore, 0, 100)) return false;
   if (value.asShotWhite !== undefined && !validAsShot(value.asShotWhite)) return false;
+  if (value.rawCodec !== undefined && !isRawCodec(value.rawCodec)) return false;
   for (const field of ['autoTags', 'declinedTags']) {
     if (value[field] !== undefined && (!Array.isArray(value[field]) || (value[field] as unknown[]).length > 48 || !(value[field] as unknown[]).every(text))) return false;
   }
@@ -131,8 +136,8 @@ export function encodeProjectBackup(state: CullingState): string {
     project: {
       // Derived OCR can contain private writing or registration numbers. It stays
       // on this device; portable or cloud backups regenerate it rather than
-      // copying unconfirmed text to another destination.
-      shoot: state.shoot, frames: state.frames.map(({ searchEvidence: _local, ...frame }) => frame), selectedFrameId: state.selectedFrameId,
+      // copying unconfirmed text to another destination. Location (GPS, place tags) is personal and stays too.
+      shoot: state.shoot, frames: state.frames.map(({ searchEvidence: _local, ...frame }) => withoutLocation(frame)), selectedFrameId: state.selectedFrameId,
       compareRightFrameId: state.compareRightFrameId, filter: state.filter, searchQuery: state.searchQuery,
       keeperTarget: state.keeperTarget, autoAdvance: state.autoAdvance,
       ...(state.settings ? { settings: state.settings } : {}),
@@ -189,7 +194,7 @@ export function restoreProjectBackup(contents: string, id: string, now = Date.no
       needsFileReselect: frames.some((frame) => frame.sourceKind === 'file'),
     },
     // Portable backups cannot silently carry automatic OCR of personal writing.
-    frames: (frames as PhotoFrame[]).map(({ searchEvidence: _local, ...frame }) => frame),
+    frames: (frames as PhotoFrame[]).map(({ searchEvidence: _local, ...frame }) => withoutLocation(frame)),
     filter: filter as FilterState, searchQuery, keeperTarget, autoAdvance,
     ...(record(envelope.project.settings) ? { settings: parseSettings(envelope.project.settings) } : {}),
     selectedFrameId: existingId(selectedFrameId),

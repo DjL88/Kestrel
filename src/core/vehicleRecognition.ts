@@ -1,5 +1,7 @@
 import { decodeVector } from './speciesMatch';
 import { LOGIT_SCALE, type RouteResult } from './subjectRouter';
+import type { MarkingFormat } from './aircraftRegistration';
+import type { RegisterSource } from './aircraftRegister';
 
 /**
  * Vehicle and aircraft recognition, step 1: what kind of vehicle a photo shows (a car, a helicopter, a military jet…) and,
@@ -43,6 +45,7 @@ export interface VehicleVectors { kinds: Float32Array[]; types: Float32Array[] }
  * - type: CLIP alone is weak at telling types apart (51 of 163 right as a first guess). At 0.55 / 0.25 a named type was right
  *   on only 1 of 6 photos whose kind was clear (it leans to "Voyager" for every big grey aircraft); at 0.75 / 0.5 no wrong
  *   type was named, and in practice almost none is. Exact types come from a readable registration (step 2), not from here.
+ * Re-measured with labels version 2 (racing kinds) on 302 photos: kind 146 of 153 named right (95%); racing kinds 21 of 21.
  * Re-measure whenever labels.json changes.
  */
 export const VEHICLE_THRESHOLDS = {
@@ -74,6 +77,16 @@ export interface VehicleReading {
   /** Rounded to two places, for the "what was measured" detail only. */
   kindProbability?: number;
   typeProbability?: number;
+  /** A registration or military serial read from the aircraft itself (step 2). Never set for a road vehicle. */
+  marking?: { value: string; format: MarkingFormat; confidence: number };
+  /** What an offline register says about that marking. `exact` is a register record; otherwise a serial block, "probably". */
+  registered?: { type: string; operator?: string; register: RegisterSource; exact: boolean };
+  /** The Vision guardian's second opinion (step 3): 'agreed' adds nothing; 'held' means it withdrew a claim (see vehicleGuardian). */
+  guardian?: 'agreed' | 'held';
+  /** The guardian did not see the family either ("Is there an aircraft?" "No"): nothing is named; the person decides. */
+  heldFamily?: boolean;
+  /** Carried from this frame of the same burst (step 4): the same aircraft, read once. */
+  carriedFrom?: string;
 }
 
 /** The committed vectors (src/assets/vehicle/vectors.json), in label order. Throws on any mismatch. */
@@ -156,6 +169,17 @@ export function validVehicleReading(value: unknown, labels: VehicleLabels): Vehi
   const kind = reading.kind === undefined ? undefined : labels.kinds.find((entry) => entry.id === reading.kind && !entry.decoy);
   if (reading.kind !== undefined && (!kind || kind.family !== reading.family)) return null;
   if (reading.type !== undefined && !labels.types.some((entry) => entry.id === reading.type && entry.kind === reading.kind)) return null;
+  const marking = reading.marking;
+  if (marking !== undefined && (!marking || typeof marking.value !== 'string' || !Number.isFinite(marking.confidence) || !(marking.format === 'race-number'
+    ? reading.family === 'road' && (reading.kind === 'racing-car' || reading.kind === 'racing-motorbike') && /^\d{1,3}$/.test(marking.value)
+    : reading.family === 'air' && /^[A-Z0-9-]{4,8}$/.test(marking.value) && ['uk-civil', 'irish-civil', 'us-civil', 'uk-military'].includes(marking.format)))) return null;
+  const registered = reading.registered;
+  if (registered !== undefined && (!marking || !registered || typeof registered.type !== 'string' || !registered.type.trim() ||
+    (registered.operator !== undefined && typeof registered.operator !== 'string') ||
+    !['faa', 'uk-military-blocks'].includes(registered.register) || typeof registered.exact !== 'boolean')) return null;
+  if (reading.carriedFrom !== undefined && (typeof reading.carriedFrom !== 'string' || !reading.carriedFrom)) return null;
+  if (reading.guardian !== undefined && reading.guardian !== 'agreed' && reading.guardian !== 'held') return null;
+  if (reading.heldFamily !== undefined && (reading.heldFamily !== true || reading.guardian !== 'held' || reading.kind !== undefined)) return null;
   return reading as VehicleReading;
 }
 
@@ -165,6 +189,15 @@ export interface VehicleWords {
   probably: (what: string) => string;
   typeUnknown: (what: string) => string;
   withType: (kind: string, type: string) => string;
+  /** A marking read from the aircraft that no register here covers: "Military jet, marked ZK999". */
+  marked: (what: string, marking: string) => string;
+  /** An exact register record: "N172SP: CESSNA 172S (FAA register)". */
+  registered: (marking: string, type: string) => string;
+  operatedBy: (what: string, operator: string) => string;
+  /** The guardian doubted even the family: "Aircraft? Needs your review". */
+  held: (what: string) => string;
+  /** A race number read from a racing car or bike: "Racing motorbike, number 46". */
+  raceNumber: (what: string, number: string) => string;
 }
 
 /**
@@ -172,6 +205,20 @@ export interface VehicleWords {
  * "Aircraft, type unknown", "Bus (probably)". A person's own choice is shown without "probably".
  */
 export function vehicleLabel(reading: VehicleReading, labels: VehicleLabels, words: VehicleWords): string {
+  if (reading.heldFamily) return words.held(words.families[reading.family]);
+  const base = kindLabel(reading, labels, words);
+  const { marking, registered } = reading;
+  if (!marking || reading.source === 'person') return base;
+  if (marking.format === 'race-number') return words.raceNumber(base, marking.value);
+  if (registered?.exact) {
+    const text = words.registered(marking.value, registered.type);
+    return registered.operator ? words.operatedBy(text, registered.operator) : text;
+  }
+  if (registered) return words.probably(words.withType(marking.value, registered.type));
+  return words.marked(base, marking.value);
+}
+
+function kindLabel(reading: VehicleReading, labels: VehicleLabels, words: VehicleWords): string {
   const sure = reading.source === 'person';
   const hedge = (text: string) => (sure ? text : words.probably(text));
   if (!reading.kind) return words.typeUnknown(words.families[reading.family]);
@@ -185,11 +232,44 @@ export function vehicleLabel(reading: VehicleReading, labels: VehicleLabels, wor
 /** The words a photo can be found by: in the person's language and in English, plus the type's own name. */
 export function vehicleSearchWords(reading: VehicleReading, labels: VehicleLabels, words: readonly VehicleWords[]): string[] {
   const out = new Set<string>();
+  if (reading.heldFamily) return reading.marking ? [reading.marking.value] : [];
   for (const set of words) {
     out.add(set.families[reading.family]);
     if (reading.kind && set.kinds[reading.kind]) out.add(set.kinds[reading.kind]);
   }
   const type = reading.type ? labels.types.find((entry) => entry.id === reading.type) : undefined;
   if (type) out.add(type.name);
+  if (reading.marking) out.add(reading.marking.value).add(reading.marking.value.replace(/-/g, ''));
+  if (reading.registered) { out.add(reading.registered.type); if (reading.registered.operator) out.add(reading.registered.operator); }
   return [...out].filter(Boolean);
+}
+
+/** How sure the recogniser must be before a line of text is treated as a marking at all. */
+export const MARKING_CONFIDENCE = 0.9;
+
+/**
+ * Add what was read from the aircraft to its reading. Only an aircraft reading is ever changed. Among the lines read, a
+ * marking a register knows wins; then the surest valid marking. A register record that contradicts the picture's family
+ * cannot occur (every record is an aircraft), but a serial block must agree with the picture's kind (see lookUpMarking).
+ */
+export function withMarking(
+  reading: VehicleReading,
+  lines: readonly { text: string; confidence: number; height?: number }[],
+  find: (text: string) => { value: string; format: MarkingFormat }[],
+  lookUp: (marking: { value: string; format: MarkingFormat }) => VehicleReading['registered'] | null,
+): VehicleReading {
+  const racing = reading.family === 'road' && (reading.kind === 'racing-car' || reading.kind === 'racing-motorbike');
+  if (reading.family !== 'air' && !racing) return reading;
+  // A race number is the biggest number on the car or bike; a registration is the surest read.
+  const candidates = lines.filter((line) => line.confidence >= MARKING_CONFIDENCE)
+    .flatMap((line) => find(line.text).map((marking) => ({ ...marking, confidence: Math.round(line.confidence * 100) / 100, height: line.height ?? 0 })))
+    .filter((marking) => (marking.format === 'race-number') === racing)
+    .sort((a, b) => (racing ? b.height - a.height : 0) || b.confidence - a.confidence)
+    .map(({ height: _height, ...marking }) => marking);
+  if (!candidates.length) return reading;
+  for (const marking of candidates) {
+    const registered = lookUp(marking);
+    if (registered) return { ...reading, marking, registered };
+  }
+  return { ...reading, marking: candidates[0] };
 }
