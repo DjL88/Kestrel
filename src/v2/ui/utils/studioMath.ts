@@ -104,13 +104,36 @@ export function rowWidthPercent(row: OverlayTextRow, text: string): number {
   return (pixels / REFERENCE_FRAME_WIDTH) * 100;
 }
 
+/** The share of the frame's width a text box's words may use: the frame less both edge margins and the box's own padding. */
+export function safeTextWidth(overlay: Pick<OverlaySettings, 'textLayoutMode' | 'edgeMargin'>): number {
+  if (overlay.textLayoutMode === 'cover-full') return 92;
+  const margin = Number.isFinite(overlay.edgeMargin) ? overlay.edgeMargin : 4;
+  return Math.max(10, 100 - 2 * margin - (2 * 12 * 100) / REFERENCE_FRAME_WIDTH);
+}
+
+/** The largest size (reference pixels) a row can have before its words run past the safe width. Never below 8. */
+export function maxRowSizePx(row: OverlayTextRow, photo: Photo, overlay: Pick<OverlaySettings, 'textLayoutMode' | 'edgeMargin'>, ceiling = 120): number {
+  const text = formatOverlayRowText(row, photo);
+  if (!text) return ceiling;
+  const spacing = (text.length * Math.max(0, row.letterSpacing) * 100) / REFERENCE_FRAME_WIDTH;
+  const perPx = rowWidthPercent({ ...row, sizePx: 1, letterSpacing: 0 }, text);
+  if (!(perPx > 0)) return ceiling;
+  return Math.max(8, Math.min(ceiling, Math.floor((safeTextWidth(overlay) - spacing) / perPx)));
+}
+
+/** The row with its size brought down to fit the frame, when a change (more fields, capitals, a bigger size) made it too wide. */
+export function capRowSize(row: OverlayTextRow, photo: Photo, overlay: Pick<OverlaySettings, 'textLayoutMode' | 'edgeMargin'>): OverlayTextRow {
+  const most = maxRowSizePx(row, photo, overlay);
+  return row.sizePx > most ? { ...row, sizePx: most } : row;
+}
+
 export function detectOverlayOverflow(
   overlay: OverlaySettings,
   photo: Photo,
   sizes: SizePreset[]
 ): OverlayOverflowIssue[] {
   if (!overlay.textEnabled || overlay.rows.length === 0) return [];
-  const safeWidth = overlay.textLayoutMode === 'cover-full' ? 92 : 84; // % of the frame's width (less the box's padding)
+  const safeWidth = safeTextWidth(overlay); // % of the frame's width (less the margins and the box's padding)
   const widest = Math.max(...overlay.rows.map((row) => rowWidthPercent(row, formatOverlayRowText(row, photo))));
   const issues: OverlayOverflowIssue[] = [];
   for (const size of sizes.filter((s) => s.enabled)) {
@@ -131,7 +154,7 @@ export function detectOverlayOverflow(
 export function fitOverlayRows(overlay: OverlaySettings, photo: Photo, sizes: SizePreset[] = photo.sizes ?? []): OverlayTextRow[] {
   if (!overlay.rows.length) return overlay.rows;
   const full = overlay.textLayoutMode === 'cover-full';
-  const safeWidth = (full ? 92 : 84) - Math.abs(overlay.textOffsetX || 0);
+  const safeWidth = safeTextWidth(overlay) - Math.abs(overlay.textOffsetX || 0);
   const safeHeight = (full ? 88 : 45) - Math.abs(overlay.textOffsetY || 0);
   const widest = Math.max(...overlay.rows.map((row) => rowWidthPercent(row, formatOverlayRowText(row, photo))));
   const height = overlay.rows.reduce((sum, row) => sum + row.sizePx * LINE_HEIGHT / REFERENCE_FRAME_WIDTH, 0) * 100;

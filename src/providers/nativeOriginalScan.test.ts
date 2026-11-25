@@ -260,3 +260,38 @@ test('healthy existing paths avoid scanning the selected backup folder', async (
   assert.deepEqual(result.missing, []);
   assert.equal(result.matches.size, 0);
 });
+
+
+test('case-sensitive NAS paths are hashed separately before selecting a replacement', async () => {
+  const genuine = new Blob([new Uint8Array([1, 2, 3])]);
+  const wrong = new Blob([new Uint8Array([1, 2, 4])]);
+  const sha = createHash('sha256').update(new Uint8Array(await genuine.arrayBuffer())).digest('hex');
+  const files = ['/NAS/BIRD.NEF', '/nas/BIRD.NEF'].map(path => ({ path, name: 'BIRD.NEF', size: 3, lastModified: 1 }));
+  const readPaths: string[] = [];
+  const result = await matchScannedOriginalsBySha(
+    [{ stableKey: 'bird', filename: 'BIRD.NEF', size: 3, originalSha256: sha }], files, [],
+    async path => {
+      readPaths.push(path);
+      return { bytes: path === files[0].path ? genuine : wrong, unchanged: async () => true, close: async () => {} };
+    });
+  assert.deepEqual(readPaths, files.map(file => file.path));
+  assert.equal(result.matches.get('bird'), files[0].path);
+  const identical = await matchScannedOriginalsBySha(
+    [{ stableKey: 'bird', filename: 'BIRD.NEF', size: 3, originalSha256: sha }], files, [],
+    async () => ({ bytes: genuine, unchanged: async () => true, close: async () => {} }));
+  assert.equal(identical.matches.size, 0);
+  assert.deepEqual(identical.ambiguous, ['bird']);
+});
+
+test('backup search refuses conflicting fingerprints for the same catalogue identity', async () => {
+  const bytes = new Blob([new Uint8Array([1, 2, 3])]);
+  const sha = createHash('sha256').update(new Uint8Array(await bytes.arrayBuffer())).digest('hex');
+  const frame = { stableKey: 'same', filename: 'BIRD.NEF', size: 3, originalSha256: sha };
+  let reads = 0;
+  const result = await matchScannedOriginalsBySha([frame, { ...frame, originalSha256: 'f'.repeat(64) }],
+    [{ path: '/backup/BIRD.NEF', name: 'BIRD.NEF', size: 3, lastModified: 1 }], [],
+    async () => { reads++; return { bytes, unchanged: async () => true, close: async () => {} }; });
+  assert.equal(reads, 0);
+  assert.equal(result.matches.size, 0);
+  assert.deepEqual(result.rejected, ['same']);
+});

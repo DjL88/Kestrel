@@ -4,7 +4,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { nextCanvasZoom, zoomAnchorScroll } from '../utils/canvasTrackpadZoom';
 import { maxCanvasPixels } from '../../../core/exportLimits';
 import { ORIGINAL_FORMAT_ID } from '../../engineClient/formatOps';
-import { safeOverlayTransform } from '../../engineClient/exportLayout';
+import { STACK_GAP_PX, alignForAnchor, anchorFlexStyle, freeTransform, stacked } from '../utils/overlayLayout';
 import type {
   CropTransform,
   EditGroup,
@@ -31,6 +31,7 @@ import {
   detectOverlayOverflow,
   effectiveUpscaleOutputSize,
   formatOverlayRowText,
+  maxRowSizePx,
   getActiveGroup,
   snapOverlayPosition,
   type SnapGeometry,
@@ -583,7 +584,8 @@ export default function Canvas({
         drag.snap
       );
       setActiveGuides(snapped.guides);
-      onUpdateOverlay(photo.id, { textX: snapped.x, textY: snapped.y });
+      // Dragging an anchored box frees it: from now on it stays where it is dropped (still inside the margins).
+      onUpdateOverlay(photo.id, { textX: snapped.x, textY: snapped.y, textPlacement: 'free' });
     } else if (drag.kind === 'watermark') {
       const rawX = drag.origA + (dx / width) * 100;
       const rawY = drag.origB + (dy / height) * 100;
@@ -600,12 +602,13 @@ export default function Canvas({
         drag.snap
       );
       setActiveGuides(snapped.guides);
-      onUpdateOverlay(photo.id, { watermarkX: snapped.x, watermarkY: snapped.y });
+      onUpdateOverlay(photo.id, { watermarkX: snapped.x, watermarkY: snapped.y, watermarkPlacement: 'free' });
     } else if ((drag.kind === 'resize-text' || drag.kind === 'resize-watermark') && drag.centre && drag.startDistance) {
       // Corner handles scale the overlay in proportion: how far the pointer is from the box centre, against where it began.
       const ratio = Math.hypot(e.clientX - drag.centre.x, e.clientY - drag.centre.y) / drag.startDistance;
       if (drag.kind === 'resize-text' && drag.origSizes) {
-        onUpdateOverlay(photo.id, { rows: group.overlay.rows.map((row, index) => ({ ...row, sizePx: Math.round(clamp((drag.origSizes![index] ?? row.sizePx) * ratio, 8, 120)) })) });
+        // The text never grows past the frame: each row stops at the size its words still fit.
+        onUpdateOverlay(photo.id, { rows: group.overlay.rows.map((row, index) => ({ ...row, sizePx: Math.round(clamp((drag.origSizes![index] ?? row.sizePx) * ratio, 8, maxRowSizePx(row, photo, group.overlay))) })) });
       } else if (drag.kind === 'resize-watermark' && drag.origScale) {
         onUpdateOverlay(photo.id, { watermarkScale: Math.round(clamp(drag.origScale * ratio, 40, 160)) });
       }
@@ -875,149 +878,102 @@ export default function Canvas({
             )
           )}
 
-        {/* Text Overlay */}
-        {overlay.textEnabled && features.overlayText && overlay.rows.length > 0 && (
-          <div
-            onPointerDown={
-              interactive
-                ? (e) =>
-                    handleFramePointerDown(
-                      e,
-                      'text',
-                      size,
-                      e.currentTarget.parentElement
-                    )
-                : undefined
-            }
-            data-overlay="text"
-            title={interactive ? 'Drag to reposition text overlay (snaps to watermark & safe margins)' : undefined}
-            className={`group/overlay z-20 select-none ${
-              overlay.textLayoutMode === 'cover-full'
-                ? 'absolute inset-0 flex flex-col items-center justify-center text-center'
-                : 'absolute max-w-[90%] -translate-y-1/2 rounded-[var(--radius-sm)]'
-            } ${interactive ? 'pointer-events-auto cursor-move ring-1 ring-transparent hover:ring-[var(--brand-accent)]' : 'pointer-events-none'}`}
-            style={
-              overlay.textLayoutMode === 'cover-full'
-                ? {
-                    padding: cqw(24),
-                    backgroundColor: overlay.textScrim
-                      ? overlay.textColour === 'light'
-                        ? 'rgba(10, 12, 16, 0.48)'
-                        : 'rgba(246, 244, 238, 0.56)'
-                      : 'transparent',
-                    color: overlay.textColour === 'light' ? '#F8F6F2' : '#14171F',
-                  }
-                : {
-                    padding: `${cqw(8)} ${cqw(12)}`,
-                    left: `${overlay.textX}%`,
-                    top: `${overlay.textY}%`,
-                    // A fixed-centre anchor (translate always -50%, never -X%) keeps the physical point
-                    // under the pointer continuous as textX crosses 35%/65% - the old translate(-X%, -50%)
-                    // jumped because the anchor itself moved with X.
-                    transform: safeOverlayTransform(overlay.textX, overlay.textY),
-                    backgroundColor: overlay.textScrim
-                      ? overlay.textColour === 'light'
-                        ? 'rgba(10, 12, 16, 0.62)'
-                        : 'rgba(246, 244, 238, 0.72)'
-                      : 'transparent',
-                    color: overlay.textColour === 'light' ? '#F8F6F2' : '#14171F',
-                  }
-            }
-          >
-            {interactive && (
-              <>
-                {(['top-0 left-0 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize', 'top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-nesw-resize', 'bottom-0 left-0 -translate-x-1/2 translate-y-1/2 cursor-nesw-resize', 'bottom-0 right-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize'] as const).map((place) => (
-                  <button
-                    key={place}
-                    type="button"
-                    aria-label={STRINGS.canvas.resizeText}
-                    onPointerDown={(e) => handleFramePointerDown(e, 'resize-text', size, e.currentTarget.closest('[data-overlay]')?.parentElement?.parentElement)}
-                    className={`pointer-events-auto absolute z-30 h-2.5 w-2.5 rounded-sm border border-white bg-[var(--brand-accent)] opacity-0 shadow hover:opacity-100 group-hover/overlay:opacity-100 focus-visible:opacity-100 ${place}`}
-                  />
-                ))}
-              </>
-            )}
-            {overlay.rows.map((row) => (
-              <p
-                key={row.id}
-                className="leading-snug whitespace-nowrap"
-                style={{
-                  fontFamily: getFontFamily(row.fontId),
-                  fontSize: cqw(row.sizePx),
-                  fontWeight: row.weight,
-                  letterSpacing: cqw(row.letterSpacing),
-                }}
-              >
-                {formatOverlayRowText(row, photo) || 'Custom caption'}
-              </p>
-            ))}
-          </div>
-        )}
-
-        {/* Watermark Overlay */}
-        {overlay.watermarkEnabled && features.watermarkCustom && watermarkPreset && (
-          <div
-            onPointerDown={
-              interactive
-                ? (e) =>
-                    handleFramePointerDown(
-                      e,
-                      'watermark',
-                      size,
-                      e.currentTarget.parentElement
-                    )
-                : undefined
-            }
-            data-overlay="watermark"
-            title={interactive ? 'Drag to reposition watermark (snaps cleanly to text overlay)' : undefined}
-            className={`group/overlay absolute z-20 select-none rounded text-right ${
-              interactive ? 'pointer-events-auto cursor-move ring-1 ring-transparent hover:ring-[var(--brand-accent)]' : 'pointer-events-none'
-            }`}
-            style={{
-              padding: `${cqw(4)} ${cqw(10)}`,
-              left: `${overlay.watermarkX}%`,
-              top: `${overlay.watermarkY}%`,
-              // Fixed-centre anchor and scale origin, for the same reason as the text overlay above: the
-              // box's own centre stays the reference point for both position and resize, not a point that
-              // slides to wherever watermarkX currently is.
-              transformOrigin: '50% 50%',
-              transform: safeOverlayTransform(overlay.watermarkX, overlay.watermarkY, overlay.watermarkScale / 100),
-              opacity: overlay.watermarkOpacity / 100,
-              color: effectiveContrast === 'light-on-dark' ? '#F8F6F2' : '#14171F',
-              backgroundColor: watermarkImage
-                ? 'transparent'
-                : effectiveContrast === 'light-on-dark'
-                  ? 'rgba(9, 11, 15, 0.36)'
-                  : 'rgba(248, 246, 242, 0.54)',
-            }}
-          >
-            {interactive && (
-              <>
-                {(['top-0 left-0 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize', 'top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-nesw-resize', 'bottom-0 left-0 -translate-x-1/2 translate-y-1/2 cursor-nesw-resize', 'bottom-0 right-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize'] as const).map((place) => (
-                  <button
-                    key={place}
-                    type="button"
-                    aria-label={STRINGS.canvas.resizeWatermark}
-                    onPointerDown={(e) => handleFramePointerDown(e, 'resize-watermark', size, e.currentTarget.closest('[data-overlay]')?.parentElement?.parentElement)}
-                    className={`pointer-events-auto absolute z-30 h-2.5 w-2.5 rounded-sm border border-white bg-[var(--brand-accent)] opacity-0 shadow hover:opacity-100 group-hover/overlay:opacity-100 focus-visible:opacity-100 ${place}`}
-                  />
-                ))}
-              </>
-            )}
-            {watermarkImage ? (
-              <img src={watermarkImage} alt={watermarkPreset.label} draggable={false} className="w-auto object-contain" style={{ height: cqw(36), maxWidth: cqw(180) }} />
-            ) : (
-            <p className="font-bold tracking-[0.14em] whitespace-nowrap" style={{ fontSize: cqw(11) }}>
-              {watermarkPreset.text}
-            </p>
-            )}
-            {!watermarkImage && watermarkPreset.subtext && (
-              <p className="tracking-[0.18em] opacity-80 whitespace-nowrap" style={{ fontSize: cqw(9) }}>
-                {watermarkPreset.subtext}
-              </p>
-            )}
-          </div>
-        )}
+        {(() => {
+          // Text and watermark are laid out by the rule in overlayLayout.ts, the same one the export uses. An anchored box
+          // sits at the edge margin of its place; two boxes at the same place stack (watermark above the text).
+          const showText = overlay.textEnabled && features.overlayText && overlay.rows.some((row) => !!formatOverlayRowText(row, photo));
+          const showMark = overlay.watermarkEnabled && features.watermarkCustom && !!watermarkPreset;
+          const cover = overlay.textLayoutMode === 'cover-full';
+          const layer = (target: EventTarget) => (target as HTMLElement).closest('[data-testid="overlay-layer"]') as HTMLElement | null;
+          const resizeHandles = (which: 'resize-text' | 'resize-watermark', label: string) => interactive && (
+            <>
+              {(['top-0 left-0 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize', 'top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-nesw-resize', 'bottom-0 left-0 -translate-x-1/2 translate-y-1/2 cursor-nesw-resize', 'bottom-0 right-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize'] as const).map((place) => (
+                <button
+                  key={place}
+                  type="button"
+                  aria-label={label}
+                  onPointerDown={(e) => handleFramePointerDown(e, which, size, layer(e.currentTarget))}
+                  className={`pointer-events-auto absolute z-30 h-2.5 w-2.5 rounded-sm border border-white bg-[var(--brand-accent)] opacity-0 shadow hover:opacity-100 group-hover/overlay:opacity-100 focus-visible:opacity-100 ${place}`}
+                />
+              ))}
+            </>
+          );
+          const textColour = overlay.textColour === 'light' ? '#F8F6F2' : '#14171F';
+          const textNode = (extra: React.CSSProperties) => (
+            <div
+              onPointerDown={interactive && !cover ? (e) => handleFramePointerDown(e, 'text', size, layer(e.currentTarget)) : undefined}
+              data-overlay="text"
+              title={interactive && !cover ? STRINGS.overlayKit.dragText : undefined}
+              className={`group/overlay relative z-20 shrink-0 select-none rounded-[var(--radius-sm)] ${interactive && !cover ? 'pointer-events-auto cursor-move ring-1 ring-transparent hover:ring-[var(--brand-accent)]' : 'pointer-events-none'}`}
+              style={{
+                padding: `${cqw(8)} ${cqw(12)}`,
+                textAlign: overlay.textAlign,
+                backgroundColor: overlay.textScrim ? (overlay.textColour === 'light' ? 'rgba(10, 12, 16, 0.62)' : 'rgba(246, 244, 238, 0.72)') : 'transparent',
+                color: textColour,
+                ...extra,
+              }}
+            >
+              {resizeHandles('resize-text', STRINGS.canvas.resizeText)}
+              {overlay.rows.map((row) => {
+                // A row with nothing to say takes no room, here or in the export.
+                const words = formatOverlayRowText(row, photo);
+                return words ? (
+                  <p key={row.id} className="leading-snug whitespace-nowrap" style={{ fontFamily: getFontFamily(row.fontId), fontSize: cqw(row.sizePx), fontWeight: row.weight, letterSpacing: cqw(row.letterSpacing) }}>
+                    {words}
+                  </p>
+                ) : null;
+              })}
+            </div>
+          );
+          const s = overlay.watermarkScale / 100;
+          const markAlign = overlay.watermarkPlacement === 'anchor' ? alignForAnchor(overlay.watermarkPosition) : 'center';
+          const markNode = (extra: React.CSSProperties) => watermarkPreset && (
+            <div
+              onPointerDown={interactive ? (e) => handleFramePointerDown(e, 'watermark', size, layer(e.currentTarget)) : undefined}
+              data-overlay="watermark"
+              title={interactive ? STRINGS.overlayKit.dragWatermark : undefined}
+              className={`group/overlay relative z-20 shrink-0 select-none rounded ${interactive ? 'pointer-events-auto cursor-move ring-1 ring-transparent hover:ring-[var(--brand-accent)]' : 'pointer-events-none'}`}
+              style={{
+                padding: `${cqw(4 * s)} ${cqw(10 * s)}`,
+                textAlign: markAlign,
+                opacity: overlay.watermarkOpacity / 100,
+                color: effectiveContrast === 'light-on-dark' ? '#F8F6F2' : '#14171F',
+                backgroundColor: watermarkImage ? 'transparent' : effectiveContrast === 'light-on-dark' ? 'rgba(9, 11, 15, 0.36)' : 'rgba(248, 246, 242, 0.54)',
+                ...extra,
+              }}
+            >
+              {resizeHandles('resize-watermark', STRINGS.canvas.resizeWatermark)}
+              {watermarkImage ? (
+                <img src={watermarkImage} alt={watermarkPreset.label} draggable={false} className="block w-auto object-contain" style={{ height: cqw(36 * s), maxWidth: cqw(180 * s) }} />
+              ) : (
+                <p className="font-bold whitespace-nowrap" style={{ fontSize: cqw(11 * s), lineHeight: 1.5, letterSpacing: '0.14em' }}>{watermarkPreset.text}</p>
+              )}
+              {!watermarkImage && watermarkPreset.subtext && (
+                <p className="opacity-80 whitespace-nowrap" style={{ fontSize: cqw(9 * s), lineHeight: 1.5, letterSpacing: '0.18em' }}>{watermarkPreset.subtext}</p>
+              )}
+            </div>
+          );
+          const margin = cqw((overlay.edgeMargin / 100) * REFERENCE_FRAME_WIDTH);
+          const anchored = (anchor: OverlaySettings['textPosition'], children: React.ReactNode, key: string) => (
+            <div key={key} className="pointer-events-none absolute inset-0 flex flex-col" style={{ ...anchorFlexStyle(anchor, margin), gap: cqw(STACK_GAP_PX) }}>{children}</div>
+          );
+          const free = (x: number, y: number) => ({ position: 'absolute' as const, left: `${x}%`, top: `${y}%`, transform: freeTransform(x, y, overlay.edgeMargin) });
+          const parts: React.ReactNode[] = [];
+          if (showText && cover) {
+            parts.push(
+              <div key="cover" data-overlay="text" className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center text-center" style={{ padding: cqw(24), backgroundColor: overlay.textScrim ? (overlay.textColour === 'light' ? 'rgba(10, 12, 16, 0.48)' : 'rgba(246, 244, 238, 0.56)') : 'transparent', color: textColour }}>
+                {overlay.rows.map((row) => { const words = formatOverlayRowText(row, photo); return words ? <p key={row.id} className="leading-snug whitespace-nowrap" style={{ fontFamily: getFontFamily(row.fontId), fontSize: cqw(row.sizePx), fontWeight: row.weight, letterSpacing: cqw(row.letterSpacing) }}>{words}</p> : null; })}
+              </div>
+            );
+          }
+          if (showText && !cover && showMark && stacked(overlay, true)) {
+            parts.push(anchored(overlay.textPosition, <>{markNode({})}{textNode({})}</>, 'stack'));
+            return parts;
+          }
+          if (showText && !cover) parts.push(overlay.textPlacement === 'anchor' ? anchored(overlay.textPosition, textNode({}), 'text') : <React.Fragment key="text">{textNode(free(overlay.textX, overlay.textY))}</React.Fragment>);
+          if (showMark) parts.push(overlay.watermarkPlacement === 'anchor' ? anchored(overlay.watermarkPosition, markNode({}), 'mark') : <React.Fragment key="mark">{markNode(free(overlay.watermarkX, overlay.watermarkY))}</React.Fragment>);
+          return parts;
+        })()}
       </div>
     );
   };
@@ -1029,6 +985,17 @@ export default function Canvas({
     ) : (
       <img src={photo.previewUrl} alt={alt} referrerPolicy="no-referrer" draggable={false}
         className="h-full w-full object-cover" style={{ ...style, filter }} />
+    );
+
+  /** One wide picture behind split frames. Through the engine's surface, like the single view, so a RAW keeps showing
+   * once its developed picture replaces the embedded preview: a plain <img> of `photo.previewUrl` kept the old blob
+   * address after it was released, and every frame showed a broken image (owner report, 24 Nov 2026). */
+  const renderStrip = (alt: string, className: string, style: React.CSSProperties) =>
+    PhotoSurface ? (
+      <PhotoSurface photoId={photo.id} variant="edited" alt={alt} className={className} style={style} />
+    ) : (
+      <img src={photo.previewUrl} alt={alt} referrerPolicy="no-referrer" draggable={false}
+        className={className} style={{ ...style, filter: compareMode ? 'none' : filterCss }} />
     );
 
   /** Border claims space WITHIN the output size, without hiding photo pixels.
@@ -1170,18 +1137,14 @@ export default function Canvas({
                 className={`relative cursor-grab overflow-hidden rounded-[var(--radius-md)] border bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent)] active:cursor-grabbing ${revealing ? "border-[var(--semantic-warning)] ring-2 ring-[var(--semantic-warning)]" : paneSelected(paneIdx) ? 'border-[var(--brand-accent)] ring-2 ring-[var(--brand-accent)]' : "border-[var(--border-default)]"}`}
                 style={{ width: splitFrameW, height: splitFrameH, touchAction: 'none' }}
               >
-                {inBorderFrame(activeSize, <img
-                  src={photo.previewUrl}
-                  alt={`${photo.title} — Frame ${paneIdx + 1}`}
-                  referrerPolicy="no-referrer"
-                  draggable={false}
-                  className="h-full max-w-none object-cover select-none"
-                  style={{
+                {inBorderFrame(activeSize, renderStrip(
+                  `${photo.title} — Frame ${paneIdx + 1}`,
+                  'h-full max-w-none object-cover select-none',
+                  {
                     width: `${sectionCount * 100}%`,
-                    filter: compareMode ? 'none' : filterCss,
                     transform: `translate(${-(paneIdx * 100 / sectionCount) + splitOffsetFor(activeSize.id) + activeSize.crop.panX}%, ${activeSize.crop.panY}%) rotate(${activeSize.crop.rotateDeg}deg) scale(${(activeSize.crop.flipH ? -1 : 1) * activeSize.crop.zoom}, ${(activeSize.crop.flipV ? -1 : 1) * activeSize.crop.zoom})`,
-                  }}
-                />)}
+                  },
+                ))}
                 {paneIdx === sectionCount - 1 && renderOverlaysInsideFrame(activeSize, true)}
               </div>
             </div>
@@ -1442,20 +1405,16 @@ export default function Canvas({
                 className="relative overflow-hidden bg-[var(--bg-canvas)] text-left"
                 style={{ width: cardW, height: cardH }}
               >
-                {inBorderFrame(size, <img
-                  src={photo.previewUrl}
-                  alt={`${photo.title} — ${size.label}`}
-                  referrerPolicy="no-referrer"
-                  draggable={false}
-                  className={panes.length > 1 ? 'h-full max-w-none object-cover' : 'h-full w-full object-cover'}
-                  style={{
+                {inBorderFrame(size, renderStrip(
+                  `${photo.title} — ${size.label}`,
+                  panes.length > 1 ? 'h-full max-w-none object-cover' : 'h-full w-full object-cover',
+                  {
                     ...(panes.length > 1 ? { width: `${panes.length * 100}%` } : {}),
-                    filter: compareMode ? 'none' : filterCss,
                     transform: panes.length > 1
                       ? `translate(${-(paneIdx * 100 / panes.length) + splitOffsetFor(size.id) + size.crop.panX}%, ${size.crop.panY}%) rotate(${size.crop.rotateDeg}deg) scale(${(size.crop.flipH ? -1 : 1) * size.crop.zoom}, ${(size.crop.flipV ? -1 : 1) * size.crop.zoom})`
                       : buildImageTransform(size.crop),
-                  }}
-                />)}
+                  },
+                ))}
                 {paneIdx === panes.length - 1 && renderOverlaysInsideFrame(size, false)}
                 {size.kind === 'video' && (
                   <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-[var(--bg-scrim)] px-1.5 py-0.5 text-[10px] font-medium text-white">
@@ -1507,7 +1466,7 @@ export default function Canvas({
               }`}
             >
               <BrandIcon name="image" size={13} />
-              <span>{STRINGS.canvas.singleView}</span>
+              <span className="v2-phone-label">{STRINGS.canvas.singleView}</span>
             </button>
             <button
               type="button"
@@ -1520,7 +1479,7 @@ export default function Canvas({
               }`}
             >
               <BrandIcon name="all-sizes" size={13} />
-              <span>All formats ({enabledSizes.length})</span>
+              <span className="v2-phone-label">All formats ({enabledSizes.length})</span>
             </button>
           </div>
 
@@ -1576,7 +1535,7 @@ export default function Canvas({
             data-testid="selected-format-toolbar"
             className="flex min-w-0 items-center gap-1 overflow-x-auto inflight-scroll"
           >
-            <span data-testid="selected-format-count" className="shrink-0 px-1 text-[11px] text-[var(--text-muted)]">
+            <span data-testid="selected-format-count" className={`shrink-0 px-1 text-[11px] text-[var(--text-muted)] ${canvasLayoutMode === 'single' ? 'v2-phone-hide' : ''}`}>
               {selectedSizeIds.length === 1 ? '1 selected' : `${selectedSizeIds.length} selected`}
             </span>
             {([
@@ -1686,7 +1645,7 @@ export default function Canvas({
       </div>
         {/* Subtle bottom-left interaction hint */}
         {!hideHints && canvasLayoutMode === 'single' && (
-          <p data-capture-ignore className="pointer-events-none absolute bottom-3 left-4 right-80 hidden truncate lg:block text-[11px] text-[var(--text-muted)]">
+          <p data-capture-ignore className="v2-mouse-hint pointer-events-none absolute bottom-3 left-4 right-80 hidden truncate lg:block text-[11px] text-[var(--text-muted)]">
             {activeSize.kind === 'video'
               ? STRINGS.canvas.zoomVideoHint
               : STRINGS.canvas.dragCropHint}
@@ -1724,7 +1683,7 @@ export default function Canvas({
               event.preventDefault();
               saveZoomBarOffset(clampZoomBar(next));
             }}
-            className="inline-flex h-8 w-5 cursor-grab touch-none items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] active:cursor-grabbing"
+            className="v2-zoom-fine inline-flex h-8 w-5 cursor-grab touch-none items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] active:cursor-grabbing"
           >
             <BrandIcon name="grip" size={14} />
           </button>
@@ -1732,7 +1691,7 @@ export default function Canvas({
             type="button"
             aria-label={STRINGS.canvas.zoomOut}
             onClick={() => onSetZoom(canvasZoom / 1.25)}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
+            className="v2-zoom-fine inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
             <BrandIcon name="minus" size={14} />
           </button>
@@ -1750,7 +1709,7 @@ export default function Canvas({
             type="button"
             aria-label={STRINGS.canvas.zoomIn}
             onClick={() => onSetZoom(canvasZoom * 1.25)}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
+            className="v2-zoom-fine inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
             <BrandIcon name="plus" size={14} />
           </button>
