@@ -56,6 +56,12 @@ export interface ExifMetadata {
   height?: number;
   formatLabel?: string;
   isEmbeddedPreviewOnly?: boolean;
+  /** Where the photo was taken, from the file's GPS. Personal: kept on this device, never put in a backup or sent anywhere. */
+  gps?: { latitude: number; longitude: number };
+  /** The true capture instant, when the file says it (GPS time, or a time-zone offset). Absent rather than guessed. */
+  capturedAtUtcMs?: number;
+  /** Exposure time in seconds, for checks such as motion blur. */
+  exposureSeconds?: number;
 }
 
 export interface PhotoFrame {
@@ -90,6 +96,8 @@ export interface PhotoFrame {
   tags?: string[];
   /** Quiet local OCR and corroborated subject evidence. Separate from the photographer's tags and camera EXIF. */
   searchEvidence?: PhotoSearchEvidence;
+  /** Plain-language tags InFlight worked out by itself (place, light, weather, style, genre, vehicle). See `photoTags.ts`. */
+  photoTags?: import('./photoTags').PhotoTagSet;
   /** What the photo is mainly of, chosen by the user. */
   subjectKind?: import('./subjectTags').SubjectKind;
   /** Set when two independent readings of the photo (scene reading and object detector) disagreed about its subject, for

@@ -8,6 +8,8 @@ export const sv: AreaTranslation<typeof source> = {
   kinds: {
     car: 'Bil',
     motorbike: 'Motorcykel',
+    'racing-car': 'Racerbil',
+    'racing-motorbike': 'Racermotorcykel',
     lorry: 'Lastbil',
     bus: 'Buss',
     train: 'Tåg',
@@ -41,9 +43,10 @@ export const sv: AreaTranslation<typeof source> = {
     cancel: 'Avbryt',
     saved: (count: number) => (count > 1 ? `Sparat för ${count} bilder.` : 'Sparat.'),
   },
+  raceNumber: (what: string, number: string) => `${what}, startnummer ${number}`,
   reader: {
-    title: 'Läs registreringar på flygplan',
-    description: (megabytes: string) => `Läser registreringar och militära serienummer som målats på luftfartyg, på den här enheten, och slår upp dem i en offlinekopia av offentliga register. En engångsnedladdning på ${megabytes} MB. Registreringsskyltar på bilar läses aldrig.`,
+    title: 'Läs registreringar och startnummer',
+    description: (megabytes: string) => `Läser på den här enheten registreringar och militära serienummer på flygplan, och startnummer på racerbilar och racermotorcyklar. Registreringar slås upp i en offlinekopia av offentliga register. En engångsnedladdning på ${megabytes} MB. Registreringsskyltar på vägfordon läses aldrig.`,
     download: 'Ladda ned',
     downloading: (percent: number) => `Laddar ned… ${percent}%`,
     ready: 'Installerat. Fungerar offline.',

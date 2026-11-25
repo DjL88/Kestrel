@@ -27,6 +27,8 @@ import { vehicleText } from '../../i18n/areas/vehicles';
 import { useVisualGrouping } from './useVisualGrouping';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
 import { photoParallelism } from '../../core/photoParallelism';
+import { useSceneTags } from './useSceneTags';
+import { declinePhotoTag } from '../../core/photoTags';
 import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
 import { getLocalFileKey, loadLocalFileListShoot, rehydrateLocalFramesFromStore } from '../../providers/localShootLoader';
 import { hashOriginalBytes, isSameOriginalBytes } from '../../core/originalFileIdentity';
@@ -667,6 +669,15 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const regrouped = current ? regroupBurstsWithEmbeddings(current.frames) : null;
       return current && regrouped ? { ...current, frames: regrouped } : current;
     }),
+  });
+
+  // Plain-language tags (place from GPS, light, weather, style, genre) are worked out quietly on this device after photos
+  // are added. Never changes a decision, rating or edit; paused while photos are being imported.
+  useSceneTags({
+    projectId: state?.shoot.id ?? '', frames: state?.frames ?? [], provider: provider.current,
+    active: screen === 'editor' && Boolean(state) && !importing, onScreen: activeId,
+    onTagged: (frameId, update) => setState((current) => (current ? { ...current, frames: current.frames.map((frame) =>
+      frame.id === frameId && frame.removedAt == null ? update(frame) : frame) } : current)),
   });
 
   const activePhotoExport = useRef<number | null>(null);
@@ -1717,6 +1728,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       mutate((current) => ({ ...current, shoot: { ...current.shoot, lastUpdatedAt: Date.now() }, frames: correctVehicle(current.frames, photoId, choice, wholeBurst, VEHICLE_LABELS) }));
       setNotice(vehicleText.correct.saved(changed));
     },
+    removePhotoTag: (photoId, tagId) => mutate((current) => ({
+      ...current,
+      shoot: { ...current.shoot, lastUpdatedAt: Date.now() },
+      frames: current.frames.map((frame) => (frame.id === photoId && !frame.removedAt ? declinePhotoTag(frame, tagId) : frame)),
+    })),
     correctSpeciesName: (photoId, proposedName) => {
       const name = proposedName.trim().slice(0, 120);
       if (!name) return;
