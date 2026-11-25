@@ -1166,7 +1166,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       itemId: item => item.id, itemLabel: item => item.name,
       runItem: async (_, __, ctx) => {
         ctx.stage(engineText.workspace.deepStage);
-        const result = await runDeepVisionReview(frame, provider.current!);
+        // The batch's own signal: the subject finder then runs inside this task, not queued behind it.
+        const result = await runDeepVisionReview(frame, provider.current!, ctx.signal);
         ctx.checkCancelled();
         if (!result) throw new Error(engineText.workspace.deepNoResult);
         // The review is advisory. Do not publish stale observations after
