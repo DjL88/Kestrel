@@ -420,7 +420,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           />
         );
       case 'history':
-        return <HistoryPanel photo={activePhoto} activeSizeId={store.activeSizeId} onForkFromStep={actions.jumpToEditStep} onSwitchVersion={actions.switchEditVersion} onUndo={editLocked ? undefined : actions.undo} />;
+        return <HistoryPanel photo={activePhoto} activeSizeId={store.activeSizeId} onForkFromStep={actions.jumpToEditStep} onSwitchVersion={actions.switchEditVersion} onUndo={editLocked ? undefined : actions.undo}
+          onRenameVersion={actions.renameEditVersion} onSaveCheckpoint={actions.saveEditCheckpoint} onRestoreCheckpoint={actions.restoreEditCheckpoint}
+          onDeleteCheckpoint={actions.deleteEditCheckpoint} onRestoreFormatCrop={actions.restoreFormatCrop} />;
       case 'info':
         return (
           <InfoPanel

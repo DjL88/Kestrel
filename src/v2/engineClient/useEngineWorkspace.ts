@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { applyDecisionWithHistory, assignBurstGroups, redoDecision, regroupBurstsWithEmbeddings, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
 import { recordEdit, stepEdit, type EditWhy } from '../../core/editHistory';
-import { forkEditCheckpoint, switchEditVersion as switchVersionInCatalogue } from '../../core/editBranches';
+import { deleteCheckpoint, forkEditCheckpoint, renameEditVersion, restoreCheckpoint, saveCheckpoint, switchEditVersion as switchVersionInCatalogue } from '../../core/editBranches';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { sameRecipe } from '../../core/naturalAuto';
 import { newId } from '../../core/ids';
@@ -50,7 +50,7 @@ import { MAX_LAYERS } from '../../core/layers';
 import { DEFAULT_EDIT as EMPTY_EDIT } from '../../core/photoEdits';
 import { DEFAULT_CROP, flipCrop, patchCrop, rotateCrop } from './cropOps';
 import { readCrops } from './cropOps';
-import { recordFormatCrop, recordFormatSetChange, recordFormatLink } from './formatHistory';
+import { readFormatHistory, recordFormatCrop, recordFormatSetChange, recordFormatLink } from './formatHistory';
 import { addLayer, addRow, alignOverlays, moveLayer, moveRow, newLayer, patchOverlay, readOverlay, removeLayer, removeRow, updateLayer, updateRow } from './overlayOps';
 import { frameToPhoto, matchesAutoSource, originalFormatSize, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
@@ -2137,6 +2137,25 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         frames: current.frames.map((frame) =>
           frame.id === photoId ? syncEditGroup(switchVersionInCatalogue(frame, versionId)) : frame),
       }));
+    },
+    renameEditVersion: (photoId, versionId, name) => mutate((current) => ({ ...current,
+      frames: current.frames.map((frame) => (frame.id === photoId ? renameEditVersion(frame, versionId, name) : frame)) })),
+    saveEditCheckpoint: (photoId, name) => {
+      const at = Date.now();
+      mutate((current) => ({ ...current, shoot: { ...current.shoot, lastUpdatedAt: at },
+        frames: current.frames.map((frame) => (frame.id === photoId ? saveCheckpoint(frame, `checkpoint-${newId()}`, name, at) : frame)) }));
+    },
+    restoreEditCheckpoint: (photoId, checkpointId) => {
+      const at = Date.now();
+      mutate((current) => ({ ...current, shoot: { ...current.shoot, lastUpdatedAt: at },
+        frames: current.frames.map((frame) => (frame.id === photoId ? syncEditGroup(restoreCheckpoint(frame, checkpointId, `checkpoint-open-${newId()}`, at)) : frame)) }));
+    },
+    deleteEditCheckpoint: (photoId, checkpointId) => mutate((current) => ({ ...current,
+      frames: current.frames.map((frame) => (frame.id === photoId ? deleteCheckpoint(frame, checkpointId) : frame)) })),
+    restoreFormatCrop: (photoId, formatId, eventAt) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      const event = readFormatHistory(frame?.formatHistory).events.find((e) => e.formatId === formatId && e.kind === 'crop' && e.at === eventAt);
+      if (event?.after) changeCrops(photoId, [formatId], () => event.after!);
     },
     undo: () => {
       if (activeFrame?.editHistory && activeFrame.editHistory.cursor > 0) mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === activeFrame.id ? syncEditGroup(stepEdit(frame, -1)) : frame)) }));
