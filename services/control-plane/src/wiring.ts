@@ -9,6 +9,7 @@ import { GcsCloudRunner, GcsSafeCopyStorage, CloudRunJobTrigger, metadataAccessT
 import { FirestoreCloudLedger } from './cloudLedgerFirestore.ts';
 import { FirestoreLearningSink } from './learningSignalFirestore.ts';
 import { FirestoreSafeCopyCatalog } from './safeCopyFirestore.ts';
+import { CollabStore } from './collaboration.ts';
 import { FirestoreSpendGuard } from './spendGuard.ts';
 import type { FirestoreLike } from './firestoreStore.ts';
 
@@ -18,7 +19,7 @@ export interface WiringDeps {
   openBucket?: (name: string) => Promise<GcsBucketLike>;
   token?: () => Promise<string>;
 }
-export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'learning' | 'learningWithdrawal' | 'spend'> & { enabled: string[] };
+export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'learning' | 'learningWithdrawal' | 'spend'> & { enabled: string[] };
 
 function whole(env: NodeJS.ProcessEnv, name: string, dflt: number, max: number): number {
   const raw = env[name];
@@ -62,6 +63,8 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
     };
     out.enabled.push('safe-copy');
   }
+  // Shared projects need only Firestore. Off unless KCP_COLLABORATION_ENABLED=1, and then still off until an admin switches them on.
+  if (env.KCP_COLLABORATION_ENABLED === '1') { out.collab = new CollabStore(db); out.enabled.push('collaboration'); }
   // Withdrawal/deletion must remain available with collection disabled.
   // This service cannot enable research writes: only the optional 'learning'
   // dependency is attached to the collection routes.

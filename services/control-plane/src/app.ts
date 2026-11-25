@@ -22,6 +22,7 @@ import { APPLE_ISSUER, APPLE_KEYS_URL, FIREBASE_KEYS_URL, firebaseIssuer, oidcKe
 import { UK_VAT_THRESHOLD_PENCE, UK_VAT_WARNING_PENCE } from './commerce/turnover.ts';
 import { CLOUD_KINDS, DEFAULT_MAX_JOB_MS, type CloudJobRecord, type CloudOptions } from './cloudJobs.ts';
 import { LEARNING_ACTIONS, LEARNING_CAPABILITIES, LEARNING_SOURCES, type LearningSink } from './learningSignal.ts';
+import { CollabRefusal, MAX_RECIPE_BYTES, type CollabStore } from './collaboration.ts';
 import { SAFE_COPY_LEVELS, SAFE_COPY_MAX_BYTES, safeCopyKey, type SafeCopyOptions } from './safeCopy.ts';
 import type { SpendOptions } from './spendGuard.ts';
 import { ApiError, matchRoute, parseJson, readBody, send, type Reply, type Request, type Route } from './http.ts';
@@ -66,6 +67,8 @@ export interface AppOptions {
   learningWithdrawal?: Pick<LearningSink, 'setConsent' | 'deleteBySubject'>;
   /** Managed safe copy (opt-in backup). Absent in production until a bucket exists and is approved: routes answer 503. */
   safeCopy?: SafeCopyOptions;
+  /** Shared projects (#1387): membership, per-photo leases, revisions. Absent until Firestore is set up for it: routes answer 503. */
+  collab?: CollabStore;
   /** Hard monthly ceiling on metered spend (Gemini, cloud jobs). Absent: no guard (development and tests). */
   spend?: SpendOptions;
   /** Production sets this: the cloud, safe copy and learning features stay OFF until an admin switches them on. Tests and development leave them on. */
@@ -132,9 +135,31 @@ const DemoFraming = z.object({
 /** Slider name to value: short identifiers and bounded numbers only, so a free-text field cannot hide in here. */
 const SliderMap = z.record(z.string().regex(/^[a-z][a-zA-Z0-9]{0,23}$/), z.number().finite().min(-100).max(100)).refine((m) => Object.keys(m).length <= 16, 'at most 16 sliders');
 const Sha = z.string().regex(/^[0-9a-f]{64}$/);
+/** The app's opaque photo id: never a file name. */
+const PhotoId = z.string().regex(/^[A-Za-z0-9_-]{1,96}$/);
+/** An ApiError that also tells the app who holds a photo, or which revision is the head now. */
+class CollabApiError extends ApiError {
+  constructor(status: number, code: string, message: string, readonly detail?: Record<string, unknown>) { super(status, code, message); }
+}
+
 export const Schemas = {
   AdminSwitch: z.object({ key: z.enum(['managed-ai', 'cloud-processing', 'safe-copy', 'learning-signal', 'pro-checkout', 'pro-checkout-eu']), on: z.boolean() }).strict(),
   ProCheckoutRequest: z.object({ country: z.string().regex(/^[A-Z]{2}$/) }).strict(),
+  CollabCreate: z.object({ name: z.string().trim().min(1).max(120), displayName: z.string().trim().min(1).max(80) }).strict(),
+  CollabMembers: z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('inviteEmail'), email: z.string().trim().email().max(254), role: z.enum(['editor', 'commenter', 'viewer', 'client']), displayName: z.string().trim().max(80).default(''), photoIds: z.array(PhotoId).max(5000).optional() }).strict(),
+    z.object({ kind: z.literal('setRole'), accountId: z.string().min(1).max(64), role: z.enum(['owner', 'editor', 'commenter', 'viewer', 'client']) }).strict(),
+    z.object({ kind: z.literal('setPhotos'), accountId: z.string().min(1).max(64), photoIds: z.array(PhotoId).max(5000).optional() }).strict(),
+    z.object({ kind: z.literal('remove'), accountId: z.string().min(1).max(64) }).strict(),
+    z.object({ kind: z.literal('options'), options: z.object({ editorsMayInvite: z.boolean(), clientsMayComment: z.boolean(), clientsMayExport: z.boolean() }).partial().strict(),
+      leaseSettings: z.object({ heartbeatMs: z.number(), networkExpiryMs: z.number(), inactivityWarningMs: z.number(), inactivityReleaseMs: z.number() }).partial().strict().optional() }).strict(),
+  ]),
+  CollabAccept: z.object({ displayName: z.string().trim().min(1).max(80) }).strict(),
+  CollabAcquire: z.object({ deviceId: z.string().min(8).max(128) }).strict(),
+  CollabHeartbeat: z.object({ token: z.string().min(16).max(128), editing: z.boolean() }).strict(),
+  CollabRelease: z.object({ token: z.string().min(16).max(128), action: z.enum(['checked-in', 'released']) }).strict(),
+  CollabOverride: z.object({ reason: z.string().trim().min(1).max(500) }).strict(),
+  CollabPublish: z.object({ token: z.string().min(16).max(128), baseRevisionId: z.string().max(64).nullable(), recipe: z.record(z.string(), z.unknown()), virtualCopyOf: z.string().max(64).optional() }).strict(),
   SafeCopyLevels: z.object({ levels: z.object({ recipes: z.boolean(), previews: z.boolean(), originals: z.boolean() }).partial().strict() }).strict(),
   SafeCopyUpload: z.object({ level: z.enum(SAFE_COPY_LEVELS), sha256: Sha, bytes: z.number().int().positive() }).strict(),
   SafeCopyObject: z.object({ level: z.enum(SAFE_COPY_LEVELS), sha256: Sha }).strict(),
@@ -369,10 +394,11 @@ export function createApp(options: AppOptions) {
     { key: 'safe-copy', label: 'Safe copy (managed backup)', note: 'Opt-in backup to InFlight UK storage. Switching off stops uploads only; people can always read and delete their copy.' },
     { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
     { key: 'pro-checkout', label: 'Pro checkout (SumUp)', note: 'People can pay for Pro through SumUp\'s hosted page. Their billing country must match their network location. Switching off stops new checkouts only; payments already made are still verified and granted.' },
+    { key: 'collaboration', label: 'Shared projects', note: 'Cloud subscribers can share a project, invite people by email and check photos out to edit. Switching off stops new shared projects and checkouts; members can still read revisions.' },
     { key: 'pro-checkout-eu', label: 'Pro checkout for EU buyers', note: 'Switch on only once you are registered for OSS (EU VAT on digital sales). Until then EU buyers see that Pro is not on sale in their country yet.' },
   ] as const;
   type SwitchKey = typeof SWITCHES[number]['key'];
-  const switchConfigured = (key: SwitchKey) => key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'pro-checkout' || key === 'pro-checkout-eu' ? !!options.proCheckout : !!options.learning;
+  const switchConfigured = (key: SwitchKey) => key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'pro-checkout' || key === 'pro-checkout-eu' ? !!options.proCheckout : !!options.learning;
   async function switchOn(key: SwitchKey): Promise<boolean> {
     if (key === 'managed-ai') return (await store.getSetting('ai_disabled')) !== '1';
     const legacy = key === 'cloud-processing' ? 'cloud_disabled' : key === 'safe-copy' ? 'safe_copy_disabled' : undefined;
@@ -483,6 +509,23 @@ export function createApp(options: AppOptions) {
   const learningSubject = (accountId: string) => sha256Hex(`learning:${accountId}`);
 
   // ---- Managed safe copy. Uploads are gated; reading and deleting your own copy never is.
+  function collabCfg(): CollabStore {
+    if (!options.collab) throw new ApiError(503, 'COLLAB_NOT_CONFIGURED', 'Shared projects are not set up on this server yet.');
+    return options.collab;
+  }
+  /** New shared projects and checkouts need the switch on; reading what exists never does. */
+  async function collabWritable() {
+    const collab = collabCfg();
+    if (!(await switchOn('collaboration'))) throw new ApiError(503, 'COLLAB_DISABLED', 'Shared projects are switched off for now. Your own projects are unaffected.', true);
+    return collab;
+  }
+  async function collab<T>(work: () => Promise<T>): Promise<T> {
+    try { return await work(); } catch (error) {
+      if (error instanceof CollabRefusal) throw new CollabApiError(error.status, error.code, error.message, error.detail);
+      throw error;
+    }
+  }
+
   function safeCopyCfg() {
     if (!options.safeCopy) throw new ApiError(503, 'SAFE_COPY_NOT_CONFIGURED', 'Safe copy is not set up on this server.');
     return options.safeCopy;
@@ -973,6 +1016,115 @@ export function createApp(options: AppOptions) {
         throw new ApiError(410, 'LEARNING_SCOPE_REQUIRED',
           'This older sharing method is disabled to protect private albums. Update InFlight to share only from approved projects.');
       },
+    },
+
+    // ---- Shared projects (#1387 C01-C03). Membership, per-photo checkout and never-last-write-wins revisions.
+    {
+      method: 'POST', path: '/v1/collab/projects', summary: 'Share a new project (Cloud plan). You become its owner', auth: 'user', body: Schemas.CollabCreate,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.CollabCreate, req.rawBody);
+        const store_ = await collabWritable();
+        const plans = await store.listLicencesForAccount(claims.sub);
+        if (!plans.some((l) => l.plan === 'subscriber' && licenceIsUsable(l, now()))) throw new ApiError(403, 'COLLAB_NOT_ENTITLED', 'Shared projects are part of the Cloud plan.');
+        const project = await store_.createProject({ accountId: claims.sub, displayName: body.displayName }, body.name, now());
+        await audit(claims.sub, 'collab.create', 'allowed', project.projectId);
+        return { status: 200, body: { projectId: project.projectId } };
+      },
+    },
+    {
+      method: 'GET', path: '/v1/collab/projects', summary: 'The shared projects you belong to', auth: 'user',
+      handler: async (req) => { const claims = await bearer(req); return { status: 200, body: { projects: await collabCfg().myProjects(claims.sub) } }; },
+    },
+    {
+      method: 'GET', path: '/v1/collab/projects/:id', summary: 'A shared project as your role may see it', auth: 'user',
+      handler: async (req, params) => { const claims = await bearer(req); return { status: 200, body: await collab(() => collabCfg().project(params.id, claims.sub)) }; },
+    },
+    {
+      method: 'POST', path: '/v1/collab/projects/:id/members', summary: 'Invite by email, change a role or photo selection, remove someone, or change project settings', auth: 'user', body: Schemas.CollabMembers,
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.CollabMembers, req.rawBody);
+        const c = await collabWritable();
+        const change = body.kind === 'inviteEmail'
+          ? { kind: 'inviteEmail' as const, invite: { emailHash: emailHashOf(body.email), role: body.role, displayName: body.displayName, ...(body.photoIds ? { photoIds: body.photoIds } : {}) } }
+          : body.kind === 'setPhotos' ? { ...body, photoIds: body.photoIds } : body;
+        await collab(() => c.change(params.id, claims.sub, change, now()));
+        await audit(claims.sub, `collab.${body.kind}`, 'allowed', params.id);
+        return { status: 200, body: await collab(() => c.project(params.id, claims.sub)) };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/collab/projects/:id/accept', summary: 'Accept an invitation sent to your email address', auth: 'user', body: Schemas.CollabAccept,
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.CollabAccept, req.rawBody);
+        const account = await store.getAccount(claims.sub);
+        const member = await collab(() => collabCfg().accept(params.id, { accountId: claims.sub, emailHash: account!.emailHash, displayName: body.displayName }, now()));
+        return { status: 200, body: { member } };
+      },
+    },
+    {
+      method: 'GET', path: '/v1/collab/projects/:id/leases', summary: 'Which photos are checked out now, and by whom', auth: 'user',
+      handler: async (req, params) => { const claims = await bearer(req); return { status: 200, body: { leases: await collab(() => collabCfg().leases(params.id, claims.sub, now())) } }; },
+    },
+    {
+      method: 'POST', path: '/v1/collab/projects/:id/photos/:photoId/lease', summary: 'Check a photo out on the first edit (renews on the same device)', auth: 'user', body: Schemas.CollabAcquire,
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.CollabAcquire, req.rawBody);
+        if (!PhotoId.safeParse(params.photoId).success) throw new ApiError(400, 'BAD_REQUEST', 'That is not a photo id.');
+        const c = await collabWritable();
+        return { status: 200, body: await collab(() => c.acquire(params.id, params.photoId, claims.sub, body.deviceId, now())) };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/collab/projects/:id/photos/:photoId/heartbeat', summary: 'Keep a checkout alive; editing is true while you or background work for this photo is changing it', auth: 'user', body: Schemas.CollabHeartbeat,
+      handler: async (req, params) => {
+        await bearer(req);
+        const body = parseJson(Schemas.CollabHeartbeat, req.rawBody);
+        return { status: 200, body: await collab(() => collabCfg().heartbeat(params.id, params.photoId, body.token, body.editing, now())) };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/collab/projects/:id/photos/:photoId/release', summary: 'Check a photo in after saving, or release it', auth: 'user', body: Schemas.CollabRelease,
+      handler: async (req, params) => {
+        await bearer(req);
+        const body = parseJson(Schemas.CollabRelease, req.rawBody);
+        return { status: 200, body: await collab(() => collabCfg().release(params.id, params.photoId, body.token, body.action, now())) };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/collab/projects/:id/photos/:photoId/override', summary: "Owner only: release someone else's checkout, with a reason that is recorded", auth: 'user', body: Schemas.CollabOverride,
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.CollabOverride, req.rawBody);
+        const result = await collab(() => collabCfg().override(params.id, params.photoId, claims.sub, body.reason, now()));
+        await audit(claims.sub, 'collab.override', 'allowed', `${params.id}/${params.photoId}`);
+        return { status: 200, body: result };
+      },
+    },
+    {
+      method: 'GET', path: '/v1/collab/projects/:id/photos/:photoId/revisions', summary: 'Revision history of one photo (no recipes)', auth: 'user',
+      handler: async (req, params) => { const claims = await bearer(req); return { status: 200, body: await collab(() => collabCfg().history(params.id, params.photoId, claims.sub)) }; },
+    },
+    {
+      method: 'GET', path: '/v1/collab/projects/:id/photos/:photoId/revisions/:revisionId', summary: 'One revision with its recipe', auth: 'user',
+      handler: async (req, params) => { const claims = await bearer(req); return { status: 200, body: await collab(() => collabCfg().revision(params.id, params.photoId, params.revisionId, claims.sub)) }; },
+    },
+    {
+      method: 'POST', path: '/v1/collab/projects/:id/photos/:photoId/revisions', summary: 'Save a shared revision: needs your live checkout and the current head (409 with the head otherwise)', auth: 'user', body: Schemas.CollabPublish,
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.CollabPublish, req.rawBody);
+        if (Buffer.byteLength(JSON.stringify(body.recipe)) > MAX_RECIPE_BYTES) throw new ApiError(413, 'COLLAB_RECIPE_TOO_LARGE', 'That edit is too large to share.');
+        const revision = await collab(() => collabCfg().publish(params.id, params.photoId, claims.sub, body, now()));
+        return { status: 200, body: { revision } };
+      },
+    },
+    {
+      method: 'GET', path: '/v1/collab/projects/:id/audit', summary: 'Owner only: checkout takeovers and overrides', auth: 'user',
+      handler: async (req, params) => { const claims = await bearer(req); return { status: 200, body: { entries: await collab(() => collabCfg().auditFor(params.id, claims.sub)) } }; },
     },
 
     // ---- Managed safe copy (opt-in, per level, UK only; never the default)
@@ -1510,7 +1662,7 @@ export function createApp(options: AppOptions) {
     },
   ];
 
-  const bodyLimit = (path: string) => path === '/v1/admin/demo/photos' ? 2_300_000 : path.includes('/v1/admin/demo/photos/') ? 850 * 1024 : path.startsWith('/v1/ai/') ? 800 * 1024 : 64 * 1024;
+  const bodyLimit = (path: string) => /^\/v1\/collab\/projects\/[^/]+\/photos\/[^/]+\/revisions$/.test(path) ? MAX_RECIPE_BYTES + 4096 : path === '/v1/admin/demo/photos' ? 2_300_000 : path.includes('/v1/admin/demo/photos/') ? 850 * 1024 : path.startsWith('/v1/ai/') ? 800 * 1024 : 64 * 1024;
 
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const url = new URL(req.url ?? '/', 'http://control-plane.invalid');
@@ -1533,7 +1685,7 @@ export function createApp(options: AppOptions) {
       send(res, reply, origin);
     } catch (error) {
       if (error instanceof ApiError) {
-        send(res, { status: error.status, body: { error: { code: error.code, message: error.message, retryable: error.retryable } } }, origin);
+        send(res, { status: error.status, body: { error: { code: error.code, message: error.message, retryable: error.retryable, ...(error instanceof CollabApiError && error.detail ? { detail: error.detail } : {}) } } }, origin);
       } else {
         // Never echo internals, payloads or keys.
         console.error('control-plane: unhandled error', (error as Error)?.name);
