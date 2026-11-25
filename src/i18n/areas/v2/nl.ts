@@ -687,6 +687,7 @@ export const nl: AreaTranslation<typeof source> = {
     autopilotHeld: "De automatische piloot heeft deze bewerking voor uw controle tegengehouden: de beeldcontrole op dit apparaat was er niet van overtuigd dat ze natuurlijk oogt. De suggestie staat in de copiloot om te bekijken of toe te passen. Er is niets veranderd.",
     secondOpinion: "Second opinion:",
     suggestionDoubted: "de beeldcontrole op dit apparaat was er niet van overtuigd dat dit natuurlijk oogt. Vergelijk voor en na; toepassen is uw keuze.",
+    maskDoubted: "Tweede mening: de beeldcontrole op dit apparaat twijfelt aan dit onderwerpmasker. Het ligt misschien op het verkeerde of mist een vleugelpunt, staart of kop. Controleer de randen en tik om toe te voegen of weg te halen. Er is niets veranderd.",
   },
   adjust: {
     grade: {

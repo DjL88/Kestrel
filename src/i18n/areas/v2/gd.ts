@@ -688,6 +688,7 @@ export const gd: AreaTranslation<typeof source> = {
     autopilotHeld: "Chùm am fèin-phìleat an deasachadh seo air ais airson do lèirmheas: cha robh an sgrùdadh lèirsinneach air an uidheam seo cinnteach gu bheil e a' coimhead nàdarra. Tha am moladh sa cho-phìleat airson ro-shealladh no cur an sàs. Cha deach dad atharrachadh.",
     secondOpinion: "Dàrna beachd:",
     suggestionDoubted: "cha robh an sgrùdadh lèirsinn air an uidheam seo cinnteach gu bheil seo a' coimhead nàdarrach. Dèan coimeas eadar ro agus às dèidh; 's ann agad fhèin a tha an roghainn a chur an sàs.",
+    maskDoubted: "Dàrna beachd: tha amharas aig an sgrùdadh lèirsinn air an uidheam seo mun mhasg cuspair seo. Dh’fhaoidte gu bheil e air an rud cheàrr, no gu bheil barr sgèithe, earball no ceann a dhìth. Thoir sùil air na h-oirean, agus tapaich gus cur ris no toirt air falbh. Cha deach dad atharrachadh.",
   },
   adjust: {
     grade: {
