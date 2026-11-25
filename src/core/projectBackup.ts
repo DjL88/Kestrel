@@ -12,6 +12,7 @@ import { validAsShot, validWhiteBalance } from './asShotWhite';
 import { isRawCodec } from './pictureSource';
 import type { CullingState, FilterState, PhotoFrame, ShootDescriptor } from './types';
 import { DEVELOP_VERSION } from './backgroundDevelop';
+import { withoutLocation } from './photoTags';
 
 const FORMAT = 'kestrel-project';
 const decisions = new Set(['unreviewed', 'keep', 'reject']);
@@ -135,8 +136,8 @@ export function encodeProjectBackup(state: CullingState): string {
     project: {
       // Derived OCR can contain private writing or registration numbers. It stays
       // on this device; portable or cloud backups regenerate it rather than
-      // copying unconfirmed text to another destination.
-      shoot: state.shoot, frames: state.frames.map(({ searchEvidence: _local, ...frame }) => frame), selectedFrameId: state.selectedFrameId,
+      // copying unconfirmed text to another destination. Location (GPS, place tags) is personal and stays too.
+      shoot: state.shoot, frames: state.frames.map(({ searchEvidence: _local, ...frame }) => withoutLocation(frame)), selectedFrameId: state.selectedFrameId,
       compareRightFrameId: state.compareRightFrameId, filter: state.filter, searchQuery: state.searchQuery,
       keeperTarget: state.keeperTarget, autoAdvance: state.autoAdvance,
       ...(state.settings ? { settings: state.settings } : {}),
@@ -193,7 +194,7 @@ export function restoreProjectBackup(contents: string, id: string, now = Date.no
       needsFileReselect: frames.some((frame) => frame.sourceKind === 'file'),
     },
     // Portable backups cannot silently carry automatic OCR of personal writing.
-    frames: (frames as PhotoFrame[]).map(({ searchEvidence: _local, ...frame }) => frame),
+    frames: (frames as PhotoFrame[]).map(({ searchEvidence: _local, ...frame }) => withoutLocation(frame)),
     filter: filter as FilterState, searchQuery, keeperTarget, autoAdvance,
     ...(record(envelope.project.settings) ? { settings: parseSettings(envelope.project.settings) } : {}),
     selectedFrameId: existingId(selectedFrameId),
