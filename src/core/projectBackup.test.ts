@@ -206,3 +206,19 @@ test('collage backup preserves pages, repeat appearances and rejects orphan slot
   bad.project.shoot.collage.pages[0].slots[0].photoId = 'missing';
   assert.throws(() => restoreProjectBackup(JSON.stringify(bad), 'restored'), /invalid collage layout or photo links/);
 });
+
+
+test('portable restore never opens a removed photo but retains it for recovery', () => {
+  const project = createDemoShootState(3);
+  project.frames[0].removedAt = 0;
+  project.frames[1].removedAt = 1000;
+  project.selectedFrameId = project.frames[0].id;
+  project.compareRightFrameId = project.frames[1].id;
+  const restored = restoreProjectBackup(encodeProjectBackup(project), 'restored');
+  assert.equal(restored.selectedFrameId, null);
+  assert.equal(restored.compareRightFrameId, null);
+  assert.equal(restored.frames.length, 3);
+  assert.equal(restored.frames[0].removedAt, 0);
+  project.selectedFrameId = project.frames[2].id;
+  assert.equal(restoreProjectBackup(encodeProjectBackup(project), 'restored').selectedFrameId, project.frames[2].id);
+});

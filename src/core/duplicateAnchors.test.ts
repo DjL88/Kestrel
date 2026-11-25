@@ -24,8 +24,8 @@ test('only an existing kept original with a matching byte size can anchor duplic
 
 test('never hashes a missing or oversized source or a previously rejected only copy', () => {
   const frames = [photo('missing', 'keep'), photo('huge', 'keep'), photo('rejected', 'reject')];
-  const sizes = new Map([['huge', 34 * 1024 * 1024], ['rejected', 100]]);
-  assert.deepEqual(duplicateAnchorKeys(frames, new Set([100, 34 * 1024 * 1024]), (key) => sizes.get(key)), []);
+  const sizes = new Map([['huge', 257 * 1024 * 1024], ['rejected', 100]]);
+  assert.deepEqual(duplicateAnchorKeys(frames, new Set([100, 257 * 1024 * 1024]), (key) => sizes.get(key)), []);
 });
 
 test('epoch-zero removed keepers cannot anchor a later duplicate rejection', () => {
@@ -42,4 +42,9 @@ test('epoch-zero removed keepers cannot anchor a later duplicate rejection', () 
   assert.deepEqual(keys, ['live-keeper']);
   assert.deepEqual(hashed, ['live-keeper']);
   assert.equal(JSON.stringify(frames), before);
+});
+
+test('large RAW files can anchor a bounded duplicate scan', () => {
+  const size = 50 * 1024 * 1024;
+  assert.deepEqual(duplicateAnchorKeys([photo('raw', 'keep')], new Set([size]), () => size), ['raw']);
 });

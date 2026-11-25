@@ -12,9 +12,37 @@ export interface CollageSlot {
    * from one edge of the picture to the other (0 is centred). Omitted means centred and filled. */
   zoom?: number; panX?: number; panY?: number;
 }
+export const COLLAGE_CAPTION_FONTS = ['sans-serif', 'serif', 'monospace'] as const;
+export type CollageCaptionFont = typeof COLLAGE_CAPTION_FONTS[number];
+export interface CollageCaptionStyle {
+  font: CollageCaptionFont;
+  /** Font size as a percentage of the page width. */
+  size: number;
+  /** Vertical position in the available safe area: 0 top, 50 middle, 100 bottom. */
+  position: number;
+}
+export const DEFAULT_COLLAGE_CAPTION_STYLE: CollageCaptionStyle = { font: 'sans-serif', size: 2.5, position: 100 };
+export function collageCaptionStyle(raw: unknown): CollageCaptionStyle {
+  const style = raw && typeof raw === 'object' ? raw as Partial<CollageCaptionStyle> : {};
+  const bounded = (value: unknown, fallback: number, min: number, max: number) =>
+    typeof value === 'number' && Number.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
+  return {
+    font: COLLAGE_CAPTION_FONTS.includes(style.font as CollageCaptionFont) ? style.font! : 'sans-serif',
+    size: bounded(style.size, 2.5, 1, 6),
+    position: bounded(style.position, 100, 0, 100),
+  };
+}
+/** Shared safe area and line height for canvas and editor, in output page pixels. */
+export function collageCaptionGeometry(width: number, height: number, raw: unknown) {
+  const style = collageCaptionStyle(raw);
+  return { ...style, x: width * .05, y: height * .03, width: width * .9, height: height * .94,
+    fontPx: width * style.size / 100, lineHeight: 1.2 };
+}
 export interface CollagePage {
   id: string;
   template: CollageTemplate;
+  /** Custom page-relative windows are preserved across page sizes. */
+  customLayout?: true;
   slots: CollageSlot[];
   background: string;
   /** A photograph from the library filling the page behind its windows (a reference; null or absent for a plain colour). */
@@ -22,6 +50,7 @@ export interface CollagePage {
   gap: number;
   caption: string;
   captionColour: string;
+  captionStyle?: CollageCaptionStyle;
 }
 export interface CollageDocument {
   version: 1;
@@ -106,6 +135,7 @@ export function collageShapes(template: CollageTemplate, aspect = 1): SlotShape[
   });
 }
 export const MAX_COLLAGE_PAGES = 200;
+export const MAX_COLLAGE_WINDOWS = 12;
 export const MAX_COLLAGE_SELECTION = MAX_COLLAGE_PAGES * shapes.grid.length;
 export const MAX_COLLAGE_EXPORT_PAGES = 40;
 
@@ -149,20 +179,30 @@ export function canChangeCollageTemplate(doc: CollageDocument, template: Collage
 export function changeCollageTemplate(doc: CollageDocument, template: CollageTemplate): CollageDocument {
   if (!canChangeCollageTemplate(doc, template)) return doc;
   const old = collagePage(doc);
-  const assigned = old.slots.map((slot) => slot.photoId).filter((id): id is string => id !== null);
+  if (old.template === template && !old.customLayout) return doc;
+  const assigned = old.slots.filter((slot): slot is CollageSlot & { photoId: string } => slot.photoId !== null);
   const capacity = shapes[template].length;
   const aspect = collageFormatAspect(doc.format);
-  const redesigned = newCollagePage(template, assigned.slice(0, capacity), aspect);
+  const pageWithFraming = (entries: typeof assigned) => {
+    const page = newCollagePage(template, entries.map(slot => slot.photoId), aspect);
+    return { ...page, slots: page.slots.map((slot, index) => {
+      const source = entries[index];
+      if (!source) return slot;
+      return { ...slot, ...(source.zoom !== undefined ? { zoom: source.zoom } : {}),
+        ...(source.panX !== undefined ? { panX: source.panX } : {}), ...(source.panY !== undefined ? { panY: source.panY } : {}) };
+    }) };
+  };
+  const redesigned = pageWithFraming(assigned.slice(0, capacity));
   const overflow = assigned.slice(capacity);
   // Smaller layouts create following pages for extra photographs, without
   // overwriting the layout, assignments or captions on other existing pages.
   const extraPages = Array.from({ length: Math.ceil(overflow.length / capacity) }, (_, index) => {
-    const page = newCollagePage(template, overflow.slice(index * capacity, (index + 1) * capacity), aspect);
-    return { ...page, background: old.background, gap: old.gap, captionColour: old.captionColour };
+    const page = pageWithFraming(overflow.slice(index * capacity, (index + 1) * capacity));
+    return { ...page, background: old.background, gap: old.gap, captionColour: old.captionColour, ...(old.captionStyle ? { captionStyle: { ...old.captionStyle } } : {}) };
   });
   const pages = doc.pages.flatMap((p) => p.id === old.id
     ? [{ ...redesigned, id: old.id, background: old.background, gap: old.gap,
-      caption: old.caption, captionColour: old.captionColour }, ...extraPages] : [p]);
+      caption: old.caption, captionColour: old.captionColour, ...(old.captionStyle ? { captionStyle: { ...old.captionStyle } } : {}) }, ...extraPages] : [p]);
   return { ...doc, pages };
 }
 export function addCollagePage(doc: CollageDocument, template: CollageTemplate = 'triptych'): CollageDocument {
@@ -176,12 +216,45 @@ export function changeCollageFormat(doc: CollageDocument, format: CollageFormat)
   if (!Object.hasOwn(COLLAGE_FORMATS, format) || format === doc.format) return doc;
   const aspect = collageFormatAspect(format);
   return { ...doc, format, pages: doc.pages.map((page) => {
+    if (page.customLayout) return page;
     const layout = collageShapes(page.template, aspect);
     if (layout.length !== page.slots.length) return page;
     return { ...page, slots: page.slots.map((slot, i) => {
       const { clip: _old, ...kept } = slot;
       return { ...kept, ...layout[i] };
     }) };
+  }) };
+}
+/** Add an empty, independently editable frame without modifying any photo references. */
+export function addCollageWindow(doc: CollageDocument): CollageDocument {
+  const page = collagePage(doc);
+  if (page.slots.length >= MAX_COLLAGE_WINDOWS) return doc;
+  const n = page.slots.length;
+  const offset = (n * 7) % 36;
+  const slot: CollageSlot = { id: nextId(), photoId: null, x: 12 + offset, y: 12 + offset, width: 40, height: 40, angle: 0 };
+  return { ...doc, pages: doc.pages.map(p => p.id === page.id ? { ...p, customLayout: true, slots: [...p.slots, slot] } : p) };
+}
+/** Only empty frames can be deleted: removing a frame must never silently discard a photograph placement. */
+export function removeCollageWindow(doc: CollageDocument, id: string): CollageDocument {
+  const page = collagePage(doc);
+  if (!page.slots.some(s => s.id === id && s.photoId === null)) return doc;
+  return { ...doc, pages: doc.pages.map(p => p.id === page.id ? { ...p, customLayout: true, slots: p.slots.filter(s => s.id !== id) } : p) };
+}
+/** Geometry is expressed in page percentages, not source image pixels. The centre stays stable when resizing. */
+export function setCollageWindowGeometry(doc: CollageDocument, id: string, patch: Partial<Pick<CollageSlot, 'x' | 'y' | 'width' | 'height' | 'angle'>>): CollageDocument {
+  const page = collagePage(doc);
+  if (!page.slots.some(s => s.id === id)) return doc;
+  const clamp = (value: number | undefined, fallback: number, min: number, max: number) =>
+    Math.min(max, Math.max(min, typeof value === 'number' && Number.isFinite(value) ? value : fallback));
+  return { ...doc, pages: doc.pages.map(p => p.id !== page.id ? p : {
+    ...p, customLayout: true, slots: p.slots.map(s => {
+      if (s.id !== id) return s;
+      const width = clamp(patch.width, s.width, 5, 100);
+      const height = clamp(patch.height, s.height, 5, 100);
+      const x = clamp(patch.x, s.x + (s.width - width) / 2, 0, 100 - width);
+      const y = clamp(patch.y, s.y + (s.height - height) / 2, 0, 100 - height);
+      return { ...s, x, y, width, height, angle: clamp(patch.angle, s.angle, -180, 180) };
+    }),
   }) };
 }
 /** Zoom and position the photograph inside one window of the active page. */
@@ -227,7 +300,7 @@ export function collageSlotPlacement(imageAspect: number, windowAspect: number, 
 export function duplicateCollagePage(doc: CollageDocument): CollageDocument {
   if (doc.pages.length >= MAX_COLLAGE_PAGES) return doc;
   const old = collagePage(doc);
-  const copy = { ...old, id: nextId(), slots: old.slots.map((s) => ({ ...s, id: nextId() })) };
+  const copy = { ...old, ...(old.captionStyle ? { captionStyle: { ...old.captionStyle } } : {}), id: nextId(), slots: old.slots.map((s) => ({ ...s, id: nextId() })) };
   const index = doc.pages.findIndex((p) => p.id === old.id);
   const pages = doc.pages.slice();
   pages.splice(index + 1, 0, copy);
@@ -267,13 +340,16 @@ export function readCollage(value: unknown): CollageDocument | null {
     typeof page.gap === 'number' && Number.isFinite(page.gap) && page.gap >= 0 && page.gap <= 12 &&
     typeof page.caption === 'string' && page.caption.length <= 1000 &&
     typeof page.captionColour === 'string' && /^#[0-9a-fA-F]{6}$/.test(page.captionColour) &&
-    Array.isArray(page.slots) && page.slots.length <= 12 && page.slots.every((s) => s && typeof s.id === 'string' &&
+    (page.customLayout === undefined || page.customLayout === true) &&
+    Array.isArray(page.slots) && page.slots.length <= MAX_COLLAGE_WINDOWS && page.slots.every((s) => s && typeof s.id === 'string' &&
       (s.photoId === null || typeof s.photoId === 'string') && [s.x,s.y,s.width,s.height,s.angle].every(Number.isFinite) && s.x >= 0 && s.y >= 0 && s.width > 0 && s.height > 0 && s.x+s.width <= 100 && s.y+s.height <= 100 && Math.abs(s.angle) <= 180 && (s.clip === undefined || CLIPS.includes(s.clip)) &&
       (s.zoom === undefined || (Number.isFinite(s.zoom) && s.zoom >= 1 && s.zoom <= MAX_COLLAGE_ZOOM)) &&
       [s.panX, s.panY].every((v) => v === undefined || (Number.isFinite(v) && v >= -1 && v <= 1))))) return null;
   if (new Set(doc.pages.map(p => p.id)).size !== doc.pages.length || doc.pages.some(p => new Set(p.slots.map(s => s.id)).size !== p.slots.length)) return null;
   if (!doc.activePageId || !doc.pages.some((p) => p.id === doc.activePageId)) return null;
-  return doc as CollageDocument;
+  // Old pages deliberately retain their original serialised shape.
+  return { ...doc, pages: doc.pages.map(page => page.captionStyle === undefined ? page :
+    { ...page, captionStyle: collageCaptionStyle(page.captionStyle) }) } as CollageDocument;
 }
 
 /** One-based page numbers, including both ends, as displayed in the editor. */

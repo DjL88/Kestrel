@@ -1,3 +1,5 @@
+import { maskCoverageGuide } from '../core/maskCoverageGuide';
+import type { Mask } from '../core/maskTypes';
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
 import { frameImageIdentity, framePreviewEncoding, visibleFrameUrl } from '../core/frameImageIdentity';
 import { DEFAULT_EDIT, isNeutralEdit } from '../core/photoEdits';
@@ -26,6 +28,8 @@ interface FrameImageProps {
   refreshOnBackgroundDevelop?: boolean;
   /** Reports actual image readiness; never inferred from the catalogue row existing. */
   onPreviewStatus?: (frameId: string, status: PhotoPreviewReadiness) => void;
+  /** Optional editor-only mask coverage, drawn over exactly the displayed image. */
+  maskGuideId?: string;
   /** Optional interactive transform for zoom/pan viewports */
   zoomScale?: number;
   panOffset?: { x: number; y: number };
@@ -62,6 +66,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   priority = false,
   refreshOnBackgroundDevelop = false,
   onPreviewStatus,
+  maskGuideId,
   zoomScale = 1,
   panOffset = { x: 0, y: 0 },
 }) => {
@@ -70,6 +75,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   const identity = frameImageIdentity(frame, variant, sourceRevision);
   const [preview, setPreview] = useState<{ identity: string; url: string }>({ identity: '', url: '' });
   const src = visibleFrameUrl(preview, identity);
+  const [imageSize, setImageSize] = useState<{ src: string; width: number; height: number } | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [errored, setErrored] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -260,7 +266,9 @@ export const FrameImage: React.FC<FrameImageProps> = ({
           referrerPolicy="no-referrer"
           draggable={false}
           loading={variant === 'thumb' ? 'lazy' : 'eager'}
-          onLoad={() => {
+          onLoad={(event) => {
+            const { naturalWidth: width, naturalHeight: height } = event.currentTarget;
+            setImageSize({ src, width, height });
             setLoading(false);
             onPreviewStatus?.(frame.id, 'ready');
           }}
@@ -275,6 +283,33 @@ export const FrameImage: React.FC<FrameImageProps> = ({
           } ${edited && variant === 'thumb' ? 'object-contain' : imgClassName}`}
         />
       )}
+      {src && imageSize?.src === src && maskGuideId && frame.edit?.masks && (
+        <MaskCoverageImage key={`${src}:${maskGuideId}`} masks={frame.edit.masks} maskId={maskGuideId}
+          width={imageSize.width} height={imageSize.height} className={imgClassName} style={demoStyle} />
+      )}
     </div>
   );
 };
+
+/** Render the same effective mask weights as the editor. The overlay is a separate non-interactive image, so
+ * it follows object-fit, crop, rotation and zoom and can never enter an export recipe. */
+function MaskCoverageImage({ masks, maskId, width, height, className, style }: {
+  masks: readonly Mask[]; maskId: string; width: number; height: number; className: string; style: React.CSSProperties;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const guide = maskCoverageGuide(masks, maskId, width, height);
+    if (!guide) { setUrl(null); return; }
+    const canvas = document.createElement('canvas');
+    canvas.width = guide.width; canvas.height = guide.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { setUrl(null); return; }
+    const pixels = ctx.createImageData(guide.width, guide.height);
+    pixels.data.set(guide.rgba);
+    ctx.putImageData(pixels, 0, 0);
+    setUrl(canvas.toDataURL('image/png'));
+  }, [masks, maskId, width, height]);
+  if (!url || !masks.some(mask => mask.id === maskId && !mask.hidden)) return null;
+  return <img src={url} alt="" aria-hidden="true" draggable={false} data-testid="mask-coverage-guide"
+    className={`pointer-events-none absolute inset-0 h-full w-full z-10 ${className}`} style={style} />;
+}

@@ -6,7 +6,8 @@ export const isSplitFrameCount = (value: unknown): value is SplitFrameCount =>
   typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= MAX_SPLIT_FRAMES;
 export interface FormatSplit { enabled: boolean; offset: number; /** Omitted means the existing two-frame split. */ count?: 3 | 4 | 5 }
 export type FormatSplits = Record<string, FormatSplit>;
-const validId = (value: string): boolean => /^[a-zA-Z0-9_-]{1,80}$/.test(value);
+const MAX_SAVED_SPLITS = 64;
+const validId = (value: string): boolean => /^[a-zA-Z0-9_-]{1,80}$/.test(value) && !Object.hasOwn(Object.prototype, value);
 const countField = (count: unknown): { count?: 3 | 4 | 5 } =>
   count === 3 || count === 4 || count === 5 ? { count } : {};
 export function readFormatSplits(raw: unknown): FormatSplits {
@@ -20,7 +21,7 @@ export function readFormatSplits(raw: unknown): FormatSplits {
       ? Math.max(-25, Math.min(25, split.offset)) : 0;
     // Two-frame projects retain their old serialised shape; only three or more frames need a count.
     result[id] = { enabled: true, offset, ...countField(split.count) };
-    if (Object.keys(result).length >= 30) break;
+    if (Object.keys(result).length >= MAX_SAVED_SPLITS) break;
   }
   return result;
 }
@@ -29,6 +30,7 @@ export function isFormatSplit(raw: unknown, sizeId: string): boolean {
 }
 /** An unsplit format has one frame; legacy split metadata always means two. */
 export function splitFrameCount(raw: unknown, sizeId: string): SplitFrameCount {
+  if (!validId(sizeId)) return 1;
   const split = readFormatSplits(raw)[sizeId];
   return !split ? 1 : split.count ?? 2;
 }
@@ -41,10 +43,11 @@ export function setSplitFrameCount(raw: unknown, sizeId: string, count: SplitFra
     delete next[sizeId];
     return next;
   }
+  if (!current[sizeId] && Object.keys(current).length >= MAX_SAVED_SPLITS) return current;
   return { ...current, [sizeId]: { enabled: true, offset: current[sizeId]?.offset ?? 0, ...countField(count) } };
 }
 export function formatSplitOffset(raw: unknown, sizeId: string): number {
-  return readFormatSplits(raw)[sizeId]?.offset ?? 0;
+  return validId(sizeId) ? readFormatSplits(raw)[sizeId]?.offset ?? 0 : 0;
 }
 export function toggleFormatSplit(raw: unknown, sizeId: string): FormatSplits {
   const current = readFormatSplits(raw);
@@ -54,10 +57,11 @@ export function toggleFormatSplit(raw: unknown, sizeId: string): FormatSplits {
     delete remaining[sizeId];
     return remaining;
   }
+  if (Object.keys(current).length >= MAX_SAVED_SPLITS) return current;
   return { ...current, [sizeId]: { enabled: true, offset: 0 } };
 }
 export function setFormatSplitOffset(raw: unknown, sizeId: string, offset: number): FormatSplits {
   const current = readFormatSplits(raw);
-  if (!current[sizeId] || !Number.isFinite(offset)) return current;
+  if (!validId(sizeId) || !current[sizeId] || !Number.isFinite(offset)) return current;
   return { ...current, [sizeId]: { ...current[sizeId], enabled: true, offset: Math.max(-25, Math.min(25, offset)) } };
 }

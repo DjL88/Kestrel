@@ -60,3 +60,12 @@ test('missing previews are retried, and cache has bounded memory', () => {
   cache.clear();
   assert.equal(cache.size, 0);
 });
+
+test('identical size and modification time cannot reuse evidence for a different recorded original fingerprint', () => {
+  const cache = new ImportCullCache('birds','import-a','sha:model');
+  const original = { ...image, originalSha256:'a'.repeat(64) };
+  cache.put(original, info, evidence);
+  assert.strictEqual(cache.get('birds', original, info, 'sha:model'), evidence);
+  assert.equal(cache.get('birds', {...original, originalSha256:'b'.repeat(64)}, info,'sha:model'), undefined);
+  assert.equal(cache.get('birds',image,info,'sha:model'),undefined);
+});

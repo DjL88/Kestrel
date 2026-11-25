@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createMask, createSubjectMask, MAX_MASKS, validMasks, hasActiveMasks, type Mask } from '../../core/maskTypes.ts';
-import { canAddMask, masksToLayers, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, toggleMask } from './maskOps.ts';
-import { applyMasks, fullContext, maskAlpha } from '../../core/masks.ts';
+import { canAddMask, masksToLayers, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskLimit, toggleMask } from './maskOps.ts';
+import { applyMasks, effectiveAlpha, fullContext, maskAlpha } from '../../core/masks.ts';
 import { recordEdit, stepEdit } from '../../core/editHistory.ts';
 import type { PhotoFrame } from '../../core/types.ts';
 
@@ -135,4 +135,21 @@ test('automatic subject layers stay independently editable after recipe reopen',
   assert.equal(edited[0].edit.exposure, undefined);
   assert.equal(edited[2].edit.exposure, undefined);
   assert.equal(edited[4].edit.exposure, undefined);
+});
+
+test('mask combinations are reversible, validated and change the actual rendered alpha', () => {
+  const base = [{ ...createMask('radial', 'left'), cx: 0.35, cy: 0.5, rx: 0.3, ry: 0.3, feather: 0 }, { ...createMask('radial', 'right'), cx: 0.65, cy: 0.5, rx: 0.3, ry: 0.3, feather: 0 }] as Mask[];
+  const w = 100, h = 100, ctx = fullContext(w, h);
+  const intersect = setMaskLimit(base, 'left', { id: 'right', mode: 'intersect' });
+  const subtract = setMaskLimit(base, 'left', { id: 'right', mode: 'subtract' });
+  assert.ok(validMasks(intersect) && validMasks(subtract));
+  assert.deepEqual(masksToLayers(intersect)[0].limit, { id: 'right', mode: 'intersect' });
+  const both = effectiveAlpha(intersect[0], intersect, w, h, ctx);
+  const difference = effectiveAlpha(subtract[0], subtract, w, h, ctx);
+  assert.ok(both[50 * w + 50] > 0.9 && both[50 * w + 20] < 0.1);
+  assert.ok(difference[50 * w + 20] > 0.9 && difference[50 * w + 50] < 0.1);
+  assert.deepEqual(setMaskLimit(base, 'left', { id: 'left', mode: 'intersect' }), base);
+  assert.deepEqual(setMaskLimit(base, 'left', { id: 'missing', mode: 'intersect' }), base);
+  assert.equal(setMaskLimit(intersect, 'left', null)[0].limit, undefined);
+  assert.deepEqual(JSON.parse(JSON.stringify(intersect))[0].limit, { id: 'right', mode: 'intersect' });
 });

@@ -3,8 +3,7 @@ import { DETECTOR_MODEL } from '../core/objectDetection';
 import type { ImportCullCache } from '../core/importCullCache';
 import { collectCullEvidence, finaliseCullEvidence } from '../core/cullEvidenceFinal';
 import type { CullScanStage } from '../core/cullScanProgress';
-import { sha256Hex } from '../core/sha256';
-import { duplicateAnchorKeys } from '../core/duplicateAnchors';
+import { scanExactDuplicates } from '../core/cullDuplicateScan';
 import { limitAutoKeepers, type CullSuggestion } from '../core/autoCull';
 import { detectorParallelism, resetDetectorFailure } from './objectDetector';
 import { bundledModelUrl } from './bundledModelAssets';
@@ -19,11 +18,6 @@ export async function scanForCulling(
   preflight?: { cache: ImportCullCache; projectId: string },
 ) {
   const baseById = new Map<string, CullSuggestion>();
-  const sizes = new Map<number, number>();
-  for (const frame of candidates) {
-    const info = provider.originalInfo(frame.stableKey);
-    if (info) sizes.set(info.size, (sizes.get(info.size) ?? 0) + 1);
-  }
   // A cloud IDE may omit large ONNX files. Treat object detection as optional
   // in that preview; preserve the existing conservative detail-only fallback.
   // A bundled asset can still be corrupt, inaccessible at runtime, or unable
@@ -34,44 +28,8 @@ export async function scanForCulling(
   // One bounded hashing lane runs alongside the detector lanes. Hashing stays
   // in the ORIGINAL candidate order, so first-copy/keeper-anchor precedence
   // never depends on asynchronous preview or model completion.
-  const identifyDuplicates = async (): Promise<ReadonlySet<string>> => {
-    const seenHashes = new Set<string>();
-    const anchorSizes = new Set<number>();
-    // A second scan must not select a byte-identical copy of a keeper already
-    // accepted in an earlier pass. Only read keeper originals of matching size.
-    for (const stableKey of duplicateAnchorKeys(all, new Set(sizes.keys()),
-      (key) => provider.originalInfo(key)?.size)) {
-      signal.throwIfAborted();
-      const anchor = await provider.ensureOriginal(stableKey);
-      if (!anchor || (anchor.size > 8 * 1024 * 1024 && !globalThis.crypto?.subtle)) continue;
-      try {
-        seenHashes.add(await sha256Hex(await anchor.arrayBuffer()));
-        anchorSizes.add(anchor.size);
-      } catch {
-        signal.throwIfAborted();
-        // If an anchor cannot be hashed, do not infer that a candidate is a duplicate.
-      }
-    }
-    // Pass 1, in order, so which copy counts as the original never depends on timing: byte-identical duplicates.
-    const duplicates = new Set<string>();
-    for (const frame of candidates) {
-      signal.throwIfAborted();
-      try {
-        const size = provider.originalInfo(frame.stableKey)?.size ?? 0;
-        const blob = size && size <= 32 * 1024 * 1024 && ((sizes.get(size) ?? 0) > 1 || anchorSizes.has(size)) ? await provider.ensureOriginal(frame.stableKey) : undefined;
-        if (blob && blob.size <= 32 * 1024 * 1024 && ((sizes.get(blob.size) ?? 0) > 1 || anchorSizes.has(blob.size)) && (globalThis.crypto?.subtle || blob.size <= 8 * 1024 * 1024)) {
-          const hash = await sha256Hex(await blob.arrayBuffer());
-          if (seenHashes.has(hash)) duplicates.add(frame.id);
-          else seenHashes.add(hash);
-        }
-      } catch {
-        signal.throwIfAborted();
-        // A file that cannot be hashed is simply not treated as a duplicate.
-      }
-    }
-
-    return duplicates;
-  };
+  const identifyDuplicates = () => scanExactDuplicates(candidates, all,
+    key => provider.originalInfo(key)?.size, key => provider.ensureOriginal(key), signal);
   // Pass 2: look at the photos, several at once. Each lane has its own canvas; the detector runs in background workers.
   const outcome = new Map<string, CullSuggestion>();
   let finished = 0;

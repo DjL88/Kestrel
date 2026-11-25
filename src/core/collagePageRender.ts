@@ -1,4 +1,4 @@
-import { COLLAGE_FORMATS, type CollageDocument, type CollagePage } from './collage';
+import { collageCaptionGeometry, COLLAGE_FORMATS, type CollageDocument, type CollagePage } from './collage';
 import { coverCrop } from './composition';
 import { planCollagePrint, printSlotResolution, printResolutionMessage } from './collagePrint';
 import { maxCanvasPixels } from './exportLimits';
@@ -50,12 +50,14 @@ export async function renderCollagePage(doc: CollageDocument, page: CollagePage,
   }finally{source.release?.();}
  }
  if(page.caption){
-  const px=tw*.025;ctx.font='600 '+px+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillStyle=page.captionColour;
+  const g=collageCaptionGeometry(tw,th,page.captionStyle);const px=g.fontPx;ctx.font='600 '+px+'px '+g.font;ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillStyle=page.captionColour;
   const lines=page.caption.split('\n').flatMap(line=>{
-   const out:string[]=[];let part='';for(const ch of line){if(part&&ctx.measureText(part+ch).width>tw*.9){out.push(part);part='';}part+=ch;}out.push(part);return out;
+   const out:string[]=[];let part='';for(const ch of line){if(part&&ctx.measureText(part+ch).width>g.width){out.push(part);part='';}part+=ch;}out.push(part);return out;
   });
-  if(lines.length*px*1.2>th*.8)throw new Error('Page caption is too long for this layout.');
-  lines.forEach((line,i)=>ctx.fillText(line,bx+tw/2,by+th*.97-(lines.length-1-i)*px*1.2));
+  const lineHeight=px*g.lineHeight, blockHeight=lines.length*lineHeight;
+  if(blockHeight>g.height)throw new Error('Page caption is too long for this layout.');
+  const top=by+g.y+(g.height-blockHeight)*g.position/100;
+  lines.forEach((line,i)=>ctx.fillText(line,bx+g.x+g.width/2,top+(i+1)*lineHeight));
  }
  return canvas;
  }catch(error){canvas.width=0;canvas.height=0;throw error;}

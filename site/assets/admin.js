@@ -4,6 +4,10 @@
 
 import { KNOWN_FLAGS, NEVER_GATED, fieldsFromRule, flagFromForm, ruleSummary } from './admin-flags.js';
 
+import { RULES, SCENARIOS, evaluateSample, rehearseDelivery } from './admin-monitoring.mjs';
+
+import { DIMENSIONS, SAMPLE_DEVICES, previewAudience, messagePreview } from './admin-notifications.mjs';
+
 const $ = id => document.getElementById(id);
 const status = $('status');
 let token;
@@ -87,6 +91,8 @@ function signOut(message = '') {
   token = undefined;
   sendDemoEditorSession();
   localTaxes = {};
+  clearMonitoringRehearsal();
+  resetNotificationRehearsal();
   $('console').hidden = true;
   $('sign-out').hidden = true;
   $('who').textContent = '';
@@ -96,6 +102,8 @@ function signOut(message = '') {
   $('message-list').replaceChildren();
   $('issued').hidden = true;
   $('issued-key').value = '';
+  $('grant-form').reset();
+  $('grant-result').textContent = '';
   globalThis.google?.accounts?.id?.disableAutoSelect?.();
   say(message);
 }
@@ -158,7 +166,8 @@ async function loadOverview() {
   ];
   $('overview-list').replaceChildren(...facts.map(([k, v]) => { const d = el('div'); d.append(el('dt', k), el('dd', String(v))); return d; }));
   $('issue-form').querySelector('button').disabled = !o.licenceIssuing;
-  if (!o.licenceIssuing) $('issue-form').querySelector('button').title = 'This server does not have the licence-issuing key.';
+  $('issue-unavailable').hidden = !!o.licenceIssuing;
+  $('issue-form').querySelector('button').title = o.licenceIssuing ? '' : 'This server does not have the licence-issuing key.';
 }
 
 let licences = [];
@@ -220,6 +229,23 @@ act($('revoke-key-form'), 'submit', async () => {
   say('Licence ' + result.licenceId + ' revoked' + (result.wasKnown ? '.' : ', before any device used it.'));
 });
 
+act($('grant-form'), 'submit', async () => {
+  const form = $('grant-form');
+  const f = form.elements;
+  $('grant-result').textContent = '';
+  const body = { email: f.email.value.trim(), plan: 'paid', majorVersion: Number(f.majorVersion.value), managedAi: f.managedAi.checked };
+  if (f.note.value.trim()) body.note = f.note.value.trim();
+  if (f.validDays.value) body.validDays = Number(f.validDays.value);
+  const session = token;
+  const result = await api('admin/licences/grant', body);
+  if (!session || token !== session) return;
+  form.reset();
+  const message = !result.created ? 'A Pro grant already exists for that address and version.' :
+    result.attachedNow ? 'Free Pro granted to the existing account.' : 'Free Pro granted. It will attach when the recipient signs in with the verified address.';
+  $('grant-result').textContent = message;
+  await Promise.allSettled([loadOverview(), loadLicensees(), loadAudit()]);
+});
+
 act($('issue-form'), 'submit', async () => {
   const f = $('issue-form').elements;
   const body = { plan: 'paid', maxDevices: Number(f.maxDevices.value), managedAi: f.managedAi.checked };
@@ -238,6 +264,90 @@ act($('issue-form'), 'submit', async () => {
 act($('copy-key'), 'click', async () => {
   await navigator.clipboard.writeText($('issued-key').value);
   say('Key copied.');
+});
+
+// ---- Monitoring rehearsal (no live connection or sending) -------------------------------------------------------
+function clearMonitoringRehearsal() {
+  $('monitoring-rehearsal').reset();
+  $('monitoring-result').textContent = 'No rehearsal run.';
+  $('monitoring-alerts').replaceChildren();
+}
+$('monitoring-rules').replaceChildren(...RULES.map(rule => {
+  const row = el('tr');
+  cell(row, rule.label); cell(row, rule.threshold);
+  return row;
+}));
+act($('monitoring-rehearsal'), 'submit', async () => {
+  if (!token) return;
+  const scenario = $('monitoring-rehearsal').elements.scenario.value;
+  const sample = Object.hasOwn(SCENARIOS, scenario) ? SCENARIOS[scenario] : null;
+  const result = evaluateSample(sample);
+  $('monitoring-alerts').replaceChildren(...rehearseDelivery(result.alerts).map(alert =>
+    el('li', alert.severity + ': ' + alert.message + ' ' + alert.delivery)));
+  $('monitoring-result').textContent = result.state !== 'evaluated'
+    ? 'Synthetic sample unavailable or incomplete.'
+    : 'Synthetic sample: ' + sample.requests + ' requests in 15 minutes, expected ' + sample.baseline +
+      ', ' + sample.errors + ' server errors, ' + sample.budgetPercent + '% of budget. ' +
+      (result.alerts.length ? result.alerts.length + ' proposed alert(s).' : 'No rule triggered.') +
+      ' No live data or push delivery.';
+});
+act($('monitoring-clear'), 'click', async () => { clearMonitoringRehearsal(); });
+
+// ---- Notification rehearsal: no network, no actual recipients, no persistence ---------------------------------
+const notificationForm = $('notification-form');
+function clearNotificationPreview() {
+  $('notification-result').textContent = 'No preview yet.';
+  $('notification-preview').hidden = true;
+  $('notification-title').textContent = '';
+  $('notification-body').textContent = '';
+}
+function addNotificationRule() {
+  const container = $('notification-rules');
+  if (container.children.length >= 20) { say('At most 20 rehearsal rules.'); return; }
+  const row = el('div', undefined, 'row');
+  const selectField = (label, values) => {
+    const wrapper = el('label', label);
+    const select = el('select');
+    for (const [value, text] of values) { const option = el('option', text); option.value = value; select.append(option); }
+    wrapper.append(select); row.append(wrapper);
+    return select;
+  };
+  const mode = selectField('Rule', [['include','Include'],['exclude','Exclude']]); mode.dataset.field = 'mode';
+  const dimension = selectField('Field', Object.entries(DIMENSIONS)); dimension.dataset.field = 'dimension';
+  const label = el('label', 'Value'); const input = el('input');
+  input.dataset.field = 'value'; input.maxLength = 160; input.required = true; label.append(input); row.append(label);
+  row.append(button('Remove', 'Remove audience rule', 'quiet', async () => { row.remove(); clearNotificationPreview(); }));
+  container.append(row);
+  clearNotificationPreview();
+}
+function resetNotificationRehearsal() {
+  notificationForm.reset();
+  $('notification-rules').replaceChildren();
+  clearNotificationPreview();
+}
+act($('notification-add'), 'click', async () => { addNotificationRule(); });
+notificationForm.addEventListener('input', clearNotificationPreview);
+notificationForm.elements.locale.addEventListener('change', () => {
+  // A draft for one language must never be silently reused for a different language.
+  notificationForm.elements.variantTitle.value = '';
+  notificationForm.elements.variantBody.value = '';
+  clearNotificationPreview();
+});
+act(notificationForm, 'submit', async () => {
+  if (!token) return;
+  clearNotificationPreview();
+  const f = notificationForm.elements;
+  const rules = [...$('notification-rules').children].map(row => Object.fromEntries(
+    [...row.querySelectorAll('[data-field]')].map(field => [field.dataset.field, field.value])));
+  const count = previewAudience(SAMPLE_DEVICES, rules, f.match.value, f.allowAll.checked);
+  const preview = messagePreview({ title: f.sourceTitle.value, body: f.sourceBody.value },
+    { title: f.variantTitle.value, body: f.variantBody.value }, f.locale.value);
+  $('notification-result').textContent = count.accounts + ' sample account(s), ' + count.devices + ' sample device(s). ' +
+    (preview.fallback ? 'English fallback; no translated draft.' : 'Preview language: ' + preview.locale + '. Manual draft, not reviewed.') +
+    ' No real recipients or sends.';
+  $('notification-title').textContent = preview.title;
+  $('notification-body').textContent = preview.body;
+  $('notification-preview').hidden = false;
 });
 
 async function loadUsage() {

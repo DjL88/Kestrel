@@ -1,0 +1,19 @@
+# Admin monitoring and owner push notifications
+
+The admin monitoring section is a local-only rehearsal, not an operational monitoring service. No Cloud Monitoring connection, FCM registration, notification, persistence or user telemetry is enabled by this change. Existing admin Overview totals are not active usage or request-rate measures.
+
+## Production follow-up (owner-authorised provisioning only)
+
+Use Cloud Monitoring/Logging and billing budget notifications as sources. Aggregate only server-side operational traffic: API requests, latency, error counts, quota utilisation, licence activations, checkout errors, download volume and metered optional AI usage. Never collect photo paths, EXIF, image content, local editing activity or persistent user tracking. Offline photographers will not be counted as active users.
+
+Proposed starting thresholds: 3× expected requests with at least 100 requests per 15 minutes (compare with matching recent time windows; insufficient history is unknown); server error rate >=5% with >=100 requests in 15 minutes; 80%/100% monthly budget. Also consider absolute quota alerts and uptime checks independent of traffic, p95 latency, failed checkout/activation rates, queue age, model-download errors and billing forecast. Cloud billing notifications may be delayed and budgets are not hard spending caps. Tune thresholds after launch; no automatic disabling by a surge alone.
+
+## Transport and access contract
+
+Cloud Monitoring alert policies and billing Pub/Sub -> authenticated server-side ingestion -> durable deduplicated incident/outbox -> FCM Admin SDK -> opted-in owner device. Never expose FCM server credentials or send from the admin browser. Validate ingress IAM/service identity, event IDs and timestamps; reject replay/oversized input. Persist incident state (open, acknowledged, resolved), severity, source, first/last seen and delivery attempt state. Cooldown repeat notifications, escalate severity, retry transient failures with bounded backoff, invalidate expired tokens, and distinguish accepted by FCM from received/acknowledged. Missing/stale data is unavailable, not healthy. Keep an independent email notification channel for critical alerts and outages in the control plane.
+
+Use the existing owner identity and server-side authorisation; ordinary account login or client-side flags cannot confer administrator rights. Add an explicit opt-in under account settings only for authorised owner devices, with OS notification permission, token refresh, per-device disable, logout/revocation and periodic revalidation. Verify whether the main app's Firebase identity maps to the admin owner identity before enabling registration; require fresh server-authorised owner authentication if not. Store tokens server-side, never in logs or client-readable Firestore. Target individually registered tokens, not a public topic. Push only generic severity and opaque incident ID; details fetched with fresh admin authorisation. No email, customer data, amounts or secrets on the lock screen.
+
+Add audited authenticated admin endpoints for status/rules/incidents, acknowledgement and a rate-limited, explicit test push; ordinary clients cannot invoke them. Require live provider setup before allowing test sends. Admin UI should display data age, source, delivery state, threshold settings, quiet hours, critical escalation and incident history. Keep all live integrations off until validated; no extra Grafana infrastructure required initially. Core offline editing must never depend on monitoring or push.
+
+Acceptance before enabling: test unauthorised registration/read/send, token rotation/logout/revocation, duplicate events and outbox retries, stale sources, quota limits, real Android/iOS receipt including background and locked screen, and independent critical alert channel. FCM acceptance is not delivery proof. No deployment or spending authorised by this PR.

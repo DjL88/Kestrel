@@ -130,7 +130,7 @@ export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
           }
           return true;
         };
-        handle = taskStore.start(title, { total: items.length, cancel });
+        handle = taskStore.start(title, { total: items.length, cancel, canCancel: () => !finished && !committing });
         if (startIndex > 0) handle.progress(startIndex, items.length, `${startIndex} already saved`);
         pending.set(id, async () => {
           if (controller.signal.aborted || handle?.cancelled) {

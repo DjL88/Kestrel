@@ -1,5 +1,5 @@
 import { loadLocalWatermarkAsset, saveLocalWatermarkAsset } from '../../core/watermarkAssetVault';
-import type { WatermarkPreset } from '../ui/contract';
+import type { WatermarkPreset, WatermarkUsage } from '../ui/contract';
 import { cutOutBackground, markBrightness, recolour, type Rgba } from './watermarkImage';
 
 /** One watermark in the person's library. The artwork stays on this device (IndexedDB, by SHA-256 id); the list is a small
@@ -14,10 +14,12 @@ export function parseStored(raw: string | null): StoredWatermark[] {
   try {
     const value: unknown = JSON.parse(raw ?? '[]');
     if (!Array.isArray(value)) return [];
+    const seen = new Set<string>();
     return value.flatMap((entry): StoredWatermark[] => {
       if (!entry || typeof entry !== 'object') return [];
       const { id, label, forDark, forLight } = entry as Record<string, unknown>;
-      if (typeof id !== 'string' || !id || typeof label !== 'string') return [];
+      if (typeof id !== 'string' || !id.trim() || typeof label !== 'string' || seen.has(id)) return [];
+      seen.add(id);
       const asset = (candidate: unknown) => (typeof candidate === 'string' && ID.test(candidate) ? candidate : undefined);
       return [{ id, label: label.slice(0, 60), forDark: asset(forDark), forLight: asset(forLight) }];
     });
@@ -66,12 +68,18 @@ export async function toPresets(stored: readonly StoredWatermark[]): Promise<Wat
   })));
 }
 
-/** Add an image to the library. A light mark goes in the dark-photo slot, a dark mark in the light-photo slot. */
-export async function importWatermark(file: Blob, label: string, id: string): Promise<StoredWatermark> {
+/** "Both" uses the supplied artwork unchanged on both backgrounds. */
+export function watermarkSlots(assetId: string, usage: WatermarkUsage, brightness: number | null): Pick<StoredWatermark, 'forDark' | 'forLight'> {
+  if (usage === 'both') return { forDark: assetId, forLight: assetId };
+  if (usage === 'dark') return { forDark: assetId };
+  if (usage === 'light') return { forLight: assetId };
+  return brightness === null || brightness >= 0.5 ? { forDark: assetId } : { forLight: assetId };
+}
+
+export async function importWatermark(file: Blob, label: string, id: string, usage: WatermarkUsage = 'auto'): Promise<StoredWatermark> {
+  const pixels = await toPixels(file);
   const assetId = await saveLocalWatermarkAsset(file);
-  const brightness = markBrightness(await toPixels(file));
-  const light = brightness === null ? true : brightness >= 0.5;
-  return { id, label: label.slice(0, 60) || 'Watermark', ...(light ? { forDark: assetId } : { forLight: assetId }) };
+  return { id, label: label.slice(0, 60) || 'Watermark', ...watermarkSlots(assetId, usage, markBrightness(pixels)) };
 }
 
 /** Remove the flat background from one slot's artwork. With `commit` false it only returns a preview picture. */

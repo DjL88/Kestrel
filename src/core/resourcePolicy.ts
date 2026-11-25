@@ -33,12 +33,13 @@ export function admitBackground(sample: ResourceSample, reserved: Reservation, n
     [sample.availableGpuBytes, reserved.gpuBytes, next.gpuBytes, 128 * MiB, 'gpu-memory'],
     [sample.availableDiskBytes, reserved.diskBytes, next.diskBytes, 256 * MiB, 'disk'],
   ] as const;
+  let unknown = false;
   for (const [available, held, requested, floor, reason] of checks) {
     if (requested === 0) continue;
-    if (!valid(available)) return {allowed:false,reason:'unknown'};
+    if (!valid(available)) { unknown = true; continue; }
     if (available - held - requested < floor) return {allowed:false,reason};
   }
-  return {allowed:true};
+  return unknown ? {allowed:false,reason:'unknown'} : {allowed:true};
 }
 /** Ramp up after three healthy samples; reduce immediately on pressure.
  * A zero limit defers new background work, never kills an in-flight operation. */

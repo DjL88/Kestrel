@@ -74,7 +74,8 @@ export default function InfoPanel({
               key={n}
               type="button"
               aria-label={STRINGS.panelWords.rateStars(n)}
-              onClick={() => onSetRating([photo.id], n)}
+              aria-pressed={n === photo.rating}
+              onClick={() => onSetRating([photo.id], n === photo.rating ? 0 : n)}
               className="p-1"
             >
               <BrandIcon
@@ -104,7 +105,7 @@ export default function InfoPanel({
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.info.fileSection}</h3>
         <dl className="space-y-1.5 text-xs">
           <MetaRow label="File" value={photo.filename} mono />
-          <MetaRow label="Format" value={`${photo.exif.fileFormat} · ${photo.exif.fileSizeMb} MB`} />
+          <MetaRow label="Format" value={photo.exif.fileSizeMb > 0 ? `${photo.exif.fileFormat} · ${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(photo.exif.fileSizeMb)} MB` : photo.exif.fileFormat} />
           <MetaRow label="Dimensions" value={photo.exif.dimensions} mono />
           <MetaRow label="Colour profile" value={photo.exif.colourProfile} />
           <MetaRow
@@ -134,7 +135,7 @@ export default function InfoPanel({
         <dl className="space-y-1.5 text-xs">
           <MetaRow label="Camera" value={photo.exif.camera} />
           <MetaRow label="Lens" value={photo.exif.lens} />
-          <MetaRow label="Exposure" value={`${photo.exif.aperture} · ${photo.exif.shutter} · ISO ${photo.exif.iso}`} mono />
+          <MetaRow label="Exposure" value={[photo.exif.aperture, photo.exif.shutter, photo.exif.iso > 0 ? `ISO ${photo.exif.iso}` : ''].filter(value => value && value !== 'Not recorded').join(' · ') || 'Not recorded'} mono />
           <MetaRow label="Focal length" value={photo.exif.focalLength} mono />
           <MetaRow label="Captured" value={photo.exif.capturedAt} />
         </dl>

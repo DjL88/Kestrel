@@ -171,7 +171,7 @@ export function restoreProjectBackup(contents: string, id: string, now = Date.no
   if (shoot.collage !== undefined && (!collage || collage.pages.some(page => page.slots.some(slot => slot.photoId !== null && !ids.has(slot.photoId))))) {
     throw new Error('The project backup contains invalid collage layout or photo links.');
   }
-  const existingId = (value: unknown) => text(value) && ids.has(value) ? value : null;
+  const existingId = (value: unknown) => text(value) && ids.has(value) && ids.get(value)?.removedAt == null ? value : null;
   return {
     shoot: {
       id, title: `${shoot.title} (restored)`, sourceKind: shoot.sourceKind,

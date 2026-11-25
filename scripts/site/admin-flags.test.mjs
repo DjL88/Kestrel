@@ -55,3 +55,23 @@ test('the whole form becomes the body the server expects', () => {
 test('the never-switched-off list matches the app', () => {
   assert.deepEqual([...NEVER_GATED].sort(), ['basicEditing', 'cropAndStraighten', 'export', 'import', 'localBackup']);
 });
+
+
+import { previewAudience, SAMPLE_DEVICES, messagePreview } from '../../site/assets/admin-notifications.mjs';
+test('notification audience includes AND/OR and excludes matching devices', () => {
+  const plan = { mode: 'include', dimension: 'plan', value: 'Pro' };
+  const windows = { mode: 'include', dimension: 'platform', value: 'Windows' };
+  const exclude = { mode: 'exclude', dimension: 'organisation', value: 'Studio A' };
+  assert.deepEqual(previewAudience(SAMPLE_DEVICES, [plan], 'all'), { accounts: 2, devices: 3 });
+  assert.deepEqual(previewAudience(SAMPLE_DEVICES, [plan, windows], 'all'), { accounts: 1, devices: 1 });
+  assert.deepEqual(previewAudience(SAMPLE_DEVICES, [plan, windows, exclude], 'any'), { accounts: 1, devices: 1 });
+  assert.deepEqual(previewAudience(SAMPLE_DEVICES, [exclude], 'all'), { accounts: 0, devices: 0 });
+  assert.deepEqual(previewAudience(SAMPLE_DEVICES, [exclude], 'all', true), { accounts: 3, devices: 3 });
+  assert.throws(() => previewAudience(SAMPLE_DEVICES, [{mode:'exclude',dimension:'invalid',value:'x'}], 'all', true));
+});
+test('locale preview distinguishes authored variant, fallback and incomplete draft', () => {
+  const source = {title:'Maintenance',body:'Cloud is unavailable.'};
+  assert.equal(messagePreview(source, {}, 'de').fallback, true);
+  assert.equal(messagePreview(source, {title:'Wartung',body:'Cloud ist nicht verfügbar.'}, 'de').locale, 'de');
+  assert.throws(() => messagePreview(source, {title:'Wartung',body:''}, 'de'));
+});

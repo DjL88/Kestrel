@@ -41,3 +41,10 @@ test('a stale mask leaves the catalogue and its history untouched', () => {
     assert.equal(commitSubjectMask(state, 'project', source, mask, 3000), state);
   }
 });
+
+test('invalid grids and repeated mask identifiers leave history untouched', () => {
+  const current = project({ ...source, edit: { ...DEFAULT_EDIT, masks: [mask] } });
+  assert.equal(commitSubjectMask(current, 'project', source, mask, 3000), current);
+  const empty = project(source);
+  assert.equal(commitSubjectMask(empty, 'project', source, { ...mask, grid: { ...mask.grid, data: 'A' } }, 3000), empty);
+});
