@@ -138,6 +138,40 @@ export class CollabStore {
     return project;
   }
 
+  /**
+   * Account merge (accountMerge.ts): `from`'s place in this project goes to `to`. Where `to` is already a member it
+   * keeps the higher of the two roles, so an owner stays an owner and the project never loses its last owner. Returns
+   * what is needed to put it back exactly (undo), or null when `from` is no longer a member (already moved).
+   */
+  async transferMembership(projectId: string, fromAccountId: string, toAccountId: string): Promise<{ fromMember: ProjectMember; toBefore: ProjectMember | null } | null> {
+    return this.db.runTransaction(async (tx) => {
+      const before = await this.readProject(tx, projectId);
+      const fromMember = memberOf(before, fromAccountId);
+      if (!fromMember) return null;
+      const toBefore = memberOf(before, toAccountId) ?? null;
+      const rank = (r: CollabRole) => ['client', 'viewer', 'commenter', 'editor', 'owner'].indexOf(r);
+      const role = toBefore && rank(toBefore.role) >= rank(fromMember.role) ? toBefore.role : fromMember.role;
+      const merged: ProjectMember = clean({ ...(toBefore ?? fromMember), accountId: toAccountId, role, photoIds: role === 'client' ? [...new Set([...(toBefore?.photoIds ?? []), ...(fromMember.photoIds ?? [])])] : undefined }) as unknown as ProjectMember;
+      const members = before.members.filter((m) => m.accountId !== fromAccountId && m.accountId !== toAccountId).concat(merged);
+      const after: ProjectRecord = { ...before, members };
+      tx.set(this.ref(C.projects, projectId), clean(after));
+      this.writeMemberships(tx, before, after);
+      return { fromMember, toBefore };
+    });
+  }
+
+  /** Undo of transferMembership: `from` comes back as it was, and `to` goes back to its old role (or out). */
+  async restoreMembership(projectId: string, fromMember: ProjectMember, toAccountId: string, toBefore: ProjectMember | null): Promise<void> {
+    await this.db.runTransaction(async (tx) => {
+      const before = await this.readProject(tx, projectId);
+      const members = before.members.filter((m) => m.accountId !== fromMember.accountId && m.accountId !== toAccountId)
+        .concat(clean(fromMember) as unknown as ProjectMember, ...(toBefore ? [clean(toBefore) as unknown as ProjectMember] : []));
+      const after: ProjectRecord = { ...before, members };
+      tx.set(this.ref(C.projects, projectId), clean(after));
+      this.writeMemberships(tx, before, after);
+    });
+  }
+
   async myProjects(accountId: string): Promise<{ projectId: string; name: string; role: CollabRole }[]> {
     const snap = await this.db.collection(C.memberships).where('accountId', '==', accountId).get();
     return snap.docs.map((d) => d.data()!).map((d) => ({ projectId: String(d.projectId), name: String(d.name), role: d.role as CollabRole }));

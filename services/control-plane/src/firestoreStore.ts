@@ -113,7 +113,7 @@ export class FirestoreStore implements Store {
       if ((await tx.get(ref)).exists) tx.update(ref, { role });
     });
   }
-  async setAccountStatus(accountId: string, status: 'active' | 'suspended'): Promise<void> {
+  async setAccountStatus(accountId: string, status: AccountRecord['status']): Promise<void> {
     await this.db.runTransaction(async (tx) => {
       const ref = this.ref(C.accounts, accountId);
       if ((await tx.get(ref)).exists) tx.update(ref, { status });
@@ -169,6 +169,15 @@ export class FirestoreStore implements Store {
       if (holder) return 'other' as const;
       tx.update(ref, { accountId });
       return 'attached' as const;
+    });
+  }
+  async reassignLicence(licenceId: string, fromAccountId: string, toAccountId: string): Promise<boolean> {
+    return this.db.runTransaction(async (tx) => {
+      const ref = this.ref(C.licences, licenceId);
+      const current = await tx.get(ref);
+      if (!current.exists || (current.data()!.accountId ?? null) !== fromAccountId) return false;
+      tx.update(ref, { accountId: toAccountId });
+      return true;
     });
   }
   async claimLicencesForEmail(emailHash: string, accountId: string) {

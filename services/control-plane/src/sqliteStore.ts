@@ -77,7 +77,7 @@ export class SqliteStore implements Store {
   }
   async getAccount(accountId: string) { const r = this.get<AccountRow>('SELECT * FROM accounts WHERE account_id = ?', accountId); return r && account(r); }
   async setAccountRole(accountId: string, role: Role): Promise<void> { this.run('UPDATE accounts SET role = ? WHERE account_id = ?', role, accountId); }
-  async setAccountStatus(accountId: string, status: 'active' | 'suspended'): Promise<void> { this.run('UPDATE accounts SET status = ? WHERE account_id = ?', status, accountId); }
+  async setAccountStatus(accountId: string, status: AccountRecord['status']): Promise<void> { this.run('UPDATE accounts SET status = ? WHERE account_id = ?', status, accountId); }
   async setAiConsent(accountId: string, consent: boolean): Promise<void> { this.run('UPDATE accounts SET ai_consent = ? WHERE account_id = ?', consent ? 1 : 0, accountId); }
   async findAccountByEmailHash(emailHash: string) { const r = this.get<AccountRow>('SELECT * FROM accounts WHERE email_hash = ?', emailHash); return r && account(r); }
 
@@ -114,6 +114,9 @@ export class SqliteStore implements Store {
       this.run('UPDATE licences SET account_id = ? WHERE licence_id = ? AND account_id IS NULL', accountId, licenceId);
       return 'attached';
     });
+  }
+  async reassignLicence(licenceId: string, fromAccountId: string, toAccountId: string): Promise<boolean> {
+    return this.run('UPDATE licences SET account_id = ? WHERE licence_id = ? AND account_id = ?', toAccountId, licenceId, fromAccountId) > 0;
   }
   async getLicence(licenceId: string) { return this.readLicence(licenceId); }
   async listLicencesForAccount(accountId: string) { return this.all<LicenceRow>('SELECT * FROM licences WHERE account_id = ? ORDER BY licence_id', accountId).map(licence); }

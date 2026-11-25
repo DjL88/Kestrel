@@ -5,6 +5,7 @@ import { loadConfig } from './config.ts';
 import { CommerceLedger } from './commerce/ledger.ts';
 import { paddleProSettlement, type ProPurchaseOrder } from './commerce/proSettlement.ts';
 import { paddleRefundRevocation } from './commerce/paddleRefunds.ts';
+import { accountMerges } from './accountMerge.ts';
 import { paddleApi } from './commerce/paddle.ts';
 import { rotatingKeySource, secretManagerSecret } from './commerce/paddleKeyRotation.ts';
 import { paddleProCheckout, type StoredProOrder } from './commerce/proCheckout.ts';
@@ -65,7 +66,9 @@ const paddleClient = paddleClientToken ? { environment: paddleEnvironment, clien
 const demoStudio = firestore && process.env.KCP_DEMO_PRIVATE_BUCKET && process.env.KCP_DEMO_PUBLIC_BUCKET
   ? new CloudDemoStudio(firestore, process.env.KCP_DEMO_PRIVATE_BUCKET, process.env.KCP_DEMO_PUBLIC_BUCKET) : undefined;
 const optional = await buildOptionalServices({ firestore: firestore as unknown as FirestoreLike | undefined, sessionSecret: config.sessionSecret });
-const app = createApp({ config, store, commerce, payments: commerce, settlePaddle, revokePaddle, paddleWebhookSecret, paddleClient,
+// Merging two accounts (accountMerge.ts): needs Firestore for its records; moves what the optional services hold.
+const accountMerge = firestore ? accountMerges({ db: firestore as unknown as FirestoreLike, store, secret: config.sessionSecret, balance: optional.cloudBalance, collab: optional.collab, push: optional.push, safeCopy: optional.safeCopy?.catalog, now: () => Date.now() }) : undefined;
+const app = createApp({ config, store, commerce, payments: commerce, settlePaddle, revokePaddle, accountMerge, paddleWebhookSecret, paddleClient,
   paddleKeyStatus: firestore && paddleKeyProject ? async () => {
     const [current, lastRun] = await Promise.all(['current', 'last_run'].map((id) => firestore.collection('paddle_key_rotation').doc(id).get()));
     return { current: (current.data() as never) ?? null, lastRun: (lastRun.data() as never) ?? null };

@@ -124,6 +124,33 @@ async function useCredential(auth: Auth, instance: Instance, credential: import(
   }
 }
 
+/**
+ * Sign in to a second, existing account without leaving this one, to prove it may be merged (accountMerge). Uses its
+ * own Firebase app kept in memory only, removed straight after; returns that account's ID token. Never creates one.
+ */
+export async function signInOtherAccount(method: SignInMethod, email?: string, password?: string): Promise<string> {
+  if (!isSignInConfigured()) throw new Error('Sign-in is not set up in this build.');
+  const [{ initializeApp, deleteApp }, auth] = await Promise.all([import('firebase/app'), import('firebase/auth')]);
+  const app = initializeApp(config, `kestrel-merge-${Date.now()}`);
+  try {
+    const other = auth.initializeAuth(app, { persistence: auth.inMemoryPersistence, ...(isDesktopApp() ? {} : { popupRedirectResolver: auth.browserPopupRedirectResolver }) });
+    let user: import('firebase/auth').User;
+    if (method === 'password') {
+      if (!email?.trim() || !password) throw new Error('Enter the other account’s email and password.');
+      user = (await auth.signInWithEmailAndPassword(other, email.trim(), password)).user;
+    } else {
+      if (signInPlatform() !== 'web') throw new Error('On the desktop app, sign in to the other account with its email and password, or merge on the web version.');
+      user = (await auth.signInWithPopup(other, method === 'apple' ? new auth.OAuthProvider('apple.com') : new auth.GoogleAuthProvider())).user;
+    }
+    return await user.getIdToken();
+  } catch (error) {
+    if (error instanceof Error && !(error as { code?: string }).code) throw error;
+    throw new Error(friendlyAuthError(error));
+  } finally {
+    await deleteApp(app).catch(() => undefined);
+  }
+}
+
 /** The ways the signed-in account can sign in (Google, Apple, email and password). Empty when signed out. */
 export async function signInMethods(): Promise<SignInMethod[]> {
   if (!isSignInConfigured()) return [];
