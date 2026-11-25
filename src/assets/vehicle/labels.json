@@ -1,10 +1,12 @@
 {
-  "version": 1,
+  "version": 2,
   "note": "Kinds and makes/types for vehicle recognition. Prompts are English model input only; the words people see live in src/i18n/areas/vehicles. Type names are proper names and are not translated. Regenerate vectors.json with tools/subject-router/make_vehicle_vectors.py after any change.",
   "families": ["air", "road", "rail", "water"],
   "kinds": [
     { "id": "car", "family": "road", "prompts": ["a photo of a car", "a car driving on a road", "a parked car", "a police car or ambulance"] },
-    { "id": "motorbike", "family": "road", "prompts": ["a photo of a motorbike", "a motorcycle rider on the road", "a motorcycle racing on a track"] },
+    { "id": "motorbike", "family": "road", "prompts": ["a photo of a motorbike", "a motorcycle rider on the road", "a parked motorbike"] },
+    { "id": "racing-car", "family": "road", "prompts": ["a racing car on a race track", "a Formula One car", "a touring car racing on a circuit with sponsor stickers and a race number", "a rally car on a gravel stage"] },
+    { "id": "racing-motorbike", "family": "road", "prompts": ["a racing motorcycle leaning into a corner on a track", "a MotoGP motorcycle", "a superbike race", "a motocross bike in the air"] },
     { "id": "lorry", "family": "road", "prompts": ["a photo of a lorry", "a heavy goods lorry on a motorway", "a delivery van", "a fire engine"] },
     { "id": "bus", "family": "road", "prompts": ["a photo of a bus", "a double-decker bus", "a coach on the road"] },
     { "id": "train", "family": "rail", "prompts": ["a photo of a train", "a steam locomotive", "a passenger train on a railway line", "a diesel locomotive pulling freight wagons"] },

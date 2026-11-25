@@ -68,6 +68,41 @@ export function validExifCaptureTimestamp(original: unknown, created: unknown): 
     ?.getTime();
 }
 
+/** The GPS position, when the file has a valid one. exifr gives decimal `latitude` and `longitude` in its GPS block. */
+export function readGpsPosition(gps: unknown): { latitude: number; longitude: number } | undefined {
+  const block = gps as { latitude?: unknown; longitude?: unknown } | undefined;
+  const latitude = block?.latitude, longitude = block?.longitude;
+  if (typeof latitude !== 'number' || typeof longitude !== 'number' || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return undefined;
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180 || (latitude === 0 && longitude === 0)) return undefined;
+  return { latitude: Math.round(latitude * 1e6) / 1e6, longitude: Math.round(longitude * 1e6) / 1e6 };
+}
+
+/**
+ * The true capture instant in UTC, only when the file says it: the GPS date and time (always UTC), or the camera's
+ * clock with its recorded time-zone offset. A camera clock without an offset is local time in an unknown zone, so
+ * nothing is returned rather than a guess. `original` is exifr's Date, built from the wall-clock fields in this
+ * computer's zone, so its local fields are the camera's wall clock.
+ */
+export function captureInstantUtc(original: unknown, offset: unknown, gps: unknown): number | undefined {
+  const block = gps as { GPSDateStamp?: unknown; GPSTimeStamp?: unknown } | undefined;
+  const date = typeof block?.GPSDateStamp === 'string' ? /^(\d{4})[:-](\d{2})[:-](\d{2})$/.exec(block.GPSDateStamp.trim()) : null;
+  const time = Array.isArray(block?.GPSTimeStamp) ? block.GPSTimeStamp
+    : typeof block?.GPSTimeStamp === 'string' ? block.GPSTimeStamp.split(':').map(Number) : null;
+  if (date && time?.length === 3 && time.every((part) => typeof part === 'number' && Number.isFinite(part))) {
+    const [h, m, sec] = time as number[];
+    if (h >= 0 && h < 24 && m >= 0 && m < 60 && sec >= 0 && sec < 61) {
+      const ms = Date.UTC(Number(date[1]), Number(date[2]) - 1, Number(date[3]), h, m, 0) + Math.round(sec * 1000);
+      if (Number.isFinite(ms)) return ms;
+    }
+  }
+  if (!(original instanceof Date) || !Number.isFinite(original.getTime()) || typeof offset !== 'string') return undefined;
+  const zone = /^([+-])(\d{2}):(\d{2})$/.exec(offset.trim());
+  if (!zone || Number(zone[2]) > 14 || Number(zone[3]) > 59) return undefined;
+  const minutes = (zone[1] === '-' ? -1 : 1) * (Number(zone[2]) * 60 + Number(zone[3]));
+  const wall = Date.UTC(original.getFullYear(), original.getMonth(), original.getDate(), original.getHours(), original.getMinutes(), original.getSeconds(), original.getMilliseconds());
+  return wall - minutes * 60_000;
+}
+
 export function formatFocalLength(focalLengthMm?: number): string {
   if (
     typeof focalLengthMm !== 'number' ||
@@ -226,8 +261,8 @@ export async function parseImageExif(
     if (!metadata) return { formatLabel, isEmbeddedPreviewOnly: false };
     // A RAW's maker segments (XMP, thumbnails) can sit past the bytes read or be malformed. One bad segment must not
     // lose the camera, lens and size, so a failed full read retries with only the main TIFF and EXIF directories.
-    const segments = await exifr.parse(metadata, { xmp: true, mergeOutput: false, gps: false, interop: false })
-      .catch(() => exifr.parse(metadata, { xmp: false, mergeOutput: false, gps: false, interop: false, ifd1: false, makerNote: false, userComment: false }));
+    const segments = await exifr.parse(metadata, { xmp: true, mergeOutput: false, gps: true, interop: false })
+      .catch(() => exifr.parse(metadata, { xmp: false, mergeOutput: false, gps: true, interop: false, ifd1: false, makerNote: false, userComment: false }));
     const parsed = { ...segments?.ifd0, ...segments?.exif };
     const rating = readEmbeddedRating(segments?.xmp?.Rating, parsed.Rating);
 
@@ -235,6 +270,8 @@ export async function parseImageExif(
     const capturedAtMs = validExifCaptureTimestamp(parsed.DateTimeOriginal, parsed.CreateDate);
 
     const shutter = formatShutterSpeed(validExifPositiveNumber(parsed.ExposureTime));
+    const gps = readGpsPosition(segments?.gps);
+    const capturedAtUtcMs = captureInstantUtc(parsed.DateTimeOriginal, parsed.OffsetTimeOriginal ?? parsed.OffsetTime, segments?.gps);
 
     // RAWs: the recorded sensor image size from the file's own IFDs (EXIF often has none, or only the thumbnail's).
     // Without this, a Nikon Z5II NEF landed as a 1x1 "Original" format.
@@ -256,6 +293,9 @@ export async function parseImageExif(
       shutterSpeed: shutter || undefined,
       iso: validExifIso(parsed.ISO),
       capturedAtMs,
+      ...(capturedAtUtcMs !== undefined ? { capturedAtUtcMs } : {}),
+      ...(gps ? { gps } : {}),
+      ...(validExifPositiveNumber(parsed.ExposureTime) ? { exposureSeconds: validExifPositiveNumber(parsed.ExposureTime) } : {}),
       width,
       height,
       formatLabel: formatLabel ?? (lower.endsWith('.png') ? 'PNG' : lower.endsWith('.webp') ? 'WebP' : 'JPEG'),

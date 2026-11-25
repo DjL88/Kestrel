@@ -14,6 +14,7 @@ import type {
   SizePreset,
 } from '../contract';
 import { composeOverlayText } from './overlayMetadata';
+import { TAG_FACETS, type TagFacet } from '../../../core/photoTags';
 
 export function getActiveGroup(photo: Photo): EditGroup {
   return (
@@ -205,10 +206,12 @@ export function computeMultiSelection(
 export function filterPhotos(
   photos: Photo[],
   filter: FilmstripFilter,
-  search: string
+  search: string,
+  tagId?: string | null,
 ): Photo[] {
   const q = search.trim().toLowerCase();
   return photos.filter((photo) => {
+    if (tagId && !photo.photoTags?.some((tag) => tag.id === tagId)) return false;
     if (filter === 'to-review' && photo.decision !== 'unreviewed') return false;
     if (filter === 'flagged' && photo.decision !== 'keep') return false;
     if (filter === 'set-aside' && photo.decision !== 'reject') return false;
@@ -219,6 +222,7 @@ export function filterPhotos(
       photo.speciesLabel ?? '',
       photo.vehicleLabel ?? '',
       ...(photo.searchTerms ?? []),
+      ...(photo.photoTags ?? []).flatMap((tag) => tag.words),
       photo.category,
       photo.exif.camera,
       photo.exif.lens,
@@ -264,10 +268,27 @@ export function sortPhotos(photos: Photo[], sort: PhotoSort): Photo[] {
 /** What the filmstrip and grid show: decision filter, search, minimum rating, then the chosen order. */
 export function viewPhotos(
   photos: Photo[],
-  view: { filter: FilmstripFilter; search: string; minRating: number; sort: PhotoSort }
+  view: { filter: FilmstripFilter; search: string; minRating: number; sort: PhotoSort; tag?: string | null }
 ): Photo[] {
-  const filtered = filterPhotos(photos, view.filter, view.search).filter((photo) => photo.rating >= view.minRating);
+  const filtered = filterPhotos(photos, view.filter, view.search, view.tag).filter((photo) => photo.rating >= view.minRating);
   return sortPhotos(filtered, view.sort);
+}
+
+/** The tags some photo has, grouped by kind in a fixed order, each with how many photos have it, for the tag filter. */
+export function tagChoices(photos: readonly Photo[]): { facet: TagFacet; tags: { id: string; label: string; count: number }[] }[] {
+  const byId = new Map<string, { id: string; facet: TagFacet; label: string; count: number }>();
+  for (const photo of photos) {
+    for (const tag of photo.photoTags ?? []) {
+      const entry = byId.get(tag.id);
+      if (entry) entry.count += 1;
+      else byId.set(tag.id, { id: tag.id, facet: tag.facet, label: tag.label, count: 1 });
+    }
+  }
+  return TAG_FACETS.map((facet) => ({
+    facet,
+    tags: [...byId.values()].filter((tag) => tag.facet === facet).sort((a, b) => a.label.localeCompare(b.label))
+      .map(({ id, label, count }) => ({ id, label, count })),
+  })).filter((group) => group.tags.length > 0);
 }
 
 export function clamp(val: number, min: number, max: number): number {
