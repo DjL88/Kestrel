@@ -550,6 +550,9 @@ export function createApp(options: AppOptions) {
   }
 
   const routes: Route[] = [
+    // Cloud Run's front end reserves some paths ending in 'z' (including /healthz) and answers them with its own 404
+    // before the request reaches the container, so public clients probe /health. /healthz stays for the container probe.
+    { method: 'GET', path: '/health', summary: 'Liveness (public)', auth: 'none', handler: () => ({ status: 200, body: { ok: true } }) },
     { method: 'GET', path: '/healthz', summary: 'Liveness', auth: 'none', handler: () => ({ status: 200, body: { ok: true } }) },
 
 

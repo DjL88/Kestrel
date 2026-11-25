@@ -169,7 +169,9 @@ owner's approval.
 4. [ ] Build the image (`gcloud builds submit …`), then apply with `control_plane_image` and `google_oauth_client_id`.
 5. [ ] Publish the website (`publish-gcp.ps1 -Website`), so Hosting forwards `/v1/admin/**` to the service.
 6. [ ] Smoke test. Each should answer as shown:
-   - `curl <control_plane_url>/healthz` → `{"ok":true}`
+   - `curl <control_plane_url>/health` → `{"ok":true}`
+     (`/healthz` is reserved by Cloud Run's front end and returns Google's own 404 from outside; the container probe still uses it.)
+   - `node scripts/site/verify-deployment.mjs --live-url=<site_url> --control-plane-url=<control_plane_url>` checks the published site byte for byte and that the control plane allows the site's origin. Any other web address the app is served from must be added to `allowed_origins`.
    - `/admin` → Google sign-in works, and the overview says "Records stored in: Firestore".
    - `curl -X POST <url>/v1/licences/status -H "content-type: application/json" -d '{"licenceKey":"<a tester key>","deviceHash":"<64 hex>"}'` → `"status":"unknown"` before first use.
 7. [ ] Build the beta apps with `VITE_KESTREL_CONTROL_PLANE_URL=<control_plane_url>` and
@@ -220,7 +222,7 @@ exceed 20 testers). The £20 budget alert from phase 1 still applies.
    ```
 
    Add `-var "licence_issuing_enabled=true"` to that apply to let the admin console issue keys. The output
-   `control_plane_url` is the service's address; `curl <url>/healthz` answers `{"ok":true}`.
+   `control_plane_url` is the service's address; `curl <url>/health` answers `{"ok":true}`.
 
 To deploy a newer version, repeat step 3 with the new commit. To roll back, apply with the previous image tag.
 
