@@ -14,10 +14,16 @@ export interface OfflinePreviewPair {
   review: Blob;
 }
 
+/**
+ * Raise when stored previews must be made again. 2: a portrait RAW's embedded preview is now shown upright (nefPreview.ts
+ * orientPreview); earlier ones, and pictures developed to match them, were stored sideways.
+ */
+const PREVIEW_VERSION = 2;
+
 export function previewCacheKey(frame: {
   stableKey: string; filename: string; fileSize?: number; lastModified?: number;
 }): string {
-  return JSON.stringify([frame.stableKey, frame.filename.toLowerCase(), frame.fileSize ?? null, frame.lastModified ?? null]);
+  return JSON.stringify([frame.stableKey, frame.filename.toLowerCase(), frame.fileSize ?? null, frame.lastModified ?? null, PREVIEW_VERSION]);
 }
 
 function database(): Promise<IDBDatabase> {
