@@ -116,6 +116,13 @@
   --space-5: 20px;
   --space-6: 24px;
 
+  /* Touch sizing (V2-WORKSPACE section 26.2): no control smaller than --touch-min on a touch screen,
+     --touch-comfort for the tablet rail and Pencil tools. Bars use fixed heights so the photo's share is predictable. */
+  --touch-min: 44px;
+  --touch-comfort: 48px;
+  --tabbar-height: 64px;
+  --filmstrip-slim-height: 72px;
+
   --topbar-height: 3.25rem; /* rem, so the bars grow with Text size */
   --rail-width: 4.5rem;
   --dock-width: 19.75rem;

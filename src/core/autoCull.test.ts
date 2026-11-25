@@ -437,3 +437,20 @@ test('G05: flagged virtual copies and samples do not consume original keeper slo
   const suggestions: CullSuggestion[] = all.map(frame => ({ frameId: frame.id, decision: 'keep', confidence: 'high', reason: 'subjectSharp', score: 95 }));
   assert.deepEqual(limitAutoKeepers(suggestions, all, 2).filter(result => result.confidence === 'high').map(result => result.frameId), [candidate.id, other.id]);
 });
+
+
+test('unavailable, contradictory and malformed keeper reasons cannot consume auto-keep slots', () => {
+  const frames = generateDemoShootFrames(2).map(frame => ({
+    ...frame, isDemo: false, decision: 'unreviewed' as const, burstGroupId: null,
+  }));
+  const valid: CullSuggestion = { frameId: frames[1].id, decision: 'keep', confidence: 'high', score: 90, reason: 'subjectSharp' };
+  const first = { ...valid, frameId: frames[0].id, score: 99 };
+  for (const reason of ['duplicate', 'unavailable', 'flat', 'noSubject', 'subjectSoft', 'limitedDetail', 'subjectOk', undefined] as const) {
+    const invalid = { ...first, reason } as CullSuggestion;
+    for (const input of [[invalid, valid], [first, invalid, valid]]) {
+      const result = limitAutoKeepers(input, frames, 1);
+      assert.deepEqual(result.filter(item => item.confidence === 'high'), [valid]);
+      assert.ok(result.filter(item => item.frameId === first.frameId).every(item => item.decision === null));
+    }
+  }
+});

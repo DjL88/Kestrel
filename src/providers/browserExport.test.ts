@@ -416,9 +416,9 @@ test('native JPEG Original decodes connected bytes and refuses cached preview di
   const frame = { ...createDemoShootState(1).frames[0], filename: 'Nikon-Z8.JPG', isDemo: false, stableKey: 'verified-jpeg', originalSha256: await hashOriginalBytes(bytes) };
   let readCount = 0;
   const result = await loadVerifiedRasterOriginalForExport(frame, {
-    ensureOriginal: async (key, priority) => {
-      assert.equal(key, 'verified-jpeg'); assert.equal(priority, 'selected'); readCount++;
-      return bytes;
+    verifiedOriginalReader: key => {
+      assert.equal(key, 'verified-jpeg');
+      return { isCurrent: () => true, read: async () => { readCount++; return bytes; } };
     },
   } as Parameters<typeof loadVerifiedRasterOriginalForExport>[1]);
   assert.equal(result.naturalWidth, 8256);
@@ -430,7 +430,7 @@ test('native JPEG Original decodes connected bytes and refuses cached preview di
 test('native Original refuses preview-only RAW, missing files and incorrect file signatures', async () => {
   const frame = { ...createDemoShootState(1).frames[0], isDemo: false, stableKey: 'reconnected' };
   const provide = (value: Blob | undefined) => ({
-    ensureOriginal: async () => value,
+    verifiedOriginalReader: () => ({ isCurrent: () => true, read: async () => value }),
   }) as Parameters<typeof loadVerifiedRasterOriginalForExport>[1];
   await assert.rejects(loadVerifiedRasterOriginalForExport({ ...frame, filename: 'Z8.NEF' }, provide(new Blob(['raw']))), /only verified for connected JPEG and PNG/);
   await assert.rejects(loadVerifiedRasterOriginalForExport({ ...frame, filename: 'photo.png' }, provide(undefined)), /Reconnect photo.png/);
@@ -446,6 +446,48 @@ test('native Original rejects a same-format replacement of identical byte length
   const replacement = new Blob([header, 'other']);
   const frame = { ...createDemoShootState(1).frames[0], filename: 'bird.PNG', isDemo: false, originalSha256: await hashOriginalBytes(original) };
   assert.equal(original.size, replacement.size);
-  await assert.rejects(loadVerifiedRasterOriginalForExport(frame, { ensureOriginal: async () => replacement }), /differs from the imported bird.PNG/);
-  await assert.rejects(loadVerifiedRasterOriginalForExport({ ...frame, originalSha256: undefined }, { ensureOriginal: async () => original }), /Import bird.PNG again/);
+  await assert.rejects(loadVerifiedRasterOriginalForExport(frame, { verifiedOriginalReader: () => ({ isCurrent: () => true, read: async () => replacement }) }), /differs from the imported bird.PNG/);
+  await assert.rejects(loadVerifiedRasterOriginalForExport({ ...frame, originalSha256: undefined }, { verifiedOriginalReader: () => ({ isCurrent: () => true, read: async () => original }) }), /Import bird.PNG again/);
+});
+
+
+test('Original-size raster export cannot read a stale cached Blob after a drive disconnects', async () => {
+  const original = new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), 'synthetic']);
+  const frame = { ...createDemoShootState(1).frames[0], filename: 'bird.JPG', isDemo: false, originalSha256: await hashOriginalBytes(original) };
+  let cachedReads = 0;
+  const provider = {
+    ensureOriginal: async () => { cachedReads++; return original; },
+    verifiedOriginalReader: () => ({ isCurrent: () => true, read: async () => undefined }),
+  };
+  await assert.rejects(loadVerifiedRasterOriginalForExport(frame, provider), /Reconnect bird.JPG/);
+  assert.equal(cachedReads, 0);
+});
+
+test('Original-size raster export discards decoded pixels if the original registration changes', async (t) => {
+  const original = new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), 'synthetic']);
+  const frame = { ...createDemoShootState(1).frames[0], filename: 'bird.JPG', isDemo: false, originalSha256: await hashOriginalBytes(original) };
+  const oldImage = Object.getOwnPropertyDescriptor(globalThis, 'Image');
+  const oldCreate = URL.createObjectURL, oldRevoke = URL.revokeObjectURL;
+  let current = true;
+  const revoked: string[] = [];
+  t.after(() => {
+    if (oldImage) Object.defineProperty(globalThis, 'Image', oldImage);
+    else Reflect.deleteProperty(globalThis, 'Image');
+    URL.createObjectURL = oldCreate;
+    URL.revokeObjectURL = oldRevoke;
+  });
+  URL.createObjectURL = () => 'blob:relinked-raster';
+  URL.revokeObjectURL = url => { revoked.push(url); };
+  class ImageStub {
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    naturalWidth = 6000;
+    naturalHeight = 4000;
+    set src(_value: string) { current = false; queueMicrotask(() => this.onload?.()); }
+  }
+  Object.defineProperty(globalThis, 'Image', { configurable: true, value: ImageStub });
+  await assert.rejects(loadVerifiedRasterOriginalForExport(frame, {
+    verifiedOriginalReader: () => ({ isCurrent: () => current, read: async () => original }),
+  }), /changed during decoding/);
+  assert.deepEqual(revoked, ['blob:relinked-raster']);
 });

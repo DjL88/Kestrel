@@ -116,7 +116,7 @@ function verifiedFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { width: n
  * asks "which formats does this photo have?" (the canvas, Duplicate, Delete) must use this one rule, or a photo without
  * EXIF dimensions shows Original on the canvas while the actions think it is switched off.
  */
-export function originalFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { width: number; height: number }): { width: number; height: number } | null {
+export function originalFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { width: number; height: number }, shownSize?: { width: number; height: number }): { width: number; height: number } | null {
   const nativeSize = verifiedFormatSize(frame, verifiedOriginalSize);
   const { exif } = frame;
   // Recorded sensor dimensions are evidence for the *format shape*, not proof
@@ -124,14 +124,20 @@ export function originalFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { w
   const reportedSize = exif.width && exif.height && Number.isSafeInteger(exif.width) &&
     Number.isSafeInteger(exif.height) && exif.width > 0 && exif.height > 0
     ? framedSize(exif.width, exif.height, frame.framing ?? DEFAULT_FRAMING) : null;
-  return nativeSize ?? reportedSize;
+  // A RAW or HEIF whose file records no usable size (a NEF's first directory is a 160 × 120 thumbnail) takes its shape
+  // from the picture actually shown. Without this the Original was a 1 × 1 square, so the canvas and crop showed a
+  // square cut of a 3:2 photo. The renderer still caps every export at the source's real pixels.
+  const measured = shownSize && Number.isSafeInteger(shownSize.width) && Number.isSafeInteger(shownSize.height) &&
+    shownSize.width > 0 && shownSize.height > 0
+    ? framedSize(shownSize.width, shownSize.height, frame.framing ?? DEFAULT_FRAMING) : null;
+  return nativeSize ?? reportedSize ?? measured;
 }
 
 export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, extras: PhotoExtras = {}): Photo {
   const { assist, watermarkAuto, histogram, pixelSize, verifiedOriginalSize } = extras;
   const { exif } = frame;
   const nativeSize = verifiedFormatSize(frame, verifiedOriginalSize);
-  const originalSize = originalFormatSize(frame, verifiedOriginalSize);
+  const originalSize = originalFormatSize(frame, verifiedOriginalSize, pixelSize);
   const recordedDimensions = nativeSize && verifiedOriginalSize ? verifiedOriginalSize : positive(exif.width) && positive(exif.height) && Number.isSafeInteger(exif.width) && Number.isSafeInteger(exif.height) ? { width: exif.width, height: exif.height } : null;
   const rating = frame.rating ?? exif.rating ?? 0;
   const captured = typeof exif.capturedAtMs === 'number' && Number.isFinite(new Date(exif.capturedAtMs).getTime()) ? new Date(exif.capturedAtMs).toLocaleString('en-GB') : NOT_RECORDED;

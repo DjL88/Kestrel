@@ -185,7 +185,9 @@ export default function GridView({
                             key={n}
                             type="button"
                             aria-label={`Rate ${photo.filename} ${n} stars`}
-                            onClick={() => onSetRating([photo.id], n)}
+                            aria-pressed={n === photo.rating}
+                            // Choosing the rating a photo already has clears it, as in the Info panel (0 means unrated).
+                            onClick={() => onSetRating([photo.id], n === photo.rating ? 0 : n)}
                             className="p-0.5 text-[var(--brand-accent)] hover:scale-110 transition-transform"
                           >
                             <BrandIcon

@@ -91,6 +91,27 @@ export default function SizesPanel({
   const activeSplit = photo.formatSplits?.[activeSize.id];
   const activeSplitCount: 1 | 2 | 3 | 4 | 5 = activeSplit?.enabled ? (activeSplit.count ?? 2) : 1;
 
+  /** Tick or untick a format. The zoom video's own switch follows its tick, so there is one place to turn it on. */
+  const toggleIncluded = (size: Photo['sizes'][number]) => {
+    onToggleSizeEnabled(photo.id, size.id);
+    if (size.kind === 'video') onUpdateVideoZoom(photo.id, { enabled: !size.enabled });
+  };
+  /**
+   * Tapping a format's name: an unticked format is ticked and shown; a ticked format is shown; tapping the format that
+   * is already shown unticks it. Ctrl/Cmd-click only adds to the selection, as before.
+   */
+  const tapFormat = (size: Photo['sizes'][number], ctrl: boolean) => {
+    if (ctrl) { onSetActiveSize(size.id, { ctrl: true }); return; }
+    const shown = size.id === activeSizeId && selectedSizeIds.length <= 1;
+    if (!size.enabled) { toggleIncluded(size); onSetActiveSize(size.id); return; }
+    if (shown) { toggleIncluded(size); return; }
+    onSetActiveSize(size.id);
+  };
+  const formatRowLabel = (size: Photo['sizes'][number]) =>
+    !size.enabled ? STRINGS.formats.rowInclude(size.label)
+      : size.id === activeSizeId ? STRINGS.formats.rowExclude(size.label)
+      : STRINGS.formats.rowShow(size.label);
+
   const pixelDimensions = dimensionPixels(customW, customH, customUnit, customPpi);
   const chooseBorderColour = (colour: string) => {
     onUpdateSizeCrop(photo.id, activeSize.id, { borderColour: colour });
@@ -401,8 +422,8 @@ export default function SizesPanel({
             const isSelected = selectedSizeIds.includes(size.id);
             const isVideoLocked = size.kind === 'video' && !features.zoomVideo;
             return (
+              <React.Fragment key={size.id}>
               <div
-                key={size.id}
                 className={`flex items-center justify-between gap-2 rounded-[var(--radius-sm)] border px-2 py-1.5 transition-colors ${
                   isSelected
                     ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]'
@@ -414,7 +435,7 @@ export default function SizesPanel({
                   disabled={isVideoLocked}
                   aria-label={`Include ${size.label}`}
                   aria-pressed={size.enabled}
-                  onClick={() => onToggleSizeEnabled(photo.id, size.id)}
+                  onClick={() => toggleIncluded(size)}
                   className="text-[var(--text-secondary)] hover:text-[var(--brand-accent)] disabled:opacity-40"
                 >
                   <BrandIcon
@@ -427,7 +448,8 @@ export default function SizesPanel({
                 <button
                   type="button"
                   disabled={isVideoLocked}
-                  onClick={(e) => onSetActiveSize(size.id, { ctrl: e.ctrlKey || e.metaKey })}
+                  aria-label={formatRowLabel(size)}
+                  onClick={(e) => tapFormat(size, e.ctrlKey || e.metaKey)}
                   className="flex flex-1 items-center justify-between gap-2 min-w-0 text-left disabled:opacity-50"
                 >
                   <span className="flex items-center gap-1.5 min-w-0">
@@ -465,6 +487,48 @@ export default function SizesPanel({
                   <BrandIcon name={size.linked ? 'link' : 'unlink'} size={13} />
                 </button>
               </div>
+                {size.kind === 'video' && size.enabled && size.id === activeSizeId && features.zoomVideo && (
+                  <div data-testid="video-zoom-options" className="ml-6 mt-1.5 space-y-2.5 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2.5">
+                    <p className="text-[0.6875rem] font-medium text-[var(--text-secondary)]">{STRINGS.formats.videoNotExported}</p>
+                    <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.formats.videoPinHint}</p>
+                    <div role="group" aria-label={STRINGS.formats.videoHeading} className="grid grid-cols-2 gap-1.5">
+                      {(['in', 'out'] as const).map((direction) => (
+                        <button
+                          key={direction}
+                          type="button"
+                          aria-pressed={photo.videoZoom.direction === direction}
+                          onClick={() => onUpdateVideoZoom(photo.id, { direction })}
+                          className={`min-h-8 rounded-[var(--radius-sm)] border px-1.5 text-xs font-medium transition-colors ${
+                            photo.videoZoom.direction === direction
+                              ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
+                              : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'
+                          }`}
+                        >
+                          {direction === 'in' ? STRINGS.formats.videoDirectionIn : STRINGS.formats.videoDirectionOut}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between text-[0.6875rem] text-[var(--text-muted)]">
+                      <span>
+                        {STRINGS.formats.focalPin} <strong className="font-mono text-[var(--text-secondary)]">{photo.videoZoom.focalX}%, {photo.videoZoom.focalY}%</strong>
+                      </span>
+                      <label className="flex items-center gap-1.5">
+                        <span>{STRINGS.formats.videoDuration}</span>
+                        <select
+                          value={photo.videoZoom.durationSec}
+                          onChange={(e) => onUpdateVideoZoom(photo.id, { durationSec: Number(e.target.value) })}
+                          className="rounded border border-[var(--border-subtle)] bg-[var(--bg-input)] px-1.5 py-0.5 text-[0.6875rem] text-[var(--text-primary)]"
+                        >
+                          <option value={4}>4s</option>
+                          <option value={6}>6s</option>
+                          <option value={8}>8s</option>
+                          <option value={12}>12s</option>
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </React.Fragment>
             );
           })}
         </div>
@@ -648,83 +712,6 @@ export default function SizesPanel({
         </section>
       )}
 
-      {/* Video (Zoom MP4) Settings */}
-      {features.zoomVideo && (
-        <section className="space-y-2.5 border-t border-[var(--border-subtle)] pt-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
-              <BrandIcon name="video-zoom" size={14} className="text-[var(--brand-accent)]" />
-              <span>{STRINGS.formats.videoHeading}</span>
-            </h3>
-            <button
-              type="button"
-              onClick={() => {
-                onUpdateVideoZoom(photo.id, { enabled: !photo.videoZoom.enabled });
-                if (!photo.videoZoom.enabled) onSetActiveSize('video-zoom');
-              }}
-              className={`rounded px-2 py-0.5 text-[0.6875rem] font-semibold ${
-                photo.videoZoom.enabled
-                  ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                  : 'bg-[var(--bg-input)] text-[var(--text-muted)]'
-              }`}
-            >
-              {photo.videoZoom.enabled ? 'Enabled' : 'Enable'}
-            </button>
-          </div>
-
-          <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.formats.videoPinHint}</p>
-
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                onUpdateVideoZoom(photo.id, { enabled: true, direction: 'in' });
-                onSetActiveSize('video-zoom');
-              }}
-              className={`h-8 rounded-[var(--radius-sm)] border text-xs font-medium transition-colors ${
-                photo.videoZoom.direction === 'in'
-                  ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                  : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'
-              }`}
-            >
-              {STRINGS.formats.videoDirectionIn}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                onUpdateVideoZoom(photo.id, { enabled: true, direction: 'out' });
-                onSetActiveSize('video-zoom');
-              }}
-              className={`h-8 rounded-[var(--radius-sm)] border text-xs font-medium transition-colors ${
-                photo.videoZoom.direction === 'out'
-                  ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                  : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'
-              }`}
-            >
-              {STRINGS.formats.videoDirectionOut}
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between text-[0.6875rem] text-[var(--text-muted)]">
-            <span>
-              {STRINGS.formats.focalPin} <strong className="font-mono text-[var(--text-secondary)]">{photo.videoZoom.focalX}%, {photo.videoZoom.focalY}%</strong>
-            </span>
-            <label className="flex items-center gap-1.5">
-              <span>{STRINGS.formats.videoDuration}</span>
-              <select
-                value={photo.videoZoom.durationSec}
-                onChange={(e) => onUpdateVideoZoom(photo.id, { durationSec: Number(e.target.value) })}
-                className="rounded border border-[var(--border-subtle)] bg-[var(--bg-input)] px-1.5 py-0.5 text-[0.6875rem] text-[var(--text-primary)]"
-              >
-                <option value={4}>4s</option>
-                <option value={6}>6s</option>
-                <option value={8}>8s</option>
-                <option value={12}>12s</option>
-              </select>
-            </label>
-          </div>
-        </section>
-      )}
     </div>
   );
 }

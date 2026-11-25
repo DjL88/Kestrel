@@ -165,13 +165,17 @@ export async function matchScannedOriginalsBySha(
 ): Promise<{ matches: Map<string, string>; ambiguous: string[]; rejected: string[] }> {
   const pathKey = (path: string) => path.replace(/\\/g, '/').toLowerCase();
   const reserved = new Set(connectedPaths.map(pathKey));
+  // Windows paths (a drive letter or a UNC share) name the same file whatever their case, so fold them; elsewhere a
+  // case-sensitive NAS can hold BIRD.NEF and bird.NEF as different files, so only the exact path is one file.
+  const fileKey = (path: string) => (/^[a-zA-Z]:[\\/]/.test(path) || /^[\\/]{2}[^\\/]/.test(path) ? pathKey(path) : path);
   const matches = new Map<string, string>();
   const ambiguous: string[] = [], rejected: string[] = [];
   // Each candidate original is read at most once per folder reselect, even if
   // several camera frames have the same filename and dimensions.
   const digests = new Map<string, string | null>();
   async function digestFor(candidate: ScannedOriginal): Promise<string | null> {
-    const canonical = pathKey(candidate.path);
+    // Cache by the file the path names: exact on a case-sensitive share, folded on Windows.
+    const canonical = fileKey(candidate.path);
     if (digests.has(canonical)) return digests.get(canonical)!;
     let opened: ScannedOriginalRead | undefined;
     let digest: string | null = null;
@@ -189,8 +193,21 @@ export async function matchScannedOriginalsBySha(
   }
 
   const byPath = new Map<string, string>();
+  const identities = new Map<string, string>();
+  const conflicting = new Set<string>();
   for (const frame of expected) {
-    if (!/^[a-f0-9]{64}$/.test(frame.originalSha256 ?? '') ||
+    const identity = JSON.stringify([frame.filename, frame.size, frame.originalSha256]);
+    if (identities.has(frame.stableKey) && identities.get(frame.stableKey) !== identity) {
+      conflicting.add(frame.stableKey);
+    }
+    identities.set(frame.stableKey, identity);
+  }
+  const seen = new Set<string>();
+  for (const frame of expected) {
+    if (seen.has(frame.stableKey)) continue;
+    seen.add(frame.stableKey);
+    if (conflicting.has(frame.stableKey) ||
+        !/^[a-f0-9]{64}$/.test(frame.originalSha256 ?? '') ||
         !Number.isSafeInteger(frame.size) || frame.size <= 0) {
       rejected.push(frame.stableKey);
       continue;
@@ -200,7 +217,7 @@ export async function matchScannedOriginalsBySha(
       file.size === frame.size && !reserved.has(pathKey(file.path)));
     const valid = new Map<string, string>();
     for (const candidate of possible) {
-      if (await digestFor(candidate) === frame.originalSha256) valid.set(pathKey(candidate.path), candidate.path);
+      if (await digestFor(candidate) === frame.originalSha256) valid.set(fileKey(candidate.path), candidate.path);
     }
     if (valid.size !== 1) {
       (valid.size > 1 ? ambiguous : rejected).push(frame.stableKey);

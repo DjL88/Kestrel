@@ -107,6 +107,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [moreOpen, setMoreOpen] = useState(false);
   const [addingFormatFor, setAddingFormatFor] = useState<string | null>(null);
   const [collageEditingId, setCollageEditingId] = useState<string | null>(null);
+  const [collageSourceOpen, setCollageSourceOpen] = useState(false);
   const sheetDragY = useRef<number | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
@@ -314,6 +315,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onAddRow={actions.addOverlayRow}
             onUpdateRow={actions.updateOverlayRow}
             onRemoveRow={actions.removeOverlayRow}
+            onMoveRow={actions.moveOverlayRow}
+            onAddTextWatermark={actions.addTextWatermark}
+            onAddWatermarkVersion={actions.addWatermarkVersion}
+            onSetWatermarkSlot={actions.setWatermarkSlot}
             onAddCustomFont={actions.addCustomFont}
             onListDeviceFonts={actions.listDeviceFonts}
             onHasDeviceFont={actions.hasDeviceFont}
@@ -539,7 +544,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   onBrowseProject={actions.browseCollageProjectPhotos} onAddFromProject={actions.addCollageProjectPhotos} PhotoSurface={store.PhotoSurface}
                   onChange={(next) => actions.updateCollage?.(next)}
                   onEditPhoto={(id) => { actions.selectPhoto(id); setCollageEditingId(id); }}
-                  onImport={actions.importPhotos} />
+                  onImport={actions.importPhotos}
+                  sourcePickerOpen={collageSourceOpen} onSourcePickerChange={setCollageSourceOpen} />
               ) : store.gridViewOpen ? (
                 <GridView
                   photos={store.photos}
@@ -637,6 +643,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onRunAutoCull={actions.runAutoCull}
                 onCreateCollage={store.collage ? undefined : actions.createCollageFromSelection}
                 collageMode={composingCollage}
+                onChooseFromProject={composingCollage && store.projects.some((p) => p.id !== store.activeProjectId) ? () => setCollageSourceOpen(true) : undefined}
                 onExportSelected={() => actions.setExportOpen(true)}
               />
             </div>

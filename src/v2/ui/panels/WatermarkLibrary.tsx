@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { WatermarkPreset, WatermarkUsage } from '../contract';
+import type { WatermarkPreset } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 
@@ -7,7 +7,10 @@ interface WatermarkLibraryProps {
   presets: WatermarkPreset[];
   selectedId: string;
   onSelect: (presetId: string) => void;
-  onImport: (usage: WatermarkUsage) => Promise<string | null>;
+  /** The person's own other version, chosen from a file, for one slot. */
+  onAddVersion: (presetId: string, slot: 'dark' | 'light') => Promise<boolean>;
+  /** The person says the only version is for the other kind of photo. */
+  onSetSlot: (presetId: string, slot: 'dark' | 'light') => void;
   onCutOut: (presetId: string, slot: 'dark' | 'light', tolerance: number, commit: boolean) => Promise<{ url: string; tooMuch: boolean } | null>;
   onMakeVariant: (presetId: string, slot: 'dark' | 'light') => Promise<void>;
   onDelete: (presetId: string) => void;
@@ -33,13 +36,11 @@ function Swatch({ url, onDark, label }: { url?: string; onDark: boolean; label: 
  * logo saved as a JPEG with white round it) can be removed, with a preview over a checkerboard, and the original image is
  * left as it was imported.
  */
-export default function WatermarkLibrary({ presets, selectedId, onSelect, onImport, onCutOut, onMakeVariant, onDelete }: WatermarkLibraryProps) {
+export default function WatermarkLibrary({ presets, selectedId, onSelect, onAddVersion, onSetSlot, onCutOut, onMakeVariant, onDelete }: WatermarkLibraryProps) {
   const [editing, setEditing] = useState<{ id: string; slot: 'dark' | 'light' } | null>(null);
   const [tolerance, setTolerance] = useState(25);
   const [preview, setPreview] = useState<{ url: string; tooMuch: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [usage, setUsage] = useState<WatermarkUsage>('auto');
-  const [importing, setImporting] = useState(false);
 
   const preparePreview = async (id: string, slot: 'dark' | 'light', value: number) => {
     setBusy(true);
@@ -61,8 +62,11 @@ export default function WatermarkLibrary({ presets, selectedId, onSelect, onImpo
             <div key={preset.id} className={`rounded-[var(--radius-sm)] border ${selected ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]' : 'border-[var(--border-subtle)] bg-[var(--bg-input)]'}`}>
               <button type="button" aria-pressed={selected} onClick={() => onSelect(preset.id)} className="flex w-full flex-col px-2.5 py-2 text-left">
                 <span className="text-xs font-semibold text-[var(--text-primary)]">{preset.label}</span>
-                {!isImage && <span className="mt-0.5 font-mono text-[0.625rem] text-[var(--text-secondary)]">{preset.text} {preset.subtext ? `· ${preset.subtext}` : ''}</span>}
+                {!isImage && <span className="mt-0.5 text-[0.625rem] text-[var(--text-secondary)]">{STRINGS.overlayKit.wmTextKind}{preset.subtext ? ` · ${preset.subtext}` : ''}</span>}
               </button>
+              {!isImage && (
+                <div className="px-2.5 pb-2"><button type="button" onClick={() => onDelete(preset.id)} className="rounded-[var(--radius-xs)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--semantic-danger)] hover:bg-[var(--bg-surface-hover)]">{STRINGS.watermarks.delete}</button></div>
+              )}
               {isImage && (
                 <div className="space-y-2 px-2.5 pb-2.5">
                   <div className="flex items-end gap-3">
@@ -74,6 +78,10 @@ export default function WatermarkLibrary({ presets, selectedId, onSelect, onImpo
                       <button key={slot} type="button" onClick={() => startEditing(preset, slot)}
                         className="rounded-[var(--radius-xs)] border border-[var(--border-default)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">{label}</button>
                     ))}
+                    {/* Only one version: the person can say it belongs to the other kind of photo, or add their own other version. */}
+                    {preset.forDarkUrl && !preset.forLightUrl && <button type="button" onClick={() => onSetSlot(preset.id, 'light')} className="rounded-[var(--radius-xs)] border border-[var(--border-default)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">{STRINGS.overlayKit.wmSwapToLight}</button>}
+                    {preset.forLightUrl && !preset.forDarkUrl && <button type="button" onClick={() => onSetSlot(preset.id, 'dark')} className="rounded-[var(--radius-xs)] border border-[var(--border-default)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">{STRINGS.overlayKit.wmSwapToDark}</button>}
+                    {(!preset.forDarkUrl || !preset.forLightUrl) && <button type="button" onClick={() => void onAddVersion(preset.id, preset.forDarkUrl ? 'light' : 'dark')} className="rounded-[var(--radius-xs)] border border-[var(--border-default)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">{STRINGS.overlayKit.wmAddOther}</button>}
                     {!preset.forDarkUrl && <button type="button" onClick={() => void onMakeVariant(preset.id, 'dark')} className="rounded-[var(--radius-xs)] border border-[var(--border-default)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">{STRINGS.watermarks.makeLight}</button>}
                     {!preset.forLightUrl && <button type="button" onClick={() => void onMakeVariant(preset.id, 'light')} className="rounded-[var(--radius-xs)] border border-[var(--border-default)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">{STRINGS.watermarks.makeDark}</button>}
                     <button type="button" onClick={() => onDelete(preset.id)} className="rounded-[var(--radius-xs)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--semantic-danger)] hover:bg-[var(--bg-surface-hover)]">{STRINGS.watermarks.delete}</button>
@@ -105,24 +113,6 @@ export default function WatermarkLibrary({ presets, selectedId, onSelect, onImpo
           );
         })}
       </div>
-      <label className="block space-y-1 text-xs text-[var(--text-secondary)]">
-        <span>{STRINGS.watermarks.usagePrompt}</span>
-        <select aria-label={STRINGS.watermarks.usageLabel} value={usage} onChange={(event) => setUsage(event.target.value as WatermarkUsage)}
-          className="w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2 py-2 text-xs text-[var(--text-primary)]">
-          <option value="auto">{STRINGS.watermarks.usageAuto}</option>
-          <option value="dark">{STRINGS.watermarks.usageDark}</option>
-          <option value="light">{STRINGS.watermarks.usageLight}</option>
-          <option value="both">{STRINGS.watermarks.usageBoth}</option>
-        </select>
-      </label>
-      <button type="button" disabled={importing} onClick={async () => {
-        setImporting(true);
-        try { const id = await onImport(usage); if (id) onSelect(id); }
-        finally { setImporting(false); }
-      }}
-        className="flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
-        <BrandIcon name="plus" size={13} />{STRINGS.watermarks.add}
-      </button>
       <p className="text-[0.6875rem] leading-snug text-[var(--text-secondary)]">{STRINGS.watermarks.localNote}</p>
     </div>
   );

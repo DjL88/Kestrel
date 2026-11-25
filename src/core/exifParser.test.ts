@@ -164,3 +164,18 @@ test('Nikon ISO metadata rejects fractional, unsafe and non-numeric values', () 
   assert.equal(validExifIso(6400), 6400);
   assert.equal(validExifIso(102400), 102400);
 });
+
+test('a RAW thumbnail directory never sets the photo size, and quarter-turn orientations swap it', async () => {
+  const { recordedDimensions, isQuarterTurn } = await import('./exifParser.ts');
+  // A Nikon NEF's first directory is a 160 × 120 reduced-resolution thumbnail: a 4:3 shape for a 3:2 sensor.
+  assert.deepEqual(recordedDimensions({ SubfileType: 1, ImageWidth: 160, ImageHeight: 120 }, undefined, true), {});
+  // A DNG whose first directory is the full-resolution image is believed, turned by its orientation.
+  assert.deepEqual(recordedDimensions({ SubfileType: 0, ImageWidth: 96, ImageHeight: 64, Orientation: 'Rotate 90 CW' }, undefined, true), { width: 64, height: 96 });
+  // EXIF pixel dimensions win over the first directory; a JPEG's directory size is kept.
+  assert.deepEqual(recordedDimensions({ ImageWidth: 160, ImageHeight: 120 }, { ExifImageWidth: 6000, ExifImageHeight: 4000 }, true), { width: 6000, height: 4000 });
+  assert.deepEqual(recordedDimensions({ SubfileType: 1, ImageWidth: 300, ImageHeight: 200 }, undefined, false), { width: 300, height: 200 });
+  assert.equal(isQuarterTurn(6), true);
+  assert.equal(isQuarterTurn(3), false);
+  assert.equal(isQuarterTurn('Mirror horizontal and rotate 270 CW'), true);
+  assert.equal(isQuarterTurn('Rotate 180'), false);
+});

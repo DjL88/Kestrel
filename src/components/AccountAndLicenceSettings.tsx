@@ -1,9 +1,10 @@
 import { useConnectivity } from '../providers/useConnectivity';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Session, SignInProvider } from '../core/cloudInterfaces';
 import { signInOptions } from '../core/signInOptions';
-import { firebaseAuth, isSignInConfigured, signInPlatform, resendAccountVerification } from '../providers/firebaseAuth';
-import { accountLicenceDevices, activateFromAccount, consumeExpiredAccountNotice, freeAccountLicenceDevice, leaveAccount, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
+import { firebaseAuth, isDesktopGoogleConfigured, isSignInConfigured, signInPlatform, resendAccountVerification } from '../providers/firebaseAuth';
+import { accountLicenceDevices, activateFromAccount, consumeExpiredAccountNotice, freeAccountLicenceDevice, leaveAccount, licenceOnlineConfigured, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
+import { BuyProPanel } from './BuyProPanel';
 import type { LicenceStatus } from '../providers/licenceSync';
 import { isDesktopApp, isMobileShell } from '../providers/desktopShell';
 import { parseControlPlaneUrl } from '../core/licenceOnline';
@@ -152,6 +153,13 @@ export function AccountAndLicenceSettings() {
     }
   }
 
+  // Stable across renders so the checkout's waiting loop is not restarted by unrelated updates.
+  const linkLicenceRef = useRef(linkLicence);
+  linkLicenceRef.current = linkLicence;
+  const buyProPaid = useCallback(() => runAccountActionRef.current(() => linkLicenceRef.current()), []);
+  const runAccountActionRef = useRef(runAccountAction);
+  runAccountActionRef.current = runAccountAction;
+
   function chooseSignIn(provider: SignInProvider) {
     if (offline) return;
     return runAccountAction(async () => {
@@ -259,12 +267,15 @@ export function AccountAndLicenceSettings() {
                 </>}
               </section>
             )}
+            {licenceOnlineConfigured() && !((licence.status === 'valid' || licence.status === 'account') && licence.access.pro) && !isMobileShell() && (
+              <BuyProPanel offline={offline} onPaid={buyProPaid} />
+            )}
           </>
         ) : (
           <>
             <p>Signing in lets you manage optional account features, including the online AI helper when available. Importing, culling, editing and exporting never need an account.</p>
             <div className="flex flex-wrap gap-2">
-              {signInOptions(signInPlatform(), isSignInConfigured()).map((option) => (
+              {signInOptions(signInPlatform(), isSignInConfigured(), isDesktopGoogleConfigured()).map((option) => (
                 <button key={option.provider} type="button" className={`${action} inline-flex items-center gap-2 disabled:opacity-60`} disabled={offline || accountBusy || !option.available} aria-describedby={option.reason ? 'account-reason' : undefined} onClick={() => void chooseSignIn(option.provider)}><SignInMark provider={option.provider === 'apple' ? 'apple' : 'google'} />{option.label}</button>
               ))}
             </div>
@@ -283,7 +294,7 @@ export function AccountAndLicenceSettings() {
                 </div>
               </form>
             )}
-            {signInOptions(signInPlatform(), isSignInConfigured())[0]?.reason && <p id="account-reason" className="text-xs text-[var(--account-muted,#a1a1aa)]">{signInOptions(signInPlatform(), isSignInConfigured())[0]?.reason}</p>}
+            {(() => { const reason = signInOptions(signInPlatform(), isSignInConfigured(), isDesktopGoogleConfigured()).find((o) => o.reason)?.reason; return reason ? <p id="account-reason" className="text-xs text-[var(--account-muted,#a1a1aa)]">{reason}</p> : null; })()}
           </>
         )}
         {accountBusy && <p role="status">Working on your account…</p>}
