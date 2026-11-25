@@ -4,6 +4,7 @@ import { STRINGS } from '../strings';
 import ProBadge, { useProHidden } from '../shell/ProBadge';
 import BrandIcon, { assistModeIconName } from '../icons/BrandIcon';
 import ColourWordsList from './ColourWordsList';
+import ColourSenseLine from './ColourSenseLine';
 
 interface CoPilotPanelProps {
   photo: Photo | null;
@@ -186,6 +187,8 @@ export default function CoPilotPanel({
                 <p className="mt-1.5 font-mono text-[0.625rem] text-[var(--text-muted)]">
                   {sug.colourReadout}
                 </p>
+                <ColourSenseLine note={sug.colourSense} cvdGuidance={cvdGuidance} />
+                <ColourSenseLine note={sug.colourMatch} cvdGuidance={cvdGuidance} testId="colour-match" />
                 {sug.steps && sug.steps.length > 0 && (
                   <details className="mt-1.5 text-[11px] text-[var(--text-secondary)]">
                     <summary className="cursor-pointer select-none text-[var(--text-primary)]">{STRINGS.copilot.stepsHeading}</summary>

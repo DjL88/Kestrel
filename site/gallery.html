@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>Shared photographs · InFlight</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/gallery.css">
+</head>
+<body>
+  <main id="gallery" aria-live="polite">
+    <p id="status" class="status">Opening the gallery…</p>
+    <form id="password-form" class="panel" hidden>
+      <label for="password">This gallery has a password</label>
+      <input id="password" type="password" autocomplete="off" required>
+      <button type="submit">Open</button>
+    </form>
+    <section id="viewer" hidden>
+      <header class="bar">
+        <h1 id="title"></h1>
+        <span id="counter" class="muted"></span>
+      </header>
+      <figure class="stage">
+        <img id="photo" alt="">
+        <span id="proof" class="proof" hidden aria-hidden="true">Proof</span>
+      </figure>
+      <div id="actions" class="actions" hidden>
+        <button id="favourite" type="button" aria-pressed="false" hidden>☆ Favourite</button>
+        <button id="approve" type="button" hidden>Approve this photo</button>
+        <a id="download" download hidden>Download</a>
+      </div>
+      <form id="comment-form" class="panel" hidden>
+        <label for="comment">Comment on this photo</label>
+        <textarea id="comment" maxlength="2000" rows="2"></textarea>
+        <div class="row">
+          <button type="submit">Send comment</button>
+          <button id="changes" type="button" hidden>Request changes</button>
+        </div>
+      </form>
+      <p id="note" class="muted small" role="status"></p>
+      <nav class="filmstrip" aria-label="Photographs" id="filmstrip"></nav>
+      <p class="muted small"><span id="expiry"></span> <button id="approve-all" type="button" class="link" hidden>Approve the whole selection</button></p>
+    </section>
+  </main>
+  <script type="module" src="/assets/gallery.js"></script>
+</body>
+</html>

@@ -79,6 +79,7 @@ export const nb: Translation = {
     themeContrast: 'Høy kontrast',
     textSize: 'Tekststørrelse',
     typeface: 'Skrifttype',
+    fontBrand: 'InFlight (Plus Jakarta Sans)',
     fontReadable: 'Lett å lese (Atkinson Hyperlegible)',
     calm: 'Færre inntrykk (ingen animasjoner)',
     calmPreset: 'Rolig og tydelig',

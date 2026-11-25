@@ -135,6 +135,7 @@ export default function InfoPanel({
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.info.fileSection}</h3>
         <dl className="space-y-1.5 text-xs">
           <MetaRow label="File" value={photo.filename} mono />
+          {photo.pairedJpeg && <MetaRow label={STRINGS.pair.infoLabel} value={photo.pairedJpeg} mono />}
           <MetaRow label="Format" value={photo.exif.fileSizeMb > 0 ? `${photo.exif.fileFormat} · ${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(photo.exif.fileSizeMb)} MB` : photo.exif.fileFormat} />
           <MetaRow label="Dimensions" value={photo.exif.dimensions} mono />
           <MetaRow label="Colour profile" value={photo.exif.colourProfile} />
@@ -201,7 +202,7 @@ export default function InfoPanel({
               </form>
             ) : (
               <dd className="flex min-w-0 items-center gap-2 text-right text-[var(--text-primary)]">
-                <span>{photo.speciesLabel || photo.category || STRINGS.panelWords.notIdentified}</span>
+                <span>{photo.speciesLabel || photo.vehicleLabel || photo.category || STRINGS.panelWords.notIdentified}</span>
                 <button type="button" aria-label={STRINGS.panelWords.correctSpecies} title={STRINGS.panelWords.correctSpecies}
                   onClick={() => setEditingSpecies(true)}
                   className="shrink-0 rounded border border-[var(--border-subtle)] px-2 py-1 text-[0.6875rem]">{STRINGS.panelWords.edit}</button>

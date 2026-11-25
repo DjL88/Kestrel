@@ -215,9 +215,9 @@ export const gd: AreaTranslation<typeof source> = {
   },
   mask: {
     adjustments: {
-      exposure: 'Deisearas', brightness: 'Soilleireachd', warmth: 'Blàths', colour: 'Dath', contrast: 'Iomsgaradh', highlights: 'Pàirtean soilleir',
+      exposure: 'Nochdadh', brightness: 'Soilleireachd', warmth: 'Blàths', colour: 'Dath', contrast: 'Iomsgaradh', highlights: 'Pàirtean soilleir',
       shadows: 'Faileasan', whites: 'Geala', blacks: 'Dubha', vibrance: 'Beòthalachd',
-      texture: 'Inneach', clarity: 'Soilleireachd mhion', sharpen: 'Geurachadh', denoise: 'Lùghdachadh fuaim',
+      texture: 'Inneach', clarity: 'Soilleireachd mhion', sharpen: 'Geurachadh', denoise: 'Lùghdachadh gràinne',
     },
     sliderFor: (label) => `${label} airson a’ mhasg seo`,
     kinds: { linear: 'Caiseadh', radial: 'Ugh-chruth', brush: 'Bruis', subject: 'Cuspair' },
