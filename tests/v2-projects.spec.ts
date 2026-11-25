@@ -33,6 +33,32 @@ test('?v2 hub: rename, archive, restore and delete a project (originals untouche
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete project' }).click();
   await expect(studio.getByRole('button', { name: 'Project actions for Renamed shoot' })).toHaveCount(0);
   expect(label.length).toBeGreaterThan(0);
+
+  // Delete is not final: the project waits in Recently deleted, where it can be restored as it was.
+  await studio.getByRole('button', { name: 'Recently deleted (1)' }).click();
+  await expect(studio.getByText('Deleted projects stay here for 30 days.')).toBeVisible();
+  await studio.getByRole('button', { name: 'Project actions for Renamed shoot' }).click();
+  await expect(studio.getByRole('menuitem', { name: 'Rename' })).toHaveCount(0);
+  await studio.getByRole('menuitem', { name: 'Restore' }).click();
+  await expect(studio.getByText('Nothing has been deleted.')).toBeVisible();
+  await studio.getByRole('button', { name: 'Back to projects' }).click();
+  await expect(studio.getByRole('button', { name: 'Project actions for Renamed shoot' })).toBeVisible();
+
+  // Removing it for good is offered only from Recently deleted, and asks again first.
+  await studio.getByRole('button', { name: 'Project actions for Renamed shoot' }).click();
+  await studio.getByRole('menuitem', { name: /^Delete/ }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete project' }).click();
+  await studio.getByRole('button', { name: 'Recently deleted (1)' }).click();
+  await studio.getByRole('button', { name: 'Project actions for Renamed shoot' }).click();
+  await studio.getByRole('menuitem', { name: 'Delete forever…' }).click();
+  const forever = page.getByRole('alertdialog');
+  await expect(forever).toContainText('Delete “Renamed shoot” forever?');
+  await expect(forever).toContainText('It cannot be undone.');
+  await forever.getByRole('button', { name: 'Delete forever' }).click();
+  await expect(studio.getByText('Nothing has been deleted.')).toBeVisible();
+  await studio.getByRole('button', { name: 'Back to projects' }).click();
+  await expect(studio.getByRole('button', { name: 'Project actions for Renamed shoot' })).toHaveCount(0);
+  await expect(studio.getByRole('button', { name: /^Recently deleted/ })).toHaveCount(0);
 });
 
 test('?v2 settings: Privacy has a guarded erase-this-device and a forget-me request route', async ({ page }) => {
