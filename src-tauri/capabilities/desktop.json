@@ -19,7 +19,9 @@
       { "url": "https://accounts.google.com/o/oauth2/v2/auth*" },
       { "url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize*" },
       { "url": "https://kestrel-hosting-kestrel.web.app/pro-checkout?_ptxn=*" },
-      { "url": "https://inflight.studio/pro-checkout?_ptxn=*" }
+      { "url": "https://inflight.studio/pro-checkout?_ptxn=*" },
+      { "url": "https://kestrel-hosting-kestrel.web.app/apple-signin?*" },
+      { "url": "https://inflight.studio/apple-signin?*" }
     ] },
     "updater:default",
     "process:allow-restart"
