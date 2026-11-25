@@ -492,8 +492,10 @@ export interface WorkspaceSettings {
 }
 
 export interface ExportRequest {
-  /** Standalone, photo-wide TIFF made from the selected sensor RAW. */
+  /** Standalone, photo-wide 16-bit file made from the selected sensor RAW. */
   rawMaster?: boolean;
+  /** Which 16-bit file the RAW master is written as. Absent = TIFF. */
+  rawMasterFormat?: 'tiff' | 'png';
   fileFormat?: 'jpeg' | 'png';
   jpegQuality?: number;
   destination: ExportDestination;

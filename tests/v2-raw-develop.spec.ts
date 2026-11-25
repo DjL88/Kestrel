@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { mosaic, withPreview } from './rawFixture';
 import { proveTiff16 } from '../src/core/tiff16Proof';
+import { provePng } from '../src/core/png16';
 test('V2 background engine replaces a synthetic embedded RAW preview with developed sensor pixels', async ({ page }) => {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
@@ -88,4 +89,28 @@ test('V2 writes structurally verified 16-bit TIFFs with and without the Tint edi
         magenta.getUint16(i + 4, true) > neutral.getUint16(i + 4, true)) expectedDirection += 1;
   }
   expect(expectedDirection).toBeGreaterThan(64 * 96 / 2);
+});
+
+test('V2 writes a 16-bit RAW PNG from the sensor data, proven by reading the file back', async ({ page }) => {
+  await page.goto('/?v2');
+  const studio = page.locator('.inflight-v2');
+  await studio.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel('Project name', { exact: true }).fill('V2 RAW PNG');
+  await studio.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  await studio.getByRole('button', { name: 'Import', exact: true }).waitFor();
+  await studio.evaluate((target, base64) => {
+    const dataTransfer = new DataTransfer();
+    const bytes = Uint8Array.from(atob(base64), char => char.charCodeAt(0));
+    dataTransfer.items.add(new File([bytes], 'synthetic-z8.dng', { type: 'application/octet-stream' }));
+    target.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
+  }, Buffer.from(mosaic).toString('base64'));
+  await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  await studio.getByRole('button', { name: 'Export', exact: true }).first().click();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    studio.getByRole('button', { name: 'Save 16-bit RAW PNG' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('synthetic-z8_16bit.png');
+  const proof = provePng(Uint8Array.from(await readFile((await download.path())!)));
+  expect([proof.width, proof.height, proof.bitDepth, proof.colourType, proof.srgb]).toEqual([64, 96, 16, 2, true]);
 });
