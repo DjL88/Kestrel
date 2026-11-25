@@ -10,6 +10,9 @@ import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../cor
 import { fullContext } from '../core/masks';
 import { loadImage } from '../providers/loadImage';
 import { loadExportSource } from '../providers/browserExport';
+import { raw16Key, raw16Possible, raw16SharpEnough, raw16WorkingFor, raw16Workings } from '../providers/raw16Working';
+import { renderRaw16Screen } from '../providers/raw16Render';
+import { canDevelopRaw } from '../providers/rawDevelop';
 import React, { useEffect, useRef, useState } from 'react';
 import { ImageOff, LoaderCircle } from './icons/KestrelUIIcons';
 import type { PhotoFrame } from '../core/types';
@@ -39,7 +42,12 @@ interface FrameImageProps {
   /** Optional interactive transform for zoom/pan viewports */
   zoomScale?: number;
   panOffset?: { x: number; y: number };
+  /** V2 editor: when the picture is InFlight's own RAW develop, draw it from the 16-bit develop with the 16-bit edit maths. */
+  sensor16?: boolean;
 }
+
+// Each full-size picture on screen (Before and After are two) has its own place in the 16-bit drawing queue.
+let nextSlot = 0;
 
 // Decoded thumbnail pictures, kept so redrawing an edited filmstrip card does not decode the file again.
 const thumbSources = new Map<string, Promise<HTMLImageElement>>();
@@ -76,12 +84,14 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   maskOutline,
   zoomScale = 1,
   panOffset = { x: 0, y: 0 },
+  sensor16 = false,
 }) => {
   // Keep a finished render for same-frame slider updates, never for a different photo.
   const [sourceRevision, setSourceRevision] = useState(0);
   const identity = frameImageIdentity(frame, variant, sourceRevision);
   // `interim`: the small filmstrip picture shown in the full-size view until the full picture is ready (never reported as ready).
-  const [preview, setPreview] = useState<{ identity: string; url: string; interim?: boolean }>({ identity: '', url: '' });
+  // `precision`: 'rgb16' when the picture was drawn from the 16-bit RAW develop (one rounding to the screen).
+  const [preview, setPreview] = useState<{ identity: string; url: string; interim?: boolean; precision?: 'rgb16' }>({ identity: '', url: '' });
   const src = visibleFrameUrl(preview, identity);
   const [imageSize, setImageSize] = useState<{ src: string; width: number; height: number; fit: 'cover' | 'contain' } | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -134,6 +144,26 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     return () => previewProvider.events.removeEventListener('developed', onDeveloped);
   }, [frame.stableKey, previewProvider, variant, refreshOnBackgroundDevelop]);
 
+  // The 16-bit working copy is made once per photo, only for a photo the person stays on (browsing past photos never
+  // starts a full RAW develop for each), and the picture is redrawn from it when it is ready.
+  const [raw16Rev, setRaw16Rev] = useState(0);
+  const slot = useRef(`picture-${(nextSlot += 1)}`);
+  const want16 = sensor16 && variant === 'full' && !frame.isDemo;
+  useEffect(() => {
+    if (!want16 || raw16Workings.ready(raw16Key(frame))) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const url = await previewProvider.getFullPreviewUrl(frame, 'selected');
+        if (cancelled || !url || !raw16Possible(frame, previewProvider.pictureSourceOf(url), canDevelopRaw())) return;
+        const working = await raw16WorkingFor(frame, () => previewProvider.ensureOriginal(frame.stableKey, 'selected'), await loadImage(url));
+        if (!cancelled && working) setRaw16Rev((count) => count + 1);
+      })().catch(() => undefined);
+    }, 1200);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [want16, frame.stableKey, frame.originalSha256, previewProvider, developedRev, sourceRevision]);
+
   // Image layers are part of the picture (V2): a change to them redraws it, a change to text or watermark does not.
   const layersKey = JSON.stringify(visibleLayers(frameLayers(frame.overlay)));
   const edited = Boolean((frame.edit && !isNeutralEdit(frame.edit)) || layersKey !== '[]' || (frame.framing &&
@@ -173,7 +203,8 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       const canvas = document.createElement('canvas');
       const framing = frame.framing ?? DEFAULT_FRAMING;
       const size = framedSize(source.naturalWidth, source.naturalHeight, framing);
-      drawFramedPhoto(source, canvas, framing, { scale: Math.min(1, (variant === 'thumb' ? 400 : 2200) / Math.max(size.width, size.height)) });
+      const scale = Math.min(1, (variant === 'thumb' ? 400 : 2200) / Math.max(size.width, size.height));
+      drawFramedPhoto(source, canvas, framing, { scale });
       await preloadTrueDetailAi(frame.edit);
       if (cancelled) return;
       applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT, undefined, { ...fullContext(canvas.width, canvas.height), lensCentre: lensCentre(source.naturalWidth, source.naturalHeight, framing) });
@@ -189,6 +220,28 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       fullShown = true;
       replaceRendered(url);
       setPreview({ identity, url });
+      // Then, when this photo's 16-bit copy is ready, the same picture drawn from it (in a worker, so sliders stay free)
+      // replaces it: only if the edit can be carried at 16 bits and the result is at least as detailed.
+      await drawSensor16(Math.max(size.width, size.height) * scale).catch(() => undefined);
+    };
+
+    const drawSensor16 = async (eightBitLongEdge: number) => {
+      const working = want16 ? raw16Workings.ready(raw16Key(frame)) : undefined;
+      if (!working) return;
+      const shownUrl = await previewProvider.getFullPreviewUrl(frame, 'selected');
+      if (cancelled || !raw16Possible(frame, previewProvider.pictureSourceOf(shownUrl), canDevelopRaw())) return;
+      const screen = await renderRaw16Screen(slot.current, working, frame.edit ?? DEFAULT_EDIT, frame.framing);
+      if (cancelled || !screen || !raw16SharpEnough(screen, eightBitLongEdge)) return;
+      const canvas = document.createElement('canvas');
+      canvas.width = screen.width; canvas.height = screen.height;
+      canvas.getContext('2d')!.putImageData(new ImageData(screen.rgba, screen.width, screen.height), 0, 0);
+      await applyFrameLayers(canvas, frame.overlay, false);
+      if (cancelled) return;
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+      if (cancelled || !blob) return;
+      const url = URL.createObjectURL(blob);
+      replaceRendered(url);
+      setPreview({ identity, url, precision: 'rgb16' });
     };
 
     // A full-size view never stays an empty dark frame while a large original is verified and developed (a 45 MP RAW
@@ -214,7 +267,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     if (variant === 'full' && !hasImage.current) void showInterim().catch(() => undefined);
 
     const load = async () => {
-      if (edited) {
+      if (edited || (want16 && raw16Workings.ready(raw16Key(frame)))) {
         // Wait for the edit to settle before redrawing, so dragging a slider does not redraw on every step.
         await new Promise<void>((resolve) => { timer = window.setTimeout(resolve, hasImage.current ? 65 : 0); });
         if (cancelled) return;
@@ -251,7 +304,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [frame.id, frame.stableKey, identity, frame.edit, frame.framing, layersKey, edited, previewProvider, variant, needsAccess, priority, nearViewport, onPreviewStatus, developedRev]);
+  }, [frame.id, frame.stableKey, identity, frame.edit, frame.framing, layersKey, edited, previewProvider, variant, needsAccess, priority, nearViewport, onPreviewStatus, developedRev, raw16Rev, want16]);
 
   const demoStyle: React.CSSProperties = {};
   if (!edited && frame.isDemo && frame.demoVariant) {
@@ -313,6 +366,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
           draggable={false}
           loading={variant === 'thumb' ? 'lazy' : 'eager'}
           data-preview-quality={preview.interim ? 'interim' : 'full'}
+          data-precision={preview.interim ? undefined : preview.precision}
           onLoad={(event) => {
             // The interim thumbnail keeps the refresh status on and is not reported as the photo's preview.
             if (preview.interim) return;

@@ -7,7 +7,7 @@ import { applyFringe, validDefringe, validLateralCa } from './fringe';
 import { applyFinishingRgb16, validGrain, validVignette } from './finishing';
 import { validWhiteBalance } from './asShotWhite';
 import { applyDetailRgb16, applyPhotoEditLinear, detailParams, hasDetail, isNeutralTone, type PhotoEdit } from './photoEdits';
-import { cropRectangle, rotationCoverage, type PhotoFraming } from './photoFraming';
+import { cropRectangle, DEFAULT_FRAMING, lensCentre, rotationCoverage, type PhotoFraming } from './photoFraming';
 import { THUMB, type Thumb } from './orientMatch';
 import { maskIsActive, validMasks, type Mask } from './maskTypes';
 import { effectiveAlpha } from './masks';
@@ -389,6 +389,30 @@ export function editRgb16(image: Rgb16Image, edit: PhotoEdit, lens?: { x: number
   applyDetailRgb16(data, image.width, image.height, edit, Math.max(image.width, image.height));
   applyToneMasksRgb16(image, edit.masks);
   applyFinishingRgb16(data, image.width, image.height, edit);
+}
+
+/**
+ * A kept 16-bit picture (already turned by `turn` degrees to match the editor) with this framing and edit, by the same
+ * 16-bit maths as the export. Works on a copy; null when an edit cannot be carried at 16 bits yet (see master16Blocker).
+ */
+export function renderTurned16(picture: Rgb16Image, turn: number, edit: PhotoEdit, framing: PhotoFraming | undefined): Rgb16Image | null {
+  if (master16Blocker(edit, framing)) return null;
+  const framed = frameRgb16({ ...picture, data: picture.data.slice() }, framing ?? DEFAULT_FRAMING, turn / 90, true);
+  editRgb16(framed, edit, lensCentre(picture.width, picture.height, framing ?? DEFAULT_FRAMING, turn / 90));
+  return framed;
+}
+
+/** 16-bit samples to 8-bit screen pixels with one rounding (the decoder's samples are already display-encoded sRGB). */
+export function rgb16ToRgba(image: Rgb16Image): Uint8ClampedArray<ArrayBuffer> {
+  const pixels = image.width * image.height;
+  const rgba = new Uint8ClampedArray(pixels * 4);
+  for (let i = 0, o = 0; i < pixels * 3; i += 3, o += 4) {
+    rgba[o] = Math.round(image.data[i] / 257);
+    rgba[o + 1] = Math.round(image.data[i + 1] / 257);
+    rgba[o + 2] = Math.round(image.data[i + 2] / 257);
+    rgba[o + 3] = 255;
+  }
+  return rgba;
 }
 
 /**
