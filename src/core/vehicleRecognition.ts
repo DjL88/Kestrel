@@ -34,18 +34,26 @@ export interface VehicleVectorFile {
 export interface VehicleVectors { kinds: Float32Array[]; types: Float32Array[] }
 
 /**
- * Measured on 25 Nov 2026 against a small set of public-domain and Creative Commons photographs from Wikimedia Commons
- * (see docs/ROADMAP.md, "Vehicle recognition"). They err towards "type unknown". Re-measure whenever labels.json changes.
+ * Measured on 25 Nov 2026 with the app's own CLIP image model on 232 public-domain and Creative Commons photographs from
+ * Wikimedia Commons, 31 kinds and types, never committed (tools/subject-router/vehicle_calibration_*.py re-runs it).
+ * Thresholds were chosen on that same set, so treat them as a first measurement, not a proof:
+ * - kind at 0.6 / 0.3: named on 119 of 232 photos, right on 114 (96%); the misses were Chinooks read as military transport,
+ *   a museum Typhoon read as a light aircraft and an intercity train read as a tram;
+ * - family ("Aircraft, type unknown") at 0.75: 76 photos, none wrong;
+ * - type: CLIP alone is weak at telling types apart (51 of 163 right as a first guess). At 0.55 / 0.25 a named type was right
+ *   on only 1 of 6 photos whose kind was clear (it leans to "Voyager" for every big grey aircraft); at 0.75 / 0.5 no wrong
+ *   type was named, and in practice almost none is. Exact types come from a readable registration (step 2), not from here.
+ * Re-measure whenever labels.json changes.
  */
 export const VEHICLE_THRESHOLDS = {
   /** How much of the gate's probability must sit on vehicle categories before a picture is read as a vehicle at all. */
   gateMass: 0.6,
-  kindProbability: 0.5,
-  kindMargin: 0.2,
+  kindProbability: 0.6,
+  kindMargin: 0.3,
   /** Enough to say "Aircraft" when no single kind of aircraft is clear. */
   familyProbability: 0.75,
-  typeProbability: 0.55,
-  typeMargin: 0.25,
+  typeProbability: 0.75,
+  typeMargin: 0.5,
 } as const;
 export type VehicleThresholds = { [K in keyof typeof VEHICLE_THRESHOLDS]: number };
 

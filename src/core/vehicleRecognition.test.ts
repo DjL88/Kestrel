@@ -33,7 +33,8 @@ test('the committed vectors cover every kind and type, and every type belongs to
 });
 
 test('a picture that looks like a Typhoon reads as a military jet, probably a Eurofighter Typhoon', () => {
-  const reading = read(mix(typeAt('typhoon'), kindAt('military-jet')));
+  // A picture exactly like the Typhoon description (real photos rarely get this far: see VEHICLE_THRESHOLDS).
+  const reading = read(mix(typeAt('typhoon'), typeAt('typhoon'), typeAt('typhoon'), kindAt('military-jet')));
   assert.equal(reading?.family, 'air');
   assert.equal(reading?.kind, 'military-jet');
   assert.equal(reading?.type, 'typhoon');
