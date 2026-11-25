@@ -646,6 +646,8 @@ export interface WorkspaceActions {
   archiveProject: (projectId: string, archived: boolean) => void;
   /** Moves the project to Recently deleted for 30 days. Nothing is removed yet; original files are never touched. */
   deleteProject: (projectId: string) => void;
+  /** A separate, complete copy named "… (copy)", made as a task in Tasks. Stored photo copies are shared. */
+  duplicateProject: (projectId: string) => void;
   /** Takes a project back out of Recently deleted, as it was. */
   restoreDeletedProject: (projectId: string) => void;
   /** Removes InFlight's catalogue entry and its stored copies now. Original files are never touched. */

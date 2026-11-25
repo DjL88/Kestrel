@@ -68,6 +68,32 @@ test('a deleted project is in neither the main nor the archived list', () => {
   assert.deepEqual(archived, []);
 });
 
+import { duplicateProject } from './projects';
+
+test('duplicating gives a separate, complete copy under a new id and name', () => {
+  const [a, b] = generateDemoShootFrames(2);
+  const source = setArchived(appendProjectPhotos(createEmptyProject('p', 'Dogs'), [{ ...a, decision: 'keep', rating: 5 }, b], 'first'), 700);
+  const copy = duplicateProject(source, 'p2', 'Dogs (copy)', 9000);
+  assert.equal(copy.shoot.id, 'p2');
+  assert.equal(copy.shoot.title, 'Dogs (copy)');
+  assert.equal(copy.shoot.createdAt, 9000);
+  assert.equal('archivedAt' in copy.shoot, false);
+  assert.deepEqual(copy.frames, source.frames);
+  assert.equal(copy.selectedFrameId, source.selectedFrameId);
+  // Separate: changing the copy leaves the original as it was.
+  copy.frames[0].rating = 1;
+  assert.equal(source.frames[0].rating, 5);
+  // Shared stored copies stay while either project uses them.
+  assert.deepEqual(unreferencedBlobKeys(source, [copy]), []);
+});
+
+test('a copy of a deleted Quick edits project starts in the main list, as a normal project', () => {
+  const source = setTrashed({ ...createEmptyProject('q', 'Q'), shoot: { ...createEmptyProject('q', 'Q').shoot, inbox: true } }, 100);
+  const copy = duplicateProject(source, 'q2', 'Q (copy)', 200);
+  assert.equal('trashedAt' in copy.shoot, false);
+  assert.equal('inbox' in copy.shoot, false);
+});
+
 test('a deleted project is removed for good only after the full 30 days', () => {
   assert.equal(TRASH_KEEP_MS, 30 * 24 * 60 * 60 * 1000);
   const shoot = { trashedAt: 1_000 };

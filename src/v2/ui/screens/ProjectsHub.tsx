@@ -26,6 +26,8 @@ interface ProjectsHubProps {
   onRestoreDeletedProject?: (projectId: string) => void;
   /** Removes a project in Recently deleted for good, after its own confirmation. */
   onDeleteProjectForever?: (projectId: string) => void;
+  /** Makes a separate copy of the project, shown as a task in Tasks. */
+  onDuplicateProject?: (projectId: string) => void;
   onOpenSettings: () => void;
   onToggleTheme: () => void;
   onSetHubState: (state: HubViewState) => void;
@@ -45,6 +47,7 @@ export default function ProjectsHub({
   onDeleteProject,
   onRestoreDeletedProject,
   onDeleteProjectForever,
+  onDuplicateProject,
   onOpenSettings,
   onToggleTheme,
   onSetHubState,
@@ -271,6 +274,7 @@ export default function ProjectsHub({
                       else onArchiveProject(project.id, !project.archived);
                     }}
                     onDelete={() => { setMenuFor(null); if (!project.trashed || canEmpty) setDeleting(project); }}
+                    onDuplicate={onDuplicateProject ? () => { setMenuFor(null); onDuplicateProject(project.id); } : undefined}
                   />
                 );
               })}

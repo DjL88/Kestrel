@@ -8,7 +8,7 @@ import { newId } from '../../core/ids';
 import { exportCollage } from './exportCollage';
 import { createCollage, MAX_COLLAGE_SELECTION, readCollage } from '../../core/collage';
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
-import { appendProjectPhotos, applyImportBursts, createEmptyProject, setArchived, setTrashed, trashExpired } from '../../core/projects';
+import { appendProjectPhotos, applyImportBursts, createEmptyProject, duplicateProject, setArchived, setTrashed, trashExpired } from '../../core/projects';
 import { tasks } from '../../core/taskStore';
 import { createSaveGuard, type SaveGuard } from '../../core/saveGuard';
 import { engineScheduler } from '../../core/engineScheduler';
@@ -1747,6 +1747,28 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // Removing for good is offered only from Recently deleted, after its own confirmation.
     deleteProjectForever: (id) => {
       void catalogue.current!.deleteProject(id).then(() => loadHub(), () => setNotice('InFlight could not delete the project. Your original photos are unchanged.'));
+    },
+    // A copy is a Tasks job: it waits for a free slot, shows while it runs and can be cancelled before it saves.
+    duplicateProject: (id) => {
+      void (async () => {
+        const store = catalogue.current!;
+        const found = await store.loadProject(id);
+        if (!found) { setNotice('That project could not be found.'); return; }
+        const title = V2_STRINGS.hubMore.copyName(found.shoot.title);
+        const ticket = await engineScheduler.submit({
+          title: V2_STRINGS.hubMore.duplicating(found.shoot.title),
+          kind: 'other', resource: 'io', pauseable: false, snapshot: undefined,
+          items: [id], itemId: (item) => item, itemLabel: () => found.shoot.title,
+          runItem: async (_item, _snapshot, ctx) => {
+            // Read again inside the task, so the copy has every change made while it waited its turn.
+            const latest = await store.loadProject(id);
+            ctx.checkCancelled();
+            if (!latest) throw new Error('That project could not be found.');
+            await store.saveProject(duplicateProject(latest, `project-${newId()}`, title, Date.now()));
+          },
+        });
+        if (await ticket.finished === 'done') await loadHub();
+      })().catch(() => setNotice('InFlight could not update the project.'));
     },
     backToProjects: () => { void backToProjects(); },
     setHubState: (next) => setHubState(next),
