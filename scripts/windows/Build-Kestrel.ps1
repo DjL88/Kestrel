@@ -50,7 +50,8 @@ Write-Host "git, Node $(node --version), $(cargo --version), C++ build tools: OK
 
 if (-not $NoUpdate) {
   Step "Updating to the latest main"
-  $changes = git status --porcelain
+  # Tracked changes only: untracked notes or tool folders (.claude\, handover files) must not stop the update to main.
+  $changes = git status --porcelain --untracked-files=no
   if ($changes) {
     Write-Host "You have local changes, so the source was not updated. Building what is checked out." -ForegroundColor Yellow
   } else {
@@ -63,6 +64,12 @@ if (-not $NoUpdate) {
 }
 $revision = (git rev-parse --short=12 HEAD).Trim()
 Write-Host "Building source revision $revision"
+# The installer is a release: it is refused if the source has changes that are not in that revision (G10). Say so now,
+# in plain words, rather than after npm ci. A developer test build can set KESTREL_RELEASE=0 first.
+if ($env:KESTREL_RELEASE -ne "0") {
+  node --input-type=module -e "import { readGit } from './scripts/build-provenance.mjs'; const g = readGit(process.cwd()); process.exit(g && !g.dirty ? 0 : 1);"
+  if ($LASTEXITCODE -ne 0) { throw "this folder has changes that are not in revision $revision, so the installer would not match main. Run 'git status', commit or set the changes aside, then run this again." }
+}
 
 Step "Installing JavaScript packages"
 npm ci --no-audit --no-fund
@@ -96,4 +103,6 @@ if ($installer) {
   Write-Host "Installers are in $bundle"
 }
 Write-Host "After installing, Settings > Build information should show revision $revision (the Mac should match)."
+Write-Host "Commit record for the release parity check: $(Join-Path $Root 'dist\build-info.json')"
+Write-Host "  node scripts/check-release-parity.mjs --windows=dist/build-info.json --mac=<dmg>.build-info.json --web=<site>/V2Proto/build-info.json"
 Write-Host "The first launch clears any old cached copy of Kestrel inside Windows' web view and reloads once."

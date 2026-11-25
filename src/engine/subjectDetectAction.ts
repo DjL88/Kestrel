@@ -43,6 +43,8 @@ export interface SubjectDetectActionInput {
    * 'unverified', not a guess at what the vision model would have said. */
   visionDescription?: string;
   runner?: EngineRunner;
+  /** Cancels the work; a scheduled batch's own signal runs it inside that batch (see taskManager.ts). */
+  signal?: AbortSignal;
 }
 
 export interface SubjectDetectActionResult {
@@ -69,5 +71,5 @@ export async function runSubjectDetectAction(input: SubjectDetectActionInput): P
     const reading = input.visionDescription !== undefined ? modelWitness(input.visionDescription) : null;
     const corroboration = corroborateSubject(reading, detector);
     return { finding, trust, corroboration };
-  });
+  }, { signal: input.signal });
 }

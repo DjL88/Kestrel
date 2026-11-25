@@ -56,7 +56,7 @@ async function open() {
     button.type = 'button';
     button.setAttribute('aria-label', 'Photograph ' + (i + 1) + ' of ' + gallery.photos.length);
     const img = document.createElement('img');
-    img.src = photo.url; img.alt = ''; img.loading = 'lazy';
+    img.src = photo.thumbUrl || photo.url; img.alt = ''; img.loading = 'lazy'; img.decoding = 'async';
     button.append(img);
     button.addEventListener('click', () => show(i));
     return button;
