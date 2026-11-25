@@ -1,3 +1,4 @@
+import { MAX_LAYERS, readLayers, validLayer, type PhotoLayer } from '../../core/layers';
 import type { OverlayAnchor, OverlaySettings, OverlayStack, OverlayTextRow } from '../ui/contract';
 import { createDefaultOverlay } from '../ui/stub';
 import { MAX_OVERLAY_ROWS, isOverlayField, moveInList } from '../ui/utils/overlayMetadata';
@@ -64,6 +65,7 @@ export function readOverlay(raw: unknown): OverlaySettings {
     watermarkContrast: value.watermarkContrast === 'dark-on-light' ? 'dark-on-light' : value.watermarkContrast === 'light-on-dark' ? 'light-on-dark' : 'auto',
     snapEnabled: value.snapEnabled !== false,
     edgeMargin: num(value.edgeMargin, DEFAULT_EDGE_MARGIN, 0, 12),
+    ...(readLayers(value.layers).length ? { layers: readLayers(value.layers) } : {}),
   };
 }
 
@@ -116,4 +118,52 @@ export function anchorOverlay(overlay: OverlaySettings, which: 'text' | 'waterma
   return readOverlay(which === 'text'
     ? { ...overlay, textPosition: position, textPlacement: 'anchor', textAlign: alignForAnchor(position), textX: centre.x, textY: centre.y }
     : { ...overlay, watermarkPosition: position, watermarkPlacement: 'anchor', watermarkX: centre.x, watermarkY: centre.y });
+}
+
+/** Image layers (bottom first). Every change is clamped and validated, so a bad value never reaches the picture. */
+const clampLayer = (layer: PhotoLayer): PhotoLayer => ({
+  ...layer,
+  x: Math.min(2, Math.max(-1, layer.x)), y: Math.min(2, Math.max(-1, layer.y)),
+  width: Math.min(3, Math.max(0.02, layer.width)),
+  rotation: ((((layer.rotation + 180) % 360) + 360) % 360) - 180,
+  opacity: Math.min(1, Math.max(0, layer.opacity)),
+  softEdge: Math.min(0.5, Math.max(0, layer.softEdge)),
+});
+
+/** Size a new layer to fit comfortably inside the frame (height over width = frameAspect), centred. */
+export function newLayer(id: string, assetId: string, label: string, aspect: number, frameAspect: number, widthShare = 0.5): PhotoLayer {
+  // Fit within the frame's height too: layer height (in frame widths) = width × aspect must be under ~90% of the frame height.
+  const width = Math.min(widthShare, (0.9 * frameAspect) / aspect);
+  return clampLayer({ id, assetId, label: label.slice(0, 120), aspect, x: 0.5, y: 0.5, width, rotation: 0, opacity: 1, blend: 'normal', softEdge: 0, shape: 'rectangle', hidden: false });
+}
+
+export function addLayer(overlay: OverlaySettings, layer: PhotoLayer): OverlaySettings {
+  const layers = overlay.layers ?? [];
+  if (layers.length >= MAX_LAYERS || !validLayer(layer)) return overlay;
+  return { ...overlay, layers: [...layers, layer] };
+}
+
+export function updateLayer(overlay: OverlaySettings, layerId: string, patch: Partial<Omit<PhotoLayer, 'id' | 'assetId' | 'aspect'>>): OverlaySettings {
+  const layers = overlay.layers ?? [];
+  return { ...overlay, layers: layers.map((layer) => {
+    if (layer.id !== layerId) return layer;
+    const next = clampLayer({ ...layer, ...patch });
+    return validLayer(next) ? next : layer;
+  }) };
+}
+
+export function removeLayer(overlay: OverlaySettings, layerId: string): OverlaySettings {
+  const layers = (overlay.layers ?? []).filter((layer) => layer.id !== layerId);
+  const { layers: _old, ...rest } = overlay;
+  return layers.length ? { ...rest, layers } : rest;
+}
+
+/** Move a layer up (towards the top, 1) or down (-1) the stack. */
+export function moveLayer(overlay: OverlaySettings, layerId: string, direction: -1 | 1): OverlaySettings {
+  const layers = [...(overlay.layers ?? [])];
+  const index = layers.findIndex((layer) => layer.id === layerId);
+  const target = index + direction;
+  if (index < 0 || target < 0 || target >= layers.length) return overlay;
+  [layers[index], layers[target]] = [layers[target], layers[index]];
+  return { ...overlay, layers };
 }

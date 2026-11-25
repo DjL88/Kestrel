@@ -17,7 +17,8 @@
       { "url": "https://kestrel-hosting-kestrel.web.app/privacy.html" },
       { "url": "https://www.dropbox.com/oauth2/authorize*" },
       { "url": "https://accounts.google.com/o/oauth2/v2/auth*" },
-      { "url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize*" }
+      { "url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize*" },
+      { "url": "https://checkout.sumup.com/*" }
     ] },
     "updater:default",
     "process:allow-restart"

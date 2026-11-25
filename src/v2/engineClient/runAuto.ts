@@ -18,6 +18,7 @@ import type { PhotoFrame } from '../../core/types';
 import { describePlan, planAuto, type AutoPlan } from '../../core/unifiedAuto';
 import { checkColour, type ColourReport } from '../../core/colourCheck';
 import type { SpeciesGuess } from '../../core/speciesPalette';
+import { expectationForSpecies } from '../../core/colourMatch';
 import { newId } from '../../core/ids';
 import { identifySubject } from '../../providers/autoSpecies';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
@@ -25,6 +26,7 @@ import { loadImage } from '../../providers/loadImage';
 import { loadExportSource } from '../../providers/browserExport';
 import { editorText as t } from '../../i18n/areas/editor';
 import { renderAutoCandidates, type AutoCandidate } from './renderAutoCandidates';
+import { engineText } from '../../i18n/areas/engine';
 
 export interface AutoRun {
   plan: AutoPlan;
@@ -62,6 +64,15 @@ const withTimeout = <T>(work: Promise<T>, ms: number, onTimeout: () => T | Promi
  * applied here: the caller decides (Co-pilot suggests, Auto-pilot applies). Returns null when the picture cannot be
  * read or is too small to analyse. RAW advice uses the sensor-developed preview when available. Original files are read only.
  */
+/** Auto's headline in the person's language. The verdict decides it; its internal reason is never shown as the headline. */
+function headlineFor(plan: AutoPlan): string {
+  switch (plan.verdict.kind) {
+    case 'improved': return plan.verdict.outcome === 'gentler' ? engineText.auto.appliedGentler : engineText.auto.applied;
+    case 'looks-good': return engineText.auto.looksGood;
+    default: return engineText.auto.cannotImprove;
+  }
+}
+
 export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvider, signal?: AbortSignal): Promise<AutoRun | null> {
   const raw = !frame.isDemo && isRawPreviewFile(frame.filename);
   const url = raw ? null : await provider.getFullPreviewUrl(frame, 'selected');
@@ -182,7 +193,10 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
       else plan = { ...naturalPlan, proposal: base, verdict: { kind: 'cannot-improve-safely', reason: 'No preferred recipe passed every detected subject check' } };
     }
   }
-  const rendered = recipes.length ? renderAutoCandidates(analysisCanvas, base, recipes, subjectInstances.map(instance => instance.mask)) : { before: '', candidates: [], rejected: [] };
+  // Colour match: the species signature on file, only for a confidently named species on a reliable mask. The vision
+  // model's expectation (the guardian lane) takes the same SubjectExpectation shape when it is available.
+  const expectation = segmentation?.confidence === 'high' ? expectationForSpecies(species) : null;
+  const rendered = recipes.length ? renderAutoCandidates(analysisCanvas, base, recipes, subjectInstances.map(instance => instance.mask), expectation) : { before: '', candidates: [], rejected: [] };
   if (!rendered.candidates.some((candidate) => candidate.edit === plan.proposal)
     && rendered.candidates.some((candidate) => candidate.edit === naturalPlan.proposal)) {
     plan = naturalPlan;
@@ -195,11 +209,11 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   const described = describePlan(plan);
   const reference = segmentation?.confidence === 'high' ? speciesReference(species) : null;
   const improved = rendered.candidates.some((candidate) => candidate.edit === plan.proposal);
-  const coverageNote = instanceCount > 1 && segmentation ? 'Multiple detected subjects were checked individually for clipping and shadow loss. Local tone edits require reliable non-overlapping masks; species colour correction was withheld.' : instanceCoverageUnavailable ? 'Complete subject coverage was unavailable; only whole-frame suggestions were considered.' : null;
+  const coverageNote = instanceCount > 1 && segmentation ? engineText.auto.multipleSubjects : instanceCoverageUnavailable ? engineText.auto.coverageUnavailable : null;
   return {
-    ...rendered, plan, improved, detail: [...described.detail, ...rendered.rejected.map(reason => 'A rendered suggestion was withheld: ' + reason), ...(coverageNote ? [coverageNote] : []), ...(reference ? ['Species reference (not a measured colour target): ' + reference.features] : [])],
-    headline: rendered.candidates.length ? 'Checked edit suggestions are ready to preview.'
-      : recipes.length ? 'No visibly different edit passed the checks.' : described.headline,
+    ...rendered, plan, improved, detail: [...described.detail, ...(rendered.rejected.length ? [engineText.auto.withheld] : []), ...(coverageNote ? [coverageNote] : []), ...(reference ? [engineText.auto.speciesReference(reference.features)] : [])],
+    headline: rendered.candidates.length ? engineText.auto.ready
+      : recipes.length ? engineText.auto.noneDifferent : headlineFor(plan),
     source: { stableKey: frame.stableKey, originalSha256: frame.originalSha256, framing: frame.framing },
     colour: checkColour({ after: { data: analysis.data, width: analysis.width, height: analysis.height } }),
   };

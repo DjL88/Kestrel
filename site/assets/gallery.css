@@ -1,0 +1,25 @@
+:root { --bg: #f6f5f2; --surface: #ffffff; --text: #1d1d1b; --muted: #5d5d58; --border: #c9c7c0; --focus: #1f5fbf; color-scheme: light dark; }
+@media (prefers-color-scheme: dark) { :root { --bg: #121211; --surface: #1d1d1b; --text: #ecebe6; --muted: #a9a8a1; --border: #44433f; --focus: #8ab4ff; } }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1200px; margin: 0 auto; padding: 16px; min-height: 100vh; display: flex; flex-direction: column; }
+.status { margin: 20vh auto; text-align: center; color: var(--muted); }
+.bar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+h1 { font-size: 1.1rem; margin: 0 0 8px; font-weight: 600; }
+.muted { color: var(--muted); } .small { font-size: 0.85rem; }
+.stage { position: relative; margin: 0; flex: 1; display: flex; align-items: center; justify-content: center; min-height: 50vh; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.stage img { max-width: 100%; max-height: 72vh; object-fit: contain; display: block; -webkit-user-drag: none; }
+.proof { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: clamp(2rem, 9vw, 6rem); font-weight: 700; letter-spacing: 0.3em; color: rgba(255,255,255,0.35); text-shadow: 0 0 6px rgba(0,0,0,0.35); transform: rotate(-20deg); pointer-events: none; text-transform: uppercase; }
+.filmstrip { display: flex; gap: 8px; overflow-x: auto; padding: 10px 2px; }
+.filmstrip button { flex: 0 0 auto; padding: 0; border: 2px solid transparent; border-radius: 6px; background: none; cursor: pointer; position: relative; }
+.filmstrip button[aria-current="true"] { border-color: var(--text); }
+.filmstrip button[aria-current="true"]::after { content: "▲"; position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%); font-size: 10px; color: var(--text); }
+.filmstrip img { width: 84px; height: 64px; object-fit: cover; border-radius: 4px; display: block; }
+.actions, .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+button, .actions a { min-height: 44px; padding: 0 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
+button.link { min-height: 0; border: 0; padding: 0; background: none; text-decoration: underline; color: var(--text); }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.panel { margin-top: 10px; display: grid; gap: 6px; max-width: 480px; }
+input, textarea { font: inherit; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+@media (prefers-reduced-motion: no-preference) { .stage img { transition: opacity 120ms ease-out; } }

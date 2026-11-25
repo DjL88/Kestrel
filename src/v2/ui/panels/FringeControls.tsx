@@ -1,0 +1,83 @@
+import React from 'react';
+import type { EditRecipe } from '../contract';
+import { STRINGS } from '../strings';
+import BrandIcon from '../icons/BrandIcon';
+import InfoPopover from '../shell/InfoPopover';
+
+const T = STRINGS.adjust.fringe;
+type Outcome = 'corrected' | 'clean' | 'unclear';
+
+interface Props {
+  recipe: EditRecipe;
+  calmView: boolean;
+  showAdvanced: boolean;
+  onChange: (patch: Partial<EditRecipe>) => void;
+  onDetect: () => Promise<Outcome>;
+}
+
+function Slider({ id, label, help, value, min, calmView, onChange }: { id: string; label: string; help: string; value: number; min: number; calmView: boolean; onChange: (v: number) => void }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1">
+          <label htmlFor={id} className="text-xs font-medium text-[var(--text-primary)]">{label}</label>
+          <InfoPopover title={label} body={help} />
+        </div>
+        {!calmView && (
+          <button type="button" onClick={() => onChange(0)} className="font-mono text-[0.6875rem] text-[var(--text-secondary)] tabular-nums hover:text-[var(--brand-accent)]">
+            {`${value > 0 && min < 0 ? '+' : ''}${Math.round(value)}`}
+          </button>
+        )}
+      </div>
+      <input id={id} type="range" min={min} max={100} step={1} value={value} onChange={(e) => onChange(Number(e.target.value))} className="inflight-slider" />
+    </div>
+  );
+}
+
+/** Lens colour fringes: measured lateral correction (manual in Advanced) and purple/green fringe removal. */
+export function FringeControls({ recipe, calmView, showAdvanced, onChange, onDetect }: Props) {
+  const [busy, setBusy] = React.useState(false);
+  const [outcome, setOutcome] = React.useState<Outcome | null>(null);
+  const red = recipe.caRed ?? 0, blue = recipe.caBlue ?? 0;
+  const corrected = red !== 0 || blue !== 0;
+  const detect = async () => {
+    setBusy(true);
+    setOutcome(null);
+    try { setOutcome(await onDetect()); } finally { setBusy(false); }
+  };
+  const status = outcome === 'clean' ? T.clean : outcome === 'unclear' ? T.unclear : corrected ? (outcome === 'corrected' ? T.corrected : T.active) : null;
+  return (
+    <div className="space-y-3" data-testid="fringe">
+      <div className="flex items-center gap-1">
+        <h4 className="text-xs font-medium text-[var(--text-primary)]">{T.heading}</h4>
+        <InfoPopover title={T.heading} body={T.help} />
+      </div>
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-1">
+          <button type="button" onClick={detect} disabled={busy} aria-describedby="fringe-status"
+            className="min-h-8 flex-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:border-[var(--brand-accent)] disabled:opacity-60">
+            {busy ? T.detecting : T.detect}
+          </button>
+          <InfoPopover title={T.detect} body={T.detectHelp} />
+        </div>
+        <p id="fringe-status" role="status" className="text-[0.6875rem] leading-snug text-[var(--text-muted)]">
+          {status}
+          {corrected && (
+            <button type="button" onClick={() => { setOutcome(null); onChange({ caRed: 0, caBlue: 0 }); }}
+              className="ml-2 inline-flex items-center gap-1 font-medium text-[var(--text-secondary)] hover:text-[var(--brand-accent)]">
+              <BrandIcon name="restore" size={12} /><span>{T.undo}</span>
+            </button>
+          )}
+        </p>
+      </div>
+      {showAdvanced && (
+        <>
+          <Slider id="slider-ca-red" label={T.red} help={T.redHelp} value={red} min={-100} calmView={calmView} onChange={(v) => onChange({ caRed: v })} />
+          <Slider id="slider-ca-blue" label={T.blue} help={T.blueHelp} value={blue} min={-100} calmView={calmView} onChange={(v) => onChange({ caBlue: v })} />
+        </>
+      )}
+      <Slider id="slider-defringe-purple" label={T.purple} help={T.purpleHelp} value={recipe.defringePurple ?? 0} min={0} calmView={calmView} onChange={(v) => onChange({ defringePurple: v })} />
+      <Slider id="slider-defringe-green" label={T.green} help={T.greenHelp} value={recipe.defringeGreen ?? 0} min={0} calmView={calmView} onChange={(v) => onChange({ defringeGreen: v })} />
+    </div>
+  );
+}
