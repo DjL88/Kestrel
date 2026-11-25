@@ -25,6 +25,7 @@ import { LEARNING_ACTIONS, LEARNING_CAPABILITIES, LEARNING_SOURCES, type Learnin
 import { CollabRefusal, MAX_RECIPE_BYTES, type CollabStore } from './collaboration.ts';
 import { CloudRefusal, CLOUD_VARIANTS, type CloudPhotoStore } from './cloudPhotos.ts';
 import { millicreditsForBytes, type AllowancePolicy, type UsageMeter } from './usageMeter.ts';
+import { FEEDBACK_ITEM_ID } from '../../../src/core/clientFeedback.ts';
 import { GalleryRefusal, GALLERY_MAX_DAYS, GALLERY_MAX_PHOTOS, GALLERY_MAX_PREVIEW_BYTES, type GalleryStore } from './gallery.ts';
 import { presenceUid, PRESENCE_TOKEN_TTL_S, type PresenceSigner } from './presenceToken.ts';
 import { SAFE_COPY_LEVELS, SAFE_COPY_MAX_BYTES, safeCopyKey, type SafeCopyOptions } from './safeCopy.ts';
@@ -171,6 +172,7 @@ export const Schemas = {
     allowApproval: z.boolean().default(false), allowDownloads: z.boolean().default(false), watermark: z.boolean().default(false),
   }).strict(),
   GalleryPreview: z.object({ sha256: Sha, bytes: z.number().int().positive().max(GALLERY_MAX_PREVIEW_BYTES), variant: z.enum(['preview', 'thumb']).default('preview') }).strict(),
+  GalleryReview: z.object({ itemId: z.string().regex(FEEDBACK_ITEM_ID), state: z.enum(['done', 'dismissed', 'new']) }).strict(),
   GalleryOpen: z.object({ token: z.string().min(20).max(128), password: z.string().max(200).optional() }).strict(),
   GalleryFeedback: z.object({
     token: z.string().min(20).max(128), password: z.string().max(200).optional(), visitor: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
@@ -579,8 +581,8 @@ export function createApp(options: AppOptions) {
   async function galleryOwner(req: Request, galleryId: string) {
     const claims = await bearer(req);
     const g = await gallery(() => galleryCfg().get(galleryId));
-    await collab(() => collabCfg().requireMember(g.projectId, claims.sub, 'export'));
-    return { claims, g };
+    const member = await collab(() => collabCfg().requireMember(g.projectId, claims.sub, 'export'));
+    return { claims, g, member };
   }
 
   function safeCopyCfg() {
@@ -1329,6 +1331,17 @@ export function createApp(options: AppOptions) {
     {
       method: 'GET', path: '/v1/collab/galleries/:gid/feedback', summary: 'Client favourites, comments and approvals', auth: 'user',
       handler: async (req, params) => { await galleryOwner(req, params.gid); return { status: 200, body: await galleryCfg().feedbackFor(params.gid) }; },
+    },
+    {
+      method: 'POST', path: '/v1/collab/galleries/:gid/feedback/review', summary: "Mark one photo's client feedback done or dismissed, or back to new. Never changes a decision", auth: 'user', body: Schemas.GalleryReview,
+      handler: async (req, params) => {
+        const { member } = await galleryOwner(req, params.gid);
+        const body = parseJson(Schemas.GalleryReview, req.rawBody);
+        const g = await gallery(() => galleryCfg().get(params.gid));
+        if (!g.photoIds.includes(body.itemId.slice('photo:'.length))) throw new ApiError(404, 'NOT_FOUND', 'That photo is not in this gallery.');
+        await galleryCfg().review(params.gid, body.itemId, body.state, member.displayName, now());
+        return { status: 200, body: { reviewed: true } };
+      },
     },
     {
       method: 'POST', path: '/v1/collab/galleries/:gid/revoke', summary: 'Close the link now and delete its previews', auth: 'user',
