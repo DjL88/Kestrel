@@ -177,6 +177,13 @@ export const Schemas = {
   CollabHeartbeat: z.object({ token: z.string().min(16).max(128), editing: z.boolean() }).strict(),
   CollabRelease: z.object({ token: z.string().min(16).max(128), action: z.enum(['checked-in', 'released']) }).strict(),
   CollabOverride: z.object({ reason: z.string().trim().min(1).max(500) }).strict(),
+  // Length and pin are checked again by src/core/photoComments.ts; the schema only bounds the request.
+  CommentStart: z.object({ pin: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().nullable(), text: z.string().max(8000) }).strict(),
+  CommentChange: z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('reply'), text: z.string().max(8000) }).strict(),
+    z.object({ kind: z.literal('resolve') }).strict(),
+    z.object({ kind: z.literal('reopen') }).strict(),
+  ]),
   CollabPublish: z.object({ token: z.string().min(16).max(128), baseRevisionId: z.string().max(64).nullable(), recipe: z.record(z.string(), z.unknown()), virtualCopyOf: z.string().max(64).optional() }).strict(),
   SafeCopyLevels: z.object({ levels: z.object({ recipes: z.boolean(), previews: z.boolean(), originals: z.boolean() }).partial().strict() }).strict(),
   SafeCopyUpload: z.object({ level: z.enum(SAFE_COPY_LEVELS), sha256: Sha, bytes: z.number().int().positive() }).strict(),
@@ -1179,6 +1186,41 @@ export function createApp(options: AppOptions) {
     {
       method: 'GET', path: '/v1/collab/projects/:id/audit', summary: 'Owner only: checkout takeovers and overrides', auth: 'user',
       handler: async (req, params) => { const claims = await bearer(req); return { status: 200, body: { entries: await collab(() => collabCfg().auditFor(params.id, claims.sub)) } }; },
+    },
+
+    // ---- Comments on photos: threads pinned to a relative point, replies, resolve and reopen. Text only.
+    {
+      method: 'GET', path: '/v1/collab/projects/:id/comments', summary: 'Open comment threads per photo, for the filmstrip', auth: 'user',
+      handler: async (req, params) => { const claims = await bearer(req); return { status: 200, body: { counts: await collab(() => collabCfg().commentCounts(params.id, claims.sub)) } }; },
+    },
+    {
+      method: 'GET', path: '/v1/collab/projects/:id/photos/:photoId/comments', summary: 'Comment threads on one photo that you may see, open first', auth: 'user',
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        if (!PhotoId.safeParse(params.photoId).success) throw new ApiError(400, 'BAD_REQUEST', 'That is not a photo id.');
+        return { status: 200, body: await collab(() => collabCfg().comments(params.id, params.photoId, claims.sub)) };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/collab/projects/:id/photos/:photoId/comments', summary: 'Start a comment thread, pinned to a point on the photo (0..1) or about the whole photo', auth: 'user', body: Schemas.CommentStart,
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.CommentStart, req.rawBody);
+        if (!PhotoId.safeParse(params.photoId).success) throw new ApiError(400, 'BAD_REQUEST', 'That is not a photo id.');
+        const c = await collabWritable();
+        const { thread } = await collab(() => c.startComment(params.id, params.photoId, claims.sub, body, now()));
+        return { status: 200, body: { thread } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/collab/projects/:id/photos/:photoId/comments/:threadId', summary: 'Reply to, resolve or reopen a comment thread', auth: 'user', body: Schemas.CommentChange,
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.CommentChange, req.rawBody);
+        const c = await collabWritable();
+        const { thread } = await collab(() => c.changeComment(params.id, params.photoId, params.threadId, claims.sub, body, now()));
+        return { status: 200, body: { thread } };
+      },
     },
 
     // ---- Client galleries (#1387 C06/C07). Members publish previews; clients open a link with no account.

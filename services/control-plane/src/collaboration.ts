@@ -6,7 +6,8 @@
  * Collections: `collab_projects/{projectId}` (name, members, pending invites by email hash, options, lease timings),
  * `collab_memberships/{account|project}` (so "my projects" is one equality query), `collab_leases/{project|photo}`,
  * `collab_heads/{project|photo}` (head id and count) and `collab_revisions/{project|photo|revision}` (the recipe).
- * `collab_audit` keeps lease takeovers and overrides. No photo, preview, file name or EXIF is ever stored: photo ids are
+ * `collab_audit` keeps lease takeovers and overrides. `collab_comments/{project|photo|thread}` holds comment threads pinned
+ * to a relative point on a photo (src/core/photoComments.ts): text only. No photo, preview, file name or EXIF is ever stored: photo ids are
  * the app's opaque ids and a recipe is edit settings only.
  */
 import { docId, type FirestoreLike, type FsData, type FsTransaction } from './firestoreStore.ts';
@@ -19,6 +20,10 @@ import {
   acquireLease, clampLeaseSettings, heartbeat, leaseStatus, overrideLease, releaseLease, DEFAULT_LEASE_SETTINGS,
   type LeaseAuditEntry, type LeaseBoard, type LeaseSettings, type PhotoLease,
 } from '../../../src/core/photoLease.ts';
+import {
+  orderThreads, reopenThread, reply, resolveThread, startThread, threadVisibleTo,
+  type CommentRefusal, type CommentThread,
+} from '../../../src/core/photoComments.ts';
 
 export const MAX_MEMBERS = 50;
 export const MAX_RECIPE_BYTES = 256_000;
@@ -39,7 +44,7 @@ export class CollabRefusal extends Error {
   constructor(readonly status: number, readonly code: string, message: string, readonly detail?: Record<string, unknown>) { super(message); }
 }
 
-const C = { projects: 'collab_projects', memberships: 'collab_memberships', leases: 'collab_leases', heads: 'collab_heads', revisions: 'collab_revisions', audit: 'collab_audit', invites: 'collab_invites' };
+const C = { projects: 'collab_projects', memberships: 'collab_memberships', leases: 'collab_leases', heads: 'collab_heads', revisions: 'collab_revisions', audit: 'collab_audit', invites: 'collab_invites', comments: 'collab_comments' };
 
 /** Firestore refuses `undefined`; drop absent optional fields before writing. */
 const clean = <T extends object>(value: T): FsData => JSON.parse(JSON.stringify(value)) as FsData;
@@ -53,6 +58,20 @@ const MEMBERSHIP_MESSAGES: Record<MembershipRefusal, [number, string]> = {
   'client-needs-photos': [400, 'Choose which photos a client can see.'],
   'role-too-high': [403, 'Only the owner can add editors or owners.'],
 };
+
+const COMMENT_MESSAGES: Record<CommentRefusal, [number, string]> = {
+  empty: [400, 'Write something first.'],
+  'too-long': [400, 'That comment is too long.'],
+  'bad-pin': [400, 'A pin must be on the photo.'],
+  'thread-full': [409, 'This thread is full. Start a new one.'],
+  'photo-full': [409, 'This photo has too many comment threads.'],
+  'already-resolved': [409, 'This thread is already resolved.'],
+  'not-resolved': [409, 'This thread is already open.'],
+};
+const commentRefusal = (reason: CommentRefusal) => { const [status, message] = COMMENT_MESSAGES[reason]; return new CollabRefusal(status, 'COMMENT_' + reason.toUpperCase().replace(/-/g, '_'), message); };
+
+/** What a comment change tells the notice sender: who acted, on what, and who should hear about it. */
+export interface CommentEvent { projectId: string; projectName: string; photoId: string; threadId: string; actorAccountId: string; actorName: string; kind: 'comment' | 'reply' | 'resolve' | 'reopen'; recipients: string[] }
 
 export class CollabStore {
   constructor(private readonly db: FirestoreLike, private readonly newId: () => string = uuid, private readonly newToken: () => string = () => randomId(24)) {}
@@ -282,5 +301,75 @@ export class CollabStore {
     this.memberOrRefuse(project, accountId, 'managePermissions');
     const snap = await this.db.collection(C.audit).where('projectId', '==', projectId).get();
     return snap.docs.map((d) => d.data()! as unknown as LeaseAuditEntry & { projectId: string }).sort((a, b) => a.atMs - b.atMs);
+  }
+
+  // ---- Comments on photos: threads pinned to a point, with replies, resolve and reopen -------------------------------
+
+  private async readThread(tx: FsTransaction, projectId: string, photoId: string, threadId: string): Promise<CommentThread> {
+    const snap = await tx.get(this.ref(C.comments, projectId, photoId, threadId));
+    if (!snap.exists) throw new CollabRefusal(404, 'NOT_FOUND', 'No such comment thread.');
+    const { projectId: _p, ...thread } = snap.data()! as unknown as CommentThread & { projectId: string };
+    return thread;
+  }
+
+  /** Everyone who wrote in the thread and is still a member, except the person acting. */
+  private static participants(thread: CommentThread, actor: string, project: ProjectRecord): string[] {
+    const ids = new Set(thread.entries.map((e) => e.authorAccountId));
+    ids.delete(actor);
+    return [...ids].filter((id) => memberOf(project, id));
+  }
+
+  /** Threads on one photo that this person may see (a client only their own), open first. */
+  async comments(projectId: string, photoId: string, accountId: string) {
+    const project = await this.db.runTransaction((tx) => this.readProject(tx, projectId));
+    const me = this.memberOrRefuse(project, accountId, 'view', photoId);
+    const snap = await this.db.collection(C.comments).where('projectId', '==', projectId).where('photoId', '==', photoId).get();
+    const threads = snap.docs.map((d) => { const { projectId: _p, ...t } = d.data()! as unknown as CommentThread & { projectId: string }; return t as CommentThread; })
+      .filter((t) => threadVisibleTo(t, { accountId, isClient: me.role === 'client' }));
+    return { threads: orderThreads(threads), canComment: can(project, accountId, 'comment', photoId) };
+  }
+
+  /** Open thread counts per photo, for the filmstrip. Clients count only their own threads on their own photos. */
+  async commentCounts(projectId: string, accountId: string): Promise<Record<string, number>> {
+    const project = await this.db.runTransaction((tx) => this.readProject(tx, projectId));
+    const me = this.memberOrRefuse(project, accountId, 'view');
+    const snap = await this.db.collection(C.comments).where('projectId', '==', projectId).get();
+    const counts: Record<string, number> = {};
+    for (const doc of snap.docs) {
+      const t = doc.data()! as unknown as CommentThread;
+      if (t.resolved || !can(project, accountId, 'view', t.photoId) || !threadVisibleTo(t, { accountId, isClient: me.role === 'client' })) continue;
+      counts[t.photoId] = (counts[t.photoId] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  async startComment(projectId: string, photoId: string, accountId: string, input: { pin: unknown; text: string }, atMs: number): Promise<{ thread: CommentThread; event: CommentEvent }> {
+    return this.db.runTransaction(async (tx) => {
+      const project = await this.readProject(tx, projectId);
+      const me = this.memberOrRefuse(project, accountId, 'comment', photoId);
+      const existing = await tx.get(this.db.collection(C.comments).where('projectId', '==', projectId).where('photoId', '==', photoId));
+      const result = startThread({ id: this.newId(), entryId: this.newId(), photoId, pin: input.pin, authorAccountId: accountId, authorName: me.displayName, text: input.text }, existing.docs.length, atMs);
+      if (!result.ok) throw commentRefusal(result.reason);
+      tx.create(this.ref(C.comments, projectId, photoId, result.thread.id), clean({ ...result.thread, projectId }));
+      // A new thread goes to the people who may edit this photo, never to clients.
+      const recipients = project.members.filter((m) => m.accountId !== accountId && can(project, m.accountId, 'edit', photoId)).map((m) => m.accountId);
+      return { thread: result.thread, event: { projectId, projectName: project.name, photoId, threadId: result.thread.id, actorAccountId: accountId, actorName: me.displayName, kind: 'comment' as const, recipients } };
+    });
+  }
+
+  async changeComment(projectId: string, photoId: string, threadId: string, accountId: string, change: { kind: 'reply'; text: string } | { kind: 'resolve' } | { kind: 'reopen' }, atMs: number): Promise<{ thread: CommentThread; event: CommentEvent }> {
+    return this.db.runTransaction(async (tx) => {
+      const project = await this.readProject(tx, projectId);
+      const me = this.memberOrRefuse(project, accountId, 'comment', photoId);
+      const thread = await this.readThread(tx, projectId, photoId, threadId);
+      // A client may only touch a thread they started; any other is invisible to them.
+      if (!threadVisibleTo(thread, { accountId, isClient: me.role === 'client' })) throw new CollabRefusal(404, 'NOT_FOUND', 'No such comment thread.');
+      const result = change.kind === 'reply' ? reply(thread, { id: this.newId(), authorAccountId: accountId, authorName: me.displayName, text: change.text }, atMs)
+        : change.kind === 'resolve' ? resolveThread(thread, { accountId, name: me.displayName }, atMs)
+        : reopenThread(thread, atMs);
+      if (!result.ok) throw commentRefusal(result.reason);
+      tx.set(this.ref(C.comments, projectId, photoId, threadId), clean({ ...result.thread, projectId }));
+      return { thread: result.thread, event: { projectId, projectName: project.name, photoId, threadId, actorAccountId: accountId, actorName: me.displayName, kind: change.kind, recipients: CollabStore.participants(thread, accountId, project) } };
+    });
   }
 }
