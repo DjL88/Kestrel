@@ -2373,6 +2373,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
       return frame?.edit ? JSON.parse(JSON.stringify(frame.edit)) as Record<string, unknown> : null;
     },
+    sharedPhotoExists: (photoId) => Boolean(stateRef.current?.frames.some((frame) => frame.id === photoId && frame.removedAt == null)),
     applySharedEdit: (photoId, edit) => {
       const safe = readSharedEdit(edit);
       if (safe === false) { setNotice('The shared edit for this photo could not be read, so nothing was changed.'); return; }

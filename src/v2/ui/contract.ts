@@ -795,6 +795,8 @@ export interface WorkspaceActions {
   previewEnlargement?: (photoId: string, sizeId: string) => Promise<import('../engineClient/enlargementPreview').EnlargementPreviewResult>;
   /** The photo's whole edit as plain data for a shared project, or null when it has no edit. Absent in the stub. */
   sharedEditOf?: (photoId: string) => Record<string, unknown> | null;
+  /** False once the photo is no longer in this catalogue, so a queued shared edit waits instead of sharing "no edit". */
+  sharedPhotoExists?: (photoId: string) => boolean;
   /** Replace the photo's edit with a shared one (or clear it). Recorded as an edit step, so it can be undone. */
   applySharedEdit?: (photoId: string, edit: Record<string, unknown> | null) => void;
   /** On a clash: keep this device's edit as a virtual copy beside the photo, and give the photo the shared edit. Returns the copy's id. */
