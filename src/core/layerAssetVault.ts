@@ -5,6 +5,7 @@
 import { browserAssetStorage, createWatermarkAssetRepository } from './watermarkAssetVault';
 import { composeLayers } from './layerCompose';
 import { frameLayers, visibleLayers } from './layers';
+import type { Mask } from './maskTypes';
 
 /** The largest layer image kept. A copied photo is saved as a high-quality JPEG of up to LAYER_COPY_EDGE pixels. */
 export const MAX_LAYER_BYTES = 40_000_000;
@@ -42,7 +43,7 @@ export async function layerImages(ids: readonly string[]): Promise<Map<string, I
  * Compose a photo's layers onto the canvas holding its whole framed, edited picture. With `strict` (every export), a
  * layer whose image this device does not have stops the export with its name, rather than leaving it out silently.
  */
-export async function applyFrameLayers(canvas: HTMLCanvasElement, overlay: unknown, strict: boolean): Promise<string[]> {
+export async function applyFrameLayers(canvas: HTMLCanvasElement, overlay: unknown, strict: boolean, masks?: readonly Mask[]): Promise<string[]> {
   const layers = visibleLayers(frameLayers(overlay));
   if (!layers.length) return [];
   const images = await layerImages(layers.map((layer) => layer.assetId));
@@ -50,6 +51,6 @@ export async function applyFrameLayers(canvas: HTMLCanvasElement, overlay: unkno
   if (strict && missing.length) {
     throw new Error(`This device does not have the image for the layer "${missing[0]}". Add it again in Overlays → Layers, or hide that layer, then export. Nothing was exported.`);
   }
-  composeLayers(canvas, layers, images);
+  composeLayers(canvas, layers, images, masks);
   return missing;
 }

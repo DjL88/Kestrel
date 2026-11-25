@@ -2134,7 +2134,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         const canvas = document.createElement('canvas');
         drawFramedPhoto(image, canvas, framing, { scale });
         await applyCanvasExportEdit(canvas, source.edit ?? DEFAULT_EDIT, undefined, Math.max(width, height) * scale, { aspect: height / width, view: { x: 0, y: 0, w: 1, h: 1 }, lensCentre: lensCentre(image.naturalWidth, image.naturalHeight, framing) });
-        await applyFrameLayers(canvas, source.overlay, true);
+        await applyFrameLayers(canvas, source.overlay, true, source.edit?.masks);
         const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
         if (!blob) throw new Error('InFlight could not copy that photo.');
         const assetId = await saveLayerAsset(blob);
