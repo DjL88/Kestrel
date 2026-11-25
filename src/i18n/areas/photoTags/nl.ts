@@ -43,10 +43,12 @@ export const nl: AreaTranslation<typeof source> = {
     style: "Stijl",
     genre: "Genre",
     vehicle: "Voertuig",
+    marking: "Markering",
   },
   filterLabel: "Tags",
   allTags: "Alle tags",
   foundHeading: "Gevonden door InFlight",
   remove: (name: string) => `${name} verwijderen`,
   placeNote: "Plaatsnamen van GeoNames (CC BY 4.0), op dit apparaat bepaald.",
+  probably: (what: string) => `${what} (waarschijnlijk)`,
 };

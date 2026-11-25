@@ -12,10 +12,14 @@ import type { PhotoFrame } from './types';
  * - Place and landmark tags are location, which is personal: `withoutLocation` takes them out of anything that leaves
  *   the device (backups), together with the GPS position.
  */
-export type TagFacet = 'place' | 'landmark' | 'light' | 'weather' | 'style' | 'genre' | 'vehicle';
-export const TAG_FACETS: readonly TagFacet[] = ['place', 'landmark', 'light', 'weather', 'style', 'genre', 'vehicle'];
-/** Where a tag came from: the photo's GPS, its camera data, a measurement or calculation, the image model, or a curated list. */
-export type TagSource = 'gps' | 'exif' | 'computed' | 'clip' | 'curated';
+export type TagFacet = 'place' | 'landmark' | 'light' | 'weather' | 'style' | 'genre' | 'vehicle' | 'marking';
+export const TAG_FACETS: readonly TagFacet[] = ['place', 'landmark', 'light', 'weather', 'style', 'genre', 'vehicle', 'marking'];
+/**
+ * Where a tag came from: the photo's GPS, its camera data, a measurement or calculation, the image model, a curated
+ * list, text read off the subject, an exact register lookup, or another frame of the same burst (`fromFrameId`).
+ */
+export type TagSource = 'gps' | 'exif' | 'computed' | 'clip' | 'curated' | 'ocr' | 'register' | 'burst';
+const SOURCES: readonly TagSource[] = ['gps', 'exif', 'computed', 'clip', 'curated', 'ocr', 'register', 'burst'];
 
 export interface PhotoTag {
   /** Stable dotted key, e.g. `light.golden-hour`, `place.gn.2643743`, `vehicle.helicopter`. Also the i18n key. */
@@ -24,8 +28,12 @@ export interface PhotoTag {
   source: TagSource;
   /** How strongly the evidence passed its threshold (0 to 1), when there is a score. Never shown as a number. */
   score?: number;
-  /** A proper noun shown as it is in every language (a place name, an aircraft type). */
+  /** A proper noun shown as it is in every language (a place name, an aircraft type, a registration). */
   name?: string;
+  /** Shown as "… (probably)": the reading is good enough to tag but not certain (a type named by the image model). */
+  hedged?: boolean;
+  /** For a tag carried from another frame of the same burst: that frame, so one correction can reach the whole burst. */
+  fromFrameId?: string;
 }
 
 export interface PhotoTagSet {
@@ -46,6 +54,12 @@ const LOCATION: ReadonlySet<TagFacet> = new Set(['place', 'landmark']);
 
 export const isTagId = (id: unknown): id is string => typeof id === 'string' && id.length <= 96 && ID.test(id);
 
+/** A current UK (AB12CDE) or Irish (191D12345) road number plate. Never kept as a tag: plates identify people. */
+export const looksLikeNumberPlate = (text: string) => {
+  const compact = text.replace(/[\s-]/g, '').toUpperCase();
+  return /^[A-Z]{2}\d{2}[A-Z]{3}$/.test(compact) || /^\d{2,3}[A-Z]{1,2}\d{1,6}$/.test(compact);
+};
+
 /** The photo's tags, or none when they are missing, malformed or belong to a different file. */
 export function readPhotoTags(frame: Pick<PhotoFrame, 'stableKey' | 'photoTags'>): PhotoTagSet | null {
   const set = frame.photoTags;
@@ -54,14 +68,17 @@ export function readPhotoTags(frame: Pick<PhotoFrame, 'stableKey' | 'photoTags'>
 }
 
 function cleanTag(tag: PhotoTag): PhotoTag | null {
-  if (!tag || !isTagId(tag.id) || !TAG_FACETS.includes(tag.facet) ||
-      !['gps', 'exif', 'computed', 'clip', 'curated'].includes(tag.source)) return null;
+  if (!tag || !isTagId(tag.id) || !TAG_FACETS.includes(tag.facet) || !SOURCES.includes(tag.source)) return null;
   const out: PhotoTag = { id: tag.id, facet: tag.facet, source: tag.source };
+  if (tag.hedged === true) out.hedged = true;
+  if (tag.source === 'burst' && typeof tag.fromFrameId === 'string' && tag.fromFrameId.length <= 128) out.fromFrameId = tag.fromFrameId;
   if (typeof tag.score === 'number' && Number.isFinite(tag.score)) out.score = Math.min(1, Math.max(0, Math.round(tag.score * 1000) / 1000));
   if (typeof tag.name === 'string') {
     const name = tag.name.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
     if (name) out.name = name;
   }
+  // Second guard for the vehicles lane: text read off a subject that is a road number plate is never stored.
+  if (tag.facet === 'marking' && (!out.name || looksLikeNumberPlate(out.name))) return null;
   return out;
 }
 
@@ -121,8 +138,9 @@ export const hasPhotoTag = (frame: Pick<PhotoFrame, 'stableKey' | 'photoTags'>, 
  * The words shown for a tag: a proper noun as it is, otherwise the translated word for its id. `label` returns
  * undefined for an id it has no words for, and then the tag is not shown (never a raw id).
  */
-export function tagWords(tag: PhotoTag, label: (id: string) => string | undefined): string | undefined {
-  return tag.name ?? label(tag.id);
+export function tagWords(tag: PhotoTag, label: (id: string) => string | undefined, probably?: (what: string) => string): string | undefined {
+  const words = tag.name ?? label(tag.id);
+  return words && tag.hedged && probably ? probably(words) : words;
 }
 
 /**

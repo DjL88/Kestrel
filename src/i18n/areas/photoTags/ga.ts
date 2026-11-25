@@ -43,10 +43,12 @@ export const ga: AreaTranslation<typeof source> = {
     style: "Stíl",
     genre: "Seánra",
     vehicle: "Feithicil",
+    marking: "Marcáil",
   },
   filterLabel: "Clibeanna",
   allTags: "Gach clib",
   foundHeading: "Aimsithe ag InFlight",
   remove: (name: string) => `Bain ${name}`,
   placeNote: "Logainmneacha ó GeoNames (CC BY 4.0), oibrithe amach ar an ngléas seo.",
+  probably: (what: string) => `${what} (is dócha)`,
 };

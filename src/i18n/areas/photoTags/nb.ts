@@ -43,10 +43,12 @@ export const nb: AreaTranslation<typeof source> = {
     style: "Stil",
     genre: "Sjanger",
     vehicle: "Kjøretøy",
+    marking: "Merking",
   },
   filterLabel: "Merker",
   allTags: "Alle merker",
   foundHeading: "Funnet av InFlight",
   remove: (name: string) => `Fjern ${name}`,
   placeNote: "Stedsnavn fra GeoNames (CC BY 4.0), funnet på denne enheten.",
+  probably: (what: string) => `${what} (sannsynligvis)`,
 };

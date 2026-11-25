@@ -43,10 +43,12 @@ export const fi: AreaTranslation<typeof source> = {
     style: "Tyyli",
     genre: "Lajityyppi",
     vehicle: "Ajoneuvo",
+    marking: "Tunnus",
   },
   filterLabel: "Tunnisteet",
   allTags: "Kaikki tunnisteet",
   foundHeading: "InFlightin löytämät",
   remove: (name: string) => `Poista ${name}`,
   placeNote: "Paikannimet GeoNamesista (CC BY 4.0), päätelty tällä laitteella.",
+  probably: (what: string) => `${what} (todennäköisesti)`,
 };

@@ -34,7 +34,7 @@ import { validVehicleReading, vehicleLabel, vehicleSearchWords } from '../../cor
 import { sharedPhotoKey } from '../../core/sharedSync';
 import { vehicleText, vehicleTextEnglish } from '../../i18n/areas/vehicles';
 import { photoTagsOf, tagWords } from '../../core/photoTags';
-import { photoTagEnglishLabel, photoTagLabel } from '../../i18n/areas/photoTags';
+import { photoTagEnglishLabel, photoTagLabel, photoTagsText } from '../../i18n/areas/photoTags';
 
 /** A transparent pixel, so a photo whose picture is not ready yet shows an empty tile rather than a broken image. */
 export const BLANK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
@@ -136,7 +136,7 @@ export function vehicleWordsOf(frame: Pick<PhotoFrame, 'vehicle'>): { vehicleLab
 /** The photo's tags in the person's words. A tag with no words in any language is not shown (never a raw id). */
 export function photoTagViews(frame: Pick<PhotoFrame, 'stableKey' | 'photoTags'>): NonNullable<Photo['photoTags']> {
   return photoTagsOf(frame).flatMap((tag) => {
-    const label = tagWords(tag, photoTagLabel);
+    const label = tagWords(tag, photoTagLabel, photoTagsText.probably);
     if (!label) return [];
     const english = tagWords(tag, photoTagEnglishLabel);
     return [{ id: tag.id, facet: tag.facet, label, words: english && english !== label ? [label, english] : [label] }];

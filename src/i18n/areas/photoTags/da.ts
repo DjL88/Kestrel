@@ -43,10 +43,12 @@ export const da: AreaTranslation<typeof source> = {
     style: "Stil",
     genre: "Genre",
     vehicle: "Køretøj",
+    marking: "Mærkning",
   },
   filterLabel: "Mærker",
   allTags: "Alle mærker",
   foundHeading: "Fundet af InFlight",
   remove: (name: string) => `Fjern ${name}`,
   placeNote: "Stednavne fra GeoNames (CC BY 4.0), fundet på denne enhed.",
+  probably: (what: string) => `${what} (sandsynligvis)`,
 };

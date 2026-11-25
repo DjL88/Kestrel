@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { declinePhotoTag, hasPhotoTag, mergePhotoTags, photoTagSearchWords, photoTagsOf, readPhotoTags, withoutLocation, type PhotoTag } from './photoTags';
+import { declinePhotoTag, hasPhotoTag, mergePhotoTags, photoTagSearchWords, photoTagsOf, readPhotoTags, tagWords, withoutLocation, type PhotoTag } from './photoTags';
 import type { PhotoFrame } from './types';
 
 const frame = (extra: Partial<PhotoFrame> = {}) => ({ stableKey: 'shoot/a.jpg', exif: {}, ...extra }) as Pick<PhotoFrame, 'stableKey' | 'photoTags' | 'removedAt' | 'exif'>;
@@ -68,4 +68,20 @@ test('location never leaves the device: no GPS and no place or landmark tags in 
   assert.deepEqual(safe.exif, { camera: 'Z 8' });
   assert.deepEqual(photoTagsOf(safe).map((tag) => tag.id), ['light.golden-hour']);
   assert.ok(photo.exif.gps, 'the device copy keeps its GPS');
+});
+
+test('markings keep their text, a road number plate is never stored, and a hedged tag says "probably"', () => {
+  let photo = mergePhotoTags(frame(), 'vehicles', ['vehicle', 'marking'], [
+    { id: 'marking.reg.zj914', facet: 'marking', source: 'ocr', name: 'ZJ914' },
+    { id: 'marking.plate.ab12cde', facet: 'marking', source: 'ocr', name: 'AB12 CDE' },
+    { id: 'marking.plate.ie', facet: 'marking', source: 'ocr', name: '191-D-12345' },
+    { id: 'vehicle.type.typhoon', facet: 'vehicle', source: 'clip', name: 'Typhoon', hedged: true },
+    { id: 'vehicle.kind.military-jet', facet: 'vehicle', source: 'burst', fromFrameId: 'f1' },
+  ], 'vehicles-v1');
+  assert.deepEqual(photoTagsOf(photo).map((tag) => tag.id), ['marking.reg.zj914', 'vehicle.type.typhoon', 'vehicle.kind.military-jet']);
+  assert.equal(photoTagsOf(photo, 'vehicle')[1].fromFrameId, 'f1');
+  const typhoon = photoTagsOf(photo, 'vehicle')[0];
+  assert.equal(tagWords(typhoon, () => undefined, (what) => `${what} (probably)`), 'Typhoon (probably)');
+  photo = declinePhotoTag(photo, 'marking.reg.zj914');
+  assert.equal(hasPhotoTag(photo, 'marking.reg.zj914'), false);
 });

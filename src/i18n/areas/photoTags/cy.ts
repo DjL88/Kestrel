@@ -43,10 +43,12 @@ export const cy: AreaTranslation<typeof source> = {
     style: "Arddull",
     genre: "Genre",
     vehicle: "Cerbyd",
+    marking: "Marc",
   },
   filterLabel: "Tagiau",
   allTags: "Pob tag",
   foundHeading: "Wedi’u canfod gan InFlight",
   remove: (name: string) => `Tynnu ${name}`,
   placeNote: "Enwau lleoedd o GeoNames (CC BY 4.0), wedi’u canfod ar y ddyfais hon.",
+  probably: (what: string) => `${what} (mae'n debyg)`,
 };

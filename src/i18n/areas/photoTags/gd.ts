@@ -43,10 +43,12 @@ export const gd: AreaTranslation<typeof source> = {
     style: "Stoidhle",
     genre: "Gnè",
     vehicle: "Carbad",
+    marking: "Comharra",
   },
   filterLabel: "Tagaichean",
   allTags: "A h-uile taga",
   foundHeading: "Air a lorg le InFlight",
   remove: (name: string) => `Thoir air falbh ${name}`,
   placeNote: "Ainmean-àite bho GeoNames (CC BY 4.0), air an obrachadh a-mach air an uidheam seo.",
+  probably: (what: string) => `${what} (is dòcha)`,
 };

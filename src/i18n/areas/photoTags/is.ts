@@ -43,10 +43,12 @@ export const is: AreaTranslation<typeof source> = {
     style: "Stíll",
     genre: "Tegund",
     vehicle: "Farartæki",
+    marking: "Auðkenni",
   },
   filterLabel: "Merki",
   allTags: "Öll merki",
   foundHeading: "InFlight fann",
   remove: (name: string) => `Fjarlægja ${name}`,
   placeNote: "Staðarheiti frá GeoNames (CC BY 4.0), fundin í þessu tæki.",
+  probably: (what: string) => `${what} (líklega)`,
 };

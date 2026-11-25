@@ -44,10 +44,12 @@ export const source = {
     style: "Style",
     genre: "Genre",
     vehicle: "Vehicle",
+    marking: "Marking",
   },
   filterLabel: "Tags",
   allTags: "All tags",
   foundHeading: "Found by InFlight",
   remove: (name: string) => `Remove ${name}`,
   placeNote: "Place names from GeoNames (CC BY 4.0), worked out on this device.",
+  probably: (what: string) => `${what} (probably)`,
 };
