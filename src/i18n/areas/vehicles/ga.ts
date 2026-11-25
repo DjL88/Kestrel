@@ -25,4 +25,16 @@ export const ga: AreaTranslation<typeof source> = {
   probably: (what: string) => `${what} (is dócha)`,
   typeUnknown: (what: string) => `${what}, cineál anaithnid`,
   withType: (kind: string, type: string) => `${kind}: ${type}`,
+  marked: (what: string, marking: string) => `${what}, marcáilte ${marking}`,
+  registered: (marking: string, type: string) => `${marking}: ${type} (ón gclár)`,
+  operatedBy: (what: string, operator: string) => `${what}, á oibriú ag ${operator}`,
+  reader: {
+    title: 'Léigh clárúcháin aerárthaí',
+    description: (megabytes: string) => `Léann sé clárúcháin agus sraithuimhreacha míleata atá péinteáilte ar aerárthaí, ar an ngléas seo, agus cuardaíonn sé iad i gcóip as líne de chláir phoiblí. Íoslódáil aonuaire de ${megabytes} MB. Ní léitear uimhirphlátaí carranna riamh.`,
+    download: 'Íoslódáil',
+    downloading: (percent: number) => `Á íoslódáil… ${percent}%`,
+    ready: 'Suiteáilte. Oibríonn sé as líne.',
+    remove: 'Bain',
+    failed: 'Níor chríochnaigh an íoslódáil, mar sin níor coinníodh aon rud. Bain triail eile as.',
+  },
 };
