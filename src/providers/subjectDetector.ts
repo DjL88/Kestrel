@@ -34,7 +34,7 @@ function load(): Promise<OffThreadSession> {
         throw new Error('The subject model file does not match its checksum, so it was not used.');
       }
     }
-    return createOffThreadSession('u2netp', new Uint8Array(bytes));
+    return createOffThreadSession('u2netp', new Uint8Array(bytes), { onLost: () => { loading = null; } });
   })().catch((error) => {
     loading = null; // Allow a retry after a failure.
     console.warn('Subject tools failed to load', error);
