@@ -1448,6 +1448,7 @@ export const source = {
     privacyBody: 'InFlight works fully offline. Original files are never changed, moved or uploaded. Nothing leaves this device unless you turn on an optional feature and consent to it.',
     privacyLink: 'Read the privacy policy',
     privacyDraft: '(draft, not yet lawyer-reviewed).',
+    buildModified: 'Changed since this commit (a test build, not a release)',
     eraseHeading: 'Erase everything on this device',
     eraseBody: 'Removes every project, edit, preview and saved choice InFlight keeps in this browser or app, then restarts it. Your original photo files are not touched. This cannot be undone.',
     eraseConfirm: 'Type ERASE to confirm',
