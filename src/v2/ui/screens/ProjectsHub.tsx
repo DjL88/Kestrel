@@ -5,8 +5,7 @@ import { useDialogFocus } from '../utils/dialogFocus';
 import BrandIcon, { BrandLogo } from '../icons/BrandIcon';
 import { useIsPro } from '../../../components/BrandLogo';
 import { LayoutToggle, ProjectRow, ProjectTile, readHubLayout, saveHubLayout, type HubLayout } from './ProjectCards';
-import footerKiteDark from '../../../assets/brand/mark/inflight-kite-dark.svg';
-import footerKiteLight from '../../../assets/brand/mark/inflight-kite-light.svg';
+import { footerKiteLogo } from '../footerKiteLogo';
 import { POLICY_PATHS, SiteLink } from '../../../components/SiteLink';
 
 interface ProjectsHubProps {
@@ -54,7 +53,7 @@ export default function ProjectsHub({
   onSetHubState,
 }: ProjectsHubProps) {
   const isPro = useIsPro();
-  const footerLogo = theme === 'dark' ? footerKiteDark : footerKiteLight;
+  const footerLogo = footerKiteLogo(theme, isPro);
   const [search, setSearch] = useState('');
   const [layout, setLayout] = useState<HubLayout>(readHubLayout);
   const chooseLayout = (next: HubLayout) => { setLayout(next); saveHubLayout(next); };
@@ -296,7 +295,7 @@ export default function ProjectsHub({
             className="h-7 w-[62px] shrink-0 object-contain sm:h-8 sm:w-[72px]"
             data-testid="inflight-footer-kite"
           />
-          <span className="font-semibold text-[var(--text-primary)]">InFlight</span>
+          <span className="font-semibold text-[var(--text-primary)]">{isPro ? 'InFlight Pro' : 'InFlight'}</span>
           <SiteLink path={POLICY_PATHS.privacy} className="underline-offset-2 hover:underline">{STRINGS.hub.privacyLink}</SiteLink>
           <SiteLink path={POLICY_PATHS.terms} className="underline-offset-2 hover:underline">{STRINGS.hub.termsLink}</SiteLink>
         </div>

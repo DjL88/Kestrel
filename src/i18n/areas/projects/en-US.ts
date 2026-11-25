@@ -11,6 +11,8 @@ export const enUS: AreaTranslation<typeof source> = {
   },
   licence: {
     licenceKey: 'License key',
+    planProKey: 'InFlight Pro is active on this device through your license key.',
+    planChecking: 'Checking the license on this device…',
     copyBody: 'Your shortcuts, macro pad, display choices, export presets and watermark. Not your photos, edits, license or any keys.',
   },
   macroPad: {

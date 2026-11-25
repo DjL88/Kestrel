@@ -149,6 +149,11 @@ export class LicenceSync {
     return { kind: 'active', grant: check.grant, activationId: reply.json.activationId };
   }
 
+  /** Whether an account grant is kept on this device at all, read synchronously and not yet checked (the splash uses it to wait for the check). */
+  hasStoredAccountGrant(): boolean {
+    return this.configured && this.read(ACCOUNT_GRANT) !== null;
+  }
+
   /** The account grant kept on this device, checked again against the pinned keys and this device. Null when there is none. */
   async storedAccountStanding(): Promise<AccountStanding | null> {
     if (!this.configured) return null;

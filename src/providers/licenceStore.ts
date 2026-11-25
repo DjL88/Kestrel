@@ -126,8 +126,28 @@ export function leaveAccount() {
   if (state.status === 'account') set({ status: 'none' });
 }
 
+/**
+ * Whether this device's licence state is known yet: true once loadLicence has read what is kept here (before any
+ * online renewal), or at once when nothing is kept, which is Free. Lets the splash start with the right logo.
+ */
+let launchReadDone = false;
+const settle = (next: LicenceState) => { launchReadDone = true; set(next); };
+const licenceKnown = () => launchReadDone || (!storedKey() && !sync.hasStoredAccountGrant());
+
+export function useLicenceKnown(): boolean {
+  return useSyncExternalStore((listener) => { listeners.add(listener); return () => listeners.delete(listener); }, licenceKnown, () => false);
+}
+
 /** Check the key kept on this device. Run once when the app opens. */
 export async function loadLicence() {
+  try {
+    await readStoredLicence();
+  } finally {
+    if (!launchReadDone) settle(state);
+  }
+}
+
+async function readStoredLicence() {
   const key = storedKey();
   if (!key) {
     const stored = await sync.storedAccountStanding();
@@ -142,21 +162,21 @@ export async function loadLicence() {
         leaveAccount();
         void firebaseAuth.signOut().catch(() => {});
         expiredAccountNotice = true;
-        set({ status: 'none' });
+        settle({ status: 'none' });
         return;
       }
-      set({ status: 'account', standing: stored, access });
+      settle({ status: 'account', standing: stored, access });
       keepRenewing();
       void renewAccountIfDue();
     } else {
-      set({ status: 'none' });
+      settle({ status: 'none' });
     }
     return;
   }
   set({ status: 'checking' });
   const result = await verifyLicence(key);
-  if (!result.ok) { set({ status: 'invalid', message: LICENCE_MESSAGES[result.reason] }); return; }
-  set(valid(await sync.storedStanding(key)));
+  if (!result.ok) { settle({ status: 'invalid', message: LICENCE_MESSAGES[result.reason] }); return; }
+  settle(valid(await sync.storedStanding(key)));
   keepRenewing();
   await renewIfDue(key);
 }
