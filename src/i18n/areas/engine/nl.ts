@@ -92,6 +92,8 @@ export const nl: AreaTranslation<typeof source> = {
     exportNotQueued: 'Deze export kon niet worden gestart.',
     destinationUnavailable: 'Die exportbestemming is niet beschikbaar. Kies een lokale ZIP, losse bestanden of een map op de computer.',
     cullPro: 'Automatisch selecteren hoort bij InFlight Pro.',
+    cullOffer: "Foto's toegevoegd. Druk op Automatisch selecteren om ze op dit apparaat te sorteren; tot dan wordt niets gemarkeerd.",
+    cullSwitchedOff: "Automatisch selecteren staat uit voor dit account, dus het is niet uitgevoerd. Uw foto's zijn ongewijzigd.",
     cullRunning: 'Automatisch selecteren loopt al.',
     cullNothing: 'Elke foto heeft al een beslissing, dus er valt niets te selecteren.',
     cullTask: 'Automatisch selecteren & analyseren',

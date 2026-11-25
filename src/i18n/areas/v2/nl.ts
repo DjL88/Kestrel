@@ -894,6 +894,8 @@ export const nl: AreaTranslation<typeof source> = {
       saturation: 'Verhoogt of verlaagt de intensiteit gelijkmatig in elk kleurkanaal.',
       clarity: 'Versterkt de randstructuur in middentonen en de textuur van veren of rots.',
       sharpen: 'Past fijne uitvoerverscherping toe, afgestemd op de sensor.',
+      captureSharpen: "Herstelt de scherpte die objectief en sensor hebben verzacht, met een profiel voor je camera (Nikon Z8, Z5II of algemeen). Beoordeel dit op 100% zoom. Voegt nooit detail toe dat de camera niet heeft vastgelegd.",
+      deblur: "Vermindert lichte onscherpte door focus of een kleine beweging, via deconvolutie. Redt geen sterk onscherpe foto en verzint nooit detail.",
     },
   },
   layers: {
@@ -1155,6 +1157,8 @@ export const nl: AreaTranslation<typeof source> = {
       clarity: "Helderheid",
       detailRecovery: "Fijn detail",
       sharpen: "Verscherpen",
+      captureSharpen: "Opnameverscherping",
+      deblur: "Onscherpte verminderen",
       denoiseLuminance: "Ruisreductie",
       denoiseColour: "Kleurruisreductie",
       dehaze: "Nevel verwijderen",

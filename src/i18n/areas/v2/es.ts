@@ -894,6 +894,8 @@ export const es: AreaTranslation<typeof source> = {
       saturation: 'Aumenta o reduce uniformemente la intensidad en todos los canales de color.',
       clarity: 'Realza la estructura de bordes en los medios tonos y la textura de plumas o roca.',
       sharpen: 'Aplica un enfoque de salida fino adaptado al sensor.',
+      captureSharpen: "Recupera la nitidez que el objetivo y el sensor suavizaron, con un perfil para tu cámara (Nikon Z8, Z5II o uno general). Mejor valorarlo al 100 % de zoom. Nunca añade detalle que la cámara no registró.",
+      deblur: "Corrige suavemente un ligero desenfoque o una pequeña trepidación mediante deconvolución. No rescata una foto muy borrosa y nunca inventa detalle.",
     },
   },
   layers: {
@@ -1155,6 +1157,8 @@ export const es: AreaTranslation<typeof source> = {
       clarity: "Claridad",
       detailRecovery: "Detalle fino",
       sharpen: "Enfoque",
+      captureSharpen: "Enfoque de captura",
+      deblur: "Reducir desenfoque",
       denoiseLuminance: "Reducción de ruido",
       denoiseColour: "Reducción de ruido de color",
       dehaze: "Eliminar neblina",

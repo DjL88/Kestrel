@@ -92,6 +92,8 @@ export const de: AreaTranslation<typeof source> = {
     exportNotQueued: 'Dieser Export konnte nicht gestartet werden.',
     destinationUnavailable: 'Dieses Exportziel ist nicht verfügbar. Wählen Sie ein lokales ZIP, einzelne Dateien oder einen Ordner auf dem Computer.',
     cullPro: 'Auto-Sichtung gehört zu InFlight Pro.',
+    cullOffer: "Fotos hinzugefügt. Drücken Sie Auto-Sichtung, um sie auf diesem Gerät zu sortieren; vorher wird nichts markiert.",
+    cullSwitchedOff: "Die Auto-Sichtung ist für dieses Konto ausgeschaltet und lief deshalb nicht. Ihre Fotos sind unverändert.",
     cullRunning: 'Die Auto-Sichtung läuft bereits.',
     cullNothing: 'Jedes Foto hat schon eine Entscheidung, es gibt also nichts zu sichten.',
     cullTask: 'Auto-Sichtung und Analyse',

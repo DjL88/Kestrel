@@ -92,6 +92,8 @@ export const fi: AreaTranslation<typeof source> = {
     exportNotQueued: 'Tätä vientiä ei voitu aloittaa.',
     destinationUnavailable: 'Vientikohde ei ole käytettävissä. Valitse paikallinen ZIP, erilliset tiedostot tai tietokoneen kansio.',
     cullPro: 'Automaattinen karsinta kuuluu InFlight Prohon.',
+    cullOffer: "Kuvat lisätty. Paina Automaattinen karsinta lajitellaksesi ne tällä laitteella; mitään ei merkitä sitä ennen.",
+    cullSwitchedOff: "Automaattinen karsinta on poissa käytöstä tällä tilillä, joten sitä ei ajettu. Kuvasi ovat ennallaan.",
     cullRunning: 'Automaattinen karsinta on jo käynnissä.',
     cullNothing: 'Jokaisella kuvalla on jo päätös, joten karsittavaa ei ole.',
     cullTask: 'Automaattinen karsinta ja analyysi',

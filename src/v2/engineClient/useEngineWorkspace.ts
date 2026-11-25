@@ -72,7 +72,7 @@ import { guardianHolds, guardianOrder, guardianSettled, startGuardian, withOpini
 import { askOnDeviceGuardian } from '../../providers/visionGuardian';
 import { hasLocalVision } from '../../providers/localVision';
 import type { PictureSource } from '../../core/pictureSource';
-import { autoCullSummary, commitAutoCull, rawsJudgedFromCameraPreview } from './commitAutoCull';
+import { autoCullSummary, commitAutoCull, cullAfterImport, rawsJudgedFromCameraPreview } from './commitAutoCull';
 import { runV2Denoise } from './runDenoise';
 import { MAIN_THREAD_DENOISE_NOTE } from '../../providers/denoiseOffThread';
 import { composeDenoiseRecipe } from './denoiseRecipe';
@@ -862,7 +862,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const runAutoCull = useCallback(async () => {
     const current = stateRef.current;
     if (!current) return;
-    if (!can('smartCulling')) { setNotice(engineText.workspace.cullPro); return; }
+    if (!can('smartCulling')) { setNotice(engineText.workspace.cullSwitchedOff); return; }
     if (cullController.current) { setNotice(engineText.workspace.cullRunning); return; }
     const candidates = current.frames.filter(frame =>
       frame.removedAt == null && frame.decision === 'unreviewed' && !frame.isDemo && !frame.virtualCopy);
@@ -1346,6 +1346,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   // Co-pilot and Auto-pilot look at the photo on the canvas, on this device, one at a time. Solo never does.
   const assistMode = savedUi.assistMode ?? stub.store.assistMode;
+  // Read by importPhotos (a stable callback) when an import finishes: start, offer or explain Auto-cull.
+  const afterImport = useRef({ mode: assistMode, canCull: can('smartCulling'), run: runAutoCull });
+  afterImport.current = { mode: assistMode, canCull: can('smartCulling'), run: runAutoCull };
   const assistProjectId = state?.shoot.id;
   const ongoingLocalReview = savedUi.settings.ongoingCritique ?? stub.store.settings.ongoingCritique;
   useEffect(() => {
@@ -1577,6 +1580,13 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (outcome === 'failed') setNotice(engineText.workspace.importSomeFailed(importedFrames.length));
       else if (outcome === 'cancelled') setNotice(engineText.workspace.importStopped(importedFrames.length));
       else if (warnings.length) setNotice(warnings.slice(0, 3).join(' '));
+      // Auto-pilot sorts the new photos on this device; Co-pilot offers it; a switched-off cull says so (never silent).
+      if (stateRef.current?.shoot.id === projectKey) {
+        const next = cullAfterImport(afterImport.current.mode, afterImport.current.canCull, importedFrames.length, outcome);
+        if (next === 'run') void afterImport.current.run();
+        else if (outcome === 'done' && !warnings.length && next === 'offer') setNotice(engineText.workspace.cullOffer);
+        else if (outcome === 'done' && !warnings.length && next === 'switched-off') setNotice(engineText.workspace.cullSwitchedOff);
+      }
     } catch (reason) {
       setNotice(reason instanceof Error ? reason.message : engineText.workspace.importFailed);
     } finally {
@@ -1987,14 +1997,20 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     selectPhoto: (id, modifiers) => {
       const list = (stateRef.current?.frames ?? []).filter((frame) => !frame.removedAt && !pairsRef.current.rawOf.has(frame.id)).map((frame) => frame.id);
       if (modifiers?.shift && activeId) {
-        const a = list.indexOf(activeId), b = list.indexOf(id);
-        if (a >= 0 && b >= 0) setSelected(list.slice(Math.min(a, b), Math.max(a, b) + 1));
+        // A Shift range runs through the photos on screen: a filter such as Flagged must not pull in hidden photos.
+        const shown = modifiers.order ? modifiers.order.filter((entry) => list.includes(entry)) : list;
+        const a = shown.indexOf(activeId), b = shown.indexOf(id);
+        if (a >= 0 && b >= 0) setSelected(shown.slice(Math.min(a, b), Math.max(a, b) + 1));
       } else if (modifiers?.ctrl) {
         setSelected((current) => (current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id]));
       } else setSelected([id]);
       mutate((current) => ({ ...current, selectedFrameId: id }));
     },
-    selectAllPhotos: () => setSelected((stateRef.current?.frames ?? []).filter((frame) => !frame.removedAt && !pairsRef.current.rawOf.has(frame.id)).map((frame) => frame.id)),
+    // With a filter on (Flagged, a rating, a search), Select all selects the photos shown, never the hidden ones, so an
+    // edit or export of "all" reaches only the photos the photographer can see.
+    selectAllPhotos: (photoIds) => setSelected((stateRef.current?.frames ?? [])
+      .filter((frame) => !frame.removedAt && !pairsRef.current.rawOf.has(frame.id) && (!photoIds || photoIds.includes(frame.id)))
+      .map((frame) => frame.id)),
     clearSelection: () => setSelected(activeId ? [activeId] : []),
     setDecision: (ids, decision) => decide(ids, decision),
     removePhotos: (ids) => removePhotos(ids),
