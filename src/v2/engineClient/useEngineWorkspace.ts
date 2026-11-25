@@ -72,6 +72,7 @@ import { askOnDeviceGuardian } from '../../providers/visionGuardian';
 import type { PictureSource } from '../../core/pictureSource';
 import { autoCullSummary, commitAutoCull, rawsJudgedFromCameraPreview } from './commitAutoCull';
 import { runV2Denoise } from './runDenoise';
+import { MAIN_THREAD_DENOISE_NOTE } from '../../providers/denoiseOffThread';
 import { composeDenoiseRecipe } from './denoiseRecipe';
 import { preloadTrueDetailAi } from '../../core/trueDetailAiCanvas';
 import { moveArtboard } from './boardOps';
@@ -1278,7 +1279,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             return outcome.trueDetailAi ? { ...next, trueDetailAi: outcome.trueDetailAi } : next;
           }));
         }
-        ctx.commitIfCurrent(() => setNotice(outcome.verified ? outcome.notes[0] : engineText.denoise.leftAsItWas(outcome.notes.join(' '))));
+        // A main-thread fallback is always said, even on success, so a pause is never unexplained.
+        ctx.commitIfCurrent(() => setNotice(outcome.verified
+          ? [outcome.notes[0], ...outcome.notes.slice(1).filter(note => note === MAIN_THREAD_DENOISE_NOTE)].join(' ')
+          : engineText.denoise.leftAsItWas(outcome.notes.join(' '))));
       },
     }).then(ticket => ticket.finished).then(result => {
       if (result === 'failed') setNotice(engineText.workspace.denoiseFailed);
