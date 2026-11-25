@@ -54,6 +54,8 @@ export const fr: AreaTranslation<typeof source> = {
   workspace: {
     templateNotSaved: 'InFlight n’a pas pu enregistrer le modèle sur cet appareil.',
     projectNotSaved: 'InFlight n’a pas pu enregistrer ce projet. Vos photos originales sont inchangées.',
+    projectSaveRetrying: 'InFlight n’a pas pu enregistrer ce projet. Il continue d’essayer ; laissez InFlight ouvert jusqu’à ce qu’il indique que c’est enregistré. Vos photos originales sont inchangées.',
+    projectSavedAfterRetry: 'Enregistré. Rien n’a été perdu.',
     projectNotOpened: 'Ce projet n’a pas pu être ouvert.',
     thumbnailsTask: (count) => (count === 1 ? 'Préparation d’1 vignette' : `Préparation de ${count} vignettes`),
     thumbnailStage: 'Lecture et réduction de cette photo',

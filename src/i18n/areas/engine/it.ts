@@ -54,6 +54,8 @@ export const it: AreaTranslation<typeof source> = {
   workspace: {
     templateNotSaved: 'InFlight non è riuscito a salvare il modello su questo dispositivo.',
     projectNotSaved: 'InFlight non è riuscito a salvare questo progetto. Le tue foto originali non sono cambiate.',
+    projectSaveRetrying: 'InFlight non è riuscito a salvare questo progetto. Continua a riprovare; lascia InFlight aperto finché non indica che è salvato. Le tue foto originali non sono cambiate.',
+    projectSavedAfterRetry: 'Salvato. Non è andato perso nulla.',
     projectNotOpened: 'Non è stato possibile aprire quel progetto.',
     thumbnailsTask: (count) => (count === 1 ? 'Preparazione di 1 miniatura' : `Preparazione di ${count} miniature`),
     thumbnailStage: 'Lettura e riduzione di questa foto',

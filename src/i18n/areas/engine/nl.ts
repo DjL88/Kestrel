@@ -54,6 +54,8 @@ export const nl: AreaTranslation<typeof source> = {
   workspace: {
     templateNotSaved: 'InFlight kon de sjabloon niet op dit apparaat opslaan.',
     projectNotSaved: 'InFlight kon dit project niet opslaan. Uw originele foto’s zijn niet veranderd.',
+    projectSaveRetrying: 'InFlight kon dit project niet opslaan. Het blijft het proberen; laat InFlight open tot er staat dat het is opgeslagen. Uw originele foto’s zijn ongewijzigd.',
+    projectSavedAfterRetry: 'Opgeslagen. Er is niets verloren gegaan.',
     projectNotOpened: 'Dat project kon niet worden geopend.',
     thumbnailsTask: (count) => (count === 1 ? '1 miniatuur wordt voorbereid' : `${count} miniaturen worden voorbereid`),
     thumbnailStage: 'Deze foto wordt gelezen en verkleind',
