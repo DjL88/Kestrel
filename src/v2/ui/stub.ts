@@ -878,7 +878,8 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     selectPhoto: (photoId, modifiers) => {
       logAction('selectPhoto', { photoId, modifiers });
       setStore((prev) => {
-        const orderedIds = prev.photos.map((p) => p.id);
+        const allIds = prev.photos.map((p) => p.id);
+        const orderedIds = modifiers?.order ? modifiers.order.filter((id) => allIds.includes(id)) : allIds;
         const nextSelection = computeMultiSelection(
           orderedIds,
           prev.selectedPhotoIds,
@@ -898,11 +899,11 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       setStore((prev) => (prev.photos.some((p) => p.id === photoId) ? { ...prev, activePhotoId: photoId } : prev));
     },
 
-    selectAllPhotos: () => {
+    selectAllPhotos: (photoIds) => {
       logAction('selectAllPhotos');
       setStore((prev) => ({
         ...prev,
-        selectedPhotoIds: prev.photos.map((p) => p.id),
+        selectedPhotoIds: prev.photos.map((p) => p.id).filter((id) => !photoIds || photoIds.includes(id)),
       }));
     },
 
@@ -1854,6 +1855,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     },
 
     detectColourEdges: async (photoId) => { logAction('detectColourEdges', { photoId }); return 'clean'; },
+    applyLensProfile: async (photoId, download) => { logAction('applyLensProfile', { photoId, download }); return 'not-found'; },
     addImageLayer: async (photoId) => { logAction('addImageLayer', { photoId }); },
     addPhotoLayer: async (photoId, sourcePhotoId) => { logAction('addPhotoLayer', { photoId, sourcePhotoId }); },
     updateLayer: (photoId, layerId) => { logAction('updateLayer', { photoId, layerId }); },

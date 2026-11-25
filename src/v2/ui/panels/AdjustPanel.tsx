@@ -1,5 +1,5 @@
 import React from 'react';
-import type { EditRecipe, LookPreset, Photo } from '../contract';
+import type { EditRecipe, LensProfileOutcome, LookPreset, Photo } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import InfoPopover from '../shell/InfoPopover';
@@ -7,7 +7,8 @@ import { getActiveGroup } from '../utils/studioMath';
 import { ColourMixerControl, KelvinControl, ToneCurveControl } from './CurveMixerControls';
 import { ColourGradeControl } from './ColourGradeControl';
 import { CalibrationControl, EffectsControls } from './EffectsControls';
-import { FringeControls } from './FringeControls';
+import { FringeControls, LensControls } from './FringeControls';
+import { captureProfileFor } from '../../../core/captureSharpen';
 
 interface AdjustPanelProps {
   photo: Photo | null;
@@ -19,6 +20,7 @@ interface AdjustPanelProps {
   showAdvanced?: boolean;
   onUpdateRecipe: (photoId: string, patch: Partial<EditRecipe>) => void;
   onDetectColourEdges: (photoId: string) => Promise<'corrected' | 'clean' | 'unclear'>;
+  onApplyLensProfile: (photoId: string, download: boolean) => Promise<LensProfileOutcome>;
   onApplyLook: (photoId: string, lookId: string) => void;
   onHoverLook: (lookId: string | null) => void;
   onResetPhoto: (photoId: string) => void;
@@ -123,6 +125,7 @@ export default function AdjustPanel({
   showAdvanced = false,
   onUpdateRecipe,
   onDetectColourEdges,
+  onApplyLensProfile,
   onApplyLook,
   onHoverLook,
   onResetPhoto,
@@ -425,12 +428,35 @@ export default function AdjustPanel({
           hideReadouts={hideReadouts}
           onChange={(v) => onUpdateRecipe(photo.id, { sharpen: v })}
         /></div>
+        <div className={phoneGroupClass(advancedGroup, 'detail')}><SliderRow
+          id="slider-capture-sharpen"
+          label={STRINGS.history.sliders.captureSharpen}
+          tooltip={STRINGS.adjust.tooltips.captureSharpen}
+          value={recipe.captureSharpen ?? 0}
+          min={0}
+          max={100}
+          hideReadouts={hideReadouts}
+          onChange={(v) => onUpdateRecipe(photo.id, { captureSharpen: v, captureProfile: recipe.captureProfile ?? captureProfileFor(photo.exif.camera) })}
+        /></div>
+        <div className={phoneGroupClass(advancedGroup, 'detail')}><SliderRow
+          id="slider-deblur"
+          label={STRINGS.history.sliders.deblur}
+          tooltip={STRINGS.adjust.tooltips.deblur}
+          value={recipe.deblur ?? 0}
+          min={0}
+          max={100}
+          hideReadouts={hideReadouts}
+          onChange={(v) => onUpdateRecipe(photo.id, { deblur: v, captureProfile: recipe.captureProfile ?? captureProfileFor(photo.exif.camera) })}
+        /></div>
       </section>
 
       {/* Effects: dehaze, vignette and grain (Detail group on a phone) */}
       <section aria-labelledby="effects-heading" className={`space-y-3 border-t border-[var(--border-subtle)] pt-4 ${phoneGroupClass(advancedGroup, 'detail')}`}>
         <h3 id="effects-heading" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.adjust.effects.heading}</h3>
         <EffectsControls recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
+        <div className="border-t border-[var(--border-subtle)] pt-3">
+          <LensControls key={photo.id} recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} onUseProfile={(download) => onApplyLensProfile(photo.id, download)} />
+        </div>
         <div className="border-t border-[var(--border-subtle)] pt-3">
           <FringeControls recipe={recipe} calmView={hideReadouts} showAdvanced={showAdvanced} onChange={(patch) => onUpdateRecipe(photo.id, patch)} onDetect={() => onDetectColourEdges(photo.id)} />
         </div>

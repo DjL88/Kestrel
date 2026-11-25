@@ -151,6 +151,25 @@
   .inflight-v2 .v2-filmstrip-tools button { min-height: 40px; }
 }
 
+/* Nothing shown by colour alone (owner checklist, WCAG 1.4.1): what is current or selected also carries a shape, a short
+   solid bar at its edge. It is drawn from the element's own state (aria-pressed, or data-selected where the element is
+   not a button), so the picture and what a screen reader says cannot disagree. */
+.inflight-v2 .v2-current-mark { position: relative; }
+.inflight-v2 .v2-current-mark[aria-pressed="true"]::before,
+.inflight-v2 .v2-current-mark[data-selected="true"]::before {
+  content: ""; position: absolute; left: 0; top: 22%; bottom: 22%; width: 3px; border-radius: 2px;
+  background: var(--brand-accent); pointer-events: none;
+}
+.inflight-v2 .v2-current-mark-top[aria-pressed="true"]::before {
+  content: ""; position: absolute; top: 0; left: 30%; right: 30%; height: 3px; border-radius: 0 0 2px 2px;
+  background: var(--brand-accent); pointer-events: none;
+}
+@media (forced-colors: active) {
+  .inflight-v2 .v2-current-mark[aria-pressed="true"]::before,
+  .inflight-v2 .v2-current-mark[data-selected="true"]::before,
+  .inflight-v2 .v2-current-mark-top[aria-pressed="true"]::before { background: Highlight; }
+}
+
 /* Phone edit screen (V2-WORKSPACE 26.3, owner wireframe "Phone · Edit"): a slimmer strip of small thumbnails instead of
    tall cards, so the photo gets more of the height. More (⋯) and Flag stay drawn and tappable on every thumbnail; only
    the filename and the word Ready are not drawn (both stay in the page for screen readers and voice control). A state

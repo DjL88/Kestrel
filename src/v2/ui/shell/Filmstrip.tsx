@@ -202,7 +202,12 @@ export default function Filmstrip({
       if (list.length === 0) return;
       const index = list.findIndex((photo) => photo.id === current?.id);
       const next = list[Math.min(list.length - 1, Math.max(0, index < 0 ? (delta === 1 ? 0 : list.length - 1) : index + delta))];
-      if (next && next.id !== current?.id) select(next.id);
+      if (next && next.id !== current?.id) {
+        select(next.id);
+        // Two quick presses can arrive before the next render. Move on from the photo just chosen, not the one still
+        // on screen, so no step is lost and a following flag or rating lands on the photo the culler expects.
+        stepRef.current = { ...stepRef.current, activePhoto: next };
+      }
     };
     window.addEventListener('inflight:photo-step', onStep);
     return () => window.removeEventListener('inflight:photo-step', onStep);

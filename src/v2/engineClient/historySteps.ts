@@ -24,11 +24,11 @@ const LABEL: Record<EditKind, string> = {
 
 type SliderKey = keyof typeof STRINGS.history.sliders;
 const SLIDERS: readonly SliderKey[] = ['exposure', 'highlights', 'shadows', 'contrast', 'whites', 'blacks', 'temperature', 'tint', 'vibrance',
-  'saturation', 'clarity', 'detailRecovery', 'sharpen', 'denoiseLuminance', 'denoiseColour', 'dehaze', 'vignette', 'grain'];
+  'saturation', 'clarity', 'detailRecovery', 'sharpen', 'captureSharpen', 'deblur', 'denoiseLuminance', 'denoiseColour', 'dehaze', 'vignette', 'grain'];
 
 const show = (key: SliderKey, value: number) => {
   const rounded = key === 'exposure' ? value.toFixed(2) : String(Math.round(value));
-  const signed = value > 0 && !['sharpen', 'denoiseLuminance', 'denoiseColour', 'detailRecovery', 'grain'].includes(key) ? `+${rounded}` : rounded;
+  const signed = value > 0 && !['sharpen', 'captureSharpen', 'deblur', 'denoiseLuminance', 'denoiseColour', 'detailRecovery', 'grain'].includes(key) ? `+${rounded}` : rounded;
   return key === 'exposure' ? `${signed} EV` : signed;
 };
 
