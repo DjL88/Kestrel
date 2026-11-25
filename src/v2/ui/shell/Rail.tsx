@@ -111,7 +111,7 @@ export default function Rail({
                 aria-pressed={isActive}
                 title={`${item.label} (Right-click rail to dock or float)`}
                 onClick={() => onSelectPanel(item.id)}
-                className={`relative flex w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] py-2 px-1 text-[0.625rem] font-medium transition-colors ${
+                className={`v2-current-mark relative flex w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] py-2 px-1 text-[0.625rem] font-medium transition-colors ${
                   isActive
                     ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                     : isHidden
@@ -228,7 +228,7 @@ function TasksWheel({ running, percent, active, onClick }: { running: number; pe
       aria-label={STRINGS.tasks.wheel(running, shown)}
       title={STRINGS.tasks.wheel(running, shown)}
       data-testid="tasks-wheel"
-      className={`flex w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] py-1.5 text-[0.625rem] font-medium transition-colors ${
+      className={`v2-current-mark flex w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] py-1.5 text-[0.625rem] font-medium transition-colors ${
         active ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
       }`}
     >
