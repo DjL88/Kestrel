@@ -7,15 +7,32 @@ export interface SignInOption { provider: SignInProvider; label: string; availab
 /**
  * Which sign-in buttons to show and whether each works here. Apple requires Sign in with Apple wherever another
  * third-party sign-in is offered, so the two always appear together. Unavailable is explained, never hidden.
- * Native Google/Apple flows are not built yet; configured email/password sign-in is a separate route.
+ * The desktop app signs in with Google through the person's normal browser when the build has a Google desktop client
+ * (`desktopGoogle`); Apple and the phone apps' native flows are not built yet. Email/password is a separate route.
  */
-export function signInOptions(platform: SignInPlatform, configured: boolean): SignInOption[] {
-  const reason = !configured
-    ? 'Sign-in is not set up in this build.'
-    : platform === 'web' ? undefined : 'Google and Apple sign-in are not built yet for installed apps. Use email and password here, or sign in on the web.';
-  const available = reason === undefined;
+export function signInOptions(platform: SignInPlatform, configured: boolean, desktopGoogle = false): SignInOption[] {
+  if (!configured) {
+    const reason = 'Sign-in is not set up in this build.';
+    return [
+      { provider: 'google', label: 'Continue with Google', available: false, reason },
+      { provider: 'apple', label: 'Continue with Apple', available: false, reason },
+    ];
+  }
+  if (platform === 'web') {
+    return [
+      { provider: 'google', label: 'Continue with Google', available: true },
+      { provider: 'apple', label: 'Continue with Apple', available: true },
+    ];
+  }
+  if (platform === 'desktop' && desktopGoogle) {
+    return [
+      { provider: 'google', label: 'Continue with Google', available: true },
+      { provider: 'apple', label: 'Continue with Apple', available: false, reason: 'Apple sign-in is not built yet for the desktop app. Use Google, or email and password.' },
+    ];
+  }
+  const reason = 'Google and Apple sign-in are not built yet for installed apps. Use email and password here, or sign in on the web.';
   return [
-    { provider: 'google', label: 'Continue with Google', available, reason },
-    { provider: 'apple', label: 'Continue with Apple', available, reason },
+    { provider: 'google', label: 'Continue with Google', available: false, reason },
+    { provider: 'apple', label: 'Continue with Apple', available: false, reason },
   ];
 }

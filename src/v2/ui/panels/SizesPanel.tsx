@@ -91,6 +91,27 @@ export default function SizesPanel({
   const activeSplit = photo.formatSplits?.[activeSize.id];
   const activeSplitCount: 1 | 2 | 3 | 4 | 5 = activeSplit?.enabled ? (activeSplit.count ?? 2) : 1;
 
+  /** Tick or untick a format. The zoom video's own switch follows its tick, so there is one place to turn it on. */
+  const toggleIncluded = (size: Photo['sizes'][number]) => {
+    onToggleSizeEnabled(photo.id, size.id);
+    if (size.kind === 'video') onUpdateVideoZoom(photo.id, { enabled: !size.enabled });
+  };
+  /**
+   * Tapping a format's name: an unticked format is ticked and shown; a ticked format is shown; tapping the format that
+   * is already shown unticks it. Ctrl/Cmd-click only adds to the selection, as before.
+   */
+  const tapFormat = (size: Photo['sizes'][number], ctrl: boolean) => {
+    if (ctrl) { onSetActiveSize(size.id, { ctrl: true }); return; }
+    const shown = size.id === activeSizeId && selectedSizeIds.length <= 1;
+    if (!size.enabled) { toggleIncluded(size); onSetActiveSize(size.id); return; }
+    if (shown) { toggleIncluded(size); return; }
+    onSetActiveSize(size.id);
+  };
+  const formatRowLabel = (size: Photo['sizes'][number]) =>
+    !size.enabled ? STRINGS.formats.rowInclude(size.label)
+      : size.id === activeSizeId ? STRINGS.formats.rowExclude(size.label)
+      : STRINGS.formats.rowShow(size.label);
+
   const pixelDimensions = dimensionPixels(customW, customH, customUnit, customPpi);
   const chooseBorderColour = (colour: string) => {
     onUpdateSizeCrop(photo.id, activeSize.id, { borderColour: colour });
@@ -172,7 +193,7 @@ export default function SizesPanel({
           <button
             type="button"
             onClick={() => onAddEditGroup(photo.id)}
-            className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--brand-accent)] hover:underline"
+            className="inline-flex items-center gap-1 text-[0.6875rem] font-semibold text-[var(--brand-accent)] hover:underline"
           >
             <BrandIcon name="plus" size={12} />
             <span>{STRINGS.formats.addEditGroup}</span>
@@ -195,7 +216,7 @@ export default function SizesPanel({
                 }`}
               >
                 <span className="truncate font-medium">{g.name}</span>
-                <span className="shrink-0 text-[10px] text-[var(--text-muted)]">
+                <span className="shrink-0 text-[0.625rem] text-[var(--text-muted)]">
                   {g.overlay.textEnabled ? 'Text on' : 'Clean'}
                 </span>
               </button>
@@ -234,7 +255,7 @@ export default function SizesPanel({
           <button
             type="button"
             onClick={() => onSetAddingCustom(!addingCustom)}
-            className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--brand-accent)]"
+            className="inline-flex items-center gap-1 text-[0.6875rem] font-medium text-[var(--text-secondary)] hover:text-[var(--brand-accent)]"
           >
             <BrandIcon name="plus" size={12} />
             <span>{STRINGS.formats.customSizeAdd}</span>
@@ -251,19 +272,19 @@ export default function SizesPanel({
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.formats.originalHeading}</span>
-              <span className="text-[11px] text-[var(--text-muted)]">{STRINGS.formats.originalVisibility}</span>
+              <span className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.formats.originalVisibility}</span>
             </div>
-            <p className="text-[11px] text-[var(--text-secondary)]">
+            <p className="text-[0.6875rem] text-[var(--text-secondary)]">
               {STRINGS.formats.originalHelp}
             </p>
             <div className="flex flex-wrap items-end gap-2">
-              <label className="flex flex-col gap-1 text-[11px] text-[var(--text-secondary)]">
+              <label className="flex flex-col gap-1 text-[0.6875rem] text-[var(--text-secondary)]">
                 {STRINGS.formats.originalWidth}
                 <input type="number" min="1" max="20000" step="1" value={originalW}
                   aria-label={STRINGS.formats.originalWidthLabel} onChange={(event) => setOriginalW(Number(event.target.value))}
                   className="h-9 w-28 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 font-mono text-xs text-[var(--text-primary)]" />
               </label>
-              <label className="flex flex-col gap-1 text-[11px] text-[var(--text-secondary)]">
+              <label className="flex flex-col gap-1 text-[0.6875rem] text-[var(--text-secondary)]">
                 {STRINGS.formats.originalHeight}
                 <input type="number" min="1" max="20000" step="1" value={originalH}
                   aria-label={STRINGS.formats.originalHeightLabel} onChange={(event) => setOriginalH(Number(event.target.value))}
@@ -292,7 +313,7 @@ export default function SizesPanel({
               className="h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]"
             />
             <div className="grid grid-cols-2 gap-2">
-              <label className="space-y-1 text-[11px] text-[var(--text-secondary)]">
+              <label className="space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
                 <span>{STRINGS.formats.customSizeLabel}</span>
                 <select
                   aria-label={STRINGS.formats.paperSizeLabel}
@@ -307,7 +328,7 @@ export default function SizesPanel({
                   <option value="A1">A1 (594 × 841 mm)</option>
                 </select>
               </label>
-              <label className="space-y-1 text-[11px] text-[var(--text-secondary)]">
+              <label className="space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
                 <span>{STRINGS.formats.orientationLabel}</span>
                 <select
                   value={paperOrientation}
@@ -321,7 +342,7 @@ export default function SizesPanel({
               </label>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <label className="space-y-1 text-[11px] text-[var(--text-secondary)]">
+              <label className="space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
                 <span>{STRINGS.formats.customWidth}</span>
                 <input
                   type="number" min={customUnit === 'px' ? 100 : 0.1} step={customUnit === 'px' ? 1 : 'any'}
@@ -331,7 +352,7 @@ export default function SizesPanel({
                   className="h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 font-mono text-xs text-[var(--text-primary)]"
                 />
               </label>
-              <label className="space-y-1 text-[11px] text-[var(--text-secondary)]">
+              <label className="space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
                 <span>{STRINGS.formats.customHeight}</span>
                 <input
                   type="number" min={customUnit === 'px' ? 100 : 0.1} step={customUnit === 'px' ? 1 : 'any'}
@@ -341,7 +362,7 @@ export default function SizesPanel({
                   className="h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 font-mono text-xs text-[var(--text-primary)]"
                 />
               </label>
-              <label className="space-y-1 text-[11px] text-[var(--text-secondary)]">
+              <label className="space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
                 <span>{STRINGS.formats.unitsLabel}</span>
                 <select
                   aria-label={STRINGS.formats.unitsAria} value={customUnit}
@@ -362,7 +383,7 @@ export default function SizesPanel({
               </label>
             </div>
             {customUnit !== 'px' && (
-              <label className="flex items-center justify-between gap-2 text-[11px] text-[var(--text-secondary)]">
+              <label className="flex items-center justify-between gap-2 text-[0.6875rem] text-[var(--text-secondary)]">
                 <span>{STRINGS.formats.ppiLabel}</span>
                 <input
                   type="number" min={1} max={2400} step={1} value={customPpi}
@@ -372,7 +393,7 @@ export default function SizesPanel({
                 />
               </label>
             )}
-            <p aria-live="polite" className="text-[11px] text-[var(--text-secondary)]">
+            <p aria-live="polite" className="text-[0.6875rem] text-[var(--text-secondary)]">
               {pixelDimensions
                 ? `Output canvas: ${pixelDimensions.width} × ${pixelDimensions.height} pixels. This does not add detail to a low-resolution photograph.`
                 : 'Choose a size of 100 to 20,000 pixels per side and a valid PPI.'}
@@ -401,8 +422,8 @@ export default function SizesPanel({
             const isSelected = selectedSizeIds.includes(size.id);
             const isVideoLocked = size.kind === 'video' && !features.zoomVideo;
             return (
+              <React.Fragment key={size.id}>
               <div
-                key={size.id}
                 className={`flex items-center justify-between gap-2 rounded-[var(--radius-sm)] border px-2 py-1.5 transition-colors ${
                   isSelected
                     ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]'
@@ -414,7 +435,7 @@ export default function SizesPanel({
                   disabled={isVideoLocked}
                   aria-label={`Include ${size.label}`}
                   aria-pressed={size.enabled}
-                  onClick={() => onToggleSizeEnabled(photo.id, size.id)}
+                  onClick={() => toggleIncluded(size)}
                   className="text-[var(--text-secondary)] hover:text-[var(--brand-accent)] disabled:opacity-40"
                 >
                   <BrandIcon
@@ -427,7 +448,8 @@ export default function SizesPanel({
                 <button
                   type="button"
                   disabled={isVideoLocked}
-                  onClick={(e) => onSetActiveSize(size.id, { ctrl: e.ctrlKey || e.metaKey })}
+                  aria-label={formatRowLabel(size)}
+                  onClick={(e) => tapFormat(size, e.ctrlKey || e.metaKey)}
                   className="flex flex-1 items-center justify-between gap-2 min-w-0 text-left disabled:opacity-50"
                 >
                   <span className="flex items-center gap-1.5 min-w-0">
@@ -446,7 +468,7 @@ export default function SizesPanel({
                       {size.label}
                     </span>
                   </span>
-                  <span className="shrink-0 font-mono text-[10px] text-[var(--text-muted)] tabular-nums">
+                  <span className="shrink-0 font-mono text-[0.625rem] text-[var(--text-muted)] tabular-nums">
                     {size.ratioLabel}
                   </span>
                 </button>
@@ -465,6 +487,48 @@ export default function SizesPanel({
                   <BrandIcon name={size.linked ? 'link' : 'unlink'} size={13} />
                 </button>
               </div>
+                {size.kind === 'video' && size.enabled && size.id === activeSizeId && features.zoomVideo && (
+                  <div data-testid="video-zoom-options" className="ml-6 mt-1.5 space-y-2.5 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2.5">
+                    <p className="text-[0.6875rem] font-medium text-[var(--text-secondary)]">{STRINGS.formats.videoNotExported}</p>
+                    <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.formats.videoPinHint}</p>
+                    <div role="group" aria-label={STRINGS.formats.videoHeading} className="grid grid-cols-2 gap-1.5">
+                      {(['in', 'out'] as const).map((direction) => (
+                        <button
+                          key={direction}
+                          type="button"
+                          aria-pressed={photo.videoZoom.direction === direction}
+                          onClick={() => onUpdateVideoZoom(photo.id, { direction })}
+                          className={`min-h-8 rounded-[var(--radius-sm)] border px-1.5 text-xs font-medium transition-colors ${
+                            photo.videoZoom.direction === direction
+                              ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
+                              : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'
+                          }`}
+                        >
+                          {direction === 'in' ? STRINGS.formats.videoDirectionIn : STRINGS.formats.videoDirectionOut}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between text-[0.6875rem] text-[var(--text-muted)]">
+                      <span>
+                        {STRINGS.formats.focalPin} <strong className="font-mono text-[var(--text-secondary)]">{photo.videoZoom.focalX}%, {photo.videoZoom.focalY}%</strong>
+                      </span>
+                      <label className="flex items-center gap-1.5">
+                        <span>{STRINGS.formats.videoDuration}</span>
+                        <select
+                          value={photo.videoZoom.durationSec}
+                          onChange={(e) => onUpdateVideoZoom(photo.id, { durationSec: Number(e.target.value) })}
+                          className="rounded border border-[var(--border-subtle)] bg-[var(--bg-input)] px-1.5 py-0.5 text-[0.6875rem] text-[var(--text-primary)]"
+                        >
+                          <option value={4}>4s</option>
+                          <option value={6}>6s</option>
+                          <option value={8}>8s</option>
+                          <option value={12}>12s</option>
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </React.Fragment>
             );
           })}
         </div>
@@ -485,7 +549,7 @@ export default function SizesPanel({
           <button
             type="button"
             onClick={() => onResetSizeCrop(photo.id, activeSize.id)}
-            className="text-[11px] text-[var(--text-muted)] hover:text-[var(--brand-accent)]"
+            className="text-[0.6875rem] text-[var(--text-muted)] hover:text-[var(--brand-accent)]"
           >
             {STRINGS.formats.resetCrop}
           </button>
@@ -495,7 +559,7 @@ export default function SizesPanel({
           <button
             type="button"
             onClick={() => onFlipSizes(photo.id, 'horizontal')}
-            className={`inline-flex h-8 items-center justify-center gap-1 rounded-[var(--radius-sm)] border text-[11px] font-medium transition-colors ${
+            className={`inline-flex h-8 items-center justify-center gap-1 rounded-[var(--radius-sm)] border text-[0.6875rem] font-medium transition-colors ${
               activeSize.crop.flipH
                 ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                 : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -507,7 +571,7 @@ export default function SizesPanel({
           <button
             type="button"
             onClick={() => onFlipSizes(photo.id, 'vertical')}
-            className={`inline-flex h-8 items-center justify-center gap-1 rounded-[var(--radius-sm)] border text-[11px] font-medium transition-colors ${
+            className={`inline-flex h-8 items-center justify-center gap-1 rounded-[var(--radius-sm)] border text-[0.6875rem] font-medium transition-colors ${
               activeSize.crop.flipV
                 ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                 : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -519,7 +583,7 @@ export default function SizesPanel({
           <button
             type="button"
             onClick={() => onRotateSizes(photo.id)}
-            className="inline-flex h-8 items-center justify-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            className="inline-flex h-8 items-center justify-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] text-[0.6875rem] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           >
             <BrandIcon name="rotate" size={13} />
             <span>90°</span>
@@ -531,7 +595,7 @@ export default function SizesPanel({
             <label htmlFor="format-zoom-slider" className="text-[var(--text-secondary)]">
               {STRINGS.formats.zoomLabel} ({activeSize.ratioLabel})
             </label>
-            <span className="font-mono text-[11px] text-[var(--text-secondary)] tabular-nums">
+            <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)] tabular-nums">
               {Math.round(activeSize.crop.zoom * 100)}%
             </span>
           </div>
@@ -550,7 +614,7 @@ export default function SizesPanel({
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs">
             <label htmlFor="format-border-slider" className="text-[var(--text-secondary)]">{STRINGS.formats.borderLabel} ({activeSize.ratioLabel})</label>
-            <span className="font-mono text-[11px] text-[var(--text-secondary)] tabular-nums">{(activeSize.crop.borderWidth ?? 0) > 0 ? `${activeSize.crop.borderWidth}%` : STRINGS.formats.borderNone}</span>
+            <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)] tabular-nums">{(activeSize.crop.borderWidth ?? 0) > 0 ? `${activeSize.crop.borderWidth}%` : STRINGS.formats.borderNone}</span>
           </div>
           <input
             id="format-border-slider"
@@ -580,7 +644,7 @@ export default function SizesPanel({
                 type="button"
                 aria-pressed={(activeSize.crop.borderColour ?? '#ffffff') === hex}
                 onClick={() => chooseBorderColour(hex)}
-                className={`inline-flex min-h-8 items-center gap-1.5 rounded-[var(--radius-sm)] border px-2.5 text-[11px] font-medium ${(activeSize.crop.borderColour ?? '#ffffff') === hex ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'}`}
+                className={`inline-flex min-h-8 items-center gap-1.5 rounded-[var(--radius-sm)] border px-2.5 text-[0.6875rem] font-medium ${(activeSize.crop.borderColour ?? '#ffffff') === hex ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'}`}
               >
                 <span aria-hidden="true" className="h-3 w-3 rounded-full border border-[var(--border-default)]" style={{ background: hex }} />
                 {name}
@@ -596,7 +660,7 @@ export default function SizesPanel({
           </div>
           {recentBorderColours.length > 0 && (
             <div role="group" aria-label={STRINGS.formats.recentBorderColoursGroup} className="flex flex-wrap items-center gap-2">
-              <span className="text-[11px] text-[var(--text-secondary)]">{STRINGS.formats.recentBorderColours}</span>
+              <span className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.formats.recentBorderColours}</span>
               {recentBorderColours.map((hex) => (
                 <button
                   key={hex}
@@ -621,7 +685,7 @@ export default function SizesPanel({
             <BrandIcon name="split-panorama" size={15} />
             {STRINGS.formats.splitHeading} · {activeSize.label}
           </h3>
-          <p className="text-[11px] font-medium text-[var(--text-secondary)]">{STRINGS.formats.splitFrameCount}</p>
+          <p className="text-[0.6875rem] font-medium text-[var(--text-secondary)]">{STRINGS.formats.splitFrameCount}</p>
           <div role="group" aria-label={STRINGS.formats.splitFrameCount} className="grid grid-cols-5 gap-1.5">
             {([1, 2, 3, 4, 5] as const).map((count) => (
               <button
@@ -642,89 +706,12 @@ export default function SizesPanel({
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-[var(--text-muted)]">
+          <p className="text-[0.6875rem] text-[var(--text-muted)]">
             {STRINGS.formats.splitFrameHelp(activeSplitCount)}
           </p>
         </section>
       )}
 
-      {/* Video (Zoom MP4) Settings */}
-      {features.zoomVideo && (
-        <section className="space-y-2.5 border-t border-[var(--border-subtle)] pt-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
-              <BrandIcon name="video-zoom" size={14} className="text-[var(--brand-accent)]" />
-              <span>{STRINGS.formats.videoHeading}</span>
-            </h3>
-            <button
-              type="button"
-              onClick={() => {
-                onUpdateVideoZoom(photo.id, { enabled: !photo.videoZoom.enabled });
-                if (!photo.videoZoom.enabled) onSetActiveSize('video-zoom');
-              }}
-              className={`rounded px-2 py-0.5 text-[11px] font-semibold ${
-                photo.videoZoom.enabled
-                  ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                  : 'bg-[var(--bg-input)] text-[var(--text-muted)]'
-              }`}
-            >
-              {photo.videoZoom.enabled ? 'Enabled' : 'Enable'}
-            </button>
-          </div>
-
-          <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.formats.videoPinHint}</p>
-
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                onUpdateVideoZoom(photo.id, { enabled: true, direction: 'in' });
-                onSetActiveSize('video-zoom');
-              }}
-              className={`h-8 rounded-[var(--radius-sm)] border text-xs font-medium transition-colors ${
-                photo.videoZoom.direction === 'in'
-                  ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                  : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'
-              }`}
-            >
-              {STRINGS.formats.videoDirectionIn}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                onUpdateVideoZoom(photo.id, { enabled: true, direction: 'out' });
-                onSetActiveSize('video-zoom');
-              }}
-              className={`h-8 rounded-[var(--radius-sm)] border text-xs font-medium transition-colors ${
-                photo.videoZoom.direction === 'out'
-                  ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                  : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'
-              }`}
-            >
-              {STRINGS.formats.videoDirectionOut}
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between text-[11px] text-[var(--text-muted)]">
-            <span>
-              {STRINGS.formats.focalPin} <strong className="font-mono text-[var(--text-secondary)]">{photo.videoZoom.focalX}%, {photo.videoZoom.focalY}%</strong>
-            </span>
-            <label className="flex items-center gap-1.5">
-              <span>{STRINGS.formats.videoDuration}</span>
-              <select
-                value={photo.videoZoom.durationSec}
-                onChange={(e) => onUpdateVideoZoom(photo.id, { durationSec: Number(e.target.value) })}
-                className="rounded border border-[var(--border-subtle)] bg-[var(--bg-input)] px-1.5 py-0.5 text-[11px] text-[var(--text-primary)]"
-              >
-                <option value={4}>4s</option>
-                <option value={6}>6s</option>
-                <option value={8}>8s</option>
-                <option value={12}>12s</option>
-              </select>
-            </label>
-          </div>
-        </section>
-      )}
     </div>
   );
 }

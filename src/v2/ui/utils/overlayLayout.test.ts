@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { anchorFlexStyle, layoutOverlays, STACK_GAP_PX } from './overlayLayout.ts';
+import { anchorFlexStyle, freeTransform, layoutOverlays, STACK_GAP_PX } from './overlayLayout.ts';
 
 const frame = { width: 1000, height: 600 };
 const base = { textPlacement: 'anchor', watermarkPlacement: 'anchor', textPosition: 'bottom-left', watermarkPosition: 'bottom-right', textX: 8, textY: 90, watermarkX: 92, watermarkY: 90, edgeMargin: 4 } as const;
@@ -31,11 +31,15 @@ test('text and watermark at the same place stack instead of overlapping, lined u
   assert.equal(mark!.x + mark!.width, 960, 'right edges line up');
 });
 
-test('a dragged box keeps its centre but never leaves the frame', () => {
+test('a dragged box keeps its centre but never crosses the edge margin', () => {
   const free = { ...base, textPlacement: 'free', textX: 50, textY: 50 } as const;
   assert.deepEqual(layoutOverlays(frame, free, { text: { width: 200, height: 100 } }, 1).text, { x: 400, y: 250, width: 200, height: 100 });
   const edge = layoutOverlays(frame, { ...free, textX: 4, textY: 96 }, { text: { width: 200, height: 100 } }, 1).text!;
-  assert.deepEqual([edge.x, edge.y + edge.height], [0, 600]);
+  assert.deepEqual([edge.x, edge.y + edge.height], [40, 560]);
+});
+
+test('the canvas holds a dragged box inside the same margin with CSS clamp', () => {
+  assert.equal(freeTransform(50, 90, 4), 'translate(clamp(calc(-46cqw), -50%, calc(46cqw - 100%)), clamp(calc(4cqw - 90cqh), -50%, calc(100cqh - 4cqw - 90cqh - 100%)))');
 });
 
 test('the canvas lines an anchored stack up with flexbox at the same place', () => {

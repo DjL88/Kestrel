@@ -111,7 +111,7 @@ export default function Rail({
                 aria-pressed={isActive}
                 title={`${item.label} (Right-click rail to dock or float)`}
                 onClick={() => onSelectPanel(item.id)}
-                className={`relative flex w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] py-2 px-1 text-[10px] font-medium transition-colors ${
+                className={`relative flex w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] py-2 px-1 text-[0.625rem] font-medium transition-colors ${
                   isActive
                     ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                     : isHidden
@@ -124,7 +124,7 @@ export default function Rail({
                 {false && runningTaskCount > 0 && !quietBadges && (
                   <span
                     aria-label={`${runningTaskCount} running tasks`}
-                    className="absolute right-1.5 top-1.5 min-w-[16px] rounded-full bg-[var(--brand-accent)] px-1 text-center text-[9px] font-bold text-[var(--text-on-accent)] tabular-nums"
+                    className="absolute right-1.5 top-1.5 min-w-[16px] rounded-full bg-[var(--brand-accent)] px-1 text-center text-[0.5625rem] font-bold text-[var(--text-on-accent)] tabular-nums"
                   >
                     {runningTaskCount}
                   </span>
@@ -143,7 +143,7 @@ export default function Rail({
               title={STRINGS.shellLabels.allPhotosTitle}
               aria-label={STRINGS.shellLabels.allPhotos}
               data-testid="all-photos-button"
-              className={`flex w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] py-2 text-[10px] font-medium transition-colors ${
+              className={`flex w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] py-2 text-[0.625rem] font-medium transition-colors ${
                 allPhotosOpen ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
               }`}
             >
@@ -164,7 +164,7 @@ export default function Rail({
           className="fixed z-50 w-64 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] p-2 shadow-[var(--shadow-popover)]"
           style={{ left: contextPos.x, top: contextPos.y }}
         >
-          <p className="px-2 pb-1.5 text-[11px] font-semibold text-[var(--text-secondary)]">
+          <p className="px-2 pb-1.5 text-[0.6875rem] font-semibold text-[var(--text-secondary)]">
             {STRINGS.rail.contextMenuTitle}
           </p>
           <div className="space-y-0.5">
@@ -196,7 +196,7 @@ export default function Rail({
                           onSetPanelDock(item.id, dock);
                           setContextPos(null);
                         }}
-                        className={`rounded px-1.5 py-0.5 text-[10px] font-medium capitalize transition-colors ${
+                        className={`rounded px-1.5 py-0.5 text-[0.625rem] font-medium capitalize transition-colors ${
                           state.dock === dock
                             ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                             : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface-active)] hover:text-[var(--text-primary)]'
@@ -228,7 +228,7 @@ function TasksWheel({ running, percent, active, onClick }: { running: number; pe
       aria-label={STRINGS.tasks.wheel(running, shown)}
       title={STRINGS.tasks.wheel(running, shown)}
       data-testid="tasks-wheel"
-      className={`flex w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] py-1.5 text-[10px] font-medium transition-colors ${
+      className={`flex w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] py-1.5 text-[0.625rem] font-medium transition-colors ${
         active ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
       }`}
     >
@@ -240,7 +240,7 @@ function TasksWheel({ running, percent, active, onClick }: { running: number; pe
               strokeDasharray={circumference} strokeDashoffset={circumference * (1 - shown / 100)} />
           )}
         </svg>
-        <span className="relative text-[11px] font-bold tabular-nums text-[var(--text-primary)]">{running}</span>
+        <span className="relative text-[0.6875rem] font-bold tabular-nums text-[var(--text-primary)]">{running}</span>
       </span>
       <span className="v2-rail-label">{STRINGS.rail.tasks}</span>
     </button>

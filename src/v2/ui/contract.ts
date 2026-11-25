@@ -266,6 +266,8 @@ export interface AssistSuggestion {
   applied: boolean;
   recipeDelta: Partial<EditRecipe>;
   comparison?: { before: string; after: string };
+  /** The same edit as ordered slider steps with real values (src/core/editingSequence.ts), for Watch and Learn. */
+  steps?: { id: string; label: string; from: string; to: string }[];
 }
 
 export interface PhotoExif {

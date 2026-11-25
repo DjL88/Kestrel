@@ -56,7 +56,7 @@ export default function InfoPanel({
       <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3">
         <div className="flex items-center justify-between text-xs">
           <span className="font-semibold text-[var(--text-primary)]">{STRINGS.panelWords.histogram}</span>
-          <span className="font-mono text-[10px] text-[var(--text-muted)]">
+          <span className="font-mono text-[0.625rem] text-[var(--text-muted)]">
             {photo.assistCritique.kelvinEstimate}
           </span>
         </div>
@@ -69,7 +69,7 @@ export default function InfoPanel({
               ))}
             </svg>
             {/* Each line has its own pattern and a word, so the channels are told apart without relying on colour. */}
-            <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-[var(--text-secondary)]" data-testid="histogram-legend">
+            <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[0.6875rem] text-[var(--text-secondary)]" data-testid="histogram-legend">
               {HISTOGRAM_LINES.map((line) => (
                 <li key={line.key} className="inline-flex items-center gap-1">
                   <svg width="18" height="6" viewBox="0 0 18 6" aria-hidden="true" focusable="false">
@@ -79,7 +79,7 @@ export default function InfoPanel({
                 </li>
               ))}
             </ul>
-            <p className="mt-1 flex justify-between text-[11px] text-[var(--text-secondary)]" data-testid="histogram-clipping">
+            <p className="mt-1 flex justify-between text-[0.6875rem] text-[var(--text-secondary)]" data-testid="histogram-clipping">
               <span>Shadows clipped {pct(hist.shadowClip)}</span>
               <span>Highlights clipped {pct(hist.highlightClip)}</span>
             </p>
@@ -204,7 +204,7 @@ export default function InfoPanel({
                 <span>{photo.speciesLabel || photo.category || STRINGS.panelWords.notIdentified}</span>
                 <button type="button" aria-label={STRINGS.panelWords.correctSpecies} title={STRINGS.panelWords.correctSpecies}
                   onClick={() => setEditingSpecies(true)}
-                  className="shrink-0 rounded border border-[var(--border-subtle)] px-2 py-1 text-[11px]">{STRINGS.panelWords.edit}</button>
+                  className="shrink-0 rounded border border-[var(--border-subtle)] px-2 py-1 text-[0.6875rem]">{STRINGS.panelWords.edit}</button>
               </dd>
             )}
           </div>
@@ -220,7 +220,7 @@ function MetaRow({ label, value, mono }: { label: string; value: string; mono?: 
   return (
     <div className="flex items-start justify-between gap-3">
       <dt className="shrink-0 text-[var(--text-muted)]">{label}</dt>
-      <dd className={`text-right text-[var(--text-primary)] ${mono ? 'font-mono text-[11px] tabular-nums' : ''}`}>
+      <dd className={`text-right text-[var(--text-primary)] ${mono ? 'font-mono text-[0.6875rem] tabular-nums' : ''}`}>
         {value}
       </dd>
     </div>

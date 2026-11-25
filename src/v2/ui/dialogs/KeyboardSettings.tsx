@@ -144,7 +144,7 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
                   <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                     <span className="text-[var(--text-primary)]">{command.label}{changed ? STRINGS.keyboardKeys.changedSuffix : ''}</span>
                     <span className="flex items-center gap-1.5">
-                      <kbd className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-0.5 font-mono text-[11px] text-[var(--text-secondary)]">
+                      <kbd className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-0.5 font-mono text-[0.6875rem] text-[var(--text-secondary)]">
                         {capturing === command.id ? STRINGS.keyboardKeys.pressAKey : chordLabel(chord, isMac)}
                       </kbd>
                       <button type="button" className={buttonClass} aria-label={STRINGS.keyboardKeys.changeLabel(command.label)} onClick={() => setCapturing(capturing === command.id ? null : command.id)}>
@@ -197,7 +197,7 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
                   <option value="">{STRINGS.keyboardKeys.nothing}</option>
                   {COMMANDS.map((command) => <option key={command.id} value={command.id}>{command.label}</option>)}
                 </select>
-                <kbd className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-0.5 font-mono text-[11px] text-[var(--text-secondary)]">
+                <kbd className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-0.5 font-mono text-[0.6875rem] text-[var(--text-secondary)]">
                   {learning === slot ? STRINGS.keyboardKeys.pressAKey : chordLabel(pad[slot].chord, isMac)}
                 </kbd>
                 <button type="button" className={buttonClass} aria-label={STRINGS.keyboardKeys.learnLabel(PAD_SLOT_LABELS[slot])} onClick={() => setLearning(learning === slot ? null : slot)}>

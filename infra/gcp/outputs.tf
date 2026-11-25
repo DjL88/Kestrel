@@ -9,7 +9,12 @@ output "downloads_base_url" {
 }
 
 output "website_url" {
-  description = "The website's address until a custom domain is added."
+  description = "The website's public address (config/public-site.json)."
+  value       = local.public_site.origin
+}
+
+output "firebase_hosting_url" {
+  description = "The Firebase Hosting address, which keeps working after a custom domain is connected."
   value       = "https://${google_firebase_hosting_site.site.site_id}.web.app"
 }
 
