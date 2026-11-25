@@ -78,6 +78,26 @@ export class CollabStore {
     return member;
   }
 
+  /** Who in a project may do this (for notices: who manages galleries), with the project's name. */
+  async audience(projectId: string, capability: CollabCapability): Promise<{ projectName: string; accountIds: string[] }> {
+    const project = await this.db.runTransaction((tx) => this.readProject(tx, projectId));
+    return { projectName: project.name, accountIds: project.members.filter((m) => can(project, m.accountId, capability)).map((m) => m.accountId) };
+  }
+
+  /**
+   * Who hears about a comment on a photo: the people who may edit it and anyone (not a client) who already commented on
+   * it, never the person acting. Clients are told only about their own comments being marked done.
+   */
+  async commentAudience(projectId: string, photoId: string, actorAccountId: string): Promise<{ projectName: string; actorName: string; accountIds: string[] }> {
+    const project = await this.db.runTransaction((tx) => this.readProject(tx, projectId));
+    const snap = await this.db.collection(C.comments).where('projectId', '==', projectId).where('photoId', '==', photoId).get();
+    const commenters = new Set(snap.docs.map((d) => String(d.data()!.authorAccountId)));
+    const ids = project.members
+      .filter((m) => m.accountId !== actorAccountId && m.role !== 'client' && (can(project, m.accountId, 'edit', photoId) || (commenters.has(m.accountId) && can(project, m.accountId, 'view', photoId))))
+      .map((m) => m.accountId);
+    return { projectName: project.name, actorName: memberOf(project, actorAccountId)?.displayName ?? '', accountIds: ids };
+  }
+
   /** For other shared-project features (galleries): refuses unless this account may do this here. */
   /** Who pays for the project's cloud downloads and storage: its earliest owner. */
   async payerOf(projectId: string): Promise<string> {
