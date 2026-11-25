@@ -811,7 +811,9 @@ export default function Canvas({
       // A touch outside explicit Crop mode is navigation ONLY: never write into the export recipe.
       if (revealSizeId === activeSize.id && !fromMargin) handleFramePointerDown(e, 'pan', activeSize, frameElement(e.currentTarget));
       touchPan.current = { x: e.clientX, y: e.clientY };
-      swipeRef.current = { x: e.clientX, y: e.clientY, t: performance.now(), pinched: false };
+      // Timed by the touch events themselves (when the finger moved), not by when a busy page handled them, so a quick
+      // flick made while the next photo is still being drawn is not mistaken for a slow drag.
+      swipeRef.current = { x: e.clientX, y: e.clientY, t: e.timeStamp, pinched: false };
       endHold();
       holdRef.current.x = e.clientX; holdRef.current.y = e.clientY;
       holdRef.current.timer = window.setTimeout(() => {
@@ -895,7 +897,7 @@ export default function Canvas({
     if (touchPoints.current.size === 0) {
       swipeRef.current = null;
       if (swipe && !swipe.pinched && !heldOriginal && revealSizeId !== activeSize.id && zoomRef.current <= 1.01) {
-        const intent = swipeIntent(e.clientX - swipe.x, e.clientY - swipe.y, performance.now() - swipe.t);
+        const intent = swipeIntent(e.clientX - swipe.x, e.clientY - swipe.y, e.timeStamp - swipe.t);
         if (intent === 'next-photo') onStepPhoto?.(1);
         else if (intent === 'previous-photo') onStepPhoto?.(-1);
         else if (intent === 'next-format' || intent === 'previous-format') {
