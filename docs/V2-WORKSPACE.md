@@ -489,4 +489,4 @@ These devices send keystrokes configured in their own software, so compatibility
 9. Controller commands, active control and the TourBox key set.
 10. Playwright screenshots at 320, 390, 844×390, 820 and 1194 wide; then real iPhone, Android, iPad and TourBox checks.
 
-**Status:** designed and approved; nothing built.
+**Status:** designed and approved. Step 1 needed no change (the three v2-phone-uat cases already pass on main; touch-target sizing went into #1399). Step 2, first part (25 Nov): on a phone in portrait the top bar shows the photo's name and "n of N" in place of the logo, Share shows as an icon, and the filmstrip is a slimmer strip of 80 px thumbnails with More and Flag still drawn (spec `tests/v2-phone-edit.spec.ts`). Still to do in step 2: format chips under the photo, the Fit chip in place of the zoom bar, and moving Select, Import, Folder and Auto-cull to the Library screen (step 4).

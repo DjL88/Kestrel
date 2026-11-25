@@ -25,7 +25,8 @@ export function composeDenoiseRecipe(base: PhotoEdit | undefined, id: string, st
   const edit = base ?? DEFAULT_EDIT;
   // Luminance (grain) denoise moves with the verified strength, so a detail-loss correction reduces both together.
   const luma = Math.round(Math.min(2, strength * lumaPerStrength) * 1e4) / 1e4;
-  const { denoiseLuminance: previousGrain, ...rest } = edit;
+  // This run decides any AI denoise afresh: an older stored result is dropped here and re-added only if chosen again.
+  const { denoiseLuminance: previousGrain, trueDetailAi: _previousAi, ...rest } = edit;
   // A regional recipe carries grain per region, so the global grain setting it replaces is removed, never stacked.
   const regional = masks.some(mask => mask.id === id + '-background');
   const grain = luma > 0 ? luma : regional ? undefined : previousGrain;

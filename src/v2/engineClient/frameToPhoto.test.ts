@@ -257,6 +257,24 @@ test('file info reads recorded import byte count and verified raster dimensions,
   assert.equal(frameToPhoto(frame({exif:{iso:-1, capturedAtMs:Infinity}}), undefined).exif.capturedAt, 'Not recorded');
 });
 
+test('Auto that could not read a RAW says so in Co-pilot instead of "nothing to report yet" forever', async () => {
+  const { autoUnavailableSentence } = await import('./autoUnavailable.ts');
+  const raw = frame({ filename: 'DSC_0042.NEF', originalSha256: 'sha-a' });
+  const unavailable = { unavailable: 'raw-not-developed' as const, source: { stableKey: raw.stableKey, originalSha256: raw.originalSha256, framing: raw.framing } };
+  const note = frameToPhoto(raw, undefined, { autoUnavailable: unavailable }).assistCritique.subjectNote;
+  assert.equal(note, autoUnavailableSentence('raw-not-developed', 'DSC_0042.NEF'));
+  assert.match(note, /RAW/);
+  assert.match(note, /embedded preview/, 'says the camera JPEG was not used in place of the RAW');
+  assert.match(note, /Nothing was changed/);
+  assert.doesNotMatch(note, /export/i, 'an Auto check never talks about exporting');
+  assert.equal(frameToPhoto(raw, undefined, {}).assistCritique.subjectNote, '', 'no check yet: nothing is claimed');
+  // A result for a different original (relinked, changed bytes) is not shown for this one.
+  assert.equal(frameToPhoto({ ...raw, originalSha256: 'sha-b' }, undefined, { autoUnavailable: unavailable }).assistCritique.subjectNote, '');
+  for (const cause of ['no-preview', 'too-small', 'failed'] as const) {
+    assert.match(autoUnavailableSentence(cause, 'IMG_1.JPG'), /IMG_1\.JPG.*Nothing was changed/);
+  }
+});
+
 test('a RAW with no recorded size takes its Original shape from the picture shown, never a 1 × 1 square', async () => {
   const { originalFormatSize } = await import('./frameToPhoto.ts');
   const raw = frame({ filename: 'DSC_0001.NEF', exif: {} as PhotoFrame['exif'] });
@@ -271,7 +289,10 @@ test('a RAW with no recorded size takes its Original shape from the picture show
 
 test('a vehicle reading shows as the subject in words and makes the photo findable by kind, family and type', async () => {
   const { filterPhotos } = await import('../ui/utils/studioMath');
-  const photo = frameToPhoto(frame({ vehicle: { schema: 1, family: 'air', kind: 'military-jet', type: 'typhoon', source: 'clip', labelsVersion: 1 } }), undefined);
+  // Search goes through the shared tag store, which the workspace keeps in line with the reading.
+  const { syncVehicleTags } = await import('../../core/vehicleTags');
+  const { VEHICLE_LABELS } = await import('../../core/vehicleLabels');
+  const photo = frameToPhoto(syncVehicleTags(frame({ vehicle: { schema: 1, family: 'air', kind: 'military-jet', type: 'typhoon', source: 'clip', labelsVersion: 1 } }), VEHICLE_LABELS), undefined);
   assert.equal(photo.vehicleLabel, 'Military jet: Eurofighter Typhoon (probably)');
   for (const query of ['typhoon', 'military jet', 'aircraft']) assert.equal(filterPhotos([photo], 'all', query).length, 1, query);
   assert.equal(filterPhotos([photo], 'all', 'helicopter').length, 0);

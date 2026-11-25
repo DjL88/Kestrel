@@ -48,9 +48,15 @@ variable "control_plane_image" {
 }
 
 variable "control_plane_signing_key_id" {
-  description = "Key id published with grants and the manifest for the key in secret kcp-signing-key-pem (clients pin id and public key)."
+  description = "Key id published with grants and feature flags for the key in secret kcp-signing-key-pem (clients pin id and public key). It never signs models."
   type        = string
   default     = "kcp-2026-11"
+}
+
+variable "model_manifest_keys" {
+  description = "The one model manifest key (public half, id=base64): manifest/stable.json in the models bucket is signed with it by scripts/release/sign-data-manifest.ts (private half in secret kestrel-manifest-signing-key). The control plane checks the manifest with it before serving /v1/models/manifest; apps pin the same value (VITE_KESTREL_MODEL_KEYS)."
+  type        = string
+  default     = "kestrel-2026-11=fRgITdAJPfCXpyEJ7DZml8316QBUgNlPsc3TPw07ZUw="
 }
 
 variable "licence_issuing_enabled" {
@@ -198,9 +204,9 @@ variable "cloud_photos_enabled" {
 }
 
 variable "download_credits_per_month" {
-  description = "Cloud download allowance per paying account per month, in credits (1 credit = 1p; 15 credits per GB). Placeholder until the credit system lands."
+  description = "Free cloud download allowance per account per month, in credits (1 credit = 1p; 33 credits per GB, so 33 is 1 GB). Matches FREE_DOWNLOAD_BYTES_PER_MONTH in src/core/cloudPlan.ts; top-ups will add to it."
   type        = number
-  default     = 300
+  default     = 33
 }
 
 variable "cloud_project_max_gb" {

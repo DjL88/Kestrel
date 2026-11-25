@@ -1,4 +1,5 @@
 import { useServiceReachability } from '../../providers/useServiceReachability';
+import { usageFromServer, type CloudUsage } from '../../core/cloudPlan';
 import { useConnectivity } from '../../providers/useConnectivity';
 import { projectsText } from '../../i18n/areas/projects';
 import { stepFrom } from './utils/swipe';
@@ -87,6 +88,16 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [cursorsHidden, setCursorsHidden] = useState(false);
   const closeShare = React.useCallback(() => { setShareOpen(false); setShareVersion((n) => n + 1); }, []);
   const sharing = React.useMemo(() => collabClient(import.meta.env.VITE_KESTREL_CONTROL_PLANE_URL, () => firebaseAuth.idToken()), []);
+  // Settings → Account: this month's cloud allowances and balance, read when the Account tab or the Task Manager opens. Signed out, an
+  // older server or no network: nothing shows (the sample workspace keeps its own figures).
+  const [cloudUsage, setCloudUsage] = React.useState<CloudUsage | undefined>(undefined);
+  React.useEffect(() => {
+    const wanted = (store.settingsOpen && store.settingsTab === 'account') || store.activePanel === 'tasks';
+    if (!wanted) return;
+    let live = true;
+    sharing.usage().then((body) => { if (live) setCloudUsage(usageFromServer(body, Date.now()) ?? undefined); }).catch(() => { if (live) setCloudUsage(undefined); });
+    return () => { live = false; };
+  }, [sharing, store.settingsOpen, store.settingsTab, store.activePanel]);
   const gallerySiteUrl = import.meta.env.VITE_KESTREL_SITE_URL || (/^https?:$/.test(window.location.protocol) ? window.location.origin : '');
   const signedInName = React.useCallback(async () => {
     const session = await firebaseAuth.current().catch(() => null);
@@ -143,11 +154,21 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [maskGuide, setMaskGuide] = useState<{ photoId: string; maskId: string } | null>(null);
   // The selected mask's hatched coverage overlay (O). Its outline stays on the canvas either way.
   const [maskOverlayVisible, setMaskOverlayVisible] = useState(true);
+  // A line round the mask by default, so the edit inside stays visible; the hatched area is one press away.
+  const [maskOverlayStyle, setMaskOverlayStyle] = useState<'outline' | 'fill'>('outline');
+  // White balance from the picture: the eyedropper's waiting state, and the last result in words.
+  const [whitePickFor, setWhitePickFor] = useState<string | null>(null);
+  const [whiteNote, setWhiteNote] = useState<{ photoId: string; text: string } | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [addingFormatFor, setAddingFormatFor] = useState<string | null>(null);
   const [collageEditingId, setCollageEditingId] = useState<string | null>(null);
   const [collageSourceOpen, setCollageSourceOpen] = useState(false);
   const sheetDragY = useRef<number | null>(null);
+  // Phone tool sheet: the workspace keeps the sheet's height free at its bottom, so the photo and filmstrip sit above an
+  // open sheet instead of underneath it (owner wireframe "Phone · Adjust open"). Measured, because the sheet's height
+  // follows its content.
+  const sheetRef = useRef<HTMLDivElement | null>(null);
+  const [sheetHeight, setSheetHeight] = useState(0);
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
   );
@@ -169,6 +190,16 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
 
   const activePhoto =
     store.photos.find((p) => p.id === store.activePhotoId) ?? store.photos[0] ?? null;
+  const runNeutralWhite = React.useCallback(async (photoId: string, at?: { x: number; y: number }) => {
+    if (!actions.neutralWhiteBalance) return;
+    setWhitePickFor(null);
+    const result = await actions.neutralWhiteBalance(photoId, at).catch(() => 'unreadable' as const);
+    setWhiteNote({ photoId, text: STRINGS.adjust.neutral[result] });
+  }, [actions]);
+  const whitePickActive = whitePickFor !== null && whitePickFor === activePhoto?.id;
+  const neutralPick = React.useMemo(() => (whitePickActive && activePhoto
+    ? { onPick: (at: { x: number; y: number }) => { void runNeutralWhite(activePhoto.id, at); }, onCancel: () => setWhitePickFor(null) }
+    : undefined), [whitePickActive, activePhoto, runNeutralWhite]);
   // Compare with exactly two photos selected shows them side by side; with one, it stays before and after.
   const pairPhotos = React.useMemo(() => {
     if (!store.compareMode || store.collage || store.selectedPhotoIds.length !== 2) return null;
@@ -341,6 +372,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onApplyLook={actions.applyLook}
             onHoverLook={actions.setHoveredLook}
             onResetPhoto={actions.resetPhotoEdits}
+            onNeutralWhite={actions.neutralWhiteBalance ? (id) => { void runNeutralWhite(id); } : undefined}
+            whitePicking={whitePickActive}
+            onSetWhitePicking={actions.neutralWhiteBalance && store.PhotoSurface ? (on) => { setWhiteNote(null); setWhitePickFor(on && activePhoto ? activePhoto.id : null); } : undefined}
+            whiteNote={whiteNote && whiteNote.photoId === activePhoto?.id ? whiteNote.text : null}
           />
         );
       case 'formats':
@@ -384,7 +419,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetMaskEdit={actions.setMaskEdit}
             onSetMaskFeather={actions.setMaskFeather}
             onSetMaskGeometry={actions.setMaskGeometry}
-            onSetMaskLimit={actions.setMaskLimit}
+            onSetMaskParts={actions.setMaskParts}
             onPreviewMask={setMaskGuide}
           />
         );
@@ -461,13 +496,25 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           />
         );
       case 'tasks':
-        return <TasksPanel tasks={store.tasks} onCancelTask={actions.cancelTask} onClearTask={actions.clearTask} onClearCompleted={actions.clearCompletedTasks} />;
+        return <TasksPanel tasks={store.tasks} onCancelTask={actions.cancelTask} onClearTask={actions.clearTask} onClearCompleted={actions.clearCompletedTasks} cloudUsage={cloudUsage ?? store.settings.account.cloud} />;
     }
   };
 
   const activePanelState = store.activePanel ? store.panels[store.activePanel] : null;
   // Composing collage pages has its own tools; the photo editor's panels return when one photo is opened to edit.
   const composingCollage = Boolean(store.collage && !collageEditingId);
+  const sheetOpen = isMobile && Boolean(store.activePanel) && !composingCollage;
+  useEffect(() => {
+    const sheet = sheetRef.current;
+    if (!sheetOpen || !sheet) { setSheetHeight(0); return; }
+    const measure = () => setSheetHeight(sheet.offsetHeight);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(sheet);
+    return () => observer.disconnect();
+  }, [sheetOpen]);
+
   const activePanelVisible = Boolean(store.activePanel && activePanelState?.visible) && !composingCollage;
 
   // On wide screens, detached panels are independent of the active dock/rail tab.
@@ -592,6 +639,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             showMenus={!isDesktopApp()}
             keymap={keymap}
             photoName={store.collage && !collageEditingId ? `Collage · ${store.collage.pages.length} page${store.collage.pages.length === 1 ? '' : 's'}` : activePhoto ? `${activePhoto.title} · ${activePhoto.filename}` : 'No photo'}
+            photoPosition={!store.collage && activePhoto ? STRINGS.mobile.photoPosition(store.photos.findIndex((p) => p.id === activePhoto.id) + 1, store.photos.length) : undefined}
             assistMode={store.assistMode}
             theme={activeTheme}
             activePanel={store.activePanel}
@@ -639,7 +687,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           />
 
           {/* Main Workspace Row */}
-          <div className={`relative flex min-h-0 flex-1 overflow-hidden ${store.settings.hand === 'left' ? 'flex-row-reverse' : ''}`}>
+          <div className={`relative flex min-h-0 flex-1 overflow-hidden ${store.settings.hand === 'left' ? 'flex-row-reverse' : ''} ${sheetHeight ? 'v2-sheet-open' : ''}`}
+            style={sheetHeight ? { paddingBottom: sheetHeight } : undefined}>
             {(!store.collage || collageEditingId) && <Rail
               hand={store.settings.hand}
               hiddenPanels={[...(hasOverlays ? [] : ['overlays' as const]), ...panelsHiddenByPro(hiddenPro)]}
@@ -720,9 +769,12 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   PhotoSurface={store.PhotoSurface}
                   maskGuideId={maskGuide?.photoId === activePhoto?.id ? maskGuide?.maskId : undefined}
                   maskOverlayVisible={maskOverlayVisible}
+                  maskOverlayStyle={maskOverlayStyle}
+                  onSetMaskOverlayStyle={setMaskOverlayStyle}
                   maskOverlayKey={keymap['view.maskOverlay'] ? chordLabel(keymap['view.maskOverlay'], IS_MAC) : undefined}
                   onToggleMaskOverlay={() => setMaskOverlayVisible((visible) => !visible)}
                   onSetMaskGeometry={actions.setMaskGeometry}
+                  neutralPick={neutralPick}
                   onOpenFormats={activePhoto ? () => {
                     actions.setPanelVisible('formats', true);
                     setAddingFormatFor(activePhoto.id);
@@ -934,11 +986,17 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
 
           {/* Mobile Drawer when a tool tab is selected on small portrait screens */}
           {isMobile && store.activePanel && !composingCollage && (
-            <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]">
+            <div ref={sheetRef} className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]">
               <div
                 data-testid="mobile-sheet-handle"
                 style={{ touchAction: 'none' }}
-                onPointerDown={(e) => { sheetDragY.current = e.clientY; e.currentTarget.setPointerCapture?.(e.pointerId); }}
+                onPointerDown={(e) => {
+                  // A press on a button in the handle (Close) is that button's: capturing it here would send its release to the
+                  // handle, and the button's click would never fire.
+                  if ((e.target as HTMLElement).closest('button')) return;
+                  sheetDragY.current = e.clientY;
+                  e.currentTarget.setPointerCapture?.(e.pointerId);
+                }}
                 onPointerUp={(e) => {
                   if (sheetDragY.current !== null && e.clientY - sheetDragY.current > 60) actions.setActivePanel(null);
                   sheetDragY.current = null;
@@ -1036,6 +1094,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         accountPanel={accountPanel}
         keyboardPanel={<KeyboardSettings saved={savedKeymap} isMac={IS_MAC} onChange={changeKeymap} pad={pad} onPadChange={changePad} />}
         settings={store.settings}
+        cloudUsage={cloudUsage}
         assistMode={store.assistMode}
         onSetAssistMode={actions.setAssistMode}
         onClose={() => actions.setSettingsOpen(false)}

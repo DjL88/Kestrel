@@ -62,6 +62,19 @@ export interface ExifMetadata {
   capturedAtUtcMs?: number;
   /** Exposure time in seconds, for checks such as motion blur. */
   exposureSeconds?: number;
+  /** The camera's own capture dates, as the file's EXIF records them. Exports copy these unchanged. */
+  captureStamp?: CaptureStamp;
+}
+
+/**
+ * Capture dates exactly as the original's EXIF says them: "YYYY:MM:DD HH:MM:SS" wall clock, offsets "+HH:MM". Each
+ * field is present only when the file has it. Never filled from a file's modified date or the export time.
+ */
+export interface CaptureStamp {
+  original?: string;
+  digitized?: string;
+  offsetOriginal?: string;
+  offsetDigitized?: string;
 }
 
 export interface PhotoFrame {

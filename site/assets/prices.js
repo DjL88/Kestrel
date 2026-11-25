@@ -1,6 +1,6 @@
 // InFlight website: the planned Pro price, from ONE table. These are tidy local prices near £29 / €29 / $29, not
 // exchange-rate conversions. Prices are shown before any local tax until VAT and sales tax are confirmed.
-// Nothing can be bought here: the Buy button stays disabled until checkout (SumUp) is live.
+// Nothing can be bought here: the Buy button stays disabled until checkout (Paddle) is live.
 (() => {
   'use strict';
   const PRO_PRICE = { GBP: 29, EUR: 29, USD: 29, CAD: 39, AUD: 45, NZD: 49, CHF: 29, DKK: 299, SEK: 299, NOK: 299, ISK: 4490 };

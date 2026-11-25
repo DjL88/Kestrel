@@ -32,6 +32,8 @@ test('?v2 projects sort menu opens in the light page colours and is keyboard usa
   // Keyboard: open with the arrow, move, choose with Enter; Escape closes without changing.
   await sort.focus();
   await page.keyboard.press('ArrowDown');
+  // The menu takes focus once it is drawn; keys pressed before that still go to the button.
+  await expect(list).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await expect(sort).toHaveAccessibleName(/Most photos/);

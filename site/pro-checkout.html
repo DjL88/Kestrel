@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en-GB">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Buy InFlight Pro</title><meta name="robots" content="noindex"></head>
+<body style="font-family:system-ui,sans-serif;background:#111;color:#eee;display:grid;place-items:center;min-height:100vh;margin:0;padding:0 16px">
+<main style="max-width:32rem;line-height:1.5">
+  <h1 style="font-size:1.4rem">Buy InFlight Pro</h1>
+  <p id="state" role="status">Opening the secure checkout…</p>
+  <p>The checkout is run by Paddle, our reseller and merchant of record. Paddle asks for your country, adds any sales tax or VAT that applies there and sends your receipt. InFlight never sees your card.</p>
+  <p style="font-size:.85rem;color:#bbb">Your photos and edits are not affected either way. <a style="color:#9cf" href="/privacy">Privacy</a></p>
+</main>
+<script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+<script>
+  // The app opens /pro-checkout?_ptxn=<transaction> for an order our server created and bound to the signed-in account.
+  // Paddle.js opens that transaction's checkout by itself once initialised. Pro is turned on only after our server has
+  // checked the payment with Paddle, never from anything this page says.
+  (async () => {
+    const say = (text) => { document.getElementById('state').textContent = text; };
+    if (!/^txn_[a-z0-9]{10,60}$/.test(new URLSearchParams(location.search).get('_ptxn') || '')) { say('This checkout address is incomplete. Start again from InFlight.'); return; }
+    try {
+      const response = await fetch('/v1/billing/paddle/config', { cache: 'no-store' });
+      if (!response.ok) { say('Buying Pro is not open yet. Nothing was charged.'); return; }
+      const { environment, clientToken } = await response.json();
+      if (environment === 'sandbox') { window.Paddle.Environment.set('sandbox'); say('Test checkout (Paddle sandbox): use a Paddle test card, nothing real is charged.'); }
+      window.Paddle.Initialize({
+        token: clientToken,
+        checkout: { settings: { displayMode: 'overlay', theme: 'dark', successUrl: location.origin + '/pro-complete' } },
+        eventCallback: (event) => {
+          if (event.name === 'checkout.completed') say('Payment received. Go back to InFlight: it turns Pro on once the payment is confirmed.');
+          if (event.name === 'checkout.closed') say('Checkout closed. If you did not pay, nothing was charged. You can start again from InFlight.');
+        },
+      });
+    } catch { say('The checkout could not be opened. Nothing was charged; try again shortly from InFlight.'); }
+  })();
+</script>
+</body>
+</html>

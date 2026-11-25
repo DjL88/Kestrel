@@ -26,7 +26,7 @@ test('switches are admin only and list what is configured', async () => {
     assert.equal((await h.call('GET', '/v1/admin/switches', { token: h.user.token })).status, 403);
     const list = (await h.call('GET', '/v1/admin/switches', { token: h.adminToken })).body.switches;
     const by = Object.fromEntries(list.map((s: any) => [s.key, s]));
-    assert.deepEqual(Object.keys(by).sort(), ['cloud-processing', 'collaboration', 'learning-signal', 'managed-ai', 'pro-checkout', 'pro-checkout-eu', 'pro-cloud-storage', 'cloud-runner-any-device', 'vertex-learning', 'safe-copy'].sort());
+    assert.deepEqual(Object.keys(by).sort(), ['cloud-processing', 'collaboration', 'email', 'learning-signal', 'managed-ai', 'pro-checkout', 'pro-cloud-storage', 'safe-copy', 'vertex-learning']);
     assert.equal(by['managed-ai'].on, true, 'the existing Gemini helper keeps working until you switch it off');
     for (const k of ['cloud-processing', 'safe-copy', 'learning-signal']) { assert.equal(by[k].on, false, `${k} starts off`); assert.equal(by[k].configured, true); }
   } finally { await h.close(); }
@@ -120,7 +120,7 @@ test('a planned switch is shown off and not set up, and refuses to switch on, ev
   for (const requireAdminSwitch of [true, false]) {
     const h = await startHarness(fakeProvider(), undefined, { requireAdminSwitch, collab: new CollabStore(new MemoryFirestore()) });
     try {
-      for (const key of ['pro-cloud-storage', 'cloud-runner-any-device']) {
+      for (const key of ['pro-cloud-storage']) {
       const planned = (await h.call('GET', '/v1/admin/switches', { token: h.adminToken })).body.switches.find((s: any) => s.key === key);
       assert.equal(planned.on, false); assert.equal(planned.configured, false);
       assert.match(planned.label, /designed, not built/);
@@ -132,17 +132,4 @@ test('a planned switch is shown off and not set up, and refuses to switch on, ev
       }
     } finally { await h.close(); }
   }
-});
-
-test('cloud runner stays Pro only: a free account is refused even with cloud processing on and the planned switch forced', async () => {
-  const { h, sw } = await prod();
-  try {
-    await sw('cloud-processing', true);
-    await h.app.store.setSetting('switch_cloud-runner-any-device', '1');
-    const id = await h.app.createAccount('free@example.test', 'free-password-123', 'user');
-    const token = (await h.app.issueSession(id, 'user')).accessToken;
-    const r = await h.call('POST', '/v1/cloud/jobs', { token, body: job });
-    assert.equal(r.status, 403); assert.equal(r.body.error.code, 'CLOUD_NOT_ENTITLED');
-    assert.equal((await h.call('POST', '/v1/cloud/jobs', { token: h.user.token, body: job })).status, 200, 'Pro still works');
-  } finally { await h.close(); }
 });
