@@ -1030,6 +1030,17 @@ export default function Canvas({
         className="h-full w-full object-cover" style={{ ...style, filter }} />
     );
 
+  /** One wide picture behind split frames. Through the engine's surface, like the single view, so a RAW keeps showing
+   * once its developed picture replaces the embedded preview: a plain <img> of `photo.previewUrl` kept the old blob
+   * address after it was released, and every frame showed a broken image (owner report, 24 Nov 2026). */
+  const renderStrip = (alt: string, className: string, style: React.CSSProperties) =>
+    PhotoSurface ? (
+      <PhotoSurface photoId={photo.id} variant="edited" alt={alt} className={className} style={style} />
+    ) : (
+      <img src={photo.previewUrl} alt={alt} referrerPolicy="no-referrer" draggable={false}
+        className={className} style={{ ...style, filter: compareMode ? 'none' : filterCss }} />
+    );
+
   /** Border claims space WITHIN the output size, without hiding photo pixels.
    * CSS percentage padding resolves against the frame width on all four sides,
    * matching the export layout's per-width border geometry. */
@@ -1164,18 +1175,14 @@ export default function Canvas({
                 className={`relative cursor-grab overflow-hidden rounded-[var(--radius-md)] border bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent)] active:cursor-grabbing ${revealing ? "border-[var(--semantic-warning)] ring-2 ring-[var(--semantic-warning)]" : paneSelected(paneIdx) ? 'border-[var(--brand-accent)] ring-2 ring-[var(--brand-accent)]' : "border-[var(--border-default)]"}`}
                 style={{ width: splitFrameW, height: splitFrameH, touchAction: 'none' }}
               >
-                {inBorderFrame(activeSize, <img
-                  src={photo.previewUrl}
-                  alt={`${photo.title} — Frame ${paneIdx + 1}`}
-                  referrerPolicy="no-referrer"
-                  draggable={false}
-                  className="h-full max-w-none object-cover select-none"
-                  style={{
+                {inBorderFrame(activeSize, renderStrip(
+                  `${photo.title} — Frame ${paneIdx + 1}`,
+                  'h-full max-w-none object-cover select-none',
+                  {
                     width: `${sectionCount * 100}%`,
-                    filter: compareMode ? 'none' : filterCss,
                     transform: `translate(${-(paneIdx * 100 / sectionCount) + splitOffsetFor(activeSize.id) + activeSize.crop.panX}%, ${activeSize.crop.panY}%) rotate(${activeSize.crop.rotateDeg}deg) scale(${(activeSize.crop.flipH ? -1 : 1) * activeSize.crop.zoom}, ${(activeSize.crop.flipV ? -1 : 1) * activeSize.crop.zoom})`,
-                  }}
-                />)}
+                  },
+                ))}
                 {paneIdx === sectionCount - 1 && renderOverlaysInsideFrame(activeSize, true)}
               </div>
             </div>
@@ -1431,20 +1438,16 @@ export default function Canvas({
                 className="relative overflow-hidden bg-[var(--bg-canvas)] text-left"
                 style={{ width: cardW, height: cardH }}
               >
-                {inBorderFrame(size, <img
-                  src={photo.previewUrl}
-                  alt={`${photo.title} — ${size.label}`}
-                  referrerPolicy="no-referrer"
-                  draggable={false}
-                  className={panes.length > 1 ? 'h-full max-w-none object-cover' : 'h-full w-full object-cover'}
-                  style={{
+                {inBorderFrame(size, renderStrip(
+                  `${photo.title} — ${size.label}`,
+                  panes.length > 1 ? 'h-full max-w-none object-cover' : 'h-full w-full object-cover',
+                  {
                     ...(panes.length > 1 ? { width: `${panes.length * 100}%` } : {}),
-                    filter: compareMode ? 'none' : filterCss,
                     transform: panes.length > 1
                       ? `translate(${-(paneIdx * 100 / panes.length) + splitOffsetFor(size.id) + size.crop.panX}%, ${size.crop.panY}%) rotate(${size.crop.rotateDeg}deg) scale(${(size.crop.flipH ? -1 : 1) * size.crop.zoom}, ${(size.crop.flipV ? -1 : 1) * size.crop.zoom})`
                       : buildImageTransform(size.crop),
-                  }}
-                />)}
+                  },
+                ))}
                 {paneIdx === panes.length - 1 && renderOverlaysInsideFrame(size, false)}
                 {size.kind === 'video' && (
                   <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-[var(--bg-scrim)] px-1.5 py-0.5 text-[10px] font-medium text-white">
