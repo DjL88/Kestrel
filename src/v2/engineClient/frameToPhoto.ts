@@ -50,7 +50,7 @@ export function recipeDelta(base: Parameters<typeof editToRecipe>[0], proposal: 
 const STEP_LABELS: Record<string, string> = {
   whiteBalance: 'White balance', temperature: 'Temperature', tint: 'Tint', exposure: 'Exposure', contrast: 'Contrast',
   highlights: 'Highlights', shadows: 'Shadows', whites: 'Whites', blacks: 'Blacks', toneCurve: 'Tone curve',
-  vibrance: 'Vibrance', saturation: 'Saturation', colourMixer: 'Colour mixer', clarity: 'Clarity', detailRecovery: 'Texture',
+  vibrance: 'Vibrance', saturation: 'Saturation', colourMixer: 'Colour mixer', colourGrade: 'Colour grading', channelCurves: 'Channel curves', clarity: 'Clarity', detailRecovery: 'Texture',
   sharpen: 'Sharpen', denoiseLuminance: 'Luminance noise', denoiseColour: 'Colour noise', upscaleFactor: 'Upscale', masks: 'Local adjustments',
 };
 

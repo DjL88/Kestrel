@@ -18,7 +18,10 @@ uniform sampler2D src;
 uniform vec3 channelGain;
 uniform float brightness, colour, contrast, highlights, shadows, blackPoint, whitePoint, vibrance;
 // Tone curve: the same CURVE_LUT_SIZE table the CPU reads, four entries per vec4. Colour mixer: 24 values, six vec4s.
-uniform bool useCurve, useMixer;
+uniform bool useCurve, useMixer, useGrade;
+// Colour grading (src/core/colourGrade.ts gradePixel): shadow, midtone and highlight offsets and the balance pivot.
+uniform vec3 gradeS, gradeM, gradeH;
+uniform float gradePivot;
 uniform vec4 curveLut[${CURVE_VEC4S}];
 uniform vec4 mixerP[6];
 in vec2 uv;
@@ -116,6 +119,13 @@ void main() {
   if (useMixer) c = mixColour(c);
   vec3 e = toEncoded(c);
   if (contrast != 1.0) e = clamp(0.5 + (e - 0.5) * contrast, 0.0, 1.0);
+  if (useGrade) {
+    float l = luma(e);
+    float ws = 1.0 - smoothstep(0.0, gradePivot, l);
+    float wh = smoothstep(gradePivot, 1.0, l);
+    float wm = max(0.0, 1.0 - ws - wh);
+    e = clamp(e + ws * gradeS + wm * gradeM + wh * gradeH, 0.0, 1.0);
+  }
   if (useCurve) e = vec3(applyCurve(e.r), applyCurve(e.g), applyCurve(e.b));
   outColour = vec4(e, texel.a);
 }`;
@@ -213,6 +223,9 @@ export function renderEditOnGpu(target: HTMLCanvasElement, edit: PhotoEdit, imag
   if (gpu === undefined) gpu = setup();
   if (!gpu || gpu.gl.isContextLost()) return false;
   const { canvas, gl, program, texture, maxSize } = gpu;
+  const params = editParams(edit);
+  // Three channel tables would exceed the fragment uniform budget of many GPUs, so channel curves render on the CPU path.
+  if (params.channelLuts) return false;
   const detail = hasDetail(edit);
   const { width, height } = target;
   if (!width || !height || width > maxSize || height > maxSize) return false;
@@ -233,7 +246,6 @@ export function renderEditOnGpu(target: HTMLCanvasElement, edit: PhotoEdit, imag
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, target);
-    const params = editParams(edit);
     gl.uniform3f(gl.getUniformLocation(program, 'channelGain'), ...params.channelGain);
     for (const [name, value] of Object.entries({
       brightness: params.brightness, colour: params.colour, contrast: params.contrast,
@@ -248,6 +260,13 @@ export function renderEditOnGpu(target: HTMLCanvasElement, edit: PhotoEdit, imag
     }
     gl.uniform1i(gl.getUniformLocation(program, 'useMixer'), params.mixer ? 1 : 0);
     if (params.mixer) gl.uniform4fv(gl.getUniformLocation(program, 'mixerP'), params.mixer);
+    gl.uniform1i(gl.getUniformLocation(program, 'useGrade'), params.grade ? 1 : 0);
+    if (params.grade) {
+      gl.uniform3fv(gl.getUniformLocation(program, 'gradeS'), params.grade.subarray(0, 3));
+      gl.uniform3fv(gl.getUniformLocation(program, 'gradeM'), params.grade.subarray(3, 6));
+      gl.uniform3fv(gl.getUniformLocation(program, 'gradeH'), params.grade.subarray(6, 9));
+      gl.uniform1f(gl.getUniformLocation(program, 'gradePivot'), params.grade[9]);
+    }
     if (detail) {
       // Pass 1 renders the tone edit into a texture, and pass 2 adds detail while reading its mipmaps.
       const { toneTexture, framebuffer, detailProgram } = gpu;

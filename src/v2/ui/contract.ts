@@ -139,6 +139,9 @@ export interface SizePreset {
   boardY: number;
 }
 
+export interface GradeRangeRecipe { hue: number; amount: number }
+export interface ColourGradeRecipe { shadows: GradeRangeRecipe; midtones: GradeRangeRecipe; highlights: GradeRangeRecipe; balance: number }
+
 export interface EditRecipe {
   lookId: string;
   exposure: number; // -5.0 to +5.0 EV stops
@@ -163,6 +166,10 @@ export interface EditRecipe {
   toneCurve?: Array<[number, number]>;
   /** Colour mixer: eight bands (red, orange, yellow, green, aqua, blue, purple, magenta), each -100 to 100. Absent = untouched. */
   colourMixer?: { hue: number[]; saturation: number[]; luminance: number[] };
+  /** Advanced: colour grading. Hue 0 to 360 degrees, strength 0 to 100 per range; balance -100 (highlights) to 100 (shadows). Absent = none. */
+  colourGrade?: ColourGradeRecipe;
+  /** Advanced: red, green and blue curves, same points as toneCurve, applied after it. Absent = none. */
+  channelCurves?: Partial<Record<'red' | 'green' | 'blue', Array<[number, number]>>>;
   /** White balance in kelvin against the camera's as-shot estimate (RAW photos only). Absent = as shot. */
   whiteBalance?: { asShotK: number; kelvin: number };
 }
@@ -439,6 +446,8 @@ export interface WorkspaceSettings {
   cvdGuidance: boolean;
   /** Basic accounts only: leave locked Pro features (and their badges) out of the interface. */
   hideProFeatures: boolean;
+  /** Show the advanced editing controls (colour grading, channel curves). Off by default so the panel stays simple. */
+  advancedControls: boolean;
   ongoingCritique: boolean;
   defaultAssistMode: AssistMode;
   language: 'en-GB' | 'en-US' | 'de-DE' | 'fr-FR';
