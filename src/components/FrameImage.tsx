@@ -208,7 +208,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       await preloadTrueDetailAi(frame.edit);
       if (cancelled) return;
       applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT, undefined, { ...fullContext(canvas.width, canvas.height), lensCentre: lensCentre(source.naturalWidth, source.naturalHeight, framing) });
-      await applyFrameLayers(canvas, frame.overlay, false);
+      await applyFrameLayers(canvas, frame.overlay, false, frame.edit?.masks);
       if (cancelled) return;
       // A full-size edited view must not suffer a second lossy JPEG pass.
       // Thumbnails stay compact JPEGs; full previews use lossless PNG.
@@ -256,7 +256,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       drawFramedPhoto(source, canvas, framing, { scale: 1 });
       if (edited) {
         applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT, undefined, { ...fullContext(canvas.width, canvas.height), lensCentre: lensCentre(source.naturalWidth, source.naturalHeight, framing) });
-        await applyFrameLayers(canvas, frame.overlay, false);
+        await applyFrameLayers(canvas, frame.overlay, false, frame.edit?.masks);
       }
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
       if (!blob || cancelled || fullShown || hasImage.current) return;
