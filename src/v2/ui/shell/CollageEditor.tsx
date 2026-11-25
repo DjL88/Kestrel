@@ -395,7 +395,7 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
           </div>
         );
       })}
-      {page.caption && <div className="pointer-events-none absolute inset-[3%_5%] z-20 overflow-hidden">
+      {page.caption && <div data-artwork className="pointer-events-none absolute inset-[3%_5%] z-20 overflow-hidden">
         <div className="absolute w-full whitespace-pre-wrap break-words text-center font-semibold"
           style={{ color: page.captionColour, fontFamily: captionGeometry.font, fontSize: captionGeometry.fontPx,
             lineHeight: captionGeometry.lineHeight, top: `${captionStyle.position}%`, transform: `translateY(-${captionStyle.position}%)` }}>{page.caption}</div>
@@ -412,7 +412,7 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
               {Object.entries(COLLAGE_FORMATS).map(([key, opt]) => <option key={key} value={key}>{opt.label}</option>)}
             </select>
           </label>
-          <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.collage.relayoutNote}</p>
+          <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.collage.relayoutNote}</p>
           <p className="text-xs text-[var(--text-secondary)]">
             {printing ? 'Print layout selected. Export a 300 DPI RGB PDF with 3 mm bleed using verified JPEG or PNG originals. Not certified PDF/X.' :
               'Social layout selected. Use Export for full-size JPEG or PNG pages from verified originals.'}
@@ -425,7 +425,7 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
             <button type="button" key={template.id} disabled={!canChangeCollageTemplate(doc, template.id)}
               onClick={() => { onChange(changeCollageTemplate(doc, template.id)); setActiveSlot(null); }}
               aria-pressed={page.template === template.id} title={`${template.label} · ${template.slots}`}
-              className={`flex min-h-[76px] flex-col items-center justify-center gap-1 rounded border p-1 text-[10px] leading-tight text-[var(--text-secondary)] disabled:opacity-40 ${page.template === template.id ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border-[var(--border-default)]'}`}>
+              className={`flex min-h-[76px] flex-col items-center justify-center gap-1 rounded border p-1 text-[0.625rem] leading-tight text-[var(--text-secondary)] disabled:opacity-40 ${page.template === template.id ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border-[var(--border-default)]'}`}>
               <LayoutThumb template={template.id} aspect={aspect} />
               <span>{template.label}</span>
             </button>
@@ -444,7 +444,7 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
               {photos.map((p) => <option key={p.id} value={p.id}>{p.filename}</option>)}
             </select>
           </label>
-          <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.collage.backgroundPhotoHelp}</p>
+          <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.collage.backgroundPhotoHelp}</p>
           <label className="block text-xs font-medium">{STRINGS.collage.spacing} · {page.gap.toFixed(1)}%
             <input type="range" min="0" max="12" step="0.5" value={page.gap} onChange={(e) => setPage({ gap: Number(e.target.value) })}
               className="mt-1 w-full" aria-label={STRINGS.collage.collagePhotoSpacing} />
@@ -540,7 +540,7 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
         {tools.map((item) => (
           <button key={item.id} type="button" aria-pressed={tool === item.id && panelOpen} data-testid={`collage-tool-${item.id}`}
             onClick={() => { if (tool === item.id) setPanelOpen(!panelOpen); else { setTool(item.id); setPanelOpen(true); } }}
-            className={`flex min-w-[64px] shrink-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] px-1 py-2 text-[10px] font-medium leading-tight transition-colors ${
+            className={`flex min-w-[64px] shrink-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] px-1 py-2 text-[0.625rem] font-medium leading-tight transition-colors ${
               tool === item.id && panelOpen ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'}`}>
             <BrandIcon name={item.icon} size={18} />
             <span className="max-w-full text-center">{item.label}</span>
@@ -612,7 +612,7 @@ function PagePreview({ page, photos, aspect, aspectOf, PhotoSurface }: { page: C
           </span>
         );
       })}
-      {page.caption && <span className="pointer-events-none absolute inset-x-[5%] bottom-[3%] z-10 block truncate text-center text-[10px] font-semibold"
+      {page.caption && <span className="pointer-events-none absolute inset-x-[5%] bottom-[3%] z-10 block truncate text-center text-[0.625rem] font-semibold"
         style={{ color: page.captionColour }}>{page.caption}</span>}
     </>
   );

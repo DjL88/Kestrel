@@ -61,7 +61,7 @@ const ANCHOR_WORDS: Record<OverlayAnchor, string> = {
   'bottom-left': 'bottom-left', 'bottom-center': 'bottom-center', 'bottom-right': 'bottom-right',
 };
 
-const segment = (on: boolean) => `min-h-8 rounded-[var(--radius-xs)] border px-1.5 text-[11px] font-medium transition-colors ${
+const segment = (on: boolean) => `min-h-8 rounded-[var(--radius-xs)] border px-1.5 text-[0.6875rem] font-medium transition-colors ${
   on ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[var(--brand-accent)] hover:text-[var(--text-primary)]'}`;
 
 /** The nine places a box can be anchored to. None is marked while the box sits where it was dragged. */
@@ -85,7 +85,7 @@ function Switch({ on, label, onToggle }: { on: boolean; label: string; onToggle:
       aria-checked={on}
       aria-label={label}
       onClick={onToggle}
-      className={`inline-flex items-center gap-2 rounded-full border px-1 py-1 pr-2.5 text-[11px] font-semibold transition-colors ${
+      className={`inline-flex items-center gap-2 rounded-full border px-1 py-1 pr-2.5 text-[0.6875rem] font-semibold transition-colors ${
         on ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--text-primary)]' : 'border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--text-secondary)]'
       }`}
     >
@@ -198,7 +198,7 @@ export default function OverlayPanel({
             role="switch"
             aria-checked={overlay.snapEnabled}
             onClick={() => onUpdateOverlay(photo.id, { snapEnabled: !overlay.snapEnabled })}
-            className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${
+            className={`rounded-full px-2.5 py-0.5 text-[0.6875rem] font-semibold transition-colors ${
               overlay.snapEnabled
                 ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                 : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
@@ -209,7 +209,7 @@ export default function OverlayPanel({
         </div>
 
         <div className="space-y-1.5">
-          <p className="text-[11px] font-medium text-[var(--text-secondary)]">{STRINGS.overlayKit.stackHeading}</p>
+          <p className="text-[0.6875rem] font-medium text-[var(--text-secondary)]">{STRINGS.overlayKit.stackHeading}</p>
           <div role="group" aria-label={STRINGS.overlayKit.stackHeading} className="grid grid-cols-3 gap-1">
             {([
               ['left', STRINGS.overlayKit.left],
@@ -224,11 +224,11 @@ export default function OverlayPanel({
               );
             })}
           </div>
-          <p className="text-[10px] leading-snug text-[var(--text-muted)]">{STRINGS.overlayKit.stackHelp}</p>
+          <p className="text-[0.625rem] leading-snug text-[var(--text-muted)]">{STRINGS.overlayKit.stackHelp}</p>
         </div>
 
         <div className="space-y-1">
-          <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
+          <div className="flex items-center justify-between text-[0.6875rem] text-[var(--text-secondary)]">
             <span className="flex items-center gap-1">{STRINGS.overlayKit.marginLabel}<InfoPopover title={STRINGS.overlayKit.marginLabel} body={STRINGS.overlayKit.marginHelp} /></span>
             <span className="font-mono tabular-nums">{overlay.edgeMargin}%</span>
           </div>
@@ -265,7 +265,7 @@ export default function OverlayPanel({
                     <BrandIcon name={overflowOpen ? 'chevron-up' : 'chevron-down'} size={13} />
                   </button>
                   {overflowOpen && (
-                    <div role="status" className="space-y-2 border-t border-[var(--semantic-warning)]/40 p-2.5 text-[11px] leading-snug">
+                    <div role="status" className="space-y-2 border-t border-[var(--semantic-warning)]/40 p-2.5 text-[0.6875rem] leading-snug">
                       <p>{STRINGS.overlays.overflowWhy}</p>
                       <ul className="list-disc space-y-0.5 pl-4">
                         {overflowIssues.map((issue) => <li key={issue.sizeId}><strong>{issue.sizeLabel}</strong>: {issue.reason}</li>)}
@@ -273,7 +273,7 @@ export default function OverlayPanel({
                       <button
                         type="button"
                         onClick={() => onUpdateOverlay(photo.id, { rows: fitOverlayRows({ ...overlay, textOffsetX: 0, textOffsetY: 0 }, photo), textOffsetX: 0, textOffsetY: 0 })}
-                        className="rounded-[var(--radius-xs)] bg-[var(--brand-accent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-on-accent)]"
+                        className="rounded-[var(--radius-xs)] bg-[var(--brand-accent)] px-2.5 py-1 text-[0.6875rem] font-semibold text-[var(--text-on-accent)]"
                       >
                         {STRINGS.overlays.overflowFit}
                       </button>
@@ -285,7 +285,7 @@ export default function OverlayPanel({
               <div inert={!overlay.textEnabled ? true : undefined} aria-disabled={!overlay.textEnabled} className={`space-y-4 transition-opacity ${overlay.textEnabled ? '' : 'pointer-events-none opacity-40'}`}>
               {/* Coverage Mode: As-is vs Cover full photo */}
               <div className="space-y-1.5">
-                <span className="text-[11px] font-medium text-[var(--text-secondary)]">
+                <span className="text-[0.6875rem] font-medium text-[var(--text-secondary)]">
                   {STRINGS.overlays.layoutModeLabel}
                 </span>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -336,9 +336,9 @@ export default function OverlayPanel({
                   <span className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.overlays.positionHeading}</span>
                   <PositionGrid label={STRINGS.overlays.positionHeading} active={overlay.textPlacement === 'anchor' ? overlay.textPosition : null}
                     onPick={(anchor) => onUpdateOverlay(photo.id, anchorPatch('text', anchor))} place={(where) => `Place text at ${where}`} />
-                  {overlay.textPlacement === 'free' && <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.overlayKit.placedByDrag}</p>}
+                  {overlay.textPlacement === 'free' && <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.overlayKit.placedByDrag}</p>}
                   <div className="space-y-1">
-                    <p className="text-[11px] font-medium text-[var(--text-secondary)]">{STRINGS.overlayKit.alignLabel}</p>
+                    <p className="text-[0.6875rem] font-medium text-[var(--text-secondary)]">{STRINGS.overlayKit.alignLabel}</p>
                     <div role="group" aria-label={STRINGS.overlayKit.alignLabel} className="grid grid-cols-3 gap-1">
                       {([['left', STRINGS.overlayKit.left], ['center', STRINGS.overlayKit.centre], ['right', STRINGS.overlayKit.right]] as const).map(([align, label]) => (
                         <button key={align} type="button" aria-pressed={overlay.textAlign === align} onClick={() => onUpdateOverlay(photo.id, { textAlign: align })} className={segment(overlay.textAlign === align)}>{label}</button>
@@ -373,7 +373,7 @@ export default function OverlayPanel({
                   <BrandIcon name="watermark-library" size={14} />
                   <span>{STRINGS.overlayKit.wmYours}</span>
                 </span>
-                {watermarkPresets.length === 0 && !settingUpMark && <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.overlayKit.wmNone}</p>}
+                {watermarkPresets.length === 0 && !settingUpMark && <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.overlayKit.wmNone}</p>}
                 {watermarkPresets.length > 0 && (
                   <WatermarkLibrary
                     presets={watermarkPresets}
@@ -482,7 +482,7 @@ export default function OverlayPanel({
                 <span className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.overlays.positionHeading}</span>
                 <PositionGrid label={STRINGS.panelWords.watermarkPosition} active={overlay.watermarkPlacement === 'anchor' ? overlay.watermarkPosition : null}
                   onPick={(anchor) => onUpdateOverlay(photo.id, anchorPatch('watermark', anchor))} place={(where) => `Place watermark at ${where}`} />
-                {overlay.watermarkPlacement === 'free' && <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.overlayKit.placedByDrag}</p>}
+                {overlay.watermarkPlacement === 'free' && <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.overlayKit.placedByDrag}</p>}
               </div>
               </div>
             </>
@@ -497,7 +497,7 @@ export default function OverlayPanel({
             className="min-h-9 rounded border border-[var(--border-default)] px-2 text-xs">{STRINGS.settings.heading}</button>
         </div>
         {templates.length === 0 ? (
-          <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.overlays.templatesNone}</p>
+          <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.overlays.templatesNone}</p>
         ) : (
           <select aria-label={`${STRINGS.overlayKit.applyTemplateLabel}: ${STRINGS.overlays.templateApply(targets.length)}`} value=""
             className="min-h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]"
@@ -510,7 +510,7 @@ export default function OverlayPanel({
           <label htmlFor="overlay-template-name" className="sr-only">{STRINGS.overlays.templateNameLabel}</label>
           <input id="overlay-template-name" type="text" maxLength={40} value={templateName} onChange={(e) => setTemplateName(e.target.value)} placeholder={STRINGS.overlays.templateNameLabel}
             className="h-9 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2.5 text-xs text-[var(--text-primary)]" />
-          <button type="submit" disabled={!templateName.trim()} className="min-h-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-[11px] font-semibold text-[var(--text-primary)] disabled:opacity-50">{STRINGS.overlays.templateSave}</button>
+          <button type="submit" disabled={!templateName.trim()} className="min-h-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-[0.6875rem] font-semibold text-[var(--text-primary)] disabled:opacity-50">{STRINGS.overlays.templateSave}</button>
         </form>
       </section>
     </div>

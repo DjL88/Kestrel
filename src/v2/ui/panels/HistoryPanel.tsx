@@ -58,13 +58,13 @@ export default function HistoryPanel({ photo, activeSizeId, onForkFromStep, onSw
             </option>
           ))}
         </select>
-        <p className="text-[11px] text-[var(--text-secondary)]">{STRINGS.history.forkCheckpointHint}</p>
+        <p className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.history.forkCheckpointHint}</p>
       </section>
       <section className="space-y-2" aria-label={STRINGS.history.formatRegion}>
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">
           {STRINGS.history.formatHeading(format?.label ?? STRINGS.history.selectedFormat)}
         </h3>
-        <p className="text-[11px] text-[var(--text-secondary)]">
+        <p className="text-[0.6875rem] text-[var(--text-secondary)]">
           {activeSizeId === 'orig-3x2'
             ? STRINGS.history.originalFormatHelp
             : STRINGS.history.formatHelp}
@@ -84,14 +84,14 @@ export default function HistoryPanel({ photo, activeSizeId, onForkFromStep, onSw
                   ? ` · ${STRINGS.history.fromFormat(event.parentFormatId === 'orig-3x2' ? STRINGS.history.originalFormatName : event.parentFormatId, event.forkEditCursor ?? 0)}`
                   : ''}
               </span>
-              <span className="shrink-0 font-mono text-[10px] text-[var(--text-muted)]">{timeOf(event.at)}</span>
+              <span className="shrink-0 font-mono text-[0.625rem] text-[var(--text-muted)]">{timeOf(event.at)}</span>
             </li>
           ))}
           {!ordered.length && activeSizeId !== 'orig-3x2' && (
             <li className="text-xs text-[var(--text-muted)]">{STRINGS.history.formatEmpty}</li>
           )}
         </ol>
-        <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.history.formatReadOnly}</p>
+        <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.history.formatReadOnly}</p>
       </section>
 
       <section className="space-y-2 border-t border-[var(--border-subtle)] pt-4" aria-label={STRINGS.history.sharedRegion}>
@@ -119,8 +119,8 @@ export default function HistoryPanel({ photo, activeSizeId, onForkFromStep, onSw
                     } ${later ? 'text-[var(--text-muted)]' : 'text-[var(--text-primary)]'}`}
                   >
                     <span className="font-medium">{row.label}{current ? ` · ${STRINGS.history.now}` : later ? ` · ${STRINGS.history.undone}` : ''}</span>
-                    <span className="shrink-0 text-[10px] font-semibold text-[var(--brand-accent)]">{STRINGS.history.forkFromCheckpoint}</span>
-                    {row.at !== undefined && <span className="font-mono text-[10px] text-[var(--text-muted)]">{timeOf(row.at)}</span>}
+                    <span className="shrink-0 text-[0.625rem] font-semibold text-[var(--brand-accent)]">{STRINGS.history.forkFromCheckpoint}</span>
+                    {row.at !== undefined && <span className="font-mono text-[0.625rem] text-[var(--text-muted)]">{timeOf(row.at)}</span>}
                   </button>
                 </li>
               );

@@ -50,7 +50,7 @@ export default function OverlayTextRows({ rows, photo, overlay, fonts, onAddRow,
         return (
           <div key={row.id} data-testid="overlay-row" className="space-y-2.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-2.5">
             <div className="flex items-center gap-1">
-              <span className="flex-1 text-[11px] font-semibold text-[var(--text-secondary)]">{STRINGS.overlayKit.rowLabel(n)}</span>
+              <span className="flex-1 text-[0.6875rem] font-semibold text-[var(--text-secondary)]">{STRINGS.overlayKit.rowLabel(n)}</span>
               <button type="button" aria-label={STRINGS.overlayKit.moveRowUp(n)} disabled={index === 0} onClick={() => onMoveRow(row.id, -1)}
                 className="grid h-7 w-7 place-items-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30">
                 <BrandIcon name="chevron-up" size={13} />
@@ -74,7 +74,7 @@ export default function OverlayTextRows({ rows, photo, overlay, fonts, onAddRow,
                   const label = fieldLabel(field);
                   const value = field === 'custom' ? row.customText.trim() : overlayFieldText(field, photo, row.customText);
                   return (
-                    <li key={field} className={`inline-flex items-center gap-0.5 rounded border px-1 py-0.5 text-[10px] ${value ? 'border-[var(--brand-accent-border)] bg-[var(--brand-accent-soft)] text-[var(--text-primary)]' : 'border-dashed border-[var(--border-default)] text-[var(--text-muted)]'}`}>
+                    <li key={field} className={`inline-flex items-center gap-0.5 rounded border px-1 py-0.5 text-[0.625rem] ${value ? 'border-[var(--brand-accent-border)] bg-[var(--brand-accent-soft)] text-[var(--text-primary)]' : 'border-dashed border-[var(--border-default)] text-[var(--text-muted)]'}`}>
                       {at > 0 && (
                         <button type="button" aria-label={STRINGS.overlayKit.moveFieldEarlier(label)} onClick={() => change(row, { fields: moveInList(row.fields, at, -1) })} className="px-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)]">‹</button>
                       )}
@@ -111,7 +111,7 @@ export default function OverlayTextRows({ rows, photo, overlay, fonts, onAddRow,
                 className="h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]" />
             )}
 
-            {!words && <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.overlayKit.emptyRow}</p>}
+            {!words && <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.overlayKit.emptyRow}</p>}
 
             <FontPicker fonts={fonts} row={row} sample={words.trim() || STRINGS.panelWords.sampleText}
               onSelect={(fontId) => change(row, { fontId })}
@@ -120,16 +120,16 @@ export default function OverlayTextRows({ rows, photo, overlay, fonts, onAddRow,
             {/* Size (never past the frame) and capitals */}
             <div className="flex items-center gap-3">
               <div className="flex-1 space-y-1">
-                <label className="flex justify-between text-[10px] text-[var(--text-muted)]">
+                <label className="flex justify-between text-[0.625rem] text-[var(--text-muted)]">
                   <span>{STRINGS.panelWords.size}</span>
                   <span className="font-mono tabular-nums">{row.sizePx}px</span>
                 </label>
                 <input type="range" min={8} max={Math.max(8, most)} value={Math.min(row.sizePx, most)} aria-label={`${STRINGS.panelWords.size}: ${STRINGS.overlayKit.rowLabel(n)}`}
                   onChange={(e) => change(row, { sizePx: Number(e.target.value) })} className="inflight-slider" />
-                {row.sizePx >= most && words && <p className="text-[10px] text-[var(--text-muted)]">{STRINGS.overlayKit.sizeCapped}</p>}
+                {row.sizePx >= most && words && <p className="text-[0.625rem] text-[var(--text-muted)]">{STRINGS.overlayKit.sizeCapped}</p>}
               </div>
               <button type="button" aria-pressed={row.uppercase} aria-label={STRINGS.overlayKit.capitals} onClick={() => change(row, { uppercase: !row.uppercase })}
-                className={`h-8 rounded border px-2 text-[10px] font-semibold ${row.uppercase ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-muted)]'}`}>
+                className={`h-8 rounded border px-2 text-[0.625rem] font-semibold ${row.uppercase ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-muted)]'}`}>
                 AA
               </button>
             </div>
@@ -141,7 +141,7 @@ export default function OverlayTextRows({ rows, photo, overlay, fonts, onAddRow,
         className="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-dashed border-[var(--border-default)] text-xs font-semibold text-[var(--brand-accent)] hover:bg-[var(--bg-surface-hover)] disabled:opacity-50">
         <BrandIcon name="plus" size={13} />{STRINGS.overlays.addRow}
       </button>
-      {rows.length >= MAX_OVERLAY_ROWS && <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.overlayKit.rowsFull}</p>}
+      {rows.length >= MAX_OVERLAY_ROWS && <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.overlayKit.rowsFull}</p>}
     </div>
   );
 }

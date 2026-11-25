@@ -84,3 +84,32 @@ test('?v2 a message stays long enough to read, even in Calm View, and can be dis
   await message.getByRole('button', { name: 'Dismiss message' }).click();
   await expect(message).toHaveCount(0);
 });
+
+test('?v2 text size, the easy-to-read font and roomy spacing change the interface but never the photo\'s overlay text', async ({ page }) => {
+  await page.goto('/?v2&stub=1&autostart=1');
+  const root = page.locator('.inflight-v2');
+  const railLabel = root.getByRole('button', { name: 'Overlays', exact: true }).first();
+  const sizeOf = () => railLabel.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  const before = await sizeOf();
+
+  await railLabel.click();
+  await root.locator('div').filter({ hasText: /^Show text overlay on this photo/ }).getByRole('switch').first().click();
+  const overlayText = root.locator('[data-overlay="text"] p').first();
+  await expect(overlayText).toBeVisible();
+  const overlayFont = await overlayText.evaluate((el) => getComputedStyle(el).fontFamily);
+
+  await root.getByRole('button', { name: 'Settings', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Settings' });
+  await dialog.getByRole('button', { name: '150%' }).click();
+  await dialog.getByRole('button', { name: /Easy to read/ }).click();
+  await dialog.getByRole('button', { name: /Roomy/ }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-text-size', '150');
+  await page.keyboard.press('Escape');
+
+  expect(await sizeOf()).toBeCloseTo(before * 1.5, 0);
+  expect(await railLabel.evaluate((el) => getComputedStyle(el).fontFamily)).toContain('Atkinson Hyperlegible');
+  expect(await overlayText.evaluate((el) => getComputedStyle(el).fontFamily)).toBe(overlayFont);
+  // Line height scales with the overlay's own size, so compare it as a share of the font size.
+  const ratio = (await overlayText.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight) / parseFloat(getComputedStyle(el).fontSize)));
+  expect(ratio).toBeLessThan(1.5); // roomy would be 1.65; leading-snug is 1.375
+});

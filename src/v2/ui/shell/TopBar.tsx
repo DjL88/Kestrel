@@ -438,7 +438,7 @@ function MenuItem({ icon, label, shortcut, disabled, checked, onClick }: MenuIte
         <BrandIcon name={icon} size={14} className="text-[var(--text-secondary)]" />
         <span className="truncate">{label}</span>
       </span>
-      <span className="flex items-center gap-1.5 shrink-0 text-[11px] text-[var(--text-muted)]">
+      <span className="flex items-center gap-1.5 shrink-0 text-[0.6875rem] text-[var(--text-muted)]">
         {checked && <BrandIcon name="check" size={12} className="text-[var(--brand-accent)]" />}
         {shortcut && <span className="font-mono">{shortcut}</span>}
       </span>

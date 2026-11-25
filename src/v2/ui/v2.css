@@ -104,7 +104,7 @@
 
 /* Tablets in portrait and landscape phones: a narrower docked panel leaves the photo more of the screen. */
 @media (min-width: 768px) and (max-width: 1023px) {
-  .inflight-v2 { --dock-width: 280px; }
+  .inflight-v2 { --dock-width: 17.5rem; }
 }
 
 /* Short landscape screens: the canvas bar stays one row (it scrolls sideways if it must) instead of wrapping to two
@@ -150,3 +150,7 @@
   .inflight-v2 [data-testid="canvas-viewport-controls"] button { min-height: 40px; min-width: 40px; }
   .inflight-v2 .v2-filmstrip-tools button { min-height: 40px; }
 }
+
+/* Overlay text, watermark and collage caption are part of the picture (data-artwork): the interface's reading font does
+   not apply to them (index.css), so they keep the workspace font they will be exported with. */
+html[data-font="readable"] .inflight-v2 [data-artwork] { font-family: var(--font-sans); }

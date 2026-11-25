@@ -35,7 +35,7 @@ export default function EnhancePanel({
 
   return (
     <div className="space-y-5">
-      <p id="v2-enhance-unavailable" role="status" className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
+      <p id="v2-enhance-unavailable" role="status" className="text-[0.6875rem] leading-relaxed text-[var(--text-secondary)]">
         {STRINGS.panelWords.unavailableNote}
       </p>
       {/* Noise Reduction */}
@@ -53,7 +53,7 @@ export default function EnhancePanel({
             >
               {STRINGS.enhance.denoiseNow}
             </button>
-            <p className="text-[11px] text-[var(--text-muted)]">
+            <p className="text-[0.6875rem] text-[var(--text-muted)]">
               {cloudEnabled ? STRINGS.enhance.denoiseCloudNote : STRINGS.enhance.denoiseDeviceNote}
             </p>
           </div>
@@ -79,7 +79,7 @@ export default function EnhancePanel({
             disabled={unsupported('denoiseRawAi')}
             title={unsupported('denoiseRawAi') ? unsupportedHelp : undefined}
             onClick={() => onUpdateRecipe(photo.id, { denoiseRawAi: !recipe.denoiseRawAi })}
-            className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+            className={`rounded-full px-2.5 py-0.5 text-[0.6875rem] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
               recipe.denoiseRawAi
                 ? 'bg-[var(--brand-accent)] text-[var(--text-on-accent)]'
                 : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
@@ -99,7 +99,7 @@ export default function EnhancePanel({
               />
             </span>
             {!hideReadouts && (
-              <span className="font-mono text-[11px] text-[var(--text-secondary)] tabular-nums">
+              <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)] tabular-nums">
                 {recipe.denoiseLuminance}
               </span>
             )}
@@ -126,7 +126,7 @@ export default function EnhancePanel({
               />
             </span>
             {!hideReadouts && (
-              <span className="font-mono text-[11px] text-[var(--text-secondary)] tabular-nums">
+              <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)] tabular-nums">
                 {recipe.denoiseColour}
               </span>
             )}
@@ -179,7 +179,7 @@ export default function EnhancePanel({
               />
             </span>
             {!hideReadouts && (
-              <span className="font-mono text-[11px] text-[var(--text-secondary)] tabular-nums">
+              <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)] tabular-nums">
                 {recipe.detailRecovery}
               </span>
             )}
@@ -211,7 +211,7 @@ export default function EnhancePanel({
             disabled={unsupported('lensCorrection')}
             title={unsupported('lensCorrection') ? unsupportedHelp : undefined}
             onClick={() => onUpdateRecipe(photo.id, { lensCorrection: !recipe.lensCorrection })}
-            className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+            className={`rounded-full px-2.5 py-0.5 text-[0.6875rem] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
               recipe.lensCorrection
                 ? 'bg-[var(--brand-accent)] text-[var(--text-on-accent)]'
                 : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
