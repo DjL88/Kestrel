@@ -653,24 +653,6 @@ Kestrel stays free and anonymous offline. An account is needed only to buy Pro o
 - **Status, step 2 (built, not deployed):** `/admin` on the website (`site/admin.html`) signs in with Google, checked on the server against an allow-list secret (`kcp-admin-emails`). It shows licensees with their devices and AI allowance, AI usage, payments (SumUp checkouts once connected), contact-form messages with new/read/answered, tax (from #547) and the audit log. It issues free or gift `KESTREL1` keys with a note and a server-side expiry, revokes keys and frees devices. Every view and action is audited. `POST /v1/contact` stores consented contact messages (the site form is in the website step). Next: the owner creates the OAuth client and allow-list (`infra/gcp/README.md`, "The admin console").
 - **Status, app licence (built):** Settings → Licence accepts a `KESTREL1` key, which unlocks Pro offline for good, as before. When the build has a control plane (`VITE_KESTREL_CONTROL_PLANE_URL` and the pinned grant key `VITE_KESTREL_GRANT_KEYS`), the app also activates the device and keeps the Ed25519 offline grant, checked against the pinned key. It renews the grant when it is a week old or in its last week, shows the key's devices and lets the holder free one. A key the server reports as revoked or expired turns Pro off on that device; Free and local work are never touched. An unreachable or undeployed server changes nothing. The device id is random, not a hardware fingerprint. Beta gift keys come from `tools/licence/issue.mjs`. Next: model delivery from the signed manifest, then accounts.
 
-- **App email from hello@inflight.studio (built, OFF; 25 Nov 2026).** Share invitations are emailed (`services/control-plane/src/mailer.ts`) through Google Workspace SMTP: smtp.gmail.com:587, STARTTLS required before any credential, AUTH PLAIN.
-  - **The app password:** Secret Manager `kcp-smtp-hello-app-password`, created by the owner. The service reads it at run time with its own identity and keeps it in memory: never an env var, an env file, the repo or a log.
-  - **Each message:** plain text + HTML, escaped, with no header injection. List-Unsubscribe (one-click RFC 8058 through `/v1/mail/unsubscribe` on the site, plus mailto). The link shows a button, so mail scanners cannot unsubscribe anyone. Unsubscribed addresses are kept only as email hashes.
-  - **Limits:** 500 a day in total (hard cap 1,500, well under Workspace's ~2,000), 30 per sender, 3 per recipient, counted in Firestore transactions.
-  - **Two gates:** Terraform `smtp_mail_enabled` (`infra/gcp/mail.tf`; the sending account's address goes in tfvars, not git) and the `email` admin switch.
-  - **Before switching on:**
-    1. The owner allows per-user outbound gateways in the Workspace admin and verifies hello@inflight.studio as Send mail as.
-    2. A test message's Authentication-Results is checked. DMARC for inflight.studio will probably not align until the domain has Workspace DKIM; that is a DNS change for the owner, not made.
-  - Inbound mail keeps forwarding through Squarespace (Mailgun); DNS unchanged.
-  - **Recipient's language (owner decision 11a):** the words live in `src/i18n/areas/email` (British English plus the 14 draft languages) and go through the wording audit in `npm test`. An invitation carries the inviter's app language, since the recipient's is not known. The unsubscribe pages follow it (`&l=`).
-  - **/admin → Email:** today's count against the cap and Workspace's ~2,000 a day, with a warning at 80%.
-  - **25 Nov:** the owner verified hello@inflight.studio as Send mail as.
-  - **To switch on after merge:** deploy the control plane, apply Terraform with `smtp_mail_enabled = true` and `smtp_username` in tfvars, then turn on `email` in /admin.
-  - **Still to build (decision 11):**
-    - (a) hold non-urgent mail to the next day instead of refusing it at the cap;
-    - (b) the contact-form digest every 2 hours in UK business hours, with replies from /admin;
-    - (c, d) FCM or in-app messages first, email only as the fallback;
-    - (e) Firebase Auth templates: sender name InFlight and reply-to hello@ (owner console setting).
 - **Pricing review built, deployment pending:** the Cloud Scheduler and Cloud Run job create monthly FX proposals and an April CPI review, visible in the admin console. The approved base price and checkout stay separate. The scheduler and initial baseline need to be configured in the target Cloud project.
 
 ### Team collaboration and client proofing (owner request, 25 Nov 2026; #1387, #1255, #1256)
