@@ -44,6 +44,8 @@ interface TopBarProps {
   onReadXmp?: () => void;
   /** File menu: bring in a Lightroom Classic catalogue. */
   onReadLightroom?: () => void;
+  /** File menu: save everything in open formats. */
+  onExportOpenFormats?: () => void;
   onOpenSettings: () => void;
   onImport: () => void;
   onUndo: () => void;
@@ -89,6 +91,7 @@ export default function TopBar({
   backupNote,
   onReadXmp,
   onReadLightroom,
+  onExportOpenFormats,
   onOpenSettings,
   onImport,
   onUndo,
@@ -232,6 +235,7 @@ export default function TopBar({
                     <MenuItem icon="save" label={STRINGS.xmp.saveMenu} onClick={() => runAndClose(onSaveXmp)} />
                     <MenuItem icon="folder-open" label={STRINGS.xmp.readMenu} onClick={() => runAndClose(onReadXmp)} />
                     {onReadLightroom && <MenuItem icon="folder-open" label={STRINGS.lightroom.readMenu} onClick={() => runAndClose(onReadLightroom)} />}
+                    {onExportOpenFormats && <MenuItem icon="save" label={STRINGS.openExport.menu} onClick={() => runAndClose(onExportOpenFormats)} />}
                   </>
                 )}
                 {onBackUpNow && onSaveBackupFile && (

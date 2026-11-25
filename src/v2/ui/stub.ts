@@ -959,6 +959,14 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       });
     },
 
+    correctVehicle: (photoId, choice) => {
+      setStore((prev) => ({
+        ...prev,
+        photos: prev.photos.map((photo) => photo.id === photoId
+          ? (choice === 'not-a-vehicle' ? { ...photo, vehicleLabel: undefined, vehicleKind: undefined, vehicleType: undefined } : { ...photo, vehicleKind: choice.kind, vehicleType: choice.type })
+          : photo),
+      }));
+    },
     correctSpeciesName: (photoId, proposedName) => {
       const name = proposedName.trim().slice(0, 120);
       if (!name) return;

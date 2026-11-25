@@ -37,6 +37,7 @@ import RemovedPhotosDialog from './dialogs/RemovedPhotosDialog';
 import LightroomOfferDialog from './dialogs/LightroomOfferDialog';
 import QuickStartCard from './panels/QuickStartCard';
 import ShareDialog from './dialogs/ShareDialog';
+import CloudOriginalPrompt from './dialogs/CloudOriginalPrompt';
 import { usePresence } from './shell/usePresence';
 import { PresenceAvatars, PresenceCursors } from './shell/PresenceLayer';
 import SharedEditBanner from './shell/SharedEditBanner';
@@ -168,6 +169,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const lightroomInputRef = useRef<HTMLInputElement>(null);
   const dismissLightroomOffer = useCallback(() => actions.dismissLightroomOffer?.(), [actions]);
   const peers = usePresence(sharing, store.collage ? null : store.activeProjectId, activePhoto?.sharedKey ?? null, signedInName, shareVersion);
+  const [zoomedPastPreview, setZoomedPastPreview] = React.useState<string | null>(null);
   const sharedEditing = useSharedEditing(sharing, store.collage ? null : store.activeProjectId, activePhoto?.id ?? null, activePhoto?.sharedKey, actions, activePhoto, shareVersion);
   // Someone else has this photo out, or both sides changed it: the editing panels are view-only until that is settled.
   const editLocked = sharedEditing.state.kind === 'theirs' || sharedEditing.state.kind === 'conflict' || sharedEditing.state.kind === 'view-only';
@@ -234,6 +236,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'saveXmp': if (inEditor && !store.collage) actions.saveXmpSidecars(store.selectedPhotoIds); break;
       case 'readXmp': if (inEditor && !store.collage) xmpInputRef.current?.click(); break;
       case 'readLightroom': if (inEditor && !store.collage) lightroomInputRef.current?.click(); break;
+      case 'openExport': if (inEditor && !store.collage) actions.exportOpenFormats?.(); break;
       case 'resetPhoto': if (inEditor && activePhoto && !editLocked) actions.resetPhotoEdits(activePhoto.id); break;
       case 'backToProjects': if (inEditor) actions.backToProjects(); break;
     }
@@ -417,7 +420,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           />
         );
       case 'history':
-        return <HistoryPanel photo={activePhoto} activeSizeId={store.activeSizeId} onForkFromStep={actions.jumpToEditStep} onSwitchVersion={actions.switchEditVersion} />;
+        return <HistoryPanel photo={activePhoto} activeSizeId={store.activeSizeId} onForkFromStep={actions.jumpToEditStep} onSwitchVersion={actions.switchEditVersion} onUndo={editLocked ? undefined : actions.undo} />;
       case 'info':
         return (
           <InfoPanel
@@ -426,6 +429,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetRating={actions.setRating}
             onReconnectOriginal={actions.reconnectOriginal}
             onCorrectSpeciesName={actions.correctSpeciesName}
+            onCorrectVehicle={actions.correctVehicle}
           />
         );
       case 'tasks':
@@ -582,6 +586,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             backupNote={store.backup ? backupStatusText(store.backup) : undefined}
             onReadXmp={store.screen === 'editor' && !store.collage ? () => xmpInputRef.current?.click() : undefined}
             onReadLightroom={store.screen === 'editor' && !store.collage ? () => lightroomInputRef.current?.click() : undefined}
+            onExportOpenFormats={store.screen === 'editor' && !store.collage ? actions.exportOpenFormats : undefined}
             onOpenSettings={() => actions.setSettingsOpen(true)}
             onImport={actions.importPhotos}
             onUndo={actions.undo}
@@ -678,6 +683,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 />
               ) : (
                 <Canvas
+                  onZoomPastPreview={setZoomedPastPreview}
                   PhotoSurface={store.PhotoSurface}
                   maskGuideId={maskGuide?.photoId === activePhoto?.id ? maskGuide?.maskId : undefined}
                   maskOverlayVisible={maskOverlayVisible}
@@ -938,6 +944,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       />
 
       <PresenceCursors peers={peers} photoId={activePhoto?.sharedKey ?? null} hidden={cursorsHidden} />
+      <CloudOriginalPrompt
+        client={sharing}
+        localProjectId={store.collage ? null : store.activeProjectId}
+        photo={zoomedPastPreview && activePhoto?.id === zoomedPastPreview ? activePhoto : null}
+        attachOriginal={actions.attachCloudOriginal}
+        onDone={() => setZoomedPastPreview(null)}
+      />
       <ShareDialog
         open={shareOpen}
         client={sharing}
@@ -949,6 +962,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         siteUrl={gallerySiteUrl}
         photoName={(id) => store.photos.find((photo) => photo.id === id)?.filename ?? id}
         onGoToPhoto={(id) => { closeShare(); actions.selectPhoto(id); }}
+        localPhotos={store.photos}
+        readOriginal={actions.readVerifiedOriginal}
+        importCloud={actions.importCloudPreviews}
+        attachOriginal={actions.attachCloudOriginal}
         onClose={closeShare}
       />
 

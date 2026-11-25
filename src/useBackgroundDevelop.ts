@@ -4,7 +4,8 @@ import { engineScheduler, type SchedulerTicket } from './core/engineScheduler';
 import type { PhotoFrame } from './core/types';
 import type { BrowserPreviewProvider } from './providers/browserPreviewProvider';
 import { extractRawPreview } from './core/nefPreview';
-import { canDevelopRaw, developRaw, matchPreviewOrientation } from './providers/rawDevelop';
+import { canDevelopRaw, developRaw, matchPreviewOrientation, rawSensorMode } from './providers/rawDevelop';
+import type { RawCodec } from './core/pictureSource';
 import { appText as t } from './i18n/areas/app';
 import { readAsShotWhiteFromBlob, type AsShotWhite } from './core/asShotWhite';
 
@@ -18,14 +19,16 @@ interface Options {
   onScreen?: string | null;
   /** Called with the camera's as-shot white when a development carries one (see core/asShotWhite.ts). */
   onAsShotWhite?: (stableKey: string, white: AsShotWhite) => void;
+  /** Called with how the RAW's sensor data is compressed (Nikon HE/HE* or 'other'), read from the file's headers. */
+  onRawCodec?: (stableKey: string, codec: RawCodec) => void;
 }
 
 /** One resource-bounded scheduler item per genuine RAW sensor development.
  * A paused/cancelled job never applies a late developed image after its
  * source or project changed; the original is never mutated. */
-export function useBackgroundDevelop({ projectId, frames, provider, active, onScreen, onAsShotWhite }: Options) {
-  const latest = useRef({ projectId, frames, provider, active, onScreen, onAsShotWhite });
-  latest.current = { projectId, frames, provider, active, onScreen, onAsShotWhite };
+export function useBackgroundDevelop({ projectId, frames, provider, active, onScreen, onAsShotWhite, onRawCodec }: Options) {
+  const latest = useRef({ projectId, frames, provider, active, onScreen, onAsShotWhite, onRawCodec });
+  latest.current = { projectId, frames, provider, active, onScreen, onAsShotWhite, onRawCodec };
   const running = useRef(false);
   const ticket = useRef<SchedulerTicket | null>(null);
   const stoppedFor = useRef<string | null>(null);
@@ -51,7 +54,19 @@ export function useBackgroundDevelop({ projectId, frames, provider, active, onSc
           if (!latest.current.active || latest.current.projectId !== id) return;
           skipped.current.add(`${id}|${frame.stableKey}`);
           ctx.stage('Checking the cached sensor development');
-          if (await source.developedReview(frame)) return;
+          // Name the codec once per photo (a few header bytes), so the label can say Nikon HE/HE*. Never guessed.
+          const recordCodec = async (original: Blob) => {
+            if (frame.rawCodec || !latest.current.onRawCodec) return;
+            const codec = await rawSensorMode(original, frame.filename).catch(() => null);
+            if (codec && latest.current.projectId === id) latest.current.onRawCodec?.(frame.stableKey, codec);
+          };
+          if (await source.developedReview(frame)) {
+            if (!frame.rawCodec && latest.current.onRawCodec) {
+              const original = await source.ensureOriginal(frame.stableKey, 'background');
+              if (original) await recordCodec(original);
+            }
+            return;
+          }
           ctx.checkCancelled();
           const original = await source.ensureOriginal(frame.stableKey, 'background');
           ctx.checkCancelled();
@@ -69,6 +84,7 @@ export function useBackgroundDevelop({ projectId, frames, provider, active, onSc
           if (!await source.storeDevelopedPicture(frame, original, turned, ctx.signal))
             throw new Error(`The source for ${frame.filename} changed while developing it.`);
           if (white && latest.current.projectId === id) latest.current.onAsShotWhite?.(frame.stableKey, white);
+          await recordCodec(original);
           ctx.checkCancelled();
           // Let zoom, sliders and touch input paint between RAW photographs.
           await new Promise<void>(resolve => window.setTimeout(resolve, 0));
