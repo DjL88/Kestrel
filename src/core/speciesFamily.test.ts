@@ -31,3 +31,20 @@ test('a family name is shown in the person’s language: the scientific family w
   assert.equal(displaySpeciesName('Owls', buildSpeciesNameIndex('de', [table])).name, 'Strigidae');
   assert.equal(displaySpeciesName('Owls', buildSpeciesNameIndex('en-GB', [table])).name, 'Owls');
 });
+
+test('family names come in the person’s language where known (Wikidata or a draft), Latin only where none exists', () => {
+  const families = JSON.parse(readFileSync('public/models/species-names/families.json', 'utf8')) as { names: Record<string, Record<string, string>>; attribution: string };
+  assert.match(families.attribution, /Wikidata.*CC0/);
+  assert.equal(families.names.fr.Strigidae, 'Chouettes et hiboux');
+  assert.ok(families.names.de.Strigidae && !/idae$/.test(families.names.de.Strigidae));
+  for (const [code, names] of Object.entries(families.names)) {
+    for (const [scientific, name] of Object.entries(names)) {
+      assert.ok(!/^[A-Z][a-z]+(?:idae|inae|oidea)$/.test(name), `${code}: ${scientific} is still Latin ("${name}")`);
+    }
+  }
+  const index = JSON.parse(readFileSync('public/models/species-names/index.json', 'utf8')) as { families: [string, string][] };
+  const table = (code: string) => ({ source: 't', attribution: 't', language: code,
+    names: index.families.map(([s, e]): [string, string, string | null] => [s, e, families.names[code]?.[s] ?? null]) });
+  assert.equal(displaySpeciesName('Owls', buildSpeciesNameIndex('fr', [table('fr')])).name, 'Chouettes et hiboux');
+  assert.equal(displaySpeciesName('Owls', buildSpeciesNameIndex('gd', [table('gd')])).name, 'Comhachagan');
+});
