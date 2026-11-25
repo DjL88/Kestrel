@@ -662,6 +662,9 @@ export interface WorkspaceActions {
   /** Moves already set-aside (rejected) photos into Trash. The catalogue entry is removed; InFlight's stored copies
    * go with it, but the original file on disk is never touched. Reversible with the normal per-photo Undo. */
   removePhotos: (photoIds: string[]) => void;
+  /** Moves photos (with their paired JPEG and copies, choices and edits) to another project, as a task in Tasks.
+   * A photo whose file is already there stays here. Original files are never touched. */
+  movePhotos?: (photoIds: string[], targetProjectId: string) => void;
   toggleFlag: (photoIds: string[]) => void;
   setRating: (photoIds: string[], rating: number) => void;
   correctSpeciesName: (photoId: string, name: string) => void;

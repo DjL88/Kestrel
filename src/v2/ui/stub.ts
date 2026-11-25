@@ -3,6 +3,7 @@
 // Replace this file when connecting the real Kestrel/InFlight engine.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { STRINGS } from './strings';
 import type {
   CropTransform,
   DecisionState,
@@ -927,6 +928,18 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
         const selectedPhotoIds = prev.selectedPhotoIds.filter((id) => !idSet.has(id));
         const activePhotoId = idSet.has(prev.activePhotoId ?? '') ? photos[0]?.id ?? null : prev.activePhotoId;
         return { ...prev, photos, selectedPhotoIds, activePhotoId };
+      });
+    },
+    movePhotos: (photoIds, targetProjectId) => {
+      logAction('movePhotos', { photoIds, targetProjectId });
+      setStore((prev) => {
+        const target = prev.projects.find((p) => p.id === targetProjectId);
+        if (!target) return prev;
+        const idSet = new Set(photoIds);
+        const photos = prev.photos.filter((p) => !idSet.has(p.id));
+        const activePhotoId = idSet.has(prev.activePhotoId ?? '') ? photos[0]?.id ?? null : prev.activePhotoId;
+        return { ...prev, photos, selectedPhotoIds: [], activePhotoId,
+          lastActionNotice: STRINGS.filmstripLabels.moved(photoIds.length, target.name) };
       });
     },
 

@@ -8,7 +8,7 @@ import { newId } from '../../core/ids';
 import { exportCollage } from './exportCollage';
 import { createCollage, MAX_COLLAGE_SELECTION, readCollage } from '../../core/collage';
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
-import { appendProjectPhotos, applyImportBursts, createEmptyProject, setArchived, setTrashed, trashExpired } from '../../core/projects';
+import { appendProjectPhotos, applyImportBursts, createEmptyProject, moveFrames, setArchived, setTrashed, trashExpired } from '../../core/projects';
 import { tasks } from '../../core/taskStore';
 import { createSaveGuard, type SaveGuard } from '../../core/saveGuard';
 import { engineScheduler } from '../../core/engineScheduler';
@@ -1764,6 +1764,46 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clearSelection: () => setSelected(activeId ? [activeId] : []),
     setDecision: (ids, decision) => decide(ids, decision),
     removePhotos: (ids) => removePhotos(ids),
+    // A move is a Tasks job. The target is saved first, so a failure part-way leaves the photos in both projects,
+    // never in neither. Only then are they taken out of this project.
+    movePhotos: (photoIds, targetId) => {
+      const source = stateRef.current;
+      if (!source || targetId === source.shoot.id) return;
+      const ids = withPartners(photoIds, pairsRef.current);
+      void (async () => {
+        const store = catalogue.current!;
+        const named = await store.loadProject(targetId);
+        if (!named) { setNotice('That project could not be found.'); return; }
+        const targetName = named.shoot.title;
+        const ticket = await engineScheduler.submit({
+          title: V2_STRINGS.filmstripLabels.moving(targetName),
+          kind: 'other', resource: 'io', pauseable: false, snapshot: undefined,
+          items: [targetId], itemId: (item) => item, itemLabel: () => targetName,
+          runItem: async (_item, _snapshot, ctx) => {
+            const target = await store.loadProject(targetId);
+            if (!target) throw new Error('That project could not be found.');
+            const from = stateRef.current?.shoot.id === source.shoot.id ? stateRef.current : source;
+            const importId = `move-${newId()}`;
+            const result = moveFrames(from, target, ids, importId);
+            ctx.checkCancelled();
+            if (result.moved) {
+              await store.saveProject(result.target);
+              ctx.acknowledgeCommitted();
+              if (stateRef.current?.shoot.id === source.shoot.id) {
+                mutate((current) => moveFrames(current, target, ids, importId).source);
+              } else {
+                const saved = await store.loadProject(source.shoot.id);
+                if (saved) await store.saveProject(moveFrames(saved, target, ids, importId).source);
+              }
+            }
+            const parts = [result.moved ? V2_STRINGS.filmstripLabels.moved(result.moved, target.shoot.title) : '',
+              result.skipped ? V2_STRINGS.filmstripLabels.moveSkipped(result.skipped) : ''].filter(Boolean);
+            if (parts.length) setNotice(parts.join(' '));
+          },
+        });
+        if (await ticket.finished === 'done') setSelected([]);
+      })().catch(() => setNotice('InFlight could not update the project.'));
+    },
     setRemovedOpen: (open) => setRemovedOpen(open),
     restorePhotos: (ids) => {
       mutate((current) => restoreRemoved(current, withPartners(ids, rawJpegPairs(current.frames.map((frame) => ({ ...frame, removedAt: undefined }))))));

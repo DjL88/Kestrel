@@ -41,6 +41,9 @@ interface FilmstripProps {
   onSetDecision: (photoIds: string[], decision: 'unreviewed' | 'keep' | 'reject') => void;
   onSetBurstGrouped: (burstGroupId: string, grouped: boolean) => void;
   onRemovePhotos: (photoIds: string[]) => void;
+  /** Moves photos to another project; `moveTargets` are the projects offered (never this one or a deleted one). */
+  onMovePhotos?: (photoIds: string[], targetProjectId: string) => void;
+  moveTargets?: { id: string; name: string }[];
   onPasteRecipe: () => void;
   onApplyLook: (photoId: string, lookId: string) => void;
   onImport: () => void;
@@ -87,6 +90,8 @@ export default function Filmstrip({
   onSetDecision,
   onSetBurstGrouped,
   onRemovePhotos,
+  onMovePhotos,
+  moveTargets = [],
   onPasteRecipe,
   onApplyLook,
   onImport,
@@ -114,6 +119,7 @@ export default function Filmstrip({
   const [expandedBursts, setExpandedBursts] = useState<Set<string>>(() => new Set());
   const [tileMenu, setTileMenu] = useState<{ x: number; y: number; photoId: string } | null>(null);
   const [removeConfirm, setRemoveConfirm] = useState<string[] | null>(null);
+  const [moving, setMoving] = useState<string[] | null>(null);
   const resizeStart = useRef<{ y: number; h: number } | null>(null);
   const longPressTimer = useRef<number | null>(null);
   const touchPress = useRef<{ pointerId: number; x: number; y: number; photoId: string } | null>(null);
@@ -650,6 +656,13 @@ export default function Filmstrip({
               {STRINGS.bursts.regroup}
             </button>
           )}
+          {onMovePhotos && !collageMode && (
+            <button type="button" role="menuitem"
+              onClick={() => { setMoving(menuTargetIds); setTileMenu(null); }}
+              className="flex w-full px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+              {STRINGS.filmstripLabels.moveMenu}
+            </button>
+          )}
           {menuTargetsAllSetAside && (
             <button type="button" role="menuitem"
               onClick={() => {
@@ -748,6 +761,40 @@ export default function Filmstrip({
                 }}
                 className="min-h-10 rounded-[var(--radius-md)] bg-[var(--status-danger,#e5484d)] px-4 text-xs font-semibold text-white">
                 {STRINGS.filmstripLabels.label21}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Move to another project: pick where; the move itself runs as a task in Tasks. */}
+      {moving && onMovePhotos && (
+        <div role="dialog" aria-modal="true" aria-labelledby="move-photos-title" aria-describedby="move-photos-body"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-scrim)] p-4"
+          onPointerDown={(e) => e.stopPropagation()}
+          onKeyDown={(e) => { if (e.key === 'Escape') setMoving(null); }}
+        >
+          <div className="flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col gap-4 rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-panel)]">
+            <h2 id="move-photos-title" className="text-base font-bold text-[var(--text-primary)]">{STRINGS.filmstripLabels.moveTitle}</h2>
+            <p id="move-photos-body" className="text-sm leading-relaxed text-[var(--text-secondary)]">
+              {moveTargets.length ? STRINGS.filmstripLabels.moveBody : STRINGS.filmstripLabels.moveNoProjects}
+            </p>
+            {moveTargets.length > 0 && (
+              <ul className="min-h-0 space-y-1 overflow-y-auto" data-testid="move-targets">
+                {moveTargets.map((target) => (
+                  <li key={target.id}>
+                    <button type="button"
+                      onClick={() => { onMovePhotos(moving, target.id); setMoving(null); }}
+                      className="flex min-h-11 w-full items-center rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                      {target.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex justify-end">
+              <button type="button" autoFocus onClick={() => setMoving(null)}
+                className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-4 text-xs font-medium text-[var(--text-primary)]">
+                {STRINGS.hub.modalCancel}
               </button>
             </div>
           </div>
