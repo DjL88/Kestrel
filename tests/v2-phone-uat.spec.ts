@@ -164,10 +164,17 @@ test('swipe on the photo: left or right steps through photos, up or down through
   await expect(options).toHaveCount(3);
   const frame = studio.getByTestId('canvas-frame');
   await expect(frame).toBeVisible();
-  const box = (await frame.boundingBox())!;
-  const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
   const cdp = await context.newCDPSession(page);
   const flick = async (dx: number, dy: number) => {
+    // A flick is a quick gesture (under 0.7 s). While the photo just stepped to is still being drawn, the synthetic touch
+    // events queue behind that work and the "flick" arrives as a slow drag, so let the picture settle first. A real
+    // finger's events carry their own timing; this is the test's own pacing.
+    await expect(frame.locator('img[data-preview-quality="full"]').first()).toBeVisible();
+    await expect(frame.getByRole('status', { name: /Refreshing image|Loading the full picture/ })).toHaveCount(0);
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    // From the middle of the frame as it is now: another photo's or format's frame has its own shape and place.
+    const box = (await frame.boundingBox())!;
+    const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: cx, y: cy }] });
     for (const step of [0.25, 0.5, 0.75, 1]) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: cx + dx * step, y: cy + dy * step }] });
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
