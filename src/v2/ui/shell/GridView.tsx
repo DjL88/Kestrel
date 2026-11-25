@@ -156,8 +156,8 @@ export default function GridView({
 
                   <div className="flex items-center justify-between gap-2 px-2.5 py-2">
                     <div className="min-w-0">
-                      <p className="truncate text-xs font-medium text-[var(--text-primary)]">
-                        {photo.filename}
+                      <p className="truncate text-xs font-medium text-[var(--text-primary)]" title={photo.pairedJpeg ? STRINGS.pair.title(photo.filename, photo.pairedJpeg) : undefined}>
+                        {photo.filename}{photo.pairedJpeg && <span className="ml-1.5 text-[0.625rem] font-semibold text-[var(--text-secondary)]">{STRINGS.pair.badge}</span>}
                       </p>
                       <div className="mt-1 flex items-center gap-0.5" aria-label={`Rating ${photo.rating} of 5`}>
                         {[1, 2, 3, 4, 5].map((n) => (

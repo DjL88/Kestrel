@@ -549,7 +549,8 @@ export default function Filmstrip({
 
                     {/* Tile footer: filename + flag toggle */}
                     <div className="flex h-9 shrink-0 items-center justify-between gap-1 px-1">
-                      <span className="truncate font-mono text-[0.625rem] text-[var(--text-secondary)]">
+                      <span className="truncate font-mono text-[0.625rem] text-[var(--text-secondary)]" title={photo.pairedJpeg ? STRINGS.pair.title(photo.filename, photo.pairedJpeg) : undefined}>
+                        {photo.pairedJpeg && <span data-testid="pair-badge" className="mr-1 rounded-sm border border-[var(--border-default)] px-0.5 font-sans font-semibold text-[var(--text-primary)]">{STRINGS.pair.badge}</span>}
                         {photo.filename}
                       </span>
                       <button

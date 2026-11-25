@@ -387,6 +387,13 @@ export const source = {
     restoreFailed: 'That file is not a readable InFlight project backup. Nothing was changed.',
   },
 
+  // RAW + JPEG pairs
+  pair: {
+    badge: 'RAW + JPEG',
+    title: (raw: string, jpeg: string) => `${raw} and ${jpeg} are one shot. Both files are kept; flags and stars apply to both.`,
+    infoLabel: 'Paired JPEG',
+  },
+
   // Canvas
   canvas: {
     selectPhoto: "Select a photograph from the filmstrip to begin editing.",

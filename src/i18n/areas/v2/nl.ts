@@ -363,6 +363,11 @@ export const nl: AreaTranslation<typeof source> = {
     restored: (name: string) => `“${name}” hersteld als nieuw project. Koppel de originele foto’s opnieuw als InFlight erom vraagt.`,
     restoreFailed: "Dat bestand is geen leesbare InFlight-projectback-up. Er is niets gewijzigd.",
   },
+  pair: {
+    badge: 'RAW + JPEG',
+    title: (raw: string, jpeg: string) => `${raw} en ${jpeg} zijn één opname. Beide bestanden blijven bewaard; markeringen en sterren gelden voor beide.`,
+    infoLabel: "Bijbehorende JPEG",
+  },
   canvas: {
     selectPhoto: "Selecteer een foto in de filmstrip om te beginnen met bewerken.",
     resizeText: "Tekstgrootte wijzigen",

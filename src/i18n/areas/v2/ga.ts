@@ -366,6 +366,11 @@ export const ga: AreaTranslation<typeof source> = {
     restored: (name: string) => `Athchóiríodh “${name}” mar thionscadal nua. Athcheangail na bunghrianghraif má iarrann InFlight é.`,
     restoreFailed: "Ní cúltaca InFlight inléite an comhad sin. Níor athraíodh aon rud.",
   },
+  pair: {
+    badge: 'RAW + JPEG',
+    title: (raw: string, jpeg: string) => `Is grianghraf amháin iad ${raw} agus ${jpeg}. Coinnítear an dá chomhad; baineann marcanna agus réaltaí leis an dá cheann.`,
+    infoLabel: "JPEG péireáilte",
+  },
   canvas: {
     selectPhoto: "Roghnaigh grianghraf ón stiall scannáin chun tosú ag eagarthóireacht.",
     resizeText: "Athraigh méid an téacs",

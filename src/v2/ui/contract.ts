@@ -330,6 +330,8 @@ export interface Photo {
   };
   /** Actual recorded format actions; missing means pre-history, not a fabricated event. */
   formatHistory?: { formatId: string; kind: string; at: number; parentFormatId?: string; forkEditCursor?: number }[];
+  /** The JPEG the camera wrote with this RAW, kept beside it and shown as one photo. Its flag and rating follow this photo. */
+  pairedJpeg?: string;
   /** When the photo was taken, in milliseconds, when the file records it. Used only for sorting. */
   capturedAtMs?: number;
   /** The picture's size in real pixels, when the file says. Used for the true 100% zoom. */

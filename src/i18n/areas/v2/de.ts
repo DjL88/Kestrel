@@ -363,6 +363,11 @@ export const de: AreaTranslation<typeof source> = {
     restored: (name: string) => `„${name}“ als neues Projekt wiederhergestellt. Verbinden Sie die Originalfotos erneut, wenn InFlight danach fragt.`,
     restoreFailed: "Diese Datei ist keine lesbare InFlight-Projektsicherung. Es wurde nichts geändert.",
   },
+  pair: {
+    badge: 'RAW + JPEG',
+    title: (raw: string, jpeg: string) => `${raw} und ${jpeg} sind eine Aufnahme. Beide Dateien bleiben erhalten; Markierungen und Sterne gelten für beide.`,
+    infoLabel: "Zugehöriges JPEG",
+  },
   canvas: {
     selectPhoto: "Wählen Sie ein Foto im Filmstreifen aus, um mit der Bearbeitung zu beginnen.",
     resizeText: "Textgröße ändern",

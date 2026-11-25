@@ -363,6 +363,11 @@ export const nb: AreaTranslation<typeof source> = {
     restored: (name: string) => `«${name}» gjenopprettet som nytt prosjekt. Koble til originalbildene igjen hvis InFlight ber om det.`,
     restoreFailed: "Den filen er ikke en lesbar InFlight-sikkerhetskopi. Ingenting ble endret.",
   },
+  pair: {
+    badge: 'RAW + JPEG',
+    title: (raw: string, jpeg: string) => `${raw} og ${jpeg} er ett bilde. Begge filene beholdes; merker og stjerner gjelder for begge.`,
+    infoLabel: "Tilhørende JPEG",
+  },
   canvas: {
     selectPhoto: "Velg et bilde i filmstripen for å begynne å redigere.",
     resizeText: "Endre tekststørrelse",

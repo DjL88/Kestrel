@@ -363,6 +363,11 @@ export const cy: AreaTranslation<typeof source> = {
     restored: (name: string) => `Wedi adfer “${name}” fel prosiect newydd. Ailgysylltwch y lluniau gwreiddiol os yw InFlight yn gofyn.`,
     restoreFailed: "Nid yw’r ffeil honno’n gopi wrth gefn InFlight darllenadwy. Ni newidiwyd dim.",
   },
+  pair: {
+    badge: 'RAW + JPEG',
+    title: (raw: string, jpeg: string) => `${raw} a ${jpeg} yw’r un llun. Cedwir y ddwy ffeil; mae marciau a sêr yn berthnasol i’r ddwy.`,
+    infoLabel: "JPEG pâr",
+  },
   canvas: {
     selectPhoto: "Dewiswch lun o’r stribed lluniau i ddechrau golygu.",
     resizeText: "Newid maint y testun",
