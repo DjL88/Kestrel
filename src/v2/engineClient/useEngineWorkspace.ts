@@ -59,6 +59,7 @@ import { runAuto } from './runAuto';
 import { commitAutoEdit } from './commitAutoEdit';
 import { commitAutoCull } from './commitAutoCull';
 import { runV2Denoise } from './runDenoise';
+import { composeDenoiseRecipe } from './denoiseRecipe';
 import { moveArtboard } from './boardOps';
 import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
@@ -1127,8 +1128,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             if (!valid(current)) return current.edit;
             const edit = current.edit ?? DEFAULT_EDIT;
             const id = `auto-denoise-${photoId}`;
-            const masks = (edit.masks ?? []).filter(mask => mask.id !== id && mask.id !== `${id}-background`);
-            return { ...edit, denoise: outcome.strength, ...(outcome.luminance > 0 ? { denoiseLuminance: outcome.luminance } : {}), masks: [...masks, ...outcome.masks] };
+            return composeDenoiseRecipe(edit, id, outcome.strength, outcome.masks, outcome.strength > 0 ? outcome.luminance / outcome.strength : 0);
           }));
         }
         ctx.commitIfCurrent(() => setNotice(outcome.verified ? outcome.notes[0] : engineText.denoise.leftAsItWas(outcome.notes.join(' '))));
