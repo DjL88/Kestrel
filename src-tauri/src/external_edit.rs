@@ -7,7 +7,7 @@
 
 use image::codecs::png::PngEncoder;
 use image::codecs::tiff::TiffEncoder;
-use image::{DynamicImage, ImageEncoder, ImageFormat};
+use image::{DynamicImage, ImageDecoder, ImageEncoder, ImageFormat};
 use std::ffi::OsString;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -17,6 +17,13 @@ pub const WORKING_FOLDER: &str = "External edits";
 
 /// The largest TIFF read back. A 100-megapixel 16-bit RGB picture with layers is well under this.
 const MAX_RETURNED_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+
+/// The same sRGB ICC profile as the page's exports (`src/core/iccEmbed.ts`; a unit test there checks the bytes match).
+/// InFlight's renderer hands over display-encoded sRGB, so this is a truthful tag for the working TIFF.
+pub const SRGB_ICC: &[u8] = include_bytes!("srgb.icc");
+
+/// Profiles larger than this are not passed back to the page (printer profiles can be megabytes); the file keeps them.
+const MAX_REPORTED_PROFILE: usize = 1 << 20;
 
 /// How big a saved file is, and when it last changed, so the page can see a save start and settle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -97,40 +104,73 @@ pub fn stamp(path: &Path) -> Option<FileStamp> {
     Some(FileStamp { size: metadata.len(), modified_ms })
 }
 
-/// A 16-bit RGB TIFF of the PNG the page sent. Refuses anything that is not a PNG rather than guessing.
-pub fn png_to_tiff16(png: &[u8]) -> Result<Vec<u8>, String> {
-    let picture = image::load_from_memory_with_format(png, ImageFormat::Png)
-        .map_err(|_| "The edited picture could not be read.".to_string())?;
+/// Decode a PNG or TIFF and the ICC profile it carries, if any.
+fn decode_with_profile(bytes: &[u8], format: ImageFormat) -> Result<(DynamicImage, Option<Vec<u8>>), String> {
+    // The profile is read BEFORE the limits are set: in image 0.25.10 setting limits on the TIFF decoder loses its
+    // profile (this module's test caught it). No size limit beyond the file cap in `read_returned`, so a 100-megapixel
+    // 16-bit picture is not refused.
+    fn read(mut decoder: impl ImageDecoder) -> Result<(DynamicImage, Option<Vec<u8>>), String> {
+        let profile = decoder.icc_profile().ok().flatten().filter(|profile| !profile.is_empty());
+        decoder.set_limits(image::Limits::no_limits()).map_err(|_| String::new())?;
+        let picture = DynamicImage::from_decoder(decoder).map_err(|_| String::new())?;
+        Ok((picture, profile))
+    }
+    let cursor = std::io::Cursor::new(bytes);
+    match format {
+        ImageFormat::Png => read(image::codecs::png::PngDecoder::with_limits(cursor, image::Limits::no_limits()).map_err(|_| String::new())?),
+        ImageFormat::Tiff => read(image::codecs::tiff::TiffDecoder::new(cursor).map_err(|_| String::new())?),
+        _ => Err(String::new()),
+    }
+}
+
+fn rgb16_bytes(picture: &DynamicImage) -> Result<(Vec<u8>, u32, u32), String> {
     let rgb = picture.to_rgb16();
     let (width, height) = rgb.dimensions();
-    if width == 0 || height == 0 { return Err("The edited picture is empty.".into()); }
-    let bytes: Vec<u8> = rgb.as_raw().iter().flat_map(|sample| sample.to_ne_bytes()).collect();
+    if width == 0 || height == 0 { return Err("The picture is empty.".into()); }
+    Ok((rgb.as_raw().iter().flat_map(|sample| sample.to_ne_bytes()).collect(), width, height))
+}
+
+/// A 16-bit RGB TIFF of the PNG the page sent, tagged with its colour profile: the PNG's own ICC profile when it has
+/// one, otherwise sRGB, which is what InFlight's renderer writes. Refuses anything that is not a PNG rather than guessing.
+pub fn png_to_tiff16(png: &[u8]) -> Result<Vec<u8>, String> {
+    let (picture, profile) = decode_with_profile(png, ImageFormat::Png).map_err(|_| "The edited picture could not be read.".to_string())?;
+    let (bytes, width, height) = rgb16_bytes(&picture).map_err(|_| "The edited picture is empty.".to_string())?;
     let mut output = std::io::Cursor::new(Vec::new());
-    TiffEncoder::new(&mut output)
-        .write_image(&bytes, width, height, image::ExtendedColorType::Rgb16)
+    let mut encoder = TiffEncoder::new(&mut output);
+    encoder.set_icc_profile(profile.unwrap_or_else(|| SRGB_ICC.to_vec()))
+        .map_err(|_| "The colour profile could not be added to the TIFF.".to_string())?;
+    encoder.write_image(&bytes, width, height, image::ExtendedColorType::Rgb16)
         .map_err(|error| format!("Could not write the 16-bit TIFF: {error}"))?;
     Ok(output.into_inner())
 }
 
-/// What came back from the other editor, as a 16-bit PNG InFlight can read, and how many bits per channel the editor
-/// actually saved (8 or 16), so the page never calls an 8-bit save 16-bit.
-pub fn tiff_to_png16(tiff: &[u8]) -> Result<(Vec<u8>, u8), String> {
-    let picture = image::load_from_memory_with_format(tiff, ImageFormat::Tiff)
+/// What came back from the other editor.
+pub struct Returned {
+    /// A 16-bit PNG InFlight can read, carrying the same ICC profile the editor saved (none when it saved none).
+    pub png: Vec<u8>,
+    /// Bits per channel the editor actually saved (8, 16 or 32), so the page never calls an 8-bit save 16-bit.
+    pub bits: u8,
+    /// The editor's ICC profile, for the page to name it. None when there is none, or it is too large to pass on.
+    pub profile: Option<Vec<u8>>,
+}
+
+pub fn tiff_to_png16(tiff: &[u8]) -> Result<Returned, String> {
+    let (picture, profile) = decode_with_profile(tiff, ImageFormat::Tiff)
         .map_err(|_| "InFlight could not read the TIFF the other app saved. Save it as a flattened TIFF (8 or 16 bits) and try again.".to_string())?;
     let bits = match &picture {
         DynamicImage::ImageLuma8(_) | DynamicImage::ImageLumaA8(_) | DynamicImage::ImageRgb8(_) | DynamicImage::ImageRgba8(_) => 8,
         DynamicImage::ImageRgb32F(_) | DynamicImage::ImageRgba32F(_) => 32,
         _ => 16,
     };
-    let rgb = picture.to_rgb16();
-    let (width, height) = rgb.dimensions();
-    if width == 0 || height == 0 { return Err("The saved TIFF is empty.".into()); }
-    let bytes: Vec<u8> = rgb.as_raw().iter().flat_map(|sample| sample.to_ne_bytes()).collect();
+    let (bytes, width, height) = rgb16_bytes(&picture).map_err(|_| "The saved TIFF is empty.".to_string())?;
     let mut output = std::io::Cursor::new(Vec::new());
-    PngEncoder::new(&mut output)
-        .write_image(&bytes, width, height, image::ExtendedColorType::Rgb16)
+    let mut encoder = PngEncoder::new(&mut output);
+    if let Some(profile) = &profile {
+        encoder.set_icc_profile(profile.clone()).map_err(|_| "The saved colour profile could not be kept.".to_string())?;
+    }
+    encoder.write_image(&bytes, width, height, image::ExtendedColorType::Rgb16)
         .map_err(|error| format!("Could not write the returned picture: {error}"))?;
-    Ok((output.into_inner(), bits))
+    Ok(Returned { png: output.into_inner(), bits, profile: profile.filter(|profile| profile.len() <= MAX_REPORTED_PROFILE) })
 }
 
 /// Write `bytes` to a new file in `folder`. Never replaces an existing file: a name already in use gets " (2)", " (3)"...
@@ -193,9 +233,9 @@ mod tests {
         let read = image::load_from_memory_with_format(&tiff, ImageFormat::Tiff).unwrap();
         assert!(matches!(read, DynamicImage::ImageRgb16(_)), "the working file must be 16-bit RGB");
         assert_eq!(read.to_rgb16().as_raw(), &samples);
-        let (back, bits) = tiff_to_png16(&tiff).unwrap();
-        assert_eq!(bits, 16);
-        let back = image::load_from_memory_with_format(&back, ImageFormat::Png).unwrap();
+        let back = tiff_to_png16(&tiff).unwrap();
+        assert_eq!(back.bits, 16);
+        let back = image::load_from_memory_with_format(&back.png, ImageFormat::Png).unwrap();
         assert_eq!(back.to_rgb16().as_raw(), &samples, "bringing it back must not round to 8 bits");
     }
 
@@ -204,16 +244,50 @@ mod tests {
         let picture: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::from_pixel(4, 3, Rgb([10, 200, 30]));
         let mut tiff = std::io::Cursor::new(Vec::new());
         TiffEncoder::new(&mut tiff).write_image(picture.as_raw(), 4, 3, image::ExtendedColorType::Rgb8).unwrap();
-        let (png, bits) = tiff_to_png16(&tiff.into_inner()).unwrap();
-        assert_eq!(bits, 8);
-        let back = image::load_from_memory_with_format(&png, ImageFormat::Png).unwrap().to_rgb16();
+        let back = tiff_to_png16(&tiff.into_inner()).unwrap();
+        assert_eq!(back.bits, 8);
+        assert!(back.profile.is_none(), "a TIFF saved without a profile is not given one");
+        let back = image::load_from_memory_with_format(&back.png, ImageFormat::Png).unwrap().to_rgb16();
         assert_eq!(back.get_pixel(0, 0).0, [10 * 257, 200 * 257, 30 * 257]);
+    }
+
+    fn profile_of(bytes: &[u8], format: ImageFormat) -> Option<Vec<u8>> {
+        decode_with_profile(bytes, format).unwrap().1
+    }
+
+    #[test]
+    fn the_working_tiff_is_tagged_srgb_and_the_editors_profile_comes_back() {
+        let (png, _) = png16(5, 4);
+        let tiff = png_to_tiff16(&png).unwrap();
+        assert_eq!(profile_of(&tiff, ImageFormat::Tiff).as_deref(), Some(SRGB_ICC), "an untagged render is sRGB");
+        assert_eq!(&SRGB_ICC[36..40], b"acsp");
+
+        // The editor saved in another space: its profile is kept on the returned PNG and passed to the page.
+        let mut other = SRGB_ICC.to_vec();
+        other[100] ^= 0x55; // a different profile, byte for byte
+        let picture: ImageBuffer<Rgb<u16>, Vec<u16>> = ImageBuffer::from_pixel(3, 2, Rgb([1000, 30000, 60000]));
+        let raw: Vec<u8> = picture.as_raw().iter().flat_map(|s| s.to_ne_bytes()).collect();
+        let mut saved = std::io::Cursor::new(Vec::new());
+        let mut encoder = TiffEncoder::new(&mut saved);
+        encoder.set_icc_profile(other.clone()).unwrap();
+        encoder.write_image(&raw, 3, 2, image::ExtendedColorType::Rgb16).unwrap();
+        let back = tiff_to_png16(&saved.into_inner()).unwrap();
+        assert_eq!(back.profile.as_deref(), Some(other.as_slice()));
+        assert_eq!(profile_of(&back.png, ImageFormat::Png).as_deref(), Some(other.as_slice()));
+
+        // A PNG that already carries a profile keeps it in the TIFF rather than being called sRGB.
+        let mut tagged = std::io::Cursor::new(Vec::new());
+        let mut encoder = PngEncoder::new(&mut tagged);
+        encoder.set_icc_profile(other.clone()).unwrap();
+        encoder.write_image(&raw, 3, 2, image::ExtendedColorType::Rgb16).unwrap();
+        let tiff = png_to_tiff16(&tagged.into_inner()).unwrap();
+        assert_eq!(profile_of(&tiff, ImageFormat::Tiff).as_deref(), Some(other.as_slice()));
     }
 
     #[test]
     fn unreadable_files_are_refused_in_plain_words() {
         assert!(png_to_tiff16(b"not a png").is_err());
-        let error = tiff_to_png16(b"II*\0broken").unwrap_err();
+        let error = tiff_to_png16(b"II*\0broken").err().unwrap();
         assert!(error.contains("flattened TIFF"));
     }
 

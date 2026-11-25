@@ -84,7 +84,7 @@ fn external_edit_folder(app: &tauri::AppHandle) -> Result<std::path::PathBuf, St
         .map_err(|_| "InFlight could not find its own data folder.".to_string())
 }
 
-/// Write the edit the page sends (a 16-bit PNG) as a 16-bit TIFF in the working folder and open it in the chosen app
+/// Write the edit the page sends (a 16-bit PNG) as a 16-bit TIFF, tagged with its colour profile, in the working folder and open it in the chosen app
 /// (header `x-open-with`, a path to the app) or the system's default app for TIFF files. Returns the TIFF's path and stamp.
 #[cfg(desktop)]
 #[tauri::command]
@@ -126,7 +126,8 @@ fn external_edit_stamp(app: tauri::AppHandle, path: String) -> Result<Option<ext
 }
 
 /// Read the TIFF the other app saved and write it as a new 16-bit PNG in the working folder, which the page may then
-/// read and import. Returns the PNG's path and the bits per channel the other app saved.
+/// read and import, keeping the colour profile the other app saved. Returns the PNG's path, the bits per channel the
+/// other app saved and its ICC profile (bytes) when it has one.
 #[cfg(desktop)]
 #[tauri::command]
 async fn external_edit_bring_back(app: tauri::AppHandle, path: String, name: String) -> Result<serde_json::Value, String> {
@@ -134,13 +135,13 @@ async fn external_edit_bring_back(app: tauri::AppHandle, path: String, name: Str
     let name = external_edit::safe_file_name(&name, "png")?;
     let source = std::path::PathBuf::from(path);
     let place = folder.clone();
-    let (png_path, bits) = tauri::async_runtime::spawn_blocking(move || {
+    let (png_path, returned) = tauri::async_runtime::spawn_blocking(move || {
         let tiff = external_edit::read_returned(&place, &source)?;
-        let (png, bits) = external_edit::tiff_to_png16(&tiff)?;
-        external_edit::write_new(&place, &name, &png).map(|written| (written, bits))
+        let returned = external_edit::tiff_to_png16(&tiff)?;
+        external_edit::write_new(&place, &name, &returned.png).map(|written| (written, returned))
     }).await.map_err(|_| "The saved file could not be read.".to_string())??;
     app.fs_scope().allow_file(&png_path).map_err(|_| "InFlight could not open the returned picture.".to_string())?;
-    Ok(serde_json::json!({ "path": png_path.to_string_lossy(), "bits": bits }))
+    Ok(serde_json::json!({ "path": png_path.to_string_lossy(), "bits": returned.bits, "profile": returned.profile }))
 }
 
 /// The photos waiting to be opened, handed over once.

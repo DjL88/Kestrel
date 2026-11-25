@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  afterFailedRead, appFromPath, externalEditRecord, MAX_FAILED_READS, nextWatchStep, placeBeside, readApps, readExternalEdit,
+  afterFailedRead, appFromPath, isSrgbProfile, profileName, externalEditRecord, MAX_FAILED_READS, nextWatchStep, placeBeside, readApps, readExternalEdit,
   rememberApp, returnedExif, returnedFileName, SETTLE_MS, startWatch, stepsInEdit, WATCH_LIMIT_MS, workingFileName,
   type ExternalEditWatch, type FileStamp,
 } from './externalEdit';
 import type { PhotoFrame } from './types';
+import { readFileSync } from 'node:fs';
+import { SRGB_ICC_PROFILE } from './iccEmbed';
 
 const T0 = 1_800_000_000_000;
 const written: FileStamp = { size: 1000, modifiedMs: T0 };
@@ -96,13 +98,31 @@ test('file names are readable, never clash, and never carry folder separators', 
 
 test('the returned photo records where it came from, and a damaged record is ignored', () => {
   const brought = nextWatchStep(nextWatchStep(watch(), { size: 9, modifiedMs: 1 }, T0).watch, { size: 9, modifiedMs: 1 }, T0 + SETTLE_MS).watch;
-  const record = externalEditRecord(brought, T0 + 60_000, 8);
-  assert.deepEqual(record, { fromFrameId: 'f1', fromFilename: 'DSC_0001.NEF', appName: 'Photoshop', sentAt: T0, returnedAt: T0 + 60_000, round: 1, sentBits: 16, savedBits: 8, stepsSent: 4 });
+  const record = externalEditRecord(brought, T0 + 60_000, 8, 'Adobe RGB (1998)');
+  assert.deepEqual(record, { savedProfile: 'Adobe RGB (1998)', fromFrameId: 'f1', fromFilename: 'DSC_0001.NEF', appName: 'Photoshop', sentAt: T0, returnedAt: T0 + 60_000, round: 1, sentBits: 16, savedBits: 8, stepsSent: 4 });
   assert.deepEqual(readExternalEdit(JSON.parse(JSON.stringify(record))), record);
   assert.equal(readExternalEdit({ ...record, savedBits: 12 }), undefined);
   assert.equal(readExternalEdit({ ...record, round: 0 }), undefined);
   assert.equal(readExternalEdit({ ...record, appName: ' ' }), undefined);
   assert.equal(readExternalEdit('Photoshop'), undefined);
+  assert.equal(readExternalEdit({ ...record, savedProfile: null })?.savedProfile, null, 'saved without a profile');
+  assert.equal('savedProfile' in readExternalEdit({ ...record, savedProfile: 42 })!, false, 'unknown, never guessed');
+});
+
+test('colour profiles are named honestly, and only sRGB counts as sRGB', () => {
+  assert.equal(profileName('Adobe RGB (1998)', true), 'Adobe RGB (1998)');
+  assert.equal(profileName(null, true), 'an unnamed colour profile');
+  assert.equal(profileName('sRGB', false), null);
+  assert.ok(isSrgbProfile('sRGB IEC61966-2.1'));
+  assert.ok(isSrgbProfile('sRGB built-in'));
+  assert.ok(!isSrgbProfile('Display P3'));
+  assert.ok(!isSrgbProfile('ProPhoto RGB'));
+  assert.ok(!isSrgbProfile(null));
+});
+
+test('the desktop adapter tags the working TIFF with the same sRGB profile as every export', () => {
+  const rust = readFileSync(new URL('../../src-tauri/src/srgb.icc', import.meta.url));
+  assert.deepEqual(new Uint8Array(rust), SRGB_ICC_PROFILE);
 });
 
 const frame = (id: string, extra: Partial<PhotoFrame> = {}) => ({ id, ...extra }) as PhotoFrame;

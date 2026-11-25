@@ -2,7 +2,8 @@
  * The desktop adapter for "Edit in another app" (Rust side: `src-tauri/src/external_edit.rs`; the watcher's logic is
  * `src/core/externalEdit.ts`). A browser tab cannot open other apps or watch files, so there this is simply unavailable.
  */
-import { appFromPath, readApps, type ExternalApp, type FileStamp } from '../core/externalEdit';
+import { iccDescription } from '../core/iccEmbed';
+import { appFromPath, profileName, readApps, type ExternalApp, type FileStamp } from '../core/externalEdit';
 import { hasNativeRaw } from './desktopShell';
 
 /** Only the desktop app on a computer can open another app and watch its saves. */
@@ -47,10 +48,15 @@ export async function stampOf(path: string): Promise<FileStamp | null> {
   return invoke<FileStamp | null>('external_edit_stamp', { path });
 }
 
-/** Read what the other app saved and write it as a 16-bit PNG InFlight can import. */
-export async function bringBack(path: string, name: string): Promise<{ path: string; bits: number }> {
+/**
+ * Read what the other app saved and write it as a 16-bit PNG InFlight can import, keeping the colour profile it saved.
+ * `profile` is that profile's name (null when it saved none).
+ */
+export async function bringBack(path: string, name: string): Promise<{ path: string; bits: number; profile: string | null }> {
   const { invoke } = await import('@tauri-apps/api/core');
-  return invoke<{ path: string; bits: number }>('external_edit_bring_back', { path, name });
+  const answer = await invoke<{ path: string; bits: number; profile?: number[] | null }>('external_edit_bring_back', { path, name });
+  const bytes = Array.isArray(answer.profile) ? Uint8Array.from(answer.profile) : null;
+  return { path: answer.path, bits: answer.bits, profile: profileName(bytes ? iccDescription(bytes) : null, Boolean(bytes?.length)) };
 }
 
 /** Bits per channel of a PNG, from its header (byte 24 of IHDR). 8 when it cannot be read. */

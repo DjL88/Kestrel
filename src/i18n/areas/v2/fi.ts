@@ -466,6 +466,9 @@ export const fi: AreaTranslation<typeof source> = {
     history: (app: string, from: string, when: string) => `Muokattu sovelluksessa ${app} kuvasta ${from}, ${when}.`,
     historySteps: (n: number) => (n === 0 ? "Lähetetty ilman InFlightin muokkauksia." : n === 1 ? "Lähetetty 1 InFlightin muokkausvaiheen kanssa." : `Lähetetty ${n} InFlightin muokkausvaiheen kanssa.`),
     historyBits: (sent: number, saved: number) => `Lähetetty ${sent} bitillä; tallennettu ${saved} bitillä.`,
+    historyProfile: (profile: string) => `Väriprofiili säilytetty: ${profile}.`,
+    historyNoProfile: "Tallennettu ilman väriprofiilia, joten se näytetään sRGB-muodossa.",
+    returnedConverted: (profile: string) => `Se tallennettiin profiililla ${profile}. Profiili jää tiedostoon; InFlight näyttää ja vie sen sRGB-muodossa.`,
   },
   fullDevelop: {
     button: "Kehitä täysikokoisena",
