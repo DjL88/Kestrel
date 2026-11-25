@@ -47,7 +47,9 @@ import { recordFormatCrop, recordFormatSetChange, recordFormatLink } from './for
 import { addRow, alignOverlays, moveRow, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps';
 import { frameToPhoto, matchesAutoSource, originalFormatSize, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
-import { commitAutoEdit } from './commitAutoEdit';
+import { AUTOPILOT_HELD_FOR_REVIEW, commitAutoEdit } from './commitAutoEdit';
+import { guardResult } from '../../core/visionGuardian';
+import { askOnDeviceGuardian } from '../../providers/visionGuardian';
 import { commitAutoCull } from './commitAutoCull';
 import { runV2Denoise } from './runDenoise';
 import { moveArtboard } from './boardOps';
@@ -1069,6 +1071,17 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             return { ...Object.fromEntries(recent), [frame.id]: { run, dismissed: [] } };
           }));
           if (!manual && assistMode === 'autopilot' && run.improved) {
+            // Vision AI is the guardian: a second opinion on the rendered edit before Auto-pilot applies it. It can hold the
+            // edit for review (it stays a Co-pilot suggestion), never apply anything Auto did not already choose.
+            const preferred = run.candidates.find((candidate) => candidate.edit === run.plan.proposal);
+            ctx.stage('Second opinion from the on-device vision model');
+            const opinion = preferred ? await askOnDeviceGuardian(preferred.after, 'editNatural') : null;
+            ctx.checkCancelled();
+            if (!isCurrent()) return;
+            if (guardResult('apply', opinion ? [opinion] : []).status !== 'apply') {
+              ctx.commitIfCurrent(() => setNotice(AUTOPILOT_HELD_FOR_REVIEW));
+              return;
+            }
             const at = Date.now();
             ctx.commitIfCurrent(() => mutate(current =>
               isCurrent() && !ctx.signal.aborted

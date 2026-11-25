@@ -27,3 +27,6 @@ export function commitAutoEdit(
   frames[index] = syncEditGroup(recordEdit(frame, { edit: proposal }, at));
   return { ...state, frames, shoot: { ...state.shoot, lastUpdatedAt: at } };
 }
+
+/** Shown when the vision guardian held an Auto-pilot edit back. The edit stays available as a Co-pilot suggestion. */
+export const AUTOPILOT_HELD_FOR_REVIEW = 'Auto-pilot held this edit for your review: the on-device vision check was not convinced it looks natural. The suggestion is in Co-pilot to preview or apply. Nothing was changed.';
