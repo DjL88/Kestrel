@@ -4,7 +4,9 @@ export type PresetId = 'inflight' | 'lightroom';
 
 export type Keymap = Partial<Record<CommandId, string>>;
 
+// Culling keys every preset shares: arrows move between photos, numbers rate, X sets aside and U clears the decision.
 const RATINGS: Keymap = {
+  'photo.next': 'ArrowRight', 'photo.prev': 'ArrowLeft', 'photo.reject': 'KeyX', 'photo.unflag': 'KeyU',
   'photo.rate0': 'Digit0', 'photo.rate1': 'Digit1', 'photo.rate2': 'Digit2',
   'photo.rate3': 'Digit3', 'photo.rate4': 'Digit4', 'photo.rate5': 'Digit5',
 };
