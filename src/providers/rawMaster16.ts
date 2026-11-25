@@ -1,5 +1,5 @@
 import type { TiffExportMetadata } from '../core/tiffExportMetadata';
-import { editRgb16, encodeTiff16, frameRgb16, master16Blocker, shrinkRgb16, thumbRgb16, type Rgb16Image } from '../core/master16';
+import { editRgb16, encodeTiff16, frameRgb16, master16Blocker, renderTurned16, shrinkRgb16, thumbRgb16, type Rgb16Image } from '../core/master16';
 import { bestTurn } from '../core/orientMatch';
 import type { PhotoEdit } from '../core/photoEdits';
 import { DEFAULT_FRAMING, lensCentre, type PhotoFraming } from '../core/photoFraming';
@@ -61,11 +61,7 @@ export async function openRaw16Working(original: Blob, filename: string, shown: 
 
 /** The kept copy with this edit and framing applied, by the same 16-bit maths as the export; null when an edit cannot be carried at 16 bits yet. */
 export function renderRaw16Working(working: Raw16Working, edit: PhotoEdit, framing: PhotoFraming | undefined): Rgb16Image | null {
-  if (master16Blocker(edit, framing)) return null;
-  const { picture, turn } = working;
-  const framed = frameRgb16({ ...picture, data: picture.data.slice() }, framing ?? DEFAULT_FRAMING, turn / 90, true);
-  editRgb16(framed, edit, lensCentre(picture.width, picture.height, framing ?? DEFAULT_FRAMING, turn / 90));
-  return framed;
+  return renderTurned16(working.picture, working.turn, edit, framing);
 }
 
 /** The edited photo as a 16-bit TIFF (see renderRaw16). */

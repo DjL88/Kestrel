@@ -45,8 +45,9 @@ import { replaceWatermarkIfUnchanged } from './watermarkMutation';
 import { watermarkToneForPixels } from '../../core/watermark';
 import { createDefaultSizes } from '../ui/stub';
 import { toPhotoHistogram } from './histogram';
-import { histogram16Possible, histogramFromWorking, Raw16WorkingCache } from './histogram16';
-import { openRaw16Working, renderRaw16Working } from '../../providers/rawMaster16';
+import { histogramFromWorking } from './histogram16';
+import { measuringCopy, raw16Possible, raw16WorkingFor } from '../../providers/raw16Working';
+import { renderRaw16Working } from '../../providers/rawMaster16';
 import { fullResolutionRasterFormat, isHeifFile, isRawPreviewFile } from '../../core/rawFormats';
 import { rawSensorSize } from '../../core/rawSensorSize';
 import { loadUi, mergeSettings, saveUi, type SavedUi } from './uiSettings';
@@ -878,7 +879,6 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detectKey]);
 
-  const raw16Working = useRef(new Raw16WorkingCache());
   // The histogram is measured from the picture as it is now: the preview with this photo's edit applied, small and debounced.
   const histogramKey = activeFrame ? `${activeFrame.id}|${JSON.stringify(activeFrame.edit ?? null)}|${JSON.stringify(activeFrame.framing ?? null)}` : null;
   useEffect(() => {
@@ -902,17 +902,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         if (live) setHistograms((current) => ({ ...current, [frame.id]: toPhotoHistogram(pixels) }));
         // When the picture on screen is InFlight's own RAW develop, measure again from the 16-bit develop (kept small, made
         // once per photo) with the same 16-bit edit maths as the export. The 8-bit measurement stands until then, or if not.
-        if (!live || !histogram16Possible(frame, provider.current!.pictureSourceOf(url), canDevelopRaw())) return;
+        if (!live || !raw16Possible(frame, provider.current!.pictureSourceOf(url), canDevelopRaw())) return;
         // Only for a photo the person stays on: browsing past photos never starts a full RAW develop for each one.
         await new Promise((resolve) => window.setTimeout(resolve, 1200));
         if (!live) return;
-        const sha = frame.originalSha256!;
-        const working = await raw16Working.current.get(`${frame.stableKey}|${sha}`, async () => {
-          const original = await provider.current!.ensureOriginal(frame.stableKey, 'selected');
-          if (!original) throw new Error('The original is not connected.');
-          return openRaw16Working(original, frame.filename, image, 512, { originalSha256: sha });
-        });
-        const measured = live && working ? histogramFromWorking(working, frame.edit ?? EMPTY_EDIT, frame.framing, renderRaw16Working) : null;
+        const working = await raw16WorkingFor(frame, () => provider.current!.ensureOriginal(frame.stableKey, 'selected'), image);
+        const measured = live && working ? histogramFromWorking(measuringCopy(working), frame.edit ?? EMPTY_EDIT, frame.framing, renderRaw16Working) : null;
         if (live && measured) setHistograms((current) => ({ ...current, [frame.id]: measured }));
       }).catch(() => { /* no measurement: the panel says it is still measuring, never a made-up curve */ });
     }, 160);

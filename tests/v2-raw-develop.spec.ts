@@ -50,6 +50,9 @@ test('V2 background engine replaces a synthetic embedded RAW preview with develo
   await bar.getByRole('button', { name: 'Develop full size' }).click();
   await expect(canvasLabel).toHaveAttribute('data-picture-source', 'raw-full', { timeout: 30_000 });
   await expect(bar.getByRole('button', { name: /Develop full size|Developing full size/ })).toHaveCount(0);
+  // The editor's picture is then drawn from the 16-bit develop (edit maths at 16 bits, one rounding to the screen).
+  await expect(root.getByTestId('canvas-frame').locator('img[data-precision="rgb16"]').first()).toBeVisible({ timeout: 30_000 });
+  await expect.poll(dimensions).toEqual([64, 96]);
   // The histogram of InFlight's own develop is measured again from the 16-bit sensor develop, and says so in words.
   // (The panel is shared; on a phone it sits behind More, which other specs cover.)
   if (testInfo.project.name !== 'desktop') return;
@@ -57,6 +60,24 @@ test('V2 background engine replaces a synthetic embedded RAW preview with develo
   const precision = root.getByTestId('histogram-precision');
   await expect(precision).toHaveAttribute('data-precision', 'rgb16', { timeout: 30_000 });
   await expect(precision).toHaveText('Measured from the 16-bit RAW develop.');
+  // An edit is drawn from the 16-bit develop too: brighter, and still from the sensor data.
+  const sensorPicture = root.getByTestId('canvas-frame').locator('img[data-precision="rgb16"]').first();
+  const mean = () => sensorPicture.evaluate((img: HTMLImageElement) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+    const context = canvas.getContext('2d')!;
+    context.drawImage(img, 0, 0);
+    const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let total = 0; for (let i = 0; i < data.length; i += 4) total += data[i] + data[i + 1] + data[i + 2];
+    return total / (data.length / 4 * 3);
+  });
+  const before = await mean();
+  const advanced = root.getByRole('tab', { name: 'Advanced Edits' });
+  if (!(await advanced.isVisible())) await root.getByRole('button', { name: 'Adjust', exact: true }).first().click();
+  await advanced.click();
+  await root.getByLabel('Exposure', { exact: true }).fill('1');
+  await expect.poll(mean, { timeout: 30_000 }).toBeGreaterThan(before + 3);
+  await expect(sensorPicture).toBeVisible();
 });
 
 test('V2 writes structurally verified 16-bit TIFFs with and without the Tint edit', async ({ page }, testInfo) => {
