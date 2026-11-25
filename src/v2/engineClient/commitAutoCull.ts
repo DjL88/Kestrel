@@ -32,3 +32,12 @@ export function commitAutoCull(
     .filter((result) => result.decision === 'keep' && result.confidence === 'high')
     .map((result) => ({ frameId: result.frameId, decision: 'keep' })));
 }
+
+/** The notice after a pass. Says plainly when RAWs were judged from the camera's own preview, not a sensor development. */
+export function autoCullSummary(checked: number, rawFromCameraPreview: number): string {
+  const head = `Auto-cull checked ${checked} photo${checked === 1 ? '' : 's'}. Review the flags in the filmstrip.`;
+  const raw = rawFromCameraPreview > 0
+    ? ` ${rawFromCameraPreview} RAW photo${rawFromCameraPreview === 1 ? ' was' : 's were'} judged from the camera's embedded preview, not InFlight's development of ${rawFromCameraPreview === 1 ? 'its' : 'their'} sensor data, so check sharpness there by eye.`
+    : '';
+  return `${head}${raw} You can undo the whole pass in one step.`;
+}

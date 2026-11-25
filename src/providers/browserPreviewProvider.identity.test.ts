@@ -185,3 +185,40 @@ test('first linked registration replaces a formerly local source and invalidates
   assert.equal(await (await fetch(second)).text(), 'NEW');
   assert.equal(await provider.ensureOriginal(key), fresh);
 });
+
+test('the full preview says which picture it is: sensor development, camera preview or the file itself', async (t) => {
+  const developedReview = new Blob(['developed review'], { type: 'image/jpeg' });
+  const cameraReview = new Blob(['camera preview'], { type: 'image/jpeg' });
+  // Offline RAW with only the import-time camera preview cached: never claimed as a sensor development.
+  const cameraOnly = new BrowserPreviewProvider({
+    async loadPreviewPair(key) { return key.startsWith('developed-v') ? null : { thumbnail: cameraReview, review: cameraReview }; },
+    async savePreviewPair() { return true; },
+  });
+  t.after(() => cameraOnly.clear());
+  const raw = { ...frame('raw-1', 'raw-original'), filename: 'bird.nef' };
+  assert.equal(cameraOnly.fullPreviewSource(raw.stableKey), null, 'unknown before any picture is read');
+  assert.equal(await (await fetch(await cameraOnly.getFullPreviewUrl(raw))).text(), 'camera preview');
+  assert.equal(cameraOnly.fullPreviewSource(raw.stableKey), 'camera-preview');
+
+  // A persisted background development is preferred and reported as such.
+  const developed = new BrowserPreviewProvider({
+    async loadPreviewPair(key) { return key.startsWith('developed-v') ? { thumbnail: developedReview, review: developedReview } : null; },
+    async savePreviewPair() { return true; },
+  });
+  t.after(() => developed.clear());
+  assert.equal(await (await fetch(await developed.getFullPreviewUrl(raw))).text(), 'developed review');
+  assert.equal(developed.fullPreviewSource(raw.stableKey), 'sensor-developed');
+
+  // A full develop from the original.
+  const full = new BrowserPreviewProvider();
+  t.after(() => full.clear());
+  full.registerBlob('full-raw', new Blob(['RAW bytes']));
+  assert.equal(await full.developFromOriginal('full-raw', async () => new Blob(['sensor picture'], { type: 'image/jpeg' })), 'ready');
+  await full.getFullPreviewUrl({ ...frame('raw-2', 'full-raw'), filename: 'bird.nef' });
+  assert.equal(full.fullPreviewSource('full-raw'), 'sensor-developed');
+
+  // An ordinary JPEG is the file itself.
+  full.registerBlob('jpeg', new Blob(['JPEG'], { type: 'image/jpeg' }));
+  await full.getFullPreviewUrl(frame('jpeg-1', 'jpeg'));
+  assert.equal(full.fullPreviewSource('jpeg'), 'file');
+});

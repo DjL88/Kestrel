@@ -32,6 +32,12 @@ const REVIEW_MAX_WIDTH = 2200;
 const MAX_CACHED_PREVIEW_BYTES = 1024 * 1024;
 
 export type { OfflinePreviewPair } from './offlinePreviewCache';
+/**
+ * What a full preview actually is: a picture InFlight developed from the RAW sensor data (full or background
+ * review size), the camera's own embedded JPEG (or a cached copy of it), or an ordinary image file itself.
+ * Unsure always reads as 'camera-preview', never as a sensor development.
+ */
+export type PreviewSource = 'sensor-developed' | 'camera-preview' | 'file';
 
 export interface OfflinePreviewCache {
   savePreviewPair(stableKey: string, previews: OfflinePreviewPair): Promise<boolean>;
@@ -64,6 +70,8 @@ export class BrowserPreviewProvider implements PreviewProvider {
   /** Which original each cached thumbnail shows, so a newly developed picture replaces all of them. */
   private thumbFrameKeys = new Map<string, string>();
   private fullUrlCache = new Map<string, string>();
+  /** Which picture each cached full preview URL is (see fullPreviewSource). */
+  private fullSources = new Map<string, PreviewSource>();
   private fullFrameKeys = new Map<string, string>();
   private fullUrlOrder: string[] = [];
   private offlineFullKeys = new Set<string>();
@@ -423,6 +431,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       if (ready) return ready;
       const url = URL.createObjectURL(bytes);
       this.fullUrlCache.set(key, url);
+      this.fullSources.set(key, 'camera-preview');
       this.offlineFullKeys.delete(key);
       this.fullUrlOrder.push(key);
       while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
@@ -476,6 +485,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
         if (ready) return ready;
         const url = URL.createObjectURL(saved.review);
         this.fullUrlCache.set(key, url);
+        this.fullSources.set(key, 'sensor-developed');
         this.offlineFullKeys.add(key);
         this.fullUrlOrder.push(key);
         while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
@@ -503,16 +513,20 @@ export class BrowserPreviewProvider implements PreviewProvider {
     if (!blob) {
       // The original drive may be disconnected. Show a cached preview,
       // never imply this is suitable for full-resolution export or RAW editing.
-      const offline = this.developed.get(key) ?? cachedPreviews?.review
-        ?? (isRawPreviewFile(frame.filename) ? (await this.developedReview(frame))?.review : undefined)
-        ?? await loadOfflinePreview(cacheKey);
+      const raw = isRawPreviewFile(frame.filename);
+      const fullDevelop = this.developed.get(key);
+      const savedDevelop = !fullDevelop && !cachedPreviews?.review && raw ? (await this.developedReview(frame))?.review : undefined;
+      const offline = fullDevelop ?? cachedPreviews?.review ?? savedDevelop ?? await loadOfflinePreview(cacheKey);
       if (!offline) return '';
+      // An import-time cached preview of a RAW is the camera's picture unless proven otherwise.
+      const offlineSource: PreviewSource = fullDevelop || (savedDevelop && offline === savedDevelop) ? 'sensor-developed' : raw ? 'camera-preview' : 'file';
       if (epoch !== this.cacheEpoch) return '';
       if (revision !== (this.sourceRevisions.get(key) ?? 0)) return this.getFullPreviewUrl(frame, priority);
       const cachedFallback = this.fullUrlCache.get(key);
       if (cachedFallback) return cachedFallback;
       const fallbackUrl = URL.createObjectURL(offline);
       this.fullUrlCache.set(key, fallbackUrl);
+      this.fullSources.set(key, offlineSource);
       // Without the linked original, even a previously developed bitmap is only a review fallback.
       this.offlineFullKeys.add(key);
       this.fullUrlOrder.push(key);
@@ -530,6 +544,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     const developed = this.developed.get(key);
     let previewBlob: Blob | null = developed ?? blob;
     let reviewFallback = false;
+    let source: PreviewSource = developed ? 'sensor-developed' : isRawPreviewFile(frame.filename) ? 'camera-preview' : 'file';
     if (blob && !developed && isRawPreviewFile(frame.filename)) {
       previewBlob = await extractNefPreview(blob);
       // Development, relinking or a project switch may finish while extraction is in flight.
@@ -537,7 +552,9 @@ export class BrowserPreviewProvider implements PreviewProvider {
         return this.hasBlob(key) ? this.getFullPreviewUrl(frame) : '';
       }
       if (!previewBlob) {
-        previewBlob = cachedPreviews?.review ?? (await this.developedReview(frame))?.review ?? null;
+        const savedDevelop = cachedPreviews?.review ? undefined : (await this.developedReview(frame))?.review;
+        previewBlob = cachedPreviews?.review ?? savedDevelop ?? null;
+        if (savedDevelop && previewBlob === savedDevelop) source = 'sensor-developed';
         reviewFallback = Boolean(previewBlob);
       }
     } else if (blob && await isHeifOriginal(frame.filename, blob)) {
@@ -553,6 +570,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
     const objectUrl = URL.createObjectURL(previewBlob);
     this.fullUrlCache.set(key, objectUrl);
+    this.fullSources.set(key, source);
     if (reviewFallback) this.offlineFullKeys.add(key);
     else this.offlineFullKeys.delete(key);
     this.fullUrlOrder.push(key);
@@ -568,6 +586,12 @@ export class BrowserPreviewProvider implements PreviewProvider {
     }
 
     return objectUrl;
+  }
+
+
+  /** Which picture the cached full preview for this original is; null when none is cached (nothing is assumed). */
+  fullPreviewSource(stableKey: string): PreviewSource | null {
+    return this.fullUrlCache.has(stableKey) ? this.fullSources.get(stableKey) ?? null : null;
   }
 
   /** A cached review image is safe for viewing, never for exporting as an original. */
@@ -599,6 +623,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     }
     this.thumbUrlCache.clear();
     this.fullUrlCache.clear();
+    this.fullSources.clear();
     this.fullFrameKeys.clear();
     this.fullUrlOrder = [];
     this.offlineFullKeys.clear();

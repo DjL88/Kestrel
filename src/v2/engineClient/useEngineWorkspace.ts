@@ -47,7 +47,7 @@ import { addRow, alignOverlays, moveRow, patchOverlay, readOverlay, removeRow, u
 import { frameToPhoto, matchesAutoSource, originalFormatSize, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
 import { commitAutoEdit } from './commitAutoEdit';
-import { commitAutoCull } from './commitAutoCull';
+import { autoCullSummary, commitAutoCull } from './commitAutoCull';
 import { runV2Denoise } from './runDenoise';
 import { moveArtboard } from './boardOps';
 import { accountConnection } from '../../providers/licenceStore';
@@ -625,7 +625,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             if (!latest || latest.shoot.id !== projectKey || requestId !== openRequest.current || ctx.signal.aborted) return latest;
             return commitAutoCull(latest, candidates, results);
           }));
-          const summary = `Auto-cull checked ${candidates.length} photo${candidates.length === 1 ? '' : 's'}. Review the flags in the filmstrip. You can undo the whole pass in one step.`;
+          // Which picture each RAW was actually judged from; unknown counts as not developed (never overstated).
+          const judged = new Set(results.filter(result => result.reason !== 'unavailable').map(result => result.frameId));
+          const rawFromCameraPreview = candidates.filter(frame => judged.has(frame.id) && isRawPreviewFile(frame.filename)
+            && provider.current?.fullPreviewSource(frame.stableKey) !== 'sensor-developed').length;
+          const summary = autoCullSummary(candidates.length, rawFromCameraPreview);
           ctx.commitIfCurrent(() => setNotice(summary));
         },
       });
