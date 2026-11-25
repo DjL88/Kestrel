@@ -324,6 +324,8 @@ export interface PhotoExif {
 
 export interface Photo {
   id: string;
+  /** The same photo on every device of a shared project: from the original's fingerprint (src/core/sharedSync.ts). */
+  sharedKey?: string;
   filename: string;
   title: string;
   previewUrl: string;
@@ -646,6 +648,10 @@ export interface WorkspaceActions {
   applyAllAssistSuggestions: (photoId: string) => void;
   /** A sized JPEG of the edited photo for a client gallery, or null when there is no trustworthy picture yet. Absent in the stub. */
   renderGalleryPreview?: (photoId: string) => Promise<Blob | null>;
+  /** The photo's whole edit as plain data for a shared project, or null when it has no edit. Absent in the stub. */
+  sharedEditOf?: (photoId: string) => Record<string, unknown> | null;
+  /** Replace the photo's edit with a shared one (or clear it). Recorded as an edit step, so it can be undone. */
+  applySharedEdit?: (photoId: string, edit: Record<string, unknown> | null) => void;
   dismissAssistSuggestion: (photoId: string, suggestionId: string) => void;
 
   // Editing & Looks

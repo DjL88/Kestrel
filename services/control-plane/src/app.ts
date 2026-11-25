@@ -176,6 +176,8 @@ export const Schemas = {
   CollabAcquire: z.object({ deviceId: z.string().min(8).max(128) }).strict(),
   CollabHeartbeat: z.object({ token: z.string().min(16).max(128), editing: z.boolean() }).strict(),
   CollabRelease: z.object({ token: z.string().min(16).max(128), action: z.enum(['checked-in', 'released']) }).strict(),
+  CollabComment: z.object({ text: z.string().trim().min(1).max(2000), point: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().nullable().default(null) }).strict(),
+  CollabResolve: z.object({ resolved: z.boolean() }).strict(),
   CollabOverride: z.object({ reason: z.string().trim().min(1).max(500) }).strict(),
   CollabPublish: z.object({ token: z.string().min(16).max(128), baseRevisionId: z.string().max(64).nullable(), recipe: z.record(z.string(), z.unknown()), virtualCopyOf: z.string().max(64).optional() }).strict(),
   SafeCopyLevels: z.object({ levels: z.object({ recipes: z.boolean(), previews: z.boolean(), originals: z.boolean() }).partial().strict() }).strict(),
@@ -1161,6 +1163,28 @@ export function createApp(options: AppOptions) {
         if (Buffer.byteLength(JSON.stringify(body.recipe)) > MAX_RECIPE_BYTES) throw new ApiError(413, 'COLLAB_RECIPE_TOO_LARGE', 'That edit is too large to share.');
         const revision = await collab(() => collabCfg().publish(params.id, params.photoId, claims.sub, body, now()));
         return { status: 200, body: { revision } };
+      },
+    },
+    {
+      method: 'GET', path: '/v1/collab/projects/:id/photos/:photoId/comments', summary: 'Comments on one photo, oldest first', auth: 'user',
+      handler: async (req, params) => { const claims = await bearer(req); return { status: 200, body: { comments: await collab(() => collabCfg().comments(params.id, params.photoId, claims.sub)) } }; },
+    },
+    {
+      method: 'POST', path: '/v1/collab/projects/:id/photos/:photoId/comments', summary: 'Comment on a photo, optionally pinned to a spot on it', auth: 'user', body: Schemas.CollabComment,
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.CollabComment, req.rawBody);
+        if (!PhotoId.safeParse(params.photoId).success) throw new ApiError(400, 'BAD_REQUEST', 'That is not a photo id.');
+        const c = await collabWritable();
+        return { status: 200, body: { comment: await collab(() => c.addComment(params.id, params.photoId, claims.sub, { text: body.text, point: body.point ?? null }, now())) } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/collab/projects/:id/comments/:commentId/resolve', summary: 'Mark a comment done, or reopen it', auth: 'user', body: Schemas.CollabResolve,
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.CollabResolve, req.rawBody);
+        return { status: 200, body: { comment: await collab(() => collabCfg().resolveComment(params.id, params.commentId, claims.sub, body.resolved, now())) } };
       },
     },
     {
