@@ -889,7 +889,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                       setMoreOpen(false);
                       actions.setActivePanel(item.id);
                     }}
-                    className={`flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] text-xs font-medium ${
+                    className={`v2-current-mark-top relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] text-xs font-medium ${
                       active ? 'text-[var(--brand-accent)]' : 'text-[var(--text-secondary)]'
                     }`}
                   >
@@ -903,7 +903,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 aria-pressed={moreOpen}
                 aria-expanded={moreOpen}
                 onClick={() => setMoreOpen((v) => !v)}
-                className={`flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] text-xs font-medium ${
+                className={`v2-current-mark-top relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] text-xs font-medium ${
                   moreOpen ? 'text-[var(--brand-accent)]' : 'text-[var(--text-secondary)]'
                 }`}
               >

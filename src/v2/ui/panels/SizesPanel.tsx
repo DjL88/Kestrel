@@ -424,7 +424,9 @@ export default function SizesPanel({
             return (
               <React.Fragment key={size.id}>
               <div
-                className={`flex items-center justify-between gap-2 rounded-[var(--radius-sm)] border px-2 py-1.5 transition-colors ${
+                data-selected={isSelected}
+                data-testid={`format-row-${size.id}`}
+                className={`v2-current-mark flex items-center justify-between gap-2 rounded-[var(--radius-sm)] border px-2 py-1.5 transition-colors ${
                   isSelected
                     ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]'
                     : 'border-[var(--border-subtle)] bg-[var(--bg-input)] hover:border-[var(--border-default)]'
