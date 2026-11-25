@@ -100,8 +100,10 @@ test('Pro: Auto-Cull scores the photos on this device and never rejects', async 
   await (await chooser).setFiles(images.map((img, i) => ({ name: `cull-${i + 1}.png`, mimeType: 'image/png', buffer: Buffer.from(img, 'base64') })));
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(4);
   await root.getByRole('button', { name: /Auto-Cull/ }).first().click();
-  await expect(root.getByText(/Auto-cull looked at 4 photos/)).toBeVisible({ timeout: 90000 });
+  await expect(root.getByText(/Auto-cull checked 4 photos. Review the flags/)).toBeVisible({ timeout: 90000 });
   await expect(root.getByText(/were rejected|has been rejected/)).toHaveCount(0);
+  // Ordinary image files are the pictures themselves: no RAW caveat is shown.
+  await expect(root.getByText(/judged from the camera's embedded preview/)).toHaveCount(0);
 });
 
 test('Pro: the text overlay on the canvas is drawn into the exported file, and left out once it is switched off on the canvas', async ({ page }) => {
