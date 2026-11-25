@@ -368,6 +368,8 @@ export interface Photo {
   originalConnected: boolean;
   rating: number; // 0 to 5
   speciesLabel?: string;
+  /** The place an automatic species name was matched against, in the person's words ("Species list used: Worldwide"). */
+  speciesAreaLabel?: string;
   /** What kind of vehicle or aircraft it probably is, in the person's language ("Military jet: Eurofighter Typhoon (probably)"). */
   vehicleLabel?: string;
   /** The subject name alone, without the "(suggested)" marker the label may carry, for editing it. */
@@ -619,11 +621,22 @@ export interface PhotoSurfaceProps {
 
 export type HubViewState = 'ready' | 'empty' | 'loading' | 'error';
 
+/** Where a project's photos were taken, for species names. The suggestion comes from GPS read on this device, and is only used after one tap. */
+export interface SpeciesPlace {
+  area: import('../../core/speciesArea').SpeciesArea;
+  home: string[];
+  /** The one small question, shown only when the scan saw a species from elsewhere (`example`, in the person's words)
+   * or the photos' GPS is outside home (`suggestion`), and the place is not answered yet. */
+  prompt: { example?: string; suggestion: import('../../core/speciesArea').SpeciesArea | null } | null;
+}
+
 export interface WorkspaceStore {
   screen: 'hub' | 'editor';
   hubState: HubViewState;
   projects: Project[];
   activeProjectId: string | null;
+  /** The open project's "Where were these taken?" choice, the home regions it falls back to, and a GPS suggestion. */
+  speciesPlace?: SpeciesPlace | null;
   /** Present only when the active project is a collage; normal Photography workspaces remain unchanged. */
   collage?: import('../../core/collage').CollageDocument | null;
   photos: Photo[];
@@ -732,6 +745,8 @@ export interface WorkspaceActions {
   toggleFlag: (photoIds: string[]) => void;
   setRating: (photoIds: string[], rating: number) => void;
   correctSpeciesName: (photoId: string, name: string) => void;
+  /** "Where were these taken?" for the open project; species names are matched against that place from now on. */
+  setSpeciesArea?: (area: import('../../core/speciesArea').SpeciesArea) => void;
   /** The person's own vehicle name for a photo, or for every frame of its burst. 'not-a-vehicle' removes it for good. */
   correctVehicle: (photoId: string, choice: { kind: string; type?: string } | 'not-a-vehicle', wholeBurst: boolean) => void;
   /** The person removes a tag InFlight found: it goes and is never added to that photo again. */

@@ -125,6 +125,8 @@ export interface PhotoFrame {
   declinedTags?: string[];
   /** Set once the species model has looked at this photo, so it is not looked at again. */
   speciesChecked?: boolean;
+  /** Where the automatic species name was matched against (the project's place when it was named). Absent on older photos: not known. */
+  speciesArea?: import('./speciesArea').SpeciesArea;
   /** What kind of vehicle or aircraft the photo probably shows, read on this device (ids only; words follow the language).
    * A suggestion: never changes a decision, rating or edit. Malformed values are ignored, never shown. */
   vehicle?: import('./vehicleRecognition').VehicleReading;

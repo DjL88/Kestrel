@@ -7,6 +7,7 @@ import { calmViewOn, calmViewPatch } from '../../engineClient/uiSettings';
 import React, { useRef, useState } from 'react';
 import { useDialogFocus } from '../utils/dialogFocus';
 import ReadingSettings from './ReadingSettings';
+import HomeRegionSetting from './HomeRegionSetting';
 import MarkingsReaderSetting from './MarkingsReaderSetting';
 import { POLICY_PATHS, SiteLink } from '../../../components/SiteLink';
 import type {
@@ -496,6 +497,7 @@ export default function SettingsDialog({
                   checked={settings.ongoingCritique}
                   onToggle={() => onUpdateSettings({ ongoingCritique: !settings.ongoingCritique })}
                 />
+                <HomeRegionSetting />
                 <MarkingsReaderSetting />
               </div>
             )}

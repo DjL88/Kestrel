@@ -5,7 +5,8 @@ import { getModel, hasModel, putModel, removeModel } from './modelStore';
 import { installedModel } from './modelUpdater';
 import { SPECIES_MODEL, centreSquare, preprocessSpecies } from '../core/speciesModel';
 import { decodeVector, normalise, type SpeciesLabel } from '../core/speciesMatch';
-import { readSpeciesRegions, worldLabelsForRegions } from '../core/speciesRegions';
+import { normaliseRegions, readSpeciesRegions } from '../core/speciesRegions';
+import { labelsOutsideRegions, speciesLabelsForRegions } from '../core/speciesArea';
 import { friendlyToolError } from '../core/toolErrors';
 import { subjectCrop, type SquareCrop } from '../core/subjectCrop';
 import type { SubjectGrid } from '../core/maskTypes';
@@ -140,36 +141,65 @@ function loadSession(): Promise<Loaded> {
  */
 export const EXTRA_GROUP_LISTS = ['species-mammals.json', 'species-reptiles.json', 'species-amphibians.json', 'species-odonata.json', 'species-lepidoptera.json'];
 
-export function loadSpeciesLabels(): Promise<Labels> {
-  const regions = readSpeciesRegions();
+/**
+ * The names for the given regions (the person's home regions when none are given): a project's "Where were these
+ * taken?" choice passes its own, so a trip abroad is ranked against that place's species (src/core/speciesArea.ts).
+ */
+export function loadSpeciesLabels(regionIds?: readonly string[]): Promise<Labels> {
+  const regions = regionIds?.length ? normaliseRegions(regionIds) : readSpeciesRegions();
   const key = regions.join(',');
   if (labelsLoading && labelsKey === key) return labelsLoading;
   labelsKey = key;
   labelsLoading = (async () => {
-    const shipped = (await import('../assets/species/uk.json')).default.labels as SpeciesLabel[];
-    const labels = [...shipped];
+    const shippedFile = (await import('../assets/species/uk.json')).default.labels as SpeciesLabel[];
+    let shipped = [...shippedFile];
+    let world: SpeciesLabel[] = [];
     try {
-      const world = await loadWorldLabels();
+      world = await loadWorldLabels();
       // The shipped names carry no family; take it from the world list so a doubtful bird can still be named by family.
       const familyOf = new Map(world.map((label) => [label.scientific.toLowerCase(), label.family]));
-      for (let i = 0; i < labels.length; i++) {
-        const family = familyOf.get(labels[i].scientific.toLowerCase());
-        if (family && !labels[i].family) labels[i] = { ...labels[i], family };
-      }
-      labels.push(...worldLabelsForRegions(world, regions, new Set(shipped.map((label) => label.scientific.toLowerCase()))));
+      shipped = shipped.map((label) => {
+        const family = familyOf.get(label.scientific.toLowerCase());
+        return family && !label.family ? { ...label, family } : label;
+      });
     } catch (error) { console.warn('World species list unavailable; using the shipped list', error); }
     // The other groups, each from its own open checklist, filtered by region the same way. Their families come in Latin,
     // so they are not offered as fallback names until they have words in every language. A missing file is skipped.
+    const extras: SpeciesLabel[][] = [];
     for (const file of EXTRA_GROUP_LISTS) {
       try {
-        const extra = (await loadListBeside(file, file)).map(({ family: _family, ...label }) => label as SpeciesLabel);
-        labels.push(...worldLabelsForRegions(extra, regions, new Set(labels.map((label) => label.scientific.toLowerCase()))));
+        extras.push((await loadListBeside(file, file)).map(({ family: _family, ...label }) => label as SpeciesLabel));
       } catch (error) { console.warn(`Species list ${file} unavailable`, error); }
     }
+    const labels = speciesLabelsForRegions(shipped, world, extras, regions);
     return { labels, vectors: labels.map(decodeVector) };
   })();
   return labelsLoading;
 }
+
+let outsideLoading: Promise<Labels> | null = null;
+let outsideKey = '';
+/**
+ * World birds and mammals recorded only outside the given regions, with their vectors (about 20 MB in memory for
+ * Europe). Used only to notice that a project may have been shot elsewhere, and only while that is still unanswered.
+ * Missing lists give an empty set, so nothing is asked.
+ */
+export function loadOutsideLabels(regionIds: readonly string[]): Promise<Labels> {
+  const key = normaliseRegions(regionIds).join(',');
+  if (outsideLoading && outsideKey === key) return outsideLoading;
+  outsideKey = key;
+  outsideLoading = (async () => {
+    const lists: SpeciesLabel[][] = [];
+    try { lists.push(await loadWorldLabels()); } catch { /* no world birds: nothing to compare */ }
+    try { lists.push((await loadListBeside('species-mammals.json', 'species-mammals.json')).map(({ family: _family, ...label }) => label as SpeciesLabel)); } catch { /* no mammals */ }
+    const labels = labelsOutsideRegions(lists, regionIds);
+    return { labels, vectors: labels.map(decodeVector) };
+  })();
+  return outsideLoading;
+}
+
+/** Frees the outside-region names once the project's place is settled. */
+export function releaseOutsideLabels(): void { outsideLoading = null; outsideKey = ''; }
 
 function loadWorldLabels(): Promise<SpeciesLabel[]> {
   worldLoading ??= loadListBeside('species-world.json', 'world list').catch((error) => { worldLoading = null; throw error; });

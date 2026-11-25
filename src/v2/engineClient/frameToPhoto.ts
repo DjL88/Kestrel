@@ -27,6 +27,7 @@ import { isRawPreviewFile } from '../../core/rawFormats';
 import { STRINGS } from '../ui/strings';
 import { engineText } from '../../i18n/areas/engine';
 import { displaySpeciesName } from '../../core/speciesNames';
+import { areaWords, speciesAreaText } from '../../i18n/areas/speciesArea';
 import { speciesNameIndex } from '../../providers/speciesNames';
 import type { AssistSuggestion, EditRecipe, PhotoHistogram } from '../ui/contract';
 import type { Task } from '../../core/taskStore';
@@ -163,6 +164,13 @@ export function speciesLabelOf(frame: Pick<PhotoFrame, 'subjectNames' | 'tags' |
   return frame.autoTags?.includes(tag) ? engineText.suggestedName(shown(tag)) : shown(tag);
 }
 
+/** The place an automatic species name was matched against, in the person's words; nothing for a name of the person's own or an older photo. */
+export function speciesAreaLabelOf(frame: Pick<PhotoFrame, 'subjectNames' | 'tags' | 'autoTags' | 'speciesArea'>): string | undefined {
+  const tag = frame.tags?.[0];
+  if (!frame.speciesArea || frame.subjectNames?.length || !tag || !frame.autoTags?.includes(tag)) return undefined;
+  return speciesAreaText.matchedIn(areaWords(frame.speciesArea, []));
+}
+
 export function tileStateFor(urls: FrameUrls | undefined): TileState {
   if (urls?.failed) return 'unavailable';
   return urls?.thumb ? 'ready' : 'importing';
@@ -242,6 +250,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     originalConnected: extras.originalConnected ?? !urls?.failed,
     rating: Number.isFinite(rating) ? Math.max(0, Math.min(5, Math.round(rating))) : 0,
     speciesLabel: speciesLabelOf(frame),
+    speciesAreaLabel: speciesAreaLabelOf(frame),
     ...vehicleWordsOf(frame),
     speciesName: frame.subjectNames?.[0] ?? frame.tags?.[0],
     // What kind of subject, in the person's language (never the detector's internal word).

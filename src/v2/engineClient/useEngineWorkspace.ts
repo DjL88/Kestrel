@@ -23,6 +23,12 @@ import { scanForCulling } from '../../providers/browserAutoCull';
 import { useAccess } from '../../providers/useAccess';
 import { useBackgroundDevelop } from '../../useBackgroundDevelop';
 import { useSpeciesScan } from '../../useSpeciesScan';
+import { SPECIES_REGIONS_EVENT, readSpeciesRegions } from '../../core/speciesRegions';
+import { regionIdsForArea, reopenForNewArea, sameArea, suggestAreaFromPositions, type SpeciesArea } from '../../core/speciesArea';
+import { LEGACY_SETTINGS } from '../../core/projectSettings';
+import { areaWords, speciesAreaText } from '../../i18n/areas/speciesArea';
+import { displaySpeciesName } from '../../core/speciesNames';
+import { speciesNameIndex } from '../../providers/speciesNames';
 import { carryVehicleReadings, correctVehicle } from '../../core/vehicleBursts';
 import { syncAllVehicleTags } from '../../core/vehicleTags';
 import { VEHICLE_LABELS } from '../../core/vehicleLabels';
@@ -260,6 +266,18 @@ async function pickReselectFiles(): Promise<File[] | null> {
   });
 }
 
+/** A phone, or a device that says it has little memory: the world comparison is skipped there. */
+function lowMemoryDevice(): boolean {
+  if (typeof navigator === 'undefined') return true;
+  const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+  return isMobileShell() || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (typeof memory === 'number' && memory < 4);
+}
+
+/** The GPS positions the project's photos carry, read on this device only (never sent, never in a backup). */
+function positionsOf(frames: readonly PhotoFrame[]): { latitude: number; longitude: number }[] {
+  return frames.flatMap((frame) => (frame.removedAt == null && frame.exif.gps ? [frame.exif.gps] : []));
+}
+
 /**
  * The V2 store backed by the real catalogue. Connected now: projects (create, open, back), importing photos with the
  * real loader and Task Manager, thumbnails and previews from the preview provider, flag (= keep), reject, rating,
@@ -294,6 +312,15 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [urls, setUrls] = useState<Record<string, FrameUrls>>({});
   const [selected, setSelected] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  // The person's home regions for species names (Settings → Assistance), kept current when they change there.
+  const [homeRegions, setHomeRegions] = useState<string[]>(() => readSpeciesRegions());
+  const homeRef = useRef(homeRegions);
+  homeRef.current = homeRegions;
+  useEffect(() => {
+    const update = () => setHomeRegions(readSpeciesRegions());
+    window.addEventListener(SPECIES_REGIONS_EVENT, update);
+    return () => window.removeEventListener(SPECIES_REGIONS_EVENT, update);
+  }, []);
   const [clipboard, setClipboard] = useState<EditRecipe | null>(null);
   const [deviceFonts, setDeviceFonts] = useState<string[]>(loadSavedDeviceFonts);
   const [watermarkStore, setWatermarkStore] = useState<StoredWatermark[]>(loadStored);
@@ -790,6 +817,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useSpeciesScan({
     projectId: state?.shoot.id ?? '', frames: state?.frames ?? [], provider: provider.current,
     active: screen === 'editor' && Boolean(state) && can('speciesId'),
+    area: state?.settings?.speciesArea,
+    // Whether a photo may be from elsewhere is checked only while the place is unanswered and not yet asked, and not on
+    // phones or low-memory devices (the world's birds and mammals take about 20 MB while it runs).
+    checkOutside: Boolean(state && !state.settings?.speciesArea && !state.settings?.speciesAreaPrompt && !lowMemoryDevice()),
+    onOutsideRegion: (_frameId, label) => setState((current) => (current && !current.settings?.speciesArea && !current.settings?.speciesAreaPrompt
+      ? { ...current, settings: { ...(current.settings ?? LEGACY_SETTINGS), speciesAreaPrompt: { example: label.common } } } : current)),
     // A vehicle reading is carried across its burst: the same aircraft, read once, shown on every frame.
     onResult: (frameId, patch) => setState((current) => (current ? { ...current, frames: syncAllVehicleTags(carryVehicleReadings(current.frames.map((frame) =>
       frame.id === frameId && !frame.removedAt && !frame.speciesChecked && !frame.tags?.length && !frame.subjectNames?.length
@@ -2143,6 +2176,21 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       shoot: { ...current.shoot, lastUpdatedAt: Date.now() },
       frames: current.frames.map((frame) => (frame.id === photoId && !frame.removedAt ? declinePhotoTag(frame, tagId) : frame)),
     })),
+    setSpeciesArea: (area: SpeciesArea) => {
+      // Any choice answers "Where were these taken?" for this project, Home included, so it is not asked again.
+      const home = homeRef.current;
+      const before = regionIdsForArea(stateRef.current?.settings?.speciesArea, home).join(',');
+      const moved = before !== regionIdsForArea(area, home).join(',');
+      mutate((current) => {
+        const { speciesAreaPrompt: _asked, ...settings } = current.settings ?? LEGACY_SETTINGS;
+        if (sameArea(current.settings?.speciesArea, area) && current.settings?.speciesArea && !_asked) return current;
+        // When the regions change, photos that only carry the app's own name are looked at again with the new place's
+        // names; the person's own names, kept names and removed names stay as they are.
+        const frames = moved ? reopenForNewArea(current.frames).frames : current.frames;
+        return { ...current, shoot: { ...current.shoot, lastUpdatedAt: Date.now() }, frames, settings: { ...settings, speciesArea: area } };
+      });
+      if (moved) setNotice(speciesAreaText.changed(areaWords(area, home)));
+    },
     correctSpeciesName: (photoId, proposedName) => {
       const name = proposedName.trim().slice(0, 120);
       if (!name) return;
@@ -2162,6 +2210,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             autoTags: [],
             speciesChecked: true,
             subjectDisputed: false,
+            speciesArea: undefined,
           };
         }),
       }));
@@ -2737,6 +2786,18 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // (ROADMAP.md, "Removed photos panel" next item). Thumbnails are not fetched for them; the filename is enough
   // to recognise one in a short list, and restoring returns it to the normal, already-thumbnailed photo list.
   const removedPhotos = useMemo(() => removedFrames(state?.frames ?? []).map((frame) => frameToPhoto(frame, urls[frame.id], {})), [state?.frames, urls]);
+  // "Where were these taken?": the project's choice, and a suggestion from the photos' GPS, worked out here on the device.
+  const speciesPlace = useMemo(() => {
+    if (!state || state.shoot.collage) return null;
+    const answered = state.settings?.speciesArea;
+    const area = answered ?? { kind: 'home' as const };
+    // Asked only while unanswered, and only when something points elsewhere: the scan saw a species from outside the
+    // home region, or the photos' GPS (read here, never sent) is outside it.
+    const suggestion = answered ? null : suggestAreaFromPositions(positionsOf(state.frames), homeRegions);
+    const asked = answered ? undefined : state.settings?.speciesAreaPrompt?.example;
+    const prompt = asked || suggestion ? { ...(asked ? { example: displaySpeciesName(asked, speciesNameIndex()).name } : {}), suggestion } : null;
+    return { area, home: homeRegions, prompt };
+  }, [state, homeRegions]);
   const store: WorkspaceStore = useMemo(() => ({
     ...stub.store,
     fonts: mergeFonts(deviceFonts),
@@ -2748,6 +2809,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     featurePlan: featurePlan(),
     screen, hubState, projects,
     activeProjectId: state?.shoot.id ?? null,
+    speciesPlace,
     collage: readCollage(state?.shoot.collage),
     photos,
     removedPhotos,
@@ -2776,7 +2838,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     quickStart: quickStart && quickStart.projectId === state?.shoot.id && screen === 'editor' ? { phase: quickStart.phase, photoId: quickStart.photoId } : null,
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
-  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state]);
+  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace]);
 
   return { store, actions };
 }
