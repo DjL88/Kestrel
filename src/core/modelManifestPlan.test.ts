@@ -8,8 +8,8 @@ const slot = { name: 'yolox-tiny.onnx', bytes: 20_000_000, sha256: 'a'.repeat(64
 const pinnedFile = (model: typeof RFDETR_NANO, role: string, name: string) => ({ name, bytes: model.files[role].bytes, sha256: model.files[role].sha256 });
 
 test('slot models and every optional pack go into one manifest, each with a licence record', () => {
-  const models = [slot, pinnedFile(RFDETR_NANO, 'model', 'rf-detr-nano.onnx'), pinnedFile(NAFNET_W32, 'model', 'nafnet.onnx'),
-    pinnedFile(EFFICIENTSAM_TI, 'encoder', 'efficient_sam_vitt_encoder.onnx'), pinnedFile(EFFICIENTSAM_TI, 'decoder', 'efficient_sam_vitt_decoder.onnx')];
+  const models = [slot, pinnedFile(RFDETR_NANO, 'model', 'rfdetr-nano-fp16.onnx'), pinnedFile(NAFNET_W32, 'model', 'nafnet-sidd-w32-w16.onnx'),
+    pinnedFile(EFFICIENTSAM_TI, 'encoder', 'efficientsam-ti-encoder-fp16.onnx'), pinnedFile(EFFICIENTSAM_TI, 'decoder', 'efficientsam-ti-decoder-fp16.onnx')];
   const plan = planManifestAssets({ version: '2026.11.25', models, species: [{ name: 'uk.json', bytes: 1234, sha256: 'b'.repeat(64) }], speciesLicence: { spdx: 'CC-BY-4.0', source: 'https://www.worldbirdnames.org' } });
   assert.ok(plan.ok, JSON.stringify(plan));
   assert.deepEqual(plan.assets.map((a) => [a.id, a.kind]).sort(), [
@@ -17,7 +17,7 @@ test('slot models and every optional pack go into one manifest, each with a lice
     ['species-uk', 'species-library'], ['yolox-tiny', 'onnx'],
   ]);
   const rf = plan.assets.find((a) => a.id === 'rfdetr-nano-fp16')!;
-  assert.deepEqual([rf.path, rf.bytes, rf.sha256], ['/data/onnx/rfdetr-nano-fp16/2026.11.25/rf-detr-nano.onnx', RFDETR_NANO.files.model.bytes, RFDETR_NANO.files.model.sha256]);
+  assert.deepEqual([rf.path, rf.bytes, rf.sha256], ['/data/onnx/rfdetr-nano-fp16/2026.11.25/rfdetr-nano-fp16.onnx', RFDETR_NANO.files.model.bytes, RFDETR_NANO.files.model.sha256]);
   assert.equal(plan.assets.find((a) => a.id === 'yolox-tiny')!.contract, 'yolox-tiny-coco80-416/v1');
   const licences = licenceList(plan.assets);
   assert.equal(licences['rfdetr-nano-fp16'].spdx, 'Apache-2.0');
@@ -35,9 +35,9 @@ test('slot models and every optional pack go into one manifest, each with a lice
 
 test('an unknown file, a pack file of the wrong size, half a pack, or a species list without a licence is refused', () => {
   assert.equal(planManifestAssets({ version: '1', models: [{ name: 'mystery.onnx', bytes: 10, sha256: 'c'.repeat(64) }] }).ok, false);
-  const wrongSize = planManifestAssets({ version: '1', models: [{ ...pinnedFile(RFDETR_NANO, 'model', 'rf.onnx'), bytes: 5 }] });
+  const wrongSize = planManifestAssets({ version: '1', models: [{ ...pinnedFile(RFDETR_NANO, 'model', 'rfdetr-nano-fp16.onnx'), bytes: 5 }] });
   assert.ok(!wrongSize.ok && wrongSize.problems[0].includes('size'));
-  const half = planManifestAssets({ version: '1', models: [pinnedFile(EFFICIENTSAM_TI, 'encoder', 'enc.onnx')] });
+  const half = planManifestAssets({ version: '1', models: [pinnedFile(EFFICIENTSAM_TI, 'encoder', 'efficientsam-ti-encoder-fp16.onnx')] });
   assert.ok(!half.ok && half.problems.some((p) => p.includes('missing decoder')));
   const noLicence = planManifestAssets({ version: '1', models: [slot], species: [{ name: 'uk.json', bytes: 1, sha256: 'd'.repeat(64) }] });
   assert.ok(!noLicence.ok && noLicence.problems[0].includes('licence'));
