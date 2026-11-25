@@ -90,6 +90,7 @@ interface CanvasProps {
   onUpdateVideoZoom: (photoId: string, patch: Partial<VideoZoomConfig>) => void;
   onUpdateOverlay: (photoId: string, patch: Partial<OverlaySettings>) => void;
   onReconnectOriginal: (photoId: string) => void;
+  onDevelopFullSize?: (photoId: string) => void;
   onToggleCompare: () => void;
   onSetZoom: (zoom: number) => void;
   /** Called when someone zooms a cloud preview past 100%: its pixels run out there, so the original may be wanted. */
@@ -108,6 +109,7 @@ function ZoomPastPreviewWatch({ photoId, active, onZoomPastPreview }: { photoId:
 
 const ZOOM_BAR_STORAGE_KEY = 'inflight.v2.zoomBarOffset';
 
+/** Tells the store once when a cloud preview is zoomed past 100%, so it can offer the original. */
 export default function Canvas({
   PhotoSurface,
   maskGuideId,
@@ -147,6 +149,7 @@ export default function Canvas({
   onUpdateVideoZoom,
   onUpdateOverlay,
   onReconnectOriginal,
+  onDevelopFullSize,
   onToggleCompare,
   onSetZoom,
   onZoomPastPreview,
@@ -1092,12 +1095,32 @@ export default function Canvas({
         className="h-full w-full object-cover" style={{ ...style, filter }} />
     );
 
+  /** Names the selected mask and toggles its overlay: inside the single view's frame, and below a split composition so
+   * it never covers a small pane's picture. */
+  const renderMaskLabel = (place = 'bottom-2 left-2') => selectedMask && PhotoSurface ? (
+              <div data-testid="mask-canvas-label" className={`absolute ${place} z-30 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[11px] font-medium text-white`}>
+                <span role="status" className="truncate">{maskOverlayVisible ? STRINGS.maskCanvas.overlayShown(selectedMask.name) : STRINGS.maskCanvas.overlayHidden(selectedMask.name)}</span>
+                {onToggleMaskOverlay && (
+                  <button type="button" aria-pressed={maskOverlayVisible} aria-label={STRINGS.maskCanvas.toggleOverlay} title={STRINGS.maskCanvas.toggleOverlay}
+                    onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onToggleMaskOverlay(); }}
+                    className="shrink-0 rounded border border-white/60 px-1.5 font-mono text-[10px] leading-4 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+                    {maskOverlayKey ?? '◐'}
+                  </button>
+                )}
+              </div>
+      ) : null;
+
   /** One wide picture behind split frames. Through the engine's surface, like the single view, so a RAW keeps showing
    * once its developed picture replaces the embedded preview: a plain <img> of `photo.previewUrl` kept the old blob
-   * address after it was released, and every frame showed a broken image (owner report, 24 Nov 2026). */
-  const renderStrip = (alt: string, className: string, style: React.CSSProperties) =>
+   * address after it was released, and every frame showed a broken image (owner report, 24 Nov 2026).
+   * `editing` marks the split composition being edited: its panes also show the selected mask's coverage and a hovered
+   * look, as the single view does (x-mask-split). The mask outline's handles stay in the single view, so they are never
+   * repeated in every pane. */
+  const renderStrip = (alt: string, className: string, style: React.CSSProperties, editing = false) =>
     PhotoSurface ? (
-      <PhotoSurface photoId={photo.id} variant="edited" alt={alt} className={className} style={style} />
+      <PhotoSurface photoId={photo.id} variant="edited" alt={alt} className={className} style={style}
+        maskGuideId={editing && maskOverlayVisible ? maskGuideId : undefined}
+        lookPreview={editing ? hoveredLook?.recipeDelta : undefined} />
     ) : (
       <img src={photo.previewUrl} alt={alt} referrerPolicy="no-referrer" draggable={false}
         className={className} style={{ ...style, filter: compareMode ? 'none' : filterCss }} />
@@ -1272,11 +1295,13 @@ export default function Canvas({
                   `${photo.title} — Frame ${paneIdx + 1}`,
                   'h-full max-w-none object-cover select-none',
                   paneImageStyle(activeSize.crop, paneIdx, sectionCount, splitOffsetFor(activeSize.id)),
+                  true,
                 ), { index: paneIdx, count: sectionCount })}
                 {paneIdx === sectionCount - 1 && renderOverlaysInsideFrame(activeSize, true)}
               </div>
             </div>
           ))}
+          {renderMaskLabel('left-0 top-full mt-2')}
           {sectionCount < MAX_SPLIT_FRAMES && (
             <button
               type="button"
@@ -1413,18 +1438,7 @@ export default function Canvas({
             ) : (
               renderSurface(holdingOriginal ? 'original' : 'edited', holdingOriginal ? `${photo.title} original` : photo.title, { transform: buildImageTransform(activeSize.crop) }, holdingOriginal ? 'none' : filterCss)
             ))}
-            {selectedMask && !compareMode && !holdingOriginal && PhotoSurface && (
-              <div data-testid="mask-canvas-label" className="absolute bottom-2 left-2 z-30 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[11px] font-medium text-white">
-                <span role="status" className="truncate">{maskOverlayVisible ? STRINGS.maskCanvas.overlayShown(selectedMask.name) : STRINGS.maskCanvas.overlayHidden(selectedMask.name)}</span>
-                {onToggleMaskOverlay && (
-                  <button type="button" aria-pressed={maskOverlayVisible} aria-label={STRINGS.maskCanvas.toggleOverlay} title={STRINGS.maskCanvas.toggleOverlay}
-                    onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onToggleMaskOverlay(); }}
-                    className="shrink-0 rounded border border-white/60 px-1.5 font-mono text-[10px] leading-4 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
-                    {maskOverlayKey ?? '◐'}
-                  </button>
-                )}
-              </div>
-            )}
+            {!compareMode && !holdingOriginal && renderMaskLabel()}
             {holdingOriginal && (
               <span role="status" className="pointer-events-none absolute left-2 top-2 z-30 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[0.6875rem] font-semibold text-white">{STRINGS.canvas.showingOriginal}</span>
             )}
@@ -1620,6 +1634,19 @@ export default function Canvas({
           </div>
           {/* Which picture is shown, for the single view and the All formats board alike (camera preview or RAW develop). */}
           <PictureSourceBadge picture={photo.picture?.preview} className="h-7 text-[0.6875rem]" />
+          {photo.fullDevelop && onDevelopFullSize && (
+            <button
+              type="button"
+              disabled={photo.fullDevelop === 'running'}
+              aria-busy={photo.fullDevelop === 'running'}
+              onClick={() => onDevelopFullSize(photo.id)}
+              title={STRINGS.fullDevelop.help}
+              className="inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-default disabled:opacity-70 whitespace-nowrap"
+            >
+              <BrandIcon name={photo.fullDevelop === 'running' ? 'clock' : 'expand'} size={13} />
+              <span>{photo.fullDevelop === 'running' ? STRINGS.fullDevelop.running : STRINGS.fullDevelop.button}</span>
+            </button>
+          )}
 
           {canvasLayoutMode === 'all-formats' && (
             <>

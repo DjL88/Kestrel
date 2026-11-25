@@ -2,6 +2,7 @@ import { MAX_EDIT_HISTORY_STEPS, validWhy, type EditKind } from './editHistory';
 import { readCollage } from './collage';
 import { parseSettings } from './projectSettings';
 import { validMasks } from './maskTypes';
+import { validTrueDetailAi } from './trueDetailAi';
 import { validCurve, validMixer } from './curveMixer';
 import { validChannelCurves, validGrade } from './colourGrade';
 import { validCalibration } from './calibration';
@@ -56,6 +57,7 @@ function recipeIsValid(value: unknown): boolean {
       edit[key] !== undefined && !number(edit[key], -2, 2)) ||
     (edit.denoise !== undefined && !number(edit.denoise, 0, 2)) ||
     (edit.denoiseLuminance !== undefined && !number(edit.denoiseLuminance, 0, 2)) ||
+    (edit.trueDetailAi !== undefined && !validTrueDetailAi(edit.trueDetailAi)) ||
     (edit.curve !== undefined && !validCurve(edit.curve)) || (edit.mixer !== undefined && !validMixer(edit.mixer)) ||
     (edit.grade !== undefined && !validGrade(edit.grade)) || (edit.channelCurves !== undefined && !validChannelCurves(edit.channelCurves)) ||
     (edit.calibration !== undefined && !validCalibration(edit.calibration)) ||

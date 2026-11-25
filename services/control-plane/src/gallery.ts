@@ -11,6 +11,7 @@
 import { sha256Hex, randomId, uuid, hashPassword, verifyPassword } from './crypto.ts';
 import type { FirestoreLike, FsData } from './firestoreStore.ts';
 import type { SafeCopyStorage } from './safeCopy.ts';
+import type { FeedbackReview } from '../../../src/core/clientFeedback.ts';
 
 export type GalleryStorage = SafeCopyStorage;
 export const GALLERY_MAX_PHOTOS = 200;
@@ -45,7 +46,7 @@ export const previewKey = (galleryId: string, photoId: string, variant: GalleryV
 export const GALLERY_MAX_THUMB_BYTES = 200_000;
 export type GalleryVariant = 'preview' | 'thumb';
 const clean = (value: object): FsData => JSON.parse(JSON.stringify(value)) as FsData;
-const G = { galleries: 'collab_galleries', feedback: 'collab_gallery_feedback' };
+const G = { galleries: 'collab_galleries', feedback: 'collab_gallery_feedback', reviews: 'collab_gallery_reviews' };
 
 export class GalleryStore {
   constructor(private readonly db: FirestoreLike, readonly storage: GalleryStorage, private readonly newToken: () => string = () => randomId(32)) {}
@@ -139,11 +140,17 @@ export class GalleryStore {
     if (input.kind !== 'approve-all' && input.photoId === null) throw new GalleryRefusal(400, 'BAD_REQUEST', 'Choose a photo.');
     const record: FeedbackRecord = { galleryId: g.galleryId, visitor: input.visitor, photoId: input.photoId, kind: input.kind, text: input.kind === 'comment' || input.kind === 'request-changes' ? input.text : null, atMs };
     await this.db.collection(G.feedback).doc(uuid()).create(clean(record));
+    return { galleryId: g.galleryId, projectId: g.projectId, name: g.name };
   }
 
   /** For the photographer: every event, oldest first, plus the favourites each visitor holds now. */
   async feedbackFor(galleryId: string) {
-    const snap = await this.db.collection(G.feedback).where('galleryId', '==', galleryId).get();
+    const [snap, reviewSnap] = await Promise.all([
+      this.db.collection(G.feedback).where('galleryId', '==', galleryId).get(),
+      this.db.collection(G.reviews).where('galleryId', '==', galleryId).get(),
+    ]);
+    // The photographer's review of each photo's feedback (src/core/clientFeedback.ts): done or dismissed, by whom, when.
+    const reviews = reviewSnap.docs.map((d) => { const { galleryId: _g, ...r } = d.data()! as unknown as FeedbackReview & { galleryId: string }; return r as FeedbackReview; });
     const events = snap.docs.map((d) => d.data()! as unknown as FeedbackRecord).sort((a, b) => a.atMs - b.atMs);
     const favourites = new Map<string, Set<string>>();
     for (const e of events) {
@@ -152,6 +159,13 @@ export class GalleryStore {
       if (e.kind === 'favourite') set.add(e.visitor); else set.delete(e.visitor);
       favourites.set(e.photoId, set);
     }
-    return { events: events.map(({ galleryId: _g, ...rest }) => rest), favourites: Object.fromEntries([...favourites].map(([photoId, set]) => [photoId, set.size])) };
+    return { events: events.map(({ galleryId: _g, ...rest }) => rest), favourites: Object.fromEntries([...favourites].map(([photoId, set]) => [photoId, set.size])), reviews };
+  }
+
+  /** Marks one photo's client feedback done or dismissed, or back to new. Never touches the project's decisions. */
+  async review(galleryId: string, itemId: string, state: 'done' | 'dismissed' | 'new', byName: string, atMs: number): Promise<void> {
+    const ref = this.db.collection(G.reviews).doc(`${galleryId}|${itemId}`);
+    if (state === 'new') { await this.db.runTransaction(async (tx) => { tx.delete(ref); }); return; }
+    await ref.set(clean({ galleryId, itemId, state, byName: byName.slice(0, 80), atMs }));
   }
 }

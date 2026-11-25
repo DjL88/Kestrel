@@ -11,6 +11,7 @@ import { parseControlPlaneUrl } from '../core/licenceOnline';
 import { readAccountOnlineSettings, setAccountAiConsent, type AccountCloudUsage, type ManagedAiConsentStatus } from '../providers/accountAiConsent';
 import { DEV_PRO_PREVIEW_MODE } from '../providers/useAccess';
 import { SignInMark } from './SignInMark';
+import { POLICY_PATHS, SiteLink } from './SiteLink';
 import { LicenceOnlineStatus } from './LicenceOnlineStatus';
 import { projectsText as t } from '../i18n/areas/projects';
 import { publicSiteUrl } from '../core/publicSite';
@@ -295,6 +296,11 @@ export function AccountAndLicenceSettings() {
                 </div>
               </form>
             )}
+            <p className="text-xs text-[var(--account-muted,#a1a1aa)]" data-testid="account-terms-notice">
+              By creating an account or signing in, you agree to the <SiteLink path={POLICY_PATHS.terms} className="underline">terms</SiteLink> and
+              {' '}<SiteLink path={POLICY_PATHS.acceptableUse} className="underline">acceptable use policy</SiteLink>. The
+              {' '}<SiteLink path={POLICY_PATHS.privacy} className="underline">privacy notice</SiteLink> says what we keep and how to delete it.
+            </p>
             {(() => { const reason = signInOptions(signInPlatform(), isSignInConfigured(), isDesktopGoogleConfigured()).find((o) => o.reason)?.reason; return reason ? <p id="account-reason" className="text-xs text-[var(--account-muted,#a1a1aa)]">{reason}</p> : null; })()}
           </>
         )}

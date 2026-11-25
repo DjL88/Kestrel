@@ -69,3 +69,27 @@ test('a duplicated scan identity cannot attach another source result to the live
     assert.deepEqual(reviewed.frames.map(f => f.decision), ['unreviewed', 'keep']);
   }
 });
+
+test('the Auto-cull summary says when RAWs were judged from the camera preview, and only then', async () => {
+  const { autoCullSummary } = await import('./commitAutoCull.ts');
+  assert.equal(autoCullSummary(12, 0), 'Photos checked by Auto-cull: 12. Review the flags in the filmstrip. You can undo the whole pass in one step.');
+  const one = autoCullSummary(1, 1);
+  assert.match(one, /^Photos checked by Auto-cull: 1./);
+  assert.match(one, /RAW photos judged from the camera's embedded preview, not from their sensor data: 1. Check their sharpness by eye./);
+  assert.doesNotMatch(autoCullSummary(12, 0), /embedded preview/, 'no RAW caveat when every RAW was judged from a sensor development');
+  assert.match(autoCullSummary(30, 4), /sensor data: 4./);
+  assert.match(autoCullSummary(30, 4), /You can undo the whole pass in one step.$/);
+});
+
+test('only RAWs that were judged, and not from a picture developed from their sensor data, count for the caveat', async () => {
+  const { rawsJudgedFromCameraPreview } = await import('./commitAutoCull.ts');
+  const frames = [
+    { id: 'a', filename: 'A.NEF' }, { id: 'b', filename: 'B.NEF' }, { id: 'c', filename: 'C.NEF' },
+    { id: 'd', filename: 'D.NEF' }, { id: 'e', filename: 'E.jpg' }, { id: 'f', filename: 'F.NEF' },
+  ];
+  const results = frames.map(({ id }) => ({ frameId: id, decision: null, confidence: 'low' as const, score: 40,
+    reason: id === 'f' ? 'unavailable' as const : 'limitedDetail' as const }));
+  const sources = new Map([['a', 'camera-preview'], ['b', 'raw-review'], ['c', 'raw-full'], ['e', 'original']] as const);
+  // a: camera preview; d: unknown source (cached at import) counts as not developed; e is not a RAW; f was not judged.
+  assert.equal(rawsJudgedFromCameraPreview(frames, results, sources), 2);
+});

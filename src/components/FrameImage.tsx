@@ -1,6 +1,7 @@
 import { maskCoverageGuide } from '../core/maskCoverageGuide';
 import type { Mask } from '../core/maskTypes';
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
+import { preloadTrueDetailAi } from '../core/trueDetailAiCanvas';
 import { frameLayers, visibleLayers } from '../core/layers';
 import { applyFrameLayers } from '../core/layerAssetVault';
 import { frameImageIdentity, framePreviewEncoding, visibleFrameUrl } from '../core/frameImageIdentity';
@@ -173,6 +174,8 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       const framing = frame.framing ?? DEFAULT_FRAMING;
       const size = framedSize(source.naturalWidth, source.naturalHeight, framing);
       drawFramedPhoto(source, canvas, framing, { scale: Math.min(1, (variant === 'thumb' ? 400 : 2200) / Math.max(size.width, size.height)) });
+      await preloadTrueDetailAi(frame.edit);
+      if (cancelled) return;
       applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT, undefined, { ...fullContext(canvas.width, canvas.height), lensCentre: lensCentre(source.naturalWidth, source.naturalHeight, framing) });
       await applyFrameLayers(canvas, frame.overlay, false);
       if (cancelled) return;

@@ -1,3 +1,4 @@
+import { createTimedSession } from './modelTiming';
 import { sha256Hex } from '../core/sha256';
 import { assertSubjectActive, boundedSubjectGuide } from '../core/subjectCancellation';
 import { friendlyToolError } from '../core/toolErrors';
@@ -40,7 +41,7 @@ function load(): Promise<Loaded> {
     });
     ort.env.wasm.numThreads = 1; // Avoids needing cross-origin isolation, so it works on any host and offline.
     ort.env.wasm.proxy = false;
-    const session = await ort.InferenceSession.create(new Uint8Array(bytes), { executionProviders: ['wasm'] });
+    const session = await createTimedSession(ort, 'u2netp', new Uint8Array(bytes), { executionProviders: ['wasm'] });
     return { ort, session };
   })().catch((error) => {
     loading = null; // Allow a retry after a failure.

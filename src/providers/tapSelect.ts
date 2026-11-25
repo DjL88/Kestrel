@@ -1,3 +1,4 @@
+import { createTimedSession } from './modelTiming';
 import { EFFICIENTSAM_TI } from '../core/optionalModels';
 import { SAM_INPUT, bestSamMask, samInput, samMaskSize, samPoints, unionSamMasks, type SamMask, type SamPrompt } from '../core/efficientSam';
 import { friendlyToolError } from '../core/toolErrors';
@@ -29,7 +30,7 @@ function load(): Promise<Loaded> {
     ort.env.wasm.proxy = false;
     const options = { executionProviders: ['wasm'] };
     const [encoder, decoder] = await Promise.all([
-      ort.InferenceSession.create(encoderBytes, options), ort.InferenceSession.create(decoderBytes, options),
+      createTimedSession(ort, `${EFFICIENTSAM_TI.id}.encoder`, encoderBytes, options), createTimedSession(ort, `${EFFICIENTSAM_TI.id}.decoder`, decoderBytes, options),
     ]);
     return { ort, encoder, decoder };
   })().catch((error) => {

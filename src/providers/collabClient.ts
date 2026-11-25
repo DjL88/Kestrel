@@ -1,6 +1,8 @@
 import { parseControlPlaneUrl } from '../core/licenceOnline';
 import type { CollabRole } from '../core/collabRoles';
 import type { GalleryFeedbackEvent } from '../core/galleryFeedback';
+import type { FeedbackReview } from '../core/clientFeedback';
+import type { Notice } from '../core/collabNotices';
 
 /**
  * The app's side of shared projects (#1387): talks to the control plane's /v1/collab routes. Sharing is opt-in and
@@ -95,6 +97,13 @@ export interface CollabClient {
   publishGallery(projectId: string, options: GalleryRequest, previews: { photoId: string; jpeg: Blob; thumb?: Blob | null }[]): Promise<{ galleryId: string; linkToken: string; expiresAtMs: number; published: number }>;
   galleries(projectId: string): Promise<GalleryListItem[]>;
   galleryFeedback(galleryId: string): Promise<GalleryFeedbackEvent[]>;
+  /** The events and the photographer's review of each photo's feedback. */
+  galleryFeedbackWithReviews(galleryId: string): Promise<{ events: GalleryFeedbackEvent[]; reviews: FeedbackReview[] }>;
+  /** Marks one photo's client feedback done or dismissed, or back to new. Never changes a decision. */
+  reviewFeedback(galleryId: string, photoId: string, state: 'done' | 'dismissed' | 'new'): Promise<void>;
+  /** Your newest notifications from shared projects. */
+  notices(): Promise<{ notices: Notice[]; unread: number }>;
+  readNotices(ids: string[] | 'all'): Promise<void>;
   revokeGallery(galleryId: string): Promise<void>;
   leases(projectId: string): Promise<SharedLeaseView[]>;
   acquire(projectId: string, photoKey: string, deviceId: string): Promise<{ token: string; baseRevisionId: string | null }>;
@@ -192,7 +201,14 @@ export function collabClient(baseUrl: string | undefined | null, idToken: () => 
     },
     usage: async () => (await call('GET', '/v1/me/usage')) as unknown as CloudUsage,
     galleries: async (id) => ((await call('GET', P(id) + '/galleries')).galleries ?? []) as GalleryListItem[],
+    notices: async () => { const r = await call('GET', '/v1/collab/notices'); return { notices: (r.notices ?? []) as Notice[], unread: Number(r.unread ?? 0) }; },
+    readNotices: async (ids) => { await call('POST', '/v1/collab/notices/read', { ids }); },
     galleryFeedback: async (gid) => ((await call('GET', `/v1/collab/galleries/${encodeURIComponent(gid)}/feedback`)).events ?? []) as GalleryFeedbackEvent[],
+    galleryFeedbackWithReviews: async (gid) => {
+      const r = await call('GET', `/v1/collab/galleries/${encodeURIComponent(gid)}/feedback`);
+      return { events: (r.events ?? []) as GalleryFeedbackEvent[], reviews: (r.reviews ?? []) as FeedbackReview[] };
+    },
+    reviewFeedback: async (gid, photoId, state) => { await call('POST', `/v1/collab/galleries/${encodeURIComponent(gid)}/feedback/review`, { itemId: `photo:${photoId}`, state }); },
     revokeGallery: async (gid) => { await call('POST', `/v1/collab/galleries/${encodeURIComponent(gid)}/revoke`); },
     presenceToken: async (id) => (await call('POST', P(id) + '/presence-token')) as unknown as { customToken: string; databaseUrl: string; uid: string; expiresAtMs: number },
   };

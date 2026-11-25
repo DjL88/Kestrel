@@ -7,11 +7,7 @@ import React, { useRef, useState } from 'react';
 import { useDialogFocus } from '../utils/dialogFocus';
 import ReadingSettings from './ReadingSettings';
 import MarkingsReaderSetting from './MarkingsReaderSetting';
-import { isDesktopApp, isMobileShell } from '../../../providers/desktopShell';
-
-/** The published privacy policy. It is not bundled into the app, so a relative link would lead nowhere in the desktop app. */
-import { publicSiteUrl } from '../../../core/publicSite';
-const PRIVACY_URL = publicSiteUrl('/privacy.html');
+import { POLICY_PATHS, SiteLink } from '../../../components/SiteLink';
 import type {
   AiProviderConfig,
   AssistMode,
@@ -22,6 +18,7 @@ import type {
 import { STRINGS } from '../strings';
 import { projectsText } from '../../../i18n/areas/projects';
 import { readBuildInfo } from '../../../core/buildInfo';
+import { ModelsSection } from '../panels/ModelsSection';
 
 /** Settings → Build information (G10). Literal accesses, so Vite's build-time values replace them. */
 const BUILD = readBuildInfo({
@@ -616,13 +613,9 @@ export default function SettingsDialog({
                   <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.settingsMore.privacyHeading}</h3>
                   <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
                     {STRINGS.settingsMore.privacyBody}{' '}
-                    <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="font-medium text-[var(--brand-accent)] underline"
-                      onClick={(event) => {
-                        // The policy page is part of the website, not the app build. On the desktop app it opens in the system browser.
-                        if (!isDesktopApp() || isMobileShell()) return;
-                        event.preventDefault();
-                        void import('@tauri-apps/plugin-opener').then(({ openUrl }) => openUrl(PRIVACY_URL)).catch(() => undefined);
-                      }}>{STRINGS.settingsMore.privacyLink}</a> {STRINGS.settingsMore.privacyDraft}
+                    <SiteLink path={POLICY_PATHS.privacy} className="font-medium text-[var(--brand-accent)] underline">{STRINGS.settingsMore.privacyLink}</SiteLink>{' · '}
+                    <SiteLink path={POLICY_PATHS.terms} className="font-medium text-[var(--brand-accent)] underline">{STRINGS.settingsMore.termsLink}</SiteLink>{' '}
+                    {STRINGS.settingsMore.privacyDraft}
                   </p>
                 </div>
                 <section aria-labelledby="build-information-title" data-testid="v2-build-information" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
@@ -636,6 +629,7 @@ export default function SettingsDialog({
                   </dl>
                   {BUILD.modified && <p role="note" className="text-xs font-medium text-[var(--text-primary)]">⚠ {STRINGS.settingsMore.buildModified}</p>}
                 </section>
+                <ModelsSection />
                 <section aria-labelledby="erase-device-title" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
                   <h3 id="erase-device-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.settingsMore.eraseHeading}</h3>
                   <p className="text-xs leading-relaxed text-[var(--text-secondary)]">

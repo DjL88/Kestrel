@@ -142,6 +142,14 @@ InFlight's own, positions read by hand; no OpenStreetMap data was copied.
 - **Species suggestions (BioCLIP, MIT)** — already documented in full, including
   the required reproduced license text, in `docs/notices/bioclip.txt`. Keep that
   file alongside any build that bundles the species model.
+- **Species name lists (data, not models)**:
+  - Birds: IOC World Bird List v15.2 and its Multilingual version (Gill, F., D. Donsker and P. Rasmussen, eds; multilingual
+    names compiled by P. Kovalik), **CC BY 4.0**, https://www.worldbirdnames.org. Used in `public/models/species-world.json`
+    and `public/models/species-names/`.
+  - Mammals: Mammal Diversity Database (2026), version 2.5, Zenodo, https://doi.org/10.5281/zenodo.21654811, **CC BY 4.0**.
+    Used in `public/models/species-mammals.json` (names, families and realms; the vectors are made with BioCLIP).
+  - Bird family names: Wikidata, **CC0 1.0**, in `public/models/species-names/families.json`, plus InFlight's own draft names.
+  Each file carries its attribution and the source's SHA-256; the source downloads are not in git.
 - **Subject/eye detection models** (`src/assets/models/u2netp.onnx`,
   `yolox_tiny.onnx`) — confirm and document their license and training-data
   provenance the same way before they ship in a paid build; `docs/
