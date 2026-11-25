@@ -331,6 +331,23 @@ export const sv: AreaTranslation<typeof source> = {
     rate: (n: number) => `Ge ${n} stjärnor`,
     ratingFor: (name: string) => `Betyg för ${name}`,
   },
+  xmp: {
+    saveMenu: "Spara betyg som XMP …",
+    readMenu: "Läs betyg från XMP …",
+    saved: (count: number, name: string) => `Betyg, flaggor och taggar för ${count} foto(n) sparades som ${name}. Lägg sidofilerna bredvid originalen så att andra appar kan läsa dem.`,
+    read: (count: number) => `Betyg, flaggor och taggar för ${count} foto(n) lästes från deras XMP-filer.`,
+    sameName: "Två foton skulle skriva samma sidofilsnamn (till exempel en RAW och dess JPEG). Välj ett av dem och spara igen.",
+    nothingToSave: "Det finns inga foton att spara sidofiler för.",
+    saveFailed: "Sidofilerna kunde inte sparas. Dina foton är oförändrade.",
+    failed: {
+      empty: "Välj en eller flera .xmp-filer, eller en .zip med dem.",
+      oversize: "De sidofilerna är för stora för att läsas säkert. Inget ändrades.",
+      unsafe: "De sidofilerna kunde inte läsas säkert. Inget ändrades.",
+      ambiguous: "Två foton har det filnamnet (till exempel en RAW och dess JPEG), så en sidofil kan höra till vilket som helst. Inget ändrades.",
+      "no-match": "Ingen av sidofilerna matchar ett foto här efter filnamn. Inget ändrades.",
+      keeper: "En sidofil skulle lägga åt sidan ett foto du flaggat. Granska det fotot för sig. Inget ändrades.",
+    },
+  },
   canvas: {
     selectPhoto: "Välj ett foto i filmremsan för att börja redigera.",
     resizeText: "Ändra textstorlek",

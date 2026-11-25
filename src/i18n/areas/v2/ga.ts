@@ -334,6 +334,23 @@ export const ga: AreaTranslation<typeof source> = {
     rate: (n: number) => `Tabhair ${n} réalta`,
     ratingFor: (name: string) => `Rátáil do ${name}`,
   },
+  xmp: {
+    saveMenu: "Sábháil rátálacha go XMP…",
+    readMenu: "Léigh rátálacha ó XMP…",
+    saved: (count: number, name: string) => `Sábháladh rátálacha, marcanna agus clibeanna do ${count} grianghraf mar ${name}. Cuir na comhaid taoibh in aice leis na bunchomhaid ionas gur féidir le haipeanna eile iad a léamh.`,
+    read: (count: number) => `Léadh rátálacha, marcanna agus clibeanna do ${count} grianghraf óna gcomhaid XMP.`,
+    sameName: "Scríobhfadh dhá ghrianghraf an t-ainm céanna comhaid taoibh (mar shampla RAW agus a JPEG). Roghnaigh ceann acu agus sábháil arís.",
+    nothingToSave: "Níl aon ghrianghraif ann le comhaid taoibh a shábháil dóibh.",
+    saveFailed: "Níorbh fhéidir na comhaid taoibh a shábháil. Níor athraíodh do ghrianghraif.",
+    failed: {
+      empty: "Roghnaigh comhad .xmp amháin nó níos mó, nó .zip amháin díobh.",
+      oversize: "Tá na comhaid taoibh rómhór le léamh go sábháilte. Níor athraíodh aon rud.",
+      unsafe: "Níorbh fhéidir na comhaid taoibh a léamh go sábháilte. Níor athraíodh aon rud.",
+      ambiguous: "Tá an t-ainm comhaid céanna ag dhá ghrianghraf (mar shampla RAW agus a JPEG), mar sin d’fhéadfadh comhad taoibh baint le ceachtar acu. Níor athraíodh aon rud.",
+      "no-match": "Ní mheaitseálann aon cheann de na comhaid taoibh grianghraf anseo de réir ainm comhaid. Níor athraíodh aon rud.",
+      keeper: "Chuirfeadh comhad taoibh grianghraf a mharcáil tú i leataobh. Athbhreithnigh an grianghraf sin ina aonar. Níor athraíodh aon rud.",
+    },
+  },
   canvas: {
     selectPhoto: "Roghnaigh grianghraf ón stiall scannáin chun tosú ag eagarthóireacht.",
     resizeText: "Athraigh méid an téacs",

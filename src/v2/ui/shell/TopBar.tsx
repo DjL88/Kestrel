@@ -36,6 +36,8 @@ interface TopBarProps {
   /** Who else is in this shared project (PresenceAvatars). */
   presence?: React.ReactNode;
   onOpenRemoved: () => void;
+  onSaveXmp?: () => void;
+  onReadXmp?: () => void;
   onOpenSettings: () => void;
   onImport: () => void;
   onUndo: () => void;
@@ -75,6 +77,8 @@ export default function TopBar({
   onShare,
   presence,
   onOpenRemoved,
+  onSaveXmp,
+  onReadXmp,
   onOpenSettings,
   onImport,
   onUndo,
@@ -212,6 +216,13 @@ export default function TopBar({
                   label={STRINGS.topBar.fileActions.removedPhotos}
                   onClick={() => runAndClose(onOpenRemoved)}
                 />
+                {onSaveXmp && onReadXmp && (
+                  <>
+                    <div className="my-1 h-px bg-[var(--border-subtle)]" />
+                    <MenuItem icon="save" label={STRINGS.xmp.saveMenu} onClick={() => runAndClose(onSaveXmp)} />
+                    <MenuItem icon="folder-open" label={STRINGS.xmp.readMenu} onClick={() => runAndClose(onReadXmp)} />
+                  </>
+                )}
                 <div className="my-1 h-px bg-[var(--border-subtle)]" />
                 <MenuItem
                   icon="settings"

@@ -332,6 +332,23 @@ export const fi: AreaTranslation<typeof source> = {
     rate: (n: number) => `Anna ${n} tähteä`,
     ratingFor: (name: string) => `Arvio: ${name}`,
   },
+  xmp: {
+    saveMenu: "Tallenna arviot XMP:hen…",
+    readMenu: "Lue arviot XMP:stä…",
+    saved: (count: number, name: string) => `Arviot, merkinnät ja tunnisteet tallennettiin ${count} kuvalle tiedostoon ${name}. Laita sivutiedostot alkuperäisten viereen, jotta muut sovellukset voivat lukea ne.`,
+    read: (count: number) => `Arviot, merkinnät ja tunnisteet luettiin ${count} kuvalle niiden XMP-tiedostoista.`,
+    sameName: "Kaksi kuvaa kirjoittaisi saman sivutiedoston nimen (esimerkiksi RAW ja sen JPEG). Valitse toinen ja tallenna uudelleen.",
+    nothingToSave: "Ei kuvia, joille tallentaa sivutiedostoja.",
+    saveFailed: "Sivutiedostoja ei voitu tallentaa. Kuvasi ovat ennallaan.",
+    failed: {
+      empty: "Valitse yksi tai useampi .xmp-tiedosto tai yksi niitä sisältävä .zip.",
+      oversize: "Sivutiedostot ovat liian suuria luettaviksi turvallisesti. Mitään ei muutettu.",
+      unsafe: "Sivutiedostoja ei voitu lukea turvallisesti. Mitään ei muutettu.",
+      ambiguous: "Kahdella kuvalla on sama tiedostonimi (esimerkiksi RAW ja sen JPEG), joten sivutiedosto voisi kuulua kumpaan tahansa. Mitään ei muutettu.",
+      "no-match": "Mikään sivutiedostoista ei vastaa tiedostonimeltään tämän projektin kuvaa. Mitään ei muutettu.",
+      keeper: "Sivutiedosto jättäisi sivuun kuvan, jonka merkitsit. Tarkista se kuva erikseen. Mitään ei muutettu.",
+    },
+  },
   canvas: {
     selectPhoto: "Aloita muokkaus valitsemalla kuva filminauhasta.",
     resizeText: "Muuta tekstin kokoa",

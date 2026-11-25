@@ -331,6 +331,23 @@ export const de: AreaTranslation<typeof source> = {
     rate: (n: number) => `Mit ${n} Sternen bewerten`,
     ratingFor: (name: string) => `Bewertung für ${name}`,
   },
+  xmp: {
+    saveMenu: "Bewertungen als XMP speichern …",
+    readMenu: "Bewertungen aus XMP lesen …",
+    saved: (count: number, name: string) => `Bewertungen, Markierungen und Stichwörter für ${count} Foto(s) als ${name} gespeichert. Legen Sie die Filialdateien neben die Originale, damit andere Apps sie lesen können.`,
+    read: (count: number) => `Bewertungen, Markierungen und Stichwörter für ${count} Foto(s) aus ihren XMP-Dateien gelesen.`,
+    sameName: "Zwei Fotos würden denselben Filialdateinamen schreiben (zum Beispiel ein RAW und sein JPEG). Wählen Sie eines davon und speichern Sie erneut.",
+    nothingToSave: "Es gibt keine Fotos, für die Filialdateien gespeichert werden können.",
+    saveFailed: "Die Filialdateien konnten nicht gespeichert werden. Ihre Fotos sind unverändert.",
+    failed: {
+      empty: "Wählen Sie eine oder mehrere .xmp-Dateien oder eine .zip-Datei damit.",
+      oversize: "Diese Filialdateien sind zu groß, um sie sicher zu lesen. Es wurde nichts geändert.",
+      unsafe: "Diese Filialdateien konnten nicht sicher gelesen werden. Es wurde nichts geändert.",
+      ambiguous: "Zwei Fotos haben diesen Dateinamen (zum Beispiel ein RAW und sein JPEG), daher könnte eine Filialdatei zu beiden gehören. Es wurde nichts geändert.",
+      "no-match": "Keine dieser Filialdateien passt dem Dateinamen nach zu einem Foto hier. Es wurde nichts geändert.",
+      keeper: "Eine Filialdatei würde ein von Ihnen markiertes Foto beiseitelegen. Prüfen Sie dieses Foto einzeln. Es wurde nichts geändert.",
+    },
+  },
   canvas: {
     selectPhoto: "Wählen Sie ein Foto im Filmstreifen aus, um mit der Bearbeitung zu beginnen.",
     resizeText: "Textgröße ändern",

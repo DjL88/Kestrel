@@ -331,6 +331,23 @@ export const es: AreaTranslation<typeof source> = {
     rate: (n: number) => `Valorar con ${n} estrellas`,
     ratingFor: (name: string) => `Valoración de ${name}`,
   },
+  xmp: {
+    saveMenu: "Guardar valoraciones en XMP…",
+    readMenu: "Leer valoraciones de XMP…",
+    saved: (count: number, name: string) => `Se guardaron valoraciones, marcas y etiquetas de ${count} foto(s) como ${name}. Pon los archivos auxiliares junto a los originales para que otras apps los lean.`,
+    read: (count: number) => `Se leyeron valoraciones, marcas y etiquetas de ${count} foto(s) desde sus archivos XMP.`,
+    sameName: "Dos fotos escribirían el mismo nombre de archivo auxiliar (por ejemplo un RAW y su JPEG). Selecciona una y vuelve a guardar.",
+    nothingToSave: "No hay fotos para las que guardar archivos auxiliares.",
+    saveFailed: "No se pudieron guardar los archivos auxiliares. Tus fotos no han cambiado.",
+    failed: {
+      empty: "Elige uno o más archivos .xmp, o un .zip con ellos.",
+      oversize: "Esos archivos auxiliares son demasiado grandes para leerlos con seguridad. No se cambió nada.",
+      unsafe: "No se pudieron leer esos archivos auxiliares con seguridad. No se cambió nada.",
+      ambiguous: "Dos fotos comparten ese nombre de archivo (por ejemplo un RAW y su JPEG), así que un archivo auxiliar podría ser de cualquiera. No se cambió nada.",
+      "no-match": "Ninguno de esos archivos auxiliares coincide por nombre con una foto de aquí. No se cambió nada.",
+      keeper: "Un archivo auxiliar apartaría una foto que marcaste. Revisa esa foto por separado. No se cambió nada.",
+    },
+  },
   canvas: {
     selectPhoto: "Seleccione una fotografía de la tira de imágenes para empezar a editar.",
     resizeText: "Cambiar el tamaño del texto",

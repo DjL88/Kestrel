@@ -331,6 +331,23 @@ export const cy: AreaTranslation<typeof source> = {
     rate: (n: number) => `Rhoi ${n} seren`,
     ratingFor: (name: string) => `Sgôr ar gyfer ${name}`,
   },
+  xmp: {
+    saveMenu: "Cadw sgoriau i XMP…",
+    readMenu: "Darllen sgoriau o XMP…",
+    saved: (count: number, name: string) => `Wedi cadw sgoriau, marciau a thagiau ar gyfer ${count} llun fel ${name}. Rhowch y ffeiliau ochr wrth ymyl y rhai gwreiddiol er mwyn i apiau eraill eu darllen.`,
+    read: (count: number) => `Wedi darllen sgoriau, marciau a thagiau ar gyfer ${count} llun o’u ffeiliau XMP.`,
+    sameName: "Byddai dau lun yn ysgrifennu’r un enw ffeil ochr (er enghraifft RAW a’i JPEG). Dewiswch un ohonynt a chadw eto.",
+    nothingToSave: "Does dim lluniau i gadw ffeiliau ochr ar eu cyfer.",
+    saveFailed: "Doedd dim modd cadw’r ffeiliau ochr. Mae eich lluniau heb eu newid.",
+    failed: {
+      empty: "Dewiswch un neu fwy o ffeiliau .xmp, neu un .zip ohonynt.",
+      oversize: "Mae’r ffeiliau ochr yn rhy fawr i’w darllen yn ddiogel. Ni newidiwyd dim.",
+      unsafe: "Doedd dim modd darllen y ffeiliau ochr yn ddiogel. Ni newidiwyd dim.",
+      ambiguous: "Mae dau lun yn rhannu’r enw ffeil hwnnw (er enghraifft RAW a’i JPEG), felly gallai ffeil ochr berthyn i’r naill neu’r llall. Ni newidiwyd dim.",
+      "no-match": "Does dim un o’r ffeiliau ochr yn cyfateb i lun yma yn ôl enw ffeil. Ni newidiwyd dim.",
+      keeper: "Byddai ffeil ochr yn rhoi o’r neilltu lun a farciwyd gennych. Adolygwch y llun hwnnw ar ei ben ei hun. Ni newidiwyd dim.",
+    },
+  },
   canvas: {
     selectPhoto: "Dewiswch lun o’r stribed lluniau i ddechrau golygu.",
     resizeText: "Newid maint y testun",

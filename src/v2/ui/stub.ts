@@ -966,6 +966,12 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       logAction('importFolder');
       setStore((prev) => ({ ...prev, lastActionNotice: 'Folder import is available in the real workspace.' }));
     },
+    saveXmpSidecars: () => {
+      setStore((prev) => ({ ...prev, lastActionNotice: 'XMP sidecars are available in the real workspace.' }));
+    },
+    readXmpSidecars: () => {
+      setStore((prev) => ({ ...prev, lastActionNotice: 'XMP sidecars are available in the real workspace.' }));
+    },
     importDroppedPhotos: (files) => {
       logAction('importDroppedPhotos', { count: files.length });
       setStore((prev) => ({ ...prev, lastActionNotice: 'Drag and drop is available in the real workspace.' }));

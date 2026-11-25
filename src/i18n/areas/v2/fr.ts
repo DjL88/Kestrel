@@ -331,6 +331,23 @@ export const fr: AreaTranslation<typeof source> = {
     rate: (n: number) => `Noter ${n} étoiles`,
     ratingFor: (name: string) => `Note de ${name}`,
   },
+  xmp: {
+    saveMenu: "Enregistrer les notes en XMP…",
+    readMenu: "Lire les notes depuis XMP…",
+    saved: (count: number, name: string) => `Notes, marques et mots-clés enregistrés pour ${count} photo(s) dans ${name}. Placez les fichiers annexes à côté des originaux pour que d’autres applications les lisent.`,
+    read: (count: number) => `Notes, marques et mots-clés lus pour ${count} photo(s) depuis leurs fichiers XMP.`,
+    sameName: "Deux photos écriraient le même nom de fichier annexe (par exemple un RAW et son JPEG). Sélectionnez-en une et réessayez.",
+    nothingToSave: "Il n’y a aucune photo pour laquelle enregistrer des fichiers annexes.",
+    saveFailed: "Les fichiers annexes n’ont pas pu être enregistrés. Vos photos sont inchangées.",
+    failed: {
+      empty: "Choisissez un ou plusieurs fichiers .xmp, ou un seul .zip.",
+      oversize: "Ces fichiers annexes sont trop volumineux pour être lus en sécurité. Rien n’a été modifié.",
+      unsafe: "Ces fichiers annexes n’ont pas pu être lus en sécurité. Rien n’a été modifié.",
+      ambiguous: "Deux photos portent ce nom de fichier (par exemple un RAW et son JPEG), donc un fichier annexe pourrait appartenir à l’une ou l’autre. Rien n’a été modifié.",
+      "no-match": "Aucun de ces fichiers annexes ne correspond par son nom à une photo d’ici. Rien n’a été modifié.",
+      keeper: "Un fichier annexe mettrait de côté une photo que vous avez marquée. Vérifiez cette photo séparément. Rien n’a été modifié.",
+    },
+  },
   canvas: {
     selectPhoto: "Sélectionnez une photographie dans le film pour commencer la retouche.",
     resizeText: "Redimensionner le texte",

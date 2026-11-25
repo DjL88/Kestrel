@@ -331,6 +331,23 @@ export const is: AreaTranslation<typeof source> = {
     rate: (n: number) => `Gefa ${n} stjörnur`,
     ratingFor: (name: string) => `Einkunn fyrir ${name}`,
   },
+  xmp: {
+    saveMenu: "Vista einkunnir í XMP…",
+    readMenu: "Lesa einkunnir úr XMP…",
+    saved: (count: number, name: string) => `Einkunnir, merkingar og merki fyrir ${count} mynd(ir) vistuð sem ${name}. Settu hliðarskrárnar við hlið frumritanna svo önnur forrit geti lesið þær.`,
+    read: (count: number) => `Einkunnir, merkingar og merki fyrir ${count} mynd(ir) lesin úr XMP-skrám þeirra.`,
+    sameName: "Tvær myndir myndu skrifa sama hliðarskráarheiti (til dæmis RAW og JPEG hennar). Veldu aðra og vistaðu aftur.",
+    nothingToSave: "Engar myndir til að vista hliðarskrár fyrir.",
+    saveFailed: "Ekki tókst að vista hliðarskrárnar. Myndirnar þínar eru óbreyttar.",
+    failed: {
+      empty: "Veldu eina eða fleiri .xmp-skrár, eða eina .zip með þeim.",
+      oversize: "Þessar hliðarskrár eru of stórar til að lesa á öruggan hátt. Engu var breytt.",
+      unsafe: "Ekki tókst að lesa þessar hliðarskrár á öruggan hátt. Engu var breytt.",
+      ambiguous: "Tvær myndir bera þetta skráarheiti (til dæmis RAW og JPEG hennar), svo hliðarskrá gæti átt við hvora sem er. Engu var breytt.",
+      "no-match": "Engin þessara hliðarskráa passar við mynd hér eftir skráarheiti. Engu var breytt.",
+      keeper: "Hliðarskrá myndi setja til hliðar mynd sem þú merktir. Farðu yfir þá mynd sér. Engu var breytt.",
+    },
+  },
   canvas: {
     selectPhoto: "Veldu mynd úr myndaröðinni til að hefja vinnslu.",
     resizeText: "Breyta stærð texta",
