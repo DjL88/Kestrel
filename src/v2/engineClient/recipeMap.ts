@@ -1,7 +1,19 @@
 import type { PhotoEdit } from '../../core/photoEdits';
 import { isNeutralWhiteBalance, validWhiteBalance } from '../../core/asShotWhite';
 import { isNeutralCurve, isNeutralMixer, validCurve, validMixer, type ColourMixer, type CurvePoint } from '../../core/curveMixer';
-import type { EditRecipe } from '../ui/contract';
+import { isNeutralChannelCurves, isNeutralGrade, validChannelCurves, validGrade, CURVE_CHANNELS, type ChannelCurves, type ColourGrade } from '../../core/colourGrade';
+import { isNeutralCalibration, PRIMARIES, validCalibration, type Calibration } from '../../core/calibration';
+import { validDehaze } from '../../core/dehaze';
+import { validGrain, validVignette, type Vignette } from '../../core/finishing';
+import type { ColourGradeRecipe, EditRecipe } from '../ui/contract';
+
+export const DEFAULT_VIGNETTE_SIZE = 50;
+export const DEFAULT_GRAIN_SIZE = 25;
+const hex = (colour: [number, number, number]) => `#${colour.map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('')}`;
+const fromHex = (value: string | undefined): [number, number, number] | undefined => {
+  const match = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(value ?? '');
+  return match ? [1, 2, 3].map((i) => round(parseInt(match[i], 16) / 255, 4)) as [number, number, number] : undefined;
+};
 
 /**
  * Maps the UI's recipe (sliders -100 to 100, exposure in EV) to and from the engine's PhotoEdit (tone and detail -2 to 2,
@@ -53,7 +65,43 @@ export function editToRecipe(edit: PhotoEdit | undefined): EditRecipe {
     ...(validMixer(edit.mixer) && !isNeutralMixer(edit.mixer) ? { colourMixer: {
       hue: edit.mixer.hue.map(toSlider), saturation: edit.mixer.saturation.map(toSlider), luminance: edit.mixer.luminance.map(toSlider),
     } } : {}),
+    ...(validDehaze(edit.dehaze) && edit.dehaze !== 0 ? { dehaze: round(edit.dehaze * 100, 2) } : {}),
+    ...(validVignette(edit.vignette) ? {
+      vignette: round(edit.vignette.amount * 100, 2), vignetteSize: round(edit.vignette.size * 100, 2),
+      ...(edit.vignette.blur ? { vignetteBlur: round(edit.vignette.blur * 100, 2) } : {}),
+      ...(edit.vignette.colour ? { vignetteColour: hex(edit.vignette.colour) } : {}),
+    } : {}),
+    ...(validGrain(edit.grain) ? { grain: round(edit.grain.amount * 100, 2), grainSize: round(edit.grain.size * 100, 2) } : {}),
+    ...(validCalibration(edit.calibration) && !isNeutralCalibration(edit.calibration) ? { calibration: Object.fromEntries(
+      PRIMARIES.map((key) => [key, { hue: round(edit.calibration![key][0] * 100, 2), saturation: round(edit.calibration![key][1] * 100, 2) }]),
+    ) as NonNullable<EditRecipe['calibration']> } : {}),
+    ...(validGrade(edit.grade) && !isEmptyGrade(edit.grade) ? { colourGrade: gradeToRecipe(edit.grade) } : {}),
+    ...(validChannelCurves(edit.channelCurves) && !isNeutralChannelCurves(edit.channelCurves) ? { channelCurves: Object.fromEntries(
+      Object.entries(edit.channelCurves).map(([channel, points]) => [channel, points!.map(([x, y]) => [x, y] as [number, number])]),
+    ) } : {}),
   };
+}
+
+/**
+ * Every value at zero. A hue chosen before its strength is kept (so picking the colour first is not lost), although
+ * renderers treat a grade with no strength as neutral (isNeutralGrade).
+ */
+const isEmptyGrade = (grade: ColourGrade) => isNeutralGrade(grade) && grade.balance === 0
+  && grade.shadows[0] === 0 && grade.midtones[0] === 0 && grade.highlights[0] === 0;
+
+const gradeToRecipe = (grade: ColourGrade): ColourGradeRecipe => {
+  const range = ([hue, amount]: [number, number]) => ({ hue: round(hue, 1), amount: round(amount * 100, 2) });
+  return { shadows: range(grade.shadows), midtones: range(grade.midtones), highlights: range(grade.highlights), balance: round(grade.balance * 100, 2) };
+};
+
+function recipeToGrade(source: ColourGradeRecipe | undefined): ColourGrade | undefined {
+  if (!source) return undefined;
+  const range = (r: { hue: number; amount: number } | undefined): [number, number] => [
+    round(Number.isFinite(r?.hue) ? ((r!.hue % 360) + 360) % 360 : 0, 2),
+    round(clamp(Number.isFinite(r?.amount) ? r!.amount : 0, 0, 100) / 100, 4),
+  ];
+  return { shadows: range(source.shadows), midtones: range(source.midtones), highlights: range(source.highlights),
+    balance: round(clamp(Number.isFinite(source.balance) ? source.balance : 0, -100, 100) / 100, 4) };
 }
 
 export function applyRecipePatch(edit: PhotoEdit | undefined, patch: Partial<EditRecipe>): { edit: PhotoEdit; unmapped: (typeof UNMAPPED_KEYS)[number][] } {
@@ -103,6 +151,58 @@ export function applyRecipePatch(edit: PhotoEdit | undefined, patch: Partial<Edi
     const mixer: ColourMixer | undefined = source ? { hue: band(source.hue), saturation: band(source.saturation), luminance: band(source.luminance) } : undefined;
     if (mixer && validMixer(mixer) && !isNeutralMixer(mixer)) next.mixer = mixer;
     else delete next.mixer;
+  }
+  if (patch.dehaze !== undefined && Number.isFinite(patch.dehaze)) {
+    const value = round(clamp(patch.dehaze, -100, 100) / 100, 4);
+    if (value === 0) delete next.dehaze;
+    else next.dehaze = value;
+  }
+  if (['vignette', 'vignetteSize', 'vignetteBlur', 'vignetteColour'].some((key) => key in patch)) {
+    const current: Vignette = { amount: 0, size: DEFAULT_VIGNETTE_SIZE / 100, ...next.vignette };
+    const unit = (value: number | undefined, fallback: number, low = 0) => Number.isFinite(value) ? round(clamp(value!, low * 100, 100) / 100, 4) : fallback;
+    const vignette: Vignette = {
+      amount: unit(patch.vignette, current.amount, -1),
+      size: unit(patch.vignetteSize, current.size),
+    };
+    const blur = 'vignetteBlur' in patch ? unit(patch.vignetteBlur, 0) : current.blur ?? 0;
+    if (blur > 0) vignette.blur = blur;
+    const colour = 'vignetteColour' in patch ? fromHex(patch.vignetteColour) : current.colour;
+    if (colour) vignette.colour = colour;
+    // Off (no strength and no blur) is stored as no vignette at all.
+    if (validVignette(vignette) && (vignette.amount !== 0 || blur > 0)) next.vignette = vignette;
+    else delete next.vignette;
+  }
+  if ('grain' in patch || 'grainSize' in patch) {
+    const amount = Number.isFinite(patch.grain) ? round(clamp(patch.grain!, 0, 100) / 100, 4) : next.grain?.amount ?? 0;
+    const size = Number.isFinite(patch.grainSize) ? round(clamp(patch.grainSize!, 0, 100) / 100, 4) : next.grain?.size ?? DEFAULT_GRAIN_SIZE / 100;
+    if (amount > 0) next.grain = { amount, size };
+    else delete next.grain;
+  }
+  if ('calibration' in patch) {
+    const source = patch.calibration;
+    const shift = (key: typeof PRIMARIES[number]): [number, number] => {
+      const value = source?.[key];
+      const unit = (v: number | undefined) => round(clamp(Number.isFinite(v) ? v! : 0, -100, 100) / 100, 4);
+      return [unit(value?.hue), unit(value?.saturation)];
+    };
+    const calibration: Calibration | undefined = source ? { red: shift('red'), green: shift('green'), blue: shift('blue') } : undefined;
+    if (calibration && validCalibration(calibration) && !isNeutralCalibration(calibration)) next.calibration = calibration;
+    else delete next.calibration;
+  }
+  if ('colourGrade' in patch) {
+    const grade = recipeToGrade(patch.colourGrade);
+    if (grade && validGrade(grade) && !isEmptyGrade(grade)) next.grade = grade;
+    else delete next.grade;
+  }
+  if ('channelCurves' in patch) {
+    // Only valid, bent curves are kept; a straight or malformed channel is dropped, never guessed.
+    const curves: ChannelCurves = {};
+    for (const channel of CURVE_CHANNELS) {
+      const points = patch.channelCurves?.[channel]?.map(([x, y]) => [round(x, 4), round(y, 4)] as CurvePoint);
+      if (points && validCurve(points) && !isNeutralCurve(points)) curves[channel] = points;
+    }
+    if (Object.keys(curves).length) next.channelCurves = curves;
+    else delete next.channelCurves;
   }
   const neutral = (value: unknown, base: unknown) => value === undefined || value === base;
   const unmapped = UNMAPPED_KEYS.filter((key) => !neutral(patch[key], NEUTRAL_RECIPE[key]));

@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { checkColour, type ColourReport } from '../../core/colourCheck';
-import { colourWarningSentences, colourWords, describeColourFinding, describeColourSense } from './colourWords';
+import { colourWarningSentences, colourWords, describeColourFinding, describeColourMatch, describeColourSense } from './colourWords';
+import type { ColourMatchResult } from '../../core/colourMatch';
 import { checkSubjectColour } from '../../core/colourSense';
 
 const solid = (width: number, height: number, paint: (x: number, y: number) => [number, number, number]) => {
@@ -61,4 +62,16 @@ test('ColourSense says in words whether the subject keeps its colour, and says n
   assert.match(clipped!.text, /Detail is lost in the red channel on part of the subject\./);
   assert.equal(describeColourSense(checkSubjectColour(picture([200, 110, 40]), picture([200, 110, 40]), new Float32Array(100))), undefined);
   assert.equal(describeColourSense(undefined), undefined);
+});
+
+test('colour match says what the subject should have and whether it is there, with the caveat when it is not', () => {
+  const base: ColourMatchResult = { subject: 'robin', source: 'speciesSignature', verdict: 'matches', parts: [{ part: 'breast', expected: ['orange', 'brown'], verdict: 'matches' }], measured: [{ family: 'orange', share: 0.4 }, { family: 'brown', share: 0.3 }] };
+  assert.deepEqual(describeColourMatch(base), { kept: true, label: 'Colour match, robin:', text: 'Expected orange (breast): found on the subject.' });
+  const differs: ColourMatchResult = { ...base, verdict: 'differs', parts: [{ part: 'breast', expected: ['orange'], verdict: 'differs' }], measured: [{ family: 'grey', share: 0.6 }, { family: 'blue', share: 0.2 }] };
+  assert.deepEqual(describeColourMatch(differs), {
+    kept: false,
+    label: 'Colour match, robin:',
+    text: 'Expected orange (breast): not found. The subject is mostly grey and blue. Light, age, moult or a wrong name can explain a difference.',
+  });
+  assert.equal(describeColourMatch(null), undefined);
 });

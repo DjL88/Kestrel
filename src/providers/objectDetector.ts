@@ -2,6 +2,7 @@ import { sha256Hex } from '../core/sha256';
 import { friendlyToolError } from '../core/toolErrors';
 import { bundledModelUrl } from './bundledModelAssets';
 import { installedModel } from './modelUpdater';
+import type { DetectorAgreement } from '../core/rfDetr';
 import { DETECTOR_MODEL, boxSharpness, detectorWorkerCount, decodeTile, mergeDetections, tilePlan, tileScale, toInput, type Box, type Detection } from '../core/objectDetection';
 
 type Ort = typeof import('onnxruntime-web/wasm');
@@ -146,7 +147,23 @@ async function lookIn(source: Source, tile: Box): Promise<Detection[]> {
   return decodeTile(data, tile);
 }
 
-export interface FoundSubject { detection: Detection; sharpness: number; /** Share of the photo the subject covers. */ coverage: number }
+export interface FoundSubject {
+  detection: Detection;
+  sharpness: number;
+  /** Share of the photo the subject covers. */
+  coverage: number;
+  /** With the optional RF-DETR pack: which detectors found it. Absent when YOLOX ran alone. */
+  agreement?: DetectorAgreement;
+  /** True when the two detectors disagreed about this subject: a person should look. Never a reason to reject. */
+  review?: boolean;
+}
+
+/** YOLOX's answer, compared with RF-DETR's when that optional pack is installed (YOLOX alone otherwise). */
+async function withTandem(source: Source, yolox: Detection[], signal?: AbortSignal): Promise<Array<Detection & { agreement?: DetectorAgreement; review?: boolean }>> {
+  const { rfDetrStatus, tandemWithRfDetr } = await import('./rfDetrDetector');
+  if (await rfDetrStatus().catch(() => 'unavailable') !== 'ready') return yolox;
+  return tandemWithRfDetr(source, yolox, signal);
+}
 
 /**
  * The most likely subject of a photo, and how sharp it is. The whole photo is looked at first; only when nothing clear is found
@@ -162,15 +179,18 @@ export async function findSubject(source: Source, signal?: AbortSignal): Promise
       detections = detections.concat(await lookIn(source, tile));
     }
   }
-  const best = mergeDetections(detections).sort((a, b) => b.score * Math.sqrt(b.box.w * b.box.h) - a.score * Math.sqrt(a.box.w * a.box.h))[0];
+  const merged = await withTandem(source, mergeDetections(detections).filter((d) => d.score >= 0.3), signal);
+  const best = merged.sort((a, b) => b.score * Math.sqrt(b.box.w * b.box.h) - a.score * Math.sqrt(a.box.w * a.box.h))[0];
   if (!best) return null;
-  return { detection: best, sharpness: sharpnessOf(source, best.box), coverage: (best.box.w * best.box.h) / (w * h) };
+  const { agreement, review, ...detection } = best;
+  return { detection, sharpness: sharpnessOf(source, best.box), coverage: (best.box.w * best.box.h) / (w * h), ...(agreement ? { agreement, review } : {}) };
 }
 
 /**
- * The same looking as findSubject (the whole frame, then tiles only when nothing confident was seen, so it costs the
- * same), but every merged subject rather than only the dominant one, for multi-subject culling (owner decision 6).
- * Ordered like findSubject, so the first entry is the subject findSubject would have returned. At most 8.
+ * The same looking as findSubject (the whole frame, then tiles only when nothing confident was seen, and the RF-DETR
+ * tandem when that pack is installed), so it costs the same, but every merged subject rather than only the dominant
+ * one, for multi-subject culling (owner decision 6). Ordered like findSubject, so the first entry is the subject
+ * findSubject would have returned. At most 8.
  */
 export async function findSubjectsSamePass(source: Source, signal?: AbortSignal): Promise<FoundSubject[]> {
   const { w, h } = dims(source);
@@ -182,11 +202,18 @@ export async function findSubjectsSamePass(source: Source, signal?: AbortSignal)
       detections = detections.concat(await lookIn(source, tile));
     }
   }
-  return mergeDetections(detections)
-    .filter((d) => Number.isFinite(d.box.x) && Number.isFinite(d.box.y) && Number.isFinite(d.box.w) && Number.isFinite(d.box.h) && d.box.w > 0 && d.box.h > 0)
+  const finite = (d: Detection) => Number.isFinite(d.box.x) && Number.isFinite(d.box.y) && Number.isFinite(d.box.w) && Number.isFinite(d.box.h) && d.box.w > 0 && d.box.h > 0;
+  const merged = await withTandem(source, mergeDetections(detections).filter((d) => d.score >= 0.3 && finite(d)), signal);
+  return merged
+    .filter(finite)
     .sort((a, b) => b.score * Math.sqrt(b.box.w * b.box.h) - a.score * Math.sqrt(a.box.w * a.box.h))
     .slice(0, 8)
-    .map((detection) => ({ detection, sharpness: sharpnessOf(source, detection.box), coverage: (detection.box.w * detection.box.h) / (w * h) }));
+    .map(({ agreement, review, ...detection }) => ({
+      detection,
+      sharpness: sharpnessOf(source, detection.box),
+      coverage: (detection.box.w * detection.box.h) / (w * h),
+      ...(agreement ? { agreement, review } : {}),
+    }));
 }
 
 /** Sharpness inside the box, measured at a fixed size so a big subject and a small one compare fairly. */
@@ -224,15 +251,20 @@ export async function findSubjects(source: Source, signal?: AbortSignal): Promis
     detections.push(...await lookIn(source, tile));
     signal?.throwIfAborted();
   }
-  return mergeDetections(detections)
-    .filter(d => d.score >= 0.5 && Number.isFinite(d.box.x) && Number.isFinite(d.box.y) &&
-      Number.isFinite(d.box.w) && Number.isFinite(d.box.h) && d.box.w > 0 && d.box.h > 0 &&
-      d.box.x >= 0 && d.box.y >= 0 && d.box.x + d.box.w <= w && d.box.y + d.box.h <= h)
+  const inside = (d: Detection) => d.score >= 0.5 && Number.isFinite(d.box.x) && Number.isFinite(d.box.y) &&
+    Number.isFinite(d.box.w) && Number.isFinite(d.box.h) && d.box.w > 0 && d.box.h > 0 &&
+    d.box.x >= 0 && d.box.y >= 0 && d.box.x + d.box.w <= w && d.box.y + d.box.h <= h;
+  // Every subject is kept separately (two birds stay two). With RF-DETR installed, both detectors' subjects are joined.
+  const yolox = mergeDetections(detections).filter(inside);
+  signal?.throwIfAborted();
+  return (await withTandem(source, yolox, signal))
+    .filter(inside)
     .sort((a, b) => b.score - a.score)
     .slice(0, 20)
-    .map(detection => ({
+    .map(({ agreement, review, ...detection }) => ({
       detection,
       sharpness: sharpnessOf(source, detection.box),
       coverage: (detection.box.w * detection.box.h) / (w * h),
+      ...(agreement ? { agreement, review } : {}),
     }));
 }
