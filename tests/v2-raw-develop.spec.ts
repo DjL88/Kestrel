@@ -29,7 +29,8 @@ test('V2 background engine replaces a synthetic embedded RAW preview with develo
   await expect.poll(dimensions, { timeout: 30_000 }).toEqual([64, 96]);
   await root.getByRole('button', { name: 'Back to projects' }).click();
   await page.reload();
-  await root.getByRole('button', { name: /Open studio/ }).first().click();
+  // The project's name opens it at every width; the separate Open studio link is wide-screen only since #1376.
+  await root.getByRole('button', { name: 'V2 sensor develop', exact: true }).first().click();
   await expect.poll(dimensions, { timeout: 30_000 }).toEqual([64, 96]);
 });
 
