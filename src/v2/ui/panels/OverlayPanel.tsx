@@ -66,7 +66,7 @@ function Switch({ on, label, onToggle }: { on: boolean; label: string; onToggle:
       aria-checked={on}
       aria-label={label}
       onClick={onToggle}
-      className={`inline-flex items-center gap-2 rounded-full border px-1 py-1 pr-2.5 text-[11px] font-semibold transition-colors ${
+      className={`inline-flex items-center gap-2 rounded-full border px-1 py-1 pr-2.5 text-[0.6875rem] font-semibold transition-colors ${
         on ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--text-primary)]' : 'border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--text-secondary)]'
       }`}
     >
@@ -136,7 +136,7 @@ export default function OverlayPanel({
           <button type="button" onClick={onManageTemplates} aria-label={`${STRINGS.settings.heading}: ${STRINGS.overlays.templatesHeading}`}
             className="min-h-10 rounded border border-[var(--border-default)] px-2 text-xs">{STRINGS.settings.heading}</button>
         </div>
-        <p className="text-[11px] leading-snug text-[var(--text-muted)]">{STRINGS.overlays.templatesIntro}</p>
+        <p className="text-[0.6875rem] leading-snug text-[var(--text-muted)]">{STRINGS.overlays.templatesIntro}</p>
         <form
           className="flex gap-1.5"
           onSubmit={(e) => { e.preventDefault(); onSaveTemplate(photo.id, templateName); setTemplateName(''); }}
@@ -144,17 +144,17 @@ export default function OverlayPanel({
           <label htmlFor="overlay-template-name" className="sr-only">{STRINGS.overlays.templateNameLabel}</label>
           <input id="overlay-template-name" type="text" maxLength={40} value={templateName} onChange={(e) => setTemplateName(e.target.value)} placeholder={STRINGS.overlays.templateNameLabel}
             className="h-10 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2.5 text-xs text-[var(--text-primary)]" />
-          <button type="submit" className="min-h-10 shrink-0 rounded-[var(--radius-sm)] bg-[var(--brand-accent)] px-3 text-[11px] font-semibold text-[var(--text-on-accent)]">{STRINGS.overlays.templateSave}</button>
+          <button type="submit" className="min-h-10 shrink-0 rounded-[var(--radius-sm)] bg-[var(--brand-accent)] px-3 text-[0.6875rem] font-semibold text-[var(--text-on-accent)]">{STRINGS.overlays.templateSave}</button>
         </form>
         {templates.length === 0 ? (
-          <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.overlays.templatesNone}</p>
+          <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.overlays.templatesNone}</p>
         ) : (
           <ul aria-label={STRINGS.overlays.templatesHeading} className="space-y-1.5">
             {templates.map((template) => (
               <li key={template.id} className="flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-1.5">
                 <span className="min-w-0 flex-1 truncate px-1 text-xs font-medium text-[var(--text-primary)]">{template.name}</span>
                 <button type="button" aria-label={`${STRINGS.overlays.templateApply(targets.length)}: ${template.name}`} onClick={() => onApplyTemplate(template.id, targets)}
-                  className="min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[11px] font-medium text-[var(--text-primary)]">{STRINGS.overlays.templateApply(targets.length)}</button>
+                  className="min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)]">{STRINGS.overlays.templateApply(targets.length)}</button>
               </li>
             ))}
           </ul>
@@ -210,7 +210,7 @@ export default function OverlayPanel({
             role="switch"
             aria-checked={overlay.snapEnabled}
             onClick={() => onUpdateOverlay(photo.id, { snapEnabled: !overlay.snapEnabled })}
-            className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${
+            className={`rounded-full px-2.5 py-0.5 text-[0.6875rem] font-semibold transition-colors ${
               overlay.snapEnabled
                 ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                 : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
@@ -227,7 +227,7 @@ export default function OverlayPanel({
             ['right', 'Right'],
           ] as const).map(([layout, label]) => (
             <button key={layout} type="button" onClick={() => onAlignOverlaysCleanly(photo.id, layout)}
-              className="rounded-[var(--radius-xs)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1.5 py-1 text-[10px] font-medium text-[var(--text-secondary)] hover:border-[var(--brand-accent)] hover:text-[var(--text-primary)]">
+              className="rounded-[var(--radius-xs)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1.5 py-1 text-[0.625rem] font-medium text-[var(--text-secondary)] hover:border-[var(--brand-accent)] hover:text-[var(--text-primary)]">
               {label}
             </button>
           ))}
@@ -262,7 +262,7 @@ export default function OverlayPanel({
                     <BrandIcon name={overflowOpen ? 'chevron-up' : 'chevron-down'} size={13} />
                   </button>
                   {overflowOpen && (
-                    <div role="status" className="space-y-2 border-t border-[var(--semantic-warning)]/40 p-2.5 text-[11px] leading-snug">
+                    <div role="status" className="space-y-2 border-t border-[var(--semantic-warning)]/40 p-2.5 text-[0.6875rem] leading-snug">
                       <p>{STRINGS.overlays.overflowWhy}</p>
                       <ul className="list-disc space-y-0.5 pl-4">
                         {overflowIssues.map((issue) => <li key={issue.sizeId}><strong>{issue.sizeLabel}</strong>: {issue.reason}</li>)}
@@ -270,7 +270,7 @@ export default function OverlayPanel({
                       <button
                         type="button"
                         onClick={() => onUpdateOverlay(photo.id, { rows: fitOverlayRows({ ...overlay, textOffsetX: 0, textOffsetY: 0 }, photo), textOffsetX: 0, textOffsetY: 0 })}
-                        className="rounded-[var(--radius-xs)] bg-[var(--brand-accent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-on-accent)]"
+                        className="rounded-[var(--radius-xs)] bg-[var(--brand-accent)] px-2.5 py-1 text-[0.6875rem] font-semibold text-[var(--text-on-accent)]"
                       >
                         {STRINGS.overlays.overflowFit}
                       </button>
@@ -282,7 +282,7 @@ export default function OverlayPanel({
               <div inert={!overlay.textEnabled ? true : undefined} aria-disabled={!overlay.textEnabled} className={`space-y-4 transition-opacity ${overlay.textEnabled ? '' : 'pointer-events-none opacity-40'}`}>
               {/* Coverage Mode: As-is vs Cover full photo */}
               <div className="space-y-1.5">
-                <span className="text-[11px] font-medium text-[var(--text-secondary)]">
+                <span className="text-[0.6875rem] font-medium text-[var(--text-secondary)]">
                   {STRINGS.overlays.layoutModeLabel}
                 </span>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -320,7 +320,7 @@ export default function OverlayPanel({
                   <button
                     type="button"
                     onClick={() => onAddRow(photo.id)}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--brand-accent)] hover:underline"
+                    className="inline-flex items-center gap-1 text-[0.6875rem] font-semibold text-[var(--brand-accent)] hover:underline"
                   >
                     <BrandIcon name="plus" size={12} />
                     <span>{STRINGS.overlays.addRow}</span>
@@ -335,7 +335,7 @@ export default function OverlayPanel({
                       className="space-y-2.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-2.5"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
+                        <span className="text-[0.6875rem] font-semibold text-[var(--text-secondary)]">
                           Row {idx + 1}
                         </span>
                         {overlay.rows.length > 1 && (
@@ -357,7 +357,7 @@ export default function OverlayPanel({
                           const value = overlayFieldText(field, photo, row.customText);
                           return <button key={field} type="button" title={value || label}
                             aria-label={`Remove ${label} from row ${idx + 1}`}
-                            className="rounded bg-[var(--brand-accent-soft)] px-2 py-1 text-[10px] text-[var(--brand-accent)]"
+                            className="rounded bg-[var(--brand-accent-soft)] px-2 py-1 text-[0.625rem] text-[var(--brand-accent)]"
                             onClick={() => toggleField(row, field)}>{label} ×</button>;
                         })}
                       </div>
@@ -391,7 +391,7 @@ export default function OverlayPanel({
                       {/* Size & Uppercase */}
                       <div className="flex items-center gap-3">
                         <div className="flex-1 space-y-1">
-                          <div className="flex justify-between text-[10px] text-[var(--text-muted)]">
+                          <div className="flex justify-between text-[0.625rem] text-[var(--text-muted)]">
                             <span>{STRINGS.panelWords.size}</span>
                             <span className="font-mono tabular-nums">{row.sizePx}px</span>
                           </div>
@@ -407,7 +407,7 @@ export default function OverlayPanel({
                         <button
                           type="button"
                           onClick={() => onUpdateRow(photo.id, row.id, { uppercase: !row.uppercase })}
-                          className={`h-7 rounded border px-2 text-[10px] font-semibold ${
+                          className={`h-7 rounded border px-2 text-[0.625rem] font-semibold ${
                             row.uppercase
                               ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                               : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-muted)]'

@@ -160,7 +160,9 @@ function drawMark(canvas: HTMLCanvasElement, input: OverlayDraw) {
     context.drawImage(image, box.x + padX * s, box.y + padY * s, width * s, height * s);
   } else {
     const { text, subtext } = input.mark;
-    const family = getComputedStyle(document.body).fontFamily || 'sans-serif';
+    // The page's own font stack, not the body's computed font: the reading font a person picks for the interface
+    // (Settings > Appearance) must never change an exported watermark.
+    const family = getComputedStyle(document.documentElement).getPropertyValue('--font-sans').trim() || 'sans-serif';
     const big = 11 * k, small = 9 * k;
     context.font = `700 ${big}px ${family}`;
     setSpacing(context, 0.14 * big);

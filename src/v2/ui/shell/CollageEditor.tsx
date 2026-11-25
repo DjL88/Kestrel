@@ -332,7 +332,7 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
                 </div>
               );
             })}
-            {page.caption && <div className="pointer-events-none absolute inset-[3%_5%] z-20 overflow-hidden">
+            {page.caption && <div data-artwork className="pointer-events-none absolute inset-[3%_5%] z-20 overflow-hidden">
               <div className="absolute w-full whitespace-pre-wrap break-words text-center font-semibold"
                 style={{ color: page.captionColour, fontFamily: captionGeometry.font, fontSize: captionGeometry.fontPx,
                   lineHeight: captionGeometry.lineHeight, top: `${captionStyle.position}%`, transform: `translateY(-${captionStyle.position}%)` }}>{page.caption}</div>
@@ -349,7 +349,7 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
                 {Object.entries(COLLAGE_FORMATS).map(([key, opt]) => <option key={key} value={key}>{opt.label}</option>)}
               </select>
             </label>
-            <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.collage.relayoutNote}</p>
+            <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.collage.relayoutNote}</p>
             <label className="flex items-center justify-between gap-3 text-xs font-medium">{STRINGS.collage.backgroundColour}
               <input type="color" aria-label={STRINGS.collage.pageBackgroundColour} value={page.background} onChange={(e) => setPage({ background: e.target.value })} className="h-10 w-14 cursor-pointer" />
             </label>
@@ -366,7 +366,7 @@ export default function CollageEditor({ document: doc, photos, projects, onBrows
                 <button type="button" key={template.id} disabled={!canChangeCollageTemplate(doc, template.id)}
                   onClick={() => { onChange(changeCollageTemplate(doc, template.id)); setActiveSlot(null); }}
                   aria-pressed={page.template === template.id} title={`${template.label} · ${template.slots}`}
-                  className={`flex min-h-[76px] flex-col items-center justify-center gap-1 rounded border p-1 text-[10px] leading-tight text-[var(--text-secondary)] disabled:opacity-40 ${page.template === template.id ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border-[var(--border-default)]'}`}>
+                  className={`flex min-h-[76px] flex-col items-center justify-center gap-1 rounded border p-1 text-[0.625rem] leading-tight text-[var(--text-secondary)] disabled:opacity-40 ${page.template === template.id ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'border-[var(--border-default)]'}`}>
                   <LayoutThumb template={template.id} aspect={aspect} />
                   <span>{template.label}</span>
                 </button>
