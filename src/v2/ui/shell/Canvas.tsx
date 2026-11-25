@@ -49,6 +49,9 @@ interface CanvasProps {
   maskGuideId?: string;
   /** The selected mask's hatched coverage overlay; its outline stays visible either way. */
   maskOverlayVisible?: boolean;
+  /** The overlay as a line round the mask (default) or the hatched area. */
+  maskOverlayStyle?: 'outline' | 'fill';
+  onSetMaskOverlayStyle?: (style: 'outline' | 'fill') => void;
   /** The overlay key as the person reads it ("O"), or undefined when unbound. */
   maskOverlayKey?: string;
   onToggleMaskOverlay?: () => void;
@@ -113,7 +116,9 @@ const ZOOM_BAR_STORAGE_KEY = 'inflight.v2.zoomBarOffset';
 export default function Canvas({
   PhotoSurface,
   maskGuideId,
-  maskOverlayVisible = true,
+  maskOverlayVisible: overlayChosen = true,
+  maskOverlayStyle = 'outline',
+  onSetMaskOverlayStyle,
   maskOverlayKey,
   onToggleMaskOverlay,
   onSetMaskGeometry,
@@ -408,6 +413,34 @@ export default function Canvas({
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [neutralPick]);
+  // While a slider moves, the mask overlay steps aside for a moment so the edit itself can be seen, then comes back
+  // (owner test, 25 Nov). Nothing animates, so reduced motion needs no special case; the label says it in words.
+  const OVERLAY_PAUSE_MS = 2500;
+  const [overlayPaused, setOverlayPaused] = useState(false);
+  // The photo's settings, and each existing mask's own values. Adding or removing a mask is not a slider move.
+  const editSignature = photo ? JSON.stringify({ recipe: getActiveGroup(photo).recipe,
+    masks: Object.fromEntries(photo.masks.map((layer) => [layer.id, JSON.stringify([layer.edit, layer.feather, layer.geometry, layer.parts])])) }) : '';
+  const lastSignature = useRef<{ photoId: string | null; signature: string }>({ photoId: null, signature: '' });
+  const pauseTimer = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    const photoId = photo?.id ?? null;
+    const previous = lastSignature.current;
+    lastSignature.current = { photoId, signature: editSignature };
+    // Only an edit to the same photo pauses; opening another photo or a mask does not.
+    if (previous.photoId !== photoId || previous.signature === editSignature || !previous.signature || !maskGuideId || !overlayChosen) return;
+    const before = JSON.parse(previous.signature) as { recipe: unknown; masks: Record<string, string> };
+    const now = JSON.parse(editSignature) as { recipe: unknown; masks: Record<string, string> };
+    const moved = JSON.stringify(before.recipe) !== JSON.stringify(now.recipe) ||
+      Object.keys(now.masks).some((id) => id in before.masks && before.masks[id] !== now.masks[id]);
+    if (!moved) return;
+    // Each move restarts the moment; the timer lives outside the effect so nothing else can leave the overlay hidden.
+    setOverlayPaused(true);
+    window.clearTimeout(pauseTimer.current);
+    pauseTimer.current = window.setTimeout(() => setOverlayPaused(false), OVERLAY_PAUSE_MS);
+  }, [editSignature, photo?.id, maskGuideId, overlayChosen]);
+  useEffect(() => () => window.clearTimeout(pauseTimer.current), []);
+  const maskOverlayVisible = overlayChosen && !overlayPaused;
+
   if (!photo) {
     return (
       <main className="flex flex-1 items-center justify-center bg-[var(--bg-canvas)] text-sm text-[var(--text-muted)]">
@@ -1087,7 +1120,7 @@ export default function Canvas({
   const renderSurface = (variant: 'edited' | 'original', alt: string, style: React.CSSProperties, filter: string) =>
     PhotoSurface ? (
       <PhotoSurface photoId={photo.id} variant={variant}
-        maskGuideId={variant === 'edited' && alt && !compareMode && maskOverlayVisible ? maskGuideId : undefined}
+        maskGuideId={variant === 'edited' && alt && !compareMode && maskOverlayVisible ? maskGuideId : undefined} maskGuideStyle={maskOverlayStyle}
         maskOutline={variant === 'edited' && alt && !compareMode ? renderPickLayer ?? renderMaskOutline : undefined}
         lookPreview={variant === 'edited' ? hoveredLook?.recipeDelta : undefined} alt={alt} className="h-full w-full" style={style} />
     ) : (
@@ -1099,9 +1132,18 @@ export default function Canvas({
    * it never covers a small pane's picture. */
   const renderMaskLabel = (place = 'bottom-2 left-2') => selectedMask && PhotoSurface ? (
               <div data-testid="mask-canvas-label" className={`absolute ${place} z-30 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[11px] font-medium text-white`}>
-                <span role="status" className="truncate">{maskOverlayVisible ? STRINGS.maskCanvas.overlayShown(selectedMask.name) : STRINGS.maskCanvas.overlayHidden(selectedMask.name)}</span>
+                <span role="status" className="truncate">{overlayPaused ? STRINGS.maskCanvas.overlayPaused(selectedMask.name)
+                  : !overlayChosen ? STRINGS.maskCanvas.overlayHidden(selectedMask.name)
+                  : maskOverlayStyle === 'outline' ? STRINGS.maskCanvas.overlayOutline(selectedMask.name) : STRINGS.maskCanvas.overlayShown(selectedMask.name)}</span>
+                {onSetMaskOverlayStyle && overlayChosen && (
+                  <button type="button" data-testid="mask-overlay-style"
+                    onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onSetMaskOverlayStyle(maskOverlayStyle === 'outline' ? 'fill' : 'outline'); }}
+                    className="shrink-0 rounded border border-white/60 px-1.5 text-[10px] leading-4 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+                    {maskOverlayStyle === 'outline' ? STRINGS.maskCanvas.styleFill : STRINGS.maskCanvas.styleOutline}
+                  </button>
+                )}
                 {onToggleMaskOverlay && (
-                  <button type="button" aria-pressed={maskOverlayVisible} aria-label={STRINGS.maskCanvas.toggleOverlay} title={STRINGS.maskCanvas.toggleOverlay}
+                  <button type="button" aria-pressed={overlayChosen} aria-label={STRINGS.maskCanvas.toggleOverlay} title={STRINGS.maskCanvas.toggleOverlay}
                     onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onToggleMaskOverlay(); }}
                     className="shrink-0 rounded border border-white/60 px-1.5 font-mono text-[10px] leading-4 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
                     {maskOverlayKey ?? '◐'}
@@ -1119,7 +1161,7 @@ export default function Canvas({
   const renderStrip = (alt: string, className: string, style: React.CSSProperties, editing = false) =>
     PhotoSurface ? (
       <PhotoSurface photoId={photo.id} variant="edited" alt={alt} className={className} style={style}
-        maskGuideId={editing && maskOverlayVisible ? maskGuideId : undefined}
+        maskGuideId={editing && maskOverlayVisible ? maskGuideId : undefined} maskGuideStyle={maskOverlayStyle}
         lookPreview={editing ? hoveredLook?.recipeDelta : undefined} />
     ) : (
       <img src={photo.previewUrl} alt={alt} referrerPolicy="no-referrer" draggable={false}

@@ -154,6 +154,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [maskGuide, setMaskGuide] = useState<{ photoId: string; maskId: string } | null>(null);
   // The selected mask's hatched coverage overlay (O). Its outline stays on the canvas either way.
   const [maskOverlayVisible, setMaskOverlayVisible] = useState(true);
+  // A line round the mask by default, so the edit inside stays visible; the hatched area is one press away.
+  const [maskOverlayStyle, setMaskOverlayStyle] = useState<'outline' | 'fill'>('outline');
   // White balance from the picture: the eyedropper's waiting state, and the last result in words.
   const [whitePickFor, setWhitePickFor] = useState<string | null>(null);
   const [whiteNote, setWhiteNote] = useState<{ photoId: string; text: string } | null>(null);
@@ -767,6 +769,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   PhotoSurface={store.PhotoSurface}
                   maskGuideId={maskGuide?.photoId === activePhoto?.id ? maskGuide?.maskId : undefined}
                   maskOverlayVisible={maskOverlayVisible}
+                  maskOverlayStyle={maskOverlayStyle}
+                  onSetMaskOverlayStyle={setMaskOverlayStyle}
                   maskOverlayKey={keymap['view.maskOverlay'] ? chordLabel(keymap['view.maskOverlay'], IS_MAC) : undefined}
                   onToggleMaskOverlay={() => setMaskOverlayVisible((visible) => !visible)}
                   onSetMaskGeometry={actions.setMaskGeometry}
