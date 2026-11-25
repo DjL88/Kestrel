@@ -2,7 +2,7 @@ import { useConnectivity } from '../providers/useConnectivity';
 import { useEffect, useRef, useState } from 'react';
 import type { Session, SignInProvider } from '../core/cloudInterfaces';
 import { signInOptions } from '../core/signInOptions';
-import { firebaseAuth, isSignInConfigured, signInPlatform, resendAccountVerification } from '../providers/firebaseAuth';
+import { firebaseAuth, isDesktopGoogleConfigured, isSignInConfigured, signInPlatform, resendAccountVerification } from '../providers/firebaseAuth';
 import { accountLicenceDevices, activateFromAccount, consumeExpiredAccountNotice, freeAccountLicenceDevice, leaveAccount, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
 import type { LicenceStatus } from '../providers/licenceSync';
 import { isDesktopApp, isMobileShell } from '../providers/desktopShell';
@@ -264,7 +264,7 @@ export function AccountAndLicenceSettings() {
           <>
             <p>Signing in lets you manage optional account features, including the online AI helper when available. Importing, culling, editing and exporting never need an account.</p>
             <div className="flex flex-wrap gap-2">
-              {signInOptions(signInPlatform(), isSignInConfigured()).map((option) => (
+              {signInOptions(signInPlatform(), isSignInConfigured(), isDesktopGoogleConfigured()).map((option) => (
                 <button key={option.provider} type="button" className={`${action} inline-flex items-center gap-2 disabled:opacity-60`} disabled={offline || accountBusy || !option.available} aria-describedby={option.reason ? 'account-reason' : undefined} onClick={() => void chooseSignIn(option.provider)}><SignInMark provider={option.provider === 'apple' ? 'apple' : 'google'} />{option.label}</button>
               ))}
             </div>
@@ -283,7 +283,7 @@ export function AccountAndLicenceSettings() {
                 </div>
               </form>
             )}
-            {signInOptions(signInPlatform(), isSignInConfigured())[0]?.reason && <p id="account-reason" className="text-xs text-[var(--account-muted,#a1a1aa)]">{signInOptions(signInPlatform(), isSignInConfigured())[0]?.reason}</p>}
+            {(() => { const reason = signInOptions(signInPlatform(), isSignInConfigured(), isDesktopGoogleConfigured()).find((o) => o.reason)?.reason; return reason ? <p id="account-reason" className="text-xs text-[var(--account-muted,#a1a1aa)]">{reason}</p> : null; })()}
           </>
         )}
         {accountBusy && <p role="status">Working on your account…</p>}
