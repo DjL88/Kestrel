@@ -1,6 +1,9 @@
 import { maskCoverageGuide } from '../core/maskCoverageGuide';
 import type { Mask } from '../core/maskTypes';
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
+import { fullContext, type MaskContext } from '../core/masks';
+import { opticalCentre } from '../core/chromaticAberration';
+import type { PhotoFraming } from '../core/photoFraming';
 import { frameLayers, visibleLayers } from '../core/layers';
 import { applyFrameLayers } from '../core/layerAssetVault';
 import { frameImageIdentity, framePreviewEncoding, visibleFrameUrl } from '../core/frameImageIdentity';
@@ -15,6 +18,11 @@ import type { PhotoPreviewReadiness } from '../core/photoTileReadiness';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { viewerText as t } from '../i18n/areas/viewer';
 import { isHeifFile } from '../core/rawFormats';
+
+/** The whole framed photo, with the lens centre where the crop leaves it (for colour fringing correction). */
+const lensContext = (canvas: HTMLCanvasElement, source: HTMLImageElement, framing: PhotoFraming): MaskContext => ({
+  ...fullContext(canvas.width, canvas.height), opticalCentre: opticalCentre(source.naturalWidth, source.naturalHeight, framing),
+});
 
 interface FrameImageProps {
   frame: PhotoFrame;
@@ -172,7 +180,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       const framing = frame.framing ?? DEFAULT_FRAMING;
       const size = framedSize(source.naturalWidth, source.naturalHeight, framing);
       drawFramedPhoto(source, canvas, framing, { scale: Math.min(1, (variant === 'thumb' ? 400 : 2200) / Math.max(size.width, size.height)) });
-      applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT);
+      applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT, undefined, lensContext(canvas, source, framing));
       await applyFrameLayers(canvas, frame.overlay, false);
       if (cancelled) return;
       // A full-size edited view must not suffer a second lossy JPEG pass.
@@ -198,7 +206,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       const framing = frame.framing ?? DEFAULT_FRAMING;
       drawFramedPhoto(source, canvas, framing, { scale: 1 });
       if (edited) {
-        applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT);
+        applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT, undefined, lensContext(canvas, source, framing));
         await applyFrameLayers(canvas, frame.overlay, false);
       }
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));

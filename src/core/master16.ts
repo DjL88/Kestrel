@@ -3,6 +3,7 @@ import { validCurve, validMixer } from './curveMixer';
 import { validChannelCurves, validGrade } from './colourGrade';
 import { validCalibration } from './calibration';
 import { applyDehaze, validDehaze } from './dehaze';
+import { applyLateralCa, validLateralCa } from './chromaticAberration';
 import { applyFinishingRgb16, validGrain, validVignette } from './finishing';
 import { validWhiteBalance } from './asShotWhite';
 import { applyDetailRgb16, applyPhotoEditLinear, detailParams, hasDetail, isNeutralTone, type PhotoEdit } from './photoEdits';
@@ -81,7 +82,7 @@ export function thumbRgb16(image: Rgb16Image): Thumb {
 const EXPORT_EDIT_KEYS = new Set([
   'exposure', 'warmth', 'tint', 'colour', 'brightness', 'contrast', 'highlights',
   'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity',
-  'sharpen', 'denoise', 'denoiseLuminance', 'masks', 'curve', 'mixer', 'whiteBalance', 'grade', 'channelCurves', 'calibration', 'vignette', 'grain', 'dehaze',
+  'sharpen', 'denoise', 'denoiseLuminance', 'masks', 'curve', 'mixer', 'whiteBalance', 'grade', 'channelCurves', 'calibration', 'vignette', 'grain', 'dehaze', 'lateralCa',
 ]);
 
 /** Stop rather than quietly export a future or malformed edit that this
@@ -95,7 +96,7 @@ export function master16Blocker(edit: PhotoEdit | undefined, framing: PhotoFrami
     // A NaN/Infinity or non-number must never silently become black/white
     // archival pixels in a purportedly faithful 16-bit master.
     for (const key of EXPORT_EDIT_KEYS) {
-      if (key === 'masks' || key === 'curve' || key === 'mixer' || key === 'whiteBalance' || key === 'grade' || key === 'channelCurves' || key === 'calibration' || key === 'vignette' || key === 'grain') continue;
+      if (key === 'masks' || key === 'curve' || key === 'mixer' || key === 'whiteBalance' || key === 'grade' || key === 'channelCurves' || key === 'calibration' || key === 'vignette' || key === 'grain' || key === 'lateralCa') continue;
       const value = edit[key as keyof PhotoEdit];
       if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || (key === 'tint' && Math.abs(value) > 2) || (key === 'denoiseLuminance' && (value < 0 || value > 2)))) {
         return `The saved "${key}" adjustment is invalid, so no 16-bit TIFF was made.`;
@@ -107,6 +108,7 @@ export function master16Blocker(edit: PhotoEdit | undefined, framing: PhotoFrami
     if (edit.grade !== undefined && !validGrade(edit.grade)) return 'The saved colour grading is invalid, so no 16-bit TIFF was made.';
     if (edit.calibration !== undefined && !validCalibration(edit.calibration)) return 'The saved camera calibration is invalid, so no 16-bit TIFF was made.';
     if (edit.vignette !== undefined && !validVignette(edit.vignette)) return 'The saved vignette is invalid, so no 16-bit TIFF was made.';
+    if (edit.lateralCa !== undefined && !validLateralCa(edit.lateralCa)) return 'The saved colour fringing correction is invalid, so no 16-bit TIFF was made.';
     if (edit.dehaze !== undefined && !validDehaze(edit.dehaze)) return 'The saved dehaze is invalid, so no 16-bit TIFF was made.';
     if (edit.grain !== undefined && !validGrain(edit.grain)) return 'The saved grain is invalid, so no 16-bit TIFF was made.';
     if (edit.channelCurves !== undefined && !validChannelCurves(edit.channelCurves)) return 'The saved channel curves are invalid, so no 16-bit TIFF was made.';
@@ -344,8 +346,10 @@ export function applyToneMasksRgb16(image: Rgb16Image, masks: readonly Mask[] | 
 
 /** Apply the edit in place: conservative chroma denoise, tone/colour,
  * global Texture/Clarity/Sharpening and then the same local mask ordering as screen. */
-export function editRgb16(image: Rgb16Image, edit: PhotoEdit): void {
+export function editRgb16(image: Rgb16Image, edit: PhotoEdit, opticalCentre?: { x: number; y: number }): void {
   const { data } = image;
+  // Colour fringing first, on the picture's own pixels, about the lens centre (the uncropped photo's middle).
+  applyLateralCa(data, image.width, image.height, 3, edit.lateralCa, { centre: opticalCentre });
   const chroma = noiseStrength(edit.denoise);
   if (chroma > 0) denoiseChromaRgb16(data, image.width, image.height, chroma, (edit.denoise ?? 0) > 1 ? 2 : 1);
   const luma = noiseStrength(edit.denoiseLuminance);

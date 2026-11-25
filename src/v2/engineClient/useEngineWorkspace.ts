@@ -5,6 +5,7 @@ import { forkEditCheckpoint, switchEditVersion as switchVersionInCatalogue } fro
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { sameRecipe } from '../../core/naturalAuto';
 import { newId } from '../../core/ids';
+import { estimateLateralCa } from '../../core/chromaticAberration';
 import { exportCollage } from './exportCollage';
 import { createCollage, MAX_COLLAGE_SELECTION, readCollage } from '../../core/collage';
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
@@ -1852,6 +1853,22 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     hasDeviceFont: (fontName) => hasDeviceFont(fontName),
     updateRecipe: (photoId, patch) => applyPatch(editTargets(photoId), patch),
     denoisePhoto,
+    // Measured on this one photo only (fringing belongs to its lens and focal length), on the whole uncropped picture.
+    measureColourFringing: async (photoId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      if (!frame) return { status: 'unmeasured', red: 0, blue: 0 };
+      const image = await loadExportSource(frame, provider.current!, 'selected');
+      const scale = Math.min(1, 2400 / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (!context) return { status: 'unmeasured', red: 0, blue: 0 };
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const { ca, measured } = estimateLateralCa(context.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height, 4);
+      if (!measured) return { status: 'unmeasured', red: 0, blue: 0 };
+      applyPatch([photoId], { fringeRed: ca.red * 100, fringeBlue: ca.blue * 100 });
+      return { status: ca.red || ca.blue ? 'applied' : 'none', red: ca.red * 100, blue: ca.blue * 100 };
+    },
     applyLook: (photoId, lookId) => {
       const look = stub.store.looks.find((entry) => entry.id === lookId);
       if (!look) return;

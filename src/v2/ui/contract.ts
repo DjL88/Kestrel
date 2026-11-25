@@ -172,6 +172,9 @@ export interface EditRecipe {
   channelCurves?: Partial<Record<'red' | 'green' | 'blue', Array<[number, number]>>>;
   /** Remove haze (positive) or add it (negative), -100 to 100. Absent = 0. */
   dehaze?: number;
+  /** Colour fringing: shrink (positive) or enlarge (negative) the red and the blue picture about the lens centre, -100 to 100. Absent = 0. */
+  fringeRed?: number;
+  fringeBlue?: number;
   /** Vignette: -100 darker edges to 100 lighter edges (with a colour, the strength of that colour). Absent = 0. */
   vignette?: number;
   /** How far the vignette reaches into the picture, 0 to 100. Absent = 50. */
@@ -644,6 +647,8 @@ export interface WorkspaceActions {
   updateRecipe: (photoId: string, patch: Partial<EditRecipe>, label?: string) => void;
   /** Denoise this photo now. Signed in with the cloud feature on, the press is the consent to upload a working-size copy for this job; the device is the fallback. */
   denoisePhoto: (photoId: string) => void;
+  /** Measure colour fringing on this one photo and set the correction. `unmeasured`: too few strong edges, nothing changed. */
+  measureColourFringing: (photoId: string) => Promise<{ status: 'applied' | 'none' | 'unmeasured'; red: number; blue: number }>;
   applyLook: (photoId: string, lookId: string) => void;
   setHoveredLook: (lookId: string | null) => void;
   resetPhotoEdits: (photoId: string) => void;

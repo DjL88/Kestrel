@@ -9,6 +9,8 @@ export interface MaskContext {
   /** Height divided by width of the whole framed photo. */
   aspect: number;
   view: { x: number; y: number; w: number; h: number };
+  /** Where the lens centre is in the framed photo (fractions). Absent = its middle, which is exact unless the crop is off-centre. */
+  opticalCentre?: { x: number; y: number };
 }
 
 export const fullContext = (width: number, height: number): MaskContext => ({

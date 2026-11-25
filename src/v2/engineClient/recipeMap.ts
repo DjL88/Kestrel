@@ -4,6 +4,7 @@ import { isNeutralCurve, isNeutralMixer, validCurve, validMixer, type ColourMixe
 import { isNeutralChannelCurves, isNeutralGrade, validChannelCurves, validGrade, CURVE_CHANNELS, type ChannelCurves, type ColourGrade } from '../../core/colourGrade';
 import { isNeutralCalibration, PRIMARIES, validCalibration, type Calibration } from '../../core/calibration';
 import { validDehaze } from '../../core/dehaze';
+import { hasLateralCa } from '../../core/chromaticAberration';
 import { validGrain, validVignette, type Vignette } from '../../core/finishing';
 import type { ColourGradeRecipe, EditRecipe } from '../ui/contract';
 
@@ -66,6 +67,7 @@ export function editToRecipe(edit: PhotoEdit | undefined): EditRecipe {
       hue: edit.mixer.hue.map(toSlider), saturation: edit.mixer.saturation.map(toSlider), luminance: edit.mixer.luminance.map(toSlider),
     } } : {}),
     ...(validDehaze(edit.dehaze) && edit.dehaze !== 0 ? { dehaze: round(edit.dehaze * 100, 2) } : {}),
+    ...(hasLateralCa(edit.lateralCa) ? { fringeRed: round(edit.lateralCa.red * 100, 2), fringeBlue: round(edit.lateralCa.blue * 100, 2) } : {}),
     ...(validVignette(edit.vignette) ? {
       vignette: round(edit.vignette.amount * 100, 2), vignetteSize: round(edit.vignette.size * 100, 2),
       ...(edit.vignette.blur ? { vignetteBlur: round(edit.vignette.blur * 100, 2) } : {}),
@@ -151,6 +153,12 @@ export function applyRecipePatch(edit: PhotoEdit | undefined, patch: Partial<Edi
     const mixer: ColourMixer | undefined = source ? { hue: band(source.hue), saturation: band(source.saturation), luminance: band(source.luminance) } : undefined;
     if (mixer && validMixer(mixer) && !isNeutralMixer(mixer)) next.mixer = mixer;
     else delete next.mixer;
+  }
+  if ('fringeRed' in patch || 'fringeBlue' in patch) {
+    const unit = (value: number | undefined, fallback: number) => Number.isFinite(value) ? round(clamp(value!, -100, 100) / 100, 4) : fallback;
+    const ca = { red: unit(patch.fringeRed, next.lateralCa?.red ?? 0), blue: unit(patch.fringeBlue, next.lateralCa?.blue ?? 0) };
+    if (hasLateralCa(ca)) next.lateralCa = ca;
+    else delete next.lateralCa;
   }
   if (patch.dehaze !== undefined && Number.isFinite(patch.dehaze)) {
     const value = round(clamp(patch.dehaze, -100, 100) / 100, 4);

@@ -6,7 +6,7 @@ import InfoPopover from '../shell/InfoPopover';
 import { getActiveGroup } from '../utils/studioMath';
 import { ColourMixerControl, KelvinControl, ToneCurveControl } from './CurveMixerControls';
 import { ColourGradeControl } from './ColourGradeControl';
-import { CalibrationControl, EffectsControls } from './EffectsControls';
+import { CalibrationControl, EffectsControls, FringeControl } from './EffectsControls';
 
 interface AdjustPanelProps {
   photo: Photo | null;
@@ -17,6 +17,8 @@ interface AdjustPanelProps {
   /** Settings → Show advanced controls: colour grading and channel curves. */
   showAdvanced?: boolean;
   onUpdateRecipe: (photoId: string, patch: Partial<EditRecipe>) => void;
+  /** Measure colour fringing on this photo and set the correction (Lens section). */
+  onMeasureFringing?: (photoId: string) => Promise<{ status: 'applied' | 'none' | 'unmeasured'; red: number; blue: number }>;
   onApplyLook: (photoId: string, lookId: string) => void;
   onHoverLook: (lookId: string | null) => void;
   onResetPhoto: (photoId: string) => void;
@@ -113,6 +115,7 @@ export default function AdjustPanel({
   hideReadouts,
   showAdvanced = false,
   onUpdateRecipe,
+  onMeasureFringing,
   onApplyLook,
   onHoverLook,
   onResetPhoto,
@@ -391,6 +394,15 @@ export default function AdjustPanel({
         <h3 id="effects-heading" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.adjust.effects.heading}</h3>
         <EffectsControls recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
       </section>
+
+      {/* Lens: colour fringing (Detail group on a phone) */}
+      {onMeasureFringing && (
+        <section aria-labelledby="lens-heading" className={`space-y-3 border-t border-[var(--border-subtle)] pt-4 ${phoneGroupClass(advancedGroup, 'detail')}`}>
+          <h3 id="lens-heading" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.adjust.fringe.lensHeading}</h3>
+          <FringeControl key={photo.id} recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)}
+            onMeasure={() => onMeasureFringing(photo.id)} />
+        </section>
+      )}
 
       {/* Tone curve (Tone group on a phone) and colour mixer (Colour group on a phone) */}
       <section aria-label={STRINGS.adjust.curve.heading} className={`space-y-3 border-t border-[var(--border-subtle)] pt-4 ${phoneGroupClass(advancedGroup, 'tone')}`}>

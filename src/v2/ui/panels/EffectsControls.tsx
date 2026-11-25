@@ -171,3 +171,50 @@ export function CalibrationControl({ recipe, calmView, onChange }: Props) {
     </div>
   );
 }
+
+const F = STRINGS.adjust.fringe;
+
+/** Lens colour fringing: Auto measures this photo's own edges; the two sliders set red/cyan and blue/yellow by hand. */
+export function FringeControl({ recipe, calmView, onChange, onMeasure }: Props & {
+  onMeasure: () => Promise<{ status: 'applied' | 'none' | 'unmeasured'; red: number; blue: number }>;
+}) {
+  const [busy, setBusy] = React.useState(false);
+  const [result, setResult] = React.useState<string | null>(null);
+  const measure = async () => {
+    setBusy(true);
+    setResult(null);
+    try {
+      const outcome = await onMeasure();
+      setResult(outcome.status === 'applied' ? F.applied(Math.round(outcome.red), Math.round(outcome.blue))
+        : outcome.status === 'none' ? F.none : F.unmeasured);
+    } catch {
+      setResult(F.failed);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="space-y-2" data-testid="colour-fringing">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          <h4 className="text-xs font-medium text-[var(--text-primary)]">{F.heading}</h4>
+          <InfoPopover title={F.heading} body={F.help} />
+        </div>
+        <button type="button" onClick={() => { setResult(null); onChange({ fringeRed: 0, fringeBlue: 0 }); }}
+          className="inline-flex items-center gap-1 text-[0.6875rem] font-medium text-[var(--text-muted)] hover:text-[var(--brand-accent)]">
+          <BrandIcon name="restore" size={12} />
+          <span>{F.reset}</span>
+        </button>
+      </div>
+      <button type="button" onClick={() => void measure()} disabled={busy} aria-label={F.autoLabel}
+        className="min-h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:border-[var(--brand-accent)] disabled:opacity-50">
+        {busy ? F.measuring : F.auto}
+      </button>
+      {result && <p role="status" className="text-[0.6875rem] leading-snug text-[var(--text-secondary)]">{result}</p>}
+      <Row id="slider-fringe-red" label={F.red} help={F.redHelp} value={recipe.fringeRed ?? 0} min={-100} max={100} calmView={calmView}
+        leftHint={F.enlarge} rightHint={F.shrink} onChange={(v) => onChange({ fringeRed: v })} />
+      <Row id="slider-fringe-blue" label={F.blue} help={F.blueHelp} value={recipe.fringeBlue ?? 0} min={-100} max={100} calmView={calmView}
+        leftHint={F.enlarge} rightHint={F.shrink} onChange={(v) => onChange({ fringeBlue: v })} />
+    </div>
+  );
+}

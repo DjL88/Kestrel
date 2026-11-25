@@ -181,3 +181,15 @@ test('dehaze, vignette (with colour and blur), grain and calibration round-trip 
   assert.equal(applyRecipePatch(edit, { grain: 0 }).edit.grain, undefined);
   assert.equal(applyRecipePatch(edit, { dehaze: 0 }).edit.dehaze, undefined);
 });
+
+test('colour fringing maps between the recipe sliders and the engine edit; zero removes it', () => {
+  const { edit } = applyRecipePatch(undefined, { fringeRed: 40, fringeBlue: -25 });
+  assert.deepEqual(edit.lateralCa, { red: 0.4, blue: -0.25 });
+  const back = editToRecipe(edit);
+  assert.equal(back.fringeRed, 40);
+  assert.equal(back.fringeBlue, -25);
+  // One slider alone keeps the other; values are clamped; both at zero is no correction at all.
+  assert.deepEqual(applyRecipePatch(edit, { fringeRed: 500 }).edit.lateralCa, { red: 1, blue: -0.25 });
+  assert.equal(applyRecipePatch(edit, { fringeRed: 0, fringeBlue: 0 }).edit.lateralCa, undefined);
+  assert.equal(editToRecipe(applyRecipePatch(edit, { fringeRed: 0, fringeBlue: 0 }).edit).fringeRed, undefined);
+});
