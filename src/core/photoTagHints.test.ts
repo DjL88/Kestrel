@@ -25,6 +25,7 @@ test('scene tags become preservation hints only', () => {
   assert.deepEqual(sceneHintsFromPhotoTags(tagged('weather.snow')), { preserveBright: true });
   assert.deepEqual(sceneHintsFromPhotoTags(tagged('style.high-key')), { preserveBright: true });
   assert.deepEqual(sceneHintsFromPhotoTags(tagged('style.black-and-white')), { monochrome: true });
+  assert.deepEqual(sceneHintsFromPhotoTags(tagged('weather.overcast')), { overcast: true });
   // Tags for another file are ignored.
   assert.deepEqual(sceneHintsFromPhotoTags({ ...tagged('weather.snow'), stableKey: 'other' }), {});
 });
@@ -46,4 +47,14 @@ test('snow and high-key keep a bright frame bright; black and white gets no colo
       assert.ok(Math.abs(out[key] ?? 0) <= Math.abs(plain[key] ?? 0), `${JSON.stringify(hints)} never strengthens ${key}`);
     }
   }
+});
+
+test('overcast keeps contrast gentle and adds no warming', () => {
+  // A dull, slightly flat frame: unguided Auto adds contrast.
+  const dull = make((x, y) => { const v = 100 + ((x * 3 + y * 5) % 40); return [v + 8, v, v - 6]; });
+  const plain = naturalAuto({ pixels: dull, width: W, height: H }).edit;
+  assert.ok(plain.contrast > 0.1, 'unguided Auto adds more than gentle contrast (the case being guarded)');
+  const grey = naturalAuto({ pixels: dull, width: W, height: H, sceneHints: { overcast: true } }).edit;
+  assert.ok(grey.contrast <= 0.1 && grey.contrast >= 0, 'contrast kept gentle, never reversed');
+  assert.ok((grey.warmth ?? 0) <= 0, 'no warming');
 });

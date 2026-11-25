@@ -17,6 +17,8 @@ export interface SceneHints {
   preserveBright?: boolean;
   /** Black and white: skip colour-only suggestions (vibrance, warmth). */
   monochrome?: boolean;
+  /** Overcast: soft, cool light is real; keep any added contrast gentle and add no warming. */
+  overcast?: boolean;
 }
 
 const HINTS: readonly [keyof SceneHints, readonly string[]][] = [
@@ -25,6 +27,7 @@ const HINTS: readonly [keyof SceneHints, readonly string[]][] = [
   ['preserveSoft', ['weather.fog']],
   ['preserveBright', ['weather.snow', 'style.high-key']],
   ['monochrome', ['style.black-and-white']],
+  ['overcast', ['weather.overcast']],
 ];
 
 export function sceneHintsFromPhotoTags(frame: Pick<PhotoFrame, 'stableKey' | 'photoTags'>): SceneHints {

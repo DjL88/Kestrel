@@ -454,6 +454,11 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
     if (edit.warmth !== 0) edit.warmth = 0;
     notes.push('The scene tags say this is black and white, so colour-only changes are left out.');
   }
+  if (hints.overcast) {
+    if (edit.contrast > 0.1) edit.contrast = 0.1;
+    if ((edit.warmth ?? 0) > 0) edit.warmth = 0;
+    notes.push('The scene tags say the sky is overcast, so contrast stays gentle and no warmth is added.');
+  }
   if (preserveLight && edit.warmth !== 0) {
     edit.warmth = 0;
     notes.push('Photography guidance preserves intentional lighting colour.');
