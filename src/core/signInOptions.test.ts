@@ -19,3 +19,13 @@ test('configured native users are told about the email alternative without claim
     assert.ok(signInOptions(platform, true).every((o) => !o.available && o.reason?.includes('email and password')));
   }
 });
+
+test('the desktop app offers Google through the browser when the build has a desktop client, and says Apple is not built', () => {
+  const [google, apple] = signInOptions('desktop', true, true);
+  assert.equal(google!.available, true);
+  assert.equal(google!.reason, undefined);
+  assert.equal(apple!.available, false);
+  assert.match(apple!.reason!, /Apple sign-in is not built yet for the desktop app/);
+  assert.ok(signInOptions('ios', true, true).every((o) => !o.available));
+  assert.ok(signInOptions('desktop', false, true).every((o) => !o.available && /not set up/.test(o.reason!)));
+});

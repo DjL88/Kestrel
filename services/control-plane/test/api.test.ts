@@ -157,6 +157,14 @@ test('the OpenAPI document covers every route', async () => {
   assert.equal(spec.body.paths['/v1/ai/identify'].post.security[0].bearer.length, 0);
 });
 
+test('public liveness answers on /health (Cloud Run reserves /healthz) and /healthz stays for the container probe', async () => {
+  for (const path of ['/health', '/healthz']) {
+    const res = await fetch(`${h.url}${path}`);
+    assert.equal(res.status, 200, path);
+    assert.deepEqual(await res.json(), { ok: true });
+  }
+});
+
 test('CORS is only granted to the app\'s own origins', async () => {
   const own = await fetch(`${h.url}/healthz`, { headers: { origin: 'tauri://localhost' } });
   assert.equal(own.headers.get('access-control-allow-origin'), 'tauri://localhost');

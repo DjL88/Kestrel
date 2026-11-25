@@ -43,14 +43,16 @@ test('a split format grows to five frames, a selected frame can be removed, and 
   await root.getByTestId('split-frame-1').dblclick();
   const handle = root.getByTestId('split-scale-br');
   await expect(handle).toBeVisible();
-  const img = root.getByTestId('split-frame-1').locator('img');
-  const before = await img.evaluate((el) => getComputedStyle(el).transform);
+  // The picture is drawn through the engine surface, so the pan and zoom sit on the element wrapping the image.
+  const img = root.getByTestId('split-frame-1').locator('img').first();
+  const transformOf = (el: Element) => getComputedStyle(el.closest('[style*="transform"]') ?? el).transform;
+  const before = await img.evaluate(transformOf);
   const box = (await handle.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + 80, box.y + 60, { steps: 6 });
   await page.mouse.up();
-  await expect.poll(() => img.evaluate((el) => getComputedStyle(el).transform)).not.toBe(before);
+  await expect.poll(() => img.evaluate(transformOf)).not.toBe(before);
 
   await page.screenshot({ path: info.outputPath('split-three-resized.png') });
 });
