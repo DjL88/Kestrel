@@ -60,6 +60,18 @@ jobs:
       - name: V2 browser tests
         timeout-minutes: 25
         run: npx playwright test tests/v2- tests/site- tests/admin- --workers=2 --max-failures=20
+      # Board job p5-export: full-size exports are pixel-exact to the intended render and originals are never changed,
+      # proved through the real app on synthetic files and two CC0 camera RAWs from raw.pixls.us (about 50 MB, cached,
+      # pinned by SHA-256 in tests/exportExactness.ts, never committed).
+      - uses: actions/cache@v4
+        with:
+          path: raw-samples
+          key: raw-samples-exactness-v1
+      - name: Fetch CC0 camera RAWs for the export proof
+        run: node scripts/fetch-raw-samples.mjs --exactness
+      - name: Export exactness and originals untouched
+        timeout-minutes: 15
+        run: npx playwright test -c playwright.dev.config.ts tests/verified-asset-export-exactness.spec.ts --workers=1
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
