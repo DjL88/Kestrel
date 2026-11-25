@@ -143,6 +143,15 @@ test('Co-pilot shows only rendered alternatives and marks only the matching edit
   assert.deepEqual(assistCritiqueFor({ run: run(candidates), dismissed: [] }, { ...plan.base, exposure: -1 }).suggestions, []);
   assert.deepEqual(assistCritiqueFor({ run: run([]), dismissed: [] }).suggestions, []);
   assert.deepEqual(recipeDelta(undefined, undefined), {});
+  // The vision guardian advises: a doubted suggestion keeps its values and its Apply, and carries one plain line.
+  const guarded = assistCritiqueFor({ run: run(candidates), dismissed: [], guardian: { pending: [],
+    opinions: { balanced: { source: 'on-device', verdict: 'disagrees', question: 'editNatural' }, natural: { source: 'on-device', verdict: 'agrees', question: 'editNatural' } } } });
+  assert.equal(guarded.suggestions.length, 2);
+  assert.equal(guarded.suggestions[0].secondOpinion, undefined);
+  assert.equal(guarded.suggestions[1].secondOpinion?.kept, false);
+  assert.match(guarded.suggestions[1].secondOpinion?.text ?? '', /not convinced/);
+  assert.deepEqual(guarded.suggestions[1].recipeDelta, shown.suggestions[1].recipeDelta);
+  assert.equal(shown.suggestions[1].secondOpinion, undefined);
 });
 
 test('a subject name the app suggested is marked as a suggestion, a chosen one is not, and unknown stays unknown', async () => {

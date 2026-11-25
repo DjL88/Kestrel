@@ -354,6 +354,7 @@ export const gd: AreaTranslation<typeof source> = {
     working: "A’ cur ris an deilbh agad is a’ sgrùdadh an dealbhachaidh is an datha air an uidheam seo…",
     ready: "Chothromaich Fèin-obrachail an dealbhachadh is an dath. Dèan coimeas ris an tùs, cùm a’ deasachadh, no às-phortaich e an-dràsta. Bheir Neo-dhèan air ais e.",
     unchanged: "Tha an dealbh seo a’ coimhead nàdarra mu thràth, mar sin dh’fhàg Fèin-obrachail e mar a bha e. Deasaich e mar as toil leat, no às-phortaich e an-dràsta.",
+    held: "Tha moladh aig Auto, ach cha robh an sgrùdadh lèirsinn air an uidheam seo cinnteach gu bheil e a' coimhead nàdarrach, mar sin cha deach dad atharrachadh. Dèan coimeas dheth ann an Co-phìleat is cuir an sàs e ma thogras tu, no às-phortaich an dealbh mar a tha e.",
     failedCheck: "Cha b’ urrainn do Fèin-obrachail an dealbh seo a sgrùdadh. ’S urrainn dhut a dheasachadh is às-phortadh fhathast.",
     export: "Às-phortaich…",
     done: "Deiseil",
@@ -685,6 +686,8 @@ export const gd: AreaTranslation<typeof source> = {
   },
   guardian: {
     autopilotHeld: "Chùm am fèin-phìleat an deasachadh seo air ais airson do lèirmheas: cha robh an sgrùdadh lèirsinneach air an uidheam seo cinnteach gu bheil e a' coimhead nàdarra. Tha am moladh sa cho-phìleat airson ro-shealladh no cur an sàs. Cha deach dad atharrachadh.",
+    secondOpinion: "Dàrna beachd:",
+    suggestionDoubted: "cha robh an sgrùdadh lèirsinn air an uidheam seo cinnteach gu bheil seo a' coimhead nàdarrach. Dèan coimeas eadar ro agus às dèidh; 's ann agad fhèin a tha an roghainn a chur an sàs.",
   },
   adjust: {
     grade: {

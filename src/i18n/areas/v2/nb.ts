@@ -353,6 +353,7 @@ export const nb: AreaTranslation<typeof source> = {
     working: "Legger til bildet og sjekker eksponering og farge på denne enheten…",
     ready: "Auto har balansert eksponering og farge. Sammenlign med originalen, rediger videre eller eksporter nå. Angre tar det tilbake.",
     unchanged: "Bildet ser allerede naturlig ut, så Auto lot det være. Rediger det som du vil, eller eksporter det nå.",
+    held: "Auto har et forslag, men bildekontrollen på denne enheten var ikke overbevist om at det ser naturlig ut, så ingenting ble endret. Sammenlign det i Andrepilot og bruk det hvis du liker det, eller eksporter bildet som det er.",
     failedCheck: "Auto kunne ikke sjekke dette bildet. Du kan fortsatt redigere og eksportere det.",
     export: "Eksporter…",
     done: "Ferdig",
@@ -684,6 +685,8 @@ export const nb: AreaTranslation<typeof source> = {
   },
   guardian: {
     autopilotHeld: "Autopiloten holdt tilbake denne redigeringen så du kan se på den: bildesjekken på denne enheten var ikke overbevist om at den ser naturlig ut. Forslaget ligger i andrepiloten, klart til forhåndsvisning eller bruk. Ingenting ble endret.",
+    secondOpinion: "Second opinion:",
+    suggestionDoubted: "bildekontrollen på denne enheten var ikke overbevist om at dette ser naturlig ut. Sammenlign før og etter; det er ditt valg om du bruker det.",
   },
   adjust: {
     grade: {

@@ -68,7 +68,9 @@ import { runAuto } from './runAuto';
 import { autoUnavailableSentence, isAutoUnavailable, type AutoUnavailable } from './autoUnavailable';
 import { autopilotHeldForReview, commitAutoEdit } from './commitAutoEdit';
 import { guardResult } from '../../core/visionGuardian';
+import { guardianHolds, guardianOrder, guardianSettled, startGuardian, withOpinion } from './assistGuardian';
 import { askOnDeviceGuardian } from '../../providers/visionGuardian';
+import { hasLocalVision } from '../../providers/localVision';
 import type { PictureSource } from '../../core/pictureSource';
 import { autoCullSummary, commitAutoCull, rawsJudgedFromCameraPreview } from './commitAutoCull';
 import { runV2Denoise } from './runDenoise';
@@ -630,7 +632,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useAutoBackup(state && !state.shoot.collage ? state : null, Boolean(state));
   const backupStatus = useBackupStatus(state?.shoot.id ?? '');
   // First run: pick photos, and InFlight makes a project, adds them and runs Auto on the first one.
-  const [quickStart, setQuickStart] = useState<{ projectId: string; photoId: string | null; phase: 'working' | 'ready' | 'unchanged' | 'failed' } | null>(null);
+  const [quickStart, setQuickStart] = useState<{ projectId: string; photoId: string | null; phase: 'working' | 'ready' | 'unchanged' | 'held' | 'failed' } | null>(null);
   const lightroomPending = useRef<{ projectId: string; photos: LightroomPhoto[]; toAdd: LightroomPhoto[] } | null>(null);
   const [lightroomOffer, setLightroomOffer] = useState<{ missing: number; folder: string } | null>(null);
   const mutate = useCallback((change: (current: CullingState) => CullingState) => setState((current) => (current ? change(current) : current)), []);
@@ -1295,14 +1297,17 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, [assists, editFrames]);
 
   // First run: once Auto has looked at the first photo, apply its suggestion (one undoable step), or say plainly that
-  // the photo already looked natural and was left alone.
+  // the photo already looked natural and was left alone. The vision guardian's second opinion comes first: a clear "no"
+  // leaves the photo unchanged and the suggestion in Co-pilot for the person to decide.
   useEffect(() => {
     if (!quickStart || quickStart.phase !== 'working' || !quickStart.photoId) return;
     const assist = assists[quickStart.photoId];
     if (!assist) return;
-    const improved = assist.run.improved && assist.run.candidates.length > 0;
-    if (improved) applyAuto(quickStart.photoId);
-    setQuickStart({ ...quickStart, phase: improved ? 'ready' : 'unchanged' });
+    const first = assist.run.improved ? assist.run.candidates[0] : undefined;
+    if (first && !guardianSettled(assist.guardian, first.id)) return;
+    const held = Boolean(first && guardianHolds(assist.guardian, first.id));
+    if (first && !held) applyAuto(quickStart.photoId);
+    setQuickStart({ ...quickStart, phase: !first ? 'unchanged' : held ? 'held' : 'ready' });
   }, [assists, quickStart, applyAuto]);
   useEffect(() => {
     if (!quickStart || quickStart.phase !== 'working' || !quickStart.photoId) return;
@@ -1357,28 +1362,40 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             const { [frame.id]: _cleared, ...rest } = current;
             return rest;
           }));
+          // Vision AI is the guardian: a second opinion on every suggestion Auto rendered (assistGuardian.ts). Auto's own
+          // pick is asked first, because Auto-pilot and the quick start wait on it. It advises only: a clear "no" holds an
+          // automatic apply and adds a line to that suggestion; it never changes or removes a suggestion.
+          const order = guardianOrder(run.candidates, run.plan.proposal);
           ctx.commitIfCurrent(() => setAssists(current => {
             if (!isCurrent()) return current;
             const recent = Object.entries(current).filter(([id]) => id !== frame.id).slice(-11);
-            return { ...Object.fromEntries(recent), [frame.id]: { run, dismissed: [] } };
+            return { ...Object.fromEntries(recent), [frame.id]: { run, dismissed: [], guardian: startGuardian(order, hasLocalVision()) } };
           }));
-          if (!manual && assistMode === 'autopilot' && run.improved) {
-            // Vision AI is the guardian: a second opinion on the rendered edit before Auto-pilot applies it. It can hold the
-            // edit for review (it stays a Co-pilot suggestion), never apply anything Auto did not already choose.
-            const preferred = run.candidates.find((candidate) => candidate.edit === run.plan.proposal);
-            ctx.stage('Second opinion from the on-device vision model');
-            const opinion = preferred ? await askOnDeviceGuardian(preferred.after, 'editNatural') : null;
-            ctx.checkCancelled();
-            if (!isCurrent()) return;
-            if (guardResult('apply', opinion ? [opinion] : []).status !== 'apply') {
-              ctx.commitIfCurrent(() => setNotice(autopilotHeldForReview()));
-              return;
-            }
+          const autopilot = !manual && assistMode === 'autopilot' && run.improved;
+          let piloted = false;
+          const pilot = (held: boolean) => {
+            piloted = true;
+            if (held) { ctx.commitIfCurrent(() => setNotice(autopilotHeldForReview())); return; }
             const at = Date.now();
             ctx.commitIfCurrent(() => mutate(current =>
               isCurrent() && !ctx.signal.aborted
                 ? commitAutoEdit(current, assistProjectId, frame, run.plan.proposal, at, { by: 'auto', notes: run.detail }) : current));
+          };
+          for (const candidate of hasLocalVision() ? order : []) {
+            ctx.stage(engineText.workspace.secondOpinionStage);
+            const opinion = await askOnDeviceGuardian(candidate.after, 'editNatural');
+            ctx.checkCancelled();
+            if (!isCurrent()) return;
+            ctx.commitIfCurrent(() => setAssists(current => {
+              const assist = current[frame.id];
+              if (!assist || assist.run !== run || !assist.guardian) return current;
+              return { ...current, [frame.id]: { ...assist, guardian: withOpinion(assist.guardian, candidate.id, opinion) } };
+            }));
+            if (autopilot && !piloted && candidate.edit === run.plan.proposal) {
+              pilot(guardResult('apply', opinion ? [opinion] : []).status !== 'apply');
+            }
           }
+          if (autopilot && !piloted) pilot(false);
         },
       }).then(ticket => {
         taskId = ticket.taskId;

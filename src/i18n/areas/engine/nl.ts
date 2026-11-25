@@ -131,6 +131,7 @@ export const nl: AreaTranslation<typeof source> = {
     suggestionStale: 'De foto is na dit voorstel veranderd. Wacht op een nieuwe controle.',
     checkTask: (filename) => `${filename} en de kleur ervan controleren`,
     checkStage: 'Belichting, kleur en scène bekijken',
+    secondOpinionStage: "Second opinion van het beeldmodel op het apparaat",
     checkFailed: 'Deze foto kon niet worden gecontroleerd. Details in Taken.',
     deepTask: 'Diepe controle loopt',
     deepStage: 'De onderwerpen en de fotokwaliteit bekijken',

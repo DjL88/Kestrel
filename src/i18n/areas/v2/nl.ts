@@ -353,6 +353,7 @@ export const nl: AreaTranslation<typeof source> = {
     working: "Uw foto wordt toegevoegd en belichting en kleur worden op dit apparaat gecontroleerd…",
     ready: "Auto heeft belichting en kleur in balans gebracht. Vergelijk met het origineel, bewerk verder of exporteer nu. Ongedaan maken draait het terug.",
     unchanged: "Deze foto ziet er al natuurlijk uit, dus Auto heeft hem gelaten zoals hij was. Bewerk hem naar wens of exporteer hem nu.",
+    held: "Auto heeft een suggestie, maar de beeldcontrole op dit apparaat was er niet van overtuigd dat die natuurlijk oogt, dus er is niets gewijzigd. Vergelijk hem in Copiloot en pas hem toe als hij u bevalt, of exporteer de foto zoals hij is.",
     failedCheck: "Auto kon deze foto niet controleren. U kunt hem nog steeds bewerken en exporteren.",
     export: "Exporteren…",
     done: "Klaar",
@@ -684,6 +685,8 @@ export const nl: AreaTranslation<typeof source> = {
   },
   guardian: {
     autopilotHeld: "De automatische piloot heeft deze bewerking voor uw controle tegengehouden: de beeldcontrole op dit apparaat was er niet van overtuigd dat ze natuurlijk oogt. De suggestie staat in de copiloot om te bekijken of toe te passen. Er is niets veranderd.",
+    secondOpinion: "Second opinion:",
+    suggestionDoubted: "de beeldcontrole op dit apparaat was er niet van overtuigd dat dit natuurlijk oogt. Vergelijk voor en na; toepassen is uw keuze.",
   },
   adjust: {
     grade: {
