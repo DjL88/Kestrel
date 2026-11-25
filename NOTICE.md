@@ -35,6 +35,13 @@ decoder would not avoid the patents.
 build (desktop, web and mobile), as one decoder for all platforms. The operating
 system's decoder is used only where InFlight's cannot read a file. The patent
 exposure is accepted by the owner; this note records it and is not legal advice.
+
+**Owner decision (25 Nov 2026): 16-bit output included.** The 19 Nov decision also
+covers 16-bit output of HE/HE* sensor data (16-bit TIFF and PNG masters and 16-bit
+exports), the same as every other RAW. Asked whether to lift the 16-bit gate, the
+owner answered "Yes, lift the gate". This records an accepted patent exposure, not a
+verified licence: the app's evidence keeps `commercialHeRightsVerified: false`.
+
 The code stays behind the `nikon-he` Cargo feature (on by default), so a build
 without it is one flag away (`--no-default-features`, or
 `npm run raw:wasm -- --without-nikon-he`) if that decision changes.
@@ -118,6 +125,9 @@ build tooling or a plugin SDK separately.
 
 - **Burst grouping (DINOv2 ViT-S/14 image embeddings, Apache-2.0, Meta)**: `public/models/dinov2-small-fp16.onnx`,
   shipped with every build. fp16 conversion of `facebook/dinov2-small`; notice in `docs/notices/dinov2.txt`; ship it alongside.
+- **Aircraft markings reader (PP-OCRv5 mobile, PaddleOCR, Apache-2.0)**: opt-in download from the authors' Hugging Face
+  releases, pinned by revision and SHA-256 (`src/providers/markingReader.ts`), not in git. Notice in `docs/notices/paddleocr.txt`.
+- **FAA aircraft register copy (public domain, US Government)**: `src/assets/registers/faa.json`; see `docs/notices/paddleocr.txt`.
 - **Category gate (CLIP ViT-B/32 image encoder, MIT)**: `public/models/clip-vit-b32-vision-uint8.onnx`,
   shipped in desktop installers. Notice text in `docs/notices/clip.txt`; ship it alongside.
 - **Species suggestions (BioCLIP, MIT)** — already documented in full, including

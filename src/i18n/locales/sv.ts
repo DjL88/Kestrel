@@ -79,6 +79,7 @@ export const sv: Translation = {
     themeContrast: 'Hög kontrast',
     textSize: 'Textstorlek',
     typeface: 'Typsnitt',
+    fontBrand: 'InFlight (Plus Jakarta Sans)',
     fontReadable: 'Lättläst (Atkinson Hyperlegible)',
     calm: 'Mindre stimulans (inga animationer)',
     calmPreset: 'Lugnt och tydligt',

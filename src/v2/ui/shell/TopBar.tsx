@@ -36,6 +36,16 @@ interface TopBarProps {
   /** Who else is in this shared project (PresenceAvatars). */
   presence?: React.ReactNode;
   onOpenRemoved: () => void;
+  onSaveXmp?: () => void;
+  onBackUpNow?: () => void;
+  onSaveBackupFile?: () => void;
+  /** The open project's last automatic backup, in words, shown under Back up now. */
+  backupNote?: string;
+  onReadXmp?: () => void;
+  /** File menu: bring in a Lightroom Classic catalogue. */
+  onReadLightroom?: () => void;
+  /** File menu: save everything in open formats. */
+  onExportOpenFormats?: () => void;
   onOpenSettings: () => void;
   onImport: () => void;
   onUndo: () => void;
@@ -75,6 +85,13 @@ export default function TopBar({
   onShare,
   presence,
   onOpenRemoved,
+  onSaveXmp,
+  onBackUpNow,
+  onSaveBackupFile,
+  backupNote,
+  onReadXmp,
+  onReadLightroom,
+  onExportOpenFormats,
   onOpenSettings,
   onImport,
   onUndo,
@@ -212,6 +229,23 @@ export default function TopBar({
                   label={STRINGS.topBar.fileActions.removedPhotos}
                   onClick={() => runAndClose(onOpenRemoved)}
                 />
+                {onSaveXmp && onReadXmp && (
+                  <>
+                    <div className="my-1 h-px bg-[var(--border-subtle)]" />
+                    <MenuItem icon="save" label={STRINGS.xmp.saveMenu} onClick={() => runAndClose(onSaveXmp)} />
+                    <MenuItem icon="folder-open" label={STRINGS.xmp.readMenu} onClick={() => runAndClose(onReadXmp)} />
+                    {onReadLightroom && <MenuItem icon="folder-open" label={STRINGS.lightroom.readMenu} onClick={() => runAndClose(onReadLightroom)} />}
+                    {onExportOpenFormats && <MenuItem icon="save" label={STRINGS.openExport.menu} onClick={() => runAndClose(onExportOpenFormats)} />}
+                  </>
+                )}
+                {onBackUpNow && onSaveBackupFile && (
+                  <>
+                    <div className="my-1 h-px bg-[var(--border-subtle)]" />
+                    <MenuItem icon="cloud" label={STRINGS.backup.backUpNow} onClick={() => runAndClose(onBackUpNow)} />
+                    {backupNote && <p role="note" data-testid="backup-note" className="px-3 pb-1.5 pl-[2.375rem] text-[0.6875rem] leading-snug text-[var(--text-muted)]">{backupNote}</p>}
+                    <MenuItem icon="save" label={STRINGS.backup.saveFile} onClick={() => runAndClose(onSaveBackupFile)} />
+                  </>
+                )}
                 <div className="my-1 h-px bg-[var(--border-subtle)]" />
                 <MenuItem
                   icon="settings"

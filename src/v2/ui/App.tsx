@@ -2,8 +2,8 @@ import { useServiceReachability } from '../../providers/useServiceReachability';
 import { useConnectivity } from '../../providers/useConnectivity';
 import { projectsText } from '../../i18n/areas/projects';
 import { stepFrom } from './utils/swipe';
-import React, { useEffect, useRef, useState } from 'react';
-import type { PanelId } from './contract';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import type { PanelId, Photo } from './contract';
 import { useWorkspace } from './stub';
 import { resolveTheme } from './themePreference';
 import { noticeDurationMs, noticeNeedsDismiss } from './utils/noticeTiming';
@@ -19,6 +19,8 @@ import Canvas from './shell/Canvas';
 import CollageEditor from './shell/CollageEditor';
 import Filmstrip from './shell/Filmstrip';
 import GridView from './shell/GridView';
+import PairCompare from './shell/PairCompare';
+import { backupStatusText } from '../engineClient/backupWords';
 import CoPilotPanel from './panels/CoPilotPanel';
 import AdjustPanel from './panels/AdjustPanel';
 import SizesPanel from './panels/SizesPanel';
@@ -32,9 +34,17 @@ import TasksPanel from './panels/TasksPanel';
 import CollageExportDialog from './dialogs/CollageExportDialog';
 import ExportDialog from './dialogs/ExportDialog';
 import RemovedPhotosDialog from './dialogs/RemovedPhotosDialog';
+import LightroomOfferDialog from './dialogs/LightroomOfferDialog';
+import QuickStartCard from './panels/QuickStartCard';
 import ShareDialog from './dialogs/ShareDialog';
+import CloudOriginalPrompt from './dialogs/CloudOriginalPrompt';
 import { usePresence } from './shell/usePresence';
 import { PresenceAvatars, PresenceCursors } from './shell/PresenceLayer';
+import SharedEditBanner from './shell/SharedEditBanner';
+import SharedComments from './shell/SharedComments';
+import { getActiveGroup } from './utils/studioMath';
+import { readSharedLink } from './dialogs/sharedLinks';
+import { useSharedEditing } from './shell/useSharedEditing';
 import { collabClient } from '../../providers/collabClient';
 import { firebaseAuth } from '../../providers/firebaseAuth';
 import SettingsDialog from './dialogs/SettingsDialog';
@@ -148,7 +158,21 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
 
   const activePhoto =
     store.photos.find((p) => p.id === store.activePhotoId) ?? store.photos[0] ?? null;
-  const peers = usePresence(sharing, store.collage ? null : store.activeProjectId, activePhoto?.id ?? null, signedInName, shareVersion);
+  // Compare with exactly two photos selected shows them side by side; with one, it stays before and after.
+  const pairPhotos = React.useMemo(() => {
+    if (!store.compareMode || store.collage || store.selectedPhotoIds.length !== 2) return null;
+    const found = store.selectedPhotoIds.map((id) => store.photos.find((p) => p.id === id));
+    return found[0] && found[1] ? ([found[0], found[1]] as [Photo, Photo]) : null;
+  }, [store.compareMode, store.collage, store.selectedPhotoIds, store.photos]);
+  const [pairSwapped, setPairSwapped] = useState(false);
+  const xmpInputRef = useRef<HTMLInputElement>(null);
+  const lightroomInputRef = useRef<HTMLInputElement>(null);
+  const dismissLightroomOffer = useCallback(() => actions.dismissLightroomOffer?.(), [actions]);
+  const peers = usePresence(sharing, store.collage ? null : store.activeProjectId, activePhoto?.sharedKey ?? null, signedInName, shareVersion);
+  const [zoomedPastPreview, setZoomedPastPreview] = React.useState<string | null>(null);
+  const sharedEditing = useSharedEditing(sharing, store.collage ? null : store.activeProjectId, activePhoto?.id ?? null, activePhoto?.sharedKey, actions, activePhoto, shareVersion);
+  // Someone else has this photo out, or both sides changed it: the editing panels are view-only until that is settled.
+  const editLocked = sharedEditing.state.kind === 'theirs' || sharedEditing.state.kind === 'conflict' || sharedEditing.state.kind === 'view-only';
   const hoveredLook = store.looks.find((l) => l.id === store.hoveredLookId) ?? null;
   const runningTaskCount = store.tasks.filter((t) => t.status === 'running').length;
 
@@ -166,7 +190,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   // One dispatch for every command id, shared by the keydown handler below and the command search dialog,
   // so "what Cmd/Ctrl+K can run" and "what the keyboard shortcut runs" never drift apart.
   const runCommand = React.useCallback((command: CommandDefinition) => {
-    const ids = store.selectedPhotoIds.length > 0 ? store.selectedPhotoIds : activePhoto ? [activePhoto.id] : [];
+    // In a two-photo compare, keys act on the chosen side only, never on both photos at once.
+    const ids = pairPhotos && activePhoto && pairPhotos.some((p) => p.id === activePhoto.id) ? [activePhoto.id]
+      : store.selectedPhotoIds.length > 0 ? store.selectedPhotoIds : activePhoto ? [activePhoto.id] : [];
     switch (command.id) {
       case 'help.toggle': setShortcutGuideOpen((open) => !open); break;
       case 'app.commandSearch': setCommandPaletteOpen((open) => !open); break;
@@ -184,12 +210,12 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'edit.undo': actions.undo(); break;
       case 'edit.redo': actions.redo(); break;
       case 'edit.copy': actions.copyRecipe(); break;
-      case 'edit.paste': actions.pasteRecipe(); break;
+      case 'edit.paste': if (!editLocked) actions.pasteRecipe(); break;
       case 'edit.selectAll': actions.selectAllPhotos(); break;
       case 'file.export': actions.setExportOpen(true); break;
       case 'app.settings': actions.setSettingsOpen(true); break;
     }
-  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, activePhoto, actions]);
+  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, activePhoto, actions, pairPhotos, editLocked]);
 
   // The desktop app's native menu (File, Edit, Photo, View, Settings). Some of its accelerators (Cmd/Ctrl+E, +A, +O, +M)
   // are taken before the page sees the key, so the menu choice must run the action itself.
@@ -205,7 +231,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'toggleFilmstrip': if (inEditor) actions.setFilmstripCollapsed(!store.filmstripCollapsed); break;
       case 'settings': actions.setSettingsOpen(true, action.tab); break;
       case 'removedPhotos': if (inEditor) actions.setRemovedOpen(true); break;
-      case 'resetPhoto': if (inEditor && activePhoto) actions.resetPhotoEdits(activePhoto.id); break;
+      case 'backupNow': if (inEditor && !store.collage) actions.backUpProjectNow(); break;
+      case 'backupFile': if (inEditor && !store.collage) actions.saveProjectBackupFile(); break;
+      case 'saveXmp': if (inEditor && !store.collage) actions.saveXmpSidecars(store.selectedPhotoIds); break;
+      case 'readXmp': if (inEditor && !store.collage) xmpInputRef.current?.click(); break;
+      case 'readLightroom': if (inEditor && !store.collage) lightroomInputRef.current?.click(); break;
+      case 'openExport': if (inEditor && !store.collage) actions.exportOpenFormats?.(); break;
+      case 'resetPhoto': if (inEditor && activePhoto && !editLocked) actions.resetPhotoEdits(activePhoto.id); break;
       case 'backToProjects': if (inEditor) actions.backToProjects(); break;
     }
   });
@@ -235,7 +267,23 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [store.screen, shortcutGuideOpen, keymap, pad, runCommand]);
 
+  const EDITING_PANELS: PanelId[] = ['adjust', 'masks', 'enhance', 'copilot'];
   const renderPanelContent = (panelId: PanelId) => {
+    const inner = renderPanelInner(panelId);
+    const comments = (panelId === 'copilot' || panelId === 'info') && sharedEditing.state.kind !== 'off' ? (
+      <SharedComments client={sharing} project={store.activeProjectId ? readSharedLink(store.activeProjectId) : null} photoKey={activePhoto?.sharedKey} photoId={activePhoto?.id ?? null}
+        recipe={activePhoto ? getActiveGroup(activePhoto).recipe : null} canEdit={!editLocked} onApply={(id, delta, label) => actions.updateRecipe(id, delta, label)} />
+    ) : null;
+    if (!EDITING_PANELS.includes(panelId)) return <>{comments}{inner}</>;
+    return (
+      <>
+        {comments}
+        <SharedEditBanner state={sharedEditing.state} onKeepMine={sharedEditing.keepMine} onKeepTheirs={sharedEditing.keepTheirs} onKeepBoth={sharedEditing.keepBoth} onRetry={sharedEditing.retry} />
+        {editLocked ? <fieldset disabled className="contents" data-testid="shared-edit-locked">{inner}</fieldset> : inner}
+      </>
+    );
+  };
+  const renderPanelInner = (panelId: PanelId) => {
     switch (panelId) {
       case 'copilot':
         return (
@@ -262,7 +310,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             looks={store.looks}
             cvdGuidance={store.settings.cvdGuidance}
             hideReadouts={store.settings.calmReadouts}
+            showAdvanced={store.settings.advancedControls}
             onUpdateRecipe={actions.updateRecipe}
+            onDetectColourEdges={actions.detectColourEdges}
             onApplyLook={actions.applyLook}
             onHoverLook={actions.setHoveredLook}
             onResetPhoto={actions.resetPhotoEdits}
@@ -351,6 +401,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSaveTemplate={actions.saveOverlayTemplate}
             onApplyTemplate={actions.applyOverlayTemplate}
             onManageTemplates={() => actions.setSettingsOpen(true, 'presets')}
+            projectPhotos={store.photos.map((candidate) => ({ id: candidate.id, filename: candidate.filename }))}
+            calmView={store.settings.calmReadouts}
+            onAddImageLayer={actions.addImageLayer}
+            onAddPhotoLayer={actions.addPhotoLayer}
+            onUpdateLayer={actions.updateLayer}
+            onRemoveLayer={actions.removeLayer}
+            onMoveLayer={actions.moveLayer}
           />
         );
       case 'assist':
@@ -363,7 +420,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           />
         );
       case 'history':
-        return <HistoryPanel photo={activePhoto} activeSizeId={store.activeSizeId} onForkFromStep={actions.jumpToEditStep} onSwitchVersion={actions.switchEditVersion} />;
+        return <HistoryPanel photo={activePhoto} activeSizeId={store.activeSizeId} onForkFromStep={actions.jumpToEditStep} onSwitchVersion={actions.switchEditVersion} onUndo={editLocked ? undefined : actions.undo} />;
       case 'info':
         return (
           <InfoPanel
@@ -372,6 +429,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetRating={actions.setRating}
             onReconnectOriginal={actions.reconnectOriginal}
             onCorrectSpeciesName={actions.correctSpeciesName}
+            onCorrectVehicle={actions.correctVehicle}
           />
         );
       case 'tasks':
@@ -472,7 +530,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onOpenProject={actions.openProject}
           onCreateProject={actions.createProject}
           onCreateFromFolder={actions.createProjectFromFolder}
+          onQuickStart={actions.startQuickStart}
           onRenameProject={actions.renameProject}
+          onRestoreBackup={actions.restoreProjectBackup}
           onArchiveProject={actions.archiveProject}
           onDeleteProject={actions.deleteProject}
           onOpenSettings={() => actions.setSettingsOpen(true, 'appearance')}
@@ -483,6 +543,20 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         />
       ) : (
         <>
+          <input ref={xmpInputRef} type="file" multiple accept=".xmp,.zip,application/rdf+xml,application/zip" hidden
+            data-testid="xmp-input" aria-hidden="true" tabIndex={-1}
+            onChange={(event) => {
+              const files = [...(event.target.files ?? [])];
+              event.target.value = '';
+              if (files.length) actions.readXmpSidecars(files, store.selectedPhotoIds);
+            }} />
+          <input ref={lightroomInputRef} type="file" accept=".lrcat" hidden
+            data-testid="lightroom-input" aria-hidden="true" tabIndex={-1}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = '';
+              if (file) actions.readLightroomCatalogue(file);
+            }} />
           <TopBar
             // Owner decision 24 Nov 2026: header menus in a browser; the installed desktop app uses its native menu bar.
             showMenus={!isDesktopApp()}
@@ -501,8 +575,15 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetAssistMode={actions.setAssistMode}
             onExport={() => actions.setExportOpen(true)}
             onShare={store.collage ? undefined : () => setShareOpen(true)}
-            presence={<PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(id) => actions.selectPhoto(id)} />}
+            presence={<PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(key) => { const photo = store.photos.find((candidate) => candidate.sharedKey === key); if (photo) actions.selectPhoto(photo.id); }} />}
             onOpenRemoved={() => actions.setRemovedOpen(true)}
+            onSaveXmp={store.screen === 'editor' && !store.collage ? () => actions.saveXmpSidecars(store.selectedPhotoIds) : undefined}
+            onBackUpNow={store.screen === 'editor' && !store.collage ? actions.backUpProjectNow : undefined}
+            onSaveBackupFile={store.screen === 'editor' && !store.collage ? actions.saveProjectBackupFile : undefined}
+            backupNote={store.backup ? backupStatusText(store.backup) : undefined}
+            onReadXmp={store.screen === 'editor' && !store.collage ? () => xmpInputRef.current?.click() : undefined}
+            onReadLightroom={store.screen === 'editor' && !store.collage ? () => lightroomInputRef.current?.click() : undefined}
+            onExportOpenFormats={store.screen === 'editor' && !store.collage ? actions.exportOpenFormats : undefined}
             onOpenSettings={() => actions.setSettingsOpen(true)}
             onImport={actions.importPhotos}
             onUndo={actions.undo}
@@ -568,6 +649,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   onEditPhoto={(id) => { actions.selectPhoto(id); setCollageEditingId(id); }}
                   onImport={actions.importPhotos}
                   sourcePickerOpen={collageSourceOpen} onSourcePickerChange={setCollageSourceOpen} />
+              ) : pairPhotos ? (
+                <PairCompare photos={pairSwapped ? [pairPhotos[1], pairPhotos[0]] : pairPhotos} chosenId={store.activePhotoId}
+                  PhotoSurface={store.PhotoSurface} onChoose={actions.focusPhoto}
+                  onSetDecision={actions.setDecision} onSetRating={actions.setRating}
+                  onSwap={() => setPairSwapped((value) => !value)}
+                  onEdit={(id) => { actions.setCompareMode(false); actions.selectPhoto(id); }}
+                  onClose={() => actions.setCompareMode(false)} />
               ) : store.gridViewOpen ? (
                 <GridView
                   photos={store.photos}
@@ -575,6 +663,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   selectedPhotoIds={store.selectedPhotoIds}
                   filter={store.filmstripFilter}
                   search={store.filmstripSearch}
+                  minRating={store.filmstripMinRating}
+                  sort={store.filmstripSort}
+                  onSetMinRating={actions.setFilmstripMinRating}
+                  onSetSort={actions.setFilmstripSort}
                   onSelectPhoto={actions.selectPhoto}
                   onOpenInEditor={(id) => {
                     actions.selectPhoto(id);
@@ -588,6 +680,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 />
               ) : (
                 <Canvas
+                  onZoomPastPreview={setZoomedPastPreview}
                   PhotoSurface={store.PhotoSurface}
                   maskGuideId={maskGuide?.photoId === activePhoto?.id ? maskGuide?.maskId : undefined}
                   maskOverlayVisible={maskOverlayVisible}
@@ -647,6 +740,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 height={store.filmstripHeight}
                 filter={store.filmstripFilter}
                 search={store.filmstripSearch}
+                minRating={store.filmstripMinRating}
+                sort={store.filmstripSort}
+                onSetMinRating={actions.setFilmstripMinRating}
+                onSetSort={actions.setFilmstripSort}
                 quietBadges={store.settings.calmBadges}
                 looks={store.looks}
                 hasClipboardRecipe={Boolean(store.clipboardRecipe)}
@@ -671,6 +768,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 collageMode={composingCollage}
                 onChooseFromProject={composingCollage && store.projects.some((p) => p.id !== store.activeProjectId) ? () => setCollageSourceOpen(true) : undefined}
                 onExportSelected={() => actions.setExportOpen(true)}
+                onCompareSelected={() => { actions.setGridViewOpen(false); actions.setCompareMode(true); }}
               />
             </div>
 
@@ -842,7 +940,14 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         onExport={actions.runExport}
       />
 
-      <PresenceCursors peers={peers} photoId={activePhoto?.id ?? null} hidden={cursorsHidden} />
+      <PresenceCursors peers={peers} photoId={activePhoto?.sharedKey ?? null} hidden={cursorsHidden} />
+      <CloudOriginalPrompt
+        client={sharing}
+        localProjectId={store.collage ? null : store.activeProjectId}
+        photo={zoomedPastPreview && activePhoto?.id === zoomedPastPreview ? activePhoto : null}
+        attachOriginal={actions.attachCloudOriginal}
+        onDone={() => setZoomedPastPreview(null)}
+      />
       <ShareDialog
         open={shareOpen}
         client={sharing}
@@ -852,7 +957,25 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         displayName={signedInName}
         renderPreview={actions.renderGalleryPreview}
         siteUrl={gallerySiteUrl}
+        photoName={(id) => store.photos.find((photo) => photo.id === id)?.filename ?? id}
+        onGoToPhoto={(id) => { closeShare(); actions.selectPhoto(id); }}
+        localPhotos={store.photos}
+        readOriginal={actions.readVerifiedOriginal}
+        importCloud={actions.importCloudPreviews}
+        attachOriginal={actions.attachCloudOriginal}
         onClose={closeShare}
+      />
+
+      <QuickStartCard
+        quickStart={store.screen === 'editor' && !store.exportOpen ? store.quickStart : null}
+        onExport={() => { actions.dismissQuickStart?.(); actions.setExportOpen(true); }}
+        onDone={() => actions.dismissQuickStart?.()}
+      />
+
+      <LightroomOfferDialog
+        offer={store.screen === 'editor' ? store.lightroomOffer : null}
+        onChooseFolder={() => actions.chooseLightroomFolder?.()}
+        onClose={dismissLightroomOffer}
       />
 
       <RemovedPhotosDialog

@@ -6,6 +6,10 @@ import type { ComponentType, CSSProperties, ReactNode } from 'react';
 // Engine engineers swap src/stub.ts with a real WorkspaceStore + WorkspaceActions provider.
 
 export type DecisionState = 'unreviewed' | 'keep' | 'reject';
+/** Which photos the filmstrip and grid show by decision. 'to-review' is the photos with no decision yet. */
+export type FilmstripFilter = 'all' | 'to-review' | 'flagged' | 'set-aside';
+/** The order photos are shown in. 'shoot' is the order they were imported in; nothing is moved on disk. */
+export type PhotoSort = 'shoot' | 'captured-oldest' | 'captured-newest' | 'filename' | 'rating' | 'best';
 /** The engine's three-tier ranking of a photo within its shoot. Absent or null means it has not been ranked: nothing is guessed. */
 export type PhotoTier = 'good' | 'better' | 'best';
 /** A histogram measured from the picture's pixels: 32 bins, each 0 to 100, plus the share of pixels clipped to pure black or white. */
@@ -135,6 +139,9 @@ export interface SizePreset {
   boardY: number;
 }
 
+export interface GradeRangeRecipe { hue: number; amount: number }
+export interface ColourGradeRecipe { shadows: GradeRangeRecipe; midtones: GradeRangeRecipe; highlights: GradeRangeRecipe; balance: number }
+
 export interface EditRecipe {
   lookId: string;
   exposure: number; // -5.0 to +5.0 EV stops
@@ -159,6 +166,31 @@ export interface EditRecipe {
   toneCurve?: Array<[number, number]>;
   /** Colour mixer: eight bands (red, orange, yellow, green, aqua, blue, purple, magenta), each -100 to 100. Absent = untouched. */
   colourMixer?: { hue: number[]; saturation: number[]; luminance: number[] };
+  /** Advanced: colour grading. Hue 0 to 360 degrees, strength 0 to 100 per range; balance -100 (highlights) to 100 (shadows). Absent = none. */
+  colourGrade?: ColourGradeRecipe;
+  /** Advanced: red, green and blue curves, same points as toneCurve, applied after it. Absent = none. */
+  channelCurves?: Partial<Record<'red' | 'green' | 'blue', Array<[number, number]>>>;
+  /** Remove haze (positive) or add it (negative), -100 to 100. Absent = 0. */
+  dehaze?: number;
+  /** Lens colour edges: red/cyan and blue/yellow, -100 to 100 each (set by Detect, or by hand in Advanced). Absent = 0. */
+  caRed?: number;
+  caBlue?: number;
+  /** Remove purple and green fringes beside strong edges, 0 to 100. Absent = 0. */
+  defringePurple?: number;
+  defringeGreen?: number;
+  /** Vignette: -100 darker edges to 100 lighter edges (with a colour, the strength of that colour). Absent = 0. */
+  vignette?: number;
+  /** How far the vignette reaches into the picture, 0 to 100. Absent = 50. */
+  vignetteSize?: number;
+  /** How much the vignette softens the edges, 0 to 100. Absent = 0. */
+  vignetteBlur?: number;
+  /** A colour for the vignette as #rrggbb. Absent = darker or lighter, no colour. */
+  vignetteColour?: string;
+  /** Film-like grain, 0 to 100, and its size, 0 (fine) to 100 (coarse; absent = 25). */
+  grain?: number;
+  grainSize?: number;
+  /** Advanced: camera calibration, hue and saturation of each primary, -100 to 100. Absent = none. */
+  calibration?: Record<'red' | 'green' | 'blue', { hue: number; saturation: number }>;
   /** White balance in kelvin against the camera's as-shot estimate (RAW photos only). Absent = as shot. */
   whiteBalance?: { asShotK: number; kelvin: number };
 }
@@ -224,6 +256,8 @@ export interface OverlaySettings {
   snapEnabled: boolean;
   /** Space between an anchored box and the frame's edge, as % of the frame's width (so the same distance on every side). 0 to 12. */
   edgeMargin: number;
+  /** Image layers over the photo, bottom first (src/core/layers.ts). Part of the picture: in every view and export, under the text and watermark. */
+  layers?: import('../../core/layers').PhotoLayer[];
 }
 
 export interface EditGroup {
@@ -290,6 +324,10 @@ export interface PhotoExif {
 
 export interface Photo {
   id: string;
+  /** The same photo on every device of a shared project: from the original's fingerprint (src/core/sharedSync.ts). */
+  sharedKey?: string;
+  /** A cloud preview of someone else's original: fine for viewing, commenting and editing, not the full file. */
+  cloudPreview?: boolean;
   filename: string;
   title: string;
   previewUrl: string;
@@ -299,6 +337,15 @@ export interface Photo {
   originalConnected: boolean;
   rating: number; // 0 to 5
   speciesLabel?: string;
+  /** What kind of vehicle or aircraft it probably is, in the person's language ("Military jet: Eurofighter Typhoon (probably)"). */
+  vehicleLabel?: string;
+  /** Extra words the photo can be found by (a vehicle's kind in this language and in English, its type name). */
+  searchTerms?: string[];
+  /** The subject name alone, without the "(suggested)" marker the label may carry, for editing it. */
+  speciesName?: string;
+  /** The vehicle reading's ids, so a correction starts from what is shown. */
+  vehicleKind?: string;
+  vehicleType?: string;
   category: string;
   sharpnessScore: number;
   exif: PhotoExif;
@@ -314,7 +361,15 @@ export interface Photo {
   /** Set when this photo was shot in a burst with others. `ungrouped` is the person's choice to see its frames one by one. */
   burst?: { groupId: string; index: number; count: number; ungrouped: boolean; score?: number };
   /** The photo's recorded edit steps (oldest first) and where it stands now. Absent until it has been edited. */
-  editHistory?: { steps: { label: string; at: number }[]; cursor: number; originalAvailable?: boolean };
+  editHistory?: { steps: {
+    label: string; at: number;
+    /** Made by Auto or brought in from Lightroom, rather than slider by slider. */
+    by?: 'auto' | 'lightroom';
+    /** What changed, slider by slider, with real values. */
+    changes?: { label: string; from: string; to: string }[];
+    /** Auto's own reasons, in the person's language. */
+    why?: string[];
+  }[]; cursor: number; originalAvailable?: boolean };
   /** Saved non-destructive photo-wide edit versions, all using one original. */
   editVersions?: {
     activeId: string;
@@ -322,10 +377,17 @@ export interface Photo {
   };
   /** Actual recorded format actions; missing means pre-history, not a fabricated event. */
   formatHistory?: { formatId: string; kind: string; at: number; parentFormatId?: string; forkEditCursor?: number }[];
+  /** The JPEG the camera wrote with this RAW, kept beside it and shown as one photo. Its flag and rating follow this photo. */
+  pairedJpeg?: string;
+  /** When the photo was taken, in milliseconds, when the file records it. Used only for sorting. */
+  capturedAtMs?: number;
   /** The picture's size in real pixels, when the file says. Used for the true 100% zoom. */
   pixelSize?: { width: number; height: number };
   /** Measured from the picture as it is now. Absent until measured; the interface shows nothing rather than a guess. */
   histogram?: PhotoHistogram | null;
+  /** Which picture of a RAW each view shows: the camera's embedded preview or InFlight's develop from the sensor data,
+   * as recorded when the preview was made. Absent for JPEG/PNG files and while nothing is shown yet. */
+  picture?: { preview?: import('../../core/pictureSource').PictureProvenance; thumb?: import('../../core/pictureSource').PictureProvenance };
   /** Good, better or best, from the engine's decision maker. Shown as a word, never as a number. */
   tier?: PhotoTier | null;
   /** What 'auto' resolves to for this photo's watermark, measured on the pixels behind it. Absent until measured. */
@@ -429,6 +491,8 @@ export interface WorkspaceSettings {
   cvdGuidance: boolean;
   /** Basic accounts only: leave locked Pro features (and their badges) out of the interface. */
   hideProFeatures: boolean;
+  /** Show the advanced editing controls (colour grading, channel curves). Off by default so the panel stays simple. */
+  advancedControls: boolean;
   ongoingCritique: boolean;
   defaultAssistMode: AssistMode;
   language: 'en-GB' | 'en-US' | 'de-DE' | 'fr-FR';
@@ -444,8 +508,10 @@ export interface WorkspaceSettings {
 }
 
 export interface ExportRequest {
-  /** Standalone, photo-wide TIFF made from the selected sensor RAW. */
+  /** Standalone, photo-wide 16-bit file made from the selected sensor RAW. */
   rawMaster?: boolean;
+  /** Which 16-bit file the RAW master is written as. Absent = TIFF. */
+  rawMasterFormat?: 'tiff' | 'png';
   fileFormat?: 'jpeg' | 'png';
   jpegQuality?: number;
   destination: ExportDestination;
@@ -517,7 +583,10 @@ export interface WorkspaceStore {
   panels: Record<PanelId, PanelLayoutState>;
   filmstripCollapsed: boolean;
   filmstripHeight: number;
-  filmstripFilter: 'all' | 'flagged' | 'set-aside';
+  filmstripFilter: FilmstripFilter;
+  /** Show only photos rated at least this many stars (0 shows every rating). */
+  filmstripMinRating: number;
+  filmstripSort: PhotoSort;
   filmstripSearch: string;
   gridViewOpen: boolean;
   compareMode: boolean;
@@ -535,6 +604,13 @@ export interface WorkspaceStore {
   canRedo: boolean;
   clipboardRecipe: EditRecipe | null;
   lastActionNotice: string | null;
+  /** After reading a Lightroom catalogue: how many of its photos are not in this project yet, and where Lightroom keeps them. */
+  lightroomOffer?: { missing: number; folder: string } | null;
+  /** First run: InFlight is adding the picked photos and running Auto on the first ('working'), has applied Auto ('ready'),
+   * found the photo already looked natural and left it ('unchanged'), or could not check it ('failed'). */
+  quickStart?: { phase: 'working' | 'ready' | 'unchanged' | 'failed'; photoId: string | null } | null;
+  /** The open project's automatic backup, as last reported. Absent when no project is open. */
+  backup?: { state: 'idle' | 'working' | 'ok' | 'partial' | 'failed'; at?: number } | null;
   /** Optional engine-supplied renderer for the canvas (see PhotoSurfaceProps). */
   PhotoSurface?: ComponentType<PhotoSurfaceProps>;
 }
@@ -559,6 +635,8 @@ export interface WorkspaceActions {
 
   // Photos, Culling & Selection
   selectPhoto: (photoId: string, modifiers?: { ctrl?: boolean; shift?: boolean }) => void;
+  /** Make this photo the one keys act on, without changing which photos are selected (the chosen side of a two-photo compare). */
+  focusPhoto: (photoId: string) => void;
   selectAllPhotos: () => void;
   clearSelection: () => void;
   setDecision: (photoIds: string[], decision: DecisionState) => void;
@@ -568,9 +646,32 @@ export interface WorkspaceActions {
   toggleFlag: (photoIds: string[]) => void;
   setRating: (photoIds: string[], rating: number) => void;
   correctSpeciesName: (photoId: string, name: string) => void;
+  /** The person's own vehicle name for a photo, or for every frame of its burst. 'not-a-vehicle' removes it for good. */
+  correctVehicle: (photoId: string, choice: { kind: string; type?: string } | 'not-a-vehicle', wholeBurst: boolean) => void;
   importPhotos: () => void;
   importFolder: () => void;
   importDroppedPhotos: (files: File[]) => void;
+  /** Back the open project up now to this device (and its chosen place), checking the saved copy reads back the same. */
+  backUpProjectNow: () => void;
+  /** Save the open project's catalogue (decisions, edits, links; never photos) as a .kestrel.json file. */
+  saveProjectBackupFile: () => void;
+  /** Make a new project from a .kestrel.json backup file and open it. The backed-up project is never overwritten. */
+  restoreProjectBackup: (file: File) => void;
+  /** Save ratings, flags and confirmed tags as XMP sidecars (the selection when two or more are selected, else the whole project). */
+  saveXmpSidecars: (photoIds: string[]) => void;
+  /** Read ratings, flags and tags from chosen .xmp files (or one .zip) for matching photos. Every file is checked before anything changes. */
+  readXmpSidecars: (files: File[], photoIds: string[]) => void;
+  /** Bring ratings, flags, keywords, collections and basic edits in from a Lightroom Classic catalogue (.lrcat) for the photos
+   * already in this project. The catalogue is only read; choices already made in InFlight are kept. */
+  readLightroomCatalogue: (file: File) => void;
+  /** Choose the folder Lightroom keeps the catalogue's photos in: add those photos, then bring in their details. */
+  chooseLightroomFolder?: () => void;
+  dismissLightroomOffer?: () => void;
+  /** Save the whole project's ratings, flags, keywords and edit recipes in open formats (XMP with Camera Raw settings, CSV, JSON). */
+  exportOpenFormats?: () => void;
+  /** First run: pick photos; InFlight makes a project, adds them and runs Auto on the first one. */
+  startQuickStart?: () => void;
+  dismissQuickStart?: () => void;
   runAutoCull: () => void;
   reconnectOriginal: (photoId: string) => void;
   toggleDemoUnavailable: () => void;
@@ -583,6 +684,18 @@ export interface WorkspaceActions {
   applyAllAssistSuggestions: (photoId: string) => void;
   /** A sized JPEG of the edited photo for a client gallery, or null when there is no trustworthy picture yet. Absent in the stub. */
   renderGalleryPreview?: (photoId: string) => Promise<Blob | null>;
+  /** The photo's whole edit as plain data for a shared project, or null when it has no edit. Absent in the stub. */
+  sharedEditOf?: (photoId: string) => Record<string, unknown> | null;
+  /** Replace the photo's edit with a shared one (or clear it). Recorded as an edit step, so it can be undone. */
+  applySharedEdit?: (photoId: string, edit: Record<string, unknown> | null) => void;
+  /** On a clash: keep this device's edit as a virtual copy beside the photo, and give the photo the shared edit. Returns the copy's id. */
+  keepBothShared?: (photoId: string, theirs: Record<string, unknown> | null) => string | null;
+  /** Add photos fetched from a shared project's cloud store to this project, linked to the owner's originals. */
+  importCloudPreviews?: (items: { file: File; projectId: string; photoKey: string }[]) => Promise<void>;
+  /** The photo's exact original bytes, checked against its fingerprint, or null when the original is not connected. */
+  readVerifiedOriginal?: (photoId: string) => Promise<Blob | null>;
+  /** Put the owner's original (already checked against its fingerprint) behind a cloud preview, keeping its edits and shared identity. */
+  attachCloudOriginal?: (photoId: string, original: File, sha256: string) => Promise<boolean>;
   dismissAssistSuggestion: (photoId: string, suggestionId: string) => void;
 
   // Editing & Looks
@@ -642,6 +755,16 @@ export interface WorkspaceActions {
   addOverlayRow: (photoId: string) => void;
   updateOverlayRow: (photoId: string, rowId: string, patch: Partial<OverlayTextRow>) => void;
   removeOverlayRow: (photoId: string, rowId: string) => void;
+  /** Measure this photo's lens colour edges and set caRed/caBlue from them. 'clean' = nothing to correct; 'unclear' = too few edges to tell. */
+  detectColourEdges: (photoId: string) => Promise<'corrected' | 'clean' | 'unclear'>;
+  /** Image layers. Add one from an image file on this device (opens the file picker). */
+  addImageLayer: (photoId: string) => Promise<void>;
+  /** Add another photo of this project as a layer: a copy of it as it looks now, with its edits. */
+  addPhotoLayer: (photoId: string, sourcePhotoId: string) => Promise<void>;
+  updateLayer: (photoId: string, layerId: string, patch: Partial<Omit<import('../../core/layers').PhotoLayer, 'id' | 'assetId' | 'aspect'>>) => void;
+  removeLayer: (photoId: string, layerId: string) => void;
+  /** Move a layer up (1, towards the top) or down (-1). */
+  moveLayer: (photoId: string, layerId: string, direction: -1 | 1) => void;
   /** Opens the file picker and adds the chosen image to the watermark library. Resolves to the new watermark's id. */
   importWatermarkImage: (usage?: WatermarkUsage) => Promise<string | null>;
   /** Removes a flat background from a watermark's artwork. With commit false it only previews (a picture on transparency). */
@@ -699,7 +822,9 @@ export interface WorkspaceActions {
   switchEditVersion: (photoId: string, versionId: string) => void;
   setFilmstripCollapsed: (collapsed: boolean) => void;
   setFilmstripHeight: (height: number) => void;
-  setFilmstripFilter: (filter: 'all' | 'flagged' | 'set-aside') => void;
+  setFilmstripFilter: (filter: FilmstripFilter) => void;
+  setFilmstripMinRating: (rating: number) => void;
+  setFilmstripSort: (sort: PhotoSort) => void;
   setFilmstripSearch: (query: string) => void;
   setGridViewOpen: (open: boolean) => void;
   setCompareMode: (compare: boolean) => void;

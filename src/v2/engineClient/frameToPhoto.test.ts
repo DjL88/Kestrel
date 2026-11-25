@@ -260,3 +260,28 @@ test('a RAW with no recorded size takes its Original shape from the picture show
   // Recorded EXIF dimensions still win over the shown picture.
   assert.deepEqual(originalFormatSize(frame({ exif: { width: 6000, height: 4000 } as PhotoFrame['exif'] }), undefined, { width: 10, height: 10 }), { x: 0, y: 0, width: 6000, height: 4000 });
 });
+
+test('a vehicle reading shows as the subject in words and makes the photo findable by kind, family and type', async () => {
+  const { filterPhotos } = await import('../ui/utils/studioMath');
+  const photo = frameToPhoto(frame({ vehicle: { schema: 1, family: 'air', kind: 'military-jet', type: 'typhoon', source: 'clip', labelsVersion: 1 } }), undefined);
+  assert.equal(photo.vehicleLabel, 'Military jet: Eurofighter Typhoon (probably)');
+  for (const query of ['typhoon', 'military jet', 'aircraft']) assert.equal(filterPhotos([photo], 'all', query).length, 1, query);
+  assert.equal(filterPhotos([photo], 'all', 'helicopter').length, 0);
+  // A kind without a clear type says so; a malformed reading is never shown.
+  assert.equal(frameToPhoto(frame({ vehicle: { schema: 1, family: 'air', source: 'clip', labelsVersion: 1 } }), undefined).vehicleLabel, 'Aircraft, type unknown');
+  assert.equal(frameToPhoto(frame({ vehicle: { schema: 1, family: 'air', kind: 'spaceship', source: 'clip', labelsVersion: 1 } as never }), undefined).vehicleLabel, undefined);
+});
+
+test('each view says which picture of a RAW it shows, from what the provider recorded, HE named from the headers', () => {
+  const urls = { thumb: 'blob:t', preview: 'blob:p' };
+  const developed = frameToPhoto(frame({ rawCodec: 'nikon-he-star' }), urls, { sources: { preview: 'raw-full', thumb: 'raw-review' } });
+  assert.deepEqual(developed.picture, {
+    preview: { kind: 'raw', size: 'full', codec: 'nikon-he-star' },
+    thumb: { kind: 'raw', size: 'screen', codec: 'nikon-he-star' },
+  });
+  // Before the large preview exists, the canvas shows the thumbnail, so it carries the thumbnail's source.
+  const early = frameToPhoto(frame(), { thumb: 'blob:t' }, { sources: { thumb: 'camera-preview' } });
+  assert.deepEqual(early.picture, { preview: { kind: 'camera' }, thumb: { kind: 'camera' } });
+  assert.equal(frameToPhoto(frame({ filename: 'bird.jpg' }), urls, { sources: { preview: 'original', thumb: 'original' } }).picture, undefined);
+  assert.equal(frameToPhoto(frame(), urls).picture, undefined, 'no recorded source, no label');
+});

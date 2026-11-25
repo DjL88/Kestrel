@@ -1,0 +1,53 @@
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** Dutch. DRAFT: written without a native speaker's check. Type names (Eurofighter Typhoon, Boeing 737) are proper names and stay as they are. */
+export const nl: AreaTranslation<typeof source> = {
+  heading: 'Voertuig',
+  families: { air: 'Luchtvaartuig', road: 'Wegvoertuig', rail: 'Spoorvoertuig', water: 'Boot' },
+  kinds: {
+    car: 'Auto',
+    motorbike: 'Motor',
+    lorry: 'Vrachtwagen',
+    bus: 'Bus',
+    train: 'Trein',
+    tram: 'Tram',
+    boat: 'Boot of schip',
+    helicopter: 'Helikopter',
+    airliner: 'Verkeersvliegtuig',
+    'light-aircraft': 'Licht vliegtuig',
+    'military-jet': 'Militaire straaljager',
+    'military-transport': 'Militair transportvliegtuig',
+    glider: 'Zweefvliegtuig',
+    drone: 'Drone',
+    balloon: 'Ballon',
+  },
+  probably: (what: string) => `${what} (waarschijnlijk)`,
+  typeUnknown: (what: string) => `${what}, type onbekend`,
+  withType: (kind: string, type: string) => `${kind}: ${type}`,
+  marked: (what: string, marking: string) => `${what}, gemarkeerd ${marking}`,
+  registered: (marking: string, type: string) => `${marking}: ${type} (volgens het register)`,
+  operatedBy: (what: string, operator: string) => `${what}, geëxploiteerd door ${operator}`,
+  held: (what: string) => `${what}? Controleer dit`,
+  correct: {
+    edit: 'Bewerken',
+    change: 'Voertuig wijzigen',
+    kindLabel: 'Soort',
+    typeLabel: 'Merk of type',
+    typeUnknown: 'Weet niet',
+    notVehicle: 'Geen voertuig',
+    wholeBurst: (count: number) => `Alle ${count} foto’s in deze reeks`,
+    save: 'Opslaan',
+    cancel: 'Annuleren',
+    saved: (count: number) => (count > 1 ? `Opgeslagen voor ${count} foto’s.` : 'Opgeslagen.'),
+  },
+  reader: {
+    title: 'Registraties van luchtvaartuigen lezen',
+    description: (megabytes: string) => `Leest registraties en militaire serienummers die op luchtvaartuigen zijn geschilderd, op dit apparaat, en zoekt ze op in een offline kopie van openbare registers. Een eenmalige download van ${megabytes} MB. Kentekens van auto’s worden nooit gelezen.`,
+    download: 'Downloaden',
+    downloading: (percent: number) => `Bezig met downloaden… ${percent}%`,
+    ready: 'Geïnstalleerd. Werkt offline.',
+    remove: 'Verwijderen',
+    failed: 'De download is niet afgerond, dus er is niets bewaard. Probeer het opnieuw.',
+  },
+};

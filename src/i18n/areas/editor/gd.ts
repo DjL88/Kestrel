@@ -123,7 +123,7 @@ export const gd: AreaTranslation<typeof source> = {
     check: 'Thoir sùil air an dealbh agam',
     raise: 'Àrdaich',
     lower: 'Lùghdaich',
-    sliders: { exposure: 'Foillseachadh', warmth: 'Blàths', highlights: 'Bàrr-solais', shadows: 'Faileasan', contrast: 'Iomsgaradh' },
+    sliders: { exposure: 'Nochdadh', warmth: 'Blàths', highlights: 'Bàrr-solais', shadows: 'Faileasan', contrast: 'Iomsgaradh' },
     tryLabel: (action) => `Feuch seo ${action}`,
     notes: { whiteClip: 'Bàrr-solais air a losgadh', blackClip: 'Faileasan dùinte', dark: 'A’ coimhead dorcha', bright: 'A’ coimhead soilleir', flat: 'A’ coimhead rèidh', warm: 'Dath blàth', cool: 'Dath fuar' },
     install: 'Stàlaich sgrùdadh dhealbhan',
