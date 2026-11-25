@@ -524,6 +524,25 @@ export const source = {
   },
 
   // Co-pilot / Flight Mode Panel
+  /** Watch: an Auto suggestion played one step at a time, each explained in plain words. */
+  watch: {
+    start: "Watch step by step",
+    region: "Watch this suggestion step by step",
+    stepOf: (n: number, total: number) => `Step ${n} of ${total}`,
+    back: "Back",
+    next: "Next",
+    skip: "Skip to the end",
+    replay: "Watch again",
+    stop: "Stop watching",
+    done: "That was every step. Apply the suggestion to keep it, or stop watching to leave the photo as it was.",
+    previewNote: "Preview only. Nothing changes until you apply the suggestion.",
+    otherSetting: "Another setting",
+    on: "on",
+    off: "off",
+    changed: "changed",
+    why: { "white-balance": "First the colour of the light, so the next steps start from true colours.", "light": "Then brightness and contrast.", "colour": "Then how strong the colours are.", "detail": "Last, fine detail and noise.", "local": "A change to part of the photo only. You will see it once you apply the suggestion.", "other": "One more setting this suggestion changes." },
+  },
+
   copilot: {
     heading: 'Co-pilot',
     changeInSettings: 'Change mode in Settings',

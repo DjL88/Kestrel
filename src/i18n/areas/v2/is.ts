@@ -491,6 +491,25 @@ export const is: AreaTranslation<typeof source> = {
     fullScreenExit: 'Hætta í öllum skjánum',
     zoomFit: 'Passa',
   },
+  /** Watch: an Auto suggestion played one step at a time, each explained in plain words. */
+  watch: {
+    start: "Horfa skref fyrir skref",
+    region: "Horfa á þessa tillögu skref fyrir skref",
+    stepOf: (n, total) => `Skref ${n} af ${total}`,
+    back: "Til baka",
+    next: "Áfram",
+    skip: "Hoppa á endann",
+    replay: "Horfa aftur",
+    stop: "Hætta að horfa",
+    done: "Þetta voru öll skrefin. Notaðu tillöguna til að halda henni, eða hættu að horfa til að láta myndina vera eins og hún var.",
+    previewNote: "Aðeins forskoðun. Ekkert breytist fyrr en þú notar tillöguna.",
+    otherSetting: "Önnur stilling",
+    on: "á",
+    off: "af",
+    changed: "breytt",
+    why: { "white-balance": "Fyrst litur ljóssins, svo næstu skref byrji á réttum litum.", "light": "Svo birta og birtuskil.", "colour": "Svo hversu sterkir litirnir eru.", "detail": "Að lokum fín smáatriði og suð.", "local": "Breyting á hluta myndarinnar eingöngu. Þú sérð hana þegar þú notar tillöguna.", "other": "Önnur stilling sem tillagan breytir." },
+  },
+
   copilot: {
     heading: 'Aðstoðarflugmaður',
     changeInSettings: 'Breyta stillingu í Stillingum',

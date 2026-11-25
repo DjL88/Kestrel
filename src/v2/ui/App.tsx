@@ -3,7 +3,7 @@ import { useConnectivity } from '../../providers/useConnectivity';
 import { projectsText } from '../../i18n/areas/projects';
 import { stepFrom } from './utils/swipe';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import type { PanelId, Photo } from './contract';
+import type { EditRecipe, PanelId, Photo } from './contract';
 import { useWorkspace } from './stub';
 import { resolveTheme } from './themePreference';
 import { noticeDurationMs, noticeNeedsDismiss } from './utils/noticeTiming';
@@ -173,7 +173,11 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const sharedEditing = useSharedEditing(sharing, store.collage ? null : store.activeProjectId, activePhoto?.id ?? null, activePhoto?.sharedKey, actions, activePhoto, shareVersion);
   // Someone else has this photo out, or both sides changed it: the editing panels are view-only until that is settled.
   const editLocked = sharedEditing.state.kind === 'theirs' || sharedEditing.state.kind === 'conflict' || sharedEditing.state.kind === 'view-only';
-  const hoveredLook = store.looks.find((l) => l.id === store.hoveredLookId) ?? null;
+  // Watch (Co-pilot): a suggestion's steps so far, shown through the same non-destructive preview as a hovered Look.
+  const [stepPreview, setStepPreview] = useState<Partial<EditRecipe> | null>(null);
+  useEffect(() => setStepPreview(null), [store.activePhotoId]);
+  const hoveredLook = store.looks.find((l) => l.id === store.hoveredLookId)
+    ?? (stepPreview && Object.keys(stepPreview).length ? { id: 'watch-steps', name: '', category: '', description: '', previewFilter: '', recipeDelta: stepPreview } : null);
   const runningTaskCount = store.tasks.filter((t) => t.status === 'running').length;
 
   // Action messages: a problem waits until it is dismissed; a confirmation stays long enough to read, and pauses
@@ -300,6 +304,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onApplySuggestion={actions.applyAssistSuggestion}
             onRequestLocalAuto={actions.requestLocalAuto}
             onDismissSuggestion={actions.dismissAssistSuggestion}
+            onStepPreview={setStepPreview}
           />
         );
       case 'adjust':
