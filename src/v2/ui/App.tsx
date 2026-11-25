@@ -278,6 +278,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             looks={store.looks}
             cvdGuidance={store.settings.cvdGuidance}
             hideReadouts={store.settings.calmReadouts}
+            showAdvanced={store.settings.advancedControls}
             onUpdateRecipe={actions.updateRecipe}
             onApplyLook={actions.applyLook}
             onHoverLook={actions.setHoveredLook}

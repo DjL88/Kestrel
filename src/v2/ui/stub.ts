@@ -724,6 +724,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       ],
       localCacheLimitGb: 25,
       hideProFeatures: false,
+      advancedControls: false,
     },
     activePanel: 'adjust',
     panels: createDefaultPanels(),
