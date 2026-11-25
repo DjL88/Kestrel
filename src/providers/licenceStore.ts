@@ -209,6 +209,9 @@ export async function freeLicenceDevice(activationId: string): Promise<boolean> 
 export const accountLicenceDevices = (idToken: string) => sync.accountDevices(idToken);
 export const freeAccountLicenceDevice = (idToken: string, activationId: string) => sync.releaseAccountDevice(idToken, activationId);
 
+/** Buying Pro (see src/core/proCheckout.ts). After a paid answer, activateFromAccount puts Pro on this device. */
+export const startProCheckout = (idToken: string, country: string) => sync.startProCheckout(idToken, country);
+export const proCheckoutStatus = (idToken: string, checkoutId: string) => sync.proCheckoutStatus(idToken, checkoutId);
 export const licenceOnlineConfigured = () => sync.configured;
 /** Where and how to reach account-only services (cloud processing) right now; null when signed out or the session ended. */
 export const accountConnection = () => sync.accountConnection();

@@ -1,9 +1,10 @@
 import { useConnectivity } from '../providers/useConnectivity';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Session, SignInProvider } from '../core/cloudInterfaces';
 import { signInOptions } from '../core/signInOptions';
 import { firebaseAuth, isDesktopGoogleConfigured, isSignInConfigured, signInPlatform, resendAccountVerification } from '../providers/firebaseAuth';
-import { accountLicenceDevices, activateFromAccount, consumeExpiredAccountNotice, freeAccountLicenceDevice, leaveAccount, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
+import { accountLicenceDevices, activateFromAccount, consumeExpiredAccountNotice, freeAccountLicenceDevice, leaveAccount, licenceOnlineConfigured, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
+import { BuyProPanel } from './BuyProPanel';
 import type { LicenceStatus } from '../providers/licenceSync';
 import { isDesktopApp, isMobileShell } from '../providers/desktopShell';
 import { parseControlPlaneUrl } from '../core/licenceOnline';
@@ -152,6 +153,13 @@ export function AccountAndLicenceSettings() {
     }
   }
 
+  // Stable across renders so the checkout's waiting loop is not restarted by unrelated updates.
+  const linkLicenceRef = useRef(linkLicence);
+  linkLicenceRef.current = linkLicence;
+  const buyProPaid = useCallback(() => runAccountActionRef.current(() => linkLicenceRef.current()), []);
+  const runAccountActionRef = useRef(runAccountAction);
+  runAccountActionRef.current = runAccountAction;
+
   function chooseSignIn(provider: SignInProvider) {
     if (offline) return;
     return runAccountAction(async () => {
@@ -258,6 +266,9 @@ export function AccountAndLicenceSettings() {
                   </ul>
                 </>}
               </section>
+            )}
+            {licenceOnlineConfigured() && !((licence.status === 'valid' || licence.status === 'account') && licence.access.pro) && !isMobileShell() && (
+              <BuyProPanel offline={offline} onPaid={buyProPaid} />
             )}
           </>
         ) : (
