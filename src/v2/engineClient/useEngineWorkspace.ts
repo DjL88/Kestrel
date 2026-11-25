@@ -151,6 +151,8 @@ import { maskAdvice, maskVerificationKey } from './maskVerificationCommit';
 import { commitSubjectMask, subjectMaskTarget } from './subjectMaskCommit';
 import { createMask, createSubjectMask, framingKey, hasActiveMasks, type Mask } from '../../core/maskTypes';
 import { v2Text } from '../../i18n/areas/v2';
+import { onLaunchIntent, resolveLaunchIntent, takeLaunchIntent } from '../launchIntent';
+import { writeLastProject } from '../../providers/launchMemory';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../../core/photoFraming';
 import { estimateIlluminant, neutralBalance, samplePatch } from '../../core/neutralWhite';
 import { GUIDED_RENDER_EDGE } from '../../core/subjectGuide';
@@ -622,6 +624,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     setScreen('editor');
   }, []);
 
+  const projectsRef = useRef<Project[]>([]);
+  projectsRef.current = projects;
   const openProject = useCallback(async (id: string) => {
     const request = ++openRequest.current;
     const store = catalogue.current!;
@@ -642,6 +646,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (request !== openRequest.current) return;
       enterProject(project, restored);
       entered = true;
+      // Remember it for the launch welcome's "pick up where you left off". Local only; erased with device data.
+      const summary = projectsRef.current.find((candidate) => candidate.id === id);
+      if (summary) writeLastProject({ id, name: summary.name, photoCount: summary.photoCount, editedAt: summary.updatedAt });
     } catch {
       if (request === openRequest.current) {
         setHubState('ready');
@@ -652,6 +659,22 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (provider.current !== restored) restored.clear();
     }
   }, [enterProject]);
+
+  // The launch welcome's choice: once projects have loaded (now, or when the welcome finishes later), open the chosen
+  // project or stay on the hub. The intent is taken once, so it can never open a project twice.
+  const projectsLoaded = hubState === 'ready' || hubState === 'empty';
+  useEffect(() => {
+    if (!projectsLoaded) return;
+    const consume = () => {
+      const intent = takeLaunchIntent();
+      if (!intent) return;
+      const { open, notice: why } = resolveLaunchIntent(intent, projectsRef.current.map((project) => project.id));
+      if (why === 'missing-project') setNotice(v2Text.welcome.missingProject);
+      if (open) void openProject(open);
+    };
+    consume();
+    return onLaunchIntent(consume);
+  }, [projectsLoaded, openProject]);
 
   // The opened project is on screen: add the photos an import finished while it was opening. Their originals were
   // registered in the provider of the time, so register them in this project's provider first (from the stored copy or
