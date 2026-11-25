@@ -1218,6 +1218,8 @@ export const sv: AreaTranslation<typeof source> = {
     },
     keyboard: {
       intro: 'Viktiga kortkommandon på datorn för snabb gallring och redigering.',
+      advanceLabel: "Gå till nästa foto efter betyg",
+      advanceDesc: "Efter ett stjärnbetyg, en flagga eller att lägga undan ett foto visas nästa foto direkt. Val på flera markerade foton går aldrig vidare.",
     },
     language: {
       label: 'Visningsspråk',

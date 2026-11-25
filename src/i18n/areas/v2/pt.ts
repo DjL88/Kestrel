@@ -1218,6 +1218,8 @@ export const pt: AreaTranslation<typeof source> = {
     },
     keyboard: {
       intro: 'Atalhos essenciais de computador para selecionar e editar depressa.',
+      advanceLabel: "Passar à fotografia seguinte após classificar",
+      advanceDesc: "Depois de uma classificação por estrelas, bandeira ou pôr de parte numa fotografia, mostrar logo a seguinte. Escolhas em várias fotografias selecionadas nunca avançam.",
     },
     language: {
       label: 'Idioma de apresentação',

@@ -493,6 +493,8 @@ export interface WorkspaceSettings {
   hideProFeatures: boolean;
   /** Show the advanced editing controls (colour grading, channel curves). Off by default so the panel stays simple. */
   advancedControls: boolean;
+  /** Move to the next photo after a rating or decision on one photo (culling). */
+  advanceAfterDecision: boolean;
   ongoingCritique: boolean;
   defaultAssistMode: AssistMode;
   language: 'en-GB' | 'en-US' | 'de-DE' | 'fr-FR';

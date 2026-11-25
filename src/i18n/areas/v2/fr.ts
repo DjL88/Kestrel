@@ -1218,6 +1218,8 @@ export const fr: AreaTranslation<typeof source> = {
     },
     keyboard: {
       intro: 'Raccourcis essentiels sur ordinateur pour trier et retoucher vite.',
+      advanceLabel: "Passer à la photo suivante après la note",
+      advanceDesc: "Après une note, un drapeau ou une mise de côté sur une photo, afficher aussitôt la suivante. Un choix sur plusieurs photos sélectionnées ne fait jamais avancer.",
     },
     language: {
       label: 'Langue d’affichage',

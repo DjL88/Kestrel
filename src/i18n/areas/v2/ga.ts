@@ -1221,6 +1221,8 @@ export const ga: AreaTranslation<typeof source> = {
     },
     keyboard: {
       intro: 'Aicearraí riachtanacha deisce le haghaidh roghnú agus eagarthóireacht thapa.',
+      advanceLabel: "Bog chuig an chéad ghrianghraf eile tar éis rátála",
+      advanceDesc: "Tar éis rátáil réalta, brat nó cur i leataobh ar ghrianghraf amháin, taispeáin an chéad cheann eile láithreach. Ní bhogann roghanna ar roinnt grianghraf roghnaithe ar aghaidh riamh.",
     },
     language: {
       label: 'Teanga taispeána',

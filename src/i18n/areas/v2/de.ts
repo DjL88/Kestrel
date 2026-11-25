@@ -1218,6 +1218,8 @@ export const de: AreaTranslation<typeof source> = {
     },
     keyboard: {
       intro: 'Wichtige Desktop-Tastenkürzel für schnelles Sichten und Bearbeiten.',
+      advanceLabel: "Nach dem Bewerten zum nächsten Foto",
+      advanceDesc: "Nach einer Sternebewertung, Markierung oder Aussortierung eines Fotos sofort das nächste Foto zeigen. Bei mehreren ausgewählten Fotos geht es nie weiter.",
     },
     language: {
       label: 'Anzeigesprache',

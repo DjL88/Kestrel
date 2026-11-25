@@ -1219,6 +1219,8 @@ export const gd: AreaTranslation<typeof source> = {
     },
     keyboard: {
       intro: 'Ath-ghoiridean deasga riatanach airson taghadh is deasachadh luath.',
+      advanceLabel: "Gluais dhan ath dhealbh an dèidh rangachadh",
+      advanceDesc: "An dèidh rangachadh rionnaig, bratach no cur an dàrna taobh air aon dealbh, seall an ath dhealbh sa bhad. Cha ghluais roghainnean air grunn dhealbhan taghte air adhart idir.",
     },
     language: {
       label: 'Cànan an t-seallaidh',

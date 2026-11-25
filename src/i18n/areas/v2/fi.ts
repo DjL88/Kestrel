@@ -1219,6 +1219,8 @@ export const fi: AreaTranslation<typeof source> = {
     },
     keyboard: {
       intro: 'Tärkeimmät tietokoneen pikanäppäimet nopeaan karsintaan ja muokkaukseen.',
+      advanceLabel: "Siirry seuraavaan kuvaan arvioinnin jälkeen",
+      advanceDesc: "Kun yksi kuva saa tähtiarvion, merkinnän tai siirretään sivuun, seuraava kuva näytetään heti. Usean valitun kuvan valinnat eivät koskaan siirry eteenpäin.",
     },
     language: {
       label: 'Näyttökieli',

@@ -1218,6 +1218,8 @@ export const it: AreaTranslation<typeof source> = {
     },
     keyboard: {
       intro: 'Scorciatoie essenziali da computer per selezionare e modificare in fretta.',
+      advanceLabel: "Passa alla foto successiva dopo il voto",
+      advanceDesc: "Dopo un voto a stelle, una bandiera o una messa da parte su una foto, mostra subito la successiva. Le scelte su più foto selezionate non fanno mai avanzare.",
     },
     language: {
       label: 'Lingua dell’interfaccia',
