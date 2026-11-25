@@ -14,6 +14,7 @@ import ProBadge, { useProHidden } from '../shell/ProBadge';
 import WatermarkLibrary from './WatermarkLibrary';
 import WatermarkSetup from './WatermarkSetup';
 import OverlayTextRows from './OverlayTextRows';
+import LayersSection from './LayersSection';
 import BrandIcon from '../icons/BrandIcon';
 import InfoPopover from '../shell/InfoPopover';
 import { detectOverlayOverflow, fitOverlayRows, getActiveGroup } from '../utils/studioMath';
@@ -45,6 +46,13 @@ interface OverlayPanelProps {
   onSaveTemplate: (photoId: string, name: string) => void;
   onApplyTemplate: (templateId: string, photoIds: string[]) => void;
   onManageTemplates: () => void;
+  projectPhotos: Array<{ id: string; filename: string }>;
+  calmView: boolean;
+  onAddImageLayer: (photoId: string) => Promise<void>;
+  onAddPhotoLayer: (photoId: string, sourcePhotoId: string) => Promise<void>;
+  onUpdateLayer: (photoId: string, layerId: string, patch: Partial<Omit<import('../../../core/layers').PhotoLayer, 'id' | 'assetId' | 'aspect'>>) => void;
+  onRemoveLayer: (photoId: string, layerId: string) => void;
+  onMoveLayer: (photoId: string, layerId: string, direction: -1 | 1) => void;
 }
 
 /** The patch that puts one box at a place on the grid: anchored there (its edge at the margin), the text lined up with that side. */
@@ -123,11 +131,18 @@ export default function OverlayPanel({
   onCutOutWatermark,
   onMakeWatermarkVariant,
   onDeleteWatermark,
+  projectPhotos,
+  calmView,
+  onAddImageLayer,
+  onAddPhotoLayer,
+  onUpdateLayer,
+  onRemoveLayer,
+  onMoveLayer,
 }: OverlayPanelProps) {
   const hideTextTab = useProHidden('overlayText');
   const hideMarkTab = useProHidden('watermarkCustom');
   const [templateName, setTemplateName] = useState('');
-  const [subTab, setSubTab] = useState<'text' | 'watermark'>('text');
+  const [subTab, setSubTab] = useState<'text' | 'watermark' | 'layers'>('text');
   const [overflowOpen, setOverflowOpen] = React.useState(false);
   const [settingUpMark, setSettingUpMark] = useState(false);
 
@@ -143,14 +158,14 @@ export default function OverlayPanel({
   // A tab the person asked not to see (a locked Pro one) is taken out, not greyed; the other opens in its place.
   const textTabGone = hideTextTab && !features.overlayText;
   const markTabGone = hideMarkTab && !features.watermarkCustom;
-  const activeSub: 'text' | 'watermark' = textTabGone ? 'watermark' : markTabGone ? 'text' : subTab;
+  const activeSub: 'text' | 'watermark' | 'layers' = subTab === 'layers' ? 'layers' : textTabGone ? 'watermark' : markTabGone ? 'text' : subTab;
   const targets = selectedPhotoIds.length > 0 ? selectedPhotoIds : [photo.id];
 
   return (
     <div className="space-y-4">
 
       {/* Text / Watermark Sub-tabs */}
-      <div className={`grid gap-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-0.5 ${textTabGone || markTabGone ? 'grid-cols-1' : 'grid-cols-2'}`}>
+      <div className={`grid gap-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-0.5 ${textTabGone && markTabGone ? 'grid-cols-1' : textTabGone || markTabGone ? 'grid-cols-2' : 'grid-cols-3'}`}>
         {!textTabGone && (
         <button
           type="button"
@@ -179,10 +194,29 @@ export default function OverlayPanel({
           <span>{STRINGS.overlays.tabWatermark}</span>
         </button>
         )}
+        <button
+          type="button"
+          onClick={() => setSubTab('layers')}
+          className={`inline-flex h-8 items-center justify-center gap-1.5 rounded text-xs font-medium transition-colors ${
+            activeSub === 'layers'
+              ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]'
+              : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+          }`}
+        >
+          <BrandIcon name="image" size={14} />
+          <span>{STRINGS.layers.tab}</span>
+        </button>
       </div>
 
+      {activeSub === 'layers' && (
+        <LayersSection photo={photo} overlay={overlay} projectPhotos={projectPhotos} calmView={calmView}
+          onShowText={() => setSubTab('text')} onShowWatermark={() => setSubTab('watermark')}
+          onAddImageLayer={onAddImageLayer} onAddPhotoLayer={onAddPhotoLayer} onUpdateLayer={onUpdateLayer}
+          onRemoveLayer={onRemoveLayer} onMoveLayer={onMoveLayer} />
+      )}
+
       {/* Suggested-Snapping & Clean Alignment Bar (applies to both Text & Watermark) */}
-      <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3 space-y-2.5">
+      {activeSub !== 'layers' && <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3 space-y-2.5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1">
             <span className="text-xs font-semibold text-[var(--text-primary)]">
@@ -235,7 +269,7 @@ export default function OverlayPanel({
           <input type="range" min={0} max={12} step={0.5} value={overlay.edgeMargin} aria-label={STRINGS.overlayKit.marginLabel}
             onChange={(e) => onUpdateOverlay(photo.id, { edgeMargin: Number(e.target.value) })} className="inflight-slider" />
         </div>
-      </div>
+      </div>}
 
       {/* TEXT TAB */}
       {activeSub === 'text' && (

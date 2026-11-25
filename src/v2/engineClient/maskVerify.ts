@@ -75,7 +75,7 @@ export async function verifyFrameMasks(source: HTMLImageElement, frame: PhotoFra
       working.height = 0;
       return { data: result.data, width: result.width, height: result.height };
     };
-    const outcome = await runMaskAction({ masks, render, original, maxRetries: 2 });
+    const outcome = await runMaskAction({ masks, render, original, maxRetries: 2, signal });
     signal?.throwIfAborted();
     return outcome;
   } finally {

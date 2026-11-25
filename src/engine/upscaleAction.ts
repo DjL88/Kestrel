@@ -101,5 +101,5 @@ export async function runUpscaleAction(input: UpscaleActionInput): Promise<Upsca
     }
 
     return { pixels: toRgbaPixels(upscaledRgb), usedModel, verification, attempts };
-  });
+  }, { signal: input.signal });
 }
