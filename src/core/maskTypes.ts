@@ -1,9 +1,16 @@
 /** Controls a mask can adjust locally, tone and colour first, then detail. */
 export const LOCAL_KEYS = ['exposure', 'brightness', 'warmth', 'colour', 'contrast', 'highlights', 'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity', 'sharpen', 'denoise'] as const;
 /** The local controls that need neighbouring pixels, so a mask using them cannot be processed in separate bands. */
-export const LOCAL_DETAIL_KEYS = ['texture', 'clarity', 'sharpen', 'denoise'] as const;
+export const LOCAL_DETAIL_KEYS = ['texture', 'clarity', 'sharpen', 'denoise', 'denoiseLuminance'] as const;
 export type LocalKey = (typeof LOCAL_KEYS)[number];
-export type LocalEdit = Partial<Record<LocalKey, number>>;
+/** Every key a stored mask may carry: the sliders above, plus luminance (grain) noise reduction, which TrueDetail's
+ * regional denoise sets per region (stronger on the background, gentler on subjects and eyes). Same 0 to 2 range as
+ * `PhotoEdit.denoiseLuminance`. */
+export const MASK_EDIT_KEYS = [...LOCAL_KEYS, 'denoiseLuminance'] as const;
+export type MaskEditKey = (typeof MASK_EDIT_KEYS)[number];
+export type LocalEdit = Partial<Record<MaskEditKey, number>>;
+/** The two noise-reduction keys: the only ones a common-source denoise pair may carry. */
+export const isDenoiseKey = (key: string): boolean => key === 'denoise' || key === 'denoiseLuminance';
 
 export interface BrushStroke {
   /** Radius in widths of the framed photo. */
@@ -61,7 +68,7 @@ export function usesDetail(masks: Mask[] | undefined): boolean {
 
 /** A mask changes the picture only when it is switched on and has at least one slider set. */
 export function maskIsActive(mask: Mask): boolean {
-  return !mask.hidden && LOCAL_KEYS.some((key) => !!mask.edit[key]);
+  return !mask.hidden && MASK_EDIT_KEYS.some((key) => !!mask.edit[key]);
 }
 
 export function hasActiveMasks(masks: Mask[] | undefined): boolean {
@@ -130,7 +137,7 @@ export function validMasks(value: unknown): value is Mask[] {
     }
     const edit = mask.edit;
     if (typeof edit !== 'object' || edit === null || Array.isArray(edit)) return false;
-    if (!Object.entries(edit).every(([key, number]) => (LOCAL_KEYS as readonly string[]).includes(key) && finite(number, key === 'denoise' ? 0 : -2, 2))) return false;
+    if (!Object.entries(edit).every(([key, number]) => (MASK_EDIT_KEYS as readonly string[]).includes(key) && finite(number, isDenoiseKey(key) ? 0 : -2, 2))) return false;
     if (mask.kind === 'linear') return ['x1', 'y1', 'x2', 'y2'].every((key) => finite(mask[key], -2, 3));
     if (mask.kind === 'radial') return finite(mask.cx, -2, 3) && finite(mask.cy, -2, 3) && finite(mask.rx, 0.001, 5) && finite(mask.ry, 0.001, 5) && (mask.angle === undefined || finite(mask.angle, -180, 180));
     const strokesValid = (strokes: unknown) => Array.isArray(strokes) && strokes.length <= 300 && strokes.every((stroke) => {
