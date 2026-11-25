@@ -1122,8 +1122,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           ctx.commitIfCurrent(() => setNotice(assessment.reason));
           return;
         }
+        // Desktop with the fine-edge pack (BiRefNet-lite): its finer edges, only when it found the same subject. The
+        // built-in U²-Netp mask stays otherwise, and always on phones and in browsers.
+        const refined = await import('../../providers/fineEdgeMask').then((m) => m.refineSubjectGrid(framed, grid, detail, ctx.signal)).catch(() => null);
+        ctx.checkCancelled();
         const mask = {
-          ...createSubjectMask(newId(), grid, framingKey(framing), assessment.confidence, detail),
+          ...createSubjectMask(newId(), refined?.grid ?? grid, framingKey(framing), assessment.confidence, refined?.detail ?? detail),
           invert: type === 'background', feather: 0.5,
         };
         const latest = stateRef.current;

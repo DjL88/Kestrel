@@ -106,7 +106,19 @@ export const BIOCLIP2: OptionalModel = {
   cache: 'kestrel-bioclip2-v1',
 };
 
-export const OPTIONAL_MODELS: readonly OptionalModel[] = [RFDETR_NANO, EFFICIENTSAM_TI, NAFNET_W32, BIOCLIP2];
+export const BIREFNET_LITE: OptionalModel = {
+  id: 'birefnet-lite-w16',
+  name: 'Fine subject edges (BiRefNet-lite)',
+  job: 'Finer subject masks for feathers, fur and whiskers. Used only when it finds the same subject as the built-in mask.',
+  licence: 'MIT',
+  source: 'https://huggingface.co/ZhengPeng7/BiRefNet_lite (revision aa62cd87eafb9cc43056d08ef3615a14628b831d), exported to ONNX by tools/model-conversion/birefnet_lite.py',
+  tier: 'desktop',
+  fallback: 'the built-in U²-Netp subject mask',
+  files: { model: pinned('BIREFNET_MODEL', 'birefnet-lite-w16.onnx', '2c7c7240884841649e5f67b645cf7aed004a401c2fc666dd00c97a29948ef319', 92215270) },
+  cache: 'kestrel-birefnet-lite-v1',
+};
+
+export const OPTIONAL_MODELS: readonly OptionalModel[] = [RFDETR_NANO, EFFICIENTSAM_TI, NAFNET_W32, BIOCLIP2, BIREFNET_LITE];
 
 /** Total download for a pack, for an honest size in the offer. */
 export function optionalModelBytes(model: OptionalModel): number {

@@ -4,7 +4,7 @@ import { EMBED_MODEL } from '../core/visualSimilarity';
 import { GATE_MODEL } from '../core/categoryGate';
 import { SPECIES_MODEL, centreSquare } from '../core/speciesModel';
 import { PHOTO_CHECK_PACK, PHOTO_CHECK_REVISION } from '../core/photoCheckPack';
-import { BIOCLIP2, EFFICIENTSAM_TI, NAFNET_W32, RFDETR_NANO, optionalModelConfigured, type OptionalModel } from '../core/optionalModels';
+import { BIOCLIP2, BIREFNET_LITE, EFFICIENTSAM_TI, NAFNET_W32, RFDETR_NANO, optionalModelConfigured, type OptionalModel } from '../core/optionalModels';
 import { NAFNET_TILE } from '../core/nafnet';
 import { bundledModelUrl } from './bundledModelAssets';
 import { isDesktopApp } from './desktopShell';
@@ -160,6 +160,18 @@ export const MODEL_CATALOGUE: readonly CatalogueEntry[] = [
       const size = await encodePhoto(picture, key);
       await selectSubjects(key, [{ taps: [{ x: size.w / 2, y: size.h / 2, add: true }] }]);
     },
+  },
+  {
+    // Peak memory was measured with native onnxruntime on a GitHub runner (1.14 GB), not the app's runtime, so it is not shown here.
+    id: BIREFNET_LITE.id, name: 'BiRefNet-lite', role: 'mask', version: 'aa62cd87', licence: BIREFNET_LITE.licence,
+    files: packFiles(BIREFNET_LITE), peakMemory: null,
+    place: async () => { const { fineEdgeStatus } = await import('./fineEdgeMask'); const status = await fineEdgeStatus(); return status === 'ready' ? 'downloaded' : status === 'not-downloaded' ? 'not-downloaded' : 'not-offered'; },
+    pack: {
+      model: BIREFNET_LITE,
+      download: async (onProgress, signal) => (await import('./fineEdgeMask')).downloadFineEdge(onProgress, signal),
+      remove: async () => (await import('./fineEdgeMask')).removeFineEdge(),
+    },
+    measure: async (picture) => { const { fineEdgeMask } = await import('./fineEdgeMask'); await fineEdgeMask(picture); },
   },
   {
     id: NAFNET_W32.id, name: 'NAFNet width32', role: 'denoise', version: '2b4af71e', licence: NAFNET_W32.licence,
