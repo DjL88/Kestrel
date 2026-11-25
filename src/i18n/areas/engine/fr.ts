@@ -109,6 +109,8 @@ export const fr: AreaTranslation<typeof source> = {
     skyUnavailable: 'La détection du ciel n’est pas disponible. Ajoutez plutôt un Dégradé à la main.',
     brushUnavailable: 'Le pinceau n’est pas encore relié à la zone de travail. Utilisez une Zone ovale ou un Dégradé réglable.',
     masksFull: 'Cette photo a déjà le nombre maximal de masques. Supprimez-en un d’abord.',
+    tapNothingSelected: 'Rien n\'a été sélectionné à cet endroit. Touchez l\'intérieur du sujet.',
+    tapNotAnswered: 'Ce toucher n\'a pas pu être traité. Rien n\'a été modifié.',
     ovalAdded: 'Masque Zone ovale réglable ajouté. Ouvrez son calque pour le placer, puis bougez un curseur pour changer la photo. Vous pouvez annuler.',
     gradientAdded: 'Masque Dégradé réglable ajouté. Ouvrez son calque pour le placer, puis bougez un curseur pour changer la photo. Vous pouvez annuler.',
     findSubjectTask: 'Recherche du sujet',

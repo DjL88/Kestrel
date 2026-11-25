@@ -109,6 +109,8 @@ export const nl: AreaTranslation<typeof source> = {
     skyUnavailable: 'Luchtherkenning is niet beschikbaar. Voeg in plaats daarvan met de hand een Verloop toe.',
     brushUnavailable: 'Het penseel is nog niet aan het werkvlak gekoppeld. Gebruik een aanpasbaar Ovaal gebied of Verloop.',
     masksFull: 'Deze foto heeft al het maximale aantal maskers. Verwijder er eerst een.',
+    tapNothingSelected: 'Op die plek is niets geselecteerd. Tik binnen het onderwerp.',
+    tapNotAnswered: 'Die tik kon niet worden verwerkt. Er is niets gewijzigd.',
     ovalAdded: 'Er is een aanpasbaar masker Ovaal gebied toegevoegd. Open de laag om het te plaatsen en beweeg dan een schuifregelaar om de foto te veranderen. U kunt dit ongedaan maken.',
     gradientAdded: 'Er is een aanpasbaar Verloopmasker toegevoegd. Open de laag om het te plaatsen en beweeg dan een schuifregelaar om de foto te veranderen. U kunt dit ongedaan maken.',
     findSubjectTask: 'Het onderwerp wordt gezocht',

@@ -109,6 +109,8 @@ export const it: AreaTranslation<typeof source> = {
     skyUnavailable: 'Il rilevamento del cielo non è disponibile. Aggiungi invece una Sfumatura a mano.',
     brushUnavailable: 'Il pennello non è ancora collegato all’area di lavoro. Usa un’Area ovale o una Sfumatura regolabile.',
     masksFull: 'Questa foto ha già il numero massimo di maschere. Rimuovine prima una.',
+    tapNothingSelected: 'Non è stato selezionato nulla in quel punto. Tocca all\'interno del soggetto.',
+    tapNotAnswered: 'Non è stato possibile rispondere a quel tocco. Non è stato modificato nulla.',
     ovalAdded: 'Aggiunta una maschera Area ovale regolabile. Apri il suo livello per posizionarla, poi muovi un cursore per cambiare la foto. Puoi annullare.',
     gradientAdded: 'Aggiunta una maschera Sfumatura regolabile. Apri il suo livello per posizionarla, poi muovi un cursore per cambiare la foto. Puoi annullare.',
     findSubjectTask: 'Ricerca del soggetto',

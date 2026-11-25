@@ -109,6 +109,8 @@ export const pt: AreaTranslation<typeof source> = {
     skyUnavailable: 'A deteção do céu não está disponível. Adicione antes um Gradiente à mão.',
     brushUnavailable: 'O pincel ainda não está ligado à tela. Use uma Área oval ou um Gradiente ajustável.',
     masksFull: 'Esta fotografia já tem o número máximo de máscaras. Remova uma primeiro.',
+    tapNothingSelected: 'Nada foi selecionado nesse ponto. Toque dentro do motivo.',
+    tapNotAnswered: 'Não foi possível responder a esse toque. Nada foi alterado.',
     ovalAdded: 'Foi adicionada uma máscara de Área oval ajustável. Abra a sua camada para a posicionar e depois mova um controlo para alterar a fotografia. Pode anular.',
     gradientAdded: 'Foi adicionada uma máscara de Gradiente ajustável. Abra a sua camada para a posicionar e depois mova um controlo para alterar a fotografia. Pode anular.',
     findSubjectTask: 'A procurar o motivo',

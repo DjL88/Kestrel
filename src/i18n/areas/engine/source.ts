@@ -120,6 +120,8 @@ export const source = {
     skyUnavailable: 'Sky detection is unavailable. Add a manual Gradient instead.',
     brushUnavailable: 'Brush painting is not connected to the canvas yet. Use an adjustable Oval or Gradient.',
     masksFull: 'This photo has the most masks it can hold. Remove one first.',
+    tapNothingSelected: 'Nothing was selected at that point. Tap inside the subject.',
+    tapNotAnswered: 'That tap could not be answered. Nothing was changed.',
     ovalAdded: 'Added an adjustable Oval area mask. Open its layer to place it, then move a slider to change the photo. You can undo this.',
     gradientAdded: 'Added an adjustable Gradient mask. Open its layer to place it, then move a slider to change the photo. You can undo this.',
     findSubjectTask: 'Finding the subject',
