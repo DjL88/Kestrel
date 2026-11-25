@@ -34,6 +34,7 @@ import { focusOnScreen, focusZoom, lookForZoomFocus, type ZoomFocus } from '../.
 import { shouldDevelopOnZoom } from '../utils/zoomFullDevelop';
 import { DOCKED, clampDockOffset, isDocked, nudgeDockOffset, parseDockOffset, snapDockOffset, type DockOffset } from '../utils/floatingDock';
 import {
+
   buildPreviewFilterCss,
   cropPanLimits,
   clamp,
@@ -46,6 +47,9 @@ import {
   type SnapGeometry,
   type SnapGuide,
 } from '../utils/studioMath';
+
+/** Matches the short-landscape rule in v2.css that hides the size caption above the frame. */
+const SHORT_LANDSCAPE_QUERY = '(orientation: landscape) and (max-height: 520px) and (max-width: 899px)';
 
 interface CanvasProps {
   /** Engine-supplied renderer; falls back to a plain image. */
@@ -1269,7 +1273,11 @@ export default function Canvas({
     const maxW = aspect >= 1 ? 660 : 420;
     const maxH = 470;
     const availableWidth = Math.max(80, stageSize.width - 32);
-    const availableHeight = Math.max(80, stageSize.height - 105);
+    // 105px keeps room for the size caption above the frame and the hint line below it. A short landscape phone hides
+    // both (v2.css), and there that reserve took over half of a ~240px stage, so Fit showed the photo about 80px tall.
+    const captionHidden = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      && window.matchMedia(SHORT_LANDSCAPE_QUERY).matches;
+    const availableHeight = Math.max(80, stageSize.height - (captionHidden ? 24 : 105));
     const frameW = Math.min(maxW, Math.round(maxH * aspect), availableWidth, availableHeight * aspect);
     return { frameW, frameH: Math.round(frameW / aspect) };
   };

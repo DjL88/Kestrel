@@ -234,6 +234,17 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     return () => mq.removeEventListener('change', onChange);
   }, [setActivePanel]);
 
+  // A short landscape phone opens with no panel docked, as a phone in portrait does: a docked panel there left the photo
+  // a strip of the screen. The rail still opens any tool with one tap.
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia('(orientation: landscape) and (max-height: 520px) and (max-width: 899px)');
+    const onChange = (e: MediaQueryListEvent) => { if (e.matches) setActivePanel(null); };
+    if (mq.matches) setActivePanel(null);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, [setActivePanel]);
+
   useEffect(() => setCollageEditingId(null), [store.activeProjectId]);
 
   const activePhoto =
