@@ -1083,6 +1083,18 @@ export const is: AreaTranslation<typeof source> = {
     forgetBody: 'Ef þú hefur skráð þig inn, keypt leyfi, notað valkvæða skýjahjálp eða sent skilaboð geymir InFlight lítið magn gagna um þig á netþjónum sínum. Ef þú slekkur á „hjálpa til við að bæta tillögur“ er því sem þú deildir þegar eytt. Til að fá restinni eytt skaltu senda beiðni úr netfanginu sem þú skráðir þig inn með. InFlight hefur ekki enn eyðingu á netþjóni með einum smelli, svo manneskja sér um beiðnina og þér verður sagt hvað, ef eitthvað, þarf að geyma (til dæmis greiðsluskrár sem lög krefjast).',
     forgetLink: 'Biðja InFlight að eyða aðgangsgögnunum mínum',
   },
+  // On-canvas outline and overlay for shape masks (oval, gradient).
+  maskCanvas: {
+    outline: (n) => `${n} · útlína á myndinni`,
+    overlayShown: (n) => `${n} · yfirlag sýnilegt (skyggða svæðið er þar sem það virkar)`,
+    overlayHidden: (n) => `${n} · yfirlag falið, aðeins útlína`,
+    toggleOverlay: "Sýna eða fela yfirlag grímu",
+    moveCentre: (n) => `Færa miðju ${n}`,
+    resizeWidth: (n) => `Breyta breidd og snúa ${n}`,
+    resizeHeight: (n) => `Breyta hæð ${n}`,
+    moveStart: (n) => `Færa upphaf ${n}`,
+    moveEnd: (n) => `Færa enda ${n}`,
+  },
   overlayKit: {
     wmAddOther: "Bæta við minni eigin hinni útgáfu",
     capitals: 'Hástafir',

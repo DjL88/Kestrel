@@ -1083,6 +1083,18 @@ export const cy: AreaTranslation<typeof source> = {
     forgetBody: 'Os ydych wedi mewngofnodi, prynu trwydded, defnyddio cymorth cwmwl dewisol, neu anfon neges, mae InFlight yn cadw ychydig o ddata amdanoch ar ei weinyddion. Mae diffodd “helpu i wella awgrymiadau” eisoes yn dileu’r hyn a rannwyd gennych. I ddileu’r gweddill, anfonwch gais o’r cyfeiriad e-bost y gwnaethoch fewngofnodi ag ef. Nid oes gan InFlight ddileu gweinydd ag un tap eto, felly mae hyn yn mynd at berson, a chewch wybod beth, os unrhyw beth, y mae’n rhaid ei gadw (er enghraifft cofnodion talu y mae’r gyfraith yn eu mynnu).',
     forgetLink: 'Gofyn i InFlight ddileu data fy nghyfrif',
   },
+  // On-canvas outline and overlay for shape masks (oval, gradient).
+  maskCanvas: {
+    outline: (n) => `${n} · amlinell ar y llun`,
+    overlayShown: (n) => `${n} · troshaen yn dangos (yr ardal streipiog yw lle mae’n gweithio)`,
+    overlayHidden: (n) => `${n} · troshaen wedi’i chuddio, amlinell yn unig`,
+    toggleOverlay: "Dangos neu guddio troshaen y mwgwd",
+    moveCentre: (n) => `Symud canol ${n}`,
+    resizeWidth: (n) => `Newid maint a chylchdroi lled ${n}`,
+    resizeHeight: (n) => `Newid uchder ${n}`,
+    moveStart: (n) => `Symud dechrau ${n}`,
+    moveEnd: (n) => `Symud diwedd ${n}`,
+  },
   overlayKit: {
     wmAddOther: "Ychwanegu fy fersiwn arall fy hun",
     capitals: 'Priflythrennau',

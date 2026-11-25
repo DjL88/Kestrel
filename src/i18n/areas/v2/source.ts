@@ -1150,6 +1150,18 @@ export const source = {
     forgetBody: 'If you have signed in, bought a licence, used optional cloud help, or sent a message, InFlight holds a small amount of data about you on its servers. Turning off “help improve suggestions” already deletes what you shared. To have the rest erased, send a request with the email you signed in with. InFlight does not yet have a one-tap server erase, so this goes to a person, and you will be told what, if anything, must be kept (for example payment records the law requires).',
     forgetLink: 'Ask InFlight to erase my account data',
   },
+  // On-canvas outline and overlay for shape masks (oval, gradient).
+  maskCanvas: {
+    outline: (n: string) => `${n} · outline on the photo`,
+    overlayShown: (n: string) => `${n} · overlay shown (hatched area is where it applies)`,
+    overlayHidden: (n: string) => `${n} · overlay hidden, outline only`,
+    toggleOverlay: "Show or hide mask overlay",
+    moveCentre: (n: string) => `Move ${n} centre`,
+    resizeWidth: (n: string) => `Resize and rotate ${n} width`,
+    resizeHeight: (n: string) => `Resize ${n} height`,
+    moveStart: (n: string) => `Move ${n} start`,
+    moveEnd: (n: string) => `Move ${n} end`,
+  },
   // Overlays: text rows, the field picker, placement and the guided watermark flow
   overlayKit: {
     wmAddOther: "Add my own other version",
