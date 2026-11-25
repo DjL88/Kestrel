@@ -83,3 +83,21 @@ test('a malformed answer is refused, not passed off as a result', async () => {
   };
   await assert.rejects(session.run({ input: { data: new Float32Array([1]), dims: [1] } }), /unexpected result/);
 });
+
+test('int64 inputs cross to the worker as int64, and only the outputs the caller names are required', async () => {
+  const worker = new FakeWorker();
+  const sent: Array<{ feeds?: Record<string, { data: unknown }> }> = [];
+  const session = await createOffThreadSession('test-int64', new Uint8Array([1]), {
+    startWorker: () => worker as unknown as Worker, outputs: ['masks'],
+  });
+  // A decoder-like answer: the float output the caller reads, plus an extra output the worker left out.
+  worker.postMessage = (message: { type: string; id?: number; feeds?: Record<string, { data: Float32Array | BigInt64Array }> }) => {
+    sent.push(message);
+    queueMicrotask(() => worker.onmessage?.({ data: { type: 'result', id: message.id, runMs: 5, outputs: { masks: { data: new Float32Array(4), dims: [2, 2] } } } } as MessageEvent));
+  };
+  const size = BigInt64Array.from([480n, 640n]);
+  const out = await session.run({ points: { data: new Float32Array([1, 2]), dims: [1, 2] }, size: { data: size, dims: [2] } });
+  assert.equal(out.masks.data.length, 4);
+  assert.ok(sent[0].feeds!.size.data instanceof BigInt64Array, 'the size stays int64');
+  assert.deepEqual([...size], [480n, 640n], 'the caller keeps its own array');
+});

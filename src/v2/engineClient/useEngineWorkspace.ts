@@ -1244,7 +1244,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? recordSplitChange(entry, next, at) : entry)) }));
   }, [mutate, stub.store.activeSizeId]);
 
-  const tapSelect = useTapSelect({ stateRef, provider, editFrames, setNotice });
+  const tapSelect = useTapSelect({ stateRef, provider, editFrames, setNotice, onScreen: screen === 'editor' && !importing ? activeId : null });
 
   /** Reuse actual area/gradient masks from the shared engine. Sky detection and brush painting are intentionally gated. */
   const addMask = useCallback(async (photoId: string, type: 'subject' | 'sky' | 'background' | 'brush' | 'area' | 'gradient') => {
