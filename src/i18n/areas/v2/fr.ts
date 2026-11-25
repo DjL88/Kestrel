@@ -410,6 +410,18 @@ export const fr: AreaTranslation<typeof source> = {
     title: (raw: string, jpeg: string) => `${raw} et ${jpeg} sont une seule prise. Les deux fichiers sont conservés ; marques et étoiles s’appliquent aux deux.`,
     infoLabel: "JPEG associé",
   },
+  pictureSource: {
+    camera: "Aperçu de l’appareil",
+    raw: "Développé depuis le RAW",
+    cameraShort: "Aperçu",
+    rawShort: "RAW",
+    cameraDetail: "Le JPEG enregistré par l’appareil dans le fichier RAW. InFlight n’a pas encore développé les données du capteur.",
+    rawScreenDetail: "Développé par InFlight à partir des données du capteur RAW, à la taille de l’écran.",
+    rawFullDetail: "Développé par InFlight à partir des données du capteur RAW, en pleine taille.",
+    he: 'Nikon High Efficiency',
+    heStar: 'Nikon High Efficiency*',
+    infoLabel: "Image affichée",
+  },
   canvas: {
     selectPhoto: "Sélectionnez une photographie dans le film pour commencer la retouche.",
     resizeText: "Redimensionner le texte",
@@ -599,6 +611,14 @@ export const fr: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `Ajouter ${n} photos du cloud à cet appareil (environ ${credits} crédits)`,
     cloudOriginals: (n: number, credits: number) => `Télécharger ${n} originaux (environ ${credits} crédits)`,
     cloudPreviewTag: 'aperçu cloud',
+    zoomOriginalAsk: (c: number) => `Vous avez zoomé au-delà de 100 % sur un aperçu cloud. Télécharger l’original pour voir tous les détails ? Environ ${c} crédits pris sur l’allocation mensuelle du propriétaire du projet, une seule fois pour cet appareil.`,
+    zoomOriginalDownload: 'Télécharger l’original',
+    zoomOriginalNotNow: 'Pas maintenant',
+    zoomOriginalDontAsk: 'Ne plus demander sur cet appareil',
+    zoomOriginalWorking: 'Téléchargement de l’original…',
+    zoomOriginalNone: 'Ceci est un aperçu cloud et le propriétaire n’a pas mis l’original dans le cloud : au-delà de 100 %, l’image est agrandie à partir de l’aperçu.',
+    zoomOriginalFailed: 'L’original n’a pas pu être téléchargé. Vous voyez toujours l’aperçu.',
+    zoomOriginalClose: 'Fermer',
   },
   adjust: {
     grade: {

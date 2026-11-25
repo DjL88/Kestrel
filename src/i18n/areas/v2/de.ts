@@ -410,6 +410,18 @@ export const de: AreaTranslation<typeof source> = {
     title: (raw: string, jpeg: string) => `${raw} und ${jpeg} sind eine Aufnahme. Beide Dateien bleiben erhalten; Markierungen und Sterne gelten für beide.`,
     infoLabel: "Zugehöriges JPEG",
   },
+  pictureSource: {
+    camera: "Kameravorschau",
+    raw: "Aus RAW entwickelt",
+    cameraShort: "Vorschau",
+    rawShort: "RAW",
+    cameraDetail: "Das JPEG, das die Kamera in der RAW-Datei gespeichert hat. InFlight hat die Sensordaten noch nicht entwickelt.",
+    rawScreenDetail: "Von InFlight aus den RAW-Sensordaten entwickelt, in Bildschirmgröße.",
+    rawFullDetail: "Von InFlight aus den RAW-Sensordaten entwickelt, in voller Größe.",
+    he: 'Nikon High Efficiency',
+    heStar: 'Nikon High Efficiency*',
+    infoLabel: "Gezeigtes Bild",
+  },
   canvas: {
     selectPhoto: "Wählen Sie ein Foto im Filmstreifen aus, um mit der Bearbeitung zu beginnen.",
     resizeText: "Textgröße ändern",
@@ -599,6 +611,14 @@ export const de: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `${n} Fotos aus der Cloud auf dieses Gerät holen (etwa ${credits} Credits)`,
     cloudOriginals: (n: number, credits: number) => `${n} Originale herunterladen (etwa ${credits} Credits)`,
     cloudPreviewTag: 'Cloud-Vorschau',
+    zoomOriginalAsk: (c: number) => `Sie haben eine Cloud-Vorschau über 100 % vergrößert. Original für alle Details herunterladen? Etwa ${c} Credits aus dem Monatskontingent des Projektinhabers, einmal für dieses Gerät.`,
+    zoomOriginalDownload: 'Original herunterladen',
+    zoomOriginalNotNow: 'Nicht jetzt',
+    zoomOriginalDontAsk: 'Auf diesem Gerät nicht mehr fragen',
+    zoomOriginalWorking: 'Original wird heruntergeladen …',
+    zoomOriginalNone: 'Dies ist eine Cloud-Vorschau, und der Inhaber hat das Original nicht in die Cloud gelegt. Über 100 % wird die Vorschau vergrößert.',
+    zoomOriginalFailed: 'Das Original konnte nicht heruntergeladen werden. Sie sehen weiterhin die Vorschau.',
+    zoomOriginalClose: 'Schließen',
   },
   adjust: {
     grade: {

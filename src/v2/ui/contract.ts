@@ -382,6 +382,9 @@ export interface Photo {
   pixelSize?: { width: number; height: number };
   /** Measured from the picture as it is now. Absent until measured; the interface shows nothing rather than a guess. */
   histogram?: PhotoHistogram | null;
+  /** Which picture of a RAW each view shows: the camera's embedded preview or InFlight's develop from the sensor data,
+   * as recorded when the preview was made. Absent for JPEG/PNG files and while nothing is shown yet. */
+  picture?: { preview?: import('../../core/pictureSource').PictureProvenance; thumb?: import('../../core/pictureSource').PictureProvenance };
   /** Good, better or best, from the engine's decision maker. Shown as a word, never as a number. */
   tier?: PhotoTier | null;
   /** What 'auto' resolves to for this photo's watermark, measured on the pixels behind it. Absent until measured. */
@@ -684,6 +687,8 @@ export interface WorkspaceActions {
   importCloudPreviews?: (items: { file: File; projectId: string; photoKey: string }[]) => Promise<void>;
   /** The photo's exact original bytes, checked against its fingerprint, or null when the original is not connected. */
   readVerifiedOriginal?: (photoId: string) => Promise<Blob | null>;
+  /** Put the owner's original (already checked against its fingerprint) behind a cloud preview, keeping its edits and shared identity. */
+  attachCloudOriginal?: (photoId: string, original: File, sha256: string) => Promise<boolean>;
   dismissAssistSuggestion: (photoId: string, suggestionId: string) => void;
 
   // Editing & Looks

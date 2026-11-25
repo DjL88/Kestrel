@@ -439,6 +439,18 @@ export const source = {
     title: (raw: string, jpeg: string) => `${raw} and ${jpeg} are one shot. Both files are kept; flags and stars apply to both.`,
     infoLabel: 'Paired JPEG',
   },
+  pictureSource: {
+    camera: "Camera preview",
+    raw: "Developed from RAW",
+    cameraShort: "Preview",
+    rawShort: "RAW",
+    cameraDetail: "The JPEG the camera saved inside the RAW file. InFlight has not developed the sensor data yet.",
+    rawScreenDetail: "Developed by InFlight from the RAW sensor data, at screen size.",
+    rawFullDetail: "Developed by InFlight from the RAW sensor data, at full size.",
+    he: 'Nikon High Efficiency',
+    heStar: 'Nikon High Efficiency*',
+    infoLabel: "Picture shown",
+  },
 
   // Canvas
   canvas: {
@@ -632,6 +644,14 @@ export const source = {
     cloudAdd: (n: number, credits: number) => `Add ${n} photos from the cloud to this device (about ${credits} credits)`,
     cloudOriginals: (n: number, credits: number) => `Download ${n} originals (about ${credits} credits)`,
     cloudPreviewTag: 'cloud preview',
+    zoomOriginalAsk: (c: number) => `You are zoomed past 100% on a cloud preview. Download the original for full detail? About ${c} credits from the project owner’s monthly allowance, once for this device.`,
+    zoomOriginalDownload: 'Download original',
+    zoomOriginalNotNow: 'Not now',
+    zoomOriginalDontAsk: 'Don’t ask again on this device',
+    zoomOriginalWorking: 'Downloading the original…',
+    zoomOriginalNone: 'This is a cloud preview and the owner has not put the original in the cloud, so detail past 100% is enlarged from the preview.',
+    zoomOriginalFailed: 'The original could not be downloaded. You are still seeing the preview.',
+    zoomOriginalClose: 'Close',
   },
 
   // Adjust Panel

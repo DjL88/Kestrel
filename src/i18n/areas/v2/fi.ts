@@ -411,6 +411,18 @@ export const fi: AreaTranslation<typeof source> = {
     title: (raw: string, jpeg: string) => `${raw} ja ${jpeg} ovat yksi kuva. Molemmat tiedostot säilytetään; merkinnät ja tähdet koskevat molempia.`,
     infoLabel: "Pariksi liitetty JPEG",
   },
+  pictureSource: {
+    camera: "Kameran esikatselu",
+    raw: "Kehitetty RAW-tiedostosta",
+    cameraShort: "Esikatselu",
+    rawShort: "RAW",
+    cameraDetail: "Kameran RAW-tiedostoon tallentama JPEG. InFlight ei ole vielä kehittänyt kennon tietoja.",
+    rawScreenDetail: "InFlightin RAW-kennotiedoista kehittämä, näytön kokoisena.",
+    rawFullDetail: "InFlightin RAW-kennotiedoista kehittämä, täysikokoisena.",
+    he: 'Nikon High Efficiency',
+    heStar: 'Nikon High Efficiency*',
+    infoLabel: "Näytetty kuva",
+  },
   canvas: {
     selectPhoto: "Aloita muokkaus valitsemalla kuva filminauhasta.",
     resizeText: "Muuta tekstin kokoa",
@@ -600,6 +612,14 @@ export const fi: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `Lisää ${n} kuvaa pilvestä tälle laitteelle (noin ${credits} krediittiä)`,
     cloudOriginals: (n: number, credits: number) => `Lataa ${n} alkuperäistä (noin ${credits} krediittiä)`,
     cloudPreviewTag: 'pilviesikatselu',
+    zoomOriginalAsk: (c: number) => `Olet zoomannut pilviesikatselun yli 100 %:n. Ladataanko alkuperäinen kaikkia yksityiskohtia varten? Noin ${c} krediittiä projektin omistajan kuukausikiintiöstä, kerran tälle laitteelle.`,
+    zoomOriginalDownload: 'Lataa alkuperäinen',
+    zoomOriginalNotNow: 'Ei nyt',
+    zoomOriginalDontAsk: 'Älä kysy uudelleen tällä laitteella',
+    zoomOriginalWorking: 'Ladataan alkuperäistä…',
+    zoomOriginalNone: 'Tämä on pilviesikatselu, eikä omistaja ole tallentanut alkuperäistä pilveen, joten yli 100 %:n esikatselua suurennetaan.',
+    zoomOriginalFailed: 'Alkuperäistä ei voitu ladata. Näet yhä esikatselun.',
+    zoomOriginalClose: 'Sulje',
   },
   adjust: {
     grade: {

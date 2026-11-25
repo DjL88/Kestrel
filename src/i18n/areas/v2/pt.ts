@@ -410,6 +410,18 @@ export const pt: AreaTranslation<typeof source> = {
     title: (raw: string, jpeg: string) => `${raw} e ${jpeg} são uma só fotografia. Os dois ficheiros são mantidos; marcas e estrelas aplicam-se a ambos.`,
     infoLabel: "JPEG associado",
   },
+  pictureSource: {
+    camera: "Pré-visualização da câmara",
+    raw: "Revelada a partir do RAW",
+    cameraShort: "Pré-visualização",
+    rawShort: "RAW",
+    cameraDetail: "O JPEG que a câmara guardou dentro do ficheiro RAW. O InFlight ainda não revelou os dados do sensor.",
+    rawScreenDetail: "Revelada pelo InFlight a partir dos dados do sensor RAW, no tamanho do ecrã.",
+    rawFullDetail: "Revelada pelo InFlight a partir dos dados do sensor RAW, em tamanho completo.",
+    he: 'Nikon High Efficiency',
+    heStar: 'Nikon High Efficiency*',
+    infoLabel: "Imagem mostrada",
+  },
   canvas: {
     selectPhoto: "Selecione uma fotografia na película para começar a editar.",
     resizeText: "Redimensionar o texto",
@@ -599,6 +611,14 @@ export const pt: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `Adicionar ${n} fotografias da nuvem a este dispositivo (cerca de ${credits} créditos)`,
     cloudOriginals: (n: number, credits: number) => `Transferir ${n} originais (cerca de ${credits} créditos)`,
     cloudPreviewTag: 'pré-visualização na nuvem',
+    zoomOriginalAsk: (c: number) => `Ampliou para além de 100% uma pré-visualização na nuvem. Transferir o original para ver todo o detalhe? Cerca de ${c} créditos da quota mensal do proprietário do projeto, uma única vez para este dispositivo.`,
+    zoomOriginalDownload: 'Transferir original',
+    zoomOriginalNotNow: 'Agora não',
+    zoomOriginalDontAsk: 'Não voltar a perguntar neste dispositivo',
+    zoomOriginalWorking: 'A transferir o original…',
+    zoomOriginalNone: 'Esta é uma pré-visualização na nuvem e o proprietário não colocou o original na nuvem, por isso acima de 100% a pré-visualização é ampliada.',
+    zoomOriginalFailed: 'Não foi possível transferir o original. Continua a ver a pré-visualização.',
+    zoomOriginalClose: 'Fechar',
   },
   adjust: {
     grade: {

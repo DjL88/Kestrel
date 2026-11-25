@@ -410,6 +410,18 @@ export const is: AreaTranslation<typeof source> = {
     title: (raw: string, jpeg: string) => `${raw} og ${jpeg} eru ein mynd. Báðum skrám er haldið; merkingar og stjörnur gilda um báðar.`,
     infoLabel: "Pöruð JPEG",
   },
+  pictureSource: {
+    camera: "Forskoðun myndavélar",
+    raw: "Framkallað úr RAW",
+    cameraShort: "Forskoðun",
+    rawShort: "RAW",
+    cameraDetail: "JPEG-myndin sem myndavélin vistaði í RAW-skránni. InFlight hefur ekki enn framkallað gögn myndflögunnar.",
+    rawScreenDetail: "Framkallað af InFlight úr RAW-gögnum myndflögunnar, í skjástærð.",
+    rawFullDetail: "Framkallað af InFlight úr RAW-gögnum myndflögunnar, í fullri stærð.",
+    he: 'Nikon High Efficiency',
+    heStar: 'Nikon High Efficiency*',
+    infoLabel: "Mynd sem sést",
+  },
   canvas: {
     selectPhoto: "Veldu mynd úr myndaröðinni til að hefja vinnslu.",
     resizeText: "Breyta stærð texta",
@@ -599,6 +611,14 @@ export const is: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `Bæta ${n} myndum úr skýinu við þetta tæki (um ${credits} inneignir)`,
     cloudOriginals: (n: number, credits: number) => `Sækja ${n} frumrit (um ${credits} inneignir)`,
     cloudPreviewTag: 'skýjaforskoðun',
+    zoomOriginalAsk: (c: number) => `Þú hefur stækkað skýjaforskoðun yfir 100%. Sækja frumritið til að sjá öll smáatriði? Um ${c} inneignir af mánaðarlegum kvóta eiganda verkefnisins, einu sinni fyrir þetta tæki.`,
+    zoomOriginalDownload: 'Sækja frumrit',
+    zoomOriginalNotNow: 'Ekki núna',
+    zoomOriginalDontAsk: 'Ekki spyrja aftur á þessu tæki',
+    zoomOriginalWorking: 'Sæki frumritið…',
+    zoomOriginalNone: 'Þetta er skýjaforskoðun og eigandinn hefur ekki sett frumritið í skýið, svo yfir 100% er forskoðunin stækkuð.',
+    zoomOriginalFailed: 'Ekki tókst að sækja frumritið. Þú sérð enn forskoðunina.',
+    zoomOriginalClose: 'Loka',
   },
   adjust: {
     grade: {

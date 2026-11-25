@@ -410,6 +410,18 @@ export const nb: AreaTranslation<typeof source> = {
     title: (raw: string, jpeg: string) => `${raw} og ${jpeg} er ett bilde. Begge filene beholdes; merker og stjerner gjelder for begge.`,
     infoLabel: "Tilhørende JPEG",
   },
+  pictureSource: {
+    camera: "Kameraforhåndsvisning",
+    raw: "Fremkalt fra RAW",
+    cameraShort: "Forhåndsvisning",
+    rawShort: "RAW",
+    cameraDetail: "JPEG-bildet kameraet lagret i RAW-filen. InFlight har ikke fremkalt sensordataene ennå.",
+    rawScreenDetail: "Fremkalt av InFlight fra RAW-sensordataene, i skjermstørrelse.",
+    rawFullDetail: "Fremkalt av InFlight fra RAW-sensordataene, i full størrelse.",
+    he: 'Nikon High Efficiency',
+    heStar: 'Nikon High Efficiency*',
+    infoLabel: "Vist bilde",
+  },
   canvas: {
     selectPhoto: "Velg et bilde i filmstripen for å begynne å redigere.",
     resizeText: "Endre tekststørrelse",
@@ -599,6 +611,14 @@ export const nb: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `Legg til ${n} bilder fra skyen på denne enheten (omtrent ${credits} kreditter)`,
     cloudOriginals: (n: number, credits: number) => `Last ned ${n} originaler (omtrent ${credits} kreditter)`,
     cloudPreviewTag: 'sky-forhåndsvisning',
+    zoomOriginalAsk: (c: number) => `Du har zoomet forbi 100 % på en sky-forhåndsvisning. Laste ned originalen for full detalj? Omtrent ${c} kreditter fra prosjekteierens månedlige kvote, én gang for denne enheten.`,
+    zoomOriginalDownload: 'Last ned original',
+    zoomOriginalNotNow: 'Ikke nå',
+    zoomOriginalDontAsk: 'Ikke spør igjen på denne enheten',
+    zoomOriginalWorking: 'Laster ned originalen …',
+    zoomOriginalNone: 'Dette er en sky-forhåndsvisning, og eieren har ikke lagt originalen i skyen, så over 100 % forstørres forhåndsvisningen.',
+    zoomOriginalFailed: 'Originalen kunne ikke lastes ned. Du ser fortsatt forhåndsvisningen.',
+    zoomOriginalClose: 'Lukk',
   },
   adjust: {
     grade: {

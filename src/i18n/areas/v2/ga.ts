@@ -413,6 +413,18 @@ export const ga: AreaTranslation<typeof source> = {
     title: (raw: string, jpeg: string) => `Is grianghraf amháin iad ${raw} agus ${jpeg}. Coinnítear an dá chomhad; baineann marcanna agus réaltaí leis an dá cheann.`,
     infoLabel: "JPEG péireáilte",
   },
+  pictureSource: {
+    camera: "Réamhamharc an cheamara",
+    raw: "Forbartha ón RAW",
+    cameraShort: "Réamhamharc",
+    rawShort: "RAW",
+    cameraDetail: "An JPEG a shábháil an ceamara taobh istigh den chomhad RAW. Níl sonraí an bhraiteora forbartha ag InFlight fós.",
+    rawScreenDetail: "Forbartha ag InFlight ó shonraí braiteora an RAW, ar mhéid scáileáin.",
+    rawFullDetail: "Forbartha ag InFlight ó shonraí braiteora an RAW, ar lánmhéid.",
+    he: 'Nikon High Efficiency',
+    heStar: 'Nikon High Efficiency*',
+    infoLabel: "Pictiúr a thaispeántar",
+  },
   canvas: {
     selectPhoto: "Roghnaigh grianghraf ón stiall scannáin chun tosú ag eagarthóireacht.",
     resizeText: "Athraigh méid an téacs",
@@ -602,6 +614,14 @@ export const ga: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `Cuir ${n} grianghraf ón néal leis an ngléas seo (thart ar ${credits} creidmheas)`,
     cloudOriginals: (n: number, credits: number) => `Íoslódáil ${n} bunleagan (thart ar ${credits} creidmheas)`,
     cloudPreviewTag: 'réamhamharc néil',
+    zoomOriginalAsk: (c: number) => `Tá tú zúmáilte thar 100% ar réamhamharc néil. An bhfuil tú ag iarraidh an bunleagan a íoslódáil le haghaidh mionsonraí iomlána? Thart ar ${c} creidmheas as liúntas míosúil úinéir an tionscadail, uair amháin don ghléas seo.`,
+    zoomOriginalDownload: 'Íoslódáil an bunleagan',
+    zoomOriginalNotNow: 'Ní anois',
+    zoomOriginalDontAsk: 'Ná fiafraigh arís ar an ngléas seo',
+    zoomOriginalWorking: 'Ag íoslódáil an bhunleagain…',
+    zoomOriginalNone: 'Réamhamharc néil é seo agus níor chuir an t-úinéir an bunleagan sa néal, mar sin méadaítear an réamhamharc thar 100%.',
+    zoomOriginalFailed: 'Níorbh fhéidir an bunleagan a íoslódáil. Tá an réamhamharc fós le feiceáil agat.',
+    zoomOriginalClose: 'Dún',
   },
   adjust: {
     grade: {

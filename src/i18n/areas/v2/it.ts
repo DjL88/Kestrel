@@ -410,6 +410,18 @@ export const it: AreaTranslation<typeof source> = {
     title: (raw: string, jpeg: string) => `${raw} e ${jpeg} sono un solo scatto. Entrambi i file sono conservati; contrassegni e stelle valgono per entrambi.`,
     infoLabel: "JPEG abbinato",
   },
+  pictureSource: {
+    camera: "Anteprima della fotocamera",
+    raw: "Sviluppata dal RAW",
+    cameraShort: "Anteprima",
+    rawShort: "RAW",
+    cameraDetail: "Il JPEG che la fotocamera ha salvato nel file RAW. InFlight non ha ancora sviluppato i dati del sensore.",
+    rawScreenDetail: "Sviluppata da InFlight dai dati del sensore RAW, a dimensione schermo.",
+    rawFullDetail: "Sviluppata da InFlight dai dati del sensore RAW, a dimensione piena.",
+    he: 'Nikon High Efficiency',
+    heStar: 'Nikon High Efficiency*',
+    infoLabel: "Immagine mostrata",
+  },
   canvas: {
     selectPhoto: "Selezioni una fotografia dalla pellicola per iniziare a modificare.",
     resizeText: "Ridimensiona il testo",
@@ -599,6 +611,14 @@ export const it: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `Aggiungi ${n} foto dal cloud a questo dispositivo (circa ${credits} crediti)`,
     cloudOriginals: (n: number, credits: number) => `Scarica ${n} originali (circa ${credits} crediti)`,
     cloudPreviewTag: 'anteprima cloud',
+    zoomOriginalAsk: (c: number) => `Hai ingrandito oltre il 100% un’anteprima cloud. Scaricare l’originale per vedere tutti i dettagli? Circa ${c} crediti dalla quota mensile del proprietario del progetto, una sola volta per questo dispositivo.`,
+    zoomOriginalDownload: 'Scarica l’originale',
+    zoomOriginalNotNow: 'Non ora',
+    zoomOriginalDontAsk: 'Non chiedere più su questo dispositivo',
+    zoomOriginalWorking: 'Download dell’originale…',
+    zoomOriginalNone: 'Questa è un’anteprima cloud e il proprietario non ha messo l’originale nel cloud, quindi oltre il 100% l’anteprima viene ingrandita.',
+    zoomOriginalFailed: 'Non è stato possibile scaricare l’originale. Stai ancora vedendo l’anteprima.',
+    zoomOriginalClose: 'Chiudi',
   },
   adjust: {
     grade: {

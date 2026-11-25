@@ -410,6 +410,18 @@ export const sv: AreaTranslation<typeof source> = {
     title: (raw: string, jpeg: string) => `${raw} och ${jpeg} är en bild. Båda filerna behålls; flaggor och stjärnor gäller båda.`,
     infoLabel: "Tillhörande JPEG",
   },
+  pictureSource: {
+    camera: "Kameraförhandsvisning",
+    raw: "Framkallad från RAW",
+    cameraShort: "Förhandsvisning",
+    rawShort: "RAW",
+    cameraDetail: "JPEG-bilden som kameran sparade i RAW-filen. InFlight har inte framkallat sensordata än.",
+    rawScreenDetail: "Framkallad av InFlight från RAW-sensordata, i skärmstorlek.",
+    rawFullDetail: "Framkallad av InFlight från RAW-sensordata, i full storlek.",
+    he: 'Nikon High Efficiency',
+    heStar: 'Nikon High Efficiency*',
+    infoLabel: "Visad bild",
+  },
   canvas: {
     selectPhoto: "Välj ett foto i filmremsan för att börja redigera.",
     resizeText: "Ändra textstorlek",
@@ -599,6 +611,14 @@ export const sv: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `Lägg till ${n} foton från molnet på den här enheten (cirka ${credits} krediter)`,
     cloudOriginals: (n: number, credits: number) => `Ladda ner ${n} original (cirka ${credits} krediter)`,
     cloudPreviewTag: 'molnförhandsvisning',
+    zoomOriginalAsk: (c: number) => `Du har zoomat förbi 100 % på en molnförhandsvisning. Ladda ned originalet för full detalj? Cirka ${c} krediter från projektägarens månadskvot, en gång för den här enheten.`,
+    zoomOriginalDownload: 'Ladda ned original',
+    zoomOriginalNotNow: 'Inte nu',
+    zoomOriginalDontAsk: 'Fråga inte igen på den här enheten',
+    zoomOriginalWorking: 'Laddar ned originalet …',
+    zoomOriginalNone: 'Det här är en molnförhandsvisning och ägaren har inte lagt originalet i molnet, så över 100 % förstoras förhandsvisningen.',
+    zoomOriginalFailed: 'Originalet kunde inte laddas ned. Du ser fortfarande förhandsvisningen.',
+    zoomOriginalClose: 'Stäng',
   },
   adjust: {
     grade: {

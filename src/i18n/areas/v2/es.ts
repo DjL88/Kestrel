@@ -410,6 +410,18 @@ export const es: AreaTranslation<typeof source> = {
     title: (raw: string, jpeg: string) => `${raw} y ${jpeg} son una sola toma. Se conservan los dos archivos; marcas y estrellas se aplican a ambos.`,
     infoLabel: "JPEG emparejado",
   },
+  pictureSource: {
+    camera: "Vista previa de la cámara",
+    raw: "Revelado desde RAW",
+    cameraShort: "Vista previa",
+    rawShort: "RAW",
+    cameraDetail: "El JPEG que la cámara guardó dentro del archivo RAW. InFlight aún no ha revelado los datos del sensor.",
+    rawScreenDetail: "Revelado por InFlight a partir de los datos del sensor RAW, a tamaño de pantalla.",
+    rawFullDetail: "Revelado por InFlight a partir de los datos del sensor RAW, a tamaño completo.",
+    he: 'Nikon High Efficiency',
+    heStar: 'Nikon High Efficiency*',
+    infoLabel: "Imagen mostrada",
+  },
   canvas: {
     selectPhoto: "Seleccione una fotografía de la tira de imágenes para empezar a editar.",
     resizeText: "Cambiar el tamaño del texto",
@@ -599,6 +611,14 @@ export const es: AreaTranslation<typeof source> = {
     cloudAdd: (n: number, credits: number) => `Añadir ${n} fotos de la nube a este dispositivo (unos ${credits} créditos)`,
     cloudOriginals: (n: number, credits: number) => `Descargar ${n} originales (unos ${credits} créditos)`,
     cloudPreviewTag: 'vista previa en la nube',
+    zoomOriginalAsk: (c: number) => `Has ampliado más del 100 % una vista previa en la nube. ¿Descargar el original para ver todo el detalle? Unos ${c} créditos de la asignación mensual del propietario del proyecto, una sola vez para este dispositivo.`,
+    zoomOriginalDownload: 'Descargar original',
+    zoomOriginalNotNow: 'Ahora no',
+    zoomOriginalDontAsk: 'No volver a preguntar en este dispositivo',
+    zoomOriginalWorking: 'Descargando el original…',
+    zoomOriginalNone: 'Esta es una vista previa en la nube y el propietario no ha subido el original, así que por encima del 100 % se amplía la vista previa.',
+    zoomOriginalFailed: 'No se pudo descargar el original. Sigues viendo la vista previa.',
+    zoomOriginalClose: 'Cerrar',
   },
   adjust: {
     grade: {
