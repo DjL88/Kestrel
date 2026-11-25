@@ -45,9 +45,11 @@ test('invite by email, accept, roles, and a client sees only their photos and th
     assert.equal((await call('POST', `${P}/members`, owner.token, { kind: 'inviteEmail', email: 'client@example.test', role: 'client' })).body.error.code, 'COLLAB_CLIENT_NEEDS_PHOTOS');
     assert.equal((await call('POST', `${P}/members`, owner.token, { kind: 'inviteEmail', email: 'client@example.test', role: 'client', displayName: 'Cleo', photoIds: ['p1'] })).status, 200);
     assert.equal((await call('GET', P, editor.token)).status, 404, 'not a member until accepted');
+    assert.deepEqual((await call('GET', '/v1/collab/invites', editor.token)).body.invites.map((i: any) => [i.name, i.role]), [['Kites', 'editor']]);
     assert.equal((await call('POST', `${P}/accept`, editor.token, { displayName: 'Erin' })).status, 200);
     assert.equal((await call('POST', `${P}/accept`, client.token, { displayName: 'Cleo' })).status, 200);
     assert.equal((await call('POST', `${P}/accept`, h.user.token, { displayName: 'Nobody' })).status, 404);
+    assert.deepEqual((await call('GET', '/v1/collab/invites', editor.token)).body.invites, [], 'accepting clears the invitation');
     r = await call('GET', P, client.token);
     assert.deepEqual(r.body.members.map((m: any) => m.displayName), ['Cleo']);
     assert.deepEqual(r.body.invites, []);

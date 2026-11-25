@@ -39,7 +39,7 @@ export class CollabRefusal extends Error {
   constructor(readonly status: number, readonly code: string, message: string, readonly detail?: Record<string, unknown>) { super(message); }
 }
 
-const C = { projects: 'collab_projects', memberships: 'collab_memberships', leases: 'collab_leases', heads: 'collab_heads', revisions: 'collab_revisions', audit: 'collab_audit' };
+const C = { projects: 'collab_projects', memberships: 'collab_memberships', leases: 'collab_leases', heads: 'collab_heads', revisions: 'collab_revisions', audit: 'collab_audit', invites: 'collab_invites' };
 
 /** Firestore refuses `undefined`; drop absent optional fields before writing. */
 const clean = <T extends object>(value: T): FsData => JSON.parse(JSON.stringify(value)) as FsData;
@@ -97,6 +97,12 @@ export class CollabStore {
     return snap.docs.map((d) => d.data()!).map((d) => ({ projectId: String(d.projectId), name: String(d.name), role: d.role as CollabRole }));
   }
 
+  /** Invitations waiting for this email hash: the project name and role only. */
+  async invitesFor(emailHash: string): Promise<{ projectId: string; name: string; role: CollabRole }[]> {
+    const snap = await this.db.collection(C.invites).where('emailHash', '==', emailHash).get();
+    return snap.docs.map((d) => d.data()!).map((d) => ({ projectId: String(d.projectId), name: String(d.name), role: d.role as CollabRole }));
+  }
+
   /** What a member may see of the project. Clients see only themselves; only those who manage see pending invites. */
   async project(projectId: string, accountId: string) {
     const project = await this.db.runTransaction((tx) => this.readProject(tx, projectId));
@@ -121,6 +127,7 @@ export class CollabStore {
         if (before.members.length + before.invites.length >= MAX_MEMBERS) throw new CollabRefusal(409, 'COLLAB_TOO_MANY_MEMBERS', `A shared project has at most ${MAX_MEMBERS} people.`);
         const invites = before.invites.filter((i) => i.emailHash !== change.invite.emailHash);
         after = { ...before, invites: [...invites, { ...change.invite, invitedBy: actorAccountId, atMs }] };
+        tx.set(this.ref(C.invites, change.invite.emailHash, projectId), { emailHash: change.invite.emailHash, projectId, name: before.name, role: change.invite.role, atMs });
       } else if (change.kind === 'options') {
         if (!can(before, actorAccountId, 'managePermissions')) throw new CollabRefusal(403, 'COLLAB_NOT_PERMITTED', 'Only the owner changes project settings.');
         after = { ...before, options: { ...before.options, ...change.options }, leaseSettings: clampLeaseSettings({ ...before.leaseSettings, ...change.leaseSettings }) };
@@ -146,6 +153,7 @@ export class CollabStore {
       const member: ProjectMember = clean({ accountId: account.accountId, role: invite.role, displayName: invite.displayName || account.displayName, addedAtMs: atMs, addedByAccountId: invite.invitedBy, photoIds: invite.photoIds }) as unknown as ProjectMember;
       const after: ProjectRecord = { ...before, invites: others, members: already ? before.members : [...before.members, member] };
       tx.set(this.ref(C.projects, projectId), clean(after));
+      tx.delete(this.ref(C.invites, account.emailHash, projectId));
       this.writeMemberships(tx, before, after);
       return memberOf(after, account.accountId)!;
     });
