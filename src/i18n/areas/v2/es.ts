@@ -1217,6 +1217,8 @@ export const es: AreaTranslation<typeof source> = {
     },
     keyboard: {
       intro: 'Atajos esenciales de escritorio para seleccionar y editar con rapidez.',
+      advanceLabel: "Pasar a la siguiente foto tras valorar",
+      advanceDesc: "Tras una valoración con estrellas, una marca o apartar una foto, mostrar la siguiente al instante. Las decisiones sobre varias fotos seleccionadas nunca avanzan.",
     },
     language: {
       label: 'Idioma de la interfaz',

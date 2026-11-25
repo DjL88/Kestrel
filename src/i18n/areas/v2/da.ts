@@ -1217,6 +1217,8 @@ export const da: AreaTranslation<typeof source> = {
     },
     keyboard: {
       intro: 'Vigtige genveje på computeren til hurtig sortering og redigering.',
+      advanceLabel: "Gå til næste foto efter bedømmelse",
+      advanceDesc: "Efter en stjernebedømmelse, et flag eller en tilsidesættelse af ét foto vises det næste foto med det samme. Valg på flere markerede fotos går aldrig videre.",
     },
     language: {
       label: 'Visningssprog',

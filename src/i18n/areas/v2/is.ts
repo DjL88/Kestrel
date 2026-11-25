@@ -1217,6 +1217,8 @@ export const is: AreaTranslation<typeof source> = {
     },
     keyboard: {
       intro: 'Helstu flýtilyklar á tölvu fyrir hraða grisjun og breytingar.',
+      advanceLabel: "Fara í næstu mynd eftir einkunn",
+      advanceDesc: "Eftir stjörnueinkunn, flagg eða að setja eina mynd til hliðar birtist næsta mynd strax. Val á mörgum völdum myndum færir aldrei áfram.",
     },
     language: {
       label: 'Tungumál viðmóts',

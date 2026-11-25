@@ -1269,6 +1269,8 @@ export const source = {
     },
     keyboard: {
       intro: 'Essential desktop shortcuts for fast culling and editing.',
+      advanceLabel: "Move to the next photo after rating",
+      advanceDesc: "After a star rating, flag or set aside on one photo, show the next photo straight away. Choices on several selected photos never move on.",
     },
     language: {
       label: 'Display language',

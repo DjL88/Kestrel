@@ -1217,6 +1217,8 @@ export const nl: AreaTranslation<typeof source> = {
     },
     keyboard: {
       intro: 'Belangrijke sneltoetsen voor de computer om snel te selecteren en te bewerken.',
+      advanceLabel: "Na beoordelen naar de volgende foto",
+      advanceDesc: "Na een sterbeoordeling, vlag of opzijleggen van één foto direct de volgende foto tonen. Keuzes voor meerdere geselecteerde foto's gaan nooit door.",
     },
     language: {
       label: 'Weergavetaal',

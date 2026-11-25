@@ -1217,6 +1217,8 @@ export const cy: AreaTranslation<typeof source> = {
     },
     keyboard: {
       intro: 'Llwybrau byr bwrdd gwaith hanfodol ar gyfer dethol a golygu’n gyflym.',
+      advanceLabel: "Symud i’r llun nesaf ar ôl graddio",
+      advanceDesc: "Ar ôl rhoi seren, baner neu roi o’r neilltu ar un llun, dangos y llun nesaf ar unwaith. Nid yw dewisiadau ar sawl llun dethol byth yn symud ymlaen.",
     },
     language: {
       label: 'Iaith y dangosydd',

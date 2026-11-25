@@ -1217,6 +1217,8 @@ export const nb: AreaTranslation<typeof source> = {
     },
     keyboard: {
       intro: 'Viktige hurtigtaster på datamaskinen for rask sortering og redigering.',
+      advanceLabel: "Gå til neste bilde etter vurdering",
+      advanceDesc: "Etter en stjernevurdering, et flagg eller å legge til side ett bilde vises neste bilde med en gang. Valg på flere merkede bilder går aldri videre.",
     },
     language: {
       label: 'Visningsspråk',
