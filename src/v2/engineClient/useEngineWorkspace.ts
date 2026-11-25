@@ -99,6 +99,8 @@ import { patchVideoZoom } from './videoZoomOps';
 import { isSplitFrameCount, setFormatSplitOffset, setSplitFrameCount as writeSplitFrameCount, toggleFormatSplit, type SplitFrameCount } from './formatSplitOps';
 import { readSplitPanOffset } from './splitFrameOps';
 import { useTapSelect } from './useTapSelect';
+import { addHealSpot as addSpot, canAddHealSpot, nextHealSource, removeHealSpot as removeSpot, sizeToRadius, updateHealSpot as changeSpot } from './healOps';
+import { applyHeal, findHealSources } from '../../core/heal';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskParts, toggleMask } from './maskOps';
 import { guardianDoubtsSubjectMask, subjectMaskShapeKey, verifyFrameMasks } from './maskVerify';
 import { maskAdvice, maskVerificationKey } from './maskVerificationCommit';
@@ -153,6 +155,25 @@ const GUARDED_KEEPS_LIMIT = 60;
 
 /** A picture for a measurement that needs at most a screen's worth of pixels: a RAW's screen-size sensor develop when one can be
  * had (analysisPicture.ts), otherwise the full source as before. Never for anything that writes pixels at full size. */
+/**
+ * Nearby places to copy a spot from, best first, measured on the framed picture at a bounded size with the photo's other
+ * spots already applied (so a source is never another piece of dust that has been covered since). `skip` leaves one spot out.
+ */
+async function healSourcesFor(frame: PhotoFrame, source: BrowserPreviewProvider, at: { x: number; y: number }, r: number, skip?: string) {
+  const image = await boundedSource(frame, source);
+  const framing = frame.framing ?? DEFAULT_FRAMING;
+  const { width, height } = framedSize(image.naturalWidth, image.naturalHeight, framing);
+  const canvas = document.createElement('canvas');
+  drawFramedPhoto(image, canvas, framing, { scale: Math.min(1, 1600 / Math.max(width, height)) });
+  const context = canvas.getContext('2d', { willReadFrequently: true })!;
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+  const others = (frame.edit?.heal ?? []).filter((spot) => spot.id !== skip);
+  applyHeal(pixels, canvas.width, canvas.height, 4, 255, others, { aspect: canvas.height / canvas.width, view: { x: 0, y: 0, w: 1, h: 1 } });
+  const found = findHealSources(pixels, canvas.width, canvas.height, 4, at.x, at.y, r);
+  canvas.width = 0; canvas.height = 0;
+  return found;
+}
+
 async function boundedSource(frame: PhotoFrame, source: BrowserPreviewProvider): Promise<HTMLImageElement> {
   return (await loadAnalysisPicture(frame, source).catch(() => null)) ?? loadExportSource(frame, source);
 }
@@ -2574,6 +2595,32 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       applyPatch([photoId], { lensProfile: found.profile });
       return 'applied';
     },
+    addHealSpot: async (photoId, at, size) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      if (!frame || !provider.current) return { result: 'unreadable' };
+      if (!canAddHealSpot(frame.edit?.heal)) return { result: 'full' };
+      const r = sizeToRadius(size);
+      const sources = await healSourcesFor(frame, provider.current, at, r).catch(() => null);
+      if (!sources) return { result: 'unreadable' };
+      if (!sources.length) return { result: 'no-source' };
+      const spotId = `heal-${newId().slice(0, 8)}`;
+      // Only this photo: a spot belongs to the dust or twig on the picture it was placed on.
+      editFrames([photoId], (current) => ({ ...(current.edit ?? DEFAULT_EDIT), heal: addSpot(current.edit?.heal, spotId, at, r, sources[0]) }));
+      return { result: 'added', spotId };
+    },
+    updateHealSpot: (photoId, spotId, change) => editFrames([photoId], (frame) => ({ ...(frame.edit ?? DEFAULT_EDIT), heal: changeSpot(frame.edit?.heal, spotId, change) })),
+    nextHealSource: async (photoId, spotId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      const spot = frame?.edit?.heal?.find((candidate) => candidate.id === spotId);
+      if (!frame || !spot || !provider.current) return false;
+      const sources = await healSourcesFor(frame, provider.current, spot, spot.r, spotId).catch(() => null);
+      const next = sources ? nextHealSource(spot, sources, spot.r) : null;
+      if (!next) return false;
+      editFrames([photoId], (current) => ({ ...(current.edit ?? DEFAULT_EDIT), heal: changeSpot(current.edit?.heal, spotId, { source: next }) }));
+      return true;
+    },
+    removeHealSpot: (photoId, spotId) => editFrames([photoId], (frame) => ({ ...(frame.edit ?? DEFAULT_EDIT), heal: removeSpot(frame.edit?.heal, spotId) })),
+    clearHealSpots: (photoId) => editFrames([photoId], (frame) => ({ ...(frame.edit ?? DEFAULT_EDIT), heal: undefined })),
     neutralWhiteBalance: async (photoId, at) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
       if (!frame || !provider.current) return 'unreadable';

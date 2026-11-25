@@ -1,5 +1,6 @@
 import type { TrueDetailAi } from './trueDetailAi';
 import { hasActiveMasks, type Mask } from './maskTypes';
+import { hasHeal, type HealSpot } from './heal';
 /** Optional tonal controls. Each runs from -2 to 2 and an absent value means 0. */
 export const TONE_CONTROLS = [
   { key: 'brightness', label: 'Brightness' },
@@ -80,6 +81,8 @@ export interface PhotoEdit {
   whiteBalance?: WhiteBalanceEdit;
   /** Local adjustments. They run after the whole-photo edit, in order. */
   masks?: Mask[];
+  /** Spot healing: areas covered with pixels copied from nearby in the same photo (src/core/heal.ts). Never generated. */
+  heal?: HealSpot[];
 }
 
 export const DEFAULT_EDIT: PhotoEdit = { exposure: 0, warmth: 0, colour: 0 };
@@ -99,12 +102,12 @@ export function isNeutralTone(edit: PhotoEdit): boolean {
 export const NOISE_CONTROL = { key: 'denoise', label: 'Noise reduction' } as const;
 
 export function isNeutralEdit(edit: PhotoEdit): boolean {
-  return !edit.denoise && !edit.denoiseLuminance && !edit.trueDetailAi && !edit.upscale && !edit.dehaze && !hasCaptureDetail(edit) && !hasFringeEdit(edit) && !hasLensCorrection(edit.lens) && !hasFinishing(edit) && isNeutralTone(edit) && DETAIL_CONTROLS.every(({ key }) => !edit[key]) && !hasActiveMasks(edit.masks);
+  return !edit.denoise && !edit.denoiseLuminance && !edit.trueDetailAi && !edit.upscale && !edit.dehaze && !hasCaptureDetail(edit) && !hasFringeEdit(edit) && !hasLensCorrection(edit.lens) && !hasFinishing(edit) && isNeutralTone(edit) && DETAIL_CONTROLS.every(({ key }) => !edit[key]) && !hasActiveMasks(edit.masks) && !hasHeal(edit.heal);
 }
 
 /** Nothing to keep: neutral, and no masks at all (an empty mask is still kept so it can be adjusted). */
 export function isEmptyEdit(edit: PhotoEdit): boolean {
-  return isNeutralEdit(edit) && !edit.masks?.length;
+  return isNeutralEdit(edit) && !edit.masks?.length && !edit.heal?.length;
 }
 
 /** Neutral apart from any local masks. Decides whether the whole-photo passes need to run. */

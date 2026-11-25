@@ -1,0 +1,36 @@
+import { plural } from '../../../core/locale';
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** French (vous). DRAFT: written without a native speaker's check. */
+export const fr: AreaTranslation<typeof source> = {
+  title: "Correction des taches",
+  intro: "Masque la poussière, une brindille ou un perchoir encombré avec des pixels copiés juste à côté dans la même photo. Rien n'est inventé et le fichier original n'est jamais modifié.",
+  start: "Placer des taches",
+  stop: "Terminé",
+  placing: "Cliquez ou touchez chaque tache à masquer. Appuyez sur Échap quand vous avez fini.",
+  size: "Taille",
+  feather: "Douceur",
+  method: "Méthode",
+  heal: "Corriger : se fondre dans l'entourage",
+  clone: "Cloner : copie exacte",
+  nextSource: "Copier depuis un autre endroit",
+  remove: "Supprimer la tache",
+  removeAll: "Supprimer toutes les taches",
+  show: "Afficher la tache",
+  hide: "Masquer la tache",
+  spot: (n: number) => `Tache ${n}`,
+  hidden: "masquée",
+  count: (n: number) => plural(n, { one: `${n} tache`, other: `${n} taches` }),
+  empty: "Aucune tache pour l'instant.",
+  added: "Tache masquée. Faites glisser le cercle en pointillés, ou choisissez Copier depuis un autre endroit, pour changer la source.",
+  full: (n: number) => `Cette photo a déjà ${n} taches, le maximum autorisé.`,
+  noSource: "Rien de suffisamment semblable à proximité pour copier. Essayez une taille plus petite.",
+  unreadable: "La photo n'a pas pu être lue pour l'instant, aucune tache n'a donc été ajoutée.",
+  noOther: "Il n'y a pas d'autre endroit proche d'où copier.",
+  working: "Recherche d'un endroit d'où copier…",
+  historyStep: "Correction des taches",
+  layer: "Taches corrigées",
+  select: (n: number) => `Tache ${n} : sélectionner`,
+  source: (n: number) => `Source de la tache ${n} : faites glisser ou utilisez les flèches`,
+};

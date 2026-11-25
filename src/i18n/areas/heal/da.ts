@@ -1,0 +1,36 @@
+import { plural } from '../../../core/locale';
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** Danish. DRAFT: written without a native speaker's check. */
+export const da: AreaTranslation<typeof source> = {
+  title: "Pletfjernelse",
+  intro: "Dækker støv, en kvist eller rod omkring siddepladsen med pixels kopieret fra et sted tæt på i samme foto. Intet bliver opfundet, og den originale fil bliver aldrig ændret.",
+  start: "Markér pletter",
+  stop: "Færdig",
+  placing: "Klik eller tryk på hver plet, der skal dækkes. Tryk på Escape, når du er færdig.",
+  size: "Størrelse",
+  feather: "Blødhed",
+  method: "Metode",
+  heal: "Ret: glid ind i omgivelserne",
+  clone: "Klon: nøjagtig kopi",
+  nextSource: "Kopiér fra et andet sted",
+  remove: "Fjern plet",
+  removeAll: "Fjern alle pletter",
+  show: "Vis plet",
+  hide: "Skjul plet",
+  spot: (n: number) => `Plet ${n}`,
+  hidden: "skjult",
+  count: (n: number) => plural(n, { one: `${n} plet`, other: `${n} pletter` }),
+  empty: "Ingen pletter endnu.",
+  added: "Pletten er dækket. Træk den stiplede cirkel, eller vælg Kopiér fra et andet sted, for at ændre kilden.",
+  full: (n: number) => `Dette foto har allerede ${n} pletter, det højeste tilladte.`,
+  noSource: "Intet i nærheden lignede nok til at kopiere fra. Prøv en mindre størrelse.",
+  unreadable: "Fotoet kunne ikke læses lige nu, så der blev ikke tilføjet nogen plet.",
+  noOther: "Der er ikke noget andet sted i nærheden at kopiere fra.",
+  working: "Finder et sted at kopiere fra…",
+  historyStep: "Pletfjernelse",
+  layer: "Rettede pletter",
+  select: (n: number) => `Plet ${n}: vælg`,
+  source: (n: number) => `Kilde til plet ${n}: træk, eller brug piletasterne`,
+};

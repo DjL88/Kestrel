@@ -27,6 +27,7 @@ import BrandIcon from '../icons/BrandIcon';
 import PictureSourceBadge from './PictureSourceBadge';
 import CompareSplit from './CompareSplit';
 import MaskOutlineLayer from './MaskOutlineLayer';
+import HealLayer, { type HealCanvasState } from './HealLayer';
 import TapSelectLayer from './TapSelectLayer';
 import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
 import { captureElement, screenshotName } from '../utils/captureElement';
@@ -66,6 +67,8 @@ interface CanvasProps {
   /** White-balance eyedropper: while set, a click on the picture reports that spot (0 to 1 across the shown, framed
    * picture) instead of moving anything. Esc cancels. */
   neutralPick?: { onPick: (at: { x: number; y: number }) => void; onCancel: () => void };
+  /** Spot healing circles and placing, while the Masks panel shows them. Escape stops placing. */
+  heal?: HealCanvasState & { onStopPlacing: () => void };
   photo: Photo | null;
   activeSizeId: string;
   selectedSizeIds: string[];
@@ -145,6 +148,7 @@ export default function Canvas({
   tapSession,
   onTapSelect,
   neutralPick,
+  heal,
   photo,
   activeSizeId,
   selectedSizeIds,
@@ -458,6 +462,14 @@ export default function Canvas({
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [neutralPick]);
+  // Escape stops placing healing spots.
+  const stopHealPlacing = heal?.placing ? heal.onStopPlacing : undefined;
+  useEffect(() => {
+    if (!stopHealPlacing) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.stopPropagation(); stopHealPlacing(); } };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [stopHealPlacing]);
   // The shape of the picture on screen, reported by the photo surface (used below by every format view).
   const shownPhotoId = photo?.id;
   const [shownShape, setShownShape] = useState<{ photoId: string; aspect: number } | null>(null);
@@ -1159,10 +1171,12 @@ export default function Canvas({
   const selectedMask = maskGuideId ? photo.masks.find((layer) => layer.id === maskGuideId && layer.visible) : undefined;
   const selectedShape = selectedMask?.geometry ? { ...selectedMask, geometry: selectedMask.geometry } : undefined;
   const tapping = tapSession?.photoId === photo.id && onTapSelect ? tapSession : undefined;
-  const renderMaskOutline = (selectedShape && onSetMaskGeometry) || tapping
+  const healing = heal && (heal.placing || heal.spots.length) ? heal : undefined;
+  const renderMaskOutline = (selectedShape && onSetMaskGeometry) || tapping || healing
     ? (picture: { width: number; height: number }) => (
       <>
-        {selectedShape && onSetMaskGeometry && !tapping && (
+        {healing && !tapping && <HealLayer picture={picture} {...healing} />}
+        {selectedShape && onSetMaskGeometry && !tapping && !healing?.placing && (
           <MaskOutlineLayer picture={picture} name={selectedShape.name} geometry={selectedShape.geometry} feather={selectedShape.feather}
             onChange={(field, value) => onSetMaskGeometry(photo.id, selectedShape.id, field, value)} />
         )}

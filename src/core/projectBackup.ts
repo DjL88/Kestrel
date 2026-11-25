@@ -3,6 +3,7 @@ import { parseSpeciesArea } from './speciesArea';
 import { readCollage } from './collage';
 import { parseSettings } from './projectSettings';
 import { validMasks } from './maskTypes';
+import { validHeal } from './heal';
 import { validTrueDetailAi } from './trueDetailAi';
 import { validCurve, validMixer } from './curveMixer';
 import { validChannelCurves, validGrade } from './colourGrade';
@@ -72,7 +73,7 @@ function recipeIsValid(value: unknown): boolean {
     (edit.lateralCa !== undefined && !validLateralCa(edit.lateralCa)) || (edit.defringe !== undefined && !validDefringe(edit.defringe)) ||
     (edit.vignette !== undefined && !validVignette(edit.vignette)) || (edit.grain !== undefined && !validGrain(edit.grain)) ||
     (edit.whiteBalance !== undefined && !validWhiteBalance(edit.whiteBalance)) ||
-    (edit.masks !== undefined && !validMasks(edit.masks)))) return false;
+    (edit.masks !== undefined && !validMasks(edit.masks)) || (edit.heal !== undefined && !validHeal(edit.heal)))) return false;
   const framing = value.framing;
   if (framing !== undefined && (!record(framing) || (framing.ratio !== null && !number(framing.ratio, 0.01, 100)) ||
     !number(framing.turns, 0, 3) || !Number.isInteger(framing.turns) || !number(framing.straighten, -12, 12) ||
