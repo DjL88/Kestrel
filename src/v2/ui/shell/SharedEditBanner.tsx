@@ -2,13 +2,14 @@ import { STRINGS } from '../strings';
 import type { SharedEditingState } from './useSharedEditing';
 
 /** One calm line above the editing panels in a shared project. Words, never colour alone. */
-export default function SharedEditBanner({ state, onKeepMine, onKeepTheirs, onRetry }: { state: SharedEditingState; onKeepMine: () => void; onKeepTheirs: () => void; onRetry: () => void }) {
+export default function SharedEditBanner({ state, onKeepMine, onKeepTheirs, onKeepBoth, onRetry }: { state: SharedEditingState; onKeepMine: () => void; onKeepTheirs: () => void; onKeepBoth?: () => void; onRetry: () => void }) {
   const t = STRINGS.share;
   const text = state.kind === 'theirs' ? t.sharedTheirs(state.holder ?? t.sharedSomeone)
     : state.kind === 'mine' ? t.sharedMine
     : state.kind === 'draft' ? (state.reason === 'offline' ? t.sharedDraftOffline : t.sharedDraftLost)
     : state.kind === 'conflict' ? t.sharedConflict
-    : state.kind === 'no-key' ? t.sharedNoKey : null;
+    : state.kind === 'no-key' ? t.sharedNoKey
+    : state.kind === 'view-only' ? t.sharedViewOnly(t.roles[state.role]) : null;
   if (!text) return null;
   const button = 'min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2.5 text-xs font-medium';
   return (
@@ -19,6 +20,7 @@ export default function SharedEditBanner({ state, onKeepMine, onKeepTheirs, onRe
         <div className="mt-2 flex flex-wrap gap-2">
           <button type="button" onClick={onKeepMine} className={button}>{t.sharedKeepMine}</button>
           <button type="button" onClick={onKeepTheirs} className={button}>{t.sharedKeepTheirs}</button>
+          {onKeepBoth && <button type="button" onClick={onKeepBoth} className={button}>{t.sharedKeepBoth}</button>}
         </div>
       )}
       {state.kind === 'draft' && <button type="button" onClick={onRetry} className={`${button} mt-2`}>{t.sharedRetry}</button>}

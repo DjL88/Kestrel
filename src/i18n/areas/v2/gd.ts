@@ -546,6 +546,8 @@ export const gd: AreaTranslation<typeof source> = {
     commentPin: 'Prìnich ri àite',
     commentUnpin: 'Thoir am prìne air falbh',
     commentSend: 'Beachd',
+    sharedKeepBoth: 'Cùm an dà chuid',
+    sharedViewOnly: (role: string) => `’S e ${role} a th’ annad sa phròiseact seo: ’s urrainn dhut coimhead is beachd a thoirt, agus atharraichidh an sealbhadair no deasaiche an dealbh.`,
   },
   adjust: {
     grade: {

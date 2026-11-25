@@ -166,7 +166,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const peers = usePresence(sharing, store.collage ? null : store.activeProjectId, activePhoto?.sharedKey ?? null, signedInName, shareVersion);
   const sharedEditing = useSharedEditing(sharing, store.collage ? null : store.activeProjectId, activePhoto?.id ?? null, activePhoto?.sharedKey, actions, activePhoto, shareVersion);
   // Someone else has this photo out, or both sides changed it: the editing panels are view-only until that is settled.
-  const editLocked = sharedEditing.state.kind === 'theirs' || sharedEditing.state.kind === 'conflict';
+  const editLocked = sharedEditing.state.kind === 'theirs' || sharedEditing.state.kind === 'conflict' || sharedEditing.state.kind === 'view-only';
   const hoveredLook = store.looks.find((l) => l.id === store.hoveredLookId) ?? null;
   const runningTaskCount = store.tasks.filter((t) => t.status === 'running').length;
 
@@ -270,7 +270,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     return (
       <>
         {comments}
-        <SharedEditBanner state={sharedEditing.state} onKeepMine={sharedEditing.keepMine} onKeepTheirs={sharedEditing.keepTheirs} onRetry={sharedEditing.retry} />
+        <SharedEditBanner state={sharedEditing.state} onKeepMine={sharedEditing.keepMine} onKeepTheirs={sharedEditing.keepTheirs} onKeepBoth={sharedEditing.keepBoth} onRetry={sharedEditing.retry} />
         {editLocked ? <fieldset disabled className="contents" data-testid="shared-edit-locked">{inner}</fieldset> : inner}
       </>
     );

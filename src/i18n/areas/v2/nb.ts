@@ -545,6 +545,8 @@ export const nb: AreaTranslation<typeof source> = {
     commentPin: 'Fest til et punkt',
     commentUnpin: 'Fjern punkt',
     commentSend: 'Kommenter',
+    sharedKeepBoth: 'Behold begge',
+    sharedViewOnly: (role: string) => `Rollen din i prosjektet: ${role}. Du kan se og kommentere; eieren eller en redaktør endrer bildet.`,
   },
   adjust: {
     grade: {

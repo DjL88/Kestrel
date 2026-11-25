@@ -78,6 +78,7 @@ import { toProfile } from '../../core/exportFormats';
 import { renderV2Export, type OverlayDraw } from './renderV2Export';
 import { renderGalleryPreview } from './galleryPreview';
 import { readSharedEdit } from '../../core/sharedSync';
+import { createVirtualCopy } from '../../core/virtualCopies';
 import { formatOverlayRowText } from '../ui/utils/studioMath';
 import { loadImage } from '../../providers/loadImage';
 import { deliverExport, describeExport } from './exportDelivery';
@@ -1678,6 +1679,22 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const safe = readSharedEdit(edit);
       if (safe === false) { setNotice('The shared edit for this photo could not be read, so nothing was changed.'); return; }
       editFrames([photoId], () => safe ?? undefined);
+    },
+    keepBothShared: (photoId, theirs) => {
+      const safe = readSharedEdit(theirs);
+      const current = stateRef.current;
+      const source = current?.frames.find((frame) => frame.id === photoId && frame.removedAt == null);
+      if (safe === false || !current || !source) { setNotice('The shared edit for this photo could not be read, so nothing was changed.'); return null; }
+      // Mine becomes a virtual copy beside the photo; the photo itself takes the shared edit. Both stay, nothing is lost.
+      const copy = createVirtualCopy(source, current.frames, `vc-${newId()}`);
+      mutate((state) => {
+        const index = state.frames.findIndex((frame) => frame.id === photoId);
+        const frames = [...state.frames];
+        frames.splice(index + 1, 0, copy);
+        return { ...state, frames };
+      });
+      editFrames([photoId], () => safe ?? undefined);
+      return copy.id;
     },
     renderGalleryPreview: async (photoId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
