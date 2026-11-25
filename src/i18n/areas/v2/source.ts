@@ -849,6 +849,15 @@ export const source = {
       cooler: 'Cooler',
       warmer: 'Warmer',
     },
+    neutral: {
+      auto: "Auto",
+      pick: "Pick neutral",
+      help: "As shot puts white balance back to the camera's own setting. Auto estimates the light from the whole picture; a scene that is mostly one colour can mislead it. Pick neutral, then click a spot on the photo that should be grey or white.",
+      picking: "Click a spot on the photo that should be grey or white. Press Esc to cancel.",
+      set: "White balance set. Undo puts it back.",
+      limited: "White balance set as far as the sliders go. Some colour cast remains.",
+      unreadable: "That spot is too bright or too dark to read. Try a grey or white that isn't blown out.",
+    },
     mixer: {
       heading: 'Colour mixer',
       help: 'Change one family of colours without touching the others. Greys and whites are never changed.',

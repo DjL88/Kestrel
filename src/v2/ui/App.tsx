@@ -143,6 +143,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [maskGuide, setMaskGuide] = useState<{ photoId: string; maskId: string } | null>(null);
   // The selected mask's hatched coverage overlay (O). Its outline stays on the canvas either way.
   const [maskOverlayVisible, setMaskOverlayVisible] = useState(true);
+  // White balance from the picture: the eyedropper's waiting state, and the last result in words.
+  const [whitePickFor, setWhitePickFor] = useState<string | null>(null);
+  const [whiteNote, setWhiteNote] = useState<{ photoId: string; text: string } | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [addingFormatFor, setAddingFormatFor] = useState<string | null>(null);
   const [collageEditingId, setCollageEditingId] = useState<string | null>(null);
@@ -169,6 +172,16 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
 
   const activePhoto =
     store.photos.find((p) => p.id === store.activePhotoId) ?? store.photos[0] ?? null;
+  const runNeutralWhite = React.useCallback(async (photoId: string, at?: { x: number; y: number }) => {
+    if (!actions.neutralWhiteBalance) return;
+    setWhitePickFor(null);
+    const result = await actions.neutralWhiteBalance(photoId, at).catch(() => 'unreadable' as const);
+    setWhiteNote({ photoId, text: STRINGS.adjust.neutral[result] });
+  }, [actions]);
+  const whitePickActive = whitePickFor !== null && whitePickFor === activePhoto?.id;
+  const neutralPick = React.useMemo(() => (whitePickActive && activePhoto
+    ? { onPick: (at: { x: number; y: number }) => { void runNeutralWhite(activePhoto.id, at); }, onCancel: () => setWhitePickFor(null) }
+    : undefined), [whitePickActive, activePhoto, runNeutralWhite]);
   // Compare with exactly two photos selected shows them side by side; with one, it stays before and after.
   const pairPhotos = React.useMemo(() => {
     if (!store.compareMode || store.collage || store.selectedPhotoIds.length !== 2) return null;
@@ -341,6 +354,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onApplyLook={actions.applyLook}
             onHoverLook={actions.setHoveredLook}
             onResetPhoto={actions.resetPhotoEdits}
+            onNeutralWhite={actions.neutralWhiteBalance ? (id) => { void runNeutralWhite(id); } : undefined}
+            whitePicking={whitePickActive}
+            onSetWhitePicking={actions.neutralWhiteBalance && store.PhotoSurface ? (on) => { setWhiteNote(null); setWhitePickFor(on && activePhoto ? activePhoto.id : null); } : undefined}
+            whiteNote={whiteNote && whiteNote.photoId === activePhoto?.id ? whiteNote.text : null}
           />
         );
       case 'formats':
@@ -723,6 +740,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   maskOverlayKey={keymap['view.maskOverlay'] ? chordLabel(keymap['view.maskOverlay'], IS_MAC) : undefined}
                   onToggleMaskOverlay={() => setMaskOverlayVisible((visible) => !visible)}
                   onSetMaskGeometry={actions.setMaskGeometry}
+                  neutralPick={neutralPick}
                   onOpenFormats={activePhoto ? () => {
                     actions.setPanelVisible('formats', true);
                     setAddingFormatFor(activePhoto.id);
