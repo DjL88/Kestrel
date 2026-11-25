@@ -62,6 +62,7 @@ function pinned(prefix: string, file: string, sha256: string, bytes: number): Op
     url: env?.[`VITE_${prefix}_URL`] ?? (OPTIONAL_MODEL_HOST ? `${OPTIONAL_MODEL_HOST.replace(/\/?$/, '/')}${file}` : ''),
     sha256: env?.[`VITE_${prefix}_SHA256`] ?? sha256,
     bytes: Number(env?.[`VITE_${prefix}_BYTES`] ?? bytes),
+    file,
   };
 }
 
