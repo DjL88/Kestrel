@@ -1205,6 +1205,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       });
   }, []);
 
+  const cloudImports = useRef(new Map<string, { projectId: string; photoKey: string }>());
   const importPhotos = useCallback(async (suppliedPicks?: Array<File | PickedPhoto> | null) => {
     const target = stateRef.current;
     if (!target) return;
@@ -1248,9 +1249,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           if (result.failedNames.length) throw new Error(engineText.workspace.importUnreadable(result.failedNames.join(', ')));
           // A one-photo loader has index one. Give each imported frame its
           // distinct stable project index before inserting it into React.
+          const cloudPhoto = cloudImports.current.get(pickedKey(item.file));
           const frames = result.frames.map(frame => ({
             ...frame, id: `file-${item.index + 1}-${frame.filename}`,
             sequenceIndex: item.index + 1,
+            ...(cloudPhoto ? { cloudPhoto } : {}),
           }));
           if (result.unstoredKeys.length) warnings.push(`${item.file.name} could not be stored for reopening. Relink it when needed.`);
           ctx.stage(engineText.workspace.importSaveStage);
@@ -1811,6 +1814,18 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       });
       editFrames([photoId], () => safe ?? undefined);
       return copy.id;
+    },
+    importCloudPreviews: async (items) => {
+      for (const item of items) cloudImports.current.set(pickedKey(pickedFromFile(item.file)), { projectId: item.projectId, photoKey: item.photoKey });
+      try { await importPhotos(items.map((item) => item.file)); }
+      finally { for (const item of items) cloudImports.current.delete(pickedKey(pickedFromFile(item.file))); }
+    },
+    readVerifiedOriginal: async (photoId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
+      if (!frame || frame.isDemo || frame.cloudPhoto || !provider.current) return null;
+      const bytes = await provider.current.ensureOriginal(frame.stableKey, 'selected');
+      if (!bytes) return null;
+      try { return await verifyExactOriginalCopy(bytes, frame.originalSha256); } catch { return null; }
     },
     renderGalleryPreview: async (photoId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
