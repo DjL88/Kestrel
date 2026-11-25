@@ -5,7 +5,7 @@ import { readVideoZoom } from './videoZoomOps';
 import { readSplitFrames, readSplitPanOffset } from './splitFrameOps';
 import { readFormatSplits } from './formatSplitOps';
 import { describeHistory } from './historySteps';
-import { describeEditVersions, readEditVersions } from '../../core/editBranches';
+import { describeCheckpoints, describeEditVersions, readEditVersions } from '../../core/editBranches';
 import { readFormatHistory } from './formatHistory';
 import type { PhotoFrame, ShootDescriptor } from '../../core/types';
 import { computeCullCounts } from '../../core/cullingEngine';
@@ -24,6 +24,8 @@ import { sameRecipe } from '../../core/naturalAuto';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { STRINGS } from '../ui/strings';
 import { engineText } from '../../i18n/areas/engine';
+import { displaySpeciesName } from '../../core/speciesNames';
+import { speciesNameIndex } from '../../providers/speciesNames';
 import type { AssistSuggestion, EditRecipe, PhotoHistogram } from '../ui/contract';
 import type { Task } from '../../core/taskStore';
 import { buildEditingSequence } from '../../core/editingSequence';
@@ -32,6 +34,8 @@ import { VEHICLE_LABELS } from '../../core/vehicleLabels';
 import { validVehicleReading, vehicleLabel, vehicleSearchWords } from '../../core/vehicleRecognition';
 import { sharedPhotoKey } from '../../core/sharedSync';
 import { vehicleText, vehicleTextEnglish } from '../../i18n/areas/vehicles';
+import { photoTagsOf, tagWords } from '../../core/photoTags';
+import { photoTagEnglishLabel, photoTagLabel, photoTagsText } from '../../i18n/areas/photoTags';
 
 /** A transparent pixel, so a photo whose picture is not ready yet shows an empty tile rather than a broken image. */
 export const BLANK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
@@ -118,22 +122,36 @@ const titleOf = (filename: string) => filename.replace(/\.[^./\\]+$/, '');
 const extensionOf = (filename: string) => /\.([^./\\]+)$/.exec(filename)?.[1]?.toUpperCase();
 
 /** A photo's vehicle reading as words in the person's language, and the words it can be searched by (also in English). */
-export function vehicleWordsOf(frame: Pick<PhotoFrame, 'vehicle'>): { vehicleLabel?: string; searchTerms?: string[] } {
+export function vehicleWordsOf(frame: Pick<PhotoFrame, 'vehicle'>): { vehicleLabel?: string; searchTerms?: string[]; vehicleKind?: string; vehicleType?: string } {
   const reading = validVehicleReading(frame.vehicle, VEHICLE_LABELS);
   if (!reading) return {};
   return {
     vehicleLabel: vehicleLabel(reading, VEHICLE_LABELS, vehicleText),
     searchTerms: vehicleSearchWords(reading, VEHICLE_LABELS, [vehicleText, vehicleTextEnglish]),
+    ...(reading.kind ? { vehicleKind: reading.kind } : {}),
+    ...(reading.type ? { vehicleType: reading.type } : {}),
   };
 }
 
 /** The subject name for a photo. A name the app suggested itself is marked as a suggestion; nothing is shown when unknown. */
+/** The photo's tags in the person's words. A tag with no words in any language is not shown (never a raw id). */
+export function photoTagViews(frame: Pick<PhotoFrame, 'stableKey' | 'photoTags'>): NonNullable<Photo['photoTags']> {
+  return photoTagsOf(frame).flatMap((tag) => {
+    const label = tagWords(tag, photoTagLabel, photoTagsText.probably);
+    if (!label) return [];
+    const english = tagWords(tag, photoTagEnglishLabel);
+    return [{ id: tag.id, facet: tag.facet, label, words: english && english !== label ? [label, english] : [label] }];
+  });
+}
+
 export function speciesLabelOf(frame: Pick<PhotoFrame, 'subjectNames' | 'tags' | 'autoTags'>): string | undefined {
+  // Shown in the person's language: the local name, else the scientific name; a name nobody knows stays as stored.
+  const shown = (name: string) => displaySpeciesName(name, speciesNameIndex()).name;
   const chosen = frame.subjectNames?.[0];
-  if (chosen) return chosen;
+  if (chosen) return shown(chosen);
   const tag = frame.tags?.[0];
   if (!tag) return undefined;
-  return frame.autoTags?.includes(tag) ? engineText.suggestedName(tag) : tag;
+  return frame.autoTags?.includes(tag) ? engineText.suggestedName(shown(tag)) : shown(tag);
 }
 
 export function tileStateFor(urls: FrameUrls | undefined): TileState {
@@ -219,6 +237,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     speciesName: frame.subjectNames?.[0] ?? frame.tags?.[0],
     // What kind of subject, in the person's language (never the detector's internal word).
     category: frame.subjectKind ? engineText.subjectKinds[frame.subjectKind] : '',
+    photoTags: photoTagViews(frame),
     sharpnessScore: frame.cullScore ?? 0,
     ...(typeof exif.capturedAtMs === 'number' && Number.isFinite(exif.capturedAtMs) ? { capturedAtMs: exif.capturedAtMs } : {}),
     exif: {
@@ -258,7 +277,8 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
           versions: describeEditVersions(frame.editVersions),
         } }
       : {}),
-    ...(frame.formatHistory ? { formatHistory: readFormatHistory(frame.formatHistory).events.map(({ formatId, kind, at, parentFormatId, forkEditCursor }) => ({ formatId, kind, at, ...(parentFormatId ? { parentFormatId } : {}), ...(forkEditCursor !== undefined ? { forkEditCursor } : {}) })) } : {}),
+    ...(describeCheckpoints(frame.editCheckpoints).length ? { editCheckpoints: describeCheckpoints(frame.editCheckpoints) } : {}),
+    ...(frame.formatHistory ? { formatHistory: readFormatHistory(frame.formatHistory).events.map(({ formatId, kind, at, parentFormatId, forkEditCursor, after }) => ({ formatId, kind, at, ...(parentFormatId ? { parentFormatId } : {}), ...(forkEditCursor !== undefined ? { forkEditCursor } : {}), ...(kind === 'crop' && after ? { crop: after } : {}) })) } : {}),
     ...(watermarkAuto ? { watermarkAuto } : {}),
     ...(histogram ? { histogram } : {}),
     ...(shownPreview || shownThumb ? { picture: { ...(shownPreview ? { preview: shownPreview } : {}), ...(shownThumb ? { thumb: shownThumb } : {}) } } : {}),

@@ -343,7 +343,13 @@ export interface Photo {
   searchTerms?: string[];
   /** The subject name alone, without the "(suggested)" marker the label may carry, for editing it. */
   speciesName?: string;
+  /** The vehicle reading's ids, so a correction starts from what is shown. */
+  vehicleKind?: string;
+  vehicleType?: string;
   category: string;
+  /** Tags InFlight worked out by itself (place, light, weather, style, genre, vehicle), already in the person's words.
+   * `words` also holds the British English word, so search finds a tag in either language. */
+  photoTags?: { id: string; facet: import('../../core/photoTags').TagFacet; label: string; words: string[] }[];
   sharpnessScore: number;
   exif: PhotoExif;
   activeGroupId: string;
@@ -372,8 +378,10 @@ export interface Photo {
     activeId: string;
     versions: { id: string; label: string; parentId: string | null; forkCursor: number; createdAt: number }[];
   };
-  /** Actual recorded format actions; missing means pre-history, not a fabricated event. */
-  formatHistory?: { formatId: string; kind: string; at: number; parentFormatId?: string; forkEditCursor?: number }[];
+  /** Named checkpoints of the whole editing state (recipe and every format's crop), oldest first. */
+  editCheckpoints?: { id: string; name: string; createdAt: number; versionId: string }[];
+  /** Actual recorded format actions; missing means pre-history, not a fabricated event. `crop` is the crop a crop action left. */
+  formatHistory?: { formatId: string; kind: string; at: number; parentFormatId?: string; forkEditCursor?: number; crop?: CropTransform }[];
   /** The JPEG the camera wrote with this RAW, kept beside it and shown as one photo. Its flag and rating follow this photo. */
   pairedJpeg?: string;
   /** When the photo was taken, in milliseconds, when the file records it. Used only for sorting. */
@@ -490,6 +498,8 @@ export interface WorkspaceSettings {
   hideProFeatures: boolean;
   /** Show the advanced editing controls (colour grading, channel curves). Off by default so the panel stays simple. */
   advancedControls: boolean;
+  /** Move to the next photo after a rating or decision on one photo (culling). */
+  advanceAfterDecision: boolean;
   ongoingCritique: boolean;
   defaultAssistMode: AssistMode;
   language: 'en-GB' | 'en-US' | 'de-DE' | 'fr-FR';
@@ -505,8 +515,10 @@ export interface WorkspaceSettings {
 }
 
 export interface ExportRequest {
-  /** Standalone, photo-wide TIFF made from the selected sensor RAW. */
+  /** Standalone, photo-wide 16-bit file made from the selected sensor RAW. */
   rawMaster?: boolean;
+  /** Which 16-bit file the RAW master is written as. Absent = TIFF. */
+  rawMasterFormat?: 'tiff' | 'png';
   fileFormat?: 'jpeg' | 'png';
   jpegQuality?: number;
   destination: ExportDestination;
@@ -583,6 +595,8 @@ export interface WorkspaceStore {
   filmstripMinRating: number;
   filmstripSort: PhotoSort;
   filmstripSearch: string;
+  /** Show only photos with this tag id; null shows all. */
+  filmstripTag?: string | null;
   gridViewOpen: boolean;
   compareMode: boolean;
   canvasZoom: number; // 0.5 to 3.0
@@ -641,6 +655,10 @@ export interface WorkspaceActions {
   toggleFlag: (photoIds: string[]) => void;
   setRating: (photoIds: string[], rating: number) => void;
   correctSpeciesName: (photoId: string, name: string) => void;
+  /** The person's own vehicle name for a photo, or for every frame of its burst. 'not-a-vehicle' removes it for good. */
+  correctVehicle: (photoId: string, choice: { kind: string; type?: string } | 'not-a-vehicle', wholeBurst: boolean) => void;
+  /** The person removes a tag InFlight found: it goes and is never added to that photo again. */
+  removePhotoTag?: (photoId: string, tagId: string) => void;
   importPhotos: () => void;
   importFolder: () => void;
   importDroppedPhotos: (files: File[]) => void;
@@ -813,12 +831,22 @@ export interface WorkspaceActions {
   jumpToEditStep: (photoId: string, cursor: number) => void;
   /** Switch between independent checkpoint-forked versions without touching the source file. */
   switchEditVersion: (photoId: string, versionId: string) => void;
+  /** Give an editing version a name of the person's choosing. */
+  renameEditVersion: (photoId: string, versionId: string, name: string) => void;
+  /** Save the photo's whole editing state (recipe and every format's crop) under a name. */
+  saveEditCheckpoint: (photoId: string, name: string) => void;
+  /** Open a saved checkpoint as a new editing version; the current version is kept. */
+  restoreEditCheckpoint: (photoId: string, checkpointId: string) => void;
+  deleteEditCheckpoint: (photoId: string, checkpointId: string) => void;
+  /** Put a format's crop back to the one a recorded crop action left (itself recorded, so it can be undone the same way). */
+  restoreFormatCrop: (photoId: string, formatId: string, eventAt: number) => void;
   setFilmstripCollapsed: (collapsed: boolean) => void;
   setFilmstripHeight: (height: number) => void;
   setFilmstripFilter: (filter: FilmstripFilter) => void;
   setFilmstripMinRating: (rating: number) => void;
   setFilmstripSort: (sort: PhotoSort) => void;
   setFilmstripSearch: (query: string) => void;
+  setFilmstripTag?: (tagId: string | null) => void;
   setGridViewOpen: (open: boolean) => void;
   setCompareMode: (compare: boolean) => void;
   setCanvasZoom: (zoom: number) => void;

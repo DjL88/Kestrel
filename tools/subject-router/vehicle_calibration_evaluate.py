@@ -1,6 +1,8 @@
 """Measure vehicle recognition on the calibration set with the app's own CLIP image model and committed vectors.
 
-    python -I evaluate.py <repo> <images> <vision.onnx>
+    python -I vehicle_calibration_evaluate.py <repo> <images> <vision.onnx> [kind=mapped-kind ...]
+
+Extra arguments map a photo's true kind to a kind the label list has (ferry=boat while ferries are not a kind).
 """
 import base64, json, sys
 from pathlib import Path
@@ -40,6 +42,9 @@ tv = np.stack([unit(decode(vfile["types"][t["id"]])) for t in types])
 family_of0 = {k["id"]: k["family"] for k in kinds}
 session = ort.InferenceSession(MODEL, providers=["CPUExecutionProvider"])
 manifest = json.loads((IMAGES / "manifest.json").read_text(encoding="utf-8"))
+KIND_MAP = dict(arg.split("=", 1) for arg in sys.argv[4:])
+for item in manifest:
+    item["kind"] = KIND_MAP.get(item["kind"], item["kind"])
 rows = []
 for item in manifest:
     image = Image.open(IMAGES / item["file"]).convert("RGB")

@@ -1,3 +1,4 @@
+import { exportCrop } from './frameGeometry';
 import { readEditGroups } from './editGroupState';
 import type { PhotoFrame } from '../../core/types';
 import { DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
@@ -120,7 +121,8 @@ export function planExport(request: ExportRequest, frames: readonly ExportFrameI
       const capped = { width: Math.floor(combined.width / sections), height: combined.height };
       const crop = crops[size.id] ?? { ...DEFAULT_CROP };
       const offset = formatSplitOffset(splitState, size.id);
-      const movedCrop = offset === 0 ? crop : { ...crop, panX: Math.max(-50, Math.min(50, crop.panX + offset)) };
+      // The same move the canvas shows (frameGeometry.ts): clamping here exported a far pan somewhere else.
+      const movedCrop = exportCrop(crop, offset);
       jobs.push({ frameId: frame.id, variants, size: capped, crop: movedCrop, ...(sections > 1 ? { sections: sections as 2 | 3 | 4 | 5 } : {}), format: {
         id: size.id, label: size.label, width: capped.width, height: capped.height, fit: 'fill', quality, format,
         prefix: `${size.id.replace(SAFE_PREFIX, '_').slice(0, 24)}_`,

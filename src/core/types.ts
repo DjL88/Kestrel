@@ -56,6 +56,12 @@ export interface ExifMetadata {
   height?: number;
   formatLabel?: string;
   isEmbeddedPreviewOnly?: boolean;
+  /** Where the photo was taken, from the file's GPS. Personal: kept on this device, never put in a backup or sent anywhere. */
+  gps?: { latitude: number; longitude: number };
+  /** The true capture instant, when the file says it (GPS time, or a time-zone offset). Absent rather than guessed. */
+  capturedAtUtcMs?: number;
+  /** Exposure time in seconds, for checks such as motion blur. */
+  exposureSeconds?: number;
 }
 
 export interface PhotoFrame {
@@ -71,6 +77,8 @@ export interface PhotoFrame {
   editHistory?: EditHistory;
   /** Saved non-destructive edit versions; only recipes/metadata, never original pixels. */
   editVersions?: EditVersionTree;
+  /** Named checkpoints (recipes only), validated by readCheckpoints in editBranches.ts. */
+  editCheckpoints?: unknown;
   /** Persisted V2 edit-group names, selection and non-destructive recipes; validated by readEditGroups. */
   v2EditGroups?: unknown;
   /** Per-format action history, validated at the V2 boundary. */
@@ -88,6 +96,8 @@ export interface PhotoFrame {
   tags?: string[];
   /** Quiet local OCR and corroborated subject evidence. Separate from the photographer's tags and camera EXIF. */
   searchEvidence?: PhotoSearchEvidence;
+  /** Plain-language tags InFlight worked out by itself (place, light, weather, style, genre, vehicle). See `photoTags.ts`. */
+  photoTags?: import('./photoTags').PhotoTagSet;
   /** What the photo is mainly of, chosen by the user. */
   subjectKind?: import('./subjectTags').SubjectKind;
   /** Set when two independent readings of the photo (scene reading and object detector) disagreed about its subject, for
@@ -103,6 +113,8 @@ export interface PhotoFrame {
   /** What kind of vehicle or aircraft the photo probably shows, read on this device (ids only; words follow the language).
    * A suggestion: never changes a decision, rating or edit. Malformed values are ignored, never shown. */
   vehicle?: import('./vehicleRecognition').VehicleReading;
+  /** The person said this photo is not a vehicle, so no vehicle reading is ever added to it again. */
+  vehicleDeclined?: boolean;
   /**
    * On-device image embedding (DINOv2), used only to refine burst grouping. Absent until the background pass runs.
    * A cache: anything malformed is ignored by `decodeEmbedding`, never a reason to refuse a restore.
