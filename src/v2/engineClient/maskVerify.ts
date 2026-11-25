@@ -1,6 +1,9 @@
 import { runMaskAction, type MaskActionResult } from '../../engine/maskAction';
 import { applyCanvasPhotoEdit } from '../../core/canvasEdit';
-import { fullContext } from '../../core/masks';
+import { effectiveAlpha, fullContext } from '../../core/masks';
+import { darkenOutsideMask } from '../../core/visionGuardian';
+import { askGuardianAbout, canvasJpeg } from '../../providers/visionGuardian';
+import { hasLocalVision } from '../../providers/localVision';
 import { DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFraming';
 import { hasActiveMasks, type Mask } from '../../core/maskTypes';
@@ -78,6 +81,60 @@ export async function verifyFrameMasks(source: HTMLImageElement, frame: PhotoFra
     const outcome = await runMaskAction({ masks, render, original, maxRetries: 0, signal });
     signal?.throwIfAborted();
     return outcome;
+  } finally {
+    canvas.width = 0;
+    canvas.height = 0;
+  }
+}
+
+/** Long edge of the picture the guardian looks at: the on-device model sees 512 px, so more is wasted work. */
+export const MASK_GUARDIAN_EDGE = 768;
+
+/** The words the guardian's mask questions use for this photo's subject: its name if it has one, else its kind. */
+export function maskSubjectWord(frame: PhotoFrame): string | null {
+  const name = frame.subjectNames?.find((entry) => entry.trim());
+  if (name) return name;
+  if (frame.subjectKind === 'landscape') return null;
+  return frame.subjectKind === 'people' ? 'person' : frame.subjectKind === 'wildlife' ? 'animal' : 'main subject';
+}
+
+/** Identifies a subject mask's shape, so the guardian is asked once per shape, not after every slider change. */
+export function subjectMaskShapeKey(frame: PhotoFrame, mask: Extract<Mask, { kind: 'subject' }>): string {
+  const grid = mask.grid.data;
+  return [frame.id, mask.id, mask.framingKey, grid.length, grid.slice(0, 24), grid.slice(-24), mask.strokes.length,
+    JSON.stringify(mask.strokes.at(-1) ?? null).length, mask.detail ? 1 : 0, JSON.stringify(frame.framing ?? null)].join('|');
+}
+
+/**
+ * Vision guardian for subject masks (owner decision 2, finish-line p3-guardian): two plain questions to the on-device
+ * model about the photo with everything outside the mask darkened. "Is the bright area a bird?" catches a mask on the
+ * wrong thing; "Is the whole bird inside the bright area?" catches a mask that misses wing tips, a tail or a head.
+ * Advice only: true means the person should check the mask; the mask, its edit and the photo are never changed.
+ * False with no model, no subject mask, no answer, agreement or doubt.
+ */
+export async function guardianDoubtsSubjectMask(source: HTMLImageElement, frame: PhotoFrame, mask: Extract<Mask, { kind: 'subject' }>, signal?: AbortSignal): Promise<boolean> {
+  const word = maskSubjectWord(frame);
+  if (!word || !hasLocalVision()) return false;
+  const framing = frame.framing ?? DEFAULT_FRAMING;
+  const { width: fw, height: fh } = framedSize(source.naturalWidth, source.naturalHeight, framing);
+  const canvas = document.createElement('canvas');
+  try {
+    drawFramedPhoto(source, canvas, framing, { scale: Math.min(1, MASK_GUARDIAN_EDGE / Math.max(fw, fh)) });
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context || canvas.width < 16 || canvas.height < 16) return false;
+    const masks = frame.edit?.masks ?? [];
+    const alpha = effectiveAlpha({ ...mask, invert: false }, masks, canvas.width, canvas.height, fullContext(canvas.width, canvas.height));
+    const image = context.getImageData(0, 0, canvas.width, canvas.height);
+    darkenOutsideMask(image.data, alpha);
+    context.putImageData(image, 0, 0);
+    const jpeg = await canvasJpeg(canvas);
+    signal?.throwIfAborted();
+    if (!jpeg) return false;
+    const found = await askGuardianAbout(jpeg, 'subjectFound', word);
+    signal?.throwIfAborted();
+    if (found?.verdict === 'disagrees') return true;
+    const whole = await askGuardianAbout(jpeg, 'maskComplete', word);
+    return whole?.verdict === 'disagrees';
   } finally {
     canvas.width = 0;
     canvas.height = 0;

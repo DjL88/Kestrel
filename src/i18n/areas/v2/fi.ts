@@ -688,6 +688,7 @@ export const fi: AreaTranslation<typeof source> = {
     autopilotHeld: "Autopilotti jätti tämän muokkauksen tarkistettavaksesi: tämän laitteen kuvatarkistus ei ollut varma, että se näyttää luonnolliselta. Ehdotus on perämiehessä esikatselua tai käyttöä varten. Mitään ei muutettu.",
     secondOpinion: "Toinen mielipide:",
     suggestionDoubted: "tämän laitteen kuvatarkistus ei ollut vakuuttunut, että tämä näyttää luonnolliselta. Vertaa ennen ja jälkeen; käyttäminen on sinun valintasi.",
+    maskDoubted: "Toinen mielipide: tämän laitteen kuvatarkistus epäilee tätä kohdemaskia. Se voi olla väärässä kohdassa tai jättää pois siiven kärjen, pyrstön tai pään. Tarkista reunat ja lisää tai poista napauttamalla. Mitään ei muutettu.",
   },
   adjust: {
     grade: {

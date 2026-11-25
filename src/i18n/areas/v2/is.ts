@@ -687,6 +687,7 @@ export const is: AreaTranslation<typeof source> = {
     autopilotHeld: "Sjálfstýringin hélt þessari breytingu eftir svo að þú getir skoðað hana: myndathugunin í þessu tæki var ekki sannfærð um að hún líti eðlilega út. Tillagan er í aðstoðarflugmanni til að forskoða eða nota. Engu var breytt.",
     secondOpinion: "Annað álit:",
     suggestionDoubted: "myndathugunin í þessu tæki var ekki sannfærð um að þetta líti eðlilega út. Berðu saman fyrir og eftir; það er þitt val hvort þú notar það.",
+    maskDoubted: "Annað álit: myndskoðunin í þessu tæki efast um þessa viðfangsgrímu. Hún gæti verið á röngum hlut eða misst af vængbroddi, stéli eða höfði. Athugaðu jaðrana og ýttu til að bæta við eða fjarlægja. Engu var breytt.",
   },
   adjust: {
     grade: {

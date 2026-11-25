@@ -93,10 +93,11 @@ import { isSplitFrameCount, setFormatSplitOffset, setSplitFrameCount as writeSpl
 import { readSplitPanOffset } from './splitFrameOps';
 import { useTapSelect } from './useTapSelect';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskParts, toggleMask } from './maskOps';
-import { verifyFrameMasks } from './maskVerify';
+import { guardianDoubtsSubjectMask, subjectMaskShapeKey, verifyFrameMasks } from './maskVerify';
 import { maskAdvice, maskVerificationKey } from './maskVerificationCommit';
 import { commitSubjectMask, subjectMaskTarget } from './subjectMaskCommit';
-import { createMask, createSubjectMask, framingKey, hasActiveMasks } from '../../core/maskTypes';
+import { createMask, createSubjectMask, framingKey, hasActiveMasks, type Mask } from '../../core/maskTypes';
+import { v2Text } from '../../i18n/areas/v2';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../../core/photoFraming';
 import { estimateIlluminant, neutralBalance, samplePatch } from '../../core/neutralWhite';
 import { GUIDED_RENDER_EDGE } from '../../core/subjectGuide';
@@ -1096,6 +1097,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // used to write the gentler retry back, which silently pulled a deliberate Subject Exposure of -1.5 to
   // nearly 0 (a dark subject on a cool background reads frame-wide as a "cool colour cast", and a comparison
   // the verifier cannot make suggests strength 0), so the edit looked lost after Hide and Show.
+  const guardedMaskShapes = useRef(new Set<string>());
   const maskVerifyKey = activeFrame && projectId && hasActiveMasks(activeFrame.edit?.masks)
     ? maskVerificationKey(projectId, activeFrame) : null;
   useEffect(() => {
@@ -1111,13 +1113,25 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           if (controller.signal.aborted) return;
           const outcome = await verifyFrameMasks(image, frame, controller.signal);
           if (controller.signal.aborted || !outcome) return;
+          const stillSame = () => {
+            const currentState = stateRef.current;
+            const latest = currentState?.frames.find(candidate => candidate.id === frame.id);
+            return Boolean(latest && currentState?.shoot.id === capturedProject && maskVerificationKey(capturedProject, latest) === maskVerifyKey);
+          };
           const advice = maskAdvice(outcome.verification);
-          if (!advice) return;
-          const currentState = stateRef.current;
-          const latest = currentState?.frames.find(candidate => candidate.id === frame.id);
-          if (!latest || currentState?.shoot.id !== capturedProject ||
-              maskVerificationKey(capturedProject, latest) !== maskVerifyKey) return;
-          setNotice(advice);
+          if (advice) {
+            if (stillSame()) setNotice(advice);
+            return;
+          }
+          // Vision guardian (owner decision 2): is the subject mask on the subject, and does it cover all of it? Asked
+          // once per mask shape, on this device only. Advice only: a "no" adds a notice; the mask is never changed.
+          const subjectMask = frame.edit?.masks?.find((mask): mask is Extract<Mask, { kind: 'subject' }> => mask.kind === 'subject' && !mask.hidden);
+          if (!subjectMask || !hasLocalVision()) return;
+          const shapeKey = subjectMaskShapeKey(frame, subjectMask);
+          if (guardedMaskShapes.current.has(shapeKey)) return;
+          guardedMaskShapes.current.add(shapeKey);
+          const doubted = await guardianDoubtsSubjectMask(image, frame, subjectMask, controller.signal);
+          if (doubted && !controller.signal.aborted && stillSame()) setNotice(v2Text.guardian.maskDoubted);
         } catch {
           // A failed safety check must not block the manual editor.
         }

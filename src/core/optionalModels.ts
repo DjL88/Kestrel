@@ -120,6 +120,12 @@ export const BIOCLIP2: OptionalModel = {
     mammals: pinned('BIOCLIP2_MAMMALS', 'bioclip2-mammals.json', 'ad90459b5c891637c568fab7f1f51083817f9b20d33b5fddb44dcdd2a4478455', 8139587),
     // 12,650 reptiles, The Reptile Database 2026-06 (CC BY 4.0), BioCLIP 2 vectors by the species-names session.
     reptiles: pinned('BIOCLIP2_REPTILES', 'bioclip2-reptiles.json', '655d97013a12d744ed9528792ad7682a07db6fdc9096e64bbafdc12b42339abf', 14988825),
+    // 9,807 amphibians, GBIF Backbone class Amphibia (CC BY 4.0), BioCLIP 2 vectors by the species-names session.
+    amphibians: pinned('BIOCLIP2_AMPHIBIANS', 'bioclip2-amphibians.json', 'f98eed06801bf87a76083c1cf347fa3c6128924c586b4ae840e366bf15527601', 11648131),
+    // 6,506 dragonflies and damselflies, World Odonata List Nov 2026 (CC BY 4.0).
+    odonata: pinned('BIOCLIP2_ODONATA', 'bioclip2-odonata.json', '29fe86dbc6a9580d9f0c00b04ba81c5a803b4683e42600c16db54e1c03894676', 7698570),
+    // 9,862 butterflies and moths of Europe, Fauna Europaea Lepidoptera (CC BY 4.0). Europe only.
+    lepidoptera: pinned('BIOCLIP2_LEPIDOPTERA', 'bioclip2-lepidoptera.json', 'c16e729c2fbb0ff33f6cfb729c6f5cbf227d3bc856e7d36c20f48574658e7632', 11651891),
   },
   cache: 'kestrel-bioclip2-v1',
 };

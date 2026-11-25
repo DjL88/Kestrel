@@ -687,6 +687,7 @@ export const sv: AreaTranslation<typeof source> = {
     autopilotHeld: "Autopiloten höll inne den här redigeringen så att du kan granska den: bildkontrollen på den här enheten var inte övertygad om att den ser naturlig ut. Förslaget finns i andrepiloten för förhandsvisning eller användning. Inget ändrades.",
     secondOpinion: "Andra åsikt:",
     suggestionDoubted: "bildkontrollen på den här enheten var inte övertygad om att det ser naturligt ut. Jämför före och efter; det är ditt val om du tillämpar det.",
+    maskDoubted: "Andra åsikt: bildkontrollen på den här enheten tvivlar på den här motivmasken. Den ligger kanske på fel sak eller missar en vingspets, stjärt eller huvud. Kontrollera kanterna och tryck för att lägga till eller ta bort. Inget ändrades.",
   },
   adjust: {
     grade: {

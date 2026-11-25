@@ -687,6 +687,7 @@ export const it: AreaTranslation<typeof source> = {
     autopilotHeld: "Il pilota automatico ha trattenuto questa modifica perché tu la riveda: il controllo visivo su questo dispositivo non era convinto che sembrasse naturale. Il suggerimento è nel copilota, da vedere in anteprima o applicare. Non è stato modificato nulla.",
     secondOpinion: "Secondo parere:",
     suggestionDoubted: "il controllo visivo su questo dispositivo non è convinto che il risultato sembri naturale. Confronta prima e dopo; applicarlo è una tua scelta.",
+    maskDoubted: "Secondo parere: il controllo visivo su questo dispositivo dubita di questa maschera del soggetto. Forse è sulla cosa sbagliata o tralascia la punta di un’ala, la coda o la testa. Controlla i bordi e tocca per aggiungere o togliere. Non è stato cambiato nulla.",
   },
   adjust: {
     grade: {

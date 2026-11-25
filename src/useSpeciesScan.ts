@@ -22,6 +22,7 @@ import { markingReaderReady, readText } from './providers/markingReader';
 import { loadFaaRegister } from './providers/aircraftRegisters';
 import { findSubjects } from './providers/objectDetector';
 import { guardVehicleOnDevice } from './providers/vehicleGuardian';
+import { askGuardianAbout, canvasJpeg } from './providers/visionGuardian';
 import { HELPER_GAP_MS, HELPER_SESSION_CAP, failureMessage, helperPatch, helperReady } from './core/onlineHelper';
 import { ONLINE_HELPER_VISIBLE, useHelperSettings } from './providers/helperSettings';
 import { HelperError, geminiTransport, imageForHelper } from './providers/onlineHelper';
@@ -150,7 +151,12 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
             // With the optional BioCLIP 2 validator installed (desktop), a clear disagreement withholds the automatic
             // name: the photo stays for the person to name. Agreement or an unsure validator changes nothing.
             const verdict = qualified ? await validateSpecies(picture, crop, qualified.label).catch(() => null) : null;
-            const best = verdict?.kind === 'differs' ? undefined : qualified;
+            // Then the Vision guardian (owner decision 2): one plain question about the name. A clear "no" withholds the
+            // automatic name the same way, leaving the photo for the person; agreement or doubt changes nothing.
+            const guardian = qualified && verdict?.kind !== 'differs' && stillCurrent()
+              ? await canvasJpeg(picture).then((jpeg) => (jpeg ? askGuardianAbout(jpeg, 'speciesPlausible', qualified.label.common) : null)).catch(() => null)
+              : null;
+            const best = verdict?.kind === 'differs' || guardian?.verdict === 'disagrees' ? undefined : qualified;
             // No species certain enough: the family may be ("Owls"), from the unpersonalised ranking; else nothing.
             // A species the validator disagreed with is left for the person, without a family guess.
             const family = qualified || !agrees ? undefined : familyFallback(rankSpecies(embedding, labels, vectors));

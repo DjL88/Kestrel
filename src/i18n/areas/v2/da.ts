@@ -687,6 +687,7 @@ export const da: AreaTranslation<typeof source> = {
     autopilotHeld: "Autopiloten holdt denne redigering tilbage, så du kan se på den: billedtjekket på denne enhed var ikke overbevist om, at den ser naturlig ud. Forslaget ligger i andenpiloten, klar til visning eller brug. Intet blev ændret.",
     secondOpinion: "Second opinion:",
     suggestionDoubted: "billedtjekket på denne enhed var ikke overbevist om, at det ser naturligt ud. Sammenlign før og efter; det er dit valg, om du anvender det.",
+    maskDoubted: "Anden mening: billedkontrollen på denne enhed tvivler på denne motivmaske. Den sidder måske på det forkerte eller mangler en vingespids, hale eller hoved. Tjek kanterne, og tryk for at tilføje eller fjerne. Intet blev ændret.",
   },
   adjust: {
     grade: {

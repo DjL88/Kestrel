@@ -1,4 +1,4 @@
-import { GUARDIAN_QUESTIONS, readGuardianAnswer, type GuardianOpinion, type GuardianQuestion } from '../core/visionGuardian';
+import { GUARDIAN_QUESTIONS, guardianQuestionText, readGuardianAnswer, type GuardianOpinion, type GuardianQuestion } from '../core/visionGuardian';
 import { describePhoto, hasLocalVision, localVisionStatus } from './localVision';
 
 /**
@@ -7,8 +7,9 @@ import { describePhoto, hasLocalVision, localVisionStatus } from './localVision'
  */
 export async function askOnDeviceGuardian(jpegDataUrl: string, question: GuardianQuestion): Promise<GuardianOpinion | null> {
   if (!jpegDataUrl.startsWith('data:image/jpeg;base64,')) return null;
-  const bytes = Uint8Array.from(atob(jpegDataUrl.slice(jpegDataUrl.indexOf(',') + 1)), (char) => char.charCodeAt(0));
-  return askOnDeviceGuardianAbout(new Blob([bytes], { type: 'image/jpeg' }), question);
+  let bytes: Uint8Array<ArrayBuffer>;
+  try { bytes = Uint8Array.from(atob(jpegDataUrl.slice(jpegDataUrl.indexOf(',') + 1)), (char) => char.charCodeAt(0)); } catch { return null; }
+  return askGuardianAbout(new Blob([bytes], { type: 'image/jpeg' }), question, undefined, question === 'editNatural' ? GUARDIAN_QUESTIONS.editNatural : undefined);
 }
 
 /** True when the on-device model can answer at all (desktop app with the pack installed). Asked once per pass. */
@@ -17,13 +18,26 @@ export async function onDeviceGuardianReady(): Promise<boolean> {
   return (await localVisionStatus().catch(() => null))?.installed === true;
 }
 
-/** The same question about a picture already in hand (a JPEG or PNG preview). Null means no opinion. */
-export async function askOnDeviceGuardianAbout(picture: Blob, question: GuardianQuestion): Promise<GuardianOpinion | null> {
-  if (!(await onDeviceGuardianReady())) return null;
+/** A fixed-wording question (no claim) about a picture already in hand (a JPEG or PNG preview). Null means no opinion. */
+export async function askOnDeviceGuardianAbout(picture: Blob, question: 'editNatural' | 'subjectClear'): Promise<GuardianOpinion | null> {
+  return askGuardianAbout(picture, question);
+}
+
+/**
+ * One guardian check about a claim (subject found, mask complete, species plausible), in the exact words the benchmark
+ * measures (`guardianQuestionText`). For the mask checks, `jpeg` is the picture with the outside of the mask darkened.
+ */
+export async function askGuardianAbout(jpeg: Blob, check: GuardianQuestion, claim?: string, fixedText?: string): Promise<GuardianOpinion | null> {
+  const text = fixedText ?? guardianQuestionText(check, claim);
+  if (!text || !hasLocalVision()) return null;
   try {
-    const answer = await describePhoto(picture, GUARDIAN_QUESTIONS[question]);
-    return { source: 'on-device', verdict: answer.usable ? readGuardianAnswer(answer.text) : 'unsure', question };
+    if (!(await onDeviceGuardianReady())) return null;
+    const answer = await describePhoto(jpeg, text);
+    return { source: 'on-device', verdict: answer.usable ? readGuardianAnswer(answer.text) : 'unsure', question: check };
   } catch {
     return null;
   }
 }
+
+/** A canvas as a JPEG for the on-device model, or null. */
+export const canvasJpeg = (canvas: HTMLCanvasElement) => new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));

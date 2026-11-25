@@ -690,6 +690,7 @@ export const ga: AreaTranslation<typeof source> = {
     autopilotHeld: "Choinnigh an t-uathphíolóta an eagarthóireacht seo siar le go ndéanfá athbhreithniú uirthi: ní raibh an tseiceáil amhairc ar an ngléas seo cinnte go bhfuil cuma nádúrtha uirthi. Tá an moladh sa chomhphíolóta le réamhamharc a fháil air nó é a chur i bhfeidhm. Níor athraíodh aon rud.",
     secondOpinion: "Dara tuairim:",
     suggestionDoubted: "ní raibh an seiceáil radhairc ar an ngléas seo cinnte go bhfuil cuma nádúrtha air seo. Cuir roimh agus i ndiaidh i gcomparáid; is fútsa atá sé é a chur i bhfeidhm.",
+    maskDoubted: "Dara tuairim: tá amhras ar an tseiceáil radhairc ar an ngléas seo faoin masc ábhair seo. B’fhéidir go bhfuil sé ar an rud mícheart, nó go bhfágann sé barr sciatháin, eireaball nó ceann amach. Seiceáil a imill, agus tapáil le cur leis nó baint de. Níor athraíodh aon rud.",
   },
   adjust: {
     grade: {
