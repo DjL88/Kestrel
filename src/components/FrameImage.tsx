@@ -10,6 +10,7 @@ import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../cor
 import { fullContext } from '../core/masks';
 import { loadImage } from '../providers/loadImage';
 import { loadExportSource } from '../providers/browserExport';
+import { storedEditSource } from '../providers/editSource';
 import { raw16Key, raw16Possible, raw16SharpEnough, raw16WorkingFor, raw16Workings } from '../providers/raw16Working';
 import { renderRaw16Screen } from '../providers/raw16Render';
 import { canDevelopRaw } from '../providers/rawDevelop';
@@ -57,6 +58,11 @@ const RETRY_WAITS_MS = [150, 900, 2500];
  * view never stays unedited or blank because the original (or a RAW develop) is not available on this device. */
 async function loadEditSource(frame: PhotoFrame, provider: BrowserPreviewProvider, variant: 'thumb' | 'full', priority: boolean): Promise<HTMLImageElement> {
   if (variant === 'thumb') return loadThumbSource(frame, provider, priority);
+  // The edited view is drawn at most 2,200 px, so a RAW's stored screen develop does when it gives that full size: no
+  // 45 MP develop (about 25 s per Nikon Z 8 photo on desktop) just to shrink it again. Zooming past Fit (Canvas) or
+  // Develop full size makes the full develop, and from then on that is used.
+  const screen = await storedEditSource(frame, provider).catch(() => null);
+  if (screen) return screen;
   try {
     return await loadExportSource(frame, provider, 'selected');
   } catch {
