@@ -4,12 +4,12 @@
 <body style="font-family:system-ui,sans-serif;background:#111;color:#eee;display:grid;place-items:center;min-height:100vh;margin:0;padding:0 16px">
 <main style="max-width:32rem;line-height:1.5">
   <h1 style="font-size:1.4rem">Back to InFlight</h1>
-  <p>You can close this page and go back to InFlight. It checks the payment with SumUp itself and turns Pro on only once SumUp confirms it.</p>
+  <p>You can close this page and go back to InFlight. It checks the payment with Paddle itself and turns Pro on only once Paddle confirms it. Paddle emails your receipt.</p>
   <p>If you cancelled, nothing was charged. Your photos and edits are not affected either way.</p>
-  <p style="font-size:.85rem;color:#bbb">Your country is checked with <a style="color:#9cf" href="https://db-ip.com">IP Geolocation by DB-IP</a>. <a style="color:#9cf" href="/privacy">Privacy</a></p>
+  <p style="font-size:.85rem;color:#bbb"><a style="color:#9cf" href="/privacy">Privacy</a></p>
 </main>
 <script>
-  // SumUp may add its own query; nothing here is trusted or stored, so drop it from the address bar.
+  // Paddle may add its own query; nothing here is trusted or stored, so drop it from the address bar.
   history.replaceState(null, '', location.pathname);
 </script>
 </body>

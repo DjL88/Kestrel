@@ -30,7 +30,7 @@ Firestore keeps a per-account index outside the licence records. Each committed 
 
 ### Billing and access
 
-SumUp verifies the £29 payment against a server-owned order before granting Pro for that major version. The subscription needs a separate saved-payment mandate and a successful payment for each renewal period. Storage blocks change the next agreed renewal amount. A missed payment freezes uploads and preserves access during the retention window. A monthly account grant must expire no later than its paid-through date and may be issued for up to 30 days offline. Offer cloud processing to eligible signed-in users after measuring device and cloud costs. A failed cloud attempt returns the work to the device.
+Paddle (merchant of record, which handles the buyer's tax) takes the £29 payment; the server fetches the transaction back from Paddle and matches it to a server-owned order before granting Pro for that major version. The subscription needs a separate saved-payment mandate and a successful payment for each renewal period. Storage blocks change the next agreed renewal amount. A missed payment freezes uploads and preserves access during the retention window. A monthly account grant must expire no later than its paid-through date and may be issued for up to 30 days offline. Offer cloud processing to eligible signed-in users after measuring device and cloud costs. A failed cloud attempt returns the work to the device.
 
 The table records launch pricing. Before enabling it at checkout, verify merchant capability for recurring payments, billing-country evidence for tax, and full-usage costs for storage, browsing, downloading and compute.
 

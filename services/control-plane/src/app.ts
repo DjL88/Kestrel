@@ -15,7 +15,8 @@ import { licenceIsUsable, newLicence, type AuditRecord, type Store } from './sto
 import { geminiProvider, identify, suggest, verifyColour, type AiProvider } from './gateway.ts';
 import type { CommerceLedger } from './commerce/ledger.ts';
 import type { TransactionRecord } from './commerce/records.ts';
-import { CheckoutCountryUnavailable, CheckoutLocationUnconfirmed, type sumupProCheckout } from './commerce/proCheckout.ts';
+import type { paddleProCheckout } from './commerce/proCheckout.ts';
+import { PADDLE_TRANSACTION_ID, PaddleEvent, verifyPaddleSignature, type PaddleEnvironment } from './commerce/paddle.ts';
 import { emailHashOf, giftEntitlement } from './entitlement.ts';
 import { googleKeysFromNetwork, verifyGoogleIdToken, GOOGLE_CERTS_URL, type GoogleKeys } from './googleIdToken.ts';
 import { APPLE_ISSUER, APPLE_KEYS_URL, FIREBASE_KEYS_URL, firebaseIssuer, oidcKeysFromNetwork, verifyOidcIdToken, type OidcKeys } from './oidcIdToken.ts';
@@ -42,7 +43,6 @@ export const MAX_IMAGE_EDGE = 1024;
 const DAY_MS = 86_400_000;
 const QUOTA_PERIOD_MS = 30 * DAY_MS;
 const REFRESH_TTL_MS = 30 * DAY_MS;
-const SumupNotification = z.object({ event_type: z.string().min(1).max(64), id: z.string().regex(/^[A-Za-z0-9-]{1,64}$/) });
 const offlineDeadline = (licence: { offlineGraceDays: number; validUntilMs: number | null }, now: number) =>
   Math.min(now + licence.offlineGraceDays * DAY_MS, licence.validUntilMs ?? Infinity);
 
@@ -53,12 +53,14 @@ export interface AppOptions {
   pricing?: Pick<CommerceLedger, 'latestPriceReview'>;
   /** Paid checkouts for the admin console's Payments table (the Firestore commerce ledger). */
   payments?: { listTransactions(limit: number): Promise<TransactionRecord[]> };
-  /** Re-fetches and matches SumUp checkout and transaction records before fulfilling a server-owned order. */
-  settleSumupPro?: (checkoutId: string) => Promise<void>;
-  /** Server-owned SumUp hosted checkout for Pro; off in production until the admin switches 'pro-checkout' on. */
-  proCheckout?: ReturnType<typeof sumupProCheckout>;
-  /** Country of the request's network address, looked up on the server (never sent by the client). */
-  networkCountry?: (req: Request) => string | null;
+  /** Re-fetches a Paddle transaction and matches it to the server-owned order before granting Pro. */
+  settlePaddle?: (transactionId: string) => Promise<'paid' | 'pending' | 'unknown'>;
+  /** The secret key of the Paddle notification destination (Secret Manager), for Paddle-Signature. */
+  paddleWebhookSecret?: string;
+  /** Paddle.js settings for the site's checkout page. The client-side token is public by design, but kept out of Git. */
+  paddleClient?: { environment: PaddleEnvironment; clientToken: string };
+  /** Server-owned Paddle checkout for Pro; off in production until the admin switches 'pro-checkout' on. */
+  proCheckout?: ReturnType<typeof paddleProCheckout>;
   /** Google's ID-token signing keys. Injected for tests; fetched from Google otherwise. */
   googleKeys?: GoogleKeys;
   firebaseKeys?: OidcKeys;
@@ -163,8 +165,9 @@ class CollabApiError extends ApiError {
 }
 
 export const Schemas = {
-  AdminSwitch: z.object({ key: z.enum(['managed-ai', 'cloud-processing', 'safe-copy', 'learning-signal', 'pro-checkout', 'pro-checkout-eu', 'collaboration', 'email']), on: z.boolean() }).strict(),
-  ProCheckoutRequest: z.object({ country: z.string().regex(/^[A-Z]{2}$/) }).strict(),
+  AdminSwitch: z.object({ key: z.enum(['managed-ai', 'cloud-processing', 'safe-copy', 'learning-signal', 'pro-checkout', 'collaboration', 'email']), on: z.boolean() }).strict(),
+  // Paddle asks the buyer for their country itself. Older apps still send one; it is accepted and ignored.
+  ProCheckoutRequest: z.object({ country: z.string().regex(/^[A-Z]{2}$/).optional() }).strict(),
   CollabCreate: z.object({ name: z.string().trim().min(1).max(120), displayName: z.string().trim().min(1).max(80) }).strict(),
   CollabMembers: z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('inviteEmail'), email: z.string().trim().email().max(254), role: z.enum(['editor', 'commenter', 'viewer', 'client']), displayName: z.string().trim().max(80).default(''), photoIds: z.array(PhotoId).max(5000).optional(), language: z.enum(MAIL_LANGUAGES).optional() }).strict(),
@@ -349,7 +352,7 @@ export function createApp(options: AppOptions) {
   const userGoogleKeys: OidcKeys = options.googleKeys ?? oidcKeysFromNetwork(GOOGLE_CERTS_URL);
   const adminEmailHashes = new Set(config.adminEmails.map((email) => sha256Hex(email)));
   const activateLimiter = new RateLimiter(20, 60_000);
-  const sumupLimiter = new RateLimiter(90, 60_000);
+  const paddleLimiter = new RateLimiter(90, 60_000);
   const checkoutLimiter = new RateLimiter(10, 60_000);
   const galleryLimiter = new RateLimiter(120, 60_000);
 
@@ -437,13 +440,12 @@ export function createApp(options: AppOptions) {
     { key: 'cloud-processing', label: 'Cloud processing', note: 'Heavier jobs (denoise, upscale, masks) for Pro. Needs the bucket and the runner job set up.' },
     { key: 'safe-copy', label: 'Safe copy (managed backup)', note: 'Opt-in backup to InFlight UK storage. Switching off stops uploads only; people can always read and delete their copy.' },
     { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
-    { key: 'pro-checkout', label: 'Pro checkout (SumUp)', note: 'People can pay for Pro through SumUp\'s hosted page. Their billing country must match their network location. Switching off stops new checkouts only; payments already made are still verified and granted.' },
+    { key: 'pro-checkout', label: 'Pro checkout (Paddle)', note: 'People can buy Pro through Paddle\'s checkout. Paddle is the merchant of record and handles sales tax and VAT in every country. Switching off stops new checkouts only; payments already made are still verified and granted.' },
     { key: 'email', label: 'App email (hello@inflight.studio)', note: 'Sends share invitations by email through Google Workspace. Plain text and HTML, an unsubscribe link in every message, at most 500 a day (30 per sender, 3 per recipient). Switch on only once hello@inflight.studio is a verified Send mail as address.' },
     { key: 'collaboration', label: 'Shared projects', note: 'Cloud subscribers can share a project, invite people by email and check photos out to edit. Switching off stops new shared projects and checkouts; members can still read revisions.' },
-    { key: 'pro-checkout-eu', label: 'Pro checkout for EU buyers', note: 'Switch on only once you are registered for OSS (EU VAT on digital sales). Until then EU buyers see that Pro is not on sale in their country yet.' },
   ] as const;
   type SwitchKey = typeof SWITCHES[number]['key'];
-  const switchConfigured = (key: SwitchKey) => key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'email' ? !!options.mailer : key === 'pro-checkout' || key === 'pro-checkout-eu' ? !!options.proCheckout : !!options.learning;
+  const switchConfigured = (key: SwitchKey) => key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'email' ? !!options.mailer : key === 'pro-checkout' ? !!options.proCheckout : !!options.learning;
   async function switchOn(key: SwitchKey): Promise<boolean> {
     if (key === 'managed-ai') return (await store.getSetting('ai_disabled')) !== '1';
     const legacy = key === 'cloud-processing' ? 'cloud_disabled' : key === 'safe-copy' ? 'safe_copy_disabled' : undefined;
@@ -860,39 +862,37 @@ export function createApp(options: AppOptions) {
       },
     },
     {
-      method: 'POST', path: '/v1/me/checkout/pro', summary: 'Signed in: start a server-priced SumUp hosted checkout for Pro. The billing country must match the network location. Returns the SumUp page to open.', auth: 'user',
+      method: 'POST', path: '/v1/me/checkout/pro', summary: 'Signed in: start a server-priced Paddle checkout for Pro, bound to this account. Returns the checkout page to open; Paddle collects the country and tax.', auth: 'user',
       body: Schemas.ProCheckoutRequest,
       handler: async (req) => {
         const claims = await bearer(req);
         const checkout = options.proCheckout;
         if (!checkout || !(await switchOn('pro-checkout'))) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Buying Pro is not open yet. Everything else keeps working.', true);
         if (!checkoutLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
-        const body = parseJson(Schemas.ProCheckoutRequest, req.rawBody);
+        parseJson(Schemas.ProCheckoutRequest, req.rawBody);
         const t = now();
         const current = await effectiveAccountLicence(claims.sub, t);
         if (current?.paid) throw new ApiError(409, 'ALREADY_PRO', 'This account already has Pro.');
         const account = await store.getAccount(claims.sub);
         if (!account?.emailHash) throw new ApiError(403, 'ACCOUNT_UNVERIFIED', 'Sign in again to buy Pro.');
         try {
-          const started = await checkout.start({ accountId: claims.sub, emailHash: account.emailHash, country: body.country, networkCountry: options.networkCountry?.(req) ?? null, euSalesOpen: await switchOn('pro-checkout-eu') });
+          const started = await checkout.start({ accountId: claims.sub, emailHash: account.emailHash });
           await audit(claims.sub, 'checkout.pro.start', 'allowed', started.checkoutId);
           return { status: 201, body: started };
-        } catch (error) {
-          if (error instanceof CheckoutCountryUnavailable) throw new ApiError(409, 'COUNTRY_UNAVAILABLE', 'Pro is not on sale in your country yet. Everything else keeps working.');
-          if (error instanceof CheckoutLocationUnconfirmed) throw new ApiError(409, 'LOCATION_UNCONFIRMED', 'We could not confirm your country: your billing country and your network location differ. If you use a VPN, turn it off and try again.');
+        } catch {
           throw new ApiError(502, 'CHECKOUT_UNAVAILABLE', 'The payment page could not be opened. Nothing was charged; try again shortly.', true);
         }
       },
     },
     {
-      method: 'GET', path: '/v1/me/checkout/pro/:id', summary: 'Signed in: has this checkout been paid and verified with SumUp? Paid means /v1/me/activate now returns Pro.', auth: 'user',
+      method: 'GET', path: '/v1/me/checkout/pro/:id', summary: 'Signed in: has this checkout been paid and verified with Paddle? Paid means /v1/me/activate now returns Pro.', auth: 'user',
       handler: async (req, params) => {
         const claims = await bearer(req);
-        if (!options.proCheckout || !/^[A-Za-z0-9-]{1,64}$/.test(params.id ?? '')) throw new ApiError(404, 'NOT_FOUND', 'No such checkout.');
+        if (!options.proCheckout || !PADDLE_TRANSACTION_ID.test(params.id ?? '')) throw new ApiError(404, 'NOT_FOUND', 'No such checkout.');
         if (!checkoutLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'Checking too often. Wait a minute and try again.', true);
         let status: 'paid' | 'pending' | null;
         try { status = await options.proCheckout.status({ accountId: claims.sub, checkoutId: params.id! }); }
-        catch { throw new ApiError(503, 'SUMUP_VERIFICATION_PENDING', 'The payment is still being checked. Try again shortly.', true); }
+        catch { throw new ApiError(503, 'PAYMENT_VERIFICATION_PENDING', 'The payment is still being checked. Try again shortly.', true); }
         if (!status) throw new ApiError(404, 'NOT_FOUND', 'No such checkout.');
         return { status: 200, body: { status } };
       },
@@ -1610,17 +1610,29 @@ export function createApp(options: AppOptions) {
     providerRoute('apple'),
     providerRoute('firebase'),
     {
-      method: 'POST', path: '/v1/billing/sumup', summary: 'Verify a SumUp checkout status notification against SumUp', auth: 'none',
-      body: SumupNotification,
+      method: 'GET', path: '/v1/billing/paddle/config', summary: 'Paddle.js settings for the checkout page: environment and client-side token (public by design)', auth: 'none',
+      handler: async () => {
+        if (!options.paddleClient || !options.proCheckout) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Buying Pro is not open yet.');
+        return { status: 200, headers: { 'cache-control': 'no-store' }, body: options.paddleClient };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/billing/paddle', summary: 'Paddle notifications (Paddle-Signature). Each transaction is fetched back from Paddle before anything is granted.', auth: 'none',
       handler: async (req) => {
-        if (!options.settleSumupPro) throw new ApiError(503, 'SUMUP_NOT_CONFIGURED', 'SumUp payments are not set up.');
-        const event = parseJson(SumupNotification, req.rawBody);
-        if (event.event_type === 'CHECKOUT_STATUS_CHANGED') {
-          if (!sumupLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Retry this notification shortly.', true);
-          try { await options.settleSumupPro(event.id); }
-          catch { throw new ApiError(503, 'SUMUP_VERIFICATION_PENDING', 'The payment verification will be retried.', true); }
+        if (!options.settlePaddle || !options.paddleWebhookSecret) throw new ApiError(503, 'PADDLE_NOT_CONFIGURED', 'Paddle payments are not set up.');
+        const signature = req.headers['paddle-signature'];
+        if (!verifyPaddleSignature(req.rawBody, typeof signature === 'string' ? signature : undefined, options.paddleWebhookSecret, now())) {
+          throw new ApiError(401, 'WEBHOOK_SIGNATURE_INVALID', 'Paddle signature missing, wrong or outside the replay window.');
         }
-        return { status: 204, body: null };
+        const event = parseJson(PaddleEvent, req.rawBody);
+        // One-off Pro is fulfilled from transactions. Subscriptions (Cloud, Teams) will get their own handler on
+        // subscription.* events; until then they are acknowledged and ignored, so Paddle does not retry them.
+        if (event.event_type.startsWith('transaction.') && PADDLE_TRANSACTION_ID.test(event.data.id ?? '')) {
+          if (!paddleLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Retry this notification shortly.', true);
+          try { await options.settlePaddle(event.data.id!); }
+          catch { throw new ApiError(503, 'PAYMENT_VERIFICATION_PENDING', 'The payment verification will be retried.', true); }
+        }
+        return { status: 200, body: { received: true } };
       },
     },
     {
@@ -1772,7 +1784,7 @@ export function createApp(options: AppOptions) {
       },
     },
     {
-      method: 'GET', path: '/v1/admin/payments', summary: 'Paid checkouts (SumUp) and signed billing events received', auth: 'admin',
+      method: 'GET', path: '/v1/admin/payments', summary: 'Paid checkouts (Paddle) and signed billing events received', auth: 'admin',
       handler: async (req) => {
         const claims = await admin(req, 'payments.read');
         const [transactions, events] = await Promise.all([options.payments ? options.payments.listTransactions(200) : Promise.resolve(null), store.listBillingEvents(200)]);
