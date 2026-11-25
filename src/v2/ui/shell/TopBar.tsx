@@ -444,7 +444,7 @@ export default function TopBar({
       </div>
 
       <div className="flex shrink-0 items-center gap-1 md:gap-3">
-        <div role="group" aria-label={STRINGS.shellLabels.editHistory} className="flex md:hidden">
+        <div role="group" aria-label={STRINGS.shellLabels.editHistory} className="flex lg:hidden">
           {([
             { icon: 'undo', label: STRINGS.topBar.editActions.undo, shortcut: shortcutMap['edit.undo'], enabled: canUndo, action: onUndo },
             { icon: 'refresh', label: STRINGS.topBar.editActions.redo, shortcut: shortcutMap['edit.redo'], enabled: canRedo, action: onRedo },
@@ -458,7 +458,8 @@ export default function TopBar({
               onClick={action}
               className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] disabled:opacity-40"
             >
-              <BrandIcon name={icon} size={17} />
+              {/* Redo is Undo mirrored: the refresh arrows already mean Export again in this bar, so the two must not match. */}
+              <BrandIcon name="undo" size={17} className={icon === 'refresh' ? '-scale-x-100' : undefined} />
             </button>
           ))}
         </div>
