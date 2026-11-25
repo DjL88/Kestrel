@@ -13,7 +13,9 @@ import { CollabStore } from './collaboration.ts';
 import { IamPresenceSigner } from './presenceToken.ts';
 import { GalleryStore } from './gallery.ts';
 import { CloudPhotoStore } from './cloudPhotos.ts';
-import { FirestoreUsageMeter, FlatAllowance } from './usageMeter.ts';
+import { BalanceBackedMeter, FirestoreUsageMeter, FlatAllowance } from './usageMeter.ts';
+import { FirestoreCloudBalance } from './cloudBalance.ts';
+import { randomUUID } from 'node:crypto';
 import { FirestoreSpendGuard } from './spendGuard.ts';
 import type { FirestoreLike } from './firestoreStore.ts';
 
@@ -23,7 +25,7 @@ export interface WiringDeps {
   openBucket?: (name: string) => Promise<GcsBucketLike>;
   token?: () => Promise<string>;
 }
-export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend'> & { enabled: string[] };
+export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'cloudBalance'> & { enabled: string[] };
 
 function whole(env: NodeJS.ProcessEnv, name: string, dflt: number, max: number): number {
   const raw = env[name];
@@ -47,6 +49,9 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
     aiCallPence: whole(env, 'KCP_AI_CALL_PENCE', 1, 100_000),
   };
   out.enabled.push('spend-guard');
+  // Prepaid cloud balance: pays for cloud photos and downloads beyond the free monthly allowances (src/core/cloudPlan.ts).
+  const balance = new FirestoreCloudBalance(db);
+  out.cloudBalance = balance;
 
   if (env.KCP_CLOUD_PROCESSING_BUCKET && env.KCP_CLOUD_RUNNER_JOB) {
     const bucket = await open(env.KCP_CLOUD_PROCESSING_BUCKET);
@@ -55,7 +60,10 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
     out.cloud = {
       runner: new GcsCloudRunner(bucket, trigger), ledger,
       settleFailed: (jobId, legacySpendPence) => ledger.settleFailed(jobId, legacySpendPence),
-      jobsPerPeriod: whole(env, 'KCP_CLOUD_JOBS_PER_PERIOD', 50, 100_000),
+      // Owner, 25 Nov 2026: 5,000 cloud photos a month for Pro, 500 for Basic, then 0.3p each from the balance.
+      jobsPerPeriod: whole(env, 'KCP_CLOUD_JOBS_PER_PERIOD', 5000, 100_000),
+      basicJobsPerPeriod: whole(env, 'KCP_CLOUD_BASIC_JOBS_PER_PERIOD', 500, 100_000),
+      balance, extraPhotoMillicredits: 300,
       maxInputBytes: whole(env, 'KCP_CLOUD_MAX_INPUT_BYTES', 120_000_000, 2_000_000_000),
     };
     out.enabled.push('cloud-processing');
@@ -85,7 +93,7 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
         const credits = Number(env.KCP_DOWNLOAD_CREDITS_PER_MONTH ?? 33);
         const maxGb = Number(env.KCP_CLOUD_PROJECT_MAX_GB ?? 50);
         out.cloudPhotos = {
-          store: new CloudPhotoStore(db, bucket), meter: new FirestoreUsageMeter(db),
+          store: new CloudPhotoStore(db, bucket), meter: new BalanceBackedMeter(new FirestoreUsageMeter(db), balance, () => randomUUID()),
           allowance: new FlatAllowance(Math.max(0, Math.round((Number.isFinite(credits) ? credits : 33) * 1000))),
           maxProjectBytes: Math.max(0, (Number.isFinite(maxGb) ? maxGb : 50) * 1_000_000_000),
         };

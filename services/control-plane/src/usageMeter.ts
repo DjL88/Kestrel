@@ -64,3 +64,18 @@ export class FirestoreUsageMeter implements UsageMeter {
     return snap.exists ? { ...empty(nowMs), ...(snap.data() as unknown as UsageRecord) } : empty(nowMs);
   }
 }
+
+/**
+ * Downloads within the month's free allowance go to `inner`; beyond it, each download is paid from the prepaid cloud
+ * balance at the same price (and still recorded in the month's usage). Refused only when the balance cannot cover it.
+ */
+export class BalanceBackedMeter implements UsageMeter {
+  constructor(private readonly inner: UsageMeter, private readonly balance: import('./cloudBalance.ts').CloudBalance, private readonly key: () => string) {}
+  async reserve(accountId: string, nowMs: number, bytes: number, allowance: number) {
+    if (await this.inner.reserve(accountId, nowMs, bytes, allowance)) return true;
+    if (!(await this.balance.debit(accountId, millicreditsForBytes(bytes), `download:${this.key()}`))) return false;
+    await this.inner.reserve(accountId, nowMs, bytes, Number.MAX_SAFE_INTEGER);
+    return true;
+  }
+  usage(accountId: string, nowMs: number) { return this.inner.usage(accountId, nowMs); }
+}

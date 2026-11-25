@@ -66,7 +66,7 @@ test('previews go up, friends list and download them, and every download is coun
     r = await ctx.call('POST', `${ctx.P}/photos/${KEY}/cloud/download-url`, ctx.friend.token, { variant: 'original' });
     assert.equal(r.status, 404, 'no original until the owner stores one');
     r = await ctx.call('GET', '/v1/me/usage', ctx.owner.token);
-    assert.equal(r.body.allowanceCredits, 1); assert.equal(r.body.downloads, 1);
+    assert.equal(r.body.allowanceCredits, 1); assert.equal(r.body.downloads, 1); assert.equal(r.body.plan, 'pro', 'the owner holds a subscriber licence');
   } finally { await ctx.h.close(); }
 });
 
