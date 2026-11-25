@@ -78,8 +78,8 @@ export function rowHashes(image: DecodedPng): string[] {
  * The spec skips these, saying so, when the folder is absent (offline laptop); CI fetches them.
  */
 export const LICENSED_RAWS: readonly { file: string; sha256: string; what: string }[] = [
-  { file: '_IMG0114.DNG', sha256: '', what: 'Pentax K-3 Mark III, Adobe DNG' },
-  { file: 'ILCE-7M4_DSC06681_APS-C-Raw-Compressed.ARW', sha256: '', what: 'Sony A7 IV, compressed ARW' },
+  { file: '_IMG0114.DNG', sha256: '1e3352ccba0db428fd2a183718fc857fb283b1d43ad704305e5094c19e0a0428', what: 'Pentax K-3 Mark III, Adobe DNG' },
+  { file: 'ILCE-7M4_DSC06681_APS-C-Raw-Compressed.ARW', sha256: '639a6d4db881f1359e3ea7e1137b314e59417d24e6d4d862b7202111a2c823b2', what: 'Sony A7 IV, compressed ARW' },
 ];
 
 export function licensedRaw(sample: (typeof LICENSED_RAWS)[number]): Buffer | null {

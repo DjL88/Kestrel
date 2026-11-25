@@ -172,7 +172,7 @@ for (const sample of LICENSED_RAWS) {
     test.skip(testInfo.project.name !== 'desktop', 'Full-size camera RAWs exceed the phone canvas limit by design; the synthetic RAW covers phones.');
     const bytes = licensedRaw(sample);
     test.skip(!bytes, `${sample.file} is not in ./raw-samples (run node scripts/fetch-raw-samples.mjs --exactness).`);
-    if (sample.sha256) expect(sha256(bytes!), `${sample.file} is the pinned CC0 sample`).toBe(sample.sha256);
+    expect(sha256(bytes!), `${sample.file} is the pinned CC0 sample`).toBe(sample.sha256);
     test.setTimeout(480_000);
     await proveRaw(page, sample.file, bytes!, 240_000);
   });
