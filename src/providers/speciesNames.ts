@@ -2,7 +2,8 @@ import { buildSpeciesNameIndex, type SpeciesNameIndex, type SpeciesNameTable } f
 
 /**
  * Loads species names for the session's language once, on demand, from `public/models/species-names/` (built by
- * `tools/species/make_names.mjs`): `index.json` (every species, scientific and English, about 0.5 MB) and, where the
+ * `tools/species/make_names.mjs` and `family_names.mjs`): `index.json` (every species, scientific and English, about
+ * 0.5 MB), `families.json` (family names in every language, about 45 KB) and, where the
  * IOC list covers the language, `<code>.json` (about 0.45 MB). English needs neither. Another source, such as the owner's
  * own translation database, can be laid over the IOC names with `addSpeciesNameTable`; it then wins.
  */
@@ -36,8 +37,9 @@ export function addSpeciesNameTable(table: SpeciesNameTable) {
   if (loadedLanguage) rebuild();
 }
 
-interface IndexFile { attribution: string; source: string; species: [string, string][] }
+interface IndexFile { attribution: string; source: string; species: [string, string][]; families?: [string, string][] }
 interface LanguageFile { names: Record<string, string> }
+interface FamiliesFile { names: Record<string, Record<string, string>> }
 
 export function loadSpeciesNames(language: string): Promise<SpeciesNameIndex | undefined> {
   if (language === 'en' || language.startsWith('en-')) return Promise.resolve(undefined);
@@ -50,13 +52,20 @@ export function loadSpeciesNames(language: string): Promise<SpeciesNameIndex | u
         if (!response.ok) throw new Error(`${name} ${response.status}`);
         return response.json() as Promise<T>;
       };
-      const [all, local] = await Promise.all([
+      const [all, local, familyNames] = await Promise.all([
         read<IndexFile>('index.json'),
         IOC_NAME_LANGUAGES.includes(code) ? read<LanguageFile>(`${code}.json`) : Promise.resolve<LanguageFile>({ names: {} }),
+        // Family names (Wikidata, CC0, plus drafts for common families), about 45 KB for every language together.
+        read<FamiliesFile>('families.json').catch((): FamiliesFile => ({ names: {} })),
       ]);
+      const families = familyNames.names?.[code] ?? {};
       if (!Array.isArray(all.species) || typeof local.names !== 'object') throw new Error('species names are not in the expected format');
       loadedLanguage = language;
-      loaded = { source: all.source, attribution: all.attribution, language, names: all.species.map(([scientific, english]) => [scientific, english, local.names[scientific] ?? null]) };
+      loaded = { source: all.source, attribution: all.attribution, language, names: [
+        ...all.species.map(([scientific, english]): [string, string, string | null] => [scientific, english, local.names[scientific] ?? null]),
+        // A photo named only by family ("Owls") shows the family's local name, else the scientific family.
+        ...(all.families ?? []).map(([scientific, english]): [string, string, string | null] => [scientific, english, families[scientific] ?? null]),
+      ] };
       rebuild();
     } catch (error) {
       // Without the files the stored names are shown as they are; nothing else changes.

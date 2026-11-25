@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Fetch a small, openly licensed evaluation set from Wikimedia Commons to measure the scene tags' thresholds.
 
-    python -I tools/scene-tags/fetch_eval_set.py <empty output folder> [per tag, default 40]
+    python -I tools/scene-tags/fetch_eval_set.py <empty output folder> [per tag, default 40] [--exclude <manifest.json>]
+
+--exclude skips every file already in another set's manifest, so a second, independent set can confirm thresholds
+that were chosen (or prompts that were tuned) on the first.
 
 Only files whose licence is CC0, public domain, CC BY or CC BY-SA are kept; each one's title, author, licence and
 source page go into <folder>/manifest.json, which is what the results cite. The pictures themselves are never committed:
@@ -101,12 +104,18 @@ def main() -> int:
     if len(sys.argv) < 2:
         print(__doc__)
         return 2
-    folder = Path(sys.argv[1])
-    per_tag = int(sys.argv[2]) if len(sys.argv) > 2 else 40
+    args = sys.argv[1:]
+    excluded: set[str] = set()
+    if "--exclude" in args:
+        at = args.index("--exclude")
+        excluded = {entry["title"] for entry in json.loads(Path(args[at + 1]).read_text(encoding="utf-8"))["files"]}
+        del args[at:at + 2]
+    folder = Path(args[0])
+    per_tag = int(args[1]) if len(args) > 1 else 40
     folder.mkdir(parents=True, exist_ok=True)
     manifest_path = folder / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {"files": []}
-    have = {entry["title"] for entry in manifest["files"]}
+    have = {entry["title"] for entry in manifest["files"]} | excluded
     for tag, categories in CATEGORIES.items():
         want = per_tag * (4 if tag == "background" else 1)
         count = sum(1 for entry in manifest["files"] if entry["tag"] == tag)

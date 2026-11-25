@@ -10,6 +10,8 @@ export interface SpeciesLabel {
   scale: number;
   /** World-list breeding regions (IOC codes). Absent for names the app ships by hand. */
   regions?: string[];
+  /** The IOC family's English name ("Owls", "Leaf Warblers"), for naming the family when the species is not certain. */
+  family?: string;
 }
 
 export interface Suggestion {

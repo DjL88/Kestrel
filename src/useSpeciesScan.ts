@@ -1,7 +1,7 @@
 import { useConnectivity } from './providers/useConnectivity';
 import { validateSpecies } from './providers/speciesValidator';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { qualifiesForAutoTag, scanCandidates, scanPatch } from './core/autoTags';
+import { familyFallback, qualifiesForAutoTag, scanCandidates, scanPatch } from './core/autoTags';
 import { SPECIES_MODEL } from './core/speciesModel';
 import { kindFor, personalBonus, pickSuggestions, rankSpecies } from './core/speciesMatch';
 import type { PhotoFrame } from './core/types';
@@ -140,7 +140,11 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
             // name: the photo stays for the person to name. Agreement or an unsure validator changes nothing.
             const verdict = qualified ? await validateSpecies(picture, crop, qualified.label).catch(() => null) : null;
             const best = verdict?.kind === 'differs' ? undefined : qualified;
-            const named = best ? { name: best.label.common, probability: best.probability, kind: kindFor(best.label) } : undefined;
+            // No species certain enough: the family may be ("Owls"), from the unpersonalised ranking; else nothing.
+            // A species the validator disagreed with is left for the person, without a family guess.
+            const family = qualified ? undefined : familyFallback(rankSpecies(embedding, labels, vectors));
+            const named = best ? { name: best.label.common, probability: best.probability, kind: kindFor(best.label) }
+              : family ? { name: family.family, probability: family.probability, kind: 'wildlife' as const } : undefined;
             // The gate looks at the same square as the species model. If it fails, nothing is decided for this photo.
             const gate = await routeAndEmbedPicture(picture, crop);
             const outcome = gateOutcome(gate.route, frame.subjectKind);
