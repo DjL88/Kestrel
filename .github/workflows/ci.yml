@@ -15,8 +15,8 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore: ['docs/**', '**/*.md', 'LICENSE*', '.github/ISSUE_TEMPLATE/**']
   workflow_dispatch:
-# A new push to a PR cancels that PR's older run. Runs on main are queued, not cancelled, so every merged commit gets
-# a finished result and there is always a known-green commit to deploy (with cancelling, busy days left none).
+# A new push to a PR cancels that PR's older run. On main a running check is never cancelled (GitHub keeps one waiting
+# run and a newer merge replaces only that one), so there is always a recent finished result to deploy from.
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
