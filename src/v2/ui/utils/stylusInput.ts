@@ -49,3 +49,19 @@ export function stylusSample(pointer: DrawingPointer): StylusSample | null {
 export function stylusIsInContact(pointer: DrawingPointer): boolean {
   return (pointer.buttons ?? 1) !== 0;
 }
+
+/** Where the pen is: on the glass, or when it last lifted (an event timeStamp, in ms). */
+export interface PenContact { down: boolean; upAt: number }
+
+/** How long after the pen lifts a touch still counts as the hand that held it (iPadOS's own apps use a similar pause). */
+export const PALM_GRACE_MS = 300;
+
+/**
+ * True when a finger touch should be ignored because it is almost certainly the palm of the hand holding the pen:
+ * the pen is on the glass, or lifted a moment ago. A palm must never swipe to another photo, pinch-zoom or move a crop.
+ * Fingers work normally again once the pen has been lifted for the grace period.
+ */
+export function touchIsLikelyPalm(pen: PenContact, now: number, graceMs = PALM_GRACE_MS): boolean {
+  if (pen.down) return true;
+  return Number.isFinite(now) && Number.isFinite(pen.upAt) && now >= pen.upAt && now - pen.upAt < graceMs;
+}

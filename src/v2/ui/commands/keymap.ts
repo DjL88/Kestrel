@@ -5,7 +5,12 @@ export type PresetId = 'inflight' | 'lightroom';
 export type Keymap = Partial<Record<CommandId, string>>;
 
 // Culling keys every preset shares: arrows move between photos, numbers rate, X sets aside and U clears the decision.
+// Zoom: plain + and - (either key of the pair, and the number pad), as in Capture One's loupe and Photo Mechanic.
+// Cmd/Ctrl with + and - is deliberately left to the browser and system zoom (owner decision 24 Nov: page zoom stays
+// available for reading). Fit and 100% have no default key yet: Lightroom's Z waits on the macro pad decision, because
+// the default pad sends Z for Undo. They can be set in Settings > Keyboard, on a pad slot, or run from command search.
 const RATINGS: Keymap = {
+  'view.zoomIn': 'Equal', 'view.zoomOut': 'Minus',
   'photo.next': 'ArrowRight', 'photo.prev': 'ArrowLeft', 'photo.reject': 'KeyX', 'photo.unflag': 'KeyU',
   'photo.rate0': 'Digit0', 'photo.rate1': 'Digit1', 'photo.rate2': 'Digit2',
   'photo.rate3': 'Digit3', 'photo.rate4': 'Digit4', 'photo.rate5': 'Digit5',
@@ -84,6 +89,8 @@ export function effectiveKeymap(preset: PresetId, overrides: Overrides = {}): Ke
  */
 export function eventChord(event: KeyEventLike, isMac: boolean): string | null {
   if (event.key === '?' && !event.ctrlKey && !event.altKey && !event.metaKey) return '?';
+  // + and - by the character too, so Shift+= (the + key), the number pad and other layouts all zoom.
+  if (!event.ctrlKey && !event.altKey && !event.metaKey && (event.key === '+' || event.key === '-')) return event.key === '+' ? 'Equal' : 'Minus';
   const code = event.code || '';
   if (/^(Shift|Control|Alt|Meta)(Left|Right)$/.test(code)) return null;
   const base = code || (event.key.length === 1 ? (/[a-z]/i.test(event.key) ? `Key${event.key.toUpperCase()}` : /[0-9]/.test(event.key) ? `Digit${event.key}` : event.key === ',' ? 'Comma' : event.key === '\\' ? 'Backslash' : event.key) : event.key);
