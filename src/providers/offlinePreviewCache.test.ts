@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { previewCacheKey, loadOfflinePreview, saveOfflinePreview, previewBelongsToOriginals } from './offlinePreviewCache';
+import { previewCacheKey, loadOfflinePreview, saveOfflinePreview, previewBelongsToOriginals, MAX_RAW_DEVELOP_PREVIEW_BYTES, previewPairFits } from './offlinePreviewCache';
 
 test('cache keys work for Nikon, Canon, Sony, Fujifilm, Panasonic and JPEG', () => {
   for (const filename of ['Z8.NEF', 'R5.CR3', 'A1.ARW', 'XH2.RAF', 'S5.RW2', 'IMG.JPG']) {
@@ -28,4 +28,22 @@ test('project deletion only purges previews belonging to unreferenced originals'
   assert.equal(previewBelongsToOriginals(sharedKey, orphaned), false);
   assert.equal(previewBelongsToOriginals('not-json', orphaned), false);
   assert.equal(previewBelongsToOriginals(JSON.stringify(['shoot-A::Z8.NEF-extra']), orphaned), false);
+});
+
+const jpeg = (bytes: number) => new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' });
+const MB = 1024 * 1024;
+
+test('an embedded preview pair stays within 1 MB', () => {
+  assert.equal(previewPairFits({ thumbnail: jpeg(45_000), review: jpeg(990_000) }), true);
+  // A Z 8 develop at 2,200 px and quality 0.82 (about 1.05 MB with its thumbnail) is too big for that limit.
+  assert.equal(previewPairFits({ thumbnail: jpeg(44_496), review: jpeg(1_007_727) }), false);
+});
+
+test('a RAW develop pair may take 1.5 MB, and never more', () => {
+  assert.equal(MAX_RAW_DEVELOP_PREVIEW_BYTES, 1.5 * MB);
+  assert.equal(previewPairFits({ thumbnail: jpeg(44_496), review: jpeg(1_007_727) }, MAX_RAW_DEVELOP_PREVIEW_BYTES), true);
+  assert.equal(previewPairFits({ thumbnail: jpeg(50_000), review: jpeg(1.5 * MB) }, MAX_RAW_DEVELOP_PREVIEW_BYTES), false);
+  assert.equal(previewPairFits({ thumbnail: jpeg(10), review: jpeg(10) }, 10 * MB), true, 'a larger request is capped, not trusted');
+  assert.equal(previewPairFits({ thumbnail: jpeg(10), review: jpeg(2 * MB) }, 10 * MB), false);
+  assert.equal(previewPairFits({ thumbnail: jpeg(10), review: new Blob([new Uint8Array(10)], { type: 'text/plain' }) }, MAX_RAW_DEVELOP_PREVIEW_BYTES), false);
 });
