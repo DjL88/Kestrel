@@ -29,6 +29,18 @@ export const de: AreaTranslation<typeof source> = {
   registered: (marking: string, type: string) => `${marking}: ${type} (laut Register)`,
   operatedBy: (what: string, operator: string) => `${what}, betrieben von ${operator}`,
   held: (what: string) => `${what}? Bitte prüfen`,
+  correct: {
+    edit: 'Bearbeiten',
+    change: 'Fahrzeug ändern',
+    kindLabel: 'Art',
+    typeLabel: 'Marke oder Typ',
+    typeUnknown: 'Nicht sicher',
+    notVehicle: 'Kein Fahrzeug',
+    wholeBurst: (count: number) => `Alle ${count} Fotos dieser Serie`,
+    save: 'Speichern',
+    cancel: 'Abbrechen',
+    saved: (count: number) => (count > 1 ? `Für ${count} Fotos gespeichert.` : 'Gespeichert.'),
+  },
   reader: {
     title: 'Luftfahrzeugkennzeichen lesen',
     description: (megabytes: string) => `Liest auf Luftfahrzeuge gemalte Kennzeichen und militärische Seriennummern auf diesem Gerät und schlägt sie in einer Offline-Kopie öffentlicher Register nach. Ein einmaliger Download von ${megabytes} MB. Autokennzeichen werden nie gelesen.`,

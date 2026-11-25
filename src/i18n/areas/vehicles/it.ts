@@ -29,6 +29,18 @@ export const it: AreaTranslation<typeof source> = {
   registered: (marking: string, type: string) => `${marking}: ${type} (dal registro)`,
   operatedBy: (what: string, operator: string) => `${what}, operato da ${operator}`,
   held: (what: string) => `${what}? Da verificare`,
+  correct: {
+    edit: 'Modifica',
+    change: 'Cambia il veicolo',
+    kindLabel: 'Genere',
+    typeLabel: 'Marca o modello',
+    typeUnknown: 'Non sono sicuro',
+    notVehicle: 'Non è un veicolo',
+    wholeBurst: (count: number) => `Tutte le ${count} foto di questa raffica`,
+    save: 'Salva',
+    cancel: 'Annulla',
+    saved: (count: number) => (count > 1 ? `Salvato per ${count} foto.` : 'Salvato.'),
+  },
   reader: {
     title: 'Leggi le marche degli aeromobili',
     description: (megabytes: string) => `Legge le marche e i numeri di serie militari dipinti sugli aeromobili, su questo dispositivo, e li cerca in una copia offline di registri pubblici. Un download unico di ${megabytes} MB. Le targhe delle auto non vengono mai lette.`,
