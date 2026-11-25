@@ -13,7 +13,8 @@
     "test": "tsx --test test/*.test.ts",
     "lint": "tsc --noEmit -p .",
     "openapi": "tsx src/server.ts --print-openapi",
-    "test:emulator": "cd ../.. && npx -y firebase-tools@13.35.1 emulators:exec --only firestore --project demo-kestrel \"npx tsx --test services/control-plane/test/*.test.ts\""
+    "test:emulator": "cd ../.. && npx -y firebase-tools@13.35.1 emulators:exec --only firestore --project demo-kestrel \"npx tsx --test services/control-plane/test/*.test.ts\"",
+    "uat:paddle-sandbox": "tsx scripts/paddle-sandbox-uat.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^7.11.6",

@@ -1,4 +1,5 @@
-import type { AuditRecord, LicenceStatus } from '../store.ts';
+import { purchaseEntitlement } from '../entitlement.ts';
+import type { AuditRecord, LicenceRecord, LicenceStatus } from '../store.ts';
 import type { PaddleAdjustment, PaddleTransaction } from './paddle.ts';
 import type { ProPurchaseOrder } from './proSettlement.ts';
 
@@ -19,7 +20,12 @@ export type RefundOutcome = 'revoked' | 'kept' | 'pending' | 'ignored' | 'duplic
 export interface RefundDependencies {
   findOrder(transactionId: string): Promise<ProPurchaseOrder | null>;
   paddle: { getAdjustment(id: string): Promise<PaddleAdjustment | null>; getTransaction(id: string): Promise<PaddleTransaction> };
-  licences: { setLicenceStatus(licenceId: string, status: LicenceStatus, nowMs: number): Promise<boolean>; audit(entry: AuditRecord): Promise<void> };
+  licences: {
+    setLicenceStatus(licenceId: string, status: LicenceStatus, nowMs: number): Promise<boolean>;
+    /** Keeps an existing licence as it is (never reactivates a revoked one). */
+    grantLicence(licence: LicenceRecord): Promise<unknown>;
+    audit(entry: AuditRecord): Promise<void>;
+  };
   /** True the first time an event id is claimed. `release` gives it back after a failure, so Paddle's retry runs. */
   events: { claim(eventId: string, atMs: number): Promise<boolean>; release(eventId: string): Promise<void> };
   now: () => number;
@@ -56,7 +62,16 @@ export function paddleRefundRevocation(d: RefundDependencies) {
       if (a.action === 'chargeback_reverse') await audit('licence.chargeback_reversed', `${what}: the chargeback was reversed. Pro stays removed until an admin restores ${licenceId}.`);
       return 'ignored';
     }
-    const changed = await d.licences.setLicenceStatus(licenceId, 'revoked', d.now());
+    let changed = await d.licences.setLicenceStatus(licenceId, 'revoked', d.now());
+    if (!changed) {
+      // Refunded before Pro was granted (Paddle's notifications can arrive in any order). Write the order's licence
+      // already revoked (never active, not even for a moment), so a late or repeated transaction.completed finds it
+      // and cannot grant an active one. If completion won the race, grantLicence keeps that one and we revoke it below.
+      await d.licences.grantLicence({ ...purchaseEntitlement({
+        store: 'paddle', checkoutReference: order.reference, accountId: order.accountId, emailHash: order.emailHash, majorVersion: order.majorVersion,
+      }, d.now()), status: 'revoked' });
+      changed = await d.licences.setLicenceStatus(licenceId, 'revoked', d.now());
+    }
     await audit('licence.revoke', `${what}: ${a.action === 'chargeback' ? 'a chargeback' : 'a full refund'}, so Pro was removed from account ${order.accountId} (${licenceId}${changed ? '' : ', already revoked or missing'}).`);
     return 'revoked';
   }
