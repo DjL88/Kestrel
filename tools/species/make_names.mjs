@@ -96,12 +96,21 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '
   const index = { ...meta, species: species.map((s) => [s.scientific, s.common]), families: [...families].map(([english, scientific]) => [scientific, english]) };
   writeFileSync(join(target, 'index.json'), JSON.stringify(index));
   console.log(`index: ${species.length} species, ${families.size} families, ${size(index)}`);
-  for (const code of Object.keys(IOC_COLUMNS)) {
+  // Mammal names from Wikidata (CC0), fetched by mammal_names.mjs into tools/species/mammal-names.json.
+  const mammalNames = JSON.parse(readFileSync(new URL('./mammal-names.json', import.meta.url), 'utf8')).names;
+  for (const code of [...Object.keys(IOC_COLUMNS), ...NO_IOC_NAMES]) {
     const local = {};
-    for (const s of species) { const name = names.get(s.scientific.toLowerCase())?.[code]; if (name) local[s.scientific] = name; }
-    const file = { ...meta, language: code, names: local };
+    let mammals = 0;
+    for (const s of species) {
+      const name = names.get(s.scientific.toLowerCase())?.[code] ?? (s.group === 'mammal' ? mammalNames[code]?.[s.scientific] : undefined);
+      if (!name) continue;
+      local[s.scientific] = name;
+      if (s.group === 'mammal') mammals += 1;
+    }
+    const file = { ...meta, language: code, names: local,
+      attribution: `${attribution} Mammal names: Wikidata (CC0), for species from the Mammal Diversity Database v2.5 (CC BY 4.0).` };
     writeFileSync(join(target, `${code}.json`), JSON.stringify(file));
-    console.log(`${code}: ${Object.keys(local).length} of ${species.length} named, ${size(file)}`);
+    console.log(`${code}: ${Object.keys(local).length} of ${species.length} named (${mammals} mammals), ${size(file)}`);
   }
-  console.log(`No IOC names for ${NO_IOC_NAMES.join(', ')}: the app shows the scientific name.`);
+  console.log('Species with no name in a language show the scientific name.');
 }
