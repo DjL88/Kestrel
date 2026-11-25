@@ -3,6 +3,7 @@ import type { AssistMode, DockPosition, PanelId, ThemeMode } from '../contract';
 import { STRINGS } from '../strings';
 import { chordLabel, type Keymap } from '../commands/keymap';
 import BrandIcon, { BrandLogo, assistModeIconName } from '../icons/BrandIcon';
+import { useIsPro } from '../../../components/BrandLogo';
 
 interface TopBarProps {
   /**
@@ -119,6 +120,7 @@ export default function TopBar({
   onToggleDemoUnavailable,
   hasActivePhoto = true,
 }: TopBarProps) {
+  const isPro = useIsPro();
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuTriggers = useRef<Partial<Record<Exclude<OpenMenu, null>, HTMLButtonElement | null>>>({});
@@ -197,7 +199,7 @@ export default function TopBar({
         <div className="hidden h-5 w-px bg-[var(--border-subtle)] shrink-0 md:block" aria-hidden="true" />
 
         <div className="hidden items-center px-1 shrink-0 md:flex">
-          <BrandLogo height={38} className="h-auto w-[92px] md:w-[124px]" />
+          <BrandLogo height={38} pro={isPro} light={theme === 'light'} className="h-auto w-[92px] md:w-[124px]" />
         </div>
 
         {/* Phone: the photo's name and where it is in the project, in place of the logo (owner wireframe, 26.3). */}

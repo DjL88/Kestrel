@@ -3,6 +3,7 @@ import type { HubViewState, Project, ThemeMode } from '../contract';
 import { STRINGS } from '../strings';
 import { useDialogFocus } from '../utils/dialogFocus';
 import BrandIcon, { BrandLogo } from '../icons/BrandIcon';
+import { useIsPro } from '../../../components/BrandLogo';
 import { LayoutToggle, ProjectRow, ProjectTile, readHubLayout, saveHubLayout, type HubLayout } from './ProjectCards';
 import footerKiteDark from '../../../assets/brand/mark/inflight-kite-dark.svg';
 import footerKiteLight from '../../../assets/brand/mark/inflight-kite-light.svg';
@@ -52,6 +53,7 @@ export default function ProjectsHub({
   onToggleTheme,
   onSetHubState,
 }: ProjectsHubProps) {
+  const isPro = useIsPro();
   const footerLogo = theme === 'dark' ? footerKiteDark : footerKiteLight;
   const [search, setSearch] = useState('');
   const [layout, setLayout] = useState<HubLayout>(readHubLayout);
@@ -97,7 +99,7 @@ export default function ProjectsHub({
       {/* Clean 3-zone header */}
       <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 sm:gap-6 sm:px-6 md:px-10">
         <div className="flex items-center shrink-0">
-          <BrandLogo height={44} />
+          <BrandLogo height={44} pro={isPro} light={theme === 'light'} />
         </div>
 
         <nav className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
