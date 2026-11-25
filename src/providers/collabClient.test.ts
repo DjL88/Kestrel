@@ -43,3 +43,21 @@ test('each action exchanges the Firebase token for a session, sends no cookies, 
   assert.equal(view.invites[0].role, 'client');
   assert.deepEqual(calls.at(-1)!.body, { kind: 'inviteEmail', email: 'a@b.test', role: 'client', photoIds: ['x1'] });
 });
+
+test('comments: threads on a photo, a pinned start, and reply, resolve and reopen go to the right routes', async () => {
+  const thread = { id: 't1', photoId: 'ph 1', pin: { x: 0.2, y: 0.4 }, entries: [], resolved: null, createdAtMs: 1, updatedAtMs: 1 };
+  const { calls, fetcher } = fakeServer({
+    ...session,
+    'GET /v1/collab/projects/p1/comments': () => [200, { counts: { a: 2 } }],
+    'GET /v1/collab/projects/p1/photos/ph%201/comments': () => [200, { threads: [{ ...thread, number: 1 }], canComment: true }],
+    'POST /v1/collab/projects/p1/photos/ph%201/comments': () => [200, { thread }],
+    'POST /v1/collab/projects/p1/photos/ph%201/comments/t1': (body) => [200, { thread: { ...thread, resolved: body.kind === 'resolve' ? { byName: 'A' } : null } }],
+  });
+  const client = collabClient('https://cp.example.test', async () => 'firebase-id', fetcher);
+  assert.deepEqual(await client.commentCounts('p1'), { a: 2 });
+  assert.equal((await client.comments('p1', 'ph 1')).threads[0].number, 1);
+  assert.equal((await client.startComment('p1', 'ph 1', { x: 0.2, y: 0.4 }, 'Soft eye')).id, 't1');
+  assert.deepEqual(calls.at(-1)!.body, { pin: { x: 0.2, y: 0.4 }, text: 'Soft eye' });
+  assert.ok((await client.changeComment('p1', 'ph 1', 't1', { kind: 'resolve' })).resolved);
+  assert.deepEqual(calls.at(-1)!.body, { kind: 'resolve' });
+});

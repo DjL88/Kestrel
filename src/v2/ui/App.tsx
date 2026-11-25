@@ -37,6 +37,7 @@ import RemovedPhotosDialog from './dialogs/RemovedPhotosDialog';
 import ShareDialog from './dialogs/ShareDialog';
 import { usePresence } from './shell/usePresence';
 import { PresenceAvatars, PresenceCursors } from './shell/PresenceLayer';
+import { CommentsButton, PhotoCommentsLayer, usePhotoComments } from './shell/PhotoComments';
 import { collabClient } from '../../providers/collabClient';
 import { firebaseAuth } from '../../providers/firebaseAuth';
 import SettingsDialog from './dialogs/SettingsDialog';
@@ -75,6 +76,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [shareOpen, setShareOpen] = useState(false);
   const [shareVersion, setShareVersion] = useState(0);
   const [cursorsHidden, setCursorsHidden] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
   const closeShare = React.useCallback(() => { setShareOpen(false); setShareVersion((n) => n + 1); }, []);
   const sharing = React.useMemo(() => collabClient(import.meta.env.VITE_KESTREL_CONTROL_PLANE_URL, () => firebaseAuth.idToken()), []);
   const gallerySiteUrl = import.meta.env.VITE_KESTREL_SITE_URL || (/^https?:$/.test(window.location.protocol) ? window.location.origin : '');
@@ -159,6 +161,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [pairSwapped, setPairSwapped] = useState(false);
   const xmpInputRef = useRef<HTMLInputElement>(null);
   const peers = usePresence(sharing, store.collage ? null : store.activeProjectId, activePhoto?.id ?? null, signedInName, shareVersion);
+  const comments = usePhotoComments(sharing, store.collage ? null : store.activeProjectId, activePhoto?.id ?? null, shareVersion);
   const hoveredLook = store.looks.find((l) => l.id === store.hoveredLookId) ?? null;
   const runningTaskCount = store.tasks.filter((t) => t.status === 'running').length;
 
@@ -526,7 +529,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetAssistMode={actions.setAssistMode}
             onExport={() => actions.setExportOpen(true)}
             onShare={store.collage ? undefined : () => setShareOpen(true)}
-            presence={<PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(id) => actions.selectPhoto(id)} />}
+            presence={<>
+              <PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(id) => actions.selectPhoto(id)} />
+              {comments.shared && <CommentsButton open={commentsOpen} openCount={activePhoto ? comments.counts[activePhoto.id] ?? 0 : 0} onToggle={() => setCommentsOpen((v) => !v)} />}
+            </>}
             onOpenRemoved={() => actions.setRemovedOpen(true)}
             onSaveXmp={store.screen === 'editor' && !store.collage ? () => actions.saveXmpSidecars(store.selectedPhotoIds) : undefined}
             onBackUpNow={store.screen === 'editor' && !store.collage ? actions.backUpProjectNow : undefined}
@@ -889,6 +895,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       />
 
       <PresenceCursors peers={peers} photoId={activePhoto?.id ?? null} hidden={cursorsHidden} />
+      <PhotoCommentsLayer comments={comments} open={commentsOpen && store.screen === 'editor' && Boolean(activePhoto)} onClose={() => setCommentsOpen(false)} />
       <ShareDialog
         open={shareOpen}
         client={sharing}

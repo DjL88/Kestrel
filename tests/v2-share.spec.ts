@@ -14,6 +14,7 @@ test('?v2 Share opens a calm dialog that explains what is shared and needs no ac
   // This build has no control plane or sign-in, so it says so instead of failing silently.
   await expect(dialog.getByRole('alert')).toHaveText(/not available in this version|Sign in/);
   await expect(root.getByTestId('presence-avatars')).toHaveCount(0);
+  await expect(root.getByTestId('comments-button')).toHaveCount(0); // comments exist only for a shared project
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(root.getByTestId('share-button')).toBeFocused();

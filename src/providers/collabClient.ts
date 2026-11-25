@@ -1,5 +1,7 @@
 import { parseControlPlaneUrl } from '../core/licenceOnline';
 import type { CollabRole } from '../core/collabRoles';
+import type { CommentThread } from '../core/photoComments';
+import type { PhotoPoint } from '../core/editingSequence';
 
 /**
  * The app's side of shared projects (#1387): talks to the control plane's /v1/collab routes. Sharing is opt-in and
@@ -82,6 +84,11 @@ export interface CollabClient {
   /** Publishes the given previews as a client gallery and returns the link's secret token. */
   publishGallery(projectId: string, options: GalleryRequest, previews: { photoId: string; jpeg: Blob }[]): Promise<{ galleryId: string; linkToken: string; expiresAtMs: number; published: number }>;
   presenceToken(projectId: string): Promise<{ customToken: string; databaseUrl: string; uid: string; expiresAtMs: number }>;
+  /** Open comment threads per photo. */
+  commentCounts(projectId: string): Promise<Record<string, number>>;
+  comments(projectId: string, photoId: string): Promise<{ threads: (CommentThread & { number: number })[]; canComment: boolean }>;
+  startComment(projectId: string, photoId: string, pin: PhotoPoint | null, text: string): Promise<CommentThread>;
+  changeComment(projectId: string, photoId: string, threadId: string, change: { kind: 'reply'; text: string } | { kind: 'resolve' } | { kind: 'reopen' }): Promise<CommentThread>;
 }
 
 /** `idToken` returns the signed-in person's Firebase ID token, or null when signed out. */
@@ -120,6 +127,10 @@ export function collabClient(baseUrl: string | undefined | null, idToken: () => 
       }
       return { galleryId, linkToken: String(made.linkToken), expiresAtMs: Number(made.expiresAtMs), published };
     },
+    commentCounts: async (id) => ((await call('GET', P(id) + '/comments')).counts ?? {}) as Record<string, number>,
+    comments: async (id, photoId) => (await call('GET', P(id) + '/photos/' + encodeURIComponent(photoId) + '/comments')) as unknown as { threads: (CommentThread & { number: number })[]; canComment: boolean },
+    startComment: async (id, photoId, pin, text) => (await call('POST', P(id) + '/photos/' + encodeURIComponent(photoId) + '/comments', { pin, text })).thread as unknown as CommentThread,
+    changeComment: async (id, photoId, threadId, change) => (await call('POST', P(id) + '/photos/' + encodeURIComponent(photoId) + '/comments/' + encodeURIComponent(threadId), change)).thread as unknown as CommentThread,
     presenceToken: async (id) => (await call('POST', P(id) + '/presence-token')) as unknown as { customToken: string; databaseUrl: string; uid: string; expiresAtMs: number },
   };
 }

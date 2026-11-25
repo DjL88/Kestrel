@@ -538,6 +538,33 @@ export const source = {
     gallerySkipped: (n: number) => `${n} photos were left out because they have no developed preview yet.`,
   },
 
+  // Comments on photos in a shared project
+  comments: {
+    button: 'Comments',
+    buttonCount: (n: number) => `Comments, ${n} open`,
+    heading: 'Comments on this photo',
+    close: 'Close',
+    add: 'Add a comment',
+    placeHint: 'Click the photo where your comment belongs. Press Esc to comment on the whole photo.',
+    wholePhoto: 'Whole photo',
+    pinned: 'Pinned to the point you chose',
+    pinLabel: (n: number) => `Comment ${n}`,
+    resolved: 'resolved',
+    write: 'Your comment',
+    post: 'Post',
+    cancel: 'Cancel',
+    reply: 'Reply',
+    resolve: 'Resolve',
+    reopen: 'Reopen',
+    resolvedBy: (name: string) => `Resolved by ${name}`,
+    showResolved: (n: number) => `Show resolved (${n})`,
+    hideResolved: 'Hide resolved',
+    none: 'No comments on this photo yet.',
+    readOnly: 'Your role can read comments but not write them.',
+    failed: 'Could not reach comments. Nothing has changed.',
+    privacy: 'Comments are text only and are seen by the people in this project. Clients never see the team’s comments.',
+  },
+
   // Adjust Panel
   adjust: {
     looksHeading: 'Curated Looks',
