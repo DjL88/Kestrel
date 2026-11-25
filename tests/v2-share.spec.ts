@@ -10,7 +10,7 @@ test('?v2 Share opens a calm dialog that explains what is shared and needs no ac
   const dialog = page.getByTestId('share-dialog');
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('heading', { name: 'Share this project' })).toBeVisible();
-  await expect(dialog).toContainText('Photos are uploaded only when you publish a client gallery.');
+  await expect(dialog).toContainText('until you choose to send photos');
   // This build has no control plane or sign-in, so it says so instead of failing silently.
   await expect(dialog.getByRole('alert')).toHaveText(/not available in this version|Sign in/);
   await expect(root.getByTestId('presence-avatars')).toHaveCount(0);

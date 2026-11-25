@@ -111,5 +111,5 @@ export async function runDenoiseAction(input: DenoiseActionInput): Promise<Denoi
       subject = Math.max(0, subject * verification.suggestedStrengthScale);
     }
     return { edit: verification.ok ? edit : {}, masks: verification.ok ? masks : [], verification, attempts: attempts + 1 };
-  });
+  }, { signal: input.signal });
 }

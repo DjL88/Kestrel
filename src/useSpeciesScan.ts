@@ -20,6 +20,7 @@ import { VEHICLE_LABELS } from './core/vehicleLabels';
 import { markingReaderReady, readText } from './providers/markingReader';
 import { loadFaaRegister } from './providers/aircraftRegisters';
 import { findSubjects } from './providers/objectDetector';
+import { guardVehicleOnDevice } from './providers/vehicleGuardian';
 import { HELPER_GAP_MS, HELPER_SESSION_CAP, failureMessage, helperPatch, helperReady } from './core/onlineHelper';
 import { ONLINE_HELPER_VISIBLE, useHelperSettings } from './providers/helperSettings';
 import { HelperError, geminiTransport, imageForHelper } from './providers/onlineHelper';
@@ -136,7 +137,7 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
             const gate = await routeAndEmbedPicture(picture, subjectCrop(picture.width, picture.height, grid));
             const outcome = gateOutcome(gate.route, frame.subjectKind);
             // The same picture embedding says what kind of vehicle it is, if the gate says it is mostly a vehicle.
-            const vehicle = vehicleData && !frame.vehicle ? readVehicle(gate.embedding, gate.route, vehicleData.labels, vehicleData.vectors) : null;
+            const vehicle = vehicleData && !frame.vehicle && !frame.vehicleDeclined ? readVehicle(gate.embedding, gate.route, vehicleData.labels, vehicleData.vectors) : null;
             const kind = frame.subjectKind ?? outcome.kind;
             if (kind === 'wildlife' && outcome.species !== 'block') {
               // A high closed-set species score never cancels uncertainty in
@@ -147,7 +148,11 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
               // Not an animal the list can name (a helicopter, a car): looked at, and no animal name offered.
               patch = { speciesChecked: true };
             }
-            if (vehicle) patch = { ...(patch ?? {}), speciesChecked: true, vehicle: await readMarkings(vehicle, store, frame) };
+            // In a burst whose aircraft is already named (a register match or the person's own choice), the slower
+            // text reading and guardian question are skipped: the name is carried across the burst instead.
+            const settled = frame.burstGroupId && frame.burstCount > 1 && !frame.burstUngrouped && current.some((mate) => mate.id !== frame.id &&
+              mate.burstGroupId === frame.burstGroupId && !mate.vehicle?.carriedFrom && (mate.vehicle?.source === 'person' || mate.vehicle?.registered));
+            if (vehicle) patch = { ...(patch ?? {}), speciesChecked: true, vehicle: settled ? vehicle : await guardVehicleOnDevice(await readMarkings(vehicle, store, frame), picture) };
             // Unclassified and not clearly an animal: unknown stays unknown, and the opted-in helper may still answer.
           } catch { /* A failed local analysis can still use the opted-in fallback. */ }
         }

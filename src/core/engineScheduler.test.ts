@@ -269,3 +269,36 @@ test('retry of journalled partial failure reuses the original fingerprint and ve
   assert.equal(await first.retryFailed(), null, 'same failure cannot be retried twice');
   assert.deepEqual(JSON.parse(persisted.get('retry-journal')!).completed, ['1', '2', '3']);
 });
+
+test('raising the CPU limit (photos-at-once policy) starts a waiting job; an invalid limit is ignored', async () => {
+  // Only with measured capacity: without a sample the scheduler keeps one heavy job at a time, whatever the plan.
+  const scheduler = createEngineScheduler({ taskStore: createTaskStore(), limits: { cpu: 1, gpu: 1, io: 1 },
+    resourceSample: { cpu: 0.1, availableMemoryBytes: 16 * 1024 ** 3, availableGpuBytes: 4 * 1024 ** 3, availableDiskBytes: 50 * 1024 ** 3 } });
+  const started: string[] = [];
+  const gates: Array<() => void> = [];
+  const hold = (name: string) => batch(name, 1, async () => { started.push(name); await new Promise<void>((resolve) => gates.push(resolve)); });
+  await scheduler.submit(hold('first'));
+  await scheduler.submit(hold('second'));
+  await until(() => started.length === 1, 'first job starts');
+  await pause(5);
+  assert.deepEqual(started, ['first']);
+  scheduler.setCpuLimit(0);
+  assert.equal(scheduler.cpuLimit(), 1);
+  scheduler.setCpuLimit(2);
+  await until(() => started.length === 2, 'second job starts once the limit allows two');
+  gates.forEach((release) => release());
+});
+
+test('without measured capacity a higher plan limit still runs one heavy job at a time', async () => {
+  const { scheduler } = build();
+  const started: string[] = [];
+  const gates: Array<() => void> = [];
+  const hold = (name: string) => batch(name, 1, async () => { started.push(name); await new Promise<void>((resolve) => gates.push(resolve)); });
+  scheduler.setCpuLimit(20);
+  await scheduler.submit(hold('first'));
+  await scheduler.submit(hold('second'));
+  await until(() => started.length === 1, 'first job starts');
+  await pause(10);
+  assert.deepEqual(started, ['first']);
+  gates.forEach((release) => release());
+});

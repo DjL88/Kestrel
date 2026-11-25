@@ -1,3 +1,4 @@
+import { pictureProvenance, type PictureSource } from '../../core/pictureSource';
 import { applyFormats, applySizeLinked } from './formatOps';
 import { framedSize, DEFAULT_FRAMING } from '../../core/photoFraming';
 import { readVideoZoom } from './videoZoomOps';
@@ -22,6 +23,8 @@ import { sameRecipe } from '../../core/naturalAuto';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { STRINGS } from '../ui/strings';
 import { engineText } from '../../i18n/areas/engine';
+import { displaySpeciesName } from '../../core/speciesNames';
+import { speciesNameIndex } from '../../providers/speciesNames';
 import type { AssistSuggestion, EditRecipe, PhotoHistogram } from '../ui/contract';
 import type { Task } from '../../core/taskStore';
 import { buildEditingSequence } from '../../core/editingSequence';
@@ -116,22 +119,26 @@ const titleOf = (filename: string) => filename.replace(/\.[^./\\]+$/, '');
 const extensionOf = (filename: string) => /\.([^./\\]+)$/.exec(filename)?.[1]?.toUpperCase();
 
 /** A photo's vehicle reading as words in the person's language, and the words it can be searched by (also in English). */
-export function vehicleWordsOf(frame: Pick<PhotoFrame, 'vehicle'>): { vehicleLabel?: string; searchTerms?: string[] } {
+export function vehicleWordsOf(frame: Pick<PhotoFrame, 'vehicle'>): { vehicleLabel?: string; searchTerms?: string[]; vehicleKind?: string; vehicleType?: string } {
   const reading = validVehicleReading(frame.vehicle, VEHICLE_LABELS);
   if (!reading) return {};
   return {
     vehicleLabel: vehicleLabel(reading, VEHICLE_LABELS, vehicleText),
     searchTerms: vehicleSearchWords(reading, VEHICLE_LABELS, [vehicleText, vehicleTextEnglish]),
+    ...(reading.kind ? { vehicleKind: reading.kind } : {}),
+    ...(reading.type ? { vehicleType: reading.type } : {}),
   };
 }
 
 /** The subject name for a photo. A name the app suggested itself is marked as a suggestion; nothing is shown when unknown. */
 export function speciesLabelOf(frame: Pick<PhotoFrame, 'subjectNames' | 'tags' | 'autoTags'>): string | undefined {
+  // Shown in the person's language: the local name, else the scientific name; a name nobody knows stays as stored.
+  const shown = (name: string) => displaySpeciesName(name, speciesNameIndex()).name;
   const chosen = frame.subjectNames?.[0];
-  if (chosen) return chosen;
+  if (chosen) return shown(chosen);
   const tag = frame.tags?.[0];
   if (!tag) return undefined;
-  return frame.autoTags?.includes(tag) ? engineText.suggestedName(tag) : tag;
+  return frame.autoTags?.includes(tag) ? engineText.suggestedName(shown(tag)) : shown(tag);
 }
 
 export function tileStateFor(urls: FrameUrls | undefined): TileState {
@@ -144,7 +151,7 @@ export function tileStateFor(urls: FrameUrls | undefined): TileState {
  * not record says "Not recorded" (or is left empty), never an invented value. The edit, size and mask parts start as the
  * UI's neutral defaults; they are connected to the real recipe in a later step.
  */
-export interface PhotoExtras { pixelSize?: { width: number; height: number }; /** Measured from a connected, decoded JPEG/PNG original, not EXIF or a preview. */ verifiedOriginalSize?: { width: number; height: number }; assist?: AssistState; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram; originalConnected?: boolean }
+export interface PhotoExtras { pixelSize?: { width: number; height: number }; /** Measured from a connected, decoded JPEG/PNG original, not EXIF or a preview. */ verifiedOriginalSize?: { width: number; height: number }; assist?: AssistState; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram; originalConnected?: boolean; /** What the provider recorded for each address (BrowserPreviewProvider.pictureSourceOf). */ sources?: { preview?: PictureSource; thumb?: PictureSource } }
 
 /** Decoded JPEG/PNG pixel size (after framing), or null when not measured. */
 function verifiedFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { width: number; height: number }): { width: number; height: number } | null {
@@ -177,7 +184,9 @@ export function originalFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { w
 }
 
 export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, extras: PhotoExtras = {}): Photo {
-  const { assist, watermarkAuto, histogram, pixelSize, verifiedOriginalSize } = extras;
+  const { assist, watermarkAuto, histogram, pixelSize, verifiedOriginalSize, sources } = extras;
+  const shownPreview = pictureProvenance(urls?.preview ? sources?.preview : sources?.thumb, frame.rawCodec);
+  const shownThumb = pictureProvenance(sources?.thumb, frame.rawCodec);
   const { exif } = frame;
   const nativeSize = verifiedFormatSize(frame, verifiedOriginalSize);
   const originalSize = originalFormatSize(frame, verifiedOriginalSize, pixelSize);
@@ -200,7 +209,8 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
   const thumb = urls?.thumb ?? BLANK_IMAGE;
   return {
     id: frame.id,
-    sharedKey: sharedPhotoKey(frame.originalSha256, frame.virtualCopy?.number),
+    sharedKey: frame.cloudPhoto && !frame.virtualCopy ? frame.cloudPhoto.photoKey : sharedPhotoKey(frame.originalSha256, frame.virtualCopy?.number),
+    cloudPreview: frame.cloudPhoto && !frame.cloudPhoto.hasOriginal ? true : undefined,
     filename: frame.filename,
     title: titleOf(frame.filename),
     previewUrl: urls?.preview ?? thumb,
@@ -256,6 +266,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     ...(frame.formatHistory ? { formatHistory: readFormatHistory(frame.formatHistory).events.map(({ formatId, kind, at, parentFormatId, forkEditCursor }) => ({ formatId, kind, at, ...(parentFormatId ? { parentFormatId } : {}), ...(forkEditCursor !== undefined ? { forkEditCursor } : {}) })) } : {}),
     ...(watermarkAuto ? { watermarkAuto } : {}),
     ...(histogram ? { histogram } : {}),
+    ...(shownPreview || shownThumb ? { picture: { ...(shownPreview ? { preview: shownPreview } : {}), ...(shownThumb ? { thumb: shownThumb } : {}) } } : {}),
     assistCritique: assistCritiqueFor(assist && matchesAutoSource(assist.run, frame) ? assist : undefined, frame.edit),
   };
 }

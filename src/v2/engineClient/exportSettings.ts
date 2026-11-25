@@ -89,13 +89,14 @@ export function chosenSizeIds(settings: Pick<ExportSettings, 'sizeIds'>, enabled
 }
 
 /** The one way an ExportRequest is made from settings. */
-export function requestFromSettings(settings: ExportSettings, target: ExportTarget, rawMaster = false): ExportRequest {
+export function requestFromSettings(settings: ExportSettings, target: ExportTarget, rawMaster = false, rawMasterFormat: 'tiff' | 'png' = 'tiff'): ExportRequest {
   const photoIds = target.selectedPhotoIds.length ? [...target.selectedPhotoIds] : [target.photoId];
   // A folder chosen on the desktop becomes separate downloads on the web, and the other way round: same files.
   const destination: ExportDestination = settings.destination === 'local-zip' ? 'local-zip'
     : target.nativeFolder ? 'local-folder' : 'local-individual';
   return {
     rawMaster,
+    ...(rawMaster ? { rawMasterFormat } : {}),
     destination: rawMaster ? 'local-individual' : destination,
     fileFormat: settings.fileFormat,
     jpegQuality: settings.jpegQuality / 100,

@@ -81,6 +81,10 @@ test('portable backups preserve the edit cursor and can undo back to an untouche
   assert.deepEqual(stepEdit(restored, 1).framing, framing);
   assert.equal(stepEdit(restored, -1).edit, undefined);
 
+  const explained = JSON.parse(encodeProjectBackup(project));
+  explained.project.frames[0].editHistory.steps[0].why = { by: 'auto', notes: ['Lifted the shadows.'] };
+  assert.deepEqual(restoreProjectBackup(JSON.stringify(explained), 'why').frames[0].editHistory?.steps[0].why, { by: 'auto', notes: ['Lifted the shadows.'] });
+
   const olderBackup = JSON.parse(encodeProjectBackup(project));
   delete olderBackup.project.frames[0].editHistory;
   assert.deepEqual(restoreProjectBackup(JSON.stringify(olderBackup), 'old').frames[0].edit, edit);
@@ -90,6 +94,8 @@ test('portable backups preserve the edit cursor and can undo back to an untouche
     (history: Record<string, any>) => { history.cursor = 3; },
     (history: Record<string, any>) => { history.steps[0].before = { edit: { exposure: 100 } }; },
     (history: Record<string, any>) => { history.steps[0].after.edit.tint = 3; },
+    (history: Record<string, any>) => { history.steps[0].why = { by: 'someone' }; },
+    (history: Record<string, any>) => { history.steps[0].why = { by: 'auto', notes: [42] }; },
   ]) {
     const broken = JSON.parse(encodeProjectBackup(project));
     damage(broken.project.frames[0].editHistory);

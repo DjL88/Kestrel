@@ -46,6 +46,8 @@ interface TopBarProps {
   onReadXmp?: () => void;
   /** File menu: bring in a Lightroom Classic catalogue. */
   onReadLightroom?: () => void;
+  /** File menu: save everything in open formats. */
+  onExportOpenFormats?: () => void;
   onOpenSettings: () => void;
   onImport: () => void;
   onUndo: () => void;
@@ -61,7 +63,10 @@ interface TopBarProps {
   onDockActivePanel: (dock: DockPosition) => void;
   onResetLayout: () => void;
   onToggleTheme: () => void;
-  onToggleDemoUnavailable: () => void;
+  /** The sample store's design aid only; the real workspace leaves it out, since it changes nothing there. */
+  onToggleDemoUnavailable?: () => void;
+  /** False when no photo is open: Copy and Reset adjustments then have nothing to act on. */
+  hasActivePhoto?: boolean;
 }
 
 type OpenMenu = 'file' | 'edit' | 'view' | null;
@@ -92,6 +97,7 @@ export default function TopBar({
   backupNote,
   onReadXmp,
   onReadLightroom,
+  onExportOpenFormats,
   onOpenSettings,
   onImport,
   onUndo,
@@ -108,11 +114,14 @@ export default function TopBar({
   onResetLayout,
   onToggleTheme,
   onToggleDemoUnavailable,
+  hasActivePhoto = true,
 }: TopBarProps) {
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuTriggers = useRef<Partial<Record<Exclude<OpenMenu, null>, HTMLButtonElement | null>>>({});
   const isMac = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
+  /** The key the editor really runs for a command (the same keymap as App.tsx), or nothing when it is unbound. */
+  const keyFor = (id: keyof Keymap): string | undefined => (shortcutMap[id] ? chordLabel(shortcutMap[id], isMac) : undefined);
 
   useEffect(() => {
     if (!openMenu) return;
@@ -214,13 +223,12 @@ export default function TopBar({
                 <MenuItem
                   icon="image-plus"
                   label={STRINGS.topBar.fileActions.importPhotos}
-                  shortcut="⌘I"
                   onClick={() => runAndClose(onImport)}
                 />
                 <MenuItem
                   icon="export"
                   label={STRINGS.topBar.fileActions.exportSelected}
-                  shortcut="⌘E"
+                  shortcut={keyFor('file.export')}
                   onClick={() => runAndClose(onExport)}
                 />
                 {onQuickExport && (
@@ -238,6 +246,7 @@ export default function TopBar({
                     <MenuItem icon="save" label={STRINGS.xmp.saveMenu} onClick={() => runAndClose(onSaveXmp)} />
                     <MenuItem icon="folder-open" label={STRINGS.xmp.readMenu} onClick={() => runAndClose(onReadXmp)} />
                     {onReadLightroom && <MenuItem icon="folder-open" label={STRINGS.lightroom.readMenu} onClick={() => runAndClose(onReadLightroom)} />}
+                    {onExportOpenFormats && <MenuItem icon="save" label={STRINGS.openExport.menu} onClick={() => runAndClose(onExportOpenFormats)} />}
                   </>
                 )}
                 {onBackUpNow && onSaveBackupFile && (
@@ -252,7 +261,7 @@ export default function TopBar({
                 <MenuItem
                   icon="settings"
                   label={STRINGS.topBar.fileActions.settings}
-                  shortcut="⌘,"
+                  shortcut={keyFor('app.settings')}
                   onClick={() => runAndClose(onOpenSettings)}
                 />
                 <MenuItem
@@ -288,14 +297,14 @@ export default function TopBar({
                 <MenuItem
                   icon="undo"
                   label={STRINGS.topBar.editActions.undo}
-                  shortcut="⌘Z"
+                  shortcut={keyFor('edit.undo')}
                   disabled={!canUndo}
                   onClick={() => runAndClose(onUndo)}
                 />
                 <MenuItem
                   icon="refresh"
                   label={STRINGS.topBar.editActions.redo}
-                  shortcut="⇧⌘Z"
+                  shortcut={keyFor('edit.redo')}
                   disabled={!canRedo}
                   onClick={() => runAndClose(onRedo)}
                 />
@@ -303,32 +312,33 @@ export default function TopBar({
                 <MenuItem
                   icon="copy"
                   label={STRINGS.topBar.editActions.copyAdjustments}
-                  shortcut="⌘C"
+                  shortcut={keyFor('edit.copy')}
+                  disabled={!hasActivePhoto}
                   onClick={() => runAndClose(onCopyRecipe)}
                 />
                 <MenuItem
                   icon="paste"
                   label={STRINGS.topBar.editActions.pasteAdjustments}
-                  shortcut="⌘V"
+                  shortcut={keyFor('edit.paste')}
                   disabled={!hasClipboardRecipe}
                   onClick={() => runAndClose(onPasteRecipe)}
                 />
                 <MenuItem
                   icon="restore"
                   label={STRINGS.topBar.editActions.resetAdjustments}
+                  disabled={!hasActivePhoto}
                   onClick={() => runAndClose(onResetPhoto)}
                 />
                 <div className="my-1 h-px bg-[var(--border-subtle)]" />
                 <MenuItem
                   icon="select-photos"
                   label={STRINGS.topBar.editActions.selectAll}
-                  shortcut="⌘A"
+                  shortcut={keyFor('edit.selectAll')}
                   onClick={() => runAndClose(onSelectAll)}
                 />
                 <MenuItem
                   icon="close"
                   label={STRINGS.topBar.editActions.clearSelection}
-                  shortcut="Esc"
                   onClick={() => runAndClose(onClearSelection)}
                 />
               </div>
@@ -404,11 +414,11 @@ export default function TopBar({
                   label={STRINGS.topBar.viewActions.switchTheme}
                   onClick={() => runAndClose(onToggleTheme)}
                 />
-                <MenuItem
+                {onToggleDemoUnavailable && <MenuItem
                   icon="image-off"
                   label={STRINGS.topBar.viewActions.previewUnavailable}
                   onClick={() => runAndClose(onToggleDemoUnavailable)}
-                />
+                />}
               </div>
             )}
           </div>

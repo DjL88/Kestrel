@@ -22,6 +22,7 @@ export type MenuAction =
   | { kind: 'backupFile' }
   | { kind: 'readXmp' }
   | { kind: 'readLightroom' }
+  | { kind: 'openExport' }
   | { kind: 'resetPhoto' }
   | { kind: 'backToProjects' };
 
@@ -52,6 +53,7 @@ const TABLE: Record<string, MenuAction> = {
   'backup-file': { kind: 'backupFile' },
   'xmp-read': { kind: 'readXmp' },
   'lightroom-read': { kind: 'readLightroom' },
+  'open-export': { kind: 'openExport' },
   'reset-photo': { kind: 'resetPhoto' },
   'back-to-projects': { kind: 'backToProjects' },
   ...Object.fromEntries([0, 1, 2, 3, 4, 5].map((rating) => [`photo-rate-${rating}`, { kind: 'rate', rating } as MenuAction])),
