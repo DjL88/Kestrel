@@ -129,6 +129,15 @@ export function describeEditVersions(raw: unknown): Array<Pick<EditVersion,
     ({ id, label, parentId, forkCursor, createdAt }));
 }
 
+/** The saved tree, or a one-version tree holding the live photo. Undefined when a saved tree is damaged (fail closed). */
+function currentTree(frame: PhotoFrame): EditVersionTree | undefined {
+  const tree = readEditVersions(frame.editVersions);
+  if (frame.editVersions && !tree) return undefined;
+  return tree ?? { version: 1, activeId: ROOT_VERSION_ID,
+    versions: [{ id: ROOT_VERSION_ID, label: 'Version 1',
+      parentId: null, forkCursor: 0, createdAt: 0, snapshot: capture(frame) }] };
+}
+
 /**
  * Fork from any retained shared edit checkpoint without changing the parent.
  * A new branch starts with the exact edit+framing recipe recorded at that
@@ -144,12 +153,8 @@ export function forkEditCheckpoint(
       || cursor < 0 || cursor > history.steps.length
       || !validId(newId) || newId === ROOT_VERSION_ID
       || !Number.isSafeInteger(at) || at <= 0) return frame;
-  const tree = readEditVersions(frame.editVersions);
-  if (frame.editVersions && !tree) return frame; // corrupt records must fail closed
-  const previous = tree ?? { version: 1 as const, activeId: ROOT_VERSION_ID,
-    versions: [{ id: ROOT_VERSION_ID, label: 'Version 1',
-      parentId: null, forkCursor: 0, createdAt: 0, snapshot: capture(frame) }] };
-  if (previous.versions.length >= MAX_EDIT_VERSIONS ||
+  const previous = currentTree(frame);
+  if (!previous || previous.versions.length >= MAX_EDIT_VERSIONS ||
       previous.versions.some(version => version.id === newId)) return frame;
 
   const parentVersions = previous.versions.map(version => version.id === previous.activeId
@@ -198,4 +203,94 @@ export function switchEditVersion(frame: PhotoFrame, targetId: string): PhotoFra
   return { ...restore(frame, target.snapshot), editVersions: {
     version: 1, activeId: targetId, versions,
   } };
+}
+
+/** Version and checkpoint names: trimmed, single-spaced, at most this many characters. Empty is refused. */
+export const MAX_NAME_LENGTH = 60;
+export function cleanName(name: unknown): string | undefined {
+  if (typeof name !== 'string') return undefined;
+  const clean = name.replace(/\s+/g, ' ').trim().slice(0, MAX_NAME_LENGTH).trim();
+  return clean || undefined;
+}
+
+/** Give an editing version a person's own name. Nothing else about it changes. */
+export function renameEditVersion(frame: PhotoFrame, versionId: string, name: string): PhotoFrame {
+  const label = cleanName(name);
+  const tree = currentTree(frame);
+  if (!label || !tree || !tree.versions.some((version) => version.id === versionId)) return frame;
+  return { ...frame, editVersions: { ...tree,
+    versions: tree.versions.map((version) => version.id === versionId ? { ...version, label } : version) } };
+}
+
+/**
+ * A named checkpoint: the whole editing state of the photo (recipe, crop of every format, overlays, history) at the
+ * moment the person saved it. It is a recipe, never pixels, and it is not affected by later edits, by undo, or by the
+ * history limit compacting old steps away. Returning to it opens it as a NEW editing version, so nothing is lost.
+ */
+export interface EditCheckpoint {
+  id: string;
+  name: string;
+  createdAt: number;
+  /** The editing version it was saved from, for the description only. */
+  versionId: string;
+  snapshot: BranchSnapshot;
+}
+export const MAX_CHECKPOINTS = 24;
+
+/** Defensive read of saved checkpoints: a damaged entry is dropped, never guessed at. */
+export function readCheckpoints(raw: unknown): EditCheckpoint[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: EditCheckpoint[] = [];
+  for (const entry of raw.slice(0, MAX_CHECKPOINTS)) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+    const c = entry as Partial<EditCheckpoint>;
+    if (!validId(c.id) || seen.has(c.id) || cleanName(c.name) !== c.name || !validId(c.versionId)
+      || !Number.isSafeInteger(c.createdAt) || (c.createdAt as number) <= 0
+      || !c.snapshot || typeof c.snapshot !== 'object' || Array.isArray(c.snapshot)) continue;
+    seen.add(c.id);
+    out.push(c as EditCheckpoint);
+  }
+  return out;
+}
+
+/** Display-only list: snapshots never reach the interface. */
+export function describeCheckpoints(raw: unknown): Array<Pick<EditCheckpoint, 'id' | 'name' | 'createdAt' | 'versionId'>> {
+  return readCheckpoints(raw).map(({ id, name, createdAt, versionId }) => ({ id, name, createdAt, versionId }));
+}
+
+/** Save the photo's current editing state under a name. Refused (unchanged frame) when the name is empty or the list is full. */
+export function saveCheckpoint(frame: PhotoFrame, id: string, name: string, at: number): PhotoFrame {
+  const clean = cleanName(name);
+  const existing = readCheckpoints(frame.editCheckpoints);
+  if (!clean || !validId(id) || !Number.isSafeInteger(at) || at <= 0
+    || existing.length >= MAX_CHECKPOINTS || existing.some((c) => c.id === id)) return frame;
+  const versionId = readEditVersions(frame.editVersions)?.activeId ?? ROOT_VERSION_ID;
+  return { ...frame, editCheckpoints: [...existing, { id, name: clean, createdAt: at, versionId, snapshot: capture(frame) }] };
+}
+
+/** Remove a checkpoint. The photo's edits and versions are untouched. */
+export function deleteCheckpoint(frame: PhotoFrame, id: string): PhotoFrame {
+  const existing = readCheckpoints(frame.editCheckpoints);
+  if (!existing.some((c) => c.id === id)) return frame;
+  const rest = existing.filter((c) => c.id !== id);
+  return { ...frame, editCheckpoints: rest.length ? rest : undefined };
+}
+
+/**
+ * Open a checkpoint as a new editing version named after it. The version you were on keeps its current state and can
+ * be chosen again; the checkpoint itself stays as saved.
+ */
+export function restoreCheckpoint(frame: PhotoFrame, checkpointId: string, newId: string, at: number): PhotoFrame {
+  const checkpoint = readCheckpoints(frame.editCheckpoints).find((c) => c.id === checkpointId);
+  const tree = currentTree(frame);
+  if (!checkpoint || !tree || !validId(newId) || newId === ROOT_VERSION_ID || !Number.isSafeInteger(at) || at <= 0
+    || tree.versions.length >= MAX_EDIT_VERSIONS || tree.versions.some((version) => version.id === newId)) return frame;
+  const versions = tree.versions.map((version) => version.id === tree.activeId ? { ...version, snapshot: capture(frame) } : version);
+  const restored = restore(frame, checkpoint.snapshot);
+  const next: EditVersion = {
+    id: newId, label: checkpoint.name, parentId: tree.activeId,
+    forkCursor: restored.editHistory?.cursor ?? 0, createdAt: at, snapshot: capture(restored),
+  };
+  return { ...restored, editVersions: { version: 1, activeId: newId, versions: [...versions, next] } };
 }

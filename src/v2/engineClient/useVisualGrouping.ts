@@ -4,6 +4,7 @@ import type { PhotoFrame } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import { pictureForAnalysis } from '../../providers/pictureForAnalysis';
 import { embedPicture } from '../../providers/visualEmbedder';
+import { startNotingInput, untilQuiet } from '../../providers/userActivity';
 
 interface Options {
   projectId: string;
@@ -19,6 +20,11 @@ interface Options {
 }
 
 const BATCH = 12;
+/**
+ * One embedding takes the page's only thread for a few hundred milliseconds, so it waits until the person has paused this
+ * long: culling with the keyboard (about one key a second) then never waits behind it.
+ */
+const QUIET_MS = 1500;
 
 /** Photos still to embed: live, not yet embedded with the current model, the photo on screen first. */
 export function embeddingCandidates(frames: PhotoFrame[], onScreen: string | null, skipped: ReadonlySet<string>): PhotoFrame[] {
@@ -34,6 +40,7 @@ export function useVisualGrouping({ projectId, frames, provider, active, onScree
   const latest = useRef({ projectId, frames, provider, active, onScreen, onEmbedded, onBatchDone });
   latest.current = { projectId, frames, provider, active, onScreen, onEmbedded, onBatchDone };
   const running = useRef(false);
+  useEffect(() => { startNotingInput(); }, []);
   const halted = useRef(false);
   const skipped = useRef(new Set<string>());
 
@@ -51,6 +58,8 @@ export function useVisualGrouping({ projectId, frames, provider, active, onScree
         const picture = await pictureForAnalysis(store, frame).catch(() => null);
         if (!stillCurrent()) break;
         if (!picture) { skipped.current.add(frame.id); continue; }
+        await untilQuiet(QUIET_MS);
+        if (!stillCurrent()) break;
         let embedding: StoredEmbedding | null = null;
         try {
           embedding = await embedPicture(picture);

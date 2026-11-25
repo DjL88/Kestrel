@@ -21,10 +21,10 @@ export interface PadAssignment {
 }
 export type PadProfile = Record<PadSlot, PadAssignment>;
 
-/** The keys V1 pads were already set to send (K, X, C, Z, Shift+Z, Space, arrows), so an existing pad works unchanged. */
+/** The keys V1 pads were already set to send (K, X, C, Z, Shift+Z, Space, arrows), so an existing pad works unchanged; X sets aside, as it did in V1. */
 export const DEFAULT_PAD: PadProfile = {
   K1: { chord: 'KeyK', command: 'photo.flag' },
-  K2: { chord: 'KeyX', command: 'photo.rate0' },
+  K2: { chord: 'KeyX', command: 'photo.reject' },
   K3: { chord: 'KeyC', command: 'view.compare' },
   K4: { chord: 'KeyZ', command: 'edit.undo' },
   K5: { chord: 'Shift+KeyZ', command: 'edit.redo' },
