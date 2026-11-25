@@ -88,6 +88,7 @@ export const fi: AreaTranslation<typeof source> = {
       : `${count} tiedostoa viety. Alkuperäiset ovat ennallaan.`),
     exportSomeFailed: 'Osa vienneistä epäonnistui. Avaa Tehtävät ja valitse Yritä epäonnistuneita uudelleen. Jo tallennetut tiedostot säilyvät.',
     exportStopped: 'Vienti pysäytettiin. Jo tallennetut tiedostot säilyvät.',
+    enlargementTask: 'Luodaan suurennoksen esikatselua',
     exportNotQueued: 'Tätä vientiä ei voitu aloittaa.',
     destinationUnavailable: 'Vientikohde ei ole käytettävissä. Valitse paikallinen ZIP, erilliset tiedostot tai tietokoneen kansio.',
     cullPro: 'Automaattinen karsinta kuuluu InFlight Prohon.',

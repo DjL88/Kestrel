@@ -88,6 +88,7 @@ export const cy: AreaTranslation<typeof source> = {
       : `Allforiwyd ${count} ffeil. Mae eich gwreiddiolion heb eu newid.`),
     exportSomeFailed: 'Methodd rhai allforion. Agorwch Tasgau a dewis Ailgynnig y rhai a fethodd. Mae ffeiliau sydd eisoes wedi’u cadw yn aros yn eu lle.',
     exportStopped: 'Stopiodd yr allforio. Mae ffeiliau sydd eisoes wedi’u cadw yn aros yn eu lle.',
+    enlargementTask: 'Yn creu rhagolwg y chwyddiad',
     exportNotQueued: 'Doedd dim modd dechrau’r allforio hwn.',
     destinationUnavailable: 'Dydy’r cyrchfan allforio hwnnw ddim ar gael. Dewiswch ZIP lleol, ffeiliau ar wahân neu ffolder ar y cyfrifiadur.',
     cullPro: 'Mae dethol awtomatig yn rhan o InFlight Pro.',

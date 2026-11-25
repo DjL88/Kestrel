@@ -16,6 +16,8 @@ interface EnhancePanelProps {
   hideReadouts: boolean;
   onUpdateRecipe: (photoId: string, patch: Partial<EditRecipe>) => void;
   onDenoise?: (photoId: string) => void;
+  /** Show the selected format exactly as export will make it, Output scale included. Absent where there is no engine. */
+  onPreviewEnlargement?: () => void;
   /** Whether this plan includes cloud processing. */
   cloudEnabled?: boolean;
 }
@@ -24,7 +26,7 @@ export default function EnhancePanel({
   photo,
   hideReadouts,
   onUpdateRecipe,
-  onDenoise,
+  onDenoise, onPreviewEnlargement,
   cloudEnabled = false,
 }: EnhancePanelProps) {
   if (!photo) {
@@ -180,6 +182,13 @@ export default function EnhancePanel({
               </button>
             ))}
           </div>
+          {onPreviewEnlargement && recipe.upscaleFactor !== 1 && (
+            <button type="button" data-testid="v2-preview-enlargement" onClick={onPreviewEnlargement}
+              className="mt-1 inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+              <BrandIcon name="search" size={13} />
+              <span>{STRINGS.panelWords.enlargementPreview}</span>
+            </button>
+          )}
         </div>
 
         <div className="space-y-1.5">
