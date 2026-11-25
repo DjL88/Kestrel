@@ -9,7 +9,6 @@ import { evaluateFlag, type Audience, type Evaluation, type FlagSet } from './fe
  * detection, natural Auto, full-size output and backups, and every on-device model (culling, species ID and the
  * rest: owner decision 13, 25 Nov 2026). An admin flag can still restrict any of them without a code change.
  * Pro: the enhanced cloud models (online AI review, cloud processing).
- * Preview: unfinished features, off for every plan until an Admin flag (or this device's own preview switch) turns them on.
  * Image integrity, original access and export quality must never be paywalled.
  * Backup and recovery are always free and never counted.
  */
@@ -35,8 +34,11 @@ export const FEATURES = {
   cloudAssist: 'paid',
   zoomVideo: 'free',
   splitFrames: 'free',
-  // Previews: off for everyone (Free and Paid) until a verified Admin flag switches them on. Not a paywall.
-  focusStack: 'preview',
+  // Settings → Account "Download my data" and "Delete my account". Off for everyone until an admin flag turns it on
+  // (the owner checks the wording first). Not a paid feature: once on, it is for every signed-in person.
+  accountData: 'flagged',
+  // Focus stacking: a preview, off for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
+  focusStack: 'flagged',
 } as const;
 
 export type Feature = keyof typeof FEATURES;

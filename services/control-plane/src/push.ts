@@ -67,6 +67,15 @@ export class PushService {
     return [...new Set(snap.docs.map((d) => String(d.data()?.accountId ?? '')).filter(Boolean))];
   }
 
+  /** Account deletion (accountErasure.ts): every device for alerts and the alert preferences go. Returns the devices removed. */
+  async forget(accountId: string): Promise<number> {
+    const mine = await this.devices(accountId);
+    for (const device of mine) await this.drop(device.token);
+    const prefs = this.db.collection(C.prefs).doc(accountId);
+    await this.db.runTransaction(async (tx) => { if ((await tx.get(prefs)).exists) tx.delete(prefs); });
+    return mine.length;
+  }
+
   async devices(accountId: string): Promise<DeviceDoc[]> {
     const snap = await this.db.collection(C.devices).where('accountId', '==', accountId).get();
     return snap.docs.map((d) => d.data() as unknown as DeviceDoc);

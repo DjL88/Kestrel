@@ -81,6 +81,17 @@ export class SqliteStore implements Store {
   async setAiConsent(accountId: string, consent: boolean): Promise<void> { this.run('UPDATE accounts SET ai_consent = ? WHERE account_id = ?', consent ? 1 : 0, accountId); }
   async findAccountByEmailHash(emailHash: string) { const r = this.get<AccountRow>('SELECT * FROM accounts WHERE email_hash = ?', emailHash); return r && account(r); }
 
+  async eraseAccount(accountId: string, nowMs: number): Promise<{ licences: number }> {
+    return this.transaction(() => {
+      const ids = this.all<{ licence_id: string }>('SELECT licence_id FROM licences WHERE account_id = ?', accountId).map((r) => r.licence_id);
+      for (const id of ids) this.run('DELETE FROM device_activations WHERE licence_id = ?', id);
+      this.run("UPDATE licences SET account_id = NULL, email_hash = NULL, status = 'revoked', updated_at_ms = ? WHERE account_id = ?", nowMs, accountId);
+      this.run('DELETE FROM refresh_tokens WHERE account_id = ?', accountId);
+      this.run('DELETE FROM ai_usage_quotas WHERE account_id = ?', accountId);
+      this.run('DELETE FROM accounts WHERE account_id = ?', accountId);
+      return { licences: ids.length };
+    });
+  }
   async addRefreshToken(tokenHash: string, accountId: string, expiresAtMs: number): Promise<void> {
     this.run('INSERT INTO refresh_tokens (token_hash, account_id, expires_at_ms) VALUES (?, ?, ?)', tokenHash, accountId, expiresAtMs);
   }

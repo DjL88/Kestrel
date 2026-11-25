@@ -129,6 +129,34 @@ export class FirestoreStore implements Store {
     const snap = await this.ref(C.emails, emailHash).get();
     return snap.exists ? this.getAccount(snap.data()!.accountId as string) : undefined;
   }
+  async eraseAccount(accountId: string, nowMs: number): Promise<{ licences: number }> {
+    const account = await this.getAccount(accountId);
+    const [licences, tokens] = await Promise.all([
+      this.db.collection(C.licences).where('accountId', '==', accountId).get(),
+      this.db.collection(C.refresh).where('accountId', '==', accountId).get(),
+    ]);
+    for (const licence of licences.docs) {
+      const devices = await this.db.collection(C.activations).where('licenceId', '==', licence.id).get();
+      await this.db.runTransaction(async (tx) => {
+        const ref = this.ref(C.licences, licence.id);
+        const current = await tx.get(ref);
+        for (const d of devices.docs) tx.delete(this.db.collection(C.activations).doc(d.id));
+        if (current.exists && current.data()!.accountId === accountId) tx.update(ref, { accountId: null, emailHash: null, status: 'revoked', updatedAtMs: nowMs });
+      });
+    }
+    for (let i = 0; i < tokens.docs.length; i += 400) {
+      const batch = tokens.docs.slice(i, i + 400);
+      await this.db.runTransaction(async (tx) => { for (const d of batch) tx.delete(this.db.collection(C.refresh).doc(d.id)); });
+    }
+    await this.db.runTransaction(async (tx) => {
+      const quota = this.ref(C.quotas, accountId);
+      const quotaSnap = await tx.get(quota);
+      if (quotaSnap.exists) tx.delete(quota);
+      if (account) tx.delete(this.ref(C.emails, account.emailHash));
+      tx.delete(this.ref(C.accounts, accountId));
+    });
+    return { licences: licences.docs.length };
+  }
   async addRefreshToken(tokenHash: string, accountId: string, expiresAtMs: number): Promise<void> {
     await this.ref(C.refresh, tokenHash).create({ accountId, expiresAtMs, used: false });
   }

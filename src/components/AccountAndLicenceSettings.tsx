@@ -6,6 +6,10 @@ import { consumeLinkedMethod, firebaseAuth, isDesktopAppleConfigured, isDesktopG
 import { LinkingError } from '../core/accountLinking';
 import { SignInMethodsPanel, linkingProblemText, methodName } from './SignInMethodsPanel';
 import { AccountMergePanel } from './AccountMergePanel';
+import { AccountDataPanel } from './AccountDataPanel';
+import { accountDataClient } from '../providers/accountDataClient';
+import { downloadExport } from '../providers/browserExport';
+import { useAccess } from '../providers/useAccess';
 import { accountLicenceDevices, activateFromAccount, attachDeviceKeyToAccount, consumeExpiredAccountNotice, freeAccountLicenceDevice, leaveAccount, licenceOnlineConfigured, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
 import { BuyProPanel } from './BuyProPanel';
 import type { LicenceStatus } from '../providers/licenceSync';
@@ -40,6 +44,8 @@ export function AccountAndLicenceSettings() {
   const [aiNote, setAiNote] = useState<string | null>(null);
   const aiRequest = useRef(0);
   const aiServer = parseControlPlaneUrl(import.meta.env.VITE_KESTREL_CONTROL_PLANE_URL);
+  const { can } = useAccess();
+  const [dataClient] = useState(() => accountDataClient(import.meta.env.VITE_KESTREL_CONTROL_PLANE_URL, () => firebaseAuth.idToken()));
   const [accountBusy, setAccountBusy] = useState(false);
   const [accountDevices, setAccountDevices] = useState<LicenceStatus | null>(null);
   useEffect(() => { setAccountDevices(null); }, [account?.accountId]);
@@ -278,6 +284,7 @@ export function AccountAndLicenceSettings() {
             </div>
             <SignInMethodsPanel key={account.accountId} disabled={offline || accountBusy} hasEmail={Boolean(account.email)} className={action} onNote={setAccountNote} />
             <AccountMergePanel key={'merge-' + account.accountId} disabled={offline || accountBusy} className={action} onNote={setAccountNote} />
+            {can('accountData') && <AccountDataPanel key={'data-' + account.accountId} client={dataClient} disabled={offline || accountBusy} className={action} onNote={setAccountNote} save={downloadExport} />}
             <p className="text-xs text-[var(--account-muted,#a1a1aa)]">{t.accountLinks.localStay}</p>
             {!offline && accountDevices && (
               <section aria-label="Account Pro devices" className="space-y-2 rounded-lg border border-[var(--account-border,#ffffff1a)] p-3">

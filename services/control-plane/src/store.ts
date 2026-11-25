@@ -142,6 +142,13 @@ export interface Store {
   /** The standing "use Gemini" account preference (see AccountRecord.aiConsent). */
   setAiConsent(accountId: string, consent: boolean): Promise<void>;
   findAccountByEmailHash(emailHash: string): Promise<AccountRecord | undefined>;
+  /**
+   * Account deletion (accountErasure.ts), atomic: the account row and its email link, every refresh token, the AI
+   * allowance, and each licence's device records go. Licences stay as rows (a Paddle refund still finds its licence by
+   * the order, and purchase records are kept for tax law) but lose the account and email hash and are revoked. Audit
+   * entries are append-only and keep only the opaque account id. Returns how many licences were detached.
+   */
+  eraseAccount(accountId: string, nowMs: number): Promise<{ licences: number }>;
   addRefreshToken(tokenHash: string, accountId: string, expiresAtMs: number): Promise<void>;
   /** Single use: marks the token used and returns its account, or undefined when missing, used or expired. */
   consumeRefreshToken(tokenHash: string, nowMs: number): Promise<string | undefined>;

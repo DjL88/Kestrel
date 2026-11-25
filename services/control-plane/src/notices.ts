@@ -67,6 +67,18 @@ export class NoticeStore {
   }
 
   /** The person's newest notices. Reading the inbox also says "the app is open", so email is not sent meanwhile. */
+  /** Account deletion (accountErasure.ts): this account's inbox and its read marker go. Returns the notices removed. */
+  async forget(accountId: string): Promise<number> {
+    const snap = await this.db.collection(N.notices).where('accountId', '==', accountId).get();
+    const seen = this.db.collection(N.seen).doc(accountId);
+    await this.db.runTransaction(async (tx) => {
+      const seenSnap = await tx.get(seen);
+      for (const d of snap.docs) tx.delete(this.db.collection(N.notices).doc(d.id));
+      if (seenSnap.exists) tx.delete(seen);
+    });
+    return snap.docs.length;
+  }
+
   async inbox(accountId: string, atMs: number): Promise<{ notices: Notice[]; unread: number }> {
     const snap = await this.db.collection(N.notices).where('accountId', '==', accountId).get();
     const all = snap.docs.map((d) => d.data()! as unknown as Notice).sort((a, b) => b.updatedAtMs - a.updatedAtMs);
