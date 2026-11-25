@@ -271,6 +271,14 @@ resource "google_cloud_run_v2_service" "control_plane" {
         }
       }
       dynamic "env" {
+        # "Learn now" in /admin starts the hourly Vertex learning tick (vertex-learning.tf).
+        for_each = local.vertex_tick_enabled ? { KCP_VERTEX_LEARNING_JOB = try(google_cloud_run_v2_job.vertex_learning[0].id, "") } : {}
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+      dynamic "env" {
         for_each = var.phase5_sumup_enabled ? [1] : []
         content {
           name = "KCP_SUMUP_API_KEY"

@@ -1,6 +1,6 @@
 // Paid Google APIs stay off until the owner approves them (owner decisions, 25 Nov 2026).
 // Vertex AI may appear only in infra/gcp/vertex-learning.tf, behind a variable that defaults to false;
-// Cloud Tasks may not appear at all. A PR that enables either anywhere else fails here.
+// Cloud Tasks may not appear at all, and no Vertex endpoint (an hourly bill) may ever be declared. A PR that enables either anywhere else fails here.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -25,4 +25,17 @@ test('Vertex AI is enabled only by vertex-learning.tf, and only when the owner s
 
 test('Cloud Tasks is not enabled anywhere', () => {
   assert.deepEqual(files.filter((f) => code(f).includes('cloudtasks.googleapis.com')), []);
+});
+
+test('no Vertex endpoint, deployed model or always-on prediction resource exists anywhere (they bill hourly)', () => {
+  for (const f of files) {
+    assert.doesNotMatch(code(f), /resource\s+"google_vertex_ai_(endpoint|index_endpoint|deployment_resource_pool|feature_online_store|featurestore)/, f);
+  }
+});
+
+test('the learning tick has no retries and runs hourly; the scheduler does not retry either', () => {
+  const tf = code('vertex-learning.tf');
+  assert.match(tf, /max_retries\s*=\s*0/);
+  assert.match(tf, /retry_count\s*=\s*0/);
+  assert.match(tf, /schedule\s*=\s*"17 \* \* \* \*"/);
 });

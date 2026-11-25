@@ -13,6 +13,7 @@ import { CollabStore } from './collaboration.ts';
 import { IamPresenceSigner } from './presenceToken.ts';
 import { FirestoreSpendGuard } from './spendGuard.ts';
 import type { FirestoreLike } from './firestoreStore.ts';
+import { VertexLearningLedger, configFromEnv as vertexConfigFromEnv } from './vertexLearning.ts';
 
 export interface WiringDeps {
   firestore?: FirestoreLike;
@@ -20,7 +21,7 @@ export interface WiringDeps {
   openBucket?: (name: string) => Promise<GcsBucketLike>;
   token?: () => Promise<string>;
 }
-export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'learning' | 'learningWithdrawal' | 'spend'> & { enabled: string[] };
+export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'learning' | 'learningWithdrawal' | 'spend' | 'vertexLearning'> & { enabled: string[] };
 
 function whole(env: NodeJS.ProcessEnv, name: string, dflt: number, max: number): number {
   const raw = env[name];
@@ -44,6 +45,21 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
     aiCallPence: whole(env, 'KCP_AI_CALL_PENCE', 1, 100_000),
   };
   out.enabled.push('spend-guard');
+
+  // Vertex learning batches: only when Terraform has created the job (vertex_learning_enabled). "Learn now" starts it.
+  if (env.KCP_VERTEX_LEARNING_JOB) {
+    const job = env.KCP_VERTEX_LEARNING_JOB;
+    if (!/^projects\/[a-z][a-z0-9-]+\/locations\/[a-z0-9-]+\/jobs\/[a-z][a-z0-9-]*$/.test(job)) throw new Error('KCP_VERTEX_LEARNING_JOB must be projects/<p>/locations/<l>/jobs/<name>');
+    const token = deps.token ?? (() => metadataAccessToken());
+    out.vertexLearning = {
+      ledger: new VertexLearningLedger(db), config: vertexConfigFromEnv(env),
+      startJob: async () => {
+        const r = await fetch(`https://run.googleapis.com/v2/${job}:run`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${await token()}` }, body: '{}' });
+        if (!r.ok) throw new Error(`run job ${r.status}`);
+      },
+    };
+    out.enabled.push('vertex-learning');
+  }
 
   if (env.KCP_CLOUD_PROCESSING_BUCKET && env.KCP_CLOUD_RUNNER_JOB) {
     const bucket = await open(env.KCP_CLOUD_PROCESSING_BUCKET);

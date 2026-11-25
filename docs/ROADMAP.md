@@ -656,7 +656,7 @@ Each feature has an admin switch marked *planned*. It shows in Admin → Switche
 
   At ≈ £0.01 a heavy job: **1,000 jobs a month ≈ £10; 10,000 ≈ £100; 100,000 ≈ £1,000.** The existing £15 ceiling (counted from the per-job estimate `KCP_CLOUD_JOB_PENCE`, not Google's bill) stops new cloud jobs at 750 a month at the default 2p estimate, until the owner raises it. Idle costs nothing (jobs scale to zero).
 
-#### 7. Learning in Vertex AI from shadow files, with consent (owner decision 7; switch `vertex-learning`)
+#### 7. Learning in Vertex AI from shadow files, with consent (owner decisions 7 and 9; switch `vertex-learning`)
 - **What a shadow file is.** For each photo it is data derived on the device, and never the original pixels:
   - the measurements (the Kite44 shadow payload in `kite44ResearchLedger.ts`: eye sharpness, subject confidence, clipping, noise, mask coverage and so on, bounded numbers only);
   - the mask as a small run-length outline;
@@ -669,18 +669,34 @@ Each feature has an admin switch marked *planned*. It shows in Admin → Switche
   - Personal style, culling and edit preferences keep learning **on the device**, as now (offline-first).
   - Vertex trains only the **shared** models, from pooled consented shadow files: the Auto-Edit recipe model, cull calibration and guardian thresholds.
   - Results come back as signed ONNX packs through the existing model manifest (same id, version, SHA-256 and licence rules). So there is **no always-on Vertex endpoint** to pay for, and the app keeps working offline.
-- **Gates, all in place now:**
-  - The planned switch `vertex-learning` (cannot be switched on).
-  - `infra/gcp/vertex-learning.tf`, the only place `aiplatform.googleapis.com` may appear. It is off by default, and the plan fails unless the owner sets an approved monthly budget, which also creates a Vertex-only budget alert.
-  - `scripts/infra-paid-services.test.mjs` (in `npm test`) fails if Vertex AI is enabled anywhere else, or if Cloud Tasks appears at all.
-  - **Vertex AI is not enabled.**
-- **To build, after owner approval:**
+- **Owner approval (25 Nov 2026): £20 a month.** `aiplatform.googleapis.com` was enabled by hand on `kestrel-hosting`, with a Vertex-only budget "Kestrel Vertex AI (kestrel-hosting)" of £20 (alerts at 50/90/100%) beside the £20 whole-project budget. Budgets alert but never stop spend, so the stop is in code.
+- **Batch trigger, built (owner decision 9; `services/control-plane/src/vertexLearning.ts`, `vertexLearningJob.ts`, `infra/gcp/vertex-learning.tf`).**
+  - **When it checks:** Cloud Scheduler starts the Cloud Run job `kestrel-vertex-learning` at 17 minutes past every hour (no retries, 2-minute limit, 1 vCPU / 512 MiB). "Learn now" in /admin → Learning starts it at once.
+  - **When a batch runs**, on whichever comes first:
+    - (a) `vertex_photo_threshold` (default **1,000**) photos newly edited by opted-in people since the last batch. Each photo counts once, inside the same consented transaction that stores its shadow file.
+    - (b) a week since the last batch or weekly check. An empty week is skipped and the clock restarts.
+    - (c) Learn now.
+  - **Checks, in order. Nothing is reserved until all pass:**
+    1. The admin switch `vertex-learning` is on (now a real switch, configured only where the job exists).
+    2. A trainer image is set. Until it is, no Vertex job is ever started.
+    3. **No Vertex endpoint in the region has a deployed model.** Endpoints bill hourly, so the run is refused while one exists.
+    4. **The hard spend ceiling.** One Firestore transaction adds the run's worst case (machine price × its hard time limit: e2-standard-4 at 17p an hour × 2 hours = **34p**) to the month's reservations. It refuses if the total would pass the ceiling. The ceiling is `APPROVED_MONTHLY_PENCE = 2000` in code: a setting can lower it but not raise it, and raising it needs the owner and a code change.
+  - **The batch itself:** a Vertex CustomJob in **europe-west2**, CPU only, with `scheduling.timeout` equal to the reserved hours, so Vertex stops it at the reserved cost. It runs as its own account, which can only read Firestore.
+    - A job Vertex never accepted gives back its reservation and its photos.
+    - A job that started keeps its full reservation, so the guard never under-counts.
+    - The code only creates and reads CustomJobs and lists endpoints. A test checks every request URL, and `scripts/infra-paid-services.test.mjs` fails if any Terraform declares an endpoint, deployed model or online store.
+  - **What 34p a batch means:** at most 58 batches a month (£19.72). Owner decision 9 expects about 4–5 weekly batches plus any 1,000-photo batches.
+  - **Not built yet:**
+    - The trainer container. The tick runs, but never starts a Vertex job until `vertex_trainer_image` is set.
+    - The authenticated shadow-file intake route. Until it exists the count stays 0, so no batch is due.
+    - The export of the batch's shadow files, the evaluation gate and signing back to the manifest.
+    - Checking Google's actual bill. Billing export to BigQuery lags by about a day, so the guard uses our own worst-case reservations instead.
+- **To build next:**
   1. Connect the shadow ledger to an authenticated, consented route (with per-project approval and excluded photos, as the ledger requires).
-  2. Export to a private UK bucket.
-  3. A Vertex custom training job: a container from `tools/`, CPU first.
-  4. An evaluation gate: the new model must beat the current one on a held-out set before it is signed.
-  5. Signing and publishing to the manifest.
-  6. Privacy page and consent copy.
+  2. The trainer container from `tools/`, CPU first, reading only the batch's generation of shadow files.
+  3. An evaluation gate: the new model must beat the current one on a held-out set before it is signed.
+  4. Signing and publishing to the manifest.
+  5. Privacy page and consent copy.
 - **Cost per month** (Vertex AI training in London: e2 core £0.0275/h and e2 RAM £0.0037/GiB-h including the management fee; n1 core £0.0352/h; T4 GPU £0.40/h including the fee; Gemini 2.5 Flash supervised tuning £3.76 per million training tokens, global):
 
   | Plan | Assumed use | About per month |
@@ -691,7 +707,7 @@ Each feature has an admin switch marked *planned*. It shows in Admin → Switche
   | Monthly Gemini tuning for the guardian's words | 20 million training tokens | **≈ £75** (plus Gemini's per-token price whenever the tuned model is used) |
   | What the design avoids: an always-on prediction endpoint (e2-standard-2) | 730 h | ≈ £35 for its 2 cores (£0.0243/h each), ≈ £55 with its memory |
 
-  A CPU-first start costs **under £5 a month**. Spend begins only when the owner approves enabling Vertex, sets the budget variable, and turns the switch from planned to real.
+  A CPU-first start costs **under £5 a month**. The hourly tick itself costs about **£0.07 a month** (730 runs of a few seconds at 1 vCPU / 512 MiB; Cloud Scheduler is free for up to 3 jobs per billing account, and this is the second). Spend on Vertex begins only when a trainer image is set, the switch is on, and a batch is due. It can never pass £20 in a month.
 
 ### P3: Later work
 - A metadata-only serialiser and local sync outbox, with synthetic tests of conflict-safe sync between two devices. (Gates carried over from the closed #363: originals and previews never upload; a licence isn't an account or a key; local writing works with the network off.)

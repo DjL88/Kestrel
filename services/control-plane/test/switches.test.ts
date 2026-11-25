@@ -120,7 +120,7 @@ test('a planned switch is shown off and not set up, and refuses to switch on, ev
   for (const requireAdminSwitch of [true, false]) {
     const h = await startHarness(fakeProvider(), undefined, { requireAdminSwitch, collab: new CollabStore(new MemoryFirestore()) });
     try {
-      for (const key of ['pro-cloud-storage', 'cloud-runner-any-device', 'vertex-learning']) {
+      for (const key of ['pro-cloud-storage', 'cloud-runner-any-device']) {
       const planned = (await h.call('GET', '/v1/admin/switches', { token: h.adminToken })).body.switches.find((s: any) => s.key === key);
       assert.equal(planned.on, false); assert.equal(planned.configured, false);
       assert.match(planned.label, /designed, not built/);

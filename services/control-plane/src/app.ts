@@ -26,6 +26,7 @@ import { CollabRefusal, MAX_RECIPE_BYTES, type CollabStore } from './collaborati
 import { presenceUid, PRESENCE_TOKEN_TTL_S, type PresenceSigner } from './presenceToken.ts';
 import { SAFE_COPY_LEVELS, SAFE_COPY_MAX_BYTES, safeCopyKey, type SafeCopyOptions } from './safeCopy.ts';
 import type { SpendOptions } from './spendGuard.ts';
+import { reservationPence, APPROVED_MONTHLY_PENCE, billingMonth, type VertexLearningConfig, type VertexLearningLedger } from './vertexLearning.ts';
 import { cloudRunClientIp } from './networkCountry.ts';
 import { ApiError, matchRoute, parseJson, readBody, send, type Reply, type Request, type Route } from './http.ts';
 
@@ -67,6 +68,8 @@ export interface AppOptions {
   learning?: LearningSink;
   /** Always-available authenticated withdrawal/deletion sink when new research intake is disabled. */
   learningWithdrawal?: Pick<LearningSink, 'setConsent' | 'deleteBySubject'>;
+  /** Vertex learning batches (owner decisions 7 and 9). Absent until the job is deployed: the switch cannot go on. */
+  vertexLearning?: { ledger: VertexLearningLedger; config: VertexLearningConfig; startJob?: () => Promise<void> };
   /** Managed safe copy (opt-in backup). Absent in production until a bucket exists and is approved: routes answer 503. */
   safeCopy?: SafeCopyOptions;
   /** Shared projects (#1387): membership, per-photo leases, revisions. Absent until Firestore is set up for it: routes answer 503. */
@@ -159,7 +162,7 @@ const SWITCHES = [
   { key: 'collaboration', label: 'Shared projects', note: 'Cloud subscribers can share a project, invite people by email and check photos out to edit. Switching off stops new shared projects and checkouts; members can still read revisions.' },
   { key: 'pro-checkout-eu', label: 'Pro checkout for EU buyers', note: 'Switch on only once you are registered for OSS (EU VAT on digital sales). Until then EU buyers see that Pro is not on sale in their country yet.' },
   { key: 'cloud-runner-any-device', planned: true, label: 'Cloud runner for every device (designed, not built)', note: 'Lets anyone, not only Pro, send queued jobs to the cloud runner when their device is busy or too small for a model. Opt-in per job type, a monthly allowance and the spend ceiling. Cannot be switched on until it is built and the owner approves the cost.' },
-  { key: 'vertex-learning', planned: true, label: 'Learning in Vertex AI (designed, not built)', note: 'Trains preferences and model improvements in Vertex AI from consented shadow files (measurements, masks, decisions, recipes; never original pixels unless the person chooses). Off by default and revocable. Vertex AI is not enabled; the owner must approve its monthly budget first.' },
+  { key: 'vertex-learning', label: 'Learning in Vertex AI (batches)', note: "Trains shared models in Vertex AI from consented shadow files only (measurements, masks, decisions, recipes; never photos). Batches only: 1,000 newly edited photos, weekly when something is new, or Learn now. Each run reserves its worst-case cost first and is refused past the owner's £20 a month. No always-on endpoints." },
   { key: 'pro-cloud-storage', planned: true, label: 'Pro Cloud storage (designed, not built)', note: "Store a project's originals in InFlight's UK cloud to open on any device and share. Opt-in per project; originals on the device are never moved or changed. Cannot be switched on until it is built and the owner approves the cost." },
 ] as const;
 const SWITCH_KEYS = SWITCHES.map((w) => w.key) as [SwitchKey, ...SwitchKey[]];
@@ -412,7 +415,7 @@ export function createApp(options: AppOptions) {
   // ---- Admin on/off switches. Managed Gemini is on unless switched off (the existing `ai_disabled` setting, so the
   // existing admin control and this one are the same switch). The new features are off in production until an admin
   // switches them on. The older kill settings (cloud_disabled, safe_copy_disabled) still win.
-  const switchConfigured = (key: SwitchKey) => isPlanned(key) ? false : key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'pro-checkout' || key === 'pro-checkout-eu' ? !!options.proCheckout : !!options.learning;
+  const switchConfigured = (key: SwitchKey) => isPlanned(key) ? false : key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'pro-checkout' || key === 'pro-checkout-eu' ? !!options.proCheckout : key === 'vertex-learning' ? !!options.vertexLearning : !!options.learning;
   async function switchOn(key: SwitchKey): Promise<boolean> {
     if (isPlanned(key)) return false;
     if (key === 'managed-ai') return (await store.getSetting('ai_disabled')) !== '1';
@@ -1504,6 +1507,35 @@ export function createApp(options: AppOptions) {
           licenceIssuing: !!config.licencePrivateKey,
           paymentsConnected: !!options.payments,
         });
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/learning', summary: 'Vertex learning batches: what is counted, the month\'s reserved spend against the ceiling, recent runs', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'learning.read');
+        const vl = options.vertexLearning;
+        if (!vl) throw new ApiError(503, 'LEARNING_NOT_CONFIGURED', 'Vertex learning is not set up on this server.');
+        const state = await vl.ledger.state();
+        const month = billingMonth(now());
+        return adminDone(claims, 'learning.read', '', {
+          on: await switchOn('vertex-learning'), newPhotos: state.newPhotos, photoThreshold: vl.config.photoThreshold,
+          lastRunAtMs: state.lastRunAtMs, manualRequested: state.manualRequestedAtMs !== null, running: state.runningRunId !== null,
+          month, reservedPence: await vl.ledger.monthReservedPence(month), ceilingPence: Math.min(vl.config.ceilingPence, APPROVED_MONTHLY_PENCE),
+          runReservePence: reservationPence(vl.config), runs: await vl.ledger.recentRuns(10),
+        });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/learning/run', summary: 'Learn now: ask for a Vertex learning batch (the spend ceiling and every other check still apply)', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'learning.run');
+        const vl = options.vertexLearning;
+        if (!vl) throw new ApiError(503, 'LEARNING_NOT_CONFIGURED', 'Vertex learning is not set up on this server.');
+        if (!(await switchOn('vertex-learning'))) throw new ApiError(409, 'LEARNING_SWITCHED_OFF', 'Switch on Learning in Vertex AI first.');
+        await vl.ledger.requestManualRun(now());
+        let started = false;
+        if (vl.startJob) { try { await vl.startJob(); started = true; } catch { /* the hourly tick picks the request up */ } }
+        return adminDone(claims, 'learning.run', started ? 'started' : 'queued', { requested: true, startedNow: started });
       },
     },
     {
