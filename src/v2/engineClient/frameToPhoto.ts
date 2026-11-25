@@ -302,6 +302,7 @@ export function shootToProject(shoot: ShootDescriptor, frames: readonly PhotoFra
     localCopyStatus: 'offline-ready',
     folderPath: shoot.folderName ?? '',
     archived: Boolean(shoot.archivedAt),
+    trashed: Boolean(shoot.trashedAt),
   };
 }
 
