@@ -2,6 +2,7 @@ import { MAX_EDIT_HISTORY_STEPS, validWhy, type EditKind } from './editHistory';
 import { readCollage } from './collage';
 import { parseSettings } from './projectSettings';
 import { validMasks } from './maskTypes';
+import { validTrueDetailAi } from './trueDetailAi';
 import { validCurve, validMixer } from './curveMixer';
 import { validChannelCurves, validGrade } from './colourGrade';
 import { validCalibration } from './calibration';
@@ -20,6 +21,8 @@ const filters = new Set(['all', ...decisions]);
 const sources = new Set(['demo', 'file', 'directory-handle']);
 const projectSources = new Set(['demo', 'local-files', 'local-folder']);
 const demoAssets = new Set(['red-kite', 'kingfisher', 'barn-owl', 'collie-coco', 'red-fox', 'osprey']);
+const EXIF_DATE = /^\d{4}:\d{2}:\d{2} \d{2}:\d{2}:\d{2}$/;
+const EXIF_OFFSET = /^[+-]\d{2}:\d{2}$/;
 
 function record(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
@@ -56,6 +59,7 @@ function recipeIsValid(value: unknown): boolean {
       edit[key] !== undefined && !number(edit[key], -2, 2)) ||
     (edit.denoise !== undefined && !number(edit.denoise, 0, 2)) ||
     (edit.denoiseLuminance !== undefined && !number(edit.denoiseLuminance, 0, 2)) ||
+    (edit.trueDetailAi !== undefined && !validTrueDetailAi(edit.trueDetailAi)) ||
     (edit.curve !== undefined && !validCurve(edit.curve)) || (edit.mixer !== undefined && !validMixer(edit.mixer)) ||
     (edit.grade !== undefined && !validGrade(edit.grade)) || (edit.channelCurves !== undefined && !validChannelCurves(edit.channelCurves)) ||
     (edit.calibration !== undefined && !validCalibration(edit.calibration)) ||
@@ -108,6 +112,13 @@ function frameIsValid(value: unknown): value is PhotoFrame {
   }
   for (const field of ['rating', 'focalLengthMm', 'apertureF', 'iso', 'capturedAtMs', 'width', 'height']) {
     if (value.exif[field] !== undefined && !number(value.exif[field])) return false;
+  }
+  const stamp = value.exif.captureStamp;
+  if (stamp !== undefined) {
+    if (!record(stamp)) return false;
+    for (const [field, shape] of [['original', EXIF_DATE], ['digitized', EXIF_DATE], ['offsetOriginal', EXIF_OFFSET], ['offsetDigitized', EXIF_OFFSET]] as const) {
+      if (stamp[field] !== undefined && (typeof stamp[field] !== 'string' || !shape.test(stamp[field] as string))) return false;
+    }
   }
   if (!recipeIsValid(value) || (value.editHistory !== undefined && !historyIsValid(value.editHistory))) return false;
   const focus = value.focusPoint;

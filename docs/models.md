@@ -242,3 +242,31 @@ The lowest IoU, 0.98, is for the box prompt in both variants. It comes from the 
 | **weight-only fp16 (shipped)** | 58.8 MB | PASS | 88 dB | 0.01 dB | 770 |
 
 What it does on those synthetic cases (PyTorch): σ 25 goes from 20.2–20.9 dB to 26.6–28.7 dB, and Poisson-Gaussian from 21.1–23.2 dB to 27.9–29.8 dB. onnxruntime-web 1.31.1, single thread: max difference 0.0005 from fp32, 3.3 s per 256 px tile, 387 MB RSS. A 24 MP photo is about 430 tiles, so 20+ minutes single-threaded. **Not measured:** real camera high-ISO noise (Nikon Z 8 / Z5 II NEFs), detail loss on feathers, a comparison with the conventional denoise, and TrueDetail (no weights exist yet). Until those are measured it's an option beside the conventional denoise, never the default.
+### BioCLIP 2 (species second opinion, desktop only)
+| | |
+| --- | --- |
+| Files | `bioclip2-image-fp16.onnx` (image encoder): 608,152,397 B, SHA-256 `6f4fede093651f33a83ea0a0061833e0e8245fe0e218e558230ee56ac77360de`<br>`bioclip2-species.json` (names with BioCLIP 2 vectors, 768-d int8): 13,250,338 B, SHA-256 `d06aa6d9c60e7242251d5771af902792d235dcdc6ec9419fa5230bd8617f6d59`<br>`bioclip2-mammals.json` (world mammals, 768-d int8): 8,139,587 B, SHA-256 `ad90459b5c891637c568fab7f1f51083817f9b20d33b5fddb44dcdd2a4478455`. 6,791 extant mammals from the Mammal Diversity Database v2.5 (CC BY 4.0; source SHA-256 in the file), the same names as the device list, filtered by the person's regions like the world birds |
+| Model and weights | BioCLIP 2 (Imageomics), ViT-L/14, MIT weights. The names are the app's UK birds and mammals list plus the IOC World Bird List 15.2 (CC BY 4.0), the same names BioCLIP uses |
+| Source | https://huggingface.co/imageomics/bioclip-2, revision `2957b322090f9cb17ae72c71981c7218a28d81e0`: `open_clip_model.safetensors`, 1,710,517,724 B, SHA-256 `b7b2bf6fbc95799e42630e394cf95803892ab447c1a8ab629dbc82fbeaf7dfef` |
+| Conversion | open_clip `ViT-L-14` with those weights. Names embedded once with its text half (template `a photo of {scientific}, {common}`, int8 plus a scale, as `tools/species/make_labels.py` does): 140 UK and 11,064 world names. Image half cast to fp16 in PyTorch (open_clip's LayerNorm computes in fp32), then exported with float32 input and output (opset 17, [1,3,224,224], CLIP mean and std, centre crop). No text model ships |
+
+**Parity (25 Nov 2026).** Against the PyTorch fp32 model on the 4 CC0/public-domain samples and one synthetic image: cosine ≥ 0.999998 and the same top-5 names out of 11,204 on every image. **PASS.** For example, the cat sample's top name is "Domestic cat". Native ONNX Runtime 1.32 on the laptop's CPU: load 11.4 s, 4.4 s per photo, 1.95 GB peak memory. **Not run:** onnxruntime-web WASM, because there wasn't enough free RAM on the laptop for a 0.6 GB model; real wildlife accuracy; and whether it beats BioCLIP. It only checks, and never names a photo on its own.
+
+### BiRefNet-lite (fine subject edges, desktop and cloud runner only)
+| | |
+| --- | --- |
+| File | `birefnet-lite-w16.onnx`: 92,215,270 B, SHA-256 `2c7c7240884841649e5f67b645cf7aed004a401c2fc666dd00c97a29948ef319` |
+| Model and weights | BiRefNet (Zheng et al.), Swin-T backbone, general, epoch 232. MIT |
+| Source | https://huggingface.co/ZhengPeng7/BiRefNet_lite, revision `aa62cd87eafb9cc43056d08ef3615a14628b831d` (`model.safetensors` 177,634,392 B, `4417d897…0815`; `birefnet.py` `af8568b5…69c9`) |
+| Conversion | `tools/model-conversion/birefnet_lite.py`, run by the manual **Model conversion** workflow ([run 45648025801](https://github.com/DjL88/Kestrel/actions/runs/45648025801)). Deformable convolution is replaced by an exact pure-PyTorch version (`tools/model-conversion/deform_conv.py`: 1.3e-6 vs torchvision on random inputs; 2.5e-5 for the whole model at 1024 px). It is exported with standard ONNX ops (opset 17, [1,3,1024,1024] → sigmoid alpha [1,1,1024,1024]), then made weight-only fp16 (fp16 weights, fp32 compute). A native DeformConv export is not possible: `torchvision::deform_conv2d` has no ONNX exporter |
+| Why our own export | The authors' published ONNX (release v1) differs from their PyTorch model on soft edges: edge band 0.022–0.086, limit 0.03, rocket IoU 0.977 ([run 45641328704](https://github.com/DjL88/Kestrel/actions/runs/45641328704)) |
+
+**Parity at 1024 px (25 Nov 2026, GitHub runner, 4 CPUs, onnxruntime 1.32 native).** Against the PyTorch model on 4 CC0/public-domain samples and a two-cats composite. Gate: mean |alpha diff| ≤ 0.005, IoU ≥ 0.99, edge band ≤ 0.03.
+
+| Variant | Size | Gate | Mean diff | Lowest IoU | Edge band | CPU per photo | Peak memory |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| our fp32 export | 181.4 MB | PASS | 0.0 | 1.0 | 0.0 | 7.7 s | 0.90 GB |
+| **weight-only fp16 (shipped)** | 92.2 MB | PASS | ≤ 7e-5 | 0.9995 | ≤ 0.0045 | 7.6 s | 1.14 GB |
+| fp16 (ops kept fp32) | 93.7 MB | could not load in onnxruntime | — | — | — | — | — |
+
+The app uses it only in the desktop app, and only when the person downloads it. When the built-in U²-Netp mask and BiRefNet find the same subject (IoU ≥ 0.6), BiRefNet's soft edges become the subject mask (`refineSubjectGrid`). Otherwise U²-Netp's mask stays. **Not measured:** the speed in the desktop app's own runtime (single-thread WebAssembly, expect several times the 7.6 s above), and edges on real feathers and fur.

@@ -1,7 +1,8 @@
 /**
- * Buying Pro through the control plane's server-owned SumUp checkout (services/control-plane/README.md, "Buying Pro").
- * The server prices the order and binds it to the signed-in account; the app only opens SumUp's page, waits for the
- * server to say the payment is verified, then activates the device as for any other Pro account. Pure: no network.
+ * Buying Pro through the control plane's server-owned Paddle checkout (services/control-plane/README.md, "Buying Pro").
+ * The server picks the price and binds the order to the signed-in account; the app only opens our checkout page, where
+ * Paddle (the merchant of record, which handles the buyer's tax) takes the payment. The app waits for the server to say
+ * the payment is verified, then activates the device as for any other Pro account. Pure: no network.
  */
 
 /** The server allows ten checkout calls a minute per account (start and checks together), so check every 10 seconds. */
@@ -19,8 +20,6 @@ export type CheckoutPoll = 'paid' | 'pending' | 'retry' | 'gone';
 export function checkoutErrorText(code: string | undefined): string {
   switch (code) {
     case 'CHECKOUT_DISABLED': return 'Buying Pro is not open yet. Everything else in InFlight keeps working.';
-    case 'COUNTRY_UNAVAILABLE': return 'Pro is not on sale in your country yet. Everything else in InFlight keeps working, and nothing was charged.';
-    case 'LOCATION_UNCONFIRMED': return 'We could not confirm your country: the billing country you chose and your network location differ. If you use a VPN, turn it off and try again. Nothing was charged.';
     case 'ALREADY_PRO': return 'This account already has Pro. Choose Check Pro online to use it on this device.';
     case 'ACCOUNT_UNVERIFIED': return 'Sign in again before buying Pro. If you signed up with email, verify the address first.';
     case 'RATE_LIMITED': return 'That was a lot of attempts in a short time. Wait a minute and try again.';
@@ -31,25 +30,31 @@ export function checkoutErrorText(code: string | undefined): string {
   }
 }
 
+/** The website hosts that serve our checkout page (site/pro-checkout.html), which loads Paddle.js. */
+// Keep in step with the opener allow-list in src-tauri/capabilities/desktop.json.
+export const CHECKOUT_SITE_HOSTS: readonly string[] = ['kestrel-hosting-kestrel.web.app', 'inflight.studio'];
+
 /**
- * Only SumUp's own HTTPS pages are opened. The address comes from our server, but the app still refuses anything
- * else, so a fault on the server can never send the person to another site to pay.
+ * Only our own HTTPS checkout page for one Paddle transaction is opened. The address comes from our server, but the app
+ * still refuses anything else, so a fault on the server can never send the person to another site to pay.
  */
-export function isSumUpCheckoutUrl(value: unknown): value is string {
+export function isPaddleCheckoutUrl(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   try {
     const url = new URL(value);
-    return url.protocol === 'https:' && !url.username && !url.password && (url.hostname === 'sumup.com' || url.hostname.endsWith('.sumup.com'));
+    return url.protocol === 'https:' && !url.username && !url.password && !url.port && CHECKOUT_SITE_HOSTS.includes(url.hostname)
+      && url.pathname === '/pro-checkout' && CHECKOUT_ID.test(url.searchParams.get('_ptxn') ?? '');
   } catch { return false; }
 }
 
-const CHECKOUT_ID = /^[A-Za-z0-9-]{1,64}$/;
+/** A Paddle transaction ID, e.g. txn_01h04vsc0qhwtsbsxh3422wjs4. */
+export const CHECKOUT_ID = /^txn_[a-z0-9]{10,60}$/;
 
 /** The answer to POST /v1/me/checkout/pro. */
 export function parseCheckoutStart(status: number, json: Record<string, unknown> | null): CheckoutStart {
   if (status === 201 || status === 200) {
     const { checkoutId, url, totalPence, currency } = json ?? {};
-    if (typeof checkoutId === 'string' && CHECKOUT_ID.test(checkoutId) && isSumUpCheckoutUrl(url)) {
+    if (typeof checkoutId === 'string' && CHECKOUT_ID.test(checkoutId) && isPaddleCheckoutUrl(url) && new URL(url).searchParams.get('_ptxn') === checkoutId) {
       return {
         ok: true, checkoutId, url,
         totalPence: Number.isSafeInteger(totalPence) && (totalPence as number) > 0 ? totalPence as number : null,
@@ -73,28 +78,8 @@ export function parseCheckoutPoll(status: number, json: Record<string, unknown> 
 /** Whether to keep checking by itself, given when checking began. */
 export const keepPolling = (startedMs: number, nowMs: number) => nowMs - startedMs < CHECKOUT_POLL_LIMIT_MS;
 
-/** The billing country to suggest first: the region of the person's language setting (en-GB → GB), if it has one. */
-export function suggestedCountry(locales: readonly string[]): string | null {
-  for (const locale of locales) {
-    try {
-      const region = new Intl.Locale(locale).maximize().region;
-      if (region && /^[A-Z]{2}$/.test(region) && COUNTRY_CODES.includes(region)) return region;
-    } catch { /* not a valid locale */ }
-  }
-  return null;
-}
-
 /** "£49.00" style price, or null when the server did not say. */
 export function priceText(totalPence: number | null, currency: string | null, locale?: string): string | null {
   if (totalPence === null || currency === null) return null;
   try { return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(totalPence / 100); } catch { return null; }
 }
-
-/** ISO 3166-1 alpha-2 countries offered as a billing country. Names come from Intl.DisplayNames in the person's language. */
-export const COUNTRY_CODES: readonly string[] = (
-  'AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ ' +
-  'DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT ' +
-  'JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL ' +
-  'NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM ' +
-  'TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW'
-).split(' ');

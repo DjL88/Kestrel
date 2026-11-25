@@ -57,7 +57,7 @@ Not `VITE_` and **never** in the app or git: the secrets in Secret Manager (`kcp
 - Only the desktop-shell and web builds can use Google and Apple pop-up sign-in today; the installed apps' own flows are
   not built (see `docs/ROADMAP.md`, Sign-in row). Email and password work everywhere.
 - Signing out forgets the grant on that device but does not free its device slot; free it from `/admin`.
-- There are no payment sources yet, so until SumUp and the store purchases are wired, only an admin grant gives Pro.
+- There are no payment sources yet, so until Paddle and the store purchases are wired, only an admin grant gives Pro.
 
 ## Publishing signed same-contract model updates
 

@@ -109,3 +109,21 @@ test('the inbox needs sign-in and answers 503 until shared projects are set up',
     assert.equal((await bare.call('GET', '/v1/collab/notices', {})).status, 401);
   } finally { await bare.close(); }
 });
+
+test('a reply tells the thread starter, a client included, and a client never hears about team threads', async () => {
+  const { h, P, call, owner, editor } = await team(new Set());
+  try {
+    const clientId = await h.app.createAccount('client@example.test', 'a-long-password-123', 'user');
+    const client = { id: clientId, token: (await h.app.issueSession(clientId, 'user')).accessToken };
+    await call('POST', `${P}/members`, owner.token, { kind: 'inviteEmail', email: 'client@example.test', role: 'client', displayName: 'Cleo', photoIds: ['p1'] });
+    await call('POST', `${P}/accept`, client.token, { displayName: 'Cleo' });
+    await call('POST', `${P}/members`, owner.token, { kind: 'options', options: { clientsMayComment: true } });
+    await call('POST', `${P}/photos/p1/comments`, editor.token, { text: 'Team only' });
+    assert.equal((await call('GET', '/v1/collab/notices', client.token)).body.unread, 0, 'a client is never told about team comments');
+    const theirs = (await call('POST', `${P}/photos/p1/comments`, client.token, { text: 'Can the branch go?' })).body.comment;
+    const r = await call('POST', `${P}/photos/p1/comments`, editor.token, { text: 'Yes, removed', replyTo: theirs.id });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const inbox = (await call('GET', '/v1/collab/notices', client.token)).body;
+    assert.deepEqual(inbox.notices.map((n: any) => [n.kind, n.actors]), [['reply', ['Erin']]]);
+  } finally { await h.close(); }
+});

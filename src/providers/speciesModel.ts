@@ -129,9 +129,17 @@ function loadSession(): Promise<Loaded> {
 
 /**
  * The names the model can match, with their vectors ready to compare. Loaded on demand. The shipped list (UK birds and
- * mammals, about 0.1 MB) is always used. The world bird list (about 9 MB, fetched once beside the model) adds the birds
- * that occur in the person's chosen regions. If it is missing the shipped list still works, so this never fails.
+ * mammals, about 0.1 MB) is always used. The world bird list (about 9 MB) and the world mammal list (Mammal Diversity
+ * Database, about 6 MB), each fetched once beside the model, add the birds and mammals that occur in the person's chosen
+ * regions. If either is missing the rest still works, so this never fails.
  */
+/**
+ * Species lists beside the model, after the world birds: mammals (Mammal Diversity Database), reptiles (The Reptile
+ * Database), amphibians (GBIF Backbone), dragonflies and damselflies (World Odonata List) and European butterflies and
+ * moths (Fauna Europaea). Built by tools/species/make_mammals.py and make_vectors.py; sizes and licences in NOTICE.md.
+ */
+export const EXTRA_GROUP_LISTS = ['species-mammals.json', 'species-reptiles.json', 'species-amphibians.json', 'species-odonata.json', 'species-lepidoptera.json'];
+
 export function loadSpeciesLabels(): Promise<Labels> {
   const regions = readSpeciesRegions();
   const key = regions.join(',');
@@ -150,22 +158,42 @@ export function loadSpeciesLabels(): Promise<Labels> {
       }
       labels.push(...worldLabelsForRegions(world, regions, new Set(shipped.map((label) => label.scientific.toLowerCase()))));
     } catch (error) { console.warn('World species list unavailable; using the shipped list', error); }
+    // The other groups, each from its own open checklist, filtered by region the same way. Their families come in Latin,
+    // so they are not offered as fallback names until they have words in every language. A missing file is skipped.
+    for (const file of EXTRA_GROUP_LISTS) {
+      try {
+        const extra = (await loadListBeside(file, file)).map(({ family: _family, ...label }) => label as SpeciesLabel);
+        labels.push(...worldLabelsForRegions(extra, regions, new Set(labels.map((label) => label.scientific.toLowerCase()))));
+      } catch (error) { console.warn(`Species list ${file} unavailable`, error); }
+    }
     return { labels, vectors: labels.map(decodeVector) };
   })();
   return labelsLoading;
 }
 
 function loadWorldLabels(): Promise<SpeciesLabel[]> {
-  worldLoading ??= (async () => {
-    const url = SPECIES_MODEL.url.replace(/[^/]*$/, 'species-world.json');
-    if (!url || url === 'species-world.json') return [];
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`world list ${response.status}`);
-    const file = await response.json() as { dimensions?: number; labels?: SpeciesLabel[] };
-    if (file.dimensions !== 512 || !Array.isArray(file.labels)) throw new Error('world list is not in the expected format');
-    return file.labels;
-  })().catch((error) => { worldLoading = null; throw error; });
+  worldLoading ??= loadListBeside('species-world.json', 'world list').catch((error) => { worldLoading = null; throw error; });
   return worldLoading;
+}
+
+const besideLoads = new Map<string, Promise<SpeciesLabel[]>>();
+/** A name list stored beside the species model, checked to have the same 512 numbers per name as its image half. */
+function loadListBeside(name: string, what: string): Promise<SpeciesLabel[]> {
+  let loading = besideLoads.get(name);
+  if (!loading) {
+    loading = (async () => {
+      const url = SPECIES_MODEL.url.replace(/[^/]*$/, name);
+      if (!url || url === name) return [];
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`${what} ${response.status}`);
+      const file = await response.json() as { dimensions?: number; labels?: SpeciesLabel[] };
+      if (file.dimensions !== 512 || !Array.isArray(file.labels)) throw new Error(`${what} is not in the expected format`);
+      return file.labels;
+    })();
+    loading.catch(() => besideLoads.delete(name));
+    besideLoads.set(name, loading);
+  }
+  return loading;
 }
 
 /** What the model "sees" in a picture, as a unit-length vector. Runs on this device. */

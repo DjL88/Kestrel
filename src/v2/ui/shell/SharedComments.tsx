@@ -34,6 +34,8 @@ export default function SharedComments({ client, project, photoKey, photoId, rec
   const [problem, setProblem] = useState<string | null>(null);
   const [proposal, setProposal] = useState<{ commentId: string; edit: CommentEdit } | null>(null);
   const [showDone, setShowDone] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
 
   const load = useCallback(async () => {
     if (!project || !photoKey) { setComments(null); return; }
@@ -67,6 +69,12 @@ export default function SharedComments({ client, project, photoKey, photoId, rec
 
   if (!project || !photoKey || !photoId) return null;
 
+  const sendReply = async (thread: SharedComment) => {
+    if (!replyText.trim()) return;
+    setBusy(true);
+    try { await client.addComment(project, photoKey, replyText.trim(), null, thread.id); setReplyText(''); setReplyingTo(null); await load(); }
+    catch { setProblem(t.commentsFailed); } finally { setBusy(false); }
+  };
   const send = async () => {
     if (!text.trim()) return;
     setBusy(true);
@@ -88,8 +96,11 @@ export default function SharedComments({ client, project, photoKey, photoId, rec
     await resolve(comment, true);
   };
 
-  const open = (comments ?? []).filter((comment) => comment.resolvedAtMs === null);
-  const done = (comments ?? []).filter((comment) => comment.resolvedAtMs !== null);
+  // Threads are one level deep: replies sit under the thread's first comment, and a thread is done or open as a whole.
+  const threads = (comments ?? []).filter((comment) => !comment.replyTo);
+  const repliesTo = (id: string) => (comments ?? []).filter((comment) => comment.replyTo === id);
+  const open = threads.filter((comment) => comment.resolvedAtMs === null);
+  const done = threads.filter((comment) => comment.resolvedAtMs !== null);
   const pins = open.map((comment, index) => ({ comment, number: index + 1 })).filter((entry) => entry.comment.point);
   const button = 'min-h-8 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-xs font-medium disabled:opacity-50';
 
@@ -103,8 +114,31 @@ export default function SharedComments({ client, project, photoKey, photoId, rec
           <li key={comment.id} className="rounded-[var(--radius-sm)] bg-[var(--bg-surface-hover)] p-2">
             <p className="font-medium">{comment.point ? `${index + 1}. ` : ''}{comment.authorName} · {new Date(comment.createdAtMs).toLocaleString()}</p>
             <p className="whitespace-pre-wrap">{comment.text}</p>
+            {repliesTo(comment.id).length > 0 && (
+              <ul className="mt-1.5 space-y-1 border-l-2 border-[var(--border-default)] pl-2" aria-label={t.commentRepliesLabel}>
+                {repliesTo(comment.id).map((answer) => (
+                  <li key={answer.id} data-testid="comment-reply">
+                    <p className="font-medium">{answer.authorName} · {new Date(answer.createdAtMs).toLocaleString()}</p>
+                    <p className="whitespace-pre-wrap">{answer.text}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {replyingTo === comment.id && (
+              <form className="mt-1.5 space-y-1" onSubmit={(event) => { event.preventDefault(); void sendReply(comment); }}>
+                <label className="block">{t.commentReplyLabel}
+                  <textarea value={replyText} maxLength={2000} rows={2} autoFocus onChange={(event) => setReplyText(event.target.value)}
+                    className="mt-0.5 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] p-2 text-xs" />
+                </label>
+                <div className="flex gap-1.5">
+                  <button type="submit" disabled={busy || !replyText.trim()} className={button}>{t.commentReplySend}</button>
+                  <button type="button" onClick={() => { setReplyingTo(null); setReplyText(''); }} className={button}>{t.commentDecline}</button>
+                </div>
+              </form>
+            )}
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {canEdit && <button type="button" disabled={busy} onClick={() => ask(comment)} className={button}>{t.commentAskCopilot}</button>}
+              <button type="button" disabled={busy} aria-expanded={replyingTo === comment.id} onClick={() => { setReplyingTo(replyingTo === comment.id ? null : comment.id); setReplyText(''); }} className={button}>{t.commentReply}</button>
               <button type="button" disabled={busy} onClick={() => void resolve(comment, true)} className={button}>{t.commentDone}</button>
             </div>
             {proposal?.commentId === comment.id && (
