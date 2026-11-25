@@ -6,6 +6,7 @@
 import { verifyEntitlementGrant, type EntitlementGrant } from '../core/entitlementGrant';
 import { type AccountStanding, type KestrelPlatform, type OnlineStanding } from '../core/licenceOnline';
 import { sha256Hex, type PinnedKeys } from '../core/signedEnvelope';
+import { checkoutErrorText, parseCheckoutPoll, parseCheckoutStart, type CheckoutPoll, type CheckoutStart } from '../core/proCheckout';
 
 export interface KeyValueStorage { getItem(name: string): string | null; setItem(name: string, value: string): void; removeItem(name: string): void }
 
@@ -227,10 +228,66 @@ export class LicenceSync {
     return result?.deactivated === true;
   }
 
+  /** The control-plane session used for buying Pro. Exchanged from a fresh Firebase ID token; memory only. */
+  private checkoutSession: string | null = null;
+
+  private async checkoutBearer(idToken: string, fresh: boolean): Promise<string | null> {
+    if (this.checkoutSession && !fresh) return this.checkoutSession;
+    const session = await this.post('/v1/auth/firebase', { credential: idToken });
+    const token = session.status === 200 && typeof session.json?.accessToken === 'string' && session.json.accessToken.trim() ? session.json.accessToken as string : null;
+    this.checkoutSession = token;
+    return token;
+  }
+
+  private async get(path: string, bearer: string): Promise<{ status: number; json: Record<string, any> | null }> {
+    const response = await this.o.fetch(`${this.o.baseUrl}${path}`, { method: 'GET', headers: { authorization: `Bearer ${bearer}` }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+    let json: Record<string, any> | null = null;
+    try { json = await response.json() as Record<string, any>; } catch { json = null; }
+    return { status: response.status, json };
+  }
+
+  /**
+   * Start buying Pro for the signed-in account: the server prices the order for this billing country (ISO, e.g. "GB"),
+   * checks it against the network location and returns SumUp's page. Never charges anything by itself.
+   */
+  async startProCheckout(idToken: string, country: string): Promise<CheckoutStart> {
+    if (!this.configured) return { ok: false, code: 'NOT_SET_UP', message: checkoutErrorText('NOT_SET_UP') };
+    if (!/^[A-Z]{2}$/.test(country)) return { ok: false, code: 'COUNTRY_UNAVAILABLE', message: checkoutErrorText('COUNTRY_UNAVAILABLE') };
+    const checkId = this.accountCheck;
+    try {
+      const bearer = await this.checkoutBearer(idToken, true);
+      if (!bearer || checkId !== this.accountCheck) return { ok: false, code: 'ACCOUNT_UNVERIFIED', message: checkoutErrorText('ACCOUNT_UNVERIFIED') };
+      const reply = await this.post('/v1/me/checkout/pro', { country }, bearer);
+      if (checkId !== this.accountCheck) return { ok: false, code: 'NOT_SIGNED_IN', message: checkoutErrorText('NOT_SIGNED_IN') };
+      return parseCheckoutStart(reply.status, reply.json);
+    } catch {
+      return { ok: false, code: 'UNREACHABLE', message: checkoutErrorText('UNREACHABLE') };
+    }
+  }
+
+  /** Has this checkout been paid and verified with SumUp? Network trouble or an expired session is "retry", never "paid". */
+  async proCheckoutStatus(idToken: string, checkoutId: string): Promise<CheckoutPoll> {
+    if (!this.configured || !/^[A-Za-z0-9-]{1,64}$/.test(checkoutId)) return 'gone';
+    const checkId = this.accountCheck;
+    try {
+      let bearer = await this.checkoutBearer(idToken, false);
+      if (!bearer) return 'retry';
+      let reply = await this.get(`/v1/me/checkout/pro/${encodeURIComponent(checkoutId)}`, bearer);
+      if (reply.status === 401) {
+        bearer = await this.checkoutBearer(idToken, true);
+        if (!bearer) return 'retry';
+        reply = await this.get(`/v1/me/checkout/pro/${encodeURIComponent(checkoutId)}`, bearer);
+      }
+      if (checkId !== this.accountCheck) return 'gone';
+      return parseCheckoutPoll(reply.status, reply.json);
+    } catch { return 'retry'; }
+  }
+
   /** Signing out forgets the account grant on this device. (The slot can be freed from another signed-in device.) */
   forgetAccount(): void {
     ++this.accountCheck;
     this.session = null;
+    this.checkoutSession = null;
     this.write(ACCOUNT_GRANT, null);
   }
 
