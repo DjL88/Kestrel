@@ -44,7 +44,11 @@ export interface SharedComment { id: string; photoId: string; authorAccountId: s
 
 export type CloudVariant = 'thumb' | 'preview' | 'original';
 export interface CloudPhotoView { photoKey: string; name: string; previewBytes: number; thumbBytes: number | null; originalBytes: number | null }
-export interface CloudUsage { month: string; usedCredits: number; allowanceCredits: number; bytes: number; downloads: number }
+export interface CloudUsage {
+  month: string; usedCredits: number; allowanceCredits: number; bytes: number; downloads: number;
+  /** Present on servers with the plan and balance (25 Nov 2026 pricing). */
+  plan?: 'basic' | 'pro'; photosUsed?: number; photosIncluded?: number; balanceCredits?: number;
+}
 
 export interface CollabInvite { projectId: string; name: string; role: CollabRole }
 

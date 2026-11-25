@@ -94,4 +94,8 @@ export const enUS: AreaTranslation<typeof source> = {
     centre: 'Center',
     fields: { colourProfile: 'Color profile' },
   },
+  canvas: {
+    zoomCentre: 'Zoom to center',
+    centreFound: 'No clear subject, so zoomed to the center.',
+  },
 };

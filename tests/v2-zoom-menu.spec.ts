@@ -4,7 +4,7 @@ test.beforeEach(({}, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Desktop zoom bar.');
 });
 
-test('?v2 the zoom percentage opens Fit, 100% and Zoom to eye; an eye-less picture says so and the view stays put', async ({ page }) => {
+test('?v2 the zoom percentage opens Fit, 100% and Zoom to eye; a picture with no eye or subject zooms to the centre', async ({ page }) => {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: 'New project' }).first().click();
@@ -26,7 +26,7 @@ test('?v2 the zoom percentage opens Fit, 100% and Zoom to eye; an eye-less pictu
   const fit = await zoom.textContent();
   await zoom.click();
   const menu = root.getByTestId('zoom-menu');
-  await expect(menu.getByRole('menuitem')).toHaveText([/Fit to screen/, /100% \(actual pixels\)/, /Zoom to eye/]);
+  await expect(menu.getByRole('menuitem')).toHaveText([/Fit to screen/, /100% \(actual pixels\)/, /Zoom to (eye|centre)/]);
   await expect(root.getByTestId('zoom-menu-fit')).toContainText('Now');
   await root.getByTestId('zoom-menu-100').click();
   await expect(zoom).toHaveText('100%');
@@ -39,11 +39,12 @@ test('?v2 the zoom percentage opens Fit, 100% and Zoom to eye; an eye-less pictu
   await zoom.click();
   await root.getByTestId('zoom-menu-fit').click();
   await expect(zoom).toHaveText(fit!);
-  // Zoom to eye on a picture with no eye: it says so in words and leaves the zoom alone.
+  // No eye and no subject: once the look-ahead has run, the menu offers the centre, and it zooms there at 100%.
   await zoom.click();
+  await expect(root.getByTestId('zoom-menu-eye')).toHaveText(/Zoom to centre/, { timeout: 30000 });
   await root.getByTestId('zoom-menu-eye').click();
-  await expect(root.getByTestId('eye-note')).toContainText(/No eye stood out clearly|not ready/, { timeout: 30000 });
-  await expect(zoom).toHaveText(fit!);
+  await expect(root.getByTestId('eye-note')).toContainText('No clear subject, so zoomed to the centre.');
+  await expect(zoom).toHaveText('100%');
   await root.getByTestId('eye-note').getByRole('button', { name: 'Dismiss' }).click();
   await expect(root.getByTestId('eye-note')).toHaveCount(0);
 });

@@ -44,6 +44,12 @@ export class CloudPhotoStore {
       .map((p) => ({ photoKey: p.photoKey, name: p.name, previewBytes: p.preview!.bytes, thumbBytes: p.thumb?.committed ? p.thumb.bytes : null, originalBytes: p.original?.committed ? p.original.bytes : null }));
   }
 
+  /** Every project with something in the cloud store (for the daily storage settlement). */
+  async projectIds(): Promise<string[]> {
+    const snap = await this.db.collection('collab_cloud_photos').get();
+    return [...new Set(snap.docs.map((d) => String(d.data()!.projectId)))];
+  }
+
   async storedBytes(projectId: string) {
     const snap = await this.db.collection('collab_cloud_photos').where('projectId', '==', projectId).get();
     return snap.docs.reduce((sum, d) => {

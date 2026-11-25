@@ -61,8 +61,15 @@ export function linkedSourceMatches(expectedSize: number | undefined, actualSize
 }
 
 /** Compare the bytes actually read, not the file's mutable name/size/time metadata. */
-export function linkedBytesMatchImportedOriginal(bytes: Uint8Array, expectedOriginalSha256: string): boolean {
-  return isSameOriginalBytes(expectedOriginalSha256, sha256Plain(bytes));
+/** Uses the system SHA-256 when there is one: the JavaScript version froze the screen for about a second per RAW read. */
+export async function linkedBytesMatchImportedOriginal(bytes: Uint8Array, expectedOriginalSha256: string): Promise<boolean> {
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) return isSameOriginalBytes(expectedOriginalSha256, sha256Plain(bytes));
+  // Bytes read from a file are never in a SharedArrayBuffer; the cast only narrows the declared type for digest().
+  const digest = new Uint8Array(await subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>));
+  let hex = '';
+  for (const byte of digest) hex += byte.toString(16).padStart(2, '0');
+  return isSameOriginalBytes(expectedOriginalSha256, hex);
 }
 
 /** Reader for a photo already in a project, given its saved path and the name, size and time it had when added. */
@@ -83,7 +90,7 @@ export function linkedReader(path: string, name: string, lastModified: number, e
     }
     // Rechecking the bytes at use time closes the gap after import/reconnect:
     // size and mtime can be identical for a substituted original.
-    if (!linkedBytesMatchImportedOriginal(bytes, expectedOriginalSha256)) {
+    if (!await linkedBytesMatchImportedOriginal(bytes, expectedOriginalSha256)) {
       throw new Error('Linked original bytes do not match the imported SHA-256. Reconnect the genuine original.');
     }
     return new File([bytes], name, { lastModified });

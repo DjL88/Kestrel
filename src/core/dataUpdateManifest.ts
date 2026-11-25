@@ -25,7 +25,13 @@ const SHA = /^[0-9a-f]{64}$/;
 const PATH = /^\/data\/[a-zA-Z0-9][a-zA-Z0-9._/-]{0,179}$/;
 const CONTRACT = /^[a-z0-9][a-z0-9._-]{0,63}\/v[0-9]{1,3}$/;
 const MAX_ASSETS = 80;
-const MAX_BYTES = 256 * 1024 * 1024;
+/**
+ * Largest single file. Optional desktop packs can be large (BioCLIP 2's image model is about 580 MiB, one ONNX buffer).
+ * Apps built before this accept files up to LEGACY_MAX_BYTES only and refuse a whole manifest holding a larger one, so
+ * the signing script lists a larger file only when told to (modelManifestPlan.ts, allowLarge).
+ */
+const MAX_BYTES = 1024 * 1024 * 1024;
+export const LEGACY_MAX_BYTES = 256 * 1024 * 1024;
 const KINDS: DataKind[] = ['equipment', 'onnx', 'species-library'];
 
 function obj(v: unknown): v is Record<string, unknown> {

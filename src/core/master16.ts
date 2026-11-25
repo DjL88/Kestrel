@@ -392,6 +392,16 @@ export function editRgb16(image: Rgb16Image, edit: PhotoEdit, lens?: { x: number
 }
 
 /**
+ * Frame (crop, quarter turns, straighten) and edit a 16-bit picture the caller owns: the export's maths, shared by the
+ * main thread and the export worker. An identity framing works in place on `picture`; anything else allocates.
+ */
+export function frameAndEditRgb16(picture: Rgb16Image, turn: number, edit: PhotoEdit, framing: PhotoFraming | undefined): Rgb16Image {
+  const framed = frameRgb16(picture, framing ?? DEFAULT_FRAMING, turn / 90, true);
+  editRgb16(framed, edit, lensCentre(picture.width, picture.height, framing ?? DEFAULT_FRAMING, turn / 90));
+  return framed;
+}
+
+/**
  * A kept 16-bit picture (already turned by `turn` degrees to match the editor) with this framing and edit, by the same
  * 16-bit maths as the export. Works on a copy; null when an edit cannot be carried at 16 bits yet (see master16Blocker).
  */
