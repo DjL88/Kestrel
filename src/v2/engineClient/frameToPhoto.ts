@@ -28,6 +28,7 @@ import { buildEditingSequence } from '../../core/editingSequence';
 import type { PhotoEdit } from '../../core/photoEdits';
 import { VEHICLE_LABELS } from '../../core/vehicleLabels';
 import { validVehicleReading, vehicleLabel, vehicleSearchWords } from '../../core/vehicleRecognition';
+import { sharedPhotoKey } from '../../core/sharedSync';
 import { vehicleText, vehicleTextEnglish } from '../../i18n/areas/vehicles';
 
 /** A transparent pixel, so a photo whose picture is not ready yet shows an empty tile rather than a broken image. */
@@ -49,7 +50,7 @@ export function recipeDelta(base: Parameters<typeof editToRecipe>[0], proposal: 
 
 /** The on-screen slider names, so a step points at the slider the person can find in Adjust. */
 const effects = STRINGS.adjust.effects;
-const STEP_LABELS: Record<string, string> = {
+export const STEP_LABELS: Record<string, string> = {
   ...engineText.steps,
   // Effects, grading and calibration reuse the words their own panels show, so a step names the slider exactly.
   colourGrade: STRINGS.adjust.grade.heading, dehaze: effects.dehaze, vignette: effects.vignette,
@@ -199,6 +200,8 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
   const thumb = urls?.thumb ?? BLANK_IMAGE;
   return {
     id: frame.id,
+    sharedKey: frame.cloudPhoto && !frame.virtualCopy ? frame.cloudPhoto.photoKey : sharedPhotoKey(frame.originalSha256, frame.virtualCopy?.number),
+    cloudPreview: frame.cloudPhoto ? true : undefined,
     filename: frame.filename,
     title: titleOf(frame.filename),
     previewUrl: urls?.preview ?? thumb,

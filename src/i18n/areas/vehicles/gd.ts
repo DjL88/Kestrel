@@ -28,6 +28,7 @@ export const gd: AreaTranslation<typeof source> = {
   marked: (what: string, marking: string) => `${what}, comharra ${marking}`,
   registered: (marking: string, type: string) => `${marking}: ${type} (on chlàr)`,
   operatedBy: (what: string, operator: string) => `${what}, air obrachadh le ${operator}`,
+  held: (what: string) => `${what}? Feumaidh tu sùil a thoirt air`,
   reader: {
     title: 'Leugh clàraidhean itealain',
     description: (megabytes: string) => `A’ leughadh clàraidhean is àireamhan sreathach armailteach a tha peantte air itealain, air an uidheam seo, agus gan lorg ann an lethbhreac far loidhne de chlàran poblach. Luchdadh a-nuas aon turas de ${megabytes} MB. Cha tèid clàran-àireimh chàraichean a leughadh idir.`,

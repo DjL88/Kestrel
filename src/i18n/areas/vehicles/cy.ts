@@ -28,6 +28,7 @@ export const cy: AreaTranslation<typeof source> = {
   marked: (what: string, marking: string) => `${what}, wedi'i farcio ${marking}`,
   registered: (marking: string, type: string) => `${marking}: ${type} (o'r gofrestr)`,
   operatedBy: (what: string, operator: string) => `${what}, a weithredir gan ${operator}`,
+  held: (what: string) => `${what}? Angen i chi wirio`,
   reader: {
     title: 'Darllen cofrestriadau awyrennau',
     description: (megabytes: string) => `Yn darllen cofrestriadau a rhifau cyfresol milwrol sydd wedi’u peintio ar awyrennau, ar y ddyfais hon, ac yn eu chwilio mewn copi all-lein o gofrestrau cyhoeddus. Lawrlwythiad unwaith o ${megabytes} MB. Nid yw platiau rhif ceir byth yn cael eu darllen.`,

@@ -327,6 +327,10 @@ export interface PhotoExif {
 
 export interface Photo {
   id: string;
+  /** The same photo on every device of a shared project: from the original's fingerprint (src/core/sharedSync.ts). */
+  sharedKey?: string;
+  /** A cloud preview of someone else's original: fine for viewing, commenting and editing, not the full file. */
+  cloudPreview?: boolean;
   filename: string;
   title: string;
   previewUrl: string;
@@ -587,6 +591,11 @@ export interface WorkspaceStore {
   canRedo: boolean;
   clipboardRecipe: EditRecipe | null;
   lastActionNotice: string | null;
+  /** After reading a Lightroom catalogue: how many of its photos are not in this project yet, and where Lightroom keeps them. */
+  lightroomOffer?: { missing: number; folder: string } | null;
+  /** First run: InFlight is adding the picked photos and running Auto on the first ('working'), has applied Auto ('ready'),
+   * found the photo already looked natural and left it ('unchanged'), or could not check it ('failed'). */
+  quickStart?: { phase: 'working' | 'ready' | 'unchanged' | 'failed'; photoId: string | null } | null;
   /** The open project's automatic backup, as last reported. Absent when no project is open. */
   backup?: { state: 'idle' | 'working' | 'ok' | 'partial' | 'failed'; at?: number } | null;
   /** Optional engine-supplied renderer for the canvas (see PhotoSurfaceProps). */
@@ -637,6 +646,17 @@ export interface WorkspaceActions {
   saveXmpSidecars: (photoIds: string[]) => void;
   /** Read ratings, flags and tags from chosen .xmp files (or one .zip) for matching photos. Every file is checked before anything changes. */
   readXmpSidecars: (files: File[], photoIds: string[]) => void;
+  /** Bring ratings, flags, keywords, collections and basic edits in from a Lightroom Classic catalogue (.lrcat) for the photos
+   * already in this project. The catalogue is only read; choices already made in InFlight are kept. */
+  readLightroomCatalogue: (file: File) => void;
+  /** Choose the folder Lightroom keeps the catalogue's photos in: add those photos, then bring in their details. */
+  chooseLightroomFolder?: () => void;
+  dismissLightroomOffer?: () => void;
+  /** Save the whole project's ratings, flags, keywords and edit recipes in open formats (XMP with Camera Raw settings, CSV, JSON). */
+  exportOpenFormats?: () => void;
+  /** First run: pick photos; InFlight makes a project, adds them and runs Auto on the first one. */
+  startQuickStart?: () => void;
+  dismissQuickStart?: () => void;
   runAutoCull: () => void;
   reconnectOriginal: (photoId: string) => void;
   toggleDemoUnavailable: () => void;
@@ -649,6 +669,16 @@ export interface WorkspaceActions {
   applyAllAssistSuggestions: (photoId: string) => void;
   /** A sized JPEG of the edited photo for a client gallery, or null when there is no trustworthy picture yet. Absent in the stub. */
   renderGalleryPreview?: (photoId: string) => Promise<Blob | null>;
+  /** The photo's whole edit as plain data for a shared project, or null when it has no edit. Absent in the stub. */
+  sharedEditOf?: (photoId: string) => Record<string, unknown> | null;
+  /** Replace the photo's edit with a shared one (or clear it). Recorded as an edit step, so it can be undone. */
+  applySharedEdit?: (photoId: string, edit: Record<string, unknown> | null) => void;
+  /** On a clash: keep this device's edit as a virtual copy beside the photo, and give the photo the shared edit. Returns the copy's id. */
+  keepBothShared?: (photoId: string, theirs: Record<string, unknown> | null) => string | null;
+  /** Add photos fetched from a shared project's cloud store to this project, linked to the owner's originals. */
+  importCloudPreviews?: (items: { file: File; projectId: string; photoKey: string }[]) => Promise<void>;
+  /** The photo's exact original bytes, checked against its fingerprint, or null when the original is not connected. */
+  readVerifiedOriginal?: (photoId: string) => Promise<Blob | null>;
   dismissAssistSuggestion: (photoId: string, suggestionId: string) => void;
 
   // Editing & Looks

@@ -77,6 +77,8 @@ import { archiveExports, saveExportFile, loadExportSource, loadVerifiedRasterOri
 import { toProfile } from '../../core/exportFormats';
 import { renderV2Export, type OverlayDraw } from './renderV2Export';
 import { renderGalleryPreview } from './galleryPreview';
+import { readSharedEdit } from '../../core/sharedSync';
+import { createVirtualCopy } from '../../core/virtualCopies';
 import { formatOverlayRowText } from '../ui/utils/studioMath';
 import { loadImage } from '../../providers/loadImage';
 import { deliverExport, describeExport } from './exportDelivery';
@@ -87,6 +89,11 @@ import { saveProjectBackupFile } from '../../providers/projectBackupFile';
 import { restoreProjectBackup } from '../../core/projectBackup';
 import { backupStatusText } from './backupWords';
 import { applySidecarImports, planXmpImports, saveSidecars, sidecarFailureText, xmpScope } from './xmpOps';
+import { applyLightroomImport, lightroomNotice } from './lightroomOps';
+import { saveCatalogueExport } from './catalogueExport';
+import { CatalogueReadError, readLightroomCatalogue } from '../../core/lightroomCatalogue';
+import { catalogueFilesInFolder, catalogueOnlyPhotos, commonFolder, planLightroomImport } from '../../core/lightroomImport';
+import type { LightroomPhoto } from '../../core/lightroomCatalogue';
 import { STRINGS as V2_STRINGS } from '../ui/strings';
 import { scheduleV2PhotoExports, photoExportUnits } from './scheduledPhotoExport';
 import { uniqueExportFilename } from '../../core/exportNaming';
@@ -471,6 +478,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // Automatic backups of the open project, shared with V1: soon after a change, every so often, and on leaving.
   useAutoBackup(state && !state.shoot.collage ? state : null, Boolean(state));
   const backupStatus = useBackupStatus(state?.shoot.id ?? '');
+  // First run: pick photos, and InFlight makes a project, adds them and runs Auto on the first one.
+  const [quickStart, setQuickStart] = useState<{ projectId: string; photoId: string | null; phase: 'working' | 'ready' | 'unchanged' | 'failed' } | null>(null);
+  const lightroomPending = useRef<{ projectId: string; photos: LightroomPhoto[]; toAdd: LightroomPhoto[] } | null>(null);
+  const [lightroomOffer, setLightroomOffer] = useState<{ missing: number; folder: string } | null>(null);
   const mutate = useCallback((change: (current: CullingState) => CullingState) => setState((current) => (current ? change(current) : current)), []);
 
   // RAW + JPEG of one shot are one photo: the JPEG is kept but not listed, and decisions and ratings cover both.
@@ -1076,6 +1087,23 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     editFrames([frameId], (latest) => valid(latest) ? candidate.edit : latest.edit);
   }, [assists, editFrames]);
 
+  // First run: once Auto has looked at the first photo, apply its suggestion (one undoable step), or say plainly that
+  // the photo already looked natural and was left alone.
+  useEffect(() => {
+    if (!quickStart || quickStart.phase !== 'working' || !quickStart.photoId) return;
+    const assist = assists[quickStart.photoId];
+    if (!assist) return;
+    const improved = assist.run.improved && assist.run.candidates.length > 0;
+    if (improved) applyAuto(quickStart.photoId);
+    setQuickStart({ ...quickStart, phase: improved ? 'ready' : 'unchanged' });
+  }, [assists, quickStart, applyAuto]);
+  useEffect(() => {
+    if (!quickStart || quickStart.phase !== 'working' || !quickStart.photoId) return;
+    // Auto normally answers in a few seconds; if it cannot check the photo, say so instead of waiting forever.
+    const timer = window.setTimeout(() => setQuickStart((current) => current === quickStart ? { ...current, phase: 'failed' } : current), 45_000);
+    return () => window.clearTimeout(timer);
+  }, [quickStart]);
+
   // Co-pilot and Auto-pilot look at the photo on the canvas, on this device, one at a time. Solo never does.
   const assistMode = savedUi.assistMode ?? stub.store.assistMode;
   const assistProjectId = state?.shoot.id;
@@ -1158,7 +1186,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       itemId: item => item.id, itemLabel: item => item.name,
       runItem: async (_, __, ctx) => {
         ctx.stage(engineText.workspace.deepStage);
-        const result = await runDeepVisionReview(frame, provider.current!);
+        // The batch's own signal: the subject finder then runs inside this task, not queued behind it.
+        const result = await runDeepVisionReview(frame, provider.current!, ctx.signal);
         ctx.checkCancelled();
         if (!result) throw new Error(engineText.workspace.deepNoResult);
         // The review is advisory. Do not publish stale observations after
@@ -1176,6 +1205,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       });
   }, []);
 
+  const cloudImports = useRef(new Map<string, { projectId: string; photoKey: string }>());
   const importPhotos = useCallback(async (suppliedPicks?: Array<File | PickedPhoto> | null) => {
     const target = stateRef.current;
     if (!target) return;
@@ -1219,9 +1249,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           if (result.failedNames.length) throw new Error(engineText.workspace.importUnreadable(result.failedNames.join(', ')));
           // A one-photo loader has index one. Give each imported frame its
           // distinct stable project index before inserting it into React.
+          const cloudPhoto = cloudImports.current.get(pickedKey(item.file));
           const frames = result.frames.map(frame => ({
             ...frame, id: `file-${item.index + 1}-${frame.filename}`,
             sequenceIndex: item.index + 1,
+            ...(cloudPhoto ? { cloudPhoto } : {}),
           }));
           if (result.unstoredKeys.length) warnings.push(`${item.file.name} could not be stored for reopening. Relink it when needed.`);
           ctx.stage(engineText.workspace.importSaveStage);
@@ -1656,6 +1688,95 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         setNotice(V2_STRINGS.xmp.read(planned.length));
       }, (error) => setNotice(sidecarFailureText(error)));
     },
+    readLightroomCatalogue: (file) => {
+      const before = stateRef.current;
+      if (!before) return;
+      const words = V2_STRINGS.lightroom;
+      setNotice(words.reading);
+      // The catalogue is read whole and matched before any photo changes; a project change meanwhile cancels it.
+      void readLightroomCatalogue(file).then((photos) => {
+        const now = stateRef.current;
+        if (!now || now.shoot.id !== before.shoot.id || now.shoot.lastUpdatedAt !== before.shoot.lastUpdatedAt) {
+          setNotice(words.failed.changed);
+          return;
+        }
+        const plan = planLightroomImport(photos, now.frames);
+        const toAdd = catalogueOnlyPhotos(photos, now.frames);
+        // Photos the project does not have yet are offered next: the person chooses the folder they are in.
+        lightroomPending.current = toAdd.length ? { projectId: now.shoot.id, photos, toAdd } : null;
+        setLightroomOffer(toAdd.length ? { missing: toAdd.length, folder: commonFolder(toAdd) } : null);
+        if (!plan.matches.length) {
+          if (!toAdd.length) setNotice(words.failed.none);
+          else setNotice(null);
+          return;
+        }
+        const catalogued = photos.length - plan.virtualCopies;
+        const { state: applied, result } = applyLightroomImport(now, plan, Date.now());
+        // Applied only to the exact state that was matched; anything newer keeps the person's change instead.
+        mutate((current) => (current === now ? applied : current));
+        setNotice(lightroomNotice(words, { ...plan, unmatched: plan.unmatched - toAdd.length }, catalogued, result));
+      }, (error) => setNotice(words.failed[error instanceof CatalogueReadError ? error.reason : 'unreadable']));
+    },
+    exportOpenFormats: () => {
+      const current = stateRef.current;
+      if (!current) return;
+      const words = V2_STRINGS.openExport;
+      void saveCatalogueExport(current).then((outcome) => {
+        if (outcome !== 'cancelled') setNotice(outcome === 'saved' ? words.saved : outcome === 'nothing' ? words.nothing : words.failed);
+      });
+    },
+    startQuickStart: () => {
+      const words = V2_STRINGS.quickStart;
+      // The picker opens straight from the person's click; everything after it runs on this device.
+      void pickFiles().then(async (picks) => {
+        if (!picks?.length) return;
+        const created = createEmptyProject(`project-${newId()}`, words.projectName);
+        try { await catalogue.current!.saveProject(created); }
+        catch { setNotice(V2_STRINGS.quickStart.failed); return; }
+        enterProject(created);
+        setQuickStart({ projectId: created.shoot.id, photoId: null, phase: 'working' });
+        for (let wait = 0; stateRef.current?.shoot.id !== created.shoot.id && wait < 100; wait++) {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+        if (stateRef.current?.shoot.id !== created.shoot.id) return;
+        await importPhotos(picks);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const now = stateRef.current;
+        const first = now?.shoot.id === created.shoot.id ? now.frames.find((frame) => frame.removedAt == null) : undefined;
+        if (!first) { setQuickStart(null); return; }
+        setQuickStart({ projectId: created.shoot.id, photoId: first.id, phase: 'working' });
+        setAutoRequest((last) => ({ photoId: first.id, sequence: (last?.sequence ?? 0) + 1 }));
+      });
+    },
+    dismissQuickStart: () => setQuickStart(null),
+    dismissLightroomOffer: () => { lightroomPending.current = null; setLightroomOffer(null); },
+    chooseLightroomFolder: () => {
+      const pending = lightroomPending.current;
+      const words = V2_STRINGS.lightroom;
+      if (!pending) return;
+      // Picked from the person's click, so the browser allows the folder picker.
+      void pickFolderFiles().then(async (files) => {
+        if (!files?.length) return;
+        const { found, missing } = catalogueFilesInFolder(pending.toAdd, files);
+        if (!found.length) { setNotice(words.noneInFolder); return; }
+        lightroomPending.current = null;
+        setLightroomOffer(null);
+        const before = new Set((stateRef.current?.frames ?? []).map((frame) => frame.id));
+        await importPhotos(found);
+        await new Promise((resolve) => setTimeout(resolve, 0)); // let the last added photos reach stateRef
+        const now = stateRef.current;
+        if (!now || now.shoot.id !== pending.projectId) return;
+        const added = now.frames.filter((frame) => !before.has(frame.id)).length;
+        const plan = planLightroomImport(pending.photos, now.frames);
+        const { state: applied, result } = applyLightroomImport(now, plan, Date.now());
+        mutate((current) => (current === now ? applied : current));
+        const catalogued = pending.photos.length - plan.virtualCopies;
+        const parts = [lightroomNotice(words, { ...plan, unmatched: 0 }, catalogued, result)];
+        if (missing) parts.push(words.notInFolder(missing));
+        if (added < found.length) parts.push(words.notAdded(found.length - added));
+        setNotice(parts.join(' '));
+      });
+    },
     runAutoCull: () => { void runAutoCull(); },
     addMaskLayer: (photoId, type) => { void addMask(photoId, type); },
     toggleMaskLayer: (photoId, maskId) => editMasks(photoId, (masks) => toggleMask(masks, maskId)),
@@ -1669,6 +1790,43 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     applyAssistSuggestion: applyAuto,
     requestLocalAuto: (photoId) => setAutoRequest((last) => ({ photoId, sequence: (last?.sequence ?? 0) + 1 })),
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
+    sharedEditOf: (photoId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
+      return frame?.edit ? JSON.parse(JSON.stringify(frame.edit)) as Record<string, unknown> : null;
+    },
+    applySharedEdit: (photoId, edit) => {
+      const safe = readSharedEdit(edit);
+      if (safe === false) { setNotice('The shared edit for this photo could not be read, so nothing was changed.'); return; }
+      editFrames([photoId], () => safe ?? undefined);
+    },
+    keepBothShared: (photoId, theirs) => {
+      const safe = readSharedEdit(theirs);
+      const current = stateRef.current;
+      const source = current?.frames.find((frame) => frame.id === photoId && frame.removedAt == null);
+      if (safe === false || !current || !source) { setNotice('The shared edit for this photo could not be read, so nothing was changed.'); return null; }
+      // Mine becomes a virtual copy beside the photo; the photo itself takes the shared edit. Both stay, nothing is lost.
+      const copy = createVirtualCopy(source, current.frames, `vc-${newId()}`);
+      mutate((state) => {
+        const index = state.frames.findIndex((frame) => frame.id === photoId);
+        const frames = [...state.frames];
+        frames.splice(index + 1, 0, copy);
+        return { ...state, frames };
+      });
+      editFrames([photoId], () => safe ?? undefined);
+      return copy.id;
+    },
+    importCloudPreviews: async (items) => {
+      for (const item of items) cloudImports.current.set(pickedKey(pickedFromFile(item.file)), { projectId: item.projectId, photoKey: item.photoKey });
+      try { await importPhotos(items.map((item) => item.file)); }
+      finally { for (const item of items) cloudImports.current.delete(pickedKey(pickedFromFile(item.file))); }
+    },
+    readVerifiedOriginal: async (photoId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
+      if (!frame || frame.isDemo || frame.cloudPhoto || !provider.current) return null;
+      const bytes = await provider.current.ensureOriginal(frame.stableKey, 'selected');
+      if (!bytes) return null;
+      try { return await verifyExactOriginalCopy(bytes, frame.originalSha256); } catch { return null; }
+    },
     renderGalleryPreview: async (photoId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
       return frame && provider.current ? renderGalleryPreview(frame, provider.current) : null;
@@ -1969,8 +2127,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clipboardRecipe: clipboard,
     PhotoSurface: EngineSurface,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
+    quickStart: quickStart && quickStart.projectId === state?.shoot.id && screen === 'editor' ? { phase: quickStart.phase, photoId: quickStart.photoId } : null,
+    lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
-  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice]);
+  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart]);
 
   return { store, actions };
 }
