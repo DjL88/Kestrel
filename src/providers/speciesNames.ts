@@ -14,8 +14,8 @@ let loadedLanguage = '';
 const extra: SpeciesNameTable[] = [];
 const listeners = new Set<() => void>();
 
-/** Languages the IOC multilingual list has names in; the others show the scientific name. */
-export const IOC_NAME_LANGUAGES = ['da', 'nl', 'fi', 'fr', 'de', 'it', 'nb', 'pt', 'es', 'sv', 'is'];
+/** Languages with a names file (IOC bird names and Wikidata mammal names); others show the scientific name. */
+export const NAME_LANGUAGES = ['da', 'nl', 'fi', 'fr', 'de', 'it', 'nb', 'pt', 'es', 'sv', 'is', 'cy', 'gd', 'ga'];
 
 export function speciesNameIndex(): SpeciesNameIndex | undefined {
   return index;
@@ -54,7 +54,7 @@ export function loadSpeciesNames(language: string): Promise<SpeciesNameIndex | u
       };
       const [all, local, familyNames] = await Promise.all([
         read<IndexFile>('index.json'),
-        IOC_NAME_LANGUAGES.includes(code) ? read<LanguageFile>(`${code}.json`) : Promise.resolve<LanguageFile>({ names: {} }),
+        NAME_LANGUAGES.includes(code) ? read<LanguageFile>(`${code}.json`).catch((): LanguageFile => ({ names: {} })) : Promise.resolve<LanguageFile>({ names: {} }),
         // Family names (Wikidata, CC0, plus drafts for common families), about 45 KB for every language together.
         read<FamiliesFile>('families.json').catch((): FamiliesFile => ({ names: {} })),
       ]);

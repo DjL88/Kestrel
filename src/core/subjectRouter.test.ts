@@ -164,3 +164,21 @@ test('finite extreme-magnitude embeddings keep finite probabilities and conserva
   assert.ok(result.top.every((entry) => Number.isFinite(entry.probability)));
   assert.equal(result.confident, true);
 });
+
+test('reptiles and amphibians now route to the species list, which holds the world reptile and amphibian lists', () => {
+  const reptile = categories.find((c) => c.id === 'reptile')!;
+  assert.equal(reptile.identify, 'species');
+  assert.equal(reptile.label, 'Reptile or amphibian', 'one category: the gate cannot tell a lizard from a newt reliably, so BioCLIP decides');
+  assert.equal(speciesGate(routeSubject(picture({ reptile: 1 }), vectors, categories)), 'allow');
+});
+
+test('insects stay strict until both insect lists (dragonflies, butterflies and moths) are in the species list', () => {
+  assert.equal(categories.find((c) => c.id === 'insect')!.identify, null);
+  assert.equal(speciesGate(routeSubject(picture({ insect: 1 }), vectors, categories)), 'strict');
+});
+
+test('a picture split between reptile and insect is not let through to a species name', () => {
+  const result = routeSubject(picture({ reptile: 1, insect: 1 }), vectors, categories);
+  assert.equal(result.confident, false);
+  assert.notEqual(speciesGate(result), 'allow');
+});

@@ -8,22 +8,33 @@ import type { MaskContext } from './masks';
 
 /**
  * amount: -1 darkens the edges, 1 lightens them; with `colour`, the edges blend towards that colour by |amount|.
- * size: 0 keeps it to the corners, 1 reaches well into the picture. blur: 0 to 1 softens the edges (0 = sharp).
+ * size (the midpoint): 0 keeps it to the corners, 1 reaches well into the picture. blur: 0 to 1 softens the edges.
+ * roundness: -1 follows the frame's rectangle, 0 (absent) an oval of the frame's shape, 1 a circle.
+ * feather: 0 a hard edge, 0.5 (absent) the standard soft fall-off, 1 the softest.
+ * highlights: 0 (absent) to 1, how much bright areas are spared from darkening or tinting.
  */
-export interface Vignette { amount: number; size: number; colour?: [number, number, number]; blur?: number }
-export interface Grain { amount: number; size: number }
+export interface Vignette {
+  amount: number; size: number; colour?: [number, number, number]; blur?: number;
+  roundness?: number; feather?: number; highlights?: number;
+}
+/** roughness: 0 (absent) smooth, even grain; 1 adds a finer, irregular layer, like coarse film. */
+export interface Grain { amount: number; size: number; roughness?: number }
 
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 const record = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 const unit = (v: unknown): v is number => finite(v) && v >= 0 && v <= 1;
+const VIGNETTE_KEYS = new Set(['amount', 'size', 'colour', 'blur', 'roundness', 'feather', 'highlights']);
 export const validVignette = (value: unknown): value is Vignette => record(value)
-  && Object.keys(value).every((k) => k === 'amount' || k === 'size' || k === 'colour' || k === 'blur')
+  && Object.keys(value).every((k) => VIGNETTE_KEYS.has(k))
   && finite(value.amount) && value.amount >= -1 && value.amount <= 1 && unit(value.size)
   && (value.blur === undefined || unit(value.blur))
+  && (value.roundness === undefined || (finite(value.roundness) && value.roundness >= -1 && value.roundness <= 1))
+  && (value.feather === undefined || unit(value.feather)) && (value.highlights === undefined || unit(value.highlights))
   && (value.colour === undefined || (Array.isArray(value.colour) && value.colour.length === 3 && value.colour.every(unit)));
 const vignetteOn = (v: Vignette) => v.amount !== 0 || (v.blur ?? 0) > 0;
-export const validGrain = (value: unknown): value is Grain => record(value) && Object.keys(value).every((k) => k === 'amount' || k === 'size')
-  && finite(value.amount) && value.amount >= 0 && value.amount <= 1 && finite(value.size) && value.size >= 0 && value.size <= 1;
+export const validGrain = (value: unknown): value is Grain => record(value) && Object.keys(value).every((k) => k === 'amount' || k === 'size' || k === 'roughness')
+  && finite(value.amount) && value.amount >= 0 && value.amount <= 1 && finite(value.size) && value.size >= 0 && value.size <= 1
+  && (value.roughness === undefined || unit(value.roughness));
 
 interface FinishEdit { vignette?: Vignette; grain?: Grain }
 export function hasFinishing(edit: FinishEdit): boolean {
@@ -65,19 +76,32 @@ export function grainNoise(x: number, y: number): number {
 /** Largest edge blur radius, as a share of the photo's long edge. */
 export const VIGNETTE_BLUR_EDGE = 0.02;
 
+/** The narrowest fall-off a feather of 0 gives, as a share of the distance from centre to corner. */
+const HARDEST_FALLOFF = 0.02;
+
 interface Plan {
-  vignette: { stops: number; start: number; colour: [number, number, number] | null; mix: number } | null;
+  vignette: {
+    stops: number; start: number; end: number; colour: [number, number, number] | null; mix: number;
+    roundness: number; highlights: number; circle: number;
+  } | null;
   blurRadius: number;
-  grain: { amount: number; cells: number } | null;
+  grain: { amount: number; cells: number; roughness: number } | null;
   fx0: number; fy0: number; fdx: number; fdy: number; longW: number; longH: number;
 }
 
 function plan(edit: FinishEdit, width: number, height: number, context: MaskContext, imageEdge: number): Plan {
   const { aspect, view } = context;
   const v = validVignette(edit.vignette) && vignetteOn(edit.vignette) ? edit.vignette : null;
+  const longW = aspect <= 1 ? 1 : 1 / aspect, longH = aspect <= 1 ? aspect : 1;
+  const start = v ? 0.8 - 0.65 * v.size : 1;
+  // Feather 0.5 (and absent) is the original fall-off from `start` to the corner; 0 is nearly hard, 1 twice as wide.
+  const falloff = v ? Math.max(HARDEST_FALLOFF, (1 - start) * 2 * (v.feather ?? 0.5)) : 0;
   const vignette = v ? {
-    stops: v.colour ? 0 : v.amount * VIGNETTE_STOPS, start: 0.8 - 0.65 * v.size,
+    stops: v.colour ? 0 : v.amount * VIGNETTE_STOPS, start, end: start + falloff,
     colour: v.colour ? v.colour.map(toLinear) as [number, number, number] : null, mix: v.colour ? Math.abs(v.amount) : 0,
+    roundness: v.roundness ?? 0, highlights: v.highlights ?? 0,
+    // A circle in real proportions, scaled so its corner distance is 1 like the oval's.
+    circle: 1 / Math.hypot(longW, longH),
   } : null;
   const blurRadius = v && (v.blur ?? 0) > 0 ? Math.max(0.5, (v.blur ?? 0) * VIGNETTE_BLUR_EDGE * imageEdge) : 0;
   let grain: Plan['grain'] = null;
@@ -85,12 +109,12 @@ function plan(edit: FinishEdit, width: number, height: number, context: MaskCont
     const cells = GRAIN_CELLS_FINE + (GRAIN_CELLS_COARSE - GRAIN_CELLS_FINE) * edit.grain.size;
     // When a grain cell is smaller than a screen pixel, independent cells average out: scale the swing down to match.
     const cellPixels = imageEdge / cells;
-    grain = { amount: edit.grain.amount * GRAIN_STRENGTH * Math.min(1, cellPixels), cells };
+    grain = { amount: edit.grain.amount * GRAIN_STRENGTH * Math.min(1, cellPixels), cells, roughness: edit.grain.roughness ?? 0 };
   }
   return {
     vignette, grain, blurRadius,
     fx0: view.x, fy0: view.y, fdx: view.w / width, fdy: view.h / height,
-    longW: aspect <= 1 ? 1 : 1 / aspect, longH: aspect <= 1 ? aspect : 1,
+    longW, longH,
   };
 }
 
@@ -101,10 +125,23 @@ function plan(edit: FinishEdit, width: number, height: number, context: MaskCont
 function finishPixel(out: Float32Array, fx: number, fy: number, p: Plan, soft: Float32Array | null): void {
   if (p.vignette) {
     const u = 2 * fx - 1, v = 2 * fy - 1;
-    const distance = Math.sqrt((u * u + v * v) / 2);
-    const weight = smoothstep(p.vignette.start, 1, distance);
+    const { roundness } = p.vignette;
+    let distance = Math.sqrt((u * u + v * v) / 2);
+    if (roundness > 0) {
+      const circle = Math.hypot(u * p.longW, v * p.longH) * p.vignette.circle;
+      distance += (circle - distance) * roundness;
+    } else if (roundness < 0) {
+      // Towards the frame's own rectangle: every edge, not only the corners, reaches the full distance.
+      distance += (Math.max(Math.abs(u), Math.abs(v)) - distance) * -roundness;
+    }
+    let weight = smoothstep(p.vignette.start, p.vignette.end, distance);
+    const { stops, colour, mix, highlights } = p.vignette;
+    // Spare bright areas from darkening or tinting (lightening is left as it is).
+    if (weight > 0 && highlights > 0 && (stops < 0 || colour)) {
+      const luma = 0.2126 * out[0] + 0.7152 * out[1] + 0.0722 * out[2];
+      weight *= 1 - highlights * smoothstep(0.55, 0.95, luma);
+    }
     if (weight > 0) {
-      const { stops, colour, mix } = p.vignette;
       const gain = 2 ** (stops * weight);
       for (let c = 0; c < 3; c += 1) {
         let light = toLinear(out[c]);
@@ -116,7 +153,11 @@ function finishPixel(out: Float32Array, fx: number, fy: number, p: Plan, soft: F
   }
   if (p.grain) {
     const luma = 0.2126 * out[0] + 0.7152 * out[1] + 0.0722 * out[2];
-    const delta = p.grain.amount * (0.35 + 2.6 * luma * (1 - luma)) * grainNoise(fx * p.longW * p.grain.cells, fy * p.longH * p.grain.cells);
+    const gx = fx * p.longW * p.grain.cells, gy = fy * p.longH * p.grain.cells;
+    let noise = grainNoise(gx, gy);
+    // Roughness mixes in a finer, offset layer, so the grain is less even (still fixed to the photo).
+    if (p.grain.roughness > 0) noise = noise * (1 - 0.45 * p.grain.roughness) + 0.75 * p.grain.roughness * grainNoise(gx * 2.7 + 101.3, gy * 2.7 + 57.9);
+    const delta = p.grain.amount * (0.35 + 2.6 * luma * (1 - luma)) * noise;
     for (let c = 0; c < 3; c += 1) out[c] = Math.min(1, Math.max(0, out[c] + delta));
   }
 }

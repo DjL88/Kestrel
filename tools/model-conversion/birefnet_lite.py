@@ -7,12 +7,17 @@ artifact, never into git.
 Stages run one model per process so memory stays bounded:
   fetch   download and verify every pinned file (official ONNX, HF reference code and weights, CC0/public-domain samples)
   ref     PyTorch reference alphas for the gate images -> ref.npz
-  convert fp16 (precision-sensitive ops kept fp32) and weight-only fp16 (fp16 weights, fp32 compute)
+  export  our own ONNX from the PyTorch model: deformable convolution replaced by an exact pure-PyTorch version
+          (tools/model-conversion/deform_conv.py, standard ONNX ops), first checked against the real model on the
+          gate images; plus an attempt at a native DeformConv (opset 19) export, recorded either way
+  convert fp16 (precision-sensitive ops kept fp32) and weight-only fp16 (fp16 weights, fp32 compute) of a given ONNX
   run     one variant against ref.npz -> gate-<name>.json (time per run, peak memory)
+The run of 25 Nov 2026 showed the authors' own published ONNX differs from their PyTorch model on soft edges, so the
+gated files are exported here from the pinned PyTorch model.
 PASS per image: mean |alpha diff| <= 0.005, IoU(alpha >= 0.5) >= 0.99, mean |diff| in the reference's soft-edge band
 (0.05..0.95) <= 0.03.
 """
-import hashlib, json, pathlib, subprocess, sys, time, urllib.request
+import hashlib, json, os, pathlib, subprocess, sys, time, urllib.request
 
 ONNX_URL = 'https://github.com/ZhengPeng7/BiRefNet/releases/download/v1/BiRefNet-general-bb_swin_v1_tiny-epoch_232.onnx'
 ONNX_SHA = '5600024376f572a557870a5eb0afb1e5961636bef4e1e22132025467d0f03333'
@@ -26,6 +31,7 @@ HF_FILES = {
 SAMPLES = 'https://raw.githubusercontent.com/scikit-image/scikit-image/v0.24.0/skimage/data'
 SAMPLE_FILES = ['astronaut.png', 'chelsea.png', 'coffee.png', 'rocket.jpg']  # public domain / CC0 (skimage/data/_fetchers.py)
 MEAN, STD = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
+SIZE = int(os.environ.get('BIREFNET_SIZE', '1024'))  # smaller only for a local smoke test
 KEEP_FP32 = ['Resize', 'Softmax', 'LayerNormalization', 'Erf', 'Div', 'Sigmoid', 'GatherND', 'ScatterND', 'Floor', 'Mod', 'BatchNormalization']
 
 
@@ -65,15 +71,19 @@ def gate_images(work):
 def prep(img):
     import numpy as np
     from PIL import Image
-    a = np.asarray(img.resize((1024, 1024), Image.BILINEAR), np.float32) / 255
+    a = np.asarray(img.resize((SIZE, SIZE), Image.BILINEAR), np.float32) / 255
     return ((a - np.array(MEAN, np.float32)) / np.array(STD, np.float32)).transpose(2, 0, 1)[None].astype(np.float32)
+
+
+def load_reference(work):
+    sys.path.insert(0, str(work / 'ref'))
+    from transformers import AutoModelForImageSegmentation
+    return AutoModelForImageSegmentation.from_pretrained(str(work / 'ref'), trust_remote_code=True).eval().float()
 
 
 def stage_ref(work):
     import numpy as np, torch
-    sys.path.insert(0, str(work / 'ref'))
-    from transformers import AutoModelForImageSegmentation
-    model = AutoModelForImageSegmentation.from_pretrained(str(work / 'ref'), trust_remote_code=True).eval().float()
+    model = load_reference(work)
     data = {}
     for name, img in gate_images(work).items():
         x = prep(img)
@@ -84,12 +94,71 @@ def stage_ref(work):
     np.savez(work / 'ref.npz', **data)
 
 
-def stage_convert(work):
+def alpha_model(model):
+    """The model returning the final soft mask (sigmoid applied), [1,1,S,S], as the app reads it."""
+    import torch
+
+    class Alpha(torch.nn.Module):
+        def __init__(self, m):
+            super().__init__()
+            self.m = m
+
+        def forward(self, input_image):
+            out = self.m(input_image)
+            return (out[-1] if isinstance(out, (list, tuple)) else out).sigmoid()
+    return Alpha(model).eval()
+
+
+def patch_deform_conv():
+    """Point every loaded copy of the model code at the pure-PyTorch deformable convolution."""
+    sys.path.insert(0, str(pathlib.Path(__file__).parent))
+    from deform_conv import deform_conv2d
+    patched = [name for name, module in list(sys.modules.items())
+               if module is not None and getattr(module, 'deform_conv2d', None) is not None and 'birefnet' in name.lower()]
+    for name in patched:
+        sys.modules[name].deform_conv2d = deform_conv2d
+    return patched
+
+
+def stage_export(work):
+    import numpy as np, torch
+    out = work / 'out'
+    report = {}
+    model = alpha_model(load_reference(work))
+    ref = np.load(work / 'ref.npz')
+    dummy = torch.zeros(1, 3, SIZE, SIZE)
+    # 1. Native DeformConv attempt (opset 19), unpatched model. Recorded either way.
+    native = out / 'birefnet-lite-deformconv-fp32.onnx'
+    try:
+        torch.onnx.export(model, (dummy,), str(native), input_names=['input_image'], output_names=['output_image'], opset_version=19, dynamo=False)
+        report['native_deformconv_export'] = 'exported'
+    except Exception as error:
+        report['native_deformconv_export'] = f'failed: {type(error).__name__}: {str(error)[:300]}'
+        if native.exists():
+            native.unlink()
+    # 2. Pure-PyTorch deformable convolution: prove it matches the real model, then export with standard ops.
+    report['patched_modules'] = patch_deform_conv()
+    worst = 0.0
+    with torch.no_grad():
+        for key in [k for k in ref.files if k.startswith('x_')]:
+            got = model(torch.from_numpy(ref[key])).numpy()[0, 0]
+            worst = max(worst, float(np.abs(got - ref['r_' + key[2:]]).max()))
+    report['patched_pytorch_max_abs_diff'] = worst
+    print('patched PyTorch vs reference, max |alpha diff|:', worst, flush=True)
+    if not report['patched_modules'] or worst > 1e-3:
+        sys.exit(f'pure-PyTorch deform conv does not match: {report}')
+    torch.onnx.export(model, (dummy,), str(out / 'birefnet-lite-export-fp32.onnx'), input_names=['input_image'],
+                      output_names=['output_image'], opset_version=17, dynamo=False)
+    (out / 'export.json').write_text(json.dumps(report, indent=1))
+    print(json.dumps(report, indent=1), flush=True)
+
+
+def stage_convert(work, source, stem):
     import numpy as np, onnx
     from onnx import TensorProto, helper, numpy_helper
     from onnxruntime.transformers.float16 import convert_float_to_float16
-    official = work / 'official.onnx'
-    onnx.save(convert_float_to_float16(onnx.load(str(official)), keep_io_types=True, op_block_list=KEEP_FP32), str(work / 'out' / 'birefnet-lite-fp16.onnx'))
+    official = pathlib.Path(source)
+    onnx.save(convert_float_to_float16(onnx.load(str(official)), keep_io_types=True, op_block_list=KEEP_FP32), str(work / 'out' / f'{stem}-fp16.onnx'))
     # Weight-only fp16: every float initializer stored as fp16, cast back to fp32 before use.
     model = onnx.load(str(official)); g = model.graph; casts, keep = [], []
     for init in g.initializer:
@@ -100,7 +169,7 @@ def stage_convert(work):
             keep.append(init)
     del g.initializer[:]; g.initializer.extend(keep)
     nodes = list(g.node); del g.node[:]; g.node.extend(casts + nodes)
-    onnx.save(model, str(work / 'out' / 'birefnet-lite-w16.onnx'))
+    onnx.save(model, str(work / 'out' / f'{stem}-w16.onnx'))
 
 
 def stage_run(work, model_path, name):
@@ -115,7 +184,8 @@ def stage_run(work, model_path, name):
         peak = max(peak, psutil.Process().memory_info().rss)
         if o.min() < 0 or o.max() > 1: o = 1 / (1 + np.exp(-o))
         band = (r > 0.05) & (r < 0.95); a, b = r >= 0.5, o >= 0.5
-        iou = float((a & b).sum() / max(1, (a | b).sum())); mad = float(np.abs(o - r).mean())
+        union = (a | b).sum(); iou = float((a & b).sum() / union) if union else 1.0  # two empty masks agree
+        mad = float(np.abs(o - r).mean())
         edge = float(np.abs(o - r)[band].mean()) if band.any() else 0.0
         passed = bool(mad <= 0.005 and iou >= 0.99 and edge <= 0.03); ok &= passed
         cases[img] = {'mean_abs_diff': round(mad, 5), 'iou': round(iou, 4), 'edge_band_diff': round(edge, 4), 'pass': passed}
@@ -130,15 +200,29 @@ def main():
     stage, work = sys.argv[1], pathlib.Path(sys.argv[2]).resolve()
     if stage == 'fetch': return stage_fetch(work)
     if stage == 'ref': return stage_ref(work)
-    if stage == 'convert': return stage_convert(work)
+    if stage == 'export': return stage_export(work)
+    if stage == 'convert': return stage_convert(work, sys.argv[3], sys.argv[4])
     if stage == 'run': return stage_run(work, pathlib.Path(sys.argv[3]), sys.argv[4])
     if stage == 'all':
         me = [sys.executable, '-I', __file__]
-        for step in (['fetch'], ['ref'], ['convert']): subprocess.run(me + step + [str(work)], check=True)
-        variants = [(work / 'official.onnx', 'official-fp32'), (work / 'out' / 'birefnet-lite-fp16.onnx', 'fp16'), (work / 'out' / 'birefnet-lite-w16.onnx', 'w16')]
-        for path, name in variants: subprocess.run(me + ['run', str(work), str(path), name], check=True)
-        summary = {name: json.loads((work / 'out' / f'gate-{name}.json').read_text())['result'] for _, name in variants}
-        (work / 'out' / 'summary.json').write_text(json.dumps(summary, indent=1)); print('SUMMARY', summary, flush=True)
+        for step in (['fetch'], ['ref'], ['export']):
+            subprocess.run(me + step + [str(work)], check=True)
+        exported = work / 'out' / 'birefnet-lite-export-fp32.onnx'
+        subprocess.run(me + ['convert', str(work), str(exported), 'birefnet-lite'], check=True)
+        variants = [(exported, 'export-fp32'), (work / 'out' / 'birefnet-lite-fp16.onnx', 'fp16'), (work / 'out' / 'birefnet-lite-w16.onnx', 'w16')]
+        native = work / 'out' / 'birefnet-lite-deformconv-fp32.onnx'
+        if native.exists():
+            variants.append((native, 'native-deformconv-fp32'))
+        summary = {}
+        for path, name in variants:
+            done = subprocess.run(me + ['run', str(work), str(path), name])
+            gate = work / 'out' / f'gate-{name}.json'
+            summary[name] = json.loads(gate.read_text())['result'] if done.returncode == 0 and gate.exists() else f'could not run (exit {done.returncode})'
+        (work / 'out' / 'summary.json').write_text(json.dumps(summary, indent=1))
+        print('SUMMARY', summary, flush=True)
+        for big in (exported, native):  # fp32 copies: the gate reports keep their hashes; the artifact keeps the smaller variants
+            if big.exists():
+                big.unlink()
         return
     sys.exit(f'unknown stage {stage}')
 

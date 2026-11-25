@@ -23,3 +23,9 @@ test('every opt-in pack appears, and memory is only ever a measured figure with 
     if (entry.peakMemory) { assert.ok(entry.peakMemory.megabytes > 0); assert.ok(entry.peakMemory.where.length > 0); }
   }
 });
+
+test('every opt-in pack can be downloaded and removed from Settings, and nothing built in can', () => {
+  const packs = MODEL_CATALOGUE.filter((entry) => entry.pack);
+  assert.deepEqual(packs.map((entry) => entry.pack!.model.id).sort(), OPTIONAL_MODELS.map((model) => model.id).sort());
+  for (const entry of packs) assert.equal(entry.id, entry.pack!.model.id);
+});

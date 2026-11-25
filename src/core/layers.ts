@@ -28,6 +28,13 @@ export interface PhotoLayer {
   softEdge: number;
   shape: LayerShape;
   hidden: boolean;
+  /**
+   * Show the layer only inside one of the photo's own masks (made in Masks: brush, linear, radial or subject). The mask's
+   * shape, softness and limits are used; its sliders are not. Absent = the whole layer.
+   */
+  maskId?: string;
+  /** Show the layer only OUTSIDE that mask instead. */
+  maskInvert?: boolean;
 }
 
 export const MAX_LAYERS = 8;
@@ -46,7 +53,14 @@ export function validLayer(value: unknown): value is PhotoLayer {
     && within(l.aspect, 0.01, 100) && within(l.x, -1, 2) && within(l.y, -1, 2) && within(l.width, 0.02, 3)
     && within(l.rotation, -180, 180) && within(l.opacity, 0, 1) && within(l.softEdge, 0, 0.5)
     && (LAYER_BLENDS as readonly unknown[]).includes(l.blend) && (LAYER_SHAPES as readonly unknown[]).includes(l.shape)
-    && typeof l.hidden === 'boolean';
+    && typeof l.hidden === 'boolean'
+    && (l.maskId === undefined || (typeof l.maskId === 'string' && l.maskId.length > 0 && l.maskId.length <= 80))
+    && (l.maskInvert === undefined || typeof l.maskInvert === 'boolean');
+}
+
+/** The mask a layer uses, when it names one the photo still has. */
+export function layerMask<M extends { id: string }>(layer: PhotoLayer, masks: readonly M[] | undefined): M | undefined {
+  return layer.maskId ? masks?.find((mask) => mask.id === layer.maskId) : undefined;
 }
 
 /** The valid layers kept with a photo, bottom first. Anything malformed is left out rather than guessed at. */

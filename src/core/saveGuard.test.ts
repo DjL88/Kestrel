@@ -117,3 +117,38 @@ test('an unchanged state is not written again', async () => {
   await guard.idle();
   assert.equal(writes, 1);
 });
+
+test('the newest unstored state is available, so reopening a project whose save failed never reads an older copy', async () => {
+  const store = fakeStore();
+  const timers = manualTimers();
+  const guard = createSaveGuard({ save: store.save, retryDelaysMs: [10], setTimer: timers.setTimer, clearTimer: timers.clearTimer });
+  assert.equal(guard.pendingState('p1'), undefined);
+  store.fail(new Error('QuotaExceededError'));
+  const newest = { id: 'p1', n: 2 };
+  guard.submit('p1', newest);
+  await flush();
+  assert.equal(guard.pendingState('p1'), newest, 'failed: the newest state is still held');
+  store.fail(null);
+  timers.fireAll();
+  await flush();
+  assert.equal(store.committed.get('p1'), 2);
+  assert.equal(guard.pendingState('p1'), undefined, 'stored: read it from the catalogue');
+});
+
+test('leaving a project can wait for its newest state to be stored, and hears at once if that fails', async () => {
+  const store = fakeStore();
+  const timers = manualTimers();
+  const guard = createSaveGuard({ save: store.save, retryDelaysMs: [10], setTimer: timers.setTimer, clearTimer: timers.clearTimer });
+  assert.equal(await guard.whenStored('p1'), true, 'nothing pending');
+  guard.submit('p1', { id: 'p1', n: 1 });
+  assert.equal(await guard.whenStored('p1'), true);
+  assert.equal(store.committed.get('p1'), 1);
+  store.fail(new Error('QuotaExceededError'));
+  guard.submit('p1', { id: 'p1', n: 2 });
+  assert.equal(await guard.whenStored('p1'), false, 'the failure is reported, not waited out');
+  store.fail(null);
+  const stored = guard.whenStored('p1');
+  timers.fireAll();
+  assert.equal(await stored, true, 'and the retry still stores it');
+  assert.equal(store.committed.get('p1'), 2);
+});

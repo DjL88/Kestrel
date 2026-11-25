@@ -274,7 +274,7 @@ export async function renderV2Export(
       await applyCanvasExportEdit(picture, frame.edit ?? DEFAULT_EDIT, signal, Math.max(fw, fh) * scale, { aspect: fh / fw, view: { x: 0, y: 0, w: 1, h: 1 }, lensCentre: lensCentre(source.naturalWidth, source.naturalHeight, framing) });
     }
     signal?.throwIfAborted();
-    await applyFrameLayers(picture, frame.overlay, true);
+    await applyFrameLayers(picture, frame.overlay, true, frame.edit?.masks);
     signal?.throwIfAborted();
     if (up !== 1 && scale >= 1) await upscaleCanvasInPlace(picture, up, signal);
     signal?.throwIfAborted();
@@ -304,7 +304,7 @@ export async function renderV2Export(
           throw new Error(`Could not encode split section ${section.index} at ${section.width} × ${section.height} pixels.`);
         }
         const sectionName = numberedSectionFilename(name, section.index, sectionCount);
-        sections.push(datedExport(blob, sectionName, date));
+        sections.push(datedExport(blob, sectionName, date, frame.exif?.captureStamp));
       } finally {
         piece.width = 0; piece.height = 0;
       }

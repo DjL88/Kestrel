@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { extractNefPreview } from './nefPreview';
+import { extractNefPreview, extractRawPreview, orientPreview, rawOrientation } from './nefPreview';
 
 const jpeg = new Uint8Array(await readFile(new URL('../assets/images/demo_red_kite_flight_1794721996053.jpg', import.meta.url)));
 const offset = 15 * 1024 * 1024;
@@ -210,4 +210,101 @@ test('small RAW files do not request a fallback slice larger than the file', asy
   }) as Blob['slice'];
   assert.equal(await extractNefPreview(raw), null);
   assert.ok(ends.every((end) => end <= raw.size));
+});
+
+/** A TIFF-style RAW whose first directory records the camera's Orientation and points at a landscape embedded JPEG. */
+function orientedRaw(orientation: number | null, preview: Uint8Array<ArrayBuffer> = jpeg, little = true): Blob {
+  const at = 4096;
+  const header = new Uint8Array(at);
+  const view = new DataView(header.buffer);
+  const entries: [number, number, number][] = [[0x0201, 4, at], [0x0202, 4, preview.length]];
+  if (orientation !== null) entries.unshift([0x0112, 3, orientation]);
+  view.setUint16(0, little ? 0x4949 : 0x4d4d);
+  view.setUint16(2, 42, little);
+  view.setUint32(4, 8, little);
+  view.setUint16(8, entries.length, little);
+  entries.forEach(([tag, type, value], i) => {
+    const entry = 10 + i * 12;
+    view.setUint16(entry, tag, little);
+    view.setUint16(entry + 2, type, little);
+    view.setUint32(entry + 4, 1, little);
+    if (type === 3) view.setUint16(entry + 8, value, little); else view.setUint32(entry + 8, value, little);
+  });
+  view.setUint32(10 + entries.length * 12, 0, little);
+  return new Blob([header, preview]);
+}
+
+/** The Orientation in a JPEG's Exif APP1, as a browser reads it; null when it has none. */
+function previewOrientation(bytes: Uint8Array): number | null {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let offset = 2;
+  while (offset + 4 <= bytes.length && bytes[offset] === 0xff && bytes[offset + 1] !== 0xda) {
+    const length = view.getUint16(offset + 2);
+    if (bytes[offset + 1] === 0xe1 && String.fromCharCode(...bytes.subarray(offset + 4, offset + 8)) === 'Exif') {
+      const tiff = offset + 10, little = view.getUint16(tiff) === 0x4949;
+      const ifd = tiff + view.getUint32(tiff + 4, little);
+      for (let i = 0; i < view.getUint16(ifd, little); i += 1) {
+        const entry = ifd + 2 + i * 12;
+        if (view.getUint16(entry, little) === 0x0112) return view.getUint16(entry + 8, little);
+      }
+    }
+    offset += 2 + length;
+  }
+  return null;
+}
+
+/** The JPEG without the one Exif segment orientPreview adds, to prove the picture data is untouched. */
+function withoutAddedSegment(bytes: Uint8Array): Uint8Array {
+  let offset = 2;
+  while (bytes[offset + 1] === 0xe0) offset += 2 + ((bytes[offset + 2] << 8) | bytes[offset + 3]);
+  assert.deepEqual([bytes[offset], bytes[offset + 1]], [0xff, 0xe1]);
+  return Uint8Array.from([...bytes.subarray(0, offset), ...bytes.subarray(offset + 36)]);
+}
+
+for (const orientation of [6, 8]) for (const little of [true, false]) {
+  test(`a portrait RAW (Orientation ${orientation}, ${little ? 'little' : 'big'}-endian) gives its sideways preview the same turn`, async () => {
+    const preview = await extractRawPreview(orientedRaw(orientation, jpeg, little));
+    assert.ok(preview);
+    const bytes = new Uint8Array(await preview.arrayBuffer());
+    assert.equal(preview.type, 'image/jpeg');
+    assert.equal(previewOrientation(bytes), orientation, 'browsers, createImageBitmap and thumbnails then show it upright');
+    assert.deepEqual(withoutAddedSegment(bytes), jpeg, 'the preview pixels are not re-encoded');
+  });
+}
+
+test('the RAW Orientation is read from its first directory, and only values 1 to 8 count', async () => {
+  assert.equal(await rawOrientation(orientedRaw(6)), 6);
+  assert.equal(await rawOrientation(orientedRaw(8, jpeg, false)), 8);
+  assert.equal(await rawOrientation(orientedRaw(null)), null);
+  assert.equal(await rawOrientation(orientedRaw(9)), null);
+  assert.equal(await rawOrientation(new Blob([jpeg])), null);
+});
+
+test('an upright RAW, or one with no Orientation, keeps its preview byte for byte', async () => {
+  for (const orientation of [1, null, 9]) {
+    const preview = await extractRawPreview(orientedRaw(orientation));
+    assert.deepEqual(new Uint8Array(await preview!.arrayBuffer()), jpeg, `orientation ${orientation}`);
+  }
+});
+
+test('a preview with its own Orientation, or one already turned to portrait, is not turned twice', async () => {
+  const tagged = new Uint8Array(await (await orientPreview(new Blob([jpeg]), 3)).arrayBuffer());
+  assert.equal(previewOrientation(tagged), 3);
+  const again = await extractRawPreview(orientedRaw(6, tagged));
+  assert.equal(previewOrientation(new Uint8Array(await again!.arrayBuffer())), 3, 'the preview\'s own tag wins');
+
+  // The same JPEG with its frame header claiming portrait (848 wide, 1264 high): the camera already turned it.
+  const portrait = jpeg.slice();
+  for (let offset = 2; offset < portrait.length;) {
+    const marker = portrait[offset + 1];
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      const view = new DataView(portrait.buffer);
+      const height = view.getUint16(offset + 5), width = view.getUint16(offset + 7);
+      view.setUint16(offset + 5, width); view.setUint16(offset + 7, height);
+      break;
+    }
+    offset += 2 + ((portrait[offset + 2] << 8) | portrait[offset + 3]);
+  }
+  const turned = await extractRawPreview(orientedRaw(6, portrait));
+  assert.deepEqual(new Uint8Array(await turned!.arrayBuffer()), portrait);
 });
