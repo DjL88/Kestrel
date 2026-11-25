@@ -12,7 +12,7 @@ import { openSensorWorkingRaster } from './rawWorkingRaster';
  * is the picture the editor frames (the developed RAW, turned to match the camera's preview where that was needed), so
  * the crop lands in the same place. Refuses, in plain words, edits it cannot carry yet; never drops one. No 8-bit step.
  */
-export async function renderRaw16(original: Blob, filename: string, shown: HTMLImageElement, edit: PhotoEdit, framing: PhotoFraming | undefined, options?: { originalSha256: string; signal?: AbortSignal }): Promise<Rgb16Image> {
+export async function renderRaw16(original: Blob, filename: string, shown: HTMLImageElement, edit: PhotoEdit, framing: PhotoFraming | undefined, options?: { originalSha256?: string; signal?: AbortSignal }): Promise<Rgb16Image> {
   options?.signal?.throwIfAborted();
   const blocker = master16Blocker(edit, framing);
   if (blocker) throw new Error(blocker);

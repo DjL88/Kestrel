@@ -43,5 +43,5 @@ test('the shipped name files: every species indexed, White-throated Dipper named
     assert.ok(statSync(`${dir}${code}.json`).size < 600_000, `${code}: file stays under 0.6 MB`);
   }
   assert.equal(dipper.de, 'Wasseramsel');
-  assert.ok(statSync(`${dir}index.json`).size < 600_000, 'index stays under 0.6 MB');
+  assert.ok(statSync(`${dir}index.json`).size < 900_000, 'index (birds and mammals) stays under 0.9 MB');
 });
