@@ -32,6 +32,8 @@ import { GalleryRefusal, GALLERY_MAX_DAYS, GALLERY_MAX_PHOTOS, GALLERY_MAX_PREVI
 import { presenceUid, PRESENCE_TOKEN_TTL_S, type PresenceSigner } from './presenceToken.ts';
 import { SAFE_COPY_LEVELS, SAFE_COPY_MAX_BYTES, safeCopyKey, type SafeCopyOptions } from './safeCopy.ts';
 import type { SpendOptions } from './spendGuard.ts';
+import type { Mailer } from './mailer.ts';
+import { MAIL_LANGUAGES, htmlLang, mailWords } from './mailText.ts';
 import { cloudRunClientIp } from './networkCountry.ts';
 import { ApiError, matchRoute, parseJson, readBody, send, type Reply, type Request, type Route } from './http.ts';
 
@@ -79,6 +81,8 @@ export interface AppOptions {
   collab?: CollabStore;
   /** Signs per-project Realtime Database tokens for live cursors. Absent: the presence route answers 503. */
   presence?: PresenceSigner;
+  /** App email from hello@inflight.studio (invitations). Absent until the owner confirms Send mail as: nothing is sent. */
+  mailer?: Mailer;
   /** Client galleries: previews in their own UK bucket. Absent: the gallery routes answer 503. */
   gallery?: GalleryStore;
   /** Team notifications (G20, decision 11): in-app inbox, then the backend's FCM sender and hello@ mailer. Absent: inbox answers 503. */
@@ -159,11 +163,11 @@ class CollabApiError extends ApiError {
 }
 
 export const Schemas = {
-  AdminSwitch: z.object({ key: z.enum(['managed-ai', 'cloud-processing', 'safe-copy', 'learning-signal', 'pro-checkout', 'pro-checkout-eu']), on: z.boolean() }).strict(),
+  AdminSwitch: z.object({ key: z.enum(['managed-ai', 'cloud-processing', 'safe-copy', 'learning-signal', 'pro-checkout', 'pro-checkout-eu', 'collaboration', 'email']), on: z.boolean() }).strict(),
   ProCheckoutRequest: z.object({ country: z.string().regex(/^[A-Z]{2}$/) }).strict(),
   CollabCreate: z.object({ name: z.string().trim().min(1).max(120), displayName: z.string().trim().min(1).max(80) }).strict(),
   CollabMembers: z.discriminatedUnion('kind', [
-    z.object({ kind: z.literal('inviteEmail'), email: z.string().trim().email().max(254), role: z.enum(['editor', 'commenter', 'viewer', 'client']), displayName: z.string().trim().max(80).default(''), photoIds: z.array(PhotoId).max(5000).optional() }).strict(),
+    z.object({ kind: z.literal('inviteEmail'), email: z.string().trim().email().max(254), role: z.enum(['editor', 'commenter', 'viewer', 'client']), displayName: z.string().trim().max(80).default(''), photoIds: z.array(PhotoId).max(5000).optional(), language: z.enum(MAIL_LANGUAGES).optional() }).strict(),
     z.object({ kind: z.literal('setRole'), accountId: z.string().min(1).max(64), role: z.enum(['owner', 'editor', 'commenter', 'viewer', 'client']) }).strict(),
     z.object({ kind: z.literal('setPhotos'), accountId: z.string().min(1).max(64), photoIds: z.array(PhotoId).max(5000).optional() }).strict(),
     z.object({ kind: z.literal('remove'), accountId: z.string().min(1).max(64) }).strict(),
@@ -322,6 +326,11 @@ function decodeImage(base64: string): Buffer {
 
 // ---- The application -----------------------------------------------------------
 
+const esc = (v: string) => v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+const MAIL_PAGE_HEADERS = { 'content-type': 'text/html; charset=utf-8', 'x-robots-tag': 'noindex', 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'" };
+/** The small unsubscribe pages, in the recipient's language. */
+const mailPage = (lang: string, title: string, inner: string) => `<!doctype html><html lang="${esc(lang)}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(title)}</title><body style="font-family:system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem;line-height:1.5"><h1>${esc(title)}</h1>${inner}</body></html>`;
+
 export function createApp(options: AppOptions) {
   const { config, commerce } = options;
   if (!options.store && config.store !== 'sqlite') throw new Error('Open the Firestore store with openStore() and pass it in.');
@@ -429,11 +438,12 @@ export function createApp(options: AppOptions) {
     { key: 'safe-copy', label: 'Safe copy (managed backup)', note: 'Opt-in backup to InFlight UK storage. Switching off stops uploads only; people can always read and delete their copy.' },
     { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
     { key: 'pro-checkout', label: 'Pro checkout (SumUp)', note: 'People can pay for Pro through SumUp\'s hosted page. Their billing country must match their network location. Switching off stops new checkouts only; payments already made are still verified and granted.' },
+    { key: 'email', label: 'App email (hello@inflight.studio)', note: 'Sends share invitations by email through Google Workspace. Plain text and HTML, an unsubscribe link in every message, at most 500 a day (30 per sender, 3 per recipient). Switch on only once hello@inflight.studio is a verified Send mail as address.' },
     { key: 'collaboration', label: 'Shared projects', note: 'Cloud subscribers can share a project, invite people by email and check photos out to edit. Switching off stops new shared projects and checkouts; members can still read revisions.' },
     { key: 'pro-checkout-eu', label: 'Pro checkout for EU buyers', note: 'Switch on only once you are registered for OSS (EU VAT on digital sales). Until then EU buyers see that Pro is not on sale in their country yet.' },
   ] as const;
   type SwitchKey = typeof SWITCHES[number]['key'];
-  const switchConfigured = (key: SwitchKey) => key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'pro-checkout' || key === 'pro-checkout-eu' ? !!options.proCheckout : !!options.learning;
+  const switchConfigured = (key: SwitchKey) => key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'email' ? !!options.mailer : key === 'pro-checkout' || key === 'pro-checkout-eu' ? !!options.proCheckout : !!options.learning;
   async function switchOn(key: SwitchKey): Promise<boolean> {
     if (key === 'managed-ai') return (await store.getSetting('ai_disabled')) !== '1';
     const legacy = key === 'cloud-processing' ? 'cloud_disabled' : key === 'safe-copy' ? 'safe_copy_disabled' : undefined;
@@ -674,6 +684,37 @@ export function createApp(options: AppOptions) {
   const routes: Route[] = [
     // Cloud Run's front end reserves some paths ending in 'z' (including /healthz) and answers them with its own 404
     // before the request reaches the container, so public clients probe /health. /healthz stays for the container probe.
+    {
+      method: 'GET', path: '/v1/mail/unsubscribe', summary: 'Confirm page for stopping invitation emails (a link only shows a button, so mail scanners cannot unsubscribe anyone)', auth: 'none',
+      handler: (req) => {
+        const r = req.query.get('r') ?? ''; const t = req.query.get('t') ?? ''; const l = htmlLang(req.query.get('l') ?? undefined);
+        const w = mailWords(l).unsubscribe;
+        const ok = !!options.mailer && options.mailer.checkUnsubscribe(r, t);
+        const safe = (v: string) => v.replace(/[^A-Za-z0-9_-]/g, '');
+        return { status: ok ? 200 : 400, body: mailPage(l, ok ? w.title : w.invalid, ok
+          ? `<p>${esc(w.confirm)}</p><form method="post" action="/v1/mail/unsubscribe?r=${safe(r)}&amp;t=${safe(t)}&amp;l=${encodeURIComponent(l)}"><input type="hidden" name="List-Unsubscribe" value="One-Click"><button type="submit">${esc(w.button)}</button></form>`
+          : `<p>${esc(w.invalidHint)}</p>`), headers: MAIL_PAGE_HEADERS };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/mail/unsubscribe', summary: 'One-click unsubscribe (RFC 8058) from invitation emails', auth: 'none',
+      handler: async (req) => {
+        const r = req.query.get('r') ?? ''; const t = req.query.get('t') ?? ''; const l = htmlLang(req.query.get('l') ?? undefined);
+        if (!options.mailer || !options.mailer.checkUnsubscribe(r, t)) throw new ApiError(400, 'UNSUBSCRIBE_INVALID', 'This unsubscribe link is not valid.');
+        await options.mailer.unsubscribe(r);
+        await audit('anonymous', 'mail.unsubscribe', 'allowed', '');
+        const w = mailWords(l).unsubscribe;
+        return { status: 200, body: mailPage(l, w.title, `<p>${esc(w.done)}</p>`), headers: MAIL_PAGE_HEADERS };
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/mail', summary: 'App email sent today against the daily cap and the Workspace limit', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'mail.read');
+        if (!options.mailer) throw new ApiError(503, 'MAIL_NOT_CONFIGURED', 'App email is not set up on this server.');
+        return adminDone(claims, 'mail.read', '', { on: await switchOn('email'), ...(await options.mailer.today()) });
+      },
+    },
     { method: 'GET', path: '/health', summary: 'Liveness (public)', auth: 'none', handler: () => ({ status: 200, body: { ok: true } }) },
     { method: 'GET', path: '/healthz', summary: 'Liveness', auth: 'none', handler: () => ({ status: 200, body: { ok: true } }) },
 
@@ -1125,7 +1166,20 @@ export function createApp(options: AppOptions) {
           : body.kind === 'setPhotos' ? { ...body, photoIds: body.photoIds } : body;
         await collab(() => c.change(params.id, claims.sub, change, now()));
         await audit(claims.sub, `collab.${body.kind}`, 'allowed', params.id);
-        return { status: 200, body: await collab(() => c.project(params.id, claims.sub)) };
+        const project = await collab(() => c.project(params.id, claims.sub));
+        let emailed: boolean | undefined;
+        if (body.kind === 'inviteEmail' && options.mailer && (await switchOn('email'))) {
+          // The invitation stands either way: it is also shown in the app under Shared with me.
+          try {
+            const r = await options.mailer.sendInvitation({ to: body.email, recipientHash: emailHashOf(body.email), senderAccountId: claims.sub, inviterName: project.me.displayName, projectName: project.name, role: body.role, language: body.language });
+            emailed = r.sent;
+            await audit(claims.sub, 'mail.invite', r.sent ? 'allowed' : 'denied', r.sent ? params.id : `${params.id} ${r.reason}`);
+          } catch {
+            emailed = false;
+            await audit(claims.sub, 'mail.invite', 'denied', `${params.id} send failed`); // never the address or the server's words
+          }
+        }
+        return { status: 200, body: emailed === undefined ? project : { ...project, emailed } };
       },
     },
     {
