@@ -14,6 +14,10 @@ ARG VITE_FIREBASE_PROJECT_ID
 ARG VITE_FIREBASE_APP_ID
 ARG VITE_KESTREL_CONTROL_PLANE_URL
 ARG VITE_KESTREL_GRANT_KEYS
+# G10: the image has no .git (.dockerignore), so the commit comes in as a build argument. With KESTREL_RELEASE=1 the build
+# fails closed if it is missing or malformed (scripts/build-provenance.mjs); Cloud Build passes both (.cloudbuild/v2proto.yaml).
+ARG KESTREL_BUILD_REVISION
+ARG KESTREL_RELEASE=0
 RUN npx vite build --config vite.v2proto.config.ts
 
 FROM node:24-alpine

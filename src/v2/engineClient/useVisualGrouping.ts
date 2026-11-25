@@ -4,6 +4,7 @@ import type { PhotoFrame } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import { pictureForAnalysis } from '../../providers/pictureForAnalysis';
 import { embedPicture } from '../../providers/visualEmbedder';
+import { runEmbeddingPass } from './embeddingPass';
 import { startNotingInput, untilQuiet } from '../../providers/userActivity';
 
 interface Options {
@@ -17,6 +18,8 @@ interface Options {
   onEmbedded: (frameId: string, embedding: StoredEmbedding) => void;
   /** Called after each batch so burst groups can be refreshed from the new evidence. */
   onBatchDone: () => void;
+  /** Called once when the look-alike model cannot run, with a plain sentence to show. */
+  onUnavailable?: (message: string) => void;
 }
 
 const BATCH = 12;
@@ -34,11 +37,11 @@ export function embeddingCandidates(frames: PhotoFrame[], onScreen: string | nul
 
 /**
  * Embeds photos quietly in the background on this device (no upload), so bursts can be split at real scene changes
- * and look-alike frames without capture times can be grouped. A failed model or picture leaves grouping time-based.
+ * and look-alike frames without capture times can be grouped. A failed picture is skipped; a failed model leaves grouping time-based and says so once.
  */
-export function useVisualGrouping({ projectId, frames, provider, active, onScreen, onEmbedded, onBatchDone }: Options) {
-  const latest = useRef({ projectId, frames, provider, active, onScreen, onEmbedded, onBatchDone });
-  latest.current = { projectId, frames, provider, active, onScreen, onEmbedded, onBatchDone };
+export function useVisualGrouping({ projectId, frames, provider, active, onScreen, onEmbedded, onBatchDone, onUnavailable }: Options) {
+  const latest = useRef({ projectId, frames, provider, active, onScreen, onEmbedded, onBatchDone, onUnavailable });
+  latest.current = { projectId, frames, provider, active, onScreen, onEmbedded, onBatchDone, onUnavailable };
   const running = useRef(false);
   useEffect(() => { startNotingInput(); }, []);
   const halted = useRef(false);
@@ -46,37 +49,26 @@ export function useVisualGrouping({ projectId, frames, provider, active, onScree
 
   const run = useCallback(async () => {
     if (running.current || halted.current) return;
+    const { projectId: currentId, provider: store } = latest.current;
+    if (!store) return;
     running.current = true;
-    let sinceBatch = 0;
     try {
-      for (;;) {
-        const { projectId: currentId, frames: current, provider: store, onScreen: focus } = latest.current;
-        const stillCurrent = () => latest.current.active && latest.current.projectId === currentId;
-        if (!stillCurrent() || !store) break;
-        const frame = embeddingCandidates(current, focus, skipped.current)[0];
-        if (!frame) break;
-        const picture = await pictureForAnalysis(store, frame).catch(() => null);
-        if (!stillCurrent()) break;
-        if (!picture) { skipped.current.add(frame.id); continue; }
-        await untilQuiet(QUIET_MS);
-        if (!stillCurrent()) break;
-        let embedding: StoredEmbedding | null = null;
-        try {
-          embedding = await embedPicture(picture);
-        } catch {
-          // The model is missing or failed its check: stop for this session, grouping stays time-based.
-          halted.current = true;
-          break;
-        }
-        if (!stillCurrent()) break;
-        skipped.current.add(frame.id);
-        if (embedding) { latest.current.onEmbedded(frame.id, embedding); sinceBatch += 1; }
-        if (sinceBatch >= BATCH) { latest.current.onBatchDone(); sinceBatch = 0; }
-        // Yield between photos so the interface stays responsive.
-        await new Promise((resolve) => window.setTimeout(resolve, 20));
-      }
+      const outcome = await runEmbeddingPass<PhotoFrame, HTMLCanvasElement, StoredEmbedding>({
+        next: () => embeddingCandidates(latest.current.frames, latest.current.onScreen, skipped.current)[0],
+        stillCurrent: () => latest.current.active && latest.current.projectId === currentId,
+        picture: (frame) => pictureForAnalysis(store, frame),
+        embed: embedPicture,
+        onEmbedded: (frameId, embedding) => latest.current.onEmbedded(frameId, embedding),
+        onBatchDone: () => latest.current.onBatchDone(),
+        // The model is missing or failed its check: say so once; grouping stays time-based for this session.
+        onUnavailable: (message) => latest.current.onUnavailable?.(message),
+        skip: (frameId) => { skipped.current.add(frameId); },
+        untilQuiet: () => untilQuiet(QUIET_MS),
+        pause: () => new Promise((resolve) => window.setTimeout(resolve, 20)),
+        batch: BATCH,
+      });
+      if (outcome === 'halted') halted.current = true;
     } finally {
-      if (sinceBatch > 0) latest.current.onBatchDone();
       running.current = false;
     }
   }, []);

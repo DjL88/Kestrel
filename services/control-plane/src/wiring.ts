@@ -12,6 +12,7 @@ import { FirestoreSafeCopyCatalog } from './safeCopyFirestore.ts';
 import { CollabStore } from './collaboration.ts';
 import { IamPresenceSigner } from './presenceToken.ts';
 import { GalleryStore } from './gallery.ts';
+import { NoticeStore, NO_DELIVERY } from './notices.ts';
 import { CloudPhotoStore } from './cloudPhotos.ts';
 import { FirestoreUsageMeter, FlatAllowance } from './usageMeter.ts';
 import { FirestoreSpendGuard } from './spendGuard.ts';
@@ -29,7 +30,7 @@ export interface WiringDeps {
   /** Tests replace the SMTP transport. */
   mailTransport?: import('./mailer.ts').MailTransport;
 }
-export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer'> & { enabled: string[] };
+export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'notices' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer'> & { enabled: string[] };
 
 function whole(env: NodeJS.ProcessEnv, name: string, dflt: number, max: number): number {
   const raw = env[name];
@@ -95,6 +96,9 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
   // Shared projects need only Firestore. Off unless KCP_COLLABORATION_ENABLED=1, and then still off until an admin switches them on.
   if (env.KCP_COLLABORATION_ENABLED === '1') {
     out.collab = new CollabStore(db); out.enabled.push('collaboration');
+    // Team notifications: the in-app inbox works now. Push (FCM) and hello@ email plug in when the backend lane wires
+    // its sender and mailer into NoticeDelivery; until then nothing leaves the server.
+    out.notices = new NoticeStore(db, NO_DELIVERY, undefined, (message) => console.warn(message)); out.enabled.push('notices');
     // Live cursors also need the Realtime Database URL and the service account that signs per-project tokens.
     if (env.KCP_PRESENCE_DATABASE_URL && env.KCP_PRESENCE_SERVICE_ACCOUNT) {
       if (!/^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.(firebasedatabase\.app|firebaseio\.com)$/.test(env.KCP_PRESENCE_DATABASE_URL)) throw new Error('KCP_PRESENCE_DATABASE_URL must be a Firebase Realtime Database URL');

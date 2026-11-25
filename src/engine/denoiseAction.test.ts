@@ -52,19 +52,17 @@ describe('runDenoiseAction', () => {
     assert.deepEqual(result.masks, []);
   });
 
-  it('includes a lower-strength subject mask when a subject is given', async () => {
+  it('with a subject, keeps the original when no candidate reduces noise in any region (TrueDetail guardian)', async () => {
     const original = flat(16, [120, 120, 120]);
     const render = async () => flat(16, [121, 121, 121]);
     const result = await runDenoiseAction({
       backgroundDenoise: 1, original, render,
       subject: { maskId: 's1', grid, framingKey: 'f1', confidence: 'high', alpha: new Float32Array(16 * 16).fill(1) },
     });
-    assert.equal(result.masks.length, 2);
-    assert.equal(result.masks[0].invert, true);
-    assert.equal(result.masks[0].edit.denoise, 1);
-    assert.equal(result.masks[1].invert, false);
-    assert.equal(result.masks[1].edit.denoise, 0.4);
-    assert.equal(result.edit.denoise, 0);
+    assert.deepEqual(result.masks, []);
+    assert.deepEqual(result.edit, {});
+    assert.equal(result.verification.ok, false);
+    assert.ok(result.regions?.every(r => r.strength === 0 && r.kept));
   });
 
   it('retries at a reduced strength when the result over-smooths, then stops at maxRetries', async () => {
@@ -82,7 +80,7 @@ describe('runDenoiseAction', () => {
   });
 });
 
-it('reduces strength after protected detail loss and accepts only a verified retry', async () => {
+it('rejects every candidate that removes protected subject structure, and never accepts one that only looks smooth', async () => {
   const original = flat(64, [130,130,130]);
   for (let y=0;y<64;y++) for(let x=0;x<64;x++) {
     const i=(y*64+x)*4;
@@ -98,10 +96,12 @@ it('reduces strength after protected detail loss and accepts only a verified ret
       return strength>0.4?flat(64,[130,130,130]):original;
     },
   });
-  assert.equal(result.verification.ok,true);
-  assert.equal(result.attempts,2);
-  assert.ok(strengths[1]<strengths[0]);
-  assert.equal(result.masks[1].edit.denoise,strengths[1]);
+  assert.ok(strengths.some(s=>s>0.4) && strengths.some(s=>s<=0.4), 'both kinds of candidate were judged');
+  assert.equal(result.verification.ok,false);
+  assert.deepEqual(result.masks,[]);
+  const subject=result.regions!.find(r=>r.region==='subject')!;
+  assert.equal(subject.strength,0);
+  assert.ok(subject.verdicts.some(v=>v.reason==='lost real detail'));
 });
 
 it('retries when the composed saved recipe fails its additional quality check', async () => {

@@ -48,3 +48,13 @@ test('a trial from a grant closes on time with no network, and free work is unto
   assert.equal(during(NOW + 2 * DAY), false);
   assert.equal(featureAvailable('masks', free, { flags: assembleFlags(undefined, g, NOW + 2 * DAY), nowMs: NOW + 2 * DAY }), true);
 });
+
+test('the developer Pro preview opens Pro features such as Auto-Cull; without it they stay off until an admin flag says so', () => {
+  const paid = accessCapabilities({ plan: 'paid', licence: 'active', cloud: 'none', online: false, cachedLocalLicence: true });
+  const free = accessCapabilities({ plan: 'free', licence: 'unlicensed', cloud: 'none', online: false, cachedLocalLicence: false });
+  assert.equal(featureAvailable('smartCulling', paid, { devProPreview: true, audience: { plan: 'unknown' }, nowMs: 1 }), true);
+  assert.equal(featureAvailable('speciesId', paid, { devProPreview: true, nowMs: 1 }), true);
+  assert.equal(featureAvailable('smartCulling', paid, { nowMs: 1 }), false, 'a licence alone does not override the compiled Pro default');
+  assert.equal(featureAvailable('smartCulling', free, { devProPreview: false, nowMs: 1 }), false);
+  assert.equal(featureAvailable('masks', free, { nowMs: 1 }), true, 'free features are untouched');
+});

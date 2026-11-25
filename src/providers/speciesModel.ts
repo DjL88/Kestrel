@@ -1,3 +1,4 @@
+import { createTimedSession } from './modelTiming';
 import { Sha256Stream } from '../core/sha256';
 import { isDesktopApp } from './desktopShell';
 import { getModel, hasModel, putModel, removeModel } from './modelStore';
@@ -116,7 +117,7 @@ function loadSession(): Promise<Loaded> {
     });
     ort.env.wasm.numThreads = 1;
     ort.env.wasm.proxy = false;
-    const session = await ort.InferenceSession.create(bytes, { executionProviders: ['wasm'] });
+    const session = await createTimedSession(ort, 'bioclip-image-int8', bytes, { executionProviders: ['wasm'] });
     return { ort, session };
   })().catch((error) => {
     loading = null;
@@ -141,6 +142,12 @@ export function loadSpeciesLabels(): Promise<Labels> {
     const labels = [...shipped];
     try {
       const world = await loadWorldLabels();
+      // The shipped names carry no family; take it from the world list so a doubtful bird can still be named by family.
+      const familyOf = new Map(world.map((label) => [label.scientific.toLowerCase(), label.family]));
+      for (let i = 0; i < labels.length; i++) {
+        const family = familyOf.get(labels[i].scientific.toLowerCase());
+        if (family && !labels[i].family) labels[i] = { ...labels[i], family };
+      }
       labels.push(...worldLabelsForRegions(world, regions, new Set(shipped.map((label) => label.scientific.toLowerCase()))));
     } catch (error) { console.warn('World species list unavailable; using the shipped list', error); }
     return { labels, vectors: labels.map(decodeVector) };

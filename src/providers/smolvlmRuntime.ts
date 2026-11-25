@@ -1,3 +1,4 @@
+import { createTimedSession } from './modelTiming';
 import {
   IMAGE_EDGE, IMAGE_TOKENS, buildPromptIds, combineChoice, createTokenizer, pixelValues, questionText, opposingOrders, softmax,
   type ChoiceQuestion, type ChoiceScore, type TokenizerJson,
@@ -32,8 +33,8 @@ export async function openSmolVlm(ort: Ort, files: SmolVlmFiles): Promise<SmolVl
   // exhaust a phone or leave partial sessions resident if the decoder fails.
   const sessions: Array<Awaited<ReturnType<typeof ort.InferenceSession.create>>> = [];
   try {
-    for (const bytes of [files.vision, files.embed, files.decoder]) {
-      sessions.push(await ort.InferenceSession.create(bytes, options));
+    for (const [name, bytes] of [['vision', files.vision], ['embed', files.embed], ['decoder', files.decoder]] as const) {
+      sessions.push(await createTimedSession(ort, `smolvlm2-256m.${name}`, bytes, options));
     }
   } catch (error) {
     await Promise.allSettled(sessions.map((session) => session.release()));
