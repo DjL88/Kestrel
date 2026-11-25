@@ -122,3 +122,14 @@ test('import keeps a deliberately unbound command (the empty-string override)', 
   assert.ok(result.ok);
   if (result.ok) assert.deepEqual(result.keymap.overrides, { 'view.grid': '' });
 });
+
+test('culling keys in every preset: arrows move between photos, X sets aside, U clears, with no clash', () => {
+  for (const preset of Object.values(PRESETS)) {
+    assert.equal(preset.keymap['photo.next'], 'ArrowRight');
+    assert.equal(preset.keymap['photo.prev'], 'ArrowLeft');
+    assert.equal(preset.keymap['photo.reject'], 'KeyX');
+    assert.equal(preset.keymap['photo.unflag'], 'KeyU');
+    const chords = Object.values(preset.keymap);
+    assert.equal(new Set(chords).size, chords.length, 'one command per key');
+  }
+});
