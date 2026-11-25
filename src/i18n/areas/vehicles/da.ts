@@ -28,6 +28,7 @@ export const da: AreaTranslation<typeof source> = {
   marked: (what: string, marking: string) => `${what}, mærket ${marking}`,
   registered: (marking: string, type: string) => `${marking}: ${type} (ifølge registret)`,
   operatedBy: (what: string, operator: string) => `${what}, drevet af ${operator}`,
+  held: (what: string) => `${what}? Bør tjekkes`,
   reader: {
     title: 'Læs flyregistreringer',
     description: (megabytes: string) => `Læser registreringer og militære serienumre malet på fly, på denne enhed, og slår dem op i en offline kopi af offentlige registre. En engangsdownload på ${megabytes} MB. Nummerplader på biler læses aldrig.`,

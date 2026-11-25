@@ -28,6 +28,7 @@ export const is: AreaTranslation<typeof source> = {
   marked: (what: string, marking: string) => `${what}, merkt ${marking}`,
   registered: (marking: string, type: string) => `${marking}: ${type} (samkvæmt skrá)`,
   operatedBy: (what: string, operator: string) => `${what}, rekið af ${operator}`,
+  held: (what: string) => `${what}? Þarf að yfirfara`,
   reader: {
     title: 'Lesa skráningar loftfara',
     description: (megabytes: string) => `Les skráningar og hernaðarleg raðnúmer sem máluð eru á loftför, á þessu tæki, og flettir þeim upp í ónettengdu afriti af opinberum skrám. Einstakt niðurhal upp á ${megabytes} MB. Bílnúmer eru aldrei lesin.`,

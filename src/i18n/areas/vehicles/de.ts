@@ -28,6 +28,7 @@ export const de: AreaTranslation<typeof source> = {
   marked: (what: string, marking: string) => `${what}, Kennzeichen ${marking}`,
   registered: (marking: string, type: string) => `${marking}: ${type} (laut Register)`,
   operatedBy: (what: string, operator: string) => `${what}, betrieben von ${operator}`,
+  held: (what: string) => `${what}? Bitte prüfen`,
   reader: {
     title: 'Luftfahrzeugkennzeichen lesen',
     description: (megabytes: string) => `Liest auf Luftfahrzeuge gemalte Kennzeichen und militärische Seriennummern auf diesem Gerät und schlägt sie in einer Offline-Kopie öffentlicher Register nach. Ein einmaliger Download von ${megabytes} MB. Autokennzeichen werden nie gelesen.`,
