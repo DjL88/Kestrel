@@ -66,7 +66,7 @@ export default function CoPilotPanel({
           <button
             type="button"
             onClick={onOpenSettings}
-            className="rounded px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-secondary)] underline-offset-2 hover:text-[var(--text-primary)] hover:underline"
+            className="rounded px-1.5 py-0.5 text-[0.6875rem] font-medium text-[var(--text-secondary)] underline-offset-2 hover:text-[var(--text-primary)] hover:underline"
           >
             {STRINGS.copilot.changeInSettings}
           </button>
@@ -98,24 +98,24 @@ export default function CoPilotPanel({
             <BrandIcon name="cloud-assist" size={17} />
             <span>
               <span className="flex items-center gap-1.5 text-xs font-semibold">{reviewPending ? 'Review in progress…' : STRINGS.copilot.runReviewButton}<ProBadge feature="onlineAi" /></span>
-              <span className="block text-[10px] opacity-85">{STRINGS.copilot.runReviewSub}</span>
+              <span className="block text-[0.625rem] opacity-85">{STRINGS.copilot.runReviewSub}</span>
             </span>
           </span>
           <BrandIcon name="arrow" size={14} />
         </button>
 
-        <p id="copilot-review-status" role="status" aria-live="polite" className="text-[11px] text-[var(--text-secondary)]">
+        <p id="copilot-review-status" role="status" aria-live="polite" className="text-[0.6875rem] text-[var(--text-secondary)]">
           {reviewPending ? 'Review in progress. Existing suggestions remain available; nothing has been applied.' : !reviewAvailable ? 'Online review is unavailable. Your photos and existing local edits remain usable offline.' : 'Review is optional. Suggestions are not applied without your choice.'}
         </p>
         </>
         )}
         {ongoingCritique && (
-          <p className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)]">
+          <p className="flex items-center gap-1.5 text-[0.6875rem] text-[var(--text-secondary)]">
             <BrandIcon name="ready" size={13} className="text-[var(--semantic-success)]" />
             <span>{STRINGS.copilot.ongoingBadge}</span>
           </p>
         )}
-        <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
+        <p className="text-[0.6875rem] leading-relaxed text-[var(--text-muted)]">
           {STRINGS.copilot.noGenAiNote}
         </p>
       </div>
@@ -137,13 +137,13 @@ export default function CoPilotPanel({
             <BrandIcon name="palette" size={14} className="text-[var(--semantic-info)]" />
             <span>{STRINGS.assist.colourConfidenceHeading}</span>
           </span>
-          <span className="font-mono text-[10px] text-[var(--text-secondary)]">{photo.assistCritique.kelvinEstimate}</span>
+          <span className="font-mono text-[0.625rem] text-[var(--text-secondary)]">{photo.assistCritique.kelvinEstimate}</span>
         </div>
         <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
           {photo.assistCritique.colourConfidence || STRINGS.copilot.nothingYet}
         </p>
         {cvdGuidance && photo.assistCritique.colourCheck && <ColourWordsList words={photo.assistCritique.colourCheck} />}
-        <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">{STRINGS.assist.safeNote}</p>
+        <p className="text-[0.6875rem] leading-relaxed text-[var(--text-secondary)]">{STRINGS.assist.safeNote}</p>
       </section>
 
       {/* Recommendations */}
@@ -170,20 +170,20 @@ export default function CoPilotPanel({
                     <div className="grid grid-cols-2 gap-1">
                       <figure>
                         <img src={sug.comparison.before} alt="" draggable={false} className="aspect-[4/3] w-full rounded object-contain" />
-                        <figcaption className="text-[10px] text-[var(--text-secondary)]">{STRINGS.copilot.previewBefore}</figcaption>
+                        <figcaption className="text-[0.625rem] text-[var(--text-secondary)]">{STRINGS.copilot.previewBefore}</figcaption>
                       </figure>
                       <figure>
                         <img src={sug.comparison.after} alt={sug.title} draggable={false} className="aspect-[4/3] w-full rounded object-contain" />
-                        <figcaption className="text-[10px] text-[var(--text-secondary)]">{STRINGS.copilot.previewAfter}</figcaption>
+                        <figcaption className="text-[0.625rem] text-[var(--text-secondary)]">{STRINGS.copilot.previewAfter}</figcaption>
                       </figure>
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-semibold text-[var(--text-primary)]">{sug.title}</p>
-                    <p className="line-clamp-2 text-[11px] leading-snug text-[var(--text-secondary)]">{sug.summary}</p>
+                    <p className="line-clamp-2 text-[0.6875rem] leading-snug text-[var(--text-secondary)]">{sug.summary}</p>
                   </div>
                 </div>
-                <p className="mt-1.5 font-mono text-[10px] text-[var(--text-muted)]">
+                <p className="mt-1.5 font-mono text-[0.625rem] text-[var(--text-muted)]">
                   {sug.colourReadout}
                 </p>
                 {sug.steps && sug.steps.length > 0 && (
@@ -204,7 +204,7 @@ export default function CoPilotPanel({
                     type="button"
                     disabled={sug.applied}
                     onClick={() => onApplySuggestion(photo.id, sug.id)}
-                    className={`inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] px-2.5 text-[11px] font-medium transition-colors ${
+                    className={`inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] px-2.5 text-[0.6875rem] font-medium transition-colors ${
                       sug.applied
                         ? 'bg-[var(--semantic-success-soft)] text-[var(--semantic-success)]'
                         : 'bg-[var(--bg-surface-active)] text-[var(--text-primary)] hover:bg-[var(--brand-accent)] hover:text-[var(--text-on-accent)]'
@@ -217,7 +217,7 @@ export default function CoPilotPanel({
                     <button
                       type="button"
                       onClick={() => onDismissSuggestion(photo.id, sug.id)}
-                      className="h-7 rounded-[var(--radius-sm)] px-2 text-[11px] text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
+                      className="h-7 rounded-[var(--radius-sm)] px-2 text-[0.6875rem] text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
                     >
                       {STRINGS.copilot.dismiss}
                     </button>

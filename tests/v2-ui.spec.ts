@@ -507,7 +507,9 @@ test('?v2 a format is capped at the photo\'s own pixels, with a small warning', 
   await root.getByRole('button', { name: 'Formats', exact: true }).first().click();
   const include = root.getByRole('button', { name: 'Include 3:2', exact: true });
   if ((await include.getAttribute('aria-pressed')) !== 'true') await include.click();
-  await root.getByRole('button', { name: '3:2 3:2', exact: true }).click();
+  // A ticked format's name shows it; tapping the shown format's name again would untick it.
+  await root.getByRole('button', { name: '3:2: included; tap to show it', exact: true }).click();
+  await expect(root.getByRole('button', { name: '3:2: shown; tap to leave it out of export', exact: true })).toBeVisible();
   const warning = root.getByTestId('size-cap-warning');
   await expect(warning).toContainText('Smaller than 3000×2000', { timeout: 30000 });
   await expect(root.getByText('1500×1000 (3:2)')).toBeVisible();

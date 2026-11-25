@@ -85,19 +85,19 @@ export default function WatermarkSetup({ onImport, onAddText, onAddVersion, onMa
               <BrandIcon name={icon} size={14} />{label}
             </button>
           ))}
-          <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.overlayKit.wmChooseFile}</p>
+          <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.overlayKit.wmChooseFile}</p>
           <div className="flex justify-between"><button type="button" className={quietClass} onClick={() => setStep({ name: 'kind' })}>{STRINGS.overlayKit.wmBack}</button><button type="button" className={quietClass} onClick={onClose}>{STRINGS.overlayKit.wmCancel}</button></div>
         </>
       )}
 
       {step.name === 'text' && (
         <form className="space-y-2" onSubmit={(event) => { event.preventDefault(); const id = onAddText(text, subtext); if (id) { onCreated(id); setStep({ name: 'done' }); } }}>
-          <label className="block space-y-1 text-[11px] text-[var(--text-secondary)]">
+          <label className="block space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
             <span>{STRINGS.overlayKit.wmTextLine}</span>
             <input type="text" value={text} maxLength={60} onChange={(e) => setText(e.target.value)} placeholder="© …"
               className="h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]" />
           </label>
-          <label className="block space-y-1 text-[11px] text-[var(--text-secondary)]">
+          <label className="block space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
             <span>{STRINGS.overlayKit.wmTextSecond}</span>
             <input type="text" value={subtext} maxLength={60} onChange={(e) => setSubtext(e.target.value)}
               className="h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]" />
@@ -112,7 +112,7 @@ export default function WatermarkSetup({ onImport, onAddText, onAddVersion, onMa
       {step.name === 'other' && (
         <>
           {heading(STRINGS.overlayKit.wmStepOther)}
-          <p className="text-[11px] text-[var(--text-muted)]">{step.missing === 'light' ? STRINGS.overlayKit.wmUseLight : STRINGS.overlayKit.wmUseDark}</p>
+          <p className="text-[0.6875rem] text-[var(--text-muted)]">{step.missing === 'light' ? STRINGS.overlayKit.wmUseLight : STRINGS.overlayKit.wmUseDark}</p>
           <button type="button" disabled={busy} className={choiceClass} onClick={async () => { if (await run(() => onAddVersion(step.id, step.missing))) setStep({ name: 'done' }); }}>{STRINGS.overlayKit.wmOtherHave}</button>
           <button type="button" disabled={busy} className={choiceClass} onClick={async () => { await run(() => onMakeVariant(step.id, step.missing)); setStep({ name: 'done' }); }}>{STRINGS.overlayKit.wmOtherMake}</button>
           <button type="button" disabled={busy} className={choiceClass} onClick={() => setStep({ name: 'done' })}>{STRINGS.overlayKit.wmOtherSkip}</button>
@@ -122,16 +122,16 @@ export default function WatermarkSetup({ onImport, onAddText, onAddVersion, onMa
       {step.name === 'background' && (
         <>
           {heading(STRINGS.overlayKit.wmStepBackground)}
-          <p className="text-[11px] text-[var(--text-secondary)]">{STRINGS.watermarks.removeBgHelp}</p>
+          <p className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.watermarks.removeBgHelp}</p>
           <div className="grid h-24 place-items-center overflow-hidden rounded-[var(--radius-xs)]" style={{ background: checker }}>
             {preview ? <img src={preview.url} alt={STRINGS.watermarks.previewAlt} className="max-h-20 max-w-full object-contain" draggable={false} data-testid="setup-cutout-preview" /> : <span role="status" className="text-xs text-[var(--text-secondary)]">{STRINGS.watermarks.working}</span>}
           </div>
-          <label className="flex items-center gap-2 text-[11px] text-[var(--text-secondary)]">
+          <label className="flex items-center gap-2 text-[0.6875rem] text-[var(--text-secondary)]">
             <span className="shrink-0">{STRINGS.watermarks.tolerance}</span>
             <input type="range" min={0} max={100} value={tolerance} aria-label={STRINGS.watermarks.tolerance} className="inflight-slider"
               onChange={(event) => { const value = Number(event.target.value); setTolerance(value); void onCutOut(step.id, step.slots[0], value, false).then(setPreview); }} />
           </label>
-          {preview?.tooMuch && <p role="status" className="text-[11px] text-[var(--text-primary)]">{STRINGS.watermarks.tooMuch}</p>}
+          {preview?.tooMuch && <p role="status" className="text-[0.6875rem] text-[var(--text-primary)]">{STRINGS.watermarks.tooMuch}</p>}
           <div className="flex flex-wrap justify-end gap-2">
             <button type="button" className={quietClass} onClick={() => setStep(step.next)}>{STRINGS.overlayKit.wmKeepBackground}</button>
             <button type="button" data-testid="setup-cutout-apply" className={primaryClass} disabled={busy || !preview || preview.tooMuch}
