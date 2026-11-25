@@ -331,6 +331,23 @@ export const pt: AreaTranslation<typeof source> = {
     rate: (n: number) => `Classificar com ${n} estrelas`,
     ratingFor: (name: string) => `Classificação de ${name}`,
   },
+  xmp: {
+    saveMenu: "Guardar classificações em XMP…",
+    readMenu: "Ler classificações de XMP…",
+    saved: (count: number, name: string) => `Classificações, marcas e etiquetas de ${count} fotografia(s) guardadas como ${name}. Coloque os ficheiros auxiliares junto dos originais para outras aplicações os lerem.`,
+    read: (count: number) => `Classificações, marcas e etiquetas de ${count} fotografia(s) lidas dos respetivos ficheiros XMP.`,
+    sameName: "Duas fotografias escreveriam o mesmo nome de ficheiro auxiliar (por exemplo um RAW e o seu JPEG). Selecione uma e guarde de novo.",
+    nothingToSave: "Não há fotografias para as quais guardar ficheiros auxiliares.",
+    saveFailed: "Não foi possível guardar os ficheiros auxiliares. As suas fotografias não foram alteradas.",
+    failed: {
+      empty: "Escolha um ou mais ficheiros .xmp, ou um .zip com eles.",
+      oversize: "Esses ficheiros auxiliares são demasiado grandes para ler em segurança. Nada foi alterado.",
+      unsafe: "Não foi possível ler esses ficheiros auxiliares em segurança. Nada foi alterado.",
+      ambiguous: "Duas fotografias partilham esse nome de ficheiro (por exemplo um RAW e o seu JPEG), por isso um ficheiro auxiliar pode pertencer a qualquer uma. Nada foi alterado.",
+      "no-match": "Nenhum desses ficheiros auxiliares corresponde pelo nome a uma fotografia aqui. Nada foi alterado.",
+      keeper: "Um ficheiro auxiliar poria de parte uma fotografia que marcou. Reveja essa fotografia à parte. Nada foi alterado.",
+    },
+  },
   canvas: {
     selectPhoto: "Selecione uma fotografia na película para começar a editar.",
     resizeText: "Redimensionar o texto",

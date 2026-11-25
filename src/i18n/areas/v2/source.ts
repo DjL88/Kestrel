@@ -351,6 +351,25 @@ export const source = {
     ratingFor: (name: string) => `Rating for ${name}`,
   },
 
+  // XMP sidecars (File menu)
+  xmp: {
+    saveMenu: 'Save ratings to XMP…',
+    readMenu: 'Read ratings from XMP…',
+    saved: (count: number, name: string) => `Saved ratings, flags and tags for ${count} ${count === 1 ? 'photo' : 'photos'} as ${name}. Put the sidecars beside the originals so other apps can read them.`,
+    read: (count: number) => `Read ratings, flags and tags for ${count} ${count === 1 ? 'photo' : 'photos'} from their XMP sidecars.`,
+    sameName: 'Two photos would write the same sidecar name (for example a RAW and its JPEG). Select one of them and save again.',
+    nothingToSave: 'There are no photos to save sidecars for.',
+    saveFailed: 'The sidecars could not be saved. Your photos are unchanged.',
+    failed: {
+      empty: 'Choose one or more .xmp files, or one .zip of them.',
+      oversize: 'Those sidecars are too large to read safely. Nothing was changed.',
+      unsafe: 'Those sidecars could not be read safely. Nothing was changed.',
+      ambiguous: 'Two photos share that file name (for example a RAW and its JPEG), so a sidecar could belong to either. Nothing was changed.',
+      'no-match': 'None of those sidecars matches a photo here by file name. Nothing was changed.',
+      keeper: 'A sidecar would set aside a photo you flagged. Review that photo on its own. Nothing was changed.',
+    },
+  },
+
   // Canvas
   canvas: {
     selectPhoto: "Select a photograph from the filmstrip to begin editing.",

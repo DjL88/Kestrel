@@ -331,6 +331,23 @@ export const da: AreaTranslation<typeof source> = {
     rate: (n: number) => `Giv ${n} stjerner`,
     ratingFor: (name: string) => `Vurdering af ${name}`,
   },
+  xmp: {
+    saveMenu: "Gem vurderinger som XMP …",
+    readMenu: "Læs vurderinger fra XMP …",
+    saved: (count: number, name: string) => `Vurderinger, markeringer og tags for ${count} foto(s) gemt som ${name}. Læg sidecar-filerne ved siden af originalerne, så andre apps kan læse dem.`,
+    read: (count: number) => `Vurderinger, markeringer og tags for ${count} foto(s) læst fra deres XMP-filer.`,
+    sameName: "To fotos ville skrive det samme sidecar-navn (for eksempel en RAW og dens JPEG). Vælg det ene og gem igen.",
+    nothingToSave: "Der er ingen fotos at gemme sidecar-filer for.",
+    saveFailed: "Sidecar-filerne kunne ikke gemmes. Dine fotos er uændrede.",
+    failed: {
+      empty: "Vælg en eller flere .xmp-filer eller én .zip med dem.",
+      oversize: "De sidecar-filer er for store til at læse sikkert. Intet blev ændret.",
+      unsafe: "De sidecar-filer kunne ikke læses sikkert. Intet blev ændret.",
+      ambiguous: "To fotos har det filnavn (for eksempel en RAW og dens JPEG), så en sidecar-fil kan høre til begge. Intet blev ændret.",
+      "no-match": "Ingen af de sidecar-filer passer efter filnavn til et foto her. Intet blev ændret.",
+      keeper: "En sidecar-fil ville lægge et foto, du har markeret, til side. Gennemse det foto for sig. Intet blev ændret.",
+    },
+  },
   canvas: {
     selectPhoto: "Vælg et foto i filmstrimlen for at begynde at redigere.",
     resizeText: "Tilpas tekstens størrelse",

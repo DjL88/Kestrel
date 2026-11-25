@@ -331,6 +331,23 @@ export const nl: AreaTranslation<typeof source> = {
     rate: (n: number) => `${n} sterren geven`,
     ratingFor: (name: string) => `Waardering voor ${name}`,
   },
+  xmp: {
+    saveMenu: "Waarderingen opslaan als XMP…",
+    readMenu: "Waarderingen lezen uit XMP…",
+    saved: (count: number, name: string) => `Waarderingen, markeringen en tags voor ${count} foto(’s) opgeslagen als ${name}. Zet de sidecars naast de originelen zodat andere apps ze kunnen lezen.`,
+    read: (count: number) => `Waarderingen, markeringen en tags voor ${count} foto(’s) gelezen uit hun XMP-bestanden.`,
+    sameName: "Twee foto’s zouden dezelfde sidecarnaam schrijven (bijvoorbeeld een RAW en de JPEG ervan). Selecteer er één en sla opnieuw op.",
+    nothingToSave: "Er zijn geen foto’s om sidecars voor op te slaan.",
+    saveFailed: "De sidecars konden niet worden opgeslagen. Je foto’s zijn ongewijzigd.",
+    failed: {
+      empty: "Kies een of meer .xmp-bestanden, of één .zip daarvan.",
+      oversize: "Die sidecars zijn te groot om veilig te lezen. Er is niets gewijzigd.",
+      unsafe: "Die sidecars konden niet veilig worden gelezen. Er is niets gewijzigd.",
+      ambiguous: "Twee foto’s hebben die bestandsnaam (bijvoorbeeld een RAW en de JPEG ervan), dus een sidecar kan bij beide horen. Er is niets gewijzigd.",
+      "no-match": "Geen van die sidecars past op bestandsnaam bij een foto hier. Er is niets gewijzigd.",
+      keeper: "Een sidecar zou een door jou gemarkeerde foto opzijzetten. Bekijk die foto apart. Er is niets gewijzigd.",
+    },
+  },
   canvas: {
     selectPhoto: "Selecteer een foto in de filmstrip om te beginnen met bewerken.",
     resizeText: "Tekstgrootte wijzigen",

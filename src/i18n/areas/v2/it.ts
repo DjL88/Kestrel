@@ -331,6 +331,23 @@ export const it: AreaTranslation<typeof source> = {
     rate: (n: number) => `Valuta ${n} stelle`,
     ratingFor: (name: string) => `Valutazione di ${name}`,
   },
+  xmp: {
+    saveMenu: "Salva valutazioni in XMP…",
+    readMenu: "Leggi valutazioni da XMP…",
+    saved: (count: number, name: string) => `Valutazioni, contrassegni e tag di ${count} foto salvati come ${name}. Metti i file accessori accanto agli originali perché altre app li leggano.`,
+    read: (count: number) => `Valutazioni, contrassegni e tag di ${count} foto letti dai loro file XMP.`,
+    sameName: "Due foto scriverebbero lo stesso nome di file accessorio (per esempio un RAW e il suo JPEG). Selezionane una e salva di nuovo.",
+    nothingToSave: "Non ci sono foto per cui salvare file accessori.",
+    saveFailed: "Non è stato possibile salvare i file accessori. Le tue foto non sono cambiate.",
+    failed: {
+      empty: "Scegli uno o più file .xmp, oppure un unico .zip.",
+      oversize: "Quei file accessori sono troppo grandi per leggerli in sicurezza. Non è cambiato nulla.",
+      unsafe: "Non è stato possibile leggere quei file accessori in sicurezza. Non è cambiato nulla.",
+      ambiguous: "Due foto hanno quel nome di file (per esempio un RAW e il suo JPEG), quindi un file accessorio potrebbe appartenere a entrambe. Non è cambiato nulla.",
+      "no-match": "Nessuno di quei file accessori corrisponde per nome a una foto qui. Non è cambiato nulla.",
+      keeper: "Un file accessorio metterebbe da parte una foto che hai contrassegnato. Rivedi quella foto da sola. Non è cambiato nulla.",
+    },
+  },
   canvas: {
     selectPhoto: "Selezioni una fotografia dalla pellicola per iniziare a modificare.",
     resizeText: "Ridimensiona il testo",

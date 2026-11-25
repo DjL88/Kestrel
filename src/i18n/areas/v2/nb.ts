@@ -331,6 +331,23 @@ export const nb: AreaTranslation<typeof source> = {
     rate: (n: number) => `Gi ${n} stjerner`,
     ratingFor: (name: string) => `Vurdering for ${name}`,
   },
+  xmp: {
+    saveMenu: "Lagre vurderinger som XMP …",
+    readMenu: "Les vurderinger fra XMP …",
+    saved: (count: number, name: string) => `Vurderinger, merker og tagger for ${count} bilde(r) lagret som ${name}. Legg sidefilene ved siden av originalene slik at andre apper kan lese dem.`,
+    read: (count: number) => `Vurderinger, merker og tagger for ${count} bilde(r) lest fra XMP-filene deres.`,
+    sameName: "To bilder ville skrevet samme sidefilnavn (for eksempel en RAW og JPEG-en). Velg ett av dem og lagre igjen.",
+    nothingToSave: "Det finnes ingen bilder å lagre sidefiler for.",
+    saveFailed: "Sidefilene kunne ikke lagres. Bildene dine er uendret.",
+    failed: {
+      empty: "Velg én eller flere .xmp-filer, eller én .zip med dem.",
+      oversize: "Disse sidefilene er for store til å leses trygt. Ingenting ble endret.",
+      unsafe: "Disse sidefilene kunne ikke leses trygt. Ingenting ble endret.",
+      ambiguous: "To bilder har det filnavnet (for eksempel en RAW og JPEG-en), så en sidefil kan høre til begge. Ingenting ble endret.",
+      "no-match": "Ingen av sidefilene passer til et bilde her etter filnavn. Ingenting ble endret.",
+      keeper: "En sidefil ville lagt til side et bilde du har merket. Se gjennom det bildet for seg. Ingenting ble endret.",
+    },
+  },
   canvas: {
     selectPhoto: "Velg et bilde i filmstripen for å begynne å redigere.",
     resizeText: "Endre tekststørrelse",

@@ -156,6 +156,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     return found[0] && found[1] ? ([found[0], found[1]] as [Photo, Photo]) : null;
   }, [store.compareMode, store.collage, store.selectedPhotoIds, store.photos]);
   const [pairSwapped, setPairSwapped] = useState(false);
+  const xmpInputRef = useRef<HTMLInputElement>(null);
   const peers = usePresence(sharing, store.collage ? null : store.activeProjectId, activePhoto?.id ?? null, signedInName, shareVersion);
   const hoveredLook = store.looks.find((l) => l.id === store.hoveredLookId) ?? null;
   const runningTaskCount = store.tasks.filter((t) => t.status === 'running').length;
@@ -215,6 +216,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'toggleFilmstrip': if (inEditor) actions.setFilmstripCollapsed(!store.filmstripCollapsed); break;
       case 'settings': actions.setSettingsOpen(true, action.tab); break;
       case 'removedPhotos': if (inEditor) actions.setRemovedOpen(true); break;
+      case 'saveXmp': if (inEditor && !store.collage) actions.saveXmpSidecars(store.selectedPhotoIds); break;
+      case 'readXmp': if (inEditor && !store.collage) xmpInputRef.current?.click(); break;
       case 'resetPhoto': if (inEditor && activePhoto) actions.resetPhotoEdits(activePhoto.id); break;
       case 'backToProjects': if (inEditor) actions.backToProjects(); break;
     }
@@ -493,6 +496,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         />
       ) : (
         <>
+          <input ref={xmpInputRef} type="file" multiple accept=".xmp,.zip,application/rdf+xml,application/zip" hidden
+            data-testid="xmp-input" aria-hidden="true" tabIndex={-1}
+            onChange={(event) => {
+              const files = [...(event.target.files ?? [])];
+              event.target.value = '';
+              if (files.length) actions.readXmpSidecars(files, store.selectedPhotoIds);
+            }} />
           <TopBar
             // Owner decision 24 Nov 2026: header menus in a browser; the installed desktop app uses its native menu bar.
             showMenus={!isDesktopApp()}
@@ -513,6 +523,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onShare={store.collage ? undefined : () => setShareOpen(true)}
             presence={<PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(id) => actions.selectPhoto(id)} />}
             onOpenRemoved={() => actions.setRemovedOpen(true)}
+            onSaveXmp={store.screen === 'editor' && !store.collage ? () => actions.saveXmpSidecars(store.selectedPhotoIds) : undefined}
+            onReadXmp={store.screen === 'editor' && !store.collage ? () => xmpInputRef.current?.click() : undefined}
             onOpenSettings={() => actions.setSettingsOpen(true)}
             onImport={actions.importPhotos}
             onUndo={actions.undo}

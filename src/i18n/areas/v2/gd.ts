@@ -332,6 +332,23 @@ export const gd: AreaTranslation<typeof source> = {
     rate: (n: number) => `Thoir ${n} rionnagan`,
     ratingFor: (name: string) => `Rangachadh airson ${name}`,
   },
+  xmp: {
+    saveMenu: "Sàbhail rangachaidhean gu XMP…",
+    readMenu: "Leugh rangachaidhean bho XMP…",
+    saved: (count: number, name: string) => `Chaidh rangachaidhean, comharran is tagaichean airson ${count} dealbh a shàbhaladh mar ${name}. Cuir na faidhlichean taobh ri taobh nan tùsan gus an leugh aplacaidean eile iad.`,
+    read: (count: number) => `Chaidh rangachaidhean, comharran is tagaichean airson ${count} dealbh a leughadh bho na faidhlichean XMP aca.`,
+    sameName: "Sgrìobhadh dà dhealbh an aon ainm faidhle taoibh (mar eisimpleir RAW is a JPEG). Tagh fear dhiubh is sàbhail a-rithist.",
+    nothingToSave: "Chan eil dealbhan ann airson faidhlichean taoibh a shàbhaladh.",
+    saveFailed: "Cha b’ urrainn dhuinn na faidhlichean taoibh a shàbhaladh. Cha deach na dealbhan agad atharrachadh.",
+    failed: {
+      empty: "Tagh aon fhaidhle .xmp no barrachd, no aon .zip dhiubh.",
+      oversize: "Tha na faidhlichean taoibh ro mhòr airson an leughadh gu sàbhailte. Cha deach dad atharrachadh.",
+      unsafe: "Cha b’ urrainn dhuinn na faidhlichean taoibh a leughadh gu sàbhailte. Cha deach dad atharrachadh.",
+      ambiguous: "Tha an aon ainm faidhle aig dà dhealbh (mar eisimpleir RAW is a JPEG), mar sin dh’fhaodadh faidhle taoibh buntainn do dhealbh seach dealbh. Cha deach dad atharrachadh.",
+      "no-match": "Chan eil gin dhe na faidhlichean taoibh a’ freagairt ri dealbh an seo a-rèir ainm faidhle. Cha deach dad atharrachadh.",
+      keeper: "Chuireadh faidhle taoibh dealbh a chomharraich thu an dàrna taobh. Dèan lèirmheas air an dealbh sin leis fhèin. Cha deach dad atharrachadh.",
+    },
+  },
   canvas: {
     selectPhoto: "Tagh dealbh on stiall fhilm gus tòiseachadh air deasachadh.",
     resizeText: "Atharraich meud an teacsa",
