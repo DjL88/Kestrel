@@ -1196,4 +1196,22 @@ export const gd: AreaTranslation<typeof source> = {
     reload: "Luchdaich InFlight a-rithist",
     details: "Fiosrachadh",
   },
+  // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
+  tapSelect: {
+    tool: "Thoir gnogag airson taghadh",
+    offer: (mb) => `Feumaidh taghadh le gnogag luchdadh a-nuas ${mb} MB aon turas (EfficientSAM-Ti, Apache-2.0). Fanaidh e air an uidheam seo is obraichidh e far loidhne.`,
+    download: "Luchdaich a-nuas taghadh le gnogag",
+    downloading: (pct) => `Ga luchdadh a-nuas… ${pct}%`,
+    unavailable: "Chan eil taghadh le gnogag ri fhaighinn san tionndadh seo.",
+    reading: "A’ leughadh an deilbh aon turas airson taghadh le gnogag. Faodaidh seo mu leth-mhionaid a thoirt; obraichidh Ugh is Caiseadh fhathast.",
+    ready: "Thoir gnogag air a’ chuspair air an dealbh. Ann am modh Thoir air falbh (no le Alt) bheir gnogag pàirt air falbh.",
+    working: "Ag ùrachadh an taghaidh…",
+    addMode: "Cuir pàirt ris",
+    removeMode: "Thoir pàirt air falbh",
+    newSubject: "Cuspair ùr",
+    done: "Deiseil",
+    subjects: (n) => `Cuspairean air an taghadh: ${n}`,
+    tapLayer: "Thoir gnogag an-seo gus cuspair a thaghadh",
+    failed: "Stad an taghadh le gnogag. Cha deach dad atharrachadh.",
+  },
 };

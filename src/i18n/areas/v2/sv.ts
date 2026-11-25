@@ -1195,4 +1195,22 @@ export const sv: AreaTranslation<typeof source> = {
     reload: "Läs in InFlight igen",
     details: "Detaljer",
   },
+  // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
+  tapSelect: {
+    tool: "Tryck för att välja",
+    offer: (mb) => `Tryck för att välja kräver en engångsnedladdning på ${mb} MB (EfficientSAM-Ti, Apache-2.0). Den stannar på den här enheten och fungerar offline.`,
+    download: "Ladda ned Tryck för att välja",
+    downloading: (pct) => `Laddar ned… ${pct} %`,
+    unavailable: "Tryck för att välja erbjuds inte i den här versionen.",
+    reading: "Fotot läses en gång för Tryck för att välja. Det kan ta en halv minut; Oval och Övertoning fungerar under tiden.",
+    ready: "Tryck på motivet i fotot. I läget Ta bort (eller med Alt) tar ett tryck bort en del.",
+    working: "Uppdaterar markeringen…",
+    addMode: "Lägg till del",
+    removeMode: "Ta bort del",
+    newSubject: "Nytt motiv",
+    done: "Klar",
+    subjects: (n) => `Valda motiv: ${n}`,
+    tapLayer: "Tryck här för att välja ett motiv",
+    failed: "Tryck för att välja avbröts. Inget ändrades.",
+  },
 };

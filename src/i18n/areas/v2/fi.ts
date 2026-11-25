@@ -1196,4 +1196,22 @@ export const fi: AreaTranslation<typeof source> = {
     reload: "Lataa InFlight uudelleen",
     details: "Tiedot",
   },
+  // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
+  tapSelect: {
+    tool: "Valitse napauttamalla",
+    offer: (mb) => `Napautusvalinta tarvitsee kertalatauksen, ${mb} Mt (EfficientSAM-Ti, Apache-2.0). Se pysyy tällä laitteella ja toimii ilman verkkoa.`,
+    download: "Lataa napautusvalinta",
+    downloading: (pct) => `Ladataan… ${pct} %`,
+    unavailable: "Napautusvalintaa ei tarjota tässä versiossa.",
+    reading: "Kuva luetaan kerran napautusvalintaa varten. Tämä voi kestää noin puoli minuuttia; Soikio ja Liukuma toimivat sillä välin.",
+    ready: "Napauta kuvan kohdetta. Poista-tilassa (tai Alt pohjassa) napautus poistaa osan.",
+    working: "Päivitetään valintaa…",
+    addMode: "Lisää osa",
+    removeMode: "Poista osa",
+    newSubject: "Uusi kohde",
+    done: "Valmis",
+    subjects: (n) => `Valitut kohteet: ${n}`,
+    tapLayer: "Napauta tästä valitaksesi kohteen",
+    failed: "Napautusvalinta pysähtyi. Mitään ei muutettu.",
+  },
 };

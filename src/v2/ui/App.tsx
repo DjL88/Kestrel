@@ -311,6 +311,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetMaskGeometry={actions.setMaskGeometry}
             onSetMaskLimit={actions.setMaskLimit}
             onPreviewMask={setMaskGuide}
+            tapSelect={store.tapSelect}
+            tapActions={actions}
           />
         );
       case 'enhance':
@@ -594,6 +596,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   maskOverlayKey={keymap['view.maskOverlay'] ? chordLabel(keymap['view.maskOverlay'], IS_MAC) : undefined}
                   onToggleMaskOverlay={() => setMaskOverlayVisible((visible) => !visible)}
                   onSetMaskGeometry={actions.setMaskGeometry}
+                  tapSession={store.tapSelect?.session}
+                  onTapSelect={actions.tapSelectAt}
                   onOpenFormats={activePhoto ? () => {
                     actions.setPanelVisible('formats', true);
                     setAddingFormatFor(activePhoto.id);

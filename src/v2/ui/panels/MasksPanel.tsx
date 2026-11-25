@@ -1,5 +1,6 @@
 import React from 'react';
-import type { MaskGeometryField, MaskLayer, Photo, WorkspaceStore } from '../contract';
+import type { MaskGeometryField, MaskLayer, Photo, TapSelectState, WorkspaceActions, WorkspaceStore } from '../contract';
+import { EFFICIENTSAM_TI, optionalModelBytes } from '../../../core/optionalModels';
 import { STRINGS } from '../strings';
 import BrandIcon, { type BrandIconName } from '../icons/BrandIcon';
 import { MASK_SLIDERS } from '../../engineClient/maskOps';
@@ -16,6 +17,9 @@ interface MasksPanelProps {
   onSetMaskGeometry: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
   onSetMaskLimit: (photoId: string, maskId: string, limit: MaskLayer['limit'] | null) => void;
   onPreviewMask?: (selection: { photoId: string; maskId: string } | null) => void;
+  /** Tap to select (optional pack); absent where the engine does not offer it. */
+  tapSelect?: TapSelectState;
+  tapActions?: Pick<WorkspaceActions, 'downloadTapSelect' | 'startTapSelect' | 'setTapSelectMode' | 'newTapSubject' | 'finishTapSelect'>;
 }
 
 export default function MasksPanel({
@@ -30,6 +34,8 @@ export default function MasksPanel({
   onSetMaskGeometry,
   onSetMaskLimit,
   onPreviewMask,
+  tapSelect,
+  tapActions,
 }: MasksPanelProps) {
   const [openId, setOpenId] = React.useState<string | null>(null);
   const seen = React.useRef<{ photoId: string; ids: string[] } | null>(null);
@@ -105,6 +111,8 @@ export default function MasksPanel({
           ))}
         </div>
       </div>
+
+      {tapSelect && <TapSelectSection photo={photo} state={tapSelect} actions={tapActions ?? {}} />}
 
       {/* Manual refinement tools */}
       <div className="space-y-2 border-t border-[var(--border-subtle)] pt-3.5">
@@ -269,5 +277,60 @@ export default function MasksPanel({
         Subject/Background detection and adjustable Oval/Gradient masks work on this device. Automatic Sky detection and Brush/Eraser painting remain unavailable.
       </p>
     </div>
+  );
+}
+
+const TAP_MB = (optionalModelBytes(EFFICIENTSAM_TI) / 1_000_000).toFixed(0);
+
+/** Tap to select: the optional pack offer, then the session controls. Words carry every state; nothing is colour alone. */
+function TapSelectSection({ photo, state, actions }: { photo: Photo; state: TapSelectState; actions: NonNullable<MasksPanelProps['tapActions']> }) {
+  const words = STRINGS.tapSelect;
+  const session = state.session?.photoId === photo.id ? state.session : undefined;
+  const button = 'flex min-h-9 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border px-2.5 text-xs font-medium';
+  const plain = `${button} border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-primary)] hover:border-[var(--border-default)] disabled:cursor-not-allowed disabled:opacity-50`;
+  const chosen = `${button} border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--text-primary)]`;
+  return (
+    <section aria-label={words.tool} data-testid="tap-select" className="space-y-2 border-t border-[var(--border-subtle)] pt-3.5">
+      <h3 className="text-xs font-semibold text-[var(--text-primary)]">{words.tool}</h3>
+      {state.pack === 'unavailable' && <p className="text-[11px] text-[var(--text-muted)]">{words.unavailable}</p>}
+      {(state.pack === 'not-downloaded' || state.pack === 'failed') && (
+        <>
+          <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">{words.offer(TAP_MB)}</p>
+          {state.pack === 'failed' && state.message && <p role="alert" className="text-[11px] text-[var(--text-primary)]">{state.message}</p>}
+          <button type="button" className={plain} onClick={() => actions.downloadTapSelect?.()}>
+            <BrandIcon name="plus" size={14} /><span>{words.download}</span>
+          </button>
+        </>
+      )}
+      {state.pack === 'downloading' && (
+        <p role="status" className="text-[11px] text-[var(--text-secondary)]">{words.downloading(Math.round((state.downloadProgress ?? 0) * 100))}</p>
+      )}
+      {state.pack === 'ready' && !session && (
+        <button type="button" className={plain} onClick={() => actions.startTapSelect?.(photo.id)}>
+          <BrandIcon name="find-subject" size={14} /><span>{words.tool}</span>
+        </button>
+      )}
+      {state.pack === 'ready' && session && (
+        <div className="space-y-2">
+          <p role="status" className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
+            {session.phase === 'reading' ? words.reading : session.phase === 'working' ? words.working : session.phase === 'failed' ? (state.message ?? words.failed) : words.ready}
+          </p>
+          {session.subjects.length > 0 && <p className="text-[11px] text-[var(--text-muted)]">{words.subjects(session.subjects.length)}</p>}
+          <div className="grid grid-cols-2 gap-1.5" role="group" aria-label={words.tool}>
+            <button type="button" aria-pressed={session.mode === 'add'} className={session.mode === 'add' ? chosen : plain}
+              disabled={session.phase === 'reading' || session.phase === 'failed'} onClick={() => actions.setTapSelectMode?.('add')}>
+              <span aria-hidden="true" className="font-mono">+</span><span>{words.addMode}</span>
+            </button>
+            <button type="button" aria-pressed={session.mode === 'remove'} className={session.mode === 'remove' ? chosen : plain}
+              disabled={session.phase === 'reading' || session.phase === 'failed' || session.subjects.length === 0} onClick={() => actions.setTapSelectMode?.('remove')}>
+              <span aria-hidden="true" className="font-mono">−</span><span>{words.removeMode}</span>
+            </button>
+            <button type="button" className={plain} disabled={session.phase !== 'ready' || session.subjects.length === 0 || session.active >= session.subjects.length}
+              onClick={() => actions.newTapSubject?.()}>{words.newSubject}</button>
+            <button type="button" className={plain} onClick={() => actions.finishTapSelect?.()}>{words.done}</button>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }

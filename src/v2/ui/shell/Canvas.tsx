@@ -12,6 +12,8 @@ import type {
   FontOption,
   LookPreset,
   MaskGeometryField,
+  TapPoint,
+  WorkspaceStore,
   OverlaySettings,
   Photo,
   PhotoSurfaceProps,
@@ -23,6 +25,7 @@ import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import CompareSplit from './CompareSplit';
 import MaskOutlineLayer from './MaskOutlineLayer';
+import TapSelectLayer from './TapSelectLayer';
 import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
 import { captureElement, screenshotName } from '../utils/captureElement';
 import { DOCKED, clampDockOffset, isDocked, nudgeDockOffset, parseDockOffset, snapDockOffset, type DockOffset } from '../utils/floatingDock';
@@ -50,6 +53,9 @@ interface CanvasProps {
   maskOverlayKey?: string;
   onToggleMaskOverlay?: () => void;
   onSetMaskGeometry?: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
+  /** Tap-to-select session; when it is on this photo, clicks on the picture select instead of moving the format. */
+  tapSession?: NonNullable<WorkspaceStore['tapSelect']>['session'];
+  onTapSelect?: (photoId: string, tap: TapPoint) => void;
   photo: Photo | null;
   activeSizeId: string;
   selectedSizeIds: string[];
@@ -98,6 +104,8 @@ export default function Canvas({
   maskOverlayKey,
   onToggleMaskOverlay,
   onSetMaskGeometry,
+  tapSession,
+  onTapSelect,
   photo,
   activeSizeId,
   selectedSizeIds,
@@ -996,10 +1004,16 @@ export default function Canvas({
   // The selected mask (its layer is open in the Masks panel). Oval and gradient masks also get an outline with handles.
   const selectedMask = maskGuideId ? photo.masks.find((layer) => layer.id === maskGuideId && layer.visible) : undefined;
   const selectedShape = selectedMask?.geometry ? { ...selectedMask, geometry: selectedMask.geometry } : undefined;
-  const renderMaskOutline = selectedShape && onSetMaskGeometry
+  const tapping = tapSession?.photoId === photo.id && onTapSelect ? tapSession : undefined;
+  const renderMaskOutline = (selectedShape && onSetMaskGeometry) || tapping
     ? (picture: { width: number; height: number }) => (
-      <MaskOutlineLayer picture={picture} name={selectedShape.name} geometry={selectedShape.geometry} feather={selectedShape.feather}
-        onChange={(field, value) => onSetMaskGeometry(photo.id, selectedShape.id, field, value)} />
+      <>
+        {selectedShape && onSetMaskGeometry && !tapping && (
+          <MaskOutlineLayer picture={picture} name={selectedShape.name} geometry={selectedShape.geometry} feather={selectedShape.feather}
+            onChange={(field, value) => onSetMaskGeometry(photo.id, selectedShape.id, field, value)} />
+        )}
+        {tapping && <TapSelectLayer picture={picture} session={tapping} onTap={(tap) => onTapSelect!(photo.id, tap)} />}
+      </>
     ) : undefined;
   const renderSurface = (variant: 'edited' | 'original', alt: string, style: React.CSSProperties, filter: string) =>
     PhotoSurface ? (

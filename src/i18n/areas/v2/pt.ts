@@ -1195,4 +1195,22 @@ export const pt: AreaTranslation<typeof source> = {
     reload: "Recarregar o InFlight",
     details: "Detalhes",
   },
+  // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
+  tapSelect: {
+    tool: "Tocar para selecionar",
+    offer: (mb) => `Tocar para selecionar precisa de uma transferência única de ${mb} MB (EfficientSAM-Ti, Apache-2.0). Fica neste dispositivo e funciona offline.`,
+    download: "Transferir Tocar para selecionar",
+    downloading: (pct) => `A transferir… ${pct}%`,
+    unavailable: "Tocar para selecionar não está disponível nesta versão.",
+    reading: "A ler a foto uma vez para Tocar para selecionar. Pode demorar cerca de meio minuto; Oval e Gradiente continuam a funcionar.",
+    ready: "Toque no motivo na foto. No modo Remover (ou com Alt) um toque retira uma parte.",
+    working: "A atualizar a seleção…",
+    addMode: "Adicionar parte",
+    removeMode: "Remover parte",
+    newSubject: "Novo motivo",
+    done: "Concluir",
+    subjects: (n) => `Motivos selecionados: ${n}`,
+    tapLayer: "Toque aqui para selecionar um motivo",
+    failed: "Tocar para selecionar parou. Nada foi alterado.",
+  },
 };
