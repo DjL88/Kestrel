@@ -884,7 +884,15 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       itemId: item => item.id, itemLabel: item => item.name,
       runItem: async (_, __, ctx) => {
         ctx.stage('Detecting subject edges on this device');
-        const image = await loadExportSource(frame, provider.current!);
+        // A mask needs the photo's shape and content, not export-grade pixels. A RAW this device cannot develop (for
+        // example Nikon HE*) made the export loader throw, so subject detection always failed on such files; it now
+        // falls back to the preview shown on the canvas, which has the same framing.
+        const image = await loadExportSource(frame, provider.current!).catch(async (reason) => {
+          const shown = isRawPreviewFile(frame.filename) || isHeifFile(frame.filename)
+            ? await provider.current!.getFullPreviewUrl(frame, 'selected').catch(() => '') : '';
+          if (!shown) throw reason;
+          return loadImage(shown);
+        });
         ctx.checkCancelled();
         const framing = frame.framing ?? DEFAULT_FRAMING;
         const { width, height } = framedSize(image.naturalWidth, image.naturalHeight, framing);
