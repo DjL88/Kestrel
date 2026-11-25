@@ -186,7 +186,7 @@ export const Schemas = {
   CollabAcquire: z.object({ deviceId: z.string().min(8).max(128) }).strict(),
   CollabHeartbeat: z.object({ token: z.string().min(16).max(128), editing: z.boolean() }).strict(),
   CollabRelease: z.object({ token: z.string().min(16).max(128), action: z.enum(['checked-in', 'released']) }).strict(),
-  CollabComment: z.object({ text: z.string().trim().min(1).max(2000), point: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().nullable().default(null) }).strict(),
+  CollabComment: z.object({ text: z.string().trim().min(1).max(2000), point: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().nullable().default(null), replyTo: z.string().min(1).max(64).nullable().optional() }).strict(),
   CloudUpload: z.object({ variant: z.enum(CLOUD_VARIANTS), sha256: Sha, bytes: z.number().int().positive(), name: z.string().trim().min(1).max(200) }).strict(),
   CloudVariantBody: z.object({ variant: z.enum(CLOUD_VARIANTS) }).strict(),
   CloudRemove: z.object({ variants: z.array(z.enum(CLOUD_VARIANTS)).min(1).max(3).optional() }).strict(),
@@ -1207,10 +1207,13 @@ export function createApp(options: AppOptions) {
         const body = parseJson(Schemas.CollabComment, req.rawBody);
         if (!PhotoId.safeParse(params.photoId).success) throw new ApiError(400, 'BAD_REQUEST', 'That is not a photo id.');
         const c = await collabWritable();
-        const comment = await collab(() => c.addComment(params.id, params.photoId, claims.sub, { text: body.text, point: body.point ?? null }, now()));
+        const comment = await collab(() => c.addComment(params.id, params.photoId, claims.sub, { text: body.text, point: body.point ?? null, replyTo: body.replyTo ?? null }, now()));
         await notify(async () => {
           const who = await c.commentAudience(params.id, params.photoId, claims.sub);
-          return { kind: 'comment', projectId: params.id, projectName: who.projectName, photoId: params.photoId, actorName: who.actorName, recipients: who.accountIds };
+          // A reply also reaches whoever started the thread, a client included (it is their own thread).
+          const starter = comment.replyTo ? (await c.comments(params.id, params.photoId, claims.sub)).find((x) => x.id === comment.replyTo)?.authorAccountId : undefined;
+          const recipients = [...new Set([...who.accountIds, ...(starter && starter !== claims.sub ? [starter] : [])])];
+          return { kind: comment.replyTo ? 'reply' : 'comment', projectId: params.id, projectName: who.projectName, photoId: params.photoId, actorName: who.actorName, recipients };
         });
         return { status: 200, body: { comment } };
       },
