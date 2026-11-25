@@ -13,6 +13,7 @@ const azure = {
   AZURE_CLIENT_ID: 'c', AZURE_CLIENT_SECRET: 's', AZURE_TENANT_ID: 't',
   AZURE_SIGNING_ENDPOINT: 'https://weu.codesigning.azure.net', AZURE_SIGNING_ACCOUNT: 'acct', AZURE_SIGNING_PROFILE: 'prof',
 };
+const esigner = { ES_USERNAME: 'dave', ES_PASSWORD: 'pw', ES_CREDENTIAL_ID: 'cred', ES_TOTP_SECRET: 'totp' };
 const pfx = { WINDOWS_CERTIFICATE: 'base64', WINDOWS_CERTIFICATE_PASSWORD: 'pw' };
 
 test('no secrets: unsigned everywhere, no config, no errors, and the release note says so', () => {
@@ -82,6 +83,22 @@ test('Windows: Azure Trusted Signing sets a sign command; a certificate file set
   assert.match(planSigning({ os: 'Windows', env: pfx }).errors.join(), /no thumbprint/);
   assert.match(planSigning({ os: 'Windows', env: { ...azure, ...pfx } }).errors.join(), /Keep one/);
   assert.equal(planSigning({ os: 'macOS', env: azure }).config, null);
+});
+
+test('Windows: SSL.com eSigner signs through the script, exports only its own secrets, and excludes other routes', () => {
+  const plan = planSigning({ os: 'Windows', env: { ...esigner, GITHUB_WORKSPACE: 'D:\\a\\Kestrel\\Kestrel' } });
+  assert.deepEqual(plan.errors, []);
+  assert.equal(plan.release.windows, 'signed (SSL.com eSigner)');
+  assert.equal(plan.config.bundle.windows.signCommand, 'pwsh -NoProfile -ExecutionPolicy Bypass -File D:/a/Kestrel/Kestrel/scripts/windows/esigner-sign.ps1 %1');
+  assert.equal(plan.exports.ES_TOTP_SECRET, 'totp');
+  assert.equal(plan.exports.AZURE_CLIENT_ID, undefined);
+  assert.deepEqual(plan.here, ['no update files (TAURI_SIGNING_PRIVATE_KEY not set)', 'Windows installer signed (SSL.com eSigner)']);
+  assert.match(planSigning({ os: 'Windows', env: { ES_USERNAME: 'dave' } }).errors.join(), /ES_PASSWORD, ES_CREDENTIAL_ID, ES_TOTP_SECRET missing/);
+  const both = planSigning({ os: 'Windows', env: { ...esigner, ...azure } });
+  assert.match(both.errors.join(), /Keep one/);
+  assert.equal(both.config, null);
+  assert.equal(planSigning({ os: 'macOS', env: esigner }).exports.ES_PASSWORD, undefined);
+  assert.match(releaseNote(planSigning({ os: 'Linux', env: esigner }).release), /Windows: signed \(SSL\.com eSigner\)/);
 });
 
 test('command line writes env, outputs and a config file the way GitHub Actions reads them', () => {
