@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { findMarkings, looksLikeNumberPlate, mayReadMarkings } from './aircraftRegistration';
+import { findMarkings, findRaceNumber, looksLikeNumberPlate, markingContext, mayReadMarkings } from './aircraftRegistration';
 import { UK_MILITARY_BLOCKS, faaRegister, lookUpMarking } from './aircraftRegister';
 import { decodeText, detectorSize, recogniserWidth, textBoxes } from './textOcr';
 import { VEHICLE_LABELS as labels } from './vehicleLabels';
@@ -95,4 +95,32 @@ test('text boxes and text decoding follow PaddleOCR', () => {
   const read = decodeText(scores, steps.length, 6, characters);
   assert.equal(read.text, 'ZK301');
   assert.ok(Math.abs(read.confidence - 0.95) < 1e-6);
+});
+
+test('race numbers are read only on a photo clearly read as a racing car or racing motorbike', () => {
+  const bike: VehicleReading = { schema: 1, family: 'road', kind: 'racing-motorbike', source: 'clip', labelsVersion: 2 };
+  assert.equal(markingContext(bike), 'racing');
+  assert.equal(markingContext({ ...bike, kind: 'racing-car' }), 'racing');
+  for (const kind of ['car', 'motorbike', 'lorry', 'bus', undefined]) assert.equal(markingContext({ ...bike, kind }), null, String(kind));
+  assert.equal(markingContext(jet), 'aircraft');
+});
+
+test('a race number is a line of one to three digits; plates, years, sponsors and registrations give nothing', () => {
+  assert.deepEqual(findRaceNumber('46'), [{ value: '46', format: 'race-number' }]);
+  assert.deepEqual(findRaceNumber(' 007 '), [{ value: '7', format: 'race-number' }]);
+  for (const text of ['AB12 CDE', '2026', 'NO 1', 'ZK301', 'G-EZAA', 'RACING', '']) assert.deepEqual(findRaceNumber(text), [], text);
+});
+
+test('the biggest number on the bike is its race number, and it reads in plain words', () => {
+  const bike: VehicleReading = { schema: 1, family: 'road', kind: 'racing-motorbike', source: 'clip', labelsVersion: 2 };
+  const read = withMarking(bike, [{ text: '7', confidence: 0.99, height: 20 }, { text: '46', confidence: 0.95, height: 140 }, { text: 'AB12 CDE', confidence: 0.99, height: 200 }], findRaceNumber, () => null);
+  assert.deepEqual(read.marking, { value: '46', format: 'race-number', confidence: 0.95 });
+  assert.equal(vehicleLabel(read, labels, words), 'Racing motorbike (probably), number 46', 'the kind is a look-alike guess; the number is text read');
+  assert.ok(vehicleSearchWords(read, labels, [words]).includes('46'));
+  assert.deepEqual(validVehicleReading(JSON.parse(JSON.stringify(read)), labels), read);
+  // Never on an ordinary car, even if a stored reading claims it; and an aircraft never takes a race number.
+  assert.equal(validVehicleReading({ ...read, kind: 'car' }, labels), null);
+  const car: VehicleReading = { ...bike, kind: 'car' };
+  assert.deepEqual(withMarking(car, [{ text: '46', confidence: 0.99, height: 140 }], findRaceNumber, () => null), car);
+  assert.deepEqual(withMarking(jet, [{ text: '46', confidence: 0.99, height: 140 }], findRaceNumber, () => null), jet);
 });
