@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { applyDecisionWithHistory, assignBurstGroups, redoDecision, regroupBurstsWithEmbeddings, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
-import { recordEdit, stepEdit } from '../../core/editHistory';
+import { recordEdit, stepEdit, type EditWhy } from '../../core/editHistory';
 import { forkEditCheckpoint, switchEditVersion as switchVersionInCatalogue } from '../../core/editBranches';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { sameRecipe } from '../../core/naturalAuto';
@@ -10,6 +10,7 @@ import { createCollage, MAX_COLLAGE_SELECTION, readCollage } from '../../core/co
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
 import { appendProjectPhotos, applyImportBursts, createEmptyProject, setArchived } from '../../core/projects';
 import { tasks } from '../../core/taskStore';
+import { createSaveGuard, type SaveGuard } from '../../core/saveGuard';
 import { engineScheduler } from '../../core/engineScheduler';
 import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '../../core/types';
 import { eraseDeviceData } from './eraseDeviceData';
@@ -20,8 +21,12 @@ import { scanForCulling } from '../../providers/browserAutoCull';
 import { useAccess } from '../../providers/useAccess';
 import { useBackgroundDevelop } from '../../useBackgroundDevelop';
 import { useSpeciesScan } from '../../useSpeciesScan';
+import { carryVehicleReadings, correctVehicle } from '../../core/vehicleBursts';
+import { VEHICLE_LABELS } from '../../core/vehicleLabels';
+import { vehicleText } from '../../i18n/areas/vehicles';
 import { useVisualGrouping } from './useVisualGrouping';
-import { isDesktopApp } from '../../providers/desktopShell';
+import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
+import { photoParallelism } from '../../core/photoParallelism';
 import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
 import { getLocalFileKey, loadLocalFileListShoot, rehydrateLocalFramesFromStore } from '../../providers/localShootLoader';
 import { hashOriginalBytes, isSameOriginalBytes } from '../../core/originalFileIdentity';
@@ -39,12 +44,14 @@ import { fullResolutionRasterFormat, isHeifFile, isRawPreviewFile } from '../../
 import { rawSensorSize } from '../../core/rawSensorSize';
 import { loadUi, mergeSettings, saveUi, type SavedUi } from './uiSettings';
 import { dropSourcePreview, dropSourceUrls } from './previewInvalidation';
-import { applyCanvasPhotoEdit } from '../../core/canvasEdit';
+import { applyCanvasExportEdit, applyCanvasPhotoEdit } from '../../core/canvasEdit';
+import { applyFrameLayers, LAYER_COPY_EDGE, saveLayerAsset } from '../../core/layerAssetVault';
+import { MAX_LAYERS } from '../../core/layers';
 import { DEFAULT_EDIT as EMPTY_EDIT } from '../../core/photoEdits';
 import { DEFAULT_CROP, flipCrop, patchCrop, rotateCrop } from './cropOps';
 import { readCrops } from './cropOps';
 import { recordFormatCrop, recordFormatSetChange, recordFormatLink } from './formatHistory';
-import { addRow, alignOverlays, moveRow, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps';
+import { addLayer, addRow, alignOverlays, moveLayer, moveRow, newLayer, patchOverlay, readOverlay, removeLayer, removeRow, updateLayer, updateRow } from './overlayOps';
 import { frameToPhoto, matchesAutoSource, originalFormatSize, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
 import { commitAutoEdit } from './commitAutoEdit';
@@ -67,7 +74,7 @@ import { verifyFrameMasks } from './maskVerify';
 import { maskVerificationKey, commitVerifiedMasks } from './maskVerificationCommit';
 import { commitSubjectMask, subjectMaskTarget } from './subjectMaskCommit';
 import { createMask, createSubjectMask, framingKey, hasActiveMasks } from '../../core/maskTypes';
-import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFraming';
+import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../../core/photoFraming';
 import { GUIDED_RENDER_EDGE } from '../../core/subjectGuide';
 import { detectSubjectGuided } from '../../providers/subjectDetector';
 import { judgeSubject } from '../../core/autoCull';
@@ -75,6 +82,8 @@ import { archiveExports, saveExportFile, loadExportSource, loadVerifiedRasterOri
 import { toProfile } from '../../core/exportFormats';
 import { renderV2Export, type OverlayDraw } from './renderV2Export';
 import { renderGalleryPreview } from './galleryPreview';
+import { readSharedEdit } from '../../core/sharedSync';
+import { createVirtualCopy } from '../../core/virtualCopies';
 import { formatOverlayRowText } from '../ui/utils/studioMath';
 import { loadImage } from '../../providers/loadImage';
 import { deliverExport, describeExport } from './exportDelivery';
@@ -85,14 +94,23 @@ import { saveProjectBackupFile } from '../../providers/projectBackupFile';
 import { restoreProjectBackup } from '../../core/projectBackup';
 import { backupStatusText } from './backupWords';
 import { applySidecarImports, planXmpImports, saveSidecars, sidecarFailureText, xmpScope } from './xmpOps';
+import { applyLightroomImport, lightroomNotice } from './lightroomOps';
+import { saveCatalogueExport } from './catalogueExport';
+import { CatalogueReadError, readLightroomCatalogue } from '../../core/lightroomCatalogue';
+import { catalogueFilesInFolder, catalogueOnlyPhotos, commonFolder, planLightroomImport } from '../../core/lightroomImport';
+import type { LightroomPhoto } from '../../core/lightroomCatalogue';
 import { STRINGS as V2_STRINGS } from '../ui/strings';
 import { scheduleV2PhotoExports, photoExportUnits } from './scheduledPhotoExport';
 import { uniqueExportFilename } from '../../core/exportNaming';
 import { exportMayContinue } from '../../core/exportCancellation';
 import type { ExportRequest } from '../ui/contract';
 import { applyRecipePatch, editToRecipe } from './recipeMap';
+import { canvasLensCentre, detectLateralCa } from '../../core/fringe';
 import { surfaceBridge } from './surfaceBridge';
 import { addSavedEditGroup, renameSavedEditGroup, selectSavedEditGroup, syncEditGroup } from './editGroupState';
+import { engineText } from '../../i18n/areas/engine';
+import { loadSpeciesNames, onSpeciesNamesLoaded } from '../../providers/speciesNames';
+import { language } from '../../i18n/messages';
 
 /** Actions that change a photo's edit, sizes, overlay, masks or assist state. They are not connected to the real
  * recipe yet, so they say so instead of silently changing sample data. */
@@ -193,7 +211,16 @@ async function pickReselectFiles(): Promise<File[] | null> {
  */
 export function useEngineWorkspace(): { store: WorkspaceStore; actions: WorkspaceActions } {
   const stub = useWorkspace();
-  const { can: canByPlan } = useAccess();
+  const { can: canByPlan, capabilities } = useAccess();
+  // Photos at once (owner decision 25 Nov): the plan's ceiling, held to this device's memory and cores. The
+  // scheduler still runs one heavy job at a time where free memory cannot be measured.
+  useEffect(() => {
+    const nav = typeof navigator === 'undefined' ? undefined : navigator as Navigator & { deviceMemory?: number };
+    engineScheduler.setCpuLimit(photoParallelism({
+      desktop: isDesktopApp() && !isMobileShell(), paid: capabilities.fullEditor, cloud: canByPlan('cloudAssist'),
+      cores: nav?.hardwareConcurrency, memoryGB: nav?.deviceMemory,
+    }).local);
+  }, [capabilities.fullEditor, canByPlan]);
   // One gate for the whole adapter: the plan's answer, or the developer-only Pro preview (see featureMap.ts).
   const can = useCallback((feature: Parameters<typeof canByPlan>[0]) => featureAccess(canByPlan)[feature as keyof ReturnType<typeof featureAccess>] ?? canByPlan(feature), [canByPlan]);
   const catalogue = useRef<BrowserCatalogueStore | null>(null);
@@ -214,7 +241,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const watermarkStoreRef = useRef(watermarkStore);
   const [watermarkLibrary, setWatermarkLibrary] = useState<WatermarkPreset[]>([]);
   const [templates, setTemplates] = useState<OverlayTemplate[]>(() => { try { return readTemplates(localStorage.getItem(TEMPLATES_KEY)); } catch { return []; } });
-  const updateTemplates = useCallback((next: OverlayTemplate[]) => { setTemplates(next); try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(next)); } catch { setNotice('InFlight could not save the template on this device.'); } }, []);
+  const updateTemplates = useCallback((next: OverlayTemplate[]) => { setTemplates(next); try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(next)); } catch { setNotice(engineText.workspace.templateNotSaved); } }, []);
   const [savedUi, setSavedUi] = useState<SavedUi>(loadUi);
   const [pixelSizes, setPixelSizes] = useState<Record<string, { width: number; height: number }>>({});
   const [verifiedRasterSizes, setVerifiedRasterSizes] = useState<Record<string, { width: number; height: number }>>({});
@@ -296,11 +323,41 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, []);
   useEffect(() => { void loadHub(); }, [loadHub]);
 
-  // Save the open project whenever it changes, exactly as the current app does.
+  // Save the open project whenever it changes. A failed save is never dropped (G07): the latest state of each project is
+  // kept and retried until it is stored, and closing InFlight asks first while a failed change is still unsaved.
+  const saveGuard = useRef<SaveGuard<CullingState> | null>(null);
+  if (!saveGuard.current) {
+    saveGuard.current = createSaveGuard<CullingState>({
+      save: (next) => catalogue.current!.saveProject(next),
+      onStatus: (status, { failures }) => {
+        if (status === 'failed' && failures === 1) setNotice(engineText.workspace.projectSaveRetrying);
+        else if (status === 'saved' && failures > 0) setNotice(engineText.workspace.projectSavedAfterRetry);
+      },
+    });
+  }
   useEffect(() => {
     if (!state || screen !== 'editor') return;
-    void catalogue.current!.saveProject(state).catch(() => setNotice('InFlight could not save this project. Your original photos are unchanged.'));
+    saveGuard.current!.submit(state.shoot.id, state);
   }, [state, screen]);
+  useEffect(() => {
+    const guard = saveGuard.current!;
+    const retry = () => { if (document.visibilityState !== 'hidden') guard.retryNow(); };
+    const warn = (event: BeforeUnloadEvent) => {
+      if (!guard.hasFailedUnsaved()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('online', retry);
+    document.addEventListener('visibilitychange', retry);
+    window.addEventListener('beforeunload', warn);
+    return () => {
+      window.removeEventListener('online', retry);
+      document.removeEventListener('visibilitychange', retry);
+      window.removeEventListener('beforeunload', warn);
+    };
+  }, []);
+  // Not disposed on unmount: a pending retry must still store the change (and React's development double-mount would
+  // otherwise switch the guard off).
 
   const openRequest = useRef(0);
   useEffect(() => () => { openRequest.current += 1; }, []);
@@ -335,7 +392,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     } catch {
       if (request === openRequest.current) {
         setHubState('ready');
-        setNotice('That project could not be opened.');
+        setNotice(engineText.workspace.projectNotOpened);
       }
     } finally {
       if (provider.current !== restored) restored.clear();
@@ -356,19 +413,19 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     book.active = 1;
     const sourceProvider = provider.current!;
     void engineScheduler.submit({
-      title: `Preparing ${frames.length} thumbnails`, kind: 'thumbnail', resource: 'io',
+      title: engineText.workspace.thumbnailsTask(frames.length), kind: 'thumbnail', resource: 'io',
       priority: 1, pauseable: frames.length > 1, items: frames,
       snapshot: { generation, keys: frames.map(frame => frame.stableKey) },
       itemId: frame => frame.id, itemLabel: frame => frame.filename,
       runItem: async (frame, _, ctx) => {
-        ctx.stage('Reading and scaling this photograph');
+        ctx.stage(engineText.workspace.thumbnailStage);
         const thumb = await sourceProvider.getThumbnailUrl(frame, 'visible');
         ctx.checkCancelled();
         if (generation !== thumbs.current.generation) return;
         if (!thumb) {
           ctx.commitIfCurrent(() => setUrls(current =>
             ({ ...current, [frame.id]: { ...current[frame.id], failed: true } })));
-          throw new Error(`Could not create the thumbnail for ${frame.filename}. Reconnect the original and retry.`);
+          throw new Error(engineText.workspace.thumbnailFailed(frame.filename));
         }
         ctx.commitIfCurrent(() => setUrls(current => current[frame.id]?.thumb ? current
           : { ...current, [frame.id]: { ...current[frame.id], thumb } }));
@@ -467,6 +524,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // Automatic backups of the open project, shared with V1: soon after a change, every so often, and on leaving.
   useAutoBackup(state && !state.shoot.collage ? state : null, Boolean(state));
   const backupStatus = useBackupStatus(state?.shoot.id ?? '');
+  // First run: pick photos, and InFlight makes a project, adds them and runs Auto on the first one.
+  const [quickStart, setQuickStart] = useState<{ projectId: string; photoId: string | null; phase: 'working' | 'ready' | 'unchanged' | 'failed' } | null>(null);
+  const lightroomPending = useRef<{ projectId: string; photos: LightroomPhoto[]; toAdd: LightroomPhoto[] } | null>(null);
+  const [lightroomOffer, setLightroomOffer] = useState<{ missing: number; folder: string } | null>(null);
   const mutate = useCallback((change: (current: CullingState) => CullingState) => setState((current) => (current ? change(current) : current)), []);
 
   // RAW + JPEG of one shot are one photo: the JPEG is kept but not listed, and decisions and ratings cover both.
@@ -534,7 +595,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, activeRasterKey]);
   const editTargets = (photoId: string) => (selected.includes(photoId) ? selected : [photoId]);
-  const editFrames = useCallback((ids: string[], change: (frame: PhotoFrame) => PhotoEdit | undefined) => {
+  const editFrames = useCallback((ids: string[], change: (frame: PhotoFrame) => PhotoEdit | undefined, why?: EditWhy) => {
     const at = Date.now();
     mutate((current) => ({
       ...current,
@@ -542,13 +603,13 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       frames: current.frames.map((frame) => {
         if (!ids.includes(frame.id)) return frame;
         const edit = change(frame);
-        return syncEditGroup(recordEdit(frame, { edit: edit && !isEmptyEdit(edit) ? edit : undefined }, at));
+        return syncEditGroup(recordEdit(frame, { edit: edit && !isEmptyEdit(edit) ? edit : undefined }, at, why));
       }),
     }));
   }, [mutate]);
   const applyPatch = useCallback((ids: string[], patch: Partial<EditRecipe>) => {
     const { unmapped } = applyRecipePatch(undefined, patch);
-    if (unmapped.length) setNotice(`Not connected to the InFlight engine yet, so not applied: ${unmapped.join(', ')}.`);
+    if (unmapped.length) setNotice(engineText.workspace.notConnected(unmapped.join(', ')));
     editFrames(ids, (frame) => applyRecipePatch(frame.edit, patch).edit);
   }, [editFrames]);
 
@@ -561,6 +622,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     onAsShotWhite: (stableKey, white) => setState((current) => (current ? { ...current, frames: current.frames.map((frame) =>
       frame.stableKey === stableKey && (frame.asShotWhite?.kelvin !== white.kelvin || frame.asShotWhite?.duv !== white.duv)
         ? { ...frame, asShotWhite: white } : frame) } : current)),
+    // Lets the picture label name Nikon HE/HE*. Never changes an edit.
+    onRawCodec: (stableKey, codec) => setState((current) => (current ? { ...current, frames: current.frames.map((frame) =>
+      frame.stableKey === stableKey && frame.rawCodec !== codec ? { ...frame, rawCodec: codec } : frame) } : current)),
   });
 
   // Subject and species are named quietly on this device after photos are added (the species name is a suggestion the
@@ -568,9 +632,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useSpeciesScan({
     projectId: state?.shoot.id ?? '', frames: state?.frames ?? [], provider: provider.current,
     active: screen === 'editor' && Boolean(state) && can('speciesId'),
-    onResult: (frameId, patch) => setState((current) => (current ? { ...current, frames: current.frames.map((frame) =>
+    // A vehicle reading is carried across its burst: the same aircraft, read once, shown on every frame.
+    onResult: (frameId, patch) => setState((current) => (current ? { ...current, frames: carryVehicleReadings(current.frames.map((frame) =>
       frame.id === frameId && !frame.removedAt && !frame.speciesChecked && !frame.tags?.length && !frame.subjectNames?.length
-        ? { ...frame, ...patch, ...(frame.subjectKind && patch.subjectKind ? { subjectKind: frame.subjectKind } : {}) } : frame) } : current)),
+        ? { ...frame, ...patch, ...(frame.subjectKind && patch.subjectKind ? { subjectKind: frame.subjectKind } : {}) } : frame), VEHICLE_LABELS) } : current)),
   });
 
   // Bursts are refined quietly on this device from image embeddings (DINOv2): a real scene change splits a burst, and
@@ -597,36 +662,38 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const current = stateRef.current;
     if (!current) return;
     if (activePhotoExport.current !== null && request.destination !== 'local-individual' && request.destination !== 'local-folder') {
-      setNotice('An export is already running.'); return;
+      setNotice(engineText.workspace.exportRunning); return;
     }
     const sourceProvider = provider.current!;
     const env = exportEnv.current;
     if (request.rawMaster) {
+      const masterFormat = request.rawMasterFormat === 'png' ? 'png' : 'tiff';
+      const png = masterFormat === 'png';
       const matches = current.frames.filter((frame) => frame.id === request.photoIds[0] && frame.removedAt == null);
-      if (request.photoIds.length !== 1 || matches.length !== 1) { setNotice('Select one RAW photo to export its TIFF.'); return; }
+      if (request.photoIds.length !== 1 || matches.length !== 1) { setNotice(png ? engineText.workspace.selectOneRawPng : engineText.workspace.selectOneRaw); return; }
       try {
         const frame = structuredClone(matches[0]);
         const ticket = await engineScheduler.submit({
-          title: 'Preparing 16-bit RAW TIFF', kind: 'raw', resource: 'gpu', priority: 10,
+          title: png ? engineText.workspace.rawPngTask : engineText.workspace.rawTiffTask, kind: 'raw', resource: 'gpu', priority: 10,
           pauseable: false, items: [{ id: frame.id, name: frame.filename }],
           snapshot: { frameId: frame.id, originalSha256: frame.originalSha256 },
           itemId: item => item.id, itemLabel: item => item.name,
           runItem: async (_, __, ctx) => {
-            ctx.stage('Developing verified RAW sensor data to 16-bit');
-            const file = await buildRawMasterFile(frame, sourceProvider, ctx.signal);
+            ctx.stage(engineText.workspace.rawTiffDevelop);
+            const file = await buildRawMasterFile(frame, sourceProvider, ctx.signal, masterFormat);
             ctx.checkCancelled();
-            ctx.stage('Saving TIFF master');
+            ctx.stage(png ? engineText.workspace.rawPngSave : engineText.workspace.rawTiffSave);
             if (!await saveExportFile(file, file.name, ctx.signal))
-              throw new DOMException('Save cancelled.', 'AbortError');
+              throw new DOMException(engineText.workspace.saveCancelled, 'AbortError');
             ctx.acknowledgeCommitted();
-            ctx.commitIfCurrent(() => setNotice('Saved the 16-bit RAW TIFF. Your original is unchanged.'));
+            ctx.commitIfCurrent(() => setNotice(png ? engineText.workspace.rawPngSaved : engineText.workspace.rawTiffSaved));
           },
         });
         const result = await ticket.finished;
-        if (result === 'failed') setNotice('RAW TIFF export failed. Open Tasks for the source or save error.');
-        else if (result === 'cancelled') setNotice('RAW TIFF export cancelled.');
+        if (result === 'failed') setNotice(png ? engineText.workspace.rawPngFailed : engineText.workspace.rawTiffFailed);
+        else if (result === 'cancelled') setNotice(png ? engineText.workspace.rawPngCancelled : engineText.workspace.rawTiffCancelled);
       } catch (reason) {
-        setNotice(reason instanceof Error ? reason.message : 'Could not queue a 16-bit RAW TIFF.');
+        setNotice(reason instanceof Error ? reason.message : (png ? engineText.workspace.rawPngNotQueued : engineText.workspace.rawTiffNotQueued));
       }
       return;
     }
@@ -643,29 +710,29 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           request, plan, frames: current.frames, provider: sourceProvider,
           buildOverlay: (frame, submittedRequest) => buildOverlayDraw(frame, submittedRequest, submittedEnv),
         });
-        if (!ticket) { setNotice('No folder was selected. Nothing was exported.'); return; }
-        setNotice(`Queued ${count} export ${count === 1 ? 'output' : 'outputs'}. You can edit while they process; open Tasks to pause, prioritise or cancel.`);
+        if (!ticket) { setNotice(engineText.workspace.noFolder); return; }
+        setNotice(engineText.workspace.exportQueued(count));
         void ticket.finished.then(result => {
-          if (result === 'done') setNotice(`Exported ${count} ${count === 1 ? 'output' : 'outputs'}. Your originals are unchanged.`);
-          else if (result === 'failed') setNotice('Some export outputs failed. Open Tasks for each photograph and Retry failed. Files already saved remain in place.');
-          else setNotice('Export stopped. Files already saved remain in place.');
+          if (result === 'done') setNotice(engineText.workspace.exportDone(count));
+          else if (result === 'failed') setNotice(engineText.workspace.exportSomeFailed);
+          else setNotice(engineText.workspace.exportStopped);
         });
       } catch (error) {
-        setNotice(error instanceof Error ? error.message : 'Could not queue this export.');
+        setNotice(error instanceof Error ? error.message : engineText.workspace.exportNotQueued);
       }
       return;
     }
-    setNotice('That export destination is unavailable. Choose a local ZIP, separate files or a desktop folder.');
+    setNotice(engineText.workspace.destinationUnavailable);
   }, []);
 
   const runAutoCull = useCallback(async () => {
     const current = stateRef.current;
     if (!current) return;
-    if (!can('smartCulling')) { setNotice('Auto-cull is part of InFlight Pro.'); return; }
-    if (cullController.current) { setNotice('Auto-cull is already running.'); return; }
+    if (!can('smartCulling')) { setNotice(engineText.workspace.cullPro); return; }
+    if (cullController.current) { setNotice(engineText.workspace.cullRunning); return; }
     const candidates = current.frames.filter(frame =>
       frame.removedAt == null && frame.decision === 'unreviewed' && !frame.isDemo && !frame.virtualCopy);
-    if (!candidates.length) { setNotice('Every photo already has a decision, so there is nothing to cull.'); return; }
+    if (!candidates.length) { setNotice(engineText.workspace.cullNothing); return; }
     const controller = new AbortController();
     cullController.current = controller;
     const projectKey = current.shoot.id;
@@ -675,23 +742,23 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       // non-pauseable unit. Per-photo progress is real; cancellation prevents
       // a late scan-wide decision from changing the catalogue.
       const ticket = await engineScheduler.submit({
-        title: 'Auto-cull and analyse',
+        title: engineText.workspace.cullTask,
         kind: 'cull', resource: 'cpu', priority: 5, pauseable: false,
         items: [{ id: projectKey, label: candidates.length + ' photos' }],
         snapshot: { projectKey, requestId, candidates: candidates.map(frame => frame.id) },
         itemId: item => item.id, itemLabel: item => item.label,
         runItem: async (_, __, ctx) => {
-          ctx.stage('Scanning photographs and gathering shoot-wide evidence');
+          ctx.stage(engineText.workspace.cullScan);
           ctx.setSubitems(candidates.map(frame => ({ id: frame.id, label: frame.filename })));
           const results = await scanForCulling(candidates, current.frames, provider.current!, null,
             ctx.signal, count => ctx.reportProgress(count, candidates.length, `${count} of ${candidates.length} analysed`),
-            () => ctx.commitIfCurrent(() => setNotice('The subject detector is unavailable. Auto-cull used sharpness and exposure only and is less certain.')),
+            () => ctx.commitIfCurrent(() => setNotice(engineText.workspace.cullNoDetector)),
             (frameId, stage) => ctx.updateSubitem(frameId,
               stage === 'analysing' ? 'running' : 'done',
-              stage === 'unavailable' ? 'Subject detection unavailable; review recommended' : stage));
+              stage === 'unavailable' ? engineText.workspace.cullDetectorStage : stage));
           ctx.checkCancelled();
           if (requestId !== openRequest.current || stateRef.current?.shoot.id !== projectKey) return;
-          ctx.stage('Applying review suggestions without changing manual flags');
+          ctx.stage(engineText.workspace.cullApply);
           ctx.commitIfCurrent(() => setState(latest => {
             if (!latest || latest.shoot.id !== projectKey || requestId !== openRequest.current || ctx.signal.aborted) return latest;
             return commitAutoCull(latest, candidates, results);
@@ -703,9 +770,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       controller.signal.addEventListener('abort', () => ticket.cancel(), { once: true });
       if (controller.signal.aborted) ticket.cancel();
       const result = await ticket.finished;
-      if (result === 'failed') setNotice('Auto-cull failed. No new decisions were applied. Open Tasks for details.');
+      if (result === 'failed') setNotice(engineText.workspace.cullFailed);
     } catch (reason) {
-      setNotice(reason instanceof Error ? reason.message : 'Auto-cull could not be queued.');
+      setNotice(reason instanceof Error ? reason.message : engineText.workspace.cullNotQueued);
     } finally {
       controller.abort();
       if (cullController.current === controller) cullController.current = null;
@@ -726,6 +793,16 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       return changed ? { ...current, shoot: { ...current.shoot, lastUpdatedAt: at }, frames } : current;
     });
   }, [mutate]);
+
+  /** Add an image layer on top of the photo's stack, sized to fit its frame. */
+  const addLayerTo = useCallback((photoId: string, assetId: string, label: string, aspect: number, widthShare = 0.5) => {
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+    if (!frame) return;
+    if (readOverlay(frame.overlay).layers?.length === MAX_LAYERS) { setNotice(`A photo can have up to ${MAX_LAYERS} layers. Remove one to add another.`); return; }
+    const w = frame.exif.width || 3, h = frame.exif.height || 2;
+    const framed = framedSize(w, h, frame.framing ?? DEFAULT_FRAMING);
+    changeOverlay(photoId, (overlay) => addLayer(overlay, newLayer(`layer-${newId().slice(0, 8)}`, assetId, label, aspect, framed.height / framed.width, widthShare)));
+  }, [changeOverlay]);
 
   // 'auto' watermark: light or dark from the pixels behind it, using the same measure as the export (src/core/watermark.ts).
   const activeOverlay = activeFrame ? readOverlay(activeFrame.overlay) : null;
@@ -904,7 +981,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!frame || !isSplitFrameCount(count)) return;
     const sizes = applyFormats(createDefaultSizes(), frame.formats);
     if (!sizes.some((size) => size.id === sizeId && size.kind === 'photo')) {
-      setNotice('Choose an existing photo format before splitting it.');
+      setNotice(engineText.workspace.formatFirst);
       return;
     }
     const current = frame.formatSplits ?? (frame.splitFrames === true
@@ -913,7 +990,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const at = Date.now();
     mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at },
       frames: state.frames.map((entry) => entry.id === photoId ? recordSplitChange(entry, next, at) : entry) }));
-    setNotice(count === 1 ? 'Format rejoined into one frame.' : `Format will export as ${count} continuous frames.`);
+    setNotice(count === 1 ? engineText.workspace.formatRejoined : engineText.workspace.formatSplit(count));
   }, [mutate]);
 
   /** Move both halves together inside this format's two-section composition. */
@@ -928,17 +1005,17 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   /** Reuse actual area/gradient masks from the shared engine. Sky detection and brush painting are intentionally gated. */
   const addMask = useCallback(async (photoId: string, type: 'subject' | 'sky' | 'background' | 'brush' | 'area' | 'gradient') => {
-    if (type === 'sky') { setNotice('Sky detection is unavailable. Add a manual Gradient instead.'); return; }
-    if (type === 'brush') { setNotice('Brush painting is not connected to the canvas yet. Use an adjustable Oval or Gradient.'); return; }
+    if (type === 'sky') { setNotice(engineText.workspace.skyUnavailable); return; }
+    if (type === 'brush') { setNotice(engineText.workspace.brushUnavailable); return; }
     const project = stateRef.current;
     const frame = project?.frames.find((candidate) => candidate.id === photoId && !candidate.removedAt);
     if (!project || !frame) return;
-    if (!canAddMask(frame.edit?.masks)) { setNotice('This photo has the most masks it can hold. Remove one first.'); return; }
+    if (!canAddMask(frame.edit?.masks)) { setNotice(engineText.workspace.masksFull); return; }
     if (type === 'area' || type === 'gradient') {
       const shape = createMask(type === 'area' ? 'radial' : 'linear', newId());
       editFrames([photoId], (latest) => canAddMask(latest.edit?.masks)
         ? ({ ...(latest.edit ?? DEFAULT_EDIT), masks: [...(latest.edit?.masks ?? []), shape] }) : latest.edit);
-      setNotice(`Added an adjustable ${type === 'area' ? 'Oval area' : 'Gradient'} mask. Expand its layer to position it, then move an adjustment slider to affect the photograph. Undo is available.`);
+      setNotice(type === 'area' ? engineText.workspace.ovalAdded : engineText.workspace.gradientAdded);
       return;
     }
     const jobKey = JSON.stringify([project.shoot.id, photoId]);
@@ -948,13 +1025,13 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // denoise. This one-photo job cannot pause mid-model; Cancel prevents its
     // eventual result from changing the current photograph.
     void engineScheduler.submit({
-      title: type === 'subject' ? 'Finding the subject' : 'Finding the background',
+      title: type === 'subject' ? engineText.workspace.findSubjectTask : engineText.workspace.findBackgroundTask,
       kind: 'mask', resource: 'gpu', priority: 18,
       pauseable: false, items: [{ id: photoId, name: frame.filename }],
       snapshot: { projectId: project.shoot.id, photoId, framing: frame.framing },
       itemId: item => item.id, itemLabel: item => item.name,
       runItem: async (_, __, ctx) => {
-        ctx.stage('Detecting subject edges on this device');
+        ctx.stage(engineText.workspace.findEdgesStage);
         // A mask needs the photo's shape and content, not export-grade pixels. A RAW this device cannot develop (for
         // example Nikon HE*) made the export loader throw, so subject detection always failed on such files; it now
         // falls back to the preview shown on the canvas, which has the same framing.
@@ -981,23 +1058,23 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         };
         const latest = stateRef.current;
         if (!latest || !subjectMaskTarget(latest, project.shoot.id, frame)) {
-          ctx.commitIfCurrent(() => setNotice('The mask was discarded because the photo changed or its layers are full. Try detecting the subject again.'));
+          ctx.commitIfCurrent(() => setNotice(engineText.workspace.maskDiscarded));
           return;
         }
         const at = Date.now();
-        ctx.stage('Saving a reversible mask');
+        ctx.stage(engineText.workspace.saveMaskStage);
         ctx.commitIfCurrent(() => mutate(current =>
           ctx.signal.aborted ? current : commitSubjectMask(current, project.shoot.id, frame, mask, at)));
-        const trustNote = boxFinding
-          ? `, ${judgeSubject({ label: boxFinding.detection.label, score: boxFinding.detection.score,
+        const confidence = boxFinding
+          ? (engineText.workspace.confidence as Record<string, string>)[judgeSubject({ label: boxFinding.detection.label, score: boxFinding.detection.score,
               size: Math.max(boxFinding.detection.box.w, boxFinding.detection.box.h),
-              sharpness: boxFinding.sharpness }).confidence}-confidence detection`
+              sharpness: boxFinding.sharpness }).confidence] ?? ''
           : '';
-        ctx.commitIfCurrent(() => setNotice(`Added the ${type} mask${trustNote}. It changes nothing until you move one of its sliders.`));
+        ctx.commitIfCurrent(() => setNotice(type === 'subject' ? engineText.workspace.subjectMaskAdded(confidence) : engineText.workspace.backgroundMaskAdded(confidence)));
       },
     }).then(ticket => ticket.finished).then(result => {
-      if (result === 'failed') setNotice('Subject detection failed. Open Tasks for details.');
-    }).catch(reason => setNotice(reason instanceof Error ? reason.message : 'Could not queue subject detection.'))
+      if (result === 'failed') setNotice(engineText.workspace.subjectFailed);
+    }).catch(reason => setNotice(reason instanceof Error ? reason.message : engineText.workspace.subjectNotQueued))
       .finally(() => { maskInFlight.current.delete(jobKey); });
   }, [editFrames, mutate]);
   const editMasks = useCallback((photoId: string, change: (masks: ReturnType<typeof removeMask>) => ReturnType<typeof removeMask>) =>
@@ -1014,27 +1091,27 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // with the runner that actually returned, never as a successful cloud job.
     const connection = can('cloudAssist') ? accountConnection() : null;
     void engineScheduler.submit({
-      title: 'Denoising ' + frame.filename,
+      title: engineText.workspace.denoiseTask(frame.filename),
       kind: 'denoise', resource: 'gpu', priority: 12, location: 'local',
       pauseable: false, items: [{ id: photoId, name: frame.filename }],
       snapshot: { photoId, edit: frame.edit ?? DEFAULT_EDIT },
       itemId: item => item.id, itemLabel: item => item.name,
       runItem: async (_, __, ctx) => {
-        ctx.stage('Denoising and checking detail');
+        ctx.stage(engineText.workspace.denoiseStage);
         const outcome = await runV2Denoise(frame, provider.current!,
           connection ? { connection, online: navigator.onLine !== false } : null, ctx.signal);
         ctx.checkCancelled();
-        if (!outcome) throw new Error('Denoise could not process the source photograph.');
+        if (!outcome) throw new Error(engineText.workspace.denoiseNoSource);
         ctx.setLocation(outcome.runner === 'cloud-processing' ? 'cloud' : 'local');
         const valid = (current: PhotoFrame) => sameRecipe(current.edit ?? DEFAULT_EDIT, frame.edit ?? DEFAULT_EDIT) &&
           framingKey(current.framing) === framingKey(frame.framing);
         const latest = stateRef.current?.frames.find(candidate => candidate.id === photoId);
         if (!latest || !valid(latest)) {
-          ctx.commitIfCurrent(() => setNotice('Photo changed; no denoise result was applied. Run denoise again.'));
+          ctx.commitIfCurrent(() => setNotice(engineText.workspace.denoisePhotoChanged));
           return;
         }
         if (outcome.verified) {
-          ctx.stage('Applying verified reversible adjustments');
+          ctx.stage(engineText.workspace.denoiseApplyStage);
           ctx.commitIfCurrent(() => editFrames([photoId], current => {
             if (!valid(current)) return current.edit;
             const edit = current.edit ?? DEFAULT_EDIT;
@@ -1043,11 +1120,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             return { ...edit, denoise: outcome.strength, ...(outcome.luminance > 0 ? { denoiseLuminance: outcome.luminance } : {}), masks: [...masks, ...outcome.masks] };
           }));
         }
-        ctx.commitIfCurrent(() => setNotice(outcome.verified ? outcome.notes[0] : `Left as it was. ${outcome.notes.join(' ')}`));
+        ctx.commitIfCurrent(() => setNotice(outcome.verified ? outcome.notes[0] : engineText.denoise.leftAsItWas(outcome.notes.join(' '))));
       },
     }).then(ticket => ticket.finished).then(result => {
-      if (result === 'failed') setNotice('Denoise did not finish. Open Tasks for the failure detail.');
-    }).catch(reason => setNotice(reason instanceof Error ? reason.message : 'Denoise could not be queued.'))
+      if (result === 'failed') setNotice(engineText.workspace.denoiseFailed);
+    }).catch(reason => setNotice(reason instanceof Error ? reason.message : engineText.workspace.denoiseNotQueued))
       .finally(() => { denoiseInFlight.current.delete(photoId); });
   }, [can, editFrames]);
 
@@ -1058,9 +1135,26 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const candidate = candidateId ? assist.run.candidates.find((item) => item.id === candidateId) : assist.run.candidates[0];
     if (!candidate || assist.dismissed.includes(candidate.id)) return;
     const valid = (latest: PhotoFrame) => matchesAutoSource(assist.run, latest) && sameRecipe(latest.edit ?? DEFAULT_EDIT, assist.run.plan.base);
-    if (!valid(frame)) { setNotice('The photo changed after this suggestion was made. Wait for a fresh check.'); return; }
-    editFrames([frameId], (latest) => valid(latest) ? candidate.edit : latest.edit);
+    if (!valid(frame)) { setNotice(engineText.workspace.suggestionStale); return; }
+    editFrames([frameId], (latest) => valid(latest) ? candidate.edit : latest.edit, { by: 'auto', notes: assist.run.detail });
   }, [assists, editFrames]);
+
+  // First run: once Auto has looked at the first photo, apply its suggestion (one undoable step), or say plainly that
+  // the photo already looked natural and was left alone.
+  useEffect(() => {
+    if (!quickStart || quickStart.phase !== 'working' || !quickStart.photoId) return;
+    const assist = assists[quickStart.photoId];
+    if (!assist) return;
+    const improved = assist.run.improved && assist.run.candidates.length > 0;
+    if (improved) applyAuto(quickStart.photoId);
+    setQuickStart({ ...quickStart, phase: improved ? 'ready' : 'unchanged' });
+  }, [assists, quickStart, applyAuto]);
+  useEffect(() => {
+    if (!quickStart || quickStart.phase !== 'working' || !quickStart.photoId) return;
+    // Auto normally answers in a few seconds; if it cannot check the photo, say so instead of waiting forever.
+    const timer = window.setTimeout(() => setQuickStart((current) => current === quickStart ? { ...current, phase: 'failed' } : current), 45_000);
+    return () => window.clearTimeout(timer);
+  }, [quickStart]);
 
   // Co-pilot and Auto-pilot look at the photo on the canvas, on this device, one at a time. Solo never does.
   const assistMode = savedUi.assistMode ?? stub.store.assistMode;
@@ -1084,13 +1178,13 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (!isCurrent()) return;
       if (manual) lastAutoRequest.current = autoRequest.sequence;
       void engineScheduler.submit({
-        title: 'Checking ' + frame.filename + ' and colour',
+        title: engineText.workspace.checkTask(frame.filename),
         kind: 'auto-edit', resource: 'cpu', priority: manual ? 20 : 8, pauseable: false,
         items: [{ id: frame.id, name: frame.filename }],
         snapshot: { projectId: assistProjectId, frameId: frame.id, edit: frame.edit ?? DEFAULT_EDIT },
         itemId: item => item.id, itemLabel: item => item.name,
         runItem: async (_, __, ctx) => {
-          ctx.stage('Analysing exposure, colour and scene');
+          ctx.stage(engineText.workspace.checkStage);
           const run = await runAuto(frame, provider.current!, ctx.signal);
           ctx.checkCancelled();
           if (!isCurrent()) return;
@@ -1104,7 +1198,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             const at = Date.now();
             ctx.commitIfCurrent(() => mutate(current =>
               isCurrent() && !ctx.signal.aborted
-                ? commitAutoEdit(current, assistProjectId, frame, run.plan.proposal, at) : current));
+                ? commitAutoEdit(current, assistProjectId, frame, run.plan.proposal, at, { by: 'auto', notes: run.detail }) : current));
           }
         },
       }).then(ticket => {
@@ -1113,7 +1207,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         if (controller.signal.aborted) ticket.cancel();
         return ticket.finished;
       }).catch(() => {
-        if (isCurrent()) setNotice('Could not analyse this photograph. Open Tasks for details.');
+        if (isCurrent()) setNotice(engineText.workspace.checkFailed);
       });
     }, manual ? 0 : 550);
     return () => {
@@ -1137,16 +1231,17 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     deepVisionInFlight.current.add(photoId);
     setReviewingIds((current) => [...current, photoId]);
     void engineScheduler.submit({
-      title: 'Running a deep vision review',
+      title: engineText.workspace.deepTask,
       kind: 'vision', resource: 'gpu', priority: 15, pauseable: false,
       items: [{ id: photoId, name: frame.filename }],
       snapshot: { frameId: frame.id, stableKey: frame.stableKey },
       itemId: item => item.id, itemLabel: item => item.name,
       runItem: async (_, __, ctx) => {
-        ctx.stage('Examining subjects and photographic quality');
-        const result = await runDeepVisionReview(frame, provider.current!);
+        ctx.stage(engineText.workspace.deepStage);
+        // The batch's own signal: the subject finder then runs inside this task, not queued behind it.
+        const result = await runDeepVisionReview(frame, provider.current!, ctx.signal);
         ctx.checkCancelled();
-        if (!result) throw new Error('The deep vision review returned no usable result.');
+        if (!result) throw new Error(engineText.workspace.deepNoResult);
         // The review is advisory. Do not publish stale observations after
         // deletion, a project switch or a source relink.
         const current = stateRef.current?.frames.find(item => item.id === photoId);
@@ -1154,24 +1249,25 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         ctx.commitIfCurrent(() => setNotice(result.summary));
       },
     }).then(ticket => ticket.finished).then(result => {
-      if (result === 'failed') setNotice('Deep vision review failed. Open Tasks for details.');
-    }).catch(error => setNotice(error instanceof Error ? error.message : 'Could not queue deep vision review.'))
+      if (result === 'failed') setNotice(engineText.workspace.deepFailed);
+    }).catch(error => setNotice(error instanceof Error ? error.message : engineText.workspace.deepNotQueued))
       .finally(() => {
         deepVisionInFlight.current.delete(photoId);
         setReviewingIds(current => current.filter(id => id !== photoId));
       });
   }, []);
 
+  const cloudImports = useRef(new Map<string, { projectId: string; photoKey: string }>());
   const importPhotos = useCallback(async (suppliedPicks?: Array<File | PickedPhoto> | null) => {
     const target = stateRef.current;
     if (!target) return;
-    if (importController.current) { setNotice('Photos are already being added. Wait for them to finish, or stop that task first.'); return; }
+    if (importController.current) { setNotice(engineText.workspace.importRunning); return; }
     const picks = suppliedPicks === undefined ? await pickFiles() : suppliedPicks;
     if (!picks?.length) return;
     const files = picks.map((pick) => (pick instanceof File ? pickedFromFile(pick) : pick));
     const existing = new Set(target.frames.filter((frame) => !frame.removedAt).map((frame) => frame.stableKey));
     const additions = files.filter((file) => { const key = pickedKey(file); if (existing.has(key)) return false; existing.add(key); return true; });
-    if (!additions.length) { setNotice('Those photos are already in this project.'); return; }
+    if (!additions.length) { setNotice(engineText.workspace.importNothingNew); return; }
     const projectKey = target.shoot.id;
     const controller = new AbortController();
     importController.current = controller;
@@ -1189,7 +1285,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       // Unlike a visibility-only bulk task, this releases the CPU slot at each
       // boundary so someone can continue editing while 300 files import.
       const ticket = await engineScheduler.submit({
-        title: `Adding ${additions.length} photo${additions.length === 1 ? '' : 's'}`,
+        title: engineText.workspace.importTask(additions.length),
         kind: 'import', resource: 'cpu', priority: 4, pauseable: additions.length > 1,
         items: additions.map((file, index) => ({ file, index })),
         // Source file handles are intentionally NOT copied into the journal or
@@ -1197,20 +1293,22 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         snapshot: { projectKey, importId },
         itemId: item => pickedKey(item.file), itemLabel: item => item.file.name,
         runItem: async (item, _, ctx) => {
-          ctx.stage('Reading and fingerprinting the original');
+          ctx.stage(engineText.workspace.importReadStage);
           const result = await loadLocalFileListShoot([item.file], sourceProvider, sourceCatalogue,
             undefined, { allowPartial: true, signal: ctx.signal });
           ctx.checkCancelled();
-          if (!result.frames.length) throw new Error(`Could not import ${item.file.name}. Check the original and try again.`);
-          if (result.failedNames.length) throw new Error(`Could not read ${result.failedNames.join(', ')}.`);
+          if (!result.frames.length) throw new Error(engineText.workspace.importOneFailed(item.file.name));
+          if (result.failedNames.length) throw new Error(engineText.workspace.importUnreadable(result.failedNames.join(', ')));
           // A one-photo loader has index one. Give each imported frame its
           // distinct stable project index before inserting it into React.
+          const cloudPhoto = cloudImports.current.get(pickedKey(item.file));
           const frames = result.frames.map(frame => ({
             ...frame, id: `file-${item.index + 1}-${frame.filename}`,
             sequenceIndex: item.index + 1,
+            ...(cloudPhoto ? { cloudPhoto } : {}),
           }));
           if (result.unstoredKeys.length) warnings.push(`${item.file.name} could not be stored for reopening. Relink it when needed.`);
-          ctx.stage('Saving the photograph in this project');
+          ctx.stage(engineText.workspace.importSaveStage);
           ctx.commitIfCurrent(() => {
             if (stateRef.current?.shoot.id !== projectKey || ctx.signal.aborted) return;
             importedFrames.push(...frames);
@@ -1236,11 +1334,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         setState(current => current && current.shoot.id === projectKey
           ? applyImportBursts(current, grouped, importId) : current);
       }
-      if (outcome === 'failed') setNotice(`Some photographs could not be imported. ${importedFrames.length} were added. Open Tasks to retry failed photographs only.`);
-      else if (outcome === 'cancelled') setNotice(`Import stopped. ${importedFrames.length} photographs were added; originals are unchanged.`);
+      if (outcome === 'failed') setNotice(engineText.workspace.importSomeFailed(importedFrames.length));
+      else if (outcome === 'cancelled') setNotice(engineText.workspace.importStopped(importedFrames.length));
       else if (warnings.length) setNotice(warnings.slice(0, 3).join(' '));
     } catch (reason) {
-      setNotice(reason instanceof Error ? reason.message : 'Adding photos failed. Your originals were not changed.');
+      setNotice(reason instanceof Error ? reason.message : engineText.workspace.importFailed);
     } finally {
       controller.abort();
       if (importController.current === controller) importController.current = null;
@@ -1567,6 +1665,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const target = frame.decision === 'keep' ? 'unreviewed' : 'keep';
       return withPartners([id], pairsRef.current).reduce((acc, member) => applyDecisionWithHistory(acc, member, target, { allowAdvance: false }), next);
     }, current)),
+    correctVehicle: (photoId, choice, wholeBurst) => {
+      const before = stateRef.current?.frames ?? [];
+      const after = correctVehicle(before, photoId, choice, wholeBurst, VEHICLE_LABELS);
+      if (after === before) return;
+      const changed = after.filter((frame, index) => frame !== before[index]).length;
+      mutate((current) => ({ ...current, shoot: { ...current.shoot, lastUpdatedAt: Date.now() }, frames: correctVehicle(current.frames, photoId, choice, wholeBurst, VEHICLE_LABELS) }));
+      setNotice(vehicleText.correct.saved(changed));
+    },
     correctSpeciesName: (photoId, proposedName) => {
       const name = proposedName.trim().slice(0, 120);
       if (!name) return;
@@ -1642,6 +1748,95 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         setNotice(V2_STRINGS.xmp.read(planned.length));
       }, (error) => setNotice(sidecarFailureText(error)));
     },
+    readLightroomCatalogue: (file) => {
+      const before = stateRef.current;
+      if (!before) return;
+      const words = V2_STRINGS.lightroom;
+      setNotice(words.reading);
+      // The catalogue is read whole and matched before any photo changes; a project change meanwhile cancels it.
+      void readLightroomCatalogue(file).then((photos) => {
+        const now = stateRef.current;
+        if (!now || now.shoot.id !== before.shoot.id || now.shoot.lastUpdatedAt !== before.shoot.lastUpdatedAt) {
+          setNotice(words.failed.changed);
+          return;
+        }
+        const plan = planLightroomImport(photos, now.frames);
+        const toAdd = catalogueOnlyPhotos(photos, now.frames);
+        // Photos the project does not have yet are offered next: the person chooses the folder they are in.
+        lightroomPending.current = toAdd.length ? { projectId: now.shoot.id, photos, toAdd } : null;
+        setLightroomOffer(toAdd.length ? { missing: toAdd.length, folder: commonFolder(toAdd) } : null);
+        if (!plan.matches.length) {
+          if (!toAdd.length) setNotice(words.failed.none);
+          else setNotice(null);
+          return;
+        }
+        const catalogued = photos.length - plan.virtualCopies;
+        const { state: applied, result } = applyLightroomImport(now, plan, Date.now());
+        // Applied only to the exact state that was matched; anything newer keeps the person's change instead.
+        mutate((current) => (current === now ? applied : current));
+        setNotice(lightroomNotice(words, { ...plan, unmatched: plan.unmatched - toAdd.length }, catalogued, result));
+      }, (error) => setNotice(words.failed[error instanceof CatalogueReadError ? error.reason : 'unreadable']));
+    },
+    exportOpenFormats: () => {
+      const current = stateRef.current;
+      if (!current) return;
+      const words = V2_STRINGS.openExport;
+      void saveCatalogueExport(current).then((outcome) => {
+        if (outcome !== 'cancelled') setNotice(outcome === 'saved' ? words.saved : outcome === 'nothing' ? words.nothing : words.failed);
+      });
+    },
+    startQuickStart: () => {
+      const words = V2_STRINGS.quickStart;
+      // The picker opens straight from the person's click; everything after it runs on this device.
+      void pickFiles().then(async (picks) => {
+        if (!picks?.length) return;
+        const created = createEmptyProject(`project-${newId()}`, words.projectName);
+        try { await catalogue.current!.saveProject(created); }
+        catch { setNotice(V2_STRINGS.quickStart.failed); return; }
+        enterProject(created);
+        setQuickStart({ projectId: created.shoot.id, photoId: null, phase: 'working' });
+        for (let wait = 0; stateRef.current?.shoot.id !== created.shoot.id && wait < 100; wait++) {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+        if (stateRef.current?.shoot.id !== created.shoot.id) return;
+        await importPhotos(picks);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const now = stateRef.current;
+        const first = now?.shoot.id === created.shoot.id ? now.frames.find((frame) => frame.removedAt == null) : undefined;
+        if (!first) { setQuickStart(null); return; }
+        setQuickStart({ projectId: created.shoot.id, photoId: first.id, phase: 'working' });
+        setAutoRequest((last) => ({ photoId: first.id, sequence: (last?.sequence ?? 0) + 1 }));
+      });
+    },
+    dismissQuickStart: () => setQuickStart(null),
+    dismissLightroomOffer: () => { lightroomPending.current = null; setLightroomOffer(null); },
+    chooseLightroomFolder: () => {
+      const pending = lightroomPending.current;
+      const words = V2_STRINGS.lightroom;
+      if (!pending) return;
+      // Picked from the person's click, so the browser allows the folder picker.
+      void pickFolderFiles().then(async (files) => {
+        if (!files?.length) return;
+        const { found, missing } = catalogueFilesInFolder(pending.toAdd, files);
+        if (!found.length) { setNotice(words.noneInFolder); return; }
+        lightroomPending.current = null;
+        setLightroomOffer(null);
+        const before = new Set((stateRef.current?.frames ?? []).map((frame) => frame.id));
+        await importPhotos(found);
+        await new Promise((resolve) => setTimeout(resolve, 0)); // let the last added photos reach stateRef
+        const now = stateRef.current;
+        if (!now || now.shoot.id !== pending.projectId) return;
+        const added = now.frames.filter((frame) => !before.has(frame.id)).length;
+        const plan = planLightroomImport(pending.photos, now.frames);
+        const { state: applied, result } = applyLightroomImport(now, plan, Date.now());
+        mutate((current) => (current === now ? applied : current));
+        const catalogued = pending.photos.length - plan.virtualCopies;
+        const parts = [lightroomNotice(words, { ...plan, unmatched: 0 }, catalogued, result)];
+        if (missing) parts.push(words.notInFolder(missing));
+        if (added < found.length) parts.push(words.notAdded(found.length - added));
+        setNotice(parts.join(' '));
+      });
+    },
     runAutoCull: () => { void runAutoCull(); },
     addMaskLayer: (photoId, type) => { void addMask(photoId, type); },
     toggleMaskLayer: (photoId, maskId) => editMasks(photoId, (masks) => toggleMask(masks, maskId)),
@@ -1655,6 +1850,60 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     applyAssistSuggestion: applyAuto,
     requestLocalAuto: (photoId) => setAutoRequest((last) => ({ photoId, sequence: (last?.sequence ?? 0) + 1 })),
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
+    sharedEditOf: (photoId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
+      return frame?.edit ? JSON.parse(JSON.stringify(frame.edit)) as Record<string, unknown> : null;
+    },
+    applySharedEdit: (photoId, edit) => {
+      const safe = readSharedEdit(edit);
+      if (safe === false) { setNotice('The shared edit for this photo could not be read, so nothing was changed.'); return; }
+      editFrames([photoId], () => safe ?? undefined);
+    },
+    keepBothShared: (photoId, theirs) => {
+      const safe = readSharedEdit(theirs);
+      const current = stateRef.current;
+      const source = current?.frames.find((frame) => frame.id === photoId && frame.removedAt == null);
+      if (safe === false || !current || !source) { setNotice('The shared edit for this photo could not be read, so nothing was changed.'); return null; }
+      // Mine becomes a virtual copy beside the photo; the photo itself takes the shared edit. Both stay, nothing is lost.
+      const copy = createVirtualCopy(source, current.frames, `vc-${newId()}`);
+      mutate((state) => {
+        const index = state.frames.findIndex((frame) => frame.id === photoId);
+        const frames = [...state.frames];
+        frames.splice(index + 1, 0, copy);
+        return { ...state, frames };
+      });
+      editFrames([photoId], () => safe ?? undefined);
+      return copy.id;
+    },
+    importCloudPreviews: async (items) => {
+      for (const item of items) cloudImports.current.set(pickedKey(pickedFromFile(item.file)), { projectId: item.projectId, photoKey: item.photoKey });
+      try { await importPhotos(items.map((item) => item.file)); }
+      finally { for (const item of items) cloudImports.current.delete(pickedKey(pickedFromFile(item.file))); }
+    },
+    attachCloudOriginal: async (photoId, original, sha256) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
+      if (!frame?.cloudPhoto || !provider.current || !catalogue.current || !/^[0-9a-f]{64}$/.test(sha256)) return false;
+      const key = getLocalFileKey(original);
+      try { await catalogue.current.saveLocalFileBlob(key, original); } catch { /* still usable this session */ }
+      provider.current.registerBlob(key, original);
+      const next: PhotoFrame = { ...frame, stableKey: key, filename: original.name, originalSha256: sha256, cloudPhoto: { ...frame.cloudPhoto, hasOriginal: true } };
+      mutate((current) => ({ ...current, frames: current.frames.map((item) => (item.id === photoId ? { ...item, stableKey: next.stableKey, filename: next.filename, originalSha256: sha256, cloudPhoto: next.cloudPhoto } : item)) }));
+      setUrls((current) => { const updated = { ...current }; delete updated[photoId]; return updated; });
+      thumbs.current.requested.delete(photoId);
+      thumbs.current.queue.push(next); pumpThumbnails();
+      provider.current.getFullPreviewUrl(next, 'selected').then(
+        (preview) => setUrls((current) => ({ ...current, [photoId]: { ...current[photoId], preview } })),
+        () => { /* the thumbnail reload reports failures; the preview stays */ },
+      );
+      return true;
+    },
+    readVerifiedOriginal: async (photoId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
+      if (!frame || frame.isDemo || frame.cloudPhoto || !provider.current) return null;
+      const bytes = await provider.current.ensureOriginal(frame.stableKey, 'selected');
+      if (!bytes) return null;
+      try { return await verifyExactOriginalCopy(bytes, frame.originalSha256); } catch { return null; }
+    },
     renderGalleryPreview: async (photoId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
       return frame && provider.current ? renderGalleryPreview(frame, provider.current) : null;
@@ -1730,6 +1979,57 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     addOverlayRow: (photoId) => changeOverlay(photoId, (overlay) => addRow(overlay, `row-${newId().slice(0, 8)}`)),
     updateOverlayRow: (photoId, rowId, patch) => changeOverlay(photoId, (overlay) => updateRow(overlay, rowId, patch)),
     removeOverlayRow: (photoId, rowId) => changeOverlay(photoId, (overlay) => removeRow(overlay, rowId)),
+    detectColourEdges: async (photoId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      if (!frame || !provider.current) return 'unclear';
+      // Measured on the unedited framed picture at a bounded size, then stored, so preview and export use the same numbers.
+      const image = await loadExportSource(frame, provider.current);
+      const framing = frame.framing ?? DEFAULT_FRAMING;
+      const { width, height } = framedSize(image.naturalWidth, image.naturalHeight, framing);
+      const canvas = document.createElement('canvas');
+      drawFramedPhoto(image, canvas, framing, { scale: Math.min(1, 2400 / Math.max(width, height)) });
+      const pixels = canvas.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, canvas.width, canvas.height).data;
+      const [cx, cy] = canvasLensCentre(canvas.width, canvas.height, { aspect: canvas.height / canvas.width, view: { x: 0, y: 0, w: 1, h: 1 }, lensCentre: lensCentre(image.naturalWidth, image.naturalHeight, framing) });
+      const found = detectLateralCa(pixels, canvas.width, canvas.height, 4, cx, cy);
+      canvas.width = 0; canvas.height = 0;
+      if (!found) return 'unclear';
+      applyPatch([photoId], { caRed: Math.round(found.red * 100), caBlue: Math.round(found.blue * 100) });
+      return found.red === 0 && found.blue === 0 ? 'clean' : 'corrected';
+    },
+    addImageLayer: async (photoId) => {
+      const picked = await pickImageFile();
+      if (!picked) return;
+      try {
+        const assetId = await saveLayerAsset(picked);
+        const image = await createImageBitmap(picked);
+        const aspect = image.height / image.width;
+        image.close();
+        addLayerTo(photoId, assetId, picked.name.replace(/\.[^.]+$/, ''), aspect);
+      } catch (error) { setNotice(error instanceof Error ? error.message : 'That image could not be added as a layer.'); }
+    },
+    addPhotoLayer: async (photoId, sourcePhotoId) => {
+      const source = stateRef.current?.frames.find((candidate) => candidate.id === sourcePhotoId);
+      if (!source || !provider.current) return;
+      try {
+        // A copy of the other photo as it looks now (framing, edit and its own layers), kept on this device. Its original is only read.
+        const image = await loadExportSource(source, provider.current);
+        const framing = source.framing ?? DEFAULT_FRAMING;
+        const { width, height } = framedSize(image.naturalWidth, image.naturalHeight, framing);
+        const scale = Math.min(1, LAYER_COPY_EDGE / Math.max(width, height));
+        const canvas = document.createElement('canvas');
+        drawFramedPhoto(image, canvas, framing, { scale });
+        await applyCanvasExportEdit(canvas, source.edit ?? DEFAULT_EDIT, undefined, Math.max(width, height) * scale, { aspect: height / width, view: { x: 0, y: 0, w: 1, h: 1 }, lensCentre: lensCentre(image.naturalWidth, image.naturalHeight, framing) });
+        await applyFrameLayers(canvas, source.overlay, true);
+        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+        if (!blob) throw new Error('InFlight could not copy that photo.');
+        const assetId = await saveLayerAsset(blob);
+        addLayerTo(photoId, assetId, source.filename, canvas.height / canvas.width, 1);
+        canvas.width = 0; canvas.height = 0;
+      } catch (error) { setNotice(error instanceof Error ? error.message : 'That photo could not be added as a layer.'); }
+    },
+    updateLayer: (photoId, layerId, patch) => changeOverlay(photoId, (overlay) => updateLayer(overlay, layerId, patch)),
+    removeLayer: (photoId, layerId) => changeOverlay(photoId, (overlay) => removeLayer(overlay, layerId)),
+    moveLayer: (photoId, layerId, direction) => changeOverlay(photoId, (overlay) => moveLayer(overlay, layerId, direction)),
     addCustomFont: (fontName) => {
       const name = fontName.trim();
       if (!name) return;
@@ -1814,7 +2114,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       mutate((current) => ({ ...current, frames: current.frames.map((frame) => (targets.includes(frame.id) ? { ...frame, appliedLookId: lookId } : frame)) }));
     },
     resetPhotoEdits: (photoId) => { const targets = editTargets(photoId); editFrames(targets, () => undefined); mutate((current) => ({ ...current, frames: current.frames.map((frame) => (targets.includes(frame.id) ? { ...frame, appliedLookId: undefined } : frame)) })); },
-    copyRecipe: () => setClipboard(editToRecipe(activeFrame?.edit)),
+    // With no photo open there is nothing to copy: a neutral recipe here would let Paste silently reset another photo.
+    copyRecipe: () => { if (activeFrame) setClipboard(editToRecipe(activeFrame.edit)); },
     pasteRecipe: () => { if (clipboard && activeId) applyPatch(editTargets(activeId), clipboard); },
     setBurstGrouped: (burstGroupId, grouped) => mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.burstGroupId === burstGroupId ? { ...frame, burstUngrouped: grouped ? undefined : true } : frame)) })),
     // Clicking an earlier step makes a NEW version; the parent and all its
@@ -1859,12 +2160,19 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     [stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: watermarkLibrary, auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
+  // Species names in the person's language arrive once, after start-up; the photo list is redrawn when they do.
+  const [speciesNamesVersion, setSpeciesNamesVersion] = useState(0);
+  useEffect(() => {
+    const stop = onSpeciesNamesLoaded(() => setSpeciesNamesVersion((version) => version + 1));
+    void loadSpeciesNames(language);
+    return stop;
+  }, []);
   const photos = useMemo(() => recountBursts((state?.frames ?? []).filter((frame) => !frame.removedAt && !pairs.rawOf.has(frame.id)).map((frame) => {
     const assist = assists[frame.id];
     const jpegId = pairs.jpegOf.get(frame.id);
     const pairedJpeg = jpegId ? state?.frames.find((candidate) => candidate.id === jpegId)?.filename : undefined;
-    return withPairedJpeg(pairedJpeg, frameToPhoto(frame, urls[frame.id], { assist, watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed }));
-  })), [state?.frames, pairs, urls, assists, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes]);
+    return withPairedJpeg(pairedJpeg, frameToPhoto(frame, urls[frame.id], { assist, watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed, sources: { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) } }));
+  })), [state?.frames, pairs, urls, assists, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes, speciesNamesVersion]);
   // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo
   // (ROADMAP.md, "Removed photos panel" next item). Thumbnails are not fetched for them; the filename is enough
   // to recognise one in a short list, and restoring returns it to the normal, already-thumbnailed photo list.
@@ -1904,8 +2212,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clipboardRecipe: clipboard,
     PhotoSurface: EngineSurface,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
+    quickStart: quickStart && quickStart.projectId === state?.shoot.id && screen === 'editor' ? { phase: quickStart.phase, photoId: quickStart.photoId } : null,
+    lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
-  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice]);
+  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart]);
 
   return { store, actions };
 }

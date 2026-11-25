@@ -238,6 +238,8 @@ pub fn run() {
                 &MenuItem::with_id(app, "reset-photo", "Reset photo edits", true, None::<&str>)?,
                 &MenuItem::with_id(app, "xmp-save", "Save ratings to XMP…", true, None::<&str>)?,
                 &MenuItem::with_id(app, "xmp-read", "Read ratings from XMP…", true, None::<&str>)?,
+                &MenuItem::with_id(app, "lightroom-read", "Bring in a Lightroom catalogue…", true, None::<&str>)?,
+                &MenuItem::with_id(app, "open-export", "Export everything in open formats…", true, None::<&str>)?,
                 &MenuItem::with_id(app, "backup-now", "Back up now", true, None::<&str>)?,
                 &MenuItem::with_id(app, "backup-file", "Save backup file…", true, None::<&str>)?,
                 &MenuItem::with_id(app, "back-to-projects", "Back to projects", true, None::<&str>)?,

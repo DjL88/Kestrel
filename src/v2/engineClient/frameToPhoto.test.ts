@@ -271,3 +271,17 @@ test('a vehicle reading shows as the subject in words and makes the photo findab
   assert.equal(frameToPhoto(frame({ vehicle: { schema: 1, family: 'air', source: 'clip', labelsVersion: 1 } }), undefined).vehicleLabel, 'Aircraft, type unknown');
   assert.equal(frameToPhoto(frame({ vehicle: { schema: 1, family: 'air', kind: 'spaceship', source: 'clip', labelsVersion: 1 } as never }), undefined).vehicleLabel, undefined);
 });
+
+test('each view says which picture of a RAW it shows, from what the provider recorded, HE named from the headers', () => {
+  const urls = { thumb: 'blob:t', preview: 'blob:p' };
+  const developed = frameToPhoto(frame({ rawCodec: 'nikon-he-star' }), urls, { sources: { preview: 'raw-full', thumb: 'raw-review' } });
+  assert.deepEqual(developed.picture, {
+    preview: { kind: 'raw', size: 'full', codec: 'nikon-he-star' },
+    thumb: { kind: 'raw', size: 'screen', codec: 'nikon-he-star' },
+  });
+  // Before the large preview exists, the canvas shows the thumbnail, so it carries the thumbnail's source.
+  const early = frameToPhoto(frame(), { thumb: 'blob:t' }, { sources: { thumb: 'camera-preview' } });
+  assert.deepEqual(early.picture, { preview: { kind: 'camera' }, thumb: { kind: 'camera' } });
+  assert.equal(frameToPhoto(frame({ filename: 'bird.jpg' }), urls, { sources: { preview: 'original', thumb: 'original' } }).picture, undefined);
+  assert.equal(frameToPhoto(frame(), urls).picture, undefined, 'no recorded source, no label');
+});

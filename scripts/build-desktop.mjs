@@ -26,6 +26,9 @@ const result = spawnSync(npx, ['tauri', 'build', ...process.argv.slice(2)], {
     // Belt and braces with the Tauri CLI's own TAURI_ENV_PLATFORM: a desktop build must never ship the caching web
     // worker (see offline-build.ts).
     KESTREL_DESKTOP_BUILD: '1',
+    // Installers are releases: the web build refuses an unknown commit or a changed tree (scripts/build-provenance.mjs).
+    // A developer's local test installer can opt out with KESTREL_RELEASE=0, and Settings > Build information then says so.
+    KESTREL_RELEASE: process.env.KESTREL_RELEASE ?? '1',
   },
 });
 assertChildSucceeded(result, 'Tauri release build');
