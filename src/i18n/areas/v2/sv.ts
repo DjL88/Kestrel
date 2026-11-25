@@ -1407,7 +1407,7 @@ export const sv: AreaTranslation<typeof source> = {
       touchHeading: "Pekskärm och penna",
       swipeLabel: "Svep för att byta foto",
       swipeDesc: "Ett snabbt svep med ett finger över fotot visar nästa eller föregående foto. Stäng av det om det händer av misstag.",
-      penNote: "Med en penna som Apple Pencil ignoreras beröringar på fotot medan pennan är nere och en kort stund efter, så att handen som håller den aldrig flyttar fotot.",
+      penNote: "Med en penna som Apple Pencil ignoreras beröringar på fotot medan pennan är nere. Även en kort stund efter, så att din hand aldrig flyttar fotot.",
     },
     language: {
       label: 'Visningsspråk',

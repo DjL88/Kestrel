@@ -1459,7 +1459,7 @@ export const source = {
       touchHeading: "Touch and pen",
       swipeLabel: "Swipe to change photo",
       swipeDesc: "A quick one-finger flick across the photo shows the next or previous photo. Turn this off if it happens by accident.",
-      penNote: "With a pen such as Apple Pencil, touches on the photo are ignored while the pen is down and for a moment after, so the hand holding it never moves the photo.",
+      penNote: "With a pen such as Apple Pencil, touches on the photo are ignored while the pen is down. This lasts a moment after it lifts too, so your hand never moves the photo.",
     },
     language: {
       label: 'Display language',

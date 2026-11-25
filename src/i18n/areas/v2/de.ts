@@ -1407,7 +1407,7 @@ export const de: AreaTranslation<typeof source> = {
       touchHeading: "Touch und Stift",
       swipeLabel: "Wischen, um das Foto zu wechseln",
       swipeDesc: "Ein schnelles Wischen mit einem Finger über das Foto zeigt das nächste oder vorherige Foto. Schalten Sie dies aus, wenn es versehentlich passiert.",
-      penNote: "Mit einem Stift wie dem Apple Pencil werden Berührungen auf dem Foto ignoriert, solange der Stift aufliegt und kurz danach, damit die Hand, die ihn hält, das Foto nie bewegt.",
+      penNote: "Mit einem Stift wie dem Apple Pencil werden Berührungen auf dem Foto ignoriert, solange der Stift aufliegt. Das gilt auch kurz nach dem Abheben, damit Ihre Hand das Foto nie bewegt.",
     },
     language: {
       label: 'Anzeigesprache',

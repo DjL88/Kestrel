@@ -1407,7 +1407,7 @@ export const cy: AreaTranslation<typeof source> = {
       touchHeading: "Cyffwrdd a phen",
       swipeLabel: "Llithro i newid llun",
       swipeDesc: "Mae llithriad cyflym ag un bys ar draws y llun yn dangos y llun nesaf neu’r un blaenorol. Diffoddwch hyn os yw’n digwydd ar ddamwain.",
-      penNote: "Gyda phen fel Apple Pencil, caiff cyffyrddiadau ar y llun eu hanwybyddu tra bo’r pen i lawr ac am eiliad wedyn, fel nad yw’r llaw sy’n ei ddal byth yn symud y llun.",
+      penNote: "Gyda phen fel Apple Pencil, caiff cyffyrddiadau ar y llun eu hanwybyddu tra bo’r pen i lawr. Mae hyn yn para eiliad wedyn hefyd, fel nad yw’ch llaw byth yn symud y llun.",
     },
     language: {
       label: 'Iaith arddangos',

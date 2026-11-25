@@ -1407,7 +1407,7 @@ export const da: AreaTranslation<typeof source> = {
       touchHeading: "Berøring og pen",
       swipeLabel: "Stryg for at skifte foto",
       swipeDesc: "Et hurtigt stryg med én finger hen over fotoet viser det næste eller forrige foto. Slå det fra, hvis det sker ved et uheld.",
-      penNote: "Med en pen som Apple Pencil ignoreres berøringer på fotoet, mens pennen rører skærmen og et øjeblik efter, så hånden, der holder den, aldrig flytter fotoet.",
+      penNote: "Med en pen som Apple Pencil ignoreres berøringer på fotoet, mens pennen rører skærmen. Også et øjeblik efter, så din hånd aldrig flytter fotoet.",
     },
     language: {
       label: 'Visningssprog',

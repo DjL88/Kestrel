@@ -1407,7 +1407,7 @@ export const is: AreaTranslation<typeof source> = {
       touchHeading: "Snerting og penni",
       swipeLabel: "Strjúktu til að skipta um mynd",
       swipeDesc: "Hröð stroka með einum fingri yfir myndina sýnir næstu eða fyrri mynd. Slökktu á þessu ef það gerist óvart.",
-      penNote: "Með penna eins og Apple Pencil eru snertingar á myndinni hunsaðar á meðan penninn er á skjánum og augnablik á eftir, svo höndin sem heldur á honum færir aldrei myndina.",
+      penNote: "Með penna eins og Apple Pencil eru snertingar á myndinni hunsaðar á meðan penninn er á skjánum. Líka augnablik á eftir, svo höndin þín færir aldrei myndina.",
     },
     language: {
       label: 'Tungumál viðmóts',

@@ -1407,7 +1407,7 @@ export const it: AreaTranslation<typeof source> = {
       touchHeading: "Tocco e penna",
       swipeLabel: "Scorri per cambiare foto",
       swipeDesc: "Un rapido scorrimento con un dito sulla foto mostra la foto successiva o precedente. Disattivalo se succede per sbaglio.",
-      penNote: "Con una penna come Apple Pencil, i tocchi sulla foto vengono ignorati mentre la penna è appoggiata e per un attimo dopo, così la mano che la tiene non sposta mai la foto.",
+      penNote: "Con una penna come Apple Pencil, i tocchi sulla foto vengono ignorati mentre la penna è appoggiata. Anche per un attimo dopo, così la tua mano non sposta mai la foto.",
     },
     language: {
       label: 'Lingua dell’interfaccia',

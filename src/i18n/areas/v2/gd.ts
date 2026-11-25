@@ -1408,7 +1408,7 @@ export const gd: AreaTranslation<typeof source> = {
       touchHeading: "Suathadh is peann",
       swipeLabel: "Grad-shlaighd airson an dealbh atharrachadh",
       swipeDesc: "Seallaidh grad-shlaighd le aon chorrag thar an dealbh an ath dhealbh no an tè roimhe. Cuir dheth seo ma thachras e gun fhiosta.",
-      penNote: "Le peann mar Apple Pencil, thèid suathadh air an dealbh a leigeil seachad fhad ’s a tha am peann sìos is car tiota às a dhèidh, gus nach gluais an làmh a tha ga chumail an dealbh idir.",
+      penNote: "Le peann mar Apple Pencil, thèid suathadh air an dealbh a leigeil seachad fhad ’s a tha am peann sìos. Mairidh seo car tiota às a dhèidh cuideachd, gus nach gluais do làmh an dealbh idir.",
     },
     language: {
       label: 'Cànan an t-seallaidh',

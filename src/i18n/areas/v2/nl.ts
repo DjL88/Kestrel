@@ -1407,7 +1407,7 @@ export const nl: AreaTranslation<typeof source> = {
       touchHeading: "Aanraken en pen",
       swipeLabel: "Vegen om van foto te wisselen",
       swipeDesc: "Een snelle veeg met één vinger over de foto toont de volgende of vorige foto. Zet dit uit als het per ongeluk gebeurt.",
-      penNote: "Met een pen zoals Apple Pencil worden aanrakingen op de foto genegeerd zolang de pen het scherm raakt en even daarna, zodat de hand die hem vasthoudt de foto nooit verplaatst.",
+      penNote: "Met een pen zoals Apple Pencil worden aanrakingen op de foto genegeerd zolang de pen het scherm raakt. Ook nog even daarna, zodat je hand de foto nooit verplaatst.",
     },
     language: {
       label: 'Weergavetaal',

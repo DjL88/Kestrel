@@ -1407,7 +1407,7 @@ export const nb: AreaTranslation<typeof source> = {
       touchHeading: "Berøring og penn",
       swipeLabel: "Sveip for å bytte bilde",
       swipeDesc: "Et raskt sveip med én finger over bildet viser neste eller forrige bilde. Slå det av hvis det skjer ved et uhell.",
-      penNote: "Med en penn som Apple Pencil ignoreres berøringer på bildet mens pennen er nede og et øyeblikk etterpå, slik at hånden som holder den aldri flytter bildet.",
+      penNote: "Med en penn som Apple Pencil ignoreres berøringer på bildet mens pennen er nede. Også et øyeblikk etterpå, slik at hånden din aldri flytter bildet.",
     },
     language: {
       label: 'Visningsspråk',

@@ -1408,7 +1408,7 @@ export const fi: AreaTranslation<typeof source> = {
       touchHeading: "Kosketus ja kynä",
       swipeLabel: "Vaihda kuvaa pyyhkäisemällä",
       swipeDesc: "Nopea yhden sormen pyyhkäisy kuvan yli näyttää seuraavan tai edellisen kuvan. Poista tämä käytöstä, jos niin käy vahingossa.",
-      penNote: "Kun käytät kynää, kuten Apple Penciliä, kuvan kosketukset ohitetaan kynän ollessa näytöllä ja hetken sen jälkeen, joten kynää pitelevä käsi ei koskaan siirrä kuvaa.",
+      penNote: "Kun käytät kynää, kuten Apple Penciliä, kuvan kosketukset ohitetaan kynän ollessa näytöllä. Myös hetken sen jälkeen, joten kätesi ei koskaan siirrä kuvaa.",
     },
     language: {
       label: 'Näyttökieli',
