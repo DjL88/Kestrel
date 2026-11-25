@@ -370,6 +370,23 @@ export const source = {
     },
   },
 
+  // Project backups
+  backup: {
+    backUpNow: 'Back up now',
+    saveFile: 'Save backup file…',
+    restore: 'Restore from backup…',
+    idle: 'Not backed up yet in this session.',
+    working: 'Backing up…',
+    ok: (time: string) => `Backed up at ${time}. The saved copy was read back and matches.`,
+    partial: 'Backed up on this device. The copy beside your photos could not be updated; InFlight will try again.',
+    failed: 'The backup could not be saved. Your project is still stored in InFlight; it will try again.',
+    fileSaved: 'Backup file saved. It holds decisions, edits and links, not the photos themselves.',
+    fileDownloaded: 'Backup file downloaded. It holds decisions, edits and links, not the photos themselves.',
+    fileFailed: 'The backup file could not be saved. Your project is unchanged.',
+    restored: (name: string) => `Restored “${name}” as a new project. Reconnect the original photos if InFlight asks.`,
+    restoreFailed: 'That file is not a readable InFlight project backup. Nothing was changed.',
+  },
+
   // Canvas
   canvas: {
     selectPhoto: "Select a photograph from the filmstrip to begin editing.",

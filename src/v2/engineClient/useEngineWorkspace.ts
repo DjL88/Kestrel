@@ -78,6 +78,10 @@ import { renderGalleryPreview } from './galleryPreview';
 import { formatOverlayRowText } from '../ui/utils/studioMath';
 import { loadImage } from '../../providers/loadImage';
 import { deliverExport, describeExport } from './exportDelivery';
+import { backUpProjectNow, useAutoBackup, useBackupStatus } from '../../providers/autoBackup';
+import { saveProjectBackupFile } from '../../providers/projectBackupFile';
+import { restoreProjectBackup } from '../../core/projectBackup';
+import { backupStatusText } from './backupWords';
 import { applySidecarImports, planXmpImports, saveSidecars, sidecarFailureText, xmpScope } from './xmpOps';
 import { STRINGS as V2_STRINGS } from '../ui/strings';
 import { scheduleV2PhotoExports, photoExportUnits } from './scheduledPhotoExport';
@@ -444,6 +448,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   });
   useEffect(() => () => { listenedProvider.current?.detach(); listenedProvider.current = null; }, []);
 
+  // Automatic backups of the open project, shared with V1: soon after a change, every so often, and on leaving.
+  useAutoBackup(state && !state.shoot.collage ? state : null, Boolean(state));
+  const backupStatus = useBackupStatus(state?.shoot.id ?? '');
   const mutate = useCallback((change: (current: CullingState) => CullingState) => setState((current) => (current ? change(current) : current)), []);
 
   const decide = useCallback((ids: string[], decision: CullDecision) => {
@@ -1567,6 +1574,28 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     importPhotos: () => { void importPhotos(); },
     importFolder: () => { void pickFolderFiles().then((files) => { if (files?.length) void importPhotos(files); }); },
     importDroppedPhotos: (files) => { if (files.length) void importPhotos(files); },
+    backUpProjectNow: () => {
+      const current = stateRef.current;
+      if (!current) return;
+      void backUpProjectNow(current).then((result) => setNotice(backupStatusText(result)));
+    },
+    saveProjectBackupFile: () => {
+      const current = stateRef.current;
+      if (!current) return;
+      void saveProjectBackupFile(current).then(
+        (result) => { if (result !== 'cancelled') setNotice(result === 'saved' ? V2_STRINGS.backup.fileSaved : V2_STRINGS.backup.fileDownloaded); },
+        () => setNotice(V2_STRINGS.backup.fileFailed),
+      );
+    },
+    restoreProjectBackup: (file) => {
+      void file.text().then((contents) => {
+        // Always a new project id, so restoring can never overwrite the project the backup came from.
+        const restored = restoreProjectBackup(contents, `project-${newId()}`);
+        return catalogue.current!.saveProject(restored)
+          .then(() => openProject(restored.shoot.id))
+          .then(() => setNotice(V2_STRINGS.backup.restored(restored.shoot.title)));
+      }).catch(() => setNotice(V2_STRINGS.backup.restoreFailed));
+    },
     saveXmpSidecars: (photoIds) => {
       const frames = xmpScope(stateRef.current?.frames ?? [], photoIds);
       void saveSidecars(frames).then((message) => { if (message) setNotice(message); });
@@ -1845,7 +1874,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clipboardRecipe: clipboard,
     PhotoSurface: EngineSurface,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
-  }), [stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice]);
+    backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
+  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice]);
 
   return { store, actions };
 }

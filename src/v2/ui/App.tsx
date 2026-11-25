@@ -20,6 +20,7 @@ import CollageEditor from './shell/CollageEditor';
 import Filmstrip from './shell/Filmstrip';
 import GridView from './shell/GridView';
 import PairCompare from './shell/PairCompare';
+import { backupStatusText } from '../engineClient/backupWords';
 import CoPilotPanel from './panels/CoPilotPanel';
 import AdjustPanel from './panels/AdjustPanel';
 import SizesPanel from './panels/SizesPanel';
@@ -216,6 +217,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'toggleFilmstrip': if (inEditor) actions.setFilmstripCollapsed(!store.filmstripCollapsed); break;
       case 'settings': actions.setSettingsOpen(true, action.tab); break;
       case 'removedPhotos': if (inEditor) actions.setRemovedOpen(true); break;
+      case 'backupNow': if (inEditor && !store.collage) actions.backUpProjectNow(); break;
+      case 'backupFile': if (inEditor && !store.collage) actions.saveProjectBackupFile(); break;
       case 'saveXmp': if (inEditor && !store.collage) actions.saveXmpSidecars(store.selectedPhotoIds); break;
       case 'readXmp': if (inEditor && !store.collage) xmpInputRef.current?.click(); break;
       case 'resetPhoto': if (inEditor && activePhoto) actions.resetPhotoEdits(activePhoto.id); break;
@@ -486,6 +489,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onCreateProject={actions.createProject}
           onCreateFromFolder={actions.createProjectFromFolder}
           onRenameProject={actions.renameProject}
+          onRestoreBackup={actions.restoreProjectBackup}
           onArchiveProject={actions.archiveProject}
           onDeleteProject={actions.deleteProject}
           onOpenSettings={() => actions.setSettingsOpen(true, 'appearance')}
@@ -524,6 +528,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             presence={<PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(id) => actions.selectPhoto(id)} />}
             onOpenRemoved={() => actions.setRemovedOpen(true)}
             onSaveXmp={store.screen === 'editor' && !store.collage ? () => actions.saveXmpSidecars(store.selectedPhotoIds) : undefined}
+            onBackUpNow={store.screen === 'editor' && !store.collage ? actions.backUpProjectNow : undefined}
+            onSaveBackupFile={store.screen === 'editor' && !store.collage ? actions.saveProjectBackupFile : undefined}
+            backupNote={store.backup ? backupStatusText(store.backup) : undefined}
             onReadXmp={store.screen === 'editor' && !store.collage ? () => xmpInputRef.current?.click() : undefined}
             onOpenSettings={() => actions.setSettingsOpen(true)}
             onImport={actions.importPhotos}
