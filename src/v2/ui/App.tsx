@@ -439,6 +439,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetMaskGeometry={actions.setMaskGeometry}
             onSetMaskParts={actions.setMaskParts}
             onPreviewMask={setMaskGuide}
+            tapSelect={store.tapSelect}
+            tapActions={actions}
           />
         );
       case 'enhance':
@@ -630,6 +632,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onDeleteProject={actions.deleteProject}
           onRestoreDeletedProject={actions.restoreDeletedProject}
           onDeleteProjectForever={actions.deleteProjectForever}
+          onDuplicateProject={actions.duplicateProject}
           onOpenSettings={() => actions.setSettingsOpen(true, 'appearance')}
           onToggleTheme={() =>
             actions.updateSettings({ theme: activeTheme === 'dark' ? 'light' : 'dark' })
@@ -792,6 +795,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   maskOverlayKey={keymap['view.maskOverlay'] ? chordLabel(keymap['view.maskOverlay'], IS_MAC) : undefined}
                   onToggleMaskOverlay={() => setMaskOverlayVisible((visible) => !visible)}
                   onSetMaskGeometry={actions.setMaskGeometry}
+                  tapSession={store.tapSelect?.session}
+                  onTapSelect={actions.tapSelectAt}
                   neutralPick={neutralPick}
                   onOpenFormats={activePhoto ? () => {
                     actions.setPanelVisible('formats', true);
