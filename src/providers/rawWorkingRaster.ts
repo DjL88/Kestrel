@@ -1,6 +1,6 @@
 import { Sha256Stream } from '../core/sha256';
 import { parseRgb16, type Rgb16Image } from '../core/master16';
-import { developRawRgb16, requireVerifiedNikonPrecisionMode } from './rawDevelop';
+import { developRawRgb16, requireVerifiedNikonPrecisionMode, type RawSensorMode } from './rawDevelop';
 
 /** Sensor pixels, NOT a scene-linear or ICC-verified archival master. */
 export interface SensorWorkingRaster {
@@ -9,6 +9,9 @@ export interface SensorWorkingRaster {
     source: 'sensor-decoded'; sampleBits: 16; encoding: 'display-srgb';
     sceneLinear: false; iccVerified: false; sourceHashVerified: boolean;
     commercialCodecRightsVerified: false; previewExportParityVerified: false;
+    /** Which compression the sensor data came from, as the decoder classified it: 'nikon-he', 'nikon-he-star' or 'other'.
+     * Absent only for a raster built without opening a RAW (tests). */
+    codec?: RawSensorMode;
   };
   allocatedBytes: number;
   /** SHA-256 of original source bytes, not the developed image or embedded preview. */
@@ -65,7 +68,7 @@ export function checkRawDecodeInputBudget(original: Blob, maxPixels: number, max
     throw new Error('RAW source or working-image budget is invalid or exceeds the safe input limit.');
 }
 
-/** Opt-in W1 integration seam. No JPEG fallback, no HE/HE* patent bypass. */
+/** Opt-in W1 integration seam. No JPEG fallback. HE/HE* included (owner decision, 25 Nov 2026), and labelled as such. */
 export async function openSensorWorkingRaster(
   original: Blob, filename: string, maxPixels = 80_000_000, expectedSourceSha256?: string,
 ): Promise<SensorWorkingRaster> {
@@ -80,9 +83,9 @@ export async function openSensorWorkingRaster(
   const before = await hashRawSource(original);
   if (expectedSourceSha256 && before !== expectedSourceSha256)
     throw new Error('The selected original no longer matches its recorded SHA-256. No edit source was opened.');
-  // The decoder recognises camera bytes independently of the suffix. A Nikon
-  // compression that cannot be read is refused; HE/HE* go ahead (owner, 25 Nov).
-  await requireVerifiedNikonPrecisionMode(original);
+  // The decoder recognises camera bytes independently of the suffix. Keep
+  // the HE gate for renamed files, without claiming that this proves rights.
+  const codec = await requireVerifiedNikonPrecisionMode(original);
   const decoded = await developRawRgb16(original);
   // Files backed by removable/network storage can change while decoding.
   if (original.size !== sourceBytes || await hashRawSource(original) !== before)
@@ -91,5 +94,6 @@ export async function openSensorWorkingRaster(
   raster.sourceSha256 = before;
   raster.sourceBytes = sourceBytes;
   raster.provenance.sourceHashVerified = Boolean(expectedSourceSha256);
+  raster.provenance.codec = codec;
   return raster;
 }

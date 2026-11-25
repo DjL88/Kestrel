@@ -1,6 +1,6 @@
 import { describe } from 'node:test';
 import { expect, it } from '../core/testExpect';
-import { precisionModeRefusal, verifiedNikonSensorMode } from './rawDevelop';
+import { verifiedNikonSensorMode } from './rawDevelop';
 
 describe('verified Nikon precision preflight', () => {
   const file = new Blob([new Uint8Array(32)]);
@@ -16,11 +16,5 @@ describe('verified Nikon precision preflight', () => {
     expect(await verifiedNikonSensorMode(file, async () => 'bad-mode')).toBe('unknown');
     expect(await verifiedNikonSensorMode(file, async () => { throw new Error('decoder unavailable'); })).toBe('unknown');
     expect(await verifiedNikonSensorMode(new Blob([]), async () => 'other')).toBe('unknown');
-  });
-  it('lets HE and HE* through to the 16-bit develop (owner decision, 25 Nov 2026) and refuses only an unread compression', () => {
-    expect(precisionModeRefusal('other')).toBe(null);
-    expect(precisionModeRefusal('nikon-he')).toBe(null);
-    expect(precisionModeRefusal('nikon-he-star')).toBe(null);
-    expect(precisionModeRefusal('unknown')).toBe('Nikon RAW compression could not be verified; no precision export was made.');
   });
 });

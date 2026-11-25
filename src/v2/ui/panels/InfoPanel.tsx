@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import VehicleRow from './VehicleRow';
 import type { Photo } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
@@ -19,6 +20,7 @@ interface InfoPanelProps {
   onReconnectOriginal: (photoId: string) => void;
   onSaveDngCopy?: (photoId: string) => void;
   onCorrectSpeciesName: (photoId: string, name: string) => void;
+  onCorrectVehicle?: (photoId: string, choice: { kind: string; type?: string } | 'not-a-vehicle', wholeBurst: boolean) => void;
 }
 
 export default function InfoPanel({
@@ -28,6 +30,7 @@ export default function InfoPanel({
   onReconnectOriginal,
   onSaveDngCopy,
   onCorrectSpeciesName,
+  onCorrectVehicle,
 }: InfoPanelProps) {
   const [editingSpecies, setEditingSpecies] = useState(false);
   // The name alone: the label may carry a "(suggested)" marker in the person's language, which is not part of the name.
@@ -220,13 +223,14 @@ export default function InfoPanel({
               </form>
             ) : (
               <dd className="flex min-w-0 items-center gap-2 text-right text-[var(--text-primary)]">
-                <span>{photo.speciesLabel || photo.vehicleLabel || photo.category || STRINGS.panelWords.notIdentified}</span>
+                <span>{photo.speciesLabel || photo.category || (photo.vehicleLabel ? '' : STRINGS.panelWords.notIdentified)}</span>
                 <button type="button" aria-label={STRINGS.panelWords.correctSpecies} title={STRINGS.panelWords.correctSpecies}
                   onClick={() => setEditingSpecies(true)}
                   className="shrink-0 rounded border border-[var(--border-subtle)] px-2 py-1 text-[0.6875rem]">{STRINGS.panelWords.edit}</button>
               </dd>
             )}
           </div>
+          {onCorrectVehicle && <VehicleRow photo={photo} onCorrect={onCorrectVehicle} />}
           <MetaRow label="Sharpness" value={`${photo.sharpnessScore}%`} mono />
           <MetaRow label={STRINGS.tier.label} value={photo.tier ? STRINGS.tier[photo.tier] : STRINGS.tier.notRanked} />
         </dl>

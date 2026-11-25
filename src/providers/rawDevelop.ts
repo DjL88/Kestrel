@@ -49,8 +49,8 @@ export async function developRaw(file: Blob, extension = 'nef'): Promise<Blob> {
  * the legacy review/editor route. The same InFlight Rust decoder runs through
  * Tauri on desktop and WASM on web; platform codec support is NOT guaranteed.
  * The returned buffer is display-encoded RGB16, not a verified linear camera
- * master. Consumers must separately verify original hash, colour evidence and
- * HE/HE* distribution rights before promoting it to an archival master.
+ * master. Consumers must separately verify original hash and colour evidence
+ * before promoting it to an archival master.
  * Caller owns this scratch buffer; original RAW bytes are never modified.
  */
 export async function developRawRgb16(file: Blob): Promise<ArrayBuffer> {
@@ -164,8 +164,12 @@ export async function verifiedNikonSensorMode(
   }
 }
 
-/** Fail closed if a Nikon compression header cannot be positively classified. */
-export async function requireVerifiedNikonPrecisionMode(file: Blob): Promise<void> {
+/**
+ * Fail closed if a RAW's compression header cannot be positively classified, and say which it is. Nikon HE/HE* go
+ * through the same 16-bit paths as every other RAW: the owner's ticoraw decision (19 Nov 2026) covers 16-bit output
+ * too (owner, 25 Nov 2026; NOTICE.md). The returned mode is for honest labelling, not a licence certificate.
+ */
+export async function requireVerifiedNikonPrecisionMode(file: Blob): Promise<RawSensorMode> {
   if (!hasNativeRaw() && !webRawAvailable()) {
     throw new Error('Nikon RAW compression could not be verified; no precision export was made.');
   }
@@ -176,17 +180,13 @@ export async function requireVerifiedNikonPrecisionMode(file: Blob): Promise<voi
       return invoke<string>('raw_sensor_mode', new Uint8Array(await file.slice(0, bytes).arrayBuffer()),
         { headers: { 'x-file-length': String(file.size) } });
     };
-  const refusal = precisionModeRefusal(await verifiedNikonSensorMode(file, ask));
-  if (refusal) throw new Error(refusal);
+  return precisionSensorMode(await verifiedNikonSensorMode(file, ask));
 }
 
-/**
- * Whether a 16-bit develop may go ahead for this compression. The owner decided (25 Nov 2026) that Nikon HE/HE* NEFs get
- * the 16-bit develop through the same decoder (ticoraw) that already makes their 8-bit develop. Only a compression that
- * could not be read stays refused: never guessed.
- */
-export function precisionModeRefusal(mode: RawSensorMode | 'unknown'): string | null {
-  return mode === 'unknown' ? 'Nikon RAW compression could not be verified; no precision export was made.' : null;
+/** The gate's decision: every classified compression (HE and HE* included) passes; an unclassified one fails closed. */
+export function precisionSensorMode(mode: RawSensorMode | 'unknown'): RawSensorMode {
+  if (mode === 'unknown') throw new Error('Nikon RAW compression could not be verified; no precision export was made.');
+  return mode;
 }
 
 /** Plain words for how a developed picture was made from the sensor data. */
