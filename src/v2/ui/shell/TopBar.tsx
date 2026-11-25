@@ -480,6 +480,18 @@ export default function TopBar({
           <BrandIcon name="export" size={15} />
           <span>{STRINGS.topBar.exportButton}</span>
         </button>
+        {onQuickExport && (
+          // Phone and tablet have no File menu, so Export again sits just after Export there: the same action everywhere.
+          <button
+            type="button"
+            onClick={onQuickExport}
+            aria-label={STRINGS.exportDialog.quickExport}
+            title={STRINGS.exportDialog.quickExport}
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-default)] text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface-hover)] md:h-9 md:w-9 lg:hidden"
+          >
+            <BrandIcon name="refresh" size={15} />
+          </button>
+        )}
       </div>
     </header>
   );
