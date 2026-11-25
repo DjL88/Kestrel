@@ -26,6 +26,8 @@ import { CollabRefusal, MAX_RECIPE_BYTES, type CollabStore } from './collaborati
 import { CloudRefusal, CLOUD_VARIANTS, type CloudPhotoStore } from './cloudPhotos.ts';
 import { millicreditsForBytes, type AllowancePolicy, type UsageMeter } from './usageMeter.ts';
 import { FEEDBACK_ITEM_ID } from '../../../src/core/clientFeedback.ts';
+import type { NoticeStore } from './notices.ts';
+import type { NoticeEvent } from '../../../src/core/collabNotices.ts';
 import { GalleryRefusal, GALLERY_MAX_DAYS, GALLERY_MAX_PHOTOS, GALLERY_MAX_PREVIEW_BYTES, type GalleryStore } from './gallery.ts';
 import { presenceUid, PRESENCE_TOKEN_TTL_S, type PresenceSigner } from './presenceToken.ts';
 import { SAFE_COPY_LEVELS, SAFE_COPY_MAX_BYTES, safeCopyKey, type SafeCopyOptions } from './safeCopy.ts';
@@ -79,6 +81,8 @@ export interface AppOptions {
   presence?: PresenceSigner;
   /** Client galleries: previews in their own UK bucket. Absent: the gallery routes answer 503. */
   gallery?: GalleryStore;
+  /** Team notifications (G20, decision 11): in-app inbox, then the backend's FCM sender and hello@ mailer. Absent: inbox answers 503. */
+  notices?: NoticeStore;
   /** Shared projects' cloud photo store and the per-account download meter. Absent: the cloud routes answer 503. */
   cloudPhotos?: { store: CloudPhotoStore; meter: UsageMeter; allowance: AllowancePolicy; maxProjectBytes: number };
   /** Hard monthly ceiling on metered spend (Gemini, cloud jobs). Absent: no guard (development and tests). */
@@ -187,6 +191,7 @@ export const Schemas = {
   CloudVariantBody: z.object({ variant: z.enum(CLOUD_VARIANTS) }).strict(),
   CloudRemove: z.object({ variants: z.array(z.enum(CLOUD_VARIANTS)).min(1).max(3).optional() }).strict(),
   CollabResolve: z.object({ resolved: z.boolean() }).strict(),
+  NoticesRead: z.object({ ids: z.union([z.literal('all'), z.array(z.string().min(1).max(64)).max(200)]) }).strict(),
   CollabOverride: z.object({ reason: z.string().trim().min(1).max(500) }).strict(),
   CollabPublish: z.object({ token: z.string().min(16).max(128), baseRevisionId: z.string().max(64).nullable(), recipe: z.record(z.string(), z.unknown()), virtualCopyOf: z.string().max(64).optional() }).strict(),
   SafeCopyLevels: z.object({ levels: z.object({ recipes: z.boolean(), previews: z.boolean(), originals: z.boolean() }).partial().strict() }).strict(),
@@ -565,6 +570,12 @@ export function createApp(options: AppOptions) {
       if (error instanceof CloudRefusal) throw new ApiError(error.status, error.code, error.message);
       throw error;
     }
+  }
+
+  /** Tells people about a change. Never fails the action itself: a missed notice is logged, not an error for the person acting. */
+  async function notify(event: () => Promise<NoticeEvent | null>) {
+    if (!options.notices) return;
+    try { const e = await event(); if (e && e.recipients.length) await options.notices.deliver(e, now()); } catch { /* the action already succeeded */ }
   }
 
   function galleryCfg(): GalleryStore {
@@ -1196,7 +1207,12 @@ export function createApp(options: AppOptions) {
         const body = parseJson(Schemas.CollabComment, req.rawBody);
         if (!PhotoId.safeParse(params.photoId).success) throw new ApiError(400, 'BAD_REQUEST', 'That is not a photo id.');
         const c = await collabWritable();
-        return { status: 200, body: { comment: await collab(() => c.addComment(params.id, params.photoId, claims.sub, { text: body.text, point: body.point ?? null }, now())) } };
+        const comment = await collab(() => c.addComment(params.id, params.photoId, claims.sub, { text: body.text, point: body.point ?? null }, now()));
+        await notify(async () => {
+          const who = await c.commentAudience(params.id, params.photoId, claims.sub);
+          return { kind: 'comment', projectId: params.id, projectName: who.projectName, photoId: params.photoId, actorName: who.actorName, recipients: who.accountIds };
+        });
+        return { status: 200, body: { comment } };
       },
     },
     {
@@ -1204,7 +1220,13 @@ export function createApp(options: AppOptions) {
       handler: async (req, params) => {
         const claims = await bearer(req);
         const body = parseJson(Schemas.CollabResolve, req.rawBody);
-        return { status: 200, body: { comment: await collab(() => collabCfg().resolveComment(params.id, params.commentId, claims.sub, body.resolved, now())) } };
+        const comment = await collab(() => collabCfg().resolveComment(params.id, params.commentId, claims.sub, body.resolved, now()));
+        // The author hears that their comment was marked done or reopened by someone else.
+        if (comment.authorAccountId !== claims.sub) await notify(async () => {
+          const who = await collabCfg().commentAudience(params.id, comment.photoId, claims.sub);
+          return { kind: body.resolved ? 'resolve' : 'reopen', projectId: params.id, projectName: who.projectName, photoId: comment.photoId, actorName: who.actorName, recipients: [comment.authorAccountId] };
+        });
+        return { status: 200, body: { comment } };
       },
     },
     // ---- Cloud photo store for shared projects. Previews first; originals only on demand; downloads metered to the owner.
@@ -1274,6 +1296,24 @@ export function createApp(options: AppOptions) {
         const used = await cfg.meter.usage(claims.sub, now());
         const allowance = await cfg.allowance.monthlyMillicredits(claims.sub, now());
         return { status: 200, body: { month: used.month, usedCredits: used.millicredits / 1000, allowanceCredits: allowance / 1000, bytes: used.bytes, downloads: used.downloads } };
+      },
+    },
+    // ---- Team notifications (G20, owner decision 11): the in-app inbox comes first.
+    {
+      method: 'GET', path: '/v1/collab/notices', summary: 'Your newest notifications from shared projects (reading also marks the app as open, so nothing is emailed meanwhile)', auth: 'user',
+      handler: async (req) => {
+        const claims = await bearer(req);
+        if (!options.notices) throw new ApiError(503, 'COLLAB_NOT_CONFIGURED', 'Notifications are not set up on this server yet.');
+        return { status: 200, body: await options.notices.inbox(claims.sub, now()) };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/collab/notices/read', summary: 'Mark notifications read (some, or all)', auth: 'user', body: Schemas.NoticesRead,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.NoticesRead, req.rawBody);
+        if (!options.notices) throw new ApiError(503, 'COLLAB_NOT_CONFIGURED', 'Notifications are not set up on this server yet.');
+        return { status: 200, body: { read: await options.notices.markRead(claims.sub, body.ids, now()) } };
       },
     },
     {
@@ -1366,7 +1406,12 @@ export function createApp(options: AppOptions) {
       handler: async (req) => {
         if (!galleryLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
         const body = parseJson(Schemas.GalleryFeedback, req.rawBody);
-        await gallery(() => galleryCfg().feedback(body.token, body.password, { visitor: body.visitor, photoId: body.photoId, kind: body.kind, text: body.text }, now()));
+        const g = await gallery(() => galleryCfg().feedback(body.token, body.password, { visitor: body.visitor, photoId: body.photoId, kind: body.kind, text: body.text }, now()));
+        // The people who manage this project's galleries hear about it, once per gallery while unread. Never the client.
+        if (options.collab && body.kind !== 'unfavourite') await notify(async () => {
+          const audience = await options.collab!.audience(g.projectId, 'export');
+          return { kind: 'client-feedback', projectId: g.projectId, projectName: audience.projectName, galleryId: g.galleryId, galleryName: g.name, actorName: null, recipients: audience.accountIds };
+        });
         return { status: 200, body: { received: true } };
       },
     },

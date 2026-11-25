@@ -1711,4 +1711,33 @@ export const source = {
     reload: 'Reload InFlight',
     details: 'Details',
   },
+
+  // Team notifications in shared projects (G20, owner decision 11: in the app first)
+  notices: {
+    button: 'Notifications',
+    buttonCount: (n: number) => `Notifications, ${n} unread`,
+    heading: 'Notifications',
+    none: 'Nothing new.',
+    markAllRead: 'Mark all as read',
+    failed: 'Could not reach notifications.',
+    unread: 'Unread: ',
+    someone: 'Someone',
+    andMore: (name: string, n: number) => `${name} and ${n} more`,
+    comment: (who: string) => `${who} commented on a photo`,
+    reply: (who: string) => `${who} replied to a comment`,
+    resolve: (who: string) => `${who} resolved a comment`,
+    reopen: (who: string) => `${who} reopened a comment`,
+    clientFeedback: (gallery: string) => `New client feedback in ${gallery}`,
+  },
+
+  // Long work finished (G20): on this device, offline, no account
+  taskAlerts: {
+    oneDone: (title: string) => `Finished: ${title}.`,
+    oneFailed: (title: string) => `Needs attention: ${title}. Open Tasks to see why.`,
+    manyDone: (n: number) => `${n} tasks finished.`,
+    manyWithFailures: (n: number, failed: number) => `${n} tasks ended; ${failed} need attention. Open Tasks to see why.`,
+    whileAway: 'While you were away:',
+    allowSystem: 'Also tell me in the background',
+    dismiss: 'Dismiss',
+  },
 };

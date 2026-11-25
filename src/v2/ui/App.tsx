@@ -40,6 +40,8 @@ import ShareDialog from './dialogs/ShareDialog';
 import CloudOriginalPrompt from './dialogs/CloudOriginalPrompt';
 import { usePresence } from './shell/usePresence';
 import { PresenceAvatars, PresenceCursors } from './shell/PresenceLayer';
+import { NoticesButton, useNotices } from './shell/Notices';
+import { TaskAlerts } from './shell/TaskAlerts';
 import SharedEditBanner from './shell/SharedEditBanner';
 import SharedComments from './shell/SharedComments';
 import { getActiveGroup } from './utils/studioMath';
@@ -90,6 +92,15 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     const session = await firebaseAuth.current().catch(() => null);
     return session ? (session.displayName?.trim() || session.email?.split('@')[0] || null) : null;
   }, []);
+  // Team notifications (G20): the in-app inbox, for a signed-in person on a build with sharing.
+  const notices = useNotices(sharing, signedInName);
+  /** A notice opens its photo when that shared project is the one open here; otherwise it only stays in the list. */
+  const goToNoticePhoto = (projectId: string, photoKey: string) => {
+    if (!store.activeProjectId || readSharedLink(store.activeProjectId) !== projectId) return false;
+    const photo = store.photos.find((candidate) => candidate.sharedKey === photoKey);
+    if (photo) actions.selectPhoto(photo.id);
+    return Boolean(photo);
+  };
   const connectivity = useConnectivity();
   const service = useServiceReachability(serviceBase);
   const health = projectsText.connections.health;
@@ -587,7 +598,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetAssistMode={actions.setAssistMode}
             onExport={() => actions.setExportOpen(true)}
             onShare={store.collage ? undefined : () => setShareOpen(true)}
-            presence={<PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(key) => { const photo = store.photos.find((candidate) => candidate.sharedKey === key); if (photo) actions.selectPhoto(photo.id); }} />}
+            presence={<>
+              <PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(key) => { const photo = store.photos.find((candidate) => candidate.sharedKey === key); if (photo) actions.selectPhoto(photo.id); }} />
+              <NoticesButton notices={notices} onGoToPhoto={goToNoticePhoto} />
+            </>}
             onOpenRemoved={() => actions.setRemovedOpen(true)}
             onSaveXmp={store.screen === 'editor' && !store.collage ? () => actions.saveXmpSidecars(store.selectedPhotoIds) : undefined}
             onBackUpNow={store.screen === 'editor' && !store.collage ? actions.backUpProjectNow : undefined}
@@ -958,6 +972,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         onExport={actions.runExport}
       />
 
+      <TaskAlerts />
       <PresenceCursors peers={peers} photoId={activePhoto?.sharedKey ?? null} hidden={cursorsHidden} />
       <CloudOriginalPrompt
         client={sharing}
