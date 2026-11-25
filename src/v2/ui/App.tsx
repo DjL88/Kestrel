@@ -35,6 +35,7 @@ import CollageExportDialog from './dialogs/CollageExportDialog';
 import ExportDialog from './dialogs/ExportDialog';
 import RemovedPhotosDialog from './dialogs/RemovedPhotosDialog';
 import LightroomOfferDialog from './dialogs/LightroomOfferDialog';
+import QuickStartCard from './panels/QuickStartCard';
 import ShareDialog from './dialogs/ShareDialog';
 import { usePresence } from './shell/usePresence';
 import { PresenceAvatars, PresenceCursors } from './shell/PresenceLayer';
@@ -525,6 +526,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onOpenProject={actions.openProject}
           onCreateProject={actions.createProject}
           onCreateFromFolder={actions.createProjectFromFolder}
+          onQuickStart={actions.startQuickStart}
           onRenameProject={actions.renameProject}
           onRestoreBackup={actions.restoreProjectBackup}
           onArchiveProject={actions.archiveProject}
@@ -948,6 +950,12 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         readOriginal={actions.readVerifiedOriginal}
         importCloud={actions.importCloudPreviews}
         onClose={closeShare}
+      />
+
+      <QuickStartCard
+        quickStart={store.screen === 'editor' && !store.exportOpen ? store.quickStart : null}
+        onExport={() => { actions.dismissQuickStart?.(); actions.setExportOpen(true); }}
+        onDone={() => actions.dismissQuickStart?.()}
       />
 
       <LightroomOfferDialog

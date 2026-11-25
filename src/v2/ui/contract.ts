@@ -590,6 +590,9 @@ export interface WorkspaceStore {
   lastActionNotice: string | null;
   /** After reading a Lightroom catalogue: how many of its photos are not in this project yet, and where Lightroom keeps them. */
   lightroomOffer?: { missing: number; folder: string } | null;
+  /** First run: InFlight is adding the picked photos and running Auto on the first ('working'), has applied Auto ('ready'),
+   * found the photo already looked natural and left it ('unchanged'), or could not check it ('failed'). */
+  quickStart?: { phase: 'working' | 'ready' | 'unchanged' | 'failed'; photoId: string | null } | null;
   /** The open project's automatic backup, as last reported. Absent when no project is open. */
   backup?: { state: 'idle' | 'working' | 'ok' | 'partial' | 'failed'; at?: number } | null;
   /** Optional engine-supplied renderer for the canvas (see PhotoSurfaceProps). */
@@ -646,6 +649,9 @@ export interface WorkspaceActions {
   /** Choose the folder Lightroom keeps the catalogue's photos in: add those photos, then bring in their details. */
   chooseLightroomFolder?: () => void;
   dismissLightroomOffer?: () => void;
+  /** First run: pick photos; InFlight makes a project, adds them and runs Auto on the first one. */
+  startQuickStart?: () => void;
+  dismissQuickStart?: () => void;
   runAutoCull: () => void;
   reconnectOriginal: (photoId: string) => void;
   toggleDemoUnavailable: () => void;

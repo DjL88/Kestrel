@@ -28,6 +28,7 @@ export const pt: AreaTranslation<typeof source> = {
   marked: (what: string, marking: string) => `${what}, com a marca ${marking}`,
   registered: (marking: string, type: string) => `${marking}: ${type} (segundo o registo)`,
   operatedBy: (what: string, operator: string) => `${what}, operado por ${operator}`,
+  held: (what: string) => `${what}? Verifique`,
   reader: {
     title: 'Ler matrículas de aeronaves',
     description: (megabytes: string) => `Lê matrículas e números de série militares pintados em aeronaves, neste dispositivo, e procura-os numa cópia offline de registos públicos. Uma transferência única de ${megabytes} MB. As matrículas dos carros nunca são lidas.`,

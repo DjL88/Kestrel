@@ -28,6 +28,7 @@ export const ga: AreaTranslation<typeof source> = {
   marked: (what: string, marking: string) => `${what}, marcáilte ${marking}`,
   registered: (marking: string, type: string) => `${marking}: ${type} (ón gclár)`,
   operatedBy: (what: string, operator: string) => `${what}, á oibriú ag ${operator}`,
+  held: (what: string) => `${what}? Ní mór duit é a sheiceáil`,
   reader: {
     title: 'Léigh clárúcháin aerárthaí',
     description: (megabytes: string) => `Léann sé clárúcháin agus sraithuimhreacha míleata atá péinteáilte ar aerárthaí, ar an ngléas seo, agus cuardaíonn sé iad i gcóip as líne de chláir phoiblí. Íoslódáil aonuaire de ${megabytes} MB. Ní léitear uimhirphlátaí carranna riamh.`,

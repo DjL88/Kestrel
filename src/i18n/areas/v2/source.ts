@@ -351,6 +351,20 @@ export const source = {
     ratingFor: (name: string) => `Rating for ${name}`,
   },
 
+  // First run: a great photo within a minute (projects hub)
+  quickStart: {
+    hubButton: "Make a great photo in a minute",
+    hubHint: "Choose one photo or a few. InFlight makes a project, balances exposure and colour with Auto, and you can export it straight away. Everything stays on this device.",
+    projectName: "My first photos",
+    title: "Your first photo",
+    working: "Adding your photo and checking its exposure and colour on this device…",
+    ready: "Auto balanced the exposure and colour. Compare it with the original, keep editing, or export it now. Undo takes it back.",
+    unchanged: "This photo already looks natural, so Auto left it as it was. Edit it as you like, or export it now.",
+    failedCheck: "Auto could not check this photo. You can still edit it and export it.",
+    export: "Export…",
+    done: "Done",
+    failed: "InFlight could not create the project. Your photos are unchanged.",
+  },
   // Lightroom Classic catalogue (File menu)
   lightroom: {
     readMenu: "Bring in a Lightroom catalogue…",
@@ -1458,6 +1472,7 @@ export const source = {
     privacyBody: 'InFlight works fully offline. Original files are never changed, moved or uploaded. Nothing leaves this device unless you turn on an optional feature and consent to it.',
     privacyLink: 'Read the privacy policy',
     privacyDraft: '(draft, not yet lawyer-reviewed).',
+    buildModified: 'Changed since this commit (a test build, not a release)',
     eraseHeading: 'Erase everything on this device',
     eraseBody: 'Removes every project, edit, preview and saved choice InFlight keeps in this browser or app, then restarts it. Your original photo files are not touched. This cannot be undone.',
     eraseConfirm: 'Type ERASE to confirm',

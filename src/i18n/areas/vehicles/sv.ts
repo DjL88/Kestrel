@@ -28,6 +28,7 @@ export const sv: AreaTranslation<typeof source> = {
   marked: (what: string, marking: string) => `${what}, märkt ${marking}`,
   registered: (marking: string, type: string) => `${marking}: ${type} (enligt registret)`,
   operatedBy: (what: string, operator: string) => `${what}, drivs av ${operator}`,
+  held: (what: string) => `${what}? Behöver granskas`,
   reader: {
     title: 'Läs registreringar på flygplan',
     description: (megabytes: string) => `Läser registreringar och militära serienummer som målats på luftfartyg, på den här enheten, och slår upp dem i en offlinekopia av offentliga register. En engångsnedladdning på ${megabytes} MB. Registreringsskyltar på bilar läses aldrig.`,
