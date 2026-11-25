@@ -7,6 +7,7 @@ import { getActiveGroup } from '../utils/studioMath';
 import { ColourMixerControl, KelvinControl, ToneCurveControl } from './CurveMixerControls';
 import { ColourGradeControl } from './ColourGradeControl';
 import { CalibrationControl, EffectsControls } from './EffectsControls';
+import { FringeControls } from './FringeControls';
 
 interface AdjustPanelProps {
   photo: Photo | null;
@@ -17,6 +18,7 @@ interface AdjustPanelProps {
   /** Settings → Show advanced controls: colour grading and channel curves. */
   showAdvanced?: boolean;
   onUpdateRecipe: (photoId: string, patch: Partial<EditRecipe>) => void;
+  onDetectColourEdges: (photoId: string) => Promise<'corrected' | 'clean' | 'unclear'>;
   onApplyLook: (photoId: string, lookId: string) => void;
   onHoverLook: (lookId: string | null) => void;
   onResetPhoto: (photoId: string) => void;
@@ -113,6 +115,7 @@ export default function AdjustPanel({
   hideReadouts,
   showAdvanced = false,
   onUpdateRecipe,
+  onDetectColourEdges,
   onApplyLook,
   onHoverLook,
   onResetPhoto,
@@ -390,6 +393,9 @@ export default function AdjustPanel({
       <section aria-labelledby="effects-heading" className={`space-y-3 border-t border-[var(--border-subtle)] pt-4 ${phoneGroupClass(advancedGroup, 'detail')}`}>
         <h3 id="effects-heading" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.adjust.effects.heading}</h3>
         <EffectsControls recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
+        <div className="border-t border-[var(--border-subtle)] pt-3">
+          <FringeControls recipe={recipe} calmView={hideReadouts} showAdvanced={showAdvanced} onChange={(patch) => onUpdateRecipe(photo.id, patch)} onDetect={() => onDetectColourEdges(photo.id)} />
+        </div>
       </section>
 
       {/* Tone curve (Tone group on a phone) and colour mixer (Colour group on a phone) */}
