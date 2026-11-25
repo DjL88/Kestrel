@@ -1,33 +1,42 @@
 /**
- * Build and sign the model manifest for the models bucket.
+ * Build and sign InFlight's one model manifest for the models bucket.
  *
- *   npx tsx scripts/release/sign-data-manifest.ts --dir <folder of .onnx files> --version 2026.11.20 --revision 3 --out out/models
+ *   npx tsx scripts/release/sign-data-manifest.ts --dir <folder of .onnx files> --version 2026.11.25 --revision 3 --out out/models \
+ *     [--species <folder of species lists (.json)> --species-licence CC-BY-4.0 --species-source https://...]
  *
- * Needs KESTREL_SIGNING_KEY_PEM (Ed25519, PKCS#8) and KESTREL_SIGNING_KEY_ID in the environment, for example from
+ * Needs KESTREL_SIGNING_KEY_PEM (Ed25519, PKCS#8) and KESTREL_SIGNING_KEY_ID (kestrel-2026-11) in the environment, from
  *   gcloud secrets versions access latest --secret=kestrel-manifest-signing-key
- * Writes <out>/data/onnx/<id>/<version>/<file> (copies of the files) and <out>/manifest/stable.json, laid out exactly as
- * they go in the bucket. The manifest is checked with the app's own parser before signing, so the script can never
- * publish something the app would refuse. Nothing is uploaded here; publish-gcp.ps1 does that.
+ * This is the only model manifest and the only key that signs it: the app pins its public half
+ * (VITE_KESTREL_MODEL_KEYS) and the control plane checks it before serving it at /v1/models/manifest (KCP_MODEL_KEYS).
+ * The control plane's own key (kcp-2026-11) signs grants and flags, never models.
+ *
+ * `--dir` may hold the app's slot models (by file name) and the files of optional packs (matched by the SHA-256 pinned
+ * in src/core/optionalModels.ts). What goes in, and the licence each needs, is decided by src/core/modelManifestPlan.ts;
+ * anything it would refuse stops the script before signing. Writes <out>/data/... (copies of the files),
+ * <out>/manifest/stable.json and <out>/manifest/licences.json, laid out exactly as they go in the bucket. Nothing is
+ * uploaded here; publish-gcp.ps1 does that.
  */
 import { createHash } from 'node:crypto';
 import { copyFileSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { basename, extname, join } from 'node:path';
-import { parseDataManifest, type DataAsset } from '../../src/core/dataUpdateManifest.ts';
+import { extname, join } from 'node:path';
 import { loadSigningKey, signEnvelope } from '../../services/control-plane/src/crypto.ts';
-import { MODEL_SLOTS, isModelSlot } from '../../src/core/modelUpdatePolicy.ts';
+import { licenceList, manifestFor, planManifestAssets, type CandidateFile } from '../../src/core/modelManifestPlan.ts';
 import { readGit, resolveProvenance } from '../build-provenance.mjs';
 
-function arg(name: string): string {
+function arg(name: string, optional = false): string | undefined {
   const index = process.argv.indexOf(`--${name}`);
   const value = index >= 0 ? process.argv[index + 1] : undefined;
-  if (!value) throw new Error(`Missing --${name}`);
+  if (!value && !optional) throw new Error(`Missing --${name}`);
   return value;
 }
 
-const dir = arg('dir');
-const version = arg('version');
+const dir = arg('dir')!;
+const version = arg('version')!;
 const revision = Number(arg('revision'));
-const out = arg('out');
+const out = arg('out')!;
+const speciesDir = arg('species', true);
+const speciesSpdx = arg('species-licence', true);
+const speciesSource = arg('species-source', true);
 const pem = process.env.KESTREL_SIGNING_KEY_PEM;
 const keyId = process.env.KESTREL_SIGNING_KEY_ID;
 if (!pem || !keyId) throw new Error('Set KESTREL_SIGNING_KEY_PEM and KESTREL_SIGNING_KEY_ID (never commit the key).');
@@ -37,23 +46,29 @@ if (!pem || !keyId) throw new Error('Set KESTREL_SIGNING_KEY_PEM and KESTREL_SIG
 const provenance = resolveProvenance({ env: { ...process.env, KESTREL_RELEASE: '1' }, git: readGit(process.cwd()), target: 'models' });
 if (!Number.isInteger(revision) || revision < 1) throw new Error('--revision must be a whole number of 1 or more, higher than the last one published.');
 
-const assets: DataAsset[] = readdirSync(dir).filter((name) => extname(name) === '.onnx').sort().map((name) => {
-  const file = join(dir, name);
-  const bytes = readFileSync(file);
-  const id = basename(name, '.onnx').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
-  const path = `/data/onnx/${id}/${version}/${name}`;
-  const target = join(out, path);
-  mkdirSync(join(target, '..'), { recursive: true });
-  copyFileSync(file, target);
-  // The app can only update a model it already has a slot for, and only to one that keeps that slot's contract.
-  if (!isModelSlot(id)) throw new Error(`"${id}" is not a model the app has a slot for (${Object.keys(MODEL_SLOTS).join(', ')}). A new model needs a new app release first.`);
-  return { id, kind: 'onnx', version, path, bytes: statSync(file).size, sha256: createHash('sha256').update(bytes).digest('hex'), contract: MODEL_SLOTS[id].contract };
+const read = (folder: string, ext: string): (CandidateFile & { full: string })[] => readdirSync(folder).filter((name) => extname(name) === ext).map((name) => {
+  const full = join(folder, name);
+  return { name, full, bytes: statSync(full).size, sha256: createHash('sha256').update(readFileSync(full)).digest('hex') };
 });
-if (!assets.length) throw new Error(`No .onnx files in ${dir}`);
+const models = read(dir, '.onnx');
+const species = speciesDir ? read(speciesDir, '.json') : [];
+const plan = planManifestAssets({
+  version, models, species,
+  ...(speciesSpdx && speciesSource ? { speciesLicence: { spdx: speciesSpdx, source: speciesSource } } : {}),
+});
+if (!plan.ok) throw new Error(`Not signed:\n- ${plan.problems.join('\n- ')}`);
 
-const manifest = parseDataManifest({ schema: 1, revision, assets });
+const manifest = manifestFor(plan.assets, revision);
 if (!manifest) throw new Error('The app would refuse this manifest (check ids, version, paths and sizes).');
+const sources = new Map([...models, ...species].map((f) => [f.sha256, f.full]));
+for (const asset of plan.assets) {
+  const target = join(out, asset.path);
+  mkdirSync(join(target, '..'), { recursive: true });
+  copyFileSync(sources.get(asset.sha256)!, target);
+}
 const envelope = signEnvelope(manifest, loadSigningKey(keyId, pem));
 mkdirSync(join(out, 'manifest'), { recursive: true });
 writeFileSync(join(out, 'manifest', 'stable.json'), `${JSON.stringify(envelope, null, 2)}\n`);
-console.log(`Signed ${assets.length} model(s), revision ${revision}, key ${keyId}. Folder ready to upload: ${out}`);
+writeFileSync(join(out, 'manifest', 'licences.json'), `${JSON.stringify({ revision, keyId, licences: licenceList(plan.assets) }, null, 2)}\n`);
+writeFileSync(join(out, 'manifest', 'build-info.json'), `${JSON.stringify(provenance, null, 2)}\n`);
+console.log(`Signed ${plan.assets.length} asset(s) (${plan.assets.map((a) => a.id).join(', ')}), revision ${revision}, key ${keyId}. Folder ready to upload: ${out}`);

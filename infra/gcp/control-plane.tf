@@ -196,6 +196,15 @@ resource "google_cloud_run_v2_service" "control_plane" {
         value = var.control_plane_signing_key_id
       }
       env {
+        # The one model manifest: served unchanged by /v1/models/manifest after it verifies with KCP_MODEL_KEYS.
+        name  = "KCP_MODEL_MANIFEST_URL"
+        value = "https://storage.googleapis.com/${google_storage_bucket.models.name}/manifest/stable.json"
+      }
+      env {
+        name  = "KCP_MODEL_KEYS"
+        value = var.model_manifest_keys
+      }
+      env {
         name  = "KCP_ALLOWED_ORIGINS"
         value = local.control_plane_origins
       }
