@@ -146,8 +146,26 @@ class CollabApiError extends ApiError {
   constructor(status: number, code: string, message: string, readonly detail?: Record<string, unknown>) { super(status, code, message); }
 }
 
+/**
+ * Admin on/off switches. A `planned` switch is designed but not built (owner decisions of 25 Nov 2026, docs/ROADMAP.md):
+ * it is listed so the admin console shows the gate, it is never "configured", and so it can never be switched on.
+ */
+const SWITCHES = [
+  { key: 'managed-ai', label: 'Managed Gemini helper', note: 'Sends one consented, metadata-free thumbnail at a time to Gemini. Counts against the monthly spend ceiling.' },
+  { key: 'cloud-processing', label: 'Cloud processing', note: 'Heavier jobs (denoise, upscale, masks) for Pro. Needs the bucket and the runner job set up.' },
+  { key: 'safe-copy', label: 'Safe copy (managed backup)', note: 'Opt-in backup to InFlight UK storage. Switching off stops uploads only; people can always read and delete their copy.' },
+  { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
+  { key: 'pro-checkout', label: 'Pro checkout (SumUp)', note: 'People can pay for Pro through SumUp\'s hosted page. Their billing country must match their network location. Switching off stops new checkouts only; payments already made are still verified and granted.' },
+  { key: 'collaboration', label: 'Shared projects', note: 'Cloud subscribers can share a project, invite people by email and check photos out to edit. Switching off stops new shared projects and checkouts; members can still read revisions.' },
+  { key: 'pro-checkout-eu', label: 'Pro checkout for EU buyers', note: 'Switch on only once you are registered for OSS (EU VAT on digital sales). Until then EU buyers see that Pro is not on sale in their country yet.' },
+  { key: 'pro-cloud-storage', planned: true, label: 'Pro Cloud storage (designed, not built)', note: "Store a project's originals in InFlight's UK cloud to open on any device and share. Opt-in per project; originals on the device are never moved or changed. Cannot be switched on until it is built and the owner approves the cost." },
+] as const;
+const SWITCH_KEYS = SWITCHES.map((w) => w.key) as [SwitchKey, ...SwitchKey[]];
+type SwitchKey = typeof SWITCHES[number]['key'];
+const isPlanned = (key: SwitchKey) => SWITCHES.some((w) => w.key === key && 'planned' in w && w.planned);
+
 export const Schemas = {
-  AdminSwitch: z.object({ key: z.enum(['managed-ai', 'cloud-processing', 'safe-copy', 'learning-signal', 'pro-checkout', 'pro-checkout-eu']), on: z.boolean() }).strict(),
+  AdminSwitch: z.object({ key: z.enum(SWITCH_KEYS), on: z.boolean() }).strict(),
   ProCheckoutRequest: z.object({ country: z.string().regex(/^[A-Z]{2}$/) }).strict(),
   CollabCreate: z.object({ name: z.string().trim().min(1).max(120), displayName: z.string().trim().min(1).max(80) }).strict(),
   CollabMembers: z.discriminatedUnion('kind', [
@@ -392,18 +410,9 @@ export function createApp(options: AppOptions) {
   // ---- Admin on/off switches. Managed Gemini is on unless switched off (the existing `ai_disabled` setting, so the
   // existing admin control and this one are the same switch). The new features are off in production until an admin
   // switches them on. The older kill settings (cloud_disabled, safe_copy_disabled) still win.
-  const SWITCHES = [
-    { key: 'managed-ai', label: 'Managed Gemini helper', note: 'Sends one consented, metadata-free thumbnail at a time to Gemini. Counts against the monthly spend ceiling.' },
-    { key: 'cloud-processing', label: 'Cloud processing', note: 'Heavier jobs (denoise, upscale, masks) for Pro. Needs the bucket and the runner job set up.' },
-    { key: 'safe-copy', label: 'Safe copy (managed backup)', note: 'Opt-in backup to InFlight UK storage. Switching off stops uploads only; people can always read and delete their copy.' },
-    { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
-    { key: 'pro-checkout', label: 'Pro checkout (SumUp)', note: 'People can pay for Pro through SumUp\'s hosted page. Their billing country must match their network location. Switching off stops new checkouts only; payments already made are still verified and granted.' },
-    { key: 'collaboration', label: 'Shared projects', note: 'Cloud subscribers can share a project, invite people by email and check photos out to edit. Switching off stops new shared projects and checkouts; members can still read revisions.' },
-    { key: 'pro-checkout-eu', label: 'Pro checkout for EU buyers', note: 'Switch on only once you are registered for OSS (EU VAT on digital sales). Until then EU buyers see that Pro is not on sale in their country yet.' },
-  ] as const;
-  type SwitchKey = typeof SWITCHES[number]['key'];
-  const switchConfigured = (key: SwitchKey) => key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'pro-checkout' || key === 'pro-checkout-eu' ? !!options.proCheckout : !!options.learning;
+  const switchConfigured = (key: SwitchKey) => isPlanned(key) ? false : key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'pro-checkout' || key === 'pro-checkout-eu' ? !!options.proCheckout : !!options.learning;
   async function switchOn(key: SwitchKey): Promise<boolean> {
+    if (isPlanned(key)) return false;
     if (key === 'managed-ai') return (await store.getSetting('ai_disabled')) !== '1';
     const legacy = key === 'cloud-processing' ? 'cloud_disabled' : key === 'safe-copy' ? 'safe_copy_disabled' : undefined;
     if (legacy && (await store.getSetting(legacy)) === '1') return false;
