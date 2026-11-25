@@ -353,6 +353,7 @@ export const es: AreaTranslation<typeof source> = {
     working: "Añadiendo su foto y comprobando su exposición y color en este dispositivo…",
     ready: "Auto equilibró la exposición y el color. Compárela con el original, siga editando o expórtela ahora. Deshacer lo revierte.",
     unchanged: "Esta foto ya se ve natural, así que Auto la dejó como estaba. Edítela a su gusto o expórtela ahora.",
+    held: "Auto tiene una sugerencia, pero la comprobación visual de este dispositivo no está convencida de que parezca natural, así que no se ha cambiado nada. Compárala en Copiloto y aplícala si te gusta, o exporta la foto tal como está.",
     failedCheck: "Auto no pudo revisar esta foto. Aún puede editarla y exportarla.",
     export: "Exportar…",
     done: "Listo",
@@ -684,6 +685,8 @@ export const es: AreaTranslation<typeof source> = {
   },
   guardian: {
     autopilotHeld: "El piloto automático ha retenido esta edición para que la revise: la comprobación visual de este dispositivo no estaba convencida de que pareciera natural. La sugerencia está en el copiloto para verla o aplicarla. No se ha cambiado nada.",
+    secondOpinion: "Segunda opinión:",
+    suggestionDoubted: "la comprobación visual de este dispositivo no está convencida de que parezca natural. Compara el antes y el después; aplicarlo es decisión tuya.",
   },
   adjust: {
     grade: {

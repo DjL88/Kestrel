@@ -353,6 +353,7 @@ export const cy: AreaTranslation<typeof source> = {
     working: "Yn ychwanegu eich llun ac yn gwirio’r datguddiad a’r lliw ar y ddyfais hon…",
     ready: "Mae Awto wedi cydbwyso’r datguddiad a’r lliw. Cymharwch ef â’r gwreiddiol, daliwch ati i olygu, neu allforiwch ef nawr. Mae Dadwneud yn ei dynnu’n ôl.",
     unchanged: "Mae’r llun hwn eisoes yn edrych yn naturiol, felly gadawodd Awto ef fel yr oedd. Golygwch ef fel y mynnwch, neu allforiwch ef nawr.",
+    held: "Mae gan Auto awgrym, ond nid oedd y gwiriad gweledol ar y ddyfais hon yn argyhoeddedig ei fod yn edrych yn naturiol, felly ni newidiwyd dim. Cymharwch ef yn Cyd-beilot a'i roi ar waith os ydych yn ei hoffi, neu allforiwch y llun fel y mae.",
     failedCheck: "Nid oedd Awto yn gallu gwirio’r llun hwn. Gallwch ei olygu a’i allforio o hyd.",
     export: "Allforio…",
     done: "Wedi gorffen",
@@ -684,6 +685,8 @@ export const cy: AreaTranslation<typeof source> = {
   },
   guardian: {
     autopilotHeld: "Daliodd yr awtobeilot y golygiad hwn yn ôl i chi ei adolygu: nid oedd y gwiriad gweledol ar y ddyfais hon yn siŵr ei fod yn edrych yn naturiol. Mae'r awgrym yn y cyd-beilot i'w ragweld neu ei roi ar waith. Ni newidiwyd dim.",
+    secondOpinion: "Ail farn:",
+    suggestionDoubted: "nid oedd y gwiriad gweledol ar y ddyfais hon yn argyhoeddedig bod hyn yn edrych yn naturiol. Cymharwch cyn ac ar ôl; eich dewis chi yw ei roi ar waith.",
   },
   adjust: {
     grade: {

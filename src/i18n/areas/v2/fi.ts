@@ -354,6 +354,7 @@ export const fi: AreaTranslation<typeof source> = {
     working: "Lisätään kuvaa ja tarkistetaan sen valotus ja värit tällä laitteella…",
     ready: "Auto tasapainotti valotuksen ja värit. Vertaa alkuperäiseen, jatka muokkausta tai vie kuva nyt. Kumoa palauttaa sen.",
     unchanged: "Kuva näyttää jo luonnolliselta, joten Auto jätti sen ennalleen. Muokkaa sitä haluamallasi tavalla tai vie se nyt.",
+    held: "Autolla on ehdotus, mutta tämän laitteen kuvatarkistus ei ollut vakuuttunut, että se näyttää luonnolliselta, joten mitään ei muutettu. Vertaa sitä Perämiehessä ja käytä sitä, jos pidät siitä, tai vie kuva sellaisenaan.",
     failedCheck: "Auto ei voinut tarkistaa tätä kuvaa. Voit silti muokata ja viedä sen.",
     export: "Vie…",
     done: "Valmis",
@@ -685,6 +686,8 @@ export const fi: AreaTranslation<typeof source> = {
   },
   guardian: {
     autopilotHeld: "Autopilotti jätti tämän muokkauksen tarkistettavaksesi: tämän laitteen kuvatarkistus ei ollut varma, että se näyttää luonnolliselta. Ehdotus on perämiehessä esikatselua tai käyttöä varten. Mitään ei muutettu.",
+    secondOpinion: "Toinen mielipide:",
+    suggestionDoubted: "tämän laitteen kuvatarkistus ei ollut vakuuttunut, että tämä näyttää luonnolliselta. Vertaa ennen ja jälkeen; käyttäminen on sinun valintasi.",
   },
   adjust: {
     grade: {

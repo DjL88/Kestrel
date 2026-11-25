@@ -375,6 +375,7 @@ export const source = {
     working: "Adding your photo and checking its exposure and colour on this device…",
     ready: "Auto balanced the exposure and colour. Compare it with the original, keep editing, or export it now. Undo takes it back.",
     unchanged: "This photo already looks natural, so Auto left it as it was. Edit it as you like, or export it now.",
+    held: "Auto has a suggestion, but the vision check on this device was not convinced it looks natural, so nothing was changed. Compare it in Co-pilot and apply it if you like it, or export the photo as it is.",
     failedCheck: "Auto could not check this photo. You can still edit it and export it.",
     export: "Export…",
     done: "Done",
@@ -719,6 +720,8 @@ export const source = {
   // Adjust Panel
   guardian: {
     autopilotHeld: "Auto-pilot held this edit for your review: the vision check on this device was not convinced it looks natural. The suggestion is in Co-pilot to preview or apply. Nothing was changed.",
+    secondOpinion: "Second opinion:",
+    suggestionDoubted: "the vision check on this device was not convinced this looks natural. Compare before and after; applying it is your choice.",
   },
   adjust: {
     looksHeading: 'Curated Looks',
