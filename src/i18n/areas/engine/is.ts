@@ -109,6 +109,8 @@ export const is: AreaTranslation<typeof source> = {
     skyUnavailable: 'Greining himins er ekki tiltæk. Bættu frekar við Litbrigði handvirkt.',
     brushUnavailable: 'Pensillinn er ekki enn tengdur við vinnuflötinn. Notaðu stillanlegt Sporöskjusvæði eða Litbrigði.',
     masksFull: 'Þessi mynd er þegar með eins margar grímur og hún rúmar. Fjarlægðu eina fyrst.',
+    tapNothingSelected: 'Ekkert var valið á þeim stað. Ýttu innan í myndefnið.',
+    tapNotAnswered: 'Ekki tókst að svara þessu snerti. Engu var breytt.',
     ovalAdded: 'Stillanlegri grímu fyrir Sporöskjusvæði var bætt við. Opnaðu lagið hennar til að staðsetja hana og færðu svo sleða til að breyta myndinni. Þú getur afturkallað þetta.',
     gradientAdded: 'Stillanlegri Litbrigðagrímu var bætt við. Opnaðu lagið hennar til að staðsetja hana og færðu svo sleða til að breyta myndinni. Þú getur afturkallað þetta.',
     findSubjectTask: 'Leita að myndefninu',

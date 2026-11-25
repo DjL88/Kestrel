@@ -143,7 +143,7 @@ export function ProjectRow(props: ProjectCardProps) {
         </button>
       </div>
       <div data-testid="project-row-body"
-        className="group relative flex touch-pan-y items-center gap-3 bg-[var(--bg-surface)] p-2 pr-1 motion-reduce:!transition-none sm:gap-4 sm:p-2.5"
+        className="group relative flex touch-pan-y items-center gap-3 bg-[var(--bg-surface)] p-2 pr-1 motion-reduce:!transition-none sm:gap-3"
         style={{ transform: `translateX(${offset}px)`, transition: dragging ? 'none' : 'transform 160ms ease-out' }}
         onTouchStart={(event) => {
           if (event.touches.length !== 1) return;
@@ -169,7 +169,7 @@ export function ProjectRow(props: ProjectCardProps) {
         onClickCapture={(event) => { if (offset !== 0) { event.preventDefault(); event.stopPropagation(); close(); } }}>
         {/* The cover is a pointer shortcut only (the name button opens it for keyboards), so it is not a second button, and its picture keeps its name for screen readers. */}
         <div onClick={onOpen}
-          className="flex h-16 shrink-0 cursor-pointer gap-0.5 overflow-hidden rounded-[var(--radius-md)] bg-[var(--bg-canvas)] sm:h-28">
+          className="flex h-16 shrink-0 cursor-pointer gap-0.5 overflow-hidden rounded-[var(--radius-md)] bg-[var(--bg-canvas)] sm:h-20">
           <span className="block aspect-[3/2] h-full overflow-hidden">
             <Cover project={project} coverFailed={props.coverFailed} onCoverError={props.onCoverError} iconSize={22} />
           </span>
@@ -185,12 +185,13 @@ export function ProjectRow(props: ProjectCardProps) {
             className="block max-w-full truncate text-left text-sm font-semibold text-[var(--text-primary)] hover:text-[var(--brand-accent)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]">
             {project.name}
           </button>
-          <p className="mt-1 text-xs text-[var(--text-secondary)] tabular-nums"><Meta project={project} /></p>
-          {project.folderPath && <p className="mt-1 hidden truncate font-mono text-[11px] text-[var(--text-muted)] sm:block">{project.folderPath}</p>}
-          <div className="mt-1.5 hidden sm:block"><StorageStatus project={project} /></div>
+          <p className="mt-0.5 text-xs text-[var(--text-secondary)] tabular-nums"><Meta project={project} /></p>
+          {project.folderPath && <p className="mt-0.5 hidden truncate font-mono text-[11px] text-[var(--text-muted)] sm:block">{project.folderPath}</p>}
+          <div className="mt-1 hidden sm:block"><StorageStatus project={project} /></div>
         </div>
+        {/* A visible Open studio link on wider rows; below lg the two-across rows are too narrow, and the name button opens it. */}
         <button type="button" onClick={onOpen}
-          className="hidden shrink-0 items-center gap-1 rounded-[var(--radius-md)] px-2 py-2 text-xs font-semibold text-[var(--brand-accent)] hover:underline md:inline-flex">
+          className="hidden shrink-0 items-center gap-1 rounded-[var(--radius-md)] px-2 py-2 text-xs font-semibold text-[var(--brand-accent)] hover:underline lg:inline-flex">
           <span>{STRINGS.hub.openProject}</span><BrandIcon name="arrow" size={13} />
         </button>
         <ActionsMenu {...props} />

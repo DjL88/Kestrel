@@ -12,6 +12,17 @@ export async function askOnDeviceGuardian(jpegDataUrl: string, question: Guardia
   return askGuardianAbout(new Blob([bytes], { type: 'image/jpeg' }), question, undefined, question === 'editNatural' ? GUARDIAN_QUESTIONS.editNatural : undefined);
 }
 
+/** True when the on-device model can answer at all (desktop app with the pack installed). Asked once per pass. */
+export async function onDeviceGuardianReady(): Promise<boolean> {
+  if (!hasLocalVision()) return false;
+  return (await localVisionStatus().catch(() => null))?.installed === true;
+}
+
+/** A fixed-wording question (no claim) about a picture already in hand (a JPEG or PNG preview). Null means no opinion. */
+export async function askOnDeviceGuardianAbout(picture: Blob, question: 'editNatural' | 'subjectClear'): Promise<GuardianOpinion | null> {
+  return askGuardianAbout(picture, question);
+}
+
 /**
  * One guardian check about a claim (subject found, mask complete, species plausible), in the exact words the benchmark
  * measures (`guardianQuestionText`). For the mask checks, `jpeg` is the picture with the outside of the mask darkened.
@@ -20,7 +31,7 @@ export async function askGuardianAbout(jpeg: Blob, check: GuardianQuestion, clai
   const text = fixedText ?? guardianQuestionText(check, claim);
   if (!text || !hasLocalVision()) return null;
   try {
-    if (!(await localVisionStatus())?.installed) return null;
+    if (!(await onDeviceGuardianReady())) return null;
     const answer = await describePhoto(jpeg, text);
     return { source: 'on-device', verdict: answer.usable ? readGuardianAnswer(answer.text) : 'unsure', question: check };
   } catch {

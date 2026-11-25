@@ -11,5 +11,5 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": ["src", "test", "../../src/core/signedEnvelope.ts", "../../src/core/entitlementGrant.ts", "../../src/core/modelDelivery.ts", "../../src/core/licence.ts"]
+  "include": ["src", "test", "scripts", "../../src/core/signedEnvelope.ts", "../../src/core/entitlementGrant.ts", "../../src/core/modelDelivery.ts", "../../src/core/licence.ts"]
 }

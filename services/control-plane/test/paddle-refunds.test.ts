@@ -35,11 +35,12 @@ function fakePaddle(accountId: string) {
   return { request, calls, state, adjust };
 }
 
-async function rig() {
+async function rig(granted = true) {
   const h = await startHarness(null);
   const accountId = await h.app.createAccount('refund@example.test', 'test-password-with-length', 'user');
   const order = { ...ORDER, accountId };
-  await h.app.store.grantLicence(purchaseEntitlement({ store: 'paddle', checkoutReference: order.reference, accountId, emailHash: order.emailHash, majorVersion: 1 }, h.clock.now));
+  const grant = () => h.app.store.grantLicence(purchaseEntitlement({ store: 'paddle', checkoutReference: order.reference, accountId, emailHash: order.emailHash, majorVersion: 1 }, h.clock.now));
+  if (granted) await grant();
   const paddle = fakePaddle(accountId);
   const claimed = new Set<string>();
   const revoke = paddleRefundRevocation({
@@ -51,7 +52,7 @@ async function rig() {
   });
   const licence = async () => (await h.app.store.getLicence(paddleProLicenceId(order)))!.status;
   const audit = async () => (await h.app.store.listAudit(50)).filter((e) => e.actor === 'paddle');
-  return { h, paddle, revoke, licence, audit };
+  return { h, paddle, revoke, licence, audit, grant };
 }
 
 test('what each Paddle adjustment means for Pro', () => {
@@ -105,6 +106,17 @@ test('a chargeback removes Pro; a credit, a reversal or an adjustment for anothe
     assert.ok((await audit()).some((e) => e.action === 'licence.chargeback_reversed'));
     paddle.adjust('adj_01othertxn0000001', { action: 'refund', type: 'full', transaction_id: 'txn_01notapro00000001' });
     assert.equal(await revoke('evt_o', 'adj_01othertxn0000001'), 'ignored', 'not a Pro order');
+  } finally { await h.close(); }
+});
+
+test('a refund that arrives before Pro was granted still wins: a late completed notification cannot unlock it', async () => {
+  const { h, paddle, revoke, licence, grant } = await rig(false);
+  try {
+    paddle.adjust('adj_01early0000000001', { action: 'refund', type: 'full' });
+    assert.equal(await revoke('evt_e', 'adj_01early0000000001'), 'revoked');
+    assert.equal(await licence(), 'revoked');
+    await grant(); // what proSettlement does on transaction.completed
+    assert.equal(await licence(), 'revoked', 'the grant keeps the revoked licence');
   } finally { await h.close(); }
 });
 

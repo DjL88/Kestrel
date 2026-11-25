@@ -39,7 +39,7 @@ scope.onmessage = async (event: MessageEvent) => {
       const outputs: Record<string, { data: Float32Array; dims: number[] }> = {};
       const transfer: ArrayBuffer[] = [];
       for (const [name, tensor] of Object.entries(results)) {
-        if (!(tensor.data instanceof Float32Array)) continue;
+        if (!(tensor.data instanceof Float32Array)) continue; // on purpose: U2-Net and DINOv2 answer in float32 only
         const data = new Float32Array(tensor.data); // out of the runtime's own memory before handing it over
         outputs[name] = { data, dims: [...tensor.dims] };
         transfer.push(data.buffer);

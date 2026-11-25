@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { newId } from '../../core/ids';
+import { engineText } from '../../i18n/areas/engine';
 import { createSubjectMask, framingKey, type Mask } from '../../core/maskTypes';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFraming';
 import { DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
@@ -87,7 +88,7 @@ export function useTapSelect({ stateRef, provider, editFrames, setNotice }: Deps
     // A new subject begins with a tap that adds; a remove tap needs something to remove from.
     if (!existing && !add) return;
     const frame = stateRef.current?.frames.find(candidate => candidate.id === photoId);
-    if (!existing && !canAddMask(frame?.edit?.masks)) { setNotice('This photo has the most masks it can hold. Remove one first.'); return; }
+    if (!existing && !canAddMask(frame?.edit?.masks)) { setNotice(engineText.workspace.masksFull); return; }
     const subject = existing ?? { maskId: newId(), taps: [] };
     const taps = [...subject.taps, { x: point.x, y: point.y, add }];
     const subjects = [...session.subjects];
@@ -95,7 +96,7 @@ export function useTapSelect({ stateRef, provider, editFrames, setNotice }: Deps
     setState(current => ({ ...current, session: { ...session, subjects, phase: 'working' } }));
     void selectSubjects(reading.key, [tapSelectPrompt(taps, reading.size)]).then(([result]) => {
       setState(current => current.session ? { ...current, session: { ...current.session, phase: 'ready' } } : current);
-      if (!result || result.coverage === 0) { setNotice('Nothing was selected at that point. Tap inside the subject.'); return; }
+      if (!result || result.coverage === 0) { setNotice(engineText.workspace.tapNothingSelected); return; }
       const mask: Mask = {
         ...createSubjectMask(subject.maskId, samMaskToGrid(result), reading.framing, samConfidence(result.score)),
         feather: 0.3,
@@ -111,7 +112,7 @@ export function useTapSelect({ stateRef, provider, editFrames, setNotice }: Deps
       });
     }).catch((error: unknown) => {
       setState(current => current.session ? { ...current, session: { ...current.session, phase: 'ready' } } : current);
-      setNotice(error instanceof Error ? error.message : 'That tap could not be answered. Nothing was changed.');
+      setNotice(error instanceof Error ? error.message : engineText.workspace.tapNotAnswered);
     });
   }, [stateRef, editFrames, setNotice]);
 

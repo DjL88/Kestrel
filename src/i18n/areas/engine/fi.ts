@@ -109,6 +109,8 @@ export const fi: AreaTranslation<typeof source> = {
     skyUnavailable: 'Taivaan tunnistus ei ole käytettävissä. Lisää sen sijaan Liukuma käsin.',
     brushUnavailable: 'Sivellin ei ole vielä yhteydessä työalueeseen. Käytä säädettävää Soikeaa aluetta tai Liukumaa.',
     masksFull: 'Tässä kuvassa on jo niin monta maskia kuin mahtuu. Poista ensin yksi.',
+    tapNothingSelected: 'Siitä kohdasta ei valittu mitään. Napauta kohteen sisällä.',
+    tapNotAnswered: 'Napautukseen ei saatu vastausta. Mitään ei muutettu.',
     ovalAdded: 'Lisättiin säädettävä Soikea alue -maski. Avaa sen taso ja sijoita se, ja liikuta sitten liukusäädintä kuvan muuttamiseksi. Voit kumota tämän.',
     gradientAdded: 'Lisättiin säädettävä Liukuma-maski. Avaa sen taso ja sijoita se, ja liikuta sitten liukusäädintä kuvan muuttamiseksi. Voit kumota tämän.',
     findSubjectTask: 'Etsitään kohdetta',

@@ -1244,6 +1244,7 @@ export const is: AreaTranslation<typeof source> = {
   autoCullSummary: {
     checked: (count: number) => `Myndir sem sjálfvirkt val athugaði: ${count}. Skoðaðu merkingarnar á myndræmunni.`,
     rawFromCameraPreview: (count: number) => `RAW-myndir metnar eftir innbyggðri forskoðun myndavélarinnar, ekki eftir skynjaragögnum: ${count}. Athugaðu skerpuna með auganu.`,
+    heldByGuardian: (count: number) => `Myndir til að halda sem bíða yfirferðar þinnar, því myndathugunin í þessu tæki efaðist um myndefnið: ${count}. Þær eru tillögur, ekki merktar.`,
     undo: "Þú getur afturkallað alla umferðina í einu skrefi.",
   },
   tasks: {

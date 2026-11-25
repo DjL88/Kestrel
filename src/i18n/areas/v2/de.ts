@@ -1244,6 +1244,7 @@ export const de: AreaTranslation<typeof source> = {
   autoCullSummary: {
     checked: (count: number) => `Von der Auto-Auswahl geprüfte Fotos: ${count}. Prüfen Sie die Markierungen in der Fotoleiste.`,
     rawFromCameraPreview: (count: number) => `RAW-Fotos, die nach der eingebetteten Kameravorschau beurteilt wurden, nicht nach ihren Sensordaten: ${count}. Prüfen Sie ihre Schärfe mit dem Auge.`,
+    heldByGuardian: (count: number) => `Behalte-Fotos, die zur Prüfung zurückgehalten wurden, weil die Bildprüfung auf diesem Gerät am Motiv zweifelte: ${count}. Sie sind vorgeschlagen, nicht markiert.`,
     undo: "Sie können den ganzen Durchgang in einem Schritt rückgängig machen.",
   },
   tasks: {

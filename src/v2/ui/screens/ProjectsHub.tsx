@@ -256,7 +256,8 @@ export default function ProjectsHub({
           )}
           {hubState === 'ready' && filtered.length > 0 && (
             <ul aria-label={STRINGS.hub.heading} data-project-layout={layout}
-              className={layout === 'list' ? 'flex flex-col gap-2' : 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6'}>
+              // List rows sit two across from tablet-landscape width and three on very wide screens; phones keep one column.
+              className={layout === 'list' ? 'grid grid-cols-1 gap-2 md:grid-cols-2 2xl:grid-cols-3' : 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6'}>
               {filtered.map((project) => {
                 const Card = layout === 'list' ? ProjectRow : ProjectTile;
                 return (

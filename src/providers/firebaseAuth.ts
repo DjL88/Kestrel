@@ -41,7 +41,21 @@ async function firebase() {
   // Never attach InFlight authentication to an unrelated Firebase app that another
   // optional service may have initialised first in this webview.
   const app = getApps().find((candidate) => candidate.name === 'kestrel-auth') ?? initializeApp(config, 'kestrel-auth');
-  return { auth, instance: auth.getAuth(app) };
+  return { auth, instance: authInstance(auth, app) };
+}
+
+/**
+ * The web build uses Firebase's normal set-up, which includes pop-up sign-in. The installed apps sign in through the
+ * person's own browser instead, so they leave out the pop-up helper: it loads Google scripts and a hidden frame that the
+ * app's security policy blocks, and waiting for them stalled every sign-in in the desktop app.
+ */
+function authInstance(auth: typeof import('firebase/auth'), app: import('firebase/app').FirebaseApp) {
+  if (!isDesktopApp()) return auth.getAuth(app);
+  try {
+    return auth.initializeAuth(app, { persistence: [auth.indexedDBLocalPersistence, auth.browserLocalPersistence] });
+  } catch {
+    return auth.getAuth(app); // Already set up earlier in this window.
+  }
 }
 
 const toSession = (user: import('firebase/auth').User, provider: SignInProvider): Session => ({
@@ -104,7 +118,7 @@ async function signInWithGoogleOnDesktop(client: NonNullable<typeof googleDeskto
     throw loopbackError(error);
   }
   const answer = parseCallbackQuery(query, state);
-  if (answer.error || !answer.code) throw new Error(explainSignInError(answer.error));
+  if (answer.error || !answer.code) throw new Error(`${explainSignInError(answer.error)} (Google: ${answer.error ?? 'no code returned'})`);
   const { fetch: tauriFetch } = await import('@tauri-apps/plugin-http');
   let response: Response;
   try {
@@ -112,7 +126,8 @@ async function signInWithGoogleOnDesktop(client: NonNullable<typeof googleDeskto
       body: googleCodeExchangeBody({ clientId: client.clientId, clientSecret: client.clientSecret, code: answer.code, verifier, redirectUri }) });
   } catch { throw new Error('Could not reach Google. Check your connection.'); }
   const json = await response.json().catch(() => null) as { error?: string } | null;
-  if (!response.ok) throw new Error(explainSignInError(json?.error));
+  // Name Google's own reason too, so a refusal can be traced without a debug build.
+  if (!response.ok) throw new Error(`${explainSignInError(json?.error)} (Google: ${json?.error ?? `HTTP ${response.status}`})`);
   const idToken = idTokenFromAnswer(json, { clientId: client.clientId, nonce });
   return withAuth(async ({ auth, instance }) => toSession((await auth.signInWithCredential(instance, auth.GoogleAuthProvider.credential(idToken))).user, 'google'));
 }

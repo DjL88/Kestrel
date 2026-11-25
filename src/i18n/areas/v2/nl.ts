@@ -1244,6 +1244,7 @@ export const nl: AreaTranslation<typeof source> = {
   autoCullSummary: {
     checked: (count: number) => `Foto’s gecontroleerd door Automatisch kiezen: ${count}. Bekijk de markeringen in de fotostrook.`,
     rawFromCameraPreview: (count: number) => `RAW-foto's beoordeeld op de ingebouwde voorvertoning van de camera, niet op hun sensorgegevens: ${count}. Controleer hun scherpte met het oog.`,
+    heldByGuardian: (count: number) => `Te bewaren foto's tegengehouden voor uw controle, omdat de beeldcontrole op dit apparaat twijfelde aan het onderwerp: ${count}. Ze worden voorgesteld, niet gemarkeerd.`,
     undo: "U kunt de hele ronde in één stap ongedaan maken.",
   },
   tasks: {

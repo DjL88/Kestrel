@@ -37,9 +37,10 @@ export function commitAutoCull(
 }
 
 /** The notice after a pass, in the person's language. Says plainly when RAWs were judged from the camera's own preview, not a sensor development. */
-export function autoCullSummary(checked: number, rawFromCameraPreview: number): string {
+export function autoCullSummary(checked: number, rawFromCameraPreview: number, heldByGuardian = 0): string {
   const words = v2Text.autoCullSummary;
-  return [words.checked(checked), ...(rawFromCameraPreview > 0 ? [words.rawFromCameraPreview(rawFromCameraPreview)] : []), words.undo].join(' ');
+  return [words.checked(checked), ...(rawFromCameraPreview > 0 ? [words.rawFromCameraPreview(rawFromCameraPreview)] : []),
+    ...(heldByGuardian > 0 ? [words.heldByGuardian(heldByGuardian)] : []), words.undo].join(' ');
 }
 
 /**

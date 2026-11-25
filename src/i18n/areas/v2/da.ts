@@ -1244,6 +1244,7 @@ export const da: AreaTranslation<typeof source> = {
   autoCullSummary: {
     checked: (count: number) => `Fotos tjekket af Automatisk udvalg: ${count}. Se markeringerne i fotostrimlen.`,
     rawFromCameraPreview: (count: number) => `RAW-fotos bedømt ud fra kameraets indlejrede forhåndsvisning, ikke ud fra deres sensordata: ${count}. Tjek skarpheden med øjet.`,
+    heldByGuardian: (count: number) => `Gemmere holdt tilbage til din vurdering, fordi billedtjekket på denne enhed tvivlede på motivet: ${count}. De er foreslået, ikke markeret.`,
     undo: "Du kan fortryde hele gennemgangen i ét trin.",
   },
   tasks: {

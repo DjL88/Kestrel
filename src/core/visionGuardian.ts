@@ -11,13 +11,15 @@
 export type GuardianVerdict = 'agrees' | 'disagrees' | 'unsure';
 /** Most to least automatic. The guardian only ever moves a result down this list. */
 export type GuardedStatus = 'apply' | 'suggest' | 'needs-review';
-export type GuardianQuestion = 'editNatural' | 'subjectFound' | 'maskComplete' | 'speciesPlausible';
+/** `subjectClear` is Auto-cull's keeper check (cullGuardian.ts). It is not one of the four benchmarked checks yet. */
+export type GuardianQuestion = 'editNatural' | 'subjectFound' | 'maskComplete' | 'speciesPlausible' | 'subjectClear';
 export const GUARDIAN_CHECKS: readonly GuardianQuestion[] = ['editNatural', 'subjectFound', 'maskComplete', 'speciesPlausible'];
 export interface GuardianOpinion { source: 'on-device' | 'online'; verdict: GuardianVerdict; question: GuardianQuestion }
 
 /** Short plain ASCII, so the on-device model accepts them (see providers/localVision.ts). */
 export const GUARDIAN_QUESTIONS = {
   editNatural: 'Does this photograph look natural, with no strange colours, halos or blotches? Answer yes or no.',
+  subjectClear: 'Is the main subject of this photograph clearly visible and sharp? Answer yes or no.',
 } as const;
 
 /** Plain ASCII, as the on-device model needs ("Goldcrest" stays, "Škoda" becomes "Skoda"). At most 60 characters. */
@@ -34,6 +36,7 @@ const article = (word: string) => (/^[aeiou]/i.test(word) ? 'an ' : 'a ') + word
  */
 export function guardianQuestionText(check: GuardianQuestion, subject?: string): string | null {
   if (check === 'editNatural') return GUARDIAN_QUESTIONS.editNatural;
+  if (check === 'subjectClear') return GUARDIAN_QUESTIONS.subjectClear;
   const word = guardianWord(subject ?? '').toLowerCase();
   if (!word) return null;
   if (check === 'subjectFound') return `Is the bright area of this photograph ${article(word)}? Answer yes or no.`;

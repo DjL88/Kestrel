@@ -73,7 +73,9 @@ import { autoUnavailableSentence, isAutoUnavailable, type AutoUnavailable } from
 import { autopilotHeldForReview, commitAutoEdit } from './commitAutoEdit';
 import { guardResult } from '../../core/visionGuardian';
 import { guardianHolds, guardianOrder, guardianSettled, startGuardian, withOpinion } from './assistGuardian';
-import { askOnDeviceGuardian } from '../../providers/visionGuardian';
+import { askOnDeviceGuardian, askOnDeviceGuardianAbout, onDeviceGuardianReady } from '../../providers/visionGuardian';
+import { holdDoubtedKeeps, keepsToGuard } from '../../core/cullGuardian';
+import type { GuardianOpinion } from '../../core/visionGuardian';
 import { hasLocalVision } from '../../providers/localVision';
 import type { PictureSource } from '../../core/pictureSource';
 import { autoCullSummary, commitAutoCull, cullAfterImport, rawsJudgedFromCameraPreview } from './commitAutoCull';
@@ -142,6 +144,9 @@ import { addSavedEditGroup, renameSavedEditGroup, selectSavedEditGroup, syncEdit
 import { engineText } from '../../i18n/areas/engine';
 import { loadSpeciesNames, onSpeciesNamesLoaded } from '../../providers/speciesNames';
 import { language } from '../../i18n/messages';
+
+/** At most this many confident keepers get the vision guardian's second opinion per Auto-cull pass (seconds each). */
+const GUARDED_KEEPS_LIMIT = 60;
 
 /** A picture for a measurement that needs at most a screen's worth of pixels: a RAW's screen-size sensor develop when one can be
  * had (analysisPicture.ts), otherwise the full source as before. Never for anything that writes pixels at full size. */
@@ -943,12 +948,31 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           ctx.checkCancelled();
           if (requestId !== openRequest.current || stateRef.current?.shoot.id !== projectKey) return;
           ctx.stage(engineText.workspace.cullApply);
+          // Vision AI is the guardian: before confident keepers are applied (Auto-pilot does this after every import), the
+          // on-device model is asked whether the main subject is clearly visible and sharp. A clear "no" holds that keeper
+          // as a suggestion for the person; agreement, doubt or no model change nothing (src/core/cullGuardian.ts).
+          let guarded = results;
+          let held: string[] = [];
+          if (await onDeviceGuardianReady()) {
+            const opinions = new Map<string, GuardianOpinion>();
+            for (const frameId of keepsToGuard(results, GUARDED_KEEPS_LIMIT)) {
+              ctx.checkCancelled();
+              const frame = candidates.find((candidate) => candidate.id === frameId);
+              const url = frame ? await provider.current!.getFullPreviewUrl(frame, 'background').catch(() => '') : '';
+              const picture = url ? await fetch(url).then((response) => response.blob()).catch(() => null) : null;
+              const opinion = picture ? await askOnDeviceGuardianAbout(picture, 'subjectClear') : null;
+              if (opinion) opinions.set(frameId, opinion);
+            }
+            ctx.checkCancelled();
+            ({ results: guarded, held } = holdDoubtedKeeps(results, opinions));
+          }
+          if (requestId !== openRequest.current || stateRef.current?.shoot.id !== projectKey) return;
           ctx.commitIfCurrent(() => setState(latest => {
             if (!latest || latest.shoot.id !== projectKey || requestId !== openRequest.current || ctx.signal.aborted) return latest;
-            return commitAutoCull(latest, candidates, results);
+            return commitAutoCull(latest, candidates, guarded);
           }));
           // Which picture each RAW was actually judged from; unknown counts as the camera's preview (never overstated).
-          const summary = autoCullSummary(candidates.length, rawsJudgedFromCameraPreview(candidates, results, judgedFrom));
+          const summary = autoCullSummary(candidates.length, rawsJudgedFromCameraPreview(candidates, results, judgedFrom), held.length);
           ctx.commitIfCurrent(() => setNotice(summary));
         },
       });

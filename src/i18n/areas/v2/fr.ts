@@ -1244,6 +1244,7 @@ export const fr: AreaTranslation<typeof source> = {
   autoCullSummary: {
     checked: (count: number) => `Photos vérifiées par le choix auto : ${count}. Vérifiez les marqueurs dans la bande de photos.`,
     rawFromCameraPreview: (count: number) => `Photos RAW jugées sur l'aperçu intégré de l'appareil photo, et non sur leurs données de capteur : ${count}. Vérifiez leur netteté à l'œil.`,
+    heldByGuardian: (count: number) => `Photos à garder retenues pour votre avis, car la vérification visuelle sur cet appareil doutait du sujet : ${count}. Elles sont suggérées, pas marquées.`,
     undo: "Vous pouvez annuler tout le passage en une seule étape.",
   },
   tasks: {
