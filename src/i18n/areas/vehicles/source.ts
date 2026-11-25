@@ -34,6 +34,21 @@ export const source = {
   registered: (marking: string, type: string) => `${marking}: ${type} (from the register)`,
   /** Only ever a company or government; no person's name is kept. */
   operatedBy: (what: string, operator: string) => `${what}, operated by ${operator}`,
+  /** The Vision guardian doubted even that it is an aircraft (or a road vehicle…): nothing is named. */
+  held: (what: string) => `${what}? Needs your review`,
+  /** Photo Info: the person's own correction, for one photo or the whole burst. */
+  correct: {
+    edit: 'Edit',
+    change: 'Change the vehicle',
+    kindLabel: 'Kind',
+    typeLabel: 'Make or type',
+    typeUnknown: 'Not sure',
+    notVehicle: 'Not a vehicle',
+    wholeBurst: (count: number) => `All ${count} photos in this burst`,
+    save: 'Save',
+    cancel: 'Cancel',
+    saved: (count: number) => (count > 1 ? `Saved for ${count} photos.` : 'Saved.'),
+  },
   /** Settings → Assistance: the opt-in markings reader. */
   reader: {
     title: 'Read aircraft registrations',

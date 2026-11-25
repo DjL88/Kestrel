@@ -1,0 +1,26 @@
+# Store every text file with LF line endings, whatever editor or OS wrote it.
+# Several Claude sessions write files on Windows; CRLF commits once made git merge
+# docs/ROADMAP.md into duplicate copies (#1445, fixed by #1509).
+* text=auto eol=lf
+
+# Windows batch files need CRLF to run reliably.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binary assets (git detects most automatically; these are explicit).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.icns binary
+*.onnx binary
+*.wasm binary
+*.nef binary
+*.NEF binary
+*.dng binary
+*.tif binary
+*.tiff binary
+*.zip binary
+*.woff binary
+*.woff2 binary

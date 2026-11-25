@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { applyDecisionWithHistory, assignBurstGroups, redoDecision, regroupBurstsWithEmbeddings, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
-import { recordEdit, stepEdit } from '../../core/editHistory';
+import { recordEdit, stepEdit, type EditWhy } from '../../core/editHistory';
 import { forkEditCheckpoint, switchEditVersion as switchVersionInCatalogue } from '../../core/editBranches';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { sameRecipe } from '../../core/naturalAuto';
@@ -10,6 +10,7 @@ import { createCollage, MAX_COLLAGE_SELECTION, readCollage } from '../../core/co
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
 import { appendProjectPhotos, applyImportBursts, createEmptyProject, setArchived } from '../../core/projects';
 import { tasks } from '../../core/taskStore';
+import { createSaveGuard, type SaveGuard } from '../../core/saveGuard';
 import { engineScheduler } from '../../core/engineScheduler';
 import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '../../core/types';
 import { eraseDeviceData } from './eraseDeviceData';
@@ -20,8 +21,12 @@ import { scanForCulling } from '../../providers/browserAutoCull';
 import { useAccess } from '../../providers/useAccess';
 import { useBackgroundDevelop } from '../../useBackgroundDevelop';
 import { useSpeciesScan } from '../../useSpeciesScan';
+import { carryVehicleReadings, correctVehicle } from '../../core/vehicleBursts';
+import { VEHICLE_LABELS } from '../../core/vehicleLabels';
+import { vehicleText } from '../../i18n/areas/vehicles';
 import { useVisualGrouping } from './useVisualGrouping';
-import { isDesktopApp } from '../../providers/desktopShell';
+import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
+import { photoParallelism } from '../../core/photoParallelism';
 import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
 import { getLocalFileKey, loadLocalFileListShoot, rehydrateLocalFramesFromStore } from '../../providers/localShootLoader';
 import { hashOriginalBytes, isSameOriginalBytes } from '../../core/originalFileIdentity';
@@ -90,6 +95,7 @@ import { restoreProjectBackup } from '../../core/projectBackup';
 import { backupStatusText } from './backupWords';
 import { applySidecarImports, planXmpImports, saveSidecars, sidecarFailureText, xmpScope } from './xmpOps';
 import { applyLightroomImport, lightroomNotice } from './lightroomOps';
+import { saveCatalogueExport } from './catalogueExport';
 import { CatalogueReadError, readLightroomCatalogue } from '../../core/lightroomCatalogue';
 import { catalogueFilesInFolder, catalogueOnlyPhotos, commonFolder, planLightroomImport } from '../../core/lightroomImport';
 import type { LightroomPhoto } from '../../core/lightroomCatalogue';
@@ -103,6 +109,8 @@ import { canvasLensCentre, detectLateralCa } from '../../core/fringe';
 import { surfaceBridge } from './surfaceBridge';
 import { addSavedEditGroup, renameSavedEditGroup, selectSavedEditGroup, syncEditGroup } from './editGroupState';
 import { engineText } from '../../i18n/areas/engine';
+import { loadSpeciesNames, onSpeciesNamesLoaded } from '../../providers/speciesNames';
+import { language } from '../../i18n/messages';
 
 /** Actions that change a photo's edit, sizes, overlay, masks or assist state. They are not connected to the real
  * recipe yet, so they say so instead of silently changing sample data. */
@@ -203,7 +211,16 @@ async function pickReselectFiles(): Promise<File[] | null> {
  */
 export function useEngineWorkspace(): { store: WorkspaceStore; actions: WorkspaceActions } {
   const stub = useWorkspace();
-  const { can: canByPlan } = useAccess();
+  const { can: canByPlan, capabilities } = useAccess();
+  // Photos at once (owner decision 25 Nov): the plan's ceiling, held to this device's memory and cores. The
+  // scheduler still runs one heavy job at a time where free memory cannot be measured.
+  useEffect(() => {
+    const nav = typeof navigator === 'undefined' ? undefined : navigator as Navigator & { deviceMemory?: number };
+    engineScheduler.setCpuLimit(photoParallelism({
+      desktop: isDesktopApp() && !isMobileShell(), paid: capabilities.fullEditor, cloud: canByPlan('cloudAssist'),
+      cores: nav?.hardwareConcurrency, memoryGB: nav?.deviceMemory,
+    }).local);
+  }, [capabilities.fullEditor, canByPlan]);
   // One gate for the whole adapter: the plan's answer, or the developer-only Pro preview (see featureMap.ts).
   const can = useCallback((feature: Parameters<typeof canByPlan>[0]) => featureAccess(canByPlan)[feature as keyof ReturnType<typeof featureAccess>] ?? canByPlan(feature), [canByPlan]);
   const catalogue = useRef<BrowserCatalogueStore | null>(null);
@@ -306,11 +323,41 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, []);
   useEffect(() => { void loadHub(); }, [loadHub]);
 
-  // Save the open project whenever it changes, exactly as the current app does.
+  // Save the open project whenever it changes. A failed save is never dropped (G07): the latest state of each project is
+  // kept and retried until it is stored, and closing InFlight asks first while a failed change is still unsaved.
+  const saveGuard = useRef<SaveGuard<CullingState> | null>(null);
+  if (!saveGuard.current) {
+    saveGuard.current = createSaveGuard<CullingState>({
+      save: (next) => catalogue.current!.saveProject(next),
+      onStatus: (status, { failures }) => {
+        if (status === 'failed' && failures === 1) setNotice(engineText.workspace.projectSaveRetrying);
+        else if (status === 'saved' && failures > 0) setNotice(engineText.workspace.projectSavedAfterRetry);
+      },
+    });
+  }
   useEffect(() => {
     if (!state || screen !== 'editor') return;
-    void catalogue.current!.saveProject(state).catch(() => setNotice(engineText.workspace.projectNotSaved));
+    saveGuard.current!.submit(state.shoot.id, state);
   }, [state, screen]);
+  useEffect(() => {
+    const guard = saveGuard.current!;
+    const retry = () => { if (document.visibilityState !== 'hidden') guard.retryNow(); };
+    const warn = (event: BeforeUnloadEvent) => {
+      if (!guard.hasFailedUnsaved()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('online', retry);
+    document.addEventListener('visibilitychange', retry);
+    window.addEventListener('beforeunload', warn);
+    return () => {
+      window.removeEventListener('online', retry);
+      document.removeEventListener('visibilitychange', retry);
+      window.removeEventListener('beforeunload', warn);
+    };
+  }, []);
+  // Not disposed on unmount: a pending retry must still store the change (and React's development double-mount would
+  // otherwise switch the guard off).
 
   const openRequest = useRef(0);
   useEffect(() => () => { openRequest.current += 1; }, []);
@@ -477,6 +524,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // Automatic backups of the open project, shared with V1: soon after a change, every so often, and on leaving.
   useAutoBackup(state && !state.shoot.collage ? state : null, Boolean(state));
   const backupStatus = useBackupStatus(state?.shoot.id ?? '');
+  // First run: pick photos, and InFlight makes a project, adds them and runs Auto on the first one.
+  const [quickStart, setQuickStart] = useState<{ projectId: string; photoId: string | null; phase: 'working' | 'ready' | 'unchanged' | 'failed' } | null>(null);
   const lightroomPending = useRef<{ projectId: string; photos: LightroomPhoto[]; toAdd: LightroomPhoto[] } | null>(null);
   const [lightroomOffer, setLightroomOffer] = useState<{ missing: number; folder: string } | null>(null);
   const mutate = useCallback((change: (current: CullingState) => CullingState) => setState((current) => (current ? change(current) : current)), []);
@@ -546,7 +595,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, activeRasterKey]);
   const editTargets = (photoId: string) => (selected.includes(photoId) ? selected : [photoId]);
-  const editFrames = useCallback((ids: string[], change: (frame: PhotoFrame) => PhotoEdit | undefined) => {
+  const editFrames = useCallback((ids: string[], change: (frame: PhotoFrame) => PhotoEdit | undefined, why?: EditWhy) => {
     const at = Date.now();
     mutate((current) => ({
       ...current,
@@ -554,7 +603,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       frames: current.frames.map((frame) => {
         if (!ids.includes(frame.id)) return frame;
         const edit = change(frame);
-        return syncEditGroup(recordEdit(frame, { edit: edit && !isEmptyEdit(edit) ? edit : undefined }, at));
+        return syncEditGroup(recordEdit(frame, { edit: edit && !isEmptyEdit(edit) ? edit : undefined }, at, why));
       }),
     }));
   }, [mutate]);
@@ -573,6 +622,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     onAsShotWhite: (stableKey, white) => setState((current) => (current ? { ...current, frames: current.frames.map((frame) =>
       frame.stableKey === stableKey && (frame.asShotWhite?.kelvin !== white.kelvin || frame.asShotWhite?.duv !== white.duv)
         ? { ...frame, asShotWhite: white } : frame) } : current)),
+    // Lets the picture label name Nikon HE/HE*. Never changes an edit.
+    onRawCodec: (stableKey, codec) => setState((current) => (current ? { ...current, frames: current.frames.map((frame) =>
+      frame.stableKey === stableKey && frame.rawCodec !== codec ? { ...frame, rawCodec: codec } : frame) } : current)),
   });
 
   // Subject and species are named quietly on this device after photos are added (the species name is a suggestion the
@@ -580,9 +632,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useSpeciesScan({
     projectId: state?.shoot.id ?? '', frames: state?.frames ?? [], provider: provider.current,
     active: screen === 'editor' && Boolean(state) && can('speciesId'),
-    onResult: (frameId, patch) => setState((current) => (current ? { ...current, frames: current.frames.map((frame) =>
+    // A vehicle reading is carried across its burst: the same aircraft, read once, shown on every frame.
+    onResult: (frameId, patch) => setState((current) => (current ? { ...current, frames: carryVehicleReadings(current.frames.map((frame) =>
       frame.id === frameId && !frame.removedAt && !frame.speciesChecked && !frame.tags?.length && !frame.subjectNames?.length
-        ? { ...frame, ...patch, ...(frame.subjectKind && patch.subjectKind ? { subjectKind: frame.subjectKind } : {}) } : frame) } : current)),
+        ? { ...frame, ...patch, ...(frame.subjectKind && patch.subjectKind ? { subjectKind: frame.subjectKind } : {}) } : frame), VEHICLE_LABELS) } : current)),
   });
 
   // Bursts are refined quietly on this device from image embeddings (DINOv2): a real scene change splits a burst, and
@@ -614,31 +667,33 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const sourceProvider = provider.current!;
     const env = exportEnv.current;
     if (request.rawMaster) {
+      const masterFormat = request.rawMasterFormat === 'png' ? 'png' : 'tiff';
+      const png = masterFormat === 'png';
       const matches = current.frames.filter((frame) => frame.id === request.photoIds[0] && frame.removedAt == null);
-      if (request.photoIds.length !== 1 || matches.length !== 1) { setNotice(engineText.workspace.selectOneRaw); return; }
+      if (request.photoIds.length !== 1 || matches.length !== 1) { setNotice(png ? engineText.workspace.selectOneRawPng : engineText.workspace.selectOneRaw); return; }
       try {
         const frame = structuredClone(matches[0]);
         const ticket = await engineScheduler.submit({
-          title: engineText.workspace.rawTiffTask, kind: 'raw', resource: 'gpu', priority: 10,
+          title: png ? engineText.workspace.rawPngTask : engineText.workspace.rawTiffTask, kind: 'raw', resource: 'gpu', priority: 10,
           pauseable: false, items: [{ id: frame.id, name: frame.filename }],
           snapshot: { frameId: frame.id, originalSha256: frame.originalSha256 },
           itemId: item => item.id, itemLabel: item => item.name,
           runItem: async (_, __, ctx) => {
             ctx.stage(engineText.workspace.rawTiffDevelop);
-            const file = await buildRawMasterFile(frame, sourceProvider, ctx.signal);
+            const file = await buildRawMasterFile(frame, sourceProvider, ctx.signal, masterFormat);
             ctx.checkCancelled();
-            ctx.stage(engineText.workspace.rawTiffSave);
+            ctx.stage(png ? engineText.workspace.rawPngSave : engineText.workspace.rawTiffSave);
             if (!await saveExportFile(file, file.name, ctx.signal))
               throw new DOMException(engineText.workspace.saveCancelled, 'AbortError');
             ctx.acknowledgeCommitted();
-            ctx.commitIfCurrent(() => setNotice(engineText.workspace.rawTiffSaved));
+            ctx.commitIfCurrent(() => setNotice(png ? engineText.workspace.rawPngSaved : engineText.workspace.rawTiffSaved));
           },
         });
         const result = await ticket.finished;
-        if (result === 'failed') setNotice(engineText.workspace.rawTiffFailed);
-        else if (result === 'cancelled') setNotice(engineText.workspace.rawTiffCancelled);
+        if (result === 'failed') setNotice(png ? engineText.workspace.rawPngFailed : engineText.workspace.rawTiffFailed);
+        else if (result === 'cancelled') setNotice(png ? engineText.workspace.rawPngCancelled : engineText.workspace.rawTiffCancelled);
       } catch (reason) {
-        setNotice(reason instanceof Error ? reason.message : engineText.workspace.rawTiffNotQueued);
+        setNotice(reason instanceof Error ? reason.message : (png ? engineText.workspace.rawPngNotQueued : engineText.workspace.rawTiffNotQueued));
       }
       return;
     }
@@ -1081,8 +1136,25 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!candidate || assist.dismissed.includes(candidate.id)) return;
     const valid = (latest: PhotoFrame) => matchesAutoSource(assist.run, latest) && sameRecipe(latest.edit ?? DEFAULT_EDIT, assist.run.plan.base);
     if (!valid(frame)) { setNotice(engineText.workspace.suggestionStale); return; }
-    editFrames([frameId], (latest) => valid(latest) ? candidate.edit : latest.edit);
+    editFrames([frameId], (latest) => valid(latest) ? candidate.edit : latest.edit, { by: 'auto', notes: assist.run.detail });
   }, [assists, editFrames]);
+
+  // First run: once Auto has looked at the first photo, apply its suggestion (one undoable step), or say plainly that
+  // the photo already looked natural and was left alone.
+  useEffect(() => {
+    if (!quickStart || quickStart.phase !== 'working' || !quickStart.photoId) return;
+    const assist = assists[quickStart.photoId];
+    if (!assist) return;
+    const improved = assist.run.improved && assist.run.candidates.length > 0;
+    if (improved) applyAuto(quickStart.photoId);
+    setQuickStart({ ...quickStart, phase: improved ? 'ready' : 'unchanged' });
+  }, [assists, quickStart, applyAuto]);
+  useEffect(() => {
+    if (!quickStart || quickStart.phase !== 'working' || !quickStart.photoId) return;
+    // Auto normally answers in a few seconds; if it cannot check the photo, say so instead of waiting forever.
+    const timer = window.setTimeout(() => setQuickStart((current) => current === quickStart ? { ...current, phase: 'failed' } : current), 45_000);
+    return () => window.clearTimeout(timer);
+  }, [quickStart]);
 
   // Co-pilot and Auto-pilot look at the photo on the canvas, on this device, one at a time. Solo never does.
   const assistMode = savedUi.assistMode ?? stub.store.assistMode;
@@ -1126,7 +1198,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             const at = Date.now();
             ctx.commitIfCurrent(() => mutate(current =>
               isCurrent() && !ctx.signal.aborted
-                ? commitAutoEdit(current, assistProjectId, frame, run.plan.proposal, at) : current));
+                ? commitAutoEdit(current, assistProjectId, frame, run.plan.proposal, at, { by: 'auto', notes: run.detail }) : current));
           }
         },
       }).then(ticket => {
@@ -1166,7 +1238,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       itemId: item => item.id, itemLabel: item => item.name,
       runItem: async (_, __, ctx) => {
         ctx.stage(engineText.workspace.deepStage);
-        const result = await runDeepVisionReview(frame, provider.current!);
+        // The batch's own signal: the subject finder then runs inside this task, not queued behind it.
+        const result = await runDeepVisionReview(frame, provider.current!, ctx.signal);
         ctx.checkCancelled();
         if (!result) throw new Error(engineText.workspace.deepNoResult);
         // The review is advisory. Do not publish stale observations after
@@ -1184,6 +1257,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       });
   }, []);
 
+  const cloudImports = useRef(new Map<string, { projectId: string; photoKey: string }>());
   const importPhotos = useCallback(async (suppliedPicks?: Array<File | PickedPhoto> | null) => {
     const target = stateRef.current;
     if (!target) return;
@@ -1227,9 +1301,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           if (result.failedNames.length) throw new Error(engineText.workspace.importUnreadable(result.failedNames.join(', ')));
           // A one-photo loader has index one. Give each imported frame its
           // distinct stable project index before inserting it into React.
+          const cloudPhoto = cloudImports.current.get(pickedKey(item.file));
           const frames = result.frames.map(frame => ({
             ...frame, id: `file-${item.index + 1}-${frame.filename}`,
             sequenceIndex: item.index + 1,
+            ...(cloudPhoto ? { cloudPhoto } : {}),
           }));
           if (result.unstoredKeys.length) warnings.push(`${item.file.name} could not be stored for reopening. Relink it when needed.`);
           ctx.stage(engineText.workspace.importSaveStage);
@@ -1589,6 +1665,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const target = frame.decision === 'keep' ? 'unreviewed' : 'keep';
       return withPartners([id], pairsRef.current).reduce((acc, member) => applyDecisionWithHistory(acc, member, target, { allowAdvance: false }), next);
     }, current)),
+    correctVehicle: (photoId, choice, wholeBurst) => {
+      const before = stateRef.current?.frames ?? [];
+      const after = correctVehicle(before, photoId, choice, wholeBurst, VEHICLE_LABELS);
+      if (after === before) return;
+      const changed = after.filter((frame, index) => frame !== before[index]).length;
+      mutate((current) => ({ ...current, shoot: { ...current.shoot, lastUpdatedAt: Date.now() }, frames: correctVehicle(current.frames, photoId, choice, wholeBurst, VEHICLE_LABELS) }));
+      setNotice(vehicleText.correct.saved(changed));
+    },
     correctSpeciesName: (photoId, proposedName) => {
       const name = proposedName.trim().slice(0, 120);
       if (!name) return;
@@ -1693,6 +1777,38 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         setNotice(lightroomNotice(words, { ...plan, unmatched: plan.unmatched - toAdd.length }, catalogued, result));
       }, (error) => setNotice(words.failed[error instanceof CatalogueReadError ? error.reason : 'unreadable']));
     },
+    exportOpenFormats: () => {
+      const current = stateRef.current;
+      if (!current) return;
+      const words = V2_STRINGS.openExport;
+      void saveCatalogueExport(current).then((outcome) => {
+        if (outcome !== 'cancelled') setNotice(outcome === 'saved' ? words.saved : outcome === 'nothing' ? words.nothing : words.failed);
+      });
+    },
+    startQuickStart: () => {
+      const words = V2_STRINGS.quickStart;
+      // The picker opens straight from the person's click; everything after it runs on this device.
+      void pickFiles().then(async (picks) => {
+        if (!picks?.length) return;
+        const created = createEmptyProject(`project-${newId()}`, words.projectName);
+        try { await catalogue.current!.saveProject(created); }
+        catch { setNotice(V2_STRINGS.quickStart.failed); return; }
+        enterProject(created);
+        setQuickStart({ projectId: created.shoot.id, photoId: null, phase: 'working' });
+        for (let wait = 0; stateRef.current?.shoot.id !== created.shoot.id && wait < 100; wait++) {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+        if (stateRef.current?.shoot.id !== created.shoot.id) return;
+        await importPhotos(picks);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const now = stateRef.current;
+        const first = now?.shoot.id === created.shoot.id ? now.frames.find((frame) => frame.removedAt == null) : undefined;
+        if (!first) { setQuickStart(null); return; }
+        setQuickStart({ projectId: created.shoot.id, photoId: first.id, phase: 'working' });
+        setAutoRequest((last) => ({ photoId: first.id, sequence: (last?.sequence ?? 0) + 1 }));
+      });
+    },
+    dismissQuickStart: () => setQuickStart(null),
     dismissLightroomOffer: () => { lightroomPending.current = null; setLightroomOffer(null); },
     chooseLightroomFolder: () => {
       const pending = lightroomPending.current;
@@ -1758,6 +1874,35 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       });
       editFrames([photoId], () => safe ?? undefined);
       return copy.id;
+    },
+    importCloudPreviews: async (items) => {
+      for (const item of items) cloudImports.current.set(pickedKey(pickedFromFile(item.file)), { projectId: item.projectId, photoKey: item.photoKey });
+      try { await importPhotos(items.map((item) => item.file)); }
+      finally { for (const item of items) cloudImports.current.delete(pickedKey(pickedFromFile(item.file))); }
+    },
+    attachCloudOriginal: async (photoId, original, sha256) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
+      if (!frame?.cloudPhoto || !provider.current || !catalogue.current || !/^[0-9a-f]{64}$/.test(sha256)) return false;
+      const key = getLocalFileKey(original);
+      try { await catalogue.current.saveLocalFileBlob(key, original); } catch { /* still usable this session */ }
+      provider.current.registerBlob(key, original);
+      const next: PhotoFrame = { ...frame, stableKey: key, filename: original.name, originalSha256: sha256, cloudPhoto: { ...frame.cloudPhoto, hasOriginal: true } };
+      mutate((current) => ({ ...current, frames: current.frames.map((item) => (item.id === photoId ? { ...item, stableKey: next.stableKey, filename: next.filename, originalSha256: sha256, cloudPhoto: next.cloudPhoto } : item)) }));
+      setUrls((current) => { const updated = { ...current }; delete updated[photoId]; return updated; });
+      thumbs.current.requested.delete(photoId);
+      thumbs.current.queue.push(next); pumpThumbnails();
+      provider.current.getFullPreviewUrl(next, 'selected').then(
+        (preview) => setUrls((current) => ({ ...current, [photoId]: { ...current[photoId], preview } })),
+        () => { /* the thumbnail reload reports failures; the preview stays */ },
+      );
+      return true;
+    },
+    readVerifiedOriginal: async (photoId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
+      if (!frame || frame.isDemo || frame.cloudPhoto || !provider.current) return null;
+      const bytes = await provider.current.ensureOriginal(frame.stableKey, 'selected');
+      if (!bytes) return null;
+      try { return await verifyExactOriginalCopy(bytes, frame.originalSha256); } catch { return null; }
     },
     renderGalleryPreview: async (photoId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
@@ -2014,12 +2159,19 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     [stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: watermarkLibrary, auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
+  // Species names in the person's language arrive once, after start-up; the photo list is redrawn when they do.
+  const [speciesNamesVersion, setSpeciesNamesVersion] = useState(0);
+  useEffect(() => {
+    const stop = onSpeciesNamesLoaded(() => setSpeciesNamesVersion((version) => version + 1));
+    void loadSpeciesNames(language);
+    return stop;
+  }, []);
   const photos = useMemo(() => recountBursts((state?.frames ?? []).filter((frame) => !frame.removedAt && !pairs.rawOf.has(frame.id)).map((frame) => {
     const assist = assists[frame.id];
     const jpegId = pairs.jpegOf.get(frame.id);
     const pairedJpeg = jpegId ? state?.frames.find((candidate) => candidate.id === jpegId)?.filename : undefined;
-    return withPairedJpeg(pairedJpeg, frameToPhoto(frame, urls[frame.id], { assist, watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed }));
-  })), [state?.frames, pairs, urls, assists, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes]);
+    return withPairedJpeg(pairedJpeg, frameToPhoto(frame, urls[frame.id], { assist, watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed, sources: { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) } }));
+  })), [state?.frames, pairs, urls, assists, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes, speciesNamesVersion]);
   // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo
   // (ROADMAP.md, "Removed photos panel" next item). Thumbnails are not fetched for them; the filename is enough
   // to recognise one in a short list, and restoring returns it to the normal, already-thumbnailed photo list.
@@ -2059,9 +2211,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clipboardRecipe: clipboard,
     PhotoSurface: EngineSurface,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
+    quickStart: quickStart && quickStart.projectId === state?.shoot.id && screen === 'editor' ? { phase: quickStart.phase, photoId: quickStart.photoId } : null,
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
-  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer]);
+  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart]);
 
   return { store, actions };
 }

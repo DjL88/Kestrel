@@ -38,13 +38,17 @@ export interface SharedRevisionMeta { id: string; number: number; parentId: stri
 
 export interface SharedComment { id: string; photoId: string; authorAccountId: string; authorName: string; text: string; point: { x: number; y: number } | null; createdAtMs: number; resolvedAtMs: number | null }
 
+export type CloudVariant = 'thumb' | 'preview' | 'original';
+export interface CloudPhotoView { photoKey: string; name: string; previewBytes: number; thumbBytes: number | null; originalBytes: number | null }
+export interface CloudUsage { month: string; usedCredits: number; allowanceCredits: number; bytes: number; downloads: number }
+
 export interface CollabInvite { projectId: string; name: string; role: CollabRole }
 
 type Json = Record<string, unknown>;
 const isRecord = (value: unknown): value is Json => value !== null && typeof value === 'object' && !Array.isArray(value);
 
 function kindFor(status: number, code: string): CollabErrorKind {
-  if (code === 'COLLAB_NOT_CONFIGURED' || code === 'PRESENCE_NOT_CONFIGURED' || code === 'GALLERY_NOT_CONFIGURED') return 'not-configured';
+  if (code === 'COLLAB_NOT_CONFIGURED' || code === 'PRESENCE_NOT_CONFIGURED' || code === 'GALLERY_NOT_CONFIGURED' || code === 'CLOUD_NOT_CONFIGURED') return 'not-configured';
   if (code === 'COLLAB_NOT_ENTITLED') return 'not-entitled';
   if (code === 'COLLAB_DISABLED') return 'switched-off';
   if (status === 401) return 'sign-in';
@@ -102,6 +106,12 @@ export interface CollabClient {
   comments(projectId: string, photoKey: string): Promise<SharedComment[]>;
   addComment(projectId: string, photoKey: string, text: string, point: { x: number; y: number } | null): Promise<SharedComment>;
   resolveComment(projectId: string, commentId: string, resolved: boolean): Promise<SharedComment>;
+  cloudPhotos(projectId: string): Promise<CloudPhotoView[]>;
+  /** Puts one file in the project's cloud store; nothing is sent again when the same file is already there. */
+  cloudUpload(projectId: string, photoKey: string, variant: CloudVariant, blob: Blob, name: string): Promise<void>;
+  /** Downloads one cloud file. Counted against the project owner's allowance; the content is checked against its fingerprint. */
+  cloudDownload(projectId: string, photoKey: string, variant: CloudVariant): Promise<Blob>;
+  usage(): Promise<CloudUsage>;
   presenceToken(projectId: string): Promise<{ customToken: string; databaseUrl: string; uid: string; expiresAtMs: number }>;
 }
 
@@ -163,6 +173,24 @@ export function collabClient(baseUrl: string | undefined | null, idToken: () => 
     comments: async (id, key) => ((await call('GET', `${P(id)}/photos/${encodeURIComponent(key)}/comments`)).comments ?? []) as SharedComment[],
     addComment: async (id, key, text, point) => (await call('POST', `${P(id)}/photos/${encodeURIComponent(key)}/comments`, { text, point })).comment as SharedComment,
     resolveComment: async (id, cid, resolved) => (await call('POST', `${P(id)}/comments/${encodeURIComponent(cid)}/resolve`, { resolved })).comment as SharedComment,
+    cloudPhotos: async (id) => ((await call('GET', `${P(id)}/cloud`)).photos ?? []) as CloudPhotoView[],
+    cloudUpload: async (id, key, variant, blob, name) => {
+      const base = `${P(id)}/photos/${encodeURIComponent(key)}/cloud`;
+      const signed = await call('POST', `${base}/upload-url`, { variant, sha256: await sha256Hex(blob), bytes: blob.size, name: name.slice(0, 200) || 'Photo' });
+      if (signed.alreadyStored === true) return;
+      const put = await fetcher(String(signed.uploadUrl), { method: 'PUT', body: blob, headers: { 'content-type': variant === 'original' ? 'application/octet-stream' : 'image/jpeg', 'x-goog-content-length-range': `0,${blob.size}` }, credentials: 'omit', referrerPolicy: 'no-referrer' }).catch(() => null);
+      if (!put?.ok) throw new CollabError('network', 'CLOUD_UPLOAD', 'A photo could not be put in the cloud. Nothing else changed.');
+      await call('POST', `${base}/commit`, { variant });
+    },
+    cloudDownload: async (id, key, variant) => {
+      const signed = await call('POST', `${P(id)}/photos/${encodeURIComponent(key)}/cloud/download-url`, { variant });
+      const got = await fetcher(String(signed.downloadUrl), { credentials: 'omit', referrerPolicy: 'no-referrer' }).catch(() => null);
+      if (!got?.ok) throw new CollabError('network', 'CLOUD_DOWNLOAD', 'A photo could not be downloaded from the cloud.');
+      const blob = await got.blob();
+      if (typeof signed.sha256 === 'string' && (await sha256Hex(blob)) !== signed.sha256) throw new CollabError('refused', 'CLOUD_MISMATCH', 'A downloaded photo did not match what was stored, so it was not used.');
+      return blob;
+    },
+    usage: async () => (await call('GET', '/v1/me/usage')) as unknown as CloudUsage,
     galleries: async (id) => ((await call('GET', P(id) + '/galleries')).galleries ?? []) as GalleryListItem[],
     galleryFeedback: async (gid) => ((await call('GET', `/v1/collab/galleries/${encodeURIComponent(gid)}/feedback`)).events ?? []) as GalleryFeedbackEvent[],
     revokeGallery: async (gid) => { await call('POST', `/v1/collab/galleries/${encodeURIComponent(gid)}/revoke`); },

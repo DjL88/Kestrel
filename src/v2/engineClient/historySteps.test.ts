@@ -57,3 +57,27 @@ test('split/rejoin steps are labelled accurately, without pretending to change i
   assert.equal(info.cursor, 3);
   assert.deepEqual(jumpToStep(current, 2).formatSplits, { 'orig-3x2': { enabled: true, offset: 0, count: 3 } });
 });
+
+test('a step Auto made says so, lists what changed with real values and gives Auto\'s reasons; it is never merged', () => {
+  let current = recordEdit(frame, { edit: { exposure: 0, warmth: 0, colour: 0, shadows: 0.2 } as never }, 1000);
+  current = recordEdit(current, { edit: { exposure: 1.75, warmth: 0, colour: 0, shadows: 0.7 } as never }, 1100,
+    { by: 'auto', notes: ['The bird was a stop too dark.', 'Shadows lifted to keep the feathers readable.'] });
+  const info = describeHistory(current.editHistory)!;
+  assert.equal(info.steps.length, 2, 'Auto\'s step is its own, even within half a second');
+  const auto = info.steps[1];
+  assert.equal(auto.label, 'Auto');
+  assert.equal(auto.by, 'auto');
+  assert.deepEqual(auto.changes, [
+    { label: 'Exposure', from: '0.00 EV', to: '+0.70 EV' },
+    { label: 'Shadows', from: '+10', to: '+35' },
+  ]);
+  assert.deepEqual(auto.why, ['The bird was a stop too dark.', 'Shadows lifted to keep the feathers readable.']);
+  assert.equal(info.steps[0].by, undefined);
+});
+
+test('a Lightroom import step is labelled as such', () => {
+  const current = recordEdit(frame, { edit: { exposure: 1, warmth: 0, colour: 0 } as never }, 1000, { by: 'lightroom' });
+  const [step] = describeHistory(current.editHistory)!.steps;
+  assert.equal(step.label, 'Brought in from Lightroom');
+  assert.equal(step.why, undefined);
+});
