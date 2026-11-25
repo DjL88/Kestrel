@@ -687,6 +687,7 @@ export const pt: AreaTranslation<typeof source> = {
     autopilotHeld: "O piloto automático reteve esta edição para a sua revisão: a verificação visual neste dispositivo não ficou convencida de que parece natural. A sugestão está no copiloto para pré-visualizar ou aplicar. Nada foi alterado.",
     secondOpinion: "Segunda opinião:",
     suggestionDoubted: "a verificação visual neste dispositivo não ficou convencida de que isto pareça natural. Compare o antes e o depois; aplicar é escolha sua.",
+    maskDoubted: "Segunda opinião: a verificação visual deste dispositivo duvida desta máscara do motivo. Pode estar noutra coisa ou deixar de fora a ponta de uma asa, a cauda ou a cabeça. Verifique as margens e toque para acrescentar ou retirar. Nada foi alterado.",
   },
   adjust: {
     grade: {

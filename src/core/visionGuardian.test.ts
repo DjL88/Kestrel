@@ -33,3 +33,24 @@ test('questions are short, plain ASCII so the on-device model accepts them', () 
   for (const question of Object.values(GUARDIAN_QUESTIONS)) assert.match(question, /^[\x20-\x7e]{1,400}$/);
   assert.match(GUARDIAN_QUESTIONS.editNatural, /yes or no/i);
 });
+
+test('subject, mask and species questions are plain ASCII yes/no questions about the claim', async () => {
+  const { guardianQuestionText, GUARDIAN_CHECKS } = await import('./visionGuardian.ts');
+  assert.equal(guardianQuestionText('subjectFound', 'Aircraft'), 'Is the bright area of this photograph an aircraft? Answer yes or no.');
+  assert.equal(guardianQuestionText('maskComplete', 'bird'), 'Is the whole bird inside the bright area, with no part of it darkened? Answer yes or no.');
+  assert.equal(guardianQuestionText('speciesPlausible', 'Grey Heron'), 'Is the animal in this photograph a grey heron? Answer yes or no.');
+  assert.match(guardianQuestionText('speciesPlausible', 'Škoda "?"') ?? '', /a skoda\?/);
+  assert.equal(guardianQuestionText('subjectFound', '  '), null, 'no claim, no question');
+  for (const check of GUARDIAN_CHECKS) assert.match(guardianQuestionText(check, 'owl') ?? '', /^[\x20-\x7e]{1,400}$/);
+});
+
+test('the mask picture keeps the subject and darkens the rest, blended by the mask', async () => {
+  const { darkenOutsideMask, MASK_OUTSIDE_BRIGHTNESS } = await import('./visionGuardian.ts');
+  const rgba = new Uint8ClampedArray([200, 100, 40, 255, 200, 100, 40, 255, 200, 100, 40, 255]);
+  darkenOutsideMask(rgba, new Float32Array([1, 0, 0.5]));
+  assert.deepEqual([...rgba.slice(0, 4)], [200, 100, 40, 255], 'inside unchanged');
+  assert.deepEqual([...rgba.slice(4, 7)], [200 * MASK_OUTSIDE_BRIGHTNESS, 100 * MASK_OUTSIDE_BRIGHTNESS, 40 * MASK_OUTSIDE_BRIGHTNESS]);
+  assert.equal(rgba[7], 255, 'alpha untouched');
+  assert.equal(rgba[8], Math.round(200 * (MASK_OUTSIDE_BRIGHTNESS + (1 - MASK_OUTSIDE_BRIGHTNESS) * 0.5)));
+  assert.throws(() => darkenOutsideMask(new Uint8ClampedArray(8), new Float32Array(1)));
+});
