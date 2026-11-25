@@ -106,7 +106,10 @@ test('export exactness: a full-size PNG export of a PNG original is its own pixe
 
 /** The intended render of a RAW at full size, computed in the page from the original's bytes, plus its SHA-256 before and after. */
 async function rawReference(page: Page, root: ReturnType<Page['locator']>, filename: string, timeout: number) {
-  // Wait for the sensor develop to replace any embedded preview: the shown picture then has the sensor's shape.
+  // Wait for the sensor develop to replace any embedded preview. Since #1602/#1611 the editor shows a screen-size develop
+  // (long edge about 2,200 px), so wait for the picture-source badge and check the shown picture's SHAPE, not its size.
+  // The export's own size is what this spec proves, below: it must equal the full sensor develop.
+  await expect(root.getByTestId('picture-source').first()).toHaveAttribute('data-picture-source', /^raw-(screen|full)$/, { timeout });
   const sensor = await page.evaluate(async ({ url, filename }) => {
     // @ts-ignore Browser module resolved by Vite dev server.
     const { openRaw16 } = await import('/src/providers/rawMaster16.ts');
@@ -114,8 +117,12 @@ async function rawReference(page: Page, root: ReturnType<Page['locator']>, filen
     return { width: picture.width, height: picture.height };
   }, { url: FIXTURE_URL, filename });
   const shown = root.getByTestId('canvas-frame').locator('img').first();
-  const sizes = [[sensor.width, sensor.height], [sensor.height, sensor.width]].map(String);
-  await expect.poll(() => shown.evaluate((el: HTMLImageElement) => String([el.naturalWidth, el.naturalHeight])), { timeout }).toMatch(new RegExp(`^(${sizes.join('|')})$`));
+  const sensorAspect = sensor.width / sensor.height;
+  await expect.poll(() => shown.evaluate((el: HTMLImageElement, aspect: number) => {
+    if (!(el.naturalWidth > 0 && el.naturalHeight > 0)) return false;
+    const shownAspect = el.naturalWidth / el.naturalHeight;
+    return Math.abs(shownAspect - aspect) < 0.02 || Math.abs(shownAspect - 1 / aspect) < 0.02;
+  }, sensorAspect), { timeout }).toBe(true);
   return shown.evaluate(async (img: HTMLImageElement, { url, filename }) => {
     // @ts-ignore Browser module resolved by Vite dev server.
     const { openRaw16, editRaw16 } = await import('/src/providers/rawMaster16.ts');
