@@ -1026,6 +1026,9 @@ export const it: AreaTranslation<typeof source> = {
     applyRecommendation: 'Applica il ritocco',
     safeNote: 'Le note sul colore derivano dalla misurazione della foto stessa su questo dispositivo, non da come appare sul suo schermo.',
   },
+  burstGrouping: {
+    unavailable: "Le raffiche sono raggruppate solo per ora di scatto, perché il modello di somiglianza non è disponibile su questo dispositivo. Nelle tue foto non è stato modificato nulla.",
+  },
   bursts: {
     badge: (n) => `Raffica di ${n}`,
     show: (n) => `Mostra i ${n} fotogrammi di questa raffica`,

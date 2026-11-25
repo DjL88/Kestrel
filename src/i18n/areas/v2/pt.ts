@@ -1026,6 +1026,9 @@ export const pt: AreaTranslation<typeof source> = {
     applyRecommendation: 'Aplicar o ajuste',
     safeNote: 'As notas sobre a cor resultam da medição da própria fotografia neste dispositivo, e não do seu aspeto no ecrã.',
   },
+  burstGrouping: {
+    unavailable: "As sequências são agrupadas só pela hora de captura, porque o modelo de semelhança não está disponível neste dispositivo. Nada foi alterado nas suas fotos.",
+  },
   bursts: {
     badge: (n) => `Sequência de ${n}`,
     show: (n) => `Mostrar as ${n} imagens desta sequência`,

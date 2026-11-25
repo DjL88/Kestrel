@@ -1027,6 +1027,9 @@ export const fi: AreaTranslation<typeof source> = {
     applyRecommendation: 'Käytä säätöä',
     safeNote: 'Värihuomautukset perustuvat itse kuvan mittaamiseen tällä laitteella, eivät siihen, miltä se näyttää näytölläsi.',
   },
+  burstGrouping: {
+    unavailable: "Sarjat ryhmitellään vain kuvausajan mukaan, koska samankaltaisuusmalli ei ole käytettävissä tällä laitteella. Kuviisi ei muutettu mitään.",
+  },
   bursts: {
     badge: (n) => `Sarja: ${n}`,
     show: (n) => `Näytä sarjan kaikki kuvat (${n})`,

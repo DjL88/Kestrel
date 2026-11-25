@@ -1026,6 +1026,9 @@ export const is: AreaTranslation<typeof source> = {
     applyRecommendation: 'Nota lagfæringu',
     safeNote: 'Litaathugasemdir byggja á mælingum á myndinni sjálfri í þessu tæki, ekki á því hvernig hún lítur út á skjánum þínum.',
   },
+  burstGrouping: {
+    unavailable: "Raðir eru aðeins flokkaðar eftir tökutíma, því líkindalíkanið er ekki tiltækt í þessu tæki. Engu var breytt í myndunum þínum.",
+  },
   bursts: {
     badge: (n) => `Hrina: ${n}`,
     show: (n) => `Sýna allar myndir í þessari hrinu (${n})`,

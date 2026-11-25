@@ -1027,6 +1027,9 @@ export const gd: AreaTranslation<typeof source> = {
     applyRecommendation: 'Cuir an gleus an sàs',
     safeNote: 'Tha na nòtaichean dhathan a’ tighinn bho bhith a’ tomhas an deilbh fhèin air an uidheam seo, chan ann bhon choltas a th’ air air do sgrìn.',
   },
+  burstGrouping: {
+    unavailable: "Tha sreathan air an cruinneachadh a rèir àm an deilbh a-mhàin, oir chan eil am modail coltais ri fhaighinn air an uidheam seo. Cha deach dad atharrachadh nad dhealbhan.",
+  },
   bursts: {
     badge: (n) => `Sreath: ${n}`,
     show: (n) => `Seall na frèaman san t-sreath seo (${n})`,

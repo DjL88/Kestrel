@@ -677,6 +677,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const regrouped = current ? regroupBurstsWithEmbeddings(current.frames) : null;
       return current && regrouped ? { ...current, frames: regrouped } : current;
     }),
+    onUnavailable: (message) => setNotice(message),
   });
 
   // Plain-language tags (place from GPS, light, weather, style, genre) are worked out quietly on this device after photos

@@ -1029,6 +1029,9 @@ export const ga: AreaTranslation<typeof source> = {
     applyRecommendation: 'Cuir an coigeartú i bhfeidhm',
     safeNote: 'Tagann na nótaí datha ó thomhas an ghrianghraif féin ar an ngléas seo, ní ón gcuma atá air ar do scáileán.',
   },
+  burstGrouping: {
+    unavailable: "Tá pléascanna grúpáilte de réir am tógála amháin, mar níl an tsamhail chosúlachta ar fáil ar an ngléas seo. Níor athraíodh aon rud i do ghrianghraif.",
+  },
   bursts: {
     badge: (n) => `Sraith: ${n}`,
     show: (n) => `Taispeáin frámaí na sraithe seo (${n})`,

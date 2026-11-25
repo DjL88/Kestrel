@@ -1026,6 +1026,9 @@ export const sv: AreaTranslation<typeof source> = {
     applyRecommendation: 'Använd justering',
     safeNote: 'Färgkommentarerna bygger på mätningar av själva fotot på den här enheten, inte på hur det ser ut på din skärm.',
   },
+  burstGrouping: {
+    unavailable: "Serier grupperas bara efter tagningstid, eftersom modellen för liknande bilder inte är tillgänglig på den här enheten. Inget i dina foton ändrades.",
+  },
   bursts: {
     badge: (n) => `Serie med ${n}`,
     show: (n) => `Visa de ${n} bilderna i den här serien`,
