@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { DockPosition, PanelId } from '../contract';
 import BrandIcon from '../icons/BrandIcon';
@@ -16,6 +16,12 @@ interface DockPanelProps {
   children: React.ReactNode;
 }
 
+const PLACES: { dock: DockPosition; icon: 'arrow-left-to-line' | 'arrow-right-to-line' | 'float'; text: () => string }[] = [
+  { dock: 'left', icon: 'arrow-left-to-line', text: () => STRINGS.rail.dockLeft },
+  { dock: 'right', icon: 'arrow-right-to-line', text: () => STRINGS.rail.dockRight },
+  { dock: 'float', icon: 'float', text: () => STRINGS.rail.floatPanel },
+];
+
 export default function DockPanel({
   panelId,
   title,
@@ -27,6 +33,27 @@ export default function DockPanel({
   onClose,
   children,
 }: DockPanelProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    menuRef.current?.querySelector<HTMLButtonElement>('[aria-checked="true"]')?.focus();
+    const away = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!menuRef.current?.contains(target) && !menuButtonRef.current?.contains(target)) setMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', away);
+    return () => document.removeEventListener('pointerdown', away);
+  }, [menuOpen]);
+  const onMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const items = [...(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]') ?? [])];
+    const at = items.indexOf(document.activeElement as HTMLButtonElement);
+    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setMenuOpen(false); menuButtonRef.current?.focus(); }
+    else if (event.key === 'ArrowDown') { event.preventDefault(); items[(at + 1) % items.length]?.focus(); }
+    else if (event.key === 'ArrowUp') { event.preventDefault(); items[(at - 1 + items.length) % items.length]?.focus(); }
+    else if (event.key === 'Tab') setMenuOpen(false);
+  };
   const dragOrigin = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -91,45 +118,53 @@ export default function DockPanel({
         </div>
 
         <div className="flex items-center gap-0.5 shrink-0">
-          <button
-            type="button"
-            title={STRINGS.rail.dockLeft}
-            aria-label={STRINGS.shellLabels.dockLeftLabel(title)}
-            onClick={() => onSetDock('left')}
-            className={`inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-xs)] text-[0.625rem] font-semibold transition-colors ${
-              dock === 'left'
-                ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            <BrandIcon name="arrow-left-to-line" size={16} />
-          </button>
-          <button
-            type="button"
-            title={STRINGS.rail.dockRight}
-            aria-label={STRINGS.shellLabels.dockRightLabel(title)}
-            onClick={() => onSetDock('right')}
-            className={`inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-xs)] text-[0.625rem] font-semibold transition-colors ${
-              dock === 'right'
-                ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            <BrandIcon name="arrow-right-to-line" size={16} />
-          </button>
-          <button
-            type="button"
-            title={STRINGS.rail.floatPanel}
-            aria-label={STRINGS.shellLabels.floatLabel(title)}
-            onClick={() => onSetDock('float')}
-            className={`inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-xs)] transition-colors ${
-              dock === 'float'
-                ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            <BrandIcon name="float" size={14} />
-          </button>
+          <div className="relative">
+            {/* Dock left / right / float sit behind one "…" button, so the arrows are never mistaken for Undo and Redo. */}
+            <button
+              ref={menuButtonRef}
+              type="button"
+              title={STRINGS.shellLabels.panelPlaceLabel(title)}
+              aria-label={STRINGS.shellLabels.panelPlaceLabel(title)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              data-testid="dock-panel-menu"
+              onClick={() => setMenuOpen((open) => !open)}
+              className={`inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-xs)] transition-colors ${
+                menuOpen
+                  ? 'bg-[var(--bg-surface-hover)] text-[var(--text-primary)]'
+                  : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <BrandIcon name="more" size={16} />
+            </button>
+            {menuOpen && (
+              <div
+                ref={menuRef}
+                role="menu"
+                aria-label={STRINGS.shellLabels.panelPlaceLabel(title)}
+                data-testid="dock-panel-menu-list"
+                onKeyDown={onMenuKeyDown}
+                className="absolute right-0 top-full z-40 mt-1 w-44 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1 shadow-[var(--shadow-popover)]"
+              >
+                {PLACES.map((place) => (
+                  <button
+                    key={place.dock}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={dock === place.dock}
+                    data-testid={`dock-panel-${place.dock}`}
+                    onClick={() => { setMenuOpen(false); menuButtonRef.current?.focus(); if (dock !== place.dock) onSetDock(place.dock); }}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] focus-visible:bg-[var(--bg-surface-hover)] focus-visible:outline-none"
+                  >
+                    <BrandIcon name={place.icon} size={14} className="text-[var(--text-muted)]" />
+                    <span className="flex-1">{place.text()}</span>
+                    {/* The current place is ticked, not only tinted. */}
+                    {dock === place.dock && <BrandIcon name="check" size={12} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button
             type="button"
             aria-label={`Close ${title} panel`}

@@ -2,7 +2,7 @@ import { BIOCLIP2, optionalModelFitsDevice } from '../core/optionalModels';
 import { SPECIES_MODEL, preprocessSpecies } from '../core/speciesModel';
 import { decodeVector, normalise, rankSpecies, type SpeciesLabel } from '../core/speciesMatch';
 import { readSpeciesRegions, worldLabelsForRegions } from '../core/speciesRegions';
-import { checkValidatorLabels, compareSpecies, type SpeciesVerdict, type ValidatorLabels } from '../core/speciesValidator';
+import { checkGroupLabels, checkValidatorLabels, compareSpecies, type SpeciesVerdict, type ValidatorLabels } from '../core/speciesValidator';
 import type { SquareCrop } from '../core/subjectCrop';
 import { friendlyToolError } from '../core/toolErrors';
 import { isDesktopApp, isMobileShell } from './desktopShell';
@@ -14,7 +14,7 @@ import { downloadOptionalModel, optionalModelStatus, readOptionalModelFile, remo
  * the pack, species suggestions work exactly as before, with no second opinion.
  */
 type Ort = typeof import('onnxruntime-web/wasm');
-interface Loaded { ort: Ort; session: import('onnxruntime-web/wasm').InferenceSession; labels: ValidatorLabels }
+interface Loaded { ort: Ort; session: import('onnxruntime-web/wasm').InferenceSession; labels: ValidatorLabels; mammals: SpeciesLabel[] }
 let loading: Promise<Loaded> | null = null;
 
 const offeredHere = () => optionalModelFitsDevice(BIOCLIP2, isDesktopApp() && !isMobileShell() ? 'desktop' : 'phone');
@@ -30,13 +30,17 @@ export async function removeValidator(): Promise<void> { loading = null; await r
 
 function load(): Promise<Loaded> {
   loading ??= (async () => {
-    const [model, labelBytes] = await Promise.all([readOptionalModelFile(BIOCLIP2, 'model'), readOptionalModelFile(BIOCLIP2, 'labels')]);
-    const labels = checkValidatorLabels(JSON.parse(new TextDecoder().decode(labelBytes)));
+    const [model, labelBytes, mammalBytes] = await Promise.all([
+      readOptionalModelFile(BIOCLIP2, 'model'), readOptionalModelFile(BIOCLIP2, 'labels'), readOptionalModelFile(BIOCLIP2, 'mammals'),
+    ]);
+    const text = new TextDecoder();
+    const labels = checkValidatorLabels(JSON.parse(text.decode(labelBytes)));
+    const mammals = checkGroupLabels(JSON.parse(text.decode(mammalBytes)));
     const ort = await import('onnxruntime-web/wasm');
     ort.env.wasm.numThreads = 1;
     ort.env.wasm.proxy = false;
     const session = await ort.InferenceSession.create(model, { executionProviders: ['wasm'] });
-    return { ort, session, labels };
+    return { ort, session, labels, mammals };
   })().catch((error) => {
     loading = null;
     console.warn('Species validator failed to load', error);
@@ -48,11 +52,15 @@ function load(): Promise<Loaded> {
 let vectorsKey = '';
 let ranked: { labels: SpeciesLabel[]; vectors: Float32Array[] } | null = null;
 
-function namesFor(labels: ValidatorLabels) {
+function namesFor(labels: ValidatorLabels, mammals: readonly SpeciesLabel[]) {
   const regions = readSpeciesRegions();
   const key = regions.join(',');
   if (!ranked || vectorsKey !== key) {
-    const list = [...labels.uk, ...worldLabelsForRegions(labels.world, regions, new Set(labels.uk.map((l) => l.scientific.toLowerCase())))];
+    // The UK list first, then world birds and world mammals for the person's regions; a name already listed is not repeated.
+    const have = new Set(labels.uk.map((l) => l.scientific.toLowerCase()));
+    const birds = worldLabelsForRegions(labels.world, regions, have);
+    for (const bird of birds) have.add(bird.scientific.toLowerCase());
+    const list = [...labels.uk, ...birds, ...worldLabelsForRegions(mammals, regions, have)];
     ranked = { labels: list, vectors: list.map(decodeVector) };
     vectorsKey = key;
   }
@@ -66,7 +74,7 @@ function namesFor(labels: ValidatorLabels) {
 export async function validateSpecies(picture: CanvasImageSource & { width: number; height: number }, crop: SquareCrop,
   suggested: Pick<SpeciesLabel, 'scientific' | 'common'> | null): Promise<SpeciesVerdict | null> {
   if (await validatorStatus() !== 'ready') return null;
-  const { ort, session, labels } = await load();
+  const { ort, session, labels, mammals } = await load();
   const size = SPECIES_MODEL.size;
   const canvas = document.createElement('canvas');
   canvas.width = size;
@@ -78,6 +86,6 @@ export async function validateSpecies(picture: CanvasImageSource & { width: numb
   const input = preprocessSpecies(context.getImageData(0, 0, size, size).data, size);
   const out = await session.run({ pixel_values: new ort.Tensor('float32', input, [1, 3, size, size]) });
   const embedding = normalise(Float32Array.from(out.embedding.data as Float32Array));
-  const names = namesFor(labels);
+  const names = namesFor(labels, mammals);
   return compareSpecies(suggested, rankSpecies(embedding, names.labels, names.vectors));
 }

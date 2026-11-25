@@ -476,7 +476,7 @@ export async function renderExport(
       // second lossy JPEG compression pass or a copy of private camera EXIF.
       const annotated = await embedRasterXmp(encoded, profile.format, extras.metadata);
       signal?.throwIfAborted();
-      const file = datedExport(annotated, name, date);
+      const file = datedExport(annotated, name, date, frame.exif?.captureStamp);
       if (!profile.maxBytes || file.size <= profile.maxBytes) return file;
     }
     throw new Error(`${name} is above the preset’s file-size limit. Choose smaller export dimensions.`);

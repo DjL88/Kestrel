@@ -196,6 +196,15 @@ resource "google_cloud_run_v2_service" "control_plane" {
         value = var.control_plane_signing_key_id
       }
       env {
+        # The one model manifest: served unchanged by /v1/models/manifest after it verifies with KCP_MODEL_KEYS.
+        name  = "KCP_MODEL_MANIFEST_URL"
+        value = "https://storage.googleapis.com/${google_storage_bucket.models.name}/manifest/stable.json"
+      }
+      env {
+        name  = "KCP_MODEL_KEYS"
+        value = var.model_manifest_keys
+      }
+      env {
         name  = "KCP_ALLOWED_ORIGINS"
         value = local.control_plane_origins
       }
@@ -279,21 +288,21 @@ resource "google_cloud_run_v2_service" "control_plane" {
         }
       }
       dynamic "env" {
-        for_each = var.phase5_sumup_enabled ? [1] : []
+        for_each = local.paddle_secrets
         content {
-          name = "KCP_SUMUP_API_KEY"
+          name = env.key
           value_source {
             secret_key_ref {
-              secret  = "kestrel-sumup-api-key"
+              secret  = env.value
               version = "latest"
             }
           }
         }
       }
       dynamic "env" {
-        for_each = var.phase5_sumup_enabled ? [var.phase5_sumup_merchant] : []
+        for_each = var.phase5_paddle_enabled ? { KCP_PADDLE_ENVIRONMENT = var.phase5_paddle_environment, KCP_PADDLE_PRO_PRICE_ID = var.phase5_paddle_pro_price_id } : {}
         content {
-          name  = "KCP_SUMUP_MERCHANT_CODE"
+          name  = env.key
           value = env.value
         }
       }
@@ -339,7 +348,7 @@ resource "google_cloud_run_v2_service" "control_plane" {
     google_secret_manager_secret_iam_member.control_plane,
     google_secret_manager_secret_iam_member.licence_private_key,
     google_secret_manager_secret_iam_member.gemini_api_key,
-    google_secret_manager_secret_iam_member.phase5_sumup,
+    google_secret_manager_secret_iam_member.phase5_paddle,
     google_service_account_iam_member.control_plane_url_signing,
     google_storage_bucket_iam_member.control_plane_objects,
     google_storage_bucket_iam_member.safe_copy_control_plane,

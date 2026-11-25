@@ -148,6 +148,7 @@ export const da: AreaTranslation<typeof source> = {
     importSaveStage: 'Gemmer fotoet i dette projekt',
     importSomeFailed: (added) => `Nogle fotos kunne ikke importeres. ${added} blev tilføjet. Åbn Opgaver for kun at prøve de mislykkede igen.`,
     importStopped: (added) => `Importen stoppede. ${added} fotos blev tilføjet. Dine originaler er uændrede.`,
+    importNotFinished: (count, names) => `Den sidste import til dette projekt blev ikke færdig: ${count} fotos blev ikke tilføjet (${names}). Importér dem igen for at tilføje dem. Fotos, der allerede er tilføjet, bevares.`,
     importFailed: 'Tilføjelse af fotos mislykkedes. Dine originaler blev ikke ændret.',
   },
 };

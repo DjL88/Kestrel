@@ -1,5 +1,5 @@
 import exifr from 'exifr';
-import type { ExifMetadata } from './types';
+import type { CaptureStamp, ExifMetadata } from './types';
 import { heifFormatLabel, isHeifFile, isRawPreviewFile, rawPreviewLabel } from './rawFormats';
 import { readHeifExif } from './heifExif';
 import { rawSensorSize } from './rawSensorSize';
@@ -66,6 +66,30 @@ export function validExifCaptureTimestamp(original: unknown, created: unknown): 
   return [original, created]
     .find((value): value is Date => value instanceof Date && Number.isFinite(value.getTime()))
     ?.getTime();
+}
+
+/**
+ * The capture dates exactly as the file records them, for exports to copy. exifr builds each Date from the wall-clock
+ * fields in this computer's zone, so its local fields are the camera's clock. Only what the file says: a missing or
+ * malformed date stays absent, and an offset is kept only beside the date it belongs to.
+ */
+export function readCaptureStamp(original: unknown, digitized: unknown, offsetOriginal: unknown, offsetDigitized: unknown): CaptureStamp | undefined {
+  const wall = (value: unknown) => {
+    if (!(value instanceof Date) || !Number.isFinite(value.getTime())) return undefined;
+    const year = value.getFullYear();
+    if (year < 1 || year > 9999) return undefined;
+    const two = (n: number) => String(n).padStart(2, '0');
+    return `${String(year).padStart(4, '0')}:${two(value.getMonth() + 1)}:${two(value.getDate())} ${two(value.getHours())}:${two(value.getMinutes())}:${two(value.getSeconds())}`;
+  };
+  const offset = (value: unknown) => {
+    const zone = typeof value === 'string' ? /^([+-])(\d{2}):(\d{2})$/.exec(value.trim()) : null;
+    return zone && Number(zone[2]) <= 14 && Number(zone[3]) <= 59 ? zone[0] : undefined;
+  };
+  const stamp: CaptureStamp = {};
+  const taken = wall(original), made = wall(digitized);
+  if (taken) { stamp.original = taken; const zone = offset(offsetOriginal); if (zone) stamp.offsetOriginal = zone; }
+  if (made) { stamp.digitized = made; const zone = offset(offsetDigitized); if (zone) stamp.offsetDigitized = zone; }
+  return stamp.original || stamp.digitized ? stamp : undefined;
 }
 
 /** The GPS position, when the file has a valid one. exifr gives decimal `latitude` and `longitude` in its GPS block. */
@@ -271,6 +295,7 @@ export async function parseImageExif(
 
     const shutter = formatShutterSpeed(validExifPositiveNumber(parsed.ExposureTime));
     const gps = readGpsPosition(segments?.gps);
+    const captureStamp = readCaptureStamp(parsed.DateTimeOriginal, parsed.CreateDate, parsed.OffsetTimeOriginal, parsed.OffsetTimeDigitized);
     const capturedAtUtcMs = captureInstantUtc(parsed.DateTimeOriginal, parsed.OffsetTimeOriginal ?? parsed.OffsetTime, segments?.gps);
 
     // RAWs: the recorded sensor image size from the file's own IFDs (EXIF often has none, or only the thumbnail's).
@@ -294,6 +319,7 @@ export async function parseImageExif(
       iso: validExifIso(parsed.ISO),
       capturedAtMs,
       ...(capturedAtUtcMs !== undefined ? { capturedAtUtcMs } : {}),
+      ...(captureStamp ? { captureStamp } : {}),
       ...(gps ? { gps } : {}),
       ...(validExifPositiveNumber(parsed.ExposureTime) ? { exposureSeconds: validExifPositiveNumber(parsed.ExposureTime) } : {}),
       width,

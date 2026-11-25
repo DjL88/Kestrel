@@ -3,6 +3,7 @@
 // Replace this file when connecting the real Kestrel/InFlight engine.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { STRINGS } from './strings';
 import type {
   CropTransform,
   DecisionState,
@@ -927,6 +928,18 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
         const selectedPhotoIds = prev.selectedPhotoIds.filter((id) => !idSet.has(id));
         const activePhotoId = idSet.has(prev.activePhotoId ?? '') ? photos[0]?.id ?? null : prev.activePhotoId;
         return { ...prev, photos, selectedPhotoIds, activePhotoId };
+      });
+    },
+    movePhotos: (photoIds, targetProjectId) => {
+      logAction('movePhotos', { photoIds, targetProjectId });
+      setStore((prev) => {
+        const target = prev.projects.find((p) => p.id === targetProjectId);
+        if (!target) return prev;
+        const idSet = new Set(photoIds);
+        const photos = prev.photos.filter((p) => !idSet.has(p.id));
+        const activePhotoId = idSet.has(prev.activePhotoId ?? '') ? photos[0]?.id ?? null : prev.activePhotoId;
+        return { ...prev, photos, selectedPhotoIds: [], activePhotoId,
+          lastActionNotice: STRINGS.filmstripLabels.moved(photoIds.length, target.name) };
       });
     },
 
@@ -2175,6 +2188,8 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
             provider,
             email: email?.trim() || (provider === 'google' ? 'duncan@gmail.com' : 'duncan@icloud.com'),
             displayName: 'Duncan Lawson',
+            // Sample figures for the demo workspace: a Pro account part-way through November.
+            cloud: { plan: 'pro', photosUsed: 1840, storedBytes: 4_100_000_000, downloadedBytes: 420_000_000, balancePence: 500, nowMs: Date.now() },
           },
         },
         lastActionNotice: `Signed in with ${provider}`,

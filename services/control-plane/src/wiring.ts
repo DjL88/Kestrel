@@ -14,7 +14,9 @@ import { IamPresenceSigner } from './presenceToken.ts';
 import { GalleryStore } from './gallery.ts';
 import { NoticeStore, NO_DELIVERY } from './notices.ts';
 import { CloudPhotoStore } from './cloudPhotos.ts';
-import { FirestoreUsageMeter, FlatAllowance } from './usageMeter.ts';
+import { BalanceBackedMeter, FirestoreUsageMeter, FlatAllowance } from './usageMeter.ts';
+import { FirestoreCloudBalance } from './cloudBalance.ts';
+import { randomUUID } from 'node:crypto';
 import { FirestoreSpendGuard } from './spendGuard.ts';
 import type { FirestoreLike } from './firestoreStore.ts';
 import { createHmac } from 'node:crypto';
@@ -30,7 +32,7 @@ export interface WiringDeps {
   /** Tests replace the SMTP transport. */
   mailTransport?: import('./mailer.ts').MailTransport;
 }
-export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'notices' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer'> & { enabled: string[] };
+export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'notices' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer' | 'cloudBalance'> & { enabled: string[] };
 
 function whole(env: NodeJS.ProcessEnv, name: string, dflt: number, max: number): number {
   const raw = env[name];
@@ -54,6 +56,9 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
     aiCallPence: whole(env, 'KCP_AI_CALL_PENCE', 1, 100_000),
   };
   out.enabled.push('spend-guard');
+  // Prepaid cloud balance: pays for cloud photos and downloads beyond the free monthly allowances (src/core/cloudPlan.ts).
+  const balance = new FirestoreCloudBalance(db);
+  out.cloudBalance = balance;
 
   // App email (hello@inflight.studio). Only when Terraform sets KCP_MAIL_ENABLED (smtp_mail_enabled), which waits for the
   // owner's "Send mail as" verification; the `email` admin switch must also be on before anything is sent.
@@ -81,7 +86,10 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
     out.cloud = {
       runner: new GcsCloudRunner(bucket, trigger), ledger,
       settleFailed: (jobId, legacySpendPence) => ledger.settleFailed(jobId, legacySpendPence),
-      jobsPerPeriod: whole(env, 'KCP_CLOUD_JOBS_PER_PERIOD', 50, 100_000),
+      // Owner, 25 Nov 2026: 5,000 cloud photos a month for Pro, 500 for Basic, then 0.3p each from the balance.
+      jobsPerPeriod: whole(env, 'KCP_CLOUD_JOBS_PER_PERIOD', 5000, 100_000),
+      basicJobsPerPeriod: whole(env, 'KCP_CLOUD_BASIC_JOBS_PER_PERIOD', 500, 100_000),
+      balance, extraPhotoMillicredits: 300,
       maxInputBytes: whole(env, 'KCP_CLOUD_MAX_INPUT_BYTES', 120_000_000, 2_000_000_000),
     };
     out.enabled.push('cloud-processing');
@@ -111,11 +119,11 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
       out.gallery = new GalleryStore(db, bucket); out.enabled.push('gallery');
       // The cloud photo store shares the UK bucket under projects/ (the 90-day rule covers galleries/ only).
       if (env.KCP_CLOUD_PHOTOS_ENABLED === '1') {
-        const credits = Number(env.KCP_DOWNLOAD_CREDITS_PER_MONTH ?? 300);
+        const credits = Number(env.KCP_DOWNLOAD_CREDITS_PER_MONTH ?? 33);
         const maxGb = Number(env.KCP_CLOUD_PROJECT_MAX_GB ?? 50);
         out.cloudPhotos = {
-          store: new CloudPhotoStore(db, bucket), meter: new FirestoreUsageMeter(db),
-          allowance: new FlatAllowance(Math.max(0, Math.round((Number.isFinite(credits) ? credits : 300) * 1000))),
+          store: new CloudPhotoStore(db, bucket), meter: new BalanceBackedMeter(new FirestoreUsageMeter(db), balance, () => randomUUID()),
+          allowance: new FlatAllowance(Math.max(0, Math.round((Number.isFinite(credits) ? credits : 33) * 1000))),
           maxProjectBytes: Math.max(0, (Number.isFinite(maxGb) ? maxGb : 50) * 1_000_000_000),
         };
         out.enabled.push('cloud-photos');
