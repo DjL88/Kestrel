@@ -22,6 +22,7 @@ import type {
 import { STRINGS } from '../strings';
 import { projectsText } from '../../../i18n/areas/projects';
 import { readBuildInfo } from '../../../core/buildInfo';
+import { ModelsSection } from '../panels/ModelsSection';
 
 /** Settings → Build information (G10). Literal accesses, so Vite's build-time values replace them. */
 const BUILD = readBuildInfo({
@@ -630,6 +631,7 @@ export default function SettingsDialog({
                   </dl>
                   {BUILD.modified && <p role="note" className="text-xs font-medium text-[var(--text-primary)]">⚠ {STRINGS.settingsMore.buildModified}</p>}
                 </section>
+                <ModelsSection />
                 <section aria-labelledby="erase-device-title" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
                   <h3 id="erase-device-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.settingsMore.eraseHeading}</h3>
                   <p className="text-xs leading-relaxed text-[var(--text-secondary)]">

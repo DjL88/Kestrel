@@ -1,3 +1,4 @@
+import { createTimedSession } from './modelTiming';
 import { Sha256Stream } from '../core/sha256';
 import { isDesktopApp } from './desktopShell';
 import { getModel, hasModel, putModel, removeModel } from './modelStore';
@@ -116,7 +117,7 @@ function loadSession(): Promise<Loaded> {
     });
     ort.env.wasm.numThreads = 1;
     ort.env.wasm.proxy = false;
-    const session = await ort.InferenceSession.create(bytes, { executionProviders: ['wasm'] });
+    const session = await createTimedSession(ort, 'bioclip-image-int8', bytes, { executionProviders: ['wasm'] });
     return { ort, session };
   })().catch((error) => {
     loading = null;

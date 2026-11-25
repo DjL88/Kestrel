@@ -1,3 +1,4 @@
+import { createTimedSession } from './modelTiming';
 import { RFDETR_NANO } from '../core/optionalModels';
 import { RFDETR_INPUT, decodeRfDetr, rfDetrInput, tandemDetections, type TandemDetection } from '../core/rfDetr';
 import { mergeDetections, tilePlan, type Box, type Detection } from '../core/objectDetection';
@@ -25,7 +26,7 @@ function load(): Promise<Loaded> {
     const ort = await import('onnxruntime-web/wasm');
     ort.env.wasm.numThreads = 1;
     ort.env.wasm.proxy = false;
-    const session = await ort.InferenceSession.create(bytes, { executionProviders: ['wasm'] });
+    const session = await createTimedSession(ort, RFDETR_NANO.id, bytes, { executionProviders: ['wasm'] });
     return { ort, session };
   })().catch((error) => {
     loading = null;

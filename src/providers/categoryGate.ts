@@ -1,3 +1,4 @@
+import { createTimedSession } from './modelTiming';
 import { Sha256Stream } from '../core/sha256';
 import { installedModel } from './modelUpdater';
 import { GATE_MODEL, gateVectors } from '../core/categoryGate';
@@ -80,7 +81,7 @@ function load(): Promise<Loaded> {
     const ort = await import('onnxruntime-web/wasm');
     ort.env.wasm.numThreads = 1;
     ort.env.wasm.proxy = false;
-    const session = await ort.InferenceSession.create(bytes, { executionProviders: ['wasm'] });
+    const session = await createTimedSession(ort, 'clip-gate', bytes, { executionProviders: ['wasm'] });
     return { ort, session, categories, vectors };
   })().catch((error) => {
     loading = null;
