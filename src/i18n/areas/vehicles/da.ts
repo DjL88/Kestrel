@@ -32,6 +32,18 @@ export const da: AreaTranslation<typeof source> = {
   operatedBy: (what: string, operator: string) => `${what}, drevet af ${operator}`,
   held: (what: string) => `${what}? Bør tjekkes`,
   raceNumber: (what: string, number: string) => `${what}, startnummer ${number}`,
+  correct: {
+    edit: 'Rediger',
+    change: 'Skift køretøj',
+    kindLabel: 'Slags',
+    typeLabel: 'Mærke eller type',
+    typeUnknown: 'Ikke sikker',
+    notVehicle: 'Ikke et køretøj',
+    wholeBurst: (count: number) => `Alle ${count} billeder i denne serie`,
+    save: 'Gem',
+    cancel: 'Annuller',
+    saved: (count: number) => (count > 1 ? `Gemt for ${count} billeder.` : 'Gemt.'),
+  },
   reader: {
     title: 'Læs registreringer og startnumre',
     description: (megabytes: string) => `Læser på denne enhed registreringer og militære serienumre på fly, og startnumre på racerbiler og racermotorcykler. Registreringer slås op i en offline kopi af offentlige registre. En engangsdownload på ${megabytes} MB. Nummerplader på vejkøretøjer læses aldrig.`,

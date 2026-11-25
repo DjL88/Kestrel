@@ -40,6 +40,19 @@ export const source = {
   held: (what: string) => `${what}? Needs your review`,
   /** A race number read from a racing car or bike, at a public sporting event. */
   raceNumber: (what: string, number: string) => `${what}, number ${number}`,
+  /** Photo Info: the person's own correction, for one photo or the whole burst. */
+  correct: {
+    edit: 'Edit',
+    change: 'Change the vehicle',
+    kindLabel: 'Kind',
+    typeLabel: 'Make or type',
+    typeUnknown: 'Not sure',
+    notVehicle: 'Not a vehicle',
+    wholeBurst: (count: number) => `All ${count} photos in this burst`,
+    save: 'Save',
+    cancel: 'Cancel',
+    saved: (count: number) => (count > 1 ? `Saved for ${count} photos.` : 'Saved.'),
+  },
   /** Settings → Assistance: the opt-in markings reader. */
   reader: {
     title: 'Read registrations and race numbers',

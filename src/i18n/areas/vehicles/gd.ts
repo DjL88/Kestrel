@@ -32,6 +32,18 @@ export const gd: AreaTranslation<typeof source> = {
   operatedBy: (what: string, operator: string) => `${what}, air obrachadh le ${operator}`,
   held: (what: string) => `${what}? Feumaidh tu sùil a thoirt air`,
   raceNumber: (what: string, number: string) => `${what}, àireamh ${number}`,
+  correct: {
+    edit: 'Deasaich',
+    change: 'Atharraich an carbad',
+    kindLabel: 'Seòrsa',
+    typeLabel: 'Dèanadas no modail',
+    typeUnknown: 'Chan eil mi cinnteach',
+    notVehicle: 'Chan e carbad a th’ ann',
+    wholeBurst: (count: number) => `Na ${count} dealbhan uile san t-sreath seo`,
+    save: 'Sàbhail',
+    cancel: 'Sguir dheth',
+    saved: (count: number) => (count > 1 ? `Air a shàbhaladh airson ${count} dealbhan.` : 'Air a shàbhaladh.'),
+  },
   reader: {
     title: 'Leugh clàraidhean is àireamhan rèis',
     description: (megabytes: string) => `A’ leughadh clàraidhean is àireamhan sreathach armailteach air itealain, agus àireamhan rèis air càraichean is baidhsagalan rèis, air an uidheam seo. Thèid clàraidhean a lorg ann an lethbhreac far loidhne de chlàran poblach. Luchdadh a-nuas aon turas de ${megabytes} MB. Cha tèid clàran-àireimh charbadan rathaid a leughadh idir.`,

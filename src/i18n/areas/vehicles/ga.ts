@@ -32,6 +32,18 @@ export const ga: AreaTranslation<typeof source> = {
   operatedBy: (what: string, operator: string) => `${what}, á oibriú ag ${operator}`,
   held: (what: string) => `${what}? Ní mór duit é a sheiceáil`,
   raceNumber: (what: string, number: string) => `${what}, uimhir ${number}`,
+  correct: {
+    edit: 'Cuir in eagar',
+    change: 'Athraigh an fheithicil',
+    kindLabel: 'Cineál',
+    typeLabel: 'Déantús nó samhail',
+    typeUnknown: 'Níl mé cinnte',
+    notVehicle: 'Ní feithicil é',
+    wholeBurst: (count: number) => `Na ${count} grianghraf ar fad sa phléasc seo`,
+    save: 'Sábháil',
+    cancel: 'Cealaigh',
+    saved: (count: number) => (count > 1 ? `Sábháilte do ${count} grianghraf.` : 'Sábháilte.'),
+  },
   reader: {
     title: 'Léigh clárúcháin agus uimhreacha rásaíochta',
     description: (megabytes: string) => `Léann sé clárúcháin agus sraithuimhreacha míleata ar aerárthaí, agus uimhreacha rásaíochta ar charranna agus ar ghluaisrothair rásaíochta, ar an ngléas seo. Cuardaítear clárúcháin i gcóip as líne de chláir phoiblí. Íoslódáil aonuaire de ${megabytes} MB. Ní léitear uimhirphlátaí feithiclí bóthair riamh.`,

@@ -32,6 +32,18 @@ export const es: AreaTranslation<typeof source> = {
   operatedBy: (what: string, operator: string) => `${what}, operado por ${operator}`,
   held: (what: string) => `${what}? Revísalo`,
   raceNumber: (what: string, number: string) => `${what}, dorsal ${number}`,
+  correct: {
+    edit: 'Editar',
+    change: 'Cambiar el vehículo',
+    kindLabel: 'Tipo',
+    typeLabel: 'Marca o modelo',
+    typeUnknown: 'No estoy seguro',
+    notVehicle: 'No es un vehículo',
+    wholeBurst: (count: number) => `Las ${count} fotos de esta ráfaga`,
+    save: 'Guardar',
+    cancel: 'Cancelar',
+    saved: (count: number) => (count > 1 ? `Guardado en ${count} fotos.` : 'Guardado.'),
+  },
   reader: {
     title: 'Leer matrículas y dorsales',
     description: (megabytes: string) => `Lee en este dispositivo las matrículas y números de serie militares de las aeronaves, y los dorsales de coches y motos de carreras. Las matrículas se buscan en una copia sin conexión de registros públicos. Una única descarga de ${megabytes} MB. Nunca se leen las matrículas de los vehículos de carretera.`,

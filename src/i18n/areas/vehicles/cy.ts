@@ -32,6 +32,18 @@ export const cy: AreaTranslation<typeof source> = {
   operatedBy: (what: string, operator: string) => `${what}, a weithredir gan ${operator}`,
   held: (what: string) => `${what}? Angen i chi wirio`,
   raceNumber: (what: string, number: string) => `${what}, rhif ${number}`,
+  correct: {
+    edit: 'Golygu',
+    change: 'Newid y cerbyd',
+    kindLabel: 'Math',
+    typeLabel: 'Gwneuthuriad neu fodel',
+    typeUnknown: 'Ddim yn siŵr',
+    notVehicle: 'Nid cerbyd',
+    wholeBurst: (count: number) => `Pob un o’r ${count} llun yn y byrst hwn`,
+    save: 'Cadw',
+    cancel: 'Canslo',
+    saved: (count: number) => (count > 1 ? `Wedi’i gadw ar gyfer ${count} llun.` : 'Wedi’i gadw.'),
+  },
   reader: {
     title: 'Darllen cofrestriadau a rhifau rasio',
     description: (megabytes: string) => `Yn darllen cofrestriadau a rhifau cyfresol milwrol ar awyrennau, a rhifau rasio ar geir a beiciau rasio, ar y ddyfais hon. Caiff cofrestriadau eu chwilio mewn copi all-lein o gofrestrau cyhoeddus. Lawrlwythiad unwaith o ${megabytes} MB. Nid yw platiau rhif cerbydau ffordd byth yn cael eu darllen.`,

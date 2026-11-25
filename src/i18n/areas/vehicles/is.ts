@@ -32,6 +32,18 @@ export const is: AreaTranslation<typeof source> = {
   operatedBy: (what: string, operator: string) => `${what}, rekið af ${operator}`,
   held: (what: string) => `${what}? Þarf að yfirfara`,
   raceNumber: (what: string, number: string) => `${what}, númer ${number}`,
+  correct: {
+    edit: 'Breyta',
+    change: 'Breyta farartæki',
+    kindLabel: 'Tegund',
+    typeLabel: 'Framleiðandi eða gerð',
+    typeUnknown: 'Ekki viss',
+    notVehicle: 'Ekki farartæki',
+    wholeBurst: (count: number) => `Allar ${count} myndir í þessari röð`,
+    save: 'Vista',
+    cancel: 'Hætta við',
+    saved: (count: number) => (count > 1 ? `Vistað fyrir ${count} myndir.` : 'Vistað.'),
+  },
   reader: {
     title: 'Lesa skráningar og keppnisnúmer',
     description: (megabytes: string) => `Les á þessu tæki skráningar og hernaðarleg raðnúmer á loftförum, og keppnisnúmer á kappakstursbílum og kappakstursmótorhjólum. Skráningum er flett upp í ónettengdu afriti af opinberum skrám. Einstakt niðurhal upp á ${megabytes} MB. Bílnúmer eru aldrei lesin.`,

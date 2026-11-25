@@ -32,6 +32,18 @@ export const nl: AreaTranslation<typeof source> = {
   operatedBy: (what: string, operator: string) => `${what}, geëxploiteerd door ${operator}`,
   held: (what: string) => `${what}? Controleer dit`,
   raceNumber: (what: string, number: string) => `${what}, startnummer ${number}`,
+  correct: {
+    edit: 'Bewerken',
+    change: 'Voertuig wijzigen',
+    kindLabel: 'Soort',
+    typeLabel: 'Merk of type',
+    typeUnknown: 'Weet niet',
+    notVehicle: 'Geen voertuig',
+    wholeBurst: (count: number) => `Alle ${count} foto’s in deze reeks`,
+    save: 'Opslaan',
+    cancel: 'Annuleren',
+    saved: (count: number) => (count > 1 ? `Opgeslagen voor ${count} foto’s.` : 'Opgeslagen.'),
+  },
   reader: {
     title: 'Registraties en startnummers lezen',
     description: (megabytes: string) => `Leest op dit apparaat registraties en militaire serienummers van luchtvaartuigen, en startnummers van raceauto’s en racemotoren. Registraties worden opgezocht in een offline kopie van openbare registers. Een eenmalige download van ${megabytes} MB. Kentekens van wegvoertuigen worden nooit gelezen.`,
