@@ -121,6 +121,15 @@ Dev-only tooling (not shipped in the app: `typescript`, `tsx`, `@playwright/test
 isn't distributed to users, but include it in a full scan if you ever publish
 build tooling or a plugin SDK separately.
 
+## Place names: GeoNames (CC BY 4.0)
+
+`public/places/geonames-cities1000.bin` is built by `tools/scene-tags/make_places.py` from GeoNames' `cities1000.zip`
+and `admin1CodesASCII.txt` (https://www.geonames.org/, licensed Creative Commons Attribution 4.0). Required credit:
+"Place names from GeoNames (www.geonames.org), CC BY 4.0". The app shows it under place tags in Info
+(`photoTags.placeNote`); keep it in the About/Licences page when that exists. Country names come from the platform
+(`Intl.DisplayNames`), not from GeoNames. The curated photo-spot list (`src/assets/places/curated.json`) is
+InFlight's own, positions read by hand; no OpenStreetMap data was copied.
+
 ## Machine-learning models
 
 - **Burst grouping (DINOv2 ViT-S/14 image embeddings, Apache-2.0, Meta)**: `public/models/dinov2-small-fp16.onnx`,
