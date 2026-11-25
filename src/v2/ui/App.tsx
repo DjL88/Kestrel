@@ -3,6 +3,7 @@ import { usageFromServer, type CloudUsage } from '../../core/cloudPlan';
 import { useConnectivity } from '../../providers/useConnectivity';
 import { projectsText } from '../../i18n/areas/projects';
 import { stepFrom } from './utils/swipe';
+import type { EnlargementPreviewResult } from '../engineClient/enlargementPreview';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { EditRecipe, PanelId, Photo } from './contract';
 import { useWorkspace } from './stub';
@@ -57,6 +58,7 @@ const InfoPanel = lazyPart(() => import('./panels/InfoPanel'));
 const TasksPanel = lazyPart(() => import('./panels/TasksPanel'));
 const CollageExportDialog = lazyPart(() => import('./dialogs/CollageExportDialog'));
 const ExportDialog = lazyPart(() => import('./dialogs/ExportDialog'));
+const EnlargementPreview = lazyPart(() => import('./dialogs/EnlargementPreview'));
 const RemovedPhotosDialog = lazyPart(() => import('./dialogs/RemovedPhotosDialog'));
 const ShareDialog = lazyPart(() => import('./dialogs/ShareDialog'));
 const SettingsDialog = lazyPart(() => import('./dialogs/SettingsDialog'));
@@ -95,6 +97,22 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const { store, actions } = useStore();
   // Shared projects (#1387): contacted only when the person opens Share.
   const [shareOpen, setShareOpen] = useState(false);
+  // The enlargement preview: the export's own picture of one format. Null result while it is being made.
+  const [enlargement, setEnlargement] = useState<{ photoId: string; sizeId: string; result: EnlargementPreviewResult | null } | null>(null);
+  const enlargementRequest = React.useRef(0);
+  const openEnlargement = (photoId: string, sizeId: string) => {
+    const request = ++enlargementRequest.current;
+    setEnlargement({ photoId, sizeId, result: null });
+    void actions.previewEnlargement?.(photoId, sizeId).then((result) => {
+      // A preview closed (or replaced) before it finished is dropped, and its picture released.
+      if (request !== enlargementRequest.current) { if (result.ok) URL.revokeObjectURL(result.url); return; }
+      setEnlargement((current) => current ? { ...current, result } : current);
+    });
+  };
+  const closeEnlargement = () => {
+    enlargementRequest.current += 1;
+    setEnlargement((current) => { if (current?.result?.ok) URL.revokeObjectURL(current.result.url); return null; });
+  };
   const [shareVersion, setShareVersion] = useState(0);
   const [cursorsHidden, setCursorsHidden] = useState(false);
   const closeShare = React.useCallback(() => { setShareOpen(false); setShareVersion((n) => n + 1); }, []);
@@ -463,6 +481,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onUpdateRecipe={actions.updateRecipe}
             onDenoise={actions.denoisePhoto}
             cloudEnabled={store.features.cloudAssist}
+            onPreviewEnlargement={actions.previewEnlargement && activePhoto ? () => openEnlargement(activePhoto.id, store.activeSizeId) : undefined}
           />
         );
       case 'overlays':
@@ -1067,6 +1086,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       )}
 
       {/* Global Dialogs: each in its own boundary, so one still arriving hides nothing else. */}
+      {enlargement && <React.Suspense fallback={null}><EnlargementPreview result={enlargement.result} onClose={closeEnlargement}
+        formatLabel={store.photos.find((photo) => photo.id === enlargement.photoId)?.sizes.find((size) => size.id === enlargement.sizeId)?.label ?? ''} /></React.Suspense>}
       {store.collage && store.exportOpen && <React.Suspense fallback={null}><CollageExportDialog key={store.activeProjectId} document={store.collage} onClose={() => actions.setExportOpen(false)} onExport={actions.exportCollage} /></React.Suspense>}
       <React.Suspense fallback={null}><ExportDialog key={JSON.stringify([activePhoto?.id, activePhoto?.activeGroupId])}
         open={store.exportOpen && !store.collage}

@@ -88,6 +88,7 @@ export const is: AreaTranslation<typeof source> = {
       : `${count} skrár fluttar út. Frumritin þín eru óbreytt.`),
     exportSomeFailed: 'Sumir útflutningar mistókust. Opnaðu Verk og veldu Reyna mistókst aftur. Skrár sem þegar eru vistaðar haldast á sínum stað.',
     exportStopped: 'Útflutningur stöðvaður. Skrár sem þegar eru vistaðar haldast á sínum stað.',
+    enlargementTask: 'Bý til forskoðun stækkunar',
     exportNotQueued: 'Ekki tókst að hefja þennan útflutning.',
     destinationUnavailable: 'Sá útflutningsstaður er ekki tiltækur. Veldu ZIP á tækinu, stakar skrár eða möppu á tölvunni.',
     cullPro: 'Sjálfvirk grisjun er hluti af InFlight Pro.',

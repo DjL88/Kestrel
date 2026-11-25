@@ -88,6 +88,7 @@ export const da: AreaTranslation<typeof source> = {
       : `${count} filer eksporteret. Dine originaler er uændrede.`),
     exportSomeFailed: 'Nogle eksporter mislykkedes. Åbn Opgaver, og vælg Prøv mislykkede igen. Filer, der allerede er gemt, bliver liggende.',
     exportStopped: 'Eksporten stoppede. Filer, der allerede er gemt, bliver liggende.',
+    enlargementTask: 'Laver forhåndsvisning af forstørrelsen',
     exportNotQueued: 'Kunne ikke starte denne eksport.',
     destinationUnavailable: 'Den eksportdestination er ikke tilgængelig. Vælg en lokal ZIP, separate filer eller en mappe på computeren.',
     cullPro: 'Autosortering er en del af InFlight Pro.',

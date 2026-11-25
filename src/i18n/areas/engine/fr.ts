@@ -88,6 +88,7 @@ export const fr: AreaTranslation<typeof source> = {
       : `${count} fichiers exportés. Vos originaux sont inchangés.`),
     exportSomeFailed: 'Certains exports ont échoué. Ouvrez Tâches et choisissez Réessayer les échecs. Les fichiers déjà enregistrés restent en place.',
     exportStopped: 'Export arrêté. Les fichiers déjà enregistrés restent en place.',
+    enlargementTask: 'Création de l’aperçu de l’agrandissement',
     exportNotQueued: 'Impossible de lancer cet export.',
     destinationUnavailable: 'Cette destination d’export n’est pas disponible. Choisissez un ZIP local, des fichiers séparés ou un dossier de l’ordinateur.',
     cullPro: 'Le tri auto fait partie d’InFlight Pro.',
