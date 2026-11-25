@@ -72,7 +72,19 @@ export const EFFICIENTSAM_TI: OptionalModel = {
   cache: 'kestrel-efficientsam-ti-v1',
 };
 
-export const OPTIONAL_MODELS: readonly OptionalModel[] = [RFDETR_NANO, EFFICIENTSAM_TI];
+export const NAFNET_W32: OptionalModel = {
+  id: 'nafnet-sidd-w32-w16',
+  name: 'Learned denoise (NAFNet)',
+  job: 'A learned noise reduction for developed photos, offered beside the built-in conventional noise reduction.',
+  licence: 'MIT',
+  source: 'https://github.com/megvii-research/NAFNet (commit 2b4af71ebe098a92a75910c233a3965a3e93ede4), NAFNet-SIDD-width32.pth from the authors\' Google Drive link in docs/SIDD.md',
+  tier: 'phone',
+  fallback: 'conventional luminance and colour noise reduction',
+  files: { model: pinned('NAFNET_MODEL', 'c28f9ebfc824217becc71f1406300380e2a74123db02e007a17eb3015f74fe21', 58841423) },
+  cache: 'kestrel-nafnet-w32-v1',
+};
+
+export const OPTIONAL_MODELS: readonly OptionalModel[] = [RFDETR_NANO, EFFICIENTSAM_TI, NAFNET_W32];
 
 /** Total download for a pack, for an honest size in the offer. */
 export function optionalModelBytes(model: OptionalModel): number {
