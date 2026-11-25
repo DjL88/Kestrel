@@ -405,6 +405,57 @@ fn develop_in_strips(raw: &RawImage, look: &Look, plan: &StripPlan) -> ImageBuff
     ImageBuffer::from_raw(width as u32, height as u32, out).expect("buffer sized to the picture")
 }
 
+// ---- Half size, for the screen ---------------------------------------------------------------------------------
+//
+// The background develop after import only feeds a screen-size review copy (at most 2,200 px) and a thumbnail, so
+// developing all 45 megapixels and throwing them away cost a Nikon Z 8 frame about 24 s on a 16-thread laptop and over
+// 100 s on one thread (the browser). Each 2 x 2 Bayer block holds one red, two green and one blue photosite: taking
+// them as one RGB pixel (dcraw's "half size") needs no demosaic and gives a picture a quarter the size, still about
+// 4,100 px wide. Every later step is the same as the full develop (white balance, highlights, camera matrix, tone,
+// refine), so the colours match; only fine detail is less. Full-size develops (editing, export) are unchanged.
+
+/// The developed picture at half the sensor's width and height, for the screen. Falls back to the full develop for
+/// sensors the strip path doesn't cover (X-Trans, four-colour, monochrome, Fuji rotation).
+pub fn develop_display_rgb16_half(raw: &RawImage, look: &Look) -> Result<Option<ImageBuffer<Rgb<u16>, Vec<u16>>>, String> {
+    validate_colour_metadata(raw)?;
+    let Some(plan) = strip_plan(raw) else { return develop_display_rgb16_whole(raw, look) };
+    let RawImageData::Integer(samples) = &raw.data else { unreachable!("checked in strip_plan") };
+    // Each site's colour must be red, green or blue (0, 1, 2), and each 2 x 2 block must hold all three.
+    let block = [plan.cfa.color_at(0, 0), plan.cfa.color_at(0, 1), plan.cfa.color_at(1, 0), plan.cfa.color_at(1, 1)];
+    let mut counts = [0usize; 3];
+    for c in block { if c > 2 { return develop_display_rgb16(raw, look) } counts[c] += 1; }
+    if counts != [1, 2, 1] { return develop_display_rgb16(raw, look); }
+    let left = plan.active.p.x + plan.crop.p.x;
+    let top = plan.active.p.y + plan.crop.p.y;
+    let (width, height) = (plan.crop.d.w / 2, plan.crop.d.h / 2);
+    if width == 0 || height == 0 { return develop_display_rgb16(raw, look); }
+    let black = raw.blacklevel.as_bayer_array();
+    let white = raw.whitelevel.as_bayer_array();
+    // Black level and scale per position in the 2 x 2 pattern, as rawler's Rescale (correct_blacklevel_cfa) applies them.
+    let site = |x: usize, y: usize| -> f32 {
+        let i = ((y & 1) << 1) | (x & 1);
+        let v = samples[y * raw.width + x] as f32 - black[i];
+        if v.is_sign_negative() { 0.0 } else { v / (white[i] - black[i]) }
+    };
+    let transform = PixelTransform::new(raw, look);
+    let mut out: Vec<u16> = vec![0; width * height * 3];
+    out.par_chunks_mut(width * 3).enumerate().for_each(|(row, dst)| {
+        let y = top + row * 2;
+        let mut line = vec![[0f32; 3]; width];
+        for (col, pixel) in line.iter_mut().enumerate() {
+            let x = left + col * 2;
+            let mut sum = [0f32; 3];
+            for (dy, dx) in [(0, 0), (0, 1), (1, 0), (1, 1)] {
+                sum[plan.cfa.color_at(y + dy, x + dx)] += site(x + dx, y + dy);
+            }
+            *pixel = [sum[0], sum[1] * 0.5, sum[2]];
+        }
+        transform.row(&line, dst);
+    });
+    refine(&mut out, width, height, look);
+    Ok(ImageBuffer::from_raw(width as u32, height as u32, out))
+}
+
 // ---- Chroma noise reduction and capture sharpening ------------------------------------------------------------
 //
 // Colour noise (red/green/blue speckle in shadows and skies) is removed with a *fast guided filter*: chroma is
@@ -653,6 +704,40 @@ mod tests {
             assert_eq!(differing, 0, "{w}x{h}: {differing} samples differ");
         }
     }
+
+    /// The full develop shrunk by half, averaging each 2 x 2 block (for comparing with the half-size develop).
+    #[cfg(feature = "nikon-he")]
+    fn halved(image: &ImageBuffer<Rgb<u16>, Vec<u16>>) -> Vec<f32> {
+        let (w, h) = (image.width() as usize / 2, image.height() as usize / 2);
+        let mut out = vec![0f32; w * h * 3];
+        for y in 0..h { for x in 0..w { for c in 0..3 {
+            let at = |dx: usize, dy: usize| image.as_raw()[((2 * y + dy) * image.width() as usize + 2 * x + dx) * 3 + c] as f32;
+            out[(y * w + x) * 3 + c] = (at(0, 0) + at(1, 0) + at(0, 1) + at(1, 1)) / 4.0;
+        }}}
+        out
+    }
+
+    #[cfg(feature = "nikon-he")]
+    #[test]
+    fn the_half_size_develop_is_the_same_picture_at_half_the_size() {
+        for (w, h) in [(96, 64), (640, 531)] {
+            let raw = synthetic_raw(w, h);
+            let full = develop_display_rgb16(&raw, &Look::default()).unwrap().unwrap();
+            let half = develop_display_rgb16_half(&raw, &Look::default()).unwrap().unwrap();
+            assert_eq!(half.dimensions(), (full.width() / 2, full.height() / 2), "{w}x{h}: half the width and height");
+            let reference = halved(&full);
+            // Same colour and tone: each channel's average within 1% of full scale; most pixels close.
+            for c in 0..3 {
+                let mean = |v: &[f32]| v.iter().skip(c).step_by(3).sum::<f32>() / (v.len() / 3) as f32;
+                let got: Vec<f32> = half.as_raw().iter().map(|&v| v as f32).collect();
+                let diff = (mean(&got) - mean(&reference)).abs() / 65535.0;
+                assert!(diff < 0.01, "{w}x{h} channel {c}: average differs by {diff}");
+            }
+            let close = half.as_raw().iter().zip(&reference).filter(|(a, b)| (**a as f32 - **b).abs() < 0.06 * 65535.0).count();
+            assert!(close as f32 > 0.9 * reference.len() as f32, "{w}x{h}: only {close} of {} samples close", reference.len());
+        }
+    }
+
 
     /// Optional, real files: KESTREL_RAW_SAMPLES=<folder>. Every RAW that decodes must develop identically in strips.
     #[test]
