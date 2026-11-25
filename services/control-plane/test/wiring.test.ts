@@ -23,10 +23,10 @@ test('without Firestore (SQLite, development) nothing is wired, even if the envi
 test('cloud processing needs both the bucket and the runner job; safe copy and learning each need their own switch', async () => {
   assert.equal((await buildOptionalServices(deps({ KCP_CLOUD_PROCESSING_BUCKET: 'b' }))).cloud, undefined, 'no runner job, no cloud');
   assert.equal((await buildOptionalServices(deps({ KCP_CLOUD_RUNNER_JOB: JOB }))).cloud, undefined, 'no bucket, no cloud');
-  const all = await buildOptionalServices(deps({ KCP_CLOUD_PROCESSING_BUCKET: 'b', KCP_CLOUD_RUNNER_JOB: JOB, KCP_SAFE_COPY_BUCKET: 's', KCP_LEARNING_ENABLED: '1', KCP_MONTHLY_SPEND_CEILING_PENCE: '2000', KCP_CLOUD_JOBS_PER_PERIOD: '7', KCP_SAFE_COPY_BYTES_QUOTA: '123456' }));
-  assert.ok(all.cloud && all.safeCopy && all.learning);
+  const all = await buildOptionalServices(deps({ KCP_CLOUD_PROCESSING_BUCKET: 'b', KCP_CLOUD_RUNNER_JOB: JOB, KCP_SAFE_COPY_BUCKET: 's', KCP_LEARNING_ENABLED: '1', KCP_COLLABORATION_ENABLED: '1', KCP_MONTHLY_SPEND_CEILING_PENCE: '2000', KCP_CLOUD_JOBS_PER_PERIOD: '7', KCP_SAFE_COPY_BYTES_QUOTA: '123456' }));
+  assert.ok(all.cloud && all.safeCopy && all.learning && all.collab);
   assert.equal(all.cloud!.jobsPerPeriod, 7); assert.equal(all.safeCopy!.bytesQuota, 123456); assert.equal(all.spend!.ceilingPence, 2000);
-  assert.deepEqual(all.enabled.sort(), ['cloud-processing', 'learning-signal', 'safe-copy', 'spend-guard']);
+  assert.deepEqual(all.enabled.sort(), ['cloud-processing', 'collaboration', 'learning-signal', 'safe-copy', 'spend-guard']);
 });
 
 test('bad numbers or a bad job name stop start-up instead of being ignored', async () => {
