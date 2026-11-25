@@ -13,7 +13,7 @@ import { subjectCrop } from './core/subjectCrop';
 import { gateAvailable, routeAndEmbedPicture } from './providers/categoryGate';
 import { readVehicle, type VehicleReading } from './core/vehicleRecognition';
 import { loadVehicleData } from './providers/vehicleRecognition';
-import { findMarkings, findRaceNumber, markingContext } from './core/aircraftRegistration';
+import { findMarkings, findRaceNumber, findVesselMarkings, markingContext } from './core/aircraftRegistration';
 import { lookUpMarking } from './core/aircraftRegister';
 import { withMarking } from './core/vehicleRecognition';
 import { VEHICLE_LABELS } from './core/vehicleLabels';
@@ -40,7 +40,7 @@ async function readMarkings(vehicle: VehicleReading, store: BrowserPreviewProvid
   try {
     const large = await pictureForAnalysis(store, frame, 2048);
     if (!large) return vehicle;
-    const planes = (await findSubjects(large).catch(() => [])).filter((found) => (context === 'aircraft' ? found.detection.label === 'aeroplane' : found.detection.label === 'car' || found.detection.label === 'motorcycle') && found.detection.score >= 0.4);
+    const planes = (await findSubjects(large).catch(() => [])).filter((found) => (context === 'aircraft' ? found.detection.label === 'aeroplane' : context === 'vessel' ? found.detection.label === 'boat' : found.detection.label === 'car' || found.detection.label === 'motorcycle') && found.detection.score >= 0.4);
     const areas = planes.length ? planes.map(({ detection: { box } }) => {
       const pad = 0.05 * Math.max(box.w, box.h);
       const x = Math.max(0, box.x - pad), y = Math.max(0, box.y - pad);
@@ -52,6 +52,8 @@ async function readMarkings(vehicle: VehicleReading, store: BrowserPreviewProvid
     const faa = needsFaa ? await loadFaaRegister().catch(() => null) : null;
     const typeName = (id: string) => VEHICLE_LABELS.types.find((entry) => entry.id === id)?.name;
     if (context === 'racing') return withMarking(vehicle, lines, findRaceNumber, () => null);
+    // No licensed offline ship register was found, so a boat's name and IMO number are shown as read, never looked up.
+    if (context === 'vessel') return withMarking(vehicle, lines, findVesselMarkings, () => null);
     return withMarking(vehicle, lines, findMarkings, (marking) => {
       const match = lookUpMarking(marking, { faa }, vehicle.kind, typeName);
       if (!match) return null;

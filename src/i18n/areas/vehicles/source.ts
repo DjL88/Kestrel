@@ -16,6 +16,9 @@ export const source = {
     train: 'Train',
     tram: 'Tram',
     boat: 'Boat or ship',
+    lifeboat: 'Lifeboat',
+    ferry: 'Ferry',
+    yacht: 'Yacht',
     helicopter: 'Helicopter',
     airliner: 'Airliner',
     'light-aircraft': 'Light aircraft',
@@ -40,10 +43,11 @@ export const source = {
   held: (what: string) => `${what}? Needs your review`,
   /** A race number read from a racing car or bike, at a public sporting event. */
   raceNumber: (what: string, number: string) => `${what}, number ${number}`,
+  named: (what: string, name: string) => `${what}, named ${name}`,
   /** Settings → Assistance: the opt-in markings reader. */
   reader: {
-    title: 'Read registrations and race numbers',
-    description: (megabytes: string) => `Reads registrations and military serials on aircraft, and race numbers on racing cars and bikes, on this device. Registrations are looked up in an offline copy of public registers. A one-off ${megabytes} MB download. Number plates on road vehicles are never read.`,
+    title: 'Read registrations, race numbers and boat names',
+    description: (megabytes: string) => `Reads registrations and military serials on aircraft, race numbers on racing cars and bikes, and names and IMO numbers on boats, on this device. Aircraft registrations are looked up in an offline copy of public registers. A one-off ${megabytes} MB download. Number plates on road vehicles are never read.`,
     download: 'Download',
     downloading: (percent: number) => `Downloading… ${percent}%`,
     ready: 'Installed. Works offline.',
