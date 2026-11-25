@@ -1192,6 +1192,7 @@ export const gd: AreaTranslation<typeof source> = {
     more: 'Barrachd',
     moreTools: 'Barrachd innealan',
     closeDrawer: 'Dùin an drathair mobile',
+    photoPosition: (n, total) => `${n} à ${total}`,
   },
   autoCullSummary: {
     checked: (count: number) => `Dealbhan a sgrùd an taghadh fèin-obrachail: ${count}. Thoir sùil air na brataichean san stiall fhilm.`,

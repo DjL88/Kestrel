@@ -1191,6 +1191,7 @@ export const nl: AreaTranslation<typeof source> = {
     more: 'Meer',
     moreTools: 'Meer gereedschap',
     closeDrawer: 'Mobiele lade sluiten',
+    photoPosition: (n, total) => `${n} van ${total}`,
   },
   autoCullSummary: {
     checked: (count: number) => `Foto's gecontroleerd door automatisch selecteren: ${count}. Bekijk de markeringen in de filmstrip.`,

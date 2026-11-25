@@ -1191,6 +1191,7 @@ export const de: AreaTranslation<typeof source> = {
     more: 'Mehr',
     moreTools: 'Weitere Werkzeuge',
     closeDrawer: 'Mobile Leiste schließen',
+    photoPosition: (n, total) => `${n} von ${total}`,
   },
   autoCullSummary: {
     checked: (count: number) => `Vom automatischen Aussortieren geprüfte Fotos: ${count}. Prüfen Sie die Markierungen im Filmstreifen.`,

@@ -1194,6 +1194,7 @@ export const ga: AreaTranslation<typeof source> = {
     more: 'Tuilleadh',
     moreTools: 'Tuilleadh uirlisí',
     closeDrawer: 'Dún an tarraiceán soghluaiste',
+    photoPosition: (n, total) => `${n} as ${total}`,
   },
   autoCullSummary: {
     checked: (count: number) => `Grianghraif a sheiceáil an sórtáil uathoibríoch: ${count}. Athbhreithnigh na bratacha sa stiall scannáin.`,

@@ -1191,6 +1191,7 @@ export const is: AreaTranslation<typeof source> = {
     more: 'Meira',
     moreTools: 'Fleiri verkfæri',
     closeDrawer: 'Loka farsímaskúffu',
+    photoPosition: (n, total) => `${n} af ${total}`,
   },
   autoCullSummary: {
     checked: (count: number) => `Myndir sem sjálfvirk flokkun athugaði: ${count}. Skoðaðu merkingarnar á filmuræmunni.`,

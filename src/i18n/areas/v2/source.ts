@@ -1233,6 +1233,7 @@ export const source = {
     more: 'More',
     moreTools: 'More tools',
     closeDrawer: 'Close mobile drawer',
+    photoPosition: (n: number, total: number) => `${n} of ${total}`,
   },
 
   // Tasks Panel

@@ -1191,6 +1191,7 @@ export const cy: AreaTranslation<typeof source> = {
     more: 'Rhagor',
     moreTools: 'Rhagor o offer',
     closeDrawer: 'Cau’r drôr symudol',
+    photoPosition: (n, total) => `${n} o ${total}`,
   },
   autoCullSummary: {
     checked: (count: number) => `Lluniau a wiriwyd gan y didoli awtomatig: ${count}. Adolygwch y baneri yn y stribed ffilm.`,

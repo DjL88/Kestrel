@@ -1191,6 +1191,7 @@ export const fr: AreaTranslation<typeof source> = {
     more: 'Plus',
     moreTools: 'Plus d’outils',
     closeDrawer: 'Fermer le tiroir mobile',
+    photoPosition: (n, total) => `${n} sur ${total}`,
   },
   autoCullSummary: {
     checked: (count: number) => `Photos vérifiées par le tri automatique : ${count}. Vérifiez les marqueurs dans la pellicule.`,

@@ -1191,6 +1191,7 @@ export const es: AreaTranslation<typeof source> = {
     more: 'Más',
     moreTools: 'Más herramientas',
     closeDrawer: 'Cerrar el panel móvil',
+    photoPosition: (n, total) => `${n} de ${total}`,
   },
   autoCullSummary: {
     checked: (count: number) => `Fotos revisadas por la selección automática: ${count}. Revise las marcas en la tira de fotos.`,

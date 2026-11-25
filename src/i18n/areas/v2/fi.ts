@@ -1192,6 +1192,7 @@ export const fi: AreaTranslation<typeof source> = {
     more: 'Lisää',
     moreTools: 'Lisää työkaluja',
     closeDrawer: 'Sulje mobiilivalikko',
+    photoPosition: (n, total) => `${n}/${total}`,
   },
   autoCullSummary: {
     checked: (count: number) => `Automaattisen karsinnan tarkistamat kuvat: ${count}. Katso merkinnät filminauhasta.`,

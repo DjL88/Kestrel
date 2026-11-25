@@ -151,6 +151,11 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [collageEditingId, setCollageEditingId] = useState<string | null>(null);
   const [collageSourceOpen, setCollageSourceOpen] = useState(false);
   const sheetDragY = useRef<number | null>(null);
+  // Phone tool sheet: the workspace keeps the sheet's height free at its bottom, so the photo and filmstrip sit above an
+  // open sheet instead of underneath it (owner wireframe "Phone · Adjust open"). Measured, because the sheet's height
+  // follows its content.
+  const sheetRef = useRef<HTMLDivElement | null>(null);
+  const [sheetHeight, setSheetHeight] = useState(0);
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
   );
@@ -485,6 +490,18 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const activePanelState = store.activePanel ? store.panels[store.activePanel] : null;
   // Composing collage pages has its own tools; the photo editor's panels return when one photo is opened to edit.
   const composingCollage = Boolean(store.collage && !collageEditingId);
+  const sheetOpen = isMobile && Boolean(store.activePanel) && !composingCollage;
+  useEffect(() => {
+    const sheet = sheetRef.current;
+    if (!sheetOpen || !sheet) { setSheetHeight(0); return; }
+    const measure = () => setSheetHeight(sheet.offsetHeight);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(sheet);
+    return () => observer.disconnect();
+  }, [sheetOpen]);
+
   const activePanelVisible = Boolean(store.activePanel && activePanelState?.visible) && !composingCollage;
 
   // On wide screens, detached panels are independent of the active dock/rail tab.
@@ -609,6 +626,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             showMenus={!isDesktopApp()}
             keymap={keymap}
             photoName={store.collage && !collageEditingId ? `Collage · ${store.collage.pages.length} page${store.collage.pages.length === 1 ? '' : 's'}` : activePhoto ? `${activePhoto.title} · ${activePhoto.filename}` : 'No photo'}
+            photoPosition={!store.collage && activePhoto ? STRINGS.mobile.photoPosition(store.photos.findIndex((p) => p.id === activePhoto.id) + 1, store.photos.length) : undefined}
             assistMode={store.assistMode}
             theme={activeTheme}
             activePanel={store.activePanel}
@@ -656,7 +674,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           />
 
           {/* Main Workspace Row */}
-          <div className={`relative flex min-h-0 flex-1 overflow-hidden ${store.settings.hand === 'left' ? 'flex-row-reverse' : ''}`}>
+          <div className={`relative flex min-h-0 flex-1 overflow-hidden ${store.settings.hand === 'left' ? 'flex-row-reverse' : ''} ${sheetHeight ? 'v2-sheet-open' : ''}`}
+            style={sheetHeight ? { paddingBottom: sheetHeight } : undefined}>
             {(!store.collage || collageEditingId) && <Rail
               hand={store.settings.hand}
               hiddenPanels={[...(hasOverlays ? [] : ['overlays' as const]), ...panelsHiddenByPro(hiddenPro)]}
@@ -952,11 +971,17 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
 
           {/* Mobile Drawer when a tool tab is selected on small portrait screens */}
           {isMobile && store.activePanel && !composingCollage && (
-            <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]">
+            <div ref={sheetRef} className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]">
               <div
                 data-testid="mobile-sheet-handle"
                 style={{ touchAction: 'none' }}
-                onPointerDown={(e) => { sheetDragY.current = e.clientY; e.currentTarget.setPointerCapture?.(e.pointerId); }}
+                onPointerDown={(e) => {
+                  // A press on a button in the handle (Close) is that button's: capturing it here would send its release to the
+                  // handle, and the button's click would never fire.
+                  if ((e.target as HTMLElement).closest('button')) return;
+                  sheetDragY.current = e.clientY;
+                  e.currentTarget.setPointerCapture?.(e.pointerId);
+                }}
                 onPointerUp={(e) => {
                   if (sheetDragY.current !== null && e.clientY - sheetDragY.current > 60) actions.setActivePanel(null);
                   sheetDragY.current = null;

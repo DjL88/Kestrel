@@ -1191,6 +1191,7 @@ export const sv: AreaTranslation<typeof source> = {
     more: 'Mer',
     moreTools: 'Fler verktyg',
     closeDrawer: 'Stäng mobillådan',
+    photoPosition: (n, total) => `${n} av ${total}`,
   },
   autoCullSummary: {
     checked: (count: number) => `Foton kontrollerade av automatisk sortering: ${count}. Granska markeringarna i filmremsan.`,
