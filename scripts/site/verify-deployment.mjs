@@ -3,25 +3,26 @@
  * Verify the website contains the compiled photo editor, not merely
  * an iframe pointing at a file that has not been deployed.
  *
- * node scripts/site/verify-deployment.mjs [--root=site] [--live-url=https://...]
+ * node scripts/site/verify-deployment.mjs [--root=site] [--live-url=https://...] [--control-plane-url=https://...]
  * Local checks are required before publish; live checks run after Firebase deploy.
  */
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 
 function options() {
-  const result = { root: 'site', liveUrl: '' };
+  const result = { root: 'site', liveUrl: '', controlPlaneUrl: '' };
   const seen = new Set();
   for (const arg of process.argv.slice(2)) {
     if (arg === '--help' || arg === '-h') {
-      console.log('Usage: node scripts/site/verify-deployment.mjs [--root=site] [--live-url=https://...]');
+      console.log('Usage: node scripts/site/verify-deployment.mjs [--root=site] [--live-url=https://...] [--control-plane-url=https://...]');
       process.exit(0);
     }
-    const match = /^--(root|live-url)=(.+)$/.exec(arg);
+    const match = /^--(root|live-url|control-plane-url)=(.+)$/.exec(arg);
     if (!match || seen.has(match[1])) throw new Error('Unknown, empty or repeated option: ' + arg);
     seen.add(match[1]);
     if (match[1] === 'root') result.root = match[2];
-    else result.liveUrl = match[2];
+    else if (match[1] === 'live-url') result.liveUrl = match[2];
+    else result.controlPlaneUrl = match[2];
   }
   return result;
 }
@@ -83,7 +84,8 @@ function isHtmlFallback(body) {
   return /^\s*(?:<!doctype html|<html)\b/i.test(body.subarray(0, 512).toString('utf8'));
 }
 async function main() {
-  const { root, liveUrl } = options();
+  const { root, liveUrl, controlPlaneUrl } = options();
+  if (controlPlaneUrl && !liveUrl) throw new Error('--control-plane-url needs --live-url: it checks the control plane accepts that website.');
   const dir = resolve(root);
   const landing = requireText(join(dir, 'index.html'));
   requireText(join(dir, 'admin.html'));
@@ -174,5 +176,29 @@ async function main() {
     }
   }
   console.log('Live Firebase PASS: homepage and editor entries match the verified build, and referenced assets match byte for byte.');
+  if (!controlPlaneUrl) {
+    console.log('Live control plane NOT RUN. Pass --control-plane-url to check it answers this website.');
+    return;
+  }
+  await verifyControlPlane(controlPlaneUrl, base.origin);
+}
+
+/** The website can only reach the control plane if it is live and lists this exact site origin (Terraform allowed_origins). */
+async function verifyControlPlane(controlPlaneUrl, siteOrigin) {
+  const cp = new URL(controlPlaneUrl);
+  if (cp.protocol !== 'https:' || cp.username || cp.password || cp.pathname !== '/' || cp.search || cp.hash) {
+    throw new Error('Control plane URL must be a bare HTTPS origin without credentials, path, query or fragment.');
+  }
+  // Cloud Run's front end answers /healthz itself with 404, so the public liveness route is /health.
+  const response = await fetch(new URL('/health', cp), { redirect: 'manual', signal: AbortSignal.timeout(15_000), headers: { origin: siteOrigin, accept: 'application/json' } });
+  if (!response.ok) throw new Error('Live control plane /health failed (' + response.status + '); a revision older than this build has no /health route.');
+  let body;
+  try { body = await response.json(); } catch { body = null; }
+  if (!body || body.ok !== true) throw new Error('Live control plane /health did not answer {"ok":true}.');
+  const allowed = response.headers.get('access-control-allow-origin');
+  if (allowed !== siteOrigin) {
+    throw new Error('Live control plane does not allow the website origin ' + siteOrigin + ' (got ' + String(allowed) + '). Add it to Terraform allowed_origins and redeploy.');
+  }
+  console.log('Live control plane PASS: /health answers and the website origin ' + siteOrigin + ' is allowed.');
 }
 main().catch(error => { console.error('WEBSITE NOT READY: ' + (error instanceof Error ? error.message : String(error))); process.exitCode = 1; });
