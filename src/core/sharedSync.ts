@@ -4,7 +4,13 @@
  * the shared head says what to do. Nothing is ever overwritten without the person choosing: when both sides changed,
  * the answer is a conflict, and the person keeps theirs, keeps mine, or keeps both.
  */
-export interface SyncPoint { revisionId: string | null; recipeHash: string }
+export interface SyncPoint {
+  revisionId: string | null;
+  recipeHash: string;
+  /** What this device last matched, kept so changes to different things can be combined later (see sharedMarks). */
+  editHash?: string;
+  marks?: { rating: number; decision: 'unreviewed' | 'keep' | 'reject' };
+}
 
 export type SyncPlan =
   | { action: 'in-sync' }

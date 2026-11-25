@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { planSync, recipeFingerprint, type SyncPoint } from '../../../core/sharedSync';
+import { combineWithShared, isUntouched, readRecipeSide, sharedPayloadHash, sharedRecipe, syncPointFor, type SharedMarks, type SharedPayload } from '../../../core/sharedMarks';
 import { flushOutbox, markConflict, outboxSummary, queueEdit, readOutbox, settleEdit, type OutboxEntry, type OutboxSummary } from '../../../core/sharedOutbox';
 import type { CollabRole } from '../../../core/collabRoles';
 import { CollabError, type CollabClient } from '../../../providers/collabClient';
@@ -25,7 +26,8 @@ export type SharedEditingState =
   /** Viewers, commenters and clients look and comment; only owners and editors change photos. */
   | { kind: 'view-only'; role: Exclude<CollabRole, 'owner' | 'editor'> }
   | { kind: 'draft'; reason: 'offline' | 'lost' }
-  | { kind: 'conflict'; headId: string; theirs: Record<string, unknown> | null };
+  /** `fields` says what both sides changed differently: the edit, the rating or the flag. */
+  | { kind: 'conflict'; headId: string; theirs: Record<string, unknown> | null; theirMarks?: SharedMarks; fields?: ('edit' | 'rating' | 'decision')[] };
 
 interface EditSource {
   sharedEditOf?: (photoId: string) => Record<string, unknown> | null;
@@ -33,6 +35,9 @@ interface EditSource {
   sharedPhotoExists?: (photoId: string) => boolean;
   applySharedEdit?: (photoId: string, edit: Record<string, unknown> | null) => void;
   keepBothShared?: (photoId: string, theirs: Record<string, unknown> | null) => string | null;
+  /** The photo's star rating and pick/set-aside, shared beside the edit. Absent: only the edit is shared. */
+  sharedMarksOf?: (photoId: string) => SharedMarks;
+  applySharedMarks?: (photoId: string, marks: SharedMarks) => void;
 }
 
 const SYNC_KEY = 'inflight.sharedSync.v1';
@@ -64,7 +69,7 @@ function deviceId(): string {
   } catch { return `dev-${crypto.randomUUID()}`; }
 }
 
-export function useSharedEditing(client: CollabClient, localProjectId: string | null, photoId: string | null, sharedKey: string | undefined, source: EditSource, changeSignal: unknown, refreshKey: number) {
+export function useSharedEditing(client: CollabClient, localProjectId: string | null, photoId: string | null, sharedKey: string | undefined, source: EditSource, changeSignal: unknown, refreshKey: number, photos: readonly { id: string; sharedKey?: string }[] = []) {
   const [state, setState] = useState<SharedEditingState>({ kind: 'off' });
   const shared = localProjectId && client.configured && source.sharedEditOf && source.applySharedEdit ? readSharedLink(localProjectId) : null;
   const session = useRef<{ project: string; key: string; photoId: string; token: string | null; opened: boolean; lastChangeMs: number; publishTimer: ReturnType<typeof setTimeout> | null; closed: boolean } | null>(null);
@@ -81,7 +86,18 @@ export function useSharedEditing(client: CollabClient, localProjectId: string | 
   const sourceRef = useRef(source); sourceRef.current = source;
   const pointKey = (project: string, key: string) => `${project}:${key}`;
 
-  const localHash = useCallback((id: string) => recipeFingerprint(sourceRef.current.sharedEditOf?.(id) ?? null), []);
+  /** The photo as this device shares it: its edit, and its rating and flag when the app shares them. */
+  const payloadOf = useCallback((id: string): SharedPayload => {
+    const marks = sourceRef.current.sharedMarksOf?.(id);
+    return { edit: sourceRef.current.sharedEditOf?.(id) ?? null, ...(marks ? { marks } : {}) };
+  }, []);
+  const localHash = useCallback((id: string) => { const p = payloadOf(id); return sharedPayloadHash(p.edit, p.marks); }, [payloadOf]);
+  /** Puts the shared edit and marks on this device's photo. Marks only when the revision carried them. */
+  const applyLocal = useCallback((id: string, edit: Record<string, unknown> | null, marks: SharedMarks | undefined, withEdit = true) => {
+    if (withEdit) sourceRef.current.applySharedEdit?.(id, edit);
+    const now = sourceRef.current.sharedMarksOf?.(id);
+    if (marks && now && (now.rating !== marks.rating || now.decision !== marks.decision)) sourceRef.current.applySharedMarks?.(id, marks);
+  }, []);
 
   const failed = useCallback((error: unknown) => {
     if (error instanceof CollabError && error.code === 'COLLAB_PHOTO_CHECKED_OUT') { setState({ kind: 'theirs', holder: typeof error.detail.holder === 'string' ? error.detail.holder : null }); return; }
@@ -90,7 +106,7 @@ export function useSharedEditing(client: CollabClient, localProjectId: string | 
   }, []);
 
   /** Share this device's edit now. Needs (and takes) the checkout. A stale base becomes a conflict, never an overwrite. */
-  const publish = useCallback(async (baseRevisionId?: string | null, flushing?: NonNullable<typeof session.current>) => {
+  const publish = useCallback(async (baseRevisionId?: string | null, flushing?: NonNullable<typeof session.current>, given?: SharedPayload) => {
     const s = flushing ?? session.current;
     if (!s || (s.closed && !flushing)) return;
     try {
@@ -98,32 +114,51 @@ export function useSharedEditing(client: CollabClient, localProjectId: string | 
       const point = readPoints()[pointKey(s.project, s.key)];
       // Never guess the base: with no record of the last match, null makes the server refuse if anyone has saved.
       const base = baseRevisionId !== undefined ? baseRevisionId : point?.revisionId ?? null;
-      const edit = sourceRef.current.sharedEditOf?.(s.photoId) ?? null;
-      const revision = await client.publish(s.project, s.key, { token: s.token, baseRevisionId: base, recipe: { edit } });
-      writePoint(pointKey(s.project, s.key), { revisionId: revision.id, recipeHash: recipeFingerprint(edit) });
+      const payload = given ?? payloadOf(s.photoId);
+      const revision = await client.publish(s.project, s.key, { token: s.token, baseRevisionId: base, recipe: sharedRecipe(payload) });
+      writePoint(pointKey(s.project, s.key), syncPointFor(revision.id, payload));
       changeOutbox((entries) => settleEdit(entries, s.project, s.key));
       if (!s.closed) setState({ kind: 'mine' });
     } catch (error) {
       if (error instanceof CollabError && error.code === 'COLLAB_STALE_BASE' && typeof error.detail.headId === 'string') {
-        const headId = error.detail.headId;
-        changeOutbox((entries) => markConflict(queueEdit(entries, { project: s.project, key: s.key, photoId: s.photoId, accountId: accounts.current.get(s.project) ?? null }, Date.now()), s.project, s.key, headId));
-        const theirs = await client.revision(s.project, s.key, error.detail.headId).then((r) => (r.recipe?.edit ?? null) as Record<string, unknown> | null).catch(() => null);
-        if (!s.closed) setState({ kind: 'conflict', headId: error.detail.headId, theirs });
+        if (!given) await clashRef.current(s, error.detail.headId);
+        else { if (!s.closed) failed(error); }
         return;
       }
       if (!s.closed) failed(error);
     }
-  }, [client, failed, changeOutbox]);
+  }, [client, failed, changeOutbox, payloadOf]);
+
+  /**
+   * Someone else saved this photo since this device last matched it. Changes to different things (you rated it, they
+   * edited it) are combined and shared at once; the same thing changed differently on both sides waits for the person.
+   */
+  const clashRef = useRef<(s: NonNullable<typeof session.current>, headId: string) => Promise<void>>(async () => undefined);
+  clashRef.current = async (s, headId) => {
+    const recipe = await client.revision(s.project, s.key, headId).then((r) => r.recipe ?? null).catch(() => null);
+    const theirs = readRecipeSide(recipe);
+    const mine = payloadOf(s.photoId);
+    const merged = recipe ? combineWithShared(readPoints()[pointKey(s.project, s.key)] ?? null, mine, recipe) : { kind: 'conflict' as const, fields: [] };
+    if (merged.kind === 'merged') {
+      const payload: SharedPayload = { edit: merged.edit, ...(mine.marks ? { marks: merged.marks } : {}) };
+      await publish(headId, s, payload);
+      applyLocal(s.photoId, merged.edit, payload.marks, merged.takesTheirEdit);
+      return;
+    }
+    changeOutbox((entries) => markConflict(queueEdit(entries, { project: s.project, key: s.key, photoId: s.photoId, accountId: accounts.current.get(s.project) ?? null }, Date.now()), s.project, s.key, headId));
+    if (!s.closed) setState({ kind: 'conflict', headId, theirs: theirs.edit, ...(theirs.marks ? { theirMarks: theirs.marks } : {}), ...(merged.fields.length ? { fields: merged.fields } : {}) });
+  };
 
   const pull = useCallback(async (headId: string) => {
     const s = session.current;
     if (!s) return;
     const revision = await client.revision(s.project, s.key, headId);
     if (s.closed) return;
-    sourceRef.current.applySharedEdit?.(s.photoId, (revision.recipe?.edit ?? null) as Record<string, unknown> | null);
+    const theirs = readRecipeSide(revision.recipe);
+    applyLocal(s.photoId, theirs.edit, theirs.marks);
     // The engine may tidy the edit as it applies it, so the fingerprint is taken from what it holds next.
     writePoint(pointKey(s.project, s.key), { revisionId: headId, recipeHash: PENDING });
-  }, [client]);
+  }, [client, applyLocal]);
 
   /** Open the photo: who has it, and what to do about the shared copy. */
   const open = useCallback(async () => {
@@ -139,21 +174,23 @@ export function useSharedEditing(client: CollabClient, localProjectId: string | 
       s.opened = true;
       const lease = leases.find((entry) => entry.photoId === s.key);
       if (lease && !lease.mine) { setState({ kind: 'theirs', holder: lease.holder }); return; }
-      const edit = sourceRef.current.sharedEditOf?.(s.photoId) ?? null;
-      const plan = planSync(readPoints()[pointKey(s.project, s.key)] ?? null, recipeFingerprint(edit), history.headId, edit === null);
+      const mine = payloadOf(s.photoId);
+      const plan = planSync(readPoints()[pointKey(s.project, s.key)] ?? null, sharedPayloadHash(mine.edit, mine.marks), history.headId, isUntouched(mine));
       if (plan.action === 'pull') { await pull(plan.headId); changeOutbox((entries) => settleEdit(entries, s.project, s.key)); setState({ kind: 'ready' }); }
       else if (plan.action === 'push') { await publish(plan.baseRevisionId); }
       else if (plan.action === 'conflict') {
-        changeOutbox((entries) => markConflict(queueEdit(entries, { project: s.project, key: s.key, photoId: s.photoId, accountId: accounts.current.get(s.project) ?? null }, Date.now()), s.project, s.key, plan.headId));
-        const theirs = await client.revision(s.project, s.key, plan.headId).then((r) => (r.recipe?.edit ?? null) as Record<string, unknown> | null).catch(() => null);
-        if (!s.closed) setState({ kind: 'conflict', headId: plan.headId, theirs });
+        await clashRef.current(s, plan.headId);
       } else {
         changeOutbox((entries) => settleEdit(entries, s.project, s.key));
-        if (history.headId === null && edit === null) writePoint(pointKey(s.project, s.key), { revisionId: null, recipeHash: recipeFingerprint(null) });
+        if (history.headId === null && isUntouched(mine)) writePoint(pointKey(s.project, s.key), syncPointFor(null, mine));
+        else if (history.headId !== null && readPoints()[pointKey(s.project, s.key)]?.revisionId === history.headId && !readPoints()[pointKey(s.project, s.key)]?.editHash) {
+          // In step, recorded before marks were shared: record what was matched, so later changes can be combined.
+          writePoint(pointKey(s.project, s.key), syncPointFor(history.headId, mine));
+        }
         setState({ kind: 'ready' });
       }
     } catch (error) { if (!s.closed) failed(error); }
-  }, [client, failed, publish, pull, changeOutbox]);
+  }, [client, failed, publish, pull, changeOutbox, payloadOf]);
 
   // A role can change (the owner promotes or removes someone): ask again when Share closes.
   useEffect(() => { roles.current.clear(); accounts.current.clear(); }, [refreshKey]);
@@ -194,11 +231,11 @@ export function useSharedEditing(client: CollabClient, localProjectId: string | 
     const key = pointKey(s.project, s.key);
     const point = readPoints()[key];
     const hash = localHash(s.photoId);
-    if (point?.recipeHash === PENDING) { writePoint(key, { revisionId: point.revisionId, recipeHash: hash }); return; }
+    if (point?.recipeHash === PENDING) { writePoint(key, syncPointFor(point.revisionId, payloadOf(s.photoId))); return; }
     if (point && point.recipeHash === hash) return;
     const kind = stateRef.current.kind;
     if (kind === 'theirs' || kind === 'conflict' || kind === 'no-key' || kind === 'view-only') return;
-    if (!point && kind === 'ready' && hash === recipeFingerprint(null)) return;
+    if (!point && kind === 'ready' && isUntouched(payloadOf(s.photoId))) return;
     s.lastChangeMs = Date.now();
     // Listed before anything is sent, so the edit is shared later even if the app closes or the network drops first.
     changeOutbox((entries) => queueEdit(entries, { project: s.project, key: s.key, photoId: s.photoId, accountId: accounts.current.get(s.project) ?? null }, s.lastChangeMs));
@@ -207,7 +244,7 @@ export function useSharedEditing(client: CollabClient, localProjectId: string | 
     }
     if (s.publishTimer) clearTimeout(s.publishTimer);
     s.publishTimer = setTimeout(() => { s.publishTimer = null; void publish(); }, PUBLISH_AFTER_MS);
-  }, [changeSignal, photoId, client, failed, localHash, publish, changeOutbox]);
+  }, [changeSignal, photoId, client, failed, localHash, publish, changeOutbox, payloadOf]);
 
   const keepMine = useCallback(() => {
     const current = stateRef.current;
@@ -219,11 +256,11 @@ export function useSharedEditing(client: CollabClient, localProjectId: string | 
     const current = stateRef.current;
     const s = session.current;
     if (current.kind !== 'conflict' || !s) return;
-    sourceRef.current.applySharedEdit?.(s.photoId, current.theirs);
+    applyLocal(s.photoId, current.theirs, current.theirMarks);
     writePoint(pointKey(s.project, s.key), { revisionId: current.headId, recipeHash: PENDING });
     changeOutbox((entries) => settleEdit(entries, s.project, s.key));
     setState({ kind: 'ready' });
-  }, [changeOutbox]);
+  }, [changeOutbox, applyLocal]);
 
   /** Both: this device's edit becomes a virtual copy (shared as its own photo when opened); the photo takes theirs. */
   const keepBoth = useCallback(() => {
@@ -231,10 +268,11 @@ export function useSharedEditing(client: CollabClient, localProjectId: string | 
     const s = session.current;
     if (current.kind !== 'conflict' || !s || !sourceRef.current.keepBothShared) return;
     if (sourceRef.current.keepBothShared(s.photoId, current.theirs) === null) return;
+    applyLocal(s.photoId, current.theirs, current.theirMarks, false);
     writePoint(pointKey(s.project, s.key), { revisionId: current.headId, recipeHash: PENDING });
     changeOutbox((entries) => settleEdit(entries, s.project, s.key));
     setState({ kind: 'ready' });
-  }, [changeOutbox]);
+  }, [changeOutbox, applyLocal]);
 
   /**
    * Shares queued edits of photos that are not on screen, oldest first. One photo at a time: check it out, compare with
@@ -255,21 +293,22 @@ export function useSharedEditing(client: CollabClient, localProjectId: string | 
       await flushOutbox(project, accountId, {
         acquire: (p, key) => client.acquire(p, key, deviceId()),
         history: (p, key) => client.history(p, key),
+        revision: (p, key, id) => client.revision(p, key, id),
         publish: (p, key, request) => client.publish(p, key, request),
         release: (p, key, token) => client.release(p, key, token, 'checked-in'),
         classify: (error) => error instanceof CollabError && error.code === 'COLLAB_STALE_BASE' && typeof error.detail.headId === 'string' ? { kind: 'stale', headId: error.detail.headId }
           : error instanceof CollabError && error.code === 'COLLAB_PHOTO_CHECKED_OUT' ? { kind: 'checked-out' } : { kind: 'other' },
-        editOf: (id) => sourceRef.current.sharedEditOf?.(id) ?? null,
+        payloadOf,
+        applyLocal: (id, payload, takesTheirEdit) => applyLocal(id, payload.edit, payload.marks, takesTheirEdit),
         exists: (id) => sourceRef.current.sharedPhotoExists?.(id) !== false,
         pointOf: (p, key) => readPoints()[pointKey(p, key)] ?? null,
         setPoint: (p, key, point) => writePoint(pointKey(p, key), point),
-        fingerprint: recipeFingerprint,
         read: readStoredOutbox,
         change: changeOutbox,
         now: Date.now,
       }, { skipKey: session.current?.project === project ? session.current.key : null, force });
     } catch { /* offline or signed out: the queue stays as it is */ } finally { flushing.current = false; }
-  }, [client, changeOutbox]);
+  }, [client, changeOutbox, payloadOf, applyLocal]);
 
   useEffect(() => {
     if (!shared) return;
@@ -281,6 +320,41 @@ export function useSharedEditing(client: CollabClient, localProjectId: string | 
     window.addEventListener('storage', storage);
     return () => { clearTimeout(first); clearInterval(timer); window.removeEventListener('online', online); window.removeEventListener('storage', storage); };
   }, [shared, flushQueued, refreshKey]);
+
+  /**
+   * Ratings and flags are often changed on photos that are not open (the filmstrip, several at once). Any photo this
+   * device has shared before whose rating or flag changed is queued, and the outbox shares it.
+   */
+  const lastMarks = useRef<{ project: string | null; marks: Map<string, string> }>({ project: null, marks: new Map() });
+  const marksTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (marksTimer.current) clearTimeout(marksTimer.current); }, []);
+  useEffect(() => {
+    const read = sourceRef.current.sharedMarksOf;
+    if (!shared || !read) { lastMarks.current = { project: null, marks: new Map() }; return; }
+    const before = lastMarks.current.project === shared ? lastMarks.current.marks : null;
+    const role = roles.current.get(shared);
+    const canEdit = role === 'owner' || role === 'editor';
+    const now = new Map<string, string>();
+    const points = readPoints();
+    let queued = false;
+    for (const photo of photos) {
+      if (!photo.sharedKey) continue;
+      const m = read(photo.id);
+      const sig = `${m.rating}|${m.decision}`;
+      now.set(photo.id, sig);
+      if (!before || !canEdit || before.get(photo.id) === sig) continue;
+      const point = points[pointKey(shared, photo.sharedKey)];
+      if (!point || point.recipeHash === PENDING || point.recipeHash === localHash(photo.id)) continue;
+      const key = photo.sharedKey;
+      changeOutbox((entries) => queueEdit(entries, { project: shared, key, photoId: photo.id, accountId: accounts.current.get(shared) ?? null }, Date.now()));
+      queued = true;
+    }
+    lastMarks.current = { project: shared, marks: now };
+    if (queued) {
+      if (marksTimer.current) clearTimeout(marksTimer.current);
+      marksTimer.current = setTimeout(() => { marksTimer.current = null; void flushQueued(shared, true); }, PUBLISH_AFTER_MS);
+    }
+  }, [shared, photos, localHash, changeOutbox, flushQueued]);
 
   const retry = useCallback(() => { void open(); if (shared) void flushQueued(shared, true); }, [open, shared, flushQueued]);
   const pending: OutboxSummary = outboxSummary(outbox, shared, sharedKey);

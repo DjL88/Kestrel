@@ -801,6 +801,10 @@ export interface WorkspaceActions {
   applySharedEdit?: (photoId: string, edit: Record<string, unknown> | null) => void;
   /** On a clash: keep this device's edit as a virtual copy beside the photo, and give the photo the shared edit. Returns the copy's id. */
   keepBothShared?: (photoId: string, theirs: Record<string, unknown> | null) => string | null;
+  /** The photo's star rating and pick/set-aside as shared beside its edit in a shared project. Absent in the stub. */
+  sharedMarksOf?: (photoId: string) => import('../../core/sharedMarks').SharedMarks;
+  /** Set the rating and pick/set-aside that came from a shared project. The pick is an undoable decision step. */
+  applySharedMarks?: (photoId: string, marks: import('../../core/sharedMarks').SharedMarks) => void;
   /** Add photos fetched from a shared project's cloud store to this project, linked to the owner's originals. */
   importCloudPreviews?: (items: { file: File; projectId: string; photoKey: string }[]) => Promise<void>;
   /** The photo's exact original bytes, checked against its fingerprint, or null when the original is not connected. */

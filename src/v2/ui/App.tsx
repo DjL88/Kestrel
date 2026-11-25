@@ -260,7 +260,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const dismissLightroomOffer = useCallback(() => actions.dismissLightroomOffer?.(), [actions]);
   const peers = usePresence(sharing, store.collage ? null : store.activeProjectId, activePhoto?.sharedKey ?? null, signedInName, shareVersion);
   const [zoomedPastPreview, setZoomedPastPreview] = React.useState<string | null>(null);
-  const sharedEditing = useSharedEditing(sharing, store.collage ? null : store.activeProjectId, activePhoto?.id ?? null, activePhoto?.sharedKey, actions, activePhoto, shareVersion);
+  const sharedEditing = useSharedEditing(sharing, store.collage ? null : store.activeProjectId, activePhoto?.id ?? null, activePhoto?.sharedKey, actions, activePhoto, shareVersion, store.photos);
   // Someone else has this photo out, or both sides changed it: the editing panels are view-only until that is settled.
   const editLocked = sharedEditing.state.kind === 'theirs' || sharedEditing.state.kind === 'conflict' || sharedEditing.state.kind === 'view-only';
   // Watch (Co-pilot): a suggestion's steps so far, shown through the same non-destructive preview as a hovered Look.

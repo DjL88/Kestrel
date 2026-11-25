@@ -23,6 +23,9 @@ export default function SharedEditBanner({ state, onKeepMine, onKeepTheirs, onKe
     <div role={state.kind === 'conflict' ? 'alert' : 'status'} data-testid="shared-edit-banner" data-state={state.kind}
       className="mb-3 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-hover)] p-2.5 text-xs">
       {text && <p>{text}</p>}
+      {state.kind === 'conflict' && state.fields?.length ? (
+        <p className="mt-1" data-testid="shared-conflict-fields">{t.sharedConflictFields(state.fields.map((field) => field === 'edit' ? t.sharedFieldEdit : field === 'rating' ? t.sharedFieldRating : t.sharedFieldDecision).join(', '))}</p>
+      ) : null}
       {state.kind === 'conflict' && (
         <div className="mt-2 flex flex-wrap gap-2">
           <button type="button" onClick={onKeepMine} className={button}>{t.sharedKeepMine}</button>
