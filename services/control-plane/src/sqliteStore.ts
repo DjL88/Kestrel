@@ -4,14 +4,13 @@ import { uuid } from './crypto.ts';
 import {
   clipAuditDetail, extendedUntil, licenceAfterBillingEvent, licenceIsUsable, newLicence,
   type AccountRecord, type ActivationOutcome, type ActivationRecord, type BillingEventRecord, type ContactMessageRecord, type ContactStatus, type Role, type ActivationRequest, type AuditRecord, type BillingEvent, type LicenceRecord,
-  type LicenceStatus, type ModelAssetRecord, type QuotaRecord, type ReleaseRecord, type Store,
+  type LicenceStatus, type QuotaRecord, type ReleaseRecord, type Store,
 } from './store.ts';
 
 type Value = string | number | null;
 
 interface LicenceRow { licence_id: string; account_id: string | null; plan: LicenceRecord['plan']; managed_ai: number; status: LicenceStatus; max_devices: number; offline_grace_days: number; valid_until_ms: number | null; updated_at_ms: number; note: string | null; major_version: number; paid: number; source: LicenceRecord['source']; email_hash: string | null }
 interface AccountRow { account_id: string; email_hash: string; password_hash: string; role: AccountRecord['role']; status: AccountRecord['status']; created_at_ms: number; ai_consent: number }
-interface AssetRow { asset_id: string; kind: string; version: string; channel: string; path: string; sha256: string; bytes: number; required_app_min: string; status: ModelAssetRecord['status']; created_at_ms: number }
 
 const licence = (r: LicenceRow): LicenceRecord => ({
   licenceId: r.licence_id, accountId: r.account_id, plan: r.plan, managedAi: r.managed_ai === 1, status: r.status,
@@ -19,10 +18,6 @@ const licence = (r: LicenceRow): LicenceRecord => ({
   majorVersion: r.major_version ?? 1, paid: r.paid === 1, source: r.source ?? 'key', emailHash: r.email_hash ?? null,
 });
 const account = (r: AccountRow): AccountRecord => ({ accountId: r.account_id, emailHash: r.email_hash, passwordHash: r.password_hash, role: r.role, status: r.status, createdAtMs: r.created_at_ms, aiConsent: r.ai_consent === 1 });
-const asset = (r: AssetRow): ModelAssetRecord => ({
-  assetId: r.asset_id, kind: r.kind, version: r.version, channel: r.channel, path: r.path, sha256: r.sha256, bytes: r.bytes,
-  requiredAppMin: r.required_app_min, status: r.status, createdAtMs: r.created_at_ms,
-});
 const isConstraint = (error: unknown) => /constraint/i.test(String((error as Error)?.message));
 
 /**
@@ -195,31 +190,7 @@ export class SqliteStore implements Store {
       .map((r) => ({ eventId: r.event_id, eventType: r.event_type, receivedAtMs: r.received_at_ms }));
   }
 
-  async insertModelAsset(a: ModelAssetRecord): Promise<boolean> {
-    try {
-      this.run('INSERT INTO model_assets (asset_id, kind, version, channel, path, sha256, bytes, required_app_min, status, created_at_ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        a.assetId, a.kind, a.version, a.channel, a.path, a.sha256, a.bytes, a.requiredAppMin, a.status, a.createdAtMs);
-      return true;
-    } catch (error) { if (isConstraint(error)) return false; throw error; }
-  }
-  async listLiveModelAssets(channel: string) {
-    return this.all<AssetRow>('SELECT * FROM model_assets WHERE status = \'live\' AND channel = ? ORDER BY asset_id', channel).map(asset);
-  }
-  async getModelAsset(assetId: string, version: string, channel: string) {
-    const row = this.get<AssetRow>('SELECT * FROM model_assets WHERE asset_id = ? AND version = ? AND channel = ?', assetId, version, channel);
-    return row ? asset(row) : undefined;
-  }
-  async promoteModelAsset(assetId: string, version: string, channel: string): Promise<boolean> {
-    return this.transaction(() => {
-      if (!this.get('SELECT 1 FROM model_assets WHERE asset_id = ? AND version = ? AND channel = ?', assetId, version, channel)) return false;
-      this.run('UPDATE model_assets SET status = \'retired\' WHERE asset_id = ? AND channel = ? AND status = \'live\'', assetId, channel);
-      this.run('UPDATE model_assets SET status = \'live\' WHERE asset_id = ? AND version = ? AND channel = ?', assetId, version, channel);
-      const name = `manifest_revision_${channel}`;
-      const revision = Number(this.get<{ value: string }>('SELECT value FROM settings WHERE name = ?', name)?.value ?? 1) + 1;
-      this.run('INSERT INTO settings (name, value) VALUES (?, ?) ON CONFLICT (name) DO UPDATE SET value = excluded.value', name, String(revision));
-      return true;
-    });
-  }
+
   async insertRelease(r: ReleaseRecord): Promise<boolean> {
     try {
       this.run('INSERT INTO desktop_releases (platform, channel, version, url, notes, min_supported, published_at_ms) VALUES (?, ?, ?, ?, ?, ?, ?)',

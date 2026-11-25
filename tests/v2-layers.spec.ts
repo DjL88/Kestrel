@@ -85,3 +85,43 @@ test('?v2 layers: add an image, see it on the picture, blend it, move it, hide i
   await page.keyboard.press('Control+z');
   await expect.poll(async () => { const [r, , b] = await sample(root, 0.5, 0.5); return Math.abs(b - r); }, { timeout: 15000 }).toBeLessThan(10);
 });
+
+test('?v2 layer mask: a layer can show only inside one of the photo\'s masks, or only outside it', async ({ page }) => {
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Layer mask check');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles([{ name: 'base.png', mimeType: 'image/png', buffer: await png(page, 300, 200, '#808080') }]);
+  await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  await expect(root.getByTestId('canvas-frame').locator('canvas, img').first()).toBeVisible({ timeout: 30000 });
+
+  // An oval mask in the middle (no sliders needed: the layer only uses its shape).
+  await root.getByRole('button', { name: 'Masks', exact: true }).first().click();
+  await root.getByRole('button', { name: 'Oval area', exact: true }).click();
+
+  // A red square layer in the middle, covering the oval and more.
+  await root.getByRole('button', { name: 'Overlays', exact: true }).first().click();
+  await root.getByRole('button', { name: 'Layers', exact: true }).click();
+  const layers = root.getByTestId('layers');
+  const picker = page.waitForEvent('filechooser');
+  await layers.getByRole('button', { name: 'Add image…' }).click();
+  await (await picker).setFiles([{ name: 'logo.png', mimeType: 'image/png', buffer: await png(page, 100, 100, '#e01010') }]);
+  const redness = async (x: number, y: number) => { const [r, g] = await sample(root, x, y); return r - g; };
+  await expect.poll(() => redness(0.5, 0.2), { timeout: 15000 }).toBeGreaterThan(150);
+
+  const mask = layers.getByTestId('layer-mask');
+  await mask.getByRole('combobox', { name: 'Mask' }).selectOption({ index: 1 });
+  // Inside the oval the layer still shows; above it, the photo shows again.
+  await expect.poll(() => redness(0.5, 0.2), { timeout: 15000 }).toBeLessThan(10);
+  expect(await redness(0.5, 0.5)).toBeGreaterThan(150);
+  // Outside: the opposite.
+  await mask.getByRole('radio', { name: 'Outside the mask' }).click();
+  await expect.poll(() => redness(0.5, 0.5), { timeout: 15000 }).toBeLessThan(10);
+  expect(await redness(0.5, 0.2)).toBeGreaterThan(150);
+  // Back to the whole layer.
+  await mask.getByRole('combobox', { name: 'Mask' }).selectOption({ index: 0 });
+  await expect.poll(() => redness(0.5, 0.5), { timeout: 15000 }).toBeGreaterThan(150);
+});

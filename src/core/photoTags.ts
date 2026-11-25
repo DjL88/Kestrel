@@ -16,10 +16,11 @@ export type TagFacet = 'place' | 'landmark' | 'light' | 'weather' | 'style' | 'g
 export const TAG_FACETS: readonly TagFacet[] = ['place', 'landmark', 'light', 'weather', 'style', 'genre', 'vehicle', 'marking'];
 /**
  * Where a tag came from: the photo's GPS, its camera data, a measurement or calculation, the image model, a curated
- * list, text read off the subject, an exact register lookup, or another frame of the same burst (`fromFrameId`).
+ * list, text read off the subject, an exact register lookup, another frame of the same burst (`fromFrameId`), or the
+ * person's own choice (`user`, never hedged: it is what they said, not an app reading).
  */
-export type TagSource = 'gps' | 'exif' | 'computed' | 'clip' | 'curated' | 'ocr' | 'register' | 'burst';
-const SOURCES: readonly TagSource[] = ['gps', 'exif', 'computed', 'clip', 'curated', 'ocr', 'register', 'burst'];
+export type TagSource = 'gps' | 'exif' | 'computed' | 'clip' | 'curated' | 'ocr' | 'register' | 'burst' | 'user';
+const SOURCES: readonly TagSource[] = ['gps', 'exif', 'computed', 'clip', 'curated', 'ocr', 'register', 'burst', 'user'];
 
 export interface PhotoTag {
   /** Stable dotted key, e.g. `light.golden-hour`, `place.gn.2643743`, `vehicle.helicopter`. Also the i18n key. */
@@ -70,7 +71,7 @@ export function readPhotoTags(frame: Pick<PhotoFrame, 'stableKey' | 'photoTags'>
 function cleanTag(tag: PhotoTag): PhotoTag | null {
   if (!tag || !isTagId(tag.id) || !TAG_FACETS.includes(tag.facet) || !SOURCES.includes(tag.source)) return null;
   const out: PhotoTag = { id: tag.id, facet: tag.facet, source: tag.source };
-  if (tag.hedged === true) out.hedged = true;
+  if (tag.hedged === true && tag.source !== 'user') out.hedged = true;
   if (tag.source === 'burst' && typeof tag.fromFrameId === 'string' && tag.fromFrameId.length <= 128) out.fromFrameId = tag.fromFrameId;
   if (typeof tag.score === 'number' && Number.isFinite(tag.score)) out.score = Math.min(1, Math.max(0, Math.round(tag.score * 1000) / 1000));
   if (typeof tag.name === 'string') {

@@ -62,6 +62,19 @@ export interface ExifMetadata {
   capturedAtUtcMs?: number;
   /** Exposure time in seconds, for checks such as motion blur. */
   exposureSeconds?: number;
+  /** The camera's own capture dates, as the file's EXIF records them. Exports copy these unchanged. */
+  captureStamp?: CaptureStamp;
+}
+
+/**
+ * Capture dates exactly as the original's EXIF says them: "YYYY:MM:DD HH:MM:SS" wall clock, offsets "+HH:MM". Each
+ * field is present only when the file has it. Never filled from a file's modified date or the export time.
+ */
+export interface CaptureStamp {
+  original?: string;
+  digitized?: string;
+  offsetOriginal?: string;
+  offsetDigitized?: string;
 }
 
 export interface PhotoFrame {
@@ -184,6 +197,8 @@ export interface ShootDescriptor {
   lastUpdatedAt: number;
   /** Set when the project is archived. Archived projects are hidden from the main list and can be restored. */
   archivedAt?: number;
+  /** Set when the project is deleted. It stays in Recently deleted for TRASH_KEEP_MS and can be restored until then. */
+  trashedAt?: number;
   /** True for the Quick edits bucket, where single photos are opened without making a project first. */
   inbox?: boolean;
   /** Optional multi-page collage / print album composition; sources remain ordinary non-destructive frames. */

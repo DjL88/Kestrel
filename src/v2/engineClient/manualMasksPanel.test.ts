@@ -22,7 +22,7 @@ const html = renderToStaticMarkup(React.createElement(MasksPanel, {
   onSetMaskEdit: () => {},
   onSetMaskFeather: () => {},
   onSetMaskGeometry: () => {},
-  onSetMaskLimit: () => {},
+  onSetMaskParts: () => {},
 }));
 
 function buttonWith(label: string): string {

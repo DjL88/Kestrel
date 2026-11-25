@@ -30,7 +30,7 @@ import MaskOutlineLayer from './MaskOutlineLayer';
 import TapSelectLayer from './TapSelectLayer';
 import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
 import { captureElement, screenshotName } from '../utils/captureElement';
-import { findEyeOnScreen } from '../../engineClient/eyeZoom';
+import { focusOnScreen, focusZoom, lookForZoomFocus, type ZoomFocus } from '../../engineClient/eyeZoom';
 import { DOCKED, clampDockOffset, isDocked, nudgeDockOffset, parseDockOffset, snapDockOffset, type DockOffset } from '../utils/floatingDock';
 import {
   buildPreviewFilterCss,
@@ -52,6 +52,9 @@ interface CanvasProps {
   maskGuideId?: string;
   /** The selected mask's hatched coverage overlay; its outline stays visible either way. */
   maskOverlayVisible?: boolean;
+  /** The overlay as a line round the mask (default) or the hatched area. */
+  maskOverlayStyle?: 'outline' | 'fill';
+  onSetMaskOverlayStyle?: (style: 'outline' | 'fill') => void;
   /** The overlay key as the person reads it ("O"), or undefined when unbound. */
   maskOverlayKey?: string;
   onToggleMaskOverlay?: () => void;
@@ -59,6 +62,9 @@ interface CanvasProps {
   /** Tap-to-select session; when it is on this photo, clicks on the picture select instead of moving the format. */
   tapSession?: NonNullable<WorkspaceStore['tapSelect']>['session'];
   onTapSelect?: (photoId: string, tap: TapPoint) => void;
+  /** White-balance eyedropper: while set, a click on the picture reports that spot (0 to 1 across the shown, framed
+   * picture) instead of moving anything. Esc cancels. */
+  neutralPick?: { onPick: (at: { x: number; y: number }) => void; onCancel: () => void };
   photo: Photo | null;
   activeSizeId: string;
   selectedSizeIds: string[];
@@ -89,10 +95,12 @@ interface CanvasProps {
   onToggleSplitFrames: (photoId: string) => void;
   /** Set the active format's number of continuous frames (1 rejoins, up to 5). */
   onSetSplitFrameCount?: (photoId: string, sizeId: string, count: SplitFrameCount) => void;
-  onSetSplitPanOffset: (photoId: string, offset: number) => void;
+  /** Kept for the engine contract; a plain drag no longer shifts the shared photograph (Crop mode positions it). */
+  onSetSplitPanOffset?: (photoId: string, offset: number) => void;
   onUpdateVideoZoom: (photoId: string, patch: Partial<VideoZoomConfig>) => void;
   onUpdateOverlay: (photoId: string, patch: Partial<OverlaySettings>) => void;
   onReconnectOriginal: (photoId: string) => void;
+  onDevelopFullSize?: (photoId: string) => void;
   onToggleCompare: () => void;
   onSetZoom: (zoom: number) => void;
   /** Called when someone zooms a cloud preview past 100%: its pixels run out there, so the original may be wanted. */
@@ -111,15 +119,19 @@ function ZoomPastPreviewWatch({ photoId, active, onZoomPastPreview }: { photoId:
 
 const ZOOM_BAR_STORAGE_KEY = 'inflight.v2.zoomBarOffset';
 
+/** Tells the store once when a cloud preview is zoomed past 100%, so it can offer the original. */
 export default function Canvas({
   PhotoSurface,
   maskGuideId,
-  maskOverlayVisible = true,
+  maskOverlayVisible: overlayChosen = true,
+  maskOverlayStyle = 'outline',
+  onSetMaskOverlayStyle,
   maskOverlayKey,
   onToggleMaskOverlay,
   onSetMaskGeometry,
   tapSession,
   onTapSelect,
+  neutralPick,
   photo,
   activeSizeId,
   selectedSizeIds,
@@ -147,10 +159,10 @@ export default function Canvas({
   onRotateSizes,
   onToggleSplitFrames,
   onSetSplitFrameCount,
-  onSetSplitPanOffset,
   onUpdateVideoZoom,
   onUpdateOverlay,
   onReconnectOriginal,
+  onDevelopFullSize,
   onToggleCompare,
   onSetZoom,
   onZoomPastPreview,
@@ -307,6 +319,30 @@ export default function Canvas({
   /** What Zoom to eye did, in words. It stays until dismissed or the photo changes, never vanishing on a timer. */
   const [eyeNote, setEyeNote] = useState<{ text: string; busy: boolean } | null>(null);
   useEffect(() => { setEyeNote(null); setZoomMenuOpen(false); }, [photo?.id]);
+  // Zoom to eye looks ahead: once a photo has been on screen a moment, find a confident eye, else the subject, else
+  // the centre, so the zoom menu can name where it will go. Only the view moves; nothing is judged sharp.
+  const [zoomFocus, setZoomFocus] = useState<{ photoId: string; focus: ZoomFocus } | null>(null);
+  const focusSearch = useRef<{ photoId: string; promise: Promise<ZoomFocus | null> } | null>(null);
+  const findZoomFocus = (photoId: string): Promise<ZoomFocus | null> => {
+    if (focusSearch.current?.photoId === photoId) return focusSearch.current.promise;
+    const frame = stageRef.current?.querySelector('[data-testid="canvas-frame"]');
+    if (!frame) return Promise.resolve(null);
+    const promise = lookForZoomFocus(frame).then((lookup) => {
+      if (lookup.kind !== 'ready') { if (focusSearch.current?.photoId === photoId) focusSearch.current = null; return null; }
+      setZoomFocus((current) => (focusSearch.current?.photoId === photoId ? { photoId, focus: lookup.focus } : current));
+      return lookup.focus;
+    });
+    focusSearch.current = { photoId, promise };
+    return promise;
+  };
+  const focusKind = zoomFocus && zoomFocus.photoId === photo?.id ? zoomFocus.focus.kind : null;
+  useEffect(() => {
+    const photoId = photo?.id;
+    if (!photoId || focusSearch.current?.photoId === photoId) return;
+    // A short wait, so flicking through photos never queues a search for each one.
+    const timer = window.setTimeout(() => { void findZoomFocus(photoId); }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [photo?.id]);
   useEffect(() => {
     if (!zoomMenuOpen) return;
     const onPointer = (event: PointerEvent) => {
@@ -363,7 +399,7 @@ export default function Canvas({
   const [draggingType, setDraggingType] = useState<'none' | 'pan' | 'crop' | 'text' | 'watermark' | 'board'>('none');
 
   const dragRef = useRef<{
-    kind: 'pan' | 'crop-top' | 'crop-right' | 'crop-bottom' | 'crop-left' | 'scale-top' | 'scale-right' | 'scale-bottom' | 'scale-left' | 'scale-tl' | 'scale-tr' | 'scale-bl' | 'scale-br' | 'move-frame' | 'text' | 'watermark' | 'resize-text' | 'resize-watermark' | 'board' | 'split';
+    kind: 'pan' | 'crop-top' | 'crop-right' | 'crop-bottom' | 'crop-left' | 'scale-top' | 'scale-right' | 'scale-bottom' | 'scale-left' | 'scale-tl' | 'scale-tr' | 'scale-bl' | 'scale-br' | 'move-frame' | 'text' | 'watermark' | 'resize-text' | 'resize-watermark' | 'board';
     sizeId: string;
     startX: number;
     startY: number;
@@ -401,6 +437,41 @@ export default function Canvas({
     window.addEventListener('keydown', leave);
     return () => window.removeEventListener('keydown', leave);
   }, [revealSizeId]);
+
+  // The eyedropper's Esc (a hook, so it sits before the early return below).
+  useEffect(() => {
+    if (!neutralPick) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.stopPropagation(); neutralPick.onCancel(); } };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [neutralPick]);
+  // While a slider moves, the mask overlay steps aside for a moment so the edit itself can be seen, then comes back
+  // (owner test, 25 Nov). Nothing animates, so reduced motion needs no special case; the label says it in words.
+  const OVERLAY_PAUSE_MS = 2500;
+  const [overlayPaused, setOverlayPaused] = useState(false);
+  // The photo's settings, and each existing mask's own values. Adding or removing a mask is not a slider move.
+  const editSignature = photo ? JSON.stringify({ recipe: getActiveGroup(photo).recipe,
+    masks: Object.fromEntries(photo.masks.map((layer) => [layer.id, JSON.stringify([layer.edit, layer.feather, layer.geometry, layer.parts])])) }) : '';
+  const lastSignature = useRef<{ photoId: string | null; signature: string }>({ photoId: null, signature: '' });
+  const pauseTimer = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    const photoId = photo?.id ?? null;
+    const previous = lastSignature.current;
+    lastSignature.current = { photoId, signature: editSignature };
+    // Only an edit to the same photo pauses; opening another photo or a mask does not.
+    if (previous.photoId !== photoId || previous.signature === editSignature || !previous.signature || !maskGuideId || !overlayChosen) return;
+    const before = JSON.parse(previous.signature) as { recipe: unknown; masks: Record<string, string> };
+    const now = JSON.parse(editSignature) as { recipe: unknown; masks: Record<string, string> };
+    const moved = JSON.stringify(before.recipe) !== JSON.stringify(now.recipe) ||
+      Object.keys(now.masks).some((id) => id in before.masks && before.masks[id] !== now.masks[id]);
+    if (!moved) return;
+    // Each move restarts the moment; the timer lives outside the effect so nothing else can leave the overlay hidden.
+    setOverlayPaused(true);
+    window.clearTimeout(pauseTimer.current);
+    pauseTimer.current = window.setTimeout(() => setOverlayPaused(false), OVERLAY_PAUSE_MS);
+  }, [editSignature, photo?.id, maskGuideId, overlayChosen]);
+  useEffect(() => () => window.clearTimeout(pauseTimer.current), []);
+  const maskOverlayVisible = overlayChosen && !overlayPaused;
 
   if (!photo) {
     return (
@@ -469,9 +540,6 @@ export default function Canvas({
     if (kind === 'pan') {
       origA = size.crop.panX;
       origB = size.crop.panY;
-      setDraggingType('pan');
-    } else if (kind === 'split') {
-      origA = splitOffsetFor(size.id);
       setDraggingType('pan');
     } else if (kind === 'text') {
       const box = e.currentTarget.getBoundingClientRect();
@@ -608,8 +676,6 @@ export default function Canvas({
         panX: Math.round(clamp(drag.crop.panX + (drag.crop.zoom - zoom) * ax * 100, -limits.x, limits.x)),
         panY: Math.round(clamp(drag.crop.panY + (drag.crop.zoom - zoom) * ay * 100, -limits.y, limits.y)),
       });
-    } else if (drag.kind === 'split') {
-      onSetSplitPanOffset(photo.id, Math.round(clamp(drag.origA + (dx / width) * 60, -25, 25)));
     } else if (drag.kind === 'board') {
       if (!drag.moved && Math.hypot(dx, dy) < 3) return;
       drag.moved = true;
@@ -1065,23 +1131,71 @@ export default function Canvas({
         {tapping && <TapSelectLayer picture={picture} session={tapping} onTap={(tap) => onTapSelect!(photo.id, tap)} />}
       </>
     ) : undefined;
+  // The eyedropper is drawn in the displayed picture's own pixels (like the mask outline), so crop, rotation, flips and
+  // zoom are already undone by the browser when it maps the click back. It takes the place of the outline while active.
+  const renderPickLayer = neutralPick
+    ? (picture: { width: number; height: number }) => (
+      <rect data-testid="wb-pick-layer" x={0} y={0} width={picture.width} height={picture.height} fill="transparent"
+        style={{ pointerEvents: 'all', cursor: 'crosshair' }}
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation();
+          const svg = (event.currentTarget as SVGRectElement).ownerSVGElement;
+          const ctm = svg?.getScreenCTM();
+          if (!svg || !ctm) return;
+          const point = svg.createSVGPoint();
+          point.x = event.clientX; point.y = event.clientY;
+          const local = point.matrixTransform(ctm.inverse());
+          const x = local.x / picture.width, y = local.y / picture.height;
+          if (x >= 0 && x <= 1 && y >= 0 && y <= 1) neutralPick.onPick({ x, y });
+        }} />
+    ) : undefined;
   const renderSurface = (variant: 'edited' | 'original', alt: string, style: React.CSSProperties, filter: string) =>
     PhotoSurface ? (
       <PhotoSurface photoId={photo.id} variant={variant}
-        maskGuideId={variant === 'edited' && alt && !compareMode && maskOverlayVisible ? maskGuideId : undefined}
-        maskOutline={variant === 'edited' && alt && !compareMode ? renderMaskOutline : undefined}
+        maskGuideId={variant === 'edited' && alt && !compareMode && maskOverlayVisible ? maskGuideId : undefined} maskGuideStyle={maskOverlayStyle}
+        maskOutline={variant === 'edited' && alt && !compareMode ? renderPickLayer ?? renderMaskOutline : undefined}
         lookPreview={variant === 'edited' ? hoveredLook?.recipeDelta : undefined} alt={alt} className="h-full w-full" style={style} />
     ) : (
       <img src={photo.previewUrl} alt={alt} referrerPolicy="no-referrer" draggable={false}
         className="h-full w-full object-cover" style={{ ...style, filter }} />
     );
 
+  /** Names the selected mask and toggles its overlay: inside the single view's frame, and below a split composition so
+   * it never covers a small pane's picture. */
+  const renderMaskLabel = (place = 'bottom-2 left-2') => selectedMask && PhotoSurface ? (
+              <div data-testid="mask-canvas-label" className={`absolute ${place} z-30 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[11px] font-medium text-white`}>
+                <span role="status" className="truncate">{overlayPaused ? STRINGS.maskCanvas.overlayPaused(selectedMask.name)
+                  : !overlayChosen ? STRINGS.maskCanvas.overlayHidden(selectedMask.name)
+                  : maskOverlayStyle === 'outline' ? STRINGS.maskCanvas.overlayOutline(selectedMask.name) : STRINGS.maskCanvas.overlayShown(selectedMask.name)}</span>
+                {onSetMaskOverlayStyle && overlayChosen && (
+                  <button type="button" data-testid="mask-overlay-style"
+                    onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onSetMaskOverlayStyle(maskOverlayStyle === 'outline' ? 'fill' : 'outline'); }}
+                    className="shrink-0 rounded border border-white/60 px-1.5 text-[10px] leading-4 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+                    {maskOverlayStyle === 'outline' ? STRINGS.maskCanvas.styleFill : STRINGS.maskCanvas.styleOutline}
+                  </button>
+                )}
+                {onToggleMaskOverlay && (
+                  <button type="button" aria-pressed={overlayChosen} aria-label={STRINGS.maskCanvas.toggleOverlay} title={STRINGS.maskCanvas.toggleOverlay}
+                    onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onToggleMaskOverlay(); }}
+                    className="shrink-0 rounded border border-white/60 px-1.5 font-mono text-[10px] leading-4 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+                    {maskOverlayKey ?? '◐'}
+                  </button>
+                )}
+              </div>
+      ) : null;
+
   /** One wide picture behind split frames. Through the engine's surface, like the single view, so a RAW keeps showing
    * once its developed picture replaces the embedded preview: a plain <img> of `photo.previewUrl` kept the old blob
-   * address after it was released, and every frame showed a broken image (owner report, 24 Nov 2026). */
-  const renderStrip = (alt: string, className: string, style: React.CSSProperties) =>
+   * address after it was released, and every frame showed a broken image (owner report, 24 Nov 2026).
+   * `editing` marks the split composition being edited: its panes also show the selected mask's coverage and a hovered
+   * look, as the single view does (x-mask-split). The mask outline's handles stay in the single view, so they are never
+   * repeated in every pane. */
+  const renderStrip = (alt: string, className: string, style: React.CSSProperties, editing = false) =>
     PhotoSurface ? (
-      <PhotoSurface photoId={photo.id} variant="edited" alt={alt} className={className} style={style} />
+      <PhotoSurface photoId={photo.id} variant="edited" alt={alt} className={className} style={style}
+        maskGuideId={editing && maskOverlayVisible ? maskGuideId : undefined} maskGuideStyle={maskOverlayStyle}
+        lookPreview={editing ? hoveredLook?.recipeDelta : undefined} />
     ) : (
       <img src={photo.previewUrl} alt={alt} referrerPolicy="no-referrer" draggable={false}
         className={className} style={{ ...style, filter: compareMode ? 'none' : filterCss }} />
@@ -1148,19 +1262,28 @@ export default function Canvas({
   const zoomToEye = async () => {
     const stage = stageRef.current;
     const frame = stage?.querySelector('[data-testid="canvas-frame"]');
-    if (!stage || !frame) return;
-    setEyeNote({ text: STRINGS.canvas.eyeLooking, busy: true });
-    const outcome = await findEyeOnScreen(frame);
-    if (outcome.kind !== 'found') {
-      setEyeNote({ text: outcome.kind === 'none' ? STRINGS.canvas.eyeNone : STRINGS.canvas.eyeUnavailable, busy: false });
+    if (!stage || !frame || !photo) return;
+    const photoId = photo.id;
+    const known = zoomFocus && zoomFocus.photoId === photoId ? zoomFocus.focus : null;
+    if (!known) setEyeNote({ text: STRINGS.canvas.eyeLooking, busy: true });
+    const focus = known ?? await findZoomFocus(photoId);
+    if (!focus) { setEyeNote({ text: STRINGS.canvas.eyeUnavailable, busy: false }); return; }
+    const liveFrame = stageRef.current?.querySelector('[data-testid="canvas-frame"]');
+    const at = liveFrame ? focusOnScreen(liveFrame, focus) : null;
+    const frameRect = liveFrame?.getBoundingClientRect();
+    if (!at || !frameRect || !(frameRect.width > 0 && frameRect.height > 0)) {
+      setEyeNote({ text: focus.kind === 'eye' ? STRINGS.canvas.eyeUnavailable : STRINGS.canvas.eyeNone, busy: false });
       return;
     }
-    const frameRect = frame.getBoundingClientRect();
-    if (!(frameRect.width > 0 && frameRect.height > 0)) return;
-    const point = { fx: clamp((outcome.clientX - frameRect.left) / frameRect.width, 0, 1), fy: clamp((outcome.clientY - frameRect.top) / frameRect.height, 0, 1) };
+    const point = { fx: clamp((at.clientX - frameRect.left) / frameRect.width, 0, 1), fy: clamp((at.clientY - frameRect.top) / frameRect.height, 0, 1) };
     // 100% (one picture pixel per screen pixel) is the honest view for checking detail; at least 2× when the size is unknown.
-    const target = Math.min(16, Math.max(fitScale ? 1 / fitScale : 2, canvasZoom * 1.0001));
-    setEyeNote({ text: outcome.confidence === 'likely' ? STRINGS.canvas.eyeFound : STRINGS.canvas.eyeMaybe, busy: false });
+    const target = focusZoom(focus, {
+      current: canvasZoom,
+      actual: Math.max(fitScale ? 1 / fitScale : 2, focus.kind === 'subject' ? 1 : canvasZoom * 1.0001),
+      pictureOnScreen: at.picture,
+      view: { width: stage.clientWidth, height: stage.clientHeight },
+    });
+    setEyeNote({ text: focus.kind === 'eye' ? STRINGS.canvas.eyeFound : focus.kind === 'subject' ? STRINGS.canvas.subjectFound : STRINGS.canvas.centreFound, busy: false });
     centreOn.current = point;
     setEyeTarget((count) => count + 1);
     if (Math.abs(target - canvasZoom) >= 0.001) onSetZoom(target);
@@ -1205,7 +1328,9 @@ export default function Canvas({
         <div
           data-testid="split-composition"
           className="relative m-auto flex items-center gap-4"
-          style={{ zoom: canvasZoom }}
+          // Outside Crop mode a drag moves the whole split layout on the canvas, as it does a single frame. The shared
+          // photograph is positioned only in Crop mode (double-click), so a plain drag never shifts the picture.
+          style={{ zoom: canvasZoom, transform: offset ? `translate(${offset.x}px, ${offset.y}px)` : undefined }}
           onClick={(e) => { if (e.target === e.currentTarget) setSelectedPane(null); }}
         >
           {revealing && (<>
@@ -1237,7 +1362,7 @@ export default function Canvas({
                 aria-pressed={paneSelected(paneIdx)}
                 aria-label={STRINGS.canvas.splitFrameSelect(paneIdx + 1, sectionCount)}
                 data-testid={`split-frame-${paneIdx}`}
-                onPointerDown={(e) => { paneDown.current = { x: e.clientX, y: e.clientY }; handleFramePointerDown(e, revealing ? 'pan' : 'split', activeSize, e.currentTarget); }}
+                onPointerDown={(e) => { paneDown.current = { x: e.clientX, y: e.clientY }; handleFramePointerDown(e, revealing ? 'pan' : 'move-frame', activeSize, e.currentTarget); }}
                 onClick={(e) => {
                   const down = paneDown.current;
                   if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) return;
@@ -1256,11 +1381,13 @@ export default function Canvas({
                   `${photo.title} — Frame ${paneIdx + 1}`,
                   'h-full max-w-none object-cover select-none',
                   paneImageStyle(activeSize.crop, paneIdx, sectionCount, splitOffsetFor(activeSize.id)),
+                  true,
                 ), { index: paneIdx, count: sectionCount })}
                 {paneIdx === sectionCount - 1 && renderOverlaysInsideFrame(activeSize, true)}
               </div>
             </div>
           ))}
+          {renderMaskLabel('left-0 top-full mt-2')}
           {sectionCount < MAX_SPLIT_FRAMES && (
             <button
               type="button"
@@ -1397,18 +1524,7 @@ export default function Canvas({
             ) : (
               renderSurface(holdingOriginal ? 'original' : 'edited', holdingOriginal ? `${photo.title} original` : photo.title, { transform: buildImageTransform(activeSize.crop) }, holdingOriginal ? 'none' : filterCss)
             ))}
-            {selectedMask && !compareMode && !holdingOriginal && PhotoSurface && (
-              <div data-testid="mask-canvas-label" className="absolute bottom-2 left-2 z-30 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[11px] font-medium text-white">
-                <span role="status" className="truncate">{maskOverlayVisible ? STRINGS.maskCanvas.overlayShown(selectedMask.name) : STRINGS.maskCanvas.overlayHidden(selectedMask.name)}</span>
-                {onToggleMaskOverlay && (
-                  <button type="button" aria-pressed={maskOverlayVisible} aria-label={STRINGS.maskCanvas.toggleOverlay} title={STRINGS.maskCanvas.toggleOverlay}
-                    onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onToggleMaskOverlay(); }}
-                    className="shrink-0 rounded border border-white/60 px-1.5 font-mono text-[10px] leading-4 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
-                    {maskOverlayKey ?? '◐'}
-                  </button>
-                )}
-              </div>
-            )}
+            {!compareMode && !holdingOriginal && renderMaskLabel()}
             {holdingOriginal && (
               <span role="status" className="pointer-events-none absolute left-2 top-2 z-30 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[0.6875rem] font-semibold text-white">{STRINGS.canvas.showingOriginal}</span>
             )}
@@ -1604,6 +1720,19 @@ export default function Canvas({
           </div>
           {/* Which picture is shown, for the single view and the All formats board alike (camera preview or RAW develop). */}
           <PictureSourceBadge picture={photo.picture?.preview} className="h-7 text-[0.6875rem]" />
+          {photo.fullDevelop && onDevelopFullSize && (
+            <button
+              type="button"
+              disabled={photo.fullDevelop === 'running'}
+              aria-busy={photo.fullDevelop === 'running'}
+              onClick={() => onDevelopFullSize(photo.id)}
+              title={STRINGS.fullDevelop.help}
+              className="inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-default disabled:opacity-70 whitespace-nowrap"
+            >
+              <BrandIcon name={photo.fullDevelop === 'running' ? 'clock' : 'expand'} size={13} />
+              <span>{photo.fullDevelop === 'running' ? STRINGS.fullDevelop.running : STRINGS.fullDevelop.button}</span>
+            </button>
+          )}
 
           {canvasLayoutMode === 'all-formats' && (
             <>
@@ -1850,7 +1979,7 @@ export default function Canvas({
                 {[
                   { id: 'fit', label: STRINGS.canvas.zoomFitScreen, run: () => zoomAroundCentre(1), current: Math.abs(canvasZoom - 1) < 0.001 },
                   { id: '100', label: STRINGS.canvas.zoomActual, run: () => zoomAroundCentre(fitScale ? 1 / fitScale : 1), current: actualPercent === 100 },
-                  { id: 'eye', label: STRINGS.canvas.zoomEye, run: () => { void zoomToEye(); }, current: false, disabled: activeSize.kind !== 'photo' || compareMode || Boolean(eyeNote?.busy) },
+                  { id: 'eye', label: focusKind === 'subject' ? STRINGS.canvas.zoomSubject : focusKind === 'centre' ? STRINGS.canvas.zoomCentre : STRINGS.canvas.zoomEye, run: () => { void zoomToEye(); }, current: false, disabled: activeSize.kind !== 'photo' || compareMode || Boolean(eyeNote?.busy) },
                 ].map((item) => (
                   <button key={item.id} type="button" role="menuitem" data-testid={`zoom-menu-${item.id}`} disabled={item.disabled}
                     onClick={() => { setZoomMenuOpen(false); item.run(); }}

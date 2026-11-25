@@ -151,6 +151,27 @@
   .inflight-v2 .v2-filmstrip-tools button { min-height: 40px; }
 }
 
+/* Phone edit screen (V2-WORKSPACE 26.3, owner wireframe "Phone · Edit"): a slimmer strip of small thumbnails instead of
+   tall cards, so the photo gets more of the height. More (⋯) and Flag stay drawn and tappable on every thumbnail; only
+   the filename and the word Ready are not drawn (both stay in the page for screen readers and voice control). A state
+   other than Ready (Importing, Analysing, Unavailable) is still written on the thumbnail. */
+@media (max-width: 767px) and (orientation: portrait) {
+  .inflight-v2 .v2-filmstrip-body { height: 6.5rem !important; }
+  .inflight-v2 .v2-filmstrip [role="separator"] { display: none; }
+  .inflight-v2 .v2-strip-tile { width: 5rem; }
+  .inflight-v2 .v2-strip-tile .v2-strip-tile-footer { justify-content: flex-end; }
+  /* While a tool sheet is open the filmstrip steps aside so the photo keeps its height (wireframe "Phone · Adjust open");
+     it stays mounted, so its scroll position and selection come back when the sheet closes. */
+  .inflight-v2 .v2-sheet-open .v2-filmstrip { display: none; }
+  /* On a small thumbnail More would cover the middle of the photo, so it moves to the footer row, opposite Flag. */
+  .inflight-v2 .v2-strip-tile .v2-strip-tile-more { top: auto; bottom: 0; right: auto; left: 0.25rem; }
+  .inflight-v2 .v2-strip-tile .v2-strip-tile-name,
+  .inflight-v2 .v2-strip-tile .v2-strip-tile-ready {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+    clip: rect(0 0 0 0); clip-path: inset(50%); border: 0; white-space: nowrap;
+  }
+}
+
 /* Overlay text, watermark and collage caption are part of the picture (data-artwork): the interface's reading font does
    not apply to them (index.css), so they keep the workspace font they will be exported with. */
 html[data-font="readable"] .inflight-v2 [data-artwork] { font-family: var(--font-sans); }

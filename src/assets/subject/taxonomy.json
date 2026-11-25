@@ -113,7 +113,7 @@
     "a crocodile or other reptile"
    ],
    "detector": [],
-   "identify": null
+   "identify": "species"
   },
   {
    "id": "insect",

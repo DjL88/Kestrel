@@ -179,7 +179,7 @@ test('account device management exchanges fresh identity without activating or p
   assert.equal(await sync.releaseAccountDevice('fresh-identity', 'act_other'), false);
 });
 
-// ---- Buying Pro: the server prices and verifies; the app opens SumUp's page and waits for "paid".
+// ---- Buying Pro: the server opens a Paddle transaction and verifies it; the app opens our checkout page and waits for "paid".
 function checkoutSetup(answers: Array<[number, unknown]>, configured = true) {
   const calls: string[] = [];
   const bodies: unknown[] = [];
@@ -201,36 +201,33 @@ function checkoutSetup(answers: Array<[number, unknown]>, configured = true) {
   return { sync, calls, bodies };
 }
 
-test('buying Pro sends only the billing country with a fresh session, and returns SumUp\'s page', async () => {
-  const env = checkoutSetup([[201, { checkoutId: 'chk-1', url: 'https://checkout.sumup.com/pay/c-1', totalPence: 4900, currency: 'GBP' }]]);
-  const started = await env.sync.startProCheckout('id-token', 'GB');
-  assert.deepEqual(started, { ok: true, checkoutId: 'chk-1', url: 'https://checkout.sumup.com/pay/c-1', totalPence: 4900, currency: 'GBP' });
+test('buying Pro sends nothing but a fresh session, and returns our checkout page for the Paddle transaction', async () => {
+  const env = checkoutSetup([[201, { checkoutId: 'txn_01testcheckout01', url: 'https://kestrel-hosting-kestrel.web.app/pro-checkout?_ptxn=txn_01testcheckout01' }]]);
+  const started = await env.sync.startProCheckout('id-token');
+  assert.deepEqual(started, { ok: true, checkoutId: 'txn_01testcheckout01', url: 'https://kestrel-hosting-kestrel.web.app/pro-checkout?_ptxn=txn_01testcheckout01', totalPence: null, currency: null });
   assert.deepEqual(env.calls, ['POST /v1/auth/firebase', 'POST /v1/me/checkout/pro Bearer s1']);
-  assert.deepEqual(env.bodies[1], { country: 'GB' });
+  assert.deepEqual(env.bodies[1], {});
 });
 
-test('the four checkout refusals come back calmly, and a build without the server never calls out', async () => {
-  for (const code of ['CHECKOUT_DISABLED', 'COUNTRY_UNAVAILABLE', 'LOCATION_UNCONFIRMED', 'ALREADY_PRO']) {
+test('the three checkout refusals come back calmly, and a build without the server never calls out', async () => {
+  for (const code of ['CHECKOUT_DISABLED', 'ACCOUNT_UNVERIFIED', 'ALREADY_PRO']) {
     const env = checkoutSetup([[code === 'CHECKOUT_DISABLED' ? 503 : 409, { error: { code, message: 'x' } }]]);
-    const started = await env.sync.startProCheckout('id-token', 'GB');
+    const started = await env.sync.startProCheckout('id-token');
     assert.equal(started.ok, false);
     assert.equal(!started.ok && started.code, code);
   }
   const offline = checkoutSetup([], false);
-  assert.equal((await offline.sync.startProCheckout('id-token', 'GB') as { code: string }).code, 'NOT_SET_UP');
+  assert.equal((await offline.sync.startProCheckout('id-token') as { code: string }).code, 'NOT_SET_UP');
   assert.deepEqual(offline.calls, []);
-  const bad = checkoutSetup([]);
-  assert.equal((await bad.sync.startProCheckout('id-token', 'gb') as { code: string }).code, 'COUNTRY_UNAVAILABLE');
-  assert.deepEqual(bad.calls, []);
-  assert.equal((await checkoutSetup([]).sync.startProCheckout('id-token', 'GB') as { code: string }).code, 'UNREACHABLE');
+  assert.equal((await checkoutSetup([]).sync.startProCheckout('id-token') as { code: string }).code, 'UNREACHABLE');
 });
 
 test('checking a checkout reuses the session, renews it once when it expired, and is only paid when the server says so', async () => {
-  const env = checkoutSetup([[201, { checkoutId: 'chk-1', url: 'https://checkout.sumup.com/pay/c-1' }], [200, { status: 'pending' }], [401, {}], [200, { status: 'paid' }]]);
-  await env.sync.startProCheckout('id-token', 'GB');
-  assert.equal(await env.sync.proCheckoutStatus('id-token', 'chk-1'), 'pending');
-  assert.equal(await env.sync.proCheckoutStatus('id-token', 'chk-1'), 'paid');
-  assert.deepEqual(env.calls.slice(2), ['GET /v1/me/checkout/pro/chk-1 Bearer s1', 'GET /v1/me/checkout/pro/chk-1 Bearer s1', 'POST /v1/auth/firebase', 'GET /v1/me/checkout/pro/chk-1 Bearer s2']);
-  assert.equal(await env.sync.proCheckoutStatus('id-token', 'chk-1'), 'retry');
+  const env = checkoutSetup([[201, { checkoutId: 'txn_01testcheckout01', url: 'https://kestrel-hosting-kestrel.web.app/pro-checkout?_ptxn=txn_01testcheckout01' }], [200, { status: 'pending' }], [401, {}], [200, { status: 'paid' }]]);
+  await env.sync.startProCheckout('id-token');
+  assert.equal(await env.sync.proCheckoutStatus('id-token', 'txn_01testcheckout01'), 'pending');
+  assert.equal(await env.sync.proCheckoutStatus('id-token', 'txn_01testcheckout01'), 'paid');
+  assert.deepEqual(env.calls.slice(2), ['GET /v1/me/checkout/pro/txn_01testcheckout01 Bearer s1', 'GET /v1/me/checkout/pro/txn_01testcheckout01 Bearer s1', 'POST /v1/auth/firebase', 'GET /v1/me/checkout/pro/txn_01testcheckout01 Bearer s2']);
+  assert.equal(await env.sync.proCheckoutStatus('id-token', 'txn_01testcheckout01'), 'retry');
   assert.equal(await env.sync.proCheckoutStatus('id-token', '../admin'), 'gone');
 });

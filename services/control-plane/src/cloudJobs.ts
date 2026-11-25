@@ -12,7 +12,9 @@ export interface CloudJobRecord { jobId: string; accountId: string; kind: CloudK
   /** When the person said yes to this upload (every job carries its own consent, never a standing one). */
   consentAtMs: number;
   /** Estimated spend reserved for this job. Older job records did not store it. */
-  spendPence?: number }
+  spendPence?: number;
+  /** Taken from the cloud balance because the month's allowance was used up; refunded if the job fails. */
+  paidMillicredits?: number }
 
 export interface CloudRunner {
   /** A short-lived signed upload URL into the private bucket. Throws if the job cannot be started. */
@@ -34,6 +36,8 @@ export interface CloudLedger {
   reserve(accountId: string, nowMs: number, limit: number, periodMs: number): Promise<boolean>;
   /** Refund the period that held the reservation, if it is still tracked. */
   refund(accountId: string, reservedAtMs: number): Promise<void>;
+  /** Jobs counted in the account's current period (for the usage screen). */
+  periodUsed?(accountId: string, nowMs: number, periodMs: number): Promise<number>;
   put(record: CloudJobRecord): Promise<void>;
   get(jobId: string): Promise<CloudJobRecord | undefined>;
   /** Atomically update the status only if it still matches the caller's expected status. */
@@ -41,7 +45,16 @@ export interface CloudLedger {
 }
 
 export interface CloudOptions {
-  runner: CloudRunner; ledger: CloudLedger; jobsPerPeriod: number; maxInputBytes: number;
+  runner: CloudRunner; ledger: CloudLedger;
+  /** Cloud photos a Pro account gets each period (owner: 5,000). */
+  jobsPerPeriod: number;
+  /** Cloud photos a signed-in Basic account gets each period (owner: 500). Absent or 0: cloud processing is Pro only. */
+  basicJobsPerPeriod?: number;
+  /** Prepaid balance that pays for photos beyond the allowance. Absent: the allowance is a hard limit. */
+  balance?: import('./cloudBalance.ts').CloudBalance;
+  /** Price of one photo beyond the allowance, millicredits (owner: 0.3p = 300). */
+  extraPhotoMillicredits?: number;
+  maxInputBytes: number;
   /** A shared store can commit the failed status and both refunds in one transaction. */
   settleFailed?: (jobId: string, legacySpendPence: number) => Promise<boolean>;
   /** A job still running this long after it was created is treated as failed (a crashed runner writes no marker). Default 30 minutes. */
@@ -84,13 +97,17 @@ export class MemoryCloudLedger implements CloudLedger {
     if (c.used >= limit) return false;
     c.used++; return true;
   }
+  async periodUsed(accountId: string, nowMs: number, periodMs: number) {
+    const c = this.counts.get(accountId);
+    return c && nowMs < c.start + periodMs ? c.used : 0;
+  }
   async refund(accountId: string, reservedAtMs: number) {
     const c = this.counts.get(accountId);
     if (c && reservedAtMs >= c.start && c.used > 0) c.used--;
   }
   async put(r: CloudJobRecord) {
-    const { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, spendPence } = r;
-    this.jobs.set(jobId, { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, ...(spendPence === undefined ? {} : { spendPence }) });
+    const { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, spendPence, paidMillicredits } = r;
+    this.jobs.set(jobId, { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs, ...(spendPence === undefined ? {} : { spendPence }), ...(paidMillicredits === undefined ? {} : { paidMillicredits }) });
   }
   async get(jobId: string) { const r = this.jobs.get(jobId); return r ? { ...r } : undefined; }
   async transition(jobId: string, from: CloudStatus, to: CloudStatus) {

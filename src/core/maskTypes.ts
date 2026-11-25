@@ -1,9 +1,16 @@
 /** Controls a mask can adjust locally, tone and colour first, then detail. */
 export const LOCAL_KEYS = ['exposure', 'brightness', 'warmth', 'colour', 'contrast', 'highlights', 'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity', 'sharpen', 'denoise'] as const;
 /** The local controls that need neighbouring pixels, so a mask using them cannot be processed in separate bands. */
-export const LOCAL_DETAIL_KEYS = ['texture', 'clarity', 'sharpen', 'denoise'] as const;
+export const LOCAL_DETAIL_KEYS = ['texture', 'clarity', 'sharpen', 'denoise', 'denoiseLuminance'] as const;
 export type LocalKey = (typeof LOCAL_KEYS)[number];
-export type LocalEdit = Partial<Record<LocalKey, number>>;
+/** Every key a stored mask may carry: the sliders above, plus luminance (grain) noise reduction, which TrueDetail's
+ * regional denoise sets per region (stronger on the background, gentler on subjects and eyes). Same 0 to 2 range as
+ * `PhotoEdit.denoiseLuminance`. */
+export const MASK_EDIT_KEYS = [...LOCAL_KEYS, 'denoiseLuminance'] as const;
+export type MaskEditKey = (typeof MASK_EDIT_KEYS)[number];
+export type LocalEdit = Partial<Record<MaskEditKey, number>>;
+/** The two noise-reduction keys: the only ones a common-source denoise pair may carry. */
+export const isDenoiseKey = (key: string): boolean => key === 'denoise' || key === 'denoiseLuminance';
 
 export interface BrushStroke {
   /** Radius in widths of the framed photo. */
@@ -42,9 +49,32 @@ export interface SubjectDetail { region: { x: number; y: number; w: number; h: n
 /** Restrict a mask by another one: only where it overlaps (intersect), or everywhere except it (subtract). */
 export interface MaskLimit { id: string; mode: 'intersect' | 'subtract' }
 
+/** How one part changes a mask: add the other mask's area, subtract it, or keep only the overlap. */
+export type MaskPartMode = 'add' | 'subtract' | 'intersect';
+/** Another mask combined into this one, by that mask's own shape. Parts apply in order. */
+export interface MaskPart { id: string; mode: MaskPartMode }
+export const MAX_MASK_PARTS = 4;
+const PART_MODES: readonly MaskPartMode[] = ['add', 'subtract', 'intersect'];
+
+/** The parts a mask combines, in order: its `parts`, or an older single `limit` read as one part. */
+export function maskParts(mask: Pick<Mask, 'parts' | 'limit'>): MaskPart[] {
+  return mask.parts ? mask.parts.map((part) => ({ ...part })) : mask.limit ? [{ ...mask.limit }] : [];
+}
+
+/** True when another mask's shape changes this one (a part or an older limit). */
+export function isCombined(mask: Pick<Mask, 'parts' | 'limit'>): boolean {
+  return maskParts(mask).length > 0;
+}
+
 export type Mask = MaskShape & {
   id: string;
+  /**
+   * Older single restriction. A mask with `parts` keeps its first restricting part here too, so an older InFlight that
+   * does not know `parts` narrows the mask rather than spreading its edit over the whole picture.
+   */
   limit?: MaskLimit;
+  /** Other masks combined into this one, in order. When present, `limit` is ignored. */
+  parts?: MaskPart[];
   invert: boolean;
   /** 0 is a crisp edge, 1 is the softest transition. */
   feather: number;
@@ -61,7 +91,7 @@ export function usesDetail(masks: Mask[] | undefined): boolean {
 
 /** A mask changes the picture only when it is switched on and has at least one slider set. */
 export function maskIsActive(mask: Mask): boolean {
-  return !mask.hidden && LOCAL_KEYS.some((key) => !!mask.edit[key]);
+  return !mask.hidden && MASK_EDIT_KEYS.some((key) => !!mask.edit[key]);
 }
 
 export function hasActiveMasks(masks: Mask[] | undefined): boolean {
@@ -128,9 +158,20 @@ export function validMasks(value: unknown): value is Mask[] {
       if (typeof limit !== 'object' || limit === null || typeof limit.id !== 'string' || !limit.id || limit.id === mask.id ||
         (limit.mode !== 'intersect' && limit.mode !== 'subtract')) return false;
     }
+    if (mask.parts !== undefined) {
+      if (!Array.isArray(mask.parts) || mask.parts.length > MAX_MASK_PARTS) return false;
+      const used = new Set<string>();
+      if (!mask.parts.every((raw) => {
+        if (typeof raw !== 'object' || raw === null) return false;
+        const part = raw as Record<string, unknown>;
+        if (typeof part.id !== 'string' || !part.id || part.id === mask.id || used.has(part.id)) return false;
+        used.add(part.id);
+        return PART_MODES.includes(part.mode as MaskPartMode);
+      })) return false;
+    }
     const edit = mask.edit;
     if (typeof edit !== 'object' || edit === null || Array.isArray(edit)) return false;
-    if (!Object.entries(edit).every(([key, number]) => (LOCAL_KEYS as readonly string[]).includes(key) && finite(number, key === 'denoise' ? 0 : -2, 2))) return false;
+    if (!Object.entries(edit).every(([key, number]) => (MASK_EDIT_KEYS as readonly string[]).includes(key) && finite(number, isDenoiseKey(key) ? 0 : -2, 2))) return false;
     if (mask.kind === 'linear') return ['x1', 'y1', 'x2', 'y2'].every((key) => finite(mask[key], -2, 3));
     if (mask.kind === 'radial') return finite(mask.cx, -2, 3) && finite(mask.cy, -2, 3) && finite(mask.rx, 0.001, 5) && finite(mask.ry, 0.001, 5) && (mask.angle === undefined || finite(mask.angle, -180, 180));
     const strokesValid = (strokes: unknown) => Array.isArray(strokes) && strokes.length <= 300 && strokes.every((stroke) => {

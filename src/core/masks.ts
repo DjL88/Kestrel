@@ -1,6 +1,7 @@
 import { applyDetail, applyPhotoEdit, blendEncoded8, decodeEncoded, encodeLinear, type PhotoEdit } from './photoEdits';
-import { hasActiveMasks, maskIsActive, type Mask } from './maskTypes';
-import { applyNoiseReduction } from './noiseReduction';
+import { hasActiveMasks, maskIsActive, maskParts, type Mask } from './maskTypes';
+import { applyNoiseReduction, hasNoiseReduction } from './noiseReduction';
+import { denoiseEyes, denoiseMembers, isDenoisePair, regionNoise } from './denoiseRegions';
 
 /** Which part of the framed photo a canvas shows. A zoomed region covers a sub-rectangle. */
 export interface MaskContext {
@@ -211,62 +212,55 @@ export function maskAlpha(mask: Mask, width: number, height: number, context: Ma
  */
 export function effectiveAlpha(mask: Mask, masks: readonly Mask[], width: number, height: number, context: MaskContext): Float32Array {
   const alpha = maskAlpha(mask, width, height, context);
-  if (!mask.limit) return alpha;
-  const candidates = masks.filter(candidate => candidate.id === mask.limit!.id && candidate.id !== mask.id);
-  // A broken restriction must never broaden a previously local edit.
-  if (candidates.length !== 1 || (mask.limit.mode !== 'intersect' && mask.limit.mode !== 'subtract')) return alpha.fill(0);
-  if (invalidGradient(candidates[0])) return alpha.fill(0);
-  const limiter = maskAlpha(candidates[0], width, height, context);
-  for (let i = 0; i < alpha.length; i += 1) alpha[i] *= mask.limit.mode === 'intersect' ? limiter[i] : 1 - limiter[i];
+  // Parts apply in order: add takes the larger strength (union), subtract removes the other area, intersect keeps the overlap.
+  for (const part of maskParts(mask)) {
+    const candidates = masks.filter(candidate => candidate.id === part.id && candidate.id !== mask.id);
+    // A broken part must never broaden a previously local edit.
+    if (candidates.length !== 1 || !['add', 'subtract', 'intersect'].includes(part.mode)) return alpha.fill(0);
+    if (invalidGradient(candidates[0])) return alpha.fill(0);
+    const other = maskAlpha(candidates[0], width, height, context);
+    for (let i = 0; i < alpha.length; i += 1) {
+      alpha[i] = part.mode === 'add' ? Math.max(alpha[i], other[i]) : part.mode === 'intersect' ? alpha[i] * other[i] : alpha[i] * (1 - other[i]);
+    }
+  }
   return alpha;
 }
 
 /** Apply local adjustments. Each mask runs the normal edit maths on a copy and blends it in by its strength. */
 export function applyMasks(pixels: Uint8ClampedArray, width: number, height: number, masks: Mask[] | undefined, context: MaskContext): void {
   if (!masks || !hasActiveMasks(masks)) return;
-  const paired = (background: Mask, subject: Mask | undefined): boolean =>
-    background.kind === 'subject' && subject?.kind === 'subject' &&
-    background.id === subject.id + '-background' &&
-    background.invert && !subject.invert && !background.hidden && !subject.hidden &&
-    !background.limit && !subject.limit &&
-    background.feather === subject.feather && background.framingKey === subject.framingKey &&
-    JSON.stringify(background.grid) === JSON.stringify(subject.grid) &&
-    JSON.stringify(background.detail) === JSON.stringify(subject.detail) &&
-    JSON.stringify(background.strokes) === JSON.stringify(subject.strokes) &&
-    Object.keys(background.edit).every(key => key === 'denoise') &&
-    Object.keys(subject.edit).every(key => key === 'denoise');
-  const overrides = new Map<string, Mask[]>();
+  const overrides = new Map<string, { members: Mask[]; eyes: Mask[] }>();
   const consumed = new Set<string>();
   for (let i = 0; i + 1 < masks.length; i++) {
     const group = masks[i + 1];
-    if (!paired(masks[i], group) || group.kind !== 'subject') continue;
-    const members = masks.filter(m => m.kind === 'subject' && !m.invert && !m.hidden &&
-      m.framingKey === group.framingKey && m.id.startsWith(group.id + '-instance-') &&
-      m.edit.denoise !== undefined).sort((a, b) => a.id.localeCompare(b.id));
-    overrides.set(group.id, members);
+    if (!isDenoisePair(masks[i], group)) continue;
+    const members = denoiseMembers(group, masks);
+    const eyes = denoiseEyes(group, masks);
+    overrides.set(group.id, { members, eyes });
     members.forEach(m => consumed.add(m.id));
+    eyes.forEach(m => consumed.add(m.id));
   }
   for (let index = 0; index < masks.length; index += 1) {
     const mask = masks[index];
     const subject = masks[index + 1];
-    if (paired(mask, subject)) {
+    if (isDenoisePair(mask, subject)) {
       const alpha = maskAlpha(subject, width, height, context);
-      const filter = (strength: number | undefined) => applyNoiseReduction(pixels, width, height,
-        { exposure: 0, warmth: 0, colour: 0, denoise: strength } as PhotoEdit);
-      const backgroundPixels = filter(mask.edit.denoise);
-      const subjectPixels = filter(subject.edit.denoise);
-      const members = overrides.get(subject.id) ?? [];
-      // For individual overrides, normalize overlapping coverage rather than
-      // filtering the output of another filter. Every candidate sees this same source.
-      if (members.length) {
-        const count = width * height;
+      // Every region is filtered from this same source, never from another filter's output.
+      const filter = (region: Mask) => applyNoiseReduction(pixels, width, height,
+        { exposure: 0, warmth: 0, colour: 0, ...regionNoise(region) } as PhotoEdit);
+      const backgroundPixels = filter(mask);
+      const subjectPixels = filter(subject);
+      const { members, eyes } = overrides.get(subject.id) ?? { members: [], eyes: [] };
+      const count = width * height;
+      if (members.length || eyes.length) {
+        const linear = Array.from({ length: 256 }, (_, v) => decodeEncoded(v / 255));
+        // For individual overrides, normalise overlapping coverage rather than filtering the output of another filter.
         const total = new Float32Array(count);
         const coverage = new Float32Array(count);
         const rgb = new Float32Array(count * 3);
-        const linear = Array.from({ length: 256 }, (_, v) => decodeEncoded(v / 255));
         for (const member of members) {
           const a = effectiveAlpha(member, masks, width, height, context);
-          const candidate = filter(member.edit.denoise);
+          const candidate = filter(member);
           for (let i = 0; i < count; i++) {
             const weight = a[i] * alpha[i];
             total[i] += weight;
@@ -274,20 +268,31 @@ export function applyMasks(pixels: Uint8ClampedArray, width: number, height: num
             for (let c = 0; c < 3; c++) rgb[i * 3 + c] += linear[candidate[i * 4 + c]] * weight;
           }
         }
+        // Eyes take priority over every subject strength: the gentlest region wins where an eye covers the subject.
+        const eyeCover = new Float32Array(eyes.length ? count : 0);
+        const eyeRgb = new Float32Array(eyes.length ? count * 3 : 0);
+        for (const eye of eyes) {
+          const a = effectiveAlpha(eye, masks, width, height, context);
+          const candidate = filter(eye);
+          for (let i = 0; i < count; i++) {
+            const weight = a[i] * alpha[i];
+            if (weight <= eyeCover[i]) continue;
+            eyeCover[i] = weight;
+            for (let c = 0; c < 3; c++) eyeRgb[i * 3 + c] = linear[candidate[i * 4 + c]];
+          }
+        }
         for (let i = 0; i < count; i++) {
           for (let c = 0; c < 3; c++) {
             const j = i * 4 + c;
             const base = linear[backgroundPixels[j]] * (1 - alpha[i]) + linear[subjectPixels[j]] * alpha[i];
-            // Overrides replace only the subject contribution, leaving the
-            // complementary background contribution intact.
-            const value = total[i] > 0
-              ? base + coverage[i] * (rgb[i * 3 + c] / total[i] - linear[subjectPixels[j]])
-              : base;
+            // Overrides replace only the subject contribution, leaving the complementary background contribution intact.
+            let value = total[i] > 0 ? base + coverage[i] * (rgb[i * 3 + c] / total[i] - linear[subjectPixels[j]]) : base;
+            if (eyes.length && eyeCover[i] > 0) value += eyeCover[i] * (eyeRgb[i * 3 + c] - value);
             pixels[j] = Math.round(encodeLinear(Math.max(0, Math.min(1, value))) * 255);
           }
         }
       } else {
-        for (let i = 0; i < alpha.length; i++) {
+        for (let i = 0; i < count; i++) {
           const j = i * 4;
           for (let c = 0; c < 3; c++) pixels[j + c] = blendEncoded8(backgroundPixels[j + c], subjectPixels[j + c], alpha[i]);
         }
@@ -298,8 +303,8 @@ export function applyMasks(pixels: Uint8ClampedArray, width: number, height: num
     if (!maskIsActive(mask)) continue;
     const alpha = effectiveAlpha(mask, masks, width, height, context);
     const local = { exposure: 0, warmth: 0, colour: 0, ...mask.edit } as PhotoEdit;
-    if (consumed.has(mask.id)) delete local.denoise;
-    const adjusted = local.denoise ? applyNoiseReduction(pixels, width, height, local) : new Uint8ClampedArray(pixels);
+    if (consumed.has(mask.id)) { delete local.denoise; delete local.denoiseLuminance; }
+    const adjusted = hasNoiseReduction(local) ? applyNoiseReduction(pixels, width, height, local) : new Uint8ClampedArray(pixels);
     applyPhotoEdit(adjusted, local);
     applyDetail(adjusted, width, height, local, context.imageEdge ?? Math.max(width, height));
     for (let i = 0; i < alpha.length; i += 1) {

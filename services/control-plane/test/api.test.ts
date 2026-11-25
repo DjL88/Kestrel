@@ -135,19 +135,6 @@ test('release notices only accept allow-listed https links and report the newest
   assert.equal((await h.call('GET', '/v1/desktop/releases?platform=linux')).status, 400);
 });
 
-test('promoting an older model version is a rollback, and the manifest revision always moves forward', async () => {
-  const add = (version: string) => h.call('POST', '/v1/admin/models', { token: h.adminToken, body: { id: 'species-library-uk', kind: 'species-library', version, path: `/data/species/uk-${version}.json`, sha256: 'c'.repeat(64), bytes: 100 } });
-  const promote = (version: string) => h.call('POST', '/v1/admin/models/promote', { token: h.adminToken, body: { id: 'species-library-uk', version } });
-  await add('1.0.0'); await add('1.1.0');
-  await promote('1.1.0');
-  const r1 = (await h.call('GET', '/v1/models/manifest?app=26.11.2')).body.payload;
-  await promote('1.0.0');
-  const r2 = (await h.call('GET', '/v1/models/manifest?app=26.11.2')).body.payload;
-  assert.equal(r1.assets.find((a: { id: string }) => a.id === 'species-library-uk').version, '1.1.0');
-  assert.equal(r2.assets.find((a: { id: string }) => a.id === 'species-library-uk').version, '1.0.0');
-  assert.ok(r2.revision > r1.revision, 'clients only accept a higher revision');
-});
-
 test('the OpenAPI document covers every route', async () => {
   const spec = await h.call('GET', '/openapi.json');
   assert.equal(spec.body.openapi, '3.1.0');
