@@ -79,6 +79,7 @@ export const is: Translation = {
     themeContrast: 'Mikil birtuskil',
     textSize: 'Leturstærð',
     typeface: 'Leturgerð',
+    fontBrand: 'InFlight (Plus Jakarta Sans)',
     fontReadable: 'Auðlesið (Atkinson Hyperlegible)',
     calm: 'Minna áreiti (engar hreyfimyndir)',
     calmPreset: 'Rólegt og skýrt',

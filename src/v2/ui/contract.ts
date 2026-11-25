@@ -1,11 +1,15 @@
-import type { ColourWords } from '../engineClient/colourWords';
-import type { ComponentType, CSSProperties } from 'react';
+import type { ColourSenseNote, ColourWords } from '../engineClient/colourWords';
+import type { ComponentType, CSSProperties, ReactNode } from 'react';
 
 // Single Contract File for InFlight UI Shell
 // All components import their types ONLY from this file.
 // Engine engineers swap src/stub.ts with a real WorkspaceStore + WorkspaceActions provider.
 
 export type DecisionState = 'unreviewed' | 'keep' | 'reject';
+/** Which photos the filmstrip and grid show by decision. 'to-review' is the photos with no decision yet. */
+export type FilmstripFilter = 'all' | 'to-review' | 'flagged' | 'set-aside';
+/** The order photos are shown in. 'shoot' is the order they were imported in; nothing is moved on disk. */
+export type PhotoSort = 'shoot' | 'captured-oldest' | 'captured-newest' | 'filename' | 'rating' | 'best';
 /** The engine's three-tier ranking of a photo within its shoot. Absent or null means it has not been ranked: nothing is guessed. */
 export type PhotoTier = 'good' | 'better' | 'best';
 /** A histogram measured from the picture's pixels: 32 bins, each 0 to 100, plus the share of pixels clipped to pure black or white. */
@@ -16,6 +20,8 @@ export interface PhotoHistogram {
   blue: number[];
   shadowClip: number;
   highlightClip: number;
+  /** Share of pixels at 0 (shadow) or 255 (highlight) in each channel, so clipping can be said in words per channel. */
+  channelClip?: Record<'red' | 'green' | 'blue', { shadow: number; highlight: number }>;
 }
 export type TileState = 'importing' | 'analysing' | 'ready' | 'unavailable';
 export type AssistMode = 'solo' | 'copilot' | 'autopilot';
@@ -133,6 +139,9 @@ export interface SizePreset {
   boardY: number;
 }
 
+export interface GradeRangeRecipe { hue: number; amount: number }
+export interface ColourGradeRecipe { shadows: GradeRangeRecipe; midtones: GradeRangeRecipe; highlights: GradeRangeRecipe; balance: number }
+
 export interface EditRecipe {
   lookId: string;
   exposure: number; // -5.0 to +5.0 EV stops
@@ -157,6 +166,10 @@ export interface EditRecipe {
   toneCurve?: Array<[number, number]>;
   /** Colour mixer: eight bands (red, orange, yellow, green, aqua, blue, purple, magenta), each -100 to 100. Absent = untouched. */
   colourMixer?: { hue: number[]; saturation: number[]; luminance: number[] };
+  /** Advanced: colour grading. Hue 0 to 360 degrees, strength 0 to 100 per range; balance -100 (highlights) to 100 (shadows). Absent = none. */
+  colourGrade?: ColourGradeRecipe;
+  /** Advanced: red, green and blue curves, same points as toneCurve, applied after it. Absent = none. */
+  channelCurves?: Partial<Record<'red' | 'green' | 'blue', Array<[number, number]>>>;
   /** White balance in kelvin against the camera's as-shot estimate (RAW photos only). Absent = as shot. */
   whiteBalance?: { asShotK: number; kelvin: number };
 }
@@ -266,6 +279,10 @@ export interface AssistSuggestion {
   comparison?: { before: string; after: string };
   /** The same edit as ordered slider steps with real values (src/core/editingSequence.ts), for Watch and Learn. */
   steps?: { id: string; label: string; from: string; to: string }[];
+  /** ColourSense: whether the suggestion keeps the subject's colour, in words (absent when it could not be judged). */
+  colourSense?: ColourSenseNote;
+  /** Colour match: whether the subject carries the colours it should have (species signature or the vision model), in words. */
+  colourMatch?: ColourSenseNote;
 }
 
 export interface PhotoExif {
@@ -293,6 +310,10 @@ export interface Photo {
   originalConnected: boolean;
   rating: number; // 0 to 5
   speciesLabel?: string;
+  /** What kind of vehicle or aircraft it probably is, in the person's language ("Military jet: Eurofighter Typhoon (probably)"). */
+  vehicleLabel?: string;
+  /** Extra words the photo can be found by (a vehicle's kind in this language and in English, its type name). */
+  searchTerms?: string[];
   category: string;
   sharpnessScore: number;
   exif: PhotoExif;
@@ -316,6 +337,10 @@ export interface Photo {
   };
   /** Actual recorded format actions; missing means pre-history, not a fabricated event. */
   formatHistory?: { formatId: string; kind: string; at: number; parentFormatId?: string; forkEditCursor?: number }[];
+  /** The JPEG the camera wrote with this RAW, kept beside it and shown as one photo. Its flag and rating follow this photo. */
+  pairedJpeg?: string;
+  /** When the photo was taken, in milliseconds, when the file records it. Used only for sorting. */
+  capturedAtMs?: number;
   /** The picture's size in real pixels, when the file says. Used for the true 100% zoom. */
   pixelSize?: { width: number; height: number };
   /** Measured from the picture as it is now. Absent until measured; the interface shows nothing rather than a guess. */
@@ -423,6 +448,8 @@ export interface WorkspaceSettings {
   cvdGuidance: boolean;
   /** Basic accounts only: leave locked Pro features (and their badges) out of the interface. */
   hideProFeatures: boolean;
+  /** Show the advanced editing controls (colour grading, channel curves). Off by default so the panel stays simple. */
+  advancedControls: boolean;
   ongoingCritique: boolean;
   defaultAssistMode: AssistMode;
   language: 'en-GB' | 'en-US' | 'de-DE' | 'fr-FR';
@@ -464,6 +491,8 @@ export interface ExportRequest {
 export interface PhotoSurfaceProps {
   /** Editor-only coverage guide, never part of the photo recipe or export. */
   maskGuideId?: string;
+  /** Editor-only SVG content (mask outline and handles) drawn in the displayed picture's own pixels, over exactly that picture. */
+  maskOutline?: (picture: { width: number; height: number }) => ReactNode;
   photoId: string;
   variant: 'edited' | 'original';
   /** Non-destructive live preview of a hovered Look. Never stored or applied to original pixels. */
@@ -509,7 +538,10 @@ export interface WorkspaceStore {
   panels: Record<PanelId, PanelLayoutState>;
   filmstripCollapsed: boolean;
   filmstripHeight: number;
-  filmstripFilter: 'all' | 'flagged' | 'set-aside';
+  filmstripFilter: FilmstripFilter;
+  /** Show only photos rated at least this many stars (0 shows every rating). */
+  filmstripMinRating: number;
+  filmstripSort: PhotoSort;
   filmstripSearch: string;
   gridViewOpen: boolean;
   compareMode: boolean;
@@ -527,6 +559,8 @@ export interface WorkspaceStore {
   canRedo: boolean;
   clipboardRecipe: EditRecipe | null;
   lastActionNotice: string | null;
+  /** The open project's automatic backup, as last reported. Absent when no project is open. */
+  backup?: { state: 'idle' | 'working' | 'ok' | 'partial' | 'failed'; at?: number } | null;
   /** Optional engine-supplied renderer for the canvas (see PhotoSurfaceProps). */
   PhotoSurface?: ComponentType<PhotoSurfaceProps>;
 }
@@ -551,6 +585,8 @@ export interface WorkspaceActions {
 
   // Photos, Culling & Selection
   selectPhoto: (photoId: string, modifiers?: { ctrl?: boolean; shift?: boolean }) => void;
+  /** Make this photo the one keys act on, without changing which photos are selected (the chosen side of a two-photo compare). */
+  focusPhoto: (photoId: string) => void;
   selectAllPhotos: () => void;
   clearSelection: () => void;
   setDecision: (photoIds: string[], decision: DecisionState) => void;
@@ -563,6 +599,16 @@ export interface WorkspaceActions {
   importPhotos: () => void;
   importFolder: () => void;
   importDroppedPhotos: (files: File[]) => void;
+  /** Back the open project up now to this device (and its chosen place), checking the saved copy reads back the same. */
+  backUpProjectNow: () => void;
+  /** Save the open project's catalogue (decisions, edits, links; never photos) as a .kestrel.json file. */
+  saveProjectBackupFile: () => void;
+  /** Make a new project from a .kestrel.json backup file and open it. The backed-up project is never overwritten. */
+  restoreProjectBackup: (file: File) => void;
+  /** Save ratings, flags and confirmed tags as XMP sidecars (the selection when two or more are selected, else the whole project). */
+  saveXmpSidecars: (photoIds: string[]) => void;
+  /** Read ratings, flags and tags from chosen .xmp files (or one .zip) for matching photos. Every file is checked before anything changes. */
+  readXmpSidecars: (files: File[], photoIds: string[]) => void;
   runAutoCull: () => void;
   reconnectOriginal: (photoId: string) => void;
   toggleDemoUnavailable: () => void;
@@ -573,6 +619,8 @@ export interface WorkspaceActions {
   applyAssistSuggestion: (photoId: string, suggestionId: string) => void;
   requestLocalAuto?: (photoId: string) => void;
   applyAllAssistSuggestions: (photoId: string) => void;
+  /** A sized JPEG of the edited photo for a client gallery, or null when there is no trustworthy picture yet. Absent in the stub. */
+  renderGalleryPreview?: (photoId: string) => Promise<Blob | null>;
   dismissAssistSuggestion: (photoId: string, suggestionId: string) => void;
 
   // Editing & Looks
@@ -689,7 +737,9 @@ export interface WorkspaceActions {
   switchEditVersion: (photoId: string, versionId: string) => void;
   setFilmstripCollapsed: (collapsed: boolean) => void;
   setFilmstripHeight: (height: number) => void;
-  setFilmstripFilter: (filter: 'all' | 'flagged' | 'set-aside') => void;
+  setFilmstripFilter: (filter: FilmstripFilter) => void;
+  setFilmstripMinRating: (rating: number) => void;
+  setFilmstripSort: (sort: PhotoSort) => void;
   setFilmstripSearch: (query: string) => void;
   setGridViewOpen: (open: boolean) => void;
   setCompareMode: (compare: boolean) => void;

@@ -10,11 +10,16 @@ import { SPECIES_DOWNLOAD_BYTES, analysePicture, downloadSpeciesModel, loadSpeci
 import { readAutoTag, readSpeciesCounts } from './providers/speciesLearning';
 import { gateOutcome, permitsAutomaticSpeciesTag } from './core/categoryGate';
 import { subjectCrop } from './core/subjectCrop';
-import { gateAvailable, routePicture } from './providers/categoryGate';
+import { gateAvailable, routeAndEmbedPicture } from './providers/categoryGate';
+import { readVehicle, type VehicleReading } from './core/vehicleRecognition';
+import { loadVehicleData } from './providers/vehicleRecognition';
 import { HELPER_GAP_MS, HELPER_SESSION_CAP, failureMessage, helperPatch, helperReady } from './core/onlineHelper';
 import { ONLINE_HELPER_VISIBLE, useHelperSettings } from './providers/helperSettings';
 import { HelperError, geminiTransport, imageForHelper } from './providers/onlineHelper';
 import { appText as t } from './i18n/areas/app';
+
+/** What one look at a photo found: a species name, or a vehicle reading (kind and probable type), or only that it was looked at. */
+export type ScanResult = ReturnType<typeof scanPatch> & { vehicle?: VehicleReading };
 
 /** Photos sent to the online helper in this session, across projects. Counted so the cap holds however often it restarts. */
 let helperSent = 0;
@@ -25,7 +30,7 @@ interface Options {
   provider: BrowserPreviewProvider | null;
   /** True while the project page is showing. Looking pauses while a photo is being edited. */
   active: boolean;
-  onResult: (frameId: string, patch: ReturnType<typeof scanPatch>) => void;
+  onResult: (frameId: string, patch: ScanResult) => void;
 }
 
 /** Identifies untagged photos quietly, using the on-device model first. */
@@ -53,6 +58,7 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
     running.current = true;
     try {
       const localLabels = await loadSpeciesLabels().catch(() => null);
+      const vehicleData = await loadVehicleData().catch(() => null);
       for (;;) {
         const { projectId: currentId, frames: current, provider: store, onResult: report } = latest.current;
         const stillCurrent = () => !cancelled.current && latest.current.active && latest.current.projectId === currentId;
@@ -78,7 +84,7 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
         if (!stillCurrent()) continue;
         if (!picture) { skipped.current.add(frameKey(frame.id)); continue; }
 
-        let patch: ReturnType<typeof scanPatch> | undefined;
+        let patch: ScanResult | undefined;
         if (available.localReady && localLabels) {
           try {
             // analysePicture locates the subject on-device before comparing it with the saved species vectors.
@@ -88,7 +94,10 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
             const best = top && qualifiesForAutoTag(top, embedding, labels, vectors) ? top : undefined;
             const named = best ? { name: best.label.common, probability: best.probability, kind: kindFor(best.label) } : undefined;
             // The gate looks at the same square as the species model. If it fails, nothing is decided for this photo.
-            const outcome = gateOutcome(await routePicture(picture, subjectCrop(picture.width, picture.height, grid)), frame.subjectKind);
+            const gate = await routeAndEmbedPicture(picture, subjectCrop(picture.width, picture.height, grid));
+            const outcome = gateOutcome(gate.route, frame.subjectKind);
+            // The same picture embedding says what kind of vehicle it is, if the gate says it is mostly a vehicle.
+            const vehicle = vehicleData && !frame.vehicle ? readVehicle(gate.embedding, gate.route, vehicleData.labels, vehicleData.vectors) : null;
             const kind = frame.subjectKind ?? outcome.kind;
             if (kind === 'wildlife' && outcome.species !== 'block') {
               // A high closed-set species score never cancels uncertainty in
@@ -99,13 +108,14 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
               // Not an animal the list can name (a helicopter, a car): looked at, and no animal name offered.
               patch = { speciesChecked: true };
             }
+            if (vehicle) patch = { ...(patch ?? {}), speciesChecked: true, vehicle };
             // Unclassified and not clearly an animal: unknown stays unknown, and the opted-in helper may still answer.
           } catch { /* A failed local analysis can still use the opted-in fallback. */ }
         }
         if (!stillCurrent() || !readAutoTag()) continue;
 
         let asked = false;
-        if (!patch?.tags?.length && canAsk()) {
+        if (!patch?.tags?.length && !patch?.vehicle && canAsk()) {
           asked = true;
           helperSent += 1;
           try {

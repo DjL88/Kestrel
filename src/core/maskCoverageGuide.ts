@@ -1,8 +1,19 @@
 import { effectiveAlpha } from './masks';
 import type { Mask } from './maskTypes';
 
+/** Diagonal hatching: the coverage reads as a pattern, not only as a colour tint (no colour-only cues). */
+export const HATCH_PERIOD = 8;
+export const HATCH_STRIPE = 3;
+export const HATCH_ALPHA = 210;
+export const TINT_ALPHA = 90;
+
+export function isHatchStripe(x: number, y: number): boolean {
+  return (x + y) % HATCH_PERIOD < HATCH_STRIPE;
+}
+
 /** A bounded, translucent view of the actual local adjustment weights. Independent of slider values:
- * an unedited new mask still shows where it will apply. Hidden/missing masks show no guide. */
+ * an unedited new mask still shows where it will apply. Hidden/missing masks show no guide.
+ * Stronger diagonal stripes over a lighter tint, both scaled by the real weight, so the pattern fades with the effect. */
 export function maskCoverageGuide(masks: readonly Mask[], maskId: string, sourceWidth: number, sourceHeight: number) {
   const mask = masks.find(item => item.id === maskId && !item.hidden);
   if (!mask || !Number.isFinite(sourceWidth) || !Number.isFinite(sourceHeight) || sourceWidth <= 0 || sourceHeight <= 0) return null;
@@ -12,8 +23,9 @@ export function maskCoverageGuide(masks: readonly Mask[], maskId: string, source
   const weights = effectiveAlpha(mask, masks, width, height, { aspect: sourceHeight / sourceWidth, view: { x: 0, y: 0, w: 1, h: 1 } });
   const rgba = new Uint8ClampedArray(width * height * 4);
   for (let i = 0; i < weights.length; i++) {
-    rgba[i * 4] = 245; rgba[i * 4 + 1] = 62; rgba[i * 4 + 2] = 160;
-    rgba[i * 4 + 3] = Math.round(weights[i] * 144);
+    const stripe = isHatchStripe(i % width, Math.floor(i / width));
+    if (stripe) { rgba[i * 4] = 255; rgba[i * 4 + 1] = 255; rgba[i * 4 + 2] = 255; } else { rgba[i * 4] = 245; rgba[i * 4 + 1] = 62; rgba[i * 4 + 2] = 160; }
+    rgba[i * 4 + 3] = Math.round(weights[i] * (stripe ? HATCH_ALPHA : TINT_ALPHA));
   }
   return { width, height, rgba };
 }

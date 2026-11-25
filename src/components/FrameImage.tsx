@@ -30,6 +30,8 @@ interface FrameImageProps {
   onPreviewStatus?: (frameId: string, status: PhotoPreviewReadiness) => void;
   /** Optional editor-only mask coverage, drawn over exactly the displayed image. */
   maskGuideId?: string;
+  /** Optional editor-only SVG content drawn in the displayed picture's own pixels (mask outline and handles). */
+  maskOutline?: (picture: { width: number; height: number }) => React.ReactNode;
   /** Optional interactive transform for zoom/pan viewports */
   zoomScale?: number;
   panOffset?: { x: number; y: number };
@@ -67,6 +69,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   refreshOnBackgroundDevelop = false,
   onPreviewStatus,
   maskGuideId,
+  maskOutline,
   zoomScale = 1,
   panOffset = { x: 0, y: 0 },
 }) => {
@@ -76,7 +79,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   // `interim`: the small filmstrip picture shown in the full-size view until the full picture is ready (never reported as ready).
   const [preview, setPreview] = useState<{ identity: string; url: string; interim?: boolean }>({ identity: '', url: '' });
   const src = visibleFrameUrl(preview, identity);
-  const [imageSize, setImageSize] = useState<{ src: string; width: number; height: number } | null>(null);
+  const [imageSize, setImageSize] = useState<{ src: string; width: number; height: number; fit: 'cover' | 'contain' } | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [errored, setErrored] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -301,7 +304,9 @@ export const FrameImage: React.FC<FrameImageProps> = ({
             // The interim thumbnail keeps the refresh status on and is not reported as the photo's preview.
             if (preview.interim) return;
             const { naturalWidth: width, naturalHeight: height } = event.currentTarget;
-            setImageSize({ src, width, height });
+            // The outline must follow the picture exactly, including a border frame that switches it to object-contain.
+            const fit = getComputedStyle(event.currentTarget).objectFit === 'contain' ? 'contain' : 'cover';
+            setImageSize({ src, width, height, fit });
             setLoading(false);
             onPreviewStatus?.(frame.id, 'ready');
           }}
@@ -320,6 +325,14 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       {src && imageSize?.src === src && maskGuideId && frame.edit?.masks && (
         <MaskCoverageImage key={`${src}:${maskGuideId}`} masks={frame.edit.masks} maskId={maskGuideId}
           width={imageSize.width} height={imageSize.height} className={imgClassName} style={demoStyle} />
+      )}
+      {/* Kept through an edit redraw (same picture size), so the outline does not blink while a slider moves. */}
+      {src && imageSize && maskOutline && (
+        <svg data-testid="mask-outline-layer" viewBox={`0 0 ${imageSize.width} ${imageSize.height}`}
+          preserveAspectRatio={imageSize.fit === 'contain' ? 'xMidYMid meet' : 'xMidYMid slice'}
+          className="pointer-events-none absolute inset-0 z-20 h-full w-full overflow-hidden" style={demoStyle}>
+          {maskOutline({ width: imageSize.width, height: imageSize.height })}
+        </svg>
       )}
     </div>
   );

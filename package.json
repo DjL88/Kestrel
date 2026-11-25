@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "model:species": "node scripts/fetch-species-model.mjs",
+    "audit:words": "node tools/i18n/audit-ui.mjs --words",
     "lint": "node scripts/check-source-parse.mjs && tsc --noEmit",
     "test:e2e": "playwright test",
     "test:raw-master": "node scripts/test-raw-master.mjs",

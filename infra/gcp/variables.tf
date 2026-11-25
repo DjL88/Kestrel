@@ -167,3 +167,26 @@ variable "learning_signal_enabled" {
   type        = bool
   default     = false
 }
+
+# ---- Shared projects, live cursors and client galleries (#1387). All off until the owner switches them on. ------------
+variable "collaboration_enabled" {
+  description = "Turn on shared projects in the control plane (Firestore only). The admin switch 'Shared projects' must also be on."
+  type        = bool
+  default     = false
+}
+
+variable "presence_database_url" {
+  description = "Firebase Realtime Database URL for live cursors (create it in the Firebase console, europe-west1). Empty: no live cursors."
+  type        = string
+  default     = ""
+  validation {
+    condition     = var.presence_database_url == "" || can(regex("^https://[a-z0-9-]+(\\.[a-z0-9-]+)*\\.(firebasedatabase\\.app|firebaseio\\.com)$", var.presence_database_url))
+    error_message = "presence_database_url must be a Firebase Realtime Database URL."
+  }
+}
+
+variable "gallery_enabled" {
+  description = "Create the private UK bucket for client gallery previews (gallery.tf). Needs collaboration_enabled."
+  type        = bool
+  default     = false
+}

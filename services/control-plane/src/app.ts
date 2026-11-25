@@ -23,6 +23,7 @@ import { UK_VAT_THRESHOLD_PENCE, UK_VAT_WARNING_PENCE } from './commerce/turnove
 import { CLOUD_KINDS, DEFAULT_MAX_JOB_MS, type CloudJobRecord, type CloudOptions } from './cloudJobs.ts';
 import { LEARNING_ACTIONS, LEARNING_CAPABILITIES, LEARNING_SOURCES, type LearningSink } from './learningSignal.ts';
 import { CollabRefusal, MAX_RECIPE_BYTES, type CollabStore } from './collaboration.ts';
+import { GalleryRefusal, GALLERY_MAX_DAYS, GALLERY_MAX_PHOTOS, GALLERY_MAX_PREVIEW_BYTES, type GalleryStore } from './gallery.ts';
 import { presenceUid, PRESENCE_TOKEN_TTL_S, type PresenceSigner } from './presenceToken.ts';
 import { SAFE_COPY_LEVELS, SAFE_COPY_MAX_BYTES, safeCopyKey, type SafeCopyOptions } from './safeCopy.ts';
 import type { SpendOptions } from './spendGuard.ts';
@@ -73,6 +74,8 @@ export interface AppOptions {
   collab?: CollabStore;
   /** Signs per-project Realtime Database tokens for live cursors. Absent: the presence route answers 503. */
   presence?: PresenceSigner;
+  /** Client galleries: previews in their own UK bucket. Absent: the gallery routes answer 503. */
+  gallery?: GalleryStore;
   /** Hard monthly ceiling on metered spend (Gemini, cloud jobs). Absent: no guard (development and tests). */
   spend?: SpendOptions;
   /** Production sets this: the cloud, safe copy and learning features stay OFF until an admin switches them on. Tests and development leave them on. */
@@ -158,6 +161,17 @@ export const Schemas = {
     z.object({ kind: z.literal('options'), options: z.object({ editorsMayInvite: z.boolean(), clientsMayComment: z.boolean(), clientsMayExport: z.boolean() }).partial().strict(),
       leaseSettings: z.object({ heartbeatMs: z.number(), networkExpiryMs: z.number(), inactivityWarningMs: z.number(), inactivityReleaseMs: z.number() }).partial().strict().optional() }).strict(),
   ]),
+  GalleryCreate: z.object({
+    name: z.string().trim().min(1).max(120), photoIds: z.array(PhotoId).min(1).max(GALLERY_MAX_PHOTOS), days: z.number().int().min(1).max(GALLERY_MAX_DAYS).default(30),
+    password: z.string().min(6).max(200).optional(), allowComments: z.boolean().default(false), allowFavourites: z.boolean().default(false),
+    allowApproval: z.boolean().default(false), allowDownloads: z.boolean().default(false), watermark: z.boolean().default(false),
+  }).strict(),
+  GalleryPreview: z.object({ sha256: Sha, bytes: z.number().int().positive().max(GALLERY_MAX_PREVIEW_BYTES) }).strict(),
+  GalleryOpen: z.object({ token: z.string().min(20).max(128), password: z.string().max(200).optional() }).strict(),
+  GalleryFeedback: z.object({
+    token: z.string().min(20).max(128), password: z.string().max(200).optional(), visitor: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
+    photoId: PhotoId.nullable(), kind: z.enum(['favourite', 'unfavourite', 'comment', 'approve', 'request-changes', 'approve-all']), text: z.string().trim().max(2000).nullable().default(null),
+  }).strict(),
   CollabAccept: z.object({ displayName: z.string().trim().min(1).max(80) }).strict(),
   CollabAcquire: z.object({ deviceId: z.string().min(8).max(128) }).strict(),
   CollabHeartbeat: z.object({ token: z.string().min(16).max(128), editing: z.boolean() }).strict(),
@@ -312,6 +326,7 @@ export function createApp(options: AppOptions) {
   const activateLimiter = new RateLimiter(20, 60_000);
   const sumupLimiter = new RateLimiter(90, 60_000);
   const checkoutLimiter = new RateLimiter(10, 60_000);
+  const galleryLimiter = new RateLimiter(120, 60_000);
 
   const audit = (actor: string, action: string, outcome: AuditRecord['outcome'], detail: string) => store.audit({ atMs: now(), actor, action, outcome, detail });
 
@@ -528,6 +543,24 @@ export function createApp(options: AppOptions) {
       if (error instanceof CollabRefusal) throw new CollabApiError(error.status, error.code, error.message, error.detail);
       throw error;
     }
+  }
+
+  function galleryCfg(): GalleryStore {
+    if (!options.gallery) throw new ApiError(503, 'GALLERY_NOT_CONFIGURED', 'Client galleries are not set up on this server yet.');
+    return options.gallery;
+  }
+  async function gallery<T>(work: () => Promise<T>): Promise<T> {
+    try { return await work(); } catch (error) {
+      if (error instanceof GalleryRefusal) throw new ApiError(error.status, error.code, error.message);
+      throw error;
+    }
+  }
+  /** A member who may export this project manages its galleries. */
+  async function galleryOwner(req: Request, galleryId: string) {
+    const claims = await bearer(req);
+    const g = await gallery(() => galleryCfg().get(galleryId));
+    await collab(() => collabCfg().requireMember(g.projectId, claims.sub, 'export'));
+    return { claims, g };
   }
 
   function safeCopyCfg() {
@@ -1146,6 +1179,72 @@ export function createApp(options: AppOptions) {
     {
       method: 'GET', path: '/v1/collab/projects/:id/audit', summary: 'Owner only: checkout takeovers and overrides', auth: 'user',
       handler: async (req, params) => { const claims = await bearer(req); return { status: 200, body: { entries: await collab(() => collabCfg().auditFor(params.id, claims.sub)) } }; },
+    },
+
+    // ---- Client galleries (#1387 C06/C07). Members publish previews; clients open a link with no account.
+    {
+      method: 'POST', path: '/v1/collab/projects/:id/galleries', summary: 'Publish selected photos to a client gallery link (previews are uploaded next)', auth: 'user', body: Schemas.GalleryCreate,
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.GalleryCreate, req.rawBody);
+        const c = await collabWritable();
+        const g = galleryCfg();
+        for (const photoId of body.photoIds) await collab(() => c.requireMember(params.id, claims.sub, 'export', photoId));
+        const created = await g.create({ ...body, projectId: params.id, createdBy: claims.sub }, now());
+        await audit(claims.sub, 'gallery.create', 'allowed', `${params.id}/${created.galleryId.slice(0, 12)}`);
+        return { status: 200, body: created };
+      },
+    },
+    {
+      method: 'GET', path: '/v1/collab/projects/:id/galleries', summary: 'Client galleries of this project', auth: 'user',
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        await collab(() => collabCfg().requireMember(params.id, claims.sub, 'export'));
+        return { status: 200, body: { galleries: await galleryCfg().list(params.id) } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/collab/galleries/:gid/photos/:photoId/upload-url', summary: 'A short-lived signed URL to upload one sized JPEG preview', auth: 'user', body: Schemas.GalleryPreview,
+      handler: async (req, params) => {
+        const body = parseJson(Schemas.GalleryPreview, req.rawBody);
+        await galleryOwner(req, params.gid);
+        return { status: 200, body: { uploadUrl: await gallery(() => galleryCfg().signPreviewUpload(params.gid, params.photoId, body.sha256, body.bytes)) } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/collab/galleries/:gid/photos/:photoId/commit', summary: 'Mark an uploaded preview as published', auth: 'user',
+      handler: async (req, params) => { await galleryOwner(req, params.gid); await gallery(() => galleryCfg().commitPreview(params.gid, params.photoId)); return { status: 200, body: { published: true } }; },
+    },
+    {
+      method: 'GET', path: '/v1/collab/galleries/:gid/feedback', summary: 'Client favourites, comments and approvals', auth: 'user',
+      handler: async (req, params) => { await galleryOwner(req, params.gid); return { status: 200, body: await galleryCfg().feedbackFor(params.gid) }; },
+    },
+    {
+      method: 'POST', path: '/v1/collab/galleries/:gid/revoke', summary: 'Close the link now and delete its previews', auth: 'user',
+      handler: async (req, params) => {
+        const { claims } = await galleryOwner(req, params.gid);
+        await galleryCfg().revoke(params.gid);
+        await audit(claims.sub, 'gallery.revoke', 'allowed', params.gid.slice(0, 12));
+        return { status: 200, body: { revoked: true } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/gallery/open', summary: 'Open a client gallery from its link (no account). The token is in the page fragment, never the URL path', auth: 'none', body: Schemas.GalleryOpen,
+      handler: async (req) => {
+        if (!galleryLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
+        const body = parseJson(Schemas.GalleryOpen, req.rawBody);
+        const { view } = await gallery(() => galleryCfg().open(body.token, body.password, now()));
+        return { status: 200, body: view };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/gallery/feedback', summary: 'A favourite, comment or approval from a client, when the photographer allows it', auth: 'none', body: Schemas.GalleryFeedback,
+      handler: async (req) => {
+        if (!galleryLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
+        const body = parseJson(Schemas.GalleryFeedback, req.rawBody);
+        await gallery(() => galleryCfg().feedback(body.token, body.password, { visitor: body.visitor, photoId: body.photoId, kind: body.kind, text: body.text }, now()));
+        return { status: 200, body: { received: true } };
+      },
     },
 
     // ---- Managed safe copy (opt-in, per level, UK only; never the default)

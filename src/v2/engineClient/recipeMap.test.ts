@@ -148,3 +148,18 @@ test('white balance in kelvin reaches the engine and reads back; back to as shot
   assert.equal(applyRecipePatch(edit, { whiteBalance: undefined }).edit.whiteBalance, undefined);
   assert.equal(applyRecipePatch(edit, { whiteBalance: { asShotK: 5480, kelvin: 90000 } }).edit.whiteBalance, undefined);
 });
+
+test('advanced colour grading and channel curves round-trip between the recipe and the engine edit', () => {
+  const colourGrade = { shadows: { hue: 210, amount: 40 }, midtones: { hue: 0, amount: 0 }, highlights: { hue: 35, amount: 25 }, balance: -20 };
+  const { edit } = applyRecipePatch(undefined, { colourGrade, channelCurves: { red: [[0, 0], [0.5, 0.6], [1, 1]], green: [[0, 0], [1, 1]] } });
+  assert.deepEqual(edit.grade, { shadows: [210, 0.4], midtones: [0, 0], highlights: [35, 0.25], balance: -0.2 });
+  assert.deepEqual(edit.channelCurves, { red: [[0, 0], [0.5, 0.6], [1, 1]] }, 'a straight channel is dropped');
+  const back = editToRecipe(edit);
+  assert.deepEqual(back.colourGrade, colourGrade);
+  assert.deepEqual(back.channelCurves, { red: [[0, 0], [0.5, 0.6], [1, 1]] });
+  // A hue chosen before its strength is kept; clearing everything removes the grade.
+  const hueOnly = applyRecipePatch(undefined, { colourGrade: { ...colourGrade, shadows: { hue: 200, amount: 0 }, highlights: { hue: 0, amount: 0 }, balance: 0 } }).edit;
+  assert.equal(hueOnly.grade?.shadows[0], 200);
+  assert.equal(applyRecipePatch(edit, { colourGrade: undefined, channelCurves: undefined }).edit.grade, undefined);
+  assert.equal(applyRecipePatch(edit, { colourGrade: undefined, channelCurves: undefined }).edit.channelCurves, undefined);
+});

@@ -17,6 +17,7 @@ export const DETAIL_CONTROLS = [
 export type ToneKey = (typeof TONE_CONTROLS)[number]['key'];
 import { isNeutralWhiteBalance, whiteBalanceGains, type WhiteBalanceEdit } from './asShotWhite';
 import { applyCurveLut, curveLut, isNeutralCurve, isNeutralMixer, mixerParams, mixPixel, type ColourMixer, type CurvePoint } from './curveMixer';
+import { channelCurveLuts, gradeParams, gradePixel, isNeutralChannelCurves, isNeutralGrade, type ChannelCurves, type ColourGrade } from './colourGrade';
 
 export interface PhotoEdit {
   exposure: number;
@@ -45,6 +46,10 @@ export interface PhotoEdit {
   curve?: CurvePoint[];
   /** Hue, saturation and luminance for eight colour bands. Absent = untouched. */
   mixer?: ColourMixer;
+  /** Advanced: three-way colour grading on display values, after contrast and before the curves. Absent = none. */
+  grade?: ColourGrade;
+  /** Advanced: red, green and blue curves, applied after the master tone curve. Absent = none. */
+  channelCurves?: ChannelCurves;
   /** White balance in kelvin against the camera's as-shot estimate (RAW only). Multiplies with Warmth and Tint. */
   whiteBalance?: WhiteBalanceEdit;
   /** Local adjustments. They run after the whole-photo edit, in order. */
@@ -61,7 +66,8 @@ export const EDIT_CHOICES = [
 
 export function isNeutralTone(edit: PhotoEdit): boolean {
   return edit.exposure === 0 && edit.warmth === 0 && edit.colour === 0 && !edit.tint && TONE_CONTROLS.every(({ key }) => !edit[key])
-    && isNeutralCurve(edit.curve) && isNeutralMixer(edit.mixer) && isNeutralWhiteBalance(edit.whiteBalance);
+    && isNeutralCurve(edit.curve) && isNeutralMixer(edit.mixer) && isNeutralWhiteBalance(edit.whiteBalance)
+    && isNeutralGrade(edit.grade) && isNeutralChannelCurves(edit.channelCurves);
 }
 
 export const NOISE_CONTROL = { key: 'denoise', label: 'Noise reduction' } as const;
@@ -126,6 +132,9 @@ export function editParams(edit: PhotoEdit) {
     // Only a valid, non-neutral curve or mixer is used; a malformed saved value is ignored rather than guessed at.
     curve: !isNeutralCurve(edit.curve) ? curveLut(edit.curve as CurvePoint[]) : null,
     mixer: !isNeutralMixer(edit.mixer) ? mixerParams(edit.mixer as ColourMixer) : null,
+    grade: !isNeutralGrade(edit.grade) ? gradeParams(edit.grade as ColourGrade) : null,
+    // When any channel curve is set, these tables (master curve then channel curve) replace `curve`.
+    channelLuts: channelCurveLuts(edit.curve, edit.channelCurves),
   };
 }
 export type EditParams = ReturnType<typeof editParams>;
@@ -277,7 +286,7 @@ export function decodeEncoded(value: number): number {
  * source of the maths for 8-bit previews and higher-precision exports alike; the GPU shader mirrors it.
  */
 function tonePixel(red: number, green: number, blue: number, p: EditParams, out: Float32Array): void {
-  const { channelGain, brightness, colour, contrast, highlights, shadows, blackPoint, whitePoint, vibrance, curve, mixer } = p;
+  const { channelGain, brightness, colour, contrast, highlights, shadows, blackPoint, whitePoint, vibrance, curve, mixer, grade, channelLuts } = p;
   red *= channelGain[0];
   green *= channelGain[1];
   blue *= channelGain[2];
@@ -330,7 +339,10 @@ function tonePixel(red: number, green: number, blue: number, p: EditParams, out:
   if (contrast !== 1) {
     for (let c = 0; c < 3; c += 1) out[c] = Math.min(1, Math.max(0, 0.5 + (out[c] - 0.5) * contrast));
   }
-  if (curve) {
+  if (grade) gradePixel(out, grade);
+  if (channelLuts) {
+    for (let c = 0; c < 3; c += 1) out[c] = applyCurveLut(out[c], channelLuts[c]);
+  } else if (curve) {
     for (let c = 0; c < 3; c += 1) out[c] = applyCurveLut(out[c], curve);
   }
 }

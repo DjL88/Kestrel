@@ -1,7 +1,8 @@
 import type { PhotoEdit } from '../../core/photoEdits';
 import { isNeutralWhiteBalance, validWhiteBalance } from '../../core/asShotWhite';
 import { isNeutralCurve, isNeutralMixer, validCurve, validMixer, type ColourMixer, type CurvePoint } from '../../core/curveMixer';
-import type { EditRecipe } from '../ui/contract';
+import { isNeutralChannelCurves, isNeutralGrade, validChannelCurves, validGrade, CURVE_CHANNELS, type ChannelCurves, type ColourGrade } from '../../core/colourGrade';
+import type { ColourGradeRecipe, EditRecipe } from '../ui/contract';
 
 /**
  * Maps the UI's recipe (sliders -100 to 100, exposure in EV) to and from the engine's PhotoEdit (tone and detail -2 to 2,
@@ -53,7 +54,33 @@ export function editToRecipe(edit: PhotoEdit | undefined): EditRecipe {
     ...(validMixer(edit.mixer) && !isNeutralMixer(edit.mixer) ? { colourMixer: {
       hue: edit.mixer.hue.map(toSlider), saturation: edit.mixer.saturation.map(toSlider), luminance: edit.mixer.luminance.map(toSlider),
     } } : {}),
+    ...(validGrade(edit.grade) && !isEmptyGrade(edit.grade) ? { colourGrade: gradeToRecipe(edit.grade) } : {}),
+    ...(validChannelCurves(edit.channelCurves) && !isNeutralChannelCurves(edit.channelCurves) ? { channelCurves: Object.fromEntries(
+      Object.entries(edit.channelCurves).map(([channel, points]) => [channel, points!.map(([x, y]) => [x, y] as [number, number])]),
+    ) } : {}),
   };
+}
+
+/**
+ * Every value at zero. A hue chosen before its strength is kept (so picking the colour first is not lost), although
+ * renderers treat a grade with no strength as neutral (isNeutralGrade).
+ */
+const isEmptyGrade = (grade: ColourGrade) => isNeutralGrade(grade) && grade.balance === 0
+  && grade.shadows[0] === 0 && grade.midtones[0] === 0 && grade.highlights[0] === 0;
+
+const gradeToRecipe = (grade: ColourGrade): ColourGradeRecipe => {
+  const range = ([hue, amount]: [number, number]) => ({ hue: round(hue, 1), amount: round(amount * 100, 2) });
+  return { shadows: range(grade.shadows), midtones: range(grade.midtones), highlights: range(grade.highlights), balance: round(grade.balance * 100, 2) };
+};
+
+function recipeToGrade(source: ColourGradeRecipe | undefined): ColourGrade | undefined {
+  if (!source) return undefined;
+  const range = (r: { hue: number; amount: number } | undefined): [number, number] => [
+    round(Number.isFinite(r?.hue) ? ((r!.hue % 360) + 360) % 360 : 0, 2),
+    round(clamp(Number.isFinite(r?.amount) ? r!.amount : 0, 0, 100) / 100, 4),
+  ];
+  return { shadows: range(source.shadows), midtones: range(source.midtones), highlights: range(source.highlights),
+    balance: round(clamp(Number.isFinite(source.balance) ? source.balance : 0, -100, 100) / 100, 4) };
 }
 
 export function applyRecipePatch(edit: PhotoEdit | undefined, patch: Partial<EditRecipe>): { edit: PhotoEdit; unmapped: (typeof UNMAPPED_KEYS)[number][] } {
@@ -103,6 +130,21 @@ export function applyRecipePatch(edit: PhotoEdit | undefined, patch: Partial<Edi
     const mixer: ColourMixer | undefined = source ? { hue: band(source.hue), saturation: band(source.saturation), luminance: band(source.luminance) } : undefined;
     if (mixer && validMixer(mixer) && !isNeutralMixer(mixer)) next.mixer = mixer;
     else delete next.mixer;
+  }
+  if ('colourGrade' in patch) {
+    const grade = recipeToGrade(patch.colourGrade);
+    if (grade && validGrade(grade) && !isEmptyGrade(grade)) next.grade = grade;
+    else delete next.grade;
+  }
+  if ('channelCurves' in patch) {
+    // Only valid, bent curves are kept; a straight or malformed channel is dropped, never guessed.
+    const curves: ChannelCurves = {};
+    for (const channel of CURVE_CHANNELS) {
+      const points = patch.channelCurves?.[channel]?.map(([x, y]) => [round(x, 4), round(y, 4)] as CurvePoint);
+      if (points && validCurve(points) && !isNeutralCurve(points)) curves[channel] = points;
+    }
+    if (Object.keys(curves).length) next.channelCurves = curves;
+    else delete next.channelCurves;
   }
   const neutral = (value: unknown, base: unknown) => value === undefined || value === base;
   const unmapped = UNMAPPED_KEYS.filter((key) => !neutral(patch[key], NEUTRAL_RECIPE[key]));

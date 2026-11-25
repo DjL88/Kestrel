@@ -16,6 +16,10 @@ export type MenuAction =
   | { kind: 'toggleFilmstrip' }
   | { kind: 'settings'; tab: SettingsTabId }
   | { kind: 'removedPhotos' }
+  | { kind: 'saveXmp' }
+  | { kind: 'backupNow' }
+  | { kind: 'backupFile' }
+  | { kind: 'readXmp' }
   | { kind: 'resetPhoto' }
   | { kind: 'backToProjects' };
 
@@ -40,6 +44,10 @@ const TABLE: Record<string, MenuAction> = {
   'macro-pad': { kind: 'settings', tab: 'keyboard' },
   // V2-only File items (src-tauri/src/lib.rs). The header menus are hidden in the desktop app, so these are the way in.
   'removed-photos': { kind: 'removedPhotos' },
+  'xmp-save': { kind: 'saveXmp' },
+  'backup-now': { kind: 'backupNow' },
+  'backup-file': { kind: 'backupFile' },
+  'xmp-read': { kind: 'readXmp' },
   'reset-photo': { kind: 'resetPhoto' },
   'back-to-projects': { kind: 'backToProjects' },
   ...Object.fromEntries([0, 1, 2, 3, 4, 5].map((rating) => [`photo-rate-${rating}`, { kind: 'rate', rating } as MenuAction])),
