@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import VehicleRow from './VehicleRow';
 import SpeciesPlaceRow from './SpeciesPlaceRow';
-import type { Photo, SpeciesPlace } from '../contract';
+import type { Photo, SpeciesPlace, WorkspaceStore } from '../contract';
+import type { ExternalApp } from '../../../core/externalEdit';
 import type { SpeciesArea } from '../../../core/speciesArea';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
@@ -22,6 +23,10 @@ interface InfoPanelProps {
   onSetRating: (photoIds: string[], rating: number) => void;
   onReconnectOriginal: (photoId: string) => void;
   onSaveDngCopy?: (photoId: string) => void;
+  /** Edit in another app. Absent or null: not available here (the web), which the panel says in plain words. */
+  externalEditor?: WorkspaceStore['externalEditor'];
+  onEditInOtherApp?: (photoId: string, app: ExternalApp | 'choose' | 'default') => void;
+  onStopExternalEdit?: (photoId: string) => void;
   onCorrectSpeciesName: (photoId: string, name: string) => void;
   onCorrectVehicle?: (photoId: string, choice: { kind: string; type?: string } | 'not-a-vehicle', wholeBurst: boolean) => void;
   onRemovePhotoTag?: (photoId: string, tagId: string) => void;
@@ -35,6 +40,9 @@ export default function InfoPanel({
   onSetRating,
   onReconnectOriginal,
   onSaveDngCopy,
+  externalEditor,
+  onEditInOtherApp,
+  onStopExternalEdit,
   onCorrectSpeciesName,
   onCorrectVehicle,
   onRemovePhotoTag,
@@ -158,6 +166,7 @@ export default function InfoPanel({
         <dl className="space-y-1.5 text-xs">
           <MetaRow label="File" value={photo.filename} mono />
           {photo.pairedJpeg && <MetaRow label={STRINGS.pair.infoLabel} value={photo.pairedJpeg} mono />}
+          {photo.externalEdit && <MetaRow label={STRINGS.externalEdit.infoLabel} value={externalEditHistory(photo.externalEdit)} />}
           <MetaRow label="Format" value={photo.exif.fileSizeMb > 0 ? `${photo.exif.fileFormat} · ${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(photo.exif.fileSizeMb)} MB` : photo.exif.fileFormat} />
           {photo.picture?.preview && (() => { const words = pictureSourceWords(photo.picture.preview); return <MetaRow label={STRINGS.pictureSource.infoLabel} value={`${words.label}. ${words.detail}`} />; })()}
           <MetaRow label="Dimensions" value={photo.exif.dimensions} mono />
@@ -194,6 +203,7 @@ export default function InfoPanel({
             <p className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.dngCopy.help}</p>
           </div>
         )}
+        <ExternalEditBlock photo={photo} editor={externalEditor} onSend={onEditInOtherApp} onStop={onStopExternalEdit} />
       </section>
 
       {/* Camera & Capture */}
@@ -287,6 +297,74 @@ function MetaRow({ label, value, mono }: { label: string; value: string; mono?: 
       <dd className={`text-right text-[var(--text-primary)] ${mono ? 'font-mono text-[0.6875rem] tabular-nums' : ''}`}>
         {value}
       </dd>
+    </div>
+  );
+}
+
+/** Where a photo brought back from another editor came from, in plain words. */
+function externalEditHistory(record: NonNullable<Photo['externalEdit']>): string {
+  const words = STRINGS.externalEdit;
+  const when = new Date(record.returnedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  return [words.history(record.appName, record.fromFilename, when), words.historySteps(record.stepsSent), words.historyBits(record.sentBits, record.savedBits)].join(' ');
+}
+
+/** "Edit in another app": the remembered apps, choose another, or the default; then what is happening while it is out. */
+function ExternalEditBlock({ photo, editor, onSend, onStop }: {
+  photo: Photo;
+  editor: WorkspaceStore['externalEditor'];
+  onSend?: (photoId: string, app: ExternalApp | 'choose' | 'default') => void;
+  onStop?: (photoId: string) => void;
+}) {
+  const words = STRINGS.externalEdit;
+  const button = 'inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] text-xs font-medium text-[var(--text-primary)] disabled:opacity-60';
+  if (!editor || !onSend) {
+    return (
+      <div className="mt-2 space-y-1" data-testid="external-edit-unavailable">
+        <button type="button" disabled aria-describedby={`external-edit-why-${photo.id}`} className={button}>
+          <BrandIcon name="export" size={14} />
+          <span>{words.title}</span>
+        </button>
+        <p id={`external-edit-why-${photo.id}`} className="text-[0.6875rem] text-[var(--text-secondary)]">{words.unavailable}</p>
+      </div>
+    );
+  }
+  const out = editor.watching[photo.id];
+  if (out) {
+    const status = out.state === 'sending' ? words.sending
+      : out.state === 'bringing-back' ? words.bringingBack
+        : out.state === 'saving' ? words.saving(out.appName) : words.waiting(out.appName);
+    return (
+      <div className="mt-2 space-y-1" data-testid="external-edit-watching">
+        <p role="status" className="text-[0.6875rem] text-[var(--text-secondary)]">
+          {status}{out.returned > 0 ? ` ${words.returnedCount(out.returned)}` : ''}
+        </p>
+        {out.state !== 'sending' && onStop && (
+          <button type="button" onClick={() => onStop(photo.id)} className={button}>
+            <BrandIcon name="close" size={14} />
+            <span>{words.stop}</span>
+          </button>
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className="mt-2 space-y-1" data-testid="external-edit">
+      <h4 className="text-xs font-medium text-[var(--text-primary)]">{words.title}</h4>
+      {editor.apps.map((app) => (
+        <button key={app.path} type="button" disabled={!photo.originalConnected} onClick={() => onSend(photo.id, app)} className={button}>
+          <BrandIcon name="export" size={14} />
+          <span>{words.openIn(app.name)}</span>
+        </button>
+      ))}
+      <button type="button" disabled={!photo.originalConnected} onClick={() => onSend(photo.id, 'choose')} className={button}>
+        <BrandIcon name="folder-open" size={14} />
+        <span>{words.chooseApp}</span>
+      </button>
+      <button type="button" disabled={!photo.originalConnected} onClick={() => onSend(photo.id, 'default')} className={button}>
+        <BrandIcon name="export" size={14} />
+        <span>{words.defaultApp}</span>
+      </button>
+      <p className="text-[0.6875rem] text-[var(--text-secondary)]">{words.help}</p>
     </div>
   );
 }

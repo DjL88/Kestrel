@@ -104,6 +104,8 @@ export interface PhotoFrame {
   focusPoint?: FocusPoint;
   rating?: number;
   virtualCopy?: { originalFrameId: string; number: number };
+  /** This photo was brought back from another editor (src/core/externalEdit.ts): where it came from. Checked with `readExternalEdit`. */
+  externalEdit?: import('./externalEdit').ExternalEditRecord;
   /** A preview fetched from a shared project's cloud store, standing in for an original this device does not have. Its shared identity is the owner's original, never this file. */
   cloudPhoto?: { projectId: string; photoKey: string; /** The owner's original has been fetched and now stands behind this photo. */ hasOriginal?: boolean };
   subjectNames?: string[];
