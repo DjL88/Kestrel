@@ -187,3 +187,28 @@ export function limitAutoKeepers(
     return { ...result, confidence: 'medium', score: Math.min(result.score, 79) };
   });
 }
+
+/** A subject at least this share of the largest trusted subject's long side counts as a main subject of the frame. */
+export const MAJOR_SUBJECT_SHARE = 0.5;
+const CONFIDENCE_RANK = { low: 0, medium: 1, high: 2 } as const;
+
+/**
+ * Multi-subject (owner decision 6): every trusted subject gets its own check with the same thresholds as
+ * `judgeSubject`, and the frame is only as good as its weakest main subject. Two sharp birds are a confident keep; one
+ * sharp and one soft is held for review (never rejected). Distant specks well under half the main subject's size do
+ * not count, and untrusted detections are ignored. One subject, or none, scores exactly as `scoreWithSubject`.
+ */
+export function scoreWithSubjects(base: CullSuggestion, found: readonly SubjectFinding[]): CullSuggestion {
+  const trusted = found.filter((finding) => judgeSubject(finding).reason !== 'noSubject');
+  if (trusted.length <= 1) return scoreWithSubject(base, trusted[0] ?? found[0] ?? null);
+  if (base.reason === 'unavailable' || base.reason === 'flat' || base.reason === 'duplicate') return base;
+  const largest = Math.max(...trusted.map((finding) => finding.size));
+  const majors = trusted.filter((finding) => finding.size >= largest * MAJOR_SUBJECT_SHARE).map(judgeSubject);
+  const worst = majors.reduce((a, b) => {
+    const aKeep = a.decision === 'keep', bKeep = b.decision === 'keep';
+    if (aKeep !== bKeep) return aKeep ? b : a;
+    const rank = CONFIDENCE_RANK[a.confidence] - CONFIDENCE_RANK[b.confidence];
+    return rank !== 0 ? (rank < 0 ? a : b) : a.score <= b.score ? a : b;
+  });
+  return { ...base, ...worst };
+}

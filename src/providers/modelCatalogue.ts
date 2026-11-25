@@ -183,6 +183,11 @@ export const MODEL_CATALOGUE: readonly CatalogueEntry[] = [
     id: BIOCLIP2.id, name: 'BioCLIP 2', role: 'species', version: '2957b322', licence: BIOCLIP2.licence,
     files: packFiles(BIOCLIP2), peakMemory: null,
     place: () => packPlace(BIOCLIP2),
+    pack: {
+      model: BIOCLIP2,
+      download: async (onProgress, signal) => (await import('./speciesValidator')).downloadValidator(onProgress, signal),
+      remove: async () => (await import('./speciesValidator')).removeValidator(),
+    },
   },
 ];
 

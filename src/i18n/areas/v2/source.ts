@@ -536,6 +536,12 @@ export const source = {
   },
 
   // Co-pilot / Flight Mode Panel
+  autoCheck: {
+    rawNotDeveloped: (file: string) => `Auto has not checked ${file}. It needs a development from the RAW sensor data, which is not available on this device now. The original may be disconnected. Auto did not use the camera's embedded preview instead. Nothing was changed.`,
+    noPreview: (file: string) => `Auto has not checked ${file}. No picture of it could be read on this device. Reconnect the original and try again. Nothing was changed.`,
+    tooSmall: (file: string) => `Auto has not checked ${file}. The picture is too small to measure reliably. Nothing was changed.`,
+    failed: (file: string) => `Auto could not finish checking ${file}. Open Tasks for the detail. Nothing was changed.`,
+  },
   /** Watch: an Auto suggestion played one step at a time, each explained in plain words. */
   watch: {
     start: "Watch step by step",
@@ -1604,6 +1610,17 @@ export const source = {
     gradient: 'Gradient',
     skyUnavailable: 'Sky detection is not available yet',
     paintingUnavailable: 'Painting is not connected to the photograph yet',
+    partsHeading: 'Combine with other masks',
+    partsNote: 'Parts apply in order and use each other mask’s own shape. Every mask stays editable.',
+    addPart: 'Add a part',
+    removePart: 'Remove this part',
+    partMode: 'How it combines',
+    partTarget: 'Which mask',
+    modeAdd: 'Add · include this area too',
+    modeSubtract: 'Subtract · leave this area out',
+    modeIntersect: 'Intersect · only where they overlap',
+    partsFull: 'A mask can combine up to 4 parts.',
+    combined: 'Combined',
     addShapeMask: 'Add a real adjustable mask. Expand its layer to position and resize it.',
     noMasks: 'No masks yet. Detect the subject or select the background to start.',
     deleteMask: (name: string) => `Delete ${name}`,
