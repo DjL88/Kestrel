@@ -1,3 +1,4 @@
+import { openV2Settings } from './helpers';
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(({}, testInfo) => {
@@ -7,7 +8,7 @@ test.beforeEach(({}, testInfo) => {
 async function openKeyboardTab(page: import('@playwright/test').Page) {
   await page.goto('/?v2&stub=1&autostart=1');
   const root = page.locator('.inflight-v2');
-  await root.getByRole('button', { name: /Settings/ }).first().click();
+  await openV2Settings(page);
   await root.getByRole('tab', { name: 'Keyboard' }).or(root.getByRole('button', { name: 'Keyboard' })).first().click();
   return root;
 }

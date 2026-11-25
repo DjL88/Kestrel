@@ -1,3 +1,4 @@
+import { openV2Settings } from './helpers';
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(({}, testInfo) => {
@@ -7,7 +8,7 @@ test.beforeEach(({}, testInfo) => {
 test('?v2 Settings lists every InFlight language, marks drafts and restarts in the chosen one', async ({ page }) => {
   await page.goto('/?v2&stub=1&autostart=1');
   const root = page.locator('.inflight-v2');
-  await root.getByRole('button', { name: /Settings/ }).first().click();
+  await openV2Settings(page);
   await root.getByRole('tab', { name: 'Language' }).or(root.getByRole('button', { name: 'Language' })).first().click();
   const select = root.getByLabel('Display language');
   await expect(select.locator('option')).toHaveCount(20);
