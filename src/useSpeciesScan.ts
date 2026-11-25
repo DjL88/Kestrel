@@ -7,7 +7,7 @@ import { kindFor, personalBonus, pickSuggestions, rankSpecies } from './core/spe
 import type { PhotoFrame } from './core/types';
 import type { BrowserPreviewProvider } from './providers/browserPreviewProvider';
 import { pictureForAnalysis } from './providers/pictureForAnalysis';
-import { SPECIES_DOWNLOAD_BYTES, analysePicture, downloadSpeciesModel, loadSpeciesLabels, speciesStatus, type SpeciesStatus } from './providers/speciesModel';
+import { SPECIES_DOWNLOAD_BYTES, analysePicture, downloadSpeciesModel, loadOutsideLabels, loadSpeciesLabels, releaseOutsideLabels, speciesStatus, type SpeciesStatus } from './providers/speciesModel';
 import { readAutoTag, readSpeciesCounts } from './providers/speciesLearning';
 import { gateOutcome, permitsAutomaticSpeciesTag } from './core/categoryGate';
 import { subjectCrop } from './core/subjectCrop';
@@ -28,7 +28,8 @@ import { ONLINE_HELPER_VISIBLE, useHelperSettings } from './providers/helperSett
 import { HelperError, geminiTransport, imageForHelper } from './providers/onlineHelper';
 import { appText as t } from './i18n/areas/app';
 import { readSpeciesRegions } from './core/speciesRegions';
-import { regionIdsForArea, resolvedArea, type SpeciesArea } from './core/speciesArea';
+import { outsideRegionMatch, regionIdsForArea, resolvedArea, type SpeciesArea } from './core/speciesArea';
+import type { SpeciesLabel } from './core/speciesMatch';
 
 /** What one look at a photo found: a species name, or a vehicle reading (kind and probable type), or only that it was looked at. */
 export type ScanResult = ReturnType<typeof scanPatch> & { vehicle?: VehicleReading; speciesArea?: PhotoFrame['speciesArea'] };
@@ -81,10 +82,14 @@ interface Options {
   onResult: (frameId: string, patch: ScanResult) => void;
   /** Where the project's photos were taken ("Where were these taken?"); absent means the person's home regions. */
   area?: SpeciesArea;
+  /** While the project's place is unanswered: also compare with the world's names, to notice a photo from elsewhere. */
+  checkOutside?: boolean;
+  /** A photo looked like a species from outside the project's regions (confidently, within the gate's group). */
+  onOutsideRegion?: (frameId: string, label: SpeciesLabel) => void;
 }
 
 /** Identifies untagged photos quietly, using the on-device model first. */
-export function useSpeciesScan({ projectId, frames, provider, active, onResult, area }: Options) {
+export function useSpeciesScan({ projectId, frames, provider, active, onResult, area, checkOutside, onOutsideRegion }: Options) {
   const [status, setStatus] = useState<SpeciesStatus | 'checking'>('checking');
   const [downloading, setDownloading] = useState<number | null>(null);
   const [error, setError] = useState('');
@@ -95,17 +100,22 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult, 
   const sources = useRef({ localReady, helperOn, key: helper.key });
   sources.current = { localReady, helperOn, key: helper.key };
   const helperHalted = useRef(false);
-  const latest = useRef({ projectId, frames, provider, active, onResult, area });
-  latest.current = { projectId, frames, provider, active, onResult, area };
+  const latest = useRef({ projectId, frames, provider, active, onResult, area, checkOutside, onOutsideRegion });
+  latest.current = { projectId, frames, provider, active, onResult, area, checkOutside, onOutsideRegion };
   const running = useRef(false);
   const cancelled = useRef(false);
   const skipped = useRef(new Set<string>());
+  const runRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => { void speciesStatus().then(setStatus); }, []);
+  // The world comparison is only for an unanswered place; once it is settled its names are let go.
+  useEffect(() => { if (!checkOutside) releaseOutsideLabels(); }, [checkOutside]);
 
   const run = useCallback(async () => {
     if (running.current) return;
     running.current = true;
+    let ranOut = false;
+    let unclassifiedToo = false;
     try {
       const vehicleData = await loadVehicleData().catch(() => null);
       for (;;) {
@@ -127,8 +137,9 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult, 
         // With the category gate, the local model may look at unclassified photos too: the gate, not the species list,
         // decides whether a photo is an animal at all.
         const gateOn = available.localReady && await gateAvailable();
-        const frame = scanCandidates(current, { includeUnclassified: canAsk() || gateOn }).find((candidate) => !skipped.current.has(frameKey(candidate.id)));
-        if (!frame) break;
+        unclassifiedToo = canAsk() || gateOn;
+        const frame = scanCandidates(current, { includeUnclassified: unclassifiedToo }).find((candidate) => !skipped.current.has(frameKey(candidate.id)));
+        if (!frame) { ranOut = true; break; }
 
         // What the person owns about this photo, to notice if they change it while the models are thinking
         // (carried over from #439). Object identity is not enough: a catalogue reload replaces objects unchanged.
@@ -182,6 +193,13 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult, 
               if (outcome.kind) patch = { ...patch, subjectKind: outcome.kind };
               // The place the name was matched against is kept beside it, and shown with it.
               if (patch.tags?.length) patch = { ...patch, speciesArea: usedArea };
+              // While the place is unanswered, a confident match from outside the project's regions raises the one
+              // small question "Where were these taken?". Nothing is named from it.
+              if (agrees && permitsAutomaticSpeciesTag(outcome.species) && latest.current.checkOutside && latest.current.onOutsideRegion) {
+                const outside = await loadOutsideLabels(regions).catch(() => null);
+                const elsewhere = outside ? outsideRegionMatch(embedding, localLabels, outside, groups) : null;
+                if (elsewhere && stillCurrent()) latest.current.onOutsideRegion(frame.id, elsewhere);
+              }
             } else if (kind) {
               // Not an animal the list can name (a helicopter, a car): looked at, and no animal name offered.
               patch = { speciesChecked: true };
@@ -219,8 +237,17 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult, 
       }
     } finally {
       running.current = false;
+      // Photos that arrived while this run was finding none (an import landing during a wait) would otherwise wait for
+      // the next change: look again once, now that this run has ended.
+      if (ranOut && !cancelled.current && latest.current.active) {
+        const key = regionIdsForArea(latest.current.area, readSpeciesRegions()).join(',');
+        const fresh = scanCandidates(latest.current.frames, { includeUnclassified: unclassifiedToo })
+          .some((candidate) => !skipped.current.has(`${latest.current.projectId}|${key}|${candidate.id}`));
+        if (fresh) window.setTimeout(() => { if (!cancelled.current) void runRef.current?.(); }, 50);
+      }
     }
   }, []);
+  runRef.current = run;
 
   const ready = status !== 'checking' && (localReady || helperOn) && active && provider !== null;
   useEffect(() => { helperHalted.current = false; }, [helper.key, helper.enabled, online]);

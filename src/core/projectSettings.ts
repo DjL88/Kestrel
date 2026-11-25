@@ -5,10 +5,12 @@ export interface ProjectSettings {
   autoCull: boolean;
   /** Develop untouched keepers in background after import; edited photos keep suggestions behind Auto. */
   autoEdit: boolean;
-  /** "Where were these taken?": the place species names are matched against. Absent means the person's home region. */
+  /** "Where were these taken?": the place species names are matched against, once the person has chosen (Home
+   * included). Absent means not asked yet, and the home region is used. */
   speciesArea?: SpeciesArea;
-  /** The GPS suggestion the person answered "Not now" to, so the same one is not offered again (the area's key only). */
-  speciesAreaDeclined?: string;
+  /** The scan saw a photo that looks like a species from outside the home region (its name, in English as stored), so
+   * the one small question is shown. Cleared by any answer. */
+  speciesAreaPrompt?: { example: string };
 }
 
 /** What the new-project wizard starts with. */
@@ -21,10 +23,12 @@ export function parseSettings(value: unknown): ProjectSettings {
   if (typeof value !== 'object' || value === null) return LEGACY_SETTINGS;
   const raw = value as Record<string, unknown>;
   const speciesArea = parseSpeciesArea(raw.speciesArea);
+  const prompt = raw.speciesAreaPrompt as { example?: unknown } | undefined;
+  const promptExample = typeof prompt?.example === 'string' && prompt.example.trim() && prompt.example.length <= 120 ? prompt.example : undefined;
   return {
     autoCull: raw.autoCull === true, autoEdit: raw.autoEdit === true,
     ...(speciesArea ? { speciesArea } : {}),
-    ...(typeof raw.speciesAreaDeclined === 'string' && raw.speciesAreaDeclined.length <= 200 ? { speciesAreaDeclined: raw.speciesAreaDeclined } : {}),
+    ...(promptExample ? { speciesAreaPrompt: { example: promptExample } } : {}),
   };
 }
 

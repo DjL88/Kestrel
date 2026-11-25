@@ -126,3 +126,25 @@ test('a new place reopens only photos carrying the app\'s own name; the person\'
   assert.equal(next[4], frames[4], 'not an animal');
   assert.equal(next[5], frames[5]);
 });
+
+test('a confident world match from outside home raises the question; a home bird or an unsure match does not', async () => {
+  const { labelsOutsideRegions, outsideRegionMatch } = await import('./speciesArea');
+  const outside = labelsOutsideRegions([world], HOME);
+  assert.ok(outside.some((label) => label.scientific === 'Sicalis flaveola'), 'the Saffron Finch lives outside Europe only');
+  assert.ok(!outside.some((label) => label.scientific === 'Erithacus rubecula'), 'the Robin is a home bird');
+  assert.ok(!outside.some((label) => !label.regions?.length), 'unknown range is never "outside"');
+  const homeLabels = speciesLabelsForRegions(shipped, world, [], HOME);
+  const local = { labels: homeLabels, vectors: homeLabels.map(decodeVector) };
+  const away = { labels: outside, vectors: outside.map(decodeVector) };
+  const finch = world.find((label) => label.scientific === 'Sicalis flaveola')!;
+  const robin = shipped.find((label) => label.scientific === 'Erithacus rubecula')!;
+  const yellowhammer = shipped.find((label) => label.scientific === 'Emberiza citrinella')!;
+  assert.equal(outsideRegionMatch(decodeVector(finch), local, away, ['bird'])?.scientific, 'Sicalis flaveola');
+  assert.equal(outsideRegionMatch(decodeVector(robin), local, away, ['bird']), null, 'a home bird');
+  assert.equal(outsideRegionMatch(blend(finch, yellowhammer, 0.5), local, away, ['bird']), null, 'torn between the two: not confident, not asked');
+  assert.equal(outsideRegionMatch(decodeVector(finch), local, away, null), null, 'the gate was not sure of the group');
+  assert.equal(outsideRegionMatch(decodeVector(finch), local, away, ['insect']), null, 'only birds and mammals are checked');
+  // The question is kept with the project until it is answered.
+  assert.deepEqual(parseSettings({ autoCull: false, autoEdit: false, speciesAreaPrompt: { example: 'Saffron Finch' } }).speciesAreaPrompt, { example: 'Saffron Finch' });
+  assert.equal(parseSettings({ autoCull: false, autoEdit: false, speciesAreaPrompt: { example: 7 } }).speciesAreaPrompt, undefined);
+});

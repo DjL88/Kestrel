@@ -27,7 +27,6 @@ interface InfoPanelProps {
   onRemovePhotoTag?: (photoId: string, tagId: string) => void;
   speciesPlace?: SpeciesPlace | null;
   onSetSpeciesArea?: (area: SpeciesArea) => void;
-  onDeclineSpeciesArea?: () => void;
 }
 
 export default function InfoPanel({
@@ -41,7 +40,6 @@ export default function InfoPanel({
   onRemovePhotoTag,
   speciesPlace,
   onSetSpeciesArea,
-  onDeclineSpeciesArea,
 }: InfoPanelProps) {
   const [editingSpecies, setEditingSpecies] = useState(false);
   // The name alone: the label may carry a "(suggested)" marker in the person's language, which is not part of the name.
@@ -254,8 +252,8 @@ export default function InfoPanel({
           <MetaRow label="Sharpness" value={`${photo.sharpnessScore}%`} mono />
           <MetaRow label={STRINGS.tier.label} value={photo.tier ? STRINGS.tier[photo.tier] : STRINGS.tier.notRanked} />
         </dl>
-        {speciesPlace && onSetSpeciesArea && onDeclineSpeciesArea && (
-          <div className="mt-3"><SpeciesPlaceRow place={speciesPlace} onChange={onSetSpeciesArea} onDecline={onDeclineSpeciesArea} /></div>
+        {speciesPlace && onSetSpeciesArea && (
+          <div className="mt-3"><SpeciesPlaceRow place={speciesPlace} onChange={onSetSpeciesArea} /></div>
         )}
       </section>
       {photo.photoTags && photo.photoTags.length > 0 && (

@@ -69,6 +69,7 @@ const CommandPalette = lazyPart(() => import('./dialogs/CommandPalette'));
 const KeyboardSettings = lazyPart(() => import('./dialogs/KeyboardSettings'));
 const LightroomOfferDialog = lazyPart(() => import('./dialogs/LightroomOfferDialog'));
 const QuickStartCard = lazyPart(() => import('./panels/QuickStartCard'));
+const SpeciesPlacePrompt = lazyPart(() => import('./panels/SpeciesPlacePrompt'));
 const CloudOriginalPrompt = lazyPart(() => import('./dialogs/CloudOriginalPrompt'));
 const EDITOR_PARTS = [TopBar, Rail, DockPanel, Canvas, CollageEditor, Filmstrip, GridView, PairCompare, CoPilotPanel, AdjustPanel, SizesPanel, HistoryPanel, MasksPanel, EnhancePanel, OverlayPanel, AssistPanel, InfoPanel, TasksPanel, CollageExportDialog, ExportDialog, RemovedPhotosDialog, ShareDialog, SettingsDialog, ShortcutGuide, CommandPalette, KeyboardSettings, LightroomOfferDialog, QuickStartCard, CloudOriginalPrompt];
 function preloadEditorParts() {
@@ -586,7 +587,6 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onCorrectVehicle={actions.correctVehicle}
             speciesPlace={store.speciesPlace}
             onSetSpeciesArea={actions.setSpeciesArea}
-            onDeclineSpeciesArea={actions.declineSpeciesAreaSuggestion}
           />
         );
       case 'tasks':
@@ -1175,6 +1175,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         onExport={() => { actions.dismissQuickStart?.(); actions.setExportOpen(true); }}
         onDone={() => actions.dismissQuickStart?.()}
       /></React.Suspense>
+
+      {store.screen === 'editor' && store.speciesPlace?.prompt && actions.setSpeciesArea && (
+        <React.Suspense fallback={null}><SpeciesPlacePrompt place={store.speciesPlace} onChoose={actions.setSpeciesArea} /></React.Suspense>
+      )}
 
       <React.Suspense fallback={null}><LightroomOfferDialog
         offer={store.screen === 'editor' ? store.lightroomOffer : null}

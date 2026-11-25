@@ -24,9 +24,11 @@ import { useAccess } from '../../providers/useAccess';
 import { useBackgroundDevelop } from '../../useBackgroundDevelop';
 import { useSpeciesScan } from '../../useSpeciesScan';
 import { SPECIES_REGIONS_EVENT, readSpeciesRegions } from '../../core/speciesRegions';
-import { reopenForNewArea, sameArea, suggestAreaFromPositions, type SpeciesArea } from '../../core/speciesArea';
+import { regionIdsForArea, reopenForNewArea, sameArea, suggestAreaFromPositions, type SpeciesArea } from '../../core/speciesArea';
 import { LEGACY_SETTINGS } from '../../core/projectSettings';
 import { areaWords, speciesAreaText } from '../../i18n/areas/speciesArea';
+import { displaySpeciesName } from '../../core/speciesNames';
+import { speciesNameIndex } from '../../providers/speciesNames';
 import { carryVehicleReadings, correctVehicle } from '../../core/vehicleBursts';
 import { syncAllVehicleTags } from '../../core/vehicleTags';
 import { VEHICLE_LABELS } from '../../core/vehicleLabels';
@@ -262,6 +264,13 @@ async function pickReselectFiles(): Promise<File[] | null> {
     input.addEventListener('cancel', () => done(null));
     input.click();
   });
+}
+
+/** A phone, or a device that says it has little memory: the world comparison is skipped there. */
+function lowMemoryDevice(): boolean {
+  if (typeof navigator === 'undefined') return true;
+  const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+  return isMobileShell() || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (typeof memory === 'number' && memory < 4);
 }
 
 /** The GPS positions the project's photos carry, read on this device only (never sent, never in a backup). */
@@ -809,6 +818,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     projectId: state?.shoot.id ?? '', frames: state?.frames ?? [], provider: provider.current,
     active: screen === 'editor' && Boolean(state) && can('speciesId'),
     area: state?.settings?.speciesArea,
+    // Whether a photo may be from elsewhere is checked only while the place is unanswered and not yet asked, and not on
+    // phones or low-memory devices (the world's birds and mammals take about 20 MB while it runs).
+    checkOutside: Boolean(state && !state.settings?.speciesArea && !state.settings?.speciesAreaPrompt && !lowMemoryDevice()),
+    onOutsideRegion: (_frameId, label) => setState((current) => (current && !current.settings?.speciesArea && !current.settings?.speciesAreaPrompt
+      ? { ...current, settings: { ...(current.settings ?? LEGACY_SETTINGS), speciesAreaPrompt: { example: label.common } } } : current)),
     // A vehicle reading is carried across its burst: the same aircraft, read once, shown on every frame.
     onResult: (frameId, patch) => setState((current) => (current ? { ...current, frames: syncAllVehicleTags(carryVehicleReadings(current.frames.map((frame) =>
       frame.id === frameId && !frame.removedAt && !frame.speciesChecked && !frame.tags?.length && !frame.subjectNames?.length
@@ -2163,23 +2177,20 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       frames: current.frames.map((frame) => (frame.id === photoId && !frame.removedAt ? declinePhotoTag(frame, tagId) : frame)),
     })),
     setSpeciesArea: (area: SpeciesArea) => {
-      const chosen = area.kind === 'home' ? undefined : area;
+      // Any choice answers "Where were these taken?" for this project, Home included, so it is not asked again.
+      const home = homeRef.current;
+      const before = regionIdsForArea(stateRef.current?.settings?.speciesArea, home).join(',');
+      const moved = before !== regionIdsForArea(area, home).join(',');
       mutate((current) => {
-        if (sameArea(current.settings?.speciesArea, chosen)) return current;
-        // Photos that only carry the app's own name are looked at again with the new place's names; the person's own
-        // names, kept names and removed names stay as they are.
-        const again = reopenForNewArea(current.frames);
-        const { speciesArea: _old, ...settings } = current.settings ?? LEGACY_SETTINGS;
-        return { ...current, shoot: { ...current.shoot, lastUpdatedAt: Date.now() }, frames: again.frames,
-          settings: { ...settings, ...(chosen ? { speciesArea: chosen } : {}) } };
+        const { speciesAreaPrompt: _asked, ...settings } = current.settings ?? LEGACY_SETTINGS;
+        if (sameArea(current.settings?.speciesArea, area) && current.settings?.speciesArea && !_asked) return current;
+        // When the regions change, photos that only carry the app's own name are looked at again with the new place's
+        // names; the person's own names, kept names and removed names stay as they are.
+        const frames = moved ? reopenForNewArea(current.frames).frames : current.frames;
+        return { ...current, shoot: { ...current.shoot, lastUpdatedAt: Date.now() }, frames, settings: { ...settings, speciesArea: area } };
       });
-      setNotice(speciesAreaText.changed(areaWords(area, homeRef.current)));
+      if (moved) setNotice(speciesAreaText.changed(areaWords(area, home)));
     },
-    declineSpeciesAreaSuggestion: () => mutate((current) => {
-      const suggestion = suggestAreaFromPositions(positionsOf(current.frames), homeRef.current);
-      if (!suggestion) return current;
-      return { ...current, settings: { ...(current.settings ?? LEGACY_SETTINGS), speciesAreaDeclined: JSON.stringify(suggestion) } };
-    }),
     correctSpeciesName: (photoId, proposedName) => {
       const name = proposedName.trim().slice(0, 120);
       if (!name) return;
@@ -2778,10 +2789,14 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // "Where were these taken?": the project's choice, and a suggestion from the photos' GPS, worked out here on the device.
   const speciesPlace = useMemo(() => {
     if (!state || state.shoot.collage) return null;
-    const area = state.settings?.speciesArea ?? { kind: 'home' as const };
-    const found = state.settings?.speciesArea ? null : suggestAreaFromPositions(positionsOf(state.frames), homeRegions);
-    const suggestion = found && JSON.stringify(found) !== state.settings?.speciesAreaDeclined ? found : null;
-    return { area, home: homeRegions, suggestion };
+    const answered = state.settings?.speciesArea;
+    const area = answered ?? { kind: 'home' as const };
+    // Asked only while unanswered, and only when something points elsewhere: the scan saw a species from outside the
+    // home region, or the photos' GPS (read here, never sent) is outside it.
+    const suggestion = answered ? null : suggestAreaFromPositions(positionsOf(state.frames), homeRegions);
+    const asked = answered ? undefined : state.settings?.speciesAreaPrompt?.example;
+    const prompt = asked || suggestion ? { ...(asked ? { example: displaySpeciesName(asked, speciesNameIndex()).name } : {}), suggestion } : null;
+    return { area, home: homeRegions, prompt };
   }, [state, homeRegions]);
   const store: WorkspaceStore = useMemo(() => ({
     ...stub.store,

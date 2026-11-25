@@ -17,13 +17,11 @@ function areaOf(value: string): SpeciesArea {
 }
 
 /**
- * "Where were these taken?" for the open project: home region, worldwide, a region or a country. Species names are
- * ranked against that place only. A suggestion from the photos' own GPS is offered once, read on this device, and only
- * used after the person taps "Use this".
+ * "Where were these taken?" for the open project, as a quiet setting in Info (never a question at start): home region,
+ * worldwide, a region or a country. Species names are ranked against that place only. The question itself is asked
+ * only when something points elsewhere (SpeciesPlacePrompt).
  */
-export default function SpeciesPlaceRow({ place, onChange, onDecline }: {
-  place: SpeciesPlace; onChange: (area: SpeciesArea) => void; onDecline: () => void;
-}) {
+export default function SpeciesPlaceRow({ place, onChange }: { place: SpeciesPlace; onChange: (area: SpeciesArea) => void }) {
   const countries = useMemo(() => {
     const collator = new Intl.Collator(language);
     return SPECIES_COUNTRIES.map((code) => ({ code, name: countryName(`place.country.${code.toLowerCase()}`, language) }))
@@ -50,17 +48,6 @@ export default function SpeciesPlaceRow({ place, onChange, onDecline }: {
         </optgroup>
       </select>
       <p className="text-[0.6875rem] leading-relaxed text-[var(--text-secondary)]">{t.whereTakenHint}</p>
-      {place.suggestion && (
-        <div role="status" data-testid="species-place-suggestion" className="space-y-1.5 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-2">
-          <p className="text-xs text-[var(--text-primary)]">{t.suggestion(areaWords(place.suggestion, place.home))}</p>
-          <p className="text-[0.6875rem] text-[var(--text-secondary)]">{t.suggestionPrivacy}</p>
-          <div className="flex gap-2">
-            <button type="button" onClick={() => place.suggestion && onChange(place.suggestion)}
-              className="rounded border border-[var(--brand-accent)] px-2 py-1 text-xs font-medium text-[var(--brand-accent)]">{t.useSuggestion}</button>
-            <button type="button" onClick={onDecline} className="rounded border border-[var(--border-subtle)] px-2 py-1 text-xs text-[var(--text-secondary)]">{t.notNow}</button>
-          </div>
-        </div>
-      )}
     </section>
   );
 }

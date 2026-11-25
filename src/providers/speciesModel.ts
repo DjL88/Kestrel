@@ -6,7 +6,7 @@ import { installedModel } from './modelUpdater';
 import { SPECIES_MODEL, centreSquare, preprocessSpecies } from '../core/speciesModel';
 import { decodeVector, normalise, type SpeciesLabel } from '../core/speciesMatch';
 import { normaliseRegions, readSpeciesRegions } from '../core/speciesRegions';
-import { speciesLabelsForRegions } from '../core/speciesArea';
+import { labelsOutsideRegions, speciesLabelsForRegions } from '../core/speciesArea';
 import { friendlyToolError } from '../core/toolErrors';
 import { subjectCrop, type SquareCrop } from '../core/subjectCrop';
 import type { SubjectGrid } from '../core/maskTypes';
@@ -176,6 +176,30 @@ export function loadSpeciesLabels(regionIds?: readonly string[]): Promise<Labels
   })();
   return labelsLoading;
 }
+
+let outsideLoading: Promise<Labels> | null = null;
+let outsideKey = '';
+/**
+ * World birds and mammals recorded only outside the given regions, with their vectors (about 20 MB in memory for
+ * Europe). Used only to notice that a project may have been shot elsewhere, and only while that is still unanswered.
+ * Missing lists give an empty set, so nothing is asked.
+ */
+export function loadOutsideLabels(regionIds: readonly string[]): Promise<Labels> {
+  const key = normaliseRegions(regionIds).join(',');
+  if (outsideLoading && outsideKey === key) return outsideLoading;
+  outsideKey = key;
+  outsideLoading = (async () => {
+    const lists: SpeciesLabel[][] = [];
+    try { lists.push(await loadWorldLabels()); } catch { /* no world birds: nothing to compare */ }
+    try { lists.push((await loadListBeside('species-mammals.json', 'species-mammals.json')).map(({ family: _family, ...label }) => label as SpeciesLabel)); } catch { /* no mammals */ }
+    const labels = labelsOutsideRegions(lists, regionIds);
+    return { labels, vectors: labels.map(decodeVector) };
+  })();
+  return outsideLoading;
+}
+
+/** Frees the outside-region names once the project's place is settled. */
+export function releaseOutsideLabels(): void { outsideLoading = null; outsideKey = ''; }
 
 function loadWorldLabels(): Promise<SpeciesLabel[]> {
   worldLoading ??= loadListBeside('species-world.json', 'world list').catch((error) => { worldLoading = null; throw error; });

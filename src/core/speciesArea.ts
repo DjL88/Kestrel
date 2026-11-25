@@ -1,4 +1,5 @@
-import type { SpeciesLabel } from './speciesMatch';
+import { rankSpecies, type SpeciesLabel } from './speciesMatch';
+import { autoTagMinimum, shouldAutoTag } from './autoTags';
 import { SPECIES_REGIONS, normaliseRegions, worldLabelsForRegions } from './speciesRegions';
 
 /**
@@ -179,4 +180,44 @@ export function reopenForNewArea<T extends { subjectKind?: string; speciesChecke
     return { ...rest, tags: [], autoTags: [], speciesChecked: false } as unknown as T;
   });
   return { frames: next, reopened };
+}
+
+/** The groups checked against the whole world for "is this from somewhere else?": birds and mammals (the largest lists people travel for). */
+export const OUTSIDE_CHECK_GROUPS: readonly SpeciesLabel['group'][] = ['bird', 'mammal'];
+
+/**
+ * World names of the given groups that are recorded only outside the regions (a name with no recorded range is not
+ * "outside": unknown is not the same as elsewhere). Used only to notice that a project may have been shot elsewhere.
+ */
+export function labelsOutsideRegions(lists: readonly (readonly SpeciesLabel[])[], regionIds: readonly string[], groups: readonly SpeciesLabel['group'][] = OUTSIDE_CHECK_GROUPS): SpeciesLabel[] {
+  const inside = new Set(worldLabelsForRegions(lists.flat(), regionIds).map((label) => label.scientific.toLowerCase()));
+  const seen = new Set<string>();
+  return lists.flat().filter((label) => {
+    const key = label.scientific.toLowerCase();
+    if (!groups.includes(label.group) || inside.has(key) || seen.has(key) || !label.regions?.length) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
+ * Whether a photo looks like a species from somewhere else: ranked against the project's names and the world's names
+ * from outside its regions together, the best match is from outside and clears its group's bar. Then, and only then,
+ * the person is asked once "Where were these taken?". Restricted to the gate's group, like naming itself.
+ */
+export function outsideRegionMatch(
+  embedding: Float32Array,
+  local: { labels: readonly SpeciesLabel[]; vectors: readonly Float32Array[] },
+  outside: { labels: readonly SpeciesLabel[]; vectors: readonly Float32Array[] },
+  groups: readonly SpeciesLabel['group'][] | null,
+): SpeciesLabel | null {
+  if (!groups || !outside.labels.length || !groups.some((group) => OUTSIDE_CHECK_GROUPS.includes(group))) return null;
+  const pick = (set: typeof local) => set.labels.map((label, i) => [label, set.vectors[i]] as const).filter(([label]) => groups.includes(label.group));
+  const together = [...pick(local), ...pick(outside)];
+  if (together.length < 2) return null;
+  const firstOutside = pick(local).length;
+  const ranked = rankSpecies(embedding, together.map(([label]) => label), together.map(([, vector]) => vector));
+  const best = ranked[0];
+  if (!best || best.index < firstOutside) return null;
+  return shouldAutoTag(best.probability, autoTagMinimum(best.label.group)) ? best.label : null;
 }

@@ -625,7 +625,9 @@ export type HubViewState = 'ready' | 'empty' | 'loading' | 'error';
 export interface SpeciesPlace {
   area: import('../../core/speciesArea').SpeciesArea;
   home: string[];
-  suggestion: import('../../core/speciesArea').SpeciesArea | null;
+  /** The one small question, shown only when the scan saw a species from elsewhere (`example`, in the person's words)
+   * or the photos' GPS is outside home (`suggestion`), and the place is not answered yet. */
+  prompt: { example?: string; suggestion: import('../../core/speciesArea').SpeciesArea | null } | null;
 }
 
 export interface WorkspaceStore {
@@ -745,8 +747,6 @@ export interface WorkspaceActions {
   correctSpeciesName: (photoId: string, name: string) => void;
   /** "Where were these taken?" for the open project; species names are matched against that place from now on. */
   setSpeciesArea?: (area: import('../../core/speciesArea').SpeciesArea) => void;
-  /** "Not now" to the place suggested from the photos' GPS: the same suggestion is not offered again in this project. */
-  declineSpeciesAreaSuggestion?: () => void;
   /** The person's own vehicle name for a photo, or for every frame of its burst. 'not-a-vehicle' removes it for good. */
   correctVehicle: (photoId: string, choice: { kind: string; type?: string } | 'not-a-vehicle', wholeBurst: boolean) => void;
   /** The person removes a tag InFlight found: it goes and is never added to that photo again. */
