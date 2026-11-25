@@ -148,36 +148,6 @@ export default function OverlayPanel({
 
   return (
     <div className="space-y-4">
-      <section aria-labelledby="overlay-templates-title" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
-        <div className="flex items-center justify-between gap-2">
-          <h3 id="overlay-templates-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.overlays.templatesHeading}</h3>
-          <button type="button" onClick={onManageTemplates} aria-label={`${STRINGS.settings.heading}: ${STRINGS.overlays.templatesHeading}`}
-            className="min-h-10 rounded border border-[var(--border-default)] px-2 text-xs">{STRINGS.settings.heading}</button>
-        </div>
-        <p className="text-[11px] leading-snug text-[var(--text-muted)]">{STRINGS.overlays.templatesIntro}</p>
-        <form
-          className="flex gap-1.5"
-          onSubmit={(e) => { e.preventDefault(); onSaveTemplate(photo.id, templateName); setTemplateName(''); }}
-        >
-          <label htmlFor="overlay-template-name" className="sr-only">{STRINGS.overlays.templateNameLabel}</label>
-          <input id="overlay-template-name" type="text" maxLength={40} value={templateName} onChange={(e) => setTemplateName(e.target.value)} placeholder={STRINGS.overlays.templateNameLabel}
-            className="h-10 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2.5 text-xs text-[var(--text-primary)]" />
-          <button type="submit" className="min-h-10 shrink-0 rounded-[var(--radius-sm)] bg-[var(--brand-accent)] px-3 text-[11px] font-semibold text-[var(--text-on-accent)]">{STRINGS.overlays.templateSave}</button>
-        </form>
-        {templates.length === 0 ? (
-          <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.overlays.templatesNone}</p>
-        ) : (
-          <ul aria-label={STRINGS.overlays.templatesHeading} className="space-y-1.5">
-            {templates.map((template) => (
-              <li key={template.id} className="flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-1.5">
-                <span className="min-w-0 flex-1 truncate px-1 text-xs font-medium text-[var(--text-primary)]">{template.name}</span>
-                <button type="button" aria-label={`${STRINGS.overlays.templateApply(targets.length)}: ${template.name}`} onClick={() => onApplyTemplate(template.id, targets)}
-                  className="min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-2 text-[11px] font-medium text-[var(--text-primary)]">{STRINGS.overlays.templateApply(targets.length)}</button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
 
       {/* Text / Watermark Sub-tabs */}
       <div className={`grid gap-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-0.5 ${textTabGone || markTabGone ? 'grid-cols-1' : 'grid-cols-2'}`}>
@@ -519,6 +489,30 @@ export default function OverlayPanel({
           )}
         </div>
       )}
+      {/* Templates are kept and managed in Settings → Templates. Here: apply one, or save this photo's overlay as one. */}
+      <section aria-labelledby="overlay-templates-title" className="space-y-2 border-t border-[var(--border-subtle)] pt-3">
+        <div className="flex items-center justify-between gap-2">
+          <h3 id="overlay-templates-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.overlays.templatesHeading}</h3>
+          <button type="button" onClick={onManageTemplates} aria-label={`${STRINGS.settings.heading}: ${STRINGS.overlays.templatesHeading}`}
+            className="min-h-9 rounded border border-[var(--border-default)] px-2 text-xs">{STRINGS.settings.heading}</button>
+        </div>
+        {templates.length === 0 ? (
+          <p className="text-[11px] text-[var(--text-muted)]">{STRINGS.overlays.templatesNone}</p>
+        ) : (
+          <select aria-label={`${STRINGS.overlayKit.applyTemplateLabel}: ${STRINGS.overlays.templateApply(targets.length)}`} value=""
+            className="min-h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)]"
+            onChange={(event) => { if (event.target.value) onApplyTemplate(event.target.value, targets); }}>
+            <option value="" disabled>{STRINGS.overlayKit.applyTemplate}</option>
+            {templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
+          </select>
+        )}
+        <form className="flex gap-1.5" onSubmit={(e) => { e.preventDefault(); onSaveTemplate(photo.id, templateName); setTemplateName(''); }}>
+          <label htmlFor="overlay-template-name" className="sr-only">{STRINGS.overlays.templateNameLabel}</label>
+          <input id="overlay-template-name" type="text" maxLength={40} value={templateName} onChange={(e) => setTemplateName(e.target.value)} placeholder={STRINGS.overlays.templateNameLabel}
+            className="h-9 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2.5 text-xs text-[var(--text-primary)]" />
+          <button type="submit" disabled={!templateName.trim()} className="min-h-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-[11px] font-semibold text-[var(--text-primary)] disabled:opacity-50">{STRINGS.overlays.templateSave}</button>
+        </form>
+      </section>
     </div>
   );
 }
