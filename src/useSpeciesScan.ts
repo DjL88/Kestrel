@@ -13,6 +13,14 @@ import { subjectCrop } from './core/subjectCrop';
 import { gateAvailable, routeAndEmbedPicture } from './providers/categoryGate';
 import { readVehicle, type VehicleReading } from './core/vehicleRecognition';
 import { loadVehicleData } from './providers/vehicleRecognition';
+import { findMarkings, mayReadMarkings } from './core/aircraftRegistration';
+import { lookUpMarking } from './core/aircraftRegister';
+import { withMarking } from './core/vehicleRecognition';
+import { VEHICLE_LABELS } from './core/vehicleLabels';
+import { markingReaderReady, readText } from './providers/markingReader';
+import { loadFaaRegister } from './providers/aircraftRegisters';
+import { findSubjects } from './providers/objectDetector';
+import { guardVehicleOnDevice } from './providers/vehicleGuardian';
 import { HELPER_GAP_MS, HELPER_SESSION_CAP, failureMessage, helperPatch, helperReady } from './core/onlineHelper';
 import { ONLINE_HELPER_VISIBLE, useHelperSettings } from './providers/helperSettings';
 import { HelperError, geminiTransport, imageForHelper } from './providers/onlineHelper';
@@ -20,6 +28,38 @@ import { appText as t } from './i18n/areas/app';
 
 /** What one look at a photo found: a species name, or a vehicle reading (kind and probable type), or only that it was looked at. */
 export type ScanResult = ReturnType<typeof scanPatch> & { vehicle?: VehicleReading };
+
+/**
+ * Read a registration or serial from an aircraft, only when the photo is an aircraft and the person installed the
+ * markings reader. Text is read only inside the detector's aeroplane boxes (the whole picture for a helicopter, which the
+ * detector has no class for). Any failure leaves the reading as it was.
+ */
+async function readMarkings(vehicle: VehicleReading, store: BrowserPreviewProvider, frame: PhotoFrame): Promise<VehicleReading> {
+  if (!mayReadMarkings(vehicle) || !(await markingReaderReady())) return vehicle;
+  try {
+    const large = await pictureForAnalysis(store, frame, 2048);
+    if (!large) return vehicle;
+    const planes = (await findSubjects(large).catch(() => [])).filter((found) => found.detection.label === 'aeroplane' && found.detection.score >= 0.4);
+    const areas = planes.length ? planes.map(({ detection: { box } }) => {
+      const pad = 0.05 * Math.max(box.w, box.h);
+      const x = Math.max(0, box.x - pad), y = Math.max(0, box.y - pad);
+      return { x, y, width: Math.min(large.width - x, box.w + 2 * pad), height: Math.min(large.height - y, box.h + 2 * pad) };
+    }) : [{ x: 0, y: 0, width: large.width, height: large.height }];
+    const lines = [];
+    for (const area of areas.slice(0, 3)) lines.push(...await readText(large, area));
+    const needsFaa = lines.some((line) => findMarkings(line.text).some((marking) => marking.format === 'us-civil'));
+    const faa = needsFaa ? await loadFaaRegister().catch(() => null) : null;
+    const typeName = (id: string) => VEHICLE_LABELS.types.find((entry) => entry.id === id)?.name;
+    return withMarking(vehicle, lines, findMarkings, (marking) => {
+      const match = lookUpMarking(marking, { faa }, vehicle.kind, typeName);
+      if (!match) return null;
+      const { kind: _kind, ...registered } = match;
+      return registered;
+    });
+  } catch {
+    return vehicle;
+  }
+}
 
 /** Photos sent to the online helper in this session, across projects. Counted so the cap holds however often it restarts. */
 let helperSent = 0;
@@ -108,7 +148,7 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
               // Not an animal the list can name (a helicopter, a car): looked at, and no animal name offered.
               patch = { speciesChecked: true };
             }
-            if (vehicle) patch = { ...(patch ?? {}), speciesChecked: true, vehicle };
+            if (vehicle) patch = { ...(patch ?? {}), speciesChecked: true, vehicle: await guardVehicleOnDevice(await readMarkings(vehicle, store, frame), picture) };
             // Unclassified and not clearly an animal: unknown stays unknown, and the opted-in helper may still answer.
           } catch { /* A failed local analysis can still use the opted-in fallback. */ }
         }

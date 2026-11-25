@@ -25,4 +25,17 @@ export const gd: AreaTranslation<typeof source> = {
   probably: (what: string) => `${what} (is dòcha)`,
   typeUnknown: (what: string) => `${what}, seòrsa neo-aithnichte`,
   withType: (kind: string, type: string) => `${kind}: ${type}`,
+  marked: (what: string, marking: string) => `${what}, comharra ${marking}`,
+  registered: (marking: string, type: string) => `${marking}: ${type} (on chlàr)`,
+  operatedBy: (what: string, operator: string) => `${what}, air obrachadh le ${operator}`,
+  held: (what: string) => `${what}? Feumaidh tu sùil a thoirt air`,
+  reader: {
+    title: 'Leugh clàraidhean itealain',
+    description: (megabytes: string) => `A’ leughadh clàraidhean is àireamhan sreathach armailteach a tha peantte air itealain, air an uidheam seo, agus gan lorg ann an lethbhreac far loidhne de chlàran poblach. Luchdadh a-nuas aon turas de ${megabytes} MB. Cha tèid clàran-àireimh chàraichean a leughadh idir.`,
+    download: 'Luchdaich a-nuas',
+    downloading: (percent: number) => `A’ luchdadh a-nuas… ${percent}%`,
+    ready: 'Air a stàladh. Ag obair far loidhne.',
+    remove: 'Thoir air falbh',
+    failed: 'Cha do chrìochnaich an luchdadh a-nuas, mar sin cha deach dad a chumail. Feuch a-rithist.',
+  },
 };

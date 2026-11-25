@@ -25,4 +25,17 @@ export const fi: AreaTranslation<typeof source> = {
   probably: (what: string) => `${what} (todennäköisesti)`,
   typeUnknown: (what: string) => `${what}, tyyppi tuntematon`,
   withType: (kind: string, type: string) => `${kind}: ${type}`,
+  marked: (what: string, marking: string) => `${what}, tunnus ${marking}`,
+  registered: (marking: string, type: string) => `${marking}: ${type} (rekisterin mukaan)`,
+  operatedBy: (what: string, operator: string) => `${what}, käyttäjä ${operator}`,
+  held: (what: string) => `${what}? Tarkista`,
+  reader: {
+    title: 'Lue ilma-alusten tunnukset',
+    description: (megabytes: string) => `Lukee ilma-aluksiin maalatut rekisteritunnukset ja sotilaalliset sarjanumerot tällä laitteella ja hakee ne julkisten rekisterien offline-kopiosta. Kertalataus, ${megabytes} Mt. Autojen rekisterikilpiä ei koskaan lueta.`,
+    download: 'Lataa',
+    downloading: (percent: number) => `Ladataan… ${percent}%`,
+    ready: 'Asennettu. Toimii ilman verkkoa.',
+    remove: 'Poista',
+    failed: 'Lataus ei valmistunut, joten mitään ei tallennettu. Yritä uudelleen.',
+  },
 };

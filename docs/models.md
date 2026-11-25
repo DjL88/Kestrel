@@ -174,3 +174,52 @@ Clean, flat, synthetic text only. Real photos (blur, angle, glare, tiny rings on
 
 ### Subject corroboration is now in the Photo Check (21 Nov 2026)
 `src/core/subjectCorroboration.ts` combines the scene reading with the existing object detector (`findSubject`, run on the same frozen preview). The subject appears in the Scene line only when both name the same kind; a disagreement (bird against aircraft first) shows one quiet "check the subject" note and asserts nothing; one witness alone shows nothing new; a detector that cannot run is no witness. No model, AI or runtime wording is user-facing. Executed: `tests/photo-check.spec.ts` with the real model and detector passes, and the cat fixture now reads "Scene: Animal" where it read "Not sure yet" before (first inference 10.6 s including load, about 2.25 GB Chromium memory, CPU only). Measured on the recorded descriptions: 96 of 100 bird photos read as a bird (86 before the word list was widened), 0 as an aircraft; 11 of 12 helicopters as an aircraft. Not shown: field photos, other detectors' agreement rates on a labelled set, and what a bird-versus-aircraft conflict does downstream (species naming and cull are not yet gated by it).
+
+## Optional model packs (opt-in downloads)
+
+Upgrades the owner approved on 25 Nov 2026. None is in git or in an installer. Each is pinned in `src/core/optionalModels.ts`
+(address, bytes, SHA-256), fetched only when the photographer chooses, checked as it arrives and again when read back
+(`src/providers/optionalModels.ts`), and kept on the device for offline use. The existing model keeps working as the fallback.
+A build offers a pack only when its address is set, for example `VITE_RFDETR_MODEL_URL=/models/rfdetr-nano-fp16.onnx`
+with the file placed in `public/models/` (never committed) or on the models bucket. The scripts that made and checked
+each file live beside the weights, outside the repo, in the `Kestrel-models` folder next to the checkout.
+
+### RF-DETR Nano (subject detection, in tandem with YOLOX-tiny)
+| | |
+| --- | --- |
+| File | `rfdetr-nano-fp16.onnx` |
+| Size | 54,560,489 bytes |
+| SHA-256 | `e83b810bff55423a019564fcc3cd0bc188fd15d88f2f39dea287abb61f707002` |
+| Model and weights | RF-DETR Nano by Roboflow, Apache-2.0 (Nano, S and M only; larger sizes are not Apache-2.0) |
+| Source | https://huggingface.co/Roboflow/rf-detr-nano, revision `9f201577d9415f0378084748d27e68586e6b3600`: `model.safetensors`, 121,926,336 bytes, SHA-256 `497b1dbcc8f9d115b806fb82d140d7e22e5b5c3fba45abefef39dd4f99c1f737` |
+| Conversion | transformers 5.24.1 `RfDetrForObjectDetection` → `torch.onnx.export` (opset 17, fixed 1×3×384×384) → fp16 weights with `onnxruntime.transformers.float16`, keeping TopK, Sigmoid, Exp, Log, Softmax, ReduceMax, GatherElements, GridSample, Div, Pow, Sqrt and ReduceMean in fp32. At 384 px the eager model uses its position embeddings unresized, and the export takes the same branch. |
+| Input / output | `pixel_values` float32 [1,3,384,384]: a plain resize, RGB/255, ImageNet mean and std. `logits` [1,300,91]: sigmoid scores over COCO ids, id 0 unused. `pred_boxes` [1,300,4]: cx, cy, w, h in 0..1 |
+| Runtime | onnxruntime-web WASM, the same as the other models |
+
+**Parity (25 Nov 2026, Windows laptop, CPU).** Compared against the PyTorch model on 9 images: 4 scikit-image samples (CC0 or public domain: astronaut, chelsea, coffee, rocket), 2 synthetic scenes, and composites with two cats and five people. Gate: every reference detection at ≥ 0.35 matched by class with score within 0.03 and IoU ≥ 0.95, and no extra detection at ≥ 0.40.
+
+| Variant | Size | Gate | Worst score diff | Worst IoU | Median CPU ms (onnxruntime 1.32) |
+| --- | --- | --- | --- | --- | --- |
+| fp32 ONNX | 108.4 MB | PASS | 0.0000 | 1.000 | 257 |
+| **fp16 (shipped)** | 54.6 MB | PASS | 0.0017 | 0.990 | 308 |
+| int8 dynamic (MatMul) | 34.5 MB | FAIL | 0.117 | 0.943 | 396 |
+
+onnxruntime-web 1.31.1 in Node (single thread): load 2.2 s, one 384 px tile 3.5 s, 432 MB RSS. It returns the same detections as PyTorch on the five-people composite: 5 separate people, scores within 0.005, boxes within 0.001. **Not measured:** accuracy on real wildlife or aviation shoots, phone timings, and whether it beats YOLOX on distant subjects. Until that is measured it only runs beside YOLOX, never in place of it.
+
+### EfficientSAM-Ti (tap to select: several taps, several subjects)
+| | |
+| --- | --- |
+| Files | `efficientsam-ti-encoder-fp16.onnx`: 12,641,129 B, SHA-256 `5f0260b102fe82ad88c8ef0dc2422b3c44755005e1c2bbcc44b5d88b1bafbff4`<br>`efficientsam-ti-decoder-fp16.onnx`: 8,589,267 B, SHA-256 `e1409f2e1449600f29ee3674e690020de14d5b52d573b169650c8062608b73f3` |
+| Model and weights | EfficientSAM ViT-Tiny (Xiong et al., Meta), Apache-2.0 |
+| Source | The authors' own ONNX exports at https://github.com/yformer/EfficientSAM, commit `d525f622e6f640acf5a0fc37c7ca1f243da5bde0`: `weights/efficient_sam_vitt_encoder.onnx` (24,799,761 B, `84ed466f…e0951`) and `weights/efficient_sam_vitt_decoder.onnx` (16,565,728 B, `a62f8fa5…b0c11`). Reference: `weights/efficient_sam_vitt.pt` (40,982,470 B, `dff858b1…e4e6a`) with the authors' model code |
+| Conversion | fp16 weights with `onnxruntime.transformers.float16` (I/O stays float32; Resize, Softmax, ReduceMean, Pow, Sqrt, Div, Erf, Sin, Cos and Exp kept in fp32) |
+| Input / output | Encoder: `batched_images` [1,3,1024,1024], RGB 0..1 (it normalises internally). Decoder, one subject per run: up to 6 points in mask pixels, labels 1 add, 0 remove, 2/3 box corners; `orig_im_size` is the mask size (long edge ≤ 1024). Out: 3 candidate masks (logits) and their predicted IoU |
+
+**Parity (25 Nov 2026).** Compared against the PyTorch reference on 5 prompts: one tap; four taps adding and removing parts; two subjects in one photo; six taps; and a box. Gate: the same best candidate, mask IoU ≥ 0.97, predicted-IoU score within 0.02.
+
+| Variant | Size | Gate | Mask IoU vs PyTorch (lowest) | CPU encoder / decoder ms (onnxruntime 1.32) |
+| --- | --- | --- | --- | --- |
+| Official fp32 ONNX | 41.4 MB | PASS | 0.982 (box) | 4338 / 266 |
+| **fp16 (shipped)** | 21.2 MB | PASS | 0.981 (box) | 3730 / 322 |
+
+The lowest IoU, 0.98, is for the box prompt in both variants. It comes from the official export upsampling bilinearly where the PyTorch code upsamples bicubically. onnxruntime-web 1.31.1, single thread, in Node: encoding a 1024 px input gave the same mask as Python on the original photo (IoU 0.998). **Speed is the open problem:** about 35–37 s to encode one photo in single-thread WASM on the loaded Windows laptop, then about 0.6 s per tap. A browser needs multi-threaded WASM (cross-origin isolation) or WebGPU before this feels instant. **Not measured:** phones, real wildlife edges (feathers, fur), and the desktop native runtime.

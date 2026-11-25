@@ -26,6 +26,7 @@ import { loadImage } from '../../providers/loadImage';
 import { loadExportSource } from '../../providers/browserExport';
 import { editorText as t } from '../../i18n/areas/editor';
 import { renderAutoCandidates, type AutoCandidate } from './renderAutoCandidates';
+import { engineText } from '../../i18n/areas/engine';
 import type { AutoUnavailable, AutoUnavailableCause } from './autoUnavailable';
 
 export interface AutoRun {
@@ -65,6 +66,15 @@ const withTimeout = <T>(work: Promise<T>, ms: number, onTimeout: () => T | Promi
  * cannot be read, is too small, or is a RAW without a sensor development; null only when cancelled. RAW advice uses the
  * sensor-developed preview only, never the embedded camera JPEG. Original files are read only.
  */
+/** Auto's headline in the person's language. The verdict decides it; its internal reason is never shown as the headline. */
+function headlineFor(plan: AutoPlan): string {
+  switch (plan.verdict.kind) {
+    case 'improved': return plan.verdict.outcome === 'gentler' ? engineText.auto.appliedGentler : engineText.auto.applied;
+    case 'looks-good': return engineText.auto.looksGood;
+    default: return engineText.auto.cannotImprove;
+  }
+}
+
 export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvider, signal?: AbortSignal): Promise<AutoRun | AutoUnavailable | null> {
   const unavailable = (cause: AutoUnavailableCause): AutoUnavailable => ({ unavailable: cause, source: { stableKey: frame.stableKey, originalSha256: frame.originalSha256, framing: frame.framing } });
   const raw = !frame.isDemo && isRawPreviewFile(frame.filename);
@@ -205,11 +215,11 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   const described = describePlan(plan);
   const reference = segmentation?.confidence === 'high' ? speciesReference(species) : null;
   const improved = rendered.candidates.some((candidate) => candidate.edit === plan.proposal);
-  const coverageNote = instanceCount > 1 && segmentation ? 'Multiple detected subjects were checked individually for clipping and shadow loss. Local tone edits require reliable non-overlapping masks; species colour correction was withheld.' : instanceCoverageUnavailable ? 'Complete subject coverage was unavailable; only whole-frame suggestions were considered.' : null;
+  const coverageNote = instanceCount > 1 && segmentation ? engineText.auto.multipleSubjects : instanceCoverageUnavailable ? engineText.auto.coverageUnavailable : null;
   return {
-    ...rendered, plan, improved, detail: [...described.detail, ...rendered.rejected.map(reason => 'A rendered suggestion was withheld: ' + reason), ...(coverageNote ? [coverageNote] : []), ...(reference ? ['Species reference (not a measured colour target): ' + reference.features] : [])],
-    headline: rendered.candidates.length ? 'Checked edit suggestions are ready to preview.'
-      : recipes.length ? 'No visibly different edit passed the checks.' : described.headline,
+    ...rendered, plan, improved, detail: [...described.detail, ...(rendered.rejected.length ? [engineText.auto.withheld] : []), ...(coverageNote ? [coverageNote] : []), ...(reference ? [engineText.auto.speciesReference(reference.features)] : [])],
+    headline: rendered.candidates.length ? engineText.auto.ready
+      : recipes.length ? engineText.auto.noneDifferent : headlineFor(plan),
     source: { stableKey: frame.stableKey, originalSha256: frame.originalSha256, framing: frame.framing },
     colour: checkColour({ after: { data: analysis.data, width: analysis.width, height: analysis.height } }),
   };

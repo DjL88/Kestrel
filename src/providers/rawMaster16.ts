@@ -2,7 +2,7 @@ import type { TiffExportMetadata } from '../core/tiffExportMetadata';
 import { editRgb16, encodeTiff16, frameRgb16, master16Blocker, thumbRgb16 } from '../core/master16';
 import { bestTurn } from '../core/orientMatch';
 import type { PhotoEdit } from '../core/photoEdits';
-import { DEFAULT_FRAMING, type PhotoFraming } from '../core/photoFraming';
+import { DEFAULT_FRAMING, lensCentre, type PhotoFraming } from '../core/photoFraming';
 import { thumbOf } from './rawDevelop';
 import { openSensorWorkingRaster } from './rawWorkingRaster';
 
@@ -34,6 +34,6 @@ export async function exportRaw16Tiff(original: Blob, filename: string, shown: H
   // A real crop, quarter-turn or straighten still allocates its own result.
   options?.signal?.throwIfAborted();
   const framed = frameRgb16(picture, framing ?? DEFAULT_FRAMING, turn / 90, true);
-  editRgb16(framed, edit);
+  editRgb16(framed, edit, lensCentre(picture.width, picture.height, framing ?? DEFAULT_FRAMING, turn / 90));
   return encodeTiff16(framed, metadata);
 }

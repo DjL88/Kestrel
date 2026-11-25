@@ -25,4 +25,17 @@ export const nl: AreaTranslation<typeof source> = {
   probably: (what: string) => `${what} (waarschijnlijk)`,
   typeUnknown: (what: string) => `${what}, type onbekend`,
   withType: (kind: string, type: string) => `${kind}: ${type}`,
+  marked: (what: string, marking: string) => `${what}, gemarkeerd ${marking}`,
+  registered: (marking: string, type: string) => `${marking}: ${type} (volgens het register)`,
+  operatedBy: (what: string, operator: string) => `${what}, geëxploiteerd door ${operator}`,
+  held: (what: string) => `${what}? Controleer dit`,
+  reader: {
+    title: 'Registraties van luchtvaartuigen lezen',
+    description: (megabytes: string) => `Leest registraties en militaire serienummers die op luchtvaartuigen zijn geschilderd, op dit apparaat, en zoekt ze op in een offline kopie van openbare registers. Een eenmalige download van ${megabytes} MB. Kentekens van auto’s worden nooit gelezen.`,
+    download: 'Downloaden',
+    downloading: (percent: number) => `Bezig met downloaden… ${percent}%`,
+    ready: 'Geïnstalleerd. Werkt offline.',
+    remove: 'Verwijderen',
+    failed: 'De download is niet afgerond, dus er is niets bewaard. Probeer het opnieuw.',
+  },
 };

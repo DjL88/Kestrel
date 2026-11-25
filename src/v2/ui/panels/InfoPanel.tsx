@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { Photo } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
+import { pictureSourceWords } from '../shell/PictureSourceBadge';
 
 /** Brightness is solid; each colour channel also has its own dash pattern and name, so none is told apart by hue alone (WCAG 1.4.1). */
 const HISTOGRAM_LINES = [
@@ -27,10 +28,11 @@ export default function InfoPanel({
   onCorrectSpeciesName,
 }: InfoPanelProps) {
   const [editingSpecies, setEditingSpecies] = useState(false);
-  const [speciesDraft, setSpeciesDraft] = useState(photo?.speciesLabel?.replace(/ \\(suggested\\)$/, '') ?? '');
+  // The name alone: the label may carry a "(suggested)" marker in the person's language, which is not part of the name.
+  const [speciesDraft, setSpeciesDraft] = useState(photo?.speciesName ?? photo?.speciesLabel ?? '');
   useEffect(() => {
     setEditingSpecies(false);
-    setSpeciesDraft(photo?.speciesLabel?.replace(/ \\(suggested\\)$/, '') ?? '');
+    setSpeciesDraft(photo?.speciesName ?? photo?.speciesLabel ?? '');
   }, [photo?.id, photo?.speciesLabel]);
 
   if (!photo) {
@@ -135,7 +137,9 @@ export default function InfoPanel({
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.info.fileSection}</h3>
         <dl className="space-y-1.5 text-xs">
           <MetaRow label="File" value={photo.filename} mono />
+          {photo.pairedJpeg && <MetaRow label={STRINGS.pair.infoLabel} value={photo.pairedJpeg} mono />}
           <MetaRow label="Format" value={photo.exif.fileSizeMb > 0 ? `${photo.exif.fileFormat} · ${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(photo.exif.fileSizeMb)} MB` : photo.exif.fileFormat} />
+          {photo.picture?.preview && (() => { const words = pictureSourceWords(photo.picture.preview); return <MetaRow label={STRINGS.pictureSource.infoLabel} value={`${words.label}. ${words.detail}`} />; })()}
           <MetaRow label="Dimensions" value={photo.exif.dimensions} mono />
           <MetaRow label="Colour profile" value={photo.exif.colourProfile} />
           <MetaRow

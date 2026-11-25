@@ -25,4 +25,17 @@ export const es: AreaTranslation<typeof source> = {
   probably: (what: string) => `${what} (probablemente)`,
   typeUnknown: (what: string) => `${what}, tipo desconocido`,
   withType: (kind: string, type: string) => `${kind}: ${type}`,
+  marked: (what: string, marking: string) => `${what}, matrícula ${marking}`,
+  registered: (marking: string, type: string) => `${marking}: ${type} (según el registro)`,
+  operatedBy: (what: string, operator: string) => `${what}, operado por ${operator}`,
+  held: (what: string) => `${what}? Revísalo`,
+  reader: {
+    title: 'Leer matrículas de aeronaves',
+    description: (megabytes: string) => `Lee las matrículas y los números de serie militares pintados en aeronaves, en este dispositivo, y los busca en una copia sin conexión de registros públicos. Una única descarga de ${megabytes} MB. Nunca se leen las matrículas de los coches.`,
+    download: 'Descargar',
+    downloading: (percent: number) => `Descargando… ${percent}%`,
+    ready: 'Instalado. Funciona sin conexión.',
+    remove: 'Quitar',
+    failed: 'La descarga no terminó, así que no se guardó nada. Inténtalo de nuevo.',
+  },
 };

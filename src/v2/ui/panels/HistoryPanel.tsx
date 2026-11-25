@@ -7,6 +7,8 @@ interface HistoryPanelProps {
   activeSizeId: string;
   onForkFromStep: (photoId: string, cursor: number) => void;
   onSwitchVersion: (photoId: string, versionId: string) => void;
+  /** One tap: take back the latest step (the same as Undo). */
+  onUndo?: () => void;
 }
 
 const FORMAT_EVENTS: Readonly<Record<string, string>> = STRINGS.history.formatEvents;
@@ -20,7 +22,7 @@ function timeOf(at: number): string {
  * an independent branch; per-format activity remains read-only. No synthetic
  * historical thumbnails are shown as if they were old rendered snapshots.
  */
-export default function HistoryPanel({ photo, activeSizeId, onForkFromStep, onSwitchVersion }: HistoryPanelProps) {
+export default function HistoryPanel({ photo, activeSizeId, onForkFromStep, onSwitchVersion, onUndo }: HistoryPanelProps) {
   if (!photo) return <p className="text-xs text-[var(--text-muted)]">{STRINGS.history.noPhoto}</p>;
   const format = photo.sizes.find(s => s.id === activeSizeId);
   const events = photo.formatHistory?.filter(e => e.formatId === activeSizeId) ?? [];
@@ -32,7 +34,8 @@ export default function HistoryPanel({ photo, activeSizeId, onForkFromStep, onSw
   }];
   const activeVersionId = photo.editVersions?.activeId ?? 'version-original';
   const versionNames = new Map(versions.map((version) => [version.id, version.label]));
-  const rows = history ? [{ label: history.originalAvailable === false ? STRINGS.history.earliestSaved : STRINGS.history.original, at: undefined as number | undefined }, ...history.steps] : [];
+  type Row = NonNullable<typeof history>['steps'][number] | { label: string; at: undefined; by?: undefined; changes?: undefined; why?: undefined };
+  const rows: Row[] = history ? [{ label: history.originalAvailable === false ? STRINGS.history.earliestSaved : STRINGS.history.original, at: undefined }, ...history.steps] : [];
 
   return (
     <div className="space-y-5">
@@ -122,6 +125,32 @@ export default function HistoryPanel({ photo, activeSizeId, onForkFromStep, onSw
                     <span className="shrink-0 text-[0.625rem] font-semibold text-[var(--brand-accent)]">{STRINGS.history.forkFromCheckpoint}</span>
                     {row.at !== undefined && <span className="font-mono text-[0.625rem] text-[var(--text-muted)]">{timeOf(row.at)}</span>}
                   </button>
+                  {(row.changes?.length || row.why?.length) && !later ? (
+                    <div className="mt-1 space-y-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] px-3 py-2 text-[0.6875rem] text-[var(--text-secondary)]">
+                      {row.changes?.length ? (
+                        <>
+                          <p className="font-semibold text-[var(--text-primary)]">{STRINGS.history.whatChanged}</p>
+                          <ul className="space-y-0.5">
+                            {row.changes.map((change) => <li key={change.label}>{STRINGS.history.change(change.label, change.from, change.to)}</li>)}
+                          </ul>
+                        </>
+                      ) : null}
+                      {row.why?.length ? (
+                        <>
+                          <p className="pt-1 font-semibold text-[var(--text-primary)]">{STRINGS.history.why}</p>
+                          <ul className="list-disc space-y-0.5 pl-4">
+                            {row.why.map((reason, index) => <li key={index}>{reason}</li>)}
+                          </ul>
+                        </>
+                      ) : null}
+                      {current && row.by && onUndo ? (
+                        <button type="button" onClick={onUndo}
+                          className="mt-1 min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-primary)]">
+                          {STRINGS.history.undoThis}
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </li>
               );
             })}

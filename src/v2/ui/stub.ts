@@ -724,6 +724,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       ],
       localCacheLimitGb: 25,
       hideProFeatures: false,
+      advancedControls: false,
     },
     activePanel: 'adjust',
     panels: createDefaultPanels(),
@@ -971,6 +972,18 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     },
     readXmpSidecars: () => {
       setStore((prev) => ({ ...prev, lastActionNotice: 'XMP sidecars are available in the real workspace.' }));
+    },
+    readLightroomCatalogue: () => {
+      setStore((prev) => ({ ...prev, lastActionNotice: 'Lightroom catalogues are available in the real workspace.' }));
+    },
+    backUpProjectNow: () => {
+      setStore((prev) => ({ ...prev, lastActionNotice: 'Backups are available in the real workspace.' }));
+    },
+    saveProjectBackupFile: () => {
+      setStore((prev) => ({ ...prev, lastActionNotice: 'Backups are available in the real workspace.' }));
+    },
+    restoreProjectBackup: () => {
+      setStore((prev) => ({ ...prev, lastActionNotice: 'Backups are available in the real workspace.' }));
     },
     importDroppedPhotos: (files) => {
       logAction('importDroppedPhotos', { count: files.length });
@@ -1780,6 +1793,12 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
+    detectColourEdges: async (photoId) => { logAction('detectColourEdges', { photoId }); return 'clean'; },
+    addImageLayer: async (photoId) => { logAction('addImageLayer', { photoId }); },
+    addPhotoLayer: async (photoId, sourcePhotoId) => { logAction('addPhotoLayer', { photoId, sourcePhotoId }); },
+    updateLayer: (photoId, layerId) => { logAction('updateLayer', { photoId, layerId }); },
+    removeLayer: (photoId, layerId) => { logAction('removeLayer', { photoId, layerId }); },
+    moveLayer: (photoId, layerId, direction) => { logAction('moveLayer', { photoId, layerId, direction }); },
     removeOverlayRow: (photoId, rowId) => {
       logAction('removeOverlayRow', { photoId, rowId });
       updatePhotoById(photoId, (photo) => ({
