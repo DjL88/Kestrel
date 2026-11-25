@@ -108,6 +108,9 @@ test('Pro: the text overlay on the canvas is drawn into the exported file, and l
   const root = await openProject(page, 'Overlay export check', '#586b82');
   await root.getByRole('button', { name: 'Overlays', exact: true }).first().click();
   await root.locator('div').filter({ hasText: /^Show text overlay on this photo/ }).getByRole('switch').first().click();
+  // A made-up PNG has no camera details, so the default rows say nothing (never a made-up caption). Show its file name.
+  await root.getByRole('combobox', { name: 'Choose a field for row 1' }).selectOption('filename');
+  await expect(root.getByTestId('overlay-row').first()).toContainText('pro-1.png');
   const exportOnce = async (withOverlay: boolean) => {
     await root.getByRole('button', { name: /^Export/ }).first().click();
     const dialog = page.getByRole('dialog', { name: /export/i });
@@ -150,20 +153,28 @@ test('Pro: an overlay is saved as a template on this device, kept after a reload
   await expect(root.getByText('No templates yet.')).toBeVisible();
   await root.getByLabel('Template name').fill('Wildlife credit');
   await root.getByRole('button', { name: 'Save current overlay as a template' }).click();
-  const list = root.getByRole('list', { name: 'Templates' });
-  await expect(list.getByText('Wildlife credit')).toBeVisible();
+  const apply = root.getByRole('combobox', { name: /Apply a saved template: Apply to this photo/ });
+  await expect(apply.getByRole('option', { name: 'Wildlife credit' })).toHaveCount(1);
 
   // Kept on this device: still there after a reload and a reopen of the project.
   await page.reload();
-  await page.locator('.inflight-v2').getByRole('button', { name: /Template check/ }).first().click();
-  await page.locator('.inflight-v2').getByRole('button', { name: 'Overlays', exact: true }).first().click();
-  await expect(page.locator('.inflight-v2').getByRole('list', { name: 'Templates' }).getByText('Wildlife credit')).toBeVisible();
+  const again = page.locator('.inflight-v2');
+  await again.getByRole('button', { name: /Template check/ }).first().click();
+  await again.getByRole('button', { name: 'Overlays', exact: true }).first().click();
+  const applyAgain = again.getByRole('combobox', { name: /Apply a saved template/ });
+  await expect(applyAgain.getByRole('option', { name: 'Wildlife credit' })).toHaveCount(1);
 
-  await page.locator('.inflight-v2').getByRole('button', { name: /Apply to this photo: Wildlife credit/ }).click();
-  await expect(page.locator('.inflight-v2').getByText(/Applied "Wildlife credit" to 1 photo/)).toBeVisible();
+  // Change the photo's overlay, so applying the saved template has something to put back.
+  await again.locator('div').filter({ hasText: /^Show text overlay on this photo/ }).getByRole('switch').first().click();
+  const id = await applyAgain.getByRole('option', { name: 'Wildlife credit' }).getAttribute('value');
+  await applyAgain.selectOption(id!);
+  await expect(again.getByText(/Applied "Wildlife credit" to 1 photo/)).toBeVisible();
 
-  await page.locator('.inflight-v2').getByRole('button', { name: 'Delete Wildlife credit' }).click();
-  await expect(page.locator('.inflight-v2').getByText('No templates yet.')).toBeVisible();
+  // Renaming and deleting live in Settings → Templates.
+  await again.getByRole('button', { name: 'Settings: Templates' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Delete Wildlife credit' }).click();
+  await expect(dialog.getByText('No templates yet.')).toBeVisible();
 });
 
 test('Pro: the Hide Pro features choice is not offered to an account that has Pro, and nothing is hidden', async ({ page }) => {
