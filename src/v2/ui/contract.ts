@@ -289,14 +289,16 @@ export type MaskGeometry =
 
 export type MaskGeometryField = 'cx' | 'cy' | 'rx' | 'ry' | 'angle' | 'x1' | 'y1' | 'x2' | 'y2';
 
+export interface MaskLayerPart { id: string; mode: 'add' | 'subtract' | 'intersect' }
+
 export interface MaskLayer {
   id: string;
   name: string;
   type: 'subject' | 'sky' | 'background' | 'brush' | 'area' | 'gradient';
   /** Present only for genuine editable oval/gradient masks; never fabricated for detected subjects. */
   geometry?: MaskGeometry;
-  /** Restrict this layer to, or subtract, another layer's saved shape. */
-  limit?: { id: string; mode: 'intersect' | 'subtract' };
+  /** Other layers combined into this one, in order: add their area, subtract it, or keep only the overlap. */
+  parts?: MaskLayerPart[];
   visible: boolean;
   /** Edge softness, 0 to 100. */
   feather: number;
@@ -833,7 +835,8 @@ export interface WorkspaceActions {
   setMaskEdit: (photoId: string, maskId: string, key: string, value: number) => void;
   setMaskFeather: (photoId: string, maskId: string, percent: number) => void;
   setMaskGeometry: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
-  setMaskLimit: (photoId: string, maskId: string, limit: MaskLayer['limit'] | null) => void;
+  /** Combine other masks into this one, in order; an empty list removes every part. */
+  setMaskParts: (photoId: string, maskId: string, parts: MaskLayerPart[]) => void;
 
   // Tasks & Export
   cancelTask: (taskId: string) => void;
