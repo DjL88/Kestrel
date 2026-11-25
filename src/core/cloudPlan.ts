@@ -54,6 +54,32 @@ export const STORAGE_PLANS = [
   { id: 'storage-100', bytes: 100 * GB, monthlyPence: 699, available: false },
 ] as const;
 
+/**
+ * Typical bytes the cloud keeps for one photo, used only to say roughly how many photos fit. Every cloud photo has a
+ * 2048 px JPEG preview and a small thumbnail (about 1 MB together); an original goes up only when the owner chooses.
+ * A 25 MP RAW is about 30 MB and a full-size 25 MP JPEG about 10 MB. Generous sizes, so the counts err low.
+ */
+export const TYPICAL_PHOTO_BYTES = { preview: 1_000_000, raw25mp: 30_000_000, jpeg25mp: 10_000_000 } as const;
+
+/** Rounded down to two significant figures, so a count is never promised high. */
+function roughDown(n: number): number {
+  if (!(n >= 1)) return 0;
+  const step = 10 ** Math.max(0, Math.floor(Math.log10(n)) - 1);
+  return Math.floor(n / step) * step;
+}
+
+export interface PhotosThatFit { previews: number; withRawOriginals: number; withJpegOriginals: number }
+
+/** About how many photos fit in `bytes`: previews only, or with their 25 MP RAW or JPEG originals too. */
+export function photosThatFit(bytes: number): PhotosThatFit {
+  const b = whole(bytes), t = TYPICAL_PHOTO_BYTES;
+  return {
+    previews: roughDown(b / t.preview),
+    withRawOriginals: roughDown(b / (t.preview + t.raw25mp)),
+    withJpegOriginals: roughDown(b / (t.preview + t.jpeg25mp)),
+  };
+}
+
 /** Top-up amounts offered, pence. £5 is the minimum because Paddle charges 50p on every payment. */
 export const TOP_UP_PENCE = [500, 1000, 2000] as const;
 

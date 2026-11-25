@@ -1417,6 +1417,7 @@ export const cy: AreaTranslation<typeof source> = {
     ownStorage: 'Nid yw eich gyriannau, NAS a ffolderi cwmwl eich hun yn costio dim yma.',
     storageNoneIncluded: 'Does dim storfa cwmwl yn rhan o Basic. Caiff ei thalu o’r balans cwmwl, neu mae Pro yn cynnwys 2.5 GB.',
     storagePlanSoon: (s, p) => `Yn dod cyn hir: cynllun storfa sefydlog, ${s} am ${p} y mis drwy ddebyd uniongyrchol.`,
+    storageHolds: (s, p, r, j) => `Mae ${s} yn dal tua ${p} llun fel rhagolygon, neu ${r} gyda gwreiddiolion RAW 25 MP, neu ${j} gyda gwreiddiolion JPEG 25 MP.`,
     taskUses: (n, l) => `Yn defnyddio ${n} o’ch lluniau cwmwl misol (${l} ar ôl wedyn)`,
     taskPays: (n, a) => `${n} llun y tu hwnt i’ch lwfans misol: ${a} o’ch balans cwmwl`,
     taskOnDevice: 'Dim digon o falans cwmwl: bydd y dasg hon yn rhedeg ar y ddyfais hon',

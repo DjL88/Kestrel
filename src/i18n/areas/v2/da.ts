@@ -1417,6 +1417,7 @@ export const da: AreaTranslation<typeof source> = {
     ownStorage: 'Dine egne drev, NAS og cloudmapper koster intet her.',
     storageNoneIncluded: 'Basic indeholder ingen cloudlagring. Den betales fra cloudsaldoen, eller Pro indeholder 2,5 GB.',
     storagePlanSoon: (s, p) => `Kommer snart: en fast lagringsplan, ${s} for ${p} om måneden via Betalingsservice.`,
+    storageHolds: (s, p, r, j) => `${s} rummer omkring ${p} billeder som forhåndsvisninger, ${r} med 25 MP RAW-originaler eller ${j} med 25 MP JPEG-originaler.`,
     taskUses: (n, l) => `Bruger ${n} af dine månedlige cloudbilleder (${l} tilbage bagefter)`,
     taskPays: (n, a) => `${n} billeder ud over din månedlige kvote: ${a} fra din cloudsaldo`,
     taskOnDevice: 'Ikke nok cloudsaldo: denne opgave kører på denne enhed',

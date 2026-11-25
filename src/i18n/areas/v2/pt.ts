@@ -1417,6 +1417,7 @@ export const pt: AreaTranslation<typeof source> = {
     ownStorage: 'Os seus discos, NAS e pastas na nuvem não custam nada aqui.',
     storageNoneIncluded: 'O Basic não inclui armazenamento na nuvem. É pago pelo saldo na nuvem, ou o Pro inclui 2,5 GB.',
     storagePlanSoon: (s, p) => `Em breve: um plano de armazenamento fixo, ${s} por ${p} por mês por débito direto.`,
+    storageHolds: (s, p, r, j) => `${s} guardam cerca de ${p} fotos como pré-visualizações, ${r} com originais RAW de 25 MP ou ${j} com originais JPEG de 25 MP.`,
     taskUses: (n, l) => `Usa ${n} das suas fotos mensais na nuvem (ficam ${l} depois)`,
     taskPays: (n, a) => `${n} fotos além da sua quota mensal: ${a} do saldo na nuvem`,
     taskOnDevice: 'Saldo na nuvem insuficiente: esta tarefa será feita neste dispositivo',
