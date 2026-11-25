@@ -48,6 +48,8 @@ export const fi: AreaTranslation<typeof source> = {
     cancel: 'Peruuta',
     saved: (count: number) => (count > 1 ? `Tallennettu ${count} kuvaan.` : 'Tallennettu.'),
   },
+  raceNumber: (what: string, number: string) => `${what}, numero ${number}`,
+  named: (what: string, name: string) => `${what}, nimeltään ${name}`,
   reader: {
     title: 'Lue tunnukset, kilpanumerot ja veneiden nimet',
     description: (megabytes: string) => `Lukee tällä laitteella ilma-alusten rekisteritunnukset ja sotilaalliset sarjanumerot, kilpa-autojen ja kilpamoottoripyörien kilpanumerot sekä veneiden nimet ja IMO-numerot. Ilma-alusten tunnukset haetaan julkisten rekisterien offline-kopiosta. Kertalataus, ${megabytes} Mt. Tieajoneuvojen rekisterikilpiä ei koskaan lueta.`,

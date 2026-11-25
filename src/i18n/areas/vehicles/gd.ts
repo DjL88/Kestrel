@@ -48,6 +48,8 @@ export const gd: AreaTranslation<typeof source> = {
     cancel: 'Sguir dheth',
     saved: (count: number) => (count > 1 ? `Air a shàbhaladh airson ${count} dealbhan.` : 'Air a shàbhaladh.'),
   },
+  raceNumber: (what: string, number: string) => `${what}, àireamh ${number}`,
+  named: (what: string, name: string) => `${what}, air a bheil ${name}`,
   reader: {
     title: 'Leugh clàraidhean, àireamhan rèis is ainmean bhàtaichean',
     description: (megabytes: string) => `A’ leughadh clàraidhean is àireamhan sreathach armailteach air itealain, àireamhan rèis air càraichean is baidhsagalan rèis, agus ainmean is àireamhan IMO air bàtaichean, air an uidheam seo. Thèid clàraidhean itealain a lorg ann an lethbhreac far loidhne de chlàran poblach. Luchdadh a-nuas aon turas de ${megabytes} MB. Cha tèid clàran-àireimh charbadan rathaid a leughadh idir.`,

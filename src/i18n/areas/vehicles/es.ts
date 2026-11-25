@@ -48,6 +48,8 @@ export const es: AreaTranslation<typeof source> = {
     cancel: 'Cancelar',
     saved: (count: number) => (count > 1 ? `Guardado en ${count} fotos.` : 'Guardado.'),
   },
+  raceNumber: (what: string, number: string) => `${what}, dorsal ${number}`,
+  named: (what: string, name: string) => `${what}, llamado ${name}`,
   reader: {
     title: 'Leer matrículas, dorsales y nombres de barcos',
     description: (megabytes: string) => `Lee en este dispositivo las matrículas y números de serie militares de las aeronaves, los dorsales de coches y motos de carreras, y los nombres y números IMO de los barcos. Las matrículas de aeronaves se buscan en una copia sin conexión de registros públicos. Una única descarga de ${megabytes} MB. Nunca se leen las matrículas de los vehículos de carretera.`,

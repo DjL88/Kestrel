@@ -48,6 +48,8 @@ export const it: AreaTranslation<typeof source> = {
     cancel: 'Annulla',
     saved: (count: number) => (count > 1 ? `Salvato per ${count} foto.` : 'Salvato.'),
   },
+  raceNumber: (what: string, number: string) => `${what}, numero ${number}`,
+  named: (what: string, name: string) => `${what}, di nome ${name}`,
   reader: {
     title: 'Leggi marche, numeri di gara e nomi di barche',
     description: (megabytes: string) => `Legge su questo dispositivo le marche e i numeri di serie militari degli aeromobili, i numeri di gara di auto e moto da corsa, e i nomi e numeri IMO delle barche. Le marche degli aeromobili vengono cercate in una copia offline di registri pubblici. Un download unico di ${megabytes} MB. Le targhe dei veicoli stradali non vengono mai lette.`,

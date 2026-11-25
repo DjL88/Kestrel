@@ -57,6 +57,9 @@ export const source = {
     cancel: 'Cancel',
     saved: (count: number) => (count > 1 ? `Saved for ${count} photos.` : 'Saved.'),
   },
+  /** A race number read from a racing car or bike, at a public sporting event. */
+  raceNumber: (what: string, number: string) => `${what}, number ${number}`,
+  named: (what: string, name: string) => `${what}, named ${name}`,
   /** Settings → Assistance: the opt-in markings reader. */
   reader: {
     title: 'Read registrations, race numbers and boat names',

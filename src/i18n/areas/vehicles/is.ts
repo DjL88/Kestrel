@@ -48,6 +48,8 @@ export const is: AreaTranslation<typeof source> = {
     cancel: 'Hætta við',
     saved: (count: number) => (count > 1 ? `Vistað fyrir ${count} myndir.` : 'Vistað.'),
   },
+  raceNumber: (what: string, number: string) => `${what}, númer ${number}`,
+  named: (what: string, name: string) => `${what}, sem heitir ${name}`,
   reader: {
     title: 'Lesa skráningar, keppnisnúmer og bátanöfn',
     description: (megabytes: string) => `Les á þessu tæki skráningar og hernaðarleg raðnúmer á loftförum, keppnisnúmer á kappakstursbílum og kappakstursmótorhjólum, og nöfn og IMO-númer á bátum. Skráningum loftfara er flett upp í ónettengdu afriti af opinberum skrám. Einstakt niðurhal upp á ${megabytes} MB. Bílnúmer eru aldrei lesin.`,
