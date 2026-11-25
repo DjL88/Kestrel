@@ -77,6 +77,7 @@ import { maskVerificationKey, commitVerifiedMasks } from './maskVerificationComm
 import { commitSubjectMask, subjectMaskTarget } from './subjectMaskCommit';
 import { createMask, createSubjectMask, framingKey, hasActiveMasks } from '../../core/maskTypes';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../../core/photoFraming';
+import { estimateIlluminant, neutralBalance, samplePatch } from '../../core/neutralWhite';
 import { GUIDED_RENDER_EDGE } from '../../core/subjectGuide';
 import { detectSubjectGuided } from '../../providers/subjectDetector';
 import { judgeSubject } from '../../core/autoCull';
@@ -2011,6 +2012,26 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (!found) return 'unclear';
       applyPatch([photoId], { caRed: Math.round(found.red * 100), caBlue: Math.round(found.blue * 100) });
       return found.red === 0 && found.blue === 0 ? 'clean' : 'corrected';
+    },
+    neutralWhiteBalance: async (photoId, at) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      if (!frame || !provider.current) return 'unreadable';
+      // Measured on the unedited framed picture (what the canvas shows, before the edit), at a bounded size.
+      const image = await loadExportSource(frame, provider.current);
+      const framing = frame.framing ?? DEFAULT_FRAMING;
+      const { width, height } = framedSize(image.naturalWidth, image.naturalHeight, framing);
+      const canvas = document.createElement('canvas');
+      drawFramedPhoto(image, canvas, framing, { scale: Math.min(1, 1200 / Math.max(width, height)) });
+      const pixels = canvas.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, canvas.width, canvas.height).data;
+      const sample = at
+        ? samplePatch(pixels, canvas.width, canvas.height, at.x * (canvas.width - 1), at.y * (canvas.height - 1), Math.max(2, Math.round(Math.max(canvas.width, canvas.height) * 0.004)))
+        : estimateIlluminant(pixels, canvas.width, canvas.height);
+      canvas.width = 0; canvas.height = 0;
+      if (!sample) return 'unreadable';
+      const balance = neutralBalance(sample, frame.asShotWhite?.kelvin);
+      // Only this photo: Auto is measured per picture, and a picked spot belongs to the picture it was picked on.
+      applyPatch([photoId], { temperature: balance.warmth * 50, tint: balance.tint * 50, whiteBalance: balance.whiteBalance });
+      return balance.limited ? 'limited' : 'set';
     },
     addImageLayer: async (photoId) => {
       const picked = await pickImageFile();
