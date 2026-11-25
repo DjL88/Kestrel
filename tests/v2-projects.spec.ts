@@ -95,7 +95,18 @@ test('?v2 hub: list view by default with favourite samples, smaller tiles on req
   await expect(firstRow.getByRole('img', { name: /^Cover photograph for / })).toBeVisible();
   await expect(firstRow.getByTestId('project-samples').locator('img')).toHaveCount(3);
   const rowBox = (await firstRow.boundingBox())!;
-  expect(rowBox.height).toBeLessThan(140);
+  expect(rowBox.height).toBeLessThan(112);
+  // Compact rows: two across when the window is wide enough, one column on a phone.
+  const rowBoxes = await studio.getByTestId('project-row').evaluateAll((rows) => rows.slice(0, 2).map((row) => row.getBoundingClientRect().toJSON()));
+  expect(rowBoxes.length).toBe(2);
+  const [a, b] = rowBoxes;
+  if (page.viewportSize()!.width >= 768) {
+    expect(Math.abs(a.top - b.top)).toBeLessThan(2);
+    expect(b.left).toBeGreaterThan(a.right);
+  } else {
+    expect(b.top).toBeGreaterThanOrEqual(a.bottom);
+    expect(Math.abs(a.left - b.left)).toBeLessThan(2);
+  }
 
   await layout.getByRole('button', { name: 'Tiles' }).click();
   await expect(studio.getByTestId('project-row')).toHaveCount(0);
