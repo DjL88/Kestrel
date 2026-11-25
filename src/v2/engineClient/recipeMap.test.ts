@@ -194,3 +194,14 @@ test('colour fringe settings round-trip, and zero is stored as nothing', () => {
   assert.equal(edit?.defringe, undefined);
   assert.equal(applyRecipePatch(undefined, { caRed: 500 }).edit?.lateralCa?.red, 1, 'clamped to range');
 });
+
+test('AI denoise shows as on while a stored result is in the edit, and the recipe can only remove it', async () => {
+  const { applyRecipePatch, editToRecipe } = await import('./recipeMap');
+  const trueDetailAi = { model: 'nafnet-sidd-w32-w16', modelSha256: 'c'.repeat(64), asset: 'a'.repeat(64), framingKey: 'k',
+    rect: { x: 0, y: 0, w: 1, h: 1 }, maskId: 'auto-denoise-p', subject: 1, eyes: 0.6 };
+  const edit = { exposure: 0, warmth: 0, colour: 0, trueDetailAi };
+  assert.equal(editToRecipe(edit).aiDenoise, true);
+  assert.equal(editToRecipe({ exposure: 0, warmth: 0, colour: 0 }).aiDenoise, undefined);
+  assert.equal(applyRecipePatch(edit, { aiDenoise: false }).edit.trueDetailAi, undefined);
+  assert.deepEqual(applyRecipePatch({ exposure: 0, warmth: 0, colour: 0 }, { aiDenoise: true }).edit.trueDetailAi, undefined);
+});

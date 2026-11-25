@@ -952,6 +952,8 @@ export const es: AreaTranslation<typeof source> = {
     denoiseNow: 'Reducir el ruido de esta foto',
     denoiseCloudNote: 'Si ha iniciado sesión y está en línea, este botón envía una copia de trabajo (nunca el original) a la nube de InFlight solo para esta tarea. El resultado se comprueba en este dispositivo. Si la nube no está disponible, se ejecuta aquí.',
     denoiseDeviceNote: 'Se ejecuta en este dispositivo. El procesamiento en la nube forma parte de Pro.',
+    aiDenoiseInUse: 'La reducción de ruido con IA (NAFNet) se aplica al sujeto. Solo se guarda en este dispositivo.',
+    aiDenoiseOff: 'Desactivar la reducción de ruido con IA',
     rawAiDenoise: 'Reducción profunda de ruido RAW',
     luminanceDenoise: 'Ruido de luminancia',
     colourDenoise: 'Ruido de color',

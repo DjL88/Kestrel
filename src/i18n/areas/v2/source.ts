@@ -984,6 +984,8 @@ export const source = {
     denoiseNow: 'Denoise this photo',
     denoiseCloudNote: 'When you are signed in and online, this sends a working-size copy (never the original) to InFlight cloud for this one job. The result is checked on this device. If the cloud is unavailable, it runs here.',
     denoiseDeviceNote: 'Runs on this device. Cloud processing is part of Pro.',
+    aiDenoiseInUse: 'AI denoise (NAFNet) is in use on the subject. It is stored on this device only.',
+    aiDenoiseOff: 'Turn off AI denoise',
     rawAiDenoise: 'RAW Deep Denoise',
     luminanceDenoise: 'Luminance denoise',
     colourDenoise: 'Colour noise',

@@ -952,6 +952,8 @@ export const de: AreaTranslation<typeof source> = {
     denoiseNow: 'Dieses Foto entrauschen',
     denoiseCloudNote: 'Wenn Sie angemeldet und online sind, sendet diese Schaltfläche eine Arbeitskopie (nie das Original) nur für diesen Auftrag an die InFlight-Cloud und prüft das Ergebnis auf diesem Gerät. Ist die Cloud nicht verfügbar, läuft es hier.',
     denoiseDeviceNote: 'Läuft auf diesem Gerät. Cloud-Verarbeitung ist Teil von Pro.',
+    aiDenoiseInUse: 'KI-Rauschreduzierung (NAFNet) wird auf das Motiv angewendet. Sie wird nur auf diesem Gerät gespeichert.',
+    aiDenoiseOff: 'KI-Rauschreduzierung ausschalten',
     rawAiDenoise: 'Tiefe RAW-Rauschreduzierung',
     luminanceDenoise: 'Luminanzrauschen',
     colourDenoise: 'Farbrauschen',

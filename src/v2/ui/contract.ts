@@ -157,6 +157,8 @@ export interface EditRecipe {
   clarity: number; // -100 to 100
   sharpen: number; // 0 to 100
   denoiseRawAi: boolean;
+  /** TrueDetail AI denoise: true while a learned denoiser's stored result is blended into the subject. Set false to remove it. Absent = off. */
+  aiDenoise?: boolean;
   denoiseLuminance: number; // 0 to 100
   denoiseColour: number; // 0 to 100
   upscaleFactor: 1 | 2 | 4;

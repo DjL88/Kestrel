@@ -953,6 +953,8 @@ export const fi: AreaTranslation<typeof source> = {
     denoiseNow: 'Poista kohina tästä kuvasta',
     denoiseCloudNote: 'Kun olet kirjautunut ja verkossa, tämä painike lähettää työkopion (ei koskaan alkuperäistä) InFlight-pilveen vain tätä tehtävää varten ja tarkistaa tuloksen tällä laitteella. Jos pilvi ei ole käytettävissä, käsittely tehdään täällä.',
     denoiseDeviceNote: 'Toimii tällä laitteella. Pilvikäsittely kuuluu Prohon.',
+    aiDenoiseInUse: 'Tekoälykohinanpoisto (NAFNet) on käytössä kohteessa. Se tallennetaan vain tälle laitteelle.',
+    aiDenoiseOff: 'Poista tekoälykohinanpoisto käytöstä',
     rawAiDenoise: 'Syvä RAW-kohinanpoisto',
     luminanceDenoise: 'Luminanssikohina',
     colourDenoise: 'Värikohina',
