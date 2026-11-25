@@ -151,7 +151,7 @@ export const es: AreaTranslation<typeof source> = {
     copyTitle: 'Copiar los ajustes de esta foto (luz, color, detalle y máscaras). El recorte no se copia.',
     paste: 'Pegar ajustes',
     pasteTitle: 'Pegar los ajustes copiados (luz, color, detalle y máscaras) en esta foto. Su recorte se mantiene igual.',
-    pasteNothingTitle: 'Aún no se ha copiado nada. Usa primero Copiar ajustes en una foto.',
+    pasteNothingTitle: 'Aún no se ha copiado nada. Use primero Copiar ajustes en una foto.',
     doneSelecting: 'Selección hecha',
     selectPhotos: 'Seleccionar fotos',
     editingTogether: 'Editando juntas ✓',

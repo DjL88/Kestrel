@@ -81,7 +81,7 @@ export const cy: AreaTranslation<typeof source> = {
     foldAway: 'Plygu gwybodaeth y llun o’r golwg',
     tabs: 'Manylion y llun',
     tabInfo: 'Gwybodaeth',
-    tabSubject: 'Testun',
+    tabSubject: 'Gwrthrych',
     copyTitle: 'Copïo manylion y camera, y sgôr a’r penderfyniad; heb leoliad na llwybrau ffeiliau',
     copy: 'Copïo manylion y llun',
     copied: 'Wedi copïo manylion y llun.',
@@ -215,12 +215,12 @@ export const cy: AreaTranslation<typeof source> = {
   },
   mask: {
     adjustments: {
-      exposure: 'Datguddiad', brightness: 'Disgleirdeb', warmth: 'Cynhesrwydd', colour: 'Lliw', contrast: 'Cyferbyniad', highlights: 'Uchafbwyntiau golau',
+      exposure: 'Amlygiad', brightness: 'Disgleirdeb', warmth: 'Cynhesrwydd', colour: 'Lliw', contrast: 'Cyferbyniad', highlights: 'Uchafbwyntiau golau',
       shadows: 'Cysgodion', whites: 'Gwynion', blacks: 'Duon', vibrance: 'Bywiogrwydd',
       texture: 'Gwead', clarity: 'Eglurder', sharpen: 'Miniogi', denoise: 'Lleihau sŵn',
     },
     sliderFor: (label) => `${label} ar gyfer y masg hwn`,
-    kinds: { linear: 'Graddiant', radial: 'Hirgrwn', brush: 'Brwsh', subject: 'Testun' },
+    kinds: { linear: 'Graddiant', radial: 'Hirgrwn', brush: 'Brwsh', subject: 'Gwrthrych' },
     background: 'Cefndir',
     name: (kind, number) => `${kind} ${number}`,
     intro: 'Mae masgiau’n addasu rhan o’r llun. Ychwanegwch un, llusgwch ei ddolenni ar y llun, yna symudwch ei lithryddion.',

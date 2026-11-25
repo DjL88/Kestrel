@@ -113,10 +113,10 @@ export const es: AreaTranslation<typeof source> = {
     save: 'Guardar receta',
   },
   advice: {
-    subjectCheck: 'El sujeto no está claro. Revísalo antes de añadir un nombre de especie.',
+    subjectCheck: 'El sujeto no está claro. Revíselo antes de añadir un nombre de especie.',
     region: 'Revisión de la foto',
     verdict: { good: 'Se ve bien', nearly: 'Casi listo', 'needs-work': 'Necesita trabajo', unsure: 'Aún no estoy seguro' },
-    tryThis: 'Prueba esto',
+    tryThis: 'Pruebe esto',
     auto: 'Auto',
     autoApplied: 'Auto aplicado',
     undo: 'Deshacer',

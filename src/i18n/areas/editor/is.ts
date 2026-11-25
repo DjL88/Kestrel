@@ -123,7 +123,7 @@ export const is: AreaTranslation<typeof source> = {
     check: 'Athuga myndina mína',
     raise: 'Hækka',
     lower: 'Lækka',
-    sliders: { exposure: 'Lýsing', warmth: 'Hlýja', highlights: 'Hápunktar', shadows: 'Skuggar', contrast: 'Birtuskil' },
+    sliders: { exposure: 'Lýsing', warmth: 'Hlýja', highlights: 'Ljósir tónar', shadows: 'Skuggar', contrast: 'Birtuskil' },
     tryLabel: (action) => `Prófaðu þetta ${action}`,
     notes: { whiteClip: 'Hápunktar brunnir', blackClip: 'Skuggar lokaðir', dark: 'Lítur út fyrir að vera dökk', bright: 'Lítur út fyrir að vera björt', flat: 'Lítur út fyrir að vera flöt', warm: 'Hlýr blær', cool: 'Kaldur blær' },
     install: 'Setja upp myndaathugun',

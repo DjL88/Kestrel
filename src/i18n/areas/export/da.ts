@@ -68,7 +68,7 @@ export const da: AreaTranslation<typeof source> = {
     chooseOutput: "Output til kontrol",
     choose: "Vælg et output for at se dets prøve.",
     loading: "Indlæser fotoets forhåndsvisning…",
-    loadFailed: "Fotoet kunne ikke indlæses til prøven. Dit original er urørt.",
+    loadFailed: "Fotoet kunne ikke indlæses til prøven. Din original er urørt.",
     retry: "Prøv igen",
     resolution: "Kun forhåndsvisning i skærmopløsning. Tjek den gemte fil for endelig detalje og størrelse.",
   },

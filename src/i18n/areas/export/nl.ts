@@ -9,7 +9,7 @@ export const nl: AreaTranslation<typeof source> = {
     include: "Bewerkbare metadata in JPEG / PNG / TIFF opnemen",
     privacy: "Standaard uit. Oorspronkelijke EXIF-, GPS-, serienummer- en locatiegegevens worden niet gekopieerd. Alleen gekozen informatie wordt als XMP opgeslagen.",
     photoTitle: "Fototitel / onderwerp",
-    perPhoto: "Elke foto gebruikt het bevestigde onderwerp, tenzij je één gezamenlijke titel invult.",
+    perPhoto: "Elke foto gebruikt het bevestigde onderwerp, tenzij u één gezamenlijke titel invult.",
     caption: "Beschrijving of bijschrift",
     creator: "Fotograaf / maker",
     copyright: "Auteursrecht",
@@ -30,7 +30,7 @@ export const nl: AreaTranslation<typeof source> = {
   rawTiff: {
     action: "16-bits RAW-TIFF exporteren (prototype)",
     details: "Over 16-bits RAW-TIFF",
-    help: "Optionele TIFF op basis van RAW-sensorgegevens met je opgeslagen bewerkingen. Watermerken en tekst worden niet ingebrand; optionele GPS- of EXIF-gegevens worden niet gekopieerd. De kleuren zijn als sRGB gemarkeerd, maar kleurnauwkeurigheid en prestaties moeten nog met het prototype worden getest. Bij een niet-ondersteunde bewerking wordt het bestand niet opgeslagen.",
+    help: "Optionele TIFF op basis van RAW-sensorgegevens met uw opgeslagen bewerkingen. Watermerken en tekst worden niet ingebrand; optionele GPS- of EXIF-gegevens worden niet gekopieerd. De kleuren zijn als sRGB gemarkeerd, maar kleurnauwkeurigheid en prestaties moeten nog met het prototype worden getest. Bij een niet-ondersteunde bewerking wordt het bestand niet opgeslagen.",
   },
   typeface: "Lettertype",
   sidecar: {
@@ -195,8 +195,8 @@ export const nl: AreaTranslation<typeof source> = {
     placeholder: '© Uw naam',
     pictureChosen: 'Afbeelding gekozen. Kies een andere om deze te vervangen.',
     pictureTooBig: 'Kies een afbeelding kleiner dan 3 MB, liefst een PNG met een doorzichtige achtergrond.',
-    pictureMissing: "Deze watermerkafbeelding staat niet op dit apparaat. Kies de afbeelding opnieuw voordat je exporteert.",
-    storageFailed: "Kon deze afbeelding niet privé opslaan op dit apparaat. Je vorige watermerk is niet gewijzigd.",
+    pictureMissing: "Deze watermerkafbeelding staat niet op dit apparaat. Kies de afbeelding opnieuw voordat u exporteert.",
+    storageFailed: "Kon deze afbeelding niet privé opslaan op dit apparaat. Uw vorige watermerk is niet gewijzigd.",
     localOnly: "Afbeeldingswatermerken blijven op dit apparaat. Een voorinstelling bewaart alleen een lokale verwijzing, niet de afbeelding.",
     position: 'Positie',
     positions: {
@@ -232,7 +232,7 @@ export const nl: AreaTranslation<typeof source> = {
     backgroundSaving: (count) => `${count} bestanden exporteren op de achtergrond`,
     choosingFolder: "Map kiezen…",
     desktopBackground: (count) => `${count} bestanden op de achtergrond in een map opslaan`,
-    desktopBackgroundHelp: "Kies eenmaal een map. De bestanden worden een voor een opgeslagen in een nieuwe gedateerde map InFlight Exports, gegroepeerd per bestemming. Je kunt doorwerken; de taakbeheerder toont de voortgang en eventuele fouten.",
+    desktopBackgroundHelp: "Kies eenmaal een map. De bestanden worden een voor een opgeslagen in een nieuwe gedateerde map InFlight Exports, gegroepeerd per bestemming. U kunt doorwerken; de taakbeheerder toont de voortgang en eventuele fouten.",
     saving: 'Opslaan…',
     saved: (name) => `${name} opgeslagen`,
     ready: (count) => plural(count, { one: `${count} bestand klaar`, other: `${count} bestanden klaar` }),

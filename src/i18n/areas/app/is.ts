@@ -7,7 +7,7 @@ const photos = (n: number) => plural(n, { one: `${n} mynd`, other: `${n} myndir`
 /** Icelandic. DRAFT: written without a native speaker's check. */
 export const is: AreaTranslation<typeof source> = {
   projects: {
-    catalogueUnavailable: 'Ekki tókst að opna verkefnaskrána á tækinu. Endurhlaðið til að reyna aftur.',
+    catalogueUnavailable: 'Ekki tókst að opna verkefnaskrána á tækinu. Endurhladdu síðuna til að reyna aftur.',
     saveFailed: 'Ekki tókst að vista breytingar á verkefninu. Athugaðu laust geymslupláss í vafranum.',
     openFailed: 'Ekki tókst að opna þetta verkefni. Reyndu aftur.',
     deleteFailed: 'Ekki tókst að eyða verkefninu. Engu var breytt.',

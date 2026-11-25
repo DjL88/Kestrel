@@ -113,7 +113,7 @@ export const nl: AreaTranslation<typeof source> = {
     save: 'Recept opslaan',
   },
   advice: {
-    subjectCheck: 'Het onderwerp is onduidelijk. Controleer het voordat je een soortnaam toevoegt.',
+    subjectCheck: 'Het onderwerp is onduidelijk. Controleer het voordat u een soortnaam toevoegt.',
     region: 'Fotocontrole',
     verdict: { good: 'Ziet er goed uit', nearly: 'Bijna klaar', 'needs-work': 'Kan beter', unsure: 'Nog niet zeker' },
     tryThis: 'Probeer dit',

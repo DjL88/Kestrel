@@ -11,10 +11,10 @@ export const de: AreaTranslation<typeof source> = {
   subjectReview: {
     find: "Motive suchen",
     busy: "Motive werden auf diesem Gerät gesucht…",
-    unavailable: "Das Foto konnte nicht geprüft werden. Prüfe, ob das Original verfügbar ist, und versuche es erneut.",
+    unavailable: "Das Foto konnte nicht geprüft werden. Prüfen Sie, ob das Original verfügbar ist, und versuchen Sie es erneut.",
     empty: "Keine eindeutigen Motive gefunden.",
-    found: "Öffne einen Vorschlag, um den Ausschnitt bei 100 % anzusehen.",
-    cropUnavailable: "Ausschnitt zu gross für die Anzeige",
+    found: "Öffnen Sie einen Vorschlag, um den Ausschnitt bei 100 % anzusehen.",
+    cropUnavailable: "Ausschnitt zu groß für die Anzeige",
     label: (number, kind) => `${number}. ${kind}`,
     bird: "Möglicher Vogel",
     aircraft: "Mögliches Flugzeug",
@@ -143,7 +143,7 @@ export const de: AreaTranslation<typeof source> = {
     photoInfoFor: (filename) => `Fotoinfos und Bewertung für ${filename}`,
   },
   decision: {
-    undecided: "Unentschieden",
+    undecided: "Noch offen",
     undecidedPhoto: (filename) => `${filename} zurück zum Sichten (unentschieden)`,
     reject: "Ablehnen",
     rejectPhoto: (filename) => `${filename} ablehnen`,

@@ -291,7 +291,7 @@ export const pt: AreaTranslation<typeof source> = {
     drawing: 'A desenhar…',
     failed: 'Não foi possível desenhar esta pré-visualização',
     turn: (format) => `Rodar ${format} de lado`,
-    turnTitle: 'Roda a forma de lado. A fotografia não é rodada.',
+    turnTitle: 'Rode a forma de lado. A fotografia não é rodada.',
     zoomOut: 'Reduzir',
     zoomIn: 'Ampliar',
     zoom: (format) => `Zoom ${format}`,

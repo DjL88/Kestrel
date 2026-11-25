@@ -4,7 +4,7 @@ import type { source } from './source';
 /** Welsh (chi). DRAFT: written without a native speaker's check. Noise uses sŵn, as elsewhere; see the wording audit's question. */
 export const cy: AreaTranslation<typeof source> = {
   steps: {
-    whiteBalance: 'Cydbwysedd gwyn', temperature: 'Tymheredd', tint: 'Arlliw', exposure: 'Datguddiad', contrast: 'Cyferbyniad',
+    whiteBalance: 'Cydbwysedd gwyn', temperature: 'Tymheredd', tint: 'Arlliw', exposure: 'Amlygiad', contrast: 'Cyferbyniad',
     highlights: 'Uchafbwyntiau golau', shadows: 'Cysgodion', whites: 'Gwynion', blacks: 'Duon', toneCurve: 'Cromlin tôn',
     vibrance: 'Bywiogrwydd', saturation: 'Dirlawnder', colourMixer: 'Cymysgydd lliw', clarity: 'Eglurder', detailRecovery: 'Gwead',
     sharpen: 'Miniogi', denoiseLuminance: 'Sŵn goleuedd', denoiseColour: 'Sŵn lliw', upscaleFactor: 'Ehangu',

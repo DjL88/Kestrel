@@ -29,7 +29,7 @@ export const nl: AreaTranslation<typeof source> = {
     xmpImportKeeper: "Een XMP zou een bewaarde foto afwijzen. Controleer deze apart in Fotogegevens.",
     xmpImportFailed: "XMP kan niet worden geïmporteerd. Controleer bestandsnamen, RAW/JPEG-dubbelen en bestandsveiligheid.",
     xmpSidecars: "Beoordelingen en tags opslaan (XMP)…",
-    xmpHelp: "Bewaar beoordelingen, Bewaren/Afwijzen-keuzes en bevestigde tags apart van je foto's. Meerdere bestanden worden gebundeld als ZIP.",
+    xmpHelp: "Bewaar beoordelingen, Bewaren/Afwijzen-keuzes en bevestigde tags apart van uw foto’s. Meerdere bestanden worden gebundeld als ZIP.",
     file: "Bestand",
     viewLayout: "Weergave · tonen of verbergen",
     groupBursts: "Reeksen groeperen of splitsen",

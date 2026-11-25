@@ -9,11 +9,11 @@ export const cy: AreaTranslation<typeof source> = {
   common: { cancel: 'Canslo', apply: 'Defnyddio', original: 'Gwreiddiol' },
   tabs: { auto: 'Awto', crop: 'Tocio', edit: 'Golygu', masks: 'Masgiau', history: 'Hanes', export: 'Allforio' },
   controls: {
-    exposure: 'Datguddiad', warmth: 'Cynhesrwydd', colour: 'Lliw', brightness: 'Disgleirdeb', contrast: 'Cyferbyniad',
+    exposure: 'Amlygiad', warmth: 'Cynhesrwydd', colour: 'Lliw', brightness: 'Disgleirdeb', contrast: 'Cyferbyniad',
     highlights: 'Uchafbwyntiau', shadows: 'Cysgodion', whites: 'Gwynion', blacks: 'Duon', vibrance: 'Bywiogrwydd',
     texture: 'Gwead', clarity: 'Eglurder', sharpen: 'Miniogi', denoise: 'Lleihau sŵn',
   },
-  choices: { darker: 'Tywyllach', brighter: 'Golauach', cooler: 'Oerach', warmer: 'Cynhesach', softer: 'Meddalach', richer: 'Cyfoethocach', neutral: 'Niwtral' },
+  choices: { darker: 'Tywyllach', brighter: 'Goleuach', cooler: 'Oerach', warmer: 'Cynhesach', softer: 'Meddalach', richer: 'Cyfoethocach', neutral: 'Niwtral' },
   slider: {
     adjustment: (label) => `Addasiad ${label}`,
     reset: (label) => `Ailosod ${label}`,
@@ -125,7 +125,7 @@ export const cy: AreaTranslation<typeof source> = {
     check: 'Gwirio fy llun',
     raise: 'Codi',
     lower: 'Gostwng',
-    sliders: { exposure: 'Datguddiad', warmth: 'Cynhesrwydd', highlights: 'Uchafbwyntiau', shadows: 'Cysgodion', contrast: 'Cyferbyniad' },
+    sliders: { exposure: 'Amlygiad', warmth: 'Cynhesrwydd', highlights: 'Uchafbwyntiau', shadows: 'Cysgodion', contrast: 'Cyferbyniad' },
     tryLabel: (action) => `Rhowch gynnig ar hyn ${action}`,
     notes: { whiteClip: 'Uchafbwyntiau wedi’u llosgi', blackClip: 'Cysgodion wedi’u cau', dark: 'Yn edrych yn dywyll', bright: 'Yn edrych yn olau', flat: 'Yn edrych yn fflat', warm: 'Lliw cynnes', cool: 'Lliw oer' },
     install: 'Gosod gwirio lluniau',
@@ -176,7 +176,7 @@ export const cy: AreaTranslation<typeof source> = {
         fix: 'Codi’r gwrthrych',
       },
       'subject-bright': {
-        title: 'Mae’ch gwrthrych yn llawer golauach na’r hyn sydd o’i gwmpas',
+        title: 'Mae’ch gwrthrych yn llawer goleuach na’r hyn sydd o’i gwmpas',
         detail: (f) => `Mae’r gwrthrych ar gyfartaledd ${f.points} pwynt yn olauach na’r cefndir, a gall edrych fel petai wedi’i ludo arno.`,
         fix: 'Tawelu’r gwrthrych',
       },

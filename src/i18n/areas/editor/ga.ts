@@ -127,7 +127,7 @@ export const ga: AreaTranslation<typeof source> = {
     lower: 'Laghdaigh',
     sliders: { exposure: 'Nochtadh', warmth: 'Teas', highlights: 'Buaicphointí', shadows: 'Scáthanna', contrast: 'Codarsnacht' },
     tryLabel: (action) => `Bain triail as seo ${action}`,
-    notes: { whiteClip: 'Buaicphointí dóite', blackClip: 'Scáthanna dúnta', dark: 'Cuma dorcha air', bright: 'Cuma geal air', flat: 'Cuma leibhéalta air', warm: 'Claonadh teasa', cool: 'Claonadh fuaraigh' },
+    notes: { whiteClip: 'Buaicphointí dóite', blackClip: 'Scáthanna dúnta', dark: 'Cuma dorcha air', bright: 'Cuma geal air', flat: 'Cuma leamh air', warm: 'Claonadh teasa', cool: 'Claonadh fuaraigh' },
     install: 'Suiteáil seiceáil grianghraf',
     installNote: (size) => `Ritheann sé ar an ngléas seo amháin, thart ar ${size}. Ní uaslódáiltear aon rud.`,
     installConfirm: 'Suiteáil',

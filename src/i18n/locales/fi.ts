@@ -69,7 +69,7 @@ export const fi: Translation = {
   settings: {
     title: 'Ulkoasu ja asettelu',
     done: 'Valmis',
-    preferredHand: 'Käsisyys',
+    preferredHand: 'Kätisyys',
     handHint: 'Muokkaustyökalut ja kosketusohjaimet siirtyvät tälle puolelle kaikissa näkymissä.',
     leftHanded: 'Vasenkätinen',
     rightHanded: 'Oikeakätinen',
@@ -83,7 +83,7 @@ export const fi: Translation = {
     fontReadable: 'Helppolukuinen (Atkinson Hyperlegible)',
     calm: 'Vähemmän ärsykkeitä (ei animaatioita)',
     calmPreset: 'Rauhallinen ja selkeä',
-    calmPresetHint: 'Ottaa käyttöön yhdessä pehmeämmän teeman, helppolukuisen fontin, suuremman tekstin, väljemmän tekstityksen ja liikkeettömyyden. Voit silti muuttaa kutakin erikseen.',
+    calmPresetHint: 'Ottaa käyttöön yhdessä pehmeämmän teeman, helppolukuisen kirjasimen, suuremman tekstin, väljemmän tekstinvälistyksen ja liikkeettömyyden. Voit silti muuttaa kutakin erikseen.',
     spacing: 'Tekstin välistys',
     spacingNormal: 'Normaali',
     spacingRoomy: 'Väljä (leveämmät kirjaimet, sanat ja rivit)',

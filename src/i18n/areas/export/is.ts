@@ -13,9 +13,9 @@ export const is: AreaTranslation<typeof source> = {
     caption: "Lýsing eða myndatexti",
     creator: "Ljósmyndari / höfundur",
     copyright: "Höfundarréttur",
-    includeKeywords: "Hafa lykilorð með",
-    keywords: "Lykilorð (aðskilin með kommum; tómt = staðfest merki)",
-    help: "Staðfest viðfangsefni geta fyllt út titil og lykilorð. Óstaðfestar AI-ágiskanir eru aldrei fluttar út. Upplýsingarnar eru geymdar í skránni, ekki á myndinni.",
+    includeKeywords: "Hafa leitarorð með",
+    keywords: "Leitarorð (aðskilin með kommum; tómt = staðfest merki)",
+    help: "Staðfest myndefni getur fyllt út titil og leitarorð. Óstaðfestar ágiskanir gervigreindar eru aldrei fluttar út. Upplýsingarnar eru geymdar í skránni, ekki á myndinni.",
   },
   originals: {
     title: "Upprunalegar myndavélarskrár",

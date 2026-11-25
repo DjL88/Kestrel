@@ -8,7 +8,7 @@ export const pt: AreaTranslation<typeof source> = {
   tabs: { auto: 'Auto', crop: 'Recortar', edit: 'Editar', masks: 'Máscaras', history: 'Histórico', export: 'Exportar' },
   controls: {
     exposure: 'Exposição', warmth: 'Calor', colour: 'Cor', brightness: 'Brilho', contrast: 'Contraste',
-    highlights: 'Realces', shadows: 'Sombras', whites: 'Brancos', blacks: 'Pretos', vibrance: 'Vibração',
+    highlights: 'Realces', shadows: 'Sombras', whites: 'Brancos', blacks: 'Pretos', vibrance: 'Vivacidade',
     texture: 'Textura', clarity: 'Claridade', sharpen: 'Nitidez', denoise: 'Redução de ruído',
   },
   choices: { darker: 'Mais escuro', brighter: 'Mais claro', cooler: 'Mais frio', warmer: 'Mais quente', softer: 'Mais suave', richer: 'Mais intenso', neutral: 'Neutro' },

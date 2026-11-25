@@ -22,7 +22,7 @@ export const gd: Translation = {
   redo: 'Ath-dhèan',
   historyStep: {
     light: 'Nochdadh', warmth: 'Blàths', colour: 'Dath', adjustments: 'Atharrachaidhean', tone: 'Tòna', detail: 'Mion-fhiosrachadh', mask: 'Masg',
-    crop: 'Bearr', rotation: 'Cuairteachadh', straighten: 'Dìrich',
+    crop: 'Bearr', rotation: 'Cuairteachadh', straighten: 'Dèan dìreach',
   },
   undo: 'Neo-dhèan',
   reviewPhoto: 'Fosgail an dealbh',

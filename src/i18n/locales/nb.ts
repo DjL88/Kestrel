@@ -81,7 +81,7 @@ export const nb: Translation = {
     typeface: 'Skrifttype',
     fontBrand: 'InFlight (Plus Jakarta Sans)',
     fontReadable: 'Lett å lese (Atkinson Hyperlegible)',
-    calm: 'Færre inntrykk (ingen animasjoner)',
+    calm: 'Mindre bevegelse på skjermen',
     calmPreset: 'Rolig og tydelig',
     calmPresetHint: 'Slår på det mykere temaet, den lettleste skrifttypen, større tekst, romsligere avstand og ingen bevegelse samtidig. Du kan fortsatt endre hver enkelt.',
     spacing: 'Tekstavstand',

@@ -1256,7 +1256,7 @@ export const da: AreaTranslation<typeof source> = {
     maxSizeLongEdge: (px) => `Op til ${px.toLocaleString()} px på den lange side`,
     maxSizeCustom: 'Tilpasset lang side (px)',
     variantBefore: (format) => `Før: uredigeret, fremkaldt til ${format} (ikke den originale fil)`,
-    variantOriginal: 'Original fil: nøjagtig kopi, som optaget',
+    variantOriginal: 'Originalfil: nøjagtig kopi, som optaget',
     variantAfter: 'Efter (redigeret)',
     variantVideo: 'Video (zoom-MP4)',
     groupsHeading: 'Redigeringsgrupper og formater',

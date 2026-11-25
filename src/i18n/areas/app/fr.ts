@@ -77,7 +77,7 @@ export const fr: AreaTranslation<typeof source> = {
     addFailed: 'Impossible d’ajouter les photos. Essayez de sélectionner à nouveau les fichiers.',
     noSupportedPhotos: 'Ce dossier ne contient aucune photo prise en charge.',
     folderUnreadable: 'Impossible de lire ce dossier.',
-    oneFolderPerProject: 'Gardez chaque dossier dans son propre projet pour que InFlight puisse le reconnecter sans risque.',
+    oneFolderPerProject: 'Gardez chaque dossier dans son propre projet pour qu’InFlight puisse le reconnecter sans risque.',
     folderAddFailed: 'Impossible d’ajouter le dossier. Essayez de le sélectionner à nouveau.',
     folderUnreadableTryFiles: 'Impossible de lire le dossier. Essayez de sélectionner des fichiers.',
   },

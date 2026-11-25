@@ -24,7 +24,7 @@ export const cy: AreaTranslation<typeof source> = {
     title: "Ffeiliau gwreiddiol y camera",
     action: (count: number) => count === 1 ? "Cadw'r ffeil wreiddiol" : `Cadw ${count} ffeil wreiddiol`,
     background: (count: number) => count === 1 ? "Yn cadw ffeil wreiddiol y camera" : `Yn cadw ${count} ffeil wreiddiol y camera`,
-    privacy: "Copi union o'r ffeil wreiddiol, gan gynnwys ei fformat a'i data EXIF/GPS. NI chaiff golygiadau, cnydau, dyfrnodau na newidiadau i fetadata allforio eu cymhwyso. Ni newidir y ffeil ffynhonnell.",
+    privacy: "Copi union o’r ffeil wreiddiol, gan gynnwys ei fformat a’i data EXIF/GPS wedi’i fewnosod. NI chaiff golygiadau, tociadau, dyfrnodau na newidiadau i fetadata allforio eu rhoi ar waith. Ni newidir y ffeil ffynhonnell.",
     browserLimit: "Mae'r dewis hwn yn rhy fawr i greu ZIP diogel yn y porwr hwn. Defnyddiwch yr ap bwrdd gwaith i gadw'r gwreiddiolion fesul un mewn ffolder.",
     browserLimitHelp: "Ar gyfer nifer fawr o ffeiliau RAW, mae'r ap bwrdd gwaith yn cadw un ffeil ar y tro heb greu ZIP enfawr yn y cof.",
     unavailable: "Nid oes ffeil camera wreiddiol gan luniau arddangos.",
@@ -141,7 +141,7 @@ export const cy: AreaTranslation<typeof source> = {
   },
   custom: {
     allowUpscale: "Chwyddo lluniau bach (newid maint arferol)",
-    upscaleNote: "Mae hyn yn cynyddu nifer y picseli ond ni all adfer manylion coll. Mae'r rhagolwg yn dangos y cnwd; gwiriwch y manylion yn y ffeil a gadwyd.",
+    upscaleNote: "Mae hyn yn cynyddu nifer y picseli ond ni all adfer manylion coll. Mae’r rhagolwg yn dangos y tocio; gwiriwch y manylion yn y ffeil a gadwyd.",
     width: 'Lled (px)',
     height: 'Uchder (px)',
     fit: 'Ffitio',

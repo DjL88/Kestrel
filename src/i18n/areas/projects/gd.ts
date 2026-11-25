@@ -70,7 +70,7 @@ export const gd: AreaTranslation<typeof source> = {
     moveTo: 'Gluais gu',
     destination: 'Pròiseact-uidhe',
     choose: 'Tagh pròiseact…',
-    note: 'Thèid na roghainnean, deasachaidhean, masgaichean is bearraidhean còmhla riutha. Fuirichidh dealbh a tha sa phròiseact sin mu thràth an-seo. Cha bhenear ris na faidhlichean tùsail agad.',
+    note: 'Thèid na roghainnean, deasachaidhean, masgaichean is bearraidhean còmhla riutha. Fuirichidh dealbh a tha sa phròiseact sin mu thràth an-seo. Cha bhuinear ris na faidhlichean tùsail agad.',
   },
   projectAction: {
     deleteTitle: (title) => `A bheil thu airson “${title}” a sguabadh às?`,

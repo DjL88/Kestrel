@@ -861,7 +861,7 @@ export const ga: AreaTranslation<typeof source> = {
       blacks: 'Daingníonn sé an pointe scátha is doimhne le haghaidh micreachodarsnachta glé.',
       temperature: 'Bogann sé cothromaíocht datha i dtreo níos fuaire (gorm) nó níos teo (ómra). Treoraithe ag ancairí cothromaíochta bháin le haghaidh cruinnis do dhaoine atá dall ar dhathanna.',
       tint: 'Mionchoigeartaíonn sé an ais glas–maigeanta chun imir bheaga ón lionsa nó ón duilliúr a bhaint.',
-      vibrance: 'Treisíonn sé dathanna maola go séimh, ag cosaint tonnta craicinn agus cleiteach atá bríomhar cheana.',
+      vibrance: 'Treisíonn sé dathanna maola go séimh, ag cosaint dathanna craicinn agus cleiteach atá bríomhar cheana.',
       saturation: 'Méadaíonn nó laghdaíonn sé an déine go cothrom i ngach cainéal datha.',
       clarity: 'Feabhsaíonn sé struchtúr imeall sna meántoin agus uigeacht cleití nó carraige.',
       sharpen: 'Cuireann sé géarú aschuir mín i bhfeidhm atá oiriúnaithe don bhraiteoir.',
@@ -1025,7 +1025,7 @@ export const ga: AreaTranslation<typeof source> = {
     lensCorrection: 'Ceartú phróifíl optúil an lionsa',
     tooltips: {
       rawAiDenoise: 'Baineann sé gráinne braiteora ISO ard díreach as sonraí RAW 16 ghiotán roimh dhímhósáiceáil.',
-      luminanceDenoise: 'Déanann sé spotaí gile gráinneacha a mhíniú i scáthanna agus i spéartha oíche.',
+      luminanceDenoise: 'Maolaíonn sé spotaí gile gráinneacha i scáthanna agus i spéartha oíche.',
       colourDenoise: 'Baineann sé paistí cróma maigeanta agus glasa gan mionsonraí a mhaolú.',
       detailRecovery: 'Athshlánaíonn sé micrimhionsonraí glé tar éis méadaithe gan fháinní bréagacha.',
     },

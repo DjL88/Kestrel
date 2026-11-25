@@ -53,7 +53,7 @@ export const fr: Translation = {
     sortEdited: 'Dernière retouche',
     sortCreated: 'Plus récent',
     sortName: 'Nom',
-    aboutTitle: 'À propos de InFlight',
+    aboutTitle: 'À propos d’InFlight',
     about: 'Trier et retoucher ses photos sereinement, avec une méthode plus simple et le respect de vos originaux.',
     licence: 'Licence et réglages',
     version: (version) => `Version ${version}`,

@@ -6,7 +6,7 @@ export const pt: AreaTranslation<typeof source> = {
   steps: {
     whiteBalance: 'Equilíbrio de brancos', temperature: 'Temperatura', tint: 'Tonalidade', exposure: 'Exposição', contrast: 'Contraste',
     highlights: 'Realces', shadows: 'Sombras', whites: 'Brancos', blacks: 'Pretos', toneCurve: 'Curva de tons',
-    vibrance: 'Vibração', saturation: 'Saturação', colourMixer: 'Misturador de cores', clarity: 'Claridade', detailRecovery: 'Textura',
+    vibrance: 'Vivacidade', saturation: 'Saturação', colourMixer: 'Misturador de cores', clarity: 'Claridade', detailRecovery: 'Textura',
     sharpen: 'Nitidez', denoiseLuminance: 'Ruído de luminância', denoiseColour: 'Ruído de cor', upscaleFactor: 'Ampliar',
     masks: 'Ajustes locais',
   },

@@ -55,6 +55,6 @@ export const es: AreaTranslation<typeof source> = {
     downloading: (percent: number) => `Descargando… ${percent}%`,
     ready: 'Instalado. Funciona sin conexión.',
     remove: 'Quitar',
-    failed: 'La descarga no terminó, así que no se guardó nada. Inténtalo de nuevo.',
+    failed: 'La descarga no terminó, así que no se guardó nada. Inténtelo de nuevo.',
   },
 };

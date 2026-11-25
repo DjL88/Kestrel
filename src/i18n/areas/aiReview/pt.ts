@@ -45,7 +45,7 @@ export const pt: AreaTranslation<typeof source> = {
     flat: 'Sem relevo', tooDark: 'Demasiado escura', tooBright: 'Demasiado clara', other: 'Nota',
   },
   slider: {
-    exposure: 'Exposição', warmth: 'Calor', colour: 'Cor', vibrance: 'Vibração', contrast: 'Contraste',
+    exposure: 'Exposição', warmth: 'Calor', colour: 'Cor', vibrance: 'Vivacidade', contrast: 'Contraste',
     highlights: 'Realces', shadows: 'Sombras', whites: 'Partes mais claras', blacks: 'Partes mais escuras',
   },
   errors: {

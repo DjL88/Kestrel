@@ -5,7 +5,7 @@ import type { source } from './source';
 export const es: AreaTranslation<typeof source> = {
   steps: {
     whiteBalance: 'Balance de blancos', temperature: 'Temperatura', tint: 'Matiz', exposure: 'Exposición', contrast: 'Contraste',
-    highlights: 'Iluminaciones', shadows: 'Sombras', whites: 'Blancos', blacks: 'Negros', toneCurve: 'Curva de tonos',
+    highlights: 'Altas luces', shadows: 'Sombras', whites: 'Blancos', blacks: 'Negros', toneCurve: 'Curva de tonos',
     vibrance: 'Intensidad', saturation: 'Saturación', colourMixer: 'Mezclador de color', clarity: 'Claridad', detailRecovery: 'Textura',
     sharpen: 'Nitidez', denoiseLuminance: 'Ruido de luminancia', denoiseColour: 'Ruido de color', upscaleFactor: 'Ampliar',
     masks: 'Ajustes locales',

@@ -125,7 +125,7 @@ export const da: AreaTranslation<typeof source> = {
     lower: 'Sænk',
     sliders: { exposure: 'Eksponering', warmth: 'Varme', highlights: 'Højlys', shadows: 'Skygger', contrast: 'Kontrast' },
     tryLabel: (action) => `Prøv dette: ${action}`,
-    notes: { whiteClip: 'Højlys udbrændt', blackClip: 'Skygger lukket', dark: 'Ser mørkt ud', bright: 'Ser lyst ud', flat: 'Ser fladt ud', warm: 'Varm farvestik', cool: 'Kold farvestik' },
+    notes: { whiteClip: 'Højlys udbrændt', blackClip: 'Skygger lukket', dark: 'Ser mørkt ud', bright: 'Ser lyst ud', flat: 'Ser fladt ud', warm: 'Varmt farvestik', cool: 'Koldt farvestik' },
     install: 'Installer fototjek',
     installNote: (size) => `Kører kun på denne enhed, cirka ${size}. Intet uploades.`,
     installConfirm: 'Installer',

@@ -4,7 +4,7 @@ import type { source } from './source';
 /** French (vous). DRAFT: written without a native speaker's check. */
 export const fr: AreaTranslation<typeof source> = {
   title: 'Deuxième avis de votre propre IA',
-  intro: 'Facultatif. Utilisez votre propre compte d’IA, ou un modèle installé sur cet ordinateur, pour examiner la couleur et la lumière de cette photo. Le contrôle des couleurs de InFlight, plus haut, fonctionne toujours sans cela.',
+  intro: 'Facultatif. Utilisez votre propre compte d’IA, ou un modèle installé sur cet ordinateur, pour examiner la couleur et la lumière de cette photo. Le contrôle des couleurs d’InFlight, plus haut, fonctionne toujours sans cela.',
   ask: 'Demander à mon IA',
   asking: 'Question en cours à votre IA…',
   cancel: 'Annuler',
@@ -51,7 +51,7 @@ export const fr: AreaTranslation<typeof source> = {
   errors: {
     setup: 'Votre IA n’est pas encore configurée, ou l’accord manque.',
     key: 'Votre IA indique que la clé est incorrecte ou non autorisée. Vérifiez-la dans le compte de votre fournisseur.',
-    offline: 'Vous êtes hors ligne. Le contrôle des couleurs de InFlight fonctionne toujours.',
+    offline: 'Vous êtes hors ligne. Le contrôle des couleurs d’InFlight fonctionne toujours.',
     timeout: 'Votre IA a mis trop de temps à répondre. Réessayez dans un instant.',
     refused: 'Votre IA a refusé d’examiner cette photo.',
     unreadable: 'La réponse de votre IA n’a pas pu être lue, donc rien n’a été modifié.',

@@ -220,7 +220,7 @@ export const fi: AreaTranslation<typeof source> = {
   mask: {
     adjustments: {
       exposure: 'Valotus', brightness: 'Kirkkaus', warmth: 'Lämpö', colour: 'Väri', contrast: 'Kontrasti', highlights: 'Kirkkaat alueet',
-      shadows: 'Varjot', whites: 'Valkoiset', blacks: 'Mustat', vibrance: 'Värikylläisyys',
+      shadows: 'Varjot', whites: 'Valkoiset', blacks: 'Mustat', vibrance: 'Eloisuus',
       texture: 'Tekstuuri', clarity: 'Selkeys', sharpen: 'Terävöinti', denoise: 'Kohinanpoisto',
     },
     sliderFor: (label) => `${label} tälle maskille`,

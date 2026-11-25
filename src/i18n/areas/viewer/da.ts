@@ -156,7 +156,7 @@ export const da: AreaTranslation<typeof source> = {
       portrait: 'Portræt', group: 'Gruppe', candid: 'Spontan', event: 'Begivenhed', family: 'Familie', child: 'Barn',
       sunrise: 'Solopgang', sunset: 'Solnedgang', coast: 'Kyst', mountain: 'Bjerg', woodland: 'Skov', moorland: 'Hede',
       river: 'Å', mist: 'Tåge', nightSky: 'Nattehimmel',
-      street: 'Gade', architecture: 'Arkitektur', macro: 'Makro', stillLife: 'Opstilling', abstract: 'Abstrakt', pet: 'Kæledyr',
+      street: 'Gade', architecture: 'Arkitektur', macro: 'Makro', stillLife: 'Stilleben', abstract: 'Abstrakt', pet: 'Kæledyr',
     },
     hintWithKind: 'Mærker bliver på denne enhed og gør det nemt at finde fotos i søgefeltet.',
     hintNoKind: 'Vælg en slags for at se hurtige mærker. Mærker gør det nemt at finde fotos senere.',

@@ -405,11 +405,11 @@ export const nl: AreaTranslation<typeof source> = {
     idle: "Nog geen back-up gemaakt in deze sessie.",
     working: "Back-up maken…",
     ok: (time: string) => `Back-up gemaakt om ${time}. De kopie is teruggelezen en klopt.`,
-    partial: "Back-up gemaakt op dit apparaat. De kopie naast je foto’s kon niet worden bijgewerkt; InFlight probeert het opnieuw.",
-    failed: "De back-up kon niet worden opgeslagen. Je project staat nog in InFlight; het wordt opnieuw geprobeerd.",
+    partial: "Back-up gemaakt op dit apparaat. De kopie naast uw foto’s kon niet worden bijgewerkt; InFlight probeert het opnieuw.",
+    failed: "De back-up kon niet worden opgeslagen. Uw project staat nog in InFlight; het wordt opnieuw geprobeerd.",
     fileSaved: "Back-upbestand opgeslagen. Het bevat beslissingen, bewerkingen en koppelingen, niet de foto’s zelf.",
     fileDownloaded: "Back-upbestand gedownload. Het bevat beslissingen, bewerkingen en koppelingen, niet de foto’s zelf.",
-    fileFailed: "Het back-upbestand kon niet worden opgeslagen. Je project is ongewijzigd.",
+    fileFailed: "Het back-upbestand kon niet worden opgeslagen. Uw project is ongewijzigd.",
     restored: (name: string) => `“${name}” hersteld als nieuw project. Koppel de originele foto’s opnieuw als InFlight erom vraagt.`,
     restoreFailed: "Dat bestand is geen leesbare InFlight-projectback-up. Er is niets gewijzigd.",
   },
@@ -434,12 +434,12 @@ export const nl: AreaTranslation<typeof source> = {
   },
   dngCopy: {
     button: "Verliesvrije DNG-kopie opslaan",
-    help: "Voor programma’s die Nikon High Efficiency-bestanden niet kunnen openen. Een nieuw bestand met de sensorgegevens precies zoals gedecodeerd; je NEF wordt nooit gewijzigd.",
+    help: "Voor programma’s die Nikon High Efficiency-bestanden niet kunnen openen. Een nieuw bestand met de sensorgegevens precies zoals gedecodeerd; uw NEF wordt nooit gewijzigd.",
   },
   fullDevelop: {
     button: "Op volledige grootte ontwikkelen",
     running: "Wordt op volledige grootte ontwikkeld…",
-    help: "Ontwikkel deze RAW uit de sensorgegevens op volledige grootte, om fijne details te controleren. Loopt in Taken; je origineel blijft ongewijzigd.",
+    help: "Ontwikkel deze RAW uit de sensorgegevens op volledige grootte, om fijne details te controleren. Loopt in Taken; uw origineel blijft ongewijzigd.",
   },
   canvas: {
     selectPhoto: "Selecteer een foto in de filmstrip om te beginnen met bewerken.",
@@ -741,7 +741,7 @@ export const nl: AreaTranslation<typeof source> = {
       featherHelp: "Hoe geleidelijk het vignet invalt. Links geeft een harde rand, rechts de zachtste overgang. 50 is de standaard.",
       hard: "Hard",
       soft: "Zacht",
-      highlights: "Hoge lichten beschermen",
+      highlights: "Hooglichten beschermen",
       highlightsHelp: "Spaart heldere delen bij de randen, zoals lucht of een witte vogel, bij een donkerder of gekleurd vignet. Heeft geen effect als de randen lichter worden gemaakt.",
       shapeOff: "Stel eerst een hoeveelheid, kleursterkte of randvervaging in; dit geeft het vignet daarna zijn vorm.",
       roughness: "Ruwheid van de korrel",
@@ -1306,7 +1306,7 @@ export const nl: AreaTranslation<typeof source> = {
       light: 'Lichte studio',
       hideProLabel: 'Pro-functies verbergen',
       advancedLabel: 'Geavanceerde regelaars tonen',
-      advancedDesc: 'Voegt kleurcorrectie, rode, groene en blauwe curves en camerakalibratie toe aan Aanpassen, voor wie fijner wil werken. Uit houdt Aanpassen eenvoudig. Je bewerkingen blijven hoe dan ook op de foto.',
+      advancedDesc: 'Voegt kleurcorrectie, rode, groene en blauwe curves en camerakalibratie toe aan Aanpassen, voor wie fijner wil werken. Uit houdt Aanpassen eenvoudig. Uw bewerkingen blijven hoe dan ook op de foto.',
       hideProDesc: 'Laat de Pro-functies weg die uw abonnement niet bevat, ook gereedschap dat alleen in Pro zit, zodat ze geen constante herinnering zijn. Ze komen terug als u dit uitzet of upgradet.',
       calmViewLabel: 'Rustige weergave',
       calmViewDesc: 'Een rustigere werkruimte: minder beweging, minder badges en tips, en berichten die op u wachten. Stel elk onderdeel hieronder af.',
@@ -1608,7 +1608,7 @@ export const nl: AreaTranslation<typeof source> = {
   // Settings → Models: every model, its checksum, and what it cost on this device (#703)
   models: {
     title: 'Modellen op dit apparaat',
-    hint: 'Wat elk model is en wat het kost op deze computer. Tijden worden hier gemeten als een model draait, of als je op Nu meten drukt. Niets is geschat.',
+    hint: 'Wat elk model is en wat het kost op deze computer. Tijden worden hier gemeten als een model draait, of als u op Nu meten drukt. Niets is geschat.',
     role: {
       detector: 'Vindt onderwerpen',
       detectorTandem: 'Tweede onderwerpzoeker',
@@ -1636,7 +1636,7 @@ export const nl: AreaTranslation<typeof source> = {
     memory: 'Hoogste geheugen',
     notMeasured: 'Nog niet gemeten',
     memoryNote: 'Het geheugen is één keer gemeten met de eigen motor van de app op een Windows-laptop. Dit scherm kan het geheugen niet live lezen.',
-    timedInUse: 'Wordt gemeten als je het gebruikt.',
+    timedInUse: 'Wordt gemeten als u het gebruikt.',
     measure: 'Nu meten',
     measureHint: 'Draait elk model één keer op dit apparaat, op een verzonnen testbeeld. Er wordt geen foto gebruikt.',
     measuring: (name: string) => `${name} meten…`,
@@ -1649,7 +1649,7 @@ export const nl: AreaTranslation<typeof source> = {
     removePack: 'Verwijderen',
     packReady: (name: string) => `${name} staat klaar op dit apparaat.`,
     packRemoved: (name: string) => `${name} is van dit apparaat verwijderd.`,
-    packNote: 'Wordt alleen gedownload als je erom vraagt, gecontroleerd met de checksum en op dit apparaat bewaard. Er wordt geen foto verstuurd.',
+    packNote: 'Wordt alleen gedownload als u erom vraagt, gecontroleerd met de checksum en op dit apparaat bewaard. Er wordt geen foto verstuurd.',
   },
   settingsMore: {
     closeSettings: 'Instellingen sluiten',
@@ -1770,7 +1770,7 @@ export const nl: AreaTranslation<typeof source> = {
   },
   crash: {
     title: "Dit scherm werkt niet meer",
-    body: "Je foto's en bewerkingen zijn veilig: InFlight wijzigt je originele bestanden nooit. Laad opnieuw om verder te gaan en stuur de details hieronder als het weer gebeurt.",
+    body: "Uw foto’s en bewerkingen zijn veilig: InFlight wijzigt uw originele bestanden nooit. Laad opnieuw om verder te gaan en stuur de details hieronder als het weer gebeurt.",
     reload: "InFlight opnieuw laden",
     details: "Details",
   },

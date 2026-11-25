@@ -83,7 +83,7 @@ export const es: Translation = {
     fontReadable: 'Fácil de leer (Atkinson Hyperlegible)',
     calm: 'Menos estímulos (sin animaciones)',
     calmPreset: 'Calma y claridad',
-    calmPresetHint: 'Activa a la vez el tema más suave, la fuente fácil de leer, texto más grande, más espaciado y sin movimiento. Puedes seguir cambiando cada ajuste.',
+    calmPresetHint: 'Activa a la vez el tema más suave, la fuente fácil de leer, texto más grande, más espaciado y sin movimiento. Puede seguir cambiando cada ajuste.',
     spacing: 'Espaciado del texto',
     spacingNormal: 'Estándar',
     spacingRoomy: 'Amplio (letras, palabras y líneas más separadas)',
@@ -95,8 +95,8 @@ export const es: Translation = {
   appearance: {
     dialogLabel: "Ajustes de pantalla y diseño",
     shortcuts: "Atajos de teclado y controles",
-    "position": "¿Dónde quieres las herramientas?",
-    "positionHint": "Elige el lado para editar en una pantalla grande. En el móvil, las herramientas están debajo de la foto.",
+    "position": "¿En qué lado quiere las herramientas?",
+    "positionHint": "Elija dónde aparecen las herramientas de edición en una pantalla grande. En el móvil, se quedan debajo de la foto.",
     "toolsSide": "Lado de las herramientas",
     "left": "Izquierda",
     "right": "Derecha"

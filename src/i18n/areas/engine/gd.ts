@@ -4,9 +4,9 @@ import type { source } from './source';
 /** Scottish Gaelic. DRAFT: written without a native speaker's check. Noise in a photo is gràinne (grain), as in the editor. */
 export const gd: AreaTranslation<typeof source> = {
   steps: {
-    whiteBalance: 'Cothromachadh geal', temperature: 'Teothachd', tint: 'Fiamh', exposure: 'Nochdadh', contrast: 'Iomsgaradh',
+    whiteBalance: 'Cothromachadh geal', temperature: 'Teòthachd', tint: 'Fiamh', exposure: 'Nochdadh', contrast: 'Iomsgaradh',
     highlights: 'Bàrr-solais', shadows: 'Faileasan', whites: 'Na geala', blacks: 'Na duibhe', toneCurve: 'Lùb tòna',
-    vibrance: 'Beothalachd', saturation: 'Sàthachd', colourMixer: 'Measgaiche dhathan', clarity: 'Soilleireachd mhion', detailRecovery: 'Inneach',
+    vibrance: 'Beòthachd dhathan', saturation: 'Sàthachd', colourMixer: 'Measgaiche dhathan', clarity: 'Soilleireachd mhion', detailRecovery: 'Inneach',
     sharpen: 'Geurachadh', denoiseLuminance: 'Gràinne soillseachd', denoiseColour: 'Gràinne dhathan', upscaleFactor: 'Meudachadh',
     masks: 'Atharrachaidhean ionadail',
   },
@@ -86,7 +86,7 @@ export const gd: AreaTranslation<typeof source> = {
     exportDone: (count) => (count === 1
       ? 'Chaidh 1 faidhle às-phortadh. Cha deach na dealbhan tùsail agad atharrachadh.'
       : `Chaidh ${count} faidhlichean às-phortadh. Cha deach na dealbhan tùsail agad atharrachadh.`),
-    exportSomeFailed: 'Dh’fhàillig cuid de na às-phortaidhean. Fosgail Saothraichean is tagh “Feuch a-rithist na dh’fhàillig”. Fuirichidh na faidhlichean a chaidh a shàbhaladh far a bheil iad.',
+    exportSomeFailed: 'Dh’fhàillig cuid de na h-às-phortaidhean. Fosgail Saothraichean is tagh “Feuch a-rithist na dh’fhàillig”. Fuirichidh na faidhlichean a chaidh a shàbhaladh far a bheil iad.',
     exportStopped: 'Stad an t-às-phortadh. Fuirichidh na faidhlichean a chaidh a shàbhaladh far a bheil iad.',
     exportNotQueued: 'Cha b’ urrainnear an t-às-phortadh seo a thòiseachadh.',
     destinationUnavailable: 'Chan eil an ceann-uidhe às-phortaidh sin ri fhaighinn. Tagh ZIP ionadail, faidhlichean fa leth no pasgan air a’ choimpiutair.',

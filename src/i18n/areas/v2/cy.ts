@@ -623,7 +623,7 @@ export const cy: AreaTranslation<typeof source> = {
     feedbackNewOne: 'newydd',
     feedbackNeverApplied: 'Does dim y mae cleient yn ei wneud yn newid y prosiect hwn nes i chi ei ddewis.',
     feedbackFlag: 'Ei faneru',
-    feedbackDone: 'Marcio’n gwneud',
+    feedbackDone: 'Marcio’n gyflawn',
     feedbackDismiss: 'Diystyru',
     feedbackAgain: 'Adolygu eto',
     feedbackDoneBy: (name: string) => `Wedi’i wneud gan ${name}`,
@@ -1110,7 +1110,7 @@ export const cy: AreaTranslation<typeof source> = {
     undoThis: "Dadwneud y newid hwn",
     change: (label: string, from: string, to: string) => `${label}: ${from} → ${to}`,
     sliders: {
-      exposure: "Datguddiad",
+      exposure: "Amlygiad",
       highlights: "Uchafbwyntiau",
       shadows: "Cysgodion",
       contrast: "Cyferbyniad",
@@ -1671,7 +1671,7 @@ export const cy: AreaTranslation<typeof source> = {
     eraseConfirm: 'Teipiwch ERASE i gadarnhau',
     eraseButton: 'Clirio’r ddyfais hon',
     forgetHeading: 'Anghofiwch fi: data cyfrif sydd gan InFlight',
-    forgetBody: 'Os ydych wedi mewngofnodi, prynu trwydded, defnyddio cymorth cwmwl dewisol, neu anfon neges, mae InFlight yn cadw ychydig o ddata amdanoch ar ei weinyddion. Mae diffodd “helpu i wella awgrymiadau” eisoes yn dileu’r hyn a rannwyd gennych. I ddileu’r gweddill, anfonwch gais o’r cyfeiriad e-bost y gwnaethoch fewngofnodi ag ef. Nid oes gan InFlight ddileu gweinydd ag un tap eto, felly mae hyn yn mynd at berson. Cewch wybod beth, os unrhyw beth, y mae’n rhaid ei gadw (er enghraifft cofnodion talu y mae’r gyfraith yn eu mynnu).',
+    forgetBody: 'Mae rhai pethau’n gadael ychydig o ddata amdanoch ar weinyddion InFlight: mewngofnodi, prynu trwydded, defnyddio cymorth cwmwl dewisol neu anfon neges. Mae diffodd “helpu i wella awgrymiadau” eisoes yn dileu’r hyn a rannwyd gennych. I ddileu’r gweddill, anfonwch gais o’r cyfeiriad e-bost y gwnaethoch fewngofnodi ag ef. Dydy InFlight ddim yn gallu dileu hyn gydag un tap eto, felly mae person yn delio â’r cais. Cewch wybod beth, os unrhyw beth, y mae’n rhaid ei gadw (er enghraifft cofnodion talu y mae’r gyfraith yn eu mynnu).',
     forgetLink: 'Gofyn i InFlight ddileu data fy nghyfrif',
   },
   // On-canvas outline and overlay for shape masks (oval, gradient).
