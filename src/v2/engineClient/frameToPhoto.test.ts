@@ -21,6 +21,14 @@ test('a photo with no recorded metadata says so rather than inventing values', (
   assert.equal(photo.thumbUrl, BLANK_IMAGE);
 });
 
+test('the colour profile names the InFlight RAW develop only when it is known to have run; otherwise it stays unknown', () => {
+  const developed = frameToPhoto(frame({ asShotWhite: { kelvin: 5480, duv: 0.002 } as never }), undefined);
+  assert.match(developed.exif.colourProfile, /colour matrix/);
+  assert.match(developed.exif.colourProfile, /not the maker's picture style/);
+  assert.equal(frameToPhoto(frame(), undefined).exif.colourProfile, 'Not recorded', 'an undeveloped RAW (embedded preview) is not claimed');
+  assert.equal(frameToPhoto(frame({ filename: 'a.jpg', asShotWhite: { kelvin: 5480, duv: 0 } as never }), undefined).exif.colourProfile, 'Not recorded');
+});
+
 test('recorded metadata, rating and the keep decision carry over', () => {
   const photo = frameToPhoto(frame({ decision: 'keep', rating: 4, exif: { camera: 'Nikon Z8', apertureF: 5.6, iso: 640, focalLengthMm: 400, width: 8256, height: 5504 } }), { thumb: 'blob:t', preview: 'blob:p' });
   assert.equal(photo.decision, 'keep');
@@ -249,6 +257,24 @@ test('file info reads recorded import byte count and verified raster dimensions,
   assert.equal(frameToPhoto(frame({exif:{iso:-1, capturedAtMs:Infinity}}), undefined).exif.capturedAt, 'Not recorded');
 });
 
+test('Auto that could not read a RAW says so in Co-pilot instead of "nothing to report yet" forever', async () => {
+  const { autoUnavailableSentence } = await import('./autoUnavailable.ts');
+  const raw = frame({ filename: 'DSC_0042.NEF', originalSha256: 'sha-a' });
+  const unavailable = { unavailable: 'raw-not-developed' as const, source: { stableKey: raw.stableKey, originalSha256: raw.originalSha256, framing: raw.framing } };
+  const note = frameToPhoto(raw, undefined, { autoUnavailable: unavailable }).assistCritique.subjectNote;
+  assert.equal(note, autoUnavailableSentence('raw-not-developed', 'DSC_0042.NEF'));
+  assert.match(note, /RAW/);
+  assert.match(note, /embedded preview/, 'says the camera JPEG was not used in place of the RAW');
+  assert.match(note, /Nothing was changed/);
+  assert.doesNotMatch(note, /export/i, 'an Auto check never talks about exporting');
+  assert.equal(frameToPhoto(raw, undefined, {}).assistCritique.subjectNote, '', 'no check yet: nothing is claimed');
+  // A result for a different original (relinked, changed bytes) is not shown for this one.
+  assert.equal(frameToPhoto({ ...raw, originalSha256: 'sha-b' }, undefined, { autoUnavailable: unavailable }).assistCritique.subjectNote, '');
+  for (const cause of ['no-preview', 'too-small', 'failed'] as const) {
+    assert.match(autoUnavailableSentence(cause, 'IMG_1.JPG'), /IMG_1\.JPG.*Nothing was changed/);
+  }
+});
+
 test('a RAW with no recorded size takes its Original shape from the picture shown, never a 1 × 1 square', async () => {
   const { originalFormatSize } = await import('./frameToPhoto.ts');
   const raw = frame({ filename: 'DSC_0001.NEF', exif: {} as PhotoFrame['exif'] });
@@ -270,4 +296,18 @@ test('a vehicle reading shows as the subject in words and makes the photo findab
   // A kind without a clear type says so; a malformed reading is never shown.
   assert.equal(frameToPhoto(frame({ vehicle: { schema: 1, family: 'air', source: 'clip', labelsVersion: 1 } }), undefined).vehicleLabel, 'Aircraft, type unknown');
   assert.equal(frameToPhoto(frame({ vehicle: { schema: 1, family: 'air', kind: 'spaceship', source: 'clip', labelsVersion: 1 } as never }), undefined).vehicleLabel, undefined);
+});
+
+test('each view says which picture of a RAW it shows, from what the provider recorded, HE named from the headers', () => {
+  const urls = { thumb: 'blob:t', preview: 'blob:p' };
+  const developed = frameToPhoto(frame({ rawCodec: 'nikon-he-star' }), urls, { sources: { preview: 'raw-full', thumb: 'raw-review' } });
+  assert.deepEqual(developed.picture, {
+    preview: { kind: 'raw', size: 'full', codec: 'nikon-he-star' },
+    thumb: { kind: 'raw', size: 'screen', codec: 'nikon-he-star' },
+  });
+  // Before the large preview exists, the canvas shows the thumbnail, so it carries the thumbnail's source.
+  const early = frameToPhoto(frame(), { thumb: 'blob:t' }, { sources: { thumb: 'camera-preview' } });
+  assert.deepEqual(early.picture, { preview: { kind: 'camera' }, thumb: { kind: 'camera' } });
+  assert.equal(frameToPhoto(frame({ filename: 'bird.jpg' }), urls, { sources: { preview: 'original', thumb: 'original' } }).picture, undefined);
+  assert.equal(frameToPhoto(frame(), urls).picture, undefined, 'no recorded source, no label');
 });

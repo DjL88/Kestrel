@@ -2,7 +2,9 @@ import React from 'react';
 import type { FilmstripFilter, Photo, PhotoSort } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
+import PictureSourceBadge from './PictureSourceBadge';
 import { viewPhotos } from '../utils/studioMath';
+import { TagFilterSelect } from './TagFilterSelect';
 import { DecisionFilter, ViewOptions } from './PhotoViewControls';
 
 interface GridViewProps {
@@ -15,6 +17,8 @@ interface GridViewProps {
   sort: PhotoSort;
   onSetMinRating: (rating: number) => void;
   onSetSort: (sort: PhotoSort) => void;
+  tagFilter?: string | null;
+  onSetTagFilter?: (tagId: string | null) => void;
   onSelectPhoto: (photoId: string, modifiers?: { ctrl?: boolean; shift?: boolean }) => void;
   onOpenInEditor: (photoId: string) => void;
   onToggleFlag: (photoIds: string[]) => void;
@@ -34,6 +38,8 @@ export default function GridView({
   sort,
   onSetMinRating,
   onSetSort,
+  tagFilter = null,
+  onSetTagFilter,
   onSelectPhoto,
   onOpenInEditor,
   onToggleFlag,
@@ -42,7 +48,7 @@ export default function GridView({
   onSetSearch,
   onClose,
 }: GridViewProps) {
-  const visible = viewPhotos(photos, { filter, search, minRating, sort });
+  const visible = viewPhotos(photos, { filter, search, minRating, sort, tag: tagFilter });
   const flaggedCount = photos.filter((p) => p.decision === 'keep').length;
 
   return (
@@ -64,6 +70,7 @@ export default function GridView({
         <div className="flex items-center gap-2">
           <DecisionFilter photos={photos} filter={filter} onSetFilter={onSetFilter} />
           <ViewOptions minRating={minRating} sort={sort} onSetMinRating={onSetMinRating} onSetSort={onSetSort} opensUp={false} />
+              {onSetTagFilter && <TagFilterSelect photos={photos} value={tagFilter} onChange={onSetTagFilter} />}
           <div className="relative">
             <BrandIcon
               name="search"
@@ -159,6 +166,7 @@ export default function GridView({
                       <p className="truncate text-xs font-medium text-[var(--text-primary)]" title={photo.pairedJpeg ? STRINGS.pair.title(photo.filename, photo.pairedJpeg) : undefined}>
                         {photo.filename}{photo.pairedJpeg && <span className="ml-1.5 text-[0.625rem] font-semibold text-[var(--text-secondary)]">{STRINGS.pair.badge}</span>}
                       </p>
+                      <PictureSourceBadge picture={photo.picture?.thumb} compact className="mt-1 text-[0.625rem]" />
                       <div className="mt-1 flex items-center gap-0.5" aria-label={`Rating ${photo.rating} of 5`}>
                         {[1, 2, 3, 4, 5].map((n) => (
                           <button

@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import VehicleRow from './VehicleRow';
 import type { Photo } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
+import { pictureSourceWords } from '../shell/PictureSourceBadge';
+import { photoTagsText } from '../../../i18n/areas/photoTags';
 
 /** Brightness is solid; each colour channel also has its own dash pattern and name, so none is told apart by hue alone (WCAG 1.4.1). */
 const HISTOGRAM_LINES = [
@@ -16,7 +19,10 @@ interface InfoPanelProps {
   onToggleFlag: (photoIds: string[]) => void;
   onSetRating: (photoIds: string[], rating: number) => void;
   onReconnectOriginal: (photoId: string) => void;
+  onSaveDngCopy?: (photoId: string) => void;
   onCorrectSpeciesName: (photoId: string, name: string) => void;
+  onCorrectVehicle?: (photoId: string, choice: { kind: string; type?: string } | 'not-a-vehicle', wholeBurst: boolean) => void;
+  onRemovePhotoTag?: (photoId: string, tagId: string) => void;
 }
 
 export default function InfoPanel({
@@ -24,7 +30,10 @@ export default function InfoPanel({
   onToggleFlag,
   onSetRating,
   onReconnectOriginal,
+  onSaveDngCopy,
   onCorrectSpeciesName,
+  onCorrectVehicle,
+  onRemovePhotoTag,
 }: InfoPanelProps) {
   const [editingSpecies, setEditingSpecies] = useState(false);
   // The name alone: the label may carry a "(suggested)" marker in the person's language, which is not part of the name.
@@ -84,6 +93,12 @@ export default function InfoPanel({
               <span>Shadows clipped {pct(hist.shadowClip)}</span>
               <span>Highlights clipped {pct(hist.highlightClip)}</span>
             </p>
+            {/* For a RAW, say which picture the measurement came from: the 16-bit develop, or the 8-bit picture on screen. */}
+            {photo.picture?.preview && (
+              <p className="mt-0.5 text-[0.6875rem] text-[var(--text-muted)]" data-testid="histogram-precision" data-precision={hist.precision ?? 'rgb8'}>
+                {hist.precision === 'rgb16' ? STRINGS.pictureSource.histogram16 : STRINGS.pictureSource.histogram8}
+              </p>
+            )}
             {clippedChannels.length > 0 && (
               <ul className="mt-0.5 text-[0.6875rem] text-[var(--text-secondary)]" data-testid="histogram-channel-clipping">
                 {clippedChannels.map(({ line, clip }) => (
@@ -138,6 +153,7 @@ export default function InfoPanel({
           <MetaRow label="File" value={photo.filename} mono />
           {photo.pairedJpeg && <MetaRow label={STRINGS.pair.infoLabel} value={photo.pairedJpeg} mono />}
           <MetaRow label="Format" value={photo.exif.fileSizeMb > 0 ? `${photo.exif.fileFormat} · ${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(photo.exif.fileSizeMb)} MB` : photo.exif.fileFormat} />
+          {photo.picture?.preview && (() => { const words = pictureSourceWords(photo.picture.preview); return <MetaRow label={STRINGS.pictureSource.infoLabel} value={`${words.label}. ${words.detail}`} />; })()}
           <MetaRow label="Dimensions" value={photo.exif.dimensions} mono />
           <MetaRow label="Colour profile" value={photo.exif.colourProfile} />
           <MetaRow
@@ -158,6 +174,19 @@ export default function InfoPanel({
             <BrandIcon name="relink" size={14} />
             <span>{STRINGS.canvas.reconnectOriginal}</span>
           </button>
+        )}
+        {photo.dngCopy && photo.originalConnected && onSaveDngCopy && (
+          <div className="mt-2 space-y-1">
+            <button
+              type="button"
+              onClick={() => onSaveDngCopy(photo.id)}
+              className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] text-xs font-medium text-[var(--text-primary)]"
+            >
+              <BrandIcon name="copy" size={14} />
+              <span>{STRINGS.dngCopy.button}</span>
+            </button>
+            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.dngCopy.help}</p>
+          </div>
         )}
       </section>
 
@@ -203,17 +232,38 @@ export default function InfoPanel({
               </form>
             ) : (
               <dd className="flex min-w-0 items-center gap-2 text-right text-[var(--text-primary)]">
-                <span>{photo.speciesLabel || photo.vehicleLabel || photo.category || STRINGS.panelWords.notIdentified}</span>
+                <span>{photo.speciesLabel || photo.category || (photo.vehicleLabel ? '' : STRINGS.panelWords.notIdentified)}</span>
                 <button type="button" aria-label={STRINGS.panelWords.correctSpecies} title={STRINGS.panelWords.correctSpecies}
                   onClick={() => setEditingSpecies(true)}
                   className="shrink-0 rounded border border-[var(--border-subtle)] px-2 py-1 text-[0.6875rem]">{STRINGS.panelWords.edit}</button>
               </dd>
             )}
           </div>
+          {onCorrectVehicle && <VehicleRow photo={photo} onCorrect={onCorrectVehicle} />}
           <MetaRow label="Sharpness" value={`${photo.sharpnessScore}%`} mono />
           <MetaRow label={STRINGS.tier.label} value={photo.tier ? STRINGS.tier[photo.tier] : STRINGS.tier.notRanked} />
         </dl>
       </section>
+      {photo.photoTags && photo.photoTags.length > 0 && (
+        <section aria-label={photoTagsText.foundHeading} data-testid="photo-tags">
+          <h3 className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--text-muted)]">{photoTagsText.foundHeading}</h3>
+          <ul className="flex flex-wrap gap-1.5">
+            {photo.photoTags.map((tag) => (
+              <li key={tag.id} className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] px-2 py-0.5 text-xs text-[var(--text-primary)]">
+                <span><span className="text-[var(--text-muted)]">{(photoTagsText.facets as Record<string, string>)[tag.facet]}: </span>{tag.label}</span>
+                {onRemovePhotoTag && (
+                  <button type="button" aria-label={photoTagsText.remove(tag.label)} title={photoTagsText.remove(tag.label)}
+                    onClick={() => onRemovePhotoTag(photo.id, tag.id)}
+                    className="rounded px-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">×</button>
+                )}
+              </li>
+            ))}
+          </ul>
+          {photo.photoTags.some((tag) => tag.facet === 'place') && (
+            <p className="mt-2 text-[0.6875rem] text-[var(--text-muted)]">{photoTagsText.placeNote}</p>
+          )}
+        </section>
+      )}
     </div>
   );
 }

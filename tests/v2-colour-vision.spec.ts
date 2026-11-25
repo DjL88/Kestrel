@@ -1,3 +1,4 @@
+import { openV2Settings } from './helpers';
 import { expect, test } from '@playwright/test';
 
 test('Colour-vision support is off by default and, when turned on, names the colours in words', async ({ page }, testInfo) => {
@@ -36,7 +37,7 @@ test('Colour-vision support is off by default and, when turned on, names the col
   await expect(studio.getByTestId('colour-words')).toHaveCount(0);
   await expect(studio.getByText(/strongColour|clippedColour/)).toHaveCount(0);
 
-  await studio.getByRole('button', { name: 'Settings', exact: true }).first().click();
+  await openV2Settings(page);
   await page.getByRole('tab', { name: 'Assistance' }).or(page.getByRole('button', { name: 'Assistance' })).first().click();
   const toggle = page.getByRole('switch', { name: 'Colour-vision support' });
   await expect(toggle).toHaveAttribute('aria-checked', 'false');

@@ -42,7 +42,7 @@ export class CommerceLedger {
   }
 
   /**
-   * Called only after the server retrieves and matches the paid checkout from SumUp.
+   * Called only after the server retrieves and matches the paid transaction from the store (Paddle).
    * A replay returns the original record, including its invoice number.
    */
   async recordPaid(sale: TransactionRecord): Promise<TransactionRecord> {
@@ -85,7 +85,7 @@ export class CommerceLedger {
       .where('supplyDate', '<=', asOf)
       .get();
     const entries = rows.docs.map(document => document.data() as TransactionRecord)
-      .filter(record => record.country === 'GB')
+      .filter(record => record.country === 'GB' && record.currency === 'GBP')
       .map(record => ({ country: record.country, supplyDate: record.supplyDate, netPence: record.netPence }));
     const result = { ...ukTurnoverMetrics(entries, asOf, forecast), updatedAt: new Date().toISOString() };
     await this.db.collection(commerceCollections.turnover).doc(asOf).set(result);

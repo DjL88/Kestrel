@@ -1,14 +1,16 @@
+const env = (import.meta as { env?: Record<string, string | undefined> }).env;
+
 /** Where the species model comes from and how to check it. The model is an 89 MB download the user chooses to make. */
 export const SPECIES_MODEL = {
   /** Set at build time. When it is empty the feature stays out of sight, and the rest of the app is unaffected. */
-  url: (import.meta.env.VITE_SPECIES_MODEL_URL as string | undefined) ?? '',
-  sha256: (import.meta.env.VITE_SPECIES_MODEL_SHA256 as string | undefined) ?? 'ea4095eb31a279643dc7ea89b90b2168b4807df0fce3c40b72a43a771caee8a2',
-  bytes: Number((import.meta.env.VITE_SPECIES_MODEL_BYTES as string | undefined) ?? 89041951),
+  url: env?.VITE_SPECIES_MODEL_URL ?? '',
+  sha256: env?.VITE_SPECIES_MODEL_SHA256 ?? 'ea4095eb31a279643dc7ea89b90b2168b4807df0fce3c40b72a43a771caee8a2',
+  bytes: Number(env?.VITE_SPECIES_MODEL_BYTES ?? 89041951),
   size: 224,
   mean: [0.48145466, 0.4578275, 0.40821073] as const,
   std: [0.26862954, 0.26130258, 0.27577711] as const,
   /** Build pipeline includes and verifies the model for native desktop installs. */
-  bundled: import.meta.env.VITE_SPECIES_MODEL_BUNDLED === 'true',
+  bundled: env?.VITE_SPECIES_MODEL_BUNDLED === 'true',
   cache: 'kestrel-species-v1',
 } as const;
 

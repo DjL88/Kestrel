@@ -1,7 +1,8 @@
-import { recordEdit } from '../../core/editHistory';
+import { recordEdit, type EditWhy } from '../../core/editHistory';
 import { readEditGroups, syncEditGroup } from './editGroupState';
 import type { PhotoEdit } from '../../core/photoEdits';
 import type { CullingState, PhotoFrame } from '../../core/types';
+import { v2Text } from '../../i18n/areas/v2';
 
 /** Compare against the catalogue at write time, after any intervening manual edits. */
 export function commitAutoEdit(
@@ -10,6 +11,7 @@ export function commitAutoEdit(
   examined: PhotoFrame,
   proposal: PhotoEdit,
   at: number,
+  why?: EditWhy,
 ): CullingState {
   if (state.shoot.id !== projectId || examined.edit || examined.editHistory?.steps.length) return state;
   const frameId = state.selectedFrameId ?? state.frames.find((frame) => frame.removedAt == null)?.id;
@@ -24,6 +26,9 @@ export function commitAutoEdit(
       frame.editVersions?.activeId !== examined.editVersions?.activeId) return state;
 
   const frames = state.frames.slice();
-  frames[index] = syncEditGroup(recordEdit(frame, { edit: proposal }, at));
+  frames[index] = syncEditGroup(recordEdit(frame, { edit: proposal }, at, why));
   return { ...state, frames, shoot: { ...state.shoot, lastUpdatedAt: at } };
 }
+
+/** Shown when the vision guardian held an Auto-pilot edit back, in the person's language. The edit stays available as a Co-pilot suggestion. */
+export const autopilotHeldForReview = (): string => v2Text.guardian.autopilotHeld;

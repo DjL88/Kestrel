@@ -4,8 +4,10 @@ import type { AssistMode, FilmstripFilter, LookPreset, Photo, PhotoSort } from '
 import { STRINGS } from '../strings';
 import { PHOTO_DRAG_TYPE, draggedPhotoIds } from '../utils/photoDrag';
 import ProBadge, { useProHidden } from './ProBadge';
+import PictureSourceBadge from './PictureSourceBadge';
 import BrandIcon from '../icons/BrandIcon';
 import { viewPhotos } from '../utils/studioMath';
+import { TagFilterSelect } from './TagFilterSelect';
 import { DecisionFilter, ViewOptions } from './PhotoViewControls';
 
 interface FilmstripProps {
@@ -22,6 +24,8 @@ interface FilmstripProps {
   sort: PhotoSort;
   onSetMinRating: (rating: number) => void;
   onSetSort: (sort: PhotoSort) => void;
+  tagFilter?: string | null;
+  onSetTagFilter?: (tagId: string | null) => void;
   quietBadges: boolean;
   looks: LookPreset[];
   hasClipboardRecipe: boolean;
@@ -66,6 +70,8 @@ export default function Filmstrip({
   sort,
   onSetMinRating,
   onSetSort,
+  tagFilter = null,
+  onSetTagFilter,
   quietBadges,
   looks,
   hasClipboardRecipe,
@@ -177,7 +183,7 @@ export default function Filmstrip({
     };
   }, [tileMenu]);
 
-  const visiblePhotos = viewPhotos(photos, { filter, search, minRating, sort });
+  const visiblePhotos = viewPhotos(photos, { filter, search, minRating, sort, tag: tagFilter });
   // Next and previous photo (a macro pad dial or command search) step through the photos shown here, so the filter and rating filter are respected.
   const stepRef = useRef({ visiblePhotos, activePhoto, onSelectPhoto });
   stepRef.current = { visiblePhotos, activePhoto, onSelectPhoto };
@@ -355,6 +361,7 @@ export default function Filmstrip({
             <>
               <DecisionFilter photos={photos} filter={filter} onSetFilter={onSetFilter} compact />
               <ViewOptions minRating={minRating} sort={sort} onSetMinRating={onSetMinRating} onSetSort={onSetSort} />
+              {onSetTagFilter && <TagFilterSelect photos={photos} value={tagFilter} onChange={onSetTagFilter} />}
             </>
           )}
 
@@ -551,6 +558,7 @@ export default function Filmstrip({
                     <div className="flex h-9 shrink-0 items-center justify-between gap-1 px-1">
                       <span className="truncate font-mono text-[0.625rem] text-[var(--text-secondary)]" title={photo.pairedJpeg ? STRINGS.pair.title(photo.filename, photo.pairedJpeg) : undefined}>
                         {photo.pairedJpeg && <span data-testid="pair-badge" className="mr-1 rounded-sm border border-[var(--border-default)] px-0.5 font-sans font-semibold text-[var(--text-primary)]">{STRINGS.pair.badge}</span>}
+                        <PictureSourceBadge picture={photo.picture?.thumb} compact className="mr-1 align-middle" />
                         {photo.filename}
                       </span>
                       <button

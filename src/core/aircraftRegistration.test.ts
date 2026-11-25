@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { findMarkings, looksLikeNumberPlate, mayReadMarkings } from './aircraftRegistration';
+import { findMarkings, findRaceNumber, findVesselMarkings, looksLikeNumberPlate, markingContext, mayReadMarkings, validImo } from './aircraftRegistration';
 import { UK_MILITARY_BLOCKS, faaRegister, lookUpMarking } from './aircraftRegister';
 import { decodeText, detectorSize, recogniserWidth, textBoxes } from './textOcr';
 import { VEHICLE_LABELS as labels } from './vehicleLabels';
@@ -13,9 +13,9 @@ const faa = faaRegister({ extracted: '2026-11-24', types: ['CESSNA 172S', 'BOEIN
   entries: ['100,0', '172SP,0', '737XA,1,0'].join('\n') });
 const lookUp = (pictureKind: string | undefined) => (marking: Parameters<typeof lookUpMarking>[0]) => lookUpMarking(marking, { faa }, pictureKind, typeName);
 
-test('only an aircraft reading is ever read for text: never a car, lorry, bus, train or boat', () => {
+test('an ordinary road or rail vehicle is never read for text: no car, van, lorry, bus or train', () => {
   assert.equal(mayReadMarkings(jet), true);
-  for (const family of ['road', 'rail', 'water'] as const) assert.equal(mayReadMarkings({ ...jet, family, kind: undefined }), false, family);
+  for (const family of ['road', 'rail'] as const) assert.equal(mayReadMarkings({ ...jet, family, kind: undefined }), false, family);
   assert.equal(mayReadMarkings(null), false);
   // Even handed text from a car, withMarking leaves a road reading untouched.
   const car: VehicleReading = { schema: 1, family: 'road', kind: 'car', source: 'clip', labelsVersion: 1 };
@@ -95,4 +95,66 @@ test('text boxes and text decoding follow PaddleOCR', () => {
   const read = decodeText(scores, steps.length, 6, characters);
   assert.equal(read.text, 'ZK301');
   assert.ok(Math.abs(read.confidence - 0.95) < 1e-6);
+});
+
+test('race numbers are read only on a photo clearly read as a racing car or racing motorbike', () => {
+  const bike: VehicleReading = { schema: 1, family: 'road', kind: 'racing-motorbike', source: 'clip', labelsVersion: 2 };
+  assert.equal(markingContext(bike), 'racing');
+  assert.equal(markingContext({ ...bike, kind: 'racing-car' }), 'racing');
+  for (const kind of ['car', 'motorbike', 'lorry', 'bus', undefined]) assert.equal(markingContext({ ...bike, kind }), null, String(kind));
+  assert.equal(markingContext(jet), 'aircraft');
+});
+
+test('a race number is a line of one to three digits; plates, years, sponsors and registrations give nothing', () => {
+  assert.deepEqual(findRaceNumber('46'), [{ value: '46', format: 'race-number' }]);
+  assert.deepEqual(findRaceNumber(' 007 '), [{ value: '7', format: 'race-number' }]);
+  for (const text of ['AB12 CDE', '2026', 'NO 1', 'ZK301', 'G-EZAA', 'RACING', '']) assert.deepEqual(findRaceNumber(text), [], text);
+});
+
+test('the biggest number on the bike is its race number, and it reads in plain words', () => {
+  const bike: VehicleReading = { schema: 1, family: 'road', kind: 'racing-motorbike', source: 'clip', labelsVersion: 2 };
+  const read = withMarking(bike, [{ text: '7', confidence: 0.99, height: 20 }, { text: '46', confidence: 0.95, height: 140 }, { text: 'AB12 CDE', confidence: 0.99, height: 200 }], findRaceNumber, () => null);
+  assert.deepEqual(read.marking, { value: '46', format: 'race-number', confidence: 0.95 });
+  assert.equal(vehicleLabel(read, labels, words), 'Racing motorbike (probably), number 46', 'the kind is a look-alike guess; the number is text read');
+  assert.ok(vehicleSearchWords(read, labels, [words]).includes('46'));
+  assert.deepEqual(validVehicleReading(JSON.parse(JSON.stringify(read)), labels), read);
+  // Never on an ordinary car, even if a stored reading claims it; and an aircraft never takes a race number.
+  assert.equal(validVehicleReading({ ...read, kind: 'car' }, labels), null);
+  const car: VehicleReading = { ...bike, kind: 'car' };
+  assert.deepEqual(withMarking(car, [{ text: '46', confidence: 0.99, height: 140 }], findRaceNumber, () => null), car);
+  assert.deepEqual(withMarking(jet, [{ text: '46', confidence: 0.99, height: 140 }], findRaceNumber, () => null), jet);
+});
+
+test('an IMO number must pass its check digit', () => {
+  assert.equal(validImo('9074729'), true, '9×7 + 0×6 + 7×5 + 4×4 + 7×3 + 2×2 = 139, ends in 9');
+  for (const wrong of ['9074728', '907472', '90747290', 'ABCDEFG']) assert.equal(validImo(wrong), false, wrong);
+  assert.deepEqual(findVesselMarkings('IMO 9074729'), [{ value: 'IMO 9074729', format: 'imo' }]);
+  assert.deepEqual(findVesselMarkings('imo:9074729'), [{ value: 'IMO 9074729', format: 'imo' }]);
+  assert.deepEqual(findVesselMarkings('IMO 9074728'), [], 'a failed check is not an IMO number, and is not kept as a name either');
+});
+
+test('a hull name is letters as painted; operators, warnings, ports and plates give nothing', () => {
+  assert.deepEqual(findVesselMarkings('PRIDE OF KENT'), [{ value: 'PRIDE OF KENT', format: 'hull-name' }]);
+  assert.deepEqual(findVesselMarkings("SPIRIT OF ST. IVES"), [{ value: 'SPIRIT OF ST. IVES', format: 'hull-name' }]);
+  for (const text of ['RNLI', 'Keep clear', 'DOVER', '17-08', 'AB12 CDE', 'Ok', 'ZK301', 'a lowercase sentence about the sea and the boat']) {
+    assert.deepEqual(findVesselMarkings(text), [], text);
+  }
+});
+
+test('names and IMO numbers are read only on boats, and never on an aircraft or a road vehicle', () => {
+  const ferry: VehicleReading = { schema: 1, family: 'water', kind: 'ferry', source: 'clip', labelsVersion: 3 };
+  assert.equal(markingContext(ferry), 'vessel');
+  const lines = [{ text: 'IMO 9074729', confidence: 0.97, height: 20 }, { text: 'PRIDE OF KENT', confidence: 0.95, height: 90 }, { text: 'P&O FERRIES', confidence: 0.99, height: 40 }];
+  const read = withMarking(ferry, lines, findVesselMarkings, () => null);
+  assert.deepEqual(read.marking, { value: 'PRIDE OF KENT', format: 'hull-name', confidence: 0.95 }, 'the biggest name on the hull');
+  assert.equal(read.imo, 'IMO 9074729');
+  assert.equal(vehicleLabel(read, labels, words), 'Ferry (probably), named PRIDE OF KENT, marked IMO 9074729');
+  for (const word of ['PRIDE OF KENT', 'IMO 9074729', '9074729']) assert.ok(vehicleSearchWords(read, labels, [words]).includes(word), word);
+  assert.deepEqual(validVehicleReading(JSON.parse(JSON.stringify(read)), labels), read);
+  // Only an IMO number: shown as read.
+  assert.equal(vehicleLabel(withMarking(ferry, [lines[0]], findVesselMarkings, () => null), labels, words), 'Ferry (probably), marked IMO 9074729');
+  // Stored on the wrong kind of vehicle, or with a failed check digit, a marking is refused.
+  assert.equal(validVehicleReading({ ...read, family: 'air', kind: 'airliner' }, labels), null);
+  assert.equal(validVehicleReading({ ...read, imo: 'IMO 9074728' }, labels), null);
+  assert.deepEqual(withMarking(jet, lines, findVesselMarkings, () => null), jet);
 });

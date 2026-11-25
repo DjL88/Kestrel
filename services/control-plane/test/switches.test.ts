@@ -24,7 +24,7 @@ test('switches are admin only and list what is configured', async () => {
     assert.equal((await h.call('GET', '/v1/admin/switches', { token: h.user.token })).status, 403);
     const list = (await h.call('GET', '/v1/admin/switches', { token: h.adminToken })).body.switches;
     const by = Object.fromEntries(list.map((s: any) => [s.key, s]));
-    assert.deepEqual(Object.keys(by).sort(), ['cloud-processing', 'collaboration', 'learning-signal', 'managed-ai', 'pro-checkout', 'pro-checkout-eu', 'safe-copy']);
+    assert.deepEqual(Object.keys(by).sort(), ['cloud-processing', 'collaboration', 'email', 'learning-signal', 'managed-ai', 'pro-checkout', 'safe-copy']);
     assert.equal(by['managed-ai'].on, true, 'the existing Gemini helper keeps working until you switch it off');
     for (const k of ['cloud-processing', 'safe-copy', 'learning-signal']) { assert.equal(by[k].on, false, `${k} starts off`); assert.equal(by[k].configured, true); }
   } finally { await h.close(); }

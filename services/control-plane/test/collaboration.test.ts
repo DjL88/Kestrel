@@ -176,3 +176,64 @@ test('comments: members comment and pin, clients only when allowed and on their 
     assert.equal((await call('POST', `${P}/comments/${id}/resolve`, h.user.token, { resolved: false })).status, 404, 'not a member');
   } finally { await h.close(); }
 });
+
+test('privacy: a client never reads or touches the team comments on their photos, only their own', async () => {
+  const { h, owner, editor, client, call, P } = await harness();
+  try {
+    await call('POST', `${P}/members`, owner.token, { kind: 'inviteEmail', email: 'editor@example.test', role: 'editor', displayName: 'Erin' });
+    await call('POST', `${P}/members`, owner.token, { kind: 'inviteEmail', email: 'client@example.test', role: 'client', displayName: 'Cleo', photoIds: ['p1'] });
+    await call('POST', `${P}/accept`, editor.token, { displayName: 'Erin' });
+    await call('POST', `${P}/accept`, client.token, { displayName: 'Cleo' });
+    const team = (await call('POST', `${P}/photos/p1/comments`, editor.token, { text: 'Team only: retouch the perch, client is fussy', point: { x: 0.2, y: 0.2 } })).body.comment;
+    let r = await call('GET', `${P}/photos/p1/comments`, client.token);
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.body.comments, [], 'the team comment on the client\'s own photo is not sent to them');
+    assert.equal(JSON.stringify(r.body).includes('fussy'), false);
+    r = await call('POST', `${P}/comments/${team.id}/resolve`, client.token, { resolved: true });
+    assert.equal(r.status, 404, 'to a client the team comment does not exist (no 403 that would reveal it)');
+    assert.equal(JSON.stringify(r.body).includes('fussy'), false);
+
+    // With client comments allowed, they see and resolve their own, and the team still sees everything.
+    await call('POST', `${P}/members`, owner.token, { kind: 'options', options: { clientsMayComment: true } });
+    const mine = (await call('POST', `${P}/photos/p1/comments`, client.token, { text: 'Can the branch go?' })).body.comment;
+    r = await call('GET', `${P}/photos/p1/comments`, client.token);
+    assert.deepEqual(r.body.comments.map((c: any) => c.text), ['Can the branch go?']);
+    assert.equal((await call('POST', `${P}/comments/${mine.id}/resolve`, client.token, { resolved: true })).status, 200);
+    r = await call('GET', `${P}/photos/p1/comments`, owner.token);
+    assert.deepEqual(r.body.comments.map((c: any) => c.authorName), ['Erin', 'Cleo']);
+  } finally { await h.close(); }
+});
+
+test('replies: one level of threads, a reply reopens a done thread, the thread is done as a whole, clients reply only in their own threads', async () => {
+  const { h, owner, editor, client, call, P } = await harness();
+  try {
+    await call('POST', `${P}/members`, owner.token, { kind: 'inviteEmail', email: 'editor@example.test', role: 'editor', displayName: 'Erin' });
+    await call('POST', `${P}/members`, owner.token, { kind: 'inviteEmail', email: 'client@example.test', role: 'client', displayName: 'Cleo', photoIds: ['p1'] });
+    await call('POST', `${P}/accept`, editor.token, { displayName: 'Erin' });
+    await call('POST', `${P}/accept`, client.token, { displayName: 'Cleo' });
+    await call('POST', `${P}/members`, owner.token, { kind: 'options', options: { clientsMayComment: true } });
+    const root = (await call('POST', `${P}/photos/p1/comments`, owner.token, { text: 'Brighter eye?', point: { x: 0.4, y: 0.3 } })).body.comment;
+    assert.equal(root.replyTo, null);
+    let r = await call('POST', `${P}/photos/p1/comments`, editor.token, { text: 'Done in revision 3', point: { x: 0.9, y: 0.9 }, replyTo: root.id });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const reply = r.body.comment;
+    assert.deepEqual([reply.replyTo, reply.point], [root.id, null], 'a reply belongs to its thread and has no pin of its own');
+    assert.equal((await call('POST', `${P}/photos/p1/comments`, owner.token, { text: 'nested', replyTo: reply.id })).body.error.code, 'COLLAB_REPLY_TO_THREAD');
+    assert.equal((await call('POST', `${P}/photos/p2/comments`, owner.token, { text: 'wrong photo', replyTo: root.id })).status, 404);
+    assert.equal((await call('POST', `${P}/comments/${reply.id}/resolve`, editor.token, { resolved: true })).body.error.code, 'COLLAB_RESOLVE_THREAD');
+
+    // Done, then a reply reopens it.
+    assert.equal((await call('POST', `${P}/comments/${root.id}/resolve`, editor.token, { resolved: true })).status, 200);
+    await call('POST', `${P}/photos/p1/comments`, owner.token, { text: 'Still soft on the left', replyTo: root.id });
+    r = await call('GET', `${P}/photos/p1/comments`, owner.token);
+    assert.equal(r.body.comments.find((c: any) => c.id === root.id).resolvedAtMs, null, 'a reply reopens a done thread');
+    assert.deepEqual(r.body.comments.filter((c: any) => c.replyTo === root.id).map((c: any) => c.text), ['Done in revision 3', 'Still soft on the left']);
+
+    // A client cannot reply in a team thread (it does not exist for them), but the team can answer the client's own thread.
+    assert.equal((await call('POST', `${P}/photos/p1/comments`, client.token, { text: 'peek', replyTo: root.id })).status, 404);
+    const theirs = (await call('POST', `${P}/photos/p1/comments`, client.token, { text: 'Can the branch go?' })).body.comment;
+    assert.equal((await call('POST', `${P}/photos/p1/comments`, editor.token, { text: 'Yes, removed', replyTo: theirs.id })).status, 200);
+    r = await call('GET', `${P}/photos/p1/comments`, client.token);
+    assert.deepEqual(r.body.comments.map((c: any) => [c.authorName, c.text]), [['Cleo', 'Can the branch go?'], ['Erin', 'Yes, removed']], 'their own thread, with the team\'s answer, and nothing else');
+  } finally { await h.close(); }
+});

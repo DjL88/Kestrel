@@ -4,7 +4,7 @@ import { useConnectivity } from '../../providers/useConnectivity';
 import { projectsText } from '../../i18n/areas/projects';
 import { stepFrom } from './utils/swipe';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import type { PanelId, Photo } from './contract';
+import type { EditRecipe, PanelId, Photo } from './contract';
 import { useWorkspace } from './stub';
 import { resolveTheme } from './themePreference';
 import { noticeDurationMs, noticeNeedsDismiss } from './utils/noticeTiming';
@@ -38,8 +38,11 @@ import RemovedPhotosDialog from './dialogs/RemovedPhotosDialog';
 import LightroomOfferDialog from './dialogs/LightroomOfferDialog';
 import QuickStartCard from './panels/QuickStartCard';
 import ShareDialog from './dialogs/ShareDialog';
+import CloudOriginalPrompt from './dialogs/CloudOriginalPrompt';
 import { usePresence } from './shell/usePresence';
 import { PresenceAvatars, PresenceCursors } from './shell/PresenceLayer';
+import { NoticesButton, useNotices } from './shell/Notices';
+import { TaskAlerts } from './shell/TaskAlerts';
 import SharedEditBanner from './shell/SharedEditBanner';
 import SharedComments from './shell/SharedComments';
 import { getActiveGroup } from './utils/studioMath';
@@ -100,6 +103,15 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     const session = await firebaseAuth.current().catch(() => null);
     return session ? (session.displayName?.trim() || session.email?.split('@')[0] || null) : null;
   }, []);
+  // Team notifications (G20): the in-app inbox, for a signed-in person on a build with sharing.
+  const notices = useNotices(sharing, signedInName);
+  /** A notice opens its photo when that shared project is the one open here; otherwise it only stays in the list. */
+  const goToNoticePhoto = (projectId: string, photoKey: string) => {
+    if (!store.activeProjectId || readSharedLink(store.activeProjectId) !== projectId) return false;
+    const photo = store.photos.find((candidate) => candidate.sharedKey === photoKey);
+    if (photo) actions.selectPhoto(photo.id);
+    return Boolean(photo);
+  };
   const connectivity = useConnectivity();
   const service = useServiceReachability(serviceBase);
   const health = projectsText.connections.health;
@@ -142,6 +154,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [maskGuide, setMaskGuide] = useState<{ photoId: string; maskId: string } | null>(null);
   // The selected mask's hatched coverage overlay (O). Its outline stays on the canvas either way.
   const [maskOverlayVisible, setMaskOverlayVisible] = useState(true);
+  // White balance from the picture: the eyedropper's waiting state, and the last result in words.
+  const [whitePickFor, setWhitePickFor] = useState<string | null>(null);
+  const [whiteNote, setWhiteNote] = useState<{ photoId: string; text: string } | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [addingFormatFor, setAddingFormatFor] = useState<string | null>(null);
   const [collageEditingId, setCollageEditingId] = useState<string | null>(null);
@@ -168,6 +183,16 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
 
   const activePhoto =
     store.photos.find((p) => p.id === store.activePhotoId) ?? store.photos[0] ?? null;
+  const runNeutralWhite = React.useCallback(async (photoId: string, at?: { x: number; y: number }) => {
+    if (!actions.neutralWhiteBalance) return;
+    setWhitePickFor(null);
+    const result = await actions.neutralWhiteBalance(photoId, at).catch(() => 'unreadable' as const);
+    setWhiteNote({ photoId, text: STRINGS.adjust.neutral[result] });
+  }, [actions]);
+  const whitePickActive = whitePickFor !== null && whitePickFor === activePhoto?.id;
+  const neutralPick = React.useMemo(() => (whitePickActive && activePhoto
+    ? { onPick: (at: { x: number; y: number }) => { void runNeutralWhite(activePhoto.id, at); }, onCancel: () => setWhitePickFor(null) }
+    : undefined), [whitePickActive, activePhoto, runNeutralWhite]);
   // Compare with exactly two photos selected shows them side by side; with one, it stays before and after.
   const pairPhotos = React.useMemo(() => {
     if (!store.compareMode || store.collage || store.selectedPhotoIds.length !== 2) return null;
@@ -179,10 +204,15 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const lightroomInputRef = useRef<HTMLInputElement>(null);
   const dismissLightroomOffer = useCallback(() => actions.dismissLightroomOffer?.(), [actions]);
   const peers = usePresence(sharing, store.collage ? null : store.activeProjectId, activePhoto?.sharedKey ?? null, signedInName, shareVersion);
+  const [zoomedPastPreview, setZoomedPastPreview] = React.useState<string | null>(null);
   const sharedEditing = useSharedEditing(sharing, store.collage ? null : store.activeProjectId, activePhoto?.id ?? null, activePhoto?.sharedKey, actions, activePhoto, shareVersion);
   // Someone else has this photo out, or both sides changed it: the editing panels are view-only until that is settled.
   const editLocked = sharedEditing.state.kind === 'theirs' || sharedEditing.state.kind === 'conflict' || sharedEditing.state.kind === 'view-only';
-  const hoveredLook = store.looks.find((l) => l.id === store.hoveredLookId) ?? null;
+  // Watch (Co-pilot): a suggestion's steps so far, shown through the same non-destructive preview as a hovered Look.
+  const [stepPreview, setStepPreview] = useState<Partial<EditRecipe> | null>(null);
+  useEffect(() => setStepPreview(null), [store.activePhotoId]);
+  const hoveredLook = store.looks.find((l) => l.id === store.hoveredLookId)
+    ?? (stepPreview && Object.keys(stepPreview).length ? { id: 'watch-steps', name: '', category: '', description: '', previewFilter: '', recipeDelta: stepPreview } : null);
   const runningTaskCount = store.tasks.filter((t) => t.status === 'running').length;
 
   // Action messages: a problem waits until it is dismissed; a confirmation stays long enough to read, and pauses
@@ -198,6 +228,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
 
   // One dispatch for every command id, shared by the keydown handler below and the command search dialog,
   // so "what Cmd/Ctrl+K can run" and "what the keyboard shortcut runs" never drift apart.
+  // Settings → Keyboard: after a rating or decision on one photo, move on to the next, as when culling in Photo Mechanic
+  // or Lightroom with Caps Lock on. A choice on several selected photos never moves.
+  const advanceAfterDecision = (ids: string[]) => {
+    if (store.settings.advanceAfterDecision && ids.length === 1 && ids[0] === activePhoto?.id) {
+      window.dispatchEvent(new CustomEvent('inflight:photo-step', { detail: { delta: 1 } }));
+    }
+  };
   const runCommand = React.useCallback((command: CommandDefinition) => {
     // In a two-photo compare, keys act on the chosen side only, never on both photos at once.
     const ids = pairPhotos && activePhoto && pairPhotos.some((p) => p.id === activePhoto.id) ? [activePhoto.id]
@@ -205,10 +242,12 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     switch (command.id) {
       case 'help.toggle': setShortcutGuideOpen((open) => !open); break;
       case 'app.commandSearch': setCommandPaletteOpen((open) => !open); break;
-      case 'photo.flag': if (ids.length) actions.toggleFlag(ids); break;
+      case 'photo.flag': if (ids.length) { actions.toggleFlag(ids); advanceAfterDecision(ids); } break;
+      case 'photo.reject': if (ids.length) { actions.setDecision(ids, 'reject'); advanceAfterDecision(ids); } break;
+      case 'photo.unflag': if (ids.length) { actions.setDecision(ids, 'unreviewed'); advanceAfterDecision(ids); } break;
       case 'photo.rate0': case 'photo.rate1': case 'photo.rate2':
       case 'photo.rate3': case 'photo.rate4': case 'photo.rate5':
-        if (ids.length) actions.setRating(ids, Number(command.id.slice(-1)));
+        if (ids.length) { actions.setRating(ids, Number(command.id.slice(-1))); advanceAfterDecision(ids); }
         break;
       case 'photo.next': window.dispatchEvent(new CustomEvent('inflight:photo-step', { detail: { delta: 1 } })); break;
       case 'photo.prev': window.dispatchEvent(new CustomEvent('inflight:photo-step', { detail: { delta: -1 } })); break;
@@ -224,7 +263,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'file.export': actions.setExportOpen(true); break;
       case 'app.settings': actions.setSettingsOpen(true); break;
     }
-  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, activePhoto, actions, pairPhotos, editLocked]);
+  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, store.settings.advanceAfterDecision, activePhoto, actions, pairPhotos, editLocked]);
 
   // The desktop app's native menu (File, Edit, Photo, View, Settings). Some of its accelerators (Cmd/Ctrl+E, +A, +O, +M)
   // are taken before the page sees the key, so the menu choice must run the action itself.
@@ -245,6 +284,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'saveXmp': if (inEditor && !store.collage) actions.saveXmpSidecars(store.selectedPhotoIds); break;
       case 'readXmp': if (inEditor && !store.collage) xmpInputRef.current?.click(); break;
       case 'readLightroom': if (inEditor && !store.collage) lightroomInputRef.current?.click(); break;
+      case 'openExport': if (inEditor && !store.collage) actions.exportOpenFormats?.(); break;
       case 'resetPhoto': if (inEditor && activePhoto && !editLocked) actions.resetPhotoEdits(activePhoto.id); break;
       case 'backToProjects': if (inEditor) actions.backToProjects(); break;
     }
@@ -308,6 +348,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onApplySuggestion={actions.applyAssistSuggestion}
             onRequestLocalAuto={actions.requestLocalAuto}
             onDismissSuggestion={actions.dismissAssistSuggestion}
+            onStepPreview={setStepPreview}
           />
         );
       case 'adjust':
@@ -324,6 +365,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onApplyLook={actions.applyLook}
             onHoverLook={actions.setHoveredLook}
             onResetPhoto={actions.resetPhotoEdits}
+            onNeutralWhite={actions.neutralWhiteBalance ? (id) => { void runNeutralWhite(id); } : undefined}
+            whitePicking={whitePickActive}
+            onSetWhitePicking={actions.neutralWhiteBalance && store.PhotoSurface ? (on) => { setWhiteNote(null); setWhitePickFor(on && activePhoto ? activePhoto.id : null); } : undefined}
+            whiteNote={whiteNote && whiteNote.photoId === activePhoto?.id ? whiteNote.text : null}
           />
         );
       case 'formats':
@@ -367,7 +412,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetMaskEdit={actions.setMaskEdit}
             onSetMaskFeather={actions.setMaskFeather}
             onSetMaskGeometry={actions.setMaskGeometry}
-            onSetMaskLimit={actions.setMaskLimit}
+            onSetMaskParts={actions.setMaskParts}
             onPreviewMask={setMaskGuide}
           />
         );
@@ -428,7 +473,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           />
         );
       case 'history':
-        return <HistoryPanel photo={activePhoto} activeSizeId={store.activeSizeId} onForkFromStep={actions.jumpToEditStep} onSwitchVersion={actions.switchEditVersion} />;
+        return <HistoryPanel photo={activePhoto} activeSizeId={store.activeSizeId} onForkFromStep={actions.jumpToEditStep} onSwitchVersion={actions.switchEditVersion} onUndo={editLocked ? undefined : actions.undo}
+          onRenameVersion={actions.renameEditVersion} onSaveCheckpoint={actions.saveEditCheckpoint} onRestoreCheckpoint={actions.restoreEditCheckpoint}
+          onDeleteCheckpoint={actions.deleteEditCheckpoint} onRestoreFormatCrop={actions.restoreFormatCrop} />;
       case 'info':
         return (
           <InfoPanel
@@ -436,7 +483,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onToggleFlag={actions.toggleFlag}
             onSetRating={actions.setRating}
             onReconnectOriginal={actions.reconnectOriginal}
+            onSaveDngCopy={actions.saveDngCopy}
             onCorrectSpeciesName={actions.correctSpeciesName}
+            onCorrectVehicle={actions.correctVehicle}
           />
         );
       case 'tasks':
@@ -542,6 +591,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onRestoreBackup={actions.restoreProjectBackup}
           onArchiveProject={actions.archiveProject}
           onDeleteProject={actions.deleteProject}
+          onRestoreDeletedProject={actions.restoreDeletedProject}
+          onDeleteProjectForever={actions.deleteProjectForever}
           onOpenSettings={() => actions.setSettingsOpen(true, 'appearance')}
           onToggleTheme={() =>
             actions.updateSettings({ theme: activeTheme === 'dark' ? 'light' : 'dark' })
@@ -582,7 +633,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetAssistMode={actions.setAssistMode}
             onExport={() => actions.setExportOpen(true)}
             onShare={store.collage ? undefined : () => setShareOpen(true)}
-            presence={<PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(key) => { const photo = store.photos.find((candidate) => candidate.sharedKey === key); if (photo) actions.selectPhoto(photo.id); }} />}
+            presence={<>
+              <PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(key) => { const photo = store.photos.find((candidate) => candidate.sharedKey === key); if (photo) actions.selectPhoto(photo.id); }} />
+              <NoticesButton notices={notices} onGoToPhoto={goToNoticePhoto} />
+            </>}
             onOpenRemoved={() => actions.setRemovedOpen(true)}
             onSaveXmp={store.screen === 'editor' && !store.collage ? () => actions.saveXmpSidecars(store.selectedPhotoIds) : undefined}
             onBackUpNow={store.screen === 'editor' && !store.collage ? actions.backUpProjectNow : undefined}
@@ -590,6 +644,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             backupNote={store.backup ? backupStatusText(store.backup) : undefined}
             onReadXmp={store.screen === 'editor' && !store.collage ? () => xmpInputRef.current?.click() : undefined}
             onReadLightroom={store.screen === 'editor' && !store.collage ? () => lightroomInputRef.current?.click() : undefined}
+            onExportOpenFormats={store.screen === 'editor' && !store.collage ? actions.exportOpenFormats : undefined}
             onOpenSettings={() => actions.setSettingsOpen(true)}
             onImport={actions.importPhotos}
             onUndo={actions.undo}
@@ -607,7 +662,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onToggleTheme={() =>
               actions.updateSettings({ theme: activeTheme === 'dark' ? 'light' : 'dark' })
             }
-            onToggleDemoUnavailable={actions.toggleDemoUnavailable}
+            hasActivePhoto={Boolean(activePhoto)}
+            onToggleDemoUnavailable={useStore === useWorkspace ? actions.toggleDemoUnavailable : undefined}
           />
 
           {/* Main Workspace Row */}
@@ -673,6 +729,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   sort={store.filmstripSort}
                   onSetMinRating={actions.setFilmstripMinRating}
                   onSetSort={actions.setFilmstripSort}
+                  tagFilter={store.filmstripTag ?? null}
+                  onSetTagFilter={actions.setFilmstripTag}
                   onSelectPhoto={actions.selectPhoto}
                   onOpenInEditor={(id) => {
                     actions.selectPhoto(id);
@@ -686,12 +744,14 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 />
               ) : (
                 <Canvas
+                  onZoomPastPreview={setZoomedPastPreview}
                   PhotoSurface={store.PhotoSurface}
                   maskGuideId={maskGuide?.photoId === activePhoto?.id ? maskGuide?.maskId : undefined}
                   maskOverlayVisible={maskOverlayVisible}
                   maskOverlayKey={keymap['view.maskOverlay'] ? chordLabel(keymap['view.maskOverlay'], IS_MAC) : undefined}
                   onToggleMaskOverlay={() => setMaskOverlayVisible((visible) => !visible)}
                   onSetMaskGeometry={actions.setMaskGeometry}
+                  neutralPick={neutralPick}
                   onOpenFormats={activePhoto ? () => {
                     actions.setPanelVisible('formats', true);
                     setAddingFormatFor(activePhoto.id);
@@ -729,6 +789,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   onUpdateVideoZoom={actions.updateVideoZoom}
                   onUpdateOverlay={actions.updateOverlay}
                   onReconnectOriginal={actions.reconnectOriginal}
+                  onDevelopFullSize={actions.developFullSize}
                   onToggleCompare={() => actions.setCompareMode(!store.compareMode)}
                   onSetZoom={actions.setCanvasZoom}
                   onToggleFullScreen={actions.toggleFullScreen}
@@ -749,6 +810,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 sort={store.filmstripSort}
                 onSetMinRating={actions.setFilmstripMinRating}
                 onSetSort={actions.setFilmstripSort}
+                tagFilter={store.filmstripTag ?? null}
+                onSetTagFilter={actions.setFilmstripTag}
                 quietBadges={store.settings.calmBadges}
                 looks={store.looks}
                 hasClipboardRecipe={Boolean(store.clipboardRecipe)}
@@ -945,7 +1008,15 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         onExport={actions.runExport}
       />
 
+      <TaskAlerts />
       <PresenceCursors peers={peers} photoId={activePhoto?.sharedKey ?? null} hidden={cursorsHidden} />
+      <CloudOriginalPrompt
+        client={sharing}
+        localProjectId={store.collage ? null : store.activeProjectId}
+        photo={zoomedPastPreview && activePhoto?.id === zoomedPastPreview ? activePhoto : null}
+        attachOriginal={actions.attachCloudOriginal}
+        onDone={() => setZoomedPastPreview(null)}
+      />
       <ShareDialog
         open={shareOpen}
         client={sharing}
@@ -960,6 +1031,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         localPhotos={store.photos}
         readOriginal={actions.readVerifiedOriginal}
         importCloud={actions.importCloudPreviews}
+        attachOriginal={actions.attachCloudOriginal}
+        photoDecision={(id) => store.photos.find((photo) => photo.id === id)?.decision ?? null}
+        onFlagPhoto={(id) => actions.setDecision([id], 'keep')}
         onClose={closeShare}
       />
 

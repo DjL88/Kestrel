@@ -1,3 +1,4 @@
+import { createTimedSession } from './modelTiming';
 import { Sha256Stream } from '../core/sha256';
 import { installedModel } from './modelUpdater';
 import { GATE_MODEL, gateVectors } from '../core/categoryGate';
@@ -80,7 +81,7 @@ function load(): Promise<Loaded> {
     const ort = await import('onnxruntime-web/wasm');
     ort.env.wasm.numThreads = 1;
     ort.env.wasm.proxy = false;
-    const session = await ort.InferenceSession.create(bytes, { executionProviders: ['wasm'] });
+    const session = await createTimedSession(ort, 'clip-gate', bytes, { executionProviders: ['wasm'] });
     return { ort, session, categories, vectors };
   })().catch((error) => {
     loading = null;
@@ -96,6 +97,12 @@ function load(): Promise<Loaded> {
  */
 export async function routePicture(picture: HTMLCanvasElement, crop: SquareCrop): Promise<RouteResult> {
   return (await routeAndEmbedPicture(picture, crop)).route;
+}
+
+/** The image model's unit-length embedding of one square of the picture, on this device: the scene tags use it on the
+ * whole picture's centre square, so one model and one session serve the gate, vehicles and scene tags. */
+export async function embedSquare(picture: HTMLCanvasElement, crop: SquareCrop): Promise<Float32Array> {
+  return (await routeAndEmbedPicture(picture, crop)).embedding;
 }
 
 /** The gate's answer and the CLIP picture embedding it came from, so vehicle recognition can reuse it without running again. */

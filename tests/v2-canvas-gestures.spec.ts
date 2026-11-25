@@ -7,7 +7,8 @@ import { expect, test, type Page } from '@playwright/test';
 async function openPhoto(page: Page) {
   await page.goto('/?v2');
   const studio = page.locator('.inflight-v2');
-  await expect(studio.getByText('No projects yet')).toBeVisible();
+  // The empty catalogue shows only once the local library has loaded, which takes seconds on a busy machine.
+  await expect(studio.getByText('No projects yet')).toBeVisible({ timeout: 30_000 });
   await studio.getByRole('button', { name: 'New project' }).first().click();
   await page.getByLabel('Project name', { exact: true }).fill('Gestures');
   await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();

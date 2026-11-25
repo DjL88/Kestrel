@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { PAYG_PENCE } from '../../../core/cloudPlan';
 import type { CollabRole } from '../../../core/collabRoles';
 import type { CloudPhotoView, CloudUsage, CollabClient } from '../../../providers/collabClient';
 import { galleryThumbnail } from '../../engineClient/galleryThumbnail';
 import { STRINGS } from '../strings';
+import { creditsFor, fetchCloudOriginal } from './cloudOriginals';
 
 export interface LocalCloudPhoto { id: string; sharedKey?: string; filename: string; cloudPreview?: boolean }
 
@@ -16,19 +16,17 @@ interface CloudPhotosPanelProps {
   renderPreview?: (photoId: string) => Promise<Blob | null>;
   readOriginal?: (photoId: string) => Promise<Blob | null>;
   importCloud?: (items: { file: File; projectId: string; photoKey: string }[]) => Promise<void>;
+  attachOriginal?: (photoId: string, original: File, sha256: string) => Promise<boolean>;
   onProblem: (error: unknown) => void;
 }
 
-/** Credits per GB downloaded (1 credit = 1p), from the shared price list. Shown before anything is fetched, so nobody is surprised. */
-const creditsFor = (bytes: number) => Math.ceil(bytes * PAYG_PENCE.downloadPerGb / 1e9 * 10) / 10;
-const ORIGINALS_CACHE = 'inflight-cloud-originals-v1';
 
 /**
  * A shared project's photos in the cloud (#1387). Owners and editors put sized previews up (and originals, only if they
  * choose); everyone else adds the previews to their own device once, and fetches an original only when they ask for it.
  * Downloads come out of the owner's monthly allowance, and the cost is shown before each one.
  */
-export default function CloudPhotosPanel({ client, projectId, role, photos, selectedPhotoIds, renderPreview, readOriginal, importCloud, onProblem }: CloudPhotosPanelProps) {
+export default function CloudPhotosPanel({ client, projectId, role, photos, selectedPhotoIds, renderPreview, readOriginal, importCloud, attachOriginal, onProblem }: CloudPhotosPanelProps) {
   const t = STRINGS.share;
   const [cloud, setCloud] = useState<CloudPhotoView[] | null>(null);
   const [usage, setUsage] = useState<CloudUsage | null>(null);
@@ -89,21 +87,12 @@ export default function CloudPhotosPanel({ client, projectId, role, photos, sele
     if (items.length) await importCloud(items);
   });
 
+  // On request only: the original replaces the preview behind the photo (edits kept) and is offered as a file.
   const downloadOriginals = () => run(async () => {
-    const cache = typeof caches !== 'undefined' ? await caches.open(ORIGINALS_CACHE).catch(() => null) : null;
     for (const photo of originals) {
       const key = photo.sharedKey!;
-      const request = new Request(`https://inflight.invalid/originals/${projectId}/${key}`);
-      // Each device downloads an original once: later requests come from this device's own cache.
-      let blob = cache ? await (await cache.match(request))?.blob() : undefined;
-      if (!blob) {
-        blob = await client.cloudDownload(projectId, key, 'original');
-        await cache?.put(request, new Response(blob)).catch(() => undefined);
-      }
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob); link.download = inCloud.get(key)?.name ?? `${key}.original`;
-      document.body.append(link); link.click(); link.remove();
-      setTimeout(() => URL.revokeObjectURL(link.href), 60_000);
+      const { file, sha256 } = await fetchCloudOriginal(client, projectId, key, inCloud.get(key)?.name ?? `${key}.original`);
+      await attachOriginal?.(photo.id, file, sha256);
     }
   });
 

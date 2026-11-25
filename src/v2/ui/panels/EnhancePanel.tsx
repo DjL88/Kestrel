@@ -59,6 +59,19 @@ export default function EnhancePanel({
           </div>
         )}
 
+        {recipe.aiDenoise && (
+          <div className="space-y-1.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2.5">
+            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.enhance.aiDenoiseInUse}</p>
+            <button
+              type="button"
+              onClick={() => onUpdateRecipe(photo.id, { aiDenoise: false })}
+              className="h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-subtle)] px-3 text-xs font-medium text-[var(--text-primary)]"
+            >
+              {STRINGS.enhance.aiDenoiseOff}
+            </button>
+          </div>
+        )}
+
         <div className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2.5">
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-medium text-[var(--text-primary)]">

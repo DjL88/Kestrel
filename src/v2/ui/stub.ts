@@ -725,6 +725,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       localCacheLimitGb: 25,
       hideProFeatures: false,
       advancedControls: false,
+      advanceAfterDecision: false,
     },
     activePanel: 'adjust',
     panels: createDefaultPanels(),
@@ -734,6 +735,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     filmstripMinRating: 0,
     filmstripSort: 'shoot',
     filmstripSearch: '',
+    filmstripTag: null,
     gridViewOpen: false,
     compareMode: false,
     canvasZoom: 1,
@@ -836,6 +838,14 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     },
     deleteProject: (id) => {
       logAction('deleteProject', { id });
+      setStore((prev) => ({ ...prev, projects: prev.projects.map((p) => (p.id === id ? { ...p, trashed: true } : p)) }));
+    },
+    restoreDeletedProject: (id) => {
+      logAction('restoreDeletedProject', { id });
+      setStore((prev) => ({ ...prev, projects: prev.projects.map((p) => (p.id === id ? { ...p, trashed: false } : p)) }));
+    },
+    deleteProjectForever: (id) => {
+      logAction('deleteProjectForever', { id });
       setStore((prev) => ({ ...prev, projects: prev.projects.filter((p) => p.id !== id) }));
     },
 
@@ -844,6 +854,11 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     setBurstGrouped: (burstGroupId, grouped) => { logAction('setBurstGrouped', { burstGroupId, grouped }); },
     jumpToEditStep: (photoId, cursor) => { logAction('jumpToEditStep', { photoId, cursor }); },
     switchEditVersion: (photoId, versionId) => { logAction('switchEditVersion', { photoId, versionId }); },
+    renameEditVersion: (photoId, versionId, name) => { logAction('renameEditVersion', { photoId, versionId, name }); },
+    saveEditCheckpoint: (photoId, name) => { logAction('saveEditCheckpoint', { photoId, name }); },
+    restoreEditCheckpoint: (photoId, checkpointId) => { logAction('restoreEditCheckpoint', { photoId, checkpointId }); },
+    deleteEditCheckpoint: (photoId, checkpointId) => { logAction('deleteEditCheckpoint', { photoId, checkpointId }); },
+    restoreFormatCrop: (photoId, formatId, eventAt) => { logAction('restoreFormatCrop', { photoId, formatId, eventAt }); },
 
     setHubState: (hubState) => {
       logAction('setHubState', { hubState });
@@ -941,6 +956,21 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       });
     },
 
+    correctVehicle: (photoId, choice) => {
+      setStore((prev) => ({
+        ...prev,
+        photos: prev.photos.map((photo) => photo.id === photoId
+          ? (choice === 'not-a-vehicle' ? { ...photo, vehicleLabel: undefined, vehicleKind: undefined, vehicleType: undefined } : { ...photo, vehicleKind: choice.kind, vehicleType: choice.type })
+          : photo),
+      }));
+    },
+    removePhotoTag: (photoId, tagId) => {
+      setStore((prev) => ({
+        ...prev,
+        photos: prev.photos.map((photo) => photo.id === photoId ? { ...photo, photoTags: photo.photoTags?.filter((tag) => tag.id !== tagId) } : photo),
+      }));
+    },
+
     correctSpeciesName: (photoId, proposedName) => {
       const name = proposedName.trim().slice(0, 120);
       if (!name) return;
@@ -1028,6 +1058,14 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
         ),
         lastActionNotice: 'Auto-Cull & Analyse updated focus shortlist (no photos auto-rejected)',
       }));
+    },
+
+    saveDngCopy: (photoId) => {
+      logAction('saveDngCopy', { photoId });
+    },
+
+    developFullSize: (photoId) => {
+      logAction('developFullSize', { photoId });
     },
 
     reconnectOriginal: (photoId) => {
@@ -1904,17 +1942,17 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
-    setMaskLimit: (photoId, maskId, limit) => {
+    setMaskParts: (photoId, maskId, parts) => {
       updatePhotoById(photoId, photo => {
-        if (limit && (limit.id === maskId || !photo.masks.some(m => m.id === limit.id))) return photo;
-        return { ...photo, masks: photo.masks.map(m => m.id === maskId ? { ...m, limit: limit ?? undefined } : m) };
+        if (parts.some(part => part.id === maskId || !photo.masks.some(m => m.id === part.id))) return photo;
+        return { ...photo, masks: photo.masks.map(m => m.id === maskId ? { ...m, parts: parts.length ? parts.map(part => ({ ...part })) : undefined } : m) };
       });
     },
 
     removeMaskLayer: (photoId, maskId) => {
       updatePhotoById(photoId, (photo) => ({
         ...photo,
-        masks: photo.masks.filter((m) => m.id !== maskId).map(m => m.limit?.id === maskId ? { ...m, limit: undefined } : m),
+        masks: photo.masks.filter((m) => m.id !== maskId).map(m => m.parts?.some(part => part.id === maskId) ? { ...m, parts: m.parts.filter(part => part.id !== maskId) } : m),
       }));
     },
 
@@ -2072,6 +2110,10 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
 
     setFilmstripSearch: (filmstripSearch) => {
       setStore((prev) => ({ ...prev, filmstripSearch }));
+    },
+
+    setFilmstripTag: (filmstripTag) => {
+      setStore((prev) => ({ ...prev, filmstripTag }));
     },
 
     setGridViewOpen: (gridViewOpen) => {

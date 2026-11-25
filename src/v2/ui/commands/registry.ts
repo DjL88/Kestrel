@@ -9,7 +9,7 @@ import { formatChordLabel, normalizeKeyChord, type KeyEventLike } from '../../..
  */
 export type CommandId =
   | 'help.toggle'
-  | 'photo.flag'
+  | 'photo.flag' | 'photo.reject' | 'photo.unflag'
   | 'photo.next' | 'photo.prev'
   | 'photo.rate0' | 'photo.rate1' | 'photo.rate2' | 'photo.rate3' | 'photo.rate4' | 'photo.rate5'
   | 'view.grid'
@@ -39,6 +39,8 @@ export interface CommandDefinition {
 export const COMMANDS: readonly CommandDefinition[] = [
   { id: 'help.toggle', group: 'app', label: 'Show or hide the keyboard guide', worksInFields: false, allowRepeat: false },
   { id: 'photo.flag', group: 'photos', label: 'Flag or unflag selected photos', worksInFields: false, allowRepeat: false },
+  { id: 'photo.reject', group: 'photos', label: 'Set aside selected photos', worksInFields: false, allowRepeat: false },
+  { id: 'photo.unflag', group: 'photos', label: 'Clear flag or set aside', worksInFields: false, allowRepeat: false },
   { id: 'photo.next', group: 'photos', label: 'Next photo', worksInFields: false, allowRepeat: true },
   { id: 'photo.prev', group: 'photos', label: 'Previous photo', worksInFields: false, allowRepeat: true },
   { id: 'photo.rate0', group: 'photos', label: 'Clear rating', worksInFields: false, allowRepeat: false },
