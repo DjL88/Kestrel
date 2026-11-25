@@ -98,6 +98,9 @@ export interface PhotoFrame {
   declinedTags?: string[];
   /** Set once the species model has looked at this photo, so it is not looked at again. */
   speciesChecked?: boolean;
+  /** What kind of vehicle or aircraft the photo probably shows, read on this device (ids only; words follow the language).
+   * A suggestion: never changes a decision, rating or edit. Malformed values are ignored, never shown. */
+  vehicle?: import('./vehicleRecognition').VehicleReading;
   /**
    * On-device image embedding (DINOv2), used only to refine burst grouping. Absent until the background pass runs.
    * A cache: anything malformed is ignored by `decodeEmbedding`, never a reason to refuse a restore.

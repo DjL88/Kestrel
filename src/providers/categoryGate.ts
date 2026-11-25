@@ -95,6 +95,11 @@ function load(): Promise<Loaded> {
  * same one the species step uses, around the subject); without it, the centre square. Runs on this device.
  */
 export async function routePicture(picture: HTMLCanvasElement, crop: SquareCrop): Promise<RouteResult> {
+  return (await routeAndEmbedPicture(picture, crop)).route;
+}
+
+/** The gate's answer and the CLIP picture embedding it came from, so vehicle recognition can reuse it without running again. */
+export async function routeAndEmbedPicture(picture: HTMLCanvasElement, crop: SquareCrop): Promise<{ route: RouteResult; embedding: Float32Array }> {
   const { ort, session, categories, vectors } = await load();
   const size = GATE_MODEL.size;
   const canvas = document.createElement('canvas');
@@ -108,5 +113,6 @@ export async function routePicture(picture: HTMLCanvasElement, crop: SquareCrop)
   const input = preprocessSpecies(context.getImageData(0, 0, size, size).data, size);
   const results = await session.run({ [session.inputNames[0]]: new ort.Tensor('float32', input, [1, 3, size, size]) });
   const output = results.image_embeds ?? results[session.outputNames[0]];
-  return routeSubject(normalise(Float32Array.from(output.data as Float32Array)), vectors, categories);
+  const embedding = normalise(Float32Array.from(output.data as Float32Array));
+  return { route: routeSubject(embedding, vectors, categories), embedding };
 }

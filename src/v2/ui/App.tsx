@@ -3,7 +3,7 @@ import { useConnectivity } from '../../providers/useConnectivity';
 import { projectsText } from '../../i18n/areas/projects';
 import { stepFrom } from './utils/swipe';
 import React, { useEffect, useRef, useState } from 'react';
-import type { PanelId } from './contract';
+import type { PanelId, Photo } from './contract';
 import { useWorkspace } from './stub';
 import { resolveTheme } from './themePreference';
 import { noticeDurationMs, noticeNeedsDismiss } from './utils/noticeTiming';
@@ -19,6 +19,8 @@ import Canvas from './shell/Canvas';
 import CollageEditor from './shell/CollageEditor';
 import Filmstrip from './shell/Filmstrip';
 import GridView from './shell/GridView';
+import PairCompare from './shell/PairCompare';
+import { backupStatusText } from '../engineClient/backupWords';
 import CoPilotPanel from './panels/CoPilotPanel';
 import AdjustPanel from './panels/AdjustPanel';
 import SizesPanel from './panels/SizesPanel';
@@ -75,6 +77,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const [cursorsHidden, setCursorsHidden] = useState(false);
   const closeShare = React.useCallback(() => { setShareOpen(false); setShareVersion((n) => n + 1); }, []);
   const sharing = React.useMemo(() => collabClient(import.meta.env.VITE_KESTREL_CONTROL_PLANE_URL, () => firebaseAuth.idToken()), []);
+  const gallerySiteUrl = import.meta.env.VITE_KESTREL_SITE_URL || (/^https?:$/.test(window.location.protocol) ? window.location.origin : '');
   const signedInName = React.useCallback(async () => {
     const session = await firebaseAuth.current().catch(() => null);
     return session ? (session.displayName?.trim() || session.email?.split('@')[0] || null) : null;
@@ -147,6 +150,14 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
 
   const activePhoto =
     store.photos.find((p) => p.id === store.activePhotoId) ?? store.photos[0] ?? null;
+  // Compare with exactly two photos selected shows them side by side; with one, it stays before and after.
+  const pairPhotos = React.useMemo(() => {
+    if (!store.compareMode || store.collage || store.selectedPhotoIds.length !== 2) return null;
+    const found = store.selectedPhotoIds.map((id) => store.photos.find((p) => p.id === id));
+    return found[0] && found[1] ? ([found[0], found[1]] as [Photo, Photo]) : null;
+  }, [store.compareMode, store.collage, store.selectedPhotoIds, store.photos]);
+  const [pairSwapped, setPairSwapped] = useState(false);
+  const xmpInputRef = useRef<HTMLInputElement>(null);
   const peers = usePresence(sharing, store.collage ? null : store.activeProjectId, activePhoto?.id ?? null, signedInName, shareVersion);
   const hoveredLook = store.looks.find((l) => l.id === store.hoveredLookId) ?? null;
   const runningTaskCount = store.tasks.filter((t) => t.status === 'running').length;
@@ -165,7 +176,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   // One dispatch for every command id, shared by the keydown handler below and the command search dialog,
   // so "what Cmd/Ctrl+K can run" and "what the keyboard shortcut runs" never drift apart.
   const runCommand = React.useCallback((command: CommandDefinition) => {
-    const ids = store.selectedPhotoIds.length > 0 ? store.selectedPhotoIds : activePhoto ? [activePhoto.id] : [];
+    // In a two-photo compare, keys act on the chosen side only, never on both photos at once.
+    const ids = pairPhotos && activePhoto && pairPhotos.some((p) => p.id === activePhoto.id) ? [activePhoto.id]
+      : store.selectedPhotoIds.length > 0 ? store.selectedPhotoIds : activePhoto ? [activePhoto.id] : [];
     switch (command.id) {
       case 'help.toggle': setShortcutGuideOpen((open) => !open); break;
       case 'app.commandSearch': setCommandPaletteOpen((open) => !open); break;
@@ -188,7 +201,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'file.export': actions.setExportOpen(true); break;
       case 'app.settings': actions.setSettingsOpen(true); break;
     }
-  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, activePhoto, actions]);
+  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, activePhoto, actions, pairPhotos]);
 
   // The desktop app's native menu (File, Edit, Photo, View, Settings). Some of its accelerators (Cmd/Ctrl+E, +A, +O, +M)
   // are taken before the page sees the key, so the menu choice must run the action itself.
@@ -204,6 +217,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'toggleFilmstrip': if (inEditor) actions.setFilmstripCollapsed(!store.filmstripCollapsed); break;
       case 'settings': actions.setSettingsOpen(true, action.tab); break;
       case 'removedPhotos': if (inEditor) actions.setRemovedOpen(true); break;
+      case 'backupNow': if (inEditor && !store.collage) actions.backUpProjectNow(); break;
+      case 'backupFile': if (inEditor && !store.collage) actions.saveProjectBackupFile(); break;
+      case 'saveXmp': if (inEditor && !store.collage) actions.saveXmpSidecars(store.selectedPhotoIds); break;
+      case 'readXmp': if (inEditor && !store.collage) xmpInputRef.current?.click(); break;
       case 'resetPhoto': if (inEditor && activePhoto) actions.resetPhotoEdits(activePhoto.id); break;
       case 'backToProjects': if (inEditor) actions.backToProjects(); break;
     }
@@ -261,6 +278,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             looks={store.looks}
             cvdGuidance={store.settings.cvdGuidance}
             hideReadouts={store.settings.calmReadouts}
+            showAdvanced={store.settings.advancedControls}
             onUpdateRecipe={actions.updateRecipe}
             onApplyLook={actions.applyLook}
             onHoverLook={actions.setHoveredLook}
@@ -472,6 +490,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onCreateProject={actions.createProject}
           onCreateFromFolder={actions.createProjectFromFolder}
           onRenameProject={actions.renameProject}
+          onRestoreBackup={actions.restoreProjectBackup}
           onArchiveProject={actions.archiveProject}
           onDeleteProject={actions.deleteProject}
           onOpenSettings={() => actions.setSettingsOpen(true, 'appearance')}
@@ -482,6 +501,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         />
       ) : (
         <>
+          <input ref={xmpInputRef} type="file" multiple accept=".xmp,.zip,application/rdf+xml,application/zip" hidden
+            data-testid="xmp-input" aria-hidden="true" tabIndex={-1}
+            onChange={(event) => {
+              const files = [...(event.target.files ?? [])];
+              event.target.value = '';
+              if (files.length) actions.readXmpSidecars(files, store.selectedPhotoIds);
+            }} />
           <TopBar
             // Owner decision 24 Nov 2026: header menus in a browser; the installed desktop app uses its native menu bar.
             showMenus={!isDesktopApp()}
@@ -502,6 +528,11 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onShare={store.collage ? undefined : () => setShareOpen(true)}
             presence={<PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(id) => actions.selectPhoto(id)} />}
             onOpenRemoved={() => actions.setRemovedOpen(true)}
+            onSaveXmp={store.screen === 'editor' && !store.collage ? () => actions.saveXmpSidecars(store.selectedPhotoIds) : undefined}
+            onBackUpNow={store.screen === 'editor' && !store.collage ? actions.backUpProjectNow : undefined}
+            onSaveBackupFile={store.screen === 'editor' && !store.collage ? actions.saveProjectBackupFile : undefined}
+            backupNote={store.backup ? backupStatusText(store.backup) : undefined}
+            onReadXmp={store.screen === 'editor' && !store.collage ? () => xmpInputRef.current?.click() : undefined}
             onOpenSettings={() => actions.setSettingsOpen(true)}
             onImport={actions.importPhotos}
             onUndo={actions.undo}
@@ -567,6 +598,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   onEditPhoto={(id) => { actions.selectPhoto(id); setCollageEditingId(id); }}
                   onImport={actions.importPhotos}
                   sourcePickerOpen={collageSourceOpen} onSourcePickerChange={setCollageSourceOpen} />
+              ) : pairPhotos ? (
+                <PairCompare photos={pairSwapped ? [pairPhotos[1], pairPhotos[0]] : pairPhotos} chosenId={store.activePhotoId}
+                  PhotoSurface={store.PhotoSurface} onChoose={actions.focusPhoto}
+                  onSetDecision={actions.setDecision} onSetRating={actions.setRating}
+                  onSwap={() => setPairSwapped((value) => !value)}
+                  onEdit={(id) => { actions.setCompareMode(false); actions.selectPhoto(id); }}
+                  onClose={() => actions.setCompareMode(false)} />
               ) : store.gridViewOpen ? (
                 <GridView
                   photos={store.photos}
@@ -574,6 +612,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   selectedPhotoIds={store.selectedPhotoIds}
                   filter={store.filmstripFilter}
                   search={store.filmstripSearch}
+                  minRating={store.filmstripMinRating}
+                  sort={store.filmstripSort}
+                  onSetMinRating={actions.setFilmstripMinRating}
+                  onSetSort={actions.setFilmstripSort}
                   onSelectPhoto={actions.selectPhoto}
                   onOpenInEditor={(id) => {
                     actions.selectPhoto(id);
@@ -646,6 +688,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 height={store.filmstripHeight}
                 filter={store.filmstripFilter}
                 search={store.filmstripSearch}
+                minRating={store.filmstripMinRating}
+                sort={store.filmstripSort}
+                onSetMinRating={actions.setFilmstripMinRating}
+                onSetSort={actions.setFilmstripSort}
                 quietBadges={store.settings.calmBadges}
                 looks={store.looks}
                 hasClipboardRecipe={Boolean(store.clipboardRecipe)}
@@ -670,6 +716,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 collageMode={composingCollage}
                 onChooseFromProject={composingCollage && store.projects.some((p) => p.id !== store.activeProjectId) ? () => setCollageSourceOpen(true) : undefined}
                 onExportSelected={() => actions.setExportOpen(true)}
+                onCompareSelected={() => { actions.setGridViewOpen(false); actions.setCompareMode(true); }}
               />
             </div>
 
@@ -849,6 +896,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         projectName={store.projects.find((project) => project.id === store.activeProjectId)?.name ?? ''}
         selectedPhotoIds={store.selectedPhotoIds}
         displayName={signedInName}
+        renderPreview={actions.renderGalleryPreview}
+        siteUrl={gallerySiteUrl}
         onClose={closeShare}
       />
 

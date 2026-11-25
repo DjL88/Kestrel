@@ -20,13 +20,23 @@ export interface CollabProjectView {
   members: CollabMemberView[];
   invites: { role: CollabRole; displayName: string; photoIds?: string[] }[];
 }
+export interface GalleryRequest {
+  name: string; photoIds: string[]; days: number; password?: string;
+  allowComments: boolean; allowFavourites: boolean; allowApproval: boolean; allowDownloads: boolean; watermark: boolean;
+}
+
+async function sha256Hex(blob: Blob): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 export interface CollabInvite { projectId: string; name: string; role: CollabRole }
 
 type Json = Record<string, unknown>;
 const isRecord = (value: unknown): value is Json => value !== null && typeof value === 'object' && !Array.isArray(value);
 
 function kindFor(status: number, code: string): CollabErrorKind {
-  if (code === 'COLLAB_NOT_CONFIGURED' || code === 'PRESENCE_NOT_CONFIGURED') return 'not-configured';
+  if (code === 'COLLAB_NOT_CONFIGURED' || code === 'PRESENCE_NOT_CONFIGURED' || code === 'GALLERY_NOT_CONFIGURED') return 'not-configured';
   if (code === 'COLLAB_NOT_ENTITLED') return 'not-entitled';
   if (code === 'COLLAB_DISABLED') return 'switched-off';
   if (status === 401) return 'sign-in';
@@ -69,6 +79,8 @@ export interface CollabClient {
   invite(projectId: string, email: string, role: Exclude<CollabRole, 'owner'>, photoIds?: string[]): Promise<CollabProjectView>;
   remove(projectId: string, accountId: string): Promise<CollabProjectView>;
   accept(projectId: string, displayName: string): Promise<void>;
+  /** Publishes the given previews as a client gallery and returns the link's secret token. */
+  publishGallery(projectId: string, options: GalleryRequest, previews: { photoId: string; jpeg: Blob }[]): Promise<{ galleryId: string; linkToken: string; expiresAtMs: number; published: number }>;
   presenceToken(projectId: string): Promise<{ customToken: string; databaseUrl: string; uid: string; expiresAtMs: number }>;
 }
 
@@ -95,6 +107,19 @@ export function collabClient(baseUrl: string | undefined | null, idToken: () => 
     invite: async (id, email, role, photoIds) => asProject(await call('POST', P(id) + '/members', { kind: 'inviteEmail', email, role, ...(photoIds ? { photoIds } : {}) })),
     remove: async (id, accountId) => asProject(await call('POST', P(id) + '/members', { kind: 'remove', accountId })),
     accept: async (id, displayName) => { await call('POST', P(id) + '/accept', { displayName }); },
+    publishGallery: async (id, options, previews) => {
+      const made = await call('POST', P(id) + '/galleries', { ...options });
+      const galleryId = String(made.galleryId);
+      let published = 0;
+      for (const { photoId, jpeg } of previews) {
+        const signed = await call('POST', `/v1/collab/galleries/${encodeURIComponent(galleryId)}/photos/${encodeURIComponent(photoId)}/upload-url`, { sha256: await sha256Hex(jpeg), bytes: jpeg.size });
+        const put = await fetcher(String(signed.uploadUrl), { method: 'PUT', body: jpeg, headers: { 'content-type': 'image/jpeg', 'x-goog-content-length-range': `0,${jpeg.size}` }, credentials: 'omit', referrerPolicy: 'no-referrer' }).catch(() => null);
+        if (!put?.ok) throw new CollabError('network', 'GALLERY_UPLOAD', 'A preview could not be uploaded. Nothing else was published for it.');
+        await call('POST', `/v1/collab/galleries/${encodeURIComponent(galleryId)}/photos/${encodeURIComponent(photoId)}/commit`);
+        published += 1;
+      }
+      return { galleryId, linkToken: String(made.linkToken), expiresAtMs: Number(made.expiresAtMs), published };
+    },
     presenceToken: async (id) => (await call('POST', P(id) + '/presence-token')) as unknown as { customToken: string; databaseUrl: string; uid: string; expiresAtMs: number },
   };
 }

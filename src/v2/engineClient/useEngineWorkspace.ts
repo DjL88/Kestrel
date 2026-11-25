@@ -76,9 +76,18 @@ import { judgeSubject } from '../../core/autoCull';
 import { archiveExports, saveExportFile, loadExportSource, loadVerifiedRasterOriginalForExport } from '../../providers/browserExport';
 import { toProfile } from '../../core/exportFormats';
 import { renderV2Export, type OverlayDraw } from './renderV2Export';
+import { renderGalleryPreview } from './galleryPreview';
 import { formatOverlayRowText } from '../ui/utils/studioMath';
 import { loadImage } from '../../providers/loadImage';
 import { deliverExport, describeExport } from './exportDelivery';
+import { rawJpegPairs, withPartners } from '../../core/rawJpegPairs';
+import { recountBursts, withPairedJpeg } from './pairedPhotos';
+import { backUpProjectNow, useAutoBackup, useBackupStatus } from '../../providers/autoBackup';
+import { saveProjectBackupFile } from '../../providers/projectBackupFile';
+import { restoreProjectBackup } from '../../core/projectBackup';
+import { backupStatusText } from './backupWords';
+import { applySidecarImports, planXmpImports, saveSidecars, sidecarFailureText, xmpScope } from './xmpOps';
+import { STRINGS as V2_STRINGS } from '../ui/strings';
 import { scheduleV2PhotoExports, photoExportUnits } from './scheduledPhotoExport';
 import { uniqueExportFilename } from '../../core/exportNaming';
 import { exportMayContinue } from '../../core/exportCancellation';
@@ -443,9 +452,17 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   });
   useEffect(() => () => { listenedProvider.current?.detach(); listenedProvider.current = null; }, []);
 
+  // Automatic backups of the open project, shared with V1: soon after a change, every so often, and on leaving.
+  useAutoBackup(state && !state.shoot.collage ? state : null, Boolean(state));
+  const backupStatus = useBackupStatus(state?.shoot.id ?? '');
   const mutate = useCallback((change: (current: CullingState) => CullingState) => setState((current) => (current ? change(current) : current)), []);
 
-  const decide = useCallback((ids: string[], decision: CullDecision) => {
+  // RAW + JPEG of one shot are one photo: the JPEG is kept but not listed, and decisions and ratings cover both.
+  const pairs = useMemo(() => rawJpegPairs(state?.frames ?? []), [state?.frames]);
+  const pairsRef = useRef(pairs);
+  pairsRef.current = pairs;
+  const decide = useCallback((given: string[], decision: CullDecision) => {
+    const ids = withPartners(given, pairsRef.current);
     mutate((current) => ids.reduce((next, id) => applyDecisionWithHistory(next, id, decision, { allowAdvance: false }), current));
   }, [mutate]);
 
@@ -477,7 +494,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     return () => { live = false; };
   }, [rawSizeWaiting, mutate]);
 
-  const removePhotos = useCallback((ids: string[]) => {
+  const removePhotos = useCallback((given: string[]) => {
+    const ids = withPartners(given, pairsRef.current);
     mutate((current) => removeFromLibrary(current, ids));
     setSelected((current) => current.filter((id) => !ids.includes(id)));
   }, [mutate]);
@@ -1524,7 +1542,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     backToProjects: () => { void backToProjects(); },
     setHubState: (next) => setHubState(next),
     selectPhoto: (id, modifiers) => {
-      const list = (stateRef.current?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frame.id);
+      const list = (stateRef.current?.frames ?? []).filter((frame) => !frame.removedAt && !pairsRef.current.rawOf.has(frame.id)).map((frame) => frame.id);
       if (modifiers?.shift && activeId) {
         const a = list.indexOf(activeId), b = list.indexOf(id);
         if (a >= 0 && b >= 0) setSelected(list.slice(Math.min(a, b), Math.max(a, b) + 1));
@@ -1533,17 +1551,20 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       } else setSelected([id]);
       mutate((current) => ({ ...current, selectedFrameId: id }));
     },
-    selectAllPhotos: () => setSelected((stateRef.current?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frame.id)),
+    selectAllPhotos: () => setSelected((stateRef.current?.frames ?? []).filter((frame) => !frame.removedAt && !pairsRef.current.rawOf.has(frame.id)).map((frame) => frame.id)),
     clearSelection: () => setSelected(activeId ? [activeId] : []),
     setDecision: (ids, decision) => decide(ids, decision),
     removePhotos: (ids) => removePhotos(ids),
     setRemovedOpen: (open) => setRemovedOpen(open),
     restorePhotos: (ids) => {
-      mutate((current) => restoreRemoved(current, ids));
+      mutate((current) => restoreRemoved(current, withPartners(ids, rawJpegPairs(current.frames.map((frame) => ({ ...frame, removedAt: undefined }))))));
     },
     toggleFlag: (ids) => mutate((current) => ids.reduce((next, id) => {
       const frame = next.frames.find((candidate) => candidate.id === id);
-      return frame ? applyDecisionWithHistory(next, id, frame.decision === 'keep' ? 'unreviewed' : 'keep', { allowAdvance: false }) : next;
+      if (!frame) return next;
+      // The shown photo's flag decides; its paired JPEG follows it.
+      const target = frame.decision === 'keep' ? 'unreviewed' : 'keep';
+      return withPartners([id], pairsRef.current).reduce((acc, member) => applyDecisionWithHistory(acc, member, target, { allowAdvance: false }), next);
     }, current)),
     correctSpeciesName: (photoId, proposedName) => {
       const name = proposedName.trim().slice(0, 120);
@@ -1569,14 +1590,57 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       }));
       setNotice('Species name saved to this project.');
     },
-    setRating: (ids, rating) => mutate((current) => ({
+    setRating: (given, rating) => mutate((current) => {
+      const ids = withPartners(given, pairsRef.current);
+      return {
       ...current,
       frames: current.frames.map((frame) => (ids.includes(frame.id) ? { ...frame, rating } : frame)),
       shoot: { ...current.shoot, lastUpdatedAt: Date.now() },
-    })),
+    };
+    }),
     importPhotos: () => { void importPhotos(); },
     importFolder: () => { void pickFolderFiles().then((files) => { if (files?.length) void importPhotos(files); }); },
     importDroppedPhotos: (files) => { if (files.length) void importPhotos(files); },
+    backUpProjectNow: () => {
+      const current = stateRef.current;
+      if (!current) return;
+      void backUpProjectNow(current).then((result) => setNotice(backupStatusText(result)));
+    },
+    saveProjectBackupFile: () => {
+      const current = stateRef.current;
+      if (!current) return;
+      void saveProjectBackupFile(current).then(
+        (result) => { if (result !== 'cancelled') setNotice(result === 'saved' ? V2_STRINGS.backup.fileSaved : V2_STRINGS.backup.fileDownloaded); },
+        () => setNotice(V2_STRINGS.backup.fileFailed),
+      );
+    },
+    restoreProjectBackup: (file) => {
+      void file.text().then((contents) => {
+        // Always a new project id, so restoring can never overwrite the project the backup came from.
+        const restored = restoreProjectBackup(contents, `project-${newId()}`);
+        return catalogue.current!.saveProject(restored)
+          .then(() => openProject(restored.shoot.id))
+          .then(() => setNotice(V2_STRINGS.backup.restored(restored.shoot.title)));
+      }).catch(() => setNotice(V2_STRINGS.backup.restoreFailed));
+    },
+    saveXmpSidecars: (photoIds) => {
+      const frames = xmpScope(stateRef.current?.frames ?? [], photoIds);
+      void saveSidecars(frames).then((message) => { if (message) setNotice(message); });
+    },
+    readXmpSidecars: (files, photoIds) => {
+      const before = stateRef.current;
+      if (!before) return;
+      // Every file is parsed and matched before any photo changes; a project change meanwhile cancels it.
+      void planXmpImports(files, xmpScope(before.frames, photoIds), xmpScope(before.frames, [])).then((planned) => {
+        const now = stateRef.current;
+        if (!now || now.shoot.id !== before.shoot.id || now.shoot.lastUpdatedAt !== before.shoot.lastUpdatedAt) {
+          setNotice(sidecarFailureText(null));
+          return;
+        }
+        mutate((current) => applySidecarImports(current, planned));
+        setNotice(V2_STRINGS.xmp.read(planned.length));
+      }, (error) => setNotice(sidecarFailureText(error)));
+    },
     runAutoCull: () => { void runAutoCull(); },
     addMaskLayer: (photoId, type) => { void addMask(photoId, type); },
     toggleMaskLayer: (photoId, maskId) => editMasks(photoId, (masks) => toggleMask(masks, maskId)),
@@ -1590,6 +1654,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     applyAssistSuggestion: applyAuto,
     requestLocalAuto: (photoId) => setAutoRequest((last) => ({ photoId, sequence: (last?.sequence ?? 0) + 1 })),
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
+    renderGalleryPreview: async (photoId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
+      return frame && provider.current ? renderGalleryPreview(frame, provider.current) : null;
+    },
     dismissAssistSuggestion: (photoId, suggestionId) => setAssists((current) => (current[photoId]
       ? { ...current, [photoId]: { ...current[photoId], dismissed: [...current[photoId].dismissed, suggestionId] } } : current)),
     runDeepVisionReview: (photoId) => runDeepVisionReviewAction(photoId),
@@ -1790,10 +1858,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     [stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: watermarkLibrary, auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
-  const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => {
+  const photos = useMemo(() => recountBursts((state?.frames ?? []).filter((frame) => !frame.removedAt && !pairs.rawOf.has(frame.id)).map((frame) => {
     const assist = assists[frame.id];
-    return frameToPhoto(frame, urls[frame.id], { assist, watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed });
-  }), [state?.frames, urls, assists, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes]);
+    const jpegId = pairs.jpegOf.get(frame.id);
+    const pairedJpeg = jpegId ? state?.frames.find((candidate) => candidate.id === jpegId)?.filename : undefined;
+    return withPairedJpeg(pairedJpeg, frameToPhoto(frame, urls[frame.id], { assist, watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed }));
+  })), [state?.frames, pairs, urls, assists, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes]);
   // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo
   // (ROADMAP.md, "Removed photos panel" next item). Thumbnails are not fetched for them; the filename is enough
   // to recognise one in a short list, and restoring returns it to the normal, already-thumbnailed photo list.
@@ -1833,7 +1903,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clipboardRecipe: clipboard,
     PhotoSurface: EngineSurface,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
-  }), [stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice]);
+    backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
+  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice]);
 
   return { store, actions };
 }

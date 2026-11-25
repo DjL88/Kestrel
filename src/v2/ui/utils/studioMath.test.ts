@@ -10,6 +10,8 @@ import {
   computeMultiSelection,
   detectOverlayOverflow,
   filterPhotos,
+  sortPhotos,
+  viewPhotos,
   formatOverlayRowText,
   resolveEffectiveRecipe,
   snapOverlayPosition,
@@ -357,4 +359,33 @@ test('a row cannot be sized past the frame: the cap follows its words and the ed
   assert.equal(capRowSize(row, photo, { textLayoutMode: 'as-is', edgeMargin: 4 }).sizePx, maxRowSizePx(row, photo, { textLayoutMode: 'as-is', edgeMargin: 4 }));
   const empty = { ...(row as object), fields: [] } as never;
   assert.equal(maxRowSizePx(empty, photo, { textLayoutMode: 'as-is', edgeMargin: 4 }), 120);
+});
+
+test('filterPhotos "to review" shows only photos with no decision', () => {
+  const kept: Photo = { ...mockPhoto, id: 'k', decision: 'keep' };
+  const open: Photo = { ...mockPhoto, id: 'u', decision: 'unreviewed' };
+  const aside: Photo = { ...mockPhoto, id: 'r', decision: 'reject' };
+  assert.deepEqual(filterPhotos([kept, open, aside], 'to-review', '').map((p) => p.id), ['u']);
+});
+
+test('sortPhotos is stable, never guesses missing capture times, and keeps shoot order by default', () => {
+  const a: Photo = { ...mockPhoto, id: 'a', filename: 'IMG_10.jpg', rating: 2, capturedAtMs: 3000, tier: 'good' };
+  const b: Photo = { ...mockPhoto, id: 'b', filename: 'IMG_9.jpg', rating: 5, capturedAtMs: undefined, tier: null };
+  const c: Photo = { ...mockPhoto, id: 'c', filename: 'img_2.jpg', rating: 2, capturedAtMs: 1000, tier: 'best' };
+  const list = [a, b, c];
+  assert.equal(sortPhotos(list, 'shoot'), list);
+  assert.deepEqual(sortPhotos(list, 'captured-oldest').map((p) => p.id), ['c', 'a', 'b']);
+  assert.deepEqual(sortPhotos(list, 'captured-newest').map((p) => p.id), ['a', 'c', 'b']);
+  assert.deepEqual(sortPhotos(list, 'filename').map((p) => p.id), ['c', 'b', 'a']);
+  assert.deepEqual(sortPhotos(list, 'rating').map((p) => p.id), ['b', 'a', 'c']);
+  assert.deepEqual(sortPhotos(list, 'best').map((p) => p.id), ['c', 'a', 'b']);
+  assert.deepEqual(list.map((p) => p.id), ['a', 'b', 'c'], 'the input order is not changed');
+});
+
+test('viewPhotos applies decision, search and minimum rating before sorting', () => {
+  const a: Photo = { ...mockPhoto, id: 'a', decision: 'unreviewed', rating: 4, capturedAtMs: 2 };
+  const b: Photo = { ...mockPhoto, id: 'b', decision: 'unreviewed', rating: 1, capturedAtMs: 1 };
+  const c: Photo = { ...mockPhoto, id: 'c', decision: 'keep', rating: 5, capturedAtMs: 0 };
+  assert.deepEqual(viewPhotos([a, b, c], { filter: 'to-review', search: '', minRating: 3, sort: 'shoot' }).map((p) => p.id), ['a']);
+  assert.deepEqual(viewPhotos([a, b, c], { filter: 'all', search: '', minRating: 0, sort: 'captured-oldest' }).map((p) => p.id), ['c', 'b', 'a']);
 });

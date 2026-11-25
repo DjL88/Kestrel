@@ -5,10 +5,12 @@ import type {
   CropTransform,
   EditGroup,
   EditRecipe,
+  FilmstripFilter,
   LookPreset,
   OverlaySettings,
   OverlayTextRow,
   Photo,
+  PhotoSort,
   SizePreset,
 } from '../contract';
 import { composeOverlayText } from './overlayMetadata';
@@ -198,15 +200,16 @@ export function computeMultiSelection(
 }
 
 /**
- * Filters filmstrip / grid photos by All/Flagged and text search across filename, title, species, camera.
+ * Filters filmstrip / grid photos by decision (All, To review, Flagged, Set aside) and text search across filename, title, species, camera.
  */
 export function filterPhotos(
   photos: Photo[],
-  filter: 'all' | 'flagged' | 'set-aside',
+  filter: FilmstripFilter,
   search: string
 ): Photo[] {
   const q = search.trim().toLowerCase();
   return photos.filter((photo) => {
+    if (filter === 'to-review' && photo.decision !== 'unreviewed') return false;
     if (filter === 'flagged' && photo.decision !== 'keep') return false;
     if (filter === 'set-aside' && photo.decision !== 'reject') return false;
     if (!q) return true;
@@ -214,6 +217,8 @@ export function filterPhotos(
       photo.filename,
       photo.title,
       photo.speciesLabel ?? '',
+      photo.vehicleLabel ?? '',
+      ...(photo.searchTerms ?? []),
       photo.category,
       photo.exif.camera,
       photo.exif.lens,
@@ -222,6 +227,47 @@ export function filterPhotos(
       .toLowerCase();
     return haystack.includes(q);
   });
+}
+
+const TIER_RANK: Record<string, number> = { best: 3, better: 2, good: 1 };
+
+/**
+ * Orders photos for display. The sort is stable and falls back to shoot order, so photos with no capture time,
+ * no rating or no ranking keep their place rather than being guessed into one.
+ */
+export function sortPhotos(photos: Photo[], sort: PhotoSort): Photo[] {
+  if (sort === 'shoot') return photos;
+  const indexed = photos.map((photo, index) => ({ photo, index }));
+  const captured = (photo: Photo) => (typeof photo.capturedAtMs === 'number' && Number.isFinite(photo.capturedAtMs) ? photo.capturedAtMs : null);
+  const compare = (a: Photo, b: Photo): number => {
+    switch (sort) {
+      case 'captured-oldest':
+      case 'captured-newest': {
+        const ta = captured(a);
+        const tb = captured(b);
+        if (ta === null || tb === null) return ta === null && tb === null ? 0 : ta === null ? 1 : -1;
+        return sort === 'captured-oldest' ? ta - tb : tb - ta;
+      }
+      case 'filename':
+        return a.filename.localeCompare(b.filename, undefined, { numeric: true, sensitivity: 'base' });
+      case 'rating':
+        return b.rating - a.rating;
+      case 'best':
+        return (TIER_RANK[b.tier ?? ''] ?? 0) - (TIER_RANK[a.tier ?? ''] ?? 0) || b.rating - a.rating;
+      default:
+        return 0;
+    }
+  };
+  return indexed.sort((x, y) => compare(x.photo, y.photo) || x.index - y.index).map((entry) => entry.photo);
+}
+
+/** What the filmstrip and grid show: decision filter, search, minimum rating, then the chosen order. */
+export function viewPhotos(
+  photos: Photo[],
+  view: { filter: FilmstripFilter; search: string; minRating: number; sort: PhotoSort }
+): Photo[] {
+  const filtered = filterPhotos(photos, view.filter, view.search).filter((photo) => photo.rating >= view.minRating);
+  return sortPhotos(filtered, view.sort);
 }
 
 export function clamp(val: number, min: number, max: number): number {

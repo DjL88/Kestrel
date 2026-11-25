@@ -1,5 +1,60 @@
 import type { ColourFamily, ColourFinding, ColourReport } from '../../core/colourCheck';
+import { COLOUR_SENSE_TOLERANCE, type ChannelName, type ColourSenseResult } from '../../core/colourSense';
+import type { ColourMatchResult } from '../../core/colourMatch';
 import { colourText as t } from '../../i18n/areas/colour';
+
+/**
+ * Colour match in words: does the subject carry the colours this subject should have? `kept` is true when every
+ * expected colour was found. A difference always carries the caveat, because light, age, moult and a wrong name all
+ * change colour.
+ */
+export function describeColourMatch(result: ColourMatchResult | null | undefined): ColourSenseNote | undefined {
+  if (!result) return undefined;
+  const measured = result.measured.slice(0, 2).map((entry) => t.family[entry.family]);
+  const mostly = measured.length > 1 ? t.and(measured[0], measured[1]) : measured[0] ?? '';
+  const sentences = result.parts.map((part) => {
+    const colour = t.family[part.expected[0]];
+    const where = t.matchPart[part.part];
+    return part.verdict === 'matches' ? t.matchFound(colour, where) : t.matchMissing(colour, where, mostly);
+  });
+  if (result.verdict === 'differs') sentences.push(t.matchCaveat);
+  return { kept: result.verdict === 'matches', label: t.matchLabel(result.subject), text: sentences.join(' ') };
+}
+
+/** ColourSense for one suggestion: whether the subject keeps its colour, in words. */
+export interface ColourSenseNote { kept: boolean; label: string; text: string }
+
+const channelList = (channels: ChannelName[]) => {
+  const words = channels.map((channel) => t.family[channel]);
+  return words.length === 3 ? t.and(`${words[0]}, ${words[1]}`, words[2]) : words.length === 2 ? t.and(words[0], words[1]) : words[0];
+};
+
+/**
+ * The subject-colour check in words, for colour-blind photographers who cannot judge the shift by eye. Nothing is said
+ * when the check could not judge (no subject, or mismatched pictures): unknown stays unknown.
+ */
+export function describeColourSense(result: ColourSenseResult | undefined): ColourSenseNote | undefined {
+  if (!result || result.verdict === 'unknown') return undefined;
+  if (result.verdict === 'kept') return { kept: true, label: t.senseLabel, text: t.senseKept(t.family[result.after]) };
+  const parts: string[] = [];
+  if (result.outside.includes('hue')) {
+    parts.push(result.before !== result.after
+      ? t.senseHueTowards(t.family[result.before], t.family[result.after])
+      : t.senseHueShade(t.family[result.after]));
+  }
+  if (result.outside.includes('saturation')) {
+    if (result.nearGrey) parts.push(result.saturationChange > 0 ? t.senseGreyTinted : t.senseGreyUntinted);
+    else {
+      const percent = Math.round(Math.abs(result.saturationChange) * 100);
+      parts.push(result.saturationChange > 0 ? t.senseStronger(percent) : t.senseWeaker(percent));
+    }
+  }
+  if (result.outside.includes('clipping')) {
+    const clipped = (['red', 'green', 'blue'] as const).filter((channel) => result.newlyClipped[channel] >= COLOUR_SENSE_TOLERANCE.clipping);
+    if (clipped.length) parts.push(t.senseClipped(channelList(clipped)));
+  }
+  return { kept: false, label: t.senseLabel, text: parts.join(' ') };
+}
 
 /** One colour-check finding as a sentence, with its kind said in a word as well as an icon, never by colour alone. */
 export interface ColourNote { severity: ColourFinding['severity']; label: string; text: string }

@@ -370,7 +370,7 @@ export const ga: AreaTranslation<typeof source> = {
     works: 'Oibríonn an eochair.',
     couldNotCheck: 'Níorbh fhéidir an eochair a sheiceáil. Féach uirthi agus ar do nasc.',
     title: 'Cúntóir ar líne (roghnach)',
-    intro: 'Roghnach. Nuair nach bhfuil aitheantas áitiúil ar fáil nó cinnte agus tú ar líne, is féidir leis an t-ainmhí nó an t-éan i ngrianghraf a ainmniú agus a rá an fiadhúlra, daoine nó tírdhreach atá ann. Fanann sé múchta go dtí go gcasann tú air anseo é.',
+    intro: 'Roghnach. Nuair nach bhfuil aitheantas áitiúil ar fáil nó cinnte agus tú ar líne, is féidir leis an t-ainmhí nó an t-éan i ngrianghraf a ainmniú. Is féidir leis a rá freisin an fiadhúlra, daoine nó tírdhreach atá ann. Fanann sé múchta go dtí go gcasann tú air anseo é.',
     sentLead: 'Seoltar:',
     sent: 'cóip bheag de gach grianghraf (thart ar 640 picteilín), gan ainm comhaid, sonraí ceamara ná suíomh, chuig Google Gemini ag úsáid d’eochrach féin. Ní fhágann do bhunghrianghraf riamh. Ní ainmnítear daoine riamh.',
     atMost: (count) => `${count} grianghraf ar a mhéad i seisiún, ceann ar cheann.`,

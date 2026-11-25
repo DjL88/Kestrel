@@ -438,13 +438,15 @@ test('?v2 slice 1A: the histogram is measured, the zoom % jumps to 100%, and int
   // Real histogram: it reports what the pixels are, here 100% highlight clipping.
   await root.getByRole('button', { name: 'Info', exact: true }).first().click();
   await expect(root.getByTestId('histogram-clipping')).toContainText('Highlights clipped 100%', { timeout: 30000 });
-  // Zoom: click the percentage to see the picture at 100%, and again to fit.
+  // Zoom: the percentage opens a menu with 100% and Fit to screen.
   const zoom = root.getByTestId('zoom-percent');
   const fit = await zoom.textContent();
   expect(fit).not.toBe('100%');
   await zoom.click();
+  await root.getByTestId('zoom-menu-100').click();
   await expect(zoom).toHaveText('100%');
   await zoom.click();
+  await root.getByTestId('zoom-menu-fit').click();
   await expect(zoom).toHaveText(fit!);
   // Interface choices are kept: left-handed mode survives a reload.
   await root.getByRole('button', { name: 'Back to projects' }).click();
