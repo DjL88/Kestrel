@@ -127,20 +127,21 @@ test('a Photo Check outcome sets, clears or leaves the dispute flag', () => {
   assert.equal(disputePatch({ subjectDisputed: true }, 'unverified'), null);
 });
 
-test('a photo is named only from the group the gate saw, and every group needs 0.95', async () => {
+test('a photo is named only from the group the gate saw, and each group has its measured bar', async () => {
   const { speciesGroupsForRoute, autoTagMinimum, shouldAutoTag } = await import('./autoTags');
   assert.deepEqual(speciesGroupsForRoute('insect'), ['insect']);
   assert.deepEqual(speciesGroupsForRoute('reptile'), ['reptile', 'amphibian']);
   assert.deepEqual(speciesGroupsForRoute('waterbird'), ['bird']);
   assert.equal(speciesGroupsForRoute(null), null, 'not sure: every group stays in, as before');
   assert.equal(speciesGroupsForRoute('helicopter'), null);
-  assert.equal(autoTagMinimum('insect'), 0.95);
-  assert.equal(autoTagMinimum('bird'), 0.95, 'owner: aim for 100%; birds were 95.7% right at 0.8 and 99.3% at 0.95');
+  assert.equal(autoTagMinimum('insect'), 0.9);
+  assert.equal(autoTagMinimum('bird'), 0.9, 'birds: 99.4% of written names right at 0.90');
   assert.equal(autoTagMinimum('mammal'), 0.95);
   assert.equal(autoTagMinimum('reptile'), 0.95);
-  assert.equal(shouldAutoTag(0.94, autoTagMinimum('insect')), false, 'a 0.94 damselfly name is not written');
-  assert.equal(shouldAutoTag(0.94, autoTagMinimum('bird')), false);
-  assert.equal(shouldAutoTag(0.95, autoTagMinimum('bird')), true);
+  assert.equal(shouldAutoTag(0.89, autoTagMinimum('insect')), false, 'a 0.89 damselfly name is not written');
+  assert.equal(shouldAutoTag(0.94, autoTagMinimum('mammal')), false, 'mammals stay at 0.95: too few to measure');
+  assert.equal(shouldAutoTag(0.89, autoTagMinimum('bird')), false);
+  assert.equal(shouldAutoTag(0.9, autoTagMinimum('bird')), true);
 });
 
 test('no name is written when the gate and the species model disagree on the group', async () => {
