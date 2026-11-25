@@ -135,6 +135,7 @@ export const gd: AreaTranslation<typeof source> = {
     suggestionStale: 'Dh’atharraich an dealbh às dèidh a’ mholaidh seo. Fuirich airson dearbhadh ùr.',
     checkTask: (filename) => `A’ dearbhadh ${filename} is a dhath`,
     checkStage: 'A’ coimhead air nochdadh, dath is sealladh',
+    secondOpinionStage: "Dàrna beachd bhon mhodail lèirsinn air an uidheam",
     checkFailed: 'Cha b’ urrainnear an dealbh seo a dhearbhadh. Mion-fhiosrachadh ann an Saothraichean.',
     deepTask: 'A’ dèanamh lèirmheas domhainn',
     deepStage: 'A’ coimhead air na cuspairean is càileachd an deilbh',

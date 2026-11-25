@@ -135,6 +135,7 @@ export const is: AreaTranslation<typeof source> = {
     suggestionStale: 'Myndin breyttist eftir þessa tillögu. Bíddu eftir nýrri athugun.',
     checkTask: (filename) => `Athuga ${filename} og liti hennar`,
     checkStage: 'Skoða lýsingu, lit og senu',
+    secondOpinionStage: "Annað álit frá myndlíkaninu í tækinu",
     checkFailed: 'Ekki tókst að athuga þessa mynd. Nánar undir Verk.',
     deepTask: 'Ítarleg yfirferð í gangi',
     deepStage: 'Skoða myndefnin og gæði myndarinnar',

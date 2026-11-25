@@ -74,6 +74,9 @@ export const sv: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Originalet är inte tillgängligt — anslut mappen eller enheten igen',
     previewUnavailable: 'Förhandsvisning inte tillgänglig',
+    retrying: 'Läser in hela bilden igen',
+    lowQuality: 'Liten förhandsvisning: hela bilden kunde inte läsas in',
+    tryAgain: 'Försök igen',
     heifUndecodable: 'InFlight kunde inte avkoda den här HEIF-bilden. Originalet är oförändrat.',
   },
   info: {

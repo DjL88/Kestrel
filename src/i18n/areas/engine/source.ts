@@ -146,6 +146,7 @@ export const source = {
     suggestionStale: 'The photo changed after this suggestion was made. Wait for a fresh check.',
     checkTask: (filename: string) => `Checking ${filename} and its colour`,
     checkStage: 'Looking at exposure, colour and scene',
+    secondOpinionStage: "Second opinion from the on-device vision model",
     checkFailed: 'Could not check this photo. Open Tasks for details.',
     deepTask: 'Running a deep vision review',
     deepStage: 'Looking at the subjects and photo quality',

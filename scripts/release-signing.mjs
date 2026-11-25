@@ -37,7 +37,10 @@ export function planSigning({ os, env }) {
     exports.TAURI_SIGNING_PRIVATE_KEY = env.TAURI_SIGNING_PRIVATE_KEY;
     exports.TAURI_SIGNING_PRIVATE_KEY_PASSWORD = env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD ?? '';
     config.bundle.createUpdaterArtifacts = true;
-    here.push('update files signed with the Kestrel update key');
+    // The app's update check is built in only when the release ships signed update files to check against.
+    // Read by src/components/DesktopUpdate.tsx; local, PR and unsigned builds never check.
+    exports.VITE_KESTREL_UPDATER = '1';
+    here.push('update files signed with the Kestrel update key; the app checks for updates');
   } else {
     here.push('no update files (TAURI_SIGNING_PRIVATE_KEY not set)');
   }
@@ -85,7 +88,7 @@ export function planSigning({ os, env }) {
 
 /** One line for the release page, the same from every runner, because each job sees every secret. */
 export function releaseNote({ updater, apple, windows }) {
-  return `Desktop builds. macOS: ${apple}. Windows: ${windows}. Linux: unsigned. In-app updates: ${updater ? 'signed update files included, but the update check stays switched off in the app until tested' : 'no update files'}.`;
+  return `Desktop builds. macOS: ${apple}. Windows: ${windows}. Linux: unsigned. In-app updates: ${updater ? 'signed update files included, and the app offers new versions (nothing installs without a tap)' : 'no update files'}.`;
 }
 
 function appendMultiline(file, name, value) {

@@ -1,5 +1,6 @@
 import type { ColourSenseNote, ColourWords } from '../engineClient/colourWords';
 import type { ComponentType, CSSProperties, ReactNode } from 'react';
+import type { LensProfile } from '../../core/lensCorrection';
 
 // Single Contract File for InFlight UI Shell
 // All components import their types ONLY from this file.
@@ -144,6 +145,8 @@ export interface SizePreset {
 export interface GradeRangeRecipe { hue: number; amount: number }
 export interface ColourGradeRecipe { shadows: GradeRangeRecipe; midtones: GradeRangeRecipe; highlights: GradeRangeRecipe; balance: number }
 
+export type LensProfileOutcome = 'applied' | 'needs-download' | 'no-lens' | 'not-found' | 'no-focal' | 'failed';
+
 export interface EditRecipe {
   lookId: string;
   exposure: number; // -5.0 to +5.0 EV stops
@@ -176,6 +179,11 @@ export interface EditRecipe {
   channelCurves?: Partial<Record<'red' | 'green' | 'blue', Array<[number, number]>>>;
   /** Remove haze (positive) or add it (negative), -100 to 100. Absent = 0. */
   dehaze?: number;
+  /** Lens distortion, -100 (fixes pincushion) to 100 (fixes barrel), and lens vignetting correction 0 to 100. Absent = 0. */
+  lensDistortion?: number;
+  lensVignetting?: number;
+  /** The measured profile for this photo's lens (from lensfun), set by applyLensProfile. null in a patch removes it. */
+  lensProfile?: LensProfile | null;
   /** Lens colour edges: red/cyan and blue/yellow, -100 to 100 each (set by Detect, or by hand in Advanced). Absent = 0. */
   caRed?: number;
   caBlue?: number;
@@ -320,6 +328,8 @@ export interface AssistSuggestion {
   colourSense?: ColourSenseNote;
   /** Colour match: whether the subject carries the colours it should have (species signature or the vision model), in words. */
   colourMatch?: ColourSenseNote;
+  /** The vision guardian doubted this suggestion looks natural, in words. Advice only: Apply still applies it. */
+  secondOpinion?: ColourSenseNote;
 }
 
 export interface PhotoExif {
@@ -596,6 +606,8 @@ export interface PhotoSurfaceProps {
   alt: string;
   className?: string;
   style?: CSSProperties;
+  /** Called with the shown picture's pixel size (framed, upright) whenever a picture loads, the small interim one included. */
+  onPictureSize?: (size: { width: number; height: number }) => void;
 }
 
 export type HubViewState = 'ready' | 'empty' | 'loading' | 'error';
@@ -662,8 +674,9 @@ export interface WorkspaceStore {
   /** After reading a Lightroom catalogue: how many of its photos are not in this project yet, and where Lightroom keeps them. */
   lightroomOffer?: { missing: number; folder: string } | null;
   /** First run: InFlight is adding the picked photos and running Auto on the first ('working'), has applied Auto ('ready'),
-   * found the photo already looked natural and left it ('unchanged'), or could not check it ('failed'). */
-  quickStart?: { phase: 'working' | 'ready' | 'unchanged' | 'failed'; photoId: string | null } | null;
+   * found the photo already looked natural and left it ('unchanged'), held its suggestion because the vision guardian
+   * doubted it ('held'), or could not check it ('failed'). */
+  quickStart?: { phase: 'working' | 'ready' | 'unchanged' | 'held' | 'failed'; photoId: string | null } | null;
   /** The open project's automatic backup, as last reported. Absent when no project is open. */
   backup?: { state: 'idle' | 'working' | 'ok' | 'partial' | 'failed'; at?: number } | null;
   /** Optional engine-supplied renderer for the canvas (see PhotoSurfaceProps). */
@@ -829,6 +842,9 @@ export interface WorkspaceActions {
   removeOverlayRow: (photoId: string, rowId: string) => void;
   /** Measure this photo's lens colour edges and set caRed/caBlue from them. 'clean' = nothing to correct; 'unclear' = too few edges to tell. */
   detectColourEdges: (photoId: string) => Promise<'corrected' | 'clean' | 'unclear'>;
+  /** Find this photo's lens in the lensfun profiles and apply its profile. Only with `download` does it fetch the
+   * profiles (once, then kept on this device); without it, a device that lacks them answers 'needs-download'. */
+  applyLensProfile: (photoId: string, download: boolean) => Promise<LensProfileOutcome>;
   /** White balance from the picture itself, as one undoable step. `at` (0 to 1 across the shown, framed picture) is a spot
    * that should be grey or white (the eyedropper); without it, Auto estimates the light from the whole picture.
    * 'limited' = a slider reached its end first; 'unreadable' = the spot is clipped or too dark, nothing changed. */

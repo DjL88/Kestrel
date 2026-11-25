@@ -135,6 +135,7 @@ export const de: AreaTranslation<typeof source> = {
     suggestionStale: 'Das Foto hat sich nach diesem Vorschlag geändert. Warten Sie auf eine neue Prüfung.',
     checkTask: (filename) => `${filename} und seine Farbe werden geprüft`,
     checkStage: 'Belichtung, Farbe und Szene werden betrachtet',
+    secondOpinionStage: "Zweite Meinung vom Bildmodell auf dem Gerät",
     checkFailed: 'Dieses Foto konnte nicht geprüft werden. Details unter Aufgaben.',
     deepTask: 'Tiefenprüfung läuft',
     deepStage: 'Motive und Bildqualität werden betrachtet',

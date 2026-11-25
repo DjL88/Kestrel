@@ -135,6 +135,7 @@ export const sv: AreaTranslation<typeof source> = {
     suggestionStale: 'Fotot ändrades efter det här förslaget. Vänta på en ny kontroll.',
     checkTask: (filename) => `Kontrollerar ${filename} och dess färg`,
     checkStage: 'Tittar på exponering, färg och motiv',
+    secondOpinionStage: "Andra åsikt från bildmodellen på enheten",
     checkFailed: 'Kunde inte kontrollera det här fotot. Detaljer under Uppgifter.',
     deepTask: 'Kör en djupgranskning',
     deepStage: 'Tittar på motiven och fotots kvalitet',

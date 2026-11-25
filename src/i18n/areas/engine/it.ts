@@ -135,6 +135,7 @@ export const it: AreaTranslation<typeof source> = {
     suggestionStale: 'La foto è cambiata dopo questo suggerimento. Attendi un nuovo controllo.',
     checkTask: (filename) => `Controllo di ${filename} e del suo colore`,
     checkStage: 'Analisi di esposizione, colore e scena',
+    secondOpinionStage: "Secondo parere dal modello visivo sul dispositivo",
     checkFailed: 'Impossibile controllare questa foto. Dettagli in Attività.',
     deepTask: 'Revisione approfondita in corso',
     deepStage: 'Analisi dei soggetti e della qualità della foto',
