@@ -332,6 +332,22 @@ export const gd: AreaTranslation<typeof source> = {
     rate: (n: number) => `Thoir ${n} rionnagan`,
     ratingFor: (name: string) => `Rangachadh airson ${name}`,
   },
+  lightroom: {
+    readMenu: "Thoir a-steach catalog Lightroom…",
+    reading: "A’ leughadh a’ chatalog Lightroom. Cha dèid ach a leughadh, cha tèid atharrachadh idir. Dùin Lightroom an toiseach airson ’s gum bi na h-atharraichean as ùire san fhaidhle.",
+    done: (p: number, of: number) => `Chaidh rangachadh, brataich, facail-luirg, cruinneachaidhean is deasachaidhean a thoirt a-steach airson ${p} de na ${of} dealbhan sa chatalog. Cha deach an catalog no na tùsan agad atharrachadh.`,
+    keptYours: (n: number) => `Bha an rangachadh, a’ bhratach no an deasachadh agad fhèin aig ${n} an seo mu thràth, mar sin chaidh an fheadhainn agad a chumail.`,
+    notFound: (n: number) => `Cha deach ${n} dealbhan on chatalog a thoirt a-steach, oir chan eil iad sa phròiseact seo no cha robh an t-ainm no àm an togail co-ionann. Cuir am pasgan aca ris, an uairsin thoir a-steach an catalog a-rithist.`,
+    editsNote: "’S e puingean-tòiseachaidh faisg a th’ anns na deasachaidhean, chan e lethbhreacan dìreach de Lightroom, agus tha gach fear na cheum ann an eachdraidh an deilbh. Cha tèid bearradh, cothromachadh geal, masgaichean no toirt air falbh spotan a ghiùlan thairis.",
+    failed: {
+      'not-catalogue': "Chan e catalog Lightroom Classic (.lrcat) a th’ anns an fhaidhle sin. Cha deach dad atharrachadh.",
+      layout: "Tha an catalog sin air a chur air dòigh ann an dòigh nach urrainn do InFlight a leughadh. Cha deach dad atharrachadh.",
+      'too-large': "Tha an catalog sin ro mhòr airson a leughadh aig an aon àm. Cha deach dad atharrachadh.",
+      unreadable: "Cha b’ urrainn dhuinn an catalog sin a leughadh. Cha deach dad atharrachadh.",
+      none: "Chan eil gin de dhealbhan a’ chatalog sa phròiseact seo fhathast. Cuir ris na pasganan a chleachdas Lightroom, an uairsin thoir a-steach an catalog a-rithist. Cha deach dad atharrachadh.",
+      changed: "Dh’atharraich am pròiseact fhad ’s a bhathar a’ leughadh a’ chatalog, mar sin cha deach dad atharrachadh. Feuch a-rithist.",
+    },
+  },
   xmp: {
     saveMenu: "Sàbhail rangachaidhean gu XMP…",
     readMenu: "Leugh rangachaidhean bho XMP…",

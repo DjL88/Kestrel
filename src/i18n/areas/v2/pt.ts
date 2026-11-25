@@ -331,6 +331,22 @@ export const pt: AreaTranslation<typeof source> = {
     rate: (n: number) => `Classificar com ${n} estrelas`,
     ratingFor: (name: string) => `Classificação de ${name}`,
   },
+  lightroom: {
+    readMenu: "Trazer um catálogo do Lightroom…",
+    reading: "A ler o catálogo do Lightroom. É apenas lido, nunca alterado. Feche primeiro o Lightroom para que as últimas alterações estejam no ficheiro.",
+    done: (p: number, of: number) => `Foram trazidas classificações, marcas, palavras-chave, coleções e edições de ${p} das ${of} fotos do catálogo. O catálogo e os seus originais não foram alterados.`,
+    keptYours: (n: number) => `${n} já tinham aqui a sua própria classificação, marca ou edição, por isso as suas foram mantidas.`,
+    notFound: (n: number) => `${n} fotos do catálogo não foram trazidas, porque não estão neste projeto ou o nome ou a hora de captura não coincidiam exatamente. Adicione a pasta delas e traga o catálogo outra vez.`,
+    editsNote: "As edições são pontos de partida próximos, não cópias exatas do Lightroom, e cada uma é um passo no histórico da foto. Recortes, equilíbrio de brancos, máscaras e remoção de manchas não são trazidos.",
+    failed: {
+      'not-catalogue': "Esse ficheiro não é um catálogo do Lightroom Classic (.lrcat). Nada foi alterado.",
+      layout: "Esse catálogo está organizado de forma diferente do que o InFlight consegue ler. Nada foi alterado.",
+      'too-large': "Esse catálogo é demasiado grande para ler de uma só vez. Nada foi alterado.",
+      unreadable: "Não foi possível ler esse catálogo. Nada foi alterado.",
+      none: "Nenhuma foto do catálogo está ainda neste projeto. Adicione as pastas que o Lightroom usa e traga o catálogo outra vez. Nada foi alterado.",
+      changed: "O projeto mudou enquanto o catálogo era lido, por isso nada foi alterado. Tente novamente.",
+    },
+  },
   xmp: {
     saveMenu: "Guardar classificações em XMP…",
     readMenu: "Ler classificações de XMP…",

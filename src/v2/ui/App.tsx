@@ -158,6 +158,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   }, [store.compareMode, store.collage, store.selectedPhotoIds, store.photos]);
   const [pairSwapped, setPairSwapped] = useState(false);
   const xmpInputRef = useRef<HTMLInputElement>(null);
+  const lightroomInputRef = useRef<HTMLInputElement>(null);
   const peers = usePresence(sharing, store.collage ? null : store.activeProjectId, activePhoto?.id ?? null, signedInName, shareVersion);
   const hoveredLook = store.looks.find((l) => l.id === store.hoveredLookId) ?? null;
   const runningTaskCount = store.tasks.filter((t) => t.status === 'running').length;
@@ -221,6 +222,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'backupFile': if (inEditor && !store.collage) actions.saveProjectBackupFile(); break;
       case 'saveXmp': if (inEditor && !store.collage) actions.saveXmpSidecars(store.selectedPhotoIds); break;
       case 'readXmp': if (inEditor && !store.collage) xmpInputRef.current?.click(); break;
+      case 'readLightroom': if (inEditor && !store.collage) lightroomInputRef.current?.click(); break;
       case 'resetPhoto': if (inEditor && activePhoto) actions.resetPhotoEdits(activePhoto.id); break;
       case 'backToProjects': if (inEditor) actions.backToProjects(); break;
     }
@@ -515,6 +517,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               event.target.value = '';
               if (files.length) actions.readXmpSidecars(files, store.selectedPhotoIds);
             }} />
+          <input ref={lightroomInputRef} type="file" accept=".lrcat" hidden
+            data-testid="lightroom-input" aria-hidden="true" tabIndex={-1}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = '';
+              if (file) actions.readLightroomCatalogue(file);
+            }} />
           <TopBar
             // Owner decision 24 Nov 2026: header menus in a browser; the installed desktop app uses its native menu bar.
             showMenus={!isDesktopApp()}
@@ -540,6 +549,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSaveBackupFile={store.screen === 'editor' && !store.collage ? actions.saveProjectBackupFile : undefined}
             backupNote={store.backup ? backupStatusText(store.backup) : undefined}
             onReadXmp={store.screen === 'editor' && !store.collage ? () => xmpInputRef.current?.click() : undefined}
+            onReadLightroom={store.screen === 'editor' && !store.collage ? () => lightroomInputRef.current?.click() : undefined}
             onOpenSettings={() => actions.setSettingsOpen(true)}
             onImport={actions.importPhotos}
             onUndo={actions.undo}

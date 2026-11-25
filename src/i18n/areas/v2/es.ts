@@ -331,6 +331,22 @@ export const es: AreaTranslation<typeof source> = {
     rate: (n: number) => `Valorar con ${n} estrellas`,
     ratingFor: (name: string) => `Valoración de ${name}`,
   },
+  lightroom: {
+    readMenu: "Traer un catálogo de Lightroom…",
+    reading: "Leyendo el catálogo de Lightroom. Solo se lee, nunca se cambia. Cierre Lightroom primero para que sus últimos cambios estén en el archivo.",
+    done: (p: number, of: number) => `Se trajeron valoraciones, marcas, palabras clave, colecciones y ediciones de ${p} de las ${of} fotos del catálogo. El catálogo y sus originales no han cambiado.`,
+    keptYours: (n: number) => `${n} ya tenían aquí su propia valoración, marca o edición, así que se conservaron las suyas.`,
+    notFound: (n: number) => `${n} fotos del catálogo no se trajeron porque no están en este proyecto o su nombre u hora de captura no coincidían exactamente. Añada su carpeta y vuelva a traer el catálogo.`,
+    editsNote: "Las ediciones son puntos de partida cercanos, no copias exactas de Lightroom, y cada una es un paso en el historial de la foto. Los recortes, el balance de blancos, las máscaras y la eliminación de manchas no se traen.",
+    failed: {
+      'not-catalogue': "Ese archivo no es un catálogo de Lightroom Classic (.lrcat). No se cambió nada.",
+      layout: "Ese catálogo está organizado de forma distinta a lo que InFlight puede leer. No se cambió nada.",
+      'too-large': "Ese catálogo es demasiado grande para leerlo de una vez. No se cambió nada.",
+      unreadable: "No se pudo leer ese catálogo. No se cambió nada.",
+      none: "Ninguna foto del catálogo está todavía en este proyecto. Añada las carpetas que usa Lightroom y vuelva a traer el catálogo. No se cambió nada.",
+      changed: "El proyecto cambió mientras se leía el catálogo, así que no se cambió nada. Inténtelo de nuevo.",
+    },
+  },
   xmp: {
     saveMenu: "Guardar valoraciones en XMP…",
     readMenu: "Leer valoraciones de XMP…",

@@ -87,6 +87,9 @@ import { saveProjectBackupFile } from '../../providers/projectBackupFile';
 import { restoreProjectBackup } from '../../core/projectBackup';
 import { backupStatusText } from './backupWords';
 import { applySidecarImports, planXmpImports, saveSidecars, sidecarFailureText, xmpScope } from './xmpOps';
+import { applyLightroomImport, lightroomNotice } from './lightroomOps';
+import { CatalogueReadError, readLightroomCatalogue } from '../../core/lightroomCatalogue';
+import { planLightroomImport } from '../../core/lightroomImport';
 import { STRINGS as V2_STRINGS } from '../ui/strings';
 import { scheduleV2PhotoExports, photoExportUnits } from './scheduledPhotoExport';
 import { uniqueExportFilename } from '../../core/exportNaming';
@@ -1653,6 +1656,30 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         mutate((current) => applySidecarImports(current, planned));
         setNotice(V2_STRINGS.xmp.read(planned.length));
       }, (error) => setNotice(sidecarFailureText(error)));
+    },
+    readLightroomCatalogue: (file) => {
+      const before = stateRef.current;
+      if (!before) return;
+      const words = V2_STRINGS.lightroom;
+      setNotice(words.reading);
+      // The catalogue is read whole and matched before any photo changes; a project change meanwhile cancels it.
+      void readLightroomCatalogue(file).then((photos) => {
+        const now = stateRef.current;
+        if (!now || now.shoot.id !== before.shoot.id || now.shoot.lastUpdatedAt !== before.shoot.lastUpdatedAt) {
+          setNotice(words.failed.changed);
+          return;
+        }
+        const plan = planLightroomImport(photos, now.frames);
+        if (!plan.matches.length) {
+          setNotice(words.failed.none);
+          return;
+        }
+        const catalogued = photos.length - plan.virtualCopies;
+        const { state: applied, result } = applyLightroomImport(now, plan, Date.now());
+        // Applied only to the exact state that was matched; anything newer keeps the person's change instead.
+        mutate((current) => (current === now ? applied : current));
+        setNotice(lightroomNotice(words, plan, catalogued, result));
+      }, (error) => setNotice(words.failed[error instanceof CatalogueReadError ? error.reason : 'unreadable']));
     },
     runAutoCull: () => { void runAutoCull(); },
     addMaskLayer: (photoId, type) => { void addMask(photoId, type); },

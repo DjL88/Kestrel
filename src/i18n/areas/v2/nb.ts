@@ -331,6 +331,22 @@ export const nb: AreaTranslation<typeof source> = {
     rate: (n: number) => `Gi ${n} stjerner`,
     ratingFor: (name: string) => `Vurdering for ${name}`,
   },
+  lightroom: {
+    readMenu: "Hent inn en Lightroom-katalog…",
+    reading: "Lightroom-katalogen leses. Den blir bare lest, aldri endret. Lukk Lightroom først, så de siste endringene er i filen.",
+    done: (p: number, of: number) => `Vurderinger, flagg, nøkkelord, samlinger og redigeringer hentet inn for ${p} av ${of} bilder i katalogen. Katalogen og originalene dine er uendret.`,
+    keptYours: (n: number) => `${n} hadde allerede din egen vurdering, ditt flagg eller din redigering her, så dine ble beholdt.`,
+    notFound: (n: number) => `${n} bilder fra katalogen ble ikke hentet inn, fordi de ikke er i dette prosjektet eller navnet eller opptakstiden ikke stemte nøyaktig. Legg til mappen deres, og hent inn katalogen igjen.`,
+    editsNote: "Redigeringene er nære utgangspunkter, ikke nøyaktige kopier av Lightroom, og hver er ett steg i bildets historikk. Beskjæringer, hvitbalanse, masker og flekkfjerning blir ikke med.",
+    failed: {
+      'not-catalogue': "Den filen er ikke en Lightroom Classic-katalog (.lrcat). Ingenting ble endret.",
+      layout: "Den katalogen er bygd opp annerledes enn InFlight kan lese. Ingenting ble endret.",
+      'too-large': "Den katalogen er for stor til å leses på én gang. Ingenting ble endret.",
+      unreadable: "Den katalogen kunne ikke leses. Ingenting ble endret.",
+      none: "Ingen av katalogens bilder er i dette prosjektet ennå. Legg til mappene Lightroom bruker, og hent inn katalogen igjen. Ingenting ble endret.",
+      changed: "Prosjektet endret seg mens katalogen ble lest, så ingenting ble endret. Prøv igjen.",
+    },
+  },
   xmp: {
     saveMenu: "Lagre vurderinger som XMP …",
     readMenu: "Les vurderinger fra XMP …",

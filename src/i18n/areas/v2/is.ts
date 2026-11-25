@@ -331,6 +331,22 @@ export const is: AreaTranslation<typeof source> = {
     rate: (n: number) => `Gefa ${n} stjörnur`,
     ratingFor: (name: string) => `Einkunn fyrir ${name}`,
   },
+  lightroom: {
+    readMenu: "Sækja Lightroom-skrá…",
+    reading: "Les Lightroom-skrána. Hún er aðeins lesin, aldrei breytt. Lokaðu Lightroom fyrst svo nýjustu breytingarnar séu í skránni.",
+    done: (p: number, of: number) => `Einkunnir, flögg, lykilorð, söfn og breytingar sótt fyrir ${p} af ${of} myndum í skránni. Skránni og frumritunum þínum var ekki breytt.`,
+    keptYours: (n: number) => `${n} voru þegar með þína eigin einkunn, flagg eða breytingu hér, svo þínum var haldið.`,
+    notFound: (n: number) => `${n} myndir úr skránni voru ekki sóttar, því þær eru ekki í þessu verkefni eða nafn eða tökutími passaði ekki nákvæmlega. Bættu möppunni þeirra við og sæktu skrána aftur.`,
+    editsNote: "Breytingarnar eru nálægir upphafspunktar, ekki nákvæm afrit úr Lightroom, og hver þeirra er eitt skref í sögu myndarinnar. Skurðir, hvítjöfnun, grímur og blettahreinsun fylgja ekki með.",
+    failed: {
+      'not-catalogue': "Þessi skrá er ekki Lightroom Classic-skrá (.lrcat). Engu var breytt.",
+      layout: "Þessi skrá er sett upp öðruvísi en InFlight getur lesið. Engu var breytt.",
+      'too-large': "Þessi skrá er of stór til að lesa í einu. Engu var breytt.",
+      unreadable: "Ekki tókst að lesa þessa skrá. Engu var breytt.",
+      none: "Engin mynd úr skránni er enn í þessu verkefni. Bættu við möppunum sem Lightroom notar og sæktu skrána aftur. Engu var breytt.",
+      changed: "Verkefnið breyttist meðan skráin var lesin, svo engu var breytt. Reyndu aftur.",
+    },
+  },
   xmp: {
     saveMenu: "Vista einkunnir í XMP…",
     readMenu: "Lesa einkunnir úr XMP…",

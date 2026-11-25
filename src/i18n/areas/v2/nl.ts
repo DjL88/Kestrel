@@ -331,6 +331,22 @@ export const nl: AreaTranslation<typeof source> = {
     rate: (n: number) => `${n} sterren geven`,
     ratingFor: (name: string) => `Waardering voor ${name}`,
   },
+  lightroom: {
+    readMenu: "Lightroom-catalogus binnenhalen…",
+    reading: "De Lightroom-catalogus wordt gelezen. Hij wordt alleen gelezen, nooit gewijzigd. Sluit Lightroom eerst zodat de nieuwste wijzigingen in het bestand staan.",
+    done: (p: number, of: number) => `Beoordelingen, markeringen, trefwoorden, verzamelingen en bewerkingen binnengehaald voor ${p} van de ${of} foto’s in de catalogus. De catalogus en uw originelen zijn ongewijzigd.`,
+    keptYours: (n: number) => `${n} hadden hier al uw eigen beoordeling, markering of bewerking, dus die van u zijn behouden.`,
+    notFound: (n: number) => `${n} foto’s uit de catalogus zijn niet binnengehaald, omdat ze niet in dit project staan of hun naam of opnametijd niet precies overeenkwam. Voeg hun map toe en haal de catalogus opnieuw binnen.`,
+    editsNote: "Bewerkingen zijn goede beginpunten, geen exacte kopieën van Lightroom, en elke bewerking is één stap in de geschiedenis van de foto. Uitsnedes, witbalans, maskers en vlekverwijdering worden niet meegenomen.",
+    failed: {
+      'not-catalogue': "Dat bestand is geen Lightroom Classic-catalogus (.lrcat). Er is niets gewijzigd.",
+      layout: "Die catalogus is anders opgebouwd dan InFlight kan lezen. Er is niets gewijzigd.",
+      'too-large': "Die catalogus is te groot om in één keer te lezen. Er is niets gewijzigd.",
+      unreadable: "Die catalogus kon niet worden gelezen. Er is niets gewijzigd.",
+      none: "Nog geen van de foto’s uit de catalogus staat in dit project. Voeg de mappen toe die Lightroom gebruikt en haal de catalogus opnieuw binnen. Er is niets gewijzigd.",
+      changed: "Het project is veranderd terwijl de catalogus werd gelezen, dus er is niets gewijzigd. Probeer het opnieuw.",
+    },
+  },
   xmp: {
     saveMenu: "Waarderingen opslaan als XMP…",
     readMenu: "Waarderingen lezen uit XMP…",

@@ -331,6 +331,22 @@ export const cy: AreaTranslation<typeof source> = {
     rate: (n: number) => `Rhoi ${n} seren`,
     ratingFor: (name: string) => `Sgôr ar gyfer ${name}`,
   },
+  lightroom: {
+    readMenu: "Dod â chatalog Lightroom i mewn…",
+    reading: "Yn darllen y catalog Lightroom. Caiff ei ddarllen yn unig, byth ei newid. Caewch Lightroom yn gyntaf fel bod ei newidiadau diweddaraf yn y ffeil.",
+    done: (p: number, of: number) => `Daethpwyd â sgoriau, baneri, allweddeiriau, casgliadau a golygiadau i mewn ar gyfer ${p} o'r ${of} llun yn y catalog. Mae'r catalog a'ch rhai gwreiddiol heb eu newid.`,
+    keptYours: (n: number) => `Roedd gan ${n} eich sgôr, baner neu olygiad eich hun yma eisoes, felly cadwyd eich rhai chi.`,
+    notFound: (n: number) => `Ni ddaethpwyd â ${n} llun o'r catalog i mewn, gan nad ydynt yn y prosiect hwn neu nad oedd eu henw neu amser tynnu yn cyfateb yn union. Ychwanegwch eu ffolder, yna dewch â'r catalog i mewn eto.`,
+    editsNote: "Mannau cychwyn agos yw'r golygiadau, nid copïau union o Lightroom, ac mae pob un yn un cam yn hanes y llun. Ni chaiff tocio, cydbwysedd gwyn, masgiau na thynnu smotiau eu cario drosodd.",
+    failed: {
+      'not-catalogue': "Nid catalog Lightroom Classic (.lrcat) yw'r ffeil honno. Ni newidiwyd dim.",
+      layout: "Mae'r catalog hwnnw wedi'i osod yn wahanol i'r hyn y gall InFlight ei ddarllen. Ni newidiwyd dim.",
+      'too-large': "Mae'r catalog hwnnw'n rhy fawr i'w ddarllen ar unwaith. Ni newidiwyd dim.",
+      unreadable: "Nid oedd modd darllen y catalog hwnnw. Ni newidiwyd dim.",
+      none: "Nid yw'r un o luniau'r catalog yn y prosiect hwn eto. Ychwanegwch y ffolderi y mae Lightroom yn eu defnyddio, yna dewch â'r catalog i mewn eto. Ni newidiwyd dim.",
+      changed: "Newidiodd y prosiect wrth i'r catalog gael ei ddarllen, felly ni newidiwyd dim. Rhowch gynnig arall arni.",
+    },
+  },
   xmp: {
     saveMenu: "Cadw sgoriau i XMP…",
     readMenu: "Darllen sgoriau o XMP…",

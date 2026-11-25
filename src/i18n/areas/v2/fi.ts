@@ -332,6 +332,22 @@ export const fi: AreaTranslation<typeof source> = {
     rate: (n: number) => `Anna ${n} tähteä`,
     ratingFor: (name: string) => `Arvio: ${name}`,
   },
+  lightroom: {
+    readMenu: "Tuo Lightroom-luettelo…",
+    reading: "Luetaan Lightroom-luetteloa. Sitä vain luetaan, ei koskaan muuteta. Sulje Lightroom ensin, jotta sen uusimmat muutokset ovat tiedostossa.",
+    done: (p: number, of: number) => `Arviot, merkinnät, avainsanat, kokoelmat ja muokkaukset tuotiin ${p} kuvalle luettelon ${of} kuvasta. Luettelo ja alkuperäiset ovat ennallaan.`,
+    keptYours: (n: number) => `Kuvista ${n} oli jo täällä oma arviosi, merkintäsi tai muokkauksesi, joten omasi säilytettiin.`,
+    notFound: (n: number) => `Luettelon kuvista ${n} ei tuotu, koska ne eivät ole tässä projektissa tai niiden nimi tai kuvausaika ei täsmännyt tarkasti. Lisää niiden kansio ja tuo luettelo uudelleen.`,
+    editsNote: "Muokkaukset ovat läheisiä lähtökohtia, eivät tarkkoja kopioita Lightroomista, ja kukin on yksi vaihe kuvan historiassa. Rajauksia, valkotasapainoa, maskeja ja pisteiden poistoa ei tuoda.",
+    failed: {
+      'not-catalogue': "Tiedosto ei ole Lightroom Classic -luettelo (.lrcat). Mitään ei muutettu.",
+      layout: "Luettelo on järjestetty eri tavalla kuin InFlight osaa lukea. Mitään ei muutettu.",
+      'too-large': "Luettelo on liian suuri luettavaksi kerralla. Mitään ei muutettu.",
+      unreadable: "Luetteloa ei voitu lukea. Mitään ei muutettu.",
+      none: "Yksikään luettelon kuva ei ole vielä tässä projektissa. Lisää Lightroomin käyttämät kansiot ja tuo luettelo uudelleen. Mitään ei muutettu.",
+      changed: "Projekti muuttui luettelon lukemisen aikana, joten mitään ei muutettu. Yritä uudelleen.",
+    },
+  },
   xmp: {
     saveMenu: "Tallenna arviot XMP:hen…",
     readMenu: "Lue arviot XMP:stä…",

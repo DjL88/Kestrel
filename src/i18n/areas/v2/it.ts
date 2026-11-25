@@ -331,6 +331,22 @@ export const it: AreaTranslation<typeof source> = {
     rate: (n: number) => `Valuta ${n} stelle`,
     ratingFor: (name: string) => `Valutazione di ${name}`,
   },
+  lightroom: {
+    readMenu: "Porta un catalogo Lightroom…",
+    reading: "Lettura del catalogo Lightroom. Viene solo letto, mai modificato. Chiudi prima Lightroom così le ultime modifiche sono nel file.",
+    done: (p: number, of: number) => `Valutazioni, contrassegni, parole chiave, raccolte e modifiche portate per ${p} delle ${of} foto del catalogo. Il catalogo e gli originali sono invariati.`,
+    keptYours: (n: number) => `${n} avevano già qui una tua valutazione, contrassegno o modifica, quindi sono state mantenute le tue.`,
+    notFound: (n: number) => `${n} foto del catalogo non sono state portate perché non sono in questo progetto o il nome o l’ora di scatto non corrispondevano esattamente. Aggiungi la loro cartella, poi porta di nuovo il catalogo.`,
+    editsNote: "Le modifiche sono punti di partenza vicini, non copie esatte di Lightroom, e ognuna è un passo nella cronologia della foto. Ritagli, bilanciamento del bianco, maschere e rimozione macchie non vengono portati.",
+    failed: {
+      'not-catalogue': "Quel file non è un catalogo Lightroom Classic (.lrcat). Non è stato modificato nulla.",
+      layout: "Quel catalogo è organizzato in modo diverso da quello che InFlight sa leggere. Non è stato modificato nulla.",
+      'too-large': "Quel catalogo è troppo grande per leggerlo in una volta. Non è stato modificato nulla.",
+      unreadable: "Non è stato possibile leggere quel catalogo. Non è stato modificato nulla.",
+      none: "Nessuna foto del catalogo è ancora in questo progetto. Aggiungi le cartelle usate da Lightroom, poi porta di nuovo il catalogo. Non è stato modificato nulla.",
+      changed: "Il progetto è cambiato durante la lettura del catalogo, quindi non è stato modificato nulla. Riprova.",
+    },
+  },
   xmp: {
     saveMenu: "Salva valutazioni in XMP…",
     readMenu: "Leggi valutazioni da XMP…",

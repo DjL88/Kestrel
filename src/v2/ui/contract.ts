@@ -626,6 +626,9 @@ export interface WorkspaceActions {
   saveXmpSidecars: (photoIds: string[]) => void;
   /** Read ratings, flags and tags from chosen .xmp files (or one .zip) for matching photos. Every file is checked before anything changes. */
   readXmpSidecars: (files: File[], photoIds: string[]) => void;
+  /** Bring ratings, flags, keywords, collections and basic edits in from a Lightroom Classic catalogue (.lrcat) for the photos
+   * already in this project. The catalogue is only read; choices already made in InFlight are kept. */
+  readLightroomCatalogue: (file: File) => void;
   runAutoCull: () => void;
   reconnectOriginal: (photoId: string) => void;
   toggleDemoUnavailable: () => void;
