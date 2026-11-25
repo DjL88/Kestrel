@@ -87,6 +87,7 @@ export const de: AreaTranslation<typeof source> = {
       : `${count} Dateien exportiert. Ihre Originale sind unverändert.`),
     exportSomeFailed: 'Einige Exporte sind fehlgeschlagen. Öffnen Sie Aufgaben und wählen Sie „Fehlgeschlagene wiederholen“. Bereits gespeicherte Dateien bleiben erhalten.',
     exportStopped: 'Export gestoppt. Bereits gespeicherte Dateien bleiben erhalten.',
+    enlargementTask: 'Vergrößerungsvorschau wird erstellt',
     exportNotQueued: 'Dieser Export konnte nicht gestartet werden.',
     destinationUnavailable: 'Dieses Exportziel ist nicht verfügbar. Wählen Sie ein lokales ZIP, einzelne Dateien oder einen Ordner auf dem Computer.',
     cullPro: 'Auto-Sichtung gehört zu InFlight Pro.',

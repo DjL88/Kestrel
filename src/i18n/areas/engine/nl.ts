@@ -87,6 +87,7 @@ export const nl: AreaTranslation<typeof source> = {
       : `${count} bestanden geëxporteerd. Uw originelen zijn niet veranderd.`),
     exportSomeFailed: 'Sommige exports zijn mislukt. Open Taken en kies Mislukte opnieuw. Bestanden die al zijn opgeslagen, blijven staan.',
     exportStopped: 'Export gestopt. Bestanden die al zijn opgeslagen, blijven staan.',
+    enlargementTask: 'Voorbeeld van de vergroting maken',
     exportNotQueued: 'Deze export kon niet worden gestart.',
     destinationUnavailable: 'Die exportbestemming is niet beschikbaar. Kies een lokale ZIP, losse bestanden of een map op de computer.',
     cullPro: 'Automatisch selecteren hoort bij InFlight Pro.',

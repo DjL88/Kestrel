@@ -87,6 +87,7 @@ export const pt: AreaTranslation<typeof source> = {
       : `${count} ficheiros exportados. Os seus originais não foram alterados.`),
     exportSomeFailed: 'Algumas exportações falharam. Abra Tarefas e escolha Repetir falhados. Os ficheiros já guardados ficam onde estão.',
     exportStopped: 'Exportação parada. Os ficheiros já guardados ficam onde estão.',
+    enlargementTask: 'A criar a pré-visualização da ampliação',
     exportNotQueued: 'Não foi possível iniciar esta exportação.',
     destinationUnavailable: 'Esse destino de exportação não está disponível. Escolha um ZIP local, ficheiros separados ou uma pasta do computador.',
     cullPro: 'A seleção automática faz parte do InFlight Pro.',

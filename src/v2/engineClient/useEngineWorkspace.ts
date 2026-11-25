@@ -110,7 +110,8 @@ import { CatalogueReadError, readLightroomCatalogue } from '../../core/lightroom
 import { catalogueFilesInFolder, catalogueOnlyPhotos, commonFolder, planLightroomImport } from '../../core/lightroomImport';
 import type { LightroomPhoto } from '../../core/lightroomCatalogue';
 import { STRINGS as V2_STRINGS } from '../ui/strings';
-import { scheduleV2PhotoExports, photoExportUnits } from './scheduledPhotoExport';
+import { renderExportJob, scheduleV2PhotoExports, photoExportUnits } from './scheduledPhotoExport';
+import { enlargementPreviewRequest, type EnlargementPreviewResult } from './enlargementPreview';
 import { uniqueExportFilename } from '../../core/exportNaming';
 import { exportMayContinue } from '../../core/exportCancellation';
 import type { ExportRequest } from '../ui/contract';
@@ -2051,6 +2052,46 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const bytes = await provider.current.ensureOriginal(frame.stableKey, 'selected');
       if (!bytes) return null;
       try { return await verifyExactOriginalCopy(bytes, frame.originalSha256); } catch { return null; }
+    },
+    previewEnlargement: async (photoId, sizeId) => {
+      const current = stateRef.current;
+      if (!current || !provider.current) return { ok: false, message: engineText.workspace.exportStopped };
+      const request = enlargementPreviewRequest(photoId, sizeId);
+      const plan = planExport(request, current.frames, createDefaultSizes());
+      if ('error' in plan) return { ok: false, message: plan.error };
+      const job = plan.jobs[0];
+      const variant = job?.variants[0];
+      const frame = current.frames.find((candidate) => candidate.id === photoId);
+      if (!job || !variant || !frame) return { ok: false, message: engineText.workspace.exportStopped };
+      const snapshot = structuredClone(frame);
+      const env = structuredClone(exportEnv.current);
+      const sourceProvider = provider.current;
+      let rendered: File | null = null;
+      let failure = '';
+      // Queued with exports on the same resource, so a preview never renders alongside a full-size export.
+      const ticket = await engineScheduler.submit({
+        title: engineText.workspace.enlargementTask, kind: 'export', location: 'local', resource: 'gpu', priority: 5, pauseable: false,
+        items: [{ id: snapshot.id, name: snapshot.filename }], snapshot: { frameId: snapshot.id },
+        itemId: (item) => item.id, itemLabel: (item) => item.name,
+        runItem: async (_, __, ctx) => {
+          try {
+            const files = await renderExportJob({ frame: snapshot, job, variant, request, provider: sourceProvider,
+              buildOverlay: (target, submitted) => buildOverlayDraw(target, submitted, env), started: new Date(), signal: ctx.signal,
+              stage: (message) => ctx.stage(message), checkCancelled: () => ctx.checkCancelled() });
+            rendered = files[0] ?? null;
+          } catch (reason) {
+            failure = reason instanceof Error ? reason.message : String(reason);
+            throw reason;
+          }
+        },
+      });
+      const outcome = await ticket.finished;
+      const file = rendered as File | null;
+      if (outcome !== 'done' || !file) return { ok: false, message: failure || engineText.workspace.exportStopped };
+      const bitmap = await createImageBitmap(file);
+      const result: EnlargementPreviewResult = { ok: true, url: URL.createObjectURL(file), width: bitmap.width, height: bitmap.height, name: file.name };
+      bitmap.close();
+      return result;
     },
     renderGalleryPreview: async (photoId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);

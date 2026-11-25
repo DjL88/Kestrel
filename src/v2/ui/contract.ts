@@ -713,6 +713,8 @@ export interface WorkspaceActions {
   applyAllAssistSuggestions: (photoId: string) => void;
   /** A sized JPEG of the edited photo for a client gallery, or null when there is no trustworthy picture yet. Absent in the stub. */
   renderGalleryPreview?: (photoId: string) => Promise<Blob | null>;
+  /** Render this photo's format exactly as export will (Output scale included) and return the picture. Absent in the stub. */
+  previewEnlargement?: (photoId: string, sizeId: string) => Promise<import('../engineClient/enlargementPreview').EnlargementPreviewResult>;
   /** The photo's whole edit as plain data for a shared project, or null when it has no edit. Absent in the stub. */
   sharedEditOf?: (photoId: string) => Record<string, unknown> | null;
   /** Replace the photo's edit with a shared one (or clear it). Recorded as an edit step, so it can be undone. */
