@@ -19,6 +19,8 @@ interface ProjectsHubProps {
   onOpenProject: (projectId: string) => void;
   onCreateProject: (name: string, kind?: 'photography' | 'collage') => void;
   onCreateFromFolder: () => void;
+  /** First run: pick photos and get an Auto-edited photo ready to export. */
+  onQuickStart?: () => void;
   onRenameProject: (projectId: string, name: string) => void;
   /** A .kestrel.json backup becomes a new project. */
   onRestoreBackup?: (file: File) => void;
@@ -36,6 +38,7 @@ export default function ProjectsHub({
   onOpenProject,
   onCreateProject,
   onCreateFromFolder,
+  onQuickStart,
   onRenameProject,
   onRestoreBackup,
   onArchiveProject,
@@ -190,6 +193,19 @@ export default function ProjectsHub({
                 <BrandIcon name="plus" size={14} />
                 <span>{STRINGS.hub.newProject}</span>
               </button>
+              {onQuickStart && projects.length === 0 ? (
+                <div className="mt-6 max-w-md border-t border-[var(--border-subtle)] pt-5">
+                  <button
+                    type="button"
+                    onClick={onQuickStart}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-md)] border border-[var(--brand-accent)] px-4 text-xs font-semibold text-[var(--text-primary)]"
+                  >
+                    <BrandIcon name="assist" size={14} />
+                    <span>{STRINGS.quickStart.hubButton}</span>
+                  </button>
+                  <p className="mt-2 text-xs text-[var(--text-secondary)]">{STRINGS.quickStart.hubHint}</p>
+                </div>
+              ) : null}
             </div>
           )}
 

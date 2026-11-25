@@ -22,9 +22,20 @@ interface Props {
   onChange: (patch: Partial<EditRecipe>) => void;
 }
 
-/** Tone curve: an SVG graph with draggable, keyboard-movable points and plain-word presets. */
-export function ToneCurveControl({ recipe, onChange }: Props) {
-  const points = recipe.toneCurve && recipe.toneCurve.length >= 2 ? recipe.toneCurve : STRAIGHT;
+type CurveChannel = 'all' | 'red' | 'green' | 'blue';
+const CURVE_CHANNEL_IDS: CurveChannel[] = ['all', 'red', 'green', 'blue'];
+/** Line colour is a secondary cue only: the chosen channel is always named on its button and in the graph's label. */
+const CHANNEL_STROKE: Record<CurveChannel, string> = { all: 'var(--text-primary)', red: '#d9534f', green: '#5aa65a', blue: '#4a7fd4' };
+
+/**
+ * Tone curve: an SVG graph with draggable, keyboard-movable points and plain-word presets. With `channels` (the
+ * advanced controls setting) it also edits separate red, green and blue curves, applied after the main one.
+ */
+export function ToneCurveControl({ recipe, onChange, channels = false }: Props & { channels?: boolean }) {
+  const [chosen, setChannel] = React.useState<CurveChannel>('all');
+  const channel: CurveChannel = channels ? chosen : 'all';
+  const source = channel === 'all' ? recipe.toneCurve : recipe.channelCurves?.[channel];
+  const points = source && source.length >= 2 ? source : STRAIGHT;
   const [selected, setSelected] = React.useState<number | null>(null);
   const dragging = React.useRef<number | null>(null);
   const svg = React.useRef<SVGSVGElement>(null);
@@ -36,7 +47,7 @@ export function ToneCurveControl({ recipe, onChange }: Props) {
       Math.min(1, Math.max(0, 1 - ((event.clientY - box.top) * scale - PAD) / SIZE)),
     ];
   };
-  const set = (next: UiCurvePoint[]) => onChange({ toneCurve: next });
+  const set = (next: UiCurvePoint[]) => onChange(channel === 'all' ? { toneCurve: next } : { channelCurves: { ...recipe.channelCurves, [channel]: next } });
 
   const onPointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
     const target = (event.target as Element).getAttribute('data-index');
@@ -86,7 +97,22 @@ export function ToneCurveControl({ recipe, onChange }: Props) {
           <span>{T.curve.reset}</span>
         </button>
       </div>
-      <svg ref={svg} viewBox={`${-PAD} ${-PAD} ${SIZE + 2 * PAD} ${SIZE + 2 * PAD}`} role="group" aria-label={T.curve.graphLabel}
+      {channels && (
+        <div role="radiogroup" aria-label={T.curve.channelsLabel} className="grid grid-cols-4 gap-1">
+          {CURVE_CHANNEL_IDS.map((id) => {
+            const bent = id !== 'all' && !!recipe.channelCurves?.[id];
+            return (
+              <button key={id} type="button" role="radio" aria-checked={channel === id} onClick={() => { setChannel(id); setSelected(null); }}
+                className={`min-h-8 rounded-[var(--radius-sm)] border px-1 text-[0.6875rem] ${channel === id ? 'border-[var(--brand-accent)] text-[var(--brand-accent)]' : 'border-[var(--border-subtle)] text-[var(--text-secondary)]'}`}>
+                {T.curve.channels[id]}{bent && <span aria-hidden="true"> •</span>}
+                {bent && <span className="sr-only">{T.mixer.changed}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <svg ref={svg} viewBox={`${-PAD} ${-PAD} ${SIZE + 2 * PAD} ${SIZE + 2 * PAD}`} role="group"
+        aria-label={channel === 'all' ? T.curve.graphLabel : `${T.curve.channels[channel]}. ${T.curve.graphLabel}`}
         className="aspect-square w-full touch-none select-none rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)]"
         onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
         <rect x={0} y={0} width={SIZE} height={SIZE} fill="none" stroke="var(--border-subtle)" strokeWidth={1} />
@@ -97,7 +123,7 @@ export function ToneCurveControl({ recipe, onChange }: Props) {
           </g>
         ))}
         <line x1={0} y1={SIZE} x2={SIZE} y2={0} stroke="var(--border-default)" strokeDasharray="4 4" strokeWidth={1} />
-        <path d={curvePath(points, SIZE)} fill="none" stroke="var(--text-primary)" strokeWidth={2} />
+        <path d={curvePath(points, SIZE)} fill="none" stroke={CHANNEL_STROKE[channel]} strokeWidth={2} />
         {points.map((point, index) => (
           <circle key={index} data-index={index} cx={point[0] * SIZE} cy={(1 - point[1]) * SIZE} r={selected === index ? 7 : 6}
             role="slider" tabIndex={0} aria-label={T.curve.pointLabel} aria-valuemin={0} aria-valuemax={100}

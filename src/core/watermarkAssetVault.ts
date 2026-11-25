@@ -20,10 +20,10 @@ function hasSignature(bytes: Uint8Array, type: string): boolean {
     [87, 69, 66, 80].every((v, i) => bytes[8 + i] === v);
   return false;
 }
-async function validateRaster(blob: Blob): Promise<void> {
-  if (!(blob instanceof Blob) || blob.size === 0 || blob.size > MAX_BYTES || !MIME.has(blob.type) ||
+async function validateRaster(blob: Blob, maxBytes = MAX_BYTES, refusal = 'Choose a PNG, JPEG or WebP image under 3 MB. This image cannot be used as a watermark.'): Promise<void> {
+  if (!(blob instanceof Blob) || blob.size === 0 || blob.size > maxBytes || !MIME.has(blob.type) ||
       !hasSignature(new Uint8Array(await blob.slice(0, 16).arrayBuffer()), blob.type)) {
-    throw new Error('Choose a PNG, JPEG or WebP image under 3 MB. This image cannot be used as a watermark.');
+    throw new Error(refusal);
   }
 }
 async function sha256(blob: Blob): Promise<string> {
@@ -38,10 +38,11 @@ export interface WatermarkAssetStorage {
 }
 
 /** Injected backend makes the same safety rules executable without IndexedDB. */
-export function createWatermarkAssetRepository(storage: WatermarkAssetStorage) {
+export function createWatermarkAssetRepository(storage: WatermarkAssetStorage, limits?: { maxBytes: number; refusal: string; changed: string }) {
+  const validate = (blob: Blob) => validateRaster(blob, limits?.maxBytes, limits?.refusal);
   return {
     async save(blob: Blob): Promise<string> {
-      await validateRaster(blob);
+      await validate(blob);
       const id = await sha256(blob);
       await storage.put(id, blob);
       return id;
@@ -50,17 +51,17 @@ export function createWatermarkAssetRepository(storage: WatermarkAssetStorage) {
       if (!isWatermarkAssetId(id)) return null;
       const blob = await storage.get(id);
       if (!blob) return null;
-      await validateRaster(blob);
-      if (await sha256(blob) !== id) throw new Error('The saved watermark changed. Choose the original image again.');
+      await validate(blob);
+      if (await sha256(blob) !== id) throw new Error(limits?.changed ?? 'The saved watermark changed. Choose the original image again.');
       return blob;
     },
   };
 }
 
-function database(): Promise<IDBDatabase> {
+function database(name = DATABASE): Promise<IDBDatabase> {
   if (typeof indexedDB === 'undefined') return Promise.reject(new Error('Private local storage is not available.'));
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DATABASE, 1);
+    const request = indexedDB.open(name, 1);
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains(STORE)) request.result.createObjectStore(STORE);
     };
@@ -69,9 +70,10 @@ function database(): Promise<IDBDatabase> {
   });
 }
 
-const browserStorage: WatermarkAssetStorage = {
+/** Images kept in this browser's own storage (IndexedDB), in the named database. */
+export const browserAssetStorage = (name: string): WatermarkAssetStorage => ({
   async put(id, blob) {
-    const db = await database();
+    const db = await database(name);
     try {
       await new Promise<void>((resolve, reject) => {
         const tx = db.transaction(STORE, 'readwrite');
@@ -83,7 +85,7 @@ const browserStorage: WatermarkAssetStorage = {
     } finally { db.close(); }
   },
   async get(id) {
-    const db = await database();
+    const db = await database(name);
     try {
       return await new Promise<Blob | null>((resolve, reject) => {
         const tx = db.transaction(STORE, 'readonly');
@@ -93,9 +95,9 @@ const browserStorage: WatermarkAssetStorage = {
       });
     } finally { db.close(); }
   },
-};
+});
 
-const local = createWatermarkAssetRepository(browserStorage);
+const local = createWatermarkAssetRepository(browserAssetStorage(DATABASE));
 export const saveLocalWatermarkAsset = (blob: Blob) => local.save(blob);
 export const loadLocalWatermarkAsset = (id: string) => local.load(id);
 
