@@ -190,3 +190,21 @@ variable "gallery_enabled" {
   type        = bool
   default     = false
 }
+
+variable "cloud_photos_enabled" {
+  description = "Shared projects can keep photo previews (and, by choice, originals) in the UK gallery bucket under projects/. Needs gallery_enabled."
+  type        = bool
+  default     = false
+}
+
+variable "download_credits_per_month" {
+  description = "Cloud download allowance per paying account per month, in credits (1 credit = 1p; 15 credits per GB). Placeholder until the credit system lands."
+  type        = number
+  default     = 300
+}
+
+variable "cloud_project_max_gb" {
+  description = "Most a shared project may keep in the cloud store, in GB."
+  type        = number
+  default     = 50
+}

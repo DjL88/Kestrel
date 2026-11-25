@@ -941,6 +941,14 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       });
     },
 
+    correctVehicle: (photoId, choice) => {
+      setStore((prev) => ({
+        ...prev,
+        photos: prev.photos.map((photo) => photo.id === photoId
+          ? (choice === 'not-a-vehicle' ? { ...photo, vehicleLabel: undefined, vehicleKind: undefined, vehicleType: undefined } : { ...photo, vehicleKind: choice.kind, vehicleType: choice.type })
+          : photo),
+      }));
+    },
     correctSpeciesName: (photoId, proposedName) => {
       const name = proposedName.trim().slice(0, 120);
       if (!name) return;
@@ -972,6 +980,9 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     },
     readXmpSidecars: () => {
       setStore((prev) => ({ ...prev, lastActionNotice: 'XMP sidecars are available in the real workspace.' }));
+    },
+    readLightroomCatalogue: () => {
+      setStore((prev) => ({ ...prev, lastActionNotice: 'Lightroom catalogues are available in the real workspace.' }));
     },
     backUpProjectNow: () => {
       setStore((prev) => ({ ...prev, lastActionNotice: 'Backups are available in the real workspace.' }));
@@ -1790,6 +1801,12 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
+    detectColourEdges: async (photoId) => { logAction('detectColourEdges', { photoId }); return 'clean'; },
+    addImageLayer: async (photoId) => { logAction('addImageLayer', { photoId }); },
+    addPhotoLayer: async (photoId, sourcePhotoId) => { logAction('addPhotoLayer', { photoId, sourcePhotoId }); },
+    updateLayer: (photoId, layerId) => { logAction('updateLayer', { photoId, layerId }); },
+    removeLayer: (photoId, layerId) => { logAction('removeLayer', { photoId, layerId }); },
+    moveLayer: (photoId, layerId, direction) => { logAction('moveLayer', { photoId, layerId, direction }); },
     removeOverlayRow: (photoId, rowId) => {
       logAction('removeOverlayRow', { photoId, rowId });
       updatePhotoById(photoId, (photo) => ({

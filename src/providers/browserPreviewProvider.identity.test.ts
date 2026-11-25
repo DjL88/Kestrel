@@ -201,3 +201,25 @@ test('first linked registration replaces a formerly local source and invalidates
   assert.equal(await (await fetch(second)).text(), 'NEW');
   assert.equal(await provider.ensureOriginal(key), fresh);
 });
+
+test('evicting a full preview from the cache revokes its URL and announces it, leaving thumbnails alone', async () => {
+  const provider = new BrowserPreviewProvider();
+  const released: string[] = [];
+  const invalidated: string[] = [];
+  provider.events.addEventListener('full-preview-released', (event) => released.push((event as CustomEvent<string>).detail));
+  provider.events.addEventListener('preview-invalidated', (event) => invalidated.push((event as CustomEvent<string>).detail));
+  const urls: string[] = [];
+  for (let index = 0; index < 25; index += 1) {
+    provider.registerBlob(`lru-${index}`, new Blob([`P${index}`], { type: 'image/jpeg' }));
+    urls.push(await provider.getFullPreviewUrl(frame(`lru-frame-${index}`, `lru-${index}`)));
+  }
+  invalidated.length = 0; // registering each new blob announces itself; only eviction matters here
+  assert.deepEqual(released, ['lru-0'], 'the oldest of 25 previews makes room for the newest');
+  await assert.rejects(fetch(urls[0]), 'the evicted URL is revoked');
+  assert.equal(await (await fetch(urls[24])).text(), 'P24');
+  const again = await provider.getFullPreviewUrl(frame('lru-frame-0', 'lru-0'));
+  assert.notEqual(again, urls[0]);
+  assert.equal(await (await fetch(again)).text(), 'P0', 'asking again gives a live URL');
+  assert.deepEqual(invalidated, [], 'an eviction is not a source change');
+  provider.clear();
+});

@@ -39,7 +39,7 @@ export class CollabRefusal extends Error {
   constructor(readonly status: number, readonly code: string, message: string, readonly detail?: Record<string, unknown>) { super(message); }
 }
 
-const C = { projects: 'collab_projects', memberships: 'collab_memberships', leases: 'collab_leases', heads: 'collab_heads', revisions: 'collab_revisions', audit: 'collab_audit', invites: 'collab_invites' };
+const C = { projects: 'collab_projects', memberships: 'collab_memberships', leases: 'collab_leases', heads: 'collab_heads', revisions: 'collab_revisions', audit: 'collab_audit', invites: 'collab_invites', comments: 'collab_comments' };
 
 /** Firestore refuses `undefined`; drop absent optional fields before writing. */
 const clean = <T extends object>(value: T): FsData => JSON.parse(JSON.stringify(value)) as FsData;
@@ -53,6 +53,12 @@ const MEMBERSHIP_MESSAGES: Record<MembershipRefusal, [number, string]> = {
   'client-needs-photos': [400, 'Choose which photos a client can see.'],
   'role-too-high': [403, 'Only the owner can add editors or owners.'],
 };
+
+/** A comment on one photo, optionally pinned to a spot on it (0–1 across and down). Resolved ones are kept, marked. */
+export interface CollabComment {
+  id: string; projectId: string; photoId: string; authorAccountId: string; authorName: string;
+  text: string; point: { x: number; y: number } | null; createdAtMs: number; resolvedAtMs: number | null;
+}
 
 export class CollabStore {
   constructor(private readonly db: FirestoreLike, private readonly newId: () => string = uuid, private readonly newToken: () => string = () => randomId(24)) {}
@@ -73,6 +79,14 @@ export class CollabStore {
   }
 
   /** For other shared-project features (galleries): refuses unless this account may do this here. */
+  /** Who pays for the project's cloud downloads and storage: its earliest owner. */
+  async payerOf(projectId: string): Promise<string> {
+    const project = await this.db.runTransaction((tx) => this.readProject(tx, projectId));
+    const owners = project.members.filter((member) => member.role === 'owner').sort((a, b) => a.addedAtMs - b.addedAtMs);
+    if (!owners.length) throw new CollabRefusal(404, 'NOT_FOUND', 'No such shared project.');
+    return owners[0].accountId;
+  }
+
   async requireMember(projectId: string, accountId: string, capability: CollabCapability, photoId?: string): Promise<ProjectMember> {
     const project = await this.db.runTransaction((tx) => this.readProject(tx, projectId));
     return this.memberOrRefuse(project, accountId, capability, photoId);
@@ -275,6 +289,39 @@ export class CollabStore {
     if (!snap.exists) throw new CollabRefusal(404, 'NOT_FOUND', 'No such revision.');
     const { projectId: _p, photoId: _ph, ...rest } = snap.data()!;
     return rest;
+  }
+
+  async addComment(projectId: string, photoId: string, accountId: string, input: { text: string; point: { x: number; y: number } | null }, atMs: number): Promise<CollabComment> {
+    return this.db.runTransaction(async (tx) => {
+      const project = await this.readProject(tx, projectId);
+      const member = this.memberOrRefuse(project, accountId, 'comment', photoId);
+      const comment: CollabComment = { id: this.newId(), projectId, photoId, authorAccountId: accountId, authorName: member.displayName, text: input.text, point: input.point, createdAtMs: atMs, resolvedAtMs: null };
+      tx.create(this.ref(C.comments, projectId, comment.id), clean(comment));
+      return comment;
+    });
+  }
+
+  async comments(projectId: string, photoId: string, accountId: string): Promise<CollabComment[]> {
+    const project = await this.db.runTransaction((tx) => this.readProject(tx, projectId));
+    this.memberOrRefuse(project, accountId, 'view', photoId);
+    const snap = await this.db.collection(C.comments).where('projectId', '==', projectId).where('photoId', '==', photoId).get();
+    return snap.docs.map((d) => ({ point: null, resolvedAtMs: null, ...d.data()! }) as unknown as CollabComment).sort((a, b) => a.createdAtMs - b.createdAtMs);
+  }
+
+  /** The author, or anyone who may edit the photo, marks a comment done (or reopens it). */
+  async resolveComment(projectId: string, commentId: string, accountId: string, resolved: boolean, atMs: number): Promise<CollabComment> {
+    return this.db.runTransaction(async (tx) => {
+      const project = await this.readProject(tx, projectId);
+      const ref = this.ref(C.comments, projectId, commentId);
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new CollabRefusal(404, 'NOT_FOUND', 'No such comment.');
+      const comment = { point: null, resolvedAtMs: null, ...snap.data()! } as unknown as CollabComment;
+      this.memberOrRefuse(project, accountId, 'view', comment.photoId);
+      if (comment.authorAccountId !== accountId && !can(project, accountId, 'edit', comment.photoId)) throw new CollabRefusal(403, 'COLLAB_NOT_PERMITTED', 'Only the author or an editor can mark this done.');
+      const next = { ...comment, resolvedAtMs: resolved ? atMs : null };
+      tx.set(ref, clean(next));
+      return next;
+    });
   }
 
   async auditFor(projectId: string, accountId: string): Promise<(LeaseAuditEntry & { projectId: string })[]> {

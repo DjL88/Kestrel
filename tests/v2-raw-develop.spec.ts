@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { mosaic, withPreview } from './rawFixture';
 import { proveTiff16 } from '../src/core/tiff16Proof';
+import { provePng } from '../src/core/png16';
 test('V2 background engine replaces a synthetic embedded RAW preview with developed sensor pixels', async ({ page }) => {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
@@ -27,10 +28,21 @@ test('V2 background engine replaces a synthetic embedded RAW preview with develo
   const dimensions = () => photo.evaluate((el: HTMLImageElement) => [el.naturalWidth, el.naturalHeight]);
   // The embedded JPEG is 640 × 960. Only the developed, orientation-corrected mosaic produces 64 × 96.
   await expect.poll(dimensions, { timeout: 30_000 }).toEqual([64, 96]);
+  // The canvas and the filmstrip say, in words, that this is InFlight's develop from the sensor data.
+  const canvasLabel = root.locator('.v2-canvas-bar [data-testid="picture-source"]');
+  await expect(canvasLabel).toHaveAttribute('data-picture-source', /^raw-/);
+  await expect(canvasLabel).toContainText('Developed from RAW');
+  const tileLabel = root.getByRole('listbox', { name: 'Project photographs' }).getByTestId('picture-source');
+  const tileImage = root.getByRole('listbox', { name: 'Project photographs' }).locator('img').first();
+  // The tile catches up a moment after the canvas; its label follows the picture it actually shows.
+  await expect(tileLabel).toHaveAttribute('data-picture-source', 'raw-screen', { timeout: 30_000 });
+  await expect.poll(() => tileImage.evaluate((el: HTMLImageElement) => [el.naturalWidth, el.naturalHeight])).toEqual([64, 96]);
+  await expect(tileLabel).toContainText('RAW');
   await root.getByRole('button', { name: 'Back to projects' }).click();
   await page.reload();
-  await root.getByRole('button', { name: /Open studio/ }).first().click();
+  await root.getByRole('button', { name: /^(Open studio.*|V2 sensor develop)$/ }).first().click();
   await expect.poll(dimensions, { timeout: 30_000 }).toEqual([64, 96]);
+  await expect(canvasLabel).toHaveAttribute('data-picture-source', 'raw-screen');
 });
 
 test('V2 writes structurally verified 16-bit TIFFs with and without the Tint edit', async ({ page }, testInfo) => {
@@ -88,4 +100,28 @@ test('V2 writes structurally verified 16-bit TIFFs with and without the Tint edi
         magenta.getUint16(i + 4, true) > neutral.getUint16(i + 4, true)) expectedDirection += 1;
   }
   expect(expectedDirection).toBeGreaterThan(64 * 96 / 2);
+});
+
+test('V2 writes a 16-bit RAW PNG from the sensor data, proven by reading the file back', async ({ page }) => {
+  await page.goto('/?v2');
+  const studio = page.locator('.inflight-v2');
+  await studio.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel('Project name', { exact: true }).fill('V2 RAW PNG');
+  await studio.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  await studio.getByRole('button', { name: 'Import', exact: true }).waitFor();
+  await studio.evaluate((target, base64) => {
+    const dataTransfer = new DataTransfer();
+    const bytes = Uint8Array.from(atob(base64), char => char.charCodeAt(0));
+    dataTransfer.items.add(new File([bytes], 'synthetic-z8.dng', { type: 'application/octet-stream' }));
+    target.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
+  }, Buffer.from(mosaic).toString('base64'));
+  await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  await studio.getByRole('button', { name: 'Export', exact: true }).first().click();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    studio.getByRole('button', { name: 'Save 16-bit RAW PNG' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('synthetic-z8_16bit.png');
+  const proof = provePng(Uint8Array.from(await readFile((await download.path())!)));
+  expect([proof.width, proof.height, proof.bitDepth, proof.colourType, proof.srgb]).toEqual([64, 96, 16, 2, true]);
 });
