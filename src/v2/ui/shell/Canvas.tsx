@@ -1067,7 +1067,8 @@ export default function Canvas({
    * address after it was released, and every frame showed a broken image (owner report, 24 Nov 2026). */
   const renderStrip = (alt: string, className: string, style: React.CSSProperties) =>
     PhotoSurface ? (
-      <PhotoSurface photoId={photo.id} variant="edited" alt={alt} className={className} style={style} />
+      // The same edited picture as the single view, including a Look being previewed on hover.
+      <PhotoSurface photoId={photo.id} variant="edited" lookPreview={hoveredLook?.recipeDelta} alt={alt} className={className} style={style} />
     ) : (
       <img src={photo.previewUrl} alt={alt} referrerPolicy="no-referrer" draggable={false}
         className={className} style={{ ...style, filter: compareMode ? 'none' : filterCss }} />
