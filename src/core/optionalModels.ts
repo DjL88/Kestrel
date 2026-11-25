@@ -100,8 +100,8 @@ export const BIOCLIP2: OptionalModel = {
   tier: 'desktop',
   fallback: 'BioCLIP species suggestions without a second opinion',
   files: {
-    model: pinned('BIOCLIP2_MODEL', '6f4fede093651f33a83ea0a0061833e0e8245fe0e218e558230ee56ac77360de', 608152397),
-    labels: pinned('BIOCLIP2_LABELS', 'd06aa6d9c60e7242251d5771af902792d235dcdc6ec9419fa5230bd8617f6d59', 13250338),
+    model: pinned('BIOCLIP2_MODEL', 'bioclip2-image-fp16.onnx', '6f4fede093651f33a83ea0a0061833e0e8245fe0e218e558230ee56ac77360de', 608152397),
+    labels: pinned('BIOCLIP2_LABELS', 'bioclip2-species.json', 'd06aa6d9c60e7242251d5771af902792d235dcdc6ec9419fa5230bd8617f6d59', 13250338),
   },
   cache: 'kestrel-bioclip2-v1',
 };
