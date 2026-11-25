@@ -30,16 +30,17 @@ test('Pro: a watermark image with a white background is added, cleaned, given a 
     const blob: Blob = await new Promise((resolve) => c.toBlob((b) => resolve(b!), 'image/jpeg', 0.95));
     return Array.from(new Uint8Array(await blob.arrayBuffer()));
   });
+  // The guided flow: an image, for light photos (it is dark), its white background removed, then a light version made.
+  await root.getByRole('button', { name: 'Add a watermark', exact: true }).click();
+  const setup = root.getByTestId('watermark-setup');
+  await setup.getByRole('button', { name: 'A logo or signature image' }).click();
   const chooser = page.waitForEvent('filechooser');
-  await root.getByRole('button', { name: 'Add a watermark image' }).click();
+  await setup.getByRole('button', { name: 'Light photos (the image is dark)' }).click();
   await (await chooser).setFiles([{ name: 'my-logo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(jpeg) }]);
   const library = root.getByTestId('watermark-library');
   await expect(library.getByText('my-logo', { exact: true })).toBeVisible();
-  // A dark mark belongs on light photos; the version for dark photos is missing until it is made.
-  await expect(library.getByRole('button', { name: 'Make a light version' })).toBeVisible();
   // Remove the white background: the preview shows transparency at the corner.
-  await library.getByRole('button', { name: 'Remove background (light photos)' }).click();
-  const preview = library.getByTestId('cutout-preview');
+  const preview = setup.getByTestId('setup-cutout-preview');
   await expect(preview).toBeVisible();
   const cornerAlpha = () => preview.evaluate(async (img) => {
     const element = img as HTMLImageElement;
@@ -49,10 +50,13 @@ test('Pro: a watermark image with a white background is added, cleaned, given a 
     return [x.getImageData(1, 1, 1, 1).data[3], x.getImageData(c.width / 2, c.height / 2, 1, 1).data[3]];
   });
   await expect.poll(cornerAlpha).toEqual([0, 255]);
-  await library.getByTestId('cutout-apply').click();
-  await expect(library.getByTestId('cutout-editor')).toHaveCount(0);
-  // Make the light version (white) for dark photos.
-  await library.getByRole('button', { name: 'Make a light version' }).click();
+  await setup.getByTestId('setup-cutout-apply').click();
+  // The version for dark photos is missing, so the flow asks for it: make it (white) from the clean shape.
+  await expect(setup.getByText('Do you have a version for the other kind of photo?')).toBeVisible();
+  await setup.getByRole('button', { name: 'Make one for me' }).click();
+  await expect(setup.getByText('Your watermark is ready and shown on this photo.')).toBeVisible();
+  await setup.getByRole('button', { name: 'Done' }).click();
+  await expect(root.getByTestId('watermark-setup')).toHaveCount(0);
   await expect(library.getByRole('button', { name: 'Make a light version' })).toHaveCount(0);
   // Use it on the dark photo with Auto: the light version is the one drawn on the canvas.
   await library.getByText('my-logo', { exact: true }).click();

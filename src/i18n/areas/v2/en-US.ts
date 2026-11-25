@@ -71,4 +71,8 @@ export const enUS: AreaTranslation<typeof source> = {
   settingsMore: {
     forgetBody: 'If you have signed in, bought a license, used optional cloud help, or sent a message, InFlight holds a small amount of data about you on its servers. Turning off “help improve suggestions” already deletes what you shared. To have the rest erased, send a request with the email you signed in with. InFlight does not yet have a one-tap server erase, so this goes to a person, and you will be told what, if anything, must be kept (for example payment records the law requires).',
   },
+  overlayKit: {
+    centre: 'Center',
+    fields: { colourProfile: 'Color profile' },
+  },
 };
