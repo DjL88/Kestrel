@@ -17,6 +17,7 @@ import { connect as tlsConnect } from 'node:tls';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { FirestoreLike } from './firestoreStore.ts';
 import { htmlLang, mailWords } from './mailText.ts';
+import { emailHashOf } from './entitlement.ts';
 
 export const MAIL_HARD_DAILY_MAX = 1500; // Workspace allows about 2,000 a day per user; stay well under it.
 
@@ -303,4 +304,61 @@ export class Mailer {
     await this.o.transport.send(this.o.fromAddress, m.to, raw);
     return { sent: true };
   }
+
+  /**
+   * One notice email (collaboration notices, G20). `text` is already in the recipient's language: paragraphs split by
+   * blank lines, links as bare https URLs. The HTML part is built from it (escaped, links made clickable), and the
+   * unsubscribe footer and headers are added in `language`. Same unsubscribe list and limits as invitations; the
+   * per-sender limit counts notices per recipient account.
+   */
+  async sendNotice(m: { to: string; accountId: string; subject: string; text: string; language?: string }): Promise<{ sent: true } | { sent: false; reason: MailRefusal }> {
+    const recipientHash = emailHashOf(m.to);
+    if (await this.o.ledger.isSuppressed(recipientHash)) return { sent: false, reason: 'unsubscribed' };
+    const nowMs = (this.o.now ?? Date.now)();
+    const refused = await this.o.ledger.reserve(new Date(nowMs).toISOString().slice(0, 10), `notice:${m.accountId}`, recipientHash, this.limits);
+    if (refused) return { sent: false, reason: refused };
+    const lang = htmlLang(m.language);
+    const w = mailWords(lang).invitation;
+    const unsub = `${this.o.siteOrigin}/v1/mail/unsubscribe?r=${recipientHash}&t=${this.unsubscribeToken(recipientHash)}&l=${encodeURIComponent(lang)}`;
+    const paragraphs = m.text.replace(/\r\n?/g, '\n').split(/\n{2,}/).map((p) => p.trim()).filter(Boolean).slice(0, 20);
+    const linkify = (p: string) => escapeHtml(p).replace(/https:\/\/[^\s<]+/g, (url) => `<a href="${url}">${url}</a>`).replace(/\n/g, '<br>');
+    const text = [...paragraphs, `${w.stop}: ${unsub}`].map((p) => p.replace(/\n/g, '\r\n')).join('\r\n\r\n');
+    const html = `<!doctype html><html lang="${escapeHtml(lang)}"><body style="font-family:system-ui,sans-serif;line-height:1.5;color:#1a1a1a">`
+      + paragraphs.map((p) => `<p>${linkify(p)}</p>`).join('')
+      + `<p style="font-size:0.85em;color:#555"><a href="${escapeHtml(unsub)}">${escapeHtml(w.stop)}</a></p></body></html>`;
+    const raw = buildMessage({
+      from: { address: this.o.fromAddress, name: this.o.fromName ?? 'InFlight' }, to: m.to,
+      subject: m.subject, text, html, date: new Date(nowMs), messageIdDomain: this.o.fromAddress.split('@')[1],
+      headers: {
+        'List-Unsubscribe': `<${unsub}>, <mailto:${this.o.fromAddress}?subject=unsubscribe>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        'Auto-Submitted': 'auto-generated',
+      },
+    });
+    await this.o.transport.send(this.o.fromAddress, m.to, raw);
+    return { sent: true };
+  }
+}
+
+/** Where to email an account's notices, if the person has given one (none is stored yet: answers undefined). */
+export type NoticeAddressBook = (accountId: string) => Promise<{ address: string; language?: string } | undefined>;
+export const NO_NOTICE_ADDRESSES: NoticeAddressBook = async () => undefined;
+
+/**
+ * The backend side of the collaboration `NoticeDelivery` port (services/control-plane/src/notices.ts, #1535), typed
+ * structurally so either can land first. Push: no FCM sender yet, so 'no-device'. Email: through the mailer, only to an
+ * address the account has given; over a daily limit it is 'held' (the in-app inbox still has the notice), and an
+ * unsubscribed address counts as no address. A failed send throws; the notices code never lets that fail the action.
+ */
+export function mailNoticeDelivery(mailer: Mailer | undefined, addresses: NoticeAddressBook = NO_NOTICE_ADDRESSES) {
+  return {
+    push: async (_accountId: string, _message: { title: string; body: string; data: Record<string, string> }): Promise<'sent' | 'no-device'> => 'no-device',
+    email: async (accountId: string, message: { subject: string; text: string; urgent: false }): Promise<'sent' | 'held' | 'no-address'> => {
+      if (!mailer) return 'no-address';
+      const to = await addresses(accountId);
+      if (!to || !isMailAddress(to.address)) return 'no-address';
+      const r = await mailer.sendNotice({ to: to.address, accountId, subject: message.subject, text: message.text, language: to.language });
+      return r.sent ? 'sent' : r.reason === 'unsubscribed' ? 'no-address' : 'held';
+    },
+  };
 }

@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net';
 import { CollabStore } from '../src/collaboration.ts';
 import { emailHashOf } from '../src/entitlement.ts';
 import { newLicence } from '../src/store.ts';
-import { FirestoreMailLedger, Mailer, SmtpTransport, buildMessage, secretManagerValue, type MailTransport } from '../src/mailer.ts';
+import { FirestoreMailLedger, Mailer, SmtpTransport, buildMessage, mailNoticeDelivery, secretManagerValue, type MailTransport } from '../src/mailer.ts';
 import { buildOptionalServices } from '../src/wiring.ts';
 import { MemoryFirestore } from './memoryFirestore.ts';
 import { startHarness } from './helpers.ts';
@@ -187,7 +187,7 @@ test('an invitation is emailed only with the mailer set up AND the email switch 
     const frSubject = frRaw.match(/^Subject: =\?UTF-8\?B\?([^?]+)\?=/m)![1];
     assert.equal(Buffer.from(frSubject, 'base64').toString('utf8'), 'Dave vous invite à « Kites <b> » sur InFlight');
     const frLink = frRaw.match(/<(https:\/\/inflight\.studio\/v1\/mail\/unsubscribe\?[^>]+)>/)![1].replace('https://inflight.studio', '');
-    assert.match(await (await fetch(h.url + frLink)).text(), /Ne plus recevoir d’invitations/);
+    assert.match(await (await fetch(h.url + frLink)).text(), /Ne plus recevoir d’e-mails d’InFlight/);
     assert.equal((await invite('x@example.test', 'xx')).status, 400, 'an unknown language is refused');
 
     // The daily counter for /admin, against our cap and the Workspace limit.
@@ -219,4 +219,28 @@ test('wiring: off without KCP_MAIL_ENABLED; with it, every required setting is c
   const token = on.mailer!.unsubscribeToken(emailHashOf('a@b.test'));
   assert.ok(on.mailer!.checkUnsubscribe(emailHashOf('a@b.test'), token));
   assert.ok(!on.mailer!.checkUnsubscribe(emailHashOf('c@d.test'), token));
+});
+
+test('notice delivery: push has no device yet; email only to an address the account gave, held over a limit', async () => {
+  const sent: { to: string; raw: string }[] = [];
+  const ledger = new FirestoreMailLedger(new MemoryFirestore());
+  const mailer = new Mailer({ transport: { send: async (_f, to, raw) => { sent.push({ to, raw }); } }, ledger, fromAddress: 'hello@inflight.studio', siteOrigin: 'https://inflight.studio', unsubscribeKey: Buffer.alloc(32, 3), limits: { daily: 500, perSender: 2, perRecipient: 50 } });
+  const book = async (id: string) => (id === 'acc_kim' ? { address: 'kim@example.test', language: 'de' } : undefined);
+  const d = mailNoticeDelivery(mailer, book);
+  const msg = { subject: 'New comment on Kites', text: 'Dave commented on a photo.\n\nOpen https://inflight.studio/ to see it.', urgent: false as const };
+  assert.equal(await d.push('acc_kim', { title: 't', body: 'b', data: {} }), 'no-device');
+  assert.equal(await d.email('acc_nobody', msg), 'no-address');
+  assert.equal(await mailNoticeDelivery(undefined, book).email('acc_kim', msg), 'no-address', 'mailer off');
+  assert.equal(await mailNoticeDelivery(mailer).email('acc_kim', msg), 'no-address', 'no address book yet: nothing is emailed');
+  assert.equal(await d.email('acc_kim', msg), 'sent');
+  const [text, html] = decodeParts(sent[0].raw);
+  assert.match(text, /^Dave commented on a photo\.\r\n\r\nOpen https:\/\/inflight\.studio\/ to see it\.\r\n\r\nKeine E-Mails mehr von InFlight an diese Adresse: https:\/\/inflight\.studio\/v1\/mail\/unsubscribe\?/);
+  assert.match(html, /<p>Open <a href="https:\/\/inflight\.studio\/">https:\/\/inflight\.studio\/<\/a> to see it\.<\/p>/);
+  assert.match(html, /<html lang="de">/);
+  assert.match(sent[0].raw, /^List-Unsubscribe-Post: List-Unsubscribe=One-Click$/m);
+  assert.equal(await d.email('acc_kim', msg), 'sent');
+  assert.equal(await d.email('acc_kim', msg), 'held', 'over the per-account notice limit: held, the inbox keeps it');
+  await mailer.unsubscribe(emailHashOf('kim@example.test'));
+  assert.equal(await d.email('acc_kim', msg), 'no-address', 'an unsubscribed address is never mailed');
+  assert.equal(sent.length, 2);
 });

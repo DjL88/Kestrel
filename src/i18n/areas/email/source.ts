@@ -1,5 +1,5 @@
 /**
- * Words in the emails InFlight sends (share invitations) and the unsubscribe page, in British English.
+ * Words in the emails InFlight sends (share invitations and notices) and the unsubscribe page, which covers every app email, in British English.
  * The control plane sends each email in the recipient's language (services/control-plane/src/mailText.ts). It reads
  * these files directly, so they stay plain data. "InFlight" is the product name in every language.
  */
@@ -11,14 +11,14 @@ export const source = {
     join: "To join, open InFlight and sign in with this email address.",
     open: "Open InFlight",
     ignore: "Not expecting this? You can ignore it. Nothing happens unless you accept.",
-    stop: "Stop invitation emails to this address",
+    stop: "Stop emails from InFlight to this address",
     someone: "Someone",
   },
   unsubscribe: {
-    title: "Stop invitation emails",
-    confirm: "Press the button to stop invitation emails to this address.",
-    button: "Stop invitation emails",
-    done: "Done. InFlight will not send invitation emails to this address again.",
+    title: "Stop emails from InFlight",
+    confirm: "Press the button to stop all emails from InFlight to this address.",
+    button: "Stop emails",
+    done: "Done. InFlight will not email this address again.",
     invalid: "This link is not valid.",
     invalidHint: "Reply to the email and we will stop them.",
   },
