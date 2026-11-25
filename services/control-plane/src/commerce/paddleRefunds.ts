@@ -65,10 +65,11 @@ export function paddleRefundRevocation(d: RefundDependencies) {
     let changed = await d.licences.setLicenceStatus(licenceId, 'revoked', d.now());
     if (!changed) {
       // Refunded before Pro was granted (Paddle's notifications can arrive in any order). Write the order's licence
-      // already revoked, so a late or repeated transaction.completed finds it and cannot grant an active one.
-      await d.licences.grantLicence(purchaseEntitlement({
+      // already revoked (never active, not even for a moment), so a late or repeated transaction.completed finds it
+      // and cannot grant an active one. If completion won the race, grantLicence keeps that one and we revoke it below.
+      await d.licences.grantLicence({ ...purchaseEntitlement({
         store: 'paddle', checkoutReference: order.reference, accountId: order.accountId, emailHash: order.emailHash, majorVersion: order.majorVersion,
-      }, d.now()));
+      }, d.now()), status: 'revoked' });
       changed = await d.licences.setLicenceStatus(licenceId, 'revoked', d.now());
     }
     await audit('licence.revoke', `${what}: ${a.action === 'chargeback' ? 'a chargeback' : 'a full refund'}, so Pro was removed from account ${order.accountId} (${licenceId}${changed ? '' : ', already revoked or missing'}).`);
