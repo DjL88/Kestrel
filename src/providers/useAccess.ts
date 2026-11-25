@@ -39,7 +39,7 @@ export function useAccess(): { capabilities: Capabilities; can: (feature: Featur
         return featureAvailable(feature, capabilities, {
           flags: assembleFlags(publicFlags, grant, nowMs),
           audience: licensed ? { plan: 'pro' } : audienceFor(grant, nowMs, signedIn),
-          nowMs, bucket: deviceBucket(), appVersion,
+          nowMs, bucket: deviceBucket(), appVersion, devProPreview: DEV_PRO_PREVIEW_MODE,
         });
       },
     };
