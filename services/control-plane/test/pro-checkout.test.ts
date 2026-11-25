@@ -1,70 +1,95 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import test from 'node:test';
-import { sumupProCheckout, type StoredProOrder } from '../src/commerce/proCheckout.ts';
-import { sumupProSettlement } from '../src/commerce/proSettlement.ts';
+import { paddleApi, verifyPaddleSignature } from '../src/commerce/paddle.ts';
+import { paddleProCheckout, type StoredProOrder } from '../src/commerce/proCheckout.ts';
+import { paddleProSettlement } from '../src/commerce/proSettlement.ts';
 import type { TransactionRecord } from '../src/commerce/records.ts';
-import { sumupCheckouts } from '../src/commerce/sumup.ts';
-import { networkCountryFrom } from '../src/networkCountry.ts';
-
-const places: Record<string, string> = { GB: '81.2.69.142', FR: '2.2.2.2', US: '3.3.3.3' };
-const from = (country: string) => ({ 'x-forwarded-for': '9.9.9.9, ' + places[country] });
 import { startHarness, type Harness } from './helpers.ts';
 
-const merchantCode = 'TESTMERCHANT';
+const PRICE = 'pri_01testlifetimepro';
+const SECRET = 'pdl_ntfset_test_only_secret';
 
-/** A fake SumUp: records created checkouts; tests decide what "paid" looks like. */
-function fakeSumup() {
-  const checkouts = new Map<string, { reference: string; amount: number }>();
-  const state = { paid: false, paidAmount: null as number | null, refunded: false, creates: 0 };
+/** A fake Paddle sandbox: records created transactions; tests decide when one is completed. */
+function fakePaddle() {
+  const txns = new Map<string, { custom_data: Record<string, string>; price: string; status: string; subscription_id?: string }>();
+  const state = { creates: 0, gets: 0, failGets: false };
+  const view = (id: string) => {
+    const t = txns.get(id)!;
+    const done = t.status === 'completed';
+    return {
+      id, status: t.status, currency_code: 'EUR', custom_data: t.custom_data, subscription_id: t.subscription_id ?? null,
+      billed_at: done ? '2026-11-18T12:00:00Z' : null, updated_at: '2026-11-18T12:00:00Z',
+      items: [{ price: { id: t.price }, quantity: 1 }],
+      details: {
+        totals: { subtotal: '2900', tax: '580', total: '3480', currency_code: 'EUR' },
+        payout_totals: done ? { subtotal: '2500', tax: '500', total: '3000', fee: '170', earnings: '2330', currency_code: 'GBP' } : null,
+      },
+      checkout: { url: 'https://site.example.test/pro-checkout?_ptxn=' + id },
+      address: { country_code: 'FR' },
+    };
+  };
   const request = (async (url: string | URL, init?: RequestInit) => {
-    const path = new URL(String(url)).pathname;
-    if (path === '/v0.1/checkouts' && init?.method === 'POST') {
+    const u = new URL(String(url));
+    assert.equal(u.origin, 'https://sandbox-api.paddle.com');
+    assert.equal(new Headers(init?.headers).get('Authorization'), 'Bearer test-only-key');
+    if (u.pathname === '/transactions' && init?.method === 'POST') {
       state.creates++;
       const body = JSON.parse(String(init.body));
-      const id = 'chk-' + checkouts.size;
-      checkouts.set(id, { reference: body.checkout_reference, amount: body.amount });
-      return Response.json({ id, status: 'PENDING', checkout_reference: body.checkout_reference, amount: body.amount, currency: body.currency, merchant_code: body.merchant_code, hosted_checkout_url: 'https://checkout.sumup.example/' + id });
+      assert.equal(body.checkout.url, 'https://site.example.test/pro-checkout');
+      const id = 'txn_01test' + String(txns.size).padStart(6, '0');
+      txns.set(id, { custom_data: body.custom_data, price: body.items[0].price_id, status: 'ready' });
+      return Response.json({ data: view(id) }, { status: 201 });
     }
-    const id = decodeURIComponent(path.split('/').pop()!);
-    if (path.startsWith('/v0.1/checkouts/')) {
-      const c = checkouts.get(id);
-      if (!c) return new Response(null, { status: 404 });
-      return Response.json({ id, status: state.paid ? 'PAID' : 'PENDING', checkout_reference: c.reference, amount: c.amount, currency: 'GBP', merchant_code: merchantCode, ...(state.paid ? { transaction_id: 'txn-' + id } : {}) });
-    }
-    const txn = new URL(String(url)).searchParams.get('id')!;
-    const c = checkouts.get(txn.slice(4))!;
-    return Response.json({ id: txn, status: 'SUCCESSFUL', amount: state.paidAmount ?? c.amount, currency: 'GBP', merchant_code: merchantCode, timestamp: '2026-11-18T12:00:00+00:00', ...(state.refunded ? { simple_status: 'REFUNDED' } : {}) });
+    state.gets++;
+    if (state.failGets) return new Response(null, { status: 500 });
+    assert.equal(u.searchParams.get('include'), 'address');
+    const id = decodeURIComponent(u.pathname.split('/').pop()!);
+    return txns.has(id) ? Response.json({ data: view(id) }) : new Response(null, { status: 404 });
   }) as typeof fetch;
-  return { request, state, checkouts };
+  return { request, state, txns };
+}
+
+function signed(body: unknown, nowMs: number, secret = SECRET) {
+  const raw = JSON.stringify(body);
+  const ts = String(Math.floor(nowMs / 1000));
+  const h1 = crypto.createHmac('sha256', secret).update(ts + ':' + raw).digest('hex');
+  return { raw, headers: { 'content-type': 'application/json', 'paddle-signature': `ts=${ts};h1=${h1}` } };
 }
 
 async function setup(requireAdminSwitch = false) {
-  const sumup = fakeSumup();
-  let bound: ReturnType<typeof sumupProCheckout> | undefined;
+  const paddle = fakePaddle();
+  let bound: ReturnType<typeof paddleProCheckout> | undefined;
+  let settle: ReturnType<typeof paddleProSettlement> | undefined;
   const harness = await startHarness(null, undefined, {
     requireAdminSwitch,
-    networkCountry: networkCountryFrom((ip) => Object.keys(places).find((c) => places[c] === ip) ?? null),
+    settlePaddle: (id) => settle!(id),
+    paddleWebhookSecret: SECRET,
+    paddleClient: { environment: 'sandbox', clientToken: 'test_clienttoken' },
     proCheckout: { start: (input) => bound!.start(input), status: (input) => bound!.status(input) },
   });
   const orders = new Map<string, StoredProOrder>();
   const ledger = new Map<string, TransactionRecord>();
-  const adapter = sumupCheckouts({ apiKey: 'test-only-key', merchantCode }, sumup.request);
-  const settle = sumupProSettlement({
+  const api = paddleApi({ apiKey: 'test-only-key', environment: 'sandbox' }, paddle.request);
+  settle = paddleProSettlement({
     findOrder: async (id) => orders.get(id) ?? null,
-    checkouts: adapter,
+    paddle: api,
     commerce: { recordPaid: async (r) => { if (!ledger.has(r.checkoutReference)) ledger.set(r.checkoutReference, r); return ledger.get(r.checkoutReference)!; } },
     licences: harness.app.store,
   });
-  bound = sumupProCheckout({
-    checkouts: adapter,
-    orders: { save: async (o) => { assert.ok(!orders.has(o.checkoutId)); orders.set(o.checkoutId, o); }, get: async (id) => orders.get(id) ?? null },
-    taxSettings: async () => ({ ukVatRegistered: false, b2cPricing: 'inclusive', localTaxes: {} }),
+  bound = paddleProCheckout({
+    paddle: api,
+    orders: { save: async (o) => { assert.ok(!orders.has(o.transactionId)); orders.set(o.transactionId, o); }, get: async (id) => orders.get(id) ?? null },
+    priceId: PRICE,
+    checkoutUrl: 'https://site.example.test/pro-checkout',
     settle,
-    hasPaidLicence: async (accountId, licenceId) => (await harness.app.store.listLicencesForAccount(accountId)).some((l) => l.licenceId === licenceId && l.paid),
-    redirectUrl: 'https://site.example.test/pro-complete',
     now: () => harness.clock.now,
   });
-  return { harness, sumup, orders, ledger };
+  const webhook = (body: unknown, secret?: string) => {
+    const s = signed(body, harness.clock.now, secret);
+    return harness.call('POST', '/v1/billing/paddle', { raw: s.raw, headers: s.headers });
+  };
+  return { harness, paddle, orders, ledger, webhook };
 }
 
 async function buyer(h: Harness, email: string) {
@@ -72,105 +97,135 @@ async function buyer(h: Harness, email: string) {
   return { accountId, token: (await h.app.issueSession(accountId, 'user')).accessToken };
 }
 
-test('UK buyer: server-priced checkout, verified payment, one paid Pro grant, then offline activation', async () => {
-  const { harness: h, sumup, orders, ledger } = await setup();
+const completed = (id: string) => ({ event_id: 'evt_' + id, event_type: 'transaction.completed', occurred_at: '2026-11-18T12:00:00Z', data: { id } });
+
+test('buyer anywhere: server-bound Paddle transaction, signed webhook, one paid Pro grant, then activation', async () => {
+  const { harness: h, paddle, orders, ledger, webhook } = await setup();
   try {
     const me = await buyer(h, 'buyer@example.test');
-    const start = await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: { country: 'GB' }, headers: from('GB') });
+    // No country is asked for: Paddle collects it and charges the right tax as merchant of record.
+    const start = await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: {} });
     assert.equal(start.status, 201, JSON.stringify(start.body));
-    assert.equal(start.body.url, 'https://checkout.sumup.example/chk-0');
-    assert.equal(start.body.totalPence, 2900);
-    assert.equal(sumup.checkouts.get('chk-0')!.amount, 29);
-    const order = orders.get('chk-0')!;
+    const id = start.body.checkoutId;
+    assert.match(id, /^txn_/);
+    assert.equal(start.body.url, 'https://site.example.test/pro-checkout?_ptxn=' + id);
+    const order = orders.get(id)!;
     assert.equal(order.accountId, me.accountId);
-    assert.equal(order.majorVersion, 1);
-    assert.equal(order.quote.treatment, 'uk-unregistered');
+    assert.equal(order.priceId, PRICE);
+    assert.match(order.reference, /^paddle_[a-f0-9]{24}$/);
+    assert.deepEqual(paddle.txns.get(id)!.custom_data, { reference: order.reference, accountId: me.accountId, product: 'pro', majorVersion: '1' });
 
-    const status = () => h.call('GET', '/v1/me/checkout/pro/chk-0', { token: me.token });
+    const status = () => h.call('GET', '/v1/me/checkout/pro/' + id, { token: me.token });
     const activate = () => h.call('POST', '/v1/me/activate', { token: me.token, body: { deviceHash: 'b'.repeat(64), platform: 'web', appVersion: '1.0.0' } });
     assert.deepEqual((await status()).body, { status: 'pending' });
     assert.equal((await activate()).status, 403);
 
-    sumup.state.paid = true;
-    assert.deepEqual((await status()).body, { status: 'paid' });
+    // A forged or unsigned notification changes nothing and is never even looked up.
+    const gets = paddle.state.gets;
+    assert.equal((await webhook(completed(id), 'wrong-secret')).status, 401);
+    assert.equal((await h.call('POST', '/v1/billing/paddle', { body: completed(id) })).status, 401);
+    assert.equal(paddle.state.gets, gets);
+
+    paddle.txns.get(id)!.status = 'completed';
+    assert.equal((await webhook(completed(id))).status, 200);
+    assert.equal((await webhook(completed(id))).status, 200, 'a repeated notification is harmless');
     assert.deepEqual((await status()).body, { status: 'paid' });
     assert.equal(ledger.size, 1);
-    assert.equal((await h.app.store.listLicencesForAccount(me.accountId)).length, 1);
+    const sale = [...ledger.values()][0]!;
+    assert.equal(sale.treatment, 'merchant-of-record');
+    assert.equal(sale.store, 'paddle');
+    assert.equal(sale.currency, 'GBP');
+    assert.equal(sale.netPence, 2330, 'our turnover is what Paddle pays out');
+    assert.deepEqual(sale.buyer, { country: 'FR', currency: 'EUR', totalMinor: 3480, taxMinor: 580 });
+    const licences = await h.app.store.listLicencesForAccount(me.accountId);
+    assert.equal(licences.length, 1);
+    assert.equal(licences[0]!.licenceId, 'lic_p_' + order.reference);
     assert.equal((await activate()).status, 200);
 
-    const again = await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: { country: 'GB' }, headers: from('GB') });
+    const again = await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: {} });
     assert.equal(again.status, 409);
     assert.equal(again.body.error.code, 'ALREADY_PRO');
-    assert.equal(sumup.state.creates, 1);
+    assert.equal(paddle.state.creates, 1);
   } finally { await h.close(); }
 });
 
-test('another account cannot see or settle someone else\'s checkout; odd IDs are not found', async () => {
-  const { harness: h } = await setup();
+test('the app status check alone settles a completed payment if the webhook is late', async () => {
+  const { harness: h, paddle } = await setup();
+  try {
+    const me = await buyer(h, 'late-hook@example.test');
+    const id = (await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: { country: 'GB' } })).body.checkoutId;
+    paddle.txns.get(id)!.status = 'paid';
+    assert.deepEqual((await h.call('GET', '/v1/me/checkout/pro/' + id, { token: me.token })).body, { status: 'pending' }, 'paid but not yet completed waits');
+    paddle.txns.get(id)!.status = 'completed';
+    paddle.state.failGets = true;
+    assert.equal((await h.call('GET', '/v1/me/checkout/pro/' + id, { token: me.token })).status, 503);
+    paddle.state.failGets = false;
+    assert.deepEqual((await h.call('GET', '/v1/me/checkout/pro/' + id, { token: me.token })).body, { status: 'paid' });
+  } finally { await h.close(); }
+});
+
+test('another account cannot see someone else\'s checkout; odd IDs are not found; the client cannot set an amount', async () => {
+  const { harness: h, paddle } = await setup();
   try {
     const me = await buyer(h, 'owner-of-order@example.test');
     const other = await buyer(h, 'someone-else@example.test');
-    assert.equal((await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: { country: 'GB' }, headers: from('GB') })).status, 201);
-    assert.equal((await h.call('GET', '/v1/me/checkout/pro/chk-0', { token: other.token })).status, 404);
+    const id = (await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: {} })).body.checkoutId;
+    assert.equal((await h.call('GET', '/v1/me/checkout/pro/' + id, { token: other.token })).status, 404);
     assert.equal((await h.call('GET', '/v1/me/checkout/pro/..%2Fx', { token: me.token })).status, 404);
-    assert.equal((await h.call('GET', '/v1/me/checkout/pro/chk-0')).status, 401);
+    assert.equal((await h.call('GET', '/v1/me/checkout/pro/' + id)).status, 401);
+    assert.equal((await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: { totalPence: 1 } })).status, 400);
+    assert.equal(paddle.state.creates, 1);
   } finally { await h.close(); }
 });
 
-test('worldwide: billing country must match the network location; EU VAT included; the client cannot set an amount', async () => {
-  const { harness: h, sumup, orders } = await setup();
-  try {
-    const me = await buyer(h, 'world@example.test');
-    const post = (country: string, headers: Record<string, string>) => h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: { country }, headers });
-    const vpn = await post('GB', from('FR'));
-    assert.equal(vpn.status, 409);
-    assert.equal(vpn.body.error.code, 'LOCATION_UNCONFIRMED');
-    assert.equal((await post('GB', {})).body.error.code, 'LOCATION_UNCONFIRMED');
-    assert.equal((await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: { country: 'GB', totalPence: 1 }, headers: from('GB') })).status, 400);
-    assert.equal(sumup.state.creates, 0);
-
-    assert.equal((await post('US', from('US'))).status, 201);
-    assert.equal(orders.get('chk-0')!.quote.treatment, 'outside-uk-vat');
-    assert.deepEqual(orders.get('chk-0')!.quote.evidence.map((e) => e.source + ':' + e.country), ['billing-address:US', 'ip-geolocation:US']);
-    const fr = await post('FR', from('FR'));
-    assert.equal(fr.status, 201);
-    assert.equal(orders.get('chk-1')!.quote.treatment, 'eu-oss');
-    assert.equal(orders.get('chk-1')!.quote.rateBasisPoints, 2000);
-    assert.equal(fr.body.totalPence, 2900);
-  } finally { await h.close(); }
-});
-
-test('wrong paid amount or a refund never grants Pro', async () => {
-  const { harness: h, sumup } = await setup();
+test('a transaction that does not match the order (price, account, subscription) never grants Pro', async () => {
+  const { harness: h, paddle, webhook } = await setup();
   try {
     const me = await buyer(h, 'mismatch@example.test');
-    await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: { country: 'GB' }, headers: from('GB') });
-    sumup.state.paid = true;
-    sumup.state.paidAmount = 1;
-    assert.equal((await h.call('GET', '/v1/me/checkout/pro/chk-0', { token: me.token })).status, 503);
-    sumup.state.paidAmount = null;
-    sumup.state.refunded = true;
-    assert.deepEqual((await h.call('GET', '/v1/me/checkout/pro/chk-0', { token: me.token })).body, { status: 'pending' });
+    const id = (await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: {} })).body.checkoutId;
+    const t = paddle.txns.get(id)!;
+    t.status = 'completed';
+    t.price = 'pri_01somethingcheaper';
+    assert.equal((await webhook(completed(id))).status, 503);
+    t.price = PRICE;
+    t.custom_data = { ...t.custom_data, accountId: 'someone-else' };
+    assert.equal((await webhook(completed(id))).status, 503);
     assert.equal((await h.app.store.listLicencesForAccount(me.accountId)).length, 0);
+    // Unknown transactions and subscription events are acknowledged, so Paddle does not retry them for ever.
+    assert.equal((await webhook(completed('txn_01unknown000000'))).status, 200);
+    assert.equal((await webhook({ event_id: 'evt_s', event_type: 'subscription.created', occurred_at: '2026-11-18T12:00:00Z', data: { id: 'sub_01x' } })).status, 200);
   } finally { await h.close(); }
 });
 
-test('production: checkout stays off until the admin switches it on (audited)', async () => {
-  const { harness: h, sumup } = await setup(true);
+test('production: checkout stays off until the admin switches it on; the checkout page gets the sandbox client token', async () => {
+  const { harness: h, paddle } = await setup(true);
   try {
     const me = await buyer(h, 'early@example.test');
-    const off = await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: { country: 'GB' }, headers: from('GB') });
+    const off = await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: {} });
     assert.equal(off.status, 503);
     assert.equal(off.body.error.code, 'CHECKOUT_DISABLED');
     const switches = await h.call('GET', '/v1/admin/switches', { token: h.adminToken });
-    assert.deepEqual(switches.body.switches.find((s: { key: string }) => s.key === 'pro-checkout'), {
-      key: 'pro-checkout', label: 'Pro checkout (SumUp)', note: switches.body.switches.find((s: { key: string }) => s.key === 'pro-checkout').note, on: false, configured: true,
-    });
+    const sw = switches.body.switches.find((s: { key: string }) => s.key === 'pro-checkout');
+    assert.equal(sw.label, 'Pro checkout (Paddle)');
+    assert.equal(sw.on, false);
+    assert.equal(switches.body.switches.some((s: { key: string }) => s.key === 'pro-checkout-eu'), false, 'no EU switch: Paddle handles EU VAT');
     assert.equal((await h.call('POST', '/v1/admin/switches/set', { token: h.adminToken, body: { key: 'pro-checkout', on: true } })).status, 200);
-    const eu = await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: { country: 'FR' }, headers: from('FR') });
-    assert.equal(eu.status, 409);
-    assert.equal(eu.body.error.code, 'COUNTRY_UNAVAILABLE');
-    assert.equal((await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: { country: 'GB' }, headers: from('GB') })).status, 201);
-    assert.equal(sumup.state.creates, 1);
+    assert.equal((await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: {} })).status, 201);
+    assert.equal(paddle.state.creates, 1);
+    assert.deepEqual((await h.call('GET', '/v1/billing/paddle/config')).body, { environment: 'sandbox', clientToken: 'test_clienttoken' });
   } finally { await h.close(); }
+});
+
+test('Paddle-Signature: right secret and fresh timestamp only; any h1 during a rotation', () => {
+  const now = Date.UTC(2026, 10, 18, 12);
+  const body = '{"a":1}';
+  const ts = String(now / 1000);
+  const h1 = crypto.createHmac('sha256', SECRET).update(ts + ':' + body).digest('hex');
+  assert.equal(verifyPaddleSignature(body, `ts=${ts};h1=${h1}`, SECRET, now), true);
+  assert.equal(verifyPaddleSignature(body, `ts=${ts};h1=${'0'.repeat(64)};h1=${h1}`, SECRET, now), true);
+  assert.equal(verifyPaddleSignature(body + ' ', `ts=${ts};h1=${h1}`, SECRET, now), false);
+  assert.equal(verifyPaddleSignature(body, `ts=${ts};h1=${h1}`, SECRET, now + 301_000), false);
+  assert.equal(verifyPaddleSignature(body, `h1=${h1}`, SECRET, now), false);
+  assert.equal(verifyPaddleSignature(body, undefined, SECRET, now), false);
+  assert.equal(verifyPaddleSignature(body, `ts=${ts};h1=${h1}`, '', now), false);
 });

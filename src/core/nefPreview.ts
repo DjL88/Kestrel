@@ -142,6 +142,11 @@ async function usefulPixelCount(preview: Blob): Promise<number> {
  * Canon CR3, a different kind of container, is handled). Returns null when no usable preview exists.
  */
 export async function extractRawPreview(file: Blob): Promise<Blob | null> {
+  const preview = await findRawPreview(file);
+  return preview && orientPreview(preview, await rawOrientation(file));
+}
+
+async function findRawPreview(file: Blob): Promise<Blob | null> {
   const located = await locatePreview(file);
   if (located) return located;
   // Most camera-embedded JPEGs are near the front of a RAW file. Probe in
@@ -160,6 +165,99 @@ export async function extractRawPreview(file: Blob): Promise<Blob | null> {
     if (pixels >= 12_000_000) return candidate;
   }
   return bestFallback?.blob ?? null;
+}
+
+/**
+ * The EXIF/TIFF Orientation (1 to 8) a TIFF-style RAW records in its first directory, or null when it records none.
+ * Cameras store the sensor picture, and the embedded preview, the way the sensor lies; this says how the camera was held.
+ */
+export async function rawOrientation(file: Blob): Promise<number | null> {
+  if (file.size < 16) return null;
+  const head = new DataView(await file.slice(0, Math.min(file.size, 64 * 1024)).arrayBuffer());
+  const order = head.getUint16(0);
+  if (order !== 0x4949 && order !== 0x4d4d) return null;
+  const little = order === 0x4949;
+  // 42 = TIFF (NEF, DNG, CR2, ARW, PEF...); 0x4F52 / 0x5352 = Olympus ORF; 0x55 = Panasonic RW2.
+  if (![42, 0x4f52, 0x5352, 0x55].includes(head.getUint16(2, little))) return null;
+  return tiffOrientation(head, head.getUint32(4, little), little);
+}
+
+function tiffOrientation(view: DataView, ifd: number, little: boolean, base = 0): number | null {
+  if (base + ifd + 2 > view.byteLength) return null;
+  const count = view.getUint16(base + ifd, little);
+  if (count === 0 || count > MAX_TAGS) return null;
+  for (let i = 0; i < count; i += 1) {
+    const entry = base + ifd + 2 + i * 12;
+    if (entry + 12 > view.byteLength) return null;
+    if (view.getUint16(entry, little) !== 0x0112 || view.getUint16(entry + 2, little) !== 3) continue;
+    const value = view.getUint16(entry + 8, little);
+    return value >= 1 && value <= 8 ? value : null;
+  }
+  return null;
+}
+
+/** The embedded JPEG's own size and Orientation, from its header only. */
+function jpegFacts(view: DataView): { width: number; height: number; orientation: number | null; insertAt: number } | null {
+  if (view.byteLength < 4 || view.getUint16(0) !== 0xffd8) return null;
+  let offset = 2, insertAt = 2, orientation: number | null = null;
+  while (offset + 4 <= view.byteLength && view.getUint8(offset) === 0xff) {
+    const marker = view.getUint8(offset + 1);
+    if (marker === 0xda || marker === 0xd9) return null;
+    const length = view.getUint16(offset + 2);
+    if (length < 2) return null;
+    if (marker === 0xe0) insertAt = offset + 2 + length;
+    // An Exif APP1: "Exif\0\0", then a TIFF header whose first directory may hold the preview's own Orientation.
+    if (marker === 0xe1 && offset + 18 <= view.byteLength && view.getUint32(offset + 4) === 0x45786966 && view.getUint16(offset + 8) === 0) {
+      const tiff = offset + 10;
+      const order = view.getUint16(tiff);
+      if (order === 0x4949 || order === 0x4d4d) {
+        const little = order === 0x4949;
+        orientation ??= tiffOrientation(view, view.getUint32(tiff + 4, little), little, tiff);
+      }
+    }
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      if (offset + 9 > view.byteLength) return null;
+      return { height: view.getUint16(offset + 5), width: view.getUint16(offset + 7), orientation, insertAt };
+    }
+    offset += 2 + length;
+  }
+  return null;
+}
+
+/**
+ * Give the embedded preview the RAW's Orientation, so every view (the browser, `createImageBitmap`, thumbnails and the
+ * develop's orientation check, which follows the preview) shows a portrait photo upright. Nikon and most cameras write
+ * the preview the way the sensor lies and record the turn only in the RAW, not in the preview itself.
+ *
+ * This adds a tiny Exif segment carrying only that Orientation; the preview's pixels are not re-encoded. Left as it is
+ * when the RAW records no turn, when the preview has its own Orientation, or when the preview is already turned (a
+ * quarter turn is recorded but the preview is already portrait).
+ */
+export async function orientPreview(preview: Blob, orientation: number | null): Promise<Blob> {
+  if (!orientation || orientation === 1) return preview;
+  const facts = jpegFacts(new DataView(await preview.slice(0, 256 * 1024).arrayBuffer()));
+  if (!facts || facts.orientation !== null) return preview;
+  const quarter = orientation >= 5;
+  if (quarter && facts.height > facts.width) return preview;
+  return new Blob([preview.slice(0, facts.insertAt), orientationSegment(orientation), preview.slice(facts.insertAt)], { type: 'image/jpeg' });
+}
+
+/** APP1 "Exif\0\0" with a little-endian TIFF header and one directory holding only Orientation (SHORT). 36 bytes. */
+function orientationSegment(orientation: number): Uint8Array<ArrayBuffer> {
+  const segment = new Uint8Array(36);
+  const view = new DataView(segment.buffer);
+  view.setUint16(0, 0xffe1);
+  view.setUint16(2, 34);
+  segment.set([0x45, 0x78, 0x69, 0x66, 0, 0], 4); // Exif\0\0
+  segment.set([0x49, 0x49, 42, 0], 10); // II, 42
+  view.setUint32(14, 8, true); // first directory straight after the header
+  view.setUint16(18, 1, true); // one entry
+  view.setUint16(20, 0x0112, true); // Orientation
+  view.setUint16(22, 3, true); // SHORT
+  view.setUint32(24, 1, true);
+  view.setUint16(28, orientation, true);
+  view.setUint32(32, 0, true); // no next directory
+  return segment;
 }
 
 /** The old name, kept so existing callers keep working. */

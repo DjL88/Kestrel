@@ -1,5 +1,6 @@
 import { planFilmstrip } from '../../engineClient/burstGroups';
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { AssistMode, FilmstripFilter, LookPreset, Photo, PhotoSort } from '../contract';
 import { STRINGS } from '../strings';
 import { PHOTO_DRAG_TYPE, draggedPhotoIds } from '../utils/photoDrag';
@@ -41,6 +42,9 @@ interface FilmstripProps {
   onSetDecision: (photoIds: string[], decision: 'unreviewed' | 'keep' | 'reject') => void;
   onSetBurstGrouped: (burstGroupId: string, grouped: boolean) => void;
   onRemovePhotos: (photoIds: string[]) => void;
+  /** Moves photos to another project; `moveTargets` are the projects offered (never this one or a deleted one). */
+  onMovePhotos?: (photoIds: string[], targetProjectId: string) => void;
+  moveTargets?: { id: string; name: string }[];
   onPasteRecipe: () => void;
   onApplyLook: (photoId: string, lookId: string) => void;
   onImport: () => void;
@@ -87,6 +91,8 @@ export default function Filmstrip({
   onSetDecision,
   onSetBurstGrouped,
   onRemovePhotos,
+  onMovePhotos,
+  moveTargets = [],
   onPasteRecipe,
   onApplyLook,
   onImport,
@@ -114,6 +120,7 @@ export default function Filmstrip({
   const [expandedBursts, setExpandedBursts] = useState<Set<string>>(() => new Set());
   const [tileMenu, setTileMenu] = useState<{ x: number; y: number; photoId: string } | null>(null);
   const [removeConfirm, setRemoveConfirm] = useState<string[] | null>(null);
+  const [moving, setMoving] = useState<string[] | null>(null);
   const resizeStart = useRef<{ y: number; h: number } | null>(null);
   const longPressTimer = useRef<number | null>(null);
   const touchPress = useRef<{ pointerId: number; x: number; y: number; photoId: string } | null>(null);
@@ -474,7 +481,7 @@ export default function Filmstrip({
                     onPointerMove={moveLongPress}
                     onPointerUp={cancelLongPress}
                     onPointerCancel={cancelLongPress}
-                    className={`group relative flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--radius-md)] border transition-colors w-36 shrink-0 ${
+                    className={`v2-strip-tile group relative flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--radius-md)] border transition-colors w-36 shrink-0 ${
                       isActive
                         ? 'border-[var(--brand-accent)] bg-[var(--bg-surface-raised)] ring-1 ring-[var(--brand-accent)]'
                         : isSelected
@@ -504,7 +511,7 @@ export default function Filmstrip({
                         const bounds = event.currentTarget.getBoundingClientRect();
                         setTileMenu({ x: bounds.left, y: bounds.bottom, photoId: photo.id });
                       }}
-                      className="absolute right-1 top-1 z-10 flex min-h-9 min-w-9 items-center justify-center rounded bg-[var(--bg-surface-raised)] text-xs font-bold text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
+                      className="v2-strip-tile-more absolute right-1 top-1 z-10 flex min-h-9 min-w-9 items-center justify-center rounded bg-[var(--bg-surface-raised)] text-xs font-bold text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
                     >
                       <span aria-hidden="true">⋯</span>
                     </button>
@@ -541,7 +548,7 @@ export default function Filmstrip({
                         <span className="sr-only">{stateLabel}</span>
                       ) : (
                         <span
-                          className={`absolute left-1.5 bottom-1.5 rounded px-1.5 py-0.5 text-[0.5625rem] font-semibold ${
+                          className={`${photo.state === 'ready' ? 'v2-strip-tile-ready ' : ''}absolute left-1.5 bottom-1.5 rounded px-1.5 py-0.5 text-[0.5625rem] font-semibold ${
                             photo.state === 'unavailable'
                               ? 'bg-[var(--semantic-warning)] text-[#140d0a]'
                               : photo.state === 'importing' || photo.state === 'analysing'
@@ -555,8 +562,8 @@ export default function Filmstrip({
                     </button>
 
                     {/* Tile footer: filename + flag toggle */}
-                    <div className="flex h-9 shrink-0 items-center justify-between gap-1 px-1">
-                      <span className="truncate font-mono text-[0.625rem] text-[var(--text-secondary)]" title={photo.pairedJpeg ? STRINGS.pair.title(photo.filename, photo.pairedJpeg) : undefined}>
+                    <div className="v2-strip-tile-footer flex h-9 shrink-0 items-center justify-between gap-1 px-1">
+                      <span className="v2-strip-tile-name truncate font-mono text-[0.625rem] text-[var(--text-secondary)]" title={photo.pairedJpeg ? STRINGS.pair.title(photo.filename, photo.pairedJpeg) : undefined}>
                         {photo.pairedJpeg && <span data-testid="pair-badge" className="mr-1 rounded-sm border border-[var(--border-default)] px-0.5 font-sans font-semibold text-[var(--text-primary)]">{STRINGS.pair.badge}</span>}
                         <PictureSourceBadge picture={photo.picture?.thumb} compact className="mr-1 align-middle" />
                         {photo.filename}
@@ -648,6 +655,13 @@ export default function Filmstrip({
               }}
               className="flex w-full px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
               {STRINGS.bursts.regroup}
+            </button>
+          )}
+          {onMovePhotos && !collageMode && (
+            <button type="button" role="menuitem"
+              onClick={() => { setMoving(menuTargetIds); setTileMenu(null); }}
+              className="flex w-full px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+              {STRINGS.filmstripLabels.moveMenu}
             </button>
           )}
           {menuTargetsAllSetAside && (
@@ -752,6 +766,42 @@ export default function Filmstrip({
             </div>
           </div>
         </div>
+      )}
+      {/* Move to another project: pick where; the move itself runs as a task in Tasks. In the workspace root, so the
+          phone's sliding filmstrip sheet (a transformed parent) cannot clip it or carry it off screen. */}
+      {moving && onMovePhotos && createPortal(
+        <div role="dialog" aria-modal="true" aria-labelledby="move-photos-title" aria-describedby="move-photos-body"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-scrim)] p-4"
+          onPointerDown={(e) => e.stopPropagation()}
+          onKeyDown={(e) => { if (e.key === 'Escape') setMoving(null); }}
+        >
+          <div className="flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col gap-4 rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-panel)]">
+            <h2 id="move-photos-title" className="text-base font-bold text-[var(--text-primary)]">{STRINGS.filmstripLabels.moveTitle}</h2>
+            <p id="move-photos-body" className="text-sm leading-relaxed text-[var(--text-secondary)]">
+              {moveTargets.length ? STRINGS.filmstripLabels.moveBody : STRINGS.filmstripLabels.moveNoProjects}
+            </p>
+            {moveTargets.length > 0 && (
+              <ul className="min-h-0 space-y-1 overflow-y-auto" data-testid="move-targets">
+                {moveTargets.map((target) => (
+                  <li key={target.id}>
+                    <button type="button"
+                      onClick={() => { onMovePhotos(moving, target.id); setMoving(null); }}
+                      className="flex min-h-11 w-full items-center rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                      {target.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex justify-end">
+              <button type="button" autoFocus onClick={() => setMoving(null)}
+                className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-4 text-xs font-medium text-[var(--text-primary)]">
+                {STRINGS.hub.modalCancel}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.querySelector('.inflight-v2') ?? document.body,
       )}
     </section>
   );

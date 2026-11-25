@@ -100,7 +100,7 @@ test('a gift key carries a note and a server-side expiry; devices can be listed 
   assert.equal((await h.call('POST', `/v1/admin/licences/${issued.body.licenceId}/revoke`, { token: h.adminToken })).status, 200);
 });
 
-test('usage shows each account\'s AI allowance; payments say when SumUp is not connected', async () => {
+test('usage shows each account\'s AI allowance; payments say when Paddle is not connected', async () => {
   await h.app.store.setAiConsent(h.user.accountId, true);
   assert.equal((await h.call('POST', '/v1/ai/identify', { token: h.user.token, body: { image: image(), userConsent: true } })).status, 200);
   const usage = await h.call('GET', '/v1/admin/usage', { token: h.adminToken });

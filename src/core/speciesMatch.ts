@@ -4,7 +4,7 @@ import type { SubjectKind } from './subjectTags';
 export interface SpeciesLabel {
   common: string;
   scientific: string;
-  group: 'bird' | 'mammal' | 'other';
+  group: 'bird' | 'mammal' | 'reptile' | 'amphibian' | 'insect' | 'other';
   /** int8 numbers as base64, with the one scale that turns them back into the real vector. */
   vector: string;
   scale: number;
@@ -99,6 +99,7 @@ export function confidenceWord(probability: number): 'likely' | 'possible' | 'un
 /** The kind of photo a name implies. Animals mean wildlife, a person means people, and a pet is left for the user to place. */
 export function kindFor(label: Pick<SpeciesLabel, 'group' | 'common'>): SubjectKind | undefined {
   if (label.common === 'Human') return 'people';
+  if (label.group === 'reptile' || label.group === 'amphibian' || label.group === 'insect') return 'wildlife';
   if (label.group === 'bird' || label.group === 'mammal') return /^(Domestic|Horse|Highland cow|Sheep)/.test(label.common) ? 'other' : 'wildlife';
   return undefined;
 }

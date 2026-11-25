@@ -146,6 +146,7 @@ export const nl: AreaTranslation<typeof source> = {
     importSaveStage: 'De foto in dit project opslaan',
     importSomeFailed: (added) => `Sommige foto’s konden niet worden geïmporteerd. Er zijn er ${added} toegevoegd. Open Taken om alleen de mislukte opnieuw te proberen.`,
     importStopped: (added) => `Import gestopt. Er zijn ${added} foto’s toegevoegd. Uw originelen zijn niet veranderd.`,
+    importNotFinished: (count, names) => `De laatste import in dit project is niet afgemaakt: ${count} foto’s zijn niet toegevoegd (${names}). Importeer ze opnieuw om ze toe te voegen. Foto’s die al zijn toegevoegd, blijven bewaard.`,
     importFailed: 'Foto’s toevoegen is mislukt. Uw originelen zijn niet veranderd.',
   },
 };

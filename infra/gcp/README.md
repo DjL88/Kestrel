@@ -57,14 +57,15 @@ Not `VITE_` and **never** in the app or git: the secrets in Secret Manager (`kcp
 - Only the desktop-shell and web builds can use Google and Apple pop-up sign-in today; the installed apps' own flows are
   not built (see `docs/ROADMAP.md`, Sign-in row). Email and password work everywhere.
 - Signing out forgets the grant on that device but does not free its device slot; free it from `/admin`.
-- There are no payment sources yet, so until SumUp and the store purchases are wired, only an admin grant gives Pro.
+- There are no payment sources yet, so until Paddle and the store purchases are wired, only an admin grant gives Pro.
 
 ## Publishing signed same-contract model updates
 
 Kestrel always edits photos offline. Where a build explicitly configures **both**
 `VITE_KESTREL_MODEL_BASE_URL` and trusted Ed25519 **public** keys in
 `VITE_KESTREL_MODEL_KEYS`, the app may check the models bucket's
-`manifest/stable.json` at most once a day. It never blocks launch.
+`manifest/stable.json` at most once a day (slot models only; optional packs read it only when the photographer
+downloads one). It never blocks launch.
 Unconfigured builds do not make requests.
 
 Only one of the four known ONNX slots may be updated, and only with an unchanged
@@ -83,14 +84,15 @@ npx tsx scripts/release/sign-data-manifest.ts --dir models-to-publish --version 
 ./scripts/release/publish-gcp.ps1 -Project kestrel-hosting -Models out/models
 ```
 
-The signer refuses unknown slots and attaches the app contract; model weights
-and signing **private** keys must never be committed. Verify the output
-manifest, signed-publisher authority and actual Cloud Storage objects before
-deploying. A contract change requires a **signed app release**, not a data
-update. This models-bucket manifest is separate from the control plane's
-`/v1/models/manifest`; reconcile those authorities before promising a
-unified production updater. No GCP provisioning/deployment authorised by this
-source code.
+The signer refuses files it does not know (a slot model by name, an optional pack by the SHA-256, size and published
+name pinned in `src/core/optionalModels.ts`), attaches the app contract to slot models, and needs a licence for every
+file (`manifest/licences.json`). Files over 256 MiB (BioCLIP 2) need `--allow-large`, and only once installed apps are
+updated, because older apps refuse a whole manifest holding one. Model weights and signing **private** keys must never
+be committed. A contract change requires a **signed app release**, not a data update.
+
+This is the **one** model manifest and `kestrel-2026-11` the one model key (#1564). The control plane does not sign
+models: `/v1/models/manifest` reads this file (`KCP_MODEL_MANIFEST_URL`), checks it against `KCP_MODEL_KEYS` and serves
+it unchanged. Optional packs read their address from it only when the photographer downloads one.
 
 ## What phase 1 creates (this folder)
 

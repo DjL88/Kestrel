@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Mammal names in the app's languages, from Wikidata (CC0), keyed by scientific name ("Vulpes vulpes" → "Rotfuchs").
+ * Species names in the app's languages (and English), from Wikidata (CC0), keyed by scientific name ("Vulpes vulpes" →
+ * "Rotfuchs"). Used for mammals and for the other group lists.
  *
  *   node tools/species/mammal_names.mjs public/models/species-mammals.json tools/species/out/mammal-names.json
  *
@@ -11,7 +12,10 @@
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { LANGUAGES, usefulLabel } from './family_names.mjs';
+import { LANGUAGES as APP_LANGUAGES, usefulLabel } from './family_names.mjs';
+
+// English too: some group checklists have few English names (dragonflies), and the vectors are made from them.
+const LANGUAGES = [...APP_LANGUAGES, 'en'];
 
 const ENDPOINT = 'https://query.wikidata.org/sparql';
 
@@ -40,7 +44,9 @@ async function query(names) {
 }
 
 const [source, target] = process.argv.slice(2);
-const species = JSON.parse(readFileSync(source, 'utf8')).labels.map((label) => label.scientific);
+// A species list ({ labels }) or group rows ({ rows }), both with `scientific`.
+const file = JSON.parse(readFileSync(source, 'utf8'));
+const species = (file.labels ?? file.rows).map((entry) => entry.scientific);
 const out = Object.fromEntries(LANGUAGES.map((code) => [code, {}]));
 for (let i = 0; i < species.length; i += 40) {
   for (const row of await query(species.slice(i, i + 40))) {

@@ -160,3 +160,35 @@ test('V2 writes a 16-bit RAW PNG from the sensor data, proven by reading the fil
   const proof = provePng(Uint8Array.from(await readFile((await download.path())!)));
   expect([proof.width, proof.height, proof.bitDepth, proof.colourType, proof.srgb]).toEqual([64, 96, 16, 2, true]);
 });
+
+test('V2 shows a portrait RAW upright when its embedded preview is stored sideways (Orientation 6)', async ({ page }) => {
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel('Project name', { exact: true }).fill('V2 portrait RAW');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  // Like a Nikon NEF: the camera writes the preview the way the sensor lies (landscape) and records the turn only in the RAW.
+  const sideways = Buffer.from(await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 960;
+    canvas.height = 640;
+    const ctx = canvas.getContext('2d')!;
+    for (let y = 0; y < 640; y += 16) for (let x = 0; x < 960; x += 16) {
+      ctx.fillStyle = `rgb(${(x * 7 + y) % 255},${(x + y * 3) % 255},${(x * 5 + y * 11) % 255})`;
+      ctx.fillRect(x, y, 16, 16);
+    }
+    return canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+  }), 'base64');
+  const picker = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: 'Import', exact: true }).click();
+  await (await picker).setFiles([{ name: 'v2-portrait.dng', mimeType: 'application/octet-stream', buffer: withPreview(mosaic, sideways) }]);
+  const photo = root.getByTestId('canvas-frame').locator('img').first();
+  await expect(photo).toBeVisible();
+  const shape = () => photo.evaluate((el: HTMLImageElement) => [el.naturalWidth, el.naturalHeight]);
+  // Whichever picture is on the canvas (the embedded preview first, then the develop), it is upright: taller than wide.
+  await expect.poll(async () => { const [w, h] = await shape(); return w > 0 && h > w; }, { timeout: 30_000 }).toBe(true);
+  // The develop is not turned back to match a sideways preview.
+  await expect.poll(shape, { timeout: 30_000 }).toEqual([64, 96]);
+  const tile = root.getByRole('listbox', { name: 'Project photographs' }).locator('img').first();
+  await expect.poll(() => tile.evaluate((el: HTMLImageElement) => el.naturalHeight > el.naturalWidth && el.naturalWidth > 0), { timeout: 30_000 }).toBe(true);
+});

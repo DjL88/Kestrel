@@ -304,7 +304,7 @@ export async function renderV2Export(
           throw new Error(`Could not encode split section ${section.index} at ${section.width} × ${section.height} pixels.`);
         }
         const sectionName = numberedSectionFilename(name, section.index, sectionCount);
-        sections.push(datedExport(blob, sectionName, date));
+        sections.push(datedExport(blob, sectionName, date, frame.exif?.captureStamp));
       } finally {
         piece.width = 0; piece.height = 0;
       }

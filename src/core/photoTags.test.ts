@@ -85,3 +85,9 @@ test('markings keep their text, a road number plate is never stored, and a hedge
   photo = declinePhotoTag(photo, 'marking.reg.zj914');
   assert.equal(hasPhotoTag(photo, 'marking.reg.zj914'), false);
 });
+
+test("the person's own choice is a 'user' tag and is never hedged", () => {
+  const frame = { id: 'f', stableKey: 'k', filename: 'a.jpg', sequenceIndex: 1, decision: 'unreviewed', burstGroupId: null, burstIndex: 0, burstCount: 1, exif: {}, isDemo: false, sourceKind: 'file' } as import('./types').PhotoFrame;
+  const tagged = mergePhotoTags(frame, 'vehicles', ['vehicle'], [{ id: 'vehicle.kind.ferry', facet: 'vehicle', source: 'user', hedged: true }], 'v1');
+  assert.deepEqual(photoTagsOf(tagged), [{ id: 'vehicle.kind.ferry', facet: 'vehicle', source: 'user' }]);
+});
