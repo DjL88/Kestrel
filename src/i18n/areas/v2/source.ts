@@ -1152,6 +1152,7 @@ export const source = {
     resizeHeight: (n: string) => `Resize ${n} height`,
     moveStart: (n: string) => `Move ${n} start`,
     moveEnd: (n: string) => `Move ${n} end`,
+  },
   // Overlays: text rows, the field picker, placement and the guided watermark flow
   overlayKit: {
     wmAddOther: "Add my own other version",

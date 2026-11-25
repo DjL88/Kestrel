@@ -1086,6 +1086,7 @@ export const gd: AreaTranslation<typeof source> = {
     resizeHeight: (n) => `Atharraich àirde ${n}`,
     moveStart: (n) => `Gluais toiseach ${n}`,
     moveEnd: (n) => `Gluais deireadh ${n}`,
+  },
   overlayKit: {
     wmAddOther: "Cuir an tionndadh eile agam fhèin ris",
     capitals: 'Litrichean mòra',

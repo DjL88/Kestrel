@@ -1086,6 +1086,7 @@ export const fi: AreaTranslation<typeof source> = {
     resizeHeight: (n) => `Muuta kohteen ${n} korkeutta`,
     moveStart: (n) => `Siirrä kohteen ${n} alkua`,
     moveEnd: (n) => `Siirrä kohteen ${n} loppua`,
+  },
   overlayKit: {
     wmAddOther: "Lisää oma toinen versioni",
     capitals: 'Isot kirjaimet',

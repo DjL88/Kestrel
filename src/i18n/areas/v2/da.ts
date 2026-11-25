@@ -1085,6 +1085,7 @@ export const da: AreaTranslation<typeof source> = {
     resizeHeight: (n) => `Tilpas højden af ${n}`,
     moveStart: (n) => `Flyt starten af ${n}`,
     moveEnd: (n) => `Flyt slutningen af ${n}`,
+  },
   overlayKit: {
     wmAddOther: "Tilføj min egen anden version",
     capitals: 'Store bogstaver',

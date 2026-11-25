@@ -1085,6 +1085,7 @@ export const sv: AreaTranslation<typeof source> = {
     resizeHeight: (n) => `Ändra höjd på ${n}`,
     moveStart: (n) => `Flytta början av ${n}`,
     moveEnd: (n) => `Flytta slutet av ${n}`,
+  },
   overlayKit: {
     wmAddOther: "Lägg till min egen andra version",
     capitals: 'Versaler',

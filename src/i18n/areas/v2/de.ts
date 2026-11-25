@@ -1085,6 +1085,7 @@ export const de: AreaTranslation<typeof source> = {
     resizeHeight: (n) => `Höhe von ${n} ändern`,
     moveStart: (n) => `Anfang von ${n} verschieben`,
     moveEnd: (n) => `Ende von ${n} verschieben`,
+  },
   overlayKit: {
     wmAddOther: "Meine eigene andere Version hinzufügen",
     capitals: 'Großbuchstaben',

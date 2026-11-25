@@ -1085,6 +1085,7 @@ export const nb: AreaTranslation<typeof source> = {
     resizeHeight: (n) => `Endre høyden på ${n}`,
     moveStart: (n) => `Flytt starten av ${n}`,
     moveEnd: (n) => `Flytt slutten av ${n}`,
+  },
   overlayKit: {
     wmAddOther: "Legg til min egen andre versjon",
     capitals: 'Store bokstaver',

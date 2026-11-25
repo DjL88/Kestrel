@@ -1088,6 +1088,7 @@ export const ga: AreaTranslation<typeof source> = {
     resizeHeight: (n) => `Athraigh airde ${n}`,
     moveStart: (n) => `Bog tús ${n}`,
     moveEnd: (n) => `Bog deireadh ${n}`,
+  },
   overlayKit: {
     wmAddOther: "Cuir mo leagan eile féin leis",
     capitals: 'Ceannlitreacha',

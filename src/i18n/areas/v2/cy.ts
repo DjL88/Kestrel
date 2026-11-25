@@ -1085,6 +1085,7 @@ export const cy: AreaTranslation<typeof source> = {
     resizeHeight: (n) => `Newid uchder ${n}`,
     moveStart: (n) => `Symud dechrau ${n}`,
     moveEnd: (n) => `Symud diwedd ${n}`,
+  },
   overlayKit: {
     wmAddOther: "Ychwanegu fy fersiwn arall fy hun",
     capitals: 'Priflythrennau',

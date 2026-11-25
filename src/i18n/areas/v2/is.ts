@@ -1085,6 +1085,7 @@ export const is: AreaTranslation<typeof source> = {
     resizeHeight: (n) => `Breyta hæð ${n}`,
     moveStart: (n) => `Færa upphaf ${n}`,
     moveEnd: (n) => `Færa enda ${n}`,
+  },
   overlayKit: {
     wmAddOther: "Bæta við minni eigin hinni útgáfu",
     capitals: 'Hástafir',
