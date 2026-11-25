@@ -38,7 +38,7 @@ export interface GalleryListItem { galleryId: string; name: string; expiresAtMs:
 export interface SharedLeaseView { photoId: string; holder: string | null; mine: boolean }
 export interface SharedRevisionMeta { id: string; number: number; parentId: string | null; authorAccountId: string; createdAtMs: number; virtualCopyOf?: string }
 
-export interface SharedComment { id: string; photoId: string; authorAccountId: string; authorName: string; text: string; point: { x: number; y: number } | null; createdAtMs: number; resolvedAtMs: number | null }
+export interface SharedComment { id: string; photoId: string; authorAccountId: string; authorName: string; text: string; point: { x: number; y: number } | null; createdAtMs: number; resolvedAtMs: number | null; /** The thread's first comment, for a reply; null for a thread. */ replyTo?: string | null }
 
 export type CloudVariant = 'thumb' | 'preview' | 'original';
 export interface CloudPhotoView { photoKey: string; name: string; previewBytes: number; thumbBytes: number | null; originalBytes: number | null }
@@ -113,7 +113,7 @@ export interface CollabClient {
   revision(projectId: string, photoKey: string, revisionId: string): Promise<{ recipe: Record<string, unknown> } & SharedRevisionMeta>;
   publish(projectId: string, photoKey: string, request: { token: string; baseRevisionId: string | null; recipe: Record<string, unknown>; virtualCopyOf?: string }): Promise<SharedRevisionMeta>;
   comments(projectId: string, photoKey: string): Promise<SharedComment[]>;
-  addComment(projectId: string, photoKey: string, text: string, point: { x: number; y: number } | null): Promise<SharedComment>;
+  addComment(projectId: string, photoKey: string, text: string, point: { x: number; y: number } | null, replyTo?: string): Promise<SharedComment>;
   resolveComment(projectId: string, commentId: string, resolved: boolean): Promise<SharedComment>;
   cloudPhotos(projectId: string): Promise<CloudPhotoView[]>;
   /** Puts one file in the project's cloud store; nothing is sent again when the same file is already there. */
@@ -180,7 +180,7 @@ export function collabClient(baseUrl: string | undefined | null, idToken: () => 
     revision: async (id, key, rid) => (await call('GET', `${P(id)}/photos/${encodeURIComponent(key)}/revisions/${encodeURIComponent(rid)}`)) as unknown as { recipe: Record<string, unknown> } & SharedRevisionMeta,
     publish: async (id, key, request) => (await call('POST', `${P(id)}/photos/${encodeURIComponent(key)}/revisions`, request)).revision as SharedRevisionMeta,
     comments: async (id, key) => ((await call('GET', `${P(id)}/photos/${encodeURIComponent(key)}/comments`)).comments ?? []) as SharedComment[],
-    addComment: async (id, key, text, point) => (await call('POST', `${P(id)}/photos/${encodeURIComponent(key)}/comments`, { text, point })).comment as SharedComment,
+    addComment: async (id, key, text, point, replyTo) => (await call('POST', `${P(id)}/photos/${encodeURIComponent(key)}/comments`, { text, point, ...(replyTo ? { replyTo } : {}) })).comment as SharedComment,
     resolveComment: async (id, cid, resolved) => (await call('POST', `${P(id)}/comments/${encodeURIComponent(cid)}/resolve`, { resolved })).comment as SharedComment,
     cloudPhotos: async (id) => ((await call('GET', `${P(id)}/cloud`)).photos ?? []) as CloudPhotoView[],
     cloudUpload: async (id, key, variant, blob, name) => {
