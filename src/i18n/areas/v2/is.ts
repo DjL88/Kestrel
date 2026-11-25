@@ -1583,6 +1583,13 @@ export const is: AreaTranslation<typeof source> = {
     stop: 'Stöðva',
     failed: (names: string) => `Ekki tókst að mæla: ${names}`,
     done: 'Mælt á þessu tæki.',
+    downloadPack: (size: string) => `Sækja (${size})`,
+    downloading: (name: string, percent: number) => `Sæki ${name}: ${percent}%`,
+    cancel: 'Hætta við',
+    removePack: 'Fjarlægja',
+    packReady: (name: string) => `${name} er tilbúið á þessu tæki.`,
+    packRemoved: (name: string) => `${name} var fjarlægt af þessu tæki.`,
+    packNote: 'Sótt aðeins þegar þú biður um það, borið saman við gátsummu sína og geymt á þessu tæki. Engin mynd er send.',
   },
   settingsMore: {
     closeSettings: 'Loka stillingum',

@@ -1586,6 +1586,13 @@ export const ga: AreaTranslation<typeof source> = {
     stop: 'Stop',
     failed: (names: string) => `Níorbh fhéidir tomhas: ${names}`,
     done: 'Tomhaiste ar an ngléas seo.',
+    downloadPack: (size: string) => `Íoslódáil (${size})`,
+    downloading: (name: string, percent: number) => `${name} á íoslódáil: ${percent}%`,
+    cancel: 'Cealaigh',
+    removePack: 'Bain',
+    packReady: (name: string) => `Tá ${name} réidh ar an ngléas seo.`,
+    packRemoved: (name: string) => `Baineadh ${name} den ghléas seo.`,
+    packNote: 'Ní íoslódáiltear é ach nuair a iarrann tú é, seiceáiltear é in aghaidh a shuim sheiceála, agus coinnítear ar an ngléas seo é. Ní sheoltar aon ghrianghraf.',
   },
   settingsMore: {
     closeSettings: 'Dún na socruithe',

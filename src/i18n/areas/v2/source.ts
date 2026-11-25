@@ -1662,6 +1662,13 @@ export const source = {
     stop: 'Stop',
     failed: (names: string) => `Could not measure: ${names}`,
     done: 'Measured on this device.',
+    downloadPack: (size: string) => `Download (${size})`,
+    downloading: (name: string, percent: number) => `Downloading ${name}: ${percent}%`,
+    cancel: 'Cancel',
+    removePack: 'Remove',
+    packReady: (name: string) => `${name} is ready on this device.`,
+    packRemoved: (name: string) => `${name} was removed from this device.`,
+    packNote: 'Downloaded only when you ask, checked against its checksum, then kept on this device. No photo is sent.',
   },
   settingsMore: {
     closeSettings: 'Close settings',

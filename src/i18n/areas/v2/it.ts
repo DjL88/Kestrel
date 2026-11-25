@@ -1583,6 +1583,13 @@ export const it: AreaTranslation<typeof source> = {
     stop: 'Interrompi',
     failed: (names: string) => `Impossibile misurare: ${names}`,
     done: 'Misurato su questo dispositivo.',
+    downloadPack: (size: string) => `Scarica (${size})`,
+    downloading: (name: string, percent: number) => `Download di ${name}: ${percent}%`,
+    cancel: 'Annulla',
+    removePack: 'Rimuovi',
+    packReady: (name: string) => `${name} è pronto su questo dispositivo.`,
+    packRemoved: (name: string) => `${name} è stato rimosso da questo dispositivo.`,
+    packNote: 'Scaricato solo quando lo chiedi, verificato con il suo checksum e conservato su questo dispositivo. Nessuna foto viene inviata.',
   },
   settingsMore: {
     closeSettings: 'Chiudi le impostazioni',

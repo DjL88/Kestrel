@@ -1583,6 +1583,13 @@ export const nl: AreaTranslation<typeof source> = {
     stop: 'Stoppen',
     failed: (names: string) => `Kon niet meten: ${names}`,
     done: 'Gemeten op dit apparaat.',
+    downloadPack: (size: string) => `Downloaden (${size})`,
+    downloading: (name: string, percent: number) => `${name} downloaden: ${percent}%`,
+    cancel: 'Annuleren',
+    removePack: 'Verwijderen',
+    packReady: (name: string) => `${name} staat klaar op dit apparaat.`,
+    packRemoved: (name: string) => `${name} is van dit apparaat verwijderd.`,
+    packNote: 'Wordt alleen gedownload als je erom vraagt, gecontroleerd met de checksum en op dit apparaat bewaard. Er wordt geen foto verstuurd.',
   },
   settingsMore: {
     closeSettings: 'Instellingen sluiten',
