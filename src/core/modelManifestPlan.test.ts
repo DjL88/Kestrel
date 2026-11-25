@@ -50,3 +50,13 @@ test('every optional pack has a licence and ids the manifest accepts', () => {
     for (const role of Object.keys(model.files)) assert.match(packAssetId(model, role), /^[a-z][a-z0-9-]{0,63}$/);
   }
 });
+
+test('a file over the 256 MiB installed apps accept is listed only when allowed', () => {
+  const big = { id: 'big-pack', name: 'Big', job: 'x', licence: 'MIT', source: 'https://example.test', tier: 'desktop' as const, fallback: 'none', cache: 'big-v1', files: { model: { url: '', sha256: 'e'.repeat(64), bytes: 608_152_397 } } };
+  const files = [{ name: 'bioclip2.onnx', bytes: 608_152_397, sha256: 'e'.repeat(64) }];
+  const refused = planManifestAssets({ version: '1', models: files, packs: [big] });
+  assert.ok(!refused.ok && refused.problems[0].includes('--allow-large'));
+  const allowed = planManifestAssets({ version: '1', models: files, packs: [big], allowLarge: true });
+  assert.ok(allowed.ok);
+  assert.ok(manifestFor(allowed.assets, 3), 'the current parser accepts it');
+});

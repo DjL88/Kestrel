@@ -8,6 +8,7 @@
  * pinned digests below are the files converted on 25 Nov 2026 from the authors' own release; how each was made and
  * checked is in docs/models.md.
  */
+import type { DataManifest } from './dataUpdateManifest';
 
 export type ModelTier = 'phone' | 'desktop';
 
@@ -43,6 +44,13 @@ const env = (import.meta as { env?: Record<string, string | undefined> }).env;
  * Each file is still checked against the digest pinned below, so the host can never swap in a different model.
  */
 export const OPTIONAL_MODEL_HOST = env?.VITE_OPTIONAL_MODEL_HOST ?? '';
+
+/**
+ * Or from the one signed model manifest (the models bucket's manifest/stable.json, key kestrel-2026-11), which lists
+ * each pack file's address, SHA-256 and size. A build with the models bucket and its pinned key offers every pack, and
+ * reads the address from the manifest only when the photographer downloads one.
+ */
+const manifestOffered = Boolean(env?.VITE_KESTREL_MODEL_BASE_URL?.trim() && env?.VITE_KESTREL_MODEL_KEYS?.trim());
 
 function pinned(prefix: string, file: string, sha256: string, bytes: number): OptionalModelFile {
   return {
@@ -120,6 +128,22 @@ export const BIREFNET_LITE: OptionalModel = {
   cache: 'kestrel-birefnet-lite-v1',
 };
 
+/** The manifest id of one file of a pack: the pack id, plus the file's role when the pack has several. */
+export function packAssetId(model: OptionalModel, role: string): string {
+  return Object.keys(model.files).length === 1 ? model.id : `${model.id}-${role}`;
+}
+
+/**
+ * A pack file's address from a verified manifest: only for the asset with this pack's id whose SHA-256 and size are
+ * exactly the pinned ones, so a manifest can never point a pack at a different file. Null otherwise.
+ */
+export function packFileUrlFromManifest(model: OptionalModel, role: string, manifest: DataManifest, baseUrl: string): string | null {
+  const file = model.files[role];
+  const asset = file && manifest.assets.find((a) => a.id === packAssetId(model, role));
+  if (!asset || asset.sha256 !== file.sha256 || asset.bytes !== file.bytes) return null;
+  return baseUrl.replace(/\/+$/, '') + asset.path;
+}
+
 export const OPTIONAL_MODELS: readonly OptionalModel[] = [RFDETR_NANO, EFFICIENTSAM_TI, NAFNET_W32, BIOCLIP2, BIREFNET_LITE];
 
 /** Total download for a pack, for an honest size in the offer. */
@@ -127,10 +151,13 @@ export function optionalModelBytes(model: OptionalModel): number {
   return Object.values(model.files).reduce((sum, file) => sum + file.bytes, 0);
 }
 
-/** Is the pack offered in this build at all? Every file needs an address, a 64-hex digest and a positive length. */
-export function optionalModelConfigured(model: OptionalModel): boolean {
+/**
+ * Is the pack offered in this build at all? Every file needs a 64-hex digest and a positive length, and an address:
+ * its own (a development override) or the models bucket's signed manifest, read when the pack is downloaded.
+ */
+export function optionalModelConfigured(model: OptionalModel, fromManifest = manifestOffered): boolean {
   return Object.values(model.files).every((file) =>
-    file.url.length > 0 && /^[0-9a-f]{64}$/.test(file.sha256) && Number.isSafeInteger(file.bytes) && file.bytes > 0);
+    (file.url.length > 0 || fromManifest) && /^[0-9a-f]{64}$/.test(file.sha256) && Number.isSafeInteger(file.bytes) && file.bytes > 0);
 }
 
 /** Is the pack offered on this kind of device? Desktop packs are never offered on a phone or tablet. */

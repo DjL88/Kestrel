@@ -9,9 +9,9 @@
  * - Optional packs are listed as `onnx` assets with their pack id. Installed apps parse them and skip them (they are not
  *   model slots), so the manifest format does not change.
  */
-import { parseDataManifest, type DataAsset, type DataManifest } from './dataUpdateManifest';
+import { LEGACY_MAX_BYTES, parseDataManifest, type DataAsset, type DataManifest } from './dataUpdateManifest';
 import { MODEL_SLOTS, isModelSlot } from './modelUpdatePolicy';
-import { OPTIONAL_MODELS, type OptionalModel } from './optionalModels';
+import { OPTIONAL_MODELS, packAssetId, type OptionalModel } from './optionalModels';
 
 export interface LicenceRecord { spdx: string; source: string }
 export interface CandidateFile { name: string; bytes: number; sha256: string }
@@ -25,10 +25,7 @@ export const SLOT_LICENCES: Record<keyof typeof MODEL_SLOTS, LicenceRecord> = {
   'clip-vit-b32-vision-uint8': { spdx: 'MIT', source: 'https://github.com/openai/CLIP' },
 };
 
-/** The manifest id of one file of an optional pack: the pack id, plus the file's role when the pack has several. */
-export function packAssetId(model: OptionalModel, role: string): string {
-  return Object.keys(model.files).length === 1 ? model.id : `${model.id}-${role}`;
-}
+export { packAssetId };
 
 const slug = (name: string) => name.replace(/\.[^.]+$/, '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
 
@@ -44,6 +41,8 @@ export function planManifestAssets(input: {
   species?: readonly CandidateFile[];
   speciesLicence?: LicenceRecord;
   packs?: readonly OptionalModel[];
+  /** List files over LEGACY_MAX_BYTES. Apps built before the larger limit then refuse the whole manifest, so only once they are updated. */
+  allowLarge?: boolean;
 }): PlanResult {
   const packs = input.packs ?? OPTIONAL_MODELS;
   const problems: string[] = [];
@@ -72,6 +71,9 @@ export function planManifestAssets(input: {
   for (const pack of packs) {
     const missing = Object.keys(pack.files).filter((role) => !assets.some((a) => a.id === packAssetId(pack, role)));
     if (missing.length && missing.length < Object.keys(pack.files).length) problems.push(`${pack.name}: only part of the pack is here (missing ${missing.join(', ')}). Publish all of its files or none.`);
+  }
+  for (const asset of assets) {
+    if (asset.bytes > LEGACY_MAX_BYTES && !input.allowLarge) problems.push(`${asset.file}: ${Math.round(asset.bytes / 1048576)} MiB is over the ${LEGACY_MAX_BYTES / 1048576} MiB that installed apps accept, and they would refuse the whole manifest. Sign it with --allow-large only once those apps are updated.`);
   }
   if (!assets.length && !problems.length) problems.push('Nothing to publish.');
   if (problems.length) return { ok: false, problems };
