@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Photo } from '../contract';
-import { filterPhotos, tagChoices } from './studioMath';
+import { filterPhotos, searchPhotos, tagChoices } from './studioMath';
 
 const photo = (id: string, tags: NonNullable<Photo['photoTags']>) => ({
   id, filename: `${id}.jpg`, title: id, category: '', decision: 'unreviewed', rating: 0,
@@ -27,4 +27,18 @@ test('the filter lists only tags some photo has, by kind, with counts', () => {
     { facet: 'weather', tags: [{ id: 'weather.fog', label: 'Brouillard ou brume', count: 1 }] },
   ]);
   assert.deepEqual(tagChoices([photo('c', [])]), []);
+});
+
+test('a description searches by its subject words, in any order, ignoring little words', () => {
+  const dipper = { ...photo('d', []), speciesLabel: 'White-throated Dipper', photoTags: [{ id: 'x.rock', facet: 'genre' as const, label: 'Rock', words: ['Rock'] }] } as Photo;
+  const all = [...photos, dipper, { ...photo('e', []), speciesLabel: 'White-throated Dipper' } as Photo];
+  assert.deepEqual(filterPhotos(all, 'all', 'dipper on a rock').map((p) => p.id), ['d']);
+  assert.deepEqual(searchPhotos(all, 'dipper on a wall'), { ids: new Set(['d', 'e']), kind: 'partial', partialTerms: ['dipper'], byPicture: 0 });
+});
+
+test('photos found by what the picture looks like are added to the word matches, never instead of the filters', () => {
+  const pictures = new Set(['c']);
+  assert.deepEqual(filterPhotos(photos, 'all', 'golden hour', null, pictures).map((p) => p.id), ['a', 'b', 'c']);
+  assert.equal(searchPhotos(photos, 'golden hour', pictures).byPicture, 1);
+  assert.deepEqual(filterPhotos(photos, 'all', 'golden hour', 'weather.fog', pictures).map((p) => p.id), ['b'], 'the tag filter still applies');
 });

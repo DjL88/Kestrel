@@ -286,6 +286,8 @@ export const de: AreaTranslation<typeof source> = {
     autoCullRunning: 'Wird analysiert …',
     searchPlaceholder: 'Dateiname, Kamera, Art suchen …',
     searchToggle: 'Fotos suchen und filtern',
+    searchPartial: (words: string) => `Kein Foto passt zu allen Wörtern. Angezeigt werden Fotos mit: ${words}`,
+    searchByPicture: 'Enthält Fotos, die nach dem Bildinhalt gefunden wurden.',
     filterAll: 'Alle',
     filterFlagged: 'Markiert',
     filterToReview: "Zu prüfen",
@@ -1684,6 +1686,7 @@ export const de: AreaTranslation<typeof source> = {
       photoCheck: 'Foto prüfen',
       markings: 'Liest Kennzeichen',
       denoise: 'TrueDetail-Rauschminderung',
+      search: 'Findet Fotos nach Beschreibung',
     },
     place: {
       builtIn: 'Eingebaut',

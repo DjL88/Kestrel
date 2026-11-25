@@ -286,6 +286,8 @@ export const is: AreaTranslation<typeof source> = {
     autoCullRunning: 'Greini…',
     searchPlaceholder: 'Leita að skráarheiti, myndavél, tegund…',
     searchToggle: 'Leita og sía myndir',
+    searchPartial: (words: string) => `Engin mynd passar við öll orðin. Sýni myndir með: ${words}`,
+    searchByPicture: 'Inniheldur myndir sem fundust eftir því sem myndin sýnir.',
     filterAll: 'Allar',
     filterFlagged: 'Merktar',
     filterToReview: "Til yfirferðar",
@@ -1684,6 +1686,7 @@ export const is: AreaTranslation<typeof source> = {
       photoCheck: 'Athuga mynd',
       markings: 'Les skráningarnúmer',
       denoise: 'TrueDetail-suðdeyfing',
+      search: 'Finnur myndir eftir lýsingu',
     },
     place: {
       builtIn: 'Innbyggt',

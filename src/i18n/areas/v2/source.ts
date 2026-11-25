@@ -303,6 +303,8 @@ export const source = {
     autoCullRunning: 'Analysing…',
     searchPlaceholder: 'Search filename, camera, species…',
     searchToggle: 'Search & filter photos',
+    searchPartial: (words: string) => `No photo matches every word. Showing photos with: ${words}`,
+    searchByPicture: 'Includes photos found by what the picture shows.',
     filterAll: 'All',
     filterFlagged: 'Flagged',
     filterToReview: 'To review',
@@ -1763,6 +1765,7 @@ export const source = {
       photoCheck: 'Check photo',
       markings: 'Reads registrations',
       denoise: 'TrueDetail noise reduction',
+      search: 'Finds photos by description',
     },
     place: {
       builtIn: 'Built in',

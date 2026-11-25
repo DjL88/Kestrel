@@ -4,7 +4,7 @@ import { EMBED_MODEL } from '../core/visualSimilarity';
 import { GATE_MODEL } from '../core/categoryGate';
 import { SPECIES_MODEL, centreSquare } from '../core/speciesModel';
 import { PHOTO_CHECK_PACK, PHOTO_CHECK_REVISION } from '../core/photoCheckPack';
-import { BIOCLIP2, BIREFNET_LITE, EFFICIENTSAM_TI, NAFNET_W32, RFDETR_NANO, optionalModelConfigured, type OptionalModel } from '../core/optionalModels';
+import { BIOCLIP2, BIREFNET_LITE, CLIP_TEXT, EFFICIENTSAM_TI, NAFNET_W32, RFDETR_NANO, optionalModelConfigured, type OptionalModel } from '../core/optionalModels';
 import { NAFNET_TILE } from '../core/nafnet';
 import { bundledModelUrl } from './bundledModelAssets';
 import { isDesktopApp, isMobileShell } from './desktopShell';
@@ -22,7 +22,7 @@ import modelManifest from '../../scripts/models/manifest.json';
  */
 export type ModelPlace = 'built-in' | 'downloaded' | 'not-downloaded' | 'not-offered';
 
-export type ModelRole = 'detector' | 'detectorTandem' | 'mask' | 'tapSelect' | 'species' | 'gate' | 'similarity' | 'photoCheck' | 'markings' | 'denoise';
+export type ModelRole = 'detector' | 'detectorTandem' | 'mask' | 'tapSelect' | 'species' | 'gate' | 'similarity' | 'photoCheck' | 'markings' | 'denoise' | 'search';
 
 export interface CatalogueFile {
   /** The id its timings are recorded under (modelStats). */
@@ -221,6 +221,18 @@ export const MODEL_CATALOGUE: readonly CatalogueEntry[] = [
       download: async (onProgress, signal) => (await import('./speciesValidator')).downloadValidator(onProgress, signal),
       remove: async () => (await import('./speciesValidator')).removeValidator(),
     },
+  },
+  {
+    // Search by description: the text half of the gate's CLIP. Memory and timing are measured in use only.
+    id: CLIP_TEXT.id, name: 'CLIP ViT-B/32 text', role: 'search', version: null, licence: CLIP_TEXT.licence,
+    files: packFiles(CLIP_TEXT), peakMemory: null,
+    place: () => packPlace(CLIP_TEXT),
+    pack: {
+      model: CLIP_TEXT,
+      download: async (onProgress, signal) => (await import('./pictureSearch')).downloadPictureSearch(onProgress, signal),
+      remove: async () => (await import('./pictureSearch')).removePictureSearch(),
+    },
+    measure: async () => { const { describeVector } = await import('./pictureSearch'); await describeVector(`test ${Date.now()}`); },
   },
 ];
 

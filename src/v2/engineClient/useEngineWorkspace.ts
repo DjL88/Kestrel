@@ -40,6 +40,7 @@ import { canDevelopRaw, canExportRawMaster } from '../../providers/rawDevelop';
 import { developFullSizeOf, fullDevelopPossible } from './fullDevelop';
 import { buildDngCopyFile, dngCopyOffered } from './rawDngCopy';
 import { useSceneTags } from './useSceneTags';
+import { usePictureSearch } from './usePictureSearch';
 import { declinePhotoTag } from '../../core/photoTags';
 import { folderNameOf, pickedFromFile, pickedKey, pickFolderNatively, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
 import { getLocalFileKey, loadLocalFileListShoot, rehydrateLocalFramesFromStore } from '../../providers/localShootLoader';
@@ -286,6 +287,8 @@ function positionsOf(frames: readonly PhotoFrame[]): { latitude: number; longitu
  * plain-text notice; see deepVisionReview.ts). Everything else keeps the UI's own layout state; edit-type actions say
  * they are not connected yet (NOT_CONNECTED). Originals are never written.
  */
+const NO_FRAMES: PhotoFrame[] = [];
+
 export function useEngineWorkspace(): { store: WorkspaceStore; actions: WorkspaceActions } {
   const stub = useWorkspace();
   const { can: canByPlan, capabilities } = useAccess();
@@ -851,6 +854,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     onTagged: (frameId, update) => setState((current) => (current ? { ...current, frames: current.frames.map((frame) =>
       frame.id === frameId && frame.removedAt == null ? update(frame) : frame) } : current)),
   });
+
+  // Search by description: the photos whose picture matches the words in the search box (only with the opt-in pack).
+  const searchPictureIds = usePictureSearch(stub.store.filmstripSearch, state?.frames ?? NO_FRAMES);
 
   const activePhotoExport = useRef<number | null>(null);
   useEffect(() => () => {
@@ -2839,7 +2845,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     quickStart: quickStart && quickStart.projectId === state?.shoot.id && screen === 'editor' ? { phase: quickStart.phase, photoId: quickStart.photoId } : null,
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
-  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace]);
+    searchPictureIds,
+  }), [searchPictureIds, backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace]);
 
   return { store, actions };
 }

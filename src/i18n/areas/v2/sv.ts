@@ -286,6 +286,8 @@ export const sv: AreaTranslation<typeof source> = {
     autoCullRunning: 'Analyserar …',
     searchPlaceholder: 'Sök filnamn, kamera, art …',
     searchToggle: 'Sök och filtrera foton',
+    searchPartial: (words: string) => `Inget foto matchar alla ord. Visar foton med: ${words}`,
+    searchByPicture: 'Inkluderar foton som hittats utifrån vad bilden visar.',
     filterAll: 'Alla',
     filterFlagged: 'Flaggade',
     filterToReview: "Att granska",
@@ -1684,6 +1686,7 @@ export const sv: AreaTranslation<typeof source> = {
       photoCheck: 'Kontrollera fotot',
       markings: 'Läser registreringar',
       denoise: 'TrueDetail-brusreducering',
+      search: 'Hittar foton utifrån beskrivning',
     },
     place: {
       builtIn: 'Inbyggd',

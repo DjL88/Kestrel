@@ -286,6 +286,8 @@ export const nl: AreaTranslation<typeof source> = {
     autoCullRunning: 'Analyseren…',
     searchPlaceholder: 'Zoek bestandsnaam, camera, soort…',
     searchToggle: 'Foto’s zoeken en filteren',
+    searchPartial: (words: string) => `Geen foto past bij alle woorden. Foto’s met: ${words}`,
+    searchByPicture: 'Inclusief foto’s gevonden op wat er op de foto staat.',
     filterAll: 'Alle',
     filterFlagged: 'Gemarkeerd',
     filterToReview: "Te beoordelen",
@@ -1684,6 +1686,7 @@ export const nl: AreaTranslation<typeof source> = {
       photoCheck: 'Foto controleren',
       markings: 'Leest registraties',
       denoise: 'TrueDetail-ruisonderdrukking',
+      search: 'Vindt foto’s op beschrijving',
     },
     place: {
       builtIn: 'Ingebouwd',

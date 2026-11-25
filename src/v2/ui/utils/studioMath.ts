@@ -15,6 +15,7 @@ import type {
 } from '../contract';
 import { composeOverlayText } from './overlayMetadata';
 import { TAG_FACETS, type TagFacet } from '../../../core/photoTags';
+import { searchByWords, searchTerms } from '../../../core/wordSearch';
 
 export function getActiveGroup(photo: Photo): EditGroup {
   return (
@@ -203,33 +204,64 @@ export function computeMultiSelection(
 /**
  * Filters filmstrip / grid photos by decision (All, To review, Flagged, Set aside) and text search across filename, title, species, camera.
  */
+/** Everything a photo can be found by in words: its name, title, species, vehicle, tags, kind and camera. */
+export function photoSearchText(photo: Photo): string {
+  return [
+    photo.filename,
+    photo.title,
+    photo.speciesLabel ?? '',
+    photo.vehicleLabel ?? '',
+    ...(photo.photoTags ?? []).flatMap((tag) => tag.words),
+    photo.category,
+    photo.exif.camera,
+    photo.exif.lens,
+  ].join(' ');
+}
+
+export interface PhotoSearchResult {
+  /** The photos the search shows. */
+  ids: Set<string>;
+  /** 'partial': no photo held every word, so these hold the most (`partialTerms`). */
+  kind: 'none' | 'complete' | 'partial';
+  partialTerms: string[];
+  /** How many of the shown photos were found only by what the picture looks like. */
+  byPicture: number;
+}
+
+/**
+ * The photos a search shows: those holding every meaningful word (`wordSearch.ts`), plus those whose picture matches
+ * the description (`pictureIds`, from the picture search pack when it is on this device). When neither finds anything,
+ * the photos holding the most words, labelled as such.
+ */
+export function searchPhotos(photos: readonly Photo[], search: string, pictureIds?: ReadonlySet<string> | null): PhotoSearchResult {
+  const words = searchByWords(photos.map((photo) => ({ id: photo.id, text: photoSearchText(photo) })), search);
+  const ids = new Set(words.complete);
+  let byPicture = 0;
+  for (const photo of photos) {
+    if (pictureIds?.has(photo.id) && !ids.has(photo.id)) { ids.add(photo.id); byPicture += 1; }
+  }
+  if (ids.size) return { ids, kind: 'complete', partialTerms: [], byPicture };
+  if (words.partial.length) return { ids: new Set(words.partial), kind: 'partial', partialTerms: words.partialTerms, byPicture: 0 };
+  return { ids, kind: 'none', partialTerms: [], byPicture: 0 };
+}
+
 export function filterPhotos(
   photos: Photo[],
   filter: FilmstripFilter,
   search: string,
   tagId?: string | null,
+  pictureIds?: ReadonlySet<string> | null,
 ): Photo[] {
-  const q = search.trim().toLowerCase();
-  return photos.filter((photo) => {
+  const shown = photos.filter((photo) => {
     if (tagId && !photo.photoTags?.some((tag) => tag.id === tagId)) return false;
     if (filter === 'to-review' && photo.decision !== 'unreviewed') return false;
     if (filter === 'flagged' && photo.decision !== 'keep') return false;
     if (filter === 'set-aside' && photo.decision !== 'reject') return false;
-    if (!q) return true;
-    const haystack = [
-      photo.filename,
-      photo.title,
-      photo.speciesLabel ?? '',
-      photo.vehicleLabel ?? '',
-      ...(photo.photoTags ?? []).flatMap((tag) => tag.words),
-      photo.category,
-      photo.exif.camera,
-      photo.exif.lens,
-    ]
-      .join(' ')
-      .toLowerCase();
-    return haystack.includes(q);
+    return true;
   });
+  if (!searchTerms(search).length) return shown;
+  const found = searchPhotos(shown, search, pictureIds).ids;
+  return shown.filter((photo) => found.has(photo.id));
 }
 
 const TIER_RANK: Record<string, number> = { best: 3, better: 2, good: 1 };
@@ -267,9 +299,9 @@ export function sortPhotos(photos: Photo[], sort: PhotoSort): Photo[] {
 /** What the filmstrip and grid show: decision filter, search, minimum rating, then the chosen order. */
 export function viewPhotos(
   photos: Photo[],
-  view: { filter: FilmstripFilter; search: string; minRating: number; sort: PhotoSort; tag?: string | null }
+  view: { filter: FilmstripFilter; search: string; minRating: number; sort: PhotoSort; tag?: string | null; pictureIds?: ReadonlySet<string> | null }
 ): Photo[] {
-  const filtered = filterPhotos(photos, view.filter, view.search, view.tag).filter((photo) => photo.rating >= view.minRating);
+  const filtered = filterPhotos(photos, view.filter, view.search, view.tag, view.pictureIds).filter((photo) => photo.rating >= view.minRating);
   return sortPhotos(filtered, view.sort);
 }
 
