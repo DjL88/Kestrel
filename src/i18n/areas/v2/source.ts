@@ -332,6 +332,25 @@ export const source = {
     nothingMatches: 'No photos match your current filter.',
   },
 
+  // Two photos side by side
+  pairCompare: {
+    title: 'Compare two photos',
+    hint: 'Left and right arrows choose a side. Flag and rating keys act on the chosen side only.',
+    compareTwo: 'Compare',
+    left: 'Left',
+    right: 'Right',
+    chosen: 'Chosen',
+    swap: 'Swap sides',
+    close: 'Back to one photo',
+    flag: 'Flag',
+    unflag: 'Unflag',
+    setAside: 'Set aside',
+    putBack: 'Put back to review',
+    edit: 'Edit',
+    rate: (n: number) => `Rate ${n} stars`,
+    ratingFor: (name: string) => `Rating for ${name}`,
+  },
+
   // Canvas
   canvas: {
     selectPhoto: "Select a photograph from the filmstrip to begin editing.",

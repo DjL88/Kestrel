@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { FilmstripFilter, Photo, PhotoSort } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
@@ -56,11 +57,13 @@ export function ViewOptions({ minRating, sort, onSetMinRating, onSetSort, opensU
   const [anchor, setAnchor] = useState<{ right: number; top: number; bottom: number } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
   useEffect(() => {
     if (!open) return;
     const onPointer = (event: PointerEvent) => {
-      if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (!wrapRef.current?.contains(target) && !panelRef.current?.contains(target)) setOpen(false);
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
@@ -97,9 +100,9 @@ export function ViewOptions({ minRating, sort, onSetMinRating, onSetSort, opensU
         <BrandIcon name="sort" size={15} />
         {active.length > 0 && <span className="max-w-[12rem] truncate">{STRINGS.filmstrip.viewSummary(active)}</span>}
       </button>
-      {open && anchor && (
-        // Fixed to the viewport so the filmstrip's and grid's clipped edges cannot hide it.
-        <div id={panelId} role="dialog" aria-label={STRINGS.filmstrip.viewOptions}
+      {open && anchor && createPortal(
+        // In the workspace root, fixed to the viewport, so neither the filmstrip's clipped edge nor the canvas's toolbars can cover it.
+        <div ref={panelRef} id={panelId} role="dialog" aria-label={STRINGS.filmstrip.viewOptions}
           style={opensUp ? { right: anchor.right, bottom: window.innerHeight - anchor.top + 4 } : { right: anchor.right, top: anchor.bottom + 4 }}
           className="fixed z-50 w-60 max-w-[calc(100vw-16px)] space-y-3 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] p-3 shadow-[var(--shadow-popover)]">
           <label className="block space-y-1 text-[0.6875rem] text-[var(--text-secondary)]">
@@ -121,7 +124,8 @@ export function ViewOptions({ minRating, sort, onSetMinRating, onSetSort, opensU
               {STRINGS.filmstrip.resetView}
             </button>
           )}
-        </div>
+        </div>,
+        document.querySelector('.inflight-v2') ?? document.body,
       )}
     </div>
   );

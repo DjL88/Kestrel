@@ -568,6 +568,8 @@ export interface WorkspaceActions {
 
   // Photos, Culling & Selection
   selectPhoto: (photoId: string, modifiers?: { ctrl?: boolean; shift?: boolean }) => void;
+  /** Make this photo the one keys act on, without changing which photos are selected (the chosen side of a two-photo compare). */
+  focusPhoto: (photoId: string) => void;
   selectAllPhotos: () => void;
   clearSelection: () => void;
   setDecision: (photoIds: string[], decision: DecisionState) => void;
