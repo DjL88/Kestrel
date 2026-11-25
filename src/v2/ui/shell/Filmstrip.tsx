@@ -41,6 +41,8 @@ interface FilmstripProps {
   onCreateCollage?: (photoIds: string[]) => void;
   /** Composing a collage: photos drag onto its windows, and editing-only tools (Auto-Cull) are not offered. */
   collageMode?: boolean;
+  /** Composing a collage: open the picker that references photographs from another project. */
+  onChooseFromProject?: () => void;
 }
 
 export default function Filmstrip({
@@ -76,6 +78,7 @@ export default function Filmstrip({
   onExportSelected,
   onCreateCollage,
   collageMode = false,
+  onChooseFromProject,
 }: FilmstripProps) {
   const hideAutoCull = useProHidden('smartCulling');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -274,6 +277,15 @@ export default function Filmstrip({
             <BrandIcon name="folder-open" size={13} />
             <span className="v2-compact-label">{STRINGS.filmstripLabels.label10}</span>
           </button>
+
+          {onChooseFromProject && (
+            <button type="button" onClick={onChooseFromProject} data-testid="filmstrip-from-project"
+              className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[11px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
+              title={STRINGS.collage.chooseFromAnotherProject}>
+              <BrandIcon name="folder-open" size={13} />
+              <span>{STRINGS.collage.fromProject}</span>
+            </button>
+          )}
 
           {!hideAutoCull && !collageMode && (
           <button

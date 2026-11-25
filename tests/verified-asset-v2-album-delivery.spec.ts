@@ -62,13 +62,16 @@ test('reopened group recipes produce distinct pixels, and a collage can reuse th
   if (await close.isVisible()) await close.click();
   await page.getByRole('button', { name: 'Back to projects' }).click();
   await page.getByRole('button', { name: 'Album', exact: true }).click();
-  await page.getByRole('button', { name: 'Choose from another project' }).click();
+  // The filmstrip offers From project beside Import while composing.
+  await page.getByTestId('filmstrip-from-project').click();
   dialog = page.getByRole('dialog');
   await dialog.getByRole('checkbox', { name: 'fixture.png' }).check();
   await dialog.getByRole('button', { name: 'Add 1 to collage library' }).click();
+  await page.getByTestId('collage-tool-window').click();
   await page.getByRole('combobox', { name: 'Photograph', exact: true }).selectOption({ label: 'fixture.png' });
   await page.getByRole('button', { name: 'Back to projects' }).click();
   await page.getByRole('button', { name: 'Album', exact: true }).click();
+  await page.getByTestId('collage-tool-window').click();
   await expect(page.getByRole('combobox', { name: 'Photograph', exact: true }).locator('option:checked')).toHaveText('fixture.png');
   await page.getByRole('button', { name: 'Export', exact: true }).first().click();
   dialog = page.getByRole('dialog');
