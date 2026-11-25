@@ -68,7 +68,9 @@ import { runAuto } from './runAuto';
 import { autoUnavailableSentence, isAutoUnavailable, type AutoUnavailable } from './autoUnavailable';
 import { autopilotHeldForReview, commitAutoEdit } from './commitAutoEdit';
 import { guardResult } from '../../core/visionGuardian';
+import { guardianHolds, guardianOrder, guardianSettled, startGuardian, withOpinion } from './assistGuardian';
 import { askOnDeviceGuardian } from '../../providers/visionGuardian';
+import { hasLocalVision } from '../../providers/localVision';
 import type { PictureSource } from '../../core/pictureSource';
 import { autoCullSummary, commitAutoCull, rawsJudgedFromCameraPreview } from './commitAutoCull';
 import { runV2Denoise } from './runDenoise';
@@ -120,12 +122,15 @@ import { CatalogueReadError, readLightroomCatalogue } from '../../core/lightroom
 import { catalogueFilesInFolder, catalogueOnlyPhotos, commonFolder, planLightroomImport } from '../../core/lightroomImport';
 import type { LightroomPhoto } from '../../core/lightroomCatalogue';
 import { STRINGS as V2_STRINGS } from '../ui/strings';
-import { scheduleV2PhotoExports, photoExportUnits } from './scheduledPhotoExport';
+import { renderExportJob, scheduleV2PhotoExports, photoExportUnits } from './scheduledPhotoExport';
+import { enlargementPreviewRequest, type EnlargementPreviewResult } from './enlargementPreview';
 import { uniqueExportFilename } from '../../core/exportNaming';
 import { exportMayContinue } from '../../core/exportCancellation';
 import type { ExportRequest } from '../ui/contract';
 import { applyRecipePatch, editToRecipe } from './recipeMap';
 import { canvasLensCentre, detectLateralCa } from '../../core/fringe';
+import { resolveLensProfile } from '../../core/lensProfiles';
+import { lensDatabase } from '../../providers/lensProfileStore';
 import { surfaceBridge } from './surfaceBridge';
 import { addSavedEditGroup, renameSavedEditGroup, selectSavedEditGroup, syncEditGroup } from './editGroupState';
 import { engineText } from '../../i18n/areas/engine';
@@ -632,7 +637,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useAutoBackup(state && !state.shoot.collage ? state : null, Boolean(state));
   const backupStatus = useBackupStatus(state?.shoot.id ?? '');
   // First run: pick photos, and InFlight makes a project, adds them and runs Auto on the first one.
-  const [quickStart, setQuickStart] = useState<{ projectId: string; photoId: string | null; phase: 'working' | 'ready' | 'unchanged' | 'failed' } | null>(null);
+  const [quickStart, setQuickStart] = useState<{ projectId: string; photoId: string | null; phase: 'working' | 'ready' | 'unchanged' | 'held' | 'failed' } | null>(null);
   const lightroomPending = useRef<{ projectId: string; photos: LightroomPhoto[]; toAdd: LightroomPhoto[] } | null>(null);
   const [lightroomOffer, setLightroomOffer] = useState<{ missing: number; folder: string } | null>(null);
   const mutate = useCallback((change: (current: CullingState) => CullingState) => setState((current) => (current ? change(current) : current)), []);
@@ -963,6 +968,24 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detectKey]);
+
+  // A photo whose file records no size takes its Original shape from the picture shown, measured at once (not after the
+  // histogram's debounce), so Formats does not open as an unknown 1:1 Original and correct itself later (owner, 25 Nov).
+  const measureId = activeFrame && !(activeFrame.exif.width && activeFrame.exif.height) && !pixelSizes[activeFrame.id] ? activeFrame.id : null;
+  useEffect(() => {
+    if (!measureId || !activeFrame) return;
+    let live = true;
+    const frame = activeFrame;
+    provider.current!.getFullPreviewUrl(frame, 'selected').then(async (url) => {
+      if (!url || !live) return;
+      const image = await loadImage(url);
+      if (live && image.naturalWidth > 0 && image.naturalHeight > 0) {
+        setPixelSizes((current) => (current[frame.id] ? current : { ...current, [frame.id]: { width: image.naturalWidth, height: image.naturalHeight } }));
+      }
+    }).catch(() => { /* the histogram pass measures it later */ });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [measureId]);
 
   // The histogram is measured from the picture as it is now: the preview with this photo's edit applied, small and debounced.
   const histogramKey = activeFrame ? `${activeFrame.id}|${JSON.stringify(activeFrame.edit ?? null)}|${JSON.stringify(activeFrame.framing ?? null)}` : null;
@@ -1302,14 +1325,17 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, [assists, editFrames]);
 
   // First run: once Auto has looked at the first photo, apply its suggestion (one undoable step), or say plainly that
-  // the photo already looked natural and was left alone.
+  // the photo already looked natural and was left alone. The vision guardian's second opinion comes first: a clear "no"
+  // leaves the photo unchanged and the suggestion in Co-pilot for the person to decide.
   useEffect(() => {
     if (!quickStart || quickStart.phase !== 'working' || !quickStart.photoId) return;
     const assist = assists[quickStart.photoId];
     if (!assist) return;
-    const improved = assist.run.improved && assist.run.candidates.length > 0;
-    if (improved) applyAuto(quickStart.photoId);
-    setQuickStart({ ...quickStart, phase: improved ? 'ready' : 'unchanged' });
+    const first = assist.run.improved ? assist.run.candidates[0] : undefined;
+    if (first && !guardianSettled(assist.guardian, first.id)) return;
+    const held = Boolean(first && guardianHolds(assist.guardian, first.id));
+    if (first && !held) applyAuto(quickStart.photoId);
+    setQuickStart({ ...quickStart, phase: !first ? 'unchanged' : held ? 'held' : 'ready' });
   }, [assists, quickStart, applyAuto]);
   useEffect(() => {
     if (!quickStart || quickStart.phase !== 'working' || !quickStart.photoId) return;
@@ -1364,28 +1390,40 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             const { [frame.id]: _cleared, ...rest } = current;
             return rest;
           }));
+          // Vision AI is the guardian: a second opinion on every suggestion Auto rendered (assistGuardian.ts). Auto's own
+          // pick is asked first, because Auto-pilot and the quick start wait on it. It advises only: a clear "no" holds an
+          // automatic apply and adds a line to that suggestion; it never changes or removes a suggestion.
+          const order = guardianOrder(run.candidates, run.plan.proposal);
           ctx.commitIfCurrent(() => setAssists(current => {
             if (!isCurrent()) return current;
             const recent = Object.entries(current).filter(([id]) => id !== frame.id).slice(-11);
-            return { ...Object.fromEntries(recent), [frame.id]: { run, dismissed: [] } };
+            return { ...Object.fromEntries(recent), [frame.id]: { run, dismissed: [], guardian: startGuardian(order, hasLocalVision()) } };
           }));
-          if (!manual && assistMode === 'autopilot' && run.improved) {
-            // Vision AI is the guardian: a second opinion on the rendered edit before Auto-pilot applies it. It can hold the
-            // edit for review (it stays a Co-pilot suggestion), never apply anything Auto did not already choose.
-            const preferred = run.candidates.find((candidate) => candidate.edit === run.plan.proposal);
-            ctx.stage('Second opinion from the on-device vision model');
-            const opinion = preferred ? await askOnDeviceGuardian(preferred.after, 'editNatural') : null;
-            ctx.checkCancelled();
-            if (!isCurrent()) return;
-            if (guardResult('apply', opinion ? [opinion] : []).status !== 'apply') {
-              ctx.commitIfCurrent(() => setNotice(autopilotHeldForReview()));
-              return;
-            }
+          const autopilot = !manual && assistMode === 'autopilot' && run.improved;
+          let piloted = false;
+          const pilot = (held: boolean) => {
+            piloted = true;
+            if (held) { ctx.commitIfCurrent(() => setNotice(autopilotHeldForReview())); return; }
             const at = Date.now();
             ctx.commitIfCurrent(() => mutate(current =>
               isCurrent() && !ctx.signal.aborted
                 ? commitAutoEdit(current, assistProjectId, frame, run.plan.proposal, at, { by: 'auto', notes: run.detail }) : current));
+          };
+          for (const candidate of hasLocalVision() ? order : []) {
+            ctx.stage(engineText.workspace.secondOpinionStage);
+            const opinion = await askOnDeviceGuardian(candidate.after, 'editNatural');
+            ctx.checkCancelled();
+            if (!isCurrent()) return;
+            ctx.commitIfCurrent(() => setAssists(current => {
+              const assist = current[frame.id];
+              if (!assist || assist.run !== run || !assist.guardian) return current;
+              return { ...current, [frame.id]: { ...assist, guardian: withOpinion(assist.guardian, candidate.id, opinion) } };
+            }));
+            if (autopilot && !piloted && candidate.edit === run.plan.proposal) {
+              pilot(guardResult('apply', opinion ? [opinion] : []).status !== 'apply');
+            }
           }
+          if (autopilot && !piloted) pilot(false);
         },
       }).then(ticket => {
         taskId = ticket.taskId;
@@ -2255,6 +2293,46 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (!bytes) return null;
       try { return await verifyExactOriginalCopy(bytes, frame.originalSha256); } catch { return null; }
     },
+    previewEnlargement: async (photoId, sizeId) => {
+      const current = stateRef.current;
+      if (!current || !provider.current) return { ok: false, message: engineText.workspace.exportStopped };
+      const request = enlargementPreviewRequest(photoId, sizeId);
+      const plan = planExport(request, current.frames, createDefaultSizes());
+      if ('error' in plan) return { ok: false, message: plan.error };
+      const job = plan.jobs[0];
+      const variant = job?.variants[0];
+      const frame = current.frames.find((candidate) => candidate.id === photoId);
+      if (!job || !variant || !frame) return { ok: false, message: engineText.workspace.exportStopped };
+      const snapshot = structuredClone(frame);
+      const env = structuredClone(exportEnv.current);
+      const sourceProvider = provider.current;
+      let rendered: File | null = null;
+      let failure = '';
+      // Queued with exports on the same resource, so a preview never renders alongside a full-size export.
+      const ticket = await engineScheduler.submit({
+        title: engineText.workspace.enlargementTask, kind: 'export', location: 'local', resource: 'gpu', priority: 5, pauseable: false,
+        items: [{ id: snapshot.id, name: snapshot.filename }], snapshot: { frameId: snapshot.id },
+        itemId: (item) => item.id, itemLabel: (item) => item.name,
+        runItem: async (_, __, ctx) => {
+          try {
+            const files = await renderExportJob({ frame: snapshot, job, variant, request, provider: sourceProvider,
+              buildOverlay: (target, submitted) => buildOverlayDraw(target, submitted, env), started: new Date(), signal: ctx.signal,
+              stage: (message) => ctx.stage(message), checkCancelled: () => ctx.checkCancelled() });
+            rendered = files[0] ?? null;
+          } catch (reason) {
+            failure = reason instanceof Error ? reason.message : String(reason);
+            throw reason;
+          }
+        },
+      });
+      const outcome = await ticket.finished;
+      const file = rendered as File | null;
+      if (outcome !== 'done' || !file) return { ok: false, message: failure || engineText.workspace.exportStopped };
+      const bitmap = await createImageBitmap(file);
+      const result: EnlargementPreviewResult = { ok: true, url: URL.createObjectURL(file), width: bitmap.width, height: bitmap.height, name: file.name };
+      bitmap.close();
+      return result;
+    },
     renderGalleryPreview: async (photoId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
       return frame && provider.current ? renderGalleryPreview(frame, provider.current) : null;
@@ -2346,6 +2424,17 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (!found) return 'unclear';
       applyPatch([photoId], { caRed: Math.round(found.red * 100), caBlue: Math.round(found.blue * 100) });
       return found.red === 0 && found.blue === 0 ? 'clean' : 'corrected';
+    },
+    applyLensProfile: async (photoId, download) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      if (!frame) return 'failed';
+      let db;
+      try { db = await lensDatabase(download); } catch { return 'failed'; }
+      if (!db) return 'needs-download';
+      const found = resolveLensProfile(db, frame.exif ?? {});
+      if (found.kind !== 'found') return found.kind;
+      applyPatch([photoId], { lensProfile: found.profile });
+      return 'applied';
     },
     neutralWhiteBalance: async (photoId, at) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);

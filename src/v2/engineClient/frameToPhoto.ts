@@ -18,6 +18,7 @@ import { masksToLayers } from './maskOps';
 import { readCrops } from './cropOps';
 import { readBoard } from './boardOps';
 import type { AutoRun } from './runAuto';
+import { guardianNote, type AssistGuardian } from './assistGuardian';
 import { autoUnavailableMatches, autoUnavailableSentence, type AutoUnavailable } from './autoUnavailable';
 import { colourWarningSentences, colourWords, describeColourMatch, describeColourSense } from './colourWords';
 import { sameRecipe } from '../../core/naturalAuto';
@@ -42,7 +43,12 @@ import { photoTagEnglishLabel, photoTagLabel, photoTagsText } from '../../i18n/a
 export const BLANK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 /** What Auto found for a photo, and what the person has done with it. */
-export interface AssistState { run: AutoRun; dismissed: string[] }
+export interface AssistState {
+  run: AutoRun;
+  dismissed: string[];
+  /** The vision guardian's second opinion on each suggestion (assistGuardian.ts). It advises; it never changes a suggestion. */
+  guardian?: AssistGuardian;
+}
 
 export function matchesAutoSource(run: AutoRun, frame: PhotoFrame): boolean {
   return frame.removedAt == null && run.source.stableKey === frame.stableKey &&
@@ -97,6 +103,7 @@ export function assistCritiqueFor(assist: AssistState | undefined, currentEdit =
       comparison: { before: run.before, after: candidate.after },
       colourSense: describeColourSense(candidate.colourSense),
       colourMatch: describeColourMatch(candidate.colourMatch),
+      secondOpinion: guardianNote(assist.guardian, candidate.id),
     }));
   return {
     subjectNote: run.headline,

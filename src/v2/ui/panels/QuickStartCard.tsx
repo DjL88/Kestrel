@@ -1,7 +1,7 @@
 import { STRINGS } from '../strings';
 
 interface QuickStartCardProps {
-  quickStart: { phase: 'working' | 'ready' | 'unchanged' | 'failed'; photoId: string | null } | null | undefined;
+  quickStart: { phase: 'working' | 'ready' | 'unchanged' | 'held' | 'failed'; photoId: string | null } | null | undefined;
   onExport: () => void;
   onDone: () => void;
 }
@@ -15,7 +15,8 @@ export default function QuickStartCard({ quickStart, onExport, onDone }: QuickSt
   const t = STRINGS.quickStart;
   const message = quickStart.phase === 'working' ? t.working
     : quickStart.phase === 'ready' ? t.ready
-      : quickStart.phase === 'unchanged' ? t.unchanged : t.failedCheck;
+      : quickStart.phase === 'unchanged' ? t.unchanged
+        : quickStart.phase === 'held' ? t.held : t.failedCheck;
   return (
     <section aria-labelledby="v2-quick-start-title" data-testid="quick-start-card"
       className="fixed bottom-24 left-1/2 z-[70] w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 text-[var(--text-primary)] shadow-[var(--shadow-panel)]">
