@@ -381,6 +381,10 @@ export const cy: AreaTranslation<typeof source> = {
     stepChanged: 'wedi newid',
   },
   share: {
+    peopleHere: 'Pobl yma',
+    hideCursors: 'Cuddio cyrchyddion',
+    showCursors: 'Dangos cyrchyddion',
+    goTo: (name: string) => `Mynd i’r llun mae ${name} yn ei weld`,
     button: 'Rhannu',
     heading: 'Rhannu’r prosiect hwn',
     close: 'Cau',

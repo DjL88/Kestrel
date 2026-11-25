@@ -33,6 +33,8 @@ import CollageExportDialog from './dialogs/CollageExportDialog';
 import ExportDialog from './dialogs/ExportDialog';
 import RemovedPhotosDialog from './dialogs/RemovedPhotosDialog';
 import ShareDialog from './dialogs/ShareDialog';
+import { usePresence } from './shell/usePresence';
+import { PresenceAvatars, PresenceCursors } from './shell/PresenceLayer';
 import { collabClient } from '../../providers/collabClient';
 import { firebaseAuth } from '../../providers/firebaseAuth';
 import SettingsDialog from './dialogs/SettingsDialog';
@@ -69,7 +71,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const { store, actions } = useStore();
   // Shared projects (#1387): contacted only when the person opens Share.
   const [shareOpen, setShareOpen] = useState(false);
-  const closeShare = React.useCallback(() => setShareOpen(false), []);
+  const [shareVersion, setShareVersion] = useState(0);
+  const [cursorsHidden, setCursorsHidden] = useState(false);
+  const closeShare = React.useCallback(() => { setShareOpen(false); setShareVersion((n) => n + 1); }, []);
   const sharing = React.useMemo(() => collabClient(import.meta.env.VITE_KESTREL_CONTROL_PLANE_URL, () => firebaseAuth.idToken()), []);
   const signedInName = React.useCallback(async () => {
     const session = await firebaseAuth.current().catch(() => null);
@@ -141,6 +145,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
 
   const activePhoto =
     store.photos.find((p) => p.id === store.activePhotoId) ?? store.photos[0] ?? null;
+  const peers = usePresence(sharing, store.collage ? null : store.activeProjectId, activePhoto?.id ?? null, signedInName, shareVersion);
   const hoveredLook = store.looks.find((l) => l.id === store.hoveredLookId) ?? null;
   const runningTaskCount = store.tasks.filter((t) => t.status === 'running').length;
 
@@ -492,6 +497,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetAssistMode={actions.setAssistMode}
             onExport={() => actions.setExportOpen(true)}
             onShare={store.collage ? undefined : () => setShareOpen(true)}
+            presence={<PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(id) => actions.selectPhoto(id)} />}
             onOpenRemoved={() => actions.setRemovedOpen(true)}
             onOpenSettings={() => actions.setSettingsOpen(true)}
             onImport={actions.importPhotos}
@@ -828,6 +834,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         onExport={actions.runExport}
       />
 
+      <PresenceCursors peers={peers} photoId={activePhoto?.id ?? null} hidden={cursorsHidden} />
       <ShareDialog
         open={shareOpen}
         client={sharing}

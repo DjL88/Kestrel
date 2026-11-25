@@ -402,6 +402,10 @@ export const source = {
     stepChanged: 'changed',
   },
   share: {
+    peopleHere: 'People here',
+    hideCursors: 'Hide cursors',
+    showCursors: 'Show cursors',
+    goTo: (name: string) => `Go to the photo ${name} is viewing`,
     button: 'Share',
     heading: 'Share this project',
     close: 'Close',

@@ -382,6 +382,10 @@ export const fi: AreaTranslation<typeof source> = {
     stepChanged: 'muutettu',
   },
   share: {
+    peopleHere: 'Paikalla olevat',
+    hideCursors: 'Piilota osoittimet',
+    showCursors: 'Näytä osoittimet',
+    goTo: (name: string) => `Siirry kuvaan, jota ${name} katsoo`,
     button: 'Jaa',
     heading: 'Jaa tämä projekti',
     close: 'Sulje',

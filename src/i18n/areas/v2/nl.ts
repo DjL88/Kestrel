@@ -381,6 +381,10 @@ export const nl: AreaTranslation<typeof source> = {
     stepChanged: 'gewijzigd',
   },
   share: {
+    peopleHere: 'Mensen hier',
+    hideCursors: 'Cursors verbergen',
+    showCursors: 'Cursors tonen',
+    goTo: (name: string) => `Ga naar de foto die ${name} bekijkt`,
     button: 'Delen',
     heading: 'Dit project delen',
     close: 'Sluiten',

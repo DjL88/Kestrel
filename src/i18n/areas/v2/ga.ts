@@ -384,6 +384,10 @@ export const ga: AreaTranslation<typeof source> = {
     stepChanged: 'athraithe',
   },
   share: {
+    peopleHere: 'Daoine anseo',
+    hideCursors: 'Folaigh cúrsóirí',
+    showCursors: 'Taispeáin cúrsóirí',
+    goTo: (name: string) => `Téigh go dtí an grianghraf atá ${name} ag féachaint air`,
     button: 'Comhroinn',
     heading: 'Comhroinn an tionscadal seo',
     close: 'Dún',

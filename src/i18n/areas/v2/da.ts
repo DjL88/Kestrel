@@ -381,6 +381,10 @@ export const da: AreaTranslation<typeof source> = {
     stepChanged: 'ændret',
   },
   share: {
+    peopleHere: 'Personer her',
+    hideCursors: 'Skjul markører',
+    showCursors: 'Vis markører',
+    goTo: (name: string) => `Gå til det foto, ${name} ser på`,
     button: 'Del',
     heading: 'Del dette projekt',
     close: 'Luk',
