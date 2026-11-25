@@ -331,6 +331,12 @@ export const nl: AreaTranslation<typeof source> = {
     rate: (n: number) => `${n} sterren geven`,
     ratingFor: (name: string) => `Waardering voor ${name}`,
   },
+  openExport: {
+    menu: "Alles exporteren in open formaten…",
+    saved: "Beoordeling, markering, trefwoorden en bewerkingsrecept van elke foto opgeslagen in open formaten (XMP, CSV en JSON). Uw foto’s zitten er niet in en er is niets geüpload.",
+    nothing: "Er zijn geen foto’s in dit project om te exporteren.",
+    failed: "De export kon niet worden opgeslagen. Uw project is ongewijzigd.",
+  },
   quickStart: {
     hubButton: "In een minuut een mooie foto",
     hubHint: "Kies één foto of een paar. InFlight maakt een project, brengt belichting en kleur in balans met Auto, en u kunt meteen exporteren. Alles blijft op dit apparaat.",

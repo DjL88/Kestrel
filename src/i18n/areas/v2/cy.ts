@@ -331,6 +331,12 @@ export const cy: AreaTranslation<typeof source> = {
     rate: (n: number) => `Rhoi ${n} seren`,
     ratingFor: (name: string) => `Sgôr ar gyfer ${name}`,
   },
+  openExport: {
+    menu: "Allforio popeth mewn fformatau agored…",
+    saved: "Cadwyd sgôr, baner, allweddeiriau a rysáit golygu pob llun mewn fformatau agored (XMP, CSV a JSON). Nid yw eich lluniau ynddo ac ni uwchlwythwyd dim.",
+    nothing: "Nid oes lluniau yn y prosiect hwn i’w hallforio.",
+    failed: "Nid oedd modd cadw’r allforio. Mae eich prosiect heb ei newid.",
+  },
   quickStart: {
     hubButton: "Gwneud llun gwych mewn munud",
     hubHint: "Dewiswch un llun neu ychydig. Mae InFlight yn creu prosiect, yn cydbwyso’r datguddiad a’r lliw gydag Awto, a gallwch ei allforio ar unwaith. Mae popeth yn aros ar y ddyfais hon.",

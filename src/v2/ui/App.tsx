@@ -234,6 +234,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'saveXmp': if (inEditor && !store.collage) actions.saveXmpSidecars(store.selectedPhotoIds); break;
       case 'readXmp': if (inEditor && !store.collage) xmpInputRef.current?.click(); break;
       case 'readLightroom': if (inEditor && !store.collage) lightroomInputRef.current?.click(); break;
+      case 'openExport': if (inEditor && !store.collage) actions.exportOpenFormats?.(); break;
       case 'resetPhoto': if (inEditor && activePhoto && !editLocked) actions.resetPhotoEdits(activePhoto.id); break;
       case 'backToProjects': if (inEditor) actions.backToProjects(); break;
     }
@@ -579,6 +580,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             backupNote={store.backup ? backupStatusText(store.backup) : undefined}
             onReadXmp={store.screen === 'editor' && !store.collage ? () => xmpInputRef.current?.click() : undefined}
             onReadLightroom={store.screen === 'editor' && !store.collage ? () => lightroomInputRef.current?.click() : undefined}
+            onExportOpenFormats={store.screen === 'editor' && !store.collage ? actions.exportOpenFormats : undefined}
             onOpenSettings={() => actions.setSettingsOpen(true)}
             onImport={actions.importPhotos}
             onUndo={actions.undo}

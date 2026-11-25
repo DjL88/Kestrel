@@ -331,6 +331,12 @@ export const is: AreaTranslation<typeof source> = {
     rate: (n: number) => `Gefa ${n} stjörnur`,
     ratingFor: (name: string) => `Einkunn fyrir ${name}`,
   },
+  openExport: {
+    menu: "Flytja allt út á opnum sniðum…",
+    saved: "Einkunn, flagg, lykilorð og breytingauppskrift hverrar myndar var vistuð á opnum sniðum (XMP, CSV og JSON). Myndirnar þínar eru ekki með og ekkert var sent.",
+    nothing: "Engar myndir eru í þessu verkefni til að flytja út.",
+    failed: "Ekki tókst að vista útflutninginn. Verkefninu þínu var ekki breytt.",
+  },
   quickStart: {
     hubButton: "Frábær mynd á einni mínútu",
     hubHint: "Veldu eina mynd eða nokkrar. InFlight býr til verkefni, jafnar lýsingu og liti með Sjálfvirku, og þú getur flutt hana út strax. Allt verður eftir á þessu tæki.",

@@ -647,6 +647,8 @@ export interface WorkspaceActions {
   /** Choose the folder Lightroom keeps the catalogue's photos in: add those photos, then bring in their details. */
   chooseLightroomFolder?: () => void;
   dismissLightroomOffer?: () => void;
+  /** Save the whole project's ratings, flags, keywords and edit recipes in open formats (XMP with Camera Raw settings, CSV, JSON). */
+  exportOpenFormats?: () => void;
   /** First run: pick photos; InFlight makes a project, adds them and runs Auto on the first one. */
   startQuickStart?: () => void;
   dismissQuickStart?: () => void;

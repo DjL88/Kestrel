@@ -334,6 +334,12 @@ export const ga: AreaTranslation<typeof source> = {
     rate: (n: number) => `Tabhair ${n} réalta`,
     ratingFor: (name: string) => `Rátáil do ${name}`,
   },
+  openExport: {
+    menu: "Easpórtáil gach rud i bhformáidí oscailte…",
+    saved: "Sábháladh rátáil, bratach, eochairfhocail agus oideas eagarthóireachta gach grianghraif i bhformáidí oscailte (XMP, CSV agus JSON). Níl do ghrianghraif ann agus níor uaslódáladh aon rud.",
+    nothing: "Níl aon ghrianghraf sa tionscadal seo le heaspórtáil.",
+    failed: "Níorbh fhéidir an easpórtáil a shábháil. Níor athraíodh do thionscadal.",
+  },
   quickStart: {
     hubButton: "Déan grianghraf iontach i nóiméad",
     hubHint: "Roghnaigh grianghraf amháin nó cúpla ceann. Déanann InFlight tionscadal, cothromaíonn sé an nochtadh agus an dath le hUathoibríoch, agus is féidir leat é a easpórtáil láithreach. Fanann gach rud ar an ngléas seo.",
