@@ -130,3 +130,23 @@ test('only the owner overrides a checkout, with a recorded reason; the switch st
     assert.equal((await call('GET', P, editor.token)).status, 200);
   } finally { await h.close(); }
 });
+
+test('live cursors: a one-hour token for one project, carrying the role, only for members', async () => {
+  const signed: any[] = [];
+  const presence = { databaseUrl: 'https://inflight-presence.europe-west1.firebasedatabase.app', sign: async (uid: string, claims: any, iat: number) => { signed.push({ uid, claims, iat }); return 'signed.jwt'; } };
+  const h = await startHarness(undefined, undefined, { collab: new CollabStore(new MemoryFirestore()), presence });
+  try {
+    const id = await h.app.createAccount('o@example.test', 'a-long-password-123', 'user');
+    await h.app.store.insertLicence(newLicence('lic-o', 'subscriber', h.clock.now, { accountId: id }));
+    const token = (await h.app.issueSession(id, 'user')).accessToken;
+    const pid = (await h.call('POST', '/v1/collab/projects', { token, body: { name: 'K', displayName: 'Dave' } })).body.projectId;
+    const r = await h.call('POST', `/v1/collab/projects/${pid}/presence-token`, { token });
+    assert.equal(r.status, 200);
+    assert.equal(r.body.customToken, 'signed.jwt');
+    assert.equal(r.body.databaseUrl, presence.databaseUrl);
+    assert.equal(r.body.expiresAtMs, (Math.floor(h.clock.now / 1000) + 3600) * 1000);
+    assert.deepEqual(signed[0].claims, { p: pid, r: 'owner' });
+    assert.ok(!signed[0].uid.includes(id), 'the presence id does not reveal the account id');
+    assert.equal((await h.call('POST', `/v1/collab/projects/${pid}/presence-token`, { token: h.user.token })).status, 404);
+  } finally { await h.close(); }
+});

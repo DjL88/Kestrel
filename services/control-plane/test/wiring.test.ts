@@ -34,3 +34,12 @@ test('bad numbers or a bad job name stop start-up instead of being ignored', asy
   await assert.rejects(() => buildOptionalServices(deps({ KCP_MONTHLY_SPEND_CEILING_PENCE: '-5' })), /KCP_MONTHLY_SPEND_CEILING_PENCE/);
   await assert.rejects(() => buildOptionalServices(deps({ KCP_CLOUD_PROCESSING_BUCKET: 'b', KCP_CLOUD_RUNNER_JOB: 'nope' })), /job name/);
 });
+
+test('live cursors need shared projects, a Realtime Database URL and the signing service account', async () => {
+  const base = { KCP_COLLABORATION_ENABLED: '1', KCP_PRESENCE_SERVICE_ACCOUNT: 'cp@p.iam.gserviceaccount.com' };
+  assert.equal((await buildOptionalServices(deps({ ...base }))).presence, undefined);
+  assert.equal((await buildOptionalServices(deps({ KCP_PRESENCE_DATABASE_URL: 'https://x.europe-west1.firebasedatabase.app', KCP_PRESENCE_SERVICE_ACCOUNT: 'sa' }))).presence, undefined, 'not without shared projects');
+  const on = await buildOptionalServices(deps({ ...base, KCP_PRESENCE_DATABASE_URL: 'https://x.europe-west1.firebasedatabase.app' }));
+  assert.ok(on.presence); assert.ok(on.enabled.includes('presence'));
+  await assert.rejects(() => buildOptionalServices(deps({ ...base, KCP_PRESENCE_DATABASE_URL: 'https://evil.example.com' })), /Realtime Database URL/);
+});
