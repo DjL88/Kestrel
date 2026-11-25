@@ -616,8 +616,8 @@ function createDefaultPanels(): Record<PanelId, PanelLayoutState> {
 export const DEFAULT_FEATURE_PLAN: Record<FeatureKey, 'basic' | 'pro'> = {
   watermarkCustom: 'basic',
   overlayText: 'basic',
-  smartCulling: 'pro',
-  speciesId: 'pro',
+  smartCulling: 'basic',
+  speciesId: 'basic',
   onlineAi: 'pro',
   cloudAssist: 'pro',
   zoomVideo: 'basic',

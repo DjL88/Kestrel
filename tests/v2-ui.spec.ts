@@ -282,30 +282,30 @@ async function importGenerated(page: import('@playwright/test').Page, name: stri
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(count);
 }
 
-test('?v2 Auto-Cull says it is part of Pro on the Free plan and changes nothing', async ({ page }) => {
+test('?v2 Auto-Cull runs on the Basic plan: on-device culling is never Pro (owner decision 13)', async ({ page }) => {
   await page.goto('/?v2');
-  await importGenerated(page, 'Free cull check', 2);
+  await importGenerated(page, 'Basic cull check', 2);
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: /Auto-Cull/ }).first().click();
-  await expect(root.getByText('Auto-cull is part of InFlight Pro.')).toBeVisible();
-  await expect(root.getByRole('button', { name: /^Unflag / })).toHaveCount(0);
+  await expect(root.getByText(/Auto-cull checked 2 photos|Photos checked by Auto-cull: 2/)).toBeVisible({ timeout: 90000 });
+  await expect(root.getByText('Auto-cull is part of InFlight Pro.')).toHaveCount(0);
+  await expect(root.getByText(/were rejected|has been rejected/)).toHaveCount(0);
 });
 
 test('?v2 marks Pro features with the Pro badge, and leaves Basic features unmarked', async ({ page }) => {
   await page.goto('/?v2&stub=1');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: /Scottish Highlands/ }).first().click();
-  // Auto-Cull is Pro: the badge is the word "Pro" in the brand badge, with the same words for screen readers.
-  const autoCull = root.getByRole('button', { name: /Auto-Cull/ }).first();
-  await expect(autoCull.getByText('Part of InFlight Pro')).toHaveCount(1);
-  // Dark and light versions of the brand badge are both in the page; the theme shows one.
-  await expect(autoCull.locator('img.v2-pro-dark, img.v2-pro-light')).toHaveCount(2);
-  await expect(autoCull.locator('img.v2-pro-dark')).toBeVisible();
+  // Auto-Cull is an on-device model, so it is Basic (owner decision 13): no badge.
+  await expect(root.getByRole('button', { name: /Auto-Cull/ }).first().getByText('Part of InFlight Pro')).toHaveCount(0);
   // Import is Basic: no badge.
   await expect(root.getByRole('button', { name: /^Import/ }).first().getByText('Part of InFlight Pro')).toHaveCount(0);
   // Deep Vision (online AI) is Pro too.
   await root.getByRole('button', { name: 'Co-pilot', exact: true }).first().click();
-  await expect(root.getByRole('button', { name: /Deep Vision Review/ }).getByText('Part of InFlight Pro')).toHaveCount(1);
+  const deepVision = root.getByRole('button', { name: /Deep Vision Review/ });
+  await expect(deepVision.getByText('Part of InFlight Pro')).toHaveCount(1);
+  // Dark and light versions of the brand badge are both in the page; the theme shows one.
+  await expect(deepVision.locator('img.v2-pro-dark, img.v2-pro-light')).toHaveCount(2);
 });
 
 test('?v2 chrome: icons load, File/Edit/View menus but no mode switch in the header, the mode shows as a flag and is set in Settings', async ({ page }) => {

@@ -7,11 +7,11 @@ test('every feature the V2 UI asks about is in the core feature table', () => {
   for (const key of V2_FEATURES) assert.ok((FEATURE_NAMES as string[]).includes(key), key);
 });
 
-test('text overlays and custom watermarks are Basic; advanced intelligence remains Pro', () => {
+test('text overlays and custom watermarks are Basic; on-device models are Basic; the enhanced cloud models remain Pro', () => {
   const plan = featurePlan();
-  for (const key of ['smartCulling', 'speciesId', 'onlineAi', 'cloudAssist'] as const)
+  for (const key of ['onlineAi', 'cloudAssist'] as const)
     assert.equal(plan[key], 'pro', key);
-  for (const key of ['watermarkCustom', 'overlayText', 'zoomVideo', 'splitFrames'] as const)
+  for (const key of ['watermarkCustom', 'overlayText', 'zoomVideo', 'splitFrames', 'smartCulling', 'speciesId'] as const)
     assert.equal(plan[key], 'basic', key);
 });
 

@@ -5,9 +5,10 @@ import { evaluateFlag, type Audience, type Evaluation, type FlagSet } from './fe
  * Every feature that differs between Free and Paid, in one list. The interface asks `featureAvailable`; it never
  * checks a plan itself. Moving a feature between Free and Paid is a one-word change here.
  *
- * Free: complete local photographic essentials, including truthful RAW/raster editing,
- * basic subject masks, subject detection, natural Auto, full-size output and backups.
- * Pro: advanced time-saving intelligence (species ID, assisted culling and online AI).
+ * Free: complete local photographic essentials, including truthful RAW/raster editing, subject masks, subject
+ * detection, natural Auto, full-size output and backups, and every on-device model (culling, species ID and the
+ * rest: owner decision 13, 25 Nov 2026). An admin flag can still restrict any of them without a code change.
+ * Pro: the enhanced cloud models (online AI review, cloud processing).
  * Image integrity, original access and export quality must never be paywalled.
  * Backup and recovery are always free and never counted.
  */
@@ -22,9 +23,10 @@ export const FEATURES = {
   masks: 'free',
   subjectDetection: 'free',
   autoTab: 'free',
-  speciesId: 'paid',
+  // On-device models are Basic (owner decision 13). Only the enhanced cloud models are Pro.
+  speciesId: 'free',
   onlineAi: 'paid',
-  smartCulling: 'paid',
+  smartCulling: 'free',
   // Text overlays and custom watermarks are Basic while the editor is being tested.
   // Advanced/online features remain Pro and are OFF until enabled in Firestore Admin flags.
   overlayText: 'free',
