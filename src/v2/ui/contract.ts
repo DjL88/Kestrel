@@ -270,6 +270,8 @@ export interface AssistSuggestion {
   steps?: { id: string; label: string; from: string; to: string }[];
   /** ColourSense: whether the suggestion keeps the subject's colour, in words (absent when it could not be judged). */
   colourSense?: ColourSenseNote;
+  /** Colour match: whether the subject carries the colours it should have (species signature or the vision model), in words. */
+  colourMatch?: ColourSenseNote;
 }
 
 export interface PhotoExif {

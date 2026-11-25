@@ -1,6 +1,25 @@
 import type { ColourFamily, ColourFinding, ColourReport } from '../../core/colourCheck';
 import { COLOUR_SENSE_TOLERANCE, type ChannelName, type ColourSenseResult } from '../../core/colourSense';
+import type { ColourMatchResult } from '../../core/colourMatch';
 import { colourText as t } from '../../i18n/areas/colour';
+
+/**
+ * Colour match in words: does the subject carry the colours this subject should have? `kept` is true when every
+ * expected colour was found. A difference always carries the caveat, because light, age, moult and a wrong name all
+ * change colour.
+ */
+export function describeColourMatch(result: ColourMatchResult | null | undefined): ColourSenseNote | undefined {
+  if (!result) return undefined;
+  const measured = result.measured.slice(0, 2).map((entry) => t.family[entry.family]);
+  const mostly = measured.length > 1 ? t.and(measured[0], measured[1]) : measured[0] ?? '';
+  const sentences = result.parts.map((part) => {
+    const colour = t.family[part.expected[0]];
+    const where = t.matchPart[part.part];
+    return part.verdict === 'matches' ? t.matchFound(colour, where) : t.matchMissing(colour, where, mostly);
+  });
+  if (result.verdict === 'differs') sentences.push(t.matchCaveat);
+  return { kept: result.verdict === 'matches', label: t.matchLabel(result.subject), text: sentences.join(' ') };
+}
 
 /** ColourSense for one suggestion: whether the subject keeps its colour, in words. */
 export interface ColourSenseNote { kept: boolean; label: string; text: string }

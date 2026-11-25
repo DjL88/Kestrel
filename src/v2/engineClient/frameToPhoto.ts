@@ -17,7 +17,7 @@ import { masksToLayers } from './maskOps';
 import { readCrops } from './cropOps';
 import { readBoard } from './boardOps';
 import type { AutoRun } from './runAuto';
-import { colourWarningSentences, colourWords, describeColourSense } from './colourWords';
+import { colourWarningSentences, colourWords, describeColourMatch, describeColourSense } from './colourWords';
 import { sameRecipe } from '../../core/naturalAuto';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { STRINGS } from '../ui/strings';
@@ -78,6 +78,7 @@ export function assistCritiqueFor(assist: AssistState | undefined, currentEdit =
       steps: suggestionSteps(run.plan.base, candidate.edit),
       comparison: { before: run.before, after: candidate.after },
       colourSense: describeColourSense(candidate.colourSense),
+      colourMatch: describeColourMatch(candidate.colourMatch),
     }));
   return {
     subjectNote: run.headline,
