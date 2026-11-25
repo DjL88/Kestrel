@@ -29,7 +29,7 @@ export const sv: AreaTranslation<typeof source> = {
   registered: (marking: string, type: string) => `${marking}: ${type} (enligt registret)`,
   operatedBy: (what: string, operator: string) => `${what}, drivs av ${operator}`,
   reader: {
-    title: 'Läs luftfartygsregistreringar',
+    title: 'Läs registreringar på flygplan',
     description: (megabytes: string) => `Läser registreringar och militära serienummer som målats på luftfartyg, på den här enheten, och slår upp dem i en offlinekopia av offentliga register. En engångsnedladdning på ${megabytes} MB. Registreringsskyltar på bilar läses aldrig.`,
     download: 'Ladda ned',
     downloading: (percent: number) => `Laddar ned… ${percent}%`,
