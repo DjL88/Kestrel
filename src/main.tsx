@@ -1,6 +1,5 @@
 import { lazy, Suspense } from 'react';
 import {createRoot} from 'react-dom/client';
-import App from './App.tsx';
 import { Splash } from './components/Splash.tsx';
 import '@fontsource/plus-jakarta-sans/latin-400.css';
 import '@fontsource/plus-jakarta-sans/latin-600.css';
@@ -18,8 +17,10 @@ import { keepsNativeMenu } from './core/appChrome.ts';
 import { manageOfflineWorker } from './providers/offlineWorker.ts';
 import { v2Enabled } from './v2/switch.ts';
 
-// Version 2 workspace, behind ?v2 while it is built. Its code and sample photos load only when the switch is on.
+// Each workspace is its own chunk, so a start downloads only the one it opens: Version 2 (the default), or the
+// previous Library and Editor (`?v2=0`, until V1 is retired). The splash covers the moment either takes to arrive.
 const V2Root = lazy(() => import('./v2/V2Root.tsx'));
+const App = lazy(() => import('./App.tsx'));
 
 // No browser right-click menu in the app (Open Image in New Window, Download Image, Inspect Element), except in text fields.
 document.addEventListener('contextmenu', (event) => { if (!keepsNativeMenu(event.target as HTMLElement | null)) event.preventDefault(); });
@@ -28,7 +29,7 @@ applyDisplay(loadDisplay());
 setGpuRenderer(renderEditOnGpu);
 
 createRoot(document.getElementById('root')!).render(
-  v2Enabled() ? <><Suspense fallback={null}><V2Root /></Suspense><Splash /></> : <><App /><Splash /></>,
+  <><Suspense fallback={null}>{v2Enabled() ? <V2Root /> : <App />}</Suspense><Splash /></>,
 );
 
 void manageOfflineWorker(import.meta.env.PROD, isDesktopApp());
