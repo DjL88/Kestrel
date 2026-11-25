@@ -14,6 +14,10 @@ const config = {
   appId: env.VITE_FIREBASE_APP_ID,
 };
 
+/** Work to do just before signing out, such as removing this device's push token. */
+const beforeSignOut = new Set<() => Promise<void>>();
+export function onBeforeSignOut(fn: () => Promise<void>): () => void { beforeSignOut.add(fn); return () => { beforeSignOut.delete(fn); }; }
+
 export const isSignInConfigured = () => Boolean(config.apiKey && config.authDomain && config.projectId && config.appId);
 
 /** The Google desktop OAuth client this build signs in with, if any (see desktopGoogleSignIn.ts). */
@@ -132,6 +136,8 @@ export const firebaseAuth: AuthProvider = {
   },
   async signOut() {
     if (!isSignInConfigured()) return;
+    // Stop alerts on this device first, while the session can still say whose device it was (G20 push).
+    await Promise.all([...beforeSignOut].map((fn) => fn().catch(() => undefined)));
     const { auth, instance } = await firebase();
     await auth.signOut(instance);
   },

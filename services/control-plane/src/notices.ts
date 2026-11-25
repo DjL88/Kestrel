@@ -13,11 +13,13 @@
  */
 import { docId, type FirestoreLike, type FsData } from './firestoreStore.ts';
 import { uuid } from './crypto.ts';
+import { pushData } from '../../../src/core/pushNotices.ts';
 import { chooseDelivery, mergeNotice, noticeKey, noticeWords, type Notice, type NoticeEvent } from '../../../src/core/collabNotices.ts';
 
 export interface NoticeDelivery {
-  /** FCM to the account's registered devices. 'no-device' when it has none. */
-  push(accountId: string, message: { title: string; body: string; data: Record<string, string> }): Promise<'sent' | 'no-device'>;
+  /** FCM to the account's registered devices. 'no-device' when it has none; 'off' when the person switched this kind
+   * off (then it is not emailed either: the inbox still has it). */
+  push(accountId: string, message: { title: string; body: string; data: Record<string, string> }): Promise<'sent' | 'no-device' | 'off'>;
   /** Email from hello@ in the recipient's language, through the daily counter. Never urgent here. */
   email(accountId: string, message: { subject: string; text: string; urgent: false }): Promise<'sent' | 'held' | 'no-address'>;
 }
@@ -49,8 +51,9 @@ export class NoticeStore {
       if (!isNew) continue;
       try {
         const words = noticeWords(notice);
-        const pushed = await this.delivery.push(accountId, { ...words, data: { kind: notice.kind, projectId: notice.projectId, ...(notice.photoId ? { photoId: notice.photoId } : {}) } });
+        const pushed = await this.delivery.push(accountId, { ...words, data: pushData(notice) });
         if (pushed === 'sent') { counts.push += 1; continue; }
+        if (pushed === 'off') continue;
         const seen = await this.db.collection(N.seen).doc(accountId).get();
         const lastInboxReadMs = seen.exists ? Number(seen.data()!.atMs) : null;
         if (!chooseDelivery({ pushDevices: 0, hasEmail: true, lastInboxReadMs }, true, atMs).email) continue;

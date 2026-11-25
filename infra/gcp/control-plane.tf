@@ -329,6 +329,7 @@ resource "google_cloud_run_v2_service" "control_plane" {
           { KCP_COLLABORATION_ENABLED = "1" },
           var.presence_database_url != "" ? { KCP_PRESENCE_DATABASE_URL = var.presence_database_url, KCP_PRESENCE_SERVICE_ACCOUNT = google_service_account.control_plane.email } : {},
           var.gallery_enabled ? { KCP_GALLERY_BUCKET = try(google_storage_bucket.gallery[0].name, "") } : {},
+          local.push_env,
           var.gallery_enabled && var.cloud_photos_enabled ? { KCP_CLOUD_PHOTOS_ENABLED = "1", KCP_DOWNLOAD_CREDITS_PER_MONTH = tostring(var.download_credits_per_month), KCP_CLOUD_PROJECT_MAX_GB = tostring(var.cloud_project_max_gb) } : {},
         ) : {}
         content {
