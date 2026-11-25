@@ -76,6 +76,13 @@ export async function renderRaw16(original: Blob, filename: string, shown: HTMLI
   return editRaw16(await openRaw16(original, filename, options), shown, edit, framing, { signal: options?.signal });
 }
 
+/** Open and edit in one go (see openRaw16 and editRaw16). */
+export async function renderRaw16(original: Blob, filename: string, shown: HTMLImageElement, edit: PhotoEdit, framing: PhotoFraming | undefined, options?: { originalSha256?: string; signal?: AbortSignal }): Promise<Rgb16Image> {
+  const blocker = master16Blocker(edit, framing);
+  if (blocker) throw new Error(blocker);
+  return editRaw16(await openRaw16(original, filename, options), shown, edit, framing, { signal: options?.signal });
+}
+
 /** The edited photo as a 16-bit TIFF (see renderRaw16). */
 export async function exportRaw16Tiff(original: Blob, filename: string, shown: HTMLImageElement, edit: PhotoEdit, framing: PhotoFraming | undefined, metadata?: TiffExportMetadata | null, options?: { originalSha256: string; signal?: AbortSignal }): Promise<Blob> {
   return encodeTiff16(await renderRaw16(original, filename, shown, edit, framing, options), metadata);
