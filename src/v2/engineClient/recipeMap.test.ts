@@ -179,6 +179,15 @@ test('dehaze, vignette (with colour and blur), grain and calibration round-trip 
   assert.equal(applyRecipePatch(edit, { vignette: 0, vignetteBlur: 0 }).edit.vignette, undefined);
   assert.equal(applyRecipePatch(edit, { vignetteColour: undefined }).edit.vignette?.colour, undefined);
   assert.equal(applyRecipePatch(edit, { grain: 0 }).edit.grain, undefined);
+  // Shape, fall-off, highlight protection and grain roughness round-trip; their defaults are not stored.
+  const shaped = applyRecipePatch(edit, { vignetteRoundness: -40, vignetteFeather: 80, vignetteHighlights: 60, grainRoughness: 30 }).edit;
+  assert.deepEqual({ r: shaped.vignette?.roundness, f: shaped.vignette?.feather, h: shaped.vignette?.highlights }, { r: -0.4, f: 0.8, h: 0.6 });
+  assert.equal(shaped.grain?.roughness, 0.3);
+  const shapedBack = editToRecipe(shaped);
+  assert.deepEqual([shapedBack.vignetteRoundness, shapedBack.vignetteFeather, shapedBack.vignetteHighlights, shapedBack.grainRoughness], [-40, 80, 60, 30]);
+  const plain = applyRecipePatch(shaped, { vignetteRoundness: 0, vignetteFeather: 50, vignetteHighlights: 0, grainRoughness: 0 }).edit;
+  assert.deepEqual(plain.vignette, edit.vignette);
+  assert.deepEqual(plain.grain, edit.grain);
   assert.equal(applyRecipePatch(edit, { dehaze: 0 }).edit.dehaze, undefined);
 });
 

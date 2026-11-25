@@ -175,3 +175,25 @@ test('?v2 Colour fringes: purple fringe beside a dark edge goes grey, and Fix le
   // The manual sliders are for confident users only.
   await expect(fringe.getByRole('slider', { name: 'Red / cyan edges' })).toHaveCount(0);
 });
+
+test('?v2 vignette shape: roundness, feather and highlights wait for a vignette; a hard feather darkens the corner more; grain roughness waits for grain', async ({ page }) => {
+  const root = await projectWithPhoto(page);
+  const effects = root.getByTestId('effects');
+  for (const name of ['Roundness', 'Feather', 'Highlights']) await expect(effects.getByRole('slider', { name, exact: true })).toBeDisabled();
+  await expect(effects.getByRole('slider', { name: 'Grain roughness' })).toBeDisabled();
+  await expect.poll(async () => (await corner(root))[2]).toBeGreaterThan(40);
+  await effects.getByRole('slider', { name: 'Amount' }).fill('-100');
+  await expect(effects.getByRole('slider', { name: 'Feather' })).toBeEnabled();
+  await expect(effects.getByRole('slider', { name: 'Feather' })).toHaveValue('50');
+  await expect.poll(async () => (await corner(root))[2], { timeout: 15000 }).toBeLessThan(40);
+  const standard = (await corner(root))[2];
+  // The softest fall-off spreads the darkening further, so the very corner is lighter than with the standard feather.
+  await effects.getByRole('slider', { name: 'Feather' }).fill('100');
+  await expect.poll(async () => (await corner(root))[2] - standard, { timeout: 15000 }).toBeGreaterThan(2);
+  await effects.getByRole('slider', { name: 'Roundness' }).fill('100');
+  await expect(effects.getByRole('slider', { name: 'Roundness' })).toHaveValue('100');
+  await effects.getByRole('slider', { name: 'Grain', exact: true }).fill('60');
+  await expect(effects.getByRole('slider', { name: 'Grain roughness' })).toBeEnabled();
+  await effects.getByRole('slider', { name: 'Grain roughness' }).fill('70');
+  await expect(effects.getByRole('slider', { name: 'Grain roughness' })).toHaveValue('70');
+});
