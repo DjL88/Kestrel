@@ -868,6 +868,10 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       });
     },
 
+    focusPhoto: (photoId) => {
+      setStore((prev) => (prev.photos.some((p) => p.id === photoId) ? { ...prev, activePhotoId: photoId } : prev));
+    },
+
     selectAllPhotos: () => {
       logAction('selectAllPhotos');
       setStore((prev) => ({

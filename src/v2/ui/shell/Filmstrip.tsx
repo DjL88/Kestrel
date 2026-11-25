@@ -43,6 +43,8 @@ interface FilmstripProps {
   onImportFolder: () => void;
   onRunAutoCull: () => void;
   onExportSelected: () => void;
+  /** Two selected photos open side by side. */
+  onCompareSelected?: () => void;
   onCreateCollage?: (photoIds: string[]) => void;
   /** Composing a collage: photos drag onto its windows, and editing-only tools (Auto-Cull) are not offered. */
   collageMode?: boolean;
@@ -85,6 +87,7 @@ export default function Filmstrip({
   onImportFolder,
   onRunAutoCull,
   onExportSelected,
+  onCompareSelected,
   onCreateCollage,
   collageMode = false,
   onChooseFromProject,
@@ -330,6 +333,10 @@ export default function Filmstrip({
               >
                 {STRINGS.filmstripLabels.label11}
               </button>
+              {selectedPhotoIds.length === 2 && onCompareSelected && (
+                <button type="button" onClick={onCompareSelected} data-testid="compare-selected"
+                  className="rounded px-1.5 py-0.5 font-medium hover:bg-[var(--bg-surface)]">{STRINGS.pairCompare.compareTwo}</button>
+              )}
               {onCreateCollage && <button type="button" onClick={() => onCreateCollage(selectedPhotoIds)}
                 className="rounded px-1.5 py-0.5 font-medium hover:bg-[var(--bg-surface)]">{STRINGS.filmstripLabels.label12}</button>}
               <button
@@ -343,8 +350,13 @@ export default function Filmstrip({
           )}
 
           {/* Decision filter, then rating and order */}
-          <DecisionFilter photos={photos} filter={filter} onSetFilter={onSetFilter} compact />
-          <ViewOptions minRating={minRating} sort={sort} onSetMinRating={onSetMinRating} onSetSort={onSetSort} />
+          {/* While several photos are selected, the selection's actions take this space. */}
+          {selectedPhotoIds.length <= 1 && (
+            <>
+              <DecisionFilter photos={photos} filter={filter} onSetFilter={onSetFilter} compact />
+              <ViewOptions minRating={minRating} sort={sort} onSetMinRating={onSetMinRating} onSetSort={onSetSort} />
+            </>
+          )}
 
           {/* Search icon expanding into search input */}
           {searchOpen || search ? (

@@ -3,7 +3,7 @@ import { useConnectivity } from '../../providers/useConnectivity';
 import { projectsText } from '../../i18n/areas/projects';
 import { stepFrom } from './utils/swipe';
 import React, { useEffect, useRef, useState } from 'react';
-import type { PanelId } from './contract';
+import type { PanelId, Photo } from './contract';
 import { useWorkspace } from './stub';
 import { resolveTheme } from './themePreference';
 import { noticeDurationMs, noticeNeedsDismiss } from './utils/noticeTiming';
@@ -19,6 +19,7 @@ import Canvas from './shell/Canvas';
 import CollageEditor from './shell/CollageEditor';
 import Filmstrip from './shell/Filmstrip';
 import GridView from './shell/GridView';
+import PairCompare from './shell/PairCompare';
 import CoPilotPanel from './panels/CoPilotPanel';
 import AdjustPanel from './panels/AdjustPanel';
 import SizesPanel from './panels/SizesPanel';
@@ -148,6 +149,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
 
   const activePhoto =
     store.photos.find((p) => p.id === store.activePhotoId) ?? store.photos[0] ?? null;
+  // Compare with exactly two photos selected shows them side by side; with one, it stays before and after.
+  const pairPhotos = React.useMemo(() => {
+    if (!store.compareMode || store.collage || store.selectedPhotoIds.length !== 2) return null;
+    const found = store.selectedPhotoIds.map((id) => store.photos.find((p) => p.id === id));
+    return found[0] && found[1] ? ([found[0], found[1]] as [Photo, Photo]) : null;
+  }, [store.compareMode, store.collage, store.selectedPhotoIds, store.photos]);
+  const [pairSwapped, setPairSwapped] = useState(false);
   const peers = usePresence(sharing, store.collage ? null : store.activeProjectId, activePhoto?.id ?? null, signedInName, shareVersion);
   const hoveredLook = store.looks.find((l) => l.id === store.hoveredLookId) ?? null;
   const runningTaskCount = store.tasks.filter((t) => t.status === 'running').length;
@@ -166,7 +174,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   // One dispatch for every command id, shared by the keydown handler below and the command search dialog,
   // so "what Cmd/Ctrl+K can run" and "what the keyboard shortcut runs" never drift apart.
   const runCommand = React.useCallback((command: CommandDefinition) => {
-    const ids = store.selectedPhotoIds.length > 0 ? store.selectedPhotoIds : activePhoto ? [activePhoto.id] : [];
+    // In a two-photo compare, keys act on the chosen side only, never on both photos at once.
+    const ids = pairPhotos && activePhoto && pairPhotos.some((p) => p.id === activePhoto.id) ? [activePhoto.id]
+      : store.selectedPhotoIds.length > 0 ? store.selectedPhotoIds : activePhoto ? [activePhoto.id] : [];
     switch (command.id) {
       case 'help.toggle': setShortcutGuideOpen((open) => !open); break;
       case 'app.commandSearch': setCommandPaletteOpen((open) => !open); break;
@@ -189,7 +199,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'file.export': actions.setExportOpen(true); break;
       case 'app.settings': actions.setSettingsOpen(true); break;
     }
-  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, activePhoto, actions]);
+  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, activePhoto, actions, pairPhotos]);
 
   // The desktop app's native menu (File, Edit, Photo, View, Settings). Some of its accelerators (Cmd/Ctrl+E, +A, +O, +M)
   // are taken before the page sees the key, so the menu choice must run the action itself.
@@ -568,6 +578,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   onEditPhoto={(id) => { actions.selectPhoto(id); setCollageEditingId(id); }}
                   onImport={actions.importPhotos}
                   sourcePickerOpen={collageSourceOpen} onSourcePickerChange={setCollageSourceOpen} />
+              ) : pairPhotos ? (
+                <PairCompare photos={pairSwapped ? [pairPhotos[1], pairPhotos[0]] : pairPhotos} chosenId={store.activePhotoId}
+                  PhotoSurface={store.PhotoSurface} onChoose={actions.focusPhoto}
+                  onSetDecision={actions.setDecision} onSetRating={actions.setRating}
+                  onSwap={() => setPairSwapped((value) => !value)}
+                  onEdit={(id) => { actions.setCompareMode(false); actions.selectPhoto(id); }}
+                  onClose={() => actions.setCompareMode(false)} />
               ) : store.gridViewOpen ? (
                 <GridView
                   photos={store.photos}
@@ -679,6 +696,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 collageMode={composingCollage}
                 onChooseFromProject={composingCollage && store.projects.some((p) => p.id !== store.activeProjectId) ? () => setCollageSourceOpen(true) : undefined}
                 onExportSelected={() => actions.setExportOpen(true)}
+                onCompareSelected={() => { actions.setGridViewOpen(false); actions.setCompareMode(true); }}
               />
             </div>
 
