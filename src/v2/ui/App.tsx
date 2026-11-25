@@ -19,6 +19,7 @@ import { usePresence } from './shell/usePresence';
 import { PresenceAvatars, PresenceCursors } from './shell/PresenceLayer';
 import { NoticesButton, useNotices } from './shell/Notices';
 import { TaskAlerts } from './shell/TaskAlerts';
+import { onPushOpened, removePushOnSignOut } from '../../providers/webPush';
 import SharedEditBanner from './shell/SharedEditBanner';
 import SharedComments from './shell/SharedComments';
 import { getActiveGroup } from './utils/studioMath';
@@ -123,6 +124,15 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     if (photo) actions.selectPhoto(photo.id);
     return Boolean(photo);
   };
+  // Push alerts (G20): signing out removes this browser's alerts; a tapped alert opens its notice here.
+  const goToNoticeRef = React.useRef(goToNoticePhoto);
+  goToNoticeRef.current = goToNoticePhoto;
+  const reloadNotices = notices.reload;
+  React.useEffect(() => {
+    const stopSignOut = removePushOnSignOut(sharing);
+    const stopOpened = onPushOpened((target) => { void reloadNotices(); if (target.photoId) goToNoticeRef.current(target.projectId, target.photoId); });
+    return () => { stopSignOut(); stopOpened(); };
+  }, [sharing, reloadNotices]);
   const connectivity = useConnectivity();
   const service = useServiceReachability(serviceBase);
   const health = projectsText.connections.health;
@@ -689,7 +699,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onShare={store.collage ? undefined : () => setShareOpen(true)}
             presence={<>
               <PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(key) => { const photo = store.photos.find((candidate) => candidate.sharedKey === key); if (photo) actions.selectPhoto(photo.id); }} />
-              <NoticesButton notices={notices} onGoToPhoto={goToNoticePhoto} />
+              <NoticesButton notices={notices} client={sharing} signedIn={signedInName} onGoToPhoto={goToNoticePhoto} />
             </>}
             onOpenRemoved={() => actions.setRemovedOpen(true)}
             onSaveXmp={store.screen === 'editor' && !store.collage ? () => actions.saveXmpSidecars(store.selectedPhotoIds) : undefined}

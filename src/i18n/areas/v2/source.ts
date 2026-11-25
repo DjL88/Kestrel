@@ -1904,6 +1904,14 @@ export const source = {
     resolve: (who: string) => `${who} resolved a comment`,
     reopen: (who: string) => `${who} reopened a comment`,
     clientFeedback: (gallery: string) => `New client feedback in ${gallery}`,
+    pushHeading: 'Alerts',
+    pushThisDevice: 'Alert me on this device when InFlight is closed',
+    pushKinds: 'Alert me about (all your devices):',
+    pushComments: 'Comments and replies',
+    pushClientFeedback: 'Client feedback',
+    pushBlocked: "Alerts are blocked for InFlight in this browser's settings.",
+    pushAppOnly: 'In this app, new notifications show here when InFlight is open.',
+    pushFailed: 'Alerts could not be changed. Nothing else was affected.',
   },
 
   // Long work finished (G20): on this device, offline, no account

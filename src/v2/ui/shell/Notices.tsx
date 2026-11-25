@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Notice } from '../../../core/collabNotices';
 import type { CollabClient } from '../../../providers/collabClient';
+import type { PushPreferences, PushState } from '../../../core/pushNotices';
+import { currentPushState, turnOffPush, turnOnPush } from '../../../providers/webPush';
 import { STRINGS } from '../strings';
 
 /**
@@ -37,7 +39,58 @@ function line(n: Notice): string {
   return n.count > 1 ? `${what} (${n.count})` : what;
 }
 
-export function NoticesButton({ notices, onGoToPhoto }: { notices: ReturnType<typeof useNotices>; onGoToPhoto: (projectId: string, photoId: string) => boolean }) {
+/**
+ * Alerts on this device (G20 push): shown under the inbox when the server sends push. Turning on asks the browser from
+ * this click only; the kinds chosen apply to all the person's devices. The installed apps say the inbox is where to look.
+ */
+function PushAlerts({ client, signedIn }: { client: CollabClient; signedIn: () => Promise<string | null> }) {
+  const t = STRINGS.notices;
+  const [server, setServer] = useState<{ preferences: PushPreferences } | null>(null);
+  const [state, setState] = useState<PushState>('unsupported');
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      try {
+        const settings = await client.pushSettings();
+        const name = await signedIn().catch(() => null);
+        if (!live || !settings.available) return;
+        setServer({ preferences: settings.preferences });
+        setState(currentPushState(Boolean(name)));
+      } catch { /* push not set up on this server: nothing to show */ }
+    })();
+    return () => { live = false; };
+  }, [client, signedIn]);
+  if (!server || state === 'not-configured' || state === 'signed-out') return null;
+  const run = async (work: () => Promise<void>) => {
+    setBusy(true); setFailed(false);
+    try { await work(); } catch { setFailed(true); } finally { setBusy(false); }
+  };
+  const setKind = (key: keyof PushPreferences, on: boolean) => run(async () => { setServer({ preferences: await client.setPushPreferences({ [key]: on }) }); });
+  return (
+    <div data-testid="push-alerts" className="mt-2 border-t border-[var(--border-default)] pt-2">
+      <h3 className="mb-1 text-[12px] font-semibold">{t.pushHeading}</h3>
+      {state === 'unsupported' && <p className="text-[var(--text-secondary)]">{t.pushAppOnly}</p>}
+      {state === 'blocked' && <p className="text-[var(--text-secondary)]">⚠ {t.pushBlocked}</p>}
+      {(state === 'on' || state === 'off') && (
+        <label className="flex min-h-7 items-center gap-2">
+          <input type="checkbox" data-testid="push-this-device" checked={state === 'on'} disabled={busy}
+            onChange={(event) => { const on = event.target.checked; void run(async () => { if (on) setState(await turnOnPush(client)); else { await turnOffPush(client); setState('off'); } }); }} />
+          {t.pushThisDevice}
+        </label>
+      )}
+      <fieldset className="mt-1" disabled={busy}>
+        <legend className="text-[11px] text-[var(--text-secondary)]">{t.pushKinds}</legend>
+        <label className="flex min-h-7 items-center gap-2"><input type="checkbox" checked={server.preferences.comments} onChange={(event) => void setKind('comments', event.target.checked)} />{t.pushComments}</label>
+        <label className="flex min-h-7 items-center gap-2"><input type="checkbox" checked={server.preferences.clientFeedback} onChange={(event) => void setKind('clientFeedback', event.target.checked)} />{t.pushClientFeedback}</label>
+      </fieldset>
+      {failed && <p role="status" className="text-[var(--text-secondary)]">⚠ {t.pushFailed}</p>}
+    </div>
+  );
+}
+
+export function NoticesButton({ notices, client, signedIn, onGoToPhoto }: { notices: ReturnType<typeof useNotices>; client: CollabClient; signedIn: () => Promise<string | null>; onGoToPhoto: (projectId: string, photoId: string) => boolean }) {
   const t = STRINGS.notices;
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -79,6 +132,7 @@ export function NoticesButton({ notices, onGoToPhoto }: { notices: ReturnType<ty
               </li>
             ))}
           </ul>
+          <PushAlerts client={client} signedIn={signedIn} />
         </div>
       )}
     </div>

@@ -5,6 +5,7 @@ import { language as sessionLanguage } from '../i18n/messages';
 import type { GalleryFeedbackEvent } from '../core/galleryFeedback';
 import type { FeedbackReview } from '../core/clientFeedback';
 import type { Notice } from '../core/collabNotices';
+import { cleanPreferences, type PushPlatform, type PushPreferences } from '../core/pushNotices';
 
 /**
  * The app's side of shared projects (#1387): talks to the control plane's /v1/collab routes. Sharing is opt-in and
@@ -56,9 +57,9 @@ type Json = Record<string, unknown>;
 const isRecord = (value: unknown): value is Json => value !== null && typeof value === 'object' && !Array.isArray(value);
 
 function kindFor(status: number, code: string): CollabErrorKind {
-  if (code === 'COLLAB_NOT_CONFIGURED' || code === 'PRESENCE_NOT_CONFIGURED' || code === 'GALLERY_NOT_CONFIGURED' || code === 'CLOUD_NOT_CONFIGURED') return 'not-configured';
+  if (code === 'COLLAB_NOT_CONFIGURED' || code === 'PUSH_NOT_CONFIGURED' || code === 'PRESENCE_NOT_CONFIGURED' || code === 'GALLERY_NOT_CONFIGURED' || code === 'CLOUD_NOT_CONFIGURED') return 'not-configured';
   if (code === 'COLLAB_NOT_ENTITLED') return 'not-entitled';
-  if (code === 'COLLAB_DISABLED') return 'switched-off';
+  if (code === 'COLLAB_DISABLED' || code === 'PUSH_OFF') return 'switched-off';
   if (status === 401) return 'sign-in';
   if (status === 403) return 'not-permitted';
   return 'refused';
@@ -110,6 +111,11 @@ export interface CollabClient {
   /** Your newest notifications from shared projects. */
   notices(): Promise<{ notices: Notice[]; unread: number }>;
   readNotices(ids: string[] | 'all'): Promise<void>;
+  /** Push alerts (G20): whether the server sends them, which kinds, and how many of your devices get them. */
+  pushSettings(): Promise<{ available: boolean; preferences: PushPreferences; devices: number }>;
+  setPushPreferences(change: Partial<PushPreferences>): Promise<PushPreferences>;
+  registerPushDevice(token: string, platform: PushPlatform): Promise<void>;
+  removePushDevice(token: string): Promise<void>;
   revokeGallery(galleryId: string): Promise<void>;
   leases(projectId: string): Promise<SharedLeaseView[]>;
   acquire(projectId: string, photoKey: string, deviceId: string): Promise<{ token: string; baseRevisionId: string | null }>;
@@ -210,6 +216,10 @@ export function collabClient(baseUrl: string | undefined | null, idToken: () => 
     galleries: async (id) => ((await call('GET', P(id) + '/galleries')).galleries ?? []) as GalleryListItem[],
     notices: async () => { const r = await call('GET', '/v1/collab/notices'); return { notices: (r.notices ?? []) as Notice[], unread: Number(r.unread ?? 0) }; },
     readNotices: async (ids) => { await call('POST', '/v1/collab/notices/read', { ids }); },
+    pushSettings: async () => { const r = await call('GET', '/v1/notify/push'); return { available: r.available === true, preferences: cleanPreferences(r.preferences), devices: Number(r.devices ?? 0) }; },
+    setPushPreferences: async (change) => cleanPreferences((await call('POST', '/v1/notify/push/preferences', change as Json)).preferences),
+    registerPushDevice: async (token, platform) => { await call('POST', '/v1/notify/push/devices', { token, platform }); },
+    removePushDevice: async (token) => { await call('POST', '/v1/notify/push/devices/remove', { token }); },
     galleryFeedback: async (gid) => ((await call('GET', `/v1/collab/galleries/${encodeURIComponent(gid)}/feedback`)).events ?? []) as GalleryFeedbackEvent[],
     galleryFeedbackWithReviews: async (gid) => {
       const r = await call('GET', `/v1/collab/galleries/${encodeURIComponent(gid)}/feedback`);
