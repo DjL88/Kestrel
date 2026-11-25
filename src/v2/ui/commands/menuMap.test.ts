@@ -25,6 +25,7 @@ test('V2-only File items reach the actions the header menu has in a browser', ()
   assert.deepEqual(menuActionForV2('xmp-save'), { kind: 'saveXmp' });
   assert.deepEqual(menuActionForV2('xmp-read'), { kind: 'readXmp' });
   assert.deepEqual(menuActionForV2('lightroom-read'), { kind: 'readLightroom' });
+  assert.deepEqual(menuActionForV2('open-export'), { kind: 'openExport' });
   assert.deepEqual(menuActionForV2('backup-now'), { kind: 'backupNow' });
   assert.deepEqual(menuActionForV2('backup-file'), { kind: 'backupFile' });
   assert.deepEqual(menuActionForV2('reset-photo'), { kind: 'resetPhoto' });

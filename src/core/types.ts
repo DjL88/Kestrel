@@ -81,6 +81,8 @@ export interface PhotoFrame {
   focusPoint?: FocusPoint;
   rating?: number;
   virtualCopy?: { originalFrameId: string; number: number };
+  /** A preview fetched from a shared project's cloud store, standing in for an original this device does not have. Its shared identity is the owner's original, never this file. */
+  cloudPhoto?: { projectId: string; photoKey: string; /** The owner's original has been fetched and now stands behind this photo. */ hasOriginal?: boolean };
   subjectNames?: string[];
   /** Labels such as a species, kept with the photo so projects can be searched by them. Always a suggestion the user can edit. */
   tags?: string[];
@@ -101,6 +103,8 @@ export interface PhotoFrame {
   /** What kind of vehicle or aircraft the photo probably shows, read on this device (ids only; words follow the language).
    * A suggestion: never changes a decision, rating or edit. Malformed values are ignored, never shown. */
   vehicle?: import('./vehicleRecognition').VehicleReading;
+  /** The person said this photo is not a vehicle, so no vehicle reading is ever added to it again. */
+  vehicleDeclined?: boolean;
   /**
    * On-device image embedding (DINOv2), used only to refine burst grouping. Absent until the background pass runs.
    * A cache: anything malformed is ignored by `decodeEmbedding`, never a reason to refuse a restore.
@@ -113,6 +117,9 @@ export interface PhotoFrame {
   /** The camera's as-shot white, estimated by InFlight's RAW decoder from the file's own metadata when it developed the
    * sensor data. Absent for JPEGs and for RAWs developed before this was recorded. Never the camera maker's own figure. */
   asShotWhite?: import('./asShotWhite').AsShotWhite;
+  /** How the RAW's sensor data is compressed, read from the file's own headers once it was developed (Nikon HE/HE* or
+   * 'other'). Absent when not yet read; then nothing names a codec. Only ever adds words to a label. */
+  rawCodec?: import('./pictureSource').RawCodec;
   cullScore?: number;
   /** The person chose to see this burst's frames one by one (set on every frame of the burst). Never changes a decision. */
   burstUngrouped?: boolean;
