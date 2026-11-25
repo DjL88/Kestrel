@@ -39,3 +39,8 @@ test('Calm View shows as on only when movement, badges and hints are all quieten
   assert.equal(calmViewOn({ calmMotion: true, calmBadges: true, calmHints: true }), true);
   assert.equal(calmViewOn({ calmMotion: true, calmBadges: true, calmHints: false }), false);
 });
+
+test('Show advanced controls is remembered and a damaged value is ignored', () => {
+  assert.equal(parseSavedUi(JSON.stringify({ settings: { advancedControls: true } })).settings.advancedControls, true);
+  assert.equal(parseSavedUi(JSON.stringify({ settings: { advancedControls: 'yes' } })).settings.advancedControls, undefined);
+});

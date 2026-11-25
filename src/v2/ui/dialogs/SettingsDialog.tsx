@@ -6,6 +6,7 @@ import { calmViewOn, calmViewPatch } from '../../engineClient/uiSettings';
 import React, { useRef, useState } from 'react';
 import { useDialogFocus } from '../utils/dialogFocus';
 import ReadingSettings from './ReadingSettings';
+import MarkingsReaderSetting from './MarkingsReaderSetting';
 import { isDesktopApp, isMobileShell } from '../../../providers/desktopShell';
 
 /** The published privacy policy. It is not bundled into the app, so a relative link would lead nowhere in the desktop app. */
@@ -19,6 +20,16 @@ import type {
   WorkspaceSettings,
 } from '../contract';
 import { STRINGS } from '../strings';
+import { projectsText } from '../../../i18n/areas/projects';
+import { readBuildInfo } from '../../../core/buildInfo';
+
+/** Settings → Build information (G10). Literal accesses, so Vite's build-time values replace them. */
+const BUILD = readBuildInfo({
+  VITE_KESTREL_BUILD_REVISION: import.meta.env.VITE_KESTREL_BUILD_REVISION,
+  VITE_KESTREL_BUILD_FULL_REVISION: import.meta.env.VITE_KESTREL_BUILD_FULL_REVISION,
+  VITE_KESTREL_BUILD_DIRTY: import.meta.env.VITE_KESTREL_BUILD_DIRTY,
+  VITE_KESTREL_BUILD_TIMESTAMP: import.meta.env.VITE_KESTREL_BUILD_TIMESTAMP,
+});
 import { BrandIcon as OfficialMark, WorksWith } from '../../../components/BrandIcon';
 import type { BrandIconId } from '../../../core/brandIcons';
 
@@ -269,6 +280,29 @@ export default function SettingsDialog({
                   </ul>
                 </section>
 
+                {/* Advanced editing controls stay out of Adjust until a confident person asks for them. */}
+                <section className="flex items-start justify-between gap-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-4">
+                  <div>
+                    <h3 id="advanced-controls-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.settings.appearance.advancedLabel}</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">{STRINGS.settings.appearance.advancedDesc}</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={settings.advancedControls}
+                    aria-labelledby="advanced-controls-title"
+                    data-testid="advanced-controls-switch"
+                    onClick={() => onUpdateSettings({ advancedControls: !settings.advancedControls })}
+                    className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                      settings.advancedControls
+                        ? 'bg-[var(--brand-accent)] text-[var(--text-on-accent)]'
+                        : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
+                    }`}
+                  >
+                    {settings.advancedControls ? STRINGS.settings.appearance.on : STRINGS.settings.appearance.off}
+                  </button>
+                </section>
+
                 {/* Basic accounts only: leave locked Pro features out of the interface so they are not a constant reminder. */}
                 {proChoiceOffered && (
                   <section className="flex items-start justify-between gap-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-4">
@@ -458,6 +492,7 @@ export default function SettingsDialog({
                   checked={settings.ongoingCritique}
                   onToggle={() => onUpdateSettings({ ongoingCritique: !settings.ongoingCritique })}
                 />
+                <MarkingsReaderSetting />
               </div>
             )}
 
@@ -584,6 +619,17 @@ export default function SettingsDialog({
                       }}>{STRINGS.settingsMore.privacyLink}</a> {STRINGS.settingsMore.privacyDraft}
                   </p>
                 </div>
+                <section aria-labelledby="build-information-title" data-testid="v2-build-information" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
+                  <h3 id="build-information-title" className="text-xs font-semibold text-[var(--text-primary)]">{projectsText.licence.buildTitle}</h3>
+                  <p className="text-xs leading-relaxed text-[var(--text-secondary)]">{projectsText.licence.buildHint}</p>
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-[var(--text-secondary)]">
+                    <dt>{projectsText.licence.sourceRevision}</dt>
+                    <dd data-testid="v2-build-revision" title={BUILD.fullRevision ?? undefined} className="select-text break-all font-mono text-[var(--text-primary)]">{BUILD.revision ?? projectsText.licence.unavailable}</dd>
+                    <dt>{projectsText.licence.builtAt}</dt>
+                    <dd className="select-text break-all font-mono text-[var(--text-primary)]">{BUILD.builtAt ?? projectsText.licence.unavailable}</dd>
+                  </dl>
+                  {BUILD.modified && <p role="note" className="text-xs font-medium text-[var(--text-primary)]">⚠ {STRINGS.settingsMore.buildModified}</p>}
+                </section>
                 <section aria-labelledby="erase-device-title" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
                   <h3 id="erase-device-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.settingsMore.eraseHeading}</h3>
                   <p className="text-xs leading-relaxed text-[var(--text-secondary)]">

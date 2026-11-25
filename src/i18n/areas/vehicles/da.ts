@@ -1,0 +1,53 @@
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** Danish. DRAFT: written without a native speaker's check. Type names (Eurofighter Typhoon, Boeing 737) are proper names and stay as they are. */
+export const da: AreaTranslation<typeof source> = {
+  heading: 'Køretøj',
+  families: { air: 'Luftfartøj', road: 'Vejkøretøj', rail: 'Skinnekøretøj', water: 'Båd' },
+  kinds: {
+    car: 'Bil',
+    motorbike: 'Motorcykel',
+    lorry: 'Lastbil',
+    bus: 'Bus',
+    train: 'Tog',
+    tram: 'Sporvogn',
+    boat: 'Båd eller skib',
+    helicopter: 'Helikopter',
+    airliner: 'Passagerfly',
+    'light-aircraft': 'Let fly',
+    'military-jet': 'Militærjet',
+    'military-transport': 'Militært transportfly',
+    glider: 'Svævefly',
+    drone: 'Drone',
+    balloon: 'Ballon',
+  },
+  probably: (what: string) => `${what} (sandsynligvis)`,
+  typeUnknown: (what: string) => `${what}, ukendt type`,
+  withType: (kind: string, type: string) => `${kind}: ${type}`,
+  marked: (what: string, marking: string) => `${what}, mærket ${marking}`,
+  registered: (marking: string, type: string) => `${marking}: ${type} (ifølge registret)`,
+  operatedBy: (what: string, operator: string) => `${what}, drevet af ${operator}`,
+  held: (what: string) => `${what}? Bør tjekkes`,
+  correct: {
+    edit: 'Rediger',
+    change: 'Skift køretøj',
+    kindLabel: 'Slags',
+    typeLabel: 'Mærke eller type',
+    typeUnknown: 'Ikke sikker',
+    notVehicle: 'Ikke et køretøj',
+    wholeBurst: (count: number) => `Alle ${count} billeder i denne serie`,
+    save: 'Gem',
+    cancel: 'Annuller',
+    saved: (count: number) => (count > 1 ? `Gemt for ${count} billeder.` : 'Gemt.'),
+  },
+  reader: {
+    title: 'Læs flyregistreringer',
+    description: (megabytes: string) => `Læser registreringer og militære serienumre malet på fly, på denne enhed, og slår dem op i en offline kopi af offentlige registre. En engangsdownload på ${megabytes} MB. Nummerplader på biler læses aldrig.`,
+    download: 'Download',
+    downloading: (percent: number) => `Downloader… ${percent}%`,
+    ready: 'Installeret. Virker offline.',
+    remove: 'Fjern',
+    failed: 'Downloadet blev ikke færdigt, så intet blev gemt. Prøv igen.',
+  },
+};

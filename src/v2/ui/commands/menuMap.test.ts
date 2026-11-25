@@ -22,6 +22,12 @@ test('ratings 0 to 5 map to their rating, and every command target exists in the
 
 test('V2-only File items reach the actions the header menu has in a browser', () => {
   assert.deepEqual(menuActionForV2('removed-photos'), { kind: 'removedPhotos' });
+  assert.deepEqual(menuActionForV2('xmp-save'), { kind: 'saveXmp' });
+  assert.deepEqual(menuActionForV2('xmp-read'), { kind: 'readXmp' });
+  assert.deepEqual(menuActionForV2('lightroom-read'), { kind: 'readLightroom' });
+  assert.deepEqual(menuActionForV2('open-export'), { kind: 'openExport' });
+  assert.deepEqual(menuActionForV2('backup-now'), { kind: 'backupNow' });
+  assert.deepEqual(menuActionForV2('backup-file'), { kind: 'backupFile' });
   assert.deepEqual(menuActionForV2('reset-photo'), { kind: 'resetPhoto' });
   assert.deepEqual(menuActionForV2('back-to-projects'), { kind: 'backToProjects' });
 });

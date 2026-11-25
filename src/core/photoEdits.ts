@@ -15,8 +15,12 @@ export const DETAIL_CONTROLS = [
   { key: 'sharpen', label: 'Sharpening' },
 ] as const;
 export type ToneKey = (typeof TONE_CONTROLS)[number]['key'];
+import { hasFringeEdit, type Defringe, type LateralCa } from './fringe';
 import { isNeutralWhiteBalance, whiteBalanceGains, type WhiteBalanceEdit } from './asShotWhite';
 import { applyCurveLut, curveLut, isNeutralCurve, isNeutralMixer, mixerParams, mixPixel, type ColourMixer, type CurvePoint } from './curveMixer';
+import { calibrationMatrix, isNeutralCalibration, type Calibration } from './calibration';
+import { hasFinishing, type Grain, type Vignette } from './finishing';
+import { channelCurveLuts, gradeParams, gradePixel, isNeutralChannelCurves, isNeutralGrade, type ChannelCurves, type ColourGrade } from './colourGrade';
 
 export interface PhotoEdit {
   exposure: number;
@@ -45,6 +49,22 @@ export interface PhotoEdit {
   curve?: CurvePoint[];
   /** Hue, saturation and luminance for eight colour bands. Absent = untouched. */
   mixer?: ColourMixer;
+  /** Advanced: three-way colour grading on display values, after contrast and before the curves. Absent = none. */
+  grade?: ColourGrade;
+  /** Advanced: red, green and blue curves, applied after the master tone curve. Absent = none. */
+  channelCurves?: ChannelCurves;
+  /** Advanced: hue and saturation of the red, green and blue primaries, on linear light after white balance. */
+  calibration?: Calibration;
+  /** Advanced: darken (negative) or lighten the edges of the framed photo. A finishing pass after masks. */
+  vignette?: Vignette;
+  /** Remove (positive, up to 1) or add (negative) haze. Runs first, on the picture's own pixels, before tone. */
+  dehaze?: number;
+  /** Lens: rescale red and blue about the lens centre to remove red/cyan and blue/yellow edges. Runs first. */
+  lateralCa?: LateralCa;
+  /** Lens: take the colour out of purple or green fringes beside strong edges. Runs first, after lateralCa. */
+  defringe?: Defringe;
+  /** Advanced: film-like grain anchored to the photo. A finishing pass after masks. */
+  grain?: Grain;
   /** White balance in kelvin against the camera's as-shot estimate (RAW only). Multiplies with Warmth and Tint. */
   whiteBalance?: WhiteBalanceEdit;
   /** Local adjustments. They run after the whole-photo edit, in order. */
@@ -61,13 +81,14 @@ export const EDIT_CHOICES = [
 
 export function isNeutralTone(edit: PhotoEdit): boolean {
   return edit.exposure === 0 && edit.warmth === 0 && edit.colour === 0 && !edit.tint && TONE_CONTROLS.every(({ key }) => !edit[key])
-    && isNeutralCurve(edit.curve) && isNeutralMixer(edit.mixer) && isNeutralWhiteBalance(edit.whiteBalance);
+    && isNeutralCurve(edit.curve) && isNeutralMixer(edit.mixer) && isNeutralWhiteBalance(edit.whiteBalance)
+    && isNeutralGrade(edit.grade) && isNeutralChannelCurves(edit.channelCurves) && isNeutralCalibration(edit.calibration);
 }
 
 export const NOISE_CONTROL = { key: 'denoise', label: 'Noise reduction' } as const;
 
 export function isNeutralEdit(edit: PhotoEdit): boolean {
-  return !edit.denoise && !edit.denoiseLuminance && !edit.upscale && isNeutralTone(edit) && DETAIL_CONTROLS.every(({ key }) => !edit[key]) && !hasActiveMasks(edit.masks);
+  return !edit.denoise && !edit.denoiseLuminance && !edit.upscale && !edit.dehaze && !hasFringeEdit(edit) && !hasFinishing(edit) && isNeutralTone(edit) && DETAIL_CONTROLS.every(({ key }) => !edit[key]) && !hasActiveMasks(edit.masks);
 }
 
 /** Nothing to keep: neutral, and no masks at all (an empty mask is still kept so it can be adjusted). */
@@ -126,6 +147,10 @@ export function editParams(edit: PhotoEdit) {
     // Only a valid, non-neutral curve or mixer is used; a malformed saved value is ignored rather than guessed at.
     curve: !isNeutralCurve(edit.curve) ? curveLut(edit.curve as CurvePoint[]) : null,
     mixer: !isNeutralMixer(edit.mixer) ? mixerParams(edit.mixer as ColourMixer) : null,
+    calibration: !isNeutralCalibration(edit.calibration) ? calibrationMatrix(edit.calibration as Calibration) : null,
+    grade: !isNeutralGrade(edit.grade) ? gradeParams(edit.grade as ColourGrade) : null,
+    // When any channel curve is set, these tables (master curve then channel curve) replace `curve`.
+    channelLuts: channelCurveLuts(edit.curve, edit.channelCurves),
   };
 }
 export type EditParams = ReturnType<typeof editParams>;
@@ -277,10 +302,16 @@ export function decodeEncoded(value: number): number {
  * source of the maths for 8-bit previews and higher-precision exports alike; the GPU shader mirrors it.
  */
 function tonePixel(red: number, green: number, blue: number, p: EditParams, out: Float32Array): void {
-  const { channelGain, brightness, colour, contrast, highlights, shadows, blackPoint, whitePoint, vibrance, curve, mixer } = p;
+  const { channelGain, brightness, colour, contrast, highlights, shadows, blackPoint, whitePoint, vibrance, curve, mixer, grade, channelLuts, calibration: m } = p;
   red *= channelGain[0];
   green *= channelGain[1];
   blue *= channelGain[2];
+  if (m) {
+    const r = red, g = green, b = blue;
+    red = Math.max(0, m[0] * r + m[1] * g + m[2] * b);
+    green = Math.max(0, m[3] * r + m[4] * g + m[5] * b);
+    blue = Math.max(0, m[6] * r + m[7] * g + m[8] * b);
+  }
   if (highlights !== 0 || shadows !== 0 || blackPoint !== 0 || whitePoint !== 1) {
     const range = whitePoint - blackPoint;
     red = (red - blackPoint) / range;
@@ -330,7 +361,10 @@ function tonePixel(red: number, green: number, blue: number, p: EditParams, out:
   if (contrast !== 1) {
     for (let c = 0; c < 3; c += 1) out[c] = Math.min(1, Math.max(0, 0.5 + (out[c] - 0.5) * contrast));
   }
-  if (curve) {
+  if (grade) gradePixel(out, grade);
+  if (channelLuts) {
+    for (let c = 0; c < 3; c += 1) out[c] = applyCurveLut(out[c], channelLuts[c]);
+  } else if (curve) {
     for (let c = 0; c < 3; c += 1) out[c] = applyCurveLut(out[c], curve);
   }
 }

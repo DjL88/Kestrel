@@ -79,6 +79,7 @@ export const fi: Translation = {
     themeContrast: 'Suuri kontrasti',
     textSize: 'Tekstin koko',
     typeface: 'Kirjasin',
+    fontBrand: 'InFlight (Plus Jakarta Sans)',
     fontReadable: 'Helppolukuinen (Atkinson Hyperlegible)',
     calm: 'Vähemmän ärsykkeitä (ei animaatioita)',
     calmPreset: 'Rauhallinen ja selkeä',

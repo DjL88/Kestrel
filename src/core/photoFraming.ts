@@ -224,6 +224,17 @@ export function estimateLevel(pixels: Uint8ClampedArray, width: number, height: 
   return -best.angle || 0;
 }
 
+/**
+ * Where the original photo's centre lands on the framed (cropped) photo, 0..1 across its width and height. Lens
+ * corrections are centred there, not on the crop. `width` and `height` are the source's own size before turns.
+ */
+export function lensCentre(width: number, height: number, framing: PhotoFraming, extraTurns = 0): { x: number; y: number } {
+  const turns = (((framing.turns + extraTurns) % 4) + 4) % 4;
+  const w = turns % 2 ? height : width, h = turns % 2 ? width : height;
+  const crop = cropRectangle(w, h, framing);
+  return { x: (w / 2 - crop.x) / crop.width, y: (h / 2 - crop.y) / crop.height };
+}
+
 export function drawFramedPhoto(
   source: HTMLImageElement, output: HTMLCanvasElement, framing: PhotoFraming,
   options?: { region?: PixelRect; scale?: number; colourSpace?: CanvasColourSpace },

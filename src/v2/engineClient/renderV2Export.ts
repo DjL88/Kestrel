@@ -1,9 +1,10 @@
 import { applyCanvasExportEdit } from '../../core/canvasEdit';
+import { applyFrameLayers } from '../../core/layerAssetVault';
 import { fitScale, maxCanvasPixels } from '../../core/exportLimits';
 import { exportFilename, type ExportProfile } from '../../core/exportProfiles';
 import { datedExport } from '../../core/exportTimestamp';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
-import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFraming';
+import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../../core/photoFraming';
 import { isRawPreviewFile } from '../../core/rawFormats';
 import type { PhotoFrame } from '../../core/types';
 import type { CropTransform, OverlaySettings } from '../ui/contract';
@@ -252,7 +253,9 @@ export async function renderV2Export(
   const output = document.createElement('canvas');
   try {
     drawFramedPhoto(source, picture, framing, { scale });
-    await applyCanvasExportEdit(picture, frame.edit ?? DEFAULT_EDIT, signal, Math.max(fw, fh) * scale, { aspect: fh / fw, view: { x: 0, y: 0, w: 1, h: 1 } });
+    await applyCanvasExportEdit(picture, frame.edit ?? DEFAULT_EDIT, signal, Math.max(fw, fh) * scale, { aspect: fh / fw, view: { x: 0, y: 0, w: 1, h: 1 }, lensCentre: lensCentre(source.naturalWidth, source.naturalHeight, framing) });
+    signal?.throwIfAborted();
+    await applyFrameLayers(picture, frame.overlay, true);
     signal?.throwIfAborted();
     if (up !== 1 && scale >= 1) await upscaleCanvasInPlace(picture, up, signal);
     signal?.throwIfAborted();

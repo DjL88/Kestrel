@@ -79,6 +79,7 @@ export const da: Translation = {
     themeContrast: 'Høj kontrast',
     textSize: 'Tekststørrelse',
     typeface: 'Skrifttype',
+    fontBrand: 'InFlight (Plus Jakarta Sans)',
     fontReadable: 'Let at læse (Atkinson Hyperlegible)',
     calm: 'Færre indtryk (ingen animationer)',
     calmPreset: 'Rolig og tydelig',

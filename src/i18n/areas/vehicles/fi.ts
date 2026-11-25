@@ -1,0 +1,53 @@
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** Finnish. DRAFT: written without a native speaker's check. Type names (Eurofighter Typhoon, Boeing 737) are proper names and stay as they are. */
+export const fi: AreaTranslation<typeof source> = {
+  heading: 'Ajoneuvo',
+  families: { air: 'Ilma-alus', road: 'Tieajoneuvo', rail: 'Raideajoneuvo', water: 'Vene' },
+  kinds: {
+    car: 'Auto',
+    motorbike: 'Moottoripyörä',
+    lorry: 'Kuorma-auto',
+    bus: 'Bussi',
+    train: 'Juna',
+    tram: 'Raitiovaunu',
+    boat: 'Vene tai laiva',
+    helicopter: 'Helikopteri',
+    airliner: 'Matkustajakone',
+    'light-aircraft': 'Pienlentokone',
+    'military-jet': 'Sotilassuihkukone',
+    'military-transport': 'Sotilaskuljetuskone',
+    glider: 'Purjelentokone',
+    drone: 'Drooni',
+    balloon: 'Kuumailmapallo',
+  },
+  probably: (what: string) => `${what} (todennäköisesti)`,
+  typeUnknown: (what: string) => `${what}, tyyppi tuntematon`,
+  withType: (kind: string, type: string) => `${kind}: ${type}`,
+  marked: (what: string, marking: string) => `${what}, tunnus ${marking}`,
+  registered: (marking: string, type: string) => `${marking}: ${type} (rekisterin mukaan)`,
+  operatedBy: (what: string, operator: string) => `${what}, käyttäjä ${operator}`,
+  held: (what: string) => `${what}? Tarkista`,
+  correct: {
+    edit: 'Muokkaa',
+    change: 'Vaihda ajoneuvo',
+    kindLabel: 'Laji',
+    typeLabel: 'Merkki tai tyyppi',
+    typeUnknown: 'En ole varma',
+    notVehicle: 'Ei ajoneuvo',
+    wholeBurst: (count: number) => `Kaikki ${count} kuvaa tässä sarjassa`,
+    save: 'Tallenna',
+    cancel: 'Peruuta',
+    saved: (count: number) => (count > 1 ? `Tallennettu ${count} kuvaan.` : 'Tallennettu.'),
+  },
+  reader: {
+    title: 'Lue ilma-alusten tunnukset',
+    description: (megabytes: string) => `Lukee ilma-aluksiin maalatut rekisteritunnukset ja sotilaalliset sarjanumerot tällä laitteella ja hakee ne julkisten rekisterien offline-kopiosta. Kertalataus, ${megabytes} Mt. Autojen rekisterikilpiä ei koskaan lueta.`,
+    download: 'Lataa',
+    downloading: (percent: number) => `Ladataan… ${percent}%`,
+    ready: 'Asennettu. Toimii ilman verkkoa.',
+    remove: 'Poista',
+    failed: 'Lataus ei valmistunut, joten mitään ei tallennettu. Yritä uudelleen.',
+  },
+};
