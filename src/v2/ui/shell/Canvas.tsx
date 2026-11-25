@@ -27,7 +27,7 @@ import CompareSplit from './CompareSplit';
 import MaskOutlineLayer from './MaskOutlineLayer';
 import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
 import { captureElement, screenshotName } from '../utils/captureElement';
-import { findEyeOnScreen } from '../../engineClient/eyeZoom';
+import { focusOnScreen, focusZoom, lookForZoomFocus, type ZoomFocus } from '../../engineClient/eyeZoom';
 import { DOCKED, clampDockOffset, isDocked, nudgeDockOffset, parseDockOffset, snapDockOffset, type DockOffset } from '../utils/floatingDock';
 import {
   buildPreviewFilterCss,
@@ -89,7 +89,8 @@ interface CanvasProps {
   onToggleSplitFrames: (photoId: string) => void;
   /** Set the active format's number of continuous frames (1 rejoins, up to 5). */
   onSetSplitFrameCount?: (photoId: string, sizeId: string, count: SplitFrameCount) => void;
-  onSetSplitPanOffset: (photoId: string, offset: number) => void;
+  /** Kept for the engine contract; a plain drag no longer shifts the shared photograph (Crop mode positions it). */
+  onSetSplitPanOffset?: (photoId: string, offset: number) => void;
   onUpdateVideoZoom: (photoId: string, patch: Partial<VideoZoomConfig>) => void;
   onUpdateOverlay: (photoId: string, patch: Partial<OverlaySettings>) => void;
   onReconnectOriginal: (photoId: string) => void;
@@ -150,7 +151,6 @@ export default function Canvas({
   onRotateSizes,
   onToggleSplitFrames,
   onSetSplitFrameCount,
-  onSetSplitPanOffset,
   onUpdateVideoZoom,
   onUpdateOverlay,
   onReconnectOriginal,
@@ -311,6 +311,30 @@ export default function Canvas({
   /** What Zoom to eye did, in words. It stays until dismissed or the photo changes, never vanishing on a timer. */
   const [eyeNote, setEyeNote] = useState<{ text: string; busy: boolean } | null>(null);
   useEffect(() => { setEyeNote(null); setZoomMenuOpen(false); }, [photo?.id]);
+  // Zoom to eye looks ahead: once a photo has been on screen a moment, find a confident eye, else the subject, else
+  // the centre, so the zoom menu can name where it will go. Only the view moves; nothing is judged sharp.
+  const [zoomFocus, setZoomFocus] = useState<{ photoId: string; focus: ZoomFocus } | null>(null);
+  const focusSearch = useRef<{ photoId: string; promise: Promise<ZoomFocus | null> } | null>(null);
+  const findZoomFocus = (photoId: string): Promise<ZoomFocus | null> => {
+    if (focusSearch.current?.photoId === photoId) return focusSearch.current.promise;
+    const frame = stageRef.current?.querySelector('[data-testid="canvas-frame"]');
+    if (!frame) return Promise.resolve(null);
+    const promise = lookForZoomFocus(frame).then((lookup) => {
+      if (lookup.kind !== 'ready') { if (focusSearch.current?.photoId === photoId) focusSearch.current = null; return null; }
+      setZoomFocus((current) => (focusSearch.current?.photoId === photoId ? { photoId, focus: lookup.focus } : current));
+      return lookup.focus;
+    });
+    focusSearch.current = { photoId, promise };
+    return promise;
+  };
+  const focusKind = zoomFocus && zoomFocus.photoId === photo?.id ? zoomFocus.focus.kind : null;
+  useEffect(() => {
+    const photoId = photo?.id;
+    if (!photoId || focusSearch.current?.photoId === photoId) return;
+    // A short wait, so flicking through photos never queues a search for each one.
+    const timer = window.setTimeout(() => { void findZoomFocus(photoId); }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [photo?.id]);
   useEffect(() => {
     if (!zoomMenuOpen) return;
     const onPointer = (event: PointerEvent) => {
@@ -367,7 +391,7 @@ export default function Canvas({
   const [draggingType, setDraggingType] = useState<'none' | 'pan' | 'crop' | 'text' | 'watermark' | 'board'>('none');
 
   const dragRef = useRef<{
-    kind: 'pan' | 'crop-top' | 'crop-right' | 'crop-bottom' | 'crop-left' | 'scale-top' | 'scale-right' | 'scale-bottom' | 'scale-left' | 'scale-tl' | 'scale-tr' | 'scale-bl' | 'scale-br' | 'move-frame' | 'text' | 'watermark' | 'resize-text' | 'resize-watermark' | 'board' | 'split';
+    kind: 'pan' | 'crop-top' | 'crop-right' | 'crop-bottom' | 'crop-left' | 'scale-top' | 'scale-right' | 'scale-bottom' | 'scale-left' | 'scale-tl' | 'scale-tr' | 'scale-bl' | 'scale-br' | 'move-frame' | 'text' | 'watermark' | 'resize-text' | 'resize-watermark' | 'board';
     sizeId: string;
     startX: number;
     startY: number;
@@ -509,9 +533,6 @@ export default function Canvas({
       origA = size.crop.panX;
       origB = size.crop.panY;
       setDraggingType('pan');
-    } else if (kind === 'split') {
-      origA = splitOffsetFor(size.id);
-      setDraggingType('pan');
     } else if (kind === 'text') {
       const box = e.currentTarget.getBoundingClientRect();
       origA = rect?.width ? (box.left + box.width / 2 - rect.left) / rect.width * 100 : group.overlay.textX;
@@ -647,8 +668,6 @@ export default function Canvas({
         panX: Math.round(clamp(drag.crop.panX + (drag.crop.zoom - zoom) * ax * 100, -limits.x, limits.x)),
         panY: Math.round(clamp(drag.crop.panY + (drag.crop.zoom - zoom) * ay * 100, -limits.y, limits.y)),
       });
-    } else if (drag.kind === 'split') {
-      onSetSplitPanOffset(photo.id, Math.round(clamp(drag.origA + (dx / width) * 60, -25, 25)));
     } else if (drag.kind === 'board') {
       if (!drag.moved && Math.hypot(dx, dy) < 3) return;
       drag.moved = true;
@@ -1229,19 +1248,28 @@ export default function Canvas({
   const zoomToEye = async () => {
     const stage = stageRef.current;
     const frame = stage?.querySelector('[data-testid="canvas-frame"]');
-    if (!stage || !frame) return;
-    setEyeNote({ text: STRINGS.canvas.eyeLooking, busy: true });
-    const outcome = await findEyeOnScreen(frame);
-    if (outcome.kind !== 'found') {
-      setEyeNote({ text: outcome.kind === 'none' ? STRINGS.canvas.eyeNone : STRINGS.canvas.eyeUnavailable, busy: false });
+    if (!stage || !frame || !photo) return;
+    const photoId = photo.id;
+    const known = zoomFocus && zoomFocus.photoId === photoId ? zoomFocus.focus : null;
+    if (!known) setEyeNote({ text: STRINGS.canvas.eyeLooking, busy: true });
+    const focus = known ?? await findZoomFocus(photoId);
+    if (!focus) { setEyeNote({ text: STRINGS.canvas.eyeUnavailable, busy: false }); return; }
+    const liveFrame = stageRef.current?.querySelector('[data-testid="canvas-frame"]');
+    const at = liveFrame ? focusOnScreen(liveFrame, focus) : null;
+    const frameRect = liveFrame?.getBoundingClientRect();
+    if (!at || !frameRect || !(frameRect.width > 0 && frameRect.height > 0)) {
+      setEyeNote({ text: focus.kind === 'eye' ? STRINGS.canvas.eyeUnavailable : STRINGS.canvas.eyeNone, busy: false });
       return;
     }
-    const frameRect = frame.getBoundingClientRect();
-    if (!(frameRect.width > 0 && frameRect.height > 0)) return;
-    const point = { fx: clamp((outcome.clientX - frameRect.left) / frameRect.width, 0, 1), fy: clamp((outcome.clientY - frameRect.top) / frameRect.height, 0, 1) };
+    const point = { fx: clamp((at.clientX - frameRect.left) / frameRect.width, 0, 1), fy: clamp((at.clientY - frameRect.top) / frameRect.height, 0, 1) };
     // 100% (one picture pixel per screen pixel) is the honest view for checking detail; at least 2× when the size is unknown.
-    const target = Math.min(16, Math.max(fitScale ? 1 / fitScale : 2, canvasZoom * 1.0001));
-    setEyeNote({ text: outcome.confidence === 'likely' ? STRINGS.canvas.eyeFound : STRINGS.canvas.eyeMaybe, busy: false });
+    const target = focusZoom(focus, {
+      current: canvasZoom,
+      actual: Math.max(fitScale ? 1 / fitScale : 2, focus.kind === 'subject' ? 1 : canvasZoom * 1.0001),
+      pictureOnScreen: at.picture,
+      view: { width: stage.clientWidth, height: stage.clientHeight },
+    });
+    setEyeNote({ text: focus.kind === 'eye' ? STRINGS.canvas.eyeFound : focus.kind === 'subject' ? STRINGS.canvas.subjectFound : STRINGS.canvas.centreFound, busy: false });
     centreOn.current = point;
     setEyeTarget((count) => count + 1);
     if (Math.abs(target - canvasZoom) >= 0.001) onSetZoom(target);
@@ -1286,7 +1314,9 @@ export default function Canvas({
         <div
           data-testid="split-composition"
           className="relative m-auto flex items-center gap-4"
-          style={{ zoom: canvasZoom }}
+          // Outside Crop mode a drag moves the whole split layout on the canvas, as it does a single frame. The shared
+          // photograph is positioned only in Crop mode (double-click), so a plain drag never shifts the picture.
+          style={{ zoom: canvasZoom, transform: offset ? `translate(${offset.x}px, ${offset.y}px)` : undefined }}
           onClick={(e) => { if (e.target === e.currentTarget) setSelectedPane(null); }}
         >
           {revealing && (<>
@@ -1318,7 +1348,7 @@ export default function Canvas({
                 aria-pressed={paneSelected(paneIdx)}
                 aria-label={STRINGS.canvas.splitFrameSelect(paneIdx + 1, sectionCount)}
                 data-testid={`split-frame-${paneIdx}`}
-                onPointerDown={(e) => { paneDown.current = { x: e.clientX, y: e.clientY }; handleFramePointerDown(e, revealing ? 'pan' : 'split', activeSize, e.currentTarget); }}
+                onPointerDown={(e) => { paneDown.current = { x: e.clientX, y: e.clientY }; handleFramePointerDown(e, revealing ? 'pan' : 'move-frame', activeSize, e.currentTarget); }}
                 onClick={(e) => {
                   const down = paneDown.current;
                   if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) return;
@@ -1935,7 +1965,7 @@ export default function Canvas({
                 {[
                   { id: 'fit', label: STRINGS.canvas.zoomFitScreen, run: () => zoomAroundCentre(1), current: Math.abs(canvasZoom - 1) < 0.001 },
                   { id: '100', label: STRINGS.canvas.zoomActual, run: () => zoomAroundCentre(fitScale ? 1 / fitScale : 1), current: actualPercent === 100 },
-                  { id: 'eye', label: STRINGS.canvas.zoomEye, run: () => { void zoomToEye(); }, current: false, disabled: activeSize.kind !== 'photo' || compareMode || Boolean(eyeNote?.busy) },
+                  { id: 'eye', label: focusKind === 'subject' ? STRINGS.canvas.zoomSubject : focusKind === 'centre' ? STRINGS.canvas.zoomCentre : STRINGS.canvas.zoomEye, run: () => { void zoomToEye(); }, current: false, disabled: activeSize.kind !== 'photo' || compareMode || Boolean(eyeNote?.busy) },
                 ].map((item) => (
                   <button key={item.id} type="button" role="menuitem" data-testid={`zoom-menu-${item.id}`} disabled={item.disabled}
                     onClick={() => { setZoomMenuOpen(false); item.run(); }}
