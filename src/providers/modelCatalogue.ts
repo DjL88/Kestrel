@@ -166,6 +166,11 @@ export const MODEL_CATALOGUE: readonly CatalogueEntry[] = [
     id: BIREFNET_LITE.id, name: 'BiRefNet-lite', role: 'mask', version: 'aa62cd87', licence: BIREFNET_LITE.licence,
     files: packFiles(BIREFNET_LITE), peakMemory: null,
     place: async () => { const { fineEdgeStatus } = await import('./fineEdgeMask'); const status = await fineEdgeStatus(); return status === 'ready' ? 'downloaded' : status === 'not-downloaded' ? 'not-downloaded' : 'not-offered'; },
+    pack: {
+      model: BIREFNET_LITE,
+      download: async (onProgress, signal) => (await import('./fineEdgeMask')).downloadFineEdge(onProgress, signal),
+      remove: async () => (await import('./fineEdgeMask')).removeFineEdge(),
+    },
     measure: async (picture) => { const { fineEdgeMask } = await import('./fineEdgeMask'); await fineEdgeMask(picture); },
   },
   {
