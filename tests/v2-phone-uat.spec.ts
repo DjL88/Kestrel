@@ -162,8 +162,8 @@ test('swipe on the photo: left or right steps through photos, up or down through
   await (await picker).setFiles(['swipe-a.png', 'swipe-b.png', 'swipe-c.png'].map((name) => ({ name, mimeType: 'image/png', buffer: Buffer.from(png, 'base64') })));
   const options = studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option');
   await expect(options).toHaveCount(3);
-  // Co-pilot (the default) offers Auto-cull once the import finishes; close it so nothing sits over the photo while swiping.
-  const offer = studio.getByRole('status').filter({ hasText: 'Photos added. Press Auto-Cull' });
+  // Co-pilot (the default) offers Auto pick once the import finishes; close it so nothing sits over the photo while swiping.
+  const offer = studio.getByRole('status').filter({ hasText: 'Photos added. Press Auto pick' });
   await expect(offer).toBeVisible();
   await offer.getByRole('button', { name: 'Dismiss message' }).tap();
   await expect(offer).toHaveCount(0);
@@ -187,21 +187,27 @@ test('swipe on the photo: left or right steps through photos, up or down through
     for (const [i, step] of [0.25, 0.5, 0.75, 1].entries()) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: cx + dx * step, y: cy + dy * step }], timestamp: start + 0.024 * (i + 1) });
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [], timestamp: start + 0.12 });
     await page.waitForTimeout(700);
+    // After each step the on-device subject finder, subject outline and similarity models (YOLOX, U2-Net, DINOv2) run
+    // on the page's main thread for 1-4 s each, longer when CI shares the CPU between four browsers. While they run the
+    // page cannot answer, so a 5 s poll timed out on a swipe that had worked. Wait until the page answers again, then
+    // read the result with room for a busy page.
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0))));
   };
+  const busyPage = { timeout: 20_000 };
   const selectedName = async () => ((await options.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-selected')))).indexOf('true'));
   await flick(-110, 0); // the first photo is active before anything is selected
-  await expect.poll(selectedName).toBe(1);
+  await expect.poll(selectedName, busyPage).toBe(1);
   await flick(-110, 0);
-  await expect.poll(selectedName).toBe(2);
+  await expect.poll(selectedName, busyPage).toBe(2);
   await flick(-110, 0); // the last photo: no wrap
-  await expect.poll(selectedName).toBe(2);
+  await expect.poll(selectedName, busyPage).toBe(2);
   await flick(110, 0);
-  await expect.poll(selectedName).toBe(1);
+  await expect.poll(selectedName, busyPage).toBe(1);
   // A short or slanted drag is not a swipe.
   await flick(-30, 0);
-  await expect.poll(selectedName).toBe(1);
+  await expect.poll(selectedName, busyPage).toBe(1);
   await flick(-100, 90);
-  await expect.poll(selectedName).toBe(1);
+  await expect.poll(selectedName, busyPage).toBe(1);
   // Only Original is enabled on import. Add a second format to this photo before cycling sizes.
   // These are clicks, not taps: after the raw CDP touch sequences above, Chrome's touch emulation drops Playwright's
   // synthetic taps on other elements. Real-phone taps after swiping are on the device test checklist.
@@ -213,10 +219,58 @@ test('swipe on the photo: left or right steps through photos, up or down through
   const label = async () => ((await studio.getByTestId('canvas-frame').locator('xpath=../../div[1]/span[1]').textContent()) ?? '').trim();
   const before = await label();
   await flick(0, -110);
-  await expect.poll(label).toBe('Instagram Portrait');
-  await expect.poll(selectedName).toBe(1);
+  await expect.poll(label, busyPage).toBe('Instagram Portrait');
+  await expect.poll(selectedName, busyPage).toBe(1);
   await flick(0, 110);
-  await expect.poll(label).toBe(before);
+  await expect.poll(label, busyPage).toBe(before);
+});
+
+test('a message never covers the filmstrip, so a thumbnail can be long-pressed while it shows', async ({ page, context }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/?v2');
+  const studio = page.locator('.inflight-v2');
+  await studio.getByRole('button', { name: 'New project' }).first().tap();
+  await page.getByLabel('Project name', { exact: true }).fill('Message');
+  await page.getByRole('dialog').getByRole('button', { name: 'Create project', exact: true }).tap();
+  const png = await page.evaluate(() => {
+    const c = document.createElement('canvas'); c.width = 240; c.height = 160;
+    c.getContext('2d')!.fillRect(0, 0, 240, 160);
+    return c.toDataURL('image/png').split(',')[1];
+  });
+  const picker = page.waitForEvent('filechooser');
+  await studio.getByRole('button', { name: 'Import', exact: true }).tap();
+  await (await picker).setFiles(['note-a.png', 'note-b.png', 'note-c.png'].map((name) => ({ name, mimeType: 'image/png', buffer: Buffer.from(png, 'base64') })));
+  const strip = studio.locator('.v2-filmstrip');
+  const options = studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option');
+  await expect(options).toHaveCount(3);
+  // Co-pilot's offer after an import is the message that used to sit over the thumbnails.
+  const notice = studio.getByTestId('action-notice').filter({ hasText: 'Photos added' });
+  await expect(notice).toBeVisible();
+  const apart = async () => {
+    const a = (await notice.boundingBox())!, b = (await strip.boundingBox())!;
+    return a.y + a.height <= b.y || b.y + b.height <= a.y;
+  };
+  await expect.poll(apart).toBe(true);
+  // The thumbnail under where the message was is the one to hold.
+  const thumb = options.nth(1);
+  const box = (await thumb.boundingBox())!;
+  const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const hit = await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest('[role="option"]'), at);
+  expect(hit).toBe(true);
+  const cdp = await context.newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [at] });
+  await page.waitForTimeout(800);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await expect(studio.getByRole('menu')).toBeVisible();
+  await expect(notice).toBeVisible();
+  // An open tool sheet takes the filmstrip's place, and the message sits above the sheet instead.
+  await page.keyboard.press('Escape');
+  await expect(studio.getByRole('menu')).toHaveCount(0);
+  await studio.getByRole('navigation', { name: 'Mobile studio tools' }).getByRole('button', { name: 'Adjust' }).click();
+  const sheetTab = studio.getByRole('tab', { name: 'Advanced Edits' });
+  await expect(sheetTab).toBeVisible();
+  await expect(notice).toBeInViewport({ ratio: 1 });
+  await expect.poll(async () => { const a = (await notice.boundingBox())!, b = (await sheetTab.boundingBox())!; return a.y + a.height <= b.y; }).toBe(true);
 });
 
 test('Advanced Edits on a phone shows one group of sliders per pill; a wide screen shows them all', async ({ page }) => {

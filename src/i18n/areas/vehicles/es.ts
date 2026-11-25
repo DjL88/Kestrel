@@ -21,7 +21,7 @@ export const es: AreaTranslation<typeof source> = {
     helicopter: 'Helicóptero',
     airliner: 'Avión comercial',
     'light-aircraft': 'Avioneta',
-    'military-jet': 'Caza militar',
+    'military-jet': 'Avión militar a reacción',
     'military-transport': 'Avión de transporte militar',
     glider: 'Planeador',
     drone: 'Dron',
@@ -55,6 +55,6 @@ export const es: AreaTranslation<typeof source> = {
     downloading: (percent: number) => `Descargando… ${percent}%`,
     ready: 'Instalado. Funciona sin conexión.',
     remove: 'Quitar',
-    failed: 'La descarga no terminó, así que no se guardó nada. Inténtalo de nuevo.',
+    failed: 'La descarga no terminó, así que no se guardó nada. Inténtelo de nuevo.',
   },
 };

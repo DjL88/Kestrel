@@ -43,7 +43,7 @@ export const ga: AreaTranslation<typeof source> = {
     typeLabel: 'Déantús nó samhail',
     typeUnknown: 'Níl mé cinnte',
     notVehicle: 'Ní feithicil é',
-    wholeBurst: (count: number) => `Na ${count} grianghraf ar fad sa phléasc seo`,
+    wholeBurst: (count: number) => `Na ${count} grianghraf ar fad sa tsraith grianghraf seo`,
     save: 'Sábháil',
     cancel: 'Cealaigh',
     saved: (count: number) => (count > 1 ? `Sábháilte do ${count} grianghraf.` : 'Sábháilte.'),

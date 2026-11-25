@@ -49,8 +49,8 @@ test('?v2 white balance: the eyedropper makes a picked grey neutral, undo puts i
   const tint = root.locator('#slider-tint');
 
   // Eyedropper: click the grey card in the middle of the canvas.
-  await tools.getByRole('button', { name: 'Pick neutral' }).click();
-  await expect(tools.getByRole('button', { name: 'Pick neutral' })).toHaveAttribute('aria-pressed', 'true');
+  await tools.getByRole('button', { name: 'Pick grey or white' }).click();
+  await expect(tools.getByRole('button', { name: 'Pick grey or white' })).toHaveAttribute('aria-pressed', 'true');
   await expect(tools.getByRole('status')).toContainText('should be grey or white');
   await root.getByTestId('wb-pick-layer').click();
   await expect(tools.getByRole('status')).toHaveText('White balance set. Undo puts it back.');
@@ -72,8 +72,8 @@ test('?v2 white balance: the eyedropper makes a picked grey neutral, undo puts i
   await expect(tint).toHaveValue('0');
 
   // Esc leaves the eyedropper without changing anything.
-  await tools.getByRole('button', { name: 'Pick neutral' }).click();
+  await tools.getByRole('button', { name: 'Pick grey or white' }).click();
   await page.keyboard.press('Escape');
-  await expect(tools.getByRole('button', { name: 'Pick neutral' })).toHaveAttribute('aria-pressed', 'false');
+  await expect(tools.getByRole('button', { name: 'Pick grey or white' })).toHaveAttribute('aria-pressed', 'false');
   await expect(root.getByTestId('wb-pick-layer')).toHaveCount(0);
 });

@@ -19,7 +19,7 @@ export const gd: AreaTranslation<typeof source> = {
     'style.high-key': "Iuchair àrd",
     'style.low-key': "Iuchair ìosal",
     'style.minimalist': "Minimalach",
-    'style.panning-blur': "Pana",
+    'style.panning-blur': "Doilleireachd pana",
     'style.motion-blur': "Doilleireachd gluasaid",
     'style.black-and-white': "Dubh is geal",
     'style.shallow-dof': "Doimhneachd achaidh tana",

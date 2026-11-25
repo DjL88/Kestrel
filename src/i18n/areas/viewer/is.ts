@@ -142,7 +142,7 @@ export const is: AreaTranslation<typeof source> = {
     },
     tags: 'Merki',
     auto: 'Sjálfv.',
-    autoTitle: 'Bætt við sjálfkrafa því líkanið var visst. Haltu því eða fjarlægðu það.',
+    autoTitle: 'Bætt við sjálfkrafa því líkanið hafði mikla vissu. Haltu því eða fjarlægðu það.',
     keepTag: (tag) => `Halda merkinu ${tag}`,
     keepTitle: (tag) => `Halda ${tag}`,
     removeTag: (tag) => `Fjarlægja merkið ${tag}`,

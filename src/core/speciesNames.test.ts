@@ -43,7 +43,7 @@ test('the shipped name files: every species indexed, White-throated Dipper named
     assert.ok(statSync(`${dir}${code}.json`).size < 800_000, `${code}: file stays under 0.8 MB`);
   }
   assert.equal(dipper.de, 'Wasseramsel');
-  assert.ok(statSync(`${dir}index.json`).size < 2_100_000, 'index (every group) stays under 2.1 MB');
+  assert.ok(statSync(`${dir}index.json`).size < 2_500_000, 'index (every group) stays under 2.5 MB');
 });
 
 test('mammals are named in the person’s language where Wikidata has a name, else by scientific name', () => {

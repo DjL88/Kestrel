@@ -35,6 +35,22 @@ const transaction = z.object({
 });
 export type PaddleTransaction = z.infer<typeof transaction>;
 
+/** Paddle adjustment IDs look like adj_01h04vsc0qhwtsbsxh3422wjs4. */
+export const PADDLE_ADJUSTMENT_ID = /^adj_[a-z0-9]{10,60}$/;
+/**
+ * A refund, credit or chargeback against a transaction, as Paddle has it. `type` says whether it covers the whole
+ * transaction ('full') or part of it ('partial'); a refund takes effect only once its status is 'approved'.
+ */
+const adjustment = z.object({
+  id: z.string().regex(PADDLE_ADJUSTMENT_ID),
+  action: z.string().max(40),
+  type: z.enum(['full', 'partial']).nullable().optional(),
+  status: z.string().max(40),
+  transaction_id: z.string().regex(PADDLE_TRANSACTION_ID),
+  totals: z.object({ total: money, currency_code: z.string().regex(/^[A-Z]{3}$/) }).partial().nullable().optional(),
+}).passthrough();
+export type PaddleAdjustment = z.infer<typeof adjustment>;
+
 export interface PaddleCredentials {
   /** The key, or a function giving the current key (re-read from Secret Manager after a rotation). */
   apiKey: string | (() => Promise<string>);
@@ -43,7 +59,7 @@ export interface PaddleCredentials {
 
 export function paddleApi(credentials: PaddleCredentials, request: typeof fetch = fetch) {
   const base = paddleApiBase(credentials.environment);
-  async function call(path: string, options?: RequestInit): Promise<PaddleTransaction> {
+  async function raw(path: string, options?: RequestInit): Promise<unknown> {
     const apiKey = typeof credentials.apiKey === 'function' ? await credentials.apiKey() : credentials.apiKey;
     const response = await request(base + path, {
       ...options,
@@ -52,8 +68,9 @@ export function paddleApi(credentials: PaddleCredentials, request: typeof fetch 
     });
     if (!response.ok) throw new Error('Paddle request failed with ' + response.status + '.');
     const body = await response.json() as { data?: unknown };
-    return transaction.parse(body.data);
+    return body.data;
   }
+  const call = async (path: string, options?: RequestInit): Promise<PaddleTransaction> => transaction.parse(await raw(path, options));
   return {
     /**
      * A transaction for one price, opened by Paddle.js on our checkout page (`checkoutUrl`, an approved domain in
@@ -78,6 +95,13 @@ export function paddleApi(credentials: PaddleCredentials, request: typeof fetch 
     getTransaction: (id: string) => {
       if (!PADDLE_TRANSACTION_ID.test(id)) throw new Error('Invalid Paddle transaction ID.');
       return call('/transactions/' + encodeURIComponent(id) + '?include=address');
+    },
+    /** The adjustment as Paddle has it now (refund, credit, chargeback), or null when Paddle has no such adjustment. */
+    async getAdjustment(id: string): Promise<PaddleAdjustment | null> {
+      if (!PADDLE_ADJUSTMENT_ID.test(id)) throw new Error('Invalid Paddle adjustment ID.');
+      const list = z.array(z.unknown()).parse(await raw('/adjustments?id=' + encodeURIComponent(id)));
+      const found = list.map((item) => adjustment.parse(item)).find((a) => a.id === id);
+      return found ?? null;
     },
   };
 }

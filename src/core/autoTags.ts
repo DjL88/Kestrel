@@ -39,7 +39,44 @@ export function keepAuto(previous: AutoState, name: string): string[] {
 
 /** Minimum share of the unpersonalised ranking for automatic tagging. */
 export const AUTO_MINIMUM = 0.8;
-export const shouldAutoTag = (probability: number) => probability >= AUTO_MINIMUM && probability <= 1;
+export const shouldAutoTag = (probability: number, minimum = AUTO_MINIMUM) => probability >= minimum && probability <= 1;
+
+/**
+ * A higher bar for the world lists where BioCLIP confuses look-alike species more (tools/species/check_names_on_photos.py,
+ * CC0/CC BY Commons photos, Palearctic):
+ * - insects (61 photos of dragonflies, damselflies, butterflies, moths, beetles): at 0.8, 29 right and 5 wrong; at 0.95,
+ *   25 right and none wrong;
+ * - mammals (12 photos of red squirrels and roe deer): at 0.8, 5 right and 2 wrong (Perny's Long-nosed Squirrel 0.89,
+ *   Water Deer 0.85); at 0.95, 4 right and none wrong;
+ * - reptiles and amphibians: not measured at species level yet, so the same cautious bar.
+ * Birds keep 0.8: every bird tag in the same check was right, down to 0.81.
+ */
+export const AUTO_MINIMUM_BY_GROUP: Partial<Record<SpeciesLabel['group'], number>> = { insect: 0.95, mammal: 0.95, reptile: 0.95, amphibian: 0.95 };
+export const autoTagMinimum = (group: SpeciesLabel['group'] | undefined) => (group && AUTO_MINIMUM_BY_GROUP[group]) || AUTO_MINIMUM;
+
+/**
+ * The label groups a photo may be named from, by what the category gate saw: an insect is named only from the insect
+ * lists, a reptile or amphibian only from theirs. A stag beetle was otherwise named "Black Woodpecker" at 0.89 in the
+ * same check. When the gate is not sure (no confident category), every group stays in, as before.
+ */
+export function speciesGroupsForRoute(categoryId: string | null | undefined): SpeciesLabel['group'][] | null {
+  switch (categoryId) {
+    case 'bird': case 'bird-of-prey': case 'waterbird': return ['bird'];
+    case 'mammal': return ['mammal'];
+    case 'reptile': return ['reptile', 'amphibian'];
+    case 'insect': return ['insect'];
+    default: return null;
+  }
+}
+
+/**
+ * The gate and the species model must agree on the group before a name is written: the best match across every list
+ * has to be in the group the gate saw. A squirrel the gate took for a bird (and whose best match overall is a squirrel)
+ * is then not named from the bird list; a beetle whose best match overall was a woodpecker is not named at all.
+ */
+export function gateAgreesWithSpecies(groups: readonly SpeciesLabel['group'][] | null, bestOverall: SpeciesLabel | undefined): boolean {
+  return !groups || !bestOverall || groups.includes(bestOverall.group);
+}
 
 /**
  * When no single species is certain enough, the family may be: if the names that share one family together hold at
@@ -71,9 +108,10 @@ export function qualifiesForAutoTag(
 ): boolean {
   // A softmax over one available label is 100% by definition, even for an
   // unrelated animal. It may be shown for manual consideration, never applied.
-  if (labels.length < 2 || labels.length !== vectors.length || !shouldAutoTag(suggested.probability)) return false;
+  const minimum = autoTagMinimum(suggested.label.group);
+  if (labels.length < 2 || labels.length !== vectors.length || !shouldAutoTag(suggested.probability, minimum)) return false;
   const strongest = rankSpecies(embedding, labels, vectors)[0];
-  return strongest?.index === suggested.index && shouldAutoTag(strongest.probability);
+  return strongest?.index === suggested.index && shouldAutoTag(strongest.probability, minimum);
 }
 
 /** Photos the species model has not looked at yet: still in the library, never checked, and with nothing of the user's own on them. */

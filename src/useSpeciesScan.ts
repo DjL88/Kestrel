@@ -1,7 +1,7 @@
 import { useConnectivity } from './providers/useConnectivity';
 import { validateSpecies } from './providers/speciesValidator';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { familyFallback, qualifiesForAutoTag, scanCandidates, scanPatch } from './core/autoTags';
+import { familyFallback, gateAgreesWithSpecies, qualifiesForAutoTag, speciesGroupsForRoute, scanCandidates, scanPatch } from './core/autoTags';
 import { SPECIES_MODEL } from './core/speciesModel';
 import { kindFor, personalBonus, pickSuggestions, rankSpecies } from './core/speciesMatch';
 import type { PhotoFrame } from './core/types';
@@ -22,6 +22,7 @@ import { markingReaderReady, readText } from './providers/markingReader';
 import { loadFaaRegister } from './providers/aircraftRegisters';
 import { findSubjects } from './providers/objectDetector';
 import { guardVehicleOnDevice } from './providers/vehicleGuardian';
+import { askGuardianAbout, canvasJpeg } from './providers/visionGuardian';
 import { HELPER_GAP_MS, HELPER_SESSION_CAP, failureMessage, helperPatch, helperReady } from './core/onlineHelper';
 import { ONLINE_HELPER_VISIBLE, useHelperSettings } from './providers/helperSettings';
 import { HelperError, geminiTransport, imageForHelper } from './providers/onlineHelper';
@@ -133,23 +134,34 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
         if (available.localReady && localLabels) {
           try {
             // analysePicture locates the subject on-device before comparing it with the saved species vectors.
-            const { labels, vectors } = localLabels;
             const { embedding, grid } = await analysePicture(picture);
-            const top = pickSuggestions(rankSpecies(embedding, labels, vectors, personalBonus(labels, readSpeciesCounts())))[0];
-            const qualified = top && qualifiesForAutoTag(top, embedding, labels, vectors) ? top : undefined;
             const crop = subjectCrop(picture.width, picture.height, grid);
-            // With the optional BioCLIP 2 validator installed (desktop), a clear disagreement withholds the automatic
-            // name: the photo stays for the person to name. Agreement or an unsure validator changes nothing.
-            const verdict = qualified ? await validateSpecies(picture, crop, qualified.label).catch(() => null) : null;
-            const best = verdict?.kind === 'differs' ? undefined : qualified;
-            // No species certain enough: the family may be ("Owls"), from the unpersonalised ranking; else nothing.
-            // A species the validator disagreed with is left for the person, without a family guess.
-            const family = qualified ? undefined : familyFallback(rankSpecies(embedding, labels, vectors));
-            const named = best ? { name: best.label.common, probability: best.probability, kind: kindFor(best.label) }
-              : family ? { name: family.family, probability: family.probability, kind: 'wildlife' as const } : undefined;
             // The gate looks at the same square as the species model. If it fails, nothing is decided for this photo.
             const gate = await routeAndEmbedPicture(picture, crop);
             const outcome = gateOutcome(gate.route, frame.subjectKind);
+            // Name only from the group the gate saw (an insect from the insect lists); every group when it is not sure.
+            const groups = speciesGroupsForRoute(gate.route?.category?.id);
+            const keep = localLabels.labels.map((label, i) => (!groups || groups.includes(label.group) ? i : -1)).filter((i) => i >= 0);
+            const labels = groups ? keep.map((i) => localLabels.labels[i]) : localLabels.labels;
+            const vectors = groups ? keep.map((i) => localLabels.vectors[i]) : localLabels.vectors;
+            // If the best match across every list is from another group, the gate and the species model disagree: no name.
+            const agrees = gateAgreesWithSpecies(groups, groups ? rankSpecies(embedding, localLabels.labels, localLabels.vectors)[0]?.label : undefined);
+            const top = agrees ? pickSuggestions(rankSpecies(embedding, labels, vectors, personalBonus(labels, readSpeciesCounts())))[0] : undefined;
+            const qualified = top && qualifiesForAutoTag(top, embedding, labels, vectors) ? top : undefined;
+            // With the optional BioCLIP 2 validator installed (desktop), a clear disagreement withholds the automatic
+            // name: the photo stays for the person to name. Agreement or an unsure validator changes nothing.
+            const verdict = qualified ? await validateSpecies(picture, crop, qualified.label).catch(() => null) : null;
+            // Then the Vision guardian (owner decision 2): one plain question about the name. A clear "no" withholds the
+            // automatic name the same way, leaving the photo for the person; agreement or doubt changes nothing.
+            const guardian = qualified && verdict?.kind !== 'differs' && stillCurrent()
+              ? await canvasJpeg(picture).then((jpeg) => (jpeg ? askGuardianAbout(jpeg, 'speciesPlausible', qualified.label.common) : null)).catch(() => null)
+              : null;
+            const best = verdict?.kind === 'differs' || guardian?.verdict === 'disagrees' ? undefined : qualified;
+            // No species certain enough: the family may be ("Owls"), from the unpersonalised ranking; else nothing.
+            // A species the validator disagreed with is left for the person, without a family guess.
+            const family = qualified || !agrees ? undefined : familyFallback(rankSpecies(embedding, labels, vectors));
+            const named = best ? { name: best.label.common, probability: best.probability, kind: kindFor(best.label) }
+              : family ? { name: family.family, probability: family.probability, kind: 'wildlife' as const } : undefined;
             // The same picture embedding says what kind of vehicle it is, if the gate says it is mostly a vehicle.
             const vehicle = vehicleData && !frame.vehicle && !frame.vehicleDeclined ? readVehicle(gate.embedding, gate.route, vehicleData.labels, vehicleData.vectors) : null;
             const kind = frame.subjectKind ?? outcome.kind;

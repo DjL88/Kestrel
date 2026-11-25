@@ -196,7 +196,7 @@ test('?v2 edits are real: Adjust changes the pixels, Compare splits original and
   // Move Exposure up through the real slider: the recipe becomes a PhotoEdit and the canvas redraws brighter.
   const advanced = root.getByRole('tab', { name: 'Advanced Edits' });
   if (!(await advanced.isVisible())) await root.getByRole('button', { name: 'Adjust', exact: true }).first().click();
-  const curated = root.getByRole('tab', { name: 'Curated Looks' });
+  const curated = root.getByRole('tab', { name: 'Photo styles' });
   await expect(curated).toHaveAttribute('aria-selected', 'true');
   await curated.focus();
   await curated.press('ArrowRight');
@@ -282,13 +282,13 @@ async function importGenerated(page: import('@playwright/test').Page, name: stri
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(count);
 }
 
-test('?v2 Auto-Cull runs on the Basic plan: on-device culling is never Pro (owner decision 13)', async ({ page }) => {
+test('?v2 Auto pick runs on the Basic plan: on-device culling is never Pro (owner decision 13)', async ({ page }) => {
   await page.goto('/?v2');
   await importGenerated(page, 'Basic cull check', 2);
   const root = page.locator('.inflight-v2');
-  await root.getByRole('button', { name: /Auto-Cull/ }).first().click();
-  await expect(root.getByText(/Auto-cull checked 2 photos|Photos checked by Auto-cull: 2/)).toBeVisible({ timeout: 90000 });
-  await expect(root.getByText('Auto-cull is part of InFlight Pro.')).toHaveCount(0);
+  await root.getByRole('button', { name: /Auto pick/ }).first().click();
+  await expect(root.getByText(/Auto pick checked 2 photos|Photos checked by Auto pick: 2/)).toBeVisible({ timeout: 90000 });
+  await expect(root.getByText('Auto pick is part of InFlight Pro.')).toHaveCount(0);
   await expect(root.getByText(/were rejected|has been rejected/)).toHaveCount(0);
 });
 
@@ -296,8 +296,8 @@ test('?v2 marks Pro features with the Pro badge, and leaves Basic features unmar
   await page.goto('/?v2&stub=1');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: /Scottish Highlands/ }).first().click();
-  // Auto-Cull is an on-device model, so it is Basic (owner decision 13): no badge.
-  await expect(root.getByRole('button', { name: /Auto-Cull/ }).first().getByText('Part of InFlight Pro')).toHaveCount(0);
+  // Auto pick is an on-device model, so it is Basic (owner decision 13): no badge.
+  await expect(root.getByRole('button', { name: /Auto pick/ }).first().getByText('Part of InFlight Pro')).toHaveCount(0);
   // Import is Basic: no badge.
   await expect(root.getByRole('button', { name: /^Import/ }).first().getByText('Part of InFlight Pro')).toHaveCount(0);
   // Deep Vision (online AI) is Pro too.
@@ -877,10 +877,10 @@ test('?v2 Look preview belongs only to its selected photo, never the next one', 
   })));
   const strip = root.getByRole('listbox', { name: 'Project photographs' });
   await expect(strip.getByRole('option')).toHaveCount(2);
-  const looksTab = root.getByRole('tab', { name: 'Curated Looks' });
+  const looksTab = root.getByRole('tab', { name: 'Photo styles' });
   if (!(await looksTab.isVisible())) await root.getByRole('button', { name: 'Adjust', exact: true }).first().click();
   await looksTab.click();
-  const looksPanel = root.getByRole('tabpanel', { name: 'Curated Looks' });
+  const looksPanel = root.getByRole('tabpanel', { name: 'Photo styles' });
   const firstLook = looksPanel.getByRole('button').nth(1); // the first Look is the default everywhere
   await strip.getByRole('option').nth(0).click(); // just this photo, so the Look goes to it alone
   await firstLook.click();

@@ -32,7 +32,7 @@ test('the labels file must be BioCLIP 2 vectors (768 dimensions) with a UK list'
 test('the validator pack is desktop-only, MIT weights, its model, main names and each group pinned', () => {
   assert.ok(OPTIONAL_MODELS.includes(BIOCLIP2));
   assert.equal(optionalModelFitsDevice(BIOCLIP2, 'phone'), false);
-  assert.deepEqual(Object.keys(BIOCLIP2.files), ['model', 'labels', 'mammals', 'reptiles']);
+  assert.deepEqual(Object.keys(BIOCLIP2.files), ['model', 'labels', 'mammals', 'reptiles', 'amphibians', 'odonata', 'lepidoptera']);
   for (const file of Object.values(BIOCLIP2.files)) assert.match(file.sha256, /^[0-9a-f]{64}$/);
 });
 
@@ -45,6 +45,6 @@ test('a group file (world mammals) must be BioCLIP 2 vectors with names, or it i
 });
 
 test('every pinned file except the model and the main list is an extra group, in the order added', () => {
-  assert.deepEqual(groupFileNames(BIOCLIP2.files), ['mammals', 'reptiles']);
+  assert.deepEqual(groupFileNames(BIOCLIP2.files), ['mammals', 'reptiles', 'amphibians', 'odonata', 'lepidoptera']);
   assert.deepEqual(groupFileNames({ model: 1, labels: 2 }), []);
 });

@@ -45,7 +45,7 @@ export const cy: AreaTranslation<typeof source> = {
     flat: 'Fflat', tooDark: 'Rhy dywyll', tooBright: 'Rhy olau', other: 'Nodyn',
   },
   slider: {
-    exposure: 'Datguddiad', warmth: 'Cynhesrwydd', colour: 'Lliw', vibrance: 'Bywiogrwydd', contrast: 'Cyferbyniad',
+    exposure: 'Amlygiad', warmth: 'Cynhesrwydd', colour: 'Lliw', vibrance: 'Bywiogrwydd', contrast: 'Cyferbyniad',
     highlights: 'Uchafbwyntiau', shadows: 'Cysgodion', whites: 'Rhannau disgleiriaf', blacks: 'Rhannau tywyllaf',
   },
   errors: {

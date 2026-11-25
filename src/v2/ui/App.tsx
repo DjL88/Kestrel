@@ -9,6 +9,7 @@ import type { EditRecipe, PanelId, Photo } from './contract';
 import { useWorkspace } from './stub';
 import { resolveTheme } from './themePreference';
 import { noticeDurationMs, noticeNeedsDismiss } from './utils/noticeTiming';
+import { phoneNoticeBottom } from './utils/noticePlacement';
 import { STRINGS } from './strings';
 import BrandIcon, { assistModeIconName } from './icons/BrandIcon';
 import ProjectsHub from './screens/ProjectsHub';
@@ -278,6 +279,24 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     return () => clearTimeout(t);
   }, [store.lastActionNotice, noticeSticky, noticePaused, actions]);
   useEffect(() => { setNoticePaused(false); }, [store.lastActionNotice]);
+  // On a phone a notice must never cover the filmstrip (long-press on a thumbnail), the tool bar or an open tool sheet:
+  // it sits just above the highest of them, measured, because their heights change (a sheet opens, the strip resizes).
+  const [noticeBottom, setNoticeBottom] = useState<number | null>(null);
+  useEffect(() => {
+    if (!isMobile || !store.lastActionNotice) { setNoticeBottom(null); return; }
+    const bottomParts = () => [
+      document.querySelector<HTMLElement>('.inflight-v2 .v2-filmstrip'),
+      document.querySelector<HTMLElement>(`.inflight-v2 nav[aria-label="${STRINGS.mobile.toolBar}"]`),
+      document.querySelector<HTMLElement>('.inflight-v2 [data-testid="mobile-sheet-handle"]')?.parentElement ?? null,
+    // Shown, by its box: offsetParent is null for the fixed tool sheet, which left the notice over an open sheet.
+    ].filter((el): el is HTMLElement => Boolean(el && el.getBoundingClientRect().height > 0));
+    const place = () => setNoticeBottom(phoneNoticeBottom(window.innerHeight, bottomParts().map((el) => el.getBoundingClientRect().top)));
+    place();
+    window.addEventListener('resize', place);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place);
+    bottomParts().forEach((el) => observer?.observe(el));
+    return () => { window.removeEventListener('resize', place); observer?.disconnect(); };
+  }, [isMobile, store.lastActionNotice, store.activePanel, store.filmstripCollapsed, sheetHeight]); // sheetHeight: a tool sheet opened, closed or changed size
 
   // One dispatch for every command id, shared by the keydown handler below and the command search dialog,
   // so "what Cmd/Ctrl+K can run" and "what the keyboard shortcut runs" never drift apart.
@@ -1214,7 +1233,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onBlur={() => setNoticePaused(false)}
           className={`fixed right-4 z-50 flex max-w-[min(28rem,calc(100vw-2rem))] items-start gap-2 rounded-[var(--radius-md)] border bg-[var(--bg-surface-raised)] py-2 pl-3.5 pr-1.5 text-xs font-medium text-[var(--text-primary)] shadow-[var(--shadow-popover)] ${
             noticeSticky ? 'border-[var(--semantic-warning)]' : 'border-[var(--border-default)]'
-          } ${isMobile ? 'bottom-20' : 'bottom-4'}`}
+          } ${isMobile ? (noticeBottom === null ? 'bottom-20' : '') : 'bottom-4'}`}
+          style={isMobile && noticeBottom !== null ? { bottom: noticeBottom } : undefined}
+          data-testid="action-notice"
         >
           {noticeSticky && <BrandIcon name="alert" size={14} className="mt-0.5 shrink-0 text-[var(--semantic-warning)]" />}
           <span className="min-w-0 flex-1 py-0.5 leading-relaxed">{store.lastActionNotice}</span>

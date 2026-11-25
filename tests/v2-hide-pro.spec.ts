@@ -23,9 +23,9 @@ async function openEditor(page: import('@playwright/test').Page) {
   return root;
 }
 
-test('?v2 Basic: Hide Pro features removes the online review block but keeps on-device Auto-Cull, and switching it off brings it back', async ({ page }) => {
+test('?v2 Basic: Hide Pro features removes the online review block but keeps on-device Auto pick, and switching it off brings it back', async ({ page }) => {
   const root = await openEditor(page);
-  await expect(root.getByRole('button', { name: /Auto-Cull/ })).toBeVisible();
+  await expect(root.getByRole('button', { name: /Auto pick/ })).toBeVisible();
   await root.getByRole('button', { name: /Co-pilot|Flight|Solo|Auto-pilot/ }).first().click();
   await expect(root.getByText(/Online review is unavailable/)).toBeVisible();
 
@@ -36,8 +36,8 @@ test('?v2 Basic: Hide Pro features removes the online review block but keeps on-
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
   await page.getByRole('button', { name: 'Close settings' }).click();
-  // Auto-Cull is an on-device model, so it is Basic (owner decision 13) and is never hidden as Pro.
-  await expect(root.getByRole('button', { name: /Auto-Cull/ })).toBeVisible();
+  // Auto pick is an on-device model, so it is Basic (owner decision 13) and is never hidden as Pro.
+  await expect(root.getByRole('button', { name: /Auto pick/ })).toBeVisible();
   await expect(root.getByText(/Online review is unavailable/)).toHaveCount(0);
 
   await openV2Settings(page);

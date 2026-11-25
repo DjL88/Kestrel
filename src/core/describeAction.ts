@@ -8,7 +8,7 @@ function name(entry: DecisionHistoryEntry, frames: readonly PhotoFrame[]): strin
 export function describeEntry(entry: DecisionHistoryEntry, frames: readonly PhotoFrame[]): string {
   const count = entry.batch?.length ?? 1;
   if (entry.removal) return count > 1 ? `Remove ${count} photos from the library` : `Remove ${name(entry, frames)} from the library`;
-  if (entry.batch && count > 1) return `Auto-cull (${count} photos)`;
+  if (entry.batch && count > 1) return `Auto pick (${count} photos)`;
   const file = name(entry, frames);
   if (entry.nextDecision === 'keep') return `Keep ${file}`;
   if (entry.nextDecision === 'reject') return `Move ${file} to Trash`;
