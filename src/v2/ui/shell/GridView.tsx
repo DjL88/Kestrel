@@ -1,20 +1,25 @@
 import React from 'react';
-import type { Photo } from '../contract';
+import type { FilmstripFilter, Photo, PhotoSort } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
-import { filterPhotos } from '../utils/studioMath';
+import { viewPhotos } from '../utils/studioMath';
+import { DecisionFilter, ViewOptions } from './PhotoViewControls';
 
 interface GridViewProps {
   photos: Photo[];
   activePhotoId: string | null;
   selectedPhotoIds: string[];
-  filter: 'all' | 'flagged' | 'set-aside';
+  filter: FilmstripFilter;
   search: string;
+  minRating: number;
+  sort: PhotoSort;
+  onSetMinRating: (rating: number) => void;
+  onSetSort: (sort: PhotoSort) => void;
   onSelectPhoto: (photoId: string, modifiers?: { ctrl?: boolean; shift?: boolean }) => void;
   onOpenInEditor: (photoId: string) => void;
   onToggleFlag: (photoIds: string[]) => void;
   onSetRating: (photoIds: string[], rating: number) => void;
-  onSetFilter: (filter: 'all' | 'flagged' | 'set-aside') => void;
+  onSetFilter: (filter: FilmstripFilter) => void;
   onSetSearch: (q: string) => void;
   onClose: () => void;
 }
@@ -25,6 +30,10 @@ export default function GridView({
   selectedPhotoIds,
   filter,
   search,
+  minRating,
+  sort,
+  onSetMinRating,
+  onSetSort,
   onSelectPhoto,
   onOpenInEditor,
   onToggleFlag,
@@ -33,9 +42,8 @@ export default function GridView({
   onSetSearch,
   onClose,
 }: GridViewProps) {
-  const visible = filterPhotos(photos, filter, search);
+  const visible = viewPhotos(photos, { filter, search, minRating, sort });
   const flaggedCount = photos.filter((p) => p.decision === 'keep').length;
-  const setAsideCount = photos.filter((p) => p.decision === 'reject').length;
 
   return (
     <section
@@ -54,36 +62,8 @@ export default function GridView({
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-0.5">
-            <button
-              type="button"
-              onClick={() => onSetFilter('all')}
-              className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-                filter === 'all'
-                  ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              {STRINGS.filmstrip.filterAll}
-            </button>
-            <button
-              type="button"
-              onClick={() => onSetFilter('flagged')}
-              className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-                filter === 'flagged'
-                  ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              {STRINGS.filmstrip.filterFlagged} ({flaggedCount})
-            </button>
-          </div>
-
-          <button type="button" onClick={() => onSetFilter('set-aside')}
-            aria-pressed={filter === 'set-aside'}
-            className={`h-8 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] px-2 text-xs font-medium ${filter === 'set-aside' ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
-            Set aside ({setAsideCount})
-          </button>
+          <DecisionFilter photos={photos} filter={filter} onSetFilter={onSetFilter} />
+          <ViewOptions minRating={minRating} sort={sort} onSetMinRating={onSetMinRating} onSetSort={onSetSort} opensUp={false} />
           <div className="relative">
             <BrandIcon
               name="search"
