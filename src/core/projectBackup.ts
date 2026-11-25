@@ -1,4 +1,4 @@
-import { MAX_EDIT_HISTORY_STEPS, type EditKind } from './editHistory';
+import { MAX_EDIT_HISTORY_STEPS, validWhy, type EditKind } from './editHistory';
 import { readCollage } from './collage';
 import { parseSettings } from './projectSettings';
 import { validMasks } from './maskTypes';
@@ -74,7 +74,7 @@ function historyIsValid(value: unknown): boolean {
   if (!record(value) || !Array.isArray(value.steps) || value.steps.length > MAX_EDIT_HISTORY_STEPS ||
     !number(value.cursor, 0, value.steps.length) || !Number.isInteger(value.cursor)) return false;
   return value.steps.every((step: unknown) => record(step) && text(step.kind) && editKinds.has(step.kind as EditKind) &&
-    number(step.at, 0) && recipeIsValid(step.before) && recipeIsValid(step.after));
+    number(step.at, 0) && recipeIsValid(step.before) && recipeIsValid(step.after) && (step.why === undefined || validWhy(step.why)));
 }
 
 function frameIsValid(value: unknown): value is PhotoFrame {
