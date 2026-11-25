@@ -353,8 +353,6 @@ export interface Photo {
   speciesLabel?: string;
   /** What kind of vehicle or aircraft it probably is, in the person's language ("Military jet: Eurofighter Typhoon (probably)"). */
   vehicleLabel?: string;
-  /** Extra words the photo can be found by (a vehicle's kind in this language and in English, its type name). */
-  searchTerms?: string[];
   /** The subject name alone, without the "(suggested)" marker the label may carry, for editing it. */
   speciesName?: string;
   /** The vehicle reading's ids, so a correction starts from what is shown. */
