@@ -73,6 +73,7 @@ export async function runDeepVisionReview(frame: PhotoFrame, provider: BrowserPr
   const detection = await runSubjectDetectAction({
     frameId: frame.id,
     detect: () => findSubject(source, signal),
+    signal,
   });
   if (signal?.aborted) return null;
 
