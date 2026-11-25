@@ -362,7 +362,23 @@ async function loadUsage() {
   $('usage-table').closest('.scroll').hidden = u.accounts.length === 0;
 }
 
+async function loadPaddleKey() {
+  let k;
+  try { k = await api('admin/paddle/key'); } catch (error) {
+    if (error instanceof SignedOut) throw error;
+    $('paddle-key-state').textContent = '';
+    return;
+  }
+  const date = (iso) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const parts = [];
+  if (k.expiresAt) parts.push(`Paddle API key renews itself. Last renewed ${date(k.rotatedAt)}; it expires ${date(k.expiresAt)} unless renewed again.`);
+  else parts.push('Paddle API key: not renewed by InFlight yet. The weekly check renews it on its first run.');
+  if (k.lastRunOk === false) parts.push(`Warning: the last weekly check failed (${date(k.lastRunAt)}): ${k.lastRunReason}`);
+  $('paddle-key-state').textContent = parts.join(' ');
+}
+
 async function loadPayments() {
+  void loadPaddleKey();
   const p = await api('admin/payments');
   $('payments-state').textContent = p.connected
     ? 'Paid checkouts recorded after Paddle confirmed them. Amounts are what Paddle pays out; Paddle handles the buyer\'s tax.'
