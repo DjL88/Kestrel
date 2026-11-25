@@ -545,6 +545,8 @@ export const cy: AreaTranslation<typeof source> = {
     commentPin: 'Pinio i fan',
     commentUnpin: 'Tynnu’r pin',
     commentSend: 'Sylw',
+    sharedKeepBoth: 'Cadw’r ddau',
+    sharedViewOnly: (role: string) => `Rydych yn ${role} yn y prosiect hwn: gallwch edrych a rhoi sylwadau, a’r perchennog neu olygydd sy’n newid y llun.`,
   },
   adjust: {
     grade: {

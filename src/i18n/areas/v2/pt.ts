@@ -545,6 +545,8 @@ export const pt: AreaTranslation<typeof source> = {
     commentPin: 'Fixar num ponto',
     commentUnpin: 'Retirar ponto',
     commentSend: 'Comentar',
+    sharedKeepBoth: 'Manter ambas',
+    sharedViewOnly: (role: string) => `A sua função neste projeto: ${role}. Pode ver e comentar; o proprietário ou um editor altera a fotografia.`,
   },
   adjust: {
     grade: {
