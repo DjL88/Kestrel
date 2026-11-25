@@ -1,3 +1,4 @@
+import { pictureProvenance, type PictureSource } from '../../core/pictureSource';
 import { applyFormats, applySizeLinked } from './formatOps';
 import { framedSize, DEFAULT_FRAMING } from '../../core/photoFraming';
 import { readVideoZoom } from './videoZoomOps';
@@ -144,7 +145,7 @@ export function tileStateFor(urls: FrameUrls | undefined): TileState {
  * not record says "Not recorded" (or is left empty), never an invented value. The edit, size and mask parts start as the
  * UI's neutral defaults; they are connected to the real recipe in a later step.
  */
-export interface PhotoExtras { pixelSize?: { width: number; height: number }; /** Measured from a connected, decoded JPEG/PNG original, not EXIF or a preview. */ verifiedOriginalSize?: { width: number; height: number }; assist?: AssistState; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram; originalConnected?: boolean }
+export interface PhotoExtras { pixelSize?: { width: number; height: number }; /** Measured from a connected, decoded JPEG/PNG original, not EXIF or a preview. */ verifiedOriginalSize?: { width: number; height: number }; assist?: AssistState; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram; originalConnected?: boolean; /** What the provider recorded for each address (BrowserPreviewProvider.pictureSourceOf). */ sources?: { preview?: PictureSource; thumb?: PictureSource } }
 
 /** Decoded JPEG/PNG pixel size (after framing), or null when not measured. */
 function verifiedFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { width: number; height: number }): { width: number; height: number } | null {
@@ -177,7 +178,9 @@ export function originalFormatSize(frame: PhotoFrame, verifiedOriginalSize?: { w
 }
 
 export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, extras: PhotoExtras = {}): Photo {
-  const { assist, watermarkAuto, histogram, pixelSize, verifiedOriginalSize } = extras;
+  const { assist, watermarkAuto, histogram, pixelSize, verifiedOriginalSize, sources } = extras;
+  const shownPreview = pictureProvenance(urls?.preview ? sources?.preview : sources?.thumb, frame.rawCodec);
+  const shownThumb = pictureProvenance(sources?.thumb, frame.rawCodec);
   const { exif } = frame;
   const nativeSize = verifiedFormatSize(frame, verifiedOriginalSize);
   const originalSize = originalFormatSize(frame, verifiedOriginalSize, pixelSize);
@@ -257,6 +260,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     ...(frame.formatHistory ? { formatHistory: readFormatHistory(frame.formatHistory).events.map(({ formatId, kind, at, parentFormatId, forkEditCursor }) => ({ formatId, kind, at, ...(parentFormatId ? { parentFormatId } : {}), ...(forkEditCursor !== undefined ? { forkEditCursor } : {}) })) } : {}),
     ...(watermarkAuto ? { watermarkAuto } : {}),
     ...(histogram ? { histogram } : {}),
+    ...(shownPreview || shownThumb ? { picture: { ...(shownPreview ? { preview: shownPreview } : {}), ...(shownThumb ? { thumb: shownThumb } : {}) } } : {}),
     assistCritique: assistCritiqueFor(assist && matchesAutoSource(assist.run, frame) ? assist : undefined, frame.edit),
   };
 }

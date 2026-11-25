@@ -410,6 +410,18 @@ export const cy: AreaTranslation<typeof source> = {
     title: (raw: string, jpeg: string) => `${raw} a ${jpeg} yw’r un llun. Cedwir y ddwy ffeil; mae marciau a sêr yn berthnasol i’r ddwy.`,
     infoLabel: "JPEG pâr",
   },
+  pictureSource: {
+    camera: "Rhagolwg y camera",
+    raw: "Wedi’i ddatblygu o’r RAW",
+    cameraShort: "Rhagolwg",
+    rawShort: "RAW",
+    cameraDetail: "Y JPEG a gadwodd y camera y tu mewn i’r ffeil RAW. Nid yw InFlight wedi datblygu data’r synhwyrydd eto.",
+    rawScreenDetail: "Wedi’i ddatblygu gan InFlight o ddata synhwyrydd y RAW, ar faint sgrin.",
+    rawFullDetail: "Wedi’i ddatblygu gan InFlight o ddata synhwyrydd y RAW, ar faint llawn.",
+    he: 'Nikon High Efficiency',
+    heStar: 'Nikon High Efficiency*',
+    infoLabel: "Llun a ddangosir",
+  },
   canvas: {
     selectPhoto: "Dewiswch lun o’r stribed lluniau i ddechrau golygu.",
     resizeText: "Newid maint y testun",

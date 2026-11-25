@@ -411,6 +411,18 @@ export const gd: AreaTranslation<typeof source> = {
     title: (raw: string, jpeg: string) => `’S e an aon dealbh a th’ ann an ${raw} is ${jpeg}. Thèid an dà fhaidhle a chumail; buinidh comharran is rionnagan don dà chuid.`,
     infoLabel: "JPEG paidhrichte",
   },
+  pictureSource: {
+    camera: "Ro-shealladh a’ chamara",
+    raw: "Air a leasachadh on RAW",
+    cameraShort: "Ro-shealladh",
+    rawShort: "RAW",
+    cameraDetail: "An JPEG a shàbhail an camara am broinn an fhaidhle RAW. Cha do leasaich InFlight dàta a’ mhothaiche fhathast.",
+    rawScreenDetail: "Air a leasachadh le InFlight o dhàta mothaiche an RAW, aig meud na sgrìn.",
+    rawFullDetail: "Air a leasachadh le InFlight o dhàta mothaiche an RAW, aig làn-mheud.",
+    he: 'Nikon High Efficiency',
+    heStar: 'Nikon High Efficiency*',
+    infoLabel: "An dealbh a chithear",
+  },
   canvas: {
     selectPhoto: "Tagh dealbh on stiall fhilm gus tòiseachadh air deasachadh.",
     resizeText: "Atharraich meud an teacsa",

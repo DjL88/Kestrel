@@ -374,6 +374,9 @@ export interface Photo {
   pixelSize?: { width: number; height: number };
   /** Measured from the picture as it is now. Absent until measured; the interface shows nothing rather than a guess. */
   histogram?: PhotoHistogram | null;
+  /** Which picture of a RAW each view shows: the camera's embedded preview or InFlight's develop from the sensor data,
+   * as recorded when the preview was made. Absent for JPEG/PNG files and while nothing is shown yet. */
+  picture?: { preview?: import('../../core/pictureSource').PictureProvenance; thumb?: import('../../core/pictureSource').PictureProvenance };
   /** Good, better or best, from the engine's decision maker. Shown as a word, never as a number. */
   tier?: PhotoTier | null;
   /** What 'auto' resolves to for this photo's watermark, measured on the pixels behind it. Absent until measured. */

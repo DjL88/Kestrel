@@ -9,6 +9,7 @@ import { validDehaze } from './dehaze';
 import { validDefringe, validLateralCa } from './fringe';
 import { validGrain, validVignette } from './finishing';
 import { validAsShot, validWhiteBalance } from './asShotWhite';
+import { isRawCodec } from './pictureSource';
 import type { CullingState, FilterState, PhotoFrame, ShootDescriptor } from './types';
 import { DEVELOP_VERSION } from './backgroundDevelop';
 
@@ -95,6 +96,7 @@ function frameIsValid(value: unknown): value is PhotoFrame {
   if (value.cullConfidence !== undefined && !['high', 'medium', 'low'].includes(value.cullConfidence as string)) return false;
   if (value.cullScore !== undefined && !number(value.cullScore, 0, 100)) return false;
   if (value.asShotWhite !== undefined && !validAsShot(value.asShotWhite)) return false;
+  if (value.rawCodec !== undefined && !isRawCodec(value.rawCodec)) return false;
   for (const field of ['autoTags', 'declinedTags']) {
     if (value[field] !== undefined && (!Array.isArray(value[field]) || (value[field] as unknown[]).length > 48 || !(value[field] as unknown[]).every(text))) return false;
   }

@@ -413,6 +413,18 @@ export const ga: AreaTranslation<typeof source> = {
     title: (raw: string, jpeg: string) => `Is grianghraf amháin iad ${raw} agus ${jpeg}. Coinnítear an dá chomhad; baineann marcanna agus réaltaí leis an dá cheann.`,
     infoLabel: "JPEG péireáilte",
   },
+  pictureSource: {
+    camera: "Réamhamharc an cheamara",
+    raw: "Forbartha ón RAW",
+    cameraShort: "Réamhamharc",
+    rawShort: "RAW",
+    cameraDetail: "An JPEG a shábháil an ceamara taobh istigh den chomhad RAW. Níl sonraí an bhraiteora forbartha ag InFlight fós.",
+    rawScreenDetail: "Forbartha ag InFlight ó shonraí braiteora an RAW, ar mhéid scáileáin.",
+    rawFullDetail: "Forbartha ag InFlight ó shonraí braiteora an RAW, ar lánmhéid.",
+    he: 'Nikon High Efficiency',
+    heStar: 'Nikon High Efficiency*',
+    infoLabel: "Pictiúr a thaispeántar",
+  },
   canvas: {
     selectPhoto: "Roghnaigh grianghraf ón stiall scannáin chun tosú ag eagarthóireacht.",
     resizeText: "Athraigh méid an téacs",
