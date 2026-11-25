@@ -513,6 +513,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const regrouped = current ? regroupBurstsWithEmbeddings(current.frames) : null;
       return current && regrouped ? { ...current, frames: regrouped } : current;
     }),
+    onUnavailable: (message) => setNotice(message),
   });
 
   const activePhotoExport = useRef<number | null>(null);
