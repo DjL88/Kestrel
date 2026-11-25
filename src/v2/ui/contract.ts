@@ -326,6 +326,8 @@ export interface Photo {
   id: string;
   /** The same photo on every device of a shared project: from the original's fingerprint (src/core/sharedSync.ts). */
   sharedKey?: string;
+  /** A cloud preview of someone else's original: fine for viewing, commenting and editing, not the full file. */
+  cloudPreview?: boolean;
   filename: string;
   title: string;
   previewUrl: string;
@@ -668,6 +670,10 @@ export interface WorkspaceActions {
   applySharedEdit?: (photoId: string, edit: Record<string, unknown> | null) => void;
   /** On a clash: keep this device's edit as a virtual copy beside the photo, and give the photo the shared edit. Returns the copy's id. */
   keepBothShared?: (photoId: string, theirs: Record<string, unknown> | null) => string | null;
+  /** Add photos fetched from a shared project's cloud store to this project, linked to the owner's originals. */
+  importCloudPreviews?: (items: { file: File; projectId: string; photoKey: string }[]) => Promise<void>;
+  /** The photo's exact original bytes, checked against its fingerprint, or null when the original is not connected. */
+  readVerifiedOriginal?: (photoId: string) => Promise<Blob | null>;
   dismissAssistSuggestion: (photoId: string, suggestionId: string) => void;
 
   // Editing & Looks

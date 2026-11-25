@@ -79,6 +79,14 @@ export class CollabStore {
   }
 
   /** For other shared-project features (galleries): refuses unless this account may do this here. */
+  /** Who pays for the project's cloud downloads and storage: its earliest owner. */
+  async payerOf(projectId: string): Promise<string> {
+    const project = await this.db.runTransaction((tx) => this.readProject(tx, projectId));
+    const owners = project.members.filter((member) => member.role === 'owner').sort((a, b) => a.addedAtMs - b.addedAtMs);
+    if (!owners.length) throw new CollabRefusal(404, 'NOT_FOUND', 'No such shared project.');
+    return owners[0].accountId;
+  }
+
   async requireMember(projectId: string, accountId: string, capability: CollabCapability, photoId?: string): Promise<ProjectMember> {
     const project = await this.db.runTransaction((tx) => this.readProject(tx, projectId));
     return this.memberOrRefuse(project, accountId, capability, photoId);
