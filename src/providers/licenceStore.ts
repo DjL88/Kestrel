@@ -207,6 +207,12 @@ export async function freeLicenceDevice(activationId: string): Promise<boolean> 
 
 /** Account-based licences have no pasted key; these calls never activate a device. */
 export const accountLicenceDevices = (idToken: string) => sync.accountDevices(idToken);
+/** After signing up or in: put the KESTREL1 key saved on this device on the account, so its devices come too. */
+export async function attachDeviceKeyToAccount(idToken: string): Promise<'none' | 'attached' | 'already' | 'other' | 'invalid' | 'unreachable'> {
+  const key = storedKey();
+  if (!key) return 'none';
+  return sync.attachKey(idToken, key);
+}
 export const freeAccountLicenceDevice = (idToken: string, activationId: string) => sync.releaseAccountDevice(idToken, activationId);
 
 /** Buying Pro (see src/core/proCheckout.ts). After a paid answer, activateFromAccount puts Pro on this device. */

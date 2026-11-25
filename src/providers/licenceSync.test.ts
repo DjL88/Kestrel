@@ -231,3 +231,32 @@ test('checking a checkout reuses the session, renews it once when it expired, an
   assert.equal(await env.sync.proCheckoutStatus('id-token', 'txn_01testcheckout01'), 'retry');
   assert.equal(await env.sync.proCheckoutStatus('id-token', '../admin'), 'gone');
 });
+
+test('attaching the device key to the account: once, never from another account, and nothing without a session', async () => {
+  const requests: Array<{ url: string; body: any; auth?: string }> = [];
+  let answer: [number, unknown] = [200, { attached: true, already: false }];
+  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+  const make = (signIn = true) => new LicenceSync({
+    baseUrl: 'https://licences.example.test', grantKeys: { k1: 'unused' },
+    storage: { getItem: () => null, setItem: () => undefined, removeItem: () => undefined },
+    fetch: (async (url: string, init: RequestInit) => {
+      requests.push({ url, body: JSON.parse(String(init.body)), auth: (init.headers as Record<string, string>).authorization });
+      if (url.endsWith('/v1/auth/firebase')) return signIn ? json({ accessToken: 'fresh-session' }) : json({}, 401);
+      return json(answer[1], answer[0]);
+    }) as unknown as typeof fetch,
+    now: () => 1, platform: 'windows', appVersion: '1.0.0', randomId: () => 'device',
+  });
+  const sync = make();
+  assert.equal(await sync.attachKey('id-token', ' KESTREL1.abc.def '), 'attached');
+  assert.deepEqual(requests[1], { url: 'https://licences.example.test/v1/me/licence/attach', body: { licenceKey: 'KESTREL1.abc.def' }, auth: 'Bearer fresh-session' });
+  answer = [200, { attached: false, already: true }];
+  assert.equal(await sync.attachKey('id-token', 'KESTREL1.abc.def'), 'already');
+  answer = [409, { error: { code: 'LICENCE_ON_OTHER_ACCOUNT' } }];
+  assert.equal(await sync.attachKey('id-token', 'KESTREL1.abc.def'), 'other');
+  answer = [400, { error: { code: 'LICENCE_INVALID' } }];
+  assert.equal(await sync.attachKey('id-token', 'KESTREL1.abc.def'), 'invalid');
+  const count = requests.length;
+  assert.equal(await make(false).attachKey('id-token', 'KESTREL1.abc.def'), 'unreachable');
+  assert.equal(requests.length, count + 1, 'no attach request without a session');
+  assert.equal(await sync.attachKey('id-token', '  '), 'unreachable');
+});

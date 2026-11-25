@@ -105,6 +105,16 @@ export class SqliteStore implements Store {
   async claimLicencesForEmail(emailHash: string, accountId: string) {
     return this.run('UPDATE licences SET account_id = ? WHERE email_hash = ? AND account_id IS NULL', accountId, emailHash);
   }
+  async attachLicenceToAccount(licenceId: string, accountId: string, ifNew: LicenceRecord): Promise<'attached' | 'already' | 'other'> {
+    return this.transaction(() => {
+      const current = this.readLicence(licenceId);
+      if (!current) { this.writeLicence({ ...ifNew, licenceId, accountId }); return 'attached'; }
+      if (current.accountId === accountId) return 'already';
+      if (current.accountId) return 'other';
+      this.run('UPDATE licences SET account_id = ? WHERE licence_id = ? AND account_id IS NULL', accountId, licenceId);
+      return 'attached';
+    });
+  }
   async getLicence(licenceId: string) { return this.readLicence(licenceId); }
   async listLicencesForAccount(accountId: string) { return this.all<LicenceRow>('SELECT * FROM licences WHERE account_id = ? ORDER BY licence_id', accountId).map(licence); }
   async hasActiveManagedAi(accountId: string) { return !!this.get('SELECT 1 FROM licences WHERE account_id = ? AND managed_ai = 1 AND status = \'active\'', accountId); }
