@@ -1421,6 +1421,7 @@ export const is: AreaTranslation<typeof source> = {
     ownStorage: 'Þín eigin drif, NAS og skýjamöppur kosta ekkert hér.',
     storageNoneIncluded: 'Basic inniheldur enga skýjageymslu. Hún er greidd af skýjainneigninni, eða Pro inniheldur 2,5 GB.',
     storagePlanSoon: (s, p) => `Væntanlegt: föst geymsluáskrift, ${s} fyrir ${p} á mánuði með beingreiðslu.`,
+    storageHolds: (s, p, r, j) => `${s} rúma um ${p} myndir sem forskoðanir, ${r} með 25 MP RAW-frumritum eða ${j} með 25 MP JPEG-frumritum.`,
     taskUses: (n, l) => `Notar ${n} af mánaðarlegum skýjamyndum þínum (${l} eftir á eftir)`,
     taskPays: (n, a) => `${n} myndir umfram mánaðarkvótann: ${a} af skýjainneigninni`,
     taskOnDevice: 'Ekki næg skýjainneign: þetta verk keyrir á þessu tæki',

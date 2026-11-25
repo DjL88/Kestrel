@@ -1421,6 +1421,7 @@ export const de: AreaTranslation<typeof source> = {
     ownStorage: 'Eigene Laufwerke, NAS und Cloud-Ordner kosten hier nichts.',
     storageNoneIncluded: 'Basic enthält keinen Cloud-Speicher. Er wird vom Cloud-Guthaben bezahlt, oder Pro enthält 2,5 GB.',
     storagePlanSoon: (s, p) => `Demnächst: ein fester Speicherplan, ${s} für ${p} im Monat per Lastschrift.`,
+    storageHolds: (s, p, r, j) => `${s} reichen für etwa ${p} Fotos als Vorschau, ${r} mit 25-MP-RAW-Originalen oder ${j} mit 25-MP-JPEG-Originalen.`,
     taskUses: (n, l) => `Verbraucht ${n} deiner monatlichen Cloud-Fotos (danach noch ${l})`,
     taskPays: (n, a) => `${n} Fotos über dein Monatskontingent: ${a} vom Cloud-Guthaben`,
     taskOnDevice: 'Nicht genug Cloud-Guthaben: Diese Aufgabe läuft auf diesem Gerät',

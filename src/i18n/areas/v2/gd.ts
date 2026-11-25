@@ -1422,6 +1422,7 @@ export const gd: AreaTranslation<typeof source> = {
     ownStorage: 'Chan eil na draibhean, NAS is pasgain neòil agad fhèin a’ cosg dad an seo.',
     storageNoneIncluded: 'Chan eil stòras neòil sam bith am broinn Basic. Thèid a phàigheadh às a’ chothromachadh neòil, no tha 2.5 GB am broinn Pro.',
     storagePlanSoon: (s, p) => `A’ tighinn a dh’aithghearr: plana stòrais suidhichte, ${s} airson ${p} sa mhìos le debit dìreach.`,
+    storageHolds: (s, p, r, j) => `Cumaidh ${s} mu ${p} dealbhan mar ro-sheallaidhean, no ${r} le tùsan RAW 25 MP, no ${j} le tùsan JPEG 25 MP.`,
     taskUses: (n, l) => `Cleachdaidh e ${n} de na dealbhan neòil mìosail agad (${l} air fhàgail às a dhèidh)`,
     taskPays: (n, a) => `${n} dealbhan thairis air a’ chuibhreann mìosail agad: ${a} on chothromachadh neòil`,
     taskOnDevice: 'Chan eil cothromachadh neòil gu leòr ann: ruithidh an t-saothair seo air an uidheam seo',

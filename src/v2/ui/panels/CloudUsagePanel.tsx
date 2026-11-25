@@ -1,5 +1,5 @@
 import React from 'react';
-import { STORAGE_PLANS, TOP_UP_PENCE, formatBytes, formatPence, usageSummary, type CloudUsage, type UsageMeter } from '../../../core/cloudPlan';
+import { STORAGE_PLANS, TOP_UP_PENCE, formatBytes, formatPence, photosThatFit, usageSummary, type CloudUsage, type UsageMeter } from '../../../core/cloudPlan';
 import { STRINGS } from '../strings';
 
 /**
@@ -14,6 +14,10 @@ export default function CloudUsagePanel({ usage, onTopUp }: { usage: CloudUsage;
   const amount = (m: UsageMeter) => m.id === 'photos'
     ? words.used(m.used.toLocaleString(), m.included.toLocaleString())
     : m.included === 0 ? formatBytes(m.used) : words.used(formatBytes(m.used), formatBytes(m.included));
+  const holds = (bytes: number) => {
+    const fit = photosThatFit(bytes);
+    return words.storageHolds(formatBytes(bytes), fit.previews.toLocaleString(), fit.withRawOriginals.toLocaleString(), fit.withJpegOriginals.toLocaleString());
+  };
 
   return (
     <section aria-labelledby="cloud-usage-title" data-testid="v2-cloud-usage" className="space-y-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-4">
@@ -32,6 +36,7 @@ export default function CloudUsagePanel({ usage, onTopUp }: { usage: CloudUsage;
             {m.included > 0
               ? <progress aria-label={`${label[m.id]}: ${amount(m)}`} max={100} value={m.percent} className="block h-2 w-full" />
               : <p className="text-xs text-[var(--text-secondary)]">{words.storageNoneIncluded}</p>}
+            {m.id === 'storage' && m.included > 0 && <p data-testid="cloud-storage-holds" className="text-xs text-[var(--text-muted)]">{holds(m.included)}</p>}
             {m.chargePence > 0 && <p className="text-xs text-[var(--text-secondary)]">{words.extra(formatPence(Math.ceil(m.chargePence)))}</p>}
           </li>
         ))}
@@ -54,7 +59,7 @@ export default function CloudUsagePanel({ usage, onTopUp }: { usage: CloudUsage;
         </div>
         {!onTopUp && <p className="text-xs text-[var(--text-muted)]">{words.topUpSoon}</p>}
         {STORAGE_PLANS.filter((p) => !p.available).map((p) => (
-          <p key={p.id} data-testid="cloud-storage-plan" className="text-xs text-[var(--text-muted)]">{words.storagePlanSoon(formatBytes(p.bytes), formatPence(p.monthlyPence))}</p>
+          <p key={p.id} data-testid="cloud-storage-plan" className="text-xs text-[var(--text-muted)]">{words.storagePlanSoon(formatBytes(p.bytes), formatPence(p.monthlyPence))} {holds(p.bytes)}</p>
         ))}
         <p className="text-xs text-[var(--text-muted)]">{words.ownStorage}</p>
       </div>

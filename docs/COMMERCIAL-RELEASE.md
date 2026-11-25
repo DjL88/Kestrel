@@ -19,7 +19,7 @@
 - Allowances reset on the 1st of each month (UTC). Running out never blocks local editing and never deletes files: cloud work pauses until a top-up or the next month, and a cloud task runs on the device instead.
 - People are encouraged to use their own drives, NAS and cloud folders, which cost InFlight nothing.
 - Pro Cloud (£99) is withdrawn. Storage is pay per GB from the balance, so heavy users pay for what they use.
-- Fixed storage plan (owner, 25 Nov 2026), alongside pay per GB: 100 GB for £6.99 a month by Direct Debit, a recurring Paddle subscription. It goes on sale when Paddle checkout is live (`STORAGE_PLANS` in `src/core/cloudPlan.ts`, `available: false` until then). Its margin is 66% even when completely full, and the unit test checks every plan stays at 60% or more.
+- Fixed storage plan (owner, 25 Nov 2026), alongside pay per GB: 100 GB for £6.99 a month by Direct Debit, a recurring Paddle subscription. It goes on sale when Paddle checkout is live (`STORAGE_PLANS` in `src/core/cloudPlan.ts`, `available: false` until then). Each cloud photo keeps a 2048 px preview and thumbnail (about 1 MB); originals go up only when chosen (25 MP RAW about 30 MB, 25 MP JPEG about 10 MB). So 2.5 GB holds about 2,500 photos as previews, 80 with RAW originals or 220 with JPEG originals, and 100 GB about 100,000, 3,200 or 9,000 (rounded down; `photosThatFit`). Its margin is 66% even when completely full, and the unit test checks every plan stays at 60% or more.
 - Settings → Account shows the three meters, the reset date, the balance and the top-up buttons (`src/v2/ui/panels/CloudUsagePanel.tsx`). Top-ups open when Paddle checkout is live.
 
 ## Earlier proposal · 22 November 2026 (superseded where it differs from the table above)

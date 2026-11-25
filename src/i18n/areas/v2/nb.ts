@@ -1421,6 +1421,7 @@ export const nb: AreaTranslation<typeof source> = {
     ownStorage: 'Dine egne disker, NAS og skymapper koster ingenting her.',
     storageNoneIncluded: 'Basic inkluderer ingen skylagring. Den betales fra skysaldoen, eller Pro inkluderer 2,5 GB.',
     storagePlanSoon: (s, p) => `Kommer snart: en fast lagringsplan, ${s} for ${p} i måneden med fast trekk fra konto.`,
+    storageHolds: (s, p, r, j) => `${s} rommer omtrent ${p} bilder som forhåndsvisninger, ${r} med 25 MP RAW-originaler eller ${j} med 25 MP JPEG-originaler.`,
     taskUses: (n, l) => `Bruker ${n} av dine månedlige skybilder (${l} igjen etterpå)`,
     taskPays: (n, a) => `${n} bilder utover månedskvoten: ${a} fra skysaldoen`,
     taskOnDevice: 'Ikke nok skysaldo: denne oppgaven kjøres på denne enheten',

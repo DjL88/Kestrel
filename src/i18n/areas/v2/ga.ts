@@ -1424,6 +1424,7 @@ export const ga: AreaTranslation<typeof source> = {
     ownStorage: 'Ní chosnaíonn do thiomántáin, NAS agus fillteáin néil féin aon rud anseo.',
     storageNoneIncluded: 'Níl aon stóráil néil san áireamh le Basic. Íoctar as ón iarmhéid néil í, nó tá 2.5 GB san áireamh le Pro.',
     storagePlanSoon: (s, p) => `Ag teacht go luath: plean stórála seasta, ${s} ar ${p} sa mhí trí dhochar díreach.`,
+    storageHolds: (s, p, r, j) => `Coinníonn ${s} thart ar ${p} grianghraf mar réamhamhairc, nó ${r} le bunchóipeanna RAW 25 MP, nó ${j} le bunchóipeanna JPEG 25 MP.`,
     taskUses: (n, l) => `Úsáideann sé ${n} de do ghrianghraif néil mhíosúla (${l} fágtha ina dhiaidh)`,
     taskPays: (n, a) => `${n} grianghraf thar do liúntas míosúil: ${a} ó d’iarmhéid néil`,
     taskOnDevice: 'Níl dóthain iarmhéid néil: rithfidh an tasc seo ar an ngléas seo',

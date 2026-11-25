@@ -1422,6 +1422,7 @@ export const fi: AreaTranslation<typeof source> = {
     ownStorage: 'Omat asemasi, NAS ja pilvikansiot eivät maksa täällä mitään.',
     storageNoneIncluded: 'Basic ei sisällä pilvitallennustilaa. Se maksetaan pilvisaldosta, tai Pro sisältää 2,5 Gt.',
     storagePlanSoon: (s, p) => `Tulossa pian: kiinteä tallennustilapaketti, ${s} hintaan ${p} kuukaudessa suoraveloituksella.`,
+    storageHolds: (s, p, r, j) => `${s} riittää noin ${p} kuvalle esikatseluina, ${r} kuvalle 25 MP:n RAW-alkuperäisten kanssa tai ${j} kuvalle 25 MP:n JPEG-alkuperäisten kanssa.`,
     taskUses: (n, l) => `Käyttää ${n} kuukauden pilvikuvistasi (${l} jäljellä tämän jälkeen)`,
     taskPays: (n, a) => `${n} kuvaa kuukausikiintiön yli: ${a} pilvisaldostasi`,
     taskOnDevice: 'Pilvisaldo ei riitä: tämä tehtävä suoritetaan tällä laitteella',

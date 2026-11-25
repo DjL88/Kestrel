@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  usageFromServer, CLOUD_COST_PENCE, FREE_DOWNLOAD_BYTES_PER_MONTH, FREE_STORAGE_BYTES_BY_PLAN, MONTHLY_PHOTO_ALLOWANCE, PAYG_PENCE, STORAGE_PLANS, keepRatioFor,
+  usageFromServer, CLOUD_COST_PENCE, FREE_DOWNLOAD_BYTES_PER_MONTH, FREE_STORAGE_BYTES_BY_PLAN, MONTHLY_PHOTO_ALLOWANCE, PAYG_PENCE, STORAGE_PLANS, keepRatioFor, photosThatFit,
   estimateCloudTask, formatBytes, formatPence, KEEP_RATIO_SMALLEST_TOP_UP, marginOf, nextResetMs, rentToOwn, usageSummary,
 } from './cloudPlan.ts';
 
@@ -91,4 +91,10 @@ test('the server usage answer maps to the panel, and an older server without pla
     { plan: 'pro', photosUsed: 12, downloadedBytes: 5e8, balancePence: 250, nowMs: NOW });
   assert.equal(usageFromServer({ bytes: 1 }, NOW), null);
   assert.deepEqual(usageSummary(usageFromServer({ plan: 'basic' }, NOW)!).meters.map(m => m.id), ['photos', 'downloads'], 'no storage meter until the server reports it');
+});
+
+test('roughly how many photos fit, rounded down so it never over-promises', () => {
+  assert.deepEqual(photosThatFit(2.5e9), { previews: 2500, withRawOriginals: 80, withJpegOriginals: 220 });
+  assert.deepEqual(photosThatFit(100e9), { previews: 100000, withRawOriginals: 3200, withJpegOriginals: 9000 });
+  assert.deepEqual(photosThatFit(0), { previews: 0, withRawOriginals: 0, withJpegOriginals: 0 });
 });
