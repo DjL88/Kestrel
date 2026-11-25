@@ -140,3 +140,51 @@ test('the inset clip does not move with the zoom, pan, turn or flip: it is the f
   assert.equal(paneInsetClip({ ...DEFAULT_CROP, ...insets, zoom: 3, panX: 40, flipH: true, rotateDeg: 270 }), plain);
   assert.equal(paneInsetClip(DEFAULT_CROP), undefined);
 });
+
+/** With the picture's shape known, the element IS the whole picture (no object-fit crop), placed by left/top. */
+function fittedCanvasPoint(u: number, v: number, crop: CropTransform, frame: { width: number; height: number }, count: number, index: number, offset: number): Point {
+  const style = paneImageStyle(crop, index, count, offset, { pictureAspect: PICTURE.width / PICTURE.height, frameAspect: frame.width / frame.height });
+  assert.equal(style.position, 'absolute');
+  const elementW = frame.width * Number.parseFloat(style.width!) / 100;
+  const elementH = frame.height * Number.parseFloat(style.height!) / 100;
+  // The element has the picture's own shape, so nothing of it is cropped by object-fit.
+  assert.ok(Math.abs(elementW / elementH - PICTURE.width / PICTURE.height) < 1e-3, `element shape ${elementW}x${elementH}`);
+  const left = frame.width * Number.parseFloat(style.left!) / 100;
+  const top = frame.height * Number.parseFloat(style.top!) / 100;
+  const local = { x: (u - 0.5) * elementW, y: (v - 0.5) * elementH };
+  const t = parseTransform(style.transform);
+  const turned = rotate({ x: local.x * t.sx, y: local.y * t.sy }, t.rad);
+  const inPane = { x: left + elementW / 2 + (t.tx / 100) * elementW + turned.x, y: top + elementH / 2 + (t.ty / 100) * elementH + turned.y };
+  return { x: (inPane.x + index * frame.width) / (frame.width * count), y: inPane.y / frame.height };
+}
+
+test('a picture of known shape is the whole picture, moved exactly as export moves it, so panning shows photo, not black', () => {
+  let checked = 0;
+  for (const size of photoFormats) {
+    const screen = { width: 300, height: 300 * (size.height / size.width) };
+    for (const count of [1, 2, 3]) {
+      for (const offset of count > 1 ? [0, 12] : [0]) {
+        for (const [name, patch] of CROPS) {
+          const crop = { ...DEFAULT_CROP, ...patch };
+          for (const sample of SAMPLES) {
+            const expected = exportPoint(sample.x, sample.y, crop, size, count, offset);
+            for (let index = 0; index < count; index += 1) {
+              const seen = fittedCanvasPoint(sample.x, sample.y, crop, screen, count, index, offset);
+              assert.ok(Math.abs(seen.x - expected.x) < 1e-4 && Math.abs(seen.y - expected.y) < 1e-4,
+                `${size.id} ${count} ${name} pane ${index} (${sample.x}, ${sample.y}): canvas ${JSON.stringify(seen)} export ${JSON.stringify(expected)}`);
+              checked += 1;
+            }
+          }
+        }
+      }
+    }
+  }
+  assert.ok(checked > 500);
+  // A 4:5 frame of a 3:2 picture: the element is wider than the frame and centred on it.
+  const style = paneImageStyle(DEFAULT_CROP, 0, 1, 0, { pictureAspect: 1.5, frameAspect: 0.8 });
+  assert.equal(style.width, '187.5%');
+  assert.equal(style.height, '100%');
+  assert.equal(style.left, '-43.75%');
+  // Without a known shape the old frame-sized element is kept.
+  assert.equal(paneImageStyle(DEFAULT_CROP, 0, 1, 0, { pictureAspect: Number.NaN, frameAspect: 0.8 }).position, undefined);
+});

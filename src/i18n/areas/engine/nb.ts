@@ -49,6 +49,7 @@ export const nb: AreaTranslation<typeof source> = {
       : `Støy fjernet på denne enheten, med ${count} motiver beskyttet sammen.`),
     global: 'Ingen motivkontur var pålitelig, så støyreduksjonen ble brukt jevnt på hele bildet.',
     failedCheck: 'Resultatet besto ikke kvalitetskontrollen. De eksisterende redigeringene dine ble beholdt.',
+    mainThread: 'Denne enheten kunne ikke fjerne støy i bakgrunnen, så InFlight kan ha stoppet opp mens den jobbet.',
     leftAsItWas: (notes) => `Latt være som det var. ${notes}`,
   },
   workspace: {
@@ -87,6 +88,7 @@ export const nb: AreaTranslation<typeof source> = {
       : `${count} filer eksportert. Originalene dine er uendret.`),
     exportSomeFailed: 'Noen eksporter mislyktes. Åpne Oppgaver og velg Prøv mislykkede på nytt. Filer som allerede er lagret, blir liggende.',
     exportStopped: 'Eksporten stoppet. Filer som allerede er lagret, blir liggende.',
+    enlargementTask: 'Lager forhåndsvisning av forstørrelsen',
     exportNotQueued: 'Kunne ikke starte denne eksporten.',
     destinationUnavailable: 'Det eksportmålet er ikke tilgjengelig. Velg en lokal ZIP, separate filer eller en mappe på datamaskinen.',
     cullPro: 'Autosortering er en del av InFlight Pro.',
@@ -131,6 +133,7 @@ export const nb: AreaTranslation<typeof source> = {
     suggestionStale: 'Bildet endret seg etter dette forslaget. Vent på en ny kontroll.',
     checkTask: (filename) => `Sjekker ${filename} og fargene`,
     checkStage: 'Ser på eksponering, farge og motiv',
+    secondOpinionStage: "Second opinion fra bildemodellen på enheten",
     checkFailed: 'Kunne ikke sjekke dette bildet. Detaljer under Oppgaver.',
     deepTask: 'Kjører en dybdegjennomgang',
     deepStage: 'Ser på motivene og bildekvaliteten',

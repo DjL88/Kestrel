@@ -18,6 +18,7 @@ export type MenuAction =
   | { kind: 'removedPhotos' }
   | { kind: 'saveXmp' }
   | { kind: 'backupNow' }
+  | { kind: 'quickExport' }
   | { kind: 'backupFile' }
   | { kind: 'readXmp' }
   | { kind: 'readLightroom' }
@@ -48,6 +49,7 @@ const TABLE: Record<string, MenuAction> = {
   'removed-photos': { kind: 'removedPhotos' },
   'xmp-save': { kind: 'saveXmp' },
   'backup-now': { kind: 'backupNow' },
+  'export-again': { kind: 'quickExport' },
   'backup-file': { kind: 'backupFile' },
   'xmp-read': { kind: 'readXmp' },
   'lightroom-read': { kind: 'readLightroom' },

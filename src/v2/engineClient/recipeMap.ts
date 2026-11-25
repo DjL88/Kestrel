@@ -5,6 +5,7 @@ import { isNeutralChannelCurves, isNeutralGrade, validChannelCurves, validGrade,
 import { isNeutralCalibration, PRIMARIES, validCalibration, type Calibration } from '../../core/calibration';
 import { validDehaze } from '../../core/dehaze';
 import { validDefringe, validLateralCa, type Defringe, type LateralCa } from '../../core/fringe';
+import { hasLensCorrection, validLens, validLensProfile, type LensCorrection } from '../../core/lensCorrection';
 import { validGrain, validVignette, type Vignette } from '../../core/finishing';
 import type { ColourGradeRecipe, EditRecipe } from '../ui/contract';
 
@@ -69,6 +70,11 @@ export function editToRecipe(edit: PhotoEdit | undefined): EditRecipe {
       hue: edit.mixer.hue.map(toSlider), saturation: edit.mixer.saturation.map(toSlider), luminance: edit.mixer.luminance.map(toSlider),
     } } : {}),
     ...(validDehaze(edit.dehaze) && edit.dehaze !== 0 ? { dehaze: round(edit.dehaze * 100, 2) } : {}),
+    ...(validLens(edit.lens) && hasLensCorrection(edit.lens) ? {
+      lensDistortion: round((edit.lens.distortion ?? 0) * 100, 2),
+      lensVignetting: round((edit.lens.vignetting ?? 0) * 100, 2),
+      ...(edit.lens.profile ? { lensProfile: edit.lens.profile } : {}),
+    } : {}),
     ...(validLateralCa(edit.lateralCa) ? { caRed: round(edit.lateralCa.red * 100, 2), caBlue: round(edit.lateralCa.blue * 100, 2) } : {}),
     ...(validDefringe(edit.defringe) ? { defringePurple: round(edit.defringe.purple * 100, 2), defringeGreen: round(edit.defringe.green * 100, 2) } : {}),
     ...(validVignette(edit.vignette) ? {
@@ -167,6 +173,16 @@ export function applyRecipePatch(edit: PhotoEdit | undefined, patch: Partial<Edi
     const value = round(clamp(patch.dehaze, -100, 100) / 100, 4);
     if (value === 0) delete next.dehaze;
     else next.dehaze = value;
+  }
+  if ('lensDistortion' in patch || 'lensVignetting' in patch || 'lensProfile' in patch) {
+    const unit = (value: number | undefined, fallback: number, low: number) => Number.isFinite(value) ? round(clamp(value!, low, 100) / 100, 4) : fallback;
+    const distortion = unit(patch.lensDistortion, next.lens?.distortion ?? 0, -100);
+    const vignetting = unit(patch.lensVignetting, next.lens?.vignetting ?? 0, 0);
+    // null removes the profile; a profile that fails validation is ignored rather than stored.
+    const profile = 'lensProfile' in patch ? (patch.lensProfile && validLensProfile(patch.lensProfile) ? patch.lensProfile : undefined) : next.lens?.profile;
+    const lens: LensCorrection = { ...(distortion ? { distortion } : {}), ...(vignetting ? { vignetting } : {}), ...(profile ? { profile } : {}) };
+    if (validLens(lens) && hasLensCorrection(lens)) next.lens = lens;
+    else delete next.lens;
   }
   if ('caRed' in patch || 'caBlue' in patch) {
     const unit = (value: number | undefined, fallback: number) => Number.isFinite(value) ? round(clamp(value!, -100, 100) / 100, 4) : fallback;

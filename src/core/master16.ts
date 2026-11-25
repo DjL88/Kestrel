@@ -1,9 +1,11 @@
 import { tiffXmpPacket, type TiffExportMetadata } from './tiffExportMetadata';
+import { SRGB_ICC_PROFILE } from './iccEmbed';
 import { validCurve, validMixer } from './curveMixer';
 import { validChannelCurves, validGrade } from './colourGrade';
 import { validCalibration } from './calibration';
 import { applyDehaze, validDehaze } from './dehaze';
 import { applyFringe, validDefringe, validLateralCa } from './fringe';
+import { applyLensCorrection, validLens } from './lensCorrection';
 import { applyFinishingRgb16, validGrain, validVignette } from './finishing';
 import { validWhiteBalance } from './asShotWhite';
 import { applyDetailRgb16, applyPhotoEditLinear, detailParams, hasDetail, isNeutralTone, type PhotoEdit } from './photoEdits';
@@ -82,7 +84,7 @@ export function thumbRgb16(image: Rgb16Image): Thumb {
 const EXPORT_EDIT_KEYS = new Set([
   'exposure', 'warmth', 'tint', 'colour', 'brightness', 'contrast', 'highlights',
   'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity',
-  'sharpen', 'denoise', 'denoiseLuminance', 'masks', 'curve', 'mixer', 'whiteBalance', 'grade', 'channelCurves', 'calibration', 'vignette', 'grain', 'dehaze', 'lateralCa', 'defringe',
+  'sharpen', 'denoise', 'denoiseLuminance', 'masks', 'curve', 'mixer', 'whiteBalance', 'grade', 'channelCurves', 'calibration', 'vignette', 'grain', 'dehaze', 'lateralCa', 'defringe', 'lens',
 ]);
 
 /** Stop rather than quietly export a future or malformed edit that this
@@ -109,6 +111,7 @@ export function master16Blocker(edit: PhotoEdit | undefined, framing: PhotoFrami
     if (edit.calibration !== undefined && !validCalibration(edit.calibration)) return 'The saved camera calibration is invalid, so no 16-bit TIFF was made.';
     if (edit.vignette !== undefined && !validVignette(edit.vignette)) return 'The saved vignette is invalid, so no 16-bit TIFF was made.';
     if (edit.dehaze !== undefined && !validDehaze(edit.dehaze)) return 'The saved dehaze is invalid, so no 16-bit TIFF was made.';
+    if (edit.lens !== undefined && !validLens(edit.lens)) return 'The saved lens correction is invalid, so no 16-bit TIFF was made.';
     if (edit.lateralCa !== undefined && !validLateralCa(edit.lateralCa)) return 'The saved colour edge correction is invalid, so no 16-bit TIFF was made.';
     if (edit.defringe !== undefined && !validDefringe(edit.defringe)) return 'The saved fringe removal is invalid, so no 16-bit TIFF was made.';
     if (edit.grain !== undefined && !validGrain(edit.grain)) return 'The saved grain is invalid, so no 16-bit TIFF was made.';
@@ -377,9 +380,11 @@ export function applyToneMasksRgb16(image: Rgb16Image, masks: readonly Mask[] | 
 
 /** Apply the edit in place: conservative chroma denoise, tone/colour,
  * global Texture/Clarity/Sharpening and then the same local mask ordering as screen. */
-export function editRgb16(image: Rgb16Image, edit: PhotoEdit, lens?: { x: number; y: number }): void {
+export function editRgb16(image: Rgb16Image, edit: PhotoEdit, lens?: { x: number; y: number; r?: number }): void {
   const { data } = image;
-  applyFringe(data, image.width, image.height, 3, edit, { aspect: image.height / image.width, view: { x: 0, y: 0, w: 1, h: 1 }, lensCentre: lens });
+  const context = { aspect: image.height / image.width, view: { x: 0, y: 0, w: 1, h: 1 }, lensCentre: lens };
+  applyLensCorrection(data, image.width, image.height, 3, edit.lens, context);
+  applyFringe(data, image.width, image.height, 3, edit, context);
   const chroma = noiseStrength(edit.denoise);
   if (chroma > 0) denoiseChromaRgb16(data, image.width, image.height, chroma, (edit.denoise ?? 0) > 1 ? 2 : 1);
   const luma = noiseStrength(edit.denoiseLuminance);
@@ -425,16 +430,7 @@ export function rgb16ToRgba(image: Rgb16Image): Uint8ClampedArray<ArrayBuffer> {
   return rgba;
 }
 
-/**
- * Standard sRGB ICC profile generated with LittleCMS. The decoder currently hands
- * this exporter display-encoded sRGB; this is a truthful *output* tag, not a claim
- * of a scene-linear working space or Nikon colour parity. Preserve the original
- * ICC bytes and only advertise other profiles after a measured colour transform.
- *
- * Embedded profile: 588 bytes, RGB monitor colour space, 'acsp' ICC signature.
- */
-const SRGB_ICC_BASE64 = 'AAACTGxjbXMEQAAAbW50clJHQiBYWVogB+oACwATAA4ADAAeYWNzcEFQUEwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPbWAAEAAAAA0y1sY21zAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALZGVzYwAAAQgAAAA2Y3BydAAAAUAAAABMd3RwdAAAAYwAAAAUY2hhZAAAAaAAAAAsclhZWgAAAcwAAAAUYlhZWgAAAeAAAAAUZ1hZWgAAAfQAAAAUclRSQwAAAggAAAAgZ1RSQwAAAggAAAAgYlRSQwAAAggAAAAgY2hybQAAAigAAAAkbWx1YwAAAAAAAAABAAAADGVuVVMAAAAaAAAAHABzAFIARwBCACAAYgB1AGkAbAB0AC0AaQBuAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAADAAAAAcAE4AbwAgAGMAbwBwAHkAcgBpAGcAaAB0ACwAIAB1AHMAZQAgAGYAcgBlAGUAbAB5WFlaIAAAAAAAAPbWAAEAAAAA0y1zZjMyAAAAAAABDEIAAAXe///zJQAAB5MAAP2Q///7of///aIAAAPcAADAblhZWiAAAAAAAABvoAAAOPUAAAOQWFlaIAAAAAAAACSfAAAPhAAAtsNYWVogAAAAAAAAYpcAALeHAAAY2XBhcmEAAAAAAAMAAAACZmYAAPKnAAANWQAAE9AAAApbY2hybQAAAAAAAwAAAACj1wAAVHsAAEzNAACZmgAAJmYAAA9c';
-const SRGB_ICC_PROFILE = Uint8Array.from(atob(SRGB_ICC_BASE64), (char) => char.charCodeAt(0));
+// The sRGB ICC profile is shared with the JPEG and PNG exports (iccEmbed.ts): a truthful output tag for display-encoded sRGB.
 
 /** A baseline uncompressed 16-bit RGB TIFF, tagged with the actual output sRGB ICC profile. */
 export function encodeTiff16(image: Rgb16Image, metadata?: TiffExportMetadata | null): Blob {

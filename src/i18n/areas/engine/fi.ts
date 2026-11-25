@@ -49,6 +49,7 @@ export const fi: AreaTranslation<typeof source> = {
       : `Kohina poistettiin tällä laitteella, ${count} kohdetta suojattuna yhdessä.`),
     global: 'Yksikään kohteen rajaus ei ollut luotettava, joten kohinanpoisto tehtiin tasaisesti koko kuvaan.',
     failedCheck: 'Tulos ei läpäissyt laatutarkistusta. Nykyiset muokkauksesi säilytettiin.',
+    mainThread: 'Tämä laite ei voinut poistaa kohinaa taustalla, joten InFlight saattoi pysähtyä hetkeksi työn aikana.',
     leftAsItWas: (notes) => `Jätettiin ennalleen. ${notes}`,
   },
   workspace: {
@@ -87,6 +88,7 @@ export const fi: AreaTranslation<typeof source> = {
       : `${count} tiedostoa viety. Alkuperäiset ovat ennallaan.`),
     exportSomeFailed: 'Osa vienneistä epäonnistui. Avaa Tehtävät ja valitse Yritä epäonnistuneita uudelleen. Jo tallennetut tiedostot säilyvät.',
     exportStopped: 'Vienti pysäytettiin. Jo tallennetut tiedostot säilyvät.',
+    enlargementTask: 'Luodaan suurennoksen esikatselua',
     exportNotQueued: 'Tätä vientiä ei voitu aloittaa.',
     destinationUnavailable: 'Vientikohde ei ole käytettävissä. Valitse paikallinen ZIP, erilliset tiedostot tai tietokoneen kansio.',
     cullPro: 'Automaattinen karsinta kuuluu InFlight Prohon.',
@@ -131,6 +133,7 @@ export const fi: AreaTranslation<typeof source> = {
     suggestionStale: 'Kuva muuttui tämän ehdotuksen jälkeen. Odota uutta tarkistusta.',
     checkTask: (filename) => `Tarkistetaan ${filename} ja sen värit`,
     checkStage: 'Katsotaan valotusta, väriä ja näkymää',
+    secondOpinionStage: "Toinen mielipide laitteen kuvamallilta",
     checkFailed: 'Tätä kuvaa ei voitu tarkistaa. Lisätietoja kohdassa Tehtävät.',
     deepTask: 'Syväkatselmus käynnissä',
     deepStage: 'Katsotaan kohteita ja kuvan laatua',

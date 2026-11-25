@@ -8,6 +8,7 @@ import { validChannelCurves, validGrade } from './colourGrade';
 import { validCalibration } from './calibration';
 import { validDehaze } from './dehaze';
 import { validDefringe, validLateralCa } from './fringe';
+import { validLens } from './lensCorrection';
 import { validGrain, validVignette } from './finishing';
 import { validAsShot, validWhiteBalance } from './asShotWhite';
 import { isRawCodec } from './pictureSource';
@@ -64,6 +65,7 @@ function recipeIsValid(value: unknown): boolean {
     (edit.grade !== undefined && !validGrade(edit.grade)) || (edit.channelCurves !== undefined && !validChannelCurves(edit.channelCurves)) ||
     (edit.calibration !== undefined && !validCalibration(edit.calibration)) ||
     (edit.dehaze !== undefined && !validDehaze(edit.dehaze)) ||
+    (edit.lens !== undefined && !validLens(edit.lens)) ||
     (edit.lateralCa !== undefined && !validLateralCa(edit.lateralCa)) || (edit.defringe !== undefined && !validDefringe(edit.defringe)) ||
     (edit.vignette !== undefined && !validVignette(edit.vignette)) || (edit.grain !== undefined && !validGrain(edit.grain)) ||
     (edit.whiteBalance !== undefined && !validWhiteBalance(edit.whiteBalance)) ||

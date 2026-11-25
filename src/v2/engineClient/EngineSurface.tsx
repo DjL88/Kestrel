@@ -6,7 +6,7 @@ import { previewLookEdit } from './recipeMap';
 
 /** Draws a photo through the app's own pipeline (FrameImage: the develop and edit canvas, embedded or developed preview).
  * 'original' is the same photo with no edit, so Before and After come from the same source and differ only by the recipe. */
-export function EngineSurface({ photoId, variant, lookPreview, alt, className, style, maskGuideId, maskGuideStyle, maskOutline }: PhotoSurfaceProps) {
+export function EngineSurface({ photoId, variant, lookPreview, alt, className, style, maskGuideId, maskGuideStyle, maskOutline, onPictureSize }: PhotoSurfaceProps) {
   const { frames, provider } = useSyncExternalStore(surfaceBridge.subscribe, surfaceBridge.get);
   const frame = frames.get(photoId);
   if (!frame || !provider) return null;
@@ -17,7 +17,7 @@ export function EngineSurface({ photoId, variant, lookPreview, alt, className, s
     <div className={className} style={style}>
       <FrameImage frame={shown} previewProvider={provider} variant="full" needsAccess={false} priority refreshOnBackgroundDevelop sensor16 alt={alt} maskGuideId={variant === 'edited' ? maskGuideId : undefined} maskGuideStyle={maskGuideStyle ?? 'outline'}
         maskOutline={variant === 'edited' ? maskOutline : undefined}
-        className="h-full w-full" imgClassName="h-full w-full object-cover" />
+        onPictureSize={onPictureSize} className="h-full w-full" imgClassName="h-full w-full object-cover" />
     </div>
   );
 }

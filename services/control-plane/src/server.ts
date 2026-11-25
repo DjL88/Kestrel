@@ -5,6 +5,7 @@ import { loadConfig } from './config.ts';
 import { CommerceLedger } from './commerce/ledger.ts';
 import { paddleProSettlement, type ProPurchaseOrder } from './commerce/proSettlement.ts';
 import { paddleApi } from './commerce/paddle.ts';
+import { rotatingKeySource, secretManagerSecret } from './commerce/paddleKeyRotation.ts';
 import { paddleProCheckout, type StoredProOrder } from './commerce/proCheckout.ts';
 import { FirestoreStore, type FirestoreLike } from './firestoreStore.ts';
 import { openFirestore, openStore } from './openStore.ts';
@@ -20,7 +21,14 @@ const paddleEnvironment = process.env.KCP_PADDLE_ENVIRONMENT?.trim() === 'produc
 const paddlePriceId = process.env.KCP_PADDLE_PRO_PRICE_ID?.trim();
 const paddleWebhookSecret = process.env.KCP_PADDLE_WEBHOOK_SECRET?.trim() || undefined;
 const paddleClientToken = process.env.KCP_PADDLE_CLIENT_TOKEN?.trim();
-const paddle = paddleKey ? paddleApi({ apiKey: paddleKey, environment: paddleEnvironment }) : undefined;
+// The key is renewed by the kestrel-paddle-key-rotation job (infra/gcp/paddle-key-rotation.tf). When
+// KCP_PADDLE_KEY_PROJECT is set the server re-reads the latest secret version every 5 minutes, so a new key takes over
+// without a redeploy; the value Cloud Run injected at start-up is the fallback.
+const paddleKeyProject = process.env.KCP_PADDLE_KEY_PROJECT?.trim();
+const paddleApiKey = paddleKey && paddleKeyProject
+  ? rotatingKeySource(secretManagerSecret({ project: paddleKeyProject, secret: process.env.KCP_PADDLE_KEY_SECRET?.trim() || 'kestrel-paddle-api-key' }).latest, paddleKey)
+  : paddleKey;
+const paddle = paddleApiKey ? paddleApi({ apiKey: paddleApiKey, environment: paddleEnvironment }) : undefined;
 const paddleOrders = 'paddle_pro_orders';
 const settlePaddle = firestore && commerce && paddle ? paddleProSettlement({
   findOrder: async (id) => (await firestore.collection(paddleOrders).doc(id).get()).data() as ProPurchaseOrder | undefined ?? null,
@@ -45,7 +53,11 @@ const paddleClient = paddleClientToken ? { environment: paddleEnvironment, clien
 const demoStudio = firestore && process.env.KCP_DEMO_PRIVATE_BUCKET && process.env.KCP_DEMO_PUBLIC_BUCKET
   ? new CloudDemoStudio(firestore, process.env.KCP_DEMO_PRIVATE_BUCKET, process.env.KCP_DEMO_PUBLIC_BUCKET) : undefined;
 const optional = await buildOptionalServices({ firestore: firestore as unknown as FirestoreLike | undefined, sessionSecret: config.sessionSecret });
-const app = createApp({ config, store, commerce, payments: commerce, settlePaddle, paddleWebhookSecret, paddleClient, proCheckout, pricing: commerce, demoStudio, cloud: optional.cloud, safeCopy: optional.safeCopy, collab: optional.collab, presence: optional.presence, gallery: optional.gallery, notices: optional.notices, cloudPhotos: optional.cloudPhotos, learning: optional.learning, learningWithdrawal: optional.learningWithdrawal, spend: optional.spend, mailer: optional.mailer, cloudBalance: optional.cloudBalance, requireAdminSwitch: true });
+const app = createApp({ config, store, commerce, payments: commerce, settlePaddle, paddleWebhookSecret, paddleClient,
+  paddleKeyStatus: firestore && paddleKeyProject ? async () => {
+    const [current, lastRun] = await Promise.all(['current', 'last_run'].map((id) => firestore.collection('paddle_key_rotation').doc(id).get()));
+    return { current: (current.data() as never) ?? null, lastRun: (lastRun.data() as never) ?? null };
+  } : undefined, proCheckout, pricing: commerce, demoStudio, cloud: optional.cloud, safeCopy: optional.safeCopy, collab: optional.collab, presence: optional.presence, gallery: optional.gallery, cloudPhotos: optional.cloudPhotos, learning: optional.learning, learningWithdrawal: optional.learningWithdrawal, spend: optional.spend, notices: optional.notices, mailer: optional.mailer, cloudBalance: optional.cloudBalance, vertexLearning: optional.vertexLearning, requireAdminSwitch: true });
 
 if (process.argv.includes('--print-openapi')) {
   process.stdout.write(`${JSON.stringify(openApi(app.routes), null, 2)}\n`);

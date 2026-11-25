@@ -1,10 +1,10 @@
 import { stepFrom, swipeIntent } from '../utils/swipe';
 import { cropHandleZoom, type CropHandleSide } from '../utils/cropHandleZoom';
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { nextCanvasZoom, zoomAnchorScroll } from '../utils/canvasTrackpadZoom';
 import { maxCanvasPixels } from '../../../core/exportLimits';
 import { ORIGINAL_FORMAT_ID } from '../../engineClient/formatOps';
-import { paneImageStyle, paneInsetClip } from '../../engineClient/frameGeometry';
+import { paneImageStyle, paneInsetClip, type PictureFit } from '../../engineClient/frameGeometry';
 import { STACK_GAP_PX, alignForAnchor, anchorFlexStyle, freeTransform, stacked } from '../utils/overlayLayout';
 import type {
   CropTransform,
@@ -13,6 +13,8 @@ import type {
   FontOption,
   LookPreset,
   MaskGeometryField,
+  TapPoint,
+  WorkspaceStore,
   OverlaySettings,
   Photo,
   PhotoSurfaceProps,
@@ -25,6 +27,7 @@ import BrandIcon from '../icons/BrandIcon';
 import PictureSourceBadge from './PictureSourceBadge';
 import CompareSplit from './CompareSplit';
 import MaskOutlineLayer from './MaskOutlineLayer';
+import TapSelectLayer from './TapSelectLayer';
 import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
 import { captureElement, screenshotName } from '../utils/captureElement';
 import { focusOnScreen, focusZoom, lookForZoomFocus, type ZoomFocus } from '../../engineClient/eyeZoom';
@@ -56,6 +59,9 @@ interface CanvasProps {
   maskOverlayKey?: string;
   onToggleMaskOverlay?: () => void;
   onSetMaskGeometry?: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
+  /** Tap-to-select session; when it is on this photo, clicks on the picture select instead of moving the format. */
+  tapSession?: NonNullable<WorkspaceStore['tapSelect']>['session'];
+  onTapSelect?: (photoId: string, tap: TapPoint) => void;
   /** White-balance eyedropper: while set, a click on the picture reports that spot (0 to 1 across the shown, framed
    * picture) instead of moving anything. Esc cancels. */
   neutralPick?: { onPick: (at: { x: number; y: number }) => void; onCancel: () => void };
@@ -123,6 +129,8 @@ export default function Canvas({
   maskOverlayKey,
   onToggleMaskOverlay,
   onSetMaskGeometry,
+  tapSession,
+  onTapSelect,
   neutralPick,
   photo,
   activeSizeId,
@@ -437,6 +445,14 @@ export default function Canvas({
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [neutralPick]);
+  // The shape of the picture on screen, reported by the photo surface (used below by every format view).
+  const shownPhotoId = photo?.id;
+  const [shownShape, setShownShape] = useState<{ photoId: string; aspect: number } | null>(null);
+  const reportPictureSize = useCallback((size: { width: number; height: number }) => {
+    if (!shownPhotoId || !(size.width > 0 && size.height > 0)) return;
+    const aspect = size.width / size.height;
+    setShownShape((current) => (current?.photoId === shownPhotoId && Math.abs(current.aspect - aspect) < 1e-3 ? current : { photoId: shownPhotoId, aspect }));
+  }, [shownPhotoId]);
   // While a slider moves, the mask overlay steps aside for a moment so the edit itself can be seen, then comes back
   // (owner test, 25 Nov). Nothing animates, so reduced motion needs no special case; the label says it in words.
   const OVERLAY_PAUSE_MS = 2500;
@@ -492,6 +508,20 @@ export default function Canvas({
   const enabledSizes = photo.sizes.filter((s) => s.enabled);
   const activeSize: SizePreset =
     photo.sizes.find((s) => s.id === activeSizeId) ?? enabledSizes[0] ?? photo.sizes[0];
+  // The shape of the picture actually on screen (framed and upright), reported by the surface as soon as even its small
+  // interim picture loads. Every format view uses it: the picture element is then the whole photo, so moving it shows
+  // more photo, never black; and an Original whose file records no size opens at its real shape, not a 1:1 square that
+  // corrects itself once the size is measured (owner report, 25 Nov 2026).
+  const pictureAspect = shownShape?.photoId === photo.id ? shownShape.aspect
+    : photo.pixelSize && photo.pixelSize.width > 0 && photo.pixelSize.height > 0 ? photo.pixelSize.width / photo.pixelSize.height : undefined;
+  /** An Original whose size is not known yet takes the picture's shape. */
+  const unknownOriginal = (size: SizePreset) => size.id === ORIGINAL_FORMAT_ID && size.ratioLabel === 'Unknown';
+  const frameAspectOf = (size: SizePreset) => unknownOriginal(size) && pictureAspect ? pictureAspect : size.width / Math.max(1, size.height);
+  /** The whole-picture geometry, when the picture's shape is known. A border set to 'auto' shows the whole picture inside the frame instead. */
+  const fitFor = (size: SizePreset): PictureFit | undefined =>
+    pictureAspect && (size.crop.borderPlacement ?? 'all') !== 'auto' ? { pictureAspect, frameAspect: frameAspectOf(size) } : undefined;
+  // Until the shape is known, an unknown Original is not drawn as a square.
+  const shapePending = unknownOriginal(activeSize) && !pictureAspect;
   const filterCss = buildPreviewFilterCss(group.recipe, hoveredLook);
   const overflowIssues = detectOverlayOverflow(group.overlay, photo, photo.sizes);
   const watermarkPreset =
@@ -510,12 +540,12 @@ export default function Canvas({
     fonts.find((f) => f.id === fontId)?.family ?? 'var(--font-sans)';
 
   // One placement for every view and for export (frameGeometry.ts, G02).
-  const buildImageTransform = (crop: CropTransform) => paneImageStyle(crop).transform;
+  const buildImageStyle = (size: SizePreset): React.CSSProperties => paneImageStyle(size.crop, 0, 1, 0, fitFor(size));
 
   const MAX_CROP_ZOOM = 8;
   /** How far the picture can be moved under the crop window (in % of the frame) before its edge shows. */
   const panLimits = (size: SizePreset, zoom: number) =>
-    cropPanLimits(photo.pixelSize, size, zoom);
+    cropPanLimits(pictureAspect ? { width: pictureAspect, height: 1 } : photo.pixelSize, { width: frameAspectOf(size), height: 1 }, zoom);
 
   const handleFramePointerDown = (
     e: React.PointerEvent<HTMLElement>,
@@ -648,8 +678,9 @@ export default function Canvas({
       // Move the picture under the crop window: 100% of the frame is 100 units, and it can go as far as the picture reaches.
       const limits = panLimits(photo.sizes.find((size) => size.id === drag.sizeId) ?? activeSize, drag.crop?.zoom ?? 1);
       onUpdateCrop(photo.id, drag.sizeId, {
-        panX: Math.round(clamp(drag.origA + (dx / width) * 100, -limits.x, limits.x)),
-        panY: Math.round(clamp(drag.origB + (dy / height) * 100, -limits.y, limits.y)),
+        // Rounded first, then held to the limit: rounding after the clamp could move the picture past its own edge.
+        panX: clamp(Math.round(drag.origA + (dx / width) * 100), -limits.x, limits.x),
+        panY: clamp(Math.round(drag.origB + (dy / height) * 100), -limits.y, limits.y),
       });
     } else if (drag.kind === 'move-frame') {
       setFrameOffsets((current) => ({ ...current, [drag.sizeId]: { x: drag.origA + dx / canvasZoom, y: drag.origB + dy / canvasZoom } }));
@@ -1112,10 +1143,16 @@ export default function Canvas({
   // The selected mask (its layer is open in the Masks panel). Oval and gradient masks also get an outline with handles.
   const selectedMask = maskGuideId ? photo.masks.find((layer) => layer.id === maskGuideId && layer.visible) : undefined;
   const selectedShape = selectedMask?.geometry ? { ...selectedMask, geometry: selectedMask.geometry } : undefined;
-  const renderMaskOutline = selectedShape && onSetMaskGeometry
+  const tapping = tapSession?.photoId === photo.id && onTapSelect ? tapSession : undefined;
+  const renderMaskOutline = (selectedShape && onSetMaskGeometry) || tapping
     ? (picture: { width: number; height: number }) => (
-      <MaskOutlineLayer picture={picture} name={selectedShape.name} geometry={selectedShape.geometry} feather={selectedShape.feather}
-        onChange={(field, value) => onSetMaskGeometry(photo.id, selectedShape.id, field, value)} />
+      <>
+        {selectedShape && onSetMaskGeometry && !tapping && (
+          <MaskOutlineLayer picture={picture} name={selectedShape.name} geometry={selectedShape.geometry} feather={selectedShape.feather}
+            onChange={(field, value) => onSetMaskGeometry(photo.id, selectedShape.id, field, value)} />
+        )}
+        {tapping && <TapSelectLayer picture={picture} session={tapping} onTap={(tap) => onTapSelect!(photo.id, tap)} />}
+      </>
     ) : undefined;
   // The eyedropper is drawn in the displayed picture's own pixels (like the mask outline), so crop, rotation, flips and
   // zoom are already undone by the browser when it maps the click back. It takes the place of the outline while active.
@@ -1141,7 +1178,8 @@ export default function Canvas({
       <PhotoSurface photoId={photo.id} variant={variant}
         maskGuideId={variant === 'edited' && alt && !compareMode && maskOverlayVisible ? maskGuideId : undefined} maskGuideStyle={maskOverlayStyle}
         maskOutline={variant === 'edited' && alt && !compareMode ? renderPickLayer ?? renderMaskOutline : undefined}
-        lookPreview={variant === 'edited' ? hoveredLook?.recipeDelta : undefined} alt={alt} className="h-full w-full" style={style} />
+        lookPreview={variant === 'edited' ? hoveredLook?.recipeDelta : undefined} alt={alt} className="h-full w-full" style={style}
+        onPictureSize={reportPictureSize} />
     ) : (
       <img src={photo.previewUrl} alt={alt} referrerPolicy="no-referrer" draggable={false}
         className="h-full w-full object-cover" style={{ ...style, filter }} />
@@ -1181,7 +1219,7 @@ export default function Canvas({
     PhotoSurface ? (
       <PhotoSurface photoId={photo.id} variant="edited" alt={alt} className={className} style={style}
         maskGuideId={editing && maskOverlayVisible ? maskGuideId : undefined} maskGuideStyle={maskOverlayStyle}
-        lookPreview={editing ? hoveredLook?.recipeDelta : undefined} />
+        lookPreview={editing ? hoveredLook?.recipeDelta : undefined} onPictureSize={reportPictureSize} />
     ) : (
       <img src={photo.previewUrl} alt={alt} referrerPolicy="no-referrer" draggable={false}
         className={className} style={{ ...style, filter: compareMode ? 'none' : filterCss }} />
@@ -1204,7 +1242,7 @@ export default function Canvas({
         className="absolute inset-0 box-border"
         style={{ backgroundColor: percent > 0 || placement === 'auto' ? size.crop.borderColour ?? '#ffffff' : undefined, padding }}
       >
-        <div data-testid="image-inset-clip" className={`h-full w-full overflow-hidden ${placement === 'auto' ? '[&_img]:object-contain' : ''}`}
+        <div data-testid="image-inset-clip" className={`relative h-full w-full overflow-hidden ${placement === 'auto' ? '[&_img]:object-contain' : ''}`}
           style={{ clipPath: paneInsetClip(size.crop, pane.index, pane.count) }}>{content}</div>
       </div>
     );
@@ -1212,7 +1250,7 @@ export default function Canvas({
 
   /** The artboard on screen, in pixels, at Fit. */
   const artboardFrame = (size: SizePreset) => {
-    const aspect = size.width / Math.max(1, size.height);
+    const aspect = frameAspectOf(size);
     const maxW = aspect >= 1 ? 660 : 420;
     const maxH = 470;
     const availableWidth = Math.max(80, stageSize.width - 32);
@@ -1276,11 +1314,11 @@ export default function Canvas({
   };
 
   const renderSingleArtboard = () => {
-    const aspect = activeSize.width / Math.max(1, activeSize.height);
+    const aspect = frameAspectOf(activeSize);
     const { frameW, frameH } = artboardFrame(activeSize);
     const revealing = revealSizeId === activeSize.id;
     // The whole picture, at its real shape and the crop's zoom, for the ghost shown round the crop window while positioning.
-    const imageAspect = photo.pixelSize ? photo.pixelSize.width / photo.pixelSize.height : 3 / 2;
+    const imageAspect = pictureAspect ?? 3 / 2;
     const ghost = imageAspect > frameW / frameH
       ? { height: frameH * activeSize.crop.zoom, width: frameH * activeSize.crop.zoom * imageAspect }
       : { width: frameW * activeSize.crop.zoom, height: (frameW * activeSize.crop.zoom) / imageAspect };
@@ -1366,7 +1404,7 @@ export default function Canvas({
                 {inBorderFrame(activeSize, renderStrip(
                   `${photo.title} — Frame ${paneIdx + 1}`,
                   'h-full max-w-none object-cover select-none',
-                  paneImageStyle(activeSize.crop, paneIdx, sectionCount, splitOffsetFor(activeSize.id)),
+                  paneImageStyle(activeSize.crop, paneIdx, sectionCount, splitOffsetFor(activeSize.id), fitFor(activeSize)),
                   true,
                 ), { index: paneIdx, count: sectionCount })}
                 {paneIdx === sectionCount - 1 && renderOverlaysInsideFrame(activeSize, true)}
@@ -1448,7 +1486,8 @@ export default function Canvas({
             onPointerCancel={(e) => { if (e.pointerType === 'touch' && touchPoints.current.has(e.pointerId)) { e.stopPropagation(); handleTouchCancel(e); } }}
             onDoubleClick={() => { if (activeSize.kind === 'photo' && !compareMode) setRevealSizeId(revealing ? null : activeSize.id); }}
             title={activeSize.kind === 'photo' ? STRINGS.canvas.cropHintTitle : undefined}
-            className={`relative ${revealing ? 'overflow-visible ring-2 ring-[var(--brand-accent)]' : 'overflow-hidden'} rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] select-none ${
+            data-shape-pending={shapePending ? 'true' : undefined}
+            className={`relative ${shapePending ? 'opacity-0' : ''} ${revealing ? 'overflow-visible ring-2 ring-[var(--brand-accent)]' : 'overflow-hidden'} rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] select-none ${
               activeSize.kind === 'video' ? 'cursor-crosshair' : revealing ? 'cursor-move' : 'cursor-grab active:cursor-grabbing'
             }`}
             // Touch scrolling/zooming is only suppressed while this frame can actually run a photo pinch/pan
@@ -1504,11 +1543,11 @@ export default function Canvas({
             {/* Before / After split comparison or single view */}
             {inBorderFrame(activeSize, compareMode ? (
               <CompareSplit
-                before={renderSurface('original', `${photo.title} original`, { transform: buildImageTransform(activeSize.crop) }, 'none')}
-                after={renderSurface('edited', `${photo.title} edited`, { transform: buildImageTransform(activeSize.crop) }, filterCss)}
+                before={renderSurface('original', `${photo.title} original`, buildImageStyle(activeSize), 'none')}
+                after={renderSurface('edited', `${photo.title} edited`, buildImageStyle(activeSize), filterCss)}
               />
             ) : (
-              renderSurface(holdingOriginal ? 'original' : 'edited', holdingOriginal ? `${photo.title} original` : photo.title, { transform: buildImageTransform(activeSize.crop) }, holdingOriginal ? 'none' : filterCss)
+              renderSurface(holdingOriginal ? 'original' : 'edited', holdingOriginal ? `${photo.title} original` : photo.title, buildImageStyle(activeSize), holdingOriginal ? 'none' : filterCss)
             ))}
             {!compareMode && !holdingOriginal && renderMaskLabel()}
             {holdingOriginal && (
@@ -1574,7 +1613,7 @@ export default function Canvas({
         {boardSizes.map((size) => {
           const isSelected = selectedSizeIds.includes(size.id);
           const isPrimary = activeSizeId === size.id;
-          const aspect = size.width / Math.max(1, size.height);
+          const aspect = frameAspectOf(size);
           const targetH = aspect < 0.7 ? 270 : 210;
           const panes = Array.from({ length: splitCountFor(size.id) }, (_, paneIdx) => paneIdx);
           // On 320/390px screens a three-frame composition must not hide its
@@ -1634,7 +1673,7 @@ export default function Canvas({
                 {inBorderFrame(size, renderStrip(
                   `${photo.title} — ${size.label}`,
                   panes.length > 1 ? 'h-full max-w-none object-cover' : 'h-full w-full object-cover',
-                  paneImageStyle(size.crop, paneIdx, panes.length, splitOffsetFor(size.id)),
+                  paneImageStyle(size.crop, paneIdx, panes.length, splitOffsetFor(size.id), fitFor(size)),
                 ), { index: paneIdx, count: panes.length })}
                 {paneIdx === panes.length - 1 && renderOverlaysInsideFrame(size, false)}
                 {size.kind === 'video' && (

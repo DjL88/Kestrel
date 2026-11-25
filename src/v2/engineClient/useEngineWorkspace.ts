@@ -10,7 +10,7 @@ import { newId } from '../../core/ids';
 import { exportCollage } from './exportCollage';
 import { createCollage, MAX_COLLAGE_SELECTION, readCollage } from '../../core/collage';
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
-import { appendProjectPhotos, applyImportBursts, createEmptyProject, moveFrames, setArchived, setTrashed, trashExpired } from '../../core/projects';
+import { appendProjectPhotos, applyImportBursts, createEmptyProject, duplicateProject, moveFrames, setArchived, setTrashed, trashExpired } from '../../core/projects';
 import { tasks } from '../../core/taskStore';
 import { createSaveGuard, type SaveGuard } from '../../core/saveGuard';
 import { engineScheduler } from '../../core/engineScheduler';
@@ -68,10 +68,13 @@ import { runAuto } from './runAuto';
 import { autoUnavailableSentence, isAutoUnavailable, type AutoUnavailable } from './autoUnavailable';
 import { autopilotHeldForReview, commitAutoEdit } from './commitAutoEdit';
 import { guardResult } from '../../core/visionGuardian';
+import { guardianHolds, guardianOrder, guardianSettled, startGuardian, withOpinion } from './assistGuardian';
 import { askOnDeviceGuardian } from '../../providers/visionGuardian';
+import { hasLocalVision } from '../../providers/localVision';
 import type { PictureSource } from '../../core/pictureSource';
 import { autoCullSummary, commitAutoCull, rawsJudgedFromCameraPreview } from './commitAutoCull';
 import { runV2Denoise } from './runDenoise';
+import { MAIN_THREAD_DENOISE_NOTE } from '../../providers/denoiseOffThread';
 import { composeDenoiseRecipe } from './denoiseRecipe';
 import { preloadTrueDetailAi } from '../../core/trueDetailAiCanvas';
 import { moveArtboard } from './boardOps';
@@ -86,6 +89,7 @@ import { type FormatSet, addFormat, applyFormats, ORIGINAL_FORMAT_ID, removeForm
 import { patchVideoZoom } from './videoZoomOps';
 import { isSplitFrameCount, setFormatSplitOffset, setSplitFrameCount as writeSplitFrameCount, toggleFormatSplit, type SplitFrameCount } from './formatSplitOps';
 import { readSplitPanOffset } from './splitFrameOps';
+import { useTapSelect } from './useTapSelect';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, setMaskGeometry, setMaskParts, toggleMask } from './maskOps';
 import { verifyFrameMasks } from './maskVerify';
 import { maskAdvice, maskVerificationKey } from './maskVerificationCommit';
@@ -118,12 +122,15 @@ import { CatalogueReadError, readLightroomCatalogue } from '../../core/lightroom
 import { catalogueFilesInFolder, catalogueOnlyPhotos, commonFolder, planLightroomImport } from '../../core/lightroomImport';
 import type { LightroomPhoto } from '../../core/lightroomCatalogue';
 import { STRINGS as V2_STRINGS } from '../ui/strings';
-import { scheduleV2PhotoExports, photoExportUnits } from './scheduledPhotoExport';
+import { renderExportJob, scheduleV2PhotoExports, photoExportUnits } from './scheduledPhotoExport';
+import { enlargementPreviewRequest, type EnlargementPreviewResult } from './enlargementPreview';
 import { uniqueExportFilename } from '../../core/exportNaming';
 import { exportMayContinue } from '../../core/exportCancellation';
 import type { ExportRequest } from '../ui/contract';
 import { applyRecipePatch, editToRecipe } from './recipeMap';
 import { canvasLensCentre, detectLateralCa } from '../../core/fringe';
+import { resolveLensProfile } from '../../core/lensProfiles';
+import { lensDatabase } from '../../providers/lensProfileStore';
 import { surfaceBridge } from './surfaceBridge';
 import { addSavedEditGroup, renameSavedEditGroup, selectSavedEditGroup, syncEditGroup } from './editGroupState';
 import { engineText } from '../../i18n/areas/engine';
@@ -630,7 +637,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useAutoBackup(state && !state.shoot.collage ? state : null, Boolean(state));
   const backupStatus = useBackupStatus(state?.shoot.id ?? '');
   // First run: pick photos, and InFlight makes a project, adds them and runs Auto on the first one.
-  const [quickStart, setQuickStart] = useState<{ projectId: string; photoId: string | null; phase: 'working' | 'ready' | 'unchanged' | 'failed' } | null>(null);
+  const [quickStart, setQuickStart] = useState<{ projectId: string; photoId: string | null; phase: 'working' | 'ready' | 'unchanged' | 'held' | 'failed' } | null>(null);
   const lightroomPending = useRef<{ projectId: string; photos: LightroomPhoto[]; toAdd: LightroomPhoto[] } | null>(null);
   const [lightroomOffer, setLightroomOffer] = useState<{ missing: number; folder: string } | null>(null);
   const mutate = useCallback((change: (current: CullingState) => CullingState) => setState((current) => (current ? change(current) : current)), []);
@@ -962,6 +969,24 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detectKey]);
 
+  // A photo whose file records no size takes its Original shape from the picture shown, measured at once (not after the
+  // histogram's debounce), so Formats does not open as an unknown 1:1 Original and correct itself later (owner, 25 Nov).
+  const measureId = activeFrame && !(activeFrame.exif.width && activeFrame.exif.height) && !pixelSizes[activeFrame.id] ? activeFrame.id : null;
+  useEffect(() => {
+    if (!measureId || !activeFrame) return;
+    let live = true;
+    const frame = activeFrame;
+    provider.current!.getFullPreviewUrl(frame, 'selected').then(async (url) => {
+      if (!url || !live) return;
+      const image = await loadImage(url);
+      if (live && image.naturalWidth > 0 && image.naturalHeight > 0) {
+        setPixelSizes((current) => (current[frame.id] ? current : { ...current, [frame.id]: { width: image.naturalWidth, height: image.naturalHeight } }));
+      }
+    }).catch(() => { /* the histogram pass measures it later */ });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [measureId]);
+
   // The histogram is measured from the picture as it is now: the preview with this photo's edit applied, small and debounced.
   const histogramKey = activeFrame ? `${activeFrame.id}|${JSON.stringify(activeFrame.edit ?? null)}|${JSON.stringify(activeFrame.framing ?? null)}` : null;
   useEffect(() => {
@@ -1153,6 +1178,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? recordSplitChange(entry, next, at) : entry)) }));
   }, [mutate, stub.store.activeSizeId]);
 
+  const tapSelect = useTapSelect({ stateRef, provider, editFrames, setNotice });
+
   /** Reuse actual area/gradient masks from the shared engine. Sky detection and brush painting are intentionally gated. */
   const addMask = useCallback(async (photoId: string, type: 'subject' | 'sky' | 'background' | 'brush' | 'area' | 'gradient') => {
     if (type === 'sky') { setNotice(engineText.workspace.skyUnavailable); return; }
@@ -1275,7 +1302,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             return outcome.trueDetailAi ? { ...next, trueDetailAi: outcome.trueDetailAi } : next;
           }));
         }
-        ctx.commitIfCurrent(() => setNotice(outcome.verified ? outcome.notes[0] : engineText.denoise.leftAsItWas(outcome.notes.join(' '))));
+        // A main-thread fallback is always said, even on success, so a pause is never unexplained.
+        ctx.commitIfCurrent(() => setNotice(outcome.verified
+          ? [outcome.notes[0], ...outcome.notes.slice(1).filter(note => note === MAIN_THREAD_DENOISE_NOTE)].join(' ')
+          : engineText.denoise.leftAsItWas(outcome.notes.join(' '))));
       },
     }).then(ticket => ticket.finished).then(result => {
       if (result === 'failed') setNotice(engineText.workspace.denoiseFailed);
@@ -1295,14 +1325,17 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, [assists, editFrames]);
 
   // First run: once Auto has looked at the first photo, apply its suggestion (one undoable step), or say plainly that
-  // the photo already looked natural and was left alone.
+  // the photo already looked natural and was left alone. The vision guardian's second opinion comes first: a clear "no"
+  // leaves the photo unchanged and the suggestion in Co-pilot for the person to decide.
   useEffect(() => {
     if (!quickStart || quickStart.phase !== 'working' || !quickStart.photoId) return;
     const assist = assists[quickStart.photoId];
     if (!assist) return;
-    const improved = assist.run.improved && assist.run.candidates.length > 0;
-    if (improved) applyAuto(quickStart.photoId);
-    setQuickStart({ ...quickStart, phase: improved ? 'ready' : 'unchanged' });
+    const first = assist.run.improved ? assist.run.candidates[0] : undefined;
+    if (first && !guardianSettled(assist.guardian, first.id)) return;
+    const held = Boolean(first && guardianHolds(assist.guardian, first.id));
+    if (first && !held) applyAuto(quickStart.photoId);
+    setQuickStart({ ...quickStart, phase: !first ? 'unchanged' : held ? 'held' : 'ready' });
   }, [assists, quickStart, applyAuto]);
   useEffect(() => {
     if (!quickStart || quickStart.phase !== 'working' || !quickStart.photoId) return;
@@ -1357,28 +1390,40 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             const { [frame.id]: _cleared, ...rest } = current;
             return rest;
           }));
+          // Vision AI is the guardian: a second opinion on every suggestion Auto rendered (assistGuardian.ts). Auto's own
+          // pick is asked first, because Auto-pilot and the quick start wait on it. It advises only: a clear "no" holds an
+          // automatic apply and adds a line to that suggestion; it never changes or removes a suggestion.
+          const order = guardianOrder(run.candidates, run.plan.proposal);
           ctx.commitIfCurrent(() => setAssists(current => {
             if (!isCurrent()) return current;
             const recent = Object.entries(current).filter(([id]) => id !== frame.id).slice(-11);
-            return { ...Object.fromEntries(recent), [frame.id]: { run, dismissed: [] } };
+            return { ...Object.fromEntries(recent), [frame.id]: { run, dismissed: [], guardian: startGuardian(order, hasLocalVision()) } };
           }));
-          if (!manual && assistMode === 'autopilot' && run.improved) {
-            // Vision AI is the guardian: a second opinion on the rendered edit before Auto-pilot applies it. It can hold the
-            // edit for review (it stays a Co-pilot suggestion), never apply anything Auto did not already choose.
-            const preferred = run.candidates.find((candidate) => candidate.edit === run.plan.proposal);
-            ctx.stage('Second opinion from the on-device vision model');
-            const opinion = preferred ? await askOnDeviceGuardian(preferred.after, 'editNatural') : null;
-            ctx.checkCancelled();
-            if (!isCurrent()) return;
-            if (guardResult('apply', opinion ? [opinion] : []).status !== 'apply') {
-              ctx.commitIfCurrent(() => setNotice(autopilotHeldForReview()));
-              return;
-            }
+          const autopilot = !manual && assistMode === 'autopilot' && run.improved;
+          let piloted = false;
+          const pilot = (held: boolean) => {
+            piloted = true;
+            if (held) { ctx.commitIfCurrent(() => setNotice(autopilotHeldForReview())); return; }
             const at = Date.now();
             ctx.commitIfCurrent(() => mutate(current =>
               isCurrent() && !ctx.signal.aborted
                 ? commitAutoEdit(current, assistProjectId, frame, run.plan.proposal, at, { by: 'auto', notes: run.detail }) : current));
+          };
+          for (const candidate of hasLocalVision() ? order : []) {
+            ctx.stage(engineText.workspace.secondOpinionStage);
+            const opinion = await askOnDeviceGuardian(candidate.after, 'editNatural');
+            ctx.checkCancelled();
+            if (!isCurrent()) return;
+            ctx.commitIfCurrent(() => setAssists(current => {
+              const assist = current[frame.id];
+              if (!assist || assist.run !== run || !assist.guardian) return current;
+              return { ...current, [frame.id]: { ...assist, guardian: withOpinion(assist.guardian, candidate.id, opinion) } };
+            }));
+            if (autopilot && !piloted && candidate.edit === run.plan.proposal) {
+              pilot(guardResult('apply', opinion ? [opinion] : []).status !== 'apply');
+            }
           }
+          if (autopilot && !piloted) pilot(false);
         },
       }).then(ticket => {
         taskId = ticket.taskId;
@@ -1915,19 +1960,47 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     deleteProjectForever: (id) => {
       void catalogue.current!.deleteProject(id).then(() => loadHub(), () => setNotice('InFlight could not delete the project. Your original photos are unchanged.'));
     },
+    // A copy is a Tasks job: it waits for a free slot, shows while it runs and can be cancelled before it saves.
+    duplicateProject: (id) => {
+      void (async () => {
+        const store = catalogue.current!;
+        const found = await store.loadProject(id);
+        if (!found) { setNotice('That project could not be found.'); return; }
+        const title = V2_STRINGS.hubMore.copyName(found.shoot.title);
+        const ticket = await engineScheduler.submit({
+          title: V2_STRINGS.hubMore.duplicating(found.shoot.title),
+          kind: 'other', resource: 'io', pauseable: false, snapshot: undefined,
+          items: [id], itemId: (item) => item, itemLabel: () => found.shoot.title,
+          runItem: async (_item, _snapshot, ctx) => {
+            // Read again inside the task, so the copy has every change made while it waited its turn.
+            const latest = await store.loadProject(id);
+            ctx.checkCancelled();
+            if (!latest) throw new Error('That project could not be found.');
+            await store.saveProject(duplicateProject(latest, `project-${newId()}`, title, Date.now()));
+          },
+        });
+        if (await ticket.finished === 'done') await loadHub();
+      })().catch(() => setNotice('InFlight could not update the project.'));
+    },
     backToProjects: () => { void backToProjects(); },
     setHubState: (next) => setHubState(next),
     selectPhoto: (id, modifiers) => {
       const list = (stateRef.current?.frames ?? []).filter((frame) => !frame.removedAt && !pairsRef.current.rawOf.has(frame.id)).map((frame) => frame.id);
       if (modifiers?.shift && activeId) {
-        const a = list.indexOf(activeId), b = list.indexOf(id);
-        if (a >= 0 && b >= 0) setSelected(list.slice(Math.min(a, b), Math.max(a, b) + 1));
+        // A Shift range runs through the photos on screen: a filter such as Flagged must not pull in hidden photos.
+        const shown = modifiers.order ? modifiers.order.filter((entry) => list.includes(entry)) : list;
+        const a = shown.indexOf(activeId), b = shown.indexOf(id);
+        if (a >= 0 && b >= 0) setSelected(shown.slice(Math.min(a, b), Math.max(a, b) + 1));
       } else if (modifiers?.ctrl) {
         setSelected((current) => (current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id]));
       } else setSelected([id]);
       mutate((current) => ({ ...current, selectedFrameId: id }));
     },
-    selectAllPhotos: () => setSelected((stateRef.current?.frames ?? []).filter((frame) => !frame.removedAt && !pairsRef.current.rawOf.has(frame.id)).map((frame) => frame.id)),
+    // With a filter on (Flagged, a rating, a search), Select all selects the photos shown, never the hidden ones, so an
+    // edit or export of "all" reaches only the photos the photographer can see.
+    selectAllPhotos: (photoIds) => setSelected((stateRef.current?.frames ?? [])
+      .filter((frame) => !frame.removedAt && !pairsRef.current.rawOf.has(frame.id) && (!photoIds || photoIds.includes(frame.id)))
+      .map((frame) => frame.id)),
     clearSelection: () => setSelected(activeId ? [activeId] : []),
     setDecision: (ids, decision) => decide(ids, decision),
     removePhotos: (ids) => removePhotos(ids),
@@ -2226,6 +2299,46 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (!bytes) return null;
       try { return await verifyExactOriginalCopy(bytes, frame.originalSha256); } catch { return null; }
     },
+    previewEnlargement: async (photoId, sizeId) => {
+      const current = stateRef.current;
+      if (!current || !provider.current) return { ok: false, message: engineText.workspace.exportStopped };
+      const request = enlargementPreviewRequest(photoId, sizeId);
+      const plan = planExport(request, current.frames, createDefaultSizes());
+      if ('error' in plan) return { ok: false, message: plan.error };
+      const job = plan.jobs[0];
+      const variant = job?.variants[0];
+      const frame = current.frames.find((candidate) => candidate.id === photoId);
+      if (!job || !variant || !frame) return { ok: false, message: engineText.workspace.exportStopped };
+      const snapshot = structuredClone(frame);
+      const env = structuredClone(exportEnv.current);
+      const sourceProvider = provider.current;
+      let rendered: File | null = null;
+      let failure = '';
+      // Queued with exports on the same resource, so a preview never renders alongside a full-size export.
+      const ticket = await engineScheduler.submit({
+        title: engineText.workspace.enlargementTask, kind: 'export', location: 'local', resource: 'gpu', priority: 5, pauseable: false,
+        items: [{ id: snapshot.id, name: snapshot.filename }], snapshot: { frameId: snapshot.id },
+        itemId: (item) => item.id, itemLabel: (item) => item.name,
+        runItem: async (_, __, ctx) => {
+          try {
+            const files = await renderExportJob({ frame: snapshot, job, variant, request, provider: sourceProvider,
+              buildOverlay: (target, submitted) => buildOverlayDraw(target, submitted, env), started: new Date(), signal: ctx.signal,
+              stage: (message) => ctx.stage(message), checkCancelled: () => ctx.checkCancelled() });
+            rendered = files[0] ?? null;
+          } catch (reason) {
+            failure = reason instanceof Error ? reason.message : String(reason);
+            throw reason;
+          }
+        },
+      });
+      const outcome = await ticket.finished;
+      const file = rendered as File | null;
+      if (outcome !== 'done' || !file) return { ok: false, message: failure || engineText.workspace.exportStopped };
+      const bitmap = await createImageBitmap(file);
+      const result: EnlargementPreviewResult = { ok: true, url: URL.createObjectURL(file), width: bitmap.width, height: bitmap.height, name: file.name };
+      bitmap.close();
+      return result;
+    },
     renderGalleryPreview: async (photoId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
       return frame && provider.current ? renderGalleryPreview(frame, provider.current) : null;
@@ -2317,6 +2430,17 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (!found) return 'unclear';
       applyPatch([photoId], { caRed: Math.round(found.red * 100), caBlue: Math.round(found.blue * 100) });
       return found.red === 0 && found.blue === 0 ? 'clean' : 'corrected';
+    },
+    applyLensProfile: async (photoId, download) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      if (!frame) return 'failed';
+      let db;
+      try { db = await lensDatabase(download); } catch { return 'failed'; }
+      if (!db) return 'needs-download';
+      const found = resolveLensProfile(db, frame.exif ?? {});
+      if (found.kind !== 'found') return found.kind;
+      applyPatch([photoId], { lensProfile: found.profile });
+      return 'applied';
     },
     neutralWhiteBalance: async (photoId, at) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
@@ -2515,10 +2639,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clearNotice: () => { setNotice(null); stub.actions.clearNotice(); },
   };
   const unconnected = Object.fromEntries(NOT_CONNECTED.map((name) => [name, () => setNotice('That is not connected to the InFlight engine yet. Your photos and originals are unchanged.')])) as Partial<WorkspaceActions>;
-  const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real }) as WorkspaceActions,
+  const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real, ...tapSelect.actions }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
+    [tapSelect.actions, stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: watermarkLibrary, auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   // Species names in the person's language (about 2.6 MB with every group) are fetched once, and only when a photo in
@@ -2571,11 +2695,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     canRedo: Boolean(state?.redoStack.length) || (activeFrame?.editHistory ? activeFrame.editHistory.cursor < activeFrame.editHistory.steps.length : false),
     clipboardRecipe: clipboard,
     PhotoSurface: EngineSurface,
+    tapSelect: tapSelect.state,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
     quickStart: quickStart && quickStart.projectId === state?.shoot.id && screen === 'editor' ? { phase: quickStart.phase, photoId: quickStart.photoId } : null,
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
-  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart]);
+  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state]);
 
   return { store, actions };
 }

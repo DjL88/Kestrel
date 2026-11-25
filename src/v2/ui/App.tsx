@@ -3,6 +3,7 @@ import { usageFromServer, type CloudUsage } from '../../core/cloudPlan';
 import { useConnectivity } from '../../providers/useConnectivity';
 import { projectsText } from '../../i18n/areas/projects';
 import { stepFrom } from './utils/swipe';
+import type { EnlargementPreviewResult } from '../engineClient/enlargementPreview';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { EditRecipe, PanelId, Photo } from './contract';
 import { useWorkspace } from './stub';
@@ -14,13 +15,14 @@ import ProjectsHub from './screens/ProjectsHub';
 import { canHidePro, hiddenProFeatures, panelsHiddenByPro } from '../engineClient/proVisibility';
 import { FeaturePlanContext, HiddenProContext } from './shell/ProBadge';
 import { backupStatusText } from '../engineClient/backupWords';
+import { exportTargetFor, readLastExport, requestFromSettings } from '../engineClient/exportSettings';
 import { usePresence } from './shell/usePresence';
 import { PresenceAvatars, PresenceCursors } from './shell/PresenceLayer';
 import { NoticesButton, useNotices } from './shell/Notices';
 import { TaskAlerts } from './shell/TaskAlerts';
 import SharedEditBanner from './shell/SharedEditBanner';
 import SharedComments from './shell/SharedComments';
-import { getActiveGroup } from './utils/studioMath';
+import { getActiveGroup, viewPhotos } from './utils/studioMath';
 import { readSharedLink } from './dialogs/sharedLinks';
 import { useSharedEditing } from './shell/useSharedEditing';
 import { collabClient } from '../../providers/collabClient';
@@ -30,7 +32,7 @@ import { loadPad, resolveWithPad, savePad, type PadProfile } from './commands/pa
 import { commandById, type CommandDefinition } from './commands/registry';
 import { useNativeMenu } from './commands/useNativeMenu';
 import { lazyPart } from './utils/lazyPart';
-import { isDesktopApp } from '../../providers/desktopShell';
+import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
 import type { MenuAction } from './commands/menuMap';
 
 // Only the projects list is needed to start. The editor (shell, panels and dialogs) is its own set of chunks, fetched in
@@ -56,6 +58,7 @@ const InfoPanel = lazyPart(() => import('./panels/InfoPanel'));
 const TasksPanel = lazyPart(() => import('./panels/TasksPanel'));
 const CollageExportDialog = lazyPart(() => import('./dialogs/CollageExportDialog'));
 const ExportDialog = lazyPart(() => import('./dialogs/ExportDialog'));
+const EnlargementPreview = lazyPart(() => import('./dialogs/EnlargementPreview'));
 const RemovedPhotosDialog = lazyPart(() => import('./dialogs/RemovedPhotosDialog'));
 const ShareDialog = lazyPart(() => import('./dialogs/ShareDialog'));
 const SettingsDialog = lazyPart(() => import('./dialogs/SettingsDialog'));
@@ -94,6 +97,22 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const { store, actions } = useStore();
   // Shared projects (#1387): contacted only when the person opens Share.
   const [shareOpen, setShareOpen] = useState(false);
+  // The enlargement preview: the export's own picture of one format. Null result while it is being made.
+  const [enlargement, setEnlargement] = useState<{ photoId: string; sizeId: string; result: EnlargementPreviewResult | null } | null>(null);
+  const enlargementRequest = React.useRef(0);
+  const openEnlargement = (photoId: string, sizeId: string) => {
+    const request = ++enlargementRequest.current;
+    setEnlargement({ photoId, sizeId, result: null });
+    void actions.previewEnlargement?.(photoId, sizeId).then((result) => {
+      // A preview closed (or replaced) before it finished is dropped, and its picture released.
+      if (request !== enlargementRequest.current) { if (result.ok) URL.revokeObjectURL(result.url); return; }
+      setEnlargement((current) => current ? { ...current, result } : current);
+    });
+  };
+  const closeEnlargement = () => {
+    enlargementRequest.current += 1;
+    setEnlargement((current) => { if (current?.result?.ok) URL.revokeObjectURL(current.result.url); return null; });
+  };
   const [shareVersion, setShareVersion] = useState(0);
   const [cursorsHidden, setCursorsHidden] = useState(false);
   const closeShare = React.useCallback(() => { setShareOpen(false); setShareVersion((n) => n + 1); }, []);
@@ -252,6 +271,16 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
 
   // One dispatch for every command id, shared by the keydown handler below and the command search dialog,
   // so "what Cmd/Ctrl+K can run" and "what the keyboard shortcut runs" never drift apart.
+  // The photos the filmstrip and grid show, in their order. Select all and Shift ranges act on these only, so a filter
+  // such as Flagged never lets an edit or an export reach photos that are hidden.
+  const shownPhotoIds = React.useMemo(() => viewPhotos(store.photos, {
+    filter: store.filmstripFilter, search: store.filmstripSearch, minRating: store.filmstripMinRating,
+    sort: store.filmstripSort, tag: store.filmstripTag ?? null,
+  }).map((photo) => photo.id), [store.photos, store.filmstripFilter, store.filmstripSearch, store.filmstripMinRating, store.filmstripSort, store.filmstripTag]);
+  const selectShownPhoto = React.useCallback((photoId: string, modifiers?: { ctrl?: boolean; shift?: boolean }) =>
+    actions.selectPhoto(photoId, modifiers?.shift ? { ...modifiers, order: shownPhotoIds } : modifiers), [actions, shownPhotoIds]);
+  const selectAllShown = React.useCallback(() => actions.selectAllPhotos(shownPhotoIds), [actions, shownPhotoIds]);
+
   // Settings → Keyboard: after a rating or decision on one photo, move on to the next, as when culling in Photo Mechanic
   // or Lightroom with Caps Lock on. A choice on several selected photos never moves.
   const advanceAfterDecision = (ids: string[]) => {
@@ -283,11 +312,21 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'edit.redo': actions.redo(); break;
       case 'edit.copy': actions.copyRecipe(); break;
       case 'edit.paste': if (!editLocked) actions.pasteRecipe(); break;
-      case 'edit.selectAll': actions.selectAllPhotos(); break;
+      case 'edit.selectAll': selectAllShown(); break;
       case 'file.export': actions.setExportOpen(true); break;
       case 'app.settings': actions.setSettingsOpen(true); break;
     }
-  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, store.settings.advanceAfterDecision, activePhoto, actions, pairPhotos, editLocked]);
+  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, store.settings.advanceAfterDecision, activePhoto, actions, pairPhotos, editLocked, selectAllShown]);
+
+  // File > Export again with last settings (G09): the wizard's last settings on the current selection, through the same
+  // request builder, so it gives exactly the files the wizard would. Nothing exported yet: open the wizard instead.
+  const quickExport = () => {
+    if (!activePhoto || store.collage) return;
+    let last = null;
+    try { last = readLastExport(window.localStorage); } catch { last = null; }
+    if (!last) { actions.setExportOpen(true); return; }
+    actions.runExport(requestFromSettings(last, exportTargetFor(activePhoto, store.selectedPhotoIds, isDesktopApp() && !isMobileShell())));
+  };
 
   // The desktop app's native menu (File, Edit, Photo, View, Settings). Some of its accelerators (Cmd/Ctrl+E, +A, +O, +M)
   // are taken before the page sees the key, so the menu choice must run the action itself.
@@ -304,6 +343,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'settings': actions.setSettingsOpen(true, action.tab); break;
       case 'removedPhotos': if (inEditor) actions.setRemovedOpen(true); break;
       case 'backupNow': if (inEditor && !store.collage) actions.backUpProjectNow(); break;
+      case 'quickExport': if (inEditor) quickExport(); break;
       case 'backupFile': if (inEditor && !store.collage) actions.saveProjectBackupFile(); break;
       case 'saveXmp': if (inEditor && !store.collage) actions.saveXmpSidecars(store.selectedPhotoIds); break;
       case 'readXmp': if (inEditor && !store.collage) xmpInputRef.current?.click(); break;
@@ -387,6 +427,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             showAdvanced={store.settings.advancedControls}
             onUpdateRecipe={actions.updateRecipe}
             onDetectColourEdges={actions.detectColourEdges}
+            onApplyLensProfile={actions.applyLensProfile}
             onApplyLook={actions.applyLook}
             onHoverLook={actions.setHoveredLook}
             onResetPhoto={actions.resetPhotoEdits}
@@ -439,6 +480,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetMaskGeometry={actions.setMaskGeometry}
             onSetMaskParts={actions.setMaskParts}
             onPreviewMask={setMaskGuide}
+            tapSelect={store.tapSelect}
+            tapActions={actions}
           />
         );
       case 'enhance':
@@ -449,6 +492,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onUpdateRecipe={actions.updateRecipe}
             onDenoise={actions.denoisePhoto}
             cloudEnabled={store.features.cloudAssist}
+            onPreviewEnlargement={actions.previewEnlargement && activePhoto ? () => openEnlargement(activePhoto.id, store.activeSizeId) : undefined}
           />
         );
       case 'overlays':
@@ -630,6 +674,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onDeleteProject={actions.deleteProject}
           onRestoreDeletedProject={actions.restoreDeletedProject}
           onDeleteProjectForever={actions.deleteProjectForever}
+          onDuplicateProject={actions.duplicateProject}
           onOpenSettings={() => actions.setSettingsOpen(true, 'appearance')}
           onToggleTheme={() =>
             actions.updateSettings({ theme: activeTheme === 'dark' ? 'light' : 'dark' })
@@ -670,6 +715,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onBack={actions.backToProjects}
             onSetAssistMode={actions.setAssistMode}
             onExport={() => actions.setExportOpen(true)}
+            onQuickExport={store.screen === 'editor' && !store.collage && activePhoto ? quickExport : undefined}
             onShare={store.collage ? undefined : () => setShareOpen(true)}
             presence={<>
               <PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(key) => { const photo = store.photos.find((candidate) => candidate.sharedKey === key); if (photo) actions.selectPhoto(photo.id); }} />
@@ -690,7 +736,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onCopyRecipe={actions.copyRecipe}
             onPasteRecipe={actions.pasteRecipe}
             onResetPhoto={() => activePhoto && actions.resetPhotoEdits(activePhoto.id)}
-            onSelectAll={actions.selectAllPhotos}
+            onSelectAll={selectAllShown}
             onClearSelection={actions.clearSelection}
             onToggleFilmstrip={() => actions.setFilmstripCollapsed(!store.filmstripCollapsed)}
             onToggleGridView={() => actions.setGridViewOpen(!store.gridViewOpen)}
@@ -770,7 +816,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   onSetSort={actions.setFilmstripSort}
                   tagFilter={store.filmstripTag ?? null}
                   onSetTagFilter={actions.setFilmstripTag}
-                  onSelectPhoto={actions.selectPhoto}
+                  onSelectPhoto={selectShownPhoto}
                   onOpenInEditor={(id) => {
                     actions.selectPhoto(id);
                     actions.setGridViewOpen(false);
@@ -792,6 +838,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   maskOverlayKey={keymap['view.maskOverlay'] ? chordLabel(keymap['view.maskOverlay'], IS_MAC) : undefined}
                   onToggleMaskOverlay={() => setMaskOverlayVisible((visible) => !visible)}
                   onSetMaskGeometry={actions.setMaskGeometry}
+                  tapSession={store.tapSelect?.session}
+                  onTapSelect={actions.tapSelectAt}
                   neutralPick={neutralPick}
                   onOpenFormats={activePhoto ? () => {
                     actions.setPanelVisible('formats', true);
@@ -861,7 +909,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onSetHeight={actions.setFilmstripHeight}
                 onSetFilter={actions.setFilmstripFilter}
                 onSetSearch={actions.setFilmstripSearch}
-                onSelectPhoto={actions.selectPhoto}
+                onSelectPhoto={selectShownPhoto}
                 onClearSelection={actions.clearSelection}
                 onToggleFlag={actions.toggleFlag}
                 onSetRating={actions.setRating}
@@ -1049,6 +1097,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       )}
 
       {/* Global Dialogs: each in its own boundary, so one still arriving hides nothing else. */}
+      {enlargement && <React.Suspense fallback={null}><EnlargementPreview result={enlargement.result} onClose={closeEnlargement}
+        formatLabel={store.photos.find((photo) => photo.id === enlargement.photoId)?.sizes.find((size) => size.id === enlargement.sizeId)?.label ?? ''} /></React.Suspense>}
       {store.collage && store.exportOpen && <React.Suspense fallback={null}><CollageExportDialog key={store.activeProjectId} document={store.collage} onClose={() => actions.setExportOpen(false)} onExport={actions.exportCollage} /></React.Suspense>}
       <React.Suspense fallback={null}><ExportDialog key={JSON.stringify([activePhoto?.id, activePhoto?.activeGroupId])}
         open={store.exportOpen && !store.collage}

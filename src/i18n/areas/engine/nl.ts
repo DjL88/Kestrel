@@ -49,6 +49,7 @@ export const nl: AreaTranslation<typeof source> = {
       : `Ruis verwijderd op dit apparaat, met ${count} onderwerpen samen beschermd.`),
     global: 'Geen omtrek van een onderwerp was betrouwbaar, dus ruisonderdrukking is gelijkmatig op de hele foto toegepast.',
     failedCheck: 'Het resultaat kwam niet door de kwaliteitscontrole. Uw bestaande bewerkingen zijn behouden.',
+    mainThread: 'Dit apparaat kon de ruis niet op de achtergrond verwijderen, dus InFlight kan even hebben stilgestaan.',
     leftAsItWas: (notes) => `Gelaten zoals het was. ${notes}`,
   },
   workspace: {
@@ -87,6 +88,7 @@ export const nl: AreaTranslation<typeof source> = {
       : `${count} bestanden geëxporteerd. Uw originelen zijn niet veranderd.`),
     exportSomeFailed: 'Sommige exports zijn mislukt. Open Taken en kies Mislukte opnieuw. Bestanden die al zijn opgeslagen, blijven staan.',
     exportStopped: 'Export gestopt. Bestanden die al zijn opgeslagen, blijven staan.',
+    enlargementTask: 'Voorbeeld van de vergroting maken',
     exportNotQueued: 'Deze export kon niet worden gestart.',
     destinationUnavailable: 'Die exportbestemming is niet beschikbaar. Kies een lokale ZIP, losse bestanden of een map op de computer.',
     cullPro: 'Automatisch selecteren hoort bij InFlight Pro.',
@@ -131,6 +133,7 @@ export const nl: AreaTranslation<typeof source> = {
     suggestionStale: 'De foto is na dit voorstel veranderd. Wacht op een nieuwe controle.',
     checkTask: (filename) => `${filename} en de kleur ervan controleren`,
     checkStage: 'Belichting, kleur en scène bekijken',
+    secondOpinionStage: "Second opinion van het beeldmodel op het apparaat",
     checkFailed: 'Deze foto kon niet worden gecontroleerd. Details in Taken.',
     deepTask: 'Diepe controle loopt',
     deepStage: 'De onderwerpen en de fotokwaliteit bekijken',
