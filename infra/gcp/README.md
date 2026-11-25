@@ -226,6 +226,19 @@ exceed 20 testers). The £20 budget alert from phase 1 still applies.
 
 To deploy a newer version, repeat step 3 with the new commit. To roll back, apply with the previous image tag.
 
+**Cloud Shell, against the live backend (CS05):** `infra/gcp/deploy-control-plane.sh` does this with guard rails. It builds
+the image for one full `main` SHA, plans with the private `current.tfvars.json`, and stops unless the only change is an
+in-place update of the Cloud Run service. `apply` needs the SHA typed back and the saved plan unchanged, then records the
+new image. `verify` checks the running image, `/health`, and the no-op baseline. `rollback` re-applies the previous image.
+
+```bash
+s=<full main sha>; L="$HOME/.inflight-phase2"; T="$HOME/.inflight-activation/ba1490e6da24811bf799fd979c585b54022ffdc7/safe-copy/.terraform"
+git -C "$HOME/Kestrel" fetch origin main && git -C "$HOME/Kestrel" show "$s:infra/gcp/deploy-control-plane.sh" > /tmp/kcp-deploy.sh
+bash /tmp/kcp-deploy.sh plan   "$HOME/Kestrel" "$s" "$L" "$T"
+bash /tmp/kcp-deploy.sh apply  "$HOME/Kestrel" "$s" "$L" "$T"
+bash /tmp/kcp-deploy.sh verify "$HOME/Kestrel" "$s" "$L" "$T"
+```
+
 ### The admin console (`/admin` on the website)
 
 The page is `site/admin.html`. Firebase Hosting forwards `/v1/admin/**` (and `/v1/contact`) to the service, so the page
