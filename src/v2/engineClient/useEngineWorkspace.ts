@@ -477,6 +477,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // Automatic backups of the open project, shared with V1: soon after a change, every so often, and on leaving.
   useAutoBackup(state && !state.shoot.collage ? state : null, Boolean(state));
   const backupStatus = useBackupStatus(state?.shoot.id ?? '');
+  // First run: pick photos, and InFlight makes a project, adds them and runs Auto on the first one.
+  const [quickStart, setQuickStart] = useState<{ projectId: string; photoId: string | null; phase: 'working' | 'ready' | 'unchanged' | 'failed' } | null>(null);
   const lightroomPending = useRef<{ projectId: string; photos: LightroomPhoto[]; toAdd: LightroomPhoto[] } | null>(null);
   const [lightroomOffer, setLightroomOffer] = useState<{ missing: number; folder: string } | null>(null);
   const mutate = useCallback((change: (current: CullingState) => CullingState) => setState((current) => (current ? change(current) : current)), []);
@@ -1083,6 +1085,23 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!valid(frame)) { setNotice(engineText.workspace.suggestionStale); return; }
     editFrames([frameId], (latest) => valid(latest) ? candidate.edit : latest.edit);
   }, [assists, editFrames]);
+
+  // First run: once Auto has looked at the first photo, apply its suggestion (one undoable step), or say plainly that
+  // the photo already looked natural and was left alone.
+  useEffect(() => {
+    if (!quickStart || quickStart.phase !== 'working' || !quickStart.photoId) return;
+    const assist = assists[quickStart.photoId];
+    if (!assist) return;
+    const improved = assist.run.improved && assist.run.candidates.length > 0;
+    if (improved) applyAuto(quickStart.photoId);
+    setQuickStart({ ...quickStart, phase: improved ? 'ready' : 'unchanged' });
+  }, [assists, quickStart, applyAuto]);
+  useEffect(() => {
+    if (!quickStart || quickStart.phase !== 'working' || !quickStart.photoId) return;
+    // Auto normally answers in a few seconds; if it cannot check the photo, say so instead of waiting forever.
+    const timer = window.setTimeout(() => setQuickStart((current) => current === quickStart ? { ...current, phase: 'failed' } : current), 45_000);
+    return () => window.clearTimeout(timer);
+  }, [quickStart]);
 
   // Co-pilot and Auto-pilot look at the photo on the canvas, on this device, one at a time. Solo never does.
   const assistMode = savedUi.assistMode ?? stub.store.assistMode;
@@ -1693,6 +1712,30 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         setNotice(lightroomNotice(words, { ...plan, unmatched: plan.unmatched - toAdd.length }, catalogued, result));
       }, (error) => setNotice(words.failed[error instanceof CatalogueReadError ? error.reason : 'unreadable']));
     },
+    startQuickStart: () => {
+      const words = V2_STRINGS.quickStart;
+      // The picker opens straight from the person's click; everything after it runs on this device.
+      void pickFiles().then(async (picks) => {
+        if (!picks?.length) return;
+        const created = createEmptyProject(`project-${newId()}`, words.projectName);
+        try { await catalogue.current!.saveProject(created); }
+        catch { setNotice(V2_STRINGS.quickStart.failed); return; }
+        enterProject(created);
+        setQuickStart({ projectId: created.shoot.id, photoId: null, phase: 'working' });
+        for (let wait = 0; stateRef.current?.shoot.id !== created.shoot.id && wait < 100; wait++) {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+        if (stateRef.current?.shoot.id !== created.shoot.id) return;
+        await importPhotos(picks);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const now = stateRef.current;
+        const first = now?.shoot.id === created.shoot.id ? now.frames.find((frame) => frame.removedAt == null) : undefined;
+        if (!first) { setQuickStart(null); return; }
+        setQuickStart({ projectId: created.shoot.id, photoId: first.id, phase: 'working' });
+        setAutoRequest((last) => ({ photoId: first.id, sequence: (last?.sequence ?? 0) + 1 }));
+      });
+    },
+    dismissQuickStart: () => setQuickStart(null),
     dismissLightroomOffer: () => { lightroomPending.current = null; setLightroomOffer(null); },
     chooseLightroomFolder: () => {
       const pending = lightroomPending.current;
@@ -2059,9 +2102,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clipboardRecipe: clipboard,
     PhotoSurface: EngineSurface,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
+    quickStart: quickStart && quickStart.projectId === state?.shoot.id && screen === 'editor' ? { phase: quickStart.phase, photoId: quickStart.photoId } : null,
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
-  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer]);
+  }), [backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart]);
 
   return { store, actions };
 }
