@@ -88,6 +88,18 @@ export function chosenSizeIds(settings: Pick<ExportSettings, 'sizeIds'>, enabled
   return settings.sizeIds === null ? [...enabledSizeIds] : enabledSizeIds.filter((id) => settings.sizeIds!.includes(id));
 }
 
+/**
+ * Whether two settings export the same files for this photo, so a saved preset shows as chosen only while the wizard
+ * still holds exactly its settings. Compared as the wizard applies them: ZIP or not, and only formats switched on.
+ */
+export function settingsMatch(a: ExportSettings, b: ExportSettings, enabledSizeIds: readonly string[]): boolean {
+  return a.fileFormat === b.fileFormat && (a.fileFormat !== 'jpeg' || a.jpegQuality === b.jpegQuality)
+    && a.maxSize === b.maxSize && (a.maxSize !== 'custom' || a.customMaxSize === b.customMaxSize)
+    && (a.destination === 'local-zip') === (b.destination === 'local-zip')
+    && chosenSizeIds(a, enabledSizeIds).join('\n') === chosenSizeIds(b, enabledSizeIds).join('\n')
+    && a.includeBefore === b.includeBefore && a.includeAfter === b.includeAfter && a.includeOriginal === b.includeOriginal;
+}
+
 /** The one way an ExportRequest is made from settings. */
 export function requestFromSettings(settings: ExportSettings, target: ExportTarget, rawMaster = false, rawMasterFormat: 'tiff' | 'png' = 'tiff'): ExportRequest {
   const photoIds = target.selectedPhotoIds.length ? [...target.selectedPhotoIds] : [target.photoId];

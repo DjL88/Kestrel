@@ -183,16 +183,21 @@ test('?v2 a saved preset and File > Export again give exactly the files the wiza
   expect(names.length).toBeGreaterThan(0);
   expect(names.every((name) => name.endsWith('.png'))).toBe(true);
 
-  // A fresh dialog starts from the defaults; choosing the preset puts the same settings back.
+  // Reopened, the wizard keeps this session's settings. Change them away from the preset; choosing the preset puts
+  // exactly its settings back.
   dialog = await openExport(page, studio);
-  await expect(dialog.getByLabel('File format')).toHaveValue('jpeg');
+  await dialog.getByLabel('File format').selectOption('jpeg');
+  await dialog.getByRole('combobox', { name: 'Size', exact: true }).selectOption({ index: 0 });
+  await expect(dialog.getByRole('combobox', { name: 'Size', exact: true })).not.toHaveValue('2560');
   await dialog.getByRole('combobox', { name: 'Use saved settings' }).selectOption({ label: 'Web PNG' });
   await expect(dialog.getByLabel('File format')).toHaveValue('png');
+  await expect(dialog.getByRole('combobox', { name: 'Size', exact: true })).toHaveValue('2560');
   const preset = await exportZip(page, dialog);
   expect(Object.keys(preset).sort()).toEqual(names);
   for (const name of names) expect(same(preset[name], wizard[name]), `${name}: preset differs from the wizard`).toBe(true);
 
   // Export again: no dialog, the last settings, the same bytes.
+  await expect(page.getByRole('dialog', { name: /export/i })).toHaveCount(0);
   const downloaded = page.waitForEvent('download');
   await studio.getByRole('button', { name: 'File', exact: true }).click();
   await studio.getByRole('menuitem', { name: 'Export again with last settings' }).click();

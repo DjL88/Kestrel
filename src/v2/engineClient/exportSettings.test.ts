@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   DEFAULT_EXPORT_SETTINGS, EXPORT_PRESETS_KEY_V2, LAST_EXPORT_KEY_V2, MAX_PRESETS, deletePreset, exportTargetFor,
-  parseExportSettings, readLastExport, readPresets, requestFromSettings, savePreset, writeLastExport, writePresets,
+  parseExportSettings, readLastExport, readPresets, requestFromSettings, savePreset, settingsMatch, writeLastExport, writePresets,
   type ExportSettings,
 } from './exportSettings.ts';
 import { planExport } from './exportOps.ts';
@@ -116,4 +116,20 @@ test('storage that refuses a write is reported, not ignored', () => {
   const full = { getItem: () => null, setItem: () => { throw new Error('QuotaExceededError'); } };
   assert.equal(writePresets(full, []), false);
   assert.equal(writeLastExport(full, settings), false);
+});
+
+test('a preset shows as chosen only while the settings still export what it exports', () => {
+  const enabled = ['a', 'b'];
+  const base: ExportSettings = { ...DEFAULT_EXPORT_SETTINGS };
+  assert.equal(settingsMatch(base, { ...base }, enabled), true);
+  // What the wizard does when applying a preset does not count as a change.
+  assert.equal(settingsMatch(base, { ...base, sizeIds: ['b', 'a'] }, enabled), true, 'every format switched on, by name or by null');
+  assert.equal(settingsMatch({ ...base, destination: 'local-individual' }, { ...base, destination: 'local-folder' }, enabled), true);
+  assert.equal(settingsMatch(base, { ...base, fileFormat: 'png', jpegQuality: 40 }, enabled), false);
+  assert.equal(settingsMatch({ ...base, fileFormat: 'png' }, { ...base, fileFormat: 'png', jpegQuality: 40 }, enabled), true, 'quality is JPEG only');
+  assert.equal(settingsMatch(base, { ...base, customMaxSize: 800 }, enabled), true, 'custom size counts only when chosen');
+  // A real change does count.
+  for (const changed of [{ jpegQuality: 80 }, { maxSize: '2560' as const }, { destination: 'local-individual' as const }, { sizeIds: ['a'] }, { includeBefore: true }, { includeAfter: false }, { includeOriginal: true }]) {
+    assert.equal(settingsMatch(base, { ...base, ...changed }, enabled), false, JSON.stringify(changed));
+  }
 });

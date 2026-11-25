@@ -13,7 +13,7 @@ import type {
 import { STRINGS } from '../strings';
 import BrandIcon, { SocialLogo, type BrandIconName } from '../icons/BrandIcon';
 import {
-  DEFAULT_EXPORT_SETTINGS, MAX_PRESET_NAME, deletePreset, exportTargetFor, readPresets, requestFromSettings, savePreset,
+  DEFAULT_EXPORT_SETTINGS, MAX_PRESET_NAME, deletePreset, exportTargetFor, readPresets, requestFromSettings, savePreset, settingsMatch,
   writeLastExport, writePresets, type ExportSettings, type SavedExportPreset,
 } from '../../engineClient/exportSettings';
 
@@ -116,6 +116,9 @@ export default function ExportDialog({
     setDestination(next.destination === 'local-zip' ? 'local-zip' : nativeFolder ? 'local-folder' : 'local-individual');
     setIncludeBefore(next.includeBefore); setIncludeAfter(next.includeAfter); setIncludeOriginal(next.includeOriginal);
   };
+  // A preset shows as chosen only while the settings are still its own; change one and the list says so, and choosing it again puts it back.
+  const chosenPreset = presets.find((item) => item.id === presetId);
+  const shownPresetId = chosenPreset && settingsMatch(chosenPreset.settings, currentSettings(), enabledFormats.map((size) => size.id)) ? presetId : '';
   const choosePreset = (id: string) => {
     setPresetId(id);
     const preset = presets.find((item) => item.id === id);
@@ -191,12 +194,12 @@ export default function ExportDialog({
               <h3 id="export-presets-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.exportDialog.presetsHeading}</h3>
               {presets.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2">
-                  <select aria-label={STRINGS.exportDialog.presetChoose} value={presetId} onChange={(event) => choosePreset(event.target.value)}
+                  <select aria-label={STRINGS.exportDialog.presetChoose} value={shownPresetId} onChange={(event) => choosePreset(event.target.value)}
                     className="min-h-10 min-w-0 flex-1 rounded bg-[var(--bg-input)] p-2 text-xs text-[var(--text-primary)]">
                     <option value="">{STRINGS.exportDialog.presetPlaceholder}</option>
                     {presets.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                   </select>
-                  {presetId && (
+                  {shownPresetId && (
                     <button type="button" onClick={removePreset}
                       className="min-h-10 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                       {STRINGS.exportDialog.presetDelete(presets.find((item) => item.id === presetId)?.name ?? '')}
