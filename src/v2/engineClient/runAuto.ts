@@ -4,6 +4,7 @@ import { detectSubjectInstances } from '../../providers/multiSubjectDetector';
 import { unionSubjectGrid } from '../../core/subjectUnion';
 import { speciesReference } from '../../core/speciesKnowledge';
 import { observationsFromFrame, preservationPolicy } from '../../core/photographyPolicy';
+import { sceneHintsFromPhotoTags } from '../../core/photoTagHints';
 import { mergeAutoSuggestion } from '../../core/autoEnhance';
 import { acceptedAutoChanges } from '../../core/autoSuggestionSummary';
 import { proposeSubjectAwareAuto, type InsightSubjectKind } from '../../core/insightSubjectAuto';
@@ -131,8 +132,11 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   if (signal?.aborted) return null;
 
   const photographyObservations = observationsFromFrame(frame);
-  const policy = preservationPolicy(photographyObservations);
-  const natural = naturalAuto({ pixels: analysis.data, width: analysis.width, height: analysis.height, segmentation, iso: frame.exif?.iso, photographyObservations });
+  // Scene tags (golden hour, snow, fog, night, black and white...) are hints that only hold edits back.
+  const sceneHints = sceneHintsFromPhotoTags(frame);
+  const basePolicy = preservationPolicy(photographyObservations);
+  const policy = { ...basePolicy, preserveDark: basePolicy.preserveDark || sceneHints.preserveDark === true };
+  const natural = naturalAuto({ pixels: analysis.data, width: analysis.width, height: analysis.height, segmentation, iso: frame.exif?.iso, photographyObservations, sceneHints });
   if (natural.notes.includes('This preview is too small or too large to analyse.')) return null;
   const global = mergeAutoSuggestion(base, natural.edit).edit;
   const input = { pixels: analysis.data, width: analysis.width, height: analysis.height, base, natural, segmentation, species, photographyObservations };
@@ -147,7 +151,8 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
     // A different tone treatment: protect brighter detail and use a softer
     // contrast curve where the source actually has bright detail to protect.
     const { scene } = natural;
-    if (scene.referenceP98 > 0.82 && scene.brightTextured > 0.015) {
+    // Not for snow or high-key frames: this alternative pulls the highlights down.
+    if (scene.referenceP98 > 0.82 && scene.brightTextured > 0.015 && !sceneHints.preserveBright) {
       const balanced = stageNaturalRecipe(analysis.data, analysis.width, analysis.height, base, {
         ...naturalPlan.proposal,
         highlights: Math.max(-0.8, Math.min(naturalPlan.proposal.highlights ?? 0, base.highlights ?? 0) - 0.25),

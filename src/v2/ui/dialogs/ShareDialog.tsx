@@ -28,6 +28,10 @@ interface ShareDialogProps {
   importCloud?: (items: { file: File; projectId: string; photoKey: string }[]) => Promise<void>;
   attachOriginal?: (photoId: string, original: File, sha256: string) => Promise<boolean>;
   onGoToPhoto: (photoId: string) => void;
+  /** This project's decision for a photo, or null when it is not here. Client feedback offers "Flag it" from it. */
+  photoDecision?: (photoId: string) => 'unreviewed' | 'keep' | 'reject' | null;
+  /** Flags one photo, only when the photographer chooses a client's pick. */
+  onFlagPhoto?: (photoId: string) => void;
   onClose: () => void;
 }
 
@@ -37,7 +41,7 @@ const INVITE_ROLES: Exclude<CollabRole, 'owner'>[] = ['editor', 'commenter', 'vi
  * Share a project with named people (#1387 C01). Opt-in: nothing is contacted until this dialog opens, and a project
  * that is never shared keeps working offline. For now only the project name and the people are shared; the dialog says so.
  */
-export default function ShareDialog({ open, client, localProjectId, projectName, selectedPhotoIds, displayName, renderPreview, siteUrl, photoName, onGoToPhoto, localPhotos, readOriginal, importCloud, attachOriginal, onClose }: ShareDialogProps) {
+export default function ShareDialog({ open, client, localProjectId, projectName, selectedPhotoIds, displayName, renderPreview, siteUrl, photoName, onGoToPhoto, localPhotos, readOriginal, importCloud, attachOriginal, photoDecision, onFlagPhoto, onClose }: ShareDialogProps) {
   const t = STRINGS.share;
   const closeButton = useRef<HTMLButtonElement>(null);
   const [view, setView] = useState<CollabProjectView | null>(null);
@@ -230,7 +234,7 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
             )}
             <CloudPhotosPanel client={client} projectId={view.projectId} role={view.me.role} photos={localPhotos} selectedPhotoIds={selectedPhotoIds}
               renderPreview={renderPreview} readOriginal={readOriginal} importCloud={importCloud} attachOriginal={attachOriginal} onProblem={explain} />
-            {canInvite && <GalleryFeedbackPanel client={client} projectId={view.projectId} version={published} photoName={photoName} onGoToPhoto={onGoToPhoto} onProblem={explain} />}
+            {canInvite && <GalleryFeedbackPanel client={client} projectId={view.projectId} version={published} photoName={photoName} onGoToPhoto={onGoToPhoto} onProblem={explain} photoDecision={photoDecision} onFlag={onFlagPhoto} />}
           </>
         )}
       </section>

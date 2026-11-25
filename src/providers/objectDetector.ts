@@ -1,3 +1,5 @@
+import { createTimedSession } from './modelTiming';
+import { recordModelLoad, recordModelRun } from '../core/modelStats';
 import { sha256Hex } from '../core/sha256';
 import { friendlyToolError } from '../core/toolErrors';
 import { bundledModelUrl } from './bundledModelAssets';
@@ -48,7 +50,7 @@ function load(): Promise<Loaded> {
     });
     ort.env.wasm.numThreads = 1;
     ort.env.wasm.proxy = false;
-    const session = await ort.InferenceSession.create(new Uint8Array(bytes), { executionProviders: ['wasm'] });
+    const session = await createTimedSession(ort, 'yolox-tiny', new Uint8Array(bytes), { executionProviders: ['wasm'] });
     return { ort, session };
   })().catch((error) => {
     failed = true;
@@ -86,7 +88,7 @@ function startPool(): Promise<Slot[] | null> {
         worker.onerror = () => reject(new Error('worker failed'));
         worker.onmessage = (event: MessageEvent) => {
           const message = event.data;
-          if (message.type === 'ready') { slots.push(slot); resolve(); return; }
+          if (message.type === 'ready') { recordModelLoad('yolox-tiny', message.loadMs); slots.push(slot); resolve(); return; }
           if (message.type === 'error' && message.id === undefined) { reject(new Error(message.message)); return; }
           const job = pending.get(message.id);
           if (!job) return;
@@ -94,7 +96,7 @@ function startPool(): Promise<Slot[] | null> {
           const next = waiting.shift();
           slot.busy = Boolean(next); // handed straight to the next waiting job, so two jobs never share a worker by accident
           next?.(slot);
-          if (message.type === 'result') job.resolve(message.data as Float32Array); else job.reject(new Error(message.message));
+          if (message.type === 'result') { recordModelRun('yolox-tiny', message.runMs); job.resolve(message.data as Float32Array); } else job.reject(new Error(message.message));
         };
         worker.postMessage({ type: 'init', model: bytes.slice(0) }); // each worker keeps its own copy
       })));

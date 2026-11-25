@@ -1,4 +1,4 @@
-import { LOCAL_KEYS, MAX_MASKS, type LocalKey, type Mask, type MaskLimit } from '../../core/maskTypes';
+import { MASK_EDIT_KEYS, MAX_MASKS, type MaskEditKey, type Mask, type MaskLimit } from '../../core/maskTypes';
 import type { MaskGeometryField, MaskLayer } from '../ui/contract';
 
 /** The sliders a mask offers in V2. Each is a real local control; the range is the core's own (-2 to 2, sharpen from 0). */
@@ -10,7 +10,8 @@ export const MASK_SLIDERS = [
   { key: 'clarity', label: 'Clarity', min: -2, max: 2, step: 0.05 },
   { key: 'sharpen', label: 'Sharpen', min: 0, max: 2, step: 0.05 },
   { key: 'denoise', label: 'Colour denoise', min: 0, max: 2, step: 0.05 },
-] as const satisfies readonly { key: LocalKey; label: string; min: number; max: number; step: number }[];
+  { key: 'denoiseLuminance', label: 'Grain denoise', min: 0, max: 2, step: 0.05 },
+] as const satisfies readonly { key: MaskEditKey; label: string; min: number; max: number; step: number }[];
 
 const layerType = (mask: Mask): MaskLayer['type'] => (mask.kind === 'subject' ? (mask.invert ? 'background' : 'subject') : mask.kind === 'brush' ? 'brush' : mask.kind === 'linear' ? 'gradient' : 'area');
 const layerName = (mask: Mask): string => {
@@ -18,6 +19,10 @@ const layerName = (mask: Mask): string => {
     const instance = /-instance-(\d+)-([a-zA-Z0-9]+)$/.exec(mask.id);
     if (instance && !mask.invert) return `Subject ${instance[1]} · ${instance[2][0].toUpperCase() + instance[2].slice(1)}`;
     return mask.invert ? 'Background · Denoise' : 'All subjects · Denoise';
+  }
+  if (mask.kind === 'radial' && mask.id.startsWith('auto-denoise-')) {
+    const eye = /-eye-(\d+)$/.exec(mask.id);
+    if (eye) return `Eye ${eye[1]} · Gentle denoise`;
   }
   return mask.kind === 'subject' ? (mask.invert ? 'Background' : 'Subject') : mask.kind === 'brush' ? 'Brush mask' : mask.kind === 'linear' ? 'Gradient' : 'Round area';
 };
@@ -45,7 +50,7 @@ export const removeMask = (masks: readonly Mask[] | undefined, id: string): Mask
 /** Set one slider on a mask. The value is held inside the control's range, and a slider at zero is removed so it reads as unset. */
 export function setMaskEdit(masks: readonly Mask[] | undefined, id: string, key: string, value: number): Mask[] {
   const slider = MASK_SLIDERS.find((candidate) => candidate.key === key);
-  if (!slider || !(LOCAL_KEYS as readonly string[]).includes(key) || !Number.isFinite(value)) return [...(masks ?? [])];
+  if (!slider || !(MASK_EDIT_KEYS as readonly string[]).includes(key) || !Number.isFinite(value)) return [...(masks ?? [])];
   const clamped = Math.round(Math.min(slider.max, Math.max(slider.min, value)) * 100) / 100;
   return change(masks, id, (mask) => {
     const edit = { ...mask.edit };
