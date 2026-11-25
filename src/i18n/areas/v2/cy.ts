@@ -894,6 +894,8 @@ export const cy: AreaTranslation<typeof source> = {
       saturation: 'Yn cynyddu neu’n lleihau dwysedd yn gyfartal ar draws pob sianel lliw.',
       clarity: 'Yn gwella strwythur ymylon y tonau canol a gwead plu neu graig.',
       sharpen: 'Yn rhoi miniogi allbwn manwl sydd wedi’i deilwra i’r synhwyrydd.',
+      captureSharpen: "Yn adfer y miniogrwydd a feddalwyd gan y lens a’r synhwyrydd, gyda phroffil ar gyfer eich camera (Nikon Z8, Z5II neu un cyffredinol). Gorau i’w farnu ar 100% chwyddo. Nid yw byth yn ychwanegu manylion na chofnododd y camera.",
+      deblur: "Yn gwrthdroi’n ysgafn feddalwch bach o ffocws neu ysgwyd bach, drwy ddadgyfrodeddu. Ni all achub llun aneglur iawn ac nid yw byth yn dyfeisio manylion.",
     },
   },
   layers: {
@@ -1155,6 +1157,8 @@ export const cy: AreaTranslation<typeof source> = {
       clarity: "Eglurder",
       detailRecovery: "Manylion mân",
       sharpen: "Miniogi",
+      captureSharpen: "Miniogi cipio",
+      deblur: "Lleihau niwlogrwydd",
       denoiseLuminance: "Lleihau sŵn",
       denoiseColour: "Lleihau sŵn lliw",
       dehaze: "Dadniwlio",

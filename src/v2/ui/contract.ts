@@ -1,3 +1,4 @@
+import type { CaptureProfileId } from '../../core/captureSharpen';
 import type { ColourSenseNote, ColourWords } from '../engineClient/colourWords';
 import type { ComponentType, CSSProperties, ReactNode } from 'react';
 import type { LensProfile } from '../../core/lensCorrection';
@@ -161,6 +162,12 @@ export interface EditRecipe {
   saturation: number; // -100 to 100
   clarity: number; // -100 to 100
   sharpen: number; // 0 to 100
+  /** Capture sharpening by deconvolution with the camera's profile, 0 to 100. Absent = 0. */
+  captureSharpen?: number;
+  /** Which camera profile capture sharpening and deblur use ('nikon-z8', 'nikon-z5ii' or 'generic'). Set from the photo's camera. */
+  captureProfile?: CaptureProfileId;
+  /** Mild deblur by deconvolution (never generated pixels), 0 to 100. Absent = 0. */
+  deblur?: number;
   denoiseRawAi: boolean;
   /** TrueDetail AI denoise: true while a learned denoiser's stored result is blended into the subject. Set false to remove it. Absent = off. */
   aiDenoise?: boolean;

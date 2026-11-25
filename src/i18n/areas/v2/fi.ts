@@ -895,6 +895,8 @@ export const fi: AreaTranslation<typeof source> = {
       saturation: 'Lisää tai vähentää voimakkuutta tasaisesti kaikissa värikanavissa.',
       clarity: 'Korostaa keskisävyjen reunarakennetta sekä höyhenten tai kallion pintaa.',
       sharpen: 'Käyttää hienoa, kennolle sovitettua tulosteen terävöintiä.',
+      captureSharpen: "Palauttaa terävyyden, jota objektiivi ja kenno pehmensivät, kamerasi profiililla (Nikon Z8, Z5II tai yleinen). Arvioi 100 %:n zoomilla. Ei koskaan lisää yksityiskohtia, joita kamera ei tallentanut.",
+      deblur: "Korjaa varovasti lievää tarkennus- tai tärähdysepätarkkuutta dekonvoluutiolla. Ei pelasta pahasti epätarkkaa kuvaa eikä keksi yksityiskohtia.",
     },
   },
   layers: {
@@ -1156,6 +1158,8 @@ export const fi: AreaTranslation<typeof source> = {
       clarity: "Selkeys",
       detailRecovery: "Hienot yksityiskohdat",
       sharpen: "Terävöinti",
+      captureSharpen: "Kuvauksen terävöinti",
+      deblur: "Epätarkkuuden vähennys",
       denoiseLuminance: "Kohinanpoisto",
       denoiseColour: "Värikohinan poisto",
       dehaze: "Usvan poisto",

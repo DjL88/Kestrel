@@ -897,6 +897,8 @@ export const ga: AreaTranslation<typeof source> = {
       saturation: 'Méadaíonn nó laghdaíonn sé an déine go cothrom i ngach cainéal datha.',
       clarity: 'Feabhsaíonn sé struchtúr imeall sna meántoin agus uigeacht cleití nó carraige.',
       sharpen: 'Cuireann sé géarú aschuir mín i bhfeidhm atá oiriúnaithe don bhraiteoir.',
+      captureSharpen: "Tugann sé ar ais an ghéire a bhog an lionsa agus an braiteoir, le próifíl do do cheamara (Nikon Z8, Z5II nó ginearálta). Is fearr é a mheas ag zúmáil 100%. Ní chuireann sé mionsonraí leis nár thaifead an ceamara riamh.",
+      deblur: "Ceartaíonn sé go séimh beagán doiléire ó fhócas nó ó chroitheadh beag, trí dhíchonbhlóid. Ní féidir leis grianghraf an-doiléir a shábháil agus ní chumann sé mionsonraí riamh.",
     },
   },
   layers: {
@@ -1158,6 +1160,8 @@ export const ga: AreaTranslation<typeof source> = {
       clarity: "Soiléireacht",
       detailRecovery: "Mionsonraí",
       sharpen: "Géarú",
+      captureSharpen: "Géarú gabhála",
+      deblur: "Laghdú doiléire",
       denoiseLuminance: "Laghdú torainn",
       denoiseColour: "Laghdú torainn datha",
       dehaze: "Dícheo",

@@ -4,6 +4,7 @@ import { validCurve, validMixer } from './curveMixer';
 import { validChannelCurves, validGrade } from './colourGrade';
 import { validCalibration } from './calibration';
 import { applyDehaze, validDehaze } from './dehaze';
+import { applyCaptureDetailRgb16, validCaptureSharpen } from './captureSharpen';
 import { applyFringe, validDefringe, validLateralCa } from './fringe';
 import { applyLensCorrection, validLens } from './lensCorrection';
 import { applyFinishingRgb16, validGrain, validVignette } from './finishing';
@@ -84,7 +85,7 @@ export function thumbRgb16(image: Rgb16Image): Thumb {
 const EXPORT_EDIT_KEYS = new Set([
   'exposure', 'warmth', 'tint', 'colour', 'brightness', 'contrast', 'highlights',
   'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity',
-  'sharpen', 'denoise', 'denoiseLuminance', 'masks', 'curve', 'mixer', 'whiteBalance', 'grade', 'channelCurves', 'calibration', 'vignette', 'grain', 'dehaze', 'lateralCa', 'defringe', 'lens',
+  'sharpen', 'denoise', 'denoiseLuminance', 'masks', 'curve', 'mixer', 'whiteBalance', 'grade', 'channelCurves', 'calibration', 'vignette', 'grain', 'dehaze', 'lateralCa', 'defringe', 'lens', 'captureSharpen', 'deblur',
 ]);
 
 /** Stop rather than quietly export a future or malformed edit that this
@@ -98,7 +99,7 @@ export function master16Blocker(edit: PhotoEdit | undefined, framing: PhotoFrami
     // A NaN/Infinity or non-number must never silently become black/white
     // archival pixels in a purportedly faithful 16-bit master.
     for (const key of EXPORT_EDIT_KEYS) {
-      if (key === 'masks' || key === 'curve' || key === 'mixer' || key === 'whiteBalance' || key === 'grade' || key === 'channelCurves' || key === 'calibration' || key === 'vignette' || key === 'grain') continue;
+      if (key === 'masks' || key === 'curve' || key === 'mixer' || key === 'whiteBalance' || key === 'grade' || key === 'channelCurves' || key === 'calibration' || key === 'vignette' || key === 'grain' || key === 'captureSharpen') continue;
       const value = edit[key as keyof PhotoEdit];
       if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || (key === 'tint' && Math.abs(value) > 2) || (key === 'denoiseLuminance' && (value < 0 || value > 2)))) {
         return `The saved "${key}" adjustment is invalid, so no 16-bit TIFF was made.`;
@@ -111,6 +112,8 @@ export function master16Blocker(edit: PhotoEdit | undefined, framing: PhotoFrami
     if (edit.calibration !== undefined && !validCalibration(edit.calibration)) return 'The saved camera calibration is invalid, so no 16-bit TIFF was made.';
     if (edit.vignette !== undefined && !validVignette(edit.vignette)) return 'The saved vignette is invalid, so no 16-bit TIFF was made.';
     if (edit.dehaze !== undefined && !validDehaze(edit.dehaze)) return 'The saved dehaze is invalid, so no 16-bit TIFF was made.';
+    if (edit.captureSharpen !== undefined && !validCaptureSharpen(edit.captureSharpen)) return 'The saved capture sharpening is invalid, so no 16-bit TIFF was made.';
+    if (edit.deblur !== undefined && !(edit.deblur >= 0 && edit.deblur <= 1)) return 'The saved deblur is invalid, so no 16-bit TIFF was made.';
     if (edit.lens !== undefined && !validLens(edit.lens)) return 'The saved lens correction is invalid, so no 16-bit TIFF was made.';
     if (edit.lateralCa !== undefined && !validLateralCa(edit.lateralCa)) return 'The saved colour edge correction is invalid, so no 16-bit TIFF was made.';
     if (edit.defringe !== undefined && !validDefringe(edit.defringe)) return 'The saved fringe removal is invalid, so no 16-bit TIFF was made.';
@@ -390,6 +393,7 @@ export function editRgb16(image: Rgb16Image, edit: PhotoEdit, lens?: { x: number
   const luma = noiseStrength(edit.denoiseLuminance);
   if (luma > 0) denoiseLuminance(data, image.width, image.height, luma);
   applyDehaze(data, image.width, image.height, 3, 65535, edit.dehaze);
+  applyCaptureDetailRgb16(data, image.width, image.height, edit, Math.max(image.width, image.height));
   applyToneRgb16(data, edit);
   applyDetailRgb16(data, image.width, image.height, edit, Math.max(image.width, image.height));
   applyToneMasksRgb16(image, edit.masks);

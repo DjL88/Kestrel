@@ -895,6 +895,8 @@ export const gd: AreaTranslation<typeof source> = {
       saturation: 'Meudaichidh no lùghdaichidh seo an dian-dhathachadh gu cothromach anns gach seanail dhatha.',
       clarity: 'Neartaichidh seo structar nan oirean sna meadhan-thònaichean agus inneach itean no creige.',
       sharpen: 'Cuiridh seo geurachadh às-chuir mìn an sàs a tha freagarrach dhan mhothachair.',
+      captureSharpen: "Bheir e air ais an geurachd a bhog an lionsa is am mothachair, le pròifil airson do chamara (Nikon Z8, Z5II no fear coitcheann). Breithnich e aig sùmadh 100%. Cha chuir e mion-fhiosrachadh ris nach do ghlac an camara idir.",
+      deblur: "Ceartaichidh e gu socair beagan bogachd bho fhòcas no crathadh beag, le dì-cho-fhilleadh. Chan urrainn dha dealbh glè sgleòthach a shàbhaladh agus cha chruthaich e mion-fhiosrachadh idir.",
     },
   },
   layers: {
@@ -1156,6 +1158,8 @@ export const gd: AreaTranslation<typeof source> = {
       clarity: "Soilleireachd",
       detailRecovery: "Mion-fhiosrachadh",
       sharpen: "Gearradh",
+      captureSharpen: "Geurachadh glacaidh",
+      deblur: "Lùghdaich an sgleò",
       denoiseLuminance: "Lùghdachadh gràinne",
       denoiseColour: "Lùghdachadh gràinne datha",
       dehaze: "Dì-cheòthachadh",

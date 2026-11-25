@@ -1,3 +1,4 @@
+import { hasCaptureDetail } from './captureSharpen';
 import type { PhotoEdit } from './photoEdits';
 import type { PhotoFraming } from './photoFraming';
 import type { PhotoFrame } from './types';
@@ -35,6 +36,9 @@ export function nativeRawMasterRecipe(frame: Pick<PhotoFrame, 'edit' | 'framing'
   const unsupported = UNSUPPORTED_CONTROLS.find((key) => (edit[key] ?? 0) !== 0);
   if (unsupported) {
     throw new Error('16-bit RAW master POC does not yet support ' + unsupported + '. Your normal export preserves that adjustment.');
+  }
+  if (hasCaptureDetail(edit)) {
+    throw new Error('16-bit RAW master POC does not yet support capture sharpening or deblur. Your normal export preserves them.');
   }
   const recipe = {} as NativeRawMasterRecipe;
   for (const key of GLOBAL_CONTROLS) {

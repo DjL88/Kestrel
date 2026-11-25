@@ -743,6 +743,8 @@ export const source = {
       saturation: 'Uniformly increases or decreases intensity across every colour channel.',
       clarity: 'Enhances mid-tone edge structure and feather or rock texture.',
       sharpen: 'Applies fine optical output sharpening tailored to the sensor.',
+      captureSharpen: "Restores the crispness the lens and sensor softened, using a profile for your camera (Nikon Z8, Z5II or a general one). Best judged at 100% zoom. It never adds detail the camera did not record.",
+      deblur: "Gently reverses slight softness from focus or a small shake, by deconvolution. It cannot rescue a badly blurred photo and never invents detail.",
     },
     curve: {
       heading: 'Tone curve',
@@ -1192,6 +1194,8 @@ export const source = {
       clarity: "Clarity",
       detailRecovery: "Fine detail",
       sharpen: "Sharpening",
+      captureSharpen: "Capture sharpening",
+      deblur: "Deblur",
       denoiseLuminance: "Noise reduction",
       denoiseColour: "Colour noise reduction",
       dehaze: "Dehaze",

@@ -894,6 +894,8 @@ export const is: AreaTranslation<typeof source> = {
       saturation: 'Eykur eða minnkar styrk jafnt í öllum litrásum.',
       clarity: 'Eykur brúnauppbyggingu í miðtónum og áferð fjaðra eða kletta.',
       sharpen: 'Beitir fínni úttaksskerpu sem er löguð að skynjaranum.',
+      captureSharpen: "Endurheimtir skerpuna sem linsa og skynjari mýktu, með sniði fyrir myndavélina þína (Nikon Z8, Z5II eða almennt). Best metið í 100% aðdrætti. Bætir aldrei við smáatriðum sem myndavélin tók ekki upp.",
+      deblur: "Lagar varlega lítils háttar óskýrleika vegna fókuss eða smá hristings með afföldun. Bjargar ekki mjög óskýrri mynd og býr aldrei til smáatriði.",
     },
   },
   layers: {
@@ -1155,6 +1157,8 @@ export const is: AreaTranslation<typeof source> = {
       clarity: "Skýrleiki",
       detailRecovery: "Fínar smáatriði",
       sharpen: "Skerpa",
+      captureSharpen: "Tökuskerpa",
+      deblur: "Minnka óskýrleika",
       denoiseLuminance: "Suðminnkun",
       denoiseColour: "Litasuðminnkun",
       dehaze: "Mistureyðing",

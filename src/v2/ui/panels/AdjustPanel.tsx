@@ -8,6 +8,7 @@ import { ColourMixerControl, KelvinControl, ToneCurveControl } from './CurveMixe
 import { ColourGradeControl } from './ColourGradeControl';
 import { CalibrationControl, EffectsControls } from './EffectsControls';
 import { FringeControls, LensControls } from './FringeControls';
+import { captureProfileFor } from '../../../core/captureSharpen';
 
 interface AdjustPanelProps {
   photo: Photo | null;
@@ -426,6 +427,26 @@ export default function AdjustPanel({
           max={100}
           hideReadouts={hideReadouts}
           onChange={(v) => onUpdateRecipe(photo.id, { sharpen: v })}
+        /></div>
+        <div className={phoneGroupClass(advancedGroup, 'detail')}><SliderRow
+          id="slider-capture-sharpen"
+          label={STRINGS.history.sliders.captureSharpen}
+          tooltip={STRINGS.adjust.tooltips.captureSharpen}
+          value={recipe.captureSharpen ?? 0}
+          min={0}
+          max={100}
+          hideReadouts={hideReadouts}
+          onChange={(v) => onUpdateRecipe(photo.id, { captureSharpen: v, captureProfile: recipe.captureProfile ?? captureProfileFor(photo.exif.camera) })}
+        /></div>
+        <div className={phoneGroupClass(advancedGroup, 'detail')}><SliderRow
+          id="slider-deblur"
+          label={STRINGS.history.sliders.deblur}
+          tooltip={STRINGS.adjust.tooltips.deblur}
+          value={recipe.deblur ?? 0}
+          min={0}
+          max={100}
+          hideReadouts={hideReadouts}
+          onChange={(v) => onUpdateRecipe(photo.id, { deblur: v, captureProfile: recipe.captureProfile ?? captureProfileFor(photo.exif.camera) })}
         /></div>
       </section>
 
