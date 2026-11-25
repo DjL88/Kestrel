@@ -1102,4 +1102,10 @@ export const cy: AreaTranslation<typeof source> = {
     wmShowAs: "Dangos fel",
     wmTextKind: "Dyfrnod testun",
   },
+  crash: {
+    title: "Mae'r sgrin hon wedi stopio gweithio",
+    body: "Mae eich lluniau a'ch golygiadau'n ddiogel: nid yw InFlight byth yn newid eich ffeiliau gwreiddiol. Ail-lwythwch i barhau, ac anfonwch y manylion isod os bydd yn digwydd eto.",
+    reload: "Ail-lwytho InFlight",
+    details: "Manylion",
+  },
 };

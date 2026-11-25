@@ -1102,4 +1102,10 @@ export const da: AreaTranslation<typeof source> = {
     wmShowAs: "Vis som",
     wmTextKind: "Tekstvandmærke",
   },
+  crash: {
+    title: "Denne skærm holdt op med at virke",
+    body: "Dine fotos og redigeringer er i sikkerhed: InFlight ændrer aldrig dine originale filer. Genindlæs for at fortsætte, og send detaljerne nedenfor, hvis det sker igen.",
+    reload: "Genindlæs InFlight",
+    details: "Detaljer",
+  },
 };

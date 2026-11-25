@@ -22,6 +22,7 @@ release. A build without the Kestrel ones still works fully offline.
 | Setting | Where to find it | Status |
 | --- | --- | --- |
 | `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID` | Firebase console → project **kestrel** (`kestrel-photo`) → Project settings → General → Your apps → **Kestrel web** → SDK setup and configuration | Done, in the owner's `.env.local` |
+| `VITE_GOOGLE_SIGNIN_CLIENT_ID`, `VITE_GOOGLE_SIGNIN_CLIENT_SECRET` | Google Cloud console → project `kestrel-photo` → APIs & Services → Credentials → Create OAuth client ID → **Desktop app**. Same project as Firebase, so Firebase accepts its tokens; otherwise add the client id under Firebase Auth → Google → Safelist client IDs. Optional: the desktop app falls back to `VITE_GOOGLE_DRIVE_CLIENT_ID` | Not yet |
 | `VITE_KESTREL_CONTROL_PLANE_URL` | `terraform -chdir=infra/gcp output control_plane_url` after the control plane is applied with an image (a `https://…run.app` address; no trailing path) | Yes: deployed 20 Nov 2026 (see ROADMAP integration log for what is live) |
 | `VITE_KESTREL_GRANT_KEYS` | `kcp-2026-11=<base64 public key>`. The public half of the secret `kcp-signing-key-pem`. The service prints it in its Cloud Run log on start, or print it from the PEM before deleting the file (command in "Set it up" step 2, and phase 1 step 3) | Not yet |
 | `VITE_KESTREL_BUILD_REVISION`, `VITE_KESTREL_BUILD_TIMESTAMP` | Set by the build scripts | Automatic |
@@ -168,7 +169,9 @@ owner's approval.
 4. [ ] Build the image (`gcloud builds submit …`), then apply with `control_plane_image` and `google_oauth_client_id`.
 5. [ ] Publish the website (`publish-gcp.ps1 -Website`), so Hosting forwards `/v1/admin/**` to the service.
 6. [ ] Smoke test. Each should answer as shown:
-   - `curl <control_plane_url>/healthz` → `{"ok":true}`
+   - `curl <control_plane_url>/health` → `{"ok":true}`
+     (`/healthz` is reserved by Cloud Run's front end and returns Google's own 404 from outside; the container probe still uses it.)
+   - `node scripts/site/verify-deployment.mjs --live-url=<site_url> --control-plane-url=<control_plane_url>` checks the published site byte for byte and that the control plane allows the site's origin. Any other web address the app is served from must be added to `allowed_origins`.
    - `/admin` → Google sign-in works, and the overview says "Records stored in: Firestore".
    - `curl -X POST <url>/v1/licences/status -H "content-type: application/json" -d '{"licenceKey":"<a tester key>","deviceHash":"<64 hex>"}'` → `"status":"unknown"` before first use.
 7. [ ] Build the beta apps with `VITE_KESTREL_CONTROL_PLANE_URL=<control_plane_url>` and
@@ -219,9 +222,22 @@ exceed 20 testers). The £20 budget alert from phase 1 still applies.
    ```
 
    Add `-var "licence_issuing_enabled=true"` to that apply to let the admin console issue keys. The output
-   `control_plane_url` is the service's address; `curl <url>/healthz` answers `{"ok":true}`.
+   `control_plane_url` is the service's address; `curl <url>/health` answers `{"ok":true}`.
 
 To deploy a newer version, repeat step 3 with the new commit. To roll back, apply with the previous image tag.
+
+**Cloud Shell, against the live backend (CS05):** `infra/gcp/deploy-control-plane.sh` does this with guard rails. It builds
+the image for one full `main` SHA, plans with the private `current.tfvars.json`, and stops unless the only change is an
+in-place update of the Cloud Run service. `apply` needs the SHA typed back and the saved plan unchanged, then records the
+new image. `verify` checks the running image, `/health`, and the no-op baseline. `rollback` re-applies the previous image.
+
+```bash
+s=<full main sha>; L="$HOME/.inflight-phase2"; T="$HOME/.inflight-activation/ba1490e6da24811bf799fd979c585b54022ffdc7/safe-copy/.terraform"
+git -C "$HOME/Kestrel" fetch origin main && git -C "$HOME/Kestrel" show "$s:infra/gcp/deploy-control-plane.sh" > /tmp/kcp-deploy.sh
+bash /tmp/kcp-deploy.sh plan   "$HOME/Kestrel" "$s" "$L" "$T"
+bash /tmp/kcp-deploy.sh apply  "$HOME/Kestrel" "$s" "$L" "$T"
+bash /tmp/kcp-deploy.sh verify "$HOME/Kestrel" "$s" "$L" "$T"
+```
 
 ### The admin console (`/admin` on the website)
 

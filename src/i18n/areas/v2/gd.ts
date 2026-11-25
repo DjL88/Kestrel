@@ -1103,4 +1103,10 @@ export const gd: AreaTranslation<typeof source> = {
     wmShowAs: "Seall mar",
     wmTextKind: "Comharra-uisge teacsa",
   },
+  crash: {
+    title: "Sguir an sgrìn seo a dh'obair",
+    body: "Tha na dealbhan is na deasachaidhean agad sàbhailte: cha bhi InFlight a-riamh ag atharrachadh nam faidhlichean tùsail agad. Luchdaich a-rithist gus leantainn air adhart, is cuir am fiosrachadh gu h-ìosal ma thachras e a-rithist.",
+    reload: "Luchdaich InFlight a-rithist",
+    details: "Fiosrachadh",
+  },
 };

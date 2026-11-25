@@ -1170,4 +1170,10 @@ export const source = {
     wmShowAs: 'Show as',
     wmTextKind: 'Text watermark',
   },
+  crash: {
+    title: 'This screen stopped working',
+    body: 'Your photos and edits are safe: InFlight never changes your original files. Reload to carry on, and send the details below if it happens again.',
+    reload: 'Reload InFlight',
+    details: 'Details',
+  },
 };

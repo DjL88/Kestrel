@@ -1102,4 +1102,10 @@ export const is: AreaTranslation<typeof source> = {
     wmShowAs: "Sýna sem",
     wmTextKind: "Textavatnsmerki",
   },
+  crash: {
+    title: "Þessi skjár hætti að virka",
+    body: "Myndirnar þínar og breytingar eru öruggar: InFlight breytir aldrei upprunalegu skránum þínum. Endurhlaðaðu til að halda áfram og sendu upplýsingarnar hér að neðan ef þetta gerist aftur.",
+    reload: "Endurhlaða InFlight",
+    details: "Upplýsingar",
+  },
 };

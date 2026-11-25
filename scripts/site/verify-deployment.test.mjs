@@ -46,14 +46,25 @@ function runLive(root, overrides) {
     '/editor/assets/demo.js': bundle,
     ...overrides,
   };
-  const stub = `globalThis.fetch = async url => {
+  return runStub(root, pages, {}, '--live-url=https://demo.example.test');
+}
+
+/** Stubbed fetch: site pages by path; control-plane responses keyed by host+path with optional CORS echo. */
+function runStub(root, pages, api, ...args) {
+  const stub = `globalThis.fetch = async (url, init) => {
+    const u = new URL(url);
+    const api = ${JSON.stringify(api)}[u.host + u.pathname];
+    if (api) {
+      const headers = { 'content-type': 'application/json' };
+      if (api.allow) headers['access-control-allow-origin'] = api.allow === 'echo' ? init.headers.origin : api.allow;
+      return new Response(api.body, { status: api.status ?? 200, headers });
+    }
     const pages = ${JSON.stringify(pages)};
-    const body = pages[new URL(url).pathname];
+    const body = pages[u.pathname];
     return new Response(body ?? null, { status: body === undefined ? 404 : 200 });
   };`;
   return spawnSync(process.execPath, [
-    '--import=data:text/javascript,' + encodeURIComponent(stub), script, '--root=' + root,
-    '--live-url=https://demo.example.test',
+    '--import=data:text/javascript,' + encodeURIComponent(stub), script, '--root=' + root, ...args,
   ], { encoding: 'utf8' });
 }
 
@@ -358,4 +369,26 @@ test('a valid local bundle cannot conceal an unverified extra script', t => {
   writeFileSync(join(root, 'editor', 'assets', 'extra.js'), bundle);
   writeFileSync(entry, demo('InFlight editor demonstration').replace('</body>', '<script src="./assets/extra.js"></script></body>'));
   assert.equal(run(root).status, 0);
+});
+
+test('live control plane must answer /health and allow the website origin', () => {
+  const root = fixture();
+  const pages = {
+    '/': landing, '/admin.html': '<h1>Admin</h1>', '/oauth-callback.html': callback, '/privacy.html': privacy,
+    [iconPath]: icon, '/editor/demo-editor.html': demo('InFlight editor demonstration'), '/editor/assets/demo.js': bundle,
+  };
+  const live = ['--live-url=https://demo.example.test', '--control-plane-url=https://api.example.test'];
+  try {
+    const ok = runStub(root, pages, { 'api.example.test/health': { body: '{"ok":true}', allow: 'echo' } }, ...live);
+    assert.equal(ok.status, 0, ok.stderr);
+    assert.match(ok.stdout, /Live control plane PASS/);
+    const foreign = runStub(root, pages, { 'api.example.test/health': { body: '{"ok":true}' } }, ...live);
+    assert.match(foreign.stderr, /does not allow the website origin https:\/\/demo\.example\.test.*allowed_origins/);
+    const old = runStub(root, pages, {}, ...live);
+    assert.match(old.stderr, /\/health failed \(404\)/);
+    const bad = runStub(root, pages, { 'api.example.test/health': { body: '{"ok":false}', allow: 'echo' } }, ...live);
+    assert.match(bad.stderr, /did not answer/);
+    assert.match(run(root, '--control-plane-url=https://api.example.test').stderr, /needs --live-url/);
+    assert.match(runStub(root, pages, {}, '--live-url=https://demo.example.test').stdout, /Live control plane NOT RUN/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });

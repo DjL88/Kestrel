@@ -1102,4 +1102,10 @@ export const de: AreaTranslation<typeof source> = {
     wmShowAs: "Anzeigen als",
     wmTextKind: "Text-Wasserzeichen",
   },
+  crash: {
+    title: "Diese Ansicht funktioniert nicht mehr",
+    body: "Ihre Fotos und Bearbeitungen sind sicher: InFlight verändert Ihre Originaldateien nie. Laden Sie neu, um weiterzuarbeiten, und senden Sie die Details unten, falls es wieder passiert.",
+    reload: "InFlight neu laden",
+    details: "Details",
+  },
 };

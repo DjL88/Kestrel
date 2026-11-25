@@ -210,9 +210,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [verifiedRasterSizes, setVerifiedRasterSizes] = useState<Record<string, { width: number; height: number }>>({});
   const verifiedRasterRef = useRef(verifiedRasterSizes);
   verifiedRasterRef.current = verifiedRasterSizes;
+  const pixelSizesRef = useRef(pixelSizes);
+  pixelSizesRef.current = pixelSizes;
   /** The formats this photo has, worked out exactly as the canvas shows them (decoded size first, then EXIF). */
   const liveFormatsOf = (frame: PhotoFrame | undefined) => applyFormats(createDefaultSizes(), frame?.formats,
-    frame ? originalFormatSize(frame, verifiedRasterRef.current[`${frame.stableKey}|${frame.originalSha256 ?? ''}`]) : null);
+    frame ? originalFormatSize(frame, verifiedRasterRef.current[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], pixelSizesRef.current[frame.id]) : null);
   const [histograms, setHistograms] = useState<Record<string, PhotoHistogram>>({});
   const [watermarkAuto, setWatermarkAuto] = useState<Record<string, 'light-on-dark' | 'dark-on-light'>>({});
   useEffect(() => { let live = true; void toPresets(watermarkStore).then((presets) => { if (live) setWatermarkLibrary(presets); }); return () => { live = false; }; }, [watermarkStore]);
@@ -692,8 +694,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       provider.current!.getFullPreviewUrl(frame, 'selected').then(async (url) => {
         if (!url || !live) return;
         const image = await new Promise<HTMLImageElement>((resolve, reject) => { const element = new Image(); element.onload = () => resolve(element); element.onerror = reject; element.src = url; });
-        // For a plain picture file the shown image IS the original size; for RAW and HEIF it is a preview, so nothing is claimed.
-        if (live && !frame.exif.width && !isRawPreviewFile(frame.filename) && !isHeifFile(frame.filename)) setPixelSizes((current) => (current[frame.id] ? current : { ...current, [frame.id]: { width: image.naturalWidth, height: image.naturalHeight } }));
+        // When the file records no size, the shown picture gives the photo its shape. For a plain picture file that is
+        // the original size; for RAW and HEIF it is the preview's size, which the export renderer never enlarges past.
+        if (live && !(frame.exif.width && frame.exif.height)) setPixelSizes((current) => (current[frame.id]?.width === image.naturalWidth && current[frame.id]?.height === image.naturalHeight ? current : { ...current, [frame.id]: { width: image.naturalWidth, height: image.naturalHeight } }));
         const scale = Math.min(1, 256 / Math.max(image.naturalWidth, image.naturalHeight));
         const canvas = document.createElement('canvas');
         canvas.width = Math.max(1, Math.round(image.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));

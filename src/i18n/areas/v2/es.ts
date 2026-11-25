@@ -1102,4 +1102,10 @@ export const es: AreaTranslation<typeof source> = {
     wmShowAs: "Mostrar como",
     wmTextKind: "Marca de agua de texto",
   },
+  crash: {
+    title: "Esta pantalla ha dejado de funcionar",
+    body: "Tus fotos y ediciones están a salvo: InFlight nunca cambia tus archivos originales. Recarga para continuar y envía los detalles de abajo si vuelve a ocurrir.",
+    reload: "Recargar InFlight",
+    details: "Detalles",
+  },
 };

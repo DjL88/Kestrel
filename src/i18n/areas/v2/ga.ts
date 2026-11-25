@@ -1105,4 +1105,10 @@ export const ga: AreaTranslation<typeof source> = {
     wmShowAs: "Taispeáin mar",
     wmTextKind: "Comhartha uisce téacs",
   },
+  crash: {
+    title: "Stop an scáileán seo ag obair",
+    body: "Tá do ghrianghraif agus d'eagarthóireachtaí slán: ní athraíonn InFlight do bhunchomhaid riamh. Athlódáil chun leanúint ar aghaidh, agus seol na sonraí thíos má tharlaíonn sé arís.",
+    reload: "Athlódáil InFlight",
+    details: "Sonraí",
+  },
 };

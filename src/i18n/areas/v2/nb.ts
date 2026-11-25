@@ -1102,4 +1102,10 @@ export const nb: AreaTranslation<typeof source> = {
     wmShowAs: "Vis som",
     wmTextKind: "Tekstvannmerke",
   },
+  crash: {
+    title: "Denne skjermen sluttet å virke",
+    body: "Bildene og redigeringene dine er trygge: InFlight endrer aldri originalfilene dine. Last inn på nytt for å fortsette, og send detaljene nedenfor hvis det skjer igjen.",
+    reload: "Last inn InFlight på nytt",
+    details: "Detaljer",
+  },
 };

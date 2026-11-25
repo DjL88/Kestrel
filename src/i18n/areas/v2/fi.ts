@@ -1103,4 +1103,10 @@ export const fi: AreaTranslation<typeof source> = {
     wmShowAs: "Näytä muodossa",
     wmTextKind: "Tekstivesileima",
   },
+  crash: {
+    title: "Tämä näkymä lakkasi toimimasta",
+    body: "Kuvasi ja muokkauksesi ovat tallessa: InFlight ei koskaan muuta alkuperäisiä tiedostojasi. Lataa uudelleen jatkaaksesi ja lähetä alla olevat tiedot, jos tämä toistuu.",
+    reload: "Lataa InFlight uudelleen",
+    details: "Tiedot",
+  },
 };

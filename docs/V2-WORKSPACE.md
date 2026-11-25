@@ -438,3 +438,55 @@ Checked against the real V2 app (`?v2`) with a throwaway Playwright script, then
 - **Open, real gaps (not fixed):** (1) **Split 2 / Merged does nothing in the real app**: `toggleSplitFrames` and `setSplitPanOffset` are still in `NOT_CONNECTED` (`useEngineWorkspace.ts`); it needs a stored split per photo, the canvas split render on real pixels and the export of both frames. (2) The All formats board draws each artboard from the photo preview with a CSS filter, not from the real edit pixels or overlays, so it can differ from the single view. (3) The screenshot uses the browser's own text drawing: web fonts may be replaced by default ones and some labels wrap slightly differently; Export is the true full-size output. (4) In the demo the cloud actions and Settings are locked, and a published photo's saved edit recipe is not applied on open.
 
 **English audit (23 Nov 2026).** `src/v2/i18nAudit.test.ts` counts words a person reads that sit in V2 components rather than `src/i18n/areas/v2`: **178 on 23 Nov 2026**. It is a ratchet (the count may only fall; lower `BASELINE` in the same change that moves words). It is a heuristic and cannot see strings built in code, so a pass does not prove a screen is translated. Order for the translation work: move these 178 into the area first, then translate language by language, then register the area in `AREAS`.
+
+## 26. Phone, tablet and controller layout: approved plan (25 Nov 2026, owner-approved)
+
+**Wireframes (approved by the owner, 25 Nov 2026):** [InFlight – mobile & tablet wireframes](https://claude.ai/artifact/8b46uNd8a5a9du8K9oEvoS) (private canvas; ask the owner for access). Desktop layout is settled and unchanged; the suggestions in 26.5 are proposals only.
+
+### 26.1 Problem (from real phone screenshots, 25 Nov)
+On a 390×844 phone the photo gets about 30% of the screen: top bar, Single/All formats row, a seven-icon selection row, a dimensions row, a floating zoom bar over the photo, a Select/Import/Folder/Auto-cull row, large filmstrip cards and a bottom tab bar all stack up. Projects hub: the toolbar overflows (New project is clipped) and project cards are mostly empty. Reference apps (Lightroom, Apple Photos, Google Photos) give the photo 55–65%.
+
+### 26.2 Rules
+- Every control 44–48 px; icons 20–24 px with a text label where space allows. No tiny, no oversized.
+- One primary action per screen (Export, rust). Everything else in a tab, a sheet or ⋯.
+- Words or icons as well as colour; Reduce motion respected; British English.
+- One meaning per gesture direction everywhere: **sideways = formats, up/down = photos**.
+- Every gesture has a visible button and can be turned off (Settings › Gestures).
+
+### 26.3 Phone (portrait)
+- **Edit:** one 52 px top bar (back, name, undo/redo, Export). Photo ~68%. Pinch zoom, two-finger pan, double-tap 100% ↔ fit; the zoom bar goes, a Fit chip shows only while zoomed. **Single tap = position mode** (crop frame for the current format, straighten, rotate, flip, ratio, auto-frame); tap outside or Done ends it, one undo step. **Formats are a carousel:** swipe sideways, neighbours peek at the edges, chips at the bottom jump to a format. Thin filmstrip (swipe down to hide). Bottom tool bar of five.
+- **Adjust (and Enhance, Masks):** short sheet; group pills, a swipeable row of slider chips with values, one wide slider. Filmstrip hides while a tool is open; photo stays ~47%. Hold photo = before; double-tap slider = reset.
+- **Library / cull:** own 3-column grid with filter chips; Import, Folder, Auto-cull, Export in one bottom bar. Flag/reject/rate from Select, not swipes.
+- **Projects:** compact header (search icon, settings, + New), one card per row (cover, name, counts, last edited, ⋯). Footer moves into Settings on phone.
+- **Customisable tool bar:** long-press to reorder, add or remove; any four tools + More. "Hide Pro tools I don't have" (extends section 25). Same order feeds the tablet and desktop rail.
+- **Full screen:** photo edge to edge, three 44 px grab handles (top: top bar; bottom: tools; right edge: photos); bars auto-hide after 3 s. Two modes: **Browse** (sideways formats, up/down photos, nothing edits) and **Locked** (look and zoom only, edge pulls off). **Three-finger tap** toggles Browse ↔ Locked; also a button in the top bar. **Risk:** iOS uses three-finger tap/swipe for undo and copy, some Android phones for screenshots; test on devices and fall back to two-finger long-press if they clash.
+
+### 26.4 Rotation, landscape and tablet
+- **Phone landscape:** navigation (back, undo, redo, full screen) on the left, tools as a right-hand rail with Export on top, sheets become side panels, photo keeps full height. Safe areas follow the notch and home bar.
+- **Across a turn** zoom, pan, current format, open tool and active slider are kept; 200 ms transition, none with Reduce motion; orientation lock in More.
+- **Tablet:** the desktop layout (rail, canvas, format tabs, dock, filmstrip) with 48 px targets and labels. **Pencil draws** (masks, brush, crop handles), **fingers pan and zoom**; Pencil hover shows brush size; Pencil double-tap = before/after. Portrait tablet: dock becomes a half-height sheet. Same full-screen handles and modes.
+
+### 26.5 Controllers (TourBox, macro pads, Stream Deck, Loupedeck)
+These devices send keystrokes configured in their own software, so compatibility means **every action is a registry command with a rebindable key** (`ui/commands/registry.ts`, `pad.ts`). Add commands: `format.next/prev`, `control.next/prev` (cycle the active slider), `control.inc/dec` and `control.incLarge/decLarge` (slider nudge, repeatable), `control.reset`, `view.beforeHold`, `view.position`, `view.fullscreenLock`, `tool.open.<panel>`. One **active control** (last touched or focused slider) is what a knob or dial changes, shown with a ring; this is V1's missing "Edit layer". Ship an **InFlight TourBox key set** and a table of keys to enter in TourBox Console (knob = nudge, scroll = next slider, dial = next photo). Conflicts reported, never overwritten (section 21). MIDI controllers need a native adapter (WebKit has no Web MIDI): later. **NOT VERIFIED** on any real device until tested.
+
+### 26.6 Desktop suggestions (owner to decide; not part of the approved work)
+1. Same customisable rail as phone and tablet.
+2. Format carousel parity: `,` and `.` for previous/next format; scroll over the format tabs.
+3. Zoom bar only while zoomed; Z toggles 100% ↔ fit; Space-drag to pan.
+4. Click on the photo = position mode, same as a phone tap.
+5. Full-screen Browse/Locked with F and L.
+6. Scroll wheel or trackpad over a slider nudges it (Alt = fine), the same active-control rule the controllers use.
+
+### 26.7 Order of work (one small PR each; claim on #890 first)
+1. Shared touch-target and spacing tokens in `v2/ui/tokens.css`; fix the 3 failing `v2-phone-uat.spec.ts` cases.
+2. Phone edit screen: `TopBar`, `Canvas` (format carousel, gestures, position mode), `Filmstrip`, bottom tool bar.
+3. Tool sheets: `AdjustPanel` chip row, then Enhance and Masks.
+4. Library grid and Projects hub (`GridView`, `ProjectsHub`, `ProjectCards`).
+5. Customisable tool bar (one saved order for every size).
+6. One gesture handler for the canvas (single place, no conflicts with pinch/pan from #954) + Playwright touch tests.
+7. Full screen Browse/Locked and grab handles.
+8. Rotation and landscape layouts; tablet band with Pencil versus finger input.
+9. Controller commands, active control and the TourBox key set.
+10. Playwright screenshots at 320, 390, 844×390, 820 and 1194 wide; then real iPhone, Android, iPad and TourBox checks.
+
+**Status:** designed and approved; nothing built.

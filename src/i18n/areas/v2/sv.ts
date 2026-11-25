@@ -1102,4 +1102,10 @@ export const sv: AreaTranslation<typeof source> = {
     wmShowAs: "Visa som",
     wmTextKind: "Textvattenstämpel",
   },
+  crash: {
+    title: "Den här skärmen slutade fungera",
+    body: "Dina foton och redigeringar är säkra: InFlight ändrar aldrig dina originalfiler. Läs in igen för att fortsätta och skicka informationen nedan om det händer igen.",
+    reload: "Läs in InFlight igen",
+    details: "Detaljer",
+  },
 };

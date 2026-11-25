@@ -1102,4 +1102,10 @@ export const nl: AreaTranslation<typeof source> = {
     wmShowAs: "Tonen als",
     wmTextKind: "Tekstwatermerk",
   },
+  crash: {
+    title: "Dit scherm werkt niet meer",
+    body: "Je foto's en bewerkingen zijn veilig: InFlight wijzigt je originele bestanden nooit. Laad opnieuw om verder te gaan en stuur de details hieronder als het weer gebeurt.",
+    reload: "InFlight opnieuw laden",
+    details: "Details",
+  },
 };
