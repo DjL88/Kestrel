@@ -1774,6 +1774,25 @@ export const cy: AreaTranslation<typeof source> = {
     reload: "Ail-lwytho InFlight",
     details: "Manylion",
   },
+  // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
+  tapSelect: {
+    tool: "Tapio i ddewis",
+    offer: (mb) => `Mae tapio i ddewis angen lawrlwythiad ${mb} MB unwaith (EfficientSAM-Ti, Apache-2.0). Mae’n aros ar y ddyfais hon ac yn gweithio all-lein.`,
+    download: "Lawrlwytho tapio i ddewis",
+    downloading: (pct) => `Yn lawrlwytho… ${pct}%`,
+    unavailable: "Nid yw tapio i ddewis ar gael yn y fersiwn hon.",
+    reading: "Yn darllen y llun unwaith ar gyfer tapio i ddewis. Gall gymryd tua hanner munud; mae Hirgrwn a Graddiant yn dal i weithio.",
+    ready: "Tapiwch y gwrthrych ar y llun. Yn y modd Tynnu (neu gydag Alt) mae tap yn tynnu rhan i ffwrdd.",
+    working: "Yn diweddaru’r dewis…",
+    addMode: "Ychwanegu rhan",
+    removeMode: "Tynnu rhan",
+    newSubject: "Gwrthrych newydd",
+    done: "Gorffen",
+    subjects: (n) => `Gwrthrychau wedi’u dewis: ${n}`,
+    tapLayer: "Tapiwch yma i ddewis gwrthrych",
+    failed: "Daeth tapio i ddewis i ben. Ni newidiwyd dim.",
+  },
+
   notices: {
     button: 'Hysbysiadau',
     buttonCount: (n: number) => `Hysbysiadau, ${n} heb eu darllen`,
