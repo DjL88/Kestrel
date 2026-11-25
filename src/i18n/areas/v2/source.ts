@@ -536,6 +536,12 @@ export const source = {
   },
 
   // Co-pilot / Flight Mode Panel
+  autoCheck: {
+    rawNotDeveloped: (file: string) => `Auto has not checked ${file}. It needs a development from the RAW sensor data, which is not available on this device now. The original may be disconnected. Auto did not use the camera's embedded preview instead. Nothing was changed.`,
+    noPreview: (file: string) => `Auto has not checked ${file}. No picture of it could be read on this device. Reconnect the original and try again. Nothing was changed.`,
+    tooSmall: (file: string) => `Auto has not checked ${file}. The picture is too small to measure reliably. Nothing was changed.`,
+    failed: (file: string) => `Auto could not finish checking ${file}. Open Tasks for the detail. Nothing was changed.`,
+  },
   /** Watch: an Auto suggestion played one step at a time, each explained in plain words. */
   watch: {
     start: "Watch step by step",
@@ -700,6 +706,9 @@ export const source = {
   },
 
   // Adjust Panel
+  guardian: {
+    autopilotHeld: "Auto-pilot held this edit for your review: the vision check on this device was not convinced it looks natural. The suggestion is in Co-pilot to preview or apply. Nothing was changed.",
+  },
   adjust: {
     looksHeading: 'Curated Looks',
     looksHint: 'Hover any look to preview it live on your photo.',
@@ -784,6 +793,22 @@ export const source = {
       grainSizeOff: 'Set some grain first; this then sets how fine or coarse it is.',
       fine: 'Fine',
       coarse: 'Coarse',
+      roundness: "Roundness",
+      roundnessHelp: "Left follows the rectangle of the frame, right makes a circle. 0 is an oval of the frame's shape.",
+      rectangle: "Rectangle",
+      circle: "Circle",
+      feather: "Feather",
+      featherHelp: "How gradually the vignette fades in. Left gives a hard edge, right the softest fade. 50 is the standard.",
+      hard: "Hard",
+      soft: "Soft",
+      highlights: "Protect highlights",
+      highlightsHelp: "Spares bright areas near the edges, such as sky or a white bird, from a darker or coloured vignette. It has no effect when the edges are lightened.",
+      shapeOff: "Set an amount, colour strength or edge blur first; this then shapes the vignette.",
+      roughness: "Grain roughness",
+      roughnessHelp: "Left gives smooth, even grain; right adds a finer, irregular layer, like coarse film.",
+      roughnessOff: "Set some grain first; this then sets how even or rough it is.",
+      smooth: "Smooth",
+      rough: "Rough",
     },
     fringe: {
       heading: 'Colour fringes',
@@ -829,6 +854,15 @@ export const source = {
       warmthLabel: 'Warmth',
       cooler: 'Cooler',
       warmer: 'Warmer',
+    },
+    neutral: {
+      auto: "Auto",
+      pick: "Pick neutral",
+      help: "As shot puts white balance back to the camera's own setting. Auto estimates the light from the whole picture; a scene that is mostly one colour can mislead it. Pick neutral, then click a spot on the photo that should be grey or white.",
+      picking: "Click a spot on the photo that should be grey or white. Press Esc to cancel.",
+      set: "White balance set. Undo puts it back.",
+      limited: "White balance set as far as the sliders go. Some colour cast remains.",
+      unreadable: "That spot is too bright or too dark to read. Try a grey or white that isn't blown out.",
     },
     mixer: {
       heading: 'Colour mixer',
@@ -1575,6 +1609,17 @@ export const source = {
     gradient: 'Gradient',
     skyUnavailable: 'Sky detection is not available yet',
     paintingUnavailable: 'Painting is not connected to the photograph yet',
+    partsHeading: 'Combine with other masks',
+    partsNote: 'Parts apply in order and use each other mask’s own shape. Every mask stays editable.',
+    addPart: 'Add a part',
+    removePart: 'Remove this part',
+    partMode: 'How it combines',
+    partTarget: 'Which mask',
+    modeAdd: 'Add · include this area too',
+    modeSubtract: 'Subtract · leave this area out',
+    modeIntersect: 'Intersect · only where they overlap',
+    partsFull: 'A mask can combine up to 4 parts.',
+    combined: 'Combined',
     addShapeMask: 'Add a real adjustable mask. Expand its layer to position and resize it.',
     noMasks: 'No masks yet. Detect the subject or select the background to start.',
     deleteMask: (name: string) => `Delete ${name}`,
@@ -1643,6 +1688,13 @@ export const source = {
     stop: 'Stop',
     failed: (names: string) => `Could not measure: ${names}`,
     done: 'Measured on this device.',
+    downloadPack: (size: string) => `Download (${size})`,
+    downloading: (name: string, percent: number) => `Downloading ${name}: ${percent}%`,
+    cancel: 'Cancel',
+    removePack: 'Remove',
+    packReady: (name: string) => `${name} is ready on this device.`,
+    packRemoved: (name: string) => `${name} was removed from this device.`,
+    packNote: 'Downloaded only when you ask, checked against its checksum, then kept on this device. No photo is sent.',
   },
   settingsMore: {
     closeSettings: 'Close settings',

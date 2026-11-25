@@ -1,5 +1,5 @@
 import {maskAlpha, fullContext} from './masks';
-import type {Mask, LocalEdit} from './maskTypes';
+import {isCombined, type Mask, type LocalEdit} from './maskTypes';
 import type {PhotoEdit} from './photoEdits';
 import {renderRecipePreview, assessNaturalAuto, naturalAuto} from './naturalAuto';
 import type {PhotographyObservation} from './photographyKnowledge';
@@ -9,7 +9,7 @@ function validGrid(g:Subject['grid']){
   if(!g || !Number.isInteger(g.w)||!Number.isInteger(g.h)||g.w<8||g.h<8||g.w>512||g.h>512||typeof g.data!=='string'||g.data.length!==Math.ceil(g.w*g.h/3)*4)return false;
   try{return atob(g.data).length===g.w*g.h;}catch{return false;}
 }
-function validSubject(s:Subject){return validGrid(s.grid) && (!s.detail || (validGrid(s.detail.grid) && Object.values(s.detail.region).every(Number.isFinite))) && !s.hidden && !s.invert && !s.limit && !s.strokes.length && Number.isFinite(s.feather) && s.feather>=0 && s.feather<=1;}
+function validSubject(s:Subject){return validGrid(s.grid) && (!s.detail || (validGrid(s.detail.grid) && Object.values(s.detail.region).every(Number.isFinite))) && !s.hidden && !s.invert && !isCombined(s) && !s.strokes.length && Number.isFinite(s.feather) && s.feather>=0 && s.feather<=1;}
 function regions(subjects: readonly Subject[], width:number,height:number) {
   if(subjects.length<2 || subjects.length>12 || !Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width<16 || height<16 || width*height>409600) return null;
   if(subjects.some(s=>s.confidence!=='high' || !validSubject(s))) return null;

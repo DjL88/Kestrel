@@ -53,6 +53,9 @@ interface CanvasProps {
   maskOverlayKey?: string;
   onToggleMaskOverlay?: () => void;
   onSetMaskGeometry?: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
+  /** White-balance eyedropper: while set, a click on the picture reports that spot (0 to 1 across the shown, framed
+   * picture) instead of moving anything. Esc cancels. */
+  neutralPick?: { onPick: (at: { x: number; y: number }) => void; onCancel: () => void };
   photo: Photo | null;
   activeSizeId: string;
   selectedSizeIds: string[];
@@ -114,6 +117,7 @@ export default function Canvas({
   maskOverlayKey,
   onToggleMaskOverlay,
   onSetMaskGeometry,
+  neutralPick,
   photo,
   activeSizeId,
   selectedSizeIds,
@@ -397,6 +401,13 @@ export default function Canvas({
     return () => window.removeEventListener('keydown', leave);
   }, [revealSizeId]);
 
+  // The eyedropper's Esc (a hook, so it sits before the early return below).
+  useEffect(() => {
+    if (!neutralPick) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.stopPropagation(); neutralPick.onCancel(); } };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [neutralPick]);
   if (!photo) {
     return (
       <main className="flex flex-1 items-center justify-center bg-[var(--bg-canvas)] text-sm text-[var(--text-muted)]">
@@ -1054,11 +1065,30 @@ export default function Canvas({
       <MaskOutlineLayer picture={picture} name={selectedShape.name} geometry={selectedShape.geometry} feather={selectedShape.feather}
         onChange={(field, value) => onSetMaskGeometry(photo.id, selectedShape.id, field, value)} />
     ) : undefined;
+  // The eyedropper is drawn in the displayed picture's own pixels (like the mask outline), so crop, rotation, flips and
+  // zoom are already undone by the browser when it maps the click back. It takes the place of the outline while active.
+  const renderPickLayer = neutralPick
+    ? (picture: { width: number; height: number }) => (
+      <rect data-testid="wb-pick-layer" x={0} y={0} width={picture.width} height={picture.height} fill="transparent"
+        style={{ pointerEvents: 'all', cursor: 'crosshair' }}
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation();
+          const svg = (event.currentTarget as SVGRectElement).ownerSVGElement;
+          const ctm = svg?.getScreenCTM();
+          if (!svg || !ctm) return;
+          const point = svg.createSVGPoint();
+          point.x = event.clientX; point.y = event.clientY;
+          const local = point.matrixTransform(ctm.inverse());
+          const x = local.x / picture.width, y = local.y / picture.height;
+          if (x >= 0 && x <= 1 && y >= 0 && y <= 1) neutralPick.onPick({ x, y });
+        }} />
+    ) : undefined;
   const renderSurface = (variant: 'edited' | 'original', alt: string, style: React.CSSProperties, filter: string) =>
     PhotoSurface ? (
       <PhotoSurface photoId={photo.id} variant={variant}
         maskGuideId={variant === 'edited' && alt && !compareMode && maskOverlayVisible ? maskGuideId : undefined}
-        maskOutline={variant === 'edited' && alt && !compareMode ? renderMaskOutline : undefined}
+        maskOutline={variant === 'edited' && alt && !compareMode ? renderPickLayer ?? renderMaskOutline : undefined}
         lookPreview={variant === 'edited' ? hoveredLook?.recipeDelta : undefined} alt={alt} className="h-full w-full" style={style} />
     ) : (
       <img src={photo.previewUrl} alt={alt} referrerPolicy="no-referrer" draggable={false}
