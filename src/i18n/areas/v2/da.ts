@@ -665,6 +665,9 @@ export const da: AreaTranslation<typeof source> = {
     zoomOriginalFailed: 'Originalen kunne ikke hentes. Du ser stadig forhåndsvisningen.',
     zoomOriginalClose: 'Luk',
   },
+  guardian: {
+    autopilotHeld: "Autopiloten holdt denne redigering tilbage, så du kan se på den: billedtjekket på denne enhed var ikke overbevist om, at den ser naturlig ud. Forslaget ligger i andenpiloten, klar til visning eller brug. Intet blev ændret.",
+  },
   adjust: {
     grade: {
       heading: 'Farvegradering',

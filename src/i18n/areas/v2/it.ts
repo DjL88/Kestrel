@@ -665,6 +665,9 @@ export const it: AreaTranslation<typeof source> = {
     zoomOriginalFailed: 'Non è stato possibile scaricare l’originale. Stai ancora vedendo l’anteprima.',
     zoomOriginalClose: 'Chiudi',
   },
+  guardian: {
+    autopilotHeld: "Il pilota automatico ha trattenuto questa modifica perché tu la riveda: il controllo visivo su questo dispositivo non era convinto che sembrasse naturale. Il suggerimento è nel copilota, da vedere in anteprima o applicare. Non è stato modificato nulla.",
+  },
   adjust: {
     grade: {
       heading: 'Correzione colore',

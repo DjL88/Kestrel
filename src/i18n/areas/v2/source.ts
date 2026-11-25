@@ -700,6 +700,9 @@ export const source = {
   },
 
   // Adjust Panel
+  guardian: {
+    autopilotHeld: "Auto-pilot held this edit for your review: the vision check on this device was not convinced it looks natural. The suggestion is in Co-pilot to preview or apply. Nothing was changed.",
+  },
   adjust: {
     looksHeading: 'Curated Looks',
     looksHint: 'Hover any look to preview it live on your photo.',

@@ -665,6 +665,9 @@ export const nl: AreaTranslation<typeof source> = {
     zoomOriginalFailed: 'Het origineel kon niet worden gedownload. Je ziet nog steeds het voorbeeld.',
     zoomOriginalClose: 'Sluiten',
   },
+  guardian: {
+    autopilotHeld: "De automatische piloot heeft deze bewerking voor uw controle tegengehouden: de beeldcontrole op dit apparaat was er niet van overtuigd dat ze natuurlijk oogt. De suggestie staat in de copiloot om te bekijken of toe te passen. Er is niets veranderd.",
+  },
   adjust: {
     grade: {
       heading: 'Kleurcorrectie',

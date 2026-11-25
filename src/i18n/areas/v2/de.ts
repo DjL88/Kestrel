@@ -665,6 +665,9 @@ export const de: AreaTranslation<typeof source> = {
     zoomOriginalFailed: 'Das Original konnte nicht heruntergeladen werden. Sie sehen weiterhin die Vorschau.',
     zoomOriginalClose: 'Schließen',
   },
+  guardian: {
+    autopilotHeld: "Der Autopilot hat diese Bearbeitung für Ihre Prüfung zurückgehalten: Die Bildprüfung auf diesem Gerät war nicht überzeugt, dass sie natürlich wirkt. Der Vorschlag steht im Copilot zur Vorschau oder zum Anwenden bereit. Es wurde nichts geändert.",
+  },
   adjust: {
     grade: {
       heading: 'Farbkorrektur',

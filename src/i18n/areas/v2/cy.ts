@@ -665,6 +665,9 @@ export const cy: AreaTranslation<typeof source> = {
     zoomOriginalFailed: 'Nid oedd modd lawrlwytho’r gwreiddiol. Rydych yn dal i weld y rhagolwg.',
     zoomOriginalClose: 'Cau',
   },
+  guardian: {
+    autopilotHeld: "Daliodd yr awtobeilot y golygiad hwn yn ôl i chi ei adolygu: nid oedd y gwiriad gweledol ar y ddyfais hon yn siŵr ei fod yn edrych yn naturiol. Mae'r awgrym yn y cyd-beilot i'w ragweld neu ei roi ar waith. Ni newidiwyd dim.",
+  },
   adjust: {
     grade: {
       heading: 'Graddio lliw',

@@ -666,6 +666,9 @@ export const fi: AreaTranslation<typeof source> = {
     zoomOriginalFailed: 'Alkuperäistä ei voitu ladata. Näet yhä esikatselun.',
     zoomOriginalClose: 'Sulje',
   },
+  guardian: {
+    autopilotHeld: "Autopilotti jätti tämän muokkauksen tarkistettavaksesi: tämän laitteen kuvatarkistus ei ollut varma, että se näyttää luonnolliselta. Ehdotus on perämiehessä esikatselua tai käyttöä varten. Mitään ei muutettu.",
+  },
   adjust: {
     grade: {
       heading: 'Värimäärittely',

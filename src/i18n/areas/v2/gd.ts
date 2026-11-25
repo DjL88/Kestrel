@@ -666,6 +666,9 @@ export const gd: AreaTranslation<typeof source> = {
     zoomOriginalFailed: 'Cha b’ urrainn dhuinn an tè thùsail a luchdadh a-nuas. Chì thu an ro-shealladh fhathast.',
     zoomOriginalClose: 'Dùin',
   },
+  guardian: {
+    autopilotHeld: "Chùm am fèin-phìleat an deasachadh seo air ais airson do lèirmheas: cha robh an sgrùdadh lèirsinneach air an uidheam seo cinnteach gu bheil e a' coimhead nàdarra. Tha am moladh sa cho-phìleat airson ro-shealladh no cur an sàs. Cha deach dad atharrachadh.",
+  },
   adjust: {
     grade: {
       heading: 'Rangachadh dhathan',

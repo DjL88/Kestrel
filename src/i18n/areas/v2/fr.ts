@@ -665,6 +665,9 @@ export const fr: AreaTranslation<typeof source> = {
     zoomOriginalFailed: 'L’original n’a pas pu être téléchargé. Vous voyez toujours l’aperçu.',
     zoomOriginalClose: 'Fermer',
   },
+  guardian: {
+    autopilotHeld: "Le pilote automatique a gardé cette retouche pour votre avis : la vérification visuelle sur cet appareil n'était pas convaincue qu'elle paraisse naturelle. La suggestion est dans le copilote, pour l'aperçu ou l'application. Rien n'a été modifié.",
+  },
   adjust: {
     grade: {
       heading: 'Étalonnage des couleurs',

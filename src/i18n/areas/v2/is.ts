@@ -665,6 +665,9 @@ export const is: AreaTranslation<typeof source> = {
     zoomOriginalFailed: 'Ekki tókst að sækja frumritið. Þú sérð enn forskoðunina.',
     zoomOriginalClose: 'Loka',
   },
+  guardian: {
+    autopilotHeld: "Sjálfstýringin hélt þessari breytingu eftir svo að þú getir skoðað hana: myndathugunin í þessu tæki var ekki sannfærð um að hún líti eðlilega út. Tillagan er í aðstoðarflugmanni til að forskoða eða nota. Engu var breytt.",
+  },
   adjust: {
     grade: {
       heading: 'Litaflokkun',

@@ -668,6 +668,9 @@ export const ga: AreaTranslation<typeof source> = {
     zoomOriginalFailed: 'Níorbh fhéidir an bunleagan a íoslódáil. Tá an réamhamharc fós le feiceáil agat.',
     zoomOriginalClose: 'Dún',
   },
+  guardian: {
+    autopilotHeld: "Choinnigh an t-uathphíolóta an eagarthóireacht seo siar le go ndéanfá athbhreithniú uirthi: ní raibh an tseiceáil amhairc ar an ngléas seo cinnte go bhfuil cuma nádúrtha uirthi. Tá an moladh sa chomhphíolóta le réamhamharc a fháil air nó é a chur i bhfeidhm. Níor athraíodh aon rud.",
+  },
   adjust: {
     grade: {
       heading: 'Grádú datha',

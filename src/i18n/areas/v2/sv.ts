@@ -665,6 +665,9 @@ export const sv: AreaTranslation<typeof source> = {
     zoomOriginalFailed: 'Originalet kunde inte laddas ned. Du ser fortfarande förhandsvisningen.',
     zoomOriginalClose: 'Stäng',
   },
+  guardian: {
+    autopilotHeld: "Autopiloten höll inne den här redigeringen så att du kan granska den: bildkontrollen på den här enheten var inte övertygad om att den ser naturlig ut. Förslaget finns i andrepiloten för förhandsvisning eller användning. Inget ändrades.",
+  },
   adjust: {
     grade: {
       heading: 'Färggradering',

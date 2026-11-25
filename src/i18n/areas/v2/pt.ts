@@ -665,6 +665,9 @@ export const pt: AreaTranslation<typeof source> = {
     zoomOriginalFailed: 'Não foi possível transferir o original. Continua a ver a pré-visualização.',
     zoomOriginalClose: 'Fechar',
   },
+  guardian: {
+    autopilotHeld: "O piloto automático reteve esta edição para a sua revisão: a verificação visual neste dispositivo não ficou convencida de que parece natural. A sugestão está no copiloto para pré-visualizar ou aplicar. Nada foi alterado.",
+  },
   adjust: {
     grade: {
       heading: 'Correção de cor',
