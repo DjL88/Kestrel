@@ -501,6 +501,25 @@ export const fr: AreaTranslation<typeof source> = {
     fullScreenExit: 'Quitter le plein écran',
     zoomFit: 'Ajuster',
   },
+  /** Watch: an Auto suggestion played one step at a time, each explained in plain words. */
+  watch: {
+    start: "Regarder étape par étape",
+    region: "Regarder cette suggestion étape par étape",
+    stepOf: (n, total) => `Étape ${n} sur ${total}`,
+    back: "Retour",
+    next: "Suivant",
+    skip: "Aller à la fin",
+    replay: "Revoir",
+    stop: "Arrêter",
+    done: "Voilà toutes les étapes. Appliquez la suggestion pour la garder, ou arrêtez pour laisser la photo comme avant.",
+    previewNote: "Aperçu seulement. Rien ne change tant que vous n’appliquez pas la suggestion.",
+    otherSetting: "Un autre réglage",
+    on: "activé",
+    off: "désactivé",
+    changed: "modifié",
+    why: { "white-balance": "D’abord la couleur de la lumière, pour que les étapes suivantes partent de vraies couleurs.", "light": "Puis la luminosité et le contraste.", "colour": "Puis l’intensité des couleurs.", "detail": "Enfin, les fins détails et le bruit.", "local": "Un changement sur une partie de la photo seulement. Vous le verrez une fois la suggestion appliquée.", "other": "Un autre réglage que cette suggestion modifie." },
+  },
+
   copilot: {
     heading: 'Copilote',
     changeInSettings: 'Changer de mode dans les Paramètres',

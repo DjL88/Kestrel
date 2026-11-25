@@ -501,6 +501,25 @@ export const nb: AreaTranslation<typeof source> = {
     fullScreenExit: 'Avslutt fullskjerm',
     zoomFit: 'Tilpass',
   },
+  /** Watch: an Auto suggestion played one step at a time, each explained in plain words. */
+  watch: {
+    start: "Se trinn for trinn",
+    region: "Se dette forslaget trinn for trinn",
+    stepOf: (n, total) => `Trinn ${n} av ${total}`,
+    back: "Tilbake",
+    next: "Neste",
+    skip: "Hopp til slutten",
+    replay: "Se igjen",
+    stop: "Slutt å se",
+    done: "Det var alle trinnene. Bruk forslaget for å beholde det, eller slutt å se for å la bildet være som før.",
+    previewNote: "Bare forhåndsvisning. Ingenting endres før du bruker forslaget.",
+    otherSetting: "En annen innstilling",
+    on: "på",
+    off: "av",
+    changed: "endret",
+    why: { "white-balance": "Først lysets farge, så de neste trinnene starter fra riktige farger.", "light": "Så lysstyrke og kontrast.", "colour": "Så hvor sterke fargene er.", "detail": "Til slutt fine detaljer og støy.", "local": "En endring av bare en del av bildet. Du ser den når du bruker forslaget.", "other": "Enda en innstilling som forslaget endrer." },
+  },
+
   copilot: {
     heading: 'Andrepilot',
     changeInSettings: 'Bytt modus i Innstillinger',

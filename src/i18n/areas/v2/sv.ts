@@ -501,6 +501,25 @@ export const sv: AreaTranslation<typeof source> = {
     fullScreenExit: 'Avsluta helskärm',
     zoomFit: 'Anpassa',
   },
+  /** Watch: an Auto suggestion played one step at a time, each explained in plain words. */
+  watch: {
+    start: "Titta steg för steg",
+    region: "Titta på det här förslaget steg för steg",
+    stepOf: (n, total) => `Steg ${n} av ${total}`,
+    back: "Tillbaka",
+    next: "Nästa",
+    skip: "Hoppa till slutet",
+    replay: "Titta igen",
+    stop: "Sluta titta",
+    done: "Det var alla steg. Använd förslaget för att behålla det, eller sluta titta för att låta bilden vara som förut.",
+    previewNote: "Bara förhandsvisning. Inget ändras förrän du använder förslaget.",
+    otherSetting: "En annan inställning",
+    on: "på",
+    off: "av",
+    changed: "ändrad",
+    why: { "white-balance": "Först ljusets färg, så att nästa steg utgår från riktiga färger.", "light": "Sedan ljusstyrka och kontrast.", "colour": "Sedan hur starka färgerna är.", "detail": "Sist fina detaljer och brus.", "local": "En ändring av bara en del av bilden. Du ser den när du använder förslaget.", "other": "Ännu en inställning som förslaget ändrar." },
+  },
+
   copilot: {
     heading: 'Andrepilot',
     changeInSettings: 'Byt läge i Inställningar',

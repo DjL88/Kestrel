@@ -72,7 +72,7 @@ export function suggestionSteps(base: PhotoEdit, proposal: PhotoEdit): NonNullab
   const before = { ...editToRecipe(base), masks: base.masks?.length ?? 0 };
   const after = { ...editToRecipe(proposal), masks: proposal.masks?.length ?? 0 };
   return buildEditingSequence(before, after, ['lookId']).map((step) => ({
-    id: step.id, label: STEP_LABELS[step.key] ?? step.key, from: stepValue(step.from), to: stepValue(step.to),
+    id: step.id, key: step.key, label: STEP_LABELS[step.key] ?? step.key, from: stepValue(step.from), to: stepValue(step.to),
   }));
 }
 

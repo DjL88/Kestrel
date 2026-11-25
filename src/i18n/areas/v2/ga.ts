@@ -504,6 +504,25 @@ export const ga: AreaTranslation<typeof source> = {
     fullScreenExit: 'Fág an lánscáileán',
     zoomFit: 'Oiriúnaigh',
   },
+  /** Watch: an Auto suggestion played one step at a time, each explained in plain words. */
+  watch: {
+    start: "Féach céim ar chéim",
+    region: "Féach ar an moladh seo céim ar chéim",
+    stepOf: (n, total) => `Céim ${n} as ${total}`,
+    back: "Siar",
+    next: "Ar aghaidh",
+    skip: "Léim go dtí an deireadh",
+    replay: "Féach arís",
+    stop: "Stop ag féachaint",
+    done: "Sin gach céim. Cuir an moladh i bhfeidhm chun é a choinneáil, nó stop ag féachaint chun an grianghraf a fhágáil mar a bhí.",
+    previewNote: "Réamhamharc amháin. Ní athraíonn aon rud go gcuireann tú an moladh i bhfeidhm.",
+    otherSetting: "Socrú eile",
+    on: "air",
+    off: "as",
+    changed: "athraithe",
+    why: { "white-balance": "Ar dtús dath an tsolais, ionas go dtosóidh na céimeanna eile ó fhíordhathanna.", "light": "Ansin gile agus codarsnacht.", "colour": "Ansin cé chomh láidir is atá na dathanna.", "detail": "Ar deireadh, mionsonraí agus torann.", "local": "Athrú ar chuid den ghrianghraf amháin. Feicfidh tú é nuair a chuireann tú an moladh i bhfeidhm.", "other": "Socrú eile a athraíonn an moladh seo." },
+  },
+
   copilot: {
     heading: 'Comhphíolóta',
     changeInSettings: 'Athraigh an mód sna Socruithe',

@@ -502,6 +502,25 @@ export const fi: AreaTranslation<typeof source> = {
     fullScreenExit: 'Poistu koko näytöstä',
     zoomFit: 'Sovita',
   },
+  /** Watch: an Auto suggestion played one step at a time, each explained in plain words. */
+  watch: {
+    start: "Katso vaihe vaiheelta",
+    region: "Katso tämä ehdotus vaihe vaiheelta",
+    stepOf: (n, total) => `Vaihe ${n}/${total}`,
+    back: "Takaisin",
+    next: "Seuraava",
+    skip: "Siirry loppuun",
+    replay: "Katso uudelleen",
+    stop: "Lopeta katselu",
+    done: "Siinä olivat kaikki vaiheet. Ota ehdotus käyttöön säilyttääksesi sen, tai lopeta katselu, niin kuva pysyy ennallaan.",
+    previewNote: "Vain esikatselu. Mikään ei muutu, ennen kuin otat ehdotuksen käyttöön.",
+    otherSetting: "Toinen asetus",
+    on: "päällä",
+    off: "pois",
+    changed: "muutettu",
+    why: { "white-balance": "Ensin valon väri, jotta seuraavat vaiheet alkavat oikeista väreistä.", "light": "Sitten kirkkaus ja kontrasti.", "colour": "Sitten värien voimakkuus.", "detail": "Lopuksi hienot yksityiskohdat ja kohina.", "local": "Muutos vain osaan kuvasta. Näet sen, kun otat ehdotuksen käyttöön.", "other": "Vielä yksi asetus, jota ehdotus muuttaa." },
+  },
+
   copilot: {
     heading: 'Perämies',
     changeInSettings: 'Vaihda tilaa Asetuksissa',

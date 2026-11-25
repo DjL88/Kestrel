@@ -501,6 +501,25 @@ export const cy: AreaTranslation<typeof source> = {
     fullScreenExit: 'Gadael sgrin lawn',
     zoomFit: 'Ffitio',
   },
+  /** Watch: an Auto suggestion played one step at a time, each explained in plain words. */
+  watch: {
+    start: "Gwylio gam wrth gam",
+    region: "Gwylio’r awgrym hwn gam wrth gam",
+    stepOf: (n, total) => `Cam ${n} o ${total}`,
+    back: "Yn ôl",
+    next: "Nesaf",
+    skip: "Neidio i’r diwedd",
+    replay: "Gwylio eto",
+    stop: "Stopio gwylio",
+    done: "Dyna bob cam. Rhowch yr awgrym ar waith i’w gadw, neu stopiwch wylio i adael y llun fel yr oedd.",
+    previewNote: "Rhagolwg yn unig. Does dim yn newid nes i chi roi’r awgrym ar waith.",
+    otherSetting: "Gosodiad arall",
+    on: "ymlaen",
+    off: "i ffwrdd",
+    changed: "wedi newid",
+    why: { "white-balance": "Yn gyntaf lliw’r golau, fel bod y camau nesaf yn dechrau o liwiau cywir.", "light": "Yna disgleirdeb a chyferbyniad.", "colour": "Yna pa mor gryf yw’r lliwiau.", "detail": "Yn olaf, manylion mân a sŵn.", "local": "Newid i ran o’r llun yn unig. Fe’i gwelwch unwaith y byddwch yn rhoi’r awgrym ar waith.", "other": "Un gosodiad arall y mae’r awgrym hwn yn ei newid." },
+  },
+
   copilot: {
     heading: 'Cyd-beilot',
     changeInSettings: 'Newid y modd yn y Gosodiadau',

@@ -501,6 +501,25 @@ export const nl: AreaTranslation<typeof source> = {
     fullScreenExit: 'Volledig scherm sluiten',
     zoomFit: 'Passend',
   },
+  /** Watch: an Auto suggestion played one step at a time, each explained in plain words. */
+  watch: {
+    start: "Stap voor stap bekijken",
+    region: "Deze suggestie stap voor stap bekijken",
+    stepOf: (n, total) => `Stap ${n} van ${total}`,
+    back: "Terug",
+    next: "Volgende",
+    skip: "Naar het einde",
+    replay: "Opnieuw bekijken",
+    stop: "Stoppen met kijken",
+    done: "Dat waren alle stappen. Pas de suggestie toe om haar te houden, of stop met kijken om de foto te laten zoals hij was.",
+    previewNote: "Alleen een voorbeeld. Er verandert niets tot u de suggestie toepast.",
+    otherSetting: "Een andere instelling",
+    on: "aan",
+    off: "uit",
+    changed: "gewijzigd",
+    why: { "white-balance": "Eerst de kleur van het licht, zodat de volgende stappen van echte kleuren uitgaan.", "light": "Dan helderheid en contrast.", "colour": "Dan hoe sterk de kleuren zijn.", "detail": "Als laatste fijne details en ruis.", "local": "Een wijziging aan een deel van de foto. U ziet die zodra u de suggestie toepast.", "other": "Nog een instelling die deze suggestie wijzigt." },
+  },
+
   copilot: {
     heading: 'Copiloot',
     changeInSettings: 'Modus wijzigen in Instellingen',

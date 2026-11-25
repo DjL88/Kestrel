@@ -502,6 +502,25 @@ export const gd: AreaTranslation<typeof source> = {
     fullScreenExit: 'Fàg an làn-sgrìn',
     zoomFit: 'Co-fhreagair',
   },
+  /** Watch: an Auto suggestion played one step at a time, each explained in plain words. */
+  watch: {
+    start: "Coimhead ceum air cheum",
+    region: "Coimhead am moladh seo ceum air cheum",
+    stepOf: (n, total) => `Ceum ${n} à ${total}`,
+    back: "Air ais",
+    next: "Air adhart",
+    skip: "Leum chun na crìche",
+    replay: "Coimhead a-rithist",
+    stop: "Sguir a choimhead",
+    done: "Sin na ceumannan uile. Cuir am moladh an sàs gus a chumail, no sguir a choimhead gus an dealbh fhàgail mar a bha e.",
+    previewNote: "Ro-shealladh a-mhàin. Chan atharraich dad gus an cuir thu am moladh an sàs.",
+    otherSetting: "Roghainn eile",
+    on: "air",
+    off: "dheth",
+    changed: "air atharrachadh",
+    why: { "white-balance": "An toiseach dath an t-solais, gus an tòisich na ceumannan eile o fhìor dhathan.", "light": "An uairsin soilleireachd agus iomsgaradh.", "colour": "An uairsin cho làidir ’s a tha na dathan.", "detail": "Mu dheireadh, mion-fhiosrachadh agus gràinne.", "local": "Atharrachadh air pàirt den dealbh a-mhàin. Chì thu e nuair a chuireas tu am moladh an sàs.", "other": "Roghainn eile a tha am moladh seo ag atharrachadh." },
+  },
+
   copilot: {
     heading: 'Co-phìleat',
     changeInSettings: 'Atharraich am modh sna Roghainnean',
