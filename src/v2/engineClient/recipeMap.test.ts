@@ -181,3 +181,16 @@ test('dehaze, vignette (with colour and blur), grain and calibration round-trip 
   assert.equal(applyRecipePatch(edit, { grain: 0 }).edit.grain, undefined);
   assert.equal(applyRecipePatch(edit, { dehaze: 0 }).edit.dehaze, undefined);
 });
+
+test('colour fringe settings round-trip, and zero is stored as nothing', () => {
+  let edit = applyRecipePatch(undefined, { caRed: 45, caBlue: -70, defringePurple: 60 }).edit;
+  assert.deepEqual(edit?.lateralCa, { red: 0.45, blue: -0.7 });
+  assert.deepEqual(edit?.defringe, { purple: 0.6, green: 0 });
+  const recipe = editToRecipe(edit);
+  assert.deepEqual([recipe.caRed, recipe.caBlue, recipe.defringePurple, recipe.defringeGreen], [45, -70, 60, 0]);
+  assert.equal(isNeutralEdit(edit!), false);
+  edit = applyRecipePatch(edit, { caRed: 0, caBlue: 0, defringePurple: 0 }).edit;
+  assert.equal(edit?.lateralCa, undefined);
+  assert.equal(edit?.defringe, undefined);
+  assert.equal(applyRecipePatch(undefined, { caRed: 500 }).edit?.lateralCa?.red, 1, 'clamped to range');
+});

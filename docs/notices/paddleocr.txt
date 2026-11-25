@@ -1,0 +1,14 @@
+PP-OCRv5 mobile text detection and English recognition models (PaddleOCR)
+Copyright (c) PaddlePaddle Authors. Licensed under the Apache License, Version 2.0.
+https://github.com/PaddlePaddle/PaddleOCR  http://www.apache.org/licenses/LICENSE-2.0
+
+Files (downloaded only when the person asks, from the authors' own Hugging Face releases, pinned by revision and SHA-256):
+- PaddlePaddle/PP-OCRv5_mobile_det_onnx @ e6f4fa85f00e168c862bc462aebca69eef9b3d3d, inference.onnx,
+  4,826,518 bytes, sha256 a431985659dc921974177a95adcfbb90fd9e51989a5e04d70d0b75f597b6e61d
+- PaddlePaddle/en_PP-OCRv5_mobile_rec_onnx @ 3fafbc3b5dcf93dd72add9f48368be8a3a2cd33b, inference.onnx,
+  7,848,423 bytes, sha256 b5f833dfc5d0eb71da397b4efa06ebeee9b431b690a47d6af40d77d8eabc557f
+  (its character list, from inference.yml, is src/assets/registers/ocr-characters.json)
+
+FAA Aircraft Registry (src/assets/registers/faa.json): extracted from the FAA Releasable Aircraft Database,
+https://registry.faa.gov/database/ReleasableAircraft.zip, a work of the United States Government (public domain).
+Only N-number, maker and model, and the operator for corporations and governments are kept.
