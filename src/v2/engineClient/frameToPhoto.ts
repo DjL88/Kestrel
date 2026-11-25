@@ -203,7 +203,8 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
   const thumb = urls?.thumb ?? BLANK_IMAGE;
   return {
     id: frame.id,
-    sharedKey: sharedPhotoKey(frame.originalSha256, frame.virtualCopy?.number),
+    sharedKey: frame.cloudPhoto && !frame.virtualCopy ? frame.cloudPhoto.photoKey : sharedPhotoKey(frame.originalSha256, frame.virtualCopy?.number),
+    cloudPreview: frame.cloudPhoto && !frame.cloudPhoto.hasOriginal ? true : undefined,
     filename: frame.filename,
     title: titleOf(frame.filename),
     previewUrl: urls?.preview ?? thumb,

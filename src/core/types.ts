@@ -81,6 +81,8 @@ export interface PhotoFrame {
   focusPoint?: FocusPoint;
   rating?: number;
   virtualCopy?: { originalFrameId: string; number: number };
+  /** A preview fetched from a shared project's cloud store, standing in for an original this device does not have. Its shared identity is the owner's original, never this file. */
+  cloudPhoto?: { projectId: string; photoKey: string; /** The owner's original has been fetched and now stands behind this photo. */ hasOriginal?: boolean };
   subjectNames?: string[];
   /** Labels such as a species, kept with the photo so projects can be searched by them. Always a suggestion the user can edit. */
   tags?: string[];

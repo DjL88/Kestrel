@@ -28,6 +28,7 @@ export const it: AreaTranslation<typeof source> = {
   marked: (what: string, marking: string) => `${what}, contrassegnato ${marking}`,
   registered: (marking: string, type: string) => `${marking}: ${type} (dal registro)`,
   operatedBy: (what: string, operator: string) => `${what}, operato da ${operator}`,
+  held: (what: string) => `${what}? Da verificare`,
   reader: {
     title: 'Leggi le marche degli aeromobili',
     description: (megabytes: string) => `Legge le marche e i numeri di serie militari dipinti sugli aeromobili, su questo dispositivo, e li cerca in una copia offline di registri pubblici. Un download unico di ${megabytes} MB. Le targhe delle auto non vengono mai lette.`,

@@ -24,6 +24,7 @@ async function publish(ctx: Awaited<ReturnType<typeof harness>>, extra: object =
   const made = await ctx.post(`/v1/collab/projects/${ctx.pid}/galleries`, { name: 'Selects', photoIds: ['p1', 'p2'], ...extra });
   assert.equal(made.status, 200, JSON.stringify(made.body));
   const { galleryId, linkToken } = made.body;
+  assert.equal((await ctx.post(`/v1/collab/galleries/${galleryId}/photos/p1/upload-url`, { sha256: sha, bytes: 30_000, variant: 'thumb' })).status, 200);
   assert.equal((await ctx.post(`/v1/collab/galleries/${galleryId}/photos/p1/upload-url`, { sha256: sha, bytes: 400_000 })).status, 200);
   assert.equal((await ctx.post(`/v1/collab/galleries/${galleryId}/photos/p1/commit`)).status, 200);
   return { galleryId, linkToken };
@@ -37,7 +38,9 @@ test('a client opens the link with no account and sees only published previews',
     const open = await ctx.h.call('POST', '/v1/gallery/open', { body: { token: linkToken } });
     assert.equal(open.status, 200);
     assert.deepEqual(open.body.photos.map((p: any) => p.photoId), ['p1'], 'p2 has no preview yet, so it is not shown');
-    assert.match(open.body.photos[0].url, /^memory:\/\/download\/galleries\//);
+    assert.match(open.body.photos[0].url, /^memory:\/\/download\/galleries\/.*\/p1\.jpg$/);
+    assert.match(open.body.photos[0].thumbUrl, /\/p1\.thumb\.jpg$/, 'the filmstrip uses the small picture, so browsing costs kilobytes');
+    assert.equal((await ctx.post(`/v1/collab/galleries/${galleryId}/photos/p2/upload-url`, { sha256: sha, bytes: 300_000, variant: 'thumb' })).status, 413, 'filmstrip pictures stay small');
     assert.deepEqual(open.body.allow, { comments: false, favourites: false, approval: false, downloads: false });
     for (const hidden of ['projectId', 'createdBy', 'photoIds', 'passwordHash', 'previews', 'galleryId']) assert.equal(hidden in open.body, false, hidden);
     assert.equal((await ctx.h.call('POST', '/v1/gallery/open', { body: { token: 'x'.repeat(40) } })).status, 404);
