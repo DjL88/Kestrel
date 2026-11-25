@@ -1,4 +1,4 @@
-import { Sha256Stream } from '../core/sha256';
+import { sha256Hex } from '../core/sha256';
 import { EMBED_MODEL, embeddingCrop, encodeEmbedding, preprocessEmbedding, type StoredEmbedding } from '../core/visualSimilarity';
 import { friendlyToolError } from '../core/toolErrors';
 
@@ -16,9 +16,9 @@ function load(): Promise<Loaded> {
     const response = await fetch(EMBED_MODEL.url);
     if (!response.ok) throw new Error('The photo similarity model is missing. Reinstall InFlight.');
     const bytes = new Uint8Array(await response.arrayBuffer());
-    const hash = new Sha256Stream();
-    hash.update(bytes);
-    if (bytes.byteLength !== EMBED_MODEL.bytes || hash.digest() !== EMBED_MODEL.sha256) {
+    // The browser hashes off the interface thread (a pure-JS hash of this file froze the editor for about 3 s);
+    // sha256Hex keeps the pure-JS fallback where crypto.subtle is switched off (plain http on a local network).
+    if (bytes.byteLength !== EMBED_MODEL.bytes || await sha256Hex(bytes.buffer) !== EMBED_MODEL.sha256) {
       throw new Error('The photo similarity model failed its integrity check, so it was not used.');
     }
     const ort = await import('onnxruntime-web/wasm');

@@ -63,7 +63,28 @@ export interface DenoiseActionInput {
   maxRetries?: number;
   /** Additional caller checks on the exact composed recipe. */
   verifyCandidate?: (after: Pixels) => CourseCorrection;
+  /** Renders and checks one attempt somewhere else (a Web Worker), with exactly `assessDenoiseCandidate`'s rules.
+   * When given, `render` and `verifyCandidate` are not called for attempts, so the pixels never return to this thread. */
+  assess?: (edit: Partial<PhotoEdit>, masks: Mask[]) => Promise<CourseCorrection>;
   signal?: AbortSignal;
+}
+
+/** The closed-loop check for one attempt: overall verification, subject structure, then the caller's own checks. Pure. */
+export function assessDenoiseCandidate(
+  original: Pixels, after: Pixels, subjectAlpha: Float32Array | undefined, verifyCandidate?: (after: Pixels) => CourseCorrection,
+): CourseCorrection {
+  let verification = verifyEdit(original, after, subjectAlpha);
+  if (subjectAlpha && subjectAlpha.length === original.width * original.height && after.width === original.width && after.height === original.height && after.data.length === original.data.length) {
+    const evidence = regionalDetailEvidence(original, after, subjectAlpha);
+    if (evidence.regions && (evidence.ratio < 0.75 || evidence.worstRegion < 0.6)) {
+      verification = { ok: false, reasons: [...verification.reasons, 'Denoise removed too much structure from a protected subject.'], suggestedStrengthScale: Math.min(0.5, verification.suggestedStrengthScale) };
+    }
+  }
+  if (verifyCandidate) {
+    const composed = verifyCandidate(after);
+    if (!composed.ok) verification = { ok: false, reasons: [...verification.reasons, ...composed.reasons], suggestedStrengthScale: Math.min(verification.suggestedStrengthScale, composed.suggestedStrengthScale) };
+  }
+  return verification;
 }
 
 export interface DenoiseActionResult {
@@ -93,18 +114,13 @@ export async function runDenoiseAction(input: DenoiseActionInput): Promise<Denoi
         ]
         : [];
       input.signal?.throwIfAborted();
-      const after = await input.render(edit, masks);
-      input.signal?.throwIfAborted();
-      verification = verifyEdit(input.original, after, input.subject?.alpha);
-      if (input.subject && input.subject.alpha.length === input.original.width * input.original.height && after.width === input.original.width && after.height === input.original.height && after.data.length === input.original.data.length) {
-        const evidence = regionalDetailEvidence(input.original, after, input.subject.alpha);
-        if (evidence.regions && (evidence.ratio < 0.75 || evidence.worstRegion < 0.6)) {
-          verification = { ok: false, reasons: [...verification.reasons, 'Denoise removed too much structure from a protected subject.'], suggestedStrengthScale: Math.min(0.5, verification.suggestedStrengthScale) };
-        }
-      }
-      if (input.verifyCandidate) {
-        const composed = input.verifyCandidate(after);
-        if (!composed.ok) verification = { ok: false, reasons: [...verification.reasons, ...composed.reasons], suggestedStrengthScale: Math.min(verification.suggestedStrengthScale, composed.suggestedStrengthScale) };
+      if (input.assess) {
+        verification = await input.assess(edit, masks);
+        input.signal?.throwIfAborted();
+      } else {
+        const after = await input.render(edit, masks);
+        input.signal?.throwIfAborted();
+        verification = assessDenoiseCandidate(input.original, after, input.subject?.alpha, input.verifyCandidate);
       }
       if (verification.ok || attempts === maxRetries) break;
       background = Math.max(0, background * verification.suggestedStrengthScale);

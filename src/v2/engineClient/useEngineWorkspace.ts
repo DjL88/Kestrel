@@ -57,6 +57,7 @@ import { runAuto } from './runAuto';
 import { commitAutoEdit } from './commitAutoEdit';
 import { commitAutoCull } from './commitAutoCull';
 import { runV2Denoise } from './runDenoise';
+import { MAIN_THREAD_DENOISE_NOTE } from '../../providers/denoiseOffThread';
 import { moveArtboard } from './boardOps';
 import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
@@ -1120,7 +1121,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             return { ...edit, denoise: outcome.strength, ...(outcome.luminance > 0 ? { denoiseLuminance: outcome.luminance } : {}), masks: [...masks, ...outcome.masks] };
           }));
         }
-        ctx.commitIfCurrent(() => setNotice(outcome.verified ? outcome.notes[0] : engineText.denoise.leftAsItWas(outcome.notes.join(' '))));
+        // A main-thread fallback is always said, even on success, so a pause is never unexplained.
+        ctx.commitIfCurrent(() => setNotice(outcome.verified
+          ? [outcome.notes[0], ...outcome.notes.slice(1).filter(note => note === MAIN_THREAD_DENOISE_NOTE)].join(' ')
+          : engineText.denoise.leftAsItWas(outcome.notes.join(' '))));
       },
     }).then(ticket => ticket.finished).then(result => {
       if (result === 'failed') setNotice(engineText.workspace.denoiseFailed);
