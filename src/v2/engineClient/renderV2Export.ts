@@ -1,4 +1,5 @@
 import { applyCanvasExportEdit } from '../../core/canvasEdit';
+import { applyFrameLayers } from '../../core/layerAssetVault';
 import { fitScale, maxCanvasPixels } from '../../core/exportLimits';
 import { exportFilename, type ExportProfile } from '../../core/exportProfiles';
 import { datedExport } from '../../core/exportTimestamp';
@@ -253,6 +254,8 @@ export async function renderV2Export(
   try {
     drawFramedPhoto(source, picture, framing, { scale });
     await applyCanvasExportEdit(picture, frame.edit ?? DEFAULT_EDIT, signal, Math.max(fw, fh) * scale, { aspect: fh / fw, view: { x: 0, y: 0, w: 1, h: 1 } });
+    signal?.throwIfAborted();
+    await applyFrameLayers(picture, frame.overlay, true);
     signal?.throwIfAborted();
     if (up !== 1 && scale >= 1) await upscaleCanvasInPlace(picture, up, signal);
     signal?.throwIfAborted();

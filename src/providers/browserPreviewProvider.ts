@@ -407,6 +407,24 @@ export class BrowserPreviewProvider implements PreviewProvider {
   }
 
   /**
+   * Keep the most recently used full previews only. An evicted URL is revoked, so say so (`full-preview-released`,
+   * detail: the stable key): anything that kept it, such as V2's All formats board, must ask again, or it draws a
+   * broken image. Thumbnails are untouched, so this is not `preview-invalidated`.
+   */
+  private trimFullPreviews(): void {
+    while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
+      const oldest = this.fullUrlOrder.shift();
+      if (!oldest) continue;
+      const stale = this.fullUrlCache.get(oldest);
+      this.fullUrlCache.delete(oldest);
+      this.offlineFullKeys.delete(oldest);
+      if (!stale) continue;
+      URL.revokeObjectURL(stale);
+      this.events.dispatchEvent(new CustomEvent('full-preview-released', { detail: oldest }));
+    }
+  }
+
+  /**
    * A linked RAW shows its embedded preview, so read just that part of the file instead of all of it. Any doubt (no
    * ranged access, no preview, the file changed or was relinked meanwhile) falls back to the full read below.
    */
@@ -428,14 +446,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       this.fullUrlCache.set(key, url);
       this.offlineFullKeys.delete(key);
       this.fullUrlOrder.push(key);
-      while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
-        const oldest = this.fullUrlOrder.shift();
-        if (!oldest) continue;
-        const stale = this.fullUrlCache.get(oldest);
-        if (stale) URL.revokeObjectURL(stale);
-        this.fullUrlCache.delete(oldest);
-        this.offlineFullKeys.delete(oldest);
-      }
+      this.trimFullPreviews();
       return url;
     } catch {
       return null;
@@ -481,14 +492,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
         this.fullUrlCache.set(key, url);
         this.offlineFullKeys.add(key);
         this.fullUrlOrder.push(key);
-        while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
-          const oldest = this.fullUrlOrder.shift();
-          if (!oldest) continue;
-          const stale = this.fullUrlCache.get(oldest);
-          if (stale) URL.revokeObjectURL(stale);
-          this.fullUrlCache.delete(oldest);
-          this.offlineFullKeys.delete(oldest);
-        }
+        this.trimFullPreviews();
         return url;
       }
     }
@@ -519,14 +523,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       // Without the linked original, even a previously developed bitmap is only a review fallback.
       this.offlineFullKeys.add(key);
       this.fullUrlOrder.push(key);
-      while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
-        const oldest = this.fullUrlOrder.shift();
-        if (!oldest) continue;
-        const stale = this.fullUrlCache.get(oldest);
-        if (stale) URL.revokeObjectURL(stale);
-        this.fullUrlCache.delete(oldest);
-        this.offlineFullKeys.delete(oldest);
-      }
+      this.trimFullPreviews();
       return fallbackUrl;
     }
 
@@ -560,15 +557,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     else this.offlineFullKeys.delete(key);
     this.fullUrlOrder.push(key);
 
-    while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
-      const oldestKey = this.fullUrlOrder.shift();
-      if (oldestKey) {
-        const oldUrl = this.fullUrlCache.get(oldestKey);
-        if (oldUrl) URL.revokeObjectURL(oldUrl);
-        this.fullUrlCache.delete(oldestKey);
-        this.offlineFullKeys.delete(oldestKey);
-      }
-    }
+    this.trimFullPreviews();
 
     return objectUrl;
   }

@@ -370,6 +370,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSaveTemplate={actions.saveOverlayTemplate}
             onApplyTemplate={actions.applyOverlayTemplate}
             onManageTemplates={() => actions.setSettingsOpen(true, 'presets')}
+            projectPhotos={store.photos.map((candidate) => ({ id: candidate.id, filename: candidate.filename }))}
+            calmView={store.settings.calmReadouts}
+            onAddImageLayer={actions.addImageLayer}
+            onAddPhotoLayer={actions.addPhotoLayer}
+            onUpdateLayer={actions.updateLayer}
+            onRemoveLayer={actions.removeLayer}
+            onMoveLayer={actions.moveLayer}
           />
         );
       case 'assist':

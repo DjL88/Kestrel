@@ -25,4 +25,16 @@ export const cy: AreaTranslation<typeof source> = {
   probably: (what: string) => `${what} (mae'n debyg)`,
   typeUnknown: (what: string) => `${what}, math anhysbys`,
   withType: (kind: string, type: string) => `${kind}: ${type}`,
+  marked: (what: string, marking: string) => `${what}, wedi'i farcio ${marking}`,
+  registered: (marking: string, type: string) => `${marking}: ${type} (o'r gofrestr)`,
+  operatedBy: (what: string, operator: string) => `${what}, a weithredir gan ${operator}`,
+  reader: {
+    title: 'Darllen cofrestriadau awyrennau',
+    description: (megabytes: string) => `Yn darllen cofrestriadau a rhifau cyfresol milwrol sydd wedi’u peintio ar awyrennau, ar y ddyfais hon, ac yn eu chwilio mewn copi all-lein o gofrestrau cyhoeddus. Lawrlwythiad unwaith o ${megabytes} MB. Nid yw platiau rhif ceir byth yn cael eu darllen.`,
+    download: 'Lawrlwytho',
+    downloading: (percent: number) => `Yn lawrlwytho… ${percent}%`,
+    ready: 'Wedi’i osod. Yn gweithio all-lein.',
+    remove: 'Tynnu',
+    failed: 'Ni orffennodd y lawrlwythiad, felly ni chadwyd dim. Rhowch gynnig arall arni.',
+  },
 };

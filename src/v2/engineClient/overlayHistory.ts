@@ -31,7 +31,11 @@ export function applyOverlayTemplateToProject(
   let changed = 0;
   const frames = state.frames.map(frame => {
     if (!ids.has(frame.id) || frame.removedAt !== undefined) return frame;
-    const updated = changePhotoOverlay(frame, () => overlayFromTemplate(template), at);
+    const updated = changePhotoOverlay(frame, (current) => {
+      // A template sets text and watermark; the photo keeps its own image layers.
+      const { layers: _ignored, ...fromTemplate } = overlayFromTemplate(template);
+      return current.layers ? { ...fromTemplate, layers: current.layers } : fromTemplate;
+    }, at);
     if (updated !== frame) changed += 1;
     return updated;
   });
