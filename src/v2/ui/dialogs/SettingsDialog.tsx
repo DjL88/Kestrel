@@ -62,6 +62,8 @@ interface SettingsDialogProps {
   onEraseDeviceData: () => void;
   /** True on a Basic account: show the Hide Pro features choice. */
   proChoiceOffered?: boolean;
+  /** This month's cloud usage from the control plane, when signed in. Wins over the sample workspace's figures. */
+  cloudUsage?: import('../../../core/cloudPlan').CloudUsage;
 }
 
 const CALM_PARTS: Array<{ key: 'calmMotion' | 'calmBadges' | 'calmHints' | 'calmReadouts'; label: string; desc: string }> = [
@@ -103,6 +105,7 @@ export default function SettingsDialog({
   onToggleStorageConnector,
   onEraseDeviceData,
   proChoiceOffered = false,
+  cloudUsage,
 }: SettingsDialogProps) {
   const [eraseText, setEraseText] = useState('');
   const [email, setEmail] = useState('');
@@ -354,8 +357,8 @@ export default function SettingsDialog({
               </div>
             )}
 
-            {activeTab === 'account' && settings.account.cloud && (
-              <div className="mb-5"><CloudUsagePanel usage={settings.account.cloud} /></div>
+            {activeTab === 'account' && (cloudUsage ?? settings.account.cloud) && (
+              <div className="mb-5"><CloudUsagePanel usage={(cloudUsage ?? settings.account.cloud)!} /></div>
             )}
             {activeTab === 'account' && (
               accountPanel ? <div className="text-sm text-[var(--text-secondary)] [--account-foreground:var(--text-primary)] [--account-text:var(--text-secondary)] [--account-muted:var(--text-muted)] [--account-border:var(--border-default)] [--account-field:var(--bg-input)] [--account-warning:var(--text-primary)]">

@@ -86,8 +86,8 @@ export interface CloudUsage {
   plan: SoftwarePlan;
   /** Cloud photos processed this month. */
   photosUsed: number;
-  /** Bytes stored now. */
-  storedBytes: number;
+  /** Bytes stored now. Absent when the server does not report it yet: the storage meter is then left out. */
+  storedBytes?: number;
   /** Bytes downloaded this month. */
   downloadedBytes: number;
   /** Prepaid cloud balance, pence. */
@@ -124,14 +124,14 @@ function meter(id: UsageMeter['id'], used: number, included: number, chargePence
 export function usageSummary(usage: CloudUsage): UsageSummary {
   const allowance = MONTHLY_PHOTO_ALLOWANCE[usage.plan] ?? MONTHLY_PHOTO_ALLOWANCE.basic;
   const extraPhotos = Math.max(0, whole(usage.photosUsed) - allowance);
-  const extraStoredGb = Math.max(0, whole(usage.storedBytes) - FREE_STORAGE_BYTES) / GB;
+  const extraStoredGb = Math.max(0, whole(usage.storedBytes ?? 0) - FREE_STORAGE_BYTES) / GB;
   const extraDownGb = Math.max(0, whole(usage.downloadedBytes) - FREE_DOWNLOAD_BYTES_PER_MONTH) / GB;
   const photoCharge = (extraPhotos * PAYG_PENCE.extraPhotoTenths) / 10;
   const storageCharge = extraStoredGb * PAYG_PENCE.storagePerGbMonth;
   const downloadCharge = extraDownGb * PAYG_PENCE.downloadPerGb;
   const meters = [
     meter('photos', usage.photosUsed, allowance, photoCharge),
-    meter('storage', usage.storedBytes, FREE_STORAGE_BYTES, storageCharge),
+    ...(usage.storedBytes === undefined ? [] : [meter('storage', usage.storedBytes, FREE_STORAGE_BYTES, storageCharge)]),
     meter('downloads', usage.downloadedBytes, FREE_DOWNLOAD_BYTES_PER_MONTH, downloadCharge),
   ];
   const charge = Math.ceil(photoCharge + storageCharge + downloadCharge);
@@ -176,4 +176,15 @@ export function formatPence(pence: number): string {
 export function formatBytes(bytes: number): string {
   const b = whole(bytes);
   return b >= GB ? `${(b / GB).toFixed(1)} GB` : `${Math.round(b / 1_000_000)} MB`;
+}
+
+/** The control plane's `/v1/me/usage` answer as the Account panel's usage, or null when it lacks the plan fields. */
+export function usageFromServer(body: { plan?: string; photosUsed?: number; bytes?: number; balanceCredits?: number; storedBytes?: number }, nowMs: number): CloudUsage | null {
+  if (body.plan !== 'basic' && body.plan !== 'pro') return null;
+  return {
+    plan: body.plan, photosUsed: whole(body.photosUsed ?? 0), downloadedBytes: whole(body.bytes ?? 0),
+    balancePence: Math.floor((Number.isFinite(body.balanceCredits) ? body.balanceCredits! : 0)),
+    ...(typeof body.storedBytes === 'number' ? { storedBytes: whole(body.storedBytes) } : {}),
+    nowMs,
+  };
 }

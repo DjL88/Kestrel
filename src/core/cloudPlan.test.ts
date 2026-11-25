@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  CLOUD_COST_PENCE, FREE_DOWNLOAD_BYTES_PER_MONTH, FREE_STORAGE_BYTES, MONTHLY_PHOTO_ALLOWANCE, PAYG_PENCE,
+  usageFromServer, CLOUD_COST_PENCE, FREE_DOWNLOAD_BYTES_PER_MONTH, FREE_STORAGE_BYTES, MONTHLY_PHOTO_ALLOWANCE, PAYG_PENCE,
   estimateCloudTask, formatBytes, formatPence, marginOf, nextResetMs, rentToOwn, usageSummary,
 } from './cloudPlan.ts';
 
@@ -67,4 +67,11 @@ test('formatting', () => {
   assert.equal(formatPence(436), '£4.36');
   assert.equal(formatBytes(2.5e9), '2.5 GB');
   assert.equal(formatBytes(4.2e8), '420 MB');
+});
+
+test('the server usage answer maps to the panel, and an older server without plan fields shows nothing', () => {
+  assert.deepEqual(usageFromServer({ plan: 'pro', photosUsed: 12, bytes: 5e8, balanceCredits: 250.7 }, NOW),
+    { plan: 'pro', photosUsed: 12, downloadedBytes: 5e8, balancePence: 250, nowMs: NOW });
+  assert.equal(usageFromServer({ bytes: 1 }, NOW), null);
+  assert.deepEqual(usageSummary(usageFromServer({ plan: 'basic' }, NOW)!).meters.map(m => m.id), ['photos', 'downloads'], 'no storage meter until the server reports it');
 });
