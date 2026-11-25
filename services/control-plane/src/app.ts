@@ -32,6 +32,7 @@ import { GalleryRefusal, GALLERY_MAX_DAYS, GALLERY_MAX_PHOTOS, GALLERY_MAX_PREVI
 import { presenceUid, PRESENCE_TOKEN_TTL_S, type PresenceSigner } from './presenceToken.ts';
 import { SAFE_COPY_LEVELS, SAFE_COPY_MAX_BYTES, safeCopyKey, type SafeCopyOptions } from './safeCopy.ts';
 import type { SpendOptions } from './spendGuard.ts';
+import { verifyPaddleSignature } from './commerce/paddle.ts';
 import { cloudRunClientIp } from './networkCountry.ts';
 import { ApiError, matchRoute, parseJson, readBody, send, type Reply, type Request, type Route } from './http.ts';
 
@@ -53,6 +54,8 @@ export interface AppOptions {
   payments?: { listTransactions(limit: number): Promise<TransactionRecord[]> };
   /** Re-fetches and matches SumUp checkout and transaction records before fulfilling a server-owned order. */
   settleSumupPro?: (checkoutId: string) => Promise<void>;
+  /** Paddle Billing (merchant of record, owner decision 12): the notification secret and the verified-event handler. Absent: 503. */
+  paddle?: { webhookSecret: string; handle: (event: unknown) => Promise<import('./commerce/paddle.ts').PaddleOutcome> };
   /** Server-owned SumUp hosted checkout for Pro; off in production until the admin switches 'pro-checkout' on. */
   proCheckout?: ReturnType<typeof sumupProCheckout>;
   /** Country of the request's network address, looked up on the server (never sent by the client). */
@@ -341,6 +344,7 @@ export function createApp(options: AppOptions) {
   const adminEmailHashes = new Set(config.adminEmails.map((email) => sha256Hex(email)));
   const activateLimiter = new RateLimiter(20, 60_000);
   const sumupLimiter = new RateLimiter(90, 60_000);
+  const paddleLimiter = new RateLimiter(120, 60_000);
   const checkoutLimiter = new RateLimiter(10, 60_000);
   const galleryLimiter = new RateLimiter(120, 60_000);
 
@@ -1552,6 +1556,26 @@ export function createApp(options: AppOptions) {
     providerRoute('google'),
     providerRoute('apple'),
     providerRoute('firebase'),
+    {
+      method: 'POST', path: '/v1/billing/paddle', summary: 'Paddle webhook: verified by Paddle-Signature, then a completed Pro transaction grants the licence and a full refund or chargeback revokes it', auth: 'none',
+      handler: async (req) => {
+        const paddle = options.paddle;
+        if (!paddle) throw new ApiError(503, 'PADDLE_NOT_CONFIGURED', 'Paddle payments are not set up.');
+        if (!paddleLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Retry this notification shortly.', true);
+        const header = req.headers['paddle-signature'];
+        if (!verifyPaddleSignature(req.rawBody, Array.isArray(header) ? header[0] : header, paddle.webhookSecret, now())) {
+          throw new ApiError(401, 'PADDLE_SIGNATURE_INVALID', 'This notification is not signed by Paddle.');
+        }
+        let event: unknown;
+        try { event = JSON.parse(req.rawBody); } catch { throw new ApiError(400, 'BAD_JSON', 'The notification is not JSON.'); }
+        try {
+          const outcome = await paddle.handle(event);
+          return { status: 200, body: { outcome } };
+        } catch {
+          throw new ApiError(503, 'PADDLE_SETTLEMENT_PENDING', 'The payment will be processed when Paddle retries.', true);
+        }
+      },
+    },
     {
       method: 'POST', path: '/v1/billing/sumup', summary: 'Verify a SumUp checkout status notification against SumUp', auth: 'none',
       body: SumupNotification,

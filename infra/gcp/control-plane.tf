@@ -271,6 +271,26 @@ resource "google_cloud_run_v2_service" "control_plane" {
         }
       }
       dynamic "env" {
+        # Paddle (paddle.tf): the webhook secret is resolved from Secret Manager by Cloud Run, never stored here.
+        for_each = var.paddle_enabled ? [1] : []
+        content {
+          name = "KCP_PADDLE_WEBHOOK_SECRET"
+          value_source {
+            secret_key_ref {
+              secret  = local.paddle_webhook_secret_id
+              version = "latest"
+            }
+          }
+        }
+      }
+      dynamic "env" {
+        for_each = var.paddle_enabled ? { KCP_PADDLE_ENV = var.paddle_environment, KCP_PADDLE_PRO_PRICE_ID = var.paddle_pro_price_id } : {}
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+      dynamic "env" {
         for_each = var.phase5_sumup_enabled ? [1] : []
         content {
           name = "KCP_SUMUP_API_KEY"
@@ -332,6 +352,7 @@ resource "google_cloud_run_v2_service" "control_plane" {
     google_secret_manager_secret_iam_member.licence_private_key,
     google_secret_manager_secret_iam_member.gemini_api_key,
     google_secret_manager_secret_iam_member.phase5_sumup,
+    google_secret_manager_secret_iam_member.paddle_webhook,
     google_service_account_iam_member.control_plane_url_signing,
     google_storage_bucket_iam_member.control_plane_objects,
     google_storage_bucket_iam_member.safe_copy_control_plane,
