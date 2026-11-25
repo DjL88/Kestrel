@@ -5,7 +5,7 @@ import { readVideoZoom } from './videoZoomOps';
 import { readSplitFrames, readSplitPanOffset } from './splitFrameOps';
 import { readFormatSplits } from './formatSplitOps';
 import { describeHistory } from './historySteps';
-import { describeEditVersions, readEditVersions } from '../../core/editBranches';
+import { describeCheckpoints, describeEditVersions, readEditVersions } from '../../core/editBranches';
 import { readFormatHistory } from './formatHistory';
 import type { PhotoFrame, ShootDescriptor } from '../../core/types';
 import { computeCullCounts } from '../../core/cullingEngine';
@@ -263,7 +263,8 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
           versions: describeEditVersions(frame.editVersions),
         } }
       : {}),
-    ...(frame.formatHistory ? { formatHistory: readFormatHistory(frame.formatHistory).events.map(({ formatId, kind, at, parentFormatId, forkEditCursor }) => ({ formatId, kind, at, ...(parentFormatId ? { parentFormatId } : {}), ...(forkEditCursor !== undefined ? { forkEditCursor } : {}) })) } : {}),
+    ...(describeCheckpoints(frame.editCheckpoints).length ? { editCheckpoints: describeCheckpoints(frame.editCheckpoints) } : {}),
+    ...(frame.formatHistory ? { formatHistory: readFormatHistory(frame.formatHistory).events.map(({ formatId, kind, at, parentFormatId, forkEditCursor, after }) => ({ formatId, kind, at, ...(parentFormatId ? { parentFormatId } : {}), ...(forkEditCursor !== undefined ? { forkEditCursor } : {}), ...(kind === 'crop' && after ? { crop: after } : {}) })) } : {}),
     ...(watermarkAuto ? { watermarkAuto } : {}),
     ...(histogram ? { histogram } : {}),
     ...(shownPreview || shownThumb ? { picture: { ...(shownPreview ? { preview: shownPreview } : {}), ...(shownThumb ? { thumb: shownThumb } : {}) } } : {}),

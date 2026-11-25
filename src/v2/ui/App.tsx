@@ -193,6 +193,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
 
   // One dispatch for every command id, shared by the keydown handler below and the command search dialog,
   // so "what Cmd/Ctrl+K can run" and "what the keyboard shortcut runs" never drift apart.
+  // Settings → Keyboard: after a rating or decision on one photo, move on to the next, as when culling in Photo Mechanic
+  // or Lightroom with Caps Lock on. A choice on several selected photos never moves.
+  const advanceAfterDecision = (ids: string[]) => {
+    if (store.settings.advanceAfterDecision && ids.length === 1 && ids[0] === activePhoto?.id) {
+      window.dispatchEvent(new CustomEvent('inflight:photo-step', { detail: { delta: 1 } }));
+    }
+  };
   const runCommand = React.useCallback((command: CommandDefinition) => {
     // In a two-photo compare, keys act on the chosen side only, never on both photos at once.
     const ids = pairPhotos && activePhoto && pairPhotos.some((p) => p.id === activePhoto.id) ? [activePhoto.id]
@@ -200,10 +207,12 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     switch (command.id) {
       case 'help.toggle': setShortcutGuideOpen((open) => !open); break;
       case 'app.commandSearch': setCommandPaletteOpen((open) => !open); break;
-      case 'photo.flag': if (ids.length) actions.toggleFlag(ids); break;
+      case 'photo.flag': if (ids.length) { actions.toggleFlag(ids); advanceAfterDecision(ids); } break;
+      case 'photo.reject': if (ids.length) { actions.setDecision(ids, 'reject'); advanceAfterDecision(ids); } break;
+      case 'photo.unflag': if (ids.length) { actions.setDecision(ids, 'unreviewed'); advanceAfterDecision(ids); } break;
       case 'photo.rate0': case 'photo.rate1': case 'photo.rate2':
       case 'photo.rate3': case 'photo.rate4': case 'photo.rate5':
-        if (ids.length) actions.setRating(ids, Number(command.id.slice(-1)));
+        if (ids.length) { actions.setRating(ids, Number(command.id.slice(-1))); advanceAfterDecision(ids); }
         break;
       case 'photo.next': window.dispatchEvent(new CustomEvent('inflight:photo-step', { detail: { delta: 1 } })); break;
       case 'photo.prev': window.dispatchEvent(new CustomEvent('inflight:photo-step', { detail: { delta: -1 } })); break;
@@ -219,7 +228,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'file.export': actions.setExportOpen(true); break;
       case 'app.settings': actions.setSettingsOpen(true); break;
     }
-  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, activePhoto, actions, pairPhotos, editLocked]);
+  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, store.settings.advanceAfterDecision, activePhoto, actions, pairPhotos, editLocked]);
 
   // The desktop app's native menu (File, Edit, Photo, View, Settings). Some of its accelerators (Cmd/Ctrl+E, +A, +O, +M)
   // are taken before the page sees the key, so the menu choice must run the action itself.
@@ -425,7 +434,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           />
         );
       case 'history':
-        return <HistoryPanel photo={activePhoto} activeSizeId={store.activeSizeId} onForkFromStep={actions.jumpToEditStep} onSwitchVersion={actions.switchEditVersion} onUndo={editLocked ? undefined : actions.undo} />;
+        return <HistoryPanel photo={activePhoto} activeSizeId={store.activeSizeId} onForkFromStep={actions.jumpToEditStep} onSwitchVersion={actions.switchEditVersion} onUndo={editLocked ? undefined : actions.undo}
+          onRenameVersion={actions.renameEditVersion} onSaveCheckpoint={actions.saveEditCheckpoint} onRestoreCheckpoint={actions.restoreEditCheckpoint}
+          onDeleteCheckpoint={actions.deleteEditCheckpoint} onRestoreFormatCrop={actions.restoreFormatCrop} />;
       case 'info':
         return (
           <InfoPanel
@@ -606,7 +617,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onToggleTheme={() =>
               actions.updateSettings({ theme: activeTheme === 'dark' ? 'light' : 'dark' })
             }
-            onToggleDemoUnavailable={actions.toggleDemoUnavailable}
+            hasActivePhoto={Boolean(activePhoto)}
+            onToggleDemoUnavailable={useStore === useWorkspace ? actions.toggleDemoUnavailable : undefined}
           />
 
           {/* Main Workspace Row */}
