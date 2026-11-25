@@ -1,5 +1,5 @@
 import { applyDetail, applyPhotoEdit, blendEncoded8, decodeEncoded, encodeLinear, type PhotoEdit } from './photoEdits';
-import { hasActiveMasks, maskIsActive, type Mask } from './maskTypes';
+import { hasActiveMasks, maskIsActive, maskParts, type Mask } from './maskTypes';
 import { applyNoiseReduction, hasNoiseReduction } from './noiseReduction';
 import { denoiseEyes, denoiseMembers, isDenoisePair, regionNoise } from './denoiseRegions';
 
@@ -212,13 +212,17 @@ export function maskAlpha(mask: Mask, width: number, height: number, context: Ma
  */
 export function effectiveAlpha(mask: Mask, masks: readonly Mask[], width: number, height: number, context: MaskContext): Float32Array {
   const alpha = maskAlpha(mask, width, height, context);
-  if (!mask.limit) return alpha;
-  const candidates = masks.filter(candidate => candidate.id === mask.limit!.id && candidate.id !== mask.id);
-  // A broken restriction must never broaden a previously local edit.
-  if (candidates.length !== 1 || (mask.limit.mode !== 'intersect' && mask.limit.mode !== 'subtract')) return alpha.fill(0);
-  if (invalidGradient(candidates[0])) return alpha.fill(0);
-  const limiter = maskAlpha(candidates[0], width, height, context);
-  for (let i = 0; i < alpha.length; i += 1) alpha[i] *= mask.limit.mode === 'intersect' ? limiter[i] : 1 - limiter[i];
+  // Parts apply in order: add takes the larger strength (union), subtract removes the other area, intersect keeps the overlap.
+  for (const part of maskParts(mask)) {
+    const candidates = masks.filter(candidate => candidate.id === part.id && candidate.id !== mask.id);
+    // A broken part must never broaden a previously local edit.
+    if (candidates.length !== 1 || !['add', 'subtract', 'intersect'].includes(part.mode)) return alpha.fill(0);
+    if (invalidGradient(candidates[0])) return alpha.fill(0);
+    const other = maskAlpha(candidates[0], width, height, context);
+    for (let i = 0; i < alpha.length; i += 1) {
+      alpha[i] = part.mode === 'add' ? Math.max(alpha[i], other[i]) : part.mode === 'intersect' ? alpha[i] * other[i] : alpha[i] * (1 - other[i]);
+    }
+  }
   return alpha;
 }
 
