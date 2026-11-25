@@ -188,6 +188,7 @@ export default function CoPilotPanel({
                   {sug.colourReadout}
                 </p>
                 <ColourSenseLine note={sug.colourSense} cvdGuidance={cvdGuidance} />
+                <ColourSenseLine note={sug.colourMatch} cvdGuidance={cvdGuidance} testId="colour-match" />
                 {sug.steps && sug.steps.length > 0 && (
                   <details className="mt-1.5 text-[11px] text-[var(--text-secondary)]">
                     <summary className="cursor-pointer select-none text-[var(--text-primary)]">{STRINGS.copilot.stepsHeading}</summary>

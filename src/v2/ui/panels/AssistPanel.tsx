@@ -71,6 +71,7 @@ export default function AssistPanel({
               <p className="truncate text-xs font-medium text-[var(--text-primary)]">{sug.title}</p>
               <p className="truncate font-mono text-[0.625rem] text-[var(--text-muted)]">{sug.colourReadout}</p>
               <ColourSenseLine note={sug.colourSense} cvdGuidance={cvdGuidance} />
+              <ColourSenseLine note={sug.colourMatch} cvdGuidance={cvdGuidance} testId="colour-match" />
             </div>
             <button
               type="button"

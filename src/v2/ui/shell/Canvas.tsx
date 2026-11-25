@@ -28,6 +28,7 @@ import MaskOutlineLayer from './MaskOutlineLayer';
 import TapSelectLayer from './TapSelectLayer';
 import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
 import { captureElement, screenshotName } from '../utils/captureElement';
+import { findEyeOnScreen } from '../../engineClient/eyeZoom';
 import { DOCKED, clampDockOffset, isDocked, nudgeDockOffset, parseDockOffset, snapDockOffset, type DockOffset } from '../utils/floatingDock';
 import {
   buildPreviewFilterCss,
@@ -155,6 +156,9 @@ export default function Canvas({
   const setZoomRef = useRef(onSetZoom);
   setZoomRef.current = onSetZoom;
   const zoomAnchor = useRef<{ x: number; y: number; left: number; top: number; zoom: number } | null>(null);
+  /** Zoom to eye: after the zoom is laid out, scroll this point (a share across the frame) to the middle of the view. */
+  const centreOn = useRef<{ fx: number; fy: number } | null>(null);
+  const [eyeTarget, setEyeTarget] = useState(0);
 
   // Chromium (including Windows precision touchpads) delivers pinch as Ctrl+wheel.
   // Listen non-passively on the whole canvas column (the photo, the margin round it and the bar above it), so a pinch
@@ -220,6 +224,18 @@ export default function Canvas({
     stage.scrollTop = zoomAnchorScroll(anchor.top, anchor.y, anchor.zoom, canvasZoom);
     zoomAnchor.current = null;
   }, [canvasZoom]);
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    const point = centreOn.current;
+    const frame = stage?.querySelector('[data-testid="canvas-frame"]');
+    if (!stage || !point || !frame) return;
+    centreOn.current = null;
+    // Measured after layout, so centring, padding and the frame's own zoom are all accounted for.
+    const frameRect = frame.getBoundingClientRect();
+    const stageRect = stage.getBoundingClientRect();
+    stage.scrollLeft += frameRect.left + point.fx * frameRect.width - (stageRect.left + stage.clientWidth / 2);
+    stage.scrollTop += frameRect.top + point.fy * frameRect.height - (stageRect.top + stage.clientHeight / 2);
+  }, [canvasZoom, eyeTarget]);
 
   // The zoom bar stays fixed over the canvas. It can be undocked: drag its grip (or use the arrow keys on it) to move
   // it anywhere over the canvas; double-click the grip, press Home on it, or drop it near the corner to dock it again.
@@ -270,6 +286,29 @@ export default function Canvas({
   }, []);
 
   const [shotNote, setShotNote] = useState<string | null>(null);
+  /** The menu on the zoom percentage: Fit, 100% and Zoom to eye. */
+  const [zoomMenuOpen, setZoomMenuOpen] = useState(false);
+  const zoomMenuRef = useRef<HTMLDivElement>(null);
+  const zoomPercentRef = useRef<HTMLButtonElement>(null);
+  /** What Zoom to eye did, in words. It stays until dismissed or the photo changes, never vanishing on a timer. */
+  const [eyeNote, setEyeNote] = useState<{ text: string; busy: boolean } | null>(null);
+  useEffect(() => { setEyeNote(null); setZoomMenuOpen(false); }, [photo?.id]);
+  useEffect(() => {
+    if (!zoomMenuOpen) return;
+    const onPointer = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!zoomMenuRef.current?.contains(target) && !zoomPercentRef.current?.contains(target)) setZoomMenuOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      setZoomMenuOpen(false);
+      zoomPercentRef.current?.focus();
+    };
+    window.addEventListener('pointerdown', onPointer);
+    window.addEventListener('keydown', onKey, true);
+    return () => { window.removeEventListener('pointerdown', onPointer); window.removeEventListener('keydown', onKey, true); };
+  }, [zoomMenuOpen]);
   /** Saves what is on the canvas right now, as seen: the edit, crop, overlays, grid and compare split. */
   const grabScreenshot = async () => {
     const stage = stageRef.current;
@@ -1087,6 +1126,31 @@ export default function Canvas({
     if (!fitScale) { onSetZoom(1); return; }
     onSetZoom(Math.abs(actualPercent - 100) <= 1 ? 1 : 1 / fitScale);
   };
+  const zoomAroundCentre = (next: number) => {
+    const stage = stageRef.current;
+    if (stage) zoomAnchor.current = { x: stage.clientWidth / 2, y: stage.clientHeight / 2, left: stage.scrollLeft, top: stage.scrollTop, zoom: canvasZoom };
+    onSetZoom(next);
+  };
+  const zoomToEye = async () => {
+    const stage = stageRef.current;
+    const frame = stage?.querySelector('[data-testid="canvas-frame"]');
+    if (!stage || !frame) return;
+    setEyeNote({ text: STRINGS.canvas.eyeLooking, busy: true });
+    const outcome = await findEyeOnScreen(frame);
+    if (outcome.kind !== 'found') {
+      setEyeNote({ text: outcome.kind === 'none' ? STRINGS.canvas.eyeNone : STRINGS.canvas.eyeUnavailable, busy: false });
+      return;
+    }
+    const frameRect = frame.getBoundingClientRect();
+    if (!(frameRect.width > 0 && frameRect.height > 0)) return;
+    const point = { fx: clamp((outcome.clientX - frameRect.left) / frameRect.width, 0, 1), fy: clamp((outcome.clientY - frameRect.top) / frameRect.height, 0, 1) };
+    // 100% (one picture pixel per screen pixel) is the honest view for checking detail; at least 2× when the size is unknown.
+    const target = Math.min(16, Math.max(fitScale ? 1 / fitScale : 2, canvasZoom * 1.0001));
+    setEyeNote({ text: outcome.confidence === 'likely' ? STRINGS.canvas.eyeFound : STRINGS.canvas.eyeMaybe, busy: false });
+    centreOn.current = point;
+    setEyeTarget((count) => count + 1);
+    if (Math.abs(target - canvasZoom) >= 0.001) onSetZoom(target);
+  };
 
   const renderSingleArtboard = () => {
     const aspect = activeSize.width / Math.max(1, activeSize.height);
@@ -1703,6 +1767,19 @@ export default function Canvas({
           </p>
         )}
 
+        {eyeNote && (
+          <div role="status" data-capture-ignore data-testid="eye-note"
+            className="absolute bottom-14 left-3 z-30 flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 py-1 text-[0.6875rem] text-[var(--text-primary)] shadow">
+            <span>{eyeNote.text}</span>
+            {!eyeNote.busy && (
+              <button type="button" aria-label={STRINGS.canvas.dismissNote} onClick={() => setEyeNote(null)}
+                className="inline-flex h-6 w-6 items-center justify-center rounded text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]">
+                <BrandIcon name="close" size={11} />
+              </button>
+            )}
+          </div>
+        )}
+
         {shotNote && (
           <p role="status" data-capture-ignore className="absolute bottom-14 right-3 z-30 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 py-1 text-[0.6875rem] text-[var(--text-primary)] shadow">{shotNote}</p>
         )}
@@ -1746,16 +1823,38 @@ export default function Canvas({
           >
             <BrandIcon name="minus" size={14} />
           </button>
-          <button
-            type="button"
-            aria-label={actualPercent === 100 ? STRINGS.canvas.zoomToFit : STRINGS.canvas.zoomTo100}
-            title={actualPercent === 100 ? STRINGS.canvas.zoomToFit : STRINGS.canvas.zoomTo100}
-            data-testid="zoom-percent"
-            onClick={toggleActualSize}
-            className="h-8 min-w-[46px] rounded-[var(--radius-sm)] px-1.5 font-mono text-[0.6875rem] font-medium text-[var(--text-primary)] tabular-nums hover:bg-[var(--bg-surface-hover)]"
-          >
-            {actualPercent}%
-          </button>
+          <div className="relative">
+            <button
+              ref={zoomPercentRef}
+              type="button"
+              aria-label={STRINGS.canvas.zoomMenu(actualPercent)}
+              title={STRINGS.canvas.zoomMenu(actualPercent)}
+              aria-haspopup="menu"
+              aria-expanded={zoomMenuOpen}
+              data-testid="zoom-percent"
+              onClick={() => setZoomMenuOpen((open) => !open)}
+              className="h-8 min-w-[46px] rounded-[var(--radius-sm)] px-1.5 font-mono text-[0.6875rem] font-medium text-[var(--text-primary)] tabular-nums hover:bg-[var(--bg-surface-hover)]"
+            >
+              {actualPercent}%
+            </button>
+            {zoomMenuOpen && (
+              <div ref={zoomMenuRef} role="menu" aria-label={STRINGS.canvas.zoomMenuLabel} data-testid="zoom-menu"
+                className="absolute bottom-full left-1/2 z-40 mb-2 w-52 -translate-x-1/2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1 shadow-[var(--shadow-popover)]">
+                {[
+                  { id: 'fit', label: STRINGS.canvas.zoomFitScreen, run: () => zoomAroundCentre(1), current: Math.abs(canvasZoom - 1) < 0.001 },
+                  { id: '100', label: STRINGS.canvas.zoomActual, run: () => zoomAroundCentre(fitScale ? 1 / fitScale : 1), current: actualPercent === 100 },
+                  { id: 'eye', label: STRINGS.canvas.zoomEye, run: () => { void zoomToEye(); }, current: false, disabled: activeSize.kind !== 'photo' || compareMode || Boolean(eyeNote?.busy) },
+                ].map((item) => (
+                  <button key={item.id} type="button" role="menuitem" data-testid={`zoom-menu-${item.id}`} disabled={item.disabled}
+                    onClick={() => { setZoomMenuOpen(false); item.run(); }}
+                    className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50">
+                    <span>{item.label}</span>
+                    {item.current && <span className="text-[0.625rem] text-[var(--text-muted)]">{STRINGS.canvas.zoomCurrent}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button
             type="button"
             aria-label={STRINGS.canvas.zoomIn}

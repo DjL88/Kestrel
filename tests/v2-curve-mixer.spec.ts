@@ -80,3 +80,74 @@ test('?v2 colour mixer: removing orange greys the orange box and leaves the slat
   await mixer.getByRole('button', { name: 'Reset mixer' }).click();
   await expect.poll(async () => (await measure(root)).spread, { timeout: 15000 }).toBeGreaterThan(60);
 });
+
+/** The average colour of the top-left corner, which is the slate background. */
+function corner(root: Locator) {
+  return root.getByTestId('canvas-frame').locator('canvas, img').first().evaluate((el) => {
+    const source = el as HTMLCanvasElement | HTMLImageElement;
+    const width = source instanceof HTMLImageElement ? source.naturalWidth : source.width;
+    const height = source instanceof HTMLImageElement ? source.naturalHeight : source.height;
+    if (!width || !height) return [0, 0, 0];
+    const probe = document.createElement('canvas'); probe.width = width; probe.height = height;
+    const ctx = probe.getContext('2d')!; ctx.drawImage(source, 0, 0);
+    const d = ctx.getImageData(2, 2, 6, 6).data;
+    const sum = [0, 0, 0]; for (let i = 0; i < d.length; i += 4) { sum[0] += d[i]; sum[1] += d[i + 1]; sum[2] += d[i + 2]; }
+    return sum.map((v) => v / (d.length / 4));
+  });
+}
+
+test('?v2 advanced controls stay hidden until Settings turns them on, then colour grading and a red curve change the pixels', async ({ page }) => {
+  let root = await projectWithPhoto(page);
+  await expect(root.getByTestId('colour-mixer')).toBeVisible();
+  await expect(root.getByTestId('colour-grade')).toHaveCount(0);
+  await expect(root.getByTestId('tone-curve').getByRole('radio', { name: 'Red' })).toHaveCount(0);
+  // Turn them on from Settings on the start screen; the choice is kept on this device.
+  await page.goto('/?v2');
+  await page.locator('.inflight-v2').getByRole('button', { name: 'Settings', exact: true }).first().click();
+  const toggle = page.getByRole('dialog', { name: 'Settings' }).getByTestId('advanced-controls-switch');
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  await page.keyboard.press('Escape');
+  root = await projectWithPhoto(page);
+  const grade = root.getByTestId('colour-grade');
+  await expect(grade).toBeVisible();
+  await expect.poll(async () => (await corner(root))[2]).toBeGreaterThan(40);
+  const [r0, , b0] = await corner(root);
+  // Slate is a shadow tone: an orange shadow tint makes it warmer.
+  await grade.getByRole('radio', { name: 'Shadows' }).click();
+  await grade.getByRole('slider', { name: 'Shadows hue' }).fill('30');
+  await grade.getByRole('slider', { name: 'Shadows strength' }).fill('100');
+  await expect.poll(async () => { const [r, , b] = await corner(root); return (r - b) - (r0 - b0); }, { timeout: 15000 }).toBeGreaterThan(15);
+  await expect(grade.getByRole('radio', { name: /Shadows.*changed/ })).toBeVisible();
+  await grade.getByRole('button', { name: 'Reset grading' }).click();
+  await expect.poll(async () => Math.abs((await corner(root))[0] - r0), { timeout: 15000 }).toBeLessThan(2);
+  // The red curve lifts red alone.
+  const curve = root.getByTestId('tone-curve');
+  await curve.getByRole('radio', { name: 'Red' }).click();
+  const blackPoint = curve.getByRole('slider', { name: 'Curve point' }).first();
+  await blackPoint.focus();
+  for (let i = 0; i < 4; i += 1) await page.keyboard.press('Shift+ArrowUp');
+  await expect.poll(async () => (await corner(root))[0] - r0, { timeout: 15000 }).toBeGreaterThan(15);
+  expect(Math.abs((await corner(root))[2] - b0)).toBeLessThan(3);
+  await expect(curve.getByRole('radio', { name: /Red.*changed/ })).toBeVisible();
+});
+
+test('?v2 Effects are in the standard editor: a dark vignette darkens the corner, a colour vignette tints it, and grain shows', async ({ page }) => {
+  const root = await projectWithPhoto(page);
+  const effects = root.getByTestId('effects');
+  await expect(effects).toBeVisible();
+  await expect.poll(async () => (await corner(root))[2]).toBeGreaterThan(40);
+  const [r0, g0, b0] = await corner(root);
+  await effects.getByRole('slider', { name: 'Amount' }).fill('-100');
+  await expect.poll(async () => b0 - (await corner(root))[2], { timeout: 15000 }).toBeGreaterThan(15);
+  await effects.getByRole('radio', { name: 'Colour' }).click();
+  await effects.getByLabel('Vignette colour').fill('#ff0000');
+  await effects.getByRole('slider', { name: 'Colour strength' }).fill('100');
+  await expect.poll(async () => { const [r, g] = await corner(root); return (r - g) - (r0 - g0); }, { timeout: 15000 }).toBeGreaterThan(40);
+  await effects.getByRole('button', { name: 'Reset vignette' }).click();
+  await expect.poll(async () => Math.abs((await corner(root))[0] - r0), { timeout: 15000 }).toBeLessThan(2);
+  await expect(effects.getByRole('slider', { name: 'Grain size' })).toBeDisabled();
+  await effects.getByRole('slider', { name: 'Grain', exact: true }).fill('100');
+  await expect(effects.getByRole('slider', { name: 'Grain size' })).toBeEnabled();
+});

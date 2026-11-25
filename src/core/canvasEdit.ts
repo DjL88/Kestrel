@@ -1,5 +1,27 @@
 import { applyDetail, applyPhotoEdit, hasDetail, isNeutralEdit, isNeutralGlobal, isNeutralTone, type PhotoEdit } from './photoEdits';
 import { applyMasks, fullContext, type MaskContext } from './masks';
+import { applyFinishing, hasFinishing } from './finishing';
+import { applyDehaze } from './dehaze';
+
+/** Dehaze runs on the picture's own pixels, after noise reduction and before tone. */
+function applyCanvasDehaze(canvas: HTMLCanvasElement, edit: PhotoEdit, imageEdge: number): void {
+  if (!edit.dehaze) return;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('Canvas unavailable');
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  applyDehaze(pixels.data, canvas.width, canvas.height, 4, 255, edit.dehaze, imageEdge);
+  context.putImageData(pixels, 0, 0);
+}
+
+/** Vignette and grain run last, after masks, in framed-photo coordinates. */
+function applyCanvasFinishing(canvas: HTMLCanvasElement, edit: PhotoEdit, mask: MaskContext, imageEdge: number): void {
+  if (!hasFinishing(edit)) return;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('Canvas unavailable');
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  applyFinishing(pixels.data, canvas.width, canvas.height, edit, mask, imageEdge);
+  context.putImageData(pixels, 0, 0);
+}
 import { hasActiveMasks, usesDetail } from './maskTypes';
 import { applyNoiseReduction, hasNoiseReduction } from './noiseReduction';
 import { denoiseHalo, originalDenoiseStrips, denoiseOnlyMasks } from './denoiseBands';
@@ -96,6 +118,7 @@ export function applyCanvasPhotoEdit(
 ): void {
   if (isNeutralEdit(edit)) return;
   applyCanvasNoiseReduction(canvas, edit);
+  applyCanvasDehaze(canvas, edit, imageEdge);
   if (!isNeutralGlobal(edit) && !gpuRenderer?.(canvas, edit, imageEdge)) {
     for (const _ of editCanvasStrips(canvas, edit)) {
       // The fit preview has a bounded raster, so render it in one pass.
@@ -103,6 +126,7 @@ export function applyCanvasPhotoEdit(
     applyCanvasDetail(canvas, edit, imageEdge);
   }
   applyCanvasMasks(canvas, edit, maskContext, imageEdge);
+  applyCanvasFinishing(canvas, edit, maskContext, imageEdge);
 }
 
 /**
@@ -117,6 +141,8 @@ export async function applyCanvasExportEdit(
   if (isNeutralEdit(edit)) return;
   const edge = imageEdge;
   applyCanvasNoiseReduction(canvas, edit);
+  signal?.throwIfAborted();
+  applyCanvasDehaze(canvas, edit, edge);
   signal?.throwIfAborted();
   if (!isNeutralGlobal(edit) && !gpuRenderer?.(canvas, edit, edge)) {
     let lastYield = performance.now();
@@ -138,4 +164,6 @@ export async function applyCanvasExportEdit(
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
     lastMaskYield = performance.now();
   }
+  signal?.throwIfAborted();
+  applyCanvasFinishing(canvas, edit, maskContext, edge);
 }

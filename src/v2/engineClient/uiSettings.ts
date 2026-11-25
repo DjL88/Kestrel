@@ -3,7 +3,7 @@ import type { AssistMode, WorkspaceSettings } from '../ui/contract';
 /** The interface choices kept on this device between sessions (theme, tool side, mode and so on). Never anything about photos. */
 export interface SavedUi {
   assistMode?: AssistMode;
-  settings: Partial<Pick<WorkspaceSettings, 'theme' | 'calmView' | 'calmMotion' | 'calmBadges' | 'calmHints' | 'calmReadouts' | 'touchDensity' | 'cvdGuidance' | 'ongoingCritique' | 'defaultAssistMode' | 'hand' | 'language'>>;
+  settings: Partial<Pick<WorkspaceSettings, 'theme' | 'calmView' | 'calmMotion' | 'calmBadges' | 'calmHints' | 'calmReadouts' | 'touchDensity' | 'cvdGuidance' | 'ongoingCritique' | 'defaultAssistMode' | 'hand' | 'language' | 'advancedControls'>>;
 }
 
 const KEY = 'inflight.v2.ui';
@@ -38,6 +38,7 @@ export function parseSavedUi(raw: string | null): SavedUi {
     }
     if (source.touchDensity === 'comfortable' || source.touchDensity === 'compact') settings.touchDensity = source.touchDensity;
     if (typeof source.cvdGuidance === 'boolean') settings.cvdGuidance = source.cvdGuidance;
+    if (typeof source.advancedControls === 'boolean') settings.advancedControls = source.advancedControls;
     if (typeof source.ongoingCritique === 'boolean') settings.ongoingCritique = source.ongoingCritique;
     if ((MODES as readonly unknown[]).includes(source.defaultAssistMode)) settings.defaultAssistMode = source.defaultAssistMode as AssistMode;
     if (source.hand === 'right' || source.hand === 'left') settings.hand = source.hand;

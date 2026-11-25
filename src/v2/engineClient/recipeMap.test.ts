@@ -148,3 +148,36 @@ test('white balance in kelvin reaches the engine and reads back; back to as shot
   assert.equal(applyRecipePatch(edit, { whiteBalance: undefined }).edit.whiteBalance, undefined);
   assert.equal(applyRecipePatch(edit, { whiteBalance: { asShotK: 5480, kelvin: 90000 } }).edit.whiteBalance, undefined);
 });
+
+test('advanced colour grading and channel curves round-trip between the recipe and the engine edit', () => {
+  const colourGrade = { shadows: { hue: 210, amount: 40 }, midtones: { hue: 0, amount: 0 }, highlights: { hue: 35, amount: 25 }, balance: -20 };
+  const { edit } = applyRecipePatch(undefined, { colourGrade, channelCurves: { red: [[0, 0], [0.5, 0.6], [1, 1]], green: [[0, 0], [1, 1]] } });
+  assert.deepEqual(edit.grade, { shadows: [210, 0.4], midtones: [0, 0], highlights: [35, 0.25], balance: -0.2 });
+  assert.deepEqual(edit.channelCurves, { red: [[0, 0], [0.5, 0.6], [1, 1]] }, 'a straight channel is dropped');
+  const back = editToRecipe(edit);
+  assert.deepEqual(back.colourGrade, colourGrade);
+  assert.deepEqual(back.channelCurves, { red: [[0, 0], [0.5, 0.6], [1, 1]] });
+  // A hue chosen before its strength is kept; clearing everything removes the grade.
+  const hueOnly = applyRecipePatch(undefined, { colourGrade: { ...colourGrade, shadows: { hue: 200, amount: 0 }, highlights: { hue: 0, amount: 0 }, balance: 0 } }).edit;
+  assert.equal(hueOnly.grade?.shadows[0], 200);
+  assert.equal(applyRecipePatch(edit, { colourGrade: undefined, channelCurves: undefined }).edit.grade, undefined);
+  assert.equal(applyRecipePatch(edit, { colourGrade: undefined, channelCurves: undefined }).edit.channelCurves, undefined);
+});
+
+test('dehaze, vignette (with colour and blur), grain and calibration round-trip and switch off cleanly', () => {
+  const patch = { dehaze: 40, vignette: 60, vignetteSize: 30, vignetteBlur: 20, vignetteColour: '#3a2a1e', grain: 25, grainSize: 70,
+    calibration: { red: { hue: 20, saturation: -10 }, green: { hue: 0, saturation: 0 }, blue: { hue: 0, saturation: 30 } } };
+  const { edit } = applyRecipePatch(undefined, patch);
+  assert.equal(edit.dehaze, 0.4);
+  assert.deepEqual(edit.vignette, { amount: 0.6, size: 0.3, blur: 0.2, colour: [0.2275, 0.1647, 0.1176] });
+  assert.deepEqual(edit.grain, { amount: 0.25, size: 0.7 });
+  assert.deepEqual(edit.calibration, { red: [0.2, -0.1], green: [0, 0], blue: [0, 0.3] });
+  const back = editToRecipe(edit);
+  for (const key of Object.keys(patch) as (keyof typeof patch)[]) assert.deepEqual(back[key], patch[key], key);
+  // Changing only the size keeps the rest; no strength and no blur is no vignette at all.
+  assert.equal(applyRecipePatch(edit, { vignetteSize: 80 }).edit.vignette?.blur, 0.2);
+  assert.equal(applyRecipePatch(edit, { vignette: 0, vignetteBlur: 0 }).edit.vignette, undefined);
+  assert.equal(applyRecipePatch(edit, { vignetteColour: undefined }).edit.vignette?.colour, undefined);
+  assert.equal(applyRecipePatch(edit, { grain: 0 }).edit.grain, undefined);
+  assert.equal(applyRecipePatch(edit, { dehaze: 0 }).edit.dehaze, undefined);
+});

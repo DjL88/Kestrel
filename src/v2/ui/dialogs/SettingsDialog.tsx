@@ -269,6 +269,29 @@ export default function SettingsDialog({
                   </ul>
                 </section>
 
+                {/* Advanced editing controls stay out of Adjust until a confident person asks for them. */}
+                <section className="flex items-start justify-between gap-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-4">
+                  <div>
+                    <h3 id="advanced-controls-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.settings.appearance.advancedLabel}</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">{STRINGS.settings.appearance.advancedDesc}</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={settings.advancedControls}
+                    aria-labelledby="advanced-controls-title"
+                    data-testid="advanced-controls-switch"
+                    onClick={() => onUpdateSettings({ advancedControls: !settings.advancedControls })}
+                    className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                      settings.advancedControls
+                        ? 'bg-[var(--brand-accent)] text-[var(--text-on-accent)]'
+                        : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
+                    }`}
+                  >
+                    {settings.advancedControls ? STRINGS.settings.appearance.on : STRINGS.settings.appearance.off}
+                  </button>
+                </section>
+
                 {/* Basic accounts only: leave locked Pro features out of the interface so they are not a constant reminder. */}
                 {proChoiceOffered && (
                   <section className="flex items-start justify-between gap-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-4">
