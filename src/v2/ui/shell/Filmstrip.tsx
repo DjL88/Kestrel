@@ -1,5 +1,6 @@
 import { planFilmstrip } from '../../engineClient/burstGroups';
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { AssistMode, FilmstripFilter, LookPreset, Photo, PhotoSort } from '../contract';
 import { STRINGS } from '../strings';
 import { PHOTO_DRAG_TYPE, draggedPhotoIds } from '../utils/photoDrag';
@@ -766,8 +767,9 @@ export default function Filmstrip({
           </div>
         </div>
       )}
-      {/* Move to another project: pick where; the move itself runs as a task in Tasks. */}
-      {moving && onMovePhotos && (
+      {/* Move to another project: pick where; the move itself runs as a task in Tasks. In the workspace root, so the
+          phone's sliding filmstrip sheet (a transformed parent) cannot clip it or carry it off screen. */}
+      {moving && onMovePhotos && createPortal(
         <div role="dialog" aria-modal="true" aria-labelledby="move-photos-title" aria-describedby="move-photos-body"
           className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-scrim)] p-4"
           onPointerDown={(e) => e.stopPropagation()}
@@ -798,7 +800,8 @@ export default function Filmstrip({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.querySelector('.inflight-v2') ?? document.body,
       )}
     </section>
   );
