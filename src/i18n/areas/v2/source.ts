@@ -451,6 +451,10 @@ export const source = {
     heStar: 'Nikon High Efficiency*',
     infoLabel: "Picture shown",
   },
+  dngCopy: {
+    button: "Save lossless DNG copy",
+    help: "For editors that cannot open Nikon High Efficiency files. A new file with the sensor data exactly as decoded; your NEF is never changed.",
+  },
 
   // Canvas
   canvas: {

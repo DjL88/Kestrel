@@ -423,6 +423,10 @@ export const gd: AreaTranslation<typeof source> = {
     heStar: 'Nikon High Efficiency*',
     infoLabel: "An dealbh a chithear",
   },
+  dngCopy: {
+    button: "Sàbhail lethbhreac DNG gun chall",
+    help: "Airson deasaichean nach fhosgail faidhlichean Nikon High Efficiency. Faidhle ùr le dàta a’ mhothaiche dìreach mar a chaidh a dhì-chòdachadh; chan atharraichear an NEF agad gu bràth.",
+  },
   canvas: {
     selectPhoto: "Tagh dealbh on stiall fhilm gus tòiseachadh air deasachadh.",
     resizeText: "Atharraich meud an teacsa",

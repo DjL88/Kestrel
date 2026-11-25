@@ -428,6 +428,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onToggleFlag={actions.toggleFlag}
             onSetRating={actions.setRating}
             onReconnectOriginal={actions.reconnectOriginal}
+            onSaveDngCopy={actions.saveDngCopy}
             onCorrectSpeciesName={actions.correctSpeciesName}
           />
         );

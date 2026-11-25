@@ -1030,6 +1030,10 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
+    saveDngCopy: (photoId) => {
+      logAction('saveDngCopy', { photoId });
+    },
+
     reconnectOriginal: (photoId) => {
       logAction('reconnectOriginal', { photoId });
       updatePhotoById(photoId, (p) => ({

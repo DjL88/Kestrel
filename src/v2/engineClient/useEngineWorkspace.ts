@@ -22,6 +22,8 @@ import { useBackgroundDevelop } from '../../useBackgroundDevelop';
 import { useSpeciesScan } from '../../useSpeciesScan';
 import { useVisualGrouping } from './useVisualGrouping';
 import { isDesktopApp } from '../../providers/desktopShell';
+import { canExportRawMaster } from '../../providers/rawDevelop';
+import { buildDngCopyFile, dngCopyOffered } from './rawDngCopy';
 import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
 import { getLocalFileKey, loadLocalFileListShoot, rehydrateLocalFramesFromStore } from '../../providers/localShootLoader';
 import { hashOriginalBytes, isSameOriginalBytes } from '../../core/originalFileIdentity';
@@ -1471,6 +1473,39 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         frames: current.frames.map((item) => item.id === photoId ? renameSavedEditGroup(item, groupId, name) ?? item : item) }));
     },
     reconnectOriginal: () => reconnectOriginal(),
+    saveDngCopy: (photoId) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);
+      if (!frame || !dngCopyOffered(frame, canExportRawMaster())) {
+        setNotice('A DNG copy is made only for Nikon High Efficiency NEFs, in the desktop app. Your original is unchanged.');
+        return;
+      }
+      const sourceProvider = provider.current!;
+      const target = structuredClone(frame);
+      void (async () => {
+        try {
+          const ticket = await engineScheduler.submit({
+            title: 'Saving a lossless DNG copy', kind: 'raw', resource: 'cpu', priority: 10,
+            pauseable: false, items: [{ id: target.id, name: target.filename }],
+            snapshot: { frameId: target.id, originalSha256: target.originalSha256 },
+            itemId: (item) => item.id, itemLabel: (item) => item.name,
+            runItem: async (_, __, ctx) => {
+              ctx.stage('Reading the sensor data into a DNG');
+              const file = await buildDngCopyFile(target, sourceProvider, ctx.signal);
+              ctx.checkCancelled();
+              ctx.stage('Saving the DNG copy');
+              if (!await saveExportFile(file, file.name, ctx.signal)) throw new DOMException('Save cancelled.', 'AbortError');
+              ctx.acknowledgeCommitted();
+              ctx.commitIfCurrent(() => setNotice(`Saved ${file.name}. Your original NEF is unchanged.`));
+            },
+          });
+          const result = await ticket.finished;
+          if (result === 'failed') setNotice('The DNG copy failed. Open Tasks for the reason. Your original is unchanged.');
+          else if (result === 'cancelled') setNotice('DNG copy cancelled.');
+        } catch (reason) {
+          setNotice(reason instanceof Error ? reason.message : 'Could not start the DNG copy.');
+        }
+      })();
+    },
     openProject: (id) => { void openProject(id); },
     createProject: (name, kind = 'photography') => {
       const empty = createEmptyProject(`project-${newId()}`, name.trim() || 'Untitled project');
@@ -2106,7 +2141,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const assist = assists[frame.id];
     const jpegId = pairs.jpegOf.get(frame.id);
     const pairedJpeg = jpegId ? state?.frames.find((candidate) => candidate.id === jpegId)?.filename : undefined;
-    return withPairedJpeg(pairedJpeg, frameToPhoto(frame, urls[frame.id], { assist, watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed, sources: { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) } }));
+    return withPairedJpeg(pairedJpeg, frameToPhoto(frame, urls[frame.id], { assist, watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.sourceKind === 'file' && !isDesktopApp() ? provider.current?.hasBlob(frame.stableKey) === true : !urls[frame.id]?.failed, sources: { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) }, dngCopy: dngCopyOffered(frame, canExportRawMaster()) }));
   })), [state?.frames, pairs, urls, assists, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes]);
   // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo
   // (ROADMAP.md, "Removed photos panel" next item). Thumbnails are not fetched for them; the filename is enough

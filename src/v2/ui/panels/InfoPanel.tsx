@@ -17,6 +17,7 @@ interface InfoPanelProps {
   onToggleFlag: (photoIds: string[]) => void;
   onSetRating: (photoIds: string[], rating: number) => void;
   onReconnectOriginal: (photoId: string) => void;
+  onSaveDngCopy?: (photoId: string) => void;
   onCorrectSpeciesName: (photoId: string, name: string) => void;
 }
 
@@ -25,6 +26,7 @@ export default function InfoPanel({
   onToggleFlag,
   onSetRating,
   onReconnectOriginal,
+  onSaveDngCopy,
   onCorrectSpeciesName,
 }: InfoPanelProps) {
   const [editingSpecies, setEditingSpecies] = useState(false);
@@ -160,6 +162,19 @@ export default function InfoPanel({
             <BrandIcon name="relink" size={14} />
             <span>{STRINGS.canvas.reconnectOriginal}</span>
           </button>
+        )}
+        {photo.dngCopy && photo.originalConnected && onSaveDngCopy && (
+          <div className="mt-2 space-y-1">
+            <button
+              type="button"
+              onClick={() => onSaveDngCopy(photo.id)}
+              className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] text-xs font-medium text-[var(--text-primary)]"
+            >
+              <BrandIcon name="copy" size={14} />
+              <span>{STRINGS.dngCopy.button}</span>
+            </button>
+            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.dngCopy.help}</p>
+          </div>
         )}
       </section>
 

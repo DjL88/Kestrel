@@ -425,6 +425,10 @@ export const ga: AreaTranslation<typeof source> = {
     heStar: 'Nikon High Efficiency*',
     infoLabel: "Pictiúr a thaispeántar",
   },
+  dngCopy: {
+    button: "Sábháil cóip DNG gan chailliúint",
+    help: "Do chláir nach féidir leo comhaid Nikon High Efficiency a oscailt. Comhad nua le sonraí an bhraiteora díreach mar a díchódaíodh iad; ní athraítear do NEF riamh.",
+  },
   canvas: {
     selectPhoto: "Roghnaigh grianghraf ón stiall scannáin chun tosú ag eagarthóireacht.",
     resizeText: "Athraigh méid an téacs",

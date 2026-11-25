@@ -423,6 +423,10 @@ export const fi: AreaTranslation<typeof source> = {
     heStar: 'Nikon High Efficiency*',
     infoLabel: "Näytetty kuva",
   },
+  dngCopy: {
+    button: "Tallenna häviötön DNG-kopio",
+    help: "Ohjelmille, jotka eivät avaa Nikon High Efficiency -tiedostoja. Uusi tiedosto, jossa kennon tiedot ovat täsmälleen purettuina; NEF-tiedostoasi ei koskaan muuteta.",
+  },
   canvas: {
     selectPhoto: "Aloita muokkaus valitsemalla kuva filminauhasta.",
     resizeText: "Muuta tekstin kokoa",
