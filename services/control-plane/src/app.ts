@@ -15,6 +15,7 @@ import { licenceIsUsable, newLicence, type AuditRecord, type Store } from './sto
 import { geminiProvider, identify, suggest, verifyColour, type AiProvider } from './gateway.ts';
 import type { CommerceLedger } from './commerce/ledger.ts';
 import type { TransactionRecord } from './commerce/records.ts';
+import { CheckoutCountryUnavailable, CheckoutLocationUnconfirmed, type sumupProCheckout } from './commerce/proCheckout.ts';
 import { emailHashOf, giftEntitlement } from './entitlement.ts';
 import { googleKeysFromNetwork, verifyGoogleIdToken, GOOGLE_CERTS_URL, type GoogleKeys } from './googleIdToken.ts';
 import { APPLE_ISSUER, APPLE_KEYS_URL, FIREBASE_KEYS_URL, firebaseIssuer, oidcKeysFromNetwork, verifyOidcIdToken, type OidcKeys } from './oidcIdToken.ts';
@@ -43,6 +44,10 @@ export interface AppOptions {
   payments?: { listTransactions(limit: number): Promise<TransactionRecord[]> };
   /** Re-fetches and matches SumUp checkout and transaction records before fulfilling a server-owned order. */
   settleSumupPro?: (checkoutId: string) => Promise<void>;
+  /** Server-owned SumUp hosted checkout for Pro; off in production until the admin switches 'pro-checkout' on. */
+  proCheckout?: ReturnType<typeof sumupProCheckout>;
+  /** Country of the request's network address, looked up on the server (never sent by the client). */
+  networkCountry?: (req: Request) => string | null;
   /** Google's ID-token signing keys. Injected for tests; fetched from Google otherwise. */
   googleKeys?: GoogleKeys;
   firebaseKeys?: OidcKeys;
@@ -128,7 +133,8 @@ const DemoFraming = z.object({
 const SliderMap = z.record(z.string().regex(/^[a-z][a-zA-Z0-9]{0,23}$/), z.number().finite().min(-100).max(100)).refine((m) => Object.keys(m).length <= 16, 'at most 16 sliders');
 const Sha = z.string().regex(/^[0-9a-f]{64}$/);
 export const Schemas = {
-  AdminSwitch: z.object({ key: z.enum(['managed-ai', 'cloud-processing', 'safe-copy', 'learning-signal']), on: z.boolean() }).strict(),
+  AdminSwitch: z.object({ key: z.enum(['managed-ai', 'cloud-processing', 'safe-copy', 'learning-signal', 'pro-checkout', 'pro-checkout-eu']), on: z.boolean() }).strict(),
+  ProCheckoutRequest: z.object({ country: z.string().regex(/^[A-Z]{2}$/) }).strict(),
   SafeCopyLevels: z.object({ levels: z.object({ recipes: z.boolean(), previews: z.boolean(), originals: z.boolean() }).partial().strict() }).strict(),
   SafeCopyUpload: z.object({ level: z.enum(SAFE_COPY_LEVELS), sha256: Sha, bytes: z.number().int().positive() }).strict(),
   SafeCopyObject: z.object({ level: z.enum(SAFE_COPY_LEVELS), sha256: Sha }).strict(),
@@ -276,6 +282,7 @@ export function createApp(options: AppOptions) {
   const adminEmailHashes = new Set(config.adminEmails.map((email) => sha256Hex(email)));
   const activateLimiter = new RateLimiter(20, 60_000);
   const sumupLimiter = new RateLimiter(90, 60_000);
+  const checkoutLimiter = new RateLimiter(10, 60_000);
 
   const audit = (actor: string, action: string, outcome: AuditRecord['outcome'], detail: string) => store.audit({ atMs: now(), actor, action, outcome, detail });
 
@@ -361,9 +368,11 @@ export function createApp(options: AppOptions) {
     { key: 'cloud-processing', label: 'Cloud processing', note: 'Heavier jobs (denoise, upscale, masks) for Pro. Needs the bucket and the runner job set up.' },
     { key: 'safe-copy', label: 'Safe copy (managed backup)', note: 'Opt-in backup to InFlight UK storage. Switching off stops uploads only; people can always read and delete their copy.' },
     { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
+    { key: 'pro-checkout', label: 'Pro checkout (SumUp)', note: 'People can pay for Pro through SumUp\'s hosted page. Their billing country must match their network location. Switching off stops new checkouts only; payments already made are still verified and granted.' },
+    { key: 'pro-checkout-eu', label: 'Pro checkout for EU buyers', note: 'Switch on only once you are registered for OSS (EU VAT on digital sales). Until then EU buyers see that Pro is not on sale in their country yet.' },
   ] as const;
   type SwitchKey = typeof SWITCHES[number]['key'];
-  const switchConfigured = (key: SwitchKey) => key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : !!options.learning;
+  const switchConfigured = (key: SwitchKey) => key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'pro-checkout' || key === 'pro-checkout-eu' ? !!options.proCheckout : !!options.learning;
   async function switchOn(key: SwitchKey): Promise<boolean> {
     if (key === 'managed-ai') return (await store.getSetting('ai_disabled')) !== '1';
     const legacy = key === 'cloud-processing' ? 'cloud_disabled' : key === 'safe-copy' ? 'safe_copy_disabled' : undefined;
@@ -694,6 +703,44 @@ export function createApp(options: AppOptions) {
         };
         await audit(claims.sub, 'device.activate.account', 'allowed', outcome.activationId);
         return { status: 200, body: { grant: signEnvelope(grant, config.signingKey), activationId: outcome.activationId } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/me/checkout/pro', summary: 'Signed in: start a server-priced SumUp hosted checkout for Pro. The billing country must match the network location. Returns the SumUp page to open.', auth: 'user',
+      body: Schemas.ProCheckoutRequest,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const checkout = options.proCheckout;
+        if (!checkout || !(await switchOn('pro-checkout'))) throw new ApiError(503, 'CHECKOUT_DISABLED', 'Buying Pro is not open yet. Everything else keeps working.', true);
+        if (!checkoutLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
+        const body = parseJson(Schemas.ProCheckoutRequest, req.rawBody);
+        const t = now();
+        const current = await effectiveAccountLicence(claims.sub, t);
+        if (current?.paid) throw new ApiError(409, 'ALREADY_PRO', 'This account already has Pro.');
+        const account = await store.getAccount(claims.sub);
+        if (!account?.emailHash) throw new ApiError(403, 'ACCOUNT_UNVERIFIED', 'Sign in again to buy Pro.');
+        try {
+          const started = await checkout.start({ accountId: claims.sub, emailHash: account.emailHash, country: body.country, networkCountry: options.networkCountry?.(req) ?? null, euSalesOpen: await switchOn('pro-checkout-eu') });
+          await audit(claims.sub, 'checkout.pro.start', 'allowed', started.checkoutId);
+          return { status: 201, body: started };
+        } catch (error) {
+          if (error instanceof CheckoutCountryUnavailable) throw new ApiError(409, 'COUNTRY_UNAVAILABLE', 'Pro is not on sale in your country yet. Everything else keeps working.');
+          if (error instanceof CheckoutLocationUnconfirmed) throw new ApiError(409, 'LOCATION_UNCONFIRMED', 'We could not confirm your country: your billing country and your network location differ. If you use a VPN, turn it off and try again.');
+          throw new ApiError(502, 'CHECKOUT_UNAVAILABLE', 'The payment page could not be opened. Nothing was charged; try again shortly.', true);
+        }
+      },
+    },
+    {
+      method: 'GET', path: '/v1/me/checkout/pro/:id', summary: 'Signed in: has this checkout been paid and verified with SumUp? Paid means /v1/me/activate now returns Pro.', auth: 'user',
+      handler: async (req, params) => {
+        const claims = await bearer(req);
+        if (!options.proCheckout || !/^[A-Za-z0-9-]{1,64}$/.test(params.id ?? '')) throw new ApiError(404, 'NOT_FOUND', 'No such checkout.');
+        if (!checkoutLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'Checking too often. Wait a minute and try again.', true);
+        let status: 'paid' | 'pending' | null;
+        try { status = await options.proCheckout.status({ accountId: claims.sub, checkoutId: params.id! }); }
+        catch { throw new ApiError(503, 'SUMUP_VERIFICATION_PENDING', 'The payment is still being checked. Try again shortly.', true); }
+        if (!status) throw new ApiError(404, 'NOT_FOUND', 'No such checkout.');
+        return { status: 200, body: { status } };
       },
     },
     {
