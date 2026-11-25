@@ -74,3 +74,13 @@ export async function openInfoFor(page: Page, filename: string) {
     await panel.waitFor({ state: 'visible' });
   }
 }
+
+/**
+ * Opens V2 Settings from inside a project. #1301 removed the rail's Settings button and mode flag as duplicates, and
+ * kept File → Settings… as the way in (the projects home still has its own Settings button in the banner).
+ */
+export async function openV2Settings(page: Page) {
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('navigation', { name: 'Application menus' }).getByRole('button', { name: 'File', exact: true }).click();
+  await root.getByRole('menuitem', { name: 'Settings…' }).click();
+}
