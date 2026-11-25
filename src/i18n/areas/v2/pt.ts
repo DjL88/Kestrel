@@ -992,6 +992,7 @@ export const pt: AreaTranslation<typeof source> = {
     forkCheckpointHint: 'Cria uma versão de edição independente; a versão atual é conservada.',
   },
   info: {
+    rawColourSource: "A matriz de cor da própria câmara, do ficheiro RAW, com o aspeto padrão do InFlight (não o estilo de imagem do fabricante)",
     heading: 'Informações da fotografia',
     fileSection: 'Ficheiro e ligação',
     cameraSection: 'Câmara e captura',

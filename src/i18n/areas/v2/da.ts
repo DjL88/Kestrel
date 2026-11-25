@@ -992,6 +992,7 @@ export const da: AreaTranslation<typeof source> = {
     forkCheckpointHint: 'Opretter en uafhængig redigeringsversion; den aktuelle version bevares.',
   },
   info: {
+    rawColourSource: "Kameraets egen farvematrix fra RAW-filen, InFlights standardlook (ikke producentens billedstil)",
     heading: 'Fotoinfo',
     fileSection: 'Fil og forbindelse',
     cameraSection: 'Kamera og optagelse',

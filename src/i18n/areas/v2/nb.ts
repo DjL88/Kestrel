@@ -992,6 +992,7 @@ export const nb: AreaTranslation<typeof source> = {
     forkCheckpointHint: 'Lager en uavhengig redigeringsversjon; den gjeldende versjonen beholdes.',
   },
   info: {
+    rawColourSource: "Kameraets egen fargematrise fra RAW-filen, InFlights standardutseende (ikke produsentens bildestil)",
     heading: 'Bildeinfo',
     fileSection: 'Fil og tilkobling',
     cameraSection: 'Kamera og opptak',

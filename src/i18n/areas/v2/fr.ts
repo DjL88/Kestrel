@@ -992,6 +992,7 @@ export const fr: AreaTranslation<typeof source> = {
     forkCheckpointHint: 'Crée une version de retouche indépendante ; la version actuelle est conservée.',
   },
   info: {
+    rawColourSource: "Matrice de couleur de l’appareil lui-même, issue du fichier RAW, rendu standard InFlight (pas le style d’image du fabricant)",
     heading: 'Infos de la photo',
     fileSection: 'Fichier et connexion',
     cameraSection: 'Appareil et prise de vue',

@@ -995,6 +995,7 @@ export const ga: AreaTranslation<typeof source> = {
     forkCheckpointHint: 'Cruthaíonn sé leagan eagarthóireachta neamhspleách; coinnítear an leagan reatha.',
   },
   info: {
+    rawColourSource: "Maitrís datha an cheamara féin ón gcomhad RAW, cuma chaighdeánach InFlight (ní stíl pictiúir an déantóra)",
     heading: 'Eolas an ghrianghraif',
     fileSection: 'Comhad agus ceangal',
     cameraSection: 'Ceamara agus gabháil',

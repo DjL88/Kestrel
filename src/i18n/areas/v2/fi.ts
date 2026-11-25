@@ -993,6 +993,7 @@ export const fi: AreaTranslation<typeof source> = {
     forkCheckpointHint: 'Luo itsenäisen muokkausversion; nykyinen versio säilyy.',
   },
   info: {
+    rawColourSource: "Kameran oma värimatriisi RAW-tiedostosta, InFlightin vakiotyyli (ei valmistajan kuvatyyliä)",
     heading: 'Kuvan tiedot',
     fileSection: 'Tiedosto ja yhteys',
     cameraSection: 'Kamera ja kuvaus',

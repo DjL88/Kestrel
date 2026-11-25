@@ -992,6 +992,7 @@ export const is: AreaTranslation<typeof source> = {
     forkCheckpointHint: 'Býr til sjálfstæða breytingaútgáfu; núverandi útgáfa er varðveitt.',
   },
   info: {
+    rawColourSource: "Eigið litafylki myndavélarinnar úr RAW-skránni, staðalútlit InFlight (ekki myndstíll framleiðandans)",
     heading: 'Myndaupplýsingar',
     fileSection: 'Skrá og tenging',
     cameraSection: 'Myndavél og taka',

@@ -993,6 +993,7 @@ export const gd: AreaTranslation<typeof source> = {
     forkCheckpointHint: 'Cruthaichidh seo tionndadh deasachaidh neo-eisimeileach; thèid an tionndadh làithreach a ghlèidheadh.',
   },
   info: {
+    rawColourSource: "Matrix dhathan a’ chamara fhèin on fhaidhle RAW, coltas àbhaisteach InFlight (chan e stoidhle deilbh an dèanadair)",
     heading: 'Fiosrachadh an deilbh',
     fileSection: 'Faidhle is ceangal',
     cameraSection: 'Camara is glacadh',

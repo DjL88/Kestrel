@@ -992,6 +992,7 @@ export const cy: AreaTranslation<typeof source> = {
     forkCheckpointHint: 'Yn creu fersiwn olygu annibynnol; mae’r fersiwn bresennol yn cael ei chadw.',
   },
   info: {
+    rawColourSource: "Matrics lliw y camera ei hun o’r ffeil RAW, golwg safonol InFlight (nid arddull llun y gwneuthurwr)",
     heading: 'Gwybodaeth y llun',
     fileSection: 'Ffeil a chysylltiad',
     cameraSection: 'Camera a thynnu’r llun',
