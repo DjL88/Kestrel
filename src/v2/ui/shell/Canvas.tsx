@@ -1496,7 +1496,7 @@ export default function Canvas({
               }`}
             >
               <BrandIcon name="image" size={13} />
-              <span>{STRINGS.canvas.singleView}</span>
+              <span className="v2-phone-label">{STRINGS.canvas.singleView}</span>
             </button>
             <button
               type="button"
@@ -1509,7 +1509,7 @@ export default function Canvas({
               }`}
             >
               <BrandIcon name="all-sizes" size={13} />
-              <span>All formats ({enabledSizes.length})</span>
+              <span className="v2-phone-label">All formats ({enabledSizes.length})</span>
             </button>
           </div>
 
@@ -1565,7 +1565,7 @@ export default function Canvas({
             data-testid="selected-format-toolbar"
             className="flex min-w-0 items-center gap-1 overflow-x-auto inflight-scroll"
           >
-            <span data-testid="selected-format-count" className="shrink-0 px-1 text-[11px] text-[var(--text-muted)]">
+            <span data-testid="selected-format-count" className={`shrink-0 px-1 text-[11px] text-[var(--text-muted)] ${canvasLayoutMode === 'single' ? 'v2-phone-hide' : ''}`}>
               {selectedSizeIds.length === 1 ? '1 selected' : `${selectedSizeIds.length} selected`}
             </span>
             {([
@@ -1675,7 +1675,7 @@ export default function Canvas({
       </div>
         {/* Subtle bottom-left interaction hint */}
         {!hideHints && canvasLayoutMode === 'single' && (
-          <p data-capture-ignore className="pointer-events-none absolute bottom-3 left-4 right-80 hidden truncate lg:block text-[11px] text-[var(--text-muted)]">
+          <p data-capture-ignore className="v2-mouse-hint pointer-events-none absolute bottom-3 left-4 right-80 hidden truncate lg:block text-[11px] text-[var(--text-muted)]">
             {activeSize.kind === 'video'
               ? STRINGS.canvas.zoomVideoHint
               : STRINGS.canvas.dragCropHint}
@@ -1713,7 +1713,7 @@ export default function Canvas({
               event.preventDefault();
               saveZoomBarOffset(clampZoomBar(next));
             }}
-            className="inline-flex h-8 w-5 cursor-grab touch-none items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] active:cursor-grabbing"
+            className="v2-zoom-fine inline-flex h-8 w-5 cursor-grab touch-none items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] active:cursor-grabbing"
           >
             <BrandIcon name="grip" size={14} />
           </button>
@@ -1721,7 +1721,7 @@ export default function Canvas({
             type="button"
             aria-label={STRINGS.canvas.zoomOut}
             onClick={() => onSetZoom(canvasZoom / 1.25)}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
+            className="v2-zoom-fine inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
             <BrandIcon name="minus" size={14} />
           </button>
@@ -1739,7 +1739,7 @@ export default function Canvas({
             type="button"
             aria-label={STRINGS.canvas.zoomIn}
             onClick={() => onSetZoom(canvasZoom * 1.25)}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
+            className="v2-zoom-fine inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
             <BrandIcon name="plus" size={14} />
           </button>

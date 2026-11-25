@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { matchScannedOriginals, matchScannedOriginalsBySha, scanOriginalFolder, verifyScannedOriginalMatches } from './nativeOriginalScan';
+import { matchScannedOriginals, matchScannedOriginalsBySha, scanOriginalFolder, verifyScannedOriginalMatches, resolveNativeOriginalRelinks } from './nativeOriginalScan';
 import { createHash } from 'node:crypto';
 
 test('nested camera folders recover mixed camera brands without reading photo bytes', async () => {
@@ -215,4 +215,48 @@ test('unique verified original remains eligible and closes the reader', async ()
   assert.equal(result.matches.get('unique'), '/backup/BIRD.NEF');
   assert.deepEqual(result.rejected, []);
   assert.equal(closes, 1);
+});
+
+
+test('explicit desktop reconnect verifies current paths and recovers an overwritten original from backup', async () => {
+  const genuine = new Blob([new Uint8Array([1, 2, 3])]);
+  const substituted = new Blob([new Uint8Array([1, 2, 4])]);
+  const sha = createHash('sha256').update(new Uint8Array(await genuine.arrayBuffer())).digest('hex');
+  const expected = [
+    { stableKey: 'substituted', filename: 'BIRD.NEF', sourcePath: '/card/BIRD.NEF', size: 3, originalSha256: sha },
+    { stableKey: 'healthy', filename: 'DOG.NEF', sourcePath: '/card/DOG.NEF', size: 3, originalSha256: sha },
+    { stableKey: 'legacy', filename: 'OLD.NEF', sourcePath: '/card/OLD.NEF', size: 3 },
+  ];
+  const opened: string[] = [], closed: string[] = [];
+  const read = async (path: string, bytes: Blob) => {
+    opened.push(path);
+    return { bytes, unchanged: async () => true, close: async () => { closed.push(path); } };
+  };
+  const result = await resolveNativeOriginalRelinks(expected, new Set(expected.map(frame => frame.sourcePath)),
+    async names => {
+      assert.deepEqual([...names].sort(), ['bird.nef', 'old.nef']);
+      return { files: [{ path: '/backup/BIRD.NEF', name: 'BIRD.NEF', size: 3, lastModified: 10 }], truncated: false, skippedDirectories: 0 };
+    },
+    path => read(path, path.endsWith('BIRD.NEF') ? substituted : genuine),
+    candidate => read(candidate.path, genuine));
+  assert.deepEqual([...result.connected], [['healthy', '/card/DOG.NEF']]);
+  assert.deepEqual(result.missing, ['substituted', 'legacy']);
+  assert.deepEqual([...result.matches], [['substituted', '/backup/BIRD.NEF']]);
+  assert.deepEqual(opened, ['/card/BIRD.NEF', '/card/DOG.NEF', '/backup/BIRD.NEF']);
+  assert.deepEqual(closed, opened);
+  assert.equal(expected[0].sourcePath, '/card/BIRD.NEF', 'planning never mutates the catalogue');
+});
+
+test('healthy existing paths avoid scanning the selected backup folder', async () => {
+  const bytes = new Blob([new Uint8Array([5, 6, 7])]);
+  const sha = createHash('sha256').update(new Uint8Array(await bytes.arrayBuffer())).digest('hex');
+  const result = await resolveNativeOriginalRelinks(
+    [{ stableKey: 'good', filename: 'A.NEF', sourcePath: '/nas/A.NEF', size: 3, originalSha256: sha }],
+    new Set(['/nas/A.NEF']),
+    async () => { throw new Error('should not scan'); },
+    async () => ({ bytes, unchanged: async () => true, close: async () => {} }),
+    async () => { throw new Error('should not open candidate'); });
+  assert.deepEqual([...result.connected], [['good', '/nas/A.NEF']]);
+  assert.deepEqual(result.missing, []);
+  assert.equal(result.matches.size, 0);
 });

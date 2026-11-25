@@ -236,7 +236,7 @@ export default function Filmstrip({
       )}
 
       {/* Dock Header Toolbar */}
-      <div className="flex flex-nowrap items-center justify-between gap-2 overflow-x-auto px-3 py-1.5 border-b border-[var(--border-subtle)] inflight-scroll">
+      <div className="v2-filmstrip-tools flex flex-nowrap items-center justify-between gap-2 overflow-x-auto px-3 py-1.5 border-b border-[var(--border-subtle)] inflight-scroll">
         {/* Selection, import and Auto-Cull controls */}
         <div className="flex shrink-0 items-center gap-2">
 
@@ -265,14 +265,14 @@ export default function Filmstrip({
             className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
           >
             <BrandIcon name="image-plus" size={13} />
-            <span>{STRINGS.filmstrip.importPhotos}</span>
+            <span className="v2-compact-label">{STRINGS.filmstrip.importPhotos}</span>
           </button>
 
           <button type="button" onClick={onImportFolder}
             className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[11px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
             title={STRINGS.filmstripLabels.label4}>
             <BrandIcon name="folder-open" size={13} />
-            <span>{STRINGS.filmstripLabels.label10}</span>
+            <span className="v2-compact-label">{STRINGS.filmstripLabels.label10}</span>
           </button>
 
           {!hideAutoCull && !collageMode && (

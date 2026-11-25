@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { generateDemoShootFrames, createDemoShootState, applyAutoCullDecisions, undoDecision, redoDecision } from './cullingEngine';
-import { limitAutoKeepers, scorePreview, scoreWithSubject, type CullSuggestion } from './autoCull';
+import { countOriginalKeepers, limitAutoKeepers, scorePreview, scoreWithSubject, type CullSuggestion } from './autoCull';
 
 test('a flat dark preview stays review-only and unavailable images receive no decision', () => {
   const opaqueDark = new Uint8ClampedArray(96 * 96 * 4);
@@ -423,4 +423,34 @@ test('G05 duplicate confident evidence returns the strongest result regardless o
   const conflict: CullSuggestion = { ...weak, decision: null, confidence: 'low', reason: 'noSubject' };
   const result = limitAutoKeepers([strong, conflict, competitor], frames, 1);
   assert.deepEqual(result.filter(item => item.confidence === 'high'), [competitor]);
+});
+
+
+test('G05: flagged virtual copies and samples do not consume original keeper slots or block bursts', () => {
+  const frames = generateDemoShootFrames(5).map(frame => ({ ...frame, isDemo: false, decision: 'unreviewed' as const, burstGroupId: 'shared' }));
+  const [candidate, other, copy, sample, removed] = frames;
+  const all = [candidate, { ...other, burstGroupId: 'other' },
+    { ...copy, decision: 'keep' as const, virtualCopy: { originalFrameId: candidate.id, number: 1 } },
+    { ...sample, decision: 'keep' as const, isDemo: true },
+    { ...removed, decision: 'keep' as const, removedAt: 0 }];
+  assert.equal(countOriginalKeepers(all), 0);
+  const suggestions: CullSuggestion[] = all.map(frame => ({ frameId: frame.id, decision: 'keep', confidence: 'high', reason: 'subjectSharp', score: 95 }));
+  assert.deepEqual(limitAutoKeepers(suggestions, all, 2).filter(result => result.confidence === 'high').map(result => result.frameId), [candidate.id, other.id]);
+});
+
+
+test('unavailable, contradictory and malformed keeper reasons cannot consume auto-keep slots', () => {
+  const frames = generateDemoShootFrames(2).map(frame => ({
+    ...frame, isDemo: false, decision: 'unreviewed' as const, burstGroupId: null,
+  }));
+  const valid: CullSuggestion = { frameId: frames[1].id, decision: 'keep', confidence: 'high', score: 90, reason: 'subjectSharp' };
+  const first = { ...valid, frameId: frames[0].id, score: 99 };
+  for (const reason of ['duplicate', 'unavailable', 'flat', 'noSubject', 'subjectSoft', 'limitedDetail', 'subjectOk', undefined] as const) {
+    const invalid = { ...first, reason } as CullSuggestion;
+    for (const input of [[invalid, valid], [first, invalid, valid]]) {
+      const result = limitAutoKeepers(input, frames, 1);
+      assert.deepEqual(result.filter(item => item.confidence === 'high'), [valid]);
+      assert.ok(result.filter(item => item.frameId === first.frameId).every(item => item.decision === null));
+    }
+  }
 });

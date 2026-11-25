@@ -1,4 +1,4 @@
-import { limitAutoKeepers, type CullSuggestion } from '../../core/autoCull';
+import { countOriginalKeepers, isCullOriginal, limitAutoKeepers, type CullSuggestion } from '../../core/autoCull';
 import { applyAutoCullDecisions, applyCullConfidence } from '../../core/cullingEngine';
 import type { CullingState, PhotoFrame } from '../../core/types';
 
@@ -6,15 +6,26 @@ import type { CullingState, PhotoFrame } from '../../core/types';
 export function commitAutoCull(
   state: CullingState, examined: readonly PhotoFrame[], results: readonly CullSuggestion[],
 ): CullingState {
-  const sources = new Map(examined.map((frame) => [frame.id, frame]));
-  const current = new Map(state.frames.map((frame) => [frame.id, frame]));
+  // Never attach a scan result to an ambiguous identity (including duplicates
+  // in the captured snapshot, not just the live catalogue).
+  const uniqueFrames = (frames: readonly PhotoFrame[]) => {
+    const index = new Map<string, PhotoFrame>();
+    const ambiguous = new Set<string>();
+    for (const frame of frames) {
+      if (index.has(frame.id)) ambiguous.add(frame.id);
+      index.set(frame.id, frame);
+    }
+    for (const id of ambiguous) index.delete(id);
+    return index;
+  };
+  const sources = uniqueFrames(examined);
+  const current = uniqueFrames(state.frames);
   const eligible = results.filter(({ frameId }) => {
     const before = sources.get(frameId), after = current.get(frameId);
-    return after && before && after.removedAt == null && after.decision === 'unreviewed' &&
-      !after.isDemo && !after.virtualCopy && before.stableKey === after.stableKey &&
+    return after && before && isCullOriginal(after) && after.decision === 'unreviewed' && before.stableKey === after.stableKey &&
       before.originalSha256 === after.originalSha256;
   });
-  const keepers = state.frames.filter((frame) => frame.removedAt == null && frame.decision === 'keep').length;
+  const keepers = countOriginalKeepers(state.frames);
   const final = limitAutoKeepers(eligible, state.frames, state.keeperTarget - keepers);
   const scored = applyCullConfidence(state, final);
   return applyAutoCullDecisions(scored, final

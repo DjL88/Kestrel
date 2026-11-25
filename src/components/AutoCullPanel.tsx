@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
 import { LoaderCircle, X } from './icons/KestrelUIIcons';
 import { yieldToPaint } from '../core/yieldToPaint';
-import type { CullSuggestion } from '../core/autoCull';
+import { countOriginalKeepers, isCullOriginal, type CullSuggestion } from '../core/autoCull';
 import { planKeeperTier, type KeeperTier } from '../core/keeperTiers';
 import { summarizeCullSuggestions } from '../core/autoCullSummary';
 import type { PhotoFrame } from '../core/types';
@@ -79,11 +79,12 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
   }, []);
 
   const subjectDetectorAvailable = Boolean(bundledModelUrl('yolox_tiny.onnx'));
-  const candidates = frames.filter((frame) => !frame.removedAt && frame.decision === 'unreviewed' && !frame.isDemo && !frame.virtualCopy);
+  const candidates = frames.filter((frame) => isCullOriginal(frame) && frame.decision === 'unreviewed');
   const summary = results ? summarizeCullSuggestions(results) : null;
   const high = (results ?? []).flatMap((result) =>
     result.confidence === 'high' && result.decision ? [{ frameId: result.frameId, decision: result.decision }] : []);
-  const remaining = Math.max(0, keeperTarget - frames.filter((frame) => !frame.removedAt && frame.decision === 'keep').length);
+  const originalKeepers = countOriginalKeepers(frames);
+  const remaining = Math.max(0, keeperTarget - originalKeepers);
   const tierPlan = results ? planKeeperTier(results, frames, keeperTarget, keeperTier) : [];
 
   function apply(moves: typeof high) {
@@ -186,7 +187,7 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
         {remaining > 0 && (
           <section className="space-y-2 rounded-lg border border-white/12 p-3" aria-label={t.autoCull.findMoreLabel}>
             <h3 className="text-sm font-semibold">{t.autoCull.findMore}</h3>
-            <p className="text-xs text-zinc-300">{t.autoCull.targetProgress(frames.filter((frame) => !frame.removedAt && frame.decision === 'keep').length, keeperTarget)}</p>
+            <p className="text-xs text-zinc-300">{t.autoCull.targetProgress(originalKeepers, keeperTarget)}</p>
             <div role="group" aria-label={t.autoCull.qualityLabel} className="grid grid-cols-3 gap-1">
               {(['best', 'better', 'good'] as const).map((level) => (
                 <button key={level} type="button" aria-pressed={keeperTier === level} onClick={() => setKeeperTier(level)}

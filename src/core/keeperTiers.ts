@@ -1,4 +1,4 @@
-import type { CullSuggestion } from './autoCull';
+import { countOriginalKeepers, hasReliableKeepEvidence, isCullOriginal, type CullSuggestion } from './autoCull';
 import type { PhotoFrame } from './types';
 
 /**
@@ -16,7 +16,7 @@ export function planKeeperTier(
   tier: KeeperTier,
 ): { frameId: string; decision: 'keep' }[] {
   if (!Number.isSafeInteger(target) || target < 1 || target > 9999) return [];
-  const remaining = Math.max(0, target - frames.filter((frame) => frame.removedAt == null && frame.decision === 'keep').length);
+  const remaining = Math.max(0, target - countOriginalKeepers(frames));
   if (!remaining) return [];
 
   const byId = new Map<string, PhotoFrame>();
@@ -26,15 +26,17 @@ export function planKeeperTier(
     else byId.set(frame.id, frame);
   }
   const occupied = new Set(frames
-    .filter((frame) => frame.removedAt == null && frame.decision === 'keep' && frame.burstGroupId)
+    .filter((frame) => isCullOriginal(frame) && frame.decision === 'keep' && frame.burstGroupId)
     .map((frame) => frame.burstGroupId!));
   const claimed = new Set<string>();
   const choices: { frameId: string; decision: 'keep' }[] = [];
+  // Find More must not resurrect a disputed observation by filtering out the
+  // review-only row first. Preserve the same conservative boundary as Auto.
+  const disputed = new Set(results.filter(result => !hasReliableKeepEvidence(result)).map(result => result.frameId));
   const eligible = [...results].filter((result) =>
-    result.decision === 'keep' &&
+    hasReliableKeepEvidence(result) && !disputed.has(result.frameId) &&
     (result.confidence === 'high' || (tier !== 'best' && result.confidence === 'medium')) &&
-    Number.isFinite(result.score) && result.score >= scoreFloor[tier] && result.score <= 100 &&
-    result.reason !== 'unavailable' && result.reason !== 'duplicate' && result.reason !== 'flat');
+    result.score >= scoreFloor[tier]);
   // Stable ties regardless of import order, and no extra selection within a
   // burst that already has a keeper (manual or from a previous scan).
   eligible.sort((a, b) => b.score - a.score || a.frameId.localeCompare(b.frameId));
@@ -42,7 +44,7 @@ export function planKeeperTier(
     if (choices.length >= remaining) break;
     if (claimed.has(result.frameId) || ambiguous.has(result.frameId)) continue;
     const frame = byId.get(result.frameId);
-    if (!frame || frame.removedAt != null || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) continue;
+    if (!frame || !isCullOriginal(frame) || frame.decision !== 'unreviewed') continue;
     if (frame.burstGroupId && occupied.has(frame.burstGroupId)) continue;
     claimed.add(result.frameId);
     if (frame.burstGroupId) occupied.add(frame.burstGroupId);
