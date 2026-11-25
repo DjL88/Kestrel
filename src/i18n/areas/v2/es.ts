@@ -363,6 +363,11 @@ export const es: AreaTranslation<typeof source> = {
     restored: (name: string) => `Se restauró «${name}» como proyecto nuevo. Vuelve a conectar las fotos originales si InFlight lo pide.`,
     restoreFailed: "Ese archivo no es una copia de proyecto de InFlight legible. No se cambió nada.",
   },
+  pair: {
+    badge: 'RAW + JPEG',
+    title: (raw: string, jpeg: string) => `${raw} y ${jpeg} son una sola toma. Se conservan los dos archivos; marcas y estrellas se aplican a ambos.`,
+    infoLabel: "JPEG emparejado",
+  },
   canvas: {
     selectPhoto: "Seleccione una fotografía de la tira de imágenes para empezar a editar.",
     resizeText: "Cambiar el tamaño del texto",

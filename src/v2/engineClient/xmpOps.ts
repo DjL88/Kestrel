@@ -3,6 +3,7 @@
 // the camera's own EXIF, and never changes an original.
 import { applyDecisionWithHistory } from '../../core/cullingEngine';
 import { addTags } from '../../core/subjectTags';
+import { rawJpegPairs, withPartners } from '../../core/rawJpegPairs';
 import { makeXmpDownload } from '../../core/xmpSidecars';
 import { planXmpImports, SidecarImportError, type SidecarImport } from '../../core/xmpImportPlan';
 import type { CullingState, PhotoFrame } from '../../core/types';
@@ -10,7 +11,9 @@ import { STRINGS } from '../ui/strings';
 
 /** Which photos a File menu XMP action covers: the selection when two or more are selected, otherwise the whole project. */
 export function xmpScope(frames: readonly PhotoFrame[], selectedIds: readonly string[]): PhotoFrame[] {
-  const live = frames.filter((frame) => !frame.removedAt && !frame.isDemo && !frame.virtualCopy);
+  // A paired JPEG shares its RAW's name and decisions, so the RAW's sidecar speaks for both.
+  const paired = rawJpegPairs(frames).rawOf;
+  const live = frames.filter((frame) => !frame.removedAt && !frame.isDemo && !frame.virtualCopy && !paired.has(frame.id));
   if (selectedIds.length < 2) return live;
   const chosen = new Set(selectedIds);
   return live.filter((frame) => chosen.has(frame.id));
@@ -19,7 +22,9 @@ export function xmpScope(frames: readonly PhotoFrame[], selectedIds: readonly st
 /** Apply already-validated sidecars: rating, flag or set aside (with undo history) and confirmed keywords. */
 export function applySidecarImports(state: CullingState, planned: readonly SidecarImport[]): CullingState {
   let next = state;
-  for (const { frameId, metadata } of planned) {
+  const pairs = rawJpegPairs(state.frames);
+  const expanded = planned.flatMap((entry) => withPartners([entry.frameId], pairs).map((frameId) => ({ ...entry, frameId })));
+  for (const { frameId, metadata } of expanded) {
     const matches = next.frames.filter((frame) => frame.id === frameId);
     if (matches.length !== 1 || matches[0].removedAt != null) continue;
     if (metadata.decision && metadata.decision !== matches[0].decision) {

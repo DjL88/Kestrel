@@ -364,6 +364,11 @@ export const fi: AreaTranslation<typeof source> = {
     restored: (name: string) => `”${name}” palautettiin uutena projektina. Yhdistä alkuperäiset kuvat uudelleen, jos InFlight pyytää.`,
     restoreFailed: "Tiedosto ei ole luettava InFlight-projektin varmuuskopio. Mitään ei muutettu.",
   },
+  pair: {
+    badge: 'RAW + JPEG',
+    title: (raw: string, jpeg: string) => `${raw} ja ${jpeg} ovat yksi kuva. Molemmat tiedostot säilytetään; merkinnät ja tähdet koskevat molempia.`,
+    infoLabel: "Pariksi liitetty JPEG",
+  },
   canvas: {
     selectPhoto: "Aloita muokkaus valitsemalla kuva filminauhasta.",
     resizeText: "Muuta tekstin kokoa",

@@ -364,6 +364,11 @@ export const gd: AreaTranslation<typeof source> = {
     restored: (name: string) => `Chaidh “${name}” aiseag mar phròiseact ùr. Ceangail na dealbhan tùsail a-rithist ma dh’iarras InFlight sin.`,
     restoreFailed: "Chan e lethbhreac-glèidhte InFlight a ghabhas leughadh a tha san fhaidhle sin. Cha deach dad atharrachadh.",
   },
+  pair: {
+    badge: 'RAW + JPEG',
+    title: (raw: string, jpeg: string) => `’S e an aon dealbh a th’ ann an ${raw} is ${jpeg}. Thèid an dà fhaidhle a chumail; buinidh comharran is rionnagan don dà chuid.`,
+    infoLabel: "JPEG paidhrichte",
+  },
   canvas: {
     selectPhoto: "Tagh dealbh on stiall fhilm gus tòiseachadh air deasachadh.",
     resizeText: "Atharraich meud an teacsa",

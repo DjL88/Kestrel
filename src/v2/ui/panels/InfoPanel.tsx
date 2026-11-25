@@ -135,6 +135,7 @@ export default function InfoPanel({
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.info.fileSection}</h3>
         <dl className="space-y-1.5 text-xs">
           <MetaRow label="File" value={photo.filename} mono />
+          {photo.pairedJpeg && <MetaRow label={STRINGS.pair.infoLabel} value={photo.pairedJpeg} mono />}
           <MetaRow label="Format" value={photo.exif.fileSizeMb > 0 ? `${photo.exif.fileFormat} · ${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(photo.exif.fileSizeMb)} MB` : photo.exif.fileFormat} />
           <MetaRow label="Dimensions" value={photo.exif.dimensions} mono />
           <MetaRow label="Colour profile" value={photo.exif.colourProfile} />

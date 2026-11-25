@@ -363,6 +363,11 @@ export const is: AreaTranslation<typeof source> = {
     restored: (name: string) => `„${name}“ endurheimt sem nýtt verkefni. Tengdu upprunalegu myndirnar aftur ef InFlight biður um það.`,
     restoreFailed: "Þessi skrá er ekki læsilegt InFlight-afrit. Engu var breytt.",
   },
+  pair: {
+    badge: 'RAW + JPEG',
+    title: (raw: string, jpeg: string) => `${raw} og ${jpeg} eru ein mynd. Báðum skrám er haldið; merkingar og stjörnur gilda um báðar.`,
+    infoLabel: "Pöruð JPEG",
+  },
   canvas: {
     selectPhoto: "Veldu mynd úr myndaröðinni til að hefja vinnslu.",
     resizeText: "Breyta stærð texta",
