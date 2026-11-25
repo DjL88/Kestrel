@@ -34,7 +34,8 @@ test('on a landscape phone every rail tool can be reached and opened', async ({ 
   await page.setViewportSize({ width: 844, height: 390 });
   const studio = await openPhoto(page);
   const rail = studio.getByRole('complementary', { name: 'Studio tools' });
-  for (const name of ['Formats', 'Masks', 'History', 'Info', 'Settings']) {
+  // Settings left the rail in #1301 (File → Settings… instead), so All photos is now the last tool at its foot.
+  for (const name of ['Formats', 'Masks', 'History', 'Info', 'All photos']) {
     const tool = rail.getByRole('button', { name, exact: true });
     await tool.scrollIntoViewIfNeeded();
     await expect(tool).toBeInViewport({ ratio: 1 });
