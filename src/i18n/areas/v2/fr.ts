@@ -687,6 +687,7 @@ export const fr: AreaTranslation<typeof source> = {
     autopilotHeld: "Le pilote automatique a gardé cette retouche pour votre avis : la vérification visuelle sur cet appareil n'était pas convaincue qu'elle paraisse naturelle. La suggestion est dans le copilote, pour l'aperçu ou l'application. Rien n'a été modifié.",
     secondOpinion: "Second avis :",
     suggestionDoubted: "la vérification visuelle sur cet appareil n'est pas convaincue que le résultat paraisse naturel. Comparez avant et après ; l'appliquer reste votre choix.",
+    maskDoubted: "Second avis : la vérification visuelle de cet appareil doute de ce masque de sujet. Il est peut-être sur autre chose, ou oublie un bout d’aile, la queue ou la tête. Vérifiez ses bords et touchez pour ajouter ou retirer. Rien n’a été modifié.",
   },
   adjust: {
     grade: {

@@ -687,6 +687,7 @@ export const de: AreaTranslation<typeof source> = {
     autopilotHeld: "Der Autopilot hat diese Bearbeitung für Ihre Prüfung zurückgehalten: Die Bildprüfung auf diesem Gerät war nicht überzeugt, dass sie natürlich wirkt. Der Vorschlag steht im Copilot zur Vorschau oder zum Anwenden bereit. Es wurde nichts geändert.",
     secondOpinion: "Zweite Meinung:",
     suggestionDoubted: "Die Bildprüfung auf diesem Gerät war nicht überzeugt, dass dies natürlich wirkt. Vergleichen Sie vorher und nachher; ob Sie es anwenden, entscheiden Sie.",
+    maskDoubted: "Zweite Meinung: Die Bildprüfung auf diesem Gerät zweifelt an dieser Motivmaske. Sie liegt vielleicht auf dem Falschen oder verfehlt eine Flügelspitze, den Schwanz oder den Kopf. Prüfen Sie die Ränder und tippen Sie zum Hinzufügen oder Entfernen. Es wurde nichts geändert.",
   },
   adjust: {
     grade: {

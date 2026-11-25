@@ -687,6 +687,7 @@ export const cy: AreaTranslation<typeof source> = {
     autopilotHeld: "Daliodd yr awtobeilot y golygiad hwn yn ôl i chi ei adolygu: nid oedd y gwiriad gweledol ar y ddyfais hon yn siŵr ei fod yn edrych yn naturiol. Mae'r awgrym yn y cyd-beilot i'w ragweld neu ei roi ar waith. Ni newidiwyd dim.",
     secondOpinion: "Ail farn:",
     suggestionDoubted: "nid oedd y gwiriad gweledol ar y ddyfais hon yn argyhoeddedig bod hyn yn edrych yn naturiol. Cymharwch cyn ac ar ôl; eich dewis chi yw ei roi ar waith.",
+    maskDoubted: "Ail farn: mae'r gwiriad gweledol ar y ddyfais hon yn amau'r mwgwd gwrthrych hwn. Gall fod ar y peth anghywir, neu golli blaen adain, cynffon neu ben. Gwiriwch ei ymylon, a thapio i ychwanegu neu dynnu. Ni newidiwyd dim.",
   },
   adjust: {
     grade: {
