@@ -57,6 +57,8 @@ export function planManifestAssets(input: {
       assets.push({ id, kind: 'onnx', version: input.version, path: `/data/onnx/${id}/${input.version}/${file.name}`, bytes: file.bytes, sha256: file.sha256, contract: MODEL_SLOTS[id].contract, file: file.name, licence: SLOT_LICENCES[id] });
     } else if (pack) {
       if (pack.bytes !== file.bytes) { problems.push(`${file.name}: matches the ${pack.model.name} digest but not its size (${file.bytes} bytes, pinned ${pack.bytes}).`); continue; }
+      const published = pack.model.files[pack.role].file;
+      if (published && published !== file.name) { problems.push(`${file.name}: ${pack.model.name} is published as ${published}. Rename the file so the name in the app and the manifest match.`); continue; }
       const packId = packAssetId(pack.model, pack.role);
       assets.push({ id: packId, kind: 'onnx', version: input.version, path: `/data/onnx/${packId}/${input.version}/${file.name}`, bytes: file.bytes, sha256: file.sha256, file: file.name, licence: { spdx: pack.model.licence, source: pack.model.source } });
     } else {

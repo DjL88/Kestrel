@@ -60,3 +60,12 @@ test('a file over the 256 MiB installed apps accept is listed only when allowed'
   assert.ok(allowed.ok);
   assert.ok(manifestFor(allowed.assets, 3), 'the current parser accepts it');
 });
+
+test('a pack file with a published name is published under exactly that name', () => {
+  const named = { ...RFDETR_NANO, files: { model: { ...RFDETR_NANO.files.model, file: 'rf-detr-nano-fp16.onnx' } } };
+  const wrong = planManifestAssets({ version: '1', models: [pinnedFile(named, 'model', 'renamed.onnx')], packs: [named] });
+  assert.ok(!wrong.ok && wrong.problems[0].includes('published as rf-detr-nano-fp16.onnx'));
+  const right = planManifestAssets({ version: '1', models: [pinnedFile(named, 'model', 'rf-detr-nano-fp16.onnx')], packs: [named] });
+  assert.ok(right.ok);
+  assert.equal(right.assets[0].path, '/data/onnx/rfdetr-nano-fp16/1/rf-detr-nano-fp16.onnx');
+});

@@ -17,6 +17,11 @@ export interface OptionalModelFile {
   url: string;
   sha256: string;
   bytes: number;
+  /**
+   * The file's published name, e.g. `birefnet-lite-w16.onnx`. When set, the signing script publishes the file under
+   * exactly this name (and refuses another), and Settings shows it before anything is downloaded.
+   */
+  file?: string;
 }
 
 export interface OptionalModel {
