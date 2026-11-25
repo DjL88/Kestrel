@@ -722,6 +722,7 @@ export const source = {
     autopilotHeld: "Auto-pilot held this edit for your review: the vision check on this device was not convinced it looks natural. The suggestion is in Co-pilot to preview or apply. Nothing was changed.",
     secondOpinion: "Second opinion:",
     suggestionDoubted: "the vision check on this device was not convinced this looks natural. Compare before and after; applying it is your choice.",
+    maskDoubted: "Second opinion: the vision check on this device doubts this subject mask. It may be on the wrong thing, or miss a wing tip, tail or head. Check its edges, and tap to add or remove. Nothing was changed.",
   },
   adjust: {
     looksHeading: 'Photo styles',
