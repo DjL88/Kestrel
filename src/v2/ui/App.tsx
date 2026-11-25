@@ -635,7 +635,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           />
 
           {/* Main Workspace Row */}
-          <div className={`relative flex min-h-0 flex-1 overflow-hidden ${store.settings.hand === 'left' ? 'flex-row-reverse' : ''}`}
+          <div className={`relative flex min-h-0 flex-1 overflow-hidden ${store.settings.hand === 'left' ? 'flex-row-reverse' : ''} ${sheetHeight ? 'v2-sheet-open' : ''}`}
             style={sheetHeight ? { paddingBottom: sheetHeight } : undefined}>
             {(!store.collage || collageEditingId) && <Rail
               hand={store.settings.hand}
@@ -934,7 +934,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               <div
                 data-testid="mobile-sheet-handle"
                 style={{ touchAction: 'none' }}
-                onPointerDown={(e) => { sheetDragY.current = e.clientY; e.currentTarget.setPointerCapture?.(e.pointerId); }}
+                onPointerDown={(e) => {
+                  // A press on a button in the handle (Close) is that button's: capturing it here would send its release to the
+                  // handle, and the button's click would never fire.
+                  if ((e.target as HTMLElement).closest('button')) return;
+                  sheetDragY.current = e.clientY;
+                  e.currentTarget.setPointerCapture?.(e.pointerId);
+                }}
                 onPointerUp={(e) => {
                   if (sheetDragY.current !== null && e.clientY - sheetDragY.current > 60) actions.setActivePanel(null);
                   sheetDragY.current = null;

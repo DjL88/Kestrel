@@ -160,6 +160,9 @@
   .inflight-v2 .v2-filmstrip [role="separator"] { display: none; }
   .inflight-v2 .v2-strip-tile { width: 5rem; }
   .inflight-v2 .v2-strip-tile .v2-strip-tile-footer { justify-content: flex-end; }
+  /* While a tool sheet is open the filmstrip steps aside so the photo keeps its height (wireframe "Phone · Adjust open");
+     it stays mounted, so its scroll position and selection come back when the sheet closes. */
+  .inflight-v2 .v2-sheet-open .v2-filmstrip { display: none; }
   /* On a small thumbnail More would cover the middle of the photo, so it moves to the footer row, opposite Flag. */
   .inflight-v2 .v2-strip-tile .v2-strip-tile-more { top: auto; bottom: 0; right: auto; left: 0.25rem; }
   .inflight-v2 .v2-strip-tile .v2-strip-tile-name,
