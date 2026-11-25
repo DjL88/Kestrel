@@ -65,6 +65,8 @@ export const source = {
   workspace: {
     templateNotSaved: 'InFlight could not save the template on this device.',
     projectNotSaved: 'InFlight could not save this project. Your original photos are unchanged.',
+    projectSaveRetrying: 'InFlight could not save this project. It keeps trying; leave InFlight open until it says saved. Your original photos are unchanged.',
+    projectSavedAfterRetry: 'Saved. Nothing was lost.',
     projectNotOpened: 'That project could not be opened.',
     thumbnailsTask: (count: number) => (count === 1 ? 'Preparing 1 thumbnail' : `Preparing ${count} thumbnails`),
     thumbnailStage: 'Reading and scaling this photo',

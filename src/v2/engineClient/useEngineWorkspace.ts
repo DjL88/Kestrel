@@ -10,6 +10,7 @@ import { createCollage, MAX_COLLAGE_SELECTION, readCollage } from '../../core/co
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
 import { appendProjectPhotos, applyImportBursts, createEmptyProject, setArchived } from '../../core/projects';
 import { tasks } from '../../core/taskStore';
+import { createSaveGuard, type SaveGuard } from '../../core/saveGuard';
 import { engineScheduler } from '../../core/engineScheduler';
 import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '../../core/types';
 import { eraseDeviceData } from './eraseDeviceData';
@@ -299,11 +300,41 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, []);
   useEffect(() => { void loadHub(); }, [loadHub]);
 
-  // Save the open project whenever it changes, exactly as the current app does.
+  // Save the open project whenever it changes. A failed save is never dropped (G07): the latest state of each project is
+  // kept and retried until it is stored, and closing InFlight asks first while a failed change is still unsaved.
+  const saveGuard = useRef<SaveGuard<CullingState> | null>(null);
+  if (!saveGuard.current) {
+    saveGuard.current = createSaveGuard<CullingState>({
+      save: (next) => catalogue.current!.saveProject(next),
+      onStatus: (status, { failures }) => {
+        if (status === 'failed' && failures === 1) setNotice(engineText.workspace.projectSaveRetrying);
+        else if (status === 'saved' && failures > 0) setNotice(engineText.workspace.projectSavedAfterRetry);
+      },
+    });
+  }
   useEffect(() => {
     if (!state || screen !== 'editor') return;
-    void catalogue.current!.saveProject(state).catch(() => setNotice(engineText.workspace.projectNotSaved));
+    saveGuard.current!.submit(state.shoot.id, state);
   }, [state, screen]);
+  useEffect(() => {
+    const guard = saveGuard.current!;
+    const retry = () => { if (document.visibilityState !== 'hidden') guard.retryNow(); };
+    const warn = (event: BeforeUnloadEvent) => {
+      if (!guard.hasFailedUnsaved()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('online', retry);
+    document.addEventListener('visibilitychange', retry);
+    window.addEventListener('beforeunload', warn);
+    return () => {
+      window.removeEventListener('online', retry);
+      document.removeEventListener('visibilitychange', retry);
+      window.removeEventListener('beforeunload', warn);
+    };
+  }, []);
+  // Not disposed on unmount: a pending retry must still store the change (and React's development double-mount would
+  // otherwise switch the guard off).
 
   const openRequest = useRef(0);
   useEffect(() => () => { openRequest.current += 1; }, []);
