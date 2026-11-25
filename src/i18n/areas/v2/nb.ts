@@ -832,6 +832,11 @@ export const nb: AreaTranslation<typeof source> = {
     moreTools: 'Flere verktøy',
     closeDrawer: 'Lukk mobilskuffen',
   },
+  autoCullSummary: {
+    checked: (count: number) => `Bilder sjekket av automatisk sortering: ${count}. Se gjennom markeringene i filmstripen.`,
+    rawFromCameraPreview: (count: number) => `RAW-bilder vurdert ut fra kameraets innebygde forhåndsvisning, ikke ut fra sensordataene: ${count}. Sjekk skarpheten med øyet.`,
+    undo: "Du kan angre hele gjennomgangen i ett trinn.",
+  },
   tasks: {
     heading: 'Bakgrunnsoppgaver',
     empty: 'Ingen bakgrunnsoppgaver kjører. InFlight er inaktiv.',

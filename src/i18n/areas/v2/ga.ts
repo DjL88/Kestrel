@@ -835,6 +835,11 @@ export const ga: AreaTranslation<typeof source> = {
     moreTools: 'Tuilleadh uirlisí',
     closeDrawer: 'Dún an tarraiceán soghluaiste',
   },
+  autoCullSummary: {
+    checked: (count: number) => `Grianghraif a sheiceáil an sórtáil uathoibríoch: ${count}. Athbhreithnigh na bratacha sa stiall scannáin.`,
+    rawFromCameraPreview: (count: number) => `Grianghraif RAW a measadh ó réamhamharc leabaithe an cheamara, ní óna sonraí braiteora: ${count}. Seiceáil a ngéire le do shúil.`,
+    undo: "Is féidir leat an babhta iomlán a chealú in aon chéim amháin.",
+  },
   tasks: {
     heading: 'Tascanna cúlra',
     empty: 'Níl aon tasc cúlra ag rith. Tá InFlight díomhaoin.',

@@ -72,10 +72,11 @@ test('a duplicated scan identity cannot attach another source result to the live
 
 test('the Auto-cull summary says when RAWs were judged from the camera preview, and only then', async () => {
   const { autoCullSummary } = await import('./commitAutoCull.ts');
-  assert.equal(autoCullSummary(12, 0), 'Auto-cull checked 12 photos. Review the flags in the filmstrip. You can undo the whole pass in one step.');
+  assert.equal(autoCullSummary(12, 0), 'Photos checked by Auto-cull: 12. Review the flags in the filmstrip. You can undo the whole pass in one step.');
   const one = autoCullSummary(1, 1);
-  assert.match(one, /^Auto-cull checked 1 photo\./);
-  assert.match(one, /1 RAW photo was judged from the camera's embedded preview, not InFlight's development of its sensor data/);
-  assert.match(autoCullSummary(30, 4), /4 RAW photos were judged from the camera's embedded preview/);
-  assert.match(autoCullSummary(30, 4), /You can undo the whole pass in one step\.$/);
+  assert.match(one, /^Photos checked by Auto-cull: 1./);
+  assert.match(one, /RAW photos judged from the camera's embedded preview, not from their sensor data: 1. Check their sharpness by eye./);
+  assert.doesNotMatch(autoCullSummary(12, 0), /embedded preview/, 'no RAW caveat when every RAW was judged from a sensor development');
+  assert.match(autoCullSummary(30, 4), /sensor data: 4./);
+  assert.match(autoCullSummary(30, 4), /You can undo the whole pass in one step.$/);
 });

@@ -832,6 +832,11 @@ export const de: AreaTranslation<typeof source> = {
     moreTools: 'Weitere Werkzeuge',
     closeDrawer: 'Mobile Leiste schließen',
   },
+  autoCullSummary: {
+    checked: (count: number) => `Vom automatischen Aussortieren geprüfte Fotos: ${count}. Prüfen Sie die Markierungen im Filmstreifen.`,
+    rawFromCameraPreview: (count: number) => `RAW-Fotos, die nach der eingebetteten Kameravorschau beurteilt wurden, nicht nach ihren Sensordaten: ${count}. Prüfen Sie ihre Schärfe mit dem Auge.`,
+    undo: "Sie können den ganzen Durchgang in einem Schritt rückgängig machen.",
+  },
   tasks: {
     heading: 'Hintergrundaufgaben',
     empty: 'Keine Hintergrundaufgaben aktiv. InFlight ist im Leerlauf.',

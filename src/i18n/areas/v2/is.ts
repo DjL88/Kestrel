@@ -832,6 +832,11 @@ export const is: AreaTranslation<typeof source> = {
     moreTools: 'Fleiri verkfæri',
     closeDrawer: 'Loka farsímaskúffu',
   },
+  autoCullSummary: {
+    checked: (count: number) => `Myndir sem sjálfvirk flokkun athugaði: ${count}. Skoðaðu merkingarnar á filmuræmunni.`,
+    rawFromCameraPreview: (count: number) => `RAW-myndir metnar eftir innbyggðri forskoðun myndavélarinnar, ekki eftir skynjaragögnum: ${count}. Athugaðu skerpuna með auganu.`,
+    undo: "Þú getur afturkallað alla umferðina í einu skrefi.",
+  },
   tasks: {
     heading: 'Bakgrunnsverk',
     empty: 'Engin bakgrunnsverk í gangi. InFlight er aðgerðalaust.',

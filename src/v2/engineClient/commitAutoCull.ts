@@ -1,6 +1,7 @@
 import { countOriginalKeepers, isCullOriginal, limitAutoKeepers, type CullSuggestion } from '../../core/autoCull';
 import { applyAutoCullDecisions, applyCullConfidence } from '../../core/cullingEngine';
 import type { CullingState, PhotoFrame } from '../../core/types';
+import { v2Text } from '../../i18n/areas/v2';
 
 /** Check the live catalogue and keeper budget again after background analysis. */
 export function commitAutoCull(
@@ -33,11 +34,8 @@ export function commitAutoCull(
     .map((result) => ({ frameId: result.frameId, decision: 'keep' })));
 }
 
-/** The notice after a pass. Says plainly when RAWs were judged from the camera's own preview, not a sensor development. */
+/** The notice after a pass, in the person's language. Says plainly when RAWs were judged from the camera's own preview, not a sensor development. */
 export function autoCullSummary(checked: number, rawFromCameraPreview: number): string {
-  const head = `Auto-cull checked ${checked} photo${checked === 1 ? '' : 's'}. Review the flags in the filmstrip.`;
-  const raw = rawFromCameraPreview > 0
-    ? ` ${rawFromCameraPreview} RAW photo${rawFromCameraPreview === 1 ? ' was' : 's were'} judged from the camera's embedded preview, not InFlight's development of ${rawFromCameraPreview === 1 ? 'its' : 'their'} sensor data, so check sharpness there by eye.`
-    : '';
-  return `${head}${raw} You can undo the whole pass in one step.`;
+  const words = v2Text.autoCullSummary;
+  return [words.checked(checked), ...(rawFromCameraPreview > 0 ? [words.rawFromCameraPreview(rawFromCameraPreview)] : []), words.undo].join(' ');
 }

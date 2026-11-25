@@ -832,6 +832,11 @@ export const es: AreaTranslation<typeof source> = {
     moreTools: 'Más herramientas',
     closeDrawer: 'Cerrar el panel móvil',
   },
+  autoCullSummary: {
+    checked: (count: number) => `Fotos revisadas por la selección automática: ${count}. Revise las marcas en la tira de fotos.`,
+    rawFromCameraPreview: (count: number) => `Fotos RAW juzgadas por la vista previa integrada de la cámara, no por sus datos del sensor: ${count}. Compruebe su nitidez a simple vista.`,
+    undo: "Puede deshacer toda la pasada en un solo paso.",
+  },
   tasks: {
     heading: 'Tareas en segundo plano',
     empty: 'No hay tareas en segundo plano. InFlight está inactivo.',
