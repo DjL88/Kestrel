@@ -87,7 +87,7 @@ test('compiled defaults keep Basic overlays available and all Pro features off u
   for (const name of ['overlayText', 'watermarkCustom'] as const) {
     assert.equal(featureAvailable(name, free), true, name);
   }
-  for (const name of ['smartCulling', 'speciesId', 'onlineAi', 'cloudAssist'] as const) {
+  for (const name of ['onlineAi', 'cloudAssist'] as const) {
     assert.deepEqual(COMPILED_FLAGS[name], { default: false, rules: [] });
     assert.equal(featureAvailable(name, paid), false, name);
   }
@@ -160,12 +160,12 @@ test('grant flags are checked strictly, and any malformed entry refuses the lot'
 
 test('a device turns grant flags back into rules: a closed trial returns to the compiled default, never to off', () => {
   const free = accessCapabilities({ plan: 'free', licence: 'unlicensed', cloud: 'none', online: false, cachedLocalLicence: false });
-  const grant = { smartCulling: { on: true, trial: true as const, endsAtMs: NOW + DAY }, masks: { on: false }, speciesId: { on: true } };
+  const grant = { onlineAi: { on: true, trial: true as const, endsAtMs: NOW + DAY }, masks: { on: false }, cloudAssist: { on: true } };
   const during = flagSetFromGrant(grant, NOW);
-  assert.deepEqual(evaluateFeature('smartCulling', free, { flags: during, nowMs: NOW }), { on: true, reason: 'rule-any', trial: true });
+  assert.deepEqual(evaluateFeature('onlineAi', free, { flags: during, nowMs: NOW }), { on: true, reason: 'rule-any', trial: true });
   assert.equal(featureAvailable('masks', free, { flags: during, nowMs: NOW }), false, 'the server switched a free feature off');
-  assert.equal(featureAvailable('speciesId', free, { flags: during, nowMs: NOW }), true, 'on for good');
+  assert.equal(featureAvailable('cloudAssist', free, { flags: during, nowMs: NOW }), true, 'on for good');
   const after = flagSetFromGrant(grant, NOW + 2 * DAY);
-  assert.equal(featureAvailable('smartCulling', free, { flags: after, nowMs: NOW + 2 * DAY }), false, 'a Basic person is back to Basic');
+  assert.equal(featureAvailable('onlineAi', free, { flags: after, nowMs: NOW + 2 * DAY }), false, 'a Basic person is back to Basic');
   assert.deepEqual(flagSetFromGrant(undefined, NOW), {});
 });

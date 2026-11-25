@@ -12,6 +12,14 @@ import type {
 } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon, { SocialLogo, type BrandIconName } from '../icons/BrandIcon';
+import {
+  DEFAULT_EXPORT_SETTINGS, MAX_PRESET_NAME, deletePreset, exportTargetFor, readPresets, requestFromSettings, savePreset, settingsMatch,
+  writeLastExport, writePresets, type ExportSettings, type SavedExportPreset,
+} from '../../engineClient/exportSettings';
+
+const deviceStorage = (): Pick<Storage, 'getItem' | 'setItem'> | null => {
+  try { return window.localStorage; } catch { return null; }
+};
 
 interface ExportDialogProps {
   open: boolean;
@@ -37,16 +45,22 @@ export default function ExportDialog({
   onClose,
   onExport,
 }: ExportDialogProps) {
-  const [fileFormat, setFileFormat] = useState<'jpeg' | 'png'>('jpeg');
-  const [jpegQuality, setJpegQuality] = useState(94);
-  const [maxSizeChoice, setMaxSizeChoice] = useState<'full' | '4096' | '2560' | '1920' | 'custom'>('full');
-  const [customMaxSize, setCustomMaxSize] = useState(1920);
-  const [destination, setDestination] = useState<ExportDestination>('local-zip');
-  const [chosenSizes, setChosenSizes] = useState<string[] | null>(null);
+  const d = DEFAULT_EXPORT_SETTINGS;
+  const [fileFormat, setFileFormat] = useState<'jpeg' | 'png'>(d.fileFormat);
+  const [jpegQuality, setJpegQuality] = useState(d.jpegQuality);
+  const [maxSizeChoice, setMaxSizeChoice] = useState<ExportSettings['maxSize']>(d.maxSize);
+  const [customMaxSize, setCustomMaxSize] = useState(d.customMaxSize);
+  const [destination, setDestination] = useState<ExportDestination>(d.destination);
+  const [chosenSizes, setChosenSizes] = useState<string[] | null>(d.sizeIds);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(() => photo ? [photo.activeGroupId] : []);
-  const [includeBefore, setIncludeBefore] = useState(false);
-  const [includeAfter, setIncludeAfter] = useState(true);
-  const [includeOriginal, setIncludeOriginal] = useState(false);
+  const [includeBefore, setIncludeBefore] = useState(d.includeBefore);
+  const [includeAfter, setIncludeAfter] = useState(d.includeAfter);
+  const [includeOriginal, setIncludeOriginal] = useState(d.includeOriginal);
+  // Saved settings (G09): the same settings the wizard sends, under a name, on this device only.
+  const [presets, setPresets] = useState<SavedExportPreset[]>(() => { const store = deviceStorage(); return store ? readPresets(store) : []; });
+  const [presetId, setPresetId] = useState('');
+  const [presetName, setPresetName] = useState('');
+  const [presetNote, setPresetNote] = useState('');
 
   const panelRef = useRef<HTMLDivElement>(null);
   const onDialogKeyDown = useDialogFocus(open && !!photo, panelRef, onClose);
@@ -92,28 +106,52 @@ export default function ExportDialog({
       : { id: 'local-individual', label: STRINGS.exportDialog.destLocalFiles, icon: 'hard-drive', sub: STRINGS.exportDialog.individualHelp },
   ];
 
-  const maxLongestEdgePx = maxSizeChoice === 'full' ? undefined
-    : maxSizeChoice === 'custom' ? customMaxSize
-    : Number(maxSizeChoice);
+  const currentSettings = (): ExportSettings => ({
+    fileFormat, jpegQuality, maxSize: maxSizeChoice, customMaxSize, destination,
+    sizeIds: chosenSizes === null ? null : selectedSizeIds, includeBefore, includeAfter, includeOriginal,
+  });
+  const applySettings = (next: ExportSettings) => {
+    setFileFormat(next.fileFormat); setJpegQuality(next.jpegQuality); setMaxSizeChoice(next.maxSize);
+    setCustomMaxSize(next.customMaxSize); setChosenSizes(next.sizeIds);
+    setDestination(next.destination === 'local-zip' ? 'local-zip' : nativeFolder ? 'local-folder' : 'local-individual');
+    setIncludeBefore(next.includeBefore); setIncludeAfter(next.includeAfter); setIncludeOriginal(next.includeOriginal);
+  };
+  // A preset shows as chosen only while the settings are still its own; change one and the list says so, and choosing it again puts it back.
+  const chosenPreset = presets.find((item) => item.id === presetId);
+  const shownPresetId = chosenPreset && settingsMatch(chosenPreset.settings, currentSettings(), enabledFormats.map((size) => size.id)) ? presetId : '';
+  const choosePreset = (id: string) => {
+    setPresetId(id);
+    const preset = presets.find((item) => item.id === id);
+    if (!preset) return;
+    applySettings(preset.settings);
+    setPresetName(preset.name);
+    setPresetNote(STRINGS.exportDialog.presetApplied(preset.name));
+  };
+  const saveCurrentPreset = () => {
+    const result = savePreset(presets, presetName, currentSettings(), () => 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
+    if ('problem' in result) { setPresetNote(result.problem === 'empty' ? STRINGS.exportDialog.presetEmpty : STRINGS.exportDialog.presetFull); return; }
+    const store = deviceStorage();
+    if (!store || !writePresets(store, result.presets)) { setPresetNote(STRINGS.exportDialog.presetStoreFailed); return; }
+    setPresets(result.presets);
+    setPresetId(result.saved.id);
+    setPresetName(result.saved.name);
+    setPresetNote(STRINGS.exportDialog.presetSaved(result.saved.name));
+  };
+  const removePreset = () => {
+    const next = deletePreset(presets, presetId);
+    const store = deviceStorage();
+    if (!store || !writePresets(store, next)) { setPresetNote(STRINGS.exportDialog.presetStoreFailed); return; }
+    setPresets(next);
+    setPresetId('');
+    setPresetNote('');
+  };
 
+  // The wizard, Export again and saved settings all make their request here (src/v2/engineClient/exportSettings.ts).
   const handleSubmit = (rawMaster = false, rawMasterFormat: 'tiff' | 'png' = 'tiff') => {
-    onExport({
-      rawMaster,
-      ...(rawMaster ? { rawMasterFormat } : {}),
-      destination: rawMaster ? 'local-individual' : destination,
-      fileFormat,
-      jpegQuality: jpegQuality / 100,
-      groupIds: photoIds.length === 1 ? selectedGroupIds : [],
-      sizeIds: selectedSizeIds,
-      includeBefore,
-      includeOriginal,
-      includeAfter,
-      includeOverlay: true,
-      includeWatermark: true,
-      includeVideo: false,
-      maxLongestEdgePx,
-      photoIds,
-    });
+    const settings = currentSettings();
+    const target = exportTargetFor(photo, selectedPhotoIds, nativeFolder, selectedGroupIds);
+    if (!rawMaster) { const store = deviceStorage(); if (store) writeLastExport(store, settings); }
+    onExport(requestFromSettings(settings, target, rawMaster, rawMasterFormat));
   };
 
   return (
@@ -150,8 +188,36 @@ export default function ExportDialog({
 
         {/* Body */}
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto overscroll-contain inflight-scroll p-3 sm:gap-6 sm:p-6 md:grid-cols-12">
-          {/* Left column: Destination + Social quick-select */}
+          {/* Left column: Saved settings, Destination + Social quick-select */}
           <div className="space-y-5 md:col-span-6">
+            <section className="space-y-2" aria-labelledby="export-presets-title" data-testid="export-presets">
+              <h3 id="export-presets-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.exportDialog.presetsHeading}</h3>
+              {presets.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <select aria-label={STRINGS.exportDialog.presetChoose} value={shownPresetId} onChange={(event) => choosePreset(event.target.value)}
+                    className="min-h-10 min-w-0 flex-1 rounded bg-[var(--bg-input)] p-2 text-xs text-[var(--text-primary)]">
+                    <option value="">{STRINGS.exportDialog.presetPlaceholder}</option>
+                    {presets.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                  </select>
+                  {shownPresetId && (
+                    <button type="button" onClick={removePreset}
+                      className="min-h-10 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                      {STRINGS.exportDialog.presetDelete(presets.find((item) => item.id === presetId)?.name ?? '')}
+                    </button>
+                  )}
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <input type="text" value={presetName} maxLength={MAX_PRESET_NAME} aria-label={STRINGS.exportDialog.presetName}
+                  placeholder={STRINGS.exportDialog.presetName} onChange={(event) => setPresetName(event.target.value)}
+                  className="min-h-10 min-w-0 flex-1 rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2 text-xs text-[var(--text-primary)]" />
+                <button type="button" onClick={saveCurrentPreset}
+                  className="min-h-10 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                  {STRINGS.exportDialog.presetSave}
+                </button>
+              </div>
+              {presetNote && <p role="status" className="text-[0.6875rem] text-[var(--text-secondary)]">{presetNote}</p>}
+            </section>
             <section className="space-y-2">
               <h3 className="text-xs font-semibold text-[var(--text-primary)]">
                 {STRINGS.exportDialog.destinationHeading}

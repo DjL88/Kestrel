@@ -103,6 +103,19 @@ export function trashExpired(shoot: { trashedAt?: number }, now: number): boolea
   return shoot.trashedAt !== undefined && now - shoot.trashedAt >= TRASH_KEEP_MS;
 }
 
+/**
+ * A separate copy of a project under a new id and name: every photo, decision, rating, edit and format comes along.
+ * Photo ids stay as they are, because edits, bursts and collages refer to them; they are unique within a project.
+ * The stored photo copies are shared, not duplicated: they are kept while any project uses them (see
+ * unreferencedBlobKeys), so deleting either project later leaves the other whole. Originals are never touched.
+ * The copy starts in the main list (not archived or deleted) and is never the Quick edits bucket.
+ */
+export function duplicateProject(project: CullingState, id: string, title: string, now: number): CullingState {
+  const copy = structuredClone(project);
+  const { archivedAt: _archived, trashedAt: _trashed, inbox: _inbox, ...shoot } = copy.shoot;
+  return { ...copy, shoot: { ...shoot, id, title, createdAt: now, lastUpdatedAt: now } };
+}
+
 /** Deleted projects are in neither list: they show only in Recently deleted. */
 export function splitProjects<T extends { archivedAt?: number; trashedAt?: number }>(projects: readonly T[]): { active: T[]; archived: T[] } {
   const kept = projects.filter((project) => !project.trashedAt);

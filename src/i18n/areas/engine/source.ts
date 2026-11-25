@@ -99,6 +99,7 @@ export const source = {
       : `Exported ${count} files. Your originals are unchanged.`),
     exportSomeFailed: 'Some exports failed. Open Tasks and choose Retry failed. Files already saved stay in place.',
     exportStopped: 'Export stopped. Files already saved stay in place.',
+    enlargementTask: 'Making the enlargement preview',
     exportNotQueued: 'Could not start this export.',
     destinationUnavailable: 'That export destination is unavailable. Choose a local ZIP, separate files or a desktop folder.',
     cullPro: 'Auto-cull is part of InFlight Pro.',
