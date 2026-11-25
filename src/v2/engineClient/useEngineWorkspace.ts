@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { applyDecisionWithHistory, assignBurstGroups, redoDecision, regroupBurstsWithEmbeddings, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
 import { recordEdit, stepEdit, type EditWhy } from '../../core/editHistory';
-import { forkEditCheckpoint, switchEditVersion as switchVersionInCatalogue } from '../../core/editBranches';
+import { deleteCheckpoint, forkEditCheckpoint, renameEditVersion, restoreCheckpoint, saveCheckpoint, switchEditVersion as switchVersionInCatalogue } from '../../core/editBranches';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { sameRecipe } from '../../core/naturalAuto';
 import { newId } from '../../core/ids';
@@ -27,6 +27,8 @@ import { vehicleText } from '../../i18n/areas/vehicles';
 import { useVisualGrouping } from './useVisualGrouping';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
 import { photoParallelism } from '../../core/photoParallelism';
+import { useSceneTags } from './useSceneTags';
+import { declinePhotoTag } from '../../core/photoTags';
 import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
 import { getLocalFileKey, loadLocalFileListShoot, rehydrateLocalFramesFromStore } from '../../providers/localShootLoader';
 import { hashOriginalBytes, isSameOriginalBytes } from '../../core/originalFileIdentity';
@@ -50,7 +52,7 @@ import { MAX_LAYERS } from '../../core/layers';
 import { DEFAULT_EDIT as EMPTY_EDIT } from '../../core/photoEdits';
 import { DEFAULT_CROP, flipCrop, patchCrop, rotateCrop } from './cropOps';
 import { readCrops } from './cropOps';
-import { recordFormatCrop, recordFormatSetChange, recordFormatLink } from './formatHistory';
+import { readFormatHistory, recordFormatCrop, recordFormatSetChange, recordFormatLink } from './formatHistory';
 import { addLayer, addRow, alignOverlays, moveLayer, moveRow, newLayer, patchOverlay, readOverlay, removeLayer, removeRow, updateLayer, updateRow } from './overlayOps';
 import { frameToPhoto, matchesAutoSource, originalFormatSize, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
@@ -650,6 +652,15 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       return current && regrouped ? { ...current, frames: regrouped } : current;
     }),
     onUnavailable: (message) => setNotice(message),
+  });
+
+  // Plain-language tags (place from GPS, light, weather, style, genre) are worked out quietly on this device after photos
+  // are added. Never changes a decision, rating or edit; paused while photos are being imported.
+  useSceneTags({
+    projectId: state?.shoot.id ?? '', frames: state?.frames ?? [], provider: provider.current,
+    active: screen === 'editor' && Boolean(state) && !importing, onScreen: activeId,
+    onTagged: (frameId, update) => setState((current) => (current ? { ...current, frames: current.frames.map((frame) =>
+      frame.id === frameId && frame.removedAt == null ? update(frame) : frame) } : current)),
   });
 
   const activePhotoExport = useRef<number | null>(null);
@@ -1674,6 +1685,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       mutate((current) => ({ ...current, shoot: { ...current.shoot, lastUpdatedAt: Date.now() }, frames: correctVehicle(current.frames, photoId, choice, wholeBurst, VEHICLE_LABELS) }));
       setNotice(vehicleText.correct.saved(changed));
     },
+    removePhotoTag: (photoId, tagId) => mutate((current) => ({
+      ...current,
+      shoot: { ...current.shoot, lastUpdatedAt: Date.now() },
+      frames: current.frames.map((frame) => (frame.id === photoId && !frame.removedAt ? declinePhotoTag(frame, tagId) : frame)),
+    })),
     correctSpeciesName: (photoId, proposedName) => {
       const name = proposedName.trim().slice(0, 120);
       if (!name) return;
@@ -2115,7 +2131,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       mutate((current) => ({ ...current, frames: current.frames.map((frame) => (targets.includes(frame.id) ? { ...frame, appliedLookId: lookId } : frame)) }));
     },
     resetPhotoEdits: (photoId) => { const targets = editTargets(photoId); editFrames(targets, () => undefined); mutate((current) => ({ ...current, frames: current.frames.map((frame) => (targets.includes(frame.id) ? { ...frame, appliedLookId: undefined } : frame)) })); },
-    copyRecipe: () => setClipboard(editToRecipe(activeFrame?.edit)),
+    // With no photo open there is nothing to copy: a neutral recipe here would let Paste silently reset another photo.
+    copyRecipe: () => { if (activeFrame) setClipboard(editToRecipe(activeFrame.edit)); },
     pasteRecipe: () => { if (clipboard && activeId) applyPatch(editTargets(activeId), clipboard); },
     setBurstGrouped: (burstGroupId, grouped) => mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.burstGroupId === burstGroupId ? { ...frame, burstUngrouped: grouped ? undefined : true } : frame)) })),
     // Clicking an earlier step makes a NEW version; the parent and all its
@@ -2138,6 +2155,25 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         frames: current.frames.map((frame) =>
           frame.id === photoId ? syncEditGroup(switchVersionInCatalogue(frame, versionId)) : frame),
       }));
+    },
+    renameEditVersion: (photoId, versionId, name) => mutate((current) => ({ ...current,
+      frames: current.frames.map((frame) => (frame.id === photoId ? renameEditVersion(frame, versionId, name) : frame)) })),
+    saveEditCheckpoint: (photoId, name) => {
+      const at = Date.now();
+      mutate((current) => ({ ...current, shoot: { ...current.shoot, lastUpdatedAt: at },
+        frames: current.frames.map((frame) => (frame.id === photoId ? saveCheckpoint(frame, `checkpoint-${newId()}`, name, at) : frame)) }));
+    },
+    restoreEditCheckpoint: (photoId, checkpointId) => {
+      const at = Date.now();
+      mutate((current) => ({ ...current, shoot: { ...current.shoot, lastUpdatedAt: at },
+        frames: current.frames.map((frame) => (frame.id === photoId ? syncEditGroup(restoreCheckpoint(frame, checkpointId, `checkpoint-open-${newId()}`, at)) : frame)) }));
+    },
+    deleteEditCheckpoint: (photoId, checkpointId) => mutate((current) => ({ ...current,
+      frames: current.frames.map((frame) => (frame.id === photoId ? deleteCheckpoint(frame, checkpointId) : frame)) })),
+    restoreFormatCrop: (photoId, formatId, eventAt) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      const event = readFormatHistory(frame?.formatHistory).events.find((e) => e.formatId === formatId && e.kind === 'crop' && e.at === eventAt);
+      if (event?.after) changeCrops(photoId, [formatId], () => event.after!);
     },
     undo: () => {
       if (activeFrame?.editHistory && activeFrame.editHistory.cursor > 0) mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === activeFrame.id ? syncEditGroup(stepEdit(frame, -1)) : frame)) }));

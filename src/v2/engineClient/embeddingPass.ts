@@ -16,6 +16,8 @@ export interface EmbeddingPass<Frame extends { id: string }, Picture, Embedding>
   onUnavailable: (message: string) => void;
   /** Never offer this photo again in this pass (no picture, or done). */
   skip: (frameId: string) => void;
+  /** Wait until the person has paused (no recent input) before the heavy model work. Optional. */
+  untilQuiet?: () => Promise<void>;
   /** Yield between photos so the interface stays responsive. */
   pause: () => Promise<void>;
   batch: number;
@@ -37,6 +39,10 @@ export async function runEmbeddingPass<Frame extends { id: string }, Picture, Em
       const picture = await pass.picture(frame).catch(() => null);
       if (!pass.stillCurrent()) return 'stopped';
       if (!picture) { pass.skip(frame.id); continue; }
+      if (pass.untilQuiet) {
+        await pass.untilQuiet();
+        if (!pass.stillCurrent()) return 'stopped';
+      }
       let embedding: Embedding | null = null;
       try {
         embedding = await pass.embed(picture);

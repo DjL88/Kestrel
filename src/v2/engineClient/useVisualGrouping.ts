@@ -5,6 +5,7 @@ import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvi
 import { pictureForAnalysis } from '../../providers/pictureForAnalysis';
 import { embedPicture } from '../../providers/visualEmbedder';
 import { runEmbeddingPass } from './embeddingPass';
+import { startNotingInput, untilQuiet } from '../../providers/userActivity';
 
 interface Options {
   projectId: string;
@@ -22,6 +23,11 @@ interface Options {
 }
 
 const BATCH = 12;
+/**
+ * One embedding takes the page's only thread for a few hundred milliseconds, so it waits until the person has paused this
+ * long: culling with the keyboard (about one key a second) then never waits behind it.
+ */
+const QUIET_MS = 1500;
 
 /** Photos still to embed: live, not yet embedded with the current model, the photo on screen first. */
 export function embeddingCandidates(frames: PhotoFrame[], onScreen: string | null, skipped: ReadonlySet<string>): PhotoFrame[] {
@@ -37,6 +43,7 @@ export function useVisualGrouping({ projectId, frames, provider, active, onScree
   const latest = useRef({ projectId, frames, provider, active, onScreen, onEmbedded, onBatchDone, onUnavailable });
   latest.current = { projectId, frames, provider, active, onScreen, onEmbedded, onBatchDone, onUnavailable };
   const running = useRef(false);
+  useEffect(() => { startNotingInput(); }, []);
   const halted = useRef(false);
   const skipped = useRef(new Set<string>());
 
@@ -56,6 +63,7 @@ export function useVisualGrouping({ projectId, frames, provider, active, onScree
         // The model is missing or failed its check: say so once; grouping stays time-based for this session.
         onUnavailable: (message) => latest.current.onUnavailable?.(message),
         skip: (frameId) => { skipped.current.add(frameId); },
+        untilQuiet: () => untilQuiet(QUIET_MS),
         pause: () => new Promise((resolve) => window.setTimeout(resolve, 20)),
         batch: BATCH,
       });

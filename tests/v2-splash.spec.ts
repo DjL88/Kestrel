@@ -26,7 +26,10 @@ test('?v2 a key press skips the splash and does not trigger a shortcut underneat
   await expect(page.getByTestId('splash')).toHaveCount(0, { timeout: 2000 });
   // G opens the grid view; the key that skipped the splash must not have done so.
   await expect(page.getByLabel('All photos grid view')).toHaveCount(0);
-  // And the shortcut is live once the splash is gone (so the check above is not vacuous).
+  // And the shortcut is live once the splash is gone (so the check above is not vacuous). autostart opens the studio in
+  // the background, which can take a few seconds on a busy machine: wait until it is there to take the key.
+  await expect(page.getByRole('complementary', { name: 'Studio tools' })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByLabel('All photos grid view')).toHaveCount(0);
   await page.keyboard.press('g');
   await expect(page.getByLabel('All photos grid view')).toBeVisible();
 });
