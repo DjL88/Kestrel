@@ -49,7 +49,7 @@ test('black and white, high-key and low-key are measured on the pixels', () => {
   assert.deepEqual(ids(pixelStyleTags(grey)), ['style.black-and-white']);
   const colour = pixels(10_000, (i) => (i % 2 ? [200, 40, 40] : [40, 40, 200]));
   assert.deepEqual(ids(pixelStyleTags(colour)), []);
-  const bright = pixels(10_000, (i) => (i % 3 ? [235, 230, 228] : [190, 200, 205]));
+  const bright = pixels(10_000, (i) => (i % 3 ? [250, 236, 200] : [200, 220, 250]));
   assert.deepEqual(ids(pixelStyleTags(bright)), ['style.high-key']);
   const dark = pixels(10_000, (i) => (i % 20 === 0 ? [140, 120, 90] : [6, 6, 8]));
   assert.deepEqual(ids(pixelStyleTags(dark)), ['style.low-key']);
