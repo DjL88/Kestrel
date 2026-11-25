@@ -4,7 +4,7 @@ import { EMBED_MODEL } from '../core/visualSimilarity';
 import { GATE_MODEL } from '../core/categoryGate';
 import { SPECIES_MODEL, centreSquare } from '../core/speciesModel';
 import { PHOTO_CHECK_PACK, PHOTO_CHECK_REVISION } from '../core/photoCheckPack';
-import { EFFICIENTSAM_TI, NAFNET_W32, RFDETR_NANO, optionalModelConfigured, type OptionalModel } from '../core/optionalModels';
+import { BIOCLIP2, EFFICIENTSAM_TI, NAFNET_W32, RFDETR_NANO, optionalModelConfigured, type OptionalModel } from '../core/optionalModels';
 import { NAFNET_TILE } from '../core/nafnet';
 import { bundledModelUrl } from './bundledModelAssets';
 import { isDesktopApp } from './desktopShell';
@@ -46,6 +46,12 @@ export interface CatalogueEntry {
   place(): Promise<ModelPlace>;
   /** Run the model once on the test picture through its normal path. Absent when it can only be timed in use. */
   measure?: (picture: HTMLCanvasElement, signal?: AbortSignal) => Promise<void>;
+  /** An opt-in pack the photographer downloads and removes from Settings. Each file is checked against its pinned digest. */
+  pack?: {
+    model: OptionalModel;
+    download(onProgress: (fraction: number) => void, signal?: AbortSignal): Promise<void>;
+    remove(): Promise<void>;
+  };
 }
 
 const packFiles = (model: OptionalModel): CatalogueFile[] => {
@@ -132,12 +138,22 @@ export const MODEL_CATALOGUE: readonly CatalogueEntry[] = [
     id: RFDETR_NANO.id, name: RFDETR_NANO.name, role: 'detectorTandem', version: '9f201577', licence: RFDETR_NANO.licence,
     files: packFiles(RFDETR_NANO), peakMemory: { megabytes: 432, where: LAPTOP },
     place: () => packPlace(RFDETR_NANO),
+    pack: {
+      model: RFDETR_NANO,
+      download: async (onProgress, signal) => (await import('./rfDetrDetector')).downloadRfDetr(onProgress, signal),
+      remove: async () => (await import('./rfDetrDetector')).removeRfDetr(),
+    },
     measure: async (picture) => { const { findSubjectsRfDetr } = await import('./rfDetrDetector'); await findSubjectsRfDetr(picture); },
   },
   {
     id: EFFICIENTSAM_TI.id, name: 'EfficientSAM-Ti', role: 'tapSelect', version: 'd525f622', licence: EFFICIENTSAM_TI.licence,
     files: packFiles(EFFICIENTSAM_TI), peakMemory: { megabytes: 638, where: LAPTOP },
     place: () => packPlace(EFFICIENTSAM_TI),
+    pack: {
+      model: EFFICIENTSAM_TI,
+      download: async (onProgress, signal) => (await import('./tapSelect')).downloadTapSelect(onProgress, signal),
+      remove: async () => (await import('./tapSelect')).removeTapSelect(),
+    },
     measure: async (picture) => {
       const { encodePhoto, selectSubjects } = await import('./tapSelect');
       const key = `settings-measure-${Date.now()}`;
@@ -149,11 +165,28 @@ export const MODEL_CATALOGUE: readonly CatalogueEntry[] = [
     id: NAFNET_W32.id, name: 'NAFNet width32', role: 'denoise', version: '2b4af71e', licence: NAFNET_W32.licence,
     files: packFiles(NAFNET_W32), peakMemory: { megabytes: 387, where: LAPTOP },
     place: () => packPlace(NAFNET_W32),
+    pack: {
+      model: NAFNET_W32,
+      download: async (onProgress, signal) => (await import('./nafnetDenoise')).downloadNafnet(onProgress, signal),
+      remove: async () => (await import('./nafnetDenoise')).removeNafnet(),
+    },
     measure: async () => {
       const { openNafnet } = await import('./nafnetDenoise');
       const nafnet = await openNafnet();
       if (!nafnet) return;
       try { await nafnet.infer(new Float32Array(3 * NAFNET_TILE * NAFNET_TILE).fill(0.5)); } finally { await nafnet.close(); }
+    },
+  },
+  {
+    // Desktop second opinion on species. Peak memory was measured only with native ONNX Runtime (1.95 GB, docs/models.md),
+    // not with the app's WebAssembly runtime, so it is not shown; timing needs a species to check, so it is not offered here.
+    id: BIOCLIP2.id, name: 'BioCLIP 2', role: 'species', version: '2957b322', licence: BIOCLIP2.licence,
+    files: packFiles(BIOCLIP2), peakMemory: null,
+    place: () => packPlace(BIOCLIP2),
+    pack: {
+      model: BIOCLIP2,
+      download: async (onProgress, signal) => (await import('./speciesValidator')).downloadValidator(onProgress, signal),
+      remove: async () => (await import('./speciesValidator')).removeValidator(),
     },
   },
 ];

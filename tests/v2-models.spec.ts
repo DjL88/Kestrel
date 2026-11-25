@@ -16,5 +16,7 @@ test('?v2 Settings lists every model with its checksum, and says what has not be
   // The opt-in packs are not offered without an address in this build, and were never timed.
   await expect(section.getByTestId('v2-model-rfdetr-nano-fp16').getByTestId('v2-model-place')).toHaveText('Not offered in this copy');
   await expect(section.getByTestId('v2-model-file-rfdetr-nano-fp16').getByTestId('v2-model-run')).toHaveText('Not measured yet');
+  // A pack this build does not offer has nothing to download.
+  await expect(section.getByTestId('v2-model-download')).toHaveCount(0);
   await expect(section.getByTestId('v2-models-measure')).toBeEnabled();
 });

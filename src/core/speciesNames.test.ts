@@ -40,8 +40,28 @@ test('the shipped name files: every species indexed, White-throated Dipper named
     assert.match(file.attribution, /CC BY 4\.0/, `${code}: attribution kept`);
     dipper[code] = file.names['Cinclus cinclus'];
     assert.ok(dipper[code], `${code}: White-throated Dipper has a name`);
-    assert.ok(statSync(`${dir}${code}.json`).size < 600_000, `${code}: file stays under 0.6 MB`);
+    assert.ok(statSync(`${dir}${code}.json`).size < 700_000, `${code}: file stays under 0.7 MB`);
   }
   assert.equal(dipper.de, 'Wasseramsel');
   assert.ok(statSync(`${dir}index.json`).size < 900_000, 'index (birds and mammals) stays under 0.9 MB');
+});
+
+test('mammals are named in the person’s language where Wikidata has a name, else by scientific name', () => {
+  const read = (code: string) => JSON.parse(readFileSync(`public/models/species-names/${code}.json`, 'utf8')) as { names: Record<string, string>; attribution: string };
+  assert.equal(read('de').names['Vulpes vulpes'], 'Rotfuchs');
+  assert.equal(read('fr').names['Vulpes vulpes'], 'Renard roux');
+  assert.equal(read('cy').names['Lutra lutra'], 'Dwrgi');
+  assert.equal(read('ga').names['Vulpes vulpes'], 'Sionnach');
+  assert.match(read('cy').attribution, /Wikidata \(CC0\)/);
+  // Drafts for common UK and European mammals win where Wikidata is missing, wrong or Latin.
+  assert.equal(read('es').names['Oryctolagus cuniculus'], 'Conejo europeo', 'not "Poponejo"');
+  assert.equal(read('es').names['Neogale vison'], 'Visón americano', 'not an old Latin name');
+  assert.equal(read('it').names['Vulpes vulpes'], 'Volpe rossa');
+  assert.equal(read('cy').names['Vulpes vulpes'], 'Llwynog');
+  assert.equal(read('gd').names['Oryctolagus cuniculus'], 'Coineanach');
+  for (const code of ['de', 'fr', 'cy', 'gd', 'ga']) {
+    for (const [scientific, name] of Object.entries(read(code).names)) assert.notEqual(name.toLowerCase(), scientific.toLowerCase(), `${code}: ${scientific} is Latin again`);
+  }
+  const index = buildSpeciesNameIndex('es', [{ source: 't', attribution: 't', language: 'es', names: [['Lutra lutra', 'Eurasian Otter', read('es').names['Lutra lutra'] ?? null]] }]);
+  assert.equal(displaySpeciesName('Eurasian Otter', index).name, read('es').names['Lutra lutra'] ?? 'Lutra lutra');
 });

@@ -22,6 +22,8 @@ export interface PhotoHistogram {
   highlightClip: number;
   /** Share of pixels at 0 (shadow) or 255 (highlight) in each channel, so clipping can be said in words per channel. */
   channelClip?: Record<'red' | 'green' | 'blue', { shadow: number; highlight: number }>;
+  /** 'rgb16': measured from the 16-bit RAW develop. Absent: measured from the 8-bit picture on screen. */
+  precision?: 'rgb16';
 }
 export type TileState = 'importing' | 'analysing' | 'ready' | 'unavailable';
 export type AssistMode = 'solo' | 'copilot' | 'autopilot';
@@ -157,6 +159,8 @@ export interface EditRecipe {
   clarity: number; // -100 to 100
   sharpen: number; // 0 to 100
   denoiseRawAi: boolean;
+  /** TrueDetail AI denoise: true while a learned denoiser's stored result is blended into the subject. Set false to remove it. Absent = off. */
+  aiDenoise?: boolean;
   denoiseLuminance: number; // 0 to 100
   denoiseColour: number; // 0 to 100
   upscaleFactor: 1 | 2 | 4;
@@ -186,9 +190,17 @@ export interface EditRecipe {
   vignetteBlur?: number;
   /** A colour for the vignette as #rrggbb. Absent = darker or lighter, no colour. */
   vignetteColour?: string;
+  /** Vignette shape, -100 (the frame's rectangle) to 100 (a circle). Absent = 0, an oval of the frame's shape. */
+  vignetteRoundness?: number;
+  /** Vignette fall-off, 0 (hard) to 100 (softest). Absent = 50. */
+  vignetteFeather?: number;
+  /** How much bright areas are spared from a darkening or colour vignette, 0 to 100. Absent = 0. */
+  vignetteHighlights?: number;
   /** Film-like grain, 0 to 100, and its size, 0 (fine) to 100 (coarse; absent = 25). */
   grain?: number;
   grainSize?: number;
+  /** Grain roughness, 0 (smooth and even) to 100 (irregular). Absent = 0. */
+  grainRoughness?: number;
   /** Advanced: camera calibration, hue and saturation of each primary, -100 to 100. Absent = none. */
   calibration?: Record<'red' | 'green' | 'blue', { hue: number; saturation: number }>;
   /** White balance in kelvin against the camera's as-shot estimate (RAW photos only). Absent = as shot. */
@@ -277,14 +289,16 @@ export type MaskGeometry =
 
 export type MaskGeometryField = 'cx' | 'cy' | 'rx' | 'ry' | 'angle' | 'x1' | 'y1' | 'x2' | 'y2';
 
+export interface MaskLayerPart { id: string; mode: 'add' | 'subtract' | 'intersect' }
+
 export interface MaskLayer {
   id: string;
   name: string;
   type: 'subject' | 'sky' | 'background' | 'brush' | 'area' | 'gradient';
   /** Present only for genuine editable oval/gradient masks; never fabricated for detected subjects. */
   geometry?: MaskGeometry;
-  /** Restrict this layer to, or subtract, another layer's saved shape. */
-  limit?: { id: string; mode: 'intersect' | 'subtract' };
+  /** Other layers combined into this one, in order: add their area, subtract it, or keep only the overlap. */
+  parts?: MaskLayerPart[];
   visible: boolean;
   /** Edge softness, 0 to 100. */
   feather: number;
@@ -785,6 +799,10 @@ export interface WorkspaceActions {
   removeOverlayRow: (photoId: string, rowId: string) => void;
   /** Measure this photo's lens colour edges and set caRed/caBlue from them. 'clean' = nothing to correct; 'unclear' = too few edges to tell. */
   detectColourEdges: (photoId: string) => Promise<'corrected' | 'clean' | 'unclear'>;
+  /** White balance from the picture itself, as one undoable step. `at` (0 to 1 across the shown, framed picture) is a spot
+   * that should be grey or white (the eyedropper); without it, Auto estimates the light from the whole picture.
+   * 'limited' = a slider reached its end first; 'unreadable' = the spot is clipped or too dark, nothing changed. */
+  neutralWhiteBalance?: (photoId: string, at?: { x: number; y: number }) => Promise<'set' | 'limited' | 'unreadable'>;
   /** Image layers. Add one from an image file on this device (opens the file picker). */
   addImageLayer: (photoId: string) => Promise<void>;
   /** Add another photo of this project as a layer: a copy of it as it looks now, with its edits. */
@@ -820,7 +838,8 @@ export interface WorkspaceActions {
   setMaskEdit: (photoId: string, maskId: string, key: string, value: number) => void;
   setMaskFeather: (photoId: string, maskId: string, percent: number) => void;
   setMaskGeometry: (photoId: string, maskId: string, field: MaskGeometryField, value: number) => void;
-  setMaskLimit: (photoId: string, maskId: string, limit: MaskLayer['limit'] | null) => void;
+  /** Combine other masks into this one, in order; an empty list removes every part. */
+  setMaskParts: (photoId: string, maskId: string, parts: MaskLayerPart[]) => void;
 
   // Tasks & Export
   cancelTask: (taskId: string) => void;

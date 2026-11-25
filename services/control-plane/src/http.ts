@@ -82,5 +82,7 @@ export function send(res: ServerResponse, reply: Reply, origin?: string): void {
   };
   if (origin) { headers['access-control-allow-origin'] = origin; headers.vary = 'Origin'; }
   res.writeHead(reply.status, headers);
-  res.end(reply.status === 204 ? undefined : JSON.stringify(reply.body));
+  // A route that sets a text/* content type (the unsubscribe page) sends its string body as it is.
+  const text = typeof reply.body === 'string' && headers['content-type'].startsWith('text/');
+  res.end(reply.status === 204 ? undefined : text ? (reply.body as string) : JSON.stringify(reply.body));
 }
