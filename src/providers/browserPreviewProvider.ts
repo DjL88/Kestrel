@@ -4,6 +4,7 @@ import {
   previewCacheKey,
   saveOfflinePreview,
   saveOfflinePreviewPair,
+  MAX_RAW_DEVELOP_PREVIEW_BYTES,
   type OfflinePreviewPair,
 } from './offlinePreviewCache';
 import { extractNefPreview } from '../core/nefPreview';
@@ -37,7 +38,7 @@ const MAX_CACHED_PREVIEW_BYTES = 1024 * 1024;
 export type { OfflinePreviewPair } from './offlinePreviewCache';
 
 export interface OfflinePreviewCache {
-  savePreviewPair(stableKey: string, previews: OfflinePreviewPair): Promise<boolean>;
+  savePreviewPair(stableKey: string, previews: OfflinePreviewPair, maxBytes?: number): Promise<boolean>;
   loadPreviewPair(stableKey: string): Promise<OfflinePreviewPair | null>;
 }
 
@@ -338,14 +339,15 @@ export class BrowserPreviewProvider implements PreviewProvider {
     try {
       if (!isCurrent()) return false;
       const thumbnail = await encodePreview(bitmap, THUMB_MAX_WIDTH);
-      pair = { thumbnail, review: await encodePreview(bitmap, REVIEW_MAX_WIDTH, MAX_CACHED_PREVIEW_BYTES - thumbnail.size) };
+      // A RAW's own develop keeps its full 2,200 px at quality 0.82 (MAX_RAW_DEVELOP_PREVIEW_BYTES); embedded previews stay at 1 MB.
+      pair = { thumbnail, review: await encodePreview(bitmap, REVIEW_MAX_WIDTH, MAX_RAW_DEVELOP_PREVIEW_BYTES - thumbnail.size) };
     } finally {
       bitmap.close();
     }
     if (!isCurrent()) return false;
 
     this.developedReviews.set(key, pair);
-    await this.offlinePreviewCache.savePreviewPair(key, pair).catch(() => false);
+    await this.offlinePreviewCache.savePreviewPair(key, pair, MAX_RAW_DEVELOP_PREVIEW_BYTES).catch(() => false);
     if (!isCurrent()) return false;
     // Replace the embedded preview, including one still being read. An explicit full develop stays preferred.
     if (!this.developed.has(stableKey)) {
