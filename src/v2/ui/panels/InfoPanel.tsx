@@ -93,6 +93,12 @@ export default function InfoPanel({
               <span>Shadows clipped {pct(hist.shadowClip)}</span>
               <span>Highlights clipped {pct(hist.highlightClip)}</span>
             </p>
+            {/* For a RAW, say which picture the measurement came from: the 16-bit develop, or the 8-bit picture on screen. */}
+            {photo.picture?.preview && (
+              <p className="mt-0.5 text-[0.6875rem] text-[var(--text-muted)]" data-testid="histogram-precision" data-precision={hist.precision ?? 'rgb8'}>
+                {hist.precision === 'rgb16' ? STRINGS.pictureSource.histogram16 : STRINGS.pictureSource.histogram8}
+              </p>
+            )}
             {clippedChannels.length > 0 && (
               <ul className="mt-0.5 text-[0.6875rem] text-[var(--text-secondary)]" data-testid="histogram-channel-clipping">
                 {clippedChannels.map(({ line, clip }) => (

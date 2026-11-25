@@ -47,11 +47,32 @@ export interface RegionScore {
   addedTexture: number;
 }
 
-export interface CandidateVerdict { strength: number; ok: boolean; reason: string | null; score: RegionScore }
+export interface CandidateVerdict {
+  /** 'conventional', or the learned denoiser's id (e.g. 'nafnet-sidd-w32-w16'). */
+  source: string;
+  strength: number; ok: boolean; reason: string | null; score: RegionScore;
+}
+
+/** A learned denoiser's result at one blend strength, offered to some regions. */
+export interface LearnedCandidate { source: string; strength: number; regions: readonly DenoiseRegion[]; render: () => Promise<Pixels> }
+
+const noiseDrop = (v: CandidateVerdict) => v.score.noiseBefore > 0 ? 1 - v.score.noiseAfter / v.score.noiseBefore : 0;
+
+/** Among passing candidates, the one that removes the most noise; on a tie, the one that keeps more structure. */
+export function bestVerdict(verdicts: readonly CandidateVerdict[]): CandidateVerdict | undefined {
+  let best: CandidateVerdict | undefined;
+  for (const v of verdicts) {
+    if (!v.ok) continue;
+    if (!best || noiseDrop(v) > noiseDrop(best) + 1e-6 || (Math.abs(noiseDrop(v) - noiseDrop(best)) <= 1e-6 && v.score.detail > best.score.detail)) best = v;
+  }
+  return best;
+}
 
 export interface RegionChoice {
   region: DenoiseRegion;
-  /** The chosen strength, or 0 when no candidate improved on the original. */
+  /** Which denoiser won: 'conventional' or a learned denoiser's id. */
+  source: string;
+  /** The chosen strength (blend strength for a learned one), or 0 when no candidate improved on the original. */
   strength: number;
   verdicts: CandidateVerdict[];
   /** Plain-English reason the original was kept, or null when a candidate was chosen. */
@@ -99,7 +120,11 @@ export function scoreRegion(original: Pixels, candidate: Pixels, weight: Float32
     before.push(d0); next.push(d1);
     energyBefore += d0 * d0; energyAfter += d1 * d1;
   }
-  // Structure kept, per 32 px block.
+  // Structure kept, per 32 px block. A step counts as structure only above the noise floor: three times the noise's
+  // standard deviation (the median deviation from four neighbours is about 0.75 sigma for Gaussian noise), so a perfect
+  // denoiser is not mistaken for one that lost detail just because the noise itself made steps.
+  const sigma = median(before.slice()) / 0.754;
+  const floor = Math.max(8, 3 * sigma);
   const block = 32;
   let baseline = 0, retained = 0, worstBlock = 1;
   for (let by = 0; by < height; by += block) for (let bx = 0; bx < width; bx += block) {
@@ -110,7 +135,7 @@ export function scoreRegion(original: Pixels, candidate: Pixels, weight: Float32
       for (const distance of [1, 3]) for (const q of [x + distance < width ? p + distance : -1, y + distance < height ? p + distance * width : -1]) {
         if (q < 0 || !(weight[q] >= 0.5)) continue;
         const a = Math.abs(beforeLuma[p] - beforeLuma[q]);
-        if (a < 8) continue;
+        if (a < floor) continue;
         old += a; kept += Math.min(a, Math.abs(after[p] - after[q])); edges += 1;
       }
     }
@@ -140,8 +165,9 @@ export function judgeRegion(score: RegionScore, policy: RegionPolicy): string | 
 /**
  * Pick each region's strength. `render` draws the whole recipe with every region at one strength from
  * `candidateLadder(requested)`; each rendering is scored for the regions whose ladder holds that strength, then dropped,
- * so at most one candidate image is alive at a time. The strongest passing candidate wins in each region: the region
- * policy's thresholds already say how much detail it may give up, so a stronger pass is a cleaner result.
+ * so at most one candidate image is alive at a time. Learned candidates are judged by the same rules, for the regions
+ * they are offered to. In each region the passing candidate that removes the most noise wins: the region policy's
+ * thresholds already say how much detail it may give up.
  */
 export async function chooseRegions(
   original: Pixels,
@@ -149,6 +175,7 @@ export async function chooseRegions(
   requested: number,
   render: (strength: number) => Promise<Pixels>,
   policies: Readonly<Record<DenoiseRegion, RegionPolicy>> = TRUEDETAIL_REGIONS,
+  learned: readonly LearnedCandidate[] = [],
 ): Promise<RegionChoice[]> {
   const beforeLuma = lumaPlane(original);
   const allowed = regions.map(({ region }) => new Set(policies[region].ladder.map(share => scaledStrength(requested, share))));
@@ -159,13 +186,26 @@ export async function chooseRegions(
       if (!allowed[i].has(strength)) return;
       const score = scoreRegion(original, pixels, weight, beforeLuma);
       const reason = judgeRegion(score, policies[region]);
-      verdicts[i].push({ strength, ok: reason === null, reason, score });
+      verdicts[i].push({ source: 'conventional', strength, ok: reason === null, reason, score });
+    });
+  }
+  for (const candidate of learned) {
+    const wanted = regions.map(({ region }) => candidate.regions.includes(region));
+    if (!wanted.some(Boolean)) continue;
+    const pixels = await candidate.render();
+    regions.forEach(({ region, weight }, i) => {
+      if (!wanted[i]) return;
+      const score = scoreRegion(original, pixels, weight, beforeLuma);
+      const reason = judgeRegion(score, policies[region]);
+      verdicts[i].push({ source: candidate.source, strength: candidate.strength, ok: reason === null, reason, score });
     });
   }
   return regions.map(({ region }, i) => {
-    const pick = verdicts[i].find(v => v.ok);
-    const last = verdicts[i][verdicts[i].length - 1];
-    return { region, strength: pick?.strength ?? 0, verdicts: verdicts[i], kept: pick ? null : last ? `even the gentlest candidate ${last.reason}` : 'no candidate was tried' };
+    const pick = bestVerdict(verdicts[i]);
+    const conventional = verdicts[i].filter(v => v.source === 'conventional');
+    const last = conventional[conventional.length - 1] ?? verdicts[i][verdicts[i].length - 1];
+    return { region, source: pick?.source ?? 'conventional', strength: pick?.strength ?? 0, verdicts: verdicts[i],
+      kept: pick ? null : last ? `even the gentlest candidate ${last.reason}` : 'no candidate was tried' };
   });
 }
 
