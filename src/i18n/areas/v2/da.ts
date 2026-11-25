@@ -1512,6 +1512,13 @@ export const da: AreaTranslation<typeof source> = {
     stop: 'Stop',
     failed: (names: string) => `Kunne ikke måle: ${names}`,
     done: 'Målt på denne enhed.',
+    downloadPack: (size: string) => `Hent (${size})`,
+    downloading: (name: string, percent: number) => `Henter ${name}: ${percent}%`,
+    cancel: 'Annuller',
+    removePack: 'Fjern',
+    packReady: (name: string) => `${name} er klar på denne enhed.`,
+    packRemoved: (name: string) => `${name} blev fjernet fra denne enhed.`,
+    packNote: 'Hentes kun, når du beder om det, kontrolleres mod sin kontrolsum og gemmes på denne enhed. Intet foto sendes.',
   },
   settingsMore: {
     closeSettings: 'Luk indstillinger',

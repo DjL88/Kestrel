@@ -1512,6 +1512,13 @@ export const fr: AreaTranslation<typeof source> = {
     stop: 'Arrêter',
     failed: (names: string) => `Mesure impossible : ${names}`,
     done: 'Mesuré sur cet appareil.',
+    downloadPack: (size: string) => `Télécharger (${size})`,
+    downloading: (name: string, percent: number) => `Téléchargement de ${name} : ${percent} %`,
+    cancel: 'Annuler',
+    removePack: 'Supprimer',
+    packReady: (name: string) => `${name} est prêt sur cet appareil.`,
+    packRemoved: (name: string) => `${name} a été supprimé de cet appareil.`,
+    packNote: 'Téléchargé uniquement à votre demande, vérifié avec sa somme de contrôle, puis conservé sur cet appareil. Aucune photo n’est envoyée.',
   },
   settingsMore: {
     closeSettings: 'Fermer les réglages',

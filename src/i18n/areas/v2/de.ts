@@ -1512,6 +1512,13 @@ export const de: AreaTranslation<typeof source> = {
     stop: 'Stopp',
     failed: (names: string) => `Konnte nicht messen: ${names}`,
     done: 'Auf diesem Gerät gemessen.',
+    downloadPack: (size: string) => `Herunterladen (${size})`,
+    downloading: (name: string, percent: number) => `${name} wird heruntergeladen: ${percent} %`,
+    cancel: 'Abbrechen',
+    removePack: 'Entfernen',
+    packReady: (name: string) => `${name} ist auf diesem Gerät bereit.`,
+    packRemoved: (name: string) => `${name} wurde von diesem Gerät entfernt.`,
+    packNote: 'Wird nur auf Ihren Wunsch heruntergeladen, mit seiner Prüfsumme geprüft und auf diesem Gerät gespeichert. Es wird kein Foto gesendet.',
   },
   settingsMore: {
     closeSettings: 'Einstellungen schließen',
