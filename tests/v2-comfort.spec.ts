@@ -1,3 +1,4 @@
+import { openV2Settings } from './helpers';
 import { expect, test, type Page } from '@playwright/test';
 
 // Neurodivergent accessibility (owner R&D item 2): dialogs you can leave with Escape, messages that wait to be read,
@@ -45,7 +46,7 @@ test('?v2 is calmer by default, and Calm View switches its parts together while 
   const root = await openEditor(page);
   await expect(root).toHaveAttribute('data-v2-motion', 'calm');
 
-  await root.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openV2Settings(page);
   const dialog = page.getByRole('dialog', { name: 'Settings' });
   const preset = dialog.getByRole('switch', { name: 'Calm View' });
   const motion = dialog.getByRole('switch', { name: 'Less movement' });
@@ -71,7 +72,7 @@ test('?v2 is calmer by default, and Calm View switches its parts together while 
 
 test('?v2 a message stays long enough to read, even in Calm View, and can be dismissed', async ({ page }) => {
   const root = await openEditor(page);
-  await root.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openV2Settings(page);
   await page.getByRole('dialog', { name: 'Settings' }).getByRole('switch', { name: 'Calm View' }).click();
   await page.keyboard.press('Escape');
 
@@ -98,7 +99,7 @@ test('?v2 text size, the easy-to-read font and roomy spacing change the interfac
   await expect(overlayText).toBeVisible();
   const overlayFont = await overlayText.evaluate((el) => getComputedStyle(el).fontFamily);
 
-  await root.getByRole('button', { name: 'Settings', exact: true }).first().click();
+  await openV2Settings(page);
   const dialog = page.getByRole('dialog', { name: 'Settings' });
   await dialog.getByRole('button', { name: '150%' }).click();
   await dialog.getByRole('button', { name: /Easy to read/ }).click();
