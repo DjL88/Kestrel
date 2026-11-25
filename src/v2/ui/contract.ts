@@ -358,7 +358,15 @@ export interface Photo {
   /** Set when this photo was shot in a burst with others. `ungrouped` is the person's choice to see its frames one by one. */
   burst?: { groupId: string; index: number; count: number; ungrouped: boolean; score?: number };
   /** The photo's recorded edit steps (oldest first) and where it stands now. Absent until it has been edited. */
-  editHistory?: { steps: { label: string; at: number }[]; cursor: number; originalAvailable?: boolean };
+  editHistory?: { steps: {
+    label: string; at: number;
+    /** Made by Auto or brought in from Lightroom, rather than slider by slider. */
+    by?: 'auto' | 'lightroom';
+    /** What changed, slider by slider, with real values. */
+    changes?: { label: string; from: string; to: string }[];
+    /** Auto's own reasons, in the person's language. */
+    why?: string[];
+  }[]; cursor: number; originalAvailable?: boolean };
   /** Saved non-destructive photo-wide edit versions, all using one original. */
   editVersions?: {
     activeId: string;
