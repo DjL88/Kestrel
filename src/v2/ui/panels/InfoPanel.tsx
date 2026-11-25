@@ -84,7 +84,7 @@ export default function InfoPanel({
               <span>Highlights clipped {pct(hist.highlightClip)}</span>
             </p>
             {clippedChannels.length > 0 && (
-              <ul className="mt-0.5 text-[11px] text-[var(--text-secondary)]" data-testid="histogram-channel-clipping">
+              <ul className="mt-0.5 text-[0.6875rem] text-[var(--text-secondary)]" data-testid="histogram-channel-clipping">
                 {clippedChannels.map(({ line, clip }) => (
                   <li key={line.key}>{STRINGS.panelWords.histogramChannelClip(STRINGS.panelWords[line.word], pct(clip.shadow), pct(clip.highlight))}</li>
                 ))}
