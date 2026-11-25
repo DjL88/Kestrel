@@ -600,7 +600,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onToggleTheme={() =>
               actions.updateSettings({ theme: activeTheme === 'dark' ? 'light' : 'dark' })
             }
-            onToggleDemoUnavailable={actions.toggleDemoUnavailable}
+            hasActivePhoto={Boolean(activePhoto)}
+            onToggleDemoUnavailable={useStore === useWorkspace ? actions.toggleDemoUnavailable : undefined}
           />
 
           {/* Main Workspace Row */}

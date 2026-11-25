@@ -2088,7 +2088,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       mutate((current) => ({ ...current, frames: current.frames.map((frame) => (targets.includes(frame.id) ? { ...frame, appliedLookId: lookId } : frame)) }));
     },
     resetPhotoEdits: (photoId) => { const targets = editTargets(photoId); editFrames(targets, () => undefined); mutate((current) => ({ ...current, frames: current.frames.map((frame) => (targets.includes(frame.id) ? { ...frame, appliedLookId: undefined } : frame)) })); },
-    copyRecipe: () => setClipboard(editToRecipe(activeFrame?.edit)),
+    // With no photo open there is nothing to copy: a neutral recipe here would let Paste silently reset another photo.
+    copyRecipe: () => { if (activeFrame) setClipboard(editToRecipe(activeFrame.edit)); },
     pasteRecipe: () => { if (clipboard && activeId) applyPatch(editTargets(activeId), clipboard); },
     setBurstGrouped: (burstGroupId, grouped) => mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.burstGroupId === burstGroupId ? { ...frame, burstUngrouped: grouped ? undefined : true } : frame)) })),
     // Clicking an earlier step makes a NEW version; the parent and all its
