@@ -134,6 +134,31 @@ export function master16Blocker(edit: PhotoEdit | undefined, framing: PhotoFrami
  * it neither goes through an 8-bit canvas nor allocates a rotated full frame.
  * extraTurns first aligns the RAW to the picture the editor shows.
  */
+/**
+ * A smaller copy of a 16-bit picture for measuring (the histogram), averaged over whole source blocks so no level is
+ * invented. The longest edge becomes at most maxEdge; a picture already that small is copied unchanged.
+ */
+export function shrinkRgb16(image: Rgb16Image, maxEdge: number): Rgb16Image {
+  const step = Math.max(1, Math.ceil(Math.max(image.width, image.height) / Math.max(1, maxEdge)));
+  if (step === 1) return { width: image.width, height: image.height, data: image.data.slice() };
+  const width = Math.max(1, Math.floor(image.width / step));
+  const height = Math.max(1, Math.floor(image.height / step));
+  const data = new Uint16Array(width * height * 3);
+  const area = step * step;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      let r = 0, g = 0, b = 0;
+      for (let dy = 0; dy < step; dy += 1) {
+        let i = ((y * step + dy) * image.width + x * step) * 3;
+        for (let dx = 0; dx < step; dx += 1, i += 3) { r += image.data[i]; g += image.data[i + 1]; b += image.data[i + 2]; }
+      }
+      const o = (y * width + x) * 3;
+      data[o] = Math.round(r / area); data[o + 1] = Math.round(g / area); data[o + 2] = Math.round(b / area);
+    }
+  }
+  return { width, height, data };
+}
+
 export function frameRgb16(image: Rgb16Image, framing: PhotoFraming, extraTurns = 0, reuseIdentity = false): Rgb16Image {
   const turns = (((framing.turns + extraTurns) % 4) + 4) % 4;
   const sideways = turns % 2 === 1;

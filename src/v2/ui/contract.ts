@@ -22,6 +22,8 @@ export interface PhotoHistogram {
   highlightClip: number;
   /** Share of pixels at 0 (shadow) or 255 (highlight) in each channel, so clipping can be said in words per channel. */
   channelClip?: Record<'red' | 'green' | 'blue', { shadow: number; highlight: number }>;
+  /** 'rgb16': measured from the 16-bit RAW develop. Absent: measured from the 8-bit picture on screen. */
+  precision?: 'rgb16';
 }
 export type TileState = 'importing' | 'analysing' | 'ready' | 'unavailable';
 export type AssistMode = 'solo' | 'copilot' | 'autopilot';

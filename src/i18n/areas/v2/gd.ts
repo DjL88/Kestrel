@@ -423,6 +423,8 @@ export const gd: AreaTranslation<typeof source> = {
     he: 'Nikon High Efficiency',
     heStar: 'Nikon High Efficiency*',
     infoLabel: "An dealbh a chithear",
+    histogram16: "Air a thomhas on leasachadh RAW 16-biod.",
+    histogram8: "Air a thomhas on dealbh 8-biod air an sgrìn.",
   },
   dngCopy: {
     button: "Sàbhail lethbhreac DNG gun chall",

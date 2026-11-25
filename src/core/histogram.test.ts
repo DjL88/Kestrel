@@ -28,3 +28,15 @@ test('bars are normalised and keep the number of bars', () => {
   assert.equal(Math.max(...bars), 1);
   assert.ok(bars[50] > 0 && bars[50] < 1);
 });
+
+test('a 16-bit histogram bins like the 8-bit one but counts clipping only at the true 16-bit ends', async () => {
+  const { computeHistogram16 } = await import('./histogram');
+  // Three pixels: true black in red, near-white that an 8-bit copy would call 255, and true white in blue.
+  const data = new Uint16Array([0, 30000, 30000, 65400, 65400, 65400, 100, 200, 65535]);
+  const histogram = computeHistogram16(data);
+  assert.equal(histogram.pixels, 3);
+  assert.equal(histogram.red[0], 2, '0 and 100 share the bottom bin');
+  assert.equal(histogram.red[255], 1, '65400 is drawn in the top bin');
+  assert.equal(histogram.highlightClip, 1 / 3, 'only the true 65535 is clipped');
+  assert.equal(histogram.shadowClip, 1 / 3);
+});

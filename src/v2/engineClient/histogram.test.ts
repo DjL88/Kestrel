@@ -45,3 +45,16 @@ test('an empty picture reports no channel clipping rather than dividing by zero'
   const none = { shadow: 0, highlight: 0 };
   assert.deepEqual(toPhotoHistogram(new Uint8ClampedArray(0)).channelClip, { red: none, green: none, blue: none });
 });
+
+test('a 16-bit histogram says it is 16-bit and does not call near-white clipped', async () => {
+  const { toPhotoHistogram16 } = await import('./histogram.ts');
+  const near = new Uint16Array(300).fill(65400);
+  const h = toPhotoHistogram16(near);
+  assert.equal(h.precision, 'rgb16');
+  assert.equal(h.highlightClip, 0);
+  assert.equal(h.channelClip?.red.highlight, 0);
+  const white = toPhotoHistogram16(new Uint16Array(300).fill(65535));
+  assert.equal(white.highlightClip, 1);
+  assert.equal(white.channelClip?.blue.highlight, 1);
+  assert.equal(toPhotoHistogram(solid(128, 128, 128)).precision, undefined);
+});

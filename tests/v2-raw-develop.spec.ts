@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { mosaic, withPreview } from './rawFixture';
 import { proveTiff16 } from '../src/core/tiff16Proof';
 import { provePng } from '../src/core/png16';
-test('V2 background engine replaces a synthetic embedded RAW preview with developed sensor pixels', async ({ page }) => {
+test('V2 background engine replaces a synthetic embedded RAW preview with developed sensor pixels', async ({ page }, testInfo) => {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: 'New project' }).first().click();
@@ -50,6 +50,13 @@ test('V2 background engine replaces a synthetic embedded RAW preview with develo
   await bar.getByRole('button', { name: 'Develop full size' }).click();
   await expect(canvasLabel).toHaveAttribute('data-picture-source', 'raw-full', { timeout: 30_000 });
   await expect(bar.getByRole('button', { name: /Develop full size|Developing full size/ })).toHaveCount(0);
+  // The histogram of InFlight's own develop is measured again from the 16-bit sensor develop, and says so in words.
+  // (The panel is shared; on a phone it sits behind More, which other specs cover.)
+  if (testInfo.project.name !== 'desktop') return;
+  await root.getByRole('button', { name: 'Info', exact: true }).first().click();
+  const precision = root.getByTestId('histogram-precision');
+  await expect(precision).toHaveAttribute('data-precision', 'rgb16', { timeout: 30_000 });
+  await expect(precision).toHaveText('Measured from the 16-bit RAW develop.');
 });
 
 test('V2 writes structurally verified 16-bit TIFFs with and without the Tint edit', async ({ page }, testInfo) => {

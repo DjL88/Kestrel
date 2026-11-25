@@ -425,6 +425,8 @@ export const ga: AreaTranslation<typeof source> = {
     he: 'Nikon High Efficiency',
     heStar: 'Nikon High Efficiency*',
     infoLabel: "Pictiúr a thaispeántar",
+    histogram16: "Tomhaiste ón bhforbairt RAW 16-giotán.",
+    histogram8: "Tomhaiste ón bpictiúr 8-giotán ar an scáileán.",
   },
   dngCopy: {
     button: "Sábháil cóip DNG gan chailliúint",

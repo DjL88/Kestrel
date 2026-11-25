@@ -422,6 +422,8 @@ export const is: AreaTranslation<typeof source> = {
     he: 'Nikon High Efficiency',
     heStar: 'Nikon High Efficiency*',
     infoLabel: "Mynd sem sést",
+    histogram16: "Mælt úr 16 bita RAW-framköllun.",
+    histogram8: "Mælt úr 8 bita myndinni á skjánum.",
   },
   dngCopy: {
     button: "Vista taplaust DNG-afrit",
