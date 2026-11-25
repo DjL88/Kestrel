@@ -67,3 +67,16 @@ test('the RF-DETR pack is pinned, offered on phones, and hidden when the build g
   assert.equal(optionalModelConfigured({ ...RFDETR_NANO, files: { model: { ...RFDETR_NANO.files.model, url: '' } } }), false);
   assert.equal(optionalModelConfigured({ ...RFDETR_NANO, files: { model: { ...RFDETR_NANO.files.model, url: '/m.onnx' } } }), true);
 });
+
+test('tandem keeps every subject separately: two birds and five people stay seven boxes', () => {
+  const birds = [det('bird', 14, 0.9, 0), det('bird', 14, 0.85, 300)];
+  const people = Array.from({ length: 5 }, (_, i) => det('person', 0, 0.8 - i * 0.02, 1000 + i * 150));
+  const rf = [...birds, ...people];
+  const yx = [{ ...birds[0], score: 0.7 }, { ...people[2], box: { ...people[2].box, x: people[2].box.x + 5 } }];
+  const out = tandemDetections(rf, yx);
+  assert.equal(out.length, 7);
+  assert.equal(out.filter((d) => d.label === 'bird').length, 2);
+  assert.equal(out.filter((d) => d.label === 'person').length, 5);
+  assert.equal(out.filter((d) => d.agreement === 'both').length, 2);
+  assert.ok(out.filter((d) => d.agreement === 'rfdetr-only').every((d) => d.review));
+});

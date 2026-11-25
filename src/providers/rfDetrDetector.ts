@@ -65,16 +65,18 @@ export async function findSubjectsRfDetr(source: Source, signal?: AbortSignal): 
   return mergeDetections(found);
 }
 
+/** The same bar YOLOX's subject list uses (0.5), so the two answers are compared like for like. */
+export const RFDETR_KEEP_SCORE = 0.5;
+
 /**
- * Both detectors, compared (`tandemDetections`). YOLOX always runs; RF-DETR runs only when downloaded. Its failure
- * is logged and the YOLOX answer is returned with no review flags, exactly as without the pack.
+ * Both detectors, compared (`tandemDetections`), given YOLOX's own answer for the same photo. RF-DETR runs only when
+ * its pack is downloaded; when it is missing or fails, the YOLOX answer comes back unchanged in meaning (no review
+ * flags). Every subject is kept separately. objectDetector.ts calls this, so every subject scan gets the tandem.
  */
-export async function findSubjectsTandem(source: Source, signal?: AbortSignal): Promise<TandemDetection[]> {
-  const { findSubjects } = await import('./objectDetector');
-  const yolox = (await findSubjects(source, signal)).map((found) => found.detection);
+export async function tandemWithRfDetr(source: Source, yolox: readonly Detection[], signal?: AbortSignal): Promise<TandemDetection[]> {
   let rfdetr: Detection[] | null = null;
-  if (await rfDetrStatus() === 'ready') {
-    try { rfdetr = await findSubjectsRfDetr(source, signal); } catch (error) {
+  if (await rfDetrStatus().catch(() => 'unavailable') === 'ready') {
+    try { rfdetr = (await findSubjectsRfDetr(source, signal)).filter((d) => d.score >= RFDETR_KEEP_SCORE); } catch (error) {
       if ((error as Error).name === 'AbortError') throw error;
       console.warn('RF-DETR unavailable for this photo; using YOLOX alone', error);
     }
