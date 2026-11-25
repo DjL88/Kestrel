@@ -31,6 +31,7 @@ import TapSelectLayer from './TapSelectLayer';
 import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
 import { captureElement, screenshotName } from '../utils/captureElement';
 import { focusOnScreen, focusZoom, lookForZoomFocus, type ZoomFocus } from '../../engineClient/eyeZoom';
+import { shouldDevelopOnZoom } from '../utils/zoomFullDevelop';
 import { DOCKED, clampDockOffset, isDocked, nudgeDockOffset, parseDockOffset, snapDockOffset, type DockOffset } from '../utils/floatingDock';
 import {
   buildPreviewFilterCss,
@@ -114,6 +115,18 @@ interface CanvasProps {
  */
 function ZoomPastPreviewWatch({ photoId, active, onZoomPastPreview }: { photoId: string; active: boolean; onZoomPastPreview?: (photoId: string) => void }) {
   useEffect(() => { if (active) onZoomPastPreview?.(photoId); }, [active, photoId, onZoomPastPreview]);
+  return null;
+}
+
+/**
+ * Starts a RAW's full-size develop when it is zoomed past Fit, so a close look is never the 2,200 px screen develop
+ * magnified. Once per photo (shouldDevelopOnZoom); a component of its own for the same reason as ZoomPastPreviewWatch.
+ */
+function ZoomFullDevelopWatch({ photo, canvasZoom, onDevelopFullSize }: { photo: { id: string; fullDevelop?: 'offered' | 'running' }; canvasZoom: number; onDevelopFullSize?: (photoId: string) => void }) {
+  const asked = useRef(new Set<string>());
+  useEffect(() => {
+    if (onDevelopFullSize && shouldDevelopOnZoom(photo, canvasZoom, asked.current)) onDevelopFullSize(photo.id);
+  }, [photo, canvasZoom, onDevelopFullSize]);
   return null;
 }
 
@@ -1714,6 +1727,7 @@ export default function Canvas({
       className="relative flex flex-1 flex-col overflow-hidden bg-[var(--bg-canvas)]"
     >
       <ZoomPastPreviewWatch photoId={photo.id} active={pastPreview} onZoomPastPreview={onZoomPastPreview} />
+      <ZoomFullDevelopWatch photo={photo} canvasZoom={canvasZoom} onDevelopFullSize={onDevelopFullSize} />
       {/* Top Canvas Bar: View mode (Single vs All Formats Side-by-Side) + Per-selection Flip/Rotate/Compare */}
       <div className="v2-canvas-bar flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/75 px-3 py-1.5 backdrop-blur-sm">
         <div className="flex items-center gap-1.5">
