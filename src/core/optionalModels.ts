@@ -37,9 +37,16 @@ export interface OptionalModel {
 
 const env = (import.meta as { env?: Record<string, string | undefined> }).env;
 
-function pinned(prefix: string, sha256: string, bytes: number): OptionalModelFile {
+/**
+ * Where this build fetches the packs from: one folder holding every file by its own name. Set it with
+ * `VITE_OPTIONAL_MODEL_HOST` (ending in a slash), or per file with `VITE_<PACK>_URL`. Empty means no pack is offered.
+ * Each file is still checked against the digest pinned below, so the host can never swap in a different model.
+ */
+export const OPTIONAL_MODEL_HOST = env?.VITE_OPTIONAL_MODEL_HOST ?? '';
+
+function pinned(prefix: string, file: string, sha256: string, bytes: number): OptionalModelFile {
   return {
-    url: env?.[`VITE_${prefix}_URL`] ?? '',
+    url: env?.[`VITE_${prefix}_URL`] ?? (OPTIONAL_MODEL_HOST ? `${OPTIONAL_MODEL_HOST.replace(/\/?$/, '/')}${file}` : ''),
     sha256: env?.[`VITE_${prefix}_SHA256`] ?? sha256,
     bytes: Number(env?.[`VITE_${prefix}_BYTES`] ?? bytes),
   };
@@ -53,7 +60,7 @@ export const RFDETR_NANO: OptionalModel = {
   source: 'https://huggingface.co/Roboflow/rf-detr-nano (revision 9f201577d9415f0378084748d27e68586e6b3600)',
   tier: 'phone',
   fallback: 'YOLOX-tiny',
-  files: { model: pinned('RFDETR_MODEL', 'e83b810bff55423a019564fcc3cd0bc188fd15d88f2f39dea287abb61f707002', 54560489) },
+  files: { model: pinned('RFDETR_MODEL', 'rfdetr-nano-fp16.onnx', 'e83b810bff55423a019564fcc3cd0bc188fd15d88f2f39dea287abb61f707002', 54560489) },
   cache: 'kestrel-rfdetr-nano-v1',
 };
 
@@ -66,8 +73,8 @@ export const EFFICIENTSAM_TI: OptionalModel = {
   tier: 'phone',
   fallback: 'manual brush and the U²-Netp subject mask',
   files: {
-    encoder: pinned('EFFICIENTSAM_ENCODER', '5f0260b102fe82ad88c8ef0dc2422b3c44755005e1c2bbcc44b5d88b1bafbff4', 12641129),
-    decoder: pinned('EFFICIENTSAM_DECODER', 'e1409f2e1449600f29ee3674e690020de14d5b52d573b169650c8062608b73f3', 8589267),
+    encoder: pinned('EFFICIENTSAM_ENCODER', 'efficientsam-ti-encoder-fp16.onnx', '5f0260b102fe82ad88c8ef0dc2422b3c44755005e1c2bbcc44b5d88b1bafbff4', 12641129),
+    decoder: pinned('EFFICIENTSAM_DECODER', 'efficientsam-ti-decoder-fp16.onnx', 'e1409f2e1449600f29ee3674e690020de14d5b52d573b169650c8062608b73f3', 8589267),
   },
   cache: 'kestrel-efficientsam-ti-v1',
 };
@@ -80,7 +87,7 @@ export const NAFNET_W32: OptionalModel = {
   source: 'https://github.com/megvii-research/NAFNet (commit 2b4af71ebe098a92a75910c233a3965a3e93ede4), NAFNet-SIDD-width32.pth from the authors\' Google Drive link in docs/SIDD.md',
   tier: 'phone',
   fallback: 'conventional luminance and colour noise reduction',
-  files: { model: pinned('NAFNET_MODEL', 'c28f9ebfc824217becc71f1406300380e2a74123db02e007a17eb3015f74fe21', 58841423) },
+  files: { model: pinned('NAFNET_MODEL', 'nafnet-sidd-w32-w16.onnx', 'c28f9ebfc824217becc71f1406300380e2a74123db02e007a17eb3015f74fe21', 58841423) },
   cache: 'kestrel-nafnet-w32-v1',
 };
 

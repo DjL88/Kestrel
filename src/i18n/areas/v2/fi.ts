@@ -1515,6 +1515,13 @@ export const fi: AreaTranslation<typeof source> = {
     stop: 'Pysäytä',
     failed: (names: string) => `Mittaus ei onnistunut: ${names}`,
     done: 'Mitattu tällä laitteella.',
+    downloadPack: (size: string) => `Lataa (${size})`,
+    downloading: (name: string, percent: number) => `Ladataan ${name}: ${percent} %`,
+    cancel: 'Peruuta',
+    removePack: 'Poista',
+    packReady: (name: string) => `${name} on valmis tällä laitteella.`,
+    packRemoved: (name: string) => `${name} poistettiin tältä laitteelta.`,
+    packNote: 'Ladataan vain pyynnöstäsi, tarkistetaan tarkistussummaa vasten ja säilytetään tällä laitteella. Kuvia ei lähetetä.',
   },
   settingsMore: {
     closeSettings: 'Sulje asetukset',

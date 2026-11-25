@@ -1514,6 +1514,13 @@ export const sv: AreaTranslation<typeof source> = {
     stop: 'Stoppa',
     failed: (names: string) => `Kunde inte mäta: ${names}`,
     done: 'Mätt på den här enheten.',
+    downloadPack: (size: string) => `Hämta (${size})`,
+    downloading: (name: string, percent: number) => `Hämtar ${name}: ${percent} %`,
+    cancel: 'Avbryt',
+    removePack: 'Ta bort',
+    packReady: (name: string) => `${name} är klar på den här enheten.`,
+    packRemoved: (name: string) => `${name} togs bort från den här enheten.`,
+    packNote: 'Hämtas bara när du ber om det, kontrolleras mot sin kontrollsumma och sparas på den här enheten. Inget foto skickas.',
   },
   settingsMore: {
     closeSettings: 'Stäng inställningarna',

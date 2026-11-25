@@ -1514,6 +1514,13 @@ export const nb: AreaTranslation<typeof source> = {
     stop: 'Stopp',
     failed: (names: string) => `Kunne ikke måle: ${names}`,
     done: 'Målt på denne enheten.',
+    downloadPack: (size: string) => `Last ned (${size})`,
+    downloading: (name: string, percent: number) => `Laster ned ${name}: ${percent} %`,
+    cancel: 'Avbryt',
+    removePack: 'Fjern',
+    packReady: (name: string) => `${name} er klar på denne enheten.`,
+    packRemoved: (name: string) => `${name} ble fjernet fra denne enheten.`,
+    packNote: 'Lastes bare ned når du ber om det, kontrolleres mot sjekksummen og lagres på denne enheten. Ingen bilder sendes.',
   },
   settingsMore: {
     closeSettings: 'Lukk innstillingene',

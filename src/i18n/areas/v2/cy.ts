@@ -1514,6 +1514,13 @@ export const cy: AreaTranslation<typeof source> = {
     stop: 'Stopio',
     failed: (names: string) => `Methu mesur: ${names}`,
     done: 'Wedi’i fesur ar y ddyfais hon.',
+    downloadPack: (size: string) => `Lawrlwytho (${size})`,
+    downloading: (name: string, percent: number) => `Yn lawrlwytho ${name}: ${percent}%`,
+    cancel: 'Canslo',
+    removePack: 'Tynnu',
+    packReady: (name: string) => `Mae ${name} yn barod ar y ddyfais hon.`,
+    packRemoved: (name: string) => `Tynnwyd ${name} o’r ddyfais hon.`,
+    packNote: 'Caiff ei lawrlwytho dim ond pan fyddwch yn gofyn, ei wirio yn erbyn ei siecswm, a’i gadw ar y ddyfais hon. Ni anfonir unrhyw lun.',
   },
   settingsMore: {
     closeSettings: 'Cau’r gosodiadau',

@@ -1515,6 +1515,13 @@ export const gd: AreaTranslation<typeof source> = {
     stop: 'Stad',
     failed: (names: string) => `Cha b’ urrainn tomhas: ${names}`,
     done: 'Air a thomhas air an uidheam seo.',
+    downloadPack: (size: string) => `Luchdaich a-nuas (${size})`,
+    downloading: (name: string, percent: number) => `A’ luchdadh a-nuas ${name}: ${percent}%`,
+    cancel: 'Sguir dheth',
+    removePack: 'Thoir air falbh',
+    packReady: (name: string) => `Tha ${name} deiseil air an uidheam seo.`,
+    packRemoved: (name: string) => `Chaidh ${name} a thoirt far an uidheim seo.`,
+    packNote: 'Cha tèid a luchdadh a-nuas ach nuair a dh’iarras tu e, thèid a dhearbhadh an aghaidh an t-suim-dearbhaidh aige, agus thèid a chumail air an uidheam seo. Cha tèid dealbh sam bith a chur.',
   },
   settingsMore: {
     closeSettings: 'Dùin na roghainnean',

@@ -1514,6 +1514,13 @@ export const pt: AreaTranslation<typeof source> = {
     stop: 'Parar',
     failed: (names: string) => `Não foi possível medir: ${names}`,
     done: 'Medido neste dispositivo.',
+    downloadPack: (size: string) => `Transferir (${size})`,
+    downloading: (name: string, percent: number) => `A transferir ${name}: ${percent}%`,
+    cancel: 'Cancelar',
+    removePack: 'Remover',
+    packReady: (name: string) => `${name} está pronto neste dispositivo.`,
+    packRemoved: (name: string) => `${name} foi removido deste dispositivo.`,
+    packNote: 'Só é transferido quando pede, verificado com a respetiva soma de verificação e guardado neste dispositivo. Nenhuma foto é enviada.',
   },
   settingsMore: {
     closeSettings: 'Fechar as definições',
