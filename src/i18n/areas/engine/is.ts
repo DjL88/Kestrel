@@ -49,6 +49,7 @@ export const is: AreaTranslation<typeof source> = {
       : `Suð fjarlægt á þessu tæki, með ${count} myndefni varin saman.`),
     global: 'Engin útlína myndefnis var áreiðanleg, svo suðeyðing var notuð jafnt á alla myndina.',
     failedCheck: 'Niðurstaðan stóðst ekki gæðaprófun. Núverandi breytingum þínum var haldið.',
+    mainThread: 'Þetta tæki gat ekki fjarlægt suð í bakgrunni, svo InFlight gæti hafa stöðvast á meðan.',
     leftAsItWas: (notes) => `Látið óbreytt. ${notes}`,
   },
   workspace: {

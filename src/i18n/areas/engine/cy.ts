@@ -49,6 +49,7 @@ export const cy: AreaTranslation<typeof source> = {
       : `Lleihawyd sŵn ar y ddyfais hon, gyda ${count} gwrthrych wedi’u diogelu gyda’i gilydd.`),
     global: 'Doedd dim amlinell gwrthrych yn ddibynadwy, felly lleihawyd sŵn yn gyfartal dros y llun cyfan.',
     failedCheck: 'Ni wnaeth y canlyniad basio’r gwiriad ansawdd. Cadwyd eich golygiadau presennol.',
+    mainThread: 'Ni allai’r ddyfais hon leihau sŵn yn y cefndir, felly efallai fod InFlight wedi oedi wrth weithio.',
     leftAsItWas: (notes) => `Gadawyd fel yr oedd. ${notes}`,
   },
   workspace: {

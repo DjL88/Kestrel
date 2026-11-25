@@ -19,6 +19,7 @@ import { FirestoreCloudBalance } from './cloudBalance.ts';
 import { randomUUID } from 'node:crypto';
 import { FirestoreSpendGuard } from './spendGuard.ts';
 import type { FirestoreLike } from './firestoreStore.ts';
+import { VertexLearningLedger, configFromEnv as vertexConfigFromEnv } from './vertexLearning.ts';
 import { createHmac } from 'node:crypto';
 import { FirestoreMailLedger, Mailer, SmtpTransport, secretManagerValue, MAIL_HARD_DAILY_MAX } from './mailer.ts';
 
@@ -32,7 +33,7 @@ export interface WiringDeps {
   /** Tests replace the SMTP transport. */
   mailTransport?: import('./mailer.ts').MailTransport;
 }
-export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'notices' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer' | 'cloudBalance'> & { enabled: string[] };
+export type OptionalServices = Pick<AppOptions, 'cloud' | 'safeCopy' | 'collab' | 'presence' | 'gallery' | 'notices' | 'cloudPhotos' | 'learning' | 'learningWithdrawal' | 'spend' | 'mailer' | 'cloudBalance' | 'vertexLearning'> & { enabled: string[] };
 
 function whole(env: NodeJS.ProcessEnv, name: string, dflt: number, max: number): number {
   const raw = env[name];
@@ -77,6 +78,21 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
       limits: { daily: whole(env, 'KCP_MAIL_DAILY_LIMIT', 500, MAIL_HARD_DAILY_MAX), perSender: whole(env, 'KCP_MAIL_PER_SENDER', 30, 500), perRecipient: whole(env, 'KCP_MAIL_PER_RECIPIENT', 3, 50) },
     });
     out.enabled.push('email');
+  }
+
+  // Vertex learning batches: only when Terraform has created the job (vertex_learning_enabled). "Learn now" starts it.
+  if (env.KCP_VERTEX_LEARNING_JOB) {
+    const job = env.KCP_VERTEX_LEARNING_JOB;
+    if (!/^projects\/[a-z][a-z0-9-]+\/locations\/[a-z0-9-]+\/jobs\/[a-z][a-z0-9-]*$/.test(job)) throw new Error('KCP_VERTEX_LEARNING_JOB must be projects/<p>/locations/<l>/jobs/<name>');
+    const token = deps.token ?? (() => metadataAccessToken());
+    out.vertexLearning = {
+      ledger: new VertexLearningLedger(db), config: vertexConfigFromEnv(env),
+      startJob: async () => {
+        const r = await fetch(`https://run.googleapis.com/v2/${job}:run`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${await token()}` }, body: '{}' });
+        if (!r.ok) throw new Error(`run job ${r.status}`);
+      },
+    };
+    out.enabled.push('vertex-learning');
   }
 
   if (env.KCP_CLOUD_PROCESSING_BUCKET && env.KCP_CLOUD_RUNNER_JOB) {

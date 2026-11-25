@@ -49,6 +49,7 @@ export const de: AreaTranslation<typeof source> = {
       : `Auf diesem Gerät entrauscht, ${count} Motive sind gemeinsam geschützt.`),
     global: 'Kein Motivumriss war zuverlässig, daher wurde das ganze Foto gleichmäßig entrauscht.',
     failedCheck: 'Das Ergebnis hat die Qualitätsprüfung nicht bestanden. Ihre bisherigen Bearbeitungen wurden beibehalten.',
+    mainThread: 'Dieses Gerät konnte nicht im Hintergrund entrauschen, daher hat InFlight währenddessen vielleicht kurz gestockt.',
     leftAsItWas: (notes) => `Unverändert gelassen. ${notes}`,
   },
   workspace: {

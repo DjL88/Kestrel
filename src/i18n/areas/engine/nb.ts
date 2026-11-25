@@ -49,6 +49,7 @@ export const nb: AreaTranslation<typeof source> = {
       : `Støy fjernet på denne enheten, med ${count} motiver beskyttet sammen.`),
     global: 'Ingen motivkontur var pålitelig, så støyreduksjonen ble brukt jevnt på hele bildet.',
     failedCheck: 'Resultatet besto ikke kvalitetskontrollen. De eksisterende redigeringene dine ble beholdt.',
+    mainThread: 'Denne enheten kunne ikke fjerne støy i bakgrunnen, så InFlight kan ha stoppet opp mens den jobbet.',
     leftAsItWas: (notes) => `Latt være som det var. ${notes}`,
   },
   workspace: {

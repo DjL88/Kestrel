@@ -49,6 +49,7 @@ export const ga: AreaTranslation<typeof source> = {
       : `Laghdaíodh torann ar an ngléas seo, agus ${count} ábhar cosanta le chéile.`),
     global: 'Ní raibh imlíne aon ábhair iontaofa, mar sin laghdaíodh torann go cothrom ar fud an ghrianghraif.',
     failedCheck: 'Níor éirigh leis an toradh sa tseiceáil cháilíochta. Coinníodh d’eagarthóireacht reatha.',
+    mainThread: 'Níorbh fhéidir leis an ngléas seo torann a laghdú sa chúlra, mar sin d’fhéadfadh InFlight stopadh ar feadh tamaill.',
     leftAsItWas: (notes) => `Fágadh mar a bhí. ${notes}`,
   },
   workspace: {

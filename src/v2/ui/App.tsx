@@ -14,6 +14,7 @@ import ProjectsHub from './screens/ProjectsHub';
 import { canHidePro, hiddenProFeatures, panelsHiddenByPro } from '../engineClient/proVisibility';
 import { FeaturePlanContext, HiddenProContext } from './shell/ProBadge';
 import { backupStatusText } from '../engineClient/backupWords';
+import { exportTargetFor, readLastExport, requestFromSettings } from '../engineClient/exportSettings';
 import { usePresence } from './shell/usePresence';
 import { PresenceAvatars, PresenceCursors } from './shell/PresenceLayer';
 import { NoticesButton, useNotices } from './shell/Notices';
@@ -30,7 +31,7 @@ import { loadPad, resolveWithPad, savePad, type PadProfile } from './commands/pa
 import { commandById, type CommandDefinition } from './commands/registry';
 import { useNativeMenu } from './commands/useNativeMenu';
 import { lazyPart } from './utils/lazyPart';
-import { isDesktopApp } from '../../providers/desktopShell';
+import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
 import type { MenuAction } from './commands/menuMap';
 
 // Only the projects list is needed to start. The editor (shell, panels and dialogs) is its own set of chunks, fetched in
@@ -289,6 +290,16 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     }
   }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, store.settings.advanceAfterDecision, activePhoto, actions, pairPhotos, editLocked]);
 
+  // File > Export again with last settings (G09): the wizard's last settings on the current selection, through the same
+  // request builder, so it gives exactly the files the wizard would. Nothing exported yet: open the wizard instead.
+  const quickExport = () => {
+    if (!activePhoto || store.collage) return;
+    let last = null;
+    try { last = readLastExport(window.localStorage); } catch { last = null; }
+    if (!last) { actions.setExportOpen(true); return; }
+    actions.runExport(requestFromSettings(last, exportTargetFor(activePhoto, store.selectedPhotoIds, isDesktopApp() && !isMobileShell())));
+  };
+
   // The desktop app's native menu (File, Edit, Photo, View, Settings). Some of its accelerators (Cmd/Ctrl+E, +A, +O, +M)
   // are taken before the page sees the key, so the menu choice must run the action itself.
   useNativeMenu((action: MenuAction) => {
@@ -304,6 +315,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'settings': actions.setSettingsOpen(true, action.tab); break;
       case 'removedPhotos': if (inEditor) actions.setRemovedOpen(true); break;
       case 'backupNow': if (inEditor && !store.collage) actions.backUpProjectNow(); break;
+      case 'quickExport': if (inEditor) quickExport(); break;
       case 'backupFile': if (inEditor && !store.collage) actions.saveProjectBackupFile(); break;
       case 'saveXmp': if (inEditor && !store.collage) actions.saveXmpSidecars(store.selectedPhotoIds); break;
       case 'readXmp': if (inEditor && !store.collage) xmpInputRef.current?.click(); break;
@@ -439,6 +451,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetMaskGeometry={actions.setMaskGeometry}
             onSetMaskParts={actions.setMaskParts}
             onPreviewMask={setMaskGuide}
+            tapSelect={store.tapSelect}
+            tapActions={actions}
           />
         );
       case 'enhance':
@@ -630,6 +644,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onDeleteProject={actions.deleteProject}
           onRestoreDeletedProject={actions.restoreDeletedProject}
           onDeleteProjectForever={actions.deleteProjectForever}
+          onDuplicateProject={actions.duplicateProject}
           onOpenSettings={() => actions.setSettingsOpen(true, 'appearance')}
           onToggleTheme={() =>
             actions.updateSettings({ theme: activeTheme === 'dark' ? 'light' : 'dark' })
@@ -670,6 +685,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onBack={actions.backToProjects}
             onSetAssistMode={actions.setAssistMode}
             onExport={() => actions.setExportOpen(true)}
+            onQuickExport={store.screen === 'editor' && !store.collage && activePhoto ? quickExport : undefined}
             onShare={store.collage ? undefined : () => setShareOpen(true)}
             presence={<>
               <PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(key) => { const photo = store.photos.find((candidate) => candidate.sharedKey === key); if (photo) actions.selectPhoto(photo.id); }} />
@@ -792,6 +808,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   maskOverlayKey={keymap['view.maskOverlay'] ? chordLabel(keymap['view.maskOverlay'], IS_MAC) : undefined}
                   onToggleMaskOverlay={() => setMaskOverlayVisible((visible) => !visible)}
                   onSetMaskGeometry={actions.setMaskGeometry}
+                  tapSession={store.tapSelect?.session}
+                  onTapSelect={actions.tapSelectAt}
                   neutralPick={neutralPick}
                   onOpenFormats={activePhoto ? () => {
                     actions.setPanelVisible('formats', true);
