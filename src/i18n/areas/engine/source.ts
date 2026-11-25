@@ -59,6 +59,7 @@ export const source = {
       : `Denoised on this device, with ${count} subjects protected together.`),
     global: 'No subject outline was reliable, so denoise was applied evenly to the whole photo.',
     failedCheck: 'The result did not pass the quality check. Your existing edits were kept.',
+    mainThread: 'This device could not denoise in the background, so InFlight may have paused while it worked.',
     leftAsItWas: (notes: string) => `Left as it was. ${notes}`,
   },
   /** Notices and task names from the V2 workspace's main jobs: open, import, cull, export, masks, denoise, checks. */
@@ -157,6 +158,7 @@ export const source = {
     importSaveStage: 'Saving the photo in this project',
     importSomeFailed: (added: number) => `Some photos could not be imported. ${added} were added. Open Tasks to retry only the ones that failed.`,
     importStopped: (added: number) => `Import stopped. ${added} photos were added. Your originals are unchanged.`,
+    importNotFinished: (count: number, names: string) => `The last import into this project did not finish: ${count} photos were not added (${names}). Import them again to add them. Photos already added are kept.`,
     importFailed: 'Adding photos failed. Your originals were not changed.',
   },
 };

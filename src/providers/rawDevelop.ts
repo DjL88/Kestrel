@@ -164,6 +164,11 @@ export async function verifiedNikonSensorMode(
   }
 }
 
+/** The 16-bit path was refused for this file: its compression could not be classified. */
+export class RawPrecisionUnavailableError extends Error {
+  constructor(message: string) { super(message); this.name = 'RawPrecisionUnavailableError'; }
+}
+
 /**
  * Fail closed if a RAW's compression header cannot be positively classified, and say which it is. Nikon HE/HE* go
  * through the same 16-bit paths as every other RAW: the owner's ticoraw decision (19 Nov 2026) covers 16-bit output
@@ -171,7 +176,7 @@ export async function verifiedNikonSensorMode(
  */
 export async function requireVerifiedNikonPrecisionMode(file: Blob): Promise<RawSensorMode> {
   if (!hasNativeRaw() && !webRawAvailable()) {
-    throw new Error('Nikon RAW compression could not be verified; no precision export was made.');
+    throw new RawPrecisionUnavailableError('Nikon RAW compression could not be verified; no precision export was made.');
   }
   const ask = !hasNativeRaw()
     ? (bytes: number) => inspectSensorModeInBrowser(file, bytes)
@@ -185,7 +190,7 @@ export async function requireVerifiedNikonPrecisionMode(file: Blob): Promise<Raw
 
 /** The gate's decision: every classified compression (HE and HE* included) passes; an unclassified one fails closed. */
 export function precisionSensorMode(mode: RawSensorMode | 'unknown'): RawSensorMode {
-  if (mode === 'unknown') throw new Error('Nikon RAW compression could not be verified; no precision export was made.');
+  if (mode === 'unknown') throw new RawPrecisionUnavailableError('Nikon RAW compression could not be verified; no precision export was made.');
   return mode;
 }
 

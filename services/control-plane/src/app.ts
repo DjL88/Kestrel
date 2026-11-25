@@ -1,9 +1,10 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { freeStorageFor, settleStorageDay, storageAllowsUpload } from './cloudStorageBilling.ts';
 import crypto from 'node:crypto';
 import { z } from 'zod';
 import type { EntitlementGrant } from '../../../src/core/entitlementGrant.ts';
 import { forPublicDocument, parseFlagSet, resolveFlagsForGrant, MAX_GRANT_FLAGS, type Audience, type FlagSet } from '../../../src/core/featureFlags.ts';
-import { parseDataManifest, type DataManifest } from '../../../src/core/dataUpdateManifest.ts';
+import { openSignedDataManifest } from '../../../src/core/modelDelivery.ts';
 import { verifyLicence } from '../../../src/core/licence.ts';
 import { newerRelease } from '../../../src/core/desktopRelease.ts';
 import { inspectJpeg } from '../../../src/core/jpegInspect.ts';
@@ -26,10 +27,16 @@ import { LEARNING_ACTIONS, LEARNING_CAPABILITIES, LEARNING_SOURCES, type Learnin
 import { CollabRefusal, MAX_RECIPE_BYTES, type CollabStore } from './collaboration.ts';
 import { CloudRefusal, CLOUD_VARIANTS, type CloudPhotoStore } from './cloudPhotos.ts';
 import { millicreditsForBytes, type AllowancePolicy, type UsageMeter } from './usageMeter.ts';
+import { FEEDBACK_ITEM_ID } from '../../../src/core/clientFeedback.ts';
+import type { NoticeStore } from './notices.ts';
+import type { NoticeEvent } from '../../../src/core/collabNotices.ts';
 import { GalleryRefusal, GALLERY_MAX_DAYS, GALLERY_MAX_PHOTOS, GALLERY_MAX_PREVIEW_BYTES, type GalleryStore } from './gallery.ts';
 import { presenceUid, PRESENCE_TOKEN_TTL_S, type PresenceSigner } from './presenceToken.ts';
 import { SAFE_COPY_LEVELS, SAFE_COPY_MAX_BYTES, safeCopyKey, type SafeCopyOptions } from './safeCopy.ts';
 import type { SpendOptions } from './spendGuard.ts';
+import { reservationPence, APPROVED_MONTHLY_PENCE, billingMonth, type VertexLearningConfig, type VertexLearningLedger } from './vertexLearning.ts';
+import type { Mailer } from './mailer.ts';
+import { MAIL_LANGUAGES, htmlLang, mailWords } from './mailText.ts';
 import { cloudRunClientIp } from './networkCountry.ts';
 import { ApiError, matchRoute, parseJson, readBody, send, type Reply, type Request, type Route } from './http.ts';
 
@@ -43,6 +50,8 @@ const offlineDeadline = (licence: { offlineGraceDays: number; validUntilMs: numb
 
 export interface AppOptions {
   config: Config;
+  /** Injected for tests: reads the models bucket's manifest/stable.json. Defaults to fetch. */
+  manifestFetch?: typeof fetch;
   store?: Store;
   commerce?: Pick<CommerceLedger, 'getTaxSettings' | 'updateTaxSettings' | 'recordTurnover' | 'ossQuarter'>;
   pricing?: Pick<CommerceLedger, 'latestPriceReview'>;
@@ -74,16 +83,24 @@ export interface AppOptions {
   learning?: LearningSink;
   /** Always-available authenticated withdrawal/deletion sink when new research intake is disabled. */
   learningWithdrawal?: Pick<LearningSink, 'setConsent' | 'deleteBySubject'>;
+  /** Vertex learning batches (owner decisions 7 and 9). Absent until the job is deployed: the switch cannot go on. */
+  vertexLearning?: { ledger: VertexLearningLedger; config: VertexLearningConfig; startJob?: () => Promise<void> };
   /** Managed safe copy (opt-in backup). Absent in production until a bucket exists and is approved: routes answer 503. */
   safeCopy?: SafeCopyOptions;
   /** Shared projects (#1387): membership, per-photo leases, revisions. Absent until Firestore is set up for it: routes answer 503. */
   collab?: CollabStore;
   /** Signs per-project Realtime Database tokens for live cursors. Absent: the presence route answers 503. */
   presence?: PresenceSigner;
+  /** App email from hello@inflight.studio (invitations). Absent until the owner confirms Send mail as: nothing is sent. */
+  mailer?: Mailer;
   /** Client galleries: previews in their own UK bucket. Absent: the gallery routes answer 503. */
   gallery?: GalleryStore;
+  /** Team notifications (G20, decision 11): in-app inbox, then the backend's FCM sender and hello@ mailer. Absent: inbox answers 503. */
+  notices?: NoticeStore;
   /** Shared projects' cloud photo store and the per-account download meter. Absent: the cloud routes answer 503. */
   cloudPhotos?: { store: CloudPhotoStore; meter: UsageMeter; allowance: AllowancePolicy; maxProjectBytes: number };
+  /** Prepaid cloud balance (top-ups; pays beyond the free allowances). Absent: allowances are hard limits. */
+  cloudBalance?: import('./cloudBalance.ts').CloudBalance;
   /** Hard monthly ceiling on metered spend (Gemini, cloud jobs). Absent: no guard (development and tests). */
   spend?: SpendOptions;
   /** Production sets this: the cloud, safe copy and learning features stay OFF until an admin switches them on. Tests and development leave them on. */
@@ -157,13 +174,32 @@ class CollabApiError extends ApiError {
   constructor(status: number, code: string, message: string, readonly detail?: Record<string, unknown>) { super(status, code, message); }
 }
 
+/**
+ * Admin on/off switches. A `planned` switch is designed but not built (owner decisions of 25 Nov 2026, docs/ROADMAP.md):
+ * it is listed so the admin console shows the gate, it is never "configured", and so it can never be switched on.
+ */
+const SWITCHES = [
+  { key: 'managed-ai', label: 'Managed Gemini helper', note: 'Sends one consented, metadata-free thumbnail at a time to Gemini. Counts against the monthly spend ceiling.' },
+  { key: 'cloud-processing', label: 'Cloud processing', note: 'Heavier jobs (denoise, upscale, masks) for Pro. Needs the bucket and the runner job set up.' },
+  { key: 'safe-copy', label: 'Safe copy (managed backup)', note: 'Opt-in backup to InFlight UK storage. Switching off stops uploads only; people can always read and delete their copy.' },
+  { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
+  { key: 'pro-checkout', label: 'Pro checkout (Paddle)', note: 'People can buy Pro through Paddle\'s checkout. Paddle is the merchant of record and handles sales tax and VAT in every country. Switching off stops new checkouts only; payments already made are still verified and granted.' },
+  { key: 'email', label: 'App email (hello@inflight.studio)', note: 'Sends share invitations by email through Google Workspace. Plain text and HTML, an unsubscribe link in every message, at most 500 a day (30 per sender, 3 per recipient). Switch on only once hello@inflight.studio is a verified Send mail as address.' },
+  { key: 'collaboration', label: 'Shared projects', note: 'Cloud subscribers can share a project, invite people by email and check photos out to edit. Switching off stops new shared projects and checkouts; members can still read revisions.' },
+  { key: 'vertex-learning', label: 'Learning in Vertex AI (batches)', note: "Trains shared models in Vertex AI from consented shadow files only (measurements, masks, decisions, recipes; never photos). Batches only: 1,000 newly edited photos, weekly when something is new, or Learn now. Each run reserves its worst-case cost first and is refused past the owner's £20 a month. No always-on endpoints." },
+  { key: 'pro-cloud-storage', planned: true, label: 'Pro Cloud storage (designed, not built)', note: "Store a project's originals in InFlight's UK cloud to open on any device and share. Opt-in per project; originals on the device are never moved or changed. Cannot be switched on until it is built and the owner approves the cost." },
+] as const;
+const SWITCH_KEYS = SWITCHES.map((w) => w.key) as [SwitchKey, ...SwitchKey[]];
+type SwitchKey = typeof SWITCHES[number]['key'];
+const isPlanned = (key: SwitchKey) => SWITCHES.some((w) => w.key === key && 'planned' in w && w.planned);
+
 export const Schemas = {
-  AdminSwitch: z.object({ key: z.enum(['managed-ai', 'cloud-processing', 'safe-copy', 'learning-signal', 'pro-checkout']), on: z.boolean() }).strict(),
+  AdminSwitch: z.object({ key: z.enum(SWITCH_KEYS), on: z.boolean() }).strict(),
   // Paddle asks the buyer for their country itself. Older apps still send one; it is accepted and ignored.
   ProCheckoutRequest: z.object({ country: z.string().regex(/^[A-Z]{2}$/).optional() }).strict(),
   CollabCreate: z.object({ name: z.string().trim().min(1).max(120), displayName: z.string().trim().min(1).max(80) }).strict(),
   CollabMembers: z.discriminatedUnion('kind', [
-    z.object({ kind: z.literal('inviteEmail'), email: z.string().trim().email().max(254), role: z.enum(['editor', 'commenter', 'viewer', 'client']), displayName: z.string().trim().max(80).default(''), photoIds: z.array(PhotoId).max(5000).optional() }).strict(),
+    z.object({ kind: z.literal('inviteEmail'), email: z.string().trim().email().max(254), role: z.enum(['editor', 'commenter', 'viewer', 'client']), displayName: z.string().trim().max(80).default(''), photoIds: z.array(PhotoId).max(5000).optional(), language: z.enum(MAIL_LANGUAGES).optional() }).strict(),
     z.object({ kind: z.literal('setRole'), accountId: z.string().min(1).max(64), role: z.enum(['owner', 'editor', 'commenter', 'viewer', 'client']) }).strict(),
     z.object({ kind: z.literal('setPhotos'), accountId: z.string().min(1).max(64), photoIds: z.array(PhotoId).max(5000).optional() }).strict(),
     z.object({ kind: z.literal('remove'), accountId: z.string().min(1).max(64) }).strict(),
@@ -176,6 +212,7 @@ export const Schemas = {
     allowApproval: z.boolean().default(false), allowDownloads: z.boolean().default(false), watermark: z.boolean().default(false),
   }).strict(),
   GalleryPreview: z.object({ sha256: Sha, bytes: z.number().int().positive().max(GALLERY_MAX_PREVIEW_BYTES), variant: z.enum(['preview', 'thumb']).default('preview') }).strict(),
+  GalleryReview: z.object({ itemId: z.string().regex(FEEDBACK_ITEM_ID), state: z.enum(['done', 'dismissed', 'new']) }).strict(),
   GalleryOpen: z.object({ token: z.string().min(20).max(128), password: z.string().max(200).optional() }).strict(),
   GalleryFeedback: z.object({
     token: z.string().min(20).max(128), password: z.string().max(200).optional(), visitor: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
@@ -185,11 +222,12 @@ export const Schemas = {
   CollabAcquire: z.object({ deviceId: z.string().min(8).max(128) }).strict(),
   CollabHeartbeat: z.object({ token: z.string().min(16).max(128), editing: z.boolean() }).strict(),
   CollabRelease: z.object({ token: z.string().min(16).max(128), action: z.enum(['checked-in', 'released']) }).strict(),
-  CollabComment: z.object({ text: z.string().trim().min(1).max(2000), point: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().nullable().default(null) }).strict(),
+  CollabComment: z.object({ text: z.string().trim().min(1).max(2000), point: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().nullable().default(null), replyTo: z.string().min(1).max(64).nullable().optional() }).strict(),
   CloudUpload: z.object({ variant: z.enum(CLOUD_VARIANTS), sha256: Sha, bytes: z.number().int().positive(), name: z.string().trim().min(1).max(200) }).strict(),
   CloudVariantBody: z.object({ variant: z.enum(CLOUD_VARIANTS) }).strict(),
   CloudRemove: z.object({ variants: z.array(z.enum(CLOUD_VARIANTS)).min(1).max(3).optional() }).strict(),
   CollabResolve: z.object({ resolved: z.boolean() }).strict(),
+  NoticesRead: z.object({ ids: z.union([z.literal('all'), z.array(z.string().min(1).max(64)).max(200)]) }).strict(),
   CollabOverride: z.object({ reason: z.string().trim().min(1).max(500) }).strict(),
   CollabPublish: z.object({ token: z.string().min(16).max(128), baseRevisionId: z.string().max(64).nullable(), recipe: z.record(z.string(), z.unknown()), virtualCopyOf: z.string().max(64).optional() }).strict(),
   SafeCopyLevels: z.object({ levels: z.object({ recipes: z.boolean(), previews: z.boolean(), originals: z.boolean() }).partial().strict() }).strict(),
@@ -278,15 +316,7 @@ export const Schemas = {
   }).strict(),
   AdminFlagDelete: z.object({ key: z.string().regex(/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/) }).strict(),
   AdminQuota: z.object({ accountId: z.string(), requestsLimit: z.number().int().min(0).max(1_000_000) }).strict(),
-  AdminModel: z.object({
-    id: z.string(), kind: z.enum(['onnx', 'species-library', 'equipment']), version: z.string(), path: z.string(),
-    sha256: Hex64, bytes: z.number().int().positive(), requiredAppMin: Version.default('0.0.0'), channel: z.enum(['stable', 'beta']).default('stable'),
-    /** What the model does for the app (inputs, outputs, labels). Required for ONNX: the app only swaps a slot with an unchanged contract. */
-    contract: z.string().max(80).optional(),
-    /** The rights record for this exact version. Required for ONNX. Never stored in Git; weights are not either. */
-    licence: z.object({ spdx: z.string().min(1).max(64), sourceUrl: z.string().url().max(300).startsWith('https://'), noticePath: z.string().max(180).optional(), rightsConfirmed: z.boolean() }).strict().optional(),
-  }).strict(),
-  AdminPromote: z.object({ id: z.string(), version: z.string(), channel: z.enum(['stable', 'beta']).default('stable') }).strict(),
+  AdminCloudCredit: z.object({ accountId: z.string(), credits: z.number().int().min(1).max(100_000), reference: z.string().regex(/^[A-Za-z0-9_.:-]{1,64}$/).describe('Applied once per reference, so a retried request never doubles it') }).strict(),
   AdminRelease: z.object({ platform: z.enum(['windows', 'macos']), channel: z.enum(['stable', 'beta']).default('stable'), version: Version, url: z.string().url(), notes: z.string().max(4000).default(''), minSupported: Version.default('0.0.0') }).strict(),
   AiConsentRequest: z.object({ consent: z.boolean() }).strict(),
 };
@@ -305,7 +335,6 @@ class RateLimiter {
   }
 }
 
-const versionAtLeast = (version: string, minimum: string) => version === minimum || newerRelease(version, minimum);
 
 function decodeImage(base64: string): Buffer {
   if (!/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) throw new ApiError(400, 'IMAGE_INVALID', 'The image is not valid base64.');
@@ -319,6 +348,11 @@ function decodeImage(base64: string): Buffer {
 }
 
 // ---- The application -----------------------------------------------------------
+
+const esc = (v: string) => v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+const MAIL_PAGE_HEADERS = { 'content-type': 'text/html; charset=utf-8', 'x-robots-tag': 'noindex', 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'" };
+/** The small unsubscribe pages, in the recipient's language. */
+const mailPage = (lang: string, title: string, inner: string) => `<!doctype html><html lang="${esc(lang)}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(title)}</title><body style="font-family:system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem;line-height:1.5"><h1>${esc(title)}</h1>${inner}</body></html>`;
 
 export function createApp(options: AppOptions) {
   const { config, commerce } = options;
@@ -421,17 +455,9 @@ export function createApp(options: AppOptions) {
   // ---- Admin on/off switches. Managed Gemini is on unless switched off (the existing `ai_disabled` setting, so the
   // existing admin control and this one are the same switch). The new features are off in production until an admin
   // switches them on. The older kill settings (cloud_disabled, safe_copy_disabled) still win.
-  const SWITCHES = [
-    { key: 'managed-ai', label: 'Managed Gemini helper', note: 'Sends one consented, metadata-free thumbnail at a time to Gemini. Counts against the monthly spend ceiling.' },
-    { key: 'cloud-processing', label: 'Cloud processing', note: 'Heavier jobs (denoise, upscale, masks) for Pro. Needs the bucket and the runner job set up.' },
-    { key: 'safe-copy', label: 'Safe copy (managed backup)', note: 'Opt-in backup to InFlight UK storage. Switching off stops uploads only; people can always read and delete their copy.' },
-    { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
-    { key: 'pro-checkout', label: 'Pro checkout (Paddle)', note: 'People can buy Pro through Paddle\'s checkout. Paddle is the merchant of record and handles sales tax and VAT in every country. Switching off stops new checkouts only; payments already made are still verified and granted.' },
-    { key: 'collaboration', label: 'Shared projects', note: 'Cloud subscribers can share a project, invite people by email and check photos out to edit. Switching off stops new shared projects and checkouts; members can still read revisions.' },
-  ] as const;
-  type SwitchKey = typeof SWITCHES[number]['key'];
-  const switchConfigured = (key: SwitchKey) => key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'pro-checkout' ? !!options.proCheckout : !!options.learning;
+  const switchConfigured = (key: SwitchKey) => isPlanned(key) ? false : key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'email' ? !!options.mailer : key === 'pro-checkout' ? !!options.proCheckout : key === 'vertex-learning' ? !!options.vertexLearning : !!options.learning;
   async function switchOn(key: SwitchKey): Promise<boolean> {
+    if (isPlanned(key)) return false;
     if (key === 'managed-ai') return (await store.getSetting('ai_disabled')) !== '1';
     const legacy = key === 'cloud-processing' ? 'cloud_disabled' : key === 'safe-copy' ? 'safe_copy_disabled' : undefined;
     if (legacy && (await store.getSetting(legacy)) === '1') return false;
@@ -482,12 +508,17 @@ export function createApp(options: AppOptions) {
       await audit(accountId, 'cloud.job.create', 'denied', 'kill switch');
       throw new ApiError(503, 'CLOUD_DISABLED', 'Cloud processing is switched off for now.', true);
     }
-    const licences = await store.listLicencesForAccount(accountId);
-    if (!licences.some((l) => (l.plan === 'paid' || l.plan === 'subscriber') && licenceIsUsable(l, now()))) {
+    const limit = (await accountIsPro(accountId)) ? cloud.jobsPerPeriod : (cloud.basicJobsPerPeriod ?? 0);
+    if (limit <= 0) {
       await audit(accountId, 'cloud.job.create', 'denied', 'not Pro');
       throw new ApiError(403, 'CLOUD_NOT_ENTITLED', 'Cloud processing is part of Pro.');
     }
-    return cloud;
+    return { ...cloud, limit };
+  }
+  /** Pro: any usable paid licence (bought, rent-to-own in progress, or admin-granted) on the account. */
+  async function accountIsPro(accountId: string) {
+    const licences = await store.listLicencesForAccount(accountId);
+    return licences.some((l) => (l.plan === 'paid' || l.plan === 'subscriber') && licenceIsUsable(l, now()));
   }
   async function cloudJobStart(req: Request): Promise<Reply> {
     const claims = await bearer(req);
@@ -498,24 +529,37 @@ export function createApp(options: AppOptions) {
     const reservedAtMs = now();
     const spendPence = options.spend?.cloudJobPence ?? 0;
     const refundSpend = await reserveSpend(spendPence, reservedAtMs).catch(async (e) => { await audit(claims.sub, 'cloud.job.create', 'denied', 'spend ceiling'); throw e; });
-    if (!(await cloud.ledger.reserve(claims.sub, reservedAtMs, cloud.jobsPerPeriod, QUOTA_PERIOD_MS))) {
-      await refundSpend();
-      await audit(claims.sub, 'cloud.job.create', 'denied', 'quota');
-      throw new ApiError(429, 'CLOUD_QUOTA_EXHAUSTED', 'This account has used its cloud processing allowance for this period.');
-    }
     const jobId = uuid();
+    // The month's allowance first; beyond it, one photo's price from the prepaid balance (counted in the ledger too,
+    // so the failure paths' refund of the count stays right).
+    let paidMillicredits: number | undefined;
+    if (!(await cloud.ledger.reserve(claims.sub, reservedAtMs, cloud.limit, QUOTA_PERIOD_MS))) {
+      const price = cloud.extraPhotoMillicredits ?? 300;
+      if (cloud.balance && await cloud.balance.debit(claims.sub, price, `job:${jobId}`)) {
+        paidMillicredits = price;
+        await cloud.ledger.reserve(claims.sub, reservedAtMs, Number.MAX_SAFE_INTEGER, QUOTA_PERIOD_MS);
+      } else {
+        await refundSpend();
+        await audit(claims.sub, 'cloud.job.create', 'denied', 'quota');
+        throw new ApiError(429, 'CLOUD_QUOTA_EXHAUSTED', cloud.balance
+          ? 'This month\'s cloud photos are used up and the cloud balance cannot cover more. Top up, or this runs on your device.'
+          : 'This account has used its cloud processing allowance for this period.');
+      }
+    }
     try {
       const upload = await cloud.runner.createUpload(jobId, body.inputBytes);
       await cloud.ledger.put({
         jobId, accountId: claims.sub, kind: body.kind, inputBytes: body.inputBytes,
         status: 'awaiting-upload', createdAtMs: reservedAtMs, consentAtMs: reservedAtMs,
         ...(options.spend ? { spendPence } : {}),
+        ...(paidMillicredits ? { paidMillicredits } : {}),
       });
       await audit(claims.sub, 'cloud.job.create', 'allowed', `${body.kind} ${jobId}`);
       return { status: 200, body: { jobId, uploadUrl: upload.uploadUrl, expiresAtMs: upload.expiresAtMs } };
     } catch (error) {
       await cloud.ledger.refund(claims.sub, reservedAtMs); // A job that never started costs nothing.
       await refundSpend();
+      if (paidMillicredits) await cloud.balance?.credit(claims.sub, paidMillicredits, `refund:${jobId}`);
       await cloud.runner.deleteInput(jobId).catch(() => undefined);
       throw new ApiError(502, 'CLOUD_RUNNER_FAILED', 'Cloud processing could not start. Nothing was uploaded or charged.', true);
     }
@@ -530,11 +574,17 @@ export function createApp(options: AppOptions) {
 
   async function settleFailedCloudJob(cloud: CloudOptions, record: CloudJobRecord): Promise<boolean> {
     const legacySpendPence = options.spend?.cloudJobPence ?? 0;
-    if (cloud.settleFailed) return cloud.settleFailed(record.jobId, legacySpendPence);
-    if (!(await cloud.ledger.transition(record.jobId, 'running', 'failed'))) return false;
-    await cloud.ledger.refund(record.accountId, record.createdAtMs);
-    await options.spend?.guard.refund(record.createdAtMs, record.spendPence ?? legacySpendPence);
-    return true;
+    const settled = cloud.settleFailed
+      ? await cloud.settleFailed(record.jobId, legacySpendPence)
+      : await (async () => {
+        if (!(await cloud.ledger.transition(record.jobId, 'running', 'failed'))) return false;
+        await cloud.ledger.refund(record.accountId, record.createdAtMs);
+        await options.spend?.guard.refund(record.createdAtMs, record.spendPence ?? legacySpendPence);
+        return true;
+      })();
+    // A failed photo paid from the balance is paid back. Keyed by job, so it happens once whichever path settles it.
+    if (settled && record.paidMillicredits) await cloud.balance?.credit(record.accountId, record.paidMillicredits, `refund:${record.jobId}`);
+    return settled;
   }
 
   /** A stable pseudonym, so withdrawal can delete a person's signals without the store holding their account id. */
@@ -558,6 +608,23 @@ export function createApp(options: AppOptions) {
     }
   }
 
+  /** Bytes in the cloud store across the projects this account pays for (projects it owns first). */
+  async function accountStoredBytes(accountId: string): Promise<number> {
+    if (!options.cloudPhotos || !options.collab) return 0;
+    const collabStore = options.collab, photos = options.cloudPhotos.store;
+    let total = 0;
+    for (const p of await collabStore.myProjects(accountId)) {
+      if (p.role !== 'owner') continue;
+      if ((await collabStore.payerOf(p.projectId).catch(() => null)) !== accountId) continue;
+      total += await photos.storedBytes(p.projectId);
+    }
+    return total;
+  }
+  /** Today's storage charge for one account (idempotent per day). */
+  async function settleStorage(accountId: string) {
+    if (!options.cloudBalance) return 'free' as const;
+    return settleStorageDay(options.cloudBalance, accountId, await accountStoredBytes(accountId), freeStorageFor(await accountIsPro(accountId)), now());
+  }
   function cloudCfg() {
     if (!options.cloudPhotos) throw new ApiError(503, 'CLOUD_NOT_CONFIGURED', 'The cloud photo store is not set up on this server yet. Everything on your devices keeps working.');
     return options.cloudPhotos;
@@ -567,6 +634,12 @@ export function createApp(options: AppOptions) {
       if (error instanceof CloudRefusal) throw new ApiError(error.status, error.code, error.message);
       throw error;
     }
+  }
+
+  /** Tells people about a change. Never fails the action itself: a missed notice is logged, not an error for the person acting. */
+  async function notify(event: () => Promise<NoticeEvent | null>) {
+    if (!options.notices) return;
+    try { const e = await event(); if (e && e.recipients.length) await options.notices.deliver(e, now()); } catch { /* the action already succeeded */ }
   }
 
   function galleryCfg(): GalleryStore {
@@ -583,8 +656,8 @@ export function createApp(options: AppOptions) {
   async function galleryOwner(req: Request, galleryId: string) {
     const claims = await bearer(req);
     const g = await gallery(() => galleryCfg().get(galleryId));
-    await collab(() => collabCfg().requireMember(g.projectId, claims.sub, 'export'));
-    return { claims, g };
+    const member = await collab(() => collabCfg().requireMember(g.projectId, claims.sub, 'export'));
+    return { claims, g, member };
   }
 
   function safeCopyCfg() {
@@ -636,24 +709,32 @@ export function createApp(options: AppOptions) {
     return { flags: resolveFlagsForGrant(flags, { audience, nowMs, bucket, appVersion }) };
   }
 
-  // Contract and licence per model version live in one settings document (works on SQLite and Firestore alike).
-  const MODEL_META_SETTING = 'model_meta';
-  type ModelMeta = Record<string, { contract?: string; licence?: { spdx: string; sourceUrl: string; noticePath?: string; rightsConfirmed: true; recordedAtMs: number } }>;
-  async function loadModelMeta(): Promise<ModelMeta> {
-    try { return JSON.parse((await store.getSetting(MODEL_META_SETTING)) ?? '{}') as ModelMeta; } catch { return {}; }
-  }
-
-  async function currentManifest(appVersion: string, channel: string): Promise<DataManifest> {
-    const rows = await store.listLiveModelAssets(channel);
-    const meta = await loadModelMeta();
-    const assets = rows.filter((row) => versionAtLeast(appVersion, row.requiredAppMin))
-      .map((row) => {
-        const contract = meta[`${row.assetId}@${row.version}`]?.contract;
-        return { id: row.assetId, kind: row.kind, version: row.version, path: row.path, bytes: row.bytes, sha256: row.sha256, ...(contract ? { contract } : {}) };
-      });
-    const manifest = parseDataManifest({ schema: 1, revision: Number((await store.getSetting(`manifest_revision_${channel}`)) ?? 1), assets });
-    if (!manifest) throw new ApiError(500, 'MANIFEST_INVALID', 'The model registry is in an invalid state.');
-    return manifest;
+  // The one model manifest: the bucket's signed manifest/stable.json, served unchanged after its signature is checked
+  // against the pinned manifest key. The control plane never builds or re-signs a model list (kcp keys sign grants only).
+  let cachedManifest: { atMs: number; body: unknown } | null = null;
+  const MANIFEST_CACHE_MS = 5 * 60_000;
+  async function verifiedModelManifest(): Promise<unknown> {
+    const source = config.modelManifest;
+    if (!source) throw new ApiError(503, 'MANIFEST_NOT_CONFIGURED', 'The model manifest is not set up on this server. The app keeps its bundled models.', true);
+    if (cachedManifest && now() - cachedManifest.atMs < MANIFEST_CACHE_MS) return cachedManifest.body;
+    const fetcher = options.manifestFetch ?? fetch;
+    let envelope: unknown;
+    try {
+      const response = await fetcher(source.url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+      if (!response.ok) throw new Error(String(response.status));
+      envelope = await response.json();
+    } catch {
+      if (cachedManifest) return cachedManifest.body; // a short bucket outage serves the last verified copy
+      throw new ApiError(503, 'MANIFEST_UNAVAILABLE', 'The model manifest could not be read just now. The app keeps the models it has.', true);
+    }
+    const checked = await openSignedDataManifest(envelope, source.keys);
+    if (!checked.ok) {
+      console.error('control-plane: model manifest refused', checked.reason);
+      if (cachedManifest) return cachedManifest.body;
+      throw new ApiError(503, 'MANIFEST_UNTRUSTED', 'The model manifest did not verify, so it is not served. The app keeps the models it has.', true);
+    }
+    cachedManifest = { atMs: now(), body: envelope };
+    return envelope;
   }
 
   // Device management and activation must select exactly the same account-owned Pro licence.
@@ -665,6 +746,37 @@ export function createApp(options: AppOptions) {
   const routes: Route[] = [
     // Cloud Run's front end reserves some paths ending in 'z' (including /healthz) and answers them with its own 404
     // before the request reaches the container, so public clients probe /health. /healthz stays for the container probe.
+    {
+      method: 'GET', path: '/v1/mail/unsubscribe', summary: 'Confirm page for stopping invitation emails (a link only shows a button, so mail scanners cannot unsubscribe anyone)', auth: 'none',
+      handler: (req) => {
+        const r = req.query.get('r') ?? ''; const t = req.query.get('t') ?? ''; const l = htmlLang(req.query.get('l') ?? undefined);
+        const w = mailWords(l).unsubscribe;
+        const ok = !!options.mailer && options.mailer.checkUnsubscribe(r, t);
+        const safe = (v: string) => v.replace(/[^A-Za-z0-9_-]/g, '');
+        return { status: ok ? 200 : 400, body: mailPage(l, ok ? w.title : w.invalid, ok
+          ? `<p>${esc(w.confirm)}</p><form method="post" action="/v1/mail/unsubscribe?r=${safe(r)}&amp;t=${safe(t)}&amp;l=${encodeURIComponent(l)}"><input type="hidden" name="List-Unsubscribe" value="One-Click"><button type="submit">${esc(w.button)}</button></form>`
+          : `<p>${esc(w.invalidHint)}</p>`), headers: MAIL_PAGE_HEADERS };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/mail/unsubscribe', summary: 'One-click unsubscribe (RFC 8058) from invitation emails', auth: 'none',
+      handler: async (req) => {
+        const r = req.query.get('r') ?? ''; const t = req.query.get('t') ?? ''; const l = htmlLang(req.query.get('l') ?? undefined);
+        if (!options.mailer || !options.mailer.checkUnsubscribe(r, t)) throw new ApiError(400, 'UNSUBSCRIBE_INVALID', 'This unsubscribe link is not valid.');
+        await options.mailer.unsubscribe(r);
+        await audit('anonymous', 'mail.unsubscribe', 'allowed', '');
+        const w = mailWords(l).unsubscribe;
+        return { status: 200, body: mailPage(l, w.title, `<p>${esc(w.done)}</p>`), headers: MAIL_PAGE_HEADERS };
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/mail', summary: 'App email sent today against the daily cap and the Workspace limit', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'mail.read');
+        if (!options.mailer) throw new ApiError(503, 'MAIL_NOT_CONFIGURED', 'App email is not set up on this server.');
+        return adminDone(claims, 'mail.read', '', { on: await switchOn('email'), ...(await options.mailer.today()) });
+      },
+    },
     { method: 'GET', path: '/health', summary: 'Liveness (public)', auth: 'none', handler: () => ({ status: 200, body: { ok: true } }) },
     { method: 'GET', path: '/healthz', summary: 'Liveness', auth: 'none', handler: () => ({ status: 200, body: { ok: true } }) },
 
@@ -1114,7 +1226,20 @@ export function createApp(options: AppOptions) {
           : body.kind === 'setPhotos' ? { ...body, photoIds: body.photoIds } : body;
         await collab(() => c.change(params.id, claims.sub, change, now()));
         await audit(claims.sub, `collab.${body.kind}`, 'allowed', params.id);
-        return { status: 200, body: await collab(() => c.project(params.id, claims.sub)) };
+        const project = await collab(() => c.project(params.id, claims.sub));
+        let emailed: boolean | undefined;
+        if (body.kind === 'inviteEmail' && options.mailer && (await switchOn('email'))) {
+          // The invitation stands either way: it is also shown in the app under Shared with me.
+          try {
+            const r = await options.mailer.sendInvitation({ to: body.email, recipientHash: emailHashOf(body.email), senderAccountId: claims.sub, inviterName: project.me.displayName, projectName: project.name, role: body.role, language: body.language });
+            emailed = r.sent;
+            await audit(claims.sub, 'mail.invite', r.sent ? 'allowed' : 'denied', r.sent ? params.id : `${params.id} ${r.reason}`);
+          } catch {
+            emailed = false;
+            await audit(claims.sub, 'mail.invite', 'denied', `${params.id} send failed`); // never the address or the server's words
+          }
+        }
+        return { status: 200, body: emailed === undefined ? project : { ...project, emailed } };
       },
     },
     {
@@ -1196,7 +1321,15 @@ export function createApp(options: AppOptions) {
         const body = parseJson(Schemas.CollabComment, req.rawBody);
         if (!PhotoId.safeParse(params.photoId).success) throw new ApiError(400, 'BAD_REQUEST', 'That is not a photo id.');
         const c = await collabWritable();
-        return { status: 200, body: { comment: await collab(() => c.addComment(params.id, params.photoId, claims.sub, { text: body.text, point: body.point ?? null }, now())) } };
+        const comment = await collab(() => c.addComment(params.id, params.photoId, claims.sub, { text: body.text, point: body.point ?? null, replyTo: body.replyTo ?? null }, now()));
+        await notify(async () => {
+          const who = await c.commentAudience(params.id, params.photoId, claims.sub);
+          // A reply also reaches whoever started the thread, a client included (it is their own thread).
+          const starter = comment.replyTo ? (await c.comments(params.id, params.photoId, claims.sub)).find((x) => x.id === comment.replyTo)?.authorAccountId : undefined;
+          const recipients = [...new Set([...who.accountIds, ...(starter && starter !== claims.sub ? [starter] : [])])];
+          return { kind: comment.replyTo ? 'reply' : 'comment', projectId: params.id, projectName: who.projectName, photoId: params.photoId, actorName: who.actorName, recipients };
+        });
+        return { status: 200, body: { comment } };
       },
     },
     {
@@ -1204,7 +1337,13 @@ export function createApp(options: AppOptions) {
       handler: async (req, params) => {
         const claims = await bearer(req);
         const body = parseJson(Schemas.CollabResolve, req.rawBody);
-        return { status: 200, body: { comment: await collab(() => collabCfg().resolveComment(params.id, params.commentId, claims.sub, body.resolved, now())) } };
+        const comment = await collab(() => collabCfg().resolveComment(params.id, params.commentId, claims.sub, body.resolved, now()));
+        // The author hears that their comment was marked done or reopened by someone else.
+        if (comment.authorAccountId !== claims.sub) await notify(async () => {
+          const who = await collabCfg().commentAudience(params.id, comment.photoId, claims.sub);
+          return { kind: body.resolved ? 'resolve' : 'reopen', projectId: params.id, projectName: who.projectName, photoId: comment.photoId, actorName: who.actorName, recipients: [comment.authorAccountId] };
+        });
+        return { status: 200, body: { comment } };
       },
     },
     // ---- Cloud photo store for shared projects. Previews first; originals only on demand; downloads metered to the owner.
@@ -1226,6 +1365,12 @@ export function createApp(options: AppOptions) {
         const c = await collabWritable();
         await collab(() => c.requireMember(params.id, claims.sub, 'edit', params.photoId));
         const cfg = cloudCfg();
+        // Storage beyond the payer's included amount (Pro 2.5 GB, Basic none) needs a month of it in their cloud balance. Nothing stored is ever removed.
+        const payer = await collab(() => c.payerOf(params.id));
+        await settleStorage(payer);
+        if (!(await storageAllowsUpload(options.cloudBalance, payer, await accountStoredBytes(payer), body.bytes, freeStorageFor(await accountIsPro(payer))))) {
+          throw new ApiError(402, 'STORAGE_NEEDS_CREDIT', "This project's owner needs cloud balance for more storage (Basic includes none, Pro includes 2.5 GB). A top-up lets more go up. Everything already stored stays.");
+        }
         return { status: 200, body: await cloud(() => cfg.store.signUpload(params.id, params.photoId, claims.sub, body, now(), cfg.maxProjectBytes)) };
       },
     },
@@ -1273,7 +1418,32 @@ export function createApp(options: AppOptions) {
         const cfg = cloudCfg();
         const used = await cfg.meter.usage(claims.sub, now());
         const allowance = await cfg.allowance.monthlyMillicredits(claims.sub, now());
-        return { status: 200, body: { month: used.month, usedCredits: used.millicredits / 1000, allowanceCredits: allowance / 1000, bytes: used.bytes, downloads: used.downloads } };
+        // The Account screen's meters: plan, cloud photos this period and the prepaid balance, when those are set up.
+        const cloud = options.cloud;
+        const pro = await accountIsPro(claims.sub);
+        const photos = cloud ? { photosUsed: (await cloud.ledger.periodUsed?.(claims.sub, now(), QUOTA_PERIOD_MS)) ?? 0, photosIncluded: pro ? cloud.jobsPerPeriod : (cloud.basicJobsPerPeriod ?? 0) } : {};
+        await settleStorage(claims.sub);
+        const balance = options.cloudBalance ? { balanceCredits: (await options.cloudBalance.millicredits(claims.sub)) / 1000 } : {};
+        const storedBytes = options.collab ? { storedBytes: await accountStoredBytes(claims.sub) } : {};
+        return { status: 200, body: { month: used.month, usedCredits: used.millicredits / 1000, allowanceCredits: allowance / 1000, bytes: used.bytes, downloads: used.downloads, plan: pro ? 'pro' : 'basic', ...photos, ...balance, ...storedBytes } };
+      },
+    },
+    // ---- Team notifications (G20, owner decision 11): the in-app inbox comes first.
+    {
+      method: 'GET', path: '/v1/collab/notices', summary: 'Your newest notifications from shared projects (reading also marks the app as open, so nothing is emailed meanwhile)', auth: 'user',
+      handler: async (req) => {
+        const claims = await bearer(req);
+        if (!options.notices) throw new ApiError(503, 'COLLAB_NOT_CONFIGURED', 'Notifications are not set up on this server yet.');
+        return { status: 200, body: await options.notices.inbox(claims.sub, now()) };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/collab/notices/read', summary: 'Mark notifications read (some, or all)', auth: 'user', body: Schemas.NoticesRead,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.NoticesRead, req.rawBody);
+        if (!options.notices) throw new ApiError(503, 'COLLAB_NOT_CONFIGURED', 'Notifications are not set up on this server yet.');
+        return { status: 200, body: { read: await options.notices.markRead(claims.sub, body.ids, now()) } };
       },
     },
     {
@@ -1333,6 +1503,17 @@ export function createApp(options: AppOptions) {
       handler: async (req, params) => { await galleryOwner(req, params.gid); return { status: 200, body: await galleryCfg().feedbackFor(params.gid) }; },
     },
     {
+      method: 'POST', path: '/v1/collab/galleries/:gid/feedback/review', summary: "Mark one photo's client feedback done or dismissed, or back to new. Never changes a decision", auth: 'user', body: Schemas.GalleryReview,
+      handler: async (req, params) => {
+        const { member } = await galleryOwner(req, params.gid);
+        const body = parseJson(Schemas.GalleryReview, req.rawBody);
+        const g = await gallery(() => galleryCfg().get(params.gid));
+        if (!g.photoIds.includes(body.itemId.slice('photo:'.length))) throw new ApiError(404, 'NOT_FOUND', 'That photo is not in this gallery.');
+        await galleryCfg().review(params.gid, body.itemId, body.state, member.displayName, now());
+        return { status: 200, body: { reviewed: true } };
+      },
+    },
+    {
       method: 'POST', path: '/v1/collab/galleries/:gid/revoke', summary: 'Close the link now and delete its previews', auth: 'user',
       handler: async (req, params) => {
         const { claims } = await galleryOwner(req, params.gid);
@@ -1355,7 +1536,12 @@ export function createApp(options: AppOptions) {
       handler: async (req) => {
         if (!galleryLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
         const body = parseJson(Schemas.GalleryFeedback, req.rawBody);
-        await gallery(() => galleryCfg().feedback(body.token, body.password, { visitor: body.visitor, photoId: body.photoId, kind: body.kind, text: body.text }, now()));
+        const g = await gallery(() => galleryCfg().feedback(body.token, body.password, { visitor: body.visitor, photoId: body.photoId, kind: body.kind, text: body.text }, now()));
+        // The people who manage this project's galleries hear about it, once per gallery while unread. Never the client.
+        if (options.collab && body.kind !== 'unfavourite') await notify(async () => {
+          const audience = await options.collab!.audience(g.projectId, 'export');
+          return { kind: 'client-feedback', projectId: g.projectId, projectName: audience.projectName, galleryId: g.galleryId, galleryName: g.name, actorName: null, recipients: audience.accountIds };
+        });
         return { status: 200, body: { received: true } };
       },
     },
@@ -1427,12 +1613,13 @@ export function createApp(options: AppOptions) {
 
     // ---- Model & release registry
     {
-      method: 'GET', path: '/v1/models/manifest', summary: 'Signed data manifest (models, species libraries) for an app version', auth: 'none', response: Schemas.ManifestResponse,
+      method: 'GET', path: '/v1/models/manifest', summary: 'The one signed model manifest (the models bucket manifest/stable.json, key kestrel-2026-11), checked here and served unchanged', auth: 'none', response: Schemas.ManifestResponse,
       handler: async (req) => {
+        // app and channel are accepted for older clients; there is one manifest, and each app skips what it cannot use.
         const app = req.query.get('app') ?? '0.0.0';
         const channel = req.query.get('channel') ?? 'stable';
         if (!Version.safeParse(app).success || (channel !== 'stable' && channel !== 'beta')) throw new ApiError(400, 'VALIDATION_FAILED', 'Give app as x.y.z and channel as stable or beta.');
-        return { status: 200, body: signEnvelope(await currentManifest(app, channel), config.signingKey), headers: { 'cache-control': 'public, max-age=3600' } };
+        return { status: 200, body: await verifiedModelManifest(), headers: { 'cache-control': 'public, max-age=3600' } };
       },
     },
     {
@@ -1729,6 +1916,35 @@ export function createApp(options: AppOptions) {
       },
     },
     {
+      method: 'GET', path: '/v1/admin/learning', summary: 'Vertex learning batches: what is counted, the month\'s reserved spend against the ceiling, recent runs', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'learning.read');
+        const vl = options.vertexLearning;
+        if (!vl) throw new ApiError(503, 'LEARNING_NOT_CONFIGURED', 'Vertex learning is not set up on this server.');
+        const state = await vl.ledger.state();
+        const month = billingMonth(now());
+        return adminDone(claims, 'learning.read', '', {
+          on: await switchOn('vertex-learning'), newPhotos: state.newPhotos, photoThreshold: vl.config.photoThreshold,
+          lastRunAtMs: state.lastRunAtMs, manualRequested: state.manualRequestedAtMs !== null, running: state.runningRunId !== null,
+          month, reservedPence: await vl.ledger.monthReservedPence(month), ceilingPence: Math.min(vl.config.ceilingPence, APPROVED_MONTHLY_PENCE),
+          runReservePence: reservationPence(vl.config), runs: await vl.ledger.recentRuns(10),
+        });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/learning/run', summary: 'Learn now: ask for a Vertex learning batch (the spend ceiling and every other check still apply)', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'learning.run');
+        const vl = options.vertexLearning;
+        if (!vl) throw new ApiError(503, 'LEARNING_NOT_CONFIGURED', 'Vertex learning is not set up on this server.');
+        if (!(await switchOn('vertex-learning'))) throw new ApiError(409, 'LEARNING_SWITCHED_OFF', 'Switch on Learning in Vertex AI first.');
+        await vl.ledger.requestManualRun(now());
+        let started = false;
+        if (vl.startJob) { try { await vl.startJob(); started = true; } catch { /* the hourly tick picks the request up */ } }
+        return adminDone(claims, 'learning.run', started ? 'started' : 'queued', { requested: true, startedNow: started });
+      },
+    },
+    {
       method: 'GET', path: '/v1/admin/switches', summary: 'On/off switches for the managed backend features', auth: 'admin',
       handler: async (req) => {
         const claims = await admin(req, 'switches.read');
@@ -1847,59 +2063,31 @@ export function createApp(options: AppOptions) {
       },
     },
     {
-      method: 'POST', path: '/v1/admin/models', summary: 'Register a model or data file as a candidate', auth: 'admin', body: Schemas.AdminModel,
+      method: 'POST', path: '/v1/admin/cloud-balance', summary: "Add credits to an account's cloud balance (a goodwill grant or a test top-up; 1 credit = 1p)", auth: 'admin',
+      body: Schemas.AdminCloudCredit,
       handler: async (req) => {
-        const claims = await admin(req, 'model.register');
-        const body = parseJson(Schemas.AdminModel, req.rawBody);
-        // The client's own parser is the gate: anything it would reject (traversal, absolute paths, bad ids) is refused here too.
-        if (!parseDataManifest({ schema: 1, revision: 1, assets: [{ id: body.id, kind: body.kind, version: body.version, path: body.path, bytes: body.bytes, sha256: body.sha256 }] })) {
-          await audit(claims.sub, 'model.register', 'denied', `invalid asset ${JSON.stringify(body.id).slice(0, 80)}`);
-          throw new ApiError(400, 'ASSET_INVALID', 'Asset id, version or path is not allowed (paths must be /data/..., with no ".." or absolute paths).');
-        }
-        const metaKey = `${body.id}@${body.version}`;
-        if (body.kind === 'onnx') {
-          if (!body.contract) throw new ApiError(400, 'MODEL_CONTRACT_REQUIRED', 'An ONNX model needs its contract (for example denoise-heavy/v1).');
-          if (!body.licence) throw new ApiError(400, 'MODEL_LICENCE_REQUIRED', 'An ONNX model needs a licence record: SPDX id, source URL and confirmation that you have the rights to publish it.');
-          if (body.licence.rightsConfirmed !== true) throw new ApiError(400, 'MODEL_LICENCE_REQUIRED', 'Confirm that you have the rights to publish this model.');
-        }
-        if (body.contract && !parseDataManifest({ schema: 1, revision: 1, assets: [{ id: body.id, kind: body.kind, version: body.version, path: body.path, bytes: body.bytes, sha256: body.sha256, contract: body.contract }] })) {
-          throw new ApiError(400, 'ASSET_INVALID', 'The contract is not allowed (use name/v1).');
-        }
-        const inserted = await store.insertModelAsset({
-          assetId: body.id, kind: body.kind, version: body.version, channel: body.channel, path: body.path, sha256: body.sha256,
-          bytes: body.bytes, requiredAppMin: body.requiredAppMin, status: 'candidate', createdAtMs: now(),
-        });
-        if (!inserted) throw new ApiError(409, 'ASSET_EXISTS', 'That version is already registered. Give it a new version.');
-        if (body.contract || body.licence) {
-          const meta = await loadModelMeta();
-          meta[metaKey] = { ...(body.contract ? { contract: body.contract } : {}), ...(body.licence ? { licence: { ...body.licence, rightsConfirmed: true as const, recordedAtMs: now() } } : {}) };
-          await store.setSetting(MODEL_META_SETTING, JSON.stringify(meta));
-        }
-        return adminDone(claims, 'model.register', `${metaKey} ${body.channel}${body.licence ? ` licence=${body.licence.spdx}` : ''}`, { status: 'candidate' });
+        const claims = await admin(req, 'cloud.balance');
+        const body = parseJson(Schemas.AdminCloudCredit, req.rawBody);
+        if (!options.cloudBalance) throw new ApiError(503, 'CLOUD_BALANCE_NOT_CONFIGURED', 'The cloud balance is not set up on this server.');
+        if (!(await store.getAccount(body.accountId))) throw new ApiError(404, 'NOT_FOUND', 'No such account.');
+        await options.cloudBalance.credit(body.accountId, body.credits * 1000, `admin:${body.reference}`);
+        const balanceCredits = (await options.cloudBalance.millicredits(body.accountId)) / 1000;
+        return adminDone(claims, 'cloud.balance', `${body.accountId} +${body.credits} ref=${body.reference}`, { balanceCredits });
       },
     },
     {
-      method: 'GET', path: '/v1/admin/models/licences', summary: 'The licence record and contract of every registered model version', auth: 'admin',
+      method: 'POST', path: '/v1/admin/cloud-storage/settle', summary: "Charge today's cloud storage beyond the free 2.5 GB for every paying account (daily scheduler; safe to repeat)", auth: 'admin',
       handler: async (req) => {
-        const claims = await admin(req, 'model.licences');
-        const meta = await loadModelMeta();
-        const licences = Object.fromEntries(Object.entries(meta).filter(([, v]) => v.licence).map(([k, v]) => [k, { ...v.licence, contract: v.contract }]));
-        return adminDone(claims, 'model.licences', '', { licences });
-      },
-    },
-    {
-      method: 'POST', path: '/v1/admin/models/promote', summary: 'Make one version live (also how rollback works: promote the older one)', auth: 'admin', body: Schemas.AdminPromote,
-      handler: async (req) => {
-        const claims = await admin(req, 'model.promote');
-        const body = parseJson(Schemas.AdminPromote, req.rawBody);
-        const meta = await loadModelMeta();
-        const target = await store.getModelAsset(body.id, body.version, body.channel);
-        if (target?.kind === 'onnx' && !meta[`${body.id}@${body.version}`]?.licence) {
-          await audit(claims.sub, 'model.promote', 'denied', `${body.id}@${body.version} no licence record`);
-          throw new ApiError(409, 'MODEL_LICENCE_MISSING', 'This ONNX version has no licence record, so it cannot go live. Register a new version with one.');
+        const claims = await admin(req, 'cloud.storage.settle');
+        const cfg = cloudCfg();
+        const payers = new Set<string>();
+        for (const projectId of await cfg.store.projectIds()) {
+          const payer = await options.collab?.payerOf(projectId).catch(() => null);
+          if (payer) payers.add(payer);
         }
-        if (!(await store.promoteModelAsset(body.id, body.version, body.channel))) throw new ApiError(404, 'NOT_FOUND', 'No such model version.');
-        return adminDone(claims, 'model.promote', `${body.id}@${body.version} ${body.channel}`, { live: true });
+        const counts = { free: 0, charged: 0, unpaid: 0 };
+        for (const accountId of payers) counts[await settleStorage(accountId)]++;
+        return adminDone(claims, 'cloud.storage.settle', `accounts=${payers.size} charged=${counts.charged} unpaid=${counts.unpaid}`, counts);
       },
     },
     {

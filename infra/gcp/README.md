@@ -64,7 +64,8 @@ Not `VITE_` and **never** in the app or git: the secrets in Secret Manager (`kcp
 Kestrel always edits photos offline. Where a build explicitly configures **both**
 `VITE_KESTREL_MODEL_BASE_URL` and trusted Ed25519 **public** keys in
 `VITE_KESTREL_MODEL_KEYS`, the app may check the models bucket's
-`manifest/stable.json` at most once a day. It never blocks launch.
+`manifest/stable.json` at most once a day (slot models only; optional packs read it only when the photographer
+downloads one). It never blocks launch.
 Unconfigured builds do not make requests.
 
 Only one of the four known ONNX slots may be updated, and only with an unchanged
@@ -83,14 +84,15 @@ npx tsx scripts/release/sign-data-manifest.ts --dir models-to-publish --version 
 ./scripts/release/publish-gcp.ps1 -Project kestrel-hosting -Models out/models
 ```
 
-The signer refuses unknown slots and attaches the app contract; model weights
-and signing **private** keys must never be committed. Verify the output
-manifest, signed-publisher authority and actual Cloud Storage objects before
-deploying. A contract change requires a **signed app release**, not a data
-update. This models-bucket manifest is separate from the control plane's
-`/v1/models/manifest`; reconcile those authorities before promising a
-unified production updater. No GCP provisioning/deployment authorised by this
-source code.
+The signer refuses files it does not know (a slot model by name, an optional pack by the SHA-256, size and published
+name pinned in `src/core/optionalModels.ts`), attaches the app contract to slot models, and needs a licence for every
+file (`manifest/licences.json`). Files over 256 MiB (BioCLIP 2) need `--allow-large`, and only once installed apps are
+updated, because older apps refuse a whole manifest holding one. Model weights and signing **private** keys must never
+be committed. A contract change requires a **signed app release**, not a data update.
+
+This is the **one** model manifest and `kestrel-2026-11` the one model key (#1564). The control plane does not sign
+models: `/v1/models/manifest` reads this file (`KCP_MODEL_MANIFEST_URL`), checks it against `KCP_MODEL_KEYS` and serves
+it unchanged. Optional packs read their address from it only when the photographer downloads one.
 
 ## What phase 1 creates (this folder)
 
@@ -319,9 +321,67 @@ Remove-Item Env:KESTREL_SIGNING_KEY_PEM
 ./scripts/release/publish-gcp.ps1 -Project YOUR-PROJECT-ID -Website
 ```
 
-## Your own domain later
+## Connect inflight.studio (on the day publishing is close; NOT done yet)
 
-Add it in the Firebase console (Hosting → Add custom domain) for the website; Firebase provides the HTTPS certificate.
+The owner bought **inflight.studio** at Squarespace on 25 Nov 2026. It is recorded as `plannedOrigin` in
+`config/public-site.json` and changes nothing yet: the site, sign-in, CORS and links all still use
+`https://kestrel-hosting-kestrel.web.app`. Do these steps only when the owner says publishing is close, in this order.
+The Firebase address keeps working throughout and afterwards.
+
+**1. Firebase Hosting: add the domain** (Firebase console → project `kestrel-hosting` → Hosting → site
+`kestrel-hosting-kestrel` → Add custom domain)
+- Add `inflight.studio`. Then add `www.inflight.studio` and choose **Redirect to inflight.studio**.
+- Firebase shows the DNS records each one needs. Use **exactly** those values; they can change, so never copy them
+  from here or from another project. Normally they are:
+  - a `TXT` record on the apex that proves ownership (`hosting-site=kestrel-hosting-kestrel`);
+  - one or more `A` records on the apex, pointing at Firebase's addresses;
+  - a `CNAME` for `www`, pointing at `kestrel-hosting-kestrel.web.app`;
+  - sometimes a `TXT` record on `_acme-challenge`, to issue the certificate sooner.
+
+**2. Squarespace DNS: add the records** (Squarespace → Domains → `inflight.studio` → DNS → DNS Settings)
+- **Remove the Squarespace Defaults first**, or they clash with Firebase's records. These are the preset `A` records
+  for `@` and the `www` CNAME to `ext-cust.squarespace.com`. They are only needed for a Squarespace-built site.
+- Under **Custom records**, add each record Firebase showed:
+
+  | Host | Type | Data |
+  |---|---|---|
+  | `@` | `TXT` | `hosting-site=kestrel-hosting-kestrel` (as shown) |
+  | `@` | `A` | each Firebase address shown (one row per address) |
+  | `www` | `CNAME` | `kestrel-hosting-kestrel.web.app` (as shown) |
+  | `_acme-challenge` | `TXT` | only if Firebase shows it |
+
+- Keep any `MX` and email `TXT` records (Squarespace or Google Workspace email) exactly as they are.
+- If a `CAA` record exists, it must allow `letsencrypt.org` and `pki.goog`, or the certificate cannot be issued.
+- Back in Firebase, wait until both names say **Connected** and the certificate is ready. That takes minutes to 24 hours.
+  Check: `nslookup inflight.studio`, then open `https://inflight.studio/`.
+
+**3. This repository: make it the live origin**
+- `node scripts/site/set-domain.mjs https://inflight.studio`. This rewrites the canonical and OG tags, sitemap,
+  robots, the desktop link allow-list and the publish script's live check, and clears `plannedOrigin`. Then open a PR
+  and merge it.
+- `scripts/release/publish-gcp.ps1 -Website`, then `terraform -chdir=infra/gcp apply`. The apply adds the new origin
+  to the control-plane `KCP_ALLOWED_ORIGINS` and to the models, safe-copy and cloud bucket CORS. Then approve the next
+  V2Proto build, whose sign-in check reads the same file.
+- Gallery links in desktop builds: set `VITE_KESTREL_SITE_URL=https://inflight.studio` in the release build
+  (`.env.example`).
+
+**4. Firebase Auth: authorise the domain** (Firebase console → project **`kestrel-photo`** → Authentication → Settings
+→ Authorised domains → Add domain)
+- Add `inflight.studio` and `www.inflight.studio`. Keep `localhost` and the Firebase domains.
+- Keep `VITE_FIREBASE_AUTH_DOMAIN=kestrel-photo.firebaseapp.com`: the sign-in handler stays there, so the Google and
+  Apple return URLs do not change.
+
+**5. The same day** (details in docs/ROADMAP.md, "Custom domain: one setting"):
+- Google OAuth client for `/admin` and V2Proto: add the JavaScript origin `https://inflight.studio`.
+- Apple Services ID: add `inflight.studio` to Domains and Subdomains.
+- Apple Pay on the web through SumUp: verify `inflight.studio`.
+
+**6. Check**
+- `https://inflight.studio/`, `https://www.inflight.studio/` (redirects) and `/V2Proto/` all load.
+- Google and Apple sign-in work from `https://inflight.studio/`.
+- `curl -i -X OPTIONS -H "Origin: https://inflight.studio" -H "Access-Control-Request-Method: POST" <control plane URL>/v1/licences/activate`
+  shows `access-control-allow-origin: https://inflight.studio`.
+
 Downloads can stay on `storage.googleapis.com` addresses, or move behind the domain with a load balancer (about £15 a
 month, so only when needed).
 

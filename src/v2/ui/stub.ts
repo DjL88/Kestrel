@@ -3,6 +3,7 @@
 // Replace this file when connecting the real Kestrel/InFlight engine.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { STRINGS } from './strings';
 import type {
   CropTransform,
   DecisionState,
@@ -838,6 +839,14 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     },
     deleteProject: (id) => {
       logAction('deleteProject', { id });
+      setStore((prev) => ({ ...prev, projects: prev.projects.map((p) => (p.id === id ? { ...p, trashed: true } : p)) }));
+    },
+    restoreDeletedProject: (id) => {
+      logAction('restoreDeletedProject', { id });
+      setStore((prev) => ({ ...prev, projects: prev.projects.map((p) => (p.id === id ? { ...p, trashed: false } : p)) }));
+    },
+    deleteProjectForever: (id) => {
+      logAction('deleteProjectForever', { id });
       setStore((prev) => ({ ...prev, projects: prev.projects.filter((p) => p.id !== id) }));
     },
 
@@ -919,6 +928,18 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
         const selectedPhotoIds = prev.selectedPhotoIds.filter((id) => !idSet.has(id));
         const activePhotoId = idSet.has(prev.activePhotoId ?? '') ? photos[0]?.id ?? null : prev.activePhotoId;
         return { ...prev, photos, selectedPhotoIds, activePhotoId };
+      });
+    },
+    movePhotos: (photoIds, targetProjectId) => {
+      logAction('movePhotos', { photoIds, targetProjectId });
+      setStore((prev) => {
+        const target = prev.projects.find((p) => p.id === targetProjectId);
+        if (!target) return prev;
+        const idSet = new Set(photoIds);
+        const photos = prev.photos.filter((p) => !idSet.has(p.id));
+        const activePhotoId = idSet.has(prev.activePhotoId ?? '') ? photos[0]?.id ?? null : prev.activePhotoId;
+        return { ...prev, photos, selectedPhotoIds: [], activePhotoId,
+          lastActionNotice: STRINGS.filmstripLabels.moved(photoIds.length, target.name) };
       });
     },
 
@@ -1050,6 +1071,14 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
         ),
         lastActionNotice: 'Auto-Cull & Analyse updated focus shortlist (no photos auto-rejected)',
       }));
+    },
+
+    saveDngCopy: (photoId) => {
+      logAction('saveDngCopy', { photoId });
+    },
+
+    developFullSize: (photoId) => {
+      logAction('developFullSize', { photoId });
     },
 
     reconnectOriginal: (photoId) => {
@@ -1926,17 +1955,17 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
-    setMaskLimit: (photoId, maskId, limit) => {
+    setMaskParts: (photoId, maskId, parts) => {
       updatePhotoById(photoId, photo => {
-        if (limit && (limit.id === maskId || !photo.masks.some(m => m.id === limit.id))) return photo;
-        return { ...photo, masks: photo.masks.map(m => m.id === maskId ? { ...m, limit: limit ?? undefined } : m) };
+        if (parts.some(part => part.id === maskId || !photo.masks.some(m => m.id === part.id))) return photo;
+        return { ...photo, masks: photo.masks.map(m => m.id === maskId ? { ...m, parts: parts.length ? parts.map(part => ({ ...part })) : undefined } : m) };
       });
     },
 
     removeMaskLayer: (photoId, maskId) => {
       updatePhotoById(photoId, (photo) => ({
         ...photo,
-        masks: photo.masks.filter((m) => m.id !== maskId).map(m => m.limit?.id === maskId ? { ...m, limit: undefined } : m),
+        masks: photo.masks.filter((m) => m.id !== maskId).map(m => m.parts?.some(part => part.id === maskId) ? { ...m, parts: m.parts.filter(part => part.id !== maskId) } : m),
       }));
     },
 
@@ -2159,6 +2188,8 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
             provider,
             email: email?.trim() || (provider === 'google' ? 'duncan@gmail.com' : 'duncan@icloud.com'),
             displayName: 'Duncan Lawson',
+            // Sample figures for the demo workspace: a Pro account part-way through November.
+            cloud: { plan: 'pro', photosUsed: 1840, storedBytes: 4_100_000_000, downloadedBytes: 420_000_000, balancePence: 500, nowMs: Date.now() },
           },
         },
         lastActionNotice: `Signed in with ${provider}`,

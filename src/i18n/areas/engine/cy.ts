@@ -49,6 +49,7 @@ export const cy: AreaTranslation<typeof source> = {
       : `Lleihawyd sŵn ar y ddyfais hon, gyda ${count} gwrthrych wedi’u diogelu gyda’i gilydd.`),
     global: 'Doedd dim amlinell gwrthrych yn ddibynadwy, felly lleihawyd sŵn yn gyfartal dros y llun cyfan.',
     failedCheck: 'Ni wnaeth y canlyniad basio’r gwiriad ansawdd. Cadwyd eich golygiadau presennol.',
+    mainThread: 'Ni allai’r ddyfais hon leihau sŵn yn y cefndir, felly efallai fod InFlight wedi oedi wrth weithio.',
     leftAsItWas: (notes) => `Gadawyd fel yr oedd. ${notes}`,
   },
   workspace: {
@@ -146,6 +147,7 @@ export const cy: AreaTranslation<typeof source> = {
     importSaveStage: 'Cadw’r llun yn y prosiect hwn',
     importSomeFailed: (added) => `Doedd dim modd mewnforio rhai lluniau. Ychwanegwyd ${added}. Agorwch Tasgau i ailgynnig y rhai a fethodd yn unig.`,
     importStopped: (added) => `Stopiodd y mewnforio. Ychwanegwyd ${added} llun. Mae eich gwreiddiolion heb eu newid.`,
+    importNotFinished: (count, names) => `Ni orffennodd y mewnforio diwethaf i'r prosiect hwn: ni ychwanegwyd ${count} llun (${names}). Mewnforiwch nhw eto i'w hychwanegu. Cedwir y lluniau a ychwanegwyd eisoes.`,
     importFailed: 'Methodd ychwanegu lluniau. Ni newidiwyd eich gwreiddiolion.',
   },
 };

@@ -49,6 +49,7 @@ export const is: AreaTranslation<typeof source> = {
       : `Suð fjarlægt á þessu tæki, með ${count} myndefni varin saman.`),
     global: 'Engin útlína myndefnis var áreiðanleg, svo suðeyðing var notuð jafnt á alla myndina.',
     failedCheck: 'Niðurstaðan stóðst ekki gæðaprófun. Núverandi breytingum þínum var haldið.',
+    mainThread: 'Þetta tæki gat ekki fjarlægt suð í bakgrunni, svo InFlight gæti hafa stöðvast á meðan.',
     leftAsItWas: (notes) => `Látið óbreytt. ${notes}`,
   },
   workspace: {
@@ -146,6 +147,7 @@ export const is: AreaTranslation<typeof source> = {
     importSaveStage: 'Vista myndina í þessu verkefni',
     importSomeFailed: (added) => `Ekki tókst að flytja inn sumar myndir. ${added} var bætt við. Opnaðu Verk til að reyna aðeins aftur við þær sem mistókust.`,
     importStopped: (added) => `Innflutningur stöðvaður. ${added} myndum var bætt við. Frumritin þín eru óbreytt.`,
+    importNotFinished: (count, names) => `Síðasti innflutningur í þetta verkefni kláraðist ekki: ${count} myndum var ekki bætt við (${names}). Flyttu þær inn aftur til að bæta þeim við. Myndir sem þegar var bætt við eru geymdar.`,
     importFailed: 'Ekki tókst að bæta við myndum. Frumritunum þínum var ekki breytt.',
   },
 };

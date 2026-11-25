@@ -2,7 +2,7 @@ import { uuid } from './crypto.ts';
 import {
   clipAuditDetail, extendedUntil, licenceAfterBillingEvent, licenceIsUsable, newLicence, QUOTA_DEFAULT_LIMIT,
   type AccountRecord, type ActivationOutcome, type ActivationRecord, type BillingEventRecord, type ContactMessageRecord, type ContactStatus, type Role, type ActivationRequest, type AuditRecord, type BillingEvent, type LicenceRecord,
-  type LicenceStatus, type ModelAssetRecord, type QuotaRecord, type ReleaseRecord, type Store,
+  type LicenceStatus, type QuotaRecord, type ReleaseRecord, type Store,
 } from './store.ts';
 
 // ---- The part of the @google-cloud/firestore API this store uses ---------------------------------------------------
@@ -59,7 +59,6 @@ const C = {
   activations: 'device_activations',
   quotas: 'ai_usage_quotas',
   billing: 'billing_events',
-  assets: 'model_assets',
   releases: 'desktop_releases',
   settings: 'settings',
   audit: 'audit_log',
@@ -306,31 +305,6 @@ export class FirestoreStore implements Store {
     return snap.docs.map((d) => ({ eventId: d.id, eventType: d.data()!.eventType as string, receivedAtMs: d.data()!.receivedAtMs as number }));
   }
 
-  async insertModelAsset(a: ModelAssetRecord): Promise<boolean> {
-    try { await this.ref(C.assets, docId(a.assetId, a.version, a.channel)).create({ ...a }); return true; } catch (error) { if (alreadyExists(error)) return false; throw error; }
-  }
-  async listLiveModelAssets(channel: string) {
-    const snap = await this.db.collection(C.assets).where('channel', '==', channel).where('status', '==', 'live').get();
-    return snap.docs.map((d) => d.data() as unknown as ModelAssetRecord).sort((a, b) => a.assetId.localeCompare(b.assetId));
-  }
-  async getModelAsset(assetId: string, version: string, channel: string) {
-    const snap = await this.ref(C.assets, docId(assetId, version, channel)).get();
-    return snap.exists ? (snap.data() as unknown as ModelAssetRecord) : undefined;
-  }
-  async promoteModelAsset(assetId: string, version: string, channel: string): Promise<boolean> {
-    return this.db.runTransaction(async (tx) => {
-      const target = this.ref(C.assets, docId(assetId, version, channel));
-      const revisionRef = this.ref(C.settings, `manifest_revision_${channel}`);
-      const targetSnap = await tx.get(target);
-      const live = await tx.get(this.db.collection(C.assets).where('assetId', '==', assetId).where('channel', '==', channel).where('status', '==', 'live'));
-      const revisionSnap = await tx.get(revisionRef);
-      if (!targetSnap.exists) return false;
-      for (const doc of live.docs) if (doc.id !== target.id) tx.update(this.ref(C.assets, doc.id), { status: 'retired' });
-      tx.update(target, { status: 'live' });
-      tx.set(revisionRef, { value: String(Number(revisionSnap.data()?.value ?? 1) + 1) });
-      return true;
-    });
-  }
   async insertRelease(r: ReleaseRecord): Promise<boolean> {
     try { await this.ref(C.releases, docId(r.platform, r.channel, r.version)).create({ ...r }); return true; } catch (error) { if (alreadyExists(error)) return false; throw error; }
   }

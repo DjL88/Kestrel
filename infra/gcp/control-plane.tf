@@ -196,6 +196,15 @@ resource "google_cloud_run_v2_service" "control_plane" {
         value = var.control_plane_signing_key_id
       }
       env {
+        # The one model manifest: served unchanged by /v1/models/manifest after it verifies with KCP_MODEL_KEYS.
+        name  = "KCP_MODEL_MANIFEST_URL"
+        value = "https://storage.googleapis.com/${google_storage_bucket.models.name}/manifest/stable.json"
+      }
+      env {
+        name  = "KCP_MODEL_KEYS"
+        value = var.model_manifest_keys
+      }
+      env {
         name  = "KCP_ALLOWED_ORIGINS"
         value = local.control_plane_origins
       }
@@ -265,6 +274,22 @@ resource "google_cloud_run_v2_service" "control_plane" {
       }
       dynamic "env" {
         for_each = var.cloud_processing_enabled && var.cloud_runner_image != "" ? { KCP_CLOUD_PROCESSING_BUCKET = try(google_storage_bucket.cloud_inputs[0].name, ""), KCP_CLOUD_RUNNER_JOB = try(google_cloud_run_v2_job.cloud_runner[0].id, "") } : {}
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+      dynamic "env" {
+        # "Learn now" in /admin starts the hourly Vertex learning tick (vertex-learning.tf).
+        for_each = local.vertex_tick_enabled ? { KCP_VERTEX_LEARNING_JOB = try(google_cloud_run_v2_job.vertex_learning[0].id, "") } : {}
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+      dynamic "env" {
+        # App email (mail.tf). The app password is NOT here: the service reads it from Secret Manager itself.
+        for_each = local.mail_env
         content {
           name  = env.key
           value = env.value

@@ -49,6 +49,7 @@ export const fr: AreaTranslation<typeof source> = {
       : `Débruité sur cet appareil, avec ${count} sujets protégés ensemble.`),
     global: 'Aucun contour de sujet n’était fiable, donc le débruitage a été appliqué uniformément à toute la photo.',
     failedCheck: 'Le résultat n’a pas passé le contrôle de qualité. Vos retouches existantes ont été conservées.',
+    mainThread: 'Cet appareil n’a pas pu réduire le bruit en arrière-plan : InFlight a donc pu se figer pendant le traitement.',
     leftAsItWas: (notes) => `Laissé tel quel. ${notes}`,
   },
   workspace: {
@@ -146,6 +147,7 @@ export const fr: AreaTranslation<typeof source> = {
     importSaveStage: 'Enregistrement de la photo dans ce projet',
     importSomeFailed: (added) => `Certaines photos n’ont pas pu être importées. ${added} ont été ajoutées. Ouvrez Tâches pour réessayer seulement celles qui ont échoué.`,
     importStopped: (added) => `Import arrêté. ${added} photos ont été ajoutées. Vos originaux sont inchangés.`,
+    importNotFinished: (count, names) => `Le dernier import dans ce projet ne s’est pas terminé : ${count} photos n’ont pas été ajoutées (${names}). Importez-les à nouveau pour les ajouter. Les photos déjà ajoutées sont conservées.`,
     importFailed: 'L’ajout des photos a échoué. Vos originaux n’ont pas été modifiés.',
   },
 };

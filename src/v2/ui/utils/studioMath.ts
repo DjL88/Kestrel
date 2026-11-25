@@ -221,7 +221,6 @@ export function filterPhotos(
       photo.title,
       photo.speciesLabel ?? '',
       photo.vehicleLabel ?? '',
-      ...(photo.searchTerms ?? []),
       ...(photo.photoTags ?? []).flatMap((tag) => tag.words),
       photo.category,
       photo.exif.camera,

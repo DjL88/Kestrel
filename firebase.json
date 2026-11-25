@@ -54,6 +54,13 @@
         }
       },
       {
+        "source": "/v1/mail/**",
+        "run": {
+          "serviceId": "kestrel-control-plane",
+          "region": "europe-west2"
+        }
+      },
+      {
         "source": "/v1/billing/paddle/config",
         "run": {
           "serviceId": "kestrel-control-plane",

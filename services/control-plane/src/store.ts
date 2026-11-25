@@ -72,19 +72,6 @@ export interface QuotaRecord {
   requestsLimit: number;
 }
 
-export interface ModelAssetRecord {
-  assetId: string;
-  kind: string;
-  version: string;
-  channel: string;
-  path: string;
-  sha256: string;
-  bytes: number;
-  requiredAppMin: string;
-  status: 'candidate' | 'live' | 'retired';
-  createdAtMs: number;
-}
-
 export interface ReleaseRecord {
   platform: string;
   channel: string;
@@ -193,13 +180,7 @@ export interface Store {
   /** Newest first. */
   listBillingEvents(limit: number): Promise<BillingEventRecord[]>;
 
-  // Models and releases
-  /** False when that asset version is already registered on that channel. */
-  insertModelAsset(asset: ModelAssetRecord): Promise<boolean>;
-  listLiveModelAssets(channel: string): Promise<ModelAssetRecord[]>;
-  getModelAsset(assetId: string, version: string, channel: string): Promise<ModelAssetRecord | undefined>;
-  /** Atomic: retires the live version, makes this one live, bumps the channel's manifest revision. False if unknown. */
-  promoteModelAsset(assetId: string, version: string, channel: string): Promise<boolean>;
+  // Desktop releases
   /** False when that release version is already published on that channel. */
   insertRelease(release: ReleaseRecord): Promise<boolean>;
   listReleases(platform: string, channel: string): Promise<ReleaseRecord[]>;

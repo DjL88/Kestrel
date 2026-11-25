@@ -49,6 +49,7 @@ export const gd: AreaTranslation<typeof source> = {
       : `Chaidh a’ ghràinne a lùghdachadh air an uidheam seo, le ${count} cuspairean dìonta còmhla.`),
     global: 'Cha robh iomall cuspair sam bith earbsach, mar sin chaidh lùghdachadh gràinne a chur air an dealbh air fad gu cothromach.',
     failedCheck: 'Cha deach an toradh tron dearbhadh càileachd. Chaidh na deasachaidhean agad a chumail.',
+    mainThread: 'Cha b’ urrainn don uidheam seo an gràinne a lùghdachadh sa chùlaibh, mar sin dh’fhaodadh InFlight stad greis.',
     leftAsItWas: (notes) => `Chaidh fhàgail mar a bha e. ${notes}`,
   },
   workspace: {
@@ -146,6 +147,7 @@ export const gd: AreaTranslation<typeof source> = {
     importSaveStage: 'A’ sàbhaladh an deilbh sa phròiseact seo',
     importSomeFailed: (added) => `Cha b’ urrainnear cuid de dhealbhan ion-phortadh. Chaidh ${added} a chur ris. Fosgail Saothraichean gus feuchainn a-rithist dìreach leis an fheadhainn a dh’fhàillig.`,
     importStopped: (added) => `Stad an t-ion-phortadh. Chaidh ${added} dealbhan a chur ris. Cha deach na dealbhan tùsail agad atharrachadh.`,
+    importNotFinished: (count, names) => `Cha deach an t-ion-phortadh mu dheireadh dhan phròiseact seo a chrìochnachadh: cha deach ${count} dealbhan a chur ris (${names}). Ion-phortaich iad a-rithist gus an cur ris. Thèid na dealbhan a chaidh a chur ris mu thràth a chumail.`,
     importFailed: 'Dh’fhàillig cur nan dealbhan ris. Cha deach na dealbhan tùsail agad atharrachadh.',
   },
 };

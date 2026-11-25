@@ -2,6 +2,8 @@ import { localise, type AreaEntry } from '../../localise';
 import { source } from './source';
 import { language } from '../../messages';
 import { countryName } from '../../../core/places';
+import { vehicleTagWords } from '../../../core/vehicleTags';
+import { vehicleText, vehicleTextEnglish } from '../vehicles';
 import { enUS } from './en-US';
 import { enCA } from './en-CA';
 import { fr } from './fr';
@@ -26,9 +28,9 @@ export const photoTagsText = localise(source, translations);
 
 /** The words for a tag id in the session's language, or undefined when there are none (then the tag is not shown). */
 export const photoTagLabel = (id: string): string | undefined =>
-  (photoTagsText.tags as Record<string, string>)[id] ?? countryName(id, language);
+  (photoTagsText.tags as Record<string, string>)[id] ?? (id.startsWith('vehicle.') ? vehicleTagWords(id, vehicleText) : undefined) ?? countryName(id, language);
 /** The same in British English, so search finds a tag in either language. */
 export const photoTagEnglishLabel = (id: string): string | undefined =>
-  (source.tags as Record<string, string>)[id] ?? countryName(id, 'en-GB');
+  (source.tags as Record<string, string>)[id] ?? (id.startsWith('vehicle.') ? vehicleTagWords(id, vehicleTextEnglish) : undefined) ?? countryName(id, 'en-GB');
 
 export const photoTagsArea: AreaEntry = { name: 'photoTags', source, translations };

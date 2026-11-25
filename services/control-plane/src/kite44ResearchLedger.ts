@@ -10,6 +10,7 @@
 import { createHmac } from 'node:crypto';
 import { uuid } from './crypto.ts';
 import type { FirestoreLike } from './firestoreStore.ts';
+import type { VertexLearningLedger } from './vertexLearning.ts';
 
 export interface Kite44ShadowPayload {
   schemaVersion: 1;
@@ -39,7 +40,8 @@ function safePayload(payload: Kite44ShadowPayload): boolean {
 }
 
 export class Kite44ResearchLedger {
-  constructor(private readonly db: FirestoreLike, private readonly secret: string) {
+  /** `learning` counts each newly edited photo once per Vertex run (owner decision 9's 1,000-photo trigger). */
+  constructor(private readonly db: FirestoreLike, private readonly secret: string, private readonly learning?: VertexLearningLedger) {
     if (secret.length < 32) throw new Error('Kite44 research ledger requires a 32-character server secret');
   }
   private key(subject: string, projectId: string, photoId?: string) {
@@ -108,7 +110,9 @@ export class Kite44ResearchLedger {
     return this.db.runTransaction(async tx => {
       const [a,p,f] = await Promise.all([tx.get(account), tx.get(project), tx.get(photo)]);
       if (a.data()?.consent !== true || p.data()?.allowShadow !== true || f.data()?.excluded === true) return false;
+      const counted = await this.learning?.prepareCount(tx, photoKey); // reads before any write
       tx.create(out, { ...record, subject, projectKey, photoKey });
+      counted?.commit();
       return true;
     });
   }

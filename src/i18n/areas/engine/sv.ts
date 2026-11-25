@@ -49,6 +49,7 @@ export const sv: AreaTranslation<typeof source> = {
       : `Brusreducerat på den här enheten, med ${count} motiv skyddade tillsammans.`),
     global: 'Ingen motivkontur var tillförlitlig, så brusreduceringen tillämpades jämnt på hela fotot.',
     failedCheck: 'Resultatet klarade inte kvalitetskontrollen. Dina befintliga redigeringar behölls.',
+    mainThread: 'Den här enheten kunde inte ta bort brus i bakgrunden, så InFlight kan ha stannat upp medan den arbetade.',
     leftAsItWas: (notes) => `Lämnat som det var. ${notes}`,
   },
   workspace: {
@@ -146,6 +147,7 @@ export const sv: AreaTranslation<typeof source> = {
     importSaveStage: 'Sparar fotot i det här projektet',
     importSomeFailed: (added) => `Några foton kunde inte importeras. ${added} lades till. Öppna Uppgifter för att bara försöka igen med de misslyckade.`,
     importStopped: (added) => `Importen stoppades. ${added} foton lades till. Dina original är oförändrade.`,
+    importNotFinished: (count, names) => `Den senaste importen till det här projektet blev inte klar: ${count} foton lades inte till (${names}). Importera dem igen för att lägga till dem. Foton som redan har lagts till behålls.`,
     importFailed: 'Det gick inte att lägga till fotona. Dina original ändrades inte.',
   },
 };

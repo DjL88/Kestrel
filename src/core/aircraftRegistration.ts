@@ -7,8 +7,9 @@
  * the formats below are kept. Pure and deterministic: OCR output comes in as text, nothing is looked up here.
  */
 import type { VehicleReading } from './vehicleRecognition';
+import { looksLikeNumberPlate } from './photoTags';
 
-export type MarkingFormat = 'uk-civil' | 'irish-civil' | 'us-civil' | 'uk-military' | 'race-number';
+export type MarkingFormat = 'uk-civil' | 'irish-civil' | 'us-civil' | 'uk-military' | 'race-number' | 'imo' | 'hull-name';
 
 /** Racing kinds, where a race number (painted for a public sporting event) may be read. Never a road car or bike. */
 export const RACING_KINDS: readonly string[] = ['racing-car', 'racing-motorbike'];
@@ -23,9 +24,11 @@ export interface Marking {
  * Which text may be read from a photo: registrations and serials on an aircraft, race numbers on a photo clearly read as
  * a racing car or racing motorbike. Nothing else, so an ordinary car's, van's or bike's number plate is never read.
  */
-export type MarkingContext = 'aircraft' | 'racing';
+export type MarkingContext = 'aircraft' | 'racing' | 'vessel';
 export function markingContext(reading: VehicleReading | null | undefined): MarkingContext | null {
   if (reading?.family === 'air') return 'aircraft';
+  // Boats carry no number plates; their names and IMO numbers are painted to be read.
+  if (reading?.family === 'water') return 'vessel';
   if (reading?.family === 'road' && reading.kind && RACING_KINDS.includes(reading.kind)) return 'racing';
   return null;
 }
@@ -43,14 +46,39 @@ export function findRaceNumber(text: string): Marking[] {
   return [{ value: String(Number(compact)), format: 'race-number' }];
 }
 
+/**
+ * The IMO ship number check: the first six digits times 7, 6, 5, 4, 3 and 2, summed; the last digit of that sum is the
+ * seventh digit (IMO 9074729: 9×7 + 0×6 + 7×5 + 4×4 + 7×3 + 2×2 = 139, ends in 9). A number that fails is not an IMO number.
+ */
+export function validImo(digits: string): boolean {
+  if (!/^\d{7}$/.test(digits)) return false;
+  const sum = [7, 6, 5, 4, 3, 2].reduce((total, weight, index) => total + weight * Number(digits[index]), 0);
+  return sum % 10 === Number(digits[6]);
+}
+
+/** Painted words that are not a vessel's name (the operator, warnings, the port). */
+const NOT_A_NAME = new Set(['RNLI', 'LIFEBOAT', 'POLICE', 'PILOT', 'COASTGUARD', 'BORDER FORCE', 'DANGER', 'KEEP CLEAR', 'NO STEP',
+  'FERRY', 'FERRIES', 'TUG', 'CREW', 'PASSENGERS', 'EXIT', 'LONDON', 'SOUTHAMPTON', 'PORTSMOUTH', 'DOVER', 'HOLYHEAD', 'POOLE']);
+
+/**
+ * A vessel's markings in one line: an IMO number that passes its check ("IMO 9074729"), or a name painted on the hull
+ * (letters and spaces, 3 to 30 characters, not a common operator or warning word). Plate shapes are dropped first.
+ */
+export function findVesselMarkings(text: string): Marking[] {
+  const upper = text.toUpperCase().replace(/\s+/g, ' ').trim();
+  if (looksLikeNumberPlate(upper.replace(/[^A-Z0-9]/g, ''))) return [];
+  const imo = /\bIMO\s*:?\s*(\d{7})\b/.exec(upper);
+  if (imo) return validImo(imo[1]) ? [{ value: `IMO ${imo[1]}`, format: 'imo' }] : [];
+  const name = upper.replace(/[^A-Z '&.-]/g, '').replace(/\s+/g, ' ').trim();
+  if (name.length < 3 || name.length > 30 || name !== upper || !/[A-Z]{3}/.test(name) || NOT_A_NAME.has(name)) return [];
+  return [{ value: name, format: 'hull-name' }];
+}
+
 // Current UK number plates (AB12 CDE) and Irish plates (12-D-3456, 191-KY-12). No aircraft format below has these shapes.
 // Older UK plates (ABC 123, A123 BCD) do share shapes with serials and N-numbers, so for them the first guard is the one
 // that counts: text is only read from an aircraft photo, inside the aircraft.
-const PLATES = [/^[A-Z]{2}\d{2}[A-Z]{3}$/, /^\d{2,3}[A-Z]{1,2}\d{1,6}$/];
-/** True for text shaped like a road number plate. Such text is never kept, stored or looked up. */
-export function looksLikeNumberPlate(compact: string): boolean {
-  return PLATES.some((pattern) => pattern.test(compact));
-}
+// One copy of the plate check, kept with the shared tag store so it also guards every stored tag (see photoTags.ts).
+export { looksLikeNumberPlate };
 
 /**
  * UK military serials: two letters and three digits (ZJ910, ZK301, ZM400). The letters C, I, O, Q, U and Y are not used.

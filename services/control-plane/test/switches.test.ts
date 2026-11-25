@@ -4,13 +4,15 @@ import { MemoryCloudLedger, MemoryCloudRunner } from '../src/cloudJobs.ts';
 import { MemoryLearningSink } from '../src/learningSignal.ts';
 import { MemorySafeCopyCatalog, MemorySafeCopyStorage } from '../src/safeCopy.ts';
 import { fakeProvider, image, startHarness } from './helpers.ts';
+import { CollabStore } from '../src/collaboration.ts';
+import { MemoryFirestore } from './memoryFirestore.ts';
 
 const job = { kind: 'denoise', inputBytes: 1000, userConsent: true };
 const sig = { source: 'gemini', capability: 'exposure', action: 'accepted', proposal: { exposure: 0.1 }, final: { exposure: 0.1 }, appVersion: '26.11.2' };
 async function prod() {
   const sc = { storage: new MemorySafeCopyStorage(), catalog: new MemorySafeCopyCatalog(), bytesQuota: 1e9 };
   const h = await startHarness(fakeProvider(), undefined, {
-    requireAdminSwitch: true, learning: new MemoryLearningSink(), safeCopy: sc,
+    requireAdminSwitch: true, learning: new MemoryLearningSink(), safeCopy: sc, collab: new CollabStore(new MemoryFirestore()),
     cloud: { runner: new MemoryCloudRunner(), ledger: new MemoryCloudLedger(), jobsPerPeriod: 9, maxInputBytes: 1e9 },
   });
   const sw = (key: string, on: boolean) => h.call('POST', '/v1/admin/switches/set', { token: h.adminToken, body: { key, on } });
@@ -24,7 +26,7 @@ test('switches are admin only and list what is configured', async () => {
     assert.equal((await h.call('GET', '/v1/admin/switches', { token: h.user.token })).status, 403);
     const list = (await h.call('GET', '/v1/admin/switches', { token: h.adminToken })).body.switches;
     const by = Object.fromEntries(list.map((s: any) => [s.key, s]));
-    assert.deepEqual(Object.keys(by).sort(), ['cloud-processing', 'collaboration', 'learning-signal', 'managed-ai', 'pro-checkout', 'safe-copy']);
+    assert.deepEqual(Object.keys(by).sort(), ['cloud-processing', 'collaboration', 'email', 'learning-signal', 'managed-ai', 'pro-checkout', 'pro-cloud-storage', 'safe-copy', 'vertex-learning']);
     assert.equal(by['managed-ai'].on, true, 'the existing Gemini helper keeps working until you switch it off');
     for (const k of ['cloud-processing', 'safe-copy', 'learning-signal']) { assert.equal(by[k].on, false, `${k} starts off`); assert.equal(by[k].configured, true); }
   } finally { await h.close(); }
@@ -100,4 +102,34 @@ test('a feature that is not set up cannot be switched on, and the old kill setti
     await h2.app.store.setSetting('cloud_disabled', '1');
     assert.equal((await h2.call('POST', '/v1/cloud/jobs', { token: h2.user.token, body: job })).status, 503, 'the legacy kill setting overrides the switch');
   } finally { await h2.close(); }
+});
+
+test('shared projects can be switched on and off from the admin console (the switch schema lists every switch)', async () => {
+  const { h, sw } = await prod();
+  try {
+    const list = async () => Object.fromEntries((await h.call('GET', '/v1/admin/switches', { token: h.adminToken })).body.switches.map((s: any) => [s.key, s.on]));
+    assert.equal((await list()).collaboration, false);
+    assert.equal((await sw('collaboration', true)).status, 200);
+    assert.equal((await list()).collaboration, true);
+    assert.equal((await sw('collaboration', false)).status, 200);
+    assert.equal((await list()).collaboration, false);
+  } finally { await h.close(); }
+});
+
+test('a planned switch is shown off and not set up, and refuses to switch on, even with every other backend configured', async () => {
+  for (const requireAdminSwitch of [true, false]) {
+    const h = await startHarness(fakeProvider(), undefined, { requireAdminSwitch, collab: new CollabStore(new MemoryFirestore()) });
+    try {
+      for (const key of ['pro-cloud-storage']) {
+      const planned = (await h.call('GET', '/v1/admin/switches', { token: h.adminToken })).body.switches.find((s: any) => s.key === key);
+      assert.equal(planned.on, false); assert.equal(planned.configured, false);
+      assert.match(planned.label, /designed, not built/);
+      const r = await h.call('POST', '/v1/admin/switches/set', { token: h.adminToken, body: { key, on: true } });
+      assert.equal(r.status, 409); assert.equal(r.body.error.code, 'SWITCH_NOT_CONFIGURED');
+      await h.app.store.setSetting(`switch_${key}`, '1');
+      const again = (await h.call('GET', '/v1/admin/switches', { token: h.adminToken })).body.switches.find((s: any) => s.key === key);
+      assert.equal(again.on, false, 'a stored setting cannot turn a planned feature on');
+      }
+    } finally { await h.close(); }
+  }
 });

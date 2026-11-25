@@ -41,5 +41,5 @@ test('each action exchanges the Firebase token for a session, sends no cookies, 
   await assert.rejects(() => client.invites(), (e: CollabError) => e.kind === 'switched-off');
   const view = await client.invite('p1', 'a@b.test', 'client', ['x1']);
   assert.equal(view.invites[0].role, 'client');
-  assert.deepEqual(calls.at(-1)!.body, { kind: 'inviteEmail', email: 'a@b.test', role: 'client', photoIds: ['x1'] });
+  assert.deepEqual(calls.at(-1)!.body, { kind: 'inviteEmail', email: 'a@b.test', role: 'client', photoIds: ['x1'], language: 'en-GB' });
 });

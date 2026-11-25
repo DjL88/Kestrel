@@ -22,7 +22,8 @@ variable "phase5_paddle_pro_price_id" {
   default = ""
 }
 
-# Retired with SumUp (25 Nov 2026). Kept so existing tfvars files still parse; nothing reads them.
+# Retired with SumUp (25 Nov 2026). Kept so existing tfvars files still parse, and the old secret-reader binding is
+# kept so an image-only deploy (deploy-control-plane.sh) never has to delete it. Remove both in a reviewed apply later.
 variable "phase5_sumup_enabled" {
   type    = bool
   default = false
@@ -44,6 +45,14 @@ resource "google_secret_manager_secret_iam_member" "phase5_paddle" {
   for_each  = local.paddle_secrets
   project   = var.project_id
   secret_id = each.value
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.control_plane.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "phase5_sumup" {
+  count     = var.phase5_sumup_enabled ? 1 : 0
+  project   = var.project_id
+  secret_id = "kestrel-sumup-api-key"
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.control_plane.email}"
 }
