@@ -27,10 +27,11 @@ export default function InfoPanel({
   onCorrectSpeciesName,
 }: InfoPanelProps) {
   const [editingSpecies, setEditingSpecies] = useState(false);
-  const [speciesDraft, setSpeciesDraft] = useState(photo?.speciesLabel?.replace(/ \\(suggested\\)$/, '') ?? '');
+  // The name alone: the label may carry a "(suggested)" marker in the person's language, which is not part of the name.
+  const [speciesDraft, setSpeciesDraft] = useState(photo?.speciesName ?? photo?.speciesLabel ?? '');
   useEffect(() => {
     setEditingSpecies(false);
-    setSpeciesDraft(photo?.speciesLabel?.replace(/ \\(suggested\\)$/, '') ?? '');
+    setSpeciesDraft(photo?.speciesName ?? photo?.speciesLabel ?? '');
   }, [photo?.id, photo?.speciesLabel]);
 
   if (!photo) {
