@@ -429,7 +429,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           />
         );
       case 'tasks':
-        return <TasksPanel tasks={store.tasks} onCancelTask={actions.cancelTask} onClearTask={actions.clearTask} onClearCompleted={actions.clearCompletedTasks} />;
+        return <TasksPanel tasks={store.tasks} onCancelTask={actions.cancelTask} onClearTask={actions.clearTask} onClearCompleted={actions.clearCompletedTasks} cloudUsage={store.settings.account.cloud} />;
     }
   };
 

@@ -1242,6 +1242,9 @@ export const es: AreaTranslation<typeof source> = {
     topUp: (a) => `Recargar ${a}`,
     topUpSoon: 'Las recargas se abrirán cuando el pago esté activo.',
     ownStorage: 'Tus propios discos, NAS y carpetas en la nube no cuestan nada aquí.',
+    taskUses: (n, l) => `Usa ${n} de tus fotos mensuales en la nube (quedarán ${l})`,
+    taskPays: (n, a) => `${n} fotos por encima de tu cupo mensual: ${a} de tu saldo en la nube`,
+    taskOnDevice: 'Saldo en la nube insuficiente: esta tarea se hará en este dispositivo',
   },
   taskControls: {
     sectionLabel: 'Tareas en proceso',

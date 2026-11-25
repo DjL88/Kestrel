@@ -1242,6 +1242,9 @@ export const nb: AreaTranslation<typeof source> = {
     topUp: (a) => `Fyll på ${a}`,
     topUpSoon: 'Påfylling åpner når betaling er i drift.',
     ownStorage: 'Dine egne disker, NAS og skymapper koster ingenting her.',
+    taskUses: (n, l) => `Bruker ${n} av dine månedlige skybilder (${l} igjen etterpå)`,
+    taskPays: (n, a) => `${n} bilder utover månedskvoten: ${a} fra skysaldoen`,
+    taskOnDevice: 'Ikke nok skysaldo: denne oppgaven kjøres på denne enheten',
   },
   taskControls: {
     sectionLabel: 'Oppgaver under behandling',

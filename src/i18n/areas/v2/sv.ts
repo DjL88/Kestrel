@@ -1242,6 +1242,9 @@ export const sv: AreaTranslation<typeof source> = {
     topUp: (a) => `Fyll på ${a}`,
     topUpSoon: 'Påfyllning öppnar när betalning är live.',
     ownStorage: 'Dina egna diskar, NAS och molnmappar kostar inget här.',
+    taskUses: (n, l) => `Använder ${n} av dina månatliga molnbilder (${l} kvar efteråt)`,
+    taskPays: (n, a) => `${n} bilder utöver din månadskvot: ${a} från ditt molnsaldo`,
+    taskOnDevice: 'Inte tillräckligt molnsaldo: den här uppgiften körs på den här enheten',
   },
   taskControls: {
     sectionLabel: 'Uppgifter som bearbetas',

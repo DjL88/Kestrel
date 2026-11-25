@@ -1243,6 +1243,9 @@ export const gd: AreaTranslation<typeof source> = {
     topUp: (a) => `Cuir ${a} ris`,
     topUpSoon: 'Fosglaidh creideas nuair a bhios pàigheadh beò.',
     ownStorage: 'Chan eil na draibhean, NAS is pasgain neòil agad fhèin a’ cosg dad an seo.',
+    taskUses: (n, l) => `Cleachdaidh e ${n} de na dealbhan neòil mìosail agad (${l} air fhàgail às a dhèidh)`,
+    taskPays: (n, a) => `${n} dealbhan thairis air a’ chuibhreann mìosail agad: ${a} on chothromachadh neòil`,
+    taskOnDevice: 'Chan eil cothromachadh neòil gu leòr ann: ruithidh an t-saothair seo air an uidheam seo',
   },
   taskControls: {
     sectionLabel: 'Saothraichean gan làimhseachadh',

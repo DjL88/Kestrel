@@ -57,9 +57,9 @@ test('when charges pass the balance cloud work pauses; the balance never goes ne
 
 test('a cloud task uses the allowance first, then the balance, else runs on this device', () => {
   assert.deepEqual(estimateCloudTask(300, { plan: 'basic', photosUsed: 100, balancePence: 0 }),
-    { photos: 300, fromAllowance: 300, paidPhotos: 0, pence: 0, canRunInCloud: true });
+    { photos: 300, fromAllowance: 300, paidPhotos: 0, allowanceLeftAfter: 100, pence: 0, canRunInCloud: true });
   assert.deepEqual(estimateCloudTask(300, { plan: 'basic', photosUsed: 400, balancePence: 0 }),
-    { photos: 300, fromAllowance: 100, paidPhotos: 200, pence: 60, canRunInCloud: false });
+    { photos: 300, fromAllowance: 100, paidPhotos: 200, allowanceLeftAfter: 0, pence: 60, canRunInCloud: false });
   assert.equal(estimateCloudTask(300, { plan: 'basic', photosUsed: 400, balancePence: 500 }).canRunInCloud, true);
 });
 

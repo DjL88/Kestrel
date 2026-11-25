@@ -1245,6 +1245,9 @@ export const ga: AreaTranslation<typeof source> = {
     topUp: (a) => `Cuir ${a} leis`,
     topUpSoon: 'Osclóidh creidmheas nuair a bheidh íocaíocht beo.',
     ownStorage: 'Ní chosnaíonn do thiomántáin, NAS agus fillteáin néil féin aon rud anseo.',
+    taskUses: (n, l) => `Úsáideann sé ${n} de do ghrianghraif néil mhíosúla (${l} fágtha ina dhiaidh)`,
+    taskPays: (n, a) => `${n} grianghraf thar do liúntas míosúil: ${a} ó d’iarmhéid néil`,
+    taskOnDevice: 'Níl dóthain iarmhéid néil: rithfidh an tasc seo ar an ngléas seo',
   },
   taskControls: {
     sectionLabel: 'Tascanna á bpróiseáil',

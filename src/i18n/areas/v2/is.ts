@@ -1242,6 +1242,9 @@ export const is: AreaTranslation<typeof source> = {
     topUp: (a) => `Fylla á ${a}`,
     topUpSoon: 'Áfylling opnast þegar greiðsla er virk.',
     ownStorage: 'Þín eigin drif, NAS og skýjamöppur kosta ekkert hér.',
+    taskUses: (n, l) => `Notar ${n} af mánaðarlegum skýjamyndum þínum (${l} eftir á eftir)`,
+    taskPays: (n, a) => `${n} myndir umfram mánaðarkvótann: ${a} af skýjainneigninni`,
+    taskOnDevice: 'Ekki næg skýjainneign: þetta verk keyrir á þessu tæki',
   },
   taskControls: {
     sectionLabel: 'Verk í vinnslu',

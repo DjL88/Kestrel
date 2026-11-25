@@ -1242,6 +1242,9 @@ export const da: AreaTranslation<typeof source> = {
     topUp: (a) => `Fyld op med ${a}`,
     topUpSoon: 'Opfyldning åbner, når betaling er live.',
     ownStorage: 'Dine egne drev, NAS og cloudmapper koster intet her.',
+    taskUses: (n, l) => `Bruger ${n} af dine månedlige cloudbilleder (${l} tilbage bagefter)`,
+    taskPays: (n, a) => `${n} billeder ud over din månedlige kvote: ${a} fra din cloudsaldo`,
+    taskOnDevice: 'Ikke nok cloudsaldo: denne opgave kører på denne enhed',
   },
   taskControls: {
     sectionLabel: 'Opgaver under behandling',

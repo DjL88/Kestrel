@@ -1242,6 +1242,9 @@ export const cy: AreaTranslation<typeof source> = {
     topUp: (a) => `Ychwanegu ${a}`,
     topUpSoon: 'Bydd ychwanegu credyd ar gael pan fydd y til yn fyw.',
     ownStorage: 'Nid yw eich gyriannau, NAS a ffolderi cwmwl eich hun yn costio dim yma.',
+    taskUses: (n, l) => `Yn defnyddio ${n} o’ch lluniau cwmwl misol (${l} ar ôl wedyn)`,
+    taskPays: (n, a) => `${n} llun y tu hwnt i’ch lwfans misol: ${a} o’ch balans cwmwl`,
+    taskOnDevice: 'Dim digon o falans cwmwl: bydd y dasg hon yn rhedeg ar y ddyfais hon',
   },
   taskControls: {
     sectionLabel: 'Tasgau’n cael eu prosesu',

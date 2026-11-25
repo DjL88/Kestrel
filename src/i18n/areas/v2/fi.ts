@@ -1243,6 +1243,9 @@ export const fi: AreaTranslation<typeof source> = {
     topUp: (a) => `Lisää ${a}`,
     topUpSoon: 'Saldon lisäys avautuu, kun maksaminen on käytössä.',
     ownStorage: 'Omat asemasi, NAS ja pilvikansiot eivät maksa täällä mitään.',
+    taskUses: (n, l) => `Käyttää ${n} kuukauden pilvikuvistasi (${l} jäljellä tämän jälkeen)`,
+    taskPays: (n, a) => `${n} kuvaa kuukausikiintiön yli: ${a} pilvisaldostasi`,
+    taskOnDevice: 'Pilvisaldo ei riitä: tämä tehtävä suoritetaan tällä laitteella',
   },
   taskControls: {
     sectionLabel: 'Käsittelyssä olevat tehtävät',

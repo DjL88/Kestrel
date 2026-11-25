@@ -1242,6 +1242,9 @@ export const nl: AreaTranslation<typeof source> = {
     topUp: (a) => `${a} opwaarderen`,
     topUpSoon: 'Opwaarderen kan zodra afrekenen live is.',
     ownStorage: 'Je eigen schijven, NAS en cloudmappen kosten hier niets.',
+    taskUses: (n, l) => `Gebruikt ${n} van je maandelijkse cloudfoto’s (daarna nog ${l})`,
+    taskPays: (n, a) => `${n} foto’s boven je maandtegoed: ${a} van je cloudtegoed`,
+    taskOnDevice: 'Niet genoeg cloudtegoed: deze taak draait op dit apparaat',
   },
   taskControls: {
     sectionLabel: 'Taken in verwerking',

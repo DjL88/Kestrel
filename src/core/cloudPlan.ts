@@ -151,6 +151,8 @@ export interface TaskEstimate {
   fromAllowance: number;
   /** Photos that would be paid from the balance. */
   paidPhotos: number;
+  /** Allowance photos left this month once this task has run. */
+  allowanceLeftAfter: number;
   pence: number;
   /** False when the balance cannot cover the paid photos: the task runs on this device instead. */
   canRunInCloud: boolean;
@@ -164,7 +166,7 @@ export function estimateCloudTask(photos: number, usage: Pick<CloudUsage, 'plan'
   const fromAllowance = Math.min(n, left);
   const paidPhotos = n - fromAllowance;
   const pence = Math.ceil((paidPhotos * PAYG_PENCE.extraPhotoTenths) / 10);
-  return { photos: n, fromAllowance, paidPhotos, pence, canRunInCloud: pence <= whole(usage.balancePence) };
+  return { photos: n, fromAllowance, paidPhotos, allowanceLeftAfter: left - fromAllowance, pence, canRunInCloud: pence <= whole(usage.balancePence) };
 }
 
 export function formatPence(pence: number): string {

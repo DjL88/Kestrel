@@ -1305,6 +1305,9 @@ export const source = {
     topUp: (a: string) => `Top up ${a}`,
     topUpSoon: 'Top-ups open when checkout is live.',
     ownStorage: 'Your own drives, NAS and cloud folders cost nothing here.',
+    taskUses: (n: string, l: string) => `Uses ${n} of your monthly cloud photos (${l} left after this)`,
+    taskPays: (n: string, a: string) => `${n} photos beyond your monthly allowance: ${a} from your cloud balance`,
+    taskOnDevice: 'Not enough cloud balance: this task will run on this device',
   },
   taskControls: {
     sectionLabel: 'Processing tasks',
