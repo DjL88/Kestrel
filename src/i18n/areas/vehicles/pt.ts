@@ -36,6 +36,18 @@ export const pt: AreaTranslation<typeof source> = {
   held: (what: string) => `${what}? Verifique`,
   raceNumber: (what: string, number: string) => `${what}, número ${number}`,
   named: (what: string, name: string) => `${what}, chamado ${name}`,
+  correct: {
+    edit: 'Editar',
+    change: 'Alterar o veículo',
+    kindLabel: 'Tipo',
+    typeLabel: 'Marca ou modelo',
+    typeUnknown: 'Não tenho a certeza',
+    notVehicle: 'Não é um veículo',
+    wholeBurst: (count: number) => `Todas as ${count} fotos desta sequência`,
+    save: 'Guardar',
+    cancel: 'Cancelar',
+    saved: (count: number) => (count > 1 ? `Guardado em ${count} fotos.` : 'Guardado.'),
+  },
   reader: {
     title: 'Ler matrículas, números de corrida e nomes de barcos',
     description: (megabytes: string) => `Lê neste dispositivo matrículas e números de série militares de aeronaves, números de corrida de carros e motas de corrida, e nomes e números IMO de barcos. As matrículas de aeronaves são procuradas numa cópia offline de registos públicos. Uma transferência única de ${megabytes} MB. As matrículas de veículos de estrada nunca são lidas.`,

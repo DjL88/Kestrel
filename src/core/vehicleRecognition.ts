@@ -88,6 +88,8 @@ export interface VehicleReading {
   guardian?: 'agreed' | 'held';
   /** The guardian did not see the family either ("Is there an aircraft?" "No"): nothing is named; the person decides. */
   heldFamily?: boolean;
+  /** Carried from this frame of the same burst (step 4): the same aircraft, read once. */
+  carriedFrom?: string;
 }
 
 /** The committed vectors (src/assets/vehicle/vectors.json), in label order. Throws on any mismatch. */
@@ -191,6 +193,7 @@ export function validVehicleReading(value: unknown, labels: VehicleLabels): Vehi
   if (registered !== undefined && (!marking || !registered || typeof registered.type !== 'string' || !registered.type.trim() ||
     (registered.operator !== undefined && typeof registered.operator !== 'string') ||
     !['faa', 'uk-military-blocks'].includes(registered.register) || typeof registered.exact !== 'boolean')) return null;
+  if (reading.carriedFrom !== undefined && (typeof reading.carriedFrom !== 'string' || !reading.carriedFrom)) return null;
   if (reading.guardian !== undefined && reading.guardian !== 'agreed' && reading.guardian !== 'held') return null;
   if (reading.heldFamily !== undefined && (reading.heldFamily !== true || reading.guardian !== 'held' || reading.kind !== undefined)) return null;
   return reading as VehicleReading;

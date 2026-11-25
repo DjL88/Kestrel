@@ -36,6 +36,18 @@ export const fr: AreaTranslation<typeof source> = {
   held: (what: string) => `${what}? À vérifier`,
   raceNumber: (what: string, number: string) => `${what}, numéro ${number}`,
   named: (what: string, name: string) => `${what}, nommé ${name}`,
+  correct: {
+    edit: 'Modifier',
+    change: 'Changer le véhicule',
+    kindLabel: 'Genre',
+    typeLabel: 'Marque ou modèle',
+    typeUnknown: 'Pas sûr',
+    notVehicle: 'Pas un véhicule',
+    wholeBurst: (count: number) => `Les ${count} photos de cette rafale`,
+    save: 'Enregistrer',
+    cancel: 'Annuler',
+    saved: (count: number) => (count > 1 ? `Enregistré pour ${count} photos.` : 'Enregistré.'),
+  },
   reader: {
     title: 'Lire immatriculations, numéros de course et noms de bateaux',
     description: (megabytes: string) => `Lit sur cet appareil les immatriculations et numéros de série militaires des aéronefs, les numéros de course des voitures et motos de course, et les noms et numéros IMO des bateaux. Les immatriculations des aéronefs sont recherchées dans une copie hors ligne de registres publics. Un téléchargement unique de ${megabytes} Mo. Les plaques des véhicules routiers ne sont jamais lues.`,

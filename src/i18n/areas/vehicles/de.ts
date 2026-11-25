@@ -36,6 +36,18 @@ export const de: AreaTranslation<typeof source> = {
   held: (what: string) => `${what}? Bitte prüfen`,
   raceNumber: (what: string, number: string) => `${what}, Startnummer ${number}`,
   named: (what: string, name: string) => `${what}, Name ${name}`,
+  correct: {
+    edit: 'Bearbeiten',
+    change: 'Fahrzeug ändern',
+    kindLabel: 'Art',
+    typeLabel: 'Marke oder Typ',
+    typeUnknown: 'Nicht sicher',
+    notVehicle: 'Kein Fahrzeug',
+    wholeBurst: (count: number) => `Alle ${count} Fotos dieser Serie`,
+    save: 'Speichern',
+    cancel: 'Abbrechen',
+    saved: (count: number) => (count > 1 ? `Für ${count} Fotos gespeichert.` : 'Gespeichert.'),
+  },
   reader: {
     title: 'Kennzeichen, Startnummern und Bootsnamen lesen',
     description: (megabytes: string) => `Liest auf diesem Gerät Kennzeichen und militärische Seriennummern von Luftfahrzeugen, Startnummern von Rennwagen und Rennmotorrädern sowie Namen und IMO-Nummern von Schiffen. Kennzeichen von Luftfahrzeugen werden in einer Offline-Kopie öffentlicher Register nachgeschlagen. Ein einmaliger Download von ${megabytes} MB. Nummernschilder von Straßenfahrzeugen werden nie gelesen.`,
