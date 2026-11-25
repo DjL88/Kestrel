@@ -22,6 +22,9 @@ uniform bool useCurve, useMixer, useGrade;
 // Colour grading (src/core/colourGrade.ts gradePixel): shadow, midtone and highlight offsets and the balance pivot.
 uniform vec3 gradeS, gradeM, gradeH;
 uniform float gradePivot;
+// Camera calibration (src/core/calibration.ts), on linear light right after white balance.
+uniform bool useCalib;
+uniform mat3 calib;
 uniform vec4 curveLut[${CURVE_VEC4S}];
 uniform vec4 mixerP[6];
 in vec2 uv;
@@ -90,6 +93,7 @@ vec3 mixColour(vec3 c) {
 void main() {
   vec4 texel = texture(src, uv);
   vec3 c = toLinear(texel.rgb) * channelGain;
+  if (useCalib) c = max(calib * c, vec3(0.0));
   if (highlights != 0.0 || shadows != 0.0 || blackPoint != 0.0 || whitePoint != 1.0) {
     c = (c - blackPoint) / (whitePoint - blackPoint);
     float perceived = toEncoded(vec3(luma(c))).r;
@@ -260,6 +264,12 @@ export function renderEditOnGpu(target: HTMLCanvasElement, edit: PhotoEdit, imag
     }
     gl.uniform1i(gl.getUniformLocation(program, 'useMixer'), params.mixer ? 1 : 0);
     if (params.mixer) gl.uniform4fv(gl.getUniformLocation(program, 'mixerP'), params.mixer);
+    gl.uniform1i(gl.getUniformLocation(program, 'useCalib'), params.calibration ? 1 : 0);
+    // GLSL matrices are column-major and ours is row-major, so pass it transposed.
+    if (params.calibration) {
+      const m = params.calibration;
+      gl.uniformMatrix3fv(gl.getUniformLocation(program, 'calib'), false, [m[0], m[3], m[6], m[1], m[4], m[7], m[2], m[5], m[8]]);
+    }
     gl.uniform1i(gl.getUniformLocation(program, 'useGrade'), params.grade ? 1 : 0);
     if (params.grade) {
       gl.uniform3fv(gl.getUniformLocation(program, 'gradeS'), params.grade.subarray(0, 3));

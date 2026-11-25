@@ -371,7 +371,8 @@ test('full 16-bit export supports existing edits and fails closed on future/inva
   assert.equal(master16Blocker({ ...EDIT, masks: [localDetail] }, DEFAULT_FRAMING), null,
     '16-bit master now includes local detail masks as well as tone');
   assert.equal(master16Blocker(EDIT, { ...DEFAULT_FRAMING, straighten: 2 }), null, '16-bit TIFF now includes straightening');
-  assert.match(master16Blocker({ ...EDIT, dehaze: 1 } as PhotoEdit, DEFAULT_FRAMING)!, /dehaze/,
+  assert.equal(master16Blocker({ ...EDIT, dehaze: 1 }, DEFAULT_FRAMING), null, '16-bit TIFF now includes dehaze');
+  assert.match(master16Blocker({ ...EDIT, futureEffect: 1 } as unknown as PhotoEdit, DEFAULT_FRAMING)!, /futureEffect/,
     'a future edit must not be silently dropped from an archival TIFF');
   const invalid: Mask = { ...createMask('radial', 'invalid'), feather: NaN };
   assert.match(master16Blocker({ ...EDIT, masks: [invalid] }, DEFAULT_FRAMING)!, /saved masks/);

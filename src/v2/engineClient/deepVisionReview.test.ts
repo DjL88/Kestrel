@@ -27,13 +27,13 @@ describe('describeDeepReview', () => {
 
   it('includes agreement when the scene reading corroborates the detector', () => {
     const summary = describeDeepReview(result({ corroboration: { state: 'agreed', subject: 'bird' } }), null);
-    assert.match(summary, /confirmed as a bird by the scene reading/);
+    assert.match(summary, /scene reading confirmed it as a bird/);
   });
 
   it('flags a conflict between the scene reading and the detector as unresolved', () => {
     const summary = describeDeepReview(result({ corroboration: { state: 'conflict', reading: 'bird', detector: 'aircraft' } }), null);
     assert.match(summary, /disagrees/);
-    assert.match(summary, /treat this as unresolved/);
+    assert.match(summary, /treat this as unresolved/i);
   });
 
   it('appends the suggested Look\'s name and description when one is given', () => {

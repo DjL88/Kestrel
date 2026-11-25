@@ -3,6 +3,9 @@ import type { CollabRole } from '../../../core/collabRoles';
 import { initialsOf } from '../../../core/editingSequence';
 import { CollabError, type CollabClient, type CollabInvite, type CollabProjectView } from '../../../providers/collabClient';
 import { STRINGS } from '../strings';
+import { galleryThumbnail } from '../../engineClient/galleryThumbnail';
+import GalleryFeedbackPanel from './GalleryFeedbackPanel';
+import CloudPhotosPanel, { type LocalCloudPhoto } from './CloudPhotosPanel';
 import { readSharedLink, writeSharedLink } from './sharedLinks';
 
 interface ShareDialogProps {
@@ -18,6 +21,13 @@ interface ShareDialogProps {
   renderPreview?: (photoId: string) => Promise<Blob | null>;
   /** Where the public gallery page lives (`/gallery`); empty when this build cannot make client links. */
   siteUrl: string;
+  photoName: (photoId: string) => string;
+  /** This project's photos, for the cloud store. */
+  localPhotos: LocalCloudPhoto[];
+  readOriginal?: (photoId: string) => Promise<Blob | null>;
+  importCloud?: (items: { file: File; projectId: string; photoKey: string }[]) => Promise<void>;
+  attachOriginal?: (photoId: string, original: File, sha256: string) => Promise<boolean>;
+  onGoToPhoto: (photoId: string) => void;
   onClose: () => void;
 }
 
@@ -27,7 +37,7 @@ const INVITE_ROLES: Exclude<CollabRole, 'owner'>[] = ['editor', 'commenter', 'vi
  * Share a project with named people (#1387 C01). Opt-in: nothing is contacted until this dialog opens, and a project
  * that is never shared keeps working offline. For now only the project name and the people are shared; the dialog says so.
  */
-export default function ShareDialog({ open, client, localProjectId, projectName, selectedPhotoIds, displayName, renderPreview, siteUrl, onClose }: ShareDialogProps) {
+export default function ShareDialog({ open, client, localProjectId, projectName, selectedPhotoIds, displayName, renderPreview, siteUrl, photoName, onGoToPhoto, localPhotos, readOriginal, importCloud, attachOriginal, onClose }: ShareDialogProps) {
   const t = STRINGS.share;
   const closeButton = useRef<HTMLButtonElement>(null);
   const [view, setView] = useState<CollabProjectView | null>(null);
@@ -39,6 +49,7 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
   const [role, setRole] = useState<Exclude<CollabRole, 'owner'>>('editor');
   const [gallery, setGallery] = useState({ days: 14, password: '', allowComments: true, allowFavourites: true, allowApproval: true, allowDownloads: false, watermark: true });
   const [galleryLink, setGalleryLink] = useState<string | null>(null);
+  const [published, setPublished] = useState(0);
 
   const explain = useCallback((error: unknown) => {
     const kind = error instanceof CollabError ? error.kind : 'network';
@@ -96,10 +107,10 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
   });
   const publish = () => view && renderPreview && run(async () => {
     setGalleryLink(null);
-    const previews: { photoId: string; jpeg: Blob }[] = [];
+    const previews: { photoId: string; jpeg: Blob; thumb: Blob | null }[] = [];
     for (const photoId of selectedPhotoIds) {
       const jpeg = await renderPreview(photoId);
-      if (jpeg) previews.push({ photoId, jpeg });
+      if (jpeg) previews.push({ photoId, jpeg, thumb: await galleryThumbnail(jpeg) });
     }
     const skipped = selectedPhotoIds.length - previews.length;
     if (!previews.length) { setNote(t.gallerySkipped(skipped)); return; }
@@ -109,6 +120,7 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
       allowComments: gallery.allowComments, allowFavourites: gallery.allowFavourites, allowApproval: gallery.allowApproval,
       allowDownloads: gallery.allowDownloads, watermark: gallery.watermark,
     }, previews);
+    setPublished((n) => n + 1);
     setGalleryLink(`${siteUrl.replace(/\/+$/, '')}/gallery#t=${encodeURIComponent(made.linkToken)}`);
     setNote([t.galleryDone(made.published), skipped ? t.gallerySkipped(skipped) : ''].filter(Boolean).join(' '));
   });
@@ -216,6 +228,9 @@ export default function ShareDialog({ open, client, localProjectId, projectName,
                 )}
               </form>
             )}
+            <CloudPhotosPanel client={client} projectId={view.projectId} role={view.me.role} photos={localPhotos} selectedPhotoIds={selectedPhotoIds}
+              renderPreview={renderPreview} readOriginal={readOriginal} importCloud={importCloud} attachOriginal={attachOriginal} onProblem={explain} />
+            {canInvite && <GalleryFeedbackPanel client={client} projectId={view.projectId} version={published} photoName={photoName} onGoToPhoto={onGoToPhoto} onProblem={explain} />}
           </>
         )}
       </section>
