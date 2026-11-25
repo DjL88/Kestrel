@@ -16,7 +16,7 @@ import { createSplitRenderCache } from './splitRenderCache';
 import { master16Blocker } from '../../core/master16';
 import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { canDevelopRaw, RawPrecisionUnavailableError } from '../../providers/rawDevelop';
-import { editRaw16, openRaw16 } from '../../providers/rawMaster16';
+import { editRaw16, openRaw16, ShownPictureMismatchError } from '../../providers/rawMaster16';
 import type { Rgb16Image } from '../../core/master16';
 import { hasNativeRaw } from '../../providers/desktopShell';
 import { createRawSourceCache, rawSourceBudget } from './rawSourceCache';
@@ -206,14 +206,26 @@ export async function renderExportJob({ frame, job, variant, request, provider, 
     const verifiedRaster = !frame.isDemo && Boolean(fullResolutionRasterFormat(frame.filename));
     if (!frame.isDemo && isHeifFile(frame.filename))
       throw new Error(`Cannot verify full-resolution HEIF pixels for ${frame.filename} in this export path. Use a supported source; no preview was substituted.`);
-    const image = verifiedRaster
-      ? await loadVerifiedRasterOriginalForExport(frame, provider, signal)
-      : await loadExportSource(frame, provider);
+    // A RAW on the 16-bit path takes its pixels, and its output size, from the 16-bit sensor develop below; the picture
+    // passed with it is only checked for shape and turn (editRaw16). The stored screen-size develop does that as well as
+    // a full-size 8-bit develop, which took about 25 s per Nikon Z 8 photo and was then not used. Anything else (no
+    // stored develop, an edit the 16-bit path cannot carry, a 16-bit refusal) loads the full develop as before.
+    const raw = !frame.isDemo && isRawPreviewFile(frame.filename);
+    const sixteen = raw && canDevelopRaw() && !master16Blocker(variant.edit ?? DEFAULT_EDIT, frame.framing);
+    const guide = sixteen ? await loadDevelopedGuide(frame, provider) : null;
     checkCancelled();
-    if (!frame.isDemo && isRawPreviewFile(frame.filename) &&
-        (!provider.isDeveloped(frame.stableKey) || provider.isOfflineFallback(frame.stableKey))) {
-      throw new Error(`${frame.filename} has no verified sensor-developed source. Embedded RAW previews cannot be exported as full-quality photographs.`);
-    }
+    const fullSource = async () => {
+      const loaded = verifiedRaster
+        ? await loadVerifiedRasterOriginalForExport(frame, provider, signal)
+        : await loadExportSource(frame, provider);
+      checkCancelled();
+      if (raw && (!provider.isDeveloped(frame.stableKey) || provider.isOfflineFallback(frame.stableKey))) {
+        throw new Error(`${frame.filename} has no verified sensor-developed source. Embedded RAW previews cannot be exported as full-quality photographs.`);
+      }
+      return loaded;
+    };
+    try {
+    let image = guide?.image ?? await fullSource();
     const nativeSize = verifiedRaster && job.format.id === ORIGINAL_FORMAT_ID
       ? framedSize(image.naturalWidth, image.naturalHeight, frame.framing ?? DEFAULT_FRAMING) : null;
     // Original follows the edit's Output scale (2× doubles it); other formats keep their size and the renderer only
@@ -243,7 +255,14 @@ export async function renderExportJob({ frame, job, variant, request, provider, 
         try {
           const source = await openRawSource(frame, original, originalSha256, signal);
           checkCancelled();
-          precise = await editRaw16(source.image, image, variant.edit ?? DEFAULT_EDIT, frame.framing, { shared: source.shared, signal: signal });
+          try {
+            precise = await editRaw16(source.image, image, variant.edit ?? DEFAULT_EDIT, frame.framing, { shared: source.shared, signal: signal });
+          } catch (reason) {
+            // A stored screen develop that does not match the sensor picture's shape: check against the full develop instead.
+            if (!(reason instanceof ShownPictureMismatchError) || !guide) throw reason;
+            image = await fullSource();
+            precise = await editRaw16(source.image, image, variant.edit ?? DEFAULT_EDIT, frame.framing, { shared: source.shared, signal: signal });
+          }
         } catch (reason) {
           // Only a refusal of the 16-bit path itself (compression that cannot be classified) falls back; a changed or
           // unreadable original still stops the export.
@@ -253,6 +272,8 @@ export async function renderExportJob({ frame, job, variant, request, provider, 
         checkCancelled();
       }
     }
+    // The 8-bit path draws the picture itself, so it needs the full develop, never the screen-size one.
+    if (!precise && image === guide?.image) image = await fullSource();
     stage(precise ? 'Rendering the 16-bit edit, crop and overlays' : 'Rendering complete edit, masks, crop and overlays');
     const result = await renderV2Export(
       image, { ...frame, edit: variant.edit }, outputSize, job.crop, toProfile(outputFormat),
@@ -260,4 +281,26 @@ export async function renderExportJob({ frame, job, variant, request, provider, 
     );
     checkCancelled();
     return result.sections ?? [result.file];
+    } finally {
+      guide?.release();
+    }
+}
+
+/**
+ * The stored screen-size develop of a RAW (made from its sensor data after import), as a picture, or null when there is
+ * none yet. Only for checking the 16-bit picture's shape and turn, never for its pixels or size.
+ */
+async function loadDevelopedGuide(frame: PhotoFrame, provider: BrowserPreviewProvider): Promise<{ image: HTMLImageElement; release: () => void } | null> {
+  const pair = await provider.developedReview(frame).catch(() => null);
+  if (!pair?.review) return null;
+  const url = URL.createObjectURL(pair.review);
+  const image = new Image();
+  image.src = url;
+  try {
+    await image.decode();
+  } catch {
+    URL.revokeObjectURL(url);
+    return null;
+  }
+  return { image, release: () => URL.revokeObjectURL(url) };
 }

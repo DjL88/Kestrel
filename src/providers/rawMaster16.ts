@@ -32,6 +32,11 @@ export async function editRaw16(picture: Rgb16Image, shown: HTMLImageElement, ed
   return frameAndEditOffThread(picture, turn, edit, framing, { shared: options?.shared, signal: options?.signal });
 }
 
+/** The picture the 16-bit develop was checked against is not the same shape as the sensor picture (nor a quarter turn of it). */
+export class ShownPictureMismatchError extends Error {
+  constructor(message: string) { super(message); this.name = 'ShownPictureMismatchError'; }
+}
+
 /** The quarter turn that puts the sensor picture the way the editor shows it; throws if they are not the same photo. */
 async function turnToShown(picture: Rgb16Image, shown: HTMLImageElement): Promise<number> {
   const bitmap = await createImageBitmap(shown);
@@ -40,7 +45,7 @@ async function turnToShown(picture: Rgb16Image, shown: HTMLImageElement): Promis
     // Same shape as the editor's picture or a quarter turn of it; anything else is not the same photo.
     const sameShape = Math.abs(bitmap.width / bitmap.height - picture.width / picture.height) < 0.02;
     const turnedShape = Math.abs(bitmap.width / bitmap.height - picture.height / picture.width) < 0.02;
-    if (!sameShape && !turnedShape) throw new Error('The RAW sensor data does not match the picture being edited, so no 16-bit file was made.');
+    if (!sameShape && !turnedShape) throw new ShownPictureMismatchError('The RAW sensor data does not match the picture being edited, so no 16-bit file was made.');
     let turn = bestTurn({ thumb: await thumbOf(bitmap), portrait: shownPortrait }, { thumb: thumbRgb16(picture), portrait: picture.height > picture.width });
     if (turnedShape && !sameShape && turn % 180 === 0) turn = 90;
     return turn;
