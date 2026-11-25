@@ -142,6 +142,12 @@ export function loadSpeciesLabels(): Promise<Labels> {
     const labels = [...shipped];
     try {
       const world = await loadWorldLabels();
+      // The shipped names carry no family; take it from the world list so a doubtful bird can still be named by family.
+      const familyOf = new Map(world.map((label) => [label.scientific.toLowerCase(), label.family]));
+      for (let i = 0; i < labels.length; i++) {
+        const family = familyOf.get(labels[i].scientific.toLowerCase());
+        if (family && !labels[i].family) labels[i] = { ...labels[i], family };
+      }
       labels.push(...worldLabelsForRegions(world, regions, new Set(shipped.map((label) => label.scientific.toLowerCase()))));
     } catch (error) { console.warn('World species list unavailable; using the shipped list', error); }
     return { labels, vectors: labels.map(decodeVector) };
