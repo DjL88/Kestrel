@@ -53,6 +53,8 @@ export interface ProjectCardProps {
   onRename: () => void;
   onArchive: () => void;
   onDelete: () => void;
+  /** Makes a separate copy; absent where copying is not offered. */
+  onDuplicate?: () => void;
 }
 
 function Cover({ project, coverFailed, onCoverError, iconSize }: Pick<ProjectCardProps, 'project' | 'coverFailed' | 'onCoverError'> & { iconSize: number }) {
@@ -87,7 +89,7 @@ function StorageStatus({ project, compact }: { project: Project; compact?: boole
   );
 }
 
-function ActionsMenu({ project, menuOpen, onToggleMenu, onRename, onArchive, onDelete, opensUp }: Pick<ProjectCardProps, 'project' | 'menuOpen' | 'onToggleMenu' | 'onRename' | 'onArchive' | 'onDelete'> & { opensUp?: boolean }) {
+function ActionsMenu({ project, menuOpen, onToggleMenu, onRename, onArchive, onDelete, onDuplicate, opensUp }: Pick<ProjectCardProps, 'project' | 'menuOpen' | 'onToggleMenu' | 'onRename' | 'onArchive' | 'onDelete' | 'onDuplicate'> & { opensUp?: boolean }) {
   const item = 'flex min-h-10 w-full items-center px-3 text-left text-xs hover:bg-[var(--bg-surface-hover)]';
   return (
     <div className="relative shrink-0">
@@ -98,6 +100,7 @@ function ActionsMenu({ project, menuOpen, onToggleMenu, onRename, onArchive, onD
       {menuOpen && (
         <div role="menu" aria-label={STRINGS.hubMore.actionsMenu} className={`absolute right-0 z-30 w-44 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1 shadow-[var(--shadow-popover)] ${opensUp ? 'bottom-11' : 'top-11'}`}>
           {!project.trashed && <button type="button" role="menuitem" className={`${item} text-[var(--text-primary)]`} onClick={() => { onToggleMenu(); onRename(); }}>{STRINGS.hubMore.rename}</button>}
+          {!project.trashed && onDuplicate && <button type="button" role="menuitem" className={`${item} text-[var(--text-primary)]`} onClick={() => { onToggleMenu(); onDuplicate(); }}>{STRINGS.hubMore.duplicate}</button>}
           <button type="button" role="menuitem" className={`${item} text-[var(--text-primary)]`} onClick={() => { onToggleMenu(); onArchive(); }}>{project.archived || project.trashed ? STRINGS.hubMore.restore : STRINGS.hubMore.archive}</button>
           <button type="button" role="menuitem" className={`${item} text-[var(--status-danger,#e5484d)]`} onClick={() => { onToggleMenu(); onDelete(); }}>{project.trashed ? STRINGS.hubMore.deleteForeverMenu : STRINGS.hubMore.deleteMenu}</button>
         </div>

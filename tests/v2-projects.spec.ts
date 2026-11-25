@@ -61,6 +61,17 @@ test('?v2 hub: rename, archive, restore and delete a project (originals untouche
   await expect(studio.getByRole('button', { name: /^Recently deleted/ })).toHaveCount(0);
 });
 
+test('?v2 hub: Duplicate makes a separate copy named "(copy)" and leaves the original', async ({ page }) => {
+  await page.goto('/?v2&stub=1');
+  const studio = page.locator('.inflight-v2');
+  const first = studio.getByRole('button', { name: /^Project actions for / }).first();
+  const name = (await first.getAttribute('aria-label'))!.replace('Project actions for ', '');
+  await first.click();
+  await studio.getByRole('menuitem', { name: 'Duplicate' }).click();
+  await expect(studio.getByRole('button', { name: `Project actions for ${name} (copy)` })).toBeVisible();
+  await expect(studio.getByRole('button', { name: `Project actions for ${name}`, exact: true })).toBeVisible();
+});
+
 test('?v2 settings: Privacy has a guarded erase-this-device and a forget-me request route', async ({ page }) => {
   await page.goto('/?v2&stub=1');
   const studio = page.locator('.inflight-v2');

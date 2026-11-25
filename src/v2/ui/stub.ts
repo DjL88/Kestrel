@@ -3,6 +3,7 @@
 // Replace this file when connecting the real Kestrel/InFlight engine.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { STRINGS } from './strings';
 import type {
   CropTransform,
   DecisionState,
@@ -837,6 +838,15 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     deleteProject: (id) => {
       logAction('deleteProject', { id });
       setStore((prev) => ({ ...prev, projects: prev.projects.map((p) => (p.id === id ? { ...p, trashed: true } : p)) }));
+    },
+    duplicateProject: (id) => {
+      logAction('duplicateProject', { id });
+      setStore((prev) => {
+        const source = prev.projects.find((p) => p.id === id);
+        if (!source) return prev;
+        const copy = { ...source, id: `${id}-copy-${prev.projects.length}`, name: STRINGS.hubMore.copyName(source.name), archived: false, trashed: false };
+        return { ...prev, projects: [copy, ...prev.projects] };
+      });
     },
     restoreDeletedProject: (id) => {
       logAction('restoreDeletedProject', { id });
