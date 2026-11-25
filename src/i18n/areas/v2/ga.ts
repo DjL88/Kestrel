@@ -510,6 +510,16 @@ export const ga: AreaTranslation<typeof source> = {
     galleryCopied: 'Cóipeáladh an nasc.',
     galleryDone: (n: number) => `Foilsíodh ${n} grianghraf.`,
     gallerySkipped: (n: number) => `Fágadh ${n} grianghraf amach mar níl réamhamharc forbartha acu fós.`,
+    feedbackHeading: 'Aiseolas ó chliaint',
+    feedbackRefresh: 'Athnuaigh',
+    feedbackNone: 'Níl aon ghailearaí cliant ann fós.',
+    feedbackEnds: (date: string) => `Críochnaíonn ${date}`,
+    feedbackPhotos: (n: number) => `Grianghraif: ${n}`,
+    feedbackTotals: (favourites: number, approved: number, changes: number, notes: number) => `Ceanáin: ${favourites} · Faofa: ${approved} · Athruithe iarrtha: ${changes} · Nótaí: ${notes}`,
+    feedbackRevoke: 'Dún an nasc',
+    feedbackDetails: 'Aiseolas de réir grianghraif',
+    feedbackShow: 'Taispeáin an grianghraf',
+    feedbackChangesLabel: 'Athruithe iarrtha',
   },
   adjust: {
     grade: {

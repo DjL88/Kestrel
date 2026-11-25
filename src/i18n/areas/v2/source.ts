@@ -536,6 +536,16 @@ export const source = {
     galleryCopied: 'Link copied.',
     galleryDone: (n: number) => `Published ${n} photos.`,
     gallerySkipped: (n: number) => `${n} photos were left out because they have no developed preview yet.`,
+    feedbackHeading: 'Client feedback',
+    feedbackRefresh: 'Refresh',
+    feedbackNone: 'No client galleries yet.',
+    feedbackEnds: (date: string) => `Ends ${date}`,
+    feedbackPhotos: (n: number) => `Photos: ${n}`,
+    feedbackTotals: (favourites: number, approved: number, changes: number, notes: number) => `Favourites: ${favourites} · Approved: ${approved} · Changes asked: ${changes} · Notes: ${notes}`,
+    feedbackRevoke: 'Close link',
+    feedbackDetails: 'Feedback by photo',
+    feedbackShow: 'Show photo',
+    feedbackChangesLabel: 'Changes asked',
   },
 
   // Adjust Panel

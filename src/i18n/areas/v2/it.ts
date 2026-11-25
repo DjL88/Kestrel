@@ -507,6 +507,16 @@ export const it: AreaTranslation<typeof source> = {
     galleryCopied: 'Link copiato.',
     galleryDone: (n: number) => `${n} foto pubblicate.`,
     gallerySkipped: (n: number) => `${n} foto sono state escluse perché non hanno ancora un’anteprima sviluppata.`,
+    feedbackHeading: 'Riscontri dei clienti',
+    feedbackRefresh: 'Aggiorna',
+    feedbackNone: 'Ancora nessuna galleria cliente.',
+    feedbackEnds: (date: string) => `Termina il ${date}`,
+    feedbackPhotos: (n: number) => `Foto: ${n}`,
+    feedbackTotals: (favourites: number, approved: number, changes: number, notes: number) => `Preferite: ${favourites} · Approvate: ${approved} · Modifiche richieste: ${changes} · Note: ${notes}`,
+    feedbackRevoke: 'Chiudi link',
+    feedbackDetails: 'Riscontri per foto',
+    feedbackShow: 'Mostra foto',
+    feedbackChangesLabel: 'Modifiche richieste',
   },
   adjust: {
     grade: {

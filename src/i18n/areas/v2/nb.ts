@@ -507,6 +507,16 @@ export const nb: AreaTranslation<typeof source> = {
     galleryCopied: 'Lenken er kopiert.',
     galleryDone: (n: number) => `${n} bilder publisert.`,
     gallerySkipped: (n: number) => `${n} bilder ble utelatt fordi de ennå ikke har en fremkalt forhåndsvisning.`,
+    feedbackHeading: 'Tilbakemeldinger fra kunder',
+    feedbackRefresh: 'Oppdater',
+    feedbackNone: 'Ingen kundegallerier ennå.',
+    feedbackEnds: (date: string) => `Slutter ${date}`,
+    feedbackPhotos: (n: number) => `Bilder: ${n}`,
+    feedbackTotals: (favourites: number, approved: number, changes: number, notes: number) => `Favoritter: ${favourites} · Godkjent: ${approved} · Endringer ønsket: ${changes} · Notater: ${notes}`,
+    feedbackRevoke: 'Lukk lenken',
+    feedbackDetails: 'Tilbakemelding per bilde',
+    feedbackShow: 'Vis bilde',
+    feedbackChangesLabel: 'Endringer ønsket',
   },
   adjust: {
     grade: {

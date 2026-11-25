@@ -508,6 +508,16 @@ export const fi: AreaTranslation<typeof source> = {
     galleryCopied: 'Linkki kopioitu.',
     galleryDone: (n: number) => `${n} kuvaa julkaistu.`,
     gallerySkipped: (n: number) => `${n} kuvaa jätettiin pois, koska niillä ei vielä ole kehitettyä esikatselua.`,
+    feedbackHeading: 'Asiakaspalaute',
+    feedbackRefresh: 'Päivitä',
+    feedbackNone: 'Ei vielä asiakasgallerioita.',
+    feedbackEnds: (date: string) => `Päättyy ${date}`,
+    feedbackPhotos: (n: number) => `Kuvia: ${n}`,
+    feedbackTotals: (favourites: number, approved: number, changes: number, notes: number) => `Suosikit: ${favourites} · Hyväksytty: ${approved} · Muutoksia pyydetty: ${changes} · Muistiinpanot: ${notes}`,
+    feedbackRevoke: 'Sulje linkki',
+    feedbackDetails: 'Palaute kuvittain',
+    feedbackShow: 'Näytä kuva',
+    feedbackChangesLabel: 'Muutoksia pyydetty',
   },
   adjust: {
     grade: {

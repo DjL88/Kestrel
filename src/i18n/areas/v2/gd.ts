@@ -508,6 +508,16 @@ export const gd: AreaTranslation<typeof source> = {
     galleryCopied: 'Chaidh lethbhreac a dhèanamh dhen cheangal.',
     galleryDone: (n: number) => `Chaidh ${n} dealbhan fhoillseachadh.`,
     gallerySkipped: (n: number) => `Chaidh ${n} dealbhan fhàgail às oir chan eil ro-shealladh leasaichte aca fhathast.`,
+    feedbackHeading: 'Beachdan luchd-dèiligidh',
+    feedbackRefresh: 'Ath-nuadhaich',
+    feedbackNone: 'Chan eil gailearaidh neach-dèiligidh ann fhathast.',
+    feedbackEnds: (date: string) => `Thig e gu crìch ${date}`,
+    feedbackPhotos: (n: number) => `Dealbhan: ${n}`,
+    feedbackTotals: (favourites: number, approved: number, changes: number, notes: number) => `Annsachdan: ${favourites} · Air aontachadh: ${approved} · Atharraichean a dh’iarradh: ${changes} · Notaichean: ${notes}`,
+    feedbackRevoke: 'Dùin an ceangal',
+    feedbackDetails: 'Beachdan a rèir deilbh',
+    feedbackShow: 'Seall an dealbh',
+    feedbackChangesLabel: 'Atharraichean a dh’iarradh',
   },
   adjust: {
     grade: {

@@ -905,6 +905,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         displayName={signedInName}
         renderPreview={actions.renderGalleryPreview}
         siteUrl={gallerySiteUrl}
+        photoName={(id) => store.photos.find((photo) => photo.id === id)?.filename ?? id}
+        onGoToPhoto={(id) => { closeShare(); actions.selectPhoto(id); }}
         onClose={closeShare}
       />
 

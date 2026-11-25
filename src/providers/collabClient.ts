@@ -1,5 +1,6 @@
 import { parseControlPlaneUrl } from '../core/licenceOnline';
 import type { CollabRole } from '../core/collabRoles';
+import type { GalleryFeedbackEvent } from '../core/galleryFeedback';
 
 /**
  * The app's side of shared projects (#1387): talks to the control plane's /v1/collab routes. Sharing is opt-in and
@@ -29,6 +30,8 @@ async function sha256Hex(blob: Blob): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
+
+export interface GalleryListItem { galleryId: string; name: string; expiresAtMs: number; photos: number; photoIds: string[]; published: number; password: boolean }
 
 export interface CollabInvite { projectId: string; name: string; role: CollabRole }
 
@@ -81,6 +84,9 @@ export interface CollabClient {
   accept(projectId: string, displayName: string): Promise<void>;
   /** Publishes the given previews as a client gallery and returns the link's secret token. */
   publishGallery(projectId: string, options: GalleryRequest, previews: { photoId: string; jpeg: Blob }[]): Promise<{ galleryId: string; linkToken: string; expiresAtMs: number; published: number }>;
+  galleries(projectId: string): Promise<GalleryListItem[]>;
+  galleryFeedback(galleryId: string): Promise<GalleryFeedbackEvent[]>;
+  revokeGallery(galleryId: string): Promise<void>;
   presenceToken(projectId: string): Promise<{ customToken: string; databaseUrl: string; uid: string; expiresAtMs: number }>;
 }
 
@@ -120,6 +126,9 @@ export function collabClient(baseUrl: string | undefined | null, idToken: () => 
       }
       return { galleryId, linkToken: String(made.linkToken), expiresAtMs: Number(made.expiresAtMs), published };
     },
+    galleries: async (id) => ((await call('GET', P(id) + '/galleries')).galleries ?? []) as GalleryListItem[],
+    galleryFeedback: async (gid) => ((await call('GET', `/v1/collab/galleries/${encodeURIComponent(gid)}/feedback`)).events ?? []) as GalleryFeedbackEvent[],
+    revokeGallery: async (gid) => { await call('POST', `/v1/collab/galleries/${encodeURIComponent(gid)}/revoke`); },
     presenceToken: async (id) => (await call('POST', P(id) + '/presence-token')) as unknown as { customToken: string; databaseUrl: string; uid: string; expiresAtMs: number },
   };
 }

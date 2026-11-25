@@ -507,6 +507,16 @@ export const nl: AreaTranslation<typeof source> = {
     galleryCopied: 'Link gekopieerd.',
     galleryDone: (n: number) => `${n} foto’s gepubliceerd.`,
     gallerySkipped: (n: number) => `${n} foto’s zijn weggelaten omdat ze nog geen ontwikkeld voorbeeld hebben.`,
+    feedbackHeading: 'Feedback van klanten',
+    feedbackRefresh: 'Vernieuwen',
+    feedbackNone: 'Nog geen klantgalerijen.',
+    feedbackEnds: (date: string) => `Eindigt ${date}`,
+    feedbackPhotos: (n: number) => `Foto’s: ${n}`,
+    feedbackTotals: (favourites: number, approved: number, changes: number, notes: number) => `Favorieten: ${favourites} · Goedgekeurd: ${approved} · Wijzigingen gevraagd: ${changes} · Notities: ${notes}`,
+    feedbackRevoke: 'Link sluiten',
+    feedbackDetails: 'Feedback per foto',
+    feedbackShow: 'Foto tonen',
+    feedbackChangesLabel: 'Wijzigingen gevraagd',
   },
   adjust: {
     grade: {

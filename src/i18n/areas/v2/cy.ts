@@ -507,6 +507,16 @@ export const cy: AreaTranslation<typeof source> = {
     galleryCopied: 'Copïwyd y ddolen.',
     galleryDone: (n: number) => `Cyhoeddwyd ${n} llun.`,
     gallerySkipped: (n: number) => `Gadawyd ${n} llun allan am nad oes rhagolwg wedi’i ddatblygu ganddynt eto.`,
+    feedbackHeading: 'Adborth cleientiaid',
+    feedbackRefresh: 'Adnewyddu',
+    feedbackNone: 'Dim orielau cleient eto.',
+    feedbackEnds: (date: string) => `Yn dod i ben ${date}`,
+    feedbackPhotos: (n: number) => `Lluniau: ${n}`,
+    feedbackTotals: (favourites: number, approved: number, changes: number, notes: number) => `Ffefrynnau: ${favourites} · Wedi’u cymeradwyo: ${approved} · Newidiadau a ofynnwyd: ${changes} · Nodiadau: ${notes}`,
+    feedbackRevoke: 'Cau’r ddolen',
+    feedbackDetails: 'Adborth fesul llun',
+    feedbackShow: 'Dangos y llun',
+    feedbackChangesLabel: 'Newidiadau a ofynnwyd',
   },
   adjust: {
     grade: {

@@ -507,6 +507,16 @@ export const is: AreaTranslation<typeof source> = {
     galleryCopied: 'Tengill afritaður.',
     galleryDone: (n: number) => `${n} myndir birtar.`,
     gallerySkipped: (n: number) => `${n} myndum var sleppt því þær eru ekki enn með framkallaða forskoðun.`,
+    feedbackHeading: 'Endurgjöf viðskiptavina',
+    feedbackRefresh: 'Uppfæra',
+    feedbackNone: 'Engin myndasöfn viðskiptavina enn.',
+    feedbackEnds: (date: string) => `Lýkur ${date}`,
+    feedbackPhotos: (n: number) => `Myndir: ${n}`,
+    feedbackTotals: (favourites: number, approved: number, changes: number, notes: number) => `Eftirlæti: ${favourites} · Samþykkt: ${approved} · Breytinga óskað: ${changes} · Athugasemdir: ${notes}`,
+    feedbackRevoke: 'Loka tengli',
+    feedbackDetails: 'Endurgjöf eftir mynd',
+    feedbackShow: 'Sýna mynd',
+    feedbackChangesLabel: 'Breytinga óskað',
   },
   adjust: {
     grade: {

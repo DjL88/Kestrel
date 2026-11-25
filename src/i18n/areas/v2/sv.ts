@@ -507,6 +507,16 @@ export const sv: AreaTranslation<typeof source> = {
     galleryCopied: 'Länken har kopierats.',
     galleryDone: (n: number) => `${n} foton publicerade.`,
     gallerySkipped: (n: number) => `${n} foton utelämnades eftersom de ännu saknar framkallad förhandsvisning.`,
+    feedbackHeading: 'Feedback från kunder',
+    feedbackRefresh: 'Uppdatera',
+    feedbackNone: 'Inga kundgallerier ännu.',
+    feedbackEnds: (date: string) => `Upphör ${date}`,
+    feedbackPhotos: (n: number) => `Foton: ${n}`,
+    feedbackTotals: (favourites: number, approved: number, changes: number, notes: number) => `Favoriter: ${favourites} · Godkända: ${approved} · Ändringar önskade: ${changes} · Anteckningar: ${notes}`,
+    feedbackRevoke: 'Stäng länken',
+    feedbackDetails: 'Feedback per foto',
+    feedbackShow: 'Visa foto',
+    feedbackChangesLabel: 'Ändringar önskade',
   },
   adjust: {
     grade: {

@@ -507,6 +507,16 @@ export const de: AreaTranslation<typeof source> = {
     galleryCopied: 'Link kopiert.',
     galleryDone: (n: number) => `${n} Fotos veröffentlicht.`,
     gallerySkipped: (n: number) => `${n} Fotos wurden ausgelassen, weil sie noch keine entwickelte Vorschau haben.`,
+    feedbackHeading: 'Kundenfeedback',
+    feedbackRefresh: 'Aktualisieren',
+    feedbackNone: 'Noch keine Kundengalerien.',
+    feedbackEnds: (date: string) => `Endet am ${date}`,
+    feedbackPhotos: (n: number) => `Fotos: ${n}`,
+    feedbackTotals: (favourites: number, approved: number, changes: number, notes: number) => `Favoriten: ${favourites} · Freigegeben: ${approved} · Änderungen gewünscht: ${changes} · Notizen: ${notes}`,
+    feedbackRevoke: 'Link schließen',
+    feedbackDetails: 'Feedback pro Foto',
+    feedbackShow: 'Foto zeigen',
+    feedbackChangesLabel: 'Änderungen gewünscht',
   },
   adjust: {
     grade: {
