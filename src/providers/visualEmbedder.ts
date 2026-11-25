@@ -21,7 +21,7 @@ function load(): Promise<OffThreadSession> {
     if (bytes.byteLength !== EMBED_MODEL.bytes || await sha256Hex(bytes.buffer) !== EMBED_MODEL.sha256) {
       throw new Error('The photo similarity model failed its integrity check, so it was not used.');
     }
-    return createOffThreadSession('dinov2-small-fp16', bytes);
+    return createOffThreadSession('dinov2-small-fp16', bytes, { onLost: () => { loading = null; } });
   })().catch((error) => {
     loading = null;
     console.warn('Photo similarity model failed to load', error);

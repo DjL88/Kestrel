@@ -1,5 +1,6 @@
 import { recordModelLoad, recordModelRun } from '../core/modelStats';
 import { createTimedSession } from './modelTiming';
+import { readModelReady, readModelResult, type ModelTensor } from '../core/modelSessionProtocol';
 
 /**
  * One model session in a worker (src/providers/modelSessionWorker.ts), so inference never holds up the interface: a
@@ -7,7 +8,7 @@ import { createTimedSession } from './modelTiming';
  * fails to load there, the same model runs on this thread instead, as before. Load and run times reach Settings →
  * Models either way (src/core/modelStats.ts).
  */
-export interface ModelTensor { data: Float32Array; dims: readonly number[] }
+export type { ModelTensor } from '../core/modelSessionProtocol';
 
 export interface OffThreadSession {
   readonly inputNames: readonly string[];
@@ -17,13 +18,23 @@ export interface OffThreadSession {
   run(feeds: Record<string, ModelTensor>): Promise<Record<string, ModelTensor>>;
 }
 
-type WorkerFactory = () => Worker;
-const defaultWorker: WorkerFactory = () => new Worker(new URL('./modelSessionWorker.ts', import.meta.url), { type: 'module' });
+export interface OffThreadOptions {
+  /** Starts the worker; null runs the model on this thread. */
+  startWorker?: (() => Worker) | null;
+  /**
+   * Called once if the worker stops after loading. The session then refuses every run at once, so the provider should
+   * forget it: its next call starts a fresh worker (or falls back to this thread) instead of waiting on a dead one.
+   */
+  onLost?: () => void;
+}
 
-export async function createOffThreadSession(id: string, bytes: Uint8Array, startWorker: WorkerFactory | null = typeof Worker === 'undefined' ? null : defaultWorker): Promise<OffThreadSession> {
+const defaultWorker = () => new Worker(new URL('./modelSessionWorker.ts', import.meta.url), { type: 'module' });
+
+export async function createOffThreadSession(id: string, bytes: Uint8Array, options: OffThreadOptions = {}): Promise<OffThreadSession> {
+  const startWorker = options.startWorker === undefined ? (typeof Worker === 'undefined' ? null : defaultWorker) : options.startWorker;
   if (startWorker) {
     try {
-      return await inWorker(id, bytes, startWorker);
+      return await inWorker(id, bytes, startWorker, options.onLost);
     } catch (problem) {
       console.warn(`The ${id} model could not start in the background; running it here instead.`, problem);
     }
@@ -31,32 +42,48 @@ export async function createOffThreadSession(id: string, bytes: Uint8Array, star
   return onThisThread(id, bytes);
 }
 
-async function inWorker(id: string, bytes: Uint8Array, startWorker: WorkerFactory): Promise<OffThreadSession> {
+async function inWorker(id: string, bytes: Uint8Array, startWorker: () => Worker, onLost?: () => void): Promise<OffThreadSession> {
   const worker = startWorker();
   const pending = new Map<number, { resolve: (outputs: Record<string, ModelTensor>) => void; reject: (error: Error) => void }>();
   let nextId = 1;
+  let outputNames: readonly string[] = [];
+  let lost: Error | null = null;
+  let loaded = false;
+  const lose = (error: Error) => {
+    if (lost) return;
+    lost = error;
+    for (const waiting of pending.values()) waiting.reject(error);
+    pending.clear();
+    worker.terminate();
+    if (loaded) onLost?.();
+  };
   const ready = new Promise<{ inputNames: string[]; outputNames: string[] }>((resolve, reject) => {
     worker.onmessage = (event: MessageEvent) => {
-      const message = event.data;
-      if (message.type === 'ready') {
-        recordModelLoad(id, message.loadMs);
-        resolve({ inputNames: message.inputNames, outputNames: message.outputNames });
-      } else if (message.type === 'result') {
-        recordModelRun(id, message.runMs);
-        pending.get(message.id)?.resolve(message.outputs);
-        pending.delete(message.id);
-      } else if (message.type === 'error') {
-        const error = new Error(message.message);
-        if (message.id === undefined) { reject(error); return; }
-        pending.get(message.id)?.reject(error);
-        pending.delete(message.id);
+      const message = event.data as { type?: unknown; id?: unknown };
+      if (!loaded) {
+        try {
+          const description = readModelReady(message);
+          if (description.loadMs !== null) recordModelLoad(id, description.loadMs);
+          loaded = true;
+          resolve(description);
+        } catch (problem) { reject(problem); }
+        return;
+      }
+      const waiting = typeof message?.id === 'number' ? pending.get(message.id) : undefined;
+      if (!waiting) return;
+      pending.delete(message.id as number);
+      try {
+        const { outputs, runMs } = readModelResult(message, outputNames);
+        if (runMs !== null) recordModelRun(id, runMs);
+        waiting.resolve(outputs);
+      } catch (problem) {
+        waiting.reject(problem instanceof Error ? problem : new Error(String(problem)));
       }
     };
     worker.onerror = (event) => {
       const error = new Error(event.message || `The ${id} model stopped unexpectedly.`);
-      reject(error);
-      for (const waiting of pending.values()) waiting.reject(error);
-      pending.clear();
+      if (!loaded) reject(error);
+      lose(error);
     };
   });
   // A copy goes to the worker, so the caller's bytes stay usable.
@@ -69,10 +96,12 @@ async function inWorker(id: string, bytes: Uint8Array, startWorker: WorkerFactor
     worker.terminate();
     throw problem;
   }
+  outputNames = names.outputNames;
   return {
     ...names,
     where: 'worker',
     run: (feeds) => new Promise((resolve, reject) => {
+      if (lost) { reject(lost); return; }
       const runId = nextId++;
       pending.set(runId, { resolve, reject });
       // Copies, so the caller's arrays stay usable; the copies move to the worker without another copy.
@@ -102,6 +131,7 @@ async function onThisThread(id: string, bytes: Uint8Array): Promise<OffThreadSes
       for (const [name, tensor] of Object.entries(feeds)) tensors[name] = new ort.Tensor('float32', tensor.data, [...tensor.dims]);
       const results = await session.run(tensors);
       const outputs: Record<string, ModelTensor> = {};
+      // Only float32 outputs, on purpose: U2-Net and DINOv2 answer in float32 (src/core/modelSessionProtocol.ts).
       for (const [name, tensor] of Object.entries(results)) if (tensor.data instanceof Float32Array) outputs[name] = { data: tensor.data, dims: tensor.dims };
       return outputs;
     },

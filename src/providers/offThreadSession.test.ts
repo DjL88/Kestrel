@@ -29,7 +29,7 @@ class FakeWorker {
 test('a model runs in the worker, and the caller keeps its own bytes and inputs', async () => {
   const worker = new FakeWorker();
   const bytes = new Uint8Array([1, 2, 3]);
-  const session = await createOffThreadSession('test-model', bytes, () => worker as unknown as Worker);
+  const session = await createOffThreadSession('test-model', bytes, { startWorker: () => worker as unknown as Worker });
   assert.equal(session.where, 'worker');
   assert.deepEqual([...session.inputNames], ['input']);
   assert.equal(bytes.byteLength, 3, 'the model bytes are copied, not moved away from the caller');
@@ -48,13 +48,38 @@ test('a model runs in the worker, and the caller keeps its own bytes and inputs'
 });
 
 test('a failed run is reported to that run only', async () => {
-  const session = await createOffThreadSession('test-run-fail', new Uint8Array([1]), () => new FakeWorker(false, true) as unknown as Worker);
+  const session = await createOffThreadSession('test-run-fail', new Uint8Array([1]), { startWorker: () => new FakeWorker(false, true) as unknown as Worker });
   await assert.rejects(session.run({ input: { data: new Float32Array([1]), dims: [1] } }), /run failed/);
 });
 
 test('a model that cannot start in a worker stops that worker and is tried on this thread', async () => {
   const worker = new FakeWorker(true);
   // On this thread the runtime then refuses three bytes that are not a model: the error comes from there, not the worker.
-  await assert.rejects(createOffThreadSession('test-init-fail', new Uint8Array([1, 2, 3]), () => worker as unknown as Worker), (error: Error) => !/bad model/.test(error.message));
+  await assert.rejects(createOffThreadSession('test-init-fail', new Uint8Array([1, 2, 3]), { startWorker: () => worker as unknown as Worker }), (error: Error) => !/bad model/.test(error.message));
   assert.equal(worker.terminated, true);
+});
+
+test('a worker that stops after loading refuses every later run at once and tells the provider to start afresh', async () => {
+  const worker = new FakeWorker();
+  let lost = 0;
+  const session = await createOffThreadSession('test-crash', new Uint8Array([1]), { startWorker: () => worker as unknown as Worker, onLost: () => { lost += 1; } });
+  // A run that never gets an answer, then the worker dies.
+  const original = worker.postMessage.bind(worker);
+  worker.postMessage = () => undefined;
+  const hanging = session.run({ input: { data: new Float32Array([1]), dims: [1] } });
+  worker.onerror?.({ message: 'out of memory' } as ErrorEvent);
+  await assert.rejects(hanging, /out of memory/);
+  worker.postMessage = original;
+  await assert.rejects(session.run({ input: { data: new Float32Array([1]), dims: [1] } }), /out of memory/, 'refused at once, not left waiting');
+  assert.equal(lost, 1);
+  assert.equal(worker.terminated, true);
+});
+
+test('a malformed answer is refused, not passed off as a result', async () => {
+  const worker = new FakeWorker();
+  const session = await createOffThreadSession('test-malformed', new Uint8Array([1]), { startWorker: () => worker as unknown as Worker });
+  worker.postMessage = (message: { type: string; id?: number }) => {
+    queueMicrotask(() => worker.onmessage?.({ data: { type: 'result', id: message.id, runMs: 1, outputs: { output: { data: new Float32Array(2), dims: [1, 3] } } } } as MessageEvent));
+  };
+  await assert.rejects(session.run({ input: { data: new Float32Array([1]), dims: [1] } }), /unexpected result/);
 });
