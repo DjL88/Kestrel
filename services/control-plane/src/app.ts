@@ -158,6 +158,7 @@ const SWITCHES = [
   { key: 'pro-checkout', label: 'Pro checkout (SumUp)', note: 'People can pay for Pro through SumUp\'s hosted page. Their billing country must match their network location. Switching off stops new checkouts only; payments already made are still verified and granted.' },
   { key: 'collaboration', label: 'Shared projects', note: 'Cloud subscribers can share a project, invite people by email and check photos out to edit. Switching off stops new shared projects and checkouts; members can still read revisions.' },
   { key: 'pro-checkout-eu', label: 'Pro checkout for EU buyers', note: 'Switch on only once you are registered for OSS (EU VAT on digital sales). Until then EU buyers see that Pro is not on sale in their country yet.' },
+  { key: 'cloud-runner-any-device', planned: true, label: 'Cloud runner for every device (designed, not built)', note: 'Lets anyone, not only Pro, send queued jobs to the cloud runner when their device is busy or too small for a model. Opt-in per job type, a monthly allowance and the spend ceiling. Cannot be switched on until it is built and the owner approves the cost.' },
   { key: 'pro-cloud-storage', planned: true, label: 'Pro Cloud storage (designed, not built)', note: "Store a project's originals in InFlight's UK cloud to open on any device and share. Opt-in per project; originals on the device are never moved or changed. Cannot be switched on until it is built and the owner approves the cost." },
 ] as const;
 const SWITCH_KEYS = SWITCHES.map((w) => w.key) as [SwitchKey, ...SwitchKey[]];
@@ -464,7 +465,10 @@ export function createApp(options: AppOptions) {
       throw new ApiError(503, 'CLOUD_DISABLED', 'Cloud processing is switched off for now.', true);
     }
     const licences = await store.listLicencesForAccount(accountId);
-    if (!licences.some((l) => (l.plan === 'paid' || l.plan === 'subscriber') && licenceIsUsable(l, now()))) {
+    // Owner decision 3 (25 Nov 2026): any device may use the runner once 'cloud-runner-any-device' is built and on.
+    // Until then it is a planned switch, so this stays Pro only.
+    const pro = licences.some((l) => (l.plan === 'paid' || l.plan === 'subscriber') && licenceIsUsable(l, now()));
+    if (!pro && !(await switchOn('cloud-runner-any-device'))) {
       await audit(accountId, 'cloud.job.create', 'denied', 'not Pro');
       throw new ApiError(403, 'CLOUD_NOT_ENTITLED', 'Cloud processing is part of Pro.');
     }

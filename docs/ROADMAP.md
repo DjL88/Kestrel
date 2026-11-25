@@ -631,6 +631,31 @@ Each feature has an admin switch marked *planned*. It shows in Admin → Switche
 
   So a Pro Cloud price needs a stated quota. 50 GiB costs InFlight about £0.87 a month to hold, plus downloads. Holding nothing costs nothing.
 
+#### 3. Cloud runner helps any busy device (owner decision 3; switch `cloud-runner-any-device`)
+- **What it is.** When the device is busy (a long local queue) or too small for a model (the model's memory profile is above the device tier), the app offers to send the queued job to the cloud runner. This is for anyone, not only Pro. It is also how the larger models that don't fit a phone or small laptop get run.
+- **Rules:**
+  - **Opt-in per job type** (denoise, upscale, mask, later the larger vision models), off by default, with a consent tick per job as now.
+  - **Same model versions:** the job names the model id and SHA-256 from the signed manifest; the runner refuses a different file.
+  - **Signed results:** the runner signs `{jobId, model sha256, input sha256, output sha256}` with an Ed25519 key in Secret Manager. The app checks the signature and the hashes before showing or applying anything. A failed check is treated as "no result" and never applied.
+  - The result comes back as a reversible recipe or a derived file, never in place of the original.
+- **Gates already in code:** the `cloud-processing` switch and the `cloud.processing` kill flag, consent per job, size cap, per-account monthly job allowance, and the global monthly spend ceiling (`KCP_MONTHLY_SPEND_CEILING_PENCE`, default £15). Now also: `cloudGate` admits a non-Pro account only when `cloud-runner-any-device` is on. It is planned, so the runner stays Pro only (test: a free account is refused even with the setting forced).
+- **To build:**
+  1. A separate, smaller allowance for non-Pro accounts.
+  2. Job types for the larger models.
+  3. Result signing in `services/cloud-runner`, and verification in the app.
+  4. The app's busy/too-small detection and offer (in the Tasks panel).
+  5. Turn the switch from planned to real.
+- **Where it runs.** Cloud Run jobs in London have **no GPU** in the price catalogue, so London means CPU only. GPU jobs would need another region, which conflicts with the UK-only data decision for safe copy. That is the owner's call before any GPU work.
+- **Cost per month.** Cloud Run jobs in London cost £0.0000162 per vCPU-second and £0.0000018 per GiB-second. Results go out at the download price in item 1. Uploads into Google are free.
+
+  | Job (assumed) | Size | About per job |
+  |---|---|---|
+  | Denoise one 45 MP RAW, 4 vCPU / 16 GiB, 90 s, 50 MB result | CPU + memory + download | **≈ £0.01** |
+  | Mask or a small vision model, 2 vCPU / 4 GiB, 15 s | CPU + memory | **≈ £0.0006** |
+  | Larger vision model on CPU, 8 vCPU / 32 GiB, 60 s | CPU + memory | **≈ £0.011** |
+
+  At ≈ £0.01 a heavy job: **1,000 jobs a month ≈ £10; 10,000 ≈ £100; 100,000 ≈ £1,000.** The existing £15 ceiling (counted from the per-job estimate `KCP_CLOUD_JOB_PENCE`, not Google's bill) stops new cloud jobs at 750 a month at the default 2p estimate, until the owner raises it. Idle costs nothing (jobs scale to zero).
+
 ### P3: Later work
 - A metadata-only serialiser and local sync outbox, with synthetic tests of conflict-safe sync between two devices. (Gates carried over from the closed #363: originals and previews never upload; a licence isn't an account or a key; local writing works with the network off.)
 - Control plane: deployment, app sign-in, choosing the managed transport, storing grants for `useAccess`, a PostgreSQL adapter.
