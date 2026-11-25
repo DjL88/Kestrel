@@ -21,4 +21,7 @@ export const fr: AreaTranslation<typeof source> = {
     invalid: "Ce lien n’est pas valide.",
     invalidHint: "Répondez à l’e-mail et nous arrêterons les envois.",
   },
+  news: {
+    why: "Vous recevez ce message car vous avez demandé les nouveautés d’InFlight par e-mail. Pour arrêter, désactivez-les dans Paramètres → Compte, ou utilisez le lien ci-dessous.",
+  },
 };

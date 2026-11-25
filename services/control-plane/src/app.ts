@@ -30,6 +30,8 @@ import { millicreditsForBytes, type AllowancePolicy, type UsageMeter } from './u
 import { FEEDBACK_ITEM_ID } from '../../../src/core/clientFeedback.ts';
 import type { NoticeStore } from './notices.ts';
 import type { PushService } from './push.ts';
+import type { NoticeContacts } from './noticeContacts.ts';
+import type { NewsBroadcaster } from './news.ts';
 import { PUSH_PLATFORMS, isPushToken } from '../../../src/core/pushNotices.ts';
 import type { NoticeEvent } from '../../../src/core/collabNotices.ts';
 import { GalleryRefusal, GALLERY_MAX_DAYS, GALLERY_MAX_PHOTOS, GALLERY_MAX_PREVIEW_BYTES, galleryIdFor, previewKey, type GalleryStore } from './gallery.ts';
@@ -103,6 +105,11 @@ export interface AppOptions {
   notices?: NoticeStore;
   /** Push notifications through FCM (G20). Absent: the push routes answer 503 and nothing is pushed. */
   push?: PushService;
+  /** Email fallback for notices and product news: the Firebase user behind each account, its app language and the
+   * product-news-by-email opt-in. No address is stored. Absent: no notice or news email. */
+  contacts?: NoticeContacts;
+  /** Product news from /admin (push first, opted-in email as the fallback). Absent: the send route answers 503. */
+  news?: NewsBroadcaster;
   /** Shared projects' cloud photo store and the per-account download meter. Absent: the cloud routes answer 503. */
   cloudPhotos?: { store: CloudPhotoStore; meter: UsageMeter; allowance: AllowancePolicy; maxProjectBytes: number };
   /** Prepaid cloud balance (top-ups; pays beyond the free allowances). Absent: allowances are hard limits. */
@@ -192,8 +199,9 @@ const SWITCHES = [
   { key: 'safe-copy', label: 'Safe copy (managed backup)', note: 'Opt-in backup to InFlight UK storage. Switching off stops uploads only; people can always read and delete their copy.' },
   { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
   { key: 'pro-checkout', label: 'Pro checkout (Paddle)', note: 'People can buy Pro through Paddle\'s checkout. Paddle is the merchant of record and handles sales tax and VAT in every country. Switching off stops new checkouts only; payments already made are still verified and granted.' },
-  { key: 'email', label: 'App email (hello@inflight.studio)', note: 'Sends share invitations by email through Google Workspace. Plain text and HTML, an unsubscribe link in every message, at most 500 a day (30 per sender, 3 per recipient). Switch on only once hello@inflight.studio is a verified Send mail as address.' },
+  { key: 'email', label: 'App email', note: 'Sends share invitations, and notices or product news only when push cannot reach someone, through Gmail SMTP (a personal Gmail account for now, or Google Workspace). Plain text and HTML, an unsubscribe link in every message, a daily cap under Google\'s limit (450 on Gmail, 500 by default on Workspace; 30 per sender, 3 per recipient). Only verified sign-in addresses are used and none is stored.' },
   { key: 'push', label: 'Push notifications (FCM)', note: 'Sends shared-project notices (comments, client feedback) to the phones and browsers where people turned alerts on. Names and counts only, never comment text or photos. Switching off stops sending and new device sign-ups; the in-app inbox keeps working.' },
+  { key: 'product-news', label: 'Product news (updates, new features)', note: 'Lets an administrator send InFlight news from Notifications below: pushed to devices where people turned alerts on and kept "InFlight news" on; emailed only to people who turned on "Email me InFlight news" and could not be reached by push. Off by default.' },
   { key: 'collaboration', label: 'Shared projects', note: 'Cloud subscribers can share a project, invite people by email and check photos out to edit. Switching off stops new shared projects and checkouts; members can still read revisions.' },
   { key: 'vertex-learning', label: 'Learning in Vertex AI (batches)', note: "Trains shared models in Vertex AI from consented shadow files only (measurements, masks, decisions, recipes; never photos). Batches only: 1,000 newly edited photos, weekly when something is new, or Learn now. Each run reserves its worst-case cost first and is refused past the owner's £20 a month. No always-on endpoints." },
   { key: 'pro-cloud-storage', planned: true, label: 'Pro Cloud storage (designed, not built)', note: "Store a project's originals in InFlight's UK cloud to open on any device and share. Opt-in per project; originals on the device are never moved or changed. Cannot be switched on until it is built and the owner approves the cost." },
@@ -252,7 +260,12 @@ export const Schemas = {
   CollabResolve: z.object({ resolved: z.boolean() }).strict(),
   PushDevice: z.object({ token: z.string().refine(isPushToken, 'not a push token'), platform: z.enum(PUSH_PLATFORMS) }).strict(),
   PushDeviceRemove: z.object({ token: z.string().refine(isPushToken, 'not a push token') }).strict(),
-  PushPreferences: z.object({ comments: z.boolean(), clientFeedback: z.boolean() }).partial().strict(),
+  PushPreferences: z.object({ comments: z.boolean(), clientFeedback: z.boolean(), news: z.boolean() }).partial().strict(),
+  EmailPreferences: z.object({ productNews: z.boolean(), language: z.enum(MAIL_LANGUAGES) }).partial().strict(),
+  NewsSend: z.object({
+    broadcastId: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/).optional(),
+    title: z.string().trim().min(1).max(120), body: z.string().trim().min(1).max(500), dryRun: z.boolean(),
+  }).strict(),
   NoticesRead: z.object({ ids: z.union([z.literal('all'), z.array(z.string().min(1).max(64)).max(200)]) }).strict(),
   CollabOverride: z.object({ reason: z.string().trim().min(1).max(500) }).strict(),
   CollabPublish: z.object({ token: z.string().min(16).max(128), baseRevisionId: z.string().max(64).nullable(), recipe: z.record(z.string(), z.unknown()), virtualCopyOf: z.string().max(64).optional() }).strict(),
@@ -426,7 +439,7 @@ export function createApp(options: AppOptions) {
    * the account if it is new, and attaches any entitlement that was waiting for it (a purchase or a free grant).
    * Sessions from here are always plain user sessions, whatever role the account holds elsewhere.
    */
-  async function signInWithProvider(provider: 'google' | 'apple' | 'firebase', email: string, privateRelay: boolean) {
+  async function signInWithProvider(provider: 'google' | 'apple' | 'firebase', email: string, privateRelay: boolean, subject = '') {
     const emailHash = sha256Hex(email);
     let account = await store.findAccountByEmailHash(emailHash);
     if (!account) {
@@ -436,6 +449,9 @@ export function createApp(options: AppOptions) {
     if (!account || account.status !== 'active') throw new ApiError(403, 'FORBIDDEN', 'This account is suspended.');
     const attached = await store.claimLicencesForEmail(emailHash, account.accountId);
     await audit(account.accountId, 'user.signin', 'allowed', `${provider}${attached ? ` attached=${attached}` : ''}`);
+    // The Firebase user behind this account, so a notice can be emailed to its verified address when push cannot reach
+    // the person. Only the id and the email hash are kept, never the address.
+    if (provider === 'firebase' && subject && options.contacts) await options.contacts.rememberSignIn(account.accountId, subject, emailHash).catch(() => undefined);
     return { ...(await issueSession(account.accountId, 'user')), signedInWith: provider, entitlementsAttached: attached, privateRelay };
   }
   function providerRoute(provider: 'google' | 'apple' | 'firebase'): Route {
@@ -456,7 +472,7 @@ export function createApp(options: AppOptions) {
           if (check.reason === 'keys_unavailable') throw new ApiError(503, 'PROVIDER_UNAVAILABLE', 'The sign-in provider could not be reached. Try again in a minute.', true);
           throw new ApiError(401, 'AUTH_FAILED', 'That sign-in could not be checked. Sign in again.');
         }
-        return { status: 200, body: await signInWithProvider(provider, check.email, check.privateRelay) };
+        return { status: 200, body: await signInWithProvider(provider, check.email, check.privateRelay, check.subject) };
       },
     };
   }
@@ -482,7 +498,7 @@ export function createApp(options: AppOptions) {
   // ---- Admin on/off switches. Managed Gemini is on unless switched off (the existing `ai_disabled` setting, so the
   // existing admin control and this one are the same switch). The new features are off in production until an admin
   // switches them on. The older kill settings (cloud_disabled, safe_copy_disabled) still win.
-  const switchConfigured = (key: SwitchKey) => isPlanned(key) ? false : key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'email' ? !!options.mailer : key === 'push' ? !!options.push : key === 'pro-checkout' ? !!options.proCheckout : key === 'vertex-learning' ? !!options.vertexLearning : !!options.learning;
+  const switchConfigured = (key: SwitchKey) => isPlanned(key) ? false : key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : key === 'collaboration' ? !!options.collab : key === 'email' ? !!options.mailer : key === 'push' ? !!options.push : key === 'product-news' ? !!options.news && !!options.push : key === 'pro-checkout' ? !!options.proCheckout : key === 'vertex-learning' ? !!options.vertexLearning : !!options.learning;
   async function switchOn(key: SwitchKey): Promise<boolean> {
     if (isPlanned(key)) return false;
     if (key === 'managed-ai') return (await store.getSetting('ai_disabled')) !== '1';
@@ -674,6 +690,12 @@ export function createApp(options: AppOptions) {
     return options.push;
   }
   options.push?.setGate(() => switchOn('push'));
+  const news = options.news;
+  news?.setEmailGate(() => switchOn('email'));
+  function contactsCfg(): NoticeContacts {
+    if (!options.contacts) throw new ApiError(503, 'EMAIL_PREFS_NOT_CONFIGURED', 'Email from InFlight is not set up on this server yet.');
+    return options.contacts;
+  }
 
   function galleryCfg(): GalleryStore {
     if (!options.gallery) throw new ApiError(503, 'GALLERY_NOT_CONFIGURED', 'Client galleries are not set up on this server yet.');
@@ -836,7 +858,18 @@ export function createApp(options: AppOptions) {
       },
     },
     {
-      method: 'GET', path: '/v1/admin/mail', summary: 'App email sent today against the daily cap and the Workspace limit', auth: 'admin',
+      method: 'POST', path: '/v1/admin/news/send', summary: 'Send InFlight product news: push first, email only to people who asked for it and could not be pushed (a dry run sends nothing)', auth: 'admin', body: Schemas.NewsSend,
+      handler: async (req) => {
+        const claims = await admin(req, 'news.send');
+        const body = parseJson(Schemas.NewsSend, req.rawBody);
+        if (!news) throw new ApiError(503, 'NEWS_NOT_CONFIGURED', 'Product news needs push notifications set up on this server.');
+        if (!body.dryRun && !(await switchOn('product-news'))) throw new ApiError(409, 'NEWS_SWITCHED_OFF', 'Switch on Product news first.');
+        const report = await news.send(body, now());
+        return adminDone(claims, 'news.send', `${body.dryRun ? 'dry run ' : ''}${report.broadcastId} pushed=${report.pushed} emailed=${report.emailed} waiting=${report.emailWaiting} notTried=${report.notTried}`, report);
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/mail', summary: 'App email sent today against the daily cap and the sending account\'s Google limit', auth: 'admin',
       handler: async (req) => {
         const claims = await admin(req, 'mail.read');
         if (!options.mailer) throw new ApiError(503, 'MAIL_NOT_CONFIGURED', 'App email is not set up on this server.');
@@ -1552,6 +1585,31 @@ export function createApp(options: AppOptions) {
         const claims = await bearer(req);
         const body = parseJson(Schemas.PushDeviceRemove, req.rawBody);
         return { status: 200, body: { removed: await pushCfg().remove(claims.sub, body.token) } };
+      },
+    },
+    // ---- Email only as the fallback (owner, 25 Nov 2026): the app language for email words, and product news by email,
+    // which is off unless the person turns it on.
+    {
+      method: 'GET', path: '/v1/notify/email', summary: 'Whether InFlight can email you, and whether you asked for product news by email (off unless you turned it on)', auth: 'user',
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const prefs = await contactsCfg().preferences(claims.sub);
+        const available = !!options.mailer && (await switchOn('email')) && (await switchOn('product-news'));
+        return { status: 200, body: { available, productNews: prefs.productNews } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/notify/email', summary: 'Turn product news by email on or off, and tell the server which language the app is in', auth: 'user', body: Schemas.EmailPreferences,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.EmailPreferences, req.rawBody);
+        const contacts = contactsCfg();
+        if (body.language) await contacts.setLanguage(claims.sub, body.language);
+        if (body.productNews !== undefined) {
+          await contacts.setProductNews(claims.sub, body.productNews, now());
+          await audit(claims.sub, 'notify.news-email', 'allowed', body.productNews ? 'on' : 'off');
+        }
+        return { status: 200, body: { productNews: (await contacts.preferences(claims.sub)).productNews } };
       },
     },
     {

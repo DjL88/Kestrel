@@ -22,4 +22,7 @@ export const source = {
     invalid: "This link is not valid.",
     invalidHint: "Reply to the email and we will stop them.",
   },
+  news: {
+    why: "You get this because you asked for InFlight news by email. To stop, turn it off in Settings → Account, or use the link below.",
+  },
 };

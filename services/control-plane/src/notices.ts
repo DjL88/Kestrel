@@ -3,9 +3,9 @@
  *
  * Every notice is written to the person's in-app inbox (`collab_notices`), read through `GET /v1/collab/notices` when
  * the app is open. A new notice (not a merge into an unread one) is then pushed through Firebase Cloud Messaging when
- * the person has a device for it; only if not, and the app has not been open in the last 15 minutes, it goes by email,
- * always from hello@inflight.studio through the backend's mailer and its daily counter (decision 11a), which may hold
- * non-urgent mail for the next day.
+ * the person has a device for it; only if FCM is not available for them or reached no device, and the app has not been
+ * open in the last 15 minutes, it goes by email to their verified sign-in address (noticeContacts.ts) through the
+ * backend's mailer and its daily counter (decision 11a), which may hold non-urgent mail for the next day.
  *
  * The push sender and mailer belong to the backend lane and plug in through `NoticeDelivery`. Until they are wired,
  * `NO_DELIVERY` sends nothing: the in-app inbox still works. A failed push or email never fails the action that caused
@@ -20,7 +20,7 @@ export interface NoticeDelivery {
   /** FCM to the account's registered devices. 'no-device' when it has none; 'off' when the person switched this kind
    * off (then it is not emailed either: the inbox still has it). */
   push(accountId: string, message: { title: string; body: string; data: Record<string, string> }): Promise<'sent' | 'no-device' | 'off'>;
-  /** Email from hello@ in the recipient's language, through the daily counter. Never urgent here. */
+  /** Email in the recipient's language, through the daily counter. Never urgent here. */
   email(accountId: string, message: { subject: string; text: string; urgent: false }): Promise<'sent' | 'held' | 'no-address'>;
 }
 

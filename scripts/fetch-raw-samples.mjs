@@ -4,13 +4,15 @@
  *
  *   node scripts/fetch-raw-samples.mjs            download what is missing
  *   node scripts/fetch-raw-samples.mjs --list     show the set without downloading
+ *   node scripts/fetch-raw-samples.mjs --exactness   only the CC0 files the export exactness proof uses (CI)
  *
  * Source: https://raw.pixls.us, a public RAW sample archive whose files are CC0 unless its table says otherwise.
  * Check the licence column there before redistributing any file. These are for local testing only and are never
  * committed. They exercise decoding for each maker; they are low-ISO and say nothing about noise reduction quality.
  * Then run the native decode check with:  KESTREL_RAW_SAMPLES=$PWD/raw-samples cargo test --release raw::
  */
-import { createWriteStream, existsSync, mkdirSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { createReadStream, createWriteStream, existsSync, mkdirSync, statSync } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 
@@ -31,6 +33,11 @@ export const SAMPLES = [
   ['Pentax', 'K-3 Mark III', '_IMG0114.DNG', 31, 'Adobe DNG'],
 ];
 
+// tests/verified-asset-export-exactness.spec.ts proves full-size exports with these (pinned in tests/exportExactness.ts).
+const EXACTNESS = new Set(['_IMG0114.DNG', 'ILCE-7M4_DSC06681_APS-C-Raw-Compressed.ARW']);
+const chosen = process.argv.includes('--exactness') ? SAMPLES.filter(sample => EXACTNESS.has(sample[2])) : SAMPLES;
+const sha256 = async target => { const hash = createHash('sha256'); for await (const chunk of createReadStream(target)) hash.update(chunk); return hash.digest('hex'); };
+
 const folder = new URL('../raw-samples/', import.meta.url);
 const urlFor = ([maker, camera, file]) => `${BASE}/${[maker, camera, file].map(encodeURIComponent).join('/')}`;
 
@@ -42,12 +49,12 @@ if (process.argv.includes('--list')) {
 
 mkdirSync(folder, { recursive: true });
 let failed = 0;
-for (const sample of SAMPLES) {
+for (const sample of chosen) {
   const target = new URL(sample[2], folder);
-  if (existsSync(target) && statSync(target).size > 1_000_000) { console.log(`have     ${sample[2]}`); continue; }
+  if (existsSync(target) && statSync(target).size > 1_000_000) { console.log(`have     ${sample[2]}  sha256 ${await sha256(target)}`); continue; }
   const response = await fetch(urlFor(sample));
   if (!response.ok || !response.body) { console.log(`FAILED   ${sample[2]} (${response.status})`); failed += 1; continue; }
   await pipeline(Readable.fromWeb(response.body), createWriteStream(target));
-  console.log(`fetched  ${sample[2]}  ${(statSync(target).size / 1e6).toFixed(1)} MB`);
+  console.log(`fetched  ${sample[2]}  ${(statSync(target).size / 1e6).toFixed(1)} MB  sha256 ${await sha256(target)}`);
 }
 process.exit(failed ? 1 : 0);

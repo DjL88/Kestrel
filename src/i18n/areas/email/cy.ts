@@ -21,4 +21,7 @@ export const cy: AreaTranslation<typeof source> = {
     invalid: "Nid yw’r ddolen hon yn ddilys.",
     invalidHint: "Atebwch yr e-bost a byddwn yn eu stopio.",
   },
+  news: {
+    why: "Rydych chi’n cael hwn oherwydd i chi ofyn am newyddion InFlight drwy e-bost. I stopio, diffoddwch hyn yn Gosodiadau → Cyfrif, neu defnyddiwch y ddolen isod.",
+  },
 };

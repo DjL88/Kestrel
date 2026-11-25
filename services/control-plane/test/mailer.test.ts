@@ -192,7 +192,7 @@ test('an invitation is emailed only with the mailer set up AND the email switch 
 
     // The daily counter for /admin, against our cap and the Workspace limit.
     const today = (await h.call('GET', '/v1/admin/mail', { token: h.adminToken })).body;
-    assert.equal(today.on, true); assert.equal(today.sent, 2); assert.equal(today.cap, 500); assert.equal(today.workspaceLimit, 2000); assert.equal(today.warn, false);
+    assert.equal(today.on, true); assert.equal(today.sent, 2); assert.equal(today.cap, 500); assert.equal(today.account, 'workspace'); assert.equal(today.providerLimit, 2000); assert.equal(today.warn, false);
   } finally { await h.close(); }
 });
 
@@ -203,7 +203,7 @@ test('the daily counter warns at 80% of the cap', async () => {
   for (let i = 0; i < 7; i++) await send(i);
   assert.equal((await mailer.today()).warn, false);
   await send(8);
-  assert.deepEqual(await mailer.today(), { day: '2026-11-25', sent: 8, cap: 10, workspaceLimit: 2000, warn: true });
+  assert.deepEqual(await mailer.today(), { day: '2026-11-25', sent: 8, cap: 10, account: 'workspace', providerLimit: 2000, from: 'hello@inflight.studio', warn: true });
 });
 
 test('wiring: off without KCP_MAIL_ENABLED; with it, every required setting is checked and no password is read from the environment', async () => {

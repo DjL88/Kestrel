@@ -21,4 +21,7 @@ export const nl: AreaTranslation<typeof source> = {
     invalid: "Deze link is niet geldig.",
     invalidHint: "Beantwoord de e-mail, dan stoppen we ermee.",
   },
+  news: {
+    why: "Je krijgt dit omdat je hebt gevraagd om InFlight-nieuws per e-mail. Om te stoppen, zet je het uit in Instellingen → Account, of gebruik je de link hieronder.",
+  },
 };

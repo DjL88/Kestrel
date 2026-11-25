@@ -15,8 +15,11 @@ export function useNotices(client: CollabClient, signedIn: () => Promise<string 
   const [notices, setNotices] = useState<Notice[]>([]);
   const [unread, setUnread] = useState(0);
   const [failed, setFailed] = useState(false);
+  const languageSent = useRef(false);
   const reload = useCallback(async () => {
-    try { const inbox = await client.notices(); setNotices(inbox.notices); setUnread(inbox.unread); setFailed(false); setEnabled(true); } catch { setFailed(true); }
+    try { const inbox = await client.notices(); setNotices(inbox.notices); setUnread(inbox.unread); setFailed(false); setEnabled(true); } catch { setFailed(true); return; }
+    // Once a session: the app's language, so an email that has to stand in for an alert uses the person's words.
+    if (!languageSent.current) { languageSent.current = true; void client.setEmailSettings({}).catch(() => undefined); }
   }, [client]);
   useEffect(() => {
     if (!client.configured) return;
@@ -84,9 +87,49 @@ function PushAlerts({ client, signedIn }: { client: CollabClient; signedIn: () =
         <legend className="text-[11px] text-[var(--text-secondary)]">{t.pushKinds}</legend>
         <label className="flex min-h-7 items-center gap-2"><input type="checkbox" checked={server.preferences.comments} onChange={(event) => void setKind('comments', event.target.checked)} />{t.pushComments}</label>
         <label className="flex min-h-7 items-center gap-2"><input type="checkbox" checked={server.preferences.clientFeedback} onChange={(event) => void setKind('clientFeedback', event.target.checked)} />{t.pushClientFeedback}</label>
+        <label className="flex min-h-7 items-center gap-2"><input type="checkbox" data-testid="push-news" checked={server.preferences.news} onChange={(event) => void setKind('news', event.target.checked)} />{t.pushNews}</label>
       </fieldset>
       {failed && <p role="status" className="text-[var(--text-secondary)]">⚠ {t.pushFailed}</p>}
     </div>
+  );
+}
+
+/**
+ * Settings → Account: "Email me InFlight news and new features". Off unless the person turns it on (UK PECR: product
+ * news is marketing). Shown only when the server can send email; news still goes to devices with alerts first.
+ */
+export function NewsEmailSetting({ client, signedIn }: { client: CollabClient; signedIn: () => Promise<string | null> }) {
+  const t = STRINGS.notices;
+  const [state, setState] = useState<{ productNews: boolean } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!client.configured) return;
+    let live = true;
+    void (async () => {
+      try {
+        if (!(await signedIn().catch(() => null))) return;
+        const settings = await client.emailSettings();
+        if (live && settings.available) setState({ productNews: settings.productNews });
+      } catch { /* email not set up on this server: nothing to show */ }
+    })();
+    return () => { live = false; };
+  }, [client, signedIn]);
+  if (!state) return null;
+  const change = async (on: boolean) => {
+    setBusy(true); setFailed(false);
+    try { setState({ productNews: await client.setEmailSettings({ productNews: on }) }); } catch { setFailed(true); } finally { setBusy(false); }
+  };
+  return (
+    <section data-testid="news-email" aria-labelledby="news-email-title" className="mt-5 space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
+      <h3 id="news-email-title" className="text-xs font-semibold text-[var(--text-primary)]">{t.newsEmailHeading}</h3>
+      <label className="flex min-h-7 items-center gap-2 text-[var(--text-primary)]">
+        <input type="checkbox" data-testid="news-email-toggle" checked={state.productNews} disabled={busy} aria-describedby="news-email-hint" onChange={(event) => void change(event.target.checked)} />
+        {t.newsEmailLabel}
+      </label>
+      <p id="news-email-hint" className="text-xs text-[var(--text-secondary)]">{t.newsEmailHint}</p>
+      {failed && <p role="status" className="text-xs text-[var(--text-secondary)]">⚠ {t.newsEmailFailed}</p>}
+    </section>
   );
 }
 

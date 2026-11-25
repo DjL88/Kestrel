@@ -604,6 +604,24 @@ async function loadSwitches() {
   }));
 }
 
+// ---- Product news: live, behind the Product news switch. A dry run counts and sends nothing.
+const newsForm = $('news-form');
+act(newsForm, 'submit', async (e) => {
+  if (!token) return;
+  const dryRun = e.submitter?.name !== 'send';
+  const f = newsForm.elements;
+  const body = { title: f.title.value.trim(), body: f.body.value.trim(), dryRun };
+  if (f.broadcastId.value.trim()) body.broadcastId = f.broadcastId.value.trim();
+  if (!dryRun && !confirm('Send this news to everyone now? Push first; email only to people who asked for it.')) return;
+  const r = await api('admin/news/send', body);
+  f.broadcastId.value = r.broadcastId;
+  $('news-result').textContent = (dryRun ? 'Dry run, nothing sent: ' : 'Sent: ') + r.audience + ' people in the audience, ' +
+    r.pushed + (dryRun ? ' would be pushed, ' : ' pushed, ') + r.emailed + (dryRun ? ' would be emailed, ' : ' emailed, ') +
+    r.off + ' switched news off, ' + r.unreachable + ' not reachable, ' + r.alreadyReached + ' already reached. ' +
+    (r.emailWaiting ? r.emailWaiting + ' email(s) waiting' + (r.emailLimitReached ? ' because today’s email limit was reached' : '') + ': send again with the same id tomorrow. ' : '') +
+    (r.notTried ? r.notTried + ' not tried in this run: send again with the same id. ' : '') + 'Id ' + r.broadcastId + '.';
+});
+
 async function loadMail() {
   let m;
   try { m = await api('admin/mail'); } catch (error) {
@@ -614,7 +632,8 @@ async function loadMail() {
   const facts = [
     ['Switch', m.on ? 'On' : 'Off (see Switches)'],
     ['Sent today (' + m.day + ', UTC)', m.sent + ' of ' + m.cap],
-    ['Google Workspace limit', 'About ' + m.workspaceLimit + ' a day'],
+    ['Sending account', (m.account === 'gmail' ? 'Personal Gmail' : 'Google Workspace') + (m.from ? ' (from ' + m.from + ')' : '')],
+    [m.account === 'gmail' ? 'Gmail limit' : 'Google Workspace limit', 'About ' + m.providerLimit + ' a day'],
   ];
   $('mail-facts').replaceChildren(...facts.map(([k, v]) => { const d = el('div'); d.append(el('dt', k), el('dd', String(v))); return d; }));
   $('mail-warning').hidden = !m.warn;

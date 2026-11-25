@@ -21,4 +21,7 @@ export const fi: AreaTranslation<typeof source> = {
     invalid: "Linkki ei ole kelvollinen.",
     invalidHint: "Vastaa viestiin, niin lopetamme.",
   },
+  news: {
+    why: "Saat tämän, koska pyysit InFlightin uutisia sähköpostilla. Voit lopettaa ne kohdassa Asetukset → Tili tai alla olevalla linkillä.",
+  },
 };

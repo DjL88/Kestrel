@@ -1,13 +1,19 @@
 /**
- * App email from hello@inflight.studio (share invitations first). OFF unless the `email` admin switch is on AND
- * Terraform has set KCP_MAIL_ENABLED (smtp_mail_enabled), which waits for the owner to verify "Send mail as" in Workspace.
+ * App email (share invitations, notices when push cannot reach someone, product news to people who asked for it). OFF
+ * unless the `email` admin switch is on AND Terraform has set KCP_MAIL_ENABLED (smtp_mail_enabled).
+ *
+ * The sending account may be a Google Workspace user (From hello@inflight.studio once that is a verified "Send mail as"
+ * address) or, for now, a personal Gmail account (owner, 25 Nov 2026). The account type follows the SMTP username: a
+ * gmail.com / googlemail.com login is consumer Gmail, which allows about 500 recipients a day, so the hard cap is 450 and
+ * From is that Gmail address itself unless KCP_MAIL_FROM names a verified "Send mail as" alias.
  *
  * - SMTP to smtp.gmail.com:587 with STARTTLS required: credentials are never sent before TLS, and a server that does
  *   not offer STARTTLS is refused.
  * - The app password is read at run time from Secret Manager (kcp-smtp-hello-app-password) and kept only in memory.
  *   It is never logged, never in an env file, never in the repository. Errors never include it.
- * - Limits well under Workspace's ~2,000 messages a day: a daily total (default 500), per sender account (30) and per
- *   recipient (3), counted in Firestore transactions, so restarts and instances cannot exceed them.
+ * - Limits well under Google's: Workspace allows about 2,000 a day (our hard cap 1,500), consumer Gmail about 500 (our
+ *   hard cap 450). A daily total (default 500, or 450 on Gmail), per sender account (30) and per recipient (3), counted
+ *   in Firestore transactions, so restarts and instances cannot exceed them.
  * - Every message is plain text + HTML, with List-Unsubscribe (one-click, RFC 8058, and mailto). An unsubscribed address
  *   (stored only as its email hash) is never mailed again.
  * - Addresses are not stored or logged: the ledger keeps hashes and counts only.
@@ -20,6 +26,25 @@ import { htmlLang, mailWords } from './mailText.ts';
 import { emailHashOf } from './entitlement.ts';
 
 export const MAIL_HARD_DAILY_MAX = 1500; // Workspace allows about 2,000 a day per user; stay well under it.
+/** Consumer Gmail allows about 500 recipients a day; stay under it. */
+export const GMAIL_HARD_DAILY_MAX = 450;
+/** Google's own daily limits, shown in /admin. */
+export const WORKSPACE_DAILY_LIMIT = 2000;
+export const GMAIL_DAILY_LIMIT = 500;
+
+/** Which kind of Google account sends: a gmail.com or googlemail.com login is consumer Gmail; anything else Workspace. */
+export type MailAccountKind = 'gmail' | 'workspace';
+export const mailAccountKind = (smtpUsername: string): MailAccountKind => (/@(gmail|googlemail)\.com$/i.test(smtpUsername.trim()) ? 'gmail' : 'workspace');
+export const hardDailyMax = (kind: MailAccountKind) => (kind === 'gmail' ? GMAIL_HARD_DAILY_MAX : MAIL_HARD_DAILY_MAX);
+export const providerDailyLimit = (kind: MailAccountKind) => (kind === 'gmail' ? GMAIL_DAILY_LIMIT : WORKSPACE_DAILY_LIMIT);
+/**
+ * The From address. A verified "Send mail as" alias when one is configured; otherwise a personal Gmail account can only
+ * send as itself, and a Workspace account sends as hello@inflight.studio (which must be its verified alias).
+ */
+export function fromAddressFor(smtpUsername: string, configured?: string): string {
+  if (configured?.trim()) return configured.trim();
+  return mailAccountKind(smtpUsername) === 'gmail' ? smtpUsername.trim() : 'hello@inflight.studio';
+}
 
 export interface MailLimits { daily: number; perSender: number; perRecipient: number }
 export const DEFAULT_MAIL_LIMITS: MailLimits = { daily: 500, perSender: 30, perRecipient: 3 };
@@ -224,8 +249,10 @@ export class FirestoreMailLedger implements MailLedger {
 export interface MailerOptions {
   transport: MailTransport;
   ledger: MailLedger;
-  /** hello@inflight.studio once it is a verified "Send mail as" address. */
+  /** hello@inflight.studio once it is a verified "Send mail as" address, or the Gmail address itself (fromAddressFor). */
   fromAddress: string;
+  /** The sending account's type, which sets the hard daily cap (default Workspace). */
+  account?: MailAccountKind;
   fromName?: string;
   /** The public website, which forwards /v1/mail/** to the control plane (firebase.json). */
   siteOrigin: string;
@@ -242,19 +269,20 @@ export interface InvitationMail {
   language?: string;
 }
 
-/** Google Workspace's sending limit for one user, about 2,000 messages a day. */
-export const WORKSPACE_DAILY_LIMIT = 2000;
-
 export class Mailer {
   readonly limits: MailLimits;
+  readonly account: MailAccountKind;
   constructor(private readonly o: MailerOptions) {
     if (!isMailAddress(o.fromAddress)) throw new Error('KCP_MAIL_FROM must be an email address');
     if (!/^https:\/\/[^/]+$/.test(o.siteOrigin)) throw new Error('KCP_SITE_ORIGIN must be a bare https origin');
-    const l = o.limits ?? DEFAULT_MAIL_LIMITS;
-    if (l.daily > MAIL_HARD_DAILY_MAX) throw new Error(`the daily mail limit cannot exceed ${MAIL_HARD_DAILY_MAX}`);
+    this.account = o.account ?? 'workspace';
+    const l = o.limits ?? { ...DEFAULT_MAIL_LIMITS, daily: Math.min(DEFAULT_MAIL_LIMITS.daily, hardDailyMax(this.account)) };
+    if (l.daily > hardDailyMax(this.account)) throw new Error(`the daily mail limit cannot exceed ${hardDailyMax(this.account)}${this.account === 'gmail' ? ' on a Gmail account' : ''}`);
     this.limits = l;
   }
 
+  /** The public website the links in every email point to. */
+  get siteOrigin(): string { return this.o.siteOrigin; }
   unsubscribeToken(recipientHash: string) { return createHmac('sha256', this.o.unsubscribeKey).update(`unsubscribe:${recipientHash}`).digest('base64url'); }
   /** The recipient hash a valid token belongs to, or null. */
   checkUnsubscribe(recipientHash: string, token: string): boolean {
@@ -262,12 +290,12 @@ export class Mailer {
     const a = Buffer.from(this.unsubscribeToken(recipientHash)); const b = Buffer.from(token);
     return a.length === b.length && timingSafeEqual(a, b);
   }
-  /** Today's count against the limits, for /admin. `warn` from 80% of the lower of our cap and Workspace's limit. */
-  async today(): Promise<{ day: string; sent: number; cap: number; workspaceLimit: number; warn: boolean }> {
+  /** Today's count against the limits, for /admin. `warn` from 80% of our cap, which is always under Google's limit. */
+  async today(): Promise<{ day: string; sent: number; cap: number; account: MailAccountKind; providerLimit: number; from: string; warn: boolean }> {
     const day = new Date((this.o.now ?? Date.now)()).toISOString().slice(0, 10);
     const sent = await this.o.ledger.sentOn(day);
-    const cap = Math.min(this.limits.daily, MAIL_HARD_DAILY_MAX, WORKSPACE_DAILY_LIMIT);
-    return { day, sent, cap, workspaceLimit: WORKSPACE_DAILY_LIMIT, warn: sent >= Math.ceil(cap * 0.8) };
+    const cap = Math.min(this.limits.daily, hardDailyMax(this.account));
+    return { day, sent, cap, account: this.account, providerLimit: providerDailyLimit(this.account), from: this.o.fromAddress, warn: sent >= Math.ceil(cap * 0.8) };
   }
   async unsubscribe(recipientHash: string) { await this.o.ledger.suppress(recipientHash, (this.o.now ?? Date.now)()); }
 
@@ -311,11 +339,11 @@ export class Mailer {
    * unsubscribe footer and headers are added in `language`. Same unsubscribe list and limits as invitations; the
    * per-sender limit counts notices per recipient account.
    */
-  async sendNotice(m: { to: string; accountId: string; subject: string; text: string; language?: string }): Promise<{ sent: true } | { sent: false; reason: MailRefusal }> {
+  async sendNotice(m: { to: string; accountId: string; subject: string; text: string; language?: string; stream?: 'notice' | 'news' }): Promise<{ sent: true } | { sent: false; reason: MailRefusal }> {
     const recipientHash = emailHashOf(m.to);
     if (await this.o.ledger.isSuppressed(recipientHash)) return { sent: false, reason: 'unsubscribed' };
     const nowMs = (this.o.now ?? Date.now)();
-    const refused = await this.o.ledger.reserve(new Date(nowMs).toISOString().slice(0, 10), `notice:${m.accountId}`, recipientHash, this.limits);
+    const refused = await this.o.ledger.reserve(new Date(nowMs).toISOString().slice(0, 10), `${m.stream ?? 'notice'}:${m.accountId}`, recipientHash, this.limits);
     if (refused) return { sent: false, reason: refused };
     const lang = htmlLang(m.language);
     const w = mailWords(lang).invitation;
@@ -340,15 +368,18 @@ export class Mailer {
   }
 }
 
-/** Where to email an account's notices, if the person has given one (none is stored yet: answers undefined). */
+/**
+ * Where to email an account's notices: its verified sign-in address, looked up when needed and never stored
+ * (src/noticeContacts.ts). Undefined when there is none to use.
+ */
 export type NoticeAddressBook = (accountId: string) => Promise<{ address: string; language?: string } | undefined>;
 export const NO_NOTICE_ADDRESSES: NoticeAddressBook = async () => undefined;
 
 /**
- * The backend side of the collaboration `NoticeDelivery` port (services/control-plane/src/notices.ts, #1535), typed
- * structurally so either can land first. Push: no FCM sender yet, so 'no-device'. Email: through the mailer, only to an
- * address the account has given; over a daily limit it is 'held' (the in-app inbox still has the notice), and an
- * unsubscribed address counts as no address. A failed send throws; the notices code never lets that fail the action.
+ * The email side of the collaboration `NoticeDelivery` port (services/control-plane/src/notices.ts). Push comes from
+ * push.ts; this `push` answers 'no-device' for callers without FCM. Email: through the mailer, only to the address the
+ * address book gives; over a daily limit it is 'held' (the in-app inbox still has the notice), and an unsubscribed
+ * address counts as no address. A failed send throws; the notices code never lets that fail the action.
  */
 export function mailNoticeDelivery(mailer: Mailer | undefined, addresses: NoticeAddressBook = NO_NOTICE_ADDRESSES) {
   return {

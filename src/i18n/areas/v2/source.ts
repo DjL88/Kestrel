@@ -1958,6 +1958,11 @@ export const source = {
     pushBlocked: "Alerts are blocked for InFlight in this browser's settings.",
     pushAppOnly: 'In this app, new notifications show here when InFlight is open.',
     pushFailed: 'Alerts could not be changed. Nothing else was affected.',
+    pushNews: 'InFlight news and new features',
+    newsEmailHeading: 'Email from InFlight',
+    newsEmailLabel: 'Email me InFlight news and new features',
+    newsEmailHint: 'Off unless you turn it on. News goes to your devices with alerts first; we email only when an alert can’t reach you. Every email has a link to stop them.',
+    newsEmailFailed: 'This could not be changed. Nothing else was affected.',
   },
 
   // Long work finished (G20): on this device, offline, no account
