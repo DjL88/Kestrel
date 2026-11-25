@@ -104,7 +104,7 @@ export default function DockPanel({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className={`flex h-11 shrink-0 items-center justify-between gap-2 border-b border-[var(--border-subtle)] px-3.5 ${
+        className={`v2-dock-panel-head flex h-11 shrink-0 items-center justify-between gap-2 border-b border-[var(--border-subtle)] px-3.5 ${
           isFloat ? 'cursor-grab active:cursor-grabbing' : ''
         }`}
       >

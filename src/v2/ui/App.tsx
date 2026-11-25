@@ -1059,6 +1059,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             >
               {(
                 [
+                  // A phone has no rail, so the all-photos grid (for culling a whole shoot) is offered here as well.
+                  { id: 'allphotos', label: STRINGS.shellLabels.allPhotos, icon: 'image' as const },
                   { id: 'overlays', label: 'Overlays', icon: 'overlay' as const },
                   { id: 'masks', label: STRINGS.rail.masks, icon: 'masks' as const },
                   { id: 'enhance', label: STRINGS.rail.enhance, icon: 'focus' as const },
@@ -1075,6 +1077,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                     onClick={() => {
                       setMoreOpen(false);
                       if (item.id === 'settings') actions.setSettingsOpen(true);
+                      else if (item.id === 'allphotos') { actions.setActivePanel(null); actions.setGridViewOpen(true); }
                       else actions.setActivePanel(item.id);
                     }}
                     className="flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] border border-[var(--border-subtle)] text-xs font-medium text-[var(--text-primary)]"

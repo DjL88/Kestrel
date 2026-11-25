@@ -138,6 +138,21 @@
   .inflight-v2 .v2-filmstrip-tools button:has(> .v2-compact-label) { min-width: 40px; justify-content: center; }
 }
 
+/* Tablets and unfolded foldables: the photo tools above the picture, the zoom bar, the filmstrip's tools and filters
+   and a docked panel's own buttons (move, close) were 28-36px, small for a finger. They take the same 44px as the bars
+   above. Placed after the upright-tablet rule so its 40px icon-only width does not win. Short landscape screens keep
+   their compact bars, so the photo keeps its height. */
+@media (pointer: coarse) and (min-width: 768px) and (min-height: 561px) {
+  .inflight-v2 .v2-canvas-bar button,
+  .inflight-v2 .v2-canvas-bar button:has(> .v2-phone-label),
+  .inflight-v2 [data-testid="canvas-viewport-controls"] button,
+  .inflight-v2 .v2-filmstrip-tools button,
+  .inflight-v2 .v2-filmstrip-tools button:has(> .v2-compact-label),
+  .inflight-v2 .v2-dock-panel-head button { min-height: var(--touch-min); min-width: var(--touch-min); }
+  /* The taller buttons keep the photo tools to one slim row: the bar's own padding gives way instead. */
+  .inflight-v2 .v2-canvas-bar { padding-top: 2px; padding-bottom: 2px; }
+}
+
 /* Upright tablets: a slightly narrower docked panel leaves the photo more of the width. */
 @media (min-width: 768px) and (max-width: 1023px) and (orientation: portrait) {
   .inflight-v2 { --dock-width: 16rem; }
