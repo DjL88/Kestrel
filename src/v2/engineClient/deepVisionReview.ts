@@ -5,6 +5,7 @@ import { suggestLookForPhoto } from '../../engine/lookSuggestions';
 import type { Look } from '../../engine/looks';
 import type { PhotoFrame } from '../../core/types';
 import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
+import { engineText } from '../../i18n/areas/engine';
 
 /**
  * The first real caller of this session's Engine layer (`src/engine/subjectDetectAction.ts`,
@@ -48,22 +49,19 @@ export interface DeepVisionReviewResult {
   summary: string;
 }
 
-const REASON_WORD: Record<string, string> = {
-  subjectSharp: 'sharp', subjectOk: 'reasonably sharp', subjectSoft: 'soft', noSubject: 'untrustworthy', unavailable: 'unavailable',
-};
-
+/** The notice after a deep vision review, in the person's language. Each part is a whole sentence, so it translates cleanly. */
 function describeDeepReview(detection: SubjectDetectActionResult, look: Look | null): string {
-  if (!detection.finding) return 'Deep review: no subject the detector trusts was found in this photo.';
+  const t = engineText.deepReview;
+  if (!detection.finding) return t.none;
   const { trust, corroboration } = detection;
-  const word = REASON_WORD[trust.reason] ?? trust.reason;
-  const subjectPhrase = trust.decision === 'keep' ? `a ${trust.confidence}-confidence, ${word} subject` : `a subject too ${word} to trust`;
-  const agreement = corroboration.state === 'agreed'
-    ? `, confirmed as a ${corroboration.subject} by the scene reading`
-    : corroboration.state === 'conflict'
-      ? `, but the scene reading disagrees (called it a ${corroboration.reading} against the detector's ${corroboration.detector}) - treat this as unresolved`
-      : '';
-  const suggestion = look ? ` Suggested: "${look.name}" - ${look.description}` : '';
-  return `Deep review: found ${subjectPhrase}${agreement}.${suggestion}`;
+  const sharpness = (t.sharpness as Record<string, string>)[trust.reason] ?? t.sharpness.unavailable;
+  const confidence = (t.confidence as Record<string, string>)[trust.confidence] ?? t.confidence.low;
+  const witness = (name: string) => (t.witness as Record<string, string>)[name] ?? name;
+  const parts = [trust.decision === 'keep' ? t.trusted(confidence, sharpness) : t.untrusted(sharpness)];
+  if (corroboration.state === 'agreed') parts.push(t.agreed(witness(corroboration.subject)));
+  else if (corroboration.state === 'conflict') parts.push(t.conflict(witness(corroboration.reading), witness(corroboration.detector)));
+  if (look) parts.push(t.suggested(look.name, look.description));
+  return parts.join(' ');
 }
 
 export async function runDeepVisionReview(frame: PhotoFrame, provider: BrowserPreviewProvider, signal?: AbortSignal): Promise<DeepVisionReviewResult | null> {

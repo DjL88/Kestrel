@@ -69,7 +69,7 @@ export class GalleryStore {
   async list(projectId: string) {
     const snap = await this.db.collection(G.galleries).where('projectId', '==', projectId).get();
     return snap.docs.map((d) => d.data()! as unknown as GalleryRecord).map((g) => ({
-      galleryId: g.galleryId, name: g.name, expiresAtMs: g.expiresAtMs, photos: g.photoIds.length,
+      galleryId: g.galleryId, name: g.name, expiresAtMs: g.expiresAtMs, photos: g.photoIds.length, photoIds: g.photoIds,
       published: Object.values(g.previews ?? {}).filter((p) => p.committed).length, password: g.passwordHash !== null,
     }));
   }

@@ -205,3 +205,21 @@ each file live beside the weights, outside the repo, in the `Kestrel-models` fol
 | int8 dynamic (MatMul) | 34.5 MB | FAIL | 0.117 | 0.943 | 396 |
 
 onnxruntime-web 1.31.1 in Node (single thread): load 2.2 s, one 384 px tile 3.5 s, 432 MB RSS. It returns the same detections as PyTorch on the five-people composite: 5 separate people, scores within 0.005, boxes within 0.001. **Not measured:** accuracy on real wildlife or aviation shoots, phone timings, and whether it beats YOLOX on distant subjects. Until that is measured it only runs beside YOLOX, never in place of it.
+
+### EfficientSAM-Ti (tap to select: several taps, several subjects)
+| | |
+| --- | --- |
+| Files | `efficientsam-ti-encoder-fp16.onnx`: 12,641,129 B, SHA-256 `5f0260b102fe82ad88c8ef0dc2422b3c44755005e1c2bbcc44b5d88b1bafbff4`<br>`efficientsam-ti-decoder-fp16.onnx`: 8,589,267 B, SHA-256 `e1409f2e1449600f29ee3674e690020de14d5b52d573b169650c8062608b73f3` |
+| Model and weights | EfficientSAM ViT-Tiny (Xiong et al., Meta), Apache-2.0 |
+| Source | The authors' own ONNX exports at https://github.com/yformer/EfficientSAM, commit `d525f622e6f640acf5a0fc37c7ca1f243da5bde0`: `weights/efficient_sam_vitt_encoder.onnx` (24,799,761 B, `84ed466f…e0951`) and `weights/efficient_sam_vitt_decoder.onnx` (16,565,728 B, `a62f8fa5…b0c11`). Reference: `weights/efficient_sam_vitt.pt` (40,982,470 B, `dff858b1…e4e6a`) with the authors' model code |
+| Conversion | fp16 weights with `onnxruntime.transformers.float16` (I/O stays float32; Resize, Softmax, ReduceMean, Pow, Sqrt, Div, Erf, Sin, Cos and Exp kept in fp32) |
+| Input / output | Encoder: `batched_images` [1,3,1024,1024], RGB 0..1 (it normalises internally). Decoder, one subject per run: up to 6 points in mask pixels, labels 1 add, 0 remove, 2/3 box corners; `orig_im_size` is the mask size (long edge ≤ 1024). Out: 3 candidate masks (logits) and their predicted IoU |
+
+**Parity (25 Nov 2026).** Compared against the PyTorch reference on 5 prompts: one tap; four taps adding and removing parts; two subjects in one photo; six taps; and a box. Gate: the same best candidate, mask IoU ≥ 0.97, predicted-IoU score within 0.02.
+
+| Variant | Size | Gate | Mask IoU vs PyTorch (lowest) | CPU encoder / decoder ms (onnxruntime 1.32) |
+| --- | --- | --- | --- | --- |
+| Official fp32 ONNX | 41.4 MB | PASS | 0.982 (box) | 4338 / 266 |
+| **fp16 (shipped)** | 21.2 MB | PASS | 0.981 (box) | 3730 / 322 |
+
+The lowest IoU, 0.98, is for the box prompt in both variants. It comes from the official export upsampling bilinearly where the PyTorch code upsamples bicubically. onnxruntime-web 1.31.1, single thread, in Node: encoding a 1024 px input gave the same mask as Python on the original photo (IoU 0.998). **Speed is the open problem:** about 35–37 s to encode one photo in single-thread WASM on the loaded Windows laptop, then about 0.6 s per tap. A browser needs multi-threaded WASM (cross-origin isolation) or WebGPU before this feels instant. **Not measured:** phones, real wildlife edges (feathers, fur), and the desktop native runtime.

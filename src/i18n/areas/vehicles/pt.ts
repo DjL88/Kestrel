@@ -25,4 +25,16 @@ export const pt: AreaTranslation<typeof source> = {
   probably: (what: string) => `${what} (provavelmente)`,
   typeUnknown: (what: string) => `${what}, tipo desconhecido`,
   withType: (kind: string, type: string) => `${kind}: ${type}`,
+  marked: (what: string, marking: string) => `${what}, com a marca ${marking}`,
+  registered: (marking: string, type: string) => `${marking}: ${type} (segundo o registo)`,
+  operatedBy: (what: string, operator: string) => `${what}, operado por ${operator}`,
+  reader: {
+    title: 'Ler matrículas de aeronaves',
+    description: (megabytes: string) => `Lê matrículas e números de série militares pintados em aeronaves, neste dispositivo, e procura-os numa cópia offline de registos públicos. Uma transferência única de ${megabytes} MB. As matrículas dos carros nunca são lidas.`,
+    download: 'Transferir',
+    downloading: (percent: number) => `A transferir… ${percent}%`,
+    ready: 'Instalado. Funciona offline.',
+    remove: 'Remover',
+    failed: 'A transferência não terminou, por isso nada foi guardado. Tente novamente.',
+  },
 };

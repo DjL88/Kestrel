@@ -172,6 +172,12 @@ export interface EditRecipe {
   channelCurves?: Partial<Record<'red' | 'green' | 'blue', Array<[number, number]>>>;
   /** Remove haze (positive) or add it (negative), -100 to 100. Absent = 0. */
   dehaze?: number;
+  /** Lens colour edges: red/cyan and blue/yellow, -100 to 100 each (set by Detect, or by hand in Advanced). Absent = 0. */
+  caRed?: number;
+  caBlue?: number;
+  /** Remove purple and green fringes beside strong edges, 0 to 100. Absent = 0. */
+  defringePurple?: number;
+  defringeGreen?: number;
   /** Vignette: -100 darker edges to 100 lighter edges (with a colour, the strength of that colour). Absent = 0. */
   vignette?: number;
   /** How far the vignette reaches into the picture, 0 to 100. Absent = 50. */
@@ -318,6 +324,8 @@ export interface PhotoExif {
 
 export interface Photo {
   id: string;
+  /** The same photo on every device of a shared project: from the original's fingerprint (src/core/sharedSync.ts). */
+  sharedKey?: string;
   filename: string;
   title: string;
   previewUrl: string;
@@ -331,6 +339,8 @@ export interface Photo {
   vehicleLabel?: string;
   /** Extra words the photo can be found by (a vehicle's kind in this language and in English, its type name). */
   searchTerms?: string[];
+  /** The subject name alone, without the "(suggested)" marker the label may carry, for editing it. */
+  speciesName?: string;
   category: string;
   sharpnessScore: number;
   exif: PhotoExif;
@@ -641,6 +651,12 @@ export interface WorkspaceActions {
   applyAllAssistSuggestions: (photoId: string) => void;
   /** A sized JPEG of the edited photo for a client gallery, or null when there is no trustworthy picture yet. Absent in the stub. */
   renderGalleryPreview?: (photoId: string) => Promise<Blob | null>;
+  /** The photo's whole edit as plain data for a shared project, or null when it has no edit. Absent in the stub. */
+  sharedEditOf?: (photoId: string) => Record<string, unknown> | null;
+  /** Replace the photo's edit with a shared one (or clear it). Recorded as an edit step, so it can be undone. */
+  applySharedEdit?: (photoId: string, edit: Record<string, unknown> | null) => void;
+  /** On a clash: keep this device's edit as a virtual copy beside the photo, and give the photo the shared edit. Returns the copy's id. */
+  keepBothShared?: (photoId: string, theirs: Record<string, unknown> | null) => string | null;
   dismissAssistSuggestion: (photoId: string, suggestionId: string) => void;
 
   // Editing & Looks
@@ -700,6 +716,8 @@ export interface WorkspaceActions {
   addOverlayRow: (photoId: string) => void;
   updateOverlayRow: (photoId: string, rowId: string, patch: Partial<OverlayTextRow>) => void;
   removeOverlayRow: (photoId: string, rowId: string) => void;
+  /** Measure this photo's lens colour edges and set caRed/caBlue from them. 'clean' = nothing to correct; 'unclear' = too few edges to tell. */
+  detectColourEdges: (photoId: string) => Promise<'corrected' | 'clean' | 'unclear'>;
   /** Image layers. Add one from an image file on this device (opens the file picker). */
   addImageLayer: (photoId: string) => Promise<void>;
   /** Add another photo of this project as a layer: a copy of it as it looks now, with its edits. */
