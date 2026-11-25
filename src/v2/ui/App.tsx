@@ -272,25 +272,6 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   // Action messages: a problem waits until it is dismissed; a confirmation stays long enough to read, and pauses
   // while the pointer or focus is on it. Calm View never hides them (it only quietens the rest of the workspace).
   const [noticePaused, setNoticePaused] = useState(false);
-  // On a phone the action message sits just above the filmstrip (or the open tool sheet, which takes its place), never
-  // over it, so thumbnails stay reachable (tap and long-press) while it shows. Measured, because both change height.
-  const [noticeBottom, setNoticeBottom] = useState<number | null>(null);
-  React.useLayoutEffect(() => {
-    if (!isMobile || !store.lastActionNotice) { setNoticeBottom(null); return; }
-    const place = () => {
-      const shown = (el: HTMLElement | null) => (el && el.isConnected && el.getBoundingClientRect().height > 0 ? el : null);
-      const below = shown(document.querySelector<HTMLElement>('.inflight-v2 .v2-filmstrip')) ?? shown(sheetRef.current);
-      setNoticeBottom(below ? Math.max(0, window.innerHeight - below.getBoundingClientRect().top) + 8 : null);
-    };
-    place();
-    const observer = new ResizeObserver(place);
-    observer.observe(document.body);
-    const strip = document.querySelector<HTMLElement>('.inflight-v2 .v2-filmstrip');
-    if (strip) observer.observe(strip);
-    if (sheetRef.current) observer.observe(sheetRef.current);
-    window.addEventListener('resize', place);
-    return () => { observer.disconnect(); window.removeEventListener('resize', place); };
-  }, [isMobile, store.lastActionNotice, store.screen, store.filmstripCollapsed, sheetHeight]);
   const noticeSticky = store.lastActionNotice ? noticeNeedsDismiss(store.lastActionNotice) : false;
   useEffect(() => {
     if (!store.lastActionNotice || noticeSticky || noticePaused) return;
@@ -1249,8 +1230,6 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onMouseLeave={() => setNoticePaused(false)}
           onFocus={() => setNoticePaused(true)}
           onBlur={() => setNoticePaused(false)}
-          data-testid="action-notice"
-          style={noticeBottom === null ? undefined : { bottom: noticeBottom }}
           className={`fixed right-4 z-50 flex max-w-[min(28rem,calc(100vw-2rem))] items-start gap-2 rounded-[var(--radius-md)] border bg-[var(--bg-surface-raised)] py-2 pl-3.5 pr-1.5 text-xs font-medium text-[var(--text-primary)] shadow-[var(--shadow-popover)] ${
             noticeSticky ? 'border-[var(--semantic-warning)]' : 'border-[var(--border-default)]'
           } ${isMobile ? (noticeBottom === null ? 'bottom-20' : '') : 'bottom-4'}`}
