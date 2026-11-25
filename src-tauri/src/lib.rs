@@ -278,7 +278,8 @@ pub fn run() {
             ])?;
             let photo = Submenu::with_items(app, "Photo", true, &[
                 &MenuItem::with_id(app, "photo-keep", "Keep", true, None::<&str>)?,
-                &MenuItem::with_id(app, "photo-reject", "Move to Trash", true, None::<&str>)?,
+                // Originals are never moved or deleted: this marks the photo as set aside, and it can be brought back.
+                &MenuItem::with_id(app, "photo-reject", "Set aside", true, None::<&str>)?,
                 &MenuItem::with_id(app, "photo-unreview", "Back to review", true, None::<&str>)?,
                 &PredefinedMenuItem::separator(app)?,
                 &rate,
@@ -315,7 +316,8 @@ pub fn run() {
                 &MenuItem::with_id(app, "appearance", "Appearance and layout…", true, None::<&str>)?,
                 &MenuItem::with_id(app, "settings-ai", "Bring your own AI…", true, None::<&str>)?,
                 &MenuItem::with_id(app, "settings-storage", "Bring your own Storage…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "macro-pad", "Macro pad and shortcuts…", true, Some("CmdOrCtrl+M"))?,
+                // Cmd+M is Minimize on macOS (Window menu), so the Mac gets no accelerator here; Cmd+, opens Settings.
+                &MenuItem::with_id(app, "macro-pad", "Macro pad and shortcuts…", true, if cfg!(target_os = "macos") { None } else { Some("Ctrl+M") })?,
             ])?;
             let window = Submenu::with_items(app, "Window", true, &[
                 &PredefinedMenuItem::minimize(app, None)?,

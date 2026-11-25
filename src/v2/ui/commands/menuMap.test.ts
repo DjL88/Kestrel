@@ -34,5 +34,8 @@ test('V2-only File items reach the actions the header menu has in a browser', ()
 });
 
 test('ids that belong only to the current app are ignored, not guessed at', () => {
-  for (const id of ['edit-photo', 'view-tab-masks', 'view-bursts', 'view-left', 'photo-reject', 'toString', '__proto__']) assert.equal(menuActionForV2(id), null, id);
+  for (const id of ['edit-photo', 'view-tab-masks', 'view-bursts', 'view-left', 'toString', '__proto__']) assert.equal(menuActionForV2(id), null, id);
+});
+test('Photo > Set aside runs the same command as the X key', () => {
+  assert.deepEqual(menuActionForV2('photo-reject'), { kind: 'command', id: 'photo.reject' });
 });

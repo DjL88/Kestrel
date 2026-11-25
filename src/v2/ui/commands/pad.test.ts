@@ -39,3 +39,18 @@ test('the same command on the keyboard and the pad is not a clash', () => {
 test('an unassigned slot runs nothing', () => {
   assert.equal(run(key({ code: 'KeyK', key: 'k' }), withPadCommand(DEFAULT_PAD, 'K1', null)), undefined);
 });
+
+test('the keyboard guide lists the pad keys that act, so no key works unseen', async () => {
+  const { padGuideRows, DEFAULT_PAD } = await import('./pad');
+  const { effectiveKeymap } = await import('./keymap');
+  const rows = padGuideRows(DEFAULT_PAD, effectiveKeymap('inflight'));
+  const bySlot = Object.fromEntries(rows.map((row) => [row.slot, row]));
+  // Z, K, C and Space are pad keys that the keymap does not show, so they are listed.
+  assert.deepEqual(bySlot.K4, { slot: 'K4', chord: 'KeyZ', command: 'edit.undo' });
+  assert.deepEqual(bySlot.K6, { slot: 'K6', chord: 'Space', command: 'view.grid' });
+  // X already sets aside on the keyboard and the arrows already step photos, so they are not repeated.
+  assert.equal(bySlot.K2, undefined);
+  assert.equal(bySlot.KNOB_CW, undefined);
+  // A slot with no command does nothing, so it is not listed.
+  assert.equal(padGuideRows({ ...DEFAULT_PAD, K1: { chord: 'KeyK', command: null } }, effectiveKeymap('inflight')).some((row) => row.slot === 'K1'), false);
+});

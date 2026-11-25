@@ -96,6 +96,19 @@ export function resolveWithPad(input: { event: KeyEventLike; keymap: Keymap; pad
   return command;
 }
 
+/**
+ * The pad keys that act on their own, for the keyboard guide. A pad key is a real key, so it also works when typed on the
+ * keyboard (the default pad sends Z, K, C and Space). Listing them keeps every key that does something visible. A slot is
+ * left out when it has no key or no command, or when the keymap already gives that command the same key.
+ */
+export function padGuideRows(pad: PadProfile, keymap: Keymap): Array<{ slot: PadSlot; chord: string; command: CommandId }> {
+  return PAD_SLOTS.flatMap((slot) => {
+    const { chord, command } = pad[slot];
+    if (!chord || !command || keymap[command] === chord) return [];
+    return [{ slot, chord, command }];
+  });
+}
+
 const STORAGE_KEY = 'inflight-v2-pad';
 
 export function loadPad(): PadProfile {
