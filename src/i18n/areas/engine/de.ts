@@ -109,6 +109,8 @@ export const de: AreaTranslation<typeof source> = {
     skyUnavailable: 'Die Himmelserkennung ist nicht verfügbar. Fügen Sie stattdessen einen Verlauf von Hand hinzu.',
     brushUnavailable: 'Das Malen mit dem Pinsel ist noch nicht mit der Arbeitsfläche verbunden. Verwenden Sie ein anpassbares Oval oder einen Verlauf.',
     masksFull: 'Dieses Foto hat so viele Masken, wie es aufnehmen kann. Entfernen Sie zuerst eine.',
+    tapNothingSelected: 'An dieser Stelle wurde nichts ausgewählt. Tippen Sie in das Motiv.',
+    tapNotAnswered: 'Dieses Tippen konnte nicht beantwortet werden. Nichts wurde geändert.',
     ovalAdded: 'Eine anpassbare Oval-Maske wurde hinzugefügt. Öffnen Sie ihre Ebene, um sie zu platzieren, und bewegen Sie dann einen Regler. Sie können das rückgängig machen.',
     gradientAdded: 'Eine anpassbare Verlaufsmaske wurde hinzugefügt. Öffnen Sie ihre Ebene, um sie zu platzieren, und bewegen Sie dann einen Regler. Sie können das rückgängig machen.',
     findSubjectTask: 'Das Motiv wird gesucht',

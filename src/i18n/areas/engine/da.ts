@@ -109,6 +109,8 @@ export const da: AreaTranslation<typeof source> = {
     skyUnavailable: 'Himmelgenkendelse er ikke tilgængelig. Tilføj i stedet et Forløb manuelt.',
     brushUnavailable: 'Penslen er endnu ikke forbundet til lærredet. Brug et justerbart Ovalt område eller Forløb.',
     masksFull: 'Dette foto har allerede det største antal masker. Fjern en først.',
+    tapNothingSelected: 'Intet blev valgt på det sted. Tryk inde i motivet.',
+    tapNotAnswered: 'Trykket kunne ikke besvares. Intet blev ændret.',
     ovalAdded: 'Tilføjede en justerbar maske med Ovalt område. Åbn dens lag for at placere den, og flyt så en skyder for at ændre fotoet. Du kan fortryde.',
     gradientAdded: 'Tilføjede en justerbar Forløbsmaske. Åbn dens lag for at placere den, og flyt så en skyder for at ændre fotoet. Du kan fortryde.',
     findSubjectTask: 'Finder motivet',

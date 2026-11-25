@@ -109,6 +109,8 @@ export const es: AreaTranslation<typeof source> = {
     skyUnavailable: 'La detección del cielo no está disponible. Añada un Degradado a mano.',
     brushUnavailable: 'El pincel aún no está conectado al lienzo. Use un Área ovalada o un Degradado ajustable.',
     masksFull: 'Esta foto ya tiene el máximo de máscaras. Quite una primero.',
+    tapNothingSelected: 'No se seleccionó nada en ese punto. Toque dentro del sujeto.',
+    tapNotAnswered: 'No se pudo responder a ese toque. No se cambió nada.',
     ovalAdded: 'Se añadió una máscara de Área ovalada ajustable. Abra su capa para colocarla y luego mueva un regulador para cambiar la foto. Puede deshacerlo.',
     gradientAdded: 'Se añadió una máscara de Degradado ajustable. Abra su capa para colocarla y luego mueva un regulador para cambiar la foto. Puede deshacerlo.',
     findSubjectTask: 'Buscando el sujeto',

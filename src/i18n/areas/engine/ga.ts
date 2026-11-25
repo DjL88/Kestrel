@@ -109,6 +109,8 @@ export const ga: AreaTranslation<typeof source> = {
     skyUnavailable: 'Níl brath na spéire ar fáil. Cuir Grádán leis de láimh ina áit.',
     brushUnavailable: 'Níl an scuab nasctha leis an gcanbhás fós. Úsáid Limistéar ubhchruthach nó Grádán is féidir a choigeartú.',
     masksFull: 'Tá an líon is mó masc ag an ngrianghraf seo. Bain ceann amháin ar dtús.',
+    tapNothingSelected: 'Níor roghnaíodh aon rud ag an bpointe sin. Tapáil taobh istigh den ábhar.',
+    tapNotAnswered: 'Níorbh fhéidir freagra a thabhairt ar an tapáil sin. Níor athraíodh aon rud.',
     ovalAdded: 'Cuireadh masc Limistéar ubhchruthach is féidir a choigeartú leis. Oscail a shraith chun é a shuíomh, ansin bog sleamhnán chun an grianghraf a athrú. Is féidir é seo a chealú.',
     gradientAdded: 'Cuireadh masc Grádán is féidir a choigeartú leis. Oscail a shraith chun é a shuíomh, ansin bog sleamhnán chun an grianghraf a athrú. Is féidir é seo a chealú.',
     findSubjectTask: 'An t-ábhar á aimsiú',

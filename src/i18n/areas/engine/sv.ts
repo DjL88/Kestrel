@@ -109,6 +109,8 @@ export const sv: AreaTranslation<typeof source> = {
     skyUnavailable: 'Himmelsigenkänning är inte tillgänglig. Lägg till en Toning för hand i stället.',
     brushUnavailable: 'Penseln är ännu inte ansluten till arbetsytan. Använd ett justerbart Ovalt område eller en Toning.',
     masksFull: 'Det här fotot har redan så många masker det kan ha. Ta bort en först.',
+    tapNothingSelected: 'Inget valdes på den platsen. Tryck inuti motivet.',
+    tapNotAnswered: 'Trycket kunde inte besvaras. Inget ändrades.',
     ovalAdded: 'En justerbar mask med Ovalt område har lagts till. Öppna dess lager för att placera den och dra sedan i ett reglage för att ändra fotot. Du kan ångra.',
     gradientAdded: 'En justerbar Toningsmask har lagts till. Öppna dess lager för att placera den och dra sedan i ett reglage för att ändra fotot. Du kan ångra.',
     findSubjectTask: 'Söker motivet',

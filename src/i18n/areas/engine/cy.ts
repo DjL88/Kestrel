@@ -109,6 +109,8 @@ export const cy: AreaTranslation<typeof source> = {
     skyUnavailable: 'Dydy canfod yr awyr ddim ar gael. Ychwanegwch Raddiant â llaw yn lle hynny.',
     brushUnavailable: 'Dydy’r brwsh ddim wedi’i gysylltu â’r cynfas eto. Defnyddiwch Ardal hirgron neu Raddiant y gellir eu haddasu.',
     masksFull: 'Mae gan y llun hwn yr uchafswm o fasgiau. Tynnwch un yn gyntaf.',
+    tapNothingSelected: 'Ni ddewiswyd dim yn y man hwnnw. Tapiwch y tu mewn i\'r gwrthrych.',
+    tapNotAnswered: 'Ni ellid ateb y tap hwnnw. Ni newidiwyd dim.',
     ovalAdded: 'Ychwanegwyd masg Ardal hirgrwn y gellir ei addasu. Agorwch ei haen i’w osod, yna symudwch lithrydd i newid y llun. Gallwch ddadwneud hyn.',
     gradientAdded: 'Ychwanegwyd masg Graddiant y gellir ei addasu. Agorwch ei haen i’w osod, yna symudwch lithrydd i newid y llun. Gallwch ddadwneud hyn.',
     findSubjectTask: 'Chwilio am y gwrthrych',

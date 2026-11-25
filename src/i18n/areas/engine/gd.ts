@@ -109,6 +109,8 @@ export const gd: AreaTranslation<typeof source> = {
     skyUnavailable: 'Chan eil lorg na speura ri fhaighinn. Cuir Caisead ris le làimh na àite.',
     brushUnavailable: 'Chan eil a’ bhruis ceangailte ris a’ chanabhas fhathast. Cleachd Raon ugh-chruthach no Caisead a ghabhas atharrachadh.',
     masksFull: 'Tha uiread de mhasgaichean aig an dealbh seo ’s a ghabhas e. Thoir air falbh fear an toiseach.',
+    tapNothingSelected: 'Cha deach dad a thaghadh aig a\' phuing sin. Thoir gnogag am broinn a\' chuspair.',
+    tapNotAnswered: 'Cha b\' urrainn freagairt dhan ghnogag sin. Cha deach dad atharrachadh.',
     ovalAdded: 'Chaidh masg Raon ugh-chruthach a ghabhas atharrachadh a chur ris. Fosgail a bhreath gus a shuidheachadh, an uairsin gluais sleamhnachan gus an dealbh atharrachadh. Faodaidh tu seo a neo-dhèanamh.',
     gradientAdded: 'Chaidh masg Caisead a ghabhas atharrachadh a chur ris. Fosgail a bhreath gus a shuidheachadh, an uairsin gluais sleamhnachan gus an dealbh atharrachadh. Faodaidh tu seo a neo-dhèanamh.',
     findSubjectTask: 'A’ lorg a’ chuspair',

@@ -109,6 +109,8 @@ export const nb: AreaTranslation<typeof source> = {
     skyUnavailable: 'Himmelgjenkjenning er ikke tilgjengelig. Legg heller til en Gradient for hånd.',
     brushUnavailable: 'Penselen er ennå ikke koblet til lerretet. Bruk et justerbart Ovalt område eller en Gradient.',
     masksFull: 'Dette bildet har allerede så mange masker det kan ha. Fjern en først.',
+    tapNothingSelected: 'Ingenting ble valgt på det stedet. Trykk inne i motivet.',
+    tapNotAnswered: 'Trykket kunne ikke besvares. Ingenting ble endret.',
     ovalAdded: 'La til en justerbar maske med Ovalt område. Åpne laget for å plassere den, og flytt så en glidebryter for å endre bildet. Du kan angre.',
     gradientAdded: 'La til en justerbar Gradientmaske. Åpne laget for å plassere den, og flytt så en glidebryter for å endre bildet. Du kan angre.',
     findSubjectTask: 'Finner motivet',
