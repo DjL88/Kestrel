@@ -24,25 +24,41 @@ export function generalRoutes(ctx: AppContext): Route[] {
   // Cloud Run's front end reserves some paths ending in 'z' (including /healthz) and answers them with its own 404
   // before the request reaches the container, so public clients probe /health. /healthz stays for the container probe.
   {
-    method: 'GET', path: '/v1/mail/unsubscribe', summary: 'Confirm page for stopping invitation emails (a link only shows a button, so mail scanners cannot unsubscribe anyone)', auth: 'none',
+    method: 'GET', path: '/v1/mail/unsubscribe', summary: 'Confirm page for stopping emails: all of them for an address (invitations), or one kind for an account (news or product emails). A link only shows a button, so mail scanners cannot unsubscribe anyone', auth: 'none',
     handler: (req) => {
-      const r = req.query.get('r') ?? ''; const t = req.query.get('t') ?? ''; const l = htmlLang(req.query.get('l') ?? undefined);
+      const t = req.query.get('t') ?? ''; const l = htmlLang(req.query.get('l') ?? undefined);
+      const s = req.query.get('s') ?? ''; const a = req.query.get('a') ?? ''; const r = req.query.get('r') ?? '';
       const w = mailWords(l).unsubscribe;
-      const ok = !!options.mailer && options.mailer.checkUnsubscribe(r, t);
       const safe = (v: string) => v.replace(/[^A-Za-z0-9_-]/g, '');
-      return { status: ok ? 200 : 400, body: mailPage(l, ok ? w.title : w.invalid, ok
-        ? `<p>${esc(w.confirm)}</p><form method="post" action="/v1/mail/unsubscribe?r=${safe(r)}&amp;t=${safe(t)}&amp;l=${encodeURIComponent(l)}"><input type="hidden" name="List-Unsubscribe" value="One-Click"><button type="submit">${esc(w.button)}</button></form>`
+      const scoped = !!options.mailer && options.mailer.checkStreamUnsubscribe(s, a, t) ? s as 'news' | 'notice' : null;
+      const ok = scoped !== null || (!s && !!options.mailer && options.mailer.checkUnsubscribe(r, t));
+      const action = scoped ? `s=${scoped}&amp;a=${safe(a)}&amp;t=${safe(t)}` : `r=${safe(r)}&amp;t=${safe(t)}`;
+      const title = scoped === 'news' ? w.stopNews : scoped === 'notice' ? w.stopNotices : w.title;
+      const confirm = scoped === 'news' ? w.confirmNews : scoped === 'notice' ? w.confirmNotices : w.confirm;
+      const button = scoped === 'news' ? w.stopNews : scoped === 'notice' ? w.stopNotices : w.button;
+      return { status: ok ? 200 : 400, body: mailPage(l, ok ? title : w.invalid, ok
+        ? `<p>${esc(confirm)}</p><form method="post" action="/v1/mail/unsubscribe?${action}&amp;l=${encodeURIComponent(l)}"><input type="hidden" name="List-Unsubscribe" value="One-Click"><button type="submit">${esc(button)}</button></form>`
         : `<p>${esc(w.invalidHint)}</p>`), headers: MAIL_PAGE_HEADERS };
     },
   },
   {
-    method: 'POST', path: '/v1/mail/unsubscribe', summary: 'One-click unsubscribe (RFC 8058) from invitation emails', auth: 'none',
+    method: 'POST', path: '/v1/mail/unsubscribe', summary: 'One-click unsubscribe (RFC 8058): every email to an address, or one kind (news, product emails) for an account', auth: 'none',
     handler: async (req) => {
-      const r = req.query.get('r') ?? ''; const t = req.query.get('t') ?? ''; const l = htmlLang(req.query.get('l') ?? undefined);
+      const t = req.query.get('t') ?? ''; const l = htmlLang(req.query.get('l') ?? undefined);
+      const s = req.query.get('s') ?? ''; const a = req.query.get('a') ?? ''; const r = req.query.get('r') ?? '';
+      const w = mailWords(l).unsubscribe;
+      if (s) {
+        if (!options.mailer || !options.mailer.checkStreamUnsubscribe(s, a, t)) throw new ApiError(400, 'UNSUBSCRIBE_INVALID', 'This unsubscribe link is not valid.');
+        // The preference lives with the account, so the app's switch shows it and can turn it back on.
+        if (!options.contacts) throw new ApiError(503, 'EMAIL_PREFS_NOT_CONFIGURED', 'Email preferences are not available on this server right now. Reply to the email and we will stop them.', true);
+        if (s === 'news') await options.contacts.setProductNews(a, false, now());
+        else await options.contacts.setProductEmail(a, false);
+        await audit(a, s === 'news' ? 'notify.news-email' : 'notify.product-email', 'allowed', 'off (email link)');
+        return { status: 200, body: mailPage(l, s === 'news' ? w.stopNews : w.stopNotices, `<p>${esc(s === 'news' ? w.doneNews : w.doneNotices)}</p>`), headers: MAIL_PAGE_HEADERS };
+      }
       if (!options.mailer || !options.mailer.checkUnsubscribe(r, t)) throw new ApiError(400, 'UNSUBSCRIBE_INVALID', 'This unsubscribe link is not valid.');
       await options.mailer.unsubscribe(r);
       await audit('anonymous', 'mail.unsubscribe', 'allowed', '');
-      const w = mailWords(l).unsubscribe;
       return { status: 200, body: mailPage(l, w.title, `<p>${esc(w.done)}</p>`), headers: MAIL_PAGE_HEADERS };
     },
   },
@@ -293,11 +309,11 @@ export function generalRoutes(ctx: AppContext): Route[] {
       const claims = await bearer(req);
       const prefs = await contactsCfg().preferences(claims.sub);
       const available = !!options.mailer && (await switchOn('email')) && (await switchOn('product-news'));
-      return { status: 200, body: { available, productNews: prefs.productNews } };
+      return { status: 200, body: { available, productNews: prefs.productNews, productEmail: prefs.productEmail, productEmailAvailable: !!options.mailer && (await switchOn('email')) } };
     },
   },
   {
-    method: 'POST', path: '/v1/notify/email', summary: 'Turn product news by email on or off, and tell the server which language the app is in', auth: 'user', body: Schemas.EmailPreferences,
+    method: 'POST', path: '/v1/notify/email', summary: 'Turn product news (marketing) or product emails (shared-project notices) on or off, and tell the server which language the app is in', auth: 'user', body: Schemas.EmailPreferences,
     handler: async (req) => {
       const claims = await bearer(req);
       const body = parseJson(Schemas.EmailPreferences, req.rawBody);
@@ -307,7 +323,12 @@ export function generalRoutes(ctx: AppContext): Route[] {
         await contacts.setProductNews(claims.sub, body.productNews, now());
         await audit(claims.sub, 'notify.news-email', 'allowed', body.productNews ? 'on' : 'off');
       }
-      return { status: 200, body: { productNews: (await contacts.preferences(claims.sub)).productNews } };
+      if (body.productEmail !== undefined) {
+        await contacts.setProductEmail(claims.sub, body.productEmail);
+        await audit(claims.sub, 'notify.product-email', 'allowed', body.productEmail ? 'on' : 'off');
+      }
+      const prefs = await contacts.preferences(claims.sub);
+      return { status: 200, body: { productNews: prefs.productNews, productEmail: prefs.productEmail } };
     },
   },
   {

@@ -25,7 +25,7 @@ import { ComplianceRefusal, type ComplianceDocuments } from './complianceDocs.ts
 import { SafetyRefusal, BLOCKED_MESSAGE, HELD_MESSAGE, type CheckInput, type SafetyService } from './contentSafety.ts';
 import { SAFE_COPY_LEVELS } from './safeCopy.ts';
 import { ApiError, parseJson, type Reply, type Request, type Route } from './http.ts';
-import { DAY_MS, QUOTA_PERIOD_MS, REFRESH_TTL_MS, DEVICE_RELEASES_PER_YEAR, YEAR_MS, SWAP_IDLE_DAYS, CollabApiError, SwitchKey, isPlanned, Schemas, RateLimiter, decodeImage } from './appShared.ts';
+import { DAY_MS, QUOTA_PERIOD_MS, REFRESH_TTL_MS, DEVICE_RELEASES_PER_YEAR, YEAR_MS, SWAP_IDLE_DAYS, CollabApiError, SwitchKey, isPlanned, Schemas, RateLimiter, decodeImage, type AppOptions } from './appShared.ts';
 
 export function createContext(options: AppOptions) {
   const { config, commerce } = options;
