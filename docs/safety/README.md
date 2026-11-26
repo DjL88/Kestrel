@@ -32,8 +32,8 @@ All five files, plus `site/terms.html`, `site/acceptable-use.html`, `site/privac
 
 | What | Where | Before you send |
 |---|---|---|
-| PhotoDNA application | Microsoft, via microsoft.com/photodna | Set up a dedicated safety email first. Read and accept Microsoft's terms yourself. |
-| NCMEC ESP registration | NCMEC, via the ESP section of its CyberTipline pages | Same safety email. Have the law enforcement contact ready. |
+| PhotoDNA application | Microsoft, via microsoft.com/photodna | Safety email: inflight-safety@googlegroups.com (Google Group, anyone can post, only the owner reads; set up 26 Nov 2026). Read and accept Microsoft's terms yourself. |
+| NCMEC ESP registration | NCMEC, via the ESP section of its CyberTipline pages | Same safety email (inflight-safety@googlegroups.com). Have the law enforcement contact ready. |
 | Nothing to Ofcom | — | Ofcom does not collect risk assessments by default; keep the record and update it. (**LAW: CHECK**: fees and notification duties apply only above a revenue threshold.) |
 
 ## 5. Then (Claude sessions do these, with your go-ahead)
