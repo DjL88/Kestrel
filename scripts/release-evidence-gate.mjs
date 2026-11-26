@@ -62,6 +62,11 @@ export async function checkReleaseEvidence(manifest, root) {
   if (!checks || typeof checks !== 'object' || Array.isArray(checks)) {
     return [...errors, 'Missing checks object'];
   }
+  // Compare real paths with real paths. Evidence parents are resolved with realpath, so the root must be too: on macOS
+  // the temporary and home folders sit behind symlinks (/var -> /private/var), and an unresolved root made every
+  // genuine evidence file look as if it were outside the manifest directory.
+  let base;
+  try { base = await realpath(root); } catch { return [...errors, 'Evidence folder not found']; }
   const evidencePaths = new Set();
   for (const key of REQUIRED_GATES) {
     const check = checks[key];
@@ -79,7 +84,7 @@ export async function checkReleaseEvidence(manifest, root) {
         if (evidencePaths.has(item.path)) errors.push(`${key}: evidence path reused by another gate`);
         evidencePaths.add(item.path);
       }
-      try { await digestEvidence(root, item); }
+      try { await digestEvidence(base, item); }
       catch (error) { errors.push(`${key}: ${error instanceof Error ? error.message : String(error)}`); }
     }
   }
