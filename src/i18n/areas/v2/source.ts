@@ -1559,7 +1559,7 @@ export const source = {
     sftpDesktopOnly: 'In the InFlight desktop app only: browsers cannot use SFTP.',
     sftp: {
       formLabel: 'Your SFTP server',
-      intro: 'For a business file server or a NAS that offers SFTP. InFlight signs in and only writes inside a kestrel folder (and an export folder if you choose this place for exports) in the folder you name.',
+      intro: 'For a business file server or a NAS that offers SFTP. InFlight signs in and only writes inside a kestrel folder in the folder you name. If you choose this place for exports, it also writes an export folder there.',
       host: 'Server address',
       port: 'Port',
       userName: 'User name',
