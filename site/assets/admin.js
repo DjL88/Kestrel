@@ -68,13 +68,6 @@ function button(text, label, className, onClick) {
   return b;
 }
 
-// The owner session is supplied only to the same-origin editor iframe, kept in memory.
-function sendDemoEditorSession() {
-  const frame = $('demo-editor-frame');
-  if (frame?.contentWindow) frame.contentWindow.postMessage({ type: 'kestrel-demo-auth', token: token || null }, location.origin);
-}
-$('demo-editor-frame')?.addEventListener('load', sendDemoEditorSession);
-
 // ---- Sign-in ---------------------------------------------------------------------------------------------------
 
 async function startConsole(accessToken, who) {
@@ -85,13 +78,11 @@ async function startConsole(accessToken, who) {
   $('who').textContent = who ? 'Signed in as ' + who : 'Signed in';
   say('');
   await refreshAll();
-  sendDemoEditorSession();
   $('main').focus();
 }
 
 function signOut(message = '') {
   token = undefined;
-  sendDemoEditorSession();
   localTaxes = {};
   clearMonitoringRehearsal();
   resetNotificationRehearsal();
