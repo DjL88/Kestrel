@@ -1,58 +1,83 @@
-# Kestrel public launch plan — 15 November 2026
+# Publishing InFlight: website, downloads and model packs
 
-This is a **release plan, not a claim that native installers or hosted services exist**. The website in `site/` is static and needs no server or database. It queries public GitHub releases for signed application binaries. Model-only releases (`species-model-1`) are never presented as installers.
+Current as of 26 November 2026. This replaces the 15 November launch plan (GitHub Pages), which is in git history.
+The release rules are in [RELEASE-FLOW.md](RELEASE-FLOW.md): `main` is staging, live is a deliberate promotion, and the
+owner says go before anything goes live. Nothing on this page runs by itself.
 
-## What this change publishes
+## First, the dry run
 
-- An accessible pre-release landing page with macOS, Windows, iOS and Android availability states, help, privacy copy and an honest Nikon RAW limitation.
-- A GitHub Pages workflow for the static site. **Owner action:** Settings → Pages → Build and deployment → GitHub Actions. Set a custom domain later; do not enter a domain in the repo until DNS is owned/verified.
-- App installers are displayed only from a non-draft, non-prerelease release tagged `vMAJOR.MINOR.PATCH`. The first matching `.dmg`/`.pkg`, `.msi`/`.msix`/`.exe`, and `.apk`/`.aab` respectively appear when uploaded. **Do not publish AAB as a direct-install Android option:** AAB is a store upload format; before Android release, remove that alternative or use the Play listing. For release v1, publish a signed APK for direct Android download.
-- An iOS download remains unavailable until a real App Store or TestFlight link is supplied in a separate verified change. Never distribute unsigned or arbitrary IPA links.
+```bash
+git fetch origin main
+npm run release:dry-run -- --version 26.11.4 --installers <folder with the installers> --model-version 2026.11.26
+```
 
-## Critical publication gates (in order)
+It reads this checkout and prints exactly what a publish would put where, with every SHA-256, plus the commands it would run
+and the steps the owner has to approve. It never calls `gcloud` or `firebase`, never uploads, never reads a key and opens no
+connection. It exits with 1 while there is a problem to fix first. Add `--json out/publish-plan.json` for a copy to keep.
+The rules live in `src/core/publishPlan.ts` (unit tested); the script is `scripts/release/publish-dry-run.ts`.
 
-1. **Product and legal:** Owner picks the Kestrel licence (public repo currently has no root LICENSE), verifies ownership of the Kestrel name/domain, completes third-party model/font/icon notices, privacy policy and basic support/contact/terms as appropriate. Do not auto-choose a licence.
-2. **PWA pilot:** Host built editor separately from marketing site (e.g. `app.<owned-domain>`); HTTPS; correct base path, cache/version updates, persistent-storage prompts, Safari/iOS and Android physical-device testing, offline import/edit/export/reopen, IndexedDB backups and capacity handling. Audit whether today's PWA manifest and icons are complete. Avoid publishing a photo-loss-prone hosted editor as stable.
-3. **Native desktop:** Add Tauri v2 shell and minimal native filesystem adapter. Build Windows/macOS on matching runner OS, test folder/NAS permissions, reliable catalogue persistence, installer launch, clean uninstall, crash recovery. Mac needs Developer ID code signing and notarisation; Windows needs signing to avoid trust friction. No auto-update until signed update manifests and rollback are tested.
-4. **RAW quality gate:** Test real Nikon Z8/Z5II lossless and both High Efficiency variants on full-resolution decode, expected dimensions, colour and export quality. Embedded previews do not establish RAW support. Do not advertise unsupported modes.
-5. **Mobile:** PWA first; Tauri mobile only after on-device experience is proven. App Store/TestFlight and Play Console require developer accounts, approvals, store assets and privacy declarations. Never label the website's placeholder as an app-store listing.
-6. **Release provenance:** CI lint, unit, Playwright, native smoke tests, manual QA, signed binaries, SHA-256 checksums, version notes, explicit support matrix and release approval. Tag `vX.Y.Z` only when an actual app release is ready; model versions use a separate namespace.
-7. **Website:** Activate GitHub Pages, verify published URL on a mobile browser, confirm empty release state, then verify actual release-asset links with a test release. Set up user-owned DNS only after a domain is chosen.
+## Where everything goes
 
-## Optional accounts and sync — not needed for first download
+The names come from the Google Cloud project id (`kestrel-hosting`), as in `infra/gcp/main.tf`.
 
-- Keep the authoritative catalogue, edit history and source files **on the device**. Sign-in and cloud sync must never gate local workflows.
-- Start with a local-only `AccountProvider` and `SyncProvider` boundary; no auth or uploads until policy, residency and abuse controls are designed.
-- First online sync should exchange small reversible edit/decision metadata and low-resolution previews only with project-level opt-in. Original RAW sync is a separately consented feature.
-- The backend, when built, needs verified identity, tenant/project membership, object-scoped short-lived upload/download URLs, encrypted transport/storage, upload checksum verification, quotas, delete/export controls, revocable sessions and audit events that avoid photo data. Never use public buckets for user photos.
-- Residency: specify where identities, metadata, storage, logs and backups live; no fallback to another region. The existing `docs/cloud-sync-proposal.md` is a starting point but not a provisioning guide.
-- Funding: no cloud storage/auth provider or paid API is provisioned in this PR. Require explicit cost and provider approval before infrastructure deployment.
+| What | Where | Written by |
+| --- | --- | --- |
+| Website `site/` and the routes to Cloud Run | Firebase Hosting site `kestrel-hosting-kestrel`, public at `https://inflight.studio` (`config/public-site.json`) | `publish-gcp.ps1 -Website` |
+| Installers | `gs://kestrel-hosting-kestrel-downloads/releases/<version>/<file>` | `publish-gcp.ps1 -Installers` |
+| Checksums | `releases/<version>/SHA256SUMS.txt` beside them | same |
+| What the website shows | `gs://kestrel-hosting-kestrel-downloads/latest.json`, cached 5 minutes, merged so other platforms and store links are kept | same |
+| Model pack files | `gs://kestrel-hosting-kestrel-models/data/onnx/<asset id>/<model version>/<file>`, cached for a year (immutable) | `sign-data-manifest.ts`, then `publish-gcp.ps1 -Models` |
+| The one model manifest | `manifest/stable.json` (signed with `kestrel-2026-11`), with `licences.json` and `build-info.json` beside it, uploaded last | same |
 
-## External AI assistant integration — future MCP-style local tool bridge
+Hosting rules the dry run checks in `firebase.json`: the site id matches the project, every rewrite goes only to
+`inflight-v2proto` or `kestrel-control-plane` in `europe-west2`, there is no catch-all rewrite, `/V2Proto` is `noindex` and
+`no-store`, `/admin` is `noindex`, and every page sends `nosniff`.
 
-A Claude/ChatGPT/other assistant integration should be a **local companion process attached to the native Kestrel app**, not an unauthenticated web endpoint.
+Downloads rules: `.dmg`/`.pkg` go on the Mac card, `.msi`/`.msix`/`.exe` on Windows and `.apk` on Android. An Android App
+Bundle (`.aab`) or an iPhone app (`.ipa`) is never a direct download. File names must have no spaces, so the address, the
+checksum file and the website agree.
 
-Phase 1 — read-only, explicitly selected project/photo:
-- `kestrel.get_capabilities`
-- `kestrel.list_selected_photos` (IDs, filename, safe metadata, edit summary; no private file paths by default)
-- `kestrel.get_edit_recipe`
-- `kestrel.preview_proposed_edits` (dry-run, with explanation and visual preview)
+## Model packs and their pinned digests
 
-Phase 2 — deliberately approved edits:
-- `kestrel.apply_edit_recipe` with allowlisted, bounded adjustments; expected photo ID and catalogue revision; active project and per-operation user confirmation. Preserve undo and a before/after record.
-- `kestrel.revert_proposal` through the normal history system.
+Each optional pack file is pinned by SHA-256 and size in `src/core/optionalModels.ts`. The app accepts a pack only when the
+signed manifest lists that exact digest and size, so the bucket can never swap in another file. The dry run prints the full
+address of every file. On 26 November:
 
-Security boundaries:
-- Disabled by default; local transport only (stdio or appropriately authenticated loopback with origin checks), no open network listen port. Authentication and client identity where needed.
-- Never let the assistant execute arbitrary code, file paths, shell commands, fetch URLs or export/upload originals. Treat returned AI text and tool inputs as untrusted. Reject unknown fields, oversized inputs and out-of-range edits.
-- Every write requires visible approval scoped to the exact photos, parameters and destination; no hidden bulk edits, deletion or upload.
-- No photograph sent to Claude, Gemini or any online provider without separate explicit consent. An assistant can reason over safe metadata without receiving image pixels. Locally generated previews can be offered only after explicit selection and consent.
-- A local MCP server is feasible for an eventual Tauri desktop app. The existing Gemini helper is a separate **user-provided-key** integration, not a Claude plugin; do not expose that key to MCP clients.
+- **Ready:** RF-DETR Nano, EfficientSAM-Ti (encoder and decoder), NAFNet, BiRefNet-lite, and the six BioCLIP 2 species lists.
+- **Needs `--allow-large`:** the BioCLIP 2 image model (580 MiB). Apps built before the 1 GiB limit refuse a manifest with a
+  file over 256 MiB, so list it only in a later manifest revision once installed apps are updated, or leave it out at launch.
+- **Held:** CLIP text search. Its size is not pinned yet, so the app keeps the pack out of sight and the dry run will not list it.
+- **Not mirrored:** the local vision models (SmolVLM2-500M, Florence-2-base). `scripts/models/acquire.py` fetches them from
+  their authors at the revision pinned in `scripts/models/manifest.json` and checks every file. Copying them into our bucket
+  would need a second packaging contract and goes over the single-file limits above, so it is a separate decision.
 
-## AI Studio boundary
+A release build offers packs only when it has `VITE_KESTREL_MODEL_BASE_URL=https://storage.googleapis.com/kestrel-hosting-kestrel-models`
+and `VITE_KESTREL_MODEL_KEYS` (the public `kestrel-2026-11` key in `.env.example`). No build sets them yet; the dry run says so.
 
-Kestrel's Vite/React UI may still be iterated in AI Studio. Keep `metadata.json`, port 3000 and `DISABLE_HMR`. Have AI Studio push changes to its **own branch**, not `main`, especially while other PR workers run. AI Studio cannot establish native signing, local filesystem entitlements or confidential cloud credentials merely by importing the web app. Native packaging and infrastructure must be verified outside AI Studio.
+## Order of a launch publish
 
-## Out of scope for this first PR
+1. Pick a `main` commit with green CI that you have checked on /V2Proto. Run the dry run on that commit.
+2. Website: `pwsh scripts/release/publish-gcp.ps1 -Project kestrel-hosting -Website -SiteUrl https://inflight.studio`.
+3. Desktop: tag the commit, check the draft GitHub release, then upload its installers with `-Version` and `-Installers`.
+4. Model packs: sign with `sign-data-manifest.ts` (signing key from Secret Manager), then `-Models out/models`.
+5. Read-only check: `bash infra/gcp/check-go-live.sh`.
+6. Publish the draft GitHub release yourself to start desktop updates. Phones are uploaded by hand from Xcode and the Play Console.
 
-Native binaries, cloud accounts, production backend, Claude credentials, payment systems, app-store submissions, real hosting/domain activation and merge to main.
+## What only the owner can approve
+
+Each of these spends money, reads a key or changes something people can see, so an agent prepares it and stops:
+
+1. Say go for the commit to promote.
+2. Add the two model settings above to the release build settings on the Mac and the Windows laptop.
+3. Read the manifest signing key to sign the model manifest.
+4. Upload the model packs (about 0.9 GB) to the public models bucket. Every download is billed as egress: 100 people taking
+   every pack is about 90 GB.
+5. Decide whether the BioCLIP 2 image model ships at launch or in a later manifest revision.
+6. Upload installers and update `latest.json` (the website download cards change within five minutes).
+7. Deploy the website to Firebase Hosting.
+8. Publish the draft GitHub release, which starts desktop updates.
+
+## Not covered here
+
+App Store, TestFlight and Google Play submissions; code signing and notarisation (see [DESKTOP.md](DESKTOP.md)); the control
+plane deploy (`infra/gcp/deploy-control-plane.sh`); DNS for `inflight.studio` (`infra/gcp/README.md`).
