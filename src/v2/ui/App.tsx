@@ -21,7 +21,8 @@ import { exportTargetFor, readLastExport, requestFromSettings } from '../engineC
 import { readCaptionTemplate } from '../../core/captionTemplate';
 import { usePresence } from './shell/usePresence';
 import { PresenceAvatars, PresenceCursors } from './shell/PresenceLayer';
-import { NewsEmailSetting, NoticesButton, useNotices } from './shell/Notices';
+import { CommunicationPreferences, NoticesButton, useNotices } from './shell/Notices';
+import { AccountButton } from './shell/AccountButton';
 import { TaskAlerts } from './shell/TaskAlerts';
 import { onPushOpened, removePushOnSignOut } from '../../providers/webPush';
 import SharedEditBanner from './shell/SharedEditBanner';
@@ -30,7 +31,7 @@ import { getActiveGroup, viewPhotos } from './utils/studioMath';
 import { readSharedLink } from './dialogs/sharedLinks';
 import { useSharedEditing } from './shell/useSharedEditing';
 import { collabClient } from '../../providers/collabClient';
-import { firebaseAuth } from '../../providers/firebaseAuth';
+import { firebaseAuth, isSignInConfigured } from '../../providers/firebaseAuth';
 import { CANVAS_ZOOM_EVENT } from './utils/canvasTrackpadZoom';
 import { nudgeSliderInUse, trackSliderInUse } from './utils/sliderNudge';
 import { nextToReview } from '../../core/savedViews';
@@ -40,6 +41,7 @@ import { chordLabel, effectiveKeymap, keyAlreadyHandled, loadKeymap, saveKeymap,
 import { loadPad, padInForce, resolveWithPad, savePad, type PadProfile } from './commands/pad';
 import { loadGamepadProfile, saveGamepadProfile, type GamepadProfile, type GamepadSlot } from './commands/gamepad';
 import { useGamepad } from './commands/useGamepad';
+import { filmstripActivity, tasksWheelProgress } from './utils/edgeActivity';
 import { commandById, type CommandDefinition } from './commands/registry';
 import { useNativeMenu, useNativeMenuState } from './commands/useNativeMenu';
 import { menuState } from './commands/menuState';
@@ -117,6 +119,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const { store, actions } = useStore();
   // Shared projects (#1387): contacted only when the person opens Share.
   const [shareOpen, setShareOpen] = useState(false);
+  /** Canvas only: the header, the tool rail, every panel and the filmstrip are hidden, leaving just the photo and its
+   * zoom bar. Separate from full screen (which hides the window's own frame); the two can be used together. */
+  const [canvasOnly, setCanvasOnly] = useState(false);
   // The enlargement preview: the export's own picture of one format. Null result while it is being made.
   const [enlargement, setEnlargement] = useState<{ photoId: string; sizeId: string; result: EnlargementPreviewResult | null } | null>(null);
   const enlargementRequest = React.useRef(0);
@@ -167,6 +172,17 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     const session = await firebaseAuth.current().catch(() => null);
     return session ? (session.displayName?.trim() || session.email?.split('@')[0] || null) : null;
   }, []);
+  // Top right of the home page and editor: who is signed in. Read again when Settings closes (where sign-in happens).
+  const [accountName, setAccountName] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (!accountPanel || !isSignInConfigured() || store.settingsOpen) return;
+    let live = true;
+    void signedInName().then((name) => { if (live) setAccountName(name); }, () => undefined);
+    return () => { live = false; };
+  }, [accountPanel, signedInName, store.settingsOpen]);
+  const accountButton = accountPanel && isSignInConfigured()
+    ? <AccountButton name={accountName} onOpen={() => actions.setSettingsOpen(true, 'account')} />
+    : undefined;
   // Team notifications (G20): the in-app inbox, for a signed-in person on a build with sharing.
   const notices = useNotices(sharing, signedInName);
   /** A notice opens its photo when that shared project is the one open here; otherwise it only stays in the list. */
@@ -215,7 +231,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   }, []);
   useEffect(() => {
     const favicon = document.querySelector<HTMLLinkElement>('link[data-inflight-theme-icon]');
-    if (favicon) favicon.href = activeTheme === 'dark' ? '/brand/favicon-dark.svg' : '/brand/favicon-light.svg';
+    if (favicon) favicon.href = `${import.meta.env.BASE_URL || '/'}brand/favicon-${activeTheme === 'dark' ? 'dark' : 'light'}.svg`;
     const theme = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
     if (theme) theme.content = activeTheme === 'dark' ? '#0e1116' : '#f8f6f2';
   }, [activeTheme]);
@@ -366,6 +382,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const hoveredLook = store.looks.find((l) => l.id === store.hoveredLookId)
     ?? (stepPreview && Object.keys(stepPreview).length ? { id: 'watch-steps', name: '', category: '', description: '', previewFilter: '', recipeDelta: stepPreview } : null);
   const runningTaskCount = store.tasks.filter((t) => t.status === 'running').length;
+  const wheel = tasksWheelProgress(store.tasks);
 
   // Action messages: a problem waits until it is dismissed; a confirmation stays long enough to read, and pauses
   // while the pointer or focus is on it. Calm View never hides them (it only quietens the rest of the workspace).
@@ -407,6 +424,16 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     sort: store.filmstripSort, tag: store.filmstripTag ?? null, pictureIds,
   }), [store.photos, store.filmstripFilter, store.filmstripSearch, store.filmstripMinRating, store.filmstripSort, store.filmstripTag, pictureIds]);
   const shownPhotoIds = React.useMemo(() => shownPhotos.map((photo) => photo.id), [shownPhotos]);
+  // The photos either side of the open one, in the filmstrip's order: their eye, subject and focus point are found in
+  // the background, so 100% and Zoom to eye are instant when they are opened.
+  const activePhotoId = activePhoto?.id;
+  const neighbourPhotos = React.useMemo(() => {
+    const at = shownPhotos.findIndex((photo) => photo.id === activePhotoId);
+    if (at < 0) return [];
+    return [shownPhotos[at + 1], shownPhotos[at - 1], shownPhotos[at + 2]]
+      .filter((photo): photo is NonNullable<typeof photo> => Boolean(photo))
+      .map((photo) => ({ id: photo.id, previewUrl: photo.previewUrl }));
+  }, [shownPhotos, activePhotoId]);
   // Saved views (preview, off by default): the filters in force, and putting a saved set back through the same setters.
   const savedViewsControl = React.useMemo<SavedViewsControl | undefined>(() => !store.features.savedViews ? undefined : {
     current: { filter: store.filmstripFilter, search: store.filmstripSearch, minRating: store.filmstripMinRating, sort: store.filmstripSort, tag: store.filmstripTag ?? null },
@@ -464,6 +491,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'view.filmstrip': actions.setFilmstripCollapsed(!store.filmstripCollapsed); break;
       case 'view.compare': actions.setCompareMode(!store.compareMode); break;
       case 'view.fullscreen': actions.toggleFullScreen(); break;
+      case 'view.canvasOnly': setCanvasOnly((on) => !on); break;
       case 'view.maskOverlay': setMaskOverlayVisible((visible) => !visible); break;
       case 'view.zoomIn': case 'view.zoomOut': case 'view.zoomFit': case 'view.zoom100':
         window.dispatchEvent(new CustomEvent(CANVAS_ZOOM_EVENT, { detail: { action: ({ 'view.zoomIn': 'in', 'view.zoomOut': 'out', 'view.zoomFit': 'fit', 'view.zoom100': 'actual' } as const)[command.id] } }));
@@ -825,6 +853,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const phoneLandscape = isPhoneLandscape && !composingCollage;
   const phoneLayout = isMobile || phoneLandscape;
   const sheetOpen = phoneLayout && Boolean(store.activePanel) && !composingCollage;
+  // Canvas only applies to one photo open in the editor; the grid, a collage and the project list keep their bars.
+  const canvasOnlyShown = canvasOnly && store.screen === 'editor' && Boolean(activePhoto) && !store.gridViewOpen && !store.collage;
   useEffect(() => {
     const sheet = sheetEl;
     if (!sheetOpen || !sheet) { setSheetHeight(0); setSheetWidth(0); return; }
@@ -881,7 +911,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     <div
       className="inflight-v2 fixed inset-0 flex flex-col overflow-hidden bg-[var(--bg-app)] text-[var(--text-primary)] font-[family-name:var(--font-sans)]"
       data-v2-theme={activeTheme}
-      data-v2-layout={store.screen === 'editor' && phoneLandscape ? 'phone-landscape' : undefined}
+      data-v2-layout={store.screen === 'editor' && phoneLandscape && !canvasOnlyShown ? 'phone-landscape' : undefined}
       data-v2-motion={store.settings.calmMotion ? 'calm' : undefined}
       onDragOver={(e) => {
         if (store.screen === 'editor' && Array.from(e.dataTransfer.types).includes('Files')) {
@@ -937,6 +967,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onDeleteProjectForever={actions.deleteProjectForever}
           onDuplicateProject={actions.duplicateProject}
           onOpenSettings={() => actions.setSettingsOpen(true, 'appearance')}
+          account={accountButton}
           onToggleTheme={() =>
             actions.updateSettings({ theme: activeTheme === 'dark' ? 'light' : 'dark' })
           }
@@ -958,7 +989,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               event.target.value = '';
               if (file) actions.readLightroomCatalogue(file);
             }} />
-          {phoneLandscape && (
+          {phoneLandscape && !canvasOnlyShown && (
             <nav aria-label={STRINGS.mobile.navigation} data-testid="phone-landscape-nav"
               className="fixed inset-y-0 left-0 z-40 flex w-[calc(3.25rem+env(safe-area-inset-left))] flex-col items-center gap-1 border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] pb-[max(0.5rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] pt-[max(0.5rem,env(safe-area-inset-top))]">
               {([
@@ -980,7 +1011,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               </button>
             </nav>
           )}
-          {!phoneLandscape && <TopBar
+          {!phoneLandscape && !canvasOnlyShown && <TopBar
             // Owner decision 24 Nov 2026: header menus in a browser; the installed desktop app uses its native menu bar.
             showMenus={!isDesktopApp()}
             keymap={keymap}
@@ -1004,6 +1035,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             presence={<>
               <PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(key) => { const photo = store.photos.find((candidate) => candidate.sharedKey === key); if (photo) actions.selectPhoto(photo.id); }} />
               <NoticesButton notices={notices} client={sharing} signedIn={signedInName} onGoToPhoto={goToNoticePhoto} />
+              {accountButton}
             </>}
             onOpenRemoved={() => actions.setRemovedOpen(true)}
             onSaveXmp={store.screen === 'editor' && !store.collage ? () => actions.saveXmpSidecars(store.selectedPhotoIds) : undefined}
@@ -1037,14 +1069,15 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           {/* Main Workspace Row */}
           <div className={`relative flex min-h-0 flex-1 overflow-hidden ${store.settings.hand === 'left' ? 'flex-row-reverse' : ''} ${sheetOpen ? 'v2-sheet-open' : ''}`}
             style={phoneLandscape ? (sheetWidth ? { paddingRight: sheetWidth } : undefined) : sheetHeight ? { paddingBottom: sheetHeight } : undefined}>
-            {(!store.collage || collageEditingId) && !phoneLandscape && <Rail
+            {(!store.collage || collageEditingId) && !phoneLandscape && !canvasOnlyShown && <Rail
               hand={store.settings.hand}
               hiddenPanels={[...(hasOverlays ? [] : ['overlays' as const]), ...panelsHiddenByPro(hiddenPro)]}
               assistMode={store.assistMode}
               activePanel={store.activePanel}
               panels={store.panels}
               runningTaskCount={runningTaskCount}
-              taskProgress={runningTaskCount ? store.tasks.filter((t) => t.status === 'running').reduce((sum, t) => sum + t.progress, 0) / runningTaskCount : 0}
+              taskProgress={wheel.percent}
+              taskCount={wheel.total !== null ? { done: wheel.done ?? 0, total: wheel.total } : null}
               onOpenTasks={() => actions.setActivePanel(store.activePanel === 'tasks' ? null : 'tasks')}
               quietBadges={store.settings.calmBadges}
               onSelectPanel={actions.setActivePanel}
@@ -1055,7 +1088,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             />}
 
             {/* Left-docked panel (desktop/tablet only) */}
-            {!phoneLayout && activePanelVisible && store.activePanel && activePanelState?.dock === 'left' && (
+            {!phoneLayout && !canvasOnlyShown && activePanelVisible && store.activePanel && activePanelState?.dock === 'left' && (
               <DockPanel
                 panelId={store.activePanel}
                 title={PANEL_TITLES[store.activePanel]}
@@ -1171,10 +1204,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                   onToggleCompare={() => actions.setCompareMode(!store.compareMode)}
                   onSetZoom={actions.setCanvasZoom}
                   onToggleFullScreen={actions.toggleFullScreen}
+                  neighbourPhotos={neighbourPhotos}
+                  canvasOnly={canvasOnlyShown}
+                  onToggleCanvasOnly={() => setCanvasOnly((on) => !on)}
                 />
               )}
 
-              <Filmstrip
+              {!canvasOnlyShown && <Filmstrip
                 photos={store.photos}
                 activePhoto={activePhoto}
                 selectedPhotoIds={store.selectedPhotoIds}
@@ -1221,6 +1257,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onOpenShootRoom={actions.openShootRoom}
                 onCloseShootRoom={actions.closeShootRoom}
                 liveFolder={store.liveFolder}
+                activity={filmstripActivity(store.tasks)}
                 onRunAutoCull={actions.runAutoCull}
                 onOpenCullAssistant={actions.rankCulling ? () => setCullAssistantOpen(true) : undefined}
                 onCreateCollage={store.collage ? undefined : actions.createCollageFromSelection}
@@ -1231,11 +1268,11 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onChooseFromProject={composingCollage && store.projects.some((p) => p.id !== store.activeProjectId) ? () => setCollageSourceOpen(true) : undefined}
                 onExportSelected={() => actions.setExportOpen(true)}
                 onCompareSelected={() => { actions.setGridViewOpen(false); actions.setCompareMode(true); }}
-              />
+              />}
             </div>
 
             {/* Right-docked panel (desktop/tablet only) */}
-            {!phoneLayout && activePanelVisible && store.activePanel && activePanelState?.dock === 'right' && (
+            {!phoneLayout && !canvasOnlyShown && activePanelVisible && store.activePanel && activePanelState?.dock === 'right' && (
               <DockPanel
                 panelId={store.activePanel}
                 title={PANEL_TITLES[store.activePanel]}
@@ -1251,7 +1288,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             )}
 
             {/* Undocked windows: independent on large displays, one on compact screens. */}
-            {!phoneLayout && !composingCollage && shownFloatingPanelIds.map((panelId) => {
+            {!phoneLayout && !composingCollage && !canvasOnlyShown && shownFloatingPanelIds.map((panelId) => {
               const state = store.panels[panelId];
               return (
                 <DockPanel
@@ -1274,7 +1311,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           {/* Phone tool bar. Upright (<= 767px): four large targets along the bottom, like Lightroom; everything else lives
               in More. Sideways (V2-WORKSPACE 26.4): a column on the right, thumb side, with Export on top and Masks added,
               because a landscape phone has the height for one more. */}
-          {phoneLayout && !composingCollage && (
+          {phoneLayout && !composingCollage && !canvasOnlyShown && (
             <nav
               aria-label={STRINGS.mobile.toolBar}
               className={phoneLandscape
@@ -1499,7 +1536,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         templates={store.overlayTemplates}
         onRenameTemplate={actions.renameOverlayTemplate}
         onDeleteTemplate={actions.deleteOverlayTemplate}
-        accountPanel={accountPanel ? <>{accountPanel}<NewsEmailSetting client={sharing} signedIn={signedInName} /></> : undefined}
+        accountPanel={accountPanel ? <>{accountPanel}<CommunicationPreferences client={sharing} signedIn={signedInName} /></> : undefined}
         keyboardPanel={<React.Suspense fallback={null}><KeyboardSettings saved={savedKeymap} isMac={IS_MAC} onChange={changeKeymap} pad={pad} onPadChange={changePad} padKeysOn={padKeysOn} onPadKeysOnChange={(on: boolean) => actions.updateSettings({ padKeysEnabled: on })} previews={commandPreviews} /></React.Suspense>}
         gamepadPanel={<React.Suspense fallback={null}><GamepadSettings profile={gamepadProfile} onChange={changeGamepadProfile} controllerName={gamepadSeen.name} lastSlot={gamepadSeen.lastSlot} /></React.Suspense>}
         settings={store.settings}

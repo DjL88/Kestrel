@@ -4,8 +4,9 @@
  * Z 8, Z 9, Z f, Z6III, Z50II and Z5II included), at the offsets ExifTool's public Nikon tag tables document. Other makers
  * and other Nikon layouts give `null`, which means "the file does not say" and is never shown as a focus miss.
  *
- * The AF area is the camera's own coordinates, as fractions of the frame the camera measured it in (the sensor, before
- * any rotation for a portrait photo). Showing it on a rotated picture is the viewer's job.
+ * `area` is the camera's own coordinates, as fractions of the frame the camera measured it in (the sensor, before any
+ * rotation for a portrait photo). `uprightArea` is the same box turned by the file's EXIF Orientation, so it lands on the
+ * picture as it is shown; it is absent when the orientation is one InFlight cannot read, so a box is never drawn askew.
  */
 
 export type CameraAfAreaMode = 'pinpoint' | 'single' | 'dynamic' | 'wide-s' | 'wide-l' | 'wide-custom' | 'auto' | '3d-tracking';
@@ -19,7 +20,43 @@ export interface CameraFocus {
   focusConfirmed?: boolean;
   /** The AF area's top-left corner and size, each a fraction (0 to 1) of the frame. Absent when the camera chose
    * points from its auto-area grid without recording a position. */
-  area?: { x: number; y: number; width: number; height: number };
+  area?: FocusArea;
+  /** `area` turned to the picture as shown (after the EXIF Orientation). Absent when there is no area, or the
+   * orientation is unreadable. Records read before this field existed lack it too. */
+  uprightArea?: FocusArea;
+}
+
+export interface FocusArea { x: number; y: number; width: number; height: number }
+
+const ORIENTATION_WORDS: Record<string, number> = {
+  'horizontal (normal)': 1, 'mirror horizontal': 2, 'rotate 180': 3, 'mirror vertical': 4,
+  'mirror horizontal and rotate 270 cw': 5, 'rotate 90 cw': 6, 'mirror horizontal and rotate 90 cw': 7, 'rotate 270 cw': 8,
+};
+
+/** The EXIF Orientation as its number (1 to 8), from the number or exifr's words. Missing means 1, as EXIF says;
+ * anything else unreadable gives null. */
+export function orientationCode(value: unknown): number | null {
+  if (value === undefined || value === null) return 1;
+  if (typeof value === 'number') return Number.isInteger(value) && value >= 1 && value <= 8 ? value : null;
+  if (typeof value === 'string') return ORIENTATION_WORDS[value.trim().toLowerCase()] ?? null;
+  return null;
+}
+
+/** Turns a box measured on the sensor into the picture as shown, for EXIF Orientation 1 to 8. */
+export function orientFocusArea(area: FocusArea, orientation: number): FocusArea {
+  const { x, y, width: w, height: h } = area;
+  const round = (value: number) => Math.round(value * 10_000) / 10_000;
+  const box = (bx: number, by: number, bw: number, bh: number): FocusArea => ({ x: round(bx), y: round(by), width: round(bw), height: round(bh) });
+  switch (orientation) {
+    case 2: return box(1 - x - w, y, w, h);
+    case 3: return box(1 - x - w, 1 - y - h, w, h);
+    case 4: return box(x, 1 - y - h, w, h);
+    case 5: return box(y, x, h, w);
+    case 6: return box(1 - y - h, x, h, w);
+    case 7: return box(1 - y - h, 1 - x - w, h, w);
+    case 8: return box(y, 1 - x - w, h, w);
+    default: return box(x, y, w, h);
+  }
 }
 
 type Read16 = (at: number) => number;
@@ -102,12 +139,15 @@ export function parseNikonAfInfo2(record: Uint8Array, u16: Read16): CameraFocus 
  * Where the camera focused, from a file's maker note. `make` is the EXIF Make. Returns null when the maker is not one
  * InFlight reads yet, or the record is missing, unknown or damaged: never a guess.
  */
-export function readCameraFocus(makerNote: Uint8Array | undefined | null, make: unknown): CameraFocus | null {
+export function readCameraFocus(makerNote: Uint8Array | undefined | null, make: unknown, orientation?: unknown): CameraFocus | null {
   if (!(makerNote instanceof Uint8Array) || typeof make !== 'string') return null;
   if (!/^nikon/i.test(make.trim())) return null;
   try {
     const tag = nikonTag(makerNote, 0x00b7);
-    return tag ? parseNikonAfInfo2(tag.bytes, tag.u16) : null;
+    const focus = tag ? parseNikonAfInfo2(tag.bytes, tag.u16) : null;
+    const code = orientationCode(orientation);
+    if (focus?.area && code !== null) focus.uprightArea = orientFocusArea(focus.area, code);
+    return focus;
   } catch {
     return null;
   }

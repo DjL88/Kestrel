@@ -218,3 +218,15 @@
 /* Overlay text, watermark and collage caption are part of the picture (data-artwork): the interface's reading font does
    not apply to them (index.css), so they keep the workspace font they will be exported with. */
 html[data-font="readable"] .inflight-v2 [data-artwork] { font-family: var(--font-sans); }
+/* EdgeProgress: the thin loading line on the filmstrip's top edge and the photo's bottom edge. The faint track keeps the
+   line readable without colour alone; with less movement the stripe stands still, part-filled, instead of sliding. */
+.inflight-v2 .v2-edge-progress { background: color-mix(in srgb, var(--brand-accent) 18%, transparent); }
+@keyframes v2-edge-slide { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+.inflight-v2 .v2-edge-progress-stripe { animation: v2-edge-slide 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .inflight-v2 .v2-edge-progress-stripe { animation: none !important; transform: none; } }
+.inflight-v2[data-v2-motion="calm"] .v2-edge-progress-stripe { animation: none !important; transform: none; }
+/* Tasks wheel: a short arc circles the wheel while work runs; it stands still with less movement. */
+@keyframes v2-wheel-sweep { to { transform: rotate(360deg); } }
+.inflight-v2 .v2-tasks-wheel-sweep { animation: v2-wheel-sweep 1.6s linear infinite; transform-origin: 50% 50%; }
+@media (prefers-reduced-motion: reduce) { .inflight-v2 .v2-tasks-wheel-sweep { animation: none !important; } }
+.inflight-v2[data-v2-motion="calm"] .v2-tasks-wheel-sweep { animation: none !important; }

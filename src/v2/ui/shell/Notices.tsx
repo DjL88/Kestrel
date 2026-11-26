@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Notice } from '../../../core/collabNotices';
-import type { CollabClient } from '../../../providers/collabClient';
+import type { CollabClient, EmailSettings } from '../../../providers/collabClient';
 import type { PushPreferences, PushState } from '../../../core/pushNotices';
 import { currentPushState, turnOffPush, turnOnPush } from '../../../providers/webPush';
 import { STRINGS } from '../strings';
@@ -95,40 +95,66 @@ function PushAlerts({ client, signedIn }: { client: CollabClient; signedIn: () =
 }
 
 /**
- * Settings → Account: "Email me InFlight news and new features". Off unless the person turns it on (UK PECR: product
- * news is marketing). Shown only when the server can send email; news still goes to devices with alerts first.
+ * Settings → Account → Communication preferences (UK GDPR / PECR). One place for every message InFlight may send:
+ * - Marketing email: InFlight news and new features. Off unless the person turns it on.
+ * - Product email: comments and client feedback on their shared projects, only when an alert cannot reach them. On
+ *   unless turned off.
+ * - Alerts (FCM push): which kinds, for all their devices, and whether this device gets them.
+ * Account and security emails (such as a bought licence key) are not optional. Every email has a link that stops it.
+ * Shown only to a signed-in person on a server that can send any of these.
  */
-export function NewsEmailSetting({ client, signedIn }: { client: CollabClient; signedIn: () => Promise<string | null> }) {
+export function CommunicationPreferences({ client, signedIn }: { client: CollabClient; signedIn: () => Promise<string | null> }) {
   const t = STRINGS.notices;
-  const [state, setState] = useState<{ productNews: boolean } | null>(null);
+  const [state, setState] = useState<EmailSettings | null>(null);
+  const [push, setPush] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     if (!client.configured) return;
     let live = true;
     void (async () => {
-      try {
-        if (!(await signedIn().catch(() => null))) return;
-        const settings = await client.emailSettings();
-        if (live && settings.available) setState({ productNews: settings.productNews });
-      } catch { /* email not set up on this server: nothing to show */ }
+      if (!(await signedIn().catch(() => null))) return;
+      const [email, alerts] = await Promise.all([client.emailSettings().catch(() => null), client.pushSettings().catch(() => null)]);
+      if (!live) return;
+      if (email && (email.available || email.productEmailAvailable)) setState(email);
+      setPush(Boolean(alerts?.available));
     })();
     return () => { live = false; };
   }, [client, signedIn]);
-  if (!state) return null;
-  const change = async (on: boolean) => {
+  if (!state && !push) return null;
+  const change = async (key: 'productNews' | 'productEmail', on: boolean) => {
     setBusy(true); setFailed(false);
-    try { setState({ productNews: await client.setEmailSettings({ productNews: on }) }); } catch { setFailed(true); } finally { setBusy(false); }
+    try { const next = await client.setEmailSettings({ [key]: on }); setState((s) => (s ? { ...s, ...next } : s)); } catch { setFailed(true); } finally { setBusy(false); }
   };
   return (
-    <section data-testid="news-email" aria-labelledby="news-email-title" className="mt-5 space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
-      <h3 id="news-email-title" className="text-xs font-semibold text-[var(--text-primary)]">{t.newsEmailHeading}</h3>
-      <label className="flex min-h-7 items-center gap-2 text-[var(--text-primary)]">
-        <input type="checkbox" data-testid="news-email-toggle" checked={state.productNews} disabled={busy} aria-describedby="news-email-hint" onChange={(event) => void change(event.target.checked)} />
-        {t.newsEmailLabel}
-      </label>
-      <p id="news-email-hint" className="text-xs text-[var(--text-secondary)]">{t.newsEmailHint}</p>
+    <section data-testid="communication-preferences" aria-labelledby="communication-title" className="mt-5 space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
+      <h3 id="communication-title" className="text-xs font-semibold text-[var(--text-primary)]">{t.communicationHeading}</h3>
+      {state && (
+        <fieldset className="space-y-1" disabled={busy}>
+          <legend className="text-[11px] font-semibold text-[var(--text-secondary)]">{t.newsEmailHeading}</legend>
+          {state.available && (
+            <>
+              <label className="flex min-h-7 items-center gap-2 text-[var(--text-primary)]">
+                <input type="checkbox" data-testid="news-email-toggle" checked={state.productNews} aria-describedby="news-email-hint" onChange={(event) => void change('productNews', event.target.checked)} />
+                {t.newsEmailLabel}
+              </label>
+              <p id="news-email-hint" className="text-xs text-[var(--text-secondary)]">{t.newsEmailHint}</p>
+            </>
+          )}
+          {state.productEmailAvailable && (
+            <>
+              <label className="flex min-h-7 items-center gap-2 text-[var(--text-primary)]">
+                <input type="checkbox" data-testid="product-email-toggle" checked={state.productEmail} aria-describedby="product-email-hint" onChange={(event) => void change('productEmail', event.target.checked)} />
+                {t.productEmailLabel}
+              </label>
+              <p id="product-email-hint" className="text-xs text-[var(--text-secondary)]">{t.productEmailHint}</p>
+            </>
+          )}
+          <p className="text-xs text-[var(--text-secondary)]">{t.accountEmailNote}</p>
+        </fieldset>
+      )}
       {failed && <p role="status" className="text-xs text-[var(--text-secondary)]">⚠ {t.newsEmailFailed}</p>}
+      {push && <PushAlerts client={client} signedIn={signedIn} />}
     </section>
   );
 }

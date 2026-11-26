@@ -20,7 +20,7 @@ Owner decision, 25 November 2026. Every worker and agent follows this.
 | Feature switches | `/admin`, or `infra/gcp/switch-features.sh` (plan, then type `APPLY`) | No, manual |
 | Public website and downloads bucket | `scripts/release/publish-gcp.ps1 -Website` / `-Installers` | No, manual |
 | Desktop apps (`release.yml`) | Pushing a `v*` tag; refused unless the tagged commit is on `main` | No. It builds a **draft** GitHub release only |
-| Desktop updater | Reads `releases/latest/download/latest.json`, which skips drafts | Only after the owner publishes the draft |
+| Desktop updater | Reads `updater/latest.json` in the downloads bucket | Only when the owner runs `scripts/release/publish-updater.mjs` |
 | App Store, TestFlight, Google Play | No workflow uploads to them | No, manual upload from Xcode or the Play Console |
 
 ## Promoting a commit to live

@@ -17,6 +17,7 @@ export type CommandId =
   | 'view.grid' | 'view.loupe' | 'view.filmstrip'
   | 'view.compare'
   | 'view.fullscreen'
+  | 'view.canvasOnly'
   | 'view.maskOverlay'
   | 'view.zoomIn' | 'view.zoomOut' | 'view.zoomFit' | 'view.zoom100'
   | 'adjust.sliderUp' | 'adjust.sliderDown' | 'adjust.sliderUpMore' | 'adjust.sliderDownMore'
@@ -65,6 +66,7 @@ export const COMMANDS: readonly CommandDefinition[] = [
   { id: 'view.filmstrip', group: 'view', label: 'Show or hide the filmstrip', worksInFields: false, allowRepeat: false },
   { id: 'view.compare', group: 'view', label: 'Compare original and edit', worksInFields: false, allowRepeat: false },
   { id: 'view.fullscreen', group: 'view', label: 'Full screen', worksInFields: false, allowRepeat: false },
+  { id: 'view.canvasOnly', group: 'view', label: 'Canvas only (hide the bars and panels)', worksInFields: false, allowRepeat: false },
   { id: 'view.maskOverlay', group: 'view', label: 'Show or hide the selected mask overlay', worksInFields: false, allowRepeat: false },
   { id: 'view.zoomIn', group: 'view', label: 'Zoom in', worksInFields: false, allowRepeat: true },
   { id: 'view.zoomOut', group: 'view', label: 'Zoom out', worksInFields: false, allowRepeat: true },
