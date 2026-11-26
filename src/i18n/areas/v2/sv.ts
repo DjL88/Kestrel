@@ -570,6 +570,9 @@ export const sv: AreaTranslation<typeof source> = {
     gridViewToggle: 'Rutnät med alla foton',
     fullScreenEnter: 'Helskärm',
     fullScreenExit: 'Avsluta helskärm',
+    canvasOnlyEnter: 'Bara arbetsyta: dölj fält och paneler (L)',
+    canvasOnlyExit: 'Visa fält och paneler igen (L)',
+    canvasOnlyBack: 'Visa paneler',
     zoomFit: 'Anpassa',
   },
   autoCheck: {
@@ -1688,6 +1691,8 @@ export const sv: AreaTranslation<typeof source> = {
     export: 'Exportera',
   },
   hubMore: {
+    accountSignIn: "Logga in",
+    accountSignedIn: (name: string) => `Inloggad som ${name}. Öppna kontoinställningar`,
     archived: (count) => `Arkiverade (${count})`,
     archivedNote: 'Arkiverade projekt sparas. Återställ ett för att använda det igen.',
     nothingArchived: 'Inget är arkiverat.',
@@ -2029,6 +2034,10 @@ export const sv: AreaTranslation<typeof source> = {
     newsEmailLabel: "Skicka nyheter och nya funktioner i InFlight till mig via e-post",
     newsEmailHint: "Avstängt tills du slår på det. Nyheter går först till dina enheter med aviseringar; vi mejlar bara när en avisering inte når dig. Varje mejl har en länk för att stoppa dem.",
     newsEmailFailed: "Det gick inte att ändra. Inget annat ändrades.",
+    communicationHeading: "Kommunikationsval",
+    productEmailLabel: "Mejla mig om kommentarer och feedback på mina delade projekt",
+    productEmailHint: "På tills du stänger av det. Bara när en avisering inte når dig. Du ser dem fortfarande i appen.",
+    accountEmailNote: "Mejl om ditt konto, till exempel din licensnyckel eller ett nytt lösenord, skickas alltid. Alla andra mejl har en länk för att sluta få dem.",
   },
   taskAlerts: {
     oneDone: (title: string) => `Klart: ${title}.`,
@@ -2126,5 +2135,10 @@ export const sv: AreaTranslation<typeof source> = {
     usbFetching: (name: string) => `Hämtar ${name}`,
     usbNoCamera: 'Ingen kamera hittades via USB. Slå på kameran, anslut kabeln och stäng andra appar som använder den (tillverkarens tether-app, Bilder eller Digitala bilder).',
     usbEnded: (camera: string, reason: string) => `${camera} slutade tethra: ${reason} Foton som redan lagts till finns kvar.`,
+  },
+  activityBar: {
+    photoLoading: 'Läser in foto',
+    minutesLeft: (n: number) => `Ungefär ${n} min kvar`,
+    teaTime: 'Dags för en kopp te',
   },
 };

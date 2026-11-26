@@ -20,6 +20,12 @@ export const sv: AreaTranslation<typeof source> = {
     done: "Klart. InFlight skickar inga fler mejl till den här adressen.",
     invalid: "Länken är inte giltig.",
     invalidHint: "Svara på mejlet, så slutar vi.",
+    stopNews: "Sluta få nyheter från InFlight via mejl",
+    stopNotices: "Sluta få mejl om dina delade projekt",
+    confirmNews: "Tryck på knappen för att sluta få nyheter från InFlight via mejl. Mejl om ditt konto, till exempel en licensnyckel, kommer fortfarande.",
+    confirmNotices: "Tryck på knappen för att sluta få mejl om dina delade projekt. Du ser dem fortfarande i appen.",
+    doneNews: "Klart. Slå på nyheter via mejl igen under Inställningar → Konto i InFlight.",
+    doneNotices: "Klart. Slå på de här mejlen igen under Inställningar → Konto i InFlight.",
   },
   news: {
     why: "Du får detta eftersom du har bett om nyheter från InFlight via e-post. Stäng av det under Inställningar → Konto, eller använd länken nedan.",

@@ -570,6 +570,9 @@ export const nb: AreaTranslation<typeof source> = {
     gridViewToggle: 'Rutenett med alle bilder',
     fullScreenEnter: 'Fullskjerm',
     fullScreenExit: 'Avslutt fullskjerm',
+    canvasOnlyEnter: 'Bare lerret: skjul linjer og paneler (L)',
+    canvasOnlyExit: 'Vis linjer og paneler igjen (L)',
+    canvasOnlyBack: 'Vis paneler',
     zoomFit: 'Tilpass',
   },
   autoCheck: {
@@ -1688,6 +1691,8 @@ export const nb: AreaTranslation<typeof source> = {
     export: 'Eksporter',
   },
   hubMore: {
+    accountSignIn: "Logg inn",
+    accountSignedIn: (name: string) => `Logget inn som ${name}. Åpne kontoinnstillinger`,
     archived: (count) => `Arkivert (${count})`,
     archivedNote: 'Arkiverte prosjekter tas vare på. Gjenopprett ett for å bruke det igjen.',
     nothingArchived: 'Ingenting er arkivert.',
@@ -2029,6 +2034,10 @@ export const nb: AreaTranslation<typeof source> = {
     newsEmailLabel: "Send meg nyheter og nye funksjoner i InFlight på e-post",
     newsEmailHint: "Av med mindre du slår det på. Nyheter går først til enhetene dine med varsler; vi sender bare e-post når et varsel ikke når deg. Hver e-post har en lenke for å stoppe dem.",
     newsEmailFailed: "Dette kunne ikke endres. Ingenting annet ble endret.",
+    communicationHeading: "Kommunikasjonsvalg",
+    productEmailLabel: "Send meg e-post om kommentarer og tilbakemeldinger på de delte prosjektene mine",
+    productEmailHint: "På til du slår det av. Bare når et varsel ikke når deg. Du ser dem fortsatt i appen.",
+    accountEmailNote: "E-post om kontoen, som lisensnøkkelen eller nytt passord, sendes alltid. All annen e-post har en lenke for å stoppe den.",
   },
   taskAlerts: {
     oneDone: (title: string) => `Ferdig: ${title}.`,
@@ -2126,5 +2135,10 @@ export const nb: AreaTranslation<typeof source> = {
     usbFetching: (name: string) => `Henter ${name}`,
     usbNoCamera: 'Fant ikke noe kamera via USB. Slå på kameraet, koble til kabelen, og lukk andre apper som bruker det (produsentens tether-app, Bilder eller Digitale bilder).',
     usbEnded: (camera: string, reason: string) => `${camera} sluttet å tethre: ${reason} Bilder som allerede er lagt til, blir værende.`,
+  },
+  activityBar: {
+    photoLoading: 'Laster inn bilde',
+    minutesLeft: (n: number) => `Omtrent ${n} min igjen`,
+    teaTime: 'Tid for en kopp te',
   },
 };

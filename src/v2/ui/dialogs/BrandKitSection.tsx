@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 /** A saved brand kit as the export dialog sees it. */
-export interface BrandKitChoice { id: string; name: string; logoLabel: string }
+export interface BrandKitChoice { id: string; name: string; logoLabel: string; logoMissing?: boolean }
 
 export interface BrandKitSectionProps {
   kits: BrandKitChoice[];
@@ -34,7 +34,10 @@ export default function BrandKitSection({ kits, chosenId, onChoose, photoId, onS
       )}
       {chosen && (
         <p className="text-[0.6875rem] text-[var(--text-secondary)]" data-testid="brand-kit-summary">
-          Logo: {chosen.logoLabel}. Export puts this kit's logo, colours and text style on each photo, as an Undo step in its History. Your words stay, and originals are never changed.
+          {chosen.logoMissing
+            ? <>Logo: none. No watermark is saved on this device, so Export puts only this kit's colours and text style on each photo. Add a watermark in Overlay to include a logo.</>
+            : <>Logo: {chosen.logoLabel}. Export puts this kit's logo, colours and text style on each photo.</>}
+          {' '}Each photo gets an Undo step in its History. Your words stay, and originals are never changed.
         </p>
       )}
       <div className="flex flex-wrap items-center gap-2">
