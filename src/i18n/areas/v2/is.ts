@@ -321,6 +321,7 @@ export const is: AreaTranslation<typeof source> = {
       analysing: 'Greini',
       ready: 'Tilbúin til breytinga',
       unavailable: 'Frumrit ekki tiltækt',
+      unsupported: 'Ekki læsilegt enn',
     },
     nothingMatches: 'Engar myndir passa við núverandi síu.',
   },

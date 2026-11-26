@@ -73,6 +73,7 @@ export const cy: AreaTranslation<typeof source> = {
     thumbnailsTask: (count) => (count === 1 ? 'Paratoi 1 llun bach' : `Paratoi ${count} llun bach`),
     thumbnailStage: 'Darllen a lleihau’r llun hwn',
     thumbnailFailed: (filename) => `Doedd dim modd creu’r llun bach ar gyfer ${filename}. Ailgysylltwch y gwreiddiol a rhowch gynnig arall arni.`,
+    rawJpegXl: 'Mae’r RAW hwn yn defnyddio cywasgu JPEG XL, na all InFlight ei ddarllen eto. Mae’r gwreiddiol heb ei gyffwrdd.',
     notConnected: (names) => `Heb ei gysylltu ag injan InFlight eto, felly heb ei roi ar waith: ${names}.`,
     exportRunning: 'Mae allforio eisoes ar waith.',
     selectOneRaw: 'Dewiswch un llun RAW i allforio ei TIFF.',

@@ -93,6 +93,7 @@ export const source = {
     thumbnailsTask: (count: number) => (count === 1 ? 'Preparing 1 thumbnail' : `Preparing ${count} thumbnails`),
     thumbnailStage: 'Reading and scaling this photo',
     thumbnailFailed: (filename: string) => `Could not make the thumbnail for ${filename}. Reconnect the original and try again.`,
+    rawJpegXl: 'This RAW uses JPEG XL compression, which InFlight can’t read yet. The original is untouched.',
     notConnected: (names: string) => `Not connected to the InFlight engine yet, so not applied: ${names}.`,
     exportRunning: 'An export is already running.',
     selectOneRaw: 'Select one RAW photo to export its TIFF.',

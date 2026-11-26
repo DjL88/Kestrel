@@ -321,6 +321,7 @@ export const pt: AreaTranslation<typeof source> = {
       analysing: 'A analisar',
       ready: 'Pronta para editar',
       unavailable: 'Original indisponível',
+      unsupported: 'Ainda não legível',
     },
     nothingMatches: 'Nenhuma fotografia corresponde ao filtro atual.',
   },

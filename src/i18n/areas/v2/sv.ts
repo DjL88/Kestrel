@@ -321,6 +321,7 @@ export const sv: AreaTranslation<typeof source> = {
       analysing: 'Analyserar',
       ready: 'Redo att redigera',
       unavailable: 'Originalet är inte tillgängligt',
+      unsupported: 'Kan inte läsas ännu',
     },
     nothingMatches: 'Inga foton matchar det aktuella filtret.',
   },
