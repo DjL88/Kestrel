@@ -1360,6 +1360,7 @@ export const pt: AreaTranslation<typeof source> = {
     more: 'Mais',
     moreTools: 'Mais ferramentas',
     closeDrawer: 'Fechar o painel móvel',
+    navigation: "Voltar, anular e ecrã inteiro",
     photoPosition: (n, total) => `${n} de ${total}`,
   },
   autoCullSummary: {

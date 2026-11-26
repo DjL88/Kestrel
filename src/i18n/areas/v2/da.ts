@@ -1360,6 +1360,7 @@ export const da: AreaTranslation<typeof source> = {
     more: 'Mere',
     moreTools: 'Flere værktøjer',
     closeDrawer: 'Luk mobilskuffe',
+    navigation: "Tilbage, fortryd og fuld skærm",
     photoPosition: (n, total) => `${n} af ${total}`,
   },
   autoCullSummary: {

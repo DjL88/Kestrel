@@ -23,7 +23,7 @@ export function createApp(options: AppOptions) {
   const { config, store, now, audit, bearer, issueSession, createAccount, switchOn, collab, compliance, admin } = ctx;
   const routes: Route[] = [...generalRoutes(ctx), ...meRoutes(ctx), ...collabRoutes(ctx), ...adminRoutes(ctx)];
 
-  const bodyLimit = (path: string) => /^\/v1\/collab\/projects\/[^/]+\/photos\/[^/]+\/revisions$/.test(path) ? MAX_RECIPE_BYTES + 4096 : path === '/v1/admin/demo/photos' ? 2_300_000 : path === '/v1/admin/compliance/documents' ? Math.ceil(COMPLIANCE_MAX_BYTES / 3) * 4 + 4096 : path.includes('/v1/admin/demo/photos/') ? 850 * 1024 : path.startsWith('/v1/ai/') ? 800 * 1024 : 64 * 1024;
+  const bodyLimit = (path: string) => /^\/v1\/collab\/projects\/[^/]+\/photos\/[^/]+\/revisions$/.test(path) ? MAX_RECIPE_BYTES + 4096 : path === '/v1/admin/compliance/documents' ? Math.ceil(COMPLIANCE_MAX_BYTES / 3) * 4 + 4096 : path.startsWith('/v1/ai/') ? 800 * 1024 : 64 * 1024;
 
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const url = new URL(req.url ?? '/', 'http://control-plane.invalid');

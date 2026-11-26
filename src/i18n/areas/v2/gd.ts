@@ -1361,6 +1361,7 @@ export const gd: AreaTranslation<typeof source> = {
     more: 'Barrachd',
     moreTools: 'Barrachd innealan',
     closeDrawer: 'Dùin an drathair mobile',
+    navigation: "Air ais, neo-dhèan agus làn-sgrìn",
     photoPosition: (n, total) => `${n} à ${total}`,
   },
   autoCullSummary: {

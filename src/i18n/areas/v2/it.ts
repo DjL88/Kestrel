@@ -1360,6 +1360,7 @@ export const it: AreaTranslation<typeof source> = {
     more: 'Altro',
     moreTools: 'Altri strumenti',
     closeDrawer: 'Chiudi il pannello mobile',
+    navigation: "Indietro, annulla e schermo intero",
     photoPosition: (n, total) => `${n} di ${total}`,
   },
   autoCullSummary: {
