@@ -1498,6 +1498,8 @@ export const nl: AreaTranslation<typeof source> = {
     noClashes: 'Geen conflicten.',
     padHeading: 'Macropad en draaiknoppen',
     padHelp: 'Een pad of draaiknop stuurt toetsen, net als een toetsenbord. Geef per positie aan welke toets die stuurt (Aanleren, en druk dan op het pad) en wat die moet doen. De starttoetsen komen overeen met de SinLoon-padinstelling uit InFlight versie 1. TourBox en andere pads die toetsen sturen werken hetzelfde; TourBox is nog niet op een echt apparaat getest.',
+    padKeysLabel: "Macropad-toetsen",
+    padKeysDesc: "Aan: de toetsen die je pad stuurt voeren de acties hieronder uit, vanaf het pad of het toetsenbord. Zet dit uit als je geen pad hebt. Je instellingen blijven bewaard.",
     lastKey: (key, slot) => `Laatst ontvangen toets: ${key} (${slot})`,
     lastKeyNoSlot: (key) => `Laatst ontvangen toets: ${key} (geen padpositie)`,
     pressPadKey: 'Druk op een toets van uw pad om te controleren of die aankomt.',

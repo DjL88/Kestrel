@@ -55,3 +55,8 @@ test('Game controller is remembered once switched on, and anything but true or f
   assert.equal(parseSavedUi(JSON.stringify({ settings: { gamepadEnabled: 1 } })).settings.gamepadEnabled, undefined);
   assert.equal(parseSavedUi(JSON.stringify({ settings: {} })).settings.gamepadEnabled, undefined);
 });
+
+test('Macro pad keys off is remembered; anything but true or false is ignored, so pads stay on', () => {
+  assert.equal(parseSavedUi(JSON.stringify({ settings: { padKeysEnabled: false } })).settings.padKeysEnabled, false);
+  assert.equal(parseSavedUi(JSON.stringify({ settings: { padKeysEnabled: 0 } })).settings.padKeysEnabled, undefined);
+});

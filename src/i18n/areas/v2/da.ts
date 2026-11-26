@@ -1498,6 +1498,8 @@ export const da: AreaTranslation<typeof source> = {
     noClashes: 'Ingen konflikter.',
     padHeading: 'Makropad og drejeknapper',
     padHelp: 'En pad eller drejeknap sender taster ligesom et tastatur. Angiv for hver plads, hvilken tast den sender (Lær, og tryk så på den på pad’en), og hvad den skal gøre. Starttasterne svarer til SinLoon-pad-opsætningen fra InFlight version 1. TourBox og andre pads, der sender taster, virker på samme måde; TourBox er ikke testet på en rigtig enhed.',
+    padKeysLabel: "Makropad-taster",
+    padKeysDesc: "Til: tasterne, som dit pad sender, kører handlingerne nedenfor, fra pad eller tastatur. Slå det fra, hvis du ikke har et pad. Din opsætning bevares.",
     lastKey: (key, slot) => `Sidst modtagne tast: ${key} (${slot})`,
     lastKeyNoSlot: (key) => `Sidst modtagne tast: ${key} (ikke en pad-plads)`,
     pressPadKey: 'Tryk på en tast på din pad for at tjekke, at den kommer frem.',

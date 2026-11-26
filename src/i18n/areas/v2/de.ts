@@ -1498,6 +1498,8 @@ export const de: AreaTranslation<typeof source> = {
     noClashes: 'Keine Konflikte.',
     padHeading: 'Makro-Pad und Drehregler',
     padHelp: 'Ein Pad oder Drehregler sendet Tasten wie eine Tastatur. Legen Sie für jeden Platz fest, welche Taste er sendet (Anlernen, dann am Pad drücken) und was er tun soll. Die Starttasten entsprechen der SinLoon-Pad-Einrichtung aus InFlight Version 1. TourBox und andere Pads, die Tasten senden, funktionieren genauso; TourBox wurde noch nicht an einem echten Gerät getestet.',
+    padKeysLabel: "Makro-Pad-Tasten",
+    padKeysDesc: "Wenn an, lösen die Tasten Ihres Pads die Aktionen unten aus, am Pad oder auf der Tastatur. Schalten Sie dies aus, wenn Sie kein Pad haben. Ihre Einrichtung bleibt erhalten.",
     lastKey: (key, slot) => `Zuletzt empfangene Taste: ${key} (${slot})`,
     lastKeyNoSlot: (key) => `Zuletzt empfangene Taste: ${key} (kein Pad-Platz)`,
     pressPadKey: 'Drücken Sie eine Taste auf Ihrem Pad, um zu prüfen, ob sie ankommt.',

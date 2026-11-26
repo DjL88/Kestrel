@@ -1499,6 +1499,8 @@ export const gd: AreaTranslation<typeof source> = {
     noClashes: 'Gun chòmhstri.',
     padHeading: 'Pada macro is dialaichean',
     padHelp: 'Cuiridh pada no dial iuchraichean, mar mheur-chlàr. Airson gach slot, innis dè an iuchair a chuireas e (Ionnsaich, an uairsin brùth i air a’ phada) agus dè bu chòir dha a dhèanamh. Tha na h-iuchraichean tòiseachaidh a’ freagairt ri suidheachadh pada SinLoon bho InFlight Tionndadh 1. Obraichidh TourBox is padaichean eile a chuireas iuchraichean san aon dòigh; cha deach TourBox fheuchainn air uidheam fìor.',
+    padKeysLabel: "Iuchraichean a’ phada mhacro",
+    padKeysDesc: "Air: ruithidh na h-iuchraichean a chuireas am pada agad na gnìomhan gu h-ìosal, on phada no on mheur-chlàr. Cuir dheth seo mura bheil pada agad. Thèid do rèiteachadh a chumail.",
     lastKey: (key, slot) => `An iuchair mu dheireadh a fhuaradh: ${key} (${slot})`,
     lastKeyNoSlot: (key) => `An iuchair mu dheireadh a fhuaradh: ${key} (chan e slot pada a th’ ann)`,
     pressPadKey: 'Brùth iuchair air a’ phada agad gus dearbhadh gun ruig i.',

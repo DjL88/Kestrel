@@ -1499,6 +1499,8 @@ export const fi: AreaTranslation<typeof source> = {
     noClashes: 'Ei ristiriitoja.',
     padHeading: 'Makropaneeli ja säätimet',
     padHelp: 'Paneeli tai kiertosäädin lähettää näppäimiä kuten näppäimistö. Kerro jokaiselle paikalle, minkä näppäimen se lähettää (Opeta ja paina sitä paneelissa) ja mitä sen pitää tehdä. Aloitusnäppäimet vastaavat InFlight-version 1 SinLoon-paneelin asetuksia. TourBox ja muut näppäimiä lähettävät paneelit toimivat samoin; TourBoxia ei ole testattu oikealla laitteella.',
+    padKeysLabel: "Makronäppäimistön näppäimet",
+    padKeysDesc: "Päällä näppäimistösi lähettämät näppäimet tekevät alla olevat toiminnot, näppäimistöstä tai tavallisesta näppäimistöstä. Poista käytöstä, jos sinulla ei ole sitä. Asetuksesi säilyvät.",
     lastKey: (key, slot) => `Viimeksi vastaanotettu näppäin: ${key} (${slot})`,
     lastKeyNoSlot: (key) => `Viimeksi vastaanotettu näppäin: ${key} (ei paneelin paikka)`,
     pressPadKey: 'Paina paneelin näppäintä tarkistaaksesi, että se tulee perille.',

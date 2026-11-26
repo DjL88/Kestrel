@@ -1498,6 +1498,8 @@ export const pt: AreaTranslation<typeof source> = {
     noClashes: 'Sem conflitos.',
     padHeading: 'Teclado de macros e botões rotativos',
     padHelp: 'Um teclado de macros ou botão rotativo envia teclas, como um teclado. Para cada posição, indique que tecla envia (Aprender e depois prima-a no teclado de macros) e o que deve fazer. As teclas iniciais correspondem à configuração do teclado SinLoon do InFlight versão 1. O TourBox e outros dispositivos que enviam teclas funcionam da mesma forma; o TourBox não foi testado num dispositivo real.',
+    padKeysLabel: "Teclas do teclado macro",
+    padKeysDesc: "Ligado, as teclas que o seu teclado macro envia fazem as ações abaixo, a partir dele ou do teclado. Desligue se não tiver um. A sua configuração fica guardada.",
     lastKey: (key, slot) => `Última tecla recebida: ${key} (${slot})`,
     lastKeyNoSlot: (key) => `Última tecla recebida: ${key} (não é uma posição do teclado de macros)`,
     pressPadKey: 'Prima uma tecla no teclado de macros para verificar se chega.',

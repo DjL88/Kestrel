@@ -54,3 +54,19 @@ test('the keyboard guide lists the pad keys that act, so no key works unseen', a
   // A slot with no command does nothing, so it is not listed.
   assert.equal(padGuideRows({ ...DEFAULT_PAD, K1: { chord: 'KeyK', command: null } }, effectiveKeymap('inflight')).some((row) => row.slot === 'K1'), false);
 });
+
+test('pad keys turned off do nothing and leave the guide, and the set-up is kept for turning them on again', async () => {
+  const { padInForce, padGuideRows, DEFAULT_PAD, resolveWithPad } = await import('./pad');
+  const { effectiveKeymap } = await import('./keymap');
+  const keymap = effectiveKeymap('inflight');
+  const off = padInForce(DEFAULT_PAD, false);
+  const z = { code: 'KeyZ', key: 'z' };
+  assert.equal(resolveWithPad({ event: z, keymap, pad: off, isMac: false, inField: false }), null);
+  assert.equal(resolveWithPad({ event: z, keymap, pad: padInForce(DEFAULT_PAD, true), isMac: false, inField: false })?.id, 'edit.undo');
+  assert.deepEqual(padGuideRows(off, keymap), []);
+  // The keyboard's own keys still work with the pad off.
+  assert.equal(resolveWithPad({ event: { code: 'KeyX', key: 'x' }, keymap, pad: off, isMac: false, inField: false })?.id, 'photo.reject');
+  // Turning off forgets nothing: every slot still has its key.
+  for (const slot of Object.keys(DEFAULT_PAD) as (keyof typeof DEFAULT_PAD)[]) assert.equal(off[slot].chord, DEFAULT_PAD[slot].chord);
+  assert.equal(padInForce(DEFAULT_PAD, true), DEFAULT_PAD);
+});

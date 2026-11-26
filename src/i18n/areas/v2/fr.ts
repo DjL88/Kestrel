@@ -1498,6 +1498,8 @@ export const fr: AreaTranslation<typeof source> = {
     noClashes: 'Aucun conflit.',
     padHeading: 'Pavé de macros et molettes',
     padHelp: 'Un pavé ou une molette envoie des touches, comme un clavier. Pour chaque emplacement, indiquez quelle touche il envoie (Apprendre, puis appuyez dessus sur le pavé) et ce qu’il doit faire. Les touches de départ correspondent à la configuration du pavé SinLoon d’InFlight version 1. TourBox et les autres pavés qui envoient des touches fonctionnent de la même façon ; TourBox n’a pas été testé sur un vrai appareil.',
+    padKeysLabel: "Touches du pavé macro",
+    padKeysDesc: "Activé, les touches envoyées par votre pavé lancent les actions ci-dessous, depuis le pavé ou le clavier. Désactivez-le si vous n’avez pas de pavé. Vos réglages sont conservés.",
     lastKey: (key, slot) => `Dernière touche reçue : ${key} (${slot})`,
     lastKeyNoSlot: (key) => `Dernière touche reçue : ${key} (pas un emplacement du pavé)`,
     pressPadKey: 'Appuyez sur une touche de votre pavé pour vérifier qu’elle arrive.',
