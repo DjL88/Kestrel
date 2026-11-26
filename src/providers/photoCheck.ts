@@ -5,6 +5,7 @@ import { createSerialInferenceQueue } from '../core/serialInference';
 import { corroborateSubject, detectorWitness, modelWitness, type Corroboration } from '../core/subjectCorroboration';
 import { openSmolVlm } from './smolvlmRuntime';
 import { readPhotoCheckFiles } from './photoCheckStore';
+import { loadOrt } from './ortRuntime';
 
 export interface PhotoCheckResult { facts: SceneFacts; /** Whether the scene reading and the object detector agree about the subject. */ subject: Corroboration; description: string; loadMs: number; inferMs: number }
 
@@ -60,7 +61,7 @@ export async function runPhotoCheck(source: CanvasImageSource, signal?: AbortSig
     const files = await readPhotoCheckFiles();
     ensureCurrent(signal);
     if (!files) throw new Error('The photo check is not installed or could not be verified.');
-    const ort = await import('onnxruntime-web/wasm');
+    const ort = await loadOrt();
     ensureCurrent(signal);
     const vlm = await openSmolVlm(ort, files);
     const loaded = performance.now();

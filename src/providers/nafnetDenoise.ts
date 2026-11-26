@@ -3,6 +3,7 @@ import { NAFNET_W32 } from '../core/optionalModels';
 import { NAFNET_CANDIDATE, NAFNET_TILE, nafnetOutput, type TrueDetailCandidate } from '../core/nafnet';
 import { runTrueDetailTiles, type TileInference, type TrueDetailOptions } from '../core/trueDetailTiles';
 import { downloadOptionalModel, optionalModelStatus, readOptionalModelFile, removeOptionalModel, type OptionalModelStatus } from './optionalModels';
+import { loadOrt, ortOptions } from './ortRuntime';
 
 /**
  * NAFNet width32: one TrueDetail candidate (owner decision 8), beside the conventional denoise and, later, the
@@ -22,10 +23,8 @@ export interface NafnetSession { candidate: TrueDetailCandidate; infer: TileInfe
 export async function openNafnet(): Promise<NafnetSession | null> {
   if (await nafnetStatus() !== 'ready') return null;
   const bytes = await readOptionalModelFile(NAFNET_W32, 'model');
-  const ort = await import('onnxruntime-web/wasm');
-  ort.env.wasm.numThreads = 1;
-  ort.env.wasm.proxy = false;
-  const session = await createTimedSession(ort, NAFNET_W32.id, bytes, { executionProviders: ['wasm'] });
+  const ort = await loadOrt();
+  const session = await createTimedSession(ort, NAFNET_W32.id, bytes, ortOptions());
   let closed = false;
   let busy = false;
   return {
