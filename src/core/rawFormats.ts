@@ -15,10 +15,30 @@ export const RAW_FORMATS: RawFormat[] = [
   { ext: 'orf', brand: 'OM System' },
   { ext: 'pef', brand: 'Pentax' },
   { ext: 'dng', brand: 'Adobe DNG' },
+  { ext: 'srw', brand: 'Samsung' },
+  { ext: '3fr', brand: 'Hasselblad' }, { ext: 'fff', brand: 'Hasselblad' },
+  { ext: 'iiq', brand: 'Phase One' },
+  { ext: 'rwl', brand: 'Leica' },
+  { ext: 'mos', brand: 'Leaf' },
 ];
 
-const BY_EXT = new Map(RAW_FORMATS.map((format) => [format.ext, format]));
+/**
+ * The RAW types InFlight's own decoder (rawler in crates/kestrel-raw, ticoraw for Nikon HE/HE*) is asked to develop, on
+ * the desktop and in WebAssembly. One list for every caller, so the import list and the decoder cannot drift apart. Sony
+ * SRF and SR2 are imported for their embedded preview only. Being on this list is not a claim that every camera works:
+ * the cameras proven on real files are listed in scripts/fetch-raw-samples.mjs.
+ */
+export const DEVELOP_RAW_EXTENSIONS: readonly string[] = [
+  'nef', 'nrw', 'cr2', 'cr3', 'arw', 'raf', 'rw2', 'orf', 'pef', 'dng', 'srw', '3fr', 'fff', 'iiq', 'rwl', 'mos',
+];
 const extensionOf = (filename: string) => /\.([a-z0-9]+)$/i.exec(filename)?.[1].toLowerCase() ?? '';
+const DEVELOP_SET = new Set(DEVELOP_RAW_EXTENSIONS);
+/** Whether InFlight's decoder is asked to develop this file type (lower-case extension, no dot). */
+export const isDevelopRawExtension = (extension: string) => DEVELOP_SET.has(extension);
+/** Whether this file name ends in a RAW type InFlight's decoder develops. */
+export const isDevelopRawFile = (filename: string) => DEVELOP_SET.has(extensionOf(filename));
+
+const BY_EXT = new Map(RAW_FORMATS.map((format) => [format.ext, format]));
 
 export const rawFormatOf = (filename: string): RawFormat | undefined => BY_EXT.get(extensionOf(filename));
 export const isRawPreviewFile = (filename: string) => BY_EXT.has(extensionOf(filename));
