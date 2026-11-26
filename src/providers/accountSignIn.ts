@@ -40,7 +40,7 @@ export type SignInDeps = {
     createAccount(email: string, password: string): Promise<Session>;
     signOut(): Promise<void>;
     idToken(forceRefresh?: boolean): Promise<string | null>;
-    /** After a successful sign-in; rejects when keep = false cannot be honoured. A no-op for keep = true. */
+    /** After a successful sign-in; rejects when the choice cannot be applied (only keep = false then matters). */
     setKeepSignedIn(keep: boolean): Promise<void>;
     consumeLinkedMethod(): SignInMethod | null;
     signInPlatform(): SignInPlatform;
@@ -101,12 +101,14 @@ function remember(session: Session, keep: boolean, deps: SignInDeps) {
 export const KEEP_SESSION_FAILED = "Couldn't keep this sign-in to this browser session. Please try again.";
 
 /**
- * keep = false: after signing in (so a pop-up stays inside the click), limit the sign-in to this browser session. If
+ * After signing in (so a pop-up stays inside the click), apply "Keep me signed in". keep = true: back to the remembering
+ * storage, in case a session-only sign-in earlier in this page left it on session storage; if that fails the sign-in
+ * still stands (the default storage already remembers). keep = false: limit the sign-in to this browser session; if
  * that fails, never silently remember the person: sign out on this device (no network needed) and say so.
  * True when the sign-in may stand.
  */
 async function keepOnlyIfAsked(keep: boolean, d: SignInDeps): Promise<boolean> {
-  if (keep) return true;
+  if (keep) { await d.auth.setKeepSignedIn(true).catch(() => undefined); return true; }
   try { await d.auth.setKeepSignedIn(false); return true; } catch {
     await d.auth.signOut().catch(() => undefined);
     return false;

@@ -4,7 +4,7 @@ import { isDeviceKey } from '../v2/engineClient/eraseDeviceData';
 import type { LastProject, LaunchProfile } from '../core/launchWelcome';
 import type { SlideshowSnapshot } from '../core/welcomeSlideshow';
 import {
-  clearProfile, launchedBefore, markLaunched, markProfileChecked, priorUseDetected, profileChecked,
+  clearProfile, forgetLaunchProject, forgetLaunchProjectsExcept, launchedBefore, markLaunched, markProfileChecked, priorUseDetected, profileChecked,
   readLastProject, readProfile, readSlideshow, setSkipChosen, setSlideshowOff, skipChosen, slideshowOff, writeLastProject,
   writeProfile, writeSlideshow, type StorageLike,
 } from './launchMemory';
@@ -92,6 +92,30 @@ test('the slideshow snapshot round-trips, and writing none forgets it', () => {
   writeSlideshow(null, s);
   assert.equal(readSlideshow(s), null);
   assert.equal(local.data.size, 0);
+});
+
+test('a deleted project is forgotten: no card and no slideshow for it at the next launch', () => {
+  const { s } = setup();
+  writeLastProject(project, s);
+  writeSlideshow({ ...slides, projectId: 'p1' }, s);
+  forgetLaunchProject('other', s);
+  assert.deepEqual(readLastProject(s), project);
+  assert.notEqual(readSlideshow(s), null);
+  forgetLaunchProject('p1', s);
+  assert.equal(readLastProject(s), null);
+  assert.equal(readSlideshow(s), null);
+});
+
+test('only projects that can still be opened stay remembered', () => {
+  const { s } = setup();
+  writeLastProject(project, s);
+  writeSlideshow({ ...slides, projectId: 'p1' }, s);
+  forgetLaunchProjectsExcept(['p1', 'p2'], s);
+  assert.deepEqual(readLastProject(s), project);
+  assert.notEqual(readSlideshow(s), null);
+  forgetLaunchProjectsExcept(['p2'], s);
+  assert.equal(readLastProject(s), null);
+  assert.equal(readSlideshow(s), null);
 });
 
 test('a malformed or oversized slideshow snapshot reads as none', () => {

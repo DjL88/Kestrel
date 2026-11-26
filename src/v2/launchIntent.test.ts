@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { lastProjectFrom, onLaunchIntent, requestLaunch, resolveLaunchIntent, takeLaunchIntent } from './launchIntent';
+import { lastProjectFrom, onLaunchIntent, openableProjectIds, requestLaunch, resolveLaunchIntent, takeLaunchIntent } from './launchIntent';
 
 test('a project intent opens that project when it exists', () => {
   assert.deepEqual(resolveLaunchIntent({ kind: 'project', id: 'a' }, ['a', 'b']), { open: 'a', notice: null });
@@ -38,4 +38,10 @@ test('the last-project snapshot carries an ISO edited date', () => {
 
 test('an unusable timestamp gives no snapshot rather than throwing', () => {
   assert.equal(lastProjectFrom({ id: 'a', name: 'Dawn', photoCount: 12, lastUpdatedAt: NaN }), null);
+});
+
+test('a project in Recently deleted is not openable from the welcome, so its stale card gives the notice', () => {
+  const ids = openableProjectIds([{ id: 'a' }, { id: 'b', trashed: true }, { id: 'c', trashed: false }]);
+  assert.deepEqual(ids, ['a', 'c']);
+  assert.deepEqual(resolveLaunchIntent({ kind: 'project', id: 'b' }, ids), { open: null, notice: 'missing-project' });
 });

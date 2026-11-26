@@ -153,8 +153,8 @@ import { maskAdvice, maskVerificationKey } from './maskVerificationCommit';
 import { commitSubjectMask, subjectMaskTarget } from './subjectMaskCommit';
 import { createMask, createSubjectMask, framingKey, hasActiveMasks, type Mask } from '../../core/maskTypes';
 import { v2Text } from '../../i18n/areas/v2';
-import { lastProjectFrom, onLaunchIntent, resolveLaunchIntent, takeLaunchIntent } from '../launchIntent';
-import { writeLastProject, writeSlideshow } from '../../providers/launchMemory';
+import { lastProjectFrom, onLaunchIntent, openableProjectIds, resolveLaunchIntent, takeLaunchIntent } from '../launchIntent';
+import { forgetLaunchProject, forgetLaunchProjectsExcept, writeLastProject, writeSlideshow } from '../../providers/launchMemory';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../../core/photoFraming';
 import { estimateIlluminant, neutralBalance, samplePatch } from '../../core/neutralWhite';
 import { GUIDED_RENDER_EDGE } from '../../core/subjectGuide';
@@ -532,6 +532,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       hubCoverUrls.current = nextUrls;
       setProjects(loaded);
       setHubState(loaded.length ? 'ready' : 'empty');
+      // The welcome never offers, or shows photos from, a project that is deleted (here, in another window, or expired).
+      forgetLaunchProjectsExcept(openableProjectIds(loaded));
     } catch {
       nextUrls.forEach((url) => URL.revokeObjectURL(url));
       setHubState('error');
@@ -545,6 +547,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const found = await store.loadProject(id);
       if (!found) { setNotice('That project could not be found.'); return; }
       await store.saveProject(setTrashed(found, at));
+      if (at !== undefined) forgetLaunchProject(id);
       await loadHub();
     })().catch(() => setNotice('InFlight could not update the project.'));
   }, [loadHub]);
@@ -682,7 +685,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const consume = () => {
       const intent = takeLaunchIntent();
       if (!intent) return;
-      const { open, notice: why } = resolveLaunchIntent(intent, projectsRef.current.map((project) => project.id));
+      const { open, notice: why } = resolveLaunchIntent(intent, openableProjectIds(projectsRef.current));
       if (why === 'missing-project') setNotice(v2Text.welcome.missingProject);
       if (open) void openProject(open);
     };
@@ -2923,7 +2926,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     restoreDeletedProject: (id) => { setProjectTrashed(id, undefined); },
     // Removing for good is offered only from Recently deleted, after its own confirmation.
     deleteProjectForever: (id) => {
-      void catalogue.current!.deleteProject(id).then(() => loadHub(), () => setNotice('InFlight could not delete the project. Your original photos are unchanged.'));
+      void catalogue.current!.deleteProject(id).then(() => { forgetLaunchProject(id); return loadHub(); }, () => setNotice('InFlight could not delete the project. Your original photos are unchanged.'));
     },
     // A copy is a Tasks job: it waits for a free slot, shows while it runs and can be cancelled before it saves.
     duplicateProject: (id) => {

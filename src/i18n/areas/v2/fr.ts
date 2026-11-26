@@ -2004,6 +2004,7 @@ export const fr: AreaTranslation<typeof source> = {
     wrongPassword: "Ce mot de passe ne correspond pas à ce compte.",
     forgotPassword: "Mot de passe oublié ?",
     offlineSignIn: "La connexion nécessite un accès réseau. Vous pouvez continuer en tant qu'invité et vous connecter plus tard depuis les Réglages.",
+    signOutOffline: "Impossible de se déconnecter pour l'instant. Réessayez une fois en ligne, ou déconnectez-vous plus tard depuis les Réglages.",
     outcome: {
       pro: "Pro est activé sur cet appareil.",
       free: "Connecté. Ce compte n'a pas encore de licence Pro.",
@@ -2013,7 +2014,7 @@ export const fr: AreaTranslation<typeof source> = {
       not_set_up: "Cette version n'a pas ses réglages de licence en ligne.",
       no_token: "Connecté. Pro n'a pas pu être vérifié pour le moment. InFlight continue de fonctionner.",
     },
-    created: "Compte créé. Vérifiez-le par e-mail, puis Pro s'activera.",
+    created: "Compte créé. Vérifiez-le par e-mail.",
     missingProject: "Ce projet n'est plus là.",
     showOnLaunch: "Afficher l'écran de bienvenue au lancement",
     or: "ou",

@@ -2004,6 +2004,7 @@ export const nb: AreaTranslation<typeof source> = {
     wrongPassword: "Det passordet stemmer ikke med denne kontoen.",
     forgotPassword: "Glemt passord?",
     offlineSignIn: "Innlogging krever en tilkobling. Du kan fortsette som gjest og logge inn senere fra Innstillinger.",
+    signOutOffline: "Kunne ikke logge ut akkurat nå. Prøv igjen når du er på nett, eller logg ut senere fra Innstillinger.",
     outcome: {
       pro: "Pro er på for denne enheten.",
       free: "Innlogget. Denne kontoen har ingen Pro-lisens ennå.",
@@ -2013,7 +2014,7 @@ export const nb: AreaTranslation<typeof source> = {
       not_set_up: "Denne versjonen mangler innstillingene for nettlisens.",
       no_token: "Innlogget. Pro kunne ikke sjekkes akkurat nå. InFlight fortsetter å fungere.",
     },
-    created: "Konto opprettet. Sjekk e-posten din for å bekrefte den, så slås Pro på.",
+    created: "Konto opprettet. Sjekk e-posten din for å bekrefte den.",
     missingProject: "Det prosjektet finnes ikke lenger.",
     showOnLaunch: "Vis velkomstskjermen ved oppstart",
     or: "eller",

@@ -131,19 +131,115 @@ test('if the welcome cannot load, the splash fades out as it always did and the 
   await expect(page.locator('.inflight-v2')).toBeVisible();
 });
 
+test('if the welcome is still loading when it is due, the splash gives up after a moment and the workspace appears', async ({ page }) => {
+  // The module's request is never answered: a stalled download, not a failed one.
+  await page.route((url) => /\/LaunchWelcome(-[^/]*)?\.(js|tsx)$/.test(url.pathname), () => { /* never fulfilled */ });
+  await page.goto('/?v2&stub=1&splash=1');
+  const splash = page.getByTestId('splash');
+  await expect(splash).toBeVisible();
+  // 3 s of animation, then 4 s of grace, then the fade.
+  await expect(splash).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.getByTestId('launch-welcome')).toHaveCount(0);
+  await expect(page.locator('.inflight-v2')).toBeVisible();
+  // The fade still counts as a launch, so the next one is not shown the first-launch text.
+  expect(await page.evaluate(() => localStorage.getItem('inflight.launch.launched'))).toBe('1');
+});
+
+test('while the welcome shows, the workspace beneath is inert: out of reach of screen readers, Tab and focus', async ({ page }) => {
+  await page.goto('/?v2&stub=1&splash=1');
+  const splash = page.getByTestId('splash');
+  await expect(splash.getByRole('heading', { name: WELCOME })).toBeVisible();
+  const beneath = page.locator('#root > :not([data-testid="splash"])');
+  await expect(beneath.first()).toBeAttached();
+  for (const element of await beneath.all()) await expect(element).toHaveAttribute('inert', '');
+  // Nothing in the workspace is in the accessibility tree, and it cannot take focus.
+  // Playwright's role locators and ARIA snapshots look through inert, so the tree is read as the browser gives it to
+  // assistive technology (Chromium's accessibility tree, where inert content is ignored).
+  const cdp = await page.context().newCDPSession(page);
+  const { nodes } = await cdp.send('Accessibility.getFullAXTree') as { nodes: { ignored: boolean; role?: { value: string }; name?: { value: string } }[] };
+  const exposed = (name: string) => nodes.some((node) => !node.ignored && node.role?.value === 'button' && node.name?.value === name);
+  expect(exposed('Continue as guest')).toBe(true);
+  expect(exposed('Settings')).toBe(false);
+  const tookFocus = await page.evaluate(() => {
+    const target = document.querySelector<HTMLElement>('#root > :not([data-testid="splash"]) button');
+    target?.focus();
+    return !!target && document.activeElement === target;
+  });
+  expect(tookFocus).toBe(false);
+  await splash.getByRole('button', { name: 'Continue as guest' }).click();
+  await expect(splash).toHaveCount(0, { timeout: 5000 });
+  for (const element of await beneath.all()) await expect(element).not.toHaveAttribute('inert');
+  await expect(page.locator('.inflight-v2').getByRole('button', { name: 'Settings', exact: true }).first()).toBeVisible();
+});
+
+test('a project moved to Recently deleted is not offered at the next launch, nor are its photos shown', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project', exact: true }).first().click();
+  await page.getByLabel('Project name', { exact: true }).fill('Heron at the weir');
+  await page.getByRole('dialog').getByRole('button', { name: 'Create project', exact: true }).click();
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles([{ name: 'DSC_0007.jpg', mimeType: 'image/jpeg', buffer: readFileSync('tests/fixtures/exif-photo.jpg') }]);
+  const option = root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option');
+  await expect(option).toHaveCount(1, { timeout: 20_000 });
+  await option.click();
+  await page.keyboard.press('f');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('inflight.launch.slideshow')), { timeout: 10_000 }).not.toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem('inflight.launch.lastProject'))).not.toBeNull();
+
+  // Back on the hub, delete it (to Recently deleted).
+  await page.goto('/?v2');
+  const actions = root.getByRole('button', { name: 'Project actions for Heron at the weir' });
+  await expect(actions).toBeVisible({ timeout: 15_000 });
+  await actions.click();
+  await root.getByRole('menuitem', { name: /^Delete/ }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete project' }).click();
+  await expect(actions).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('inflight.launch.lastProject')), { timeout: 10_000 }).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem('inflight.launch.slideshow'))).toBeNull();
+
+  await page.evaluate((profile) => localStorage.setItem('inflight.launch.profile', JSON.stringify(profile)), PROFILE);
+  await page.goto('/?v2&splash=1');
+  const splash = page.getByTestId('splash');
+  await expect(splash.getByRole('heading', { name: 'Welcome back, Sam' })).toBeVisible();
+  await page.waitForTimeout(1500);
+  await expect(splash.getByTestId('welcome-last-project')).toHaveCount(0);
+  await expect(splash.getByTestId('welcome-slideshow')).toHaveCount(0);
+  await expect(splash.getByTestId('welcome-slideshow-caption')).toHaveCount(0);
+});
+
 test('Settings offers a guest the welcome switch, and turning it off skips the welcome next time', async ({ page }) => {
+  const welcomeSwitch = async () => {
+    await page.locator('.inflight-v2').getByRole('button', { name: 'Settings', exact: true }).first().click();
+    const settings = page.getByRole('dialog', { name: 'Settings' });
+    await settings.getByRole('tab', { name: 'Account' }).click();
+    return settings.getByRole('switch', { name: 'Show the welcome screen on launch' });
+  };
+  // The first load saves display settings, so the next launch is a returning guest's.
   await page.goto('/?v2&stub=1');
-  await page.locator('.inflight-v2').getByRole('button', { name: 'Settings', exact: true }).first().click();
-  const settings = page.getByRole('dialog', { name: 'Settings' });
-  await settings.getByRole('tab', { name: 'Account' }).click();
-  const choice = settings.getByRole('switch', { name: 'Show the welcome screen on launch' });
+  let choice = await welcomeSwitch();
   await expect(choice).toHaveAttribute('aria-checked', 'true');
   await choice.click();
   await expect(choice).toHaveAttribute('aria-checked', 'false');
   expect(await page.evaluate(() => localStorage.getItem('inflight.launch.skip'))).toBe('1');
+
+  // Next launch: the animation only, then the workspace, with no welcome.
+  await page.goto('/?v2&stub=1&splash=1');
+  const splash = page.getByTestId('splash');
+  await expect(splash).toBeVisible();
+  await expect(splash).toHaveCount(0, { timeout: 10_000 });
+  await expect(page.getByTestId('launch-welcome')).toHaveCount(0);
+
+  // Turned on again, the welcome is back the launch after.
+  choice = await welcomeSwitch();
+  await expect(choice).toHaveAttribute('aria-checked', 'false');
   await choice.click();
   await expect(choice).toHaveAttribute('aria-checked', 'true');
   expect(await page.evaluate(() => localStorage.getItem('inflight.launch.skip'))).toBeNull();
+  await page.goto('/?v2&stub=1&splash=1');
+  await expect(page.getByTestId('splash').getByRole('heading', { name: 'Welcome back' })).toBeVisible();
 });
 
 test('Settings does not offer the welcome switch to someone signed in', async ({ page }) => {

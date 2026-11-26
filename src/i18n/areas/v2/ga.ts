@@ -2007,6 +2007,7 @@ export const ga: AreaTranslation<typeof source> = {
     wrongPassword: "Ní hionann an pasfhocal sin agus an cuntas seo.",
     forgotPassword: "Pasfhocal dearmadta?",
     offlineSignIn: "Teastaíonn ceangal chun síniú isteach. Is féidir leat leanúint ort mar aoi agus síniú isteach níos déanaí ó na Socruithe.",
+    signOutOffline: "Níorbh fhéidir síniú amach anois. Bain triail eile as nuair a bheidh tú ar líne, nó sínigh amach níos déanaí ó na Socruithe.",
     outcome: {
       pro: "Tá Pro ar siúl don ghléas seo.",
       free: "Sínithe isteach. Níl ceadúnas Pro ag an gcuntas seo go fóill.",
@@ -2016,7 +2017,7 @@ export const ga: AreaTranslation<typeof source> = {
       not_set_up: "Tá socruithe ceadúnais ar líne in easnamh ón tógáil seo.",
       no_token: "Sínithe isteach. Níorbh fhéidir Pro a sheiceáil díreach anois. Leanann InFlight ag obair.",
     },
-    created: "Cuntas cruthaithe. Seiceáil do ríomhphost chun é a fhíorú, ansin cuirfear Pro ar siúl.",
+    created: "Cuntas cruthaithe. Seiceáil do ríomhphost chun é a fhíorú.",
     missingProject: "Níl an tionscadal sin anseo a thuilleadh.",
     showOnLaunch: "Taispeáin an scáileán fáilte ag an tús",
     or: "nó",

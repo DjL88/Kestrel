@@ -6,6 +6,7 @@ import { isDesktopApp } from './desktopShell';
 import { firebaseAuth } from './firebaseAuth';
 import { LicenceSync, type LicenceStatus } from './licenceSync';
 import { setSignedInHint } from './featureFlagsStore';
+import { clearProfile } from './launchMemory';
 
 export type LicenceState =
   | { status: 'none' }
@@ -123,10 +124,14 @@ async function renewAccountIfDue() {
   }
 }
 
-/** Signing out of the account removes its Pro from this device (a pasted key is separate and stays). */
+/**
+ * Signing out of the account removes its Pro from this device (a pasted key is separate and stays), and the launch
+ * welcome's memory of who signed in, so an automatic sign-out (an expired grant) never leaves a stale "Welcome back".
+ */
 export function leaveAccount() {
   sync.forgetAccount();
   setSignedInHint(false);
+  clearProfile();
   if (state.status === 'account') set({ status: 'none' });
 }
 

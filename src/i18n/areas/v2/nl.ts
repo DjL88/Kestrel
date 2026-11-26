@@ -2004,6 +2004,7 @@ export const nl: AreaTranslation<typeof source> = {
     wrongPassword: "Dat wachtwoord hoort niet bij dit account.",
     forgotPassword: "Wachtwoord vergeten?",
     offlineSignIn: "Inloggen heeft een verbinding nodig. Je kunt als gast doorgaan en later inloggen via Instellingen.",
+    signOutOffline: "Uitloggen lukt nu niet. Probeer het opnieuw als je online bent, of log later uit via Instellingen.",
     outcome: {
       pro: "Pro staat aan voor dit apparaat.",
       free: "Ingelogd. Dit account heeft nog geen Pro-licentie.",
@@ -2013,7 +2014,7 @@ export const nl: AreaTranslation<typeof source> = {
       not_set_up: "Deze versie mist de instellingen voor de online licentie.",
       no_token: "Ingelogd. Pro kon nu niet worden gecontroleerd. InFlight blijft werken.",
     },
-    created: "Account gemaakt. Controleer je e-mail om het te bevestigen, daarna gaat Pro aan.",
+    created: "Account gemaakt. Controleer je e-mail om het te bevestigen.",
     missingProject: "Dat project is er niet meer.",
     showOnLaunch: "Welkomstscherm tonen bij het opstarten",
     or: "of",

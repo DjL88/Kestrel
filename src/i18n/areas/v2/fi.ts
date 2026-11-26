@@ -2005,6 +2005,7 @@ export const fi: AreaTranslation<typeof source> = {
     wrongPassword: "Salasana ei vastaa tätä tiliä.",
     forgotPassword: "Unohditko salasanan?",
     offlineSignIn: "Sisäänkirjautuminen vaatii yhteyden. Voit jatkaa vieraana ja kirjautua sisään myöhemmin Asetuksista.",
+    signOutOffline: "Uloskirjautuminen ei onnistunut juuri nyt. Yritä uudelleen, kun olet verkossa, tai kirjaudu ulos myöhemmin Asetuksista.",
     outcome: {
       pro: "Pro on käytössä tällä laitteella.",
       free: "Kirjautunut sisään. Tällä tilillä ei ole vielä Pro-lisenssiä.",
@@ -2014,7 +2015,7 @@ export const fi: AreaTranslation<typeof source> = {
       not_set_up: "Tästä versiosta puuttuvat verkkolisenssin asetukset.",
       no_token: "Kirjautunut sisään. Pro-tilaa ei voitu tarkistaa juuri nyt. InFlight toimii edelleen.",
     },
-    created: "Tili luotu. Vahvista se sähköpostista, minkä jälkeen Pro otetaan käyttöön.",
+    created: "Tili luotu. Vahvista se sähköpostista.",
     missingProject: "Tätä projektia ei enää ole.",
     showOnLaunch: "Näytä tervetulonäyttö käynnistettäessä",
     or: "tai",

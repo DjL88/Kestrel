@@ -2089,6 +2089,7 @@ export const source = {
     wrongPassword: "That password doesn't match this account.",
     forgotPassword: "Forgot password?",
     offlineSignIn: "Sign in needs a connection. You can continue as a guest and sign in later from Settings.",
+    signOutOffline: "Couldn't sign out just now. Try again when you're online, or sign out later from Settings.",
     outcome: {
       pro: "Pro is on for this device.",
       free: "Signed in. This account has no Pro licence yet.",
@@ -2098,7 +2099,7 @@ export const source = {
       not_set_up: "This build is missing its online licence settings.",
       no_token: "Signed in. Pro couldn't be checked just now. InFlight keeps working.",
     },
-    created: "Account created. Check your email to verify it, then Pro turns on.",
+    created: "Account created. Check your email to verify it.",
     missingProject: "That project is no longer here.",
     showOnLaunch: "Show the welcome screen on launch",
     or: "or",

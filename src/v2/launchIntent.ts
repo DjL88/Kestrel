@@ -28,6 +28,11 @@ export function onLaunchIntent(fn: () => void): () => void {
   return () => { listeners.delete(fn); };
 }
 
+/** Pure: the projects the launch welcome may open, which is every listed project except those in Recently deleted. */
+export function openableProjectIds(listed: readonly { id: string; trashed?: boolean }[]): string[] {
+  return listed.filter((project) => !project.trashed).map((project) => project.id);
+}
+
 /** Pure: what to do with an intent given the projects that are actually here. A missing project is never guessed at. */
 export function resolveLaunchIntent(
   intent: LaunchIntent,

@@ -81,6 +81,23 @@ export function writeLastProject(p: LastProject, s: Partial<LaunchStorages> = de
   set(s.local, KEY_LAST_PROJECT, JSON.stringify(p));
 }
 
+/**
+ * A project was deleted (to Recently deleted or for good): the welcome must never offer it, or show its photos, at the
+ * next launch. `stillHere` lists the projects that can still be opened; the remembered project and the slideshow are
+ * forgotten when theirs is not among them.
+ */
+export function forgetLaunchProjectsExcept(stillHere: readonly string[], s: Partial<LaunchStorages> = defaults()): void {
+  const last = readLastProject(s);
+  if (last && !stillHere.includes(last.id)) remove(s.local, KEY_LAST_PROJECT);
+  const slideshow = readSlideshow(s);
+  if (slideshow && !stillHere.includes(slideshow.projectId)) remove(s.local, KEY_SLIDESHOW);
+}
+/** The same for one project that has just gone. */
+export function forgetLaunchProject(id: string, s: Partial<LaunchStorages> = defaults()): void {
+  if (readLastProject(s)?.id === id) remove(s.local, KEY_LAST_PROJECT);
+  if (readSlideshow(s)?.projectId === id) remove(s.local, KEY_SLIDESHOW);
+}
+
 export function markLaunched(s: Partial<LaunchStorages> = defaults()): void { set(s.local, KEY_LAUNCHED, '1'); }
 export function launchedBefore(s: Partial<LaunchStorages> = defaults()): boolean { return get(s.local, KEY_LAUNCHED) === '1'; }
 

@@ -41,6 +41,12 @@ test('profileFromSession: falls back to the email local part', () => {
   assert.deepEqual(profileFromSession({ email: 'river.k@example.com' }), { signedIn: true, displayName: 'river.k', initial: 'R' });
 });
 
+test('profileFromSession: an Apple private-relay address is never used as a name', () => {
+  assert.deepEqual(profileFromSession({ email: 'x7k2mq9p4d@privaterelay.appleid.com' }), { signedIn: true, displayName: null, initial: null });
+  assert.deepEqual(profileFromSession({ email: 'x7k2mq9p4d@PrivateRelay.AppleID.com' }), { signedIn: true, displayName: null, initial: null });
+  assert.deepEqual(profileFromSession({ displayName: 'Ana', email: 'x7k2mq9p4d@privaterelay.appleid.com' }), { signedIn: true, displayName: 'Ana', initial: 'A' });
+});
+
 test('profileFromSession: empty session stays unknown', () => {
   assert.deepEqual(profileFromSession({}), { signedIn: true, displayName: null, initial: null });
 });

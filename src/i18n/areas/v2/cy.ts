@@ -2004,6 +2004,7 @@ export const cy: AreaTranslation<typeof source> = {
     wrongPassword: "Nid yw'r cyfrinair hwnnw'n cyfateb i'r cyfrif hwn.",
     forgotPassword: "Wedi anghofio'r cyfrinair?",
     offlineSignIn: "Mae angen cysylltiad i fewngofnodi. Gallwch barhau fel gwestai a mewngofnodi'n ddiweddarach o'r Gosodiadau.",
+    signOutOffline: "Methu allgofnodi ar hyn o bryd. Rhowch gynnig arall pan fyddwch ar-lein, neu allgofnodwch yn ddiweddarach o'r Gosodiadau.",
     outcome: {
       pro: "Mae Pro ymlaen ar gyfer y ddyfais hon.",
       free: "Wedi mewngofnodi. Nid oes trwydded Pro gan y cyfrif hwn eto.",
@@ -2013,7 +2014,7 @@ export const cy: AreaTranslation<typeof source> = {
       not_set_up: "Mae gosodiadau'r drwydded ar-lein ar goll o'r fersiwn hon.",
       no_token: "Wedi mewngofnodi. Doedd dim modd gwirio Pro ar hyn o bryd. Mae InFlight yn dal i weithio.",
     },
-    created: "Cyfrif wedi'i greu. Gwiriwch eich e-bost i'w gadarnhau, yna bydd Pro yn cael ei droi ymlaen.",
+    created: "Cyfrif wedi'i greu. Gwiriwch eich e-bost i'w gadarnhau.",
     missingProject: "Nid yw'r prosiect hwnnw yma mwyach.",
     showOnLaunch: "Dangos y sgrin croeso wrth gychwyn",
     or: "neu",

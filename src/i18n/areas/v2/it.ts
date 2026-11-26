@@ -2004,6 +2004,7 @@ export const it: AreaTranslation<typeof source> = {
     wrongPassword: "Questa password non corrisponde a questo account.",
     forgotPassword: "Password dimenticata?",
     offlineSignIn: "L'accesso richiede una connessione. Puoi continuare come ospite e accedere più tardi da Impostazioni.",
+    signOutOffline: "Impossibile uscire ora. Riprova quando sei online, oppure esci più tardi da Impostazioni.",
     outcome: {
       pro: "Pro è attivo su questo dispositivo.",
       free: "Accesso eseguito. Questo account non ha ancora una licenza Pro.",
@@ -2013,7 +2014,7 @@ export const it: AreaTranslation<typeof source> = {
       not_set_up: "In questa versione mancano le impostazioni della licenza online.",
       no_token: "Accesso eseguito. Non è stato possibile verificare Pro ora. InFlight continua a funzionare.",
     },
-    created: "Account creato. Controlla la tua e-mail per verificarlo, poi Pro si attiverà.",
+    created: "Account creato. Controlla la tua e-mail per verificarlo.",
     missingProject: "Quel progetto non è più qui.",
     showOnLaunch: "Mostra la schermata di benvenuto all'avvio",
     or: "oppure",

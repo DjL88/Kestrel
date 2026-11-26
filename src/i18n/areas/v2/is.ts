@@ -2004,6 +2004,7 @@ export const is: AreaTranslation<typeof source> = {
     wrongPassword: "Þetta lykilorð passar ekki við þennan reikning.",
     forgotPassword: "Gleymdirðu lykilorðinu?",
     offlineSignIn: "Innskráning krefst tengingar. Þú getur haldið áfram sem gestur og skráð þig inn síðar í Stillingum.",
+    signOutOffline: "Ekki tókst að skrá út núna. Reyndu aftur þegar þú ert nettengd(ur) eða skráðu þig út síðar í Stillingum.",
     outcome: {
       pro: "Pro er virkt á þessu tæki.",
       free: "Innskráð(ur). Þessi reikningur er ekki enn með Pro-leyfi.",
@@ -2013,7 +2014,7 @@ export const is: AreaTranslation<typeof source> = {
       not_set_up: "Í þessari útgáfu vantar stillingar fyrir netleyfi.",
       no_token: "Innskráð(ur). Ekki tókst að athuga Pro núna. InFlight heldur áfram að virka.",
     },
-    created: "Reikningur stofnaður. Athugaðu tölvupóstinn til að staðfesta hann, þá kviknar á Pro.",
+    created: "Reikningur stofnaður. Athugaðu tölvupóstinn til að staðfesta hann.",
     missingProject: "Þetta verkefni er ekki lengur hér.",
     showOnLaunch: "Sýna velkomuskjáinn við ræsingu",
     or: "eða",

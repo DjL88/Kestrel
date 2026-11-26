@@ -22,9 +22,13 @@ export function shouldSkipWelcome(state: WelcomeState, skipChosen: boolean): boo
   return state === 'guest' && skipChosen;
 }
 
+/** Apple's "Hide My Email" addresses: the part before @ is random letters, never a name to greet someone by. */
+const PRIVATE_RELAY_DOMAIN = 'privaterelay.appleid.com';
+
 export function profileFromSession(session: { email?: string; displayName?: string }): LaunchProfile {
   const name = session.displayName?.trim();
-  const local = session.email?.split('@')[0]?.trim();
+  const [user, domain] = (session.email ?? '').split('@');
+  const local = domain?.trim().toLowerCase() === PRIVATE_RELAY_DOMAIN ? undefined : user?.trim();
   const displayName = name || local || null;
   const first = displayName ? Array.from(displayName)[0] : undefined;
   return { signedIn: true, displayName, initial: first ? first.toUpperCase() : null };

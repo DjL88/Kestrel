@@ -91,7 +91,7 @@ test('creating an account writes the profile and does not check the licence yet'
   const f = fakes();
   const result = await createWithEmail('Sam.Lee@example.com', 'secret1', true, f.deps);
   assert.equal(result.kind, 'created');
-  assert.deepEqual(f.calls, ['createAccount', 'writeProfile']); // keep = true needs no persistence call
+  assert.deepEqual(f.calls, ['createAccount', 'keep:true', 'writeProfile']); // remembering storage set after the sign-in
   assert.deepEqual(f.profiles.map((p) => p.keep), [true]);
 });
 
@@ -112,14 +112,14 @@ test('linkLicenceOutcome without a token says so and does nothing else', async (
   assert.deepEqual(await linkLicenceOutcome(g.deps), { outcome: 'no_token', linked: null, attached: null });
 });
 
-test('signing in with a provider and keep = true writes the profile and links the licence, with no persistence call', async () => {
+test('signing in with a provider and keep = true sets remembering storage after the pop-up, then the profile and the licence', async () => {
   const f = fakes({ auth: { signIn: async (provider) => { f.calls.push(`signIn:${provider}`); return session({ provider, displayName: 'Ana', email: 'x@example.com' }); } } });
   const result = await signInWithProvider('google', true, f.deps);
   assert.ok(result.kind === 'signed-in');
   assert.deepEqual(result.licence, { outcome: 'pro', linked: null, attached: 'none' });
   assert.deepEqual(f.profiles, [{ profile: { signedIn: true, displayName: 'Ana', initial: 'A' }, keep: true }]);
-  // keep = true: nothing is awaited before the pop-up, and the web default already remembers.
-  assert.deepEqual(f.calls, ['signIn:google', 'writeProfile', 'idToken', 'consumeLinkedMethod', 'attach:token-1', 'activate:token-1']);
+  // keep = true: nothing is awaited before the pop-up; afterwards the remembering storage is set again.
+  assert.deepEqual(f.calls, ['signIn:google', 'keep:true', 'writeProfile', 'idToken', 'consumeLinkedMethod', 'attach:token-1', 'activate:token-1']);
 });
 
 test('keep = false with a provider: the pop-up comes first, then session-only persistence, profile, licence', async () => {
@@ -142,6 +142,24 @@ test('if the sign-in cannot be kept to this session, it is signed out on this de
   assert.deepEqual(await createWithEmail('sam@example.com', 'secret1', false, f.deps), { kind: 'error', failure: 'other', message: KEEP_SESSION_FAILED });
   assert.deepEqual(f.calls, ['createAccount', 'keep:false', 'signOut']);
   assert.equal(f.profiles.length, 0);
+});
+
+test('a kept sign-in after a session-only one in the same page goes back to remembering storage', async () => {
+  const f = fakes();
+  await continueWithEmail('sam@example.com', 'secret1', false, f.deps);
+  await signOutEverywhere(f.deps);
+  f.calls.length = 0;
+  await continueWithEmail('sam@example.com', 'secret1', true, f.deps);
+  assert.deepEqual(f.calls.slice(0, 3), ['signInWithEmail', 'keep:true', 'writeProfile']);
+  assert.deepEqual(f.profiles.map((p) => p.keep), [false, true]);
+});
+
+test('if remembering storage cannot be set for keep = true, the sign-in still stands', async () => {
+  const f = fakes({ auth: { setKeepSignedIn: async (keep) => { f.calls.push(`keep:${keep}`); throw new Error('no indexedDB'); } } });
+  const result = await signInWithProvider('google', true, f.deps);
+  assert.equal(result.kind, 'signed-in');
+  assert.deepEqual(f.calls.slice(0, 3), ['signIn:google', 'keep:true', 'writeProfile']);
+  assert.ok(!f.calls.includes('signOut'));
 });
 
 test('an account-linking refusal is returned, not thrown, and writes no profile', async () => {

@@ -2004,6 +2004,7 @@ export const pt: AreaTranslation<typeof source> = {
     wrongPassword: "Essa palavra-passe não corresponde a esta conta.",
     forgotPassword: "Esqueceu-se da palavra-passe?",
     offlineSignIn: "Iniciar sessão precisa de ligação. Pode continuar como convidado e iniciar sessão mais tarde nas Definições.",
+    signOutOffline: "Não foi possível terminar sessão agora. Tente novamente quando estiver online, ou termine sessão mais tarde nas Definições.",
     outcome: {
       pro: "O Pro está ativo neste dispositivo.",
       free: "Sessão iniciada. Esta conta ainda não tem licença Pro.",
@@ -2013,7 +2014,7 @@ export const pt: AreaTranslation<typeof source> = {
       not_set_up: "Esta versão não tem as definições de licença online.",
       no_token: "Sessão iniciada. Não foi possível verificar o Pro agora. O InFlight continua a funcionar.",
     },
-    created: "Conta criada. Verifique o seu e-mail para a confirmar; depois o Pro ativa-se.",
+    created: "Conta criada. Verifique o seu e-mail para a confirmar.",
     missingProject: "Esse projeto já não está aqui.",
     showOnLaunch: "Mostrar o ecrã de boas-vindas ao iniciar",
     or: "ou",

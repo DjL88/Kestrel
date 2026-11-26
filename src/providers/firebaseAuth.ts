@@ -115,6 +115,12 @@ const firebaseCodeOf = (error: unknown): string => {
   return typeof cause === 'string' ? cause : '';
 };
 
+/**
+ * Whether the sign-in service itself answered with this error (an `auth/` code). False when its code could not even be
+ * loaded, as when the app is offline and the sign-in code was never downloaded.
+ */
+export const isSignInServiceError = (error: unknown): boolean => firebaseCodeOf(error).startsWith('auth/');
+
 /** What went wrong with an email sign-in or sign-up, for the screens to choose their next step (launchWelcome). */
 export function emailFailureOf(error: unknown): EmailFailure {
   switch (firebaseCodeOf(error)) {
@@ -132,14 +138,15 @@ export function emailFailureOf(error: unknown): EmailFailure {
 /**
  * Web only: whether this sign-in survives closing the browser ("Keep me signed in"). Called straight AFTER a successful
  * sign-in, so the Google or Apple pop-up still opens inside the person's click (Safari blocks it otherwise); Firebase
- * moves the signed-in user to the new storage. keep = true needs nothing: the web default already remembers
- * (indexedDB, then local storage). The installed apps always remember, so this does nothing there. Rejects when the
- * browser cannot keep the sign-in to this session only; the caller then signs out rather than silently remembering.
+ * moves the signed-in user to the new storage. keep = true sets the remembering storage (indexedDB) again, because an
+ * earlier session-only sign-in in this page left Firebase on session storage; keep = false limits it to this session.
+ * The installed apps always remember, so this does nothing there. Rejects when the browser cannot apply the choice; for
+ * keep = false the caller then signs out rather than silently remembering.
  */
 async function setKeepSignedIn(keep: boolean): Promise<void> {
-  if (keep || !isSignInConfigured() || signInPlatform() !== 'web') return;
+  if (!isSignInConfigured() || signInPlatform() !== 'web') return;
   const { auth, instance } = await firebase();
-  await auth.setPersistence(instance, auth.browserSessionPersistence);
+  await auth.setPersistence(instance, keep ? auth.indexedDBLocalPersistence : auth.browserSessionPersistence);
 }
 
 // ---- One account, several ways in (account linking) -------------------------------------------------------------

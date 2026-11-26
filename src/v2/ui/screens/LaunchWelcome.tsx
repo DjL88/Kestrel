@@ -8,6 +8,7 @@ import { markLaunched, readProfile, readSlideshow, setSkipChosen, skipChosen, sl
 import { slideshowDots, slideshowForProject, slideshowWanted } from '../../../core/welcomeSlideshow';
 import { SLIDESHOW_TEXT, SlideshowBackdrop, SlideshowDots, useWelcomeSlideshow } from './WelcomeSlideshow';
 import { signOutEverywhere } from '../../../providers/accountSignIn';
+import { isSignInServiceError } from '../../../providers/firebaseAuth';
 import LaunchSignInPanel, { buttonClass } from './LaunchSignInPanel';
 
 const t = STRINGS.welcome;
@@ -150,7 +151,10 @@ export default function LaunchWelcome({ state, profile, lastProject, isPro, onli
       await signOutEverywhere();
       onSignedOut();
     } catch (error) {
-      setOutcome(error instanceof Error ? error.message : String(error));
+      // Offline, the sign-in code may not be on this device yet, so this device's sign-in cannot be cleared: nothing
+      // local changes, and the person is told in their language rather than shown a loading error.
+      const unavailable = !online || !isSignInServiceError(error);
+      setOutcome(unavailable ? t.signOutOffline : error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
     }

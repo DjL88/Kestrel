@@ -44,8 +44,11 @@ const WELCOME_LOGO_SPACE = `calc(${LOGO_TOP_PX + LOGO_GAP_PX}px + ${FRAME} * ${r
 const RISE_MS = 400;
 const WELCOME_FADE_MS = 300;
 const WELCOME_DELAY_MS = 150;
+/** How long the welcome may still be loading once it is due (animation over, or the still logo shown): then the splash fades. */
+const WELCOME_LOAD_GRACE_MS = 4000;
 
 type Phase = 'animating' | 'welcome' | 'leaving';
+type WelcomeModule = ComponentType<WelcomeProps> | 'loading' | 'failed';
 type WelcomeProps = {
   state: WelcomeState; profile: LaunchProfile | null; lastProject: ReturnType<typeof readLastProject>; isPro: boolean; online: boolean; light: boolean;
   onDone: (intent: LaunchIntent) => void; onSignedOut: () => void;
@@ -128,7 +131,7 @@ export function Splash() {
   const liveState = chooseWelcome({ profile: memory.profile, accountInLicence: licence.status === 'account', launchedBefore: memory.launchedBefore, hasProjects: memory.hasProjects });
   const skip = shouldSkipWelcome(liveState, memory.skipChosen);
   const [shown, setShown] = useState<{ state: WelcomeState; profile: LaunchProfile | null; key: number } | null>(null);
-  const [Welcome, setWelcome] = useState<ComponentType<WelcomeProps> | 'loading' | 'failed'>('loading');
+  const [Welcome, setWelcome] = useState<WelcomeModule>('loading');
   const [faded, setFaded] = useState(false);
   // Read by the handlers below, which are set up once.
   const latest = useRef({ skip, Welcome, liveState });
@@ -161,11 +164,18 @@ export function Splash() {
     if (!open) return;
     let live = true;
     import('../v2/ui/screens/LaunchWelcome')
-      .then((module) => { if (live) setWelcome(() => module.default); })
+      .then((module) => { if (live && latest.current.Welcome !== 'failed') setWelcome(() => module.default); }) // too late once given up
       .catch(() => { if (live) setWelcome('failed'); });
     return () => { live = false; };
   }, []); // Once, at launch.
   useEffect(() => { if (phase === 'welcome' && Welcome === 'failed') setPhase('leaving'); }, [phase, Welcome]);
+  // A welcome that is due but still loading (a slow or stalled download) is given up after a moment, so the layer never
+  // sits there with only the logo, holding every key.
+  useEffect(() => {
+    if (phase !== 'welcome' || Welcome !== 'loading') return;
+    const giveUp = window.setTimeout(() => setWelcome('failed'), WELCOME_LOAD_GRACE_MS);
+    return () => window.clearTimeout(giveUp);
+  }, [phase, Welcome]);
 
   // Wait for the stored licence, but never for long.
   useEffect(() => {
@@ -212,13 +222,44 @@ export function Splash() {
     return () => window.clearTimeout(done);
   }, [phase, reduced]);
 
-  // Once the layer has gone, the quiet check for a kept sign-in.
+  // Once the layer has gone, however it closed (a choice, a skip, or the fade when the welcome could not load): this
+  // device has launched, and the quiet check for a kept sign-in.
   const wasOpen = useRef(open);
   useEffect(() => {
     if (open || !wasOpen.current) return;
     wasOpen.current = false;
+    markLaunched();
     void quietProfileCheck();
   }, [open]);
+
+  // While the layer is up, the workspace underneath is inert: no screen reader, Tab or click reaches it. That is every
+  // element beside the layer in the page root, and anything the workspace puts straight into <body> (its dialogs and
+  // notices), found by place rather than by any V2 name. Only what this set made inert is released again.
+  const layer = useRef<HTMLDivElement>(null);
+  const covering = open && phase !== 'leaving';
+  useEffect(() => {
+    const own = layer.current;
+    const pageRoot = own?.parentElement;
+    if (!covering || !own || !pageRoot) return;
+    const made = new Set<Element>();
+    const cover = () => {
+      const others = [...pageRoot.children, ...document.body.children]
+        .filter((el) => !el.contains(own) && el.tagName !== 'SCRIPT' && el.tagName !== 'STYLE');
+      for (const el of others) {
+        if (made.has(el) || el.hasAttribute('inert')) continue;
+        el.setAttribute('inert', '');
+        made.add(el);
+      }
+    };
+    cover();
+    const watch = new MutationObserver(cover);
+    watch.observe(pageRoot, { childList: true });
+    if (pageRoot !== document.body) watch.observe(document.body, { childList: true });
+    return () => {
+      watch.disconnect();
+      made.forEach((el) => el.removeAttribute('inert'));
+    };
+  }, [covering]);
 
   // No key reaches the workspace while the layer is open. This listens first (capture, on window, set up before the
   // workspace mounts). During the animation any key or tap jumps to the welcome and the key is used up. While the welcome
@@ -256,7 +297,7 @@ export function Splash() {
   } as CSSProperties;
 
   return (
-    <div data-testid="splash" aria-hidden={risen ? undefined : 'true'} className="fixed inset-0 z-[1000]"
+    <div ref={layer} data-testid="splash" aria-hidden={risen ? undefined : 'true'} className="fixed inset-0 z-[1000]"
       style={{ backgroundColor: BACKGROUND[tone], opacity: phase === 'leaving' ? 0 : 1, transition: reduced ? undefined : `opacity ${FADE_MS}ms ease-out` }}>
       {risen && typeof Welcome === 'function' && (
         <div ref={welcomeBox} className="absolute inset-0" style={welcomeStyle}>

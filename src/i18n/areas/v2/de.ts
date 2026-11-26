@@ -2004,6 +2004,7 @@ export const de: AreaTranslation<typeof source> = {
     wrongPassword: "Dieses Passwort passt nicht zu diesem Konto.",
     forgotPassword: "Passwort vergessen?",
     offlineSignIn: "Für die Anmeldung ist eine Verbindung nötig. Sie können als Gast fortfahren und sich später in den Einstellungen anmelden.",
+    signOutOffline: "Abmelden ist gerade nicht möglich. Versuchen Sie es erneut, wenn Sie online sind, oder melden Sie sich später in den Einstellungen ab.",
     outcome: {
       pro: "Pro ist auf diesem Gerät aktiv.",
       free: "Angemeldet. Dieses Konto hat noch keine Pro-Lizenz.",
@@ -2013,7 +2014,7 @@ export const de: AreaTranslation<typeof source> = {
       not_set_up: "In dieser Version fehlen die Einstellungen für die Online-Lizenz.",
       no_token: "Angemeldet. Pro konnte gerade nicht geprüft werden. InFlight funktioniert weiter.",
     },
-    created: "Konto erstellt. Bestätigen Sie es per E-Mail, dann wird Pro aktiv.",
+    created: "Konto erstellt. Bestätigen Sie es per E-Mail.",
     missingProject: "Dieses Projekt ist nicht mehr vorhanden.",
     showOnLaunch: "Willkommensbildschirm beim Start anzeigen",
     or: "oder",

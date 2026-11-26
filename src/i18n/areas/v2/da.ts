@@ -2004,6 +2004,7 @@ export const da: AreaTranslation<typeof source> = {
     wrongPassword: "Den adgangskode passer ikke til denne konto.",
     forgotPassword: "Glemt adgangskode?",
     offlineSignIn: "Log ind kræver en forbindelse. Du kan fortsætte som gæst og logge ind senere i Indstillinger.",
+    signOutOffline: "Kunne ikke logge ud lige nu. Prøv igen, når du er online, eller log ud senere i Indstillinger.",
     outcome: {
       pro: "Pro er slået til på denne enhed.",
       free: "Logget ind. Denne konto har endnu ingen Pro-licens.",
@@ -2013,7 +2014,7 @@ export const da: AreaTranslation<typeof source> = {
       not_set_up: "Denne version mangler sine indstillinger til online licens.",
       no_token: "Logget ind. Pro kunne ikke kontrolleres lige nu. InFlight kører videre.",
     },
-    created: "Konto oprettet. Tjek din e-mail for at bekræfte den, så slås Pro til.",
+    created: "Konto oprettet. Tjek din e-mail for at bekræfte den.",
     missingProject: "Det projekt findes ikke længere.",
     showOnLaunch: "Vis velkomstskærmen ved start",
     or: "eller",

@@ -2005,6 +2005,7 @@ export const gd: AreaTranslation<typeof source> = {
     wrongPassword: "Chan eil am facal-faire sin a’ freagairt ris a’ chunntas seo.",
     forgotPassword: "Dhìochuimhnich thu am facal-faire?",
     offlineSignIn: "Feumaidh clàradh a-steach ceangal. ’S urrainn dhut leantainn ort mar aoigh is clàradh a-steach nas fhaide air adhart o na Roghainnean.",
+    signOutOffline: "Cha b’ urrainn clàradh a-mach an-dràsta. Feuch a-rithist nuair a bhios tu air loidhne, no clàraich a-mach nas fhaide air adhart o na Roghainnean.",
     outcome: {
       pro: "Tha Pro air airson an uidheim seo.",
       free: "Clàraichte a-steach. Chan eil cead-cleachdaidh Pro aig a’ chunntas seo fhathast.",
@@ -2014,7 +2015,7 @@ export const gd: AreaTranslation<typeof source> = {
       not_set_up: "Tha roghainnean a’ chead-cleachdaidh air-loidhne a dhìth air a’ chraoladh seo.",
       no_token: "Clàraichte a-steach. Cha deach Pro a sheuchainn an-dràsta. Bidh InFlight a’ cumail a dh’obair.",
     },
-    created: "Chaidh an cunntas a chruthachadh. Thoir sùil air a’ phost-d agad gus a dhearbhadh, an uairsin thèid Pro air.",
+    created: "Chaidh an cunntas a chruthachadh. Thoir sùil air a’ phost-d agad gus a dhearbhadh.",
     missingProject: "Chan eil am pròiseact sin an seo tuilleadh.",
     showOnLaunch: "Seall an sgrìn fàilte aig an tòiseachadh",
     or: "no",
