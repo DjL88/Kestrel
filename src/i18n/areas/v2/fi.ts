@@ -541,6 +541,7 @@ export const fi: AreaTranslation<typeof source> = {
     zoomMenu: (pct: number) => `Zoomaus ${pct} %: valitse Sovita, 100 % tai Zoomaa silmään`,
     zoomMenuLabel: "Zoomaus",
     zoomFitScreen: "Sovita näyttöön",
+    zoomFitShort: "Sovita",
     zoomActual: "100 % (todelliset pikselit)",
     zoomEye: "Zoomaa silmään",
     zoomSubject: "Zoomaa kohteeseen",

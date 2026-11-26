@@ -405,6 +405,15 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
 
   useEffect(() => setCollageEditingId(null), [store.activeProjectId]);
 
+  // Another photo opens fitted to the screen (owner, 26 Nov: it kept the last photo's 214%). Only a change of photo
+  // does this; turning the device keeps the zoom (#1771).
+  const lastPhotoForZoom = useRef(store.activePhotoId);
+  useEffect(() => {
+    if (lastPhotoForZoom.current === store.activePhotoId) return;
+    lastPhotoForZoom.current = store.activePhotoId;
+    if (Math.abs(store.canvasZoom - 1) > 0.0005) actions.setCanvasZoom(1);
+  }, [store.activePhotoId, store.canvasZoom, actions]);
+
   const activePhoto =
     store.photos.find((p) => p.id === store.activePhotoId) ?? store.photos[0] ?? null;
   const runNeutralWhite = React.useCallback(async (photoId: string, at?: { x: number; y: number }) => {

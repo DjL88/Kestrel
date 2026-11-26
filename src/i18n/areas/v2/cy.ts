@@ -540,6 +540,7 @@ export const cy: AreaTranslation<typeof source> = {
     zoomMenu: (pct: number) => `Chwyddo ${pct}%: dewis Ffitio, 100% neu Chwyddo i’r llygad`,
     zoomMenuLabel: "Chwyddo",
     zoomFitScreen: "Ffitio i’r sgrin",
+    zoomFitShort: "Ffitio",
     zoomActual: "100% (picseli go iawn)",
     zoomEye: "Chwyddo i’r llygad",
     zoomSubject: "Chwyddo i’r gwrthrych",

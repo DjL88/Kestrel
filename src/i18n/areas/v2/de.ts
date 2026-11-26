@@ -540,6 +540,7 @@ export const de: AreaTranslation<typeof source> = {
     zoomMenu: (pct: number) => `Zoom ${pct} %: Einpassen, 100 % oder Zoom aufs Auge wählen`,
     zoomMenuLabel: "Zoom",
     zoomFitScreen: "An Bildschirm anpassen",
+    zoomFitShort: "Einpassen",
     zoomActual: "100 % (echte Pixel)",
     zoomEye: "Zoom aufs Auge",
     zoomSubject: "Zoom aufs Motiv",

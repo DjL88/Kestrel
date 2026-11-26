@@ -540,6 +540,7 @@ export const da: AreaTranslation<typeof source> = {
     zoomMenu: (pct: number) => `Zoom ${pct} %: vælg Tilpas, 100 % eller Zoom til øjet`,
     zoomMenuLabel: "Zoom",
     zoomFitScreen: "Tilpas til skærmen",
+    zoomFitShort: "Tilpas",
     zoomActual: "100 % (faktiske pixels)",
     zoomEye: "Zoom til øjet",
     zoomSubject: "Zoom til motivet",
