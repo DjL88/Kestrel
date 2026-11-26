@@ -125,3 +125,19 @@ test('pad keys turned off do nothing and leave the keyboard guide', async ({ pag
   await page.waitForTimeout(300);
   await expect(page.getByTestId('canvas-frame')).toBeVisible();
 });
+
+test('E closes the grid, F6 hides the filmstrip, and Ctrl+Y redoes on Windows-style keys', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'A keyboard test.');
+  const root = await openPhoto(page);
+  await page.getByTestId('canvas-stage').click({ position: { x: 8, y: 8 } });
+  await page.keyboard.press('g');
+  await expect(root.getByTestId('canvas-frame')).toHaveCount(0);
+  await page.keyboard.press('e');
+  await expect(root.getByTestId('canvas-frame')).toBeVisible();
+  const strip = root.getByRole('listbox', { name: 'Project photographs' });
+  await expect(strip).toBeVisible();
+  await page.keyboard.press('F6');
+  await expect(strip).toBeHidden();
+  await page.keyboard.press('F6');
+  await expect(strip).toBeVisible();
+});
