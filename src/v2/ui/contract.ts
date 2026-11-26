@@ -442,6 +442,8 @@ export interface Photo {
   exif: PhotoExif;
   /** Whether the file says it was already edited in another app, in the person's words (src/core/editStatus.ts). */
   editStatus?: { kind: import('../../core/editStatus').EditStatusKind; label: string; detail: string };
+  /** Where the camera says it focused, in the person's words (src/core/cameraFocus.ts). Absent when the file does not say. */
+  cameraFocus?: { label: string; detail: string; area?: { x: number; y: number; width: number; height: number } };
   activeGroupId: string;
   editGroups: EditGroup[];
   sizes: SizePreset[];
@@ -494,6 +496,8 @@ export interface Photo {
   panorama?: { sources: string[] };
   /** This photo is an HDR merge made in InFlight: its bracket, in order, with each one's measured exposure in stops. */
   hdrMerge?: { sources: Array<{ filename: string; ev: number }> };
+  /** This photo is one frame of an exposure bracket found from the camera's settings: the bracket's photos in shooting order, each one's stops against the middle, and whether the camera marked it. */
+  bracket?: { photoIds: string[]; ev: number[]; fromCamera: boolean };
   /** 'offered': a RAW whose full-size develop is not on screen and can be made here; 'running': it is being made. */
   fullDevelop?: 'offered' | 'running';
   picture?: { preview?: import('../../core/pictureSource').PictureProvenance; thumb?: import('../../core/pictureSource').PictureProvenance };
@@ -675,6 +679,8 @@ export interface ExportRequest {
   photoIds: string[];
   /** A brand kit put on these photos first, as one Undo step on each, so the export carries it (K080). */
   brandKitId?: string;
+  /** Captions and credits (IPTC) written into each JPEG or PNG, with code replacements. Absent = none. */
+  captions?: import('../../core/captionTemplate').CaptionTemplate;
 }
 
 /** How a photo is drawn. The engine supplies this so the canvas shows real, developed pixels; without it the UI falls back
@@ -810,17 +816,26 @@ export interface WorkspaceStore {
    * found the photo already looked natural and left it ('unchanged'), held its suggestion because the vision guardian
    * doubted it ('held'), or could not check it ('failed'). */
   quickStart?: { phase: 'working' | 'ready' | 'unchanged' | 'held' | 'failed'; photoId: string | null } | null;
+  /** Live shoot: the folder being watched for new frames, how many have arrived, how many are still being written, and
+   * whether the folder can be read just now (a drive unplugged mid-shoot). Absent when nothing is watched. */
+  /** Live shoot room: the links other screens on this network open, and how many frames are showing there. */
+  shootRoom?: { links: { address: string; url: string }[]; shown: number } | null;
+  liveFolder?: { name: string; imported: number; arriving: number; problem: boolean; ftp?: LiveFtpInbox } | null;
   /** The open project's automatic backup, as last reported. Absent when no project is open. */
   backup?: { state: 'idle' | 'working' | 'ok' | 'partial' | 'failed'; at?: number } | null;
   /** Optional engine-supplied renderer for the canvas (see PhotoSurfaceProps). */
   PhotoSurface?: ComponentType<PhotoSurfaceProps>;
 }
 
+/** What to type into a Wi-Fi camera's FTP transfer settings while InFlight's inbox is on (desktop app). */
+export interface LiveFtpInbox { addresses: string[]; port: number; user: string; password: string }
+
 export interface WorkspaceActions {
   // Navigation & Projects
   openProject: (projectId: string) => void;
   backToProjects: () => void;
-  createProject: (name: string, kind?: 'photography' | 'collage') => void;
+  /** `mode` is the new project's Flight mode; absent, it starts in Settings' default. */
+  createProject: (name: string, kind?: 'photography' | 'collage', mode?: AssistMode) => void;
   createCollageFromSelection?: (photoIds: string[]) => void;
   /** Focus stack the chosen photos into a new linked photo, as a background task (preview, behind its flag). */
   focusStackPhotos?: (photoIds: string[]) => void;
@@ -872,6 +887,14 @@ export interface WorkspaceActions {
   removePhotoTag?: (photoId: string, tagId: string) => void;
   importPhotos: () => void;
   importFolder: () => void;
+  /** Live shoot: watch a folder a tether app (or the FTP inbox) writes into, importing each finished frame as it lands. */
+  watchFolder?: () => void;
+  stopWatchingFolder?: () => void;
+  /** Live shoot over Wi-Fi: receive frames a camera sends by FTP into a chosen folder (desktop app only). */
+  receiveFromCamera?: () => void;
+  /** Live shoot room: show the shoot on other screens on this network (a client's iPad, a studio screen); desktop app. */
+  openShootRoom?: () => void;
+  closeShootRoom?: () => void;
   importDroppedPhotos: (files: File[]) => void;
   /** Back the open project up now to this device (and its chosen place), checking the saved copy reads back the same. */
   backUpProjectNow: () => void;

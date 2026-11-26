@@ -50,6 +50,7 @@ export const da: AreaTranslation<typeof source> = {
     global: 'Ingen motivkontur var pålidelig, så støjreduktionen blev brugt jævnt på hele fotoet.',
     failedCheck: 'Resultatet bestod ikke kvalitetstjekket. Dine eksisterende redigeringer blev bevaret.',
     mainThread: 'Denne enhed kunne ikke fjerne støj i baggrunden, så InFlight kan have stået stille, mens den arbejdede.',
+    learnedLostDetail: 'I fuld størrelse udglattede AI-støjreduktionen ægte detaljer på motivet, så den indbyggede støjreduktion blev brugt i stedet.',
     leftAsItWas: (notes) => `Ladt som det var. ${notes}`,
   },
   workspace: {

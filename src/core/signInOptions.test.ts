@@ -44,6 +44,18 @@ test('Microsoft is offered only when the build switches it on, and only on the w
   assert.match(signInOptions('web', false, false, false, true)[2]!.reason!, /not set up/);
 });
 
+test('the desktop app offers Microsoft through the browser only when its own flag is on', () => {
+  const off = signInOptions('desktop', true, true, true, true, false).find((o) => o.provider === 'microsoft')!;
+  assert.equal(off.available, false);
+  const on = signInOptions('desktop', true, true, true, true, true).find((o) => o.provider === 'microsoft')!;
+  assert.equal(on.available, true);
+  assert.equal(on.reason, undefined);
+  // The desktop flag never switches Microsoft on by itself, nor on the phone apps.
+  assert.ok(!signInOptions('desktop', true, true, true, false, true).some((o) => o.provider === 'microsoft'));
+  assert.equal(signInOptions('android', true, true, true, true, true).find((o) => o.provider === 'microsoft')!.available, false);
+  assert.equal(suggestedSignIn(signInOptions('desktop', true, true, true, true, true), 'windows').suggested!.provider, 'microsoft');
+});
+
 test('each device suggests its own sign-in first and keeps the rest under other', () => {
   const web = signInOptions('web', true, false, false, true);
   assert.equal(suggestedSignIn(web, 'windows').suggested!.provider, 'microsoft');
@@ -67,4 +79,16 @@ test('device family comes from the user agent', () => {
   assert.equal(deviceFamily('Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5)'), 'apple');
   assert.equal(deviceFamily('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)'), 'apple');
   assert.equal(deviceFamily('Mozilla/5.0 (X11; Linux x86_64)'), 'other');
+});
+
+test('a restored session is labelled by the way actually used, not the first linked one', async () => {
+  const { sessionProvider } = await import('./signInOptions.ts');
+  const linked = ['apple.com', 'google.com'];
+  assert.equal(sessionProvider('google.com', linked), 'google');
+  assert.equal(sessionProvider('apple.com', linked), 'apple');
+  assert.equal(sessionProvider('microsoft.com', ['microsoft.com', 'apple.com']), 'microsoft');
+  assert.equal(sessionProvider('password', linked), 'password');
+  assert.equal(sessionProvider('custom', linked), 'google', 'unknown: falls back to the linked ways in a fixed order');
+  assert.equal(sessionProvider(null, ['apple.com']), 'apple');
+  assert.equal(sessionProvider(undefined, []), 'google');
 });

@@ -39,7 +39,7 @@ async function signIn(page: Page, grantStatus = 200) {
     }
     await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
   });
-  await page.goto(origin + '/admin.html');
+  await page.goto(origin + '/admin.html#licences');
   await page.locator('#password-form').getByLabel('Email').fill('admin@example.test');
   await page.getByLabel('Password').fill('not-a-real-password');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
