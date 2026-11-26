@@ -33,6 +33,8 @@ import { CANVAS_ZOOM_EVENT } from './utils/canvasTrackpadZoom';
 import { nudgeSliderInUse, trackSliderInUse } from './utils/sliderNudge';
 import { chordLabel, effectiveKeymap, keyAlreadyHandled, loadKeymap, saveKeymap, type SavedKeymap } from './commands/keymap';
 import { loadPad, resolveWithPad, savePad, type PadProfile } from './commands/pad';
+import { loadGamepadProfile, saveGamepadProfile, type GamepadProfile, type GamepadSlot } from './commands/gamepad';
+import { useGamepad } from './commands/useGamepad';
 import { commandById, type CommandDefinition } from './commands/registry';
 import { useNativeMenu } from './commands/useNativeMenu';
 import { lazyPart } from './utils/lazyPart';
@@ -73,11 +75,12 @@ const SettingsDialog = lazyPart(() => import('./dialogs/SettingsDialog'));
 const ShortcutGuide = lazyPart(() => import('./dialogs/ShortcutGuide'));
 const CommandPalette = lazyPart(() => import('./dialogs/CommandPalette'));
 const KeyboardSettings = lazyPart(() => import('./dialogs/KeyboardSettings'));
+const GamepadSettings = lazyPart(() => import('./dialogs/GamepadSettings'));
 const LightroomOfferDialog = lazyPart(() => import('./dialogs/LightroomOfferDialog'));
 const QuickStartCard = lazyPart(() => import('./panels/QuickStartCard'));
 const SpeciesPlacePrompt = lazyPart(() => import('./panels/SpeciesPlacePrompt'));
 const CloudOriginalPrompt = lazyPart(() => import('./dialogs/CloudOriginalPrompt'));
-const EDITOR_PARTS = [TopBar, Rail, DockPanel, Canvas, CollageEditor, Filmstrip, GridView, PairCompare, CoPilotPanel, AdjustPanel, SizesPanel, HistoryPanel, MasksPanel, EnhancePanel, OverlayPanel, AssistPanel, InfoPanel, TasksPanel, CollageExportDialog, ExportDialog, RemovedPhotosDialog, ShareDialog, SettingsDialog, ShortcutGuide, CommandPalette, KeyboardSettings, LightroomOfferDialog, QuickStartCard, CloudOriginalPrompt];
+const EDITOR_PARTS = [TopBar, Rail, DockPanel, Canvas, CollageEditor, Filmstrip, GridView, PairCompare, CoPilotPanel, AdjustPanel, SizesPanel, HistoryPanel, MasksPanel, EnhancePanel, OverlayPanel, AssistPanel, InfoPanel, TasksPanel, CollageExportDialog, ExportDialog, RemovedPhotosDialog, ShareDialog, SettingsDialog, ShortcutGuide, CommandPalette, KeyboardSettings, GamepadSettings, LightroomOfferDialog, QuickStartCard, CloudOriginalPrompt];
 function preloadEditorParts() {
   // A part already fetched, or still arriving, is not fetched again; one that failed (offline) is tried on next use.
   for (const part of EDITOR_PARTS) void part.preload().catch(() => undefined);
@@ -204,6 +207,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const keymap = React.useMemo(() => effectiveKeymap(savedKeymap.preset, savedKeymap.overrides), [savedKeymap]);
   const [pad, setPad] = useState<PadProfile>(loadPad);
   const changePad = React.useCallback((next: PadProfile) => { savePad(next); setPad(next); }, []);
+  const [gamepadProfile, setGamepadProfile] = useState<GamepadProfile>(loadGamepadProfile);
+  const changeGamepadProfile = React.useCallback((next: GamepadProfile) => { saveGamepadProfile(next); setGamepadProfile(next); }, []);
+  const [gamepadSeen, setGamepadSeen] = useState<{ name: string | null; lastSlot: GamepadSlot | null }>({ name: null, lastSlot: null });
   const changeKeymap = React.useCallback((next: SavedKeymap) => { saveKeymap(next); setSavedKeymap(next); }, []);
   const [maskGuide, setMaskGuide] = useState<{ photoId: string; maskId: string } | null>(null);
   // Spot healing: shown on the photo while its section in the Masks panel is on screen.
@@ -378,6 +384,12 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'photo.rate3': case 'photo.rate4': case 'photo.rate5':
         if (ids.length) { actions.setRating(ids, Number(command.id.slice(-1))); advanceAfterDecision(ids); }
         break;
+      case 'photo.rateUp': case 'photo.rateDown':
+        if (ids.length) {
+          const rating = Math.min(5, Math.max(0, (activePhoto?.rating ?? 0) + (command.id === 'photo.rateUp' ? 1 : -1)));
+          actions.setRating(ids, rating);
+        }
+        break;
       case 'photo.next': window.dispatchEvent(new CustomEvent('inflight:photo-step', { detail: { delta: 1 } })); break;
       case 'photo.prev': window.dispatchEvent(new CustomEvent('inflight:photo-step', { detail: { delta: -1 } })); break;
       case 'view.grid': actions.setGridViewOpen(!store.gridViewOpen); break;
@@ -469,6 +481,21 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     const stopTracking = trackSliderInUse();
     return () => { window.removeEventListener('keydown', handleKeyDown); stopTracking(); };
   }, [store.screen, shortcutGuideOpen, keymap, pad, runCommand]);
+
+  // Game controllers (Settings > Keyboard > Game controller, off by default). The same commands as the keys, in the
+  // editor only, never while Settings is open (so each button can be checked there) or a photo key while the guide is open.
+  useGamepad({
+    enabled: store.settings.gamepadEnabled === true,
+    profile: gamepadProfile,
+    onConnection: (name) => setGamepadSeen((seen) => (seen.name === name ? seen : { name, lastSlot: name ? seen.lastSlot : null })),
+    onInput: (fire, name) => { if (store.settingsOpen) setGamepadSeen({ name, lastSlot: fire.slot }); },
+    onFire: (fire) => {
+      if (!fire.command || store.screen !== 'editor' || store.settingsOpen || commandPaletteOpen) return;
+      const command = commandById(fire.command);
+      if (shortcutGuideOpen && (command.group === 'photos' || command.group === 'view' || command.group === 'adjust')) return;
+      runCommand(command);
+    },
+  });
 
   const EDITING_PANELS: PanelId[] = ['adjust', 'masks', 'enhance', 'copilot'];
   const renderPanelContent = (panelId: PanelId) => <React.Suspense fallback={null}>{renderPanelBody(panelId)}</React.Suspense>;
@@ -1303,6 +1330,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         onDeleteTemplate={actions.deleteOverlayTemplate}
         accountPanel={accountPanel ? <>{accountPanel}<NewsEmailSetting client={sharing} signedIn={signedInName} /></> : undefined}
         keyboardPanel={<React.Suspense fallback={null}><KeyboardSettings saved={savedKeymap} isMac={IS_MAC} onChange={changeKeymap} pad={pad} onPadChange={changePad} /></React.Suspense>}
+        gamepadPanel={<React.Suspense fallback={null}><GamepadSettings profile={gamepadProfile} onChange={changeGamepadProfile} controllerName={gamepadSeen.name} lastSlot={gamepadSeen.lastSlot} /></React.Suspense>}
         settings={store.settings}
         cloudUsage={cloudUsage}
         assistMode={store.assistMode}

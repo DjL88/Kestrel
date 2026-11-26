@@ -1443,6 +1443,9 @@ export const gd: AreaTranslation<typeof source> = {
       swipeLabel: "Grad-shlaighd airson an dealbh atharrachadh",
       swipeDesc: "Seallaidh grad-shlaighd le aon chorrag thar an dealbh an ath dhealbh no an tè roimhe. Cuir dheth seo ma thachras e gun fhiosta.",
       penNote: "Le peann mar Apple Pencil, thèid suathadh air an dealbh a leigeil seachad fhad ’s a tha am peann sìos. Mairidh seo car tiota às a dhèidh cuideachd, gus nach gluais do làmh an dealbh idir.",
+      gamepadHeading: "Uidheam-smachd gheamannan",
+      gamepadLabel: "Cleachd uidheam-smachd gheamannan",
+      gamepadDesc: "Tagh is deasaich le uidheam-smachd Xbox, PlayStation no a leithid. Gluaisidh am pada-D eadar dealbhan is atharraichidh e rionnagan, is tionndaidh na maidean an sleamhnag a tha ga cleachdadh. Dheth gus an cuir thu air e.",
     },
     language: {
       label: 'Cànan an t-seallaidh',
@@ -1505,6 +1508,12 @@ export const gd: AreaTranslation<typeof source> = {
     nothing: 'Dad',
     learnLabel: (slot) => `Ionnsaich an iuchair airson: ${slot}`,
     resetPad: 'Ath-shuidhich am pada gu suidheachadh an tòiseachaidh',
+    gamepadHelp: "Tagh dè nì gach putan is gach comhair maide. Tionndaidh na maidean an sleamhnag a chleachd thu mu dheireadh, no Nochdadh, sna h-aon cheuman ri slaodadh, mar sin bheir Neo-dhèan air ais e. Cha dèan uidheaman-smachd dad fhad ’s a tha Roghainnean fosgailte, airson ’s gun urrainn dhut gach putan a dhearbhadh an seo.",
+    gamepadNone: "Cha deach uidheam-smachd a lorg. Ceangail fear, an uairsin brùth putan sam bith air airson ’s gum faic am brabhsair e.",
+    gamepadConnected: (name: string) => `Ceangailte: ${name}`,
+    gamepadLast: (slot: string, action: string) => `Air a bhrùthadh mu dheireadh: ${slot} (${action})`,
+    gamepadLastNothing: (slot: string) => `Air a bhrùthadh mu dheireadh: ${slot} (cha dèan e dad)`,
+    gamepadReset: "Ath-shuidhich an uidheam-smachd chun an t-suidheachaidh tòiseachaidh",
   },
   cloudUsage: {
     title: 'Cleachdadh neòil',

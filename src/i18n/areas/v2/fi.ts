@@ -1443,6 +1443,9 @@ export const fi: AreaTranslation<typeof source> = {
       swipeLabel: "Vaihda kuvaa pyyhkäisemällä",
       swipeDesc: "Nopea yhden sormen pyyhkäisy kuvan yli näyttää seuraavan tai edellisen kuvan. Poista tämä käytöstä, jos niin käy vahingossa.",
       penNote: "Kun käytät kynää, kuten Apple Penciliä, kuvan kosketukset ohitetaan kynän ollessa näytöllä. Myös hetken sen jälkeen, joten kätesi ei koskaan siirrä kuvaa.",
+      gamepadHeading: "Peliohjain",
+      gamepadLabel: "Käytä peliohjainta",
+      gamepadDesc: "Karsi ja muokkaa Xbox-, PlayStation- tai vastaavalla ohjaimella. Ristiohjain vaihtaa kuvaa ja tähtiä, ja sauvat kääntävät käytössä olevaa liukusäädintä. Pois päältä, kunnes otat sen käyttöön.",
     },
     language: {
       label: 'Näyttökieli',
@@ -1505,6 +1508,12 @@ export const fi: AreaTranslation<typeof source> = {
     nothing: 'Ei mitään',
     learnLabel: (slot) => `Opeta näppäin: ${slot}`,
     resetPad: 'Palauta paneelin aloitusasetukset',
+    gamepadHelp: "Valitse, mitä kukin painike ja sauvan suunta tekee. Sauvat kääntävät viimeksi käytettyä liukusäädintä tai Valotusta samoin askelin kuin vetäminen, joten Kumoa palauttaa sen. Ohjaimet eivät tee mitään, kun Asetukset on auki, joten voit kokeilla jokaista painiketta tässä.",
+    gamepadNone: "Ohjainta ei löytynyt. Liitä ohjain ja paina mitä tahansa painiketta, jotta selain näkee sen.",
+    gamepadConnected: (name: string) => `Yhdistetty: ${name}`,
+    gamepadLast: (slot: string, action: string) => `Viimeksi painettu: ${slot} (${action})`,
+    gamepadLastNothing: (slot: string) => `Viimeksi painettu: ${slot} (ei tee mitään)`,
+    gamepadReset: "Palauta ohjaimen aloitusasetukset",
   },
   cloudUsage: {
     title: 'Pilven käyttö',

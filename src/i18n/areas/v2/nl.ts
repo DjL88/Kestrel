@@ -1442,6 +1442,9 @@ export const nl: AreaTranslation<typeof source> = {
       swipeLabel: "Vegen om van foto te wisselen",
       swipeDesc: "Een snelle veeg met één vinger over de foto toont de volgende of vorige foto. Zet dit uit als het per ongeluk gebeurt.",
       penNote: "Met een pen zoals Apple Pencil worden aanrakingen op de foto genegeerd zolang de pen het scherm raakt. Ook nog even daarna, zodat je hand de foto nooit verplaatst.",
+      gamepadHeading: "Gamecontroller",
+      gamepadLabel: "Een gamecontroller gebruiken",
+      gamepadDesc: "Selecteer en bewerk met een Xbox-, PlayStation- of vergelijkbare controller. De D-pad wisselt van foto en verandert sterren, de sticks draaien de schuifregelaar die in gebruik is. Uit totdat u het aanzet.",
     },
     language: {
       label: 'Weergavetaal',
@@ -1504,6 +1507,12 @@ export const nl: AreaTranslation<typeof source> = {
     nothing: 'Niets',
     learnLabel: (slot) => `Toets voor ${slot} aanleren`,
     resetPad: 'Pad terugzetten naar de startinstelling',
+    gamepadHelp: "Kies wat elke knop en elke stickrichting doet. De sticks draaien de laatst gebruikte schuifregelaar, of Belichting, in dezelfde stappen als slepen, dus Ongedaan maken draait het terug. Controllers doen niets zolang Instellingen open is, zodat u hier elke knop kunt testen.",
+    gamepadNone: "Geen controller gevonden. Sluit er een aan en druk op een knop zodat de browser hem ziet.",
+    gamepadConnected: (name: string) => `Verbonden: ${name}`,
+    gamepadLast: (slot: string, action: string) => `Laatst ingedrukt: ${slot} (${action})`,
+    gamepadLastNothing: (slot: string) => `Laatst ingedrukt: ${slot} (doet niets)`,
+    gamepadReset: "Controller terugzetten naar de beginindeling",
   },
   cloudUsage: {
     title: 'Cloudgebruik',

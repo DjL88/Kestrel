@@ -1442,6 +1442,9 @@ export const is: AreaTranslation<typeof source> = {
       swipeLabel: "Strjúktu til að skipta um mynd",
       swipeDesc: "Hröð stroka með einum fingri yfir myndina sýnir næstu eða fyrri mynd. Slökktu á þessu ef það gerist óvart.",
       penNote: "Með penna eins og Apple Pencil eru snertingar á myndinni hunsaðar á meðan penninn er á skjánum. Líka augnablik á eftir, svo höndin þín færir aldrei myndina.",
+      gamepadHeading: "Leikjastýripinni",
+      gamepadLabel: "Nota leikjastýripinna",
+      gamepadDesc: "Flokkaðu og breyttu með Xbox-, PlayStation- eða svipuðum stýripinna. Stefnuhnappurinn skiptir um mynd og stjörnur og pinnarnir snúa sleðanum sem er í notkun. Slökkt þar til þú kveikir á því.",
     },
     language: {
       label: 'Tungumál viðmóts',
@@ -1504,6 +1507,12 @@ export const is: AreaTranslation<typeof source> = {
     nothing: 'Ekkert',
     learnLabel: (slot) => `Læra lykilinn fyrir ${slot}`,
     resetPad: 'Endurstilla borðið á upphafsuppsetningu',
+    gamepadHelp: "Veldu hvað hver hnappur og hver stefna pinnanna gerir. Pinnarnir snúa síðast notaða sleðanum, eða Lýsingu, í sömu skrefum og þegar dregið er, svo Afturkalla tekur það til baka. Stýripinnar gera ekkert meðan Stillingar eru opnar, svo þú getur prófað hvern hnapp hér.",
+    gamepadNone: "Enginn stýripinni fannst. Tengdu einn og ýttu á einhvern hnapp svo vafrinn sjái hann.",
+    gamepadConnected: (name: string) => `Tengdur: ${name}`,
+    gamepadLast: (slot: string, action: string) => `Síðast ýtt á: ${slot} (${action})`,
+    gamepadLastNothing: (slot: string) => `Síðast ýtt á: ${slot} (gerir ekkert)`,
+    gamepadReset: "Endurstilla stýripinnann á upphafsuppsetningu",
   },
   cloudUsage: {
     title: 'Skýjanotkun',

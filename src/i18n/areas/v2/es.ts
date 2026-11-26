@@ -1442,6 +1442,9 @@ export const es: AreaTranslation<typeof source> = {
       swipeLabel: "Deslizar para cambiar de foto",
       swipeDesc: "Un deslizamiento rápido con un dedo sobre la foto muestra la foto siguiente o la anterior. Desactívalo si ocurre por accidente.",
       penNote: "Con un lápiz como el Apple Pencil, los toques en la foto se ignoran mientras el lápiz está apoyado. También un momento después, para que tu mano nunca mueva la foto.",
+      gamepadHeading: "Mando de juego",
+      gamepadLabel: "Usar un mando de juego",
+      gamepadDesc: "Selecciona y edita con un mando de Xbox, PlayStation o similar. La cruceta cambia de foto y de estrellas, y los joysticks mueven el control deslizante en uso. Desactivado hasta que lo actives.",
     },
     language: {
       label: 'Idioma de la interfaz',
@@ -1504,6 +1507,12 @@ export const es: AreaTranslation<typeof source> = {
     nothing: 'Nada',
     learnLabel: (slot) => `Aprender la tecla de ${slot}`,
     resetPad: 'Restablecer la configuración inicial',
+    gamepadHelp: "Elige qué hace cada botón y cada dirección de los joysticks. Los joysticks mueven el último control deslizante usado, o la exposición, en los mismos pasos que al arrastrar, así que Deshacer lo revierte. Los mandos no hacen nada mientras Ajustes está abierto, para que puedas comprobar cada botón aquí.",
+    gamepadNone: "No se ha encontrado ningún mando. Conecta uno y pulsa cualquier botón para que el navegador lo vea.",
+    gamepadConnected: (name: string) => `Conectado: ${name}`,
+    gamepadLast: (slot: string, action: string) => `Última pulsación: ${slot} (${action})`,
+    gamepadLastNothing: (slot: string) => `Última pulsación: ${slot} (no hace nada)`,
+    gamepadReset: "Restablecer el mando a la configuración inicial",
   },
   cloudUsage: {
     title: 'Uso de la nube',
