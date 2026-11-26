@@ -39,6 +39,7 @@ import type { NewsBroadcaster } from './news.ts';
 import { PUSH_PLATFORMS, isPushToken } from '../../../src/core/pushNotices.ts';
 import type { NoticeEvent } from '../../../src/core/collabNotices.ts';
 import { GalleryRefusal, GALLERY_MAX_DAYS, GALLERY_MAX_PHOTOS, GALLERY_MAX_PREVIEW_BYTES, galleryIdFor, previewKey, type GalleryStore } from './gallery.ts';
+import { ComplianceRefusal, COMPLIANCE_MAX_BYTES, COMPLIANCE_TYPES, type ComplianceDocuments } from './complianceDocs.ts';
 import { SafetyRefusal, BLOCKED_MESSAGE, HELD_MESSAGE, NOTICE_CATEGORIES, caseSummary, caseForUploader, type CheckInput, type SafetyService } from './contentSafety.ts';
 import { cloudKey } from './cloudPhotos.ts';
 import { presenceUid, PRESENCE_TOKEN_TTL_S, type PresenceSigner } from './presenceToken.ts';
@@ -137,6 +138,8 @@ export interface AppOptions {
   spend?: SpendOptions;
   /** Acceptable-use checks on shared and cloud photos, and the report-a-gallery queue (contentSafety.ts). */
   safety?: { service: SafetyService; countryOf?: (req: Request) => string | null };
+  /** Signed compliance documents (risk assessments) in their own private bucket. Absent: the /admin routes answer 503. */
+  compliance?: ComplianceDocuments;
   /** Production sets this: the cloud, safe copy and learning features stay OFF until an admin switches them on. Tests and development leave them on. */
   requireAdminSwitch?: boolean;
 }
@@ -272,6 +275,11 @@ export const Schemas = {
   }).strict(),
   GalleryReportStatus: z.object({ noticeId: z.string().regex(/^ntc_[A-Za-z0-9_-]{6,40}$/), receipt: z.string().min(16).max(64) }).strict(),
   SafetyDecide: z.object({ outcome: z.enum(['released', 'upheld']), reason: z.string().trim().min(3).max(1000) }).strict(),
+  ComplianceUpload: z.object({
+    title: z.string().trim().min(1).max(120), fileName: z.string().trim().min(1).max(120),
+    contentType: z.enum(Object.keys(COMPLIANCE_TYPES) as [keyof typeof COMPLIANCE_TYPES, ...(keyof typeof COMPLIANCE_TYPES)[]]),
+    base64: z.string().min(4).max(Math.ceil(COMPLIANCE_MAX_BYTES / 3) * 4).regex(/^[A-Za-z0-9+/]+={0,2}$/),
+  }).strict(),
   SafetyManualReport: z.object({ ncmecReportId: z.string().trim().min(1).max(40).optional(), ncaDone: z.boolean().optional() }).strict(),
   SafetyNoticeDecide: z.object({ outcome: z.enum(['no-action', 'photo-removed', 'gallery-revoked']), reason: z.string().trim().min(3).max(1000) }).strict(),
   SafetyAppeal: z.object({ text: z.string().trim().min(3).max(2000) }).strict(),
@@ -777,6 +785,17 @@ export function createApp(options: AppOptions) {
 
   /** A suspended account's galleries stop serving. Merged accounts keep theirs: only 'suspended' counts. */
   const ownerSuspended = async (accountId: string) => (await store.getAccount(accountId))?.status === 'suspended';
+
+  function complianceCfg(): ComplianceDocuments {
+    if (!options.compliance) throw new ApiError(503, 'COMPLIANCE_NOT_CONFIGURED', 'The compliance document store is not set up on this server yet.');
+    return options.compliance;
+  }
+  async function compliance<T>(work: () => Promise<T>): Promise<T> {
+    try { return await work(); } catch (error) {
+      if (error instanceof ComplianceRefusal) throw new ApiError(error.status, error.code, error.message);
+      throw error;
+    }
+  }
 
   function safetyCfg(): SafetyService {
     if (!options.safety) throw new ApiError(503, 'SAFETY_NOT_CONFIGURED', 'Reporting is not set up on this server yet. Email the address on the acceptable use page.');
@@ -2096,6 +2115,32 @@ export function createApp(options: AppOptions) {
         return adminDone(claims, 'safety.manual-report', `${c.caseId} ncmec=${c.ncmec?.reportId ?? ''} nca=${c.nca}`, { case: caseSummary(c) });
       },
     },
+    // ---- Compliance documents (complianceDocs.ts): signed risk assessments, admin only, every upload and download audited.
+    {
+      method: 'GET', path: '/v1/admin/compliance/documents', summary: 'Signed compliance documents (risk assessments), newest first', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'compliance.list');
+        const docs = await compliance(() => complianceCfg().list());
+        return adminDone(claims, 'compliance.list', String(docs.length), { documents: docs.map(({ sha256: _s, ...d }) => d), maxBytes: COMPLIANCE_MAX_BYTES });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/compliance/documents', summary: 'Upload a signed copy (PDF or Markdown). Never replaces an earlier one', auth: 'admin', body: Schemas.ComplianceUpload,
+      handler: async (req) => {
+        const claims = await admin(req, 'compliance.upload');
+        const body = parseJson(Schemas.ComplianceUpload, req.rawBody);
+        const doc = await compliance(() => complianceCfg().upload({ title: body.title, fileName: body.fileName, contentType: body.contentType, body: Buffer.from(body.base64, 'base64'), by: claims.sub, atMs: now() }));
+        return adminDone(claims, 'compliance.upload', `${doc.id} sha256=${doc.sha256}`, { document: { ...doc, sha256: undefined } });
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/compliance/documents/:id/download', summary: 'A 10-minute download link for one compliance document', auth: 'admin',
+      handler: async (req, params) => {
+        const claims = await admin(req, 'compliance.download');
+        const link = await compliance(() => complianceCfg().download(params.id));
+        return adminDone(claims, 'compliance.download', params.id, link);
+      },
+    },
     {
       method: 'POST', path: '/v1/admin/safety/notices/:id/decide', summary: 'Act on a gallery report: no action, remove the photo, or revoke the gallery. The reason is shown to the notifier and the gallery owner', auth: 'admin', body: Schemas.SafetyNoticeDecide,
       handler: async (req, params) => {
@@ -2668,7 +2713,7 @@ export function createApp(options: AppOptions) {
     },
   ];
 
-  const bodyLimit = (path: string) => /^\/v1\/collab\/projects\/[^/]+\/photos\/[^/]+\/revisions$/.test(path) ? MAX_RECIPE_BYTES + 4096 : path === '/v1/admin/demo/photos' ? 2_300_000 : path.includes('/v1/admin/demo/photos/') ? 850 * 1024 : path.startsWith('/v1/ai/') ? 800 * 1024 : 64 * 1024;
+  const bodyLimit = (path: string) => /^\/v1\/collab\/projects\/[^/]+\/photos\/[^/]+\/revisions$/.test(path) ? MAX_RECIPE_BYTES + 4096 : path === '/v1/admin/demo/photos' ? 2_300_000 : path === '/v1/admin/compliance/documents' ? Math.ceil(COMPLIANCE_MAX_BYTES / 3) * 4 + 4096 : path.includes('/v1/admin/demo/photos/') ? 850 * 1024 : path.startsWith('/v1/ai/') ? 800 * 1024 : 64 * 1024;
 
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const url = new URL(req.url ?? '/', 'http://control-plane.invalid');

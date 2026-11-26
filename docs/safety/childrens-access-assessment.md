@@ -38,6 +38,16 @@ The condition is met if the service has a significant number of child users in t
 
 **Decision (owner, 26 Nov 2026): option 1, keep 13+.** A children's risk assessment for the shared and gallery features is therefore needed before those features open to UK users (not drafted yet). For the solicitor: the age rules in other regions (EU digital consent ages of 13 to 16 by country, the UK Children's Code, Australia's under-16 social media rule).
 
+**How age is handled (owner, 26 Nov 2026): 13+ by self-declaration only, with no age-check process.** The terms say 13+, and nothing in sign-up asks for or checks an age. What follows from that:
+
+- **Stage 1 stays "yes".** Without highly effective age assurance, InFlight cannot say children are unable to use the service, and self-declaration does not count as age assurance. **LAW: CHECK.**
+- **The service does not know which users are children.** So the children's risk assessment must treat **every** account holder and **every** gallery visitor as possibly under 18. Protections cannot be switched on "for child accounts only". They have to be the default for everyone, or built into the design: invite-only projects, no stranger contact, no public discovery.
+- **Under-13s may still sign up** by giving a false answer, and anyone of any age can open a gallery link. The children's risk assessment should weigh that, and say what happens when InFlight learns a user is under 13 (the privacy notice already says the data is deleted).
+- **The children's risk assessment needs to cover** content harmful to children that is not illegal, such as pornography and self-harm material in galleries. It should also cover how a child reports something, and whether the SafeSearch hold (explicit adult content held for review) is enough as a default for all users. **LAW: CHECK** which of Ofcom's Protection of Children Codes measures apply to a small service at the risk levels found.
+- **If this changes** (for example an age check for sharing, or 18+), redo this assessment and the children's risk assessment before the change goes live.
+
+Signed copies of this assessment, and later the children's risk assessment, are kept in /admin → Compliance documents (`compliance-documents.md`).
+
 ## Review
 
 Repeat this assessment within 12 months, and before any change to the minimum age, sign-up, galleries (for example public galleries), or marketing to schools or young people. **LAW: CHECK** Ofcom's review interval.
@@ -47,6 +57,6 @@ Repeat this assessment within 12 months, and before any change to the minimum ag
 | | |
 |---|---|
 | Name | David Leitch, trading as InFlight |
-| Outcome chosen | ______________________ |
+| Outcome chosen | Option 1: 13+ by self-declaration only, no age-check process (owner, 26 Nov 2026) |
 | Signature / date | ______________________ |
 | Solicitor reviewed | ______________________ |
