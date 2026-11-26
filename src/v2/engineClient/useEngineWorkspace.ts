@@ -70,6 +70,9 @@ import { useWorkspace } from '../ui/stub';
 import { EngineSurface } from './EngineSurface';
 import { featureAccess, featurePlan } from './featureMap';
 import { workflowPreviewOn } from './workflowPreview';
+import { recordCullObservations, rescoreFromObservations, type ScanEvidence } from '../../core/cullObservationStore';
+import { DETECTOR_MODEL } from '../../core/objectDetection';
+import { bundledModelUrl } from '../../providers/bundledModelAssets';
 import { hasDeviceFont, listDeviceFonts, loadSavedDeviceFonts, mergeFonts, saveDeviceFonts } from './fonts';
 import { addVersion, assetUrl, cutOut, importWatermark, loadStored, makeVariant, moveToSlot, saveStored, textWatermark, toPresets, type StoredWatermark } from './watermarkLibrary';
 import { replaceWatermarkIfUnchanged } from './watermarkMutation';
@@ -1095,13 +1098,27 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           ctx.stage(engineText.workspace.cullScan);
           ctx.setSubitems(candidates.map(frame => ({ id: frame.id, label: frame.filename })));
           const judgedFrom = new Map<string, PictureSource | undefined>();
-          const results = await scanForCulling(candidates, current.frames, provider.current!, null,
-            ctx.signal, count => ctx.reportProgress(count, candidates.length, `${count} of ${candidates.length} analysed`),
-            () => ctx.commitIfCurrent(() => setNotice(engineText.workspace.cullNoDetector)),
-            (frameId, stage) => ctx.updateSubitem(frameId,
-              stage === 'analysing' ? 'running' : 'done',
-              stage === 'unavailable' ? engineText.workspace.cullDetectorStage : stage),
-            undefined, (frameId, source) => judgedFrom.set(frameId, source));
+          // With the cull-rules preview on, each photo keeps the numbers it was judged from (x-std-rescore). When every
+          // candidate has current ones, the photos are judged again from them, with no new scan; a project from before
+          // this, or any photo whose file or detector changed, is scanned once more.
+          const storeObservations = can('cullRules') || workflowPreviewOn('cullRules');
+          const stored = storeObservations
+            ? rescoreFromObservations(candidates, DETECTOR_MODEL.sha256, Boolean(bundledModelUrl(DETECTOR_MODEL.file))) : null;
+          let scanned: { scan: ScanEvidence; healthy: boolean } | null = null;
+          let results;
+          if (stored && !stored.missing.length) {
+            results = stored.results;
+            ctx.reportProgress(candidates.length, candidates.length, `${candidates.length} of ${candidates.length} analysed`);
+          } else {
+            results = await scanForCulling(candidates, current.frames, provider.current!, null,
+              ctx.signal, count => ctx.reportProgress(count, candidates.length, `${count} of ${candidates.length} analysed`),
+              () => ctx.commitIfCurrent(() => setNotice(engineText.workspace.cullNoDetector)),
+              (frameId, stage) => ctx.updateSubitem(frameId,
+                stage === 'analysing' ? 'running' : 'done',
+                stage === 'unavailable' ? engineText.workspace.cullDetectorStage : stage),
+              undefined, (frameId, source) => judgedFrom.set(frameId, source),
+              storeObservations ? (scan, healthy) => { scanned = { scan, healthy }; } : undefined);
+          }
           ctx.checkCancelled();
           if (requestId !== openRequest.current || stateRef.current?.shoot.id !== projectKey) return;
           ctx.stage(engineText.workspace.cullApply);
@@ -1126,7 +1143,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           if (requestId !== openRequest.current || stateRef.current?.shoot.id !== projectKey) return;
           ctx.commitIfCurrent(() => setState(latest => {
             if (!latest || latest.shoot.id !== projectKey || requestId !== openRequest.current || ctx.signal.aborted) return latest;
-            return commitAutoCull(latest, candidates, guarded);
+            const committed = commitAutoCull(latest, candidates, guarded);
+            const seen = scanned as { scan: ScanEvidence; healthy: boolean } | null;
+            return seen ? recordCullObservations(committed, candidates, seen.scan, DETECTOR_MODEL.sha256, seen.healthy, Date.now()) : committed;
           }));
           // Which picture each RAW was actually judged from; unknown counts as the camera's preview (never overstated).
           const summary = autoCullSummary(candidates.length, rawsJudgedFromCameraPreview(candidates, results, judgedFrom), held.length);
