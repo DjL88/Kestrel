@@ -560,7 +560,20 @@ fn set_landscape_allowed(window: tauri::WebviewWindow, allowed: bool) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // One InFlight at a time (desktop). Opening it again, from the Start menu, the Dock or "Open with", brings the window
+    // that is already open to the front and gives it the photos it was asked to open. Two copies on the same project
+    // store competed for its files and tasks (owner's test). Registered first, as the plugin requires.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+        queue_opened_files(app, argv.into_iter().skip(1).map(std::path::PathBuf::from).collect());
+    }));
+    let builder = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
