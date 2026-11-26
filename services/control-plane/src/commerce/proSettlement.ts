@@ -1,5 +1,5 @@
 import { purchaseEntitlement } from '../entitlement.ts';
-import type { Store } from '../store.ts';
+import type { LicenceRecord, Store } from '../store.ts';
 import type { CommerceLedger } from './ledger.ts';
 import { isPaddlePaid, minorUnits, type PaddleTransaction } from './paddle.ts';
 
@@ -20,6 +20,11 @@ interface Dependencies {
   paddle: { getTransaction(id: string): Promise<PaddleTransaction> };
   commerce: Pick<CommerceLedger, 'recordPaid'>;
   licences: Pick<Store, 'getAccount' | 'grantLicence'>;
+  /**
+   * Called once, when this payment first creates the licence (not on Paddle's retries): server.ts emails the buyer
+   * their key. A failure here never undoes the sale; the key is still handed over at sign-in.
+   */
+  onNewLicence?: (licence: LicenceRecord) => Promise<void>;
 }
 
 /**
@@ -27,7 +32,7 @@ interface Dependencies {
  * always fetched back from Paddle and matched to the stored order. Safe to call any number of times: the sale and
  * the licence both use the order's reference as their key.
  */
-export function paddleProSettlement({ findOrder, paddle, commerce, licences }: Dependencies) {
+export function paddleProSettlement({ findOrder, paddle, commerce, licences, onNewLicence }: Dependencies) {
   return async (transactionId: string): Promise<'paid' | 'pending' | 'unknown'> => {
     const order = await findOrder(transactionId);
     if (!order) return 'unknown';
@@ -67,10 +72,11 @@ export function paddleProSettlement({ findOrder, paddle, commerce, licences }: D
       invoiceNumber: order.invoiceNumber,
     });
     if (sale.status !== 'paid' || sale.accountId !== order.accountId) return 'pending';
-    await licences.grantLicence(purchaseEntitlement({
+    const granted = await licences.grantLicence(purchaseEntitlement({
       store: 'paddle', checkoutReference: order.reference, accountId: order.accountId,
       emailHash: order.emailHash, majorVersion: order.majorVersion,
     }, Date.parse(paidAt)));
+    if (granted.created && onNewLicence) await onNewLicence(granted.licence).catch(() => undefined);
     return 'paid';
   };
 }

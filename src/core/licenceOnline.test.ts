@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decideAccess, decideAccountAccess, parseControlPlaneUrl, parsePinnedKeys, platformOf, renewalDue, RENEW_AFTER_MS } from './licenceOnline';
+import { checkInDaysLeft, decideAccess, decideAccountAccess, NEW_DEVICE_CHECK_IN_DAYS, parseControlPlaneUrl, parsePinnedKeys, platformOf, renewalDue, RENEW_AFTER_MS } from './licenceOnline';
 import type { EntitlementGrant } from './entitlementGrant';
 
 const DAY = 86_400_000;
@@ -51,6 +51,20 @@ test('Pro: signed key remains valid offline, while last-known server denials ove
   assert.deepEqual(decideAccess(true, { kind: 'revoked', message: 'x' }, NOW), { pro: false, managedAi: false, basis: 'revoked' });
 });
 
+test('an account licence bought outright keeps Pro past the offline window; managed AI does not', () => {
+  const owned = grant({ managedAi: true, flags: { 'licence.owned': { on: true } } });
+  assert.deepEqual(decideAccountAccess({ kind: 'active', grant: owned, activationId: 'act_1' }, NOW), { pro: true, managedAi: true, basis: 'grant' });
+  // Years with no server at all: still Pro on this device, never managed AI.
+  assert.deepEqual(decideAccountAccess({ kind: 'active', grant: owned, activationId: 'act_1' }, NOW + 3650 * DAY), { pro: true, managedAi: false, basis: 'grant' });
+  // A revoke or refund heard online still wins.
+  assert.deepEqual(decideAccountAccess({ kind: 'revoked', message: 'Refunded' }, NOW), { pro: false, managedAi: false, basis: 'revoked' });
+  // Only "on for good" counts: a trial, a time-boxed or an "off" flag, or a non-paid plan, lapses as before.
+  for (const flag of [{ on: false }, { on: true, trial: true as const }, { on: true, endsAtMs: NOW + 400 * DAY }]) {
+    assert.equal(decideAccountAccess({ kind: 'active', grant: grant({ flags: { 'licence.owned': flag } }), activationId: 'act_1' }, NOW + 31 * DAY).pro, false);
+  }
+  assert.equal(decideAccountAccess({ kind: 'active', grant: grant({ plan: 'subscriber', flags: { 'licence.owned': { on: true } } }), activationId: 'act_1' }, NOW + 31 * DAY).pro, false);
+});
+
 test('an account has nothing to fall back on: Pro only inside the grant\'s offline window (30 days by default)', () => {
   assert.deepEqual(decideAccountAccess({ kind: 'no_licence' }, NOW), { pro: false, managedAi: false, basis: 'none' });
   assert.deepEqual(decideAccountAccess({ kind: 'revoked', message: 'x' }, NOW), { pro: false, managedAi: false, basis: 'revoked' });
@@ -68,4 +82,20 @@ test('an account has nothing to fall back on: Pro only inside the grant\'s offli
   // A grant that was always Free never counts, whatever its window.
   assert.deepEqual(decideAccountAccess({ kind: 'active', grant: grant({ plan: 'free' }), activationId: 'act_1' }, NOW),
     { pro: false, managedAi: false, basis: 'none' });
+});
+
+test('a new device must register its key once within 30 days, so one key cannot spread over unlimited offline devices', () => {
+  const first = NOW;
+  const never = { kind: 'not_checked' } as const;
+  const unreachableNever = { kind: 'unreachable', grant: null, activationId: null } as const;
+  assert.equal(NEW_DEVICE_CHECK_IN_DAYS, 30);
+  assert.deepEqual(decideAccess(true, never, NOW + 30 * DAY, first), { pro: true, managedAi: false, basis: 'key' });
+  assert.equal(checkInDaysLeft(never, first, NOW + 10 * DAY), 20);
+  assert.deepEqual(decideAccess(true, never, NOW + 30 * DAY + 1, first), { pro: false, managedAi: false, basis: 'check_in' });
+  assert.deepEqual(decideAccess(true, unreachableNever, NOW + 31 * DAY, first), { pro: false, managedAi: false, basis: 'check_in' });
+  // Registered once: Pro for good on this device, with no server, years later.
+  assert.deepEqual(decideAccess(true, { kind: 'unreachable', grant: grant(), activationId: 'act_1' }, NOW + 3650 * DAY, first), { pro: true, managedAi: false, basis: 'key' });
+  assert.equal(checkInDaysLeft({ kind: 'unreachable', grant: grant(), activationId: 'act_1' }, first, NOW), null);
+  // Builds with no licence service never ask (firstUse is null there).
+  assert.deepEqual(decideAccess(true, { kind: 'not_set_up' }, NOW + 3650 * DAY, null), { pro: true, managedAi: false, basis: 'key' });
 });
