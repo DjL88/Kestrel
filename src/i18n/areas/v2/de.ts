@@ -414,6 +414,9 @@ export const de: AreaTranslation<typeof source> = {
     sameName: "Zwei Fotos würden denselben XMP-Dateinamen schreiben (zum Beispiel ein RAW und sein JPEG). Wählen Sie eines davon und speichern Sie erneut.",
     nothingToSave: "Es gibt keine Fotos, für die XMP-Dateien gespeichert werden können.",
     saveFailed: "Die XMP-Dateien konnten nicht gespeichert werden. Ihre Fotos sind unverändert.",
+    savedEdits: 'Bearbeitete Fotos enthalten auch ihre Grundregler, die Lightroom und Camera Raw lesen.',
+    editsRead: (count: number) => `Grundregler aus Lightroom für ${count} ${count === 1 ? 'Foto' : 'Fotos'} übernommen. Der Look ist ähnlich, nicht gleich. Rückgängig nimmt sie zurück.`,
+    editsKept: (count: number) => `${count} hier schon ${count === 1 ? 'bearbeitetes Foto behält seine' : 'bearbeitete Fotos behalten ihre'} Bearbeitung.`,
     failed: {
       empty: "Wählen Sie eine oder mehrere .xmp-Dateien oder eine .zip-Datei damit.",
       oversize: "Diese XMP-Dateien sind zu groß, um sie sicher zu lesen. Es wurde nichts geändert.",

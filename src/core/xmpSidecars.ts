@@ -4,7 +4,9 @@ import { photoSidecar } from './photoSidecar';
 import type { PhotoFrame } from './types';
 
 /** Sidecar names must still match the originals when unpacked by the photographer. */
-export function makeXmpDownload(frames: readonly PhotoFrame[]): { blob: Blob; name: string } | null {
+export function makeXmpDownload(
+  frames: readonly PhotoFrame[], build: (frame: PhotoFrame) => { filename: string; bytes: Uint8Array } = photoSidecar,
+): { blob: Blob; name: string } | null {
   const entries: Record<string, Uint8Array> = Object.create(null);
   const names = new Set<string>();
   for (const frame of frames) {
@@ -15,7 +17,7 @@ export function makeXmpDownload(frames: readonly PhotoFrame[]): { blob: Blob; na
     if (!stem || safeExportName(name) !== name || names.has(key) ||
         /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(stem)) return null;
     names.add(key);
-    const sidecar = photoSidecar(frame);
+    const sidecar = build(frame);
     if (sidecar.filename !== name) return null;
     entries[name] = sidecar.bytes;
   }

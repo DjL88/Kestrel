@@ -1,6 +1,7 @@
-// XMP sidecars in V2: save ratings, flags and confirmed tags beside the originals' names, and read them back.
-// Shared with V1 (core/xmpSidecars, core/xmpImportPlan, core/photoSidecar). Never reads or writes edits, pixels or
-// the camera's own EXIF, and never changes an original.
+// XMP sidecars in V2: save ratings, flags and confirmed tags beside the originals' names, and read them back. Edited
+// photos also carry their basic sliders as Lightroom / Camera Raw settings (crs:), and those settings are read back into
+// photos not yet edited here (cameraRawMap.ts). Shared with V1 (core/xmpSidecars, core/xmpImportPlan, core/photoSidecar).
+// Never reads or writes pixels or the camera's own EXIF, and never changes an original.
 import { applyDecisionWithHistory } from '../../core/cullingEngine';
 import { addTags } from '../../core/subjectTags';
 import { rawJpegPairs, withPartners } from '../../core/rawJpegPairs';
@@ -8,6 +9,9 @@ import { makeXmpDownload } from '../../core/xmpSidecars';
 import { planXmpImports, SidecarImportError, type SidecarImport } from '../../core/xmpImportPlan';
 import type { CullingState, PhotoFrame } from '../../core/types';
 import { STRINGS } from '../ui/strings';
+import type { EditRecipe } from '../ui/contract';
+import { isEmptyEdit } from '../../core/photoEdits';
+import { recipeFromCameraRaw, sidecarWithEdit } from './cameraRawMap';
 
 /** Which photos a File menu XMP action covers: the selection when two or more are selected, otherwise the whole project. */
 export function xmpScope(frames: readonly PhotoFrame[], selectedIds: readonly string[]): PhotoFrame[] {
@@ -46,6 +50,24 @@ export function applySidecarImports(state: CullingState, planned: readonly Sidec
   return { ...next, shoot: { ...next.shoot, lastUpdatedAt: Date.now() } };
 }
 
+/**
+ * Lightroom / Camera Raw basic sliders from the sidecars, for photos with no InFlight edit yet. A photo already edited
+ * here keeps its edit: it is counted in `kept`, never overwritten.
+ */
+export function sidecarEdits(state: CullingState, planned: readonly SidecarImport[]): { patches: Map<string, Partial<EditRecipe>>; kept: number } {
+  const patches = new Map<string, Partial<EditRecipe>>();
+  let kept = 0;
+  for (const { frameId, metadata } of planned) {
+    const carried = recipeFromCameraRaw(metadata.cameraRaw);
+    if (!carried) continue;
+    const frame = state.frames.find((candidate) => candidate.id === frameId);
+    if (!frame || frame.removedAt != null) continue;
+    if (frame.edit && !isEmptyEdit(frame.edit)) { kept++; continue; }
+    patches.set(frameId, carried.patch);
+  }
+  return { patches, kept };
+}
+
 /** Plain words for why reading sidecars changed nothing. */
 export function sidecarFailureText(error: unknown): string {
   const reason = error instanceof SidecarImportError ? error.reason : 'unsafe';
@@ -56,7 +78,7 @@ export { planXmpImports };
 
 /** Save the sidecars for these photos: one .xmp, or a .zip of them. Returns what happened, in words. */
 export async function saveSidecars(frames: readonly PhotoFrame[]): Promise<string | null> {
-  const output = makeXmpDownload(frames);
+  const output = makeXmpDownload(frames, sidecarWithEdit);
   if (!output) return frames.length ? STRINGS.xmp.sameName : STRINGS.xmp.nothingToSave;
   const { isDesktopApp, isMobileShell, saveWithDialog } = await import('../../providers/desktopShell');
   const { downloadInBrowser } = await import('../../providers/browserExport');
@@ -74,5 +96,6 @@ export async function saveSidecars(frames: readonly PhotoFrame[]): Promise<strin
     if (reason instanceof Error && reason.name === 'AbortError') return null;
     return STRINGS.xmp.saveFailed;
   }
-  return STRINGS.xmp.saved(frames.length, output.name);
+  const edited = frames.some((frame) => frame.edit && !isEmptyEdit(frame.edit));
+  return [STRINGS.xmp.saved(frames.length, output.name), edited ? STRINGS.xmp.savedEdits : ''].filter(Boolean).join(' ');
 }

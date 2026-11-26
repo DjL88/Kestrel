@@ -417,6 +417,9 @@ export const ga: AreaTranslation<typeof source> = {
     sameName: "Scríobhfadh dhá ghrianghraf an t-ainm céanna comhaid taoibh (mar shampla RAW agus a JPEG). Roghnaigh ceann acu agus sábháil arís.",
     nothingToSave: "Níl aon ghrianghraif ann le comhaid taoibh a shábháil dóibh.",
     saveFailed: "Níorbh fhéidir na comhaid taoibh a shábháil. Níor athraíodh do ghrianghraif.",
+    savedEdits: 'Tugann grianghraif eagarthóireachta a sleamhnáin bhunúsacha leo freisin, a léann Lightroom agus Camera Raw.',
+    editsRead: (count: number) => `Úsáideadh sleamhnáin bhunúsacha Lightroom do ${count} ${count === 1 ? 'ghrianghraf' : 'grianghraf'}. Tá an chuma gar dó, ní mar an gcéanna. Baineann Cealaigh iad.`,
+    editsKept: (count: number) => `Choinnigh ${count} ${count === 1 ? 'ghrianghraf' : 'grianghraf'} a raibh eagarthóireacht déanta orthu anseo cheana a n-eagarthóireacht.`,
     failed: {
       empty: "Roghnaigh comhad .xmp amháin nó níos mó, nó .zip amháin díobh.",
       oversize: "Tá na comhaid taoibh rómhór le léamh go sábháilte. Níor athraíodh aon rud.",

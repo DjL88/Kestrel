@@ -415,6 +415,9 @@ export const gd: AreaTranslation<typeof source> = {
     sameName: "Sgrìobhadh dà dhealbh an aon ainm faidhle taoibh (mar eisimpleir RAW is a JPEG). Tagh fear dhiubh is sàbhail a-rithist.",
     nothingToSave: "Chan eil dealbhan ann airson faidhlichean taoibh a shàbhaladh.",
     saveFailed: "Cha b’ urrainn dhuinn na faidhlichean taoibh a shàbhaladh. Cha deach na dealbhan agad atharrachadh.",
+    savedEdits: 'Bheir dealbhan deasaichte na slaodairean bunasach aca leotha cuideachd, a leughas Lightroom is Camera Raw.',
+    editsRead: (count: number) => `Chaidh slaodairean bunasach Lightroom a chleachdadh airson ${count} ${count === 1 ? 'dealbh' : 'dealbhan'}. Tha an coltas faisg air, ach chan ionann. Bheir Neo-dhèan air falbh iad.`,
+    editsKept: (count: number) => `Chùm ${count} ${count === 1 ? 'dealbh' : 'dealbhan'} a bha deasaichte an seo mu thràth an deasachadh.`,
     failed: {
       empty: "Tagh aon fhaidhle .xmp no barrachd, no aon .zip dhiubh.",
       oversize: "Tha na faidhlichean taoibh ro mhòr airson an leughadh gu sàbhailte. Cha deach dad atharrachadh.",

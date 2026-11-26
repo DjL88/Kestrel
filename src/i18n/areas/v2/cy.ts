@@ -414,6 +414,9 @@ export const cy: AreaTranslation<typeof source> = {
     sameName: "Byddai dau lun yn ysgrifennu’r un enw ffeil ochr (er enghraifft RAW a’i JPEG). Dewiswch un ohonynt a chadw eto.",
     nothingToSave: "Does dim lluniau i gadw ffeiliau ochr ar eu cyfer.",
     saveFailed: "Doedd dim modd cadw’r ffeiliau ochr. Mae eich lluniau heb eu newid.",
+    savedEdits: 'Mae lluniau wedi’u golygu hefyd yn cario eu llithryddion sylfaenol, y mae Lightroom a Camera Raw yn eu darllen.',
+    editsRead: (count: number) => `Defnyddiwyd llithryddion sylfaenol Lightroom ar gyfer ${count} ${count === 1 ? 'llun' : 'o luniau'}. Mae’r golwg yn agos, nid yr un fath. Mae Dadwneud yn eu tynnu’n ôl.`,
+    editsKept: (count: number) => `Cadwodd ${count} ${count === 1 ? 'llun' : 'o luniau'} oedd eisoes wedi’u golygu yma eu golygiad.`,
     failed: {
       empty: "Dewiswch un neu fwy o ffeiliau .xmp, neu un .zip ohonynt.",
       oversize: "Mae’r ffeiliau ochr yn rhy fawr i’w darllen yn ddiogel. Ni newidiwyd dim.",

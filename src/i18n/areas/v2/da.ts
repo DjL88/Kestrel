@@ -414,6 +414,9 @@ export const da: AreaTranslation<typeof source> = {
     sameName: "To fotos ville skrive det samme XMP-filnavn (for eksempel en RAW og dens JPEG). Vælg det ene og gem igen.",
     nothingToSave: "Der er ingen fotos at gemme XMP-filer for.",
     saveFailed: "XMP-filerne kunne ikke gemmes. Dine fotos er uændrede.",
+    savedEdits: 'Redigerede fotos har også deres grundlæggende skydere med, som Lightroom og Camera Raw kan læse.',
+    editsRead: (count: number) => `Brugte Lightrooms grundlæggende skydere til ${count} ${count === 1 ? 'foto' : 'fotos'}. Udseendet er tæt på, ikke ens. Fortryd fjerner dem.`,
+    editsKept: (count: number) => `${count} ${count === 1 ? 'foto' : 'fotos'}, der allerede var redigeret her, beholdt redigeringen.`,
     failed: {
       empty: "Vælg en eller flere .xmp-filer eller én .zip med dem.",
       oversize: "De XMP-filer er for store til at læse sikkert. Intet blev ændret.",

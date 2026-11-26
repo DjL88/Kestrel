@@ -444,6 +444,9 @@ export const source = {
     sameName: 'Two photos would write the same sidecar name (for example a RAW and its JPEG). Select one of them and save again.',
     nothingToSave: 'There are no photos to save sidecars for.',
     saveFailed: 'The sidecars could not be saved. Your photos are unchanged.',
+    savedEdits: 'Edited photos also carry their basic sliders, which Lightroom and Camera Raw read.',
+    editsRead: (count: number) => `Used Lightroom’s basic sliders for ${count} ${count === 1 ? 'photo' : 'photos'}. The look is close, not identical. Undo takes them back.`,
+    editsKept: (count: number) => `${count} ${count === 1 ? 'photo' : 'photos'} already edited here kept ${count === 1 ? 'its' : 'their'} edit.`,
     failed: {
       empty: 'Choose one or more .xmp files, or one .zip of them.',
       oversize: 'Those sidecars are too large to read safely. Nothing was changed.',

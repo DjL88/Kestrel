@@ -414,6 +414,9 @@ export const nl: AreaTranslation<typeof source> = {
     sameName: "Twee foto’s zouden dezelfde XMP-bestandsnaam schrijven (bijvoorbeeld een RAW en de JPEG ervan). Selecteer er één en sla opnieuw op.",
     nothingToSave: "Er zijn geen foto’s om XMP-bestanden voor op te slaan.",
     saveFailed: "De XMP-bestanden konden niet worden opgeslagen. Uw foto’s zijn ongewijzigd.",
+    savedEdits: 'Bewerkte foto’s nemen ook hun basisschuifjes mee, die Lightroom en Camera Raw lezen.',
+    editsRead: (count: number) => `Basisschuifjes van Lightroom gebruikt voor ${count} ${count === 1 ? 'foto' : 'foto’s'}. Het lijkt erop, maar is niet gelijk. Ongedaan maken haalt ze weg.`,
+    editsKept: (count: number) => `${count} hier al ${count === 1 ? 'bewerkte foto houdt zijn' : 'bewerkte foto’s houden hun'} bewerking.`,
     failed: {
       empty: "Kies een of meer .xmp-bestanden, of één .zip daarvan.",
       oversize: "Die XMP-bestanden zijn te groot om veilig te lezen. Er is niets gewijzigd.",

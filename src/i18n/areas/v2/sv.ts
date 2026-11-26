@@ -414,6 +414,9 @@ export const sv: AreaTranslation<typeof source> = {
     sameName: "Två foton skulle skriva samma sidofilsnamn (till exempel en RAW och dess JPEG). Välj ett av dem och spara igen.",
     nothingToSave: "Det finns inga foton att spara sidofiler för.",
     saveFailed: "Sidofilerna kunde inte sparas. Dina foton är oförändrade.",
+    savedEdits: 'Redigerade foton tar också med sina grundreglage, som Lightroom och Camera Raw läser.',
+    editsRead: (count: number) => `Använde Lightrooms grundreglage för ${count} ${count === 1 ? 'foto' : 'foton'}. Utseendet är nära, inte lika. Ångra tar bort dem.`,
+    editsKept: (count: number) => `${count} ${count === 1 ? 'foto' : 'foton'} som redan var redigerade här behöll sin redigering.`,
     failed: {
       empty: "Välj en eller flera .xmp-filer, eller en .zip med dem.",
       oversize: "De sidofilerna är för stora för att läsas säkert. Inget ändrades.",

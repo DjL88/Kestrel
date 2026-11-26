@@ -414,6 +414,9 @@ export const es: AreaTranslation<typeof source> = {
     sameName: "Dos fotos escribirían el mismo nombre de archivo XMP (por ejemplo un RAW y su JPEG). Seleccione una y vuelva a guardar.",
     nothingToSave: "No hay fotos para las que guardar archivos XMP.",
     saveFailed: "No se pudieron guardar los archivos XMP. Sus fotos no han cambiado.",
+    savedEdits: 'Las fotos editadas también llevan sus ajustes básicos, que Lightroom y Camera Raw leen.',
+    editsRead: (count: number) => `Se usaron los ajustes básicos de Lightroom en ${count} ${count === 1 ? 'foto' : 'fotos'}. El aspecto es parecido, no idéntico. Deshacer los quita.`,
+    editsKept: (count: number) => `${count} ${count === 1 ? 'foto ya editada aquí mantiene su' : 'fotos ya editadas aquí mantienen su'} edición.`,
     failed: {
       empty: "Elija uno o más archivos .xmp, o un .zip con ellos.",
       oversize: "Esos archivos XMP son demasiado grandes para leerlos con seguridad. No se cambió nada.",

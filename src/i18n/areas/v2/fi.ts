@@ -415,6 +415,9 @@ export const fi: AreaTranslation<typeof source> = {
     sameName: "Kaksi kuvaa kirjoittaisi saman sivutiedoston nimen (esimerkiksi RAW ja sen JPEG). Valitse toinen ja tallenna uudelleen.",
     nothingToSave: "Ei kuvia, joille tallentaa sivutiedostoja.",
     saveFailed: "Sivutiedostoja ei voitu tallentaa. Kuvasi ovat ennallaan.",
+    savedEdits: 'Muokatut kuvat sisältävät myös perussäätimensä, jotka Lightroom ja Camera Raw lukevat.',
+    editsRead: (count: number) => `Lightroomin perussäätimet otettiin ${count} kuvaan. Ilme on lähellä, ei sama. Kumoa poistaa ne.`,
+    editsKept: (count: number) => `${count} täällä jo muokattua kuvaa piti muokkauksensa.`,
     failed: {
       empty: "Valitse yksi tai useampi .xmp-tiedosto tai yksi niitä sisältävä .zip.",
       oversize: "Sivutiedostot ovat liian suuria luettaviksi turvallisesti. Mitään ei muutettu.",

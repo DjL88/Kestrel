@@ -414,6 +414,9 @@ export const pt: AreaTranslation<typeof source> = {
     sameName: "Duas fotografias escreveriam o mesmo nome de ficheiro auxiliar (por exemplo um RAW e o seu JPEG). Selecione uma e guarde de novo.",
     nothingToSave: "Não há fotografias para as quais guardar ficheiros auxiliares.",
     saveFailed: "Não foi possível guardar os ficheiros auxiliares. As suas fotografias não foram alteradas.",
+    savedEdits: 'As fotos editadas também levam os seus controlos básicos, que o Lightroom e o Camera Raw leem.',
+    editsRead: (count: number) => `Usados os controlos básicos do Lightroom em ${count} ${count === 1 ? 'foto' : 'fotos'}. O aspeto é parecido, não idêntico. Anular retira-os.`,
+    editsKept: (count: number) => `${count} ${count === 1 ? 'foto já editada aqui manteve a sua' : 'fotos já editadas aqui mantiveram a sua'} edição.`,
     failed: {
       empty: "Escolha um ou mais ficheiros .xmp, ou um .zip com eles.",
       oversize: "Esses ficheiros auxiliares são demasiado grandes para ler em segurança. Nada foi alterado.",
