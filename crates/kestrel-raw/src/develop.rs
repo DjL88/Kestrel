@@ -153,7 +153,11 @@ fn develop_jpeg_sized(bytes: &[u8], half: bool) -> Result<Vec<u8>, String> {
 /// to the sensor data. Every develop that starts from a RAW calls this, so the screen and the export match.
 pub fn correct_sensor(bytes: &[u8], raw: &mut rawler::RawImage) -> crate::lens_correction::LensCorrection {
     let (_, _, (w, h)) = crate::scene_develop::picture_frame(raw);
-    let lens = crate::lens_correction::from_file_for(bytes, Some((w as f64, h as f64)));
+    let mut lens = crate::lens_correction::from_file_for(bytes, Some((w as f64, h as f64)));
+    // Only when the file has nothing of its own: the lensfun database, if it knows this exact lens and camera.
+    if lens.is_empty() {
+        lens.lensfun = crate::lensfun::lookup(bytes, &raw.camera.make, &raw.camera.model, (w as f64, h as f64));
+    }
     crate::lens_correction::apply_to_sensor(&lens, raw);
     lens
 }
@@ -162,6 +166,9 @@ pub fn correct_sensor(bytes: &[u8], raw: &mut rawler::RawImage) -> crate::lens_c
 pub fn correct_geometry(lens: &crate::lens_correction::LensCorrection, raw: &rawler::RawImage, display: &mut ImageBuffer<Rgb<u16>, Vec<u16>>, half: bool) {
     if let Some(profile) = &lens.profile {
         crate::lens_correction::apply_profile(profile, display);
+    }
+    if let Some(lf) = &lens.lensfun {
+        crate::lens_correction::apply_lensfun(lf, display);
     }
     let Some(warp) = &lens.warp else { return };
     let ((x, y), (w, h), _) = crate::scene_develop::picture_frame(raw);

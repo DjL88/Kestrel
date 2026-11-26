@@ -3,6 +3,7 @@
 
 pub mod camera_look;
 pub mod lens_correction;
+pub mod lensfun;
 pub mod nikon_he;
 pub mod scene_develop;
 mod develop;
