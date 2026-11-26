@@ -44,3 +44,26 @@ export function linkingProblem(code: string): LinkingProblem | null {
 export class LinkingError extends Error {
   constructor(readonly problem: LinkingProblem) { super(problem); this.name = 'LinkingError'; }
 }
+
+/**
+ * Sign in with a Google or Apple credential, then add any way in that was waiting (afterSignIn). When the email already
+ * has an account that signs in another way, the credential is held (hold) and the person is asked to use that way.
+ * Firebase is passed in, so this stays pure and testable.
+ */
+export async function signInWithHeldLink<C, U>(credential: C, method: SignInMethod, deps: {
+  signIn: (credential: C) => Promise<U>;
+  afterSignIn: (user: U) => Promise<void>;
+  hold: (pending: { credential: C; method: SignInMethod }) => void;
+}): Promise<U> {
+  try {
+    const user = await deps.signIn(credential);
+    await deps.afterSignIn(user);
+    return user;
+  } catch (error) {
+    if ((error as { code?: string })?.code === 'auth/account-exists-with-different-credential') {
+      deps.hold({ credential, method });
+      throw new LinkingError('use-existing-method');
+    }
+    throw error;
+  }
+}

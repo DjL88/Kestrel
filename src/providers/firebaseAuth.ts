@@ -2,7 +2,7 @@ import type { AuthProvider, Session, SignInProvider } from '../core/cloudInterfa
 import type { SignInPlatform } from '../core/signInOptions';
 import { isDesktopApp } from './desktopShell';
 import { friendlyAuthError } from '../core/authError';
-import { LinkingError, linkingProblem, methodsFromProviderIds, type SignInMethod } from '../core/accountLinking';
+import { LinkingError, linkingProblem, methodsFromProviderIds, signInWithHeldLink, type SignInMethod } from '../core/accountLinking';
 import { challengeFor, explainSignInError, makeVerifier, parseCallbackQuery } from '../core/cloudDrive';
 import { desktopGoogleClient, googleCodeExchangeBody, googleSignInUrl, GOOGLE_TOKEN_URL, idTokenFromAnswer } from '../core/desktopGoogleSignIn';
 import { appleAnswerFromQuery, appleSignInPageUrl, desktopAppleConfig, sha256Hex } from '../core/desktopAppleSignIn';
@@ -114,14 +114,11 @@ async function useCredential(auth: Auth, instance: Instance, credential: import(
     }
     return user;
   }
-  try {
-    const user = await useCredential(auth, instance, credential, 'apple', mode);
-    await afterSignIn(auth, user);
-    return user;
-  } catch (error) {
-    if (codeOf(error) === 'auth/account-exists-with-different-credential') { pendingLink = { credential, method }; throw new LinkingError('use-existing-method'); }
-    throw error;
-  }
+  return signInWithHeldLink(credential, method, {
+    signIn: async (c) => (await auth.signInWithCredential(instance, c)).user,
+    afterSignIn: (user) => afterSignIn(auth, user),
+    hold: (pending) => { pendingLink = pending; },
+  });
 }
 
 /**
