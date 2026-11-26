@@ -15,6 +15,13 @@ import { appendProjectPhotos, applyImportBursts, createEmptyProject, duplicatePr
 import { tasks } from '../../core/taskStore';
 import { createSaveGuard, type SaveGuard } from '../../core/saveGuard';
 import { engineScheduler } from '../../core/engineScheduler';
+import { mergeHdrOffThread, rgb16Source, canvasSource, type HdrFrameInput } from '../../providers/hdrMergeOffThread';
+import { hdrMergeRecipe, type HdrMergeRecipe } from '../../core/hdrMergeRecipe';
+import { encodePng16, provePng } from '../../core/png16';
+import { maxCanvasPixels } from '../../core/exportLimits';
+import { hdrText } from '../../i18n/areas/hdr';
+import { hdrDoneNotice, hdrFilename, hdrPreviewOn, hdrRefusalText, hdrSelection } from './hdrMergeOps';
+import { renderRaw16 } from '../../providers/rawMaster16';
 import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '../../core/types';
 import { eraseDeviceData } from './eraseDeviceData';
 import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
@@ -1620,7 +1627,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   const cloudImports = useRef(new Map<string, { projectId: string; photoKey: string }>());
   const externalReturns = useRef(new Map<string, ExternalEditRecord>());
-  const importPhotos = useCallback(async (suppliedPicks?: Array<File | PickedPhoto> | null) => {
+  const importPhotos = useCallback(async (suppliedPicks?: Array<File | PickedPhoto> | null,
+    /** Fields to add to a photo as it is read (an HDR merge's recipe), by its picked key. */
+    attach?: (key: string) => Partial<PhotoFrame> | undefined) => {
     const target = stateRef.current;
     if (!target) return;
     if (importController.current) { setNotice(engineText.workspace.importRunning); return; }
@@ -1688,6 +1697,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             sequenceIndex: item.index + 1,
             ...(cloudPhoto ? { cloudPhoto } : {}),
             ...(externalEdit ? { externalEdit, ...(fromFrame ? { exif: { ...frame.exif, ...returnedExif(fromFrame.exif) } } : {}) } : {}),
+            ...(attach?.(pickedKey(item.file)) ?? {}),
           }));
           if (result.unstoredKeys.length) warnings.push(`${item.file.name} could not be stored for reopening. Relink it when needed.`);
           ctx.stage(engineText.workspace.importSaveStage);
@@ -2008,6 +2018,101 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         } finally {
           fullDevelopRunning.current.delete(key);
           setFullDeveloping((current) => { const { [key]: _done, ...rest } = current; return rest; });
+        }
+      })();
+    },
+    hdrMergePhotos: (photoIds) => {
+      const source = stateRef.current;
+      if (!source) return;
+      if (!can('hdrMerge') && !hdrPreviewOn()) return;
+      const selection = hdrSelection(source.frames, photoIds);
+      if (!selection.ok) { setNotice(selection.message); return; }
+      const frames = selection.frames.map((frame) => structuredClone(frame));
+      const sourceProvider = provider.current!;
+      const projectKey = source.shoot.id;
+      const taken = new Set(source.frames.map((frame) => frame.filename.toLowerCase()));
+      const name = hdrFilename(frames[0].filename, frames.length, taken);
+      void (async () => {
+        let made: { file: File; recipe: HdrMergeRecipe; notice: string } | null = null;
+        let refusal: string | null = null;
+        const refuse = (message: string): never => { refusal = message; throw new Error(message); };
+        try {
+          const ticket = await engineScheduler.submit({
+            title: hdrText.task(frames.length), kind: 'other', resource: 'cpu', priority: 12,
+            pauseable: false, items: [{ id: `hdr-${frames.map((frame) => frame.id).join('+')}`, name }],
+            snapshot: { projectKey, frameIds: frames.map((frame) => frame.id) },
+            itemId: (item) => item.id, itemLabel: (item) => item.name,
+            runItem: async (_, __, ctx) => {
+              ctx.stage(hdrText.reading);
+              // Full-size pixels only: a verified raster original, or a RAW's full-size 16-bit develop from its sensor
+              // data. Never a review preview or the camera's small embedded JPEG, and never silently smaller.
+              const inputs: HdrFrameInput[] = [];
+              const here: Array<() => import('../../core/hdrMerge').HdrSource> = [];
+              let raster = 0, raw = 0;
+              const limit = maxCanvasPixels({ userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints });
+              let bytes = 0;
+              for (const frame of frames) {
+                ctx.checkCancelled();
+                if (fullResolutionRasterFormat(frame.filename)) {
+                  const image = await loadVerifiedRasterOriginalForExport(frame, sourceProvider, ctx.signal);
+                  const { naturalWidth: w, naturalHeight: h } = image;
+                  if (w * h > limit) refuse(hdrText.tooLarge);
+                  bytes += w * h * 4;
+                  inputs.push({ kind: 'picture', image });
+                  here.push(() => canvasSource(image, w, h, (cw, ch) => {
+                    const canvas = document.createElement('canvas'); canvas.width = cw; canvas.height = ch;
+                    return canvas.getContext('2d', { willReadFrequently: true });
+                  }));
+                  raster++;
+                } else if (isRawPreviewFile(frame.filename) && canDevelopRaw()) {
+                  const original = await sourceProvider.ensureOriginal(frame.stableKey, 'selected');
+                  if (!original) refuse(hdrText.rawNotDeveloped(frame.filename));
+                  const shown = await loadExportSource(frame, sourceProvider);
+                  ctx.checkCancelled();
+                  const picture = await renderRaw16(original!, frame.filename, shown, DEFAULT_EDIT, undefined, { originalSha256: frame.originalSha256, signal: ctx.signal })
+                    .catch(() => refuse(hdrText.rawNotDeveloped(frame.filename)));
+                  bytes += picture.width * picture.height * 6;
+                  inputs.push({ kind: 'rgb16', width: picture.width, height: picture.height, data: picture.data });
+                  here.push(() => rgb16Source(picture.width, picture.height, picture.data));
+                  raw++;
+                } else {
+                  refuse(isRawPreviewFile(frame.filename) ? hdrText.rawNotDeveloped(frame.filename) : hdrText.unsupported(frame.filename));
+                }
+                // Every frame is held once here and once in the worker; stay well inside what the device can hold.
+                if (bytes * 2 > Math.min(limit * 24, 3 * 1024 ** 3)) refuse(hdrText.tooLarge);
+              }
+              const { result, onMainThread } = await mergeHdrOffThread(inputs, {
+                signal: ctx.signal, maxWorkingBytes: 192 * 1024 * 1024,
+                hereSources: () => here.map((make) => make()),
+                onProgress: (done, total, stage) => { ctx.stage(hdrText[stage]); ctx.reportProgress(done, total); },
+              });
+              if (!result.ok) refuse(hdrRefusalText(result as import('../../core/hdrMerge').HdrRefusal));
+              const merged = result as import('../../core/hdrMerge').HdrSuccess;
+              ctx.stage(hdrText.saving);
+              const blob = await encodePng16({ width: merged.width, height: merged.height, data: merged.data });
+              ctx.checkCancelled();
+              // Read the written header back: a 16-bit RGB PNG of exactly the merge's size, or nothing is added.
+              const proof = provePng(new Uint8Array(await blob.arrayBuffer()));
+              if (proof.bitDepth !== 16 || proof.colourType !== 2 || proof.width !== merged.width || proof.height !== merged.height) refuse(hdrText.failed);
+              const file = new File([blob], name, { type: 'image/png', lastModified: Date.now() });
+              const recipe = hdrMergeRecipe(merged, frames.map((frame) => ({ frameId: frame.id, stableKey: frame.stableKey, filename: frame.filename, ...(frame.originalSha256 ? { originalSha256: frame.originalSha256 } : {}) })),
+                raw && raster ? 'mixed' : raw ? 'raw-develop-16' : 'original', Date.now());
+              ctx.commitIfCurrent(() => { made = { file, recipe, notice: hdrDoneNotice(name, merged, frames.length) + (onMainThread ? ` ${hdrText.mainThread}` : '') }; });
+            },
+          });
+          const outcome = await ticket.finished;
+          if (outcome === 'cancelled') { setNotice(hdrText.cancelled); return; }
+          if (outcome === 'failed' || !made) { setNotice(refusal ?? hdrText.failed); return; }
+          const done = made as { file: File; recipe: HdrMergeRecipe; notice: string };
+          const key = pickedKey(pickedFromFile(done.file));
+          if (stateRef.current?.shoot.id !== projectKey) { setNotice(hdrText.failed); return; }
+          // One import at a time: wait for one already running rather than lose the merge.
+          while (importController.current) await new Promise((resolve) => setTimeout(resolve, 500));
+          if (stateRef.current?.shoot.id !== projectKey) { setNotice(hdrText.failed); return; }
+          await importPhotos([done.file], (picked) => (picked === key ? { hdrMerge: done.recipe } : undefined));
+          setNotice(done.notice);
+        } catch (reason) {
+          setNotice(refusal ?? (reason instanceof Error ? reason.message : hdrText.failed));
         }
       })();
     },
@@ -2941,7 +3046,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     assistMode,
     watermarkPresets: watermarkLibrary,
     overlayTemplates: templates.map(({ id, name }) => ({ id, name })),
-    features: featureAccess(can),
+    features: { ...featureAccess(can), hdrMerge: can('hdrMerge') || hdrPreviewOn() },
     featurePlan: featurePlan(),
     screen, hubState, projects,
     activeProjectId: state?.shoot.id ?? null,

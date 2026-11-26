@@ -103,6 +103,8 @@ export interface PhotoFrame {
   framing?: PhotoFraming;
   focusPoint?: FocusPoint;
   rating?: number;
+  /** An HDR merge made in InFlight: this photo is the new linked file, and this is the record of its bracket. */
+  hdrMerge?: import('./hdrMergeRecipe').HdrMergeRecipe;
   virtualCopy?: { originalFrameId: string; number: number };
   /** This photo was brought back from another editor (src/core/externalEdit.ts): where it came from. Checked with `readExternalEdit`. */
   externalEdit?: import('./externalEdit').ExternalEditRecord;

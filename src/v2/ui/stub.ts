@@ -622,6 +622,7 @@ export const DEFAULT_FEATURE_PLAN: Record<FeatureKey, 'basic' | 'pro'> = {
   cloudAssist: 'pro',
   zoomVideo: 'basic',
   splitFrames: 'basic',
+  hdrMerge: 'basic',
 };
 
 export const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
@@ -634,6 +635,7 @@ export const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
   cloudAssist: false,
   zoomVideo: true,
   splitFrames: true,
+  hdrMerge: false,
 };
 
 function logAction(name: string, payload?: unknown) {

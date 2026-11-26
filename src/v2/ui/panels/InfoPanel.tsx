@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import VehicleRow from './VehicleRow';
+import { hdrText } from '../../../i18n/areas/hdr';
+import { stopsLabel } from '../../engineClient/hdrMergeOps';
 import SpeciesPlaceRow from './SpeciesPlaceRow';
 import type { Photo, SpeciesPlace, WorkspaceStore } from '../contract';
 import type { ExternalApp } from '../../../core/externalEdit';
@@ -189,6 +191,16 @@ export default function InfoPanel({
             <BrandIcon name="relink" size={14} />
             <span>{STRINGS.canvas.reconnectOriginal}</span>
           </button>
+        )}
+        {photo.hdrMerge && (
+          <div className="mt-2 space-y-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] p-2" data-testid="v2-hdr-merge-info">
+            <p className="text-xs font-semibold text-[var(--text-primary)]">{hdrText.infoTitle}</p>
+            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{hdrText.infoMadeFrom(photo.hdrMerge.sources.length)}</p>
+            <ul className="list-disc pl-4 text-[0.6875rem] text-[var(--text-secondary)]">
+              {photo.hdrMerge.sources.map((source, i) => <li key={`${i}-${source.filename}`} className="break-all">{hdrText.infoExposure(source.filename, stopsLabel(source.ev))}</li>)}
+            </ul>
+            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{hdrText.infoHow}</p>
+          </div>
         )}
         {photo.dngCopy && photo.originalConnected && onSaveDngCopy && (
           <div className="mt-2 space-y-1">

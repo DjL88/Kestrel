@@ -1,4 +1,5 @@
 import { readExternalEdit } from '../../core/externalEdit';
+import { readHdrMergeRecipe } from '../../core/hdrMergeRecipe';
 import { pictureProvenance, type PictureSource } from '../../core/pictureSource';
 import { applyFormats, applySizeLinked } from './formatOps';
 import { framedSize, DEFAULT_FRAMING } from '../../core/photoFraming';
@@ -306,6 +307,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     ...(histogram ? { histogram } : {}),
     ...(readExternalEdit(frame.externalEdit) ? { externalEdit: readExternalEdit(frame.externalEdit) } : {}),
     ...(extras.dngCopy ? { dngCopy: true } : {}),
+    ...(readHdrMergeRecipe(frame.hdrMerge) ? { hdrMerge: { sources: frame.hdrMerge!.sources.map((source, i) => ({ filename: source.filename, ev: frame.hdrMerge!.exposureEv[i] })) } } : {}),
     ...(extras.fullDevelop === 'running' ? { fullDevelop: 'running' as const }
       : extras.fullDevelop === 'possible' && sources?.preview !== 'raw-full' ? { fullDevelop: 'offered' as const } : {}),
     ...(shownPreview || shownThumb ? { picture: { ...(shownPreview ? { preview: shownPreview } : {}), ...(shownThumb ? { thumb: shownThumb } : {}) } } : {}),

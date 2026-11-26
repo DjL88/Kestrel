@@ -1055,6 +1055,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onImportFolder={actions.importFolder}
                 onRunAutoCull={actions.runAutoCull}
                 onCreateCollage={store.collage ? undefined : actions.createCollageFromSelection}
+                onHdrMerge={store.features.hdrMerge && !store.collage ? actions.hdrMergePhotos : undefined}
                 collageMode={composingCollage}
                 onChooseFromProject={composingCollage && store.projects.some((p) => p.id !== store.activeProjectId) ? () => setCollageSourceOpen(true) : undefined}
                 onExportSelected={() => actions.setExportOpen(true)}
