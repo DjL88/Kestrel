@@ -71,6 +71,23 @@ export class CommerceLedger {
     });
   }
 
+  /**
+   * A Paddle refund or chargeback of a recorded sale (commerce/paddleRefunds.ts), so the admin Accounts page and the
+   * UK turnover count stop treating refunded money as income. A full refund is never turned back into a partial one,
+   * and a sale not recorded yet (Paddle's notifications can arrive in any order) is left alone: false.
+   */
+  async markRefunded(checkoutReference: string, status: 'refunded' | 'partially-refunded'): Promise<boolean> {
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(checkoutReference)) throw new Error('Invalid checkout reference.');
+    const document = this.db.collection(commerceCollections.transactions).doc(checkoutReference);
+    return this.db.runTransaction(async transaction => {
+      const existing = (await transaction.get(document)).data() as TransactionRecord | undefined;
+      if (!existing) return false;
+      if (existing.status === status || existing.status === 'refunded') return true;
+      transaction.update(document, { status });
+      return true;
+    });
+  }
+
   /** Newest first, for the admin console. */
   async listTransactions(limit: number): Promise<TransactionRecord[]> {
     const rows = await this.db.collection(commerceCollections.transactions).orderBy('paidAt', 'desc').limit(limit).get();
@@ -100,13 +117,20 @@ export class CommerceLedger {
       .where('supplyDate', '<=', asOf)
       .get();
     const entries = rows.docs.map(document => document.data() as TransactionRecord)
-      .filter(record => record.country === 'GB' && record.currency === 'GBP')
+      .filter(countsAsUkTurnover)
       .map(record => ({ country: record.country, supplyDate: record.supplyDate, netPence: record.netPence }));
     const result = { ...ukTurnoverMetrics(entries, asOf, forecast), updatedAt: new Date().toISOString() };
     await this.db.collection(commerceCollections.turnover).doc(asOf).set(result);
     return result;
   }
 }
+
+/**
+ * Which sales count towards the UK VAT threshold: UK sales in pounds, less any fully refunded. A partly refunded sale
+ * still counts in full, which keeps the threshold warning on the safe side.
+ */
+export const countsAsUkTurnover = (record: Pick<TransactionRecord, 'country' | 'currency' | 'status'>) =>
+  record.country === 'GB' && record.currency === 'GBP' && record.status !== 'refunded';
 
 function quarterDates(year: number, quarter: number) {
   if (!Number.isInteger(year) || year < 2020 || year > 9998 || ![1, 2, 3, 4].includes(quarter)) {

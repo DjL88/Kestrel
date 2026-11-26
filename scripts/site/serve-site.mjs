@@ -55,9 +55,12 @@ export function startSiteServer(port = 4180) {
     if (rel.endsWith('/')) rel += 'index.html';
     const file = path.join(siteRoot, rel);
     if (!file.startsWith(siteRoot)) { res.writeHead(403).end(); return; }
+    // Firebase Hosting serves the site with cleanUrls (firebase.json), so /gallery is gallery.html; links the app
+    // makes use that form.
+    const served = path.extname(file) ? file : file + '.html';
     try {
-      const body = await readFile(file);
-      res.writeHead(200, { 'Content-Type': types[path.extname(file)] || 'application/octet-stream' }).end(body);
+      const body = await readFile(file).catch(() => readFile(served));
+      res.writeHead(200, { 'Content-Type': types[path.extname(served)] || 'application/octet-stream' }).end(body);
     } catch {
       res.writeHead(404).end('Not found');
     }

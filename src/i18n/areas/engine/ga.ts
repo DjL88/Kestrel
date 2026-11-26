@@ -50,6 +50,7 @@ export const ga: AreaTranslation<typeof source> = {
     global: 'Ní raibh imlíne aon ábhair iontaofa, mar sin laghdaíodh torann go cothrom ar fud an ghrianghraif.',
     failedCheck: 'Níor éirigh leis an toradh sa tseiceáil cháilíochta. Coinníodh d’eagarthóireacht reatha.',
     mainThread: 'Níorbh fhéidir leis an ngléas seo torann a laghdú sa chúlra, mar sin d’fhéadfadh InFlight stopadh ar feadh tamaill.',
+    learnedLostDetail: 'Ag lánmhéid, shlíoc laghdú torainn AI fíormhionsonraí den ábhar, mar sin úsáideadh an laghdú torainn ionsuite ina ionad.',
     leftAsItWas: (notes) => `Fágadh mar a bhí. ${notes}`,
   },
   workspace: {
@@ -73,6 +74,7 @@ export const ga: AreaTranslation<typeof source> = {
     thumbnailsTask: (count) => (count === 1 ? '1 mhionsamhail á hullmhú' : `${count} mionsamhail á n-ullmhú`),
     thumbnailStage: 'An grianghraf seo á léamh agus á laghdú',
     thumbnailFailed: (filename) => `Níorbh fhéidir an mhionsamhail do ${filename} a dhéanamh. Athnasc an bunchomhad agus bain triail eile as.`,
+    rawJpegXl: 'Úsáideann an RAW seo comhbhrú JPEG XL, nach féidir le InFlight a léamh fós. Níl an bunchomhad athraithe.',
     notConnected: (names) => `Níl sé nasctha le hinneall InFlight fós, mar sin níor cuireadh i bhfeidhm é: ${names}.`,
     exportRunning: 'Tá easpórtáil ar siúl cheana.',
     selectOneRaw: 'Roghnaigh grianghraf RAW amháin chun a TIFF a easpórtáil.',

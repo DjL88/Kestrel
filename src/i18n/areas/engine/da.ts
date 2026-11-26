@@ -50,6 +50,7 @@ export const da: AreaTranslation<typeof source> = {
     global: 'Ingen motivkontur var pålidelig, så støjreduktionen blev brugt jævnt på hele fotoet.',
     failedCheck: 'Resultatet bestod ikke kvalitetstjekket. Dine eksisterende redigeringer blev bevaret.',
     mainThread: 'Denne enhed kunne ikke fjerne støj i baggrunden, så InFlight kan have stået stille, mens den arbejdede.',
+    learnedLostDetail: 'I fuld størrelse udglattede AI-støjreduktionen ægte detaljer på motivet, så den indbyggede støjreduktion blev brugt i stedet.',
     leftAsItWas: (notes) => `Ladt som det var. ${notes}`,
   },
   workspace: {
@@ -73,6 +74,7 @@ export const da: AreaTranslation<typeof source> = {
     thumbnailsTask: (count) => (count === 1 ? 'Forbereder 1 miniature' : `Forbereder ${count} miniaturer`),
     thumbnailStage: 'Læser og formindsker dette foto',
     thumbnailFailed: (filename) => `Kunne ikke lave miniaturen til ${filename}. Forbind originalen igen, og prøv igen.`,
+    rawJpegXl: 'Denne RAW bruger JPEG XL-komprimering, som InFlight endnu ikke kan læse. Originalen er urørt.',
     notConnected: (names) => `Endnu ikke forbundet til InFlight-motoren, så ikke anvendt: ${names}.`,
     exportRunning: 'Der kører allerede en eksport.',
     selectOneRaw: 'Vælg ét RAW-foto for at eksportere dets TIFF.',

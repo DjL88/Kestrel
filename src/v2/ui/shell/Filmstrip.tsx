@@ -2,6 +2,7 @@ import { planFilmstrip } from '../../engineClient/burstGroups';
 import { stackText } from '../../../i18n/areas/stack';
 import { panoText } from '../../../i18n/areas/pano';
 import { hdrText } from '../../../i18n/areas/hdr';
+import { engineText } from '../../../i18n/areas/engine';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { AssistMode, FilmstripFilter, LiveFtpInbox, LiveTether, LookPreset, Photo, PhotoSort } from '../contract';
@@ -64,8 +65,12 @@ interface FilmstripProps {
   onWatchFolder?: () => void;
   onStopWatchingFolder?: () => void;
   onReceiveFromCamera?: () => void;
-  onTetherCamera?: () => void;
+  /** Live shoot room on other screens on this network (desktop app). */
+  shootRoom?: { links: { address: string; url: string }[]; shown: number } | null;
+  onOpenShootRoom?: () => void;
+  onCloseShootRoom?: () => void;
   liveFolder?: { name: string; imported: number; arriving: number; problem: boolean; ftp?: LiveFtpInbox; tether?: LiveTether } | null;
+  onTetherCamera?: () => void;
   onRunAutoCull: () => void;
   /** Culling Assistant rules with live sliders (x-std-cull-rules); present only while that preview is on. */
   onOpenCullAssistant?: () => void;
@@ -127,6 +132,9 @@ export default function Filmstrip({
   onWatchFolder,
   onStopWatchingFolder,
   onReceiveFromCamera,
+  shootRoom,
+  onOpenShootRoom,
+  onCloseShootRoom,
   onTetherCamera,
   liveFolder,
   onRunAutoCull,
@@ -379,6 +387,35 @@ export default function Filmstrip({
               title={STRINGS.liveShoot.watchHint}>
               <BrandIcon name="folder-arrow" size={13} />
               <span className="v2-compact-label">{STRINGS.liveShoot.watch}</span>
+            </button>
+          )}
+          {shootRoom ? (
+            <span role="status" data-testid="filmstrip-shoot-room"
+              className="inline-flex h-7 shrink-0 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] pl-2 text-[0.6875rem] text-[var(--text-primary)] whitespace-nowrap">
+              <span>{STRINGS.liveShoot.roomOpen(shootRoom.shown)}</span>
+              <details className="relative" data-testid="filmstrip-room-links">
+                <summary className="cursor-pointer list-none px-1 font-medium underline">{STRINGS.liveShoot.roomLinks}</summary>
+                <div className="absolute bottom-full left-0 z-50 mb-1 w-80 whitespace-normal rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] p-3 text-xs shadow-lg">
+                  <p className="mb-2">{STRINGS.liveShoot.roomLinksIntro}</p>
+                  {shootRoom.links.length ? (
+                    <ul className="space-y-1">
+                      {shootRoom.links.map((link) => <li key={link.url} className="font-mono break-all select-all">{link.url}</li>)}
+                    </ul>
+                  ) : <p>{STRINGS.liveShoot.ftpNoAddress}</p>}
+                  <p className="mt-2 text-[var(--text-secondary)]">{STRINGS.liveShoot.roomPlain}</p>
+                </div>
+              </details>
+              <button type="button" onClick={onCloseShootRoom} title={STRINGS.liveShoot.roomCloseHint} data-testid="filmstrip-close-room"
+                className="ml-1 inline-flex h-full items-center rounded-r-[var(--radius-sm)] border-l border-[var(--border-default)] px-2 font-medium hover:bg-[var(--bg-surface-hover)]">
+                {STRINGS.liveShoot.roomClose}
+              </button>
+            </span>
+          ) : onOpenShootRoom && (
+            <button type="button" onClick={onOpenShootRoom} data-testid="filmstrip-open-room"
+              className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
+              title={STRINGS.liveShoot.roomHint}>
+              <BrandIcon name="select-photos" size={13} />
+              <span className="v2-compact-label">{STRINGS.liveShoot.room}</span>
             </button>
           )}
           {!liveFolder && onTetherCamera && (
@@ -653,8 +690,9 @@ export default function Filmstrip({
                         <span className="sr-only">{stateLabel}</span>
                       ) : (
                         <span
+                          title={photo.state === 'unsupported' ? engineText.workspace.rawJpegXl : undefined}
                           className={`${photo.state === 'ready' ? 'v2-strip-tile-ready ' : ''}absolute left-1.5 bottom-1.5 rounded px-1.5 py-0.5 text-[0.5625rem] font-semibold ${
-                            photo.state === 'unavailable'
+                            photo.state === 'unavailable' || photo.state === 'unsupported'
                               ? 'bg-[var(--semantic-warning)] text-[#140d0a]'
                               : photo.state === 'importing' || photo.state === 'analysing'
                               ? 'bg-[var(--semantic-info)] text-[#09121a]'
@@ -662,6 +700,7 @@ export default function Filmstrip({
                           }`}
                         >
                           {stateLabel}
+                          {photo.state === 'unsupported' && <span className="sr-only">. {engineText.workspace.rawJpegXl}</span>}
                         </span>
                       )}
                     </button>
@@ -745,7 +784,7 @@ export default function Filmstrip({
             className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {panoText.menu(menuTargetIds.length)}
           </button>}
-          {onHdrMerge && menuTargetIds.length >= 2 && <button type="button" role="menuitem" title={hdrText.menuHint} data-testid="v2-hdr-merge-menu"
+          {onHdrMerge && menuTargetIds.length >= 2 && <button type="button" role="menuitem" title={`${hdrText.whatIs} ${hdrText.menuHint}`} data-testid="v2-hdr-merge-menu"
             onClick={() => { onHdrMerge(menuTargetIds); setTileMenu(null); }}
             className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {hdrText.menu(menuTargetIds.length)}

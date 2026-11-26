@@ -33,7 +33,8 @@ export interface PhotoHistogram {
   /** 'rgb16': measured from the 16-bit RAW develop. Absent: measured from the 8-bit picture on screen. */
   precision?: 'rgb16';
 }
-export type TileState = 'importing' | 'analysing' | 'ready' | 'unavailable';
+/** 'unsupported': the original is there, but its compression can't be read yet (a JPEG XL DNG); not 'unavailable'. */
+export type TileState = 'importing' | 'analysing' | 'ready' | 'unavailable' | 'unsupported';
 export type AssistMode = 'solo' | 'copilot' | 'autopilot';
 export type ThemeMode = 'dark' | 'light' | 'auto';
 export type PanelId =
@@ -441,6 +442,8 @@ export interface Photo {
   exif: PhotoExif;
   /** Whether the file says it was already edited in another app, in the person's words (src/core/editStatus.ts). */
   editStatus?: { kind: import('../../core/editStatus').EditStatusKind; label: string; detail: string };
+  /** Where the camera says it focused, in the person's words (src/core/cameraFocus.ts). Absent when the file does not say. */
+  cameraFocus?: { label: string; detail: string; area?: { x: number; y: number; width: number; height: number } };
   activeGroupId: string;
   editGroups: EditGroup[];
   sizes: SizePreset[];
@@ -493,6 +496,8 @@ export interface Photo {
   panorama?: { sources: string[] };
   /** This photo is an HDR merge made in InFlight: its bracket, in order, with each one's measured exposure in stops. */
   hdrMerge?: { sources: Array<{ filename: string; ev: number }> };
+  /** This photo is one frame of an exposure bracket found from the camera's settings: the bracket's photos in shooting order, each one's stops against the middle, and whether the camera marked it. */
+  bracket?: { photoIds: string[]; ev: number[]; fromCamera: boolean };
   /** 'offered': a RAW whose full-size develop is not on screen and can be made here; 'running': it is being made. */
   fullDevelop?: 'offered' | 'running';
   picture?: { preview?: import('../../core/pictureSource').PictureProvenance; thumb?: import('../../core/pictureSource').PictureProvenance };
@@ -566,6 +571,29 @@ export interface WatermarkPreset {
   forDarkUrl?: string;
   /** Artwork for light photos (a dark mark). */
   forLightUrl?: string;
+}
+
+/** The person's own AI (key or a model on this computer), as the Assist panel shows it. */
+export interface AiSecondOpinionView {
+  /** none: nothing set up in Settings; consent: set up but not agreed for this destination; ready: may be asked. */
+  setup: 'none' | 'consent' | 'ready';
+  destination?: string;
+  onThisComputer?: boolean;
+  consentText?: string;
+  photoId?: string;
+  phase?: 'asking' | 'ready' | 'failed' | 'applied';
+  message?: string;
+  summary?: string;
+  points?: { label: string; detail: string }[];
+  /** Plain lines such as "Warmth: +0.2", exactly the values Apply would set. */
+  changes?: string[];
+}
+
+export interface AssistantSuggestionsView {
+  name: string;
+  intro: string;
+  lines: { photo: string; change: string; reason: string }[];
+  more?: string;
 }
 
 export interface AiProviderConfig {
@@ -651,6 +679,8 @@ export interface ExportRequest {
   photoIds: string[];
   /** A brand kit put on these photos first, as one Undo step on each, so the export carries it (K080). */
   brandKitId?: string;
+  /** Captions and credits (IPTC) written into each JPEG or PNG, with code replacements. Absent = none. */
+  captions?: import('../../core/captionTemplate').CaptionTemplate;
 }
 
 /** How a photo is drawn. The engine supplies this so the canvas shows real, developed pixels; without it the UI falls back
@@ -742,6 +772,10 @@ export interface WorkspaceStore {
   tasks: TaskInfo[];
   /** Photos whose deep vision review is running right now (empty when none). */
   reviewingPhotoIds: string[];
+  /** Bring your own AI, in the real workspace only: set-up state and the answer for the photo on screen. */
+  aiSecondOpinion?: AiSecondOpinionView;
+  /** The oldest set of suggestions an AI assistant left for this project, in words; absent when there are none. */
+  assistantSuggestions?: AssistantSuggestionsView;
   settings: WorkspaceSettings;
 
   // Shell UI layout state
@@ -784,6 +818,8 @@ export interface WorkspaceStore {
   quickStart?: { phase: 'working' | 'ready' | 'unchanged' | 'held' | 'failed'; photoId: string | null } | null;
   /** Live shoot: the folder being watched for new frames, how many have arrived, how many are still being written, and
    * whether the folder can be read just now (a drive unplugged mid-shoot). Absent when nothing is watched. */
+  /** Live shoot room: the links other screens on this network open, and how many frames are showing there. */
+  shootRoom?: { links: { address: string; url: string }[]; shown: number } | null;
   liveFolder?: { name: string; imported: number; arriving: number; problem: boolean; ftp?: LiveFtpInbox; tether?: LiveTether } | null;
   /** The open project's automatic backup, as last reported. Absent when no project is open. */
   backup?: { state: 'idle' | 'working' | 'ok' | 'partial' | 'failed'; at?: number } | null;
@@ -801,7 +837,8 @@ export interface WorkspaceActions {
   // Navigation & Projects
   openProject: (projectId: string) => void;
   backToProjects: () => void;
-  createProject: (name: string, kind?: 'photography' | 'collage') => void;
+  /** `mode` is the new project's Flight mode; absent, it starts in Settings' default. */
+  createProject: (name: string, kind?: 'photography' | 'collage', mode?: AssistMode) => void;
   createCollageFromSelection?: (photoIds: string[]) => void;
   /** Focus stack the chosen photos into a new linked photo, as a background task (preview, behind its flag). */
   focusStackPhotos?: (photoIds: string[]) => void;
@@ -858,6 +895,9 @@ export interface WorkspaceActions {
   stopWatchingFolder?: () => void;
   /** Live shoot over Wi-Fi: receive frames a camera sends by FTP into a chosen folder (desktop app only). */
   receiveFromCamera?: () => void;
+  /** Live shoot room: show the shoot on other screens on this network (a client's iPad, a studio screen); desktop app. */
+  openShootRoom?: () => void;
+  closeShootRoom?: () => void;
   /** Live shoot over USB: save each frame the connected camera takes into a chosen folder and watch it (desktop app, preview). */
   tetherCamera?: () => void;
   importDroppedPhotos: (files: File[]) => void;
@@ -904,6 +944,17 @@ export interface WorkspaceActions {
   runDeepVisionReview: (photoId: string) => void;
   applyAssistSuggestion: (photoId: string, suggestionId: string) => void;
   requestLocalAuto?: (photoId: string) => void;
+  /** Bring your own AI (present only in the real workspace): agree, by host name, to send a small preview there. */
+  agreeAiSecondOpinion?: () => void;
+  /** Ask the person's own AI about this photo's colour and light. Advisory only: nothing changes until Apply. */
+  askAiSecondOpinion?: (photoId: string) => void;
+  cancelAiSecondOpinion?: () => void;
+  /** Apply the checked, one-small-step suggestion as one undoable edit; refused if the photo changed since. */
+  applyAiSecondOpinion?: (photoId: string) => void;
+  dismissAiSecondOpinion?: () => void;
+  /** Suggestions an AI assistant left through the MCP tool: apply them all (decisions undoable), or dismiss. */
+  applyAssistantSuggestions?: (name: string) => void;
+  dismissAssistantSuggestions?: (name: string) => void;
   /** Personal style (a preview, off by default; present only while it is on): forget everything learnt on this device. */
   resetEditStyle?: () => void;
   /** Cloud edit settings (preview, off by default): what would be sent and its size. Sends nothing. Absent while the feature is off. */

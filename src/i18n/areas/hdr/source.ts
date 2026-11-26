@@ -29,4 +29,9 @@ export const source = {
   infoMadeFrom: (n: number) => plural(n, { one: `Made from ${n} photo:`, other: `Made from ${n} photos:` }),
   infoExposure: (name: string, ev: string) => `${name}: ${ev} stops`,
   infoHow: "Each part comes from the photos that were well exposed there, lined up and weighted by exposure, then toned with the editor's Highlights and Shadows. No pixels were generated.",
+  whatIs: "HDR means High Dynamic Range, not high definition. It blends several exposures of the same scene so bright skies and dark shadows both keep their detail.",
+  bracketTitle: "Exposure bracket",
+  bracketFound: (n: number, stops: string) => `${n} photos taken moments apart at different exposures (${stops} stops).`,
+  bracketFromCamera: "Your camera marked these as an exposure bracket.",
+  bracketFromExposures: "Found from their shutter speed, aperture and ISO.",
 };

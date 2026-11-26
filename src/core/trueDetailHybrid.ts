@@ -1,4 +1,5 @@
 import type { Pixels } from './colourCheck';
+import { blendLearned } from './trueDetailAi';
 
 /**
  * TrueDetail's regional guardian (owner decision 8, 25 Nov 2026). TrueDetail is a combination: each candidate
@@ -230,3 +231,24 @@ export function candidateLadder(requested: number, policies: Readonly<Record<Den
 }
 
 export const scaledStrength = (requested: number, share: number) => Math.round(Math.min(2, Math.max(0, requested * share)) * 1000) / 1000;
+
+/**
+ * A learned result judged where it was made: at full size, on the subject's own pixels, at each blend strength the
+ * guardian may offer. The working copy the regional guardian sees is scaled down (1600 px), which hides exactly the
+ * fine detail a learned denoiser can smooth away: on open-licence ISO 3,200 to 32,000 RAW files, NAFNet passed at
+ * working size on 4 of 11 subject crops where at 100% it kept as little as 39% of the structure
+ * (scripts/quality/truedetail-bench.mts). Only strengths that pass here are offered to the guardian.
+ */
+export function qualifyLearned(original: Pixels, learned: Pixels, alpha: Float32Array, strengths: readonly number[], policy: RegionPolicy = TRUEDETAIL_REGIONS.subject): Array<{ strength: number; reason: string | null; score: RegionScore }> {
+  const { width, height } = original;
+  if (learned.width !== width || learned.height !== height || alpha.length !== width * height) throw new RangeError('Learned result and alpha must match the original');
+  const beforeLuma = lumaPlane(original);
+  return strengths.map(strength => {
+    const data = new Uint8ClampedArray(original.data);
+    const weight = new Float32Array(alpha.length);
+    for (let p = 0; p < weight.length; p++) weight[p] = Math.max(0, Math.min(1, alpha[p])) * strength;
+    blendLearned(data, learned.data, weight);
+    const score = scoreRegion(original, { data, width, height }, alpha, beforeLuma);
+    return { strength, reason: judgeRegion(score, policy), score };
+  });
+}

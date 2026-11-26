@@ -9,6 +9,7 @@ mod oauth_loopback;
 #[cfg(desktop)]
 mod ftp_inbox;
 #[cfg(desktop)]
+mod shoot_room;
 mod ptp_usb;
 #[cfg(desktop)]
 mod local_vision;
@@ -21,7 +22,7 @@ pub use kestrel_raw::scene_develop;
 #[cfg(desktop)]
 pub mod raw_precision;
 #[cfg(desktop)]
-use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+mod app_menu;
 #[cfg(desktop)]
 use tauri::{Emitter, Manager};
 #[cfg(desktop)]
@@ -79,6 +80,65 @@ fn ftp_inbox_start(state: tauri::State<'_, FtpInboxState>, folder: String, user:
 #[tauri::command]
 fn ftp_inbox_status(state: tauri::State<'_, FtpInboxState>) -> Option<FtpInboxInfo> {
     state.0.lock().ok().and_then(|slot| slot.as_ref().map(ftp_inbox_info))
+}
+
+/// The live shoot room, while the photographer has it on. One at a time; starting again replaces it.
+#[cfg(desktop)]
+#[derive(Default)]
+struct ShootRoomState(std::sync::Mutex<Option<shoot_room::RoomHandle>>);
+
+#[cfg(desktop)]
+#[derive(serde::Serialize)]
+struct ShootRoomInfo { port: u16, addresses: Vec<String> }
+
+/// Open the room for other screens on this network. `key` is the random part of the link; tries `port`, then any.
+#[cfg(desktop)]
+#[tauri::command]
+fn shoot_room_start(state: tauri::State<'_, ShootRoomState>, key: String, title: String, port: u16) -> Result<ShootRoomInfo, String> {
+    let mut slot = state.0.lock().map_err(|_| "The shoot room is busy. Try again.".to_string())?;
+    if let Some(old) = slot.take() { old.stop(); }
+    let handle = shoot_room::start(key.clone(), title.clone(), port)
+        .or_else(|_| shoot_room::start(key, title, 0))
+        .map_err(|error| format!("The shoot room could not open: {error}"))?;
+    let info = ShootRoomInfo { port: handle.port, addresses: ftp_inbox::local_addresses() };
+    *slot = Some(handle);
+    Ok(info)
+}
+
+/// Show one frame in the room: a screen-sized JPEG as the raw body (never the original). Headers carry what it is.
+#[cfg(desktop)]
+#[tauri::command]
+fn shoot_room_put(state: tauri::State<'_, ShootRoomState>, request: tauri::ipc::Request<'_>) -> Result<bool, String> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else { return Err("No picture was sent.".into()) };
+    let header = |name: &str| request.headers().get(name).and_then(|value| value.to_str().ok()).map(str::to_string).unwrap_or_default();
+    let name = preview_cache::percent_decode(&header("x-frame-name")).unwrap_or_default();
+    let rating: u8 = header("x-frame-rating").parse().unwrap_or(0);
+    let slot = state.0.lock().map_err(|_| "The shoot room is busy.".to_string())?;
+    let Some(room) = slot.as_ref() else { return Ok(false) };
+    let mut room = room.state.lock().map_err(|_| "The shoot room is busy.".to_string())?;
+    Ok(room.put(&header("x-frame-id"), &name, rating, &header("x-frame-decision"), header("x-frame-camera") == "1", bytes.to_vec()))
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+fn shoot_room_marks(state: tauri::State<'_, ShootRoomState>, id: String, rating: u8, decision: String, removed: bool) -> bool {
+    let Ok(slot) = state.0.lock() else { return false };
+    let Some(room) = slot.as_ref() else { return false };
+    let Ok(mut room) = room.state.lock() else { return false };
+    if removed { room.remove(&id); true } else { room.set_marks(&id, rating, &decision) }
+}
+
+/// Stars and picks sent from the room since the last call, as the page sent them; the app checks each one.
+#[cfg(desktop)]
+#[tauri::command]
+fn shoot_room_take(state: tauri::State<'_, ShootRoomState>) -> Vec<String> {
+    state.0.lock().ok().and_then(|slot| slot.as_ref().and_then(|room| room.state.lock().ok().map(|mut room| room.take_marks()))).unwrap_or_default()
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+fn shoot_room_stop(state: tauri::State<'_, ShootRoomState>) {
+    if let Ok(mut slot) = state.0.lock() { if let Some(handle) = slot.take() { handle.stop(); } }
 }
 
 #[cfg(desktop)]
@@ -217,7 +277,8 @@ fn oauth_listen_stop(state: tauri::State<'_, OauthListener>) {
 /// Only picture files InFlight can read. Anything else handed to the app is ignored.
 #[cfg(desktop)]
 fn is_photo(path: &std::path::Path) -> bool {
-    const KNOWN: [&str; 19] = ["jpg", "jpeg", "png", "webp", "heic", "heif", "hif", "nef", "nrw", "arw", "srf", "sr2", "cr2", "cr3", "raf", "rw2", "orf", "pef", "dng"];
+    // Keep in step with PHOTO_EXTENSIONS in src/core/rawFormats.ts (a unit test there compares them).
+    const KNOWN: [&str; 25] = ["jpg", "jpeg", "png", "webp", "heic", "heif", "hif", "nef", "nrw", "arw", "srf", "sr2", "cr2", "cr3", "raf", "rw2", "orf", "pef", "dng", "srw", "3fr", "fff", "iiq", "rwl", "mos"];
     path.is_file() && path.extension().and_then(|e| e.to_str()).map(|e| KNOWN.contains(&e.to_ascii_lowercase().as_str())).unwrap_or(false)
 }
 
@@ -517,111 +578,20 @@ pub fn run() {
         .manage(OpenedFiles::default())
         .manage(OauthListener::default())
         .manage(FtpInboxState::default())
+        .manage(ShootRoomState::default())
         .manage(PtpUsbState::default())
         .manage(local_vision::VisionState::default())
-        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, preview_cache_build, preview_cache_store, preview_cache_read, preview_cache_rotate, preview_cache_usage, preview_cache_clear, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, ftp_inbox_start, ftp_inbox_status, ftp_inbox_stop, ptp_usb_list, ptp_usb_open, ptp_usb_write, ptp_usb_read, ptp_usb_event, ptp_usb_close, tether_save_frame, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure])
-        .menu(|app| {
-            let app_menu = Submenu::with_items(app, "InFlight", true, &[
-                &PredefinedMenuItem::about(app, None, None)?,
-                &PredefinedMenuItem::separator(app)?,
-                &PredefinedMenuItem::hide(app, None)?,
-                &PredefinedMenuItem::quit(app, None)?,
-            ])?;
-            let file = Submenu::with_items(app, "File", true, &[
-                &MenuItem::with_id(app, "add", "Add photos…", true, Some("CmdOrCtrl+O"))?,
-                &MenuItem::with_id(app, "export", "Export…", true, Some("CmdOrCtrl+E"))?,
-                &MenuItem::with_id(app, "export-again", "Export again with last settings", true, None::<&str>)?,
-                &PredefinedMenuItem::separator(app)?,
-                // V2 workspace items (src/v2/ui/commands/menuMap.ts). The V2 header menus are hidden in the desktop
-                // app, so these are the only way in there; the current app ignores ids it does not know.
-                &MenuItem::with_id(app, "removed-photos", "Removed photos…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "reset-photo", "Reset photo edits", true, None::<&str>)?,
-                &MenuItem::with_id(app, "xmp-save", "Save ratings to XMP…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "xmp-read", "Read ratings from XMP…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "lightroom-read", "Bring in a Lightroom catalogue…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "open-export", "Export everything in open formats…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "backup-now", "Back up now", true, None::<&str>)?,
-                &MenuItem::with_id(app, "backup-file", "Save backup file…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "back-to-projects", "Back to projects", true, None::<&str>)?,
-                &PredefinedMenuItem::separator(app)?,
-                &PredefinedMenuItem::close_window(app, None)?,
-            ])?;
-            let edit = Submenu::with_items(app, "Edit", true, &[
-                &MenuItem::with_id(app, "edit-photo", "Edit photo", true, None::<&str>)?,
-                &MenuItem::with_id(app, "edit-auto", "Auto-adjust…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "edit-look", "Apply look…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "edit-copy-adjustments", "Copy edits", true, None::<&str>)?,
-                &MenuItem::with_id(app, "edit-paste-adjustments", "Paste edits", true, None::<&str>)?,
-                &PredefinedMenuItem::separator(app)?,
-                &PredefinedMenuItem::undo(app, None)?,
-                &PredefinedMenuItem::redo(app, None)?,
-                &PredefinedMenuItem::separator(app)?,
-                &PredefinedMenuItem::cut(app, None)?,
-                &PredefinedMenuItem::copy(app, None)?,
-                &PredefinedMenuItem::paste(app, None)?,
-                // A photo library must select photo records, not the webview page text.
-                &MenuItem::with_id(app, "photos-select-all", "Select All Photos", true, Some("CmdOrCtrl+A"))?,
-                &MenuItem::with_id(app, "photos-deselect-all", "Deselect Photos", true, Some("CmdOrCtrl+Shift+A"))?,
-            ])?;
-            // Plain-letter shortcuts (P, X, 0-5) are not accelerators here: a native one would fire while typing in a field.
-            let rate = Submenu::with_items(app, "Rate", true, &[
-                &MenuItem::with_id(app, "photo-rate-0", "No rating", true, None::<&str>)?,
-                &MenuItem::with_id(app, "photo-rate-1", "1 star", true, None::<&str>)?,
-                &MenuItem::with_id(app, "photo-rate-2", "2 stars", true, None::<&str>)?,
-                &MenuItem::with_id(app, "photo-rate-3", "3 stars", true, None::<&str>)?,
-                &MenuItem::with_id(app, "photo-rate-4", "4 stars", true, None::<&str>)?,
-                &MenuItem::with_id(app, "photo-rate-5", "5 stars", true, None::<&str>)?,
-            ])?;
-            let photo = Submenu::with_items(app, "Photo", true, &[
-                &MenuItem::with_id(app, "photo-keep", "Keep", true, None::<&str>)?,
-                // Originals are never moved or deleted: this marks the photo as set aside, and it can be brought back.
-                &MenuItem::with_id(app, "photo-reject", "Set aside", true, None::<&str>)?,
-                &MenuItem::with_id(app, "photo-unreview", "Back to review", true, None::<&str>)?,
-                &PredefinedMenuItem::separator(app)?,
-                &rate,
-                &PredefinedMenuItem::separator(app)?,
-                &MenuItem::with_id(app, "photo-compare", "Compare photos", true, None::<&str>)?,
-                &PredefinedMenuItem::separator(app)?,
-                &MenuItem::with_id(app, "photo-undo", "Undo last decision", true, None::<&str>)?,
-                &MenuItem::with_id(app, "photo-redo", "Redo decision", true, None::<&str>)?,
-            ])?;
-            let view = Submenu::with_items(app, "View", true, &[
-                &MenuItem::with_id(app, "view-grid", "Grid", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-loupe", "Single photo", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-compare", "Compare", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-photo-only", "Photo only", true, None::<&str>)?,
-                &PredefinedMenuItem::separator(app)?,
-                &MenuItem::with_id(app, "filmstrip", "Show or hide filmstrip", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-info", "Show or hide Photo info", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-bursts", "Group or ungroup bursts", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-tools", "Show or hide editing tools", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-tab-auto", "Show or hide Auto tab", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-tab-crop", "Show or hide Crop tab", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-tab-edit", "Show or hide Edit tab", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-tab-masks", "Show or hide Masks tab", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-tab-history", "Show or hide History tab", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-tab-float", "Dock or undock active editor tab", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-all-tabs", "Show and dock all editor tabs", true, None::<&str>)?,
-                &PredefinedMenuItem::separator(app)?,
-                &MenuItem::with_id(app, "view-left", "Panels on the left", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-right", "Panels on the right", true, None::<&str>)?,
-                &PredefinedMenuItem::separator(app)?,
-                &PredefinedMenuItem::fullscreen(app, None)?,
-            ])?;
-            let settings = Submenu::with_items(app, "Settings", true, &[
-                &MenuItem::with_id(app, "appearance", "Appearance and layout…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "settings-ai", "Bring your own AI…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "settings-storage", "Bring your own Storage…", true, None::<&str>)?,
-                // Cmd+M is Minimize on macOS (Window menu), so the Mac gets no accelerator here; Cmd+, opens Settings.
-                &MenuItem::with_id(app, "macro-pad", "Macro pad and shortcuts…", true, if cfg!(target_os = "macos") { None } else { Some("Ctrl+M") })?,
-            ])?;
-            let window = Submenu::with_items(app, "Window", true, &[
-                &PredefinedMenuItem::minimize(app, None)?,
-            ])?;
-            Menu::with_items(app, &[&app_menu, &file, &edit, &photo, &view, &settings, &window])
-        })
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, preview_cache_build, preview_cache_store, preview_cache_read, preview_cache_rotate, preview_cache_usage, preview_cache_clear, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, ftp_inbox_start, ftp_inbox_status, ftp_inbox_stop, shoot_room_start, shoot_room_put, shoot_room_marks, shoot_room_take, shoot_room_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure, app_menu::menu_set_enabled, ptp_usb_list, ptp_usb_open, ptp_usb_write, ptp_usb_read, ptp_usb_event, ptp_usb_close, tether_save_frame])
+        .menu(|app| app_menu::build(app))
         .on_menu_event(|app, event| {
-            let _ = app.emit("menu", event.id().0.clone());
+            let id = event.id().0.clone();
+            // Help links open in the system browser; every other choice goes to the page (src/v2/ui/commands/menuMap.ts).
+            if let Some(url) = app_menu::site_link_for(&id) {
+                use tauri_plugin_opener::OpenerExt;
+                let _ = app.opener().open_url(url, None::<&str>);
+                return;
+            }
+            let _ = app.emit("menu", id);
         });
 
     let app = builder

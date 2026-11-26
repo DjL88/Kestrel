@@ -8,8 +8,10 @@ const MAX_PREVIEW_PIXELS = 200_000_000;
 const MAX_DIRECTORIES = 24;
 const MAX_TAGS = 1024;
 const MAX_SUB_DIRECTORIES = 16;
+const PREVIEW_LONG_EDGE = 640;
+const SMALL_PREVIEW_LONG_EDGE = 160;
 
-async function locatePreview(file: Blob): Promise<Blob | null> {
+async function locatePreview(file: Blob, minEdge: number): Promise<Blob | null> {
   if (file.size < 8) return null;
   const read = async (offset: number, length: number) =>
     offset >= 0 && offset + length <= file.size
@@ -23,7 +25,7 @@ async function locatePreview(file: Blob): Promise<Blob | null> {
   if (rafMagic && new TextDecoder().decode(new Uint8Array(rafMagic.buffer)) === 'FUJIFILMCCD-RAW ') {
     const place = await read(84, 8);
     if (place) candidates.push({ offset: place.getUint32(0), length: place.getUint32(4) });
-    return pickBest(file, candidates, read);
+    return pickBest(file, candidates, read, minEdge);
   }
   const order = header.getUint16(0);
   if (order !== 0x4949 && order !== 0x4d4d) return null;
@@ -74,17 +76,19 @@ async function locatePreview(file: Blob): Promise<Blob | null> {
       }
     }
     pending.push(directory.getUint32(count * 12, little));
-    if (start >= 8 && length >= 4096 && length <= MAX_PREVIEW_BYTES && start + length <= file.size) {
+    // A 256 px thumbnail can be under 4 KB; only the last-resort small preview accepts one.
+    const minBytes = minEdge < PREVIEW_LONG_EDGE ? 512 : 4096;
+    if (start >= 8 && length >= minBytes && length <= MAX_PREVIEW_BYTES && start + length <= file.size) {
       candidates.push({ offset: start, length });
     }
-    if (stripStart >= 8 && stripLength >= 4096 && stripLength <= MAX_PREVIEW_BYTES && stripStart + stripLength <= file.size) {
+    if (stripStart >= 8 && stripLength >= minBytes && stripLength <= MAX_PREVIEW_BYTES && stripStart + stripLength <= file.size) {
       candidates.push({ offset: stripStart, length: stripLength });
     }
   }
-  return pickBest(file, candidates, read);
+  return pickBest(file, candidates, read, minEdge);
 }
 
-async function pickBest(file: Blob, candidates: { offset: number; length: number }[], read: (offset: number, length: number) => Promise<DataView | null>): Promise<Blob | null> {
+async function pickBest(file: Blob, candidates: { offset: number; length: number }[], read: (offset: number, length: number) => Promise<DataView | null>, minEdge: number): Promise<Blob | null> {
   // JPEG byte size depends on compression and detail. Prefer actual pixel area.
   let best: { preview: Blob; pixels: number } | null = null;
   for (const { offset, length } of candidates) {
@@ -92,7 +96,7 @@ async function pickBest(file: Blob, candidates: { offset: number; length: number
     const last = await read(offset + length - 2, 2);
     if (first?.getUint16(0) === 0xffd8 && first.getUint8(2) === 0xff && last?.getUint16(0) === 0xffd9) {
       const preview = file.slice(offset, offset + length, 'image/jpeg');
-      const pixels = await usefulPixelCount(preview);
+      const pixels = await usefulPixelCount(preview, minEdge);
       if (pixels && (!best || pixels > best.pixels || (pixels === best.pixels && length > best.preview.size))) {
         best = { preview, pixels };
       }
@@ -101,7 +105,8 @@ async function pickBest(file: Blob, candidates: { offset: number; length: number
   return best?.preview ?? null;
 }
 
-async function usefulPixelCount(preview: Blob): Promise<number> {
+/** A usable preview: at least `minEdge` px on its long side (the normal 640, or less for the last-resort small one). */
+async function usefulPixelCount(preview: Blob, minEdge = PREVIEW_LONG_EDGE): Promise<number> {
   const data = new DataView(await preview.slice(0, 256 * 1024).arrayBuffer());
   let offset = 2;
   while (offset + 4 < data.byteLength && data.getUint8(offset) === 0xff) {
@@ -129,7 +134,8 @@ async function usefulPixelCount(preview: Blob): Promise<number> {
       // or fabricated headers before trusting their advertised dimensions.
       if (components < 1 || components > 4 || length !== 8 + 3 * components) return 0;
       const pixels = width * height;
-      return width >= 320 && height >= 320 && Math.max(width, height) >= 640 && pixels <= MAX_PREVIEW_PIXELS ? pixels : 0;
+      const shortEdge = Math.min(320, Math.ceil(minEdge / 2));
+      return width >= shortEdge && height >= shortEdge && Math.max(width, height) >= minEdge && pixels <= MAX_PREVIEW_PIXELS ? pixels : 0;
     }
     offset += 2 + length;
   }
@@ -142,12 +148,22 @@ async function usefulPixelCount(preview: Blob): Promise<number> {
  * Canon CR3, a different kind of container, is handled). Returns null when no usable preview exists.
  */
 export async function extractRawPreview(file: Blob): Promise<Blob | null> {
-  const preview = await findRawPreview(file);
+  const preview = await findRawPreview(file, PREVIEW_LONG_EDGE);
   return preview && orientPreview(preview, await rawOrientation(file));
 }
 
-async function findRawPreview(file: Blob): Promise<Blob | null> {
-  const located = await locatePreview(file);
+/**
+ * Last resort when a RAW has no preview of at least 640 px: its largest embedded JPEG down to 160 px on the long side,
+ * such as the 256 px thumbnail of a Lightroom JPEG XL DNG whose larger previews are JPEG XL too. Only for showing that
+ * a photo is there (labelled as the camera's preview); never a source for an export or a 100% view.
+ */
+export async function extractSmallRawPreview(file: Blob): Promise<Blob | null> {
+  const preview = await findRawPreview(file, SMALL_PREVIEW_LONG_EDGE);
+  return preview && orientPreview(preview, await rawOrientation(file));
+}
+
+async function findRawPreview(file: Blob, minEdge: number): Promise<Blob | null> {
+  const located = await locatePreview(file, minEdge);
   if (located) return located;
   // Most camera-embedded JPEGs are near the front of a RAW file. Probe in
   // increasing bounded windows to avoid allocating 28 MiB for every thumbnail.
@@ -158,7 +174,7 @@ async function findRawPreview(file: Blob): Promise<Blob | null> {
     const fallback = extractEmbeddedJpegFromRawBuffer(buffer);
     if (!fallback) continue;
     const candidate = new Blob([fallback.bytes.slice()], { type: 'image/jpeg' });
-    const pixels = await usefulPixelCount(candidate);
+    const pixels = await usefulPixelCount(candidate, minEdge);
     if (pixels > (bestFallback?.pixels ?? 0)) bestFallback = { blob: candidate, pixels };
     // A substantial full-frame preview is sufficient; do not keep reading the RAW.
     // Small camera thumbnails must not hide a larger preview later in the file.

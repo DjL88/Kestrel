@@ -60,6 +60,30 @@ test('an unverified email, another project or a bad signature is refused', async
   } finally { await h.close(); }
 });
 
+test('opening Settings a few times, then signing in, is not refused: the Firebase exchange allows a busy minute', async () => {
+  // 26 Nov beta: every Settings visit exchanged the Firebase token five times; two visits used up a limit of 10 a
+  // minute, so the sign-in's own Pro check was refused and Pro did not arrive.
+  const h = await start();
+  try {
+    for (let i = 0; i < 30; i++) {
+      const signIn = await h.call('POST', '/v1/auth/firebase', { body: { credential: firebaseToken(h) } });
+      assert.equal(signIn.status, 200, `exchange ${i + 1} of 30 in one minute`);
+    }
+  } finally { await h.close(); }
+});
+
+test('the Firebase exchange still has a ceiling per address', async () => {
+  const h = await start();
+  try {
+    let refused = 0;
+    for (let i = 0; i < 70; i++) {
+      const r = await h.call('POST', '/v1/auth/firebase', { body: { credential: firebaseToken(h) } });
+      if (r.status === 429) refused++;
+    }
+    assert.equal(refused, 10, 'sixty a minute, then "too many attempts"');
+  } finally { await h.close(); }
+});
+
 test('without a configured project the route says sign-in is unavailable', async () => {
   const h = await startHarness(undefined, undefined, { firebaseKeys: async () => [jwk] });
   try {
@@ -97,5 +121,21 @@ test('account device management lists only the effective licence and releases an
     assert.equal((await devices(token)).body.devices.length, 1);
     assert.equal((await release(token, second.body.activationId)).status, 404);
     assert.equal((await h.call('POST', '/v1/me/devices', { body: { deviceHash: DEVICE } })).status, 401);
+  } finally { await h.close(); }
+});
+
+test('Microsoft sign-in: an unproved work-account email is refused, and once proved it reaches the same account as Google', async () => {
+  const h = await start();
+  try {
+    await h.call('POST', '/v1/admin/licences/grant', { token: h.adminToken, body: { email: 'cleo@example.com', plan: 'paid', majorVersion: 1 } });
+    const viaMicrosoft = (verified: boolean) => firebaseToken(h, { email_verified: verified, firebase: { sign_in_provider: 'microsoft.com', identities: { 'microsoft.com': ['ms-oid-1'] } } });
+    // Firebase does not vouch for a Microsoft address (an organisation sets it), so the server must not take it on trust.
+    assert.equal((await h.call('POST', '/v1/auth/firebase', { body: { credential: viaMicrosoft(false) } })).status, 401);
+    const google = await h.call('POST', '/v1/auth/firebase', { body: { credential: firebaseToken(h, { firebase: { sign_in_provider: 'google.com' } }) } });
+    const microsoft = await h.call('POST', '/v1/auth/firebase', { body: { credential: viaMicrosoft(true) } });
+    assert.equal(microsoft.status, 200);
+    const plans = async (token: string) => (await h.call('GET', '/v1/me/entitlements', { token })).body.plans;
+    assert.deepEqual(await plans(microsoft.body.accessToken), await plans(google.body.accessToken), 'the same email has the same access');
+    assert.ok((await plans(microsoft.body.accessToken)).length > 0);
   } finally { await h.close(); }
 });

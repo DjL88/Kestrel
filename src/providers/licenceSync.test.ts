@@ -55,7 +55,7 @@ import { canonicalJson } from '../core/signedEnvelope';
 import { decideAccountAccess } from '../core/licenceOnline';
 import { sha256Hex } from '../core/signedEnvelope';
 
-async function accountSetup(mode: 'no_licence' | 'grant' | 'limit' | 'down' | 'badsig' | 'authfail', beforeGrant?: () => Promise<void>) {
+async function accountSetup(mode: 'no_licence' | 'grant' | 'limit' | 'down' | 'badsig' | 'authfail' | 'busy', beforeGrant?: () => Promise<void>, busyAnswers = 1) {
   const pair = await webcrypto.subtle.generateKey({ name: 'Ed25519' }, true, ['sign', 'verify']) as CryptoKeyPair;
   const b64 = (b: ArrayBuffer) => Buffer.from(b).toString('base64');
   const grantKeys = { k1: b64(await webcrypto.subtle.exportKey('raw', pair.publicKey)) };
@@ -68,6 +68,7 @@ async function accountSetup(mode: 'no_licence' | 'grant' | 'limit' | 'down' | 'b
   const fetchImpl = async (url: string, init: RequestInit) => {
     calls.push(`${url.replace('https://licences.example.test', '')} ${(init.headers as Record<string, string>).authorization ?? ''}`.trim());
     if (mode === 'down') throw new Error('offline');
+    if (url.endsWith('/v1/auth/firebase') && mode === 'busy' && busyAnswers-- > 0) return json(429, { error: { code: 'RATE_LIMITED', message: 'Too many attempts. Wait a minute and try again.' } });
     if (url.endsWith('/v1/auth/firebase')) return mode === 'authfail' ? json(401, { error: { code: 'AUTH_INVALID' } }) : json(200, { accessToken: 'session-token' });
     if (mode === 'no_licence') return json(403, { error: { code: 'NO_LICENCE', message: 'none' } });
     if (mode === 'limit') return json(409, { error: { code: 'DEVICE_LIMIT', message: 'full' } });
@@ -76,8 +77,9 @@ async function accountSetup(mode: 'no_licence' | 'grant' | 'limit' | 'down' | 'b
     const signature = mode === 'badsig' ? 'A'.repeat(86) + '==' : b64(await webcrypto.subtle.sign({ name: 'Ed25519' }, pair.privateKey, new TextEncoder().encode(canonicalJson(payload))));
     return json(200, { grant: { payload, keyId: 'k1', signature }, activationId: 'act_1' });
   };
-  const options = { baseUrl: 'https://licences.example.test', grantKeys, storage, fetch: fetchImpl as unknown as typeof fetch, now: () => now, platform: 'macos' as const, appVersion: '1.0.0', randomId: () => 'acct-device' };
-  return { sync: new LicenceSync(options), reload: () => new LicenceSync(options), calls, now, setMode: (next: typeof mode) => { mode = next; } };
+  const waits: number[] = [];
+  const options = { baseUrl: 'https://licences.example.test', grantKeys, storage, fetch: fetchImpl as unknown as typeof fetch, now: () => now, platform: 'macos' as const, appVersion: '1.0.0', randomId: () => 'acct-device', sleep: async (ms: number) => { waits.push(ms); } };
+  return { sync: new LicenceSync(options), reload: () => new LicenceSync(options), calls, waits, now, setMode: (next: typeof mode) => { mode = next; } };
 }
 
 test('signing in with no licence on the account stays Free', async () => {
@@ -118,6 +120,29 @@ test('sign-out during an online grant check cannot restore the signed-out accoun
   finish();
   assert.equal(await check, null);
   assert.equal(await env.reload().storedAccountStanding(), null);
+});
+
+test('a "too many attempts" answer at sign-in is waited out, so Pro still arrives (26 Nov beta: Pro lost after sign-in)', async () => {
+  const env = await accountSetup('busy');
+  const standing = await env.sync.activateAccount('firebase-id-token');
+  assert.equal(standing?.kind, 'active');
+  assert.equal(env.waits.length, 1, 'waited once for the server\'s minute to pass');
+  assert.deepEqual(env.calls, ['/v1/auth/firebase', '/v1/auth/firebase', '/v1/me/activate Bearer session-token']);
+});
+
+test('a server that keeps saying "too many attempts" is given up on after about a minute, never Pro by default', async () => {
+  const env = await accountSetup('busy', undefined, 99);
+  assert.equal(await env.sync.activateAccount('firebase-id-token'), null);
+  const waited = env.waits.reduce((a, b) => a + b, 0);
+  assert.ok(env.waits.length >= 2 && waited >= 60_000 && waited <= 90_000, `waited ${waited} ms over ${env.waits.length} tries`);
+});
+
+test('signing out while waiting out "too many attempts" ends the check', async () => {
+  const env = await accountSetup('busy', undefined, 99);
+  const check = env.sync.activateAccount('firebase-id-token');
+  env.sync.forgetAccount();
+  assert.equal(await check, null);
+  assert.ok(env.calls.length <= 1, 'no further sign-in after sign-out');
 });
 
 test('a device limit, an unreachable server or a forged grant never unlocks Pro', async () => {

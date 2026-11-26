@@ -53,6 +53,15 @@ test('tile state follows the picture: importing until a thumbnail exists, unavai
   assert.equal(frameToPhoto(frame(), { failed: true }).originalConnected, false);
 });
 
+test('a photo whose compression cannot be read yet says so, and is not called missing or offered a develop', () => {
+  assert.equal(tileStateFor({ unsupported: 'jpeg-xl' }), 'unsupported');
+  assert.equal(tileStateFor({ thumb: 'blob:t', unsupported: 'jpeg-xl', failed: true }), 'unsupported');
+  const photo = frameToPhoto(frame(), { thumb: 'blob:t', unsupported: 'jpeg-xl' }, { fullDevelop: 'possible' });
+  assert.equal(photo.state, 'unsupported');
+  assert.equal(photo.originalConnected, true);
+  assert.equal(photo.fullDevelop, undefined);
+});
+
 test('a project counts live photos and flagged photos, and ignores removed ones', () => {
   const shoot = { id: 'p1', title: 'Moor', sourceKind: 'local-files' as const, totalFrames: 0, createdAt: 0, lastUpdatedAt: Date.UTC(2026, 10, 22) };
   const project = shootToProject(shoot, [frame({ decision: 'keep' }), frame({ id: 'f2', decision: 'keep', removedAt: 5 }), frame({ id: 'f3' })]);
