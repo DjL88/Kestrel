@@ -1133,6 +1133,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onImportFolder={actions.importFolder}
                 onWatchFolder={actions.watchFolder}
                 onStopWatchingFolder={actions.stopWatchingFolder}
+                onReceiveFromCamera={actions.receiveFromCamera}
                 liveFolder={store.liveFolder}
                 onRunAutoCull={actions.runAutoCull}
                 onOpenCullAssistant={actions.rankCulling ? () => setCullAssistantOpen(true) : undefined}
