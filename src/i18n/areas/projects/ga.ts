@@ -454,7 +454,7 @@ export const ga: AreaTranslation<typeof source> = {
     licences: (n: number) => `Ceadúnais Pro a bhaintear den chuntas seo: ${n}. Coinníonn Paddle d’admhálacha.`,
     owned: (n: number, people: number) => `Tionscadail chomhroinnte leatsa a scriostar lena ngrianghraif néil: ${n}.` + (people ? ` Daoine a chailleann rochtain: ${people}.` : ''),
     others: (n: number) => `Tionscadail chomhroinnte daoine eile a fhágann tú: ${n}. Fanann do thráchtanna iontu, gan d’ainm.`,
-    balance: (amount: string) => `Cailltear d’iarmhéid néil nár úsáideadh, ${amount}.`,
+    balance: (amount: string) => `Aisíocfar d’iarmhéid néil nár úsáideadh, ${amount}, leat trí Paddle.`,
     localStays: 'Ní athraíonn aon rud ar an ngléas seo: fanann do thionscadail, d’eagarthóireachtaí agus do ghrianghraif bhunaidh mar a bhfuil siad.',
     grace: 'Ní scriostar aon rud ar feadh 30 lá. Sínigh isteach le linn an ama sin chun do chuntas a choinneáil.',
     typeToConfirm: (word: string) => `Clóscríobh ${word} le deimhniú`,

@@ -13,6 +13,9 @@
  *   - alert devices and preferences, notice inbox, email contact record, learning records (if any were shared);
  *   - the account row, its email link, refresh tokens, AI allowance and licence devices (Store.eraseAccount). Licences
  *     are revoked and detached but kept as rows, because purchase records are kept for six years under UK tax law.
+ *   - any unused cloud balance is owed back (owner, 26 Nov 2026: "refund it, I want to be fair"): the amount goes to
+ *     `balance_refunds/{accountId}` as owed, rounded up to the next penny, and the balance is emptied. The admin pays it
+ *     back through Paddle (top-ups are Paddle transactions carrying the account id) and marks it refunded.
  * Refused up front, in plain words: a safe copy still online (its files are kept under the account's own key and must
  * be restored or deleted by the person first, exactly as for a merge).
  *
@@ -60,6 +63,12 @@ export interface DeletionPreview {
   blocked: null | 'safe-copy';
 }
 
+/** Unused cloud balance owed back after a deletion, paid through Paddle by the admin. */
+export interface BalanceRefund {
+  accountId: string; millicredits: number; pence: number; owedAtMs: number; status: 'owed' | 'refunded';
+  refundedAtMs?: number; paddleReference?: string;
+}
+
 export class ErasureRefusal extends Error {
   constructor(readonly status: number, readonly code: string, message: string) { super(message); }
 }
@@ -85,6 +94,7 @@ const iso = (ms: number | null | undefined) => (typeof ms === 'number' ? new Dat
 
 export function accountErasure(d: ErasureDependencies) {
   const ref = (accountId: string) => d.db.collection('account_deletions').doc(accountId);
+  const refundRef = (accountId: string) => d.db.collection('balance_refunds').doc(accountId);
   const read = async (accountId: string) => (await ref(accountId).get()).data() as unknown as DeletionRecord | undefined;
 
   async function audit(accountId: string, action: string, detail: string) {
@@ -194,7 +204,8 @@ export function accountErasure(d: ErasureDependencies) {
     let working: DeletionRecord = { ...record, status: 'deleting' };
     await ref(accountId).set(clean(working));
     const account = await d.store.getAccount(accountId);
-    const counts: Record<string, number> = { projectsDeleted: 0, projectsLeft: 0, cloudPhotos: 0, galleries: 0, alertDevices: 0, notices: 0, learningRecords: 0, licences: 0 };
+    const counts: Record<string, number> = { projectsDeleted: 0, projectsLeft: 0, cloudPhotos: 0, galleries: 0, alertDevices: 0, notices: 0, learningRecords: 0, licences: 0, refundPence: 0 };
+    counts.refundPence = await oweBalance(accountId);
     if (d.collab) {
       const owned = await d.collab.soleOwnerOf(accountId);
       for (const p of owned) {
@@ -215,6 +226,41 @@ export function accountErasure(d: ErasureDependencies) {
     return working;
   }
 
+  /**
+   * Records the unused balance as owed and empties it. Safe to repeat: a retry after the balance was emptied keeps the
+   * record already written and owes nothing more.
+   */
+  async function oweBalance(accountId: string): Promise<number> {
+    const refund = refundRef(accountId);
+    const left = d.balance ? await d.balance.millicredits(accountId) : 0;
+    if (left > 0) {
+      // Written before the balance is emptied, so a crash in between leaves the full amount owed and a retry writes the same.
+      const owed: BalanceRefund = { accountId, millicredits: left, pence: Math.ceil(left / 1000), owedAtMs: d.now(), status: 'owed' };
+      await refund.set(clean(owed));
+      if (!(await d.balance!.debit(accountId, left, 'erasure:refund'))) throw new Error('The balance changed while it was being refunded.');
+      await audit(accountId, 'balance.refund_owed', `${owed.pence}p unused cloud balance to refund through Paddle`);
+    }
+    const record = (await refund.get()).data() as unknown as BalanceRefund | undefined;
+    return record?.pence ?? 0;
+  }
+
+  /** Refunds still to be paid through Paddle, oldest first. */
+  async function owedRefunds(): Promise<BalanceRefund[]> {
+    const snap = await d.db.collection('balance_refunds').where('status', '==', 'owed').get();
+    return snap.docs.map((doc) => doc.data()! as unknown as BalanceRefund).sort((a, b) => a.owedAtMs - b.owedAtMs);
+  }
+
+  /** The admin paid it back through Paddle. */
+  async function markRefunded(accountId: string, paddleReference: string): Promise<BalanceRefund> {
+    const record = (await refundRef(accountId).get()).data() as unknown as BalanceRefund | undefined;
+    if (!record) throw new ErasureRefusal(404, 'NOT_FOUND', 'No refund is owed to that account.');
+    if (record.status === 'refunded') return record;
+    const done: BalanceRefund = { ...record, status: 'refunded', refundedAtMs: d.now(), paddleReference };
+    await refundRef(accountId).set(clean(done));
+    await audit(accountId, 'balance.refunded', `${record.pence}p refunded through Paddle (${paddleReference})`);
+    return done;
+  }
+
   /** The daily scheduler: every deletion whose 30 days have passed (and any that stopped part-way). */
   async function runDue(): Promise<{ deleted: number; failed: number }> {
     const due: string[] = [];
@@ -232,6 +278,6 @@ export function accountErasure(d: ErasureDependencies) {
     return { deleted, failed };
   }
 
-  return { status, preview, schedule, cancel, exportData, erase, runDue };
+  return { status, preview, schedule, cancel, exportData, erase, runDue, owedRefunds, markRefunded };
 }
 export type AccountErasure = ReturnType<typeof accountErasure>;

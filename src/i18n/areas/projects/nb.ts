@@ -454,7 +454,7 @@ export const nb: AreaTranslation<typeof source> = {
     licences: (n: number) => `Pro-lisenser som fjernes fra kontoen: ${n}. Paddle beholder kvitteringene dine.`,
     owned: (n: number, people: number) => `Dine delte prosjekter som slettes med skybildene sine: ${n}.` + (people ? ` Personer som mister tilgangen: ${people}.` : ''),
     others: (n: number) => `Andres delte prosjekter du forlater: ${n}. Kommentarene dine der blir, uten navnet ditt.`,
-    balance: (amount: string) => `Den ubrukte skysaldoen din på ${amount} går tapt.`,
+    balance: (amount: string) => `Den ubrukte skysaldoen din på ${amount} blir refundert til deg via Paddle.`,
     localStays: 'Ingenting endres på denne enheten: prosjektene, redigeringene og originalbildene dine blir der de er.',
     grace: 'Ingenting slettes på 30 dager. Logg inn i den tiden for å beholde kontoen din.',
     typeToConfirm: (word: string) => `Skriv ${word} for å bekrefte`,

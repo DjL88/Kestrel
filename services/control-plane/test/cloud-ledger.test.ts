@@ -43,6 +43,25 @@ for (const [name, make] of ledgers) {
     assert.equal(await l.reserve('a1', PERIOD + 11, 1, PERIOD), false, 'the previous period cannot refund the current one');
     await l.refund('nobody', 0); // no throw
   });
+  test(`${name}: unused photos carry into the next period only, never more than one period's worth`, async (t) => {
+    const l = await make(t);
+    assert.equal(await l.reserve('a1', 0, 5, PERIOD), true); // 4 of 5 left unused
+    let granted = 0;
+    for (let i = 0; i < 12; i += 1) if (await l.reserve('a1', PERIOD + i, 5, PERIOD)) granted += 1;
+    assert.equal(granted, 9, '5 for the period plus 4 carried');
+    assert.equal(await l.periodCarried?.('a1', PERIOD + 20, PERIOD), 4);
+    // The carried 4 were spent first, so the second period used only 5 of its own: nothing carries on.
+    for (let i = 0; i < 12; i += 1) if (await l.reserve('a1', 2 * PERIOD + i, 5, PERIOD)) granted += 1;
+    assert.equal(granted, 14, 'the third period has only its own 5');
+    assert.equal(await l.periodCarried?.('a1', 2 * PERIOD + 20, PERIOD), 0);
+    // A whole idle period in between was wholly unused, so the full allowance carries, and no more.
+    for (let i = 0; i < 12; i += 1) if (await l.reserve('a1', 5 * PERIOD + i, 5, PERIOD)) granted += 1;
+    assert.equal(granted, 24);
+    // A paid reservation (no limit) never carries anything.
+    assert.equal(await l.reserve('p1', 0, Number.MAX_SAFE_INTEGER, PERIOD), true);
+    assert.equal(await l.reserve('p1', PERIOD, Number.MAX_SAFE_INTEGER, PERIOD), true);
+    assert.equal(await l.periodCarried?.('p1', PERIOD + 1, PERIOD), 0);
+  });
   test(`${name}: concurrent reserves never exceed the limit`, async (t) => {
     const l = await make(t);
     const results = await Promise.all(Array.from({ length: 10 }, () => l.reserve('a1', 0, 3, PERIOD)));

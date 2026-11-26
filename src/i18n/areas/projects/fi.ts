@@ -454,7 +454,7 @@ export const fi: AreaTranslation<typeof source> = {
     licences: (n: number) => `Tililtä poistettavat Pro-lisenssit: ${n}. Paddle säilyttää kuittisi.`,
     owned: (n: number, people: number) => `Omat jaetut projektisi, jotka poistetaan pilvikuvineen: ${n}.` + (people ? ` Henkilöt, jotka menettävät pääsyn: ${people}.` : ''),
     others: (n: number) => `Muiden jaetut projektit, joista lähdet: ${n}. Kommenttisi jäävät niihin ilman nimeäsi.`,
-    balance: (amount: string) => `Käyttämätön pilvisaldosi ${amount} menetetään.`,
+    balance: (amount: string) => `Käyttämätön pilvisaldosi ${amount} palautetaan sinulle Paddlen kautta.`,
     localStays: 'Tällä laitteella ei muutu mitään: projektisi, muokkauksesi ja alkuperäiset kuvasi pysyvät paikallaan.',
     grace: 'Mitään ei poisteta 30 päivään. Kirjaudu sisään sinä aikana, niin tilisi säilyy.',
     typeToConfirm: (word: string) => `Vahvista kirjoittamalla ${word}`,

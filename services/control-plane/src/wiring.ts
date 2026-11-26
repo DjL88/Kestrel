@@ -15,7 +15,7 @@ import { GalleryStore } from './gallery.ts';
 import { NoticeStore } from './notices.ts';
 import { FcmSender, PushService, noticeDelivery, type PushSender } from './push.ts';
 import { CloudPhotoStore } from './cloudPhotos.ts';
-import { BalanceBackedMeter, FirestoreUsageMeter, FlatAllowance } from './usageMeter.ts';
+import { BalanceBackedMeter, FirestoreUsageMeter, FlatAllowance, RolloverAllowance } from './usageMeter.ts';
 import { FirestoreCloudBalance } from './cloudBalance.ts';
 import { randomUUID } from 'node:crypto';
 import { FirestoreSpendGuard } from './spendGuard.ts';
@@ -166,10 +166,11 @@ export async function buildOptionalServices(deps: WiringDeps): Promise<OptionalS
       // The cloud photo store shares the UK bucket under projects/ (the 90-day rule covers galleries/ only).
       if (env.KCP_CLOUD_PHOTOS_ENABLED === '1') {
         const credits = Number(env.KCP_DOWNLOAD_CREDITS_PER_MONTH ?? 33);
+        const downloads = new FirestoreUsageMeter(db);
         const maxGb = Number(env.KCP_CLOUD_PROJECT_MAX_GB ?? 50);
         out.cloudPhotos = {
-          store: new CloudPhotoStore(db, bucket), meter: new BalanceBackedMeter(new FirestoreUsageMeter(db), balance, () => randomUUID()),
-          allowance: new FlatAllowance(Math.max(0, Math.round((Number.isFinite(credits) ? credits : 33) * 1000))),
+          store: new CloudPhotoStore(db, bucket), meter: new BalanceBackedMeter(downloads, balance, () => randomUUID()),
+          allowance: new RolloverAllowance(new FlatAllowance(Math.max(0, Math.round((Number.isFinite(credits) ? credits : 33) * 1000))), downloads),
           maxProjectBytes: Math.max(0, (Number.isFinite(maxGb) ? maxGb : 50) * 1_000_000_000),
         };
         out.enabled.push('cloud-photos');

@@ -22,6 +22,21 @@ export class FlatAllowance implements AllowancePolicy {
   async monthlyMillicredits() { return this.millicredits; }
 }
 
+/**
+ * Unused free downloads carry over to the next month (owner, 26 Nov 2026: "roll over unused credit to next month").
+ * Only last month's unused part carries, so the allowance is at most twice the base and nothing piles up for years.
+ */
+export class RolloverAllowance implements AllowancePolicy {
+  constructor(private readonly base: AllowancePolicy, private readonly meter: Pick<UsageMeter, 'usage'>) {}
+  async monthlyMillicredits(accountId: string, nowMs: number) {
+    const base = await this.base.monthlyMillicredits(accountId, nowMs);
+    const d = new Date(nowMs);
+    const lastMonth = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 15);
+    const [then, used] = await Promise.all([this.base.monthlyMillicredits(accountId, lastMonth), this.meter.usage(accountId, lastMonth)]);
+    return base + Math.max(0, then - used.millicredits);
+  }
+}
+
 export interface UsageRecord { month: string; millicredits: number; bytes: number; downloads: number }
 
 export interface UsageMeter {
