@@ -40,7 +40,8 @@ import { loadPad, padInForce, resolveWithPad, savePad, type PadProfile } from '.
 import { loadGamepadProfile, saveGamepadProfile, type GamepadProfile, type GamepadSlot } from './commands/gamepad';
 import { useGamepad } from './commands/useGamepad';
 import { commandById, type CommandDefinition } from './commands/registry';
-import { useNativeMenu } from './commands/useNativeMenu';
+import { useNativeMenu, useNativeMenuState } from './commands/useNativeMenu';
+import { menuState } from './commands/menuState';
 import { lazyPart } from './utils/lazyPart';
 import { radiusToSize, sizeToRadius } from '../engineClient/healOps';
 import { DEFAULT_HEAL_RADIUS, MAX_HEAL_SPOTS } from '../../core/heal';
@@ -508,8 +509,22 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'openExport': if (inEditor && !store.collage) actions.exportOpenFormats?.(); break;
       case 'resetPhoto': if (inEditor && activePhoto && !editLocked) actions.resetPhotoEdits(activePhoto.id); break;
       case 'backToProjects': if (inEditor) actions.backToProjects(); break;
+      case 'fullscreen': actions.toggleFullScreen(); break;
     }
   });
+  // Grey out the native menu items that cannot act on what is on screen now (no photo, nothing copied, nothing to undo).
+  useNativeMenuState(menuState({
+    inEditor: store.screen === 'editor',
+    collage: Boolean(store.collage),
+    photoCount: store.photos.length,
+    selectedCount: store.selectedPhotoIds.length,
+    hasActivePhoto: Boolean(activePhoto),
+    gridOpen: store.gridViewOpen,
+    canUndo: store.canUndo,
+    canRedo: store.canRedo,
+    hasCopiedEdits: Boolean(store.clipboardRecipe),
+    editLocked,
+  }));
 
   // Desktop keyboard shortcuts + suppress browser Ctrl/Cmd+A inside editor workspace
   useEffect(() => {

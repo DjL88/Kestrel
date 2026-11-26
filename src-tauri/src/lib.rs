@@ -21,7 +21,7 @@ pub use kestrel_raw::scene_develop;
 #[cfg(desktop)]
 pub mod raw_precision;
 #[cfg(desktop)]
-use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+mod app_menu;
 #[cfg(desktop)]
 use tauri::{Emitter, Manager};
 #[cfg(desktop)]
@@ -478,109 +478,17 @@ pub fn run() {
         .manage(FtpInboxState::default())
         .manage(ShootRoomState::default())
         .manage(local_vision::VisionState::default())
-        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, preview_cache_build, preview_cache_store, preview_cache_read, preview_cache_rotate, preview_cache_usage, preview_cache_clear, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, ftp_inbox_start, ftp_inbox_status, ftp_inbox_stop, shoot_room_start, shoot_room_put, shoot_room_marks, shoot_room_take, shoot_room_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure])
-        .menu(|app| {
-            let app_menu = Submenu::with_items(app, "InFlight", true, &[
-                &PredefinedMenuItem::about(app, None, None)?,
-                &PredefinedMenuItem::separator(app)?,
-                &PredefinedMenuItem::hide(app, None)?,
-                &PredefinedMenuItem::quit(app, None)?,
-            ])?;
-            let file = Submenu::with_items(app, "File", true, &[
-                &MenuItem::with_id(app, "add", "Add photos…", true, Some("CmdOrCtrl+O"))?,
-                &MenuItem::with_id(app, "export", "Export…", true, Some("CmdOrCtrl+E"))?,
-                &MenuItem::with_id(app, "export-again", "Export again with last settings", true, None::<&str>)?,
-                &PredefinedMenuItem::separator(app)?,
-                // V2 workspace items (src/v2/ui/commands/menuMap.ts). The V2 header menus are hidden in the desktop
-                // app, so these are the only way in there; the current app ignores ids it does not know.
-                &MenuItem::with_id(app, "removed-photos", "Removed photos…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "reset-photo", "Reset photo edits", true, None::<&str>)?,
-                &MenuItem::with_id(app, "xmp-save", "Save ratings to XMP…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "xmp-read", "Read ratings from XMP…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "lightroom-read", "Bring in a Lightroom catalogue…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "open-export", "Export everything in open formats…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "backup-now", "Back up now", true, None::<&str>)?,
-                &MenuItem::with_id(app, "backup-file", "Save backup file…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "back-to-projects", "Back to projects", true, None::<&str>)?,
-                &PredefinedMenuItem::separator(app)?,
-                &PredefinedMenuItem::close_window(app, None)?,
-            ])?;
-            let edit = Submenu::with_items(app, "Edit", true, &[
-                &MenuItem::with_id(app, "edit-photo", "Edit photo", true, None::<&str>)?,
-                &MenuItem::with_id(app, "edit-auto", "Auto-adjust…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "edit-look", "Apply look…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "edit-copy-adjustments", "Copy edits", true, None::<&str>)?,
-                &MenuItem::with_id(app, "edit-paste-adjustments", "Paste edits", true, None::<&str>)?,
-                &PredefinedMenuItem::separator(app)?,
-                &PredefinedMenuItem::undo(app, None)?,
-                &PredefinedMenuItem::redo(app, None)?,
-                &PredefinedMenuItem::separator(app)?,
-                &PredefinedMenuItem::cut(app, None)?,
-                &PredefinedMenuItem::copy(app, None)?,
-                &PredefinedMenuItem::paste(app, None)?,
-                // A photo library must select photo records, not the webview page text.
-                &MenuItem::with_id(app, "photos-select-all", "Select All Photos", true, Some("CmdOrCtrl+A"))?,
-                &MenuItem::with_id(app, "photos-deselect-all", "Deselect Photos", true, Some("CmdOrCtrl+Shift+A"))?,
-            ])?;
-            // Plain-letter shortcuts (P, X, 0-5) are not accelerators here: a native one would fire while typing in a field.
-            let rate = Submenu::with_items(app, "Rate", true, &[
-                &MenuItem::with_id(app, "photo-rate-0", "No rating", true, None::<&str>)?,
-                &MenuItem::with_id(app, "photo-rate-1", "1 star", true, None::<&str>)?,
-                &MenuItem::with_id(app, "photo-rate-2", "2 stars", true, None::<&str>)?,
-                &MenuItem::with_id(app, "photo-rate-3", "3 stars", true, None::<&str>)?,
-                &MenuItem::with_id(app, "photo-rate-4", "4 stars", true, None::<&str>)?,
-                &MenuItem::with_id(app, "photo-rate-5", "5 stars", true, None::<&str>)?,
-            ])?;
-            let photo = Submenu::with_items(app, "Photo", true, &[
-                &MenuItem::with_id(app, "photo-keep", "Keep", true, None::<&str>)?,
-                // Originals are never moved or deleted: this marks the photo as set aside, and it can be brought back.
-                &MenuItem::with_id(app, "photo-reject", "Set aside", true, None::<&str>)?,
-                &MenuItem::with_id(app, "photo-unreview", "Back to review", true, None::<&str>)?,
-                &PredefinedMenuItem::separator(app)?,
-                &rate,
-                &PredefinedMenuItem::separator(app)?,
-                &MenuItem::with_id(app, "photo-compare", "Compare photos", true, None::<&str>)?,
-                &PredefinedMenuItem::separator(app)?,
-                &MenuItem::with_id(app, "photo-undo", "Undo last decision", true, None::<&str>)?,
-                &MenuItem::with_id(app, "photo-redo", "Redo decision", true, None::<&str>)?,
-            ])?;
-            let view = Submenu::with_items(app, "View", true, &[
-                &MenuItem::with_id(app, "view-grid", "Grid", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-loupe", "Single photo", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-compare", "Compare", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-photo-only", "Photo only", true, None::<&str>)?,
-                &PredefinedMenuItem::separator(app)?,
-                &MenuItem::with_id(app, "filmstrip", "Show or hide filmstrip", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-info", "Show or hide Photo info", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-bursts", "Group or ungroup bursts", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-tools", "Show or hide editing tools", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-tab-auto", "Show or hide Auto tab", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-tab-crop", "Show or hide Crop tab", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-tab-edit", "Show or hide Edit tab", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-tab-masks", "Show or hide Masks tab", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-tab-history", "Show or hide History tab", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-tab-float", "Dock or undock active editor tab", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-all-tabs", "Show and dock all editor tabs", true, None::<&str>)?,
-                &PredefinedMenuItem::separator(app)?,
-                &MenuItem::with_id(app, "view-left", "Panels on the left", true, None::<&str>)?,
-                &MenuItem::with_id(app, "view-right", "Panels on the right", true, None::<&str>)?,
-                &PredefinedMenuItem::separator(app)?,
-                &PredefinedMenuItem::fullscreen(app, None)?,
-            ])?;
-            let settings = Submenu::with_items(app, "Settings", true, &[
-                &MenuItem::with_id(app, "appearance", "Appearance and layout…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "settings-ai", "Bring your own AI…", true, None::<&str>)?,
-                &MenuItem::with_id(app, "settings-storage", "Bring your own Storage…", true, None::<&str>)?,
-                // Cmd+M is Minimize on macOS (Window menu), so the Mac gets no accelerator here; Cmd+, opens Settings.
-                &MenuItem::with_id(app, "macro-pad", "Macro pad and shortcuts…", true, if cfg!(target_os = "macos") { None } else { Some("Ctrl+M") })?,
-            ])?;
-            let window = Submenu::with_items(app, "Window", true, &[
-                &PredefinedMenuItem::minimize(app, None)?,
-            ])?;
-            Menu::with_items(app, &[&app_menu, &file, &edit, &photo, &view, &settings, &window])
-        })
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, preview_cache_build, preview_cache_store, preview_cache_read, preview_cache_rotate, preview_cache_usage, preview_cache_clear, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, ftp_inbox_start, ftp_inbox_status, ftp_inbox_stop, shoot_room_start, shoot_room_put, shoot_room_marks, shoot_room_take, shoot_room_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure, app_menu::menu_set_enabled])
+        .menu(|app| app_menu::build(app))
         .on_menu_event(|app, event| {
-            let _ = app.emit("menu", event.id().0.clone());
+            let id = event.id().0.clone();
+            // Help links open in the system browser; every other choice goes to the page (src/v2/ui/commands/menuMap.ts).
+            if let Some(url) = app_menu::site_link_for(&id) {
+                use tauri_plugin_opener::OpenerExt;
+                let _ = app.opener().open_url(url, None::<&str>);
+                return;
+            }
+            let _ = app.emit("menu", id);
         });
 
     let app = builder
