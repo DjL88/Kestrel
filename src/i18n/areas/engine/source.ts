@@ -124,6 +124,7 @@ export const source = {
     exportStopped: 'Export stopped. Files already saved stay in place.',
     enlargementTask: 'Making the enlargement preview',
     exportNotQueued: 'Could not start this export.',
+    exportFolderUnwritable: (folder: string, reason: string) => `InFlight could not make the export folder in ${folder}${reason ? ` (${reason})` : ''}. Choose another folder, or check that the drive is connected and not read-only. Nothing was exported.`,
     destinationUnavailable: 'That export destination is unavailable. Choose a local ZIP, separate files or a desktop folder.',
     cullPro: 'Auto pick is part of InFlight Pro.',
     cullOffer: "Photos added. Press Auto pick to sort them on this device; nothing is flagged until you do.",

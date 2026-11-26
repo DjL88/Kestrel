@@ -104,6 +104,7 @@ export const cy: AreaTranslation<typeof source> = {
     exportStopped: 'Stopiodd yr allforio. Mae ffeiliau sydd eisoes wedi’u cadw yn aros yn eu lle.',
     enlargementTask: 'Yn creu rhagolwg y chwyddiad',
     exportNotQueued: 'Doedd dim modd dechrau’r allforio hwn.',
+    exportFolderUnwritable: (folder, reason) => `Doedd InFlight ddim yn gallu gwneud y ffolder allforio yn ${folder}${reason ? ` (${reason})` : ''}. Dewiswch ffolder arall, neu gwiriwch fod y gyriant wedi’i gysylltu ac nad yw’n ddarllen-yn-unig. Ni allforiwyd dim.`,
     destinationUnavailable: 'Dydy’r cyrchfan allforio hwnnw ddim ar gael. Dewiswch ZIP lleol, ffeiliau ar wahân neu ffolder ar y cyfrifiadur.',
     cullPro: 'Mae dewis awtomatig yn rhan o InFlight Pro.',
     cullOffer: "Lluniau wedi'u hychwanegu. Pwyswch Didoli awtomatig i'w trefnu ar y ddyfais hon; does dim yn cael ei farcio tan hynny.",

@@ -104,6 +104,7 @@ export const sv: AreaTranslation<typeof source> = {
     exportStopped: 'Exporten stoppades. Filer som redan sparats ligger kvar.',
     enlargementTask: 'Skapar förhandsvisning av förstoringen',
     exportNotQueued: 'Kunde inte starta den här exporten.',
+    exportFolderUnwritable: (folder, reason) => `InFlight kunde inte skapa exportmappen i ${folder}${reason ? ` (${reason})` : ''}. Välj en annan mapp eller kontrollera att enheten är ansluten och inte skrivskyddad. Inget exporterades.`,
     destinationUnavailable: 'Det exportmålet är inte tillgängligt. Välj en lokal ZIP, separata filer eller en mapp på datorn.',
     cullPro: 'Automatiskt urval ingår i InFlight Pro.',
     cullOffer: "Foton tillagda. Tryck på Automatisk sortering för att sortera dem på den här enheten; inget markeras innan dess.",

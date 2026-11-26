@@ -55,11 +55,21 @@ export async function chooseDesktopExportFolder() {
     import('../core/desktopExportFolder'),
     import('../core/exportPlace'),
   ]);
-  const chosen = await choose({ directory: true, multiple: false, title: 'Choose where to save InFlight exports' });
+  const { lastExportFolder, rememberExportFolder, reasonOf } = await import('../core/exportFolderChoice');
+  const { engineText } = await import('../i18n/areas/engine');
+  const storage = typeof localStorage === 'undefined' ? null : localStorage;
+  // recursive: the export writes into "InFlight Exports/<run>" inside the chosen folder, so the grant must cover the
+  // folders inside it too; without it the app refused to make them ("Could not start this export").
+  const chosen = await choose({ directory: true, multiple: false, recursive: true, defaultPath: lastExportFolder(storage), title: 'Choose where to save InFlight exports' });
   if (typeof chosen !== 'string' || !chosen) return null; // Folder picker cancelled.
   const folder = exportRunFolder(new Date(), crypto.randomUUID()).slice('export/'.length);
   const root = await join(chosen, 'InFlight Exports', folder);
-  await mkdir(root, { recursive: true });
+  try {
+    await mkdir(root, { recursive: true });
+  } catch (error) {
+    throw new Error(engineText.workspace.exportFolderUnwritable(chosen, reasonOf(error)));
+  }
+  rememberExportFolder(storage, chosen);
   return createDesktopFolderDestination(root, {
     join: (...parts) => join(...parts),
     mkdir: async path => { await mkdir(path, { recursive: true }); },
