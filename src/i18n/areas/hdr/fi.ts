@@ -29,4 +29,9 @@ export const fi: AreaTranslation<typeof source> = {
   infoMadeFrom: (n: number) => plural(n, { one: `Tehty ${n} kuvasta:`, other: `Tehty ${n} kuvasta:` }),
   infoExposure: (name: string, ev: string) => `${name}: ${ev} aukkoa`,
   infoHow: "Jokainen kohta tulee kuvista, jotka olivat siinä hyvin valotettuja, kohdistettuina ja valotuksen mukaan painotettuina, ja sitten säädettyinä editorin Valoalueet- ja Varjot-säätimillä. Pikseleitä ei luotu.",
+  whatIs: "HDR tarkoittaa laajaa dynaamista aluetta, ei teräväpiirtoa. Se yhdistää saman näkymän useita valotuksia, jotta kirkas taivas ja tummat varjot säilyttävät molemmat yksityiskohtansa.",
+  bracketTitle: "Valotussarja",
+  bracketFound: (n: number, stops: string) => `${n} kuvaa otettu hetken välein eri valotuksilla (${stops} aukkoa).`,
+  bracketFromCamera: "Kamerasi merkitsi nämä kuvat valotussarjaksi.",
+  bracketFromExposures: "Löydetty suljinajan, aukon ja ISO-arvon perusteella.",
 };

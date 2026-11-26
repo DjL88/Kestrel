@@ -28,6 +28,7 @@ import { stackText } from '../../i18n/areas/stack';
 import { focusStackPreviewOn, imageStackSource, refusalText, rgbaToRgb16, stackDoneNotice, stackedFilename, stackSelection } from './focusStackOps';
 import { mergeHdrOffThread, rgb16Source, canvasSource, type HdrFrameInput } from '../../providers/hdrMergeOffThread';
 import { hdrMergeRecipe, type HdrMergeRecipe } from '../../core/hdrMergeRecipe';
+import { bracketsByFrame, type ExposureBracket } from '../../core/hdrBracket';
 import { hdrText } from '../../i18n/areas/hdr';
 import { cullWarmupPreviewOn, warmupNeighbours } from './previewWarmup';
 import { hdrDoneNotice, hdrFilename, hdrPreviewOn, hdrRefusalText, hdrSelection } from './hdrMergeOps';
@@ -357,6 +358,11 @@ function userLookPreset(look: UserLook): LookPreset {
     id: USER_LOOK_PREFIX + look.id, name: look.name, category: looksText.mine, description: looksText.description,
     previewFilter: buildPreviewFilterCss({ ...NEUTRAL_RECIPE, ...recipeDelta }), recipeDelta, mine: true,
   };
+}
+
+/** The photo, with the exposure bracket it belongs to (from the camera's settings) when there is one. */
+function withBracket(photo: import('../ui/contract').Photo, bracket: ExposureBracket | undefined): import('../ui/contract').Photo {
+  return bracket ? { ...photo, bracket: { photoIds: bracket.frameIds, ev: bracket.ev, fromCamera: bracket.fromCamera } } : photo;
 }
 
 export function useEngineWorkspace(): { store: WorkspaceStore; actions: WorkspaceActions } {
@@ -3550,12 +3556,18 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useEffect(() => onSpeciesNamesLoaded(() => setSpeciesNamesVersion((version) => version + 1)), []);
   const hasSpeciesName = (state?.frames ?? []).some((frame) => frame.subjectNames?.length || frame.tags?.length);
   useEffect(() => { if (hasSpeciesName) void loadSpeciesNames(language); }, [hasSpeciesName]);
-  const photos = useMemo(() => recountBursts((state?.frames ?? []).filter((frame) => !frame.removedAt && !pairs.rawOf.has(frame.id)).map((frame) => {
+  const photos = useMemo(() => {
+    const shown = (state?.frames ?? []).filter((frame) => !frame.removedAt && !pairs.rawOf.has(frame.id));
+    // Exposure brackets from the camera's own settings, among the photos shown (a RAW+JPEG pair counts once).
+    const brackets = bracketsByFrame(shown);
+    return recountBursts(shown.map((frame) => {
+    const bracket = brackets.get(frame.id);
     const assist = assists[frame.id];
     const jpegId = pairs.jpegOf.get(frame.id);
     const pairedJpeg = jpegId ? state?.frames.find((candidate) => candidate.id === jpegId)?.filename : undefined;
-    return withPairedJpeg(pairedJpeg, frameToPhoto(frame, urls[frame.id], { assist, autoUnavailable: autoUnavailable[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.isDemo ? !urls[frame.id]?.failed : provider.current?.hasBlob(frame.stableKey) === true, sources: { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) }, dngCopy: dngCopyOffered(frame, canExportRawMaster()), fullDevelop: fullDeveloping[frame.stableKey] ? 'running' : fullDevelopPossible(frame, canDevelopRaw(), Boolean(provider.current?.hasBlob(frame.stableKey)) || frame.sourceKind !== 'file' || isDesktopApp()) ? 'possible' : undefined }));
-  })), [state?.frames, pairs, urls, assists, autoUnavailable, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes, speciesNamesVersion, fullDeveloping]);
+    return withBracket(withPairedJpeg(pairedJpeg, frameToPhoto(frame, urls[frame.id], { assist, autoUnavailable: autoUnavailable[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id], verifiedOriginalSize: verifiedRasterSizes[`${frame.stableKey}|${frame.originalSha256 ?? ''}`], originalConnected: frame.isDemo ? !urls[frame.id]?.failed : provider.current?.hasBlob(frame.stableKey) === true, sources: { preview: provider.current?.pictureSourceOf(urls[frame.id]?.preview), thumb: provider.current?.pictureSourceOf(urls[frame.id]?.thumb) }, dngCopy: dngCopyOffered(frame, canExportRawMaster()), fullDevelop: fullDeveloping[frame.stableKey] ? 'running' : fullDevelopPossible(frame, canDevelopRaw(), Boolean(provider.current?.hasBlob(frame.stableKey)) || frame.sourceKind !== 'file' || isDesktopApp()) ? 'possible' : undefined })), bracket);
+  }));
+  }, [state?.frames, pairs, urls, assists, autoUnavailable, watermarkAuto, histograms, pixelSizes, verifiedRasterSizes, speciesNamesVersion, fullDeveloping]);
   // Photos moved to Trash: browsable and restorable from the Removed panel without walking back through Undo
   // (ROADMAP.md, "Removed photos panel" next item). Thumbnails are not fetched for them; the filename is enough
   // to recognise one in a short list, and restoring returns it to the normal, already-thumbnailed photo list.

@@ -29,4 +29,9 @@ export const is: AreaTranslation<typeof source> = {
   infoMadeFrom: (n: number) => plural(n, { one: `Gerð úr ${n} mynd:`, other: `Gerð úr ${n} myndum:` }),
   infoExposure: (name: string, ev: string) => `${name}: ${ev} stopp`,
   infoHow: "Hver hluti kemur úr myndunum sem voru vel lýstar þar, samstilltar og vegnar eftir lýsingu, og síðan stilltar með Björtu svæðum og Skuggum ritilsins. Engir dílar voru búnir til.",
+  whatIs: "HDR merkir mikið birtusvið, ekki mikla upplausn. Það sameinar nokkrar lýsingar af sama myndefni svo bjartur himinn og dökkir skuggar halda báðir smáatriðum.",
+  bracketTitle: "Lýsingarröð",
+  bracketFound: (n: number, stops: string) => `${n} myndir teknar með augnabliks millibili á mismunandi lýsingu (${stops} stopp).`,
+  bracketFromCamera: "Myndavélin þín merkti þessar myndir sem lýsingarröð.",
+  bracketFromExposures: "Fundnar út frá lokuhraða, ljósopi og ISO.",
 };
