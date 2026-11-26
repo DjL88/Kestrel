@@ -1360,6 +1360,7 @@ export const cy: AreaTranslation<typeof source> = {
     more: 'Rhagor',
     moreTools: 'Rhagor o offer',
     closeDrawer: 'Cau’r drôr symudol',
+    navigation: "Yn ôl, dadwneud a sgrin lawn",
     photoPosition: (n, total) => `${n} o ${total}`,
   },
   autoCullSummary: {

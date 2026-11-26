@@ -1361,6 +1361,7 @@ export const fi: AreaTranslation<typeof source> = {
     more: 'Lisää',
     moreTools: 'Lisää työkaluja',
     closeDrawer: 'Sulje mobiilivalikko',
+    navigation: "Takaisin, kumoa ja koko näyttö",
     photoPosition: (n, total) => `${n}/${total}`,
   },
   autoCullSummary: {
