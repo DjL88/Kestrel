@@ -9,6 +9,8 @@ mod oauth_loopback;
 #[cfg(desktop)]
 mod ftp_inbox;
 #[cfg(desktop)]
+mod shoot_room;
+#[cfg(desktop)]
 mod local_vision;
 #[cfg(desktop)]
 mod external_edit;
@@ -77,6 +79,65 @@ fn ftp_inbox_start(state: tauri::State<'_, FtpInboxState>, folder: String, user:
 #[tauri::command]
 fn ftp_inbox_status(state: tauri::State<'_, FtpInboxState>) -> Option<FtpInboxInfo> {
     state.0.lock().ok().and_then(|slot| slot.as_ref().map(ftp_inbox_info))
+}
+
+/// The live shoot room, while the photographer has it on. One at a time; starting again replaces it.
+#[cfg(desktop)]
+#[derive(Default)]
+struct ShootRoomState(std::sync::Mutex<Option<shoot_room::RoomHandle>>);
+
+#[cfg(desktop)]
+#[derive(serde::Serialize)]
+struct ShootRoomInfo { port: u16, addresses: Vec<String> }
+
+/// Open the room for other screens on this network. `key` is the random part of the link; tries `port`, then any.
+#[cfg(desktop)]
+#[tauri::command]
+fn shoot_room_start(state: tauri::State<'_, ShootRoomState>, key: String, title: String, port: u16) -> Result<ShootRoomInfo, String> {
+    let mut slot = state.0.lock().map_err(|_| "The shoot room is busy. Try again.".to_string())?;
+    if let Some(old) = slot.take() { old.stop(); }
+    let handle = shoot_room::start(key.clone(), title.clone(), port)
+        .or_else(|_| shoot_room::start(key, title, 0))
+        .map_err(|error| format!("The shoot room could not open: {error}"))?;
+    let info = ShootRoomInfo { port: handle.port, addresses: ftp_inbox::local_addresses() };
+    *slot = Some(handle);
+    Ok(info)
+}
+
+/// Show one frame in the room: a screen-sized JPEG as the raw body (never the original). Headers carry what it is.
+#[cfg(desktop)]
+#[tauri::command]
+fn shoot_room_put(state: tauri::State<'_, ShootRoomState>, request: tauri::ipc::Request<'_>) -> Result<bool, String> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else { return Err("No picture was sent.".into()) };
+    let header = |name: &str| request.headers().get(name).and_then(|value| value.to_str().ok()).map(str::to_string).unwrap_or_default();
+    let name = preview_cache::percent_decode(&header("x-frame-name")).unwrap_or_default();
+    let rating: u8 = header("x-frame-rating").parse().unwrap_or(0);
+    let slot = state.0.lock().map_err(|_| "The shoot room is busy.".to_string())?;
+    let Some(room) = slot.as_ref() else { return Ok(false) };
+    let mut room = room.state.lock().map_err(|_| "The shoot room is busy.".to_string())?;
+    Ok(room.put(&header("x-frame-id"), &name, rating, &header("x-frame-decision"), header("x-frame-camera") == "1", bytes.to_vec()))
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+fn shoot_room_marks(state: tauri::State<'_, ShootRoomState>, id: String, rating: u8, decision: String, removed: bool) -> bool {
+    let Ok(slot) = state.0.lock() else { return false };
+    let Some(room) = slot.as_ref() else { return false };
+    let Ok(mut room) = room.state.lock() else { return false };
+    if removed { room.remove(&id); true } else { room.set_marks(&id, rating, &decision) }
+}
+
+/// Stars and picks sent from the room since the last call, as the page sent them; the app checks each one.
+#[cfg(desktop)]
+#[tauri::command]
+fn shoot_room_take(state: tauri::State<'_, ShootRoomState>) -> Vec<String> {
+    state.0.lock().ok().and_then(|slot| slot.as_ref().and_then(|room| room.state.lock().ok().map(|mut room| room.take_marks()))).unwrap_or_default()
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+fn shoot_room_stop(state: tauri::State<'_, ShootRoomState>) {
+    if let Ok(mut slot) = state.0.lock() { if let Some(handle) = slot.take() { handle.stop(); } }
 }
 
 #[cfg(desktop)]
@@ -415,8 +476,9 @@ pub fn run() {
         .manage(OpenedFiles::default())
         .manage(OauthListener::default())
         .manage(FtpInboxState::default())
+        .manage(ShootRoomState::default())
         .manage(local_vision::VisionState::default())
-        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, preview_cache_build, preview_cache_store, preview_cache_read, preview_cache_rotate, preview_cache_usage, preview_cache_clear, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, ftp_inbox_start, ftp_inbox_status, ftp_inbox_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure, app_menu::menu_set_enabled])
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, preview_cache_build, preview_cache_store, preview_cache_read, preview_cache_rotate, preview_cache_usage, preview_cache_clear, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, ftp_inbox_start, ftp_inbox_status, ftp_inbox_stop, shoot_room_start, shoot_room_put, shoot_room_marks, shoot_room_take, shoot_room_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure, app_menu::menu_set_enabled])
         .menu(|app| app_menu::build(app))
         .on_menu_event(|app, event| {
             let id = event.id().0.clone();

@@ -484,7 +484,7 @@ export default function AdjustPanel({
           <div className="mt-3 space-y-3">
             <ColourGradeControl recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
             <div className="border-t border-[var(--border-subtle)] pt-3">
-              <CalibrationControl recipe={recipe} calmView={hideReadouts} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
+              <CalibrationControl recipe={recipe} calmView={hideReadouts} pictureUrl={photo.previewUrl} onChange={(patch) => onUpdateRecipe(photo.id, patch)} />
             </div>
           </div>
         </details>

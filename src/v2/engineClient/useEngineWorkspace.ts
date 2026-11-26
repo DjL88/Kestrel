@@ -57,6 +57,8 @@ import { useVisualGrouping } from './useVisualGrouping';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
 import { canWatchFolder, chooseHotFolder, desktopHotFolder, watchHotFolder, type HotFolderSource } from '../../providers/hotFolderWatch';
 import { canReceiveFromCamera, startFtpInbox, stopFtpInbox, type FtpInbox } from '../../providers/ftpInbox';
+import { canOpenShootRoom } from '../../providers/shootRoom';
+import { useShootRoom } from './useShootRoom';
 import { photoParallelism } from '../../core/photoParallelism';
 import { canDevelopRaw, canExportRawMaster } from '../../providers/rawDevelop';
 import { developFullSizeOf, fullDevelopPossible } from './fullDevelop';
@@ -174,7 +176,7 @@ import { backUpProjectNow, useAutoBackup, useBackupStatus } from '../../provider
 import { saveProjectBackupFile } from '../../providers/projectBackupFile';
 import { restoreProjectBackup } from '../../core/projectBackup';
 import { backupStatusText } from './backupWords';
-import { applySidecarImports, planXmpImports, saveSidecars, sidecarFailureText, xmpScope } from './xmpOps';
+import { applySidecarImports, planXmpImports, saveSidecars, sidecarEdits, sidecarFailureText, xmpScope } from './xmpOps';
 import { applyLightroomImport, lightroomNotice } from './lightroomOps';
 import { saveCatalogueExport } from './catalogueExport';
 import { CatalogueReadError, readLightroomCatalogue } from '../../core/lightroomCatalogue';
@@ -860,6 +862,24 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const ids = withPartners(given, pairsRef.current);
     mutate((current) => ids.reduce((next, id) => applyDecisionWithHistory(next, id, decision, { allowAdvance: false }), current));
   }, [mutate]);
+
+  // Live shoot room (desktop): other screens on this network watch the shoot and star or pick; their marks are combined
+  // with the photographer's own and never overwrite a change the photographer made meanwhile.
+  const shootRoom = useShootRoom({
+    stateRef, provider, projectId: state?.shoot.id ?? null,
+    hidden: (photoId) => pairsRef.current.rawOf.has(photoId),
+    apply: (photoId, marks) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      if (!frame) return;
+      if ((frame.rating ?? 0) !== marks.rating) {
+        const ids = withPartners([photoId], pairsRef.current);
+        mutate((current) => ({ ...current, frames: current.frames.map((each) => (ids.includes(each.id) ? { ...each, rating: marks.rating } : each)), shoot: { ...current.shoot, lastUpdatedAt: Date.now() } }));
+      }
+      if (frame.decision !== marks.decision) decide([photoId], marks.decision);
+    },
+    onKeptYours: (count) => setNotice(V2_STRINGS.liveShoot.roomKeptYours(count)),
+    onProblem: (message) => setNotice(message),
+  });
 
   // Moves already set-aside (rejected) photos to Trash. removeFromLibrary (shared with V1) ignores any id that
   // is not currently rejected, so this never deletes a kept or unreviewed photo by mistake. The removal itself is
@@ -3098,6 +3118,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     },
     stopWatchingFolder: () => stopLiveFolder(),
     // Wi-Fi cameras (FTP transfer): receive into a chosen folder on this computer and watch it like any hot folder.
+    ...(canOpenShootRoom() ? {
+      openShootRoom: () => { const title = stateRef.current?.shoot.title; if (title !== undefined) void shootRoom.open(title); },
+      closeShootRoom: () => shootRoom.close(),
+    } : {}),
     ...(canReceiveFromCamera() ? {
       receiveFromCamera: () => {
         void startFtpInbox().then((inbox) => { if (inbox) startLiveFolder(desktopHotFolder(inbox.folder), inbox); })
@@ -3141,8 +3165,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           setNotice(sidecarFailureText(null));
           return;
         }
+        const { patches, kept } = sidecarEdits(now, planned);
         mutate((current) => applySidecarImports(current, planned));
-        setNotice(V2_STRINGS.xmp.read(planned.length));
+        // Lightroom's basic sliders go into photos not yet edited here, each as its own Undo step.
+        if (patches.size) editFrames([...patches.keys()], (frame) => applyRecipePatch(frame.edit, patches.get(frame.id) ?? {}).edit);
+        setNotice([V2_STRINGS.xmp.read(planned.length), patches.size ? V2_STRINGS.xmp.editsRead(patches.size) : '',
+          kept ? V2_STRINGS.xmp.editsKept(kept) : ''].filter(Boolean).join(' '));
       }, (error) => setNotice(sidecarFailureText(error)));
     },
     readLightroomCatalogue: (file) => {
@@ -3840,6 +3868,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     PhotoSurface: EngineSurface,
     tapSelect: tapSelect.state,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
+    shootRoom: shootRoom.room,
     liveFolder: liveFolder && liveFolder.projectId === state?.shoot.id ? { name: liveFolder.name, imported: liveFolder.imported, arriving: liveFolder.arriving, problem: liveFolder.problem, ...(liveFolder.ftp ? { ftp: { addresses: liveFolder.ftp.addresses, port: liveFolder.ftp.port, user: liveFolder.ftp.user, password: liveFolder.ftp.password } } : {}) } : null,
     quickStart: quickStart && quickStart.projectId === state?.shoot.id && screen === 'editor' ? { phase: quickStart.phase, photoId: quickStart.photoId } : null,
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
