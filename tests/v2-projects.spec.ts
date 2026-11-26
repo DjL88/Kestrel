@@ -145,6 +145,8 @@ test('?v2 hub on a phone: a finger swipe reveals Rename, Archive and Delete; a m
   await page.waitForTimeout(250);
   expect(await shift()).toBe(0);
 
+  // Raw touch points are viewport coordinates, so the row must be on screen (the first-run welcome can sit above it).
+  await body.scrollIntoViewIfNeeded();
   const box = (await body.boundingBox())!;
   const y = box.y + box.height / 2, x0 = box.x + box.width - 40;
   const send = (type: 'touchStart' | 'touchMove' | 'touchEnd', x: number) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
