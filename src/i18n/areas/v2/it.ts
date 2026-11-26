@@ -1989,4 +1989,7 @@ export const it: AreaTranslation<typeof source> = {
     stopHint: 'Smetti di controllare la cartella. Le foto già aggiunte restano.',
     notHere: 'Per controllare una cartella serve l\'app desktop di InFlight, oppure Chrome o Edge.',
   },
+  activityBar: {
+    photoLoading: 'Caricamento della foto',
+  },
 };

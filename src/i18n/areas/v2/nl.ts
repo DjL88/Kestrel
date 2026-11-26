@@ -1989,4 +1989,7 @@ export const nl: AreaTranslation<typeof source> = {
     stopHint: 'Stoppen met het volgen van de map. Al toegevoegde foto\'s blijven.',
     notHere: 'Een map volgen kan met de InFlight-desktopapp, of in Chrome of Edge.',
   },
+  activityBar: {
+    photoLoading: 'Foto wordt geladen',
+  },
 };

@@ -38,6 +38,7 @@ import { chordLabel, effectiveKeymap, keyAlreadyHandled, loadKeymap, saveKeymap,
 import { loadPad, padInForce, resolveWithPad, savePad, type PadProfile } from './commands/pad';
 import { loadGamepadProfile, saveGamepadProfile, type GamepadProfile, type GamepadSlot } from './commands/gamepad';
 import { useGamepad } from './commands/useGamepad';
+import { filmstripActivity } from './utils/edgeActivity';
 import { commandById, type CommandDefinition } from './commands/registry';
 import { useNativeMenu } from './commands/useNativeMenu';
 import { lazyPart } from './utils/lazyPart';
@@ -1144,6 +1145,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onWatchFolder={actions.watchFolder}
                 onStopWatchingFolder={actions.stopWatchingFolder}
                 liveFolder={store.liveFolder}
+                activity={filmstripActivity(store.tasks)}
                 onRunAutoCull={actions.runAutoCull}
                 onOpenCullAssistant={actions.rankCulling ? () => setCullAssistantOpen(true) : undefined}
                 onCreateCollage={store.collage ? undefined : actions.createCollageFromSelection}

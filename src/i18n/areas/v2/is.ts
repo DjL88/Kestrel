@@ -1989,4 +1989,7 @@ export const is: AreaTranslation<typeof source> = {
     stopHint: 'Hætta að fylgjast með möppunni. Myndir sem þegar var bætt við verða áfram.',
     notHere: 'Til að fylgjast með möppu þarf InFlight-skjáborðsforritið, eða Chrome eða Edge.',
   },
+  activityBar: {
+    photoLoading: 'Hleð mynd',
+  },
 };

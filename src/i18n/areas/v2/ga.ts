@@ -1992,4 +1992,7 @@ export const ga: AreaTranslation<typeof source> = {
     stopHint: 'Stop ag faire ar an bhfillteán. Fanann na grianghraif atá curtha leis cheana.',
     notHere: 'Chun faire ar fhillteán, teastaíonn aip deisce InFlight, nó Chrome nó Edge.',
   },
+  activityBar: {
+    photoLoading: 'Grianghraf á lódáil',
+  },
 };

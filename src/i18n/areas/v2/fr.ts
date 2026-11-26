@@ -1989,4 +1989,7 @@ export const fr: AreaTranslation<typeof source> = {
     stopHint: 'Arrêter de surveiller le dossier. Les photos déjà ajoutées restent.',
     notHere: 'La surveillance d\'un dossier nécessite l\'application de bureau InFlight, ou Chrome ou Edge.',
   },
+  activityBar: {
+    photoLoading: 'Chargement de la photo',
+  },
 };

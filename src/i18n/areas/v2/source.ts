@@ -2072,4 +2072,7 @@ export const source = {
     stopHint: 'Stop watching the folder. Photos already added stay.',
     notHere: 'Watching a folder needs the InFlight desktop app, or Chrome or Edge.',
   },
+  activityBar: {
+    photoLoading: 'Loading photo',
+  },
 };

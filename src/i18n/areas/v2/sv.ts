@@ -1989,4 +1989,7 @@ export const sv: AreaTranslation<typeof source> = {
     stopHint: 'Sluta bevaka mappen. Foton som redan lagts till stannar.',
     notHere: 'Att bevaka en mapp kräver InFlights skrivbordsapp, eller Chrome eller Edge.',
   },
+  activityBar: {
+    photoLoading: 'Läser in foto',
+  },
 };

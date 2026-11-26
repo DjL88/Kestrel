@@ -1989,4 +1989,7 @@ export const de: AreaTranslation<typeof source> = {
     stopHint: 'Ordner nicht mehr beobachten. Bereits hinzugefügte Fotos bleiben.',
     notHere: 'Zum Beobachten eines Ordners brauchen Sie die InFlight-Desktop-App oder Chrome bzw. Edge.',
   },
+  activityBar: {
+    photoLoading: 'Foto wird geladen',
+  },
 };

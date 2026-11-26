@@ -1,4 +1,5 @@
 import { planFilmstrip } from '../../engineClient/burstGroups';
+import EdgeProgress from './EdgeProgress';
 import { stackText } from '../../../i18n/areas/stack';
 import { panoText } from '../../../i18n/areas/pano';
 import { hdrText } from '../../../i18n/areas/hdr';
@@ -65,6 +66,8 @@ interface FilmstripProps {
   onWatchFolder?: () => void;
   onStopWatchingFolder?: () => void;
   liveFolder?: { name: string; imported: number; arriving: number; problem: boolean } | null;
+  /** Import and sorting work under way, shown as a thin line along the top edge (absent or null: nothing running). */
+  activity?: import('../utils/edgeActivity').EdgeActivity | null;
   onRunAutoCull: () => void;
   /** Culling Assistant rules with live sliders (x-std-cull-rules); present only while that preview is on. */
   onOpenCullAssistant?: () => void;
@@ -126,6 +129,7 @@ export default function Filmstrip({
   onWatchFolder,
   onStopWatchingFolder,
   liveFolder,
+  activity = null,
   onRunAutoCull,
   onOpenCullAssistant,
   onExportSelected,
@@ -278,6 +282,7 @@ export default function Filmstrip({
       aria-label={STRINGS.filmstripLabels.label1}
       className="v2-filmstrip relative z-20 flex shrink-0 flex-col border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] select-none"
     >
+      <EdgeProgress active={Boolean(activity)} value={activity?.value ?? null} label={activity?.label ?? ''} edge="top" testId="filmstrip-progress" />
       {/* Top Resize Drag Bar */}
       {!collapsed && (
         <div

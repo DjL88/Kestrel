@@ -1989,4 +1989,7 @@ export const es: AreaTranslation<typeof source> = {
     stopHint: 'Dejar de vigilar la carpeta. Las fotos ya añadidas se quedan.',
     notHere: 'Para vigilar una carpeta hace falta la app de escritorio de InFlight, o Chrome o Edge.',
   },
+  activityBar: {
+    photoLoading: 'Cargando foto',
+  },
 };

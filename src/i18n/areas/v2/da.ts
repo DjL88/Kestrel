@@ -1989,4 +1989,7 @@ export const da: AreaTranslation<typeof source> = {
     stopHint: 'Stop med at holde øje med mappen. Fotos, der allerede er tilføjet, bliver.',
     notHere: 'Det kræver InFlight-skrivebordsappen, eller Chrome eller Edge, at holde øje med en mappe.',
   },
+  activityBar: {
+    photoLoading: 'Indlæser foto',
+  },
 };

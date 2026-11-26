@@ -11,6 +11,8 @@ export interface TaskItemInfo {
 export interface Task {
   id: number;
   title: string;
+  /** What sort of work it is (the scheduler's kind: 'import', 'cull', ...), so a view can show only the work it is about. */
+  kind?: string;
   state: TaskState;
   cancellable?: boolean;
   pauseable?: boolean;
@@ -65,12 +67,12 @@ export function createTaskStore(now: () => number = Date.now) {
     emit();
   };
   const register = (title: string, state: 'queued' | 'running', options: {
-    total?: number | null; cancel?: () => void; canCancel?: () => boolean; pauseable?: boolean; location?: TaskLocation; priority?: number;
+    total?: number | null; cancel?: () => void; canCancel?: () => boolean; pauseable?: boolean; location?: TaskLocation; priority?: number; kind?: string;
   } = {}): SchedulerTaskHandle => {
     const id = nextId++;
     let wasCancelled = false;
     tasks = [...tasks, {
-      id, title, state, done: 0, total: options.total ?? null,
+      id, title, ...(options.kind ? { kind: options.kind } : {}), state, done: 0, total: options.total ?? null,
       cancellable: typeof options.cancel === 'function', pauseable: options.pauseable ?? false,
       location: options.location ?? 'local', priority: options.priority ?? 0,
       startedAt: now(), updatedAt: now(),
@@ -116,7 +118,7 @@ export function createTaskStore(now: () => number = Date.now) {
     start(title: string, options: { total?: number | null; cancel?: () => void; canCancel?: () => boolean; pauseable?: boolean; location?: TaskLocation; priority?: number } = {}): TaskHandle {
       return register(title, 'running', options);
     },
-    enqueue(title: string, options: { total?: number | null; cancel?: () => void; canCancel?: () => boolean; pauseable?: boolean; location?: TaskLocation; priority?: number } = {}): SchedulerTaskHandle {
+    enqueue(title: string, options: { total?: number | null; cancel?: () => void; canCancel?: () => boolean; pauseable?: boolean; location?: TaskLocation; priority?: number; kind?: string } = {}): SchedulerTaskHandle {
       return register(title, 'queued', options);
     },
     cancel(id: number): boolean {

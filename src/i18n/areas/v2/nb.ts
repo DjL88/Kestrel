@@ -1989,4 +1989,7 @@ export const nb: AreaTranslation<typeof source> = {
     stopHint: 'Slutt å følge med på mappen. Bilder som allerede er lagt til, blir.',
     notHere: 'Å følge med på en mappe krever InFlight-skrivebordsappen, eller Chrome eller Edge.',
   },
+  activityBar: {
+    photoLoading: 'Laster inn bilde',
+  },
 };

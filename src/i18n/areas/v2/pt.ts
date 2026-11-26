@@ -1989,4 +1989,7 @@ export const pt: AreaTranslation<typeof source> = {
     stopHint: 'Deixar de vigiar a pasta. As fotos já adicionadas ficam.',
     notHere: 'Vigiar uma pasta precisa da app de computador InFlight, ou do Chrome ou Edge.',
   },
+  activityBar: {
+    photoLoading: 'A carregar a fotografia',
+  },
 };

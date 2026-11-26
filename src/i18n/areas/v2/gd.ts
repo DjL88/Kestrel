@@ -1990,4 +1990,7 @@ export const gd: AreaTranslation<typeof source> = {
     stopHint: 'Sguir a chumail sùil air a\' phasgan. Fuirichidh na dealbhan a chaidh a chur ris.',
     notHere: 'Feumaidh tu aplacaid deasg InFlight, no Chrome no Edge, airson sùil a chumail air pasgan.',
   },
+  activityBar: {
+    photoLoading: 'A\' luchdadh an deilbh',
+  },
 };

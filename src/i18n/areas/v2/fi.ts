@@ -1990,4 +1990,7 @@ export const fi: AreaTranslation<typeof source> = {
     stopHint: 'Lopeta kansion seuraaminen. Jo lisätyt kuvat jäävät.',
     notHere: 'Kansion seuraaminen vaatii InFlight-työpöytäsovelluksen tai Chromen tai Edgen.',
   },
+  activityBar: {
+    photoLoading: 'Ladataan kuvaa',
+  },
 };

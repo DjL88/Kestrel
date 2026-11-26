@@ -1989,4 +1989,7 @@ export const cy: AreaTranslation<typeof source> = {
     stopHint: 'Stopio gwylio\'r ffolder. Mae\'r lluniau a ychwanegwyd yn aros.',
     notHere: 'Mae gwylio ffolder angen ap bwrdd gwaith InFlight, neu Chrome neu Edge.',
   },
+  activityBar: {
+    photoLoading: 'Wrthi\'n llwytho\'r llun',
+  },
 };
