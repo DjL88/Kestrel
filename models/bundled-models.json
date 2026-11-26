@@ -1,0 +1,45 @@
+{
+  "note": "Large files the app ships with but git does not hold. scripts/fetch-bundled-models.mjs puts each in public/models/, checked against this size and SHA-256. Hosted at <host>/<sha256>/<file>.",
+  "files": [
+    {
+      "file": "clip-vit-b32-vision-uint8.onnx",
+      "sha256": "b95448754a6ae56964ec80c570c80bb9863787ee85f51b664abed8c0e5f22a7a",
+      "bytes": 88648915
+    },
+    {
+      "file": "dinov2-small-fp16.onnx",
+      "sha256": "31194260449c7916c6e08b87bb44b7a36950d7eab0dffc41ae1bdff33c950bc8",
+      "bytes": 44904414
+    },
+    {
+      "file": "species-world.json",
+      "sha256": "36b03c0c668b165e0bdc8f043078193f01bd2910c55d0f679e11c797afa3f5c6",
+      "bytes": 9330384
+    },
+    {
+      "file": "species-mammals.json",
+      "sha256": "da4045f3e3f47a65636de1efe5bbdfac498d74a7593eefd3ede8e488f1b7d8af",
+      "bytes": 5830675
+    },
+    {
+      "file": "species-reptiles.json",
+      "sha256": "899cb218f8ee4599b4147a9bf27221c6291ae318310ea3228e35df862f222226",
+      "bytes": 10687850
+    },
+    {
+      "file": "species-amphibians.json",
+      "sha256": "55508c57d042004f519ec5922fd49e26bde56920182442dad65143aa4132a46d",
+      "bytes": 8313749
+    },
+    {
+      "file": "species-odonata.json",
+      "sha256": "b1e5f3ff32cb9fb583dba79fe17b58cece9aaf70e88058aec52cba15212b96da",
+      "bytes": 5486546
+    },
+    {
+      "file": "species-lepidoptera.json",
+      "sha256": "2c6fd633cf8dc34a1efc36578c986b7a86662577b3ded5017d8aacde27bd384e",
+      "bytes": 8298812
+    }
+  ]
+}

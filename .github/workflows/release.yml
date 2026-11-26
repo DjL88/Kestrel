@@ -65,6 +65,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev patchelf
       - run: npm ci
+      # The bundled models are not in git (models/bundled-models.json); npm run build fetches them by checksum from the
+      # public models bucket. Cached by the list, so they download once per change, not on every run.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            public/models/clip-vit-b32-vision-uint8.onnx
+            public/models/dinov2-small-fp16.onnx
+            public/models/species-world.json
+            public/models/species-mammals.json
+            public/models/species-reptiles.json
+            public/models/species-amphibians.json
+            public/models/species-odonata.json
+            public/models/species-lepidoptera.json
+          key: bundled-models-${{ hashFiles('models/bundled-models.json') }}
       - name: Verify release tag matches web, native and Rust versions
         env:
           KESTREL_RELEASE_TAG: ${{ github.ref_name }}
