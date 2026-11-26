@@ -6,17 +6,17 @@
   <meta name="theme-color" content="#0E1116">
   <link rel="icon" type="image/svg+xml" href="assets/brand/inflight/app-icons/favicon.svg">
   <link rel="canonical" href="https://inflight.studio/">
-  <meta name="description" content="InFlight is a calm, easy photo editor built for beginners, colour-blind and neurodivergent photographers (ADHD, autism). Basic is free for good; Pro is £2.99 a month or £29.99 a year. UK-based, offline-first and private. Great for bird and wildlife ID — red kite, kestrel, merlin and more.">
-  <meta name="keywords" content="photo editor for beginners, easy photo editing software, colour blind friendly photo editor, colorblind accessible photo app, colour vision deficiency, deuteranopia protanopia tritanopia, ADHD friendly software, autism friendly app, neurodivergent friendly design, sensory friendly interface, accessible photo editing, UK photo software, made in Britain, made in the UK, European software, GDPR, privacy-first photo editor, offline photo editor, free photo editor, no account photo editing, bring your own cloud storage, bring your own AI key, choose your own storage provider, data sovereignty, own your data, bird identification app, bird ID software, red kite, kestrel, merlin, wildlife photography software, RAW photo editor Nikon">
+  <meta name="description" content="InFlight culls, edits and shares your photos, even with no signal. No generative AI, your originals are never changed, and Basic is free to keep. Calm and accessible, built for beginners, pros, colour-blind and neurodivergent photographers.">
+  <meta name="keywords" content="photo editor for beginners, easy photo editing software, colour blind friendly photo editor, colorblind accessible photo app, colour vision deficiency, deuteranopia protanopia tritanopia, ADHD friendly software, autism friendly app, neurodivergent friendly design, sensory friendly interface, accessible photo editing, UK photo software, made in Britain, made in the UK, European software, GDPR, privacy-first photo editor, offline photo editor, no account photo editing, bring your own cloud storage, bring your own AI key, choose your own storage provider, data sovereignty, own your data, bird identification app, bird ID software, red kite, kestrel, merlin, wildlife photography software, RAW photo editor Nikon">
   <!-- InFlight's own downloads (infra/gcp); the bucket/endpoint stay as "kestrel" for backward compatibility — see docs/brand/inflight/. -->
   <meta name="kestrel-downloads" content="https://storage.googleapis.com/kestrel-hosting-kestrel-downloads/latest.json">
   <meta property="og:site_name" content="InFlight">
-  <meta property="og:title" content="InFlight — More time behind the camera.">
-  <meta property="og:description" content="A calm, easy photo editor for beginners, colour-blind and neurodivergent photographers. Basic is free for good; Pro is a subscription you can cancel at any time. UK-based and offline-first.">
+  <meta property="og:title" content="InFlight — Cull, edit and share a shoot, even offline.">
+  <meta property="og:description" content="Cull, edit and share a shoot, even with no signal. No generative AI, your originals are never changed, and Basic is free to keep.">
   <meta property="og:image" content="https://inflight.studio/assets/brand/inflight/png/inflight-logo-stacked-dark@512w.png">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
-  <title>InFlight — Easy, accessible photo editing. Basic is free for good.</title>
+  <title>InFlight — Cull, edit and share a shoot, even offline.</title>
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -28,13 +28,13 @@
     "offers": [
       { "@type": "Offer", "name": "Basic", "price": "0", "priceCurrency": "GBP" },
       { "@type": "Offer", "name": "InFlight Pro, monthly", "price": "2.99", "priceCurrency": "GBP", "category": "subscription" },
-      { "@type": "Offer", "name": "InFlight Pro, yearly", "price": "29.99", "priceCurrency": "GBP", "category": "subscription" }
+      { "@type": "Offer", "name": "InFlight Pro, yearly", "price": "29", "priceCurrency": "GBP", "category": "subscription" }
     ],
     "accessibilityFeature": ["colorblindFriendly", "highContrastDisplay", "fullKeyboardControl", "reducedMotion", "noColorOnlyIndicators"],
     "accessibilityHazard": "none",
     "accessibilityControl": ["fullKeyboardControl"],
     "audience": { "@type": "Audience", "audienceType": "Beginner and amateur photographers, wildlife and bird photographers, colour-blind and neurodivergent users" },
-    "keywords": "photo editor, accessible, colour blind, colorblind, colour vision deficiency, ADHD, autism, neurodivergent, beginner, bird identification, red kite, kestrel, merlin, RAW editing, offline, privacy, free"
+    "keywords": "photo editor, accessible, colour blind, colorblind, colour vision deficiency, ADHD, autism, neurodivergent, beginner, bird identification, red kite, kestrel, merlin, RAW editing, offline, privacy"
   }
   </script>
 
@@ -93,20 +93,399 @@
     .matrix td{white-space:nowrap}
     footer{padding:30px 0;border-top:1px solid #343946;color:#bfc6d2}
     @media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+    /* Product loops: CSS only. Each element's resting style is the finished state, so reduced motion shows a still, complete frame. */
+    .ifx{position:relative;overflow:hidden;container-type:inline-size;background:#171b22;border:1px solid rgba(246,196,160,0.10);color:#f4efe8;line-height:1.2}
+    .ifx-card>*{font-size:4.2cqw}
+    .ifx-hero>*{font-size:2.1cqw}
+    .ifx-wide>*{font-size:3.1cqw}
+    .ifx *{box-sizing:border-box}
+    .ifx-hero{aspect-ratio:16/9;border-radius:18px;box-shadow:0 14px 36px rgba(0,0,0,0.40)}
+    .ifx-card{aspect-ratio:7/4;border-radius:14px}
+    .ifx-wide{aspect-ratio:16/9;border-radius:14px}
+    .ifx-a{position:absolute}
+    .ifx-cur{position:absolute;inset:0;pointer-events:none;z-index:9}
+    .ifx-cur svg{display:block;width:3.6cqw;height:3.6cqw;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.55))}
+    .ifx-card .ifx-cur svg{width:7cqw;height:7cqw}
+    .ifx-wide .ifx-cur svg{width:5cqw;height:5cqw}
+    .ifx-rip{position:absolute;width:6cqw;height:6cqw;margin:-3cqw 0 0 -3cqw;border-radius:50%;border:2px solid #e8743c;opacity:0;z-index:8}
+    .ifx-ph:not(.ifx-a){position:relative}
+    .ifx-ph{overflow:hidden;border-radius:6px;background:radial-gradient(circle at 72% 34%,#ffe2b8 0 7%,transparent 8%),linear-gradient(#f6c08a,#d9714a 62%,#3b2a3a)}
+    .ifx-ph::after{content:"";position:absolute;left:-15%;right:-15%;bottom:-38%;height:72%;border-radius:50%;background:var(--h,#2a1f2e)}
+    .ph-b{background:radial-gradient(circle at 25% 30%,#ffffff 0 6%,transparent 7%),linear-gradient(#8fb9e0,#dfe9f2);--h:#4f6b4a}
+    .ph-c{background:linear-gradient(#3d5a73,#c98f6b);--h:#1f2a33}
+    .ph-d{background:radial-gradient(circle at 60% 40%,#fff4dc 0 6%,transparent 7%),linear-gradient(#f3dcb5,#b9c9c4);--h:#6d7f63}
+    .ph-e{background:radial-gradient(circle at 30% 30%,#e9e4f2 0 4%,transparent 5%),linear-gradient(#1c2433,#4a3b55);--h:#0f141c}
+    .ph-f{background:linear-gradient(#e9d6a4,#c7a46b);--h:#8a6a3a}
+    .ifx-chip{display:inline-flex;align-items:center;gap:0.35em;padding:0.25em 0.6em;border-radius:999px;background:rgba(14,17,22,0.86);color:#f4efe8;font-weight:600;white-space:nowrap}
+    .ifx-key{display:inline-flex;align-items:center;justify-content:center;min-width:1.7em;height:1.7em;padding:0 0.4em;border-radius:5px;background:#f4efe8;color:#0e1116;font-weight:800;box-shadow:0 2px 0 #9aa1ae}
+    .ifx-track{position:absolute;height:0.7cqw;border-radius:999px;background:#2b313b}
+    .ifx-fill{height:100%;border-radius:999px;background:#e8743c}
+    .ifx-thumb{position:absolute;width:2.6cqw;height:2.6cqw;margin:-0.95cqw 0 0 -1.3cqw;border-radius:50%;background:#f4efe8;border:2px solid #e8743c;z-index:3}
+    .ifx-card .ifx-track{height:1.6cqw}
+    .ifx-card .ifx-thumb{width:5.6cqw;height:5.6cqw;margin:-2cqw 0 0 -2.8cqw}
+    .ifx-muted{color:#9aa1ae}
+    @keyframes ifxHCur{0%{transform:translate(40%,70%)}10%,12%{transform:translate(83%,47.5%)}30%{transform:translate(88.3%,47.5%)}36%,38%{transform:translate(83%,33.5%)}50%{transform:translate(86.4%,33.5%)}60%,72%{transform:translate(24.5%,5.5%)}88%,100%{transform:translate(40%,70%)}}
+    @keyframes ifxHSt{0%,12%{left:83%}30%,70%{left:88.3%}73%,100%{left:83%}}
+    @keyframes ifxHSf{0%,12%{width:50%}30%,70%{width:72%}73%,100%{width:50%}}
+    @keyframes ifxHSl{0%,12%{opacity:0}30%,70%{opacity:1}73%,100%{opacity:0}}
+    @keyframes ifxHSn{0%,20%{opacity:0}21%,71%{opacity:1}72%,100%{opacity:0}}
+    @keyframes ifxHSo{0%,20%{opacity:1}21%,71%{opacity:0}72%,100%{opacity:1}}
+    @keyframes ifxHEt{0%,38%{left:83%}50%,64%{left:86.4%}67%,100%{left:83%}}
+    @keyframes ifxHEf{0%,38%{width:50%}50%,64%{width:64%}67%,100%{width:50%}}
+    @keyframes ifxHEl{0%,38%{opacity:0}50%,64%{opacity:1}67%,100%{opacity:0}}
+    @keyframes ifxHEn{0%,44%{opacity:0}45%,65%{opacity:1}66%,100%{opacity:0}}
+    @keyframes ifxHEo{0%,44%{opacity:1}45%,65%{opacity:0}66%,100%{opacity:1}}
+    @keyframes ifxHT{0%,50%{opacity:0;transform:translateY(30%)}53%,61%{opacity:1;transform:none}64%,100%{opacity:0;transform:none}}
+    @keyframes ifxHR{0%,62%{opacity:0;transform:scale(0.4)}63%{opacity:1;transform:scale(0.6)}66%,68%{opacity:0;transform:scale(1.5)}69%{opacity:1;transform:scale(0.6)}72%,100%{opacity:0;transform:scale(1.5)}}
+    @keyframes ifxICur{0%{transform:translate(20%,86%)}12%,15%{transform:translate(17%,50%)}42%,46%{transform:translate(65%,50%)}60%,88%{transform:translate(82%,94%)}100%{transform:translate(20%,86%)}}
+    @keyframes ifxIF{0%,15%{transform:none;opacity:1}42%{transform:translate(48%,0);opacity:1}46%,90%{transform:translate(48%,0) scale(0.6);opacity:0}91%{transform:none;opacity:0}97%,100%{transform:none;opacity:1}}
+    @keyframes ifxIZ{0%,40%{border-color:rgba(246,196,160,0.28);background:transparent}44%,90%{border-color:#e8743c;background:rgba(232,116,60,0.08)}96%,100%{border-color:rgba(246,196,160,0.28);background:transparent}}
+    @keyframes ifxIP{0%,42%{opacity:1}45%,94%{opacity:0}98%,100%{opacity:1}}
+    @keyframes ifxIB{0%,46%{width:0%}78%,100%{width:100%}}
+    @keyframes ifxIBo{0%,45%{opacity:0}46%,80%{opacity:1}84%,100%{opacity:0}}
+    @keyframes ifxIS1{0%,45%{opacity:0}47%,80%{opacity:1}82%,100%{opacity:0}}
+    @keyframes ifxIS2{0%,80%{opacity:0}82%,93%{opacity:1}96%,100%{opacity:0}}
+    @keyframes ifxIT1{0%,49%{opacity:0;transform:scale(0.6)}52%,93%{opacity:1;transform:none}96%,100%{opacity:0;transform:none}}
+    @keyframes ifxIT2{0%,55%{opacity:0;transform:scale(0.6)}58%,93%{opacity:1;transform:none}96%,100%{opacity:0;transform:none}}
+    @keyframes ifxIT3{0%,61%{opacity:0;transform:scale(0.6)}64%,93%{opacity:1;transform:none}96%,100%{opacity:0;transform:none}}
+    @keyframes ifxIT4{0%,67%{opacity:0;transform:scale(0.6)}70%,93%{opacity:1;transform:none}96%,100%{opacity:0;transform:none}}
+    @keyframes ifxCR{0%,18%{left:5%;top:8%}20%,36%{left:36%;top:8%}38%,50%{left:67%;top:8%}52%,68%{left:5%;top:52%}70%,88%{left:36%;top:52%}92%,100%{left:5%;top:8%}}
+    @keyframes ifxCK1{0%,7%{opacity:0}8%,14%{opacity:1}16%,100%{opacity:0}}
+    @keyframes ifxCK2{0%,25%{opacity:0}26%,32%{opacity:1}34%,100%{opacity:0}}
+    @keyframes ifxCK3{0%,57%{opacity:0}58%,64%{opacity:1}66%,100%{opacity:0}}
+    @keyframes ifxCK4{0%,75%{opacity:0}76%,82%{opacity:1}84%,100%{opacity:0}}
+    @keyframes ifxCC1{0%,9%{opacity:0;transform:scale(0.7)}11%,93%{opacity:1;transform:none}97%,100%{opacity:0;transform:none}}
+    @keyframes ifxCC2{0%,27%{opacity:0;transform:scale(0.7)}29%,93%{opacity:1;transform:none}97%,100%{opacity:0;transform:none}}
+    @keyframes ifxCC4{0%,59%{opacity:0;transform:scale(0.7)}61%,93%{opacity:1;transform:none}97%,100%{opacity:0;transform:none}}
+    @keyframes ifxCC5{0%,77%{opacity:0;transform:scale(0.7)}79%,93%{opacity:1;transform:none}97%,100%{opacity:0;transform:none}}
+    @keyframes ifxCD{0%,59%{opacity:1}61%,93%{opacity:0.4}97%,100%{opacity:1}}
+    @keyframes ifxECur{0%{transform:translate(45%,38%)}10%,12%{transform:translate(63%,85%)}30%{transform:translate(80.4%,85%)}36%,38%{transform:translate(63%,68%)}52%{transform:translate(51.4%,68%)}62%,76%{transform:translate(82%,18%)}90%,100%{transform:translate(45%,38%)}}
+    @keyframes ifxEVt{0%,12%{left:63%}30%,74%{left:80.4%}77%,100%{left:63%}}
+    @keyframes ifxEVf{0%,12%{width:50%}30%,74%{width:80%}77%,100%{width:50%}}
+    @keyframes ifxEVl{0%,12%{opacity:0}30%,74%{opacity:1}77%,100%{opacity:0}}
+    @keyframes ifxEHt{0%,38%{left:63%}52%,66%{left:51.4%}69%,100%{left:63%}}
+    @keyframes ifxEHf{0%,38%{width:50%}52%,66%{width:30%}69%,100%{width:50%}}
+    @keyframes ifxEHl{0%,38%{opacity:0}52%,66%{opacity:1}69%,100%{opacity:0}}
+    @keyframes ifxER{0%,65%{opacity:0;transform:scale(0.4)}66%{opacity:1;transform:scale(0.6)}69%,72%{opacity:0;transform:scale(1.5)}73%{opacity:1;transform:scale(0.6)}76%,100%{opacity:0;transform:scale(1.5)}}
+    @keyframes ifxXCur{0%{transform:translate(30%,96%)}14%,19%{transform:translate(74%,80%)}34%,88%{transform:translate(90%,98%)}100%{transform:translate(30%,96%)}}
+    @keyframes ifxXR{0%,18%{opacity:0;transform:scale(0.4)}19%{opacity:1;transform:scale(0.6)}23%,100%{opacity:0;transform:scale(1.5)}}
+    @keyframes ifxXP{0%,19%{opacity:0}20%,76%{opacity:1}78%,100%{opacity:0}}
+    @keyframes ifxXB{0%,20%{width:0%}74%,100%{width:100%}}
+    @keyframes ifxXD{0%,76%{opacity:0}78%,93%{opacity:1}97%,100%{opacity:0}}
+    @keyframes ifxMCur{0%,25%{transform:translate(18.5%,32%)}31%,60%{transform:translate(50%,32%)}64%,94%{transform:translate(81.5%,32%)}98%,100%{transform:translate(18.5%,32%)}}
+    @keyframes ifxMR{0%,31%{left:5%}33%,64%{left:36.5%}66%,97%{left:68%}99%,100%{left:5%}}
+    @keyframes ifxMH1{0%,31%{opacity:1}33%,97%{opacity:0}99%,100%{opacity:1}}
+    @keyframes ifxMH2{0%,31%{opacity:0}33%,64%{opacity:1}66%,100%{opacity:0}}
+    @keyframes ifxMH3{0%,64%{opacity:0}66%,97%{opacity:1}99%,100%{opacity:0}}
+    @keyframes ifxLA{0%,6%{opacity:0}8%,20%{opacity:1}22%,100%{opacity:0}}
+    @keyframes ifxLN{0%,10%{opacity:0;transform:translateX(120%)}20%,92%{opacity:1;transform:none}97%,100%{opacity:0;transform:none}}
+    @keyframes ifxLM{0%,22%{opacity:0}25%,92%{opacity:1}97%,100%{opacity:0}}
+    @keyframes ifxLI{0%,30%{opacity:0}34%,92%{opacity:1}97%,100%{opacity:0}}
+    @keyframes ifxLT{0%,48%{opacity:0;transform:scale(0.4)}50%{opacity:1;transform:scale(0.6)}54%,100%{opacity:0;transform:scale(1.6)}}
+    @keyframes ifxLS{0%,51%{opacity:0}53%,92%{opacity:1}97%,100%{opacity:0}}
+    @keyframes ifxLS2{0%,57%{opacity:0;transform:scale(0.6)}60%,92%{opacity:1;transform:none}97%,100%{opacity:0;transform:none}}
+    @keyframes ifxBCur{0%{transform:translate(30%,95%)}12%,15%{transform:translate(83%,82%)}40%,88%{transform:translate(62%,97%)}100%{transform:translate(30%,95%)}}
+    @keyframes ifxBR{0%,14%{opacity:0;transform:scale(0.4)}15%{opacity:1;transform:scale(0.6)}19%,100%{opacity:0;transform:scale(1.5)}}
+    @keyframes ifxB1{0%,19%{opacity:0;transform:translateY(-60%)}24%,92%{opacity:1;transform:none}96%,100%{opacity:0;transform:none}}
+    @keyframes ifxB2{0%,27%{opacity:0;transform:translateY(-60%)}32%,92%{opacity:1;transform:none}96%,100%{opacity:0;transform:none}}
+    @keyframes ifxB3{0%,35%{opacity:0;transform:translateY(-60%)}40%,92%{opacity:1;transform:none}96%,100%{opacity:0;transform:none}}
+    .ifx-run *{animation-duration:12s;animation-iteration-count:infinite;animation-timing-function:ease-in-out}
+    .ifx-card.ifx-run *,.ifx-wide.ifx-run *{animation-duration:10s}
+    @media (prefers-reduced-motion: reduce){.ifx *{animation:none !important}.ifx-cur,.ifx-rip{display:none}}
+    
+        .ifx-btn,.ifx-btnline{display:flex;align-items:center;justify-content:center;gap:.4em;border-radius:6px;font-weight:700}
+        .ifx-btn{background:#e8743c;color:#0e1116}
+        .ifx-btnline{border:1px solid rgba(246,196,160,.18);font-weight:600}
+        .ifx-accent{border:1px solid #e8743c;color:#f6c4a0}
+        .ifx-centre{display:flex;align-items:center;justify-content:center;text-align:center}
+        .ifx-label{color:#d3d9e5}
+        .ifx-file{width:21%;height:40%;border-radius:6px;background:#2b313b;border:1px solid rgba(246,196,160,.18)}
+        .ifx-file-top{height:42%;background:#1f242d;border-color:rgba(246,196,160,.28);padding:4%;display:flex;flex-direction:column;gap:6%;z-index:2}
+        .ifx-tile{top:12%;width:27%;height:40%;border-radius:10px;background:#1f242d;border:1px solid rgba(246,196,160,.10);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4em;font-weight:600}
+        .ifx-ring{top:12%;width:27%;height:40%;border-radius:10px;border:2px solid #e8743c;background:rgba(232,116,60,.12);z-index:2}
+        /* Home page layout */
+        .skip{position:absolute;left:12px;top:-60px;background:var(--ivory);color:var(--canvas);padding:10px 14px;border-radius:8px;z-index:20;font-weight:700}
+        .skip:focus{top:12px}
+        .bar-end{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+        .cta.small{padding:9px 16px}
+        .ghost{display:inline-block;border:1px solid #5e6270;color:var(--ivory);text-decoration:none;padding:12px 20px;border-radius:9px;font-weight:700}
+        .ghost:hover{border-color:var(--copper-hover)}
+        .block{display:block;text-align:center;margin:0 0 10px}
+        .hero{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:32px;align-items:start}
+        .hero h1{font-size:clamp(2.2rem,5vw,3.9rem)}
+        .hero .ifx-hero{margin-top:26px}
+        .welcome{background:var(--panel);border:1px solid #2c313b;border-radius:16px;padding:24px;margin-top:14px}
+        .welcome h2{font-size:1.4rem;margin:0 0 4px}
+        .invite{color:#e0a583;font-weight:600;margin:0 0 18px;font-size:.95rem}
+        .fine{font-size:.86rem;color:#bfc6d2;margin:8px 0 14px}
+        .centre-link{display:block;text-align:center;font-weight:600}
+        .band{margin-top:72px;background:var(--panel);border-block:1px solid #2c313b;padding:40px 0}
+        .promises{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px;list-style:none;margin:0;padding:0}
+        .promises h3,.promises strong{display:block;font-family:"Plus Jakarta Sans",Inter,system-ui,sans-serif;font-size:1.25rem;margin:0 0 6px;color:var(--ivory)}
+        .promises span{color:#c6cbd5}
+        .why{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+        .why li{background:var(--panel);border:1px solid #2c313b;border-radius:14px;padding:20px}
+        .why strong{display:block;margin:0 0 6px;font-size:1.1rem}.why span{color:#bfc6d2}
+        .steps-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px}
+        .wide-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+        .step h3{margin:14px 0 6px;font-size:1.1rem}.step p{margin:0;color:#bfc6d2}
+        .tags{list-style:none;padding:0;margin:16px 0 0;display:flex;flex-wrap:wrap;gap:8px}
+        .tags li{border:1px solid #5e6270;border-radius:100px;padding:6px 14px;color:#d8dbe4}
+        .tags.small li{padding:4px 11px;font-size:.88rem}
+        .ticks{list-style:none;padding:0;margin:0 0 16px}
+        .ticks li{position:relative;padding-left:26px;margin-bottom:8px;color:#bfc6d2}
+        .ticks li::before{content:"✓";position:absolute;left:0;color:#e0a583;font-weight:700}
+        .ticks strong{color:var(--ivory)}
+        .card.featured{border:2px solid var(--copper-hover)}
+        .cameras{margin:28px 0 8px}.cameras h3{margin:22px 0 4px;font-size:1.1rem}
+        @media(max-width:860px){.hero{grid-template-columns:minmax(0,1fr)}.welcome{max-width:460px}}
+        @media(max-width:520px){.wrap{width:calc(100% - 32px)}nav{gap:14px}}
   </style>
 </head>
 <body>
+<a class="skip" href="#top" data-i18n="skipToContent">Skip to content</a>
 <header><div class="wrap bar">
-  <a class="brand" href="#top" data-i18n-attr="aria-label:navHome" aria-label="InFlight home"><img class="mark" src="assets/brand/inflight/svg/logo/inflight-logo-horizontal-dark.svg" alt="InFlight" width="131" height="40"></a>
-  <nav data-i18n-attr="aria-label:navLabel" aria-label="Main navigation"><a href="#downloads" data-i18n="navDownloads">Downloads</a><a href="#install" data-i18n="navInstall">Install</a><a href="#pricing" data-i18n="navPricing">Pricing</a><a href="#getting-started" data-i18n="navStart">Getting started</a><a href="#privacy" data-i18n="navPrivacy">Privacy</a><a href="#contact" data-i18n="navContact">Contact</a></nav>
-  <label class="picker"><span data-i18n="languageLabel">Language</span><select id="language-select"></select></label>
+  <a class="brand" href="#top" data-i18n-attr="aria-label:navHome" aria-label="InFlight home"><img class="mark" src="assets/brand/inflight/svg/logo/inflight-logo-horizontal-dark.svg" alt="InFlight" width="183" height="56"></a>
+  <nav data-i18n-attr="aria-label:navLabel" aria-label="Main navigation"><a href="#how" data-i18n="navHow">How it works</a><a href="#shoots" data-i18n="navShoot">On a shoot</a><a href="#pricing" data-i18n="navPlans">Plans</a><a href="#downloads" data-i18n="navDownloads">Downloads</a><a href="#contact" data-i18n="navContact">Contact</a></nav>
+  <div class="bar-end">
+    <label class="picker"><span data-i18n="languageLabel">Language</span><select id="language-select"></select></label>
+    <a class="cta small" data-web-app="signin" href="/V2Proto/" data-i18n="signIn">Sign in</a>
+  </div>
 </div></header>
-<main id="top" class="wrap">
-  <h1 data-i18n="heroTitle">More time behind the camera.</h1>
-  <p class="lead" data-i18n="heroLead">InFlight is a photo workspace for importing, culling, editing and exporting. It sets out to make editing quicker and easier to understand: find your best picks, make a few edits you can follow, and export.</p>
-  <p><a class="cta" href="#downloads" data-i18n="heroDownloads">Explore downloads</a> · <a href="#pricing" data-i18n="heroPricing">See pricing</a></p>
-  <!-- Plan choices: hidden until the admin flag sitePlanChoices is on (assets/plan-choices.mjs). Prices and any offer
-       discount are set by the server at checkout, never by this page. -->
+<main id="top">
+  <section class="wrap hero" aria-labelledby="hero-title">
+    <div class="hero-main">
+      <h1 id="hero-title" data-i18n="heroHeadline">Cull, edit and share a shoot. Even with no signal.</h1>
+      <p class="lead" data-i18n="heroLeadNew">InFlight sorts photos as they come off the camera, shows them live on a client's iPad, and never touches your originals. Every edit can be undone, and the Mac and Windows apps work fully offline, with no account needed.</p>
+      <div class="ifx ifx-hero ifx-run" role="img" data-i18n-attr="aria-label:vizHeroLabel" aria-label="An enlarged sketch of the InFlight editor. The pointer drags the Shadows slider, then Exposure, and the photo brightens. The change is listed in History, then Undo takes both steps back.">
+  <div class="ifx-a" style="left:0;top:0;width:100%;height:11%;background:#0e1116;border-bottom:1px solid rgba(246,196,160,.10)"></div>
+  <img class="ifx-a" src="assets/brand/inflight/svg/logo/inflight-logo-horizontal-dark.svg" alt="" style="left:3%;top:2.5%;height:6%;width:auto">
+  <span class="ifx-a ifx-btnline" style="left:19%;top:2.2%;width:12%;height:6.6%"><svg width="1.1em" height="1.1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg><span data-i18n="vizUndo">Undo</span></span>
+  <span class="ifx-a ifx-chip ifx-accent" style="left:52%;top:2.2%;height:6.6%"><svg width="1.1em" height="1.1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="16" cy="9" r="2.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M15 14.2c3 .2 5.5 2.6 5.5 5.8"/></svg><span data-i18n="vizCopilot">Co-pilot</span></span>
+  <span class="ifx-a ifx-btn" style="right:3%;top:2.2%;width:14%;height:6.6%"><span data-i18n="vizExport">Export</span></span>
+  <div class="ifx-a ifx-ph" style="left:3%;top:15%;width:63%;height:61%;border-radius:10px">
+    <svg class="ifx-a" viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true" style="inset:0;width:100%;height:100%;z-index:1"><path d="M0 44 C18 34 30 40 44 36 S72 28 100 38 V60 H0 Z" fill="#5a3442"/><path d="M0 52 C22 44 40 50 60 46 S86 44 100 50 V60 H0 Z" fill="#2a1f2e"/><path d="M30 18 q3 -2.4 6 0 q3 -2.4 6 0" fill="none" stroke="#2a1f2e" stroke-width=".9" stroke-linecap="round"/></svg>
+    <div class="ifx-a" style="inset:0;z-index:2;background:linear-gradient(transparent 40%,rgba(255,214,170,.42));mix-blend-mode:screen;animation-name:ifxHSl"></div>
+    <div class="ifx-a" style="inset:0;z-index:2;background:rgba(255,236,210,.2);mix-blend-mode:screen;animation-name:ifxHEl"></div>
+    <div class="ifx-a ifx-chip" style="left:3%;bottom:5%;z-index:4;padding:.5em .8em;border-radius:8px;animation-name:ifxHT"><span class="ifx-muted" data-i18n="vizHistory">History</span><span data-i18n="vizExposure">Exposure</span> 0.00 EV → +0.70 EV</div>
+  </div>
+  <div class="ifx-a" style="left:69%;top:15%;width:28%;height:61%;border-radius:10px;background:#1f242d;border:1px solid rgba(246,196,160,.10)"></div>
+  <span class="ifx-a" style="left:71%;top:18%;font-weight:700" data-i18n="vizAdjust">Adjust</span>
+  <span class="ifx-a" style="left:71%;top:27%" data-i18n="vizExposure">Exposure</span>
+  <span class="ifx-a ifx-muted" style="right:5%;top:27%;opacity:0;animation-name:ifxHEo">0.00 EV</span>
+  <span class="ifx-a" style="right:5%;top:27%;animation-name:ifxHEn">+0.70 EV</span>
+  <div class="ifx-track" style="left:71%;top:33.5%;width:24%"><div class="ifx-fill" style="width:64%;animation-name:ifxHEf"></div></div>
+  <span class="ifx-thumb" style="left:86.4%;top:33.5%;animation-name:ifxHEt"></span>
+  <span class="ifx-a" style="left:71%;top:41%" data-i18n="vizShadows">Shadows</span>
+  <span class="ifx-a ifx-muted" style="right:5%;top:41%;opacity:0;animation-name:ifxHSo">+10</span>
+  <span class="ifx-a" style="right:5%;top:41%;animation-name:ifxHSn">+35</span>
+  <div class="ifx-track" style="left:71%;top:47.5%;width:24%"><div class="ifx-fill" style="width:72%;animation-name:ifxHSf"></div></div>
+  <span class="ifx-thumb" style="left:88.3%;top:47.5%;animation-name:ifxHSt"></span>
+  <span class="ifx-a" style="left:71%;top:55%" data-i18n="vizVibrance">Vibrance</span>
+  <span class="ifx-a ifx-muted" style="right:5%;top:55%">0</span>
+  <div class="ifx-track" style="left:71%;top:61.5%;width:24%"><div class="ifx-fill" style="width:50%"></div></div>
+  <span class="ifx-thumb" style="left:83%;top:61.5%"></span>
+  <span class="ifx-a ifx-muted" style="left:71%;top:68%;width:25%;font-size:1.8cqw" data-i18n="vizOriginal">Original never changes</span>
+  <div class="ifx-a" style="left:3%;top:80%;width:94%;height:16%;display:flex;gap:1.2%">
+    <div class="ifx-ph ph-b" style="flex:1"></div><div class="ifx-ph" style="flex:1;outline:2px solid #e8743c;outline-offset:2px"></div><div class="ifx-ph ph-c" style="flex:1"></div><div class="ifx-ph ph-d" style="flex:1"></div><div class="ifx-ph ph-e" style="flex:1"></div><div class="ifx-ph ph-f" style="flex:1"></div><div class="ifx-ph ph-b" style="flex:1"></div><div class="ifx-ph ph-d" style="flex:1"></div>
+  </div>
+  <span class="ifx-rip" style="left:25%;top:5.5%;animation-name:ifxHR"></span>
+  <div class="ifx-cur" style="animation-name:ifxHCur"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 2v17l4.5-4.2 2.9 6.6 3-1.3-2.8-6.5h6.2z" fill="#f4efe8" stroke="#0e1116" stroke-width="1.4" stroke-linejoin="round"/></svg></div>
+</div>
+    </div>
+    <div class="welcome">
+      <h2 data-i18n="welcomeTitle">Welcome to InFlight</h2>
+      <p class="invite" data-i18n="inviteOnly">By invitation only while we test.</p>
+      <a class="cta block" data-web-app="signin" href="/V2Proto/" data-i18n="signIn">Sign in</a>
+      <a class="ghost block" data-web-app="signup" href="/V2Proto/" data-i18n="signUp">Create an account</a>
+      <a class="ghost block" data-web-app="guest" href="/V2Proto/" data-i18n="guestTry">Try it as a guest</a>
+      <p class="fine" data-i18n="guestNote">As a guest you edit your own photos in this browser, but nothing is kept once you close the tab. Signed in, your web projects live in InFlight's cloud.</p>
+      <a class="centre-link" href="#contact" data-i18n="requestInvite">Request an invitation</a>
+    </div>
+  </section>
+
+  <section class="band" data-i18n-attr="aria-label:promiseLabel" aria-label="What InFlight promises">
+    <ul class="wrap promises">
+      <li><strong data-i18n="promiseAiTitle">No generative AI.</strong><span data-i18n="promiseAiBody">Nothing in your photo is invented. Edits are tone, colour, masks and noise reduction you can see and undo.</span></li>
+      <li><strong data-i18n="promiseYoursTitle">Your photos stay yours.</strong><span data-i18n="promiseYoursBody">Originals are never changed or moved, and nothing is uploaded unless you choose to share.</span></li>
+      <li><strong data-i18n="promiseSocialTitle">Share to social with ease.</strong><span data-i18n="promiseSocialBody">One edit exports every crop and size you post at, ready for each platform.</span></li>
+      <li><strong data-i18n="promiseCollabTitle">Collaborate.</strong><span data-i18n="promiseCollabBody">Send clients a private gallery, collect their picks and feedback, and edit a project together without losing anyone's changes.</span></li>
+    </ul>
+  </section>
+
+  <section class="wrap" aria-labelledby="why-title">
+    <h2 id="why-title" data-i18n="whyTitle">Why photographers switch to InFlight</h2>
+    <ul class="why">
+      <li><strong data-i18n="why1Title">Culls while you shoot</strong><span data-i18n="why1Body">Frames from your camera's Wi-Fi or your tether app land in InFlight as you shoot, and Auto-pilot sorts each batch as it arrives. Unsure frames wait for you, never deleted.</span></li>
+      <li><strong data-i18n="why2Title">Live to a client's iPad, no internet</strong><span data-i18n="why2Body">Clients watch and star the shoot in any browser on your own network. It works in a hangar, a hide or a studio with no signal, and nothing leaves the room.</span></li>
+      <li><strong data-i18n="why3Title">Same app on every device</strong><span data-i18n="why3Body">Mac, Windows and the web share one set of screens, and the iPhone, iPad and Android apps are built from the same code, so nothing has to be learned twice.</span></li>
+      <li><strong data-i18n="why4Title">Honest about your photos</strong><span data-i18n="why4Body">No generative AI and no invented detail. When it isn't sure of a species or a colour, it says so, in words, never by colour alone.</span></li>
+    </ul>
+  </section>
+
+  <section id="how" class="wrap" aria-labelledby="how-title">
+    <h2 id="how-title" data-i18n="howTitle">How it works</h2>
+    <div class="steps-grid">
+      <article class="step"><div class="ifx ifx-card ifx-run" role="img" data-i18n-attr="aria-label:vizImportLabel" aria-label="The pointer drags three photo files onto InFlight. A progress bar runs along the top edge as they are added and the thumbnails appear. The original files stay where they are.">
+  <div class="ifx-a" style="left:46%;top:10%;width:50%;height:80%;border-radius:10px;border:1.5px dashed #e8743c;background:rgba(232,116,60,.08);overflow:hidden;animation-name:ifxIZ">
+    <div class="ifx-a" style="left:0;top:0;width:100%;height:1.6cqw;background:#2b313b;opacity:0;animation-name:ifxIBo"><div style="height:100%;width:100%;background:#e8743c;animation-name:ifxIB"></div></div>
+    <span class="ifx-a ifx-muted ifx-centre" style="inset:0;padding:10%;opacity:0;animation-name:ifxIP" data-i18n="vizDrop">Drop photos or a folder</span>
+    <div class="ifx-a ifx-ph ph-b" style="left:8%;top:14%;width:40%;height:27%;animation-name:ifxIT1"></div>
+    <div class="ifx-a ifx-ph" style="left:52%;top:14%;width:40%;height:27%;animation-name:ifxIT2"></div>
+    <div class="ifx-a ifx-ph ph-d" style="left:8%;top:45%;width:40%;height:27%;animation-name:ifxIT3"></div>
+    <div class="ifx-a ifx-ph ph-c" style="left:52%;top:45%;width:40%;height:27%;animation-name:ifxIT4"></div>
+    <span class="ifx-a" style="left:8%;bottom:7%;font-weight:600;opacity:0;animation-name:ifxIS1" data-i18n="vizImporting">Importing…</span>
+    <span class="ifx-a" style="left:8%;bottom:7%;font-weight:600;animation-name:ifxIS2" data-i18n="vizAdded">24 photos added</span>
+  </div>
+  <div class="ifx-a" style="inset:0;opacity:0;animation-name:ifxIF">
+    <div class="ifx-a ifx-file" style="left:6%;top:31%;transform:rotate(-9deg)"></div>
+    <div class="ifx-a ifx-file" style="left:10%;top:29%;transform:rotate(6deg)"></div>
+    <div class="ifx-a ifx-file ifx-file-top" style="left:7%;top:29%"><div class="ifx-ph" style="flex:1;border-radius:3px"></div><span style="font-size:3.4cqw;font-weight:700">RAW</span></div>
+  </div>
+  <div class="ifx-cur" style="animation-name:ifxICur"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 2v17l4.5-4.2 2.9 6.6 3-1.3-2.8-6.5h6.2z" fill="#f4efe8" stroke="#0e1116" stroke-width="1.4" stroke-linejoin="round"/></svg></div>
+</div>
+        <h3 data-i18n="how1Title">1. Bring your photos in</h3>
+        <p data-i18n="how1Body">Point InFlight at a card or folder. It links to your originals and never moves, renames or rewrites them.</p>
+      </article>
+      <article class="step"><div class="ifx ifx-card ifx-run" role="img" data-i18n-attr="aria-label:vizCullLabel" aria-label="Six photos in a grid, culled from the keyboard. F flags the first, 4 gives the second four stars, X rejects the fourth and F flags the fifth. The third photo, one InFlight was unsure about, stays marked To review rather than being thrown away.">
+  <div class="ifx-a ifx-ph ph-b" style="left:5%;top:8%;width:28%;height:40%"></div>
+  <div class="ifx-a ifx-ph" style="left:36%;top:8%;width:28%;height:40%"></div>
+  <div class="ifx-a ifx-ph ph-c" style="left:67%;top:8%;width:28%;height:40%"></div>
+  <div class="ifx-a ifx-ph ph-d" style="left:5%;top:52%;width:28%;height:40%;opacity:.4;animation-name:ifxCD"></div>
+  <div class="ifx-a ifx-ph ph-e" style="left:36%;top:52%;width:28%;height:40%"></div>
+  <div class="ifx-a ifx-ph ph-f" style="left:67%;top:52%;width:28%;height:40%"></div>
+  <span class="ifx-a ifx-chip" style="left:6.5%;top:36%;font-size:3.6cqw;z-index:2;animation-name:ifxCC1"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg><span data-i18n="vizFlagged">Flagged</span></span>
+  <span class="ifx-a ifx-chip" style="left:37.5%;top:36%;font-size:3.6cqw;z-index:2;animation-name:ifxCC2">★★★★<span class="ifx-muted">★</span></span>
+  <span class="ifx-a ifx-chip" style="left:68.5%;top:36%;font-size:3.6cqw;z-index:2"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6"/><path d="M12 17h.01"/></svg><span data-i18n="vizToReview">To review</span></span>
+  <span class="ifx-a ifx-chip" style="left:6.5%;top:80%;font-size:3.6cqw;z-index:2;animation-name:ifxCC4"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg><span data-i18n="vizRejected">Rejected</span></span>
+  <span class="ifx-a ifx-chip" style="left:37.5%;top:80%;font-size:3.6cqw;z-index:2;animation-name:ifxCC5"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg><span data-i18n="vizFlagged">Flagged</span></span>
+  <div class="ifx-a" style="left:5%;top:8%;width:28%;height:40%;border:2px solid #e8743c;border-radius:8px;z-index:4;animation-name:ifxCR">
+    <span class="ifx-a ifx-key" style="right:-8%;top:-14%;opacity:0;animation-name:ifxCK1">F</span>
+    <span class="ifx-a ifx-key" style="right:-8%;top:-14%;opacity:0;animation-name:ifxCK2">4</span>
+    <span class="ifx-a ifx-key" style="right:-8%;top:-14%;opacity:0;animation-name:ifxCK3">X</span>
+    <span class="ifx-a ifx-key" style="right:-8%;top:-14%;opacity:0;animation-name:ifxCK4">F</span>
+  </div>
+</div>
+        <h3 data-i18n="how2Title">2. Keep the best, calmly</h3>
+        <p data-i18n="how2Body">Flag, rate and compare. Unsure photos are kept for review, never thrown away for you.</p>
+      </article>
+      <article class="step"><div class="ifx ifx-card ifx-run" role="img" data-i18n-attr="aria-label:vizEditLabel" aria-label="The pointer drags Vibrance up and Highlights down, and the photo changes. Then Undo is pressed twice, and the photo is back exactly as it was.">
+  <div class="ifx-a ifx-ph" style="left:5%;top:7%;width:90%;height:48%;border-radius:8px">
+    <div class="ifx-a" style="inset:0;z-index:2;background:rgba(255,110,40,.38);mix-blend-mode:soft-light;animation-name:ifxEVl"></div>
+    <div class="ifx-a" style="inset:0;z-index:2;background:linear-gradient(rgba(30,20,40,.45),transparent 60%);animation-name:ifxEHl"></div>
+  </div>
+  <span class="ifx-a ifx-chip" style="left:66%;top:11%;height:14%;justify-content:center;width:26%;z-index:3"><svg width="1.1em" height="1.1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg><span data-i18n="vizUndo">Undo</span></span>
+  <span class="ifx-a ifx-label" style="left:5%;top:63.5%" data-i18n="vizHighlights">Highlights</span>
+  <div class="ifx-track" style="left:34%;top:68%;width:58%"><div class="ifx-fill" style="width:30%;animation-name:ifxEHf"></div></div>
+  <span class="ifx-thumb" style="left:51.4%;top:68%;animation-name:ifxEHt"></span>
+  <span class="ifx-a ifx-label" style="left:5%;top:80.5%" data-i18n="vizVibrance">Vibrance</span>
+  <div class="ifx-track" style="left:34%;top:85%;width:58%"><div class="ifx-fill" style="width:80%;animation-name:ifxEVf"></div></div>
+  <span class="ifx-thumb" style="left:80.4%;top:85%;animation-name:ifxEVt"></span>
+  <span class="ifx-rip" style="left:79%;top:18%;animation-name:ifxER"></span>
+  <div class="ifx-cur" style="animation-name:ifxECur"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 2v17l4.5-4.2 2.9 6.6 3-1.3-2.8-6.5h6.2z" fill="#f4efe8" stroke="#0e1116" stroke-width="1.4" stroke-linejoin="round"/></svg></div>
+</div>
+        <h3 data-i18n="how3Title">3. Edit, and undo anything</h3>
+        <p data-i18n="how3Body">Every change is a recipe you can step back through. On-device tools work offline, with nothing uploaded.</p>
+      </article>
+      <article class="step"><div class="ifx ifx-card ifx-run" role="img" data-i18n-attr="aria-label:vizExportLabel" aria-label="An export panel for 24 photos, full size, as JPEG. The pointer presses Export, a progress bar fills, and the panel says all 24 are saved.">
+  <div class="ifx-a" style="left:8%;top:8%;width:84%;height:84%;border-radius:10px;background:#1f242d;border:1px solid rgba(246,196,160,.10)"></div>
+  <span class="ifx-a" style="left:13%;top:14%;font-weight:700" data-i18n="vizExportTitle">Export 24 photos</span>
+  <span class="ifx-a ifx-muted" style="left:13%;top:33%" data-i18n="vizFormat">Format</span>
+  <span class="ifx-a" style="right:13%;top:33%">JPEG</span>
+  <div class="ifx-a" style="left:13%;top:45%;width:74%;height:1px;background:rgba(246,196,160,.10)"></div>
+  <span class="ifx-a ifx-muted" style="left:13%;top:49%" data-i18n="vizSize">Size</span>
+  <span class="ifx-a" style="right:13%;top:49%" data-i18n="vizFullSize">Full size</span>
+  <div class="ifx-a" style="left:13%;top:77%;width:44%;height:2cqw;border-radius:999px;background:#2b313b;overflow:hidden;opacity:0;animation-name:ifxXP"><div style="height:100%;width:100%;background:#e8743c;animation-name:ifxXB"></div></div>
+  <span class="ifx-a" style="left:13%;top:73%;font-weight:600;display:flex;align-items:center;gap:.35em;animation-name:ifxXD"><svg width="1.1em" height="1.1em" viewBox="0 0 24 24" fill="none" stroke="#e8743c" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17 19 7"/></svg><span data-i18n="vizSaved">24 saved</span></span>
+  <span class="ifx-a ifx-btn" style="left:60%;top:72%;width:27%;height:14%"><span data-i18n="vizExport">Export</span></span>
+  <span class="ifx-rip" style="left:74%;top:79%;animation-name:ifxXR"></span>
+  <div class="ifx-cur" style="animation-name:ifxXCur"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 2v17l4.5-4.2 2.9 6.6 3-1.3-2.8-6.5h6.2z" fill="#f4efe8" stroke="#0e1116" stroke-width="1.4" stroke-linejoin="round"/></svg></div>
+</div>
+        <h3 data-i18n="how4Title">4. Export and share</h3>
+        <p data-i18n="how4Body">Full-size exports, ready for print, the web or a client gallery.</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="shoots" class="wrap" aria-labelledby="shoots-title">
+    <h2 id="shoots-title" data-i18n="shootTitle">Made for the shoot, too</h2>
+    <div class="wide-grid">
+      <article class="step"><div class="ifx ifx-wide ifx-run" role="img" data-i18n-attr="aria-label:vizModesLabel" aria-label="Three Flight modes side by side: Solo, Co-pilot and Auto-pilot. The pointer picks each in turn and a plain sentence below says what that mode does.">
+  <div class="ifx-a ifx-tile" style="left:5%"><svg width="1.6em" height="1.6em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg><span data-i18n="vizSolo">Solo</span></div>
+  <div class="ifx-a ifx-tile" style="left:36.5%"><svg width="1.6em" height="1.6em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="16" cy="9" r="2.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M15 14.2c3 .2 5.5 2.6 5.5 5.8"/></svg><span data-i18n="vizCopilot">Co-pilot</span></div>
+  <div class="ifx-a ifx-tile" style="left:68%"><svg width="1.6em" height="1.6em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 13.5 21 6l-5.5 14-3.5-5.5z"/><path d="M12 14.5 21 6"/></svg><span data-i18n="vizAutopilot">Auto-pilot</span></div>
+  <div class="ifx-a ifx-ring" style="left:36.5%;animation-name:ifxMR"><svg class="ifx-a" style="right:6%;top:8%" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="#e8743c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17 19 7"/></svg></div>
+  <div class="ifx-a" style="left:5%;top:60%;width:90%;height:34%">
+    <span class="ifx-a ifx-muted" style="inset:0;opacity:0;animation-name:ifxMH1" data-i18n="vizHintSolo">InFlight does nothing until you ask. You cull and edit yourself.</span>
+    <span class="ifx-a ifx-muted" style="inset:0;animation-name:ifxMH2" data-i18n="vizHintCopilot">InFlight's own helper suggests picks and edits, such as offering to cull after an import. You approve each one.</span>
+    <span class="ifx-a ifx-muted" style="inset:0;opacity:0;animation-name:ifxMH3" data-i18n="vizHintAutopilot">InFlight applies the picks and edits it is confident about. Anything uncertain is left for you to review.</span>
+  </div>
+  <div class="ifx-cur" style="animation-name:ifxMCur"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 2v17l4.5-4.2 2.9 6.6 3-1.3-2.8-6.5h6.2z" fill="#f4efe8" stroke="#0e1116" stroke-width="1.4" stroke-linejoin="round"/></svg></div>
+</div>
+        <h3 data-i18n="shootModesTitle">Flight modes</h3>
+        <p data-i18n="shootModesBody">Choose how much InFlight does for you, project by project. It runs on your device, and nothing changes without a clear way back.</p>
+      </article>
+      <article class="step"><div class="ifx ifx-wide ifx-run" role="img" data-i18n-attr="aria-label:vizLiveLabel" aria-label="A laptop running InFlight during a shoot. A new photo arrives in the filmstrip and appears on a client&#x27;s iPad nearby. The client taps Star on the iPad, and the star shows on the laptop too.">
+  <div class="ifx-a" style="left:4%;top:10%;width:52%;height:64%;border-radius:8px;background:#0e1116;border:2px solid #444a55"></div>
+  <div class="ifx-a" style="left:0;top:74%;width:60%;height:4%;border-radius:0 0 8px 8px;background:#2b313b"></div>
+  <span class="ifx-a ifx-chip ifx-accent" style="left:7%;top:14%;font-size:2.5cqw"><span data-i18n="vizShowingLive">Showing live</span> · 1</span>
+  <span class="ifx-a ifx-chip" style="left:36%;top:14%;font-size:2.5cqw;opacity:0;animation-name:ifxLA" data-i18n="vizArriving">1 arriving</span>
+  <div class="ifx-a ifx-ph ph-b" style="left:7%;top:25%;width:46%;height:30%"><div class="ifx-a ifx-ph ph-d" style="inset:0;border-radius:0;z-index:2;animation-name:ifxLM"></div></div>
+  <div class="ifx-a" style="left:7%;top:58%;width:46%;height:12%;display:flex;gap:3%;overflow:hidden">
+    <div class="ifx-ph ph-e" style="flex:1;border-radius:3px"></div><div class="ifx-ph ph-c" style="flex:1;border-radius:3px"></div><div class="ifx-ph ph-b" style="flex:1;border-radius:3px"></div>
+    <div class="ifx-ph ph-d" style="flex:1;border-radius:3px;outline:2px solid #e8743c;outline-offset:-2px;animation-name:ifxLN"><span class="ifx-a" style="right:6%;top:2%;z-index:2;color:#f4efe8;font-size:.8em;text-shadow:0 1px 2px #0e1116;animation-name:ifxLS2">★</span></div>
+  </div>
+  <div class="ifx-a" style="left:64%;top:6%;width:32%;height:88%;border-radius:12px;background:#0e1116;border:2px solid #444a55"></div>
+  <div class="ifx-a ifx-ph ph-b" style="left:67%;top:13%;width:26%;height:52%"><div class="ifx-a ifx-ph ph-d" style="inset:0;border-radius:0;z-index:2;animation-name:ifxLI"></div></div>
+  <span class="ifx-a ifx-chip" style="left:67%;top:72%;width:26%;justify-content:center;border:1px solid rgba(246,196,160,.18)">☆ <span data-i18n="vizStar">Star</span></span>
+  <span class="ifx-a ifx-chip" style="left:67%;top:72%;width:26%;justify-content:center;background:#e8743c;color:#0e1116;z-index:2;animation-name:ifxLS">★ <span data-i18n="vizStarred">Starred</span></span>
+  <span class="ifx-a ifx-muted" style="left:67%;top:85%;width:26%;text-align:center;font-size:2.3cqw" data-i18n="vizClientIpad">Client's iPad</span>
+  <span class="ifx-rip" style="left:80%;top:77%;animation-name:ifxLT"></span>
+</div>
+        <h3 data-i18n="shootLiveTitle">Show the shoot live</h3>
+        <p data-i18n="shootLiveBody">Show a shoot on a client's iPad or a studio screen, in any browser on the same network, with no internet needed. People there can star and pick. In the desktop app.</p>
+      </article>
+      <article class="step"><div class="ifx ifx-wide ifx-run" role="img" data-i18n-attr="aria-label:vizBrandLabel" aria-label="Three photos above an export bar with Brand kit set to Your studio. The pointer presses Export and a logo with the studio name lands on each photo in turn.">
+  <div class="ifx-a ifx-ph ph-b" style="left:5%;top:8%;width:27%;height:56%"></div>
+  <div class="ifx-a ifx-ph" style="left:36.5%;top:8%;width:27%;height:56%"></div>
+  <div class="ifx-a ifx-ph ph-c" style="left:68%;top:8%;width:27%;height:56%"></div>
+  <span class="ifx-a ifx-chip" style="left:7%;top:50%;font-size:2.2cqw;z-index:2;animation-name:ifxB1"><svg width="1.1em" height="1.1em" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#e8743c"/><path d="M6 13c3-3.5 6-3.5 12-1-4 .2-6 1.6-8 4" fill="none" stroke="#0e1116" stroke-width="2" stroke-linecap="round"/></svg><span data-i18n="vizYourStudio">Your studio</span></span>
+  <span class="ifx-a ifx-chip" style="left:38.5%;top:50%;font-size:2.2cqw;z-index:2;animation-name:ifxB2"><svg width="1.1em" height="1.1em" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#e8743c"/><path d="M6 13c3-3.5 6-3.5 12-1-4 .2-6 1.6-8 4" fill="none" stroke="#0e1116" stroke-width="2" stroke-linecap="round"/></svg><span data-i18n="vizYourStudio">Your studio</span></span>
+  <span class="ifx-a ifx-chip" style="left:70%;top:50%;font-size:2.2cqw;z-index:2;animation-name:ifxB3"><svg width="1.1em" height="1.1em" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#e8743c"/><path d="M6 13c3-3.5 6-3.5 12-1-4 .2-6 1.6-8 4" fill="none" stroke="#0e1116" stroke-width="2" stroke-linecap="round"/></svg><span data-i18n="vizYourStudio">Your studio</span></span>
+  <div class="ifx-a" style="left:5%;top:72%;width:90%;height:20%;border-radius:8px;background:#1f242d;border:1px solid rgba(246,196,160,.10)"></div>
+  <span class="ifx-a ifx-muted" style="left:8%;top:78.5%" data-i18n="vizBrandKit">Brand kit</span>
+  <span class="ifx-a" style="left:29%;top:75%;width:40%;height:14%;border-radius:6px;border:1px solid rgba(246,196,160,.18);display:flex;align-items:center;justify-content:space-between;padding:0 .6em"><span data-i18n="vizYourStudio">Your studio</span><svg width=".9em" height=".9em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span>
+  <span class="ifx-a ifx-btn" style="left:72%;top:75%;width:21%;height:14%"><span data-i18n="vizExport">Export</span></span>
+  <span class="ifx-rip" style="left:83%;top:82%;animation-name:ifxBR"></span>
+  <div class="ifx-cur" style="animation-name:ifxBCur"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 2v17l4.5-4.2 2.9 6.6 3-1.3-2.8-6.5h6.2z" fill="#f4efe8" stroke="#0e1116" stroke-width="1.4" stroke-linejoin="round"/></svg></div>
+</div>
+        <h3 data-i18n="shootBrandTitle">Your brand on every export</h3>
+        <p data-i18n="shootBrandBody">Save a brand kit once. Export then puts its logo, colours and text style on every photo in one step. It stays on your device.</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="inside" class="wrap" aria-labelledby="inside-title">
+    <h2 id="inside-title" data-i18n="insideTitle">What's inside</h2>
+    <div class="grid">
+      <article class="card"><h3 data-i18n="inCullTitle">Smart culling</h3><p data-i18n="inCullBody">Bursts and look-alike frames are grouped so you compare them side by side. On recent Nikon Z bodies it also draws a box on the photo where the camera focused. You make the call, and any pick can be undone.</p></article>
+      <article class="card"><h3 data-i18n="inSubjectTitle">Subject identification</h3><p data-i18n="inSubjectBody">Names bird species and tags aircraft and vehicles, so you can search a shoot by what is in it. When it isn't sure, it says so.</p></article>
+      <article class="card"><h3 data-i18n="inSocialTitle">Social formats</h3><p data-i18n="inSocialBody">Set up the crops and sizes you post at, once. One edit then exports to every format, each with its own crop.</p></article>
+      <article class="card"><h3 data-i18n="inColourTitle">ColourSense</h3><p data-i18n="inColourBody">Colour notes measured from the photo itself, not your screen, and told in plain words. Colour-blind photographers can edit with confidence.</p></article>
+      <article class="card"><h3 data-i18n="inMaskTitle">Masking, before and after, denoise</h3><p data-i18n="inMaskBody">Adjust just part of a photo, compare before and after, and clean up noise. Nothing is generated: no invented pixels.</p></article>
+      <article class="card"><h3 data-i18n="inOverlayTitle">Custom overlays and watermarks</h3><p data-i18n="inOverlayBody">Save your logo, colours and text style as a brand kit, and Export puts them on every photo in one step.</p></article>
+    </div>
+  </section>
+
+  <section id="who" class="wrap" aria-labelledby="who-title">
+    <h2 id="who-title" data-i18n="whoTitle">Who it's for</h2>
+    <p class="lead" data-i18n="whoBody">Anyone: beginners, pros, or just for fun. Every on-device tool is free, with no limit. Signed in, Basic adds 500 photos a month on the cloud runner, and Pro 5,000, with room to grow.</p>
+    <ul class="tags" data-i18n-attr="aria-label:whoListLabel" aria-label="Made for">
+      <li data-i18n="whoLevels">Beginners and pros</li><li data-i18n="whoColour">Colour-blind photographers</li><li data-i18n="whoNeuro">Neurodivergent photographers</li><li data-i18n="whoWildlife">Wildlife</li><li data-i18n="whoAircraft">Aircraft</li><li data-i18n="whoBoats">Boats</li><li data-i18n="whoVehicles">Vehicles</li><li data-i18n="whoWeddings">Weddings</li><li class="more" data-i18n="whoMore">And more</li>
+    </ul>
+  </section>
+
+  <div class="wrap">
   <section id="choose" class="choices" aria-labelledby="choose-title" hidden>
     <h2 id="choose-title" data-i18n="chooseTitle">Choose how to start</h2>
     <div class="grid">
@@ -117,7 +496,7 @@
       </article>
       <article class="card"><h3 data-i18n="chooseProTitle">Subscribe to Pro</h3>
         <p class="promo" id="promo-banner" role="note" hidden data-i18n="promoBanner">Black Friday offer: Pro costs less when you sign in and buy by the end of {lastDay}. The checkout shows the reduced price before you pay.</p>
-        <p><strong>£2.99</strong> <span data-i18n="priceMonthly">a month</span> · <strong>£29.99</strong> <span data-i18n="priceAnnual">a year</span></p>
+        <p><strong>£2.99</strong> <span data-i18n="priceMonthly">a month</span> · <strong>£29</strong> <span data-i18n="priceAnnual">a year</span></p>
         <p data-i18n="chooseSubBody">Pay monthly or yearly and cancel at any time. If you stop, your account goes back to Basic, which is free: your projects, edits and exports are never locked.</p>
         <p class="note" data-i18n="choosePricePromise">Price promise: your subscription price never goes up without at least 30 days’ notice by email, and a new price only starts at a renewal after that notice. You can cancel before then.</p>
         <p data-i18n="chooseBuyHow">To subscribe, sign in from the InFlight app and choose Subscribe to Pro. Paddle, our reseller, runs the checkout.</p>
@@ -128,49 +507,31 @@
       </article>
     </div>
   </section>
-  <section id="aims" aria-labelledby="aims-title">
-    <h2 id="aims-title" data-i18n="aimsTitle">What InFlight sets out to do</h2>
-    <div class="grid">
-      <article class="card"><h3 data-i18n="aimOfflineTitle">Work offline</h3><p data-i18n="aimOfflineBody">Import, cull, edit and export without an internet connection or an account. Your photos stay on your device or in storage you choose.</p></article>
-      <article class="card"><h3 data-i18n="aimOriginalsTitle">Never change your originals</h3><p data-i18n="aimOriginalsBody">InFlight does not change, move or replace an original file. Edits are saved as steps you can change or undo at any time.</p></article>
-      <article class="card"><h3 data-i18n="aimCalmTitle">Stay calm and accessible</h3><p data-i18n="aimCalmBody">A quiet screen, plain words, full keyboard access and reduced motion. Nothing relies on colour alone. It is designed with colour-blind, ADHD and autistic photographers in mind.</p></article>
-      <article class="card"><h3 data-i18n="aimHonestTitle">Be honest about what it knows</h3><p data-i18n="aimHonestBody">When InFlight is unsure, it says so. It tells you when it shows a RAW file’s built-in preview, never invents detail, and keeps uncertain photos for you to review instead of rejecting them.</p></article>
-      <article class="card"><h3 data-i18n="aimHelpTitle">Help without taking over</h3><p data-i18n="aimHelpBody">Machine learning can help reduce noise, find a subject or suggest a mask. Every suggestion is yours to check and adjust.</p></article>
-      <article class="card"><h3 data-i18n="aimSameTitle">Work the same everywhere</h3><p data-i18n="aimSameBody">The same tools and the same way of working on Windows, macOS and the web, with iPhone, iPad and Android to follow.</p></article>
-      <article class="card"><h3 data-i18n="aimOnceTitle">No lock-in</h3><p data-i18n="aimOnceBody">Basic stays free for good. Pro is a subscription you can cancel at any time, and nothing you made is locked if you stop. Invited testers can receive Pro at no charge.</p></article>
-    </div>
-  </section>
-  <section id="downloads" aria-labelledby="downloads-title">
-    <h2 id="downloads-title" data-i18n="downloadsTitle">Get InFlight</h2>
-    <p class="muted" data-i18n="downloadsIntro">InFlight is in development. Installers appear here only after a matching application release has been published. Model files and source archives are not app installers.</p>
-    <div class="grid">
-      <article class="card" data-platform="mac"><span class="platform-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="1.6"/><path d="M1.8 20h20.4M9 17v3m6-3v3"/></svg></span><h3>macOS</h3><p data-i18n="platformDesktop">Desktop editing and local storage.</p><span id="mac" class="pill" data-i18n="comingSoon">Coming soon</span></article>
-      <article class="card" data-platform="windows"><span class="platform-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M2 5.5 11 4v7H2zm11-1.8L22 2v9h-9zM2 13h9v7l-9-1.5zm11 0h9v9l-9-1.5z"/></svg></span><h3>Windows</h3><p data-i18n="platformDesktop">Desktop editing and local storage.</p><span id="windows" class="pill" data-i18n="comingSoon">Coming soon</span></article>
-      <article class="card" data-platform="ios"><span class="platform-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M10 5h4M11 19h2"/></svg></span><h3 data-i18n="platformIos">iPhone and iPad</h3><p data-i18n="platformTouch">Touch-first culling and editing.</p><span id="ios" class="pill" data-i18n="comingSoon">Coming soon</span></article>
-      <article class="card" data-platform="android"><span class="platform-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 10a7 7 0 0 1 14 0M6 10h12v7H6zM4 11v5m16-5v5M8 17v3m8-3v3M7 3 5.5 1m11 2L18 1"/><circle cx="9" cy="7.5" r=".5" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r=".5" fill="currentColor" stroke="none"/></svg></span><h3>Android</h3><p data-i18n="platformTouch">Touch-first culling and editing.</p><span id="android" class="pill" data-i18n="comingSoon">Coming soon</span></article>
-    </div>
-    <p id="release-status" class="muted" role="status" aria-live="polite" data-i18n="releaseChecking">Checking for published app downloads…</p>
-  </section>
-  <section id="install" aria-labelledby="install-title">
-    <h2 id="install-title" data-i18n="installTitle">Installing InFlight</h2>
-    <p class="muted" data-i18n="installIntro">Early builds are not yet signed by Apple or Microsoft, so each system asks you to confirm before the first launch. Download only from this page.</p>
-    <div class="grid">
-      <article class="card"><h3>macOS</h3><p data-i18n-html="installMac">Open the downloaded disk image and drag InFlight to Applications. The first time, right-click InFlight, choose <strong>Open</strong>, then <strong>Open</strong> again.</p></article>
-      <article class="card"><h3>Windows</h3><p data-i18n-html="installWindows">Run the installer. If Windows says it protected your PC, choose <strong>More info</strong>, then <strong>Run anyway</strong>.</p></article>
-    </div>
-    <p class="note" data-i18n="installNote">Your photographs are never changed or uploaded by installing or using InFlight. Signed installers will replace these steps in a later release.</p>
-  </section>
+
   <section id="pricing" aria-labelledby="pricing-title">
     <h2 id="pricing-title" data-i18n="pricingTitle">Pricing</h2>
     <p class="muted" data-i18n-html="pricingIntro"><strong>Basic is free for good.</strong> Pro is a subscription, paid monthly or yearly. You subscribe from the InFlight app; this website does not take payments itself.</p>
-    <div class="grid">
-      <article class="card"><h3><span data-i18n="freeTitle">Basic</span></h3><p data-i18n="freeBody">Import, cull, edit and export on your own device, offline. Pro tools require an activated Pro licence.</p></article>
-      <article class="card"><h3><span data-i18n="proTitle">Pro</span></h3>
-        <p class="price"><strong id="pro-price-monthly">£2.99</strong> <span data-i18n="priceMonthly">a month</span></p>
-        <p class="price"><strong id="pro-price-annual">£29.99</strong> <span data-i18n="priceAnnual">a year</span></p>
+    <div class="grid plans">
+      <article class="card"><h3><span data-i18n="freeTitle">Basic</span> <span class="pill"><span data-i18n="priceFree">Free</span></span></h3>
+        <ul class="ticks">
+          <li data-i18n-html="basicOwn"><strong>Download it and it's yours.</strong> Basic never expires and needs no account</li>
+          <li data-i18n="basicOffline">Import, cull, edit and export, fully offline</li>
+          <li data-i18n="basicModels">Every on-device AI tool, including species ID and smart culling</li>
+          <li data-i18n="basicCloud">Cloud runner: 500 photos a month when signed in</li>
+        </ul>
+      </article>
+      <article class="card featured"><h3><span data-i18n="proTitle">Pro</span> </h3>
+        <p class="price"><strong id="pro-price-annual">£29</strong> <span data-i18n="priceYear">a year</span></p>
+        <p class="muted"><span data-i18n="priceOr">or</span> <strong id="pro-price-monthly">£2.99</strong> <span data-i18n="priceMonthCancel">a month, cancel any time</span></p>
         <p class="price-tax" data-i18n="priceTax">UK prices, including VAT. Paddle shows the price in your currency, with any tax for your country, before you pay.</p>
-        <p data-i18n="proBody">Pro adds species suggestions, help choosing photos and the optional online helper. It works offline: a device that cannot check keeps Pro for up to 30 days since it last checked, and up to 14 days past a renewal date.</p>
-        <p data-i18n="chooseBuyHow">To subscribe, sign in from the InFlight app and choose Subscribe to Pro. Paddle, our reseller, runs the checkout.</p>
+        <ul class="ticks">
+          <li data-i18n="proEverything">Everything in Basic</li>
+          <li data-i18n="proCloud">Cloud runner: 5,000 photos a month, plus larger checks</li>
+          <li data-i18n="proStorage">2.5 GB cloud storage for the web app's cloud projects</li>
+        </ul>
+      </article>
+      <article class="card"><h3 data-i18n="creditTitle">PAYG Cloud Credit</h3>
+        <p data-i18n="creditBody">Collaborate across platforms and with friends, with cloud storage. Pay only for what you use beyond what's included. Top up from £5, or let it top up automatically when your balance runs low. Credit rolls over and can be refunded at any time.</p>
       </article>
     </div>
   </section>
@@ -189,14 +550,46 @@
         <tr><th scope="row" data-i18n="matrixRowExport">Full-size export (JPEG, PNG) with an optional watermark</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
         <tr><th scope="row" data-i18n="matrixRowBackup">Local backup and restore of your projects</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
         <tr><th scope="row" data-i18n="matrixRowKeys">Keyboard shortcuts and macro-pad support</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
-        <tr><th scope="row" data-i18n="matrixRowSpecies">Species suggestions from an optional on-device model</th><td data-i18n="matrixNo">Not included</td><td data-i18n="matrixYes">Included</td></tr>
-        <tr><th scope="row" data-i18n="matrixRowAssist">Help choosing photos: suggests the best from each burst</th><td data-i18n="matrixNo">Not included</td><td data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowSpecies">Species suggestions from an optional on-device model</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowAssist">Help choosing photos: suggests the best from each burst</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowCloudRunner">Cloud runner photos, when signed in</th><td data-i18n="matrixCloudBasic">500 a month</td><td data-i18n="matrixCloudPro">5,000 a month</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowStorage">Cloud storage for the web app's projects</th><td data-i18n="matrixNo">Not included</td><td data-i18n="matrixStoragePro">2.5 GB</td></tr>
         <tr><th scope="row" data-i18n="matrixRowOnline">Optional online helper, used only when you choose</th><td data-i18n="matrixNo">Not included</td><td data-i18n="matrixYes">Included</td></tr>
         </tbody>
       </table>
     </div>
     <p class="note" data-i18n="matrixNote">Basic never expires and needs no account. Pro is a subscription; if it ends, the account goes back to Basic. Importing, editing and exporting are never held back, nothing you made is ever locked, and your originals are never changed in either edition.</p>
   </section>
+
+  <section id="downloads" aria-labelledby="downloads-title">
+    <h2 id="downloads-title" data-i18n="downloadsTitle">Get InFlight</h2>
+    <p class="muted" data-i18n="downloadsIntro">InFlight is in development. Installers appear here only after a matching application release has been published. Model files and source archives are not app installers.</p>
+    <div class="grid">
+      <article class="card" data-platform="mac"><span class="platform-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="1.6"/><path d="M1.8 20h20.4M9 17v3m6-3v3"/></svg></span><h3>macOS</h3><p data-i18n="platformDesktop">Desktop editing and local storage.</p><span id="mac" class="pill" data-i18n="comingSoon">Coming soon</span></article>
+      <article class="card" data-platform="windows"><span class="platform-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M2 5.5 11 4v7H2zm11-1.8L22 2v9h-9zM2 13h9v7l-9-1.5zm11 0h9v9l-9-1.5z"/></svg></span><h3>Windows</h3><p data-i18n="platformDesktop">Desktop editing and local storage.</p><span id="windows" class="pill" data-i18n="comingSoon">Coming soon</span></article>
+      <article class="card" data-platform="ios"><span class="platform-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M10 5h4M11 19h2"/></svg></span><h3 data-i18n="platformIos">iPhone and iPad</h3><p data-i18n="platformTouch">Touch-first culling and editing.</p><span id="ios" class="pill" data-i18n="comingSoon">Coming soon</span></article>
+      <article class="card" data-platform="android"><span class="platform-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 10a7 7 0 0 1 14 0M6 10h12v7H6zM4 11v5m16-5v5M8 17v3m8-3v3M7 3 5.5 1m11 2L18 1"/><circle cx="9" cy="7.5" r=".5" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r=".5" fill="currentColor" stroke="none"/></svg></span><h3>Android</h3><p data-i18n="platformTouch">Touch-first culling and editing.</p><span id="android" class="pill" data-i18n="comingSoon">Coming soon</span></article>
+    </div>
+    <div class="cameras">
+      <h3 data-i18n="rawTitle">Opens RAW files from</h3>
+      <ul class="tags small" data-i18n-attr="aria-label:rawListLabel" aria-label="Camera makers whose RAW files are tested"><li>Canon</li><li>Nikon</li><li>Sony</li><li>Panasonic</li><li>OM System / Olympus</li><li>Pentax</li><li><span data-i18n="rawFuji">Fujifilm (most bodies)</span></li><li>DNG</li></ul>
+      <p class="muted" data-i18n="rawAlso">Also opens Samsung, Hasselblad, Phase One, Leica and Leaf RAW files. These are new, so not every body has been tested yet.</p>
+      <h3 data-i18n="liveTitle">Shooting live</h3>
+      <p class="muted" data-i18n="liveBody">InFlight watches the folder your camera maker's tether app saves to, or receives photos from your camera's Wi-Fi (FTP) transfer, and adds each one as it lands. In the desktop app.</p>
+    </div>
+    <p id="release-status" class="muted" role="status" aria-live="polite" data-i18n="releaseChecking">Checking for published app downloads…</p>
+  </section>
+
+  <section id="install" aria-labelledby="install-title">
+    <h2 id="install-title" data-i18n="installTitle">Installing InFlight</h2>
+    <p class="muted" data-i18n="installIntro">Early builds are not yet signed by Apple or Microsoft, so each system asks you to confirm before the first launch. Download only from this page.</p>
+    <div class="grid">
+      <article class="card"><h3>macOS</h3><p data-i18n-html="installMac">Open the downloaded disk image and drag InFlight to Applications. The first time, right-click InFlight, choose <strong>Open</strong>, then <strong>Open</strong> again.</p></article>
+      <article class="card"><h3>Windows</h3><p data-i18n-html="installWindows">Run the installer. If Windows says it protected your PC, choose <strong>More info</strong>, then <strong>Run anyway</strong>.</p></article>
+    </div>
+    <p class="note" data-i18n="installNote">Your photographs are never changed or uploaded by installing or using InFlight. Signed installers will replace these steps in a later release.</p>
+  </section>
+
   <section id="requirements" aria-labelledby="requirements-title">
     <h2 id="requirements-title" data-i18n="reqTitle">System requirements</h2>
     <ul class="steps">
@@ -205,29 +598,21 @@
       <li data-i18n-html="reqStorage"><strong>Storage:</strong> room for the optional on-device species model (about 90 MB) and your catalogue. Originals can stay on external drives.</li>
     </ul>
   </section>
-  <section id="getting-started" aria-labelledby="start-title">
-    <h2 id="start-title" data-i18n="startTitle">Getting started</h2>
-    <ol class="steps">
-      <li data-i18n-html="startImport"><strong>Import:</strong> choose photographs or a folder stored on your device. Keep a separate backup of your originals.</li>
-      <li data-i18n-html="startCull"><strong>Cull:</strong> review photographs, mark Keep or Reject, and compare neighbouring frames.</li>
-      <li data-i18n-html="startEdit"><strong>Edit:</strong> adjust light, colour and crops. Edits are reversible and do not rewrite the original file.</li>
-      <li data-i18n-html="startExport"><strong>Export:</strong> choose a format and save the rendered photograph.</li>
-    </ol>
-    <p class="note" data-i18n-html="nikonNote"><strong>Nikon RAW note:</strong> Browser-based NEF handling currently relies on embedded previews. Full-resolution RAW decoding, including Nikon High Efficiency variants, must be validated in native builds before it is advertised as supported.</p>
-  </section>
+
   <section id="devices" aria-labelledby="devices-title">
     <h2 id="devices-title" data-i18n="devicesTitle">Your photos, your storage, your devices</h2>
     <ol class="steps">
-      <li data-i18n-html="devicesUnlock"><strong>Unlock Pro:</strong> on the home screen choose <em>Licence and settings</em> and sign in, or paste the key from your purchase email. The key works offline with no account.</li>
       <li data-i18n-html="devicesAnywhere"><strong>Keep photos anywhere:</strong> on any drive, a NAS, or a folder that iCloud Drive, Dropbox or OneDrive syncs. InFlight never moves or changes your originals.</li>
       <li data-i18n-html="devicesCopy"><strong>Copy settings to another device:</strong> choose <em>Save settings file</em> and save it in iCloud Drive, then choose <em>Load settings file</em> on your other Mac, PC or phone.</li>
     </ol>
   </section>
+
   <section id="privacy" aria-labelledby="privacy-title">
     <h2 id="privacy-title" data-i18n="privacyTitle">Your photographs remain yours</h2>
     <p class="lead" data-i18n="privacyBody">InFlight is local-first. Import, cull and edit without an account. Optional online analysis or future cloud features must be turned on deliberately. Your originals are not silently uploaded.</p>
     <p><a href="/privacy">Read the full privacy page</a></p>
   </section>
+
   <section id="contact" aria-labelledby="contact-title">
     <h2 id="contact-title" data-i18n="contactTitle">Contact InFlight</h2>
     <form id="contact-form" class="contact-form" action="/v1/contact" method="post">
@@ -241,6 +626,7 @@
     </form>
     <noscript><p class="muted">Enable JavaScript to send a message.</p></noscript>
   </section>
+  </div>
 </main>
 <footer><div class="wrap"><span data-i18n="footerText">InFlight · Pre-release</span> · <a href="#contact" data-i18n="footerReport">Report a problem</a> · <a href="/privacy">Privacy</a> · <a href="/cookies">Cookie policy</a> · <a href="/terms">Terms</a> · <a href="/acceptable-use">Acceptable use</a> · <a href="/status">Service status</a> · <a href="/logos" data-i18n="footerBrandAssets">Brand assets</a> · <a href="/press" data-i18n="footerPress">Press</a></div></footer>
 
@@ -355,6 +741,16 @@
     } catch { /* flags unavailable: keep the page as it is */ }
   })();
 </script>
-
+<script>
+  // Sign in, Create an account and Try it as a guest open the web app. The address is one setting: the meta tag below.
+  (function webAppLinks() {
+    const base = document.querySelector('meta[name="inflight-web-app"]')?.content || '/V2Proto/';
+    for (const link of document.querySelectorAll('[data-web-app]')) {
+      const url = new URL(base, location.href);
+      url.hash = link.dataset.webApp;
+      link.href = url.pathname + url.search + url.hash;
+    }
+  })();
+</script>
 </body>
 </html>
