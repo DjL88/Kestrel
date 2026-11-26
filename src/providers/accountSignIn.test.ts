@@ -8,6 +8,7 @@ import {
   type SignInDeps,
 } from './accountSignIn';
 import { emailFailureOf } from './firebaseAuth';
+import { signInOptions, suggestedSignIn } from '../core/signInOptions';
 
 /** A Firebase error as withAuth throws it: the friendly message, with Firebase's own error (and code) on `cause`. */
 const firebaseError = (code: string, message = `friendly ${code}`) => new Error(message, { cause: Object.assign(new Error(code), { code }) });
@@ -238,14 +239,27 @@ test('available providers: Microsoft only where Settings offers it, and the devi
   const microsoft = (available: boolean) => [{ provider: 'microsoft' as const, label: 'Continue with Microsoft', available }];
   const on = (family: 'windows' | 'apple' | 'android' | 'other', options = microsoft(true), platform: 'web' | 'desktop' = 'web') =>
     availableProviders(fakes({ auth: { signInPlatform: () => platform, signInOptions: () => options, deviceFamily: () => family } }).deps);
-  assert.deepEqual(on('windows'), ['microsoft', 'apple', 'google', 'email']);
+  assert.deepEqual(on('windows'), ['microsoft', 'google', 'apple', 'email']);
   assert.deepEqual(on('apple'), ['apple', 'google', 'microsoft', 'email']);
   assert.deepEqual(on('android'), ['google', 'apple', 'microsoft', 'email']);
   assert.deepEqual(on('other'), ['google', 'apple', 'microsoft', 'email']);
-  // Not switched on (or not usable here): not offered, and Windows suggests the first way in that is.
-  assert.deepEqual(on('windows', microsoft(false)), ['apple', 'google', 'email']);
-  assert.deepEqual(on('windows', []), ['apple', 'google', 'email']);
+  // Not switched on (or not usable here): not offered, and Windows suggests the first way in that is, in main's order
+  // (Google), as Settings does.
+  assert.deepEqual(on('windows', microsoft(false)), ['google', 'apple', 'email']);
+  assert.deepEqual(on('windows', []), ['google', 'apple', 'email']);
   assert.deepEqual(on('windows', microsoft(false), 'desktop'), ['email']);
+});
+
+test('the welcome offers the ways in in the same order as Settings: its suggestion first, then the rest', () => {
+  for (const family of ['windows', 'apple', 'android', 'other'] as const) {
+    for (const microsoft of [false, true]) {
+      const options = signInOptions('web', true, false, false, microsoft);
+      const { suggested, other } = suggestedSignIn(options, family);
+      const settings = [suggested, ...other].filter((o) => o?.available).map((o) => o!.provider);
+      const welcome = availableProviders(fakes({ auth: { signInOptions: () => options, deviceFamily: () => family } }).deps);
+      assert.deepEqual(welcome, [...settings, 'email'], `${family}, Microsoft ${microsoft ? 'on' : 'off'}`);
+    }
+  }
 });
 
 test('emailFailureOf reads the Firebase code, directly or on cause', () => {

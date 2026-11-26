@@ -2017,7 +2017,7 @@ export const gd: AreaTranslation<typeof source> = {
       no_token: "Clàraichte a-steach. Cha deach Pro a sheuchainn an-dràsta. Bidh InFlight a’ cumail a dh’obair.",
     },
     created: "Chaidh an cunntas a chruthachadh. Thoir sùil air a’ phost-d agad gus a dhearbhadh.",
-    confirmEmail: "Chlàraich thu a-steach. Thoir sùil air a' phost-d agad airson ceangal gus an seòladh seo a dhearbhadh, an uairsin thoir sùil air Pro anns na roghainnean.",
+    confirmEmail: "Chlàraich thu a-steach. Thoir sùil air a' phost-d agad airson ceangal gus an seòladh seo a dhearbhadh, an uairsin tagh “Check Pro online” anns na roghainnean.",
     missingProject: "Chan eil am pròiseact sin an seo tuilleadh.",
     showOnLaunch: "Seall an sgrìn fàilte aig an tòiseachadh",
     or: "no",

@@ -2101,7 +2101,7 @@ export const source = {
       no_token: "Signed in. Pro couldn't be checked just now. InFlight keeps working.",
     },
     created: "Account created. Check your email to verify it.",
-    confirmEmail: "Signed in. Check your email for a link to confirm this address, then check Pro in Settings.",
+    confirmEmail: "Signed in. Check your email for a link to confirm this address, then choose Check Pro online in Settings.",
     missingProject: "That project is no longer here.",
     showOnLaunch: "Show the welcome screen on launch",
     or: "or",

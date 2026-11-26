@@ -2016,7 +2016,7 @@ export const es: AreaTranslation<typeof source> = {
       no_token: "Sesión iniciada. No se pudo comprobar Pro en este momento. InFlight sigue funcionando.",
     },
     created: "Cuenta creada. Revisa tu correo para verificarla.",
-    confirmEmail: "Sesión iniciada. Busca en tu correo un enlace para confirmar esta dirección y luego comprueba Pro en Ajustes.",
+    confirmEmail: "Sesión iniciada. Busca en tu correo un enlace para confirmar esta dirección y luego elige «Check Pro online» en Ajustes.",
     missingProject: "Ese proyecto ya no está aquí.",
     showOnLaunch: "Mostrar la pantalla de bienvenida al iniciar",
     or: "o",

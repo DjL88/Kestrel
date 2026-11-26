@@ -2016,7 +2016,7 @@ export const sv: AreaTranslation<typeof source> = {
       no_token: "Inloggad. Pro kunde inte kontrolleras just nu. InFlight fortsätter fungera.",
     },
     created: "Kontot är skapat. Kontrollera din e-post för att verifiera det.",
-    confirmEmail: "Du är inloggad. Öppna länken i din e-post för att bekräfta adressen och kontrollera sedan Pro i Inställningar.",
+    confirmEmail: "Du är inloggad. Öppna länken i din e-post för att bekräfta adressen och välj sedan ”Check Pro online” i Inställningar.",
     missingProject: "Det projektet finns inte längre.",
     showOnLaunch: "Visa välkomstskärmen vid start",
     or: "eller",

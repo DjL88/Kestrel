@@ -2016,7 +2016,7 @@ export const is: AreaTranslation<typeof source> = {
       no_token: "Innskráð(ur). Ekki tókst að athuga Pro núna. InFlight heldur áfram að virka.",
     },
     created: "Reikningur stofnaður. Athugaðu tölvupóstinn til að staðfesta hann.",
-    confirmEmail: "Þú ert skráð(ur) inn. Opnaðu tengilinn í tölvupóstinum til að staðfesta netfangið og athugaðu svo Pro í stillingum.",
+    confirmEmail: "Þú ert skráð(ur) inn. Opnaðu tengilinn í tölvupóstinum til að staðfesta netfangið og veldu svo „Check Pro online“ í stillingum.",
     missingProject: "Þetta verkefni er ekki lengur hér.",
     showOnLaunch: "Sýna velkomuskjáinn við ræsingu",
     or: "eða",

@@ -2016,7 +2016,7 @@ export const cy: AreaTranslation<typeof source> = {
       no_token: "Wedi mewngofnodi. Doedd dim modd gwirio Pro ar hyn o bryd. Mae InFlight yn dal i weithio.",
     },
     created: "Cyfrif wedi'i greu. Gwiriwch eich e-bost i'w gadarnhau.",
-    confirmEmail: "Rydych wedi mewngofnodi. Gwiriwch eich e-bost am ddolen i gadarnhau'r cyfeiriad hwn, yna gwiriwch Pro yn y Gosodiadau.",
+    confirmEmail: "Rydych wedi mewngofnodi. Gwiriwch eich e-bost am ddolen i gadarnhau'r cyfeiriad hwn, yna dewiswch “Check Pro online” yn y Gosodiadau.",
     missingProject: "Nid yw'r prosiect hwnnw yma mwyach.",
     showOnLaunch: "Dangos y sgrin croeso wrth gychwyn",
     or: "neu",

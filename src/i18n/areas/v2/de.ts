@@ -2016,7 +2016,7 @@ export const de: AreaTranslation<typeof source> = {
       no_token: "Angemeldet. Pro konnte gerade nicht geprüft werden. InFlight funktioniert weiter.",
     },
     created: "Konto erstellt. Bestätigen Sie es per E-Mail.",
-    confirmEmail: "Angemeldet. Bestätigen Sie diese Adresse über den Link in Ihrer E-Mail und prüfen Sie dann Pro in den Einstellungen.",
+    confirmEmail: "Angemeldet. Bestätigen Sie diese Adresse über den Link in Ihrer E-Mail und wählen Sie dann in den Einstellungen „Check Pro online“.",
     missingProject: "Dieses Projekt ist nicht mehr vorhanden.",
     showOnLaunch: "Willkommensbildschirm beim Start anzeigen",
     or: "oder",

@@ -218,9 +218,11 @@ export function availableProviders(deps: Partial<SignInDeps> = {}): (SocialProvi
   const web = platform === 'web';
   const desktop = platform === 'desktop';
   const microsoft = auth.signInOptions().some((o) => o.provider === 'microsoft' && o.available);
+  // Main's own order (signInOptions: Google, Apple, Microsoft), so the fallback suggestion and the order of the rest
+  // match Settings exactly.
   const social: SocialProvider[] = [
-    ...(web || (desktop && auth.isDesktopAppleConfigured()) ? ['apple' as const] : []),
     ...(web || (desktop && auth.isDesktopGoogleConfigured()) ? ['google' as const] : []),
+    ...(web || (desktop && auth.isDesktopAppleConfigured()) ? ['apple' as const] : []),
     ...(microsoft ? ['microsoft' as const] : []),
   ];
   const { suggested, other } = suggestedSignIn(social.map((provider) => ({ provider, label: provider, available: true })), auth.deviceFamily());

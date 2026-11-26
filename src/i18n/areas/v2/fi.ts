@@ -2017,7 +2017,7 @@ export const fi: AreaTranslation<typeof source> = {
       no_token: "Kirjautunut sisään. Pro-tilaa ei voitu tarkistaa juuri nyt. InFlight toimii edelleen.",
     },
     created: "Tili luotu. Vahvista se sähköpostista.",
-    confirmEmail: "Kirjauduit sisään. Vahvista osoite sähköpostiisi tulleella linkillä ja tarkista sitten Pro asetuksista.",
+    confirmEmail: "Kirjauduit sisään. Vahvista osoite sähköpostiisi tulleella linkillä ja valitse sitten asetuksista ”Check Pro online”.",
     missingProject: "Tätä projektia ei enää ole.",
     showOnLaunch: "Näytä tervetulonäyttö käynnistettäessä",
     or: "tai",

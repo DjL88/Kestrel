@@ -2016,7 +2016,7 @@ export const nl: AreaTranslation<typeof source> = {
       no_token: "Ingelogd. Pro kon nu niet worden gecontroleerd. InFlight blijft werken.",
     },
     created: "Account gemaakt. Controleer je e-mail om het te bevestigen.",
-    confirmEmail: "Ingelogd. Bevestig dit adres via de link in je e-mail en controleer daarna Pro in Instellingen.",
+    confirmEmail: "Ingelogd. Bevestig dit adres via de link in je e-mail en kies daarna ‘Check Pro online’ in Instellingen.",
     missingProject: "Dat project is er niet meer.",
     showOnLaunch: "Welkomstscherm tonen bij het opstarten",
     or: "of",

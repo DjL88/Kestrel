@@ -2019,7 +2019,7 @@ export const ga: AreaTranslation<typeof source> = {
       no_token: "Sínithe isteach. Níorbh fhéidir Pro a sheiceáil díreach anois. Leanann InFlight ag obair.",
     },
     created: "Cuntas cruthaithe. Seiceáil do ríomhphost chun é a fhíorú.",
-    confirmEmail: "Tá tú sínithe isteach. Féach do ríomhphost le haghaidh naisc chun an seoladh seo a dheimhniú, ansin seiceáil Pro sna Socruithe.",
+    confirmEmail: "Tá tú sínithe isteach. Féach do ríomhphost le haghaidh naisc chun an seoladh seo a dheimhniú, ansin roghnaigh “Check Pro online” sna Socruithe.",
     missingProject: "Níl an tionscadal sin anseo a thuilleadh.",
     showOnLaunch: "Taispeáin an scáileán fáilte ag an tús",
     or: "nó",

@@ -2016,7 +2016,7 @@ export const da: AreaTranslation<typeof source> = {
       no_token: "Logget ind. Pro kunne ikke kontrolleres lige nu. InFlight kører videre.",
     },
     created: "Konto oprettet. Tjek din e-mail for at bekræfte den.",
-    confirmEmail: "Du er logget ind. Tjek din e-mail for et link til at bekræfte adressen, og tjek derefter Pro i Indstillinger.",
+    confirmEmail: "Du er logget ind. Tjek din e-mail for et link til at bekræfte adressen, og vælg derefter “Check Pro online” i Indstillinger.",
     missingProject: "Det projekt findes ikke længere.",
     showOnLaunch: "Vis velkomstskærmen ved start",
     or: "eller",
