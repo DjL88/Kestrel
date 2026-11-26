@@ -41,7 +41,7 @@ async function mockApi(page: Page, flags: Flags) {
 }
 
 async function signIn(page: Page) {
-  await page.goto(`${origin}/admin.html`);
+  await page.goto(`${origin}/admin.html#flags`);
   await page.locator('#password-form').getByLabel('Email').fill('admin@example.test');
   await page.getByLabel('Password').fill('not-a-real-password');
   await page.getByRole('button', { name: 'Sign in' }).click();
