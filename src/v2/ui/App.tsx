@@ -10,7 +10,7 @@ import { useWorkspace } from './stub';
 import { resolveTheme } from './themePreference';
 import { noticeDurationMs, noticeNeedsDismiss } from './utils/noticeTiming';
 import { phoneNoticeBottom } from './utils/noticePlacement';
-import { PHONE_LANDSCAPE_QUERY } from './utils/layoutQueries';
+import { PHONE_LANDSCAPE_QUERY, SHORT_LANDSCAPE_QUERY } from './utils/layoutQueries';
 import { STRINGS } from './strings';
 import BrandIcon, { assistModeIconName } from './icons/BrandIcon';
 import ProjectsHub from './screens/ProjectsHub';
@@ -302,7 +302,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     startLayoutApplied.current = true;
     const startsWithoutPanel = [
       '(max-width: 767px)',
-      '(orientation: landscape) and (max-height: 520px) and (max-width: 899px)',
+      SHORT_LANDSCAPE_QUERY,
       '(min-width: 768px) and (max-width: 1023px) and (orientation: portrait)',
     ].some((query) => window.matchMedia(query).matches);
     if (startsWithoutPanel) setActivePanel(null);
