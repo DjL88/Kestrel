@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  CROSSFADE_MS, SLIDE_MS, SLIDESHOW_LIMIT, asSlideshowSnapshot, nextSlide, pickSlideshowPhotos, slideshowWanted, type SlideshowFrame,
+  CROSSFADE_MS, PRELOAD_MS, SLIDE_MS, SLIDESHOW_LIMIT, asSlideshowSnapshot, pickSlideshowPhotos, runSlideshow, slideshowDots, slideshowForProject,
+  slideshowWanted, type SlideshowFrame, type SlideshowView,
 } from './welcomeSlideshow';
 
 const frame = (id: string, decision: SlideshowFrame['decision'], extra: Partial<SlideshowFrame> = {}): SlideshowFrame =>
@@ -61,14 +62,6 @@ test('slideshowWanted: welcome back only, not turned off, with photos to show', 
   assert.equal(slideshowWanted({ state: 'guest', off: false, slides: 0 }), false);
 });
 
-test('nextSlide: moves on and wraps round; with reduced motion, or one photo, it stays still', () => {
-  assert.equal(nextSlide(0, 3, false), 1);
-  assert.equal(nextSlide(2, 3, false), 0);
-  assert.equal(nextSlide(1, 3, true), 1);
-  assert.equal(nextSlide(0, 1, false), 0);
-  assert.equal(nextSlide(5, 3, false), 0);
-});
-
 test('asSlideshowSnapshot: accepts a well-formed snapshot', () => {
   const value = { projectId: 'p1', projectName: 'Kestrels at dawn', developVersion: 3, keys: ['k1', 'k2'] };
   assert.deepEqual(asSlideshowSnapshot(value), value);
@@ -88,4 +81,87 @@ test('asSlideshowSnapshot: rejects anything malformed, oversized or empty', () =
     { ...ok, keys: ['x'.repeat(2049)] },
     { ...ok, projectName: 'x'.repeat(501) },
   ]) assert.equal(asSlideshowSnapshot(bad), null, JSON.stringify(bad)?.slice(0, 80));
+});
+
+test('slideshowForProject: shown only for the project the welcome offers to pick up', () => {
+  const snapshot = { projectId: 'p1', projectName: 'Dawn', developVersion: 3, keys: ['k1'] };
+  assert.equal(slideshowForProject(snapshot, 'p1'), snapshot);
+  assert.equal(slideshowForProject(snapshot, 'p2'), null);
+  assert.equal(slideshowForProject(snapshot, null), snapshot, 'no remembered project: nothing to disagree with');
+  assert.equal(slideshowForProject(null, 'p1'), null);
+});
+
+/** A fake clock and preview reader for the slideshow runner, recording what is read, shown and let go. */
+function harness(available: boolean[]) {
+  let clock = 0;
+  let alive = true;
+  const reads: number[] = [];
+  const live = new Set<string>();
+  const views: SlideshowView[] = [];
+  let maxLive = 0;
+  const deps = {
+    count: available.length,
+    prepare: async (index: number) => {
+      reads.push(index);
+      if (!available[index]) return null;
+      const url = `blob:${index}:${reads.length}`;
+      live.add(url);
+      maxLive = Math.max(maxLive, live.size);
+      return url;
+    },
+    release: (url: string) => { live.delete(url); },
+    wait: async (ms: number) => { clock += ms; if (clock > 60_000) alive = false; },
+    now: () => clock,
+    alive: () => alive,
+    update: (view: SlideshowView) => { views.push(view); },
+  };
+  return { deps, reads, live, views, get maxLive() { return maxLive; }, stop: () => { alive = false; } };
+}
+
+test('runSlideshow: with reduced motion it reads one preview only and shows it still', async () => {
+  const h = harness([true, true, true]);
+  await runSlideshow({ ...h.deps, reduced: true });
+  assert.deepEqual(h.reads, [0]);
+  assert.equal(h.views.length, 1);
+  assert.equal(h.views[0].shown?.index, 0);
+  assert.equal(h.views[0].incoming, null);
+});
+
+test('runSlideshow: reads each next photo just in time, keeps at most two alive, and lets each go once it has left', async () => {
+  const h = harness([true, true, true]);
+  await runSlideshow({ ...h.deps, reduced: false });
+  assert.ok(h.maxLive <= 2, `at most two pictures held, saw ${h.maxLive}`);
+  assert.ok(h.live.size <= 2);
+  // The first is read at once; each later one only after the photo before it has shown for a while.
+  assert.equal(h.reads[0], 0);
+  assert.deepEqual(h.reads.slice(0, 4), [0, 1, 2, 0]);
+  const shown = h.views.map((view) => view.shown?.index);
+  assert.deepEqual([...new Set(shown)].slice(0, 3), [0, 1, 2]);
+  // The crossfade: the incoming photo is mounted first, then fades in.
+  const firstIncoming = h.views.findIndex((view) => view.incoming);
+  assert.equal(h.views[firstIncoming].fading, false);
+  assert.equal(h.views[firstIncoming + 1].fading, true);
+  assert.equal(SLIDE_MS - CROSSFADE_MS - PRELOAD_MS > 0, true);
+});
+
+test('runSlideshow: a preview that cannot be read is skipped, and a single readable photo stays still', async () => {
+  const h = harness([false, true, false]);
+  await runSlideshow({ ...h.deps, reduced: false });
+  assert.equal(h.views[0].shown?.index, 1);
+  assert.ok(h.views.every((view) => view.incoming === null), 'never crossfades to itself');
+  assert.deepEqual(h.views.at(-1)?.missing, [0, 2]);
+  assert.equal(h.views.at(-1)?.moved, false);
+});
+
+test('runSlideshow: nothing readable shows nothing', async () => {
+  const h = harness([false, false]);
+  await runSlideshow({ ...h.deps, reduced: false });
+  assert.equal(h.views.at(-1)?.shown ?? null, null);
+  assert.equal(h.live.size, 0);
+});
+
+test('slideshowDots: one dot per readable photo, the showing one marked', () => {
+  const view: SlideshowView = { shown: { index: 3, url: 'u' }, incoming: null, fading: false, missing: [1], moved: true };
+  assert.deepEqual(slideshowDots(view, 4), { count: 3, current: 2 });
+  assert.deepEqual(slideshowDots({ ...view, shown: null }, 4), { count: 3, current: 0 });
 });

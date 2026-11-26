@@ -361,6 +361,18 @@ function positionsOf(frames: readonly PhotoFrame[]): { latitude: number; longitu
 const NO_FRAMES: PhotoFrame[] = [];
 
 const USER_LOOKS_KEY = 'kestrel.v2.userLooks';
+
+/** The launch welcome's "pick up where you left off" snapshot for a project, built with lastProjectFrom. */
+function rememberLastProject(project: Pick<CullingState, 'shoot' | 'frames'>): void {
+  const last = lastProjectFrom({
+    id: project.shoot.id,
+    name: project.shoot.title,
+    photoCount: computeCullCounts(project.frames.filter((frame) => !frame.removedAt)).all,
+    lastUpdatedAt: project.shoot.lastUpdatedAt,
+  });
+  if (last) writeLastProject(last);
+}
+
 /** Your looks share the Looks list with the built-in ones, so their ids carry a prefix no built-in uses. */
 const USER_LOOK_PREFIX = 'mine-';
 const userLookId = () => newId().replace(/[^A-Za-z0-9]/g, '').slice(0, 16) || String(Date.now());
@@ -614,6 +626,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useEffect(() => () => { openRequest.current += 1; }, []);
 
   const enterProject = useCallback((next: CullingState, restored?: BrowserPreviewProvider) => {
+    // Remember it for the launch welcome's "pick up where you left off", however it was entered (opened from the hub,
+    // just created, quick start). Local only; erased with device data.
+    rememberLastProject(next);
     openRequest.current += 1;
     provider.current!.clear();
     if (restored) provider.current = restored;
@@ -648,15 +663,6 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (request !== openRequest.current) return;
       enterProject(project, restored);
       entered = true;
-      // Remember it for the launch welcome's "pick up where you left off". Local only; erased with device data.
-      // Built from the loaded project, so it is written even before the hub list has filled.
-      const last = lastProjectFrom({
-        id,
-        name: project.shoot.title,
-        photoCount: computeCullCounts(project.frames.filter((frame) => !frame.removedAt)).all,
-        lastUpdatedAt: project.shoot.lastUpdatedAt,
-      });
-      if (last) writeLastProject(last);
     } catch {
       if (request === openRequest.current) {
         setHubState('ready');
@@ -686,12 +692,15 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   // The welcome-back slideshow: while a project is open, remember which of its flagged photos to show next launch, as
   // references to previews already stored on this device (never the pictures, never uploaded). A moment after the
-  // flags settle, so culling is never slowed. No flagged photos forgets it. Local only; erased with device data.
+  // flags settle, so culling is never slowed. No flagged photos forgets it. The last project is written with it, so the
+  // welcome's card and the slideshow's caption always name the same project (and the photo count stays current).
+  // Local only; erased with device data.
   const slideshowFrames = state?.frames;
   const slideshowProject = state?.shoot;
   useEffect(() => {
     if (!slideshowFrames || !slideshowProject) return;
     const timer = window.setTimeout(() => {
+      rememberLastProject({ shoot: slideshowProject, frames: slideshowFrames });
       const keys = pickSlideshowPhotos(slideshowFrames).map(hubPreviewKey);
       writeSlideshow(keys.length ? { projectId: slideshowProject.id, projectName: slideshowProject.title, developVersion: DEVELOP_VERSION, keys } : null);
     }, 1000);

@@ -5,7 +5,7 @@ import BrandIcon from '../icons/BrandIcon';
 import type { LastProject, LaunchProfile, WelcomeState } from '../../../core/launchWelcome';
 import type { LaunchIntent } from '../../launchIntent';
 import { markLaunched, readProfile, readSlideshow, setSkipChosen, skipChosen, slideshowOff } from '../../../providers/launchMemory';
-import { slideshowWanted } from '../../../core/welcomeSlideshow';
+import { slideshowDots, slideshowForProject, slideshowWanted } from '../../../core/welcomeSlideshow';
 import { SLIDESHOW_TEXT, SlideshowBackdrop, SlideshowDots, useWelcomeSlideshow } from './WelcomeSlideshow';
 import { signOutEverywhere } from '../../../providers/accountSignIn';
 import LaunchSignInPanel, { buttonClass } from './LaunchSignInPanel';
@@ -113,10 +113,12 @@ export default function LaunchWelcome({ state, profile, lastProject, isPro, onli
   // Welcome back shows a few of their own flagged photos behind it, read from this device after the welcome has painted.
   const reduced = useState(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)[0];
   const [off] = useState(slideshowOff);
-  const [remembered] = useState(() => (off ? null : readSlideshow()));
+  // Only photos from the project the card offers to pick up, so the caption and the card always name the same project.
+  const [remembered] = useState(() => (off ? null : slideshowForProject(readSlideshow(), lastProject?.id ?? null)));
   const wanted = slideshowWanted({ state: view, off, slides: remembered?.keys.length ?? 0 });
   const slideshow = useWelcomeSlideshow(wanted ? remembered : null, reduced);
-  const photos = wanted && slideshow.slides.length > 0 ? remembered : null;
+  const photos = wanted && slideshow.shown ? remembered : null;
+  const dots = photos ? slideshowDots(slideshow, photos.keys.length) : null;
 
   useEffect(() => { setProNow((was) => was || isPro); }, [isPro]);
 
@@ -159,7 +161,7 @@ export default function LaunchWelcome({ state, profile, lastProject, isPro, onli
 
   return (
     <>
-    {photos && <SlideshowBackdrop slides={slideshow.slides} current={slideshow.current} reduced={reduced} light={light} />}
+    {photos && <SlideshowBackdrop view={slideshow} reduced={reduced} light={light} />}
     <main ref={rootRef} tabIndex={-1} onKeyDown={onKeyDown} data-testid="launch-welcome" data-welcome-state={view}
       data-v2-theme={light ? 'light' : 'dark'} style={photos ? SLIDESHOW_TEXT[light ? 'light' : 'dark'] : undefined}
       className="inflight-v2 relative flex h-full w-full flex-col items-center overflow-y-auto px-[22px] pb-6 pt-[var(--welcome-logo-space,168px)] font-[family-name:var(--font-sans)] text-[var(--text-primary)] outline-none">
@@ -191,7 +193,7 @@ export default function LaunchWelcome({ state, profile, lastProject, isPro, onli
         {photos && !signingIn && (
           <div className="mb-3 flex w-full flex-col items-center gap-2">
             <p className="max-w-full truncate text-center text-xs text-[var(--text-secondary)]" data-testid="welcome-slideshow-caption">{t.photosFrom(photos.projectName)}</p>
-            {!reduced && slideshow.done && slideshow.slides.length > 1 && <SlideshowDots count={slideshow.slides.length} current={slideshow.current} />}
+            {!reduced && slideshow.moved && dots && dots.count > 1 && <SlideshowDots count={dots.count} current={dots.current} />}
           </div>
         )}
 

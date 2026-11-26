@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { CROSSFADE_MS, SLIDE_MS, nextSlide, type SlideshowSnapshot } from '../../../core/welcomeSlideshow';
+import { useEffect, useState, type CSSProperties } from 'react';
+import { CROSSFADE_MS, runSlideshow, type SlideshowSnapshot, type SlideshowView } from '../../../core/welcomeSlideshow';
 import { loadOfflinePreviewPair } from '../../../providers/offlinePreviewCache';
 
 /**
@@ -8,18 +8,27 @@ import { loadOfflinePreviewPair } from '../../../providers/offlinePreviewCache';
  * references the workspace remembered; nothing is downloaded or uploaded, and an original is never read.
  *
  * It never holds the welcome up: the welcome renders at once and the first photo fades in only when it has been read
- * and decoded. If none can be found the plain welcome simply stays. With reduced motion it is one still photo.
+ * and decoded. If none can be found the plain welcome simply stays. With reduced motion it is one still photo, and only
+ * that one preview is read. At most two pictures are held at once (the one showing and the next), so a phone never
+ * keeps eight decoded photos in memory.
  */
 
-export type LoadPreview = (key: string, developVersion: number) => Promise<Blob | null>;
+export type LoadPreview = (key: string, developVersion: number, narrow: boolean) => Promise<Blob | null>;
 
 const usable = (blob: Blob | null | undefined): blob is Blob => Boolean(blob && blob.type.startsWith('image/') && blob.size > 0);
 
-/** The stored preview for one reference: the picture developed from the RAW when there is one, else the camera's; review size. */
-export const loadStoredPreview: LoadPreview = async (key, developVersion) => {
+/** A phone-sized screen: the stored thumbnail (400 px) is enough behind an 80 % scrim, and far lighter to decode. */
+const NARROW_PX = 768;
+
+/**
+ * The stored preview for one reference: the picture developed from the RAW when there is one, else the camera's.
+ * On a narrow screen the thumbnail when one is stored, otherwise the review size (up to 2,200 px).
+ */
+export const loadStoredPreview: LoadPreview = async (key, developVersion, narrow) => {
   const developed = await loadOfflinePreviewPair(`developed-v${developVersion}:${key}`).catch(() => null);
-  const pair = developed && usable(developed.review) ? developed : await loadOfflinePreviewPair(key).catch(() => null);
+  const pair = developed && (usable(developed.review) || usable(developed.thumbnail)) ? developed : await loadOfflinePreviewPair(key).catch(() => null);
   if (!pair) return null;
+  if (narrow && usable(pair.thumbnail)) return pair.thumbnail;
   return usable(pair.review) ? pair.review : usable(pair.thumbnail) ? pair.thumbnail : null;
 };
 
@@ -29,48 +38,52 @@ async function decoded(url: string): Promise<boolean> {
   try { await image.decode(); return image.naturalWidth > 0; } catch { return false; }
 }
 
+const EMPTY: SlideshowView = { shown: null, incoming: null, fading: false, missing: [], moved: false };
+
 /**
- * Reads the remembered previews one after another, after the welcome has painted, and moves through them every SLIDE_MS.
- * `slides` grows as pictures are ready; `done` says every reference has been tried.
+ * Runs the slideshow (see runSlideshow) after the welcome has painted. Each picture is read and decoded just before it
+ * is needed, and its object URL is revoked as soon as it has left the screen, or when the welcome closes.
  */
 export function useWelcomeSlideshow(snapshot: SlideshowSnapshot | null, reduced: boolean, load: LoadPreview = loadStoredPreview) {
-  const [slides, setSlides] = useState<string[]>([]);
-  const [done, setDone] = useState(false);
-  const [current, setCurrent] = useState(0);
-  const count = useRef(0);
-  count.current = slides.length;
+  const [view, setView] = useState<SlideshowView>(EMPTY);
 
   useEffect(() => {
-    setSlides([]);
-    setCurrent(0);
-    if (!snapshot) { setDone(true); return; }
-    setDone(false);
+    setView(EMPTY);
+    if (!snapshot) return;
     let live = true;
-    const urls: string[] = [];
-    void (async () => {
-      for (const key of snapshot.keys) {
-        // With reduced motion only one still photo is ever shown, so only one is read.
-        if (!live || (reduced && urls.length > 0)) break;
-        const blob = await load(key, snapshot.developVersion).catch(() => null);
-        if (!live || !usable(blob)) continue;
+    const held = new Set<string>();
+    const timers = new Set<number>();
+    const narrow = window.innerWidth <= NARROW_PX;
+    void runSlideshow({
+      count: snapshot.keys.length,
+      reduced,
+      prepare: async (index) => {
+        const blob = await load(snapshot.keys[index], snapshot.developVersion, narrow).catch(() => null);
+        if (!live || !usable(blob)) return null;
         const url = URL.createObjectURL(blob);
-        if (!(await decoded(url)) || !live) { URL.revokeObjectURL(url); continue; }
-        urls.push(url);
-        setSlides([...urls]);
-      }
-      if (live) setDone(true);
-    })();
-    return () => { live = false; for (const url of urls) URL.revokeObjectURL(url); };
+        held.add(url);
+        if (await decoded(url)) return url;
+        held.delete(url);
+        URL.revokeObjectURL(url);
+        return null;
+      },
+      release: (url) => { held.delete(url); URL.revokeObjectURL(url); },
+      wait: (ms) => new Promise((resolve) => {
+        const timer = window.setTimeout(() => { timers.delete(timer); resolve(); }, ms);
+        timers.add(timer);
+      }),
+      now: () => performance.now(),
+      alive: () => live,
+      update: (next) => { if (live) setView(next); },
+    });
+    return () => {
+      live = false;
+      for (const timer of timers) window.clearTimeout(timer);
+      for (const url of held) URL.revokeObjectURL(url);
+    };
   }, [snapshot, reduced, load]);
 
-  const moving = !reduced && slides.length > 1;
-  useEffect(() => {
-    if (!moving) return;
-    const timer = window.setInterval(() => setCurrent((was) => nextSlide(was, count.current, reduced)), SLIDE_MS);
-    return () => window.clearInterval(timer);
-  }, [moving, reduced]);
-
-  return { slides, current: slides.length ? Math.min(current, slides.length - 1) : 0, done };
+  return view;
 }
 
 /**
@@ -90,23 +103,26 @@ export const SLIDESHOW_TEXT: Record<'dark' | 'light', CSSProperties> = {
 };
 
 /** The photos and their scrim, behind everything on the welcome. Decorative: hidden from assistive technology. */
-export function SlideshowBackdrop({ slides, current, reduced, light }: { slides: string[]; current: number; reduced: boolean; light: boolean }) {
+export function SlideshowBackdrop({ view, reduced, light }: { view: SlideshowView; reduced: boolean; light: boolean }) {
   const [shown, setShown] = useState(false);
+  const has = view.shown !== null;
   useEffect(() => {
-    if (!slides.length || shown) return;
+    if (!has || shown) return;
     const frame = window.requestAnimationFrame(() => setShown(true));
     return () => window.cancelAnimationFrame(frame);
-  }, [slides.length, shown]);
-  if (!slides.length) return null;
+  }, [has, shown]);
+  if (!view.shown) return null;
   const fade = reduced ? undefined : `opacity ${CROSSFADE_MS}ms ease-in-out`;
+  // Only the photo showing and the one coming in are ever mounted; the incoming one sits on top and fades in.
   return (
-    <div aria-hidden="true" data-testid="welcome-slideshow" data-slides={slides.length} data-current={current}
+    <div aria-hidden="true" data-testid="welcome-slideshow" data-current={view.shown.index}
       className="pointer-events-none absolute inset-0 overflow-hidden"
       style={{ opacity: reduced || shown ? 1 : 0, transition: fade }}>
-      {slides.map((url, index) => (
-        <img key={url} src={url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover"
-          style={{ opacity: index === current ? 1 : 0, transition: fade }} />
-      ))}
+      <img key={view.shown.url} src={view.shown.url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover" style={{ transition: fade }} />
+      {view.incoming && (
+        <img key={view.incoming.url} src={view.incoming.url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover"
+          style={{ opacity: view.fading ? 1 : 0, transition: fade }} />
+      )}
       <div className="absolute inset-0" style={{ backgroundColor: light ? SCRIM.light : SCRIM.dark }} />
     </div>
   );

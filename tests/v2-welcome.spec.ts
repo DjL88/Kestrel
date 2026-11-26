@@ -167,14 +167,16 @@ const SLIDESHOW = { projectId: 'p-slides', projectName: 'Kestrels at dawn', deve
 async function storeSlides(page: Page, memory: Record<string, unknown>, onlyThese = false) {
   await page.goto('/?v2&stub=1');
   await page.evaluate(async ({ keys, memory, onlyThese }) => {
-    const picture = (colour: string) => new Promise<Blob>((resolve, reject) => {
+    const picture = (colour: string, width = 64) => new Promise<Blob>((resolve, reject) => {
       const canvas = document.createElement('canvas');
-      canvas.width = 64; canvas.height = 40;
+      canvas.width = width; canvas.height = 40;
       const context = canvas.getContext('2d')!;
       context.fillStyle = colour; context.fillRect(0, 0, 64, 40);
       canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('no blob'))), 'image/jpeg', 0.8);
     });
+    // A review-size picture (64 px here) and a thumbnail (32 px), as the cache stores them.
     const blobs = [await picture('#d9a441'), await picture('#3f6f8f')];
+    const thumbs = [await picture('#d9a441', 32), await picture('#3f6f8f', 32)];
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open('kestrel-offline-previews-v1', 1);
       request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('previews')) request.result.createObjectStore('previews'); };
@@ -183,7 +185,7 @@ async function storeSlides(page: Page, memory: Record<string, unknown>, onlyThes
     });
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction('previews', 'readwrite');
-      keys.forEach((key, i) => tx.objectStore('previews').put({ thumbnail: blobs[i], review: blobs[i] }, key));
+      keys.forEach((key, i) => tx.objectStore('previews').put({ thumbnail: thumbs[i], review: blobs[i] }, key));
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -201,13 +203,38 @@ test('welcome back shows their own flagged photos behind a scrim, with a caption
   const splash = page.getByTestId('splash');
   await expect(splash.getByRole('heading', { name: 'Welcome back, Sam' })).toBeVisible();
   const slideshow = splash.getByTestId('welcome-slideshow');
-  await expect(slideshow).toHaveAttribute('data-slides', '2', { timeout: 10_000 });
+  await expect(slideshow).toHaveAttribute('data-current', '0', { timeout: 10_000 });
   await expect(slideshow).toHaveAttribute('aria-hidden', 'true');
-  await expect(slideshow.locator('img')).toHaveCount(2);
-  for (const image of await slideshow.locator('img').all()) await expect(image).toHaveAttribute('alt', '');
   await expect(splash.getByTestId('welcome-slideshow-caption')).toHaveText('From Kestrels at dawn');
-  // About 6 s a photo: the second one comes in.
-  await expect(slideshow).toHaveAttribute('data-current', '1', { timeout: 12_000 });
+  // Only the photo showing is held at first; the next is read just before its crossfade.
+  await expect(slideshow.locator('img')).toHaveCount(1);
+  const first = await slideshow.locator('img').first().getAttribute('src');
+  // A phone-sized screen gets the stored thumbnail (32 px here); a wider one the review size (64 px).
+  const narrow = (page.viewportSize()?.width ?? 1280) <= 768;
+  expect(await slideshow.locator('img').first().evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(narrow ? 32 : 64);
+  // About 6 s a photo: the second one comes in, never more than two pictures mounted.
+  const most = { mounted: 0 };
+  await expect.poll(async () => {
+    most.mounted = Math.max(most.mounted, await slideshow.locator('img').count());
+    return slideshow.getAttribute('data-current');
+  }, { timeout: 12_000, intervals: [200] }).toBe('1');
+  await expect(slideshow.locator('img')).toHaveCount(1);
+  for (const image of await slideshow.locator('img').all()) await expect(image).toHaveAttribute('alt', '');
+  expect(most.mounted).toBeLessThanOrEqual(2);
+  // The photo that left was let go: its address no longer reads.
+  expect(await page.evaluate((src) => fetch(src!).then(() => 'still held', () => 'released'), first)).toBe('released');
+});
+
+test('the slideshow shows only beside the project the welcome offers to pick up', async ({ page }) => {
+  await storeSlides(page, {
+    'inflight.launch.profile': PROFILE, 'inflight.launch.slideshow': SLIDESHOW, 'inflight.launch.lastProject': lastProject('another-project'),
+  });
+  await page.goto('/?v2&stub=1&splash=1');
+  const splash = page.getByTestId('splash');
+  await expect(splash.getByTestId('welcome-last-project')).toContainText('Dawn at the marsh');
+  await page.waitForTimeout(1500);
+  await expect(splash.getByTestId('welcome-slideshow')).toHaveCount(0);
+  await expect(splash.getByTestId('welcome-slideshow-caption')).toHaveCount(0);
 });
 
 test('with reduced motion the slideshow is one still photo', async ({ page }) => {
@@ -217,7 +244,7 @@ test('with reduced motion the slideshow is one still photo', async ({ page }) =>
   const splash = page.getByTestId('splash');
   await expect(splash.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
   const slideshow = splash.getByTestId('welcome-slideshow');
-  await expect(slideshow).toHaveAttribute('data-slides', '1', { timeout: 10_000 });
+  await expect(slideshow).toHaveAttribute('data-current', '0', { timeout: 10_000 });
   await expect(splash.getByTestId('welcome-slideshow-caption')).toHaveText('From Kestrels at dawn');
   // Still: no crossfade, and it stays on the same photo past the time a photo would change.
   expect(await slideshow.evaluate((el) => getComputedStyle(el.querySelector('img')!).transitionDuration)).toBe('0s');
@@ -271,7 +298,7 @@ test('Settings offers everyone the slideshow switch, and it is remembered on thi
   expect(await page.evaluate(() => localStorage.getItem('inflight.launch.slideshowOff'))).toBeNull();
 });
 
-test('flagging a photo in a project remembers it for the slideshow, and the next welcome shows that photo from this device', async ({ page }) => {
+test('a project just created, filled and flagged is the one the next welcome offers, and its photo shows with a matching caption', async ({ page }) => {
   test.setTimeout(90_000);
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
@@ -296,6 +323,8 @@ test('flagging a photo in a project remembers it for the slideshow, and the next
   await page.goto('/?v2&splash=1');
   const splash = page.getByTestId('splash');
   await expect(splash.getByRole('heading', { name: 'Welcome back, Sam' })).toBeVisible();
-  await expect(splash.getByTestId('welcome-slideshow')).toHaveAttribute('data-slides', '1', { timeout: 10_000 });
+  await expect(splash.getByTestId('welcome-slideshow')).toHaveAttribute('data-current', '0', { timeout: 10_000 });
   await expect(splash.getByTestId('welcome-slideshow-caption')).toHaveText('From Kestrels at dawn');
+  // Never reopened from the hub, yet the card names the same project as the caption.
+  await expect(splash.getByTestId('welcome-last-project')).toContainText('Kestrels at dawn');
 });
