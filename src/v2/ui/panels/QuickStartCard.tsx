@@ -19,7 +19,7 @@ export default function QuickStartCard({ quickStart, onExport, onDone }: QuickSt
         : quickStart.phase === 'held' ? t.held : t.failedCheck;
   return (
     <section aria-labelledby="v2-quick-start-title" data-testid="quick-start-card"
-      className="fixed bottom-24 left-1/2 z-[70] w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 text-[var(--text-primary)] shadow-[var(--shadow-panel)]">
+      className="v2-safe-bottom fixed bottom-24 left-1/2 z-[70] w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 text-[var(--text-primary)] shadow-[var(--shadow-panel)]">
       <h2 id="v2-quick-start-title" className="text-sm font-semibold">{t.title}</h2>
       <p role="status" aria-live="polite" className="mt-1 text-sm text-[var(--text-secondary)]">{message}</p>
       {quickStart.phase !== 'working' && (

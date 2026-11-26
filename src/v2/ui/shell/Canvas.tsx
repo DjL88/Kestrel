@@ -33,6 +33,7 @@ import HealLayer, { type HealCanvasState } from './HealLayer';
 import TapSelectLayer from './TapSelectLayer';
 import { MAX_SPLIT_FRAMES, type SplitFrameCount } from '../../engineClient/formatSplitOps';
 import { captureElement, screenshotName } from '../utils/captureElement';
+import { noticeDurationMs } from '../utils/noticeTiming';
 import { cameraFocusPoint, chooseActualFocus, focusOnScreen, focusZoom, lookForZoomFocus, pictureIn, warmZoomTargets, type PictureBox, type ZoomFocus } from '../../engineClient/eyeZoom';
 import { shouldDevelopOnZoom } from '../utils/zoomFullDevelop';
 import { DOCKED, clampDockOffset, isDocked, nudgeDockOffset, parseDockOffset, snapDockOffset, type DockOffset } from '../utils/floatingDock';
@@ -390,7 +391,13 @@ export default function Canvas({
     return () => observer.disconnect();
   }, []);
 
-  const [shotNote, setShotNote] = useState<string | null>(null);
+  /** The screenshot's message. A failure stays until dismissed; a confirmation stays long enough to read (noticeTiming). */
+  const [shotNote, setShotNote] = useState<{ text: string; problem: boolean } | null>(null);
+  useEffect(() => {
+    if (!shotNote || shotNote.problem) return;
+    const timer = window.setTimeout(() => setShotNote(null), noticeDurationMs(shotNote.text));
+    return () => window.clearTimeout(timer);
+  }, [shotNote]);
   /** The menu on the zoom percentage: Fit, 100% and Zoom to eye. */
   const [zoomMenuOpen, setZoomMenuOpen] = useState(false);
   const zoomMenuRef = useRef<HTMLDivElement>(null);
@@ -448,7 +455,7 @@ export default function Canvas({
   const grabScreenshot = async () => {
     const stage = stageRef.current;
     if (!stage || !photo) return;
-    setShotNote('Taking the screenshot…');
+    setShotNote({ text: 'Taking the screenshot…', problem: false });
     try {
       const blob = await captureElement(stage);
       const link = document.createElement('a');
@@ -456,11 +463,10 @@ export default function Canvas({
       link.download = screenshotName(photo.title || photo.filename, new Date());
       document.body.appendChild(link); link.click(); link.remove();
       window.setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
-      setShotNote('Screenshot saved to your downloads.');
+      setShotNote({ text: 'Screenshot saved to your downloads.', problem: false });
     } catch (error) {
-      setShotNote(error instanceof Error ? error.message : 'The screenshot could not be taken.');
+      setShotNote({ text: error instanceof Error && error.message ? error.message : 'The screenshot could not be taken.', problem: true });
     }
-    window.setTimeout(() => setShotNote(null), 5000);
   };
   const [stageSize, setStageSize] = useState({ width: 660, height: 470 });
   const touchPoints = useRef(new Map<number, { x: number; y: number }>());
@@ -1410,8 +1416,14 @@ export default function Canvas({
     const captionHidden = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
       && window.matchMedia(SHORT_LANDSCAPE_QUERY).matches;
     const availableHeight = Math.max(80, stageSize.height - (captionHidden ? 24 : 105));
-    const frameW = Math.min(maxW, Math.round(maxH * aspect), availableWidth, availableHeight * aspect);
-    return { frameW, frameH: Math.round(frameW / aspect) };
+    const spaceW = Math.min(maxW, Math.round(maxH * aspect), availableWidth, availableHeight * aspect);
+    // Fit never enlarges (decision 11.2): it fills the space only up to the photo's own pixels, so a small photo shows
+    // at 100% with space round it instead of being blown up. The picture covers the frame, so neither side of the frame
+    // may be larger than the picture's own.
+    const own = photo.pixelSize && photo.pixelSize.width > 0 && photo.pixelSize.height > 0
+      ? Math.floor(Math.min(photo.pixelSize.width, photo.pixelSize.height * aspect)) : Infinity;
+    const frameW = Math.max(1, Math.min(spaceW, own));
+    return { frameW, frameH: Math.min(Math.round(frameW / aspect), own === Infinity ? Infinity : Math.floor(photo.pixelSize!.height)) };
   };
   // Screen pixels the frame uses for one picture pixel at Fit (the picture covers the frame). Null when the size is unknown.
   const fitScale = (() => {
@@ -2155,7 +2167,14 @@ export default function Canvas({
           </button>
         )}
         {shotNote && (
-          <p role="status" data-capture-ignore className="absolute bottom-14 right-3 z-30 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2.5 py-1 text-[0.6875rem] text-[var(--text-primary)] shadow">{shotNote}</p>
+          <div role={shotNote.problem ? 'alert' : 'status'} data-capture-ignore data-testid="canvas-shot-note"
+            className="absolute bottom-14 right-3 z-30 flex items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1 pl-2.5 pr-1 text-[0.6875rem] text-[var(--text-primary)] shadow">
+            <span>{shotNote.problem && <span aria-hidden="true">⚠ </span>}{shotNote.text}</span>
+            {shotNote.problem && (
+              <button type="button" onClick={() => setShotNote(null)} aria-label="Dismiss this message"
+                className="v2-touch-target min-h-7 rounded-[var(--radius-sm)] px-2 hover:bg-[var(--bg-surface-hover)]">Dismiss</button>
+            )}
+          </div>
         )}
 
         {/* BottomRightCluster: Zoom controls, Grid View toggle, and ONE Full Screen button */}

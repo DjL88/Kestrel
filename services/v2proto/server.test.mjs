@@ -37,7 +37,8 @@ test('anonymous visitors see login, never the private V2 app or assets', async (
     assert.ok(response, 'server started');
     assert.equal(response.status, 200);
     const page = await response.text();
-    assert.match(page, /Sign in with your approved Google owner account/);
+    assert.match(page, /Sign in with Google to open the editor/);
+    assert.doesNotMatch(page, /prototype|owner/i, 'the public gate uses neither word');
     assert.doesNotMatch(page, /PRIVATE BUILD CONTENT/);
     const asset = await fetch('http://127.0.0.1:' + port + '/V2Proto/assets/app.js');
     assert.equal(asset.status, 401);

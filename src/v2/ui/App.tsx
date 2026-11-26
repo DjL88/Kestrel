@@ -955,7 +955,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     <FeaturePlanContext.Provider value={store.featurePlan}>
       <HiddenProContext.Provider value={hiddenPro}>
     <div
-      className="inflight-v2 fixed inset-0 flex flex-col overflow-hidden bg-[var(--bg-app)] text-[var(--text-primary)] font-[family-name:var(--font-sans)]"
+      className="inflight-v2 v2-safe-root fixed inset-0 flex flex-col overflow-hidden bg-[var(--bg-app)] text-[var(--text-primary)] font-[family-name:var(--font-sans)]"
       data-v2-theme={activeTheme}
       data-v2-layout={store.screen === 'editor' && phoneLandscape && !canvasOnlyShown ? 'phone-landscape' : undefined}
       data-v2-motion={store.settings.calmMotion ? 'calm' : undefined}
@@ -1355,7 +1355,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               aria-label={STRINGS.mobile.toolBar}
               className={phoneLandscape
                 ? 'fixed inset-y-0 right-0 z-40 flex w-[calc(4.5rem+env(safe-area-inset-right))] flex-col items-stretch gap-1 border-l border-[var(--border-subtle)] bg-[var(--bg-surface)] pb-[max(0.5rem,env(safe-area-inset-bottom))] pl-1 pr-[calc(0.25rem+env(safe-area-inset-right))] pt-[max(0.5rem,env(safe-area-inset-top))]'
-                : 'flex min-h-16 shrink-0 items-stretch justify-around border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1 pb-[env(safe-area-inset-bottom)]'}
+                : 'v2-safe-bottom-fill flex min-h-16 shrink-0 items-stretch justify-around border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1'}
             >
               {phoneLandscape && (
                 <button type="button" onClick={() => actions.setExportOpen(true)}
@@ -1413,7 +1413,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
               aria-label={STRINGS.mobile.moreTools}
               className={phoneLandscape
                 ? 'fixed inset-y-0 right-[calc(4.5rem+env(safe-area-inset-right))] z-40 grid w-64 auto-rows-min grid-cols-2 content-start gap-2 overflow-y-auto border-l border-[var(--border-default)] bg-[var(--bg-surface)] p-3 pt-[max(0.75rem,env(safe-area-inset-top))]'
-                : "fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 grid grid-cols-3 gap-2 rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-panel)]"}
+                : "v2-safe-x fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 grid grid-cols-3 gap-2 rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-panel)]"}
             >
               {(
                 [
@@ -1451,7 +1451,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           {phoneLayout && store.activePanel && !composingCollage && (
             <div ref={setSheetEl} className={phoneLandscape
               ? 'fixed inset-y-0 right-[calc(4.5rem+env(safe-area-inset-right))] z-30 flex w-[17rem] flex-col border-l border-[var(--border-default)] bg-[var(--bg-surface)] pt-[env(safe-area-inset-top)] shadow-[var(--shadow-panel)]'
-              : "fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"}>
+              : "v2-safe-x fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]"}>
               <div
                 data-testid="mobile-sheet-handle"
                 style={{ touchAction: 'none' }}
@@ -1619,9 +1619,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onMouseLeave={() => setNoticePaused(false)}
           onFocus={() => setNoticePaused(true)}
           onBlur={() => setNoticePaused(false)}
-          className={`fixed right-4 z-50 flex max-w-[min(28rem,calc(100vw-2rem))] items-start gap-2 rounded-[var(--radius-md)] border bg-[var(--bg-surface-raised)] py-2 pl-3.5 pr-1.5 text-xs font-medium text-[var(--text-primary)] shadow-[var(--shadow-popover)] ${
+          className={`${phoneLandscape ? '' : 'v2-safe-right '}fixed right-4 z-50 flex max-w-[min(28rem,calc(100vw-2rem))] items-start gap-2 rounded-[var(--radius-md)] border bg-[var(--bg-surface-raised)] py-2 pl-3.5 pr-1.5 text-xs font-medium text-[var(--text-primary)] shadow-[var(--shadow-popover)] ${
             noticeSticky ? 'border-[var(--semantic-warning)]' : 'border-[var(--border-default)]'
-          } ${isMobile ? (noticeBottom === null ? 'bottom-20' : '') : 'bottom-4'}`}
+          } ${isMobile ? (noticeBottom === null ? 'bottom-20' : '') : 'v2-safe-bottom bottom-4'}`}
           style={phoneLandscape ? { right: 'calc(5.5rem + env(safe-area-inset-right))' } : isMobile && noticeBottom !== null ? { bottom: noticeBottom } : undefined}
           data-testid="action-notice"
         >

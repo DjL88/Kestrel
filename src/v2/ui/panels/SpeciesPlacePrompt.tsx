@@ -13,7 +13,7 @@ export default function SpeciesPlacePrompt({ place, onChoose }: { place: Species
   const button = 'min-h-9 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs text-[var(--text-primary)]';
   return (
     <section aria-labelledby="species-place-prompt-title" data-testid="species-place-prompt"
-      className="fixed bottom-24 right-4 z-[65] w-[min(22rem,calc(100vw-2rem))] rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-3 text-[var(--text-primary)] shadow-[var(--shadow-panel)]">
+      className="v2-safe-bottom v2-safe-right fixed bottom-24 right-4 z-[65] w-[min(22rem,calc(100vw-2rem))] rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-3 text-[var(--text-primary)] shadow-[var(--shadow-panel)]">
       <div className="flex items-start justify-between gap-2">
         <h2 id="species-place-prompt-title" className="text-sm font-semibold">{t.whereTaken}</h2>
         <button type="button" aria-label={t.notNow} title={t.notNow} onClick={() => onChoose({ kind: 'home' })}
