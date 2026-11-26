@@ -17,6 +17,7 @@ export const fi: AreaTranslation<typeof source> = {
     gemini: 'Google Gemini (AI Studio -avain)',
     anthropic: 'Anthropic Claude',
     openai: 'OpenAI-yhteensopiva tai tällä tietokoneella oleva malli (Ollama, LM Studio)',
+    inflight: 'InFlight AI (vain kutsutut testaajat)',
   },
   key: 'API-avain',
   keyOptional: 'API-avain (jätä tyhjäksi, jos malli on tällä tietokoneella)',
@@ -49,6 +50,8 @@ export const fi: AreaTranslation<typeof source> = {
     highlights: 'Kirkkaat sävyt', shadows: 'Varjot', whites: 'Kirkkaimmat kohdat', blacks: 'Tummimmat kohdat',
   },
   errors: {
+    notInvited: 'InFlight AI on avoin vain kutsutuille testaajille. Käytä omaa tekoälyäsi tai tällä tietokoneella olevaa mallia.',
+    signIn: 'Kirjaudu InFlight-tilillesi käyttääksesi InFlight AI:ta.',
     setup: 'Tekoälyäsi ei ole vielä otettu käyttöön, tai suostumus puuttuu.',
     key: 'Tekoälysi mukaan avain on väärä tai sitä ei sallita. Tarkista se palveluntarjoajasi tililtä.',
     offline: 'Olet offline-tilassa. InFlightin oma värintarkistus toimii silti.',
@@ -57,6 +60,8 @@ export const fi: AreaTranslation<typeof source> = {
     unreadable: 'Tekoälysi vastausta ei voitu lukea, joten mitään ei muutettu.',
     other: 'Jokin meni vikaan, kun tekoälyltäsi kysyttiin. Mitään ei muutettu.',
   },
+  inflightHint: 'Tileille, jotka InFlight on kutsunut testaamaan omaa tekoälyään. Kirjaudu ensin sisään; avainta ei tarvita.',
+  inflightSummary: 'InFlight AI ehdottaa näitä pieniä muutoksia.',
   assistant: {
     title: 'Tekoälyavustajasi ehdotukset',
     intro: (count, when) => `Avustajasi jätti tälle projektille ${count === 1 ? 'yhden ehdotuksen' : `${count} ehdotusta`} (${when}). Mikään ei muutu, ennen kuin otat ne käyttöön.`,

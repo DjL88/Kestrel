@@ -17,6 +17,7 @@ export const da: AreaTranslation<typeof source> = {
     gemini: 'Google Gemini (AI Studio-nøgle)',
     anthropic: 'Anthropic Claude',
     openai: 'OpenAI-kompatibel, eller en model på denne computer (Ollama, LM Studio)',
+    inflight: 'InFlight AI (kun inviterede testere)',
   },
   key: 'API-nøgle',
   keyOptional: 'API-nøgle (lad feltet være tomt for en model på denne computer)',
@@ -49,6 +50,8 @@ export const da: AreaTranslation<typeof source> = {
     highlights: 'Højlys', shadows: 'Skygger', whites: 'Lyseste dele', blacks: 'Mørkeste dele',
   },
   errors: {
+    notInvited: 'InFlight AI er kun åben for inviterede testere. Brug din egen AI eller en model på denne computer i stedet.',
+    signIn: 'Log ind på din InFlight-konto for at bruge InFlight AI.',
     setup: 'Din AI er ikke sat op endnu, eller samtykket mangler.',
     key: 'Din AI siger, at nøglen er forkert eller ikke tilladt. Tjek den på din konto hos udbyderen.',
     offline: 'Du er offline. InFlights eget farvetjek virker stadig.',
@@ -57,6 +60,8 @@ export const da: AreaTranslation<typeof source> = {
     unreadable: 'Din AI’s svar kunne ikke læses, så intet blev ændret.',
     other: 'Noget gik galt, da din AI blev spurgt. Intet blev ændret.',
   },
+  inflightHint: 'Til konti, som InFlight har inviteret til at teste sin egen AI. Log ind først; der kræves ingen nøgle.',
+  inflightSummary: 'InFlight AI foreslår disse små ændringer.',
   assistant: {
     title: 'Forslag fra din AI-assistent',
     intro: (count, when) => `Din assistent har efterladt ${count === 1 ? 'ét forslag' : `${count} forslag`} til dette projekt (${when}). Intet ændres, før du anvender dem.`,

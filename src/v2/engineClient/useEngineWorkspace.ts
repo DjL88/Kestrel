@@ -121,7 +121,7 @@ import { preloadTrueDetailAi } from '../../core/trueDetailAiCanvas';
 import { moveArtboard } from './boardOps';
 import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
-import { aiOpinionView, applyTargets, askAiSecondOpinion, errorWords, type AiOpinionRecord } from './aiSecondOpinion';
+import { agreeManagedAi, aiOpinionView, applyTargets, askAiSecondOpinion, errorWords, type AiOpinionRecord } from './aiSecondOpinion';
 import { useAiSettings, saveAiSettings } from '../../providers/aiSettings';
 import { consentFor } from '../../providers/aiProviders';
 import { AI_REVIEW_CONSENT_VERSION } from '../../core/aiReview';
@@ -1921,7 +1921,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     setAiOpinion({ ...record, phase: 'applied' });
   }, [aiOpinion, editFrames]);
   const agreeAiOpinion = useCallback(() => {
-    if (aiSettings) saveAiSettings({ ...aiSettings, consent: consentFor(AI_REVIEW_CONSENT_VERSION, aiSettings) });
+    if (!aiSettings) return;
+    saveAiSettings({ ...aiSettings, consent: consentFor(AI_REVIEW_CONSENT_VERSION, aiSettings) });
+    // InFlight's own AI also needs the account's standing Gemini consent on the server; this press is that choice.
+    if (aiSettings.kind === 'inflight') void agreeManagedAi().catch(() => undefined);
   }, [aiSettings]);
   // A different provider or photo never leaves an old answer on screen.
   useEffect(() => { aiAbort.current?.abort(); aiAbort.current = null; setAiOpinion(null); }, [aiSettings]);

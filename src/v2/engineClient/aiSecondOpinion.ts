@@ -62,7 +62,9 @@ export async function askAiSecondOpinion(
 ): Promise<{ review: AiReview; targets: RecipeProposal }> {
   const jpeg = await previewForAi(frame, provider, signal);
   if (!jpeg) throw new AiReviewError('other');
-  const review = await askForReview(settings, AI_REVIEW_CONSENT_VERSION, aiReviewPrompt(languageName, localFindings), jpeg, signal);
+  const answer = await askForReview(settings, AI_REVIEW_CONSENT_VERSION, aiReviewPrompt(languageName, localFindings), jpeg, signal);
+  // InFlight's own AI returns slider values only; say what they are in the person's language.
+  const review = answer.summary ? answer : { ...answer, summary: t.inflightSummary };
   return { review, targets: conservativeReviewTargets(frame.edit ?? DEFAULT_EDIT, review.suggestion) };
 }
 
@@ -97,4 +99,14 @@ export function aiOpinionView(settings: AiProviderSettings | null, record: AiOpi
       changes: Object.entries(record.targets ?? {}).map(([slider, value]) => t.changeLine(t.slider[slider as keyof typeof t.slider] ?? slider, signed(value as number))),
     } : {}),
   };
+}
+
+/** Turn on the signed-in account's standing "use Gemini" consent for InFlight's own AI, after the person agreed in Co-pilot. */
+export async function agreeManagedAi(): Promise<void> {
+  const [{ parseControlPlaneUrl }, { firebaseAuth }, { setAccountAiConsent }] = await Promise.all([
+    import('../../core/licenceOnline'), import('../../providers/firebaseAuth'), import('../../providers/accountAiConsent'),
+  ]);
+  const origin = parseControlPlaneUrl(import.meta.env?.VITE_KESTREL_CONTROL_PLANE_URL);
+  const token = await firebaseAuth.idToken().catch(() => null);
+  if (origin && token) await setAccountAiConsent(origin, token, true);
 }

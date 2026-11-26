@@ -17,6 +17,7 @@ export const nl: AreaTranslation<typeof source> = {
     gemini: 'Google Gemini (AI Studio-sleutel)',
     anthropic: 'Anthropic Claude',
     openai: 'OpenAI-compatibel, of een model op deze computer (Ollama, LM Studio)',
+    inflight: 'InFlight AI (alleen uitgenodigde testers)',
   },
   key: 'API-sleutel',
   keyOptional: 'API-sleutel (leeg laten voor een model op deze computer)',
@@ -49,6 +50,8 @@ export const nl: AreaTranslation<typeof source> = {
     highlights: 'Hooglichten', shadows: 'Schaduwen', whites: 'Lichtste delen', blacks: 'Donkerste delen',
   },
   errors: {
+    notInvited: 'InFlight AI is alleen open voor uitgenodigde testers. Gebruik je eigen AI of een model op deze computer.',
+    signIn: 'Meld je aan bij je InFlight-account om InFlight AI te gebruiken.',
     setup: 'Uw AI is nog niet ingesteld, of de toestemming ontbreekt.',
     key: 'Uw AI meldt dat de sleutel onjuist of niet toegestaan is. Controleer hem in het account bij uw aanbieder.',
     offline: 'U bent offline. De kleurcontrole van InFlight werkt nog steeds.',
@@ -57,6 +60,8 @@ export const nl: AreaTranslation<typeof source> = {
     unreadable: 'Het antwoord van uw AI kon niet worden gelezen, dus er is niets gewijzigd.',
     other: 'Er ging iets mis bij het vragen aan uw AI. Er is niets gewijzigd.',
   },
+  inflightHint: 'Voor accounts die InFlight heeft uitgenodigd om zijn eigen AI te testen. Meld je eerst aan; er is geen sleutel nodig.',
+  inflightSummary: 'InFlight AI stelt deze kleine wijzigingen voor.',
   assistant: {
     title: 'Suggesties van je AI-assistent',
     intro: (count, when) => `Je assistent heeft ${count === 1 ? 'één suggestie' : `${count} suggesties`} voor dit project achtergelaten (${when}). Er verandert niets tot je ze toepast.`,

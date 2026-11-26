@@ -17,6 +17,7 @@ export const de: AreaTranslation<typeof source> = {
     gemini: 'Google Gemini (AI-Studio-Schlüssel)',
     anthropic: 'Anthropic Claude',
     openai: 'OpenAI-kompatibel oder ein Modell auf diesem Computer (Ollama, LM Studio)',
+    inflight: 'InFlight AI (nur eingeladene Tester)',
   },
   key: 'API-Schlüssel',
   keyOptional: 'API-Schlüssel (leer lassen für ein Modell auf diesem Computer)',
@@ -49,6 +50,8 @@ export const de: AreaTranslation<typeof source> = {
     highlights: 'Lichter', shadows: 'Tiefen', whites: 'Hellste Bereiche', blacks: 'Dunkelste Bereiche',
   },
   errors: {
+    notInvited: 'InFlight AI steht nur eingeladenen Testern offen. Nutzen Sie stattdessen Ihre eigene KI oder ein Modell auf diesem Computer.',
+    signIn: 'Melden Sie sich bei Ihrem InFlight-Konto an, um InFlight AI zu nutzen.',
     setup: 'Ihre KI ist noch nicht eingerichtet, oder die Zustimmung fehlt.',
     key: 'Ihre KI meldet, dass der Schlüssel falsch oder nicht erlaubt ist. Prüfen Sie ihn im Konto Ihres Anbieters.',
     offline: 'Sie sind offline. Die Farbprüfung von InFlight funktioniert trotzdem.',
@@ -57,6 +60,8 @@ export const de: AreaTranslation<typeof source> = {
     unreadable: 'Die Antwort Ihrer KI konnte nicht gelesen werden, daher wurde nichts geändert.',
     other: 'Beim Fragen Ihrer KI ist etwas schiefgegangen. Es wurde nichts geändert.',
   },
+  inflightHint: 'Für Konten, die InFlight zum Testen seiner eigenen KI eingeladen hat. Melden Sie sich zuerst an; kein Schlüssel nötig.',
+  inflightSummary: 'InFlight AI schlägt diese kleinen Änderungen vor.',
   assistant: {
     title: 'Vorschläge von Ihrem KI-Assistenten',
     intro: (count, when) => `Ihr Assistent hat ${count === 1 ? 'einen Vorschlag' : `${count} Vorschläge`} für dieses Projekt hinterlassen (${when}). Nichts ändert sich, bis Sie sie anwenden.`,

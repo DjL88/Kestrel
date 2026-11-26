@@ -17,6 +17,7 @@ export const is: AreaTranslation<typeof source> = {
     gemini: 'Google Gemini (AI Studio-lykill)',
     anthropic: 'Anthropic Claude',
     openai: 'Samhæft við OpenAI, eða líkan á þessari tölvu (Ollama, LM Studio)',
+    inflight: 'InFlight AI (aðeins boðnir prófendur)',
   },
   key: 'API-lykill',
   keyOptional: 'API-lykill (hafðu autt fyrir líkan á þessari tölvu)',
@@ -49,6 +50,8 @@ export const is: AreaTranslation<typeof source> = {
     highlights: 'Ljósir tónar', shadows: 'Skuggar', whites: 'Ljósustu hlutar', blacks: 'Dekkstu hlutar',
   },
   errors: {
+    notInvited: 'InFlight AI er aðeins opin boðnum prófendum. Notaðu þína eigin gervigreind eða líkan á þessari tölvu í staðinn.',
+    signIn: 'Skráðu þig inn á InFlight-reikninginn þinn til að nota InFlight AI.',
     setup: 'Gervigreindin þín hefur ekki verið sett upp enn, eða samþykkið vantar.',
     key: 'Gervigreindin þín segir að lykillinn sé rangur eða ekki leyfður. Athugaðu hann á aðganginum þínum hjá þjónustuaðilanum.',
     offline: 'Engin nettenging. Litaskoðun InFlight virkar samt.',
@@ -57,6 +60,8 @@ export const is: AreaTranslation<typeof source> = {
     unreadable: 'Ekki var hægt að lesa svar gervigreindarinnar, svo engu var breytt.',
     other: 'Eitthvað fór úrskeiðis þegar gervigreindin þín var spurð. Engu var breytt.',
   },
+  inflightHint: 'Fyrir reikninga sem InFlight hefur boðið að prófa eigin gervigreind. Skráðu þig inn fyrst; enginn lykill þarf.',
+  inflightSummary: 'InFlight AI leggur til þessar litlu breytingar.',
   assistant: {
     title: 'Tillögur frá gervigreindaraðstoðinni þinni',
     intro: (count, when) => `Aðstoðin þín skildi eftir ${count === 1 ? 'eina tillögu' : `${count} tillögur`} fyrir þetta verkefni (${when}). Ekkert breytist fyrr en þú notar þær.`,

@@ -17,6 +17,7 @@ export const cy: AreaTranslation<typeof source> = {
     gemini: 'Google Gemini (allwedd AI Studio)',
     anthropic: 'Anthropic Claude',
     openai: 'Yn gydnaws ag OpenAI, neu fodel ar y cyfrifiadur hwn (Ollama, LM Studio)',
+    inflight: 'InFlight AI (profwyr gwahoddedig yn unig)',
   },
   key: 'Allwedd API',
   keyOptional: 'Allwedd API (gadewch yn wag ar gyfer model ar y cyfrifiadur hwn)',
@@ -49,6 +50,8 @@ export const cy: AreaTranslation<typeof source> = {
     highlights: 'Uchafbwyntiau', shadows: 'Cysgodion', whites: 'Rhannau disgleiriaf', blacks: 'Rhannau tywyllaf',
   },
   errors: {
+    notInvited: 'Dim ond i brofwyr gwahoddedig y mae InFlight AI ar agor. Defnyddiwch eich AI eich hun neu fodel ar y cyfrifiadur hwn yn lle hynny.',
+    signIn: 'Mewngofnodwch i’ch cyfrif InFlight i ddefnyddio InFlight AI.',
     setup: 'Nid yw eich AI wedi’i osod eto, neu mae’r cytundeb ar goll.',
     key: 'Mae eich AI yn dweud bod yr allwedd yn anghywir neu heb ei chaniatáu. Gwiriwch hi yng nghyfrif eich darparwr.',
     offline: 'Rydych chi all-lein. Mae gwiriad lliw InFlight ei hun yn dal i weithio.',
@@ -57,6 +60,8 @@ export const cy: AreaTranslation<typeof source> = {
     unreadable: 'Doedd dim modd darllen ateb eich AI, felly ni newidiwyd dim.',
     other: 'Aeth rhywbeth o’i le wrth ofyn i’ch AI. Ni newidiwyd dim.',
   },
+  inflightHint: 'Ar gyfer cyfrifon y mae InFlight wedi’u gwahodd i brofi ei AI ei hun. Mewngofnodwch yn gyntaf; does dim angen allwedd.',
+  inflightSummary: 'Mae InFlight AI yn awgrymu’r newidiadau bach hyn.',
   assistant: {
     title: 'Awgrymiadau gan eich cynorthwyydd AI',
     intro: (count, when) => `Mae eich cynorthwyydd wedi gadael ${count === 1 ? 'un awgrym' : `${count} awgrym`} ar gyfer y prosiect hwn (${when}). Does dim yn newid nes i chi eu rhoi ar waith.`,

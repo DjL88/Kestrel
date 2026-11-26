@@ -17,6 +17,7 @@ export const sv: AreaTranslation<typeof source> = {
     gemini: 'Google Gemini (AI Studio-nyckel)',
     anthropic: 'Anthropic Claude',
     openai: 'OpenAI-kompatibel, eller en modell på den här datorn (Ollama, LM Studio)',
+    inflight: 'InFlight AI (endast inbjudna testare)',
   },
   key: 'API-nyckel',
   keyOptional: 'API-nyckel (lämna tomt för en modell på den här datorn)',
@@ -49,6 +50,8 @@ export const sv: AreaTranslation<typeof source> = {
     highlights: 'Högdagrar', shadows: 'Skuggor', whites: 'Ljusaste delarna', blacks: 'Mörkaste delarna',
   },
   errors: {
+    notInvited: 'InFlight AI är bara öppen för inbjudna testare. Använd din egen AI eller en modell på den här datorn i stället.',
+    signIn: 'Logga in på ditt InFlight-konto för att använda InFlight AI.',
     setup: 'Din AI är inte inställd än, eller så saknas samtycket.',
     key: 'Din AI säger att nyckeln är fel eller inte tillåten. Kontrollera den i ditt konto hos leverantören.',
     offline: 'Du är offline. InFlights egen färgkontroll fungerar ändå.',
@@ -57,6 +60,8 @@ export const sv: AreaTranslation<typeof source> = {
     unreadable: 'Svaret från din AI gick inte att läsa, så ingenting ändrades.',
     other: 'Något gick fel när din AI tillfrågades. Ingenting ändrades.',
   },
+  inflightHint: 'För konton som InFlight har bjudit in att testa sin egen AI. Logga in först; ingen nyckel behövs.',
+  inflightSummary: 'InFlight AI föreslår de här små ändringarna.',
   assistant: {
     title: 'Förslag från din AI-assistent',
     intro: (count, when) => `Din assistent har lämnat ${count === 1 ? 'ett förslag' : `${count} förslag`} för det här projektet (${when}). Inget ändras förrän du tillämpar dem.`,

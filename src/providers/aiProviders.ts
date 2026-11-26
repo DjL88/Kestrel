@@ -13,6 +13,7 @@
  */
 import { AI_REVIEW_SCHEMA, parseAiReview, type AiReview } from '../core/aiReview';
 import { isDesktopApp } from './desktopShell';
+import { parseControlPlaneUrl } from '../core/licenceOnline';
 
 /**
  * The desktop app's own HTTP client has no cross-origin limits, so a model on this computer (Ollama, LM Studio) answers
@@ -23,8 +24,16 @@ async function defaultFetch(): Promise<typeof fetch> {
   return (input, init) => fetch(input, init);
 }
 
-export type AiProviderKind = 'gemini' | 'anthropic' | 'openai';
-export const AI_PROVIDER_KINDS: readonly AiProviderKind[] = ['gemini', 'anthropic', 'openai'];
+export type AiProviderKind = 'gemini' | 'anthropic' | 'openai' | 'inflight';
+/**
+ * `inflight` is InFlight's own Gemini through the control plane (`/v1/ai/suggest`), offered only to accounts an admin has
+ * given a plan with managed AI (invited testers); the server checks the plan, allowance, kill switch and the account's
+ * Gemini consent on every request. Everyone else brings their own provider.
+ */
+export const AI_PROVIDER_KINDS: readonly AiProviderKind[] = ['openai', 'gemini', 'anthropic', 'inflight'];
+const CONTROL_PLANE = parseControlPlaneUrl(import.meta.env?.VITE_KESTREL_CONTROL_PLANE_URL);
+/** The kinds this build can offer: InFlight's own AI only where a control plane is configured. */
+export const availableAiProviderKinds = (): AiProviderKind[] => AI_PROVIDER_KINDS.filter((kind) => kind !== 'inflight' || CONTROL_PLANE !== null);
 
 export interface AiProviderSettings {
   kind: AiProviderKind;
@@ -42,13 +51,14 @@ export const DEFAULT_AI_MODEL: Record<AiProviderKind, string> = {
   gemini: '',
   anthropic: 'claude-opus-5-5',
   openai: '',
+  inflight: '',
 };
 
 const GEMINI = 'https://generativelanguage.googleapis.com/v1beta';
 export const AI_REQUEST_TIMEOUT_MS = 45_000;
 
 export class AiReviewError extends Error {
-  constructor(readonly reason: 'setup' | 'key' | 'offline' | 'timeout' | 'refused' | 'unreadable' | 'other', message = '') {
+  constructor(readonly reason: 'setup' | 'key' | 'offline' | 'timeout' | 'refused' | 'unreadable' | 'notInvited' | 'signIn' | 'other', message = '') {
     super(message);
     this.name = 'AiReviewError';
   }
@@ -75,6 +85,7 @@ export function normalisedOpenAiBaseUrl(raw: string): string {
 export function destinationHost(settings: Pick<AiProviderSettings, 'kind' | 'baseUrl'>): string {
   if (settings.kind === 'gemini') return 'generativelanguage.googleapis.com';
   if (settings.kind === 'anthropic') return 'api.anthropic.com';
+  if (settings.kind === 'inflight') { try { return new URL(CONTROL_PLANE ?? '').host || 'unknown'; } catch { return 'unknown'; } }
   try { return new URL(normalisedOpenAiBaseUrl(settings.baseUrl ?? '')).host || 'unknown'; } catch { return 'unknown'; }
 }
 
@@ -196,6 +207,7 @@ async function askClaude(settings: AiProviderSettings, prompt: string, jpegBase6
  */
 export async function askForReview(settings: AiProviderSettings, consentVersion: string, prompt: string, jpegBase64: string, signal?: AbortSignal, given?: typeof fetch): Promise<AiReview> {
   if (settings.consent !== consentFor(consentVersion, settings)) throw new AiReviewError('setup');
+  if (settings.kind === 'inflight') return askInFlight(prompt, jpegBase64, signal, given);
   if (settings.kind !== 'openai' && !settings.key.trim()) throw new AiReviewError('setup');
   if (settings.kind === 'openai' && !settings.model.trim()) throw new AiReviewError('setup');
   const fetcher = given ?? await defaultFetch();
@@ -215,4 +227,50 @@ export async function askForReview(settings: AiProviderSettings, consentVersion:
   const review = text ? parseAiReview(text) : null;
   if (!review) throw new AiReviewError('unreadable');
   return review;
+}
+
+/**
+ * InFlight's own AI for invited testers: the signed-in account's Firebase token is swapped for a short-lived control-plane
+ * session (never stored), and one consented, metadata-free preview goes to `/v1/ai/suggest`. The answer is slider values
+ * only, checked again here. The account's standing Gemini consent is set on the server when the person agrees in the app.
+ */
+async function askInFlight(_prompt: string, jpegBase64: string, signal: AbortSignal | undefined, given?: typeof fetch): Promise<AiReview> {
+  if (!CONTROL_PLANE) throw new AiReviewError('setup');
+  const fetcher = given ?? await defaultFetch();
+  const [{ firebaseAuth }, { controlPlaneTransport }, { HelperError }] = await Promise.all([
+    import('./firebaseAuth'), import('./controlPlaneTransport'), import('../core/onlineHelper'),
+  ]);
+  const idToken = await firebaseAuth.idToken().catch(() => null);
+  if (!idToken) throw new AiReviewError('signIn');
+  const session = await sessionFor(CONTROL_PLANE, idToken, fetcher, signal);
+  try {
+    const proposal = await controlPlaneTransport(CONTROL_PLANE, () => session, fetcher, () => true).suggest(jpegBase64, signal);
+    // Slider values only: the app supplies the sentence shown with them, in the person's language.
+    return { summary: '', points: [], suggestion: proposal };
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    if (error instanceof HelperError) {
+      if (error.failure === 'auth') throw new AiReviewError(/plan/i.test(error.message) ? 'notInvited' : 'signIn');
+      if (error.failure === 'timeout' || error.failure === 'offline') throw new AiReviewError(error.failure);
+      if (error.failure === 'rate') throw new AiReviewError('other', error.message);
+    }
+    throw new AiReviewError('other');
+  }
+}
+
+/** Swap a Firebase ID token for a short-lived control-plane session. Never stored. */
+export async function sessionFor(origin: string, idToken: string, fetcher: typeof fetch, signal?: AbortSignal): Promise<string> {
+  let response: Response;
+  try {
+    response = await fetcher(`${origin}/v1/auth/firebase`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ credential: idToken }),
+      signal, cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer',
+    });
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw new AiReviewError(typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'other');
+  }
+  const body = await response.json().catch(() => null) as { accessToken?: unknown } | null;
+  if (!response.ok || typeof body?.accessToken !== 'string' || !body.accessToken || body.accessToken.length > 8192) throw new AiReviewError('signIn');
+  return body.accessToken;
 }

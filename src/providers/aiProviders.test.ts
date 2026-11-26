@@ -80,3 +80,15 @@ test('consent is tied to the actual AI endpoint, not just a shared hostname', as
   await assert.rejects(askForReview({ ...changed, consent: agreed(allowed).consent }, AI_REVIEW_CONSENT_VERSION, 'Q', 'AAAA', undefined, fetcher));
   assert.equal(fetches, 0, 'no preview can be sent under stale consent');
 });
+
+test('InFlight AI is offered only where this build has a control plane, and never runs without one', async () => {
+  const { availableAiProviderKinds } = await import('./aiProviders');
+  assert.equal(availableAiProviderKinds().includes('inflight'), false);
+  const inflight: AiProviderSettings = { kind: 'inflight', key: '', model: '', consent: null };
+  const agreed = { ...inflight, consent: consentFor(AI_REVIEW_CONSENT_VERSION, inflight) };
+  let calls = 0;
+  const fetcher = (async () => { calls += 1; return new Response('{}'); }) as typeof fetch;
+  await assert.rejects(askForReview(inflight, AI_REVIEW_CONSENT_VERSION, 'Q', 'A', undefined, fetcher), AiReviewError);
+  await assert.rejects(askForReview(agreed, AI_REVIEW_CONSENT_VERSION, 'Q', 'A', undefined, fetcher), AiReviewError);
+  assert.equal(calls, 0);
+});

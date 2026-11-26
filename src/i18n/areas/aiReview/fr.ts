@@ -17,6 +17,7 @@ export const fr: AreaTranslation<typeof source> = {
     gemini: 'Google Gemini (clé AI Studio)',
     anthropic: 'Anthropic Claude',
     openai: 'Compatible OpenAI, ou un modèle sur cet ordinateur (Ollama, LM Studio)',
+    inflight: 'InFlight AI (testeurs invités uniquement)',
   },
   key: 'Clé API',
   keyOptional: 'Clé API (laissez vide pour un modèle sur cet ordinateur)',
@@ -49,6 +50,8 @@ export const fr: AreaTranslation<typeof source> = {
     highlights: 'Hautes lumières', shadows: 'Ombres', whites: 'Parties les plus claires', blacks: 'Parties les plus sombres',
   },
   errors: {
+    notInvited: 'InFlight AI est réservée aux testeurs invités. Utilisez plutôt votre propre IA ou un modèle sur cet ordinateur.',
+    signIn: 'Connectez-vous à votre compte InFlight pour utiliser InFlight AI.',
     setup: 'Votre IA n’est pas encore configurée, ou l’accord manque.',
     key: 'Votre IA indique que la clé est incorrecte ou non autorisée. Vérifiez-la dans le compte de votre fournisseur.',
     offline: 'Vous êtes hors ligne. Le contrôle des couleurs d’InFlight fonctionne toujours.',
@@ -57,6 +60,8 @@ export const fr: AreaTranslation<typeof source> = {
     unreadable: 'La réponse de votre IA n’a pas pu être lue, donc rien n’a été modifié.',
     other: 'Un problème est survenu en interrogeant votre IA. Rien n’a été modifié.',
   },
+  inflightHint: 'Pour les comptes invités par InFlight à tester sa propre IA. Connectez-vous d’abord ; aucune clé n’est nécessaire.',
+  inflightSummary: 'InFlight AI propose ces petites modifications.',
   assistant: {
     title: 'Suggestions de votre assistant IA',
     intro: (count, when) => `Votre assistant a laissé ${count === 1 ? 'une suggestion' : `${count} suggestions`} pour ce projet (${when}). Rien ne change tant que vous ne les appliquez pas.`,

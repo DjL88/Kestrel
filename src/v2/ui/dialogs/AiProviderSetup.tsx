@@ -2,7 +2,7 @@ import { useId, useState } from 'react';
 import { AI_REVIEW_CONSENT_VERSION } from '../../../core/aiReview';
 import { aiReviewText as t } from '../../../i18n/areas/aiReview';
 import {
-  AI_PROVIDER_KINDS, consentFor, DEFAULT_AI_MODEL, destinationHost, normalisedOpenAiBaseUrl, staysOnThisComputer,
+  availableAiProviderKinds, consentFor, DEFAULT_AI_MODEL, destinationHost, normalisedOpenAiBaseUrl, staysOnThisComputer,
   type AiProviderKind, type AiProviderSettings,
 } from '../../../providers/aiProviders';
 import { forgetAiSettings, saveAiSettings, useAiSettings } from '../../../providers/aiSettings';
@@ -73,7 +73,7 @@ export function AiProviderSetup() {
         const next = event.target.value as AiProviderKind;
         setKind(next); setModel(DEFAULT_AI_MODEL[next]); setBadUrl(false);
       }}>
-        {AI_PROVIDER_KINDS.map((option) => <option key={option} value={option}>{t.providers[option]}</option>)}
+        {availableAiProviderKinds().map((option) => <option key={option} value={option}>{t.providers[option]}</option>)}
       </select>
       {kind === 'openai' && (
         <div>
@@ -91,6 +91,8 @@ export function AiProviderSetup() {
           {badUrl && <p id={`${id}-url-error`} role="alert" className="mt-1 text-xs text-[var(--text-primary)]">{t.invalidBaseUrl}</p>}
         </div>
       )}
+      {kind === 'inflight' && <p className={hint}>{t.inflightHint}</p>}
+      {kind !== 'inflight' && <>
       <div>
         <label className={label} htmlFor={`${id}-key`}>{kind === 'openai' ? t.keyOptional : t.key}</label>
         <input id={`${id}-key`} type="password" autoComplete="off" spellCheck={false} className={field} value={key} onChange={(event) => setKey(event.target.value)} />
@@ -101,9 +103,10 @@ export function AiProviderSetup() {
         <input id={`${id}-model`} autoComplete="off" spellCheck={false} className={field} value={model} onChange={(event) => setModel(event.target.value)} />
         <p className={hint}>{kind === 'gemini' ? t.modelAuto : t.modelNeeded}</p>
       </div>
+      </>}
       <div className="flex flex-wrap gap-2">
         <button type="submit" className={button} data-testid="v2-ai-setup-save"
-          disabled={(kind !== 'openai' && !key.trim()) || (kind === 'openai' && !model.trim())}>{t.save}</button>
+          disabled={((kind === 'gemini' || kind === 'anthropic') && !key.trim()) || (kind === 'openai' && !model.trim())}>{t.save}</button>
         {saved && <button type="button" className={button} onClick={() => setEditing(false)}>{t.cancel}</button>}
       </div>
       {note && <p role="status" className="text-xs text-[var(--text-secondary)]">{note}</p>}

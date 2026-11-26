@@ -17,6 +17,7 @@ export const gd: AreaTranslation<typeof source> = {
     gemini: 'Google Gemini (iuchair AI Studio)',
     anthropic: 'Anthropic Claude',
     openai: 'Co-chòrdail ri OpenAI, no modail air a’ choimpiutair seo (Ollama, LM Studio)',
+    inflight: 'InFlight AI (luchd-deuchainn le cuireadh a-mhàin)',
   },
   key: 'Iuchair API',
   keyOptional: 'Iuchair API (fàg falamh e airson modail air a’ choimpiutair seo)',
@@ -49,6 +50,8 @@ export const gd: AreaTranslation<typeof source> = {
     highlights: 'Àrd-sholais', shadows: 'Faileasan', whites: 'Na pàirtean as soilleire', blacks: 'Na pàirtean as dorcha',
   },
   errors: {
+    notInvited: 'Chan eil InFlight AI fosgailte ach do luchd-deuchainn le cuireadh. Cleachd an AI agad fhèin no modail air a’ choimpiutair seo na àite.',
+    signIn: 'Clàraich a-steach dhan chunntas InFlight agad gus InFlight AI a chleachdadh.',
     setup: 'Cha deach an AI agad a shuidheachadh fhathast, no tha an t-aonta a dhìth.',
     key: 'Tha an AI agad ag ràdh gu bheil an iuchair ceàrr no nach eil cead aice. Thoir sùil oirre sa chunntas aig an t-solaraiche agad.',
     offline: 'Chan eil thu air loidhne. Obraichidh sgrùdadh dhathan InFlight fhèin fhathast.',
@@ -57,6 +60,8 @@ export const gd: AreaTranslation<typeof source> = {
     unreadable: 'Cha b’ urrainn dhuinn freagairt an AI agad a leughadh, mar sin cha deach dad atharrachadh.',
     other: 'Chaidh rudeigin ceàrr le faighneachd dhen AI agad. Cha deach dad atharrachadh.',
   },
+  inflightHint: 'Airson cunntasan a fhuair cuireadh bho InFlight an AI aige fhèin a dheuchainn. Clàraich a-steach an toiseach; chan fheum thu iuchair.',
+  inflightSummary: 'Tha InFlight AI a’ moladh nan atharraichean beaga seo.',
   assistant: {
     title: 'Molaidhean bhon chuidiche AI agad',
     intro: (count, when) => `Dh’fhàg an cuidiche agad ${count === 1 ? 'aon mholadh' : `${count} molaidhean`} airson a’ phròiseict seo (${when}). Cha atharraich dad gus an cuir thu an sàs iad.`,
