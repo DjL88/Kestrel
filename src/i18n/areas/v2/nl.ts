@@ -2016,5 +2016,9 @@ export const nl: AreaTranslation<typeof source> = {
     created: "Account gemaakt. Controleer je e-mail om het te bevestigen, daarna gaat Pro aan.",
     missingProject: "Dat project is er niet meer.",
     showOnLaunch: "Welkomstscherm tonen bij het opstarten",
+    or: "of",
+    signInOrCreate: "Inloggen of een account maken",
+    resetSent: "Als dat e-mailadres een account heeft, is er een herstellink onderweg.",
+    keepSessionFailed: "Kon deze aanmelding niet tot deze browsersessie beperken. Probeer het opnieuw.",
   },
 };

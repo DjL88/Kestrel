@@ -2016,5 +2016,9 @@ export const sv: AreaTranslation<typeof source> = {
     created: "Kontot är skapat. Kontrollera din e-post för att verifiera det, sedan slås Pro på.",
     missingProject: "Det projektet finns inte längre.",
     showOnLaunch: "Visa välkomstskärmen vid start",
+    or: "eller",
+    signInOrCreate: "Logga in eller skapa ett konto",
+    resetSent: "Om den e-postadressen har ett konto är en återställningslänk på väg.",
+    keepSessionFailed: "Det gick inte att begränsa inloggningen till den här webbläsarsessionen. Försök igen.",
   },
 };

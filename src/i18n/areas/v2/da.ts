@@ -2016,5 +2016,9 @@ export const da: AreaTranslation<typeof source> = {
     created: "Konto oprettet. Tjek din e-mail for at bekræfte den, så slås Pro til.",
     missingProject: "Det projekt findes ikke længere.",
     showOnLaunch: "Vis velkomstskærmen ved start",
+    or: "eller",
+    signInOrCreate: "Log ind eller opret en konto",
+    resetSent: "Hvis den e-mail har en konto, er et link til nulstilling på vej.",
+    keepSessionFailed: "Kunne ikke begrænse dette login til denne browsersession. Prøv igen.",
   },
 };

@@ -16,22 +16,28 @@ function focusables(root: HTMLElement | null): HTMLElement[] {
   return root ? [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.getClientRects().length > 0) : [];
 }
 
-/** Keeps Tab inside the welcome, and keeps every key away from the workspace underneath while it shows. */
-function useWelcomeKeys(rootRef: RefObject<HTMLElement | null>) {
+/**
+ * Keeps Tab inside the welcome, and keeps every key away from the workspace underneath while it shows. Escape goes to
+ * `escapeRef` (the sign-in panel's Back while it is open) whatever has focus, even when a disabled control dropped it.
+ */
+function useWelcomeKeys(rootRef: RefObject<HTMLElement | null>, escapeRef: RefObject<(() => void) | null>) {
   useEffect(() => {
-    // Focus can leave the layer only by clicking somewhere that takes none; bring Tab back in, and swallow other keys.
+    // Focus can leave the layer (to the page) when a control is disabled or a click lands on nothing focusable: bring
+    // Tab back in, answer Escape, and swallow other keys.
     const guard = (event: KeyboardEvent) => {
       const root = rootRef.current;
       if (!root || root.contains(event.target as Node)) return;
       event.stopPropagation();
       if (event.key === 'Tab') { event.preventDefault(); focusables(root)[0]?.focus(); }
+      else if (event.key === 'Escape' && escapeRef.current) { event.preventDefault(); escapeRef.current(); }
     };
     window.addEventListener('keydown', guard, true);
     return () => window.removeEventListener('keydown', guard, true);
-  }, [rootRef]);
+  }, [rootRef, escapeRef]);
 
   return (event: ReactKeyboardEvent<HTMLElement>) => {
     event.stopPropagation();
+    if (event.key === 'Escape' && escapeRef.current) { event.preventDefault(); escapeRef.current(); return; }
     if (event.key !== 'Tab') return;
     const items = focusables(rootRef.current);
     if (items.length === 0) { event.preventDefault(); return; }
@@ -99,7 +105,8 @@ export default function LaunchWelcome({ state, profile, lastProject, isPro, onli
   const returnToSignIn = useRef(false);
   const pickUpId = useId();
   const skipId = useId();
-  const onKeyDown = useWelcomeKeys(rootRef);
+  const panelBack = useRef<(() => void) | null>(null);
+  const onKeyDown = useWelcomeKeys(rootRef, panelBack);
 
   useEffect(() => { setProNow((was) => was || isPro); }, [isPro]);
 
@@ -138,7 +145,7 @@ export default function LaunchWelcome({ state, profile, lastProject, isPro, onli
   }
 
   const name = who?.displayName ?? null;
-  const title = signingIn ? t.signIn : view === 'first' ? t.firstTitle : view === 'signedIn' && name ? t.welcomeBackName(name) : t.welcomeBack;
+  const title = signingIn ? t.signInOrCreate : view === 'first' ? t.firstTitle : view === 'signedIn' && name ? t.welcomeBackName(name) : t.welcomeBack;
 
   return (
     <main ref={rootRef} tabIndex={-1} onKeyDown={onKeyDown} data-testid="launch-welcome" data-welcome-state={view}
@@ -170,7 +177,7 @@ export default function LaunchWelcome({ state, profile, lastProject, isPro, onli
         <div className="min-h-6 flex-1" />
 
         {signingIn ? (
-          <LaunchSignInPanel online={online} onClose={closePanel} onSignedIn={signedIn} />
+          <LaunchSignInPanel online={online} onClose={closePanel} onSignedIn={signedIn} backRef={panelBack} />
         ) : view === 'signedIn' ? (
           <div className="flex w-full flex-col items-center gap-3">
             {lastProject && (

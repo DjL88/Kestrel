@@ -2016,5 +2016,9 @@ export const it: AreaTranslation<typeof source> = {
     created: "Account creato. Controlla la tua e-mail per verificarlo, poi Pro si attiverà.",
     missingProject: "Quel progetto non è più qui.",
     showOnLaunch: "Mostra la schermata di benvenuto all'avvio",
+    or: "oppure",
+    signInOrCreate: "Accedi o crea un account",
+    resetSent: "Se a quell'email corrisponde un account, è in arrivo un link per reimpostare la password.",
+    keepSessionFailed: "Impossibile limitare questo accesso a questa sessione del browser. Riprova.",
   },
 };

@@ -1,6 +1,6 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent, type MutableRefObject } from 'react';
 import { STRINGS } from '../strings';
-import { availableProviders, continueWithEmail, createWithEmail, signInWithProvider, type EmailResult, type LicenceLink } from '../../../providers/accountSignIn';
+import { availableProviders, continueWithEmail, createWithEmail, KEEP_SESSION_FAILED, signInWithProvider, type EmailResult, type LicenceLink } from '../../../providers/accountSignIn';
 import { firebaseAuth, signInPlatform } from '../../../providers/firebaseAuth';
 import { linkingProblemText, methodName } from '../../../components/SignInMethodsPanel';
 import { projectsText } from '../../../i18n/areas/projects';
@@ -18,6 +18,8 @@ export function outcomeLine({ outcome, linked, attached }: LicenceLink): string 
 }
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
+/** The shared module words one failure in English; the welcome shows it in the person's language. */
+const errorText = (message: string) => (message === KEEP_SESSION_FAILED ? t.keepSessionFailed : message);
 
 /** Apple's mark, one colour, drawn in the button's text colour. */
 function AppleMark() {
@@ -57,12 +59,15 @@ type Step = 'choose' | 'email' | 'offer';
 
 /**
  * The welcome's sign-in panel (sign in is also sign up): Apple and Google side by side, then email under a divider.
- * It runs the same shared sign-in as Settings. Back (or Escape) steps back one level; from the first level it closes.
- * Offline, every way in is disabled and the panel says sign-in needs a connection.
+ * It runs the same shared sign-in as Settings. Back (or Escape, which the welcome handles whatever has focus, through
+ * `backRef`) steps back one level; from the first level it closes. Offline, every way in is disabled and the panel
+ * says sign-in needs a connection.
  */
-export default function LaunchSignInPanel({ online, onClose, onSignedIn }: {
+export default function LaunchSignInPanel({ online, onClose, onSignedIn, backRef }: {
   online: boolean;
   onClose: () => void;
+  /** Set to the panel's Back, so the welcome's Escape steps back from anywhere in the layer. */
+  backRef: MutableRefObject<(() => void) | null>;
   /** Signed in or account created. `note` is the line to show under the greeting; `pro` when Pro is now on. */
   onSignedIn: (note: string, pro: boolean) => void;
 }) {
@@ -73,6 +78,10 @@ export default function LaunchSignInPanel({ online, onClose, onSignedIn }: {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
+  /** Bumped after every attempt that did not sign in, so focus comes back even when the step stays the same. */
+  const [attempt, setAttempt] = useState(0);
+  /** The `data-focus-key` of the control to focus next: the one that started the attempt, or the password to retype. */
+  const focusKey = useRef<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const ids = { keep: useId(), email: useId(), password: useId(), note: useId() };
   const showKeep = signInPlatform() === 'web';
@@ -80,35 +89,39 @@ export default function LaunchSignInPanel({ online, onClose, onSignedIn }: {
   const disabled = !online || busy;
   const social = providers.filter((p): p is 'apple' | 'google' => p !== 'email');
 
-  // Each step starts on its first control, so the keyboard is never left behind on a control that has gone.
+  // Controls are disabled while an attempt runs, so focus falls to the page. After each step change or failed attempt
+  // it goes back to the control that started it (or the password to retype), else the step's first control. Offline
+  // the ways in are disabled, so the first control that can take focus (Back at worst) gets it.
   useEffect(() => {
-    // Offline the ways in are disabled, so the first control that can take focus (Back at worst) gets it.
+    if (busy) return; // the controls are disabled until the attempt ends
     const panel = panelRef.current;
-    const target = panel?.querySelector<HTMLElement>('[data-autofocus]:not(:disabled)')
+    const wanted = focusKey.current;
+    focusKey.current = null;
+    const target = (wanted ? panel?.querySelector<HTMLElement>(`[data-focus-key="${wanted}"]:not(:disabled)`) : null)
+      ?? panel?.querySelector<HTMLElement>('[data-autofocus]:not(:disabled)')
       ?? panel?.querySelector<HTMLElement>('button:not(:disabled), input:not(:disabled)');
     target?.focus();
-  }, [step]);
+  }, [step, attempt, busy]);
 
   const back = () => {
     if (busy) return;
     setNote('');
     if (step === 'offer') setStep('email');
-    else if (step === 'email') setStep('choose');
+    else if (step === 'email') { focusKey.current = 'email-entry'; setStep('choose'); }
     else onClose();
   };
+  backRef.current = back;
+  useEffect(() => () => { backRef.current = null; }, [backRef]);
 
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key !== 'Escape') return;
-    event.preventDefault();
-    event.stopPropagation();
-    back();
-  };
-
-  async function run(work: () => Promise<void>) {
+  async function run(origin: string, work: () => Promise<void>) {
     if (disabled) return;
+    focusKey.current = origin;
     setBusy(true);
     setNote('');
-    try { await work(); } catch (error) { setNote(messageOf(error)); } finally { setBusy(false); }
+    try { await work(); } catch (error) { setNote(errorText(messageOf(error))); } finally {
+      setBusy(false);
+      setAttempt((n) => n + 1);
+    }
   }
 
   const handleEmail = (result: EmailResult) => {
@@ -116,33 +129,35 @@ export default function LaunchSignInPanel({ online, onClose, onSignedIn }: {
       case 'signed-in': onSignedIn(outcomeLine(result.licence), result.licence.outcome === 'pro'); return;
       case 'created': onSignedIn(t.created, false); return;
       case 'offer-create': setStep('offer'); return;
-      case 'wrong-password': setPassword(''); setStep('email'); setNote(t.wrongPassword); return;
+      case 'wrong-password': focusKey.current = 'password'; setPassword(''); setStep('email'); setNote(t.wrongPassword); return;
       case 'linking': setNote(linkingProblemText(result.problem)); return;
-      case 'error': setNote(result.message); return;
+      case 'error': setNote(errorText(result.message)); return;
     }
   };
 
-  const withProvider = (provider: 'apple' | 'google') => run(async () => {
+  const withProvider = (provider: 'apple' | 'google') => run(provider, async () => {
     const result = await signInWithProvider(provider, keepChoice);
     if (result.kind === 'signed-in') onSignedIn(outcomeLine(result.licence), result.licence.outcome === 'pro');
-    else setNote(result.kind === 'linking' ? linkingProblemText(result.problem) : result.message);
+    else setNote(result.kind === 'linking' ? linkingProblemText(result.problem) : errorText(result.message));
   });
 
   const submitEmail = (event: FormEvent) => {
     event.preventDefault();
     if (!email.trim() || !password) return;
-    void run(async () => handleEmail(await continueWithEmail(email, password, keepChoice)));
+    void run('submit', async () => handleEmail(await continueWithEmail(email, password, keepChoice)));
   };
 
-  const create = () => run(async () => handleEmail(await createWithEmail(email, password, keepChoice)));
+  const create = () => run('create', async () => handleEmail(await createWithEmail(email, password, keepChoice)));
 
-  // No confirmation line exists in the welcome's words yet, so a sent reset shows nothing new; a failure says why.
-  const forgot = () => { if (email.trim()) void run(() => firebaseAuth.sendPasswordReset(email)); };
+  // The same neutral words as Settings: they never say whether the email has an account.
+  const forgot = () => {
+    if (email.trim()) void run('forgot', async () => { await firebaseAuth.sendPasswordReset(email); setNote(t.resetSent); });
+  };
 
   const tryAgain = () => { setPassword(''); setNote(''); setStep('email'); };
 
   return (
-    <div ref={panelRef} onKeyDown={onKeyDown} aria-busy={busy || undefined} data-testid="welcome-sign-in" className="flex w-full flex-col gap-3">
+    <div ref={panelRef} aria-busy={busy || undefined} data-testid="welcome-sign-in" className="flex w-full flex-col gap-3">
       {!online && <p className="text-center text-sm text-[var(--text-secondary)]" data-testid="welcome-offline-sign-in">{t.offlineSignIn}</p>}
 
       {step === 'choose' && (
@@ -158,7 +173,7 @@ export default function LaunchSignInPanel({ online, onClose, onSignedIn }: {
             <div className="flex w-full gap-2">
               {social.map((provider, index) => (
                 <button key={provider} type="button" disabled={disabled} onClick={() => void withProvider(provider)}
-                  aria-label={provider === 'apple' ? t.withApple : t.withGoogle} data-autofocus={index === 0 ? true : undefined}
+                  aria-label={provider === 'apple' ? t.withApple : t.withGoogle} data-focus-key={provider} data-autofocus={index === 0 ? true : undefined}
                   className={`${buttonClass[provider]} flex-1`}>
                   {provider === 'apple' ? <AppleMark /> : <GoogleMark />}
                   {projectsText.accountLinks[provider]}
@@ -167,13 +182,14 @@ export default function LaunchSignInPanel({ online, onClose, onSignedIn }: {
             </div>
           )}
           {social.length > 0 && (
-            <div aria-hidden="true" className="flex items-center gap-2 py-1">
-              <span className="h-px flex-1 bg-[var(--border-subtle)]" />
-              <span className="h-px flex-1 bg-[var(--border-subtle)]" />
+            <div className="flex items-center gap-2 py-1 text-xs text-[var(--text-muted)]">
+              <span aria-hidden="true" className="h-px flex-1 bg-[var(--border-subtle)]" />
+              {t.or}
+              <span aria-hidden="true" className="h-px flex-1 bg-[var(--border-subtle)]" />
             </div>
           )}
           <button type="button" disabled={disabled} onClick={() => { setNote(''); setStep('email'); }}
-            data-autofocus={social.length === 0 ? true : undefined} className={buttonClass.secondary}>
+            data-focus-key="email-entry" data-autofocus={social.length === 0 ? true : undefined} className={buttonClass.secondary}>
             {t.withEmail}
           </button>
         </>
@@ -189,17 +205,17 @@ export default function LaunchSignInPanel({ online, onClose, onSignedIn }: {
           <div className="flex flex-col gap-1">
             <label htmlFor={ids.password} className="text-xs text-[var(--text-secondary)]">{t.password}</label>
             <input id={ids.password} type="password" autoComplete="current-password" required value={password} disabled={busy}
-              onChange={(event) => setPassword(event.target.value)} className={fieldClass} aria-describedby={note ? ids.note : undefined} />
+              onChange={(event) => setPassword(event.target.value)} data-focus-key="password" className={fieldClass} aria-describedby={note ? ids.note : undefined} />
           </div>
-          <button type="submit" disabled={disabled || !email.trim() || !password} className={buttonClass.primary}>{t.withEmail}</button>
-          <button type="button" disabled={disabled || !email.trim()} onClick={forgot} className={`${buttonClass.link} self-center`}>{t.forgotPassword}</button>
+          <button type="submit" data-focus-key="submit" disabled={disabled || !email.trim() || !password} className={buttonClass.primary}>{t.withEmail}</button>
+          <button type="button" disabled={disabled || !email.trim()} onClick={forgot} data-focus-key="forgot" className={`${buttonClass.link} self-center`}>{t.forgotPassword}</button>
         </form>
       )}
 
       {step === 'offer' && (
         <div className="flex w-full flex-col gap-3">
           <p className="text-sm text-[var(--text-primary)]">{t.offerCreate(email.trim())}</p>
-          <button type="button" disabled={disabled} onClick={() => void create()} data-autofocus className={buttonClass.primary}>{t.createAccount}</button>
+          <button type="button" disabled={disabled} onClick={() => void create()} data-focus-key="create" data-autofocus className={buttonClass.primary}>{t.createAccount}</button>
           <button type="button" disabled={busy} onClick={tryAgain} className={buttonClass.secondary}>{t.tryAgain}</button>
         </div>
       )}

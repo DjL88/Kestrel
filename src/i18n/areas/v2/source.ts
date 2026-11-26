@@ -2101,5 +2101,9 @@ export const source = {
     created: "Account created. Check your email to verify it, then Pro turns on.",
     missingProject: "That project is no longer here.",
     showOnLaunch: "Show the welcome screen on launch",
+    or: "or",
+    signInOrCreate: "Sign in or create an account",
+    resetSent: "If that email has an account, a reset link is on its way.",
+    keepSessionFailed: "Couldn't keep this sign-in to this browser session. Please try again.",
   },
 };

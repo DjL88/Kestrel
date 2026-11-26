@@ -2016,5 +2016,9 @@ export const nb: AreaTranslation<typeof source> = {
     created: "Konto opprettet. Sjekk e-posten din for å bekrefte den, så slås Pro på.",
     missingProject: "Det prosjektet finnes ikke lenger.",
     showOnLaunch: "Vis velkomstskjermen ved oppstart",
+    or: "eller",
+    signInOrCreate: "Logg på eller opprett en konto",
+    resetSent: "Hvis den e-postadressen har en konto, er en lenke for tilbakestilling på vei.",
+    keepSessionFailed: "Kunne ikke begrense denne påloggingen til denne nettleserøkten. Prøv igjen.",
   },
 };

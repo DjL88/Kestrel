@@ -2016,5 +2016,9 @@ export const de: AreaTranslation<typeof source> = {
     created: "Konto erstellt. Bestätigen Sie es per E-Mail, dann wird Pro aktiv.",
     missingProject: "Dieses Projekt ist nicht mehr vorhanden.",
     showOnLaunch: "Willkommensbildschirm beim Start anzeigen",
+    or: "oder",
+    signInOrCreate: "Anmelden oder Konto erstellen",
+    resetSent: "Falls zu dieser E-Mail ein Konto gehört, ist ein Link zum Zurücksetzen unterwegs.",
+    keepSessionFailed: "Diese Anmeldung konnte nicht auf diese Browsersitzung begrenzt werden. Bitte versuchen Sie es erneut.",
   },
 };

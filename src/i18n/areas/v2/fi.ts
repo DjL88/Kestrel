@@ -2017,5 +2017,9 @@ export const fi: AreaTranslation<typeof source> = {
     created: "Tili luotu. Vahvista se sähköpostista, minkä jälkeen Pro otetaan käyttöön.",
     missingProject: "Tätä projektia ei enää ole.",
     showOnLaunch: "Näytä tervetulonäyttö käynnistettäessä",
+    or: "tai",
+    signInOrCreate: "Kirjaudu sisään tai luo tili",
+    resetSent: "Jos sähköpostilla on tili, palautuslinkki on matkalla.",
+    keepSessionFailed: "Kirjautumista ei voitu rajata tähän selainistuntoon. Yritä uudelleen.",
   },
 };

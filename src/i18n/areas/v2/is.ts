@@ -2016,5 +2016,9 @@ export const is: AreaTranslation<typeof source> = {
     created: "Reikningur stofnaður. Athugaðu tölvupóstinn til að staðfesta hann, þá kviknar á Pro.",
     missingProject: "Þetta verkefni er ekki lengur hér.",
     showOnLaunch: "Sýna velkomuskjáinn við ræsingu",
+    or: "eða",
+    signInOrCreate: "Skráðu þig inn eða stofnaðu aðgang",
+    resetSent: "Ef aðgangur er til fyrir þetta netfang er tengill til endurstillingar á leiðinni.",
+    keepSessionFailed: "Ekki tókst að takmarka þessa innskráningu við þessa vafralotu. Reyndu aftur.",
   },
 };

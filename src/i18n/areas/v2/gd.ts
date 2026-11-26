@@ -2017,5 +2017,9 @@ export const gd: AreaTranslation<typeof source> = {
     created: "Chaidh an cunntas a chruthachadh. Thoir sùil air a’ phost-d agad gus a dhearbhadh, an uairsin thèid Pro air.",
     missingProject: "Chan eil am pròiseact sin an seo tuilleadh.",
     showOnLaunch: "Seall an sgrìn fàilte aig an tòiseachadh",
+    or: "no",
+    signInOrCreate: "Clàraich a-steach no cruthaich cunntas",
+    resetSent: "Ma tha cunntas aig a’ phost-d sin, tha ceangal ath-shuidheachaidh air an t-slighe.",
+    keepSessionFailed: "Cha b’ urrainn dhuinn an clàradh a-steach seo a chumail ris an t-seisean brabhsair seo. Feuch ris a-rithist.",
   },
 };

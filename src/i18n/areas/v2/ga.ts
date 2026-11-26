@@ -2019,5 +2019,9 @@ export const ga: AreaTranslation<typeof source> = {
     created: "Cuntas cruthaithe. Seiceáil do ríomhphost chun é a fhíorú, ansin cuirfear Pro ar siúl.",
     missingProject: "Níl an tionscadal sin anseo a thuilleadh.",
     showOnLaunch: "Taispeáin an scáileán fáilte ag an tús",
+    or: "nó",
+    signInOrCreate: "Sínigh isteach nó cruthaigh cuntas",
+    resetSent: "Má tá cuntas ag an ríomhphost sin, tá nasc athshocraithe ar a bhealach.",
+    keepSessionFailed: "Níorbh fhéidir an síniú isteach seo a choinneáil don seisiún brabhsálaí seo amháin. Bain triail eile as.",
   },
 };
