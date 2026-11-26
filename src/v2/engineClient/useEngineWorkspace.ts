@@ -970,8 +970,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // photo per session, from the first megabyte of the original (and its XMP sidecar on the desktop). Only the status is
   // recorded; nothing else in the photo's metadata changes, and an original that cannot be reached now is tried next time.
   const editStatusTried = useRef(new Set<string>());
-  // The camera's own focus record (src/core/cameraFocus.ts) is read by the same pass: undefined means not read yet.
-  const needsEditStatus = (frame: PhotoFrame) => !frame.removedAt && !frame.isDemo && (!frame.exif.editStatus || frame.exif.cameraFocus === undefined) && !editStatusTried.current.has(frame.id);
+  // The camera's own focus record (src/core/cameraFocus.ts) is read by the same pass: undefined means not read yet, and a
+  // box read before the upright box existed is read again so it can be drawn on the picture.
+  const focusUnread = (focus: PhotoFrame['exif']['cameraFocus']) => focus === undefined || (!!focus?.area && !focus.uprightArea);
+  const needsEditStatus = (frame: PhotoFrame) => !frame.removedAt && !frame.isDemo && (!frame.exif.editStatus || focusUnread(frame.exif.cameraFocus)) && !editStatusTried.current.has(frame.id);
   // Only whether any photo is waiting: the fill's own writes must not restart it.
   const editStatusWaiting = (state?.frames ?? []).some(needsEditStatus);
   const editStatusProject = state?.shoot.id;
@@ -989,7 +991,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           if (!read) return item;
           const exif = { ...item.exif };
           if (read.status && !exif.editStatus) exif.editStatus = read.status;
-          if (exif.cameraFocus === undefined && read.focus !== undefined) exif.cameraFocus = read.focus;
+          if (focusUnread(exif.cameraFocus) && read.focus !== undefined) exif.cameraFocus = read.focus;
           return { ...item, exif };
         }) }));
       };
@@ -997,7 +999,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         if (!live) return;
         editStatusTried.current.add(id);
         const frame = stateRef.current?.frames.find((candidate) => candidate.id === id);
-        if (!frame || (frame.exif.editStatus && frame.exif.cameraFocus !== undefined)) continue;
+        if (!frame || (frame.exif.editStatus && !focusUnread(frame.exif.cameraFocus))) continue;
         const head = await provider.current?.readOriginalHead(frame.stableKey).catch(() => undefined);
         if (!head || !live) continue;
         const exif = await parseImageExif(head, frame.filename).catch(() => null);

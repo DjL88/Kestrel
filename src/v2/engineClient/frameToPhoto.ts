@@ -87,13 +87,15 @@ export function cameraFocusWords(focus: CameraFocus): NonNullable<Photo['cameraF
     auto: words.cameraFocusAuto, '3d-tracking': words.cameraFocus3d,
   };
   const verdict = focus.focusConfirmed === true ? words.cameraFocusConfirmed : focus.focusConfirmed === false ? words.cameraFocusNotConfirmed : '';
-  const place = focus.area
-    ? words.cameraFocusAt(Math.round((focus.area.x + focus.area.width / 2) * 100), Math.round((focus.area.y + focus.area.height / 2) * 100))
+  // Words describe the picture as shown, so they use the turned box when there is one.
+  const shown = focus.uprightArea ?? focus.area;
+  const place = shown
+    ? words.cameraFocusAt(Math.round((shown.x + shown.width / 2) * 100), Math.round((shown.y + shown.height / 2) * 100))
     : words.cameraFocusNoBox;
   return {
     label: focus.areaMode ? modes[focus.areaMode] : words.cameraFocusModeUnknown,
     detail: [verdict, place].filter(Boolean).join(' '),
-    ...(focus.area ? { area: focus.area } : {}),
+    ...(focus.uprightArea ? { area: focus.uprightArea } : {}),
   };
 }
 

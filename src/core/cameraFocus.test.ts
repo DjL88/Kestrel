@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import exifr from 'exifr';
-import { readCameraFocus } from './cameraFocus';
+import { orientationCode, orientFocusArea, readCameraFocus } from './cameraFocus';
 import { jpegWithMakerNote, nikonAfInfo2Bytes, nikonMakerNote, type NikonAfInfo2Fixture } from './cameraFocusFixture';
 
 const Z8: NikonAfInfo2Fixture = {
@@ -69,4 +69,32 @@ test('damaged or random maker notes never throw', () => {
     assert.doesNotThrow(() => readCameraFocus(bytes, 'NIKON CORPORATION'));
     assert.doesNotThrow(() => readCameraFocus(bytes.subarray(0, random() % bytes.length), 'NIKON CORPORATION'));
   }
+});
+
+test('the upright box follows the EXIF Orientation, in numbers or exifr words', async () => {
+  const box = { x: 0.1, y: 0.2, width: 0.3, height: 0.1 };
+  // A portrait frame turned 90° clockwise: the sensor's top-left corner lands at the top-right of the picture shown.
+  assert.deepEqual(orientFocusArea(box, 6), { x: 0.7, y: 0.1, width: 0.1, height: 0.3 });
+  assert.deepEqual(orientFocusArea(box, 8), { x: 0.2, y: 0.6, width: 0.1, height: 0.3 });
+  assert.deepEqual(orientFocusArea(box, 3), { x: 0.6, y: 0.7, width: 0.3, height: 0.1 });
+  assert.deepEqual(orientFocusArea(box, 1), box);
+  // Every orientation keeps the box inside the frame and its area unchanged.
+  for (let code = 1; code <= 8; code++) {
+    const turned = orientFocusArea(box, code);
+    assert.ok(turned.x >= 0 && turned.y >= 0 && turned.x + turned.width <= 1.0001 && turned.y + turned.height <= 1.0001, `orientation ${code}`);
+    assert.ok(Math.abs(turned.width * turned.height - 0.03) < 1e-6);
+  }
+  assert.equal(orientationCode('Rotate 90 CW'), 6);
+  assert.equal(orientationCode(undefined), 1);
+  assert.equal(orientationCode('Sideways, probably'), null);
+  assert.equal(orientationCode(9), null);
+});
+
+test('readCameraFocus gives the upright box, and none when the orientation cannot be read', async () => {
+  const jpeg = jpegWithMakerNote('NIKON CORPORATION', 'NIKON Z 8', nikonMakerNote('MM', nikonAfInfo2Bytes('MM', Z8)), 'MM');
+  const segments = await exifr.parse(jpeg, { mergeOutput: false, makerNote: true });
+  const portrait = readCameraFocus(segments?.makerNote, 'NIKON CORPORATION', 'Rotate 90 CW');
+  assert.deepEqual(portrait?.uprightArea, orientFocusArea(portrait!.area!, 6));
+  assert.deepEqual(readCameraFocus(segments?.makerNote, 'NIKON CORPORATION')?.uprightArea, readCameraFocus(segments?.makerNote, 'NIKON CORPORATION')?.area);
+  assert.equal(readCameraFocus(segments?.makerNote, 'NIKON CORPORATION', 'nonsense')?.uprightArea, undefined);
 });
