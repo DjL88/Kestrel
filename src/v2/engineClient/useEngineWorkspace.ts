@@ -1315,8 +1315,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // The histogram is measured from the picture as it is now: the preview with this photo's edit applied, small and debounced.
   const histogramKey = activeFrame ? `${activeFrame.id}|${JSON.stringify(activeFrame.edit ?? null)}|${JSON.stringify(activeFrame.framing ?? null)}` : null;
   // The preview the histogram is measured from, decoded once per address (not once per slider step).
-  // Only the small copy and the preview's size are kept, never the decoded full-size picture.
-  const histogramSource = useRef<{ url: string; picture: Promise<{ naturalWidth: number; naturalHeight: number; small: ImageData }> } | null>(null);
+  // One entry, replaced when the address changes: the loaded preview (the 16-bit pass checks its turn against it) and its
+  // small unedited copy.
+  const histogramSource = useRef<{ url: string; picture: Promise<{ element: HTMLImageElement; naturalWidth: number; naturalHeight: number; small: ImageData }> } | null>(null);
   useEffect(() => {
     if (!histogramKey || !activeFrame) return;
     let live = true;
@@ -1334,7 +1335,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             canvas.width = Math.max(1, Math.round(element.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(element.naturalHeight * scale));
             const context = canvas.getContext('2d', { willReadFrequently: true })!;
             context.drawImage(element, 0, 0, canvas.width, canvas.height);
-            return { naturalWidth: element.naturalWidth, naturalHeight: element.naturalHeight, small: context.getImageData(0, 0, canvas.width, canvas.height) };
+            return { element, naturalWidth: element.naturalWidth, naturalHeight: element.naturalHeight, small: context.getImageData(0, 0, canvas.width, canvas.height) };
           });
           histogramSource.current = { url, picture };
           picture.catch(() => { if (histogramSource.current?.picture === picture) histogramSource.current = null; });
@@ -1359,7 +1360,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         // Only for a photo the person stays on: browsing past photos never starts a full RAW develop for each one.
         await new Promise((resolve) => window.setTimeout(resolve, 1200));
         if (!live) return;
-        const working = await raw16WorkingFor(frame, () => provider.current!.ensureOriginal(frame.stableKey, 'selected'), await loadImage(url));
+        const working = await raw16WorkingFor(frame, () => provider.current!.ensureOriginal(frame.stableKey, 'selected'), image.element);
         const measured = live && working ? timedStep('histogram:raw16', () => histogramFromWorking(measuringCopy(working), frame.edit ?? EMPTY_EDIT, frame.framing, renderRaw16Working)) : null;
         if (live && measured) setHistograms((current) => ({ ...current, [frame.id]: measured }));
       }).catch(() => { /* no measurement: the panel says it is still measuring, never a made-up curve */ });
