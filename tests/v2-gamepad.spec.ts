@@ -13,9 +13,17 @@ async function mockGamepad(page: Page) {
     // A stick "tap" is held for exactly one read, so it is one nudge however slow the machine is (no timing in the test).
     let pulseReads = 0;
     const release = () => { axes.fill(0); for (const b of buttons) { b.pressed = false; b.value = 0; } pad.timestamp += 1; };
+    // The held state goes out as a copy and is released at once, so a busy machine that reads twice before a timer
+    // runs still sees exactly one held read.
     const read = () => {
-      if (pulseReads > 0) { pulseReads -= 1; if (pulseReads === 0) setTimeout(release, 0); }
-      return [present ? pad : null, null, null, null];
+      if (!present) return [null, null, null, null];
+      if (pulseReads > 0) {
+        pulseReads -= 1;
+        const held = { ...pad, axes: [...axes], buttons: buttons.map((b) => ({ ...b })) };
+        if (pulseReads === 0) release();
+        return [held, null, null, null];
+      }
+      return [pad, null, null, null];
     };
     Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: read });
     const w = window as unknown as Record<string, unknown>;
