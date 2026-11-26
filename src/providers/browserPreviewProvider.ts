@@ -479,11 +479,34 @@ export class BrowserPreviewProvider implements PreviewProvider {
     }
   }
 
+  /** Preview work already running for an original, so the canvas, read-ahead and background passes share one read. */
+  private pendingFull = new Map<string, { task: Promise<string>; epoch: number; revision: number }>();
+
   async getFullPreviewUrl(frame: PhotoFrame, priority: ReadPriority = 'visible'): Promise<string> {
     if (frame.isDemo && frame.demoVariant) {
       const { DEMO_ASSET_URLS } = await import('./demoAssets');
       return DEMO_ASSET_URLS[frame.demoVariant.assetKey];
     }
+    // Several callers ask for the same photo at once (the canvas, the background tagger and embedding passes, tap to
+    // select). Each used to read and unpack the file again in parallel, which slowed the one on screen. They now join
+    // the request already running for the same source revision; a relink or replacement starts a new one.
+    const key = frame.stableKey;
+    const epoch = this.cacheEpoch;
+    const revision = this.sourceRevisions.get(key) ?? 0;
+    const running = this.pendingFull.get(key);
+    if (running && running.epoch === epoch && running.revision === revision) {
+      this.fullFrameKeys.set(frame.id, key);
+      this.prioritizeOriginalRead(key, priority);
+      return running.task;
+    }
+    const task = this.buildFullPreviewUrl(frame, priority);
+    this.pendingFull.set(key, { task, epoch, revision });
+    const forget = () => { if (this.pendingFull.get(key)?.task === task) this.pendingFull.delete(key); };
+    task.then(forget, forget);
+    return task;
+  }
+
+  private async buildFullPreviewUrl(frame: PhotoFrame, priority: ReadPriority): Promise<string> {
 
     // Virtual copies have different edit recipes but share the same unedited source.
     const key = frame.stableKey;
@@ -530,7 +553,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     // A relink or replacement may land while a slow original/offline read runs.
     // Never install a URL for the superseded source revision.
     if (epoch !== this.cacheEpoch) return '';
-    if (revision !== (this.sourceRevisions.get(key) ?? 0)) return this.getFullPreviewUrl(frame, priority);
+    if (revision !== (this.sourceRevisions.get(key) ?? 0)) return this.buildFullPreviewUrl(frame, priority);
     if (!blob) {
       // The original drive may be disconnected. Show a cached preview,
       // never imply this is suitable for full-resolution export or RAW editing.
@@ -541,7 +564,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       if (!offline) return '';
       const offlineSource: PictureSource = !raw ? 'original' : fullDevelop ? 'raw-full' : savedDevelop ? 'raw-review' : 'camera-preview';
       if (epoch !== this.cacheEpoch) return '';
-      if (revision !== (this.sourceRevisions.get(key) ?? 0)) return this.getFullPreviewUrl(frame, priority);
+      if (revision !== (this.sourceRevisions.get(key) ?? 0)) return this.buildFullPreviewUrl(frame, priority);
       const cachedFallback = this.fullUrlCache.get(key);
       if (cachedFallback) return cachedFallback;
       const fallbackUrl = this.tagUrl(URL.createObjectURL(offline), offlineSource);
@@ -562,7 +585,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       previewBlob = await extractNefPreview(blob);
       // Development, relinking or a project switch may finish while extraction is in flight.
       if (this.localBlobs.get(key) !== blob || this.developed.get(key) !== developed) {
-        return this.hasBlob(key) ? this.getFullPreviewUrl(frame) : '';
+        return this.hasBlob(key) ? this.buildFullPreviewUrl(frame, priority) : '';
       }
       if (!previewBlob) {
         const savedDevelop = cachedPreviews?.review ? undefined : (await this.developedReview(frame))?.review;
@@ -576,7 +599,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     }
     if (!previewBlob) return '';
     if (epoch !== this.cacheEpoch) return '';
-    if (revision !== (this.sourceRevisions.get(key) ?? 0)) return this.getFullPreviewUrl(frame, priority);
+    if (revision !== (this.sourceRevisions.get(key) ?? 0)) return this.buildFullPreviewUrl(frame, priority);
     // A concurrent request for a virtual copy may already have cached this source.
     const ready = this.fullUrlCache.get(key);
     if (ready) return ready;
@@ -613,6 +636,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
   clear(): void {
     this.cacheEpoch += 1;
     this.offlinePreviewEpoch += 1;
+    this.pendingFull.clear();
     for (const url of this.thumbUrlCache.values()) {
       if (url.startsWith('blob:')) URL.revokeObjectURL(url);
     }

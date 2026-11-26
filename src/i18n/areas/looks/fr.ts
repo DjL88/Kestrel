@@ -1,0 +1,36 @@
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** French (vous). DRAFT: written without a native speaker's check. */
+export const fr: AreaTranslation<typeof source> = {
+  heading: "Vos styles",
+  intro: "Enregistrez les réglages de cette photo comme style pour d'autres photos. Les masques, le recadrage, les courbes et les corrections d'objectif ne sont pas inclus.",
+  nameLabel: "Nom de ce style",
+  namePlaceholder: "Par exemple, Matin brumeux",
+  save: "Enregistrer comme style",
+  empty: "Vous n'avez encore enregistré aucun style.",
+  rename: (name: string) => `Renommer ${name}`,
+  renameLabel: (name: string) => `Nouveau nom pour ${name}`,
+  renameShort: "Renommer",
+  removeShort: "Supprimer",
+  renameDone: "Enregistrer le nom",
+  cancel: "Annuler",
+  remove: (name: string) => `Supprimer ${name}`,
+  exportLooks: "Enregistrer les styles dans un fichier",
+  importLooks: "Ajouter des styles depuis un fichier",
+  mine: "Les vôtres",
+  description: "Un style que vous avez enregistré sur cet appareil.",
+  saved: (name: string) => `Style « ${name} » enregistré sur cet appareil.`,
+  updated: (name: string) => `Votre style « ${name} » a pris les réglages de cette photo.`,
+  needName: "Donnez d'abord un nom au style.",
+  full: "Vous avez enregistré le nombre maximal de styles. Supprimez-en un d'abord.",
+  nameTaken: "Vous avez déjà un style portant ce nom.",
+  removed: (name: string) => `Style « ${name} » supprimé. Les photos qui l'utilisaient gardent leurs réglages.`,
+  notSaved: "Vos styles n'ont pas pu être enregistrés sur cet appareil. Ils resteront jusqu'à la fermeture de Kestrel.",
+  imported: (added: number, replaced: number) => `Styles ajoutés : ${added}. Styles mis à jour : ${replaced}.`,
+  skipped: (n: number) => ` Écartés, sans réglages utilisables : ${n}.`,
+  nothingUsable: "Ce fichier ne contient aucun style aux réglages utilisables par Kestrel.",
+  unreadable: "Ce fichier n'a pas pu être lu comme des styles.",
+  notLooks: "Ce fichier n'est pas un fichier de styles Kestrel.",
+  newer: "Ce fichier de styles vient d'une version plus récente de Kestrel. Mettez Kestrel à jour pour l'ajouter.",
+};

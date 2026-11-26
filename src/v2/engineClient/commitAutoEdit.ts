@@ -32,3 +32,15 @@ export function commitAutoEdit(
 
 /** Shown when the vision guardian held an Auto-pilot edit back, in the person's language. The edit stays available as a Co-pilot suggestion. */
 export const autopilotHeldForReview = (): string => v2Text.guardian.autopilotHeld;
+
+/**
+ * Auto-pilot never applies an edit on its own to a photo whose file says it was already edited in another app: that
+ * look is the photographer's. A press of Auto still asks for one, and Co-pilot still shows the suggestion. Only the
+ * file's metadata decides this, never a vision model's guess.
+ */
+export function autopilotSkipsEditedElsewhere(frame: Pick<PhotoFrame, 'exif'>): boolean {
+  return frame.exif?.editStatus?.kind === 'edited-elsewhere';
+}
+
+/** Shown once when Auto-pilot left a photo alone because it was already edited elsewhere. */
+export const autopilotSkippedEdited = (): string => v2Text.guardian.autopilotSkippedEdited;

@@ -109,6 +109,15 @@ export function padGuideRows(pad: PadProfile, keymap: Keymap): Array<{ slot: Pad
   });
 }
 
+/**
+ * The pad as it acts: itself while pad keys are on, or with every slot doing nothing while they are off.
+ * Turning pad keys off never forgets the set-up: each slot's key and action stay saved for when they are turned on again.
+ */
+export function padInForce(pad: PadProfile, enabled: boolean): PadProfile {
+  if (enabled) return pad;
+  return Object.fromEntries(PAD_SLOTS.map((slot) => [slot, { ...pad[slot], command: null }])) as PadProfile;
+}
+
 const STORAGE_KEY = 'inflight-v2-pad';
 
 export function loadPad(): PadProfile {

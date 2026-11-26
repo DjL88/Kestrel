@@ -255,7 +255,7 @@ export function planPublish(input: PublishInput): PublishPlan {
   ];
   const approvals = [
     `Say go for the commit to promote${input.commit ? ` (${input.commit.sha.slice(0, 12)})` : ''}, after checking it on /V2Proto.`,
-    'Set VITE_KESTREL_MODEL_BASE_URL and VITE_KESTREL_MODEL_KEYS (public values, .env.example) in the release build settings on both machines, so installers offer model packs.',
+    ...(buildSettings.slice(0, 2).every((c) => c.ok) ? [] : ['Set VITE_KESTREL_MODEL_BASE_URL and VITE_KESTREL_MODEL_KEYS (public values, .env.example) in the release build settings on both machines, so installers offer model packs.']),
     `Approve reading the manifest signing key (${MODEL_KEY_ID}, Secret Manager) to sign the model manifest.`,
     `Approve uploading the model packs (${(packBytes / 1e9).toFixed(2)} GB) to the public models bucket, knowing downloads are billed as egress.`,
     ...(large.length ? [`Decide on ${large.map((r) => r.name).join(', ')}: over ${LEGACY_MAX_BYTES / 1048576} MiB, so listing it needs --allow-large, which older installed apps refuse. Ship it in a second manifest revision after an app update, or leave it out at launch.`] : []),

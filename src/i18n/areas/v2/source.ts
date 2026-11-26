@@ -758,6 +758,7 @@ export const source = {
 
   // Adjust Panel
   guardian: {
+    autopilotSkippedEdited: "Auto-pilot left this photo alone because the file says it was already edited elsewhere. Press Auto for a suggestion. Nothing was changed.",
     autopilotHeld: "Auto-pilot held this edit for your review: the vision check on this device was not convinced it looks natural. The suggestion is in Co-pilot to preview or apply. Nothing was changed.",
     secondOpinion: "Second opinion:",
     suggestionDoubted: "the vision check on this device was not convinced this looks natural. Compare before and after; applying it is your choice.",
@@ -1305,6 +1306,18 @@ export const source = {
 
   // Info Panel
   info: {
+    editStatusRow: "Earlier edits",
+    editStatusEdited: "Edited elsewhere",
+    editStatusCamera: "Straight from the camera",
+    editStatusUnknown: "Unknown",
+    evidenceDevelop: "The file carries Lightroom or Camera Raw settings.",
+    evidenceHistory: "The file records an edit history.",
+    evidenceApp: (app: string) => `Saved by ${app}.`,
+    evidenceCredentials: "Its Content Credentials list edits.",
+    evidenceRaw: "A RAW file with no edit recorded inside it.",
+    evidenceMakerNotes: "The camera’s maker notes are intact and no editing app is named.",
+    evidenceUnrecognised: (app: string) => `Saved by ${app}, which InFlight does not recognise.`,
+    evidenceNone: "The file does not say.",
     rawColourSource: "Camera's own colour matrix from the RAW file, InFlight standard look (not the maker's picture style)",
     heading: 'Photo Info',
     fileSection: 'File & Connection',
@@ -1560,6 +1573,8 @@ export const source = {
     noClashes: 'No clashes.',
     padHeading: 'Macro pad and dials',
     padHelp: 'A pad or dial sends keys, like a keyboard. For each slot, say which key it sends (Learn, then press it on the pad) and what it should do. The starting keys match the SinLoon pad set-up from InFlight Version 1. TourBox and other pads that send keys work the same way; TourBox has not been tested on a real device.',
+    padKeysLabel: "Macro pad keys",
+    padKeysDesc: "On, the keys your pad sends run the actions below, from the pad or the keyboard. Turn this off if you have no pad. Your set-up is kept.",
     lastKey: (key: string, slot: string) => `Last key received: ${key} (${slot})`,
     lastKeyNoSlot: (key: string) => `Last key received: ${key} (not a pad slot)`,
     pressPadKey: 'Press a key on your pad to check it arrives.',

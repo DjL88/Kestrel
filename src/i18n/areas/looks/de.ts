@@ -1,0 +1,36 @@
+import type { AreaTranslation } from '../../localise';
+import type { source } from './source';
+
+/** German (Sie). DRAFT: written without a native speaker's check. */
+export const de: AreaTranslation<typeof source> = {
+  heading: "Ihre Stile",
+  intro: "Speichern Sie die Regler dieses Fotos als Stil für andere Fotos. Masken, Zuschnitt, Kurven und Objektivkorrekturen sind nicht enthalten.",
+  nameLabel: "Name für diesen Stil",
+  namePlaceholder: "Zum Beispiel: Nebliger Morgen",
+  save: "Als Stil speichern",
+  empty: "Sie haben noch keine Stile gespeichert.",
+  rename: (name: string) => `${name} umbenennen`,
+  renameLabel: (name: string) => `Neuer Name für ${name}`,
+  renameShort: "Umbenennen",
+  removeShort: "Löschen",
+  renameDone: "Namen speichern",
+  cancel: "Abbrechen",
+  remove: (name: string) => `${name} löschen`,
+  exportLooks: "Stile in einer Datei sichern",
+  importLooks: "Stile aus einer Datei hinzufügen",
+  mine: "Eigene",
+  description: "Ein Stil, den Sie auf diesem Gerät gespeichert haben.",
+  saved: (name: string) => `Stil „${name}“ auf diesem Gerät gespeichert.`,
+  updated: (name: string) => `Ihr Stil „${name}“ hat die Einstellungen dieses Fotos übernommen.`,
+  needName: "Geben Sie dem Stil zuerst einen Namen.",
+  full: "Sie haben die größtmögliche Zahl an Stilen gespeichert. Löschen Sie zuerst einen.",
+  nameTaken: "Sie haben bereits einen Stil mit diesem Namen.",
+  removed: (name: string) => `Stil „${name}“ gelöscht. Fotos mit diesem Stil behalten ihre Einstellungen.`,
+  notSaved: "Ihre Stile konnten auf diesem Gerät nicht gespeichert werden. Sie bleiben, bis Kestrel geschlossen wird.",
+  imported: (added: number, replaced: number) => `Stile hinzugefügt: ${added}. Stile aktualisiert: ${replaced}.`,
+  skipped: (n: number) => ` Ausgelassen, ohne nutzbare Einstellungen: ${n}.`,
+  nothingUsable: "Diese Datei enthält keine Stile mit Einstellungen, die Kestrel nutzen kann.",
+  unreadable: "Diese Datei konnte nicht als Stile gelesen werden.",
+  notLooks: "Diese Datei ist keine Kestrel-Stildatei.",
+  newer: "Diese Stildatei stammt aus einer neueren Kestrel-Version. Aktualisieren Sie Kestrel, um sie hinzuzufügen.",
+};

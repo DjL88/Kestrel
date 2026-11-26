@@ -35,7 +35,7 @@ import { nextToReview } from '../../core/savedViews';
 import { workflowText } from '../../i18n/areas/workflow';
 import type { SavedViewsControl } from './shell/PhotoViewControls';
 import { chordLabel, effectiveKeymap, keyAlreadyHandled, loadKeymap, saveKeymap, type SavedKeymap } from './commands/keymap';
-import { loadPad, resolveWithPad, savePad, type PadProfile } from './commands/pad';
+import { loadPad, padInForce, resolveWithPad, savePad, type PadProfile } from './commands/pad';
 import { loadGamepadProfile, saveGamepadProfile, type GamepadProfile, type GamepadSlot } from './commands/gamepad';
 import { useGamepad } from './commands/useGamepad';
 import { commandById, type CommandDefinition } from './commands/registry';
@@ -212,6 +212,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const keymap = React.useMemo(() => effectiveKeymap(savedKeymap.preset, savedKeymap.overrides, commandPreviews), [savedKeymap, commandPreviews]);
   const [pad, setPad] = useState<PadProfile>(loadPad);
   const changePad = React.useCallback((next: PadProfile) => { savePad(next); setPad(next); }, []);
+  // Pad keys are on out of the box (plug and play) and can be turned off in Settings > Keyboard; the set-up is kept either way.
+  const padKeysOn = store.settings.padKeysEnabled !== false;
+  const activePad = React.useMemo(() => padInForce(pad, padKeysOn), [pad, padKeysOn]);
   const [gamepadProfile, setGamepadProfile] = useState<GamepadProfile>(loadGamepadProfile);
   const changeGamepadProfile = React.useCallback((next: GamepadProfile) => { saveGamepadProfile(next); setGamepadProfile(next); }, []);
   const [gamepadSeen, setGamepadSeen] = useState<{ name: string | null; lastSlot: GamepadSlot | null }>({ name: null, lastSlot: null });
@@ -489,10 +492,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         Boolean(target?.isContentEditable);
       // A control already used this key (the Adjust tabs' arrows, Space on a focused button): never run a shortcut too.
       if (keyAlreadyHandled(target, e)) return;
-      let command = resolveWithPad({ event: e, keymap, pad, isMac: IS_MAC, inField });
+      let command = resolveWithPad({ event: e, keymap, pad: activePad, isMac: IS_MAC, inField });
       // A dial keeps turning the slider while that slider has focus (it counts as a field, so other keys leave it alone).
       if (!command && target instanceof HTMLInputElement && target.type === 'range') {
-        const dial = resolveWithPad({ event: e, keymap, pad, isMac: IS_MAC, inField: false });
+        const dial = resolveWithPad({ event: e, keymap, pad: activePad, isMac: IS_MAC, inField: false });
         if (dial?.group === 'adjust') command = dial;
       }
       if (!command) return;
@@ -505,7 +508,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     window.addEventListener('keydown', handleKeyDown);
     const stopTracking = trackSliderInUse();
     return () => { window.removeEventListener('keydown', handleKeyDown); stopTracking(); };
-  }, [store.screen, shortcutGuideOpen, keymap, pad, runCommand]);
+  }, [store.screen, shortcutGuideOpen, keymap, activePad, runCommand]);
 
   // Game controllers (Settings > Keyboard > Game controller, off by default). The same commands as the keys, in the
   // editor only, never while Settings is open (so each button can be checked there) or a photo key while the guide is open.
@@ -574,6 +577,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onApplyLensProfile={actions.applyLensProfile}
             onApplyLook={actions.applyLook}
             onHoverLook={actions.setHoveredLook}
+            userLookActions={actions.saveUserLook && actions.renameUserLook && actions.deleteUserLook && actions.exportUserLooks && actions.importUserLooks
+              ? { onSave: actions.saveUserLook, onRename: actions.renameUserLook, onDelete: actions.deleteUserLook, onExport: actions.exportUserLooks, onImport: actions.importUserLooks }
+              : undefined}
             onResetPhoto={actions.resetPhotoEdits}
             onNeutralWhite={actions.neutralWhiteBalance ? (id) => { void runNeutralWhite(id); } : undefined}
             whitePicking={whitePickActive}
@@ -1357,7 +1363,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         onRenameTemplate={actions.renameOverlayTemplate}
         onDeleteTemplate={actions.deleteOverlayTemplate}
         accountPanel={accountPanel ? <>{accountPanel}<NewsEmailSetting client={sharing} signedIn={signedInName} /></> : undefined}
-        keyboardPanel={<React.Suspense fallback={null}><KeyboardSettings saved={savedKeymap} isMac={IS_MAC} onChange={changeKeymap} pad={pad} onPadChange={changePad} previews={commandPreviews} /></React.Suspense>}
+        keyboardPanel={<React.Suspense fallback={null}><KeyboardSettings saved={savedKeymap} isMac={IS_MAC} onChange={changeKeymap} pad={pad} onPadChange={changePad} padKeysOn={padKeysOn} onPadKeysOnChange={(on: boolean) => actions.updateSettings({ padKeysEnabled: on })} previews={commandPreviews} /></React.Suspense>}
         gamepadPanel={<React.Suspense fallback={null}><GamepadSettings profile={gamepadProfile} onChange={changeGamepadProfile} controllerName={gamepadSeen.name} lastSlot={gamepadSeen.lastSlot} /></React.Suspense>}
         settings={store.settings}
         cloudUsage={cloudUsage}
@@ -1375,7 +1381,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       /></React.Suspense>
 
       {shortcutGuideOpen && store.screen === 'editor' && (
-        <React.Suspense fallback={null}><ShortcutGuide keymap={keymap} pad={pad} isMac={IS_MAC} onClose={() => setShortcutGuideOpen(false)} previews={commandPreviews} /></React.Suspense>
+        <React.Suspense fallback={null}><ShortcutGuide keymap={keymap} pad={activePad} isMac={IS_MAC} onClose={() => setShortcutGuideOpen(false)} previews={commandPreviews} /></React.Suspense>
       )}
 
       {commandPaletteOpen && store.screen === 'editor' && (

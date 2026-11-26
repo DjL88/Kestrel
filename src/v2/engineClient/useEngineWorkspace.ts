@@ -29,6 +29,7 @@ import { focusStackPreviewOn, imageStackSource, refusalText, rgbaToRgb16, stackD
 import { mergeHdrOffThread, rgb16Source, canvasSource, type HdrFrameInput } from '../../providers/hdrMergeOffThread';
 import { hdrMergeRecipe, type HdrMergeRecipe } from '../../core/hdrMergeRecipe';
 import { hdrText } from '../../i18n/areas/hdr';
+import { cullWarmupPreviewOn, warmupNeighbours } from './previewWarmup';
 import { hdrDoneNotice, hdrFilename, hdrPreviewOn, hdrRefusalText, hdrSelection } from './hdrMergeOps';
 import { renderRaw16 } from '../../providers/rawMaster16';
 import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '../../core/types';
@@ -63,7 +64,7 @@ import { folderNameOf, linkedRangeOpener, linkedReader, pickedFromFile, pickedKe
 import { applyDesktopRelink, framesNeedingRelink, pickRelinkFolder, planDesktopRelink, tauriRelinkFs } from './desktopRelink';
 import { getLocalFileKey, loadLocalFileListShoot, rehydrateLocalFramesFromStore } from '../../providers/localShootLoader';
 import { hashOriginalBytes, isSameOriginalBytes } from '../../core/originalFileIdentity';
-import type { EditRecipe, HubViewState, OverlaySettings, PhotoHistogram, WatermarkPreset, Project, TaskInfo, WorkspaceActions, WorkspaceStore } from '../ui/contract';
+import type { EditRecipe, LookPreset, HubViewState, OverlaySettings, PhotoHistogram, WatermarkPreset, Project, TaskInfo, WorkspaceActions, WorkspaceStore } from '../ui/contract';
 import { useWorkspace } from '../ui/stub';
 import { EngineSurface } from './EngineSurface';
 import { featureAccess, featurePlan } from './featureMap';
@@ -92,7 +93,7 @@ import { addLayer, addRow, alignOverlays, moveLayer, moveRow, newLayer, patchOve
 import { frameToPhoto, matchesAutoSource, originalFormatSize, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
 import { autoUnavailableSentence, isAutoUnavailable, type AutoUnavailable } from './autoUnavailable';
-import { autopilotHeldForReview, commitAutoEdit } from './commitAutoEdit';
+import { autopilotHeldForReview, autopilotSkippedEdited, autopilotSkipsEditedElsewhere, commitAutoEdit } from './commitAutoEdit';
 import { guardResult } from '../../core/visionGuardian';
 import { guardianHolds, guardianOrder, guardianSettled, startGuardian, withOpinion } from './assistGuardian';
 import { askOnDeviceGuardian, askOnDeviceGuardianAbout, onDeviceGuardianReady } from '../../providers/visionGuardian';
@@ -140,7 +141,7 @@ import { renderV2Export, type OverlayDraw } from './renderV2Export';
 import { renderGalleryPreview } from './galleryPreview';
 import { readSharedEdit } from '../../core/sharedSync';
 import { createVirtualCopy } from '../../core/virtualCopies';
-import { formatOverlayRowText } from '../ui/utils/studioMath';
+import { buildPreviewFilterCss, formatOverlayRowText } from '../ui/utils/studioMath';
 import { loadImage } from '../../providers/loadImage';
 import { deliverExport, describeExport } from './exportDelivery';
 import { rawJpegPairs, withPartners } from '../../core/rawJpegPairs';
@@ -161,7 +162,9 @@ import { enlargementPreviewRequest, type EnlargementPreviewResult } from './enla
 import { uniqueExportFilename } from '../../core/exportNaming';
 import { exportMayContinue } from '../../core/exportCancellation';
 import type { ExportRequest } from '../ui/contract';
-import { applyRecipePatch, editToRecipe } from './recipeMap';
+import { applyRecipePatch, editToRecipe, NEUTRAL_RECIPE } from './recipeMap';
+import { MAX_USER_LOOKS, exportUserLooks, importUserLooks, parseUserLooks, removeUserLook, renameUserLook, saveUserLook, type UserLook } from '../../core/presets';
+import { looksText } from '../../i18n/areas/looks';
 import { canvasLensCentre, detectLateralCa } from '../../core/fringe';
 import { resolveLensProfile } from '../../core/lensProfiles';
 import { lensDatabase } from '../../providers/lensProfileStore';
@@ -331,6 +334,18 @@ function positionsOf(frames: readonly PhotoFrame[]): { latitude: number; longitu
  */
 const NO_FRAMES: PhotoFrame[] = [];
 
+const USER_LOOKS_KEY = 'kestrel.v2.userLooks';
+/** Your looks share the Looks list with the built-in ones, so their ids carry a prefix no built-in uses. */
+const USER_LOOK_PREFIX = 'mine-';
+const userLookId = () => newId().replace(/[^A-Za-z0-9]/g, '').slice(0, 16) || String(Date.now());
+function userLookPreset(look: UserLook): LookPreset {
+  const recipeDelta = look.recipe as Partial<EditRecipe>;
+  return {
+    id: USER_LOOK_PREFIX + look.id, name: look.name, category: looksText.mine, description: looksText.description,
+    previewFilter: buildPreviewFilterCss({ ...NEUTRAL_RECIPE, ...recipeDelta }), recipeDelta, mine: true,
+  };
+}
+
 export function useEngineWorkspace(): { store: WorkspaceStore; actions: WorkspaceActions } {
   const stub = useWorkspace();
   const { can: canByPlan, capabilities } = useAccess();
@@ -372,6 +387,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const watermarkStoreRef = useRef(watermarkStore);
   const [watermarkLibrary, setWatermarkLibrary] = useState<WatermarkPreset[]>([]);
   const [templates, setTemplates] = useState<OverlayTemplate[]>(() => { try { return readTemplates(localStorage.getItem(TEMPLATES_KEY)); } catch { return []; } });
+  const [userLooks, setUserLooks] = useState<UserLook[]>(() => { try { return parseUserLooks(localStorage.getItem(USER_LOOKS_KEY)); } catch { return []; } });
+  const updateUserLooks = useCallback((next: UserLook[]) => { setUserLooks(next); try { localStorage.setItem(USER_LOOKS_KEY, JSON.stringify(next)); } catch { setNotice(looksText.notSaved); } }, []);
+  const looks = useMemo<LookPreset[]>(() => [...stub.store.looks, ...userLooks.map(userLookPreset)], [stub.store.looks, userLooks]);
   const updateTemplates = useCallback((next: OverlayTemplate[]) => { setTemplates(next); try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(next)); } catch { setNotice(engineText.workspace.templateNotSaved); } }, []);
   const [savedUi, setSavedUi] = useState<SavedUi>(loadUi);
   /** Originals (stable keys) whose full-size develop is being made, so the canvas can say so. */
@@ -686,6 +704,34 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId]);
+
+  // Culling read-ahead (off by default): once the photo on the canvas has its preview, prepare the photos either side
+  // of it, the same preview they would show anyway, read, unpacked and decoded, so the next key press finds it ready.
+  const warmed = useRef<Map<string, HTMLImageElement>>(new Map());
+  useEffect(() => {
+    const source = provider.current;
+    const frames = stateRef.current?.frames ?? [];
+    if (!source || !activeId || !urls[activeId]?.preview || (!can('cullWarmup') && !cullWarmupPreviewOn())) return;
+    let live = true;
+    const neighbours = warmupNeighbours(frames, activeId);
+    void (async () => {
+      for (const frame of neighbours) {
+        if (!live) return;
+        const preview = await source.getFullPreviewUrl(frame, 'background').catch(() => '');
+        if (!live || !preview || provider.current !== source) return;
+        setUrls((current) => current[frame.id]?.preview === preview ? current : ({ ...current, [frame.id]: { ...current[frame.id], preview } }));
+        // Decoding here keeps the picture in the browser's image cache; a few are held so it is not dropped at once.
+        const image = new Image();
+        image.src = preview;
+        await image.decode().catch(() => undefined);
+        warmed.current.delete(frame.id);
+        warmed.current.set(frame.id, image);
+        while (warmed.current.size > 4) warmed.current.delete(warmed.current.keys().next().value!);
+      }
+    })();
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, Boolean(activeId && urls[activeId]?.preview)]);
 
   // Developing, relinking or replacing an original revokes the provider's blob URLs. Forget them for every photo of
   // that original and ask again, so views that draw `previewUrl` directly (the All formats board) never show a dead link.
@@ -1498,6 +1544,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   afterImport.current = { mode: assistMode, canCull: can('smartCulling'), run: runAutoCull };
   const assistProjectId = state?.shoot.id;
   const ongoingLocalReview = savedUi.settings.ongoingCritique ?? stub.store.settings.ongoingCritique;
+  // Photos Auto-pilot already told the person it left alone (edited elsewhere), so the notice is said once each.
+  const editedElsewhereNoticed = useRef(new Set<string>());
   useEffect(() => {
     if (screen !== 'editor' || !assistProjectId || !activeFrame || activeFrame.removedAt != null) return;
     const frame = activeFrame;
@@ -1549,7 +1597,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
             const recent = Object.entries(current).filter(([id]) => id !== frame.id).slice(-11);
             return { ...Object.fromEntries(recent), [frame.id]: { run, dismissed: [], guardian: startGuardian(order, hasLocalVision()) } };
           }));
-          const autopilot = !manual && assistMode === 'autopilot' && run.improved;
+          const skipEdited = !manual && assistMode === 'autopilot' && run.improved && autopilotSkipsEditedElsewhere(frame);
+          if (skipEdited && !editedElsewhereNoticed.current.has(frame.id)) {
+            editedElsewhereNoticed.current.add(frame.id);
+            ctx.commitIfCurrent(() => setNotice(autopilotSkippedEdited()));
+          }
+          const autopilot = !manual && assistMode === 'autopilot' && run.improved && !skipEdited;
           let piloted = false;
           const pilot = (held: boolean) => {
             piloted = true;
@@ -3167,11 +3220,42 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     updateRecipe: (photoId, patch) => applyPatch(editTargets(photoId), patch),
     denoisePhoto,
     applyLook: (photoId, lookId) => {
-      const look = stub.store.looks.find((entry) => entry.id === lookId);
+      const look = looks.find((entry) => entry.id === lookId);
       if (!look) return;
       const targets = editTargets(photoId);
       applyPatch(targets, look.recipeDelta);
       mutate((current) => ({ ...current, frames: current.frames.map((frame) => (targets.includes(frame.id) ? { ...frame, appliedLookId: lookId } : frame)) }));
+    },
+    saveUserLook: (photoId, name) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      if (!frame) return false;
+      const existing = userLooks.find((look) => look.name.toLocaleLowerCase('en-GB') === name.replace(/\s+/g, ' ').trim().toLocaleLowerCase('en-GB'));
+      const next = saveUserLook(userLooks, name, editToRecipe(frame.edit), userLookId(), Date.now());
+      if (!next) { setNotice(name.trim() ? looksText.full : looksText.needName); return false; }
+      updateUserLooks(next);
+      const saved = existing ? next.find((look) => look.id === existing.id)! : next[next.length - 1];
+      setNotice(existing ? looksText.updated(saved.name) : looksText.saved(saved.name));
+      return true;
+    },
+    renameUserLook: (lookId, name) => {
+      const next = renameUserLook(userLooks, lookId.replace(USER_LOOK_PREFIX, ''), name);
+      if (!next) { setNotice(name.trim() ? looksText.nameTaken : looksText.needName); return false; }
+      updateUserLooks(next);
+      return true;
+    },
+    deleteUserLook: (lookId) => {
+      const look = userLooks.find((entry) => USER_LOOK_PREFIX + entry.id === lookId);
+      if (!look) return;
+      updateUserLooks(removeUserLook(userLooks, look.id));
+      setNotice(looksText.removed(look.name));
+    },
+    exportUserLooks: () => (userLooks.length ? exportUserLooks(userLooks) : null),
+    importUserLooks: (text) => {
+      const result = importUserLooks(userLooks, text, userLookId, Date.now());
+      if (result.error) { setNotice(result.error === 'newer' ? looksText.newer : result.error === 'not-looks' ? looksText.notLooks : looksText.unreadable); return; }
+      if (!result.added && !result.replaced) { setNotice(userLooks.length >= MAX_USER_LOOKS ? looksText.full : looksText.nothingUsable); return; }
+      updateUserLooks(result.looks);
+      setNotice(looksText.imported(result.added, result.replaced) + (result.skipped ? looksText.skipped(result.skipped) : ''));
     },
     resetPhotoEdits: (photoId) => { const targets = editTargets(photoId); editFrames(targets, () => undefined); mutate((current) => ({ ...current, frames: current.frames.map((frame) => (targets.includes(frame.id) ? { ...frame, appliedLookId: undefined } : frame)) })); },
     // With no photo open there is nothing to copy: a neutral recipe here would let Paste silently reset another photo.
@@ -3237,7 +3321,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real, ...tapSelect.actions }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tapSelect.actions, stub.actions, stub.store.looks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
+    [tapSelect.actions, stub.actions, looks, userLooks, updateUserLooks, templates, updateTemplates, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: watermarkLibrary, auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   // Species names in the person's language (about 2.6 MB with every group) are fetched once, and only when a photo in
@@ -3270,6 +3354,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, [state, homeRegions]);
   const store: WorkspaceStore = useMemo(() => ({
     ...stub.store,
+    looks,
     fonts: mergeFonts(deviceFonts),
     settings: mergeSettings(stub.store.settings, savedUi.settings),
     assistMode,
@@ -3310,7 +3395,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
     searchPictureIds,
-  }), [searchPictureIds, backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace, externalEdits.store]);
+  }), [looks, searchPictureIds, backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace, externalEdits.store]);
 
   return { store, actions };
 }
