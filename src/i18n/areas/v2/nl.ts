@@ -1572,6 +1572,13 @@ export const nl: AreaTranslation<typeof source> = {
     signInFailed: 'Het inloggen is niet afgerond.',
     folderHint: "Een NAS of gedeelde kantoormap werkt hier ook, zodra deze computer ermee verbonden is: op een Mac via Finder, Ga, Verbind met server (smb://…); op Windows koppel je hem als netwerkstation. Kies daarna die map.",
     awayFromHome: "Buiten de deur: de eenvoudigste veilige manier om je NAS te bereiken is Tailscale op de NAS en op deze computer, en dan de Tailscale-naam van de NAS. Via Tailscale is http:// ook prima, omdat Tailscale de verbinding al versleutelt. Elders op internet heeft WebDAV https met een echt certificaat nodig: zet Tailscale HTTPS aan (een .ts.net-adres) of stel op een Synology DDNS in met een Let’s Encrypt-certificaat. QuickConnect draagt geen WebDAV of SFTP.",
+    sharepoint: {
+      linkLabel: "Link naar de SharePoint-site of -bibliotheek",
+      linkHint: "Open de bibliotheek in je browser en kopieer het adres uit de adresbalk. InFlight bewaart zijn bestanden daar in een map InFlight.",
+      adminNote: "InFlight kan alleen de sites bereiken die je organisatie toestaat. Lukt het inloggen maar wordt de site geweigerd, vraag dan je Microsoft 365-beheerder om InFlight toegang tot die site te geven.",
+      badLink: "Dat is geen SharePoint-link. Kopieer het adres van de site of bibliotheek, zoals https://contoso.sharepoint.com/sites/Photos.",
+      detail: (site: string, library: string) => `${site} · ${library} · map InFlight`,
+    },
     sftpDesktopOnly: "Alleen in de InFlight-desktopapp: browsers kunnen geen SFTP gebruiken.",
     sftp: {
       formLabel: "Je SFTP-server",

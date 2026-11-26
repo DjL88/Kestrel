@@ -9,7 +9,7 @@ import oneDriveLogo from '../assets/brand/providers/onedrive.png';
  * OneDrive is not in that set: it uses Microsoft's own full-colour logo (supplied by the owner, 22 Nov 2026), unaltered and
  * never recoloured, as their guidelines require.
  */
-const PLAIN: Partial<Record<ProviderKind, typeof Cloud>> = { folder: Folder, webdav: Server, sftp: Server, s3: Cloud };
+const PLAIN: Partial<Record<ProviderKind, typeof Cloud>> = { folder: Folder, webdav: Server, sftp: Server, s3: Cloud, sharepoint: Cloud };
 
 function BrandMark({ kind, className }: { kind: 'dropbox' | 'googledrive' | 'onedrive'; className: string }) {
   if (kind === 'dropbox' || kind === 'googledrive') return <BrandIcon id={kind} className={className} />;

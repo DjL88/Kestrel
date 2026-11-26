@@ -9,11 +9,21 @@
  * Pro is sold only as a subscription (owner decision, 26 Nov 2026): monthly or annual. Basic stays free. When a
  * subscription ends the account is Basic again; projects, edits and exports are never locked.
  */
+import { currencyForRegion, formatPrice, type PublicPricing } from './pricingMatrix';
+
 export type ProPlan = 'monthly' | 'annual';
-export const PRO_PLAN_CHOICES: readonly { plan: ProPlan; label: string; price: string }[] = [
-  { plan: 'monthly', label: 'Monthly', price: '£2.99 a month' },
-  { plan: 'annual', label: 'Yearly', price: '£29.99 a year' },
-];
+/**
+ * The plan choices with their prices, from the pricing matrix the owner edits in Admin (src/core/pricingMatrix.ts),
+ * in the currency Paddle will charge for the person's country. Never a price typed into the app.
+ */
+export function proPlanChoices(pricing: PublicPricing, region: string | null, locale = 'en-GB'): { plan: ProPlan; label: string; price: string }[] {
+  const currency = currencyForRegion(pricing, region);
+  const row = pricing.currencies[currency];
+  return [
+    { plan: 'monthly', label: 'Monthly', price: `${formatPrice(row['pro.monthly'], currency, row.digits, locale)} a month` },
+    { plan: 'annual', label: 'Yearly', price: `${formatPrice(row['pro.annual'], currency, row.digits, locale)} a year` },
+  ];
+}
 /** How long Pro keeps working after a renewal date while a device cannot check (the control plane's grace). */
 export const SUBSCRIPTION_GRACE_DAYS = 14;
 

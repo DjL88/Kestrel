@@ -57,6 +57,16 @@ export interface AppOptions {
   store?: Store;
   commerce?: Pick<CommerceLedger, 'getTaxSettings' | 'updateTaxSettings' | 'recordTurnover' | 'ossQuarter'>;
   pricing?: Pick<CommerceLedger, 'latestPriceReview'>;
+  /** Where the pricing matrix is kept (the commerce ledger). Absent: kept in memory, for development and tests. */
+  priceMatrix?: { get(): Promise<unknown>; save(matrix: import('../../../src/core/pricingMatrix.ts').PricingMatrix): Promise<void> };
+  /** The Pro subscription prices in Paddle, to check them against the matrix and set them from it. */
+  paddlePrices?: {
+    priceIds: Partial<Record<'monthly' | 'annual', string>>;
+    get(priceId: string): Promise<import('../../../src/core/pricingMatrix.ts').PaddlePriceView>;
+    update(priceId: string, body: ReturnType<typeof import('../../../src/core/pricingMatrix.ts').paddlePriceUpdate>): Promise<unknown>;
+  };
+  /** Today's ECB reference rates per £1 (commerce/priceReview.ts). */
+  ecbRates?: () => Promise<{ date: string; perGbp: Record<string, number> }>;
   /** Paid checkouts for the admin console's Payments table (the Firestore commerce ledger). */
   payments?: { listTransactions(limit: number): Promise<TransactionRecord[]>; listTransactionsForMonth?(month: string): Promise<TransactionRecord[]> };
   /** Re-fetches a Paddle transaction and matches it to the server-owned order before granting Pro. */

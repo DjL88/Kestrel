@@ -7,7 +7,7 @@ import { s3Connector } from './s3Connector';
 import { webdavConnector } from './webdavConnector';
 import { sftpConnector, type SftpSettings } from './sftpConnector';
 import { isCloudDrive } from '../core/cloudDrive';
-import { dropboxConnector, googleDriveConnector, oneDriveConnector } from './cloudDriveConnectors';
+import { dropboxConnector, googleDriveConnector, oneDriveConnector, sharePointConnector, type SharePointLibrary } from './cloudDriveConnectors';
 import { accessTokenFor, forgetTokens, hasTokens, rememberTokens } from './oauthSession';
 
 /**
@@ -22,6 +22,16 @@ const DAV_PREFIX = 'kestrel.connection-dav.v1.';
 /** An SFTP place's address, user, folder and accepted fingerprint: none of them secret. The password or key is session-only. */
 const SFTP_PREFIX = 'kestrel.connection-sftp.v1.';
 const sessionSftp = new Map<string, SftpSettings>();
+/** Which SharePoint library a connection uses: ids and names only. The sign-in itself is kept with the other drive tokens. */
+const SHAREPOINT_PREFIX = 'kestrel.connection-sharepoint.v1.';
+
+export function sharePointLibraryFor(id: string): SharePointLibrary | null {
+  try {
+    const stored = JSON.parse(localStorage.getItem(SHAREPOINT_PREFIX + id) ?? 'null') as Record<string, unknown> | null;
+    if (stored && typeof stored.driveId === 'string') return { driveId: stored.driveId, siteName: String(stored.siteName ?? ''), libraryName: String(stored.libraryName ?? ''), webUrl: String(stored.webUrl ?? '') };
+  } catch { /* nothing saved */ }
+  return null;
+}
 // Legacy versions persisted credentials in plaintext. Purge every matching key,
 // including orphaned entries for connections already removed from the list.
 function purgeLegacyCredentials(): void {
@@ -44,7 +54,7 @@ let snapshot = { list, reports: { ...reports } };
 function read(): Connection[] {
   try {
     const stored = JSON.parse(localStorage.getItem(KEY) ?? '[]') as unknown;
-    return Array.isArray(stored) ? stored.filter((c): c is Connection => Boolean(c && typeof c.id === 'string' && typeof c.label === 'string' && typeof c.detail === 'string' && ['folder', 's3', 'webdav', 'sftp', 'dropbox', 'googledrive', 'onedrive'].includes(c.kind))) : [];
+    return Array.isArray(stored) ? stored.filter((c): c is Connection => Boolean(c && typeof c.id === 'string' && typeof c.label === 'string' && typeof c.detail === 'string' && ['folder', 's3', 'webdav', 'sftp', 'dropbox', 'googledrive', 'onedrive', 'sharepoint'].includes(c.kind))) : [];
   } catch { return []; }
 }
 const publish = () => {
@@ -56,13 +66,14 @@ const publish = () => {
 export const connections = () => list;
 export const healthOf = (id: string) => reports[id];
 
-export function addConnection(kind: ProviderKind, label: string, detail: string, secret?: { tokens?: import('../core/cloudDrive').Tokens; s3?: S3Settings; dav?: WebDavSettings; sftp?: SftpSettings; remember?: boolean; handle?: FileSystemDirectoryHandle; path?: string }): Connection {
+export function addConnection(kind: ProviderKind, label: string, detail: string, secret?: { tokens?: import('../core/cloudDrive').Tokens; s3?: S3Settings; dav?: WebDavSettings; sftp?: SftpSettings; sharepoint?: SharePointLibrary; remember?: boolean; handle?: FileSystemDirectoryHandle; path?: string }): Connection {
   const connection: Connection = { id: newConnectionId(), kind, label: label.trim() || detail, detail };
   list = [...list, connection];
   if (secret?.tokens) rememberTokens(connection.id, secret.tokens);
   if (secret?.s3) setS3Keys(connection.id, secret.s3, Boolean(secret.remember));
   if (secret?.dav) setDavLogin(connection.id, secret.dav, Boolean(secret.remember));
   if (secret?.sftp) setSftpLogin(connection.id, secret.sftp);
+  if (secret?.sharepoint) { try { localStorage.setItem(SHAREPOINT_PREFIX + connection.id, JSON.stringify(secret.sharepoint)); } catch { /* session only */ } }
   if (secret?.handle) sessionHandles.set(connection.id, secret.handle);
   if (secret?.path) { try { localStorage.setItem(`kestrel.connection-path.v1.${connection.id}`, secret.path); } catch { /* session only */ } }
   publish();
@@ -72,7 +83,7 @@ export function addConnection(kind: ProviderKind, label: string, detail: string,
 export function removeConnection(id: string): void {
   list = list.filter((c) => c.id !== id);
   sessionKeys.delete(id); sessionDav.delete(id); sessionSftp.delete(id); sessionHandles.delete(id); delete reports[id]; forgetTokens(id);
-  try { localStorage.removeItem(SECRET_PREFIX + id); localStorage.removeItem(DAV_PREFIX + id); localStorage.removeItem(SFTP_PREFIX + id); localStorage.removeItem(`kestrel.connection-path.v1.${id}`); } catch { /* nothing to remove */ }
+  try { localStorage.removeItem(SECRET_PREFIX + id); localStorage.removeItem(DAV_PREFIX + id); localStorage.removeItem(SFTP_PREFIX + id); localStorage.removeItem(SHAREPOINT_PREFIX + id); localStorage.removeItem(`kestrel.connection-path.v1.${id}`); } catch { /* nothing to remove */ }
   publish();
 }
 
@@ -85,7 +96,7 @@ export function setS3Keys(id: string, settings: S3Settings, remember: boolean): 
 export function setDavLogin(id: string, settings: WebDavSettings, remember: boolean): void {
   sessionDav.set(id, settings);
   void remember;
-  try { localStorage.removeItem(DAV_PREFIX + id); localStorage.removeItem(SFTP_PREFIX + id); } catch { /* session only */ }
+  try { localStorage.removeItem(DAV_PREFIX + id); localStorage.removeItem(SFTP_PREFIX + id); localStorage.removeItem(SHAREPOINT_PREFIX + id); } catch { /* session only */ }
 }
 
 /** Keep the SFTP sign-in for this session, and its address, folder and accepted fingerprint on this device. */
@@ -146,6 +157,11 @@ export async function openConnection(id: string): Promise<Opened> {
     const kind = connection.kind;
     if (!hasTokens(id)) return { problem: 'needs-signin', message: `Sign in to ${PROVIDERS.find((p) => p.kind === kind)?.short ?? 'the service'} again to reconnect.` };
     const deps = { getToken: () => accessTokenFor(id, kind) };
+    if (kind === 'sharepoint') {
+      const library = sharePointLibraryFor(id);
+      if (!library) return { problem: 'missing', message: 'Which SharePoint library to use was not remembered. Remove this place and add it again.' };
+      return { connector: sharePointConnector(deps, library) };
+    }
     return { connector: kind === 'dropbox' ? dropboxConnector(deps) : kind === 'googledrive' ? googleDriveConnector(deps) : oneDriveConnector(deps) };
   }
   if (connection.kind === 'folder') {

@@ -94,6 +94,15 @@ interface FilmstripProps {
   onChooseFromProject?: () => void;
 }
 
+/**
+ * Width of a filmstrip thumbnail for a strip this many pixels high, so the picture keeps a 3:2 shape as the strip is
+ * resized (owner, 26 Nov 2026). The picture's height is the strip less its padding (16), the name row (36) and the
+ * border (2); the tile never narrows below the 96 pixels its name and Flag need.
+ */
+export function stripTileWidth(height: number): number {
+  return Math.max(96, Math.round((height - 54) * 1.5));
+}
+
 export default function Filmstrip({
   photos,
   activePhoto,
@@ -587,7 +596,7 @@ export default function Filmstrip({
 
       {/* Filmstrip */}
       {!collapsed && (
-        <div style={{ height }} className="v2-filmstrip-body w-full overflow-hidden">
+        <div style={{ height, '--v2-strip-tile-width': `${stripTileWidth(height)}px` } as React.CSSProperties} className="v2-filmstrip-body w-full overflow-hidden">
           {visiblePhotos.length === 0 ? (
             <div className="flex h-full items-center justify-center text-xs text-[var(--text-muted)]">
               {STRINGS.filmstrip.nothingMatches}
@@ -646,7 +655,7 @@ export default function Filmstrip({
                     onPointerMove={moveLongPress}
                     onPointerUp={cancelLongPress}
                     onPointerCancel={cancelLongPress}
-                    className={`v2-strip-tile group relative flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--radius-md)] border transition-colors w-36 shrink-0 ${
+                    className={`v2-strip-tile group relative flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--radius-md)] border transition-colors shrink-0 ${
                       isActive
                         ? 'border-[var(--brand-accent)] bg-[var(--bg-surface-raised)] ring-1 ring-[var(--brand-accent)]'
                         : isSelected

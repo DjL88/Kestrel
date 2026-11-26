@@ -1572,6 +1572,13 @@ export const cy: AreaTranslation<typeof source> = {
     signInFailed: 'Ni orffennodd y mewngofnodi.',
     folderHint: "Mae NAS neu ffolder swyddfa a rennir yn gweithio yma hefyd unwaith y mae’r cyfrifiadur hwn wedi’i gysylltu: ar Mac defnyddiwch Finder, Go, Connect to Server (smb://…); ar Windows mapiwch ef fel gyriant rhwydwaith. Yna dewiswch y ffolder honno.",
     awayFromHome: "I ffwrdd o’r cartref: y ffordd ddiogel symlaf i gyrraedd eich NAS yw Tailscale ar y NAS ac ar y cyfrifiadur hwn, ac yna enw Tailscale y NAS. Dros Tailscale, mae http:// yn iawn hefyd, gan fod Tailscale eisoes yn amgryptio’r cysylltiad. Mewn mannau eraill ar y rhyngrwyd, mae WebDAV angen https gyda thystysgrif iawn: trowch Tailscale HTTPS ymlaen (cyfeiriad .ts.net), neu ar Synology gosodwch DDNS gyda thystysgrif Let’s Encrypt. Nid yw QuickConnect yn cario WebDAV na SFTP.",
+    sharepoint: {
+      linkLabel: "Dolen i’r safle neu’r llyfrgell SharePoint",
+      linkHint: "Agorwch y llyfrgell yn eich porwr a chopïwch y cyfeiriad o’r bar cyfeiriad. Mae InFlight yn cadw ei ffeiliau yno mewn ffolder InFlight.",
+      adminNote: "Dim ond y safleoedd y mae eich sefydliad yn eu caniatáu y gall InFlight eu cyrraedd. Os yw mewngofnodi’n gweithio ond bod y safle’n cael ei wrthod, gofynnwch i’ch gweinyddwr Microsoft 365 roi mynediad i InFlight i’r safle hwnnw.",
+      badLink: "Nid dolen SharePoint yw honno. Copïwch gyfeiriad y safle neu’r llyfrgell, er enghraifft https://contoso.sharepoint.com/sites/Photos.",
+      detail: (site: string, library: string) => `${site} · ${library} · ffolder InFlight`,
+    },
     sftpDesktopOnly: "Yn ap bwrdd gwaith InFlight yn unig: ni all porwyr ddefnyddio SFTP.",
     sftp: {
       formLabel: "Eich gweinydd SFTP",

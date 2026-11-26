@@ -3,6 +3,7 @@ import { commerceCollections, type RollingTurnoverRecord, type TaxSettingsRecord
 import { validateUkVatSettings, type TaxSettings } from './tax.ts';
 import { ukTurnoverMetrics } from './turnover.ts';
 import type { proposePrices } from './priceReview.ts';
+import type { PricingMatrix } from '../../../../src/core/pricingMatrix.ts';
 
 /** "2026-12" → supply dates from "2026-12-01" up to (not including) "2027-01-01". */
 export function monthBounds(month: string): { start: string; end: string } {
@@ -17,6 +18,16 @@ export class CommerceLedger {
   async latestPriceReview(): Promise<ReturnType<typeof proposePrices> | null> {
     const rows = await this.db.collection('pricing_reviews').orderBy('month', 'desc').limit(1).get();
     return rows.docs[0]?.data() as ReturnType<typeof proposePrices> | undefined ?? null;
+  }
+
+  /** The pricing matrix as last saved in Admin → Prices (src/core/pricingMatrix.ts); null before the first save. */
+  async getPriceMatrix(): Promise<unknown> {
+    const document = await this.db.collection('pricing_settings').doc('matrix').get();
+    return document.exists ? document.data() : null;
+  }
+
+  async savePriceMatrix(matrix: PricingMatrix): Promise<void> {
+    await this.db.collection('pricing_settings').doc('matrix').set(JSON.parse(JSON.stringify(matrix)));
   }
 
   async getTaxSettings(): Promise<TaxSettings> {

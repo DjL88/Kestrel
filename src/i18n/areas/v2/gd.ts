@@ -1573,6 +1573,13 @@ export const gd: AreaTranslation<typeof source> = {
     signInFailed: 'Cha deach an clàradh a-steach a choileanadh.',
     folderHint: "Obraichidh NAS no pasgan co-roinnte oifis an-seo cuideachd nuair a bhios an coimpiutair seo ceangailte ris: air Mac cleachd Finder, Go, Connect to Server (smb://…); air Windows ceangail e mar dhràibh lìonraidh. An uairsin tagh am pasgan sin.",
     awayFromHome: "Air falbh on dachaigh: ’s e an dòigh shàbhailte as sìmplidh airson an NAS agad a ruigsinn Tailscale air an NAS agus air a’ choimpiutair seo, agus an uairsin ainm Tailscale an NAS. Thar Tailscale, tha http:// ceart gu leòr cuideachd, oir tha Tailscale mu thràth a’ crioptachadh a’ cheangail. Ann an àite sam bith eile air an eadar-lìon, feumaidh WebDAV https le teisteanas ceart: cuir Tailscale HTTPS air (seòladh .ts.net), no air Synology suidhich DDNS le teisteanas Let’s Encrypt. Cha ghiùlain QuickConnect WebDAV no SFTP.",
+    sharepoint: {
+      linkLabel: "Ceangal gu làrach no leabharlann SharePoint",
+      linkHint: "Fosgail an leabharlann sa bhrabhsair is dèan lethbhreac dhen t-seòladh o bhàr an t-seòlaidh. Cumaidh InFlight na faidhlichean aige an-sin ann am pasgan InFlight.",
+      adminNote: "Chan ruig InFlight ach na làraichean a cheadaicheas am buidheann agad. Ma dh’obraicheas an clàradh a-steach ach ma thèid an làrach a dhiùltadh, iarr air rianaire Microsoft 365 cothrom a thoirt do InFlight air an làrach sin.",
+      badLink: "Chan e ceangal SharePoint a tha sin. Dèan lethbhreac de sheòladh na làraich no na leabharlainn, mar eisimpleir https://contoso.sharepoint.com/sites/Photos.",
+      detail: (site: string, library: string) => `${site} · ${library} · pasgan InFlight`,
+    },
     sftpDesktopOnly: "Ann an aplacaid deasg InFlight a-mhàin: chan urrainn do bhrabhsairean SFTP a chleachdadh.",
     sftp: {
       formLabel: "An frithealaiche SFTP agad",

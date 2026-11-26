@@ -194,6 +194,9 @@
   .inflight-v2 .v2-current-mark-top[aria-pressed="true"]::before { background: Highlight; }
 }
 
+/* Filmstrip thumbnails keep a 3:2 picture as the strip is resized: Filmstrip.tsx sets the width from the height. */
+.inflight-v2 .v2-strip-tile { width: var(--v2-strip-tile-width, 9rem); }
+
 /* Phone edit screen (V2-WORKSPACE 26.3, owner wireframe "Phone · Edit"): a slimmer strip of small thumbnails instead of
    tall cards, so the photo gets more of the height. More (⋯) and Flag stay drawn and tappable on every thumbnail; only
    the filename and the word Ready are not drawn (both stay in the page for screen readers and voice control). A state

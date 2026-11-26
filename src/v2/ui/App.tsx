@@ -1,6 +1,7 @@
 import { useServiceReachability } from '../../providers/useServiceReachability';
 import { usageFromServer, type CloudUsage } from '../../core/cloudPlan';
 import { useConnectivity } from '../../providers/useConnectivity';
+import { CloudStatus, type CloudStatusState } from './shell/CloudStatus';
 import { projectsText } from '../../i18n/areas/projects';
 import { stepFrom } from './utils/swipe';
 import type { EnlargementPreviewResult } from '../engineClient/enlargementPreview';
@@ -241,7 +242,18 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const connectivity = useConnectivity();
   const service = useServiceReachability(serviceBase);
   const health = projectsText.connections.health;
-  const serviceLabel = service.state === 'reachable' ? health.ok : service.state === 'unreachable' ? health.error : health.unknown;
+  // A small cloud beside the account button replaces the old full-width "InFlight API" bar (owner, 26 Nov 2026).
+  const cloudState: CloudStatusState = connectivity === 'offline' ? 'offline'
+    : service.state === 'reachable' ? 'reachable' : service.state === 'unreachable' ? 'unreachable'
+    : service.state === 'checking' ? 'checking' : 'unknown';
+  const cloudLabel = cloudState === 'offline' ? health.offline : cloudState === 'reachable' ? health.ok
+    : cloudState === 'unreachable' ? health.error : health.unknown;
+  const cloudStatus = connectivity === 'offline' || serviceBase ? (
+    <CloudStatus state={cloudState} label={cloudLabel}
+      detail={cloudState === 'offline' ? `${health.offline}. ${projectsText.connections.advice.offline}`
+        : `InFlight service: ${cloudLabel}.${cloudState === 'reachable' || cloudState === 'checking' ? '' : ` ${projectsText.connections.check}`}`}
+      onCheck={serviceBase ? service.check : undefined} />
+  ) : null;
   const [systemDark, setSystemDark] = useState(() =>
     typeof window !== 'undefined' && typeof window.matchMedia === 'function'
       ? window.matchMedia('(prefers-color-scheme: dark)').matches : false);
@@ -857,8 +869,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           />
         );
       case 'history':
-        return <HistoryPanel photo={activePhoto} activeSizeId={store.activeSizeId} onForkFromStep={actions.jumpToEditStep} onSwitchVersion={actions.switchEditVersion} onUndo={editLocked ? undefined : actions.undo}
-          onRenameVersion={actions.renameEditVersion} onSaveCheckpoint={actions.saveEditCheckpoint} onRestoreCheckpoint={actions.restoreEditCheckpoint}
+        return <HistoryPanel photo={activePhoto} activeSizeId={store.activeSizeId} onGoToStep={actions.jumpToEditStep} onForkVersion={editLocked ? undefined : actions.forkEditVersion} onSwitchVersion={actions.switchEditVersion} onUndo={editLocked ? undefined : actions.undo}
+          onSaveCheckpoint={actions.saveEditCheckpoint} onRestoreCheckpoint={actions.restoreEditCheckpoint}
           onDeleteCheckpoint={actions.deleteEditCheckpoint} onRestoreFormatCrop={actions.restoreFormatCrop} />;
       case 'info':
         return (
@@ -969,23 +981,6 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         e.preventDefault();
       }}
     >
-      {connectivity === 'offline' && (
-        <div role="status" data-testid="offline-status" className="flex shrink-0 items-center gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1 text-xs text-[var(--text-secondary)]">
-          <BrandIcon name="alert" size={14} />
-          <span>{projectsText.connections.health.offline} · {projectsText.connections.advice.offline}</span>
-        </div>
-      )}
-      {serviceBase && connectivity !== 'offline' && (
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1 text-xs text-[var(--text-secondary)]">
-          <span role="status" data-testid="service-reachability">
-            {['InFlight API', serviceLabel].join(' · ')}
-          </span>
-          <button type="button" disabled={service.state === 'checking'} aria-busy={service.state === 'checking'}
-            onClick={service.check} className="rounded px-2 py-1 hover:bg-[var(--bg-surface-hover)] disabled:opacity-50">
-            {projectsText.connections.check}
-          </button>
-        </div>
-      )}
       {store.screen === 'hub' ? (
         <ProjectsHub
           projects={store.projects}
@@ -1004,7 +999,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
           onDeleteProjectForever={actions.deleteProjectForever}
           onDuplicateProject={actions.duplicateProject}
           onOpenSettings={() => actions.setSettingsOpen(true, 'appearance')}
-          account={accountButton}
+          account={<>{cloudStatus}{accountButton}</>}
           onToggleTheme={() =>
             actions.updateSettings({ theme: activeTheme === 'dark' ? 'light' : 'dark' })
           }
@@ -1072,6 +1067,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             presence={<>
               <PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(key) => { const photo = store.photos.find((candidate) => candidate.sharedKey === key); if (photo) actions.selectPhoto(photo.id); }} />
               <NoticesButton notices={notices} client={sharing} signedIn={signedInName} onGoToPhoto={goToNoticePhoto} />
+              {cloudStatus}
               {accountButton}
             </>}
             onOpenRemoved={() => actions.setRemovedOpen(true)}

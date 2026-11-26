@@ -1575,6 +1575,13 @@ export const ga: AreaTranslation<typeof source> = {
     signInFailed: 'Níor críochnaíodh an síniú isteach.',
     folderHint: "Oibríonn NAS nó fillteán comhroinnte oifige anseo freisin nuair a bhíonn an ríomhaire seo ceangailte leis: ar Mac úsáid Finder, Go, Connect to Server (smb://…); ar Windows mapáil é mar thiomántán líonra. Ansin roghnaigh an fillteán sin.",
     awayFromHome: "Agus tú as baile: an bealach sábháilte is simplí chun do NAS a bhaint amach ná Tailscale ar an NAS agus ar an ríomhaire seo, agus ansin ainm Tailscale an NAS. Thar Tailscale, tá http:// ceart go leor freisin, mar criptíonn Tailscale an nasc cheana féin. Áit ar bith eile ar an idirlíon, teastaíonn https le deimhniú ceart ó WebDAV: cas air Tailscale HTTPS (seoladh .ts.net), nó ar Synology socraigh DDNS le deimhniú Let’s Encrypt. Ní iompraíonn QuickConnect WebDAV ná SFTP.",
+    sharepoint: {
+      linkLabel: "Nasc chuig an suíomh nó an leabharlann SharePoint",
+      linkHint: "Oscail an leabharlann i do bhrabhsálaí agus cóipeáil an seoladh ón mbarra seoltaí. Coinníonn InFlight a chomhaid ansin i bhfillteán InFlight.",
+      adminNote: "Ní féidir le InFlight ach na suíomhanna a cheadaíonn d’eagraíocht a bhaint amach. Má oibríonn an síniú isteach ach go ndiúltaítear don suíomh, iarr ar do riarthóir Microsoft 365 rochtain ar an suíomh sin a thabhairt do InFlight.",
+      badLink: "Ní nasc SharePoint é sin. Cóipeáil seoladh an tsuímh nó na leabharlainne, mar shampla https://contoso.sharepoint.com/sites/Photos.",
+      detail: (site: string, library: string) => `${site} · ${library} · fillteán InFlight`,
+    },
     sftpDesktopOnly: "In aip deisce InFlight amháin: ní féidir le brabhsálaithe SFTP a úsáid.",
     sftp: {
       formLabel: "Do fhreastalaí SFTP",

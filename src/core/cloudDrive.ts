@@ -4,7 +4,7 @@
  * sees its own folder: Dropbox "App folder", Google's `drive.file` scope, OneDrive's App Folder. Nothing else in the
  * account is visible to InFlight, and nothing is sent anywhere but the provider the person chose.
  */
-export type CloudDriveKind = 'dropbox' | 'googledrive' | 'onedrive';
+export type CloudDriveKind = 'dropbox' | 'googledrive' | 'onedrive' | 'sharepoint';
 
 export interface CloudDriveConfig {
   kind: CloudDriveKind;
@@ -21,6 +21,9 @@ export interface CloudDriveConfig {
   /** Optional: only for providers that insist on one (Google "Desktop app" clients). Not confidential by the provider's own rules. */
   clientSecretEnv?: string;
 }
+
+/** The one line to change if the owner chooses a wider SharePoint scope (see the decision in the PR). */
+export const SHAREPOINT_SCOPE = 'Sites.Selected';
 
 export const CLOUD_DRIVES: Record<CloudDriveKind, CloudDriveConfig> = {
   dropbox: {
@@ -41,6 +44,15 @@ export const CLOUD_DRIVES: Record<CloudDriveKind, CloudDriveConfig> = {
     kind: 'onedrive', name: 'Microsoft OneDrive',
     authorizeUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize', tokenUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
     scopes: ['Files.ReadWrite.AppFolder', 'offline_access'],
+    authorizeExtras: {},
+    consoleUrl: 'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade', clientIdEnv: 'VITE_ONEDRIVE_CLIENT_ID',
+  },
+  // A SharePoint or Teams library, on the same Microsoft app as OneDrive. SharePoint has no app-only folder, so the scope is
+  // Sites.Selected: InFlight reaches only the sites the organisation's admin grants it, never the rest of the account.
+  sharepoint: {
+    kind: 'sharepoint', name: 'SharePoint',
+    authorizeUrl: 'https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize', tokenUrl: 'https://login.microsoftonline.com/organizations/oauth2/v2.0/token',
+    scopes: [SHAREPOINT_SCOPE, 'offline_access'],
     authorizeExtras: {},
     consoleUrl: 'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade', clientIdEnv: 'VITE_ONEDRIVE_CLIENT_ID',
   },
@@ -126,4 +138,30 @@ export function parseCallbackQuery(query: string, expectedState: string): { code
   const params = new URLSearchParams(query.replace(/^\?/, ''));
   if (params.get('state') !== expectedState) return { code: null, error: 'state_mismatch' };
   return { code: params.get('code'), error: params.get('error') };
+}
+
+/** A pasted SharePoint or Teams link, split into what Microsoft Graph needs: the host, the site's path and the library. */
+export interface SharePointLink { host: string; sitePath: string; library: string | null }
+
+/**
+ * Read a link to a SharePoint site or document library, such as
+ * `https://contoso.sharepoint.com/sites/Photos/Shared Documents/Forms/AllItems.aspx`. Null for anything that is not one.
+ */
+export function parseSharePointLink(text: string): SharePointLink | null {
+  let url: URL;
+  try { url = new URL(text.trim()); } catch { return null; }
+  if (url.protocol !== 'https:' || !/^[a-z0-9-]+\.sharepoint\.(?:com|us|de|cn)$/i.test(url.hostname)) return null;
+  let parts: string[];
+  try { parts = url.pathname.split('/').filter(Boolean).map((part) => decodeURIComponent(part)); } catch { return null; }
+  // Sharing links (/:f:/s/Site/...) are not addresses Graph can read by path.
+  if (parts[0]?.startsWith(':')) return null;
+  const at = parts.findIndex((part) => /^(?:sites|teams)$/i.test(part));
+  if (at === -1 || !parts[at + 1]) return { host: url.hostname.toLowerCase(), sitePath: '', library: libraryOf(parts) };
+  return { host: url.hostname.toLowerCase(), sitePath: `/${parts[at]}/${parts[at + 1]}`, library: libraryOf(parts.slice(at + 2)) };
+}
+
+function libraryOf(rest: string[]): string | null {
+  const name = rest[0];
+  if (!name || /\.aspx$/i.test(name) || /^(?:_layouts|SitePages|Lists)$/i.test(name)) return null;
+  return name;
 }
