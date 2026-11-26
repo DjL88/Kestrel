@@ -273,7 +273,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     ...createEditGroups(false)[0],
     id: saved.id,
     name: saved.name,
-    recipe: { ...editToRecipe(saved.edit), lookId: saved.id === savedGroups.activeId ? frame.appliedLookId ?? 'natural-raw' : 'natural-raw' },
+    recipe: { ...editToRecipe(saved.edit), lookId: saved.id === savedGroups.activeId ? frame.appliedLookId ?? 'none' : 'none' },
     overlay: readOverlay(frame.overlay),
     splitFrames: readSplitFrames(frame.splitFrames),
     splitPanOffset: readSplitPanOffset(frame.splitPanOffset),

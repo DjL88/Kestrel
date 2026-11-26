@@ -188,7 +188,7 @@ import { enlargementPreviewRequest, type EnlargementPreviewResult } from './enla
 import { uniqueExportFilename } from '../../core/exportNaming';
 import { exportMayContinue } from '../../core/exportCancellation';
 import type { ExportRequest } from '../ui/contract';
-import { applyRecipePatch, editToRecipe, NEUTRAL_RECIPE } from './recipeMap';
+import { applyRecipePatch, editToRecipe, NEUTRAL_RECIPE, removeLookPatch } from './recipeMap';
 import { MAX_USER_LOOKS, exportUserLooks, importUserLooks, parseUserLooks, removeUserLook, renameUserLook, saveUserLook, type UserLook } from '../../core/presets';
 import { looksText } from '../../i18n/areas/looks';
 import { canvasLensCentre, detectLateralCa } from '../../core/fringe';
@@ -3687,8 +3687,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const look = looks.find((entry) => entry.id === lookId);
       if (!look) return;
       const targets = editTargets(photoId);
-      applyPatch(targets, look.recipeDelta);
-      mutate((current) => ({ ...current, frames: current.frames.map((frame) => (targets.includes(frame.id) ? { ...frame, appliedLookId: lookId } : frame)) }));
+      // "None" takes the photo's current look off: the sliders that look set go back to where they start.
+      const previous = looks.find((entry) => entry.id === stateRef.current?.frames.find((frame) => frame.id === photoId)?.appliedLookId);
+      applyPatch(targets, lookId === 'none' ? removeLookPatch(previous) : look.recipeDelta);
+      mutate((current) => ({ ...current, frames: current.frames.map((frame) => (targets.includes(frame.id) ? { ...frame, appliedLookId: lookId === 'none' ? undefined : lookId } : frame)) }));
     },
     saveUserLook: (photoId, name) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
