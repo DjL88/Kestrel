@@ -98,4 +98,7 @@ export const enUS: AreaTranslation<typeof source> = {
     zoomCentre: 'Zoom to center',
     centreFound: 'No clear subject, so zoomed to the center.',
   },
+  welcome: {
+    guestBody: "Sign in to back up your catalog and use Pro on this device.",
+  },
 };

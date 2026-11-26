@@ -402,6 +402,7 @@ export const pt: AreaTranslation<typeof source> = {
     none: 'Ainda não é mostrada nenhuma forma de iniciar sessão. Termine a sessão e volte a entrar.',
     google: 'Google',
     apple: 'Apple',
+    microsoft: 'Microsoft',
     password: 'E-mail e palavra-passe',
     add: (method: string) => `Adicionar ${method}`,
     passwordLabel: 'Palavra-passe para iniciar sessão com o seu e-mail',

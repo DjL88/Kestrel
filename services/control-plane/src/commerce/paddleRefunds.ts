@@ -28,6 +28,8 @@ export interface RefundDependencies {
   };
   /** True the first time an event id is claimed. `release` gives it back after a failure, so Paddle's retry runs. */
   events: { claim(eventId: string, atMs: number): Promise<boolean>; release(eventId: string): Promise<void> };
+  /** The sale in the commerce ledger (ledger.ts markRefunded), so refunded money stops counting as income. */
+  commerce?: { markRefunded(checkoutReference: string, status: 'refunded' | 'partially-refunded'): Promise<boolean> };
   now: () => number;
 }
 
@@ -57,7 +59,11 @@ export function paddleRefundRevocation(d: RefundDependencies) {
     const effect = refundEffect(a);
     const what = `${a.action}${a.type ? ` (${a.type})` : ''} ${a.id} on ${t.id}, ${a.totals?.total ?? '?'} ${a.totals?.currency_code ?? ''}`.trim();
     if (effect === 'wait') { await audit('licence.refund_pending', `${what}: ${a.status}; Pro unchanged until Paddle approves it.`); return 'pending'; }
-    if (effect === 'keep') { await audit('licence.refund_partial', `${what}: a partial refund, so ${licenceId} keeps Pro.`); return 'kept'; }
+    if (effect === 'keep') {
+      await d.commerce?.markRefunded(order.reference, 'partially-refunded');
+      await audit('licence.refund_partial', `${what}: a partial refund, so ${licenceId} keeps Pro.`);
+      return 'kept';
+    }
     if (effect === 'none') {
       if (a.action === 'chargeback_reverse') await audit('licence.chargeback_reversed', `${what}: the chargeback was reversed. Pro stays removed until an admin restores ${licenceId}.`);
       return 'ignored';
@@ -72,6 +78,8 @@ export function paddleRefundRevocation(d: RefundDependencies) {
       }, d.now()), status: 'revoked' });
       changed = await d.licences.setLicenceStatus(licenceId, 'revoked', d.now());
     }
+    // After the licence, so a ledger failure (retried by Paddle) never leaves Pro on for refunded money.
+    await d.commerce?.markRefunded(order.reference, 'refunded');
     await audit('licence.revoke', `${what}: ${a.action === 'chargeback' ? 'a chargeback' : 'a full refund'}, so Pro was removed from account ${order.accountId} (${licenceId}${changed ? '' : ', already revoked or missing'}).`);
     return 'revoked';
   }

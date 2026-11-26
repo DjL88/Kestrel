@@ -50,6 +50,7 @@ export const de: AreaTranslation<typeof source> = {
     global: 'Kein Motivumriss war zuverlässig, daher wurde das ganze Foto gleichmäßig entrauscht.',
     failedCheck: 'Das Ergebnis hat die Qualitätsprüfung nicht bestanden. Ihre bisherigen Bearbeitungen wurden beibehalten.',
     mainThread: 'Dieses Gerät konnte nicht im Hintergrund entrauschen, daher hat InFlight währenddessen vielleicht kurz gestockt.',
+    learnedLostDetail: 'In voller Größe hat die KI-Rauschreduzierung echte Details am Motiv weggeglättet, daher wurde stattdessen die eingebaute Rauschreduzierung verwendet.',
     leftAsItWas: (notes) => `Unverändert gelassen. ${notes}`,
   },
   workspace: {
@@ -73,6 +74,7 @@ export const de: AreaTranslation<typeof source> = {
     thumbnailsTask: (count) => (count === 1 ? '1 Miniatur wird vorbereitet' : `${count} Miniaturen werden vorbereitet`),
     thumbnailStage: 'Dieses Foto wird gelesen und verkleinert',
     thumbnailFailed: (filename) => `Die Miniatur für ${filename} konnte nicht erstellt werden. Verbinden Sie das Original erneut und versuchen Sie es noch einmal.`,
+    rawJpegXl: 'Diese RAW-Datei verwendet JPEG-XL-Komprimierung, die InFlight noch nicht lesen kann. Das Original bleibt unverändert.',
     notConnected: (names) => `Noch nicht mit der InFlight-Engine verbunden, daher nicht angewendet: ${names}.`,
     exportRunning: 'Es läuft bereits ein Export.',
     selectOneRaw: 'Wählen Sie ein RAW-Foto aus, um sein TIFF zu exportieren.',

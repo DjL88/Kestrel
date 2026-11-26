@@ -17,7 +17,7 @@
 // Without the feature only rawler runs, so the HE-only items are unused there.
 #![cfg_attr(not(feature = "nikon-he"), allow(dead_code))]
 
-use rawler::decoders::RawDecodeParams;
+use rawler::decoders::{Orientation, RawDecodeParams};
 use rawler::rawsource::RawSource;
 use rawler::RawImage;
 
@@ -128,7 +128,32 @@ pub fn high_efficiency_to_dng(_bytes: &[u8]) -> Result<Vec<u8>, String> {
 
 fn rawler_decode(bytes: &[u8]) -> Result<RawImage, String> {
     let source = RawSource::new_from_slice(bytes);
-    rawler::decode(&source, &RawDecodeParams { image_index: 0 }).map_err(|error| crate::explain(&error.to_string()))
+    let params = RawDecodeParams { image_index: 0 };
+    let mut raw = rawler::decode(&source, &params).map_err(|error| crate::explain(&error.to_string()))?;
+    raw.orientation = held_orientation(raw.orientation, || file_orientation(&source, &params));
+    Ok(raw)
+}
+
+/// The file's own EXIF Orientation (1 to 8), read from its metadata only. None when there is none or it can't be read.
+fn file_orientation(source: &RawSource, params: &RawDecodeParams) -> Option<u16> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        rawler::get_decoder(source).ok()?.raw_metadata(source, params).ok()?.exif.orientation
+    }))
+    .ok()
+    .flatten()
+}
+
+/// How the camera was held. rawler 0.8 reads the turn only from DNGs: every other decoder (ARW, CR2, CR3, RAF, ORF, RW2,
+/// PEF, lossless NEF...) leaves "normal" (its own TODO), so a portrait photograph would develop lying on its side. When
+/// the decoder says "normal" or nothing, the file's EXIF Orientation decides; a turn the decoder did find is kept.
+fn held_orientation(decoded: Orientation, file: impl FnOnce() -> Option<u16>) -> Orientation {
+    if !matches!(decoded, Orientation::Normal | Orientation::Unknown) {
+        return decoded;
+    }
+    match file().map(Orientation::from_u16) {
+        Some(Orientation::Unknown) | None => decoded,
+        Some(found) => found,
+    }
 }
 
 /// Decode any RAW file's sensor data. High Efficiency NEFs go through ticoraw and an in-memory DNG; everything else
@@ -281,5 +306,72 @@ mod tests {
         }
         assert!(decoded > 0, "KESTREL_RAW_SAMPLES was set, but no Nikon HE/HE* NEFs were found; RAW fidelity evidence cannot pass with zero fixtures");
         eprintln!("High Efficiency files decoded from sensor data: {decoded}");
+    }
+}
+
+#[cfg(test)]
+mod orientation_tests {
+    use super::*;
+
+    #[test]
+    fn the_files_own_turn_is_used_when_the_decoder_found_none() {
+        assert_eq!(held_orientation(Orientation::Normal, || Some(6)), Orientation::Rotate90);
+        assert_eq!(held_orientation(Orientation::Unknown, || Some(8)), Orientation::Rotate270);
+        assert_eq!(held_orientation(Orientation::Normal, || Some(3)), Orientation::Rotate180);
+        // Nothing, or nonsense, in the file: keep what the decoder said.
+        assert_eq!(held_orientation(Orientation::Normal, || None), Orientation::Normal);
+        assert_eq!(held_orientation(Orientation::Normal, || Some(0)), Orientation::Normal);
+        assert_eq!(held_orientation(Orientation::Normal, || Some(9)), Orientation::Normal);
+    }
+
+    #[test]
+    fn a_turn_the_decoder_found_is_never_overridden() {
+        let mut asked = false;
+        assert_eq!(held_orientation(Orientation::Rotate270, || { asked = true; Some(1) }), Orientation::Rotate270);
+        assert!(!asked, "the file is not even read again");
+    }
+
+    /// Set IFD0's Orientation tag of a TIFF-based RAW to `turn`, in memory.
+    fn with_ifd0_orientation(mut bytes: Vec<u8>, turn: u16) -> Option<Vec<u8>> {
+        let le = bytes.get(0..2)? == b"II";
+        let u16_at = |b: &[u8], o: usize| if le { u16::from_le_bytes([b[o], b[o + 1]]) } else { u16::from_be_bytes([b[o], b[o + 1]]) };
+        let u32_at = |b: &[u8], o: usize| { let v = [b[o], b[o + 1], b[o + 2], b[o + 3]]; if le { u32::from_le_bytes(v) } else { u32::from_be_bytes(v) } };
+        let ifd = u32_at(&bytes, 4) as usize;
+        for i in 0..u16_at(&bytes, ifd) as usize {
+            let entry = ifd + 2 + i * 12;
+            if u16_at(&bytes, entry) == 0x0112 {
+                let value = if le { turn.to_le_bytes() } else { turn.to_be_bytes() };
+                bytes[entry + 8..entry + 10].copy_from_slice(&value);
+                return Some(bytes);
+            }
+        }
+        None
+    }
+
+    /// Real non-DNG files (the CC0 samples from `node scripts/fetch-raw-samples.mjs`, or KESTREL_RAW_SAMPLES): with
+    /// Orientation 6 or 8 in IFD0, the develop must come out portrait. Skipped when no samples are present.
+    #[test]
+    fn portrait_non_dng_raws_develop_upright() {
+        let folder = std::env::var_os("KESTREL_RAW_SAMPLES")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../raw-samples"));
+        let Ok(entries) = std::fs::read_dir(&folder) else { return };
+        let mut checked = 0;
+        for path in entries.flatten().map(|e| e.path()) {
+            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
+            if !["arw", "nef", "pef"].contains(&ext.as_str()) { continue }
+            let bytes = std::fs::read(&path).unwrap();
+            if high_efficiency_mode(&bytes).is_some() { continue } // HE goes through a DNG, which rawler already turns.
+            for turn in [6u16, 8] {
+                let Some(portrait) = with_ifd0_orientation(bytes.clone(), turn) else { continue };
+                let (raw, decoder) = decode_sensor(&portrait).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+                assert_eq!(decoder, SensorDecoder::Rawler);
+                assert_eq!(raw.orientation.to_u16(), turn, "{}", path.display());
+                let screen = image::load_from_memory(&crate::develop_jpeg_screen(&portrait).unwrap()).unwrap();
+                assert!(screen.height() > screen.width(), "{} with Orientation {turn} developed {}x{}", path.display(), screen.width(), screen.height());
+                checked += 1;
+            }
+        }
+        eprintln!("portrait non-DNG RAWs checked: {checked}");
     }
 }

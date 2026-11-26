@@ -50,6 +50,7 @@ export const it: AreaTranslation<typeof source> = {
     global: 'Nessun contorno del soggetto era affidabile, quindi la riduzione del rumore è stata applicata in modo uniforme a tutta la foto.',
     failedCheck: 'Il risultato non ha superato il controllo di qualità. Le tue modifiche sono state mantenute.',
     mainThread: 'Questo dispositivo non ha potuto ridurre il rumore in background, quindi InFlight potrebbe essersi bloccato durante il lavoro.',
+    learnedLostDetail: 'A grandezza piena, la riduzione del rumore IA ha smussato dettagli reali del soggetto, quindi è stata usata la riduzione del rumore integrata.',
     leftAsItWas: (notes) => `Lasciata com’era. ${notes}`,
   },
   workspace: {
@@ -73,6 +74,7 @@ export const it: AreaTranslation<typeof source> = {
     thumbnailsTask: (count) => (count === 1 ? 'Preparazione di 1 miniatura' : `Preparazione di ${count} miniature`),
     thumbnailStage: 'Lettura e riduzione di questa foto',
     thumbnailFailed: (filename) => `Impossibile creare la miniatura di ${filename}. Ricollega l’originale e riprova.`,
+    rawJpegXl: 'Questo RAW usa la compressione JPEG XL, che InFlight non sa ancora leggere. L’originale non è stato toccato.',
     notConnected: (names) => `Non ancora collegato al motore di InFlight, quindi non applicato: ${names}.`,
     exportRunning: 'C’è già un’esportazione in corso.',
     selectOneRaw: 'Seleziona una foto RAW per esportarne il TIFF.',

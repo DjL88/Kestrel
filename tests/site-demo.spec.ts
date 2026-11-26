@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
@@ -13,24 +13,11 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => { await new Promise((resolve) => server.close(resolve)); });
 
-// The #try section embeds the real V2 editor demo (editor/demo-v2.html, built by `npm run build:site-editor`) in place
-// of the old canvas-only demo, so these specs check the embed itself. The editor inside is covered by the V2 specs.
-const editorFrame = (page: Page) => page.locator('#try iframe');
-
-test('the try section embeds the editor demo, says what it uses, and carries no GitHub links', async ({ page }) => {
-  await page.goto(`${origin}/#try`);
-  const frame = editorFrame(page);
-  await expect(frame).toHaveAttribute('src', 'editor/demo-v2.html');
-  await expect(frame).toHaveAttribute('title', 'The InFlight editor with example images');
-  await expect(page.getByRole('link', { name: 'Open the editor demo in a new tab' })).toHaveAttribute('href', 'editor/demo-v2.html');
-  await expect(page.getByText('The demo uses approved JPEGs or sample illustrations.')).toBeVisible();
-  await expect(page.locator('a[href*="github.com"]')).toHaveCount(0);
-});
 
 test('the page follows the browser language, and the picker changes and remembers it', async ({ browser }) => {
   const context = await browser.newContext({ locale: 'fr-FR' });
   const page = await context.newPage();
-  await page.goto(`${origin}/#try`);
+  await page.goto(`${origin}/`);
   await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
   await expect(page.locator('#language-select')).toHaveValue('fr');
   await expect(page.locator('#pro-price')).toHaveText(/29\s?€/);
@@ -67,11 +54,3 @@ test('prices come from the region with a manual override, before tax, and nothin
   await expect(page.locator('a[href*="github.com"], a[href*="beta"]')).toHaveCount(0);
 });
 
-test('the try section fits a 375px phone screen', async ({ page }) => {
-  await page.setViewportSize({ width: 375, height: 812 });
-  await page.goto(`${origin}/#try`);
-  const widths = await page.evaluate(() => ({ page: document.documentElement.scrollWidth, view: window.innerWidth }));
-  expect(widths.page).toBeLessThanOrEqual(widths.view);
-  const frame = await editorFrame(page).boundingBox();
-  expect(frame && frame.x >= 0 && frame.x + frame.width <= 375).toBeTruthy();
-});

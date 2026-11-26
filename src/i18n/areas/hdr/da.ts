@@ -29,4 +29,9 @@ export const da: AreaTranslation<typeof source> = {
   infoMadeFrom: (n: number) => plural(n, { one: `Lavet af ${n} billede:`, other: `Lavet af ${n} billeder:` }),
   infoExposure: (name: string, ev: string) => `${name}: ${ev} trin`,
   infoHow: "Hver del kommer fra de billeder, der var godt eksponeret der, rettet ind og vægtet efter eksponering, og derefter justeret med editorens Højlys og Skygger. Ingen pixels blev genereret.",
+  whatIs: "HDR betyder højt dynamikområde, ikke høj opløsning. Det fletter flere eksponeringer af samme motiv, så lys himmel og mørke skygger begge bevarer detaljerne.",
+  bracketTitle: "Eksponeringsserie",
+  bracketFound: (n: number, stops: string) => `${n} billeder taget lige efter hinanden med forskellig eksponering (${stops} trin).`,
+  bracketFromCamera: "Dit kamera har markeret billederne som en eksponeringsserie.",
+  bracketFromExposures: "Fundet ud fra lukkertid, blænde og ISO.",
 };

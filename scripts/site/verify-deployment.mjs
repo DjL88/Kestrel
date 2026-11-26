@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Verify the website contains the compiled photo editor, not merely
- * an iframe pointing at a file that has not been deployed.
+ * Verify the website before and after a publish: the homepage, admin console, sign-in callback, privacy page and brand
+ * favicon are all present locally, and the live site serves exactly those files.
  *
  * node scripts/site/verify-deployment.mjs [--root=site] [--live-url=https://...] [--control-plane-url=https://...]
  * Local checks are required before publish; live checks run after Firebase deploy.
@@ -30,7 +30,6 @@ function requireText(path) {
   if (!existsSync(path) || !statSync(path).isFile()) throw new Error('Required website file missing: ' + path);
   return readFileSync(path, 'utf8');
 }
-const editorPaths = { 'demo-editor': '/editor/demo-editor.html', 'demo-v2': '/editor/demo-v2.html' };
 const callbackPath = '/oauth-callback.html';
 const privacyPath = '/privacy.html';
 const faviconPath = '/assets/brand/inflight/app-icons/favicon.svg';
@@ -44,41 +43,6 @@ function requireFavicon(html) {
       new URL(href, 'https://kestrel.invalid/').pathname !== faviconPath || /[?#]/.test(href)) {
     throw new Error('Homepage favicon missing or not the approved brand asset: ' + String(href));
   }
-}
-/** Which compiled editor the homepage embeds: the Version 2 demo or the original Demo Studio editor. */
-const embeddedEditor = html => (/<iframe\b[^>]*\ssrc=["']\/?editor\/demo-v2(?:\.html)?["']/i.test(html) ? 'demo-v2' : /<iframe\b[^>]*\ssrc=["']\/?editor\/demo-editor(?:\.html)?["']/i.test(html) ? 'demo-editor' : null);
-
-function builtAssets(html) {
-  const root = [...html.matchAll(/<div\b[^>]*>/gi)].find(([tag]) => /\sid=["']root["']/i.test(tag));
-  if (!root || !/\sdata-demo-editor(?=\s|[=>])/i.test(root[0])) {
-    throw new Error('The compiled editor entry point is missing its demo editor marker.');
-  }
-  if (/\ssrc=["']\/src\/demo\/(?:v2\/)?main\.tsx/.test(html)) {
-    throw new Error('Found a development entry point, not the compiled website editor.');
-  }
-  // Every external script reference must belong to the verified local build.
-  // A valid local bundle must not hide an additional unverified entry point.
-  for (const [, url] of html.matchAll(/<script\b[^>]*?\ssrc=["']([^"']*)["']/gi)) {
-    if (!/^(?:\/editor\/|\.\/)?assets\/[a-z0-9_.\/-]+\.js$/i.test(url) || url.includes('..')) {
-      throw new Error('Unverified compiled editor script: ' + url);
-    }
-  }
-  const references = [...html.matchAll(/<(script|link)\b[^>]*?\s(src|href)=["']([^"']+)["']/gi)]
-    .map(([, tag, attribute, url]) => ({
-      isScript: tag.toLowerCase() === 'script' && attribute.toLowerCase() === 'src',
-      path: url.split(/[?#]/)[0],
-    }))
-    .filter(({ path }) => /^(?:\/editor\/|\.\/)?assets\//.test(path));
-  if (!references.some(({ isScript, path }) => isScript && /\.js$/i.test(path))) {
-    throw new Error('Compiled editor has no JavaScript entry bundle.');
-  }
-  const assets = references.map(({ path }) => path.startsWith('/editor/') ? path : '/editor/' + path.replace(/^\.\//, ''));
-  for (const asset of assets) {
-    if (!/^\/editor\/assets\/[a-z0-9_.\/-]+$/i.test(asset) || asset.includes('..')) {
-      throw new Error('Unsafe compiled editor asset path: ' + asset);
-    }
-  }
-  return [...new Set(assets)].sort();
 }
 function isHtmlFallback(body) {
   return /^\s*(?:<!doctype html|<html)\b/i.test(body.subarray(0, 512).toString('utf8'));
@@ -96,28 +60,11 @@ async function main() {
   requireFavicon(landing);
   const favicon = requireText(join(dir, faviconPath.slice(1)));
   if (!/<svg\b/i.test(favicon) || !/<\/svg>/i.test(favicon)) throw new Error('Brand favicon is not a valid SVG document.');
-  const embedded = embeddedEditor(landing);
-  if (!embedded) {
-    throw new Error('The homepage does not embed the compiled photo editor.');
-  }
-  // The owner's Demo Studio still uses demo-editor.html, so it must stay compiled whichever one the homepage shows.
-  const editorNames = embedded === 'demo-v2' ? ['demo-editor', 'demo-v2'] : ['demo-editor'];
-  const localEntries = new Map(editorNames.map(name => [editorPaths[name], builtAssets(requireText(join(dir, 'editor', name + '.html')))]));
-  const assets = [...new Set([...localEntries.values()].flat())].sort();
-  for (const asset of assets) {
-    const file = join(dir, asset.slice(1));
-    if (!existsSync(file) || !statSync(file).isFile() || statSync(file).size === 0) {
-      throw new Error('Missing or empty compiled editor asset: ' + file);
-    }
-    if (isHtmlFallback(readFileSync(file))) {
-      throw new Error('Local compiled editor asset is an HTML fallback: ' + asset);
-    }
-  }
   // Google and Dropbox production approval need a public privacy-policy address, and the home page links to it.
   if (!requireText(join(dir, privacyPath.slice(1))).includes('<h1>InFlight privacy</h1>') || !landing.includes('href="/privacy"')) {
     throw new Error('The privacy page is missing or the homepage does not link to it: ' + privacyPath);
   }
-  console.log('Local site PASS: homepage, admin, sign-in callback, privacy page, compiled editor and ' + assets.length + ' local assets.');
+  console.log('Local site PASS: homepage, admin, sign-in callback, privacy page and favicon.');
   if (!liveUrl) {
     console.log('Live Firebase deployment NOT RUN. Pass --live-url after publishing.');
     return;
@@ -129,20 +76,19 @@ async function main() {
   if (base.username || base.password || base.pathname !== '/' || base.search || base.hash) {
     throw new Error('Live URL must be a bare HTTPS origin without credentials, path, query or fragment.');
   }
-  if (embedded === 'demo-v2') localEntries.set('/editor/demo-v2', localEntries.get(editorPaths['demo-v2']));
-  for (const suffix of ['/', '/admin.html', ...localEntries.keys(), callbackPath, privacyPath, faviconPath, ...assets]) {
+  for (const suffix of ['/', '/admin.html', callbackPath, privacyPath, faviconPath]) {
     const uri = new URL(suffix, base);
     uri.searchParams.set('kestrel-health-check', String(Date.now()));
     const response = await fetch(uri, { redirect: 'manual', signal: AbortSignal.timeout(15_000), headers: { accept: 'text/html,application/javascript,text/css,*/*' } });
     if (response.redirected || response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) throw new Error('Live Firebase path redirected: ' + uri.pathname);
     if (!response.ok) throw new Error('Live Firebase path failed (' + response.status + '): ' + uri.pathname);
-    if (assets.includes(suffix) || suffix === faviconPath) {
+    if (suffix === faviconPath) {
       const body = Buffer.from(await response.arrayBuffer());
       if (!body.length || isHtmlFallback(body)) {
         throw new Error('Live Firebase path returned a missing or wrong asset: ' + uri.pathname);
       }
       if (!body.equals(readFileSync(join(dir, suffix.slice(1))))) {
-        throw new Error('Live compiled editor asset differs from the verified local build: ' + uri.pathname);
+        throw new Error('Live favicon differs from the verified local build: ' + uri.pathname);
       }
       continue;
     }
@@ -151,9 +97,6 @@ async function main() {
       throw new Error('Live Firebase path returned a missing or wrong asset: ' + uri.pathname);
     }
     if (suffix === '/') requireFavicon(data);
-    if (suffix === '/' && embeddedEditor(data) !== embedded) {
-      throw new Error('Live homepage is stale: expected the ' + embedded + ' editor iframe.');
-    }
     // HTML pages are release artifacts too: matching script names is insufficient.
     if (suffix === '/' || suffix === '/admin.html' || suffix === callbackPath || suffix === privacyPath) {
       const localPath = suffix === '/' ? 'index.html' : suffix.slice(1);
@@ -161,21 +104,8 @@ async function main() {
         throw new Error('Live website page differs from the verified local build: ' + suffix);
       }
     }
-    const expected = localEntries.get(suffix);
-    if (expected) {
-      // The editor HTML itself is a release artifact. Asset-list equality does
-      // not detect stale inline configuration, security attributes or markup.
-      const canonical = suffix === '/editor/demo-v2' ? editorPaths['demo-v2'] : suffix;
-      if (data !== requireText(join(dir, canonical.slice(1)))) {
-        throw new Error('Live editor HTML differs from the verified local build: ' + suffix);
-      }
-      const liveAssets = builtAssets(data);
-      if (liveAssets.length !== expected.length || expected.some((asset, index) => asset !== liveAssets[index])) {
-        throw new Error('The live editor page refers to a different set of compiled assets: ' + uri.pathname);
-      }
-    }
   }
-  console.log('Live Firebase PASS: homepage and editor entries match the verified build, and referenced assets match byte for byte.');
+  console.log('Live Firebase PASS: every page and the favicon match the verified build byte for byte.');
   if (!controlPlaneUrl) {
     console.log('Live control plane NOT RUN. Pass --control-plane-url to check it answers this website.');
     return;

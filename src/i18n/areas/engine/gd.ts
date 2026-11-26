@@ -50,6 +50,7 @@ export const gd: AreaTranslation<typeof source> = {
     global: 'Cha robh iomall cuspair sam bith earbsach, mar sin chaidh lùghdachadh gràinne a chur air an dealbh air fad gu cothromach.',
     failedCheck: 'Cha deach an toradh tron dearbhadh càileachd. Chaidh na deasachaidhean agad a chumail.',
     mainThread: 'Cha b’ urrainn don uidheam seo an gràinne a lùghdachadh sa chùlaibh, mar sin dh’fhaodadh InFlight stad greis.',
+    learnedLostDetail: 'Aig làn-mheud, rinn lùghdachadh gràinne AI fìor mhion-fhiosrachadh air a’ chuspair rèidh, mar sin chaidh an lùghdachadh gràinne a-staigh a chleachdadh na àite.',
     leftAsItWas: (notes) => `Chaidh fhàgail mar a bha e. ${notes}`,
   },
   workspace: {
@@ -73,6 +74,7 @@ export const gd: AreaTranslation<typeof source> = {
     thumbnailsTask: (count) => (count === 1 ? 'Ag ullachadh 1 dealbhag' : `Ag ullachadh ${count} dealbhagan`),
     thumbnailStage: 'A’ leughadh is a’ lùghdachadh an deilbh seo',
     thumbnailFailed: (filename) => `Cha b’ urrainnear an dealbhag airson ${filename} a dhèanamh. Ceangail an tè thùsail a-rithist is feuch a-rithist.`,
+    rawJpegXl: 'Tha an RAW seo a’ cleachdadh dùmhlachadh JPEG XL nach urrainn do InFlight a leughadh fhathast. Cha deach beantainn ris an tè thùsail.',
     notConnected: (names) => `Chan eil seo ceangailte ri einnsean InFlight fhathast, mar sin cha deach a chur an sàs: ${names}.`,
     exportRunning: 'Tha às-phortadh a’ dol mu thràth.',
     selectOneRaw: 'Tagh aon dealbh RAW gus an TIFF aige às-phortadh.',

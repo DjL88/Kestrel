@@ -119,10 +119,8 @@ if ($Models) {
 }
 
 if ($Website) {
-  npm run build:site-editor
-  if ($LASTEXITCODE -ne 0) { throw 'Website editor build failed; no site changes published.' }
   node scripts/site/verify-deployment.mjs
-  if ($LASTEXITCODE -ne 0) { throw 'Website deployment cancelled: actual Kestrel editor or compiled assets are missing.' }
+  if ($LASTEXITCODE -ne 0) { throw 'Website deployment cancelled: a required website page or the favicon is missing.' }
   firebase deploy --only hosting --project $Project
   if ($LASTEXITCODE -ne 0) { throw 'Firebase deployment failed. Live website was not verified.' }
   # The known beta site has a custom Hosting site id. Other projects may pass
