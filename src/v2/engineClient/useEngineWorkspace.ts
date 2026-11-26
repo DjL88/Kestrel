@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { flushSync } from 'react-dom';
 import { applyImportBatch, createImportHandoff, readPendingImport, writePendingImport, type ImportBatch, type ImportHandoff } from './importHandoff';
 import { marksOf } from '../../core/sharedMarks';
-import { applyDecisionWithHistory, assignBurstGroups, redoDecision, regroupBurstsWithEmbeddings, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
+import { computeCullCounts, applyDecisionWithHistory, assignBurstGroups, redoDecision, regroupBurstsWithEmbeddings, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
 import { recordEdit, stepEdit, type EditWhy } from '../../core/editHistory';
 import { deleteCheckpoint, forkEditCheckpoint, renameEditVersion, restoreCheckpoint, saveCheckpoint, switchEditVersion as switchVersionInCatalogue } from '../../core/editBranches';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
@@ -37,7 +37,9 @@ import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '..
 import { eraseDeviceData } from './eraseDeviceData';
 import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
 import { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
-import { projectPreviewBlobs } from './projectCover';
+import { hubPreviewKey, projectPreviewBlobs } from './projectCover';
+import { DEVELOP_VERSION } from '../../core/backgroundDevelop';
+import { pickSlideshowPhotos } from '../../core/welcomeSlideshow';
 import { deviceMemoryBudget } from '../../providers/deviceBudget';
 import { scanForCulling } from '../../providers/browserAutoCull';
 import { useAccess } from '../../providers/useAccess';
@@ -155,6 +157,8 @@ import { maskAdvice, maskVerificationKey } from './maskVerificationCommit';
 import { commitSubjectMask, subjectMaskTarget } from './subjectMaskCommit';
 import { createMask, createSubjectMask, framingKey, hasActiveMasks, type Mask } from '../../core/maskTypes';
 import { v2Text } from '../../i18n/areas/v2';
+import { lastProjectFrom, onLaunchIntent, openableProjectIds, resolveLaunchIntent, takeLaunchIntent } from '../launchIntent';
+import { forgetLaunchProject, forgetLaunchProjectsExcept, writeLastProject, writeSlideshow } from '../../providers/launchMemory';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../../core/photoFraming';
 import { estimateIlluminant, neutralBalance, samplePatch } from '../../core/neutralWhite';
 import { GUIDED_RENDER_EDGE } from '../../core/subjectGuide';
@@ -361,6 +365,18 @@ function positionsOf(frames: readonly PhotoFrame[]): { latitude: number; longitu
 const NO_FRAMES: PhotoFrame[] = [];
 
 const USER_LOOKS_KEY = 'kestrel.v2.userLooks';
+
+/** The launch welcome's "pick up where you left off" snapshot for a project, built with lastProjectFrom. */
+function rememberLastProject(project: Pick<CullingState, 'shoot' | 'frames'>): void {
+  const last = lastProjectFrom({
+    id: project.shoot.id,
+    name: project.shoot.title,
+    photoCount: computeCullCounts(project.frames.filter((frame) => !frame.removedAt)).all,
+    lastUpdatedAt: project.shoot.lastUpdatedAt,
+  });
+  if (last) writeLastProject(last);
+}
+
 /** Your looks share the Looks list with the built-in ones, so their ids carry a prefix no built-in uses. */
 const USER_LOOK_PREFIX = 'mine-';
 const userLookId = () => newId().replace(/[^A-Za-z0-9]/g, '').slice(0, 16) || String(Date.now());
@@ -525,6 +541,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       hubCoverUrls.current = nextUrls;
       setProjects(loaded);
       setHubState(loaded.length ? 'ready' : 'empty');
+      // The welcome never offers, or shows photos from, a project that is deleted (here, in another window, or expired).
+      forgetLaunchProjectsExcept(openableProjectIds(loaded));
     } catch {
       nextUrls.forEach((url) => URL.revokeObjectURL(url));
       setHubState('error');
@@ -538,6 +556,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const found = await store.loadProject(id);
       if (!found) { setNotice('That project could not be found.'); return; }
       await store.saveProject(setTrashed(found, at));
+      if (at !== undefined) forgetLaunchProject(id);
       await loadHub();
     })().catch(() => setNotice('InFlight could not update the project.'));
   }, [loadHub]);
@@ -619,6 +638,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useEffect(() => () => { openRequest.current += 1; }, []);
 
   const enterProject = useCallback((next: CullingState, restored?: BrowserPreviewProvider) => {
+    // Remember it for the launch welcome's "pick up where you left off", however it was entered (opened from the hub,
+    // just created, quick start). Local only; erased with device data.
+    rememberLastProject(next);
     openRequest.current += 1;
     provider.current!.clear();
     if (restored) provider.current = restored;
@@ -631,6 +653,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     setScreen('editor');
   }, []);
 
+  const projectsRef = useRef<Project[]>([]);
+  projectsRef.current = projects;
   const openProject = useCallback(async (id: string) => {
     const request = ++openRequest.current;
     const store = catalogue.current!;
@@ -661,6 +685,39 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (provider.current !== restored) restored.clear();
     }
   }, [enterProject]);
+
+  // The launch welcome's choice: once projects have loaded (now, or when the welcome finishes later), open the chosen
+  // project or stay on the hub. The intent is taken once, so it can never open a project twice.
+  const projectsLoaded = hubState === 'ready' || hubState === 'empty';
+  useEffect(() => {
+    if (!projectsLoaded) return;
+    const consume = () => {
+      const intent = takeLaunchIntent();
+      if (!intent) return;
+      const { open, notice: why } = resolveLaunchIntent(intent, openableProjectIds(projectsRef.current));
+      if (why === 'missing-project') setNotice(v2Text.welcome.missingProject);
+      if (open) void openProject(open);
+    };
+    consume();
+    return onLaunchIntent(consume);
+  }, [projectsLoaded, openProject]);
+
+  // The welcome-back slideshow: while a project is open, remember which of its flagged photos to show next launch, as
+  // references to previews already stored on this device (never the pictures, never uploaded). A moment after the
+  // flags settle, so culling is never slowed. No flagged photos forgets it. The last project is written with it, so the
+  // welcome's card and the slideshow's caption always name the same project (and the photo count stays current).
+  // Local only; erased with device data.
+  const slideshowFrames = state?.frames;
+  const slideshowProject = state?.shoot;
+  useEffect(() => {
+    if (!slideshowFrames || !slideshowProject) return;
+    const timer = window.setTimeout(() => {
+      rememberLastProject({ shoot: slideshowProject, frames: slideshowFrames });
+      const keys = pickSlideshowPhotos(slideshowFrames).map(hubPreviewKey);
+      writeSlideshow(keys.length ? { projectId: slideshowProject.id, projectName: slideshowProject.title, developVersion: DEVELOP_VERSION, keys } : null);
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [slideshowFrames, slideshowProject]);
 
   // The opened project is on screen: add the photos an import finished while it was opening. Their originals were
   // registered in the provider of the time, so register them in this project's provider first (from the stored copy or
@@ -2951,7 +3008,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     restoreDeletedProject: (id) => { setProjectTrashed(id, undefined); },
     // Removing for good is offered only from Recently deleted, after its own confirmation.
     deleteProjectForever: (id) => {
-      void catalogue.current!.deleteProject(id).then(() => loadHub(), () => setNotice('InFlight could not delete the project. Your original photos are unchanged.'));
+      void catalogue.current!.deleteProject(id).then(() => { forgetLaunchProject(id); return loadHub(); }, () => setNotice('InFlight could not delete the project. Your original photos are unchanged.'));
     },
     // A copy is a Tasks job: it waits for a free slot, shows while it runs and can be cancelled before it saves.
     duplicateProject: (id) => {

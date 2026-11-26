@@ -21,6 +21,7 @@ import type {
   WorkspaceSettings,
 } from '../contract';
 import { STRINGS } from '../strings';
+import { readProfile, setSkipChosen, setSlideshowOff, skipChosen, slideshowOff } from '../../../providers/launchMemory';
 import FlightModePicker from '../panels/FlightModePicker';
 import { projectsText } from '../../../i18n/areas/projects';
 import { readBuildInfo } from '../../../core/buildInfo';
@@ -113,6 +114,7 @@ export default function SettingsDialog({
   const [eraseText, setEraseText] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [, refreshWelcomeSwitch] = useState(0);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const onDialogKeyDown = useDialogFocus(open, panelRef, onClose);
@@ -465,6 +467,28 @@ export default function SettingsDialog({
               </div>
             )}
 
+            {/* The launch welcome is a guest's choice; someone signed in always sees it (their own "Go to my projects" is on it). */}
+            {activeTab === 'account' && readProfile() === null && (
+              <div className="mt-5">
+                <SettingSwitch
+                  title={STRINGS.welcome.showOnLaunch}
+                  checked={!skipChosen()}
+                  onToggle={() => { setSkipChosen(!skipChosen()); refreshWelcomeSwitch((n) => n + 1); }}
+                />
+              </div>
+            )}
+
+            {/* Welcome back shows a few of their own flagged photos (previews already on this device); anyone can turn it off. */}
+            {activeTab === 'account' && (
+              <div className="mt-5">
+                <SettingSwitch
+                  title={STRINGS.welcome.slideshowSetting}
+                  checked={!slideshowOff()}
+                  onToggle={() => { setSlideshowOff(!slideshowOff()); refreshWelcomeSwitch((n) => n + 1); }}
+                />
+              </div>
+            )}
+
             {/* 3. ASSISTANCE */}
             {activeTab === 'assistance' && (
               <div className="space-y-5">
@@ -739,7 +763,7 @@ function SettingSwitch({
   onToggle,
 }: {
   title: string;
-  description: string;
+  description?: string;
   checked: boolean;
   onToggle: () => void;
 }) {
@@ -747,7 +771,7 @@ function SettingSwitch({
     <div className="flex items-start justify-between gap-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-4">
       <div>
         <h4 className="text-xs font-semibold text-[var(--text-primary)]">{title}</h4>
-        <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">{description}</p>
+        {description && <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">{description}</p>}
       </div>
       <button
         type="button"
