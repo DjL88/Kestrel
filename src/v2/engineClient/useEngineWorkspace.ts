@@ -862,7 +862,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // photo per session, from the first megabyte of the original (and its XMP sidecar on the desktop). Only the status is
   // recorded; nothing else in the photo's metadata changes, and an original that cannot be reached now is tried next time.
   const editStatusTried = useRef(new Set<string>());
-  const needsEditStatus = (frame: PhotoFrame) => !frame.removedAt && !frame.isDemo && !frame.exif.editStatus && !editStatusTried.current.has(frame.id);
+  // The camera's own focus record (src/core/cameraFocus.ts) is read by the same pass: undefined means not read yet.
+  const needsEditStatus = (frame: PhotoFrame) => !frame.removedAt && !frame.isDemo && (!frame.exif.editStatus || frame.exif.cameraFocus === undefined) && !editStatusTried.current.has(frame.id);
   // Only whether any photo is waiting: the fill's own writes must not restart it.
   const editStatusWaiting = (state?.frames ?? []).some(needsEditStatus);
   const editStatusProject = state?.shoot.id;
@@ -870,26 +871,31 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (!editStatusWaiting || !provider.current) return;
     let live = true;
     const timer = window.setTimeout(() => void (async () => {
-      const found = new Map<string, NonNullable<PhotoFrame['exif']['editStatus']>>();
+      const found = new Map<string, { status?: NonNullable<PhotoFrame['exif']['editStatus']>; focus: PhotoFrame['exif']['cameraFocus'] }>();
       const flush = () => {
         if (!found.size || !live) return;
         const batch = new Map(found);
         found.clear();
         mutate((current) => ({ ...current, frames: current.frames.map((item) => {
-          const status = batch.get(item.id);
-          return status && !item.exif.editStatus ? { ...item, exif: { ...item.exif, editStatus: status } } : item;
+          const read = batch.get(item.id);
+          if (!read) return item;
+          const exif = { ...item.exif };
+          if (read.status && !exif.editStatus) exif.editStatus = read.status;
+          if (exif.cameraFocus === undefined && read.focus !== undefined) exif.cameraFocus = read.focus;
+          return { ...item, exif };
         }) }));
       };
       for (const id of (stateRef.current?.frames ?? []).filter(needsEditStatus).map((frame) => frame.id)) {
         if (!live) return;
         editStatusTried.current.add(id);
         const frame = stateRef.current?.frames.find((candidate) => candidate.id === id);
-        if (!frame || frame.exif.editStatus) continue;
+        if (!frame || (frame.exif.editStatus && frame.exif.cameraFocus !== undefined)) continue;
         const head = await provider.current?.readOriginalHead(frame.stableKey).catch(() => undefined);
         if (!head || !live) continue;
         const exif = await parseImageExif(head, frame.filename).catch(() => null);
-        const status = await editStatusWithSidecar(exif?.editStatus, frame.filename, frame.sourcePath).catch(() => exif?.editStatus);
-        if (status) found.set(id, status);
+        const status = frame.exif.editStatus ? undefined
+          : await editStatusWithSidecar(exif?.editStatus, frame.filename, frame.sourcePath).catch(() => exif?.editStatus);
+        if (status || exif?.cameraFocus !== undefined) found.set(id, { status, focus: exif?.cameraFocus });
         if (found.size >= 25) flush();
         // Leave the main thread to the person between photos.
         await new Promise((resolve) => window.setTimeout(resolve, 0));

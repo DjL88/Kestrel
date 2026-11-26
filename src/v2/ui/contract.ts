@@ -441,6 +441,8 @@ export interface Photo {
   exif: PhotoExif;
   /** Whether the file says it was already edited in another app, in the person's words (src/core/editStatus.ts). */
   editStatus?: { kind: import('../../core/editStatus').EditStatusKind; label: string; detail: string };
+  /** Where the camera says it focused, in the person's words (src/core/cameraFocus.ts). Absent when the file does not say. */
+  cameraFocus?: { label: string; detail: string; area?: { x: number; y: number; width: number; height: number } };
   activeGroupId: string;
   editGroups: EditGroup[];
   sizes: SizePreset[];
