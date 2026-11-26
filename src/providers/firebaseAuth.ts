@@ -2,13 +2,14 @@ import type { AuthProvider, Session, SignInProvider } from '../core/cloudInterfa
 import { signInOptions, type SignInPlatform } from '../core/signInOptions';
 import { isDesktopApp } from './desktopShell';
 import { friendlyAuthError } from '../core/authError';
+import type { EmailFailure } from '../core/launchWelcome';
 import { LinkingError, linkingProblem, methodsFromProviderIds, signInWithHeldLink, type SignInMethod } from '../core/accountLinking';
 import { challengeFor, explainSignInError, makeVerifier, parseCallbackQuery } from '../core/cloudDrive';
 import { desktopGoogleClient, googleCodeExchangeBody, googleSignInUrl, GOOGLE_TOKEN_URL, idTokenFromAnswer } from '../core/desktopGoogleSignIn';
 import { appleAnswerFromQuery, appleSignInPageUrl, desktopAppleConfig, sha256Hex } from '../core/desktopAppleSignIn';
 
 /** Public web configuration from Firebase. These are identifiers, not secrets (see docs/BACKEND.md). */
-const env = import.meta.env;
+const env = (import.meta.env ?? {}) as ImportMetaEnv; // empty under Node (unit tests), so importing this module never needs Vite
 const config = {
   apiKey: env.VITE_FIREBASE_API_KEY,
   authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -102,7 +103,43 @@ async function withAuth<T>(run: (a: Awaited<ReturnType<typeof firebase>>) => Pro
   if (!isSignInConfigured()) throw new Error('Sign-in is not set up in this build.');
   try { return await run(await firebase()); } catch (error) {
     if (error instanceof LinkingError) throw error; // the screen words it in the person's language
-    throw new Error(friendlyAuthError(error));
+    throw new Error(friendlyAuthError(error), { cause: error }); // Firebase's own error stays on cause (see emailFailureOf)
+  }
+}
+
+/** Firebase's error code, on the error itself or on the one withAuth kept as `cause`. */
+const firebaseCodeOf = (error: unknown): string => {
+  const own = (error as { code?: unknown } | null)?.code;
+  if (typeof own === 'string') return own;
+  const cause = (error as { cause?: { code?: unknown } } | null)?.cause?.code;
+  return typeof cause === 'string' ? cause : '';
+};
+
+/** What went wrong with an email sign-in or sign-up, for the screens to choose their next step (launchWelcome). */
+export function emailFailureOf(error: unknown): EmailFailure {
+  switch (firebaseCodeOf(error)) {
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+    case 'auth/user-not-found': return 'wrong-or-unknown';
+    case 'auth/email-already-in-use': return 'in-use';
+    case 'auth/weak-password': return 'weak-password';
+    case 'auth/invalid-email': return 'invalid-email';
+    case 'auth/network-request-failed': return 'offline';
+    default: return 'other';
+  }
+}
+
+/**
+ * Web only: whether the next sign-in survives closing the browser ("Keep me signed in"). Set on the existing instance
+ * just before signing in. The installed apps always remember the sign-in, so this does nothing there. If the browser
+ * cannot keep the chosen kind of storage, the next one in the list is tried; if none can, sign-in still goes ahead.
+ */
+async function setKeepSignedIn(keep: boolean): Promise<void> {
+  if (!isSignInConfigured() || signInPlatform() !== 'web') return;
+  const { auth, instance } = await firebase();
+  const choices = keep ? [auth.indexedDBLocalPersistence, auth.browserLocalPersistence] : [auth.browserSessionPersistence, auth.inMemoryPersistence];
+  for (const persistence of choices) {
+    try { await auth.setPersistence(instance, persistence); return; } catch { /* try the next one */ }
   }
 }
 
@@ -289,7 +326,8 @@ async function signInWithAppleOnDesktop(config: NonNullable<typeof appleDesktop>
   });
 }
 
-export const firebaseAuth: AuthProvider = {
+export const firebaseAuth: AuthProvider & { setKeepSignedIn(keep: boolean): Promise<void> } = {
+  setKeepSignedIn,
   signInWithEmail: (email, password) => withAuth(async ({ auth, instance }) => {
     const { user } = await auth.signInWithEmailAndPassword(instance, email.trim(), password);
     await afterSignIn(auth, user);
@@ -325,7 +363,7 @@ export const firebaseAuth: AuthProvider = {
       }
     } catch (error) {
       if (error instanceof LinkingError) throw error;
-      throw new Error(friendlyAuthError(error));
+      throw new Error(friendlyAuthError(error), { cause: error });
     }
   },
   async signOut() {
