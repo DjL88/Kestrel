@@ -119,12 +119,12 @@ test('a keymap exports and re-imports to the exact same keymap', () => {
 test('import refuses a file that is not JSON, not a keymap export, or from a newer format version', () => {
   assert.deepEqual(importKeymap('not json'), { ok: false, error: 'That file is not valid JSON.' });
   assert.deepEqual(importKeymap('null'), { ok: false, error: 'That file is not a keymap export.' });
-  assert.deepEqual(importKeymap('[]'), { ok: false, error: 'That file is not a Kestrel keymap export.' });
-  assert.deepEqual(importKeymap(JSON.stringify({ foo: 'bar' })), { ok: false, error: 'That file is not a Kestrel keymap export.' });
+  assert.deepEqual(importKeymap('[]'), { ok: false, error: 'That file is not an InFlight keymap export.' });
+  assert.deepEqual(importKeymap(JSON.stringify({ foo: 'bar' })), { ok: false, error: 'That file is not an InFlight keymap export.' });
   const future = importKeymap(JSON.stringify({ kind: 'kestrel-keymap', version: 99, preset: 'inflight', overrides: {} }));
   assert.equal(future.ok, false);
   const badPreset = importKeymap(JSON.stringify({ kind: 'kestrel-keymap', version: 1, preset: 'photomechanic', overrides: {} }));
-  assert.deepEqual(badPreset, { ok: false, error: 'That file does not name a key set Kestrel knows.' });
+  assert.deepEqual(badPreset, { ok: false, error: 'That file does not name a key set InFlight knows.' });
 });
 
 test('import drops an unknown command id or an overlong chord, and names what it dropped, without failing the rest', () => {

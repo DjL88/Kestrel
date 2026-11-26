@@ -1671,7 +1671,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const forgetEditStyle = useCallback(() => {
     resetEditStyle();
     pendingStyle.current.clear();
-    setNotice('Kestrel has forgotten your editing style. Auto\'s suggestions are its own again.');
+    setNotice('InFlight has forgotten your editing style. Auto\'s suggestions are its own again.');
   }, []);
 
   const applyAuto = useCallback((frameId: string, candidateId?: string) => {
