@@ -1519,7 +1519,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // eventual result from changing the current photograph.
     void engineScheduler.submit({
       title: type === 'subject' ? engineText.workspace.findSubjectTask : engineText.workspace.findBackgroundTask,
-      kind: 'mask', resource: 'gpu', priority: 18,
+      kind: 'mask', resource: 'gpu', priority: 18, interactive: true,
       pauseable: false, items: [{ id: photoId, name: frame.filename }],
       snapshot: { projectId: project.shoot.id, photoId, framing: frame.framing },
       itemId: item => item.id, itemLabel: item => item.name,
@@ -1887,7 +1887,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     setReviewingIds((current) => [...current, photoId]);
     void engineScheduler.submit({
       title: engineText.workspace.deepTask,
-      kind: 'vision', resource: 'gpu', priority: 15, pauseable: false,
+      kind: 'vision', resource: 'gpu', priority: 15, pauseable: false, interactive: true,
       items: [{ id: photoId, name: frame.filename }],
       snapshot: { frameId: frame.id, stableKey: frame.stableKey },
       itemId: item => item.id, itemLabel: item => item.name,
