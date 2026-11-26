@@ -72,6 +72,7 @@ const TasksPanel = lazyPart(() => import('./panels/TasksPanel'));
 const CollageExportDialog = lazyPart(() => import('./dialogs/CollageExportDialog'));
 const ExportDialog = lazyPart(() => import('./dialogs/ExportDialog'));
 const EnlargementPreview = lazyPart(() => import('./dialogs/EnlargementPreview'));
+const PrintDialog = lazyPart(() => import('./dialogs/PrintDialog'));
 const RemovedPhotosDialog = lazyPart(() => import('./dialogs/RemovedPhotosDialog'));
 const CullAssistantDialog = lazyPart(() => import('./dialogs/CullAssistantDialog'));
 const ShareDialog = lazyPart(() => import('./dialogs/ShareDialog'));
@@ -128,6 +129,21 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const closeEnlargement = () => {
     enlargementRequest.current += 1;
     setEnlargement((current) => { if (current?.result?.ok) URL.revokeObjectURL(current.result.url); return null; });
+  };
+  // Print and soft proof: the export's own picture of the shown format, so the print is what export would save.
+  const [printing, setPrinting] = useState<{ result: EnlargementPreviewResult | null } | null>(null);
+  const printRequest = React.useRef(0);
+  const openPrint = (photoId: string, sizeId: string) => {
+    const request = ++printRequest.current;
+    setPrinting({ result: null });
+    void actions.previewEnlargement?.(photoId, sizeId).then((result) => {
+      if (request !== printRequest.current) { if (result.ok) URL.revokeObjectURL(result.url); return; }
+      setPrinting((current) => current ? { result } : current);
+    });
+  };
+  const closePrint = () => {
+    printRequest.current += 1;
+    setPrinting((current) => { if (current?.result?.ok) URL.revokeObjectURL(current.result.url); return null; });
   };
   const [shareVersion, setShareVersion] = useState(0);
   const [cursorsHidden, setCursorsHidden] = useState(false);
@@ -917,6 +933,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetAssistMode={actions.setAssistMode}
             onExport={() => actions.setExportOpen(true)}
             onQuickExport={store.screen === 'editor' && !store.collage && activePhoto ? quickExport : undefined}
+            onPrint={store.screen === 'editor' && !store.collage && activePhoto && actions.previewEnlargement ? () => openPrint(activePhoto.id, store.activeSizeId) : undefined}
             onShare={store.collage ? undefined : () => setShareOpen(true)}
             presence={<>
               <PresenceAvatars peers={peers} hidden={cursorsHidden} onToggleHidden={() => setCursorsHidden((v) => !v)} onGoTo={(key) => { const photo = store.photos.find((candidate) => candidate.sharedKey === key); if (photo) actions.selectPhoto(photo.id); }} />
@@ -1312,6 +1329,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       )}
 
       {/* Global Dialogs: each in its own boundary, so one still arriving hides nothing else. */}
+      {printing && <React.Suspense fallback={null}><PrintDialog result={printing.result} onClose={closePrint} /></React.Suspense>}
       {enlargement && <React.Suspense fallback={null}><EnlargementPreview result={enlargement.result} onClose={closeEnlargement}
         formatLabel={store.photos.find((photo) => photo.id === enlargement.photoId)?.sizes.find((size) => size.id === enlargement.sizeId)?.label ?? ''} /></React.Suspense>}
       {store.collage && store.exportOpen && <React.Suspense fallback={null}><CollageExportDialog key={store.activeProjectId} document={store.collage} onClose={() => actions.setExportOpen(false)} onExport={actions.exportCollage} /></React.Suspense>}
@@ -1325,6 +1343,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         onSaveBrandKit={actions.saveBrandKit}
         onEditBrandKit={actions.editBrandKit}
         onDeleteBrandKit={actions.deleteBrandKit}
+        onPrint={activePhoto && actions.previewEnlargement ? () => { actions.setExportOpen(false); openPrint(activePhoto.id, store.activeSizeId); } : undefined}
       /></React.Suspense>
 
       <TaskAlerts />

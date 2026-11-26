@@ -362,6 +362,24 @@ export const source = {
   },
 
   // Whole-project export in open formats (File menu)
+  print: {
+    menu: 'Print…',
+    title: 'Print',
+    working: 'Making the print picture the same way export does.',
+    failed: 'The print picture could not be made',
+    paper: 'Paper',
+    size: (width: string, height: string, ppi: number) => `Prints at ${width} × ${height} cm, ${ppi} ppi`,
+    lowPpi: 'Below 200 ppi, fine detail may look soft up close.',
+    profile: 'Printer and paper profile (ICC)',
+    chooseProfile: 'Choose profile…',
+    noProfile: 'No profile chosen. The paper maker’s website has the profile for your printer and paper.',
+    softProof: 'Soft proof: show how it will print',
+    markGamut: 'Mark colours this paper can’t print',
+    outside: (percent: number) => `About ${percent}% of the photo uses colours this paper can’t print. They show as grey stripes when marked.`,
+    printButton: 'Print',
+    close: 'Close',
+    printHelp: 'Your printer’s own dialog handles colour. The soft proof only shows what to expect: it doesn’t change the photo or what is sent to the printer.',
+  },
   openExport: {
     menu: "Export everything in open formats…",
     saved: "Saved every photo's rating, flag, keywords and edit recipe in open formats (XMP, CSV and JSON). Your photos are not in it and nothing was uploaded.",
