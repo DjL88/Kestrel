@@ -5,8 +5,9 @@
  *
  *     npm run model:species
  *
- * The file is kept out of git. It is downloaded from a release asset (server to server, so no CORS), checked against
- * its SHA-256, and written to public/models/. The app is then built with VITE_SPECIES_MODEL_URL=/models/<file>.
+ * The file is kept out of git. It is downloaded from the public models bucket (server to server, so no CORS), checked
+ * against its SHA-256, and written to public/models/. (It used to come from a GitHub release, which a private repository
+ * no longer serves.) The app is then built with VITE_SPECIES_MODEL_URL=/models/<file>.
  */
 import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
@@ -16,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 const FILE = 'bioclip-image-int8.onnx';
 const SHA256 = 'ea4095eb31a279643dc7ea89b90b2168b4807df0fce3c40b72a43a771caee8a2';
 const BYTES = 89041951;
-const SOURCE = process.env.SPECIES_MODEL_SOURCE ?? `https://github.com/DjL88/Kestrel/releases/download/species-model-1/${FILE}`;
+const SOURCE = process.env.SPECIES_MODEL_SOURCE ?? `https://storage.googleapis.com/kestrel-hosting-kestrel-models/bundled/${SHA256}/${FILE}`;
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const folder = join(root, 'public', 'models');
