@@ -76,7 +76,7 @@ export function paddleApi(credentials: PaddleCredentials, request: typeof fetch 
      * A transaction for one price, opened by Paddle.js on our checkout page (`checkoutUrl`, an approved domain in
      * Paddle). Paddle adds `?_ptxn=<id>` to that address. Nothing is charged until the buyer pays on Paddle's form.
      */
-    async createTransaction(input: { priceId: string; customData: Record<string, string>; checkoutUrl: string }) {
+    async createTransaction(input: { priceId: string; customData: Record<string, string>; checkoutUrl: string; discountId?: string }) {
       if (new URL(input.checkoutUrl).protocol !== 'https:') throw new Error('The Paddle checkout page must use HTTPS.');
       const created = await call('/transactions', {
         method: 'POST',
@@ -85,6 +85,7 @@ export function paddleApi(credentials: PaddleCredentials, request: typeof fetch 
           custom_data: input.customData,
           collection_mode: 'automatic',
           checkout: { url: input.checkoutUrl },
+          ...(input.discountId ? { discount_id: input.discountId } : {}),
         }),
       });
       const url = created.checkout?.url;

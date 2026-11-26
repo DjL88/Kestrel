@@ -3,7 +3,7 @@ import { freeStorageFor, settleStorageDay, storageAllowsUpload } from './cloudSt
 import crypto from 'node:crypto';
 import { z } from 'zod';
 import type { EntitlementGrant } from '../../../src/core/entitlementGrant.ts';
-import { forPublicDocument, parseFlagSet, resolveFlagsForGrant, MAX_GRANT_FLAGS, type Audience, type FlagSet } from '../../../src/core/featureFlags.ts';
+import { evaluateFlag, forPublicDocument, parseFlagSet, resolveFlagsForGrant, MAX_GRANT_FLAGS, type Audience, type FlagSet } from '../../../src/core/featureFlags.ts';
 import { openSignedDataManifest } from '../../../src/core/modelDelivery.ts';
 import { verifyLicence } from '../../../src/core/licence.ts';
 import { newerRelease } from '../../../src/core/desktopRelease.ts';
@@ -1160,7 +1160,9 @@ export function createApp(options: AppOptions) {
         const account = await store.getAccount(claims.sub);
         if (!account?.emailHash) throw new ApiError(403, 'ACCOUNT_UNVERIFIED', 'Sign in again to buy Pro.');
         try {
-          const started = await checkout.start({ accountId: claims.sub, emailHash: account.emailHash });
+          // The offer (admin flag proPromo, with its dates) counts only for someone signed in and buying while it is on.
+          const promo = evaluateFlag('proPromo', await loadFlags(), {}, { audience: { plan: 'basic', user: account.emailHash }, nowMs: t }).on;
+          const started = await checkout.start({ accountId: claims.sub, emailHash: account.emailHash, promo });
           await audit(claims.sub, 'checkout.pro.start', 'allowed', started.checkoutId);
           return { status: 201, body: started };
         } catch {

@@ -66,6 +66,7 @@
     .download{display:inline-block;background:var(--copper-hover);color:var(--canvas);font-weight:750;border-radius:8px;padding:8px 12px;text-decoration:none}
     .muted{color:#bdc4cf}.steps{padding-left:24px;max-width:740px}.steps li{margin-bottom:12px}
     .note{border-left:3px solid #d97840;padding:10px 17px;background:#191d26;max-width:800px}
+    .choices .card h4{margin:16px 0 6px;font-size:1rem}.promo{border:2px dashed var(--copper-hover);border-radius:9px;padding:10px 14px;font-weight:700;color:#f4efe6}
     .contact-form{display:grid;gap:14px;max-width:560px}
     .contact-field{display:grid;gap:5px;font-weight:600}
     .contact-field input,.contact-field textarea{width:100%;padding:10px 12px;border:1px solid #5e6270;border-radius:8px;background:var(--panel);color:inherit;font:inherit}
@@ -103,6 +104,35 @@
   <h1 data-i18n="heroTitle">More time behind the camera.</h1>
   <p class="lead" data-i18n="heroLead">InFlight is a photo workspace for importing, culling, editing and exporting. It sets out to make editing quicker and easier to understand: find your best picks, make a few edits you can follow, and export.</p>
   <p><a class="cta" href="#try" data-i18n="heroTry">Try the editing tools</a> <a href="#downloads" data-i18n="heroDownloads">Explore downloads</a> · <a href="#pricing" data-i18n="heroPricing">See pricing</a></p>
+  <!-- Plan choices: hidden until the admin flag sitePlanChoices is on (assets/plan-choices.mjs). Prices and any offer
+       discount are set by the server at checkout, never by this page. -->
+  <section id="choose" class="choices" aria-labelledby="choose-title" hidden>
+    <h2 id="choose-title" data-i18n="chooseTitle">Choose how to start</h2>
+    <div class="grid">
+      <article class="card"><h3 data-i18n="chooseFreeTitle">Use Basic for free, or sign in</h3>
+        <p data-i18n="chooseFreeBody">Basic is free for good and needs no account. Import, cull, edit and export on your own device, offline.</p>
+        <p><a class="cta" href="#downloads" data-i18n="chooseFreeGet">Get Basic</a> <a href="#try" data-i18n="chooseFreeTry">Try it in your browser</a></p>
+        <p data-i18n="chooseSignIn">Already have an account? Sign in from the InFlight app. Any licence you have bought is added to that device when you sign in.</p>
+      </article>
+      <article class="card"><h3 data-i18n="chooseProTitle">Sign up to Pro, or buy a copy to keep</h3>
+        <p class="promo" id="promo-banner" role="note" hidden data-i18n="promoBanner">Black Friday offer: Pro costs less when you sign in and buy by the end of {lastDay}. The checkout shows the reduced price before you pay.</p>
+        <h4 data-i18n="chooseKeepTitle">Buy a copy to keep</h4>
+        <p><strong data-pro-price>£29</strong> <span data-i18n="priceOnce">one-off</span></p>
+        <p data-i18n="chooseKeepBody">Yours for good for the version you buy, with a licence key in your receipt. Works offline on up to 5 of your own devices. A refund ends the licence.</p>
+        <h4><span data-i18n="chooseSubTitle">Subscribe to Pro</span> <span class="pill" data-i18n="chooseSubSoon">Not on sale yet</span></h4>
+        <p data-i18n="chooseSubBody">Monthly or yearly. Once you have paid for a full year, you keep a copy of the version you have.</p>
+        <p class="note" data-i18n="choosePricePromise">Price promise: your subscription price never goes up without at least 30 days’ notice by email, and a new price only starts at a renewal after that notice. You can cancel before then.</p>
+        <p data-i18n="chooseBuyHow">To buy, sign in from the InFlight app and choose Buy Pro. Paddle, our reseller, runs the checkout.</p>
+      </article>
+      <article class="card"><h3 data-i18n="chooseOlderTitle">Earlier versions for less</h3>
+        <p data-i18n="chooseOlderBody">When a new major version comes out, earlier versions stay on sale at a reduced price. Today there is only one version, so the current one is the one on sale.</p>
+      </article>
+      <article class="card"><h3 data-i18n="chooseTeamTitle">Teams and organisations</h3>
+        <p data-i18n="chooseTeamBody">Enterprise is priced per seat, with one bill for your organisation. Tell us how many people need it and we will send a quote.</p>
+        <p><a href="#contact" data-i18n="chooseTeamContact">Contact us about Enterprise</a></p>
+      </article>
+    </div>
+  </section>
   <section id="aims" aria-labelledby="aims-title">
     <h2 id="aims-title" data-i18n="aimsTitle">What InFlight sets out to do</h2>
     <div class="grid">
@@ -322,6 +352,26 @@
   })();
 </script>
 <script src="assets/contact.js" defer></script>
+<script type="module">
+  // Plan choices: shown only when the admin flag sitePlanChoices is on. Fails closed: if the flags cannot be read,
+  // the page stays as it is.
+  import { planChoicesView } from './assets/plan-choices.mjs';
+  (async () => {
+    try {
+      const response = await fetch('/v1/flags/public', { cache: 'no-store' });
+      if (!response.ok) return;
+      const view = planChoicesView(await response.json(), Date.now());
+      if (!view.showChoices) return;
+      document.getElementById('choose').hidden = false;
+      const banner = document.getElementById('promo-banner');
+      if (view.showPromo && view.promoLastDay) {
+        const shown = new Intl.DateTimeFormat(window.KestrelI18n.language, { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(view.promoLastDay + 'T12:00:00Z'));
+        window.KestrelI18n.bind(banner, 'promoBanner', { lastDay: shown });
+        banner.hidden = false;
+      }
+    } catch { /* flags unavailable: keep the page as it is */ }
+  })();
+</script>
 
 </body>
 </html>
