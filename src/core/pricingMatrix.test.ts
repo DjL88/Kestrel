@@ -27,7 +27,7 @@ test('the default matrix offers GBP only until rates are refreshed, and never gu
   const { all, offered } = computePrices(DEFAULT_PRICING);
   assert.deepEqual(offered.map((row) => row.currency), ['GBP']);
   assert.ok(all.length > 1);
-  assert.deepEqual(publicPricing(DEFAULT_PRICING).currencies.GBP, { digits: 2, 'pro.monthly': 299, 'pro.annual': 2999 });
+  assert.deepEqual(publicPricing(DEFAULT_PRICING).currencies.GBP, { digits: 2, 'pro.monthly': 299, 'pro.annual': 2900 });
 });
 
 test('conversions use the stored rate, overrides always win, and a currency without a rate is not offered', () => {
@@ -41,7 +41,7 @@ test('conversions use the stored rate, overrides always win, and a currency with
 });
 
 test('a bad matrix is refused in plain words', () => {
-  assert.throws(() => parsePricingMatrix({ ...DEFAULT_PRICING, base: { 'pro.monthly': 0, 'pro.annual': 2999 } }), /above zero/);
+  assert.throws(() => parsePricingMatrix({ ...DEFAULT_PRICING, base: { 'pro.monthly': 0, 'pro.annual': 2900 } }), /above zero/);
   assert.throws(() => parsePricingMatrix({ ...DEFAULT_PRICING, currencies: { ISK: { rounding: 'charm', overrides: {} } } }), /Paddle cannot charge in ISK/);
   assert.throws(() => parsePricingMatrix({ ...DEFAULT_PRICING, currencies: { EUR: { rounding: 'charm', overrides: { 'pro.monthly': 2.5 } } } }), /minor units/);
   assert.throws(() => parsePricingMatrix({ ...DEFAULT_PRICING, rates: { date: 'today', perGbp: {} } }), /yyyy-mm-dd/);

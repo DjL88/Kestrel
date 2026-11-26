@@ -4,7 +4,7 @@
  * must still meter and authorise every cloud request itself (see spendGuard.ts).
  *
  * Software (owner decision, 26 Nov 2026): Basic is free for good. Pro is sold only as a subscription, £2.99 a month or
- * £29.99 a year. There is no one-off purchase and no "own it after 12 payments". When a subscription ends the account is
+ * £29 a year. There is no one-off purchase and no "own it after 12 payments". When a subscription ends the account is
  * Basic again; projects, edits and exports are never locked. One-off licences sold before then are still honoured.
  *
  * Cloud, the same for everyone who signs in (unused free photos and downloads carry over for one month, owner 26 Nov 2026):
@@ -23,7 +23,7 @@ export const SOFTWARE_PRICES = {
   /** Pro, paid monthly. */
   proMonthlyPence: 299,
   /** Pro, paid yearly. */
-  proAnnualPence: 2999,
+  proAnnualPence: 2900,
 } as const;
 
 /** Cloud photos included each calendar month (UTC). */

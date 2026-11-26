@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { pricingSource, PRICING_REFRESH_MS } from './pricing.ts';
 
-const served = { version: 1, base: 'GBP', updatedAt: '2026-11-26T10:00:00.000Z', currencies: { GBP: { digits: 2, 'pro.monthly': 299, 'pro.annual': 2999 }, EUR: { digits: 2, 'pro.monthly': 349, 'pro.annual': 3400 } }, regions: { FR: 'EUR' } };
+const served = { version: 1, base: 'GBP', updatedAt: '2026-11-26T10:00:00.000Z', currencies: { GBP: { digits: 2, 'pro.monthly': 299, 'pro.annual': 2900 }, EUR: { digits: 2, 'pro.monthly': 349, 'pro.annual': 3400 } }, regions: { FR: 'EUR' } };
 
 test('the app shows the served matrix, keeps it offline, and falls back to the starting prices', async () => {
   const items = new Map<string, string>();
@@ -26,5 +26,5 @@ test('the app shows the served matrix, keeps it offline, and falls back to the s
   assert.equal(source.current().regions.FR, 'EUR');
 
   const none = pricingSource({ baseUrl: null, storage: { getItem: () => null, setItem: () => {} }, now: () => 0, fetch: (async () => { throw new Error('must not fetch'); }) as typeof fetch });
-  assert.equal((await none.refresh()).currencies.GBP['pro.annual'], 2999);
+  assert.equal((await none.refresh()).currencies.GBP['pro.annual'], 2900);
 });

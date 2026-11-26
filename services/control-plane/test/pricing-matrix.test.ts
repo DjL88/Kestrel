@@ -7,7 +7,7 @@ test('the website and app read every price from the one matrix that Admin edits,
   let saved: unknown = null;
   const paddle = new Map<string, PaddlePriceView>([
     ['pri_monthly0000001', { id: 'pri_monthly0000001', unit_price: { amount: '299', currency_code: 'GBP' }, unit_price_overrides: [] }],
-    ['pri_annual00000001', { id: 'pri_annual00000001', unit_price: { amount: '2900', currency_code: 'GBP' }, unit_price_overrides: [] }],
+    ['pri_annual00000001', { id: 'pri_annual00000001', unit_price: { amount: '2999', currency_code: 'GBP' }, unit_price_overrides: [] }],
   ]);
   const h = await startHarness(undefined, undefined, { pricingDeps: {
     priceMatrix: { get: async () => saved, save: async (m) => { saved = m; } },
@@ -23,13 +23,13 @@ test('the website and app read every price from the one matrix that Admin edits,
     const first = await h.call('GET', '/v1/pricing');
     assert.equal(first.status, 200);
     assert.deepEqual(Object.keys(first.body.currencies), ['GBP']);
-    assert.equal(first.body.currencies.GBP['pro.annual'], 2999);
+    assert.equal(first.body.currencies.GBP['pro.annual'], 2900);
 
     assert.equal((await h.call('GET', '/v1/admin/pricing', { token: h.user.token })).status, 403, 'admins only');
     assert.equal((await h.call('POST', '/v1/admin/pricing', { token: h.user.token, body: DEFAULT_PRICING })).status, 403);
 
     const before = await h.call('GET', '/v1/admin/pricing', { token: h.adminToken });
-    assert.equal(before.body.paddle.inStep, false, 'Paddle annual is £29, the matrix £29.99');
+    assert.equal(before.body.paddle.inStep, false, 'Paddle annual is £29.99, the matrix £29');
 
     const { body: { rates } } = await h.call('POST', '/v1/admin/pricing/rates', { token: h.adminToken, body: {} });
     const edited = { ...DEFAULT_PRICING, rates, currencies: { EUR: { rounding: 'charm', overrides: {} }, USD: { rounding: 'charm', overrides: { 'pro.annual': 2900 } } } };
@@ -45,13 +45,13 @@ test('the website and app read every price from the one matrix that Admin edits,
     assert.equal(save.status, 200);
     assert.equal(save.body.paddle.inStep, false);
     const served = await h.call('GET', '/v1/pricing');
-    assert.deepEqual(served.body.currencies.EUR, { digits: 2, 'pro.monthly': 399, 'pro.annual': 3500 });
+    assert.deepEqual(served.body.currencies.EUR, { digits: 2, 'pro.monthly': 399, 'pro.annual': 3400 });
     assert.equal(served.body.currencies.USD['pro.annual'], 2900);
     assert.equal(served.body.regions.FR, 'EUR');
 
     const pushed = await h.call('POST', '/v1/admin/pricing/paddle', { token: h.adminToken, body: {} });
     assert.equal(pushed.status, 200);
     assert.equal(pushed.body.paddle.inStep, true);
-    assert.equal(paddle.get('pri_annual00000001')!.unit_price.amount, '2999');
+    assert.equal(paddle.get('pri_annual00000001')!.unit_price.amount, '2900');
   } finally { await h.close(); }
 });
