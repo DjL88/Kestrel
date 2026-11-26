@@ -8,6 +8,8 @@ import ColourSenseLine from './ColourSenseLine';
 import WatchSteps from './WatchSteps';
 import type { CloudRecipeOfferView, EditRecipe } from '../contract';
 import CloudRecipeCard from './CloudRecipeCard';
+import AiSecondOpinionCard from './AiSecondOpinionCard';
+import type { AiSecondOpinionView } from '../contract';
 
 interface CoPilotPanelProps {
   photo: Photo | null;
@@ -36,6 +38,9 @@ interface CoPilotPanelProps {
     setFullFile: (on: boolean) => boolean;
     fullFileOn: () => boolean;
   };
+  /** Bring your own AI (real workspace only). Absent: nothing is shown. */
+  aiOpinion?: AiSecondOpinionView;
+  aiOpinionActions?: Omit<React.ComponentProps<typeof AiSecondOpinionCard>, 'photoId' | 'view'>;
 }
 
 export default function CoPilotPanel({
@@ -53,6 +58,8 @@ export default function CoPilotPanel({
   onStepPreview,
   onResetStyle,
   cloudRecipe,
+  aiOpinion,
+  aiOpinionActions,
 }: CoPilotPanelProps) {
   const hiddenOnline = useProHidden('onlineAi');
   // Which suggestion is being watched step by step. A different photo stops watching.
@@ -146,6 +153,8 @@ export default function CoPilotPanel({
         <CloudRecipeCard photoId={photo.id} onPrepare={cloudRecipe.prepare} onSend={cloudRecipe.send}
           onSetFullFile={cloudRecipe.setFullFile} fullFileOn={cloudRecipe.fullFileOn} />
       )}
+
+      {aiOpinion && <AiSecondOpinionCard photoId={photo.id} view={aiOpinion} {...aiOpinionActions} />}
 
       {/* Assist, merged: the plain-English read of the photo, and the colour check */}
       <section className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3.5">

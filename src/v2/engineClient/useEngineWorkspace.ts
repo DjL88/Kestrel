@@ -121,6 +121,11 @@ import { preloadTrueDetailAi } from '../../core/trueDetailAiCanvas';
 import { moveArtboard } from './boardOps';
 import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
+import { aiOpinionView, applyTargets, askAiSecondOpinion, errorWords, type AiOpinionRecord } from './aiSecondOpinion';
+import { useAiSettings, saveAiSettings } from '../../providers/aiSettings';
+import { consentFor } from '../../providers/aiProviders';
+import { AI_REVIEW_CONSENT_VERSION } from '../../core/aiReview';
+import { languageOption } from '../../core/locale';
 import { planExport } from './exportOps';
 import { useExternalEdits } from './useExternalEdits';
 import { placeBeside, readExternalEdit, returnedExif, type ExternalEditRecord } from '../../core/externalEdit';
@@ -1873,6 +1878,51 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       });
   }, []);
 
+  // Bring your own AI: a second opinion on colour and light from the person's own key or a model on this computer.
+  // Advisory only. The answer is kept for one photo; Apply is one undoable edit, refused if the photo changed since.
+  const aiSettings = useAiSettings();
+  const [aiOpinion, setAiOpinion] = useState<AiOpinionRecord | null>(null);
+  const aiAbort = useRef<AbortController | null>(null);
+  const cancelAiOpinion = useCallback(() => {
+    aiAbort.current?.abort();
+    aiAbort.current = null;
+    setAiOpinion((current) => (current?.phase === 'asking' ? null : current));
+  }, []);
+  const askAiOpinion = useCallback((photoId: string) => {
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+    if (!frame || !aiSettings || !provider.current || aiAbort.current) return;
+    const controller = new AbortController();
+    aiAbort.current = controller;
+    const base = frame.edit ?? DEFAULT_EDIT;
+    const record: AiOpinionRecord = { photoId, base, stableKey: frame.stableKey, phase: 'asking' };
+    setAiOpinion(record);
+    const findings = (assists[photoId]?.run.detail ?? []).slice(0, 4);
+    void askAiSecondOpinion(frame, provider.current, aiSettings, languageOption(language).englishName, findings, controller.signal)
+      .then(({ review, targets }) => {
+        if (controller.signal.aborted) return;
+        setAiOpinion((current) => (current === record ? { ...record, phase: 'ready', review, targets } : current));
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        setAiOpinion((current) => (current === record ? { ...record, phase: 'failed', message: errorWords(error) } : current));
+      })
+      .finally(() => { if (aiAbort.current === controller) aiAbort.current = null; });
+  }, [aiSettings, assists]);
+  const applyAiOpinion = useCallback((photoId: string) => {
+    const record = aiOpinion;
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+    if (!record || record.photoId !== photoId || record.phase !== 'ready' || !record.targets || !frame) return;
+    const valid = (latest: PhotoFrame) => latest.stableKey === record.stableKey && sameRecipe(latest.edit ?? DEFAULT_EDIT, record.base);
+    if (!valid(frame)) { setNotice(engineText.workspace.suggestionStale); setAiOpinion(null); return; }
+    editFrames([photoId], (latest) => (valid(latest) ? applyTargets(latest.edit ?? DEFAULT_EDIT, record.targets!) : latest.edit));
+    setAiOpinion({ ...record, phase: 'applied' });
+  }, [aiOpinion, editFrames]);
+  const agreeAiOpinion = useCallback(() => {
+    if (aiSettings) saveAiSettings({ ...aiSettings, consent: consentFor(AI_REVIEW_CONSENT_VERSION, aiSettings) });
+  }, [aiSettings]);
+  // A different provider or photo never leaves an old answer on screen.
+  useEffect(() => { aiAbort.current?.abort(); aiAbort.current = null; setAiOpinion(null); }, [aiSettings]);
+
   const cloudImports = useRef(new Map<string, { projectId: string; photoKey: string }>());
   const externalReturns = useRef(new Map<string, ExternalEditRecord>());
   const importPhotos = useCallback(async (suppliedPicks?: Array<File | PickedPhoto> | null,
@@ -3171,6 +3221,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     dismissAssistSuggestion: (photoId, suggestionId) => setAssists((current) => (current[photoId]
       ? { ...current, [photoId]: { ...current[photoId], dismissed: [...current[photoId].dismissed, suggestionId] } } : current)),
     runDeepVisionReview: (photoId) => runDeepVisionReviewAction(photoId),
+    agreeAiSecondOpinion: agreeAiOpinion,
+    askAiSecondOpinion: askAiOpinion,
+    cancelAiSecondOpinion: cancelAiOpinion,
+    applyAiSecondOpinion: applyAiOpinion,
+    dismissAiSecondOpinion: () => setAiOpinion(null),
     saveOverlayTemplate: (photoId, name) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
       if (!frame) return;
@@ -3541,7 +3596,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real, ...tapSelect.actions }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tapSelect.actions, stub.actions, editStyleOn, forgetEditStyle, looks, userLooks, updateUserLooks, templates, updateTemplates, brandKits, brandKitsOn, updateBrandKits, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal]);
+    [tapSelect.actions, stub.actions, editStyleOn, forgetEditStyle, looks, userLooks, updateUserLooks, templates, updateTemplates, brandKits, brandKitsOn, updateBrandKits, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal, agreeAiOpinion, askAiOpinion, cancelAiOpinion, applyAiOpinion]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: watermarkLibrary, auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   // Species names in the person's language (about 2.6 MB with every group) are fetched once, and only when a photo in
@@ -3594,6 +3649,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     activePhotoId: activeId,
     selectedPhotoIds: selected,
     reviewingPhotoIds: reviewingIds,
+    aiSecondOpinion: aiOpinionView(aiSettings, aiOpinion, activeId),
     // Finished tasks join the history in an effect, one render after the store marks them done. Merge them here too,
     // so a task that has just finished is never missing from both lists (the Tasks panel would lose its row).
     tasks: visibleTasks(
@@ -3616,7 +3672,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,
     searchPictureIds,
-  }), [looks, searchPictureIds, backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, brandKits, brandKitsOn, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace, externalEdits.store]);
+  }), [looks, searchPictureIds, backupStatus.state, backupStatus.at, stub.store, can, savedUi, assistMode, deviceFonts, watermarkLibrary, templates, brandKits, brandKitsOn, screen, hubState, projects, state?.shoot.id, state?.shoot.collage, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, removedPhotos, removedOpen, activeId, selected, taskList, taskHistory, clock, notice, lightroomOffer, quickStart, tapSelect.state, speciesPlace, externalEdits.store, aiSettings, aiOpinion]);
 
   return { store, actions };
 }

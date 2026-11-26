@@ -576,6 +576,12 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onDismissSuggestion={actions.dismissAssistSuggestion}
             onStepPreview={setStepPreview}
             onResetStyle={actions.resetEditStyle}
+            aiOpinion={store.aiSecondOpinion}
+            aiOpinionActions={{
+              onAgree: actions.agreeAiSecondOpinion, onAsk: actions.askAiSecondOpinion, onCancel: actions.cancelAiSecondOpinion,
+              onApply: actions.applyAiSecondOpinion, onDismiss: actions.dismissAiSecondOpinion,
+              onOpenSettings: () => actions.setSettingsOpen(true, 'aiProviders'),
+            }}
             cloudRecipe={actions.prepareCloudRecipe && actions.sendCloudRecipe && actions.setCloudRecipeFullFile && actions.cloudRecipeFullFileOn
               ? { prepare: actions.prepareCloudRecipe, send: actions.sendCloudRecipe, setFullFile: actions.setCloudRecipeFullFile, fullFileOn: actions.cloudRecipeFullFileOn }
               : undefined}
