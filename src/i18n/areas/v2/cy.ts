@@ -570,6 +570,9 @@ export const cy: AreaTranslation<typeof source> = {
     gridViewToggle: 'Grid o’r holl luniau',
     fullScreenEnter: 'Sgrin lawn',
     fullScreenExit: 'Gadael sgrin lawn',
+    canvasOnlyEnter: 'Cynfas yn unig: cuddio\'r bariau a\'r paneli (L)',
+    canvasOnlyExit: 'Dangos y bariau a\'r paneli eto (L)',
+    canvasOnlyBack: 'Dangos paneli',
     zoomFit: 'Ffitio',
   },
   autoCheck: {

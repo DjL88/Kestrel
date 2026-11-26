@@ -570,6 +570,9 @@ export const fr: AreaTranslation<typeof source> = {
     gridViewToggle: 'Grille de toutes les photos',
     fullScreenEnter: 'Plein écran',
     fullScreenExit: 'Quitter le plein écran',
+    canvasOnlyEnter: 'Toile seule : masquer les barres et les panneaux (L)',
+    canvasOnlyExit: 'Afficher à nouveau les barres et les panneaux (L)',
+    canvasOnlyBack: 'Afficher les panneaux',
     zoomFit: 'Ajuster',
   },
   autoCheck: {

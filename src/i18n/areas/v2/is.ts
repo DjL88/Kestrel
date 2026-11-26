@@ -570,6 +570,9 @@ export const is: AreaTranslation<typeof source> = {
     gridViewToggle: 'Tafla allra mynda',
     fullScreenEnter: 'Allur skjárinn',
     fullScreenExit: 'Hætta í öllum skjánum',
+    canvasOnlyEnter: 'Aðeins strigi: fela stikur og spjöld (L)',
+    canvasOnlyExit: 'Sýna stikur og spjöld aftur (L)',
+    canvasOnlyBack: 'Sýna spjöld',
     zoomFit: 'Passa',
   },
   autoCheck: {

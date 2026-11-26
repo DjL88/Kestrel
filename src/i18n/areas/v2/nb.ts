@@ -570,6 +570,9 @@ export const nb: AreaTranslation<typeof source> = {
     gridViewToggle: 'Rutenett med alle bilder',
     fullScreenEnter: 'Fullskjerm',
     fullScreenExit: 'Avslutt fullskjerm',
+    canvasOnlyEnter: 'Bare lerret: skjul linjer og paneler (L)',
+    canvasOnlyExit: 'Vis linjer og paneler igjen (L)',
+    canvasOnlyBack: 'Vis paneler',
     zoomFit: 'Tilpass',
   },
   autoCheck: {

@@ -570,6 +570,9 @@ export const nl: AreaTranslation<typeof source> = {
     gridViewToggle: 'Raster van alle foto’s',
     fullScreenEnter: 'Volledig scherm',
     fullScreenExit: 'Volledig scherm sluiten',
+    canvasOnlyEnter: 'Alleen canvas: balken en panelen verbergen (L)',
+    canvasOnlyExit: 'Balken en panelen weer tonen (L)',
+    canvasOnlyBack: 'Panelen tonen',
     zoomFit: 'Passend',
   },
   autoCheck: {

@@ -570,6 +570,9 @@ export const sv: AreaTranslation<typeof source> = {
     gridViewToggle: 'Rutnät med alla foton',
     fullScreenEnter: 'Helskärm',
     fullScreenExit: 'Avsluta helskärm',
+    canvasOnlyEnter: 'Bara arbetsyta: dölj fält och paneler (L)',
+    canvasOnlyExit: 'Visa fält och paneler igen (L)',
+    canvasOnlyBack: 'Visa paneler',
     zoomFit: 'Anpassa',
   },
   autoCheck: {
