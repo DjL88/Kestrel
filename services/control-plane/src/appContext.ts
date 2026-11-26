@@ -51,6 +51,8 @@ export function createContext(options: AppOptions) {
   const checkoutLimiter = new RateLimiter(10, 60_000);
   const galleryLimiter = new RateLimiter(120, 60_000);
   const reportLimiter = new RateLimiter(10, 10 * 60_000);
+  /** Contributor feedback, per account: generous enough for a translator working through a screen. */
+  const feedbackLimiter = new RateLimiter(30, 10 * 60_000);
 
   const audit = (actor: string, action: string, outcome: AuditRecord['outcome'], detail: string) => store.audit({ atMs: now(), actor, action, outcome, detail });
 
@@ -564,7 +566,7 @@ export function createContext(options: AppOptions) {
     return usable.sort((a, b) => Number(b.paid) - Number(a.paid) || b.majorVersion - a.majorVersion)[0];
   }
 
-  return { options, config, commerce, store, now, provider, authLimiter, firebaseExchangeLimiter, contactLimiter, contactGlobalLimiter, googleKeys, appleKeys, firebaseKeys, userGoogleKeys, adminEmailHashes, activateLimiter, paddleLimiter, checkoutLimiter, galleryLimiter, reportLimiter, audit, bearer, issueSession, signInWithProvider, providerRoute, createAccount, reserveQuota, switchConfigured, switchOn, reserveSpend, aiCall, cloudGate, accountIsPro, cloudJobStart, cloudJobOwned, settleFailedCloudJob, learningSubject, collabCfg, collabWritable, collab, accountStoredBytes, settleStorage, cloudCfg, cloud, notify, pushCfg, news, contactsCfg, erasureCfg, erasing, deletionBody, mergeCfg, merging, galleryCfg, gallery, galleryOwner, ownerSuspended, complianceCfg, compliance, safetyCfg, safety, safetyCheck, safeCopyCfg, safeCopyUploadGate, admin, adminDone, FLAGS_SETTING, loadFlags, grantFlagsFor, recentReleases, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, MANIFEST_CACHE_MS, verifiedModelManifest, effectiveAccountLicence };
+  return { options, config, commerce, store, now, provider, authLimiter, firebaseExchangeLimiter, contactLimiter, contactGlobalLimiter, googleKeys, appleKeys, firebaseKeys, userGoogleKeys, adminEmailHashes, activateLimiter, paddleLimiter, checkoutLimiter, galleryLimiter, reportLimiter, feedbackLimiter, audit, bearer, issueSession, signInWithProvider, providerRoute, createAccount, reserveQuota, switchConfigured, switchOn, reserveSpend, aiCall, cloudGate, accountIsPro, cloudJobStart, cloudJobOwned, settleFailedCloudJob, learningSubject, collabCfg, collabWritable, collab, accountStoredBytes, settleStorage, cloudCfg, cloud, notify, pushCfg, news, contactsCfg, erasureCfg, erasing, deletionBody, mergeCfg, merging, galleryCfg, gallery, galleryOwner, ownerSuspended, complianceCfg, compliance, safetyCfg, safety, safetyCheck, safeCopyCfg, safeCopyUploadGate, admin, adminDone, FLAGS_SETTING, loadFlags, grantFlagsFor, recentReleases, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, MANIFEST_CACHE_MS, verifiedModelManifest, effectiveAccountLicence };
 }
 
 export type AppContext = ReturnType<typeof createContext>;

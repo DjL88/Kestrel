@@ -305,15 +305,16 @@ act($('grant-form'), 'submit', async () => {
   const form = $('grant-form');
   const f = form.elements;
   $('grant-result').textContent = '';
-  const body = { email: f.email.value.trim(), plan: 'paid', majorVersion: Number(f.majorVersion.value), managedAi: f.managedAi.checked };
+  const body = { email: f.email.value.trim(), plan: 'paid', majorVersion: Number(f.majorVersion.value), managedAi: f.managedAi.checked, contributor: f.contributor.checked };
   if (f.note.value.trim()) body.note = f.note.value.trim();
   if (f.validDays.value) body.validDays = Number(f.validDays.value);
   const session = token;
   const result = await api('admin/licences/grant', body);
   if (!session || token !== session) return;
   form.reset();
-  const message = !result.created ? 'A Pro grant already exists for that address and version.' :
-    result.attachedNow ? 'Free Pro granted to the existing account.' : 'Free Pro granted. It will attach when the recipient signs in with the verified address.';
+  const what = body.contributor ? 'Contributor access (free Pro)' : 'Free Pro';
+  const message = !result.created ? (body.contributor ? 'That address is already a contributor for this version.' : 'A Pro grant already exists for that address and version.') :
+    result.attachedNow ? what + ' granted to the existing account.' : what + ' granted. It will attach when the recipient signs in with the verified address.';
   $('grant-result').textContent = message;
   await Promise.allSettled([loadOverview(), loadLicensees(), loadAudit()]);
 });
@@ -547,7 +548,10 @@ async function loadMessages() {
     const item = el('li');
     const meta = el('p', undefined, 'meta');
     const from = el('strong', m.name);
-    const mail = el('a', m.email); mail.href = 'mailto:' + encodeURIComponent(m.email).replace(/%40/g, '@');
+    // Contributor feedback from the app carries no address (only the account id, in the message).
+    let mail;
+    if (m.email) { mail = el('a', m.email); mail.href = 'mailto:' + encodeURIComponent(m.email).replace(/%40/g, '@'); }
+    else mail = badge('Contributor', '');
     meta.append(badge(STATUS_WORDS[m.status], m.status === 'new' ? 'bad' : m.status === 'answered' ? 'good' : ''), from, mail, el('span', when(m.receivedAtMs), 'muted'));
     const actions = el('div', undefined, 'row');
     for (const next of ['read', 'answered', 'new']) {

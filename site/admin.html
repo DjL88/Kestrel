@@ -94,6 +94,7 @@
       <label>Grant note (optional) <input name="note" maxlength="200" autocomplete="off"></label>
       <label>Grant expiry (days; leave empty for no expiry) <input name="validDays" type="number" min="1" max="3650" inputmode="numeric"></label>
       <label class="check"><input name="managedAi" type="checkbox"> Include the online helper allowance</label>
+      <label class="check"><input name="contributor" type="checkbox"> Make them a contributor (free Pro, plus "Feedback on this" in the app; their feedback arrives in Messages)</label>
       <button>Grant free Pro</button>
     </form>
     <p id="grant-result" aria-live="polite"></p>
@@ -313,7 +314,7 @@
 
   <section id="messages" class="panel" aria-labelledby="messages-title">
     <h2 id="messages-title">Messages</h2>
-    <p class="muted">From the website's contact form. Reply from your own email; then mark the message answered.</p>
+    <p class="muted">From the website's contact form, and contributors' "Feedback on this" from the app (marked Contributor). Reply from your own email; then mark the message answered.</p>
     <ol id="message-list" class="messages"></ol>
     <p id="messages-empty" class="muted" hidden>No messages.</p>
   </section>

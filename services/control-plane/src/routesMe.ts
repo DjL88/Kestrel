@@ -6,7 +6,8 @@ import { evaluateFlag } from '../../../src/core/featureFlags.ts';
 import { verifyLicence } from '../../../src/core/licence.ts';
 import { randomId, signEnvelope } from './crypto.ts';
 import { mintLicenceKey, ownsLicence } from './licenceKeys.ts';
-import { newLicence } from './store.ts';
+import { licenceIsUsable, newLicence } from './store.ts';
+import { isContributorLicence } from './entitlement.ts';
 import { PADDLE_TRANSACTION_ID } from './commerce/paddle.ts';
 import { caseForUploader } from './contentSafety.ts';
 import { ApiError, parseJson } from './http.ts';
@@ -14,7 +15,7 @@ import { DAY_MS, QUOTA_PERIOD_MS, offlineDeadline, Schemas } from './appShared.t
 import type { AppContext } from './appContext.ts';
 
 export function meRoutes(ctx: AppContext): Route[] {
-  const { options, config, store, now, activateLimiter, checkoutLimiter, audit, bearer, switchOn, accountIsPro, learningSubject, collab, accountStoredBytes, settleStorage, cloudCfg, cloud, erasureCfg, erasing, deletionBody, mergeCfg, merging, safetyCfg, safety, safeCopyCfg, admin, loadFlags, grantFlagsFor, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, effectiveAccountLicence } = ctx;
+  const { options, config, store, now, activateLimiter, feedbackLimiter, checkoutLimiter, audit, bearer, switchOn, accountIsPro, learningSubject, collab, accountStoredBytes, settleStorage, cloudCfg, cloud, erasureCfg, erasing, deletionBody, mergeCfg, merging, safetyCfg, safety, safeCopyCfg, admin, loadFlags, grantFlagsFor, releaseWithinAllowance, activateWithSwapGrace, ownedFlags, effectiveAccountLicence } = ctx;
   return [
   // ---- The person's own data: download it, or delete the account (30 days to change their mind). Local projects and
   // originals are never on this service, so nothing here can reach them.
@@ -229,9 +230,38 @@ export function meRoutes(ctx: AppContext): Route[] {
           plans: plans.map((p) => ({ licenceId: p.licenceId, plan: p.plan, status: p.status, managedAi: p.managedAi, offlineGraceDays: p.offlineGraceDays, majorVersion: p.majorVersion, paid: p.paid, source: p.source })),
           aiQuota: quota ? { requestsUsed: quota.requestsUsed, requestsLimit: quota.requestsLimit, periodEndsMs: quota.periodStartMs + QUOTA_PERIOD_MS } : null,
           aiConsent: account?.aiConsent ?? false,
+          contributor: plans.some((p) => isContributorLicence(p) && licenceIsUsable(p, now())),
           nextRevalidationMs: now() + 7 * DAY_MS,
         },
       };
+    },
+  },
+  {
+    method: 'POST', path: '/v1/me/feedback', summary: 'A contributor\'s "Feedback on this": what they pointed at and their comment, to the admin inbox', auth: 'user',
+    body: Schemas.ContributorFeedback, response: z.object({ received: z.boolean() }),
+    handler: async (req) => {
+      const claims = await bearer(req);
+      if (!feedbackLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'That is a lot of feedback in a few minutes. Thank you! Wait a little, then send the rest.', true);
+      const plans = await store.listLicencesForAccount(claims.sub);
+      if (!plans.some((p) => isContributorLicence(p) && licenceIsUsable(p, now()))) throw new ApiError(403, 'NOT_CONTRIBUTOR', 'Feedback on this is for contributors. Ask us to add you.');
+      const body = parseJson(Schemas.ContributorFeedback, req.rawBody);
+      // Plain text only, shown as text in the admin inbox. No photo, page HTML or address is sent or kept.
+      const lines = [
+        body.comment,
+        '',
+        `Language: ${body.language || 'unknown'}`,
+        `Screen: ${body.screen || 'unknown'}`,
+        `Part of the app: ${body.target || 'unknown'}`,
+        ...(body.text ? [`Words shown: ${body.text}`] : []),
+        ...(body.appVersion ? [`App version: ${body.appVersion}`] : []),
+        `Account: ${claims.sub}`,
+      ];
+      await store.insertContactMessage({
+        messageId: `fbk_${randomId(12)}`, receivedAtMs: now(), name: `Contributor feedback (${body.language || 'unknown'})`, email: '',
+        message: lines.join('\n'), status: 'new',
+      });
+      await audit(claims.sub, 'feedback.contributor', 'allowed', `${body.language} ${body.screen}`.slice(0, 80));
+      return { status: 200, body: { received: true } };
     },
   },
   {

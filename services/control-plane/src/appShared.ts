@@ -279,8 +279,20 @@ export const Schemas = {
      * `userConsent` flag every /v1/ai/* call still carries: this is what lets the app stop asking every time.
      */
     aiConsent: z.boolean(),
+    /** True while the account holds a usable contributor grant: the app then offers "Feedback on this". */
+    contributor: z.boolean(),
     nextRevalidationMs: z.number(),
   }),
+  ContributorFeedback: z.object({
+    comment: z.string().trim().min(1).max(2000),
+    /** What was right-clicked, described by the app: its role and name, never page HTML. */
+    target: z.string().trim().max(300).default(''),
+    /** The words shown on that part of the app, so a translation fix can find the string. */
+    text: z.string().trim().max(500).default(''),
+    screen: z.string().trim().max(120).default(''),
+    language: z.string().trim().max(16).regex(/^[A-Za-z-]*$/).default(''),
+    appVersion: z.string().trim().max(40).default(''),
+  }).strict(),
   CloudJobRequest: z.object({ kind: z.enum(CLOUD_KINDS), inputBytes: z.number().int().positive(), userConsent: z.boolean(), inputKind: z.enum(RECIPE_INPUT_KINDS).optional() }).strict(),
   LearningSignal: z.object({
     source: z.enum(LEARNING_SOURCES), capability: z.enum(LEARNING_CAPABILITIES), action: z.enum(LEARNING_ACTIONS),
@@ -308,6 +320,7 @@ export const Schemas = {
     plan: z.enum(['paid', 'subscriber']).default('paid'),
     majorVersion: z.number().int().min(1).max(99).default(1),
     managedAi: z.boolean().default(false),
+    contributor: z.boolean().default(false).describe('A translation contributor: free Pro plus "Feedback on this" in the app.'),
     note: z.string().trim().max(200).optional().describe('Why this was given, e.g. "Camera club prize". Admin-only.'),
     validDays: z.number().int().min(1).max(3650).optional(),
   }).strict(),
