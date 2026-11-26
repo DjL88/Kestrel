@@ -1,8 +1,9 @@
 import React from 'react';
 import type { AssistMode, FeatureKey, Photo } from '../contract';
 import { STRINGS } from '../strings';
+import FlightModePicker from './FlightModePicker';
 import ProBadge, { useProHidden } from '../shell/ProBadge';
-import BrandIcon, { assistModeIconName } from '../icons/BrandIcon';
+import BrandIcon from '../icons/BrandIcon';
 import ColourWordsList from './ColourWordsList';
 import ColourSenseLine from './ColourSenseLine';
 import WatchSteps from './WatchSteps';
@@ -55,7 +56,7 @@ export default function CoPilotPanel({
   ongoingCritique,
   cvdGuidance = false,
   reviewing = false,
-  onOpenSettings,
+  onSetAssistMode,
   onRunDeepVisionReview,
   onRequestLocalAuto,
   onApplySuggestion,
@@ -89,25 +90,9 @@ export default function CoPilotPanel({
     <div className="space-y-4">
       {/* Mode summary */}
       <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <BrandIcon
-              name={assistModeIconName(assistMode)}
-              size={16}
-              className="text-[var(--brand-accent)]"
-            />
-            <span className="text-xs font-semibold text-[var(--text-primary)]">
-              {STRINGS.topBar.assistModes[assistMode]}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            className="rounded px-1.5 py-0.5 text-[0.6875rem] font-medium text-[var(--text-secondary)] underline-offset-2 hover:text-[var(--text-primary)] hover:underline"
-          >
-            {STRINGS.copilot.changeInSettings}
-          </button>
-        </div>
+        {/* This project's own mode; Settings only sets the default for new projects. */}
+        <FlightModePicker compact name="project-flight-mode" label={STRINGS.copilot.modeForProject}
+          value={assistMode} onChange={onSetAssistMode} />
         <p className="mt-2 text-xs leading-relaxed text-[var(--text-secondary)]">
           {STRINGS.copilot.modeDescriptions[assistMode]}
         </p>

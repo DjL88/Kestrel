@@ -7,6 +7,8 @@ mod raw;
 #[cfg(desktop)]
 mod oauth_loopback;
 #[cfg(desktop)]
+mod ftp_inbox;
+#[cfg(desktop)]
 mod local_vision;
 #[cfg(desktop)]
 mod external_edit;
@@ -33,6 +35,55 @@ struct OpenedFiles(std::sync::Mutex<Vec<String>>);
 #[cfg(desktop)]
 #[derive(Default)]
 struct OauthListener(std::sync::Mutex<Option<std::net::TcpListener>>);
+
+/// The live-shoot FTP inbox, while the person has it switched on. One at a time; starting again replaces it.
+#[cfg(desktop)]
+#[derive(Default)]
+struct FtpInboxState(std::sync::Mutex<Option<ftp_inbox::InboxHandle>>);
+
+#[cfg(desktop)]
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FtpInboxInfo { port: u16, addresses: Vec<String>, received: u64, last_name: Option<String> }
+
+#[cfg(desktop)]
+fn ftp_inbox_info(handle: &ftp_inbox::InboxHandle) -> FtpInboxInfo {
+    use std::sync::atomic::Ordering;
+    FtpInboxInfo {
+        port: handle.port,
+        addresses: ftp_inbox::local_addresses(),
+        received: handle.counters.received.load(Ordering::SeqCst),
+        last_name: handle.counters.last_name.lock().ok().and_then(|last| last.clone()),
+    }
+}
+
+/// Start receiving photos from a camera over Wi-Fi into `folder` (a folder the person chose). Tries `port` first, then
+/// any free port, and says which one to type into the camera.
+#[cfg(desktop)]
+#[tauri::command]
+fn ftp_inbox_start(state: tauri::State<'_, FtpInboxState>, folder: String, user: String, password: String, port: u16) -> Result<FtpInboxInfo, String> {
+    let mut slot = state.0.lock().map_err(|_| "The camera inbox is busy. Try again.".to_string())?;
+    if let Some(old) = slot.take() { old.stop(); }
+    let config = ftp_inbox::InboxConfig { folder: std::path::PathBuf::from(folder), user, password };
+    let handle = ftp_inbox::start(config.clone(), port)
+        .or_else(|_| ftp_inbox::start(config, 0))
+        .map_err(|error| format!("The camera inbox could not start: {error}"))?;
+    let info = ftp_inbox_info(&handle);
+    *slot = Some(handle);
+    Ok(info)
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+fn ftp_inbox_status(state: tauri::State<'_, FtpInboxState>) -> Option<FtpInboxInfo> {
+    state.0.lock().ok().and_then(|slot| slot.as_ref().map(ftp_inbox_info))
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+fn ftp_inbox_stop(state: tauri::State<'_, FtpInboxState>) {
+    if let Ok(mut slot) = state.0.lock() { if let Some(handle) = slot.take() { handle.stop(); } }
+}
 
 /// Start listening for the sign-in redirect and return the redirect address to give the provider.
 #[cfg(desktop)]
@@ -363,8 +414,9 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(OpenedFiles::default())
         .manage(OauthListener::default())
+        .manage(FtpInboxState::default())
         .manage(local_vision::VisionState::default())
-        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, preview_cache_build, preview_cache_store, preview_cache_read, preview_cache_rotate, preview_cache_usage, preview_cache_clear, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure, app_menu::menu_set_enabled])
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, preview_cache_build, preview_cache_store, preview_cache_read, preview_cache_rotate, preview_cache_usage, preview_cache_clear, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, ftp_inbox_start, ftp_inbox_status, ftp_inbox_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure, app_menu::menu_set_enabled])
         .menu(|app| app_menu::build(app))
         .on_menu_event(|app, event| {
             let id = event.id().0.clone();

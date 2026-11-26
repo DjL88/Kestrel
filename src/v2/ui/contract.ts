@@ -677,6 +677,8 @@ export interface ExportRequest {
   photoIds: string[];
   /** A brand kit put on these photos first, as one Undo step on each, so the export carries it (K080). */
   brandKitId?: string;
+  /** Captions and credits (IPTC) written into each JPEG or PNG, with code replacements. Absent = none. */
+  captions?: import('../../core/captionTemplate').CaptionTemplate;
 }
 
 /** How a photo is drawn. The engine supplies this so the canvas shows real, developed pixels; without it the UI falls back
@@ -814,18 +816,22 @@ export interface WorkspaceStore {
   quickStart?: { phase: 'working' | 'ready' | 'unchanged' | 'held' | 'failed'; photoId: string | null } | null;
   /** Live shoot: the folder being watched for new frames, how many have arrived, how many are still being written, and
    * whether the folder can be read just now (a drive unplugged mid-shoot). Absent when nothing is watched. */
-  liveFolder?: { name: string; imported: number; arriving: number; problem: boolean } | null;
+  liveFolder?: { name: string; imported: number; arriving: number; problem: boolean; ftp?: LiveFtpInbox } | null;
   /** The open project's automatic backup, as last reported. Absent when no project is open. */
   backup?: { state: 'idle' | 'working' | 'ok' | 'partial' | 'failed'; at?: number } | null;
   /** Optional engine-supplied renderer for the canvas (see PhotoSurfaceProps). */
   PhotoSurface?: ComponentType<PhotoSurfaceProps>;
 }
 
+/** What to type into a Wi-Fi camera's FTP transfer settings while InFlight's inbox is on (desktop app). */
+export interface LiveFtpInbox { addresses: string[]; port: number; user: string; password: string }
+
 export interface WorkspaceActions {
   // Navigation & Projects
   openProject: (projectId: string) => void;
   backToProjects: () => void;
-  createProject: (name: string, kind?: 'photography' | 'collage') => void;
+  /** `mode` is the new project's Flight mode; absent, it starts in Settings' default. */
+  createProject: (name: string, kind?: 'photography' | 'collage', mode?: AssistMode) => void;
   createCollageFromSelection?: (photoIds: string[]) => void;
   /** Focus stack the chosen photos into a new linked photo, as a background task (preview, behind its flag). */
   focusStackPhotos?: (photoIds: string[]) => void;
@@ -880,6 +886,8 @@ export interface WorkspaceActions {
   /** Live shoot: watch a folder a tether app (or the FTP inbox) writes into, importing each finished frame as it lands. */
   watchFolder?: () => void;
   stopWatchingFolder?: () => void;
+  /** Live shoot over Wi-Fi: receive frames a camera sends by FTP into a chosen folder (desktop app only). */
+  receiveFromCamera?: () => void;
   importDroppedPhotos: (files: File[]) => void;
   /** Back the open project up now to this device (and its chosen place), checking the saved copy reads back the same. */
   backUpProjectNow: () => void;

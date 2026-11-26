@@ -55,7 +55,8 @@ import { VEHICLE_LABELS } from '../../core/vehicleLabels';
 import { vehicleText } from '../../i18n/areas/vehicles';
 import { useVisualGrouping } from './useVisualGrouping';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
-import { canWatchFolder, chooseHotFolder, watchHotFolder, type HotFolderSource } from '../../providers/hotFolderWatch';
+import { canWatchFolder, chooseHotFolder, desktopHotFolder, watchHotFolder, type HotFolderSource } from '../../providers/hotFolderWatch';
+import { canReceiveFromCamera, startFtpInbox, stopFtpInbox, type FtpInbox } from '../../providers/ftpInbox';
 import { photoParallelism } from '../../core/photoParallelism';
 import { canDevelopRaw, canExportRawMaster } from '../../providers/rawDevelop';
 import { developFullSizeOf, fullDevelopPossible } from './fullDevelop';
@@ -469,7 +470,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useEffect(() => { surfaceBridge.set(state?.frames ?? [], provider.current); }, [state?.frames]);
   const importController = useRef<AbortController | null>(null);
   // Live shoot (hot folder): the folder being watched, how it is going, and how to stop it.
-  const [liveFolder, setLiveFolder] = useState<{ projectId: string; name: string; imported: number; arriving: number; problem: boolean } | null>(null);
+  const [liveFolder, setLiveFolder] = useState<{ projectId: string; name: string; imported: number; arriving: number; problem: boolean; ftp?: FtpInbox } | null>(null);
   const liveWatch = useRef<AbortController | null>(null);
   const followLiveFrame = useRef<((photoId: string) => void) | null>(null);
   const lastFollowed = useRef<string | null>(null);
@@ -1751,7 +1752,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, [quickStart]);
 
   // Co-pilot and Auto-pilot look at the photo on the canvas, on this device, one at a time. Solo never does.
-  const assistMode = savedUi.assistMode ?? stub.store.assistMode;
+  // Each project keeps its own Flight mode; an older project without one follows Settings' default.
+  const assistMode = state?.shoot.assistMode ?? savedUi.settings.defaultAssistMode ?? savedUi.assistMode ?? stub.store.assistMode;
   // Read by importPhotos (a stable callback) when an import finishes: start, offer or explain Auto-cull.
   const afterImport = useRef({ mode: assistMode, canCull: can('smartCulling'), run: runAutoCull });
   afterImport.current = { mode: assistMode, canCull: can('smartCulling'), run: runAutoCull };
@@ -2157,22 +2159,22 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     liveWatch.current?.abort();
     liveWatch.current = null;
     lastFollowed.current = null;
-    setLiveFolder(null);
+    setLiveFolder((current) => { if (current?.ftp) void stopFtpInbox(); return null; });
   }, []);
 
-  const startLiveFolder = useCallback((source: HotFolderSource) => {
+  const startLiveFolder = useCallback((source: HotFolderSource, ftp?: FtpInbox) => {
     const projectId = stateRef.current?.shoot.id;
     if (!projectId) return;
     liveWatch.current?.abort();
     const controller = new AbortController();
     liveWatch.current = controller;
     lastFollowed.current = null;
-    setLiveFolder({ projectId, name: source.name, imported: 0, arriving: 0, problem: false });
+    setLiveFolder({ projectId, name: source.name, imported: 0, arriving: 0, problem: false, ...(ftp ? { ftp } : {}) });
     watchHotFolder(source, {
       signal: controller.signal,
       // Frames for a project that is no longer open are left for the next look (the watch stops when the project closes).
       onReady: (photos) => (stateRef.current?.shoot.id === projectId ? importPhotos(photos, undefined, true) : Promise.resolve(false)),
-      onStatus: (status) => { if (!controller.signal.aborted) setLiveFolder({ projectId, name: source.name, ...status }); },
+      onStatus: (status) => { if (!controller.signal.aborted) setLiveFolder({ projectId, name: source.name, ...status, ...(ftp ? { ftp } : {}) }); },
     });
   }, [importPhotos]);
 
@@ -2180,7 +2182,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useEffect(() => {
     if (liveFolder && liveFolder.projectId !== state?.shoot.id) stopLiveFolder();
   }, [liveFolder, state?.shoot.id, stopLiveFolder]);
-  useEffect(() => () => liveWatch.current?.abort(), []);
+  useEffect(() => () => { liveWatch.current?.abort(); void stopFtpInbox(); }, []);
 
   // Edit in another app (desktop): the current edit at its own size, the same render as an Original-size export
   // without overlays, so the other editor gets the photo itself. Each settled save comes back as a new photo.
@@ -2810,9 +2812,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       })();
     },
     openProject: (id) => { void openProject(id); },
-    createProject: (name, kind = 'photography') => {
+    createProject: (name, kind = 'photography', mode) => {
       const empty = createEmptyProject(`project-${newId()}`, name.trim() || 'Untitled project');
-      const created = kind === 'collage' ? { ...empty, shoot: { ...empty.shoot, collage: createCollage() } } : empty;
+      const withMode = mode ? { ...empty, shoot: { ...empty.shoot, assistMode: mode } } : empty;
+      const created = kind === 'collage' ? { ...withMode, shoot: { ...withMode.shoot, collage: createCollage() } } : withMode;
       void catalogue.current!.saveProject(created).then(() => enterProject(created), () => setNotice('InFlight could not create the project.'));
     },
     createCollageFromSelection: (photoIds) => {
@@ -3094,6 +3097,13 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       void chooseHotFolder().then((source) => { if (source) startLiveFolder(source); });
     },
     stopWatchingFolder: () => stopLiveFolder(),
+    // Wi-Fi cameras (FTP transfer): receive into a chosen folder on this computer and watch it like any hot folder.
+    ...(canReceiveFromCamera() ? {
+      receiveFromCamera: () => {
+        void startFtpInbox().then((inbox) => { if (inbox) startLiveFolder(desktopHotFolder(inbox.folder), inbox); })
+          .catch((error: unknown) => setNotice(error instanceof Error ? error.message : String(error)));
+      },
+    } : {}),
     importDroppedPhotos: (files) => { if (files.length) void importPhotos(files); },
     backUpProjectNow: () => {
       const current = stateRef.current;
@@ -3576,7 +3586,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       setDeviceFonts((current) => { const next = [...new Set([...current, name])]; saveDeviceFonts(next); return next; });
     },
     updateSettings: (patch) => setSavedUi((current) => { const next: SavedUi = { ...current, settings: { ...current.settings, ...patch } }; saveUi(next); return next; }),
-    setAssistMode: (mode) => setSavedUi((current) => { const next: SavedUi = { ...current, assistMode: mode, settings: { ...current.settings, defaultAssistMode: mode } }; saveUi(next); return next; }),
+    // Inside a project this changes that project's mode only (saved with it); Settings changes the default for new ones.
+    setAssistMode: (mode) => {
+      if (stateRef.current) { mutate((current) => ({ ...current, shoot: { ...current.shoot, assistMode: mode } })); return; }
+      setSavedUi((current) => { const next: SavedUi = { ...current, settings: { ...current.settings, defaultAssistMode: mode } }; saveUi(next); return next; });
+    },
     importWatermarkImage: async (usage) => {
       const picked = await pickImageFile();
       if (!picked) return null;
@@ -3826,7 +3840,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     PhotoSurface: EngineSurface,
     tapSelect: tapSelect.state,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
-    liveFolder: liveFolder && liveFolder.projectId === state?.shoot.id ? { name: liveFolder.name, imported: liveFolder.imported, arriving: liveFolder.arriving, problem: liveFolder.problem } : null,
+    liveFolder: liveFolder && liveFolder.projectId === state?.shoot.id ? { name: liveFolder.name, imported: liveFolder.imported, arriving: liveFolder.arriving, problem: liveFolder.problem, ...(liveFolder.ftp ? { ftp: { addresses: liveFolder.ftp.addresses, port: liveFolder.ftp.port, user: liveFolder.ftp.user, password: liveFolder.ftp.password } } : {}) } : null,
     quickStart: quickStart && quickStart.projectId === state?.shoot.id && screen === 'editor' ? { phase: quickStart.phase, photoId: quickStart.photoId } : null,
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,

@@ -36,15 +36,35 @@
 </section>
 
 <div id="console" hidden>
-  <nav class="tabs" aria-label="Console sections">
-    <a href="#overview">Overview</a><a href="#licensees">Licensees and devices</a><a href="#grant">Grant Pro</a><a href="#issue">Issue a key</a>
-    <a href="#safety">Safety</a><a href="#switches">Switches</a><a href="#mail">Email</a><a href="#learning">Learning</a><a href="#flags">Flags</a><a href="#monitoring">Monitoring</a><a href="#notifications">Notifications</a><a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#accounts">Accounts</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#price-review">Price review</a><a href="#audit">Audit log</a>
-  </nav>
+  <section id="needs" class="panel home" aria-labelledby="needs-title">
+    <h1 id="needs-title">Needs you</h1>
+    <div id="all-good" class="all-good" hidden>
+      <p class="big">All good.</p>
+      <p class="muted">Nothing needs you right now. Scheduled jobs (account deletions, storage charges, refunds of Pro purchases, the Paddle key renewal and learning) run by themselves, and anything that needs a person will appear here.</p>
+    </div>
+    <ul id="needs-list" class="needs"></ul>
+    <p id="needs-unknown" class="muted" hidden></p>
+    <p class="muted small-print"><span id="needs-checked"></span> This page checks again every five minutes while it is open. <button type="button" id="refresh-all" class="quiet small">Check now</button></p>
+  </section>
+
+  <details id="more" class="more home">
+    <summary>More</summary>
+    <p class="muted">Everything else, for when you need it.</p>
+    <nav aria-label="More admin tools"><ul id="more-links" class="more-links"></ul></nav>
+  </details>
+
+  <p id="back" hidden><a href="#">Back to Needs you</a></p>
+
+  <section id="refunds" class="panel" aria-labelledby="refunds-title">
+    <h2 id="refunds-title">Refunds owed</h2>
+    <p class="muted">Unused cloud balance owed back after someone deleted their account. Pay it back in Paddle, then mark it refunded here with Paddle's reference. Marking is safe to repeat.</p>
+    <ul id="refund-list" class="needs"></ul>
+    <p id="refunds-empty" class="muted" hidden>Nothing is owed.</p>
+  </section>
 
   <section id="overview" class="panel" aria-labelledby="overview-title">
-    <h2 id="overview-title">Overview</h2>
+    <h2 id="overview-title">Counts</h2>
     <dl id="overview-list" class="facts"></dl>
-    <button type="button" id="refresh-all" class="quiet">Refresh everything</button>
   </section>
 
   <section id="licensees" class="panel" aria-labelledby="licensees-title">
