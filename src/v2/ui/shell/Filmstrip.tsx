@@ -170,6 +170,15 @@ export default function Filmstrip({
   const hideAutoCull = useProHidden('smartCulling');
   const rowMoreRef = useRef<HTMLDetailsElement | null>(null);
   const closeRowMore = () => { if (rowMoreRef.current) rowMoreRef.current.open = false; };
+  // The tools row scrolls sideways, which clips anything drawn outside it; the menu is placed on the screen instead,
+  // just above the More button (CI, 26 Nov: the canvas took the tap meant for the menu).
+  const [rowMoreAt, setRowMoreAt] = useState<{ left: number; bottom: number } | null>(null);
+  const placeRowMore = () => {
+    const details = rowMoreRef.current;
+    if (!details?.open) { setRowMoreAt(null); return; }
+    const box = details.getBoundingClientRect();
+    setRowMoreAt({ left: Math.max(8, Math.min(box.left, window.innerWidth - 264)), bottom: window.innerHeight - box.top + 4 });
+  };
   const [searchOpen, setSearchOpen] = useState(false);
   /** A phone-only batch selection mode; desktop keeps modifier-key multi-selection. */
   const [touchSelectionMode, setTouchSelectionMode] = useState(false);
@@ -314,7 +323,7 @@ export default function Filmstrip({
   return (
     <section
       aria-label={STRINGS.filmstripLabels.label1}
-      className="v2-filmstrip relative z-20 flex shrink-0 flex-col border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] select-none"
+      className={`v2-filmstrip relative ${rowMoreAt ? 'z-40' : 'z-20'} flex shrink-0 flex-col border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] select-none`}
     >
       <EdgeProgress active={Boolean(activity)} value={activity?.value ?? null} label={activityText} edge="top" testId="filmstrip-progress" />
       {/* Top Resize Drag Bar */}
@@ -504,13 +513,14 @@ export default function Filmstrip({
             </button>
           )}
           {onSetFocusRow && !collageMode && (
-            <details ref={rowMoreRef} className="relative shrink-0" data-testid="filmstrip-row-more">
+            <details ref={rowMoreRef} className="relative shrink-0" data-testid="filmstrip-row-more" onToggle={placeRowMore}>
               <summary aria-label={STRINGS.filmstrip.rowMoreLabel}
                 className="inline-flex h-7 cursor-pointer list-none items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
                 <span aria-hidden="true">⋯</span>
                 <span>{STRINGS.filmstrip.rowMore}</span>
               </summary>
-              <div className="absolute bottom-full left-0 z-50 mb-1 flex w-64 flex-col gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] p-1.5 shadow-[var(--shadow-popover)]">
+              <div style={rowMoreAt ? { left: rowMoreAt.left, bottom: rowMoreAt.bottom } : undefined}
+                className="fixed z-50 flex w-64 flex-col gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] p-1.5 shadow-[var(--shadow-popover)]">
                 {focusRow && !hideAutoCull && (
                   <button type="button" onClick={() => { closeRowMore(); onRunAutoCull(); }}
                     className="inline-flex min-h-9 items-center gap-1.5 rounded-[var(--radius-sm)] px-2 text-left text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
