@@ -25,7 +25,8 @@ export interface Config {
   aiTimeoutMs: number;
   allowedOrigins: string[];
   /** Hosts a desktop release notice may point at. */
-  releaseHosts: string[];
+  /** A release notice's link must start with one of these (the public downloads bucket). */
+  releaseUrlPrefixes: string[];
   /** Development only: creates throwaway keys and an admin account. */
   devMode: boolean;
   /** Google accounts allowed into the admin console (lower-case emails). Empty: admin sessions come only from accounts with the admin role. */
@@ -88,7 +89,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     geminiModel: env.KCP_GEMINI_MODEL ?? 'gemini-2.5-flash',
     aiTimeoutMs: 12_000,
     allowedOrigins: (env.KCP_ALLOWED_ORIGINS ?? 'tauri://localhost,http://tauri.localhost,https://tauri.localhost,http://localhost:3000').split(',').map((s) => s.trim()).filter(Boolean),
-    releaseHosts: ['github.com'],
+    releaseUrlPrefixes: ['https://storage.googleapis.com/kestrel-hosting-kestrel-downloads/'],
     devMode,
     adminEmails: (env.KCP_ADMIN_EMAILS ?? '').split(/[,\s]+/).map((s) => s.trim().toLowerCase()).filter(Boolean),
     googleClientId: env.KCP_GOOGLE_CLIENT_ID || undefined,
