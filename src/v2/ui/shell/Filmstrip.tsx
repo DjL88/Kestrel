@@ -7,7 +7,7 @@ import { hdrText } from '../../../i18n/areas/hdr';
 import { engineText } from '../../../i18n/areas/engine';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { AssistMode, FilmstripFilter, LookPreset, Photo, PhotoSort } from '../contract';
+import type { AssistMode, FilmstripFilter, LiveFtpInbox, LookPreset, Photo, PhotoSort } from '../contract';
 import { STRINGS } from '../strings';
 import { PHOTO_DRAG_TYPE, draggedPhotoIds } from '../utils/photoDrag';
 import ProBadge, { useProHidden } from './ProBadge';
@@ -66,7 +66,12 @@ interface FilmstripProps {
   /** Live shoot: watch a folder for new frames, and what is being watched now. */
   onWatchFolder?: () => void;
   onStopWatchingFolder?: () => void;
-  liveFolder?: { name: string; imported: number; arriving: number; problem: boolean } | null;
+  onReceiveFromCamera?: () => void;
+  /** Live shoot room on other screens on this network (desktop app). */
+  shootRoom?: { links: { address: string; url: string }[]; shown: number } | null;
+  onOpenShootRoom?: () => void;
+  onCloseShootRoom?: () => void;
+  liveFolder?: { name: string; imported: number; arriving: number; problem: boolean; ftp?: LiveFtpInbox } | null;
   /** Import and sorting work under way, shown as a thin line along the top edge (absent or null: nothing running). */
   activity?: import('../utils/edgeActivity').EdgeActivity | null;
   onRunAutoCull: () => void;
@@ -129,6 +134,10 @@ export default function Filmstrip({
   onImportFolder,
   onWatchFolder,
   onStopWatchingFolder,
+  onReceiveFromCamera,
+  shootRoom,
+  onOpenShootRoom,
+  onCloseShootRoom,
   liveFolder,
   activity = null,
   onRunAutoCull,
@@ -365,6 +374,22 @@ export default function Filmstrip({
               <BrandIcon name={liveFolder.problem ? 'image-off' : 'folder-arrow'} size={13} />
               <span>{liveFolder.problem ? STRINGS.liveShoot.problem(liveFolder.name) : STRINGS.liveShoot.watching(liveFolder.name, liveFolder.imported)}</span>
               {!liveFolder.problem && liveFolder.arriving > 0 && <span className="text-[var(--text-secondary)]">· {STRINGS.liveShoot.arriving(liveFolder.arriving)}</span>}
+              {liveFolder.ftp && (
+                <details className="relative" data-testid="filmstrip-ftp-details">
+                  <summary className="cursor-pointer list-none px-1 font-medium underline">{STRINGS.liveShoot.cameraSettings}</summary>
+                  <div className="absolute bottom-full left-0 z-50 mb-1 w-72 whitespace-normal rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] p-3 text-xs shadow-lg">
+                    <p className="mb-2">{STRINGS.liveShoot.ftpIntro}</p>
+                    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                      <dt>{STRINGS.liveShoot.ftpServer}</dt><dd className="font-mono select-all">{liveFolder.ftp.addresses.join(', ') || STRINGS.liveShoot.ftpNoAddress}</dd>
+                      <dt>{STRINGS.liveShoot.ftpPort}</dt><dd className="font-mono select-all">{liveFolder.ftp.port}</dd>
+                      <dt>{STRINGS.liveShoot.ftpUser}</dt><dd className="font-mono select-all">{liveFolder.ftp.user}</dd>
+                      <dt>{STRINGS.liveShoot.ftpPassword}</dt><dd className="font-mono select-all">{liveFolder.ftp.password}</dd>
+                      <dt>{STRINGS.liveShoot.ftpMode}</dt><dd>{STRINGS.liveShoot.ftpPassive}</dd>
+                    </dl>
+                    <p className="mt-2 text-[var(--text-secondary)]">{STRINGS.liveShoot.ftpPlain}</p>
+                  </div>
+                </details>
+              )}
               <button type="button" onClick={onStopWatchingFolder} title={STRINGS.liveShoot.stopHint} data-testid="filmstrip-stop-live"
                 className="ml-1 inline-flex h-full items-center rounded-r-[var(--radius-sm)] border-l border-[var(--border-default)] px-2 font-medium hover:bg-[var(--bg-surface-hover)]">
                 {STRINGS.liveShoot.stop}
@@ -376,6 +401,43 @@ export default function Filmstrip({
               title={STRINGS.liveShoot.watchHint}>
               <BrandIcon name="folder-arrow" size={13} />
               <span className="v2-compact-label">{STRINGS.liveShoot.watch}</span>
+            </button>
+          )}
+          {shootRoom ? (
+            <span role="status" data-testid="filmstrip-shoot-room"
+              className="inline-flex h-7 shrink-0 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] pl-2 text-[0.6875rem] text-[var(--text-primary)] whitespace-nowrap">
+              <span>{STRINGS.liveShoot.roomOpen(shootRoom.shown)}</span>
+              <details className="relative" data-testid="filmstrip-room-links">
+                <summary className="cursor-pointer list-none px-1 font-medium underline">{STRINGS.liveShoot.roomLinks}</summary>
+                <div className="absolute bottom-full left-0 z-50 mb-1 w-80 whitespace-normal rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] p-3 text-xs shadow-lg">
+                  <p className="mb-2">{STRINGS.liveShoot.roomLinksIntro}</p>
+                  {shootRoom.links.length ? (
+                    <ul className="space-y-1">
+                      {shootRoom.links.map((link) => <li key={link.url} className="font-mono break-all select-all">{link.url}</li>)}
+                    </ul>
+                  ) : <p>{STRINGS.liveShoot.ftpNoAddress}</p>}
+                  <p className="mt-2 text-[var(--text-secondary)]">{STRINGS.liveShoot.roomPlain}</p>
+                </div>
+              </details>
+              <button type="button" onClick={onCloseShootRoom} title={STRINGS.liveShoot.roomCloseHint} data-testid="filmstrip-close-room"
+                className="ml-1 inline-flex h-full items-center rounded-r-[var(--radius-sm)] border-l border-[var(--border-default)] px-2 font-medium hover:bg-[var(--bg-surface-hover)]">
+                {STRINGS.liveShoot.roomClose}
+              </button>
+            </span>
+          ) : onOpenShootRoom && (
+            <button type="button" onClick={onOpenShootRoom} data-testid="filmstrip-open-room"
+              className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
+              title={STRINGS.liveShoot.roomHint}>
+              <BrandIcon name="select-photos" size={13} />
+              <span className="v2-compact-label">{STRINGS.liveShoot.room}</span>
+            </button>
+          )}
+          {!liveFolder && onReceiveFromCamera && (
+            <button type="button" onClick={onReceiveFromCamera} data-testid="filmstrip-receive-camera"
+              className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
+              title={STRINGS.liveShoot.receiveHint}>
+              <BrandIcon name="camera-settings" size={13} />
+              <span className="v2-compact-label">{STRINGS.liveShoot.receive}</span>
             </button>
           )}
 

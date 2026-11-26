@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { flushSync } from 'react-dom';
 import { applyImportBatch, createImportHandoff, readPendingImport, writePendingImport, type ImportBatch, type ImportHandoff } from './importHandoff';
 import { marksOf } from '../../core/sharedMarks';
-import { applyDecisionWithHistory, assignBurstGroups, redoDecision, regroupBurstsWithEmbeddings, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
+import { computeCullCounts, applyDecisionWithHistory, assignBurstGroups, redoDecision, regroupBurstsWithEmbeddings, removedFrames, removeFromLibrary, restoreRemoved, undoDecision } from '../../core/cullingEngine';
 import { recordEdit, stepEdit, type EditWhy } from '../../core/editHistory';
 import { deleteCheckpoint, forkEditCheckpoint, renameEditVersion, restoreCheckpoint, saveCheckpoint, switchEditVersion as switchVersionInCatalogue } from '../../core/editBranches';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
@@ -37,7 +37,9 @@ import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '..
 import { eraseDeviceData } from './eraseDeviceData';
 import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
 import { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
-import { projectPreviewBlobs } from './projectCover';
+import { hubPreviewKey, projectPreviewBlobs } from './projectCover';
+import { DEVELOP_VERSION } from '../../core/backgroundDevelop';
+import { pickSlideshowPhotos } from '../../core/welcomeSlideshow';
 import { deviceMemoryBudget } from '../../providers/deviceBudget';
 import { scanForCulling } from '../../providers/browserAutoCull';
 import { useAccess } from '../../providers/useAccess';
@@ -55,7 +57,10 @@ import { VEHICLE_LABELS } from '../../core/vehicleLabels';
 import { vehicleText } from '../../i18n/areas/vehicles';
 import { useVisualGrouping } from './useVisualGrouping';
 import { isDesktopApp, isMobileShell } from '../../providers/desktopShell';
-import { canWatchFolder, chooseHotFolder, watchHotFolder, type HotFolderSource } from '../../providers/hotFolderWatch';
+import { canWatchFolder, chooseHotFolder, desktopHotFolder, watchHotFolder, type HotFolderSource } from '../../providers/hotFolderWatch';
+import { canReceiveFromCamera, startFtpInbox, stopFtpInbox, type FtpInbox } from '../../providers/ftpInbox';
+import { canOpenShootRoom } from '../../providers/shootRoom';
+import { useShootRoom } from './useShootRoom';
 import { photoParallelism } from '../../core/photoParallelism';
 import { canDevelopRaw, canExportRawMaster } from '../../providers/rawDevelop';
 import { developFullSizeOf, fullDevelopPossible } from './fullDevelop';
@@ -152,6 +157,8 @@ import { maskAdvice, maskVerificationKey } from './maskVerificationCommit';
 import { commitSubjectMask, subjectMaskTarget } from './subjectMaskCommit';
 import { createMask, createSubjectMask, framingKey, hasActiveMasks, type Mask } from '../../core/maskTypes';
 import { v2Text } from '../../i18n/areas/v2';
+import { lastProjectFrom, onLaunchIntent, openableProjectIds, resolveLaunchIntent, takeLaunchIntent } from '../launchIntent';
+import { forgetLaunchProject, forgetLaunchProjectsExcept, writeLastProject, writeSlideshow } from '../../providers/launchMemory';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize, lensCentre } from '../../core/photoFraming';
 import { estimateIlluminant, neutralBalance, samplePatch } from '../../core/neutralWhite';
 import { GUIDED_RENDER_EDGE } from '../../core/subjectGuide';
@@ -173,7 +180,7 @@ import { backUpProjectNow, useAutoBackup, useBackupStatus } from '../../provider
 import { saveProjectBackupFile } from '../../providers/projectBackupFile';
 import { restoreProjectBackup } from '../../core/projectBackup';
 import { backupStatusText } from './backupWords';
-import { applySidecarImports, planXmpImports, saveSidecars, sidecarFailureText, xmpScope } from './xmpOps';
+import { applySidecarImports, planXmpImports, saveSidecars, sidecarEdits, sidecarFailureText, xmpScope } from './xmpOps';
 import { applyLightroomImport, lightroomNotice } from './lightroomOps';
 import { saveCatalogueExport } from './catalogueExport';
 import { CatalogueReadError, readLightroomCatalogue } from '../../core/lightroomCatalogue';
@@ -185,7 +192,7 @@ import { enlargementPreviewRequest, type EnlargementPreviewResult } from './enla
 import { uniqueExportFilename } from '../../core/exportNaming';
 import { exportMayContinue } from '../../core/exportCancellation';
 import type { ExportRequest } from '../ui/contract';
-import { applyRecipePatch, editToRecipe, NEUTRAL_RECIPE } from './recipeMap';
+import { applyRecipePatch, editToRecipe, NEUTRAL_RECIPE, removeLookPatch } from './recipeMap';
 import { MAX_USER_LOOKS, exportUserLooks, importUserLooks, parseUserLooks, removeUserLook, renameUserLook, saveUserLook, type UserLook } from '../../core/presets';
 import { looksText } from '../../i18n/areas/looks';
 import { canvasLensCentre, detectLateralCa } from '../../core/fringe';
@@ -358,6 +365,18 @@ function positionsOf(frames: readonly PhotoFrame[]): { latitude: number; longitu
 const NO_FRAMES: PhotoFrame[] = [];
 
 const USER_LOOKS_KEY = 'kestrel.v2.userLooks';
+
+/** The launch welcome's "pick up where you left off" snapshot for a project, built with lastProjectFrom. */
+function rememberLastProject(project: Pick<CullingState, 'shoot' | 'frames'>): void {
+  const last = lastProjectFrom({
+    id: project.shoot.id,
+    name: project.shoot.title,
+    photoCount: computeCullCounts(project.frames.filter((frame) => !frame.removedAt)).all,
+    lastUpdatedAt: project.shoot.lastUpdatedAt,
+  });
+  if (last) writeLastProject(last);
+}
+
 /** Your looks share the Looks list with the built-in ones, so their ids carry a prefix no built-in uses. */
 const USER_LOOK_PREFIX = 'mine-';
 const userLookId = () => newId().replace(/[^A-Za-z0-9]/g, '').slice(0, 16) || String(Date.now());
@@ -469,7 +488,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useEffect(() => { surfaceBridge.set(state?.frames ?? [], provider.current); }, [state?.frames]);
   const importController = useRef<AbortController | null>(null);
   // Live shoot (hot folder): the folder being watched, how it is going, and how to stop it.
-  const [liveFolder, setLiveFolder] = useState<{ projectId: string; name: string; imported: number; arriving: number; problem: boolean } | null>(null);
+  const [liveFolder, setLiveFolder] = useState<{ projectId: string; name: string; imported: number; arriving: number; problem: boolean; ftp?: FtpInbox } | null>(null);
   const liveWatch = useRef<AbortController | null>(null);
   const followLiveFrame = useRef<((photoId: string) => void) | null>(null);
   const lastFollowed = useRef<string | null>(null);
@@ -522,6 +541,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       hubCoverUrls.current = nextUrls;
       setProjects(loaded);
       setHubState(loaded.length ? 'ready' : 'empty');
+      // The welcome never offers, or shows photos from, a project that is deleted (here, in another window, or expired).
+      forgetLaunchProjectsExcept(openableProjectIds(loaded));
     } catch {
       nextUrls.forEach((url) => URL.revokeObjectURL(url));
       setHubState('error');
@@ -535,6 +556,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const found = await store.loadProject(id);
       if (!found) { setNotice('That project could not be found.'); return; }
       await store.saveProject(setTrashed(found, at));
+      if (at !== undefined) forgetLaunchProject(id);
       await loadHub();
     })().catch(() => setNotice('InFlight could not update the project.'));
   }, [loadHub]);
@@ -616,6 +638,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useEffect(() => () => { openRequest.current += 1; }, []);
 
   const enterProject = useCallback((next: CullingState, restored?: BrowserPreviewProvider) => {
+    // Remember it for the launch welcome's "pick up where you left off", however it was entered (opened from the hub,
+    // just created, quick start). Local only; erased with device data.
+    rememberLastProject(next);
     openRequest.current += 1;
     provider.current!.clear();
     if (restored) provider.current = restored;
@@ -628,6 +653,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     setScreen('editor');
   }, []);
 
+  const projectsRef = useRef<Project[]>([]);
+  projectsRef.current = projects;
   const openProject = useCallback(async (id: string) => {
     const request = ++openRequest.current;
     const store = catalogue.current!;
@@ -658,6 +685,39 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (provider.current !== restored) restored.clear();
     }
   }, [enterProject]);
+
+  // The launch welcome's choice: once projects have loaded (now, or when the welcome finishes later), open the chosen
+  // project or stay on the hub. The intent is taken once, so it can never open a project twice.
+  const projectsLoaded = hubState === 'ready' || hubState === 'empty';
+  useEffect(() => {
+    if (!projectsLoaded) return;
+    const consume = () => {
+      const intent = takeLaunchIntent();
+      if (!intent) return;
+      const { open, notice: why } = resolveLaunchIntent(intent, openableProjectIds(projectsRef.current));
+      if (why === 'missing-project') setNotice(v2Text.welcome.missingProject);
+      if (open) void openProject(open);
+    };
+    consume();
+    return onLaunchIntent(consume);
+  }, [projectsLoaded, openProject]);
+
+  // The welcome-back slideshow: while a project is open, remember which of its flagged photos to show next launch, as
+  // references to previews already stored on this device (never the pictures, never uploaded). A moment after the
+  // flags settle, so culling is never slowed. No flagged photos forgets it. The last project is written with it, so the
+  // welcome's card and the slideshow's caption always name the same project (and the photo count stays current).
+  // Local only; erased with device data.
+  const slideshowFrames = state?.frames;
+  const slideshowProject = state?.shoot;
+  useEffect(() => {
+    if (!slideshowFrames || !slideshowProject) return;
+    const timer = window.setTimeout(() => {
+      rememberLastProject({ shoot: slideshowProject, frames: slideshowFrames });
+      const keys = pickSlideshowPhotos(slideshowFrames).map(hubPreviewKey);
+      writeSlideshow(keys.length ? { projectId: slideshowProject.id, projectName: slideshowProject.title, developVersion: DEVELOP_VERSION, keys } : null);
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [slideshowFrames, slideshowProject]);
 
   // The opened project is on screen: add the photos an import finished while it was opening. Their originals were
   // registered in the provider of the time, so register them in this project's provider first (from the stored copy or
@@ -859,6 +919,24 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const ids = withPartners(given, pairsRef.current);
     mutate((current) => ids.reduce((next, id) => applyDecisionWithHistory(next, id, decision, { allowAdvance: false }), current));
   }, [mutate]);
+
+  // Live shoot room (desktop): other screens on this network watch the shoot and star or pick; their marks are combined
+  // with the photographer's own and never overwrite a change the photographer made meanwhile.
+  const shootRoom = useShootRoom({
+    stateRef, provider, projectId: state?.shoot.id ?? null,
+    hidden: (photoId) => pairsRef.current.rawOf.has(photoId),
+    apply: (photoId, marks) => {
+      const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+      if (!frame) return;
+      if ((frame.rating ?? 0) !== marks.rating) {
+        const ids = withPartners([photoId], pairsRef.current);
+        mutate((current) => ({ ...current, frames: current.frames.map((each) => (ids.includes(each.id) ? { ...each, rating: marks.rating } : each)), shoot: { ...current.shoot, lastUpdatedAt: Date.now() } }));
+      }
+      if (frame.decision !== marks.decision) decide([photoId], marks.decision);
+    },
+    onKeptYours: (count) => setNotice(V2_STRINGS.liveShoot.roomKeptYours(count)),
+    onProblem: (message) => setNotice(message),
+  });
 
   // Moves already set-aside (rejected) photos to Trash. removeFromLibrary (shared with V1) ignores any id that
   // is not currently rejected, so this never deletes a kept or unreviewed photo by mistake. The removal itself is
@@ -1751,7 +1829,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, [quickStart]);
 
   // Co-pilot and Auto-pilot look at the photo on the canvas, on this device, one at a time. Solo never does.
-  const assistMode = savedUi.assistMode ?? stub.store.assistMode;
+  // Each project keeps its own Flight mode; an older project without one follows Settings' default.
+  const assistMode = state?.shoot.assistMode ?? savedUi.settings.defaultAssistMode ?? savedUi.assistMode ?? stub.store.assistMode;
   // Read by importPhotos (a stable callback) when an import finishes: start, offer or explain Auto-cull.
   const afterImport = useRef({ mode: assistMode, canCull: can('smartCulling'), run: runAutoCull });
   afterImport.current = { mode: assistMode, canCull: can('smartCulling'), run: runAutoCull };
@@ -2157,22 +2236,22 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     liveWatch.current?.abort();
     liveWatch.current = null;
     lastFollowed.current = null;
-    setLiveFolder(null);
+    setLiveFolder((current) => { if (current?.ftp) void stopFtpInbox(); return null; });
   }, []);
 
-  const startLiveFolder = useCallback((source: HotFolderSource) => {
+  const startLiveFolder = useCallback((source: HotFolderSource, ftp?: FtpInbox) => {
     const projectId = stateRef.current?.shoot.id;
     if (!projectId) return;
     liveWatch.current?.abort();
     const controller = new AbortController();
     liveWatch.current = controller;
     lastFollowed.current = null;
-    setLiveFolder({ projectId, name: source.name, imported: 0, arriving: 0, problem: false });
+    setLiveFolder({ projectId, name: source.name, imported: 0, arriving: 0, problem: false, ...(ftp ? { ftp } : {}) });
     watchHotFolder(source, {
       signal: controller.signal,
       // Frames for a project that is no longer open are left for the next look (the watch stops when the project closes).
       onReady: (photos) => (stateRef.current?.shoot.id === projectId ? importPhotos(photos, undefined, true) : Promise.resolve(false)),
-      onStatus: (status) => { if (!controller.signal.aborted) setLiveFolder({ projectId, name: source.name, ...status }); },
+      onStatus: (status) => { if (!controller.signal.aborted) setLiveFolder({ projectId, name: source.name, ...status, ...(ftp ? { ftp } : {}) }); },
     });
   }, [importPhotos]);
 
@@ -2180,7 +2259,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useEffect(() => {
     if (liveFolder && liveFolder.projectId !== state?.shoot.id) stopLiveFolder();
   }, [liveFolder, state?.shoot.id, stopLiveFolder]);
-  useEffect(() => () => liveWatch.current?.abort(), []);
+  useEffect(() => () => { liveWatch.current?.abort(); void stopFtpInbox(); }, []);
 
   // Edit in another app (desktop): the current edit at its own size, the same render as an Original-size export
   // without overlays, so the other editor gets the photo itself. Each settled save comes back as a new photo.
@@ -2810,9 +2889,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       })();
     },
     openProject: (id) => { void openProject(id); },
-    createProject: (name, kind = 'photography') => {
+    createProject: (name, kind = 'photography', mode) => {
       const empty = createEmptyProject(`project-${newId()}`, name.trim() || 'Untitled project');
-      const created = kind === 'collage' ? { ...empty, shoot: { ...empty.shoot, collage: createCollage() } } : empty;
+      const withMode = mode ? { ...empty, shoot: { ...empty.shoot, assistMode: mode } } : empty;
+      const created = kind === 'collage' ? { ...withMode, shoot: { ...withMode.shoot, collage: createCollage() } } : withMode;
       void catalogue.current!.saveProject(created).then(() => enterProject(created), () => setNotice('InFlight could not create the project.'));
     },
     createCollageFromSelection: (photoIds) => {
@@ -2928,7 +3008,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     restoreDeletedProject: (id) => { setProjectTrashed(id, undefined); },
     // Removing for good is offered only from Recently deleted, after its own confirmation.
     deleteProjectForever: (id) => {
-      void catalogue.current!.deleteProject(id).then(() => loadHub(), () => setNotice('InFlight could not delete the project. Your original photos are unchanged.'));
+      void catalogue.current!.deleteProject(id).then(() => { forgetLaunchProject(id); return loadHub(); }, () => setNotice('InFlight could not delete the project. Your original photos are unchanged.'));
     },
     // A copy is a Tasks job: it waits for a free slot, shows while it runs and can be cancelled before it saves.
     duplicateProject: (id) => {
@@ -3094,6 +3174,17 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       void chooseHotFolder().then((source) => { if (source) startLiveFolder(source); });
     },
     stopWatchingFolder: () => stopLiveFolder(),
+    // Wi-Fi cameras (FTP transfer): receive into a chosen folder on this computer and watch it like any hot folder.
+    ...(canOpenShootRoom() ? {
+      openShootRoom: () => { const title = stateRef.current?.shoot.title; if (title !== undefined) void shootRoom.open(title); },
+      closeShootRoom: () => shootRoom.close(),
+    } : {}),
+    ...(canReceiveFromCamera() ? {
+      receiveFromCamera: () => {
+        void startFtpInbox().then((inbox) => { if (inbox) startLiveFolder(desktopHotFolder(inbox.folder), inbox); })
+          .catch((error: unknown) => setNotice(error instanceof Error ? error.message : String(error)));
+      },
+    } : {}),
     importDroppedPhotos: (files) => { if (files.length) void importPhotos(files); },
     backUpProjectNow: () => {
       const current = stateRef.current;
@@ -3131,8 +3222,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           setNotice(sidecarFailureText(null));
           return;
         }
+        const { patches, kept } = sidecarEdits(now, planned);
         mutate((current) => applySidecarImports(current, planned));
-        setNotice(V2_STRINGS.xmp.read(planned.length));
+        // Lightroom's basic sliders go into photos not yet edited here, each as its own Undo step.
+        if (patches.size) editFrames([...patches.keys()], (frame) => applyRecipePatch(frame.edit, patches.get(frame.id) ?? {}).edit);
+        setNotice([V2_STRINGS.xmp.read(planned.length), patches.size ? V2_STRINGS.xmp.editsRead(patches.size) : '',
+          kept ? V2_STRINGS.xmp.editsKept(kept) : ''].filter(Boolean).join(' '));
       }, (error) => setNotice(sidecarFailureText(error)));
     },
     readLightroomCatalogue: (file) => {
@@ -3576,7 +3671,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       setDeviceFonts((current) => { const next = [...new Set([...current, name])]; saveDeviceFonts(next); return next; });
     },
     updateSettings: (patch) => setSavedUi((current) => { const next: SavedUi = { ...current, settings: { ...current.settings, ...patch } }; saveUi(next); return next; }),
-    setAssistMode: (mode) => setSavedUi((current) => { const next: SavedUi = { ...current, assistMode: mode, settings: { ...current.settings, defaultAssistMode: mode } }; saveUi(next); return next; }),
+    // Inside a project this changes that project's mode only (saved with it); Settings changes the default for new ones.
+    setAssistMode: (mode) => {
+      if (stateRef.current) { mutate((current) => ({ ...current, shoot: { ...current.shoot, assistMode: mode } })); return; }
+      setSavedUi((current) => { const next: SavedUi = { ...current, settings: { ...current.settings, defaultAssistMode: mode } }; saveUi(next); return next; });
+    },
     importWatermarkImage: async (usage) => {
       const picked = await pickImageFile();
       if (!picked) return null;
@@ -3649,8 +3748,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const look = looks.find((entry) => entry.id === lookId);
       if (!look) return;
       const targets = editTargets(photoId);
-      applyPatch(targets, look.recipeDelta);
-      mutate((current) => ({ ...current, frames: current.frames.map((frame) => (targets.includes(frame.id) ? { ...frame, appliedLookId: lookId } : frame)) }));
+      // "None" takes the photo's current look off: the sliders that look set go back to where they start.
+      const previous = looks.find((entry) => entry.id === stateRef.current?.frames.find((frame) => frame.id === photoId)?.appliedLookId);
+      applyPatch(targets, lookId === 'none' ? removeLookPatch(previous) : look.recipeDelta);
+      mutate((current) => ({ ...current, frames: current.frames.map((frame) => (targets.includes(frame.id) ? { ...frame, appliedLookId: lookId === 'none' ? undefined : lookId } : frame)) }));
     },
     saveUserLook: (photoId, name) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
@@ -3826,7 +3927,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     PhotoSurface: EngineSurface,
     tapSelect: tapSelect.state,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
-    liveFolder: liveFolder && liveFolder.projectId === state?.shoot.id ? { name: liveFolder.name, imported: liveFolder.imported, arriving: liveFolder.arriving, problem: liveFolder.problem } : null,
+    shootRoom: shootRoom.room,
+    liveFolder: liveFolder && liveFolder.projectId === state?.shoot.id ? { name: liveFolder.name, imported: liveFolder.imported, arriving: liveFolder.arriving, problem: liveFolder.problem, ...(liveFolder.ftp ? { ftp: { addresses: liveFolder.ftp.addresses, port: liveFolder.ftp.port, user: liveFolder.ftp.user, password: liveFolder.ftp.password } } : {}) } : null,
     quickStart: quickStart && quickStart.projectId === state?.shoot.id && screen === 'editor' ? { phase: quickStart.phase, photoId: quickStart.photoId } : null,
     lightroomOffer: lightroomOffer && lightroomPending.current?.projectId === state?.shoot.id ? lightroomOffer : null,
     backup: state ? { state: backupStatus.state, at: backupStatus.at } : null,

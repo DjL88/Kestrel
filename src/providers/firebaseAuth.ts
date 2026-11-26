@@ -1,7 +1,8 @@
 import type { AuthProvider, Session, SignInProvider } from '../core/cloudInterfaces';
-import { signInOptions, type SignInPlatform } from '../core/signInOptions';
+import { sessionProvider, signInOptions, type SignInPlatform } from '../core/signInOptions';
 import { isDesktopApp } from './desktopShell';
 import { friendlyAuthError } from '../core/authError';
+import type { EmailFailure } from '../core/launchWelcome';
 import { LinkingError, linkingProblem, methodsFromProviderIds, signInWithHeldLink, type SignInMethod } from '../core/accountLinking';
 import { challengeFor, explainSignInError, makeVerifier, parseCallbackQuery } from '../core/cloudDrive';
 import { desktopGoogleClient, googleCodeExchangeBody, googleSignInUrl, GOOGLE_TOKEN_URL, idTokenFromAnswer } from '../core/desktopGoogleSignIn';
@@ -9,7 +10,7 @@ import { appleAnswerFromQuery, appleSignInPageUrl, desktopAppleConfig, sha256Hex
 import { DESKTOP_MICROSOFT_REFUSED, desktopMicrosoftClient, desktopMicrosoftRefused, microsoftCodeExchangeBody, microsoftIdTokenFromAnswer, microsoftSignInEnabled, microsoftSignInUrl, MICROSOFT_TOKEN_URL } from '../core/microsoftSignIn';
 
 /** Public web configuration from Firebase. These are identifiers, not secrets (see docs/BACKEND.md). */
-const env = import.meta.env;
+const env = (import.meta.env ?? {}) as ImportMetaEnv; // empty under Node (unit tests), so importing this module never needs Vite
 const config = {
   apiKey: env.VITE_FIREBASE_API_KEY,
   authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -79,10 +80,11 @@ const toSession = (user: import('firebase/auth').User, provider: SignInProvider)
   emailVerified: user.emailVerified,
 });
 
-const providerOf = (user: import('firebase/auth').User): SignInProvider =>
-  user.providerData.some((p) => p.providerId === 'apple.com') ? 'apple'
-    : user.providerData.some((p) => p.providerId === 'microsoft.com') ? 'microsoft'
-    : user.providerData.some((p) => p.providerId === 'password') ? 'password' : 'google';
+/** The way in used for this session, from the ID token; a restored session must not guess from the linked ways. */
+const providerOf = async (user: import('firebase/auth').User): Promise<SignInProvider> => {
+  const linked = user.providerData.map((p) => p.providerId);
+  try { return sessionProvider((await user.getIdTokenResult()).signInProvider, linked); } catch { return sessionProvider(null, linked); }
+};
 
 /**
  * The pop-up provider for Google, Apple or Microsoft. Microsoft uses the "common" tenant, so both personal accounts and
@@ -107,8 +109,50 @@ async function withAuth<T>(run: (a: Awaited<ReturnType<typeof firebase>>) => Pro
   if (!isSignInConfigured()) throw new Error('Sign-in is not set up in this build.');
   try { return await run(await firebase()); } catch (error) {
     if (error instanceof LinkingError) throw error; // the screen words it in the person's language
-    throw new Error(friendlyAuthError(error));
+    throw new Error(friendlyAuthError(error), { cause: error }); // Firebase's own error stays on cause (see emailFailureOf)
   }
+}
+
+/** Firebase's error code, on the error itself or on the one withAuth kept as `cause`. */
+const firebaseCodeOf = (error: unknown): string => {
+  const own = (error as { code?: unknown } | null)?.code;
+  if (typeof own === 'string') return own;
+  const cause = (error as { cause?: { code?: unknown } } | null)?.cause?.code;
+  return typeof cause === 'string' ? cause : '';
+};
+
+/**
+ * Whether the sign-in service itself answered with this error (an `auth/` code). False when its code could not even be
+ * loaded, as when the app is offline and the sign-in code was never downloaded.
+ */
+export const isSignInServiceError = (error: unknown): boolean => firebaseCodeOf(error).startsWith('auth/');
+
+/** What went wrong with an email sign-in or sign-up, for the screens to choose their next step (launchWelcome). */
+export function emailFailureOf(error: unknown): EmailFailure {
+  switch (firebaseCodeOf(error)) {
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+    case 'auth/user-not-found': return 'wrong-or-unknown';
+    case 'auth/email-already-in-use': return 'in-use';
+    case 'auth/weak-password': return 'weak-password';
+    case 'auth/invalid-email': return 'invalid-email';
+    case 'auth/network-request-failed': return 'offline';
+    default: return 'other';
+  }
+}
+
+/**
+ * Web only: whether this sign-in survives closing the browser ("Keep me signed in"). Called straight AFTER a successful
+ * sign-in, so the Google or Apple pop-up still opens inside the person's click (Safari blocks it otherwise); Firebase
+ * moves the signed-in user to the new storage. keep = true sets the remembering storage (indexedDB) again, because an
+ * earlier session-only sign-in in this page left Firebase on session storage; keep = false limits it to this session.
+ * The installed apps always remember, so this does nothing there. Rejects when the browser cannot apply the choice; for
+ * keep = false the caller then signs out rather than silently remembering.
+ */
+async function setKeepSignedIn(keep: boolean): Promise<void> {
+  if (!isSignInConfigured() || signInPlatform() !== 'web') return;
+  const { auth, instance } = await firebase();
+  await auth.setPersistence(instance, keep ? auth.indexedDBLocalPersistence : auth.browserSessionPersistence);
 }
 
 // ---- One account, several ways in (account linking) -------------------------------------------------------------
@@ -344,7 +388,8 @@ async function signInWithMicrosoftOnDesktop(client: NonNullable<typeof microsoft
   }
 }
 
-export const firebaseAuth: AuthProvider = {
+export const firebaseAuth: AuthProvider & { setKeepSignedIn(keep: boolean): Promise<void> } = {
+  setKeepSignedIn,
   signInWithEmail: (email, password) => withAuth(async ({ auth, instance }) => {
     const { user } = await auth.signInWithEmailAndPassword(instance, email.trim(), password);
     await afterSignIn(auth, user);
@@ -381,7 +426,7 @@ export const firebaseAuth: AuthProvider = {
       }
     } catch (error) {
       if (error instanceof LinkingError) throw error;
-      throw new Error(friendlyAuthError(error));
+      throw new Error(friendlyAuthError(error), { cause: error });
     }
   },
   async signOut() {
@@ -401,6 +446,6 @@ export const firebaseAuth: AuthProvider = {
     if (!isSignInConfigured()) return null;
     const { auth, instance } = await firebase();
     await instance.authStateReady();
-    return instance.currentUser ? toSession(instance.currentUser, providerOf(instance.currentUser)) : null;
+    return instance.currentUser ? toSession(instance.currentUser, await providerOf(instance.currentUser)) : null;
   },
 };

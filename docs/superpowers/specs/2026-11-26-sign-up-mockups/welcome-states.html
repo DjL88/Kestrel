@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en-GB">
+<meta charset="utf-8">
+<title>InFlight welcome screen: mockups</title>
+<style>
+  :root{
+    --bg-app:#0c0e13;--bg-surface:#13161e;--bg-raised:#1a1e28;--border:rgba(246,196,160,.18);--border-subtle:rgba(246,196,160,.10);
+    --text:#e4ddd1;--text-2:#b3ada3;--text-3:#99938b;--accent:#e8743c;--accent-soft:rgba(232,116,60,.15);--on-accent:#140d0a;
+    --font:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  }
+  .light{
+    --bg-app:#f3f1ec;--bg-surface:#faf7f2;--bg-raised:#ffffff;--border:rgba(23,25,32,.16);--border-subtle:rgba(23,25,32,.08);
+    --text:#171920;--text-2:#4a4d57;--text-3:#5f626b;--accent:#a84514;--accent-soft:rgba(201,86,32,.12);--on-accent:#ffffff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#2a2c31;color:#e9e6e0;font:14px/1.45 var(--font);padding:24px 20px 48px}
+  h1{font-size:18px;font-weight:600;margin:0 0 4px}
+  .lede{color:#b9b5ad;margin:0 0 20px;max-width:70ch}
+  .row{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+  .col{display:flex;flex-direction:column;gap:10px;width:300px}
+  .cap{font-size:13px;color:#d8d3ca}
+  .cap b{display:block;font-size:14px;color:#fff;margin-bottom:2px}
+  .cap span{color:#a9a49b}
+
+  /* phone frame */
+  .phone{width:300px;height:620px;border-radius:34px;padding:10px;background:#000;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+  .screen{position:relative;height:100%;border-radius:26px;overflow:hidden;background:var(--bg-app);color:var(--text);
+    display:flex;flex-direction:column;align-items:center;padding:56px 22px 22px;font-family:var(--font)}
+  .logo{width:150px;height:auto;margin-top:18px}
+  .logo.small{width:120px;margin-top:6px}
+  .title{font-size:21px;font-weight:600;margin:26px 0 6px;text-align:center;letter-spacing:-.01em}
+  .sub{font-size:13.5px;color:var(--text-2);text-align:center;margin:0 0 6px;max-width:30ch}
+  .grow{flex:1}
+  .btn{width:100%;min-height:46px;border-radius:10px;font:600 14.5px var(--font);border:1px solid transparent;display:flex;align-items:center;justify-content:center;gap:8px;cursor:default}
+  .primary{background:var(--accent);color:var(--on-accent)}
+  .secondary{background:transparent;color:var(--text);border-color:var(--border)}
+  .stack{width:100%;display:flex;flex-direction:column;gap:10px}
+  .note{font-size:12px;color:var(--text-3);text-align:center;margin-top:12px;display:flex;gap:6px;align-items:center;justify-content:center}
+  .link{color:var(--text-2);font-size:12.5px;text-decoration:underline;text-underline-offset:3px;text-align:center;margin-top:12px}
+  .avatar{width:56px;height:56px;border-radius:50%;background:var(--accent-soft);border:1px solid var(--border);display:grid;place-items:center;font-weight:600;font-size:22px;color:var(--accent);margin-top:22px}
+  .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:3px 10px;font-size:12px;color:var(--text-2);margin-top:8px}
+  .pill i{width:7px;height:7px;border-radius:50%;background:#59b27a;display:inline-block}
+  .card{width:100%;border:1px solid var(--border-subtle);background:var(--bg-surface);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;margin:18px 0 14px;text-align:left}
+  .thumb{width:46px;height:46px;border-radius:8px;background:linear-gradient(135deg,#6b5a49,#2e3a46 60%,#8d6b4a);flex:none}
+  .card small{display:block;color:var(--text-3);font-size:11.5px}
+  .card .t{font-size:13px;font-weight:600}
+  .card .go{margin-left:auto;color:var(--text-3);font-size:18px}
+  .check{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--text-2);margin-top:14px;align-self:flex-start}
+  .box{width:16px;height:16px;border:1.5px solid var(--text-3);border-radius:4px;flex:none}
+  .tag{position:absolute;top:14px;left:16px;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+
+  /* desktop frame */
+  .desk{width:640px;border-radius:12px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.4);border:1px solid #444}
+  .bar{height:26px;background:#3a3c42;display:flex;align-items:center;gap:6px;padding:0 10px}
+  .bar i{width:9px;height:9px;border-radius:50%;background:#6c6e73;display:inline-block}
+  .desk .screen{border-radius:0;height:400px;padding:30px 40px}
+  .desk .inner{width:320px;display:flex;flex-direction:column;align-items:center}
+  .ann{font-size:12px;color:#a9a49b;margin-top:8px;max-width:640px}
+  .label2{align-self:flex-start;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);margin-bottom:-10px}
+  .card.big{border-color:var(--accent);background:var(--accent-soft);min-height:66px}
+  .card.big .go{color:var(--accent)}
+  .field{width:100%;margin-top:12px}.field label{display:block;font-size:12px;color:var(--text-2);margin-bottom:4px}
+  .inp{border:1px solid var(--border);border-radius:9px;padding:11px 12px;background:var(--bg-surface);font-size:13.5px}
+  .box.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-size:11px;display:grid;place-items:center}
+</style>
+
+<h1>Welcome screen: what opens after the splash</h1>
+<p class="lede">The splash lands on the logo at the top of this screen. Version 2: signed-in people stay signed in and choose where to go; web adds a sign-in screen with "Keep me signed in". Dark theme on phone, plus one light-theme desktop view. Names and projects are placeholders.</p>
+
+<div class="row">
+
+  <div class="col">
+    <div class="phone"><div class="screen">
+      <div class="tag">1 · First launch</div>
+      <img class="logo" src="inflight-logo-stacked-dark.svg" alt="InFlight">
+      <div class="title">Welcome to InFlight</div>
+      <p class="sub">Sort, edit and export your photos. Everything stays on this device.</p>
+      <div class="grow"></div>
+      <div class="stack">
+        <div class="btn primary">Continue as guest</div>
+        <div class="btn secondary">Sign in</div>
+      </div>
+      <div class="note">No account needed. Works fully offline.</div>
+      <div class="link">Create an account</div>
+    </div></div>
+    <div class="cap"><b>1. First launch</b><span>Shown once. Guest is the easy path, because the spec says core use never needs an account.</span></div>
+  </div>
+
+  <div class="col">
+    <div class="phone"><div class="screen">
+      <div class="tag">2 · Signed in</div>
+      <img class="logo small" src="inflight-logo-stacked-dark.svg" alt="InFlight">
+      <div class="avatar">S</div>
+      <div class="title" style="margin-top:12px">Welcome back, Sam</div>
+      <div class="pill"><i></i>Pro · confirmed on this device</div>
+      <div class="grow"></div>
+      <div class="label2">Pick up where you left off</div>
+      <div class="card big"><div class="thumb"></div><div><div class="t">Kestrels at dawn</div><small>214 photos · edited yesterday</small></div><div class="go">›</div></div>
+      <div class="stack">
+        <div class="btn secondary">Go to my projects</div>
+      </div>
+      <div class="link">Not you? Sign out</div>
+    </div></div>
+    <div class="cap"><b>2. Welcome back, signed in</b><span>Stays signed in. Waits for a tap: pick up the last project, or go to all projects.</span></div>
+  </div>
+
+  <div class="col">
+    <div class="phone"><div class="screen">
+      <div class="tag">3 · Returning guest</div>
+      <img class="logo" src="inflight-logo-stacked-dark.svg" alt="InFlight">
+      <div class="title">Welcome back</div>
+      <p class="sub">Sign in to back up your catalogue and use Pro on this device.</p>
+      <div class="card"><div class="thumb"></div><div><div class="t">Kestrels at dawn</div><small>214 photos · edited yesterday</small></div><div class="go">›</div></div>
+      <div class="grow"></div>
+      <div class="stack">
+        <div class="btn primary">Continue as guest</div>
+        <div class="btn secondary">Sign in</div>
+      </div>
+      <div class="check"><span class="box"></span>Go straight to my projects next time</div>
+    </div></div>
+    <div class="cap"><b>3. Welcome back, guest</b><span>Same choice as first launch, plus a way to skip this screen from now on (changeable in Settings).</span></div>
+  </div>
+
+
+  <div class="col">
+    <div class="phone"><div class="screen">
+      <div class="tag">4 · Web: sign in</div>
+      <img class="logo small" src="inflight-logo-stacked-dark.svg" alt="InFlight">
+      <div class="title">Sign in</div>
+      <div class="field"><label>Email</label><div class="inp">sam@example.com</div></div>
+      <div class="field"><label>Password</label><div class="inp">••••••••••</div></div>
+      <div class="check" style="margin-top:10px"><span class="box on">✓</span>Keep me signed in on this browser</div>
+      <div class="grow"></div>
+      <div class="stack">
+        <div class="btn primary">Sign in</div>
+        <div class="btn secondary">Continue as guest</div>
+      </div>
+      <div class="link">Forgot password?</div>
+    </div></div>
+    <div class="cap"><b>4. Web only: sign in</b><span>Ticked, the browser keeps a sign-in cookie, so next visit opens on screen 2. Unticked, it signs out when the browser closes.</span></div>
+  </div>
+</div>
+
+<div style="height:28px"></div>
+<div class="desk"><div class="bar"><i></i><i></i><i></i></div>
+  <div class="screen light" style="justify-content:center">
+    <div class="inner">
+      <img class="logo" style="width:170px;margin-top:0" src="inflight-logo-stacked-light.svg" alt="InFlight">
+      <div class="title" style="margin-top:18px">Welcome back, Sam</div>
+      <div class="pill"><i></i>Pro · confirmed on this device</div>
+      <div class="label2" style="margin-top:18px">Pick up where you left off</div>
+      <div class="card big" style="margin:16px 0 12px"><div class="thumb"></div><div><div class="t">Kestrels at dawn</div><small>214 photos · edited yesterday</small></div><div class="go">›</div></div>
+      <div class="stack"><div class="btn secondary">Go to my projects</div></div>
+      <div class="link">Not you? Sign out</div>
+    </div>
+  </div>
+</div>
+<p class="ann">Desktop, light theme (screen 2). The stacked logo sits where the splash ends, so the splash can settle straight into it without the fold-to-chevron step.</p>
+</html>

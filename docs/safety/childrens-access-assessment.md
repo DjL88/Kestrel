@@ -36,7 +36,7 @@ The condition is met if the service has a significant number of child users in t
 2. **Raise accounts with online features to 18+.** Change the terms and privacy notice. This alone does **not** let you answer "no" at stage 1 unless highly effective age assurance is added (for example a third-party age check at sign-up for sharing and cloud). Without it, you could still argue at stage 2 that there is no significant number of child users, but you would need evidence, and the gallery-visitor route stays open to any age. **LAW: CHECK.**
 3. **18+ with age assurance for sharing and cloud only.** Local editing stays account-free and is outside the Act. Strongest position; adds cost and a third-party processor.
 
-**[OWNER: choose 1, 2 or 3.]** Recommendation from this draft: option 1 for launch unless the solicitor advises otherwise, because it matches the current terms, and record the decision here.
+**Decision (owner, 26 Nov 2026): option 1, keep 13+.** A children's risk assessment for the shared and gallery features is therefore needed before those features open to UK users (not drafted yet). For the solicitor: the age rules in other regions (EU digital consent ages of 13 to 16 by country, the UK Children's Code, Australia's under-16 social media rule).
 
 ## Review
 

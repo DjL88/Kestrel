@@ -427,6 +427,10 @@ export function createApp(options: AppOptions) {
     ? options.provider
     : config.geminiApiKey ? geminiProvider(config.geminiApiKey, config.geminiModel) : null;
   const authLimiter = new RateLimiter(10, 60_000);
+  // The app's Firebase token exchange: each call carries an ID token Google signed for our project, so a high limit gives
+  // nothing to guess at. The app's panels each exchange the token when Settings opens, and a sign-in right after two
+  // visits must still reach Pro (26 Nov beta); password and provider sign-ins keep the strict limit above.
+  const firebaseExchangeLimiter = new RateLimiter(60, 60_000);
   const contactLimiter = new RateLimiter(5, 10 * 60_000);
   const contactGlobalLimiter = new RateLimiter(60, 60 * 60_000);
   const googleKeys = options.googleKeys ?? googleKeysFromNetwork();
@@ -483,7 +487,7 @@ export function createApp(options: AppOptions) {
     return {
       method: 'POST', path: `/v1/auth/${provider}`, summary: `Sign in with ${provider === 'apple' ? 'Apple' : provider === 'firebase' ? 'the app (Firebase)' : 'Google'}: exchange the provider's ID token for a session`, auth: 'none', body: Schemas.ProviderSignIn,
       handler: async (req) => {
-        if (!authLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
+        if (!(provider === 'firebase' ? firebaseExchangeLimiter : authLimiter).take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
         const body = parseJson(Schemas.ProviderSignIn, req.rawBody);
         const audiences = provider === 'apple' ? config.appleClientIds : provider === 'firebase' ? (config.firebaseProjectId ? [config.firebaseProjectId] : []) : config.userGoogleClientIds;
         if (audiences.length === 0) throw new ApiError(503, 'SIGNIN_UNAVAILABLE', `Sign in with ${provider === 'apple' ? 'Apple' : provider === 'firebase' ? 'the app' : 'Google'} is not set up on this server.`);
