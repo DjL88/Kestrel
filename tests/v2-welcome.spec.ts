@@ -58,6 +58,9 @@ test('a signed-in person is welcomed back by name, and the card opens the projec
     try { return (JSON.parse(localStorage.getItem('inflight.launch.lastProject') ?? 'null') as { name?: string } | null)?.name ?? null; } catch { return null; }
   });
   await expect.poll(rememberedName, { timeout: 10_000 }).toBe('Dawn at the marsh');
+  // The card's photo references follow once the imported photo is in the project.
+  const rememberedThumbs = () => page.evaluate(() => (JSON.parse(localStorage.getItem('inflight.launch.lastProject') ?? 'null') as { thumbs?: { keys: string[] } } | null)?.thumbs?.keys.length ?? 0);
+  await expect.poll(rememberedThumbs, { timeout: 10_000 }).toBe(1);
   const remembered = JSON.parse((await page.evaluate(() => localStorage.getItem('inflight.launch.lastProject')))!);
   await page.evaluate((profile) => localStorage.setItem('inflight.launch.profile', JSON.stringify(profile)), PROFILE);
 
