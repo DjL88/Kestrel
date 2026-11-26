@@ -465,6 +465,9 @@ export const cy: AreaTranslation<typeof source> = {
     history: (app: string, from: string, when: string) => `Wedi’i olygu yn ${app} o ${from}, ${when}.`,
     historySteps: (n: number) => (n === 0 ? "Wedi’i anfon heb olygiadau InFlight." : n === 1 ? "Wedi’i anfon gydag 1 cam golygu InFlight." : `Wedi’i anfon gyda ${n} cam golygu InFlight.`),
     historyBits: (sent: number, saved: number) => `Wedi’i anfon ar ${sent} did; wedi’i gadw ar ${saved} did.`,
+    historyProfile: (profile: string) => `Proffil lliw wedi’i gadw: ${profile}.`,
+    historyNoProfile: "Wedi’i gadw heb broffil lliw, felly mae’n cael ei ddangos fel sRGB.",
+    returnedConverted: (profile: string) => `Cafodd ei gadw yn ${profile}. Mae’r proffil hwnnw’n aros yn y ffeil; mae InFlight yn ei ddangos a’i allforio yn sRGB.`,
   },
   fullDevelop: {
     button: "Datblygu ar faint llawn",

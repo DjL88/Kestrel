@@ -466,6 +466,9 @@ export const gd: AreaTranslation<typeof source> = {
     history: (app: string, from: string, when: string) => `Air a dheasachadh ann an ${app} à ${from}, ${when}.`,
     historySteps: (n: number) => (n === 0 ? "Air a chur gun deasachadh InFlight." : n === 1 ? "Air a chur le 1 cheum deasachaidh InFlight." : `Air a chur le ${n} ceumannan deasachaidh InFlight.`),
     historyBits: (sent: number, saved: number) => `Air a chur aig ${sent} bit; air a shàbhaladh aig ${saved} bit.`,
+    historyProfile: (profile: string) => `Pròifil dathan air a ghleidheadh: ${profile}.`,
+    historyNoProfile: "Air a shàbhaladh gun phròifil dathan, mar sin tha e ga shealltainn mar sRGB.",
+    returnedConverted: (profile: string) => `Chaidh a shàbhaladh ann an ${profile}. Fuirichidh am pròifil sin san fhaidhle; seallaidh is às-phortaichidh InFlight e ann an sRGB.`,
   },
   fullDevelop: {
     button: "Leasaich aig làn-mheud",

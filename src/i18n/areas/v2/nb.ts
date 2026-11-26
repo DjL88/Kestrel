@@ -465,6 +465,9 @@ export const nb: AreaTranslation<typeof source> = {
     history: (app: string, from: string, when: string) => `Redigert i ${app} ut fra ${from}, ${when}.`,
     historySteps: (n: number) => (n === 0 ? "Sendt uten redigeringer fra InFlight." : n === 1 ? "Sendt med 1 redigeringstrinn fra InFlight." : `Sendt med ${n} redigeringstrinn fra InFlight.`),
     historyBits: (sent: number, saved: number) => `Sendt med ${sent} bit; lagret med ${saved} bit.`,
+    historyProfile: (profile: string) => `Fargeprofil beholdt: ${profile}.`,
+    historyNoProfile: "Lagret uten fargeprofil, så den vises som sRGB.",
+    returnedConverted: (profile: string) => `Den ble lagret i ${profile}. Profilen blir værende i filen; InFlight viser og eksporterer den i sRGB.`,
   },
   fullDevelop: {
     button: "Fremkall i full størrelse",

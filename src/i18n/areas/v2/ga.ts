@@ -468,6 +468,9 @@ export const ga: AreaTranslation<typeof source> = {
     history: (app: string, from: string, when: string) => `Curtha in eagar in ${app} ó ${from}, ${when}.`,
     historySteps: (n: number) => (n === 0 ? "Seolta gan eagarthóireacht InFlight." : n === 1 ? "Seolta le 1 chéim eagarthóireachta InFlight." : `Seolta le ${n} céim eagarthóireachta InFlight.`),
     historyBits: (sent: number, saved: number) => `Seolta ag ${sent} giotán; sábháilte ag ${saved} giotán.`,
+    historyProfile: (profile: string) => `Próifíl datha coinnithe: ${profile}.`,
+    historyNoProfile: "Sábháilte gan phróifíl datha, mar sin taispeántar é mar sRGB.",
+    returnedConverted: (profile: string) => `Sábháladh é in ${profile}. Fanann an phróifíl sin sa chomhad; taispeánann agus easpórtálann InFlight é in sRGB.`,
   },
   fullDevelop: {
     button: "Forbair ar lánmhéid",

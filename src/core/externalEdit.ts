@@ -143,10 +143,16 @@ export interface ExternalEditRecord {
   /** Bits per channel the other app actually saved. */
   savedBits: 8 | 16 | 32;
   stepsSent: number;
+  /**
+   * The colour profile the other app saved, by its name ("Adobe RGB (1998)"), kept in the returned file. Null: it saved
+   * none. Absent on records made before profiles were carried back: not known.
+   */
+  savedProfile?: string | null;
 }
 
-export function externalEditRecord(watch: ExternalEditWatch, returnedAt: number, savedBits: number): ExternalEditRecord {
+export function externalEditRecord(watch: ExternalEditWatch, returnedAt: number, savedBits: number, savedProfile: string | null): ExternalEditRecord {
   return {
+    savedProfile,
     fromFrameId: watch.frameId, fromFilename: watch.sourceFilename, appName: watch.app.name,
     sentAt: watch.sentAt, returnedAt, round: watch.returned, sentBits: watch.sentBits,
     savedBits: savedBits === 8 || savedBits === 32 ? savedBits : 16, stepsSent: watch.stepsSent,
@@ -164,8 +170,18 @@ export function readExternalEdit(value: unknown): ExternalEditRecord | undefined
   if (!fromFrameId || !fromFilename || !appName || sentAt === null || returnedAt === null || !round || stepsSent === null) return undefined;
   if (v.sentBits !== 8 && v.sentBits !== 16) return undefined;
   if (v.savedBits !== 8 && v.savedBits !== 16 && v.savedBits !== 32) return undefined;
-  return { fromFrameId, fromFilename, appName, sentAt, returnedAt, round, stepsSent, sentBits: v.sentBits, savedBits: v.savedBits };
+  const savedProfile = v.savedProfile === null ? null : typeof v.savedProfile === 'string' && v.savedProfile.trim() ? v.savedProfile.trim().slice(0, 200) : undefined;
+  return { fromFrameId, fromFilename, appName, sentAt, returnedAt, round, stepsSent, sentBits: v.sentBits, savedBits: v.savedBits, ...(savedProfile !== undefined ? { savedProfile } : {}) };
 }
+
+/** The name to record for a profile the other app saved: its own description, or a plain stand-in when it has none. */
+export function profileName(description: string | null, present: boolean): string | null {
+  if (!present) return null;
+  return description?.trim() || 'an unnamed colour profile';
+}
+
+/** True when a named profile is sRGB, so the picture needs no conversion to be shown and exported as it was saved. */
+export const isSrgbProfile = (name: string | null | undefined) => typeof name === 'string' && /\bsRGB\b/i.test(name);
 
 /** How many of InFlight's edit steps are in the picture as it stands (undone steps are not). */
 export function stepsInEdit(frame: Pick<PhotoFrame, 'editHistory'>): number {

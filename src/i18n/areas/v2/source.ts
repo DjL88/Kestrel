@@ -494,6 +494,9 @@ export const source = {
     history: (app: string, from: string, when: string) => `Edited in ${app} from ${from}, ${when}.`,
     historySteps: (n: number) => (n === 0 ? "Sent without InFlight edits." : n === 1 ? "Sent with 1 InFlight edit step." : `Sent with ${n} InFlight edit steps.`),
     historyBits: (sent: number, saved: number) => `Sent at ${sent} bits; saved at ${saved} bits.`,
+    historyProfile: (profile: string) => `Colour profile kept: ${profile}.`,
+    historyNoProfile: "Saved without a colour profile, so it is shown as sRGB.",
+    returnedConverted: (profile: string) => `It was saved in ${profile}. That profile stays in the file; InFlight shows and exports it in sRGB.`,
   },
   fullDevelop: {
     button: "Develop full size",

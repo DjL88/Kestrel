@@ -305,7 +305,9 @@ function MetaRow({ label, value, mono }: { label: string; value: string; mono?: 
 function externalEditHistory(record: NonNullable<Photo['externalEdit']>): string {
   const words = STRINGS.externalEdit;
   const when = new Date(record.returnedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-  return [words.history(record.appName, record.fromFilename, when), words.historySteps(record.stepsSent), words.historyBits(record.sentBits, record.savedBits)].join(' ');
+  const profile = record.savedProfile === undefined ? null
+    : record.savedProfile === null ? words.historyNoProfile : words.historyProfile(record.savedProfile);
+  return [words.history(record.appName, record.fromFilename, when), words.historySteps(record.stepsSent), words.historyBits(record.sentBits, record.savedBits), profile].filter(Boolean).join(' ');
 }
 
 /** "Edit in another app": the remembered apps, choose another, or the default; then what is happening while it is out. */

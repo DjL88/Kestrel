@@ -465,6 +465,9 @@ export const is: AreaTranslation<typeof source> = {
     history: (app: string, from: string, when: string) => `Breytt í ${app} út frá ${from}, ${when}.`,
     historySteps: (n: number) => (n === 0 ? "Send án breytinga úr InFlight." : n === 1 ? "Send með 1 breytingarskrefi úr InFlight." : `Send með ${n} breytingarskrefum úr InFlight.`),
     historyBits: (sent: number, saved: number) => `Send með ${sent} bitum; vistuð með ${saved} bitum.`,
+    historyProfile: (profile: string) => `Litasnið varðveitt: ${profile}.`,
+    historyNoProfile: "Vistuð án litasniðs, svo hún er sýnd sem sRGB.",
+    returnedConverted: (profile: string) => `Hún var vistuð í ${profile}. Sniðið verður áfram í skránni; InFlight sýnir hana og flytur út í sRGB.`,
   },
   fullDevelop: {
     button: "Framkalla í fullri stærð",

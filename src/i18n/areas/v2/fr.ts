@@ -465,6 +465,9 @@ export const fr: AreaTranslation<typeof source> = {
     history: (app: string, from: string, when: string) => `Modifiée dans ${app} à partir de ${from}, ${when}.`,
     historySteps: (n: number) => (n === 0 ? "Envoyée sans retouches InFlight." : n === 1 ? "Envoyée avec 1 étape de retouche InFlight." : `Envoyée avec ${n} étapes de retouche InFlight.`),
     historyBits: (sent: number, saved: number) => `Envoyée en ${sent} bits ; enregistrée en ${saved} bits.`,
+    historyProfile: (profile: string) => `Profil colorimétrique conservé : ${profile}.`,
+    historyNoProfile: "Enregistrée sans profil colorimétrique : elle est donc affichée en sRGB.",
+    returnedConverted: (profile: string) => `Elle a été enregistrée en ${profile}. Ce profil reste dans le fichier ; InFlight l’affiche et l’exporte en sRGB.`,
   },
   fullDevelop: {
     button: "Développer en pleine taille",

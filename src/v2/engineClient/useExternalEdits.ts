@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  afterFailedRead, externalEditRecord, nextWatchStep, POLL_MS, rememberApp, returnedFileName, startWatch, stepsInEdit,
+  afterFailedRead, externalEditRecord, isSrgbProfile, nextWatchStep, POLL_MS, rememberApp, returnedFileName, startWatch, stepsInEdit,
   workingFileName, type ExternalApp, type ExternalEditRecord, type ExternalEditWatch,
 } from '../../core/externalEdit';
 import type { PhotoFrame } from '../../core/types';
@@ -105,11 +105,13 @@ export function useExternalEdits(deps: {
           show(photoId, { appName: watch.app.name, state: 'bringing-back', returned: before.returned });
           try {
             const back = await bringBack(watch.tiffPath, returnedFileName(watch.sourceFilename, watch.app.name, watch.returned));
-            const record = externalEditRecord(watch, Date.now(), back.bits);
+            const record = externalEditRecord(watch, Date.now(), back.bits, back.profile);
             const added = await depsRef.current.importReturned(await linkedPhoto(back.path), record);
             if (!added) throw new Error(words.busy);
             show(photoId, { appName: watch.app.name, state: 'waiting', returned: watch.returned });
-            depsRef.current.notify(words.returned(back.path.split(/[\\/]/).at(-1) ?? back.path));
+            const returnedName = back.path.split(/[\\/]/).at(-1) ?? back.path;
+            // A profile other than sRGB is kept in the file; InFlight shows and exports the picture converted to sRGB.
+            depsRef.current.notify(`${words.returned(returnedName)}${back.profile && !isSrgbProfile(back.profile) ? ` ${words.returnedConverted(back.profile)}` : ''}`);
           } catch (reason) {
             const retry = stamp ? afterFailedRead(before, stamp, Date.now()) : null;
             if (retry && watches.current.has(photoId)) {
