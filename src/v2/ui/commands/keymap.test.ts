@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { COMMANDS } from './registry';
+import { COMMANDS, availableCommands } from './registry';
 import { PRESETS, commandsUsing, withChord, withoutOverride, chordLabel, effectiveKeymap, eventChord, exportKeymap, findConflicts, importKeymap, resolveCommand } from './keymap';
 
 const key = (init: Partial<KeyboardEvent> & { code: string; key: string }) => init;
@@ -17,8 +17,25 @@ test('gives every command a chord in the InFlight preset', () => {
   // Fit and 100% wait for the macro pad decision (Lightroom's Z is the pad's Undo), so they start without a key.
   // Slider nudges are for dials and pads, which send whatever key they are set to.
   const keyless = new Set(['photo.next', 'photo.prev', 'view.zoomFit', 'view.zoom100', 'adjust.sliderUp', 'adjust.sliderDown', 'adjust.sliderUpMore', 'adjust.sliderDownMore', 'photo.rateUp', 'photo.rateDown']);
-  for (const command of COMMANDS.filter((c) => !keyless.has(c.id))) assert.ok(map[command.id], command.id);
+  for (const command of COMMANDS.filter((c) => !keyless.has(c.id) && !c.preview)) assert.ok(map[command.id], command.id);
   });
+
+test('a preview command has its key only while the preview is on, so an off preview never takes a key', () => {
+  for (const preset of ['inflight', 'lightroom'] as const) {
+    const off = effectiveKeymap(preset);
+    const on = effectiveKeymap(preset, {}, { nextToReview: true });
+    assert.equal(off['photo.nextToReview'], undefined);
+    assert.equal(off['photo.prevToReview'], undefined);
+    assert.equal(on['photo.nextToReview'], 'KeyN');
+    assert.equal(on['photo.prevToReview'], 'Shift+KeyN');
+    assert.deepEqual(findConflicts(on), {}, preset);
+  }
+  // Someone who already put N on another command keeps it working while the preview is off: no ambiguity.
+  const mine = effectiveKeymap('inflight', { 'view.grid': 'KeyN' });
+  assert.equal(resolveCommand({ event: key({ code: 'KeyN', key: 'n' }), keymap: mine, isMac: false, inField: false })?.id, 'view.grid');
+  assert.deepEqual(availableCommands().filter((c) => c.preview), []);
+  assert.deepEqual(availableCommands({ nextToReview: true }).filter((c) => c.preview).map((c) => c.id), ['photo.nextToReview', 'photo.prevToReview']);
+});
 
 test('reads Cmd as Mod on a Mac and Ctrl as Mod elsewhere', () => {
     assert.equal(eventChord(key({ code: 'KeyZ', key: 'z', metaKey: true }), true), 'Mod+KeyZ');

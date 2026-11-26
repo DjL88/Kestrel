@@ -16,6 +16,8 @@ import { mosaic, withPreview } from './rawFixture';
  */
 const PHOTOS = Number(process.env.KESTREL_CULL_PHOTOS ?? 120);
 const STEPS = Math.min(60, PHOTOS - 2);
+/** Embedded preview size. 1620 × 1080 by default; KESTREL_CULL_PREVIEW=6048x4024 is a 24 MP full-size preview like a Z 6's. */
+const [PREVIEW_W, PREVIEW_H] = (process.env.KESTREL_CULL_PREVIEW ?? '1620x1080').split('x').map(Number);
 
 test.beforeEach(({}, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Culling with the keyboard is a desktop measurement.');
@@ -26,6 +28,8 @@ test(`culling ${PHOTOS} RAWs from the keyboard: each next photo shows quickly`, 
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(`${error.message}\n${error.stack ?? ''}`));
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text().slice(0, 1500)); });
+  // KESTREL_CULL_WARMUP=1 turns on the culling read-ahead preview on this device (off by default).
+  if (process.env.KESTREL_CULL_WARMUP === '1') await page.addInitScript(() => localStorage.setItem('kestrel.preview.cullWarmup.v1', '1'));
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: 'New project' }).first().click();
@@ -34,20 +38,20 @@ test(`culling ${PHOTOS} RAWs from the keyboard: each next photo shows quickly`, 
   await root.getByRole('button', { name: 'Import', exact: true }).waitFor();
 
   // One preview per photo, each a little different, so no picture can be served from another's cache.
-  const previews: string[] = await page.evaluate((count) => {
+  const previews: string[] = await page.evaluate(({ count, width, height }) => {
     const canvas = document.createElement('canvas');
-    canvas.width = 1620; canvas.height = 1080;
+    canvas.width = width; canvas.height = height;
     const ctx = canvas.getContext('2d')!;
     const out: string[] = [];
     for (let i = 0; i < Math.min(count, 12); i++) {
-      for (let y = 0; y < 1080; y += 30) for (let x = 0; x < 1620; x += 30) {
+      for (let y = 0; y < height; y += 30) for (let x = 0; x < width; x += 30) {
         ctx.fillStyle = `rgb(${(x * 3 + i * 40) % 255},${(y * 5 + i * 17) % 255},${(x + y + i * 9) % 255})`;
         ctx.fillRect(x, y, 30, 30);
       }
       out.push(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]);
     }
     return out;
-  }, PHOTOS);
+  }, { count: PHOTOS, width: PREVIEW_W, height: PREVIEW_H });
   const folder = mkdtempSync(join(tmpdir(), 'cull-speed-'));
   const paths: string[] = [];
   for (let i = 0; i < PHOTOS; i++) {
@@ -122,9 +126,9 @@ test(`culling ${PHOTOS} RAWs from the keyboard: each next photo shows quickly`, 
     return { count: sorted.length, medianMs: at(0.5), p95Ms: at(0.95), worstMs: Math.round(sorted[sorted.length - 1]) };
   };
   const result = {
-    photos: PHOTOS, firstPhotoMs, first20Ms,
+    photos: PHOTOS, preview: `${PREVIEW_W}x${PREVIEW_H}`, readAhead: process.env.KESTREL_CULL_WARMUP === '1', firstPhotoMs, first20Ms,
     nextPhoto: stats(next), rateAndMoveOn: stats(rated),
-    note: 'Synthetic DNGs with a 1620x1080 embedded JPEG preview, headless Chromium, built app. Measured while the import still works in the background. Not a Photo Mechanic comparison.',
+    note: 'Synthetic DNGs with an embedded JPEG preview of the size above, headless Chromium, built app. Measured while the import still works in the background. Not a Photo Mechanic comparison.',
   };
   writeFileSync(testInfo.outputPath('cull-speed.json'), JSON.stringify(result, null, 2));
   writeFileSync('test-results/cull-speed.json', JSON.stringify(result, null, 2));

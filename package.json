@@ -23,6 +23,7 @@
     "compare:auto": "tsx scripts/natural-auto-compare.ts",
     "journey:local": "tsx scripts/journey-local.ts",
     "raw:wasm": "node scripts/build-raw-wasm.mjs",
+    "release:dry-run": "tsx scripts/release/publish-dry-run.ts",
     "build:site-editor": "vite build --config vite.demo.config.ts",
     "verify:site-editor": "node scripts/site/verify-deployment.mjs",
     "check:syntax": "node scripts/check-source-parse.mjs"

@@ -1,6 +1,6 @@
 import { STRINGS } from '../strings';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { COMMANDS, type CommandDefinition } from '../commands/registry';
+import { availableCommands, type CommandDefinition } from '../commands/registry';
 import { chordLabel, type Keymap } from '../commands/keymap';
 
 interface CommandPaletteProps {
@@ -9,13 +9,15 @@ interface CommandPaletteProps {
   /** Runs the same dispatch the keyboard handler uses; this dialog never duplicates that switch. */
   onRunCommand: (command: CommandDefinition) => void;
   onClose: () => void;
+  /** Preview features that are on: their commands are listed only then. */
+  previews?: Partial<Record<'nextToReview', boolean>>;
 }
 
 /**
  * Cmd/Ctrl+K: find any command by name and run it, from the one list the keyboard guide also reads
  * (`COMMANDS`). Narrows as you type; Up/Down to move, Enter to run, Escape or an outside click to close.
  */
-export default function CommandPalette({ keymap, isMac, onRunCommand, onClose }: CommandPaletteProps) {
+export default function CommandPalette({ keymap, isMac, onRunCommand, onClose, previews }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [highlighted, setHighlighted] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -27,14 +29,14 @@ export default function CommandPalette({ keymap, isMac, onRunCommand, onClose }:
   }, []);
 
   const matches = useMemo(() => {
-    const runnable = COMMANDS.filter((command) => command.id !== 'app.commandSearch');
+    const runnable = availableCommands(previews).filter((command) => command.id !== 'app.commandSearch');
     const needle = query.trim().toLowerCase();
     if (!needle) return runnable;
     return runnable.filter((command) =>
       command.label.toLowerCase().includes(needle) ||
       chordLabel(keymap[command.id], isMac).toLowerCase().includes(needle)
     );
-  }, [query, keymap, isMac]);
+  }, [query, keymap, isMac, previews]);
 
   useEffect(() => {
     setHighlighted((index) => (matches.length === 0 ? 0 : Math.min(index, matches.length - 1)));

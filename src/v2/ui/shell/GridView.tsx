@@ -22,6 +22,8 @@ interface GridViewProps {
   onSetSort: (sort: PhotoSort) => void;
   tagFilter?: string | null;
   onSetTagFilter?: (tagId: string | null) => void;
+  /** Saved views of these filters (a preview: absent while its flag is off). */
+  savedViews?: import('./PhotoViewControls').SavedViewsControl;
   onSelectPhoto: (photoId: string, modifiers?: { ctrl?: boolean; shift?: boolean }) => void;
   onOpenInEditor: (photoId: string) => void;
   onToggleFlag: (photoIds: string[]) => void;
@@ -44,6 +46,7 @@ export default function GridView({
   onSetSort,
   tagFilter = null,
   onSetTagFilter,
+  savedViews,
   onSelectPhoto,
   onOpenInEditor,
   onToggleFlag,
@@ -74,7 +77,7 @@ export default function GridView({
 
         <div className="flex items-center gap-2">
           <DecisionFilter photos={photos} filter={filter} onSetFilter={onSetFilter} />
-          <ViewOptions minRating={minRating} sort={sort} onSetMinRating={onSetMinRating} onSetSort={onSetSort} opensUp={false} />
+          <ViewOptions minRating={minRating} sort={sort} onSetMinRating={onSetMinRating} onSetSort={onSetSort} opensUp={false} savedViews={savedViews} />
               {onSetTagFilter && <TagFilterSelect photos={photos} value={tagFilter} onChange={onSetTagFilter} />}
           <div className="relative">
             <BrandIcon

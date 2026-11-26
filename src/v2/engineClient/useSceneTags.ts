@@ -8,6 +8,10 @@ import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvi
 import { gateAvailable } from '../../providers/categoryGate';
 import { pictureForAnalysis } from '../../providers/pictureForAnalysis';
 import { placeTagsFor, sceneTagsFor } from '../../providers/sceneTagger';
+import { startNotingInput, untilQuiet } from '../../providers/userActivity';
+
+/** Tagging waits until the person has paused this long, so it never makes the next photo late while they cull. */
+const QUIET_MS = 800;
 
 interface Options {
   projectId: string;
@@ -31,6 +35,7 @@ export function useSceneTags({ projectId, frames, provider, active, onScreen, on
   const running = useRef(false);
   const skipped = useRef(new Set<string>());
   const [modelAvailable, setModelAvailable] = useState(false);
+  useEffect(() => { startNotingInput(); }, []);
   useEffect(() => { void gateAvailable().then(setModelAvailable, () => setModelAvailable(false)); }, [active]);
 
   const run = useCallback(async () => {
@@ -41,6 +46,9 @@ export function useSceneTags({ projectId, frames, provider, active, onScreen, on
         const { projectId: currentId, frames: current, provider: store, onScreen: focus } = latest.current;
         const stillCurrent = () => latest.current.active && latest.current.projectId === currentId;
         if (!stillCurrent() || !store) break;
+        // Reading and measuring a picture holds the main thread; it waits for a pause in key presses and taps.
+        await untilQuiet(QUIET_MS);
+        if (!stillCurrent()) break;
         const frame = sceneTagCandidates(current, focus, modelAvailable, skipped.current)[0];
         if (!frame) break;
         skipped.current.add(frame.id);

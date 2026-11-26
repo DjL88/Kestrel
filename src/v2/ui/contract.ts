@@ -67,6 +67,10 @@ export type FeatureKey =
   | 'focusStack'
   /** Preview: panorama stitching (off by default). */
   | 'panorama'
+  /** Preview: named saved views of the filmstrip's filters (off by default). */
+  | 'savedViews'
+  /** Preview: keys that jump to the next or previous photo still to review (off by default). */
+  | 'nextToReview'
   /** Preview: HDR merge of a bracketed burst (off by default). */
   | 'hdrMerge';
 
@@ -1061,6 +1065,8 @@ export interface WorkspaceActions {
   toggleAiProvider: (providerId: AiProviderConfig['id']) => void;
   toggleStorageConnector: (connectorId: StorageConnector['id']) => void;
   clearNotice: () => void;
+  /** Shows a short message in the usual notice (for a key that had nothing to do, for example). */
+  showNotice?: (message: string) => void;
 }
 
 /** Background suitability chosen when importing watermark artwork. */
