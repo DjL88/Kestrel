@@ -403,6 +403,21 @@ Before enabling it, build and publish an image from a commit containing `src/com
 - [ONS all-items CPI index](https://www.ons.gov.uk/economy/inflationandpriceindices/timeseries/d7bt)
 - [Scheduling Cloud Run jobs](https://docs.cloud.google.com/run/docs/execute/jobs-on-schedule)
 
+### Daily account deletion
+
+`account-deletions.tf` (off by default, `account_deletion_enabled=false`). When on, Cloud Scheduler starts the `kestrel-account-deletions` Cloud Run job every day at 03:30 London time. It deletes each account whose 30 days to change their mind have passed (Settings → Account → *Delete my account*, `services/control-plane/src/accountErasure.ts`), and finishes any deletion that stopped part-way. It uses the same Cloud Scheduler service the price review already turned on, so there is nothing new to enable, and one more job stays inside the free tier of three.
+
+Turn it on together with the app's `accountData` flag:
+
+1. The control-plane image must come from `main` at or after `ba37a007` (it needs `src/runAccountDeletions.ts`). Deploy it as usual.
+2. In the private `current.tfvars.json`, add `"account_deletion_enabled": true`.
+3. `terraform plan` with that file. Expect to see only additions: two service accounts (`kestrel-account-deletion`, `kestrel-deletion-scheduler`), the Firestore role, the gallery bucket role, the job, its invoker binding and the scheduler job. Stop if it replaces anything.
+4. `apply` that plan.
+5. Try it once now: `gcloud run jobs execute kestrel-account-deletions --region europe-west2 --wait`. The log line `account-deletions: {"deleted":0,"failed":0}` means it works and nothing was due.
+6. In the admin console, add the flag `accountData` → Everyone (or just yourself first).
+
+To pause it, set `"account_deletion_enabled": false` and apply. Requests already made keep their date and are deleted on the first run after it is back on. A run that fails part-way exits with an error, and the next run finishes it.
+
 ## Cloud Processing (optional; plan only, not applied)
 
 `cloud-processing.tf` is switched off by default, so `terraform plan` shows no change. Read [docs/CLOUD-PROCESSING.md](../../docs/CLOUD-PROCESSING.md) first: the measurement shows it only helps older devices on good links. To review what it would create:
