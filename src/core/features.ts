@@ -43,6 +43,9 @@ export const FEATURES = {
   panorama: 'flagged',
   // HDR merge of a bracketed burst: a preview, off for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
   hdrMerge: 'flagged',
+  // Culling read-ahead (the photos either side of the one on screen are prepared in the background): a preview, off
+  // for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
+  cullWarmup: 'flagged',
 } as const;
 
 export type Feature = keyof typeof FEATURES;

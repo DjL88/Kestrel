@@ -29,6 +29,7 @@ import { focusStackPreviewOn, imageStackSource, refusalText, rgbaToRgb16, stackD
 import { mergeHdrOffThread, rgb16Source, canvasSource, type HdrFrameInput } from '../../providers/hdrMergeOffThread';
 import { hdrMergeRecipe, type HdrMergeRecipe } from '../../core/hdrMergeRecipe';
 import { hdrText } from '../../i18n/areas/hdr';
+import { cullWarmupPreviewOn, warmupNeighbours } from './previewWarmup';
 import { hdrDoneNotice, hdrFilename, hdrPreviewOn, hdrRefusalText, hdrSelection } from './hdrMergeOps';
 import { renderRaw16 } from '../../providers/rawMaster16';
 import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '../../core/types';
@@ -685,6 +686,34 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId]);
+
+  // Culling read-ahead (off by default): once the photo on the canvas has its preview, prepare the photos either side
+  // of it, the same preview they would show anyway, read, unpacked and decoded, so the next key press finds it ready.
+  const warmed = useRef<Map<string, HTMLImageElement>>(new Map());
+  useEffect(() => {
+    const source = provider.current;
+    const frames = stateRef.current?.frames ?? [];
+    if (!source || !activeId || !urls[activeId]?.preview || (!can('cullWarmup') && !cullWarmupPreviewOn())) return;
+    let live = true;
+    const neighbours = warmupNeighbours(frames, activeId);
+    void (async () => {
+      for (const frame of neighbours) {
+        if (!live) return;
+        const preview = await source.getFullPreviewUrl(frame, 'background').catch(() => '');
+        if (!live || !preview || provider.current !== source) return;
+        setUrls((current) => current[frame.id]?.preview === preview ? current : ({ ...current, [frame.id]: { ...current[frame.id], preview } }));
+        // Decoding here keeps the picture in the browser's image cache; a few are held so it is not dropped at once.
+        const image = new Image();
+        image.src = preview;
+        await image.decode().catch(() => undefined);
+        warmed.current.delete(frame.id);
+        warmed.current.set(frame.id, image);
+        while (warmed.current.size > 4) warmed.current.delete(warmed.current.keys().next().value!);
+      }
+    })();
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, Boolean(activeId && urls[activeId]?.preview)]);
 
   // Developing, relinking or replacing an original revokes the provider's blob URLs. Forget them for every photo of
   // that original and ask again, so views that draw `previewUrl` directly (the All formats board) never show a dead link.
