@@ -24,6 +24,8 @@ const paddleEnvironment = process.env.KCP_PADDLE_ENVIRONMENT?.trim() === 'produc
 const paddlePriceId = process.env.KCP_PADDLE_PRO_PRICE_ID?.trim();
 const paddleWebhookSecret = process.env.KCP_PADDLE_WEBHOOK_SECRET?.trim() || undefined;
 const paddleClientToken = process.env.KCP_PADDLE_CLIENT_TOKEN?.trim();
+// Optional offer (for example Black Friday): a Paddle discount ID. It applies only while the admin flag proPromo is on.
+const paddlePromoDiscountId = /^dsc_[a-z0-9]{10,60}$/.test(process.env.KCP_PADDLE_PROMO_DISCOUNT_ID?.trim() ?? '') ? process.env.KCP_PADDLE_PROMO_DISCOUNT_ID!.trim() : undefined;
 // The key is renewed by the kestrel-paddle-key-rotation job (infra/gcp/paddle-key-rotation.tf). When
 // KCP_PADDLE_KEY_PROJECT is set the server re-reads the latest secret version every 5 minutes, so a new key takes over
 // without a redeploy; the value Cloud Run injected at start-up is the fallback.
@@ -64,6 +66,7 @@ const proCheckout = firestore && paddle && settlePaddle && paddlePriceId && site
   priceId: paddlePriceId,
   checkoutUrl: new URL('/pro-checkout', siteUrl).toString(),
   settle: settlePaddle,
+  promoDiscountId: paddlePromoDiscountId,
 }) : undefined;
 const paddleClient = paddleClientToken ? { environment: paddleEnvironment, clientToken: paddleClientToken } as const : undefined;
 const demoStudio = firestore && process.env.KCP_DEMO_PRIVATE_BUCKET && process.env.KCP_DEMO_PUBLIC_BUCKET

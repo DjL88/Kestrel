@@ -8,6 +8,8 @@ export const PRO_MAJOR_VERSION_ON_SALE = 1;
 export interface StoredProOrder extends ProPurchaseOrder {
   transactionId: string;
   createdAt: string;
+  /** The Paddle discount applied because the offer was on when this checkout started (for example Black Friday). */
+  discountId?: string;
 }
 
 export interface ProOrders {
@@ -24,6 +26,11 @@ interface Dependencies {
   checkoutUrl: string;
   /** Verified settlement (re-fetches the transaction from Paddle); safe to call repeatedly. */
   settle: (transactionId: string) => Promise<'paid' | 'pending' | 'unknown'>;
+  /**
+   * Optional offer discount (a Paddle discount ID such as dsc_…, made in the Paddle dashboard). It is applied only to a
+   * checkout started while the offer is on (the admin flag proPromo, with its dates), by someone signed in at that time.
+   */
+  promoDiscountId?: string;
   now?: () => number;
 }
 
@@ -36,17 +43,18 @@ export function paddleProCheckout(deps: Dependencies) {
   const now = deps.now ?? Date.now;
   if (new URL(deps.checkoutUrl).protocol !== 'https:') throw new Error('The checkout page must use HTTPS.');
   return {
-    async start(input: { accountId: string; emailHash: string }) {
+    async start(input: { accountId: string; emailHash: string; promo?: boolean }) {
       const at = new Date(now()).toISOString();
       const reference = 'paddle_' + randomBytes(12).toString('hex');
       const invoiceNumber = 'INF-' + at.slice(0, 10).replaceAll('-', '') + '-' + reference.slice(7, 17).toUpperCase();
+      const discountId = input.promo && deps.promoDiscountId ? deps.promoDiscountId : undefined;
       const created = await deps.paddle.createTransaction({
-        priceId: deps.priceId, checkoutUrl: deps.checkoutUrl,
+        priceId: deps.priceId, checkoutUrl: deps.checkoutUrl, ...(discountId ? { discountId } : {}),
         customData: { reference, accountId: input.accountId, product: 'pro', majorVersion: String(PRO_MAJOR_VERSION_ON_SALE) },
       });
       await deps.orders.save({
         transactionId: created.transactionId, createdAt: at, reference, accountId: input.accountId, emailHash: input.emailHash,
-        majorVersion: PRO_MAJOR_VERSION_ON_SALE, invoiceNumber, priceId: deps.priceId,
+        majorVersion: PRO_MAJOR_VERSION_ON_SALE, invoiceNumber, priceId: deps.priceId, ...(discountId ? { discountId } : {}),
       });
       return { checkoutId: created.transactionId, url: created.url };
     },

@@ -311,6 +311,7 @@ resource "google_cloud_run_v2_service" "control_plane" {
         for_each = var.phase5_paddle_enabled ? merge(
           { KCP_PADDLE_ENVIRONMENT = var.phase5_paddle_environment, KCP_PADDLE_PRO_PRICE_ID = var.phase5_paddle_pro_price_id },
           var.paddle_key_rotation_enabled ? { KCP_PADDLE_KEY_PROJECT = var.project_id } : {},
+          var.phase5_paddle_promo_discount_id != "" ? { KCP_PADDLE_PROMO_DISCOUNT_ID = var.phase5_paddle_promo_discount_id } : {},
         ) : {}
         content {
           name  = env.key
