@@ -105,6 +105,8 @@ export interface PhotoFrame {
   rating?: number;
   /** A focus stack made in InFlight: this photo is the new linked file, and this is the record of its sources. */
   focusStack?: import('./focusStackRecipe').FocusStackRecipe;
+  /** A panorama stitched in InFlight: this photo is the new linked file, and this is the record of its sources. */
+  panorama?: import('./panoramaRecipe').PanoramaRecipe;
   virtualCopy?: { originalFrameId: string; number: number };
   /** This photo was brought back from another editor (src/core/externalEdit.ts): where it came from. Checked with `readExternalEdit`. */
   externalEdit?: import('./externalEdit').ExternalEditRecord;

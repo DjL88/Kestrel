@@ -64,7 +64,9 @@ export type FeatureKey =
   | 'zoomVideo'
   | 'splitFrames'
   /** Preview: focus stacking (off by default). */
-  | 'focusStack';
+  | 'focusStack'
+  /** Preview: panorama stitching (off by default). */
+  | 'panorama';
 
 export type SocialPlatform =
   | 'instagram'
@@ -458,6 +460,8 @@ export interface Photo {
   dngCopy?: boolean;
   /** This photo is a focus stack made in InFlight: the photos it was made from, in order. */
   focusStack?: { sources: string[] };
+  /** This photo is a panorama stitched in InFlight: the photos it was made from, in order. */
+  panorama?: { sources: string[] };
   /** 'offered': a RAW whose full-size develop is not on screen and can be made here; 'running': it is being made. */
   fullDevelop?: 'offered' | 'running';
   picture?: { preview?: import('../../core/pictureSource').PictureProvenance; thumb?: import('../../core/pictureSource').PictureProvenance };
@@ -753,6 +757,8 @@ export interface WorkspaceActions {
   createCollageFromSelection?: (photoIds: string[]) => void;
   /** Focus stack the chosen photos into a new linked photo, as a background task (preview, behind its flag). */
   focusStackPhotos?: (photoIds: string[]) => void;
+  /** Stitch the chosen photos into a new linked panorama, as a background task (preview, behind its flag). */
+  stitchPanorama?: (photoIds: string[]) => void;
   exportCollage?: (request: import('../engineClient/exportCollage').CollageExportRequest) => Promise<void>;
   updateCollage?: (document: import('../../core/collage').CollageDocument) => void;
   browseCollageProjectPhotos?: (sourceProjectId: string) => Promise<Array<{ id: string; filename: string }>>;

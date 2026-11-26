@@ -1,5 +1,6 @@
 import { planFilmstrip } from '../../engineClient/burstGroups';
 import { stackText } from '../../../i18n/areas/stack';
+import { panoText } from '../../../i18n/areas/pano';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { AssistMode, FilmstripFilter, LookPreset, Photo, PhotoSort } from '../contract';
@@ -60,6 +61,8 @@ interface FilmstripProps {
   onCreateCollage?: (photoIds: string[]) => void;
   /** Focus stack the selected photos into a new photo (a preview feature: absent while its flag is off). */
   onFocusStack?: (photoIds: string[]) => void;
+  /** Stitch the selected photos into a new panorama (a preview feature: absent while its flag is off). */
+  onStitchPanorama?: (photoIds: string[]) => void;
   /** Composing a collage: photos drag onto its windows, and editing-only tools (Auto-Cull) are not offered. */
   collageMode?: boolean;
   /** Composing a collage: open the picker that references photographs from another project. */
@@ -109,6 +112,7 @@ export default function Filmstrip({
   onCompareSelected,
   onCreateCollage,
   onFocusStack,
+  onStitchPanorama,
   collageMode = false,
   onChooseFromProject,
 }: FilmstripProps) {
@@ -648,6 +652,11 @@ export default function Filmstrip({
             onClick={() => { onFocusStack(menuTargetIds); setTileMenu(null); }}
             className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {stackText.menu(menuTargetIds.length)}
+          </button>}
+          {onStitchPanorama && menuTargetIds.length >= 2 && <button type="button" role="menuitem" title={panoText.menuHint}
+            onClick={() => { onStitchPanorama(menuTargetIds); setTileMenu(null); }}
+            className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            {panoText.menu(menuTargetIds.length)}
           </button>}
           <button type="button" role="menuitem"
             onClick={() => {

@@ -623,6 +623,7 @@ export const DEFAULT_FEATURE_PLAN: Record<FeatureKey, 'basic' | 'pro'> = {
   zoomVideo: 'basic',
   splitFrames: 'basic',
   focusStack: 'basic',
+  panorama: 'basic',
 };
 
 export const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
@@ -636,6 +637,7 @@ export const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
   zoomVideo: true,
   splitFrames: true,
   focusStack: false,
+  panorama: false,
 };
 
 function logAction(name: string, payload?: unknown) {

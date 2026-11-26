@@ -39,6 +39,8 @@ export const FEATURES = {
   accountData: 'flagged',
   // Focus stacking: a preview, off for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
   focusStack: 'flagged',
+  // Panorama stitching: a preview, off for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
+  panorama: 'flagged',
 } as const;
 
 export type Feature = keyof typeof FEATURES;
