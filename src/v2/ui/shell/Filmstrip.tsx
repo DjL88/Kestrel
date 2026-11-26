@@ -1,5 +1,6 @@
 import { planFilmstrip } from '../../engineClient/burstGroups';
 import EdgeProgress from './EdgeProgress';
+import { minutesLeft } from '../utils/edgeActivity';
 import { stackText } from '../../../i18n/areas/stack';
 import { panoText } from '../../../i18n/areas/pano';
 import { hdrText } from '../../../i18n/areas/hdr';
@@ -277,12 +278,16 @@ export default function Filmstrip({
   };
 
 
+  const activityMinutes = minutesLeft(activity?.remainingMs ?? null);
+  const activityText = !activity ? '' : [activity.label, activity.total !== null ? `${activity.done} / ${activity.total}` : '',
+    activityMinutes !== null ? STRINGS.activityBar.minutesLeft(activityMinutes) : ''].filter(Boolean).join(', ');
+
   return (
     <section
       aria-label={STRINGS.filmstripLabels.label1}
       className="v2-filmstrip relative z-20 flex shrink-0 flex-col border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] select-none"
     >
-      <EdgeProgress active={Boolean(activity)} value={activity?.value ?? null} label={activity?.label ?? ''} edge="top" testId="filmstrip-progress" />
+      <EdgeProgress active={Boolean(activity)} value={activity?.value ?? null} label={activityText} edge="top" testId="filmstrip-progress" />
       {/* Top Resize Drag Bar */}
       {!collapsed && (
         <div
@@ -342,6 +347,17 @@ export default function Filmstrip({
             <BrandIcon name="folder-open" size={13} />
             <span className="v2-compact-label">{STRINGS.filmstripLabels.label10}</span>
           </button>
+
+          {activity && (
+            <span data-testid="filmstrip-activity"
+              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--brand-accent-soft)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] whitespace-nowrap">
+              <BrandIcon name="clock" size={13} />
+              <span>{activity.label}</span>
+              {activity.total !== null && <span className="tabular-nums">{activity.done} / {activity.total}</span>}
+              {activity.value !== null && <span className="tabular-nums text-[var(--text-secondary)]">({activity.value}%)</span>}
+              {activityMinutes !== null && <span className="text-[var(--text-secondary)]">· {STRINGS.activityBar.minutesLeft(activityMinutes)}{activityMinutes >= 5 ? ` · ${STRINGS.activityBar.teaTime}` : ''}</span>}
+            </span>
+          )}
 
           {liveFolder ? (
             <span role="status" data-testid="filmstrip-live-folder"

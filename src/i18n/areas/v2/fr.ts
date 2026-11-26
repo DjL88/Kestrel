@@ -1991,5 +1991,7 @@ export const fr: AreaTranslation<typeof source> = {
   },
   activityBar: {
     photoLoading: 'Chargement de la photo',
+    minutesLeft: (n: number) => `Environ ${n} min restantes`,
+    teaTime: 'Le temps d’une tasse de thé',
   },
 };

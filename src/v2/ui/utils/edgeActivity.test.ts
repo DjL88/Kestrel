@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { filmstripActivity } from './edgeActivity.ts';
+import { filmstripActivity, minutesLeft, roughRemainingMs, tasksWheelProgress } from './edgeActivity.ts';
 import type { TaskInfo } from '../contract.ts';
 
 const task = (change: Partial<TaskInfo>): TaskInfo => ({ id: '1', label: 'Importing photos', detail: '', progress: 0, status: 'running', ...change });
@@ -12,20 +12,42 @@ test('no import or sorting work: no filmstrip bar', () => {
   assert.equal(filmstripActivity([task({ status: 'running' })]), null, 'work of no known kind is not claimed');
 });
 
-test('an import shows its real share done, with its own words', () => {
-  assert.deepEqual(filmstripActivity([task({ kind: 'import', total: 40, done: 10, detail: '10 of 40' })]),
-    { label: 'Importing photos: 10 of 40', value: 25 });
+test('an import shows its real count and share done', () => {
+  const bar = filmstripActivity([task({ kind: 'import', total: 40, done: 10 })], 0);
+  assert.equal(bar?.value, 25);
+  assert.equal(bar?.done, 10);
+  assert.equal(bar?.total, 40);
+  assert.equal(bar?.label, 'Importing photos');
 });
 
 test('import and Auto-pilot cull together count as one bar; queued work keeps it on', () => {
   const bar = filmstripActivity([
     task({ id: 'a', kind: 'import', total: 10, done: 10, status: 'running' }),
     task({ id: 'b', kind: 'cull', label: 'Sorting photos', total: 10, done: 0, status: 'queued' }),
-  ]);
+  ], 0);
   assert.equal(bar?.value, 50);
   assert.equal(bar?.label, 'Importing photos');
 });
 
 test('an unknown amount is indeterminate, never a guessed number', () => {
-  assert.equal(filmstripActivity([task({ kind: 'cull', total: null })])?.value, null);
+  const bar = filmstripActivity([task({ kind: 'cull', total: null })]);
+  assert.equal(bar?.value, null);
+  assert.equal(bar?.remainingMs, null);
+});
+
+test('time left comes only from measured progress', () => {
+  assert.equal(roughRemainingMs(2, 100, 0, 60_000), null, 'too few photos done');
+  assert.equal(roughRemainingMs(10, 100, 0, 5_000), null, 'too little time passed');
+  assert.equal(roughRemainingMs(10, 100, 0, 60_000), 540_000, '10 a minute, 90 to go: nine minutes');
+  assert.equal(roughRemainingMs(100, 100, 0, 60_000), null, 'finished');
+  assert.equal(minutesLeft(540_000), 9);
+  assert.equal(minutesLeft(30_000), null);
+  assert.equal(minutesLeft(null), null);
+});
+
+test('the Tasks wheel counts photos, not tasks', () => {
+  assert.deepEqual(tasksWheelProgress([]), { running: 0, percent: 0, done: null, total: null });
+  assert.deepEqual(tasksWheelProgress([task({ total: 120, done: 34 }), task({ id: '2', total: 10, done: 10, status: 'queued' })]),
+    { running: 1, percent: 28, done: 34, total: 120 });
+  assert.equal(tasksWheelProgress([task({ total: null, progress: 40 })]).percent, 40);
 });

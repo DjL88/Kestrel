@@ -1992,5 +1992,7 @@ export const fi: AreaTranslation<typeof source> = {
   },
   activityBar: {
     photoLoading: 'Ladataan kuvaa',
+    minutesLeft: (n: number) => `Noin ${n} min jäljellä`,
+    teaTime: 'Aika keittää kuppi teetä',
   },
 };

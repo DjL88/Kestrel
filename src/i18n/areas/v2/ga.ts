@@ -1994,5 +1994,7 @@ export const ga: AreaTranslation<typeof source> = {
   },
   activityBar: {
     photoLoading: 'Grianghraf á lódáil',
+    minutesLeft: (n: number) => `Thart ar ${n} nóim fágtha`,
+    teaTime: 'Am le haghaidh cupán tae',
   },
 };

@@ -1991,5 +1991,7 @@ export const da: AreaTranslation<typeof source> = {
   },
   activityBar: {
     photoLoading: 'Indlæser foto',
+    minutesLeft: (n: number) => `Cirka ${n} min tilbage`,
+    teaTime: 'Tid til en kop te',
   },
 };

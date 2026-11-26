@@ -1992,5 +1992,7 @@ export const gd: AreaTranslation<typeof source> = {
   },
   activityBar: {
     photoLoading: 'A\' luchdadh an deilbh',
+    minutesLeft: (n: number) => `Mu ${n} mion air fhàgail`,
+    teaTime: 'Àm airson cupa tì',
   },
 };

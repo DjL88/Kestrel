@@ -2074,5 +2074,7 @@ export const source = {
   },
   activityBar: {
     photoLoading: 'Loading photo',
+    minutesLeft: (n: number) => `About ${n} min left`,
+    teaTime: 'Time for a cup of tea',
   },
 };

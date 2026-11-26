@@ -1991,5 +1991,7 @@ export const cy: AreaTranslation<typeof source> = {
   },
   activityBar: {
     photoLoading: 'Wrthi\'n llwytho\'r llun',
+    minutesLeft: (n: number) => `Tua ${n} munud ar ôl`,
+    teaTime: 'Amser am baned o de',
   },
 };
