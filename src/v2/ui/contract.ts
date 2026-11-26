@@ -494,6 +494,8 @@ export interface Photo {
   panorama?: { sources: string[] };
   /** This photo is an HDR merge made in InFlight: its bracket, in order, with each one's measured exposure in stops. */
   hdrMerge?: { sources: Array<{ filename: string; ev: number }> };
+  /** This photo is one frame of an exposure bracket found from the camera's settings: the bracket's photos in shooting order, each one's stops against the middle, and whether the camera marked it. */
+  bracket?: { photoIds: string[]; ev: number[]; fromCamera: boolean };
   /** 'offered': a RAW whose full-size develop is not on screen and can be made here; 'running': it is being made. */
   fullDevelop?: 'offered' | 'running';
   picture?: { preview?: import('../../core/pictureSource').PictureProvenance; thumb?: import('../../core/pictureSource').PictureProvenance };

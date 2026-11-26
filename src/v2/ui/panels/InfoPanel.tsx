@@ -28,6 +28,8 @@ interface InfoPanelProps {
   onSetRating: (photoIds: string[], rating: number) => void;
   onReconnectOriginal: (photoId: string) => void;
   onSaveDngCopy?: (photoId: string) => void;
+  /** Merge an exposure bracket into a new HDR photo (absent while the feature is off). */
+  onHdrMerge?: (photoIds: string[]) => void;
   /** Edit in another app. Absent or null: not available here (the web), which the panel says in plain words. */
   externalEditor?: WorkspaceStore['externalEditor'];
   onEditInOtherApp?: (photoId: string, app: ExternalApp | 'choose' | 'default') => void;
@@ -45,6 +47,7 @@ export default function InfoPanel({
   onSetRating,
   onReconnectOriginal,
   onSaveDngCopy,
+  onHdrMerge,
   externalEditor,
   onEditInOtherApp,
   onStopExternalEdit,
@@ -223,6 +226,21 @@ export default function InfoPanel({
               {photo.hdrMerge.sources.map((source, i) => <li key={`${i}-${source.filename}`} className="break-all">{hdrText.infoExposure(source.filename, stopsLabel(source.ev))}</li>)}
             </ul>
             <p className="text-[0.6875rem] text-[var(--text-secondary)]">{hdrText.infoHow}</p>
+            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{hdrText.whatIs}</p>
+          </div>
+        )}
+        {photo.bracket && onHdrMerge && !photo.hdrMerge && (
+          <div className="mt-2 space-y-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] p-2" data-testid="v2-hdr-bracket-info">
+            <p className="text-xs font-semibold text-[var(--text-primary)]">{hdrText.bracketTitle}</p>
+            <p className="text-[0.6875rem] text-[var(--text-secondary)]">
+              {hdrText.bracketFound(photo.bracket.photoIds.length, photo.bracket.ev.map(stopsLabel).join(', '))}{' '}
+              {photo.bracket.fromCamera ? hdrText.bracketFromCamera : hdrText.bracketFromExposures}
+            </p>
+            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{hdrText.whatIs}</p>
+            <button type="button" onClick={() => onHdrMerge(photo.bracket!.photoIds)} title={hdrText.menuHint}
+              className="mt-1 inline-flex h-8 w-full items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] text-xs font-medium text-[var(--text-primary)]">
+              {hdrText.menu(photo.bracket.photoIds.length)}
+            </button>
           </div>
         )}
         {photo.dngCopy && photo.originalConnected && onSaveDngCopy && (

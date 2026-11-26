@@ -29,4 +29,9 @@ export const ga: AreaTranslation<typeof source> = {
   infoMadeFrom: (n: number) => plural(n, { one: `Déanta ó ${n} grianghraf:`, other: `Déanta ó ${n} grianghraf:` }),
   infoExposure: (name: string, ev: string) => `${name}: ${ev} stad`,
   infoHow: "Tagann gach cuid ó na grianghraif a bhí nochta go maith ansin, ailínithe agus ualaithe de réir nochta, agus ansin coigeartaithe le Buaicphointí agus Scáthanna an eagarthóra. Níor gineadh aon phicteilín.",
+  whatIs: "Ciallaíonn HDR raon dinimiciúil ard, ní ardghléine. Cumascann sé roinnt nochtaí den radharc céanna ionas go gcoinníonn spéartha geala agus scáthanna dorcha a gcuid mionsonraí.",
+  bracketTitle: "Sraith nochta",
+  bracketFound: (n: number, stops: string) => `${n} grianghraf tógtha nóiméid óna chéile le nochtaí éagsúla (${stops} stad).`,
+  bracketFromCamera: "Mharcáil do cheamara na grianghraif seo mar shraith nochta.",
+  bracketFromExposures: "Aimsithe óna luas cróil, a gcró agus a ISO.",
 };

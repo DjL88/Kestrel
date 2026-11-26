@@ -680,7 +680,7 @@ export default function Filmstrip({
             className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {panoText.menu(menuTargetIds.length)}
           </button>}
-          {onHdrMerge && menuTargetIds.length >= 2 && <button type="button" role="menuitem" title={hdrText.menuHint} data-testid="v2-hdr-merge-menu"
+          {onHdrMerge && menuTargetIds.length >= 2 && <button type="button" role="menuitem" title={`${hdrText.whatIs} ${hdrText.menuHint}`} data-testid="v2-hdr-merge-menu"
             onClick={() => { onHdrMerge(menuTargetIds); setTileMenu(null); }}
             className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
             {hdrText.menu(menuTargetIds.length)}

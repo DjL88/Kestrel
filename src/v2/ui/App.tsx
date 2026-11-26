@@ -758,6 +758,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
             onSetRating={actions.setRating}
             onReconnectOriginal={actions.reconnectOriginal}
             onSaveDngCopy={actions.saveDngCopy}
+            onHdrMerge={store.features.hdrMerge && !store.collage ? actions.hdrMergePhotos : undefined}
             externalEditor={store.externalEditor}
             onEditInOtherApp={actions.editInOtherApp}
             onStopExternalEdit={actions.stopExternalEdit}

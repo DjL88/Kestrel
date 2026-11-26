@@ -93,6 +93,11 @@ export function readCaptureStamp(original: unknown, digitized: unknown, offsetOr
   return stamp.original || stamp.digitized ? stamp : undefined;
 }
 
+/** EXIF ExposureMode 2, which exifr gives as "Auto bracket" (or the raw number when values are not translated). */
+export function isAutoBracket(value: unknown): boolean {
+  return value === 2 || (typeof value === 'string' && /bracket/i.test(value));
+}
+
 /** The GPS position, when the file has a valid one. exifr gives decimal `latitude` and `longitude` in its GPS block. */
 export function readGpsPosition(gps: unknown): { latitude: number; longitude: number } | undefined {
   const block = gps as { latitude?: unknown; longitude?: unknown } | undefined;
@@ -340,6 +345,8 @@ export async function parseImageExif(
       ...(captureStamp ? { captureStamp } : {}),
       ...(gps ? { gps } : {}),
       ...(validExifPositiveNumber(parsed.ExposureTime) ? { exposureSeconds: validExifPositiveNumber(parsed.ExposureTime) } : {}),
+      ...(typeof parsed.ExposureBiasValue === 'number' && Number.isFinite(parsed.ExposureBiasValue) && Math.abs(parsed.ExposureBiasValue) <= 15 ? { exposureBiasEv: parsed.ExposureBiasValue } : {}),
+      ...(isAutoBracket(parsed.ExposureMode) ? { autoBracket: true } : {}),
       width,
       height,
       formatLabel: formatLabel ?? (lower.endsWith('.png') ? 'PNG' : lower.endsWith('.webp') ? 'WebP' : 'JPEG'),
