@@ -26,6 +26,9 @@ test('cloud processing needs both the bucket and the runner job; safe copy and l
   const all = await buildOptionalServices(deps({ KCP_CLOUD_PROCESSING_BUCKET: 'b', KCP_CLOUD_RUNNER_JOB: JOB, KCP_SAFE_COPY_BUCKET: 's', KCP_LEARNING_ENABLED: '1', KCP_COLLABORATION_ENABLED: '1', KCP_MONTHLY_SPEND_CEILING_PENCE: '2000', KCP_CLOUD_JOBS_PER_PERIOD: '7', KCP_SAFE_COPY_BYTES_QUOTA: '123456' }));
   assert.ok(all.cloud && all.safeCopy && all.learning && all.collab);
   assert.equal(all.cloud!.jobsPerPeriod, 7); assert.equal(all.safeCopy!.bytesQuota, 123456); assert.equal(all.spend!.ceilingPence, 2000);
+  assert.equal(all.cloud!.recipe?.enabled, false, 'cloud edit settings stay off unless switched on');
+  const recipe = await buildOptionalServices(deps({ KCP_CLOUD_PROCESSING_BUCKET: 'b', KCP_CLOUD_RUNNER_JOB: JOB, KCP_CLOUD_RECIPE_ENABLED: '1' }));
+  assert.deepEqual(recipe.cloud!.recipe, { enabled: true, maxPreviewBytes: 10_000_000 });
   assert.deepEqual(all.enabled.sort(), ['cloud-processing', 'collaboration', 'learning-signal', 'notices', 'safe-copy', 'spend-guard']);
 });
 

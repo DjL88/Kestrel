@@ -5,7 +5,7 @@
  * Object layout in the cloud-processing bucket: inputs/<jobId> (uploaded), results/<jobId> and failed/<jobId> (written by
  * the runner job: a result file on success, an empty marker on failure). No file names ever appear in a key.
  */
-import type { CloudKind, CloudRunner } from './cloudJobs.ts';
+import type { CloudKind, CloudRunner, RecipeInputKind } from './cloudJobs.ts';
 import type { SafeCopyStorage } from './safeCopy.ts';
 
 export interface GcsFileLike {
@@ -51,7 +51,7 @@ export class GcsSafeCopyStorage implements SafeCopyStorage {
   async copy(from: string, to: string) { await this.bucket.file(from).copy!(to); }
 }
 
-export interface RunnerTrigger { trigger(jobId: string, kind: CloudKind): Promise<void> }
+export interface RunnerTrigger { trigger(jobId: string, kind: CloudKind, inputKind?: RecipeInputKind): Promise<void> }
 
 export class GcsCloudRunner implements CloudRunner {
   constructor(private readonly bucket: GcsBucketLike, private readonly runner: RunnerTrigger, private readonly now: () => number = Date.now) {}
@@ -61,7 +61,7 @@ export class GcsCloudRunner implements CloudRunner {
     return { uploadUrl, expiresAtMs: expires };
   }
   async inputPresent(jobId: string) { return (await this.bucket.file(`inputs/${jobId}`).exists())[0]; }
-  async start(jobId: string, kind: CloudKind) { await this.runner.trigger(jobId, kind); }
+  async start(jobId: string, kind: CloudKind, inputKind?: RecipeInputKind) { await this.runner.trigger(jobId, kind, inputKind); }
   async poll(jobId: string) {
     if ((await this.bucket.file(`results/${jobId}`).exists())[0]) {
       const [resultUrl] = await this.bucket.file(`results/${jobId}`).getSignedUrl({ version: 'v4', action: 'read', expires: this.now() + DOWNLOAD_TTL_MS });
@@ -86,11 +86,13 @@ export class CloudRunJobTrigger implements RunnerTrigger {
   constructor(private readonly jobName: string, private readonly token: () => Promise<string>, private readonly fetcher: typeof fetch = fetch) {
     if (!/^projects\/[a-z][a-z0-9-]+\/locations\/[a-z0-9-]+\/jobs\/[a-z][a-z0-9-]*$/.test(jobName)) throw new Error('KCP_CLOUD_RUNNER_JOB must be a Cloud Run job name: projects/<p>/locations/<l>/jobs/<name>');
   }
-  async trigger(jobId: string, kind: CloudKind) {
+  async trigger(jobId: string, kind: CloudKind, inputKind?: RecipeInputKind) {
+    const env = [{ name: 'KCR_JOB_ID', value: jobId }, { name: 'KCR_KIND', value: kind }];
+    if (kind === 'recipe' && inputKind) env.push({ name: 'KCR_INPUT_KIND', value: inputKind });
     const response = await this.fetcher(`https://run.googleapis.com/v2/${this.jobName}:run`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${await this.token()}` },
-      body: JSON.stringify({ overrides: { containerOverrides: [{ env: [{ name: 'KCR_JOB_ID', value: jobId }, { name: 'KCR_KIND', value: kind }] }] } }),
+      body: JSON.stringify({ overrides: { containerOverrides: [{ env }] } }),
     });
     if (!response.ok) throw new Error(`run job ${response.status}`);
   }

@@ -106,6 +106,8 @@ import { hasLocalVision } from '../../providers/localVision';
 import type { PictureSource } from '../../core/pictureSource';
 import { autoCullSummary, commitAutoCull, cullAfterImport, rawsJudgedFromCameraPreview } from './commitAutoCull';
 import { runV2Denoise } from './runDenoise';
+import { cloudRecipeEdit, cloudRecipeWhy, prepareCloudRecipe, sendCloudRecipe, type CloudRecipeOffer } from './runCloudRecipe';
+import { cloudRecipePreviewOn, httpCloudRecipeService, readFullFileConsent, saveFullFileConsent } from '../../providers/cloudRecipeService';
 import { MAIN_THREAD_DENOISE_NOTE } from '../../providers/denoiseOffThread';
 import { composeDenoiseRecipe } from './denoiseRecipe';
 import { preloadTrueDetailAi } from '../../core/trueDetailAiCanvas';
@@ -1553,6 +1555,39 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       .finally(() => { denoiseInFlight.current.delete(photoId); });
   }, [can, editFrames]);
 
+  // Cloud edit settings (x-std-cloud-recipe), a preview that is off by default. Preparing shows what would be sent and
+  // its size and sends nothing; the person's press of Send is the consent for that one upload. The settings that come
+  // back are applied as one undoable step, and only if the photo's edit has not changed since the offer was made.
+  const cloudRecipeOn = can('cloudRecipe') || cloudRecipePreviewOn();
+  const cloudRecipeOffers = useRef(new Map<string, { prepared: Awaited<ReturnType<typeof prepareCloudRecipe>>; edit: PhotoEdit; framing: string }>());
+  const prepareCloudRecipeFor = useCallback(async (photoId: string) => {
+    const frame = stateRef.current?.frames.find(candidate => candidate.id === photoId && candidate.removedAt == null);
+    if (!frame || !provider.current) return { status: 'unavailable' as const, message: 'This photo is not available.' };
+    const prepared = await prepareCloudRecipe(frame, provider.current, readFullFileConsent());
+    cloudRecipeOffers.current.set(photoId, { prepared, edit: frame.edit ?? DEFAULT_EDIT, framing: framingKey(frame.framing) });
+    const offer: CloudRecipeOffer = prepared.offer;
+    if (offer.plan.status !== 'ready') {
+      return { status: 'unavailable' as const, message: 'This photo has no 2,560 px smart preview on this device yet, so nothing can be sent. Smart previews are made for RAW photos in the desktop app.' };
+    }
+    return { status: 'ready' as const, sendLabel: offer.sendLabel, alternativeLabel: offer.alternativeLabel };
+  }, []);
+  const sendCloudRecipeFor = useCallback(async (photoId: string, choice: 'send' | 'alternative') => {
+    const held = cloudRecipeOffers.current.get(photoId);
+    cloudRecipeOffers.current.delete(photoId);
+    if (!held) throw new Error('Check the photo again before sending.');
+    const connection = accountConnection();
+    if (!connection) throw new Error('Sign in to use cloud edit settings. Nothing was sent.');
+    if (navigator.onLine === false) throw new Error('You are offline. Nothing was sent.');
+    const outcome = await sendCloudRecipe(held.prepared, choice, readFullFileConsent(), httpCloudRecipeService(connection));
+    if (outcome.status === 'refused') return 'The cloud sent back settings this device could not check, so nothing was changed.';
+    if (outcome.status === 'empty') return 'The cloud suggested no changes for this photo.';
+    const unchanged = (current: PhotoFrame) => sameRecipe(current.edit ?? DEFAULT_EDIT, held.edit) && framingKey(current.framing) === held.framing;
+    const latest = stateRef.current?.frames.find(candidate => candidate.id === photoId);
+    if (!latest || !unchanged(latest)) return 'The photo was edited while the cloud worked, so its settings were not applied.';
+    editFrames([photoId], current => (unchanged(current) ? cloudRecipeEdit(current.edit, outcome.recipe) : current.edit), cloudRecipeWhy(outcome.recipe, outcome.sent));
+    return 'Applied the cloud\'s edit settings. Undo takes them back.';
+  }, [editFrames]);
+
   const applyAuto = useCallback((frameId: string, candidateId?: string) => {
     const assist = assists[frameId];
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === frameId);
@@ -2900,6 +2935,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     runExport: (request) => { stub.actions.setExportOpen(false); void runExportAction(request); },
     applyAssistSuggestion: applyAuto,
     requestLocalAuto: (photoId) => setAutoRequest((last) => ({ photoId, sequence: (last?.sequence ?? 0) + 1 })),
+    ...(cloudRecipeOn ? {
+      prepareCloudRecipe: prepareCloudRecipeFor,
+      sendCloudRecipe: sendCloudRecipeFor,
+      setCloudRecipeFullFile: (on: boolean) => saveFullFileConsent(on).on,
+      cloudRecipeFullFileOn: () => readFullFileConsent().on,
+    } : {}),
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
     sharedEditOf: (photoId) => {
       const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && candidate.removedAt == null);

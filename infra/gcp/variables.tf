@@ -96,6 +96,22 @@ variable "cloud_processing_enabled" {
   default     = false
 }
 
+variable "cloud_recipe_enabled" {
+  description = "Cloud edit settings (x-std-cloud-recipe): the app's 2,560 px smart preview goes up, a few KB of edit settings come back. Needs cloud_processing_enabled and cloud_runner_image. Off: the control plane refuses recipe jobs (503) and nothing is uploaded."
+  type        = bool
+  default     = false
+}
+
+variable "monthly_spend_ceiling_pence" {
+  description = "Hard monthly ceiling for metered cloud work (cloud jobs, recipe jobs and AI calls), in pence, enforced by the control plane's spend guard. Estimates, not Google's prices. 1500 is the code's own default (GBP 15)."
+  type        = number
+  default     = 1500
+  validation {
+    condition     = var.monthly_spend_ceiling_pence >= 0 && var.monthly_spend_ceiling_pence <= 1000000 && floor(var.monthly_spend_ceiling_pence) == var.monthly_spend_ceiling_pence
+    error_message = "monthly_spend_ceiling_pence must be a whole number from 0 to 1,000,000."
+  }
+}
+
 variable "cloud_processing_region" {
   description = "Where uploaded files are held and processed. UK only (owner decision, 22 Nov 2026): London, europe-west2, the only UK Google Cloud region."
   type        = string

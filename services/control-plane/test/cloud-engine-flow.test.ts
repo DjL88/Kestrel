@@ -159,8 +159,8 @@ test('a poll with a stale runner result cannot reopen a finished job', { timeout
   assert.equal(ledger.record(jobId)?.status, 'finished');
 });
 
-test('job kinds are the engine capability names: denoise, upscale, mask', async () => {
-  assert.deepEqual([...CLOUD_KINDS], ['denoise', 'upscale', 'mask']);
+test('job kinds are the engine capability names: denoise, upscale, mask, plus recipe (edit settings back)', async () => {
+  assert.deepEqual([...CLOUD_KINDS], ['denoise', 'upscale', 'mask', 'recipe']);
   const { h } = await harness();
   try {
     assert.equal((await create(h, 'mask')).status, 200);

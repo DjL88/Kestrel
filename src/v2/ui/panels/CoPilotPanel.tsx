@@ -6,7 +6,8 @@ import BrandIcon, { assistModeIconName } from '../icons/BrandIcon';
 import ColourWordsList from './ColourWordsList';
 import ColourSenseLine from './ColourSenseLine';
 import WatchSteps from './WatchSteps';
-import type { EditRecipe } from '../contract';
+import type { CloudRecipeOfferView, EditRecipe } from '../contract';
+import CloudRecipeCard from './CloudRecipeCard';
 
 interface CoPilotPanelProps {
   photo: Photo | null;
@@ -26,6 +27,13 @@ interface CoPilotPanelProps {
   onDismissSuggestion: (photoId: string, suggestionId: string) => void;
   /** Watch: shows a suggestion's steps so far on the photo without applying them. Null clears the preview. */
   onStepPreview?: (delta: Partial<EditRecipe> | null) => void;
+  /** Cloud edit settings, present only while that preview feature is on. */
+  cloudRecipe?: {
+    prepare: (photoId: string) => Promise<CloudRecipeOfferView>;
+    send: (photoId: string, choice: 'send' | 'alternative') => Promise<string>;
+    setFullFile: (on: boolean) => boolean;
+    fullFileOn: () => boolean;
+  };
 }
 
 export default function CoPilotPanel({
@@ -41,6 +49,7 @@ export default function CoPilotPanel({
   onApplySuggestion,
   onDismissSuggestion,
   onStepPreview,
+  cloudRecipe,
 }: CoPilotPanelProps) {
   const hiddenOnline = useProHidden('onlineAi');
   // Which suggestion is being watched step by step. A different photo stops watching.
@@ -129,6 +138,11 @@ export default function CoPilotPanel({
           {STRINGS.copilot.noGenAiNote}
         </p>
       </div>
+
+      {cloudRecipe && (
+        <CloudRecipeCard photoId={photo.id} onPrepare={cloudRecipe.prepare} onSend={cloudRecipe.send}
+          onSetFullFile={cloudRecipe.setFullFile} fullFileOn={cloudRecipe.fullFileOn} />
+      )}
 
       {/* Assist, merged: the plain-English read of the photo, and the colour check */}
       <section className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3.5">
