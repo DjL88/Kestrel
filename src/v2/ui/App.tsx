@@ -285,33 +285,27 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(max-width: 767px)');
-    const onChange = (e: MediaQueryListEvent) => {
-      setIsMobile(e.matches);
-      if (e.matches) setActivePanel(null);
-    };
+    // Turning the device only changes the layout: the open tool moves between the docked panel and the bottom sheet.
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
     setIsMobile(mq.matches);
-    if (mq.matches) setActivePanel(null);
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
-  }, [setActivePanel]);
+  }, []);
 
-  // A short landscape phone opens with no panel docked, as a phone in portrait does: a docked panel there left the photo
-  // a strip of the screen. The rail still opens any tool with one tap.
+  // A phone (portrait, or a short landscape screen) and an upright tablet or unfolded foldable open with no panel, so the
+  // photo has the screen until a tool is chosen (owner, 26 Nov). Exactly once, at start: turning the device keeps
+  // whatever tool is open, with its selection and zoom. The guard matters because `setActivePanel` is rebuilt whenever
+  // the workspace's looks or templates change, which would otherwise close the open tool in the middle of an edit.
+  const startLayoutApplied = useRef(false);
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
-    const mq = window.matchMedia('(orientation: landscape) and (max-height: 520px) and (max-width: 899px)');
-    const onChange = (e: MediaQueryListEvent) => { if (e.matches) setActivePanel(null); };
-    if (mq.matches) setActivePanel(null);
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  }, [setActivePanel]);
-
-  // An upright tablet or unfolded foldable keeps the desktop layout (rail, panels docked left or right, or floating) but
-  // opens with no panel docked, so the photo has the full width until a tool is chosen (owner, 26 Nov). Only at start:
-  // turning the device keeps whatever panel is open.
-  useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
-    if (window.matchMedia('(min-width: 768px) and (max-width: 1023px) and (orientation: portrait)').matches) setActivePanel(null);
+    if (startLayoutApplied.current || typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    startLayoutApplied.current = true;
+    const startsWithoutPanel = [
+      '(max-width: 767px)',
+      '(orientation: landscape) and (max-height: 520px) and (max-width: 899px)',
+      '(min-width: 768px) and (max-width: 1023px) and (orientation: portrait)',
+    ].some((query) => window.matchMedia(query).matches);
+    if (startsWithoutPanel) setActivePanel(null);
   }, [setActivePanel]);
 
   useEffect(() => setCollageEditingId(null), [store.activeProjectId]);
