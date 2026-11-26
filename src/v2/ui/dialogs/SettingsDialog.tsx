@@ -634,10 +634,10 @@ export default function SettingsDialog({
                   <SettingSwitch
                     title={STRINGS.settings.keyboard.gamepadLabel}
                     description={STRINGS.settings.keyboard.gamepadDesc}
-                    checked={settings.gamepadEnabled === true}
-                    onToggle={() => onUpdateSettings({ gamepadEnabled: settings.gamepadEnabled !== true })}
+                    checked={settings.gamepadEnabled !== false}
+                    onToggle={() => onUpdateSettings({ gamepadEnabled: settings.gamepadEnabled === false })}
                   />
-                  {settings.gamepadEnabled === true && gamepadPanel}
+                  {settings.gamepadEnabled !== false && gamepadPanel}
                 </section>
               </div>
             )}

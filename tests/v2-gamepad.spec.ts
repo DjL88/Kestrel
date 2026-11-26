@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Game controllers through the browser's Gamepad API (Settings > Keyboard > Game controller, off by default).
+// Game controllers through the browser's Gamepad API (Settings > Keyboard > Game controller, on unless switched off).
 // The controller is mocked: navigator.getGamepads returns a standard-layout pad the test presses buttons on.
 // NOT a real controller: real Xbox, PlayStation and Switch Pro pads are not verified by this test.
 
@@ -13,16 +13,17 @@ async function mockGamepad(page: Page) {
     // A stick "tap" is held for exactly one read, so it is one nudge however slow the machine is (no timing in the test).
     let pulseReads = 0;
     const release = () => { axes.fill(0); for (const b of buttons) { b.pressed = false; b.value = 0; } pad.timestamp += 1; };
-    // The pulse read returns a copy and lets go at once, so no later read (another poll, or a slow timer on a busy
-    // runner) can see the stick still held and nudge twice.
+    // The held state goes out as a copy and is released at once, so a busy machine that reads twice before a timer
+    // runs still sees exactly one held read.
     const read = () => {
-      if (pulseReads > 0 && present) {
-        const held = { ...pad, buttons: buttons.map((b) => ({ ...b })), axes: [...axes] };
+      if (!present) return [null, null, null, null];
+      if (pulseReads > 0) {
         pulseReads -= 1;
+        const held = { ...pad, axes: [...axes], buttons: buttons.map((b) => ({ ...b })) };
         if (pulseReads === 0) release();
         return [held, null, null, null];
       }
-      return [present ? pad : null, null, null, null];
+      return [pad, null, null, null];
     };
     Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: read });
     const w = window as unknown as Record<string, unknown>;
@@ -86,25 +87,34 @@ async function openAdjust(root: ReturnType<Page['locator']>) {
   return exposure;
 }
 
-test('a controller does nothing until switched on, then its stick turns the slider and its buttons can be remapped', async ({ page }, testInfo) => {
+test('a controller is on out of the box, does nothing when switched off, and its stick turns the slider and its buttons can be remapped', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Settings > Keyboard is laid out for desktop; the mapping is the same on every platform.');
   await mockGamepad(page);
   const root = await openPhoto(page);
   const exposure = await openAdjust(root);
   await page.evaluate(() => (window as unknown as { __pad: PadControl }).__pad.connect());
 
-  // Off by default: nothing reads the controller, so a pushed stick moves nothing.
+  // Settings > Keyboard > Game controller: on out of the box. Switch it off.
+  await page.keyboard.press('Control+Comma');
+  const settings = page.getByRole('dialog').filter({ hasText: 'Settings' }).first();
+  await settings.getByRole('tab', { name: /Keyboard/ }).click();
+  const toggle = settings.getByRole('switch', { name: 'Use a game controller' });
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  await page.keyboard.press('Escape');
+  await expect(settings).toHaveCount(0);
+
+  // Switched off: nothing reads the controller, so a pushed stick moves nothing.
   await page.evaluate(() => (window as unknown as { __pad: PadControl }).__pad.axis(0, 0.8));
   await page.waitForTimeout(500);
   await expect(exposure).toHaveValue('0');
   expect(await page.evaluate(() => (window as unknown as { __pad: PadControl }).__pad.settled())).toBe(false);
   await page.evaluate(() => (window as unknown as { __pad: PadControl }).__pad.reset());
 
-  // Settings > Keyboard > Game controller: switch it on. While Settings is open, a press is only reported.
+  // Switch it back on. While Settings is open, a press is only reported.
   await page.keyboard.press('Control+Comma');
-  const settings = page.getByRole('dialog').filter({ hasText: 'Settings' }).first();
   await settings.getByRole('tab', { name: /Keyboard/ }).click();
-  const toggle = settings.getByRole('switch', { name: 'Use a game controller' });
   await expect(toggle).toHaveAttribute('aria-checked', 'false');
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-checked', 'true');

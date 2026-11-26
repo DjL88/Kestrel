@@ -527,7 +527,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   // Game controllers (Settings > Keyboard > Game controller, off by default). The same commands as the keys, in the
   // editor only, never while Settings is open (so each button can be checked there) or a photo key while the guide is open.
   useGamepad({
-    enabled: store.settings.gamepadEnabled === true,
+    enabled: store.settings.gamepadEnabled !== false,
     profile: gamepadProfile,
     onConnection: (name) => setGamepadSeen((seen) => (seen.name === name ? seen : { name, lastSlot: name ? seen.lastSlot : null })),
     onInput: (fire, name) => { if (store.settingsOpen) setGamepadSeen({ name, lastSlot: fire.slot }); },

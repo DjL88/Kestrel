@@ -62,7 +62,9 @@ test('V2 background engine replaces a synthetic embedded RAW preview with develo
   await expect(precision).toHaveText('Measured from the 16-bit RAW develop.');
   // An edit is drawn from the 16-bit develop too: brighter, and still from the sensor data.
   const sensorPicture = root.getByTestId('canvas-frame').locator('img[data-precision="rgb16"]').first();
+  // NaN while the picture is still decoding (the element can be on screen before its pixels are), so polls wait for it.
   const mean = () => sensorPicture.evaluate((img: HTMLImageElement) => {
+    if (!img.complete || !img.naturalWidth || !img.naturalHeight) return Number.NaN;
     const canvas = document.createElement('canvas');
     canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
     const context = canvas.getContext('2d')!;
@@ -71,7 +73,8 @@ test('V2 background engine replaces a synthetic embedded RAW preview with develo
     let total = 0; for (let i = 0; i < data.length; i += 4) total += data[i] + data[i + 1] + data[i + 2];
     return total / (data.length / 4 * 3);
   });
-  const before = await mean();
+  let before = Number.NaN;
+  await expect.poll(async () => { before = await mean(); return Number.isFinite(before); }, { timeout: 30_000 }).toBe(true);
   const advanced = root.getByRole('tab', { name: 'Advanced Edits' });
   if (!(await advanced.isVisible())) await root.getByRole('button', { name: 'Adjust', exact: true }).first().click();
   await advanced.click();
