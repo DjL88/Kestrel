@@ -58,6 +58,8 @@ export default function InfoPanel({
   speciesPlace,
   onSetSpeciesArea,
 }: InfoPanelProps) {
+  const [tab, setTab] = useState<InfoTab>(readInfoTab);
+  const chooseTab = (next: InfoTab) => { setTab(next); try { localStorage.setItem(INFO_TAB_KEY, next); } catch { /* remembered for this visit only */ } };
   const [editingSpecies, setEditingSpecies] = useState(false);
   // The name alone: the label may carry a "(suggested)" marker in the person's language, which is not part of the name.
   const [speciesDraft, setSpeciesDraft] = useState(photo?.speciesName ?? photo?.speciesLabel ?? '');
@@ -85,6 +87,131 @@ export default function InfoPanel({
 
   return (
     <div className="space-y-4">
+      {/* Two tabs (Windows beta): the photograph first (camera, analysis, histogram), the file's technical details second. */}
+      <div role="tablist" aria-label={STRINGS.info.tabsLabel} className="grid grid-cols-2 gap-1 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-1">
+        {(['photo', 'technical'] as const).map((id) => (
+          <button key={id} type="button" role="tab" id={`v2-info-tab-${id}`} aria-controls={`v2-info-tabpanel-${id}`}
+            aria-selected={tab === id} tabIndex={tab === id ? 0 : -1} data-testid={`info-tab-${id}`}
+            onClick={() => chooseTab(id)}
+            onKeyDown={(event) => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); const next = id === 'photo' ? 'technical' : 'photo'; chooseTab(next); document.getElementById(`v2-info-tab-${next}`)?.focus(); } }}
+            className="min-h-8 rounded-[var(--radius-sm)] px-2 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] aria-selected:bg-[var(--bg-surface-raised)] aria-selected:font-semibold aria-selected:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]">
+            {id === 'photo' ? STRINGS.info.tabPhoto : STRINGS.info.tabTechnical}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'photo' ? (
+      <div role="tabpanel" id="v2-info-tabpanel-photo" aria-labelledby="v2-info-tab-photo" className="space-y-4">
+      {/* Rating & Flag */}
+      <div className="flex items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2">
+        <div className="flex items-center gap-0.5">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              type="button"
+              aria-label={STRINGS.panelWords.rateStars(n)}
+              aria-pressed={n === photo.rating}
+              onClick={() => onSetRating([photo.id], n === photo.rating ? 0 : n)}
+              className="p-1"
+            >
+              <BrandIcon
+                name={n <= photo.rating ? 'star-filled' : 'star-empty'}
+                size={15}
+                className={n <= photo.rating ? 'text-[var(--brand-accent)]' : 'text-[var(--text-muted)]'}
+              />
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => onToggleFlag([photo.id])}
+          className={`inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-xs font-medium ${
+            flagged
+              ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
+              : 'bg-[var(--bg-surface)] text-[var(--text-secondary)]'
+          }`}
+        >
+          <BrandIcon name={flagged ? 'flag' : 'flag-off'} size={13} />
+          <span>{flagged ? 'Flagged' : 'Flag'}</span>
+        </button>
+      </div>
+
+      {/* Camera & Capture */}
+      <section className="space-y-1.5 border-t border-[var(--border-subtle)] pt-3">
+        <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.info.cameraSection}</h3>
+        <dl className="space-y-1.5 text-xs">
+          <MetaRow label="Camera" value={photo.exif.camera} />
+          <MetaRow label="Lens" value={photo.exif.lens} />
+          <MetaRow label="Exposure" value={[photo.exif.aperture, photo.exif.shutter, photo.exif.iso > 0 ? `ISO ${photo.exif.iso}` : ''].filter(value => value && value !== 'Not recorded').join(' · ') || 'Not recorded'} mono />
+          <MetaRow label="Focal length" value={photo.exif.focalLength} mono />
+          <MetaRow label="Captured" value={photo.exif.capturedAt} />
+          {photo.cameraFocus && (
+            <div className="flex items-start justify-between gap-3" data-testid="camera-focus">
+              <dt className="shrink-0 text-[var(--text-muted)]">{STRINGS.info.cameraFocusRow}</dt>
+              <dd className="text-right">
+                <span className="text-[var(--text-primary)]">{photo.cameraFocus.label}</span>
+                <span className="block text-[0.6875rem] text-[var(--text-secondary)]">{photo.cameraFocus.detail}</span>
+              </dd>
+            </div>
+          )}
+          {photo.editStatus && (
+            <div className="flex items-start justify-between gap-3" data-testid="edit-status">
+              <dt className="shrink-0 text-[var(--text-muted)]">{STRINGS.info.editStatusRow}</dt>
+              <dd className="text-right">
+                <span className="text-[var(--text-primary)]">{photo.editStatus.label}</span>
+                <span className="block text-[0.6875rem] text-[var(--text-secondary)]">{photo.editStatus.detail}</span>
+              </dd>
+            </div>
+          )}
+        </dl>
+      </section>
+
+      {/* Analysis Summary */}
+      <section className="space-y-1.5 border-t border-[var(--border-subtle)] pt-3">
+        <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.info.cullSection}</h3>
+        <dl className="space-y-1.5 text-xs">
+          <div className="flex items-start justify-between gap-2">
+            <dt className="shrink-0 text-[var(--text-muted)]">{STRINGS.panelWords.subject}</dt>
+            {editingSpecies ? (
+              <form
+                className="flex min-w-0 flex-1 flex-wrap justify-end gap-1"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (!speciesDraft.trim()) return;
+                  onCorrectSpeciesName(photo.id, speciesDraft);
+                  setEditingSpecies(false);
+                }}
+              >
+                <SpeciesNameField
+                  label={STRINGS.panelWords.correctSpecies}
+                  value={speciesDraft}
+                  onChange={setSpeciesDraft}
+                  className="w-full min-w-0 rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2 py-1 text-xs text-[var(--text-primary)]"
+                />
+                <button type="submit" disabled={!speciesDraft.trim()} className="rounded border border-[var(--border-default)] px-2 py-1 disabled:opacity-40">{STRINGS.panelWords.save}</button>
+                <button type="button" onClick={() => setEditingSpecies(false)} className="rounded px-1 py-1">{STRINGS.panelWords.cancel}</button>
+              </form>
+            ) : (
+              <dd className="flex min-w-0 items-center gap-2 text-right text-[var(--text-primary)]">
+                <span className="flex flex-col items-end">
+                  <span>{photo.speciesLabel || photo.category || (photo.vehicleLabel ? '' : STRINGS.panelWords.notIdentified)}</span>
+                  {photo.speciesAreaLabel && <span data-testid="species-area-used" className="text-[0.6875rem] text-[var(--text-secondary)]">{photo.speciesAreaLabel}</span>}
+                </span>
+                <button type="button" aria-label={STRINGS.panelWords.correctSpecies} title={STRINGS.panelWords.correctSpecies}
+                  onClick={() => setEditingSpecies(true)}
+                  className="shrink-0 rounded border border-[var(--border-subtle)] px-2 py-1 text-[0.6875rem]">{STRINGS.panelWords.edit}</button>
+              </dd>
+            )}
+          </div>
+          {onCorrectVehicle && <VehicleRow photo={photo} onCorrect={onCorrectVehicle} />}
+          <MetaRow label="Sharpness" value={`${photo.sharpnessScore}%`} mono />
+          <MetaRow label={STRINGS.tier.label} value={photo.tier ? STRINGS.tier[photo.tier] : STRINGS.tier.notRanked} />
+        </dl>
+        {speciesPlace && onSetSpeciesArea && (
+          <div className="mt-3"><SpeciesPlaceRow place={speciesPlace} onChange={onSetSpeciesArea} /></div>
+        )}
+      </section>
+
       {/* Live SVG Histogram */}
       <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3">
         <div className="flex items-center justify-between text-xs">
@@ -138,43 +265,31 @@ export default function InfoPanel({
           <p role="status" className="mt-2 text-xs text-[var(--text-secondary)]">{STRINGS.panelWords.measuring}</p>
         )}
       </div>
-
-      {/* Rating & Flag */}
-      <div className="flex items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2">
-        <div className="flex items-center gap-0.5">
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button
-              key={n}
-              type="button"
-              aria-label={STRINGS.panelWords.rateStars(n)}
-              aria-pressed={n === photo.rating}
-              onClick={() => onSetRating([photo.id], n === photo.rating ? 0 : n)}
-              className="p-1"
-            >
-              <BrandIcon
-                name={n <= photo.rating ? 'star-filled' : 'star-empty'}
-                size={15}
-                className={n <= photo.rating ? 'text-[var(--brand-accent)]' : 'text-[var(--text-muted)]'}
-              />
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={() => onToggleFlag([photo.id])}
-          className={`inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-xs font-medium ${
-            flagged
-              ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-              : 'bg-[var(--bg-surface)] text-[var(--text-secondary)]'
-          }`}
-        >
-          <BrandIcon name={flagged ? 'flag' : 'flag-off'} size={13} />
-          <span>{flagged ? 'Flagged' : 'Flag'}</span>
-        </button>
+      {photo.photoTags && photo.photoTags.length > 0 && (
+        <section aria-label={photoTagsText.foundHeading} data-testid="photo-tags">
+          <h3 className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--text-muted)]">{photoTagsText.foundHeading}</h3>
+          <ul className="flex flex-wrap gap-1.5">
+            {photo.photoTags.map((tag) => (
+              <li key={tag.id} className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] px-2 py-0.5 text-xs text-[var(--text-primary)]">
+                <span><span className="text-[var(--text-muted)]">{(photoTagsText.facets as Record<string, string>)[tag.facet]}: </span>{tag.label}</span>
+                {onRemovePhotoTag && (
+                  <button type="button" aria-label={photoTagsText.remove(tag.label)} title={photoTagsText.remove(tag.label)}
+                    onClick={() => onRemovePhotoTag(photo.id, tag.id)}
+                    className="rounded px-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">×</button>
+                )}
+              </li>
+            ))}
+          </ul>
+          {photo.photoTags.some((tag) => tag.facet === 'place') && (
+            <p className="mt-2 text-[0.6875rem] text-[var(--text-muted)]">{photoTagsText.placeNote}</p>
+          )}
+        </section>
+      )}
       </div>
-
+      ) : (
+      <div role="tabpanel" id="v2-info-tabpanel-technical" aria-labelledby="v2-info-tab-technical" className="space-y-4">
       {/* File & Original Link */}
-      <section className="space-y-1.5 border-t border-[var(--border-subtle)] pt-3">
+      <section className="space-y-1.5">
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.info.fileSection}</h3>
         <dl className="space-y-1.5 text-xs">
           <MetaRow label="File" value={photo.filename} mono />
@@ -263,101 +378,7 @@ export default function InfoPanel({
         )}
         <ExternalEditBlock photo={photo} editor={externalEditor} onSend={onEditInOtherApp} onStop={onStopExternalEdit} />
       </section>
-
-      {/* Camera & Capture */}
-      <section className="space-y-1.5 border-t border-[var(--border-subtle)] pt-3">
-        <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.info.cameraSection}</h3>
-        <dl className="space-y-1.5 text-xs">
-          <MetaRow label="Camera" value={photo.exif.camera} />
-          <MetaRow label="Lens" value={photo.exif.lens} />
-          <MetaRow label="Exposure" value={[photo.exif.aperture, photo.exif.shutter, photo.exif.iso > 0 ? `ISO ${photo.exif.iso}` : ''].filter(value => value && value !== 'Not recorded').join(' · ') || 'Not recorded'} mono />
-          <MetaRow label="Focal length" value={photo.exif.focalLength} mono />
-          <MetaRow label="Captured" value={photo.exif.capturedAt} />
-          {photo.cameraFocus && (
-            <div className="flex items-start justify-between gap-3" data-testid="camera-focus">
-              <dt className="shrink-0 text-[var(--text-muted)]">{STRINGS.info.cameraFocusRow}</dt>
-              <dd className="text-right">
-                <span className="text-[var(--text-primary)]">{photo.cameraFocus.label}</span>
-                <span className="block text-[0.6875rem] text-[var(--text-secondary)]">{photo.cameraFocus.detail}</span>
-              </dd>
-            </div>
-          )}
-          {photo.editStatus && (
-            <div className="flex items-start justify-between gap-3" data-testid="edit-status">
-              <dt className="shrink-0 text-[var(--text-muted)]">{STRINGS.info.editStatusRow}</dt>
-              <dd className="text-right">
-                <span className="text-[var(--text-primary)]">{photo.editStatus.label}</span>
-                <span className="block text-[0.6875rem] text-[var(--text-secondary)]">{photo.editStatus.detail}</span>
-              </dd>
-            </div>
-          )}
-        </dl>
-      </section>
-
-      {/* Analysis Summary */}
-      <section className="space-y-1.5 border-t border-[var(--border-subtle)] pt-3">
-        <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.info.cullSection}</h3>
-        <dl className="space-y-1.5 text-xs">
-          <div className="flex items-start justify-between gap-2">
-            <dt className="shrink-0 text-[var(--text-muted)]">{STRINGS.panelWords.subject}</dt>
-            {editingSpecies ? (
-              <form
-                className="flex min-w-0 flex-1 flex-wrap justify-end gap-1"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  if (!speciesDraft.trim()) return;
-                  onCorrectSpeciesName(photo.id, speciesDraft);
-                  setEditingSpecies(false);
-                }}
-              >
-                <SpeciesNameField
-                  label={STRINGS.panelWords.correctSpecies}
-                  value={speciesDraft}
-                  onChange={setSpeciesDraft}
-                  className="w-full min-w-0 rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2 py-1 text-xs text-[var(--text-primary)]"
-                />
-                <button type="submit" disabled={!speciesDraft.trim()} className="rounded border border-[var(--border-default)] px-2 py-1 disabled:opacity-40">{STRINGS.panelWords.save}</button>
-                <button type="button" onClick={() => setEditingSpecies(false)} className="rounded px-1 py-1">{STRINGS.panelWords.cancel}</button>
-              </form>
-            ) : (
-              <dd className="flex min-w-0 items-center gap-2 text-right text-[var(--text-primary)]">
-                <span className="flex flex-col items-end">
-                  <span>{photo.speciesLabel || photo.category || (photo.vehicleLabel ? '' : STRINGS.panelWords.notIdentified)}</span>
-                  {photo.speciesAreaLabel && <span data-testid="species-area-used" className="text-[0.6875rem] text-[var(--text-secondary)]">{photo.speciesAreaLabel}</span>}
-                </span>
-                <button type="button" aria-label={STRINGS.panelWords.correctSpecies} title={STRINGS.panelWords.correctSpecies}
-                  onClick={() => setEditingSpecies(true)}
-                  className="shrink-0 rounded border border-[var(--border-subtle)] px-2 py-1 text-[0.6875rem]">{STRINGS.panelWords.edit}</button>
-              </dd>
-            )}
-          </div>
-          {onCorrectVehicle && <VehicleRow photo={photo} onCorrect={onCorrectVehicle} />}
-          <MetaRow label="Sharpness" value={`${photo.sharpnessScore}%`} mono />
-          <MetaRow label={STRINGS.tier.label} value={photo.tier ? STRINGS.tier[photo.tier] : STRINGS.tier.notRanked} />
-        </dl>
-        {speciesPlace && onSetSpeciesArea && (
-          <div className="mt-3"><SpeciesPlaceRow place={speciesPlace} onChange={onSetSpeciesArea} /></div>
-        )}
-      </section>
-      {photo.photoTags && photo.photoTags.length > 0 && (
-        <section aria-label={photoTagsText.foundHeading} data-testid="photo-tags">
-          <h3 className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--text-muted)]">{photoTagsText.foundHeading}</h3>
-          <ul className="flex flex-wrap gap-1.5">
-            {photo.photoTags.map((tag) => (
-              <li key={tag.id} className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] px-2 py-0.5 text-xs text-[var(--text-primary)]">
-                <span><span className="text-[var(--text-muted)]">{(photoTagsText.facets as Record<string, string>)[tag.facet]}: </span>{tag.label}</span>
-                {onRemovePhotoTag && (
-                  <button type="button" aria-label={photoTagsText.remove(tag.label)} title={photoTagsText.remove(tag.label)}
-                    onClick={() => onRemovePhotoTag(photo.id, tag.id)}
-                    className="rounded px-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">×</button>
-                )}
-              </li>
-            ))}
-          </ul>
-          {photo.photoTags.some((tag) => tag.facet === 'place') && (
-            <p className="mt-2 text-[0.6875rem] text-[var(--text-muted)]">{photoTagsText.placeNote}</p>
-          )}
-        </section>
+      </div>
       )}
     </div>
   );
@@ -453,4 +474,11 @@ function fileFormatWords(photo: Photo): string {
   const format = photo.exif.fileFormat;
   const preview = / Embedded Preview$/;
   return photo.picture?.preview && preview.test(format) ? format.replace(preview, ' RAW') : format;
+}
+
+type InfoTab = 'photo' | 'technical';
+const INFO_TAB_KEY = 'inflight.infoTab.v1';
+/** The tab last chosen on this device; the photograph's own tab the first time. */
+function readInfoTab(): InfoTab {
+  try { return localStorage.getItem(INFO_TAB_KEY) === 'technical' ? 'technical' : 'photo'; } catch { return 'photo'; }
 }

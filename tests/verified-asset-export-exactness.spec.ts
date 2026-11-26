@@ -43,11 +43,13 @@ async function exportZip(page: Page, root: ReturnType<Page['locator']>, original
   await root.getByRole('button', { name: /^Export/ }).first().click();
   await expect(dialog).toBeVisible();
   if (original) {
+    { const box = dialog.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
     await dialog.getByRole('button', { name: /Original file: exact copy/ }).click();
     await dialog.getByRole('button', { name: /After \(edited\)/ }).click();
     const chosen = dialog.locator('.grid.grid-cols-2 button[aria-pressed="true"]');
     while (await chosen.count()) await chosen.first().click();
   } else {
+    { const box = dialog.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
     await dialog.getByLabel('File format').selectOption('png');
   }
   const downloaded = page.waitForEvent('download', { timeout: 240_000 });

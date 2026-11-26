@@ -137,9 +137,11 @@ test('?v2 PNG export is lossless: the same pixels whether exported once or twice
   let dialog = await openExport(page, studio);
   const jpeg = await exportZip(page, dialog);
   dialog = await openExport(page, studio);
+  { const box = dialog.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
   await dialog.getByLabel('File format').selectOption('png');
   const png = await exportZip(page, dialog);
   dialog = await openExport(page, studio);
+  { const box = dialog.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
   await dialog.getByLabel('File format').selectOption('png');
   const again = await exportZip(page, dialog);
   expect(Object.keys(png).length).toBe(Object.keys(jpeg).length);
@@ -174,6 +176,7 @@ test('?v2 a saved preset and File > Export again give exactly the files the wiza
   const studio = await projectWithPhoto(page);
   // Wizard: PNG at most 2560 px, saved as a preset.
   let dialog = await openExport(page, studio);
+  { const box = dialog.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
   await dialog.getByLabel('File format').selectOption('png');
   await dialog.getByRole('combobox', { name: 'Size', exact: true }).selectOption('2560');
   await dialog.getByRole('textbox', { name: 'Name for these settings' }).fill('Web PNG');
@@ -187,6 +190,7 @@ test('?v2 a saved preset and File > Export again give exactly the files the wiza
   // Reopened, the wizard keeps this session's settings. Change them away from the preset; choosing the preset puts
   // exactly its settings back.
   dialog = await openExport(page, studio);
+  { const box = dialog.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
   await dialog.getByLabel('File format').selectOption('jpeg');
   await dialog.getByRole('combobox', { name: 'Size', exact: true }).selectOption({ index: 0 });
   await expect(dialog.getByRole('combobox', { name: 'Size', exact: true })).not.toHaveValue('2560');
@@ -216,6 +220,7 @@ test('?v2 a saved preset and File > Export again give exactly the files the wiza
 
   // Delete removes the preset.
   dialog = await openExport(page, studio);
+  { const box = dialog.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
   await dialog.getByRole('combobox', { name: 'Use saved settings' }).selectOption({ label: 'Web PNG' });
   await dialog.getByRole('button', { name: 'Delete “Web PNG”' }).click();
   await expect(dialog.getByRole('combobox', { name: 'Use saved settings' })).toHaveCount(0);

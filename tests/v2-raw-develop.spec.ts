@@ -99,6 +99,7 @@ test('V2 writes structurally verified 16-bit TIFFs with and without the Tint edi
   await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
   const saveTiff = async () => {
     await studio.getByRole('button', { name: 'Export', exact: true }).first().click();
+    { const box = studio.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
     const [download] = await Promise.all([
       page.waitForEvent('download'),
       studio.getByRole('button', { name: 'Save 16-bit RAW TIFF' }).click(),
@@ -155,6 +156,7 @@ test('V2 writes a 16-bit RAW PNG from the sensor data, proven by reading the fil
   }, Buffer.from(mosaic).toString('base64'));
   await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
   await studio.getByRole('button', { name: 'Export', exact: true }).first().click();
+  { const box = studio.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     studio.getByRole('button', { name: 'Save 16-bit RAW PNG' }).click(),

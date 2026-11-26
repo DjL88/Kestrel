@@ -33,6 +33,7 @@ test('reopening a project restores the original for byte-identical offline expor
   await studio.getByRole('button', { name: /^Export/ }).first().click();
   const dialog = page.getByRole('dialog', { name: /export/i });
   await dialog.getByRole('button', { name: /Download individual files/ }).click();
+  { const box = dialog.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
   await dialog.getByRole('button', { name: /Original file: exact copy/ }).click();
   await dialog.getByRole('button', { name: /After \(edited\)/ }).click();
   const [download] = await Promise.all([

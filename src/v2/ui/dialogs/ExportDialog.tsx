@@ -76,6 +76,8 @@ export default function ExportDialog({
   const [presetId, setPresetId] = useState('');
   const [presetName, setPresetName] = useState('');
   const [presetNote, setPresetNote] = useState('');
+  // Advanced (versions, file type and size, 16-bit files, captions, saved settings, brand kits): closed each time.
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [brandKitId, setBrandKitId] = useState('');
   // Captions and credits: one template on this device, used by every export until changed.
   const [captions, setCaptions] = useState<CaptionTemplate>(() => readCaptionTemplate(deviceStorage()));
@@ -207,47 +209,91 @@ export default function ExportDialog({
           </button>
         </div>
 
-        {/* Body */}
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto overscroll-contain inflight-scroll p-3 sm:gap-6 sm:p-6 md:grid-cols-12">
-          {/* Left column: Saved settings, Destination + Social quick-select */}
-          <div className="space-y-5 md:col-span-6">
-            <section className="space-y-2" aria-labelledby="export-presets-title" data-testid="export-presets">
-              <h3 id="export-presets-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.exportDialog.presetsHeading}</h3>
-              {presets.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <select aria-label={STRINGS.exportDialog.presetChoose} value={shownPresetId} onChange={(event) => choosePreset(event.target.value)}
-                    className="min-h-10 min-w-0 flex-1 rounded bg-[var(--bg-input)] p-2 text-xs text-[var(--text-primary)]">
-                    <option value="">{STRINGS.exportDialog.presetPlaceholder}</option>
-                    {presets.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                  </select>
-                  {shownPresetId && (
-                    <button type="button" onClick={removePreset}
-                      className="min-h-10 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                      {STRINGS.exportDialog.presetDelete(presets.find((item) => item.id === presetId)?.name ?? '')}
-                    </button>
-                  )}
-                </div>
-              )}
-              <div className="flex flex-wrap items-center gap-2">
-                <input type="text" value={presetName} maxLength={MAX_PRESET_NAME} aria-label={STRINGS.exportDialog.presetName}
-                  placeholder={STRINGS.exportDialog.presetName} onChange={(event) => setPresetName(event.target.value)}
-                  className="min-h-10 min-w-0 flex-1 rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2 text-xs text-[var(--text-primary)]" />
-                <button type="button" onClick={saveCurrentPreset}
-                  className="min-h-10 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
-                  {STRINGS.exportDialog.presetSave}
-                </button>
-              </div>
-              {presetNote && <p role="status" className="text-[0.6875rem] text-[var(--text-secondary)]">{presetNote}</p>}
-            </section>
-            {brandKits && onSaveBrandKit && onEditBrandKit && onDeleteBrandKit && (
-              <BrandKitSection kits={brandKits} chosenId={brandKitId} onChoose={setBrandKitId} photoId={photo.id}
-                onSave={onSaveBrandKit} onEdit={onEditBrandKit} onDelete={onDeleteBrandKit} />
-            )}
+        {/* Body (Windows beta): Photos, Formats, Destination, then Export; the rest waits behind Advanced. */}
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain inflight-scroll p-3 sm:p-6">
             <section className="space-y-2">
+              <h3 className="text-xs font-semibold text-[var(--text-primary)]">
+                {STRINGS.exportDialog.photosHeading}
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)]" data-testid="export-photos-summary">{STRINGS.exportDialog.photosSummary(selectedPhotoIds.length || 1)}</p>
+              <div className="space-y-1.5">
+                {photoIds.length > 1 ? <p className="text-xs text-[var(--text-secondary)]">{STRINGS.exportDialog.batchActiveGroup}</p> : photo.editGroups.map((g) => {
+                  const checked = selectedGroupIds.includes(g.id);
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => toggleGroup(g.id)}
+                      aria-pressed={checked}
+                      className="flex w-full items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:border-[var(--border-default)]"
+                    >
+                      <BrandIcon
+                        name={checked ? 'checkbox-checked' : 'checkbox-empty'}
+                        size={15}
+                        className={checked ? 'text-[var(--brand-accent)]' : 'text-[var(--text-muted)]'}
+                      />
+                      <span className="truncate font-medium">{g.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+            <section className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
+              <h3 className="text-xs font-semibold text-[var(--text-primary)]">
+                {STRINGS.exportDialog.formatsHeading}
+              </h3>
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                {enabledFormats.map((size) => {
+                  const checked = selectedSizeIds.includes(size.id);
+                  return (
+                    <button
+                      key={size.id}
+                      type="button"
+                      onClick={() => toggleSize(size.id)}
+                      aria-pressed={checked}
+                      className={`flex items-center justify-between gap-1.5 rounded-[var(--radius-sm)] border px-2.5 py-2 text-left text-xs transition-colors ${
+                        checked
+                          ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--text-primary)]'
+                          : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'
+                      }`}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate">{size.label}</span>
+                        <span className="block font-mono text-[0.625rem] text-[var(--text-muted)]">
+                          {size.width}×{size.height}{frameCount(size.id) > 1 ? ` · ${STRINGS.exportDialog.frameFiles(frameCount(size.id))}` : ''}
+                        </span>
+                      </span>
+                      <span className="font-mono text-[0.625rem] text-[var(--text-muted)] shrink-0">
+                        {size.ratioLabel}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+            {socialPlatforms.length > 0 && <section className="space-y-2">
+              <h3 className="text-xs font-semibold text-[var(--text-primary)]">
+                {STRINGS.exportDialog.socialQuickSelect}
+              </h3>
+              <div className="grid grid-cols-2 gap-1.5">
+                {socialPlatforms.map((sp) => (
+                  <button
+                    key={sp.id}
+                    type="button"
+                    onClick={() => selectAllForPlatform(sp)}
+                    className="flex h-9 items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-2.5 text-left text-xs font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--brand-accent)] hover:text-[var(--brand-accent)]"
+                  >
+                    <SocialLogo platform={sp.id} size={15} />
+                    <span className="truncate">{STRINGS.exportDialog.selectAllFor(sp.label)}</span>
+                  </button>
+                ))}
+              </div>
+            </section>}
+            <section className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
               <h3 className="text-xs font-semibold text-[var(--text-primary)]">
                 {STRINGS.exportDialog.destinationHeading}
               </h3>
-              <div className="grid grid-cols-1 gap-1.5">
+              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                 {destinations.map((dest) => {
                   const active = destination === dest.id;
                   return (
@@ -283,101 +329,48 @@ export default function ExportDialog({
                 })}
               </div>
             </section>
-            <CaptionsSection template={captions} onChange={changeCaptions} />
-            {canRequestRaw && (
-              <section aria-label={STRINGS.exportDialog.rawMasterHeading} className="space-y-2">
-                <div className="flex flex-wrap gap-2">
-                  <button type="button" onClick={() => handleSubmit(true, 'tiff')}
-                    className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
-                    {STRINGS.exportDialog.rawMasterButton}
-                  </button>
-                  <button type="button" onClick={() => handleSubmit(true, 'png')}
-                    className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
-                    {STRINGS.exportDialog.rawMasterPngButton}
-                  </button>
-                </div>
-                <p className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.exportDialog.rawMasterHelp}</p>
-              </section>
-            )}
 
-            {socialPlatforms.length > 0 && <section className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
+            <section className="border-t border-[var(--border-subtle)] pt-4" data-testid="export-advanced">
+              <button type="button" aria-expanded={advancedOpen} aria-controls="export-advanced-body" onClick={() => setAdvancedOpen((open) => !open)}
+                className="flex min-h-10 w-full items-center justify-between rounded-[var(--radius-sm)] px-1 text-left text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                <span>{STRINGS.exportDialog.advancedHeading}</span>
+                <span className="font-normal text-[var(--text-muted)]">{advancedOpen ? STRINGS.exportDialog.advancedHide : STRINGS.exportDialog.advancedShow}</span>
+              </button>
+              {advancedOpen && (
+              <div id="export-advanced-body" className="mt-2 space-y-5">
+            {/* Versions */}
+            <section className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
               <h3 className="text-xs font-semibold text-[var(--text-primary)]">
-                {STRINGS.exportDialog.socialQuickSelect}
+                {STRINGS.exportDialog.variantsHeading}
               </h3>
-              <div className="grid grid-cols-2 gap-1.5">
-                {socialPlatforms.map((sp) => (
+              <div className="space-y-1.5">
+                {[
+                  { label: STRINGS.exportDialog.variantBefore(fileFormat.toUpperCase()), val: includeBefore, set: setIncludeBefore },
+                  { label: STRINGS.exportDialog.variantAfter, val: includeAfter, set: setIncludeAfter },
+                  { label: STRINGS.exportDialog.variantOriginal, val: includeOriginal, set: setIncludeOriginal },
+                ].map((item) => (
                   <button
-                    key={sp.id}
+                    key={item.label}
                     type="button"
-                    onClick={() => selectAllForPlatform(sp)}
-                    className="flex h-9 items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-2.5 text-left text-xs font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--brand-accent)] hover:text-[var(--brand-accent)]"
+                    onClick={() => item.set(!item.val)}
+                    aria-pressed={item.val}
+                    className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
                   >
-                    <SocialLogo platform={sp.id} size={15} />
-                    <span className="truncate">{STRINGS.exportDialog.selectAllFor(sp.label)}</span>
+                    <BrandIcon
+                      name={item.val ? 'checkbox-checked' : 'checkbox-empty'}
+                      size={15}
+                      className={item.val ? 'text-[var(--brand-accent)]' : 'text-[var(--text-muted)]'}
+                    />
+                    <span>{item.label}</span>
                   </button>
                 ))}
               </div>
-            </section>}
-          </div>
-
-          {/* Right column: Edit Groups, Formats & Variants */}
-          <div className="space-y-5 md:col-span-6">
-            <section className="space-y-2">
-              <h3 className="text-xs font-semibold text-[var(--text-primary)]">
-                {STRINGS.exportDialog.groupsHeading}
-              </h3>
-              <div className="space-y-1.5">
-                {photoIds.length > 1 ? <p className="text-xs text-[var(--text-secondary)]">{STRINGS.exportDialog.batchActiveGroup}</p> : photo.editGroups.map((g) => {
-                  const checked = selectedGroupIds.includes(g.id);
-                  return (
-                    <button
-                      key={g.id}
-                      type="button"
-                      onClick={() => toggleGroup(g.id)}
-                      aria-pressed={checked}
-                      className="flex w-full items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:border-[var(--border-default)]"
-                    >
-                      <BrandIcon
-                        name={checked ? 'checkbox-checked' : 'checkbox-empty'}
-                        size={15}
-                        className={checked ? 'text-[var(--brand-accent)]' : 'text-[var(--text-muted)]'}
-                      />
-                      <span className="truncate font-medium">{g.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="grid grid-cols-2 gap-1.5 pt-1">
-                {enabledFormats.map((size) => {
-                  const checked = selectedSizeIds.includes(size.id);
-                  return (
-                    <button
-                      key={size.id}
-                      type="button"
-                      onClick={() => toggleSize(size.id)}
-                      aria-pressed={checked}
-                      className={`flex items-center justify-between gap-1.5 rounded-[var(--radius-sm)] border px-2.5 py-2 text-left text-xs transition-colors ${
-                        checked
-                          ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--text-primary)]'
-                          : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'
-                      }`}
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate">{size.label}</span>
-                        <span className="block font-mono text-[0.625rem] text-[var(--text-muted)]">
-                          {size.width}×{size.height}{frameCount(size.id) > 1 ? ` · ${STRINGS.exportDialog.frameFiles(frameCount(size.id))}` : ''}
-                        </span>
-                      </span>
-                      <span className="font-mono text-[0.625rem] text-[var(--text-muted)] shrink-0">
-                        {size.ratioLabel}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              <p className="px-2 text-[0.6875rem] text-[var(--text-secondary)]" data-testid="export-overlay-note">
+                {canvasOverlays.length
+                  ? STRINGS.exportDialog.overlaysAsOnCanvas(new Intl.ListFormat(activeLanguage()).format(canvasOverlays))
+                  : STRINGS.exportDialog.noOverlaysOnCanvas}
+              </p>
             </section>
-
             {(includeBefore || includeAfter) && (
               <section className="space-y-2 border-t border-[var(--border-subtle)] pt-4 text-xs">
                 <label className="flex items-center justify-between">
@@ -418,41 +411,58 @@ export default function ExportDialog({
                 )}
               </section>
             )}
-
-            {/* Versions */}
-            <section className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
-              <h3 className="text-xs font-semibold text-[var(--text-primary)]">
-                {STRINGS.exportDialog.variantsHeading}
-              </h3>
-              <div className="space-y-1.5">
-                {[
-                  { label: STRINGS.exportDialog.variantBefore(fileFormat.toUpperCase()), val: includeBefore, set: setIncludeBefore },
-                  { label: STRINGS.exportDialog.variantAfter, val: includeAfter, set: setIncludeAfter },
-                  { label: STRINGS.exportDialog.variantOriginal, val: includeOriginal, set: setIncludeOriginal },
-                ].map((item) => (
-                  <button
-                    key={item.label}
-                    type="button"
-                    onClick={() => item.set(!item.val)}
-                    aria-pressed={item.val}
-                    className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
-                  >
-                    <BrandIcon
-                      name={item.val ? 'checkbox-checked' : 'checkbox-empty'}
-                      size={15}
-                      className={item.val ? 'text-[var(--brand-accent)]' : 'text-[var(--text-muted)]'}
-                    />
-                    <span>{item.label}</span>
+            {canRequestRaw && (
+              <section aria-label={STRINGS.exportDialog.rawMasterHeading} className="space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => handleSubmit(true, 'tiff')}
+                    className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                    {STRINGS.exportDialog.rawMasterButton}
                   </button>
-                ))}
+                  <button type="button" onClick={() => handleSubmit(true, 'png')}
+                    className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                    {STRINGS.exportDialog.rawMasterPngButton}
+                  </button>
+                </div>
+                <p className="text-[0.6875rem] text-[var(--text-secondary)]">{STRINGS.exportDialog.rawMasterHelp}</p>
+              </section>
+            )}
+            <CaptionsSection template={captions} onChange={changeCaptions} />
+            <p className="text-[0.6875rem] text-[var(--text-secondary)]" data-testid="export-captions-note">{STRINGS.exportDialog.captionsMetadataNote}</p>
+            <section className="space-y-2" aria-labelledby="export-presets-title" data-testid="export-presets">
+              <h3 id="export-presets-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.exportDialog.presetsHeading}</h3>
+              {presets.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <select aria-label={STRINGS.exportDialog.presetChoose} value={shownPresetId} onChange={(event) => choosePreset(event.target.value)}
+                    className="min-h-10 min-w-0 flex-1 rounded bg-[var(--bg-input)] p-2 text-xs text-[var(--text-primary)]">
+                    <option value="">{STRINGS.exportDialog.presetPlaceholder}</option>
+                    {presets.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                  </select>
+                  {shownPresetId && (
+                    <button type="button" onClick={removePreset}
+                      className="min-h-10 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                      {STRINGS.exportDialog.presetDelete(presets.find((item) => item.id === presetId)?.name ?? '')}
+                    </button>
+                  )}
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <input type="text" value={presetName} maxLength={MAX_PRESET_NAME} aria-label={STRINGS.exportDialog.presetName}
+                  placeholder={STRINGS.exportDialog.presetName} onChange={(event) => setPresetName(event.target.value)}
+                  className="min-h-10 min-w-0 flex-1 rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2 text-xs text-[var(--text-primary)]" />
+                <button type="button" onClick={saveCurrentPreset}
+                  className="min-h-10 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+                  {STRINGS.exportDialog.presetSave}
+                </button>
               </div>
-              <p className="px-2 text-[0.6875rem] text-[var(--text-secondary)]" data-testid="export-overlay-note">
-                {canvasOverlays.length
-                  ? STRINGS.exportDialog.overlaysAsOnCanvas(new Intl.ListFormat(activeLanguage()).format(canvasOverlays))
-                  : STRINGS.exportDialog.noOverlaysOnCanvas}
-              </p>
+              {presetNote && <p role="status" className="text-[0.6875rem] text-[var(--text-secondary)]">{presetNote}</p>}
             </section>
-          </div>
+            {brandKits && onSaveBrandKit && onEditBrandKit && onDeleteBrandKit && (
+              <BrandKitSection kits={brandKits} chosenId={brandKitId} onChoose={setBrandKitId} photoId={photo.id}
+                onSave={onSaveBrandKit} onEdit={onEditBrandKit} onDelete={onDeleteBrandKit} />
+            )}
+              </div>
+              )}
+            </section>
         </div>
 
         {/* Footer */}

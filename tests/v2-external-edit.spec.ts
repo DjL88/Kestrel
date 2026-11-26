@@ -23,6 +23,7 @@ test('?v2 Edit in another app is shown as unavailable in a browser, in plain wor
   await (await chooser).setFiles([{ name: 'green.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
   await root.getByRole('button', { name: 'Info', exact: true }).first().click();
+  await root.getByTestId('info-tab-technical').click(); // the file's details are on the second tab
 
   const block = root.getByTestId('external-edit-unavailable');
   const button = block.getByRole('button', { name: 'Edit in another app' });

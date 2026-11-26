@@ -24,6 +24,7 @@ test('captions and credits, with a code replacement, are written into the export
   await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
   await studio.getByRole('button', { name: /^Export/ }).first().click();
   const dialog = page.getByRole('dialog', { name: /export/i });
+  { const box = dialog.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
   const captions = dialog.getByTestId('export-captions');
   await captions.getByText('Captions and credits', { exact: true }).click();
   await captions.getByLabel('Add captions and credits to each file').check();
@@ -31,6 +32,7 @@ test('captions and credits, with a code replacement, are written into the export
   await captions.getByLabel('Photographer').fill('Test Photographer');
   await captions.getByLabel('Country').fill('United Kingdom');
   await captions.getByLabel(/Code replacements/).fill('raf = Royal Air Force');
+  { const box = dialog.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
   await dialog.getByLabel('File format').selectOption('png');
   const downloaded = page.waitForEvent('download');
   await dialog.getByRole('button', { name: /export bundle/i }).click();

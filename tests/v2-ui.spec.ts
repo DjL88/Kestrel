@@ -830,8 +830,10 @@ test('?v2 export: Original file is the exact bytes, and Before + After is a zip 
   await root.getByRole('button', { name: /^Export/ }).first().click();
   const dialog = page.getByRole('dialog', { name: /export/i });
   // The wording never passes a developed copy off as the original.
+  { const box = dialog.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
   await expect(dialog.getByRole('button', { name: /Before: unedited, developed to JPEG \(not the original file\)/ })).toBeVisible();
   // Original file only.
+  { const box = dialog.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
   await dialog.getByRole('button', { name: /Original file: exact copy/ }).click();
   await dialog.getByRole('button', { name: /After \(edited\)/ }).click();
   const original = page.waitForEvent('download', { timeout: 60000 });
@@ -847,6 +849,7 @@ test('?v2 export: Original file is the exact bytes, and Before + After is a zip 
   await page.waitForTimeout(500);
   if (!(await page.getByRole('dialog', { name: /export/i }).isVisible())) await root.getByRole('button', { name: /^Export/ }).first().click();
   const again = page.getByRole('dialog', { name: /export/i });
+  { const box = again.getByTestId('export-advanced'); await box.waitFor(); const advanced = box.locator('button[aria-expanded="false"]'); if (await advanced.count()) await advanced.click(); } // Advanced holds versions, file type and size
   const states = await again.getByRole('button', { name: /Original file: exact copy/ }).getAttribute('aria-pressed');
   if (states === 'true') await again.getByRole('button', { name: /Original file: exact copy/ }).click();
   await again.getByRole('button', { name: /Before: unedited/ }).click();
