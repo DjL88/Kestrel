@@ -249,11 +249,11 @@ export function importKeymap(raw: string): ImportKeymapResult {
   }
   if (typeof parsed !== 'object' || parsed === null) return { ok: false, error: 'That file is not a keymap export.' };
   const candidate = parsed as Partial<KeymapExportFile>;
-  if (candidate.kind !== KEYMAP_EXPORT_KIND) return { ok: false, error: 'That file is not a Kestrel keymap export.' };
+  if (candidate.kind !== KEYMAP_EXPORT_KIND) return { ok: false, error: 'That file is not an InFlight keymap export.' };
   if (candidate.version !== KEYMAP_EXPORT_VERSION) {
-    return { ok: false, error: `This keymap was saved in a format (${JSON.stringify(candidate.version)}) this version of Kestrel does not read.` };
+    return { ok: false, error: `This keymap was saved in a format (${JSON.stringify(candidate.version)}) this version of InFlight does not read.` };
   }
-  if (!isPresetId(candidate.preset)) return { ok: false, error: 'That file does not name a key set Kestrel knows.' };
+  if (!isPresetId(candidate.preset)) return { ok: false, error: 'That file does not name a key set InFlight knows.' };
   const { overrides, dropped } = sanitizeOverrides(candidate.overrides);
   return { ok: true, keymap: { preset: candidate.preset, overrides }, dropped };
 }

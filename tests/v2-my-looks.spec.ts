@@ -93,7 +93,7 @@ test('looks travel as a file: export, delete, import back, and a wrong file chan
   await expect(mine).toContainText('You have not saved any looks yet.');
 
   await mine.getByTestId('user-looks-file').setInputFiles({ name: 'keys.json', mimeType: 'application/json', buffer: Buffer.from('{"format":"kestrel-keymap"}') });
-  await expect(page.getByText('That file is not a Kestrel looks file.')).toBeVisible();
+  await expect(page.getByText('That file is not an InFlight looks file.')).toBeVisible();
   await expect(mine).toContainText('You have not saved any looks yet.');
 
   await mine.getByTestId('user-looks-file').setInputFiles({ name: 'kestrel-looks.json', mimeType: 'application/json', buffer: Buffer.from(text) });

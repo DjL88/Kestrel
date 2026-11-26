@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { parseSnapshot, type ProjectSnapshot, type SyncedPhoto } from '../../src/core/projectSnapshot.ts';
 
 /**
- * What an assistant may see of a InFlight project, read from the sync folder a person chose to share. It reads only the
+ * What an assistant may see of an InFlight project, read from the sync folder a person chose to share. It reads only the
  * small project files InFlight writes there (decisions, ratings, tags, edit settings): never photographs, never the
  * rest of the disk. Anything it wants changed becomes a proposal file the person reviews; nothing is applied for them.
  */

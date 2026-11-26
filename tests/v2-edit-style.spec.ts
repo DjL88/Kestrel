@@ -50,6 +50,6 @@ test('Auto leans towards a learnt style, says so, and forgets it on request', as
   await expect(note).toContainText('Leaned towards your own edits: Exposure');
   await expect(note).toContainText('Nothing is sent anywhere.');
   await note.getByRole('button', { name: 'Forget my style' }).click();
-  await expect(studio.getByText('Kestrel has forgotten your editing style.', { exact: false })).toBeVisible();
+  await expect(studio.getByText('InFlight has forgotten your editing style.', { exact: false })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('kestrel.edit-style.v1'))).toBeNull();
 });
