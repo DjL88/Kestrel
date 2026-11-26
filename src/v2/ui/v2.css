@@ -268,3 +268,14 @@ html[data-font="readable"] .inflight-v2 [data-artwork] { font-family: var(--font
   .inflight-v2 .v2-touch-target { min-height: var(--touch-min); }
   .inflight-v2 input[type="checkbox"], .inflight-v2 input[type="radio"] { width: 24px; height: 24px; }
 }
+
+/* Filmstrip "⋯" (Windows beta): with a mouse it is small and shows on hover or keyboard focus, so it does not crowd the
+ * photo; on touch screens (no hover) it stays visible at full touch size, since there is no hover to reveal it. */
+@media (hover: hover) and (pointer: fine) {
+  .inflight-v2 .v2-strip-tile .v2-strip-tile-more { min-height: 1.5rem; min-width: 1.5rem; opacity: 0; transition: opacity 120ms ease-out; }
+  .inflight-v2 .v2-strip-tile:hover .v2-strip-tile-more,
+  .inflight-v2 .v2-strip-tile:focus-within .v2-strip-tile-more { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .inflight-v2 .v2-strip-tile .v2-strip-tile-more { transition: none; }
+}

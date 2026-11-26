@@ -560,7 +560,20 @@ fn set_landscape_allowed(window: tauri::WebviewWindow, allowed: bool) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // One copy of InFlight at a time on desktop (Windows beta, 26 Nov 2026): starting it again, or opening photos with
+    // it from Explorer or Finder, brings the open window forward and hands it those photos, instead of a second copy
+    // that sees the first one's processing slot as taken. Registered first, as the plugin asks.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+        queue_opened_files(app, args.into_iter().skip(1).map(std::path::PathBuf::from).collect());
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }));
+    let builder = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())

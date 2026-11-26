@@ -937,6 +937,12 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   const sheetOpen = phoneLayout && Boolean(store.activePanel) && !composingCollage;
   // Canvas only applies to one photo open in the editor; the grid, a collage and the project list keep their bars.
   const canvasOnlyShown = canvasOnly && store.screen === 'editor' && Boolean(activePhoto) && !store.gridViewOpen && !store.collage;
+  // Opening a photo (a project, or the single-photo view from the grid) starts fitted to the screen, never at the last
+  // zoom (Windows beta: it reopened at 214%). Stepping from photo to photo keeps the zoom, for checking focus in a burst.
+  const loupeOpen = store.screen === 'editor' && !store.gridViewOpen;
+  React.useEffect(() => {
+    if (loupeOpen) actions.setCanvasZoom(1);
+  }, [loupeOpen, store.activeProjectId]);
   useEffect(() => {
     const sheet = sheetEl;
     if (!sheetOpen || !sheet) { setSheetHeight(0); setSheetWidth(0); return; }

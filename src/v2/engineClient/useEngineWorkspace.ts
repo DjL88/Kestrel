@@ -1120,7 +1120,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           else setNotice(engineText.workspace.exportStopped);
         });
       } catch (error) {
-        setNotice(error instanceof Error ? error.message : engineText.workspace.exportNotQueued);
+        // The desktop shell rejects with plain strings (a folder it may not write to, a full disk): show that reason,
+        // not only "Could not start this export" (Windows beta: Save to a folder failed with no reason given).
+        const reason = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+        setNotice(reason ? `${engineText.workspace.exportNotQueued} ${reason}` : engineText.workspace.exportNotQueued);
       }
       return;
     }

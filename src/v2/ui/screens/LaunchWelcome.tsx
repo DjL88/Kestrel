@@ -6,7 +6,7 @@ import type { LastProject, LaunchProfile, WelcomeState } from '../../../core/lau
 import type { LaunchIntent } from '../../launchIntent';
 import { markLaunched, readProfile, readSlideshow, setSkipChosen, skipChosen, slideshowOff } from '../../../providers/launchMemory';
 import { slideshowDots, slideshowForProject, slideshowWanted } from '../../../core/welcomeSlideshow';
-import { SLIDESHOW_TEXT, SlideshowBackdrop, SlideshowDots, useWelcomeSlideshow } from './WelcomeSlideshow';
+import { SLIDESHOW_TEXT, SlideshowBackdrop, SlideshowDots, loadStoredPreview, useWelcomeSlideshow } from './WelcomeSlideshow';
 import { signOutEverywhere } from '../../../providers/accountSignIn';
 import { isSignInServiceError } from '../../../providers/firebaseAuth';
 import LaunchSignInPanel, { buttonClass } from './LaunchSignInPanel';
@@ -62,19 +62,52 @@ function editedOn(iso: string): string {
 }
 
 /** The last project, read from the local snapshot so it never waits for the catalogue. */
+/**
+ * Up to three of the project's own photos for its card, from previews already stored on this device (the same ones the
+ * welcome slideshow uses). Nothing is shown until each has decoded, and the folder icon stays when there are none.
+ */
+function useCardThumbs(projectId: string, count = 3): string[] {
+  const [urls, setUrls] = useState<string[]>([]);
+  useEffect(() => {
+    const snapshot = slideshowForProject(readSlideshow(), projectId);
+    if (!snapshot || snapshot.projectId !== projectId) return;
+    let live = true;
+    const made: string[] = [];
+    void (async () => {
+      for (const key of snapshot.keys.slice(0, count)) {
+        const blob = await loadStoredPreview(key, snapshot.developVersion, true).catch(() => null);
+        if (!live) return;
+        if (!blob) continue;
+        const url = URL.createObjectURL(blob);
+        made.push(url);
+        setUrls((was) => [...was, url]);
+      }
+    })();
+    return () => { live = false; made.forEach((url) => URL.revokeObjectURL(url)); setUrls([]); };
+  }, [projectId, count]);
+  return urls;
+}
+
 function ProjectCard({ project, highlighted, labelId, onOpen, buttonRef }: {
   project: LastProject; highlighted: boolean; labelId?: string; onOpen: () => void; buttonRef?: RefObject<HTMLButtonElement | null>;
 }) {
   const nameId = useId();
   const when = editedOn(project.editedAt);
+  const thumbs = useCardThumbs(project.id);
   return (
     <button ref={buttonRef} type="button" onClick={onOpen} data-testid="welcome-last-project"
       aria-labelledby={labelId ? `${labelId} ${nameId}` : nameId}
       className={`flex min-h-16 w-full items-center gap-3 rounded-[var(--radius-lg)] border p-2.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-accent)] ${
         highlighted ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]' : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)]'}`}>
-      <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-[var(--bg-surface-raised)] text-[var(--text-muted)]">
-        <BrandIcon name="folder" size={20} />
-      </span>
+      {thumbs.length > 0 ? (
+        <span aria-hidden="true" className="flex shrink-0 gap-1" data-testid="welcome-last-project-thumbs">
+          {thumbs.map((url) => <img key={url} src={url} alt="" draggable={false} className="h-11 w-11 rounded-[var(--radius-sm)] object-cover" />)}
+        </span>
+      ) : (
+        <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-[var(--bg-surface-raised)] text-[var(--text-muted)]">
+          <BrandIcon name="folder" size={20} />
+        </span>
+      )}
       <span className="min-w-0 flex-1">
         <span id={nameId} className="block truncate text-sm font-semibold text-[var(--text-primary)]">{project.name}</span>
         <span className="block text-xs text-[var(--text-muted)]">{STRINGS.hub.photosCount(project.photoCount)}{when ? ` · ${when}` : ''}</span>

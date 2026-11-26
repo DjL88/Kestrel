@@ -13,6 +13,7 @@ import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
 import { pictureSourceWords } from '../shell/PictureSourceBadge';
 import { photoTagsText } from '../../../i18n/areas/photoTags';
+import { engineText } from '../../../i18n/areas/engine';
 
 /** Brightness is solid; each colour channel also has its own dash pattern and name, so none is told apart by hue alone (WCAG 1.4.1). */
 const HISTOGRAM_LINES = [
@@ -88,9 +89,13 @@ export default function InfoPanel({
       <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3">
         <div className="flex items-center justify-between text-xs">
           <span className="font-semibold text-[var(--text-primary)]">{STRINGS.panelWords.histogram}</span>
-          <span className="font-mono text-[0.625rem] text-[var(--text-muted)]">
-            {photo.assistCritique.kelvinEstimate}
-          </span>
+          {/* The white-balance estimate, only once there is one: "Not measured" here read as if the histogram itself was not
+              measured, right above the line that says it was (Windows beta). */}
+          {photo.assistCritique.kelvinEstimate && photo.assistCritique.kelvinEstimate !== engineText.notMeasured && (
+            <span className="font-mono text-[0.625rem] text-[var(--text-muted)]">
+              {photo.assistCritique.kelvinEstimate}
+            </span>
+          )}
         </div>
         {hist ? (
           <>
@@ -175,7 +180,7 @@ export default function InfoPanel({
           <MetaRow label="File" value={photo.filename} mono />
           {photo.pairedJpeg && <MetaRow label={STRINGS.pair.infoLabel} value={photo.pairedJpeg} mono />}
           {photo.externalEdit && <MetaRow label={STRINGS.externalEdit.infoLabel} value={externalEditHistory(photo.externalEdit)} />}
-          <MetaRow label="Format" value={photo.exif.fileSizeMb > 0 ? `${photo.exif.fileFormat} · ${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(photo.exif.fileSizeMb)} MB` : photo.exif.fileFormat} />
+          <MetaRow label="Format" value={photo.exif.fileSizeMb > 0 ? `${fileFormatWords(photo)} · ${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(photo.exif.fileSizeMb)} MB` : fileFormatWords(photo)} />
           {photo.picture?.preview && (() => { const words = pictureSourceWords(photo.picture.preview); return <MetaRow label={STRINGS.pictureSource.infoLabel} value={`${words.label}. ${words.detail}`} />; })()}
           <MetaRow label="Dimensions" value={photo.exif.dimensions} mono />
           <MetaRow label="Colour profile" value={photo.exif.colourProfile} />
@@ -437,4 +442,15 @@ function ExternalEditBlock({ photo, editor, onSend, onStop }: {
       <p className="text-[0.6875rem] text-[var(--text-secondary)]">{words.help}</p>
     </div>
   );
+}
+
+/**
+ * The file's own format. A RAW whose picture source is shown on the next row reads "NEF RAW" here, not "NEF Embedded
+ * Preview": that row already says whether the picture is the camera's preview or InFlight's develop, and the two rows
+ * contradicted each other once the develop arrived (Windows beta).
+ */
+function fileFormatWords(photo: Photo): string {
+  const format = photo.exif.fileFormat;
+  const preview = / Embedded Preview$/;
+  return photo.picture?.preview && preview.test(format) ? format.replace(preview, ' RAW') : format;
 }

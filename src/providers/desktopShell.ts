@@ -48,14 +48,16 @@ export async function saveWithDialog(blob: Blob, name: string, requireMatchingEx
  */
 export async function chooseDesktopExportFolder() {
   if (!isDesktopApp() || isMobileShell()) throw new Error('Folder-based background export needs the desktop app.');
-  const [{ open: choose }, { open: openFile, mkdir, remove }, { join }, { createDesktopFolderDestination }, { exportRunFolder }] = await Promise.all([
+  const [{ open: choose }, { open: openFile, mkdir, remove }, { join, pictureDir }, { createDesktopFolderDestination }, { exportRunFolder }] = await Promise.all([
     import('@tauri-apps/plugin-dialog'),
     import('@tauri-apps/plugin-fs'),
     import('@tauri-apps/api/path'),
     import('../core/desktopExportFolder'),
     import('../core/exportPlace'),
   ]);
-  const chosen = await choose({ directory: true, multiple: false, title: 'Choose where to save InFlight exports' });
+  // Start in Pictures rather than wherever the last dialog was (often the originals' own folder or drive).
+  const start = await pictureDir().catch(() => undefined);
+  const chosen = await choose({ directory: true, multiple: false, title: 'Choose where to save InFlight exports', ...(start ? { defaultPath: start } : {}) });
   if (typeof chosen !== 'string' || !chosen) return null; // Folder picker cancelled.
   const folder = exportRunFolder(new Date(), crypto.randomUUID()).slice('export/'.length);
   const root = await join(chosen, 'InFlight Exports', folder);
