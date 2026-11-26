@@ -46,15 +46,21 @@ export interface MemoryBudget {
    * from the same tier, since a machine with little memory usually has a small disk too.
    */
   diskPreviewBytes: number;
+  /**
+   * Pictures kept between live-edit renders so a late slider skips noise reduction, dehaze and the other early stages
+   * (src/core/stageCache.ts). A 2,200 px screen picture is about 13 MB, so "standard" holds about twelve stage results.
+   */
+  stageCacheBytes: number;
 }
 
 const GB = 1024 ** 3;
+const MB = 1024 ** 2;
 
 /** Per tier. "standard" keeps the numbers the app used before the budget (24 previews, 8 RAWs, 1 each side, 4 held). */
 export const TIER_LIMITS: Record<DeviceTier, Omit<MemoryBudget, 'tier' | 'basis' | 'cullWorkers'> & { cullWorkers: number }> = {
-  low: { cullWorkers: 2, fullPreviews: 8, developedRaws: 3, readAheadReach: 1, readAheadHeld: 2, modelIdleUnloadMs: 20_000, diskPreviewBytes: 2 * GB },
-  standard: { cullWorkers: 4, fullPreviews: 24, developedRaws: 8, readAheadReach: 1, readAheadHeld: 4, modelIdleUnloadMs: 60_000, diskPreviewBytes: 8 * GB },
-  high: { cullWorkers: 6, fullPreviews: 48, developedRaws: 12, readAheadReach: 2, readAheadHeld: 6, modelIdleUnloadMs: 120_000, diskPreviewBytes: 20 * GB },
+  low: { cullWorkers: 2, fullPreviews: 8, developedRaws: 3, readAheadReach: 1, readAheadHeld: 2, modelIdleUnloadMs: 20_000, diskPreviewBytes: 2 * GB, stageCacheBytes: 48 * MB },
+  standard: { cullWorkers: 4, fullPreviews: 24, developedRaws: 8, readAheadReach: 1, readAheadHeld: 4, modelIdleUnloadMs: 60_000, diskPreviewBytes: 8 * GB, stageCacheBytes: 160 * MB },
+  high: { cullWorkers: 6, fullPreviews: 48, developedRaws: 12, readAheadReach: 2, readAheadHeld: 6, modelIdleUnloadMs: 120_000, diskPreviewBytes: 20 * GB, stageCacheBytes: 320 * MB },
 };
 
 export function deviceTier(facts: DeviceFacts): { tier: DeviceTier; basis: MemoryBudget['basis'] } {

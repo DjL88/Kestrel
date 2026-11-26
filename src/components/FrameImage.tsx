@@ -14,6 +14,7 @@ import { storedEditSource } from '../providers/editSource';
 import { raw16Key, raw16Possible, raw16SharpEnough, raw16WorkingFor, raw16Workings } from '../providers/raw16Working';
 import { renderRaw16Screen } from '../providers/raw16Render';
 import { canDevelopRaw } from '../providers/rawDevelop';
+import { liveStageCache } from '../providers/liveStageCache';
 import React, { useEffect, useRef, useState } from 'react';
 import { ImageOff, LoaderCircle } from './icons/KestrelUIIcons';
 import type { PhotoFrame } from '../core/types';
@@ -252,7 +253,11 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       drawFramedPhoto(source, canvas, framing, { scale });
       await preloadTrueDetailAi(frame.edit);
       if (cancelled) return;
-      applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT, undefined, { ...fullContext(canvas.width, canvas.height), lensCentre: lensCentre(source.naturalWidth, source.naturalHeight, framing) });
+      // The stage cache (x-std-stage-cache) keeps the picture after noise reduction, dehaze and the other early stages,
+      // so dragging a later slider redraws from there. The key names exactly the pixels just drawn on the canvas.
+      const sourceKey = JSON.stringify([identity, frame.originalSha256 ?? null, source.currentSrc || source.src, source.naturalWidth, source.naturalHeight, framing, scale]);
+      applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT, undefined, { ...fullContext(canvas.width, canvas.height), lensCentre: lensCentre(source.naturalWidth, source.naturalHeight, framing) },
+        { cache: liveStageCache(), sourceKey });
       await applyFrameLayers(canvas, frame.overlay, false, frame.edit?.masks);
       if (cancelled) return;
       // A full-size edited view must not suffer a second lossy JPEG pass.
