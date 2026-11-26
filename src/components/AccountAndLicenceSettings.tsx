@@ -4,7 +4,7 @@ import type { Session, SignInProvider } from '../core/cloudInterfaces';
 import { deviceFamily, suggestedSignIn, type SignInOption } from '../core/signInOptions';
 import { currentSignInOptions, firebaseAuth, isSignInConfigured, resendAccountVerification } from '../providers/firebaseAuth';
 import { LinkingError } from '../core/accountLinking';
-import { continueWithEmail, createWithEmail, linkLicenceOutcome, signOutEverywhere, type LicenceLink } from '../providers/accountSignIn';
+import { continueWithEmail, createWithEmail, linkLicenceOutcome, signInWithProvider, signOutEverywhere, type LicenceLink } from '../providers/accountSignIn';
 import { SignInMethodsPanel, linkingProblemText, methodName } from './SignInMethodsPanel';
 import { AccountMergePanel } from './AccountMergePanel';
 import { AccountDataPanel } from './AccountDataPanel';
@@ -187,18 +187,16 @@ export function AccountAndLicenceSettings() {
   );
 
   function chooseSignIn(provider: SignInProvider) {
-    if (offline) return;
+    if (offline || provider === 'password') return; // the buttons are Google, Apple and Microsoft; email has its own form
     return runAccountAction(async () => {
-      const session = await firebaseAuth.signIn(provider);
-      setAccount(session);
-      // Firebase does not vouch for a Microsoft email (a work account's address is set by its organisation), so it is
-      // proved with a link before it can open the account's licence or match an account that signs in another way.
-      if (session.emailVerified === false) {
-        await resendAccountVerification().catch(() => undefined);
-        setAccountNote('Check your email for a link to confirm this address, then choose Check Pro online. That keeps one account for one email, however you sign in.');
-        return;
-      }
-      await linkLicence();
+      // Settings always remembers the sign-in (keep = true). Firebase does not vouch for a Microsoft email (a work
+      // account's address is set by its organisation), so the shared sign-in sends a link to prove it before it can open
+      // the account's licence or match an account that signs in another way.
+      const result = await signInWithProvider(provider, true, undefined, setAccount);
+      setAccountNote(result.kind === 'linking' ? linkingProblemText(result.problem)
+        : result.kind === 'error' ? result.message
+        : result.kind === 'verify-email' ? 'Check your email for a link to confirm this address, then choose Check Pro online. That keeps one account for one email, however you sign in.'
+        : licenceNote(result.licence));
     });
   }
 

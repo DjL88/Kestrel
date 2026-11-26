@@ -58,6 +58,7 @@ Alternatives considered:
 ### Sign in, which is also sign up
 - Tapping Sign in swaps the welcome buttons for a sign-in panel on the same layer, with a Back action. Firebase loads only now, never at start-up.
 - Buttons, each only where available (`signInPlatform()` plus the existing configuration checks): Continue with Apple, Continue with Google, Continue with email. Apple and Google already create the account on first use.
+- Since #1726: Continue with Microsoft too, exactly where Settings offers it (`currentSignInOptions()`: builds with `VITE_MICROSOFT_SIGN_IN`, on the web for now), and the device's suggested way in (Windows Microsoft, Android Google, Mac, iPhone and iPad Apple) comes first. With three providers the suggested one has the first row and the other two share the second. A Microsoft email Firebase does not vouch for gets a confirmation link and Pro waits for it, as in Settings.
 - **Email:** one form with email and password, plus Keep me signed in on web only. The steps:
   1. Try to sign in.
   2. If it fails because the credentials are wrong or unknown, ask: "No InFlight account for sam@example.com yet, or the password is wrong. Create a new account with this email?" with Create account and Try again.

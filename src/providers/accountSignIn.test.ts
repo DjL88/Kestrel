@@ -26,6 +26,9 @@ function fakes(over: { auth?: Partial<SignInDeps['auth']>; licence?: Partial<Sig
       idToken: async () => { calls.push('idToken'); return 'token-1'; },
       setKeepSignedIn: async (keep) => { calls.push(`keep:${keep}`); },
       consumeLinkedMethod: () => { calls.push('consumeLinkedMethod'); return null; },
+      resendAccountVerification: async () => { calls.push('resendVerification'); },
+      signInOptions: () => [],
+      deviceFamily: () => 'apple',
       signInPlatform: () => 'web',
       isDesktopAppleConfigured: () => false,
       isDesktopGoogleConfigured: () => false,
@@ -203,6 +206,46 @@ test('available providers: email everywhere, Apple and Google on the web or a co
   assert.deepEqual(on('desktop'), ['email']);
   assert.deepEqual(on('desktop', true, false), ['apple', 'email']);
   assert.deepEqual(on('desktop', false, true), ['google', 'email']);
+});
+
+test('Microsoft with an email it did not vouch for: a link to confirm it is sent and Pro waits, as in Settings', async () => {
+  const f = fakes({ auth: { signIn: async (provider) => { f.calls.push(`signIn:${provider}`); return session({ provider, emailVerified: false, displayName: 'Ana' }); } } });
+  const seen: Session[] = [];
+  const result = await signInWithProvider('microsoft', true, f.deps, (s) => seen.push(s));
+  assert.equal(result.kind, 'verify-email');
+  assert.equal(seen.length, 1);
+  // Signed in (and remembered), then the confirmation link; the licence is not touched until the email is proved.
+  assert.deepEqual(f.calls, ['signIn:microsoft', 'keep:true', 'writeProfile', 'resendVerification']);
+  assert.deepEqual(f.profiles.map((p) => p.profile.displayName), ['Ana']);
+});
+
+test('if the confirmation link cannot be sent, the sign-in still stands and still waits for the email', async () => {
+  const f = fakes({ auth: {
+    signIn: async (provider) => session({ provider, emailVerified: false }),
+    resendAccountVerification: async () => { f.calls.push('resendVerification'); throw new Error('too many requests'); },
+  } });
+  assert.equal((await signInWithProvider('microsoft', false, f.deps)).kind, 'verify-email');
+  assert.ok(!f.calls.includes('idToken'));
+});
+
+test('Microsoft with a vouched-for email checks Pro like any other provider', async () => {
+  const f = fakes({ auth: { signIn: async (provider) => { f.calls.push(`signIn:${provider}`); return session({ provider, emailVerified: true }); } } });
+  assert.equal((await signInWithProvider('microsoft', true, f.deps)).kind, 'signed-in');
+  assert.deepEqual(f.calls, ['signIn:microsoft', 'keep:true', 'writeProfile', 'idToken', 'consumeLinkedMethod', 'attach:token-1', 'activate:token-1']);
+});
+
+test('available providers: Microsoft only where Settings offers it, and the device suggestion first', () => {
+  const microsoft = (available: boolean) => [{ provider: 'microsoft' as const, label: 'Continue with Microsoft', available }];
+  const on = (family: 'windows' | 'apple' | 'android' | 'other', options = microsoft(true), platform: 'web' | 'desktop' = 'web') =>
+    availableProviders(fakes({ auth: { signInPlatform: () => platform, signInOptions: () => options, deviceFamily: () => family } }).deps);
+  assert.deepEqual(on('windows'), ['microsoft', 'apple', 'google', 'email']);
+  assert.deepEqual(on('apple'), ['apple', 'google', 'microsoft', 'email']);
+  assert.deepEqual(on('android'), ['google', 'apple', 'microsoft', 'email']);
+  assert.deepEqual(on('other'), ['google', 'apple', 'microsoft', 'email']);
+  // Not switched on (or not usable here): not offered, and Windows suggests the first way in that is.
+  assert.deepEqual(on('windows', microsoft(false)), ['apple', 'google', 'email']);
+  assert.deepEqual(on('windows', []), ['apple', 'google', 'email']);
+  assert.deepEqual(on('windows', microsoft(false), 'desktop'), ['email']);
 });
 
 test('emailFailureOf reads the Firebase code, directly or on cause', () => {

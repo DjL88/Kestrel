@@ -1,8 +1,9 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type MutableRefObject } from 'react';
 import { STRINGS } from '../strings';
-import { availableProviders, continueWithEmail, createWithEmail, KEEP_SESSION_FAILED, signInWithProvider, type EmailResult, type LicenceLink } from '../../../providers/accountSignIn';
+import { availableProviders, continueWithEmail, createWithEmail, KEEP_SESSION_FAILED, signInWithProvider, type EmailResult, type LicenceLink, type SocialProvider } from '../../../providers/accountSignIn';
 import { firebaseAuth, signInPlatform } from '../../../providers/firebaseAuth';
 import { linkingProblemText, methodName } from '../../../components/SignInMethodsPanel';
+import { SignInMark } from '../../../components/SignInMark';
 import { projectsText } from '../../../i18n/areas/projects';
 
 const t = STRINGS.welcome;
@@ -47,9 +48,11 @@ const base = `inline-flex min-h-11 w-full items-center justify-center gap-2 roun
 export const buttonClass = {
   primary: `${base} border-transparent bg-[var(--brand-accent)] text-[var(--text-on-accent)] enabled:hover:bg-[var(--brand-accent-hover)]`,
   secondary: `${base} border-[var(--border-default)] bg-transparent text-[var(--text-primary)] enabled:hover:bg-[var(--bg-surface-hover)]`,
-  // Apple's and Google's own button rules: Apple black with a white mark, Google white with its four-colour mark.
+  // Each provider's own button rules: Apple black with a white mark, Google white with its four-colour mark, Microsoft
+  // white with its four squares, a #8C8C8C border and #5E5E5E text.
   apple: `${base} border-[#444] bg-black text-white`,
   google: `${base} border-[#747775] bg-white text-[#1f1f1f]`,
+  microsoft: `${base} border-[#8C8C8C] bg-white text-[#5E5E5E]`,
   link: `inline-flex min-h-11 items-center justify-center px-2 text-sm text-[var(--text-secondary)] underline underline-offset-4 enabled:hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50 ${focusRing}`,
 };
 
@@ -58,7 +61,8 @@ const fieldClass = 'min-h-11 w-full rounded-[var(--radius-md)] border border-[va
 type Step = 'choose' | 'email' | 'offer';
 
 /**
- * The welcome's sign-in panel (sign in is also sign up): Apple and Google side by side, then email under a divider.
+ * The welcome's sign-in panel (sign in is also sign up): Apple and Google side by side (and Microsoft where the build
+ * offers it), the device's suggested one first, then email under a divider.
  * It runs the same shared sign-in as Settings. Back (or Escape, which the welcome handles whatever has focus, through
  * `backRef`) steps back one level; from the first level it closes. Offline, every way in is disabled and the panel
  * says sign-in needs a connection.
@@ -87,7 +91,10 @@ export default function LaunchSignInPanel({ online, onClose, onSignedIn, backRef
   const showKeep = signInPlatform() === 'web';
   const keepChoice = showKeep ? keep : true;
   const disabled = !online || busy;
-  const social = providers.filter((p): p is 'apple' | 'google' => p !== 'email');
+  // The device's suggested way in comes first (as in Settings). With three, it has the first row to itself and the
+  // other two share the second; with one or two, they share one row. Tab order follows the reading order.
+  const social = providers.filter((p): p is SocialProvider => p !== 'email');
+  const rows = social.length > 2 ? [social.slice(0, 1), social.slice(1)] : [social];
 
   // Controls are disabled while an attempt runs, so focus falls to the page. After each step change or failed attempt
   // it goes back to the control that started it (or the password to retype), else the step's first control. Offline
@@ -135,9 +142,10 @@ export default function LaunchSignInPanel({ online, onClose, onSignedIn, backRef
     }
   };
 
-  const withProvider = (provider: 'apple' | 'google') => run(provider, async () => {
+  const withProvider = (provider: SocialProvider) => run(provider, async () => {
     const result = await signInWithProvider(provider, keepChoice);
     if (result.kind === 'signed-in') onSignedIn(outcomeLine(result.licence), result.licence.outcome === 'pro');
+    else if (result.kind === 'verify-email') onSignedIn(t.confirmEmail, false);
     else setNote(result.kind === 'linking' ? linkingProblemText(result.problem) : errorText(result.message));
   });
 
@@ -170,14 +178,19 @@ export default function LaunchSignInPanel({ online, onClose, onSignedIn, backRef
             </label>
           )}
           {social.length > 0 && (
-            <div className="flex w-full gap-2">
-              {social.map((provider, index) => (
-                <button key={provider} type="button" disabled={disabled} onClick={() => void withProvider(provider)}
-                  aria-label={provider === 'apple' ? t.withApple : t.withGoogle} data-focus-key={provider} data-autofocus={index === 0 ? true : undefined}
-                  className={`${buttonClass[provider]} flex-1`}>
-                  {provider === 'apple' ? <AppleMark /> : <GoogleMark />}
-                  {projectsText.accountLinks[provider]}
-                </button>
+            <div className="flex w-full flex-col gap-2" data-testid="welcome-providers">
+              {rows.map((row, rowIndex) => (
+                <div key={row.join('-')} className="flex w-full gap-2">
+                  {row.map((provider, index) => (
+                    <button key={provider} type="button" disabled={disabled} onClick={() => void withProvider(provider)}
+                      aria-label={provider === 'apple' ? t.withApple : provider === 'microsoft' ? t.withMicrosoft : t.withGoogle}
+                      data-focus-key={provider} data-autofocus={rowIndex === 0 && index === 0 ? true : undefined}
+                      className={`${buttonClass[provider]} flex-1`}>
+                      {provider === 'apple' ? <AppleMark /> : provider === 'microsoft' ? <SignInMark provider="microsoft" className="h-[18px] w-[18px] shrink-0" /> : <GoogleMark />}
+                      {projectsText.accountLinks[provider]}
+                    </button>
+                  ))}
+                </div>
               ))}
             </div>
           )}

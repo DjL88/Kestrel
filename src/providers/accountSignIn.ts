@@ -1,8 +1,8 @@
 import type { Session } from '../core/cloudInterfaces';
-import type { SignInPlatform } from '../core/signInOptions';
+import { deviceFamily, suggestedSignIn, type DeviceFamily, type SignInOption, type SignInPlatform } from '../core/signInOptions';
 import { LinkingError, type LinkingProblem, type SignInMethod } from '../core/accountLinking';
 import { emailNextStep, profileFromSession, type EmailFailure, type LaunchProfile } from '../core/launchWelcome';
-import { consumeLinkedMethod, emailFailureOf, firebaseAuth, isDesktopAppleConfigured, isDesktopGoogleConfigured, signInPlatform } from './firebaseAuth';
+import { consumeLinkedMethod, currentSignInOptions, emailFailureOf, firebaseAuth, isDesktopAppleConfigured, isDesktopGoogleConfigured, resendAccountVerification, signInPlatform } from './firebaseAuth';
 import { activateFromAccount, attachDeviceKeyToAccount, leaveAccount } from './licenceStore';
 import { clearProfile, writeProfile } from './launchMemory';
 
@@ -17,9 +17,17 @@ export type DeviceKeyAttach = Awaited<ReturnType<typeof attachDeviceKeyToAccount
 /** What happened after signing in: Pro for this device, a way in added to the account, a device key moved onto it. */
 export type LicenceLink = { outcome: LicenceOutcome; linked: SignInMethod | null; attached: DeviceKeyAttach | null };
 
-/** Google or Apple. Failures other than account linking (cancelled, blocked pop-up) still throw their plain message. */
+/** Google, Apple or Microsoft: the ways in that open the provider's own sign-in. */
+export type SocialProvider = 'apple' | 'google' | 'microsoft';
+
+/** Google, Apple or Microsoft. Failures other than account linking (cancelled, blocked pop-up) still throw their plain message. */
 export type ProviderResult =
   | { kind: 'signed-in'; session: Session; licence: LicenceLink }
+  /**
+   * Signed in, but the provider did not vouch for the email (Firebase does not for Microsoft). A link to confirm it was
+   * sent (if that failed, Resend verification email in Settings sends another), and Pro is not checked until it is confirmed.
+   */
+  | { kind: 'verify-email'; session: Session }
   | { kind: 'linking'; problem: LinkingProblem }
   /** Signed in, but this browser could not keep it to this session only, so it was signed out again. */
   | { kind: 'error'; message: string };
@@ -35,7 +43,7 @@ export type EmailResult =
 
 export type SignInDeps = {
   auth: {
-    signIn(provider: 'apple' | 'google'): Promise<Session>;
+    signIn(provider: SocialProvider): Promise<Session>;
     signInWithEmail(email: string, password: string): Promise<Session>;
     createAccount(email: string, password: string): Promise<Session>;
     signOut(): Promise<void>;
@@ -43,6 +51,11 @@ export type SignInDeps = {
     /** After a successful sign-in; rejects when the choice cannot be applied (only keep = false then matters). */
     setKeepSignedIn(keep: boolean): Promise<void>;
     consumeLinkedMethod(): SignInMethod | null;
+    resendAccountVerification(): Promise<unknown>;
+    /** The sign-in options for this build and device, as Settings shows them (Microsoft only where the build switches it on). */
+    signInOptions(): SignInOption[];
+    /** Which kind of device this is, only to choose the one suggested way in (Settings does the same). */
+    deviceFamily(): DeviceFamily;
     signInPlatform(): SignInPlatform;
     isDesktopAppleConfigured(): boolean;
     isDesktopGoogleConfigured(): boolean;
@@ -67,6 +80,9 @@ const realDeps: SignInDeps = {
     idToken: (forceRefresh) => firebaseAuth.idToken(forceRefresh),
     setKeepSignedIn: (keep) => firebaseAuth.setKeepSignedIn(keep),
     consumeLinkedMethod,
+    resendAccountVerification,
+    signInOptions: currentSignInOptions,
+    deviceFamily: () => deviceFamily(typeof navigator === 'undefined' ? '' : navigator.userAgent),
     signInPlatform,
     isDesktopAppleConfigured,
     isDesktopGoogleConfigured,
@@ -116,10 +132,12 @@ async function keepOnlyIfAsked(keep: boolean, d: SignInDeps): Promise<boolean> {
 }
 
 /**
- * Google or Apple. `onSignedIn` hears of the session as soon as sign-in succeeds, before the licence is checked, so a
- * screen can show "signed in" while it waits.
+ * Google, Apple or Microsoft, in the same steps as Settings: sign in; then, when the provider did not vouch for the email
+ * (Microsoft), send a link to confirm it and stop there, so an unproved email never opens the account's licence or
+ * matches an account that signs in another way; otherwise check Pro. `onSignedIn` hears of the session as soon as
+ * sign-in succeeds, before the licence is checked, so a screen can show "signed in" while it waits.
  */
-export async function signInWithProvider(provider: 'apple' | 'google', keep: boolean, deps: Partial<SignInDeps> = {}, onSignedIn?: (session: Session) => void): Promise<ProviderResult> {
+export async function signInWithProvider(provider: SocialProvider, keep: boolean, deps: Partial<SignInDeps> = {}, onSignedIn?: (session: Session) => void): Promise<ProviderResult> {
   const d = using(deps);
   let session: Session;
   try {
@@ -131,6 +149,10 @@ export async function signInWithProvider(provider: 'apple' | 'google', keep: boo
   if (!(await keepOnlyIfAsked(keep, d))) return { kind: 'error', message: KEEP_SESSION_FAILED };
   remember(session, keep, d);
   onSignedIn?.(session);
+  if (session.emailVerified === false) {
+    await d.auth.resendAccountVerification().catch(() => undefined);
+    return { kind: 'verify-email', session };
+  }
   return { kind: 'signed-in', session, licence: await linkLicenceOutcome(d) };
 }
 
@@ -184,15 +206,24 @@ export async function signOutEverywhere(deps: Partial<SignInDeps> = {}): Promise
   d.memory.clearProfile();
 }
 
-/** Ways to sign in this build offers here: email always; Apple and Google on the web, or a desktop app set up for them. */
-export function availableProviders(deps: Partial<SignInDeps> = {}): ('apple' | 'google' | 'email')[] {
+/**
+ * Ways to sign in this build offers here, the device's suggested one first (owner, 26 Nov 2026: Windows Microsoft,
+ * Android Google, Mac, iPhone and iPad Apple; when that one cannot be used here, the first that can), then email, always
+ * last. Apple and Google on the web, or a desktop app set up for them. Microsoft exactly where Settings offers it
+ * (`currentSignInOptions`: a build that switches it on, set up for sign-in, on the web for now).
+ */
+export function availableProviders(deps: Partial<SignInDeps> = {}): (SocialProvider | 'email')[] {
   const { auth } = using(deps);
   const platform = auth.signInPlatform();
   const web = platform === 'web';
   const desktop = platform === 'desktop';
-  return [
+  const microsoft = auth.signInOptions().some((o) => o.provider === 'microsoft' && o.available);
+  const social: SocialProvider[] = [
     ...(web || (desktop && auth.isDesktopAppleConfigured()) ? ['apple' as const] : []),
     ...(web || (desktop && auth.isDesktopGoogleConfigured()) ? ['google' as const] : []),
-    'email' as const,
+    ...(microsoft ? ['microsoft' as const] : []),
   ];
+  const { suggested, other } = suggestedSignIn(social.map((provider) => ({ provider, label: provider, available: true })), auth.deviceFamily());
+  const ordered = [...(suggested ? [suggested] : []), ...other].map((o) => o.provider as SocialProvider);
+  return [...ordered, 'email'];
 }
