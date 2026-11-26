@@ -133,7 +133,7 @@ Use the actual intended tag in the last command. Normal CI checks consistency on
 ## Local prototype installation (no paid GitHub Actions)
 
 - **Windows:** `scripts/windows/Build-Kestrel.ps1` builds an NSIS installer from an exact Git revision.
-- **Mac:** `scripts/macos/Build-Kestrel.sh` builds an unsigned universal DMG from the same revision. See [MAC-IOS-PROTOTYPE.md](MAC-IOS-PROTOTYPE.md).
+- **Mac:** `scripts/macos/Build-Kestrel.sh` builds a universal DMG from the same revision: signed when a Developer ID Application certificate is in the keychain, notarised when the Apple ID details are set, unsigned otherwise (the file name says which). See [MAC-IOS-PROTOTYPE.md](MAC-IOS-PROTOTYPE.md).
 - **Android:** `scripts/android/Build-Kestrel.ps1` builds an ARM64 APK for personal devices. See [ANDROID-PROTOTYPE.md](ANDROID-PROTOTYPE.md). The committed Android Gradle configuration requires **Android SDK API 37**; older API 34 guidance is obsolete.
 - **iOS:** initialise/build the native Tauri project using Xcode and your own Apple Developer credentials on the Mac. See [MAC-IOS-PROTOTYPE.md](MAC-IOS-PROTOTYPE.md).
 

@@ -21,7 +21,19 @@ The script:
 - Confirms release versions match, installs locked dependencies, and builds a **universal**
   Apple silicon + Intel Mac application via `npm run desktop:build -- --target universal-apple-darwin`.
 - Copies only a freshly compiled DMG into `src-tauri/target/prototype`, with SHA-256 and
-  JSON build receipt. Never uploads the installer, accesses signing credentials or changes photos.
+  JSON build receipt. Never uploads the installer or changes photos.
+- **Signs it when it can.** If exactly one *Developer ID Application* certificate is in this Mac's keychain
+  (`security find-identity -v -p codesigning`), the app is signed with it; set `APPLE_SIGNING_IDENTITY` to choose when
+  there are several. If `APPLE_ID`, `APPLE_PASSWORD` (an app-specific password from account.apple.com) and
+  `APPLE_TEAM_ID` are also set in the same Terminal, Apple notarises it too. The script then checks the result
+  (`codesign --verify`, `stapler validate`, `spctl`) and names the DMG `-unsigned`, `-signed` or `-notarised` by what
+  was actually verified. Credentials stay in the keychain and that Terminal; nothing is stored or uploaded.
+
+```bash
+read -r APPLE_ID; read -rs APPLE_PASSWORD; read -r APPLE_TEAM_ID   # type them, nothing is echoed for the password
+export APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
+bash scripts/macos/Build-Kestrel.sh
+```
 
 This first installer is **unsigned/unnotarised**. It is for installation on your own Mac,
 not a claim of public distribution readiness. Settings → Build information shows the Git

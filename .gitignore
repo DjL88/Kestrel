@@ -46,3 +46,11 @@ prototype-evidence.json
 # Firebase config files are per-developer build inputs, not source.
 GoogleService-Info.plist
 google-services.json
+# Apple and other signing material never belongs in the repository (keys stay in the keychain or a password manager).
+*.p8
+*.p12
+*.cer
+*.certSigningRequest
+*.mobileprovision
+*.provisionprofile
+AuthKey_*
