@@ -187,3 +187,30 @@ test('+ and - zoom from either key of the pair and the number pad, and Cmd/Ctrl 
   // Typing a minus sign in a number field never zooms.
   assert.equal(resolveCommand({ event: key({ code: 'Minus', key: '-' }), keymap: map, isMac: false, inField: true }), null);
 });
+
+test('Ctrl+Y redoes and F11 is full screen on Windows, alongside the key set, and never on a Mac', async () => {
+  const { keyboardMatches, chordsLabel, alternateChords } = await import('./keymap');
+  const map = effectiveKeymap('inflight');
+  const run = (init: Partial<KeyboardEvent> & { code: string; key: string }, isMac: boolean) => resolveCommand({ event: key(init), keymap: map, isMac, inField: false })?.id ?? null;
+  assert.equal(run({ code: 'KeyY', key: 'y', ctrlKey: true }, false), 'edit.redo');
+  assert.equal(run({ code: 'KeyZ', key: 'z', ctrlKey: true, shiftKey: true }, false), 'edit.redo');
+  assert.equal(run({ code: 'F11', key: 'F11' }, false), 'view.fullscreen');
+  assert.equal(run({ code: 'KeyY', key: 'y', metaKey: true }, true), null);
+  assert.equal(chordsLabel('edit.redo', map, false), 'Ctrl+Shift+Z / Ctrl+Y');
+  assert.equal(chordsLabel('edit.redo', map, true), 'Cmd+Shift+Z');
+  // A person's own key wins: Ctrl+Y given to Export means Export, and Redo keeps only its own key.
+  const mine = { ...map, 'file.export': 'Mod+KeyY' };
+  assert.deepEqual(keyboardMatches('Mod+KeyY', mine, false).map((c) => c.id), ['file.export']);
+  assert.deepEqual(alternateChords('edit.redo', mine, false), []);
+  // Clearing Redo clears its second key too.
+  const cleared = { ...map }; delete cleared['edit.redo'];
+  assert.equal(resolveCommand({ event: key({ code: 'KeyY', key: 'y', ctrlKey: true }), keymap: cleared, isMac: false, inField: false }), null);
+});
+
+test('Lightroom keys: E for a single photo, F6 for the filmstrip, Cmd/Ctrl+D to select no photos', () => {
+  const lr = effectiveKeymap('lightroom');
+  assert.equal(lr['view.loupe'], 'KeyE');
+  assert.equal(lr['view.filmstrip'], 'F6');
+  assert.equal(lr['edit.selectNone'], 'Mod+KeyD');
+  assert.equal(effectiveKeymap('inflight')['edit.selectNone'], 'Mod+Shift+KeyA');
+});

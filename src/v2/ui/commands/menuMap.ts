@@ -41,6 +41,8 @@ const TABLE: Record<string, MenuAction> = {
   'photo-redo': { kind: 'command', id: 'edit.redo' },
   'photo-compare': { kind: 'command', id: 'view.compare' },
   'view-grid': { kind: 'command', id: 'view.grid' },
+  // View > Single photo did nothing in V2; it closes the grid, as E does.
+  'view-loupe': { kind: 'command', id: 'view.loupe' },
   'view-compare': { kind: 'command', id: 'view.compare' },
   filmstrip: { kind: 'toggleFilmstrip' },
   appearance: { kind: 'settings', tab: 'appearance' },

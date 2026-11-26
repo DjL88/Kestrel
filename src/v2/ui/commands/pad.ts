@@ -1,5 +1,5 @@
 import { COMMANDS, type CommandDefinition, type CommandId, type KeyEventLike } from './registry';
-import { eventChord, resolveCommand, type Keymap } from './keymap';
+import { eventChord, keyboardMatches, resolveCommand, type Keymap } from './keymap';
 
 /**
  * Macro pad and dial support. A pad (SinLoon K1 to K6 plus a knob) is a keyboard to the computer: each slot sends a key
@@ -80,7 +80,8 @@ export function resolveWithPad(input: { event: KeyEventLike; keymap: Keymap; pad
   const { event, keymap, pad, isMac, inField } = input;
   if (event.isComposing || event.key === 'Process' || event.key === 'Dead' || event.keyCode === 229) return null;
   const fromKeys = resolveCommand({ event, keymap, isMac, inField });
-  const keyMatches = COMMANDS.filter((c) => keymap[c.id] === eventChord(event, isMac)).length;
+  const chord = eventChord(event, isMac);
+  const keyMatches = chord ? keyboardMatches(chord, keymap, isMac).length : 0;
   const fromPad = padCommands(event, pad, isMac);
   const ids = new Set<CommandId>(fromPad);
   if (keyMatches > 0) {

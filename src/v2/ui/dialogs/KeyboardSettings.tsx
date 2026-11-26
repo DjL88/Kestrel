@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { STRINGS } from '../strings';
 import { COMMANDS, COMMAND_GROUP_LABELS, availableCommands, type CommandGroup, type CommandId } from '../commands/registry';
 import {
-  PRESETS, chordLabel, commandsUsing, effectiveKeymap, eventChord, exportKeymap, findConflicts, importKeymap, isPresetId, withChord, withoutOverride,
+  PRESETS, chordLabel, chordsLabel, commandsUsing, effectiveKeymap, eventChord, exportKeymap, findConflicts, importKeymap, isPresetId, withChord, withoutOverride,
   type PresetId, type SavedKeymap,
 } from '../commands/keymap';
 import { DEFAULT_PAD, PAD_SLOTS, PAD_SLOT_LABELS, padClashes, padSlotFor, withPadChord, withPadCommand, type PadProfile, type PadSlot } from '../commands/pad';
@@ -152,7 +152,7 @@ export default function KeyboardSettings({ saved, isMac, onChange, pad, onPadCha
                     <span className="text-[var(--text-primary)]">{command.label}{changed ? STRINGS.keyboardKeys.changedSuffix : ''}</span>
                     <span className="flex items-center gap-1.5">
                       <kbd className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-0.5 font-mono text-[0.6875rem] text-[var(--text-secondary)]">
-                        {capturing === command.id ? STRINGS.keyboardKeys.pressAKey : chordLabel(chord, isMac)}
+                        {capturing === command.id ? STRINGS.keyboardKeys.pressAKey : chord ? chordsLabel(command.id, keymap, isMac) : chordLabel(chord, isMac)}
                       </kbd>
                       <button type="button" className={buttonClass} aria-label={STRINGS.keyboardKeys.changeLabel(command.label)} onClick={() => setCapturing(capturing === command.id ? null : command.id)}>
                         {capturing === command.id ? STRINGS.keyboardKeys.cancel : STRINGS.keyboardKeys.change}

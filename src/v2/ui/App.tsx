@@ -421,6 +421,8 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
         break;
       }
       case 'view.grid': actions.setGridViewOpen(!store.gridViewOpen); break;
+      case 'view.loupe': if (store.gridViewOpen) actions.setGridViewOpen(false); break;
+      case 'view.filmstrip': actions.setFilmstripCollapsed(!store.filmstripCollapsed); break;
       case 'view.compare': actions.setCompareMode(!store.compareMode); break;
       case 'view.fullscreen': actions.toggleFullScreen(); break;
       case 'view.maskOverlay': setMaskOverlayVisible((visible) => !visible); break;
@@ -436,10 +438,11 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
       case 'edit.copy': actions.copyRecipe(); break;
       case 'edit.paste': if (!editLocked) actions.pasteRecipe(); break;
       case 'edit.selectAll': selectAllShown(); break;
+      case 'edit.selectNone': actions.clearSelection(); break;
       case 'file.export': actions.setExportOpen(true); break;
       case 'app.settings': actions.setSettingsOpen(true); break;
     }
-  }, [store.selectedPhotoIds, store.gridViewOpen, store.compareMode, store.collage, store.settings.advanceAfterDecision, store.features.nextToReview, shownPhotos, activePhoto, actions, pairPhotos, editLocked, selectAllShown]);
+  }, [store.selectedPhotoIds, store.gridViewOpen, store.filmstripCollapsed, store.compareMode, store.collage, store.settings.advanceAfterDecision, store.features.nextToReview, shownPhotos, activePhoto, actions, pairPhotos, editLocked, selectAllShown]);
 
   // File > Export again with last settings (G09): the wizard's last settings on the current selection, through the same
   // request builder, so it gives exactly the files the wizard would. Nothing exported yet: open the wizard instead.
