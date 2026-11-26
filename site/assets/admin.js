@@ -305,7 +305,9 @@ act($('grant-form'), 'submit', async () => {
   const form = $('grant-form');
   const f = form.elements;
   $('grant-result').textContent = '';
-  const body = { email: f.email.value.trim(), plan: 'paid', majorVersion: Number(f.majorVersion.value), managedAi: f.managedAi.checked, contributor: f.contributor.checked };
+  const body = { email: f.email.value.trim(), plan: 'paid', majorVersion: Number(f.majorVersion.value), managedAi: f.managedAi.checked };
+  // Sent only when ticked, so an ordinary grant's request is unchanged.
+  if (f.contributor.checked) body.contributor = true;
   if (f.note.value.trim()) body.note = f.note.value.trim();
   if (f.validDays.value) body.validDays = Number(f.validDays.value);
   const session = token;
