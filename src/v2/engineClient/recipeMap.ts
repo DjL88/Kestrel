@@ -30,7 +30,7 @@ const fromHex = (value: string | undefined): [number, number, number] | undefine
  * Those controls remain unsupported (UNMAPPED_KEYS) until real implementations exist.
  */
 export const NEUTRAL_RECIPE: EditRecipe = {
-  lookId: 'natural-raw', exposure: 0, highlights: 0, shadows: 0, contrast: 0, whites: 0, blacks: 0, temperature: 0, tint: 0,
+  lookId: 'none', exposure: 0, highlights: 0, shadows: 0, contrast: 0, whites: 0, blacks: 0, temperature: 0, tint: 0,
   vibrance: 0, saturation: 0, clarity: 0, sharpen: 0, denoiseRawAi: false, denoiseLuminance: 0, denoiseColour: 0,
   upscaleFactor: 1, detailRecovery: 0, lensCorrection: false,
 };
@@ -280,4 +280,14 @@ export function applyRecipePatch(edit: PhotoEdit | undefined, patch: Partial<Edi
  */
 export function previewLookEdit(edit: PhotoEdit | undefined, lookDelta?: Partial<EditRecipe>): PhotoEdit | undefined {
   return lookDelta ? applyRecipePatch(edit, lookDelta).edit : edit;
+}
+
+/** The patch that takes a look off: each slider the look set goes back to its starting value. Nothing else moves. */
+export function removeLookPatch(look: { recipeDelta: Partial<EditRecipe> } | undefined): Partial<EditRecipe> {
+  if (!look) return {};
+  const patch: Partial<EditRecipe> = {};
+  for (const key of Object.keys(look.recipeDelta) as (keyof EditRecipe)[]) {
+    (patch as Record<string, unknown>)[key] = NEUTRAL_RECIPE[key];
+  }
+  return patch;
 }

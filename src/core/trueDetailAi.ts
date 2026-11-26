@@ -98,3 +98,20 @@ export function subjectRect(alpha: Float32Array, width: number, height: number):
   x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(width - 1, x1 + pad); y1 = Math.min(height - 1, y1 + pad);
   return { x: x0 / width, y: y0 / height, w: (x1 - x0 + 1) / width, h: (y1 - y0 + 1) / height };
 }
+
+/**
+ * The working-size subject alpha resampled onto the full-size area the learned denoiser ran on (`rect`, 0 to 1 of the
+ * framed photo), nearest sample, so the learned result can be judged on its own full-size pixels.
+ */
+export function alphaForArea(alpha: Float32Array, width: number, height: number, rect: { x: number; y: number; w: number; h: number }, areaWidth: number, areaHeight: number): Float32Array {
+  if (alpha.length !== width * height) throw new RangeError('Alpha must match the working size');
+  const out = new Float32Array(areaWidth * areaHeight);
+  for (let y = 0; y < areaHeight; y++) {
+    const wy = Math.min(height - 1, Math.max(0, Math.floor((rect.y + (y + 0.5) / areaHeight * rect.h) * height)));
+    for (let x = 0; x < areaWidth; x++) {
+      const wx = Math.min(width - 1, Math.max(0, Math.floor((rect.x + (x + 0.5) / areaWidth * rect.w) * width)));
+      out[y * areaWidth + x] = alpha[wy * width + wx];
+    }
+  }
+  return out;
+}

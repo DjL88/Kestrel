@@ -69,3 +69,19 @@ fieldset{border:1px solid var(--line);border-radius:8px;margin:12px 0;padding:8p
   #flags-table td:nth-child(2)::before{content:"When no rule applies: ";color:#bdc4cf}
   #flags-table td:nth-child(3)::before{content:"Rules";display:block;color:#bdc4cf;font-size:.88rem}
 }
+
+/* Needs you: the calm home list. One column, plain words, no dashboards. */
+.home h1{font-size:1.5rem;margin:0 0 12px}
+.all-good .big{font-family:"Plus Jakarta Sans",Inter,system-ui,sans-serif;font-weight:800;font-size:1.6rem;margin:4px 0 6px}
+.needs{list-style:none;padding:0;margin:0 0 8px}
+.needs li{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;border:1px solid var(--line);border-left-width:4px;border-radius:10px;padding:12px 14px;margin:0 0 10px;background:var(--raised)}
+.needs li.urgent{border-left-color:var(--wine)}
+.needs li p{margin:4px 0 0}
+.button-link{display:inline-flex;align-items:center;min-height:40px;padding:4px 12px;border:1px solid #686f7b;border-radius:6px;color:var(--ivory);text-decoration:none;font-weight:700;white-space:nowrap}
+.button-link:hover{border-color:var(--copper-hover)}
+.small-print{font-size:.9rem;margin:12px 0 0}
+.more{margin:0 0 20px;padding:4px 20px;border:1px solid var(--line);border-radius:12px}
+.more summary{cursor:pointer;padding:10px 0;font-weight:600;color:#d3d9e5}
+.more-links{list-style:none;padding:0;margin:0 0 12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px 16px}
+.more-links a{display:block;padding:8px 0;color:#d3d9e5}
+#back{margin:0 0 16px}

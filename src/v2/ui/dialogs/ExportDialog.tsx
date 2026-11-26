@@ -35,6 +35,8 @@ interface ExportDialogProps {
   onSaveBrandKit?: (photoId: string, name: string) => boolean;
   onEditBrandKit?: (kitId: string, change: { name?: string; fromPhotoId?: string }) => boolean;
   onDeleteBrandKit?: (kitId: string) => void;
+  /** Print and soft proof the shown photo instead of saving files. */
+  onPrint?: () => void;
 }
 
 const SOCIAL_PLATFORMS: Array<{ id: SocialPlatform; label: string; sizeIds: string[] }> = [
@@ -56,6 +58,7 @@ export default function ExportDialog({
   onSaveBrandKit,
   onEditBrandKit,
   onDeleteBrandKit,
+  onPrint,
 }: ExportDialogProps) {
   const d = DEFAULT_EXPORT_SETTINGS;
   const [fileFormat, setFileFormat] = useState<'jpeg' | 'png'>(d.fileFormat);
@@ -460,6 +463,12 @@ export default function ExportDialog({
             {photoIds.length > 1 || selectedGroupIds.length === 1 ? 'group' : 'groups'}
           </span>
           <div className="flex items-center gap-2">
+            {onPrint && (
+              <button type="button" onClick={onPrint}
+                className="h-9 rounded-[var(--radius-md)] border border-[var(--border-default)] px-4 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                {STRINGS.print.menu}
+              </button>
+            )}
             <button
               type="button"
               onClick={onClose}

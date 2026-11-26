@@ -60,6 +60,30 @@ test('an unverified email, another project or a bad signature is refused', async
   } finally { await h.close(); }
 });
 
+test('opening Settings a few times, then signing in, is not refused: the Firebase exchange allows a busy minute', async () => {
+  // 26 Nov beta: every Settings visit exchanged the Firebase token five times; two visits used up a limit of 10 a
+  // minute, so the sign-in's own Pro check was refused and Pro did not arrive.
+  const h = await start();
+  try {
+    for (let i = 0; i < 30; i++) {
+      const signIn = await h.call('POST', '/v1/auth/firebase', { body: { credential: firebaseToken(h) } });
+      assert.equal(signIn.status, 200, `exchange ${i + 1} of 30 in one minute`);
+    }
+  } finally { await h.close(); }
+});
+
+test('the Firebase exchange still has a ceiling per address', async () => {
+  const h = await start();
+  try {
+    let refused = 0;
+    for (let i = 0; i < 70; i++) {
+      const r = await h.call('POST', '/v1/auth/firebase', { body: { credential: firebaseToken(h) } });
+      if (r.status === 429) refused++;
+    }
+    assert.equal(refused, 10, 'sixty a minute, then "too many attempts"');
+  } finally { await h.close(); }
+});
+
 test('without a configured project the route says sign-in is unavailable', async () => {
   const h = await startHarness(undefined, undefined, { firebaseKeys: async () => [jwk] });
   try {

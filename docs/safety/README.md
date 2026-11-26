@@ -12,6 +12,7 @@ Sharing, client galleries and cloud storage cannot open in production until a ha
 | [childrens-access-assessment.md](childrens-access-assessment.md) | Can children use InFlight? Today's terms say **13+**, with no age check, so the honest answer is yes. | Choose: keep 13+ (then a children's risk assessment is needed), or 18+ (with or without age checks). |
 | [photodna-application-draft.md](photodna-application-draft.md) | Answers for Microsoft's PhotoDNA Cloud Service application. | Your legal name, address, safety email, volumes. |
 | [ncmec-esp-registration-draft.md](ncmec-esp-registration-draft.md) | Answers for NCMEC registration (CyberTipline reporting), plus the UK NCA duty. | Contact details, including a law enforcement contact. Four questions for the solicitor at the top. |
+| [compliance-documents.md](compliance-documents.md) | Where signed copies are kept: a private UK bucket, listed and downloaded from /admin → Compliance documents. Switch on and seed steps. | Upload each signed copy there. |
 | [safesearch-switch-on.md](safesearch-switch-on.md) | How SafeSearch, PhotoDNA and NCMEC are switched on with the Terraform switches, and in what order. | When to switch each one on. |
 
 ## 2. Give to the solicitor
@@ -32,8 +33,8 @@ All five files, plus `site/terms.html`, `site/acceptable-use.html`, `site/privac
 
 | What | Where | Before you send |
 |---|---|---|
-| PhotoDNA application | Microsoft, via microsoft.com/photodna | Set up a dedicated safety email first. Read and accept Microsoft's terms yourself. |
-| NCMEC ESP registration | NCMEC, via the ESP section of its CyberTipline pages | Same safety email. Have the law enforcement contact ready. |
+| PhotoDNA application | Microsoft, via microsoft.com/photodna | Safety email: inflight-safety@googlegroups.com (Google Group, anyone can post, only the owner reads; set up 26 Nov 2026). Read and accept Microsoft's terms yourself. |
+| NCMEC ESP registration | NCMEC, via the ESP section of its CyberTipline pages | Same safety email (inflight-safety@googlegroups.com). Have the law enforcement contact ready. |
 | Nothing to Ofcom | — | Ofcom does not collect risk assessments by default; keep the record and update it. (**LAW: CHECK**: fees and notification duties apply only above a revenue threshold.) |
 
 ## 5. Then (Claude sessions do these, with your go-ahead)

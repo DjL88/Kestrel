@@ -1,3 +1,4 @@
+import { isDevelopRawFile } from '../core/rawFormats';
 import { Sha256Stream } from '../core/sha256';
 import { parseRgb16, type Rgb16Image } from '../core/master16';
 import { developRawRgb16, requireVerifiedNikonPrecisionMode, type RawSensorMode } from './rawDevelop';
@@ -72,7 +73,7 @@ export function checkRawDecodeInputBudget(original: Blob, maxPixels: number, max
 export async function openSensorWorkingRaster(
   original: Blob, filename: string, maxPixels = 80_000_000, expectedSourceSha256?: string,
 ): Promise<SensorWorkingRaster> {
-  if (!/\.(nef|nrw|cr2|cr3|arw|raf|rw2|orf|pef|dng|srw|3fr)$/i.test(filename))
+  if (!isDevelopRawFile(filename))
     throw new Error('Unsupported RAW extension. The original is unchanged.');
   if (expectedSourceSha256 !== undefined && !/^[0-9a-f]{64}$/.test(expectedSourceSha256))
     throw new Error('The expected original SHA-256 is invalid.');

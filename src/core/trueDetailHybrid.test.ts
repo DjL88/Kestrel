@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { candidateLadder, chooseRegions, judgeRegion, regionWeights, scoreRegion, TRUEDETAIL_REGIONS } from './trueDetailHybrid';
+import { candidateLadder, chooseRegions, judgeRegion, qualifyLearned, regionWeights, scoreRegion, TRUEDETAIL_REGIONS } from './trueDetailHybrid';
+import { alphaForArea } from './trueDetailAi';
 import { applyMasks, fullContext } from './masks';
 import { applyToneMasksRgb16 } from './master16';
 import type { Mask } from './maskTypes';
@@ -156,3 +157,75 @@ describe('TrueDetail regional guardian', () => {
   });
 });
 
+
+describe('learned candidate judged at full size (qualifyLearned)', () => {
+  const W = 160;
+  /** Feather-like stripes (a real structure step) under noise, plus the clean version and an over-smoothed one. */
+  function scene(period: number) {
+    let s = 11;
+    const rand = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff - 0.5; };
+    const clean = new Uint8ClampedArray(W * W * 4), noisy = new Uint8ClampedArray(W * W * 4);
+    for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4, v = x % period < period / 2 ? 70 : 150;
+      clean.set([v, v, v, 255], i);
+      const n = rand() * 24;
+      noisy.set([v + n, v + n, v + n, 255], i);
+    }
+    const blurred = new Uint8ClampedArray(W * W * 4);
+    for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
+      let sum = 0, count = 0;
+      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+        const xx = Math.min(W - 1, Math.max(0, x + dx)), yy = Math.min(W - 1, Math.max(0, y + dy));
+        sum += noisy[(yy * W + xx) * 4]; count++;
+      }
+      const v = Math.round(sum / count);
+      blurred.set([v, v, v, 255], (y * W + x) * 4);
+    }
+    const px = (data: Uint8ClampedArray): Pixels => ({ data, width: W, height: W });
+    return { clean: px(clean), noisy: px(noisy), blurred: px(blurred) };
+  }
+  const shrink = (p: Pixels, f: number): Pixels => {
+    const w = p.width / f, out = new Uint8ClampedArray(w * w * 4);
+    for (let y = 0; y < w; y++) for (let x = 0; x < w; x++) for (let c = 0; c < 4; c++) {
+      let sum = 0;
+      for (let dy = 0; dy < f; dy++) for (let dx = 0; dx < f; dx++) sum += p.data[((y * f + dy) * p.width + x * f + dx) * 4 + c];
+      out[(y * w + x) * 4 + c] = Math.round(sum / (f * f));
+    }
+    return { data: out, width: w, height: w };
+  };
+
+  it('refuses an over-smoothed learned result at every offered strength, even though it looks fine at working size', () => {
+    // Feathers finer than the working copy shows them: 4 px stripes at 100%, 1 px once scaled down 4x.
+    const { noisy, blurred } = scene(4);
+    const alpha = new Float32Array(W * W).fill(1);
+    const verdicts = qualifyLearned(noisy, blurred, alpha, [1, 0.6]);
+    assert.deepEqual(verdicts.map(v => v.reason), ['lost real detail', 'lost real detail']);
+    // The bug this guards against: scaled down 4x, as the 1600 px working copy is, the same result's detail loss is hidden.
+    const small = shrink(noisy, 4), smallBlend = shrink(blurred, 4);
+    const atWorking = judgeRegion(scoreRegion(small, smallBlend, new Float32Array(small.width * small.height).fill(1)), TRUEDETAIL_REGIONS.subject);
+    assert.notEqual(atWorking, 'lost real detail');
+  });
+
+  it('accepts a learned result that removes the noise and keeps the structure', () => {
+    const { noisy, clean } = scene(16);
+    const verdicts = qualifyLearned(noisy, clean, new Float32Array(W * W).fill(1), [1, 0.6]);
+    assert.deepEqual(verdicts.map(v => v.reason), [null, null]);
+    assert.ok(verdicts[0].score.noiseAfter < verdicts[0].score.noiseBefore * 0.5);
+  });
+
+  it('judges only where the subject is', () => {
+    const { noisy, blurred } = scene(16);
+    assert.equal(qualifyLearned(noisy, blurred, new Float32Array(W * W), [1])[0].reason, 'too small to judge');
+  });
+
+  it('maps the working-size subject alpha onto the full-size area', () => {
+    // Working copy 10x10 with the subject in its right half; the area is the right half, drawn 4x larger.
+    const working = new Float32Array(100);
+    for (let y = 0; y < 10; y++) for (let x = 5; x < 10; x++) working[y * 10 + x] = x >= 7 ? 1 : 0;
+    const area = alphaForArea(working, 10, 10, { x: 0.5, y: 0, w: 0.5, h: 1 }, 20, 40);
+    assert.equal(area.length, 20 * 40);
+    assert.equal(area[0], 0); // left edge of the area: working column 5
+    assert.equal(area[19], 1); // right edge: working column 9
+    assert.equal(area[39 * 20 + 19], 1);
+  });
+});

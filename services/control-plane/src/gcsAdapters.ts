@@ -7,15 +7,18 @@
  */
 import type { CloudKind, CloudRunner, RecipeInputKind } from './cloudJobs.ts';
 import type { SafeCopyStorage } from './safeCopy.ts';
+import type { ComplianceObject, ComplianceStorage } from './complianceDocs.ts';
 
 export interface GcsFileLike {
-  getSignedUrl(opts: { version: 'v4'; action: 'read' | 'write'; expires: number; extensionHeaders?: Record<string, string> }): Promise<[string]>;
+  getSignedUrl(opts: { version: 'v4'; action: 'read' | 'write'; expires: number; extensionHeaders?: Record<string, string>; responseDisposition?: string }): Promise<[string]>;
   exists(): Promise<[boolean]>;
   delete(opts?: { ignoreNotFound?: boolean }): Promise<unknown>;
   /** Used by the sharing safety checks (contentSafety.ts). */
   getMetadata?(): Promise<[{ size?: string | number }]>;
   download?(): Promise<[Buffer]>;
   copy?(destination: string): Promise<unknown>;
+  /** Used by compliance documents: write once, never overwrite. */
+  save?(data: Buffer, opts: { contentType: string; resumable: false; metadata: { metadata: Record<string, string> }; preconditionOpts: { ifGenerationMatch: 0 } }): Promise<unknown>;
 }
 export interface GcsBucketLike { file(name: string): GcsFileLike }
 
@@ -49,6 +52,32 @@ export class GcsSafeCopyStorage implements SafeCopyStorage {
     return (await file.download!())[0];
   }
   async copy(from: string, to: string) { await this.bucket.file(from).copy!(to); }
+}
+
+/** A bucket that can also list its objects (compliance documents only). */
+export interface GcsListingBucketLike extends GcsBucketLike {
+  getFiles(opts: { prefix: string }): Promise<[{ name: string; metadata: { size?: string | number; timeCreated?: string; contentType?: string; metadata?: Record<string, string> } }[]]>;
+}
+
+/** The private, versioned compliance bucket (infra/gcp/compliance.tf). Writes refuse to replace an existing object. */
+export class GcsComplianceStorage implements ComplianceStorage {
+  constructor(private readonly bucket: GcsListingBucketLike, private readonly now: () => number = Date.now) {}
+  async list(prefix: string): Promise<ComplianceObject[]> {
+    const [files] = await this.bucket.getFiles({ prefix });
+    return files.map((f) => ({
+      name: f.name, bytes: Number(f.metadata.size ?? 0), createdAtMs: Date.parse(f.metadata.timeCreated ?? '') || 0,
+      contentType: f.metadata.contentType ?? 'application/octet-stream', metadata: { ...(f.metadata.metadata ?? {}) },
+    }));
+  }
+  async exists(name: string) { return (await this.bucket.file(name).exists())[0]; }
+  async create(name: string, body: Buffer, contentType: string, metadata: Record<string, string>) {
+    await this.bucket.file(name).save!(body, { contentType, resumable: false, metadata: { metadata }, preconditionOpts: { ifGenerationMatch: 0 } });
+  }
+  async signDownload(name: string, fileName: string) {
+    const expiresAtMs = this.now() + DOWNLOAD_TTL_MS;
+    const [url] = await this.bucket.file(name).getSignedUrl({ version: 'v4', action: 'read', expires: expiresAtMs, responseDisposition: `attachment; filename="${fileName.replace(/[^A-Za-z0-9._-]/g, '_')}"` });
+    return { url, expiresAtMs };
+  }
 }
 
 export interface RunnerTrigger { trigger(jobId: string, kind: CloudKind, inputKind?: RecipeInputKind): Promise<void> }

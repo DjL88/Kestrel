@@ -5,6 +5,7 @@ import type { EditVersionTree } from './editBranches';
 import type { PhotoFraming } from './photoFraming';
 import type { PhotoEdit } from './photoEdits';
 import type { EditStatus } from './editStatus';
+import type { CameraFocus } from './cameraFocus';
 
 export type CullDecision = 'unreviewed' | 'keep' | 'reject';
 
@@ -73,6 +74,8 @@ export interface ExifMetadata {
   captureStamp?: CaptureStamp;
   /** Whether the file says it was already edited in another app (src/core/editStatus.ts). Absent for photos read before. */
   editStatus?: EditStatus;
+  /** Where the camera says it focused (src/core/cameraFocus.ts). null: read, and the file does not say. Absent: not read yet. */
+  cameraFocus?: CameraFocus | null;
 }
 
 /**
@@ -226,6 +229,8 @@ export interface ShootDescriptor {
   trashedAt?: number;
   /** True for the Quick edits bucket, where single photos are opened without making a project first. */
   inbox?: boolean;
+  /** The Flight mode chosen for this project. Absent on older projects, which follow Settings' default. */
+  assistMode?: 'solo' | 'copilot' | 'autopilot';
   /** Optional multi-page collage / print album composition; sources remain ordinary non-destructive frames. */
   collage?: import('./collage').CollageDocument;
 }

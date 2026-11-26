@@ -6,6 +6,7 @@ import { assessDenoiseCandidate, type LearnedBlend } from '../../engine/denoiseA
 import { fullContext } from '../../core/masks';
 import { blendLearned, trueDetailAiWeight } from '../../core/trueDetailAi';
 import { estimateNoiseSigma } from '../../core/noiseEstimate';
+import { qualifyLearned } from '../../core/trueDetailHybrid';
 import { composeDenoiseRecipe, renderDenoiseRecipe, verifyDenoiseRecipe } from './denoiseRecipe';
 
 /**
@@ -65,11 +66,17 @@ export function openDenoiseSession(job: DenoiseJob): DenoiseSession {
 }
 
 /** Messages to the worker. Every request carries an id, answered once by a reply with the same id. */
+/** The verdict per blend strength, as the worker returns it (scores stay in the worker). */
+export const learnedVerdicts = (original: Pixels, learned: Pixels, alpha: Float32Array, strengths: readonly number[]) =>
+  qualifyLearned(original, learned, alpha, strengths).map(({ strength, reason }) => ({ strength, reason }));
+
 export type DenoiseWorkerRequest =
   | { id: number; type: 'noise'; rgba: Uint8ClampedArray; width: number; height: number }
   | { id: number; type: 'open'; session: number; job: DenoiseJob }
   | { id: number; type: 'render' | 'assess' | 'composed'; session: number; edit: Partial<PhotoEdit>; masks: Mask[]; blend?: LearnedBlend }
-  | { id: number; type: 'close'; session: number };
+  | { id: number; type: 'close'; session: number }
+  /** TrueDetail: a learned result judged at full size, on the subject's own pixels (see `qualifyLearned`). */
+  | { id: number; type: 'qualify'; original: Pixels; learned: Pixels; alpha: Float32Array; strengths: number[] };
 
 export type DenoiseWorkerReply =
   | { id: number; ok: true; value: unknown }
@@ -89,6 +96,8 @@ export function handleDenoiseWorkerMessage(state: DenoiseWorkerState, request: D
     switch (request.type) {
       case 'noise':
         return { reply: { id: request.id, ok: true, value: estimateNoiseSigma(request.rgba, request.width, request.height) }, transfer: [] };
+      case 'qualify':
+        return { reply: { id: request.id, ok: true, value: learnedVerdicts(request.original, request.learned, request.alpha, request.strengths) }, transfer: [] };
       case 'open': {
         const session = openDenoiseSession(request.job);
         state.sessions.set(request.session, session);
