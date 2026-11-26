@@ -1976,4 +1976,16 @@ export const it: AreaTranslation<typeof source> = {
     allowSystem: 'Avvisami anche in background',
     dismiss: 'Chiudi',
   },
+
+  // Live shoot: a watched (hot) folder
+  liveShoot: {
+    watch: 'Scatto dal vivo',
+    watchHint: 'Controlla una cartella in cui scrive la tua app di scatto collegato o la fotocamera e aggiungi ogni nuova foto appena arriva. Nella cartella non viene spostato né modificato nulla.',
+    watching: (name: string, added: number) => `Controllo di ${name} · aggiunte: ${added}`,
+    arriving: (n: number) => `in arrivo: ${n}`,
+    problem: (name: string) => `${name}: non è leggibile ora. Il controllo continua: le foto arriveranno quando tornerà disponibile.`,
+    stop: 'Interrompi',
+    stopHint: 'Smetti di controllare la cartella. Le foto già aggiunte restano.',
+    notHere: 'Per controllare una cartella serve l\'app desktop di InFlight, oppure Chrome o Edge.',
+  },
 };

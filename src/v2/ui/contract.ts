@@ -782,6 +782,9 @@ export interface WorkspaceStore {
    * found the photo already looked natural and left it ('unchanged'), held its suggestion because the vision guardian
    * doubted it ('held'), or could not check it ('failed'). */
   quickStart?: { phase: 'working' | 'ready' | 'unchanged' | 'held' | 'failed'; photoId: string | null } | null;
+  /** Live shoot: the folder being watched for new frames, how many have arrived, how many are still being written, and
+   * whether the folder can be read just now (a drive unplugged mid-shoot). Absent when nothing is watched. */
+  liveFolder?: { name: string; imported: number; arriving: number; problem: boolean } | null;
   /** The open project's automatic backup, as last reported. Absent when no project is open. */
   backup?: { state: 'idle' | 'working' | 'ok' | 'partial' | 'failed'; at?: number } | null;
   /** Optional engine-supplied renderer for the canvas (see PhotoSurfaceProps). */
@@ -844,6 +847,9 @@ export interface WorkspaceActions {
   removePhotoTag?: (photoId: string, tagId: string) => void;
   importPhotos: () => void;
   importFolder: () => void;
+  /** Live shoot: watch a folder a tether app (or the FTP inbox) writes into, importing each finished frame as it lands. */
+  watchFolder?: () => void;
+  stopWatchingFolder?: () => void;
   importDroppedPhotos: (files: File[]) => void;
   /** Back the open project up now to this device (and its chosen place), checking the saved copy reads back the same. */
   backUpProjectNow: () => void;

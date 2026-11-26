@@ -1131,6 +1131,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onApplyLook={actions.applyLook}
                 onImport={actions.importPhotos}
                 onImportFolder={actions.importFolder}
+                onWatchFolder={actions.watchFolder}
+                onStopWatchingFolder={actions.stopWatchingFolder}
+                liveFolder={store.liveFolder}
                 onRunAutoCull={actions.runAutoCull}
                 onOpenCullAssistant={actions.rankCulling ? () => setCullAssistantOpen(true) : undefined}
                 onCreateCollage={store.collage ? undefined : actions.createCollageFromSelection}

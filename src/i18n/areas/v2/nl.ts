@@ -1976,4 +1976,16 @@ export const nl: AreaTranslation<typeof source> = {
     allowSystem: 'Laat het me ook op de achtergrond weten',
     dismiss: 'Sluiten',
   },
+
+  // Live shoot: a watched (hot) folder
+  liveShoot: {
+    watch: 'Live fotograferen',
+    watchHint: 'Een map volgen waarin je tether-app of camera schrijft, en elke nieuwe foto toevoegen zodra hij binnenkomt. Er wordt niets in de map verplaatst of gewijzigd.',
+    watching: (name: string, added: number) => `Volgt ${name} · toegevoegd: ${added}`,
+    arriving: (n: number) => `komen binnen: ${n}`,
+    problem: (name: string) => `${name}: is nu niet leesbaar. Blijft volgen: foto's komen binnen zodra hij terug is.`,
+    stop: 'Stoppen',
+    stopHint: 'Stoppen met het volgen van de map. Al toegevoegde foto\'s blijven.',
+    notHere: 'Een map volgen kan met de InFlight-desktopapp, of in Chrome of Edge.',
+  },
 };

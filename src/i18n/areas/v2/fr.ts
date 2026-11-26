@@ -1976,4 +1976,16 @@ export const fr: AreaTranslation<typeof source> = {
     allowSystem: 'Me prévenir aussi en arrière-plan',
     dismiss: 'Fermer',
   },
+
+  // Live shoot: a watched (hot) folder
+  liveShoot: {
+    watch: 'Prise de vue en direct',
+    watchHint: 'Surveiller un dossier dans lequel votre logiciel de connexion ou votre appareil enregistre, et ajouter chaque nouvelle photo dès son arrivée. Rien n\'est déplacé ni modifié dans le dossier.',
+    watching: (name: string, added: number) => `Surveillance de ${name} · ajoutées: ${added}`,
+    arriving: (n: number) => `en cours d'arrivée: ${n}`,
+    problem: (name: string) => `${name}: illisible pour le moment. Surveillance maintenue : les photos arriveront dès son retour.`,
+    stop: 'Arrêter',
+    stopHint: 'Arrêter de surveiller le dossier. Les photos déjà ajoutées restent.',
+    notHere: 'La surveillance d\'un dossier nécessite l\'application de bureau InFlight, ou Chrome ou Edge.',
+  },
 };

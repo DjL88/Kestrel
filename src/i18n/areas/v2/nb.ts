@@ -1976,4 +1976,16 @@ export const nb: AreaTranslation<typeof source> = {
     allowSystem: 'Si fra i bakgrunnen også',
     dismiss: 'Lukk',
   },
+
+  // Live shoot: a watched (hot) folder
+  liveShoot: {
+    watch: 'Fotografer live',
+    watchHint: 'Følg med på en mappe som tether-appen eller kameraet ditt skriver til, og legg til hvert nye bilde så snart det kommer. Ingenting i mappen flyttes eller endres.',
+    watching: (name: string, added: number) => `Følger med på ${name} · lagt til: ${added}`,
+    arriving: (n: number) => `på vei: ${n}`,
+    problem: (name: string) => `${name}: kan ikke leses akkurat nå. Følger fortsatt med: bildene kommer inn når den er tilbake.`,
+    stop: 'Stopp',
+    stopHint: 'Slutt å følge med på mappen. Bilder som allerede er lagt til, blir.',
+    notHere: 'Å følge med på en mappe krever InFlight-skrivebordsappen, eller Chrome eller Edge.',
+  },
 };
