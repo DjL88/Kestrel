@@ -27,6 +27,8 @@ interface CoPilotPanelProps {
   onDismissSuggestion: (photoId: string, suggestionId: string) => void;
   /** Watch: shows a suggestion's steps so far on the photo without applying them. Null clears the preview. */
   onStepPreview?: (delta: Partial<EditRecipe> | null) => void;
+  /** Personal style, present only while that preview is on: forget what Auto learnt from this person's edits. */
+  onResetStyle?: () => void;
   /** Cloud edit settings, present only while that preview feature is on. */
   cloudRecipe?: {
     prepare: (photoId: string) => Promise<CloudRecipeOfferView>;
@@ -49,6 +51,7 @@ export default function CoPilotPanel({
   onApplySuggestion,
   onDismissSuggestion,
   onStepPreview,
+  onResetStyle,
   cloudRecipe,
 }: CoPilotPanelProps) {
   const hiddenOnline = useProHidden('onlineAi');
@@ -213,6 +216,16 @@ export default function CoPilotPanel({
                 <ColourSenseLine note={sug.colourSense} cvdGuidance={cvdGuidance} />
                 <ColourSenseLine note={sug.colourMatch} cvdGuidance={cvdGuidance} testId="colour-match" />
                 <ColourSenseLine note={sug.secondOpinion} cvdGuidance={cvdGuidance} testId="second-opinion" />
+                {sug.styleNote && (
+                  <p data-testid="style-note" className="mt-1.5 text-[0.6875rem] leading-snug text-[var(--text-secondary)]">
+                    {sug.styleNote}{' '}
+                    {onResetStyle && (
+                      <button type="button" onClick={onResetStyle} className="underline underline-offset-2 text-[var(--text-primary)] hover:text-[var(--brand-accent)]">
+                        Forget my style
+                      </button>
+                    )}
+                  </p>
+                )}
                 {sug.steps && sug.steps.length > 0 && (
                   <details className="mt-1.5 text-[11px] text-[var(--text-secondary)]">
                     <summary className="cursor-pointer select-none text-[var(--text-primary)]">{STRINGS.copilot.stepsHeading}</summary>

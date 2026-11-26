@@ -6,6 +6,7 @@ import { speciesReference } from '../../core/speciesKnowledge';
 import { observationsFromFrame, preservationPolicy } from '../../core/photographyPolicy';
 import { sceneHintsFromPhotoTags } from '../../core/photoTagHints';
 import { mergeAutoSuggestion } from '../../core/autoEnhance';
+import { leanProposal, type Leaning } from '../../core/editStyle';
 import { acceptedAutoChanges } from '../../core/autoSuggestionSummary';
 import { proposeSubjectAwareAuto, type InsightSubjectKind } from '../../core/insightSubjectAuto';
 import { framingKey } from '../../core/maskTypes';
@@ -42,6 +43,8 @@ export interface AutoRun {
   source: Pick<PhotoFrame, 'stableKey' | 'originalSha256' | 'framing'>;
   /** The colour check of the same framed, unedited preview that Auto measured (the same pixels as its colour warnings). */
   colour?: ColourReport;
+  /** The person's learnt leanings this suggestion was leaned by (personal style preview, off by default). Empty when none. */
+  leanings?: Leaning[];
 }
 
 export function subjectKindOf(frame: Pick<PhotoFrame, 'subjectKind' | 'tags' | 'subjectNames'>): InsightSubjectKind {
@@ -76,7 +79,11 @@ function headlineFor(plan: AutoPlan): string {
   }
 }
 
-export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvider, signal?: AbortSignal): Promise<AutoRun | AutoUnavailable | null> {
+/**
+ * `leanings` (personal style, a preview off by default) scale Auto's own global change for the sliders the person has
+ * shown a consistent leaning on, before the quality gate checks it, so a leaned suggestion passes the same gate.
+ */
+export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvider, signal?: AbortSignal, leanings: readonly Leaning[] = []): Promise<AutoRun | AutoUnavailable | null> {
   const unavailable = (cause: AutoUnavailableCause): AutoUnavailable => ({ unavailable: cause, source: { stableKey: frame.stableKey, originalSha256: frame.originalSha256, framing: frame.framing } });
   const raw = !frame.isDemo && isRawPreviewFile(frame.filename);
   const url = raw ? null : await provider.getFullPreviewUrl(frame, 'selected');
@@ -148,7 +155,8 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
   const policy = { ...basePolicy, preserveDark: basePolicy.preserveDark || sceneHints.preserveDark === true };
   const natural = naturalAuto({ pixels: analysis.data, width: analysis.width, height: analysis.height, segmentation, iso: frame.exif?.iso, photographyObservations, sceneHints });
   if (natural.notes.includes('This preview is too small or too large to analyse.')) return unavailable('too-small');
-  const global = mergeAutoSuggestion(base, natural.edit).edit;
+  const leaned = leanProposal(base, mergeAutoSuggestion(base, natural.edit).edit, leanings);
+  const global = leaned.edit;
   const input = { pixels: analysis.data, width: analysis.width, height: analysis.height, base, natural, segmentation, species, photographyObservations };
   const naturalPlan = planAuto({ ...input, proposal: global });
   let plan = naturalPlan;
@@ -231,5 +239,6 @@ export async function runAuto(frame: PhotoFrame, provider: BrowserPreviewProvide
       : recipes.length ? engineText.auto.noneDifferent : headlineFor(plan),
     source: { stableKey: frame.stableKey, originalSha256: frame.originalSha256, framing: frame.framing },
     colour: checkColour({ after: { data: analysis.data, width: analysis.width, height: analysis.height } }),
+    leanings: leaned.applied,
   };
 }
