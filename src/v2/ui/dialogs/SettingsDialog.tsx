@@ -693,6 +693,10 @@ export default function SettingsDialog({
                   </dl>
                   {BUILD.modified && <p role="note" className="text-xs font-medium text-[var(--text-primary)]">⚠ {STRINGS.settingsMore.buildModified}</p>}
                 </section>
+                <section aria-labelledby="credits-title" data-testid="v2-credits" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
+                  <h3 id="credits-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.adjust.lens.creditsHeading}</h3>
+                  <p className="text-xs leading-relaxed text-[var(--text-secondary)]">{STRINGS.adjust.lens.credit}</p>
+                </section>
                 <ModelsSection />
                 <section aria-labelledby="erase-device-title" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
                   <h3 id="erase-device-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.settingsMore.eraseHeading}</h3>
