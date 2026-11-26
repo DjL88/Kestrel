@@ -232,7 +232,7 @@ export const AUDIT_DETAIL_MAX = 500;
 export const QUOTA_DEFAULT_LIMIT = 500;
 
 export function newLicence(licenceId: string, plan: LicencePlan, nowMs: number, extra: Partial<LicenceRecord> = {}): LicenceRecord {
-  return { licenceId, accountId: null, plan, managedAi: false, status: 'active', maxDevices: 3, offlineGraceDays: 30, validUntilMs: null, updatedAtMs: nowMs, note: null, majorVersion: 1, paid: false, source: 'key', emailHash: null, ...extra };
+  return { licenceId, accountId: null, plan, managedAi: false, status: 'active', maxDevices: 5, offlineGraceDays: 30, validUntilMs: null, updatedAtMs: nowMs, note: null, majorVersion: 1, paid: false, source: 'key', emailHash: null, ...extra };
 }
 
 export function licenceIsUsable(licence: LicenceRecord, nowMs: number): boolean {

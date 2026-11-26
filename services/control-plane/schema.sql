@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS licences (
   plan               TEXT NOT NULL,             -- 'free' | 'paid' | 'subscriber' (commercialAccess.ts)
   managed_ai         INTEGER NOT NULL DEFAULT 0,
   status             TEXT NOT NULL DEFAULT 'active', -- 'active' | 'trial' | 'expired' | 'revoked'
-  max_devices        INTEGER NOT NULL DEFAULT 3,
+  max_devices        INTEGER NOT NULL DEFAULT 5,
   offline_grace_days INTEGER NOT NULL DEFAULT 30,
   valid_until_ms     INTEGER,
   updated_at_ms      INTEGER NOT NULL,

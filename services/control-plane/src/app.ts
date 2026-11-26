@@ -356,7 +356,7 @@ export const Schemas = {
     validDays: z.number().int().min(1).max(3650).optional(),
   }).strict(),
   AdminIssue: z.object({
-    plan: z.literal('paid'), managedAi: z.boolean().default(false), accountId: z.string().optional(), maxDevices: z.number().int().min(1).max(20).default(3),
+    plan: z.literal('paid'), managedAi: z.boolean().default(false), accountId: z.string().optional(), maxDevices: z.number().int().min(1).max(20).default(5),
     note: z.string().trim().max(200).optional().describe('Who the key is for, e.g. "Gift for the camera club". Admin-only.'),
     validDays: z.number().int().min(1).max(3650).optional().describe('Server-side expiry: activation and renewal stop after this many days. A key used fully offline is not checked against it.'),
   }).strict(),
@@ -1298,7 +1298,7 @@ export function createApp(options: AppOptions) {
         const check = await verifyLicence(body.licenceKey, config.licencePublicKey, null);
         if (!check.ok) throw new ApiError(400, 'LICENCE_INVALID', 'That licence key was not recognised.');
         const licence = await store.getLicence(check.details.id);
-        if (!licence) return { status: 200, body: { status: 'unknown', validUntilMs: null, maxDevices: 3, devices: [] } };
+        if (!licence) return { status: 200, body: { status: 'unknown', validUntilMs: null, maxDevices: 5, devices: [] } };
         const devices = await store.listActivationsForLicence(licence.licenceId);
         const status = licence.status === 'revoked' ? 'revoked' : licenceIsUsable(licence, now()) ? 'active' : 'expired';
         return {
