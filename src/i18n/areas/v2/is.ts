@@ -414,6 +414,9 @@ export const is: AreaTranslation<typeof source> = {
     sameName: "Tvær myndir myndu skrifa sama hliðarskráarheiti (til dæmis RAW og JPEG hennar). Veldu aðra og vistaðu aftur.",
     nothingToSave: "Engar myndir til að vista hliðarskrár fyrir.",
     saveFailed: "Ekki tókst að vista hliðarskrárnar. Myndirnar þínar eru óbreyttar.",
+    savedEdits: 'Breyttar myndir taka líka með sér grunnsleðana, sem Lightroom og Camera Raw lesa.',
+    editsRead: (count: number) => `Notaði grunnsleða Lightroom fyrir ${count} ${count === 1 ? 'mynd' : 'myndir'}. Útlitið er nálægt, ekki eins. Afturkalla tekur þá burt.`,
+    editsKept: (count: number) => `${count} ${count === 1 ? 'mynd sem þegar var breytt hér hélt' : 'myndir sem þegar var breytt hér héldu'} breytingunni.`,
     failed: {
       empty: "Veldu eina eða fleiri .xmp-skrár, eða eina .zip með þeim.",
       oversize: "Þessar hliðarskrár eru of stórar til að lesa á öruggan hátt. Engu var breytt.",

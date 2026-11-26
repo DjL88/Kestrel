@@ -414,6 +414,9 @@ export const fr: AreaTranslation<typeof source> = {
     sameName: "Deux photos écriraient le même nom de fichier annexe (par exemple un RAW et son JPEG). Sélectionnez-en une et réessayez.",
     nothingToSave: "Il n’y a aucune photo pour laquelle enregistrer des fichiers annexes.",
     saveFailed: "Les fichiers annexes n’ont pas pu être enregistrés. Vos photos sont inchangées.",
+    savedEdits: 'Les photos retouchées emportent aussi leurs réglages de base, que Lightroom et Camera Raw savent lire.',
+    editsRead: (count: number) => `Réglages de base de Lightroom repris pour ${count} photo${count === 1 ? '' : 's'}. Le rendu est proche, pas identique. Annuler les retire.`,
+    editsKept: (count: number) => `${count} photo${count === 1 ? '' : 's'} déjà retouchée${count === 1 ? '' : 's'} ici ${count === 1 ? 'garde sa' : 'gardent leur'} retouche.`,
     failed: {
       empty: "Choisissez un ou plusieurs fichiers .xmp, ou un seul .zip.",
       oversize: "Ces fichiers annexes sont trop volumineux pour être lus en sécurité. Rien n’a été modifié.",

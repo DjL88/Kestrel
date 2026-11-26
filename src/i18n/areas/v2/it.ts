@@ -414,6 +414,9 @@ export const it: AreaTranslation<typeof source> = {
     sameName: "Due foto scriverebbero lo stesso nome di file accessorio (per esempio un RAW e il suo JPEG). Selezionane una e salva di nuovo.",
     nothingToSave: "Non ci sono foto per cui salvare file accessori.",
     saveFailed: "Non è stato possibile salvare i file accessori. Le tue foto non sono cambiate.",
+    savedEdits: 'Le foto modificate portano anche i cursori di base, che Lightroom e Camera Raw sanno leggere.',
+    editsRead: (count: number) => `Usati i cursori di base di Lightroom per ${count} ${count === 1 ? 'foto' : 'foto'}. L’aspetto è simile, non identico. Annulla li toglie.`,
+    editsKept: (count: number) => `${count} ${count === 1 ? 'foto già modificata qui mantiene la sua' : 'foto già modificate qui mantengono la loro'} modifica.`,
     failed: {
       empty: "Scegli uno o più file .xmp, oppure un unico .zip.",
       oversize: "Quei file accessori sono troppo grandi per leggerli in sicurezza. Non è cambiato nulla.",

@@ -414,6 +414,9 @@ export const nb: AreaTranslation<typeof source> = {
     sameName: "To bilder ville skrevet samme sidefilnavn (for eksempel en RAW og JPEG-en). Velg ett av dem og lagre igjen.",
     nothingToSave: "Det finnes ingen bilder å lagre sidefiler for.",
     saveFailed: "Sidefilene kunne ikke lagres. Bildene dine er uendret.",
+    savedEdits: 'Redigerte bilder tar også med seg grunnglidebryterne, som Lightroom og Camera Raw leser.',
+    editsRead: (count: number) => `Brukte grunnglidebryterne fra Lightroom for ${count} ${count === 1 ? 'bilde' : 'bilder'}. Utseendet er nært, ikke likt. Angre tar dem bort.`,
+    editsKept: (count: number) => `${count} ${count === 1 ? 'bilde' : 'bilder'} som allerede var redigert her, beholdt redigeringen.`,
     failed: {
       empty: "Velg én eller flere .xmp-filer, eller én .zip med dem.",
       oversize: "Disse sidefilene er for store til å leses trygt. Ingenting ble endret.",

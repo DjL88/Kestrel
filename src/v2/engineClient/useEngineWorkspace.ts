@@ -176,7 +176,7 @@ import { backUpProjectNow, useAutoBackup, useBackupStatus } from '../../provider
 import { saveProjectBackupFile } from '../../providers/projectBackupFile';
 import { restoreProjectBackup } from '../../core/projectBackup';
 import { backupStatusText } from './backupWords';
-import { applySidecarImports, planXmpImports, saveSidecars, sidecarFailureText, xmpScope } from './xmpOps';
+import { applySidecarImports, planXmpImports, saveSidecars, sidecarEdits, sidecarFailureText, xmpScope } from './xmpOps';
 import { applyLightroomImport, lightroomNotice } from './lightroomOps';
 import { saveCatalogueExport } from './catalogueExport';
 import { CatalogueReadError, readLightroomCatalogue } from '../../core/lightroomCatalogue';
@@ -3165,8 +3165,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           setNotice(sidecarFailureText(null));
           return;
         }
+        const { patches, kept } = sidecarEdits(now, planned);
         mutate((current) => applySidecarImports(current, planned));
-        setNotice(V2_STRINGS.xmp.read(planned.length));
+        // Lightroom's basic sliders go into photos not yet edited here, each as its own Undo step.
+        if (patches.size) editFrames([...patches.keys()], (frame) => applyRecipePatch(frame.edit, patches.get(frame.id) ?? {}).edit);
+        setNotice([V2_STRINGS.xmp.read(planned.length), patches.size ? V2_STRINGS.xmp.editsRead(patches.size) : '',
+          kept ? V2_STRINGS.xmp.editsKept(kept) : ''].filter(Boolean).join(' '));
       }, (error) => setNotice(sidecarFailureText(error)));
     },
     readLightroomCatalogue: (file) => {
