@@ -5,6 +5,7 @@ import { LinkingError, linkingProblem, methodsFromProviderIds, methodsToAdd, sig
 test('the ways an account signs in, and what can still be added', () => {
   assert.deepEqual(methodsFromProviderIds(['password', 'google.com', 'github.com']), ['google', 'password']);
   assert.deepEqual(methodsFromProviderIds([]), []);
+  assert.deepEqual(methodsFromProviderIds(['microsoft.com', 'apple.com']), ['apple', 'microsoft']);
   assert.deepEqual(methodsToAdd(['google'], ['google', 'apple', 'password']), ['apple', 'password']);
   assert.deepEqual(methodsToAdd(['google', 'apple', 'password'], ['google', 'apple', 'password']), []);
 });

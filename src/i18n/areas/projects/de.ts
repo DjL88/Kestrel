@@ -402,6 +402,7 @@ export const de: AreaTranslation<typeof source> = {
     none: 'Noch wird keine Anmeldemöglichkeit angezeigt. Melden Sie sich ab und wieder an.',
     google: 'Google',
     apple: 'Apple',
+    microsoft: 'Microsoft',
     password: 'E-Mail und Passwort',
     add: (method: string) => `${method} hinzufügen`,
     passwordLabel: 'Passwort für die Anmeldung mit Ihrer E-Mail',
