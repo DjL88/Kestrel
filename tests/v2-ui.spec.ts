@@ -436,6 +436,7 @@ test('?v2 slice 1A: the histogram is measured, the zoom % jumps to 100%, and int
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
   // Real histogram: it reports what the pixels are, here 100% highlight clipping.
   await root.getByRole('button', { name: 'Info', exact: true }).first().click();
+  await root.getByRole('tab', { name: 'File & histogram' }).click();
   await expect(root.getByTestId('histogram-clipping')).toContainText('Highlights clipped 100%', { timeout: 30000 });
   // Zoom: the percentage opens a menu with 100% and Fit to screen.
   const zoom = root.getByTestId('zoom-percent');

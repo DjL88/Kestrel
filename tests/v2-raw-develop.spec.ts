@@ -57,6 +57,7 @@ test('V2 background engine replaces a synthetic embedded RAW preview with develo
   // (The panel is shared; on a phone it sits behind More, which other specs cover.)
   if (testInfo.project.name !== 'desktop') return;
   await root.getByRole('button', { name: 'Info', exact: true }).first().click();
+  await root.getByRole('tab', { name: 'File & histogram' }).click();
   const precision = root.getByTestId('histogram-precision');
   await expect(precision).toHaveAttribute('data-precision', 'rgb16', { timeout: 30_000 });
   await expect(precision).toHaveText('Measured from the 16-bit RAW develop.');
