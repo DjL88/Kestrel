@@ -234,7 +234,7 @@ test('notice delivery: push has no device yet; email only to an address the acco
   assert.equal(await mailNoticeDelivery(mailer).email('acc_kim', msg), 'no-address', 'no address book yet: nothing is emailed');
   assert.equal(await d.email('acc_kim', msg), 'sent');
   const [text, html] = decodeParts(sent[0].raw);
-  assert.match(text, /^Dave commented on a photo\.\r\n\r\nOpen https:\/\/inflight\.studio\/ to see it\.\r\n\r\nKeine E-Mails mehr von InFlight an diese Adresse: https:\/\/inflight\.studio\/v1\/mail\/unsubscribe\?/);
+  assert.match(text, /^Dave commented on a photo\.\r\n\r\nOpen https:\/\/inflight\.studio\/ to see it\.\r\n\r\nKeine E-Mails mehr zu Ihren geteilten Projekten: https:\/\/inflight\.studio\/v1\/mail\/unsubscribe\?s=notice&a=acc_kim&t=/);
   assert.match(html, /<p>Open <a href="https:\/\/inflight\.studio\/">https:\/\/inflight\.studio\/<\/a> to see it\.<\/p>/);
   assert.match(html, /<html lang="de">/);
   assert.match(sent[0].raw, /^List-Unsubscribe-Post: List-Unsubscribe=One-Click$/m);

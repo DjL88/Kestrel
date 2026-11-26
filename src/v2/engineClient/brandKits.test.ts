@@ -5,7 +5,7 @@ import { stepEdit } from '../../core/editHistory';
 import type { CullingState, PhotoFrame } from '../../core/types';
 import { createDefaultOverlay } from '../ui/stub';
 import { readOverlay } from './overlayOps';
-import { MAX_KITS, addBrandKit, applyBrandKitToProject, deleteBrandKit, editBrandKit, overlayWithKit, readBrandKits, type BrandKit } from './brandKits';
+import { MAX_KITS, addBrandKit, applyBrandKitToProject, deleteBrandKit, editBrandKit, overlayForKit, overlayWithKit, readBrandKits, shownLogoId, type BrandKit } from './brandKits';
 
 const styled = () => ({
   ...createDefaultOverlay(false), watermarkPresetId: 'wm-mine', watermarkPosition: 'top-left' as const, watermarkOpacity: 55,
@@ -94,4 +94,13 @@ test('applying a kit to photos gives each its own Undo step and leaves originals
   const undone = stepEdit(JSON.parse(JSON.stringify(first)) as PhotoFrame, -1);
   assert.equal(readOverlay(undone.overlay).watermarkEnabled, false);
   assert.equal(applyBrandKitToProject(result.state, kit, [frames[0].id], 200).changed, 0);
+});
+
+test('a kit keeps the logo the photo shows, never a watermark this device lacks', () => {
+  const overlay = { ...readOverlay(undefined), watermarkPresetId: 'wm-gone' };
+  assert.equal(shownLogoId(overlay, ['wm-a', 'wm-b']), 'wm-a');
+  assert.equal(shownLogoId({ ...overlay, watermarkPresetId: 'wm-b' }, ['wm-a', 'wm-b']), 'wm-b');
+  assert.equal(shownLogoId(overlay, []), undefined);
+  assert.equal(overlayForKit(overlay, ['wm-a']).watermarkPresetId, 'wm-a');
+  assert.equal(overlayForKit(overlay, []).watermarkPresetId, 'wm-gone');
 });

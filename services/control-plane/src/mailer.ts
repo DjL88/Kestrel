@@ -269,6 +269,9 @@ export interface InvitationMail {
   language?: string;
 }
 
+export type UnsubscribeStream = 'news' | 'notice';
+const ACCOUNT_ID = /^[A-Za-z0-9_-]{1,64}$/;
+
 export class Mailer {
   readonly limits: MailLimits;
   readonly account: MailAccountKind;
@@ -298,6 +301,18 @@ export class Mailer {
     return { day, sent, cap, account: this.account, providerLimit: providerDailyLimit(this.account), from: this.o.fromAddress, warn: sent >= Math.ceil(cap * 0.8) };
   }
   async unsubscribe(recipientHash: string) { await this.o.ledger.suppress(recipientHash, (this.o.now ?? Date.now)()); }
+
+  /**
+   * A link that stops one kind of email for one account (news = marketing, notice = product emails), so stopping news
+   * does not also stop a licence key, and turning it back on in Settings works. Invitations (to people who may have no
+   * account) and account emails keep the address-wide link above.
+   */
+  streamUnsubscribeToken(stream: UnsubscribeStream, accountId: string) { return createHmac('sha256', this.o.unsubscribeKey).update(`unsubscribe:${stream}:${accountId}`).digest('base64url'); }
+  checkStreamUnsubscribe(stream: string, accountId: string, token: string): stream is UnsubscribeStream {
+    if ((stream !== 'news' && stream !== 'notice') || !ACCOUNT_ID.test(accountId)) return false;
+    const a = Buffer.from(this.streamUnsubscribeToken(stream, accountId)); const b = Buffer.from(token);
+    return a.length === b.length && timingSafeEqual(a, b);
+  }
 
   /** Sends one invitation, or says why not. Never throws for a limit; throws only when sending itself failed. */
   async sendInvitation(m: InvitationMail): Promise<{ sent: true } | { sent: false; reason: MailRefusal }> {
@@ -339,7 +354,7 @@ export class Mailer {
    * unsubscribe footer and headers are added in `language`. Same unsubscribe list and limits as invitations; the
    * per-sender limit counts notices per recipient account.
    */
-  async sendNotice(m: { to: string; accountId: string; subject: string; text: string; language?: string; stream?: 'notice' | 'news' }): Promise<{ sent: true } | { sent: false; reason: MailRefusal }> {
+  async sendNotice(m: { to: string; accountId: string; subject: string; text: string; language?: string; stream?: 'notice' | 'news' | 'account' }): Promise<{ sent: true } | { sent: false; reason: MailRefusal }> {
     const recipientHash = emailHashOf(m.to);
     if (await this.o.ledger.isSuppressed(recipientHash)) return { sent: false, reason: 'unsubscribed' };
     const nowMs = (this.o.now ?? Date.now)();
@@ -347,13 +362,17 @@ export class Mailer {
     if (refused) return { sent: false, reason: refused };
     const lang = htmlLang(m.language);
     const w = mailWords(lang).invitation;
-    const unsub = `${this.o.siteOrigin}/v1/mail/unsubscribe?r=${recipientHash}&t=${this.unsubscribeToken(recipientHash)}&l=${encodeURIComponent(lang)}`;
+    const scoped = (m.stream === 'news' || m.stream === 'notice') && ACCOUNT_ID.test(m.accountId) ? m.stream : null;
+    const unsub = scoped
+      ? `${this.o.siteOrigin}/v1/mail/unsubscribe?s=${scoped}&a=${m.accountId}&t=${this.streamUnsubscribeToken(scoped, m.accountId)}&l=${encodeURIComponent(lang)}`
+      : `${this.o.siteOrigin}/v1/mail/unsubscribe?r=${recipientHash}&t=${this.unsubscribeToken(recipientHash)}&l=${encodeURIComponent(lang)}`;
     const paragraphs = m.text.replace(/\r\n?/g, '\n').split(/\n{2,}/).map((p) => p.trim()).filter(Boolean).slice(0, 20);
     const linkify = (p: string) => escapeHtml(p).replace(/https:\/\/[^\s<]+/g, (url) => `<a href="${url}">${url}</a>`).replace(/\n/g, '<br>');
-    const text = [...paragraphs, `${w.stop}: ${unsub}`].map((p) => p.replace(/\n/g, '\r\n')).join('\r\n\r\n');
+    const stop = scoped === 'news' ? mailWords(lang).unsubscribe.stopNews : scoped === 'notice' ? mailWords(lang).unsubscribe.stopNotices : w.stop;
+    const text = [...paragraphs, `${stop}: ${unsub}`].map((p) => p.replace(/\n/g, '\r\n')).join('\r\n\r\n');
     const html = `<!doctype html><html lang="${escapeHtml(lang)}"><body style="font-family:system-ui,sans-serif;line-height:1.5;color:#1a1a1a">`
       + paragraphs.map((p) => `<p>${linkify(p)}</p>`).join('')
-      + `<p style="font-size:0.85em;color:#555"><a href="${escapeHtml(unsub)}">${escapeHtml(w.stop)}</a></p></body></html>`;
+      + `<p style="font-size:0.85em;color:#555"><a href="${escapeHtml(unsub)}">${escapeHtml(stop)}</a></p></body></html>`;
     const raw = buildMessage({
       from: { address: this.o.fromAddress, name: this.o.fromName ?? 'InFlight' }, to: m.to,
       subject: m.subject, text, html, date: new Date(nowMs), messageIdDomain: this.o.fromAddress.split('@')[1],
@@ -381,14 +400,16 @@ export const NO_NOTICE_ADDRESSES: NoticeAddressBook = async () => undefined;
  * address book gives; over a daily limit it is 'held' (the in-app inbox still has the notice), and an unsubscribed
  * address counts as no address. A failed send throws; the notices code never lets that fail the action.
  */
-export function mailNoticeDelivery(mailer: Mailer | undefined, addresses: NoticeAddressBook = NO_NOTICE_ADDRESSES) {
+export function mailNoticeDelivery(mailer: Mailer | undefined, addresses: NoticeAddressBook = NO_NOTICE_ADDRESSES, wantsEmail: (accountId: string) => Promise<boolean> = async () => true) {
   return {
     push: async (_accountId: string, _message: { title: string; body: string; data: Record<string, string> }): Promise<'sent' | 'no-device'> => 'no-device',
     email: async (accountId: string, message: { subject: string; text: string; urgent: false }): Promise<'sent' | 'held' | 'no-address'> => {
       if (!mailer) return 'no-address';
+      // Product emails switched off in Communication preferences (or by the link in one): the inbox still has it.
+      if (!(await wantsEmail(accountId))) return 'no-address';
       const to = await addresses(accountId);
       if (!to || !isMailAddress(to.address)) return 'no-address';
-      const r = await mailer.sendNotice({ to: to.address, accountId, subject: message.subject, text: message.text, language: to.language });
+      const r = await mailer.sendNotice({ to: to.address, accountId, subject: message.subject, text: message.text, language: to.language, stream: 'notice' });
       return r.sent ? 'sent' : r.reason === 'unsubscribed' ? 'no-address' : 'held';
     },
   };

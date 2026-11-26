@@ -570,6 +570,9 @@ export const de: AreaTranslation<typeof source> = {
     gridViewToggle: 'Raster aller Fotos',
     fullScreenEnter: 'Vollbild',
     fullScreenExit: 'Vollbild beenden',
+    canvasOnlyEnter: 'Nur Arbeitsfläche: Leisten und Bedienfelder ausblenden (L)',
+    canvasOnlyExit: 'Leisten und Bedienfelder wieder einblenden (L)',
+    canvasOnlyBack: 'Bedienfelder zeigen',
     zoomFit: 'Einpassen',
   },
   autoCheck: {
@@ -1688,6 +1691,8 @@ export const de: AreaTranslation<typeof source> = {
     export: 'Exportieren',
   },
   hubMore: {
+    accountSignIn: "Anmelden",
+    accountSignedIn: (name: string) => `Angemeldet als ${name}. Kontoeinstellungen öffnen`,
     archived: (count) => `Archiviert (${count})`,
     archivedNote: 'Archivierte Projekte bleiben erhalten. Stellen Sie eines wieder her, um es erneut zu nutzen.',
     nothingArchived: 'Nichts archiviert.',
@@ -2029,6 +2034,10 @@ export const de: AreaTranslation<typeof source> = {
     newsEmailLabel: "InFlight-Neuigkeiten und neue Funktionen per E-Mail senden",
     newsEmailHint: "Aus, bis Sie es einschalten. Neuigkeiten gehen zuerst an Ihre Geräte mit Hinweisen; eine E-Mail senden wir nur, wenn ein Hinweis Sie nicht erreicht. Jede E-Mail enthält einen Link zum Abbestellen.",
     newsEmailFailed: "Das konnte nicht geändert werden. Sonst hat sich nichts geändert.",
+    communicationHeading: "E-Mails und Benachrichtigungen",
+    productEmailLabel: "E-Mails zu Kommentaren und Feedback in meinen geteilten Projekten",
+    productEmailHint: "An, bis Sie es ausschalten. Nur wenn keine Benachrichtigung Sie erreicht. In der App sehen Sie sie weiter.",
+    accountEmailNote: "Konto-E-Mails, etwa Ihr Lizenzschlüssel oder ein neues Passwort, kommen immer. Jede andere E-Mail hat einen Link zum Abbestellen.",
   },
   taskAlerts: {
     oneDone: (title: string) => `Fertig: ${title}.`,
@@ -2120,5 +2129,10 @@ export const de: AreaTranslation<typeof source> = {
     roomClose: 'Schließen',
     roomCloseHint: 'Das Shooting nicht mehr auf anderen Bildschirmen zeigen.',
     roomKeptYours: (n: number) => `Ihre Wahl behalten (${n}): Sie hatten dasselbe Foto geändert.`,
+  },
+  activityBar: {
+    photoLoading: 'Foto wird geladen',
+    minutesLeft: (n: number) => `Noch etwa ${n} Min.`,
+    teaTime: 'Zeit für eine Tasse Tee',
   },
 };

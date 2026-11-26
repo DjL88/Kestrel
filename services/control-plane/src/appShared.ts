@@ -270,7 +270,7 @@ export const Schemas = {
   PushDevice: z.object({ token: z.string().refine(isPushToken, 'not a push token'), platform: z.enum(PUSH_PLATFORMS) }).strict(),
   PushDeviceRemove: z.object({ token: z.string().refine(isPushToken, 'not a push token') }).strict(),
   PushPreferences: z.object({ comments: z.boolean(), clientFeedback: z.boolean(), news: z.boolean() }).partial().strict(),
-  EmailPreferences: z.object({ productNews: z.boolean(), language: z.enum(MAIL_LANGUAGES) }).partial().strict(),
+  EmailPreferences: z.object({ productNews: z.boolean(), productEmail: z.boolean(), language: z.enum(MAIL_LANGUAGES) }).partial().strict(),
   NewsSend: z.object({
     broadcastId: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/).optional(),
     title: z.string().trim().min(1).max(120), body: z.string().trim().min(1).max(500), dryRun: z.boolean(),

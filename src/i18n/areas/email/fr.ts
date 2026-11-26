@@ -20,6 +20,12 @@ export const fr: AreaTranslation<typeof source> = {
     done: "C’est fait. InFlight n’enverra plus d’e-mails à cette adresse.",
     invalid: "Ce lien n’est pas valide.",
     invalidHint: "Répondez à l’e-mail et nous arrêterons les envois.",
+    stopNews: "Ne plus recevoir les actualités d’InFlight par e-mail",
+    stopNotices: "Ne plus recevoir d’e-mails sur vos projets partagés",
+    confirmNews: "Appuyez sur le bouton pour ne plus recevoir les actualités d’InFlight par e-mail. Les e-mails liés à votre compte, comme une clé de licence, arrivent toujours.",
+    confirmNotices: "Appuyez sur le bouton pour ne plus recevoir d’e-mails sur vos projets partagés. Vous les voyez toujours dans l’application.",
+    doneNews: "C’est fait. Pour réactiver les actualités par e-mail, ouvrez Réglages → Compte dans InFlight.",
+    doneNotices: "C’est fait. Pour réactiver ces e-mails, ouvrez Réglages → Compte dans InFlight.",
   },
   news: {
     why: "Vous recevez ce message car vous avez demandé les nouveautés d’InFlight par e-mail. Pour arrêter, désactivez-les dans Paramètres → Compte, ou utilisez le lien ci-dessous.",

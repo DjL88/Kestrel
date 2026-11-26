@@ -143,7 +143,7 @@ import { verifyExactOriginalCopy } from './verifiedOriginalCopy';
 import { buildRawMasterFile } from './rawMasterExport';
 import { TEMPLATES_KEY, addTemplate, deleteTemplate, readTemplates, renameTemplate, type OverlayTemplate } from './overlayTemplates';
 import { applyOverlayTemplateToProject, changePhotoOverlay } from './overlayHistory';
-import { BRAND_KITS_KEY, addBrandKit, applyBrandKitToProject, deleteBrandKit, editBrandKit, readBrandKits, type BrandKit, type KitProblem } from './brandKits';
+import { BRAND_KITS_KEY, addBrandKit, applyBrandKitToProject, deleteBrandKit, editBrandKit, overlayForKit, readBrandKits, shownLogoId, type BrandKit, type KitProblem } from './brandKits';
 import { type FormatSet, addFormat, applyFormats, ORIGINAL_FORMAT_ID, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize, setOriginalOutputSize, resetOriginalOutputSize } from './formatOps';
 import { patchVideoZoom } from './videoZoomOps';
 import { isSplitFrameCount, setFormatSplitOffset, setSplitFrameCount as writeSplitFrameCount, toggleFormatSplit, type SplitFrameCount } from './formatSplitOps';
@@ -3418,13 +3418,13 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       saveBrandKit: (photoId: string, name: string) => {
         const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
         if (!frame) return false;
-        const next = addBrandKit(brandKits, name, readOverlay(frame.overlay), `kit-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 12)}`, Date.now());
+        const next = addBrandKit(brandKits, name, overlayForKit(readOverlay(frame.overlay), watermarkLibrary.map((preset) => preset.id)), `kit-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 12)}`, Date.now());
         return updateBrandKits(next, typeof next === 'string' ? '' : `Saved the brand kit "${next[next.length - 1].name}" on this device.`);
       },
       editBrandKit: (kitId: string, change: { name?: string; fromPhotoId?: string }) => {
         const frame = change.fromPhotoId ? stateRef.current?.frames.find((candidate) => candidate.id === change.fromPhotoId) : undefined;
         if (change.fromPhotoId && !frame) return false;
-        const next = editBrandKit(brandKits, kitId, { name: change.name, overlay: frame ? readOverlay(frame.overlay) : undefined }, Date.now());
+        const next = editBrandKit(brandKits, kitId, { name: change.name, overlay: frame ? overlayForKit(readOverlay(frame.overlay), watermarkLibrary.map((preset) => preset.id)) : undefined }, Date.now());
         return updateBrandKits(next, frame ? 'The brand kit now has this photo\'s logo, colours and text style.' : 'Renamed the brand kit.');
       },
       deleteBrandKit: (kitId: string) => { updateBrandKits(deleteBrandKit(brandKits, kitId), 'Deleted the brand kit. Photos it was put on keep their look.'); },
@@ -3773,7 +3773,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real, ...tapSelect.actions }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tapSelect.actions, stub.actions, editStyleOn, forgetEditStyle, looks, userLooks, updateUserLooks, templates, updateTemplates, brandKits, brandKitsOn, updateBrandKits, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal, agreeAiOpinion, askAiOpinion, cancelAiOpinion, applyAiOpinion, applyProposal, closeProposal]);
+    [tapSelect.actions, stub.actions, editStyleOn, forgetEditStyle, looks, userLooks, updateUserLooks, templates, updateTemplates, brandKits, brandKitsOn, updateBrandKits, watermarkLibrary, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, openProject, backToProjects, decide, importPhotos, loadHub, reconnectOriginal, agreeAiOpinion, askAiOpinion, cancelAiOpinion, applyAiOpinion, applyProposal, closeProposal]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: watermarkLibrary, auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   // Species names in the person's language (about 2.6 MB with every group) are fetched once, and only when a photo in
@@ -3818,7 +3818,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     assistMode,
     watermarkPresets: watermarkLibrary,
     overlayTemplates: templates.map(({ id, name }) => ({ id, name })),
-    ...(brandKitsOn ? { brandKits: brandKits.map(({ id, name, watermarkPresetId }) => ({ id, name, logoLabel: watermarkLibrary.find((preset) => preset.id === watermarkPresetId)?.label ?? 'Logo not on this device' })) } : {}),
+    ...(brandKitsOn ? { brandKits: brandKits.map(({ id, name, watermarkPresetId }) => { const shown = shownLogoId({ ...readOverlay(undefined), watermarkPresetId }, watermarkLibrary.map((preset) => preset.id)); const logo = watermarkLibrary.find((preset) => preset.id === shown); return { id, name, logoLabel: logo?.label ?? 'Logo not on this device', logoMissing: !logo }; }) } : {}),
     features: { ...featureAccess(can), focusStack: can('focusStack') || focusStackPreviewOn(), panorama: can('panorama') || panoramaPreviewOn(), savedViews: can('savedViews') || workflowPreviewOn('savedViews'), nextToReview: can('nextToReview') || workflowPreviewOn('nextToReview'), hdrMerge: can('hdrMerge') || hdrPreviewOn() },
     featurePlan: featurePlan(),
     screen, hubState, projects,
