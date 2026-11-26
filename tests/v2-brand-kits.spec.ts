@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { unzipSync } from 'fflate';
 
-// Brand kits (x-workflow-brand, K080), a preview off by default: a saved logo, colours and text style that Export puts
+// Brand kits (x-workflow-brand, K080), on by default: a saved logo, colours and text style that Export puts
 // on every photo in one step. Kits are saved, renamed, restyled and deleted on this device; originals are never written.
 
 async function projectWithPhoto(page: Page, preview: boolean) {
@@ -36,11 +36,11 @@ async function projectWithPhoto(page: Page, preview: boolean) {
   return { studio, dialog, open, exportZip };
 }
 
-test('brand kits stay hidden while the preview is off', async ({ page }) => {
+test('on by default: without the device switch, Export still offers brand kits', async ({ page }) => {
   const { dialog, open } = await projectWithPhoto(page, false);
   await open();
   await expect(dialog.getByRole('heading', { name: /export/i }).first()).toBeVisible();
-  await expect(dialog.getByTestId('export-brand-kits')).toHaveCount(0);
+  await expect(dialog.getByTestId('export-brand-kits')).toBeVisible();
 });
 
 test('a brand kit is saved, put on in one export step, edited, kept after reload and removed', async ({ page }) => {
