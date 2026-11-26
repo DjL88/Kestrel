@@ -10,3 +10,10 @@
  */
 export const SHORT_LANDSCAPE_QUERY = '(orientation: landscape) and (max-height: 520px) and (max-width: 1023px)';
 export const PHONE_LANDSCAPE_QUERY = `${SHORT_LANDSCAPE_QUERY} and (pointer: coarse)`;
+
+/**
+ * TABLET_PORTRAIT: a touch tablet held upright (or an unfolded foldable). It gets the phone's bottom tool bar, with more
+ * room for buttons, and tools open as a half-height bottom sheet; Import moves to the top bar. A tablet held sideways
+ * keeps the desktop layout, and a narrow desktop window with a mouse keeps the rail.
+ */
+export const TABLET_PORTRAIT_QUERY = '(min-width: 768px) and (max-width: 1023px) and (orientation: portrait) and (pointer: coarse)';
