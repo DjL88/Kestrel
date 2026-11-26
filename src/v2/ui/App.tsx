@@ -32,7 +32,7 @@ import { getActiveGroup, viewPhotos } from './utils/studioMath';
 import { readSharedLink } from './dialogs/sharedLinks';
 import { useSharedEditing } from './shell/useSharedEditing';
 import { collabClient } from '../../providers/collabClient';
-import { firebaseAuth, isSignInConfigured } from '../../providers/firebaseAuth';
+import { firebaseAuth, isSignInConfigured, onSignedInChange } from '../../providers/firebaseAuth';
 import { CANVAS_ZOOM_EVENT } from './utils/canvasTrackpadZoom';
 import { nudgeSliderInUse, trackSliderInUse } from './utils/sliderNudge';
 import { nextToReview } from '../../core/savedViews';
@@ -189,10 +189,13 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
   // Top right of the home page and editor: who is signed in. Read again when Settings closes (where sign-in happens).
   const [accountName, setAccountName] = React.useState<string | null>(null);
   React.useEffect(() => {
-    if (!accountPanel || !isSignInConfigured() || store.settingsOpen) return;
+    // Listens all the time (sign-in can finish in the browser while Settings is still open) and reads again on close.
+    if (!accountPanel || !isSignInConfigured()) return;
     let live = true;
-    void signedInName().then((name) => { if (live) setAccountName(name); }, () => undefined);
-    return () => { live = false; };
+    const read = () => { void signedInName().then((name) => { if (live) setAccountName(name); }, () => undefined); };
+    read();
+    const stop = onSignedInChange(read);
+    return () => { live = false; stop(); };
   }, [accountPanel, signedInName, store.settingsOpen]);
   // Contributors (owner, 26 Nov 2026): an admin-granted free Pro whose holders get "Feedback on this" on right-click.
   // Asked of the server once signed in, and again when Settings closes (where sign-in happens). Offline: not offered.

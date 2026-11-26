@@ -69,7 +69,18 @@ const ALIASES: Record<string, LanguageCode> = { no: 'nb', nn: 'nb' };
  * pt-BR → pt, nb-NO → nb). Australia, New Zealand and Canadian French retain their own choices.
  * Other English regions use UK wording; an unsupported device language is not silently selected.
  */
-export function matchDeviceLanguage(preferred: readonly string[] | undefined): LanguageCode | undefined {
+/**
+ * US English on a device whose clock is set outside the Americas is almost always a Windows install that kept the
+ * default "English (United States)" display language (common on UK laptops), so InFlight offers British English there.
+ */
+const usEnglishTimeZone = (timeZone: string) => /^(America|US|Pacific\/(Honolulu|Guam|Pago_Pago|Saipan))\b/.test(timeZone);
+
+export function matchDeviceLanguage(preferred: readonly string[] | undefined, timeZone?: string): LanguageCode | undefined {
+  const found = matchPreferred(preferred);
+  return found === 'en-US' && timeZone && !usEnglishTimeZone(timeZone) ? 'en-GB' : found;
+}
+
+function matchPreferred(preferred: readonly string[] | undefined): LanguageCode | undefined {
   for (const raw of preferred ?? []) {
     if (typeof raw !== 'string' || !raw.trim()) continue;
     const tag = raw.trim().replace(/_/g, '-');

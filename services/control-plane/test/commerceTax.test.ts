@@ -12,9 +12,9 @@ const location = (country: string) => ({
   ] satisfies LocationEvidence[],
 });
 
-test('UK before activation issues a £29 quote without a VAT number', () => {
+test('UK before activation issues a £29.99 quote without a VAT number', () => {
   const quote = quoteProTax(location('GB'), defaults);
-  assert.deepEqual([quote.treatment, quote.taxPence, quote.totalPence, quote.vatNumber], ['uk-unregistered', 0, 2900, null]);
+  assert.deepEqual([quote.treatment, quote.taxPence, quote.totalPence, quote.vatNumber], ['uk-unregistered', 0, 2999, null]);
 });
 
 test('UK activation requires a number and charges 20% for domestic businesses too', () => {
@@ -24,15 +24,15 @@ test('UK activation requires a number and charges 20% for domestic businesses to
     country: 'GB', evidence: [],
     verification: { country: 'GB', vatId: '123456789', provider: 'HMRC', checkedAt: date, reference: 'ref' },
   }, { ...settings, ukVatNumber: '123456789' });
-  assert.deepEqual([quote.customerType, quote.taxPence, quote.totalPence], ['B2B', 580, 3480]);
+  assert.deepEqual([quote.customerType, quote.taxPence, quote.totalPence], ['B2B', 600, 3599]);
 });
 
 test('Germany and France apply OSS rates and support inclusive price display', () => {
   const de = quoteProTax(location('DE'), defaults);
-  assert.deepEqual([de.treatment, de.taxPence, de.totalPence], ['eu-oss', 551, 3451]);
-  assert.equal(quoteProTax(location('FR'), defaults).totalPence, 3480);
+  assert.deepEqual([de.treatment, de.taxPence, de.totalPence], ['eu-oss', 570, 3569]);
+  assert.equal(quoteProTax(location('FR'), defaults).totalPence, 3599);
   const inclusive = quoteProTax(location('FR'), { ...defaults, b2cPricing: 'inclusive' });
-  assert.deepEqual([inclusive.netPence, inclusive.taxPence, inclusive.totalPence], [2417, 483, 2900]);
+  assert.deepEqual([inclusive.netPence, inclusive.taxPence, inclusive.totalPence], [2499, 500, 2999]);
 });
 
 test('matching VIES status enables reverse charge and preserves verification', () => {
@@ -43,11 +43,11 @@ test('matching VIES status enables reverse charge and preserves verification', (
 });
 
 test('US taxes are off by default and configurable by state', () => {
-  assert.equal(quoteProTax(location('US'), defaults).totalPence, 2900);
+  assert.equal(quoteProTax(location('US'), defaults).totalPence, 2999);
   const quote = quoteProTax({ ...location('US'), region: 'NY' }, {
     ...defaults, localTaxes: { 'US-NY': { enabled: true, rateBasisPoints: 800 } },
   });
-  assert.deepEqual([quote.jurisdiction, quote.totalPence], ['US-NY', 3132]);
+  assert.deepEqual([quote.jurisdiction, quote.totalPence], ['US-NY', 3239]);
 });
 
 test('missing or contradictory consumer location evidence fails closed', () => {

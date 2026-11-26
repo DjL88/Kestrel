@@ -239,7 +239,8 @@ export default function QuickSetup({ online, signedInName, onSignIn, onClose }: 
         </>
       )}
 
-      <div className="mt-2 flex flex-col gap-2">
+      {/* On a phone the step's buttons stay at the bottom, in thumb reach, however long the step is. */}
+      <div className="mt-2 flex flex-col gap-2 max-sm:sticky max-sm:bottom-0 max-sm:-mx-1 max-sm:bg-[var(--setup-bar-bg,var(--bg-surface))] max-sm:px-1 max-sm:pb-[max(0.5rem,env(safe-area-inset-bottom))] max-sm:pt-2">
         {step === 'extras' && extras && extras.length > 0 && online && ticked.size > 0
           ? <button type="button" className={buttonClass.primary} onClick={() => finish(true)} data-testid="setup-download">{t.extras.download}</button>
           : <button type="button" className={buttonClass.primary} data-testid="setup-next"

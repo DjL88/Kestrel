@@ -6,7 +6,7 @@
 /** The matrix's starting prices (DEFAULT_PRICING), in minor units. Used only until /v1/pricing answers. */
 export const FALLBACK = Object.freeze({
   version: 1, base: 'GBP', updatedAt: null,
-  currencies: { GBP: { digits: 2, 'pro.monthly': 299, 'pro.annual': 2900 } },
+  currencies: { GBP: { digits: 2, 'pro.monthly': 299, 'pro.annual': 2999 } },
   regions: { GB: 'GBP', IM: 'GBP', JE: 'GBP', GG: 'GBP' },
 });
 

@@ -33,7 +33,7 @@ const RISE_SCALE = 0.62;
 const ART_TOP = 0.3;
 const ART_BOTTOM = 0.7;
 /** The gap above the risen logo, and between it and the welcome's heading. */
-const LOGO_TOP_PX = 24;
+const LOGO_TOP_PX = 40;
 const LOGO_GAP_PX = 8;
 const round = (n: number) => Number(n.toFixed(4));
 /** The frame is centred on the layer; this moves it up so the logo's top lands LOGO_TOP_PX below the layer's top. */
@@ -133,6 +133,8 @@ export function Splash() {
   const [shown, setShown] = useState<{ state: WelcomeState; profile: LaunchProfile | null; key: number } | null>(null);
   const [Welcome, setWelcome] = useState<WelcomeModule>('loading');
   const [faded, setFaded] = useState(false);
+  // The risen logo floats above the welcome; once its content scrolls, the logo steps aside so it never covers text.
+  const [scrolled, setScrolled] = useState(false);
   // Read by the handlers below, which are set up once.
   const latest = useRef({ skip, Welcome, liveState });
   latest.current = { skip, Welcome, liveState };
@@ -298,16 +300,17 @@ export function Splash() {
 
   return (
     <div ref={layer} data-testid="splash" aria-hidden={risen ? undefined : 'true'} className="fixed inset-0 z-[1000]"
-      style={{ backgroundColor: BACKGROUND[tone], opacity: phase === 'leaving' ? 0 : 1, transition: reduced ? undefined : `opacity ${FADE_MS}ms ease-out` }}>
+      style={{ backgroundColor: BACKGROUND[tone], opacity: phase === 'leaving' ? 0 : 1, pointerEvents: phase === 'leaving' ? 'none' : undefined, transition: reduced ? undefined : `opacity ${FADE_MS}ms ease-out` }}>
       {risen && typeof Welcome === 'function' && (
-        <div ref={welcomeBox} className="absolute inset-0" style={welcomeStyle}>
+        <div ref={welcomeBox} className="absolute inset-0" style={welcomeStyle}
+          onScrollCapture={(event) => setScrolled((event.target as HTMLElement).scrollTop > 4)}>
           <Welcome key={shown.key} state={shown.state} profile={shown.profile} lastProject={memory.lastProject} isPro={pro} online={online}
             light={tone === 'light'} onDone={onDone} onSignedOut={onSignedOut} />
         </div>
       )}
       {reduced ? (
         risen ? (
-          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 flex justify-center" style={{ top: LOGO_TOP_PX, height: RISEN_LOGO_HEIGHT }}>
+          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 flex justify-center" style={{ top: LOGO_TOP_PX, height: RISEN_LOGO_HEIGHT, opacity: scrolled ? 0 : 1 }}>
             {logoReady && <BrandLogo kind="stacked" decorative className="h-full w-auto" />}
           </div>
         ) : (
@@ -317,7 +320,7 @@ export function Splash() {
         )
       ) : (
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 grid place-items-center"
-          style={{ transform: risen ? RISE_TRANSFORM : undefined, transition: `transform ${RISE_MS}ms ease-out` }}>
+          style={{ transform: risen ? RISE_TRANSFORM : undefined, opacity: risen && scrolled ? 0 : 1, transition: `transform ${RISE_MS}ms ease-out, opacity 150ms ease-out` }}>
           <div ref={host} data-testid="splash-animation" data-played={played} style={{ width: FRAME, height: FRAME }} />
         </div>
       )}

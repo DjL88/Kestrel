@@ -2272,7 +2272,7 @@ export const source = {
     },
     pro: {
       title: 'Basic is free. Pro adds more.',
-      body: 'Basic stays free and fully usable: import, cull, edit and export, offline. Pro adds assisted culling, species suggestions and the online helper.',
+      body: 'Basic stays free and fully usable: import, cull, edit, export and the on-device AI, offline. Pro adds 2.5 GB of cloud storage, more cloud processing each month and the online helper.',
       monthly: (price: string) => `Monthly: ${price}`,
       annual: (price: string) => `Yearly: ${price}`,
       cancelNote: 'Cancel any time. Your projects, edits and exports are never locked.',

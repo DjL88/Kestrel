@@ -36,13 +36,13 @@ test('a place that keeps failing is tried less and less often, even when leaving
 test('backups are named so the oldest sorts first, one folder per project', () => {
   const a = backupName('kite-day', new Date('2026-11-16T09:00:00Z'));
   const b = backupName('kite-day', new Date('2026-11-16T10:30:00Z'));
-  assert.match(a, /^kestrel\/v1\/project-backups\/[a-f0-9]{64}\/2026-11-16T09-00-00-000Z_[a-f0-9]{32}\.inflight\.json$/);
+  assert.match(a, /^InFlight\/v1\/project-backups\/[a-f0-9]{64}\/2026-11-16T09-00-00-000Z_[a-f0-9]{32}\.inflight\.json$/);
   assert.ok(a < b);
 });
 
 test('only the newest ten are kept, and only InFlight backups of that project are ever chosen for deletion', () => {
   const names = Array.from({ length: 13 }, (_, i) => backupName('kite-day', new Date(2026, 10, 1 + i)));
-  const gone = backupsToDelete([...names, 'kestrel/v1/backups/other/x.kestrel.json', 'kestrel/v1/backups/kite-day/notes.txt', 'elsewhere/y.kestrel.json'], 'kite-day');
+  const gone = backupsToDelete([...names, 'InFlight/v1/backups/other/x.kestrel.json', 'InFlight/v1/backups/kite-day/notes.txt', 'elsewhere/y.kestrel.json'], 'kite-day');
   assert.deepEqual(gone, names.slice(0, 3));
   assert.deepEqual(backupsToDelete(names.slice(0, 5), 'kite-day'), []);
 });
@@ -51,7 +51,7 @@ test('project identities stay distinct on case-insensitive mounted drives and ca
   const ids = ['Kite', 'kite', '../kite', 'a/b', 'a\\b', 'é', 'e\u0301', '\ud800', '\ufffd', 'x'.repeat(1000)];
   const folders = ids.map(backupFolder);
   assert.equal(new Set(folders.map((name) => name.toLowerCase())).size, ids.length);
-  for (const folder of folders) assert.match(folder, /^kestrel\/v1\/project-backups\/[a-f0-9]{64}$/);
+  for (const folder of folders) assert.match(folder, /^InFlight\/v1\/project-backups\/[a-f0-9]{64}$/);
   assert.equal(backupFolder('Kite'), backupFolder('Kite'));
   assert.throws(() => backupFolder(''));
 });
@@ -66,7 +66,7 @@ test('same-time saves keep separate copies and retention ignores nested, legacy 
     `${prefix}/saved-copy.kestrel.json`,
     `${prefix}/child/${names[0].split('/').at(-1)}`,
     `${prefix}/../${names[0].split('/').at(-1)}`,
-    'kestrel/v1/backups/kite-day/2026-11-16T09-00-00-000Z.kestrel.json',
+    'InFlight/v1/backups/kite-day/2026-11-16T09-00-00-000Z.kestrel.json',
   ];
   assert.deepEqual(backupsToDelete([...names, ...names, ...foreign], 'project-a'), [...names].sort().slice(0, 2));
 });

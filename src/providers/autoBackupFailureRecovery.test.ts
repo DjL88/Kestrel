@@ -45,7 +45,7 @@ for (const failure of ['disk-full-put', 'nas-disconnected-readback'] as const) {
     await writeSnapshot(connector, projectId, newer, updated);
     assert.deepEqual(await backing.get(newer), updated, 'retry must persist and verify the complete snapshot');
     assert.deepEqual(await backing.get(older), original, 'a retry must not alter the older snapshot');
-    assert.equal(listed, 1, 'retention may run only after successful readback');
+    assert.equal(listed, 2, 'retention may run only after successful readback');
   });
 }
 

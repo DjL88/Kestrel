@@ -18,7 +18,13 @@ export interface StorageConnector {
   remove(path: string): Promise<void>;
 }
 
-export const SYNC_ROOT = 'kestrel/v1';
+/** InFlight's own folder inside a place the person chose (for example beside their originals). */
+export const SYNC_ROOT = 'InFlight/v1';
+/**
+ * The folder's name before the product was renamed (owner, 26 Nov 2026). It is still read, so older backups and
+ * suggestions are found, and InFlight's own old snapshots there may be pruned, but nothing new is ever written to it.
+ */
+export const LEGACY_SYNC_ROOT = 'kestrel/v1';
 const SAFE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
 /** The one layout every connector uses, so a project can move between them. Ids must be plain, so a path cannot escape the root. */
@@ -33,10 +39,13 @@ function safeRelativePath(path: string): boolean {
   return !/[\\:\x00-\x1f\x7f]/.test(path) && path.split('/').every(part => part.length > 0 && part !== '.' && part !== '..' && !/[. ]$/.test(part));
 }
 
-/** Only paths inside the InFlight folder are ever read, written or removed. */
+/** Only paths inside the InFlight folder (or its older kestrel name) are ever read or removed. */
 export function isInsideSyncRoot(path: string): boolean {
-  return path.startsWith(`${SYNC_ROOT}/`) && safeRelativePath(path);
+  return (path.startsWith(`${SYNC_ROOT}/`) || path.startsWith(`${LEGACY_SYNC_ROOT}/`)) && safeRelativePath(path);
 }
+
+/** The same place under the folder's older kestrel name, for reading what was saved before the rename. */
+export const legacySyncPath = (path: string) => path.startsWith(`${SYNC_ROOT}/`) ? LEGACY_SYNC_ROOT + path.slice(SYNC_ROOT.length) : path;
 
 /**
  * Exports may also be saved to a folder called "export" in a place the person chose (for example beside their originals).
@@ -46,8 +55,8 @@ export function isInsideExportRoot(path: string): boolean {
   return path.startsWith('export/') && safeRelativePath(path);
 }
 
-/** What a connector may write: its own folder, or the export folder. */
-export const isWritablePath = (path: string) => isInsideSyncRoot(path) || isInsideExportRoot(path);
+/** What a connector may write: its own InFlight folder (never the older kestrel one), or the export folder. */
+export const isWritablePath = (path: string) => (path.startsWith(`${SYNC_ROOT}/`) && safeRelativePath(path)) || isInsideExportRoot(path);
 
 /** The settings for a NAS or server reached over WebDAV (Synology, QNAP, Nextcloud, ownCloud and others). */
 export interface WebDavSettings { url: string; username: string; password: string }

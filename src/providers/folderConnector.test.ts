@@ -17,7 +17,7 @@ for (const failure of ['write', 'close'] as const) {
         async abort() { staged = undefined; aborted += 1; },
       }; } }; },
     } as unknown as FileSystemDirectoryHandle;
-    await assert.rejects(directoryHandleConnector(folder).put('kestrel/v1/backups/project/backup.kestrel.json', new Uint8Array([1, 2, 3]), ''), (error) => error === problem);
+    await assert.rejects(directoryHandleConnector(folder).put('InFlight/v1/backups/project/backup.kestrel.json', new Uint8Array([1, 2, 3]), ''), (error) => error === problem);
     assert.equal(aborted, 1);
     assert.equal(staged, undefined);
     assert.equal(saved, original);
@@ -34,7 +34,7 @@ test('abort failure does not hide the original write error', async () => {
       async abort() { throw new Error('Drive disconnected'); },
     }; } }; },
   } as unknown as FileSystemDirectoryHandle;
-  await assert.rejects(directoryHandleConnector(folder).put('kestrel/v1/backups/project/backup.kestrel.json', new Uint8Array([1]), ''), (error) => error === problem);
+  await assert.rejects(directoryHandleConnector(folder).put('InFlight/v1/backups/project/backup.kestrel.json', new Uint8Array([1]), ''), (error) => error === problem);
 });
 
 test('successful folder write commits once without aborting', async () => {
@@ -48,6 +48,6 @@ test('successful folder write commits once without aborting', async () => {
       async abort() { events.push('abort'); },
     }; } }; },
   } as unknown as FileSystemDirectoryHandle;
-  await directoryHandleConnector(folder).put('kestrel/v1/backups/project/backup.kestrel.json', bytes, '');
+  await directoryHandleConnector(folder).put('InFlight/v1/backups/project/backup.kestrel.json', bytes, '');
   assert.deepEqual(events, ['write', 'close']);
 });

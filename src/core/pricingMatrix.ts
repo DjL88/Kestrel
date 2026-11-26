@@ -81,7 +81,7 @@ export interface PricingMatrix {
  */
 export const DEFAULT_PRICING: PricingMatrix = {
   version: 1,
-  base: { 'pro.monthly': 299, 'pro.annual': 2900 },
+  base: { 'pro.monthly': 299, 'pro.annual': 2999 },
   rates: { date: null, perGbp: {} },
   currencies: Object.fromEntries(['EUR', 'USD', 'CAD', 'AUD', 'NZD', 'CHF', 'DKK', 'SEK', 'NOK']
     .map((currency) => [currency, { rounding: 'charm', overrides: {} }])) as Record<string, CurrencyRule>,

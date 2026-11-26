@@ -45,19 +45,19 @@ test('files go to the desktop side with the place, and a missing file reads as n
   const { calls, invoke } = fake({
     sftp_put: () => undefined,
     sftp_get: (args) => { if ((args as { path: string }).path.endsWith('gone.json')) throw 'missing'; return new Uint8Array([1, 2]).buffer; },
-    sftp_list: () => ['kestrel/v1/a.json'],
+    sftp_list: () => ['InFlight/v1/a.json'],
     sftp_remove: () => undefined,
   });
   const connector = sftpConnector(place, { invoke });
-  await connector.put('kestrel/v1/a.json', new Uint8Array([7]), '');
+  await connector.put('InFlight/v1/a.json', new Uint8Array([7]), '');
   assert.deepEqual(calls[0].args, new Uint8Array([7]));
-  assert.equal(decodeURIComponent(calls[0].options!.headers['x-sftp-path']), 'kestrel/v1/a.json');
+  assert.equal(decodeURIComponent(calls[0].options!.headers['x-sftp-path']), 'InFlight/v1/a.json');
   assert.deepEqual(JSON.parse(decodeURIComponent(calls[0].options!.headers['x-sftp-target'])), place);
-  assert.deepEqual(await connector.get('kestrel/v1/a.json'), new Uint8Array([1, 2]));
-  assert.equal(await connector.get('kestrel/v1/gone.json'), null);
-  assert.deepEqual(await connector.list('kestrel/v1/project-backups/'), ['kestrel/v1/a.json']);
-  assert.deepEqual(calls.at(-1)!.args, { target: place, prefix: 'kestrel/v1/project-backups' });
-  await connector.remove('kestrel/v1/a.json');
+  assert.deepEqual(await connector.get('InFlight/v1/a.json'), new Uint8Array([1, 2]));
+  assert.equal(await connector.get('InFlight/v1/gone.json'), null);
+  assert.deepEqual(await connector.list('InFlight/v1/project-backups/'), ['InFlight/v1/a.json']);
+  assert.deepEqual(calls.at(-1)!.args, { target: place, prefix: 'InFlight/v1/project-backups' });
+  await connector.remove('InFlight/v1/a.json');
   await connector.put('export/shoot/a.jpg', new Uint8Array([1]), '');
 });
 
@@ -66,7 +66,7 @@ test('nothing outside InFlight’s folder is touched, and exports are never read
   const connector = sftpConnector(place, { invoke });
   await assert.rejects(connector.put('../etc/passwd', new Uint8Array(), ''));
   await assert.rejects(connector.get('export/shoot/a.jpg'));
-  await assert.rejects(connector.remove('kestrel/v1/../../x'));
+  await assert.rejects(connector.remove('InFlight/v1/../../x'));
   await assert.rejects(connector.list('other'));
   assert.equal(calls.length, 0);
 });

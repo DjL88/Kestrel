@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type RefObject, type CSSProperties } from 'react';
 import '../tokens.css';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
@@ -190,9 +190,9 @@ export default function LaunchWelcome({ state, profile, lastProject, isPro, onli
   if (setup) {
     return (
       <main ref={rootRef} tabIndex={-1} onKeyDown={onKeyDown} data-testid="launch-welcome" data-welcome-state="setup"
-        data-v2-theme={light ? 'light' : 'dark'}
+        data-v2-theme={light ? 'light' : 'dark'} style={{ '--setup-bar-bg': light ? '#faf7f2' : '#0e1116' } as CSSProperties}
         className="inflight-v2 relative flex h-full w-full flex-col items-center overflow-y-auto px-[22px] pb-6 pt-[var(--welcome-logo-space,168px)] font-[family-name:var(--font-sans)] text-[var(--text-primary)] outline-none">
-        <div className="flex w-full max-w-[24rem] flex-1 flex-col items-center">
+        <div className="flex w-full max-w-[24rem] flex-1 flex-col items-center sm:max-w-[36rem]">
           {setupSignIn && <LaunchSignInPanel online={online} onClose={() => setSetupSignIn(false)} onSignedIn={signedIn} backRef={panelBack} />}
           {/* Kept mounted while signing in, so the answers so far are not lost. */}
           <div hidden={setupSignIn} className="w-full">

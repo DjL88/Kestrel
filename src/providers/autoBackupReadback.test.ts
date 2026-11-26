@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { memoryConnector, type StorageConnector } from '../core/storageConnectors';
-import { backupFolder, backupName } from '../core/autoBackup';
+import { backupFolder, backupName, legacyBackupFolder } from '../core/autoBackup';
 import { backUpNow, writeSnapshot } from './autoBackup';
 import { LOCAL_RECOVERY_TARGET, type RecoveryLocation } from './automaticRecovery';
 import { createDemoShootState } from '../core/cullingEngine';
@@ -35,7 +35,7 @@ test('verified snapshot is restorable from the connector and may run retention',
   const name = backupName(projectId, new Date('2026-11-23T21:20:00Z'));
   await writeSnapshot(connector, projectId, name, payload);
   assert.deepEqual(await backing.get(name), payload);
-  assert.equal(counts().listed, 1);
+  assert.equal(counts().listed, 2, "the InFlight folder and the older kestrel one");
   assert.equal(counts().removed, 0);
 });
 
@@ -133,4 +133,24 @@ test('no eligible source is a successful device-only backup, but a thrown source
   assert.equal((await backUpNow(project, LOCAL_RECOVERY_TARGET, now, {
     openDeviceRecovery, openSourceRecovery: async () => { throw new Error('offline'); },
   })).state, 'partial');
+});
+
+test('retention counts backups left in the older kestrel folder, so only the newest ten remain across both', async () => {
+  // Files a build from before the rename left behind (a plain map: InFlight itself never writes there any more).
+  const files = new Map<string, Uint8Array>();
+  const backing: StorageConnector = {
+    kind: 'folder',
+    test: async () => ({ ok: true }),
+    put: async (path, bytes) => { files.set(path, bytes.slice()); },
+    get: async (path) => files.get(path) ?? null,
+    list: async (prefix) => [...files.keys()].filter((key) => key.startsWith(`${prefix}/`)).sort(),
+    remove: async (path) => { files.delete(path); },
+  };
+  const legacy = `${legacyBackupFolder(projectId)}`;
+  for (let day = 1; day <= 9; day++) files.set(`${legacy}/2026-10-0${day}T09-00-00-000Z_${'b'.repeat(32)}.kestrel.json`, payload);
+  for (let day = 1; day <= 3; day++) await writeSnapshot(backing, projectId, backupName(projectId, new Date(Date.UTC(2026, 10, day))), payload);
+  const left = [...await backing.list(backupFolder(projectId)), ...await backing.list(legacy)];
+  assert.equal(left.length, 10);
+  assert.equal(left.filter((name) => name.startsWith(`${backupFolder(projectId)}/`)).length, 3, 'all new InFlight backups kept');
+  assert.ok(left.every((name) => !name.includes('2026-10-01') && !name.includes('2026-10-02')), 'the two oldest kestrel backups went');
 });

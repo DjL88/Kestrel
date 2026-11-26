@@ -6,7 +6,7 @@ const euRates = new Map(Object.entries({
   PL: 2300, PT: 2300, RO: 2100, SE: 2500, SI: 2200, SK: 2300,
 }));
 
-export const PRO_BASE_PENCE = 2900;
+export const PRO_BASE_PENCE = 2999;
 
 /** EU consumer sales need the seller's (non-Union) OSS registration before the first sale. */
 export const isEuVatCountry = (country: string): boolean => euRates.has(country);

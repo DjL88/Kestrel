@@ -4,7 +4,7 @@
  * project, and tries again later if the place is not reachable. Nothing local is ever lost because a backup failed.
  */
 import { sha256Plain } from './sha256';
-import { SYNC_ROOT } from './storageConnectors';
+import { legacySyncPath, SYNC_ROOT } from './storageConnectors';
 
 export interface BackupClock {
   /** When the project last changed on this device. */
@@ -63,10 +63,19 @@ export function backupName(projectId: string, now: Date): string {
 // New backups end .inflight.json; older ones from before the rename end .kestrel.json and are still recognised.
 const BACKUP_FILE = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z_[a-f0-9]{32}\.(?:inflight|kestrel)\.json$/;
 
-/** Which old backups to delete so only the newest few are kept. Only files that look like InFlight backups are ever named. */
+/** The project's backup folder under the older kestrel name, still read so backups from before the rename count. */
+export const legacyBackupFolder = (projectId: string) => legacySyncPath(backupFolder(projectId));
+
+/**
+ * Which old backups to delete so only the newest few are kept, counting the InFlight folder and the older kestrel one
+ * together. Only files that look like InFlight backups are ever named. Oldest first by the time in the file's name.
+ */
 export function backupsToDelete(names: readonly string[], projectId: string, keep = KEEP_BACKUPS): string[] {
-  const prefix = `${backupFolder(projectId)}/`;
-  const ours = [...new Set(names)].filter((name) => name.startsWith(prefix) && BACKUP_FILE.test(name.slice(prefix.length))).sort();
+  const prefixes = [`${backupFolder(projectId)}/`, `${legacyBackupFolder(projectId)}/`];
+  const fileOf = (name: string) => name.slice(name.lastIndexOf('/') + 1);
+  const ours = [...new Set(names)]
+    .filter((name) => prefixes.some((prefix) => name.startsWith(prefix) && BACKUP_FILE.test(name.slice(prefix.length))))
+    .sort((a, b) => fileOf(a).localeCompare(fileOf(b)) || a.localeCompare(b));
   return ours.slice(0, Math.max(0, ours.length - keep));
 }
 
