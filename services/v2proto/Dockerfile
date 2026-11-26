@@ -16,6 +16,9 @@ ARG VITE_FIREBASE_MESSAGING_SENDER_ID
 ARG VITE_FCM_VAPID_KEY
 ARG VITE_KESTREL_CONTROL_PLANE_URL
 ARG VITE_KESTREL_GRANT_KEYS
+# Public client ids for "Sign in with Dropbox / OneDrive" (docs/CLOUD-CONNECTORS.md). Empty leaves that button off.
+ARG VITE_DROPBOX_APP_KEY=
+ARG VITE_ONEDRIVE_CLIENT_ID=
 # Model packs and updates: the models bucket and the public manifest key (scripts/build-desktop-guard.mjs RELEASE_MODEL_SOURCE).
 ARG VITE_KESTREL_MODEL_BASE_URL=https://storage.googleapis.com/kestrel-hosting-kestrel-models
 ARG VITE_KESTREL_MODEL_KEYS=kestrel-2026-11=fRgITdAJPfCXpyEJ7DZml8316QBUgNlPsc3TPw07ZUw=

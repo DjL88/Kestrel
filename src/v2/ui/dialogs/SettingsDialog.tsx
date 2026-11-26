@@ -1,5 +1,6 @@
 import { LANGUAGES, languageOption, type LanguageCode } from '../../../core/locale';
 import { chooseLanguage, language } from '../../../i18n/messages';
+import { AiProviderSetup } from './AiProviderSetup';
 import { StorageConnections } from './StorageConnections';
 import BrowserStorageSection from './BrowserStorageSection';
 import DiskPreviewSection from './DiskPreviewSection';
@@ -513,7 +514,8 @@ export default function SettingsDialog({
                 <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
                   {STRINGS.settings.aiProviders.intro}
                 </p>
-                {accountPanel && <p id="v2-real-ai-unavailable" role="status" className="text-xs leading-relaxed text-[var(--text-secondary)]">{STRINGS.settingsMore.aiNotImplemented}</p>}
+                {accountPanel && <AiProviderSetup />}
+                {!accountPanel && (
                 <div className="space-y-2">
                   {settings.aiProviders.map((prov) => {
                     const connection = aiProviderControl(prov, Boolean(accountPanel));
@@ -556,12 +558,11 @@ export default function SettingsDialog({
                     );
                   })}
                 </div>
-                {accountPanel
-                  ? <p className="text-[0.6875rem] text-[var(--text-muted)]">{STRINGS.settingsMore.aiPlanned}</p>
-                  : <div>
-                    <p className="text-[0.6875rem] font-medium text-[var(--text-muted)]">{STRINGS.settingsMore.byoAi}</p>
-                    <WorksWith items={[{ id: 'ollama', name: 'Ollama' }, { id: 'lmstudio', name: 'LM Studio' }]} />
-                  </div>}
+                )}
+                <div>
+                  <p className="text-[0.6875rem] font-medium text-[var(--text-muted)]">{STRINGS.settingsMore.byoAi}</p>
+                  <WorksWith items={[{ id: 'ollama', name: 'Ollama' }, { id: 'lmstudio', name: 'LM Studio' }]} />
+                </div>
               </div>
             )}
 

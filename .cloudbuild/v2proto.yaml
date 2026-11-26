@@ -15,6 +15,9 @@ substitutions:
   _FCM_VAPID_KEY: ''
   _CONTROL_PLANE_URL: ''
   _GRANT_KEYS: ''
+  # Public client ids for cloud drive sign-in (not secrets). Empty leaves that provider's button off.
+  _DROPBOX_APP_KEY: ''
+  _ONEDRIVE_CLIENT_ID: ''
   # G10 build provenance. Trigger builds get the commit from $COMMIT_SHA. A manual `gcloud builds submit` has none, so pass
   # --substitutions=_REVISION=$(git rev-parse HEAD) from a clean checkout. _RELEASE=1 makes the image build refuse an
   # unknown revision (scripts/build-provenance.mjs), so nothing unlabelled is deployed.
@@ -42,6 +45,8 @@ steps:
       - --build-arg=VITE_FCM_VAPID_KEY=${_FCM_VAPID_KEY}
       - --build-arg=VITE_KESTREL_CONTROL_PLANE_URL=${_CONTROL_PLANE_URL}
       - --build-arg=VITE_KESTREL_GRANT_KEYS=${_GRANT_KEYS}
+      - --build-arg=VITE_DROPBOX_APP_KEY=${_DROPBOX_APP_KEY}
+      - --build-arg=VITE_ONEDRIVE_CLIENT_ID=${_ONEDRIVE_CLIENT_ID}
       - -t
       - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/v2proto:$SHORT_SHA
       - .
