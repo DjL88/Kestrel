@@ -40,6 +40,16 @@ export function releaseModelSource(env) {
     [name, typeof env[name] === 'string' && env[name].trim() !== '' ? env[name] : fallback]));
 }
 
+/**
+ * Public client ids that switch on "Sign in with Dropbox / Google Drive / OneDrive" (docs/CLOUD-CONNECTORS.md). Not
+ * required: without one that button says the copy is not registered. A release build lists the missing ones as a warning.
+ */
+export const RELEASE_DRIVE_SETTINGS = ['VITE_DROPBOX_APP_KEY', 'VITE_GOOGLE_DRIVE_CLIENT_ID', 'VITE_GOOGLE_DRIVE_CLIENT_SECRET', 'VITE_ONEDRIVE_CLIENT_ID'];
+
+export function missingDriveSettings(env) {
+  return RELEASE_DRIVE_SETTINGS.filter((name) => typeof env[name] !== 'string' || env[name].trim() === '');
+}
+
 /** Refuse a release build that is missing any of them, naming each one. */
 export function assertReleaseOnlineSettings(env) {
   const missing = RELEASE_ONLINE_SETTINGS.filter((name) => typeof env[name] !== 'string' || env[name].trim() === '');
