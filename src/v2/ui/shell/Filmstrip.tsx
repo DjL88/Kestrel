@@ -7,7 +7,7 @@ import { hdrText } from '../../../i18n/areas/hdr';
 import { engineText } from '../../../i18n/areas/engine';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { AssistMode, FilmstripFilter, LiveFtpInbox, LookPreset, Photo, PhotoSort } from '../contract';
+import type { AssistMode, FilmstripFilter, LiveFtpInbox, LiveTether, LookPreset, Photo, PhotoSort } from '../contract';
 import { STRINGS } from '../strings';
 import { PHOTO_DRAG_TYPE, draggedPhotoIds } from '../utils/photoDrag';
 import ProBadge, { useProHidden } from './ProBadge';
@@ -71,7 +71,8 @@ interface FilmstripProps {
   shootRoom?: { links: { address: string; url: string }[]; shown: number } | null;
   onOpenShootRoom?: () => void;
   onCloseShootRoom?: () => void;
-  liveFolder?: { name: string; imported: number; arriving: number; problem: boolean; ftp?: LiveFtpInbox } | null;
+  liveFolder?: { name: string; imported: number; arriving: number; problem: boolean; ftp?: LiveFtpInbox; tether?: LiveTether } | null;
+  onTetherCamera?: () => void;
   /** Import and sorting work under way, shown as a thin line along the top edge (absent or null: nothing running). */
   activity?: import('../utils/edgeActivity').EdgeActivity | null;
   onRunAutoCull: () => void;
@@ -138,6 +139,7 @@ export default function Filmstrip({
   shootRoom,
   onOpenShootRoom,
   onCloseShootRoom,
+  onTetherCamera,
   liveFolder,
   activity = null,
   onRunAutoCull,
@@ -376,6 +378,11 @@ export default function Filmstrip({
               <BrandIcon name={liveFolder.problem ? 'image-off' : 'folder-arrow'} size={13} />
               <span>{liveFolder.problem ? STRINGS.liveShoot.problem(liveFolder.name) : STRINGS.liveShoot.watching(liveFolder.name, liveFolder.imported)}</span>
               {!liveFolder.problem && liveFolder.arriving > 0 && <span className="text-[var(--text-secondary)]">· {STRINGS.liveShoot.arriving(liveFolder.arriving)}</span>}
+              {liveFolder.tether && (
+                <span className="text-[var(--text-secondary)]" data-testid="filmstrip-usb-tether">
+                  · {liveFolder.tether.fetching ? STRINGS.liveShoot.usbFetching(liveFolder.tether.fetching) : STRINGS.liveShoot.usbTethered(liveFolder.tether.camera)}
+                </span>
+              )}
               {liveFolder.ftp && (
                 <details className="relative" data-testid="filmstrip-ftp-details">
                   <summary className="cursor-pointer list-none px-1 font-medium underline">{STRINGS.liveShoot.cameraSettings}</summary>
@@ -432,6 +439,14 @@ export default function Filmstrip({
               title={STRINGS.liveShoot.roomHint}>
               <BrandIcon name="select-photos" size={13} />
               <span className="v2-compact-label">{STRINGS.liveShoot.room}</span>
+            </button>
+          )}
+          {!liveFolder && onTetherCamera && (
+            <button type="button" onClick={onTetherCamera} data-testid="filmstrip-tether-usb"
+              className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-[0.6875rem] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
+              title={STRINGS.liveShoot.usbHint}>
+              <BrandIcon name="camera-settings" size={13} />
+              <span className="v2-compact-label">{STRINGS.liveShoot.usb}</span>
             </button>
           )}
           {!liveFolder && onReceiveFromCamera && (

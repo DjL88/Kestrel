@@ -2161,6 +2161,12 @@ export const sv: AreaTranslation<typeof source> = {
     roomClose: 'Stäng',
     roomCloseHint: 'Sluta visa fotograferingen på andra skärmar.',
     roomKeptYours: (n: number) => `Ditt val behölls (${n}): du hade ändrat samma foto.`,
+    usb: 'Kamera-USB',
+    usbHint: 'Anslut kameran med USB och lägg till varje foto när du tar det. En kopia av varje ny bild sparas i en mapp du väljer; inget på kameran ändras eller raderas.',
+    usbTethered: (camera: string) => `${camera} via USB`,
+    usbFetching: (name: string) => `Hämtar ${name}`,
+    usbNoCamera: 'Ingen kamera hittades via USB. Slå på kameran, anslut kabeln och stäng andra appar som använder den (tillverkarens tether-app, Bilder eller Digitala bilder).',
+    usbEnded: (camera: string, reason: string) => `${camera} slutade tethra: ${reason} Foton som redan lagts till finns kvar.`,
   },
   activityBar: {
     photoLoading: 'Läser in foto',
