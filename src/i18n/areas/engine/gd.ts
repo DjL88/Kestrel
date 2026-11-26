@@ -104,6 +104,7 @@ export const gd: AreaTranslation<typeof source> = {
     exportStopped: 'Stad an t-às-phortadh. Fuirichidh na faidhlichean a chaidh a shàbhaladh far a bheil iad.',
     enlargementTask: 'A’ dèanamh ro-shealladh air an meudachadh',
     exportNotQueued: 'Cha b’ urrainnear an t-às-phortadh seo a thòiseachadh.',
+    exportFolderUnwritable: (folder, reason) => `Cha b’ urrainn do InFlight am pasgan às-phortaidh a dhèanamh ann an ${folder}${reason ? ` (${reason})` : ''}. Tagh pasgan eile, no dèan cinnteach gu bheil an draibh ceangailte is nach eil e ri leughadh a-mhàin. Cha deach dad às-phortadh.`,
     destinationUnavailable: 'Chan eil an ceann-uidhe às-phortaidh sin ri fhaighinn. Tagh ZIP ionadail, faidhlichean fa leth no pasgan air a’ choimpiutair.',
     cullPro: 'Tha taghadh fèin-obrachail na phàirt de InFlight Pro.',
     cullOffer: "Chaidh dealbhan a chur ris. Brùth Taghadh fèin-obrachail gus an rèiteachadh air an uidheam seo; cha tèid dad a chomharrachadh gus an dèan thu sin.",

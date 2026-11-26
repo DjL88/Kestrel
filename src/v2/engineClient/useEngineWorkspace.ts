@@ -204,6 +204,7 @@ import { addSavedEditGroup, renameSavedEditGroup, selectSavedEditGroup, syncEdit
 import { engineText } from '../../i18n/areas/engine';
 import { loadSpeciesNames, onSpeciesNamesLoaded } from '../../providers/speciesNames';
 import { language } from '../../i18n/messages';
+import { reasonOf } from '../../core/exportFolderChoice';
 import { pickFiles, pickFolderFiles, pickFolderPhotos, pickImageFile, pickReselectFiles } from './workspacePickers';
 
 /** At most this many confident keepers get the vision guardian's second opinion per Auto-cull pass (seconds each). */
@@ -1120,7 +1121,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           else setNotice(engineText.workspace.exportStopped);
         });
       } catch (error) {
-        setNotice(error instanceof Error ? error.message : engineText.workspace.exportNotQueued);
+        // The desktop app rejects with plain text, not an Error: show its reason rather than hiding it.
+        setNotice(reasonOf(error) || engineText.workspace.exportNotQueued);
       }
       return;
     }

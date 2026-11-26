@@ -104,6 +104,7 @@ export const da: AreaTranslation<typeof source> = {
     exportStopped: 'Eksporten stoppede. Filer, der allerede er gemt, bliver liggende.',
     enlargementTask: 'Laver forhåndsvisning af forstørrelsen',
     exportNotQueued: 'Kunne ikke starte denne eksport.',
+    exportFolderUnwritable: (folder, reason) => `InFlight kunne ikke oprette eksportmappen i ${folder}${reason ? ` (${reason})` : ''}. Vælg en anden mappe, eller kontrollér, at drevet er tilsluttet og ikke skrivebeskyttet. Intet blev eksporteret.`,
     destinationUnavailable: 'Den eksportdestination er ikke tilgængelig. Vælg en lokal ZIP, separate filer eller en mappe på computeren.',
     cullPro: 'Automatisk udvalg er en del af InFlight Pro.',
     cullOffer: "Fotos tilføjet. Tryk på Automatisk sortering for at sortere dem på denne enhed; intet markeres før da.",

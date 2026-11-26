@@ -104,6 +104,7 @@ export const pt: AreaTranslation<typeof source> = {
     exportStopped: 'Exportação parada. Os ficheiros já guardados ficam onde estão.',
     enlargementTask: 'A criar a pré-visualização da ampliação',
     exportNotQueued: 'Não foi possível iniciar esta exportação.',
+    exportFolderUnwritable: (folder, reason) => `O InFlight não conseguiu criar a pasta de exportação em ${folder}${reason ? ` (${reason})` : ''}. Escolha outra pasta ou verifique se a unidade está ligada e não é só de leitura. Nada foi exportado.`,
     destinationUnavailable: 'Esse destino de exportação não está disponível. Escolha um ZIP local, ficheiros separados ou uma pasta do computador.',
     cullPro: 'A escolha automática faz parte do InFlight Pro.',
     cullOffer: "Fotos adicionadas. Prima Seleção automática para as ordenar neste dispositivo; nada é marcado até lá.",

@@ -104,6 +104,7 @@ export const nl: AreaTranslation<typeof source> = {
     exportStopped: 'Export gestopt. Bestanden die al zijn opgeslagen, blijven staan.',
     enlargementTask: 'Voorbeeld van de vergroting maken',
     exportNotQueued: 'Deze export kon niet worden gestart.',
+    exportFolderUnwritable: (folder, reason) => `InFlight kon de exportmap niet maken in ${folder}${reason ? ` (${reason})` : ''}. Kies een andere map, of controleer of de schijf is aangesloten en niet alleen-lezen is. Er is niets geëxporteerd.`,
     destinationUnavailable: 'Die exportbestemming is niet beschikbaar. Kies een lokale ZIP, losse bestanden of een map op de computer.',
     cullPro: 'Automatisch kiezen hoort bij InFlight Pro.',
     cullOffer: "Foto's toegevoegd. Druk op Automatisch selecteren om ze op dit apparaat te sorteren; tot dan wordt niets gemarkeerd.",

@@ -104,6 +104,7 @@ export const is: AreaTranslation<typeof source> = {
     exportStopped: 'Útflutningur stöðvaður. Skrár sem þegar eru vistaðar haldast á sínum stað.',
     enlargementTask: 'Bý til forskoðun stækkunar',
     exportNotQueued: 'Ekki tókst að hefja þennan útflutning.',
+    exportFolderUnwritable: (folder, reason) => `InFlight gat ekki búið til útflutningsmöppuna í ${folder}${reason ? ` (${reason})` : ''}. Veldu aðra möppu eða athugaðu að drifið sé tengt og ekki skrifvarið. Ekkert var flutt út.`,
     destinationUnavailable: 'Sá útflutningsstaður er ekki tiltækur. Veldu ZIP á tækinu, stakar skrár eða möppu á tölvunni.',
     cullPro: 'Sjálfvirkt val er hluti af InFlight Pro.',
     cullOffer: "Myndum bætt við. Ýttu á Sjálfvirka flokkun til að flokka þær í þessu tæki; ekkert er merkt fyrr en þá.",

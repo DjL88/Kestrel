@@ -104,6 +104,7 @@ export const es: AreaTranslation<typeof source> = {
     exportStopped: 'Exportación detenida. Los archivos ya guardados se quedan donde están.',
     enlargementTask: 'Creando la vista previa de la ampliación',
     exportNotQueued: 'No se pudo iniciar esta exportación.',
+    exportFolderUnwritable: (folder, reason) => `InFlight no pudo crear la carpeta de exportación en ${folder}${reason ? ` (${reason})` : ''}. Elija otra carpeta o compruebe que la unidad está conectada y no es de solo lectura. No se exportó nada.`,
     destinationUnavailable: 'Ese destino de exportación no está disponible. Elija un ZIP local, archivos separados o una carpeta del ordenador.',
     cullPro: 'La elección automática forma parte de InFlight Pro.',
     cullOffer: "Fotos añadidas. Pulse Selección automática para ordenarlas en este dispositivo; no se marca nada hasta entonces.",

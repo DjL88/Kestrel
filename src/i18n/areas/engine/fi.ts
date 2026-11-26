@@ -104,6 +104,7 @@ export const fi: AreaTranslation<typeof source> = {
     exportStopped: 'Vienti pysäytettiin. Jo tallennetut tiedostot säilyvät.',
     enlargementTask: 'Luodaan suurennoksen esikatselua',
     exportNotQueued: 'Tätä vientiä ei voitu aloittaa.',
+    exportFolderUnwritable: (folder, reason) => `InFlight ei voinut luoda vientikansiota kohteeseen ${folder}${reason ? ` (${reason})` : ''}. Valitse toinen kansio tai tarkista, että asema on liitetty eikä vain luku -tilassa. Mitään ei viety.`,
     destinationUnavailable: 'Vientikohde ei ole käytettävissä. Valitse paikallinen ZIP, erilliset tiedostot tai tietokoneen kansio.',
     cullPro: 'Automaattinen poiminta kuuluu InFlight Prohon.',
     cullOffer: "Kuvat lisätty. Paina Automaattinen karsinta lajitellaksesi ne tällä laitteella; mitään ei merkitä sitä ennen.",
