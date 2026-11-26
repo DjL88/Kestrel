@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { openExportAdvanced } from './helpers';
 import { readFile } from 'node:fs/promises';
 import { unzipSync } from 'fflate';
 
@@ -29,7 +30,7 @@ async function projectWithPhoto(page: Page, preview: boolean, withLogo = true) {
   });
   await expect(studio.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
   const dialog = page.getByRole('dialog', { name: /export/i });
-  const open = async () => { if (!await dialog.isVisible()) await studio.getByRole('button', { name: /^Export/ }).first().click(); };
+  const open = async () => { if (!await dialog.isVisible()) await studio.getByRole('button', { name: /^Export/ }).first().click(); await openExportAdvanced(dialog); };
   const exportZip = async () => {
     const downloaded = page.waitForEvent('download');
     await dialog.getByRole('button', { name: /export bundle/i }).click();
