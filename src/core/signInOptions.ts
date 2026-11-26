@@ -78,3 +78,20 @@ export function suggestedSignIn(options: readonly SignInOption[], family: Device
   const suggested = options.find((o) => o.provider === PREFERRED[family] && o.available) ?? options.find((o) => o.available) ?? null;
   return { suggested, other: options.filter((o) => o !== suggested) };
 }
+
+const FIREBASE_PROVIDERS: Record<string, SignInProvider> = {
+  'google.com': 'google', 'apple.com': 'apple', 'microsoft.com': 'microsoft', password: 'password',
+};
+
+/**
+ * Which way in the person used for this session, for the "Signed in with …" line. Firebase's ID token says it
+ * (`signInProvider`), so a restored session names the way actually used, not the first of several linked ones.
+ * Only when the token says nothing usable (custom tokens, an old session) does it fall back to the linked ways, in a
+ * fixed order.
+ */
+export function sessionProvider(signInProvider: string | null | undefined, linked: readonly string[]): SignInProvider {
+  const used = signInProvider ? FIREBASE_PROVIDERS[signInProvider] : undefined;
+  if (used) return used;
+  for (const id of ['google.com', 'apple.com', 'microsoft.com', 'password']) if (linked.includes(id)) return FIREBASE_PROVIDERS[id];
+  return 'google';
+}

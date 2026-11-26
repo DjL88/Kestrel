@@ -1,5 +1,5 @@
 import type { AuthProvider, Session, SignInProvider } from '../core/cloudInterfaces';
-import { signInOptions, type SignInPlatform } from '../core/signInOptions';
+import { sessionProvider, signInOptions, type SignInPlatform } from '../core/signInOptions';
 import { isDesktopApp } from './desktopShell';
 import { friendlyAuthError } from '../core/authError';
 import { LinkingError, linkingProblem, methodsFromProviderIds, signInWithHeldLink, type SignInMethod } from '../core/accountLinking';
@@ -79,10 +79,11 @@ const toSession = (user: import('firebase/auth').User, provider: SignInProvider)
   emailVerified: user.emailVerified,
 });
 
-const providerOf = (user: import('firebase/auth').User): SignInProvider =>
-  user.providerData.some((p) => p.providerId === 'apple.com') ? 'apple'
-    : user.providerData.some((p) => p.providerId === 'microsoft.com') ? 'microsoft'
-    : user.providerData.some((p) => p.providerId === 'password') ? 'password' : 'google';
+/** The way in used for this session, from the ID token; a restored session must not guess from the linked ways. */
+const providerOf = async (user: import('firebase/auth').User): Promise<SignInProvider> => {
+  const linked = user.providerData.map((p) => p.providerId);
+  try { return sessionProvider((await user.getIdTokenResult()).signInProvider, linked); } catch { return sessionProvider(null, linked); }
+};
 
 /**
  * The pop-up provider for Google, Apple or Microsoft. Microsoft uses the "common" tenant, so both personal accounts and
@@ -401,6 +402,6 @@ export const firebaseAuth: AuthProvider = {
     if (!isSignInConfigured()) return null;
     const { auth, instance } = await firebase();
     await instance.authStateReady();
-    return instance.currentUser ? toSession(instance.currentUser, providerOf(instance.currentUser)) : null;
+    return instance.currentUser ? toSession(instance.currentUser, await providerOf(instance.currentUser)) : null;
   },
 };
