@@ -1139,7 +1139,7 @@ export const cy: AreaTranslation<typeof source> = {
     denoiseNow: 'Lleihau sŵn y llun hwn',
     denoiseCloudNote: 'Pan fyddwch wedi mewngofnodi ac ar-lein, mae pwyso hwn yn anfon copi gweithio (byth y gwreiddiol) i gwmwl InFlight ar gyfer y gwaith hwn yn unig. Mae’r canlyniad yn cael ei wirio ar y ddyfais hon. Os nad yw’r cwmwl ar gael, mae’n rhedeg yma.',
     denoiseDeviceNote: 'Yn rhedeg ar y ddyfais hon. Mae prosesu yn y cwmwl yn rhan o Pro.',
-    aiDenoiseInUse: 'Mae dad-sŵn AI (NAFNet) ar waith ar y gwrthrych. Caiff ei gadw ar y ddyfais hon yn unig.',
+    aiDenoiseInUse: 'Mae dad-sŵn AI ar waith ar y gwrthrych. Caiff ei gadw ar y ddyfais hon yn unig.',
     aiDenoiseOff: 'Diffodd dad-sŵn AI',
     rawAiDenoise: 'Lleihau sŵn RAW manwl',
     luminanceDenoise: 'Sŵn goleuedd',
@@ -1866,6 +1866,8 @@ export const cy: AreaTranslation<typeof source> = {
       detector: 'Yn dod o hyd i bynciau',
       detectorTandem: 'Ail ddarganfyddwr pynciau',
       mask: 'Masg pwnc',
+      fineEdges: "Ymylon manwl y gwrthrych",
+      speciesCheck: "Ail farn ar y rhywogaeth",
       tapSelect: 'Tapio i ddewis',
       species: 'Yn enwi rhywogaethau',
       gate: 'Yn gwirio’r math o bwnc',
@@ -1906,6 +1908,15 @@ export const cy: AreaTranslation<typeof source> = {
     packReady: (name: string) => `Mae ${name} yn barod ar y ddyfais hon.`,
     packRemoved: (name: string) => `Tynnwyd ${name} o’r ddyfais hon.`,
     packNote: 'Caiff ei lawrlwytho dim ond pan fyddwch yn gofyn, ei wirio yn erbyn ei siecswm, a’i gadw ar y ddyfais hon. Ni anfonir unrhyw lun.',
+    technical: "Manylion technegol",
+    why: {
+      detectorTandem: "Yn gwirio eto beth sydd ym mhob llun, fel bod aderyn yn cael ei gamgymryd am awyren yn llai aml.",
+      tapSelect: "Dewiswch wrthrych drwy ei dapio, ac ychwanegwch neu dynnwch rannau gyda rhagor o dapiau.",
+      denoise: "Yn glanhau graen o luniau ISO uchel gan gadw manylion plu a ffwr.",
+      fineEdges: "Mae masgiau’r gwrthrych yn dilyn plu, ffwr a blew wisgers yn agosach.",
+      speciesCheck: "Model rhywogaethau mwy sy’n gwirio pob enw rhywogaeth. Mae angen tua 2 GB o gof.",
+      search: "Dewch o hyd i luniau drwy eu disgrifio, fel “pâl gyda llymrïaid”.",
+    },
   },
   settingsMore: {
     closeSettings: 'Cau’r gosodiadau',
@@ -2033,7 +2044,7 @@ export const cy: AreaTranslation<typeof source> = {
   // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
   tapSelect: {
     tool: "Tapio i ddewis",
-    offer: (mb) => `Mae tapio i ddewis angen lawrlwythiad ${mb} MB unwaith (EfficientSAM-Ti, Apache-2.0). Mae’n aros ar y ddyfais hon ac yn gweithio all-lein.`,
+    offer: (mb) => `Mae tapio i ddewis angen lawrlwythiad ${mb} MB unwaith. Mae’n aros ar y ddyfais hon ac yn gweithio all-lein.`,
     download: "Lawrlwytho tapio i ddewis",
     downloading: (pct) => `Yn lawrlwytho… ${pct}%`,
     unavailable: "Nid yw tapio i ddewis ar gael yn y fersiwn hon.",

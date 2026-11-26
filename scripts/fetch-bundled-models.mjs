@@ -73,22 +73,40 @@ async function download(url, target, entry) {
   renameSync(part, target);
 }
 
+/**
+ * Packs whose every file is in place, from the files that were fetched and checked. A pack missing any file is left
+ * out, so an installer never says it carries a pack it does not have.
+ */
+export function completePacks(entries, present) {
+  const packs = new Map();
+  for (const entry of entries) {
+    if (!entry.pack) continue;
+    packs.set(entry.pack, (packs.get(entry.pack) ?? true) && present.has(entry.file));
+  }
+  return [...packs].filter(([, complete]) => complete).map(([pack]) => pack);
+}
+
+/** Fetch and check every file of a list into folder. Returns the files in place and the problems met. */
+export async function fetchList(entries, folder, host = process.env.KESTREL_BUNDLED_MODEL_HOST || DEFAULT_HOST) {
+  mkdirSync(folder, { recursive: true });
+  const problems = [];
+  const present = new Set();
+  for (const entry of entries) {
+    const target = join(folder, entry.file);
+    if (await inPlace(target, entry)) { present.add(entry.file); continue; }
+    const url = sourceOf(host, entry);
+    console.log(`Downloading ${entry.file} (${Math.round(entry.bytes / 1e6)} MB) from ${url}`);
+    try { await download(url, target, entry); present.add(entry.file); } catch (error) { problems.push(error instanceof Error ? error.message : String(error)); }
+  }
+  return { present, problems };
+}
+
 async function main() {
   const args = new Set(process.argv.slice(2));
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
   const entries = readList(readFileSync(join(root, 'models', 'bundled-models.json'), 'utf8'));
   if (args.has('--upload-commands')) { console.log(uploadCommands(entries).join('\n')); return; }
-  const host = process.env.KESTREL_BUNDLED_MODEL_HOST || DEFAULT_HOST;
-  const folder = join(root, 'public', 'models');
-  mkdirSync(folder, { recursive: true });
-  const problems = [];
-  for (const entry of entries) {
-    const target = join(folder, entry.file);
-    if (await inPlace(target, entry)) continue;
-    const url = sourceOf(host, entry);
-    console.log(`Downloading ${entry.file} (${Math.round(entry.bytes / 1e6)} MB) from ${url}`);
-    try { await download(url, target, entry); } catch (error) { problems.push(error instanceof Error ? error.message : String(error)); }
-  }
+  const { problems } = await fetchList(entries, join(root, 'public', 'models'));
   if (!problems.length) { console.log(`Bundled models: all ${entries.length} in place and matching their checksums.`); return; }
   for (const problem of problems) console.error(problem);
   if (args.has('--optional')) { console.warn('Some bundled models are missing; the features that need them will say so.'); return; }

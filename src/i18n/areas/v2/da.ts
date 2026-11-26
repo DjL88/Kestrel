@@ -1139,7 +1139,7 @@ export const da: AreaTranslation<typeof source> = {
     denoiseNow: 'Fjern støj fra dette foto',
     denoiseCloudNote: 'Når du er logget ind og online, sender denne knap en arbejdskopi (aldrig originalen) til InFlight-skyen kun til dette job og kontrollerer resultatet på denne enhed. Hvis skyen ikke er tilgængelig, kører det her.',
     denoiseDeviceNote: 'Kører på denne enhed. Behandling i skyen er en del af Pro.',
-    aiDenoiseInUse: 'AI-støjreduktion (NAFNet) bruges på motivet. Den gemmes kun på denne enhed.',
+    aiDenoiseInUse: 'AI-støjreduktion bruges på motivet. Den gemmes kun på denne enhed.',
     aiDenoiseOff: 'Slå AI-støjreduktion fra',
     rawAiDenoise: 'Dyb RAW-støjreduktion',
     luminanceDenoise: 'Luminansstøj',
@@ -1866,6 +1866,8 @@ export const da: AreaTranslation<typeof source> = {
       detector: 'Finder motiver',
       detectorTandem: 'Anden motivfinder',
       mask: 'Motivmaske',
+      fineEdges: "Fine motivkanter",
+      speciesCheck: "Ekstra vurdering af arten",
       tapSelect: 'Tryk for at vælge',
       species: 'Navngiver arter',
       gate: 'Tjekker motivets slags',
@@ -1906,6 +1908,15 @@ export const da: AreaTranslation<typeof source> = {
     packReady: (name: string) => `${name} er klar på denne enhed.`,
     packRemoved: (name: string) => `${name} blev fjernet fra denne enhed.`,
     packNote: 'Hentes kun, når du beder om det, kontrolleres mod sin kontrolsum og gemmes på denne enhed. Intet foto sendes.',
+    technical: "Tekniske detaljer",
+    why: {
+      detectorTandem: "Tjekker igen, hvad der er på hvert foto, så en fugl sjældnere forveksles med et fly.",
+      tapSelect: "Vælg et motiv ved at trykke på det, og tilføj eller fjern dele med flere tryk.",
+      denoise: "Fjerner korn fra billeder med høj ISO og bevarer detaljer i fjer og pels.",
+      fineEdges: "Motivmasker følger fjer, pels og knurhår tættere.",
+      speciesCheck: "En større artsmodel, der dobbelttjekker hvert artsnavn. Kræver omkring 2 GB hukommelse.",
+      search: "Find billeder ved at beskrive dem, fx “lunde med tobis”.",
+    },
   },
   settingsMore: {
     closeSettings: 'Luk indstillinger',
@@ -2033,7 +2044,7 @@ export const da: AreaTranslation<typeof source> = {
   // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
   tapSelect: {
     tool: "Tryk for at vælge",
-    offer: (mb) => `Tryk for at vælge kræver en engangsdownload på ${mb} MB (EfficientSAM-Ti, Apache-2.0). Den bliver på denne enhed og virker offline.`,
+    offer: (mb) => `Tryk for at vælge kræver en engangsdownload på ${mb} MB. Den bliver på denne enhed og virker offline.`,
     download: "Download Tryk for at vælge",
     downloading: (pct) => `Downloader… ${pct} %`,
     unavailable: "Tryk for at vælge tilbydes ikke i denne version.",

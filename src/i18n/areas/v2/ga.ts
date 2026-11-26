@@ -1142,7 +1142,7 @@ export const ga: AreaTranslation<typeof source> = {
     denoiseNow: 'Laghdaigh torann an ghrianghraif seo',
     denoiseCloudNote: 'Nuair atá tú sínithe isteach agus ar líne, seolann an cnaipe seo cóip oibre (ní an bunghrianghraf riamh) chuig scamall InFlight don jab seo amháin, agus seiceálann sé an toradh ar an ngléas seo. Mura bhfuil an scamall ar fáil, ritheann sé anseo.',
     denoiseDeviceNote: 'Ritheann sé ar an ngléas seo. Is cuid de Pro an phróiseáil sa scamall.',
-    aiDenoiseInUse: 'Tá laghdú torainn AI (NAFNet) in úsáid ar an ábhar. Ní stóráiltear é ach ar an ngléas seo.',
+    aiDenoiseInUse: 'Tá laghdú torainn AI in úsáid ar an ábhar. Ní stóráiltear é ach ar an ngléas seo.',
     aiDenoiseOff: 'Múch laghdú torainn AI',
     rawAiDenoise: 'Laghdú torainn RAW domhain',
     luminanceDenoise: 'Torann lonrachais',
@@ -1869,6 +1869,8 @@ export const ga: AreaTranslation<typeof source> = {
       detector: 'Aimsíonn ábhair',
       detectorTandem: 'Dara aimsitheoir ábhar',
       mask: 'Masc ábhair',
+      fineEdges: "Imill mhíne an ábhair",
+      speciesCheck: "Dara tuairim ar an speiceas",
       tapSelect: 'Tapáil chun roghnú',
       species: 'Ainmníonn speicis',
       gate: 'Seiceálann cineál an ábhair',
@@ -1909,6 +1911,15 @@ export const ga: AreaTranslation<typeof source> = {
     packReady: (name: string) => `Tá ${name} réidh ar an ngléas seo.`,
     packRemoved: (name: string) => `Baineadh ${name} den ghléas seo.`,
     packNote: 'Ní íoslódáiltear é ach nuair a iarrann tú é, seiceáiltear é in aghaidh a shuim sheiceála, agus coinnítear ar an ngléas seo é. Ní sheoltar aon ghrianghraf.',
+    technical: "Sonraí teicniúla",
+    why: {
+      detectorTandem: "Seiceálann sé arís cad atá i ngach grianghraf, ionas nach dtógtar éan in áit eitleáin chomh minic.",
+      tapSelect: "Roghnaigh ábhar trína thapáil, agus cuir páirteanna leis nó bain iad le tapanna eile.",
+      denoise: "Glanann sé gráinneacht ó ghrianghraif ISO ard agus coinníonn sé mionsonraí na gcleití agus an fhionnaidh.",
+      fineEdges: "Leanann maisc an ábhair cleití, fionnadh agus guairí níos dlúithe.",
+      speciesCheck: "Samhail speiceas níos mó a sheiceálann gach ainm speicis. Teastaíonn thart ar 2 GB cuimhne.",
+      search: "Aimsigh grianghraif trína gcur síos, mar “puifín le corr ghainimh”.",
+    },
   },
   settingsMore: {
     closeSettings: 'Dún na socruithe',
@@ -2036,7 +2047,7 @@ export const ga: AreaTranslation<typeof source> = {
   // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
   tapSelect: {
     tool: "Tapáil chun roghnú",
-    offer: (mb) => `Teastaíonn íoslódáil ${mb} MB uair amháin le haghaidh tapáil chun roghnú (EfficientSAM-Ti, Apache-2.0). Fanann sé ar an ngléas seo agus oibríonn sé as líne.`,
+    offer: (mb) => `Teastaíonn íoslódáil ${mb} MB uair amháin le haghaidh tapáil chun roghnú. Fanann sé ar an ngléas seo agus oibríonn sé as líne.`,
     download: "Íoslódáil tapáil chun roghnú",
     downloading: (pct) => `Á íoslódáil… ${pct}%`,
     unavailable: "Níl tapáil chun roghnú ar fáil sa leagan seo.",

@@ -26,6 +26,7 @@ export interface OptionalModelFile {
 
 export interface OptionalModel {
   id: string;
+  /** What it is called where people see it: plain words, never the model's own name (that is in `source`). */
   name: string;
   /** What it does, in the photographer's words. */
   job: string;
@@ -57,10 +58,25 @@ export const OPTIONAL_MODEL_HOST = env?.VITE_OPTIONAL_MODEL_HOST ?? '';
  */
 const manifestOffered = Boolean(env?.VITE_KESTREL_MODEL_BASE_URL?.trim() && env?.VITE_KESTREL_MODEL_KEYS?.trim());
 
+/**
+ * Or from a folder that keeps each file under its own SHA-256 (`<host>/<sha256>/<file>`), as the models bucket's
+ * bundled/ folder does. The desktop build sets it (`VITE_MODEL_PACK_HOST`), so every pack it does not bundle can still
+ * be downloaded. The pinned digest is checked either way.
+ */
+export const PACK_CHECKSUM_HOST = env?.VITE_MODEL_PACK_HOST?.trim() ?? '';
+
+/**
+ * Packs this installer carries in its own files (`/models/<file>`), by id. Set by the desktop build for each pack whose
+ * files it fetched and checked; they are then ready with no download, and each file is checked again when read.
+ */
+export const BUNDLED_PACK_IDS: ReadonlySet<string> = new Set((env?.VITE_BUNDLED_PACKS ?? '').split(',').map((id) => id.trim()).filter(Boolean));
+
 function pinned(prefix: string, file: string, sha256: string, bytes: number): OptionalModelFile {
+  const digest = env?.[`VITE_${prefix}_SHA256`] ?? sha256;
   return {
-    url: env?.[`VITE_${prefix}_URL`] ?? (OPTIONAL_MODEL_HOST ? `${OPTIONAL_MODEL_HOST.replace(/\/?$/, '/')}${file}` : ''),
-    sha256: env?.[`VITE_${prefix}_SHA256`] ?? sha256,
+    url: env?.[`VITE_${prefix}_URL`] ?? (OPTIONAL_MODEL_HOST ? `${OPTIONAL_MODEL_HOST.replace(/\/?$/, '/')}${file}`
+      : PACK_CHECKSUM_HOST ? `${PACK_CHECKSUM_HOST.replace(/\/+$/, '')}/${digest}/${file}` : ''),
+    sha256: digest,
     bytes: Number(env?.[`VITE_${prefix}_BYTES`] ?? bytes),
     file,
   };
@@ -68,7 +84,7 @@ function pinned(prefix: string, file: string, sha256: string, bytes: number): Op
 
 export const RFDETR_NANO: OptionalModel = {
   id: 'rfdetr-nano-fp16',
-  name: 'RF-DETR Nano',
+  name: 'Second subject finder',
   job: 'A second, newer subject detector that runs beside the built-in one. Where the two disagree, the photo is marked for review.',
   licence: 'Apache-2.0',
   source: 'https://huggingface.co/Roboflow/rf-detr-nano (revision 9f201577d9415f0378084748d27e68586e6b3600)',
@@ -80,7 +96,7 @@ export const RFDETR_NANO: OptionalModel = {
 
 export const EFFICIENTSAM_TI: OptionalModel = {
   id: 'efficientsam-ti-fp16',
-  name: 'Tap to select (EfficientSAM-Ti)',
+  name: 'Tap to select',
   job: 'Select a subject by tapping it; more taps add or remove parts, and several subjects can be selected.',
   licence: 'Apache-2.0',
   source: 'https://github.com/yformer/EfficientSAM (commit d525f622e6f640acf5a0fc37c7ca1f243da5bde0, weights/efficient_sam_vitt_{encoder,decoder}.onnx)',
@@ -95,8 +111,8 @@ export const EFFICIENTSAM_TI: OptionalModel = {
 
 export const NAFNET_W32: OptionalModel = {
   id: 'nafnet-sidd-w32-w16',
-  name: 'TrueDetail: NAFNet denoiser',
-  job: 'Adds NAFNet as one more noise-reduction candidate for TrueDetail, beside the built-in noise reduction.',
+  name: 'AI noise reduction',
+  job: 'Adds a learned noise reduction as one more candidate for TrueDetail, beside the built-in noise reduction.',
   licence: 'MIT',
   source: 'https://github.com/megvii-research/NAFNet (commit 2b4af71ebe098a92a75910c233a3965a3e93ede4), NAFNet-SIDD-width32.pth from the authors\' Google Drive link in docs/SIDD.md',
   tier: 'phone',
@@ -107,7 +123,7 @@ export const NAFNET_W32: OptionalModel = {
 
 export const BIOCLIP2: OptionalModel = {
   id: 'bioclip2-image-fp16',
-  name: 'Species second opinion (BioCLIP 2)',
+  name: 'Species second opinion',
   job: 'A much larger species model checks the species suggestion. If it disagrees, the photo is marked for review.',
   licence: 'MIT (weights); names from the IOC World Bird List, CC BY 4.0',
   source: 'https://huggingface.co/imageomics/bioclip-2 (revision 2957b322090f9cb17ae72c71981c7218a28d81e0, open_clip_model.safetensors)',
@@ -140,7 +156,7 @@ export const BIOCLIP2: OptionalModel = {
  */
 export const CLIP_TEXT: OptionalModel = {
   id: 'clip-vit-b32-text-int8',
-  name: 'Search by description (CLIP text)',
+  name: 'Search by description',
   job: 'Find photos by describing them in words, such as "dipper on a rock", by what is in the picture rather than only names and tags.',
   licence: 'MIT (OpenAI CLIP; ONNX conversion by Xenova)',
   source: 'https://huggingface.co/Xenova/clip-vit-base-patch32 (onnx/text_model_int8.onnx)',
@@ -152,7 +168,7 @@ export const CLIP_TEXT: OptionalModel = {
 
 export const BIREFNET_LITE: OptionalModel = {
   id: 'birefnet-lite-w16',
-  name: 'Fine subject edges (BiRefNet-lite)',
+  name: 'Fine subject edges',
   job: 'Finer subject masks for feathers, fur and whiskers. Used only when it finds the same subject as the built-in mask.',
   licence: 'MIT',
   source: 'https://huggingface.co/ZhengPeng7/BiRefNet_lite (revision aa62cd87eafb9cc43056d08ef3615a14628b831d), exported to ONNX by tools/model-conversion/birefnet_lite.py',

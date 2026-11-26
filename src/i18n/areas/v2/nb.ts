@@ -1139,7 +1139,7 @@ export const nb: AreaTranslation<typeof source> = {
     denoiseNow: 'Fjern støy fra dette bildet',
     denoiseCloudNote: 'Når du er pålogget og tilkoblet, sender denne knappen en arbeidskopi (aldri originalen) til InFlight-skyen bare for denne jobben og kontrollerer resultatet på denne enheten. Hvis skyen ikke er tilgjengelig, kjøres det her.',
     denoiseDeviceNote: 'Kjøres på denne enheten. Behandling i skyen er en del av Pro.',
-    aiDenoiseInUse: 'KI-støyreduksjon (NAFNet) brukes på motivet. Den lagres bare på denne enheten.',
+    aiDenoiseInUse: 'KI-støyreduksjon brukes på motivet. Den lagres bare på denne enheten.',
     aiDenoiseOff: 'Slå av KI-støyreduksjon',
     rawAiDenoise: 'Grundig RAW-støyreduksjon',
     luminanceDenoise: 'Luminansstøy',
@@ -1866,6 +1866,8 @@ export const nb: AreaTranslation<typeof source> = {
       detector: 'Finner motiver',
       detectorTandem: 'Andre motivfinner',
       mask: 'Motivmaske',
+      fineEdges: "Fine motivkanter",
+      speciesCheck: "Ekstra vurdering av arten",
       tapSelect: 'Trykk for å velge',
       species: 'Navngir arter',
       gate: 'Sjekker hva slags motiv',
@@ -1906,6 +1908,15 @@ export const nb: AreaTranslation<typeof source> = {
     packReady: (name: string) => `${name} er klar på denne enheten.`,
     packRemoved: (name: string) => `${name} ble fjernet fra denne enheten.`,
     packNote: 'Lastes bare ned når du ber om det, kontrolleres mot sjekksummen og lagres på denne enheten. Ingen bilder sendes.',
+    technical: "Tekniske detaljer",
+    why: {
+      detectorTandem: "Sjekker en gang til hva som er på hvert bilde, så en fugl sjeldnere forveksles med et fly.",
+      tapSelect: "Velg et motiv ved å trykke på det, og legg til eller fjern deler med flere trykk.",
+      denoise: "Fjerner korn fra bilder med høy ISO og beholder detaljer i fjær og pels.",
+      fineEdges: "Motivmasker følger fjær, pels og værhår tettere.",
+      speciesCheck: "En større artsmodell som dobbeltsjekker hvert artsnavn. Trenger omtrent 2 GB minne.",
+      search: "Finn bilder ved å beskrive dem, for eksempel «lundefugl med tobis».",
+    },
   },
   settingsMore: {
     closeSettings: 'Lukk innstillingene',
@@ -2033,7 +2044,7 @@ export const nb: AreaTranslation<typeof source> = {
   // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
   tapSelect: {
     tool: "Trykk for å velge",
-    offer: (mb) => `Trykk for å velge trenger en engangsnedlasting på ${mb} MB (EfficientSAM-Ti, Apache-2.0). Den blir på denne enheten og virker uten nett.`,
+    offer: (mb) => `Trykk for å velge trenger en engangsnedlasting på ${mb} MB. Den blir på denne enheten og virker uten nett.`,
     download: "Last ned Trykk for å velge",
     downloading: (pct) => `Laster ned… ${pct} %`,
     unavailable: "Trykk for å velge tilbys ikke i denne versjonen.",
