@@ -14,6 +14,9 @@ ARG VITE_FIREBASE_PROJECT_ID
 ARG VITE_FIREBASE_APP_ID
 ARG VITE_KESTREL_CONTROL_PLANE_URL
 ARG VITE_KESTREL_GRANT_KEYS
+# Model packs and updates: the models bucket and the public manifest key (scripts/build-desktop-guard.mjs RELEASE_MODEL_SOURCE).
+ARG VITE_KESTREL_MODEL_BASE_URL=https://storage.googleapis.com/kestrel-hosting-kestrel-models
+ARG VITE_KESTREL_MODEL_KEYS=kestrel-2026-11=fRgITdAJPfCXpyEJ7DZml8316QBUgNlPsc3TPw07ZUw=
 # G10: the image has no .git (.dockerignore), so the commit comes in as a build argument. With KESTREL_RELEASE=1 the build
 # fails closed if it is missing or malformed (scripts/build-provenance.mjs); Cloud Build passes both (.cloudbuild/v2proto.yaml).
 ARG KESTREL_BUILD_REVISION

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assertReleaseBuildArgs, assertChildSucceeded, assertReleaseOnlineSettings, RELEASE_ONLINE_SETTINGS } from './build-desktop-guard.mjs';
+import { readFileSync } from 'node:fs';
+import { assertReleaseBuildArgs, assertChildSucceeded, assertReleaseOnlineSettings, RELEASE_ONLINE_SETTINGS, RELEASE_MODEL_SOURCE, releaseModelSource } from './build-desktop-guard.mjs';
 
 test('normal release arguments are accepted', () => {
   assert.doesNotThrow(() => assertReleaseBuildArgs([]));
@@ -23,4 +24,15 @@ test('a release build needs every sign-in and licence setting, and names what is
   assert.doesNotThrow(() => assertReleaseOnlineSettings(full));
   assert.throws(() => assertReleaseOnlineSettings({ ...full, VITE_KESTREL_CONTROL_PLANE_URL: ' ' }), /VITE_KESTREL_CONTROL_PLANE_URL/);
   assert.throws(() => assertReleaseOnlineSettings({}), /VITE_FIREBASE_API_KEY.*VITE_KESTREL_GRANT_KEYS/);
+});
+
+test('release builds get the models bucket and pinned manifest key unless set already', () => {
+  assert.deepEqual(releaseModelSource({}), RELEASE_MODEL_SOURCE);
+  assert.deepEqual(releaseModelSource({ VITE_KESTREL_MODEL_BASE_URL: ' ' }), RELEASE_MODEL_SOURCE);
+  assert.equal(releaseModelSource({ VITE_KESTREL_MODEL_KEYS: 'other=x' }).VITE_KESTREL_MODEL_KEYS, 'other=x');
+  // The same values as the Terraform default key, the V2Proto image and .env.example.
+  const key = RELEASE_MODEL_SOURCE.VITE_KESTREL_MODEL_KEYS;
+  assert.ok(readFileSync(new URL('../infra/gcp/variables.tf', import.meta.url), 'utf8').includes(`default     = "${key}"`));
+  const docker = readFileSync(new URL('../services/v2proto/Dockerfile', import.meta.url), 'utf8');
+  for (const [name, value] of Object.entries(RELEASE_MODEL_SOURCE)) assert.ok(docker.includes(`ARG ${name}=${value}`), name);
 });
