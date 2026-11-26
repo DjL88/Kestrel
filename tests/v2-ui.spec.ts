@@ -770,7 +770,12 @@ test('?v2 Settings storage uses the shared connections (NAS, cloud drives and th
   // OneDrive shows Microsoft's own logo as a picture, not a plain cloud.
   await expect(kinds.locator('img').first()).toBeVisible();
   expect(await kinds.locator('img').first().evaluate((img: HTMLImageElement) => img.naturalWidth > 0)).toBe(true);
+  // SFTP needs the desktop app; in a browser it says so instead of offering a form that cannot work.
+  await expect(kinds.getByRole('radio', { name: /over SFTP/ })).toBeDisabled();
+  await expect(kinds.getByText('In the InFlight desktop app only: browsers cannot use SFTP.')).toBeVisible();
+  await expect(root.getByText(/A NAS or office share works here too/)).toBeVisible();
   await kinds.getByText(/NAS or server over WebDAV/).click();
+  await expect(root.getByTestId('v2-nas-away')).toContainText('Tailscale');
   await expect(root.getByRole('button', { name: /Test|Connect|Save/ }).first()).toBeVisible();
 });
 

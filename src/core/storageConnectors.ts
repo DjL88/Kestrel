@@ -3,7 +3,7 @@
  * Google Drive's app), their own S3-compatible bucket, a WebDAV or NAS share, or InFlight's managed storage. All of them
  * look the same to the app: put, get, list, remove, under one shared layout. Nothing here talks to a network.
  */
-export type ConnectorKind = 'folder' | 's3' | 'webdav' | 'managed';
+export type ConnectorKind = 'folder' | 's3' | 'webdav' | 'sftp' | 'managed';
 
 /** What is synced. Each level is switched on separately; originals are never part of the first two. */
 export type SyncLevel = 'recipes' | 'previews' | 'originals';

@@ -13,6 +13,8 @@ mod external_edit;
 #[cfg(desktop)]
 mod preview_cache;
 #[cfg(desktop)]
+mod sftp;
+#[cfg(desktop)]
 pub use kestrel_raw::scene_develop;
 #[cfg(desktop)]
 pub mod raw_precision;
@@ -364,7 +366,7 @@ pub fn run() {
         .manage(OpenedFiles::default())
         .manage(OauthListener::default())
         .manage(local_vision::VisionState::default())
-        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, preview_cache_build, preview_cache_store, preview_cache_read, preview_cache_rotate, preview_cache_usage, preview_cache_clear, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure])
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, preview_cache_build, preview_cache_store, preview_cache_read, preview_cache_rotate, preview_cache_usage, preview_cache_clear, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, external_edit_send, external_edit_stamp, external_edit_bring_back, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, local_vision::local_vision_status, local_vision::local_vision_describe, local_vision::local_vision_metrics, local_vision::local_vision_measure, sftp::sftp_test, sftp::sftp_put, sftp::sftp_get, sftp::sftp_list, sftp::sftp_remove])
         .menu(|app| {
             let app_menu = Submenu::with_items(app, "InFlight", true, &[
                 &PredefinedMenuItem::about(app, None, None)?,
