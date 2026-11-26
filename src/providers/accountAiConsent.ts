@@ -30,7 +30,7 @@ const record = (value: unknown): JsonObject | null =>
     ? value as JsonObject : null;
 
 /** All calls have a short deadline and never forward cookies or page referrers. */
-async function request(
+export async function request(
   url: string, fetcher: typeof fetch, method: 'GET' | 'POST',
   body?: JsonObject, token?: string,
 ): Promise<JsonObject> {
@@ -59,7 +59,7 @@ async function request(
   }
 }
 
-async function withSession<T>(
+export async function withSession<T>(
   baseUrl: string | null, firebaseIdToken: string | null,
   fetcher: typeof fetch, action: (origin: string, session: string) => Promise<T>,
 ): Promise<T> {

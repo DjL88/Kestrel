@@ -32,6 +32,11 @@ export interface GiftGrant {
   note?: string | null;
   validUntilMs?: number | null;
   accountId?: string | null;
+  /**
+   * A translation contributor (owner, 26 Nov 2026): free Pro plus "Feedback on this" in the app. Kept as its own gift
+   * (licence id `lic_c_…`) so it never merges into, or is lost behind, an ordinary free Pro grant for the same person.
+   */
+  contributor?: boolean;
 }
 
 const REFERENCE = /^[A-Za-z0-9_-]{1,64}$/;
@@ -52,10 +57,18 @@ export function purchaseEntitlement(grant: PurchaseGrant, nowMs: number): Licenc
 export function giftEntitlement(grant: GiftGrant, nowMs: number): LicenceRecord {
   assertVersion(grant.majorVersion);
   const hash = emailHashOf(grant.email);
-  return newLicence(`lic_g_${hash.slice(0, 24)}_${grant.plan}_v${grant.majorVersion}`, grant.plan, nowMs, {
+  const prefix = grant.contributor ? CONTRIBUTOR_PREFIX : 'lic_g_';
+  return newLicence(`${prefix}${hash.slice(0, 24)}_${grant.plan}_v${grant.majorVersion}`, grant.plan, nowMs, {
     accountId: grant.accountId ?? null, emailHash: hash, majorVersion: grant.majorVersion, paid: false, source: 'gift',
     managedAi: grant.managedAi ?? false, note: grant.note ?? null, validUntilMs: grant.validUntilMs ?? null,
   });
+}
+
+const CONTRIBUTOR_PREFIX = 'lic_c_';
+
+/** A contributor grant: only the admin's grant route makes these ids, so the id alone says so (no extra column). */
+export function isContributorLicence(licence: Pick<LicenceRecord, 'licenceId' | 'source'>): boolean {
+  return licence.source === 'gift' && licence.licenceId.startsWith(CONTRIBUTOR_PREFIX);
 }
 
 /** Does this licence cover the running app? A licence for version 1 does not unlock version 2. */
