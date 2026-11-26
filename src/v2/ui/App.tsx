@@ -17,6 +17,7 @@ import { canHidePro, hiddenProFeatures, panelsHiddenByPro } from '../engineClien
 import { FeaturePlanContext, HiddenProContext } from './shell/ProBadge';
 import { backupStatusText } from '../engineClient/backupWords';
 import { exportTargetFor, readLastExport, requestFromSettings } from '../engineClient/exportSettings';
+import { readCaptionTemplate } from '../../core/captionTemplate';
 import { usePresence } from './shell/usePresence';
 import { PresenceAvatars, PresenceCursors } from './shell/PresenceLayer';
 import { NewsEmailSetting, NoticesButton, useNotices } from './shell/Notices';
@@ -462,7 +463,10 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     let last = null;
     try { last = readLastExport(window.localStorage); } catch { last = null; }
     if (!last) { actions.setExportOpen(true); return; }
-    actions.runExport(requestFromSettings(last, exportTargetFor(activePhoto, store.selectedPhotoIds, isDesktopApp() && !isMobileShell())));
+    let captions = null;
+    try { captions = readCaptionTemplate(window.localStorage); } catch { captions = null; }
+    const request = requestFromSettings(last, exportTargetFor(activePhoto, store.selectedPhotoIds, isDesktopApp() && !isMobileShell()));
+    actions.runExport(captions?.enabled ? { ...request, captions } : request);
   };
 
   // The desktop app's native menu (File, Edit, Photo, View, Settings). Some of its accelerators (Cmd/Ctrl+E, +A, +O, +M)

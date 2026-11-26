@@ -17,6 +17,8 @@ import {
   writeLastExport, writePresets, type ExportSettings, type SavedExportPreset,
 } from '../../engineClient/exportSettings';
 import BrandKitSection, { type BrandKitChoice } from './BrandKitSection';
+import CaptionsSection from './CaptionsSection';
+import { readCaptionTemplate, writeCaptionTemplate, type CaptionTemplate } from '../../../core/captionTemplate';
 
 const deviceStorage = (): Pick<Storage, 'getItem' | 'setItem'> | null => {
   try { return window.localStorage; } catch { return null; }
@@ -72,6 +74,9 @@ export default function ExportDialog({
   const [presetName, setPresetName] = useState('');
   const [presetNote, setPresetNote] = useState('');
   const [brandKitId, setBrandKitId] = useState('');
+  // Captions and credits: one template on this device, used by every export until changed.
+  const [captions, setCaptions] = useState<CaptionTemplate>(() => readCaptionTemplate(deviceStorage()));
+  const changeCaptions = (next: CaptionTemplate) => { setCaptions(next); writeCaptionTemplate(deviceStorage(), next); };
 
   const panelRef = useRef<HTMLDivElement>(null);
   const onDialogKeyDown = useDialogFocus(open && !!photo, panelRef, onClose);
@@ -164,7 +169,7 @@ export default function ExportDialog({
     if (!rawMaster) { const store = deviceStorage(); if (store) writeLastExport(store, settings); }
     const request = requestFromSettings(settings, target, rawMaster, rawMasterFormat);
     const kit = !rawMaster && brandKits?.some((item) => item.id === brandKitId) ? brandKitId : '';
-    onExport(kit ? { ...request, brandKitId: kit } : request);
+    onExport({ ...request, ...(kit ? { brandKitId: kit } : {}), ...(!rawMaster && captions.enabled ? { captions } : {}) });
   };
 
   return (
@@ -275,6 +280,7 @@ export default function ExportDialog({
                 })}
               </div>
             </section>
+            <CaptionsSection template={captions} onChange={changeCaptions} />
             {canRequestRaw && (
               <section aria-label={STRINGS.exportDialog.rawMasterHeading} className="space-y-2">
                 <div className="flex flex-wrap gap-2">
