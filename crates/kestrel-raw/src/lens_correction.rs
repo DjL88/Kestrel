@@ -35,13 +35,15 @@ pub struct LensCorrection {
     pub warp: Option<Warp>,
     /// A camera maker's radial lens profile stored in the file (Sony ARW today).
     pub profile: Option<RadialProfile>,
+    /// A lensfun database profile, used only when the file carries no corrections of its own.
+    pub lensfun: Option<crate::lensfun::LensfunCorrection>,
     /// Opcode ids present in the file that Kestrel does not apply (for plain reporting).
     pub skipped: Vec<u32>,
 }
 
 impl LensCorrection {
     pub fn is_empty(&self) -> bool {
-        self.sensor_gain_maps.is_empty() && self.image_gain_maps.is_empty() && self.vignette.is_none() && self.warp.is_none() && self.profile.is_none()
+        self.sensor_gain_maps.is_empty() && self.image_gain_maps.is_empty() && self.vignette.is_none() && self.warp.is_none() && self.profile.is_none() && self.lensfun.is_none()
     }
 
     /// A short description for the developed picture's comment: which corrections were applied.
@@ -53,6 +55,13 @@ impl LensCorrection {
             parts.push(if warp.planes.len() == 3 { "distortion+ca" } else { "distortion" });
         }
         if self.profile.is_some() { parts.push("camera-profile"); }
+        if let Some(lf) = &self.lensfun {
+            if lf.has_vignetting() { parts.push("vignetting"); }
+            if lf.has_geometry() { parts.push("distortion+ca"); }
+            // The lens name is database text: keep it to plain characters so the comment stays one clean line.
+            let name: String = lf.lens.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '.').collect();
+            return format!("{LENS_PREFIX}source=lensfun lens={name} applied={}", parts.join(","));
+        }
         let mut text = format!("{LENS_PREFIX}source=file applied={}", if parts.is_empty() { "none".to_string() } else { parts.join(",") });
         if !self.skipped.is_empty() {
             text.push_str(&format!(" skipped={}", self.skipped.iter().map(u32::to_string).collect::<Vec<_>>().join(",")));
@@ -435,7 +444,8 @@ fn parse_warp(body: &[u8]) -> Option<Warp> {
 /// Apply the brightness corrections (gain maps and vignetting) to the sensor data in place.
 /// Returns true when anything was applied.
 pub fn apply_to_sensor(correction: &LensCorrection, raw: &mut RawImage) -> bool {
-    if correction.sensor_gain_maps.is_empty() && correction.image_gain_maps.is_empty() && correction.vignette.is_none() && correction.profile.is_none() {
+    if correction.sensor_gain_maps.is_empty() && correction.image_gain_maps.is_empty() && correction.vignette.is_none() && correction.profile.is_none()
+        && !correction.lensfun.as_ref().is_some_and(|l| l.has_vignetting()) {
         return false;
     }
     // The developed picture's place on the sensor, for the camera profile (centred on the picture).
@@ -465,6 +475,11 @@ pub fn apply_to_sensor(correction: &LensCorrection, raw: &mut RawImage) -> bool 
                 let m = unit_radius(aw as f64, ah as f64, cx, cy);
                 let (dx, dy) = ((sx as f64 + 0.5 - cx) / m, (sy as f64 + 0.5 - cy) / m);
                 g *= v.gain(dx * dx + dy * dy) as f32;
+            }
+            if let Some(lf) = correction.lensfun.as_ref().filter(|l| l.has_vignetting()) {
+                let dx = sx as f64 + 0.5 - (px as f64 + pw as f64 / 2.0);
+                let dy = sy as f64 + 0.5 - (py as f64 + ph as f64 / 2.0);
+                g *= lf.vignetting_gain((dx * dx + dy * dy).sqrt() * lf.mm_per_px(pw as f64, ph as f64)) as f32;
             }
             if let Some(profile) = &correction.profile {
                 let half_diagonal = ((pw * pw + ph * ph) as f64).sqrt() / 2.0;
@@ -579,6 +594,27 @@ pub fn apply_profile(profile: &RadialProfile, image: &mut ImageBuffer<Rgb<u16>, 
             let r = (dx * dx + dy * dy).sqrt() / half_diagonal;
             for plane in 0..3 {
                 let s = profile.scale(plane, r);
+                row[x * 3 + plane] = bilinear(&src, w, h, plane, cx + s * dx - 0.5, cy + s * dy - 0.5);
+            }
+        }
+    });
+}
+
+/// Correct distortion and lateral colour from a lensfun profile on the developed picture (before orientation), at any
+/// size: distances are worked in millimetres on the sensor.
+pub fn apply_lensfun(lf: &crate::lensfun::LensfunCorrection, image: &mut ImageBuffer<Rgb<u16>, Vec<u16>>) {
+    let (w, h) = (image.width() as usize, image.height() as usize);
+    if w < 2 || h < 2 || !lf.has_geometry() {
+        return;
+    }
+    let (cx, cy) = (w as f64 / 2.0, h as f64 / 2.0);
+    let mm = lf.mm_per_px(w as f64, h as f64);
+    let src = image.as_raw().clone();
+    image.as_mut().par_chunks_mut(w * 3).enumerate().for_each(|(y, row)| {
+        for x in 0..w {
+            let (dx, dy) = (x as f64 + 0.5 - cx, y as f64 + 0.5 - cy);
+            for plane in 0..3 {
+                let s = lf.scale(plane, dx, dy, mm);
                 row[x * 3 + plane] = bilinear(&src, w, h, plane, cx + s * dx - 0.5, cy + s * dy - 0.5);
             }
         }
