@@ -62,8 +62,26 @@ const subscription = z.object({
   status: z.enum(['active', 'trialing', 'past_due', 'paused', 'canceled']),
   custom_data: z.record(z.string(), z.unknown()).nullable().optional(),
   current_billing_period: z.object({ starts_at: z.string(), ends_at: z.string() }).nullable().optional(),
+  /** Set when the person has cancelled (or paused) and it takes effect at the end of the paid period. */
+  scheduled_change: z.object({ action: z.string(), effective_at: z.string() }).nullable().optional(),
+  customer_id: z.string().regex(/^ctm_[a-z0-9]{10,60}$/).optional(),
 }).passthrough();
 export type PaddleSubscription = z.infer<typeof subscription>;
+
+/** Paddle's own pages for one customer (cancel, payment details, receipts). Paddle hosts them; links expire. */
+const portalSession = z.object({
+  urls: z.object({
+    general: z.object({ overview: z.string().url() }),
+    subscriptions: z.array(z.object({ id: z.string(), cancel_subscription: z.string().url(), update_subscription_payment_method: z.string().url() })).optional(),
+  }),
+}).passthrough();
+/** Paddle's customer portal hosts (production and sandbox). Nothing else is ever handed to the app. */
+export const isPaddlePortalUrl = (value: string) => {
+  try {
+    const u = new URL(value);
+    return u.protocol === 'https:' && !u.username && !u.password && (u.hostname === 'customer-portal.paddle.com' || u.hostname === 'sandbox-customer-portal.paddle.com');
+  } catch { return false; }
+};
 
 export interface PaddleCredentials {
   /** The key, or a function giving the current key (re-read from Secret Manager after a rotation). */
@@ -115,6 +133,22 @@ export function paddleApi(credentials: PaddleCredentials, request: typeof fetch 
     async getSubscription(id: string): Promise<PaddleSubscription> {
       if (!PADDLE_SUBSCRIPTION_ID.test(id)) throw new Error('Invalid Paddle subscription ID.');
       return subscription.parse(await raw('/subscriptions/' + encodeURIComponent(id)));
+    },
+    /**
+     * A customer portal session for one subscription: Paddle's own page to cancel it, change the card or see receipts.
+     * Paddle runs the cancellation; its notification then moves the licence's end date (proSettlement.ts).
+     */
+    async createPortalSession(customerId: string, subscriptionId: string) {
+      if (!/^ctm_[a-z0-9]{10,60}$/.test(customerId) || !PADDLE_SUBSCRIPTION_ID.test(subscriptionId)) throw new Error('Invalid Paddle customer or subscription ID.');
+      const session = portalSession.parse(await raw('/customers/' + encodeURIComponent(customerId) + '/portal-sessions', {
+        method: 'POST', body: JSON.stringify({ subscription_ids: [subscriptionId] }),
+      }));
+      const links = session.urls.subscriptions?.find((s) => s.id === subscriptionId);
+      const manageUrl = session.urls.general.overview;
+      if (!isPaddlePortalUrl(manageUrl) || (links && (!isPaddlePortalUrl(links.cancel_subscription) || !isPaddlePortalUrl(links.update_subscription_payment_method)))) {
+        throw new Error('Paddle returned an unexpected portal address.');
+      }
+      return { manageUrl, cancelUrl: links?.cancel_subscription ?? manageUrl, paymentUrl: links?.update_subscription_payment_method ?? manageUrl };
     },
     /** The adjustment as Paddle has it now (refund, credit, chargeback), or null when Paddle has no such adjustment. */
     async getAdjustment(id: string): Promise<PaddleAdjustment | null> {

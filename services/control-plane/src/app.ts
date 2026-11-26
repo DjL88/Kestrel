@@ -81,6 +81,8 @@ export interface AppOptions {
   settlePaddle?: (transactionId: string, hint?: { subscriptionId?: string }) => Promise<'paid' | 'pending' | 'unknown'>;
   /** Re-fetches a Pro subscription from Paddle and moves its licence's end date to match (commerce/proSettlement.ts). */
   syncPaddleSubscription?: (subscriptionId: string) => Promise<'synced' | 'unknown'>;
+  /** Manage or cancel Pro: the account's subscription and Paddle's own pages to cancel it or change the card. */
+  managePaddleSubscription?: (accountId: string) => Promise<import('./commerce/proSettlement.ts').SubscriptionManagement | null>;
   /** A full refund or chargeback of a Paddle Pro order removes Pro (commerce/paddleRefunds.ts). Absent: adjustments are acknowledged only. */
   revokePaddle?: (eventId: string, adjustmentId: string) => Promise<import('./commerce/paddleRefunds.ts').RefundOutcome>;
   /** The secret key of the Paddle notification destination (Secret Manager), for Paddle-Signature. */
@@ -1257,6 +1259,20 @@ export function createApp(options: AppOptions) {
         catch { throw new ApiError(503, 'PAYMENT_VERIFICATION_PENDING', 'The payment is still being checked. Try again shortly.', true); }
         if (!status) throw new ApiError(404, 'NOT_FOUND', 'No such checkout.');
         return { status: 200, body: { status } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/me/subscription/manage', summary: "Signed in: this account's Pro subscription (renewing, ending, payment due) and Paddle's own pages to cancel it or change the card", auth: 'user',
+      handler: async (req) => {
+        const claims = await bearer(req);
+        if (!checkoutLimiter.take(claims.sub, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
+        if (!options.managePaddleSubscription) throw new ApiError(404, 'NO_SUBSCRIPTION', 'This account has no Pro subscription to manage.');
+        let managed: Awaited<ReturnType<NonNullable<AppOptions['managePaddleSubscription']>>>;
+        try { managed = await options.managePaddleSubscription(claims.sub); }
+        catch { throw new ApiError(503, 'SUBSCRIPTION_UNAVAILABLE', 'Your subscription could not be checked just now. Nothing has changed; try again shortly.', true); }
+        if (!managed) throw new ApiError(404, 'NO_SUBSCRIPTION', 'This account has no Pro subscription to manage. A one-off licence bought earlier never needs cancelling.');
+        await audit(claims.sub, 'subscription.manage', 'allowed', managed.state);
+        return { status: 200, headers: { 'cache-control': 'no-store' }, body: managed };
       },
     },
     {

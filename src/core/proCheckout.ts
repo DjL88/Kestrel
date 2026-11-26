@@ -95,3 +95,52 @@ export function priceText(totalPence: number | null, currency: string | null, lo
   if (totalPence === null || currency === null) return null;
   try { return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(totalPence / 100); } catch { return null; }
 }
+
+/** Paddle's customer portal hosts (production and sandbox): the only places Manage or cancel Pro ever opens. */
+export function isPaddlePortalUrl(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password && !url.port
+      && (url.hostname === 'customer-portal.paddle.com' || url.hostname === 'sandbox-customer-portal.paddle.com');
+  } catch { return false; }
+}
+
+export type SubscriptionState = 'renewing' | 'ending' | 'payment-due' | 'paused' | 'ended';
+export type SubscriptionManage =
+  | { ok: true; plan: ProPlan; state: SubscriptionState; paidThroughMs: number | null; manageUrl?: string; cancelUrl?: string; paymentUrl?: string }
+  | { ok: false; code: string; message: string };
+
+const STATES: readonly SubscriptionState[] = ['renewing', 'ending', 'payment-due', 'paused', 'ended'];
+
+/** The answer to POST /v1/me/subscription/manage. A link that is not Paddle's portal is dropped, never opened. */
+export function parseSubscriptionManage(status: number, json: Record<string, unknown> | null): SubscriptionManage {
+  if (status === 200 && json && (json.plan === 'monthly' || json.plan === 'annual') && STATES.includes(json.state as SubscriptionState)) {
+    const link = (v: unknown) => (isPaddlePortalUrl(v) ? { url: v } : null);
+    const manage = link(json.manageUrl), cancel = link(json.cancelUrl), payment = link(json.paymentUrl);
+    return {
+      ok: true, plan: json.plan, state: json.state as SubscriptionState,
+      paidThroughMs: Number.isSafeInteger(json.paidThroughMs) ? json.paidThroughMs as number : null,
+      ...(manage ? { manageUrl: manage.url } : {}), ...(cancel ? { cancelUrl: cancel.url } : {}), ...(payment ? { paymentUrl: payment.url } : {}),
+    };
+  }
+  const code = typeof (json?.error as { code?: unknown } | undefined)?.code === 'string' ? (json!.error as { code: string }).code : 'UNKNOWN';
+  const message = code === 'NO_SUBSCRIPTION' ? 'This account has no Pro subscription to manage. A one-off licence bought earlier never needs cancelling.'
+    : code === 'RATE_LIMITED' ? 'That was a lot of attempts in a short time. Wait a minute and try again.'
+    : code === 'NOT_SET_UP' ? 'This version of InFlight cannot manage Pro online. You can cancel from the link in your Paddle receipt.'
+    : 'Your subscription could not be checked just now. Nothing has changed. You can also cancel from the link in your Paddle receipt.';
+  return { ok: false, code, message };
+}
+
+/** Plain words for where the subscription stands. Ending always says what happens next: Basic, nothing locked. */
+export function subscriptionStateText(m: Extract<SubscriptionManage, { ok: true }>, locale?: string): string {
+  const day = m.paidThroughMs === null ? null : new Intl.DateTimeFormat(locale, { dateStyle: 'long' }).format(m.paidThroughMs);
+  const plan = m.plan === 'annual' ? 'Yearly' : 'Monthly';
+  switch (m.state) {
+    case 'renewing': return `${plan} Pro renews by itself${day ? ` on ${day}` : ''}.`;
+    case 'ending': return `Cancelled. Pro lasts${day ? ` until ${day}` : ' until the end of the period you paid for'}, then this account goes back to Basic. Your projects, edits and exports are never locked.`;
+    case 'payment-due': return `The last payment did not go through, and Paddle is trying again. Pro keeps working for up to ${SUBSCRIPTION_GRACE_DAYS} days${day ? ` after ${day}` : ''}. You can update your card below.`;
+    case 'paused': return `Paused. This account is on Basic until the subscription resumes. Your work is never locked.`;
+    case 'ended': return 'This subscription has ended, so this account is on Basic. Your projects, edits and exports are never locked. You can subscribe again at any time.';
+  }
+}

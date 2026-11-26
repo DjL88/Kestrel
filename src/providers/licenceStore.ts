@@ -263,6 +263,8 @@ export const deviceReleaseRefusal = (): string | null => sync.releaseRefusal;
 /** Buying Pro (see src/core/proCheckout.ts). After a paid answer, activateFromAccount puts Pro on this device. */
 export const startProCheckout = (idToken: string, plan?: ProPlan) => sync.startProCheckout(idToken, plan);
 export const proCheckoutStatus = (idToken: string, checkoutId: string) => sync.proCheckoutStatus(idToken, checkoutId);
+/** Manage or cancel Pro (see src/core/proCheckout.ts): Paddle runs the cancellation; the server then moves the end date. */
+export const manageProSubscription = (idToken: string) => sync.manageProSubscription(idToken);
 export const licenceOnlineConfigured = () => sync.configured;
 /** Where and how to reach account-only services (cloud processing) right now; null when signed out or the session ended. */
 export const accountConnection = () => sync.accountConnection();

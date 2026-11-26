@@ -20,7 +20,7 @@ const SECRET = 'pdl_ntfset_test_only_secret';
  */
 function fakePaddle() {
   const txns = new Map<string, { custom_data: Record<string, string>; price: string; status: string; subscription_id?: string | null; discount_id?: string }>();
-  const subs = new Map<string, { status: string; custom_data: Record<string, string>; ends_at: string | null }>();
+  const subs = new Map<string, { status: string; custom_data: Record<string, string>; ends_at: string | null; scheduled?: { action: string; effective_at: string } | null }>();
   const state = { creates: 0, gets: 0, failGets: false };
   const view = (id: string) => {
     const t = txns.get(id)!;
@@ -56,11 +56,16 @@ function fakePaddle() {
     }
     state.gets++;
     if (state.failGets) return new Response(null, { status: 500 });
+    const portal = u.pathname === '/customers/ctm_01testcustomer01/portal-sessions';
+    if (portal && init?.method === 'POST') {
+      const sid = JSON.parse(String(init.body)).subscription_ids[0];
+      return Response.json({ data: { urls: { general: { overview: 'https://sandbox-customer-portal.paddle.com/cpl_test/overview' }, subscriptions: [{ id: sid, cancel_subscription: 'https://sandbox-customer-portal.paddle.com/cpl_test/cancel', update_subscription_payment_method: 'https://sandbox-customer-portal.paddle.com/cpl_test/card' }] } } }, { status: 201 });
+    }
     if (u.pathname.startsWith('/subscriptions/')) {
       const sid = decodeURIComponent(u.pathname.split('/').pop()!);
       const s = subs.get(sid);
       if (!s) return new Response(null, { status: 404 });
-      return Response.json({ data: { id: sid, status: s.status, custom_data: s.custom_data, current_billing_period: s.ends_at ? { starts_at: '2026-11-18T12:00:00Z', ends_at: s.ends_at } : null } });
+      return Response.json({ data: { id: sid, status: s.status, custom_data: s.custom_data, current_billing_period: s.ends_at ? { starts_at: '2026-11-18T12:00:00Z', ends_at: s.ends_at } : null, scheduled_change: s.scheduled ?? null, customer_id: 'ctm_01testcustomer01' } });
     }
     assert.equal(u.searchParams.get('include'), 'address');
     const id = decodeURIComponent(u.pathname.split('/').pop()!);
@@ -84,6 +89,7 @@ async function setup(requireAdminSwitch = false, promoDiscountId?: string) {
     requireAdminSwitch,
     settlePaddle: (id, hint) => billing!.settle(id, hint),
     syncPaddleSubscription: (id) => billing!.syncSubscription(id),
+    managePaddleSubscription: (id) => billing!.manage(id),
     paddleWebhookSecret: SECRET,
     paddleClient: { environment: 'sandbox', clientToken: 'test_clienttoken' },
     proCheckout: { start: (input) => bound!.start(input), status: (input) => bound!.status(input) },
@@ -97,7 +103,7 @@ async function setup(requireAdminSwitch = false, promoDiscountId?: string) {
     paddle: api,
     commerce: { recordPaid: async (r) => { if (!ledger.has(r.checkoutReference)) ledger.set(r.checkoutReference, r); return ledger.get(r.checkoutReference)!; } },
     licences: harness.app.store,
-    subscriptions: { save: async (s) => { subscriptions.set(s.subscriptionId, s); }, get: async (id) => subscriptions.get(id) ?? null },
+    subscriptions: { save: async (s) => { subscriptions.set(s.subscriptionId, s); }, get: async (id) => subscriptions.get(id) ?? null, forAccount: async (a) => [...subscriptions.values()].filter((s) => s.accountId === a) },
     now: () => harness.clock.now,
   });
   const settle = billing.settle;
@@ -395,5 +401,33 @@ test('a revoked subscription licence (full refund) is not switched back on by a 
     paddle.subs.get(sub!.subscriptionId)!.ends_at = new Date(Date.UTC(2027, 0, 18, 12)).toISOString();
     assert.equal((await webhook(subscriptionEvent('subscription.updated', sub!.subscriptionId))).status, 200);
     assert.equal((await h.app.store.getLicence(licence!.licenceId))!.status, 'revoked');
+  } finally { await h.close(); }
+});
+
+test('Manage or cancel Pro: Paddle pages for this account only; a cancellation ends Pro at the paid-through date', async () => {
+  const { harness: h, paddle, webhook, subscriptions } = await setup();
+  try {
+    const me = await buyer(h, 'canceller@example.test');
+    const other = await buyer(h, 'not-a-subscriber@example.test');
+    const manage = async (accountId: string) => h.call('POST', '/v1/me/subscription/manage', { token: (await h.app.issueSession(accountId, 'user')).accessToken });
+    assert.equal((await manage(me.accountId)).body.error.code, 'NO_SUBSCRIPTION', 'Basic has nothing to cancel');
+    const id = (await h.call('POST', '/v1/me/checkout/pro', { token: me.token, body: { plan: 'monthly' } })).body.checkoutId;
+    paddle.txns.get(id)!.status = 'completed';
+    await webhook(completed(id));
+    const firstEnd = Date.UTC(2026, 11, 18, 12);
+    const open = await manage(me.accountId);
+    assert.equal(open.status, 200, JSON.stringify(open.body));
+    assert.deepEqual(open.body, { plan: 'monthly', state: 'renewing', paidThroughMs: firstEnd,
+      manageUrl: 'https://sandbox-customer-portal.paddle.com/cpl_test/overview', cancelUrl: 'https://sandbox-customer-portal.paddle.com/cpl_test/cancel', paymentUrl: 'https://sandbox-customer-portal.paddle.com/cpl_test/card' });
+    assert.equal((await manage(other.accountId)).status, 404, 'another account never sees it');
+    assert.equal((await h.call('POST', '/v1/me/subscription/manage')).status, 401);
+
+    // The person cancels on Paddle's page: Paddle schedules it for the end of the period and tells us.
+    const [sub] = [...subscriptions.values()];
+    paddle.subs.get(sub!.subscriptionId)!.scheduled = { action: 'cancel', effective_at: new Date(firstEnd).toISOString() };
+    await webhook(subscriptionEvent('subscription.updated', sub!.subscriptionId, 1));
+    const [licence] = await h.app.store.listLicencesForAccount(me.accountId);
+    assert.equal(licence!.validUntilMs, firstEnd, 'no extra grace once cancelled');
+    assert.equal((await manage(me.accountId)).body.state, 'ending');
   } finally { await h.close(); }
 });

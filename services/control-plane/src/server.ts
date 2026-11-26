@@ -47,12 +47,14 @@ const paddleBilling = firestore && commerce && paddle ? paddleProBilling({
   subscriptions: {
     save: async (record) => { await firestore.collection(paddleSubscriptions).doc(record.subscriptionId).set(record); },
     get: async (id) => (await firestore.collection(paddleSubscriptions).doc(id).get()).data() as ProSubscriptionRecord | undefined ?? null,
+    forAccount: async (accountId) => (await firestore.collection(paddleSubscriptions).where('accountId', '==', accountId).limit(20).get()).docs.map((doc) => doc.data() as ProSubscriptionRecord),
   },
   // The buyer's key by email, once per purchase. `app` is created below; this runs only when a payment arrives.
   onNewLicence: async (licence) => { await app.sendLicenceKey(licence); },
 }) : undefined;
 const settlePaddle = paddleBilling?.settle;
 const syncPaddleSubscription = paddleBilling?.syncSubscription;
+const managePaddleSubscription = paddleBilling?.manage;
 // A full refund or chargeback of a Pro order removes Pro. Each Paddle event id is claimed once (create() refuses a second).
 const revokePaddle = firestore && paddle ? paddleRefundRevocation({
   findOrder: async (id) => (await firestore.collection(paddleOrders).doc(id).get()).data() as ProPurchaseOrder | undefined ?? null,
@@ -86,7 +88,7 @@ const optional = await buildOptionalServices({ firestore: firestore as unknown a
 const accountMerge = firestore ? accountMerges({ db: firestore as unknown as FirestoreLike, store, secret: config.sessionSecret, balance: optional.cloudBalance, collab: optional.collab, push: optional.push, safeCopy: optional.safeCopy?.catalog, now: () => Date.now() }) : undefined;
 // Download my data and Delete my account (accountErasure.ts): needs Firestore; the daily job builds it the same way.
 const erasure = firestore ? await buildAccountErasure(firestore as unknown as FirestoreLike, store as FirestoreStore) : undefined;
-const app = createApp({ config, store, commerce, payments: commerce, settlePaddle, syncPaddleSubscription, revokePaddle, accountMerge, accountErasure: erasure, paddleWebhookSecret, paddleClient,
+const app = createApp({ config, store, commerce, payments: commerce, settlePaddle, syncPaddleSubscription, managePaddleSubscription, revokePaddle, accountMerge, accountErasure: erasure, paddleWebhookSecret, paddleClient,
   paddleKeyStatus: firestore && paddleKeyProject ? async () => {
     const [current, lastRun] = await Promise.all(['current', 'last_run'].map((id) => firestore.collection('paddle_key_rotation').doc(id).get()));
     return { current: (current.data() as never) ?? null, lastRun: (lastRun.data() as never) ?? null };

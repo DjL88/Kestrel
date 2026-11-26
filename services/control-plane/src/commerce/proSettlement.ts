@@ -44,11 +44,17 @@ export interface ProSubscriptionRecord {
 export interface ProSubscriptions {
   save(record: ProSubscriptionRecord): Promise<void>;
   get(subscriptionId: string): Promise<ProSubscriptionRecord | null>;
+  /** This account's subscriptions (for Manage or cancel Pro). Optional: without it, the route says there is none. */
+  forAccount?(accountId: string): Promise<ProSubscriptionRecord[]>;
 }
 
 interface Dependencies {
   findOrder: (transactionId: string) => Promise<ProPurchaseOrder | null>;
-  paddle: { getTransaction(id: string): Promise<PaddleTransaction>; getSubscription?(id: string): Promise<PaddleSubscription> };
+  paddle: {
+    getTransaction(id: string): Promise<PaddleTransaction>;
+    getSubscription?(id: string): Promise<PaddleSubscription>;
+    createPortalSession?(customerId: string, subscriptionId: string): Promise<{ manageUrl: string; cancelUrl: string; paymentUrl: string }>;
+  };
   commerce: Pick<CommerceLedger, 'recordPaid'>;
   licences: Pick<Store, 'getAccount' | 'grantLicence'> & Partial<Pick<Store, 'setLicenceValidUntil'>>;
   /** Needed to sell subscriptions. Without it, only orders for the retired one-off licence settle. */
@@ -64,12 +70,13 @@ interface Dependencies {
 /**
  * When Pro stops, from the subscription as Paddle has it now:
  * - running (active, trialing, past_due): the paid-through date plus SUBSCRIPTION_GRACE_DAYS;
- * - ended (canceled, paused): the paid-through date, with no grace, so nobody loses a period they paid for.
+ * - ended (canceled, paused), or a cancellation already scheduled for the end of the period: the paid-through date,
+ *   with no grace, so nobody loses a period they paid for and nobody keeps Pro after cancelling.
  * After that the account is Basic. Nothing on the person's devices (projects, edits, exports) is touched.
  */
-export function subscriptionValidUntil(status: PaddleSubscription['status'], paidThroughMs: number | null, nowMs: number): number {
+export function subscriptionValidUntil(status: PaddleSubscription['status'], paidThroughMs: number | null, nowMs: number, cancelScheduled = false): number {
   const paidThrough = paidThroughMs ?? nowMs;
-  return status === 'canceled' || status === 'paused' ? paidThrough : paidThrough + SUBSCRIPTION_GRACE_DAYS * DAY_MS;
+  return status === 'canceled' || status === 'paused' || cancelScheduled ? paidThrough : paidThrough + SUBSCRIPTION_GRACE_DAYS * DAY_MS;
 }
 
 /**
@@ -119,7 +126,8 @@ export function paddleProBilling(d: Dependencies) {
     const periodEnd = Date.parse(s.current_billing_period?.ends_at ?? '');
     const paidThroughMs = Number.isFinite(periodEnd) ? periodEnd : record.paidThroughMs;
     const at = now();
-    const validUntilMs = subscriptionValidUntil(s.status, paidThroughMs, at);
+    const cancelScheduled = s.scheduled_change?.action === 'cancel' || s.scheduled_change?.action === 'pause';
+    const validUntilMs = subscriptionValidUntil(s.status, paidThroughMs, at, cancelScheduled);
     if (!(await d.licences.setLicenceValidUntil(record.licenceId, validUntilMs, at))) {
       await d.licences.grantLicence(purchaseEntitlement({
         store: 'paddle', checkoutReference: record.reference, accountId: record.accountId, emailHash: record.emailHash,
@@ -197,7 +205,38 @@ export function paddleProBilling(d: Dependencies) {
     return 'paid';
   }
 
-  return { settle, syncSubscription };
+  /**
+   * Manage or cancel Pro: the account's newest subscription as Paddle has it now, with Paddle's own pages to cancel it
+   * or change the card. null when the account has no subscription (Basic, a gift, or a one-off licence bought earlier).
+   */
+  async function manage(accountId: string): Promise<SubscriptionManagement | null> {
+    if (!d.subscriptions?.forAccount || !d.paddle.getSubscription || !d.paddle.createPortalSession) return null;
+    const records = (await d.subscriptions.forAccount(accountId)).filter((r) => r.accountId === accountId);
+    const record = records.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+    if (!record) return null;
+    const s = await d.paddle.getSubscription(record.subscriptionId);
+    if (s.id !== record.subscriptionId || !s.customer_id) throw new Error('The Paddle subscription has no customer.');
+    const periodEnd = Date.parse(s.current_billing_period?.ends_at ?? '');
+    const paidThroughMs = Number.isFinite(periodEnd) ? periodEnd : record.paidThroughMs;
+    const scheduledEnd = s.scheduled_change?.action === 'cancel' ? Date.parse(s.scheduled_change.effective_at) : NaN;
+    const state: SubscriptionManagement['state'] = s.status === 'canceled' ? 'ended'
+      : Number.isFinite(scheduledEnd) ? 'ending' : s.status === 'past_due' ? 'payment-due' : s.status === 'paused' ? 'paused' : 'renewing';
+    const links = s.status === 'canceled' ? null : await d.paddle.createPortalSession(s.customer_id, s.id);
+    return { plan: record.plan, state, paidThroughMs: Number.isFinite(scheduledEnd) ? scheduledEnd : paidThroughMs, ...(links ?? {}) };
+  }
+
+  return { settle, syncSubscription, manage };
+}
+
+export interface SubscriptionManagement {
+  plan: ProPlan;
+  /** renewing: renews by itself · ending: cancelled, Pro lasts to paidThroughMs · payment-due: Paddle is retrying the card. */
+  state: 'renewing' | 'ending' | 'payment-due' | 'paused' | 'ended';
+  paidThroughMs: number | null;
+  /** Paddle's pages (absent once the subscription has ended). */
+  manageUrl?: string;
+  cancelUrl?: string;
+  paymentUrl?: string;
 }
 
 /** The settlement on its own (the signature app.ts and older tests use). */
