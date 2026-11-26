@@ -1494,6 +1494,9 @@ export const source = {
       swipeLabel: "Swipe to change photo",
       swipeDesc: "A quick one-finger flick across the photo shows the next or previous photo. Turn this off if it happens by accident.",
       penNote: "With a pen such as Apple Pencil, touches on the photo are ignored while the pen is down. This lasts a moment after it lifts too, so your hand never moves the photo.",
+      gamepadHeading: "Game controller",
+      gamepadLabel: "Use a game controller",
+      gamepadDesc: "Cull and edit with an Xbox, PlayStation or similar controller. The D-pad moves between photos and changes stars, and the sticks turn the slider in use. Off until you switch it on.",
     },
     language: {
       label: 'Display language',
@@ -1566,6 +1569,12 @@ export const source = {
     nothing: 'Nothing',
     learnLabel: (slot: string) => `Learn the key for ${slot}`,
     resetPad: 'Reset pad to the starting set-up',
+    gamepadHelp: 'Choose what each button and stick direction does. The sticks turn the slider you used last, or Exposure, by the same steps as a drag, so Undo takes it back. Controllers do nothing while Settings is open, so you can check each button here.',
+    gamepadNone: 'No controller found. Connect one, then press any button on it so the browser can see it.',
+    gamepadConnected: (name: string) => `Connected: ${name}`,
+    gamepadLast: (slot: string, action: string) => `Last pressed: ${slot} (${action})`,
+    gamepadLastNothing: (slot: string) => `Last pressed: ${slot} (does nothing)`,
+    gamepadReset: 'Reset controller to the starting set-up',
   },
 
   // Tasks panel controls

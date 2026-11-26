@@ -49,3 +49,9 @@ test('Swipe to change photo is remembered, and anything but true or false is ign
   assert.equal(parseSavedUi(JSON.stringify({ settings: { swipeBetweenPhotos: false } })).settings.swipeBetweenPhotos, false);
   assert.equal(parseSavedUi(JSON.stringify({ settings: { swipeBetweenPhotos: 'no' } })).settings.swipeBetweenPhotos, undefined);
 });
+
+test('Game controller is remembered once switched on, and anything but true or false is ignored', () => {
+  assert.equal(parseSavedUi(JSON.stringify({ settings: { gamepadEnabled: true } })).settings.gamepadEnabled, true);
+  assert.equal(parseSavedUi(JSON.stringify({ settings: { gamepadEnabled: 1 } })).settings.gamepadEnabled, undefined);
+  assert.equal(parseSavedUi(JSON.stringify({ settings: {} })).settings.gamepadEnabled, undefined);
+});

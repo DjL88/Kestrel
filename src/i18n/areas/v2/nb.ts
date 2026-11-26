@@ -1442,6 +1442,9 @@ export const nb: AreaTranslation<typeof source> = {
       swipeLabel: "Sveip for å bytte bilde",
       swipeDesc: "Et raskt sveip med én finger over bildet viser neste eller forrige bilde. Slå det av hvis det skjer ved et uhell.",
       penNote: "Med en penn som Apple Pencil ignoreres berøringer på bildet mens pennen er nede. Også et øyeblikk etterpå, slik at hånden din aldri flytter bildet.",
+      gamepadHeading: "Spillkontroller",
+      gamepadLabel: "Bruk en spillkontroller",
+      gamepadDesc: "Sorter og rediger med en Xbox-, PlayStation- eller lignende kontroller. Retningsknappene bytter bilde og endrer stjerner, og spakene vrir glidebryteren som er i bruk. Av til du slår det på.",
     },
     language: {
       label: 'Visningsspråk',
@@ -1504,6 +1507,12 @@ export const nb: AreaTranslation<typeof source> = {
     nothing: 'Ingenting',
     learnLabel: (slot) => `Lær tasten for ${slot}`,
     resetPad: 'Tilbakestill panelet til startoppsettet',
+    gamepadHelp: "Velg hva hver knapp og hver spakretning gjør. Spakene vrir den sist brukte glidebryteren, eller Eksponering, i samme steg som når du drar, så Angre tar det tilbake. Kontrollere gjør ingenting mens Innstillinger er åpen, så du kan prøve hver knapp her.",
+    gamepadNone: "Fant ingen kontroller. Koble til en og trykk på en knapp, så nettleseren ser den.",
+    gamepadConnected: (name: string) => `Tilkoblet: ${name}`,
+    gamepadLast: (slot: string, action: string) => `Sist trykket: ${slot} (${action})`,
+    gamepadLastNothing: (slot: string) => `Sist trykket: ${slot} (gjør ingenting)`,
+    gamepadReset: "Tilbakestill kontrolleren til startoppsettet",
   },
   cloudUsage: {
     title: 'Skybruk',

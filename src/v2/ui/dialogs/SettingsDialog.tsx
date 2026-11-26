@@ -47,6 +47,8 @@ interface SettingsDialogProps {
   onDeleteTemplate?: (id: string) => void;
   /** The Keyboard tab: key set, rebinding and clashes. */
   keyboardPanel?: React.ReactNode;
+  /** Settings > Keyboard > Game controller: what each button does, shown once the switch is on. */
+  gamepadPanel?: React.ReactNode;
   settings: WorkspaceSettings;
   /** The mode that is on now. It is chosen here and shown by the flag at the bottom of the tool rail. */
   assistMode: AssistMode;
@@ -94,6 +96,7 @@ export default function SettingsDialog({
   onRenameTemplate,
   onDeleteTemplate,
   keyboardPanel,
+  gamepadPanel,
   settings,
   onClose,
   onSelectTab,
@@ -623,6 +626,16 @@ export default function SettingsDialog({
                     onToggle={() => onUpdateSettings({ swipeBetweenPhotos: settings.swipeBetweenPhotos === false })}
                   />
                   <p className="text-xs text-[var(--text-secondary)]">{STRINGS.settings.keyboard.penNote}</p>
+                </section>
+                <section aria-labelledby="v2-gamepad-title" className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
+                  <h3 id="v2-gamepad-title" className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.settings.keyboard.gamepadHeading}</h3>
+                  <SettingSwitch
+                    title={STRINGS.settings.keyboard.gamepadLabel}
+                    description={STRINGS.settings.keyboard.gamepadDesc}
+                    checked={settings.gamepadEnabled === true}
+                    onToggle={() => onUpdateSettings({ gamepadEnabled: settings.gamepadEnabled !== true })}
+                  />
+                  {settings.gamepadEnabled === true && gamepadPanel}
                 </section>
               </div>
             )}

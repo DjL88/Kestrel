@@ -16,7 +16,7 @@ test('gives every command a chord in the InFlight preset', () => {
     // Next and previous photo are for a macro pad dial for now: arrow keys would fight the Compare slider.
   // Fit and 100% wait for the macro pad decision (Lightroom's Z is the pad's Undo), so they start without a key.
   // Slider nudges are for dials and pads, which send whatever key they are set to.
-  const keyless = new Set(['photo.next', 'photo.prev', 'view.zoomFit', 'view.zoom100', 'adjust.sliderUp', 'adjust.sliderDown', 'adjust.sliderUpMore', 'adjust.sliderDownMore']);
+  const keyless = new Set(['photo.next', 'photo.prev', 'view.zoomFit', 'view.zoom100', 'adjust.sliderUp', 'adjust.sliderDown', 'adjust.sliderUpMore', 'adjust.sliderDownMore', 'photo.rateUp', 'photo.rateDown']);
   for (const command of COMMANDS.filter((c) => !keyless.has(c.id))) assert.ok(map[command.id], command.id);
   });
 

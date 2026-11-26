@@ -26,6 +26,11 @@ import { encodePng16, provePng } from '../../core/png16';
 import { maxCanvasPixels } from '../../core/exportLimits';
 import { stackText } from '../../i18n/areas/stack';
 import { focusStackPreviewOn, imageStackSource, refusalText, rgbaToRgb16, stackDoneNotice, stackedFilename, stackSelection } from './focusStackOps';
+import { mergeHdrOffThread, rgb16Source, canvasSource, type HdrFrameInput } from '../../providers/hdrMergeOffThread';
+import { hdrMergeRecipe, type HdrMergeRecipe } from '../../core/hdrMergeRecipe';
+import { hdrText } from '../../i18n/areas/hdr';
+import { hdrDoneNotice, hdrFilename, hdrPreviewOn, hdrRefusalText, hdrSelection } from './hdrMergeOps';
+import { renderRaw16 } from '../../providers/rawMaster16';
 import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '../../core/types';
 import { eraseDeviceData } from './eraseDeviceData';
 import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
@@ -54,7 +59,8 @@ import { buildDngCopyFile, dngCopyOffered } from './rawDngCopy';
 import { useSceneTags } from './useSceneTags';
 import { usePictureSearch } from './usePictureSearch';
 import { declinePhotoTag } from '../../core/photoTags';
-import { folderNameOf, pickedFromFile, pickedKey, pickFolderNatively, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
+import { folderNameOf, linkedRangeOpener, linkedReader, pickedFromFile, pickedKey, pickFolderNatively, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
+import { applyDesktopRelink, framesNeedingRelink, pickRelinkFolder, planDesktopRelink, tauriRelinkFs } from './desktopRelink';
 import { getLocalFileKey, loadLocalFileListShoot, rehydrateLocalFramesFromStore } from '../../providers/localShootLoader';
 import { hashOriginalBytes, isSameOriginalBytes } from '../../core/originalFileIdentity';
 import type { EditRecipe, HubViewState, OverlaySettings, PhotoHistogram, WatermarkPreset, Project, TaskInfo, WorkspaceActions, WorkspaceStore } from '../ui/contract';
@@ -288,7 +294,7 @@ async function pickFiles(): Promise<Array<File | PickedPhoto> | null> {
 }
 
 /** Pick replacement files for originals the catalogue can no longer read (moved, renamed, or the browser session
- * lost its blob). Browser-only: desktop's own folder-relink is a separate, not-yet-wired path (see reconnectOriginal). */
+ * lost its blob). Browser-only: the desktop app picks a folder instead (see reconnectOriginal). */
 async function pickReselectFiles(): Promise<File[] | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
@@ -1632,7 +1638,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const cloudImports = useRef(new Map<string, { projectId: string; photoKey: string }>());
   const externalReturns = useRef(new Map<string, ExternalEditRecord>());
   const importPhotos = useCallback(async (suppliedPicks?: Array<File | PickedPhoto> | null,
-    /** Fields to add to a photo as it is read (a focus stack's or panorama's recipe), by its picked key. */
+    /** Fields to add to a photo as it is read (a focus stack's, panorama's or HDR merge's recipe), by its picked key. */
     attach?: (key: string) => Partial<PhotoFrame> | undefined) => {
     const target = stateRef.current;
     if (!target) return;
@@ -1812,16 +1818,85 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
    * reusing the same verified primitives App.tsx's reconnectFileSelection already uses: getLocalFileKey to identify a
    * picked file, BrowserPreviewProvider.hasBlob/registerBlob and BrowserCatalogueStore.saveLocalFileBlob to store it.
    * Browser/web, sourceKind 'file' originals only: matches every picked file against every frame still missing its
-   * original (not just the one clicked), exactly as App.tsx's whole-project reselect does. Desktop's own folder
-   * relink (Tauri fs, path-based) is a separate flow and is not wired here; this says so rather than doing nothing.
+   * original (not just the one clicked), exactly as App.tsx's whole-project reselect does. On the desktop app the
+   * person picks the folder or drive that now holds the originals instead, and each one is proved by its full-file
+   * SHA-256 before its saved path changes (desktopRelink.ts, the same matching App.tsx's folder reconnect uses).
    */
   const reconnectOriginal = useCallback(() => {
     if (relinking.current) return;
+    relinking.current = true;
+    /** Forget the failed pictures of reconnected photos and read them again from their verified originals. */
+    const refreshRecovered = (target: CullingState, recoveredIds: readonly string[]) => {
+      setUrls((current) => {
+        const updated = { ...current };
+        for (const id of recoveredIds) delete updated[id];
+        return updated;
+      });
+      for (const id of recoveredIds) {
+        thumbs.current.requested.delete(id);
+        const frame = target.frames.find((candidate) => candidate.id === id);
+        if (frame) thumbs.current.queue.push(frame);
+      }
+      pumpThumbnails();
+      if (activeId && recoveredIds.includes(activeId)) {
+        const frame = target.frames.find((candidate) => candidate.id === activeId);
+        if (frame) provider.current!.getFullPreviewUrl(frame, 'selected').then(
+          (preview) => setUrls((current) => ({ ...current, [frame.id]: { ...current[frame.id], preview } })),
+          () => { /* thumbnail reload shows failures without replacing original bytes */ },
+        );
+      }
+    };
     if (isDesktopApp()) {
-      setNotice('Desktop folder relinking is not connected to V2 yet. Your original files are unchanged.');
+      // Desktop: originals stay where they are on the disk. Pick the folder or drive that now holds them; each missing
+      // photo is proved by its full-file fingerprint before its saved path changes (see desktopRelink.ts).
+      const words = engineText.workspace.relink;
+      void (async () => {
+        const target = stateRef.current;
+        const projectId = target?.shoot.id;
+        const stillCurrent = () => Boolean(projectId) && stateRef.current?.shoot.id === projectId;
+        try {
+          if (!target || !projectId) return;
+          const folder = await pickRelinkFolder(words.chooseFolder);
+          if (!folder || !stillCurrent()) return;
+          const missing = framesNeedingRelink(target.frames, (key) => provider.current!.hasBlob(key));
+          if (!missing.length) { setNotice(words.nothingMissing); return; }
+          const connectedPaths = target.frames
+            .filter((frame) => frame.sourcePath && provider.current!.hasBlob(frame.stableKey))
+            .map((frame) => frame.sourcePath!);
+          setNotice(words.checking(missing.length));
+          const plan = await planDesktopRelink(missing, connectedPaths, folder, await tauriRelinkFs(), stillCurrent);
+          if (!stillCurrent()) return;
+          for (const [key, path] of plan.replacements) {
+            const frame = missing.find((candidate) => candidate.stableKey === key)!;
+            const size = Number(key.split('::').at(-2)) || 0;
+            const lastModified = Number(key.split('::').at(-1)) || 0;
+            provider.current!.registerLinked(key, {
+              read: linkedReader(path, frame.filename, lastModified, size || undefined, frame.originalSha256!),
+              openRange: linkedRangeOpener(path, size || undefined, frame.originalSha256!),
+              size, lastModified,
+            });
+            provider.current!.retryLinkedOriginal(key);
+          }
+          if (plan.replacements.size) mutate((current) => current.shoot.id !== projectId ? current
+            : { ...current, frames: applyDesktopRelink(current.frames, missing, plan.replacements) });
+          const now = stateRef.current ?? target;
+          refreshRecovered(now, now.frames.filter((frame) => plan.replacements.has(frame.stableKey)).map((frame) => frame.id));
+          const left = missing.length - plan.replacements.size;
+          setNotice([
+            plan.replacements.size ? words.reconnected(plan.replacements.size) : words.noMatch,
+            plan.replacements.size && left ? words.stillMissing(left) : '',
+            plan.ambiguous ? words.ambiguous(plan.ambiguous) : '',
+            plan.unverifiable ? words.unverifiable(plan.unverifiable) : '',
+            plan.truncated ? words.scanLimit : '',
+          ].filter(Boolean).join(' '));
+        } catch {
+          if (stillCurrent()) setNotice(words.unreadable);
+        } finally {
+          relinking.current = false;
+        }
+      })();
       return;
     }
-    relinking.current = true;
     void (async () => {
       try {
         const files = await pickReselectFiles();
@@ -1868,24 +1943,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           else setNotice('Those files did not match a missing original in this project.');
           return;
         }
-        setUrls((current) => {
-          const updated = { ...current };
-          for (const id of recoveredIds) delete updated[id];
-          return updated;
-        });
-        for (const id of recoveredIds) {
-          thumbs.current.requested.delete(id);
-          const frame = target.frames.find((candidate) => candidate.id === id);
-          if (frame) thumbs.current.queue.push(frame);
-        }
-        pumpThumbnails();
-        if (activeId && recoveredIds.includes(activeId)) {
-          const frame = target.frames.find((candidate) => candidate.id === activeId);
-          if (frame) provider.current!.getFullPreviewUrl(frame, 'selected').then(
-            (preview) => setUrls((current) => ({ ...current, [frame.id]: { ...current[frame.id], preview } })),
-            () => { /* thumbnail reload shows failures without replacing original bytes */ },
-          );
-        }
+        refreshRecovered(target, recoveredIds);
         const stillMissing = missing.filter((frame) => !provider.current!.hasBlob(frame.stableKey)).length;
         setNotice([
           `Reconnected ${recoveredIds.length} photo${recoveredIds.length === 1 ? '' : 's'} using matching original bytes.`,
@@ -1900,7 +1958,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         relinking.current = false;
       }
     })();
-  }, [pumpThumbnails, activeId]);
+  }, [pumpThumbnails, activeId, mutate]);
 
   const backToProjects = useCallback(async () => {
     const leaving = stateRef.current?.shoot.id ?? null;
@@ -2187,6 +2245,101 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
           setNotice(done.notice);
         } catch (reason) {
           setNotice(refusal ?? (reason instanceof Error ? reason.message : panoText.failed));
+        }
+      })();
+    },
+    hdrMergePhotos: (photoIds) => {
+      const source = stateRef.current;
+      if (!source) return;
+      if (!can('hdrMerge') && !hdrPreviewOn()) return;
+      const selection = hdrSelection(source.frames, photoIds);
+      if (!selection.ok) { setNotice(selection.message); return; }
+      const frames = selection.frames.map((frame) => structuredClone(frame));
+      const sourceProvider = provider.current!;
+      const projectKey = source.shoot.id;
+      const taken = new Set(source.frames.map((frame) => frame.filename.toLowerCase()));
+      const name = hdrFilename(frames[0].filename, frames.length, taken);
+      void (async () => {
+        let made: { file: File; recipe: HdrMergeRecipe; notice: string } | null = null;
+        let refusal: string | null = null;
+        const refuse = (message: string): never => { refusal = message; throw new Error(message); };
+        try {
+          const ticket = await engineScheduler.submit({
+            title: hdrText.task(frames.length), kind: 'other', resource: 'cpu', priority: 12,
+            pauseable: false, items: [{ id: `hdr-${frames.map((frame) => frame.id).join('+')}`, name }],
+            snapshot: { projectKey, frameIds: frames.map((frame) => frame.id) },
+            itemId: (item) => item.id, itemLabel: (item) => item.name,
+            runItem: async (_, __, ctx) => {
+              ctx.stage(hdrText.reading);
+              // Full-size pixels only: a verified raster original, or a RAW's full-size 16-bit develop from its sensor
+              // data. Never a review preview or the camera's small embedded JPEG, and never silently smaller.
+              const inputs: HdrFrameInput[] = [];
+              const here: Array<() => import('../../core/hdrMerge').HdrSource> = [];
+              let raster = 0, raw = 0;
+              const limit = maxCanvasPixels({ userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints });
+              let bytes = 0;
+              for (const frame of frames) {
+                ctx.checkCancelled();
+                if (fullResolutionRasterFormat(frame.filename)) {
+                  const image = await loadVerifiedRasterOriginalForExport(frame, sourceProvider, ctx.signal);
+                  const { naturalWidth: w, naturalHeight: h } = image;
+                  if (w * h > limit) refuse(hdrText.tooLarge);
+                  bytes += w * h * 4;
+                  inputs.push({ kind: 'picture', image });
+                  here.push(() => canvasSource(image, w, h, (cw, ch) => {
+                    const canvas = document.createElement('canvas'); canvas.width = cw; canvas.height = ch;
+                    return canvas.getContext('2d', { willReadFrequently: true });
+                  }));
+                  raster++;
+                } else if (isRawPreviewFile(frame.filename) && canDevelopRaw()) {
+                  const original = await sourceProvider.ensureOriginal(frame.stableKey, 'selected');
+                  if (!original) refuse(hdrText.rawNotDeveloped(frame.filename));
+                  const shown = await loadExportSource(frame, sourceProvider);
+                  ctx.checkCancelled();
+                  const picture = await renderRaw16(original!, frame.filename, shown, DEFAULT_EDIT, undefined, { originalSha256: frame.originalSha256, signal: ctx.signal })
+                    .catch(() => refuse(hdrText.rawNotDeveloped(frame.filename)));
+                  bytes += picture.width * picture.height * 6;
+                  inputs.push({ kind: 'rgb16', width: picture.width, height: picture.height, data: picture.data });
+                  here.push(() => rgb16Source(picture.width, picture.height, picture.data));
+                  raw++;
+                } else {
+                  refuse(isRawPreviewFile(frame.filename) ? hdrText.rawNotDeveloped(frame.filename) : hdrText.unsupported(frame.filename));
+                }
+                // Every frame is held once here and once in the worker; stay well inside what the device can hold.
+                if (bytes * 2 > Math.min(limit * 24, 3 * 1024 ** 3)) refuse(hdrText.tooLarge);
+              }
+              const { result, onMainThread } = await mergeHdrOffThread(inputs, {
+                signal: ctx.signal, maxWorkingBytes: 192 * 1024 * 1024,
+                hereSources: () => here.map((make) => make()),
+                onProgress: (done, total, stage) => { ctx.stage(hdrText[stage]); ctx.reportProgress(done, total); },
+              });
+              if (!result.ok) refuse(hdrRefusalText(result as import('../../core/hdrMerge').HdrRefusal));
+              const merged = result as import('../../core/hdrMerge').HdrSuccess;
+              ctx.stage(hdrText.saving);
+              const blob = await encodePng16({ width: merged.width, height: merged.height, data: merged.data });
+              ctx.checkCancelled();
+              // Read the written header back: a 16-bit RGB PNG of exactly the merge's size, or nothing is added.
+              const proof = provePng(new Uint8Array(await blob.arrayBuffer()));
+              if (proof.bitDepth !== 16 || proof.colourType !== 2 || proof.width !== merged.width || proof.height !== merged.height) refuse(hdrText.failed);
+              const file = new File([blob], name, { type: 'image/png', lastModified: Date.now() });
+              const recipe = hdrMergeRecipe(merged, frames.map((frame) => ({ frameId: frame.id, stableKey: frame.stableKey, filename: frame.filename, ...(frame.originalSha256 ? { originalSha256: frame.originalSha256 } : {}) })),
+                raw && raster ? 'mixed' : raw ? 'raw-develop-16' : 'original', Date.now());
+              ctx.commitIfCurrent(() => { made = { file, recipe, notice: hdrDoneNotice(name, merged, frames.length) + (onMainThread ? ` ${hdrText.mainThread}` : '') }; });
+            },
+          });
+          const outcome = await ticket.finished;
+          if (outcome === 'cancelled') { setNotice(hdrText.cancelled); return; }
+          if (outcome === 'failed' || !made) { setNotice(refusal ?? hdrText.failed); return; }
+          const done = made as { file: File; recipe: HdrMergeRecipe; notice: string };
+          const key = pickedKey(pickedFromFile(done.file));
+          if (stateRef.current?.shoot.id !== projectKey) { setNotice(hdrText.failed); return; }
+          // One import at a time: wait for one already running rather than lose the merge.
+          while (importController.current) await new Promise((resolve) => setTimeout(resolve, 500));
+          if (stateRef.current?.shoot.id !== projectKey) { setNotice(hdrText.failed); return; }
+          await importPhotos([done.file], (picked) => (picked === key ? { hdrMerge: done.recipe } : undefined));
+          setNotice(done.notice);
+        } catch (reason) {
+          setNotice(refusal ?? (reason instanceof Error ? reason.message : hdrText.failed));
         }
       })();
     },
@@ -3120,7 +3273,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     assistMode,
     watermarkPresets: watermarkLibrary,
     overlayTemplates: templates.map(({ id, name }) => ({ id, name })),
-    features: { ...featureAccess(can), focusStack: can('focusStack') || focusStackPreviewOn(), panorama: can('panorama') || panoramaPreviewOn() },
+    features: { ...featureAccess(can), focusStack: can('focusStack') || focusStackPreviewOn(), panorama: can('panorama') || panoramaPreviewOn(), hdrMerge: can('hdrMerge') || hdrPreviewOn() },
     featurePlan: featurePlan(),
     screen, hubState, projects,
     activeProjectId: state?.shoot.id ?? null,

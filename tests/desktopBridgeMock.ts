@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { open, readFile, stat } from 'node:fs/promises';
+import { open, readdir, readFile, stat } from 'node:fs/promises';
 
 /**
  * A stand-in for the desktop app's bridge (Tauri `__TAURI_INTERNALS__`), so a browser test runs the desktop code paths:
@@ -14,11 +14,22 @@ export async function mockDesktopBridge(page: Page, pickedPaths: string[], optio
   developDelayMs?: number;
   /** Milliseconds each mebibyte of a ranged read takes, to reproduce a large original on a slow disk or bridge. */
   readMsPerMebibyte?: number;
+  /** Folders whose files may be listed and read too (a drive the person points Reconnect at). */
+  roots?: string[];
+  /** What the system dialog answers, asked each time it opens; the picked paths when left out. */
+  dialog?: () => string[] | string | null;
 } = {}) {
   const calls: string[] = [];
   const allowed = new Set(pickedPaths);
+  const roots = (options.roots ?? []).map((root) => root.replace(/\\/g, '/').replace(/\/+$/, ''));
+  const reachable = (path: string) => allowed.has(path) || roots.some((root) => path === root || path.startsWith(`${root}/`));
+  await page.exposeFunction('__kestrelTestDialog', () => (options.dialog ? options.dialog() : pickedPaths));
   await page.exposeFunction('__kestrelTestFs', async (op: string, path: string, offset = 0, length = 0) => {
-    if (!allowed.has(path)) throw new Error(`Test bridge: ${path} was not offered to the picker.`);
+    if (!reachable(path)) throw new Error(`Test bridge: ${path} was not offered to the picker.`);
+    if (op === 'read_dir') {
+      const entries = await readdir(path, { withFileTypes: true });
+      return entries.map((entry) => ({ name: entry.name, isFile: entry.isFile(), isDirectory: entry.isDirectory(), isSymlink: entry.isSymbolicLink() }));
+    }
     if (op === 'stat') {
       const info = await stat(path);
       return { size: info.size, mtime: info.mtimeMs };
@@ -39,8 +50,8 @@ export async function mockDesktopBridge(page: Page, pickedPaths: string[], optio
     return readFile(developed).then((bytes) => bytes.toString('base64'));
   });
   await page.exposeFunction('__kestrelTestCall', (name: string) => { calls.push(name); });
-  await page.addInitScript((paths: string[]) => {
-    const w = window as unknown as Record<string, unknown> & { __kestrelTestFs: (...a: unknown[]) => Promise<any>; __kestrelTestCall: (n: string) => void; __kestrelTestDevelop: (size: number) => Promise<string> };
+  await page.addInitScript(() => {
+    const w = window as unknown as Record<string, unknown> & { __kestrelTestDialog: () => Promise<unknown>; __kestrelTestFs: (...a: unknown[]) => Promise<any>; __kestrelTestCall: (n: string) => void; __kestrelTestDevelop: (size: number) => Promise<string> };
     const decode = (base64: string) => Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
     const handles = new Map<number, { path: string; position: number }>();
     let nextId = 1;
@@ -57,7 +68,8 @@ export async function mockDesktopBridge(page: Page, pickedPaths: string[], optio
       convertFileSrc(path: string) { return path; },
       async invoke(cmd: string, args: Record<string, any> = {}) {
         switch (cmd) {
-          case 'plugin:dialog|open': return paths;
+          case 'plugin:dialog|open': return w.__kestrelTestDialog();
+          case 'plugin:fs|read_dir': return w.__kestrelTestFs('read_dir', args.path);
           case 'plugin:fs|stat':
           case 'plugin:fs|lstat': { const s = await w.__kestrelTestFs('stat', args.path); return info(s.size, s.mtime); }
           case 'plugin:fs|read_file': return decode(await w.__kestrelTestFs('read_file', args.path)).buffer;
@@ -82,6 +94,6 @@ export async function mockDesktopBridge(page: Page, pickedPaths: string[], optio
         }
       },
     };
-  }, pickedPaths);
+  });
   return calls;
 }

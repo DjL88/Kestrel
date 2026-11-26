@@ -1442,6 +1442,9 @@ export const sv: AreaTranslation<typeof source> = {
       swipeLabel: "Svep för att byta foto",
       swipeDesc: "Ett snabbt svep med ett finger över fotot visar nästa eller föregående foto. Stäng av det om det händer av misstag.",
       penNote: "Med en penna som Apple Pencil ignoreras beröringar på fotot medan pennan är nere. Även en kort stund efter, så att din hand aldrig flyttar fotot.",
+      gamepadHeading: "Spelkontroll",
+      gamepadLabel: "Använd en spelkontroll",
+      gamepadDesc: "Gallra och redigera med en Xbox-, PlayStation- eller liknande kontroll. Styrkorset byter foto och ändrar stjärnor, och spakarna vrider reglaget som används. Av tills du slår på det.",
     },
     language: {
       label: 'Visningsspråk',
@@ -1504,6 +1507,12 @@ export const sv: AreaTranslation<typeof source> = {
     nothing: 'Ingenting',
     learnLabel: (slot) => `Lär in tangenten för ${slot}`,
     resetPad: 'Återställ plattan till startinställningen',
+    gamepadHelp: "Välj vad varje knapp och varje spakriktning gör. Spakarna vrider det senast använda reglaget, eller Exponering, i samma steg som när du drar, så Ångra tar tillbaka det. Kontroller gör ingenting medan Inställningar är öppet, så att du kan prova varje knapp här.",
+    gamepadNone: "Ingen kontroll hittades. Anslut en och tryck på valfri knapp så att webbläsaren ser den.",
+    gamepadConnected: (name: string) => `Ansluten: ${name}`,
+    gamepadLast: (slot: string, action: string) => `Senast tryckt: ${slot} (${action})`,
+    gamepadLastNothing: (slot: string) => `Senast tryckt: ${slot} (gör ingenting)`,
+    gamepadReset: "Återställ kontrollen till startinställningen",
   },
   cloudUsage: {
     title: 'Molnanvändning',
