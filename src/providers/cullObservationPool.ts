@@ -1,6 +1,8 @@
 import type { ComputedObservation } from './cullObservationCompute';
 import { deviceMemoryBudget } from './deviceBudget';
 import { recordModelLoad, recordModelRun } from '../core/modelStats';
+import { cullMaskSharpnessOn } from '../core/maskSharpness';
+import { EFFICIENTSAM_TI } from '../core/optionalModels';
 
 /**
  * A pool of culling workers (src/providers/cullObservationWorker.ts): every core but one, at most 4 on phones, held
@@ -29,6 +31,8 @@ export interface PoolOptions {
   size: number;
   /** The checked detector bytes; each worker gets its own copy. Undefined: detail scoring only. */
   model?: ArrayBuffer;
+  /** EfficientSAM-Ti's checked bytes, only with the masked-sharpness preview on (x-std-mask-sharpness). */
+  mask?: { encoder: ArrayBuffer; decoder: ArrayBuffer };
   createWorker: () => CullWorkerLike;
   /** Close after this long with nothing to do. */
   idleMs?: number;
@@ -98,7 +102,8 @@ export async function createCullObservationPool(options: PoolOptions): Promise<C
       else entry.job.reject(new Error(message.message ?? 'The photo could not be looked at.'));
       pump();
     };
-    worker.postMessage({ type: 'init', model: options.model?.slice(0) }, []);
+    worker.postMessage({ type: 'init', model: options.model?.slice(0),
+      ...(options.mask ? { mask: { encoder: options.mask.encoder.slice(0), decoder: options.mask.decoder.slice(0) } } : {}) }, []);
   }))).catch((problem) => { close(); throw problem; });
   armIdle();
 
@@ -115,6 +120,27 @@ export async function createCullObservationPool(options: PoolOptions): Promise<C
   };
 }
 
+/**
+ * EfficientSAM-Ti's bytes when the masked-sharpness preview is on and the pack is installed, otherwise undefined
+ * (box sharpness, as before). The switch is read when the pool starts; the pool closes when idle, so a change applies
+ * to the next scan after that.
+ */
+async function maskPackBytes(): Promise<{ encoder: ArrayBuffer; decoder: ArrayBuffer } | undefined> {
+  if (!cullMaskSharpnessOn()) return undefined;
+  try {
+    const { tapSelectStatus } = await import('./tapSelect');
+    if (await tapSelectStatus() !== 'ready') return undefined;
+    const { readOptionalModelFile } = await import('./optionalModels');
+    const [encoder, decoder] = await Promise.all([
+      readOptionalModelFile(EFFICIENTSAM_TI, 'encoder'), readOptionalModelFile(EFFICIENTSAM_TI, 'decoder'),
+    ]);
+    const own = (bytes: Uint8Array) => bytes.slice().buffer as ArrayBuffer;
+    return { encoder: own(encoder), decoder: own(decoder) };
+  } catch {
+    return undefined;
+  }
+}
+
 /** The app's shared pool, started on first use. Resolves null when workers or the detector cannot start here. */
 let shared: Promise<CullObservationPool | null> | null = null;
 
@@ -125,8 +151,11 @@ export function sharedCullObservationPool(): Promise<CullObservationPool | null>
       const { verifiedDetectorModel } = await import('./objectDetector');
       const { bytes } = await verifiedDetectorModel();
       const budget = deviceMemoryBudget(); // workers and idle unloading both come from the device's memory budget
+      const mask = await maskPackBytes();
       return await createCullObservationPool({
-        size: budget.cullWorkers,
+        // Each worker holds its own selection model and a 1024 px reading of the photo, so at most two with masks.
+        size: mask ? Math.min(2, budget.cullWorkers) : budget.cullWorkers,
+        mask,
         idleMs: budget.modelIdleUnloadMs,
         model: bytes,
         createWorker: () => new Worker(new URL('./cullObservationWorker.ts', import.meta.url), { type: 'module' }) as unknown as CullWorkerLike,
