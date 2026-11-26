@@ -1,13 +1,17 @@
 import React from 'react';
 import type { AssistMode, FeatureKey, Photo } from '../contract';
 import { STRINGS } from '../strings';
+import FlightModePicker from './FlightModePicker';
 import ProBadge, { useProHidden } from '../shell/ProBadge';
-import BrandIcon, { assistModeIconName } from '../icons/BrandIcon';
+import BrandIcon from '../icons/BrandIcon';
 import ColourWordsList from './ColourWordsList';
 import ColourSenseLine from './ColourSenseLine';
 import WatchSteps from './WatchSteps';
 import type { CloudRecipeOfferView, EditRecipe } from '../contract';
 import CloudRecipeCard from './CloudRecipeCard';
+import AiSecondOpinionCard from './AiSecondOpinionCard';
+import AssistantSuggestionsCard from './AssistantSuggestionsCard';
+import type { AiSecondOpinionView, AssistantSuggestionsView } from '../contract';
 
 interface CoPilotPanelProps {
   photo: Photo | null;
@@ -36,6 +40,13 @@ interface CoPilotPanelProps {
     setFullFile: (on: boolean) => boolean;
     fullFileOn: () => boolean;
   };
+  /** Bring your own AI (real workspace only). Absent: nothing is shown. */
+  aiOpinion?: AiSecondOpinionView;
+  aiOpinionActions?: Omit<React.ComponentProps<typeof AiSecondOpinionCard>, 'photoId' | 'view'>;
+  /** Suggestions an AI assistant left through the MCP tool for this project. */
+  assistantSuggestions?: AssistantSuggestionsView;
+  onApplyAssistantSuggestions?: (name: string) => void;
+  onDismissAssistantSuggestions?: (name: string) => void;
 }
 
 export default function CoPilotPanel({
@@ -45,7 +56,7 @@ export default function CoPilotPanel({
   ongoingCritique,
   cvdGuidance = false,
   reviewing = false,
-  onOpenSettings,
+  onSetAssistMode,
   onRunDeepVisionReview,
   onRequestLocalAuto,
   onApplySuggestion,
@@ -53,6 +64,11 @@ export default function CoPilotPanel({
   onStepPreview,
   onResetStyle,
   cloudRecipe,
+  aiOpinion,
+  aiOpinionActions,
+  assistantSuggestions,
+  onApplyAssistantSuggestions,
+  onDismissAssistantSuggestions,
 }: CoPilotPanelProps) {
   const hiddenOnline = useProHidden('onlineAi');
   // Which suggestion is being watched step by step. A different photo stops watching.
@@ -74,25 +90,9 @@ export default function CoPilotPanel({
     <div className="space-y-4">
       {/* Mode summary */}
       <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <BrandIcon
-              name={assistModeIconName(assistMode)}
-              size={16}
-              className="text-[var(--brand-accent)]"
-            />
-            <span className="text-xs font-semibold text-[var(--text-primary)]">
-              {STRINGS.topBar.assistModes[assistMode]}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            className="rounded px-1.5 py-0.5 text-[0.6875rem] font-medium text-[var(--text-secondary)] underline-offset-2 hover:text-[var(--text-primary)] hover:underline"
-          >
-            {STRINGS.copilot.changeInSettings}
-          </button>
-        </div>
+        {/* This project's own mode; Settings only sets the default for new projects. */}
+        <FlightModePicker compact name="project-flight-mode" label={STRINGS.copilot.modeForProject}
+          value={assistMode} onChange={onSetAssistMode} />
         <p className="mt-2 text-xs leading-relaxed text-[var(--text-secondary)]">
           {STRINGS.copilot.modeDescriptions[assistMode]}
         </p>
@@ -146,6 +146,9 @@ export default function CoPilotPanel({
         <CloudRecipeCard photoId={photo.id} onPrepare={cloudRecipe.prepare} onSend={cloudRecipe.send}
           onSetFullFile={cloudRecipe.setFullFile} fullFileOn={cloudRecipe.fullFileOn} />
       )}
+
+      {assistantSuggestions && <AssistantSuggestionsCard view={assistantSuggestions} onApply={onApplyAssistantSuggestions} onDismiss={onDismissAssistantSuggestions} />}
+      {aiOpinion && <AiSecondOpinionCard photoId={photo.id} view={aiOpinion} {...aiOpinionActions} />}
 
       {/* Assist, merged: the plain-English read of the photo, and the colour check */}
       <section className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3.5">

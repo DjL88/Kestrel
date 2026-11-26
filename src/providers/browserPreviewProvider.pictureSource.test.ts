@@ -37,3 +37,21 @@ test('an address the provider did not make has no recorded source, so nothing is
   assert.equal(provider.pictureSourceOf('/demo/bird.jpg'), undefined);
   assert.equal(provider.pictureSourceOf(undefined), undefined);
 });
+
+test('a JPEG XL DNG shows its small camera preview, labelled as such, and is known to be unreadable rather than missing', async () => {
+  const { syntheticDng } = await import('../core/syntheticDngFixture');
+  const provider = new BrowserPreviewProvider();
+  const photo = { id: 'jxl', stableKey: 'jxl-original', filename: 'enhanced.dng' } as PhotoFrame;
+  provider.registerBlob(photo.stableKey, syntheticDng({ main: 52546, others: [[1, 52546]] }));
+  provider.registerBlob('ordinary-original', syntheticDng({ main: 7 }));
+  try {
+    const url = await provider.getFullPreviewUrl(photo);
+    assert.ok(url, 'the 256 px camera preview is shown rather than nothing');
+    assert.equal(provider.pictureSourceOf(url), 'camera-preview');
+    assert.equal(await provider.unsupportedCompression(photo), 'jpeg-xl');
+    assert.equal(await provider.unsupportedCompression({ id: 'ok', stableKey: 'ordinary-original', filename: 'ok.dng' } as PhotoFrame), null);
+    // Only DNGs are checked; a missing original is not called unsupported.
+    assert.equal(await provider.unsupportedCompression({ ...photo, filename: 'enhanced.nef' }), null);
+    assert.equal(await provider.unsupportedCompression({ id: 'gone', stableKey: 'not-registered', filename: 'gone.dng' } as PhotoFrame), null);
+  } finally { provider.clear(); }
+});

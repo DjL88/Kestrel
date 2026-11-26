@@ -8,6 +8,9 @@ export default defineConfig({
   // Many steps wait up to 60s for on-device model work (subject finder, species, auto-cull). Playwright's 30s default
   // cut those waits short whenever several browsers ran at once, so tests failed on load rather than on behaviour.
   timeout: 90_000,
+  // GitHub's runners for a private repository have 2 cores, not 4. With two browsers at once, an import or a re-render
+  // can take longer than Playwright's 5s default to show, so a correct page failed on time. CI waits up to 15s.
+  expect: { timeout: process.env.CI ? 15_000 : 5_000 },
   use: {
     baseURL: 'http://127.0.0.1:4173',
     browserName: 'chromium',

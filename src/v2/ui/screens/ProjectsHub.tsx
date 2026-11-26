@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import type { HubViewState, Project, ThemeMode } from '../contract';
+import type { AssistMode, HubViewState, Project, ThemeMode } from '../contract';
 import { STRINGS } from '../strings';
 import { useDialogFocus } from '../utils/dialogFocus';
 import BrandIcon, { BrandLogo } from '../icons/BrandIcon';
@@ -8,13 +8,16 @@ import { LayoutToggle, ProjectRow, ProjectTile, readHubLayout, saveHubLayout, ty
 import { footerKiteLogo } from '../footerKiteLogo';
 import { POLICY_PATHS, SiteLink } from '../../../components/SiteLink';
 import WelcomeCard from './WelcomeCard';
+import FlightModePicker from '../panels/FlightModePicker';
 
 interface ProjectsHubProps {
   projects: Project[];
   hubState: HubViewState;
   theme: ThemeMode;
   onOpenProject: (projectId: string) => void;
-  onCreateProject: (name: string, kind?: 'photography' | 'collage') => void;
+  onCreateProject: (name: string, kind?: 'photography' | 'collage', mode?: AssistMode) => void;
+  /** The Flight mode a new project starts in (Settings → Assistance); the person can pick another when creating it. */
+  defaultAssistMode?: AssistMode;
   onCreateFromFolder: () => void;
   /** First run: pick photos and get an Auto-edited photo ready to export. */
   onQuickStart?: () => void;
@@ -42,6 +45,7 @@ export default function ProjectsHub({
   theme,
   onOpenProject,
   onCreateProject,
+  defaultAssistMode = 'copilot',
   onCreateFromFolder,
   onQuickStart,
   onRenameProject,
@@ -69,6 +73,8 @@ export default function ProjectsHub({
   const backupInputRef = useRef<HTMLInputElement>(null);
   const onCreateDialogKeyDown = useDialogFocus(modalOpen, createPanel, () => setModalOpen(false));
   const [projectKind, setProjectKind] = useState<'photography' | 'collage'>('photography');
+  const [projectMode, setProjectMode] = useState<AssistMode>(defaultAssistMode);
+  const openCreate = () => { setProjectMode(defaultAssistMode); setModalOpen(true); };
 
   const [view, setView] = useState<'projects' | 'archived' | 'deleted'>('projects');
   const showArchived = view === 'archived';
@@ -92,7 +98,7 @@ export default function ProjectsHub({
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!projectName.trim()) return;
-    onCreateProject(projectName, projectKind);
+    onCreateProject(projectName, projectKind, projectMode);
     setProjectName('');
     setModalOpen(false);
   };
@@ -155,7 +161,7 @@ export default function ProjectsHub({
               </div>
               <SortMenu value={sortBy} onChange={setSortBy} />
               <LayoutToggle value={layout} onChange={chooseLayout} />
-              <button type="button" onClick={() => setModalOpen(true)}
+              <button type="button" onClick={openCreate}
                 className="inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-3 text-xs font-semibold text-[var(--text-on-accent)] hover:bg-[var(--brand-accent-hover)]">
                 <BrandIcon name="plus" size={15}/>{STRINGS.hub.newProject}
               </button>
@@ -206,7 +212,7 @@ export default function ProjectsHub({
               </p>
               <button
                 type="button"
-                onClick={() => setModalOpen(true)}
+                onClick={openCreate}
                 className="mt-5 inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-4 text-xs font-semibold text-[var(--text-on-accent)]"
               >
                 <BrandIcon name="plus" size={14} />
@@ -362,6 +368,11 @@ export default function ProjectsHub({
                   })}
                 </div>
               </fieldset>
+              <div className="space-y-1">
+                <FlightModePicker name="new-project-flight-mode" label={STRINGS.hub.modeQuestion}
+                  value={projectMode} onChange={setProjectMode} />
+                <p className="text-[0.6875rem] leading-snug text-[var(--text-muted)]">{STRINGS.hub.modeChangeLater}</p>
+              </div>
               <div className="space-y-1.5">
                 <label htmlFor="new-proj-name" className="text-xs font-medium text-[var(--text-secondary)]">
                   {STRINGS.hub.modalNameLabel}

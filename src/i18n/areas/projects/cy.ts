@@ -402,6 +402,7 @@ export const cy: AreaTranslation<typeof source> = {
     none: 'Does dim ffordd o fewngofnodi yn cael ei dangos eto. Allgofnodwch a mewngofnodwch eto.',
     google: 'Google',
     apple: 'Apple',
+    microsoft: 'Microsoft',
     password: 'E-bost a chyfrinair',
     add: (method: string) => `Ychwanegu ${method}`,
     passwordLabel: 'Cyfrinair ar gyfer mewngofnodi gyda’ch e-bost',

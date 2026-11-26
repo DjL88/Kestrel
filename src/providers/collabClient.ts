@@ -10,7 +10,7 @@ import { cleanPreferences, type PushPlatform, type PushPreferences } from '../co
 /**
  * The app's side of shared projects (#1387): talks to the control plane's /v1/collab routes. Sharing is opt-in and
  * needs a signed-in account; a project that is never shared never calls this. The control-plane session is exchanged
- * from the Firebase ID token for each action and never stored.
+ * from the Firebase ID token and kept in memory only, for as long as that ID token and session last; it is never saved.
  */
 export type CollabErrorKind = 'not-configured' | 'sign-in' | 'not-entitled' | 'switched-off' | 'not-permitted' | 'refused' | 'network';
 
@@ -149,14 +149,37 @@ export interface CollabClient {
 /** `language` goes with each invitation so its email is in the language the inviter is using (the recipient's is not known). */
 export function collabClient(baseUrl: string | undefined | null, idToken: () => Promise<string | null>, fetcher: typeof fetch = (...args) => fetch(...args), language: LanguageCode = sessionLanguage): CollabClient {
   const origin = parseControlPlaneUrl(baseUrl ?? undefined);
+  // The session from one exchange is reused, in memory only, while the same Firebase ID token is current and until a
+  // minute before it expires. Exchanging for every action signed in again each time, and the control plane allows
+  // 10 sign-ins a minute, so publishing a gallery of four or more photos was refused with "Too many attempts".
+  let cached: { credential: string; session: Promise<string>; untilMs: number } | null = null;
+  function sessionFor(credential: string): Promise<string> {
+    if (cached && cached.credential === credential && Date.now() < cached.untilMs) return cached.session;
+    const session = request(origin + '/v1/auth/firebase', fetcher, 'POST', { credential }).then((signedIn) => {
+      const token = signedIn.accessToken;
+      if (typeof token !== 'string' || !token || token.length > 8192) throw new CollabError('sign-in');
+      const seconds = typeof signedIn.expiresIn === 'number' && signedIn.expiresIn > 0 ? signedIn.expiresIn : 300;
+      if (entry === cached) entry.untilMs = Date.now() + Math.max(0, seconds - 60) * 1000;
+      return token;
+    });
+    const entry = { credential, session, untilMs: Infinity };
+    cached = entry;
+    session.catch(() => { if (cached === entry) cached = null; });
+    return session;
+  }
   async function call(method: 'GET' | 'POST', path: string, body?: Json): Promise<Json> {
     if (!origin) throw new CollabError('not-configured');
     const credential = await idToken().catch(() => null);
     if (!credential?.trim()) throw new CollabError('sign-in');
-    const signedIn = await request(origin + '/v1/auth/firebase', fetcher, 'POST', { credential });
-    const session = signedIn.accessToken;
-    if (typeof session !== 'string' || !session || session.length > 8192) throw new CollabError('sign-in');
-    return request(origin + path, fetcher, method, body, session);
+    const reused = cached?.credential === credential && Date.now() < cached.untilMs;
+    try {
+      return await request(origin + path, fetcher, method, body, await sessionFor(credential));
+    } catch (error) {
+      // A reused session the server no longer accepts (it restarted or rotated its key): sign in once more and retry.
+      if (!reused || !(error instanceof CollabError) || error.kind !== 'sign-in') throw error;
+      cached = null;
+      return request(origin + path, fetcher, method, body, await sessionFor(credential));
+    }
   }
   const P = (id: string) => `/v1/collab/projects/${encodeURIComponent(id)}`;
   const asProject = (data: Json) => data as unknown as CollabProjectView;

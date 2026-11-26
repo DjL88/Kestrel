@@ -130,6 +130,16 @@ and `admin1CodesASCII.txt` (https://www.geonames.org/, licensed Creative Commons
 (`Intl.DisplayNames`), not from GeoNames. The curated photo-spot list (`src/assets/places/curated.json`) is
 InFlight's own, positions read by hand; no OpenStreetMap data was copied.
 
+## Lens profiles: lensfun database (CC BY-SA 3.0, owner decision 26 Nov 2026)
+
+`crates/kestrel-raw/data/lensfun/lensfun.txt` is a compacted copy of the lensfun lens database
+(https://github.com/lensfun/lensfun, `data/db/*.xml`), made by `crates/kestrel-raw/data/lensfun/generate.py`. The
+database is licensed Creative Commons Attribution-ShareAlike 3.0; the compacted file is an adaptation under the same
+licence (the share-alike applies to the data file, not to InFlight's code, which only reads it). Required credit:
+"Lens profiles from the lensfun project (lensfun.github.io), CC BY-SA 3.0". Keep it in the About/Licences page when that
+exists. Only the data is used: no lensfun code (LGPL-3.0) is linked or copied; Kestrel's own Rust code applies the
+published models (`crates/kestrel-raw/src/lensfun.rs`).
+
 ## Machine-learning models
 
 - **Burst grouping (DINOv2 ViT-S/14 image embeddings, Apache-2.0, Meta)**: `public/models/dinov2-small-fp16.onnx`,

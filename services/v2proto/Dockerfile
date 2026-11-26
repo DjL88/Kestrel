@@ -12,8 +12,13 @@ ARG VITE_FIREBASE_API_KEY
 ARG VITE_FIREBASE_AUTH_DOMAIN
 ARG VITE_FIREBASE_PROJECT_ID
 ARG VITE_FIREBASE_APP_ID
+ARG VITE_FIREBASE_MESSAGING_SENDER_ID
+ARG VITE_FCM_VAPID_KEY
 ARG VITE_KESTREL_CONTROL_PLANE_URL
 ARG VITE_KESTREL_GRANT_KEYS
+# Public client ids for "Sign in with Dropbox / OneDrive" (docs/CLOUD-CONNECTORS.md). Empty leaves that button off.
+ARG VITE_DROPBOX_APP_KEY=
+ARG VITE_ONEDRIVE_CLIENT_ID=
 # Model packs and updates: the models bucket and the public manifest key (scripts/build-desktop-guard.mjs RELEASE_MODEL_SOURCE).
 ARG VITE_KESTREL_MODEL_BASE_URL=https://storage.googleapis.com/kestrel-hosting-kestrel-models
 ARG VITE_KESTREL_MODEL_KEYS=kestrel-2026-11=fRgITdAJPfCXpyEJ7DZml8316QBUgNlPsc3TPw07ZUw=
@@ -21,6 +26,8 @@ ARG VITE_KESTREL_MODEL_KEYS=kestrel-2026-11=fRgITdAJPfCXpyEJ7DZml8316QBUgNlPsc3T
 # fails closed if it is missing or malformed (scripts/build-provenance.mjs); Cloud Build passes both (.cloudbuild/v2proto.yaml).
 ARG KESTREL_BUILD_REVISION
 ARG KESTREL_RELEASE=0
+# Sign in with Microsoft: '1' once the Microsoft provider is enabled in Firebase Auth (kestrel-photo); empty hides the button.
+ARG VITE_MICROSOFT_SIGN_IN=
 RUN npx vite build --config vite.v2proto.config.ts
 
 FROM node:24-alpine

@@ -402,6 +402,7 @@ export const sv: AreaTranslation<typeof source> = {
     none: 'Inget sätt att logga in visas ännu. Logga ut och in igen.',
     google: 'Google',
     apple: 'Apple',
+    microsoft: 'Microsoft',
     password: 'E-post och lösenord',
     add: (method: string) => `Lägg till ${method}`,
     passwordLabel: 'Lösenord för att logga in med din e-post',

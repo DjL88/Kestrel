@@ -1,4 +1,5 @@
 import React from 'react';
+import { engineText } from '../../../i18n/areas/engine';
 import type { FilmstripFilter, Photo, PhotoSort } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
@@ -164,8 +165,12 @@ export default function GridView({
                         {STRINGS.shellLabels.activePhoto}
                       </span>
                     )}
-                    <span className="absolute bottom-2 left-2 rounded bg-[var(--bg-scrim)] px-1.5 py-0.5 text-[0.625rem] font-medium text-white">
+                    <span
+                      title={photo.state === 'unsupported' ? engineText.workspace.rawJpegXl : undefined}
+                      className="absolute bottom-2 left-2 rounded bg-[var(--bg-scrim)] px-1.5 py-0.5 text-[0.625rem] font-medium text-white"
+                    >
                       {stateWord}
+                      {photo.state === 'unsupported' && <span className="sr-only">. {engineText.workspace.rawJpegXl}</span>}
                     </span>
                   </button>
 
