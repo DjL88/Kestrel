@@ -920,7 +920,7 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
     <FeaturePlanContext.Provider value={store.featurePlan}>
       <HiddenProContext.Provider value={hiddenPro}>
     <div
-      className="inflight-v2 fixed inset-0 flex flex-col overflow-hidden bg-[var(--bg-app)] text-[var(--text-primary)] font-[family-name:var(--font-sans)]"
+      className="inflight-v2 v2-safe-root fixed inset-0 flex flex-col overflow-hidden bg-[var(--bg-app)] text-[var(--text-primary)] font-[family-name:var(--font-sans)]"
       data-v2-theme={activeTheme}
       data-v2-layout={store.screen === 'editor' && phoneLandscape && !canvasOnlyShown ? 'phone-landscape' : undefined}
       data-v2-motion={store.settings.calmMotion ? 'calm' : undefined}

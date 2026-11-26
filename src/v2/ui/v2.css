@@ -234,11 +234,11 @@ html[data-font="readable"] .inflight-v2 [data-artwork] { font-family: var(--font
 /* Safe areas (viewport-fit=cover): nothing sits under a notch, a rounded corner, the status bar or the home indicator.
    The workspace keeps clear of all four edges, so the top bar, the rail and docked panels, the bottom bars and sheets and
    full-screen views all start inside the safe area. On a screen without insets every value is 0 and nothing moves. */
-.inflight-v2 {
+.inflight-v2.v2-safe-root {
   padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
 }
 /* A dialog's dimmed backdrop still covers the whole screen; a clear border keeps the dialog itself inside the safe area. */
-.inflight-v2 .fixed.inset-0:not(.pointer-events-none) {
+.inflight-v2.v2-safe-root .fixed.inset-0:not(.pointer-events-none) {
   border-style: solid; border-color: transparent;
   border-width: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
 }
