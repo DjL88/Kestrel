@@ -816,6 +816,8 @@ export interface WorkspaceStore {
   quickStart?: { phase: 'working' | 'ready' | 'unchanged' | 'held' | 'failed'; photoId: string | null } | null;
   /** Live shoot: the folder being watched for new frames, how many have arrived, how many are still being written, and
    * whether the folder can be read just now (a drive unplugged mid-shoot). Absent when nothing is watched. */
+  /** Live shoot room: the links other screens on this network open, and how many frames are showing there. */
+  shootRoom?: { links: { address: string; url: string }[]; shown: number } | null;
   liveFolder?: { name: string; imported: number; arriving: number; problem: boolean; ftp?: LiveFtpInbox } | null;
   /** The open project's automatic backup, as last reported. Absent when no project is open. */
   backup?: { state: 'idle' | 'working' | 'ok' | 'partial' | 'failed'; at?: number } | null;
@@ -888,6 +890,9 @@ export interface WorkspaceActions {
   stopWatchingFolder?: () => void;
   /** Live shoot over Wi-Fi: receive frames a camera sends by FTP into a chosen folder (desktop app only). */
   receiveFromCamera?: () => void;
+  /** Live shoot room: show the shoot on other screens on this network (a client's iPad, a studio screen); desktop app. */
+  openShootRoom?: () => void;
+  closeShootRoom?: () => void;
   importDroppedPhotos: (files: File[]) => void;
   /** Back the open project up now to this device (and its chosen place), checking the saved copy reads back the same. */
   backUpProjectNow: () => void;

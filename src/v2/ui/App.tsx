@@ -1166,6 +1166,9 @@ export default function App({ useStore = useWorkspace, accountPanel, serviceBase
                 onWatchFolder={actions.watchFolder}
                 onStopWatchingFolder={actions.stopWatchingFolder}
                 onReceiveFromCamera={actions.receiveFromCamera}
+                shootRoom={store.shootRoom}
+                onOpenShootRoom={actions.openShootRoom}
+                onCloseShootRoom={actions.closeShootRoom}
                 liveFolder={store.liveFolder}
                 onRunAutoCull={actions.runAutoCull}
                 onOpenCullAssistant={actions.rankCulling ? () => setCullAssistantOpen(true) : undefined}
