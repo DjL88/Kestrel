@@ -117,7 +117,7 @@ export function generalRoutes(ctx: AppContext): Route[] {
       const check = await verifyLicence(body.licenceKey, config.licencePublicKey, null);
       if (!check.ok) throw new ApiError(400, 'LICENCE_INVALID', 'That licence key was not recognised.');
       const licence = await store.getLicence(check.details.id);
-      if (!licence) return { status: 200, body: { status: 'unknown', validUntilMs: null, maxDevices: 3, devices: [] } };
+      if (!licence) return { status: 200, body: { status: 'unknown', validUntilMs: null, maxDevices: 5, devices: [] } };
       const devices = await store.listActivationsForLicence(licence.licenceId);
       const status = licence.status === 'revoked' ? 'revoked' : licenceIsUsable(licence, now()) ? 'active' : 'expired';
       return {
