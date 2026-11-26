@@ -158,7 +158,9 @@ export default function Filmstrip({
   useEffect(() => { if (!onCreateCollage) setTouchSelectionMode(false); }, [onCreateCollage]);
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;
-    const desktop = window.matchMedia('(min-width: 768px)');
+    // A phone turned sideways is wider than 768 px but still a touch screen: it keeps Select mode. Only a mouse or
+    // trackpad (which selects with modifier keys) leaves it.
+    const desktop = window.matchMedia('(min-width: 768px) and (pointer: fine)');
     const reset = () => { if (desktop.matches) setTouchSelectionMode(false); };
     reset();
     desktop.addEventListener('change', reset);

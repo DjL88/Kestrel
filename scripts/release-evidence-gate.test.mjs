@@ -30,6 +30,17 @@ test('all gates PASS on exact SHA with matching evidence files', async t => {
   assert.deepEqual(await checkManifestFile(path.join(root, 'release.json')), []);
 });
 
+test('a manifest folder reached through a symlink still verifies its own evidence (macOS /var -> /private/var)', async t => {
+  const { root, manifest } = await fixture(t);
+  const linkParent = await mkdtemp(path.join(os.tmpdir(), 'inflight-release-link-'));
+  t.after(() => rm(linkParent, { recursive: true, force: true }));
+  const linked = path.join(linkParent, 'manifest-folder');
+  await symlink(root, linked, process.platform === 'win32' ? 'junction' : 'dir');
+  assert.deepEqual(await checkReleaseEvidence(manifest, linked), []);
+  manifest.checks.lint.evidence[0].sha256 = '0'.repeat(64);
+  assert.ok((await checkReleaseEvidence(manifest, linked)).some(e => e.includes('SHA-256 mismatch')));
+});
+
 test('HOLD, not-run, missing evidence and SHA drift all block release', async t => {
   const { root, manifest } = await fixture(t);
   manifest.unresolvedHoldPrs.push(1078);

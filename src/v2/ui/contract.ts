@@ -443,6 +443,7 @@ export interface Photo {
   /** Whether the file says it was already edited in another app, in the person's words (src/core/editStatus.ts). */
   editStatus?: { kind: import('../../core/editStatus').EditStatusKind; label: string; detail: string };
   /** Where the camera says it focused, in the person's words (src/core/cameraFocus.ts). Absent when the file does not say. */
+  /** `area` is the AF box as fractions of the picture as shown (after the camera's orientation), top-left origin. */
   cameraFocus?: { label: string; detail: string; area?: { x: number; y: number; width: number; height: number } };
   activeGroupId: string;
   editGroups: EditGroup[];
