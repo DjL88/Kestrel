@@ -402,6 +402,7 @@ export const ga: AreaTranslation<typeof source> = {
     none: 'Níl aon bhealach síniú isteach á thaispeáint fós. Sínigh amach agus isteach arís.',
     google: 'Google',
     apple: 'Apple',
+    microsoft: 'Microsoft',
     password: 'Ríomhphost agus pasfhocal',
     add: (method: string) => `Cuir ${method} leis`,
     passwordLabel: 'Pasfhocal le síniú isteach le do ríomhphost',

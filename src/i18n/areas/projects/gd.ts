@@ -402,6 +402,7 @@ export const gd: AreaTranslation<typeof source> = {
     none: 'Chan eil dòigh clàraidh ga sealltainn fhathast. Clàraich a-mach agus a-steach a-rithist.',
     google: 'Google',
     apple: 'Apple',
+    microsoft: 'Microsoft',
     password: 'Post-d agus facal-faire',
     add: (method: string) => `Cuir ${method} ris`,
     passwordLabel: 'Facal-faire airson clàradh a-steach leis a’ phost-d agad',

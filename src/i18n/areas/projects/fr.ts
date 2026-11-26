@@ -402,6 +402,7 @@ export const fr: AreaTranslation<typeof source> = {
     none: 'Aucune façon de se connecter n’est encore affichée. Déconnectez-vous puis reconnectez-vous.',
     google: 'Google',
     apple: 'Apple',
+    microsoft: 'Microsoft',
     password: 'E-mail et mot de passe',
     add: (method: string) => `Ajouter ${method}`,
     passwordLabel: 'Mot de passe pour vous connecter avec votre e-mail',

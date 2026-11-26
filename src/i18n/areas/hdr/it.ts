@@ -29,4 +29,9 @@ export const it: AreaTranslation<typeof source> = {
   infoMadeFrom: (n: number) => plural(n, { one: `Creata da ${n} foto:`, other: `Creata da ${n} foto:` }),
   infoExposure: (name: string, ev: string) => `${name}: ${ev} stop`,
   infoHow: "Ogni parte viene dalle foto ben esposte in quel punto, allineate e pesate in base all'esposizione, poi regolate con Luci e Ombre dell'editor. Nessun pixel è stato generato.",
+  whatIs: "HDR significa ampia gamma dinamica, non alta definizione. Unisce più esposizioni della stessa scena così che cieli luminosi e ombre scure conservino entrambi i dettagli.",
+  bracketTitle: "Serie di esposizioni",
+  bracketFound: (n: number, stops: string) => `${n} foto scattate a pochi istanti di distanza con esposizioni diverse (${stops} stop).`,
+  bracketFromCamera: "La sua fotocamera ha segnato queste foto come una serie di esposizioni.",
+  bracketFromExposures: "Trovate in base a tempo di scatto, diaframma e ISO.",
 };

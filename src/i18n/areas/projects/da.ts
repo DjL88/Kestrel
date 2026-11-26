@@ -402,6 +402,7 @@ export const da: AreaTranslation<typeof source> = {
     none: 'Der vises endnu ingen måde at logge ind på. Log ud og ind igen.',
     google: 'Google',
     apple: 'Apple',
+    microsoft: 'Microsoft',
     password: 'E-mail og adgangskode',
     add: (method: string) => `Tilføj ${method}`,
     passwordLabel: 'Adgangskode til login med din e-mail',

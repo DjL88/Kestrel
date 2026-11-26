@@ -1,8 +1,8 @@
 import { useConnectivity } from '../providers/useConnectivity';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Session, SignInProvider } from '../core/cloudInterfaces';
-import { signInOptions } from '../core/signInOptions';
-import { consumeLinkedMethod, firebaseAuth, isDesktopAppleConfigured, isDesktopGoogleConfigured, isSignInConfigured, signInPlatform, resendAccountVerification } from '../providers/firebaseAuth';
+import { deviceFamily, suggestedSignIn, type SignInOption } from '../core/signInOptions';
+import { consumeLinkedMethod, currentSignInOptions, firebaseAuth, isSignInConfigured, resendAccountVerification } from '../providers/firebaseAuth';
 import { LinkingError } from '../core/accountLinking';
 import { SignInMethodsPanel, linkingProblemText, methodName } from './SignInMethodsPanel';
 import { AccountMergePanel } from './AccountMergePanel';
@@ -180,10 +180,24 @@ export function AccountAndLicenceSettings() {
   const runAccountActionRef = useRef(runAccountAction);
   runAccountActionRef.current = runAccountAction;
 
+  const signInChoices = currentSignInOptions();
+  const { suggested, other: otherOptions } = suggestedSignIn(signInChoices, deviceFamily(typeof navigator === 'undefined' ? '' : navigator.userAgent));
+  const signInButton = (option: SignInOption) => (
+    <button key={option.provider} type="button" className={`${action} inline-flex items-center gap-2 disabled:opacity-60`} disabled={offline || accountBusy || !option.available} aria-describedby={option.reason ? 'account-reason' : undefined} onClick={() => void chooseSignIn(option.provider)}>{option.provider !== 'password' && <SignInMark provider={option.provider} />}{option.label}</button>
+  );
+
   function chooseSignIn(provider: SignInProvider) {
     if (offline) return;
     return runAccountAction(async () => {
-      setAccount(await firebaseAuth.signIn(provider));
+      const session = await firebaseAuth.signIn(provider);
+      setAccount(session);
+      // Firebase does not vouch for a Microsoft email (a work account's address is set by its organisation), so it is
+      // proved with a link before it can open the account's licence or match an account that signs in another way.
+      if (session.emailVerified === false) {
+        await resendAccountVerification().catch(() => undefined);
+        setAccountNote('Check your email for a link to confirm this address, then choose Check Pro online. That keeps one account for one email, however you sign in.');
+        return;
+      }
       await linkLicence();
     });
   }
@@ -275,10 +289,10 @@ export function AccountAndLicenceSettings() {
         </div>
         {account ? (
           <>
-            <p role="status">Signed in with {account.provider === 'apple' ? 'Apple' : account.provider === 'password' ? 'email' : 'Google'}{account.email ? ` as ${account.email}` : ''}.</p>
+            <p role="status">Signed in with {account.provider === 'apple' ? 'Apple' : account.provider === 'microsoft' ? 'Microsoft' : account.provider === 'password' ? 'email' : 'Google'}{account.email ? ` as ${account.email}` : ''}.</p>
             <div className="flex flex-wrap gap-2">
               <button type="button" className={action} disabled={offline || accountBusy} onClick={() => void runAccountAction(linkLicence)}>Check Pro online</button>
-              {account.provider === 'password' && <button type="button" className={action} disabled={offline || accountBusy} onClick={() => void resendVerification()}>Resend verification email</button>}
+              {(account.provider === 'password' || account.emailVerified === false) && <button type="button" className={action} disabled={offline || accountBusy} onClick={() => void resendVerification()}>Resend verification email</button>}
               <button type="button" className={action} disabled={accountBusy} onClick={() => void chooseSignOut()}>Sign out</button>
               <button type="button" className={action} disabled={offline || accountBusy} onClick={() => void showAccountDevices()}>Show account devices</button>
             </div>
@@ -310,11 +324,10 @@ export function AccountAndLicenceSettings() {
           <>
             <p>Signing in lets you manage optional account features, including the online AI helper when available. Importing, culling, editing and exporting never need an account.</p>
             <p data-testid="account-local-stay">{t.accountLinks.localStay}</p>
-            <div className="flex flex-wrap gap-2">
-              {signInOptions(signInPlatform(), isSignInConfigured(), isDesktopGoogleConfigured(), isDesktopAppleConfigured()).map((option) => (
-                <button key={option.provider} type="button" className={`${action} inline-flex items-center gap-2 disabled:opacity-60`} disabled={offline || accountBusy || !option.available} aria-describedby={option.reason ? 'account-reason' : undefined} onClick={() => void chooseSignIn(option.provider)}><SignInMark provider={option.provider === 'apple' ? 'apple' : 'google'} />{option.label}</button>
-              ))}
-            </div>
+            {suggested && <div className="flex flex-wrap gap-2" data-testid="sign-in-suggested">{signInButton(suggested)}</div>}
+            <details className="space-y-2" data-testid="sign-in-other" open={!suggested || undefined}>
+            <summary className="cursor-pointer text-sm underline">Other ways to sign in</summary>
+            {otherOptions.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{otherOptions.map(signInButton)}</div>}
             {isSignInConfigured() && (
               <form className="space-y-2" onSubmit={(event) => { event.preventDefault(); void emailAction('in'); }}>
                 <label className="block">Email
@@ -330,12 +343,13 @@ export function AccountAndLicenceSettings() {
                 </div>
               </form>
             )}
+            </details>
             <p className="text-xs text-[var(--account-muted,#a1a1aa)]" data-testid="account-terms-notice">
               By creating an account or signing in, you agree to the <SiteLink path={POLICY_PATHS.terms} className="underline">terms</SiteLink> and
               {' '}<SiteLink path={POLICY_PATHS.acceptableUse} className="underline">acceptable use policy</SiteLink>. The
               {' '}<SiteLink path={POLICY_PATHS.privacy} className="underline">privacy notice</SiteLink> says what we keep and how to delete it.
             </p>
-            {(() => { const reason = signInOptions(signInPlatform(), isSignInConfigured(), isDesktopGoogleConfigured(), isDesktopAppleConfigured()).find((o) => o.reason)?.reason; return reason ? <p id="account-reason" className="text-xs text-[var(--account-muted,#a1a1aa)]">{reason}</p> : null; })()}
+            {(() => { const reason = signInChoices.find((o) => o.reason)?.reason; return reason ? <p id="account-reason" className="text-xs text-[var(--account-muted,#a1a1aa)]">{reason}</p> : null; })()}
           </>
         )}
         {accountBusy && <p role="status">Working on your account…</p>}
