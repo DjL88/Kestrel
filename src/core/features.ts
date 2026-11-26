@@ -50,6 +50,9 @@ export const FEATURES = {
   // Culling read-ahead (the photos either side of the one on screen are prepared in the background): a preview, off
   // for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
   cullWarmup: 'flagged',
+  // Cloud edit settings (x-std-cloud-recipe): the 2,560 px smart preview goes up, a few KB of undoable edit settings
+  // come back. A preview, off for everyone until an admin flag (or this device's preview switch) turns it on.
+  cloudRecipe: 'flagged',
 } as const;
 
 export type Feature = keyof typeof FEATURES;

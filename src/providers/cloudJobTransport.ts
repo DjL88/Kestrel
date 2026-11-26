@@ -7,7 +7,12 @@ const POLL_INTERVAL_MS = 2_000;
 const privateFetch = { credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer', redirect: 'error' } as const;
 
 interface CloudJob {
-  kind: 'denoise' | 'upscale' | 'mask';
+  /** `recipe` sends a picture and gets back a few KB of edit settings (x-std-cloud-recipe), never pixels. */
+  kind: 'denoise' | 'upscale' | 'mask' | 'recipe';
+  /** For `recipe`: which picture was sent, so the service can say what it worked on. */
+  inputKind?: 'smart-preview' | 'original';
+  /** Told the job's id as soon as the control plane gives one, so the result can be matched to this job. */
+  onJobId?: (id: string) => void;
   /** Capability-specific bytes prepared for the upload the user just approved. */
   input: Blob;
   userConsent: boolean;
@@ -98,13 +103,14 @@ export async function runCloudJob(connection: CloudJobConnection, job: CloudJob)
     });
 
   const created = await request(JOBS_PATH, 'POST', signal, JSON.stringify({
-    kind: job.kind, inputBytes: job.input.size, userConsent: true,
+    kind: job.kind, inputBytes: job.input.size, userConsent: true, ...(job.inputKind ? { inputKind: job.inputKind } : {}),
   }));
   if (!created.ok) throw new Error(`Cloud processing could not start (${created.status}).`);
   const upload = object(await created.json());
   const id = upload.jobId;
   if (typeof id !== 'string' || !/^[a-z0-9-]{1,80}$/i.test(id)) throw new Error('Invalid cloud processing job.');
   const path = `${JOBS_PATH}/${id}`;
+  job.onJobId?.(id);
   try {
     const input = storageObject(upload.uploadUrl, `inputs/${id}`);
     const uploaded = await fetcher(input.url, {

@@ -74,6 +74,17 @@ export type FeatureKey =
   /** Preview: HDR merge of a bracketed burst (off by default). */
   | 'hdrMerge';
 
+/** What a cloud edit-settings job would send, shown before anything is sent. */
+export interface CloudRecipeOfferView {
+  status: 'ready' | 'unavailable';
+  /** e.g. "1.4 MB smart preview". */
+  sendLabel?: string;
+  /** e.g. "3.0 MB full original": only with the full-file opt-in on and only when estimated faster. */
+  alternativeLabel?: string;
+  /** Why nothing can be sent, in words. */
+  message?: string;
+}
+
 export type SocialPlatform =
   | 'instagram'
   | 'youtube'
@@ -860,6 +871,13 @@ export interface WorkspaceActions {
   runDeepVisionReview: (photoId: string) => void;
   applyAssistSuggestion: (photoId: string, suggestionId: string) => void;
   requestLocalAuto?: (photoId: string) => void;
+  /** Cloud edit settings (preview, off by default): what would be sent and its size. Sends nothing. Absent while the feature is off. */
+  prepareCloudRecipe?: (photoId: string) => Promise<CloudRecipeOfferView>;
+  /** Sends the option the person pressed and applies the settings that come back as one undoable step. Returns what happened, in words. */
+  sendCloudRecipe?: (photoId: string, choice: 'send' | 'alternative') => Promise<string>;
+  /** The separate opt-in for sending full originals. Returns what is in force afterwards. */
+  setCloudRecipeFullFile?: (on: boolean) => boolean;
+  cloudRecipeFullFileOn?: () => boolean;
   applyAllAssistSuggestions: (photoId: string) => void;
   /** A sized JPEG of the edited photo for a client gallery, or null when there is no trustworthy picture yet. Absent in the stub. */
   renderGalleryPreview?: (photoId: string) => Promise<Blob | null>;
