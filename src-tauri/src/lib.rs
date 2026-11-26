@@ -10,6 +10,7 @@ mod oauth_loopback;
 mod ftp_inbox;
 #[cfg(desktop)]
 mod shoot_room;
+#[cfg(desktop)]
 mod ptp_usb;
 #[cfg(desktop)]
 mod local_vision;
