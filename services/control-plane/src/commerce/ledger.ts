@@ -4,6 +4,13 @@ import { validateUkVatSettings, type TaxSettings } from './tax.ts';
 import { ukTurnoverMetrics } from './turnover.ts';
 import type { proposePrices } from './priceReview.ts';
 
+/** "2026-12" → supply dates from "2026-12-01" up to (not including) "2027-01-01". */
+export function monthBounds(month: string): { start: string; end: string } {
+  const [year, m] = month.split('-').map(Number);
+  const next = m === 12 ? `${year + 1}-01` : `${year}-${String(m + 1).padStart(2, '0')}`;
+  return { start: month + '-01', end: next + '-01' };
+}
+
 export class CommerceLedger {
   constructor(private readonly db: Firestore) {}
 
@@ -67,6 +74,14 @@ export class CommerceLedger {
   /** Newest first, for the admin console. */
   async listTransactions(limit: number): Promise<TransactionRecord[]> {
     const rows = await this.db.collection(commerceCollections.transactions).orderBy('paidAt', 'desc').limit(limit).get();
+    return rows.docs.map(document => document.data() as TransactionRecord);
+  }
+
+  /** Every transaction supplied in one calendar month ("YYYY-MM"), for the admin Accounts page. */
+  async listTransactionsForMonth(month: string): Promise<TransactionRecord[]> {
+    const { start, end } = monthBounds(month);
+    const rows = await this.db.collection(commerceCollections.transactions)
+      .where('supplyDate', '>=', start).where('supplyDate', '<', end).get();
     return rows.docs.map(document => document.data() as TransactionRecord);
   }
 

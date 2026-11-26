@@ -8,6 +8,8 @@ import { RULES, SCENARIOS, evaluateSample, rehearseDelivery } from './admin-moni
 
 import { DIMENSIONS, SAMPLE_DEVICES, previewAudience, messagePreview } from './admin-notifications.mjs';
 
+import { readGcpBilling, summariseIncome, accountsSummary, monthName, VAT_HELP } from './admin-accounts.mjs';
+
 const $ = id => document.getElementById(id);
 const status = $('status');
 let token;
@@ -149,7 +151,7 @@ act($('sign-out'), 'click', () => signOut('Signed out.'));
 // ---- Sections --------------------------------------------------------------------------------------------------
 
 async function refreshAll() {
-  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadMessages(), loadTax(), loadPriceReview(), loadSafety(), loadSwitches(), loadMail(), loadLearning(), loadFlags(), loadAudit()]);
+  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadAccounts(), loadMessages(), loadTax(), loadPriceReview(), loadSafety(), loadSwitches(), loadMail(), loadLearning(), loadFlags(), loadAudit()]);
   const failed = results.find(r => r.status === 'rejected' && !(r.reason instanceof SignedOut));
   if (failed) say(failed.reason.message);
 }
@@ -393,6 +395,77 @@ async function loadPayments() {
   $('payments-empty').hidden = !p.connected || p.transactions.length > 0;
   $('payments-table').closest('.scroll').hidden = p.transactions.length === 0;
 }
+
+// ---- Accounts (read-only) ---------------------------------------------------------------------------------------
+
+const accountsForm = $('accounts-month');
+accountsForm.elements.month.value = new Date().toISOString().slice(0, 7);
+$('accounts-vat-help').replaceChildren(...VAT_HELP.map(line => el('li', line)));
+const money = pence => gbp.format(pence / 100);
+const minor = (amounts) => Object.entries(amounts).map(([currency, value]) =>
+  new Intl.NumberFormat('en-GB', { style: 'currency', currency }).format(value / 100)).join(', ') || '—';
+const facts = (target, list) => $(target).replaceChildren(...list.map(([k, v]) => { const d = el('div'); d.append(el('dt', k), el('dd', v)); return d; }));
+let accountsData = null;
+let billing = null;
+
+function renderAccounts() {
+  if (!accountsData) return;
+  const { month } = accountsData;
+  const income = summariseIncome(accountsData.transactions);
+  const costModelPence = accountsData.costModel ? accountsData.costModel.reservedPence : null;
+  const s = accountsSummary({ income, costModelPence, billing, month });
+  facts('accounts-summary', [
+    ['Income', money(s.incomePence)],
+    ['Costs', s.costBasis === 'none' ? 'Not known' : money(s.costPence)],
+    [s.profitPence < 0 ? 'Loss' : 'Profit', money(Math.abs(s.profitPence))],
+  ]);
+  $('accounts-basis').textContent = monthName(month) + '. Income is what Paddle paid out to InFlight. Costs are '
+    + (s.costBasis === 'billing' ? 'from the Google Cloud bill you chose.' : s.costBasis === 'cost-model' ? 'an estimate from InFlight\'s cost model, not Google\'s bill. Choose the bill below to use Google\'s own figures.' : 'not known: there is no cost model on this server and no bill chosen.')
+    + ' Other costs (domain, Apple and Google developer fees, your own time) are not included.';
+  facts('accounts-income', [
+    ['Sales', String(income.sales)],
+    ['Buyers paid', minor(income.buyerPaid)],
+    ['Tax Paddle handled', minor(income.buyerTax)],
+    ['Paddle\'s fee', money(income.paddleFeePence)],
+    ['Paid out to InFlight', money(income.earningsPence)],
+  ]);
+  const notes = [];
+  if (!accountsData.paymentsConnected) notes.push('Paddle is not connected on this server, so there is no income to show.');
+  if (income.refunded) notes.push(income.refunded + (income.refunded === 1 ? ' sale was' : ' sales were') + ' refunded and count as nothing.');
+  if (income.partlyRefunded) notes.push(income.partlyRefunded + ' partly refunded: the refunded amount is not recorded here, so check Paddle\'s dashboard.');
+  if (income.otherCurrency) notes.push(income.otherCurrency + ' paid out in another currency and not added up. Paddle\'s payout report has the pound value.');
+  $('accounts-income-notes').textContent = notes.join(' ');
+  $('accounts-cost-model').textContent = accountsData.costModel
+    ? 'Cost model: ' + money(accountsData.costModel.reservedPence) + ' of metered spend (online helper and cloud processing) estimated for this month, against a ' + money(accountsData.costModel.ceilingPence) + ' monthly limit. It is a brake on spending, not Google\'s invoice.'
+    : 'Cost model: not set up on this server.';
+  $('accounts-billing-state').textContent = !billing ? 'No bill chosen.'
+    : !billing.ok ? billing.problem
+    : s.billingNote ?? ('Google Cloud bill: ' + money(billing.totalPence) + ' from ' + billing.rowsRead + ' rows' + (billing.rowsSkipped ? ', ' + billing.rowsSkipped + ' total or unreadable rows skipped' : '') + (billing.months.length ? '' : '. The file has no month column, so make sure it covers ' + monthName(month) + ' only') + '.');
+  const rows = billing?.ok ? billing.services : [];
+  $('accounts-billing-table').tBodies[0].replaceChildren(...rows.map(service => {
+    const row = document.createElement('tr');
+    cell(row, service.name); cell(row, money(service.pence));
+    return row;
+  }));
+  $('accounts-billing-table').closest('.scroll').hidden = rows.length === 0;
+}
+
+async function loadAccounts() {
+  try { accountsData = await api('admin/accounts?month=' + encodeURIComponent(accountsForm.elements.month.value)); } catch (error) {
+    if (error instanceof SignedOut) throw error;
+    $('accounts-unavailable').hidden = false;
+    $('accounts-unavailable').textContent = error.message;
+    return;
+  }
+  $('accounts-unavailable').hidden = true;
+  renderAccounts();
+}
+act(accountsForm, 'submit', loadAccounts);
+$('accounts-billing').addEventListener('change', async () => {
+  const file = $('accounts-billing').files?.[0];
+  billing = file ? readGcpBilling(await file.text()) : null;
+  renderAccounts();
+});
 
 const STATUS_WORDS = { new: 'New', read: 'Read', answered: 'Answered' };
 async function loadMessages() {
