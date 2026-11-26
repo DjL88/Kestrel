@@ -814,10 +814,10 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
-    createProject: (name) => {
+    createProject: (name, _kind, mode) => {
       const clean = name.trim();
       if (!clean) return;
-      logAction('createProject', { name: clean });
+      logAction('createProject', { name: clean, mode });
       const newProject: Project = {
         id: `proj-${Date.now()}`,
         name: clean,
@@ -833,6 +833,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
         hubState: 'ready',
         projects: [newProject, ...prev.projects],
         activeProjectId: newProject.id,
+        assistMode: mode ?? prev.settings.defaultAssistMode,
         screen: 'editor',
         lastActionNotice: `Created project "${clean}"`,
       }));

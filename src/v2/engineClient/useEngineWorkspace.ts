@@ -1751,7 +1751,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   }, [quickStart]);
 
   // Co-pilot and Auto-pilot look at the photo on the canvas, on this device, one at a time. Solo never does.
-  const assistMode = savedUi.assistMode ?? stub.store.assistMode;
+  // Each project keeps its own Flight mode; an older project without one follows Settings' default.
+  const assistMode = state?.shoot.assistMode ?? savedUi.settings.defaultAssistMode ?? savedUi.assistMode ?? stub.store.assistMode;
   // Read by importPhotos (a stable callback) when an import finishes: start, offer or explain Auto-cull.
   const afterImport = useRef({ mode: assistMode, canCull: can('smartCulling'), run: runAutoCull });
   afterImport.current = { mode: assistMode, canCull: can('smartCulling'), run: runAutoCull };
@@ -2810,9 +2811,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       })();
     },
     openProject: (id) => { void openProject(id); },
-    createProject: (name, kind = 'photography') => {
+    createProject: (name, kind = 'photography', mode) => {
       const empty = createEmptyProject(`project-${newId()}`, name.trim() || 'Untitled project');
-      const created = kind === 'collage' ? { ...empty, shoot: { ...empty.shoot, collage: createCollage() } } : empty;
+      const withMode = mode ? { ...empty, shoot: { ...empty.shoot, assistMode: mode } } : empty;
+      const created = kind === 'collage' ? { ...withMode, shoot: { ...withMode.shoot, collage: createCollage() } } : withMode;
       void catalogue.current!.saveProject(created).then(() => enterProject(created), () => setNotice('InFlight could not create the project.'));
     },
     createCollageFromSelection: (photoIds) => {
@@ -3576,7 +3578,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       setDeviceFonts((current) => { const next = [...new Set([...current, name])]; saveDeviceFonts(next); return next; });
     },
     updateSettings: (patch) => setSavedUi((current) => { const next: SavedUi = { ...current, settings: { ...current.settings, ...patch } }; saveUi(next); return next; }),
-    setAssistMode: (mode) => setSavedUi((current) => { const next: SavedUi = { ...current, assistMode: mode, settings: { ...current.settings, defaultAssistMode: mode } }; saveUi(next); return next; }),
+    // Inside a project this changes that project's mode only (saved with it); Settings changes the default for new ones.
+    setAssistMode: (mode) => {
+      if (stateRef.current) { mutate((current) => ({ ...current, shoot: { ...current.shoot, assistMode: mode } })); return; }
+      setSavedUi((current) => { const next: SavedUi = { ...current, settings: { ...current.settings, defaultAssistMode: mode } }; saveUi(next); return next; });
+    },
     importWatermarkImage: async (usage) => {
       const picked = await pickImageFile();
       if (!picked) return null;

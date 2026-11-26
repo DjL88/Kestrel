@@ -151,6 +151,7 @@ export const fr: AreaTranslation<typeof source> = {
     viewMenu: 'Affichage',
     exportButton: 'Exporter',
     assistModes: { solo: 'Solo', copilot: 'Copilote', autopilot: 'Pilote automatique' },
+    assistModeHints: { solo: "InFlight ne fait rien tant que vous ne le demandez pas. Vous triez et retouchez vous-même.", copilot: "L'assistant propre à InFlight suggère des choix et des retouches, par exemple un tri après une importation. Vous validez chacun.", autopilot: "InFlight applique les choix et retouches dont il est sûr. Tout ce qui est incertain vous est laissé à vérifier." },
     fileActions: {
       newProject: 'Nouveau projet',
       importPhotos: 'Importer des photos',
@@ -278,6 +279,8 @@ export const fr: AreaTranslation<typeof source> = {
     kindCollageTitle: 'Collage ou album',
     kindCollageBody: 'Disposer plusieurs photos sur des pages, des affiches ou des publications',
     kindSelected: 'Sélectionné',
+    modeQuestion: "Quelle aide InFlight doit-il apporter ?",
+    modeChangeLater: "Vous pourrez changer cela plus tard dans le projet.",
     demoStateLabel: 'État affiché :',
   },
   filmstrip: {
@@ -576,6 +579,7 @@ export const fr: AreaTranslation<typeof source> = {
   copilot: {
     heading: 'Copilote',
     changeInSettings: 'Changer de mode dans les Paramètres',
+    modeForProject: "Mode de vol de ce projet",
     nothingYet: 'Rien à signaler pour l’instant. Les remarques apparaissent quand InFlight a examiné cette photo.',
     modeDescriptions: {
       solo: 'Mode Solo : vous gardez le contrôle manuel. Choisissez Vérifier la photo sur cet appareil quand vous voulez des suggestions.',
@@ -1455,6 +1459,7 @@ export const fr: AreaTranslation<typeof source> = {
     },
     assistance: {
       defaultModeLabel: 'Mode de vol par défaut des nouveaux projets',
+      defaultModeNote: "Chaque projet garde son propre mode. Vous pourrez changer cela plus tard dans le projet.",
       cvdLabel: 'Aide à la vision des couleurs',
       cvdDesc: 'Nomme en toutes lettres les couleurs principales de chaque photo et signale les dominantes, les couleurs très intenses et les zones rouges et vertes que beaucoup de personnes daltoniennes distinguent mal. Indique aussi les extrémités des curseurs Température et Teinte. Désactivé tant que vous ne l’activez pas.',
       ongoingLabel: 'Critique continue des retouches',

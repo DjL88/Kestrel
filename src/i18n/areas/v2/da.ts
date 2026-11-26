@@ -151,6 +151,7 @@ export const da: AreaTranslation<typeof source> = {
     viewMenu: 'Vis',
     exportButton: 'Eksportér',
     assistModes: { solo: 'Solo', copilot: 'Andenpilot', autopilot: 'Autopilot' },
+    assistModeHints: { solo: "InFlight gør intet, før du beder om det. Du sorterer og redigerer selv.", copilot: "InFlights egen hjælper foreslår valg og redigeringer, fx at sortere efter en import. Du godkender hver enkelt.", autopilot: "InFlight udfører de valg og redigeringer, den er sikker på. Alt usikkert bliver liggende, så du kan gennemgå det." },
     fileActions: {
       newProject: 'Nyt projekt',
       importPhotos: 'Importér fotos',
@@ -278,6 +279,8 @@ export const da: AreaTranslation<typeof source> = {
     kindCollageTitle: 'Collage eller album',
     kindCollageBody: 'Placer flere fotos på sider, plakater eller opslag',
     kindSelected: 'Valgt',
+    modeQuestion: "Hvor meget skal InFlight hjælpe?",
+    modeChangeLater: "Du kan ændre det senere i projektet.",
     demoStateLabel: 'Visningstilstand:',
   },
   filmstrip: {
@@ -576,6 +579,7 @@ export const da: AreaTranslation<typeof source> = {
   copilot: {
     heading: 'Andenpilot',
     changeInSettings: 'Skift tilstand i Indstillinger',
+    modeForProject: "Flytilstand for dette projekt",
     nothingYet: 'Intet at rapportere endnu. Det vises, når InFlight har set på dette foto.',
     modeDescriptions: {
       solo: 'Solotilstand: du har den manuelle kontrol. Vælg Tjek foto på denne enhed, når du vil have forslag.',
@@ -1455,6 +1459,7 @@ export const da: AreaTranslation<typeof source> = {
     },
     assistance: {
       defaultModeLabel: 'Standardflyvetilstand for nye projekter',
+      defaultModeNote: "Hvert projekt har sin egen tilstand. Du kan ændre det senere i projektet.",
       cvdLabel: 'Støtte til farvesyn',
       cvdDesc: 'Navngiver hovedfarverne i hvert foto med ord og påpeger farvestik, meget kraftige farver og røde og grønne områder, som mange farveblinde har svært ved at skelne. Viser også enderne på skyderne Temperatur og Nuance. Slået fra, indtil du slår det til.',
       ongoingLabel: 'Løbende kritik af redigering',

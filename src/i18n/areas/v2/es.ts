@@ -151,6 +151,7 @@ export const es: AreaTranslation<typeof source> = {
     viewMenu: 'Ver',
     exportButton: 'Exportar',
     assistModes: { solo: 'Solo', copilot: 'Copiloto', autopilot: 'Piloto automático' },
+    assistModeHints: { solo: "InFlight no hace nada hasta que se lo pides. Tú seleccionas y editas.", copilot: "El asistente propio de InFlight sugiere selecciones y ediciones, como ofrecer una criba tras importar. Tú apruebas cada una.", autopilot: "InFlight aplica las selecciones y ediciones de las que está seguro. Lo dudoso queda para que lo revises." },
     fileActions: {
       newProject: 'Nuevo proyecto',
       importPhotos: 'Importar fotos',
@@ -278,6 +279,8 @@ export const es: AreaTranslation<typeof source> = {
     kindCollageTitle: 'Collage o álbum',
     kindCollageBody: 'Colocar varias fotos en páginas, carteles o publicaciones',
     kindSelected: 'Seleccionado',
+    modeQuestion: "¿Cuánto debe ayudar InFlight?",
+    modeChangeLater: "Puedes cambiarlo más adelante en el proyecto.",
     demoStateLabel: 'Estado de la vista:',
   },
   filmstrip: {
@@ -576,6 +579,7 @@ export const es: AreaTranslation<typeof source> = {
   copilot: {
     heading: 'Copiloto',
     changeInSettings: 'Cambiar el modo en Ajustes',
+    modeForProject: "Modo de vuelo de este proyecto",
     nothingYet: 'Nada que comentar todavía. Aparecerá cuando InFlight haya revisado esta foto.',
     modeDescriptions: {
       solo: 'Modo Solo: usted mantiene el control manual. Elija Revisar la foto en este dispositivo cuando quiera sugerencias.',
@@ -1455,6 +1459,7 @@ export const es: AreaTranslation<typeof source> = {
     },
     assistance: {
       defaultModeLabel: 'Modo de vuelo predeterminado para proyectos nuevos',
+      defaultModeNote: "Cada proyecto guarda su propio modo. Puedes cambiarlo más adelante en el proyecto.",
       cvdLabel: 'Ayuda para la visión del color',
       cvdDesc: 'Nombra con palabras los colores principales de cada foto y señala dominantes de color, colores muy intensos y zonas rojas y verdes que muchas personas con daltonismo distinguen con dificultad. También rotula los extremos de los controles Temperatura y Matiz. Desactivado hasta que lo active.',
       ongoingLabel: 'Crítica continua de la edición',

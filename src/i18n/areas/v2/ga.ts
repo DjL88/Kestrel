@@ -154,6 +154,7 @@ export const ga: AreaTranslation<typeof source> = {
     viewMenu: 'Amharc',
     exportButton: 'Easpórtáil',
     assistModes: { solo: 'Aonair', copilot: 'Comhphíolóta', autopilot: 'Uathphíolóta' },
+    assistModeHints: { solo: "Ní dhéanann InFlight faic go dtí go n-iarrann tú. Roghnaíonn agus cuireann tú in eagar thú féin.", copilot: "Molann cúntóir InFlight féin roghanna agus eagarthóireacht, mar shampla roghnú tar éis iompórtála. Faomhann tú gach ceann.", autopilot: "Cuireann InFlight i bhfeidhm na roghanna agus an eagarthóireacht a bhfuil sé cinnte fúthu. Fágtar aon rud éiginnte duit le hathbhreithniú." },
     fileActions: {
       newProject: 'Tionscadal nua',
       importPhotos: 'Iompórtáil grianghraif',
@@ -281,6 +282,8 @@ export const ga: AreaTranslation<typeof source> = {
     kindCollageTitle: 'Colláis nó albam',
     kindCollageBody: 'Leag roinnt grianghraf amach ar leathanaigh, póstaeir nó postálacha',
     kindSelected: 'Roghnaithe',
+    modeQuestion: "Cé mhéad cabhrach ba cheart do InFlight a thabhairt?",
+    modeChangeLater: "Is féidir leat é seo a athrú níos déanaí sa tionscadal.",
     demoStateLabel: 'Staid an amhairc:',
   },
   filmstrip: {
@@ -579,6 +582,7 @@ export const ga: AreaTranslation<typeof source> = {
   copilot: {
     heading: 'Comhphíolóta',
     changeInSettings: 'Athraigh an mód sna Socruithe',
+    modeForProject: "Mód eitilte don tionscadal seo",
     nothingYet: 'Níl aon rud le tuairisciú fós. Feicfear é nuair a bheidh InFlight tar éis breathnú ar an ngrianghraf seo.',
     modeDescriptions: {
       solo: 'Mód aonair: is agatsa atá an smacht. Roghnaigh Seiceáil an grianghraf ar an ngléas seo nuair is mian leat moltaí.',
@@ -1458,6 +1462,7 @@ export const ga: AreaTranslation<typeof source> = {
     },
     assistance: {
       defaultModeLabel: 'Mód eitilte réamhshocraithe do thionscadail nua',
+      defaultModeNote: "Coinníonn gach tionscadal a mhód féin. Is féidir leat é seo a athrú níos déanaí sa tionscadal.",
       cvdLabel: 'Tacaíocht d’amharc datha',
       cvdDesc: 'Ainmníonn sé príomhdhathanna gach grianghraif i bhfocail, agus léiríonn sé imirí datha, dathanna an-láidir agus limistéir dhearga agus ghlasa a mbíonn sé deacair ar go leor daoine dathdhalla idirdhealú eatarthu. Lipéadaíonn sé foircinn na sleamhnán Teocht agus Imir freisin. As go dtí go gcasann tú air é.',
       ongoingLabel: 'Léirmheas leanúnach ar eagarthóireacht',
