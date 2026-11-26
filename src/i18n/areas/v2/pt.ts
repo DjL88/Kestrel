@@ -1139,7 +1139,7 @@ export const pt: AreaTranslation<typeof source> = {
     denoiseNow: 'Reduzir o ruído desta fotografia',
     denoiseCloudNote: 'Se tiver sessão iniciada e estiver online, este botão envia uma cópia de trabalho (nunca o original) para a nuvem InFlight apenas para esta tarefa e verifica o resultado neste dispositivo. Se a nuvem não estiver disponível, o processamento é feito aqui.',
     denoiseDeviceNote: 'É executado neste dispositivo. O processamento na nuvem faz parte do Pro.',
-    aiDenoiseInUse: 'A redução de ruído com IA (NAFNet) está a ser usada no motivo. Fica guardada apenas neste dispositivo.',
+    aiDenoiseInUse: 'A redução de ruído com IA está a ser usada no motivo. Fica guardada apenas neste dispositivo.',
     aiDenoiseOff: 'Desativar a redução de ruído com IA',
     rawAiDenoise: 'Redução profunda de ruído RAW',
     luminanceDenoise: 'Ruído de luminância',
@@ -1866,6 +1866,8 @@ export const pt: AreaTranslation<typeof source> = {
       detector: 'Encontra sujeitos',
       detectorTandem: 'Segundo localizador de sujeitos',
       mask: 'Máscara do sujeito',
+      fineEdges: "Contornos finos do motivo",
+      speciesCheck: "Segunda opinião sobre a espécie",
       tapSelect: 'Toque para selecionar',
       species: 'Dá nome às espécies',
       gate: 'Verifica o tipo de sujeito',
@@ -1906,6 +1908,15 @@ export const pt: AreaTranslation<typeof source> = {
     packReady: (name: string) => `${name} está pronto neste dispositivo.`,
     packRemoved: (name: string) => `${name} foi removido deste dispositivo.`,
     packNote: 'Só é transferido quando pede, verificado com a respetiva soma de verificação e guardado neste dispositivo. Nenhuma foto é enviada.',
+    technical: "Detalhes técnicos",
+    why: {
+      detectorTandem: "Volta a verificar o que está em cada foto, para que uma ave seja menos vezes confundida com um avião.",
+      tapSelect: "Selecione um motivo tocando-lhe e acrescente ou retire partes com mais toques.",
+      denoise: "Limpa o grão das fotos com ISO alto, mantendo o detalhe das penas e do pelo.",
+      fineEdges: "As máscaras do motivo seguem melhor as penas, o pelo e os bigodes.",
+      speciesCheck: "Um modelo de espécies maior que verifica cada nome de espécie. Precisa de cerca de 2 GB de memória.",
+      search: "Encontre fotos descrevendo-as, como «papagaio-do-mar com galeotas».",
+    },
   },
   settingsMore: {
     closeSettings: 'Fechar as definições',
@@ -2033,7 +2044,7 @@ export const pt: AreaTranslation<typeof source> = {
   // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
   tapSelect: {
     tool: "Tocar para selecionar",
-    offer: (mb) => `Tocar para selecionar precisa de uma transferência única de ${mb} MB (EfficientSAM-Ti, Apache-2.0). Fica neste dispositivo e funciona offline.`,
+    offer: (mb) => `Tocar para selecionar precisa de uma transferência única de ${mb} MB. Fica neste dispositivo e funciona offline.`,
     download: "Transferir Tocar para selecionar",
     downloading: (pct) => `A transferir… ${pct}%`,
     unavailable: "Tocar para selecionar não está disponível nesta versão.",

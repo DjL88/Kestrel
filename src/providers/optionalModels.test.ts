@@ -118,3 +118,18 @@ test('a copy kept under its old address is still found and checked', async () =>
   await removeOptionalModel(model, deps);
   assert.equal(store.map.size, 0);
 });
+
+test('a pack the installer carries is ready with no download, read from the app and checked every time', async () => {
+  const calls: string[] = [];
+  const model = { ...pack(payload, sha256Plain(payload), ''), files: { model: { url: '', sha256: sha256Plain(payload), bytes: payload.byteLength, file: 'test.onnx' } } };
+  const deps: PackDeps = { store: memoryStore(), fetch: serving(payload, calls), bundled: new Set(['test']) };
+  assert.equal(await optionalModelStatus(model, deps), 'ready');
+  assert.deepEqual(await readOptionalModelFile(model, 'model', deps), payload);
+  assert.deepEqual(calls, ['/models/test.onnx']);
+  // Removing does nothing: it is part of the app.
+  await removeOptionalModel(model, deps);
+  assert.equal(await optionalModelStatus(model, deps), 'ready');
+  // A changed copy inside the app is refused, never run.
+  const tampered = payload.slice(); tampered[3] ^= 1;
+  await assert.rejects(readOptionalModelFile(model, 'model', { ...deps, fetch: serving(tampered) }), /integrity check/);
+});

@@ -1139,7 +1139,7 @@ export const nl: AreaTranslation<typeof source> = {
     denoiseNow: 'Ruis van deze foto verwijderen',
     denoiseCloudNote: 'Als u bent aangemeld en online bent, stuurt deze knop een werkkopie (nooit het origineel) voor deze ene taak naar de InFlight-cloud. Het resultaat wordt op dit apparaat gecontroleerd. Als de cloud niet beschikbaar is, gebeurt het hier.',
     denoiseDeviceNote: 'Draait op dit apparaat. Verwerking in de cloud hoort bij Pro.',
-    aiDenoiseInUse: 'AI-ruisreductie (NAFNet) wordt op het onderwerp gebruikt. Dit wordt alleen op dit apparaat bewaard.',
+    aiDenoiseInUse: 'AI-ruisreductie wordt op het onderwerp gebruikt. Dit wordt alleen op dit apparaat bewaard.',
     aiDenoiseOff: 'AI-ruisreductie uitzetten',
     rawAiDenoise: 'Diepe RAW-ruisonderdrukking',
     luminanceDenoise: 'Luminantieruis',
@@ -1866,6 +1866,8 @@ export const nl: AreaTranslation<typeof source> = {
       detector: 'Vindt onderwerpen',
       detectorTandem: 'Tweede onderwerpzoeker',
       mask: 'Onderwerpmasker',
+      fineEdges: "Fijne onderwerpranden",
+      speciesCheck: "Tweede mening over de soort",
       tapSelect: 'Tik om te kiezen',
       species: 'Benoemt soorten',
       gate: 'Controleert het soort onderwerp',
@@ -1906,6 +1908,15 @@ export const nl: AreaTranslation<typeof source> = {
     packReady: (name: string) => `${name} staat klaar op dit apparaat.`,
     packRemoved: (name: string) => `${name} is van dit apparaat verwijderd.`,
     packNote: 'Wordt alleen gedownload als u erom vraagt, gecontroleerd met de checksum en op dit apparaat bewaard. Er wordt geen foto verstuurd.',
+    technical: "Technische details",
+    why: {
+      detectorTandem: "Controleert nog eens wat er op elke foto staat, zodat een vogel minder vaak voor een vliegtuig wordt aangezien.",
+      tapSelect: "Selecteer een onderwerp door erop te tikken en voeg met meer tikken delen toe of haal ze weg.",
+      denoise: "Haalt korrel uit foto’s met hoge ISO en houdt veren- en vachtdetail.",
+      fineEdges: "Onderwerpmaskers volgen veren, vacht en snorharen nauwkeuriger.",
+      speciesCheck: "Een groter soortenmodel dat elke soortnaam controleert. Heeft ongeveer 2 GB geheugen nodig.",
+      search: "Vind foto’s door ze te beschrijven, zoals ‘papegaaiduiker met zandspiering’.",
+    },
   },
   settingsMore: {
     closeSettings: 'Instellingen sluiten',
@@ -2033,7 +2044,7 @@ export const nl: AreaTranslation<typeof source> = {
   // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
   tapSelect: {
     tool: "Tik om te selecteren",
-    offer: (mb) => `Tik om te selecteren heeft eenmalig een download van ${mb} MB nodig (EfficientSAM-Ti, Apache-2.0). Die blijft op dit apparaat en werkt offline.`,
+    offer: (mb) => `Tik om te selecteren heeft eenmalig een download van ${mb} MB nodig. Die blijft op dit apparaat en werkt offline.`,
     download: "Tik om te selecteren downloaden",
     downloading: (pct) => `Downloaden… ${pct}%`,
     unavailable: "Tik om te selecteren wordt in deze versie niet aangeboden.",

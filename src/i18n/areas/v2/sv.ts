@@ -1139,7 +1139,7 @@ export const sv: AreaTranslation<typeof source> = {
     denoiseNow: 'Brusreducera det här fotot',
     denoiseCloudNote: 'När du är inloggad och online skickar den här knappen en arbetskopia (aldrig originalet) till InFlight-molnet för just det här jobbet och kontrollerar resultatet på den här enheten. Om molnet inte är tillgängligt körs det här.',
     denoiseDeviceNote: 'Körs på den här enheten. Bearbetning i molnet ingår i Pro.',
-    aiDenoiseInUse: 'AI-brusreducering (NAFNet) används på motivet. Den sparas bara på den här enheten.',
+    aiDenoiseInUse: 'AI-brusreducering används på motivet. Den sparas bara på den här enheten.',
     aiDenoiseOff: 'Stäng av AI-brusreducering',
     rawAiDenoise: 'Djup RAW-brusreducering',
     luminanceDenoise: 'Luminansbrus',
@@ -1866,6 +1866,8 @@ export const sv: AreaTranslation<typeof source> = {
       detector: 'Hittar motiv',
       detectorTandem: 'Andra motivsökaren',
       mask: 'Motivmask',
+      fineEdges: "Fina motivkanter",
+      speciesCheck: "Andra bedömning av arten",
       tapSelect: 'Tryck för att välja',
       species: 'Namnger arter',
       gate: 'Kontrollerar vilket slags motiv',
@@ -1906,6 +1908,15 @@ export const sv: AreaTranslation<typeof source> = {
     packReady: (name: string) => `${name} är klar på den här enheten.`,
     packRemoved: (name: string) => `${name} togs bort från den här enheten.`,
     packNote: 'Hämtas bara när du ber om det, kontrolleras mot sin kontrollsumma och sparas på den här enheten. Inget foto skickas.',
+    technical: "Tekniska detaljer",
+    why: {
+      detectorTandem: "Kontrollerar en gång till vad som finns på varje foto, så att en fågel mer sällan tas för ett flygplan.",
+      tapSelect: "Välj ett motiv genom att trycka på det, och lägg till eller ta bort delar med fler tryck.",
+      denoise: "Tar bort brus från bilder med högt ISO och behåller detaljer i fjädrar och päls.",
+      fineEdges: "Motivmasker följer fjädrar, päls och morrhår noggrannare.",
+      speciesCheck: "En större artmodell som dubbelkollar varje artnamn. Kräver ungefär 2 GB minne.",
+      search: "Hitta bilder genom att beskriva dem, till exempel ”lunnefågel med tobis”.",
+    },
   },
   settingsMore: {
     closeSettings: 'Stäng inställningarna',
@@ -2033,7 +2044,7 @@ export const sv: AreaTranslation<typeof source> = {
   // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
   tapSelect: {
     tool: "Tryck för att välja",
-    offer: (mb) => `Tryck för att välja kräver en engångsnedladdning på ${mb} MB (EfficientSAM-Ti, Apache-2.0). Den stannar på den här enheten och fungerar offline.`,
+    offer: (mb) => `Tryck för att välja kräver en engångsnedladdning på ${mb} MB. Den stannar på den här enheten och fungerar offline.`,
     download: "Ladda ned Tryck för att välja",
     downloading: (pct) => `Laddar ned… ${pct} %`,
     unavailable: "Tryck för att välja erbjuds inte i den här versionen.",

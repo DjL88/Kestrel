@@ -1139,7 +1139,7 @@ export const fr: AreaTranslation<typeof source> = {
     denoiseNow: 'Réduire le bruit de cette photo',
     denoiseCloudNote: 'Si vous êtes connecté et en ligne, ce bouton envoie une copie de travail (jamais l’original) au cloud InFlight pour cette seule tâche, et le résultat est vérifié sur cet appareil. Si le cloud est indisponible, le traitement se fait ici.',
     denoiseDeviceNote: 'S’exécute sur cet appareil. Le traitement dans le cloud fait partie de Pro.',
-    aiDenoiseInUse: 'La réduction du bruit par IA (NAFNet) est appliquée au sujet. Elle est enregistrée sur cet appareil uniquement.',
+    aiDenoiseInUse: 'La réduction du bruit par IA est appliquée au sujet. Elle est enregistrée sur cet appareil uniquement.',
     aiDenoiseOff: 'Désactiver la réduction du bruit par IA',
     rawAiDenoise: 'Réduction du bruit RAW approfondie',
     luminanceDenoise: 'Bruit de luminance',
@@ -1866,6 +1866,8 @@ export const fr: AreaTranslation<typeof source> = {
       detector: 'Trouve les sujets',
       detectorTandem: 'Second détecteur de sujets',
       mask: 'Masque du sujet',
+      fineEdges: "Contours fins du sujet",
+      speciesCheck: "Second avis sur l’espèce",
       tapSelect: 'Toucher pour sélectionner',
       species: 'Nomme les espèces',
       gate: 'Vérifie le type de sujet',
@@ -1906,6 +1908,15 @@ export const fr: AreaTranslation<typeof source> = {
     packReady: (name: string) => `${name} est prêt sur cet appareil.`,
     packRemoved: (name: string) => `${name} a été supprimé de cet appareil.`,
     packNote: 'Téléchargé uniquement à votre demande, vérifié avec sa somme de contrôle, puis conservé sur cet appareil. Aucune photo n’est envoyée.',
+    technical: "Détails techniques",
+    why: {
+      detectorTandem: "Vérifie une seconde fois ce que montre chaque photo, pour qu’un oiseau soit moins souvent pris pour un avion.",
+      tapSelect: "Sélectionnez un sujet en le touchant, puis ajoutez ou retirez des parties avec d’autres touchers.",
+      denoise: "Nettoie le grain des photos à ISO élevé en gardant le détail des plumes et du pelage.",
+      fineEdges: "Les masques du sujet suivent de plus près les plumes, le pelage et les moustaches.",
+      speciesCheck: "Un modèle d’espèces plus grand qui vérifie chaque nom d’espèce. Il faut environ 2 Go de mémoire.",
+      search: "Trouvez des photos en les décrivant, par exemple « macareux avec des lançons ».",
+    },
   },
   settingsMore: {
     closeSettings: 'Fermer les réglages',
@@ -2033,7 +2044,7 @@ export const fr: AreaTranslation<typeof source> = {
   // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
   tapSelect: {
     tool: "Toucher pour sélectionner",
-    offer: (mb) => `Toucher pour sélectionner nécessite un téléchargement unique de ${mb} Mo (EfficientSAM-Ti, Apache-2.0). Il reste sur cet appareil et fonctionne hors ligne.`,
+    offer: (mb) => `Toucher pour sélectionner nécessite un téléchargement unique de ${mb} Mo. Il reste sur cet appareil et fonctionne hors ligne.`,
     download: "Télécharger Toucher pour sélectionner",
     downloading: (pct) => `Téléchargement… ${pct} %`,
     unavailable: "Toucher pour sélectionner n’est pas proposé dans cette version.",

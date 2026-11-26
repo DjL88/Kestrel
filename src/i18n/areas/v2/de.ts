@@ -1139,7 +1139,7 @@ export const de: AreaTranslation<typeof source> = {
     denoiseNow: 'Dieses Foto entrauschen',
     denoiseCloudNote: 'Wenn Sie angemeldet und online sind, sendet diese Schaltfläche eine Arbeitskopie (nie das Original) nur für diesen Auftrag an die InFlight-Cloud und prüft das Ergebnis auf diesem Gerät. Ist die Cloud nicht verfügbar, läuft es hier.',
     denoiseDeviceNote: 'Läuft auf diesem Gerät. Cloud-Verarbeitung ist Teil von Pro.',
-    aiDenoiseInUse: 'KI-Rauschreduzierung (NAFNet) wird auf das Motiv angewendet. Sie wird nur auf diesem Gerät gespeichert.',
+    aiDenoiseInUse: 'KI-Rauschreduzierung wird auf das Motiv angewendet. Sie wird nur auf diesem Gerät gespeichert.',
     aiDenoiseOff: 'KI-Rauschreduzierung ausschalten',
     rawAiDenoise: 'Tiefe RAW-Rauschreduzierung',
     luminanceDenoise: 'Luminanzrauschen',
@@ -1866,6 +1866,8 @@ export const de: AreaTranslation<typeof source> = {
       detector: 'Findet Motive',
       detectorTandem: 'Zweiter Motivfinder',
       mask: 'Motivmaske',
+      fineEdges: "Feine Motivkanten",
+      speciesCheck: "Zweite Meinung zur Art",
       tapSelect: 'Zum Auswählen tippen',
       species: 'Benennt Arten',
       gate: 'Prüft die Art des Motivs',
@@ -1906,6 +1908,15 @@ export const de: AreaTranslation<typeof source> = {
     packReady: (name: string) => `${name} ist auf diesem Gerät bereit.`,
     packRemoved: (name: string) => `${name} wurde von diesem Gerät entfernt.`,
     packNote: 'Wird nur auf Ihren Wunsch heruntergeladen, mit seiner Prüfsumme geprüft und auf diesem Gerät gespeichert. Es wird kein Foto gesendet.',
+    technical: "Technische Details",
+    why: {
+      detectorTandem: "Prüft ein zweites Mal, was auf jedem Foto ist, damit ein Vogel seltener für ein Flugzeug gehalten wird.",
+      tapSelect: "Wählen Sie ein Motiv durch Antippen aus und fügen Sie mit weiteren Tipps Teile hinzu oder entfernen Sie sie.",
+      denoise: "Entfernt Körnung aus Fotos mit hoher ISO und erhält dabei Feder- und Felldetails.",
+      fineEdges: "Motivmasken folgen Federn, Fell und Schnurrhaaren genauer.",
+      speciesCheck: "Ein größeres Artenmodell, das jeden Artnamen gegenprüft. Braucht etwa 2 GB Arbeitsspeicher.",
+      search: "Finden Sie Fotos, indem Sie sie beschreiben, etwa „Papageitaucher mit Sandaalen“.",
+    },
   },
   settingsMore: {
     closeSettings: 'Einstellungen schließen',
@@ -2033,7 +2044,7 @@ export const de: AreaTranslation<typeof source> = {
   // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
   tapSelect: {
     tool: "Antippen zum Auswählen",
-    offer: (mb) => `Antippen zum Auswählen braucht einen einmaligen Download von ${mb} MB (EfficientSAM-Ti, Apache-2.0). Er bleibt auf diesem Gerät und funktioniert offline.`,
+    offer: (mb) => `Antippen zum Auswählen braucht einen einmaligen Download von ${mb} MB. Er bleibt auf diesem Gerät und funktioniert offline.`,
     download: "Antippen zum Auswählen herunterladen",
     downloading: (pct) => `Wird geladen… ${pct} %`,
     unavailable: "Antippen zum Auswählen ist in dieser Version nicht verfügbar.",

@@ -1140,7 +1140,7 @@ export const gd: AreaTranslation<typeof source> = {
     denoiseNow: 'Lùghdaich gràinne an deilbh seo',
     denoiseCloudNote: 'Nuair a bhios tu air do chlàradh a-steach agus air loidhne, cuiridh am putan seo lethbhreac-obrach (chan e an dealbh tùsail gu bràth) gu neul InFlight airson na h-obrach seo a-mhàin. Dearbhaidh e an toradh air an uidheam seo. Mura bheil an neul ri fhaighinn, ruithidh e an-seo.',
     denoiseDeviceNote: 'Ruithidh e air an uidheam seo. Tha obrachadh san neul na phàirt de Pro.',
-    aiDenoiseInUse: 'Tha lùghdachadh gràinne AI (NAFNet) ga chleachdadh air a’ chuspair. Tha e air a stòradh air an uidheam seo a-mhàin.',
+    aiDenoiseInUse: 'Tha lùghdachadh gràinne AI ga chleachdadh air a’ chuspair. Tha e air a stòradh air an uidheam seo a-mhàin.',
     aiDenoiseOff: 'Cuir dheth lùghdachadh gràinne AI',
     rawAiDenoise: 'Lùghdachadh gràinne RAW domhainn',
     luminanceDenoise: 'Gràinne soillseachd',
@@ -1867,6 +1867,8 @@ export const gd: AreaTranslation<typeof source> = {
       detector: 'Lorgaidh e cuspairean',
       detectorTandem: 'Dàrna lorgair chuspairean',
       mask: 'Masg cuspair',
+      fineEdges: "Oirean mionaideach a’ chuspair",
+      speciesCheck: "Dàrna beachd air a’ ghnè",
       tapSelect: 'Thoir gnogag airson taghadh',
       species: 'Ainmichidh e gnèithean',
       gate: 'Dearbhaidh e seòrsa a’ chuspair',
@@ -1907,6 +1909,15 @@ export const gd: AreaTranslation<typeof source> = {
     packReady: (name: string) => `Tha ${name} deiseil air an uidheam seo.`,
     packRemoved: (name: string) => `Chaidh ${name} a thoirt far an uidheim seo.`,
     packNote: 'Cha tèid a luchdadh a-nuas ach nuair a dh’iarras tu e, thèid a dhearbhadh an aghaidh an t-suim-dearbhaidh aige, agus thèid a chumail air an uidheam seo. Cha tèid dealbh sam bith a chur.',
+    technical: "Mion-fhiosrachadh teicnigeach",
+    why: {
+      detectorTandem: "Nì e sgrùdadh a-rithist air na tha anns gach dealbh, gus nach tèid eun a mheasgadh le itealan cho tric.",
+      tapSelect: "Tagh cuspair le gnogag air, agus cuir ris no thoir air falbh pàirtean le barrachd ghnogagan.",
+      denoise: "Glanaidh e gràinne bho dhealbhan ISO àrd fhad ’s a chumas e mion-fhiosrachadh itean is fionnaidh.",
+      fineEdges: "Leanaidh masgaichean a’ chuspair itean, fionnadh is ròin-fhéasaig nas dlùithe.",
+      speciesCheck: "Modail ghnèithean nas motha a nì sgrùdadh air gach ainm gnè. Feumaidh e mu 2 GB de chuimhne.",
+      search: "Lorg dealbhan le bhith gan tuairisgeul, mar “buthaid le sìolagan”.",
+    },
   },
   settingsMore: {
     closeSettings: 'Dùin na roghainnean',
@@ -2034,7 +2045,7 @@ export const gd: AreaTranslation<typeof source> = {
   // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
   tapSelect: {
     tool: "Thoir gnogag airson taghadh",
-    offer: (mb) => `Feumaidh taghadh le gnogag luchdadh a-nuas ${mb} MB aon turas (EfficientSAM-Ti, Apache-2.0). Fanaidh e air an uidheam seo is obraichidh e far loidhne.`,
+    offer: (mb) => `Feumaidh taghadh le gnogag luchdadh a-nuas ${mb} MB aon turas. Fanaidh e air an uidheam seo is obraichidh e far loidhne.`,
     download: "Luchdaich a-nuas taghadh le gnogag",
     downloading: (pct) => `Ga luchdadh a-nuas… ${pct}%`,
     unavailable: "Chan eil taghadh le gnogag ri fhaighinn san tionndadh seo.",

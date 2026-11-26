@@ -1,0 +1,10 @@
+{
+  "note": "Optional model packs the desktop installer carries, so they work with no download. scripts/build-desktop.mjs fetches each file into public/models/ from <host>/<sha256>/<file>, checked against this size and SHA-256 (the same pins as src/core/optionalModels.ts). A pack whose files cannot all be fetched is left out of that installer and stays a download.",
+  "files": [
+    { "pack": "rfdetr-nano-fp16", "file": "rfdetr-nano-fp16.onnx", "sha256": "e83b810bff55423a019564fcc3cd0bc188fd15d88f2f39dea287abb61f707002", "bytes": 54560489 },
+    { "pack": "efficientsam-ti-fp16", "file": "efficientsam-ti-encoder-fp16.onnx", "sha256": "5f0260b102fe82ad88c8ef0dc2422b3c44755005e1c2bbcc44b5d88b1bafbff4", "bytes": 12641129 },
+    { "pack": "efficientsam-ti-fp16", "file": "efficientsam-ti-decoder-fp16.onnx", "sha256": "e1409f2e1449600f29ee3674e690020de14d5b52d573b169650c8062608b73f3", "bytes": 8589267 },
+    { "pack": "nafnet-sidd-w32-w16", "file": "nafnet-sidd-w32-w16.onnx", "sha256": "c28f9ebfc824217becc71f1406300380e2a74123db02e007a17eb3015f74fe21", "bytes": 58841423 },
+    { "pack": "birefnet-lite-w16", "file": "birefnet-lite-w16.onnx", "sha256": "2c7c7240884841649e5f67b645cf7aed004a401c2fc666dd00c97a29948ef319", "bytes": 92215270 }
+  ]
+}

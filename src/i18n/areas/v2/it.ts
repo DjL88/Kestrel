@@ -1139,7 +1139,7 @@ export const it: AreaTranslation<typeof source> = {
     denoiseNow: 'Riduci il rumore di questa foto',
     denoiseCloudNote: 'Se hai effettuato l’accesso e sei online, questo pulsante invia una copia di lavoro (mai l’originale) al cloud InFlight solo per questa operazione e verifica il risultato su questo dispositivo. Se il cloud non è disponibile, l’elaborazione avviene qui.',
     denoiseDeviceNote: 'Viene eseguito su questo dispositivo. L’elaborazione nel cloud fa parte di Pro.',
-    aiDenoiseInUse: 'La riduzione del rumore IA (NAFNet) è applicata al soggetto. È salvata solo su questo dispositivo.',
+    aiDenoiseInUse: 'La riduzione del rumore IA è applicata al soggetto. È salvata solo su questo dispositivo.',
     aiDenoiseOff: 'Disattiva la riduzione del rumore IA',
     rawAiDenoise: 'Riduzione profonda del rumore RAW',
     luminanceDenoise: 'Rumore di luminanza',
@@ -1866,6 +1866,8 @@ export const it: AreaTranslation<typeof source> = {
       detector: 'Trova i soggetti',
       detectorTandem: 'Secondo cercatore di soggetti',
       mask: 'Maschera del soggetto',
+      fineEdges: "Bordi fini del soggetto",
+      speciesCheck: "Secondo parere sulla specie",
       tapSelect: 'Tocca per selezionare',
       species: 'Dà il nome alle specie',
       gate: 'Controlla il tipo di soggetto',
@@ -1906,6 +1908,15 @@ export const it: AreaTranslation<typeof source> = {
     packReady: (name: string) => `${name} è pronto su questo dispositivo.`,
     packRemoved: (name: string) => `${name} è stato rimosso da questo dispositivo.`,
     packNote: 'Scaricato solo quando lo chiedi, verificato con il suo checksum e conservato su questo dispositivo. Nessuna foto viene inviata.',
+    technical: "Dettagli tecnici",
+    why: {
+      detectorTandem: "Ricontrolla cosa c’è in ogni foto, così un uccello viene scambiato meno spesso per un aereo.",
+      tapSelect: "Seleziona un soggetto toccandolo e aggiungi o togli parti con altri tocchi.",
+      denoise: "Pulisce la grana delle foto ad alti ISO mantenendo il dettaglio di piume e pelo.",
+      fineEdges: "Le maschere del soggetto seguono meglio piume, pelo e vibrisse.",
+      speciesCheck: "Un modello di specie più grande che ricontrolla ogni nome di specie. Servono circa 2 GB di memoria.",
+      search: "Trova le foto descrivendole, ad esempio «pulcinella di mare con cicerelli».",
+    },
   },
   settingsMore: {
     closeSettings: 'Chiudi le impostazioni',
@@ -2033,7 +2044,7 @@ export const it: AreaTranslation<typeof source> = {
   // Tap to select (optional EfficientSAM-Ti pack) in the Masks panel and on the canvas.
   tapSelect: {
     tool: "Tocca per selezionare",
-    offer: (mb) => `Tocca per selezionare richiede un download unico di ${mb} MB (EfficientSAM-Ti, Apache-2.0). Resta su questo dispositivo e funziona offline.`,
+    offer: (mb) => `Tocca per selezionare richiede un download unico di ${mb} MB. Resta su questo dispositivo e funziona offline.`,
     download: "Scarica Tocca per selezionare",
     downloading: (pct) => `Download… ${pct}%`,
     unavailable: "Tocca per selezionare non è disponibile in questa versione.",
