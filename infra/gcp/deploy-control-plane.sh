@@ -22,7 +22,8 @@ address='google_cloud_run_v2_service.control_plane[0]'
 # config/public-site.json (control_plane_origin_list); the inflight.studio switch (#1667) changes them. Deletes or
 # replacements are still refused below.
 # Likewise the weekly Paddle key renewal job (paddle-key-rotation.tf), once paddle_key_rotation_enabled is on.
-also_allowed='["google_storage_bucket.models","google_storage_bucket.cloud_inputs[0]","google_storage_bucket.gallery[0]","google_storage_bucket.safe_copy[0]","google_cloud_run_v2_job.pricing_review[0]","google_cloud_run_v2_job.paddle_key_rotation[0]"]'
+# The daily account deletion job (account-deletions.tf) runs the control-plane image too, so its image moves with it.
+also_allowed='["google_storage_bucket.models","google_storage_bucket.cloud_inputs[0]","google_storage_bucket.gallery[0]","google_storage_bucket.safe_copy[0]","google_cloud_run_v2_job.pricing_review[0]","google_cloud_run_v2_job.paddle_key_rotation[0]","google_cloud_run_v2_job.account_deletion[0]"]'
 for c in git terraform jq tar gcloud curl; do command -v "$c" >/dev/null || fail "Missing $c"; done
 [[ $sha =~ ^[0-9a-f]{40}$ ]] || fail "SHA must be a full 40-character commit"
 [[ -d "$TF_DATA_DIR/providers" && -f "$TF_DATA_DIR/terraform.tfstate" ]] || fail "Existing initialised provider/backend required"
