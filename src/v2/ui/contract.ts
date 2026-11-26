@@ -63,6 +63,10 @@ export type FeatureKey =
   | 'cloudAssist'
   | 'zoomVideo'
   | 'splitFrames'
+  /** Preview: focus stacking (off by default). */
+  | 'focusStack'
+  /** Preview: panorama stitching (off by default). */
+  | 'panorama'
   /** Preview: HDR merge of a bracketed burst (off by default). */
   | 'hdrMerge';
 
@@ -456,6 +460,10 @@ export interface Photo {
   externalEdit?: import('../../core/externalEdit').ExternalEditRecord;
   /** A lossless DNG copy can be saved: a Nikon HE/HE* NEF in the desktop app. */
   dngCopy?: boolean;
+  /** This photo is a focus stack made in InFlight: the photos it was made from, in order. */
+  focusStack?: { sources: string[] };
+  /** This photo is a panorama stitched in InFlight: the photos it was made from, in order. */
+  panorama?: { sources: string[] };
   /** This photo is an HDR merge made in InFlight: its bracket, in order, with each one's measured exposure in stops. */
   hdrMerge?: { sources: Array<{ filename: string; ev: number }> };
   /** 'offered': a RAW whose full-size develop is not on screen and can be made here; 'running': it is being made. */
@@ -751,6 +759,10 @@ export interface WorkspaceActions {
   backToProjects: () => void;
   createProject: (name: string, kind?: 'photography' | 'collage') => void;
   createCollageFromSelection?: (photoIds: string[]) => void;
+  /** Focus stack the chosen photos into a new linked photo, as a background task (preview, behind its flag). */
+  focusStackPhotos?: (photoIds: string[]) => void;
+  /** Stitch the chosen photos into a new linked panorama, as a background task (preview, behind its flag). */
+  stitchPanorama?: (photoIds: string[]) => void;
   /** Merge the chosen bracket into a new linked 16-bit HDR photo, as a background task (preview, behind its flag). */
   hdrMergePhotos?: (photoIds: string[]) => void;
   exportCollage?: (request: import('../engineClient/exportCollage').CollageExportRequest) => Promise<void>;

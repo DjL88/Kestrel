@@ -4,6 +4,8 @@ import { readCollage } from './collage';
 import { parseSettings } from './projectSettings';
 import { validMasks } from './maskTypes';
 import { validHeal } from './heal';
+import { readFocusStackRecipe } from './focusStackRecipe';
+import { readPanoramaRecipe } from './panoramaRecipe';
 import { readHdrMergeRecipe } from './hdrMergeRecipe';
 import { validTrueDetailAi } from './trueDetailAi';
 import { validCurve, validMixer } from './curveMixer';
@@ -131,6 +133,8 @@ function frameIsValid(value: unknown): value is PhotoFrame {
   if (!recipeIsValid(value) || (value.editHistory !== undefined && !historyIsValid(value.editHistory))) return false;
   const focus = value.focusPoint;
   if (focus !== undefined && (!record(focus) || !number(focus.x, 0, 1) || !number(focus.y, 0, 1))) return false;
+  if (value.focusStack !== undefined && !readFocusStackRecipe(value.focusStack)) return false;
+  if (value.panorama !== undefined && !readPanoramaRecipe(value.panorama)) return false;
   if (value.hdrMerge !== undefined && !readHdrMergeRecipe(value.hdrMerge)) return false;
   const copy = value.virtualCopy;
   if (copy !== undefined && (!record(copy) || !key(copy.originalFrameId) || !number(copy.number, 1))) return false;

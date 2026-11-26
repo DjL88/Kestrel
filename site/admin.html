@@ -38,7 +38,7 @@
 <div id="console" hidden>
   <nav class="tabs" aria-label="Console sections">
     <a href="#overview">Overview</a><a href="#licensees">Licensees and devices</a><a href="#grant">Grant Pro</a><a href="#issue">Issue a key</a>
-    <a href="#demo-studio">Demo Studio</a><a href="#safety">Safety</a><a href="#switches">Switches</a><a href="#mail">Email</a><a href="#learning">Learning</a><a href="#flags">Flags</a><a href="#monitoring">Monitoring</a><a href="#notifications">Notifications</a><a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#price-review">Price review</a><a href="#audit">Audit log</a>
+    <a href="#demo-studio">Demo Studio</a><a href="#safety">Safety</a><a href="#switches">Switches</a><a href="#mail">Email</a><a href="#learning">Learning</a><a href="#flags">Flags</a><a href="#monitoring">Monitoring</a><a href="#notifications">Notifications</a><a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#accounts">Accounts</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#price-review">Price review</a><a href="#audit">Audit log</a>
   </nav>
 
   <section id="overview" class="panel" aria-labelledby="overview-title">
@@ -244,6 +244,33 @@
       <tbody></tbody>
     </table></div>
     <p id="payments-empty" class="muted" hidden>No payments yet.</p>
+  </section>
+
+  <section id="accounts" class="panel" aria-labelledby="accounts-title">
+    <h2 id="accounts-title">Accounts</h2>
+    <p class="muted">Read-only. Income, costs and profit for one month, in pounds. Nothing here changes a record, and a billing file you choose is read on this computer only, never uploaded.</p>
+    <p id="accounts-unavailable" class="muted" hidden></p>
+    <form id="accounts-month">
+      <label>Month <input type="month" name="month" min="2020-01" max="9998-12" required></label>
+      <button>Show month</button>
+    </form>
+    <dl id="accounts-summary" class="facts"></dl>
+    <p id="accounts-basis" class="muted"></p>
+    <h3>Income from Paddle</h3>
+    <dl id="accounts-income" class="facts"></dl>
+    <p id="accounts-income-notes" class="muted"></p>
+    <h3>Costs</h3>
+    <p id="accounts-cost-model"></p>
+    <label for="accounts-billing">Google Cloud bill for this month (CSV from Billing, then Reports, then Download CSV)</label>
+    <input id="accounts-billing" type="file" accept=".csv,text/csv">
+    <p id="accounts-billing-state" role="status"></p>
+    <div class="scroll" hidden><table id="accounts-billing-table">
+      <caption class="sr-only">Google Cloud costs by service</caption>
+      <thead><tr><th scope="col">Service</th><th scope="col">Cost</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <h3>VAT, in plain English</h3>
+    <ul id="accounts-vat-help"></ul>
   </section>
 
   <section id="messages" class="panel" aria-labelledby="messages-title">
