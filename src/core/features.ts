@@ -56,6 +56,9 @@ export const FEATURES = {
   // Culling from stored observations (x-std-rescore) and the Culling Assistant's live rule sliders (x-std-cull-rules):
   // a preview, off for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
   cullRules: 'flagged',
+  // Brand kits (K080): a saved logo, colours and text style put on an export in one step. A preview, off for everyone
+  // until an admin flag (or this device's preview switch) turns it on. Not a paywall.
+  brandKits: 'flagged',
 } as const;
 
 export type Feature = keyof typeof FEATURES;
