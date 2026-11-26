@@ -1990,7 +1990,7 @@ export const de: AreaTranslation<typeof source> = {
     receive: 'Kamera-WLAN',
     receiveHint: 'Fotos empfangen, die Ihre Kamera per WLAN (FTP-Übertragung) sendet, in einen Ordner Ihrer Wahl, und jedes hinzufügen, sobald es ankommt.',
     cameraSettings: 'Kameraeinstellungen',
-    ftpIntro: 'Geben Sie diese Werte in die FTP-Übertragungseinstellungen Ihrer Kamera ein. Kamera und Computer müssen im selben Netzwerk sein.',
+    ftpIntro: 'Geben Sie diese Werte in die Einstellungen für die FTP-Übertragung Ihrer Kamera ein. Kamera und Computer müssen im selben Netzwerk sein.',
     ftpServer: 'Server',
     ftpPort: 'Port',
     ftpUser: 'Benutzername',
