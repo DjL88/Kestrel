@@ -1442,6 +1442,9 @@ export const pt: AreaTranslation<typeof source> = {
       swipeLabel: "Deslizar para mudar de foto",
       swipeDesc: "Um deslize rápido com um dedo sobre a foto mostra a foto seguinte ou anterior. Desative se acontecer por engano.",
       penNote: "Com uma caneta como o Apple Pencil, os toques na foto são ignorados enquanto a caneta está pousada. Também por um instante depois, para que a sua mão nunca mova a foto.",
+      gamepadHeading: "Comando de jogos",
+      gamepadLabel: "Usar um comando de jogos",
+      gamepadDesc: "Selecione e edite com um comando Xbox, PlayStation ou semelhante. A cruz direcional muda de foto e de estrelas, e os manípulos movem o controlo deslizante em uso. Desligado até o ligar.",
     },
     language: {
       label: 'Idioma de apresentação',
@@ -1504,6 +1507,12 @@ export const pt: AreaTranslation<typeof source> = {
     nothing: 'Nada',
     learnLabel: (slot) => `Aprender a tecla de ${slot}`,
     resetPad: 'Repor a configuração inicial do teclado de macros',
+    gamepadHelp: "Escolha o que faz cada botão e cada direção dos manípulos. Os manípulos movem o último controlo deslizante usado, ou a exposição, nos mesmos passos que ao arrastar, por isso Anular desfaz. Os comandos não fazem nada enquanto as Definições estão abertas, para poder testar cada botão aqui.",
+    gamepadNone: "Nenhum comando encontrado. Ligue um e prima qualquer botão para o navegador o ver.",
+    gamepadConnected: (name: string) => `Ligado: ${name}`,
+    gamepadLast: (slot: string, action: string) => `Último premido: ${slot} (${action})`,
+    gamepadLastNothing: (slot: string) => `Último premido: ${slot} (não faz nada)`,
+    gamepadReset: "Repor o comando na configuração inicial",
   },
   cloudUsage: {
     title: 'Utilização da nuvem',

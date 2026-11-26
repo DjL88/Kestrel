@@ -70,7 +70,9 @@ export type FeatureKey =
   /** Preview: named saved views of the filmstrip's filters (off by default). */
   | 'savedViews'
   /** Preview: keys that jump to the next or previous photo still to review (off by default). */
-  | 'nextToReview';
+  | 'nextToReview'
+  /** Preview: HDR merge of a bracketed burst (off by default). */
+  | 'hdrMerge';
 
 export type SocialPlatform =
   | 'instagram'
@@ -466,6 +468,8 @@ export interface Photo {
   focusStack?: { sources: string[] };
   /** This photo is a panorama stitched in InFlight: the photos it was made from, in order. */
   panorama?: { sources: string[] };
+  /** This photo is an HDR merge made in InFlight: its bracket, in order, with each one's measured exposure in stops. */
+  hdrMerge?: { sources: Array<{ filename: string; ev: number }> };
   /** 'offered': a RAW whose full-size develop is not on screen and can be made here; 'running': it is being made. */
   fullDevelop?: 'offered' | 'running';
   picture?: { preview?: import('../../core/pictureSource').PictureProvenance; thumb?: import('../../core/pictureSource').PictureProvenance };
@@ -580,6 +584,8 @@ export interface WorkspaceSettings {
   advanceAfterDecision: boolean;
   /** A quick one-finger flick across the photo steps to the next or previous photo (touch screens). On by default. */
   swipeBetweenPhotos: boolean;
+  /** Game controllers (Gamepad API) run commands: Settings > Keyboard > Game controller. Off by default. */
+  gamepadEnabled?: boolean;
   ongoingCritique: boolean;
   defaultAssistMode: AssistMode;
   language: 'en-GB' | 'en-US' | 'de-DE' | 'fr-FR';
@@ -763,6 +769,8 @@ export interface WorkspaceActions {
   focusStackPhotos?: (photoIds: string[]) => void;
   /** Stitch the chosen photos into a new linked panorama, as a background task (preview, behind its flag). */
   stitchPanorama?: (photoIds: string[]) => void;
+  /** Merge the chosen bracket into a new linked 16-bit HDR photo, as a background task (preview, behind its flag). */
+  hdrMergePhotos?: (photoIds: string[]) => void;
   exportCollage?: (request: import('../engineClient/exportCollage').CollageExportRequest) => Promise<void>;
   updateCollage?: (document: import('../../core/collage').CollageDocument) => void;
   browseCollageProjectPhotos?: (sourceProjectId: string) => Promise<Array<{ id: string; filename: string }>>;

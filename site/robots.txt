@@ -3,4 +3,4 @@ Allow: /
 Disallow: /admin
 Disallow: /oauth-callback.html
 
-Sitemap: https://kestrel-hosting-kestrel.web.app/sitemap.xml
+Sitemap: https://inflight.studio/sitemap.xml

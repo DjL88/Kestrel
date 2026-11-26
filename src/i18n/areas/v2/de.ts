@@ -1442,6 +1442,9 @@ export const de: AreaTranslation<typeof source> = {
       swipeLabel: "Wischen, um das Foto zu wechseln",
       swipeDesc: "Ein schnelles Wischen mit einem Finger über das Foto zeigt das nächste oder vorherige Foto. Schalten Sie dies aus, wenn es versehentlich passiert.",
       penNote: "Mit einem Stift wie dem Apple Pencil werden Berührungen auf dem Foto ignoriert, solange der Stift aufliegt. Das gilt auch kurz nach dem Abheben, damit Ihre Hand das Foto nie bewegt.",
+      gamepadHeading: "Gamecontroller",
+      gamepadLabel: "Gamecontroller verwenden",
+      gamepadDesc: "Mit einem Xbox-, PlayStation- oder ähnlichen Controller sichten und bearbeiten. Das Steuerkreuz wechselt das Foto und ändert die Sterne, die Sticks bewegen den aktiven Regler. Aus, bis Sie es einschalten.",
     },
     language: {
       label: 'Anzeigesprache',
@@ -1504,6 +1507,12 @@ export const de: AreaTranslation<typeof source> = {
     nothing: 'Nichts',
     learnLabel: (slot) => `Taste für ${slot} anlernen`,
     resetPad: 'Pad auf die Starteinrichtung zurücksetzen',
+    gamepadHelp: "Wählen Sie, was jede Taste und jede Stick-Richtung tut. Die Sticks bewegen den zuletzt benutzten Regler oder die Belichtung in denselben Schritten wie beim Ziehen, sodass Rückgängig es zurücknimmt. Solange die Einstellungen offen sind, tun Controller nichts, damit Sie hier jede Taste prüfen können.",
+    gamepadNone: "Kein Controller gefunden. Schließen Sie einen an und drücken Sie eine beliebige Taste, damit der Browser ihn erkennt.",
+    gamepadConnected: (name: string) => `Verbunden: ${name}`,
+    gamepadLast: (slot: string, action: string) => `Zuletzt gedrückt: ${slot} (${action})`,
+    gamepadLastNothing: (slot: string) => `Zuletzt gedrückt: ${slot} (tut nichts)`,
+    gamepadReset: "Controller auf die Grundeinstellung zurücksetzen",
   },
   cloudUsage: {
     title: 'Cloud-Nutzung',

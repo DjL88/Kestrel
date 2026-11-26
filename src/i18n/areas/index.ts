@@ -6,6 +6,7 @@ import { editorArea } from './editor';
 import { emailArea } from './email';
 import { engineArea } from './engine';
 import { exportArea } from './export';
+import { hdrArea } from './hdr';
 import { healArea } from './heal';
 import { libraryArea } from './library';
 import { panoArea } from './pano';
@@ -23,4 +24,4 @@ import { viewerArea } from './viewer';
  * folder: `source.ts` (British English), one file per language, and `index.ts`, which exports the area's words for
  * the session's language and an `AreaEntry`.
  */
-export const AREAS: AreaEntry[] = [aiReviewArea, appArea, colourArea, editorArea, emailArea, engineArea, exportArea, healArea, libraryArea, panoArea, photoTagsArea, projectsArea, speciesAreaArea, stackArea, v2Area, vehiclesArea, viewerArea, workflowArea];
+export const AREAS: AreaEntry[] = [aiReviewArea, appArea, colourArea, editorArea, emailArea, engineArea, exportArea, hdrArea, healArea, libraryArea, panoArea, photoTagsArea, projectsArea, speciesAreaArea, stackArea, v2Area, vehiclesArea, viewerArea, workflowArea];

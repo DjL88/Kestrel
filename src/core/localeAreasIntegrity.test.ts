@@ -18,7 +18,7 @@ function leaves(value: unknown, path = ''): Array<{ path: string; value: unknown
 
 test('every photographer-facing translation area is registered exactly once', () => {
   const names = AREAS.map((area) => area.name);
-  assert.deepEqual([...names].sort(), ['aiReview', 'app', 'colour', 'editor', 'email', 'engine', 'export', 'heal', 'library', 'pano', 'photoTags', 'projects', 'speciesArea', 'stack', 'v2', 'vehicles', 'viewer', 'workflow']);
+  assert.deepEqual([...names].sort(), ['aiReview', 'app', 'colour', 'editor', 'email', 'engine', 'export', 'hdr', 'heal', 'library', 'pano', 'photoTags', 'projects', 'speciesArea', 'stack', 'v2', 'vehicles', 'viewer', 'workflow']);
   assert.equal(new Set(names).size, names.length);
 });
 

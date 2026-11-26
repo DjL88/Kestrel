@@ -1442,6 +1442,9 @@ export const cy: AreaTranslation<typeof source> = {
       swipeLabel: "Llithro i newid llun",
       swipeDesc: "Mae llithriad cyflym ag un bys ar draws y llun yn dangos y llun nesaf neu’r un blaenorol. Diffoddwch hyn os yw’n digwydd ar ddamwain.",
       penNote: "Gyda phen fel Apple Pencil, caiff cyffyrddiadau ar y llun eu hanwybyddu tra bo’r pen i lawr. Mae hyn yn para eiliad wedyn hefyd, fel nad yw’ch llaw byth yn symud y llun.",
+      gamepadHeading: "Rheolydd gemau",
+      gamepadLabel: "Defnyddio rheolydd gemau",
+      gamepadDesc: "Dewis a golygu gyda rheolydd Xbox, PlayStation neu debyg. Mae’r pad-D yn symud rhwng lluniau ac yn newid sêr, ac mae’r ffyn yn troi’r llithrydd sy’n cael ei ddefnyddio. I ffwrdd nes i chi ei droi ymlaen.",
     },
     language: {
       label: 'Iaith arddangos',
@@ -1504,6 +1507,12 @@ export const cy: AreaTranslation<typeof source> = {
     nothing: 'Dim',
     learnLabel: (slot) => `Dysgu’r fysell ar gyfer ${slot}`,
     resetPad: 'Ailosod y pad i’r gosodiad cychwynnol',
+    gamepadHelp: "Dewiswch beth mae pob botwm a phob cyfeiriad ffon yn ei wneud. Mae’r ffyn yn troi’r llithrydd a ddefnyddiwyd ddiwethaf, neu Amlygiad, yr un camau â llusgo, felly mae Dadwneud yn ei dynnu’n ôl. Nid yw rheolyddion yn gwneud dim tra bod Gosodiadau ar agor, fel y gallwch wirio pob botwm yma.",
+    gamepadNone: "Dim rheolydd wedi’i ganfod. Cysylltwch un, yna pwyswch unrhyw fotwm arno fel bod y porwr yn ei weld.",
+    gamepadConnected: (name: string) => `Wedi cysylltu: ${name}`,
+    gamepadLast: (slot: string, action: string) => `Pwyswyd ddiwethaf: ${slot} (${action})`,
+    gamepadLastNothing: (slot: string) => `Pwyswyd ddiwethaf: ${slot} (dim yn gwneud dim)`,
+    gamepadReset: "Ailosod y rheolydd i’r gosodiad cychwynnol",
   },
   cloudUsage: {
     title: 'Defnydd cwmwl',

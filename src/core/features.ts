@@ -45,6 +45,8 @@ export const FEATURES = {
   // everyone until an admin flag (or this device's preview switch) turns them on. Not a paywall.
   savedViews: 'flagged',
   nextToReview: 'flagged',
+  // HDR merge of a bracketed burst: a preview, off for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
+  hdrMerge: 'flagged',
 } as const;
 
 export type Feature = keyof typeof FEATURES;

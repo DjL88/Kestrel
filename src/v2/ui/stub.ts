@@ -626,6 +626,7 @@ export const DEFAULT_FEATURE_PLAN: Record<FeatureKey, 'basic' | 'pro'> = {
   panorama: 'basic',
   savedViews: 'basic',
   nextToReview: 'basic',
+  hdrMerge: 'basic',
 };
 
 export const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
@@ -642,6 +643,7 @@ export const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
   panorama: false,
   savedViews: false,
   nextToReview: false,
+  hdrMerge: false,
 };
 
 function logAction(name: string, payload?: unknown) {
@@ -736,6 +738,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       advancedControls: false,
       advanceAfterDecision: false,
       swipeBetweenPhotos: true,
+      gamepadEnabled: false,
     },
     activePanel: 'adjust',
     panels: createDefaultPanels(),

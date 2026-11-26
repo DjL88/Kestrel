@@ -69,6 +69,27 @@ export const source = {
     projectSaveRetrying: 'InFlight could not save this project. It keeps trying; leave InFlight open until it says saved. Your original photos are unchanged.',
     projectSavedAfterRetry: 'Saved. Nothing was lost.',
     projectNotOpened: 'That project could not be opened.',
+    /** Desktop Reconnect: find moved or unplugged originals in a folder or drive, proved by their contents. */
+    relink: {
+      chooseFolder: 'Choose the folder or drive that holds the original photos',
+      nothingMissing: 'Every original in this project is connected. Nothing was changed.',
+      checking: (count: number) => (count === 1
+        ? 'Checking 1 original against the files in that folder…'
+        : `Checking ${count} originals against the files in that folder…`),
+      reconnected: (count: number) => (count === 1
+        ? 'Reconnected 1 photo. Its contents match the original exactly.'
+        : `Reconnected ${count} photos. Their contents match the originals exactly.`),
+      stillMissing: (count: number) => (count === 1 ? '1 more still needs reconnecting.' : `${count} more still need reconnecting.`),
+      noMatch: 'No file in that folder matches a missing original, so nothing was linked. A file that only shares the name is never used.',
+      ambiguous: (count: number) => (count === 1
+        ? '1 photo has more than one identical file in that folder, so it was left for you to choose a narrower folder.'
+        : `${count} photos have more than one identical file in that folder, so they were left for you to choose a narrower folder.`),
+      unverifiable: (count: number) => (count === 1
+        ? '1 older photo has no recorded fingerprint, so it cannot be reconnected safely. Import it again as a new photo.'
+        : `${count} older photos have no recorded fingerprint, so they cannot be reconnected safely. Import them again as new photos.`),
+      scanLimit: 'That folder is too large to search completely. Choose a folder closer to the photos.',
+      unreadable: 'InFlight could not read that folder. Nothing was changed.',
+    },
     thumbnailsTask: (count: number) => (count === 1 ? 'Preparing 1 thumbnail' : `Preparing ${count} thumbnails`),
     thumbnailStage: 'Reading and scaling this photo',
     thumbnailFailed: (filename: string) => `Could not make the thumbnail for ${filename}. Reconnect the original and try again.`,

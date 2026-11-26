@@ -1445,6 +1445,9 @@ export const ga: AreaTranslation<typeof source> = {
       swipeLabel: "Svaidhpeáil chun an grianghraf a athrú",
       swipeDesc: "Taispeánann svaidhpeáil thapa le méar amháin trasna an ghrianghraif an chéad cheann eile nó an ceann roimhe. Múch é seo má tharlaíonn sé de thimpiste.",
       penNote: "Le peann ar nós Apple Pencil, déantar neamhaird ar theagmhálacha ar an ngrianghraf fad atá an peann síos. Leanann sé nóiméad ina dhiaidh freisin, ionas nach mbogann do lámh an grianghraf choíche.",
+      gamepadHeading: "Rialtán cluichí",
+      gamepadLabel: "Úsáid rialtán cluichí",
+      gamepadDesc: "Roghnaigh agus cuir in eagar le rialtán Xbox, PlayStation nó a leithéid. Bogann an D-cheap idir grianghraif agus athraíonn sé réaltaí, agus casann na maidí an sleamhnán atá in úsáid. As go dtí go gcasann tú air é.",
     },
     language: {
       label: 'Teanga taispeána',
@@ -1507,6 +1510,12 @@ export const ga: AreaTranslation<typeof source> = {
     nothing: 'Faic',
     learnLabel: (slot) => `Foghlaim an eochair do: ${slot}`,
     resetPad: 'Athshocraigh an ceap go dtí an socrú tosaigh',
+    gamepadHelp: "Roghnaigh cad a dhéanann gach cnaipe agus gach treo maide. Casann na maidí an sleamhnán is déanaí a úsáideadh, nó Nochtadh, sna céimeanna céanna le tarraingt, mar sin tugann Cealaigh ar ais é. Ní dhéanann rialtáin aon rud fad atá Socruithe oscailte, ionas gur féidir leat gach cnaipe a sheiceáil anseo.",
+    gamepadNone: "Níor aimsíodh rialtán. Ceangail ceann, ansin brúigh cnaipe ar bith air ionas go bhfeicfidh an brabhsálaí é.",
+    gamepadConnected: (name: string) => `Ceangailte: ${name}`,
+    gamepadLast: (slot: string, action: string) => `Brúite go deireanach: ${slot} (${action})`,
+    gamepadLastNothing: (slot: string) => `Brúite go deireanach: ${slot} (ní dhéanann aon rud)`,
+    gamepadReset: "Athshocraigh an rialtán go dtí an socrú tosaigh",
   },
   cloudUsage: {
     title: 'Úsáid néil',

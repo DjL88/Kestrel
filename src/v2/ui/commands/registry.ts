@@ -13,6 +13,7 @@ export type CommandId =
   | 'photo.next' | 'photo.prev'
   | 'photo.nextToReview' | 'photo.prevToReview'
   | 'photo.rate0' | 'photo.rate1' | 'photo.rate2' | 'photo.rate3' | 'photo.rate4' | 'photo.rate5'
+  | 'photo.rateUp' | 'photo.rateDown'
   | 'view.grid'
   | 'view.compare'
   | 'view.fullscreen'
@@ -56,6 +57,9 @@ export const COMMANDS: readonly CommandDefinition[] = [
   { id: 'photo.rate3', group: 'photos', label: 'Rate 3 stars', worksInFields: false, allowRepeat: false },
   { id: 'photo.rate4', group: 'photos', label: 'Rate 4 stars', worksInFields: false, allowRepeat: false },
   { id: 'photo.rate5', group: 'photos', label: 'Rate 5 stars', worksInFields: false, allowRepeat: false },
+  // For a controller's D-pad or a dial: one star more or fewer than the photo in view has. No key by default.
+  { id: 'photo.rateUp', group: 'photos', label: 'One more star', worksInFields: false, allowRepeat: false },
+  { id: 'photo.rateDown', group: 'photos', label: 'One fewer star', worksInFields: false, allowRepeat: false },
   { id: 'view.grid', group: 'view', label: 'All photos (grid view)', worksInFields: false, allowRepeat: false },
   { id: 'view.compare', group: 'view', label: 'Compare original and edit', worksInFields: false, allowRepeat: false },
   { id: 'view.fullscreen', group: 'view', label: 'Full screen', worksInFields: false, allowRepeat: false },
