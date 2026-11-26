@@ -7,6 +7,7 @@ import { useIsPro } from '../../../components/BrandLogo';
 import { LayoutToggle, ProjectRow, ProjectTile, readHubLayout, saveHubLayout, type HubLayout } from './ProjectCards';
 import { footerKiteLogo } from '../footerKiteLogo';
 import { POLICY_PATHS, SiteLink } from '../../../components/SiteLink';
+import WelcomeCard from './WelcomeCard';
 
 interface ProjectsHubProps {
   projects: Project[];
@@ -156,6 +157,9 @@ export default function ProjectsHub({
               </button>
             </div>
           </div>
+
+          {/* First run only: three plain facts, then never again on this device. */}
+          <WelcomeCard />
 
           {/* Hub States: Loading / Error / Empty / Ready */}
           {hubState === 'loading' && (
