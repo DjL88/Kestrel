@@ -4,6 +4,7 @@ import type { EditHistory } from './editHistory';
 import type { EditVersionTree } from './editBranches';
 import type { PhotoFraming } from './photoFraming';
 import type { PhotoEdit } from './photoEdits';
+import type { EditStatus } from './editStatus';
 
 export type CullDecision = 'unreviewed' | 'keep' | 'reject';
 
@@ -66,6 +67,8 @@ export interface ExifMetadata {
   exposureSeconds?: number;
   /** The camera's own capture dates, as the file's EXIF records them. Exports copy these unchanged. */
   captureStamp?: CaptureStamp;
+  /** Whether the file says it was already edited in another app (src/core/editStatus.ts). Absent for photos read before. */
+  editStatus?: EditStatus;
 }
 
 /**

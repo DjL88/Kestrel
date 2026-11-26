@@ -5,7 +5,8 @@ import { DEFAULT_EDIT } from '../../core/photoEdits';
 import { DEFAULT_FRAMING } from '../../core/photoFraming';
 import { createEmptyProject } from '../../core/projects';
 import type { PhotoFrame } from '../../core/types';
-import { commitAutoEdit } from './commitAutoEdit';
+import { autopilotSkipsEditedElsewhere, commitAutoEdit } from './commitAutoEdit';
+import { editStatusWords } from './frameToPhoto';
 
 const original: PhotoFrame = {
   id: 'photo', stableKey: 'original.jpg', filename: 'original.jpg', sequenceIndex: 1,
@@ -70,4 +71,15 @@ test('a held Auto-pilot edit says it was held, where the suggestion is, and that
   assert.match(AUTOPILOT_HELD_FOR_REVIEW, /held this edit for your review/);
   assert.match(AUTOPILOT_HELD_FOR_REVIEW, /Co-pilot/);
   assert.match(AUTOPILOT_HELD_FOR_REVIEW, /Nothing was changed\.$/);
+});
+
+test('Auto-pilot skips only photos whose file says they were edited elsewhere', () => {
+  const edited = { ...original, exif: { editStatus: { kind: 'edited-elsewhere' as const, evidence: [{ kind: 'editing-app' as const, app: 'GIMP 2.10' }] } } };
+  assert.equal(autopilotSkipsEditedElsewhere(edited), true);
+  assert.equal(autopilotSkipsEditedElsewhere({ ...original, exif: { editStatus: { kind: 'camera', evidence: [{ kind: 'raw-file' }] } } }), false);
+  assert.equal(autopilotSkipsEditedElsewhere({ ...original, exif: { editStatus: { kind: 'unknown', evidence: [] } } }), false);
+  // Photos read before this check have no status and are treated as before.
+  assert.equal(autopilotSkipsEditedElsewhere(original), false);
+  assert.deepEqual(editStatusWords(edited.exif.editStatus), { kind: 'edited-elsewhere', label: 'Edited elsewhere', detail: 'Saved by GIMP 2.10.' });
+  assert.equal(editStatusWords({ kind: 'unknown', evidence: [] }).detail, 'The file does not say.');
 });

@@ -3,6 +3,7 @@ import type { CaptureStamp, ExifMetadata } from './types';
 import { heifFormatLabel, isHeifFile, isRawPreviewFile, rawPreviewLabel } from './rawFormats';
 import { readHeifExif } from './heifExif';
 import { rawSensorSize } from './rawSensorSize';
+import { c2paActionsIn, readEditStatus } from './editStatus';
 
 /** Nikon TIFF-based RAW formats supported by the embedded-JPEG preview adapter. */
 export function isNikonEmbeddedPreviewFile(filename: string): boolean {
@@ -271,6 +272,15 @@ export function recordedDimensions(
   return isQuarterTurn(ifd0?.Orientation) ? { width: height, height: width } : { width, height };
 }
 
+/** C2PA manifests sit in the first segments of a JPEG, PNG or HEIF; a few megabytes covers one with its thumbnail. */
+const C2PA_SCAN_BYTES = 4 << 20;
+
+async function readHead(file: Blob, bytes: number): Promise<Uint8Array> {
+  // Node tests pass a Buffer, which is already the bytes.
+  if (file instanceof Uint8Array) return file.subarray(0, bytes);
+  return new Uint8Array(await file.slice(0, bytes).arrayBuffer());
+}
+
 export async function parseImageExif(
   file: Blob,
   filename: string
@@ -285,7 +295,7 @@ export async function parseImageExif(
     if (!metadata) return { formatLabel, isEmbeddedPreviewOnly: false };
     // A RAW's maker segments (XMP, thumbnails) can sit past the bytes read or be malformed. One bad segment must not
     // lose the camera, lens and size, so a failed full read retries with only the main TIFF and EXIF directories.
-    const segments = await exifr.parse(metadata, { xmp: true, mergeOutput: false, gps: true, interop: false })
+    const segments = await exifr.parse(metadata, { xmp: true, mergeOutput: false, gps: true, interop: false, makerNote: true })
       .catch(() => exifr.parse(metadata, { xmp: false, mergeOutput: false, gps: true, interop: false, ifd1: false, makerNote: false, userComment: false }));
     const parsed = { ...segments?.ifd0, ...segments?.exif };
     const rating = readEmbeddedRating(segments?.xmp?.Rating, parsed.Rating);
@@ -307,8 +317,15 @@ export async function parseImageExif(
     const width = sensor?.width ?? recorded.width;
     const height = sensor?.height ?? recorded.height;
 
+    const c2paActions = isNikonRaw ? [] : await readHead(file, C2PA_SCAN_BYTES).then(c2paActionsIn).catch(() => []);
+    const editStatus = readEditStatus({
+      isRaw: isNikonRaw, make: parsed.Make, software: segments?.ifd0?.Software, creatorTool: segments?.xmp?.CreatorTool,
+      crs: segments?.crs, xmpMM: segments?.xmpMM, hasMakerNote: segments?.makerNote != null || parsed.MakerNote != null, c2paActions,
+    });
+
     return {
       ...rating,
+      editStatus,
       camera: formatCameraLabel(parsed.Make, parsed.Model),
       lens: typeof parsed.LensModel === 'string' && parsed.LensModel.trim() ? parsed.LensModel.trim() : undefined,
       focalLengthMm:

@@ -418,6 +418,8 @@ export interface Photo {
   photoTags?: { id: string; facet: import('../../core/photoTags').TagFacet; label: string; words: string[] }[];
   sharpnessScore: number;
   exif: PhotoExif;
+  /** Whether the file says it was already edited in another app, in the person's words (src/core/editStatus.ts). */
+  editStatus?: { kind: import('../../core/editStatus').EditStatusKind; label: string; detail: string };
   activeGroupId: string;
   editGroups: EditGroup[];
   sizes: SizePreset[];

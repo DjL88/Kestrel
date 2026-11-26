@@ -249,6 +249,15 @@ export default function InfoPanel({
           <MetaRow label="Exposure" value={[photo.exif.aperture, photo.exif.shutter, photo.exif.iso > 0 ? `ISO ${photo.exif.iso}` : ''].filter(value => value && value !== 'Not recorded').join(' · ') || 'Not recorded'} mono />
           <MetaRow label="Focal length" value={photo.exif.focalLength} mono />
           <MetaRow label="Captured" value={photo.exif.capturedAt} />
+          {photo.editStatus && (
+            <div className="flex items-start justify-between gap-3" data-testid="edit-status">
+              <dt className="shrink-0 text-[var(--text-muted)]">{STRINGS.info.editStatusRow}</dt>
+              <dd className="text-right">
+                <span className="text-[var(--text-primary)]">{photo.editStatus.label}</span>
+                <span className="block text-[0.6875rem] text-[var(--text-secondary)]">{photo.editStatus.detail}</span>
+              </dd>
+            </div>
+          )}
         </dl>
       </section>
 
