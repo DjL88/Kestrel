@@ -1,3 +1,4 @@
+import { isDevelopRawExtension } from '../core/rawFormats';
 import { THUMB, bestTurn } from '../core/orientMatch';
 import { proveTiff16 } from '../core/tiff16Proof';
 import type { NativeRawMasterRecipe, NativeRawMasterFraming } from '../core/nativeRawMaster';
@@ -7,9 +8,7 @@ import { developRawInBrowser, inspectSensorModeInBrowser, sensorModeInBrowser, w
 /** Fail closed before allocating/copying a potentially huge RAW file for native decoding. */
 export function validateRawExtension(extension: string): string {
   const value = extension.toLowerCase();
-  if (!/^[a-z0-9]{2,5}$/.test(value) || !new Set([
-    'nef', 'nrw', 'cr2', 'cr3', 'arw', 'raf', 'rw2', 'orf', 'pef', 'dng', 'srw', '3fr',
-  ]).has(value)) {
+  if (!/^[a-z0-9]{2,5}$/.test(value) || !isDevelopRawExtension(value)) {
     throw new Error('This RAW file type is not supported for development. The original is unchanged.');
   }
   return value;
