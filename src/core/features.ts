@@ -53,6 +53,9 @@ export const FEATURES = {
   // Cloud edit settings (x-std-cloud-recipe): the 2,560 px smart preview goes up, a few KB of undoable edit settings
   // come back. A preview, off for everyone until an admin flag (or this device's preview switch) turns it on.
   cloudRecipe: 'flagged',
+  // Culling from stored observations (x-std-rescore) and the Culling Assistant's live rule sliders (x-std-cull-rules):
+  // a preview, off for everyone until an admin flag (or this device's preview switch) turns it on. Not a paywall.
+  cullRules: 'flagged',
 } as const;
 
 export type Feature = keyof typeof FEATURES;

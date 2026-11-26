@@ -162,6 +162,9 @@ export interface PhotoFrame {
    * 'other'). Absent when not yet read; then nothing names a codec. Only ever adds words to a label. */
   rawCodec?: import('./pictureSource').RawCodec;
   cullScore?: number;
+  /** The raw numbers the last cull scan measured on this photo (x-std-rescore, src/core/cullObservationStore.ts), so
+   * a threshold or scorer change can judge it again without a new scan. Untrusted when read back: always parsed. */
+  cullObservation?: import('./cullObservationStore').StoredCullObservation;
   /** The person chose to see this burst's frames one by one (set on every frame of the burst). Never changes a decision. */
   burstUngrouped?: boolean;
   burstGroupId: string | null;
